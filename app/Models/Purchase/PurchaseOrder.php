@@ -6,6 +6,7 @@ use App\Enums\FormStatus;
 use App\Models\Core\Currency;
 use App\Models\Finances\PaymentSchedule;
 use App\Models\Model;
+use App\Services\Purchase\PurchaseOrderService;
 use App\Traits\DataTable;
 use App\Traits\Submitable;
 use Illuminate\Database\Eloquent\Concerns\HasUlids;
@@ -14,8 +15,9 @@ use Illuminate\Database\Eloquent\SoftDeletes;
 class PurchaseOrder extends Model {
     use DataTable, HasUlids, SoftDeletes, Submitable;
 
-    protected $guarded = ['id'];
-    protected $casts   = [
+    public static string $service = PurchaseOrderService::class;
+    protected $guarded            = ['id'];
+    protected $casts              = [
         'required_date'                 => 'datetime',
         'date'                          => 'datetime',
         'exchange_rate'                 => 'float',

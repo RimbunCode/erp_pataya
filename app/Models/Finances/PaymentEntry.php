@@ -4,6 +4,7 @@ namespace App\Models\Finances;
 
 use App\Models\Core\Currency;
 use App\Models\Model;
+use App\Services\Finances\PaymentEntryService;
 use App\Traits\DataTable;
 use App\Traits\Submitable;
 use Illuminate\Database\Eloquent\Concerns\HasUlids;
@@ -12,6 +13,7 @@ use Illuminate\Database\Eloquent\SoftDeletes;
 class PaymentEntry extends Model {
     use DataTable, HasUlids, SoftDeletes, Submitable;
 
+    public static string $service              = PaymentEntryService::class;
     public string $formComponent               = 'Finances/PaymentEntries/Form';
     protected static string $defaultFormatCode = 'PaymentEntry-@[iiii]/@[yy]';
     protected $casts                           = [

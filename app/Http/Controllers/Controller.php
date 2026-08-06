@@ -525,20 +525,6 @@ abstract class Controller {
         return back();
     }
 
-    public function onApproved(mixed $id) {
-        $data = $this->model::findOrFail($id);
-        $this->service?->onApproved($data);
-
-        return back();
-    }
-
-    public function onRejected(mixed $id) {
-        $data = $this->model::findOrFail($id);
-        $this->service?->onRejected($data);
-
-        return back();
-    }
-
     /**
      * Hook validasi sebelum penghapusan. Controller meng-override untuk
      * guard tambahan (mis. BranchController menolak hapus branch utama).

@@ -2,6 +2,7 @@
 
 namespace App\Services\Finances;
 
+use App\Contracts\SubmitableService;
 use App\Enums\FormStatus;
 use App\Models\Core\FormatingSeries;
 use App\Models\Core\ModelConnection;
@@ -12,16 +13,20 @@ use App\Models\Finances\Tax;
 use App\Models\Inventory\ItemUnit;
 use App\Models\Inventory\Stock;
 use App\Models\Inventory\StockLedgerEntry;
+use App\Models\Model;
 use App\Models\Purchase\PurchaseOrder;
 use App\Models\Purchase\PurchaseOrderItem;
 use App\Models\Purchase\PurchaseReceipt;
 use App\Models\Purchase\Supplier;
+use App\Traits\HasDefaultDelete;
 use App\Utils;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Validation\ValidationException;
 use Symfony\Component\Uid\Ulid;
 
-class PurchaseInvoiceService {
+class PurchaseInvoiceService implements SubmitableService {
+    use HasDefaultDelete;
+
     private function fillRelations(array $data) {
         $data['purchase_order_id'] = $data['purchase_order']['id'];
         $data['supplier_id']       = $data['supplier']['id'];
@@ -88,7 +93,7 @@ class PurchaseInvoiceService {
         return $data;
     }
 
-    public function create(array $data) {
+    public function create(array $data): Model {
         $data['code']    = FormatingSeries::generate(PurchaseInvoice::class, $data, true);
         $purchaseInvoice = PurchaseInvoice::create($this->fillRelations($data));
 
@@ -121,7 +126,7 @@ class PurchaseInvoiceService {
         return $purchaseInvoice;
     }
 
-    public function update(PurchaseInvoice $purchaseInvoice, array $data) {
+    public function update(Model $purchaseInvoice, array $data): Model {
         $purchaseInvoice->fillForUpdate($this->fillRelations($data));
 
         $basicAmount = 0;
@@ -198,7 +203,7 @@ class PurchaseInvoiceService {
         return $purchaseInvoice;
     }
 
-    public function submit(PurchaseInvoice $purchaseInvoice) {
+    public function submit(Model $purchaseInvoice): mixed {
         DB::beginTransaction();
 
         $purchaseInvoice->update([
@@ -241,7 +246,7 @@ class PurchaseInvoiceService {
         return $purchaseInvoice;
     }
 
-    public function onApproved(PurchaseInvoice $purchaseInvoice) {
+    public function onApproved(Model $purchaseInvoice): mixed {
         DB::beginTransaction();
 
         try {
@@ -520,7 +525,7 @@ class PurchaseInvoiceService {
         ]);
     }
 
-    public function onRejected(PurchaseInvoice $purchaseInvoice) {
+    public function onRejected(Model $purchaseInvoice): mixed {
         DB::beginTransaction();
         $purchaseInvoice->update([
             'status' => FormStatus::REJECTED,
@@ -531,11 +536,15 @@ class PurchaseInvoiceService {
         return $purchaseInvoice;
     }
 
-    public function cancel(PurchaseInvoice $purchaseInvoice) {
+    public function cancel(Model $purchaseInvoice): mixed {
         $purchaseInvoice->update([
             'status' => FormStatus::CANCELED,
         ]);
 
         return $purchaseInvoice;
+    }
+
+    public function amend(Model $model): mixed {
+        return $model;
     }
 }

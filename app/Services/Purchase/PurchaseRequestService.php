@@ -2,16 +2,21 @@
 
 namespace App\Services\Purchase;
 
+use App\Contracts\SubmitableService;
 use App\Enums\FormStatus;
 use App\Models\Core\FormatingSeries;
 use App\Models\Core\ModelConnection;
 use App\Models\Inventory\ItemUnit;
+use App\Models\Model;
 use App\Models\Purchase\PurchaseRequest;
 use App\Models\Purchase\PurchaseRequestItem;
+use App\Traits\HasDefaultDelete;
 use Illuminate\Support\Facades\DB;
 use Symfony\Component\Uid\Ulid;
 
-class PurchaseRequestService {
+class PurchaseRequestService implements SubmitableService {
+    use HasDefaultDelete;
+
     private function fillRelations(array $data) {
         return $data;
     }
@@ -33,7 +38,7 @@ class PurchaseRequestService {
         return ItemUnit::with('unit')->whereIn('item_units.id', $unitIds)->get()->keyBy('id')->all();
     }
 
-    public function create(array $data) {
+    public function create(array $data): Model {
         $data['code'] = FormatingSeries::generate(PurchaseRequest::class, $data, true);
         $pr           = PurchaseRequest::create($this->fillRelations($data));
 
@@ -47,7 +52,7 @@ class PurchaseRequestService {
         return $pr;
     }
 
-    public function update(PurchaseRequest $purchaseRequest, array $data) {
+    public function update(Model $purchaseRequest, array $data): Model {
         $purchaseRequest->fillForUpdate($this->fillRelations($data));
 
         $purchaseRequest->items()
@@ -79,7 +84,7 @@ class PurchaseRequestService {
         return $purchaseRequest;
     }
 
-    public function submit(PurchaseRequest $purchaseRequest) {
+    public function submit(Model $purchaseRequest): mixed {
         $purchaseRequest->update([
             'code' => FormatingSeries::generate(PurchaseRequest::class, $purchaseRequest),
         ]);
@@ -88,7 +93,7 @@ class PurchaseRequestService {
         return $purchaseRequest;
     }
 
-    public function onApproved(PurchaseRequest $purchaseRequest) {
+    public function onApproved(Model $purchaseRequest): mixed {
         DB::beginTransaction();
         $purchaseRequest->update([
             'status' => FormStatus::TO_ORDER,
@@ -178,7 +183,7 @@ class PurchaseRequestService {
         return $purchaseRequest;
     }
 
-    public function onRejected(PurchaseRequest $purchaseRequest) {
+    public function onRejected(Model $purchaseRequest): mixed {
         $purchaseRequest->update([
             'status' => FormStatus::REJECTED,
         ]);
@@ -186,11 +191,15 @@ class PurchaseRequestService {
         return $purchaseRequest;
     }
 
-    public function cancel(PurchaseRequest $purchaseRequest) {
+    public function cancel(Model $purchaseRequest): mixed {
         $purchaseRequest->update([
             'status' => FormStatus::CANCELED,
         ]);
 
         return $purchaseRequest;
+    }
+
+    public function amend(Model $model): mixed {
+        return $model;
     }
 }

@@ -1,0 +1,6 @@
+{
+  "specId": "d6bca41e-35f4-4874-89d5-9ff17869da8b",
+  "workflowType": "requirements-first",
+  "specType": "feature",
+  "description": "Rewrite sistem approval: hilangkan string-based dynamic dispatch (app()->call) di checkApproval() dan callDocumentCallback(), ganti dengan resolusi Service dokumen eksplisit lewat property $service dan interface kontrak CrudService/SubmitableService. Prasyarat sebelum event-listener-migration-phase-1 Requirement 2."
+}

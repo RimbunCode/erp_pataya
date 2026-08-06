@@ -2,6 +2,7 @@
 
 namespace App\Services\Inventory;
 
+use App\Contracts\SubmitableService;
 use App\Enums\FormStatus;
 use App\Models\Core\FormatingSeries;
 use App\Models\Core\ModelConnection;
@@ -10,17 +11,21 @@ use App\Models\Inventory\DeliveryNote;
 use App\Models\Inventory\ItemUnit;
 use App\Models\Inventory\Stock;
 use App\Models\Inventory\StockLedgerEntry;
+use App\Models\Model;
 use App\Models\Sales\InternalOrderItem;
 use App\Models\Sales\SalesOrder;
 use App\Models\Sales\SalesOrderItem;
 use App\Services\Sales\SalesOrderService;
+use App\Traits\HasDefaultDelete;
 use App\Utils;
 use Illuminate\Support\Collection;
 use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\DB;
 use Symfony\Component\Uid\Ulid;
 
-class DeliveryNoteService {
+class DeliveryNoteService implements SubmitableService {
+    use HasDefaultDelete;
+
     /**
      * Create a new class instance.
      */
@@ -73,7 +78,7 @@ class DeliveryNoteService {
         return ItemUnit::whereIn('item_units.id', $unitIds)->get()->keyBy('id')->all();
     }
 
-    public function create(array $data) {
+    public function create(array $data): Model {
         $data['code'] = FormatingSeries::generate(DeliveryNote::class, $data, true);
         $deliveryNote = DeliveryNote::create($this->fillRelations($data));
 
@@ -89,7 +94,7 @@ class DeliveryNoteService {
         return $deliveryNote;
     }
 
-    public function update(DeliveryNote $deliveryNote, array $data) {
+    public function update(Model $deliveryNote, array $data): Model {
         $deliveryNote->fillForUpdate($this->fillRelations($data));
 
         $deliveryNote->items()
@@ -124,7 +129,7 @@ class DeliveryNoteService {
     }
 
     // submit function for delivery note
-    public function submit(DeliveryNote $deliveryNote) {
+    public function submit(Model $deliveryNote): mixed {
         DB::beginTransaction();
 
         $deliveryNote->update([
@@ -155,7 +160,7 @@ class DeliveryNoteService {
         return $deliveryNote;
     }
 
-    public function onApproved(DeliveryNote $deliveryNote) {
+    public function onApproved(Model $deliveryNote): mixed {
         DB::beginTransaction();
         $returnAgainst = $deliveryNote->returnAgainst;
         $deliveryNote->update([
@@ -441,7 +446,7 @@ class DeliveryNoteService {
         return $deliveryNote;
     }
 
-    public function onRejected(DeliveryNote $deliveryNote) {
+    public function onRejected(Model $deliveryNote): mixed {
         $deliveryNote->update([
             'status' => FormStatus::REJECTED,
         ]);
@@ -449,11 +454,15 @@ class DeliveryNoteService {
         return $deliveryNote;
     }
 
-    public function cancel(DeliveryNote $deliveryNote) {
+    public function cancel(Model $deliveryNote): mixed {
         $deliveryNote->update([
             'status' => FormStatus::CANCELED,
         ]);
 
         return $deliveryNote;
+    }
+
+    public function amend(Model $model): mixed {
+        return $model;
     }
 }

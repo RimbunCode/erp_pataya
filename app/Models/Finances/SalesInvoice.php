@@ -8,6 +8,7 @@ use App\Models\Core\Currency;
 use App\Models\Model;
 use App\Models\Sales\Customer;
 use App\Models\Sales\SalesOrder;
+use App\Services\Finances\SalesInvoiceService;
 use App\Traits\DataTable;
 use App\Traits\Submitable;
 use Illuminate\Database\Eloquent\Concerns\HasUlids;
@@ -16,9 +17,10 @@ use Illuminate\Database\Eloquent\SoftDeletes;
 class SalesInvoice extends Model {
     use DataTable, HasUlids, SoftDeletes, Submitable;
 
-    public string $formComponent = 'Finances/SalesInvoice/Form';
-    protected $guarded           = ['id'];
-    protected $casts             = [
+    public static string $service = SalesInvoiceService::class;
+    public string $formComponent  = 'Finances/SalesInvoice/Form';
+    protected $guarded            = ['id'];
+    protected $casts              = [
         'date'                             => 'datetime',
         'exchange_rate'                    => 'float',
         'amount'                           => 'float',

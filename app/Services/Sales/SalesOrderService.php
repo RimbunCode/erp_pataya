@@ -2,6 +2,7 @@
 
 namespace App\Services\Sales;
 
+use App\Contracts\SubmitableService;
 use App\Enums\FormStatus;
 use App\Models\Core\Branch;
 use App\Models\Core\FormatingSeries;
@@ -14,9 +15,11 @@ use App\Models\Inventory\DeliveryNote;
 use App\Models\Inventory\DeliveryNoteItem;
 use App\Models\Inventory\ItemUnit;
 use App\Models\Inventory\Stock;
+use App\Models\Model;
 use App\Models\Sales\Customer;
 use App\Models\Sales\SalesOrder;
 use App\Models\Sales\SalesOrderItem;
+use App\Traits\HasDefaultDelete;
 use App\Utils;
 use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\DB;
@@ -24,7 +27,9 @@ use Illuminate\Support\Str;
 use Illuminate\Validation\ValidationException;
 use Symfony\Component\Uid\Ulid;
 
-class SalesOrderService {
+class SalesOrderService implements SubmitableService {
+    use HasDefaultDelete;
+
     private function fillRelations(array $data) {
         $data['customer_id']          = $data['customer']['id'];
         $data['customer_name']        = Customer::find($data['customer']['id'])?->name;
@@ -72,7 +77,7 @@ class SalesOrderService {
         return $data;
     }
 
-    public function create(array $data) {
+    public function create(array $data): Model {
         $data['code'] = FormatingSeries::generate(SalesOrder::class, $data, true);
         $salesOrder   = SalesOrder::create($this->fillRelations($data));
         $basicAmount  = 0;
@@ -106,7 +111,7 @@ class SalesOrderService {
         return $salesOrder;
     }
 
-    public function update(SalesOrder $salesOrder, array $data) {
+    public function update(Model $salesOrder, array $data): Model {
         $salesOrder->fillForUpdate($this->fillRelations($data), true);
 
         $salesOrder->items()
@@ -183,7 +188,7 @@ class SalesOrderService {
         return $salesOrder;
     }
 
-    public function submit(SalesOrder $salesOrder) {
+    public function submit(Model $salesOrder): mixed {
         DB::beginTransaction();
 
         $salesOrder->update([
@@ -264,7 +269,11 @@ class SalesOrderService {
         return $salesOrder;
     }
 
-    public function onApproved(SalesOrder $salesOrder) {
+    public function amend(Model $model): mixed {
+        return $model;
+    }
+
+    public function onApproved(Model $salesOrder): mixed {
         $salesOrder->update([
             'status' => [
                 FormStatus::TO_DELIVER,
@@ -561,7 +570,7 @@ class SalesOrderService {
         }
     }
 
-    public function onRejected(SalesOrder $salesOrder) {
+    public function onRejected(Model $salesOrder): mixed {
         DB::beginTransaction();
         $salesOrder->update([
             'status' => [
@@ -576,7 +585,7 @@ class SalesOrderService {
         return $salesOrder;
     }
 
-    public function cancel(SalesOrder $salesOrder) {
+    public function cancel(Model $salesOrder): mixed {
         DB::beginTransaction();
         $salesOrder->update([
             'status' => [

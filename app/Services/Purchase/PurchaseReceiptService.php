@@ -2,6 +2,7 @@
 
 namespace App\Services\Purchase;
 
+use App\Contracts\SubmitableService;
 use App\Enums\FormStatus;
 use App\Models\Core\FormatingSeries;
 use App\Models\Core\ModelConnection;
@@ -11,15 +12,19 @@ use App\Models\Finances\PurchaseInvoiceItem;
 use App\Models\Inventory\ItemUnit;
 use App\Models\Inventory\Stock;
 use App\Models\Inventory\StockLedgerEntry;
+use App\Models\Model;
 use App\Models\Purchase\PurchaseOrder;
 use App\Models\Purchase\PurchaseOrderItem;
 use App\Models\Purchase\PurchaseReceipt;
+use App\Traits\HasDefaultDelete;
 use App\Utils;
 use Illuminate\Support\Collection;
 use Illuminate\Support\Facades\DB;
 use Symfony\Component\Uid\Ulid;
 
-class PurchaseReceiptService {
+class PurchaseReceiptService implements SubmitableService {
+    use HasDefaultDelete;
+
     private function fillRelations(array $data) {
         $data['purchase_order_id'] = $data['purchase_order']['id'];
         $data['supplier_id']       = $data['supplier']['id'];
@@ -50,7 +55,7 @@ class PurchaseReceiptService {
         return ItemUnit::whereIn('item_units.id', $unitIds)->get()->keyBy('id')->all();
     }
 
-    public function create(array $data) {
+    public function create(array $data): Model {
         $data['code']       = FormatingSeries::generate(PurchaseReceipt::class, $data, true);
         $purchaseReceipt    = PurchaseReceipt::create($this->fillRelations($data));
         $units              = $this->batchLoadUnits($data);
@@ -64,7 +69,7 @@ class PurchaseReceiptService {
         return $purchaseReceipt;
     }
 
-    public function update(PurchaseReceipt $purchaseReceipt, array $data) {
+    public function update(Model $purchaseReceipt, array $data): Model {
         $purchaseReceipt->fillForUpdate($this->fillRelations($data));
 
         $purchaseReceipt->items()
@@ -98,7 +103,7 @@ class PurchaseReceiptService {
         return $purchaseReceipt;
     }
 
-    public function submit(PurchaseReceipt $purchaseReceipt) {
+    public function submit(Model $purchaseReceipt): mixed {
         DB::beginTransaction();
 
         $purchaseReceipt->update([
@@ -116,7 +121,11 @@ class PurchaseReceiptService {
         return $purchaseReceipt;
     }
 
-    public function onApproved(PurchaseReceipt $purchaseReceipt) {
+    public function amend(Model $model): mixed {
+        return $model;
+    }
+
+    public function onApproved(Model $purchaseReceipt): mixed {
         DB::beginTransaction();
         $returnAgainst = $purchaseReceipt->returnAgainst;
         $purchaseReceipt->update([
@@ -447,7 +456,7 @@ class PurchaseReceiptService {
         ]);
     }
 
-    public function onRejected(PurchaseReceipt $purchaseReceipt) {
+    public function onRejected(Model $purchaseReceipt): mixed {
         $purchaseReceipt->update([
             'status' => [
                 FormStatus::REJECTED,
@@ -457,7 +466,7 @@ class PurchaseReceiptService {
         return $purchaseReceipt;
     }
 
-    public function cancel(PurchaseReceipt $purchaseReceipt) {
+    public function cancel(Model $purchaseReceipt): mixed {
         $purchaseReceipt->update([
             'status' => [
                 FormStatus::CANCELED,

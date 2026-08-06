@@ -4,9 +4,9 @@ namespace App\Traits;
 
 use App\Casts\FormStatusesCast;
 use App\Casts\Json;
+use App\Contracts\SubmitableService;
 use App\Enums\FormStatus;
 use App\Events\Core\DocumentCanceled;
-use App\Http\Controllers\Core\ApprovalInstanceController;
 use App\Models\Core\ApprovalInstance;
 use App\Models\Core\Branch;
 use App\Models\Core\FormatingSeries;
@@ -17,6 +17,7 @@ use App\Models\Model;
 use App\Models\User\User;
 use App\Notifications\ApprovalCanceledNotification;
 use App\Notifications\DocumentSubmittedNotification;
+use App\Services\Core\Approval\ApprovalService;
 use App\Services\Core\Notification\NotifyUser;
 use Illuminate\Database\Eloquent\Relations\HasMany;
 use Illuminate\Database\Eloquent\Relations\MorphMany;
@@ -199,11 +200,25 @@ trait Submitable {
     }
 
     public function checkApproval(array $options = [], string $triggerOn = 'submit') {
-        return app()->call(\implode([ApprovalInstanceController::class, '@', 'checkApproval']), [
-            'data'    => $this,
-            'options' => $options,
-            'trigger' => $triggerOn,
-        ]);
+        if (! \property_exists(static::class, 'service')) {
+            throw new \LogicException(
+                static::class . ' harus mendeklarasikan property $service untuk memakai checkApproval().',
+            );
+        }
+
+        if (! \is_subclass_of(static::$service, SubmitableService::class)) {
+            throw new \LogicException(
+                static::$service . ' harus implement ' . SubmitableService::class . '.',
+            );
+        }
+
+        return DB::transaction(function () use ($options, $triggerOn) {
+            $result = app(ApprovalService::class)->check($this, static::$service, $options, $triggerOn);
+            $this->logForSubmitted();
+            DB::commit();
+
+            return $result;
+        });
     }
 
     public function amend($withRelations = true) {

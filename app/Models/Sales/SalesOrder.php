@@ -8,6 +8,7 @@ use App\Models\Core\Currency;
 use App\Models\Finances\PaymentSchedule;
 use App\Models\Model;
 use App\Services\Sales\RentalDurationService;
+use App\Services\Sales\SalesOrderService;
 use App\Traits\DataTable;
 use App\Traits\Submitable;
 use Carbon\Carbon;
@@ -18,11 +19,12 @@ use Illuminate\Database\Eloquent\SoftDeletes;
 class SalesOrder extends Model {
     use DataTable, HasUlids, SoftDeletes, Submitable;
 
-    public string $formComponent = 'Sales/SalesOrders/Form';
-    protected $guarded           = ['id'];
-    public $keyBreadcrumb        = 'code';
-    public $translateKey         = 'sales.salesOrder';
-    protected $casts             = [
+    public static string $service = SalesOrderService::class;
+    public string $formComponent  = 'Sales/SalesOrders/Form';
+    protected $guarded            = ['id'];
+    public $keyBreadcrumb         = 'code';
+    public $translateKey          = 'sales.salesOrder';
+    protected $casts              = [
         'date'                          => 'datetime',
         'is_rent'                       => 'boolean',
         'start_date'                    => 'datetime',

@@ -2,6 +2,7 @@
 
 namespace App\Services\Finances;
 
+use App\Contracts\SubmitableService;
 use App\Enums\FormStatus;
 use App\Models\Core\Branch;
 use App\Models\Core\FormatingSeries;
@@ -10,16 +11,20 @@ use App\Models\Core\Preference;
 use App\Models\Finances\SalesInvoice;
 use App\Models\Finances\Tax;
 use App\Models\Inventory\ItemUnit;
+use App\Models\Model;
 use App\Models\Sales\Customer;
 use App\Models\Sales\SalesOrder;
 use App\Models\Sales\SalesOrderItem;
 use App\Services\Sales\SalesOrderService;
+use App\Traits\HasDefaultDelete;
 use App\Utils;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Validation\ValidationException;
 use Symfony\Component\Uid\Ulid;
 
-class SalesInvoiceService {
+class SalesInvoiceService implements SubmitableService {
+    use HasDefaultDelete;
+
     private function fillRelations(array $data) {
         $data['sales_order_id']    = $data['sales_order']['id'];
         $data['customer_id']       = $data['customer']['id'];
@@ -94,7 +99,7 @@ class SalesInvoiceService {
         return $data;
     }
 
-    public function create(array $data) {
+    public function create(array $data): Model {
         $data['code'] = FormatingSeries::generate(SalesInvoice::class, $data, true);
         $salesInvoice = SalesInvoice::create($this->fillRelations($data));
         $basicAmount  = 0;
@@ -128,7 +133,7 @@ class SalesInvoiceService {
         return $salesInvoice;
     }
 
-    public function update(SalesInvoice $salesInvoice, array $data) {
+    public function update(Model $salesInvoice, array $data): Model {
         $salesInvoice->fillForUpdate($this->fillRelations($data), true);
         $basicAmount = 0;
         $taxAmount   = 0;
@@ -202,7 +207,7 @@ class SalesInvoiceService {
         return $salesInvoice;
     }
 
-    public function submit(SalesInvoice $salesInvoice) {
+    public function submit(Model $salesInvoice): mixed {
         DB::beginTransaction();
 
         $salesInvoice->update([
@@ -247,7 +252,7 @@ class SalesInvoiceService {
         return $salesInvoice;
     }
 
-    public function onApproved(SalesInvoice $salesInvoice) {
+    public function onApproved(Model $salesInvoice): mixed {
         DB::beginTransaction();
 
         try {
@@ -343,7 +348,7 @@ class SalesInvoiceService {
         }
     }
 
-    public function onRejected(SalesInvoice $salesInvoice) {
+    public function onRejected(Model $salesInvoice): mixed {
         $salesInvoice->update([
             'status' => FormStatus::REJECTED,
         ]);
@@ -351,11 +356,15 @@ class SalesInvoiceService {
         return $salesInvoice;
     }
 
-    public function cancel(SalesInvoice $salesInvoice) {
+    public function cancel(Model $salesInvoice): mixed {
         $salesInvoice->update([
             'status' => FormStatus::CANCELED,
         ]);
 
         return $salesInvoice;
+    }
+
+    public function amend(Model $model): mixed {
+        return $model;
     }
 }

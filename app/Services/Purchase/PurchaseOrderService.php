@@ -2,6 +2,7 @@
 
 namespace App\Services\Purchase;
 
+use App\Contracts\SubmitableService;
 use App\Enums\FormStatus;
 use App\Models\Core\FormatingSeries;
 use App\Models\Core\ModelConnection;
@@ -11,11 +12,13 @@ use App\Models\Finances\PurchaseInvoiceItem;
 use App\Models\Finances\Tax;
 use App\Models\Inventory\ItemUnit;
 use App\Models\Inventory\Stock;
+use App\Models\Model;
 use App\Models\Purchase\PurchaseOrder;
 use App\Models\Purchase\PurchaseOrderItem;
 use App\Models\Purchase\PurchaseReceipt;
 use App\Models\Purchase\PurchaseReceiptItem;
 use App\Models\Purchase\Supplier;
+use App\Traits\HasDefaultDelete;
 use App\Utils;
 use Illuminate\Support\Collection;
 use Illuminate\Support\Facades\DB;
@@ -23,7 +26,9 @@ use Illuminate\Support\Str;
 use Illuminate\Validation\ValidationException;
 use Symfony\Component\Uid\Ulid;
 
-class PurchaseOrderService {
+class PurchaseOrderService implements SubmitableService {
+    use HasDefaultDelete;
+
     private function fillRelations(array $data) {
         $data['supplier_id']   = $data['supplier']['id'];
         $data['supplier_name'] = Supplier::find($data['supplier']['id'])?->name;
@@ -78,7 +83,7 @@ class PurchaseOrderService {
         return $data;
     }
 
-    public function create(array $data) {
+    public function create(array $data): Model {
         $data['code']  = FormatingSeries::generate(PurchaseOrder::class, $data, true);
         $purchaseOrder = PurchaseOrder::create($this->fillRelations($data));
 
@@ -112,7 +117,7 @@ class PurchaseOrderService {
         return $purchaseOrder;
     }
 
-    public function update(PurchaseOrder $purchaseOrder, array $data) {
+    public function update(Model $purchaseOrder, array $data): Model {
         $purchaseOrder->fillForUpdate($this->fillRelations($data));
 
         $basicAmount = 0;
@@ -196,7 +201,7 @@ class PurchaseOrderService {
         return $purchaseOrder;
     }
 
-    public function submit(PurchaseOrder $purchaseOrder) {
+    public function submit(Model $purchaseOrder): mixed {
         DB::beginTransaction();
 
         // ensure payment schedule portions valid when provided
@@ -247,7 +252,7 @@ class PurchaseOrderService {
         return $purchaseOrder;
     }
 
-    public function onApproved(PurchaseOrder $purchaseOrder) {
+    public function onApproved(Model $purchaseOrder): mixed {
         DB::beginTransaction();
         $purchaseOrder->update([
             'status' => [FormStatus::TO_RECEIVE, FormStatus::TO_BILL],
@@ -302,7 +307,7 @@ class PurchaseOrderService {
         }
     }
 
-    public function onRejected(PurchaseOrder $purchaseOrder) {
+    public function onRejected(Model $purchaseOrder): mixed {
         DB::beginTransaction();
         $purchaseOrder->update([
             'status' => [
@@ -317,7 +322,7 @@ class PurchaseOrderService {
         return $purchaseOrder;
     }
 
-    public function cancel(PurchaseOrder $purchaseOrder) {
+    public function cancel(Model $purchaseOrder): mixed {
         DB::beginTransaction();
         $purchaseOrder->update([
             'status' => [
@@ -330,6 +335,10 @@ class PurchaseOrderService {
         DB::commit();
 
         return $purchaseOrder;
+    }
+
+    public function amend(Model $model): mixed {
+        return $model;
     }
 
     /**

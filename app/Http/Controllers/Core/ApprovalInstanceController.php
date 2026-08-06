@@ -16,7 +16,6 @@ use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\DB;
-use Illuminate\Support\Facades\Route;
 use Illuminate\Support\Facades\URL;
 use Illuminate\Support\Str;
 use Inertia\Inertia;
@@ -137,58 +136,6 @@ class ApprovalInstanceController extends Controller {
             ->exists();
     }
 
-    public function checkApproval(Model $data, array $options = [], string $triggerOn = 'submit') {
-        return DB::transaction(function () use ($data, $options, $triggerOn) {
-            $currentRoute     = Route::getCurrentRoute();
-            $controller       = $currentRoute->getControllerClass();
-            $parameters       = $currentRoute->originalParameters();
-            $instanceApproval = ApprovalInstance::makeInstance($data, [
-                'controller' => $controller,
-                'parameters' => $parameters,
-                'options'    => $options,
-            ], $triggerOn);
-
-            if (! $instanceApproval || $instanceApproval->status == FormStatus::APPROVED) {
-                $result = app()->call("$controller@onApproved", ['id' => $data->id]);
-            } elseif ($instanceApproval->status == FormStatus::REJECTED) {
-                $result = app()->call("$controller@onRejected", ['id' => $data->id]);
-            } else {
-                $data->update([
-                    'status' => FormStatus::NEED_APPROVAL,
-                ]);
-            }
-
-            $data->logForSubmitted();
-
-            DB::commit();
-
-            return $result ?? null;
-        });
-    }
-
-    /**
-     * Panggil onApproved()/onRejected() controller dokumen. Resolusi dokumen
-     * lewat ApprovalInstance::document (morphOne) — bukan reflection atas
-     * signature controller — supaya kompatibel dengan base Controller yang
-     * memakai signature generik `mixed $id`.
-     */
-    private function callDocumentCallback(ApprovalInstance $approval, string $method) {
-        $controller = (string) ($approval->options['controller'] ?? '');
-        $documentId = $approval->document_id;
-
-        if ($controller === '' || ! $documentId || ! method_exists($controller, $method)) {
-            return back();
-        }
-
-        request()->attributes->set('isApprovalCallback', true);
-
-        try {
-            return app()->call("$controller@$method", ['id' => $documentId]);
-        } finally {
-            request()->attributes->remove('isApprovalCallback');
-        }
-    }
-
     private function approve(ApprovalInstanceStep $approvalInstanceStep, ?string $notes = null) {
         DB::beginTransaction();
         $approval = $approvalInstanceStep->approvalInstance;
@@ -232,22 +179,21 @@ class ApprovalInstanceController extends Controller {
             $approval->save();
             DB::commit();
 
-            // Attachment is a side effect of a decision that already
-            // committed above — queued rather than run inline so approving
-            // doesn't wait on Handlebars render + PDF generation. A
-            // failure inside the job is caught and logged there; it never
-            // affects this already-committed approval.
+            $document     = $approval->document;
+            $serviceClass = $document::$service ?? null;
+
             AttachGeneratedPdfJob::dispatch($approval);
 
-            // Same pattern: notification is a side effect of an already-
-            // committed decision, sent after commit so a failure here never
-            // rolls back or blocks the approval itself.
-            $creator = $approval->document?->createdBy;
+            $creator = $document?->createdBy;
             if ($creator) {
                 app(NotifyUser::class)->send($creator, new ApprovalDecidedNotification($approval, 'approved'));
             }
 
-            return $this->callDocumentCallback($approval, 'onApproved');
+            if ($serviceClass) {
+                return app($serviceClass)->onApproved($document);
+            }
+
+            return back();
         }
         $approval->save();
         DB::commit();
@@ -324,12 +270,19 @@ class ApprovalInstanceController extends Controller {
             $approval->save();
             DB::commit();
 
-            $creator = $approval->document?->createdBy;
+            $document     = $approval->document;
+            $serviceClass = $document::$service ?? null;
+
+            $creator = $document?->createdBy;
             if ($creator) {
                 app(NotifyUser::class)->send($creator, new ApprovalDecidedNotification($approval, 'rejected', $notes));
             }
 
-            return $this->callDocumentCallback($approval, 'onRejected');
+            if ($serviceClass) {
+                return app($serviceClass)->onRejected($document);
+            }
+
+            return back();
         }
         $approval->save();
         DB::commit();

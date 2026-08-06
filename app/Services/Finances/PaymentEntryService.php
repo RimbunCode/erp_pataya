@@ -2,6 +2,7 @@
 
 namespace App\Services\Finances;
 
+use App\Contracts\SubmitableService;
 use App\Enums\FormStatus;
 use App\Models\Core\FormatingSeries;
 use App\Models\Core\ModelConnection;
@@ -9,13 +10,17 @@ use App\Models\Core\Preference;
 use App\Models\Finances\PaymentEntry;
 use App\Models\Finances\PurchaseInvoice;
 use App\Models\Finances\SalesInvoice;
+use App\Models\Model;
 use App\Models\Purchase\Supplier;
 use App\Models\Sales\Customer;
+use App\Traits\HasDefaultDelete;
 use App\Utils;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Validation\ValidationException;
 
-class PaymentEntryService {
+class PaymentEntryService implements SubmitableService {
+    use HasDefaultDelete;
+
     private function fillRelations(array $data) {
         $data['default_account_id'] = $data['default_account']['id'] ?? null;
         $defaultCurrency            = Preference::find('default_currency_id')?->value;
@@ -39,7 +44,7 @@ class PaymentEntryService {
         return $data;
     }
 
-    public function create(array $data) {
+    public function create(array $data): Model {
         DB::beginTransaction();
         $data['code'] = FormatingSeries::generate(PaymentEntry::class, $data, true);
         $paymentEntry = PaymentEntry::create($this->fillRelations($data));
@@ -49,7 +54,7 @@ class PaymentEntryService {
         return $paymentEntry;
     }
 
-    public function update(PaymentEntry $paymentEntry, array $data) {
+    public function update(Model $paymentEntry, array $data): Model {
         DB::beginTransaction();
         $paymentEntry->fillForUpdate($this->fillRelations($data));
         $paymentEntry->logForUpdated();
@@ -58,7 +63,7 @@ class PaymentEntryService {
         return $paymentEntry;
     }
 
-    public function submit(PaymentEntry $paymentEntry) {
+    public function submit(Model $paymentEntry): mixed {
         $paymentEntry->update([
             'code' => FormatingSeries::generate(PaymentEntry::class, $paymentEntry),
         ]);
@@ -73,7 +78,7 @@ class PaymentEntryService {
         return $paymentEntry;
     }
 
-    public function onApproved(PaymentEntry $paymentEntry) {
+    public function onApproved(Model $paymentEntry): mixed {
         DB::beginTransaction();
 
         $paymentEntry->load([
@@ -159,7 +164,7 @@ class PaymentEntryService {
         return $paymentEntry;
     }
 
-    public function onRejected(PaymentEntry $paymentEntry) {
+    public function onRejected(Model $paymentEntry): mixed {
         DB::beginTransaction();
         $paymentEntry->update([
             'status' => [
@@ -172,7 +177,7 @@ class PaymentEntryService {
         return $paymentEntry;
     }
 
-    public function cancel(PaymentEntry $paymentEntry) {
+    public function cancel(Model $paymentEntry): mixed {
         $paymentEntry->update([
             'status' => [
                 FormStatus::CANCELED,
@@ -180,5 +185,9 @@ class PaymentEntryService {
         ]);
 
         return $paymentEntry;
+    }
+
+    public function amend(Model $model): mixed {
+        return $model;
     }
 }

@@ -2,16 +2,21 @@
 
 namespace App\Services\Sales;
 
+use App\Contracts\SubmitableService;
 use App\Enums\FormStatus;
 use App\Models\Core\FormatingSeries;
 use App\Models\Inventory\ItemUnit;
 use App\Models\Inventory\Stock;
+use App\Models\Model;
 use App\Models\Sales\InternalOrder;
+use App\Traits\HasDefaultDelete;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Validation\ValidationException;
 use Symfony\Component\Uid\Ulid;
 
-class InternalOrderService {
+class InternalOrderService implements SubmitableService {
+    use HasDefaultDelete;
+
     private function fillRelations(array $data) {
         return $data;
     }
@@ -32,7 +37,7 @@ class InternalOrderService {
         return ItemUnit::whereIn('item_units.id', $unitIds)->get()->keyBy('id')->all();
     }
 
-    public function create(array $data) {
+    public function create(array $data): Model {
         $data['code']  = FormatingSeries::generate(InternalOrder::class, $data, true);
         $internalOrder = InternalOrder::create($this->fillRelations($data));
         $units         = $this->batchLoadUnits($data);
@@ -45,7 +50,7 @@ class InternalOrderService {
         return $internalOrder;
     }
 
-    public function update(InternalOrder $internalOrder, array $data) {
+    public function update(Model $internalOrder, array $data): Model {
         $internalOrder->fillForUpdate($this->fillRelations($data));
 
         $internalOrder->items()
@@ -79,7 +84,7 @@ class InternalOrderService {
         return $internalOrder;
     }
 
-    public function submit(InternalOrder $internalOrder) {
+    public function submit(Model $internalOrder): mixed {
         DB::beginTransaction();
 
         $internalOrder->update([
@@ -129,7 +134,7 @@ class InternalOrderService {
         return $internalOrder;
     }
 
-    public function onApproved(InternalOrder $internalOrder) {
+    public function onApproved(Model $internalOrder): mixed {
         $internalOrder->update([
             'status' => [
                 FormStatus::TO_DELIVER,
@@ -158,7 +163,7 @@ class InternalOrderService {
         }
     }
 
-    public function onRejected(InternalOrder $internalOrder) {
+    public function onRejected(Model $internalOrder): mixed {
         DB::beginTransaction();
 
         $internalOrder->update([
@@ -174,7 +179,7 @@ class InternalOrderService {
         return $internalOrder;
     }
 
-    public function cancel(InternalOrder $internalOrder) {
+    public function cancel(Model $internalOrder): mixed {
         DB::beginTransaction();
 
         $internalOrder->update([
@@ -188,5 +193,9 @@ class InternalOrderService {
         DB::commit();
 
         return $internalOrder;
+    }
+
+    public function amend(Model $model): mixed {
+        return $model;
     }
 }
