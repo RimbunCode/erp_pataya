@@ -21,8 +21,13 @@ class ApprovalInstanceStep extends Model {
         'is_advanced' => 'boolean',
         'config'      => Json::class,
     ];
-    protected $with                = ['approver', 'actedBy', 'approvers'];
-    public string $translateKey    = 'core.approvalInstance.steps';
+    protected $with             = ['approver', 'actedBy', 'approvers'];
+    public string $translateKey = 'core.approvalInstance.steps';
+
+    public static function ignoresPermission(): bool {
+        return true;
+    }
+
     protected array $configColumns = [
         'approvalInstance' => [
             'show'            => true,

@@ -59,7 +59,7 @@ class ApprovalNotificationTest extends TestCase {
     protected function setUp(): void {
         parent::setUp();
 
-        foreach (['approval_schemes', 'approval_scheme_steps', 'roles', 'users', 'approval_instances', 'approval_instance_steps', 'general_ledgers', 'stock_ledger_entries'] as $tbl) {
+        foreach (['approval_schemes', 'approval_scheme_steps', 'roles', 'users', 'approval_instances', 'approval_instance_steps', 'general_ledgers', 'stock_ledger_entries', 'branches'] as $tbl) {
             if (Schema::hasTable($tbl) && ! Schema::hasColumn($tbl, 'is_example')) {
                 Schema::table($tbl, fn ($t) => $t->boolean('is_example')->default(false));
             }

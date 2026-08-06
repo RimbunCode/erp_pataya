@@ -42,7 +42,7 @@ class RoleBasedNotificationTest extends TestCase {
     protected function setUp(): void {
         parent::setUp();
 
-        foreach (['roles', 'users', 'general_ledgers', 'stock_ledger_entries'] as $tbl) {
+        foreach (['roles', 'users', 'general_ledgers', 'stock_ledger_entries', 'branches'] as $tbl) {
             if (Schema::hasTable($tbl) && ! Schema::hasColumn($tbl, 'is_example')) {
                 Schema::table($tbl, fn ($t) => $t->boolean('is_example')->default(false));
             }

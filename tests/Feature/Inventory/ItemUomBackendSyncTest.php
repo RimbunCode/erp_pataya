@@ -14,9 +14,21 @@ class ItemUomBackendSyncTest extends TestCase {
     protected function setUp(): void {
         parent::setUp();
 
+        Schema::dropIfExists('permissions');
         Schema::dropIfExists('item_units');
         Schema::dropIfExists('items');
         Schema::dropIfExists('units');
+
+        Schema::create('permissions', function (Blueprint $table) {
+            $table->ulid('id')->primary();
+            $table->string('model');
+            $table->foreignUlid('role_id')->nullable();
+            $table->integer('level')->default(0);
+            $table->boolean('only_creator')->default(false);
+            $table->json('permissions')->nullable();
+            $table->timestamps();
+            $table->softDeletes();
+        });
 
         Schema::create('units', function (Blueprint $table) {
             $table->ulid('id')->primary();
@@ -25,6 +37,7 @@ class ItemUomBackendSyncTest extends TestCase {
             $table->string('group')->nullable();
             $table->double('conversion_factor')->nullable()->default(1);
             $table->boolean('is_default')->default(false);
+            $table->boolean('is_example')->default(false);
             $table->timestamps();
             $table->softDeletes();
         });

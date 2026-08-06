@@ -131,6 +131,7 @@ class CommandSearchFeatureTest extends TestCase {
             $table->string('model')->unique();
             $table->text('logs')->nullable();
             $table->string('format');
+            $table->boolean('is_example')->default(false);
             $table->timestamps();
         });
 

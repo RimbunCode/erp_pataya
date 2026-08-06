@@ -104,7 +104,7 @@ class ApprovalInstanceController extends Controller {
             return false;
         }
 
-        $roleIds = $user->roles()->pluck('roles.id');
+        $roleIds = $user->roles->pluck('id');
 
         return $approvalInstance->steps()
             ->where(function (Builder $query) use ($user, $roleIds) {
@@ -264,7 +264,7 @@ class ApprovalInstanceController extends Controller {
 
     private function recordApproverChildDecision(ApprovalInstanceStep $step, FormStatus $status): void {
         $user    = Auth::user();
-        $roleIds = $user->roles()->pluck('roles.id');
+        $roleIds = $user->roles->pluck('id');
 
         $matched = $step->approvers()
             ->where(function ($q) use ($user, $roleIds) {

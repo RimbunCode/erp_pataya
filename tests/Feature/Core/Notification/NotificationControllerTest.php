@@ -8,11 +8,22 @@ use App\Http\Middleware\LanguageMiddleware;
 use App\Models\User\User;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Illuminate\Notifications\DatabaseNotification;
+use Illuminate\Support\Facades\Schema;
 use Illuminate\Support\Str;
 use Tests\TestCase;
 
 class NotificationControllerTest extends TestCase {
     use RefreshDatabase;
+
+    protected function setUp(): void {
+        parent::setUp();
+
+        foreach (['users', 'branches'] as $tbl) {
+            if (Schema::hasTable($tbl) && ! Schema::hasColumn($tbl, 'is_example')) {
+                Schema::table($tbl, fn ($t) => $t->boolean('is_example')->default(false));
+            }
+        }
+    }
 
     private function createNotificationFor(User $user, ?string $readAt = null): DatabaseNotification {
         return DatabaseNotification::create([

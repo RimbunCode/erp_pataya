@@ -24,6 +24,7 @@ class HtmlSanitizeEndpointTest extends TestCase {
                 $table->char('default_branch_id', 26)->nullable();
                 $table->timestamp('email_verified_at')->nullable();
                 $table->rememberToken();
+                $table->boolean('is_example')->default(false);
                 $table->timestamps();
                 $table->softDeletes();
             });

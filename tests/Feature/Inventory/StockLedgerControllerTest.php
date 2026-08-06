@@ -13,6 +13,7 @@ use App\Models\Inventory\StockLedgerEntry;
 use App\Models\Inventory\Unit;
 use App\Models\Inventory\Warehouse;
 use App\Models\User\User;
+use BeyondCode\QueryDetector\QueryDetectorMiddleware;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\DB;
@@ -33,6 +34,10 @@ class StockLedgerControllerTest extends TestCase {
 
     protected function setUp(): void {
         parent::setUp();
+
+        $this->withoutMiddleware([
+            QueryDetectorMiddleware::class,
+        ]);
 
         foreach (Schema::getTables() as $tableInfo) {
             $table = $tableInfo['name'];

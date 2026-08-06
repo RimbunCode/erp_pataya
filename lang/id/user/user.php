@@ -47,9 +47,10 @@ return [
     'manage_password' => [
         'change_password' => 'Ubah Kata Sandi',
         'columns'         => [
-            'current_password'      => 'Kata Sandi Saat Ini',
-            'password'              => 'Kata Sandi Baru',
-            'password_confirmation' => 'Konfirmasi Kata Sandi',
+            'current_password'             => 'Kata Sandi Saat Ini',
+            'current_password.description' => 'Isi jika Anda ingin mengubah kata sandi',
+            'password'                     => 'Kata Sandi Baru',
+            'password_confirmation'        => 'Konfirmasi Kata Sandi',
         ],
     ],
 ];
