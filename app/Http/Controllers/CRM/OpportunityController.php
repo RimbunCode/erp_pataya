@@ -61,7 +61,6 @@ class OpportunityController extends Controller {
         $data = $request->validated();
         DB::beginTransaction();
         $opportunity = $this->service->create($data);
-        $opportunity->logForCreated();
         DB::commit();
 
         return redirect()->route('opportunities.show', $opportunity)->with('id', $opportunity->id);
@@ -87,7 +86,6 @@ class OpportunityController extends Controller {
         $data = $request->validated();
         DB::beginTransaction();
         $this->service->update($opportunity, $data);
-        $opportunity->logForUpdated();
         DB::commit();
 
         return back();

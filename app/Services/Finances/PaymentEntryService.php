@@ -4,8 +4,8 @@ namespace App\Services\Finances;
 
 use App\Contracts\SubmitableService;
 use App\Enums\FormStatus;
+use App\Events\Core\DocumentSubmitted;
 use App\Models\Core\FormatingSeries;
-use App\Models\Core\ModelConnection;
 use App\Models\Core\Preference;
 use App\Models\Finances\PaymentEntry;
 use App\Models\Finances\PurchaseInvoice;
@@ -48,7 +48,6 @@ class PaymentEntryService implements SubmitableService {
         DB::beginTransaction();
         $data['code'] = FormatingSeries::generate(PaymentEntry::class, $data, true);
         $paymentEntry = PaymentEntry::create($this->fillRelations($data));
-        $paymentEntry->logForCreated();
         DB::commit();
 
         return $paymentEntry;
@@ -57,7 +56,6 @@ class PaymentEntryService implements SubmitableService {
     public function update(Model $paymentEntry, array $data): Model {
         DB::beginTransaction();
         $paymentEntry->fillForUpdate($this->fillRelations($data));
-        $paymentEntry->logForUpdated();
         DB::commit();
 
         return $paymentEntry;
@@ -67,12 +65,7 @@ class PaymentEntryService implements SubmitableService {
         $paymentEntry->update([
             'code' => FormatingSeries::generate(PaymentEntry::class, $paymentEntry),
         ]);
-        ModelConnection::create([
-            'model_id'       => $paymentEntry->id,
-            'model_type'     => PaymentEntry::class,
-            'reference_id'   => $paymentEntry->paymentable_id,
-            'reference_type' => $paymentEntry->paymentable_type,
-        ]);
+        event(new DocumentSubmitted($paymentEntry, $paymentEntry->paymentable));
         $paymentEntry->checkApproval();
 
         return $paymentEntry;

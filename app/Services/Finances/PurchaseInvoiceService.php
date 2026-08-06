@@ -4,6 +4,7 @@ namespace App\Services\Finances;
 
 use App\Contracts\SubmitableService;
 use App\Enums\FormStatus;
+use App\Events\Core\DocumentSubmitted;
 use App\Models\Core\FormatingSeries;
 use App\Models\Core\ModelConnection;
 use App\Models\Core\Preference;
@@ -121,7 +122,6 @@ class PurchaseInvoiceService implements SubmitableService {
             $payment_schedule = $this->fillPaymentScheduleRelations($payment_schedule, $purchaseInvoice);
             $purchaseInvoice->paymentSchedules()->create($payment_schedule);
         }
-        $purchaseInvoice->logForCreated();
 
         return $purchaseInvoice;
     }
@@ -198,7 +198,6 @@ class PurchaseInvoiceService implements SubmitableService {
             }
             $purchaseInvoice->paymentSchedules()->create($payment_schedule);
         }
-        $purchaseInvoice->logForUpdated();
 
         return $purchaseInvoice;
     }
@@ -232,12 +231,7 @@ class PurchaseInvoiceService implements SubmitableService {
                 ]);
             }
         }
-        ModelConnection::create([
-            'model_type'     => PurchaseOrder::class,
-            'model_id'       => $purchaseInvoice->purchase_order_id,
-            'reference_type' => PurchaseInvoice::class,
-            'reference_id'   => $purchaseInvoice->id,
-        ]);
+        event(new DocumentSubmitted($purchaseInvoice, $purchaseInvoice->purchaseOrder));
 
         DB::commit();
 

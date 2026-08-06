@@ -55,7 +55,6 @@ class LeadService {
             'country_id' => $lead->country_id,
         ]);
         app(CustomerService::class)->storeBranches($customer, []);
-        $customer->logForCreated();
 
         $lead->update([
             'status'                => 'converted',

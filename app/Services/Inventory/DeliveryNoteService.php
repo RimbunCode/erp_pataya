@@ -4,8 +4,8 @@ namespace App\Services\Inventory;
 
 use App\Contracts\SubmitableService;
 use App\Enums\FormStatus;
+use App\Events\Core\DocumentSubmitted;
 use App\Models\Core\FormatingSeries;
-use App\Models\Core\ModelConnection;
 use App\Models\Finances\Account;
 use App\Models\Inventory\DeliveryNote;
 use App\Models\Inventory\ItemUnit;
@@ -89,8 +89,6 @@ class DeliveryNoteService implements SubmitableService {
             $deliveryNote->items()->create($item);
         }
 
-        $deliveryNote->logForCreated();
-
         return $deliveryNote;
     }
 
@@ -123,7 +121,6 @@ class DeliveryNoteService implements SubmitableService {
 
             $deliveryNote->items()->create($item);
         }
-        $deliveryNote->logForUpdated();
 
         return $deliveryNote;
     }
@@ -136,12 +133,7 @@ class DeliveryNoteService implements SubmitableService {
             'code' => FormatingSeries::generate(DeliveryNote::class, $deliveryNote),
         ]);
 
-        ModelConnection::create([
-            'model_type'     => $deliveryNote->referenceable_type,
-            'model_id'       => $deliveryNote->referenceable_id,
-            'reference_type' => DeliveryNote::class,
-            'reference_id'   => $deliveryNote->id,
-        ]);
+        event(new DocumentSubmitted($deliveryNote, $deliveryNote->referenceable));
         DeliveryNote::orWhere(function ($query) use ($deliveryNote) {
             $query->where(function ($query) use ($deliveryNote) {
                 $query->where('referenceable_type', $deliveryNote->referenceable_type)

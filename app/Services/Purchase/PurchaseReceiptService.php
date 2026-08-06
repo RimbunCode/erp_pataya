@@ -4,6 +4,7 @@ namespace App\Services\Purchase;
 
 use App\Contracts\SubmitableService;
 use App\Enums\FormStatus;
+use App\Events\Core\DocumentSubmitted;
 use App\Models\Core\FormatingSeries;
 use App\Models\Core\ModelConnection;
 use App\Models\Finances\Account;
@@ -64,7 +65,6 @@ class PurchaseReceiptService implements SubmitableService {
             $item = $this->fillItemRelations($item, $units, $purchaseOrderItems);
             $purchaseReceipt->items()->create($item);
         }
-        $purchaseReceipt->logForCreated();
 
         return $purchaseReceipt;
     }
@@ -98,8 +98,6 @@ class PurchaseReceiptService implements SubmitableService {
             $purchaseReceipt->items()->create($item);
         }
 
-        $purchaseReceipt->logForUpdated();
-
         return $purchaseReceipt;
     }
 
@@ -109,12 +107,7 @@ class PurchaseReceiptService implements SubmitableService {
         $purchaseReceipt->update([
             'code' => FormatingSeries::generate(PurchaseReceipt::class, $purchaseReceipt),
         ]);
-        ModelConnection::create([
-            'model_type'     => PurchaseOrder::class,
-            'model_id'       => $purchaseReceipt->purchase_order_id,
-            'reference_type' => PurchaseReceipt::class,
-            'reference_id'   => $purchaseReceipt->id,
-        ]);
+        event(new DocumentSubmitted($purchaseReceipt, $purchaseReceipt->purchaseOrder));
         DB::commit();
         $purchaseReceipt->checkApproval();
 

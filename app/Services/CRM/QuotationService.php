@@ -33,7 +33,6 @@ class QuotationService implements SubmitableService {
             $amount += $itemModel->amount;
         }
         $quotation->update(['amount' => $amount]);
-        $quotation->logForCreated();
 
         return $quotation;
     }
@@ -75,7 +74,6 @@ class QuotationService implements SubmitableService {
         }
         $quotation->fill(['amount' => $amount]);
         $quotation->save();
-        $quotation->logForUpdated();
 
         return $quotation;
     }

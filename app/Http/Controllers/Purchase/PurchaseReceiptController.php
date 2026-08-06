@@ -127,7 +127,6 @@ class PurchaseReceiptController extends Controller {
         $data['created_by_id'] = $request->user()->id;
 
         $purchaseReceipt = $this->service->create($data);
-        $purchaseReceipt->logForCreated();
 
         DB::commit();
 

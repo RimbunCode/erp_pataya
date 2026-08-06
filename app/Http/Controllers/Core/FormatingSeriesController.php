@@ -147,7 +147,6 @@ class FormatingSeriesController extends Controller {
         }
 
         $formatingSeries->fillForUpdate($data);
-        $formatingSeries->logForUpdated();
 
         DB::commit();
 

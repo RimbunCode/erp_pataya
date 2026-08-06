@@ -2,6 +2,7 @@
 
 namespace App\Http\Controllers;
 
+use App\Events\Core\AuditableModelSaved;
 use App\Http\Requests\Core\AssigneeRequest;
 use App\Http\Requests\Core\CommentRequest;
 use App\Http\Requests\Core\EmailTemplateSendRequest;
@@ -514,7 +515,7 @@ abstract class Controller {
         DB::beginTransaction();
         try {
             $this->service->cancel($data);
-            $data->logForCancelled();
+            event(new AuditableModelSaved($data, 'cancelled'));
             DB::commit();
         } catch (\Throwable $e) {
             DB::rollBack();
@@ -543,7 +544,7 @@ abstract class Controller {
         DB::beginTransaction();
         try {
             $data->delete();
-            $data->logForDeleted();
+            event(new AuditableModelSaved($data, 'deleted'));
             DB::commit();
         } catch (\Throwable $e) {
             DB::rollBack();

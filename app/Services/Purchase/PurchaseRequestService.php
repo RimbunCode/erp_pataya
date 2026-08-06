@@ -47,7 +47,6 @@ class PurchaseRequestService implements SubmitableService {
             $item = $this->fillItemRelations($item, $units);
             $pr->items()->create($item);
         }
-        $pr->logForCreated();
 
         return $pr;
     }
@@ -79,7 +78,6 @@ class PurchaseRequestService implements SubmitableService {
             }
             $purchaseRequest->items()->create($item);
         }
-        $purchaseRequest->logForUpdated();
 
         return $purchaseRequest;
     }

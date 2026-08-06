@@ -46,7 +46,6 @@ class LeadController extends Controller {
         $data['assigned_to_id'] = $data['assigned_to']['id'] ?? null;
         $lead                   = Lead::create($data);
         $this->leadService->storeActivities($lead, $data['activities'] ?? []);
-        $lead->logForCreated();
         DB::commit();
 
         return back()->with('id', $lead->id);
@@ -76,7 +75,6 @@ class LeadController extends Controller {
         $data['assigned_to_id'] = $data['assigned_to']['id'] ?? null;
         $lead->fillForUpdate($data);
         $this->leadService->storeActivities($lead, $data['activities'] ?? []);
-        $lead->logForUpdated();
         DB::commit();
 
         return back();
@@ -85,7 +83,6 @@ class LeadController extends Controller {
     public function convert(Lead $lead) {
         DB::beginTransaction();
         $customer = $this->leadService->convertToCustomer($lead);
-        $lead->logForUpdated();
         DB::commit();
 
         return back()->with('id', $customer->id);

@@ -48,7 +48,6 @@ class TaxesController extends Controller {
         $data = $request->validated();
         DB::beginTransaction();
         $tax = Tax::create($data);
-        $tax->logForCreated();
         DB::commit();
 
         return redirect()->back()->with('id', $tax->id);
@@ -73,7 +72,6 @@ class TaxesController extends Controller {
         $data = $request->validated();
         DB::beginTransaction();
         $tax->fillForUpdate($data);
-        $tax->logForUpdated();
         DB::commit();
 
         return redirect()->back();

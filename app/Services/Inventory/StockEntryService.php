@@ -153,7 +153,6 @@ class StockEntryService implements SubmitableService {
             unset($item['basic_amount']);
             $stockEntry->items()->create($item);
         }
-        $stockEntry->logForCreated();
 
         return $stockEntry;
     }
@@ -226,7 +225,6 @@ class StockEntryService implements SubmitableService {
             }
             $stockEntry->items()->create($item);
         }
-        $stockEntry->logForUpdated();
 
         return $stockEntry;
     }

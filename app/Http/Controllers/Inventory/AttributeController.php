@@ -48,7 +48,6 @@ class AttributeController extends Controller {
         }
 
         $attribute = Attribute::create($data);
-        $attribute->logForCreated();
         DB::commit();
 
         return back()->with('id', $attribute->id);
@@ -86,7 +85,6 @@ class AttributeController extends Controller {
             ], range($data['from_range'], $data['to_range'], $data['increment']));
         }
         $attribute->fillForUpdate($data);
-        $attribute->logForUpdated();
         DB::commit();
 
         return back();

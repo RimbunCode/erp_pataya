@@ -3,15 +3,12 @@
 namespace App\Http\Controllers\Core;
 
 use App\Enums\FormStatus;
+use App\Events\Core\ApprovalDecided;
 use App\Http\Controllers\Controller;
 use App\Http\Requests\Core\ApprovalDecisionRequest;
-use App\Jobs\Core\AttachGeneratedPdfJob;
 use App\Models\Core\ApprovalInstance;
 use App\Models\Core\ApprovalInstanceStep;
 use App\Models\Model;
-use App\Notifications\ApprovalDecidedNotification;
-use App\Notifications\ApprovalPendingNotification;
-use App\Services\Core\Notification\NotifyUser;
 use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Auth;
@@ -182,12 +179,7 @@ class ApprovalInstanceController extends Controller {
             $document     = $approval->document;
             $serviceClass = $document::$service ?? null;
 
-            AttachGeneratedPdfJob::dispatch($approval);
-
-            $creator = $document?->createdBy;
-            if ($creator) {
-                app(NotifyUser::class)->send($creator, new ApprovalDecidedNotification($approval, 'approved'));
-            }
+            event(new ApprovalDecided($approval, 'approved'));
 
             if ($serviceClass) {
                 return app($serviceClass)->onApproved($document);
@@ -198,12 +190,7 @@ class ApprovalInstanceController extends Controller {
         $approval->save();
         DB::commit();
 
-        if ($nextPending) {
-            $candidates = $nextPending->resolveCandidateUsers();
-            if ($candidates->isNotEmpty()) {
-                app(NotifyUser::class)->send($candidates, new ApprovalPendingNotification($nextPending));
-            }
-        }
+        event(new ApprovalDecided($approval, 'approved', $nextPending));
 
         return back();
     }
@@ -273,10 +260,7 @@ class ApprovalInstanceController extends Controller {
             $document     = $approval->document;
             $serviceClass = $document::$service ?? null;
 
-            $creator = $document?->createdBy;
-            if ($creator) {
-                app(NotifyUser::class)->send($creator, new ApprovalDecidedNotification($approval, 'rejected', $notes));
-            }
+            event(new ApprovalDecided($approval, 'rejected', notes: $notes));
 
             if ($serviceClass) {
                 return app($serviceClass)->onRejected($document);

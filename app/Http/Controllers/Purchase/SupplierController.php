@@ -40,7 +40,6 @@ class SupplierController extends Controller {
         }
         $data['parent_id'] = (isset($data['branch_of']) && $data['branch_of']['id'] != null) ? $data['branch_of']['id'] : null;
         $supplier          = Supplier::create($data);
-        $supplier->logForCreated();
         DB::commit();
 
         return back()->with('id', $supplier->id);
@@ -69,7 +68,6 @@ class SupplierController extends Controller {
         }
         $data['parent_id'] = (isset($data['branch_of']) && $data['branch_of']['id'] != null) ? $data['branch_of']['id'] : null;
         $supplier->fillForUpdate($data);
-        $supplier->logForUpdated();
         DB::commit();
 
         return back();

@@ -59,7 +59,6 @@ class EmailTemplateController extends Controller {
         $data['name_model']    = isset($data['permission']) ? $data['permission']['name'] : null;
 
         $emailTemplate = EmailTemplate::create($data);
-        $emailTemplate->logForCreated();
         DB::commit();
 
         return redirect()->route('emailTemplates.show', $emailTemplate)->with('id', $emailTemplate->id);
@@ -92,7 +91,6 @@ class EmailTemplateController extends Controller {
         $data['name_model']    = isset($data['permission']) ? $data['permission']['name'] : null;
 
         $emailTemplate->fillForUpdate($data);
-        $emailTemplate->logForUpdated();
         DB::commit();
 
         return redirect()->back();

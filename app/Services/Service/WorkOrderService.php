@@ -61,7 +61,6 @@ class WorkOrderService implements SubmitableService {
             $item = $this->fillItemRelations($item, $units);
             $wo->items()->create($item);
         }
-        $wo->logForCreated();
 
         return $wo;
     }
@@ -96,8 +95,6 @@ class WorkOrderService implements SubmitableService {
             }
             $workOrder->items()->create($item);
         }
-
-        $workOrder->logForUpdated();
 
         return $workOrder;
     }
@@ -137,8 +134,6 @@ class WorkOrderService implements SubmitableService {
             'started_at' => now(),
         ]);
 
-        $workOrder->logForUpdated();
-
         return $workOrder;
     }
 
@@ -149,8 +144,6 @@ class WorkOrderService implements SubmitableService {
             'status'       => $status,
             'completed_at' => now(),
         ]);
-
-        $workOrder->logForUpdated();
 
         return $workOrder;
     }

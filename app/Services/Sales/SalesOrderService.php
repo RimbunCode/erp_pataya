@@ -4,6 +4,7 @@ namespace App\Services\Sales;
 
 use App\Contracts\SubmitableService;
 use App\Enums\FormStatus;
+use App\Events\Core\DocumentSubmitted;
 use App\Models\Core\Branch;
 use App\Models\Core\FormatingSeries;
 use App\Models\Core\ModelConnection;
@@ -106,7 +107,6 @@ class SalesOrderService implements SubmitableService {
                 ...$payment_schedule,
             ]);
         }
-        $salesOrder->logForCreated();
 
         return $salesOrder;
     }
@@ -183,8 +183,6 @@ class SalesOrderService implements SubmitableService {
             ]);
         }
 
-        $salesOrder->logForUpdated();
-
         return $salesOrder;
     }
 
@@ -196,12 +194,7 @@ class SalesOrderService implements SubmitableService {
         ]);
 
         if ($salesOrder->referenceable_type && $salesOrder->referenceable_id) {
-            ModelConnection::create([
-                'model_type'     => $salesOrder->referenceable_type,
-                'model_id'       => $salesOrder->referenceable_id,
-                'reference_type' => SalesOrder::class,
-                'reference_id'   => $salesOrder->id,
-            ]);
+            event(new DocumentSubmitted($salesOrder, $salesOrder->referenceable));
             $additionalData          = $salesOrder->referenceable->additional_data ?? [];
             $additionalData['order'] = true;
             $salesOrder->referenceable->update(['additional_data' => $additionalData]);

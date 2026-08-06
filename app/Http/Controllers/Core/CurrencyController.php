@@ -44,7 +44,6 @@ class CurrencyController extends Controller {
         $data = $request->validated();
         DB::beginTransaction();
         $currency = Currency::create($data);
-        $currency->logForCreated();
         DB::commit();
 
         return back()->with('id', $currency->code);
@@ -54,7 +53,6 @@ class CurrencyController extends Controller {
         $data = $request->validated();
         DB::beginTransaction();
         $currency->fillForUpdate($data);
-        $currency->logForUpdated();
         DB::commit();
 
         return back();

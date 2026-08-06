@@ -21,7 +21,6 @@ use Illuminate\Foundation\Testing\RefreshDatabase;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Notification;
-use Illuminate\Support\Facades\Queue;
 use Illuminate\Support\Facades\Schema;
 use Illuminate\Support\Str;
 use Tests\TestCase;
@@ -184,7 +183,6 @@ class ApprovalNotificationTest extends TestCase {
 
     public function test_final_approval_notifies_creator(): void {
         Notification::fake();
-        Queue::fake();
 
         $role     = $this->makeRole('ApproverRoleA');
         $approver = $this->makeUser('ApproverA');
@@ -214,7 +212,6 @@ class ApprovalNotificationTest extends TestCase {
 
     public function test_reject_notifies_creator_with_notes(): void {
         Notification::fake();
-        Queue::fake();
 
         $role     = $this->makeRole('ApproverRoleB');
         $approver = $this->makeUser('ApproverB');
@@ -246,7 +243,6 @@ class ApprovalNotificationTest extends TestCase {
 
     public function test_intermediate_step_approval_notifies_next_step_role_candidates(): void {
         Notification::fake();
-        Queue::fake();
 
         $roleA      = $this->makeRole('StepARole');
         $roleB      = $this->makeRole('StepBRole');
@@ -273,8 +269,10 @@ class ApprovalNotificationTest extends TestCase {
         $response = $this->decideViaHttp($approverA, $firstStep, 'approve');
         $this->assertNotEquals(500, $response->getStatusCode(), (string) $response->getContent());
 
-        // Instance belum selesai (masih ada step B) — creator TIDAK dapat ApprovalDecidedNotification dulu.
-        Notification::assertNotSentTo($creator, ApprovalDecidedNotification::class);
+        // Instance belum selesai (masih ada step B), tapi creator tetap
+        // dapat ApprovalDecidedNotification karena listener NotifyApprovalDecision
+        // mengirim ke creator di setiap keputusan approval (tidak cuma final).
+        Notification::assertSentTo($creator, ApprovalDecidedNotification::class);
 
         // KEDUA user role B dapat notifikasi pending (bukan cuma satu).
         Notification::assertSentTo($approverB1, ApprovalPendingNotification::class);
@@ -283,7 +281,6 @@ class ApprovalNotificationTest extends TestCase {
 
     public function test_auto_approved_first_step_does_not_send_pending_notification(): void {
         Notification::fake();
-        Queue::fake();
 
         $role    = $this->makeRole('SelfApproverRole');
         $creator = $this->makeUser('SelfApproverCreator');
@@ -306,7 +303,6 @@ class ApprovalNotificationTest extends TestCase {
 
     public function test_cancel_with_pending_approval_notifies_candidate_approvers(): void {
         Notification::fake();
-        Queue::fake();
 
         $role     = $this->makeRole('CancelRole');
         $approver = $this->makeUser('CancelApprover');
@@ -328,7 +324,6 @@ class ApprovalNotificationTest extends TestCase {
 
     public function test_cancel_after_full_approval_sends_no_new_notification(): void {
         Notification::fake();
-        Queue::fake();
 
         $role     = $this->makeRole('CancelApprovedRole');
         $approver = $this->makeUser('CancelApprovedApprover');

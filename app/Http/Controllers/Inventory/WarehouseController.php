@@ -50,7 +50,6 @@ class WarehouseController extends Controller {
             $data['user_id'] = $data['pic']['id'];
         }
         $warehouse = Warehouse::create($data);
-        $warehouse->logForCreated();
         DB::commit();
 
         return back()->with('id', $warehouse->id);
@@ -86,7 +85,6 @@ class WarehouseController extends Controller {
             $data['user_id'] = $data['pic']['id'];
         }
         $warehouse->fillForUpdate($data);
-        $warehouse->logForUpdated();
         DB::commit();
 
         return back();

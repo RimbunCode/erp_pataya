@@ -4,16 +4,15 @@ namespace App\Services\Finances;
 
 use App\Contracts\SubmitableService;
 use App\Enums\FormStatus;
+use App\Events\Core\DocumentSubmitted;
 use App\Models\Core\Branch;
 use App\Models\Core\FormatingSeries;
-use App\Models\Core\ModelConnection;
 use App\Models\Core\Preference;
 use App\Models\Finances\SalesInvoice;
 use App\Models\Finances\Tax;
 use App\Models\Inventory\ItemUnit;
 use App\Models\Model;
 use App\Models\Sales\Customer;
-use App\Models\Sales\SalesOrder;
 use App\Models\Sales\SalesOrderItem;
 use App\Services\Sales\SalesOrderService;
 use App\Traits\HasDefaultDelete;
@@ -128,7 +127,6 @@ class SalesInvoiceService implements SubmitableService {
                 ...$payment_schedule,
             ]);
         }
-        $salesInvoice->logForCreated();
 
         return $salesInvoice;
     }
@@ -202,7 +200,6 @@ class SalesInvoiceService implements SubmitableService {
                 ...$payment_schedule,
             ]);
         }
-        $salesInvoice->logForUpdated();
 
         return $salesInvoice;
     }
@@ -238,12 +235,7 @@ class SalesInvoiceService implements SubmitableService {
                 ]);
             }
         }
-        ModelConnection::create([
-            'model_type'     => SalesOrder::class,
-            'model_id'       => $salesInvoice->sales_order_id,
-            'reference_type' => SalesInvoice::class,
-            'reference_id'   => $salesInvoice->id,
-        ]);
+        event(new DocumentSubmitted($salesInvoice, $salesInvoice->salesOrder));
 
         DB::commit();
 

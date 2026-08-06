@@ -45,7 +45,6 @@ class InternalOrderService implements SubmitableService {
             $item = $this->fillItemRelations($item, $units);
             $internalOrder->items()->create($item);
         }
-        $internalOrder->logForCreated();
 
         return $internalOrder;
     }
@@ -78,8 +77,6 @@ class InternalOrderService implements SubmitableService {
 
             $internalOrder->items()->create($item);
         }
-
-        $internalOrder->logForUpdated();
 
         return $internalOrder;
     }

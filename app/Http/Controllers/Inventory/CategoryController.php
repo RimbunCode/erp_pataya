@@ -51,7 +51,6 @@ class CategoryController extends Controller {
             'type'            => $data['type'],
             'default_unit_id' => $data['default_unit']['id'] ?? null,
         ]);
-        $category->logForCreated();
         DB::commit();
 
         return redirect()->back()->with('id', $category->id);
@@ -84,7 +83,6 @@ class CategoryController extends Controller {
             'type'            => $data['type'],
             'default_unit_id' => $data['default_unit']['id'] ?? null,
         ]);
-        $category->logForUpdated();
         DB::commit();
 
         return back();

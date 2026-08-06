@@ -44,12 +44,12 @@ class WidgetController extends Controller {
         $startDate = $config['dateRange']['from'];
         $endDate   = $config['dateRange']['to'];
         $interval  = match ($widget->time_interval ?? $request->input('time_interval')) {
-            'daily', 'day'         => 'day',
-            'weekly', 'week'       => 'week',
-            'monthly', 'month'     => 'month',
+            'daily', 'day' => 'day',
+            'weekly', 'week' => 'week',
+            'monthly', 'month' => 'month',
             'quarterly', 'quarter' => 'quarter',
-            'yearly', 'year'       => 'year',
-            default                => 'month',
+            'yearly', 'year' => 'year',
+            default => 'month',
         };
         $locale      = $request->user()?->locale ?? app()->getLocale();
         $timeBasedOn = $widget->time_based_on;
@@ -245,7 +245,6 @@ class WidgetController extends Controller {
         $data['model_class']   = $data['model']['model'];
         $data['created_by_id'] = $request->user()->id;
         $widget                = Widget::create($data);
-        $widget->logForCreated();
         DB::commit();
 
         return redirect()->back()->with('id', $widget->id);
@@ -284,7 +283,6 @@ class WidgetController extends Controller {
         $data['model_class']   = $data['model']['model'];
         $data['created_by_id'] = $request->user()->id;
         $widget->fillForUpdate($data);
-        $widget->logForUpdated();
         DB::commit();
 
         return redirect()->back();

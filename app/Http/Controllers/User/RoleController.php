@@ -55,7 +55,6 @@ class RoleController extends Controller {
         ]);
 
         $this->updatePermissions($role, $data['rules']);
-        $role->logForCreated();
 
         DB::commit();
 
@@ -174,7 +173,6 @@ class RoleController extends Controller {
         ]);
 
         $this->updatePermissions($role, $data['rules']);
-        $role->logForUpdated();
 
         DB::commit();
 

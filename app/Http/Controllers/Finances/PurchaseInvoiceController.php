@@ -145,7 +145,6 @@ class PurchaseInvoiceController extends Controller {
 
         // create SO
         $purchaseInvoice = $this->service->create($data);
-        $purchaseInvoice->logForCreated();
 
         DB::commit();
 

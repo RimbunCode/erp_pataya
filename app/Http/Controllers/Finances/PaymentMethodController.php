@@ -51,7 +51,6 @@ class PaymentMethodController extends Controller {
             $data['default_account_id'] = $data['default_account']['id'];
         }
         $paymentMethod = PaymentMethod::create($data);
-        $paymentMethod->logForCreated();
         DB::commit();
 
         return redirect()->back()->with('id', $paymentMethod->id);
@@ -80,7 +79,6 @@ class PaymentMethodController extends Controller {
         $data['default_account_id'] = (isset($data['default_account'])) ? $data['default_account']['id'] : null;
 
         $paymentMethod->fillForUpdate($data);
-        $paymentMethod->logForUpdated();
         DB::commit();
 
         return redirect()->back();

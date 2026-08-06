@@ -18,7 +18,6 @@ use Illuminate\Foundation\Testing\RefreshDatabase;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Notification;
-use Illuminate\Support\Facades\Queue;
 use Illuminate\Support\Facades\Schema;
 use Illuminate\Support\Str;
 use Tests\TestCase;
@@ -182,7 +181,6 @@ class CancelPendingApprovalStepsTest extends TestCase {
      */
     public function test_cancel_document_cascades_all_pending_and_waiting_steps_to_canceled(): void {
         Notification::fake();
-        Queue::fake();
 
         $roleA   = $this->makeRole('CancelStepARole');
         $roleB   = $this->makeRole('CancelStepBRole');
@@ -222,7 +220,6 @@ class CancelPendingApprovalStepsTest extends TestCase {
      */
     public function test_listener_is_idempotent_when_called_multiple_times(): void {
         Notification::fake();
-        Queue::fake();
 
         $roleA   = $this->makeRole('IdempotentRoleA');
         $creator = $this->makeUser('IdempotentCreator');
@@ -264,7 +261,6 @@ class CancelPendingApprovalStepsTest extends TestCase {
      */
     public function test_cancel_notification_still_sent_alongside_cascade(): void {
         Notification::fake();
-        Queue::fake();
 
         $roleA    = $this->makeRole('NotifRoleA');
         $roleB    = $this->makeRole('NotifRoleB');
@@ -287,7 +283,6 @@ class CancelPendingApprovalStepsTest extends TestCase {
 
     public function test_document_without_approval_instance_is_noop(): void {
         Notification::fake();
-        Queue::fake();
 
         $creator = $this->makeUser('NoApprovalCreator');
         $doc     = $this->makeDocument($creator);
@@ -301,7 +296,6 @@ class CancelPendingApprovalStepsTest extends TestCase {
 
     public function test_advanced_step_child_approvers_pending_are_cascaded_but_decided_ones_are_not(): void {
         Notification::fake();
-        Queue::fake();
 
         $roleA   = $this->makeRole('AdvancedRoleA');
         $creator = $this->makeUser('AdvancedCreator');

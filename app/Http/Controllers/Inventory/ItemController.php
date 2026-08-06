@@ -69,7 +69,6 @@ class ItemController extends Controller {
         $this->service->updateUom($item, $data['uoms']);
         $itemVariant = $this->service->updateVariants($item, $data['format_variant'] ?? '', $data['attributes'] ?? []);
         $this->service->updateBarcodes($itemVariant, $data['barcodes'] ?? []);
-        $item->logForCreated();
         DB::commit();
         if ($itemVariant) {
             return back()->with('id', $itemVariant->id);
@@ -149,7 +148,6 @@ class ItemController extends Controller {
         $this->service->updateUom($item, $data['uoms']);
         $itemVariant = $this->service->updateVariants($item, $data['format_variant'] ?? '', $data['attributes'] ?? []);
         $this->service->updateBarcodes($itemVariant, $data['barcodes'] ?? []);
-        $item->logForUpdated();
 
         DB::commit();
 

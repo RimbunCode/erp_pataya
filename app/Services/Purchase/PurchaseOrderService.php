@@ -112,7 +112,6 @@ class PurchaseOrderService implements SubmitableService {
                 ...$payment_schedule,
             ]);
         }
-        $purchaseOrder->logForCreated();
 
         return $purchaseOrder;
     }
@@ -195,8 +194,6 @@ class PurchaseOrderService implements SubmitableService {
                 ]);
             }
         }
-
-        $purchaseOrder->logForUpdated();
 
         return $purchaseOrder;
     }

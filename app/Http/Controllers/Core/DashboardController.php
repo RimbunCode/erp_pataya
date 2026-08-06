@@ -86,7 +86,6 @@ class DashboardController extends Controller {
             $widget->refresh();
 
         }
-        $dashboard->logForCreated();
         DB::commit();
 
         return redirect()->back()->with('id', $dashboard->id);
@@ -220,7 +219,6 @@ class DashboardController extends Controller {
             $dashboardWidget?->refresh();
         }
         $dashboard->fillForUpdate($data);
-        $dashboard->logForUpdated();
         DB::commit();
 
         return redirect()->back();

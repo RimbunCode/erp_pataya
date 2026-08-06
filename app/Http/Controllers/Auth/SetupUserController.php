@@ -46,7 +46,6 @@ class SetupUserController extends Controller {
         $hasPassword    = $data['password'] != null;
         $data['status'] = $user->status == FormStatus::INVITED && $hasPassword && $hasBranch ? FormStatus::ACTIVE : $user->status;
         $user->fillForUpdate($data);
-        $user->logForUpdated();
         DB::commit();
 
         return back();

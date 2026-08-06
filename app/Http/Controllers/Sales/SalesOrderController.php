@@ -23,7 +23,7 @@ class SalesOrderController extends Controller {
     protected function enforcePermission(string $method): ?string {
         return match ($method) {
             'markDone', 'syncItems' => 'write',
-            default                 => null,
+            default => null,
         };
     }
 
@@ -129,7 +129,6 @@ class SalesOrderController extends Controller {
 
         // create SO
         $so = $this->service->create($data);
-        $so->logForCreated();
 
         DB::commit();
 
