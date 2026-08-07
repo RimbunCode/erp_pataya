@@ -71,6 +71,16 @@ trait DataTable {
 
             // Audit log: dispatch event untuk semua model DataTable lainnya.
             // Guard: skip jika tidak ada user terautentikasi (mis. test/seeder).
+            //
+            // CATATAN (2026-08-07): idealnya log tetap tercatat dengan user_id
+            // null saat tidak ada auth (nilai audit trail lebih tinggi daripada
+            // silent-skip), TAPI percobaan menghapus guard ini + memanggil
+            // loadRelations() di $model->fresh() untuk hindari cache relasi
+            // stale (lihat riwayat commit) menyebabkan 37 error baru di full
+            // suite (factory yang membuat model dalam urutan tertentu crash
+            // saat accessor baca relasi dari instance fresh() yang state-nya
+            // beda dari $model asli). BUTUH DESAIN ULANG lebih hati-hati
+            // sebagai task terpisah — jangan hapus guard ini tanpa itu.
             if (Auth::id()) {
                 $model->loadRelations();
                 $keys = $model->logableFields();
@@ -112,6 +122,7 @@ trait DataTable {
             // skip Log model sendiri (anti-rekursi), dan skip jika
             // dataBefore kosong — artinya model tidak di-update lewat
             // fillForUpdate() yang memanggil recordLogs() untuk snapshot.
+            // Lihat catatan guard Auth::id() di hook created() di atas.
             if (! Auth::id() || get_class($model) === Log::class || ! $model->dataBefore) {
                 return;
             }

@@ -951,13 +951,12 @@
   "949": "@tailwindcss/forms",
   "950": "@tailwindcss/typography",
   "951": "TagRequest",
+  "952": "WarehouseBranchScopeTest",
   "953": "Implementation Plan: ToDo Reminder System + Type + allocated_to Opsional",
   "954": "ManualBookToc.jsx",
   "955": "MarkdownMermaidRenderer.jsx",
   "956": "useCanUpdate.js",
   "957": "StockLedgers/Show.jsx",
-  "958": "DependsOnAuditTest.php",
-  "959": "ItemVariantRequest",
   "963": "2026_07_11_202113_create_lead_sources_table.php",
   "964": "2026_07_11_202114_create_leads_table.php",
   "965": "2026_07_12_090000_create_lead_activities_table.php",
@@ -1004,5 +1003,6 @@
   "1013": "id/crm/opportunity.php",
   "1014": "id/crm/quotation.php",
   "1015": "usePermission.test.js",
-  "1016": "LeadSourceLinkModel.jsx"
+  "1016": "LeadSourceLinkModel.jsx",
+  "1040": "grapesjs-blocks-basic"
 }
