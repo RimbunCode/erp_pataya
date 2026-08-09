@@ -5,6 +5,7 @@ namespace App\Services\Finances;
 use App\Contracts\SubmitableService;
 use App\Enums\FormStatus;
 use App\Events\Core\DocumentSubmitted;
+use App\Events\Finances\PaymentApplied;
 use App\Models\Core\FormatingSeries;
 use App\Models\Core\Preference;
 use App\Models\Finances\PaymentEntry;
@@ -14,7 +15,6 @@ use App\Models\Model;
 use App\Models\Purchase\Supplier;
 use App\Models\Sales\Customer;
 use App\Traits\HasDefaultDelete;
-use App\Utils;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Validation\ValidationException;
 
@@ -75,14 +75,17 @@ class PaymentEntryService implements SubmitableService {
         DB::beginTransaction();
 
         $paymentEntry->load([
-            'paymentable',
-            'paymentable.paymentSchedules',
             'accountPaidFrom',
             'accountPaidTo',
         ]);
 
-        $paymentable      = $paymentEntry->paymentable;
-        $paymentSchedules = $paymentEntry->paymentable->paymentSchedules;
+        $paymentableClass = $paymentEntry->paymentable_type;
+        $paymentable      = $paymentableClass::where('id', $paymentEntry->paymentable_id)
+            ->lockForUpdate()
+            ->firstOrFail();
+        $paymentable->load('paymentSchedules');
+
+        $paymentSchedules = $paymentable->paymentSchedules;
 
         $totalPaid         = $paymentEntry->paid_amount;
         $outstandingAmount = $totalPaid;
@@ -101,29 +104,8 @@ class PaymentEntryService implements SubmitableService {
             }
         }
 
-        $paymentable->paid_amount += $totalPaid;
-
-        if ($paymentable->paid_amount >= $paymentable->amount) {
-            $status = Utils::replaceStatus(
-                $paymentable->status,
-                [FormStatus::UNPAID, FormStatus::PARTIALLY_PAID],
-                FormStatus::PAID,
-            );
-        } elseif ($paymentable->paid_amount > 0) {
-            $status = Utils::replaceStatus(
-                $paymentable->status,
-                [FormStatus::UNPAID, FormStatus::PAID],
-                FormStatus::PARTIALLY_PAID,
-            );
-        } else {
-            $status = Utils::replaceStatus(
-                $paymentable->status,
-                [FormStatus::UNPAID, FormStatus::PARTIALLY_PAID],
-                FormStatus::PARTIALLY_PAID,
-            );
-        }
-        $paymentable->status = $status;
-        $paymentable->save();
+        $newPaidAmount = $paymentable->paid_amount + $totalPaid;
+        event(new PaymentApplied($paymentable, $newPaidAmount));
 
         $paymentEntry->update([
             'status' => [

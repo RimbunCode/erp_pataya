@@ -5,6 +5,7 @@ namespace App\Services\Inventory;
 use App\Contracts\SubmitableService;
 use App\Enums\FormStatus;
 use App\Events\Core\DocumentSubmitted;
+use App\Events\Sales\Order\DocumentDeliveryStatusRecalculationRequested;
 use App\Models\Core\FormatingSeries;
 use App\Models\Finances\Account;
 use App\Models\Inventory\DeliveryNote;
@@ -13,11 +14,8 @@ use App\Models\Inventory\Stock;
 use App\Models\Inventory\StockLedgerEntry;
 use App\Models\Model;
 use App\Models\Sales\InternalOrderItem;
-use App\Models\Sales\SalesOrder;
 use App\Models\Sales\SalesOrderItem;
-use App\Services\Sales\SalesOrderService;
 use App\Traits\HasDefaultDelete;
-use App\Utils;
 use Illuminate\Support\Collection;
 use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\DB;
@@ -364,36 +362,8 @@ class DeliveryNoteService implements SubmitableService {
             }
         }
 
-        if ($toReference instanceof SalesOrder) {
-            (new SalesOrderService)->updateSalesOrderStatus($toReference);
-            $status = $toReference->status;
-        } else {
-            $undeliveredItems = $toReference->items()
-                ->leftJoin('item_variants', 'item_variants.id', '=', 'items.item_variant_id')
-                ->where('is_stock_item', true)
-                ->select(['undelivered_quantity', 'quantity'])->get();
-            $countUndeliveredItems = $undeliveredItems->sum('undelivered_quantity');
-            $sumQuantity           = $undeliveredItems->sum('quantity');
-            if ($countUndeliveredItems == $sumQuantity) {
-                $status = Utils::replaceStatus(
-                    $toReference->status,
-                    [FormStatus::DELIVERED, FormStatus::PARTIALLY_DELIVERED],
-                    FormStatus::TO_DELIVER,
-                );
-            } elseif ($countUndeliveredItems > 0) {
-                $status = Utils::replaceStatus(
-                    $toReference->status,
-                    FormStatus::TO_DELIVER,
-                    FormStatus::PARTIALLY_DELIVERED,
-                );
-            } else {
-                $status = Utils::replaceStatus(
-                    $toReference->status,
-                    [FormStatus::TO_DELIVER, FormStatus::PARTIALLY_DELIVERED],
-                    FormStatus::DELIVERED,
-                );
-            }
-        }
+        event(new DocumentDeliveryStatusRecalculationRequested($toReference));
+        $status = $toReference->fresh()->status;
 
         if ($isRent) {
             if ($returnAgainst) {

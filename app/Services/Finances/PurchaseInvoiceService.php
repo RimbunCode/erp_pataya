@@ -5,6 +5,9 @@ namespace App\Services\Finances;
 use App\Contracts\SubmitableService;
 use App\Enums\FormStatus;
 use App\Events\Core\DocumentSubmitted;
+use App\Events\Purchase\Invoice\PurchaseInvoiceReturnStatusChanged;
+use App\Events\Purchase\Invoice\PurchaseOrderItemBillingChanged;
+use App\Events\Purchase\Order\PurchaseOrderBillStatusRecalculationRequested;
 use App\Models\Core\FormatingSeries;
 use App\Models\Core\ModelConnection;
 use App\Models\Core\Preference;
@@ -269,12 +272,14 @@ class PurchaseInvoiceService implements SubmitableService {
                 $qty    = $item->quantity;
                 $rate   = $item->rate;
 
-                if ($returnAgainst) {
-                    $item->returnAgainstItem->increment('returned_quantity', $qty);
-                    $poItem->decrement('billed_quantity', $qty);
-                } else {
-                    $poItem->increment('billed_quantity', $qty);
+                event(new PurchaseOrderItemBillingChanged(
+                    $poItem,
+                    $qty,
+                    $returnAgainst ? 'decrement' : 'increment',
+                    $returnAgainst ? $item->returnAgainstItem : null,
+                ));
 
+                if (! $returnAgainst) {
                     // === ALUR-1: Receipt sudah ada duluan → update SLE pending ===
                     $isAlreadyReceived = $poItem->received_quantity > 0;
 
@@ -339,7 +344,7 @@ class PurchaseInvoiceService implements SubmitableService {
             ]);
 
             // === UPDATE STATUS PO ===
-            $this->updatePurchaseOrderBillStatus($purchaseOrder, $returnAgainst);
+            event(new PurchaseOrderBillStatusRecalculationRequested($purchaseOrder, $returnAgainst));
 
             $purchaseInvoice->update([
                 'amount' => $totalAmount,
@@ -366,7 +371,7 @@ class PurchaseInvoiceService implements SubmitableService {
                 } else {
                     $status = $returnAgainst->status;
                 }
-                $returnAgainst->update(['status' => $status]);
+                event(new PurchaseInvoiceReturnStatusChanged($returnAgainst, $status));
             }
 
             DB::commit();
@@ -495,30 +500,6 @@ class PurchaseInvoiceService implements SubmitableService {
     /**
      * Update status PO untuk billed quantity (termasuk OVER_BILLED)
      */
-    private function updatePurchaseOrderBillStatus(PurchaseOrder $purchaseOrder, $returnAgainst): void {
-        $unbilledItems = $purchaseOrder->items()->select(['id', 'unbilled_quantity', 'quantity', 'billed_quantity'])->get();
-        $totalQty      = $unbilledItems->sum('quantity');
-        $totalBilled   = $unbilledItems->sum('billed_quantity');
-
-        if ($totalBilled == 0) {
-            $newStatus      = FormStatus::TO_BILL;
-            $removeStatuses = [FormStatus::BILLED, FormStatus::PARTIALLY_BILLED, FormStatus::OVER_BILLED];
-        } elseif ($totalBilled > $totalQty) {
-            $newStatus      = FormStatus::OVER_BILLED;
-            $removeStatuses = [FormStatus::TO_BILL, FormStatus::PARTIALLY_BILLED, FormStatus::BILLED];
-        } elseif ($totalBilled < $totalQty) {
-            $newStatus      = FormStatus::PARTIALLY_BILLED;
-            $removeStatuses = [FormStatus::TO_BILL, FormStatus::BILLED, FormStatus::OVER_BILLED];
-        } else {
-            $newStatus      = FormStatus::BILLED;
-            $removeStatuses = [FormStatus::TO_BILL, FormStatus::PARTIALLY_BILLED, FormStatus::OVER_BILLED];
-        }
-
-        $purchaseOrder->update([
-            'status' => Utils::replaceStatus($purchaseOrder->status, $removeStatuses, $newStatus),
-        ]);
-    }
-
     public function onRejected(Model $purchaseInvoice): mixed {
         DB::beginTransaction();
         $purchaseInvoice->update([

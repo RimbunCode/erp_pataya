@@ -5,6 +5,7 @@ namespace App\Services\Purchase;
 use App\Contracts\SubmitableService;
 use App\Enums\FormStatus;
 use App\Events\Core\DocumentSubmitted;
+use App\Events\Purchase\Order\PurchaseOrderReceiveStatusRecalculationRequested;
 use App\Models\Core\FormatingSeries;
 use App\Models\Core\ModelConnection;
 use App\Models\Finances\Account;
@@ -18,7 +19,6 @@ use App\Models\Purchase\PurchaseOrder;
 use App\Models\Purchase\PurchaseOrderItem;
 use App\Models\Purchase\PurchaseReceipt;
 use App\Traits\HasDefaultDelete;
-use App\Utils;
 use Illuminate\Support\Collection;
 use Illuminate\Support\Facades\DB;
 use Symfony\Component\Uid\Ulid;
@@ -371,7 +371,7 @@ class PurchaseReceiptService implements SubmitableService {
         }
 
         // === UPDATE STATUS PO ===
-        $this->updatePurchaseOrderReceiveStatus($purchaseOrder);
+        event(new PurchaseOrderReceiveStatusRecalculationRequested($purchaseOrder));
 
         // === GL Stock/SRNB: Hanya untuk ALUR-2 (dan Return) ===
         if ($returnAgainst || $totalRatesForGL > 0) {
@@ -423,30 +423,6 @@ class PurchaseReceiptService implements SubmitableService {
             ->with('purchaseInvoice')
             ->get()
             ->sortBy('purchaseInvoice.date');
-    }
-
-    private function updatePurchaseOrderReceiveStatus(PurchaseOrder $purchaseOrder): void {
-        $items         = $purchaseOrder->items()->select('quantity', 'received_quantity')->get();
-        $totalQty      = $items->sum('quantity');
-        $totalReceived = $items->sum('received_quantity');
-
-        if ($totalReceived == 0) {
-            $newStatus      = FormStatus::TO_RECEIVE;
-            $removeStatuses = [FormStatus::RECEIVED, FormStatus::PARTIALLY_RECEIVED, FormStatus::OVER_RECEIVED];
-        } elseif ($totalReceived > $totalQty) {
-            $newStatus      = FormStatus::OVER_RECEIVED;
-            $removeStatuses = [FormStatus::TO_RECEIVE, FormStatus::PARTIALLY_RECEIVED, FormStatus::RECEIVED];
-        } elseif ($totalReceived < $totalQty) {
-            $newStatus      = FormStatus::PARTIALLY_RECEIVED;
-            $removeStatuses = [FormStatus::TO_RECEIVE, FormStatus::RECEIVED, FormStatus::OVER_RECEIVED];
-        } else {
-            $newStatus      = FormStatus::RECEIVED;
-            $removeStatuses = [FormStatus::TO_RECEIVE, FormStatus::PARTIALLY_RECEIVED, FormStatus::OVER_RECEIVED];
-        }
-
-        $purchaseOrder->update([
-            'status' => Utils::replaceStatus($purchaseOrder->status, $removeStatuses, $newStatus),
-        ]);
     }
 
     public function onRejected(Model $purchaseReceipt): mixed {

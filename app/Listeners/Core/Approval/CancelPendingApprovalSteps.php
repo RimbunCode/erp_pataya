@@ -6,9 +6,8 @@ use App\Enums\FormStatus;
 use App\Events\Core\DocumentCanceled;
 use App\Notifications\ApprovalCanceledNotification;
 use App\Services\Core\Notification\NotifyUser;
-use Illuminate\Contracts\Queue\ShouldQueue;
 
-class CancelPendingApprovalSteps implements ShouldQueue {
+class CancelPendingApprovalSteps {
     public function handle(DocumentCanceled $event): void {
         $steps = $event->approvalInstance->steps()
             ->whereIn('status', [FormStatus::PENDING->value, FormStatus::WAITING->value])

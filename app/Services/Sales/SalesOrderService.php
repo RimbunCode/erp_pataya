@@ -5,6 +5,7 @@ namespace App\Services\Sales;
 use App\Contracts\SubmitableService;
 use App\Enums\FormStatus;
 use App\Events\Core\DocumentSubmitted;
+use App\Events\Inventory\StockReservationChanged;
 use App\Models\Core\Branch;
 use App\Models\Core\FormatingSeries;
 use App\Models\Core\ModelConnection;
@@ -219,8 +220,9 @@ class SalesOrderService implements SubmitableService {
             ->get()
             ->keyBy(fn ($stock) => "{$stock->item_variant_id}-{$stock->warehouse_id}");
 
-        $isValid    = ! $salesOrder->is_rent;
-        $errorItems = [];
+        $isValid        = ! $salesOrder->is_rent;
+        $errorItems     = [];
+        $validatedItems = [];
         foreach ($items as $item) {
             if (! $item->item->is_stock_item) {
                 continue;
@@ -244,7 +246,11 @@ class SalesOrderService implements SubmitableService {
 
                 continue;
             }
-            $stock->updateDetails('increment', 'reservations', $salesOrder->code, $quantity);
+            $validatedItems[] = [
+                'itemVariantId' => $item->item_id,
+                'warehouseId'   => $item->source_warehouse_id,
+                'quantity'      => $quantity,
+            ];
         }
         if (! $isValid) {
             $errorItems[] = 'This order is not valid for renting';
@@ -254,6 +260,10 @@ class SalesOrderService implements SubmitableService {
             throw ValidationException::withMessages([
                 'items' => $errorItems,
             ]);
+        }
+
+        if (\count($validatedItems) > 0) {
+            event(new StockReservationChanged($salesOrder, 'increment', 'reservations', $validatedItems));
         }
 
         DB::commit();
@@ -278,6 +288,7 @@ class SalesOrderService implements SubmitableService {
     }
 
     public function updateSalesOrderStatus(SalesOrder $salesOrder): void {
+        $salesOrder = SalesOrder::where('id', $salesOrder->id)->lockForUpdate()->firstOrFail();
         $salesOrder->loadMissing('items');
         $totalQty       = $salesOrder->items->sum('quantity');
         $totalDelivered = $salesOrder->items->sum('delivered_quantity');
@@ -537,7 +548,7 @@ class SalesOrderService implements SubmitableService {
         });
     }
 
-    private function rolllbackItems(SalesOrder $salesOrder) {
+    private function rollbackItems(SalesOrder $salesOrder) {
         if ($salesOrder->referenceable_type && $salesOrder->referenceable_id) {
             $additionalData          = $salesOrder->referenceable->additional_data ?? [];
             $additionalData['order'] = false;
@@ -550,6 +561,7 @@ class SalesOrderService implements SubmitableService {
             ->lockForUpdate()
             ->get()
             ->keyBy(fn ($stock) => "{$stock->item_variant_id}-{$stock->warehouse_id}");
+        $validatedItems = [];
         foreach ($items as $item) {
             $stockKey = "{$item->item_id}-{$item->source_warehouse_id}";
             $stock    = $stocks->get($stockKey);
@@ -559,7 +571,15 @@ class SalesOrderService implements SubmitableService {
 
             $quantity = $item->quantity * $item->conversion_factor / $stock->conversion_factor;
 
-            $stock->updateDetails('decrement', 'reservations', $salesOrder->code, $quantity);
+            $validatedItems[] = [
+                'itemVariantId' => $item->item_id,
+                'warehouseId'   => $item->source_warehouse_id,
+                'quantity'      => $quantity,
+            ];
+        }
+
+        if (\count($validatedItems) > 0) {
+            event(new StockReservationChanged($salesOrder, 'decrement', 'reservations', $validatedItems));
         }
     }
 
@@ -571,7 +591,7 @@ class SalesOrderService implements SubmitableService {
             ],
         ]);
 
-        $this->rolllbackItems($salesOrder);
+        $this->rollbackItems($salesOrder);
 
         DB::commit();
 
@@ -586,7 +606,7 @@ class SalesOrderService implements SubmitableService {
             ],
         ]);
 
-        $this->rolllbackItems($salesOrder);
+        $this->rollbackItems($salesOrder);
 
         DB::commit();
 

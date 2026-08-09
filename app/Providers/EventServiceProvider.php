@@ -7,6 +7,15 @@ use App\Events\Core\AuditableModelSaved;
 use App\Events\Core\DocumentCanceled;
 use App\Events\Core\DocumentStatusChanged;
 use App\Events\Core\DocumentSubmitted;
+use App\Events\Finances\PaymentApplied;
+use App\Events\Inventory\StockReservationChanged;
+use App\Events\Purchase\Invoice\PurchaseInvoiceReturnStatusChanged;
+use App\Events\Purchase\Invoice\PurchaseOrderItemBillingChanged;
+use App\Events\Purchase\Order\PurchaseOrderBillStatusRecalculationRequested;
+use App\Events\Purchase\Order\PurchaseOrderReceiveStatusRecalculationRequested;
+use App\Events\Sales\Invoice\SalesInvoiceReturnStatusChanged;
+use App\Events\Sales\Invoice\SalesOrderItemBillingChanged;
+use App\Events\Sales\Order\DocumentDeliveryStatusRecalculationRequested;
 use App\Listeners\Core\Approval\AttachApprovalPdf;
 use App\Listeners\Core\Approval\CancelPendingApprovalSteps;
 use App\Listeners\Core\Approval\NotifyApprovalDecision;
@@ -14,6 +23,15 @@ use App\Listeners\Core\Approval\NotifyNextApprover;
 use App\Listeners\Core\Audit\RecordAuditLog;
 use App\Listeners\Core\Submission\CreateDocumentConnection;
 use App\Listeners\Core\Submission\NotifyRoleOnStatusChange;
+use App\Listeners\Finances\Payment\UpdatePaymentableStatus;
+use App\Listeners\Inventory\Stock\UpdateStockReservation;
+use App\Listeners\Purchase\Invoice\UpdatePurchaseInvoiceReturnStatus;
+use App\Listeners\Purchase\Invoice\UpdatePurchaseOrderItemBilling;
+use App\Listeners\Purchase\Order\RecalculatePurchaseOrderBillStatus;
+use App\Listeners\Purchase\Order\RecalculatePurchaseOrderReceiveStatus;
+use App\Listeners\Sales\Invoice\UpdateSalesInvoiceReturnStatus;
+use App\Listeners\Sales\Invoice\UpdateSalesOrderItemBilling;
+use App\Listeners\Sales\Order\RecalculateDocumentDeliveryStatus;
 use Illuminate\Foundation\Support\Providers\EventServiceProvider as ServiceProvider;
 
 class EventServiceProvider extends ServiceProvider {
@@ -37,6 +55,33 @@ class EventServiceProvider extends ServiceProvider {
         ],
         DocumentSubmitted::class => [
             CreateDocumentConnection::class,
+        ],
+        StockReservationChanged::class => [
+            UpdateStockReservation::class,
+        ],
+        PaymentApplied::class => [
+            UpdatePaymentableStatus::class,
+        ],
+        DocumentDeliveryStatusRecalculationRequested::class => [
+            RecalculateDocumentDeliveryStatus::class,
+        ],
+        PurchaseOrderBillStatusRecalculationRequested::class => [
+            RecalculatePurchaseOrderBillStatus::class,
+        ],
+        PurchaseOrderReceiveStatusRecalculationRequested::class => [
+            RecalculatePurchaseOrderReceiveStatus::class,
+        ],
+        SalesOrderItemBillingChanged::class => [
+            UpdateSalesOrderItemBilling::class,
+        ],
+        SalesInvoiceReturnStatusChanged::class => [
+            UpdateSalesInvoiceReturnStatus::class,
+        ],
+        PurchaseOrderItemBillingChanged::class => [
+            UpdatePurchaseOrderItemBilling::class,
+        ],
+        PurchaseInvoiceReturnStatusChanged::class => [
+            UpdatePurchaseInvoiceReturnStatus::class,
         ],
     ];
 }

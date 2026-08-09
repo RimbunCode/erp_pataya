@@ -5,6 +5,9 @@ namespace App\Services\Finances;
 use App\Contracts\SubmitableService;
 use App\Enums\FormStatus;
 use App\Events\Core\DocumentSubmitted;
+use App\Events\Sales\Invoice\SalesInvoiceReturnStatusChanged;
+use App\Events\Sales\Invoice\SalesOrderItemBillingChanged;
+use App\Events\Sales\Order\DocumentDeliveryStatusRecalculationRequested;
 use App\Models\Core\Branch;
 use App\Models\Core\FormatingSeries;
 use App\Models\Core\Preference;
@@ -14,7 +17,6 @@ use App\Models\Inventory\ItemUnit;
 use App\Models\Model;
 use App\Models\Sales\Customer;
 use App\Models\Sales\SalesOrderItem;
-use App\Services\Sales\SalesOrderService;
 use App\Traits\HasDefaultDelete;
 use App\Utils;
 use Illuminate\Support\Facades\DB;
@@ -266,12 +268,12 @@ class SalesInvoiceService implements SubmitableService {
             foreach ($items as $item) {
                 $basicAmount += $item->basic_amount;
                 $taxAmount += $item->tax_amount;
-                if ($returnAgainst) {
-                    $item->returnAgainstItem->increment('returned_quantity', $item->quantity);
-                    $item->salesOrderItem->decrement('billed_quantity', $item->quantity);
-                } else {
-                    $item->salesOrderItem->increment('billed_quantity', $item->quantity);
-                }
+                event(new SalesOrderItemBillingChanged(
+                    $item->salesOrderItem,
+                    $item->quantity,
+                    $returnAgainst ? 'decrement' : 'increment',
+                    $returnAgainst ? $item->returnAgainstItem : null,
+                ));
             }
             $totalAmount = Utils::countAmount($basicAmount, $taxAmount, $salesInvoice->discount_on, $salesInvoice->discount_amount);
 
@@ -298,7 +300,7 @@ class SalesInvoiceService implements SubmitableService {
 
             $salesOrder = $salesInvoice->salesOrder;
             if ($salesOrder) {
-                (new SalesOrderService)->updateSalesOrderStatus($salesOrder);
+                event(new DocumentDeliveryStatusRecalculationRequested($salesOrder));
             }
 
             $salesInvoice->update([
@@ -326,9 +328,7 @@ class SalesInvoiceService implements SubmitableService {
                 } else {
                     $status = $returnAgainst->status;
                 }
-                $returnAgainst->update([
-                    'status' => $status,
-                ]);
+                event(new SalesInvoiceReturnStatusChanged($returnAgainst, $status));
             }
 
             DB::commit();

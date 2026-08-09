@@ -4,6 +4,7 @@ namespace App\Services\Purchase;
 
 use App\Contracts\SubmitableService;
 use App\Enums\FormStatus;
+use App\Events\Inventory\StockReservationChanged;
 use App\Models\Core\FormatingSeries;
 use App\Models\Core\ModelConnection;
 use App\Models\Core\Preference;
@@ -227,6 +228,7 @@ class PurchaseOrderService implements SubmitableService {
             ->get()
             ->keyBy(fn ($stock) => "{$stock->item_variant_id}-{$stock->warehouse_id}");
 
+        $validatedItems = [];
         foreach ($items as $item) {
             if (! $item->item->is_stock_item) {
                 continue;
@@ -239,8 +241,16 @@ class PurchaseOrderService implements SubmitableService {
                 continue;
             }
 
-            $quantity = $item->quantity * $item->conversion_factor / $stock->conversion_factor;
-            $stock->updateDetails('increment', 'incomings', $purchaseOrder->code, $quantity);
+            $quantity         = $item->quantity * $item->conversion_factor / $stock->conversion_factor;
+            $validatedItems[] = [
+                'itemVariantId' => $item->item_id,
+                'warehouseId'   => $item->target_warehouse_id,
+                'quantity'      => $quantity,
+            ];
+        }
+
+        if (\count($validatedItems) > 0) {
+            event(new StockReservationChanged($purchaseOrder, 'increment', 'incomings', $validatedItems));
         }
 
         DB::commit();
@@ -284,7 +294,7 @@ class PurchaseOrderService implements SubmitableService {
         return $purchaseOrder;
     }
 
-    private function rolllbackItems(PurchaseOrder $purchaseOrder) {
+    private function rollbackItems(PurchaseOrder $purchaseOrder) {
         $items = $purchaseOrder->items()
             ->get();
         $stocks = Stock::whereIn('item_variant_id', $items->pluck('item_id'))
@@ -292,6 +302,7 @@ class PurchaseOrderService implements SubmitableService {
             ->lockForUpdate()
             ->get()
             ->keyBy(fn ($stock) => "{$stock->item_variant_id}-{$stock->warehouse_id}");
+        $validatedItems = [];
         foreach ($items as $item) {
             $stockKey = "{$item->item_id}-{$item->target_warehouse_id}";
             $stock    = $stocks->get($stockKey);
@@ -299,8 +310,16 @@ class PurchaseOrderService implements SubmitableService {
                 continue;
             }
 
-            $quantity = $item->quantity * $item->conversion_factor / $stock->conversion_factor;
-            $stock->updateDetails('decrement', 'incomings', $purchaseOrder->code, $quantity);
+            $quantity         = $item->quantity * $item->conversion_factor / $stock->conversion_factor;
+            $validatedItems[] = [
+                'itemVariantId' => $item->item_id,
+                'warehouseId'   => $item->target_warehouse_id,
+                'quantity'      => $quantity,
+            ];
+        }
+
+        if (\count($validatedItems) > 0) {
+            event(new StockReservationChanged($purchaseOrder, 'decrement', 'incomings', $validatedItems));
         }
     }
 
@@ -312,7 +331,7 @@ class PurchaseOrderService implements SubmitableService {
             ],
         ]);
 
-        $this->rolllbackItems($purchaseOrder);
+        $this->rollbackItems($purchaseOrder);
 
         DB::commit();
 
@@ -327,11 +346,59 @@ class PurchaseOrderService implements SubmitableService {
             ],
         ]);
 
-        $this->rolllbackItems($purchaseOrder);
+        $this->rollbackItems($purchaseOrder);
 
         DB::commit();
 
         return $purchaseOrder;
+    }
+
+    public function updatePurchaseOrderBillStatus(PurchaseOrder $purchaseOrder, $returnAgainst): void {
+        $unbilledItems = $purchaseOrder->items()->select(['id', 'unbilled_quantity', 'quantity', 'billed_quantity'])->get();
+        $totalQty      = $unbilledItems->sum('quantity');
+        $totalBilled   = $unbilledItems->sum('billed_quantity');
+
+        if ($totalBilled == 0) {
+            $newStatus      = FormStatus::TO_BILL;
+            $removeStatuses = [FormStatus::BILLED, FormStatus::PARTIALLY_BILLED, FormStatus::OVER_BILLED];
+        } elseif ($totalBilled > $totalQty) {
+            $newStatus      = FormStatus::OVER_BILLED;
+            $removeStatuses = [FormStatus::TO_BILL, FormStatus::PARTIALLY_BILLED, FormStatus::BILLED];
+        } elseif ($totalBilled < $totalQty) {
+            $newStatus      = FormStatus::PARTIALLY_BILLED;
+            $removeStatuses = [FormStatus::TO_BILL, FormStatus::BILLED, FormStatus::OVER_BILLED];
+        } else {
+            $newStatus      = FormStatus::BILLED;
+            $removeStatuses = [FormStatus::TO_BILL, FormStatus::PARTIALLY_BILLED, FormStatus::OVER_BILLED];
+        }
+
+        $purchaseOrder->update([
+            'status' => Utils::replaceStatus($purchaseOrder->status, $removeStatuses, $newStatus),
+        ]);
+    }
+
+    public function updatePurchaseOrderReceiveStatus(PurchaseOrder $purchaseOrder): void {
+        $items         = $purchaseOrder->items()->select('quantity', 'received_quantity')->get();
+        $totalQty      = $items->sum('quantity');
+        $totalReceived = $items->sum('received_quantity');
+
+        if ($totalReceived == 0) {
+            $newStatus      = FormStatus::TO_RECEIVE;
+            $removeStatuses = [FormStatus::RECEIVED, FormStatus::PARTIALLY_RECEIVED, FormStatus::OVER_RECEIVED];
+        } elseif ($totalReceived > $totalQty) {
+            $newStatus      = FormStatus::OVER_RECEIVED;
+            $removeStatuses = [FormStatus::TO_RECEIVE, FormStatus::PARTIALLY_RECEIVED, FormStatus::RECEIVED];
+        } elseif ($totalReceived < $totalQty) {
+            $newStatus      = FormStatus::PARTIALLY_RECEIVED;
+            $removeStatuses = [FormStatus::TO_RECEIVE, FormStatus::RECEIVED, FormStatus::OVER_RECEIVED];
+        } else {
+            $newStatus      = FormStatus::RECEIVED;
+            $removeStatuses = [FormStatus::TO_RECEIVE, FormStatus::PARTIALLY_RECEIVED, FormStatus::OVER_RECEIVED];
+        }
+
+        $purchaseOrder->update([
+            'status' => Utils::replaceStatus($purchaseOrder->status, $removeStatuses, $newStatus),
+        ]);
     }
 
     public function amend(Model $model): mixed {

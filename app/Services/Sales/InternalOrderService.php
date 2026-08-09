@@ -4,12 +4,14 @@ namespace App\Services\Sales;
 
 use App\Contracts\SubmitableService;
 use App\Enums\FormStatus;
+use App\Events\Inventory\StockReservationChanged;
 use App\Models\Core\FormatingSeries;
 use App\Models\Inventory\ItemUnit;
 use App\Models\Inventory\Stock;
 use App\Models\Model;
 use App\Models\Sales\InternalOrder;
 use App\Traits\HasDefaultDelete;
+use App\Utils;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Validation\ValidationException;
 use Symfony\Component\Uid\Ulid;
@@ -94,7 +96,8 @@ class InternalOrderService implements SubmitableService {
             ->lockForUpdate()
             ->get()
             ->keyBy(fn ($stock) => "{$stock->item_variant_id}-{$stock->warehouse_id}");
-        $errorItems = [];
+        $errorItems     = [];
+        $validatedItems = [];
 
         foreach ($items as $item) {
             $stockKey = "{$item->item_id}-{$item->source_warehouse_id}";
@@ -114,8 +117,11 @@ class InternalOrderService implements SubmitableService {
                 continue;
             }
 
-            // sama pola dengan SalesOrder
-            $stock->updateDetails('increment', 'reservations', $internalOrder->code, $quantity);
+            $validatedItems[] = [
+                'itemVariantId' => $item->item_id,
+                'warehouseId'   => $item->source_warehouse_id,
+                'quantity'      => $quantity,
+            ];
         }
 
         if (count($errorItems) > 0) {
@@ -125,10 +131,44 @@ class InternalOrderService implements SubmitableService {
             ]);
         }
 
+        if (\count($validatedItems) > 0) {
+            event(new StockReservationChanged($internalOrder, 'increment', 'reservations', $validatedItems));
+        }
+
         DB::commit();
         $internalOrder->checkApproval();
 
         return $internalOrder;
+    }
+
+    public function updateInternalOrderStatus(InternalOrder $internalOrder): void {
+        $undeliveredItems = $internalOrder->items()
+            ->leftJoin('item_variants', 'item_variants.id', '=', 'items.item_variant_id')
+            ->where('is_stock_item', true)
+            ->select(['undelivered_quantity', 'quantity'])->get();
+        $countUndeliveredItems = $undeliveredItems->sum('undelivered_quantity');
+        $sumQuantity           = $undeliveredItems->sum('quantity');
+        if ($countUndeliveredItems == $sumQuantity) {
+            $status = Utils::replaceStatus(
+                $internalOrder->status,
+                [FormStatus::DELIVERED, FormStatus::PARTIALLY_DELIVERED],
+                FormStatus::TO_DELIVER,
+            );
+        } elseif ($countUndeliveredItems > 0) {
+            $status = Utils::replaceStatus(
+                $internalOrder->status,
+                FormStatus::TO_DELIVER,
+                FormStatus::PARTIALLY_DELIVERED,
+            );
+        } else {
+            $status = Utils::replaceStatus(
+                $internalOrder->status,
+                [FormStatus::TO_DELIVER, FormStatus::PARTIALLY_DELIVERED],
+                FormStatus::DELIVERED,
+            );
+        }
+
+        $internalOrder->update(['status' => $status]);
     }
 
     public function onApproved(Model $internalOrder): mixed {
@@ -149,6 +189,7 @@ class InternalOrderService implements SubmitableService {
             ->get()
             ->keyBy(fn ($stock) => "{$stock->item_variant_id}-{$stock->warehouse_id}");
 
+        $validatedItems = [];
         foreach ($items as $item) {
             $stockKey = "{$item->item_id}-{$item->source_warehouse_id}";
             $stock    = $stocks->get($stockKey);
@@ -156,7 +197,16 @@ class InternalOrderService implements SubmitableService {
                 continue;
             }
 
-            $stock->updateDetails('decrement', 'reservations', $internalOrder->code);
+            $quantity         = $item->quantity * $item->conversion_factor / $stock->conversion_factor;
+            $validatedItems[] = [
+                'itemVariantId' => $item->item_id,
+                'warehouseId'   => $item->source_warehouse_id,
+                'quantity'      => $quantity,
+            ];
+        }
+
+        if (\count($validatedItems) > 0) {
+            event(new StockReservationChanged($internalOrder, 'decrement', 'reservations', $validatedItems));
         }
     }
 

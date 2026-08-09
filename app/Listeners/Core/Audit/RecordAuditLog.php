@@ -4,10 +4,9 @@ namespace App\Listeners\Core\Audit;
 
 use App\Events\Core\AuditableModelSaved;
 use App\Models\Core\Log;
-use Illuminate\Contracts\Queue\ShouldQueue;
 use Illuminate\Support\Facades\Auth;
 
-class RecordAuditLog implements ShouldQueue {
+class RecordAuditLog {
     private const ACTIVITY = [
         'created'   => ['en' => ':user created this',        'id' => ':user telah membuat ini'],
         'updated'   => ['en' => ':user updated this',        'id' => ':user memperbarui ini'],
