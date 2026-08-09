@@ -7,6 +7,7 @@ use Illuminate\Database\Eloquent\Model as EloquentModel;
 use Illuminate\Database\Eloquent\Relations\Relation;
 use Illuminate\Support\Facades\Schema;
 use Illuminate\Support\Str;
+use ReflectionClass;
 
 class DataTableConfigValidator {
     /**
@@ -34,9 +35,15 @@ class DataTableConfigValidator {
         } catch (\Throwable) {
         }
 
-        $configColumns = $modelClass::mergeConfigColumns(
-            $instance->defaultConfigColumns ?? [],
-            $instance->configColumns ?? [],
+        // configColumns/defaultConfigColumns dideklarasikan `protected` di SEMUA
+        // model (konvensi codebase) — validator ini class terpisah, bukan bagian
+        // hierarki Model, jadi akses langsung ($instance->configColumns) gagal
+        // diam-diam via operator ?? (PHP menekan error visibility, fallback []).
+        // Baca via Reflection supaya validasi benar-benar jalan.
+        $ownConfigColumns = static::readProtectedProperty($instance, 'configColumns') ?? [];
+        $configColumns    = $modelClass::mergeConfigColumns(
+            static::readProtectedProperty($instance, 'defaultConfigColumns') ?? [],
+            $ownConfigColumns,
         );
 
         foreach ($columns as $col) {
@@ -70,15 +77,67 @@ class DataTableConfigValidator {
             }
         }
 
-        foreach ($configColumns as $key => $config) {
+        // Validasi ketat HANYA thd key yang dideklarasikan model itu SENDIRI
+        // ($instance->configColumns) — BUKAN hasil merge dengan defaultConfigColumns
+        // (superset generik LinkModel: is_example, have_transactions, lft/rgt/depth,
+        // dst — berlaku lintas-model, banyak yang memang tidak relevan/tidak ada
+        // di kolom model tertentu, itu bukan salah penamaan).
+        foreach ($ownConfigColumns as $key => $config) {
             $key = is_string($key) ? $key : $config;
+
+            // Urutan pengecekan (setiap key configColumns HARUS resolve ke tepat
+            // satu dari ini — kalau tidak satupun cocok, itu error, TERLEPAS
+            // dari ada/tidaknya 'type' eksplisit di config. Sinyal 'type' saja
+            // tidak cukup: kalau developer lupa/salah menuliskannya, validator
+            // sebelumnya ikut buta juga):
+            // 1. Kolom DB fisik
+            // 2. Attribute/accessor (Attribute::get() ATAU getXxxAttribute())
+            // 3. Method relasi Eloquent (BelongsTo/HasMany/dst)
+            // 4. Kolom hasil JOIN (addSelect di global scope, mis. ItemUnit::code
+            //    dari tabel units — tidak ada di Schema::getColumnListing tabel
+            //    model sendiri, tapi valid krn forceAppend/isJoinResult eksplisit)
+            if (in_array($key, $dbColumns, true)) {
+                continue; // Rule 1: kolom DB — valid
+            }
+
+            if ($instance->hasAttributeMutator($key) || $instance->hasAttributeGetMutator($key) || $instance->hasGetMutator($key)) {
+                continue; // Rule 2: attribute/accessor — valid
+            }
+
+            $computedCol = collect($columns)->firstWhere('name', $key);
+            if ($computedCol !== null && (($computedCol['forceAppend'] ?? false) || ($computedCol['isJoinResult'] ?? false))) {
+                continue; // Rule 4: forceAppend/isJoinResult — valid
+            }
+
             if (! method_exists($instance, $key)) {
+                $violations[] = [
+                    'rule'    => 3,
+                    'column'  => $key,
+                    'message' => "configColumns key '{$key}' tidak ditemukan sebagai kolom DB, attribute/accessor, maupun method relasi di model — kemungkinan salah penamaan atau field yang tidak eksis.",
+                ];
+
                 continue;
             }
+
+            // Method protected/private (mis. appendStatus, appendCanDelete milik
+            // trait LinkModel sendiri — accessor internal, BUKAN relasi Eloquent)
+            // selalu throw BadMethodCallException generik kalau dipanggil dari
+            // luar class via magic __call Eloquent, terlepas relasi atau bukan.
+            // Skip validasi Rule 3 utk method non-public — bukan indikasi error.
+            $methodReflection = new \ReflectionMethod($instance, $key);
+            if (! $methodReflection->isPublic()) {
+                continue;
+            }
+
             try {
                 $rel = $instance->$key();
                 if (! $rel instanceof Relation) {
-                    continue; // Bukan relasi (mis. Attribute), skip validasi Rule 3
+                    // Rule 3: method public ada tapi BUKAN relasi DAN bukan
+                    // attribute (sudah dicek Rule 2 di atas) — ini janggal,
+                    // tapi bukan tanggung jawab Rule 3 (validasi relasi) utk
+                    // menghakimi method non-relasi sembarangan; biarkan lolos
+                    // spt semula supaya tidak false-positive thd method utility.
+                    continue;
                 }
             } catch (\Throwable $e) {
                 // Jika method throws, tetap laporkan sebagai error
@@ -276,5 +335,21 @@ class DataTableConfigValidator {
         }
 
         return $violations;
+    }
+
+    /**
+     * Baca property protected/private lewat Reflection — $instance->prop tidak
+     * bisa dipakai di sini karena class ini bukan bagian hierarki Model.
+     */
+    private static function readProtectedProperty(EloquentModel $instance, string $property): mixed {
+        $reflection = new ReflectionClass($instance);
+        if (! $reflection->hasProperty($property)) {
+            return null;
+        }
+
+        $prop = $reflection->getProperty($property);
+        $prop->setAccessible(true);
+
+        return $prop->getValue($instance);
     }
 }

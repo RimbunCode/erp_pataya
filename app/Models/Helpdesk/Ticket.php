@@ -66,7 +66,7 @@ class Ticket extends Model {
             'order'              => 6,
             'disabledNavigation' => true,
         ],
-        'created_by' => [
+        'createdBy' => [
             'show'  => true,
             'order' => 7,
         ],

@@ -57,11 +57,11 @@ class Widget extends Model {
             'order'              => 2,
             'disabledNavigation' => true,
         ],
-        'created_by' => [
+        'createdBy' => [
             'show'  => true,
             'order' => 3,
         ],
-        'dashboard' => [
+        'dashboards' => [
             'show'  => true,
             'order' => 4,
         ],
@@ -69,7 +69,7 @@ class Widget extends Model {
             'show'  => true,
             'order' => 5,
         ],
-        'group_by_types' => [
+        'group_by_type' => [
             'valueTrans' => 'settings.widget.columns.group_by_types.options',
         ],
         'calculation_type' => [

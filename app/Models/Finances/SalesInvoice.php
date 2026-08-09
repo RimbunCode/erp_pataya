@@ -95,13 +95,13 @@ class SalesInvoice extends Model {
         'base_currency_code' => [
             'hidden' => true,
         ],
-        'base_amount' => [
+        'amount_base_currency' => [
             'hidden' => true,
         ],
-        'base_outstanding_amount' => [
+        'outstanding_amount_base_currency' => [
             'hidden' => true,
         ],
-        'base_paid_amount' => [
+        'paid_amount_base_currency' => [
             'hidden' => true,
         ],
         'customer_branch_name' => [
