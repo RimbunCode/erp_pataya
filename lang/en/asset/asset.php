@@ -1,0 +1,100 @@
+<?php
+
+return [
+    'title'              => 'Asset',
+    'add'                => 'Add Asset',
+    'new'                => 'New Asset',
+    'delete'             => 'Delete Asset',
+    'delete.description' => 'Are you sure you want to delete this asset?',
+    'delete.confirm'     => 'Delete',
+    'cancel'             => 'Cancel',
+
+    'sell_not_implemented'          => 'Sell Asset is not yet available, will be implemented in Phase 4.',
+    'cannot_cancel'                 => 'Asset cannot be cancelled.',
+    'ownership_field_must_be_empty' => 'The :field field must be empty for the selected ownership type.',
+    'rentable_must_be_single_unit'  => 'Assets in a rentable category must have a quantity of 1.',
+    'cannot_transition_status'      => 'Asset cannot transition to :to from its current status.',
+    'location'                      => [
+        'cannot_delete_has_assets' => 'This location cannot be deleted because it still contains assets or has sub-locations with assets.',
+    ],
+
+    'actions' => [
+        'submit'             => 'Submit',
+        'scrap'              => 'Scrap',
+        'sell'               => 'Sell',
+        'set_in_maintenance' => 'Schedule Maintenance',
+        'set_out_of_order'   => 'Mark Out of Order',
+        'reactivate'         => 'Reactivate',
+    ],
+
+    'columns' => [
+        'asset_name'         => 'Asset Name',
+        'code'               => 'Code',
+        'asset_category_id'  => 'Asset Category',
+        'asset_location_id'  => 'Asset Location',
+        'asset_type'         => 'Asset Type',
+        'asset_type.options' => [
+            'existing_asset'      => 'Existing Asset',
+            'composite_asset'     => 'Composite Asset',
+            'composite_component' => 'Composite Component',
+        ],
+        'item_id'        => 'Related Item',
+        'asset_quantity' => 'Quantity',
+
+        'ownership_type'         => 'Ownership Type',
+        'ownership_type.options' => [
+            'company'  => 'Company',
+            'supplier' => 'Supplier',
+            'customer' => 'Customer',
+        ],
+        'ownership_company_id'  => 'Company',
+        'ownership_supplier_id' => 'Supplier',
+        'ownership_customer_id' => 'Customer',
+
+        'custodian_id' => 'Custodian',
+
+        'purchase_date'          => 'Purchase Date',
+        'available_for_use_date' => 'Available for Use Date',
+        'disposal_date'          => 'Disposal Date',
+        'net_purchase_amount'    => 'Net Purchase Amount',
+        'gross_purchase_amount'  => 'Gross Purchase Amount',
+        'additional_asset_cost'  => 'Additional Asset Cost',
+        'total_asset_cost'       => 'Total Asset Cost',
+
+        'calculate_depreciation'                 => 'Calculate Depreciation',
+        'is_depreciable'                         => 'Depreciable',
+        'opening_accumulated_depreciation'       => 'Opening Accumulated Depreciation',
+        'opening_number_of_booked_depreciations' => 'Opening Number of Booked Depreciations',
+        'depreciation_method'                    => 'Depreciation Method',
+        'depreciation_method.options'            => [
+            'straight_line'            => 'Straight Line',
+            'double_declining_balance' => 'Double Declining Balance',
+            'written_down_value'       => 'Written Down Value',
+            'manual'                   => 'Manual',
+        ],
+        'frequency_of_depreciation'        => 'Frequency of Depreciation (Months)',
+        'total_number_of_depreciations'    => 'Total Number of Depreciations',
+        'next_depreciation_date'           => 'Next Depreciation Date',
+        'expected_value_after_useful_life' => 'Salvage Value',
+        'salvage_value_percentage'         => 'Salvage Value Percentage',
+        'rate_of_depreciation'             => 'Rate of Depreciation',
+        'daily_prorata_based'              => 'Daily Pro-rata Based',
+
+        'insurance_policy_number' => 'Insurance Policy Number',
+        'insurance_insurer'       => 'Insurer',
+        'insurance_insured_value' => 'Insured Value',
+        'insurance_start_date'    => 'Insurance Start Date',
+        'insurance_end_date'      => 'Insurance End Date',
+        'insurance_comprehensive' => 'Comprehensive Insurance',
+
+        'maintenance_required' => 'Maintenance Required',
+        'status'               => 'Status',
+    ],
+
+    'sections' => [
+        'identity'  => 'Identity & Location',
+        'ownership' => 'Ownership',
+        'purchase'  => 'Purchase & Depreciation',
+        'insurance' => 'Insurance',
+    ],
+];

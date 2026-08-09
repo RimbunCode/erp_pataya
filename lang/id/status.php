@@ -45,4 +45,13 @@ return [
     'on_hold'                         => 'Ditunda',
     'resolved'                        => 'Terselesaikan',
     'done'                            => 'Selesai',
+    'scrapped'                        => 'Dihapuskan',
+    'sold'                            => 'Terjual',
+    'out_of_order'                    => 'Rusak',
+    'in_maintenance'                  => 'Dalam Perawatan',
+    'issued'                          => 'Dipinjamkan',
+    'partially_depreciated'           => 'Disusutkan Sebagian',
+    'fully_depreciated'               => 'Sepenuhnya Disusutkan',
+    'capitalized'                     => 'Dikapitalisasi',
+    'work_in_progress'                => 'Dalam Pengerjaan',
 ];

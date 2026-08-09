@@ -2,6 +2,7 @@ import * as React from "react";
 
 import {
   BookOpenIcon,
+  Boxes,
   HandCoins,
   HistoryIcon,
   LayoutDashboard,
@@ -96,6 +97,30 @@ const navList = [
         url: "/stockLedgers",
         urlPattern: "/stockLedgers/*",
         model: "App\\Models\\Inventory\\StockLedgerEntry",
+      },
+    ],
+  },
+  {
+    title: "Assets",
+    icon: <Boxes />,
+    items: [
+      {
+        title: "Assets",
+        url: "/assets",
+        urlPattern: "/assets/*",
+        model: "App\\Models\\Asset\\Asset",
+      },
+      {
+        title: "Asset Categories",
+        url: "/assetCategories",
+        urlPattern: "/assetCategories/*",
+        model: "App\\Models\\Asset\\AssetCategory",
+      },
+      {
+        title: "Asset Locations",
+        url: "/assetLocations",
+        urlPattern: "/assetLocations/*",
+        model: "App\\Models\\Asset\\AssetLocation",
       },
     ],
   },

@@ -45,4 +45,13 @@ return [
     'on_hold'                         => 'On Hold',
     'resolved'                        => 'Resolved',
     'done'                            => 'Done',
+    'scrapped'                        => 'Scrapped',
+    'sold'                            => 'Sold',
+    'out_of_order'                    => 'Out of Order',
+    'in_maintenance'                  => 'In Maintenance',
+    'issued'                          => 'Issued',
+    'partially_depreciated'           => 'Partially Depreciated',
+    'fully_depreciated'               => 'Fully Depreciated',
+    'capitalized'                     => 'Capitalized',
+    'work_in_progress'                => 'Work In Progress',
 ];

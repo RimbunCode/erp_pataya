@@ -1,5 +1,8 @@
 <?php
 use App\Enums\FormStatus;
+use App\Http\Controllers\Asset\AssetCategoryController;
+use App\Http\Controllers\Asset\AssetController;
+use App\Http\Controllers\Asset\AssetLocationController;
 use App\Http\Controllers\Core\ApprovalInstanceController;
 use App\Http\Controllers\Core\ApprovalSchemeController;
 use App\Http\Controllers\Core\BranchController;
@@ -284,6 +287,16 @@ Route::middleware(['auth', 'lang', 'onboarded', 'app'])->group(function () {
     // Stock Ledgers
     Route::resourceDetail('stockLedger', StockLedgerController::class);
     // / Inventories Group End
+
+    // / Asset Group
+    // Asset Categories
+    Route::resourceDetail('assetCategory', AssetCategoryController::class);
+    // Asset Locations
+    Route::resourceDetail('assetLocation', AssetLocationController::class);
+    // Assets
+    Route::post('/assets/{asset}/{action}', [AssetController::class, 'action'])->name('assets.action');
+    Route::resourceDetail('asset', AssetController::class, isSubmmitable: true);
+    // / Asset Group End
 
     // / Purchase Group
     // Supplier
