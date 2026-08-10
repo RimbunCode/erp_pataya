@@ -106,6 +106,7 @@ class StockLedgerControllerTest extends TestCase {
             'item_unit_id'               => $this->itemUnit->id,
             'quantity_change'            => 10,
             'quantity_after_transaction' => 10,
+            'transaction_date'           => now(),
         ]);
     }
 

@@ -6,9 +6,10 @@ use App\Contracts\SubmitableService;
 use App\Enums\FormStatus;
 use App\Events\Core\DocumentSubmitted;
 use App\Events\Purchase\Order\PurchaseOrderReceiveStatusRecalculationRequested;
+use App\Events\Purchase\PurchaseReceiptGeneralLedgerPostingRequested;
 use App\Models\Core\FormatingSeries;
+use App\Models\Core\GlPostingStatus;
 use App\Models\Core\ModelConnection;
-use App\Models\Finances\Account;
 use App\Models\Finances\PurchaseInvoice;
 use App\Models\Finances\PurchaseInvoiceItem;
 use App\Models\Inventory\ItemUnit;
@@ -203,7 +204,9 @@ class PurchaseReceiptService implements SubmitableService {
                     'quantity'    => $stock->quantity - $quantity,
                 ]);
                 $stock->updateDetails('increment', 'incomings', $purchaseOrder->code, $quantity);
-                $item->returnAgainstItem->increment('returned_quantity', $quantity);
+                // Lock returnAgainstItem sebelum baca-modifikasi-tulis (Req 1.3)
+                $returnAgainstItem = $item->returnAgainstItem()->lockForUpdate()->first();
+                $returnAgainstItem->increment('returned_quantity', $quantity);
                 $poItem->decrement('received_quantity', $quantity);
                 $stock->refresh();
 
@@ -227,6 +230,8 @@ class PurchaseReceiptService implements SubmitableService {
             }
 
             // === DUAL FLOW: cek apakah Invoice sudah ada duluan ===
+            // Lock PO Item untuk mencegah race condition pada billed_quantity (Req 1.1)
+            $poItem          = PurchaseOrderItem::where('id', $poItem->id)->lockForUpdate()->first();
             $isAlreadyBilled = $poItem->billed_quantity > 0;
 
             if ($isAlreadyBilled) {
@@ -373,37 +378,21 @@ class PurchaseReceiptService implements SubmitableService {
         // === UPDATE STATUS PO ===
         event(new PurchaseOrderReceiveStatusRecalculationRequested($purchaseOrder));
 
-        // === GL Stock/SRNB: Hanya untuk ALUR-2 (dan Return) ===
+        // === GL Stock/SRNB: dipindah ke queued Job ===
         if ($returnAgainst || $totalRatesForGL > 0) {
-            $glAmount = $returnAgainst
-                ? $purchaseReceipt->items->sum(fn ($i) => $i->purchaseOrderItem->rate * ($i->quantity * $i->conversion_factor / $stocks->get("{$i->item_id}-{$i->target_warehouse_id}")?->conversion_factor ?? 1))
-                : $totalRatesForGL;
-
-            $debitAccount = Account::lockForUpdate()
-                ->where('root_type', 'asset')
-                ->where('account_type', 'stock')
-                ->latest()->first();
-
-            $creditAccount = Account::lockForUpdate()
-                ->where('root_type', 'liability')
-                ->where('account_type', 'stock_received_but_not_billed')
-                ->latest()->first();
-
-            $creditAccount->generalLedgerEntries()->create([
-                'against_account_id' => $debitAccount->id,
-                'credit'             => $returnAgainst ? 0 : $glAmount,
-                'debit'              => $returnAgainst ? $glAmount : 0,
+            GlPostingStatus::create([
                 'referenceable_type' => PurchaseReceipt::class,
                 'referenceable_id'   => $purchaseReceipt->id,
+                'status'             => FormStatus::PENDING,
             ]);
-
-            $debitAccount->generalLedgerEntries()->create([
-                'against_account_id' => $creditAccount->id,
-                'credit'             => $returnAgainst ? $glAmount : 0,
-                'debit'              => $returnAgainst ? 0 : $glAmount,
-                'referenceable_type' => PurchaseReceipt::class,
-                'referenceable_id'   => $purchaseReceipt->id,
-            ]);
+            event(new PurchaseReceiptGeneralLedgerPostingRequested(
+                $purchaseReceipt,
+                $returnAgainst
+                    ? $purchaseReceipt->items->sum(fn ($i) => $i->purchaseOrderItem->rate * ($i->quantity * $i->conversion_factor / $stocks->get("{$i->item_id}-{$i->target_warehouse_id}")?->conversion_factor ?? 1))
+                    : $totalRatesForGL,
+                (bool) $returnAgainst,
+                now(),
+            ));
         }
 
         DB::commit();
@@ -421,6 +410,7 @@ class PurchaseReceiptService implements SubmitableService {
             ->where('purchase_order_item_id', $poItem->id)
             ->whereHas('purchaseInvoice', fn ($q) => $q->whereNotNull('submitted_at'))
             ->with('purchaseInvoice')
+            ->lockForUpdate()
             ->get()
             ->sortBy('purchaseInvoice.date');
     }

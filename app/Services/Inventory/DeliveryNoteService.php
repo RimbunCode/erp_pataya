@@ -5,9 +5,10 @@ namespace App\Services\Inventory;
 use App\Contracts\SubmitableService;
 use App\Enums\FormStatus;
 use App\Events\Core\DocumentSubmitted;
+use App\Events\Inventory\DeliveryNoteGeneralLedgerPostingRequested;
 use App\Events\Sales\Order\DocumentDeliveryStatusRecalculationRequested;
 use App\Models\Core\FormatingSeries;
-use App\Models\Finances\Account;
+use App\Models\Core\GlPostingStatus;
 use App\Models\Inventory\DeliveryNote;
 use App\Models\Inventory\ItemUnit;
 use App\Models\Inventory\Stock;
@@ -269,8 +270,10 @@ class DeliveryNoteService implements SubmitableService {
                 ];
                 $amountPicked = \array_sum(array_map(fn ($q) => $q['rate'] * $q['quantity'], $valuationRates ?? []));
                 $totalPicked += $amountPicked;
-                $item->returnAgainstItem->update([
-                    'returned_quantity' => $item->returnAgainstItem->returned_quantity + $quantity,
+                // Lock returnAgainstItem sebelum baca-modifikasi-tulis (Req 1.7)
+                $returnAgainstItem = $item->returnAgainstItem()->lockForUpdate()->first();
+                $returnAgainstItem->update([
+                    'returned_quantity' => $returnAgainstItem->returned_quantity + $quantity,
                 ]);
                 $stock->fill([
                     'quantity'    => $stock->quantity + $quantity,
@@ -377,30 +380,17 @@ class DeliveryNoteService implements SubmitableService {
         ]);
 
         if ($totalPicked > 0) {
-            $creditAccount = Account::lockForUpdate()
-                ->where('root_type', 'asset')
-                ->where('account_type', 'stock')
-                ->latest()->first();
-            $debitAccount = Account::lockForUpdate()
-                ->where('root_type', 'income')
-                ->where('account_type', 'cost_of_goods_sold')
-                ->latest()->first();
-
-            $creditAccount->generalLedgerEntries()->create([
-                'against_account_id' => $debitAccount->id,
-                'credit'             => $returnAgainst ? 0 : $totalPicked,
-                'debit'              => $returnAgainst ? $totalPicked : 0,
+            GlPostingStatus::create([
                 'referenceable_type' => DeliveryNote::class,
                 'referenceable_id'   => $deliveryNote->id,
+                'status'             => FormStatus::PENDING,
             ]);
-
-            $debitAccount->generalLedgerEntries()->create([
-                'against_account_id' => $creditAccount->id,
-                'credit'             => $returnAgainst ? $totalPicked : 0,
-                'debit'              => $returnAgainst ? 0 : $totalPicked,
-                'referenceable_type' => DeliveryNote::class,
-                'referenceable_id'   => $deliveryNote->id,
-            ]);
+            event(new DeliveryNoteGeneralLedgerPostingRequested(
+                $deliveryNote,
+                $totalPicked,
+                (bool) $returnAgainst,
+                now(),
+            ));
         }
 
         DB::commit();

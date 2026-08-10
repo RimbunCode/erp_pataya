@@ -8,11 +8,14 @@ use App\Events\Core\DocumentCanceled;
 use App\Events\Core\DocumentStatusChanged;
 use App\Events\Core\DocumentSubmitted;
 use App\Events\Finances\PaymentApplied;
+use App\Events\Finances\PurchaseInvoiceGeneralLedgerPostingRequested;
+use App\Events\Inventory\DeliveryNoteGeneralLedgerPostingRequested;
 use App\Events\Inventory\StockReservationChanged;
 use App\Events\Purchase\Invoice\PurchaseInvoiceReturnStatusChanged;
 use App\Events\Purchase\Invoice\PurchaseOrderItemBillingChanged;
 use App\Events\Purchase\Order\PurchaseOrderBillStatusRecalculationRequested;
 use App\Events\Purchase\Order\PurchaseOrderReceiveStatusRecalculationRequested;
+use App\Events\Purchase\PurchaseReceiptGeneralLedgerPostingRequested;
 use App\Events\Sales\Invoice\SalesInvoiceReturnStatusChanged;
 use App\Events\Sales\Invoice\SalesOrderItemBillingChanged;
 use App\Events\Sales\Order\DocumentDeliveryStatusRecalculationRequested;
@@ -23,10 +26,13 @@ use App\Listeners\Core\Approval\NotifyNextApprover;
 use App\Listeners\Core\Audit\RecordAuditLog;
 use App\Listeners\Core\Submission\CreateDocumentConnection;
 use App\Listeners\Core\Submission\NotifyRoleOnStatusChange;
+use App\Listeners\Finances\Ledger\PostPurchaseInvoiceGeneralLedger;
 use App\Listeners\Finances\Payment\UpdatePaymentableStatus;
+use App\Listeners\Inventory\Ledger\PostDeliveryNoteGeneralLedger;
 use App\Listeners\Inventory\Stock\UpdateStockReservation;
 use App\Listeners\Purchase\Invoice\UpdatePurchaseInvoiceReturnStatus;
 use App\Listeners\Purchase\Invoice\UpdatePurchaseOrderItemBilling;
+use App\Listeners\Purchase\Ledger\PostPurchaseReceiptGeneralLedger;
 use App\Listeners\Purchase\Order\RecalculatePurchaseOrderBillStatus;
 use App\Listeners\Purchase\Order\RecalculatePurchaseOrderReceiveStatus;
 use App\Listeners\Sales\Invoice\UpdateSalesInvoiceReturnStatus;
@@ -82,6 +88,15 @@ class EventServiceProvider extends ServiceProvider {
         ],
         PurchaseInvoiceReturnStatusChanged::class => [
             UpdatePurchaseInvoiceReturnStatus::class,
+        ],
+        PurchaseReceiptGeneralLedgerPostingRequested::class => [
+            PostPurchaseReceiptGeneralLedger::class,
+        ],
+        DeliveryNoteGeneralLedgerPostingRequested::class => [
+            PostDeliveryNoteGeneralLedger::class,
+        ],
+        PurchaseInvoiceGeneralLedgerPostingRequested::class => [
+            PostPurchaseInvoiceGeneralLedger::class,
         ],
     ];
 }

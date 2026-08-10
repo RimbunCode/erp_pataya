@@ -46,6 +46,8 @@ enum FormStatus: string {
     case ON_HOLD             = 'on_hold';
     case RESOLVED            = 'resolved';
     case DONE                = 'done';
+    case POSTED              = 'posted';
+    case FAILED              = 'failed';
 
     public function label() {
         return __("status.{$this->value}");

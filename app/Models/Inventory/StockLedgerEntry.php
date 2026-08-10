@@ -72,6 +72,7 @@ class StockLedgerEntry extends Model {
     protected $casts = [
         'stock_queue'                => 'array',
         'is_valuated'                => 'boolean',
+        'transaction_date'           => 'datetime',
         'conversion_factor'          => 'float',
         'quantity_change'            => 'float',
         'quantity_after_transaction' => 'float',

@@ -1,0 +1,6 @@
+{
+  "specId": "c4650c4f-7997-44f2-9293-3d89dfd610bf",
+  "workflowType": "requirements-first",
+  "specType": "feature",
+  "description": "Fase 3 migrasi Event/Listener: fix race condition lockForUpdate() di titik yang belum ter-lock (DeliveryNote/PurchaseReceipt/PurchaseInvoice), lalu desain ulang batas transaksi GL-entangled — GL posting dipisah jadi queued Job dengan kolom transaction_date eksplisit, agar siap microservice. LeadService::convertToCustomer() dikeluarkan dari scope (kategori beda: return-value-dependent, bukan transaction-entangled)."
+}

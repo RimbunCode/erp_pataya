@@ -80,13 +80,13 @@ class PurchaseInvoice extends Model {
         'base_currency_code' => [
             'hidden' => true,
         ],
-        'amount_base_currency' => [
+        'base_amount' => [
             'hidden' => true,
         ],
-        'outstanding_amount_base_currency' => [
+        'base_outstanding_amount' => [
             'hidden' => true,
         ],
-        'paid_amount_base_currency' => [
+        'base_paid_amount' => [
             'hidden' => true,
         ],
         'supplier_name' => [

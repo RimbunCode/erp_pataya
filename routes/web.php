@@ -13,6 +13,7 @@ use App\Http\Controllers\Core\DashboardController;
 use App\Http\Controllers\Core\EmailTemplateController;
 use App\Http\Controllers\Core\FileController;
 use App\Http\Controllers\Core\FormatingSeriesController;
+use App\Http\Controllers\Core\GlPostingStatusController;
 use App\Http\Controllers\Core\HtmlSanitizeController;
 use App\Http\Controllers\Core\LanguageController;
 use App\Http\Controllers\Core\LogController;
@@ -189,6 +190,9 @@ Route::middleware(['auth', 'lang', 'onboarded', 'app'])->group(function () {
     }
     Route::get('/logs', [LogController::class, 'index'])->name('logs.index');
     Route::get('/logs/{log}', [LogController::class, 'show'])->name('logs.show');
+    // GL Posting Status Monitoring
+    Route::get('/gl-posting-statuses', [GlPostingStatusController::class, 'index'])->name('gl-posting-statuses.index');
+    Route::post('/gl-posting-statuses/{glPostingStatus}/retry', [GlPostingStatusController::class, 'retry'])->name('gl-posting-statuses.retry');
     // Branch Switcher
     Route::put('/switch_branch/{id}', [BranchController::class, 'switch'])->name('branch.switch');
     // Dashboard

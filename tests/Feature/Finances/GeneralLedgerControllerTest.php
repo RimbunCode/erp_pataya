@@ -85,6 +85,7 @@ class GeneralLedgerControllerTest extends TestCase {
             'branch_id'          => $this->branch->id,
             'debit'              => 1000,
             'credit'             => 0,
+            'transaction_date'   => now(),
         ]);
     }
 

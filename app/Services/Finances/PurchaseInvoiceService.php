@@ -5,10 +5,12 @@ namespace App\Services\Finances;
 use App\Contracts\SubmitableService;
 use App\Enums\FormStatus;
 use App\Events\Core\DocumentSubmitted;
+use App\Events\Finances\PurchaseInvoiceGeneralLedgerPostingRequested;
 use App\Events\Purchase\Invoice\PurchaseInvoiceReturnStatusChanged;
 use App\Events\Purchase\Invoice\PurchaseOrderItemBillingChanged;
 use App\Events\Purchase\Order\PurchaseOrderBillStatusRecalculationRequested;
 use App\Models\Core\FormatingSeries;
+use App\Models\Core\GlPostingStatus;
 use App\Models\Core\ModelConnection;
 use App\Models\Core\Preference;
 use App\Models\Finances\Account;
@@ -293,55 +295,21 @@ class PurchaseInvoiceService implements SubmitableService {
 
             $totalAmount = Utils::countAmount($basicAmount, $taxAmount, $purchaseInvoice->discount_on, $purchaseInvoice->discount_amount);
 
-            $debitAccount  = $purchaseInvoice->expenseHeadAccount;
-            $creditAccount = $purchaseInvoice->creditAccount;
-
-            // === GL Stock/SRNB untuk ALUR-1 ===
-            if ($totalStockGL > 0 && ! $returnAgainst) {
-                $stockAccount = Account::lockForUpdate()
-                    ->where('root_type', 'asset')
-                    ->where('account_type', 'stock')
-                    ->latest()->first();
-
-                $srnbAccount = Account::lockForUpdate()
-                    ->where('root_type', 'liability')
-                    ->where('account_type', 'stock_received_but_not_billed')
-                    ->latest()->first();
-
-                // Debit Stock Asset / Credit SRNB
-                $stockAccount->generalLedgerEntries()->create([
-                    'against_account_id' => $srnbAccount->id,
-                    'debit'              => $totalStockGL,
-                    'credit'             => 0,
-                    'referenceable_type' => PurchaseInvoice::class,
-                    'referenceable_id'   => $purchaseInvoice->id,
-                ]);
-
-                $srnbAccount->generalLedgerEntries()->create([
-                    'against_account_id' => $stockAccount->id,
-                    'debit'              => 0,
-                    'credit'             => $totalStockGL,
-                    'referenceable_type' => PurchaseInvoice::class,
-                    'referenceable_id'   => $purchaseInvoice->id,
-                ]);
-            }
-
-            // === GL SRNB/AP (kedua alur selalu dibuat) ===
-            $debitAccount->generalLedgerEntries()->create([
-                'against_account_id' => $creditAccount->id,
-                'debit'              => $returnAgainst ? 0 : $totalAmount,
-                'credit'             => $returnAgainst ? $totalAmount : 0,
+            // === GL posting dipindah ke queued Job (Stock/SRNB + Expense/Credit digabung 1 event) ===
+            GlPostingStatus::create([
                 'referenceable_type' => PurchaseInvoice::class,
                 'referenceable_id'   => $purchaseInvoice->id,
+                'status'             => FormStatus::PENDING,
             ]);
-
-            $creditAccount->generalLedgerEntries()->create([
-                'against_account_id' => $debitAccount->id,
-                'debit'              => $returnAgainst ? $totalAmount : 0,
-                'credit'             => $returnAgainst ? 0 : $totalAmount,
-                'referenceable_type' => PurchaseInvoice::class,
-                'referenceable_id'   => $purchaseInvoice->id,
-            ]);
+            event(new PurchaseInvoiceGeneralLedgerPostingRequested(
+                $purchaseInvoice,
+                $totalStockGL,
+                $totalAmount,
+                (bool) $returnAgainst,
+                now(),
+                $purchaseInvoice->expenseHeadAccount->id,
+                $purchaseInvoice->creditAccount->id,
+            ));
 
             // === UPDATE STATUS PO ===
             event(new PurchaseOrderBillStatusRecalculationRequested($purchaseOrder, $returnAgainst));
@@ -352,6 +320,8 @@ class PurchaseInvoiceService implements SubmitableService {
             ]);
 
             if ($returnAgainst) {
+                // Lock returnAgainst (PurchaseInvoice asal) untuk kalkulasi status retur (Req 1.6)
+                $returnAgainst      = PurchaseInvoice::where('id', $returnAgainst->id)->lockForUpdate()->first();
                 $unbilledItems      = $returnAgainst->items()->select(['returned_quantity', 'quantity'])->get();
                 $countReturnedItems = $unbilledItems->sum('returned_quantity');
                 $sumQuantity        = $unbilledItems->sum('quantity');
@@ -403,6 +373,7 @@ class PurchaseInvoiceService implements SubmitableService {
                 $q->whereHas('items', fn ($q2) => $q2->where('purchase_order_item_id', $poItem->id));
             })
             ->orderBy('created_at') // FIFO
+            ->lockForUpdate()
             ->get();
 
         $remainingQty = $qty;
