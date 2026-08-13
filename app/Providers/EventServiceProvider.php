@@ -7,6 +7,7 @@ use App\Events\Core\AuditableModelSaved;
 use App\Events\Core\DocumentCanceled;
 use App\Events\Core\DocumentStatusChanged;
 use App\Events\Core\DocumentSubmitted;
+use App\Events\CRM\LeadConvertedToCustomer;
 use App\Events\Finances\PaymentApplied;
 use App\Events\Finances\PurchaseInvoiceGeneralLedgerPostingRequested;
 use App\Events\Inventory\DeliveryNoteGeneralLedgerPostingRequested;
@@ -26,6 +27,7 @@ use App\Listeners\Core\Approval\NotifyNextApprover;
 use App\Listeners\Core\Audit\RecordAuditLog;
 use App\Listeners\Core\Submission\CreateDocumentConnection;
 use App\Listeners\Core\Submission\NotifyRoleOnStatusChange;
+use App\Listeners\CRM\CreateCustomerFromLead;
 use App\Listeners\Finances\Ledger\PostPurchaseInvoiceGeneralLedger;
 use App\Listeners\Finances\Payment\UpdatePaymentableStatus;
 use App\Listeners\Inventory\Ledger\PostDeliveryNoteGeneralLedger;
@@ -98,5 +100,19 @@ class EventServiceProvider extends ServiceProvider {
         PurchaseInvoiceGeneralLedgerPostingRequested::class => [
             PostPurchaseInvoiceGeneralLedger::class,
         ],
+        LeadConvertedToCustomer::class => [
+            CreateCustomerFromLead::class,
+        ],
     ];
+
+    /**
+     * Laravel default auto-discover listener dari app/Listeners/ berdasarkan
+     * type-hint parameter handle(), DITAMBAHKAN ke $listen manual di atas
+     * (bukan menggantikan) — menyebabkan setiap listener terdaftar 2x dan
+     * dieksekusi dua kali per event. Nonaktifkan; $listen manual di atas
+     * adalah satu-satunya sumber kebenaran registrasi event di proyek ini.
+     */
+    public function shouldDiscoverEvents(): bool {
+        return false;
+    }
 }
