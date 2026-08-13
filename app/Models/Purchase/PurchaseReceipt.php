@@ -16,8 +16,7 @@ class PurchaseReceipt extends Model {
     public string $formComponent  = 'Purchase/PurchaseReceipts/Form';
     protected $guarded            = ['id'];
     protected $casts              = [
-        'received_date' => 'datetime',
-        'date'          => 'datetime',
+        'date' => 'datetime',
     ];
     protected static string $defaultFormatCode = '@[branch_code]/Receipt-@[iiii]/@[yy]';
 
@@ -46,7 +45,7 @@ class PurchaseReceipt extends Model {
             'show'   => true,
             'order'  => 0,
         ],
-        'received_date' => [
+        'date' => [
             'show'  => true,
             'order' => 1,
         ],
