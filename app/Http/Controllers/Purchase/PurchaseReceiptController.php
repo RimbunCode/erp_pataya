@@ -4,6 +4,7 @@ namespace App\Http\Controllers\Purchase;
 
 use App\Http\Controllers\Controller;
 use App\Http\Requests\Purchase\PurchaseReceiptRequest;
+use App\Models\Asset\Asset;
 use App\Models\Purchase\PurchaseOrder;
 use App\Models\Purchase\PurchaseReceipt;
 use App\Services\Purchase\PurchaseReceiptService;
@@ -140,12 +141,19 @@ class PurchaseReceiptController extends Controller {
         $this->setBreadcrumbs($purchaseReceipt);
         $purchaseReceipt->showDetail();
 
+        // Load fixed-asset items for completion indicator
+        $itemIds     = $purchaseReceipt->items()->pluck('id');
+        $fixedAssets = Asset::whereIn('purchase_receipt_item_id', $itemIds)
+            ->select('id', 'asset_name', 'code', 'asset_quantity', 'asset_category_id', 'asset_location_id')
+            ->get();
+
         return Inertia::render('Purchase/PurchaseReceipts/Show', [
             'purchaseReceipt' => function () use ($purchaseReceipt) {
                 $purchaseReceipt->loadRelations();
 
                 return $purchaseReceipt;
             },
+            'fixedAssets' => $fixedAssets,
         ]);
     }
 

@@ -15,7 +15,7 @@ import UserLinkModel from "@/Pages/Users/ManageUsers/UserLinkModel";
 import { useLaravelReactI18n } from "laravel-react-i18n";
 
 export default function Form() {
-  const { data, setData, disabled } = useFormPage();
+  const { data, setData, _disabled } = useFormPage();
   const { t } = useLaravelReactI18n();
 
   return (
@@ -71,10 +71,7 @@ export default function Form() {
               disabled
             />
           </FormInput>
-          <FormInput
-            name="item"
-            label={t("asset.asset.columns.item_id")}
-          >
+          <FormInput name="item" label={t("asset.asset.columns.item_id")}>
             <ItemLinkModel
               value={data?.item}
               onValueChange={(val) => setData("item", val)}
@@ -225,9 +222,7 @@ export default function Form() {
               >
                 <Select
                   value={data?.depreciation_method}
-                  onValueChange={(val) =>
-                    setData("depreciation_method", val)
-                  }
+                  onValueChange={(val) => setData("depreciation_method", val)}
                   optionTrans="asset.asset.columns.depreciation_method.options"
                   options={[
                     "straight_line",
@@ -251,9 +246,7 @@ export default function Form() {
               </FormInput>
               <FormInput
                 name="total_number_of_depreciations"
-                label={t(
-                  "asset.asset.columns.total_number_of_depreciations",
-                )}
+                label={t("asset.asset.columns.total_number_of_depreciations")}
               >
                 <NumberInput
                   value={data?.total_number_of_depreciations}
@@ -314,9 +307,7 @@ export default function Form() {
             <NumberInput
               value={data?.insurance_insured_value}
               decimalScale={2}
-              onValueChange={(val) =>
-                setData("insurance_insured_value", val)
-              }
+              onValueChange={(val) => setData("insurance_insured_value", val)}
             />
           </FormInput>
           <FormInput
@@ -326,9 +317,7 @@ export default function Form() {
             <Input
               type="date"
               value={data?.insurance_start_date ?? ""}
-              onChange={(e) =>
-                setData("insurance_start_date", e.target.value)
-              }
+              onChange={(e) => setData("insurance_start_date", e.target.value)}
             />
           </FormInput>
           <FormInput
@@ -343,9 +332,7 @@ export default function Form() {
           </FormInput>
           <FormCheckbox
             checked={data?.insurance_comprehensive ?? false}
-            onCheckedChange={(val) =>
-              setData("insurance_comprehensive", val)
-            }
+            onCheckedChange={(val) => setData("insurance_comprehensive", val)}
           >
             {t("asset.asset.columns.insurance_comprehensive")}
           </FormCheckbox>

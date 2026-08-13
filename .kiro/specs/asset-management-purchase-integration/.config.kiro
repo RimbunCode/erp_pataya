@@ -1,0 +1,6 @@
+{
+  "specId": "3f6e9a2b-7c1d-4e8a-9b5c-2d4f6a8e0c1b",
+  "workflowType": "requirements-first",
+  "specType": "feature",
+  "description": "Spec 2 dari 4-fase modul Asset Management (mirip ERPNext): integrasi Purchase/Inventory — Item.is_fixed_asset flag, auto-create Asset dari Purchase Receipt/Invoice yang berisi item fixed-asset."
+}

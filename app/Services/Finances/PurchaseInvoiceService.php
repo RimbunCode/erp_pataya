@@ -4,6 +4,7 @@ namespace App\Services\Finances;
 
 use App\Contracts\SubmitableService;
 use App\Enums\FormStatus;
+use App\Events\Asset\FixedAssetItemApproved;
 use App\Events\Core\DocumentSubmitted;
 use App\Events\Finances\PurchaseInvoiceGeneralLedgerPostingRequested;
 use App\Events\Purchase\Invoice\PurchaseInvoiceReturnStatusChanged;
@@ -256,6 +257,8 @@ class PurchaseInvoiceService implements SubmitableService {
                 'returnAgainst',
                 'items.returnAgainstItem',
                 'items.purchaseOrderItem',
+                'items.item',
+                'items.item.item',
             ]);
 
             $returnAgainst = $purchaseInvoice->returnAgainst;
@@ -345,6 +348,15 @@ class PurchaseInvoiceService implements SubmitableService {
             }
 
             DB::commit();
+
+            // Dispatch FixedAssetItemApproved for each fixed-asset item
+            foreach ($items as $item) {
+                $variant = $item->item;
+                if (! $variant || ! $variant->item || ! $variant->item->is_fixed_asset) {
+                    continue;
+                }
+                FixedAssetItemApproved::dispatch($purchaseInvoice, $item, $variant->item);
+            }
 
             return $purchaseInvoice;
         } catch (\Exception $e) {

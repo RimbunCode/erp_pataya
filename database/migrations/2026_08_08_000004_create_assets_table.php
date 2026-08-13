@@ -13,8 +13,8 @@ return new class extends Migration
             // Identitas
             $table->string('asset_name');
             $table->string('code')->unique();
-            $table->foreignUlid('asset_category_id')->references('id')->on('asset_categories')->restrictOnDelete();
-            $table->foreignUlid('asset_location_id')->references('id')->on('asset_locations')->restrictOnDelete();
+            $table->foreignUlid('asset_category_id')->nullable()->references('id')->on('asset_categories')->restrictOnDelete();
+            $table->foreignUlid('asset_location_id')->nullable()->references('id')->on('asset_locations')->restrictOnDelete();
             $table->string('asset_type')->default('existing_asset');
             $table->foreignUlid('item_id')->nullable()->references('id')->on('items')->nullOnDelete();
             $table->integer('asset_quantity')->default(1);

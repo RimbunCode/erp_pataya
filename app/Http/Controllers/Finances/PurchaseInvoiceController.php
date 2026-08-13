@@ -4,6 +4,7 @@ namespace App\Http\Controllers\Finances;
 
 use App\Http\Controllers\Controller;
 use App\Http\Requests\Finances\PurchaseInvoiceRequest;
+use App\Models\Asset\Asset;
 use App\Models\Core\Branch;
 use App\Models\Finances\Account;
 use App\Models\Finances\PurchaseInvoice;
@@ -158,12 +159,19 @@ class PurchaseInvoiceController extends Controller {
         $this->setBreadcrumbs($purchaseInvoice);
         $purchaseInvoice->showDetail();
 
+        // Load fixed-asset items for completion indicator
+        $itemIds     = $purchaseInvoice->items()->pluck('id');
+        $fixedAssets = Asset::whereIn('purchase_invoice_item_id', $itemIds)
+            ->select('id', 'asset_name', 'code', 'asset_quantity', 'asset_category_id', 'asset_location_id')
+            ->get();
+
         return Inertia::render('Finances/PurchaseInvoice/Show', [
             'purchaseInvoice' => function () use ($purchaseInvoice) {
                 $purchaseInvoice->loadRelations();
 
                 return $purchaseInvoice;
             },
+            'fixedAssets' => $fixedAssets,
         ]);
     }
 

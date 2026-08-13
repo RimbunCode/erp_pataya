@@ -42,9 +42,7 @@ export default function Form() {
             label={t("asset.location.columns.parent_id")}
           >
             <AssetLocationLinkModel
-              placeholder={t(
-                "asset.location.columns.parent_id.placeholder",
-              )}
+              placeholder={t("asset.location.columns.parent_id.placeholder")}
               value={data?.parent}
               onValueChange={(val) => setData("parent", val)}
               filters={{

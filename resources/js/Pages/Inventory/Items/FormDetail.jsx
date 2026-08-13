@@ -112,6 +112,13 @@ export default function FormDetail({
           }}
           label={t("inventory.item.columns.allow_alternative_item")}
         />
+        {!isVariant && (
+          <FormCheckbox
+            checked={data.is_fixed_asset ?? false}
+            onCheckedChange={(val) => setData("is_fixed_asset", val)}
+            label={t("inventory.item.columns.is_fixed_asset")}
+          />
+        )}
       </div>
       <div className="mt-4 space-y-4 gap-x-8 columns-xs [&>div]:break-inside-avoid">
         <FormInput

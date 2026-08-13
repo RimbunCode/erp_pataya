@@ -4,6 +4,7 @@ namespace App\Services\Purchase;
 
 use App\Contracts\SubmitableService;
 use App\Enums\FormStatus;
+use App\Events\Asset\FixedAssetItemApproved;
 use App\Events\Core\DocumentSubmitted;
 use App\Events\Purchase\Order\PurchaseOrderReceiveStatusRecalculationRequested;
 use App\Events\Purchase\PurchaseReceiptGeneralLedgerPostingRequested;
@@ -396,6 +397,15 @@ class PurchaseReceiptService implements SubmitableService {
         }
 
         DB::commit();
+
+        // Dispatch FixedAssetItemApproved for each fixed-asset item
+        foreach ($items as $item) {
+            $variant = $item->item;
+            if (! $variant || ! $variant->item || ! $variant->item->is_fixed_asset) {
+                continue;
+            }
+            FixedAssetItemApproved::dispatch($purchaseReceipt, $item, $variant->item);
+        }
 
         return $purchaseReceipt;
     }

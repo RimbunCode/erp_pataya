@@ -2,6 +2,7 @@
 
 namespace App\Providers;
 
+use App\Events\Asset\FixedAssetItemApproved;
 use App\Events\Core\ApprovalDecided;
 use App\Events\Core\AuditableModelSaved;
 use App\Events\Core\DocumentCanceled;
@@ -20,6 +21,7 @@ use App\Events\Purchase\PurchaseReceiptGeneralLedgerPostingRequested;
 use App\Events\Sales\Invoice\SalesInvoiceReturnStatusChanged;
 use App\Events\Sales\Invoice\SalesOrderItemBillingChanged;
 use App\Events\Sales\Order\DocumentDeliveryStatusRecalculationRequested;
+use App\Listeners\Asset\CreateAssetFromPurchase;
 use App\Listeners\Core\Approval\AttachApprovalPdf;
 use App\Listeners\Core\Approval\CancelPendingApprovalSteps;
 use App\Listeners\Core\Approval\NotifyApprovalDecision;
@@ -102,6 +104,9 @@ class EventServiceProvider extends ServiceProvider {
         ],
         LeadConvertedToCustomer::class => [
             CreateCustomerFromLead::class,
+        ],
+        FixedAssetItemApproved::class => [
+            CreateAssetFromPurchase::class,
         ],
     ];
 

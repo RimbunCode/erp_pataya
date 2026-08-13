@@ -2,8 +2,10 @@
 
 namespace App\Http\Controllers\Asset;
 
+use App\Enums\FormStatus;
 use App\Http\Controllers\Controller;
 use App\Http\Requests\Asset\AssetRequest;
+use App\Http\Requests\Asset\CompleteAssetDataRequest;
 use App\Models\Asset\Asset;
 use App\Services\Asset\AssetService;
 use Illuminate\Http\Request;
@@ -13,6 +15,11 @@ use LogicException;
 
 class AssetController extends Controller {
     private AssetService $assetService;
+
+    protected function exceptPermission(string $method): bool {
+        // ponytail: completeData is internal data completion, not separate CRUD
+        return $method === 'completeData';
+    }
 
     public function __construct(Request $request) {
         parent::__construct($request, Asset::class);
@@ -77,5 +84,22 @@ class AssetController extends Controller {
 
             return back();
         });
+    }
+
+    public function completeData(CompleteAssetDataRequest $request, Asset $asset) {
+        // Guard: only DRAFT assets can be completed
+        if (! in_array(FormStatus::DRAFT, $asset->status ?? [])) {
+            abort(422, __('asset/asset.cannot_complete_after_submit'));
+        }
+
+        $validated = $request->validated();
+
+        if ($validated['mode'] === 'split') {
+            $this->assetService->split($asset, $validated['rows']);
+        } else {
+            $this->assetService->update($asset, $validated);
+        }
+
+        return back();
     }
 }

@@ -6,8 +6,10 @@ use App\Enums\AssetOwnershipType;
 use App\Enums\AssetType;
 use App\Enums\FormStatus;
 use App\Models\Core\Branch;
+use App\Models\Finances\PurchaseInvoiceItem;
 use App\Models\Inventory\Item;
 use App\Models\Model;
+use App\Models\Purchase\PurchaseReceiptItem;
 use App\Models\Purchase\Supplier;
 use App\Models\Sales\Customer;
 use App\Models\User\User;
@@ -110,6 +112,14 @@ class Asset extends Model {
 
     public function ownershipCustomer(): BelongsTo {
         return $this->belongsTo(Customer::class, 'ownership_customer_id');
+    }
+
+    public function purchaseReceiptItem(): BelongsTo {
+        return $this->belongsTo(PurchaseReceiptItem::class);
+    }
+
+    public function purchaseInvoiceItem(): BelongsTo {
+        return $this->belongsTo(PurchaseInvoiceItem::class);
     }
 
     /**

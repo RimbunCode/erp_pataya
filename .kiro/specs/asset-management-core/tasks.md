@@ -259,8 +259,8 @@ Membangun domain `Asset` baru: model `AssetCategory` (flat), `AssetLocation` (tr
     - `tests/Feature/Asset/AssetTranslationResolutionTest.php` — assert `__('asset/asset.xxx')` dst TIDAK mengembalikan key mentah, locale id dan en
     - **Validates: Requirement 11**
 
-- [ ] 17. Checkpoint - Ensure lang tests pass
-  - Ensure all tests pass, ask the user if questions arise.
+- [x] 17. Checkpoint - Ensure lang tests pass
+  - `AssetTranslationParityTest` + `AssetTranslationResolutionTest`: 26 test PASS, 0 failure (66 assertions).
 
 - [x] 18. Halaman Inertia — AssetCategory dan AssetLocation
   - [x] 18.1 Buat `resources/js/Pages/Asset/Categories/{Index,Form}.jsx`

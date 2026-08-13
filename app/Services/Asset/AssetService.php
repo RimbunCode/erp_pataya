@@ -8,7 +8,9 @@ use App\Models\Asset\Asset;
 use App\Models\Core\FormatingSeries;
 use App\Models\Model;
 use Illuminate\Support\Arr;
+use Illuminate\Support\Collection;
 use Illuminate\Support\Facades\DB;
+use LogicException;
 
 class AssetService implements SubmitableService {
     public function create(array $data): Model {
@@ -38,6 +40,8 @@ class AssetService implements SubmitableService {
                 'purchase_date', 'available_for_use_date',
                 'net_purchase_amount', 'gross_purchase_amount',
                 'additional_asset_cost',
+                'purchase_receipt_id', 'purchase_invoice_id',
+                'purchase_receipt_item_id', 'purchase_invoice_item_id',
                 'calculate_depreciation', 'is_depreciable',
                 'depreciation_method', 'frequency_of_depreciation',
                 'total_number_of_depreciations', 'next_depreciation_date',
@@ -64,6 +68,8 @@ class AssetService implements SubmitableService {
                 'purchase_date', 'available_for_use_date',
                 'net_purchase_amount', 'gross_purchase_amount',
                 'additional_asset_cost',
+                'purchase_receipt_id', 'purchase_invoice_id',
+                'purchase_receipt_item_id', 'purchase_invoice_item_id',
                 'calculate_depreciation', 'is_depreciable',
                 'depreciation_method', 'frequency_of_depreciation',
                 'total_number_of_depreciations', 'next_depreciation_date',
@@ -91,6 +97,11 @@ class AssetService implements SubmitableService {
     }
 
     public function submit(Model $model): mixed {
+        // Guard: reject submit if asset data is incomplete
+        if (! $model->asset_category_id || ! $model->asset_location_id) {
+            throw new LogicException(__('asset/asset.cannot_submit_incomplete'));
+        }
+
         DB::beginTransaction();
 
         try {
@@ -109,7 +120,7 @@ class AssetService implements SubmitableService {
 
     public function cancel(Model $model): mixed {
         // ponytail: Asset doesn't support cancel — ERPNext parity
-        throw new \LogicException(__('asset/asset.cannot_cancel'));
+        throw new LogicException(__('asset/asset.cannot_cancel'));
     }
 
     public function amend(Model $model): mixed {
@@ -142,5 +153,84 @@ class AssetService implements SubmitableService {
         ]);
 
         return null;
+    }
+
+    /**
+     * Split an Asset into N rows, each with its own category/location/quantity.
+     * Monetary fields divided proportionally by quantity ratio per row.
+     * Original asset is soft-deleted after split.
+     *
+     * @param  array<int, array{asset_category_id: string, asset_location_id: string, quantity: int|float}>  $rows
+     * @return Collection<int, Asset>
+     */
+    public function split(Asset $asset, array $rows): Collection {
+        $totalQuantity = array_sum(array_column($rows, 'quantity'));
+        if (abs($totalQuantity - $asset->asset_quantity) > 0.0001) {
+            throw new LogicException(__('asset/asset.split_quantity_mismatch', [
+                'total'    => $totalQuantity,
+                'expected' => $asset->asset_quantity,
+            ]));
+        }
+
+        $results = collect();
+
+        DB::transaction(function () use ($asset, $rows, &$results) {
+            foreach ($rows as $row) {
+                $partQty = (float) $row['quantity'];
+                $ratio   = $asset->asset_quantity > 0 ? $partQty / $asset->asset_quantity : 0;
+
+                $newAsset = Asset::create([
+                    'code'                             => FormatingSeries::generate(Asset::class, $asset->attributesToArray(), true),
+                    'asset_name'                       => $asset->asset_name,
+                    'asset_category_id'                => $row['asset_category_id'],
+                    'asset_location_id'                => $row['asset_location_id'],
+                    'asset_type'                       => $asset->asset_type,
+                    'item_id'                          => $asset->item_id,
+                    'asset_quantity'                   => $partQty,
+                    'ownership_type'                   => $asset->ownership_type,
+                    'ownership_company_id'             => $asset->ownership_company_id,
+                    'ownership_supplier_id'            => $asset->ownership_supplier_id,
+                    'ownership_customer_id'            => $asset->ownership_customer_id,
+                    'custodian_id'                     => $asset->custodian_id,
+                    'purchase_date'                    => $asset->purchase_date,
+                    'available_for_use_date'           => $asset->available_for_use_date,
+                    'net_purchase_amount'              => round(($asset->net_purchase_amount ?? 0) * $ratio, 2),
+                    'gross_purchase_amount'            => round(($asset->gross_purchase_amount ?? 0) * $ratio, 2),
+                    'additional_asset_cost'            => round(($asset->additional_asset_cost ?? 0) * $ratio, 2),
+                    'purchase_receipt_id'              => $asset->purchase_receipt_id,
+                    'purchase_invoice_id'              => $asset->purchase_invoice_id,
+                    'purchase_receipt_item_id'         => $asset->purchase_receipt_item_id,
+                    'purchase_invoice_item_id'         => $asset->purchase_invoice_item_id,
+                    'calculate_depreciation'           => $asset->calculate_depreciation,
+                    'is_depreciable'                   => $asset->is_depreciable,
+                    'depreciation_method'              => $asset->depreciation_method,
+                    'frequency_of_depreciation'        => $asset->frequency_of_depreciation,
+                    'total_number_of_depreciations'    => $asset->total_number_of_depreciations,
+                    'expected_value_after_useful_life' => round(($asset->expected_value_after_useful_life ?? 0) * $ratio, 2),
+                    'salvage_value_percentage'         => $asset->salvage_value_percentage,
+                    'rate_of_depreciation'             => $asset->rate_of_depreciation,
+                    'daily_prorata_based'              => $asset->daily_prorata_based,
+                    'maintenance_required'             => $asset->maintenance_required,
+                    'insurance_policy_number'          => $asset->insurance_policy_number,
+                    'insurance_insurer'                => $asset->insurance_insurer,
+                    'insurance_insured_value'          => $asset->insurance_insured_value !== null ? round($asset->insurance_insured_value * $ratio, 2) : null,
+                    'insurance_start_date'             => $asset->insurance_start_date,
+                    'insurance_end_date'               => $asset->insurance_end_date,
+                    'insurance_comprehensive'          => $asset->insurance_comprehensive,
+                    'status'                           => [FormStatus::DRAFT],
+                ]);
+
+                $results->push($newAsset);
+            }
+
+            // Split adalah reparenting internal, bukan penghapusan data oleh user —
+            // withoutEvents() skip Eloquent model events (termasuk guard canDelete()
+            // milik LinkModel) secara eksplisit, tanpa bypass diam-diam lewat raw query.
+            Asset::withoutEvents(function () use ($asset) {
+                $asset->delete();
+            });
+        });
+
+        return $results;
     }
 }

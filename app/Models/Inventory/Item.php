@@ -2,10 +2,12 @@
 
 namespace App\Models\Inventory;
 
+use App\Models\Asset\AssetCategory;
 use App\Models\Core\File;
 use App\Models\Model;
 use App\Traits\DataTable;
 use Illuminate\Database\Eloquent\Concerns\HasUlids;
+use Illuminate\Database\Eloquent\Relations\BelongsTo;
 use Illuminate\Database\Eloquent\SoftDeletes;
 
 class Item extends Model {
@@ -16,6 +18,7 @@ class Item extends Model {
         'is_disabled'            => 'boolean',
         'allow_alternative_item' => 'boolean',
         'is_stock_item'          => 'boolean',
+        'is_fixed_asset'         => 'boolean',
         'conversion_factor'      => 'float',
     ];
 
@@ -157,5 +160,9 @@ class Item extends Model {
 
     public function variants() {
         return $this->hasMany(ItemVariant::class, 'item_id', 'id');
+    }
+
+    public function assetCategory(): BelongsTo {
+        return $this->belongsTo(AssetCategory::class);
     }
 }

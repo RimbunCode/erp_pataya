@@ -294,6 +294,7 @@ Route::middleware(['auth', 'lang', 'onboarded', 'app'])->group(function () {
     // Asset Locations
     Route::resourceDetail('assetLocation', AssetLocationController::class);
     // Assets
+    Route::put('/assets/{asset}/completeData', [AssetController::class, 'completeData'])->name('assets.completeData');
     Route::post('/assets/{asset}/{action}', [AssetController::class, 'action'])->name('assets.action');
     Route::resourceDetail('asset', AssetController::class, isSubmmitable: true);
     // / Asset Group End
