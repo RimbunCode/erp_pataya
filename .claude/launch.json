@@ -19,5 +19,6 @@
       ],
       "port": 5173
     }
-  ]
+  ],
+  "autoVerify": false
 }
