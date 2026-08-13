@@ -29,6 +29,7 @@ if (is_writable($temporaryPath)) {
 }
 
 return Application::configure(dirname(__DIR__))
+    ->withEvents(discover: false)
     ->withRouting(
         channels: __DIR__ . '/../routes/channels.php',
         web: __DIR__ . '/../routes/web.php',

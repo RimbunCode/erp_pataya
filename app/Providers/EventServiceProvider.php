@@ -106,11 +106,17 @@ class EventServiceProvider extends ServiceProvider {
     ];
 
     /**
-     * Laravel default auto-discover listener dari app/Listeners/ berdasarkan
-     * type-hint parameter handle(), DITAMBAHKAN ke $listen manual di atas
-     * (bukan menggantikan) — menyebabkan setiap listener terdaftar 2x dan
-     * dieksekusi dua kali per event. Nonaktifkan; $listen manual di atas
-     * adalah satu-satunya sumber kebenaran registrasi event di proyek ini.
+     * Nonaktifkan auto-discovery listener dari app/Listeners/ untuk instance
+     * provider ini. $listen manual di atas adalah satu-satunya sumber
+     * kebenaran registrasi event di proyek ini.
+     *
+     * Catatan: Laravel selalu mendaftarkan Illuminate\Foundation\Support\
+     * Providers\EventServiceProvider (base class) sebagai provider TERPISAH
+     * lewat Application::configure()->withEvents() (default), independen
+     * dari provider App ini. Override method ini TIDAK mencegah instance
+     * base class tersebut auto-discover — pencegahannya ada di
+     * bootstrap/app.php via withEvents(discover: false). Override ini
+     * murni defense-in-depth untuk instance App\Providers\EventServiceProvider.
      */
     public function shouldDiscoverEvents(): bool {
         return false;
