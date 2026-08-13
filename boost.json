@@ -13,8 +13,6 @@
         "laravel-best-practices",
         "socialite-development",
         "inertia-react-development",
-        "echo-react-development",
-        "echo-development",
         "tailwindcss-development"
     ]
 }
