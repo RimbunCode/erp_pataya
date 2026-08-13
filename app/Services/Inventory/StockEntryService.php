@@ -486,6 +486,7 @@ class StockEntryService implements SubmitableService {
                     'stock_queue'                => $stockSource->stock_queue,
                     'referenceable_type'         => StockEntry::class,
                     'referenceable_id'           => $stockEntry->id,
+                    'transaction_date'           => now(),
                 ]);
             }
 
@@ -544,6 +545,7 @@ class StockEntryService implements SubmitableService {
                     'stock_queue'                => $stockTarget->stock_queue,
                     'referenceable_type'         => StockEntry::class,
                     'referenceable_id'           => $stockEntry->id,
+                    'transaction_date'           => now(),
                 ]);
             }
         }

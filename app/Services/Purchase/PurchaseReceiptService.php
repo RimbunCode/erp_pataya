@@ -225,6 +225,7 @@ class PurchaseReceiptService implements SubmitableService {
                     'referenceable_type'         => PurchaseReceipt::class,
                     'referenceable_id'           => $purchaseReceipt->id,
                     'is_valuated'                => true,
+                    'transaction_date'           => now(),
                 ]);
 
                 continue;
@@ -282,6 +283,7 @@ class PurchaseReceiptService implements SubmitableService {
                         'referenceable_type'         => PurchaseReceipt::class,
                         'referenceable_id'           => $purchaseReceipt->id,
                         'is_valuated'                => true,
+                        'transaction_date'           => now(),
                     ]);
 
                     // 3. Patch queue entry terakhir dengan sle_id
@@ -324,6 +326,7 @@ class PurchaseReceiptService implements SubmitableService {
                         'referenceable_type'         => PurchaseReceipt::class,
                         'referenceable_id'           => $purchaseReceipt->id,
                         'is_valuated'                => false,
+                        'transaction_date'           => now(),
                     ]);
 
                     // 3. Patch queue entry terakhir dengan sle_id
@@ -368,6 +371,7 @@ class PurchaseReceiptService implements SubmitableService {
                     'referenceable_type'         => PurchaseReceipt::class,
                     'referenceable_id'           => $purchaseReceipt->id,
                     'is_valuated'                => false,
+                    'transaction_date'           => now(),
                 ]);
 
                 // 3. Patch queue entry terakhir dengan sle_id
