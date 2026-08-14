@@ -43,6 +43,7 @@ class AssetTranslationParityTest extends TestCase {
             'location.php'        => ['asset/location.php'],
             'asset.php'           => ['asset/asset.php'],
             'valueAdjustment.php' => ['asset/valueAdjustment.php'],
+            'movement.php'        => ['asset/movement.php'],
         ];
     }
 

@@ -128,6 +128,12 @@ const navList = [
         urlPattern: "/assetValueAdjustments/*",
         model: "App\\Models\\Asset\\AssetValueAdjustment",
       },
+      {
+        title: "Asset Movements",
+        url: "/assetMovements",
+        urlPattern: "/assetMovements/*",
+        model: "App\\Models\\Asset\\AssetMovement",
+      },
     ],
   },
   {
