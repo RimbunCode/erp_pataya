@@ -3,10 +3,16 @@
 namespace App\Http\Controllers\Core;
 
 use App\Enums\FormStatus;
+use App\Events\Asset\AssetDepreciationDue;
+use App\Events\Asset\AssetScrapped;
+use App\Events\Asset\AssetValueAdjustmentApproved;
 use App\Events\Finances\PurchaseInvoiceGeneralLedgerPostingRequested;
 use App\Events\Inventory\DeliveryNoteGeneralLedgerPostingRequested;
 use App\Events\Purchase\PurchaseReceiptGeneralLedgerPostingRequested;
 use App\Http\Controllers\Controller;
+use App\Models\Asset\Asset;
+use App\Models\Asset\AssetDepreciationSchedule;
+use App\Models\Asset\AssetValueAdjustment;
 use App\Models\Core\GlPostingStatus;
 use App\Models\Finances\PurchaseInvoice;
 use App\Models\Inventory\DeliveryNote;
@@ -76,6 +82,19 @@ class GlPostingStatusController extends Controller {
                 transactionDate: now(),
                 expenseHeadAccountId: $doc->expenseHeadAccount->id,
                 creditAccountId: $doc->creditAccount->id,
+            ),
+            $doc instanceof AssetDepreciationSchedule => new AssetDepreciationDue(
+                schedule: $doc,
+                transactionDate: now(),
+            ),
+            $doc instanceof Asset => new AssetScrapped(
+                asset: $doc,
+                writeOffAmount: $doc->bookValue(),
+                transactionDate: now(),
+            ),
+            $doc instanceof AssetValueAdjustment => new AssetValueAdjustmentApproved(
+                adjustment: $doc,
+                transactionDate: now(),
             ),
             default => throw new \InvalidArgumentException(
                 'Unsupported referenceable type: ' . get_class($doc),

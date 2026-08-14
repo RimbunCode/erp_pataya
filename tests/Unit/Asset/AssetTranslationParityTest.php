@@ -39,9 +39,10 @@ class AssetTranslationParityTest extends TestCase {
 
     public static function assetLangFilesProvider(): array {
         return [
-            'category.php' => ['asset/category.php'],
-            'location.php' => ['asset/location.php'],
-            'asset.php'    => ['asset/asset.php'],
+            'category.php'        => ['asset/category.php'],
+            'location.php'        => ['asset/location.php'],
+            'asset.php'           => ['asset/asset.php'],
+            'valueAdjustment.php' => ['asset/valueAdjustment.php'],
         ];
     }
 

@@ -2,6 +2,9 @@
 
 namespace App\Providers;
 
+use App\Events\Asset\AssetDepreciationDue;
+use App\Events\Asset\AssetScrapped;
+use App\Events\Asset\AssetValueAdjustmentApproved;
 use App\Events\Asset\FixedAssetItemApproved;
 use App\Events\Core\ApprovalDecided;
 use App\Events\Core\AuditableModelSaved;
@@ -22,6 +25,9 @@ use App\Events\Sales\Invoice\SalesInvoiceReturnStatusChanged;
 use App\Events\Sales\Invoice\SalesOrderItemBillingChanged;
 use App\Events\Sales\Order\DocumentDeliveryStatusRecalculationRequested;
 use App\Listeners\Asset\CreateAssetFromPurchase;
+use App\Listeners\Asset\Depreciation\PostDepreciationEntry;
+use App\Listeners\Asset\Depreciation\PostScrapWriteOff;
+use App\Listeners\Asset\Depreciation\PostValueAdjustmentEntry;
 use App\Listeners\Core\Approval\AttachApprovalPdf;
 use App\Listeners\Core\Approval\CancelPendingApprovalSteps;
 use App\Listeners\Core\Approval\NotifyApprovalDecision;
@@ -107,6 +113,15 @@ class EventServiceProvider extends ServiceProvider {
         ],
         FixedAssetItemApproved::class => [
             CreateAssetFromPurchase::class,
+        ],
+        AssetDepreciationDue::class => [
+            PostDepreciationEntry::class,
+        ],
+        AssetScrapped::class => [
+            PostScrapWriteOff::class,
+        ],
+        AssetValueAdjustmentApproved::class => [
+            PostValueAdjustmentEntry::class,
         ],
     ];
 

@@ -3,6 +3,7 @@ use App\Enums\FormStatus;
 use App\Http\Controllers\Asset\AssetCategoryController;
 use App\Http\Controllers\Asset\AssetController;
 use App\Http\Controllers\Asset\AssetLocationController;
+use App\Http\Controllers\Asset\AssetValueAdjustmentController;
 use App\Http\Controllers\Core\ApprovalInstanceController;
 use App\Http\Controllers\Core\ApprovalSchemeController;
 use App\Http\Controllers\Core\BranchController;
@@ -297,6 +298,8 @@ Route::middleware(['auth', 'lang', 'onboarded', 'app'])->group(function () {
     Route::put('/assets/{asset}/completeData', [AssetController::class, 'completeData'])->name('assets.completeData');
     Route::post('/assets/{asset}/{action}', [AssetController::class, 'action'])->name('assets.action');
     Route::resourceDetail('asset', AssetController::class, isSubmmitable: true);
+    // Asset Value Adjustments
+    Route::resourceDetail('assetValueAdjustment', AssetValueAdjustmentController::class, isSubmmitable: true);
     // / Asset Group End
 
     // / Purchase Group

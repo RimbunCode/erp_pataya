@@ -7,6 +7,7 @@ use App\Enums\FormStatus;
 use App\Models\Asset\Asset;
 use App\Models\Core\FormatingSeries;
 use App\Models\Model;
+use App\Services\Asset\Depreciation\DepreciationScheduleGenerator;
 use Illuminate\Support\Arr;
 use Illuminate\Support\Collection;
 use Illuminate\Support\Facades\DB;
@@ -142,6 +143,10 @@ class AssetService implements SubmitableService {
 
         // Convert back to enum objects for FormStatusesCast
         $model->update(['status' => array_map(fn (string $v) => FormStatus::from($v), $statusValues)]);
+
+        if ($model->calculate_depreciation) {
+            app(DepreciationScheduleGenerator::class)->generate($model);
+        }
 
         return null;
     }

@@ -1,0 +1,6 @@
+{
+  "specId": "a4f1c3e2-7b6d-4e89-9c5a-3d8f2b1e6a90",
+  "workflowType": "requirements-first",
+  "specType": "feature",
+  "description": "Spec 3 dari 4-fase modul Asset Management (mirip ERPNext): kalkulasi depresiasi otomatis (Straight Line/Double Declining Balance/Written Down Value/Manual) via AssetDepreciationSchedule, posting jurnal berkala ke GeneralLedger, write-off saat scrap, dan AssetValueAdjustment untuk revaluasi manual."
+}

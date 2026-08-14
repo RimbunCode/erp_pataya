@@ -5,7 +5,9 @@ namespace App\Models\Asset;
 use App\Enums\AssetOwnershipType;
 use App\Enums\AssetType;
 use App\Enums\FormStatus;
+use App\Events\Asset\AssetScrapped;
 use App\Models\Core\Branch;
+use App\Models\Core\GlPostingStatus;
 use App\Models\Finances\PurchaseInvoiceItem;
 use App\Models\Inventory\Item;
 use App\Models\Model;
@@ -20,7 +22,9 @@ use Illuminate\Database\Eloquent\Casts\Attribute;
 use Illuminate\Database\Eloquent\Concerns\HasUlids;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
+use Illuminate\Database\Eloquent\Relations\HasMany;
 use Illuminate\Database\Eloquent\SoftDeletes;
+use Illuminate\Support\Facades\DB;
 use LogicException;
 
 class Asset extends Model {
@@ -35,6 +39,7 @@ class Asset extends Model {
         'ownership_type'          => AssetOwnershipType::class,
         'calculate_depreciation'  => 'boolean',
         'is_depreciable'          => 'boolean',
+        'is_fully_depreciated'    => 'boolean',
         'maintenance_required'    => 'boolean',
         'insurance_comprehensive' => 'boolean',
         'daily_prorata_based'     => 'boolean',
@@ -122,6 +127,10 @@ class Asset extends Model {
         return $this->belongsTo(PurchaseInvoiceItem::class);
     }
 
+    public function depreciationSchedules(): HasMany {
+        return $this->hasMany(AssetDepreciationSchedule::class);
+    }
+
     /**
      * Resolve the ownership relationship based on ownership_type.
      * NOT a morphTo — manual dispatch because Laravel morph stores FQCN, not enum string.
@@ -147,6 +156,14 @@ class Asset extends Model {
         return Attribute::get(fn () => ($this->gross_purchase_amount ?? 0) + ($this->additional_asset_cost ?? 0));
     }
 
+    public function bookValue(): float {
+        $accumulated = $this->depreciationSchedules()
+            ->whereHas('glPostingStatus', fn ($q) => $q->where('status', FormStatus::POSTED))
+            ->sum('depreciation_amount');
+
+        return (float) $this->total_asset_cost - (float) $accumulated;
+    }
+
     // ─── Guard — ERPNext: Asset tidak mengenal cancel/delete ─────────────
 
     public function canCancel(): bool {
@@ -164,9 +181,27 @@ class Asset extends Model {
             allowedFrom: [FormStatus::ACTIVE, FormStatus::ISSUED, FormStatus::OUT_OF_ORDER],
             to: FormStatus::SCRAPPED,
         );
-        $this->status        = [...$this->removeStatuses([FormStatus::ACTIVE, FormStatus::ISSUED, FormStatus::OUT_OF_ORDER]), FormStatus::SCRAPPED];
-        $this->disposal_date = now();
-        $this->save();
+
+        $writeOffAmount = $this->bookValue();
+
+        DB::transaction(function () {
+            $this->depreciationSchedules()
+                ->whereDoesntHave('glPostingStatus', fn ($q) => $q->where('status', FormStatus::POSTED))
+                ->delete();
+
+            $this->status        = [...$this->removeStatuses([FormStatus::ACTIVE, FormStatus::ISSUED, FormStatus::OUT_OF_ORDER]), FormStatus::SCRAPPED];
+            $this->disposal_date = now();
+            $this->save();
+        });
+
+        if ($this->is_depreciable && $writeOffAmount > 0) {
+            GlPostingStatus::create([
+                'referenceable_type' => static::class,
+                'referenceable_id'   => $this->id,
+                'status'             => 'pending',
+            ]);
+            event(new AssetScrapped($this, $writeOffAmount, now()));
+        }
     }
 
     public function sell(): void {
