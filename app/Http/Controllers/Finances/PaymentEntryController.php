@@ -10,12 +10,9 @@ use App\Models\Finances\PurchaseInvoice;
 use App\Models\Finances\SalesInvoice;
 use App\Services\Finances\PaymentEntryService;
 use Illuminate\Http\Request;
-use Illuminate\Support\Facades\DB;
 use Inertia\Inertia;
 
 class PaymentEntryController extends Controller {
-    private PaymentEntryService $service;
-
     public function __construct(Request $request, PaymentEntryService $service) {
         $this->service = $service;
         parent::__construct($request, PaymentEntry::class);
@@ -146,7 +143,7 @@ class PaymentEntryController extends Controller {
 
         return Inertia::render('Finances/PaymentEntries/Show', [
             'paymentEntry' => function () use ($paymentEntry) {
-                $paymentEntry->loadRelations();
+                $paymentEntry->loadRelations([], withTrashed: true);
 
                 return $paymentEntry;
             },
@@ -172,41 +169,5 @@ class PaymentEntryController extends Controller {
         $this->service->submit($paymentEntry);
 
         return back();
-    }
-
-    public function onApproved(PaymentEntry $paymentEntry) {
-        $this->service->onApproved($paymentEntry);
-
-        return back();
-    }
-
-    public function onRejected(PaymentEntry $paymentEntry) {
-        $this->service->onRejected($paymentEntry);
-
-        return back();
-    }
-
-    public function cancel(PaymentEntry $paymentEntry) {
-        $this->service->cancel($paymentEntry);
-
-        return back();
-    }
-
-    /**
-     * Remove the specified resource from storage.
-     */
-    public function destroy(PaymentEntry $paymentEntry) {
-        DB::beginTransaction();
-        try {
-            $paymentEntry->delete();
-            $paymentEntry->logForDeleted();
-            DB::commit();
-        } catch (\Throwable $e) {
-            DB::rollBack();
-
-            throw $e;
-        }
-
-        return redirect()->route('paymentEntries.index');
     }
 }

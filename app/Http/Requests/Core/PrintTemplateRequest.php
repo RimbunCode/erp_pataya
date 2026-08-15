@@ -3,6 +3,7 @@
 namespace App\Http\Requests\Core;
 
 use App\Http\Requests\BaseFormRequest;
+use App\Rules\ExistsExcludingTrashed;
 use App\Utils;
 use Illuminate\Contracts\Validation\ValidationRule;
 use Illuminate\Validation\Rule;
@@ -49,7 +50,7 @@ class PrintTemplateRequest extends BaseFormRequest {
             'permission.*'         => ['nullable'],
             'is_default'           => ['nullable', 'boolean'],
             'default_language'     => ['nullable', 'string'],
-            'letter_head.id'       => ['nullable', 'exists:print_templates,id'],
+            'letter_head.id'       => ['nullable', new ExistsExcludingTrashed('print_templates')],
             'paper'                => ['nullable', Rule::requiredIf(! ($this->is_letter_head ?? false)), 'string', Rule::in(self::PAPER_OPTIONS)],
             'orientation'          => ['nullable', Rule::requiredIf(! ($this->is_letter_head ?? false)), 'string', Rule::in(self::ORIENTATION_OPTIONS)],
             'width'                => ['nullable', Rule::requiredIf(! ($this->is_letter_head ?? false)), 'numeric'],

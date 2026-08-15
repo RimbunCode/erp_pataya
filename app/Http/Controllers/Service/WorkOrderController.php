@@ -11,8 +11,6 @@ use Illuminate\Support\Facades\DB;
 use Inertia\Inertia;
 
 class WorkOrderController extends Controller {
-    private WorkOrderService $service;
-
     public function __construct(Request $request, WorkOrderService $service) {
         $this->service = $service;
         parent::__construct($request, WorkOrder::class);
@@ -93,35 +91,5 @@ class WorkOrderController extends Controller {
         $this->service->submit($workOrder);
 
         return back();
-    }
-
-    public function onApproved(WorkOrder $workOrder) {
-        $this->service->onApproved($workOrder);
-
-        return back();
-    }
-
-    public function onRejected(WorkOrder $workOrder) {
-        $this->service->onRejected($workOrder);
-
-        return back();
-    }
-
-    /**
-     * Remove the specified resource from storage.
-     */
-    public function destroy(WorkOrder $workOrder) {
-        DB::beginTransaction();
-        try {
-            $workOrder->delete();
-            $workOrder->logForDeleted();
-            DB::commit();
-        } catch (\Throwable $e) {
-            DB::rollBack();
-
-            throw $e;
-        }
-
-        return redirect()->route('workOrders.index');
     }
 }

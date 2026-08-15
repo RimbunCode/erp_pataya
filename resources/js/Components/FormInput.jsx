@@ -5,6 +5,7 @@ import { Label } from "./ui/label";
 import { cn } from "@/lib/utils";
 import { useFormPageMeta } from "@/Pages/Core/FormPage";
 import { useLaravelReactI18n } from "laravel-react-i18n";
+import useCanUpdate from "@/Hooks/useCanUpdate";
 
 /**
  * Tentukan nilai `valueBefore` yang diinjeksikan otomatis ke child input
@@ -59,6 +60,7 @@ function FormInput({
   const errors = errorsProps ?? form?.errors ?? {};
   const _required = required || firstChild?.props?.required;
   const _name = name || firstChild?.props?.name;
+  const canUpdate = useCanUpdate(_name);
   const errorMessage = error
     ? error
     : _name && errors?.[_name]
@@ -87,8 +89,10 @@ function FormInput({
             ...props,
             id,
             required: _required,
-            readOnly: ignoreDisabled ? false : props.readOnly || form?.disabled,
             valueBefore: props.valueBefore ?? diffValue,
+            readOnly: ignoreDisabled
+              ? false
+              : props.readOnly || form?.disabled || !canUpdate,
           })
         : React.Children.map(children, (child) => {
             return cloneElement(child, {
@@ -97,7 +101,10 @@ function FormInput({
               required: _required && (child.props?.required ?? true),
               readOnly: ignoreDisabled
                 ? false
-                : child.props?.readOnly || props.readOnly || form?.disabled,
+                : child.props?.readOnly ||
+                  props.readOnly ||
+                  form?.disabled ||
+                  !canUpdate,
               valueBefore: child.props?.valueBefore ?? diffValue,
             });
           })}

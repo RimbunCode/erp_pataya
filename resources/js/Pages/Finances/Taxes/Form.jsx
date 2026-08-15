@@ -14,9 +14,9 @@ export default function Form() {
       <FormPageContent title={null} value="detail">
         <div className="grid gap-x-3 gap-y-4">
           <FormInput
+            name="name"
             required={true}
             label={t("finances.taxes.columns.name")}
-            name="name"
           >
             <Input
               value={data?.name ?? ""}
@@ -24,9 +24,9 @@ export default function Form() {
             />
           </FormInput>
           <FormInput
+            name="rate"
             required={true}
             label={t("finances.taxes.columns.rate")}
-            name="rate"
           >
             <NumberInput
               className="text-left"

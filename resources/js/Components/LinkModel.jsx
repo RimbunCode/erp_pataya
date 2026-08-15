@@ -58,6 +58,11 @@ import { useRef } from "react";
  *   bukan `model` prop utama. Dipakai saat target navigasi (`as="name:keyRoute"`) beda dari
  *   model data (mis. SalesOrderItem menavigasi ke halaman Item). Default: fallback ke
  *   `can("read", { user_id: option.created_by_id })` (model utama).
+ * @param props.requireReselectIfDeleted Saat true, field ini wajib diisi ulang bila
+ *   relasi yang tersimpan sudah di-soft-delete (`deleted_at` terisi) — dipasang HANYA
+ *   pada field master data operasional (Item, Account, Customer, dst) di form draft.
+ *   Field non-operasional (mis. User pembuat) tidak perlu prop ini; badge peringatan
+ *   tetap tampil independen dari prop ini, hanya blocking submit yang bergantung.
  */
 export default memo(
   forwardRef(function LinkModel(
@@ -94,6 +99,7 @@ export default memo(
       order,
       customNavigation,
       canNavigation,
+      requireReselectIfDeleted,
     },
     ref,
   ) {
@@ -287,6 +293,8 @@ export default memo(
       return isControlled ? value : _option;
     }, [isControlled, value, _option]);
 
+    const isDeleted = !!option?.deleted_at;
+
     useDidMountEffect(() => {
       _setOption((prev) => {
         // kalau sama, jangan trigger apa-apa
@@ -325,6 +333,19 @@ export default memo(
         value,
       ],
     );
+
+    // requireReselectIfDeleted: kosongkan value begitu terdeteksi relasi yang
+    // tersimpan sudah di-soft-delete, agar field jadi invalid oleh validasi
+    // `required` yang sudah ada (memaksa user memilih ulang sebelum submit),
+    // tanpa perlu API baru untuk expose state validitas ke form parent.
+    const reselectHandledRef = useRef(false);
+    useEffect(() => {
+      if (!requireReselectIfDeleted || !isDeleted) return;
+      if (reselectHandledRef.current) return;
+      reselectHandledRef.current = true;
+      setOption(null);
+      setSearch("");
+    }, [requireReselectIfDeleted, isDeleted]);
 
     useEffect(() => {
       if (open) return;
@@ -875,6 +896,13 @@ export default memo(
               </FormPageDialog>
             )}
           </Popover>
+          {isDeleted && (
+            <p className="text-sm text-yellow-600 dark:text-yellow-400 mt-1">
+              {requireReselectIfDeleted
+                ? t("core.form.link_model_deleted_reselect_required")
+                : t("core.form.link_model_deleted")}
+            </p>
+          )}
         </div>
       </ClickAwayListener>
     );

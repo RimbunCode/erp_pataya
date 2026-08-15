@@ -49,7 +49,6 @@ import {
   generateRandom,
   getLocaleDate,
   inArray,
-  isCompletedStatus,
   removeFromLocalStorage,
   resolveImageSrc,
 } from "@/lib/utils";
@@ -72,7 +71,6 @@ import { TZDate } from "@date-fns/tz";
 import Tags from "./Components/Tags";
 import { TooltipProvider } from "@/Components/ui/tooltip";
 import { convertTemplateLink } from "@/lib/linkModelUtils";
-import { evaluate } from "@marcbachmann/cel-js";
 import { format } from "date-fns";
 import pluralize from "pluralize";
 import { gooeyToast as toast } from "@/lib/gooeyToast";
@@ -739,10 +737,7 @@ const FormPage = memo(
       isDirty,
     } = form;
     const disabled = useMemo(() => {
-      if (!defaultData?.disabledOn) {
-        return !!_disabled;
-      }
-      return evaluate(defaultData?.disabledOn, defaultData);
+      return !!_disabled || !!defaultData?.disabledOn;
     }, [_disabled, defaultData?.disabledOn]);
     const onSubmit = useCallback(
       (e) => {
@@ -1149,7 +1144,7 @@ const FormPage = memo(
                             {t("core.form.amend")}
                           </Button>
                         )
-                      : !isCompletedStatus(defaultData?.status) &&
+                      : defaultData?.canCancel &&
                         can(
                           "cancel",
                           submitable && { user_id: defaultData?.created_by_id },
@@ -2232,6 +2227,7 @@ export {
   FormPageContentDescription,
   FormPageDialog,
   FormPageDiff,
+  FormPageContext,
   useFormPage,
   useFormPageMeta,
   // useFormPageContent,

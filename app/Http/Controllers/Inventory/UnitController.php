@@ -136,22 +136,4 @@ class UnitController extends Controller {
 
         return back();
     }
-
-    /**
-     * Remove the specified resource from storage.
-     */
-    public function destroy(Unit $unit) {
-        DB::beginTransaction();
-        try {
-            $unit->delete();
-            $unit->logForDeleted();
-            DB::commit();
-        } catch (\Throwable $e) {
-            DB::rollBack();
-
-            throw $e;
-        }
-
-        return redirect()->route('units.index');
-    }
 }

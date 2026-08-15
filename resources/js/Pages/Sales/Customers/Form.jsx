@@ -37,9 +37,9 @@ export default function Form() {
         </FormInput>
         <div className="grid pt-2 mt-4 gap-x-4 gap-y-4 md:grid-cols-3">
           <FormInput
+            name="vat"
             label={t("sales.customer.columns.vat")}
             required={true}
-            name="vat"
           >
             <Input
               type="string"
@@ -48,9 +48,9 @@ export default function Form() {
             />
           </FormInput>
           <FormInput
+            name="email"
             label={t("sales.customer.columns.email")}
             required={true}
-            name="email"
           >
             <Input
               type="email"
@@ -59,9 +59,9 @@ export default function Form() {
             />
           </FormInput>
           <FormInput
+            name="phone"
             label={t("sales.customer.columns.phone")}
             required={true}
-            name="phone"
           >
             <Input
               value={data?.phone ?? ""}
@@ -84,6 +84,7 @@ export default function Form() {
           {t("sales.customer.address")}
         </FormPageContentTitle>
         <FormInput
+          name="street"
           label={t("sales.customer.columns.street")}
           required={true}
           className="col-span-full"
@@ -97,9 +98,9 @@ export default function Form() {
 
         <div className="grid pt-2 mt-4 gap-x-4 gap-y-4 md:grid-cols-3">
           <FormInput
+            name="city"
             label={t("sales.customer.columns.city")}
             required={true}
-            name="city"
           >
             <Input
               value={data?.city ?? ""}
@@ -107,6 +108,7 @@ export default function Form() {
             />
           </FormInput>
           <FormInput
+            name="province"
             label={t("sales.customer.columns.province")}
             required={true}
             name="province"
@@ -117,6 +119,7 @@ export default function Form() {
             />
           </FormInput>
           <FormInput
+            name="zip_code"
             label={t("sales.customer.columns.zip_code")}
             required={true}
             name="zip_code"
@@ -128,6 +131,7 @@ export default function Form() {
           </FormInput>
 
           <FormInput
+            name="country"
             label={t("sales.customer.columns.country")}
             required={true}
             name="country"

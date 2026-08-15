@@ -12,8 +12,6 @@ use Illuminate\Support\Facades\DB;
 use Inertia\Inertia;
 
 class OpportunityController extends Controller {
-    private OpportunityService $service;
-
     public function __construct(Request $request, OpportunityService $service) {
         $this->service = $service;
         parent::__construct($request, Opportunity::class);
@@ -93,17 +91,5 @@ class OpportunityController extends Controller {
         DB::commit();
 
         return back();
-    }
-
-    /**
-     * Remove the specified resource from storage.
-     */
-    public function destroy(Opportunity $opportunity) {
-        DB::beginTransaction();
-        $opportunity->delete();
-        $opportunity->logForDeleted();
-        DB::commit();
-
-        return redirect()->route('opportunities.index');
     }
 }

@@ -480,6 +480,7 @@ export default function Form() {
       >
         <div className="grid gap-x-4 gap-y-4 md:grid-cols-2 grid-cols-1">
           <FormInput
+            name="difference_account"
             required
             label={t("inventory.stockEntry.columns.difference_account")}
           >
@@ -502,6 +503,7 @@ export default function Form() {
             data.type == "item_issue" ||
             data.type == "item_consumption") && (
             <FormInput
+              name="default_source_warehouse"
               label={t("inventory.stockEntry.columns.default_source_warehouse")}
             >
               <WarehouseLinkModel
@@ -531,6 +533,7 @@ export default function Form() {
           )}
           {(data.type == "item_transfer" || data.type == "item_receipt") && (
             <FormInput
+              name="default_target_warehouse"
               label={t("inventory.stockEntry.columns.default_target_warehouse")}
             >
               <WarehouseLinkModel

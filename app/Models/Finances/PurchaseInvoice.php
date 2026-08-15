@@ -2,6 +2,7 @@
 
 namespace App\Models\Finances;
 
+use App\Enums\FormStatus;
 use App\Models\Core\Branch;
 use App\Models\Core\Currency;
 use App\Models\Model;
@@ -154,5 +155,20 @@ class PurchaseInvoice extends Model {
     public function paymentSchedules() {
         return $this->morphMany(PaymentSchedule::class, 'payment_scheduleable')
             ->orderBy('due_date', 'asc');
+    }
+
+    public function canCancel(): bool {
+        $blockingStatuses = [
+            FormStatus::PAID,
+            FormStatus::PARTIALLY_PAID,
+        ];
+
+        foreach ($blockingStatuses as $status) {
+            if (\in_array($status, (array) $this->status, true)) {
+                return false;
+            }
+        }
+
+        return true;
     }
 }

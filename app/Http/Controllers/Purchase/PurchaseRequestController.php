@@ -14,8 +14,6 @@ use Illuminate\Support\Facades\DB;
 use Inertia\Inertia;
 
 class PurchaseRequestController extends Controller {
-    private PurchaseRequestService $service;
-
     public function __construct(Request $request, PurchaseRequestService $service) {
         $this->service = $service;
         parent::__construct($request, PurchaseRequest::class);
@@ -119,41 +117,5 @@ class PurchaseRequestController extends Controller {
         $this->service->submit($purchaseRequest);
 
         return back();
-    }
-
-    public function cancel(PurchaseRequest $purchaseRequest) {
-        $this->service->cancel($purchaseRequest);
-
-        return back();
-    }
-
-    public function onApproved(PurchaseRequest $purchaseRequest) {
-        $this->service->onApproved($purchaseRequest);
-
-        return back();
-    }
-
-    public function onRejected(PurchaseRequest $purchaseRequest) {
-        $this->service->onRejected($purchaseRequest);
-
-        return back();
-    }
-
-    /**
-     * Remove the specified resource from storage.
-     */
-    public function destroy(PurchaseRequest $purchaseRequest) {
-        DB::beginTransaction();
-        try {
-            $purchaseRequest->delete();
-            $purchaseRequest->logForDeleted();
-            DB::commit();
-        } catch (\Throwable $e) {
-            DB::rollBack();
-
-            throw $e;
-        }
-
-        return redirect()->route('purchaseRequests.index');
     }
 }

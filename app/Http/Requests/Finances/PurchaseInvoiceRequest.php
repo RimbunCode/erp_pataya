@@ -5,6 +5,7 @@ namespace App\Http\Requests\Finances;
 use App\Http\Requests\BaseFormRequest;
 use App\Http\Requests\Finances\Rules\AdditionalDiscountRules;
 use App\Http\Requests\Finances\Rules\PaymentSchedulesRules;
+use App\Rules\ExistsExcludingTrashed;
 use Illuminate\Contracts\Validation\ValidationRule;
 
 class PurchaseInvoiceRequest extends BaseFormRequest {
@@ -23,26 +24,26 @@ class PurchaseInvoiceRequest extends BaseFormRequest {
     public function rules(): array {
         return [
             'date'                           => ['required', 'date'],
-            'purchase_order.id'              => ['nullable', 'exists:purchase_orders,id'],
+            'purchase_order.id'              => ['nullable', new ExistsExcludingTrashed('purchase_orders')],
             'purchase_order.*'               => ['nullable'],
-            'return_against.id'              => ['nullable', 'exists:purchase_invoices,id'],
-            'expense_head_account.id'        => ['required', 'exists:accounts,id'],
-            'credit_account.id'              => ['required', 'exists:accounts,id'],
+            'return_against.id'              => ['nullable', new ExistsExcludingTrashed('purchase_invoices')],
+            'expense_head_account.id'        => ['required', new ExistsExcludingTrashed('accounts')],
+            'credit_account.id'              => ['required', new ExistsExcludingTrashed('accounts')],
             'items'                          => ['required', 'array', 'min:1'],
             'items.*.id'                     => ['required', 'string'],
-            'items.*.purchase_order_item.id' => ['required', 'exists:purchase_order_items,id'],
+            'items.*.purchase_order_item.id' => ['required', new ExistsExcludingTrashed('purchase_order_items')],
             'items.*.purchase_order_item.*'  => ['nullable'],
             'items.*.description'            => ['nullable', 'string'],
             'items.*.referenceable_type'     => ['nullable', 'string'],
             'items.*.referenceable_id'       => ['nullable', 'string'],
             'items.*.quantity'               => ['required', 'numeric', 'min:1'],
-            'items.*.unit.id'                => ['required', 'exists:item_units,id'],
+            'items.*.unit.id'                => ['required', new ExistsExcludingTrashed('item_units')],
             'items.*.unit.*'                 => ['nullable'],
-            'items.*.tax.id'                 => ['nullable', 'exists:taxes,id'],
+            'items.*.tax.id'                 => ['nullable', new ExistsExcludingTrashed('taxes')],
             'items.*.tax.*'                  => ['nullable'],
             'items.*.rate'                   => ['required', 'numeric', 'min:0'],
-            'items.*.return_against_item_id' => ['nullable', 'exists:purchase_invoice_items,id'],
-            'supplier.id'                    => ['required', 'exists:suppliers,id'],
+            'items.*.return_against_item_id' => ['nullable', new ExistsExcludingTrashed('purchase_invoice_items')],
+            'supplier.id'                    => ['required', new ExistsExcludingTrashed('suppliers')],
             'supplier.*'                     => ['nullable'],
             'currency.code'                  => ['nullable', 'exists:currencies,code'],
             'exchange_rate'                  => ['nullable', 'numeric'],

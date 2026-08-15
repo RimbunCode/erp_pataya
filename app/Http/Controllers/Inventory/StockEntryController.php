@@ -13,8 +13,6 @@ use Illuminate\Support\Facades\DB;
 use Inertia\Inertia;
 
 class StockEntryController extends Controller {
-    private StockEntryService $service;
-
     public function __construct(Request $request, StockEntryService $service) {
         $this->service = $service;
         parent::__construct($request, StockEntry::class);
@@ -119,35 +117,5 @@ class StockEntryController extends Controller {
         $this->service->submit($stockEntry);
 
         return back();
-    }
-
-    public function onApproved(StockEntry $stockEntry) {
-        $this->service->onApproved($stockEntry);
-
-        return back();
-    }
-
-    public function onRejected(StockEntry $stockEntry) {
-        $this->service->onRejected($stockEntry);
-
-        return back();
-    }
-
-    /**
-     * Remove the specified resource from storage.
-     */
-    public function destroy(StockEntry $stockEntry) {
-        DB::beginTransaction();
-        try {
-            $stockEntry->delete();
-            $stockEntry->logForDeleted();
-            DB::commit();
-        } catch (\Throwable $e) {
-            DB::rollBack();
-
-            throw $e;
-        }
-
-        return redirect()->route('stockEntries.index');
     }
 }

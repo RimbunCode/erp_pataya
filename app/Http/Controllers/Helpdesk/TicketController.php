@@ -13,8 +13,6 @@ use Illuminate\Support\Facades\DB;
 use Inertia\Inertia;
 
 class TicketController extends Controller {
-    private TicketService $service;
-
     public function __construct(Request $request, TicketService $service) {
         $this->service = $service;
         parent::__construct($request, Ticket::class);
@@ -75,21 +73,6 @@ class TicketController extends Controller {
         DB::commit();
 
         return back();
-    }
-
-    public function destroy(Ticket $ticket) {
-        DB::beginTransaction();
-        try {
-            $ticket->delete();
-            $ticket->logForDeleted();
-            DB::commit();
-        } catch (\Throwable $e) {
-            DB::rollBack();
-
-            throw $e;
-        }
-
-        return redirect()->route('tickets.index');
     }
 
     public function markDone(Ticket $ticket) {

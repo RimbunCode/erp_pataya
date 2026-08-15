@@ -3,6 +3,7 @@
 namespace App\Http\Requests\Service;
 
 use App\Http\Requests\BaseFormRequest;
+use App\Rules\ExistsExcludingTrashed;
 use Illuminate\Contracts\Validation\ValidationRule;
 use Illuminate\Validation\Rule;
 
@@ -29,19 +30,19 @@ class WorkOrderRequest extends BaseFormRequest {
         return [
             'date'                => ['required', 'date'],
             'for_internal'        => ['nullable', 'boolean'],
-            'customer.id'         => [Rule::requiredIf(! $this->for_internal ?? false), 'exists:customers,id'],
+            'customer.id'         => [Rule::requiredIf(! $this->for_internal ?? false), new ExistsExcludingTrashed('customers')],
             'customer.*'          => ['nullable'],
-            'customer_branch.id'  => ['required', 'exists:branches,id'],
+            'customer_branch.id'  => ['required', new ExistsExcludingTrashed('branches')],
             'customer_branch.*'   => ['nullable'],
-            'item_service.id'     => ['required', 'exists:item_variants,id'],
+            'item_service.id'     => ['required', new ExistsExcludingTrashed('item_variants')],
             'item_service.*'      => ['nullable'],
             'items'               => ['required', 'array', 'min:1'],
             'items.*.id'          => ['required', 'string'],
-            'items.*.item.id'     => ['required', 'exists:item_variants,id', 'distinct'],
+            'items.*.item.id'     => ['required', new ExistsExcludingTrashed('item_variants'), 'distinct'],
             'items.*.item.*'      => ['nullable'],
             'items.*.description' => ['nullable', 'string'],
             'items.*.quantity'    => ['required', 'numeric', 'min:1'],
-            'items.*.unit.id'     => ['required', 'exists:item_units,id'],
+            'items.*.unit.id'     => ['required', new ExistsExcludingTrashed('item_units')],
             'items.*.unit.*'      => ['nullable'],
             'external_note'       => ['nullable', 'string'],
         ];

@@ -11,8 +11,6 @@ use Illuminate\Support\Facades\DB;
 use Inertia\Inertia;
 
 class InternalOrderController extends Controller {
-    private InternalOrderService $service;
-
     public function __construct(Request $request, InternalOrderService $service) {
         $this->service = $service;
         parent::__construct($request, InternalOrder::class);
@@ -117,42 +115,6 @@ class InternalOrderController extends Controller {
                 'id' => ':user telah mensubmit ini',
             ],
         ]);
-
-        return redirect()->back();
-    }
-
-    public function onApproved(InternalOrder $internalOrder) {
-        $this->service->onApproved($internalOrder);
-
-        return back();
-    }
-
-    public function onRejected(InternalOrder $internalOrder) {
-        $this->service->onRejected($internalOrder);
-
-        return back();
-    }
-
-    public function cancel(InternalOrder $internalOrder) {
-        $this->service->cancel($internalOrder);
-
-        return back();
-    }
-
-    /**
-     * Remove the specified resource from storage.
-     */
-    public function destroy(InternalOrder $internalOrder) {
-        DB::beginTransaction();
-        try {
-            $internalOrder->delete();
-            $internalOrder->logForDeleted();
-            DB::commit();
-        } catch (\Throwable $e) {
-            DB::rollBack();
-
-            throw $e;
-        }
 
         return redirect()->back();
     }

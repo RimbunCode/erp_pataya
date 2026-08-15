@@ -99,24 +99,6 @@ class EmailTemplateController extends Controller {
     }
 
     /**
-     * Remove the specified resource from storage.
-     */
-    public function destroy(EmailTemplate $emailTemplate) {
-        DB::beginTransaction();
-        try {
-            $emailTemplate->logForDeleted();
-            $emailTemplate->delete();
-            DB::commit();
-        } catch (Throwable $e) {
-            DB::rollBack();
-
-            throw $e;
-        }
-
-        return redirect()->route('emailTemplates.index');
-    }
-
-    /**
      * Daftar field yang tersedia untuk merge-tag, berdasarkan Model target.
      */
     public function fields(Request $request): JsonResponse {

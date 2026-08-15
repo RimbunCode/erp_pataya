@@ -4,6 +4,7 @@ namespace App\Http\Requests\Inventory;
 
 use App\Http\Requests\BaseFormRequest;
 use App\Models\Inventory\ItemVariant;
+use App\Rules\ExistsExcludingTrashed;
 use Illuminate\Contracts\Validation\ValidationRule;
 use Illuminate\Validation\Validator;
 
@@ -23,8 +24,8 @@ class ItemAlternativeRequest extends BaseFormRequest {
     public function rules(): array {
         return [
             'two_way'        => ['nullable', 'boolean'],
-            'item.id'        => ['required', 'string', 'exists:item_variants,id'],
-            'alternative.id' => ['required', 'string', 'different:item.id', 'exists:item_variants,id'],
+            'item.id'        => ['required', 'string', new ExistsExcludingTrashed('item_variants')],
+            'alternative.id' => ['required', 'string', 'different:item.id', new ExistsExcludingTrashed('item_variants')],
         ];
     }
 

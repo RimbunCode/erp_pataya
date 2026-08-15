@@ -7,12 +7,9 @@ use App\Http\Requests\Finances\PaymentTermTemplateRequest;
 use App\Models\Finances\PaymentTermTemplate;
 use App\Services\Finances\PaymentTermTemplateService;
 use Illuminate\Http\Request;
-use Illuminate\Support\Facades\DB;
 use Inertia\Inertia;
 
 class PaymentTermTemplateController extends Controller {
-    private PaymentTermTemplateService $service;
-
     public function __construct(Request $request, PaymentTermTemplateService $service) {
         $this->service = $service;
         parent::__construct($request, PaymentTermTemplate::class);
@@ -85,23 +82,5 @@ class PaymentTermTemplateController extends Controller {
         $this->service->update($paymentTermTemplate, $data);
 
         return redirect()->back();
-    }
-
-    /**
-     * Remove the specified resource from storage.
-     */
-    public function destroy(PaymentTermTemplate $paymentTermTemplate) {
-        DB::beginTransaction();
-        try {
-            $paymentTermTemplate->delete();
-            $paymentTermTemplate->logForDeleted();
-            DB::commit();
-        } catch (\Throwable $e) {
-            DB::rollBack();
-
-            throw $e;
-        }
-
-        return redirect()->route('paymentTermTemplates.index');
     }
 }

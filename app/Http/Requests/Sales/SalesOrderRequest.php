@@ -5,6 +5,7 @@ namespace App\Http\Requests\Sales;
 use App\Http\Requests\BaseFormRequest;
 use App\Http\Requests\Finances\Rules\AdditionalDiscountRules;
 use App\Http\Requests\Finances\Rules\PaymentSchedulesRules;
+use App\Rules\ExistsExcludingTrashed;
 use Illuminate\Validation\Rule;
 
 class SalesOrderRequest extends BaseFormRequest {
@@ -31,24 +32,24 @@ class SalesOrderRequest extends BaseFormRequest {
                 'nullable',
             ],
             'is_rent'                     => ['nullable', 'boolean'],
-            'customer.id'                 => [Rule::requiredIf(! ($this->is_rent ?? false)), 'exists:customers,id'],
+            'customer.id'                 => [Rule::requiredIf(! ($this->is_rent ?? false)), new ExistsExcludingTrashed('customers')],
             'customer.*'                  => ['nullable'],
-            'customer_branch.id'          => ['required', 'exists:branches,id'],
+            'customer_branch.id'          => ['required', new ExistsExcludingTrashed('branches')],
             'customer_branch.*'           => ['nullable'],
-            'reference_so.id'             => ['nullable', 'exists:sales_orders,id'],
+            'reference_so.id'             => ['nullable', new ExistsExcludingTrashed('sales_orders')],
             'reference_so.*'              => ['nullable'],
             'items'                       => ['required', 'array', 'min:1'],
             'items.*.id'                  => ['required', 'string'],
-            'items.*.item.id'             => ['required', 'exists:item_variants,id'],
+            'items.*.item.id'             => ['required', new ExistsExcludingTrashed('item_variants')],
             'items.*.item.*'              => ['nullable'],
             'items.*.description'         => ['nullable', 'string'],
             'items.*.quantity'            => ['required', 'numeric', 'min:1'],
-            'items.*.unit.id'             => ['required', 'exists:item_units,id'],
+            'items.*.unit.id'             => ['required', new ExistsExcludingTrashed('item_units')],
             'items.*.unit.*'              => ['nullable'],
-            'items.*.tax.id'              => ['nullable', 'exists:taxes,id'],
+            'items.*.tax.id'              => ['required', new ExistsExcludingTrashed('taxes')],
             'items.*.tax.*'               => ['nullable'],
             'items.*.price'               => ['nullable', 'numeric'],
-            'items.*.source_warehouse.id' => ['nullable', 'exists:warehouses,id'],
+            'items.*.source_warehouse.id' => ['nullable', new ExistsExcludingTrashed('warehouses')],
             'currency.code'               => ['nullable', 'exists:currencies,code'],
             'exchange_rate'               => ['nullable', 'numeric'],
             'external_note'               => ['nullable', 'string'],

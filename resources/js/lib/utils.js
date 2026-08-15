@@ -27,6 +27,7 @@ export function cn(...inputs) {
 export const META_APPEND_COLUMN_NAMES = [
   "route",
   "canDelete",
+  "canUpdate",
   "keyModel",
   "appendStatus",
   "thisModel",
@@ -289,10 +290,6 @@ export function isValidStatus(status) {
     "need_approval",
     "inactive",
   ]);
-}
-
-export function isCompletedStatus(status) {
-  return inArray(status, ["completed", "done", "delivered", "billed"]);
 }
 
 export function camelize(str) {

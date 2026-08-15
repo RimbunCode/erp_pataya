@@ -89,22 +89,4 @@ class CategoryController extends Controller {
 
         return back();
     }
-
-    /**
-     * Remove the specified resource from storage.
-     */
-    public function destroy(Category $category) {
-        DB::beginTransaction();
-        try {
-            $category->delete();
-            $category->logForDeleted();
-            DB::commit();
-        } catch (\Throwable $e) {
-            DB::rollBack();
-
-            throw $e;
-        }
-
-        return redirect()->route('categories.index');
-    }
 }

@@ -42,11 +42,11 @@ class ApprovalNotificationTestDocumentController extends Controller {
         parent::__construct($request, ApprovalNotificationTestDocument::class);
     }
 
-    public function onApproved(ApprovalNotificationTestDocument $approvalNotificationTestDocument) {
+    public function onApproved(mixed $id) {
         return back();
     }
 
-    public function onRejected(ApprovalNotificationTestDocument $approvalNotificationTestDocument) {
+    public function onRejected(mixed $id) {
         return back();
     }
 }

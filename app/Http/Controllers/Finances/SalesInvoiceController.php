@@ -16,8 +16,6 @@ use Illuminate\Support\Facades\DB;
 use Inertia\Inertia;
 
 class SalesInvoiceController extends Controller {
-    private SalesInvoiceService $service;
-
     public function __construct(Request $request, SalesInvoiceService $service) {
         $this->service = $service;
         parent::__construct($request, SalesInvoice::class);
@@ -219,41 +217,5 @@ class SalesInvoiceController extends Controller {
         $salesInvoice = $this->service->submit($salesInvoice);
 
         return redirect()->back();
-    }
-
-    public function onApproved(SalesInvoice $salesInvoice) {
-        $this->service->onApproved($salesInvoice);
-
-        return back();
-    }
-
-    public function onRejected(SalesInvoice $salesInvoice) {
-        $this->service->onRejected($salesInvoice);
-
-        return back();
-    }
-
-    public function cancel(SalesInvoice $salesInvoice) {
-        $this->service->cancel($salesInvoice);
-
-        return back();
-    }
-
-    /**
-     * Remove the specified resource from storage.
-     */
-    public function destroy(SalesInvoice $salesInvoice) {
-        DB::beginTransaction();
-        try {
-            $salesInvoice->delete();
-            $salesInvoice->logForDeleted();
-            DB::commit();
-        } catch (\Throwable $e) {
-            DB::rollBack();
-
-            throw $e;
-        }
-
-        return redirect()->route('salesInvoices.index');
     }
 }

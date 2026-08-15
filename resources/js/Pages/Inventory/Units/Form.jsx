@@ -21,11 +21,17 @@ import Select from "@/Components/Select";
 import axios from "axios";
 import { convertTemplateLink } from "@/lib/linkModelUtils";
 import { gooeyToast as toast } from "@/lib/gooeyToast";
+import useCanUpdate from "@/Hooks/useCanUpdate";
 import { useLaravelReactI18n } from "laravel-react-i18n";
 
 export default function Form() {
   const { data, setData, dataBefore } = useFormPage();
   const { t } = useLaravelReactI18n();
+  // Select "group" dibungkus <div relative> (posisi Loader2Icon) sehingga
+  // BUKAN child langsung FormInput — cloneElement FormInput tak bisa
+  // menembus wrapper itu utk inject readOnly. Resolve canUpdate manual
+  // di sini, oper eksplisit ke Select (bukan andalkan auto-inject).
+  const canUpdateGroup = useCanUpdate("group");
   const route = window.route;
   const [units, setUnits] = useState([]);
   const [unitSelected, setUnitSelected] = useState({ from: null, to: data });
@@ -172,6 +178,8 @@ export default function Form() {
           >
             <div className="relative flex items-center">
               <Select
+                readOnly={!canUpdateGroup}
+                disabled={!canUpdateGroup}
                 options={groups}
                 value={data.group ?? ""}
                 onValueChange={(val) =>
@@ -193,9 +201,9 @@ export default function Form() {
             </div>
           </FormInput>
           <FormInput
+            name="code"
             required={true}
             label={t("inventory.unit.columns.code")}
-            name="code"
           >
             <Input
               value={data.code}
@@ -203,9 +211,9 @@ export default function Form() {
             />
           </FormInput>
           <FormInput
+            name="name"
             required={true}
             label={t("inventory.unit.columns.name")}
-            name="name"
           >
             <Input
               value={data.name}
@@ -223,6 +231,7 @@ export default function Form() {
           />
           {!data.customable && (
             <FormInput
+              name="conversion_factor"
               required={true}
               label={t("inventory.unit.columns.conversion_factor")}
               name="conversion_factor"

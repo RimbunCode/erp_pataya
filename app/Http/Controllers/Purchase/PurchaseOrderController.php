@@ -17,8 +17,6 @@ use Illuminate\Validation\ValidationException;
 use Inertia\Inertia;
 
 class PurchaseOrderController extends Controller {
-    private PurchaseOrderService $service;
-
     public function __construct(Request $request, PurchaseOrderService $service) {
         $this->service = $service;
         parent::__construct($request, PurchaseOrder::class);
@@ -156,24 +154,6 @@ class PurchaseOrderController extends Controller {
         return redirect()->back();
     }
 
-    public function onApproved(PurchaseOrder $purchaseOrder) {
-        $this->service->onApproved($purchaseOrder);
-
-        return back();
-    }
-
-    public function onRejected(PurchaseOrder $purchaseOrder) {
-        $this->service->onRejected($purchaseOrder);
-
-        return back();
-    }
-
-    public function cancel(PurchaseOrder $purchaseOrder) {
-        $this->service->cancel($purchaseOrder);
-
-        return back();
-    }
-
     /**
      * Sync PO items berdasarkan data Invoice & Receipt (split per rate/tax/warehouse).
      */
@@ -194,23 +174,5 @@ class PurchaseOrderController extends Controller {
         } catch (ValidationException $e) {
             return back()->withErrors($e->errors());
         }
-    }
-
-    /**
-     * Remove the specified resource from storage.
-     */
-    public function destroy(PurchaseOrder $purchaseOrder) {
-        DB::beginTransaction();
-        try {
-            $purchaseOrder->delete();
-            $purchaseOrder->logForDeleted();
-            DB::commit();
-        } catch (\Throwable $e) {
-            DB::rollBack();
-
-            throw $e;
-        }
-
-        return redirect()->route('purchaseOrders.index');
     }
 }

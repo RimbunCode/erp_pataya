@@ -36,6 +36,7 @@ use Inertia\Inertia;
 
 abstract class Controller {
     protected string $model;
+    protected $service;
     protected $permissions;
     protected $modelPermissions;
     protected $onlyCreator = false;
@@ -171,11 +172,15 @@ abstract class Controller {
                         $request->merge(['onlyCreator' => $this->onlyCreator ?? false]);
 
                         foreach ($currentRoute->parameters() as $value) {
-                            if (\is_string($value)) {
-                                continue;
-                            }
-                            if (\get_class($value) === $this->model) {
+                            if (\is_object($value) && \get_class($value) === $this->model) {
                                 $data = $value;
+                                break;
+                            }
+                            if (\is_string($value) && \class_exists($this->model)) {
+                                $data = $this->model::find($value);
+                                if ($data) {
+                                    break;
+                                }
                             }
                         }
                         if (isset($data)) {
@@ -493,16 +498,72 @@ abstract class Controller {
     }
 
     public function amend(string $id) {
-        $data = $this->model::findOrFail($id);
-        if (! $data) {
-            return back();
-        }
-
+        $data    = $this->model::findOrFail($id);
         $newData = $data->amend();
 
-        $currentRoute = Route::getCurrentRoute();
-        $route        = Str::before($currentRoute->getAction()['as'], '.') . '.show';
+        $route = Str::before(Route::getCurrentRoute()->getAction()['as'], '.') . '.show';
 
         return redirect()->route($route, $newData->id);
+    }
+
+    public function cancel(string $id) {
+        $data = $this->model::findOrFail($id);
+        abort_unless($data->canCancel ?? false, 422);
+
+        DB::beginTransaction();
+        try {
+            $this->service->cancel($data);
+            $data->logForCancelled();
+            DB::commit();
+        } catch (\Throwable $e) {
+            DB::rollBack();
+
+            throw $e;
+        }
+
+        return back();
+    }
+
+    public function onApproved(mixed $id) {
+        $data = $this->model::findOrFail($id);
+        $this->service?->onApproved($data);
+
+        return back();
+    }
+
+    public function onRejected(mixed $id) {
+        $data = $this->model::findOrFail($id);
+        $this->service?->onRejected($data);
+
+        return back();
+    }
+
+    /**
+     * Hook validasi sebelum penghapusan. Controller meng-override untuk
+     * guard tambahan (mis. BranchController menolak hapus branch utama).
+     * Lempar exception / abort() untuk membatalkan.
+     */
+    protected function beforeDestroy(Model $data): void {}
+
+    protected function indexRouteName(): string {
+        return Str::before(Route::getCurrentRoute()->getAction()['as'], '.') . '.index';
+    }
+
+    public function destroy(mixed $id) {
+        $data = $this->model::findOrFail($id);
+        $this->beforeDestroy($data);
+
+        DB::beginTransaction();
+        try {
+            $data->delete();
+            $data->logForDeleted();
+            DB::commit();
+        } catch (\Throwable $e) {
+            DB::rollBack();
+
+            throw $e;
+        }
+
+        return redirect()->route($this->indexRouteName());
     }
 }

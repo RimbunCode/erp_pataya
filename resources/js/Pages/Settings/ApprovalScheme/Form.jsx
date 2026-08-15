@@ -222,6 +222,7 @@ function Form() {
         <div className="grid gap-x-3 gap-y-4">
           {!data.is_letter_head && (
             <FormInput
+              name="model"
               required={true}
               label={t("core.approvalScheme.columns.model")}
             >
@@ -246,6 +247,7 @@ function Form() {
             </FormInput>
           )}
           <FormInput
+            name="name"
             required={true}
             label={t("core.approvalScheme.columns.name")}
           >

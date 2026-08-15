@@ -246,22 +246,4 @@ class PrintTemplateController extends Controller {
 
         return redirect()->back();
     }
-
-    /**
-     * Remove the specified resource from storage.
-     */
-    public function destroy(PrintTemplate $printTemplate) {
-        DB::beginTransaction();
-        try {
-            $printTemplate->logForDeleted();
-            $printTemplate->delete();
-            DB::commit();
-        } catch (\Throwable $e) {
-            DB::rollBack();
-
-            throw $e;
-        }
-
-        return redirect()->route('printTemplates.index');
-    }
 }

@@ -16,6 +16,7 @@ export default function Form() {
       <FormPageContent title={null} value="detail">
         <div className="grid gap-x-3 gap-y-4">
           <FormInput
+            name="name"
             required={true}
             label={t("finances.paymentMethod.columns.name")}
             name="name"
@@ -26,6 +27,7 @@ export default function Form() {
             />
           </FormInput>
           <FormInput
+            name="default_account"
             label={t("finances.paymentMethod.columns.default_account")}
             name="default_account"
           >

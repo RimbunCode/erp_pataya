@@ -91,22 +91,4 @@ class WarehouseController extends Controller {
 
         return back();
     }
-
-    /**
-     * Remove the specified resource from storage.
-     */
-    public function destroy(Warehouse $warehouse) {
-        DB::beginTransaction();
-        try {
-            $warehouse->delete();
-            $warehouse->logForDeleted();
-            DB::commit();
-        } catch (\Throwable $e) {
-            DB::rollBack();
-
-            throw $e;
-        }
-
-        return redirect()->route('warehouses.index');
-    }
 }

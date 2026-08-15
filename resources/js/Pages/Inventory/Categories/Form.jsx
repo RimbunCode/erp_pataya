@@ -16,6 +16,7 @@ export default function Form() {
       <FormPageContent title={null} value="detail">
         <div className="grid gap-x-3 gap-y-4">
           <FormInput
+            name="name"
             required={true}
             label={t("inventory.category.columns.name")}
             name="name"
@@ -26,6 +27,7 @@ export default function Form() {
             />
           </FormInput>
           <FormInput
+            name="type"
             required={true}
             label={t("inventory.category.columns.type")}
             name="type"

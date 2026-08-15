@@ -128,4 +128,7 @@ return [
     'logs'             => 'Logs',
     'files'            => 'Files',
     'amended_from'     => 'Amended From',
+
+    'link_model_deleted'                   => 'This item has been deleted.',
+    'link_model_deleted_reselect_required' => 'This item has been deleted. Please select a new one.',
 ];
