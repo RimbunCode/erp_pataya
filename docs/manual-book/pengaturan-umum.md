@@ -14,8 +14,6 @@ Buka menu **Settings → Company** untuk mengisi nama, alamat, dan
 mengunggah logo perusahaan. Logo ini nanti otomatis dipakai di dokumen
 cetak yang menyertakan kop surat.
 
-![Halaman Company Profile](/images/manual-book/pengaturan-umum/01-company-profile.jpg)
-
 ### Cabang (Branch)
 
 Setiap dokumen yang kamu buat (pesanan, tagihan, dll.) selalu tercatat di
@@ -26,8 +24,6 @@ aplikasi bisa dipakai bertransaksi.
 Setiap cabang punya kode singkat (misalnya "HO" untuk kantor pusat) yang
 bisa dipakai dalam penomoran dokumen otomatis, dan alamat pengiriman/
 penagihan sendiri.
-
-![Daftar Branch / Cabang](/images/manual-book/pengaturan-umum/02-branches-cabang-list.jpg)
 
 ### Berpindah Cabang Aktif
 
@@ -48,8 +44,6 @@ Setiap dokumen (pesanan, tagihan, dll.) mendapat nomor kode secara
 otomatis, jadi kamu tidak perlu mengetiknya manual. Buka menu
 **Settings → Formating Series → Tambah** untuk mengatur pola nomornya per
 jenis dokumen.
-
-![Pengaturan Formating Series / Penomoran](/images/manual-book/pengaturan-umum/03-formating-series-penomoran.jpg)
 
 Pola disusun dari teks bebas ditambah kode-kode berikut yang otomatis
 digantikan sistem:
@@ -90,8 +84,6 @@ flowchart LR
 ### Langkah 1 — Membuat Skema Persetujuan
 
 Buka menu **Settings → Approval Schemes → Tambah**.
-
-![Daftar Approval Scheme kosong](/images/manual-book/pengaturan-umum/04-approval-schemes-list-kosong.jpg)
 
 1. Beri nama skema ini dan pilih jenis dokumen yang dikenai skema
    (misalnya "Sales Order").
@@ -169,8 +161,6 @@ cancel, cetak) pada suatu jenis data.
 
 ### Role Bawaan yang Tersedia
 
-![Daftar Role / Peran](/images/manual-book/pengaturan-umum/05-roles-peran-list.jpg)
-
 | Role | Cakupan Akses |
 |---|---|
 | System Manager | Akses penuh ke semua modul dan pengaturan |
@@ -191,18 +181,11 @@ cancel, cetak) pada suatu jenis data.
 > semua user yang login, tidak mengikuti aturan hak akses di atas. Lihat
 > panduan **Helpdesk** untuk detailnya.
 
-Untuk mengatur Role apa saja yang dipegang tiap user, buka menu
-**Settings → Manage Users**.
-
-![Halaman Manage Users / Kelola Pengguna](/images/manual-book/pengaturan-umum/06-manage-users-kelola-pengguna.jpg)
-
 ## Mendesain Tampilan Cetak Dokumen (Print Template)
 
 Buka menu **Settings → Print Templates** untuk mendesain tampilan cetak
 (PDF) dokumen bisnis seperti pesanan atau tagihan — memakai editor
 visual seret-lepas, tidak perlu menulis kode.
-
-![Daftar Print Template](/images/manual-book/pengaturan-umum/07-print-templates-list.jpg)
 
 1. Buka editor template, susun tampilannya dengan menyeret elemen (teks,
    tabel barang, logo, dll.) ke posisi yang diinginkan.
@@ -255,8 +238,6 @@ Buka menu **Todo → Tambah**, isi uraian tugasnya, lalu tugaskan ke:
 Begitu tugas dibuat, sistem otomatis mengirim notifikasi ke semua
 penerimanya. Halaman daftar Todo terbagi dua tampilan: **Ditugaskan ke
 Saya** dan **Saya yang Menugaskan**.
-
-![Daftar Todo](/images/manual-book/pengaturan-umum/08-todo-list.jpg)
 
 ## Notifikasi
 

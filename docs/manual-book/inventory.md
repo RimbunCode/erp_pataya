@@ -44,12 +44,8 @@ masing-masing punya stoknya sendiri per gudang.
 
 Buka menu **Inventory → Items → Tambah**.
 
-![Daftar Item](/images/manual-book/inventory/01-items-list.jpg)
-
 1. Isi kode dan nama produk, pilih kategorinya, dan tentukan satuan dasar
    (misalnya pcs, kg, atau box).
-
-   ![Detail Item dan satuan](/images/manual-book/inventory/02-item-detail-dan-satuan.jpg)
 2. Aktifkan opsi **Pantau Stok** kalau stok produk ini perlu dilacak
    sistem (untuk barang fisik yang dijual/dibeli). Nonaktifkan kalau ini
    produk jasa yang tidak punya stok.
@@ -66,8 +62,6 @@ berbeda dipakai dalam transaksi.
 ## Langkah 2 — Membuat Variant
 
 Masih di halaman yang sama, buka tab **Variant**.
-
-![Tab Variant pada Item](/images/manual-book/inventory/03-item-tab-varian.jpg)
 
 1. Kombinasikan atribut produk yang membedakan tiap variasi — misalnya
    Warna (Merah, Biru) dan Ukuran (M, L). Sistem otomatis membuatkan satu
@@ -88,12 +82,8 @@ satuan — berguna untuk mempercepat pencarian barang saat input transaksi
 Stok **tidak diisi langsung** di form produk. Untuk mencatat stok awal,
 kamu perlu membuat dokumen **Stock Entry** bertipe penerimaan:
 
-![Daftar Stock Entry](/images/manual-book/inventory/05-stock-entries-list.jpg)
-
 Buka menu **Inventory → Stock Entries → Tambah**, pilih tipe "Terima",
 lalu isi Variant dan jumlah barang yang mau dicatat sebagai stok awal.
-
-![Entri stok baru dengan pilihan tipe](/images/manual-book/inventory/06-entri-stok-baru-tipe-pilihan.jpg)
 
 Setelah dokumen ini di-submit, Variant tersebut siap dipilih sebagai
 pilihan barang di transaksi penjualan maupun pembelian.
@@ -103,8 +93,6 @@ pilihan barang di transaksi penjualan maupun pembelian.
 Sebelum bisa mencatat stok, pastikan gudangnya sudah terdaftar. Buka menu
 **Inventory → Warehouses → Tambah**, isi nama gudang dan tentukan siapa
 yang bertanggung jawab atasnya.
-
-![Daftar Warehouse](/images/manual-book/inventory/04-warehouses-list.jpg)
 
 ## Memindahkan Barang Antar Gudang atau Menyesuaikan Stok
 
@@ -145,8 +133,6 @@ Halaman Kartu Stok hanya untuk dilihat — tidak ada input manual di sana,
 karena semua catatannya dibuat otomatis oleh sistem setiap kali dokumen
 terkait disubmit.
 
-![Buku Besar Stok / Kartu Stok](/images/manual-book/inventory/10-buku-besar-stok-kartu-stok.jpg)
-
 > 💡 **Bagaimana harga pokok dihitung?** Sistem memakai metode
 > "masuk pertama, keluar pertama" — artinya stok yang masuk lebih dulu
 > dianggap sebagai stok yang dipakai/dijual lebih dulu. Ini menentukan
@@ -160,18 +146,12 @@ disiapkan lebih dulu:
 - **Kategori** (menu **Inventory → Categories**) — untuk mengelompokkan
   produk, bisa disusun bertingkat (kategori besar dengan sub-kategori di
   dalamnya).
-
-  ![Daftar Category](/images/manual-book/inventory/07-categories-list.jpg)
 - **Satuan** (menu **Inventory → Units**) — satuan pengukuran seperti pcs,
   kg, box. Satuan yang bisa saling dikonversi (misalnya Kg, Gram, Ton)
   bisa dikelompokkan dalam satu grup supaya konversinya otomatis.
-
-  ![Daftar Unit](/images/manual-book/inventory/09-units-list.jpg)
 - **Atribut** (menu **Inventory → Attributes**) — atribut pembeda Variant
   seperti warna atau ukuran, yang nanti dipakai saat membuat kombinasi
   Variant di Langkah 2.
-
-  ![Daftar Attribute kosong](/images/manual-book/inventory/08-attributes-list-kosong.jpg)
 
 ## Kalau Ada Barang yang Dikembalikan
 

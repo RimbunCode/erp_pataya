@@ -68,12 +68,8 @@ pemasok.
 1. Buka penerimaan barang (Purchase Receipt) **asli** yang mau
    dikembalikan, lalu klik aksi **Retur**. Sistem otomatis membuat
    dokumen baru yang menunjuk balik ke penerimaan aslinya.
-
-   ![Tombol buat retur di Purchase Receipt](/images/manual-book/retur/01-purchase-receipt-tombol-buat-retur.jpg)
 2. Isi jumlah barang yang dikembalikan per baris, dan pilih dari gudang
    mana barangnya diambil untuk dikembalikan.
-
-   ![Form Purchase Return terisi otomatis](/images/manual-book/retur/02-purchase-return-form-terisi-otomatis.jpg)
 3. Klik **Save**, lalu **Submit**.
 
 Setelah disubmit, stok barang otomatis keluar dari gudang, jumlah

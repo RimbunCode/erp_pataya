@@ -28,10 +28,6 @@ perlu disetujui atasan.
 
 Buka menu **Helpdesk → Tickets → Tambah**.
 
-![Daftar Ticket](/images/manual-book/helpdesk/01-tickets-list.jpg)
-
-![Form Ticket baru kosong](/images/manual-book/helpdesk/03-ticket-baru-form-kosong.jpg)
-
 1. Pilih tipe laporan kamu: **Bug/Masalah**, **Tugas**, **Pertanyaan**,
    atau **Lainnya**.
 2. Pilih tingkat prioritas: Rendah, Sedang, Tinggi, atau Kritis.
@@ -57,8 +53,6 @@ Ticket yang masuk perlu ditugaskan ke seseorang untuk ditindaklanjuti:
    ini bisa sekaligus mengubah siapa yang ditugaskan, status, dan
    persentase penyelesaiannya. Setiap kali kamu melakukan ini, satu baris
    riwayat baru otomatis ditambahkan berisi catatan yang kamu tulis.
-
-![Detail Ticket dengan riwayat](/images/manual-book/helpdesk/02-ticket-detail-riwayat.jpg)
 
 ## Langkah 3 — Menandai Ticket Selesai
 

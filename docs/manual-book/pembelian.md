@@ -44,18 +44,12 @@ buka menu **Purchase → Purchase Requests → Tambah**, isi barang apa saja
 yang dibutuhkan dan kapan dibutuhkannya, lalu klik **Submit**. Setelah
 disetujui, statusnya berubah jadi siap dipesan.
 
-![Daftar Purchase Request](/images/manual-book/purchase/03-purchase-requests-list.jpg)
-
-![Detail Purchase Request siap dijadikan PO](/images/manual-book/purchase/04-purchase-request-detail-siap-jadi-po.jpg)
-
 Kalau perusahaan kamu tidak memerlukan langkah ini, langsung saja lanjut ke
 Langkah 2.
 
 ## Langkah 2 — Membuat Pesanan Pembelian (Purchase Order)
 
 Buka menu **Purchase → Purchase Orders → Tambah**.
-
-![Daftar Purchase Order](/images/manual-book/purchase/05-purchase-orders-list.jpg)
 
 1. Pilih pemasok tujuan pemesanan.
 2. Tambahkan barang yang mau dipesan satu per satu: jenis/varian barang,
@@ -68,8 +62,6 @@ Buka menu **Purchase → Purchase Orders → Tambah**.
    alur persetujuan, pesanan langsung siap diproses (siap diterima & siap
    ditagih).
 
-   ![Detail Purchase Order siap diterima dan ditagih](/images/manual-book/purchase/06-purchase-order-detail-siap-diterima-ditagih.jpg)
-
 > 💡 Kalau pemasok ternyata tidak bisa memenuhi seluruh pesanan, kamu bisa
 > menutup pesanan itu secara manual lewat tombol **"Tandai Selesai"** —
 > tidak perlu menunggu semua barang diterima penuh.
@@ -78,8 +70,6 @@ Buka menu **Purchase → Purchase Orders → Tambah**.
 
 Setelah pesanan siap diproses dan barang tiba dari pemasok, catat
 penerimaannya.
-
-![Daftar Purchase Receipt](/images/manual-book/purchase/07-purchase-receipts-list.jpg)
 
 1. Buka menu **Purchase → Purchase Receipts → Tambah**, pilih pesanan
    (Purchase Order) yang barangnya diterima.
@@ -93,8 +83,6 @@ Satu pesanan boleh diterima bertahap lewat beberapa kali penerimaan,
 misalnya kalau pemasok mengirim barangnya secara bertahap.
 
 ## Langkah 4 — Mencatat Tagihan dari Pemasok (Purchase Invoice)
-
-![Daftar Purchase Invoice](/images/manual-book/purchase/08-purchase-invoices-list-kosong.jpg)
 
 1. Buka menu **Finances → Purchase Invoices → Tambah**, pilih pesanan
    (Purchase Order) yang ditagihkan.
@@ -152,10 +140,6 @@ dikurangi lagi, dan catatan hutang di pembukuan ikut dikoreksi.
 Sebelum membuat pesanan, pastikan data pemasoknya sudah ada. Buka menu
 **Purchase → Suppliers → Tambah** untuk mendaftarkan pemasok baru — isi
 nama, kontak, rekening bank untuk pembayaran, dan alamatnya.
-
-![Daftar Supplier](/images/manual-book/purchase/01-suppliers-list.jpg)
-
-![Form pemasok baru kosong](/images/manual-book/purchase/02-pemasok-baru-form-kosong.jpg)
 
 ## Kalau Ada Barang yang Dikembalikan ke Pemasok
 
