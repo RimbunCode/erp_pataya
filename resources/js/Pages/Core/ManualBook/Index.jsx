@@ -1,4 +1,5 @@
 import AppLayout from "@/Layouts/AppLayout";
+import { Head } from "@inertiajs/react";
 import Link from "@/Components/Link";
 import resolveManualBookIcon from "@/Components/ManualBook/iconMap";
 import { useLaravelReactI18n } from "laravel-react-i18n";
@@ -29,6 +30,7 @@ export default function Index({ sections }) {
 
   return (
     <AppLayout>
+      <Head title={t("core.manualBook.title", "Manual Book")} />
       <div className="mx-auto max-w-4xl space-y-6 py-4">
         <div>
           <h1 className="text-2xl font-bold">
