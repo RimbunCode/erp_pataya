@@ -3,8 +3,14 @@ import * as React from "react";
 
 import { Check, MinusIcon } from "lucide-react";
 import { RunningText, RunningTextContent } from "@/Components/ui/running-text";
+import {
+  Tooltip,
+  TooltipContent,
+  TooltipTrigger,
+} from "@/Components/ui/tooltip";
 
 import { cn } from "@/lib/utils";
+import { DIFF_HIGHLIGHT, isChanged } from "@/lib/diffUtils";
 import { useFormPage } from "@/Pages/Core/FormPage";
 
 const Checkbox = React.forwardRef(({ className, readOnly, ...props }, ref) => (
@@ -33,6 +39,7 @@ const FormCheckbox = React.forwardRef(
     {
       id,
       checked,
+      valueBefore,
       onCheckedChange,
       label,
       className,
@@ -50,18 +57,35 @@ const FormCheckbox = React.forwardRef(
     const labelContent = children ?? label;
     const hasPlainLabel =
       typeof labelContent === "string" || typeof labelContent === "number";
+    const changed =
+      valueBefore !== undefined && isChanged(valueBefore, checked);
+
+    const checkbox = (
+      <Checkbox
+        ref={ref}
+        id={id ?? defaultId}
+        checked={checked ?? false}
+        onCheckedChange={onCheckedChange}
+        className={cn(changed && DIFF_HIGHLIGHT, classNameCheckbox)}
+        readOnly={readOnly}
+        {...props}
+      />
+    );
 
     return (
       <div className={cn("flex min-w-0 items-center gap-2", className)}>
-        <Checkbox
-          ref={ref}
-          id={id ?? defaultId}
-          checked={checked ?? false}
-          onCheckedChange={onCheckedChange}
-          className={classNameCheckbox}
-          readOnly={readOnly}
-          {...props}
-        />
+        {changed ? (
+          <Tooltip>
+            <TooltipTrigger asChild>{checkbox}</TooltipTrigger>
+            <TooltipContent side="top" align="start">
+              <span>{valueBefore ? "✓" : "✗"}</span>
+              <span> → </span>
+              <span>{checked ? "✓" : "✗"}</span>
+            </TooltipContent>
+          </Tooltip>
+        ) : (
+          checkbox
+        )}
         <RunningText
           asChild
           className={cn(

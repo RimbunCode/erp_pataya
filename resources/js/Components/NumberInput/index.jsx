@@ -18,6 +18,12 @@ import { gooeyToast as toast } from "@/lib/gooeyToast";
 import useDidMountEffect from "@/Hooks/useDidMountEffect";
 import { useLaravelReactI18n } from "laravel-react-i18n";
 import { usePage } from "@inertiajs/react";
+import { DIFF_HIGHLIGHT, isChanged } from "@/lib/diffUtils";
+import {
+  Tooltip,
+  TooltipContent,
+  TooltipTrigger,
+} from "@/Components/ui/tooltip";
 
 export { formatNumber, formatTyping, normalizeSign } from "./formatNumber";
 export { parseNumberFormat } from "./parseNumberFormat";
@@ -223,6 +229,7 @@ export default forwardRef(function NumberInput(
   {
     className,
     value: rawValue,
+    valueBefore,
     onValueChange,
     allowDecimals = true,
     allowNegativeValue = true,
@@ -259,6 +266,7 @@ export default forwardRef(function NumberInput(
 
   // Defensif: jika parent terlanjur menyimpan object payload sebagai value.
   const value = normalizeValue(rawValue);
+  const valueBeforeNormalized = normalizeValue(valueBefore);
 
   // Resolusi konfigurasi format: base default_number_format -> override prop.
   const config = useMemo(() => {
@@ -302,6 +310,17 @@ export default forwardRef(function NumberInput(
     currencyCode,
     symbol,
   ]);
+
+  const diff = useMemo(() => {
+    const changed = isChanged(valueBeforeNormalized, value);
+    const before =
+      changed &&
+      valueBeforeNormalized !== null &&
+      valueBeforeNormalized !== undefined
+        ? formatNumber(valueBeforeNormalized, config)
+        : "";
+    return { before, same: !changed };
+  }, [value, valueBeforeNormalized, config]);
 
   const inputRef = useRef(null);
   const prevValueRef = useRef(value);
@@ -586,7 +605,7 @@ export default forwardRef(function NumberInput(
   // Placeholder default: hasil format nilai saat ini (atau 0 bila kosong).
   const defaultPlaceholder = formatNumber(value ?? 0, config);
 
-  return (
+  const input = (
     <input
       ref={mergeRefs(inputRef, ref)}
       type="text"
@@ -596,8 +615,33 @@ export default forwardRef(function NumberInput(
       onChange={handleChange}
       onBlur={handleBlur}
       onKeyDown={handleKeyDown}
-      className={cn(DEFAULT_CLASSNAME, className)}
+      className={cn(
+        DEFAULT_CLASSNAME,
+        valueBefore !== undefined && !diff.same && DIFF_HIGHLIGHT,
+        className,
+      )}
       {...rest}
     />
+  );
+
+  if (valueBefore === undefined) {
+    return input;
+  }
+
+  return (
+    <Tooltip>
+      <TooltipTrigger asChild>{input}</TooltipTrigger>
+      {!diff.same && (
+        <TooltipContent side="top" align="start">
+          {diff.before && (
+            <>
+              <s>{diff.before}</s>
+              <br />
+            </>
+          )}
+          <span>{formatNumber(value ?? 0, config)}</span>
+        </TooltipContent>
+      )}
+    </Tooltip>
   );
 });

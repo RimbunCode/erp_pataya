@@ -20,7 +20,7 @@ import { usePage } from "@inertiajs/react";
 
 export default function Form() {
   const { default_currency_id } = usePage().props.preferences;
-  const { data, setData } = useFormPage();
+  const { data, setData, dataBefore } = useFormPage();
   const { t } = useLaravelReactI18n();
   const { date, amount } = useMemo(
     () => ({ date: new Date(), amount: 10000000 }),
@@ -380,6 +380,7 @@ export default function Form() {
             className="col-start-1 col-span-full"
             columns={templateColumns}
             value={data.items ?? []}
+            valueBefore={dataBefore?.items}
             onValueChange={(val) => setData("items", val)}
           />
         </div>

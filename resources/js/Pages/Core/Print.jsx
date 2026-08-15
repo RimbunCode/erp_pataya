@@ -21,6 +21,7 @@ import {
 } from "@/Components/ui/tooltip";
 
 import AppLayout from "@/Layouts/AppLayout";
+import { Head } from "@inertiajs/react";
 import { Button } from "@/Components/ui/button";
 import NumberInput from "@/Components/NumberInput";
 import { FormCheckbox } from "@/Components/ui/checkbox";
@@ -186,6 +187,13 @@ function Print({ data: _data, printTemplate, lang }) {
   }, [onKeyDown]);
   return (
     <AppLayout className="print:p-0">
+      <Head
+        title={
+          doc?.code
+            ? `${t("core.form.print_preview")} - ${doc.code}`
+            : t("core.form.print_preview")
+        }
+      />
       <div className="flex items-center border-b justify-between py-2 mb-4 bg-background">
         <h3 className="text-lg font-bold">{t("core.form.print_preview")}</h3>
         <div className="flex items-center gap-x-4">

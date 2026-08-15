@@ -5,9 +5,10 @@ import {
   PopoverContent,
   PopoverTrigger,
 } from "@/Components/ui/popover";
-import { Tooltip, TooltipTrigger } from "./ui/tooltip";
+import { Tooltip, TooltipContent, TooltipTrigger } from "./ui/tooltip";
 import { format, isValid, parse } from "date-fns";
 import { cn, getLocaleDate, mergeRefs } from "@/lib/utils";
+import { DIFF_HIGHLIGHT, isChanged } from "@/lib/diffUtils";
 import {
   forwardRef,
   memo,
@@ -120,6 +121,7 @@ export default memo(
       placeholder,
       onKeyDown,
       value,
+      valueBefore,
       onValueChange,
       min,
       max,
@@ -475,6 +477,38 @@ export default memo(
       [dateLocale, type],
     );
 
+    const getDateValueSafe = useCallback(
+      (val) => {
+        if (!val) return "";
+        try {
+          if (type === "daterange") {
+            const from = val?.from ? new TZDate(val.from, timezone) : null;
+            const to = val?.to ? new TZDate(val.to, timezone) : null;
+            return getDateValue({ from, to });
+          }
+          if (type === "multipleDate") {
+            if (!Array.isArray(val)) return "";
+            return getDateValue(val.map((d) => new TZDate(d, timezone)));
+          }
+          return getDateValue(new TZDate(val, timezone));
+        } catch {
+          return "";
+        }
+      },
+      [getDateValue, type, timezone],
+    );
+
+    const diff = useMemo(() => {
+      const before = getDateValueSafe(valueBefore);
+      const after = getDateValueSafe(value);
+      const changed = isChanged(valueBefore, value);
+      return {
+        before: changed && before,
+        after,
+        same: !changed,
+      };
+    }, [value, valueBefore, getDateValueSafe]);
+
     // useEffect(() => {
     //   if (!open || search || isValid) return;
     //   setValue(Date.now());
@@ -703,9 +737,7 @@ export default memo(
                 asChild
                 className={cn(
                   "flex h-full bg-muted items-center  overflow-hidden border rounded-md cursor-default group/model relative focus-within:border-0 border-input ring-offset-background  focus-within:outline-none focus-within:ring-1 focus-within:ring-ring focus-within:ring-offset-1",
-                  // valueBefore !== undefined &&
-                  // !diff?.same &&
-                  // "bg-yellow-200 dark:bg-yellow-900",
+                  valueBefore !== undefined && !diff?.same && DIFF_HIGHLIGHT,
                   disabled && "cursor-not-allowed opacity-50",
                   className,
                 )}
@@ -766,7 +798,7 @@ export default memo(
                 </div>
               </PopoverTrigger>
             </TooltipTrigger>
-            {/* {valueBefore && !diff?.same && (
+            {valueBefore !== undefined && !diff?.same && (
               <TooltipContent side="top" align="start">
                 {diff?.before && (
                   <>
@@ -776,7 +808,7 @@ export default memo(
                 )}
                 <span>{diff?.after}</span>
               </TooltipContent>
-            )} */}
+            )}
           </Tooltip>
           {!(disabled || readOnly) && (
             <PopoverContent

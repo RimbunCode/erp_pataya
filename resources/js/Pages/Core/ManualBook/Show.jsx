@@ -1,5 +1,6 @@
 import { useCallback, useState } from "react";
 import AppLayout from "@/Layouts/AppLayout";
+import { Head } from "@inertiajs/react";
 import Link from "@/Components/Link";
 import ManualBookToc from "@/Components/ManualBook/ManualBookToc";
 import MarkdownMermaidRenderer from "@/Components/ManualBook/MarkdownMermaidRenderer";
@@ -27,6 +28,7 @@ export default function Show({
 
   return (
     <AppLayout>
+      <Head title={title} />
       <div className="mx-auto max-w-6xl print:visible">
         <div className="grid grid-cols-1 gap-8 py-6 lg:grid-cols-[minmax(0,1fr)_240px]">
           <div className="min-w-0 space-y-6">

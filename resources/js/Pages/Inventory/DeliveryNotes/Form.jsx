@@ -19,7 +19,7 @@ import { useLaravelReactI18n } from "laravel-react-i18n";
 
 export default function Form() {
   const { t } = useLaravelReactI18n();
-  const { data, setData, defaultData } = useFormPage(
+  const { data, setData, defaultData, dataBefore } = useFormPage(
     {
       delivery_date: new Date(),
     },
@@ -308,6 +308,12 @@ export default function Form() {
               name="is_return"
               label={t("inventory.deliveryNote.columns.is_return")}
               checked={data.is_return || data.return_against}
+              valueBefore={
+                dataBefore?.is_return != null ||
+                dataBefore?.return_against != null
+                  ? dataBefore?.is_return || dataBefore?.return_against
+                  : undefined
+              }
               onCheckedChange={(val) =>
                 setData((prev) => ({
                   ...prev,

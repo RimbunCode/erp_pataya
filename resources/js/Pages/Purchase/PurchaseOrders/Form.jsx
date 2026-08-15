@@ -24,7 +24,7 @@ import { usePage } from "@inertiajs/react";
 
 function Form() {
   const { t } = useLaravelReactI18n();
-  const { data, setData, defaultData, disabled } = useFormPage(
+  const { data, setData, defaultData, disabled, dataBefore } = useFormPage(
     {
       date: new Date(),
     },
@@ -364,6 +364,7 @@ function Form() {
               name="supplier"
               label={t("purchase.purchaseOrder.columns.supplier")}
               required
+              name="supplier"
             >
               <SupplierLinkModel
                 value={data.supplier}
@@ -525,6 +526,7 @@ function Form() {
               readOnly={disabled}
               columns={itemColumns}
               value={data?.items}
+              valueBefore={dataBefore?.items}
               onValueChange={(v) => setData("items", v)}
               form={<ItemForm />}
               mapItem={({ item }) => {

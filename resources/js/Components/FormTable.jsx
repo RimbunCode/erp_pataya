@@ -75,6 +75,13 @@ import useDidMountEffect from "@/Hooks/useDidMountEffect";
 import useDynamicRefs from "@/Hooks/useDynamicRefs";
 import { useIsMobile } from "@/Hooks/use-mobile";
 import { useLaravelReactI18n } from "laravel-react-i18n";
+import {
+  DIFF_ADDED,
+  DIFF_HIGHLIGHT,
+  DIFF_REMOVED,
+  DIFF_REMOVED_TEXT,
+  isChanged,
+} from "@/lib/diffUtils";
 
 const FORMTABLE_COLUMNS_KEY = "formtable-columns";
 const FORMTABLE_COLUMNS_EXPIRED = 30;
@@ -92,6 +99,70 @@ const Wrapper = memo(({ children, isDialog }) => {
 Wrapper.displayName = "Wrapper";
 
 const getRowFieldCount = (row) => Object.keys(row ?? {}).length;
+
+/**
+ * Gabungkan baris `before` dan `after` untuk render mode diff FormTable.
+ * Baris ter-match (by `keyItem`, fallback index) ditandai `__diffStatus`
+ * "changed"/undefined; baris hanya di `after` -> "added"; baris hanya di
+ * `before` disisipkan pada index asalnya -> "removed" (ghost row read-only).
+ * @param {object[]} before
+ * @param {object[]} after
+ * @param {string} keyItem
+ * @returns {(object & { __diffBefore?: object, __diffStatus?: "added"|"removed" })[]}
+ */
+export const mergeDiffRows = (before = [], after = [], keyItem = "id") => {
+  const beforeList = Array.isArray(before) ? before : [];
+  const afterList = Array.isArray(after) ? after : [];
+  const beforeById = new Map();
+  beforeList.forEach((row, idx) => {
+    const key = row?.[keyItem];
+    if (key != null && !beforeById.has(key)) beforeById.set(key, idx);
+  });
+  const matchedBeforeIdx = new Set();
+
+  // Pass 1: match by id (keyItem) — prioritas utama, tidak boleh diganggu
+  // fallback-by-index.
+  const afterMatchedIdx = new Array(afterList.length).fill(undefined);
+  afterList.forEach((row, idx) => {
+    const key = row?.[keyItem];
+    const matchedIdx = key != null ? beforeById.get(key) : undefined;
+    if (matchedIdx !== undefined) {
+      matchedBeforeIdx.add(matchedIdx);
+      afterMatchedIdx[idx] = matchedIdx;
+    }
+  });
+
+  // Pass 2: fallback by index, HANYA untuk baris after yang belum matched dan
+  // baris before di posisi sama yang TIDAK punya id (baru diketik, belum
+  // tersimpan saat snapshot diambil) — baris before ber-id tidak boleh dicomot
+  // sebagai fallback karena sudah/akan matched oleh id-nya sendiri di pass 1.
+  afterList.forEach((_row, idx) => {
+    if (afterMatchedIdx[idx] !== undefined) return;
+    const fallback = beforeList[idx];
+    const fallbackHasKey = fallback?.[keyItem] != null;
+    if (fallback && !fallbackHasKey && !matchedBeforeIdx.has(idx)) {
+      matchedBeforeIdx.add(idx);
+      afterMatchedIdx[idx] = idx;
+    }
+  });
+
+  const result = afterList.map((row, idx) => {
+    const matchedIdx = afterMatchedIdx[idx];
+    if (matchedIdx !== undefined) {
+      return { ...row, __diffBefore: beforeList[matchedIdx] };
+    }
+    return { ...row, __diffStatus: "added" };
+  });
+
+  beforeList.forEach((row, idx) => {
+    if (matchedBeforeIdx.has(idx)) return;
+    const insertAt = Math.min(idx, result.length);
+    result.splice(insertAt, 0, { ...row, __diffStatus: "removed" });
+  });
+
+  return result;
+};
+
 const isSameArrayReferences = (first = [], second = []) => {
   if (first.length !== second.length) {
     return false;
@@ -121,6 +192,7 @@ const CellComponent = forwardRef(function Cell(
     rowFieldCount,
     isDialog,
     additionalData,
+    dataRowBefore,
     ...props
   },
   ref,
@@ -135,6 +207,7 @@ const CellComponent = forwardRef(function Cell(
   const minimumRowFieldCount =
     defaultRowFieldCount ?? getRowFieldCount(defaultValueRow) + 1;
   const isRowEmpty = currentRowFieldCount <= minimumRowFieldCount;
+  const cellValueBefore = dataRowBefore ? dataRowBefore[col.name] : undefined;
   const attributes = {
     ...props,
     ...col.props,
@@ -143,6 +216,7 @@ const CellComponent = forwardRef(function Cell(
     name: col.name,
     className: cn(!isDialog && "h-full", className, col.props?.className),
     ref,
+    ...(dataRowBefore !== undefined ? { valueBefore: cellValueBefore } : {}),
   };
   const handleKeyDown = (event) => {
     attributes.onKeyDown?.(event);
@@ -153,6 +227,7 @@ const CellComponent = forwardRef(function Cell(
     return col.cell(
       {
         dataRow: item,
+        dataRowBefore,
         data: item[col.name],
         setData: (key, value) => updateData(index, key, value),
         additionalData,
@@ -251,6 +326,9 @@ const areCellPropsEqual = (prevProps, nextProps) => {
   if (prevProps.updateData !== nextProps.updateData) {
     return false;
   }
+  if (prevProps.dataRowBefore !== nextProps.dataRowBefore) {
+    return false;
+  }
   if (prevProps.onToggleDialog !== nextProps.onToggleDialog) {
     return false;
   }
@@ -278,6 +356,94 @@ const areCellPropsEqual = (prevProps, nextProps) => {
 };
 
 export const Cell = memo(CellComponent, areCellPropsEqual);
+
+/**
+ * Baris read-only untuk mode diff FormTable. Tidak pakai `useSortable` (tidak
+ * ada DndContext pembungkus di mode ini) dan tidak punya aksi edit/hapus —
+ * murni tampilan added/removed/changed per Requirement 4.
+ */
+const DiffFormTableItem = memo(function DiffFormTableItem({
+  index,
+  columns,
+  isLast,
+  item,
+  diffBefore,
+  diffStatus,
+  setRef,
+  cellOnKeyDown,
+  rowAdditionalData,
+  className,
+  defaultRowFieldCount,
+  keyItem = "id",
+}) {
+  const rowFieldCount = getRowFieldCount(item);
+  const noop = useCallback(() => {}, []);
+  const rowKey = item?.[keyItem] ?? `diff-${index}`;
+  const isRemoved = diffStatus === "removed";
+  const isAdded = diffStatus === "added";
+
+  return (
+    <div
+      className={cn(
+        "relative grid group min-h-10 col-span-full items-center grid-cols-subgrid border-muted-foreground/25 [&>*:last-child]:border-r *:border-l *:border-muted-foreground/25 *:h-full *:items-center *:flex *:justify-center",
+        isRemoved && DIFF_REMOVED_TEXT,
+        className,
+      )}
+    >
+      {(isAdded || isRemoved) && (
+        <div
+          className={cn(
+            "absolute inset-0 z-10 pointer-events-none mix-blend-multiply dark:mix-blend-screen",
+            isAdded && DIFF_ADDED,
+            isRemoved && DIFF_REMOVED,
+          )}
+        />
+      )}
+      <div className="px-1 justify-center! text-left ">
+        <span>{index + 1}</span>
+      </div>
+      {columns &&
+        columns.map((col) => {
+          const cellChanged =
+            !isAdded &&
+            !isRemoved &&
+            diffBefore !== undefined &&
+            isChanged(diffBefore?.[col.name], item?.[col.name]);
+          return (
+            <div key={col.name} className="relative has-[.custom-cell]:block!">
+              {cellChanged && (
+                <div
+                  className={cn(
+                    "absolute inset-0 z-10 pointer-events-none mix-blend-multiply dark:mix-blend-screen",
+                    DIFF_HIGHLIGHT,
+                  )}
+                />
+              )}
+              <Cell
+                onToggleDialog={noop}
+                onCellKeyDown={cellOnKeyDown}
+                ref={setRef(`${rowKey}-${col.name}`)}
+                disabled
+                readOnly
+                index={index}
+                item={item}
+                additionalData={rowAdditionalData}
+                dataRowBefore={isAdded || isRemoved ? undefined : diffBefore}
+                keyItem={keyItem}
+                col={col}
+                isLast={isLast}
+                defaultRowFieldCount={defaultRowFieldCount}
+                rowFieldCount={rowFieldCount}
+                updateData={noop}
+                className="rounded-none border-0 focus-visible:ring-offset-1 bg-background"
+              />
+            </div>
+          );
+        })}
+      <div className="flex items-center px-1 gap-x-1" />
+    </div>
+  );
+});
 
 const FormTableItem = memo(function FormTableItem({
   index,
@@ -491,6 +657,7 @@ export default memo(
       classNameDialog,
       columns: columnsProps,
       value,
+      valueBefore,
       onValueChange,
       defaultValueRow,
       form,
@@ -510,6 +677,16 @@ export default memo(
     const effectiveReadOnly = ignoreDisabled
       ? readOnly
       : readOnly || disabled || formPageMeta?.disabled;
+    // `name` FormTable adalah identifier kolom-config (localStorage), BUKAN
+    // key data (lihat FORMTABLE_COLUMNS_KEY di bawah) — beda dari `FormInput`
+    // di mana `name` == key data. Karena itu `valueBefore` di sini HARUS
+    // dikirim eksplisit oleh Form.jsx (fallback ke `dataBefore[name]` hanya
+    // untuk kasus kebetulan sama, tidak diandalkan sebagai mekanisme utama).
+    const dataBeforeItems = useMemo(() => {
+      if (valueBefore !== undefined) return valueBefore;
+      const fallback = formPageMeta?.dataBefore?.[name];
+      return Array.isArray(fallback) ? fallback : undefined;
+    }, [valueBefore, formPageMeta?.dataBefore, name]);
     const key = useMemo(
       () => FORMTABLE_COLUMNS_KEY + (name ? `_${name}` : ""),
       [name],
@@ -1080,6 +1257,13 @@ export default memo(
       () => _data.map((row) => row?.[keyItem]),
       [_data, keyItem],
     );
+    // Baris gabungan before/after untuk render mode diff. Hanya dipakai untuk
+    // tampilan (read-only) — TIDAK menggantikan `_data` yang dipakai state
+    // edit/DnD/dialog agar tidak mengganggu mode edit normal.
+    const diffRows = useMemo(() => {
+      if (!effectiveReadOnly || !dataBeforeItems) return null;
+      return mergeDiffRows(dataBeforeItems, _data, keyItem);
+    }, [effectiveReadOnly, dataBeforeItems, _data, keyItem]);
     const currentRow = _data[currentIndex];
     const currentRowFieldCount = getRowFieldCount(currentRow);
     const isCurrentRowEmpty = currentRowFieldCount <= defaultRowFieldCount;
@@ -1207,46 +1391,68 @@ export default memo(
                 </Button>
               </p>
             </div>
-            <DndContext
-              onDragOver={handleDragOver}
-              sensors={sensors}
-              collisionDetection={closestCenter}
-            >
-              <SortableContext
-                items={sortableItems}
-                strategy={verticalListSortingStrategy}
+            {diffRows ? (
+              // Mode diff: read-only, tanpa drag-drop (ghost row "removed"
+              // tidak punya slot di _data/sortableItems).
+              diffRows.map((item, index) => (
+                <DiffFormTableItem
+                  item={item}
+                  diffBefore={item.__diffBefore}
+                  diffStatus={item.__diffStatus}
+                  index={index}
+                  key={`${item?.[keyItem] ?? index}-${item.__diffStatus ?? "row"}`}
+                  keyItem={keyItem}
+                  columns={filteredColumns}
+                  isLast={index >= diffRows.length - 1}
+                  setRef={setRef}
+                  cellOnKeyDown={cellOnKeyDown}
+                  defaultRowFieldCount={defaultRowFieldCount}
+                  rowAdditionalData={additionalData?.[item?.[keyItem]]}
+                  className={index == diffRows.length - 1 ? "rounded-b-md" : ""}
+                />
+              ))
+            ) : (
+              <DndContext
+                onDragOver={handleDragOver}
+                sensors={sensors}
+                collisionDetection={closestCenter}
               >
-                {Array.isArray(_data) &&
-                  _data.map((item, index) => {
-                    return (
-                      <FormTableItem
-                        disabled={disabled}
-                        readOnly={effectiveReadOnly || item?.readOnly}
-                        item={item}
-                        index={index}
-                        key={item?.[keyItem]}
-                        keyItem={keyItem}
-                        columns={filteredColumns}
-                        isLast={index >= _data.length - 1}
-                        setRef={setRef}
-                        cellOnKeyDown={cellOnKeyDown}
-                        updateData={updateData}
-                        submitable={submitable}
-                        setCurrentIndex={setCurrentIndex}
-                        setCurrentData={setCurrentData}
-                        deleteRow={deleteRow}
-                        defaultRowFieldCount={defaultRowFieldCount}
-                        rowAdditionalData={additionalData?.[item?.[keyItem]]}
-                        className={
-                          index == _data.length - 1 ? "rounded-b-md" : ""
-                        }
-                        forceCanDelete={!disabled && forceCanDelete}
-                        actions={actions}
-                      />
-                    );
-                  })}
-              </SortableContext>
-            </DndContext>
+                <SortableContext
+                  items={sortableItems}
+                  strategy={verticalListSortingStrategy}
+                >
+                  {Array.isArray(_data) &&
+                    _data.map((item, index) => {
+                      return (
+                        <FormTableItem
+                          disabled={disabled}
+                          readOnly={effectiveReadOnly || item?.readOnly}
+                          item={item}
+                          index={index}
+                          key={item?.[keyItem]}
+                          keyItem={keyItem}
+                          columns={filteredColumns}
+                          isLast={index >= _data.length - 1}
+                          setRef={setRef}
+                          cellOnKeyDown={cellOnKeyDown}
+                          updateData={updateData}
+                          submitable={submitable}
+                          setCurrentIndex={setCurrentIndex}
+                          setCurrentData={setCurrentData}
+                          deleteRow={deleteRow}
+                          defaultRowFieldCount={defaultRowFieldCount}
+                          rowAdditionalData={additionalData?.[item?.[keyItem]]}
+                          className={
+                            index == _data.length - 1 ? "rounded-b-md" : ""
+                          }
+                          forceCanDelete={!disabled && forceCanDelete}
+                          actions={actions}
+                        />
+                      );
+                    })}
+                </SortableContext>
+              </DndContext>
+            )}
           </div>
         </div>
         <MyDialog
