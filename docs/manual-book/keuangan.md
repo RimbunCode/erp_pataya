@@ -100,11 +100,15 @@ baru sebagian, sisanya tetap tercatat sebagai belum dibayar.
 - **Metode Pembayaran** (menu **Finances → Payment Methods**) — daftar
   cara pembayaran yang dipakai (transfer, tunai, kartu, dll.), masing-
   masing dengan akun kas/bank tujuannya sendiri.
+
+  ![Daftar Payment Method kosong](/images/manual-book/finances/02-payment-methods-list-kosong.jpg)
 - **Template Termin Pembayaran** — pola cicilan yang bisa dipakai berulang
   untuk pelanggan/pemasok tertentu, misalnya "Net 30" (jatuh tempo 30 hari
   setelah tanggal invoice) atau "50% di muka, 50% pelunasan". Saat sebuah
   tagihan memakai template ini, jadwal pembayarannya otomatis terbentuk
   mengikuti pola yang sudah diatur.
+
+  ![Daftar Payment Term Template kosong](/images/manual-book/finances/05-payment-term-templates-list-kosong.jpg)
 
 ## Mengatur Bagan Akun (Chart of Accounts)
 
@@ -113,12 +117,16 @@ sudah disiapkan. Buka menu **Finances → Accounts → Tambah** untuk
 menambahkan akun baru — akun bisa disusun bertingkat (akun induk dengan
 sub-akun di dalamnya) untuk struktur pembukuan yang lebih rapi.
 
+![Daftar Chart of Accounts](/images/manual-book/finances/01-chart-of-accounts-list.jpg)
+
 ## Mengatur Tarif Pajak
 
 Buka menu **Finances → Taxes → Tambah** untuk mendaftarkan tarif pajak
 yang berlaku (misalnya PPN 11%, PPh 23%). Tarif yang terdaftar di sini
 akan muncul sebagai pilihan di setiap baris tagihan penjualan maupun
 pembelian.
+
+![Daftar Tax / Pajak](/images/manual-book/finances/03-taxes-pajak-list.jpg)
 
 ## Melihat Buku Besar
 
@@ -127,6 +135,8 @@ riwayat pencatatan keuangan yang dibuat otomatis dari dokumen-dokumen yang
 sudah disubmit. Halaman ini hanya untuk dilihat — tidak ada input manual
 di sana, karena tiap baris di Buku Besar selalu berasal dari satu dokumen
 sumber (tagihan atau pembayaran) yang sudah disetujui.
+
+![General Ledger / Buku Besar Umum](/images/manual-book/finances/04-general-ledger-buku-besar-umum.jpg)
 
 ## Pertanyaan Umum
 

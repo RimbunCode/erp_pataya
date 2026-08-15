@@ -44,11 +44,15 @@ flowchart TD
 
 Buka menu **Service → Work Orders → Tambah**.
 
+![Daftar Work Order](/images/manual-book/service/01-work-orders-list.jpg)
+
 1. Kalau ini pekerjaan untuk pelanggan, pilih pelanggannya. Kalau untuk
    kebutuhan internal, biarkan kosong.
 2. Pilih jenis pekerjaan/layanan yang akan dikerjakan.
 3. Tambahkan komponen atau bahan yang dibutuhkan untuk mengerjakan
    pekerjaan ini — isi jenis barang dan jumlah yang diperlukan.
+
+   ![Form Work Order draft](/images/manual-book/service/03-work-order-draft-form.jpg)
 4. Klik **Save**, lalu **Submit** kalau sudah siap diproses.
 
 Setelah disubmit, sistem membuat nomor dokumen resmi dan mengecek apakah
@@ -64,6 +68,8 @@ persetujuan), teknisi yang ditugaskan bisa memulai pekerjaan:
    Dikerjakan" dan waktu mulainya tercatat otomatis.
 2. Setelah selesai, klik tombol **Selesaikan** — status berubah jadi
    "Selesai" dan waktu selesainya tercatat otomatis.
+
+![Detail Work Order berstatus Selesai](/images/manual-book/service/02-work-order-detail-selesai.jpg)
 
 ## Melacak Kebutuhan Komponen/Bahan
 

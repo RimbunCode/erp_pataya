@@ -38,12 +38,20 @@ kedua cara sama-sama valid.
 
 Buka menu **Sales → Sales Orders → Tambah**.
 
+![Daftar Sales Order](/images/manual-book/sales/01-sales-orders-list.jpg)
+
 1. Pilih pelanggan yang memesan.
 2. Tambahkan barang yang dipesan satu per satu: pilih jenis/varian
    barangnya, jumlah, satuan (misalnya pcs atau box), harga, pajak (kalau
    ada), dan gudang mana barang akan diambil.
+
+   ![Form Sales Order kosong](/images/manual-book/sales/02-sales-order-baru-form-kosong.jpg)
+
+   ![Sales Order sudah diisi barang](/images/manual-book/sales/03-sales-order-isi-item.jpg)
 3. Klik **Save** — pesanan tersimpan sebagai Draft, artinya masih bisa
    diedit bebas dan belum berlaku resmi.
+
+   ![Sales Order tersimpan sebagai Draft](/images/manual-book/sales/04-sales-order-tersimpan-draft.jpg)
 4. Kalau sudah yakin, klik **Submit**. Begitu di-submit, tiga hal terjadi
    otomatis:
    - Nomor dokumen resmi dibuatkan oleh sistem.
@@ -52,6 +60,10 @@ Buka menu **Sales → Sales Orders → Tambah**.
    - Kalau perusahaan kamu mengaktifkan alur persetujuan, pesanan ini akan
      menunggu disetujui atasan dulu. Kalau tidak ada alur persetujuan,
      pesanan langsung siap diproses (siap dikirim & siap ditagih).
+
+   ![Konfirmasi ajukan Submit](/images/manual-book/sales/05-konfirmasi-ajukan-submit.jpg)
+
+   ![Sales Order tersubmit dengan nomor resmi](/images/manual-book/sales/06-sales-order-tersubmit-nomor-resmi.jpg)
 
 > 💡 **Kenapa barangnya "diamankan"?** Supaya barang yang sudah dijanjikan
 > ke satu pelanggan tidak tiba-tiba habis diambil untuk pesanan pelanggan
@@ -64,10 +76,14 @@ untuk disetujui.
 
 Setelah pesanan siap diproses, buat surat jalan pengirimannya.
 
+![Daftar Delivery Note](/images/manual-book/sales/07-delivery-notes-list-kosong.jpg)
+
 1. Buka menu **Sales** atau **Inventory → Delivery Notes → Tambah**, lalu
    pilih pesanan (Sales Order) yang barangnya mau dikirim. Cara lebih
    cepat: buka pesanannya langsung, lalu klik tombol untuk membuat surat
    jalan dari sana.
+
+   ![Form Delivery Note kosong](/images/manual-book/sales/08-delivery-note-baru-form-kosong.jpg)
 2. Klik **Submit** pada surat jalan. Setelah itu:
    - Stok barang di gudang otomatis berkurang.
    - Jumlah "sudah terkirim" pada pesanan aslinya bertambah.
@@ -79,8 +95,12 @@ kalau barangnya belum siap semua sekaligus.
 
 ## Langkah 3 — Membuat Tagihan (Sales Invoice)
 
+![Daftar Sales Invoice](/images/manual-book/sales/09-sales-invoices-list-kosong.jpg)
+
 1. Buka menu **Finances → Sales Invoices → Tambah**, lalu pilih pesanan
    (Sales Order) yang mau ditagih.
+
+   ![Form Sales Invoice kosong](/images/manual-book/sales/10-sales-invoice-baru-form-kosong.jpg)
 2. Klik **Submit**. Setelah itu:
    - Tagihan ke pelanggan resmi tercatat sebagai piutang, dan pendapatan
      penjualan ikut tercatat di pembukuan perusahaan.
@@ -89,10 +109,14 @@ kalau barangnya belum siap semua sekaligus.
 
 ## Langkah 4 — Menerima Pembayaran (Payment Entry)
 
+![Daftar Payment Entry](/images/manual-book/sales/11-payment-entries-list-kosong.jpg)
+
 1. Buka menu **Finances → Payment Entries → Tambah**, pilih tipe
    **"Terima"** (karena ini uang masuk dari pelanggan).
 2. Pilih tagihan (Sales Invoice) mana yang dibayar, dan pastikan
    pelanggannya benar.
+
+   ![Form pembayaran masuk kosong](/images/manual-book/sales/12-pembayaran-masuk-baru-form-kosong.jpg)
 3. Klik **Submit**. Setelah itu:
    - Saldo kas/bank perusahaan bertambah, dan piutang ke pelanggan itu
      berkurang.
