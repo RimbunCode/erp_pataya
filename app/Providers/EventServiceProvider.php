@@ -5,6 +5,7 @@ namespace App\Providers;
 use App\Events\Asset\AssetDepreciationDue;
 use App\Events\Asset\AssetMovementApproved;
 use App\Events\Asset\AssetScrapped;
+use App\Events\Asset\AssetServiceCompleted;
 use App\Events\Asset\AssetValueAdjustmentApproved;
 use App\Events\Asset\FixedAssetItemApproved;
 use App\Events\Core\ApprovalDecided;
@@ -29,6 +30,7 @@ use App\Listeners\Asset\CreateAssetFromPurchase;
 use App\Listeners\Asset\Depreciation\PostDepreciationEntry;
 use App\Listeners\Asset\Depreciation\PostScrapWriteOff;
 use App\Listeners\Asset\Depreciation\PostValueAdjustmentEntry;
+use App\Listeners\Asset\Maintenance\ReactivateAssetFromService;
 use App\Listeners\Asset\Movement\UpdateAssetLocationFromMovement;
 use App\Listeners\Core\Approval\AttachApprovalPdf;
 use App\Listeners\Core\Approval\CancelPendingApprovalSteps;
@@ -127,6 +129,9 @@ class EventServiceProvider extends ServiceProvider {
         ],
         AssetMovementApproved::class => [
             UpdateAssetLocationFromMovement::class,
+        ],
+        AssetServiceCompleted::class => [
+            ReactivateAssetFromService::class,
         ],
     ];
 

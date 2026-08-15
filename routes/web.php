@@ -3,7 +3,10 @@ use App\Enums\FormStatus;
 use App\Http\Controllers\Asset\AssetCategoryController;
 use App\Http\Controllers\Asset\AssetController;
 use App\Http\Controllers\Asset\AssetLocationController;
+use App\Http\Controllers\Asset\AssetMaintenanceController;
+use App\Http\Controllers\Asset\AssetMaintenanceTeamController;
 use App\Http\Controllers\Asset\AssetMovementController;
+use App\Http\Controllers\Asset\AssetServiceController;
 use App\Http\Controllers\Asset\AssetValueAdjustmentController;
 use App\Http\Controllers\Core\ApprovalInstanceController;
 use App\Http\Controllers\Core\ApprovalSchemeController;
@@ -303,6 +306,18 @@ Route::middleware(['auth', 'lang', 'onboarded', 'app'])->group(function () {
     Route::resourceDetail('assetValueAdjustment', AssetValueAdjustmentController::class, isSubmmitable: true);
     // Asset Movements
     Route::resourceDetail('assetMovement', AssetMovementController::class, isSubmmitable: true);
+    // Asset Maintenance Teams
+    Route::resourceDetail('assetMaintenanceTeam', AssetMaintenanceTeamController::class);
+    // Asset Maintenance
+    Route::post('/assetMaintenances/{assetMaintenance}/tasks', [AssetMaintenanceController::class, 'storeTask'])->name('assetMaintenances.tasks.store');
+    Route::put('/assetMaintenances/tasks/{task}', [AssetMaintenanceController::class, 'updateTask'])->name('assetMaintenances.tasks.update');
+    Route::delete('/assetMaintenances/tasks/{task}', [AssetMaintenanceController::class, 'destroyTask'])->name('assetMaintenances.tasks.destroy');
+    Route::resourceDetail('assetMaintenance', AssetMaintenanceController::class);
+    // Asset Services
+    Route::post('/assetServices/{assetService}/complete', [AssetServiceController::class, 'complete'])->name('assetServices.complete');
+    Route::post('/assetServices/{assetService}/activities', [AssetServiceController::class, 'storeActivity'])->name('assetServices.activities.store');
+    Route::put('/assetServices/activities/{activity}', [AssetServiceController::class, 'updateActivity'])->name('assetServices.activities.update');
+    Route::resourceDetail('assetService', AssetServiceController::class, isSubmmitable: true);
     // / Asset Group End
 
     // / Purchase Group

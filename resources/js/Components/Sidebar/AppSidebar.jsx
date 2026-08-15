@@ -134,6 +134,24 @@ const navList = [
         urlPattern: "/assetMovements/*",
         model: "App\\Models\\Asset\\AssetMovement",
       },
+      {
+        title: "Maintenance Teams",
+        url: "/assetMaintenanceTeams",
+        urlPattern: "/assetMaintenanceTeams/*",
+        model: "App\\Models\\Asset\\Maintenance\\AssetMaintenanceTeam",
+      },
+      {
+        title: "Asset Maintenance",
+        url: "/assetMaintenances",
+        urlPattern: "/assetMaintenances/*",
+        model: "App\\Models\\Asset\\Maintenance\\AssetMaintenance",
+      },
+      {
+        title: "Asset Services",
+        url: "/assetServices",
+        urlPattern: "/assetServices/*",
+        model: "App\\Models\\Asset\\AssetService",
+      },
     ],
   },
   {
