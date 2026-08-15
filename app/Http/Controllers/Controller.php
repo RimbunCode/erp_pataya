@@ -15,7 +15,6 @@ use App\Models\Core\PrintTemplate;
 use App\Models\Core\Tag;
 use App\Models\Core\Taggable;
 use App\Models\Core\Todo;
-use App\Models\Sales\SalesOrder;
 use App\Models\User\Permission;
 use App\Models\User\User;
 use App\Services\Core\EmailTemplate\EmailTemplateRenderService;
@@ -124,9 +123,8 @@ abstract class Controller {
             'translateKey' => (new $model)->translateKey ?? null,
         ]);
 
-        $ignorePermission = method_exists($this->model, 'ignoresPermission')
-            ? $this->model::ignoresPermission()
-            : $this->ignorePermission;
+        $ignorePermission = $this->ignorePermission
+            || (method_exists($this->model, 'ignoresPermission') && $this->model::ignoresPermission());
 
         if (! $ignorePermission && ! $request->attributes->get('isApprovalCallback')) {
             $currentRoute = Route::getCurrentRoute();
@@ -499,8 +497,6 @@ abstract class Controller {
         if (! $data) {
             return back();
         }
-
-        $test = new SalesOrder;
 
         $newData = $data->amend();
 

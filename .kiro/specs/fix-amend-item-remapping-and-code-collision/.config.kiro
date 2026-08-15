@@ -1,0 +1,6 @@
+{
+  "specId": "f094d761-d8f8-4650-8026-95ec869b6c7f",
+  "workflowType": "design-first",
+  "specType": "bugfix",
+  "description": "Fix 3 bug amend: (1) item self-reference parent_item_id tidak ke-remap ke id baru saat replicate, (2) revision_number increment tidak row-locked sehingga amend concurrent pada root yang sama bisa gagal dengan error mentah, (3) code kehilangan suffix revisi karena submit() di 12 service meregenerate code penuh tanpa peduli amended_from_id."
+}
