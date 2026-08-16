@@ -54,4 +54,6 @@ return [
     'fully_depreciated'               => 'Sepenuhnya Disusutkan',
     'capitalized'                     => 'Dikapitalisasi',
     'work_in_progress'                => 'Dalam Pengerjaan',
+    'partially_rented'                => 'Sebagian Disewa',
+    'partially_sold'                  => 'Sebagian Terjual',
 ];

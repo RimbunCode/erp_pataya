@@ -49,4 +49,10 @@ class AssetCategoryFactory extends Factory {
             'enable_cwip_accounting' => true,
         ]);
     }
+
+    public function bulkQuantity(): static {
+        return $this->state(fn (array $attributes) => [
+            'allow_bulk_quantity' => true,
+        ]);
+    }
 }

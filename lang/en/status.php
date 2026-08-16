@@ -54,4 +54,6 @@ return [
     'fully_depreciated'               => 'Fully Depreciated',
     'capitalized'                     => 'Capitalized',
     'work_in_progress'                => 'Work In Progress',
+    'partially_rented'                => 'Partially Rented',
+    'partially_sold'                  => 'Partially Sold',
 ];

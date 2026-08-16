@@ -17,6 +17,7 @@ class AssetCategory extends Model {
         'non_depreciable_category' => 'boolean',
         'enable_cwip_accounting'   => 'boolean',
         'is_rentable'              => 'boolean',
+        'allow_bulk_quantity'      => 'boolean',
     ];
     public string $formComponent = 'Asset/Categories/Form';
     public string $translateKey  = 'asset.category';

@@ -14,6 +14,7 @@ import {
 
 import AccountLinkModel from "../Accounts/AccountLinkModel";
 import AdditionalDiscount from "../Components/AdditionalDiscount";
+import AssetLinkModel from "@/Pages/Asset/Assets/AssetLinkModel";
 import BranchLinkModel from "@/Pages/Settings/Branches/BranchLinkModel";
 import NumberInput from "@/Components/NumberInput";
 import CurrencyLinkModel from "@/Pages/Core/CurrencyLinkModel";
@@ -276,8 +277,81 @@ export default function Form() {
           );
         },
       },
+      {
+        name: "asset_lines",
+        titleTrans: "finances.salesInvoice.columns.asset_lines",
+        show: false,
+        width: 2,
+        cell({ dataRow, data, setData }) {
+          const itemId =
+            dataRow?.sales_order_item?.item?.item_id ??
+            dataRow?.sales_order_item?.item?.item?.id;
+          const isFixedAsset =
+            !!dataRow?.sales_order_item?.item?.is_fixed_asset;
+          if (!isFixedAsset) {
+            return <span className="text-muted-foreground">-</span>;
+          }
+          return (
+            <FormTable
+              name="SalesInvoiceItemAssetLines"
+              ignoreDisabled
+              columns={[
+                {
+                  name: "asset",
+                  titleTrans: "finances.salesInvoice.columns.asset_lines.asset",
+                  required: true,
+                  width: 2,
+                  cell({
+                    data: assetData,
+                    setData: setAssetData,
+                    attributes: assetAttrs,
+                  }) {
+                    return (
+                      <AssetLinkModel
+                        placeholder={t(
+                          "finances.salesInvoice.columns.asset_lines.asset.placeholder",
+                        )}
+                        value={assetData}
+                        onValueChange={(val) => setAssetData("asset", val)}
+                        {...assetAttrs}
+                        filters={{
+                          item_id: itemId,
+                          available_quantity: { ">": 0 },
+                        }}
+                      />
+                    );
+                  },
+                },
+                {
+                  name: "quantity",
+                  titleTrans:
+                    "finances.salesInvoice.columns.asset_lines.quantity",
+                  required: true,
+                  type: "number",
+                  width: 1,
+                  cell({
+                    data: qty,
+                    setData: setAssetData,
+                    attributes: assetAttrs,
+                  }) {
+                    return (
+                      <NumberInput
+                        {...assetAttrs}
+                        value={qty}
+                        onValueChange={(val) => setAssetData("quantity", val)}
+                      />
+                    );
+                  },
+                },
+              ]}
+              value={data ?? []}
+              onValueChange={(v) => setData("asset_lines", v)}
+            />
+          );
+        },
+      },
     ];
-  }, [data]);
+  }, [data, t]);
   return (
     <>
       <FormPageContent value="detail" title={t("finances.salesInvoice.detail")}>

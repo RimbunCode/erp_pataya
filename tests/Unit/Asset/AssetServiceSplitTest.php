@@ -37,7 +37,7 @@ class AssetServiceSplitTest extends TestCase {
 
     #[Test]
     public function split_into_rows_with_uneven_quantity_distribution(): void {
-        $category = AssetCategory::factory()->create();
+        $category = AssetCategory::factory()->bulkQuantity()->create();
         $location = AssetLocation::factory()->create();
 
         $asset = Asset::factory()->create([
@@ -62,7 +62,7 @@ class AssetServiceSplitTest extends TestCase {
 
     #[Test]
     public function split_preserves_total_monetary_value(): void {
-        $category = AssetCategory::factory()->create();
+        $category = AssetCategory::factory()->bulkQuantity()->create();
         $location = AssetLocation::factory()->create();
 
         $asset = Asset::factory()->create([
@@ -87,7 +87,7 @@ class AssetServiceSplitTest extends TestCase {
 
     #[Test]
     public function split_rows_can_have_different_category_and_location(): void {
-        $categoryA = AssetCategory::factory()->create();
+        $categoryA = AssetCategory::factory()->bulkQuantity()->create();
         $categoryB = AssetCategory::factory()->create();
         $locationA = AssetLocation::factory()->create();
         $locationB = AssetLocation::factory()->create();

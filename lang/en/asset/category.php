@@ -13,6 +13,7 @@ return [
     'columns'            => [
         'category_name'            => 'Category Name',
         'is_rentable'              => 'Rentable',
+        'allow_bulk_quantity'      => 'Allow Bulk Quantity',
         'non_depreciable_category' => 'Non-Depreciable',
         'enable_cwip_accounting'   => 'Enable CWIP Accounting',
     ],

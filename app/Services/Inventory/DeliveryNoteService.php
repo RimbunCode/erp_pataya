@@ -4,12 +4,16 @@ namespace App\Services\Inventory;
 
 use App\Contracts\SubmitableService;
 use App\Enums\FormStatus;
+use App\Events\Asset\AssetRentalDeliveryApproved;
+use App\Events\Asset\AssetRentalReturnApproved;
+use App\Events\Asset\AssetSoldViaDelivery;
 use App\Events\Core\DocumentSubmitted;
 use App\Events\Inventory\DeliveryNoteGeneralLedgerPostingRequested;
 use App\Events\Sales\Order\DocumentDeliveryStatusRecalculationRequested;
 use App\Models\Core\FormatingSeries;
 use App\Models\Core\GlPostingStatus;
 use App\Models\Inventory\DeliveryNote;
+use App\Models\Inventory\DeliveryNoteItem;
 use App\Models\Inventory\ItemUnit;
 use App\Models\Inventory\Stock;
 use App\Models\Inventory\StockLedgerEntry;
@@ -20,6 +24,7 @@ use App\Traits\HasDefaultDelete;
 use Illuminate\Support\Collection;
 use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\DB;
+use LogicException;
 use Symfony\Component\Uid\Ulid;
 
 class DeliveryNoteService implements SubmitableService {
@@ -182,13 +187,30 @@ class DeliveryNoteService implements SubmitableService {
         $totalPicked = 0;
         $isRent      = false;
         foreach ($items as $item) {
-            $availableToRent = $toReference->is_rent && $item->item->type == 'vehicle';
-            if ($availableToRent) {
-                $isRent = true;
-            }
             // update delivered quantity dari Sales Order Item
             if (! $item->referenceable) {
                 throw new \RuntimeException("DeliveryNoteItem {$item->id} has no referenceable (type: {$item->referenceable_type}, id: {$item->referenceable_id})");
+            }
+
+            // Asset rental/jual-putus (Requirement 1, spec asset-rental-migration) — TIDAK PERNAH
+            // menyentuh logic Stock/StockLedgerEntry apapun, di-skip total dari loop lama.
+            if ($item->item?->item?->is_fixed_asset) {
+                $item->referenceable->increment('delivered_quantity', $item->quantity);
+
+                try {
+                    $this->handleAssetDeliveryItem($item, $deliveryNote, (bool) $returnAgainst);
+                } catch (LogicException $e) {
+                    DB::rollBack();
+
+                    throw $e;
+                }
+
+                continue;
+            }
+
+            $availableToRent = $toReference->is_rent && $item->item->type == 'vehicle';
+            if ($availableToRent) {
+                $isRent = true;
             }
             if ($returnAgainst && ! $availableToRent) {
                 $item->referenceable->decrement('delivered_quantity', $item->quantity);
@@ -396,6 +418,40 @@ class DeliveryNoteService implements SubmitableService {
         DB::commit();
 
         return $deliveryNote;
+    }
+
+    /**
+     * Requirement 1-3, spec asset-rental-migration: dispatch event per baris
+     * DeliveryNoteItemAsset (rental/retur/jual-putus) — TIDAK menyentuh Stock.
+     */
+    private function handleAssetDeliveryItem(DeliveryNoteItem $item, DeliveryNote $deliveryNote, bool $returnAgainst): void {
+        $lines = $item->assetLines()->with('asset.assetCategory')->get();
+
+        if (abs((float) $lines->sum('quantity') - (float) $item->quantity) > 0.0001) {
+            throw new LogicException(__('asset/asset.quantity_mismatch'));
+        }
+
+        $isRentSo = $item->referenceable instanceof SalesOrderItem
+            ? (bool) ($item->referenceable->salesOrder?->is_rent ?? false)
+            : false;
+
+        foreach ($lines as $line) {
+            $asset = $line->asset;
+            if (! $asset->assetCategory?->is_rentable) {
+                throw new LogicException(__('asset/asset.category_not_rentable'));
+            }
+            if ($asset->item_id !== $item->item?->item_id) {
+                throw new LogicException(__('asset/asset.item_mismatch'));
+            }
+
+            if ($returnAgainst) {
+                event(new AssetRentalReturnApproved($line));
+            } elseif ($isRentSo) {
+                event(new AssetRentalDeliveryApproved($line));
+            } else {
+                event(new AssetSoldViaDelivery($line));
+            }
+        }
     }
 
     public function onRejected(Model $deliveryNote): mixed {

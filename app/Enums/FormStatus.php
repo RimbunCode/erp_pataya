@@ -57,6 +57,8 @@ enum FormStatus: string {
     case FULLY_DEPRECIATED     = 'fully_depreciated';
     case CAPITALIZED           = 'capitalized';
     case WORK_IN_PROGRESS      = 'work_in_progress';
+    case PARTIALLY_RENTED      = 'partially_rented';
+    case PARTIALLY_SOLD        = 'partially_sold';
 
     public function label() {
         return __("status.{$this->value}");

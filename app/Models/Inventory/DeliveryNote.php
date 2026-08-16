@@ -9,10 +9,11 @@ use App\Models\User\Permission;
 use App\Traits\DataTable;
 use App\Traits\Submitable;
 use Illuminate\Database\Eloquent\Concerns\HasUlids;
+use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\SoftDeletes;
 
 class DeliveryNote extends Model {
-    use DataTable, HasUlids, SoftDeletes, Submitable;
+    use DataTable, HasFactory, HasUlids, SoftDeletes, Submitable;
 
     public static string $service = App\Services\Inventory\DeliveryNoteService::class;
     public string $formComponent  = 'Inventory/DeliveryNotes/Form';

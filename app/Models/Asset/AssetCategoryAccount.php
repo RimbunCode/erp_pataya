@@ -37,4 +37,8 @@ class AssetCategoryAccount extends Model {
     public function capitalWorkInProgressAccount(): BelongsTo {
         return $this->belongsTo(Account::class, 'capital_work_in_progress_account_id');
     }
+
+    public function gainLossDisposalAccount(): BelongsTo {
+        return $this->belongsTo(Account::class, 'gain_loss_disposal_account_id');
+    }
 }

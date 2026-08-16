@@ -12,10 +12,11 @@ use App\Services\Finances\SalesInvoiceService;
 use App\Traits\DataTable;
 use App\Traits\Submitable;
 use Illuminate\Database\Eloquent\Concerns\HasUlids;
+use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\SoftDeletes;
 
 class SalesInvoice extends Model {
-    use DataTable, HasUlids, SoftDeletes, Submitable;
+    use DataTable, HasFactory, HasUlids, SoftDeletes, Submitable;
 
     public static string $service = SalesInvoiceService::class;
     public string $formComponent  = 'Finances/SalesInvoice/Form';

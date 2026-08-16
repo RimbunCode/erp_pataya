@@ -9,10 +9,11 @@ use App\Models\Model;
 use App\Models\Sales\SalesOrder;
 use App\Models\Sales\SalesOrderItem;
 use Illuminate\Database\Eloquent\Concerns\HasUlids;
+use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\SoftDeletes;
 
 class SalesInvoiceItem extends Model {
-    use HasUlids, SoftDeletes;
+    use HasFactory, HasUlids, SoftDeletes;
 
     /** Izin lihat kolom harga jual: pembuat SalesOrder atau SalesInvoice. */
     private const PRICE_VISIBILITY = [
@@ -167,5 +168,9 @@ class SalesInvoiceItem extends Model {
 
     public function item() {
         return $this->belongsTo(ItemVariant::class, 'item_id');
+    }
+
+    public function assetLines() {
+        return $this->hasMany(SalesInvoiceItemAsset::class);
     }
 }

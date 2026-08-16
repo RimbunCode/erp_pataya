@@ -1,0 +1,20 @@
+<?php
+
+use Illuminate\Database\Migrations\Migration;
+use Illuminate\Database\Schema\Blueprint;
+use Illuminate\Support\Facades\Schema;
+
+return new class extends Migration
+{
+    public function up(): void {
+        Schema::table('asset_categories', function (Blueprint $table) {
+            $table->boolean('allow_bulk_quantity')->default(false)->after('is_rentable');
+        });
+    }
+
+    public function down(): void {
+        Schema::table('asset_categories', function (Blueprint $table) {
+            $table->dropColumn('allow_bulk_quantity');
+        });
+    }
+};

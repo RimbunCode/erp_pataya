@@ -1,0 +1,6 @@
+{
+  "specId": "b3f7a1d2-6c9e-4f5a-8b1d-2e7c4a9f6d3b",
+  "workflowType": "requirements-first",
+  "specType": "feature",
+  "description": "Migrasi sistem rental SalesOrder dari Item-based (ItemVariant type=vehicle) ke Asset-based, plus implementasi Asset::sell() untuk jual putus via SalesOrder/DeliveryNote/SalesInvoice"
+}

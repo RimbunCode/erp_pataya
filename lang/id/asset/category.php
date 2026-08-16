@@ -13,6 +13,7 @@ return [
     'columns'            => [
         'category_name'            => 'Nama Kategori',
         'is_rentable'              => 'Dapat Disewakan',
+        'allow_bulk_quantity'      => 'Izinkan Kuantitas Massal',
         'non_depreciable_category' => 'Tidak Disusutkan',
         'enable_cwip_accounting'   => 'Aktifkan Akuntansi CWIP',
     ],

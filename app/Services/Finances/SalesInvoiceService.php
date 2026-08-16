@@ -4,6 +4,7 @@ namespace App\Services\Finances;
 
 use App\Contracts\SubmitableService;
 use App\Enums\FormStatus;
+use App\Events\Asset\AssetSoldViaInvoice;
 use App\Events\Core\DocumentSubmitted;
 use App\Events\Sales\Invoice\SalesInvoiceReturnStatusChanged;
 use App\Events\Sales\Invoice\SalesOrderItemBillingChanged;
@@ -257,6 +258,7 @@ class SalesInvoiceService implements SubmitableService {
                 'returnAgainst',
                 'items.returnAgainstItem',
                 'items.salesOrderItem',
+                'items.assetLines',
             ]);
 
             $returnAgainst = $salesInvoice->returnAgainst;
@@ -274,6 +276,12 @@ class SalesInvoiceService implements SubmitableService {
                     $returnAgainst ? 'decrement' : 'increment',
                     $returnAgainst ? $item->returnAgainstItem : null,
                 ));
+
+                // Requirement 3.4, spec asset-rental-migration: baris jual-putus Asset
+                // yang sudah py assetLines saat approve — dispatch gain/loss langsung.
+                foreach ($item->assetLines as $line) {
+                    event(new AssetSoldViaInvoice($line));
+                }
             }
             $totalAmount = Utils::countAmount($basicAmount, $taxAmount, $salesInvoice->discount_on, $salesInvoice->discount_amount);
 

@@ -4,10 +4,11 @@ namespace App\Models\Inventory;
 
 use App\Models\Model;
 use Illuminate\Database\Eloquent\Concerns\HasUlids;
+use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\SoftDeletes;
 
 class DeliveryNoteItem extends Model {
-    use HasUlids, SoftDeletes;
+    use HasFactory, HasUlids, SoftDeletes;
 
     public static $parentRelation  = 'deliveryNote';
     protected $guarded             = ['id'];
@@ -87,5 +88,9 @@ class DeliveryNoteItem extends Model {
 
     public function returnAgainstItem() {
         return $this->belongsTo(DeliveryNoteItem::class, 'return_against_item_id');
+    }
+
+    public function assetLines() {
+        return $this->hasMany(DeliveryNoteItemAsset::class);
     }
 }

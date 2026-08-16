@@ -4,8 +4,12 @@ namespace App\Providers;
 
 use App\Events\Asset\AssetDepreciationDue;
 use App\Events\Asset\AssetMovementApproved;
+use App\Events\Asset\AssetRentalDeliveryApproved;
+use App\Events\Asset\AssetRentalReturnApproved;
 use App\Events\Asset\AssetScrapped;
 use App\Events\Asset\AssetServiceCompleted;
+use App\Events\Asset\AssetSoldViaDelivery;
+use App\Events\Asset\AssetSoldViaInvoice;
 use App\Events\Asset\AssetValueAdjustmentApproved;
 use App\Events\Asset\FixedAssetItemApproved;
 use App\Events\Core\ApprovalDecided;
@@ -32,6 +36,10 @@ use App\Listeners\Asset\Depreciation\PostScrapWriteOff;
 use App\Listeners\Asset\Depreciation\PostValueAdjustmentEntry;
 use App\Listeners\Asset\Maintenance\ReactivateAssetFromService;
 use App\Listeners\Asset\Movement\UpdateAssetLocationFromMovement;
+use App\Listeners\Asset\Rental\MarkAssetSoldFromDelivery;
+use App\Listeners\Asset\Rental\PostAssetDisposalGainLoss;
+use App\Listeners\Asset\Rental\ReturnAssetFromRent;
+use App\Listeners\Asset\Rental\SetAssetInRent;
 use App\Listeners\Core\Approval\AttachApprovalPdf;
 use App\Listeners\Core\Approval\CancelPendingApprovalSteps;
 use App\Listeners\Core\Approval\NotifyApprovalDecision;
@@ -132,6 +140,18 @@ class EventServiceProvider extends ServiceProvider {
         ],
         AssetServiceCompleted::class => [
             ReactivateAssetFromService::class,
+        ],
+        AssetRentalDeliveryApproved::class => [
+            SetAssetInRent::class,
+        ],
+        AssetRentalReturnApproved::class => [
+            ReturnAssetFromRent::class,
+        ],
+        AssetSoldViaDelivery::class => [
+            MarkAssetSoldFromDelivery::class,
+        ],
+        AssetSoldViaInvoice::class => [
+            PostAssetDisposalGainLoss::class,
         ],
     ];
 

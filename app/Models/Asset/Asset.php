@@ -48,6 +48,8 @@ class Asset extends Model {
         'disposal_date'           => 'date',
         'insurance_start_date'    => 'date',
         'insurance_end_date'      => 'date',
+        'rental_quantity'         => 'float',
+        'sold_quantity'           => 'float',
     ];
 
     public static function templateLink() {
@@ -156,6 +158,10 @@ class Asset extends Model {
         return Attribute::get(fn () => ($this->gross_purchase_amount ?? 0) + ($this->additional_asset_cost ?? 0));
     }
 
+    protected function availableQuantity(): Attribute {
+        return Attribute::get(fn () => (float) $this->asset_quantity - (float) $this->rental_quantity - (float) $this->sold_quantity);
+    }
+
     public function bookValue(): float {
         $accumulated = $this->depreciationSchedules()
             ->whereHas('glPostingStatus', fn ($q) => $q->where('status', FormStatus::POSTED))
@@ -205,7 +211,53 @@ class Asset extends Model {
     }
 
     public function sell(): void {
-        throw new LogicException(__('asset/asset.sell_not_implemented'));
+        $this->addSoldQuantity((float) $this->asset_quantity - (float) $this->sold_quantity - (float) $this->rental_quantity);
+    }
+
+    public function addRentedQuantity(float $quantity): void {
+        if ($quantity > $this->available_quantity) {
+            throw new LogicException(__('asset/asset.insufficient_available_quantity'));
+        }
+        $this->rental_quantity = (float) $this->rental_quantity + $quantity;
+        $this->recomputeQuantityStatus(FormStatus::IN_RENT, FormStatus::PARTIALLY_RENTED, $this->rental_quantity);
+        $this->save();
+    }
+
+    public function removeRentedQuantity(float $quantity): void {
+        $this->rental_quantity = max(0, (float) $this->rental_quantity - $quantity);
+        $this->recomputeQuantityStatus(FormStatus::IN_RENT, FormStatus::PARTIALLY_RENTED, $this->rental_quantity);
+        $this->save();
+    }
+
+    public function addSoldQuantity(float $quantity): void {
+        if ($quantity > $this->available_quantity) {
+            throw new LogicException(__('asset/asset.insufficient_available_quantity'));
+        }
+        $this->sold_quantity = (float) $this->sold_quantity + $quantity;
+        $this->recomputeQuantityStatus(FormStatus::SOLD, FormStatus::PARTIALLY_SOLD, $this->sold_quantity);
+        if ($this->available_quantity <= 0) {
+            $this->disposal_date ??= now();
+        }
+        $this->save();
+    }
+
+    /**
+     * Tambah/hapus status full/partial berdasar threshold available_quantity,
+     * menjaga ACTIVE tetap ada selama available_quantity > 0.
+     */
+    private function recomputeQuantityStatus(FormStatus $fullStatus, FormStatus $partialStatus, float $movedQuantity): void {
+        $statuses = $this->removeStatuses([$fullStatus, $partialStatus, FormStatus::ACTIVE]);
+
+        if ($movedQuantity <= 0) {
+            $statuses[] = FormStatus::ACTIVE;
+        } elseif ($this->available_quantity <= 0) {
+            $statuses[] = $fullStatus;
+        } else {
+            $statuses[] = FormStatus::ACTIVE;
+            $statuses[] = $partialStatus;
+        }
+
+        $this->status = $statuses;
     }
 
     public function setInMaintenance(): void {
@@ -260,13 +312,13 @@ class Asset extends Model {
                 }
             }
 
-            // Validate asset_quantity = 1 for rentable categories
+            // Validate asset_quantity > 1 only allowed when category opts in explicitly
             if (
-                $asset->isDirty('asset_category_id')
+                ($asset->isDirty('asset_category_id') || $asset->isDirty('asset_quantity'))
                 && $asset->asset_quantity > 1
             ) {
                 $category = AssetCategory::find($asset->asset_category_id);
-                if ($category && $category->is_rentable) {
+                if ($category && ! $category->allow_bulk_quantity) {
                     throw new LogicException(__('asset/asset.rentable_must_be_single_unit'));
                 }
             }

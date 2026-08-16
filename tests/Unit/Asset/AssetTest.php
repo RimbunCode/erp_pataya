@@ -134,8 +134,8 @@ class AssetTest extends TestCase {
     }
 
     #[Test]
-    public function non_rentable_category_allows_quantity_greater_than_one(): void {
-        $category = AssetCategory::factory()->create(['is_rentable' => false]);
+    public function category_with_allow_bulk_quantity_allows_quantity_greater_than_one(): void {
+        $category = AssetCategory::factory()->create(['is_rentable' => false, 'allow_bulk_quantity' => true]);
 
         $asset = Asset::factory()->create([
             'asset_category_id' => $category->id,
@@ -143,6 +143,18 @@ class AssetTest extends TestCase {
         ]);
 
         $this->assertEquals(10, $asset->asset_quantity);
+    }
+
+    #[Test]
+    public function non_bulk_category_rejects_quantity_greater_than_one(): void {
+        $category = AssetCategory::factory()->create(['is_rentable' => false, 'allow_bulk_quantity' => false]);
+
+        $this->expectException(LogicException::class);
+
+        Asset::factory()->create([
+            'asset_category_id' => $category->id,
+            'asset_quantity'    => 10,
+        ]);
     }
 
     // 8.10 ── Property 4: Status transition legality ────────────────────────
@@ -195,14 +207,14 @@ class AssetTest extends TestCase {
     }
 
     #[Test]
-    public function sell_throws_not_implemented(): void {
+    public function sell_transitions_to_sold(): void {
         $asset = Asset::factory()->create([
             'status' => [FormStatus::ACTIVE],
         ]);
 
-        $this->expectException(LogicException::class);
-
         $asset->sell();
+
+        $this->assertContains(FormStatus::SOLD, $asset->status);
     }
 
     // 8.11 ── total_asset_cost accessor ─────────────────────────────────────

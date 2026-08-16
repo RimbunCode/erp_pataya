@@ -16,9 +16,10 @@ class ItemFactory extends Factory {
      */
     public function definition(): array {
         return [
-            'code' => fake()->unique()->bothify('ITEM-####'),
-            'name' => fake()->words(2, true),
-            'type' => 'goods',
+            'code'          => fake()->unique()->bothify('ITEM-####'),
+            'name'          => fake()->words(2, true),
+            'type'          => 'goods',
+            'is_stock_item' => true,
         ];
     }
 }
