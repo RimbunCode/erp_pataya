@@ -31,6 +31,14 @@ class PreferenceSeeder extends Seeder {
             'default_currency_id'   => 'IDR',
             'default_number_format' => '#.###,##',
             'timezone'              => 'Asia/Jakarta',
+            // Range nomor seri Faktur Pajak yang dialokasikan DJP -- diisi manual oleh admin
+            // sesuai alokasi resmi, BUKAN di-generate bebas oleh sistem (Requirement 7.3).
+            // Kolom preferences.value NOT NULL, jadi 0 (bukan null) dipakai sebagai sentinel
+            // "belum dikonfigurasi" -- range asli DJP selalu mulai dari angka positif >= 1,
+            // jadi 0 tidak bentrok dengan nilai valid manapun.
+            'tax_invoice_serial_range_start' => 0,
+            'tax_invoice_serial_range_end'   => 0,
+            'tax_invoice_serial_last_used'   => 0,
         ];
         $preferences = collect($preferencesArr)->map(fn ($value, $key) => [
             'key'   => $key,

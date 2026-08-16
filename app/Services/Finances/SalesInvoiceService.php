@@ -358,4 +358,37 @@ class SalesInvoiceService {
 
         return $salesInvoice;
     }
+
+    /**
+     * Alokasikan nomor seri Faktur Pajak Keluaran & simpan breakdown DPP/PPN.
+     * Bukan bagian create()/update() -- Faktur Pajak adalah data legal terpisah
+     * yang di-assign eksplisit oleh user (mis. saat siap dilaporkan ke e-Faktur),
+     * bukan otomatis tiap invoice disimpan.
+     *
+     * PPnBM belum didukung (data model kategori tax barang mewah -- Requirement 4 --
+     * belum diimplementasi di spec ini), jadi tax_invoice_ppnbm_amount tetap 0.
+     *
+     * @param  string  $transactionCode  salah satu dari TaxInvoiceSerialAllocator::TRANSACTION_CODES
+     */
+    public function assignTaxInvoice(SalesInvoice $salesInvoice, string $transactionCode, string $statusCode = '0'): SalesInvoice {
+        if (! \in_array($transactionCode, TaxInvoiceSerialAllocator::TRANSACTION_CODES, true)) {
+            throw ValidationException::withMessages([
+                'tax_invoice_transaction_code' => 'Kode transaksi Faktur Pajak tidak valid.',
+            ]);
+        }
+
+        $salesInvoice->loadMissing('items');
+
+        $serialNumber = app(TaxInvoiceSerialAllocator::class)->nextSerial($transactionCode, $statusCode);
+
+        $salesInvoice->update([
+            'tax_invoice_transaction_code' => $transactionCode,
+            'tax_invoice_serial_number'    => $serialNumber,
+            'tax_invoice_date'             => now(),
+            'tax_invoice_dpp_amount'       => $salesInvoice->items->sum('dpp_amount'),
+            'tax_invoice_ppn_amount'       => $salesInvoice->items->sum('tax_amount'),
+        ]);
+
+        return $salesInvoice;
+    }
 }

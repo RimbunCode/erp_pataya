@@ -78,8 +78,8 @@ class SalesInvoiceController extends Controller {
                                 'items'           => $so?->items->map(function ($item) use ($so, $rentalDurationService, $rentalCutoffDate) {
                                     $itemData = [
                                         ...$item->toArray(),
-                                        'id'                  => Utils::generateRandom(5),
-                                        'sales_order_item_id' => $item->id,
+                                        'id'               => Utils::generateRandom(5),
+                                        'sales_order_item' => $item,
                                     ];
 
                                     if ($so->is_rent) {

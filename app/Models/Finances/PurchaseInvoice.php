@@ -30,6 +30,10 @@ class PurchaseInvoice extends Model {
         'discount_rate'                    => 'float',
         'discount_amount'                  => 'float',
         'discount_amount_base_currency'    => 'float',
+        'tax_invoice_date'                 => 'datetime',
+        'tax_invoice_dpp_amount'           => 'float',
+        'tax_invoice_ppn_amount'           => 'float',
+        'tax_invoice_ppnbm_amount'         => 'float',
     ];
     protected static string $defaultFormatCode = '@[branch_code]/PurchaseINV-@[iiii]/@[yy]';
 
@@ -98,6 +102,35 @@ class PurchaseInvoice extends Model {
             'order' => 10,
         ],
         'paymentSchedules',
+        'tax_invoice_transaction_code' => [
+            'valueTrans' => 'finances.taxInvoice.transaction_code.options',
+            'show'       => true,
+            'order'      => 20,
+        ],
+        'tax_invoice_serial_number' => [
+            'show'  => true,
+            'order' => 21,
+        ],
+        'tax_invoice_date' => [
+            'type'  => 'date',
+            'show'  => true,
+            'order' => 22,
+        ],
+        'tax_invoice_dpp_amount' => [
+            'type'  => 'currency',
+            'show'  => true,
+            'order' => 23,
+        ],
+        'tax_invoice_ppn_amount' => [
+            'type'  => 'currency',
+            'show'  => true,
+            'order' => 24,
+        ],
+        'tax_invoice_ppnbm_amount' => [
+            'type'  => 'currency',
+            'show'  => true,
+            'order' => 25,
+        ],
     ];
 
     protected static function loadRelationsOnShow() {
