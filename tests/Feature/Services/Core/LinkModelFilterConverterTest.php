@@ -65,6 +65,7 @@ class LinkModelFilterConverterTest extends TestCase {
             $t->date('born_on')->nullable();
             $t->datetime('started_at')->nullable();
             $t->json('formStatuses')->nullable();
+            $t->json('status')->nullable();
             $t->timestamps();
         });
 
@@ -76,7 +77,10 @@ class LinkModelFilterConverterTest extends TestCase {
             'born_on'      => ['name' => 'born_on', 'type' => 'date'],
             'started_at'   => ['name' => 'started_at', 'type' => 'datetime'],
             'formStatuses' => ['name' => 'formStatuses', 'type' => 'formStatuses'],
-            'category'     => [
+            // Nama kolom "status" beda dari type "formStatuses" (kasus nyata SalesOrder/PurchaseOrder,
+            // lihat LinkModel.php: FormStatusesCast di-map ke type 'formStatuses', bukan name).
+            'status'   => ['name' => 'status', 'type' => 'formStatuses'],
+            'category' => [
                 'name'           => 'category',
                 'type'           => 'relation',
                 'typeRelation'   => 'basic',
@@ -105,9 +109,9 @@ class LinkModelFilterConverterTest extends TestCase {
             ['id' => 'c2', 'type' => 'B', 'created_at' => now(), 'updated_at' => now()],
         ]);
         ConverterTestRecord::insert([
-            ['id' => 'r1', 'name' => 'Apple', 'qty' => 5, 'min_qty' => 1, 'is_active' => true, 'category_id' => 'c1', 'born_on' => '2025-01-01', 'started_at' => '2025-01-01 10:00:00', 'formStatuses' => json_encode(['draft']), 'created_at' => now(), 'updated_at' => now()],
-            ['id' => 'r2', 'name' => 'Banana', 'qty' => 15, 'min_qty' => 10, 'is_active' => false, 'category_id' => 'c2', 'born_on' => '2025-02-01', 'started_at' => '2025-02-01 10:00:00', 'formStatuses' => json_encode(['approved']), 'created_at' => now(), 'updated_at' => now()],
-            ['id' => 'r3', 'name' => 'Cherry', 'qty' => 25, 'min_qty' => 30, 'is_active' => true, 'category_id' => 'c1', 'born_on' => '2025-03-01', 'started_at' => '2025-03-01 10:00:00', 'formStatuses' => json_encode(['closed']), 'created_at' => now(), 'updated_at' => now()],
+            ['id' => 'r1', 'name' => 'Apple', 'qty' => 5, 'min_qty' => 1, 'is_active' => true, 'category_id' => 'c1', 'born_on' => '2025-01-01', 'started_at' => '2025-01-01 10:00:00', 'formStatuses' => json_encode(['draft']), 'status' => json_encode(['to_bill']), 'created_at' => now(), 'updated_at' => now()],
+            ['id' => 'r2', 'name' => 'Banana', 'qty' => 15, 'min_qty' => 10, 'is_active' => false, 'category_id' => 'c2', 'born_on' => '2025-02-01', 'started_at' => '2025-02-01 10:00:00', 'formStatuses' => json_encode(['approved']), 'status' => json_encode(['partially_billed']), 'created_at' => now(), 'updated_at' => now()],
+            ['id' => 'r3', 'name' => 'Cherry', 'qty' => 25, 'min_qty' => 30, 'is_active' => true, 'category_id' => 'c1', 'born_on' => '2025-03-01', 'started_at' => '2025-03-01 10:00:00', 'formStatuses' => json_encode(['closed']), 'status' => json_encode(['billed']), 'created_at' => now(), 'updated_at' => now()],
         ]);
     }
 
@@ -198,6 +202,12 @@ class LinkModelFilterConverterTest extends TestCase {
 
         // jsonContains
         $this->assertEqualsCanonicalizing(['r1'], $this->applyLinkModel(['formStatuses' => ['jsonContains' => 'draft']])->pluck('id')->all());
+
+        // jsonContains di kolom bernama "status" (type "formStatuses") — regresi:
+        // konverter sempat cek $colNode['name'] === 'formStatuses' alih-alih $colNode['type'],
+        // sehingga filter status apapun yang bukan literal bernama "formStatuses" ter-skip diam-diam.
+        $this->assertEqualsCanonicalizing(['r1'], $this->applyLinkModel(['status' => ['jsonContains' => 'to_bill']])->pluck('id')->all());
+        $this->assertEqualsCanonicalizing(['r1', 'r2'], $this->applyLinkModel(['status' => ['jsonContains' => ['to_bill', 'partially_billed']]])->pluck('id')->all());
 
         // column mode
         $this->assertEqualsCanonicalizing(['r1', 'r2'], $this->applyLinkModel(['qty' => ['column' => ['>' => 'min_qty']]])->pluck('id')->all());

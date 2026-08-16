@@ -1,0 +1,6 @@
+{
+  "specId": "f3d8a1c4-9e2b-4a6f-8c1d-7b5e2f9a3d61",
+  "workflowType": "requirements-first",
+  "specType": "feature",
+  "description": "Perbaiki pipeline kalkulasi DPP (Dasar Pengenaan Pajak) pada Purchase Order dan Sales Order agar diskon dokumen mengurangi basis pajak sebelum pajak dihitung (bukan dipotong dari total akhir setelah pajak terhitung dari basis penuh), dan perluas data model tax/party agar sistem bisa menghasilkan angka PPN dan data Faktur Pajak yang sesuai ketentuan Indonesia."
+}

@@ -9,7 +9,23 @@ import useDidMountEffect from "@/Hooks/useDidMountEffect";
 import { useLaravelReactI18n } from "laravel-react-i18n";
 import { usePage } from "@inertiajs/react";
 
-function AdditionalDiscount({ data, setData, netAmount, taxAmount }) {
+// Catatan arsitektur: komponen ini HANYA menyimpan discount_on/discount_rate/
+// discount_amount ke state header -- TIDAK menulis basic_amount/tax_amount per
+// item, karena FormTable (dipakai Form.jsx PO/SO) me-reset basic_amount/tax_amount
+// tiap baris lewat mapItem() setiap kali array `items` berubah referensinya
+// (lihat FormTable.jsx useEffect di sekitar applyMapItem). Kalau komponen ini
+// menulis balik ke item.basic_amount, nilainya akan langsung ditimpa lagi oleh
+// mapItem's raw quantity*rate. Realokasi diskon per baris karena itu dilakukan
+// di dalam mapItem masing-masing Form.jsx (PO & SO), yang punya akses closure ke
+// discount_on/discount_rate/discount_amount dari data -- lihat discountAllocation.js.
+function AdditionalDiscount({
+  data,
+  setData,
+  netAmount,
+  taxAmount,
+  rawNetAmount,
+  rawTaxAmount,
+}) {
   const { t } = useLaravelReactI18n();
   const { default_currency_id } = usePage().props.preferences;
   const setDiscount = (key, value) => {
@@ -18,8 +34,15 @@ function AdditionalDiscount({ data, setData, netAmount, taxAmount }) {
       let discount_on = prev.discount_on;
       let discount_rate = prev.discount_rate ?? 0;
       let discount_amount = prev.discount_amount ?? 0;
-      const net_total = calculateArray(prev.items, "basic_amount", "+");
-      const tax_amount = calculateArray(prev.items, "tax_amount", "+");
+      // Basis diskon HARUS dari basic_amount/tax_amount MENTAH (rawNetAmount/
+      // rawTaxAmount, dihitung parent dari quantity*rate sebelum diskon apapun),
+      // BUKAN dari prev.items -- basic_amount di prev.items bisa saja sudah hasil
+      // alokasi diskon putaran sebelumnya (via mapItem), jadi basis akan menyusut
+      // terus tiap kali fungsi ini terpanggil ulang kalau baca dari situ.
+      const net_total =
+        rawNetAmount ?? calculateArray(prev.items, "basic_amount", "+");
+      const tax_amount =
+        rawTaxAmount ?? calculateArray(prev.items, "tax_amount", "+");
       if (key == "discount_on") {
         if (discount_on == value) return prev;
         discount_on = value;
@@ -72,14 +95,24 @@ function AdditionalDiscount({ data, setData, netAmount, taxAmount }) {
     });
   };
 
+  // Deps HARUS rawNetAmount/rawTaxAmount (basis mentah, independen dari
+  // discount_amount), BUKAN netAmount/taxAmount (hasil alokasi -- turunan dari
+  // discount_amount itu sendiri). Kalau pakai netAmount/taxAmount di sini, efek
+  // ini akan terpicu ulang oleh perubahan yang ia sendiri sebabkan (re-derive
+  // discount_amount -> net_amount berubah -> netAmount berubah -> efek jalan lagi).
   useDidMountEffect(() => {
     const latestKey = data.latestDiscountKey ?? "discount_rate";
     setDiscount(latestKey, data[latestKey] ?? 0);
-  }, [netAmount, taxAmount]);
+  }, [rawNetAmount, rawTaxAmount]);
 
+  // netAmount/taxAmount yang diterima dari Form.jsx SUDAH hasil alokasi diskon
+  // (dihitung dari data.items yang basic_amount/tax_amount-nya sudah dipotong
+  // proporsional oleh mapItem) -- jadi Total di sini tinggal dijumlah langsung,
+  // tidak perlu dikurangi discount_amount lagi (itu penyebab bug lama: dikurangi
+  // dua kali secara konsep -- sekali di item, sekali lagi di total).
   const amount = useMemo(() => {
-    return netAmount + taxAmount - (data?.discount_amount ?? 0);
-  }, [netAmount, taxAmount, data.discount_amount]);
+    return netAmount + taxAmount;
+  }, [netAmount, taxAmount]);
 
   return (
     <>
@@ -135,8 +168,8 @@ function AdditionalDiscount({ data, setData, netAmount, taxAmount }) {
               min={0}
               max={
                 data.discount_on == "net_total"
-                  ? netAmount
-                  : netAmount + taxAmount
+                  ? rawNetAmount
+                  : rawNetAmount + rawTaxAmount
               }
             ></NumberInput>
           </FormInput>

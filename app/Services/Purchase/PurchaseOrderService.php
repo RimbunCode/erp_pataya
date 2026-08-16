@@ -16,6 +16,7 @@ use App\Models\Purchase\PurchaseOrderItem;
 use App\Models\Purchase\PurchaseReceipt;
 use App\Models\Purchase\PurchaseReceiptItem;
 use App\Models\Purchase\Supplier;
+use App\Services\Finances\DocumentDiscountCalculator;
 use App\Utils;
 use Illuminate\Support\Collection;
 use Illuminate\Support\Facades\DB;
@@ -51,8 +52,49 @@ class PurchaseOrderService {
         $data['tax_id']              = $data['tax']['id'];
         $data['tax_rate']            = $tax?->rate ?? 0;
         $data['target_warehouse_id'] = $data['target_warehouse']['id'];
+        $data['basic_amount']        = $data['quantity'] * $data['rate'];
 
         return $data;
+    }
+
+    /**
+     * Alokasikan diskon dokumen (jika ada) ke seluruh item, tulis basic_amount/tax_amount/
+     * amount hasil alokasi ke tiap item model, lalu kembalikan total basic_amount & tax_amount
+     * header. basic_amount/tax_amount/amount bukan generated column lagi (lihat migration
+     * convert_purchase_order_items_amounts_to_stored_columns) -- Service layer ini yang jadi
+     * satu-satunya penulis nilai tsb.
+     *
+     * @param  Collection<int, PurchaseOrderItem>  $items
+     * @return array{basic_amount: float, tax_amount: float}
+     */
+    private function applyDiscountToItems(PurchaseOrder $purchaseOrder, Collection $items): array {
+        $lines = $items->map(fn (PurchaseOrderItem $item) => [
+            'basic_amount' => $item->basic_amount,
+            'tax_rate'     => $item->tax_rate,
+        ])->all();
+
+        // discount_amount selalu dipakai sebagai nilai otoritatif (bukan discount_rate) --
+        // FE (AdditionalDiscount.jsx) sudah menyinkronkan discount_amount setiap kali user
+        // mengubah discount_rate ATAU discount_amount, jadi discount_amount yang terkirim ke
+        // backend selalu representasi absolut terkini, tanpa perlu transport latestDiscountKey
+        // (state FE-only, tidak ada kolomnya di DB) ke backend.
+        $allocated = DocumentDiscountCalculator::allocate(
+            $lines,
+            $purchaseOrder->discount_on,
+            $purchaseOrder->discount_rate ?? 0,
+            $purchaseOrder->discount_amount ?? 0,
+            'discount_amount',
+        );
+
+        $basicAmount = 0;
+        $taxAmount   = 0;
+        foreach ($items->values() as $index => $item) {
+            $item->forceFill($allocated[$index])->save();
+            $basicAmount += $allocated[$index]['basic_amount'];
+            $taxAmount += $allocated[$index]['tax_amount'];
+        }
+
+        return ['basic_amount' => $basicAmount, 'tax_amount' => $taxAmount];
     }
 
     private function batchLoadUnits(array $data): array {
@@ -82,23 +124,19 @@ class PurchaseOrderService {
         $data['code']  = FormatingSeries::generate(PurchaseOrder::class, $data, true);
         $purchaseOrder = PurchaseOrder::create($this->fillRelations($data));
 
-        $basicAmount = 0;
-        $taxAmount   = 0;
-
         $units = $this->batchLoadUnits($data);
         $taxes = $this->batchLoadTaxes($data);
 
+        $items = collect();
         foreach ($data['items'] as $item) {
             $item = $this->fillItemRelations($item, $purchaseOrder, $units, $taxes);
-            $item = $purchaseOrder->items()->create($item);
-            $item->refresh();
-            $basicAmount += $item->basic_amount;
-            $taxAmount += $item->tax_amount;
+            $items->push($purchaseOrder->items()->create($item));
         }
 
-        $totalAmount = Utils::countAmount($basicAmount, $taxAmount, $purchaseOrder->discount_on, $purchaseOrder->discount_amount);
+        $totals = $this->applyDiscountToItems($purchaseOrder, $items);
         $purchaseOrder->update([
-            'amount' => $totalAmount,
+            'amount'               => $totals['basic_amount'] + $totals['tax_amount'],
+            'amount_base_currency' => ($totals['basic_amount'] + $totals['tax_amount']) * ($purchaseOrder->exchange_rate ?? 1),
         ]);
 
         foreach ($data['payment_schedules'] ?? [] as $payment_schedule) {
@@ -114,9 +152,6 @@ class PurchaseOrderService {
 
     public function update(PurchaseOrder $purchaseOrder, array $data) {
         $purchaseOrder->fillForUpdate($this->fillRelations($data));
-
-        $basicAmount = 0;
-        $taxAmount   = 0;
 
         $purchaseOrder->items()
             ->whereNotIn('id', array_column($data['items'], 'id'))
@@ -134,6 +169,7 @@ class PurchaseOrderService {
         $units = $this->batchLoadUnits($data);
         $taxes = $this->batchLoadTaxes($data);
 
+        $items = collect();
         foreach ($data['items'] as $item) {
             $item = $this->fillItemRelations($item, $purchaseOrder, $units, $taxes);
 
@@ -142,24 +178,20 @@ class PurchaseOrderService {
                 if ($itemModel) {
                     $itemModel->fill($item);
                     $itemModel->save();
-                    $itemModel->refresh();
                 } else {
                     $itemModel = $purchaseOrder->items()->create($item);
-                    $itemModel->refresh();
                 }
             } else {
                 $itemModel = $purchaseOrder->items()->create($item);
-                $itemModel->refresh();
             }
 
-            $basicAmount += $itemModel->basic_amount;
-            $taxAmount += $itemModel->tax_amount;
+            $items->push($itemModel);
         }
 
-        $totalAmount = Utils::countAmount($basicAmount, $taxAmount, $purchaseOrder->discount_on, $purchaseOrder->discount_amount);
+        $totals = $this->applyDiscountToItems($purchaseOrder, $items);
         $purchaseOrder->update([
-            'total_amount'               => $totalAmount,
-            'total_amount_base_currency' => $totalAmount * ($purchaseOrder->exchange_rate ?? 1),
+            'amount'               => $totals['basic_amount'] + $totals['tax_amount'],
+            'amount_base_currency' => ($totals['basic_amount'] + $totals['tax_amount']) * ($purchaseOrder->exchange_rate ?? 1),
         ]);
 
         if (\array_key_exists('payment_schedules', $data)) {
@@ -417,6 +449,7 @@ class PurchaseOrderService {
                         'tax_id'              => $g['tax_id'],
                         'tax_rate'            => $g['tax_rate'],
                         'target_warehouse_id' => $g['warehouse_id'],
+                        'basic_amount'        => $poItem->quantity * $g['rate'],
                     ]);
                     $poItem->refresh();
                     $syncLog[] = ['action' => 'update', 'po_item_id' => $poItem->id, 'rate' => $g['rate']];
@@ -435,6 +468,7 @@ class PurchaseOrderService {
                             'received_quantity'   => 0,
                             'billed_quantity'     => 0,
                             'parent_item_id'      => $parentId,
+                            'basic_amount'        => $g['qty'] * $g['rate'],
                         ]);
                         $newItem->id = (string) Str::ulid();
                         $newItem->save();
@@ -461,12 +495,13 @@ class PurchaseOrderService {
                 }
             }
 
-            // Rekalkulasi total PO
+            // Rekalkulasi total PO -- termasuk realokasi diskon dokumen (jika ada) ke basic_amount/
+            // tax_amount per item yang baru saja disinkronkan (rate/tax_rate bisa berubah dari hasil sync)
             $purchaseOrder->load('items');
-            $basicAmount = $purchaseOrder->items->sum('basic_amount');
-            $taxAmount   = $purchaseOrder->items->sum('tax_amount');
+            $totals = $this->applyDiscountToItems($purchaseOrder, $purchaseOrder->items);
             $purchaseOrder->update([
-                'amount' => Utils::countAmount($basicAmount, $taxAmount, $purchaseOrder->discount_on, $purchaseOrder->discount_amount),
+                'amount'               => $totals['basic_amount'] + $totals['tax_amount'],
+                'amount_base_currency' => ($totals['basic_amount'] + $totals['tax_amount']) * ($purchaseOrder->exchange_rate ?? 1),
             ]);
 
             // Update status receive/bill
