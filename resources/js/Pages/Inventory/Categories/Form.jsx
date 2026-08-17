@@ -19,7 +19,6 @@ export default function Form() {
             name="name"
             required={true}
             label={t("inventory.category.columns.name")}
-            name="name"
           >
             <Input
               value={data?.name ?? ""}
@@ -30,7 +29,6 @@ export default function Form() {
             name="type"
             required={true}
             label={t("inventory.category.columns.type")}
-            name="type"
           >
             <Select
               value={data?.type ?? ""}

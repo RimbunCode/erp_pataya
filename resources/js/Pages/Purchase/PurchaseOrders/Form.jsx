@@ -415,7 +415,6 @@ function Form() {
               name="supplier"
               label={t("purchase.purchaseOrder.columns.supplier")}
               required
-              name="supplier"
             >
               <SupplierLinkModel
                 value={data.supplier}

@@ -88,7 +88,6 @@ export default function Form() {
           label={t("sales.customer.columns.street")}
           required={true}
           className="col-span-full"
-          name="street"
         >
           <Textarea
             value={data?.street ?? ""}
@@ -111,7 +110,6 @@ export default function Form() {
             name="province"
             label={t("sales.customer.columns.province")}
             required={true}
-            name="province"
           >
             <Input
               value={data?.province ?? ""}
@@ -122,7 +120,6 @@ export default function Form() {
             name="zip_code"
             label={t("sales.customer.columns.zip_code")}
             required={true}
-            name="zip_code"
           >
             <Input
               value={data?.zip_code ?? ""}
@@ -134,7 +131,6 @@ export default function Form() {
             name="country"
             label={t("sales.customer.columns.country")}
             required={true}
-            name="country"
           >
             <CountryLinkModel
               placeholder={t("sales.customer.columns.country.placeholder")}
