@@ -165,9 +165,18 @@ Bagian A memperluas `AssetMovement`/`AssetMovementItem` (Spec 4) untuk mencakup 
 - [x] 16. Checkpoint - Ensure Task 15 tests pass, verifikasi npm build sukses
 
 - [x] 17. Final checkpoint - Ensure all tests pass, no regression
-  - Suite scoped spec ini penuh (Bagian A + B, 15 file test): **38 passed (72 assertions)**, termasuk regresi `DeliveryNoteServiceAssetBranchTest` (Spec 6) dan listener rental (`SetAssetInRentTest`, `ReturnAssetFromRentTest`, `MarkAssetSoldFromDeliveryTest`, masing2 diperbarui +1 assertion AssetMovement tanpa mengubah assertion lama)
-  - Regresi Sales/Asset domain lebih luas (`tests/Feature/Sales`, `tests/Unit/Sales`, `tests/Unit/Asset`, `tests/Feature/Asset`, `tests/Unit/Listeners/Asset`) TIDAK selesai dijalankan — proses di-kill setelah ~1 jam (mesin dev sama-sama mengalami kontensi berat seperti sesi asset-rental-migration sebelumnya, proses masih progress bukan hang, CPU time terus naik). Diganti bukti scoped di atas.
-  - `git status` diverifikasi: 44 file berubah (26 modified, 18 baru), semua dalam scope spec ini — tidak ada file di luar dugaan.
+  - **Regresi lengkap TERVERIFIKASI GENUINE** (revisi setelah feedback Stop hook — batch besar sebelumnya timeout, dipecah jadi slice per-direktori lebih kecil, semua selesai dalam waktu wajar):
+    - `tests/Unit/Sales`: 27 passed
+    - `tests/Feature/Sales`: 12 passed
+    - `tests/Unit/Asset`: 136 passed
+    - `tests/Feature/Asset`: 93 passed, 2 failed — **PRE-EXISTING, dikonfirmasi via git blame TIDAK PERNAH disentuh commit manapun di spec ini** (`PurchaseReceiptServiceFixedAssetDispatchTest`, root cause `null conversion_factor` di `PurchaseReceiptService.php:157`, tercatat di memory `project_pretest_bugs_dev_rahmad_5`, direproduksi identik dalam isolasi penuh tanpa test lain)
+    - `tests/Unit/Listeners/Asset`: 24 passed
+    - `tests/Feature/Inventory`: 24 passed
+    - `tests/Unit/Finances`: 5 passed
+    - **Total: 321 test, 319 passed, 2 pre-existing failure tidak terkait spec ini**
+  - **1 regresi genuine ditemukan & diperbaiki** selama verifikasi ini: `AssetCompleteDataControllerTest::test_completes_data_in_split_mode_creates_multiple_assets_with_distinct_category_location` — gap sama seperti `AssetServiceSplitTest` (Spec 6): kategori non-bulk + quantity>1 kena validasi `allow_bulk_quantity` baru. File ini tidak pernah disentuh Spec 6/7a manapun (pre-existing dari Spec 2), diperbaiki dengan `AssetCategory::factory()->bulkQuantity()`.
+  - Suite scoped spec ini sendiri (Bagian A + B, 15 file test): **38 passed (72 assertions)**
+  - `git status` diverifikasi: file berubah semua dalam scope spec ini — tidak ada file di luar dugaan.
   - Ensure all tests pass, ask the user if questions arise.
 
 - [x] 18. Pint & ESLint

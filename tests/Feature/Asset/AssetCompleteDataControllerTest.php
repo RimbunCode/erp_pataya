@@ -76,8 +76,8 @@ class AssetCompleteDataControllerTest extends TestCase {
 
     public function test_completes_data_in_split_mode_creates_multiple_assets_with_distinct_category_location(): void {
         $user      = User::factory()->create();
-        $categoryA = AssetCategory::factory()->create();
-        $categoryB = AssetCategory::factory()->create();
+        $categoryA = AssetCategory::factory()->bulkQuantity()->create();
+        $categoryB = AssetCategory::factory()->bulkQuantity()->create();
         $locationA = AssetLocation::factory()->create();
         $asset     = Asset::factory()->create([
             'asset_category_id' => null,
