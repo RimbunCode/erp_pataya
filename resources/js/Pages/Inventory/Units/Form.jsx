@@ -25,7 +25,7 @@ import useCanUpdate from "@/Hooks/useCanUpdate";
 import { useLaravelReactI18n } from "laravel-react-i18n";
 
 export default function Form() {
-  const { data, setData } = useFormPage();
+  const { data, setData, dataBefore } = useFormPage();
   const { t } = useLaravelReactI18n();
   // Select "group" dibungkus <div relative> (posisi Loader2Icon) sehingga
   // BUKAN child langsung FormInput — cloneElement FormInput tak bisa
@@ -172,10 +172,9 @@ export default function Form() {
       <FormPageContent title={null} value="detail">
         <div className="grid gap-x-3 gap-y-4">
           <FormInput
-            name="group"
             required={true}
             label={t("inventory.unit.columns.group")}
-            ignoreDisabled
+            name="group"
           >
             <div className="relative flex items-center">
               <Select
@@ -224,6 +223,7 @@ export default function Form() {
           <FormCheckbox
             disabled={data.group === "Others"}
             checked={data.customable ?? false}
+            valueBefore={dataBefore?.customable}
             onCheckedChange={(val) => {
               setData("customable", val);
             }}
@@ -234,6 +234,7 @@ export default function Form() {
               name="conversion_factor"
               required={true}
               label={t("inventory.unit.columns.conversion_factor")}
+              name="conversion_factor"
             >
               <Input
                 pattern="^\d*(\.\d+)?$"

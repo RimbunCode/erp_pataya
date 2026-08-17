@@ -88,6 +88,12 @@ return [
         'asset_lines.asset'             => 'Asset',
         'asset_lines.asset.placeholder' => 'Select an Asset',
         'asset_lines.quantity'          => 'Quantity',
+        'tax_invoice_transaction_code'  => 'Tax Invoice Transaction Code',
+        'tax_invoice_serial_number'     => 'Tax Invoice Serial Number',
+        'tax_invoice_date'              => 'Tax Invoice Date',
+        'tax_invoice_dpp_amount'        => 'Tax Invoice DPP',
+        'tax_invoice_ppn_amount'        => 'Tax Invoice PPN',
+        'tax_invoice_ppnbm_amount'      => 'Tax Invoice PPnBM',
     ],
 
 ];

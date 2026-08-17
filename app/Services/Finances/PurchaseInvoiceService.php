@@ -505,4 +505,34 @@ class PurchaseInvoiceService implements SubmitableService {
     public function amend(Model $model): mixed {
         return $model;
     }
+
+    /**
+     * Catat data Faktur Pajak Masukan yang diterima dari supplier & simpan breakdown
+     * DPP/PPN. Beda dengan SalesInvoiceService::assignTaxInvoice() -- nomor seri di
+     * sini DITRANSKRIP dari dokumen supplier (bukan dialokasikan dari range sendiri),
+     * karena Faktur Pajak Masukan diterbitkan pihak lain, bukan sistem ini.
+     *
+     * PPnBM belum didukung (Requirement 4 belum diimplementasi di spec ini), tax_invoice_ppnbm_amount tetap 0.
+     *
+     * @param  string  $transactionCode  salah satu dari TaxInvoiceSerialAllocator::TRANSACTION_CODES
+     */
+    public function recordTaxInvoice(PurchaseInvoice $purchaseInvoice, string $transactionCode, string $serialNumber, \DateTimeInterface $taxInvoiceDate): PurchaseInvoice {
+        if (! \in_array($transactionCode, TaxInvoiceSerialAllocator::TRANSACTION_CODES, true)) {
+            throw ValidationException::withMessages([
+                'tax_invoice_transaction_code' => 'Kode transaksi Faktur Pajak tidak valid.',
+            ]);
+        }
+
+        $purchaseInvoice->loadMissing('items');
+
+        $purchaseInvoice->update([
+            'tax_invoice_transaction_code' => $transactionCode,
+            'tax_invoice_serial_number'    => $serialNumber,
+            'tax_invoice_date'             => $taxInvoiceDate,
+            'tax_invoice_dpp_amount'       => $purchaseInvoice->items->sum('dpp_amount'),
+            'tax_invoice_ppn_amount'       => $purchaseInvoice->items->sum('tax_amount'),
+        ]);
+
+        return $purchaseInvoice;
+    }
 }

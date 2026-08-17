@@ -142,6 +142,7 @@ export default function FormDetail({
           required={true}
           label={t("inventory.item.columns.name")}
           className=""
+          ignoreDiff={isVariant}
         >
           <Input
             disabled={isVariant}
@@ -155,7 +156,12 @@ export default function FormDetail({
             onBlur={() => flushField("name", nameValue ?? "")}
           />
         </FormInput>
-        <FormInput required={true} label={t("inventory.item.columns.category")}>
+        <FormInput
+          required={true}
+          label={t("inventory.item.columns.category")}
+          name="category"
+          ignoreDiff={isVariant}
+        >
           <CategoryLinkModel
             placeholder={t("inventory.item.columns.category.placeholder")}
             disabled={isVariant}
@@ -190,6 +196,8 @@ export default function FormDetail({
         <FormInput
           required={true}
           label={t("inventory.item.columns.default_unit")}
+          name="default_unit"
+          ignoreDiff={isVariant}
         >
           <UnitLinkModel
             readOnly={isVariant ? item.have_transations : data.have_transations}

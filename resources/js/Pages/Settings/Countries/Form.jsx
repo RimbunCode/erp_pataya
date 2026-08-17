@@ -17,7 +17,7 @@ const toTableValue = (timezones) => (timezones ?? []).map((tz) => ({ tz }));
 const fromTableValue = (rows) => rows.map((row) => row.tz).filter(Boolean);
 
 export default memo(function Form() {
-  const { data, setData, isCreate } = useFormPage();
+  const { data, setData, isCreate, dataBefore } = useFormPage();
   const { t } = useLaravelReactI18n();
 
   const timezoneColumns = useMemo(
@@ -91,6 +91,11 @@ export default memo(function Form() {
             label={t("core.country.columns.timezones")}
             columns={timezoneColumns}
             value={toTableValue(data.timezones)}
+            valueBefore={
+              dataBefore?.timezones !== undefined
+                ? toTableValue(dataBefore.timezones)
+                : undefined
+            }
             onValueChange={(rows) => setData("timezones", fromTableValue(rows))}
           />
         </div>

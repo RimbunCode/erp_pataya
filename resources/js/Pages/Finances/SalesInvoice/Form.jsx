@@ -58,7 +58,7 @@ export default function Form() {
       debit_account: debitAccount,
     };
   }, []);
-  const { data, setData, disabled } = useFormPage(defaultValue, {
+  const { data, setData, disabled, dataBefore } = useFormPage(defaultValue, {
     notUseWhenCreate: true,
   });
   const { default_currency_id } = usePage().props.preferences;
@@ -508,6 +508,7 @@ export default function Form() {
               className="mt-8 mb-3"
               label={t("finances.salesInvoice.columns.is_return")}
               checked={data.is_return}
+              valueBefore={dataBefore?.is_return}
               onCheckedChange={(val) => {
                 getContraIncomeAccount(val);
                 setData((prev) => ({
@@ -686,6 +687,7 @@ export default function Form() {
             form={<ItemForm />}
             columns={itemColumns}
             value={data?.items ?? []}
+            valueBefore={dataBefore?.items}
             onValueChange={(v) => setData("items", v)}
             mapItem={({ item }) => {
               const amount = item.quantity * item.price;

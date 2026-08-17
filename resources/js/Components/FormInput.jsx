@@ -8,9 +8,27 @@ import { useLaravelReactI18n } from "laravel-react-i18n";
 import useCanUpdate from "@/Hooks/useCanUpdate";
 
 /**
+ * Tentukan nilai `valueBefore` yang diinjeksikan otomatis ke child input
+ * berdasarkan `name` field, dari `dataBefore` yang tersedia di context saat
+ * mode diff log. Dipisah dari komponen agar bisa diuji tanpa render React.
+ * @param {object} params
+ * @param {string} [params.name]
+ * @param {object} [params.dataBefore]
+ * @param {boolean} [params.ignoreDiff]
+ * @returns {unknown} `undefined` bila tidak ada nilai yang bisa diinjeksikan
+ */
+export function resolveDiffValue({ name, dataBefore, ignoreDiff }) {
+  const hasDataBefore =
+    dataBefore != null && Object.keys(dataBefore).length > 0;
+  if (ignoreDiff || !name || !hasDataBefore) return undefined;
+  return dataBefore[name];
+}
+
+/**
  *
  * @param {object} props
  * @param {boolean} props.ignoreDisabled
+ * @param {boolean} props.ignoreDiff nonaktifkan auto-inject `valueBefore` (mode diff log) untuk field ini
  * @param {string} props.label
  * @param {boolean} props.required
  * @param {string} props.className
@@ -31,6 +49,7 @@ function FormInput({
   children,
   description,
   ignoreDisabled = false,
+  ignoreDiff = false,
   ...props
 }) {
   const form = useFormPageMeta();
@@ -49,6 +68,13 @@ function FormInput({
         ? errors[_name].replace(_name, t(`${form.fieldNameTrans}.${_name}`))
         : errors[_name]
       : null;
+  // Auto-inject valueBefore (mode diff log) dari context by field name.
+  // `valueBefore` eksplisit pada child selalu menang (lihat injeksi di bawah).
+  const diffValue = resolveDiffValue({
+    name: _name,
+    dataBefore: form?.dataBefore,
+    ignoreDiff,
+  });
 
   return (
     <div
@@ -60,12 +86,13 @@ function FormInput({
       </Label>
       {isRenderProp
         ? children({
+            ...props,
             id,
             required: _required,
+            valueBefore: props.valueBefore ?? diffValue,
             readOnly: ignoreDisabled
               ? false
               : props.readOnly || form?.disabled || !canUpdate,
-            ...props,
           })
         : React.Children.map(children, (child) => {
             return cloneElement(child, {
@@ -78,6 +105,7 @@ function FormInput({
                   props.readOnly ||
                   form?.disabled ||
                   !canUpdate,
+              valueBefore: child.props?.valueBefore ?? diffValue,
             });
           })}
       {description &&

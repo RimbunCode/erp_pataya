@@ -1,4 +1,5 @@
 import AppLayout from "@/Layouts/AppLayout";
+import { Head } from "@inertiajs/react";
 
 import { useLaravelReactI18n } from "laravel-react-i18n";
 
@@ -43,6 +44,7 @@ export default function Index({ changelogs }) {
 
   return (
     <AppLayout>
+      <Head title={t("core.changelog.title", "Changelog")} />
       <div className="mx-auto max-w-3xl space-y-6 py-4">
         <div>
           <h1 className="text-2xl font-bold">

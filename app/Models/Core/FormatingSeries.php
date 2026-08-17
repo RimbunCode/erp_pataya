@@ -149,6 +149,10 @@ class FormatingSeries extends Model {
      * @return string|null
      */
     public static function generate(string $model, mixed $data, bool $isDraft = false): string {
+        if ($data instanceof Model && $data->amended_from_id !== null) {
+            return $data->code;
+        }
+
         $ref           = FormatingSeries::where('model', $model)->first();
         $codeRelations = [];
         $keyFormat     = $ref->getKeyLogs($codeRelations);

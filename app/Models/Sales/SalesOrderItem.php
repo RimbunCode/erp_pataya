@@ -28,8 +28,6 @@ class SalesOrderItem extends Model {
     protected $guarded            = [
         'id',
         'remaining_quantity',
-        'basic_amount',
-        'tax_amount',
     ];
     protected $casts = [
         'quantity'                   => 'float',

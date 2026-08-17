@@ -19,6 +19,7 @@ export default function Form() {
             name="name"
             required={true}
             label={t("finances.paymentMethod.columns.name")}
+            name="name"
           >
             <Input
               value={data?.name ?? ""}
@@ -28,6 +29,7 @@ export default function Form() {
           <FormInput
             name="default_account"
             label={t("finances.paymentMethod.columns.default_account")}
+            name="default_account"
           >
             <AccountLinkModel
               filters={{
@@ -39,8 +41,8 @@ export default function Form() {
             />
           </FormInput>
           <FormInput
-            name="description"
             label={t("finances.paymentMethod.columns.description")}
+            name="description"
           >
             <Textarea
               value={data?.description ?? ""}

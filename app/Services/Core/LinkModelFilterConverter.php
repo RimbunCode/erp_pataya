@@ -288,7 +288,7 @@ class LinkModelFilterConverter {
         }
 
         if ($operator === 'jsonContains' || $operator === 'jsonDoesntContains') {
-            if ($key === 'formStatuses' || ($colNode['name'] ?? '') === 'formStatuses') {
+            if ($key === 'formStatuses' || ($colNode['type'] ?? '') === 'formStatuses') {
                 $mappedOp = $operator === 'jsonContains' ? 'has' : '!has';
 
                 return ['k' => $key, 'o' => $mappedOp, 'v' => $value];

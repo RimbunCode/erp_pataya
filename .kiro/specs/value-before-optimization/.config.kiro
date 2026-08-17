@@ -1,0 +1,6 @@
+{
+  "specId": "95185041-cf2a-4203-8711-17bf62fb6c29",
+  "workflowType": "design-first",
+  "specType": "feature",
+  "description": "Optimalisasi struktur valueBefore dan rollout diff-highlight log ke semua modul ERP: auto-inject via context, helper isChanged generik, dukungan semua tipe input, dan FormTable row/cell diff."
+}

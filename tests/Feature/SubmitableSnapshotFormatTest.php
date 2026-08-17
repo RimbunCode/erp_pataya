@@ -3,6 +3,7 @@
 namespace Tests\Feature;
 
 use App\Enums\FormStatus;
+use App\Models\Core\FormatingSeries;
 use App\Models\Model;
 use App\Traits\Submitable;
 use Illuminate\Database\Eloquent\Concerns\HasUlids;
@@ -35,6 +36,7 @@ class SubmitableSnapshotFormatTest extends TestCase {
         Schema::dropIfExists('test_submitable_documents');
         Schema::dropIfExists('logs');
         Schema::dropIfExists('approval_instances');
+        Schema::dropIfExists('preferences');
 
         Schema::create('approval_instances', function (Blueprint $table) {
             $table->ulid('id')->primary();
@@ -65,6 +67,14 @@ class SubmitableSnapshotFormatTest extends TestCase {
             $table->string('model')->unique();
             $table->text('logs')->nullable();
             $table->string('format');
+            $table->boolean('is_example')->default(false);
+            $table->timestamps();
+        });
+
+        Schema::create('preferences', function (Blueprint $table) {
+            $table->string('id')->primary();
+            $table->string('key')->unique();
+            $table->text('value')->nullable();
             $table->boolean('is_example')->default(false);
             $table->timestamps();
         });
@@ -162,6 +172,52 @@ class SubmitableSnapshotFormatTest extends TestCase {
         $amended->refresh();
 
         $this->assertSame($format, $amended->submitted_format);
+    }
+
+    public function test_formating_series_generate_preserves_code_for_amended_document(): void {
+        DB::table('formating_series')->insert([
+            'id'         => (string) str()->ulid(),
+            'name'       => 'Purchase Request',
+            'model'      => SubmitableSnapshotDocument::class,
+            'logs'       => json_encode(['i' => ['current' => 0, 'updated_at' => now()->subDay()->toDateTimeString()]]),
+            'format'     => 'PR-@[iiii]',
+            'created_at' => now(),
+            'updated_at' => now(),
+        ]);
+
+        $amended = SubmitableSnapshotDocument::create([
+            'code'            => 'PR-0001-1',
+            'amended_from_id' => (string) str()->ulid(),
+        ]);
+
+        $logsBefore = DB::table('formating_series')->where('model', SubmitableSnapshotDocument::class)->value('logs');
+
+        $result = FormatingSeries::generate(SubmitableSnapshotDocument::class, $amended);
+
+        $this->assertSame('PR-0001-1', $result);
+
+        $logsAfter = DB::table('formating_series')->where('model', SubmitableSnapshotDocument::class)->value('logs');
+        $this->assertSame($logsBefore, $logsAfter);
+    }
+
+    public function test_formating_series_generate_still_generates_for_non_amended_document(): void {
+        DB::table('formating_series')->insert([
+            'id'         => (string) str()->ulid(),
+            'name'       => 'Purchase Request',
+            'model'      => SubmitableSnapshotDocument::class,
+            'logs'       => json_encode(['i' => ['current' => 0, 'updated_at' => now()->subDay()->toDateTimeString()]]),
+            'format'     => 'PR-@[iiii]',
+            'created_at' => now(),
+            'updated_at' => now(),
+        ]);
+
+        $document = SubmitableSnapshotDocument::create([
+            'code' => 'TEMP-001',
+        ]);
+
+        $result = FormatingSeries::generate(SubmitableSnapshotDocument::class, $document, true);
+
+        $this->assertSame('PR-(DRAFT/0001)', $result);
     }
 }
 

@@ -20,10 +20,12 @@ use App\Models\User\User;
 use App\Services\Core\Approval\ApprovalService;
 use Illuminate\Database\Eloquent\Relations\HasMany;
 use Illuminate\Database\Eloquent\Relations\MorphMany;
+use Illuminate\Database\QueryException;
 use Illuminate\Support\Collection;
 use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Schema;
+use Illuminate\Validation\ValidationException;
 
 trait Submitable {
     use DataTable, HasBranch;
@@ -196,15 +198,51 @@ trait Submitable {
         });
     }
 
+    /**
+     * Nama kolom generated/computed (storedAs/virtualAs) milik tabel, di-cache
+     * per-request karena Schema::getColumns() query ke information_schema/
+     * pragma_table_xinfo tiap dipanggil. Kolom ini wajib di-exclude dari
+     * replicate() — DB (MySQL STORED maupun SQLite) menolak INSERT eksplisit
+     * ke kolom generated.
+     *
+     * @return array<int, string>
+     */
+    protected static function generatedColumnsOf(string $table): array {
+        static $cache = [];
+
+        return $cache[$table] ??= collect(Schema::getColumns($table))
+            ->filter(fn (array $column) => $column['generation'] !== null)
+            ->pluck('name')
+            ->all();
+    }
+
+    /**
+     * Nama kolom foreign key pada tabel yang menunjuk ke tabel itu sendiri
+     * (self-reference, mis. `parent_item_id` pada tabel split-item). Kolom
+     * ini butuh remapping id lama -> id baru saat amend, bukan sekadar
+     * di-copy mentah — lihat blok two-pass replicate item di amend().
+     *
+     * @return array<int, string>
+     */
+    protected static function selfReferencingColumnsOf(string $table): array {
+        static $cache = [];
+
+        return $cache[$table] ??= collect(Schema::getForeignKeys($table))
+            ->filter(fn (array $foreignKey) => $foreignKey['foreign_table'] === $table)
+            ->flatMap(fn (array $foreignKey) => $foreignKey['columns'])
+            ->all();
+    }
+
     public function amend($withRelations = true) {
         DB::beginTransaction();
         $this->loadAllRelations(HasMany::class, MorphMany::class);
         if ($this->amended_from_id == null) {
-            $this->increment('revision_number');
-            $newCode       = $this->code . "-{$this->revision_number}";
-            $amendedFromId = $this->id;
+            $root = static::query()->whereKey($this->id)->lockForUpdate()->firstOrFail();
+            $root->increment('revision_number');
+            $newCode       = $root->code . "-{$root->revision_number}";
+            $amendedFromId = $root->id;
         } else {
-            $dataOri = $this->amendedFrom;
+            $dataOri = static::query()->whereKey($this->amended_from_id)->lockForUpdate()->firstOrFail();
             $dataOri->increment('revision_number');
             $newCode       = $dataOri->code . "-{$dataOri->revision_number}";
             $amendedFromId = $dataOri->id;
@@ -221,32 +259,79 @@ trait Submitable {
             'created_by_id',
             'code',
             'submitted_format',
+            ...static::generatedColumnsOf($this->getTable()),
         ]);
         $newData->code            = $newCode;
         $newData->amended_from_id = $amendedFromId;
 
-        if ($withRelations) {
-            $newData->push();
-            foreach ($this->getRelations() as $key => $value) {
-                if ($value instanceof Collection) {
-                    $foreignKey = $newData->$key()->getForeignKeyName();
-                    foreach ($value as $item) {
-                        $item = $item->replicate([
-                            'id',
-                            'created_at',
-                            'updated_at',
-                            'deleted_at',
-                            ...$item->getGuarded(),
-                            $foreignKey,
-                        ]);
-                        $item->$foreignKey = $newData->id;
-                        $item->save();
-                    }
+        try {
+            if ($withRelations) {
+                $newData->push();
+                foreach ($this->getRelations() as $key => $value) {
+                    if ($value instanceof Collection) {
+                        $foreignKey = $newData->$key()->getForeignKeyName();
 
+                        // Pass 1: replicate tiap item, simpan mapping id lama -> item
+                        // baru. Urutan collection tidak menjamin item parent selesai
+                        // duluan, jadi remapping kolom self-reference (mis.
+                        // parent_item_id) tidak bisa dilakukan dalam loop yang sama.
+                        $idMap = [];
+                        foreach ($value as $item) {
+                            $oldId   = $item->id;
+                            $newItem = $item->replicate([
+                                'id',
+                                'created_at',
+                                'updated_at',
+                                'deleted_at',
+                                ...$item->getGuarded(),
+                                ...static::generatedColumnsOf($item->getTable()),
+                                $foreignKey,
+                            ]);
+                            $newItem->$foreignKey = $newData->id;
+                            $newItem->save();
+                            $idMap[$oldId] = $newItem;
+                        }
+
+                        // Pass 2: remap kolom self-reference (mis. parent_item_id)
+                        // dari id lama ke id baru sesuai mapping Pass 1. Item yang
+                        // acuannya di luar batch (tidak ada di $idMap) dibiarkan
+                        // apa adanya.
+                        if ($idMap !== []) {
+                            $table                  = reset($idMap)->getTable();
+                            $selfReferencingColumns = static::selfReferencingColumnsOf($table);
+                            foreach ($idMap as $newItem) {
+                                $updates = [];
+                                foreach ($selfReferencingColumns as $column) {
+                                    $oldReference = $newItem->$column;
+                                    if ($oldReference !== null && isset($idMap[$oldReference])) {
+                                        $updates[$column] = $idMap[$oldReference]->id;
+                                    }
+                                }
+                                if ($updates !== []) {
+                                    $newItem::query()->whereKey($newItem->id)->update($updates);
+                                    $newItem->forceFill($updates)->syncOriginalAttributes(array_keys($updates));
+                                }
+                            }
+                        }
+                    }
                 }
+            } else {
+                $newData->save();
             }
-        } else {
-            $newData->save();
+        } catch (QueryException $e) {
+            DB::rollBack();
+
+            if (($e->errorInfo[0] ?? null) === '23000') {
+                throw ValidationException::withMessages([
+                    'code' => 'Amend gagal, ada proses amend lain yang bersamaan — coba lagi.',
+                ]);
+            }
+
+            throw $e;
+        } catch (\Throwable $e) {
+            DB::rollBack();
+
+            throw $e;
         }
 
         event(new AuditableModelSaved($this, 'amended'));

@@ -21,8 +21,10 @@ use App\Models\Model;
 use App\Models\Sales\Customer;
 use App\Models\Sales\SalesOrder;
 use App\Models\Sales\SalesOrderItem;
+use App\Services\Finances\DocumentDiscountCalculator;
 use App\Traits\HasDefaultDelete;
 use App\Utils;
+use Illuminate\Support\Collection;
 use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Str;
@@ -63,6 +65,7 @@ class SalesOrderService implements SubmitableService {
         $data['base_currency_code']  = $salesOrder->base_currency_code;
         $data['exchange_rate']       = $salesOrder->exchange_rate;
         $data['source_warehouse_id'] = $data['source_warehouse']['id'] ?? null;
+        $data['basic_amount']        = $data['quantity'] * $data['price'];
 
         // Requirement 4, spec asset-service-billing: baris referenceable ke
         // AssetService/AssetServiceConsumedItem (opsional) — TIDAK mengubah
@@ -73,6 +76,42 @@ class SalesOrderService implements SubmitableService {
         }
 
         return $data;
+    }
+
+    /**
+     * Alokasikan diskon dokumen (jika ada) ke seluruh item, tulis basic_amount/tax_amount/
+     * amount hasil alokasi ke tiap item model, lalu kembalikan total basic_amount & tax_amount
+     * header. basic_amount/tax_amount/amount bukan generated column lagi (lihat migration
+     * convert_sales_order_items_amounts_to_stored_columns) -- Service layer ini yang jadi
+     * satu-satunya penulis nilai tsb. discount_amount selalu dipakai sebagai nilai otoritatif
+     * (bukan discount_rate) -- lihat catatan yang sama di PurchaseOrderService.
+     *
+     * @param  Collection<int, SalesOrderItem>  $items
+     * @return array{basic_amount: float, tax_amount: float}
+     */
+    private function applyDiscountToItems(SalesOrder $salesOrder, Collection $items): array {
+        $lines = $items->map(fn (SalesOrderItem $item) => [
+            'basic_amount' => $item->basic_amount,
+            'tax_rate'     => $item->tax_rate,
+        ])->all();
+
+        $allocated = DocumentDiscountCalculator::allocate(
+            $lines,
+            $salesOrder->discount_on,
+            $salesOrder->discount_rate ?? 0,
+            $salesOrder->discount_amount ?? 0,
+            'discount_amount',
+        );
+
+        $basicAmount = 0;
+        $taxAmount   = 0;
+        foreach ($items->values() as $index => $item) {
+            $item->forceFill($allocated[$index])->save();
+            $basicAmount += $allocated[$index]['basic_amount'];
+            $taxAmount += $allocated[$index]['tax_amount'];
+        }
+
+        return ['basic_amount' => $basicAmount, 'tax_amount' => $taxAmount];
     }
 
     private function fillPaymentScheduleRelations(array $data, SalesOrder $salesOrder) {
@@ -90,25 +129,21 @@ class SalesOrderService implements SubmitableService {
     public function create(array $data): Model {
         $data['code'] = FormatingSeries::generate(SalesOrder::class, $data, true);
         $salesOrder   = SalesOrder::create($this->fillRelations($data));
-        $basicAmount  = 0;
-        $taxAmount    = 0;
 
         $unitIds = collect($data['items'])->pluck('unit.id')->filter()->unique()->values();
         $units   = ItemUnit::whereIn('item_units.id', $unitIds)->get()->keyBy('id')->all();
         $taxIds  = collect($data['items'])->pluck('tax.id')->filter()->unique()->values();
         $taxes   = Tax::whereIn('id', $taxIds)->get()->keyBy('id')->all();
 
+        $items = collect();
         foreach ($data['items'] as $item) {
             $item = $this->fillItemRelations($item, $salesOrder, $units, $taxes);
-            $item = $salesOrder->items()->create($item);
-
-            $item->refresh();
-            $basicAmount += $item->basic_amount;
-            $taxAmount += $item->tax_amount;
+            $items->push($salesOrder->items()->create($item));
         }
-        $totalAmount = Utils::countAmount($basicAmount, $taxAmount, $salesOrder->discount_on, $salesOrder->discount_amount);
+
+        $totals = $this->applyDiscountToItems($salesOrder, $items);
         $salesOrder->update([
-            'amount' => $totalAmount,
+            'amount' => $totals['basic_amount'] + $totals['tax_amount'],
         ]);
         foreach ($data['payment_schedules'] ?? [] as $payment_schedule) {
             $payment_schedule = $this->fillPaymentScheduleRelations($payment_schedule, $salesOrder);
@@ -135,14 +170,13 @@ class SalesOrderService implements SubmitableService {
             ->whereIn('id', $itemIds)
             ->get()
             ->keyBy('id');
-        $basicAmount = 0;
-        $taxAmount   = 0;
 
         $unitIds = collect($data['items'])->pluck('unit.id')->filter()->unique()->values();
         $units   = ItemUnit::whereIn('item_units.id', $unitIds)->get()->keyBy('id')->all();
         $taxIds  = collect($data['items'])->pluck('tax.id')->filter()->unique()->values();
         $taxes   = Tax::whereIn('id', $taxIds)->get()->keyBy('id')->all();
 
+        $items = collect();
         foreach ($data['items'] as $item) {
             $item = $this->fillItemRelations($item, $salesOrder, $units, $taxes);
 
@@ -158,13 +192,12 @@ class SalesOrderService implements SubmitableService {
                 $itemModel = $salesOrder->items()->create($item);
             }
 
-            $itemModel->refresh();
-            $basicAmount += $itemModel->basic_amount;
-            $taxAmount += $itemModel->tax_amount;
+            $items->push($itemModel);
         }
-        $totalAmount = Utils::countAmount($basicAmount, $taxAmount, $salesOrder->discount_on, $salesOrder->discount_amount);
+
+        $totals = $this->applyDiscountToItems($salesOrder, $items);
         $salesOrder->fill([
-            'amount' => $totalAmount,
+            'amount' => $totals['basic_amount'] + $totals['tax_amount'],
         ]);
         $salesOrder->save();
 
@@ -415,6 +448,7 @@ class SalesOrderService implements SubmitableService {
                         'tax_id'              => $g['tax_id'],
                         'tax_rate'            => $g['tax_rate'],
                         'source_warehouse_id' => $g['warehouse_id'],
+                        'basic_amount'        => $soItem->quantity * $g['price'],
                     ]);
                     $soItem->refresh();
                     $syncLog[] = ['action' => 'update', 'so_item_id' => $soItem->id, 'price' => $g['price']];
@@ -432,6 +466,7 @@ class SalesOrderService implements SubmitableService {
                             'delivered_quantity'  => 0,
                             'billed_quantity'     => 0,
                             'parent_item_id'      => $parentId,
+                            'basic_amount'        => $g['qty'] * $g['price'],
                         ]);
                         $newItem->id = (string) Str::ulid();
                         $newItem->save();
@@ -458,15 +493,9 @@ class SalesOrderService implements SubmitableService {
             }
 
             $salesOrder->load('items');
-            $basicAmount = $salesOrder->items->sum('basic_amount');
-            $taxAmount   = $salesOrder->items->sum('tax_amount');
+            $totals = $this->applyDiscountToItems($salesOrder, $salesOrder->items);
             $salesOrder->update([
-                'amount' => Utils::countAmount(
-                    $basicAmount,
-                    $taxAmount,
-                    $salesOrder->discount_on,
-                    $salesOrder->discount_amount,
-                ),
+                'amount' => $totals['basic_amount'] + $totals['tax_amount'],
             ]);
 
             $this->updateSalesOrderStatus($salesOrder);

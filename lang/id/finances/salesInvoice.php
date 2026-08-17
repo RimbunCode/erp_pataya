@@ -88,5 +88,11 @@ return [
         'asset_lines.asset'             => 'Asset',
         'asset_lines.asset.placeholder' => 'Pilih Asset',
         'asset_lines.quantity'          => 'Kuantitas',
+        'tax_invoice_transaction_code'  => 'Kode Transaksi Faktur Pajak',
+        'tax_invoice_serial_number'     => 'Nomor Seri Faktur Pajak',
+        'tax_invoice_date'              => 'Tanggal Faktur Pajak',
+        'tax_invoice_dpp_amount'        => 'DPP Faktur Pajak',
+        'tax_invoice_ppn_amount'        => 'PPN Faktur Pajak',
+        'tax_invoice_ppnbm_amount'      => 'PPnBM Faktur Pajak',
     ],
 ];

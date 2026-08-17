@@ -17,7 +17,7 @@ import { useLaravelReactI18n } from "laravel-react-i18n";
 
 export default function Form() {
   const { t } = useLaravelReactI18n();
-  const { data, setData } = useFormPage();
+  const { data, setData, dataBefore } = useFormPage();
 
   return (
     <>
@@ -71,6 +71,7 @@ export default function Form() {
           <FormCheckbox
             label={t("purchase.supplier.columns.is_disabled")}
             checked={data?.is_disabled}
+            valueBefore={dataBefore?.is_disabled}
             onCheckedChange={(e) => setData("is_disabled", e)}
           />
         </div>
@@ -87,6 +88,7 @@ export default function Form() {
           label={t("sales.customer.columns.street")}
           required={true}
           className="col-span-full"
+          name="street"
         >
           <Textarea
             value={data?.street ?? ""}
@@ -109,6 +111,7 @@ export default function Form() {
             name="province"
             label={t("sales.customer.columns.province")}
             required={true}
+            name="province"
           >
             <Input
               value={data?.province ?? ""}
@@ -119,6 +122,7 @@ export default function Form() {
             name="zip_code"
             label={t("sales.customer.columns.zip_code")}
             required={true}
+            name="zip_code"
           >
             <Input
               value={data?.zip_code ?? ""}
@@ -130,6 +134,7 @@ export default function Form() {
             name="country"
             label={t("sales.customer.columns.country")}
             required={true}
+            name="country"
           >
             <CountryLinkModel
               placeholder={t("sales.customer.columns.country.placeholder")}
@@ -184,6 +189,7 @@ export default function Form() {
             branchable_type: "App\\Models\\Sales\\Customer",
           }}
           value={data.branches ?? []}
+          valueBefore={dataBefore?.branches}
           onValueChange={(val) => {
             setData("branches", val);
           }}

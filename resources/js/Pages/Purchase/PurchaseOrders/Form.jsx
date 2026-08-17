@@ -2,6 +2,7 @@ import { FormPageContent, useFormPage } from "@/Pages/Core/FormPage";
 import React, { useCallback, useEffect } from "react";
 import SelectModel, { loadFromModel } from "@/Components/SelectModel";
 import { calculateArray, generateRandom } from "@/lib/utils";
+import { allocateDiscount } from "@/lib/discountAllocation";
 
 import AdditionalDiscount from "@/Pages/Finances/Components/AdditionalDiscount";
 import NumberInput from "@/Components/NumberInput";
@@ -24,7 +25,7 @@ import { usePage } from "@inertiajs/react";
 
 function Form() {
   const { t } = useLaravelReactI18n();
-  const { data, setData, defaultData, disabled } = useFormPage(
+  const { data, setData, defaultData, disabled, dataBefore } = useFormPage(
     {
       date: new Date(),
     },
@@ -33,13 +34,63 @@ function Form() {
   const loadFrom = usePage().props.loadFrom;
   const { default_currency_id } = usePage().props.preferences;
 
-  const net_amount = useMemo(() => {
-    return calculateArray(data.items, "basic_amount", "+");
+  // Dihitung langsung dari quantity*rate mentah + alokasi diskon saat ini --
+  // BUKAN dari calculateArray(data.items, "basic_amount", "+"). Alasan: field
+  // basic_amount/tax_amount di data.items hanya di-refresh oleh mapItem milik
+  // FormTable, dan mapItem itu cuma jalan ulang saat referensi array `items`
+  // berubah (lihat FormTable.jsx useEffect di applyMapItem) -- bukan saat
+  // discount_on/discount_rate/discount_amount berubah sendirian. Kalau header
+  // ikut bergantung ke data.items.basic_amount, Total jadi tidak reaktif saat
+  // user mengetik diskon tanpa menyentuh baris item. Menghitung ulang di sini
+  // membuat header selalu reaktif terlepas dari kapan mapItem terakhir jalan.
+  // Basis MENTAH (sebelum diskon) -- dipakai AdditionalDiscount untuk menghitung
+  // discount_amount dari discount_rate. Wajib terpisah dari net_amount/tax_amount
+  // di bawah (yang sudah hasil alokasi) karena kalau basis diskon ikut memakai
+  // angka yang sudah terpotong, discount_rate 10% akan memotong basis yang sudah
+  // menyusut di setiap render -- basis "menyusut" terus tiap kali user mengetik.
+  const rawLines = useMemo(() => {
+    return (data.items ?? [])
+      .filter((item) => item?.item)
+      .map((item) => ({
+        basic_amount: (item.quantity ?? 0) * (item.rate ?? 0),
+        tax_rate: item.tax?.rate ?? 0,
+      }));
   }, [data.items]);
 
+  const rawNetAmount = useMemo(() => {
+    return calculateArray(rawLines, "basic_amount", "+");
+  }, [rawLines]);
+
+  const rawTaxAmount = useMemo(() => {
+    return rawLines.reduce(
+      (sum, line) => sum + (line.basic_amount * line.tax_rate) / 100,
+      0,
+    );
+  }, [rawLines]);
+
+  const allocatedLines = useMemo(() => {
+    return allocateDiscount(
+      rawLines,
+      data.discount_on,
+      data.discount_rate ?? 0,
+      data.discount_amount ?? 0,
+      data.latestDiscountKey ?? "discount_rate",
+    );
+  }, [
+    rawLines,
+    data.discount_on,
+    data.discount_rate,
+    data.discount_amount,
+    data.latestDiscountKey,
+  ]);
+
+  const net_amount = useMemo(() => {
+    return calculateArray(allocatedLines, "basic_amount", "+");
+  }, [allocatedLines]);
+
   const tax_amount = useMemo(() => {
-    return calculateArray(data.items, "tax_amount", "+");
-  }, [data.items]);
+    return calculateArray(allocatedLines, "tax_amount", "+");
+  }, [allocatedLines]);
 
   const amount = useMemo(() => {
     return net_amount + tax_amount;
@@ -364,6 +415,7 @@ function Form() {
               name="supplier"
               label={t("purchase.purchaseOrder.columns.supplier")}
               required
+              name="supplier"
             >
               <SupplierLinkModel
                 value={data.supplier}
@@ -525,15 +577,35 @@ function Form() {
               readOnly={disabled}
               columns={itemColumns}
               value={data?.items}
+              valueBefore={dataBefore?.items}
               onValueChange={(v) => setData("items", v)}
               form={<ItemForm />}
-              mapItem={({ item }) => {
-                const amount = item.quantity * item.rate;
-                const rateAmount = (amount * (item.tax?.rate ?? 0)) / 100;
+              mapItem={({ item, dataTable, index }) => {
+                // Diskon dokumen (Diskon Tambahan) mengubah basic_amount/tax_amount
+                // SETIAP baris secara pro-rata, bukan cuma baris yang sedang di-edit --
+                // jadi alokasi dihitung ulang dari seluruh dataTable tiap kali salah
+                // satu baris berubah, lalu diambil hasil untuk baris ke-`index` ini saja.
+                const rows = dataTable ?? [];
+                const lines = rows.map((row, i) => ({
+                  basic_amount:
+                    i === index
+                      ? (item.quantity ?? 0) * (item.rate ?? 0)
+                      : (row.quantity ?? 0) * (row.rate ?? 0),
+                  tax_rate:
+                    i === index ? (item.tax?.rate ?? 0) : (row.tax?.rate ?? 0),
+                }));
+                const allocated = allocateDiscount(
+                  lines,
+                  data.discount_on,
+                  data.discount_rate ?? 0,
+                  data.discount_amount ?? 0,
+                  data.latestDiscountKey ?? "discount_rate",
+                );
+                const result = allocated[index] ?? allocated[0];
                 return {
                   ...item,
-                  tax_amount: rateAmount,
-                  basic_amount: amount,
+                  basic_amount: result?.basic_amount ?? 0,
+                  tax_amount: result?.tax_amount ?? 0,
                 };
               }}
             />
@@ -623,6 +695,8 @@ function Form() {
         setData={setData}
         netAmount={net_amount}
         taxAmount={tax_amount}
+        rawNetAmount={rawNetAmount}
+        rawTaxAmount={rawTaxAmount}
       />
 
       <FormPageContent
