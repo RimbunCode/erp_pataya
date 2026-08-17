@@ -32,8 +32,8 @@ enum TodoType: string {
      */
     public function overdueSchedule(): ?array {
         return match ($this) {
-            self::TASK     => ['daily_count' => 3, 'interval_days' => 7],
-            self::DEADLINE => ['daily_count' => 7, 'interval_days' => 3],
+            self::TASK                 => ['daily_count' => 3, 'interval_days' => 7],
+            self::DEADLINE             => ['daily_count' => 7, 'interval_days' => 3],
             self::EVENT, self::MEETING => null,
         };
     }

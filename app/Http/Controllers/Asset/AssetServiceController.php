@@ -89,7 +89,7 @@ class AssetServiceController extends Controller {
     protected function enforcePermission(string $method) {
         return match ($method) {
             'complete', 'storeActivity', 'updateActivity', 'billToRenter' => 'write',
-            default => parent::enforcePermission($method),
+            default                                                       => parent::enforcePermission($method),
         };
     }
 
