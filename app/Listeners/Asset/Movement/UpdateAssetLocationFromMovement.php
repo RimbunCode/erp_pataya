@@ -27,8 +27,8 @@ class UpdateAssetLocationFromMovement {
 
         $statusValues = match ($purpose) {
             AssetMovementPurpose::ISSUE, AssetMovementPurpose::TRANSFER_AND_ISSUE => array_values(array_unique([...$statusValues, FormStatus::ISSUED->value])),
-            AssetMovementPurpose::RECEIPT => array_values(array_diff($statusValues, [FormStatus::ISSUED->value])),
-            default                       => $statusValues,
+            AssetMovementPurpose::RECEIPT                                         => array_values(array_diff($statusValues, [FormStatus::ISSUED->value])),
+            default                                                               => $statusValues,
         };
 
         $asset->status = array_map(fn (string $v) => FormStatus::from($v), $statusValues);
