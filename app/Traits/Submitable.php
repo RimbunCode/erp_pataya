@@ -233,6 +233,41 @@ trait Submitable {
             ->all();
     }
 
+    /**
+     * Nama kolom generated/computed (storedAs/virtualAs) milik tabel, di-cache
+     * per-request karena Schema::getColumns() query ke information_schema/
+     * pragma_table_xinfo tiap dipanggil. Kolom ini wajib di-exclude dari
+     * replicate() — DB (MySQL STORED maupun SQLite) menolak INSERT eksplisit
+     * ke kolom generated.
+     *
+     * @return array<int, string>
+     */
+    protected static function generatedColumnsOf(string $table): array {
+        static $cache = [];
+
+        return $cache[$table] ??= collect(Schema::getColumns($table))
+            ->filter(fn (array $column) => $column['generation'] !== null)
+            ->pluck('name')
+            ->all();
+    }
+
+    /**
+     * Nama kolom foreign key pada tabel yang menunjuk ke tabel itu sendiri
+     * (self-reference, mis. `parent_item_id` pada tabel split-item). Kolom
+     * ini butuh remapping id lama -> id baru saat amend, bukan sekadar
+     * di-copy mentah — lihat blok two-pass replicate item di amend().
+     *
+     * @return array<int, string>
+     */
+    protected static function selfReferencingColumnsOf(string $table): array {
+        static $cache = [];
+
+        return $cache[$table] ??= collect(Schema::getForeignKeys($table))
+            ->filter(fn (array $foreignKey) => $foreignKey['foreign_table'] === $table)
+            ->flatMap(fn (array $foreignKey) => $foreignKey['columns'])
+            ->all();
+    }
+
     public function amend($withRelations = true) {
         DB::beginTransaction();
         $this->loadAllRelations(HasMany::class, MorphMany::class);
