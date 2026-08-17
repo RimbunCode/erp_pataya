@@ -3,6 +3,7 @@
 namespace App\Models\Asset;
 
 use App\Models\Inventory\Item;
+use App\Models\Inventory\ItemUnit;
 use App\Models\Model;
 use Illuminate\Database\Eloquent\Concerns\HasUlids;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
@@ -32,5 +33,9 @@ class AssetServiceConsumedItem extends Model {
 
     public function item(): BelongsTo {
         return $this->belongsTo(Item::class);
+    }
+
+    public function itemUnit(): BelongsTo {
+        return $this->belongsTo(ItemUnit::class);
     }
 }

@@ -18,7 +18,8 @@ class AssetServiceRequest extends FormRequest {
             'capitalize_repair_cost'         => ['nullable', 'boolean'],
             'increase_in_asset_life'         => ['nullable', 'integer'],
             'consumedItems'                  => ['nullable', 'array'],
-            'consumedItems.*.item_id'        => ['required_with:consumedItems', 'string', 'exists:items,id'],
+            'consumedItems.*.item.id'        => ['required_with:consumedItems', 'string', 'exists:items,id'],
+            'consumedItems.*.unit.id'        => ['required_with:consumedItems', 'string', 'exists:item_units,id'],
             'consumedItems.*.quantity'       => ['required_with:consumedItems', 'numeric', 'min:0'],
             'consumedItems.*.valuation_rate' => ['required_with:consumedItems', 'numeric', 'min:0'],
         ];

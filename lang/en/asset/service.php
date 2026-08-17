@@ -45,10 +45,16 @@ return [
         'increase_in_asset_life' => 'Increase in Asset Life (months)',
         'description'            => 'Description',
         'item'                   => 'Item',
+        'unit'                   => 'Unit',
         'quantity'               => 'Quantity',
         'valuation_rate'         => 'Valuation Rate',
         'bill_to_renter'         => 'Bill to Renter',
         'customer'               => 'Customer',
         'customer_branch'        => 'Customer Branch',
+    ],
+
+    'actions' => [
+        'create_pr' => 'Create Purchase Request',
+        'create_po' => 'Create Purchase Order',
     ],
 ];

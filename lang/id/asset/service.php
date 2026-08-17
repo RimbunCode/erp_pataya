@@ -45,10 +45,16 @@ return [
         'increase_in_asset_life' => 'Penambahan Usia Aset (bulan)',
         'description'            => 'Deskripsi',
         'item'                   => 'Item',
+        'unit'                   => 'Unit',
         'quantity'               => 'Kuantitas',
         'valuation_rate'         => 'Harga Satuan',
         'bill_to_renter'         => 'Tagih ke Penyewa',
         'customer'               => 'Pelanggan',
         'customer_branch'        => 'Cabang Pelanggan',
+    ],
+
+    'actions' => [
+        'create_pr' => 'Buat Purchase Request',
+        'create_po' => 'Buat Purchase Order',
     ],
 ];

@@ -70,7 +70,9 @@ class AssetServiceService implements SubmitableService {
         $assetService->consumedItems()->whereNotIn('id', $itemIds)->delete();
 
         foreach ($items as $item) {
-            $payload = Arr::only($item, ['item_id', 'quantity', 'valuation_rate']);
+            $item['item_id']      = $item['item']['id'];
+            $item['item_unit_id'] = $item['unit']['id'];
+            $payload              = Arr::only($item, ['item_id', 'item_unit_id', 'quantity', 'valuation_rate']);
 
             if (Ulid::isValid((string) ($item['id'] ?? null))) {
                 $assetService->consumedItems()->where('id', $item['id'])->update($payload);

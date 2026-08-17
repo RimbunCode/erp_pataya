@@ -13,6 +13,7 @@ import FormInput from "@/Components/FormInput";
 import FormTable from "@/Components/FormTable";
 import { Input } from "@/Components/ui/input";
 import ItemLinkModel from "@/Pages/Inventory/Items/ItemLinkModel";
+import ItemUnitLinkModel from "@/Pages/Inventory/Items/ItemUnitLinkModel";
 import DatetimePicker from "@/Components/DatetimePicker";
 import React from "react";
 import { generateRandom } from "@/lib/utils";
@@ -45,8 +46,31 @@ export default function Form() {
           return (
             <ItemLinkModel
               value={value}
-              onValueChange={(val) => setData("item", val)}
+              onValueChange={(val) => {
+                const defaultUnit = val?.defaultUom;
+                setData({
+                  item: val,
+                  unit: defaultUnit,
+                });
+              }}
               {...attributes}
+              with={["defaultUom"]}
+            />
+          );
+        },
+      },
+      {
+        name: "unit",
+        titleTrans: "asset.service.columns.unit",
+        required: true,
+        cell({ dataRow, data: value, setData, attributes }) {
+          return (
+            <ItemUnitLinkModel
+              disabled={!dataRow?.item}
+              value={value}
+              onValueChange={(val) => setData("unit", val)}
+              {...attributes}
+              filters={{ item_id: dataRow?.item?.id }}
             />
           );
         },
