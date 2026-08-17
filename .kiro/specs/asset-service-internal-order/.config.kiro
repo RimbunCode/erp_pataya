@@ -1,0 +1,6 @@
+{
+  "specId": "3db4df87-57f1-483a-950f-88697478b505",
+  "workflowType": "requirements-first",
+  "specType": "feature",
+  "description": "Bridge AssetService (repair/maintenance) ke permintaan servis internal (non-customer) lewat InternalOrder/DeliveryNote — pola sama dengan asset-service-billing (Spec 7a), minus billing (tidak ada SalesInvoice, tidak ada resolusi customer). Bagian dari Spec 7 (dipecah dari rencana awal), sub-area InternalOrder saja. Investigasi WorkOrder (model Service domain legacy) mengonfirmasi WorkOrder harus dihapus setelah AssetService mencapai parity via spec ini + spec Procurement — keputusan hapus WorkOrder BUKAN scope spec ini, hanya dicatat sebagai konteks."
+}

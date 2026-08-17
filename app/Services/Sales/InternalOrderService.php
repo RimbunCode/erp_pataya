@@ -30,6 +30,14 @@ class InternalOrderService implements SubmitableService {
         $data['conversion_factor']   = $unit?->conversion_factor ?? 1;
         $data['source_warehouse_id'] = $data['source_warehouse']['id'] ?? null;
 
+        // Requirement 1, spec asset-service-internal-order: baris referenceable
+        // ke AssetService/AssetServiceConsumedItem (opsional) — TIDAK mengubah
+        // logic ItemVariant existing di atas, cuma cabang baru untuk field baru.
+        if (! empty($data['referenceable']['type']) && ! empty($data['referenceable']['id'])) {
+            $data['referenceable_type'] = $data['referenceable']['type'];
+            $data['referenceable_id']   = $data['referenceable']['id'];
+        }
+
         return $data;
     }
 
@@ -143,7 +151,7 @@ class InternalOrderService implements SubmitableService {
 
     public function updateInternalOrderStatus(InternalOrder $internalOrder): void {
         $undeliveredItems = $internalOrder->items()
-            ->leftJoin('item_variants', 'item_variants.id', '=', 'items.item_variant_id')
+            ->leftJoin('item_variants', 'item_variants.id', '=', 'internal_order_items.item_id')
             ->where('is_stock_item', true)
             ->select(['undelivered_quantity', 'quantity'])->get();
         $countUndeliveredItems = $undeliveredItems->sum('undelivered_quantity');

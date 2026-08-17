@@ -8,6 +8,7 @@ use App\Http\Requests\Finances\Rules\AdditionalDiscountRules;
 use App\Http\Requests\Finances\Rules\PaymentSchedulesRules;
 use App\Models\Asset\AssetService;
 use App\Models\Asset\AssetServiceConsumedItem;
+use App\Models\Sales\InternalOrderItem;
 use App\Models\Sales\SalesOrderItem;
 use App\Rules\ExistsExcludingTrashed;
 use Illuminate\Contracts\Validation\Validator;
@@ -113,10 +114,15 @@ class SalesOrderRequest extends BaseFormRequest {
                     continue;
                 }
 
+                // Requirement 2.3, spec asset-service-internal-order: 1:1 harus
+                // dicek LINTAS SalesOrderItem DAN InternalOrderItem sekaligus.
                 $alreadyUsed = SalesOrderItem::where('referenceable_type', AssetServiceConsumedItem::class)
                     ->where('referenceable_id', $id)
                     ->where('id', '!=', $item['id'] ?? null)
-                    ->exists();
+                    ->exists()
+                    || InternalOrderItem::where('referenceable_type', AssetServiceConsumedItem::class)
+                        ->where('referenceable_id', $id)
+                        ->exists();
 
                 if ($alreadyUsed) {
                     $validator->errors()->add(

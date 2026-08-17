@@ -212,7 +212,9 @@ class DeliveryNoteService implements SubmitableService {
             // Requirement 8.4, spec asset-service-billing: baris jasa AssetService
             // (bukan part/consumed item) TIDAK PERNAH menyentuh Stock/StockLedgerEntry
             // — murni dokumentasi serah-terima, mirip pola is_fixed_asset di atas.
-            if ($item->referenceable instanceof SalesOrderItem
+            // Requirement 3.2, spec asset-service-internal-order: diperluas ke
+            // InternalOrderItem — baris jasa dari InternalOrder juga harus skip.
+            if (($item->referenceable instanceof SalesOrderItem || $item->referenceable instanceof InternalOrderItem)
                 && $item->referenceable->referenceable_type === AssetService::class) {
                 $item->referenceable->increment('delivered_quantity', $item->quantity);
 

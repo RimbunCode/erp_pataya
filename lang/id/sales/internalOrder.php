@@ -24,6 +24,7 @@ return [
         'sent'                         => 'Terikirim',
         'created_at'                   => 'Dibuat pada',
         'external_note'                => 'Catatan Eksternal',
+        'referenceable_asset_service'  => 'Asset Service (opsional)',
     ],
     'actions' => [
         'create_delivery_note' => 'Buat Delivery Note',
