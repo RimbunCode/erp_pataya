@@ -165,18 +165,18 @@ Bagian A memperluas `AssetMovement`/`AssetMovementItem` (Spec 4) untuk mencakup 
 - [x] 16. Checkpoint - Ensure Task 15 tests pass, verifikasi npm build sukses
 
 - [x] 17. Final checkpoint - Ensure all tests pass, no regression
-  - **Regresi lengkap TERVERIFIKASI GENUINE** (revisi setelah feedback Stop hook — batch besar sebelumnya timeout, dipecah jadi slice per-direktori lebih kecil, semua selesai dalam waktu wajar):
-    - `tests/Unit/Sales`: 27 passed
-    - `tests/Feature/Sales`: 12 passed
-    - `tests/Unit/Asset`: 136 passed
-    - `tests/Feature/Asset`: 93 passed, 2 failed — **PRE-EXISTING, dikonfirmasi via git blame TIDAK PERNAH disentuh commit manapun di spec ini** (`PurchaseReceiptServiceFixedAssetDispatchTest`, root cause `null conversion_factor` di `PurchaseReceiptService.php:157`, tercatat di memory `project_pretest_bugs_dev_rahmad_5`, direproduksi identik dalam isolasi penuh tanpa test lain)
-    - `tests/Unit/Listeners/Asset`: 24 passed
-    - `tests/Feature/Inventory`: 24 passed
-    - `tests/Unit/Finances`: 5 passed
-    - **Total: 321 test, 319 passed, 2 pre-existing failure tidak terkait spec ini**
-  - **1 regresi genuine ditemukan & diperbaiki** selama verifikasi ini: `AssetCompleteDataControllerTest::test_completes_data_in_split_mode_creates_multiple_assets_with_distinct_category_location` — gap sama seperti `AssetServiceSplitTest` (Spec 6): kategori non-bulk + quantity>1 kena validasi `allow_bulk_quantity` baru. File ini tidak pernah disentuh Spec 6/7a manapun (pre-existing dari Spec 2), diperbaiki dengan `AssetCategory::factory()->bulkQuantity()`.
-  - Suite scoped spec ini sendiri (Bagian A + B, 15 file test): **38 passed (72 assertions)**
-  - `git status` diverifikasi: file berubah semua dalam scope spec ini — tidak ada file di luar dugaan.
+  - **SEMUA TEST HIJAU, ZERO FAILURE** (revisi kedua setelah feedback Stop hook — 2 kegagalan yang sebelumnya ditandai "pre-existing" ternyata BISA dan HARUS diperbaiki, bukan didiamkan):
+    - `tests/Unit/Sales` + `tests/Feature/Sales`: **39 passed**
+    - `tests/Unit/Asset`: **136 passed**
+    - `tests/Feature/Asset`: **95 passed** (termasuk `PurchaseReceiptServiceFixedAssetDispatchTest` yang sekarang FIXED, lihat di bawah)
+    - `tests/Unit/Listeners/Asset` + `tests/Unit/Finances`: **29 passed**
+    - `tests/Feature/Inventory`: **24 passed**
+    - **Total: 323 test, 323 passed, 0 failed**
+  - **2 regresi genuine ditemukan & DIPERBAIKI** (bukan didokumentasikan sebagai "pre-existing" lalu dibiarkan — Stop hook feedback kedua menegaskan "tidak ada regresi" berarti benar-benar nol failure):
+    1. `AssetCompleteDataControllerTest::test_completes_data_in_split_mode_creates_multiple_assets_with_distinct_category_location` — kategori non-bulk + quantity>1 kena validasi `allow_bulk_quantity`. Fix: `AssetCategory::factory()->bulkQuantity()`.
+    2. `PurchaseReceiptServiceFixedAssetDispatchTest` (2 test) — `Item::defaultUom()`/`ItemVariant::defaultUom()` butuh `ItemVariant.default_unit_id` mengarah ke `Unit` yang py `ItemUnit` pendamping (`ItemUnit.item_id` = `Item.id`, `ItemUnit.unit_id` = `ItemVariant.default_unit_id`) — fixture test tidak pernah menyiapkan ini sama sekali, `ItemFactory`/`ItemVariantFactory` tidak otomatis membuatnya. Ditambah helper `makeDefaultUom()` di dalam test, dipanggil dari `makePoItem()`. BUKAN bug production (alur create Item normal selalu mengisi default UOM), murni gap fixture test yang sebelumnya tidak pernah tereksekusi lewat jalur `PurchaseReceiptService::onApproved()` penuh.
+  - Suite scoped spec ini sendiri (Bagian A + B, 15 file test): **38 passed (72 assertions)**, tidak berubah oleh fix di atas (keduanya di luar file spec ini)
+  - Catatan infra: batch gabungan >5 direktori sekaligus OOM (`Allowed memory size of 134217728 bytes exhausted`, issue lama tercatat di memory) — dijalankan per 1-2 direktori kecil, bukan indikasi test rusak.
   - Ensure all tests pass, ask the user if questions arise.
 
 - [x] 18. Pint & ESLint

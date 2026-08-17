@@ -6,7 +6,10 @@ use App\Enums\FormStatus;
 use App\Events\Asset\FixedAssetItemApproved;
 use App\Models\Core\FormatingSeries;
 use App\Models\Inventory\Item;
+use App\Models\Inventory\ItemUnit;
+use App\Models\Inventory\ItemVariant;
 use App\Models\Inventory\StockLedgerEntry;
+use App\Models\Inventory\Unit;
 use App\Models\Model as BaseModel;
 use App\Models\Purchase\PurchaseOrder;
 use App\Models\Purchase\PurchaseOrderItem;
@@ -78,8 +81,36 @@ class PurchaseReceiptServiceFixedAssetDispatchTest extends TestCase {
         return BaseModel::withoutEvents($callback);
     }
 
+    /**
+     * ItemVariant::defaultUom() mencocokkan ItemUnit.unit_id ==
+     * ItemVariant.default_unit_id (ItemUnit.item_id tetap FK ke Item, BUKAN
+     * ItemVariant) — ItemVariantFactory tidak otomatis mengisi default_unit_id,
+     * jadi test harus menyediakannya eksplisit (production selalu terisi lewat
+     * alur create Item normal).
+     */
+    private function makeDefaultUom(Item $item, ItemVariant $itemVariant): ItemUnit {
+        $unit = Unit::create([
+            'code'              => 'PCS-' . fake()->unique()->numerify('####'),
+            'name'              => 'Pieces',
+            'conversion_factor' => 1,
+            'is_default'        => true,
+        ]);
+
+        $itemUnit = ItemUnit::create([
+            'item_id'           => $item->id,
+            'unit_id'           => $unit->id,
+            'conversion_factor' => 1,
+            'is_default'        => true,
+        ]);
+
+        $itemVariant->update(['default_unit_id' => $unit->id]);
+
+        return $itemUnit;
+    }
+
     private function makePoItem(Item $item, float $quantity, string $warehouseId): PurchaseOrderItem {
-        $variant  = ItemVariantFactory::new()->create(['item_id' => $item->id]);
+        $variant = ItemVariantFactory::new()->create(['item_id' => $item->id]);
+        $this->makeDefaultUom($item, $variant);
         $supplier = SupplierFactory::new()->create();
 
         $this->actingAs($this->testUser);
