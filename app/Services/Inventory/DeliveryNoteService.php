@@ -10,6 +10,7 @@ use App\Events\Asset\AssetSoldViaDelivery;
 use App\Events\Core\DocumentSubmitted;
 use App\Events\Inventory\DeliveryNoteGeneralLedgerPostingRequested;
 use App\Events\Sales\Order\DocumentDeliveryStatusRecalculationRequested;
+use App\Models\Asset\AssetService;
 use App\Models\Core\FormatingSeries;
 use App\Models\Core\GlPostingStatus;
 use App\Models\Inventory\DeliveryNote;
@@ -208,6 +209,16 @@ class DeliveryNoteService implements SubmitableService {
                 continue;
             }
 
+            // Requirement 8.4, spec asset-service-billing: baris jasa AssetService
+            // (bukan part/consumed item) TIDAK PERNAH menyentuh Stock/StockLedgerEntry
+            // — murni dokumentasi serah-terima, mirip pola is_fixed_asset di atas.
+            if ($item->referenceable instanceof SalesOrderItem
+                && $item->referenceable->referenceable_type === AssetService::class) {
+                $item->referenceable->increment('delivered_quantity', $item->quantity);
+
+                continue;
+            }
+
             $availableToRent = $toReference->is_rent && $item->item->type == 'vehicle';
             if ($availableToRent) {
                 $isRent = true;
@@ -269,6 +280,7 @@ class DeliveryNoteService implements SubmitableService {
                     'stock_queue'                => $stock->stock_queue,
                     'referenceable_type'         => DeliveryNote::class,
                     'referenceable_id'           => $deliveryNote->id,
+                    'transaction_date'           => $deliveryNote->delivery_date,
                 ]);
 
                 continue;
@@ -316,6 +328,7 @@ class DeliveryNoteService implements SubmitableService {
                     'stock_queue'                => $stock->stock_queue,
                     'referenceable_type'         => DeliveryNote::class,
                     'referenceable_id'           => $deliveryNote->id,
+                    'transaction_date'           => $deliveryNote->delivery_date,
                 ]);
             } else {
                 foreach ($queue as $q) {
@@ -383,6 +396,7 @@ class DeliveryNoteService implements SubmitableService {
                     'stock_queue'                => $stock->stock_queue,
                     'referenceable_type'         => DeliveryNote::class,
                     'referenceable_id'           => $deliveryNote->id,
+                    'transaction_date'           => $deliveryNote->delivery_date,
                 ]);
             }
         }

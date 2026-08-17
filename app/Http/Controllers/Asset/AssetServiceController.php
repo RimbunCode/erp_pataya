@@ -48,7 +48,12 @@ class AssetServiceController extends Controller {
             'assetService' => function () use ($assetService) {
                 $assetService->loadRelations();
 
-                return $assetService;
+                return array_merge($assetService->toArray(), [
+                    // Requirement 6, spec asset-service-billing: dihitung sekali
+                    // di sini (bukan Asset::$appends generik) supaya tidak
+                    // membebani setiap query/listing Asset lain.
+                    'has_active_renter' => (bool) $assetService->resolvedAsset()?->activeRenter(),
+                ]);
             },
         ]);
     }
@@ -71,9 +76,19 @@ class AssetServiceController extends Controller {
         return back();
     }
 
+    /**
+     * Requirement 6, spec asset-service-billing: tandai servis ditagih ke
+     * penyewa aktif Asset (bukan pemilik) — snapshot customer/customer_branch.
+     */
+    public function billToRenter(AssetService $assetService) {
+        $assetService->billToRenter();
+
+        return back();
+    }
+
     protected function enforcePermission(string $method) {
         return match ($method) {
-            'complete', 'storeActivity', 'updateActivity' => 'write',
+            'complete', 'storeActivity', 'updateActivity', 'billToRenter' => 'write',
             default => parent::enforcePermission($method),
         };
     }

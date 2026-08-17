@@ -5,6 +5,8 @@ namespace Tests\Feature\Inventory;
 use App\Enums\FormStatus;
 use App\Models\Asset\Asset;
 use App\Models\Asset\AssetCategory;
+use App\Models\Asset\AssetMovement;
+use App\Models\Core\FormatingSeries;
 use App\Models\Inventory\DeliveryNote;
 use App\Models\Inventory\DeliveryNoteItem;
 use App\Models\Inventory\DeliveryNoteItemAsset;
@@ -18,11 +20,31 @@ use App\Models\User\Permission;
 use App\Models\User\User;
 use App\Services\Inventory\DeliveryNoteService;
 use Illuminate\Foundation\Testing\RefreshDatabase;
+use Illuminate\Support\Facades\DB;
 use PHPUnit\Framework\Attributes\Test;
 use Tests\TestCase;
 
 class DeliveryNoteServiceAssetBranchTest extends TestCase {
     use RefreshDatabase;
+
+    protected function setUp(): void {
+        parent::setUp();
+
+        // Requirement 2, spec asset-service-billing: DN approve rental/sell sekarang
+        // juga membuat AssetMovement — butuh FormatingSeries seed sama seperti test
+        // AssetMovement lain.
+        foreach ([FormatingSeries::class, Asset::class, AssetMovement::class] as $model) {
+            $model::initPermissions();
+        }
+
+        DB::table('preferences')->insert([
+            'key'        => 'timezone',
+            'value'      => json_encode('UTC'),
+            'is_example' => false,
+            'created_at' => now(),
+            'updated_at' => now(),
+        ]);
+    }
 
     private function makeSalesOrder(bool $isRent): SalesOrder {
         SalesOrder::initPermissions();

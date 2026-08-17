@@ -4,7 +4,9 @@ namespace App\Models\Asset;
 
 use App\Enums\AssetServiceType;
 use App\Models\Asset\Maintenance\AssetMaintenanceTask;
+use App\Models\Core\Branch;
 use App\Models\Model;
+use App\Models\Sales\Customer;
 use App\Services\Asset\AssetServiceService;
 use App\Traits\DataTable;
 use App\Traits\Submitable;
@@ -13,6 +15,7 @@ use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
 use Illuminate\Database\Eloquent\Relations\HasMany;
 use Illuminate\Database\Eloquent\SoftDeletes;
+use LogicException;
 
 class AssetService extends Model {
     use DataTable, HasFactory, HasUlids, SoftDeletes, Submitable;
@@ -26,6 +29,7 @@ class AssetService extends Model {
         'failure_date'           => 'datetime',
         'completion_date'        => 'datetime',
         'capitalize_repair_cost' => 'boolean',
+        'bill_to_renter'         => 'boolean',
     ];
     protected array $configColumns = [
         'code' => [
@@ -52,6 +56,8 @@ class AssetService extends Model {
             'activities.pic',
             'consumedItems.item',
             'branch',
+            'customer',
+            'customerBranch',
         ];
     }
 
@@ -88,5 +94,38 @@ class AssetService extends Model {
 
     public function totalRepairCost(): float {
         return (float) $this->consumedItems()->sum('total_value');
+    }
+
+    /**
+     * Requirement 10.2, spec asset-service-billing: PENGECUALIAN sadar —
+     * customer/customerBranch di sini adalah master data (bukan dokumen
+     * transaksi Sales), snapshot penyewa aktif Asset saat billToRenter()
+     * dipanggil. AssetService TETAP TIDAK boleh punya relasi ke SalesOrder/
+     * SalesOrderItem/SalesInvoice/DeliveryNote manapun.
+     */
+    public function customer(): BelongsTo {
+        return $this->belongsTo(Customer::class);
+    }
+
+    public function customerBranch(): BelongsTo {
+        return $this->belongsTo(Branch::class, 'customer_branch_id');
+    }
+
+    /**
+     * Requirement 6, spec asset-service-billing: snapshot (beku) penyewa aktif
+     * Asset terkait saat dipanggil — TIDAK berubah lagi otomatis walau status
+     * rental Asset berubah setelahnya.
+     */
+    public function billToRenter(): void {
+        $renter = $this->resolvedAsset()?->activeRenter();
+        if (! $renter) {
+            throw new LogicException(__('asset/service.not_currently_rented'));
+        }
+
+        $this->update([
+            'bill_to_renter'     => true,
+            'customer_id'        => $renter->customer_id,
+            'customer_branch_id' => $renter->customer_branch_id,
+        ]);
     }
 }

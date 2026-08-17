@@ -20,6 +20,9 @@ return [
         'receipt'            => 'Diterima',
         'transfer'           => 'Transfer',
         'transfer_and_issue' => 'Transfer dan Keluar',
+        'rent_out'           => 'Disewakan',
+        'return_from_rent'   => 'Retur dari Sewa',
+        'sell'               => 'Dijual',
     ],
 
     'columns' => [

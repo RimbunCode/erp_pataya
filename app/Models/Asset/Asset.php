@@ -2,6 +2,7 @@
 
 namespace App\Models\Asset;
 
+use App\Enums\AssetMovementPurpose;
 use App\Enums\AssetOwnershipType;
 use App\Enums\AssetType;
 use App\Enums\FormStatus;
@@ -121,6 +122,10 @@ class Asset extends Model {
         return $this->belongsTo(Customer::class, 'ownership_customer_id');
     }
 
+    public function ownershipCustomerBranch(): BelongsTo {
+        return $this->belongsTo(Branch::class, 'ownership_customer_branch_id');
+    }
+
     public function purchaseReceiptItem(): BelongsTo {
         return $this->belongsTo(PurchaseReceiptItem::class);
     }
@@ -131,6 +136,36 @@ class Asset extends Model {
 
     public function depreciationSchedules(): HasMany {
         return $this->hasMany(AssetDepreciationSchedule::class);
+    }
+
+    public function assetMovementItems(): HasMany {
+        return $this->hasMany(AssetMovementItem::class);
+    }
+
+    /**
+     * Penyewa aktif Asset ini (spec asset-service-billing) — AssetMovementItem
+     * purpose RENT_OUT paling baru yang BELUM ada pasangan RETURN_FROM_RENT
+     * sesudahnya. Null kalau Asset tidak sedang disewa.
+     */
+    public function activeRenter(): ?AssetMovementItem {
+        // Urutan berdasar `id` (ULID, sortable+unik), BUKAN created_at — dua
+        // AssetMovement bisa tercipta dalam detik yang sama (timestamp() presisi
+        // detik), created_at tidak cukup membedakan urutan sebenarnya.
+        $lastRentOut = $this->assetMovementItems()
+            ->whereHas('assetMovement', fn ($q) => $q->where('purpose', AssetMovementPurpose::RENT_OUT))
+            ->latest('id')
+            ->first();
+
+        if (! $lastRentOut) {
+            return null;
+        }
+
+        $hasReturn = $this->assetMovementItems()
+            ->whereHas('assetMovement', fn ($q) => $q->where('purpose', AssetMovementPurpose::RETURN_FROM_RENT))
+            ->where('id', '>', $lastRentOut->id)
+            ->exists();
+
+        return $hasReturn ? null : $lastRentOut;
     }
 
     /**

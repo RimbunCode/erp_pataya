@@ -2,7 +2,9 @@
 
 namespace App\Models\Asset;
 
+use App\Models\Core\Branch;
 use App\Models\Model;
+use App\Models\Sales\Customer;
 use App\Models\User\User;
 use Illuminate\Database\Eloquent\Concerns\HasUlids;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
@@ -12,6 +14,9 @@ class AssetMovementItem extends Model {
     use HasFactory, HasUlids;
 
     protected $guarded = ['id'];
+    protected $casts   = [
+        'quantity' => 'float',
+    ];
 
     public function assetMovement(): BelongsTo {
         return $this->belongsTo(AssetMovement::class);
@@ -35,5 +40,13 @@ class AssetMovementItem extends Model {
 
     public function toCustodian(): BelongsTo {
         return $this->belongsTo(User::class, 'to_custodian_id');
+    }
+
+    public function customer(): BelongsTo {
+        return $this->belongsTo(Customer::class);
+    }
+
+    public function customerBranch(): BelongsTo {
+        return $this->belongsTo(Branch::class, 'customer_branch_id');
     }
 }

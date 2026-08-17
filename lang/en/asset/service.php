@@ -9,9 +9,11 @@ return [
     'delete.confirm'     => 'Delete',
     'cancel'             => 'Cancel',
 
-    'checklist_not_complete'     => 'All activity checklist items must be marked done before completing this service.',
-    'asset_status_terminal'      => 'Asset is in a terminal status and cannot be repaired.',
-    'activity_requires_approval' => 'Activity log can only be edited after this service is submitted and approved.',
+    'checklist_not_complete'          => 'All activity checklist items must be marked done before completing this service.',
+    'asset_status_terminal'           => 'Asset is in a terminal status and cannot be repaired.',
+    'activity_requires_approval'      => 'Activity log can only be edited after this service is submitted and approved.',
+    'not_currently_rented'            => 'This asset is not currently rented out, so it cannot be billed to a renter.',
+    'consumed_item_quantity_exceeded' => 'The delivered quantity cannot exceed the consumed item quantity used for this service.',
 
     'type' => [
         'maintenance_task' => 'Maintenance Task',
@@ -45,5 +47,8 @@ return [
         'item'                   => 'Item',
         'quantity'               => 'Quantity',
         'valuation_rate'         => 'Valuation Rate',
+        'bill_to_renter'         => 'Bill to Renter',
+        'customer'               => 'Customer',
+        'customer_branch'        => 'Customer Branch',
     ],
 ];

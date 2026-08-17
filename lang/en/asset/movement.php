@@ -20,6 +20,9 @@ return [
         'receipt'            => 'Receipt',
         'transfer'           => 'Transfer',
         'transfer_and_issue' => 'Transfer and Issue',
+        'rent_out'           => 'Rent Out',
+        'return_from_rent'   => 'Return from Rent',
+        'sell'               => 'Sell',
     ],
 
     'columns' => [

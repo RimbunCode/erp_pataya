@@ -18,6 +18,7 @@ import React from "react";
 import { generateRandom } from "@/lib/utils";
 import { useLaravelReactI18n } from "laravel-react-i18n";
 import { useMemo } from "react";
+import { router } from "@inertiajs/react";
 
 const TYPES = ["maintenance_task", "repair"];
 
@@ -27,6 +28,12 @@ export default function Form() {
 
   const isRepair = data?.type === "repair";
   const isMaintenanceTask = data?.type === "maintenance_task";
+  const isApproved = (data?.status ?? []).includes("approved");
+  // Requirement 6, spec asset-service-billing: checkbox hanya tersedia kalau
+  // Asset terkait sedang berstatus rental (backend expose via has_active_renter,
+  // dihitung controller saat show — TIDAK di Asset::$appends, supaya tidak
+  // menambah query di setiap listing Asset).
+  const canBillToRenter = isApproved && data?.has_active_renter;
 
   const consumedItemColumns = useMemo(
     () => [
@@ -176,6 +183,42 @@ export default function Form() {
             onChange={(e) => setData("description", e.target.value)}
           />
         </FormInput>
+
+        {canBillToRenter && (
+          <FormInput
+            name="bill_to_renter"
+            label={t("asset.service.columns.bill_to_renter")}
+          >
+            <FormCheckbox
+              checked={data?.bill_to_renter ?? false}
+              disabled={data?.bill_to_renter}
+              onCheckedChange={(val) => {
+                if (!val) return;
+                router.post(route("assetServices.billToRenter", data.id));
+              }}
+            />
+          </FormInput>
+        )}
+        {data?.bill_to_renter && (
+          <>
+            <FormInput
+              name="customer"
+              label={t("asset.service.columns.customer")}
+            >
+              <Input value={data?.customer?.name ?? ""} disabled readOnly />
+            </FormInput>
+            <FormInput
+              name="customer_branch"
+              label={t("asset.service.columns.customer_branch")}
+            >
+              <Input
+                value={data?.customerBranch?.name ?? ""}
+                disabled
+                readOnly
+              />
+            </FormInput>
+          </>
+        )}
       </div>
 
       <div className="col-span-full">

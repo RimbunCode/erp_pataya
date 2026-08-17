@@ -4,6 +4,8 @@ import SelectModel, { loadFromModel } from "@/Components/SelectModel";
 import { calculateArray, generateRandom } from "@/lib/utils";
 
 import AdditionalDiscount from "@/Pages/Finances/Components/AdditionalDiscount";
+import AssetServiceLinkModel from "@/Pages/Asset/Services/AssetServiceLinkModel";
+import AssetServiceConsumedItemLinkModel from "@/Pages/Asset/Services/AssetServiceConsumedItemLinkModel";
 import BranchLinkModel from "@/Pages/Settings/Branches/BranchLinkModel";
 import NumberInput from "@/Components/NumberInput";
 import CurrencyLinkModel from "@/Pages/Core/CurrencyLinkModel";
@@ -172,6 +174,43 @@ export default memo(function Form() {
             {...attributes}
             with={["defaultUom", "item"]}
           />
+        );
+      },
+    },
+    {
+      name: "referenceable",
+      titleTrans: "sales.salesOrder.columns.referenceable_asset_service",
+      show: false,
+      width: 3,
+      cell({ _dataRow, data: value, setData, attributes }) {
+        // Requirement 4, spec asset-service-billing: opsional, TIDAK
+        // mempengaruhi baris ItemVariant biasa (default null/kosong).
+        const type = value?.type;
+        return (
+          <div className="flex w-full gap-x-1">
+            {type === "App\\Models\\Asset\\AssetServiceConsumedItem" ? (
+              <AssetServiceConsumedItemLinkModel
+                value={value?.id ? { id: value.id } : null}
+                onValueChange={(val) =>
+                  setData("referenceable", val ? { type, id: val.id } : null)
+                }
+                {...attributes}
+              />
+            ) : (
+              <AssetServiceLinkModel
+                value={value?.id ? { id: value.id } : null}
+                onValueChange={(val) =>
+                  setData(
+                    "referenceable",
+                    val
+                      ? { type: "App\\Models\\Asset\\AssetService", id: val.id }
+                      : null,
+                  )
+                }
+                {...attributes}
+              />
+            )}
+          </div>
         );
       },
     },

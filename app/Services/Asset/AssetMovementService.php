@@ -8,6 +8,8 @@ use App\Enums\FormStatus;
 use App\Events\Asset\AssetMovementApproved;
 use App\Models\Asset\AssetMovement;
 use App\Models\Core\FormatingSeries;
+use App\Models\Inventory\DeliveryNote;
+use App\Models\Inventory\DeliveryNoteItemAsset;
 use App\Models\Model;
 use Illuminate\Support\Arr;
 use Illuminate\Support\Facades\DB;
@@ -113,6 +115,34 @@ class AssetMovementService implements SubmitableService {
         $model->update(['status' => [FormStatus::DRAFT]]);
 
         return $model;
+    }
+
+    /**
+     * Requirement 2, spec asset-service-billing: AssetMovement rental/sale dibuat
+     * OTOMATIS (status APPROVED langsung, bypass approval chain) saat DeliveryNote
+     * yang mengandung baris rental/sale di-approve — DeliveryNote adalah gate-nya,
+     * bukan AssetMovement ini. Dipanggil dari listener Spec 6 (SetAssetInRent dst).
+     */
+    public function createFromRentalSale(DeliveryNoteItemAsset $line, AssetMovementPurpose $purpose): AssetMovement {
+        $deliveryNote = $line->deliveryNoteItem->deliveryNote;
+
+        $movement = AssetMovement::create([
+            'code'             => FormatingSeries::generate(AssetMovement::class, [], true),
+            'purpose'          => $purpose,
+            'transaction_date' => now(),
+            'status'           => [FormStatus::APPROVED],
+            'reference_type'   => DeliveryNote::class,
+            'reference_id'     => $deliveryNote->id,
+        ]);
+
+        $movement->items()->create([
+            'asset_id'           => $line->asset_id,
+            'quantity'           => $line->quantity,
+            'customer_id'        => $deliveryNote->customer_id,
+            'customer_branch_id' => $deliveryNote->customer_branch_id,
+        ]);
+
+        return $movement;
     }
 
     /**

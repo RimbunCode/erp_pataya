@@ -9,9 +9,11 @@ return [
     'delete.confirm'     => 'Hapus',
     'cancel'             => 'Batal',
 
-    'checklist_not_complete'     => 'Semua item checklist aktivitas harus ditandai selesai sebelum menyelesaikan servis ini.',
-    'asset_status_terminal'      => 'Aset berstatus terminal dan tidak dapat diperbaiki.',
-    'activity_requires_approval' => 'Activity log hanya dapat diisi setelah servis ini disubmit dan disetujui.',
+    'checklist_not_complete'          => 'Semua item checklist aktivitas harus ditandai selesai sebelum menyelesaikan servis ini.',
+    'asset_status_terminal'           => 'Aset berstatus terminal dan tidak dapat diperbaiki.',
+    'activity_requires_approval'      => 'Activity log hanya dapat diisi setelah servis ini disubmit dan disetujui.',
+    'not_currently_rented'            => 'Aset ini sedang tidak disewakan, sehingga tidak bisa ditagih ke penyewa.',
+    'consumed_item_quantity_exceeded' => 'Kuantitas yang diserahkan tidak boleh melebihi kuantitas consumed item yang dipakai untuk servis ini.',
 
     'type' => [
         'maintenance_task' => 'Tugas Maintenance',
@@ -45,5 +47,8 @@ return [
         'item'                   => 'Item',
         'quantity'               => 'Kuantitas',
         'valuation_rate'         => 'Harga Satuan',
+        'bill_to_renter'         => 'Tagih ke Penyewa',
+        'customer'               => 'Pelanggan',
+        'customer_branch'        => 'Cabang Pelanggan',
     ],
 ];

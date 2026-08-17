@@ -11,6 +11,7 @@ use App\Models\Inventory\ItemVariant;
 use App\Models\Inventory\Warehouse;
 use App\Models\Model;
 use Illuminate\Database\Eloquent\Concerns\HasUlids;
+use Illuminate\Database\Eloquent\Relations\MorphTo;
 use Illuminate\Database\Eloquent\SoftDeletes;
 
 class SalesOrderItem extends Model {
@@ -203,5 +204,14 @@ class SalesOrderItem extends Model {
 
     public function deliveryNoteItems() {
         return $this->morphMany(DeliveryNoteItem::class, 'referenceable', 'referenceable_type', 'referenceable_id');
+    }
+
+    /**
+     * Requirement 4, spec asset-service-billing: sumber generik non-Item (mis.
+     * AssetService/AssetServiceConsumedItem) — nullable, default null (perilaku
+     * ItemVariant biasa TIDAK berubah).
+     */
+    public function referenceable(): MorphTo {
+        return $this->morphTo();
     }
 }

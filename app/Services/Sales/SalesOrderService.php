@@ -64,6 +64,14 @@ class SalesOrderService implements SubmitableService {
         $data['exchange_rate']       = $salesOrder->exchange_rate;
         $data['source_warehouse_id'] = $data['source_warehouse']['id'] ?? null;
 
+        // Requirement 4, spec asset-service-billing: baris referenceable ke
+        // AssetService/AssetServiceConsumedItem (opsional) — TIDAK mengubah
+        // logic ItemVariant existing di atas, cuma cabang baru untuk field baru.
+        if (! empty($data['referenceable']['type']) && ! empty($data['referenceable']['id'])) {
+            $data['referenceable_type'] = $data['referenceable']['type'];
+            $data['referenceable_id']   = $data['referenceable']['id'];
+        }
+
         return $data;
     }
 

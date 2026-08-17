@@ -315,6 +315,7 @@ Route::middleware(['auth', 'lang', 'onboarded', 'app'])->group(function () {
     Route::resourceDetail('assetMaintenance', AssetMaintenanceController::class);
     // Asset Services
     Route::post('/assetServices/{assetService}/complete', [AssetServiceController::class, 'complete'])->name('assetServices.complete');
+    Route::post('/assetServices/{assetService}/billToRenter', [AssetServiceController::class, 'billToRenter'])->name('assetServices.billToRenter');
     Route::post('/assetServices/{assetService}/activities', [AssetServiceController::class, 'storeActivity'])->name('assetServices.activities.store');
     Route::put('/assetServices/activities/{activity}', [AssetServiceController::class, 'updateActivity'])->name('assetServices.activities.update');
     Route::resourceDetail('assetService', AssetServiceController::class, isSubmmitable: true);
