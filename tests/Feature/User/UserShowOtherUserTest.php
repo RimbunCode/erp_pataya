@@ -61,6 +61,10 @@ class UserShowOtherUserTest extends TestCase {
             ->get(route('users.show', $otherUser));
 
         $response->assertOk();
-        $response->assertInertia(fn ($page) => $page->where('user.id', $otherUser->id));
+
+        preg_match('/data-page="([^"]+)"/', $response->getContent(), $matches);
+        $page = json_decode(html_entity_decode($matches[1]), true);
+
+        $this->assertSame($otherUser->id, $page['props']['user']['id']);
     }
 }

@@ -3,6 +3,8 @@
 namespace Tests\Feature;
 
 use App\Models\Core\FormatingSeries;
+use App\Models\Inventory\Item;
+use App\Models\Inventory\Unit;
 use App\Models\Purchase\PurchaseOrder;
 use App\Models\Purchase\Supplier;
 use App\Models\User\User;
@@ -66,7 +68,14 @@ class PurchaseOrderDiscountPersistenceTest extends TestCase {
      * @return array{item_id: string, unit_id: string}
      */
     private function createItemWithUnit(): array {
-        $itemVariant = ItemVariantFactory::new()->create();
+        $unit = Unit::create([
+            'code' => 'UNIT-' . Str::random(6),
+            'name' => 'Unit ' . Str::random(6),
+        ]);
+
+        $item = Item::factory()->create(['default_unit_id' => $unit->id]);
+
+        $itemVariant = ItemVariantFactory::new()->for($item, 'item')->create();
 
         $itemUnitId = (string) Str::ulid();
         DB::table('item_units')->insert([
@@ -132,9 +141,15 @@ class PurchaseOrderDiscountPersistenceTest extends TestCase {
     public function test_case_a_create_without_discount(): void {
         $purchaseOrder = app(PurchaseOrderService::class)->create($this->buildPayload());
 
+        // Re-fetch -- create() mengubah basic_amount/tax_amount item lewat
+        // applyDiscountToItems() SETELAH items()->create(), jadi relasi items
+        // yang sudah ter-cache di $purchaseOrder masih berisi nilai sebelum
+        // alokasi diskon (HasMany::create() men-cache child ke parent).
+        $purchaseOrder = $purchaseOrder->fresh(['items']);
+
         $this->assertEqualsWithDelta(2000000, $purchaseOrder->items->sum('basic_amount'), 0.01);
         $this->assertEqualsWithDelta(210000, $purchaseOrder->items->sum('tax_amount'), 0.01);
-        $this->assertEqualsWithDelta(2210000, $purchaseOrder->fresh()->amount, 0.01);
+        $this->assertEqualsWithDelta(2210000, $purchaseOrder->amount, 0.01);
     }
 
     public function test_case_b_create_with_ten_percent_discount_on_net_total(): void {

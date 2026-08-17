@@ -5,6 +5,8 @@ namespace Tests\Feature;
 use App\Models\Core\Branch;
 use App\Models\Core\Country;
 use App\Models\Core\FormatingSeries;
+use App\Models\Inventory\Item;
+use App\Models\Inventory\Unit;
 use App\Models\Sales\Customer;
 use App\Models\Sales\SalesOrder;
 use App\Models\User\User;
@@ -55,7 +57,14 @@ class SalesOrderDiscountPersistenceTest extends TestCase {
      * @return array{item_id: string, unit_id: string}
      */
     private function createItemWithUnit(): array {
-        $itemVariant = ItemVariantFactory::new()->create();
+        $unit = Unit::create([
+            'code' => 'UNIT-' . Str::random(6),
+            'name' => 'Unit ' . Str::random(6),
+        ]);
+
+        $item = Item::factory()->create(['default_unit_id' => $unit->id]);
+
+        $itemVariant = ItemVariantFactory::new()->for($item, 'item')->create();
 
         $itemUnitId = (string) Str::ulid();
         DB::table('item_units')->insert([
@@ -124,9 +133,14 @@ class SalesOrderDiscountPersistenceTest extends TestCase {
     public function test_case_a_create_without_discount(): void {
         $salesOrder = app(SalesOrderService::class)->create($this->buildPayload());
 
+        // Re-fetch -- lihat catatan yang sama di PurchaseOrderDiscountPersistenceTest
+        // soal HasMany::create() men-cache relasi items dengan nilai sebelum
+        // applyDiscountToItems() jalan.
+        $salesOrder = $salesOrder->fresh(['items']);
+
         $this->assertEqualsWithDelta(2000000, $salesOrder->items->sum('basic_amount'), 0.01);
         $this->assertEqualsWithDelta(210000, $salesOrder->items->sum('tax_amount'), 0.01);
-        $this->assertEqualsWithDelta(2210000, $salesOrder->fresh()->amount, 0.01);
+        $this->assertEqualsWithDelta(2210000, $salesOrder->amount, 0.01);
     }
 
     public function test_case_b_create_with_ten_percent_discount_on_net_total(): void {
