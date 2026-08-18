@@ -34,6 +34,7 @@ class SalesInvoiceItem extends Model {
         'tax_rate'            => 'float',
         'exchange_rate'       => 'float',
         'basic_amount'        => 'float',
+        'discount_amount'     => 'float',
         'dpp_amount'          => 'float',
         'tax_amount'          => 'float',
     ];

@@ -12,13 +12,17 @@ class DocumentDiscountCalculator {
 
     /**
      * Alokasikan diskon dokumen header ($document->discount_on/discount_rate/discount_amount)
-     * ke tiap item baris ($items, masing-masing punya basic_amount & tax_rate), tulis hasilnya
-     * langsung ke tiap item model (forceFill + save), lalu kembalikan total basic_amount &
-     * tax_amount header. Dipakai PurchaseOrderService/SalesOrderService -- logic identik,
-     * disatukan di sini supaya rule alokasi tidak terduplikasi per Service.
+     * ke tiap item baris ($items, masing-masing punya basic_amount & tax_rate). basic_amount
+     * (kotor, quantity*rate/price) TETAP generated column -- diskon TIDAK menimpa basic_amount,
+     * melainkan ditulis ke kolom terpisah discount_amount, konsisten dengan
+     * PurchaseInvoiceItem/SalesInvoiceItem (lihat migration
+     * add_discount_amount_to_purchase_order_items_table). Beda dari
+     * applyDiscountColumnToItems() (varian Invoice): PurchaseOrderItem/SalesOrderItem tidak
+     * punya kolom dpp_amount sebagai perantara, jadi tax_amount/amount TETAP kolom biasa yang
+     * ditulis langsung di sini, bukan generated dari discount_amount.
      *
      * @param  Collection<int, Model>  $items  item model dengan attribute basic_amount & tax_rate
-     * @return array{basic_amount: float, tax_amount: float}
+     * @return array{basic_amount: float, tax_amount: float} total basic_amount(net)/tax_amount header
      */
     public static function applyToItems(Model $document, Collection $items): array {
         $lines = $items->map(fn (Model $item) => [
@@ -42,7 +46,53 @@ class DocumentDiscountCalculator {
         $basicAmount = 0;
         $taxAmount   = 0;
         foreach ($items->values() as $index => $item) {
-            $item->forceFill($allocated[$index])->save();
+            $line            = $lines[$index];
+            $discountForLine = round($line['basic_amount'] - $allocated[$index]['basic_amount'], 2);
+            $item->forceFill([
+                'discount_amount' => $discountForLine,
+                'tax_amount'      => $allocated[$index]['tax_amount'],
+                'amount'          => $allocated[$index]['amount'],
+            ])->save();
+            $basicAmount += $allocated[$index]['basic_amount'];
+            $taxAmount += $allocated[$index]['tax_amount'];
+        }
+
+        return ['basic_amount' => $basicAmount, 'tax_amount' => $taxAmount];
+    }
+
+    /**
+     * Varian applyToItems() untuk Invoice: basic_amount (kotor, quantity*rate) TETAP
+     * generated column -- diskon TIDAK menimpa basic_amount, melainkan ditulis ke kolom
+     * terpisah discount_amount. dpp_amount/tax_amount/amount item mengikuti secara generated
+     * dari (basic_amount - discount_amount) via migration
+     * convert_invoice_items_discount_columns, sehingga hasil akhirnya tetap konsisten dengan
+     * DPP setelah diskon (Requirement 1 spec dpp-discount-and-tax-compliance) tanpa mengubah
+     * basic_amount kotor yang jadi basis harga jual/beli asli.
+     *
+     * @param  Collection<int, Model>  $items  item model dengan attribute basic_amount & tax_rate
+     * @return array{basic_amount: float, tax_amount: float} total basic_amount(net)/tax_amount header
+     */
+    public static function applyDiscountColumnToItems(Model $document, Collection $items, float $dppFactor): array {
+        $lines = $items->map(fn (Model $item) => [
+            'basic_amount' => $item->basic_amount,
+            'tax_rate'     => $item->tax_rate,
+        ])->all();
+
+        $allocated = self::allocate(
+            $lines,
+            $document->discount_on,
+            $document->discount_rate ?? 0,
+            $document->discount_amount ?? 0,
+            'discount_amount',
+            $dppFactor,
+        );
+
+        $basicAmount = 0;
+        $taxAmount   = 0;
+        foreach ($items->values() as $index => $item) {
+            $line            = $lines[$index];
+            $discountForLine = $line['basic_amount'] - $allocated[$index]['basic_amount'];
+            $item->forceFill(['discount_amount' => round($discountForLine, 2)])->save();
             $basicAmount += $allocated[$index]['basic_amount'];
             $taxAmount += $allocated[$index]['tax_amount'];
         }
@@ -57,6 +107,9 @@ class DocumentDiscountCalculator {
      * @param  array<int, array{basic_amount: float, tax_rate: float}>  $lines
      * @param  string|null  $discountOn  'net_total' | 'grand_total' | null (tanpa diskon)
      * @param  string|null  $latestDiscountKey  'discount_rate' | 'discount_amount' -- menentukan input mana yang otoritatif
+     * @param  float|null  $dppFactor  null = pajak dihitung basic_amount*tax_rate/100 langsung (PO/SO).
+     *                                 Diisi (mis. 11/12) = pajak dihitung lewat basis DPP Nilai Lain: (basic_amount*dppFactor)*tax_rate/100
+     *                                 (Purchase/Sales Invoice -- lihat migration add_dpp_amount_to_*_invoice_items_table).
      * @return array<int, array{basic_amount: float, tax_amount: float, amount: float}>
      */
     public static function allocate(
@@ -65,13 +118,16 @@ class DocumentDiscountCalculator {
         float $discountRate,
         float $discountAmount,
         ?string $latestDiscountKey = 'discount_rate',
+        ?float $dppFactor = null,
     ): array {
         if ($lines === []) {
             return [];
         }
 
+        $taxBasisOf = fn (float $basicAmount): float => $dppFactor === null ? $basicAmount : $basicAmount * $dppFactor;
+
         $preTax = array_map(
-            fn (array $line) => $line['basic_amount'] * $line['tax_rate'] / 100,
+            fn (array $line) => $taxBasisOf($line['basic_amount']) * $line['tax_rate'] / 100,
             $lines,
         );
 
@@ -114,7 +170,7 @@ class DocumentDiscountCalculator {
 
         $newTaxAmounts = [];
         foreach ($lines as $i => $line) {
-            $newTaxAmounts[$i] = $newBasicAmounts[$i] * $line['tax_rate'] / 100;
+            $newTaxAmounts[$i] = $taxBasisOf($newBasicAmounts[$i]) * $line['tax_rate'] / 100;
         }
 
         return self::toResult($lines, $newBasicAmounts, $newTaxAmounts);

@@ -34,6 +34,12 @@ use Symfony\Component\Uid\Ulid;
 class PurchaseInvoiceService implements SubmitableService {
     use HasDefaultDelete;
 
+    /**
+     * Faktor DPP Nilai Lain PPN 12% (tarif efektif 11%) -- lihat migration
+     * add_dpp_amount_to_purchase_invoice_items_table, spec invoice-dpp-adjustment.
+     */
+    private const float DPP_FACTOR = 11 / 12;
+
     private function fillRelations(array $data) {
         $data['purchase_order_id'] = $data['purchase_order']['id'];
         $data['supplier_id']       = $data['supplier']['id'];
@@ -104,24 +110,23 @@ class PurchaseInvoiceService implements SubmitableService {
         $data['code']    = FormatingSeries::generate(PurchaseInvoice::class, $data, true);
         $purchaseInvoice = PurchaseInvoice::create($this->fillRelations($data));
 
-        $basicAmount = 0;
-        $taxAmount   = 0;
-
         $units              = $this->batchLoadUnits($data);
         $taxes              = $this->batchLoadTaxes($data);
         $purchaseOrderItems = $this->batchLoadPurchaseOrderItems($data);
 
+        $items = collect();
         foreach ($data['items'] as $item) {
-            $item = $this->fillItemRelations($item, $purchaseInvoice, $units, $taxes, $purchaseOrderItems);
-            $item = $purchaseInvoice->items()->create($item);
-            $item->refresh();
-            $basicAmount += $item->basic_amount;
-            $taxAmount += $item->tax_amount;
+            $item      = $this->fillItemRelations($item, $purchaseInvoice, $units, $taxes, $purchaseOrderItems);
+            $itemModel = $purchaseInvoice->items()->create($item);
+            // basic_amount generated column (quantity * rate) -- belum terisi di object
+            // sampai di-refresh dari DB.
+            $itemModel->refresh();
+            $items->push($itemModel);
         }
 
-        $totalAmount = Utils::countAmount($basicAmount, $taxAmount, $purchaseInvoice->discount_on, $purchaseInvoice->discount_amount);
+        $totals = DocumentDiscountCalculator::applyDiscountColumnToItems($purchaseInvoice, $items, self::DPP_FACTOR);
         $purchaseInvoice->update([
-            'amount' => $totalAmount,
+            'amount' => $totals['basic_amount'] + $totals['tax_amount'],
         ]);
 
         foreach ($data['payment_schedules'] ?? [] as $payment_schedule) {
@@ -134,9 +139,6 @@ class PurchaseInvoiceService implements SubmitableService {
 
     public function update(Model $purchaseInvoice, array $data): Model {
         $purchaseInvoice->fillForUpdate($this->fillRelations($data));
-
-        $basicAmount = 0;
-        $taxAmount   = 0;
 
         $purchaseInvoice->items()
             ->whereNotIn('id', array_column($data['items'], 'id'))
@@ -155,6 +157,7 @@ class PurchaseInvoiceService implements SubmitableService {
         $taxes              = $this->batchLoadTaxes($data);
         $purchaseOrderItems = $this->batchLoadPurchaseOrderItems($data);
 
+        $items = collect();
         foreach ($data['items'] as $item) {
             $item = $this->fillItemRelations($item, $purchaseInvoice, $units, $taxes, $purchaseOrderItems);
 
@@ -163,23 +166,22 @@ class PurchaseInvoiceService implements SubmitableService {
                 if ($itemModel) {
                     $itemModel->fill($item);
                     $itemModel->save();
-                    $itemModel->refresh();
                 } else {
                     $itemModel = $purchaseInvoice->items()->create($item);
-                    $itemModel->refresh();
                 }
             } else {
                 $itemModel = $purchaseInvoice->items()->create($item);
-                $itemModel->refresh();
             }
 
-            $basicAmount += $itemModel->basic_amount;
-            $taxAmount += $itemModel->tax_amount;
+            // basic_amount generated column -- refresh supaya nilai terbaru (quantity/rate
+            // baru) terbaca sebelum dialokasikan diskon.
+            $itemModel->refresh();
+            $items->push($itemModel);
         }
 
-        $totalAmount = Utils::countAmount($basicAmount, $taxAmount, $purchaseInvoice->discount_on, $purchaseInvoice->discount_amount);
+        $totals = DocumentDiscountCalculator::applyDiscountColumnToItems($purchaseInvoice, $items, self::DPP_FACTOR);
         $purchaseInvoice->update([
-            'amount' => $totalAmount,
+            'amount' => $totals['basic_amount'] + $totals['tax_amount'],
         ]);
 
         $paymentSchedules = $data['payment_schedules'] ?? [];
@@ -270,7 +272,7 @@ class PurchaseInvoiceService implements SubmitableService {
             $totalStockGL = 0; // Untuk GL Stock/SRNB (ALUR-1)
 
             foreach ($items as $item) {
-                $basicAmount += $item->basic_amount;
+                $basicAmount += $item->basic_amount - $item->discount_amount;
                 $taxAmount += $item->tax_amount;
 
                 $poItem = $item->purchaseOrderItem;
@@ -296,7 +298,9 @@ class PurchaseInvoiceService implements SubmitableService {
                 }
             }
 
-            $totalAmount = Utils::countAmount($basicAmount, $taxAmount, $purchaseInvoice->discount_on, $purchaseInvoice->discount_amount);
+            // basic_amount/tax_amount item sudah net (dikurangi discount_amount) sejak
+            // create()/update() -- di sini murni sum, bukan alokasi ulang diskon.
+            $totalAmount = $basicAmount + $taxAmount;
 
             // === GL posting dipindah ke queued Job (Stock/SRNB + Expense/Credit digabung 1 event) ===
             GlPostingStatus::create([

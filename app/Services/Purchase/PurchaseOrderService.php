@@ -58,7 +58,6 @@ class PurchaseOrderService implements SubmitableService {
         $data['tax_id']              = $data['tax']['id'];
         $data['tax_rate']            = $tax?->rate ?? 0;
         $data['target_warehouse_id'] = $data['target_warehouse']['id'];
-        $data['basic_amount']        = $data['quantity'] * $data['rate'];
 
         return $data;
     }
@@ -108,8 +107,12 @@ class PurchaseOrderService implements SubmitableService {
 
         $items = collect();
         foreach ($data['items'] as $item) {
-            $item = $this->fillItemRelations($item, $purchaseOrder, $units, $taxes);
-            $items->push($purchaseOrder->items()->create($item));
+            $item      = $this->fillItemRelations($item, $purchaseOrder, $units, $taxes);
+            $itemModel = $purchaseOrder->items()->create($item);
+            // basic_amount generated column (quantity * rate) -- belum terisi di object
+            // sampai di-refresh dari DB.
+            $itemModel->refresh();
+            $items->push($itemModel);
         }
 
         $totals = $this->applyDiscountToItems($purchaseOrder, $items);
@@ -163,6 +166,9 @@ class PurchaseOrderService implements SubmitableService {
                 $itemModel = $purchaseOrder->items()->create($item);
             }
 
+            // basic_amount generated column -- refresh supaya nilai terbaru (quantity/rate
+            // baru) terbaca sebelum dialokasikan diskon.
+            $itemModel->refresh();
             $items->push($itemModel);
         }
 
@@ -495,7 +501,6 @@ class PurchaseOrderService implements SubmitableService {
                         'tax_id'              => $g['tax_id'],
                         'tax_rate'            => $g['tax_rate'],
                         'target_warehouse_id' => $g['warehouse_id'],
-                        'basic_amount'        => $poItem->quantity * $g['rate'],
                     ]);
                     $poItem->refresh();
                     $syncLog[] = ['action' => 'update', 'po_item_id' => $poItem->id, 'rate' => $g['rate']];
@@ -514,7 +519,6 @@ class PurchaseOrderService implements SubmitableService {
                             'received_quantity'   => 0,
                             'billed_quantity'     => 0,
                             'parent_item_id'      => $parentId,
-                            'basic_amount'        => $g['qty'] * $g['rate'],
                         ]);
                         $newItem->id = (string) Str::ulid();
                         $newItem->save();

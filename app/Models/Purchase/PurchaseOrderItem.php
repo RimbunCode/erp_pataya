@@ -34,10 +34,22 @@ class PurchaseOrderItem extends Model {
         'conversion_factor'   => 'float',
         'tax_rate'            => 'float',
         'basic_amount'        => 'float',
+        'discount_amount'     => 'float',
         'tax_amount'          => 'float',
         'amount'              => 'float',
         'rate'                => 'float',
     ];
+
+    /**
+     * basic_amount adalah generated column KOTOR (quantity * rate) sejak migration
+     * add_discount_amount_to_purchase_order_items_table -- net_amount (setelah
+     * diskon dokumen) dipakai untuk label "Jumlah Dasar"/"Basic Amount" yang
+     * historisnya merujuk nilai net, konsisten dengan PurchaseInvoiceItem::dpp_amount.
+     */
+    public function getNetAmountAttribute(): float {
+        return $this->basic_amount - $this->discount_amount;
+    }
+
     protected array $configColumns = [
         'item' => [
             'type'  => 'relation',
@@ -64,10 +76,18 @@ class PurchaseOrderItem extends Model {
         ],
         'basic_amount' => [
             'type'       => 'currency',
+            'show'       => false,
+            'order'      => 4,
+            'linkable'   => true,
+            'visibleFor' => self::PRICE_VISIBILITY,
+        ],
+        'net_amount' => [
+            'type'       => 'currency',
             'show'       => true,
             'order'      => 4,
             'linkable'   => true,
             'visibleFor' => self::PRICE_VISIBILITY,
+            'dependsOn'  => ['basic_amount', 'discount_amount'],
         ],
         'tax' => [
             'type'     => 'relation',

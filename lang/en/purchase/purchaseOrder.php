@@ -44,7 +44,8 @@ return [
         'tax.placeholder'              => 'Select a tax',
         'currency.placeholder'         => 'Select a Currency',
         'exchange_rate'                => 'Exchange Rate',
-        'basic_amount'                 => 'Basic Amount',
+        'basic_amount'                 => 'Gross Amount',
+        'net_amount'                   => 'Basic Amount',
         'tax_amount'                   => 'Tax Amount',
         'total'                        => 'Total Amount',
 

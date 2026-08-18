@@ -29,6 +29,12 @@ use Symfony\Component\Uid\Ulid;
 class SalesInvoiceService implements SubmitableService {
     use HasDefaultDelete;
 
+    /**
+     * Faktor DPP Nilai Lain PPN 12% (tarif efektif 11%) -- lihat migration
+     * add_dpp_amount_to_sales_invoice_items_table, spec invoice-dpp-adjustment.
+     */
+    private const float DPP_FACTOR = 11 / 12;
+
     private function fillRelations(array $data) {
         $data['sales_order_id']    = $data['sales_order']['id'];
         $data['customer_id']       = $data['customer']['id'];
@@ -106,25 +112,24 @@ class SalesInvoiceService implements SubmitableService {
     public function create(array $data): Model {
         $data['code'] = FormatingSeries::generate(SalesInvoice::class, $data, true);
         $salesInvoice = SalesInvoice::create($this->fillRelations($data));
-        $basicAmount  = 0;
-        $taxAmount    = 0;
 
         $units           = $this->batchLoadUnits($data);
         $taxes           = $this->batchLoadTaxes($data);
         $salesOrderItems = $this->batchLoadSalesOrderItems($data);
 
+        $items = collect();
         foreach ($data['items'] as $item) {
-            $item = $this->fillItemRelations($item, $salesInvoice, $units, $taxes, $salesOrderItems);
-            $item = $salesInvoice->items()->create($item);
-
-            $item->refresh();
-            $basicAmount += $item->basic_amount;
-            $taxAmount += $item->tax_amount;
+            $item      = $this->fillItemRelations($item, $salesInvoice, $units, $taxes, $salesOrderItems);
+            $itemModel = $salesInvoice->items()->create($item);
+            // basic_amount generated column (quantity * price) -- belum terisi di object
+            // sampai di-refresh dari DB.
+            $itemModel->refresh();
+            $items->push($itemModel);
         }
 
-        $totalAmount = Utils::countAmount($basicAmount, $taxAmount, $salesInvoice->discount_on, $salesInvoice->discount_amount);
+        $totals = DocumentDiscountCalculator::applyDiscountColumnToItems($salesInvoice, $items, self::DPP_FACTOR);
         $salesInvoice->update([
-            'amount' => $totalAmount,
+            'amount' => $totals['basic_amount'] + $totals['tax_amount'],
         ]);
         foreach ($data['payment_schedules'] ?? [] as $payment_schedule) {
             $payment_schedule = $this->fillPaymentScheduleRelations($payment_schedule, $salesInvoice);
@@ -138,8 +143,6 @@ class SalesInvoiceService implements SubmitableService {
 
     public function update(Model $salesInvoice, array $data): Model {
         $salesInvoice->fillForUpdate($this->fillRelations($data), true);
-        $basicAmount = 0;
-        $taxAmount   = 0;
         $salesInvoice->items()
             ->whereNotIn('id', array_column($data['items'], 'id'))
             ->delete();
@@ -157,6 +160,7 @@ class SalesInvoiceService implements SubmitableService {
         $taxes           = $this->batchLoadTaxes($data);
         $salesOrderItems = $this->batchLoadSalesOrderItems($data);
 
+        $items = collect();
         foreach ($data['items'] as $item) {
             $item = $this->fillItemRelations($item, $salesInvoice, $units, $taxes, $salesOrderItems);
 
@@ -171,14 +175,16 @@ class SalesInvoiceService implements SubmitableService {
             } else {
                 $itemModel = $salesInvoice->items()->create($item);
             }
-            $itemModel->refresh();
-            $basicAmount += $itemModel->basic_amount;
-            $taxAmount += $itemModel->tax_amount;
-        }
-        $totalAmount = Utils::countAmount($basicAmount, $taxAmount, $salesInvoice->discount_on, $salesInvoice->discount_amount);
 
+            // basic_amount generated column -- refresh supaya nilai terbaru (quantity/price
+            // baru) terbaca sebelum dialokasikan diskon.
+            $itemModel->refresh();
+            $items->push($itemModel);
+        }
+
+        $totals = DocumentDiscountCalculator::applyDiscountColumnToItems($salesInvoice, $items, self::DPP_FACTOR);
         $salesInvoice->fill([
-            'amount' => $totalAmount,
+            'amount' => $totals['basic_amount'] + $totals['tax_amount'],
         ]);
         $salesInvoice->save();
 
@@ -270,7 +276,7 @@ class SalesInvoiceService implements SubmitableService {
             $taxAmount   = 0;
 
             foreach ($items as $item) {
-                $basicAmount += $item->basic_amount;
+                $basicAmount += $item->basic_amount - $item->discount_amount;
                 $taxAmount += $item->tax_amount;
                 event(new SalesOrderItemBillingChanged(
                     $item->salesOrderItem,
@@ -285,7 +291,9 @@ class SalesInvoiceService implements SubmitableService {
                     event(new AssetSoldViaInvoice($line));
                 }
             }
-            $totalAmount = Utils::countAmount($basicAmount, $taxAmount, $salesInvoice->discount_on, $salesInvoice->discount_amount);
+            // basic_amount/tax_amount item sudah net (dikurangi discount_amount) sejak
+            // create()/update() -- di sini murni sum, bukan alokasi ulang diskon.
+            $totalAmount = $basicAmount + $taxAmount;
 
             $debitAccount  = $salesInvoice->debitAccount;
             $creditAccount = $salesInvoice->incomeAccount;

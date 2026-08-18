@@ -11,6 +11,7 @@ import {
   generateRandom,
   getDataModel,
 } from "@/lib/utils";
+import { allocateDiscount } from "@/lib/discountAllocation";
 
 import AccountLinkModel from "../Accounts/AccountLinkModel";
 import AdditionalDiscount from "../Components/AdditionalDiscount";
@@ -33,6 +34,10 @@ import TaxLinkModel from "@/Pages/Finances/Taxes/TaxLinkModel";
 import { Textarea } from "@/Components/ui/textarea";
 import { useLaravelReactI18n } from "laravel-react-i18n";
 import { usePage } from "@inertiajs/react";
+
+// Replika App\Services\Finances\SalesInvoiceService::DPP_FACTOR (PPN Nilai
+// Lain: DPP = 11/12 x basic_amount, tarif efektif 11% dari PPN 12%).
+const DPP_FACTOR = 11 / 12;
 
 export default function Form() {
   const { t } = useLaravelReactI18n();
@@ -79,8 +84,18 @@ export default function Form() {
       }));
     });
   };
+  // basic_amount adalah generated column KOTOR (quantity * price), belum dikurangi
+  // diskon dokumen -- net_amount (label "Jumlah Dasar") harus mengurangi
+  // discount_amount per item (ditulis backend saat create/update, lihat
+  // DocumentDiscountCalculator::applyDiscountColumnToItems()). Item hasil
+  // carry-over dari SalesOrder (mode create) belum punya discount_amount --
+  // default 0 sampai backend menghitung ulang saat disimpan.
   const net_amount = useMemo(() => {
-    return calculateArray(data.items, "basic_amount", "+");
+    return (data.items ?? []).reduce(
+      (sum, item) =>
+        sum + ((item?.basic_amount ?? 0) - (item?.discount_amount ?? 0)),
+      0,
+    );
   }, [data.items]);
 
   const dpp_amount = useMemo(() => {
@@ -689,14 +704,40 @@ export default function Form() {
             value={data?.items ?? []}
             valueBefore={dataBefore?.items}
             onValueChange={(v) => setData("items", v)}
-            mapItem={({ item }) => {
-              const amount = item.quantity * item.price;
-              const rateAmount = (amount * (item.tax?.rate ?? 0)) / 100;
+            mapItem={({ item, dataTable, index }) => {
+              // basic_amount TIDAK ditimpa di sini -- generated (quantity*price) di
+              // server. tax_amount dihitung dari basis DPP Nilai Lain SETELAH dikurangi
+              // discount_amount, konsisten dgn DocumentDiscountCalculator::
+              // applyDiscountColumnToItems(). SalesInvoiceItem tidak punya kolom amount
+              // (beda dari PurchaseInvoiceItem), jadi tidak diisi di sini.
+              const rows = dataTable ?? [];
+              const grossAmounts = rows.map((row, i) =>
+                i === index
+                  ? (item.quantity ?? 0) * (item.price ?? 0)
+                  : (row.quantity ?? 0) * (row.price ?? 0),
+              );
+              const lines = rows.map((row, i) => ({
+                basic_amount: grossAmounts[i],
+                tax_rate:
+                  i === index ? (item.tax?.rate ?? 0) : (row.tax?.rate ?? 0),
+              }));
+              const allocated = allocateDiscount(
+                lines,
+                data.discount_on,
+                data.discount_rate ?? 0,
+                data.discount_amount ?? 0,
+                data.latestDiscountKey ?? "discount_rate",
+                DPP_FACTOR,
+              );
+              const result = allocated[index] ?? allocated[0];
               return {
                 ...item,
-                tax_amount: rateAmount,
-                basic_amount: amount,
-                amount: amount + rateAmount,
+                discount_amount:
+                  Math.round(
+                    (grossAmounts[index] - (result?.basic_amount ?? 0)) * 100,
+                  ) / 100,
+                dpp_amount: (result?.basic_amount ?? 0) * DPP_FACTOR,
+                tax_amount: result?.tax_amount ?? 0,
               };
             }}
           />

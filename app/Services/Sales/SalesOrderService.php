@@ -65,7 +65,6 @@ class SalesOrderService implements SubmitableService {
         $data['base_currency_code']  = $salesOrder->base_currency_code;
         $data['exchange_rate']       = $salesOrder->exchange_rate;
         $data['source_warehouse_id'] = $data['source_warehouse']['id'] ?? null;
-        $data['basic_amount']        = $data['quantity'] * $data['price'];
 
         // Requirement 4, spec asset-service-billing: baris referenceable ke
         // AssetService/AssetServiceConsumedItem (opsional) — TIDAK mengubah
@@ -79,8 +78,8 @@ class SalesOrderService implements SubmitableService {
     }
 
     /**
-     * basic_amount/tax_amount/amount bukan generated column lagi (lihat migration
-     * convert_sales_order_items_amounts_to_stored_columns) -- delegasi ke
+     * basic_amount generated column KOTOR (quantity * price) sejak migration
+     * add_discount_amount_to_sales_order_items_table -- delegasi ke
      * DocumentDiscountCalculator::applyToItems() (dipakai juga PurchaseOrderService,
      * logic alokasi identik disatukan supaya tidak terduplikasi per Service).
      *
@@ -114,8 +113,12 @@ class SalesOrderService implements SubmitableService {
 
         $items = collect();
         foreach ($data['items'] as $item) {
-            $item = $this->fillItemRelations($item, $salesOrder, $units, $taxes);
-            $items->push($salesOrder->items()->create($item));
+            $item      = $this->fillItemRelations($item, $salesOrder, $units, $taxes);
+            $itemModel = $salesOrder->items()->create($item);
+            // basic_amount generated column (quantity * price) -- belum terisi di object
+            // sampai di-refresh dari DB.
+            $itemModel->refresh();
+            $items->push($itemModel);
         }
 
         $totals = $this->applyDiscountToItems($salesOrder, $items);
@@ -169,6 +172,9 @@ class SalesOrderService implements SubmitableService {
                 $itemModel = $salesOrder->items()->create($item);
             }
 
+            // basic_amount generated column -- refresh supaya nilai terbaru (quantity/price
+            // baru) terbaca sebelum dialokasikan diskon.
+            $itemModel->refresh();
             $items->push($itemModel);
         }
 
@@ -425,7 +431,6 @@ class SalesOrderService implements SubmitableService {
                         'tax_id'              => $g['tax_id'],
                         'tax_rate'            => $g['tax_rate'],
                         'source_warehouse_id' => $g['warehouse_id'],
-                        'basic_amount'        => $soItem->quantity * $g['price'],
                     ]);
                     $soItem->refresh();
                     $syncLog[] = ['action' => 'update', 'so_item_id' => $soItem->id, 'price' => $g['price']];
@@ -443,7 +448,6 @@ class SalesOrderService implements SubmitableService {
                             'delivered_quantity'  => 0,
                             'billed_quantity'     => 0,
                             'parent_item_id'      => $parentId,
-                            'basic_amount'        => $g['qty'] * $g['price'],
                         ]);
                         $newItem->id = (string) Str::ulid();
                         $newItem->save();

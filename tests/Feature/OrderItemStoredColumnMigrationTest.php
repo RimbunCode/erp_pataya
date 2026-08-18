@@ -4,12 +4,23 @@ namespace Tests\Feature;
 
 use Database\Factories\Inventory\ItemVariantFactory;
 use Database\Factories\User\UserFactory;
+use Illuminate\Database\QueryException;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Schema;
 use Illuminate\Support\Str;
 use Tests\TestCase;
 
+/**
+ * Verifikasi migration add_discount_amount_to_purchase_order_items_table /
+ * add_discount_amount_to_sales_order_items_table: basic_amount KEMBALI jadi
+ * generated column (quantity * rate/price) -- kebalikan dari migration
+ * convert_purchase_order_items_amounts_to_stored_columns (spec
+ * dpp-discount-and-tax-compliance), diselaraskan dengan pola
+ * PurchaseInvoiceItem/SalesInvoiceItem. discount_amount kolom baru (biasa,
+ * writable), tax_amount/amount TETAP writable (beda dari Invoice yang punya
+ * dpp_amount sebagai perantara generated).
+ */
 class OrderItemStoredColumnMigrationTest extends TestCase {
     use RefreshDatabase;
 
@@ -73,7 +84,7 @@ class OrderItemStoredColumnMigrationTest extends TestCase {
         return [$salesOrderId, $itemVariant->id];
     }
 
-    public function test_purchase_order_item_amount_columns_are_backfilled_and_writable(): void {
+    public function test_purchase_order_item_basic_amount_is_generated_and_rejects_manual_write(): void {
         [$purchaseOrderId, $itemVariantId] = $this->createPurchaseOrder();
 
         $itemId = (string) Str::ulid();
@@ -84,7 +95,7 @@ class OrderItemStoredColumnMigrationTest extends TestCase {
             'quantity'          => 10,
             'rate'              => 100000,
             'tax_rate'          => 11,
-            'basic_amount'      => 10 * 100000,
+            'discount_amount'   => 0,
             'tax_amount'        => 10 * 100000 * 11 / 100,
             'amount'            => 10 * 100000 + 10 * 100000 * 11 / 100,
             'created_at'        => now(),
@@ -93,41 +104,45 @@ class OrderItemStoredColumnMigrationTest extends TestCase {
 
         $item = DB::table('purchase_order_items')->where('id', $itemId)->first();
 
+        // basic_amount generated dari quantity * rate -- tidak perlu diinsert manual
         $this->assertEqualsWithDelta(1000000, $item->basic_amount, 0.01);
         $this->assertEqualsWithDelta(110000, $item->tax_amount, 0.01);
         $this->assertEqualsWithDelta(1110000, $item->amount, 0.01);
 
-        // Kolom bukan generated lagi -- manual update harus tersimpan persis (bukan
-        // di-override otomatis oleh DB seperti generated column akan lakukan).
-        // Ini membuktikan konversi storedAs() -> kolom biasa berhasil.
+        // discount_amount/tax_amount/amount TETAP writable manual (Service layer yang menulis)
         DB::table('purchase_order_items')->where('id', $itemId)->update([
-            'basic_amount' => 800000,
-            'tax_amount'   => 88000,
-            'amount'       => 888000,
+            'discount_amount' => 200000,
+            'tax_amount'      => 88000,
+            'amount'          => 888000,
         ]);
 
         $updated = DB::table('purchase_order_items')->where('id', $itemId)->first();
-        $this->assertEqualsWithDelta(800000, $updated->basic_amount, 0.01, 'basic_amount harus writable manual, membuktikan bukan generated column lagi');
-        $this->assertEqualsWithDelta(88000, $updated->tax_amount, 0.01, 'tax_amount harus writable manual');
-        $this->assertEqualsWithDelta(888000, $updated->amount, 0.01, 'amount harus writable manual, tidak lagi otomatis basic_amount + tax_amount');
+        $this->assertEqualsWithDelta(1000000, $updated->basic_amount, 0.01, 'basic_amount kotor tidak berubah walau discount_amount ditulis');
+        $this->assertEqualsWithDelta(200000, $updated->discount_amount, 0.01);
+        $this->assertEqualsWithDelta(88000, $updated->tax_amount, 0.01, 'tax_amount harus tetap writable manual');
+        $this->assertEqualsWithDelta(888000, $updated->amount, 0.01, 'amount harus tetap writable manual');
+
+        // basic_amount sendiri REJECT manual write -- generated column
+        $this->expectException(QueryException::class);
+        DB::table('purchase_order_items')->where('id', $itemId)->update(['basic_amount' => 1]);
     }
 
-    public function test_sales_order_item_amount_columns_are_backfilled_and_writable(): void {
+    public function test_sales_order_item_basic_amount_is_generated_and_base_currency_chain_follows_net(): void {
         [$salesOrderId, $itemVariantId] = $this->createSalesOrder();
 
         $itemId = (string) Str::ulid();
         DB::table('sales_order_items')->insert([
-            'id'             => $itemId,
-            'sales_order_id' => $salesOrderId,
-            'item_id'        => $itemVariantId,
-            'quantity'       => 5,
-            'price'          => 200000,
-            'tax_rate'       => 10,
-            'basic_amount'   => 5 * 200000,
-            'tax_amount'     => 5 * 200000 * 10 / 100,
-            'amount'         => 5 * 200000 + 5 * 200000 * 10 / 100,
-            'created_at'     => now(),
-            'updated_at'     => now(),
+            'id'              => $itemId,
+            'sales_order_id'  => $salesOrderId,
+            'item_id'         => $itemVariantId,
+            'quantity'        => 5,
+            'price'           => 200000,
+            'tax_rate'        => 10,
+            'discount_amount' => 0,
+            'tax_amount'      => 5 * 200000 * 10 / 100,
+            'amount'          => 5 * 200000 + 5 * 200000 * 10 / 100,
+            'created_at'      => now(),
+            'updated_at'      => now(),
         ]);
 
         $item = DB::table('sales_order_items')->where('id', $itemId)->first();
@@ -136,25 +151,29 @@ class OrderItemStoredColumnMigrationTest extends TestCase {
         $this->assertEqualsWithDelta(100000, $item->tax_amount, 0.01);
         $this->assertEqualsWithDelta(1100000, $item->amount, 0.01);
 
-        // amount_base_currency tetap generated (mengacu basic_amount_base_currency yang
-        // mengacu basic_amount) -- pastikan masih ikut basic_amount setelah basic_amount
-        // jadi kolom biasa (rantai generation harus tetap utuh setelah migration).
-        $this->assertEqualsWithDelta($item->basic_amount, $item->basic_amount_base_currency, 0.01, 'basic_amount_base_currency tetap ikut basic_amount saat exchange_rate NULL');
-        $this->assertEqualsWithDelta($item->amount, $item->amount_base_currency, 0.01, 'amount_base_currency tetap ikut amount saat exchange_rate NULL');
+        // *_base_currency generated dari (basic_amount - discount_amount)/tax_amount --
+        // NET, bukan basic_amount kotor -- konsisten dengan nilai currency dokumen.
+        $this->assertEqualsWithDelta($item->basic_amount, $item->basic_amount_base_currency, 0.01, 'basic_amount_base_currency ikut basic_amount saat discount_amount=0 & exchange_rate NULL');
+        $this->assertEqualsWithDelta($item->amount, $item->amount_base_currency, 0.01, 'amount_base_currency ikut amount saat exchange_rate NULL');
 
         DB::table('sales_order_items')->where('id', $itemId)->update([
-            'basic_amount' => 700000,
-            'tax_amount'   => 70000,
-            'amount'       => 770000,
+            'discount_amount' => 300000,
+            'tax_amount'      => 70000,
+            'amount'          => 770000,
         ]);
 
         $updated = DB::table('sales_order_items')->where('id', $itemId)->first();
-        $this->assertEqualsWithDelta(700000, $updated->basic_amount, 0.01, 'basic_amount harus writable manual, membuktikan bukan generated column lagi');
-        $this->assertEqualsWithDelta(70000, $updated->tax_amount, 0.01, 'tax_amount harus writable manual');
-        $this->assertEqualsWithDelta(770000, $updated->amount, 0.01, 'amount harus writable manual');
+        $this->assertEqualsWithDelta(1000000, $updated->basic_amount, 0.01, 'basic_amount kotor tidak berubah');
+        $this->assertEqualsWithDelta(300000, $updated->discount_amount, 0.01);
+        $this->assertEqualsWithDelta(70000, $updated->tax_amount, 0.01, 'tax_amount harus tetap writable manual');
+        $this->assertEqualsWithDelta(770000, $updated->amount, 0.01, 'amount harus tetap writable manual');
 
-        // base_currency mirror tetap generated -> otomatis mengikuti nilai baru
-        $this->assertEqualsWithDelta(700000, $updated->basic_amount_base_currency, 0.01, 'basic_amount_base_currency generated tetap ikut basic_amount baru');
-        $this->assertEqualsWithDelta(770000, $updated->amount_base_currency, 0.01, 'amount_base_currency generated tetap ikut amount baru');
+        // base_currency mirror generated dari NET (basic_amount - discount_amount), bukan basic_amount kotor
+        $this->assertEqualsWithDelta(700000, $updated->basic_amount_base_currency, 0.01, 'basic_amount_base_currency generated dari (basic_amount - discount_amount)');
+        $this->assertEqualsWithDelta(770000, $updated->amount_base_currency, 0.01, 'amount_base_currency generated ikut amount baru');
+
+        // basic_amount sendiri REJECT manual write -- generated column
+        $this->expectException(QueryException::class);
+        DB::table('sales_order_items')->where('id', $itemId)->update(['basic_amount' => 1]);
     }
 }
