@@ -2,11 +2,53 @@
 
 namespace App\Services\Finances;
 
+use Illuminate\Database\Eloquent\Model;
+use Illuminate\Support\Collection;
 use Illuminate\Validation\ValidationException;
 
 class DocumentDiscountCalculator {
     public const string BASIS_NET_TOTAL   = 'net_total';
     public const string BASIS_GRAND_TOTAL = 'grand_total';
+
+    /**
+     * Alokasikan diskon dokumen header ($document->discount_on/discount_rate/discount_amount)
+     * ke tiap item baris ($items, masing-masing punya basic_amount & tax_rate), tulis hasilnya
+     * langsung ke tiap item model (forceFill + save), lalu kembalikan total basic_amount &
+     * tax_amount header. Dipakai PurchaseOrderService/SalesOrderService -- logic identik,
+     * disatukan di sini supaya rule alokasi tidak terduplikasi per Service.
+     *
+     * @param  Collection<int, Model>  $items  item model dengan attribute basic_amount & tax_rate
+     * @return array{basic_amount: float, tax_amount: float}
+     */
+    public static function applyToItems(Model $document, Collection $items): array {
+        $lines = $items->map(fn (Model $item) => [
+            'basic_amount' => $item->basic_amount,
+            'tax_rate'     => $item->tax_rate,
+        ])->all();
+
+        // discount_amount selalu dipakai sebagai nilai otoritatif (bukan discount_rate) --
+        // FE (AdditionalDiscount.jsx) sudah menyinkronkan discount_amount setiap kali user
+        // mengubah discount_rate ATAU discount_amount, jadi discount_amount yang terkirim ke
+        // backend selalu representasi absolut terkini, tanpa perlu transport latestDiscountKey
+        // (state FE-only, tidak ada kolomnya di DB) ke backend.
+        $allocated = self::allocate(
+            $lines,
+            $document->discount_on,
+            $document->discount_rate ?? 0,
+            $document->discount_amount ?? 0,
+            'discount_amount',
+        );
+
+        $basicAmount = 0;
+        $taxAmount   = 0;
+        foreach ($items->values() as $index => $item) {
+            $item->forceFill($allocated[$index])->save();
+            $basicAmount += $allocated[$index]['basic_amount'];
+            $taxAmount += $allocated[$index]['tax_amount'];
+        }
+
+        return ['basic_amount' => $basicAmount, 'tax_amount' => $taxAmount];
+    }
 
     /**
      * Alokasikan diskon dokumen pro-rata ke tiap baris, lalu hitung ulang tax_amount

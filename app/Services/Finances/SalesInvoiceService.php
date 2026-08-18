@@ -6,11 +6,13 @@ use App\Contracts\SubmitableService;
 use App\Enums\FormStatus;
 use App\Events\Asset\AssetSoldViaInvoice;
 use App\Events\Core\DocumentSubmitted;
+use App\Events\Finances\SalesInvoiceGeneralLedgerPostingRequested;
 use App\Events\Sales\Invoice\SalesInvoiceReturnStatusChanged;
 use App\Events\Sales\Invoice\SalesOrderItemBillingChanged;
 use App\Events\Sales\Order\DocumentDeliveryStatusRecalculationRequested;
 use App\Models\Core\Branch;
 use App\Models\Core\FormatingSeries;
+use App\Models\Core\GlPostingStatus;
 use App\Models\Core\Preference;
 use App\Models\Finances\SalesInvoice;
 use App\Models\Finances\Tax;
@@ -288,23 +290,20 @@ class SalesInvoiceService implements SubmitableService {
             $debitAccount  = $salesInvoice->debitAccount;
             $creditAccount = $salesInvoice->incomeAccount;
 
-            // Credit stock account (reducing inventory)
-            $creditAccount->generalLedgerEntries()->create([
-                'against_account_id' => $debitAccount->id,
-                'credit'             => $returnAgainst ? 0 : $totalAmount,
-                'debit'              => $returnAgainst ? $totalAmount : 0,
+            // === GL posting dipindah ke queued Job (pola sama PurchaseInvoiceService) ===
+            GlPostingStatus::create([
                 'referenceable_type' => SalesInvoice::class,
                 'referenceable_id'   => $salesInvoice->id,
+                'status'             => FormStatus::PENDING,
             ]);
-
-            // Debit income account (recording revenue)
-            $debitAccount->generalLedgerEntries()->create([
-                'against_account_id' => $creditAccount->id,
-                'credit'             => $returnAgainst ? $totalAmount : 0,
-                'debit'              => $returnAgainst ? 0 : $totalAmount,
-                'referenceable_type' => SalesInvoice::class,
-                'referenceable_id'   => $salesInvoice->id,
-            ]);
+            event(new SalesInvoiceGeneralLedgerPostingRequested(
+                $salesInvoice,
+                $totalAmount,
+                (bool) $returnAgainst,
+                now(),
+                $debitAccount->id,
+                $creditAccount->id,
+            ));
 
             $salesOrder = $salesInvoice->salesOrder;
             if ($salesOrder) {

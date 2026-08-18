@@ -20,6 +20,7 @@ use App\Events\Core\DocumentSubmitted;
 use App\Events\CRM\LeadConvertedToCustomer;
 use App\Events\Finances\PaymentApplied;
 use App\Events\Finances\PurchaseInvoiceGeneralLedgerPostingRequested;
+use App\Events\Finances\SalesInvoiceGeneralLedgerPostingRequested;
 use App\Events\Inventory\DeliveryNoteGeneralLedgerPostingRequested;
 use App\Events\Inventory\StockReservationChanged;
 use App\Events\Purchase\Invoice\PurchaseInvoiceReturnStatusChanged;
@@ -49,6 +50,7 @@ use App\Listeners\Core\Submission\CreateDocumentConnection;
 use App\Listeners\Core\Submission\NotifyRoleOnStatusChange;
 use App\Listeners\CRM\CreateCustomerFromLead;
 use App\Listeners\Finances\Ledger\PostPurchaseInvoiceGeneralLedger;
+use App\Listeners\Finances\Ledger\PostSalesInvoiceGeneralLedger;
 use App\Listeners\Finances\Payment\UpdatePaymentableStatus;
 use App\Listeners\Inventory\Ledger\PostDeliveryNoteGeneralLedger;
 use App\Listeners\Inventory\Stock\UpdateStockReservation;
@@ -119,6 +121,9 @@ class EventServiceProvider extends ServiceProvider {
         ],
         PurchaseInvoiceGeneralLedgerPostingRequested::class => [
             PostPurchaseInvoiceGeneralLedger::class,
+        ],
+        SalesInvoiceGeneralLedgerPostingRequested::class => [
+            PostSalesInvoiceGeneralLedger::class,
         ],
         LeadConvertedToCustomer::class => [
             CreateCustomerFromLead::class,

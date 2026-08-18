@@ -79,39 +79,16 @@ class SalesOrderService implements SubmitableService {
     }
 
     /**
-     * Alokasikan diskon dokumen (jika ada) ke seluruh item, tulis basic_amount/tax_amount/
-     * amount hasil alokasi ke tiap item model, lalu kembalikan total basic_amount & tax_amount
-     * header. basic_amount/tax_amount/amount bukan generated column lagi (lihat migration
-     * convert_sales_order_items_amounts_to_stored_columns) -- Service layer ini yang jadi
-     * satu-satunya penulis nilai tsb. discount_amount selalu dipakai sebagai nilai otoritatif
-     * (bukan discount_rate) -- lihat catatan yang sama di PurchaseOrderService.
+     * basic_amount/tax_amount/amount bukan generated column lagi (lihat migration
+     * convert_sales_order_items_amounts_to_stored_columns) -- delegasi ke
+     * DocumentDiscountCalculator::applyToItems() (dipakai juga PurchaseOrderService,
+     * logic alokasi identik disatukan supaya tidak terduplikasi per Service).
      *
      * @param  Collection<int, SalesOrderItem>  $items
      * @return array{basic_amount: float, tax_amount: float}
      */
     private function applyDiscountToItems(SalesOrder $salesOrder, Collection $items): array {
-        $lines = $items->map(fn (SalesOrderItem $item) => [
-            'basic_amount' => $item->basic_amount,
-            'tax_rate'     => $item->tax_rate,
-        ])->all();
-
-        $allocated = DocumentDiscountCalculator::allocate(
-            $lines,
-            $salesOrder->discount_on,
-            $salesOrder->discount_rate ?? 0,
-            $salesOrder->discount_amount ?? 0,
-            'discount_amount',
-        );
-
-        $basicAmount = 0;
-        $taxAmount   = 0;
-        foreach ($items->values() as $index => $item) {
-            $item->forceFill($allocated[$index])->save();
-            $basicAmount += $allocated[$index]['basic_amount'];
-            $taxAmount += $allocated[$index]['tax_amount'];
-        }
-
-        return ['basic_amount' => $basicAmount, 'tax_amount' => $taxAmount];
+        return DocumentDiscountCalculator::applyToItems($salesOrder, $items);
     }
 
     private function fillPaymentScheduleRelations(array $data, SalesOrder $salesOrder) {
