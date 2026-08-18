@@ -2,25 +2,35 @@
 
 namespace App\Services\Inventory;
 
+use App\Contracts\SubmitableService;
 use App\Enums\FormStatus;
+use App\Events\Asset\AssetRentalDeliveryApproved;
+use App\Events\Asset\AssetRentalReturnApproved;
+use App\Events\Asset\AssetSoldViaDelivery;
+use App\Events\Core\DocumentSubmitted;
+use App\Events\Inventory\DeliveryNoteGeneralLedgerPostingRequested;
+use App\Events\Sales\Order\DocumentDeliveryStatusRecalculationRequested;
+use App\Models\Asset\AssetService;
 use App\Models\Core\FormatingSeries;
-use App\Models\Core\ModelConnection;
-use App\Models\Finances\Account;
+use App\Models\Core\GlPostingStatus;
 use App\Models\Inventory\DeliveryNote;
+use App\Models\Inventory\DeliveryNoteItem;
 use App\Models\Inventory\ItemUnit;
 use App\Models\Inventory\Stock;
 use App\Models\Inventory\StockLedgerEntry;
+use App\Models\Model;
 use App\Models\Sales\InternalOrderItem;
-use App\Models\Sales\SalesOrder;
 use App\Models\Sales\SalesOrderItem;
-use App\Services\Sales\SalesOrderService;
-use App\Utils;
+use App\Traits\HasDefaultDelete;
 use Illuminate\Support\Collection;
 use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\DB;
+use LogicException;
 use Symfony\Component\Uid\Ulid;
 
-class DeliveryNoteService {
+class DeliveryNoteService implements SubmitableService {
+    use HasDefaultDelete;
+
     /**
      * Create a new class instance.
      */
@@ -73,7 +83,7 @@ class DeliveryNoteService {
         return ItemUnit::whereIn('item_units.id', $unitIds)->get()->keyBy('id')->all();
     }
 
-    public function create(array $data) {
+    public function create(array $data): Model {
         $data['code'] = FormatingSeries::generate(DeliveryNote::class, $data, true);
         $deliveryNote = DeliveryNote::create($this->fillRelations($data));
 
@@ -84,12 +94,10 @@ class DeliveryNoteService {
             $deliveryNote->items()->create($item);
         }
 
-        $deliveryNote->logForCreated();
-
         return $deliveryNote;
     }
 
-    public function update(DeliveryNote $deliveryNote, array $data) {
+    public function update(Model $deliveryNote, array $data): Model {
         $deliveryNote->fillForUpdate($this->fillRelations($data));
 
         $deliveryNote->items()
@@ -118,25 +126,19 @@ class DeliveryNoteService {
 
             $deliveryNote->items()->create($item);
         }
-        $deliveryNote->logForUpdated();
 
         return $deliveryNote;
     }
 
     // submit function for delivery note
-    public function submit(DeliveryNote $deliveryNote) {
+    public function submit(Model $deliveryNote): mixed {
         DB::beginTransaction();
 
         $deliveryNote->update([
             'code' => FormatingSeries::generate(DeliveryNote::class, $deliveryNote),
         ]);
 
-        ModelConnection::create([
-            'model_type'     => $deliveryNote->referenceable_type,
-            'model_id'       => $deliveryNote->referenceable_id,
-            'reference_type' => DeliveryNote::class,
-            'reference_id'   => $deliveryNote->id,
-        ]);
+        event(new DocumentSubmitted($deliveryNote, $deliveryNote->referenceable));
         DeliveryNote::orWhere(function ($query) use ($deliveryNote) {
             $query->where(function ($query) use ($deliveryNote) {
                 $query->where('referenceable_type', $deliveryNote->referenceable_type)
@@ -155,7 +157,7 @@ class DeliveryNoteService {
         return $deliveryNote;
     }
 
-    public function onApproved(DeliveryNote $deliveryNote) {
+    public function onApproved(Model $deliveryNote): mixed {
         DB::beginTransaction();
         $returnAgainst = $deliveryNote->returnAgainst;
         $deliveryNote->update([
@@ -186,13 +188,42 @@ class DeliveryNoteService {
         $totalPicked = 0;
         $isRent      = false;
         foreach ($items as $item) {
-            $availableToRent = $toReference->is_rent && $item->item->type == 'vehicle';
-            if ($availableToRent) {
-                $isRent = true;
-            }
             // update delivered quantity dari Sales Order Item
             if (! $item->referenceable) {
                 throw new \RuntimeException("DeliveryNoteItem {$item->id} has no referenceable (type: {$item->referenceable_type}, id: {$item->referenceable_id})");
+            }
+
+            // Asset rental/jual-putus (Requirement 1, spec asset-rental-migration) — TIDAK PERNAH
+            // menyentuh logic Stock/StockLedgerEntry apapun, di-skip total dari loop lama.
+            if ($item->item?->item?->is_fixed_asset) {
+                $item->referenceable->increment('delivered_quantity', $item->quantity);
+
+                try {
+                    $this->handleAssetDeliveryItem($item, $deliveryNote, (bool) $returnAgainst);
+                } catch (LogicException $e) {
+                    DB::rollBack();
+
+                    throw $e;
+                }
+
+                continue;
+            }
+
+            // Requirement 8.4, spec asset-service-billing: baris jasa AssetService
+            // (bukan part/consumed item) TIDAK PERNAH menyentuh Stock/StockLedgerEntry
+            // — murni dokumentasi serah-terima, mirip pola is_fixed_asset di atas.
+            // Requirement 3.2, spec asset-service-internal-order: diperluas ke
+            // InternalOrderItem — baris jasa dari InternalOrder juga harus skip.
+            if (($item->referenceable instanceof SalesOrderItem || $item->referenceable instanceof InternalOrderItem)
+                && $item->referenceable->referenceable_type === AssetService::class) {
+                $item->referenceable->increment('delivered_quantity', $item->quantity);
+
+                continue;
+            }
+
+            $availableToRent = $toReference->is_rent && $item->item->type == 'vehicle';
+            if ($availableToRent) {
+                $isRent = true;
             }
             if ($returnAgainst && ! $availableToRent) {
                 $item->referenceable->decrement('delivered_quantity', $item->quantity);
@@ -251,6 +282,7 @@ class DeliveryNoteService {
                     'stock_queue'                => $stock->stock_queue,
                     'referenceable_type'         => DeliveryNote::class,
                     'referenceable_id'           => $deliveryNote->id,
+                    'transaction_date'           => $deliveryNote->delivery_date,
                 ]);
 
                 continue;
@@ -274,8 +306,10 @@ class DeliveryNoteService {
                 ];
                 $amountPicked = \array_sum(array_map(fn ($q) => $q['rate'] * $q['quantity'], $valuationRates ?? []));
                 $totalPicked += $amountPicked;
-                $item->returnAgainstItem->update([
-                    'returned_quantity' => $item->returnAgainstItem->returned_quantity + $quantity,
+                // Lock returnAgainstItem sebelum baca-modifikasi-tulis (Req 1.7)
+                $returnAgainstItem = $item->returnAgainstItem()->lockForUpdate()->first();
+                $returnAgainstItem->update([
+                    'returned_quantity' => $returnAgainstItem->returned_quantity + $quantity,
                 ]);
                 $stock->fill([
                     'quantity'    => $stock->quantity + $quantity,
@@ -296,6 +330,7 @@ class DeliveryNoteService {
                     'stock_queue'                => $stock->stock_queue,
                     'referenceable_type'         => DeliveryNote::class,
                     'referenceable_id'           => $deliveryNote->id,
+                    'transaction_date'           => $deliveryNote->delivery_date,
                 ]);
             } else {
                 foreach ($queue as $q) {
@@ -363,40 +398,13 @@ class DeliveryNoteService {
                     'stock_queue'                => $stock->stock_queue,
                     'referenceable_type'         => DeliveryNote::class,
                     'referenceable_id'           => $deliveryNote->id,
+                    'transaction_date'           => $deliveryNote->delivery_date,
                 ]);
             }
         }
 
-        if ($toReference instanceof SalesOrder) {
-            (new SalesOrderService)->updateSalesOrderStatus($toReference);
-            $status = $toReference->status;
-        } else {
-            $undeliveredItems = $toReference->items()
-                ->leftJoin('item_variants', 'item_variants.id', '=', 'items.item_variant_id')
-                ->where('is_stock_item', true)
-                ->select(['undelivered_quantity', 'quantity'])->get();
-            $countUndeliveredItems = $undeliveredItems->sum('undelivered_quantity');
-            $sumQuantity           = $undeliveredItems->sum('quantity');
-            if ($countUndeliveredItems == $sumQuantity) {
-                $status = Utils::replaceStatus(
-                    $toReference->status,
-                    [FormStatus::DELIVERED, FormStatus::PARTIALLY_DELIVERED],
-                    FormStatus::TO_DELIVER,
-                );
-            } elseif ($countUndeliveredItems > 0) {
-                $status = Utils::replaceStatus(
-                    $toReference->status,
-                    FormStatus::TO_DELIVER,
-                    FormStatus::PARTIALLY_DELIVERED,
-                );
-            } else {
-                $status = Utils::replaceStatus(
-                    $toReference->status,
-                    [FormStatus::TO_DELIVER, FormStatus::PARTIALLY_DELIVERED],
-                    FormStatus::DELIVERED,
-                );
-            }
-        }
+        event(new DocumentDeliveryStatusRecalculationRequested($toReference));
+        $status = $toReference->fresh()->status;
 
         if ($isRent) {
             if ($returnAgainst) {
@@ -410,30 +418,17 @@ class DeliveryNoteService {
         ]);
 
         if ($totalPicked > 0) {
-            $creditAccount = Account::lockForUpdate()
-                ->where('root_type', 'asset')
-                ->where('account_type', 'stock')
-                ->latest()->first();
-            $debitAccount = Account::lockForUpdate()
-                ->where('root_type', 'income')
-                ->where('account_type', 'cost_of_goods_sold')
-                ->latest()->first();
-
-            $creditAccount->generalLedgerEntries()->create([
-                'against_account_id' => $debitAccount->id,
-                'credit'             => $returnAgainst ? 0 : $totalPicked,
-                'debit'              => $returnAgainst ? $totalPicked : 0,
+            GlPostingStatus::create([
                 'referenceable_type' => DeliveryNote::class,
                 'referenceable_id'   => $deliveryNote->id,
+                'status'             => FormStatus::PENDING,
             ]);
-
-            $debitAccount->generalLedgerEntries()->create([
-                'against_account_id' => $creditAccount->id,
-                'credit'             => $returnAgainst ? $totalPicked : 0,
-                'debit'              => $returnAgainst ? 0 : $totalPicked,
-                'referenceable_type' => DeliveryNote::class,
-                'referenceable_id'   => $deliveryNote->id,
-            ]);
+            event(new DeliveryNoteGeneralLedgerPostingRequested(
+                $deliveryNote,
+                $totalPicked,
+                (bool) $returnAgainst,
+                now(),
+            ));
         }
 
         DB::commit();
@@ -441,7 +436,41 @@ class DeliveryNoteService {
         return $deliveryNote;
     }
 
-    public function onRejected(DeliveryNote $deliveryNote) {
+    /**
+     * Requirement 1-3, spec asset-rental-migration: dispatch event per baris
+     * DeliveryNoteItemAsset (rental/retur/jual-putus) — TIDAK menyentuh Stock.
+     */
+    private function handleAssetDeliveryItem(DeliveryNoteItem $item, DeliveryNote $deliveryNote, bool $returnAgainst): void {
+        $lines = $item->assetLines()->with('asset.assetCategory')->get();
+
+        if (abs((float) $lines->sum('quantity') - (float) $item->quantity) > 0.0001) {
+            throw new LogicException(__('asset/asset.quantity_mismatch'));
+        }
+
+        $isRentSo = $item->referenceable instanceof SalesOrderItem
+            ? (bool) ($item->referenceable->salesOrder?->is_rent ?? false)
+            : false;
+
+        foreach ($lines as $line) {
+            $asset = $line->asset;
+            if (! $asset->assetCategory?->is_rentable) {
+                throw new LogicException(__('asset/asset.category_not_rentable'));
+            }
+            if ($asset->item_id !== $item->item?->item_id) {
+                throw new LogicException(__('asset/asset.item_mismatch'));
+            }
+
+            if ($returnAgainst) {
+                event(new AssetRentalReturnApproved($line));
+            } elseif ($isRentSo) {
+                event(new AssetRentalDeliveryApproved($line));
+            } else {
+                event(new AssetSoldViaDelivery($line));
+            }
+        }
+    }
+
+    public function onRejected(Model $deliveryNote): mixed {
         $deliveryNote->update([
             'status' => FormStatus::REJECTED,
         ]);
@@ -449,11 +478,15 @@ class DeliveryNoteService {
         return $deliveryNote;
     }
 
-    public function cancel(DeliveryNote $deliveryNote) {
+    public function cancel(Model $deliveryNote): mixed {
         $deliveryNote->update([
             'status' => FormStatus::CANCELED,
         ]);
 
         return $deliveryNote;
+    }
+
+    public function amend(Model $model): mixed {
+        return $model;
     }
 }

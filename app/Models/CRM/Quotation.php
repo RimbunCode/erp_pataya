@@ -4,6 +4,7 @@ namespace App\Models\CRM;
 
 use App\Models\Model;
 use App\Models\Sales\Customer;
+use App\Services\CRM\QuotationService;
 use App\Traits\DataTable;
 use App\Traits\Submitable;
 use Illuminate\Database\Eloquent\Concerns\HasUlids;
@@ -12,11 +13,12 @@ use Illuminate\Database\Eloquent\SoftDeletes;
 class Quotation extends Model {
     use DataTable, HasUlids, SoftDeletes, Submitable;
 
-    protected $guarded           = ['id'];
-    public $keyBreadcrumb        = 'code';
-    public $translateKey         = 'crm.quotation';
-    public string $formComponent = 'CRM/Quotations/Form';
-    protected $casts             = [
+    public static string $service = QuotationService::class;
+    protected $guarded            = ['id'];
+    public $keyBreadcrumb         = 'code';
+    public $translateKey          = 'crm.quotation';
+    public string $formComponent  = 'CRM/Quotations/Form';
+    protected $casts              = [
         'date'        => 'datetime',
         'valid_until' => 'date',
         'amount'      => 'float',

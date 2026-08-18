@@ -59,7 +59,7 @@ class BaseControllerCancelTest extends TestCase {
         // injection) DAN test (untuk toggle $shouldThrow), bukan instance terpisah.
         $this->app->singleton(BaseControllerCancelTestService::class);
 
-        foreach (['users', 'roles', 'branches', 'general_ledgers', 'stock_ledger_entries'] as $tbl) {
+        foreach (['users', 'roles', 'branches', 'general_ledgers', 'stock_ledger_entries', 'logs'] as $tbl) {
             if (Schema::hasTable($tbl) && ! Schema::hasColumn($tbl, 'is_example')) {
                 Schema::table($tbl, fn ($t) => $t->boolean('is_example')->default(false));
             }

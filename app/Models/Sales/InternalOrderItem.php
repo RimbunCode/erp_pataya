@@ -7,6 +7,7 @@ use App\Models\Inventory\ItemVariant;
 use App\Models\Inventory\Warehouse;
 use App\Models\Model;
 use Illuminate\Database\Eloquent\Concerns\HasUlids;
+use Illuminate\Database\Eloquent\Relations\MorphTo;
 use Illuminate\Database\Eloquent\SoftDeletes;
 
 class InternalOrderItem extends Model {
@@ -90,5 +91,14 @@ class InternalOrderItem extends Model {
 
     public function item() {
         return $this->belongsTo(ItemVariant::class, 'item_id');
+    }
+
+    /**
+     * Requirement 1, spec asset-service-internal-order: sumber generik
+     * non-Item (AssetService/AssetServiceConsumedItem) — nullable, default
+     * null (perilaku ItemVariant biasa TIDAK berubah).
+     */
+    public function referenceable(): MorphTo {
+        return $this->morphTo();
     }
 }

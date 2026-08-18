@@ -149,7 +149,13 @@ class AssignedToSidebarTest extends TestCase {
         $this->assertDatabaseHas('todos', ['id' => $todo->id, 'deleted_at' => null]);
     }
 
-    public function test_assigning_duplicate_active_user_is_rejected(): void {
+    /**
+     * Constraint todos_reference_assignee_unique sudah dilonggarkan (lihat
+     * migrasi 2026_07_31_000003) karena event/meeting berulang butuh
+     * assignee-sama-dokumen-sama lebih dari sekali. Assign duplikat ke user
+     * yang sama kini menghasilkan row Todo baru, bukan ditolak.
+     */
+    public function test_assigning_duplicate_active_user_creates_new_row(): void {
         $ticket   = Ticket::factory()->create();
         $assignee = User::factory()->create();
 
@@ -160,14 +166,14 @@ class AssignedToSidebarTest extends TestCase {
             'allocated_to' => ['id' => $assignee->id, 'type' => 'user'],
         ]);
 
-        $response->assertSessionHasErrors('allocated_to');
-        $this->assertSame(1, Todo::where('reference_id', $ticket->id)
+        $response->assertSessionDoesntHaveErrors('allocated_to');
+        $this->assertSame(2, Todo::where('reference_id', $ticket->id)
             ->where('reference_type', Ticket::class)
             ->where('allocated_to_id', $assignee->id)
             ->count());
     }
 
-    public function test_assigning_duplicate_active_role_is_rejected(): void {
+    public function test_assigning_duplicate_active_role_creates_new_row(): void {
         $ticket = Ticket::factory()->create();
         $role   = Role::create(['name' => 'Duplicate Role']);
 
@@ -178,14 +184,14 @@ class AssignedToSidebarTest extends TestCase {
             'allocated_to' => ['id' => $role->id, 'type' => 'role'],
         ]);
 
-        $response->assertSessionHasErrors('allocated_to');
-        $this->assertSame(1, Todo::where('reference_id', $ticket->id)
+        $response->assertSessionDoesntHaveErrors('allocated_to');
+        $this->assertSame(2, Todo::where('reference_id', $ticket->id)
             ->where('reference_type', Ticket::class)
             ->where('allocated_to_id', $role->id)
             ->count());
     }
 
-    public function test_assigning_to_closed_assignee_is_still_rejected(): void {
+    public function test_assigning_to_closed_assignee_creates_new_row(): void {
         $ticket   = Ticket::factory()->create();
         $assignee = User::factory()->create();
         Todo::factory()->create([
@@ -199,8 +205,8 @@ class AssignedToSidebarTest extends TestCase {
             'allocated_to' => ['id' => $assignee->id, 'type' => 'user'],
         ]);
 
-        $response->assertSessionHasErrors('allocated_to');
-        $this->assertSame(1, Todo::where('reference_id', $ticket->id)
+        $response->assertSessionDoesntHaveErrors('allocated_to');
+        $this->assertSame(2, Todo::where('reference_id', $ticket->id)
             ->where('reference_type', Ticket::class)
             ->where('allocated_to_id', $assignee->id)
             ->count());

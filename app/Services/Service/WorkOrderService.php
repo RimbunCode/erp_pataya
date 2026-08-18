@@ -2,17 +2,22 @@
 
 namespace App\Services\Service;
 
+use App\Contracts\SubmitableService;
 use App\Enums\FormStatus;
 use App\Models\Core\Branch;
 use App\Models\Core\FormatingSeries;
 use App\Models\Inventory\ItemUnit;
 use App\Models\Inventory\ItemVariant;
+use App\Models\Model;
 use App\Models\Sales\Customer;
 use App\Models\Service\WorkOrder;
+use App\Traits\HasDefaultDelete;
 use App\Utils;
 use Symfony\Component\Uid\Ulid;
 
-class WorkOrderService {
+class WorkOrderService implements SubmitableService {
+    use HasDefaultDelete;
+
     private function fillRelations(array $data) {
         if (! ($data['for_internal'] ?? false)) {
             $data['customer_id']   = $data['customer']['id'];
@@ -47,7 +52,7 @@ class WorkOrderService {
         return ItemUnit::with('unit')->whereIn('item_units.id', $unitIds)->get()->keyBy('id')->all();
     }
 
-    public function create(array $data) {
+    public function create(array $data): Model {
         $data['code'] = FormatingSeries::generate(WorkOrder::class, $data, true);
         $wo           = WorkOrder::create($this->fillRelations($data));
         $units        = $this->batchLoadUnits($data);
@@ -56,12 +61,11 @@ class WorkOrderService {
             $item = $this->fillItemRelations($item, $units);
             $wo->items()->create($item);
         }
-        $wo->logForCreated();
 
         return $wo;
     }
 
-    public function update(WorkOrder $workOrder, array $data) {
+    public function update(Model $workOrder, array $data): Model {
         $workOrder->fillForUpdate($this->fillRelations($data));
 
         $workOrder->items()
@@ -92,12 +96,10 @@ class WorkOrderService {
             $workOrder->items()->create($item);
         }
 
-        $workOrder->logForUpdated();
-
         return $workOrder;
     }
 
-    public function submit(WorkOrder $workOrder) {
+    public function submit(Model $workOrder): mixed {
         $workOrder->update([
             'code' => FormatingSeries::generate(WorkOrder::class, $workOrder),
         ]);
@@ -106,7 +108,7 @@ class WorkOrderService {
         return $workOrder;
     }
 
-    public function onApproved(WorkOrder $workOrder) {
+    public function onApproved(Model $workOrder): mixed {
         $workOrder->update([
             'status' => FormStatus::PENDING,
         ]);
@@ -114,7 +116,7 @@ class WorkOrderService {
         return $workOrder;
     }
 
-    public function onRejected(WorkOrder $workOrder) {
+    public function onRejected(Model $workOrder): mixed {
         $workOrder->update([
             'status' => [
                 FormStatus::REJECTED,
@@ -132,8 +134,6 @@ class WorkOrderService {
             'started_at' => now(),
         ]);
 
-        $workOrder->logForUpdated();
-
         return $workOrder;
     }
 
@@ -145,16 +145,18 @@ class WorkOrderService {
             'completed_at' => now(),
         ]);
 
-        $workOrder->logForUpdated();
-
         return $workOrder;
     }
 
-    public function cancel(WorkOrder $workOrder) {
+    public function cancel(Model $workOrder): mixed {
         $workOrder->fillForUpdate([
             'status' => FormStatus::CANCELED,
         ]);
 
         return $workOrder;
+    }
+
+    public function amend(Model $model): mixed {
+        return $model;
     }
 }

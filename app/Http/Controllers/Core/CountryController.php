@@ -44,7 +44,6 @@ class CountryController extends Controller {
         $data = $request->validated();
         DB::beginTransaction();
         $country = Country::create($data);
-        $country->logForCreated();
         DB::commit();
 
         return back()->with('id', $country->code);
@@ -54,7 +53,6 @@ class CountryController extends Controller {
         $data = $request->validated();
         DB::beginTransaction();
         $country->fillForUpdate($data);
-        $country->logForUpdated();
         DB::commit();
 
         return back();

@@ -49,6 +49,7 @@ return [
         ],
         'conversion_factor' => 'Conversion Factor',
         'is_stock_item'     => 'Is Stock Item',
+        'is_fixed_asset'    => 'Is Fixed Asset',
     ],
     'variant_of' => 'Variant of',
     'variants'   => [],

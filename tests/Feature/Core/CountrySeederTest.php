@@ -26,7 +26,7 @@ class CountrySeederTest extends TestCase {
     private function sampleCountry(string $code = 'ID', string $name = 'Republic of Indonesia'): array {
         return [
             'codes'         => ['alpha_2' => $code],
-            'names'         => ['official' => $name],
+            'names'         => ['common' => $name],
             'languages'     => [['bcp47' => 'id', 'name' => 'Indonesian']],
             'flag'          => ['url_svg' => 'https://flagcdn.com/id.svg'],
             'timezones'     => ['UTC+07:00'],

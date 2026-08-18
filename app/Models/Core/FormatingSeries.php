@@ -175,7 +175,7 @@ class FormatingSeries extends Model {
             ];
         }
 
-        $refLatest   = $selectTime ? $refKey[$selectKey] : $refKey;
+        $refLatest   = $refKey[$selectKey];
         $lastUpdated = Carbon::parse($refLatest['updated_at']);
 
         if (\count($monthYear) > 0) {

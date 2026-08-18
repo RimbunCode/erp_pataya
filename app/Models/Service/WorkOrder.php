@@ -7,6 +7,7 @@ use App\Models\Core\Branch;
 use App\Models\Inventory\ItemVariant;
 use App\Models\Model;
 use App\Models\Sales\Customer;
+use App\Services\Service\WorkOrderService;
 use App\Traits\DataTable;
 use App\Traits\Submitable;
 use Illuminate\Database\Eloquent\Casts\Attribute;
@@ -16,8 +17,9 @@ use Illuminate\Database\Eloquent\SoftDeletes;
 class WorkOrder extends Model {
     use DataTable, HasUlids, SoftDeletes, Submitable;
 
-    protected $guarded = ['id'];
-    protected $casts   = [
+    public static string $service = WorkOrderService::class;
+    protected $guarded            = ['id'];
+    protected $casts              = [
         'date'         => 'datetime',
         'started_at'   => 'datetime',
         'completed_at' => 'datetime',

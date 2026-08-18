@@ -3,6 +3,7 @@
 namespace App\Models\Purchase;
 
 use App\Models\Model;
+use App\Services\Purchase\PurchaseReceiptService;
 use App\Traits\DataTable;
 use App\Traits\Submitable;
 use Illuminate\Database\Eloquent\Concerns\HasUlids;
@@ -11,11 +12,11 @@ use Illuminate\Database\Eloquent\SoftDeletes;
 class PurchaseReceipt extends Model {
     use DataTable, HasUlids, SoftDeletes, Submitable;
 
-    public string $formComponent = 'Purchase/PurchaseReceipts/Form';
-    protected $guarded           = ['id'];
-    protected $casts             = [
-        'received_date' => 'datetime',
-        'date'          => 'datetime',
+    public static string $service = PurchaseReceiptService::class;
+    public string $formComponent  = 'Purchase/PurchaseReceipts/Form';
+    protected $guarded            = ['id'];
+    protected $casts              = [
+        'date' => 'datetime',
     ];
     protected static string $defaultFormatCode = '@[branch_code]/Receipt-@[iiii]/@[yy]';
 
@@ -44,7 +45,7 @@ class PurchaseReceipt extends Model {
             'show'   => true,
             'order'  => 0,
         ],
-        'received_date' => [
+        'date' => [
             'show'  => true,
             'order' => 1,
         ],

@@ -117,7 +117,6 @@ class UserController extends Controller {
             if (! empty($data['branches'])) {
                 $user->branches()->sync($data['branches']);
             }
-            $user->logForCreated();
             DB::commit();
         } catch (\Throwable $e) {
             DB::rollBack();
@@ -168,7 +167,6 @@ class UserController extends Controller {
             $user->branches()->sync($data['branches']);
         }
         $user->fillForUpdate($data);
-        $user->logForUpdated();
         DB::commit();
 
         return back();

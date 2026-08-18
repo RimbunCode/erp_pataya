@@ -2,13 +2,18 @@
 
 namespace App\Services\CRM;
 
+use App\Contracts\SubmitableService;
 use App\Enums\FormStatus;
 use App\Models\Core\FormatingSeries;
 use App\Models\Core\ModelConnection;
 use App\Models\CRM\Quotation;
+use App\Models\Model;
+use App\Traits\HasDefaultDelete;
 use Symfony\Component\Uid\Ulid;
 
-class QuotationService {
+class QuotationService implements SubmitableService {
+    use HasDefaultDelete;
+
     private function fillRelations(array $data): array {
         $data['customer_id']    = $data['customer']['id'] ?? null;
         $data['opportunity_id'] = $data['opportunity']['id'] ?? null;
@@ -16,7 +21,7 @@ class QuotationService {
         return $data;
     }
 
-    public function create(array $data): Quotation {
+    public function create(array $data): Model {
         $data['code'] = FormatingSeries::generate(Quotation::class, $data, true);
         $quotation    = Quotation::create($this->fillRelations($data));
 
@@ -28,12 +33,11 @@ class QuotationService {
             $amount += $itemModel->amount;
         }
         $quotation->update(['amount' => $amount]);
-        $quotation->logForCreated();
 
         return $quotation;
     }
 
-    public function update(Quotation $quotation, array $data): Quotation {
+    public function update(Model $quotation, array $data): Model {
         $quotation->fillForUpdate($this->fillRelations($data), true);
 
         $quotation->items()
@@ -70,12 +74,11 @@ class QuotationService {
         }
         $quotation->fill(['amount' => $amount]);
         $quotation->save();
-        $quotation->logForUpdated();
 
         return $quotation;
     }
 
-    public function submit(Quotation $quotation): Quotation {
+    public function submit(Model $quotation): mixed {
         $quotation->update([
             'code' => FormatingSeries::generate(Quotation::class, $quotation),
         ]);
@@ -94,11 +97,23 @@ class QuotationService {
         return $quotation;
     }
 
-    public function cancel(Quotation $quotation): Quotation {
+    public function cancel(Model $quotation): mixed {
         $quotation->update([
             'status' => [FormStatus::CANCELED],
         ]);
 
         return $quotation;
+    }
+
+    public function amend(Model $model): mixed {
+        return $model;
+    }
+
+    public function onApproved(Model $model): mixed {
+        return $model;
+    }
+
+    public function onRejected(Model $model): mixed {
+        return $model;
     }
 }

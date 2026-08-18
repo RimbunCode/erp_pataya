@@ -86,7 +86,6 @@ class PrintTemplateController extends Controller {
         $data['letter_head_id'] = isset($data['letter_head']) ? $data['letter_head']['id'] : null;
 
         $printTemplate = PrintTemplate::create($data);
-        $printTemplate->logForCreated();
         DB::commit();
 
         return redirect()->route('printTemplates.show', $printTemplate)->with('id', $printTemplate->id);
@@ -241,7 +240,6 @@ class PrintTemplateController extends Controller {
             $printTemplate->setUsedRelationsFromTemplate();
         }
 
-        $printTemplate->logForUpdated();
         DB::commit();
 
         return redirect()->back();

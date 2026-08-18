@@ -1,6 +1,7 @@
 import { FormPageContent, useFormPage } from "@/Pages/Core/FormPage";
 import React, { useMemo } from "react";
 
+import AssetLinkModel from "@/Pages/Asset/Assets/AssetLinkModel";
 import BranchLinkModel from "@/Pages/Settings/Branches/BranchLinkModel";
 import NumberInput from "@/Components/NumberInput";
 import CustomerLinkModel from "@/Pages/Sales/Customers/CustomerLinkModel";
@@ -173,8 +174,98 @@ export default function Form() {
           );
         },
       },
+      {
+        name: "asset_lines",
+        titleTrans: "inventory.deliveryNote.columns.asset_lines",
+        show: false,
+        width: 3,
+        cell({ dataRow, data, setData, attributes }) {
+          const itemId =
+            dataRow?.referenceable?.item?.item_id ??
+            dataRow?.referenceable?.item_id;
+          const isFixedAsset = !!dataRow?.referenceable?.item?.is_fixed_asset;
+          if (!isFixedAsset) {
+            return <span className="text-muted-foreground">-</span>;
+          }
+          const totalAssetQuantity = (data ?? []).reduce(
+            (sum, line) => sum + (Number(line.quantity) || 0),
+            0,
+          );
+          const mismatch = totalAssetQuantity !== (dataRow.quantity ?? 0);
+          return (
+            <div className="flex w-full flex-col gap-y-1">
+              <FormTable
+                name="DeliveryNoteItemAssetLines"
+                ignoreDisabled
+                readOnly={attributes.readOnly}
+                columns={[
+                  {
+                    name: "asset",
+                    titleTrans:
+                      "inventory.deliveryNote.columns.asset_lines.asset",
+                    required: true,
+                    width: 2,
+                    cell({
+                      dataRow: _assetRow,
+                      data: assetData,
+                      setData: setAssetData,
+                      attributes: assetAttrs,
+                    }) {
+                      return (
+                        <AssetLinkModel
+                          placeholder={t(
+                            "inventory.deliveryNote.columns.asset_lines.asset.placeholder",
+                          )}
+                          value={assetData}
+                          onValueChange={(val) => setAssetData("asset", val)}
+                          {...assetAttrs}
+                          filters={{
+                            item_id: itemId,
+                            available_quantity: { ">": 0 },
+                          }}
+                        />
+                      );
+                    },
+                  },
+                  {
+                    name: "quantity",
+                    titleTrans:
+                      "inventory.deliveryNote.columns.asset_lines.quantity",
+                    required: true,
+                    type: "number",
+                    width: 1,
+                    cell({
+                      data: qty,
+                      setData: setAssetData,
+                      attributes: assetAttrs,
+                    }) {
+                      return (
+                        <NumberInput
+                          {...assetAttrs}
+                          value={qty}
+                          onValueChange={(val) => setAssetData("quantity", val)}
+                        />
+                      );
+                    },
+                  },
+                ]}
+                value={data ?? []}
+                onValueChange={(v) => setData("asset_lines", v)}
+              />
+              {mismatch && (
+                <p className="text-xs text-destructive">
+                  {t(
+                    "inventory.deliveryNote.columns.asset_lines.quantity_mismatch",
+                    { quantity: dataRow.quantity ?? 0 },
+                  )}
+                </p>
+              )}
+            </div>
+          );
+        },
+      },
     ];
-  }, [data]);
+  }, [data, t]);
   return (
     <>
       <FormPageContent

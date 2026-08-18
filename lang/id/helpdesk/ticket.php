@@ -1,8 +1,11 @@
 <?php
 
 return [
-    'new'  => 'Ticket Baru',
-    'edit' => 'Edit Ticket',
+    'title' => 'Tiket Helpdesk',
+    'add'   => 'Ticket Baru',
+    'name'  => 'Ticket',
+    'new'   => 'Ticket Baru',
+    'edit'  => 'Edit Ticket',
 
     'columns' => [
         'code'       => 'Kode',

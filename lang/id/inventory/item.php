@@ -49,6 +49,7 @@ return [
         ],
         'conversion_factor' => 'Faktor Konversi',
         'is_stock_item'     => 'Merupakan Barang Stok',
+        'is_fixed_asset'    => 'Merupakan Aset Tetap (Fixed Asset)',
     ],
     'variant_of' => 'Varian Dari',
     'variants'   => [],

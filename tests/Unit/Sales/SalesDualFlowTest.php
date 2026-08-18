@@ -351,6 +351,7 @@ class SalesDualFlowTest extends TestCase {
             'unit'     => ['id' => 'unit-1'],
             'tax'      => null,
             'quantity' => 1,
+            'price'    => 1000,
         ], $salesOrder, [], []);
 
         $this->assertNull($result['tax_id'], 'tax_id harus null, bukan melempar error, saat tax tidak diisi');
@@ -373,6 +374,7 @@ class SalesDualFlowTest extends TestCase {
             'unit'     => ['id' => 'unit-1'],
             'tax'      => ['id' => 'tax-1'],
             'quantity' => 1,
+            'price'    => 1000,
         ], $salesOrder, [], ['tax-1' => $tax]);
 
         $this->assertEquals('tax-1', $result['tax_id']);

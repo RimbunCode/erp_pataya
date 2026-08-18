@@ -94,7 +94,6 @@ class UnitController extends Controller {
             $data['conversion_factor'] = null;
         }
         $unit = Unit::create($data);
-        $unit->logForCreated();
         DB::commit();
 
         return back()->with('id', $unit->id);
@@ -131,7 +130,6 @@ class UnitController extends Controller {
             $data['conversion_factor'] = null;
         }
         $unit->fillForUpdate($data);
-        $unit->logForUpdated();
         DB::commit();
 
         return back();

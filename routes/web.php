@@ -1,5 +1,13 @@
 <?php
 use App\Enums\FormStatus;
+use App\Http\Controllers\Asset\AssetCategoryController;
+use App\Http\Controllers\Asset\AssetController;
+use App\Http\Controllers\Asset\AssetLocationController;
+use App\Http\Controllers\Asset\AssetMaintenanceController;
+use App\Http\Controllers\Asset\AssetMaintenanceTeamController;
+use App\Http\Controllers\Asset\AssetMovementController;
+use App\Http\Controllers\Asset\AssetServiceController;
+use App\Http\Controllers\Asset\AssetValueAdjustmentController;
 use App\Http\Controllers\Core\ApprovalInstanceController;
 use App\Http\Controllers\Core\ApprovalSchemeController;
 use App\Http\Controllers\Core\BranchController;
@@ -13,6 +21,7 @@ use App\Http\Controllers\Core\DashboardController;
 use App\Http\Controllers\Core\EmailTemplateController;
 use App\Http\Controllers\Core\FileController;
 use App\Http\Controllers\Core\FormatingSeriesController;
+use App\Http\Controllers\Core\GlPostingStatusController;
 use App\Http\Controllers\Core\HtmlSanitizeController;
 use App\Http\Controllers\Core\LanguageController;
 use App\Http\Controllers\Core\LogController;
@@ -189,6 +198,9 @@ Route::middleware(['auth', 'lang', 'onboarded', 'app'])->group(function () {
     }
     Route::get('/logs', [LogController::class, 'index'])->name('logs.index');
     Route::get('/logs/{log}', [LogController::class, 'show'])->name('logs.show');
+    // GL Posting Status Monitoring
+    Route::get('/gl-posting-statuses', [GlPostingStatusController::class, 'index'])->name('gl-posting-statuses.index');
+    Route::post('/gl-posting-statuses/{glPostingStatus}/retry', [GlPostingStatusController::class, 'retry'])->name('gl-posting-statuses.retry');
     // Branch Switcher
     Route::put('/switch_branch/{id}', [BranchController::class, 'switch'])->name('branch.switch');
     // Dashboard
@@ -280,6 +292,34 @@ Route::middleware(['auth', 'lang', 'onboarded', 'app'])->group(function () {
     // Stock Ledgers
     Route::resourceDetail('stockLedger', StockLedgerController::class);
     // / Inventories Group End
+
+    // / Asset Group
+    // Asset Categories
+    Route::resourceDetail('assetCategory', AssetCategoryController::class);
+    // Asset Locations
+    Route::resourceDetail('assetLocation', AssetLocationController::class);
+    // Assets
+    Route::put('/assets/{asset}/completeData', [AssetController::class, 'completeData'])->name('assets.completeData');
+    Route::post('/assets/{asset}/{action}', [AssetController::class, 'action'])->name('assets.action');
+    Route::resourceDetail('asset', AssetController::class, isSubmmitable: true);
+    // Asset Value Adjustments
+    Route::resourceDetail('assetValueAdjustment', AssetValueAdjustmentController::class, isSubmmitable: true);
+    // Asset Movements
+    Route::resourceDetail('assetMovement', AssetMovementController::class, isSubmmitable: true);
+    // Asset Maintenance Teams
+    Route::resourceDetail('assetMaintenanceTeam', AssetMaintenanceTeamController::class);
+    // Asset Maintenance
+    Route::post('/assetMaintenances/{assetMaintenance}/tasks', [AssetMaintenanceController::class, 'storeTask'])->name('assetMaintenances.tasks.store');
+    Route::put('/assetMaintenances/tasks/{task}', [AssetMaintenanceController::class, 'updateTask'])->name('assetMaintenances.tasks.update');
+    Route::delete('/assetMaintenances/tasks/{task}', [AssetMaintenanceController::class, 'destroyTask'])->name('assetMaintenances.tasks.destroy');
+    Route::resourceDetail('assetMaintenance', AssetMaintenanceController::class);
+    // Asset Services
+    Route::post('/assetServices/{assetService}/complete', [AssetServiceController::class, 'complete'])->name('assetServices.complete');
+    Route::post('/assetServices/{assetService}/billToRenter', [AssetServiceController::class, 'billToRenter'])->name('assetServices.billToRenter');
+    Route::post('/assetServices/{assetService}/activities', [AssetServiceController::class, 'storeActivity'])->name('assetServices.activities.store');
+    Route::put('/assetServices/activities/{activity}', [AssetServiceController::class, 'updateActivity'])->name('assetServices.activities.update');
+    Route::resourceDetail('assetService', AssetServiceController::class, isSubmmitable: true);
+    // / Asset Group End
 
     // / Purchase Group
     // Supplier

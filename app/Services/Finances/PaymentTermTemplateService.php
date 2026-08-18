@@ -22,7 +22,6 @@ class PaymentTermTemplateService {
             $paymentTermTemplate->items()->create($item);
         }
 
-        $paymentTermTemplate->logForCreated();
         DB::commit();
 
         return $paymentTermTemplate;
@@ -55,7 +54,6 @@ class PaymentTermTemplateService {
             $paymentTermTemplate->items()->create($item);
         }
 
-        $paymentTermTemplate->logForUpdated();
         DB::commit();
 
         return $paymentTermTemplate;

@@ -2,6 +2,7 @@
 
 namespace App\Services\Inventory;
 
+use App\Contracts\SubmitableService;
 use App\Enums\FormStatus;
 use App\Models\Core\FormatingSeries;
 use App\Models\Finances\Account;
@@ -10,11 +11,15 @@ use App\Models\Inventory\ItemUnit;
 use App\Models\Inventory\Stock;
 use App\Models\Inventory\StockEntry;
 use App\Models\Inventory\StockLedgerEntry;
+use App\Models\Model;
+use App\Traits\HasDefaultDelete;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Validation\ValidationException;
 use Symfony\Component\Uid\Ulid;
 
-class StockEntryService {
+class StockEntryService implements SubmitableService {
+    use HasDefaultDelete;
+
     private function getStockKey(string $itemVariantId, ?string $warehouseId): string {
         return "{$itemVariantId}-{$warehouseId}";
     }
@@ -117,7 +122,7 @@ class StockEntryService {
             ->all();
     }
 
-    public function create(array $data) {
+    public function create(array $data): Model {
         $data['code'] = FormatingSeries::generate(StockEntry::class, $data, true);
         $stockEntry   = StockEntry::create($this->fillRelations($data));
 
@@ -148,12 +153,11 @@ class StockEntryService {
             unset($item['basic_amount']);
             $stockEntry->items()->create($item);
         }
-        $stockEntry->logForCreated();
 
         return $stockEntry;
     }
 
-    public function update(StockEntry $stockEntry, array $data) {
+    public function update(Model $stockEntry, array $data): Model {
         $stockEntry->fillForUpdate($this->fillRelations($data));
 
         // additional cost update
@@ -221,7 +225,6 @@ class StockEntryService {
             }
             $stockEntry->items()->create($item);
         }
-        $stockEntry->logForUpdated();
 
         return $stockEntry;
     }
@@ -249,7 +252,7 @@ class StockEntryService {
         }
     }
 
-    public function submit(StockEntry $stockEntry) {
+    public function submit(Model $stockEntry): mixed {
         DB::beginTransaction();
 
         $stockEntry->update([
@@ -298,7 +301,7 @@ class StockEntryService {
         return $stockEntry;
     }
 
-    public function onApproved(StockEntry $stockEntry) {
+    public function onApproved(Model $stockEntry): mixed {
         DB::beginTransaction();
         $stockEntry->update([
             'status' => FormStatus::COMPLETED,
@@ -483,6 +486,7 @@ class StockEntryService {
                     'stock_queue'                => $stockSource->stock_queue,
                     'referenceable_type'         => StockEntry::class,
                     'referenceable_id'           => $stockEntry->id,
+                    'transaction_date'           => now(),
                 ]);
             }
 
@@ -541,6 +545,7 @@ class StockEntryService {
                     'stock_queue'                => $stockTarget->stock_queue,
                     'referenceable_type'         => StockEntry::class,
                     'referenceable_id'           => $stockEntry->id,
+                    'transaction_date'           => now(),
                 ]);
             }
         }
@@ -645,7 +650,7 @@ class StockEntryService {
         return $stockEntry;
     }
 
-    public function onRejected(StockEntry $stockEntry) {
+    public function onRejected(Model $stockEntry): mixed {
         DB::beginTransaction();
         $stockEntry->update([
             'status' => [
@@ -661,7 +666,7 @@ class StockEntryService {
 
     }
 
-    public function cancel(StockEntry $stockEntry) {
+    public function cancel(Model $stockEntry): mixed {
         DB::beginTransaction();
         $stockEntry->update([
             'status' => [
@@ -675,5 +680,9 @@ class StockEntryService {
 
         return $stockEntry;
 
+    }
+
+    public function amend(Model $model): mixed {
+        return $model;
     }
 }

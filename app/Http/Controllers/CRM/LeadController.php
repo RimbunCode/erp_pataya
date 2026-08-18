@@ -2,12 +2,14 @@
 
 namespace App\Http\Controllers\CRM;
 
+use App\Events\CRM\LeadConvertedToCustomer;
 use App\Http\Controllers\Controller;
 use App\Http\Requests\CRM\LeadRequest;
 use App\Models\CRM\Lead;
 use App\Services\CRM\LeadService;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
+use Illuminate\Support\Str;
 use Inertia\Inertia;
 
 class LeadController extends Controller {
@@ -46,7 +48,6 @@ class LeadController extends Controller {
         $data['assigned_to_id'] = $data['assigned_to']['id'] ?? null;
         $lead                   = Lead::create($data);
         $this->leadService->storeActivities($lead, $data['activities'] ?? []);
-        $lead->logForCreated();
         DB::commit();
 
         return back()->with('id', $lead->id);
@@ -76,18 +77,36 @@ class LeadController extends Controller {
         $data['assigned_to_id'] = $data['assigned_to']['id'] ?? null;
         $lead->fillForUpdate($data);
         $this->leadService->storeActivities($lead, $data['activities'] ?? []);
-        $lead->logForUpdated();
         DB::commit();
 
         return back();
     }
 
     public function convert(Lead $lead) {
-        DB::beginTransaction();
-        $customer = $this->leadService->convertToCustomer($lead);
-        $lead->logForUpdated();
-        DB::commit();
+        if ($lead->converted_customer_id) {
+            return back()->with('id', $lead->converted_customer_id);
+        }
 
-        return back()->with('id', $customer->id);
+        $customerId = (string) Str::ulid();
+
+        DB::beginTransaction();
+        try {
+            event(new LeadConvertedToCustomer($lead, $customerId, [
+                'name'       => $lead->company_name,
+                'email'      => $lead->email,
+                'phone'      => $lead->phone,
+                'street'     => $lead->street,
+                'city'       => $lead->city,
+                'province'   => $lead->province,
+                'zip_code'   => $lead->zip_code,
+                'country_id' => $lead->country_id,
+            ]));
+            DB::commit();
+        } catch (\Throwable $e) {
+            DB::rollBack();
+            throw $e;
+        }
+
+        return back()->with('id', $customerId);
     }
 }

@@ -129,7 +129,6 @@ class SalesOrderController extends Controller {
 
         // create SO
         $so = $this->service->create($data);
-        $so->logForCreated();
 
         DB::commit();
 

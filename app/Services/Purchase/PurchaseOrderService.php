@@ -2,7 +2,9 @@
 
 namespace App\Services\Purchase;
 
+use App\Contracts\SubmitableService;
 use App\Enums\FormStatus;
+use App\Events\Inventory\StockReservationChanged;
 use App\Models\Core\FormatingSeries;
 use App\Models\Core\ModelConnection;
 use App\Models\Core\Preference;
@@ -11,12 +13,14 @@ use App\Models\Finances\PurchaseInvoiceItem;
 use App\Models\Finances\Tax;
 use App\Models\Inventory\ItemUnit;
 use App\Models\Inventory\Stock;
+use App\Models\Model;
 use App\Models\Purchase\PurchaseOrder;
 use App\Models\Purchase\PurchaseOrderItem;
 use App\Models\Purchase\PurchaseReceipt;
 use App\Models\Purchase\PurchaseReceiptItem;
 use App\Models\Purchase\Supplier;
 use App\Services\Finances\DocumentDiscountCalculator;
+use App\Traits\HasDefaultDelete;
 use App\Utils;
 use Illuminate\Support\Collection;
 use Illuminate\Support\Facades\DB;
@@ -24,7 +28,9 @@ use Illuminate\Support\Str;
 use Illuminate\Validation\ValidationException;
 use Symfony\Component\Uid\Ulid;
 
-class PurchaseOrderService {
+class PurchaseOrderService implements SubmitableService {
+    use HasDefaultDelete;
+
     private function fillRelations(array $data) {
         $data['supplier_id']   = $data['supplier']['id'];
         $data['supplier_name'] = Supplier::find($data['supplier']['id'])?->name;
@@ -52,49 +58,21 @@ class PurchaseOrderService {
         $data['tax_id']              = $data['tax']['id'];
         $data['tax_rate']            = $tax?->rate ?? 0;
         $data['target_warehouse_id'] = $data['target_warehouse']['id'];
-        $data['basic_amount']        = $data['quantity'] * $data['rate'];
 
         return $data;
     }
 
     /**
-     * Alokasikan diskon dokumen (jika ada) ke seluruh item, tulis basic_amount/tax_amount/
-     * amount hasil alokasi ke tiap item model, lalu kembalikan total basic_amount & tax_amount
-     * header. basic_amount/tax_amount/amount bukan generated column lagi (lihat migration
-     * convert_purchase_order_items_amounts_to_stored_columns) -- Service layer ini yang jadi
-     * satu-satunya penulis nilai tsb.
+     * basic_amount/tax_amount/amount bukan generated column lagi (lihat migration
+     * convert_purchase_order_items_amounts_to_stored_columns) -- delegasi ke
+     * DocumentDiscountCalculator::applyToItems() (dipakai juga SalesOrderService,
+     * logic alokasi identik disatukan supaya tidak terduplikasi per Service).
      *
      * @param  Collection<int, PurchaseOrderItem>  $items
      * @return array{basic_amount: float, tax_amount: float}
      */
     private function applyDiscountToItems(PurchaseOrder $purchaseOrder, Collection $items): array {
-        $lines = $items->map(fn (PurchaseOrderItem $item) => [
-            'basic_amount' => $item->basic_amount,
-            'tax_rate'     => $item->tax_rate,
-        ])->all();
-
-        // discount_amount selalu dipakai sebagai nilai otoritatif (bukan discount_rate) --
-        // FE (AdditionalDiscount.jsx) sudah menyinkronkan discount_amount setiap kali user
-        // mengubah discount_rate ATAU discount_amount, jadi discount_amount yang terkirim ke
-        // backend selalu representasi absolut terkini, tanpa perlu transport latestDiscountKey
-        // (state FE-only, tidak ada kolomnya di DB) ke backend.
-        $allocated = DocumentDiscountCalculator::allocate(
-            $lines,
-            $purchaseOrder->discount_on,
-            $purchaseOrder->discount_rate ?? 0,
-            $purchaseOrder->discount_amount ?? 0,
-            'discount_amount',
-        );
-
-        $basicAmount = 0;
-        $taxAmount   = 0;
-        foreach ($items->values() as $index => $item) {
-            $item->forceFill($allocated[$index])->save();
-            $basicAmount += $allocated[$index]['basic_amount'];
-            $taxAmount += $allocated[$index]['tax_amount'];
-        }
-
-        return ['basic_amount' => $basicAmount, 'tax_amount' => $taxAmount];
+        return DocumentDiscountCalculator::applyToItems($purchaseOrder, $items);
     }
 
     private function batchLoadUnits(array $data): array {
@@ -120,7 +98,7 @@ class PurchaseOrderService {
         return $data;
     }
 
-    public function create(array $data) {
+    public function create(array $data): Model {
         $data['code']  = FormatingSeries::generate(PurchaseOrder::class, $data, true);
         $purchaseOrder = PurchaseOrder::create($this->fillRelations($data));
 
@@ -129,8 +107,12 @@ class PurchaseOrderService {
 
         $items = collect();
         foreach ($data['items'] as $item) {
-            $item = $this->fillItemRelations($item, $purchaseOrder, $units, $taxes);
-            $items->push($purchaseOrder->items()->create($item));
+            $item      = $this->fillItemRelations($item, $purchaseOrder, $units, $taxes);
+            $itemModel = $purchaseOrder->items()->create($item);
+            // basic_amount generated column (quantity * rate) -- belum terisi di object
+            // sampai di-refresh dari DB.
+            $itemModel->refresh();
+            $items->push($itemModel);
         }
 
         $totals = $this->applyDiscountToItems($purchaseOrder, $items);
@@ -145,12 +127,11 @@ class PurchaseOrderService {
                 ...$payment_schedule,
             ]);
         }
-        $purchaseOrder->logForCreated();
 
         return $purchaseOrder;
     }
 
-    public function update(PurchaseOrder $purchaseOrder, array $data) {
+    public function update(Model $purchaseOrder, array $data): Model {
         $purchaseOrder->fillForUpdate($this->fillRelations($data));
 
         $purchaseOrder->items()
@@ -185,6 +166,9 @@ class PurchaseOrderService {
                 $itemModel = $purchaseOrder->items()->create($item);
             }
 
+            // basic_amount generated column -- refresh supaya nilai terbaru (quantity/rate
+            // baru) terbaca sebelum dialokasikan diskon.
+            $itemModel->refresh();
             $items->push($itemModel);
         }
 
@@ -223,12 +207,10 @@ class PurchaseOrderService {
             }
         }
 
-        $purchaseOrder->logForUpdated();
-
         return $purchaseOrder;
     }
 
-    public function submit(PurchaseOrder $purchaseOrder) {
+    public function submit(Model $purchaseOrder): mixed {
         DB::beginTransaction();
 
         // ensure payment schedule portions valid when provided
@@ -257,6 +239,7 @@ class PurchaseOrderService {
             ->get()
             ->keyBy(fn ($stock) => "{$stock->item_variant_id}-{$stock->warehouse_id}");
 
+        $validatedItems = [];
         foreach ($items as $item) {
             if (! $item->item->is_stock_item) {
                 continue;
@@ -269,8 +252,16 @@ class PurchaseOrderService {
                 continue;
             }
 
-            $quantity = $item->quantity * $item->conversion_factor / $stock->conversion_factor;
-            $stock->updateDetails('increment', 'incomings', $purchaseOrder->code, $quantity);
+            $quantity         = $item->quantity * $item->conversion_factor / $stock->conversion_factor;
+            $validatedItems[] = [
+                'itemVariantId' => $item->item_id,
+                'warehouseId'   => $item->target_warehouse_id,
+                'quantity'      => $quantity,
+            ];
+        }
+
+        if (\count($validatedItems) > 0) {
+            event(new StockReservationChanged($purchaseOrder, 'increment', 'incomings', $validatedItems));
         }
 
         DB::commit();
@@ -279,7 +270,7 @@ class PurchaseOrderService {
         return $purchaseOrder;
     }
 
-    public function onApproved(PurchaseOrder $purchaseOrder) {
+    public function onApproved(Model $purchaseOrder): mixed {
         DB::beginTransaction();
         $purchaseOrder->update([
             'status' => [FormStatus::TO_RECEIVE, FormStatus::TO_BILL],
@@ -314,7 +305,7 @@ class PurchaseOrderService {
         return $purchaseOrder;
     }
 
-    private function rolllbackItems(PurchaseOrder $purchaseOrder) {
+    private function rollbackItems(PurchaseOrder $purchaseOrder) {
         $items = $purchaseOrder->items()
             ->get();
         $stocks = Stock::whereIn('item_variant_id', $items->pluck('item_id'))
@@ -322,6 +313,7 @@ class PurchaseOrderService {
             ->lockForUpdate()
             ->get()
             ->keyBy(fn ($stock) => "{$stock->item_variant_id}-{$stock->warehouse_id}");
+        $validatedItems = [];
         foreach ($items as $item) {
             $stockKey = "{$item->item_id}-{$item->target_warehouse_id}";
             $stock    = $stocks->get($stockKey);
@@ -329,12 +321,20 @@ class PurchaseOrderService {
                 continue;
             }
 
-            $quantity = $item->quantity * $item->conversion_factor / $stock->conversion_factor;
-            $stock->updateDetails('decrement', 'incomings', $purchaseOrder->code, $quantity);
+            $quantity         = $item->quantity * $item->conversion_factor / $stock->conversion_factor;
+            $validatedItems[] = [
+                'itemVariantId' => $item->item_id,
+                'warehouseId'   => $item->target_warehouse_id,
+                'quantity'      => $quantity,
+            ];
+        }
+
+        if (\count($validatedItems) > 0) {
+            event(new StockReservationChanged($purchaseOrder, 'decrement', 'incomings', $validatedItems));
         }
     }
 
-    public function onRejected(PurchaseOrder $purchaseOrder) {
+    public function onRejected(Model $purchaseOrder): mixed {
         DB::beginTransaction();
         $purchaseOrder->update([
             'status' => [
@@ -342,14 +342,14 @@ class PurchaseOrderService {
             ],
         ]);
 
-        $this->rolllbackItems($purchaseOrder);
+        $this->rollbackItems($purchaseOrder);
 
         DB::commit();
 
         return $purchaseOrder;
     }
 
-    public function cancel(PurchaseOrder $purchaseOrder) {
+    public function cancel(Model $purchaseOrder): mixed {
         DB::beginTransaction();
         $purchaseOrder->update([
             'status' => [
@@ -357,11 +357,63 @@ class PurchaseOrderService {
             ],
         ]);
 
-        $this->rolllbackItems($purchaseOrder);
+        $this->rollbackItems($purchaseOrder);
 
         DB::commit();
 
         return $purchaseOrder;
+    }
+
+    public function updatePurchaseOrderBillStatus(PurchaseOrder $purchaseOrder, $returnAgainst): void {
+        $unbilledItems = $purchaseOrder->items()->select(['id', 'unbilled_quantity', 'quantity', 'billed_quantity'])->get();
+        $totalQty      = $unbilledItems->sum('quantity');
+        $totalBilled   = $unbilledItems->sum('billed_quantity');
+
+        if ($totalBilled == 0) {
+            $newStatus      = FormStatus::TO_BILL;
+            $removeStatuses = [FormStatus::BILLED, FormStatus::PARTIALLY_BILLED, FormStatus::OVER_BILLED];
+        } elseif ($totalBilled > $totalQty) {
+            $newStatus      = FormStatus::OVER_BILLED;
+            $removeStatuses = [FormStatus::TO_BILL, FormStatus::PARTIALLY_BILLED, FormStatus::BILLED];
+        } elseif ($totalBilled < $totalQty) {
+            $newStatus      = FormStatus::PARTIALLY_BILLED;
+            $removeStatuses = [FormStatus::TO_BILL, FormStatus::BILLED, FormStatus::OVER_BILLED];
+        } else {
+            $newStatus      = FormStatus::BILLED;
+            $removeStatuses = [FormStatus::TO_BILL, FormStatus::PARTIALLY_BILLED, FormStatus::OVER_BILLED];
+        }
+
+        $purchaseOrder->update([
+            'status' => Utils::replaceStatus($purchaseOrder->status, $removeStatuses, $newStatus),
+        ]);
+    }
+
+    public function updatePurchaseOrderReceiveStatus(PurchaseOrder $purchaseOrder): void {
+        $items         = $purchaseOrder->items()->select('quantity', 'received_quantity')->get();
+        $totalQty      = $items->sum('quantity');
+        $totalReceived = $items->sum('received_quantity');
+
+        if ($totalReceived == 0) {
+            $newStatus      = FormStatus::TO_RECEIVE;
+            $removeStatuses = [FormStatus::RECEIVED, FormStatus::PARTIALLY_RECEIVED, FormStatus::OVER_RECEIVED];
+        } elseif ($totalReceived > $totalQty) {
+            $newStatus      = FormStatus::OVER_RECEIVED;
+            $removeStatuses = [FormStatus::TO_RECEIVE, FormStatus::PARTIALLY_RECEIVED, FormStatus::RECEIVED];
+        } elseif ($totalReceived < $totalQty) {
+            $newStatus      = FormStatus::PARTIALLY_RECEIVED;
+            $removeStatuses = [FormStatus::TO_RECEIVE, FormStatus::RECEIVED, FormStatus::OVER_RECEIVED];
+        } else {
+            $newStatus      = FormStatus::RECEIVED;
+            $removeStatuses = [FormStatus::TO_RECEIVE, FormStatus::PARTIALLY_RECEIVED, FormStatus::OVER_RECEIVED];
+        }
+
+        $purchaseOrder->update([
+            'status' => Utils::replaceStatus($purchaseOrder->status, $removeStatuses, $newStatus),
+        ]);
+    }
+
+    public function amend(Model $model): mixed {
+        return $model;
     }
 
     /**
@@ -449,7 +501,6 @@ class PurchaseOrderService {
                         'tax_id'              => $g['tax_id'],
                         'tax_rate'            => $g['tax_rate'],
                         'target_warehouse_id' => $g['warehouse_id'],
-                        'basic_amount'        => $poItem->quantity * $g['rate'],
                     ]);
                     $poItem->refresh();
                     $syncLog[] = ['action' => 'update', 'po_item_id' => $poItem->id, 'rate' => $g['rate']];
@@ -468,7 +519,6 @@ class PurchaseOrderService {
                             'received_quantity'   => 0,
                             'billed_quantity'     => 0,
                             'parent_item_id'      => $parentId,
-                            'basic_amount'        => $g['qty'] * $g['rate'],
                         ]);
                         $newItem->id = (string) Str::ulid();
                         $newItem->save();
@@ -595,71 +645,15 @@ class PurchaseOrderService {
     }
 
     /**
-     * Update kedua status receive & bill di PO setelah sync
+     * Update kedua status receive & bill di PO setelah sync -- delegasi ke
+     * updatePurchaseOrderReceiveStatus()/updatePurchaseOrderBillStatus() (dipakai juga
+     * oleh RecalculatePurchaseOrderReceiveStatus/RecalculatePurchaseOrderBillStatus
+     * listener) supaya rule status-transition tidak terduplikasi di dua tempat.
      */
     private function updatePurchaseOrderStatus(PurchaseOrder $purchaseOrder): void {
         $purchaseOrder->load('items');
-        $items         = $purchaseOrder->items;
-        $totalQty      = $items->sum('quantity');
-        $totalReceived = $items->sum('received_quantity');
-        $totalBilled   = $items->sum('billed_quantity');
 
-        $currentStatus = $purchaseOrder->fresh()->status;
-
-        // Receive status
-        if ($totalReceived == 0) {
-            $currentStatus = Utils::replaceStatus(
-                $currentStatus,
-                [FormStatus::RECEIVED, FormStatus::PARTIALLY_RECEIVED, FormStatus::OVER_RECEIVED],
-                FormStatus::TO_RECEIVE,
-            );
-        } elseif ($totalReceived > $totalQty) {
-            $currentStatus = Utils::replaceStatus(
-                $currentStatus,
-                [FormStatus::TO_RECEIVE, FormStatus::PARTIALLY_RECEIVED, FormStatus::RECEIVED],
-                FormStatus::OVER_RECEIVED,
-            );
-        } elseif ($totalReceived < $totalQty) {
-            $currentStatus = Utils::replaceStatus(
-                $currentStatus,
-                [FormStatus::TO_RECEIVE, FormStatus::RECEIVED, FormStatus::OVER_RECEIVED],
-                FormStatus::PARTIALLY_RECEIVED,
-            );
-        } else {
-            $currentStatus = Utils::replaceStatus(
-                $currentStatus,
-                [FormStatus::TO_RECEIVE, FormStatus::PARTIALLY_RECEIVED, FormStatus::OVER_RECEIVED],
-                FormStatus::RECEIVED,
-            );
-        }
-
-        // Bill status
-        if ($totalBilled == 0) {
-            $currentStatus = Utils::replaceStatus(
-                $currentStatus,
-                [FormStatus::BILLED, FormStatus::PARTIALLY_BILLED, FormStatus::OVER_BILLED],
-                FormStatus::TO_BILL,
-            );
-        } elseif ($totalBilled > $totalQty) {
-            $currentStatus = Utils::replaceStatus(
-                $currentStatus,
-                [FormStatus::TO_BILL, FormStatus::PARTIALLY_BILLED, FormStatus::BILLED],
-                FormStatus::OVER_BILLED,
-            );
-        } elseif ($totalBilled < $totalQty) {
-            $currentStatus = Utils::replaceStatus(
-                $currentStatus,
-                [FormStatus::TO_BILL, FormStatus::BILLED, FormStatus::OVER_BILLED],
-                FormStatus::PARTIALLY_BILLED,
-            );
-        } else {
-            $currentStatus = Utils::replaceStatus(
-                $currentStatus,
-                [FormStatus::TO_BILL, FormStatus::PARTIALLY_BILLED, FormStatus::OVER_BILLED],
-                FormStatus::BILLED,
-            );
-        }
-
-        $purchaseOrder->update(['status' => $currentStatus]);
+        $this->updatePurchaseOrderReceiveStatus($purchaseOrder);
+        $this->updatePurchaseOrderBillStatus($purchaseOrder, null);
     }
 }

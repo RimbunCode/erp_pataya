@@ -11,6 +11,7 @@ use App\Models\Inventory\ItemVariant;
 use App\Models\Inventory\Warehouse;
 use App\Models\Model;
 use Illuminate\Database\Eloquent\Concerns\HasUlids;
+use Illuminate\Database\Eloquent\Relations\MorphTo;
 use Illuminate\Database\Eloquent\SoftDeletes;
 
 class SalesOrderItem extends Model {
@@ -40,12 +41,24 @@ class SalesOrderItem extends Model {
         'price'                      => 'float',
         'price_base_currency'        => 'float',
         'basic_amount'               => 'float',
+        'discount_amount'            => 'float',
         'tax_amount'                 => 'float',
         'amount'                     => 'float',
         'basic_amount_base_currency' => 'float',
         'tax_amount_base_currency'   => 'float',
         'amount_base_currency'       => 'float',
     ];
+
+    /**
+     * basic_amount adalah generated column KOTOR (quantity * price) sejak migration
+     * add_discount_amount_to_sales_order_items_table -- net_amount (setelah diskon
+     * dokumen) dipakai untuk label "Jumlah Dasar"/"Basic Amount" yang historisnya
+     * merujuk nilai net, konsisten dengan PurchaseOrderItem.
+     */
+    public function getNetAmountAttribute(): float {
+        return $this->basic_amount - $this->discount_amount;
+    }
+
     protected array $configColumns = [
         'item' => [
             'show'  => true,
@@ -71,10 +84,18 @@ class SalesOrderItem extends Model {
         ],
         'basic_amount' => [
             'type'       => 'currency',
+            'show'       => false,
+            'order'      => 4,
+            'linkable'   => true,
+            'visibleFor' => self::PRICE_VISIBILITY,
+        ],
+        'net_amount' => [
+            'type'       => 'currency',
             'show'       => true,
             'order'      => 4,
             'linkable'   => true,
             'visibleFor' => self::PRICE_VISIBILITY,
+            'dependsOn'  => ['basic_amount', 'discount_amount'],
         ],
         'tax' => [
             'type'  => 'relation',
@@ -201,5 +222,14 @@ class SalesOrderItem extends Model {
 
     public function deliveryNoteItems() {
         return $this->morphMany(DeliveryNoteItem::class, 'referenceable', 'referenceable_type', 'referenceable_id');
+    }
+
+    /**
+     * Requirement 4, spec asset-service-billing: sumber generik non-Item (mis.
+     * AssetService/AssetServiceConsumedItem) — nullable, default null (perilaku
+     * ItemVariant biasa TIDAK berubah).
+     */
+    public function referenceable(): MorphTo {
+        return $this->morphTo();
     }
 }

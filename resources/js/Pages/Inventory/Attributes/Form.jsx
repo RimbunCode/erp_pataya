@@ -47,7 +47,6 @@ export default function Form() {
             name="description"
             label={t("inventory.attribute.columns.description")}
             className="col-span-full"
-            name="description"
           >
             <Textarea
               value={data.description ?? ""}
@@ -81,7 +80,6 @@ export default function Form() {
                 name="from_range"
                 required={true}
                 label={t("inventory.attribute.columns.range.from")}
-                name="from_range"
               >
                 <NumberInput
                   className="text-left"
@@ -93,7 +91,6 @@ export default function Form() {
                 name="to_range"
                 required={true}
                 label={t("inventory.attribute.columns.range.to")}
-                name="to_range"
               >
                 <NumberInput
                   className="text-left"
@@ -105,7 +102,6 @@ export default function Form() {
                 name="increment"
                 required={true}
                 label={t("inventory.attribute.columns.range.increment")}
-                name="increment"
               >
                 <NumberInput
                   className="text-left"

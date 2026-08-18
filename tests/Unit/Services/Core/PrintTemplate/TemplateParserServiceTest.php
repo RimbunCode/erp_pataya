@@ -347,7 +347,7 @@ class TemplateParserServiceTest extends TestCase {
                 ],
                 [
                     'type'    => 'text',
-                    'content' => '{{#each items}}{{this.name}}{{/each}}',
+                    'content' => '{{#each doc.items}}{{this.name}}{{/each}}',
                 ],
             ],
         ];
@@ -371,7 +371,7 @@ class TemplateParserServiceTest extends TestCase {
             ],
             [
                 'type'    => 'text',
-                'content' => '{{#each items}}{{this.product}}{{/each}}',
+                'content' => '{{#each doc.items}}{{this.product}}{{/each}}',
             ],
         ];
 

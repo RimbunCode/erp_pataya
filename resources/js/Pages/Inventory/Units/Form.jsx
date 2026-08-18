@@ -234,7 +234,6 @@ export default function Form() {
               name="conversion_factor"
               required={true}
               label={t("inventory.unit.columns.conversion_factor")}
-              name="conversion_factor"
             >
               <Input
                 pattern="^\d*(\.\d+)?$"

@@ -245,7 +245,6 @@ class WidgetController extends Controller {
         $data['model_class']   = $data['model']['model'];
         $data['created_by_id'] = $request->user()->id;
         $widget                = Widget::create($data);
-        $widget->logForCreated();
         DB::commit();
 
         return redirect()->back()->with('id', $widget->id);
@@ -284,7 +283,6 @@ class WidgetController extends Controller {
         $data['model_class']   = $data['model']['model'];
         $data['created_by_id'] = $request->user()->id;
         $widget->fillForUpdate($data);
-        $widget->logForUpdated();
         DB::commit();
 
         return redirect()->back();

@@ -32,6 +32,7 @@ class PurchaseInvoiceItem extends Model {
         'conversion_factor'   => 'float',
         'tax_rate'            => 'float',
         'basic_amount'        => 'float',
+        'discount_amount'     => 'float',
         'dpp_amount'          => 'float',
         'tax_amount'          => 'float',
         'amount'              => 'float',

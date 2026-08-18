@@ -8,6 +8,7 @@ use App\Models\Core\Currency;
 use App\Models\Model;
 use App\Models\Purchase\PurchaseOrder;
 use App\Models\Purchase\Supplier;
+use App\Services\Finances\PurchaseInvoiceService;
 use App\Traits\DataTable;
 use App\Traits\Submitable;
 use Illuminate\Database\Eloquent\Concerns\HasUlids;
@@ -16,9 +17,10 @@ use Illuminate\Database\Eloquent\SoftDeletes;
 class PurchaseInvoice extends Model {
     use DataTable, HasUlids, SoftDeletes, Submitable;
 
-    public string $formComponent = 'Finances/PurchaseInvoice/Form';
-    protected $guarded           = ['id'];
-    protected $casts             = [
+    public static string $service = PurchaseInvoiceService::class;
+    public string $formComponent  = 'Finances/PurchaseInvoice/Form';
+    protected $guarded            = ['id'];
+    protected $casts              = [
         'date'                             => 'datetime',
         'exchange_rate'                    => 'float',
         'amount'                           => 'float',
@@ -82,13 +84,13 @@ class PurchaseInvoice extends Model {
         'base_currency_code' => [
             'hidden' => true,
         ],
-        'base_amount' => [
+        'amount_base_currency' => [
             'hidden' => true,
         ],
-        'base_outstanding_amount' => [
+        'outstanding_amount_base_currency' => [
             'hidden' => true,
         ],
-        'base_paid_amount' => [
+        'paid_amount_base_currency' => [
             'hidden' => true,
         ],
         'supplier_name' => [

@@ -4,6 +4,8 @@ namespace App\Http\Controllers\Purchase;
 
 use App\Http\Controllers\Controller;
 use App\Http\Requests\Purchase\PurchaseOrderRequest;
+use App\Models\Asset\AssetService;
+use App\Models\Asset\AssetServiceConsumedItem;
 use App\Models\Purchase\PurchaseOrder;
 use App\Models\Purchase\PurchaseRequest;
 use App\Models\Purchase\PurchaseRequestItem;
@@ -82,6 +84,25 @@ class PurchaseOrderController extends Controller {
                                         'referenceable_id'   => $item->id,
                                     ];
                                 }),
+                            ];
+                        }
+                        break;
+
+                    case 'assetService':
+                        $svc = AssetService::find($split[1]);
+                        if ($svc) {
+                            $svc->loadRelations();
+                            $defaultData = [
+                                'items' => $svc->consumedItems->filter(fn ($item) => $item->item->is_stock_item)
+                                    ->map(fn ($item) => [
+                                        ...$item->toArray(),
+                                        'id'                 => Utils::generateRandom(5),
+                                        'item'               => $item->item,
+                                        'quantity'           => $item->quantity,
+                                        'unit'               => $item->itemUnit,
+                                        'referenceable_type' => AssetServiceConsumedItem::class,
+                                        'referenceable_id'   => $item->id,
+                                    ]),
                             ];
                         }
                         break;

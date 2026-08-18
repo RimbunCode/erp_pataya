@@ -134,6 +134,42 @@ class PrintPdfControllerTest extends TestCase {
             });
         }
 
+        if (! Schema::hasTable('logs')) {
+            Schema::create('logs', function (Blueprint $table): void {
+                $table->ulid('id')->primary();
+                $table->longText('activity');
+                $table->json('comment_json')->nullable();
+                $table->text('notes')->nullable();
+                $table->string('type')->default('log');
+                $table->string('action')->nullable();
+                $table->json('data_before')->nullable();
+                $table->json('data_after')->nullable();
+                $table->ulidMorphs('loggable');
+                $table->char('user_id', 26)->nullable();
+                $table->timestamps();
+                $table->softDeletes();
+            });
+        }
+
+        if (! Schema::hasTable('branches')) {
+            Schema::create('branches', function (Blueprint $table): void {
+                $table->ulid('id')->primary();
+                $table->string('name')->nullable();
+                $table->string('code')->nullable();
+                $table->boolean('is_main_branch')->default(false);
+                $table->boolean('is_example')->default(false);
+                $table->softDeletes();
+                $table->timestamps();
+            });
+        }
+
+        if (! Schema::hasTable('user_branch')) {
+            Schema::create('user_branch', function (Blueprint $table): void {
+                $table->char('user_id', 26);
+                $table->char('branch_id', 26);
+            });
+        }
+
         config(['pdf.wkhtmltopdf_binary' => storage_path('app/bin/does-not-exist-binary')]);
     }
 

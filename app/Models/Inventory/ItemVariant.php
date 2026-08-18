@@ -7,12 +7,13 @@ use App\Models\Core\File;
 use App\Models\Model;
 use App\Traits\DataTable;
 use Illuminate\Database\Eloquent\Concerns\HasUlids;
+use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\SoftDeletes;
 use Illuminate\Support\Facades\Session;
 use Inertia\Inertia;
 
 class ItemVariant extends Model {
-    use DataTable, HasUlids, SoftDeletes;
+    use DataTable, HasFactory, HasUlids, SoftDeletes;
 
     public $keyBreadcrumb       = 'code';
     public $aliasBreadcrumb     = 'Variant';

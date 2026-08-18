@@ -5,6 +5,8 @@ import { calculateArray, generateRandom } from "@/lib/utils";
 import { allocateDiscount } from "@/lib/discountAllocation";
 
 import AdditionalDiscount from "@/Pages/Finances/Components/AdditionalDiscount";
+import AssetServiceLinkModel from "@/Pages/Asset/Services/AssetServiceLinkModel";
+import AssetServiceConsumedItemLinkModel from "@/Pages/Asset/Services/AssetServiceConsumedItemLinkModel";
 import BranchLinkModel from "@/Pages/Settings/Branches/BranchLinkModel";
 import NumberInput from "@/Components/NumberInput";
 import CurrencyLinkModel from "@/Pages/Core/CurrencyLinkModel";
@@ -226,6 +228,43 @@ export default memo(function Form() {
             {...attributes}
             with={["defaultUom", "item"]}
           />
+        );
+      },
+    },
+    {
+      name: "referenceable",
+      titleTrans: "sales.salesOrder.columns.referenceable_asset_service",
+      show: false,
+      width: 3,
+      cell({ _dataRow, data: value, setData, attributes }) {
+        // Requirement 4, spec asset-service-billing: opsional, TIDAK
+        // mempengaruhi baris ItemVariant biasa (default null/kosong).
+        const type = value?.type;
+        return (
+          <div className="flex w-full gap-x-1">
+            {type === "App\\Models\\Asset\\AssetServiceConsumedItem" ? (
+              <AssetServiceConsumedItemLinkModel
+                value={value?.id ? { id: value.id } : null}
+                onValueChange={(val) =>
+                  setData("referenceable", val ? { type, id: val.id } : null)
+                }
+                {...attributes}
+              />
+            ) : (
+              <AssetServiceLinkModel
+                value={value?.id ? { id: value.id } : null}
+                onValueChange={(val) =>
+                  setData(
+                    "referenceable",
+                    val
+                      ? { type: "App\\Models\\Asset\\AssetService", id: val.id }
+                      : null,
+                  )
+                }
+                {...attributes}
+              />
+            )}
+          </div>
         );
       },
     },
@@ -614,16 +653,21 @@ export default memo(function Form() {
             }}
             asyncAdditionalData={asyncAdditionalData}
             mapItem={({ item, dataTable, index }) => {
-              // Diskon dokumen (Diskon Tambahan) mengubah basic_amount/tax_amount
+              // Diskon dokumen (Diskon Tambahan) mengubah discount_amount/tax_amount
               // SETIAP baris secara pro-rata, bukan cuma baris yang sedang di-edit --
               // jadi alokasi dihitung ulang dari seluruh dataTable tiap kali salah
               // satu baris berubah, lalu diambil hasil untuk baris ke-`index` ini saja.
+              // basic_amount TIDAK ditimpa di sini -- kolom itu generated (quantity*price)
+              // di server, konsisten dgn App\Services\Finances\DocumentDiscountCalculator::
+              // applyToItems() yang menulis discount_amount terpisah, bukan overwrite basic_amount.
               const rows = dataTable ?? [];
+              const grossAmounts = rows.map((row, i) =>
+                i === index
+                  ? (item.quantity ?? 0) * (item.price ?? 0)
+                  : (row.quantity ?? 0) * (row.price ?? 0),
+              );
               const lines = rows.map((row, i) => ({
-                basic_amount:
-                  i === index
-                    ? (item.quantity ?? 0) * (item.price ?? 0)
-                    : (row.quantity ?? 0) * (row.price ?? 0),
+                basic_amount: grossAmounts[i],
                 tax_rate:
                   i === index ? (item.tax?.rate ?? 0) : (row.tax?.rate ?? 0),
               }));
@@ -637,7 +681,10 @@ export default memo(function Form() {
               const result = allocated[index] ?? allocated[0];
               return {
                 ...item,
-                basic_amount: result?.basic_amount ?? 0,
+                discount_amount:
+                  Math.round(
+                    (grossAmounts[index] - (result?.basic_amount ?? 0)) * 100,
+                  ) / 100,
                 tax_amount: result?.tax_amount ?? 0,
               };
             }}

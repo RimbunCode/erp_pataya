@@ -1,0 +1,6 @@
+{
+  "specId": "22465190-4b78-40e0-8c22-a3851ed2307a",
+  "workflowType": "requirements-first",
+  "specType": "feature",
+  "description": "Fase 2 migrasi Event/Listener: koreksi 3 listener Fase 1 ke sync, reservasi stok submit/cancel (SalesOrder/PurchaseOrder/InternalOrder), PaymentEntry paid_amount, cross-domain SalesOrder status sync, delivered_quantity, plus lockForUpdate() di 2 titik race condition yang ditemukan."
+}

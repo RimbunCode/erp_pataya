@@ -19,7 +19,8 @@ class LeadRequestValidationTest extends TestCase {
         // Tambahkan manual agar global scope HasExampleData tidak error di SQLite.
         // roles/users/branches ikut kena karena AppMiddleware & _checkPermission() query relasi ini.
         // lead_activities ikut kena karena Lead::loadRelationsOnShow() eager-load relasi activities.
-        foreach (['leads', 'lead_activities', 'roles', 'users', 'branches'] as $tbl) {
+        // opportunities ikut kena karena Lead::loadRelationsOnShow() eager-load relasi opportunities.
+        foreach (['leads', 'lead_activities', 'roles', 'users', 'branches', 'opportunities'] as $tbl) {
             if (Schema::hasTable($tbl) && ! Schema::hasColumn($tbl, 'is_example')) {
                 Schema::table($tbl, fn ($t) => $t->boolean('is_example')->default(false));
             }

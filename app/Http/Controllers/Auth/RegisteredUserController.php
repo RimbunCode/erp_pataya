@@ -37,32 +37,33 @@ class RegisteredUserController extends Controller {
             'password' => ['required', 'confirmed', Rules\Password::min(8)],
         ]);
 
-        DB::beginTransaction();
-        $findUser = User::where('email', $request->email)->first();
-        if ($findUser) {
-            if ($findUser->status != FormStatus::INVITED) {
-                throw ValidationException::withMessages([
-                    'email' => 'Email already exists',
+        $user = DB::transaction(function () use ($request) {
+            $findUser = User::where('email', $request->email)->first();
+            if ($findUser) {
+                if ($findUser->status != FormStatus::INVITED) {
+                    throw ValidationException::withMessages([
+                        'email' => 'Email already exists',
+                    ]);
+                }
+                $findUser->update([
+                    'name'     => $request->name,
+                    'username' => $request->username,
+                    'email'    => $request->email,
+                    'password' => Hash::make($request->password),
+                    'status'   => FormStatus::ACTIVE,
                 ]);
+
+                return $findUser->refresh();
             }
-            $findUser->update([[
-                'name'     => $request->name,
-                'username' => $request->username,
-                'email'    => $request->email,
-                'password' => Hash::make($request->password),
-                'status'   => FormStatus::ACTIVE,
-            ]]);
-            $user = $findUser->refresh();
-        } else {
-            $user = User::create([
+
+            return User::create([
                 'name'     => $request->name,
                 'username' => $request->username,
                 'email'    => $request->email,
                 'password' => Hash::make($request->password),
                 'status'   => FormStatus::ACTIVE,
             ]);
-        }
-        DB::commit();
+        });
 
         event(new Registered($user));
 

@@ -56,19 +56,6 @@ class PaymentSchedule extends Model {
             'dependsOn'  => ['outstanding_amount', 'paid_amount'],
         ],
         'paymentMethod',
-
-        'base_currency_code' => [
-            'hidden' => true,
-        ],
-        'base_outstanding_amount' => [
-            'hidden' => true,
-        ],
-        'base_paid_amount' => [
-            'hidden' => true,
-        ],
-        'base_payment_amount' => [
-            'hidden' => true,
-        ],
     ];
     protected $appends          = ['status'];
     public string $translateKey = 'finances.paymentSchedule';

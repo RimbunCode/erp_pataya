@@ -13,7 +13,7 @@ class GeneralLedger extends Model {
     use DataTable, HasUlids, SoftDeletes;
 
     protected $guarded                         = ['id'];
-    protected $casts                           = ['debit' => 'float', 'credit' => 'float'];
+    protected $casts                           = ['debit' => 'float', 'credit' => 'float', 'transaction_date' => 'datetime'];
     protected static string $defaultFormatCode = 'GL-@[iiii]/@[yy]';
     protected static $generateCodeSeries       = true;
     public string $translateKey                = 'finances.generalLedger';

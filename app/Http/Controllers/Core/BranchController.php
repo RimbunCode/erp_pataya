@@ -62,7 +62,6 @@ class BranchController extends Controller {
             $data['billing_country_id'] = $data['billing_country']['code'];
         }
         $branch = Branch::create($data);
-        $branch->logForCreated();
         DB::commit();
 
         return back()->with('id', $branch->id);
@@ -103,7 +102,6 @@ class BranchController extends Controller {
             $data['billing_country_id'] = $data['billing_country']['code'];
         }
         $branch->fillForUpdate($data);
-        $branch->logForUpdated();
         DB::commit();
 
         return back();

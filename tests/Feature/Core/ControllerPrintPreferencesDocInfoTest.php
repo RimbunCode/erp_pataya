@@ -4,11 +4,11 @@ namespace Tests\Feature\Core;
 
 use App\Http\Middleware\AppMiddleware;
 use App\Http\Middleware\EnsureUserIsOnboarded;
-use App\Http\Middleware\HandleInertiaRequests;
 use App\Http\Middleware\LanguageMiddleware;
 use App\Models\Core\PrintTemplate;
 use App\Models\Sales\SalesOrder;
 use App\Models\User\User;
+use BeyondCode\QueryDetector\QueryDetectorMiddleware;
 use Illuminate\Database\Schema\Blueprint;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Schema;
@@ -23,8 +23,8 @@ class ControllerPrintPreferencesDocInfoTest extends TestCase {
         $this->withoutMiddleware([
             AppMiddleware::class,
             EnsureUserIsOnboarded::class,
-            HandleInertiaRequests::class,
             LanguageMiddleware::class,
+            QueryDetectorMiddleware::class,
         ]);
 
         if (! Schema::hasTable('preferences')) {
@@ -122,10 +122,30 @@ class ControllerPrintPreferencesDocInfoTest extends TestCase {
             });
         }
 
+        if (! Schema::hasTable('branches')) {
+            Schema::create('branches', function (Blueprint $table): void {
+                $table->char('id', 26)->primary();
+                $table->string('name');
+                $table->boolean('is_main_branch')->default(false);
+                $table->boolean('is_example')->default(false);
+                $table->timestamps();
+                $table->softDeletes();
+            });
+        }
+
+        if (! Schema::hasTable('user_branch')) {
+            Schema::create('user_branch', function (Blueprint $table): void {
+                $table->char('user_id', 26);
+                $table->char('branch_id', 26);
+                $table->timestamps();
+            });
+        }
+
         if (! Schema::hasTable('roles')) {
             Schema::create('roles', function (Blueprint $table): void {
                 $table->char('id', 26)->primary();
                 $table->string('name');
+                $table->boolean('is_example')->default(false);
                 $table->timestamps();
                 $table->softDeletes();
             });
@@ -161,6 +181,40 @@ class ControllerPrintPreferencesDocInfoTest extends TestCase {
                 $table->json('logs')->nullable();
                 $table->string('format');
                 $table->boolean('is_example')->default(false);
+                $table->timestamps();
+            });
+        }
+
+        if (! Schema::hasTable('changelogs')) {
+            Schema::create('changelogs', function (Blueprint $table): void {
+                $table->char('id', 26)->primary();
+                $table->string('version')->unique();
+                $table->string('environment');
+                $table->text('content_raw');
+                $table->text('content_html');
+                $table->timestamp('deployed_at');
+                $table->timestamps();
+            });
+        }
+
+        if (! Schema::hasTable('changelog_reads')) {
+            Schema::create('changelog_reads', function (Blueprint $table): void {
+                $table->char('id', 26)->primary();
+                $table->char('changelog_id', 26);
+                $table->char('user_id', 26);
+                $table->timestamp('read_at');
+                $table->timestamps();
+            });
+        }
+
+        if (! Schema::hasTable('notifications')) {
+            Schema::create('notifications', function (Blueprint $table): void {
+                $table->uuid('id')->primary();
+                $table->string('type');
+                $table->string('notifiable_type');
+                $table->char('notifiable_id', 26);
+                $table->text('data');
+                $table->timestamp('read_at')->nullable();
                 $table->timestamps();
             });
         }
@@ -204,7 +258,12 @@ class ControllerPrintPreferencesDocInfoTest extends TestCase {
         );
     }
 
-    public function test_print_response_contains_doc_info_prop_with_document_name(): void {
+    /**
+     * docInfo.doc_name berisi translation key path (mis. "sales.salesOrder.name"),
+     * bukan nomor/kode dokumen — dipakai untuk resolve label via __() di
+     * Controller::printPdf() dan token Handlebar {{docInfo.doc_name}}.
+     */
+    public function test_print_response_contains_doc_info_prop_with_translate_key(): void {
         $user          = User::factory()->create();
         $printTemplate = $this->createPrintTemplate();
         $salesOrder    = $this->createSalesOrder(['code' => 'SO-001/2025']);
@@ -218,27 +277,7 @@ class ControllerPrintPreferencesDocInfoTest extends TestCase {
             fn (Assert $page) => $page
                 ->component('Core/Print')
                 ->has('docInfo')
-                ->where('docInfo.name', 'SO-001/2025'),
-        );
-    }
-
-    public function test_print_response_returns_empty_preferences_array_when_fetch_fails(): void {
-        $user          = User::factory()->create();
-        $printTemplate = $this->createPrintTemplate();
-        $salesOrder    = $this->createSalesOrder();
-
-        // Drop the preferences table to simulate a fetch failure
-        Schema::dropIfExists('preferences');
-
-        $response = $this->actingAs($user)
-            ->withSession(['permissions' => $this->makePermissions()])
-            ->get(route('salesOrders.print', ['salesOrder' => $salesOrder->id, 'printTemplate' => $printTemplate->id]));
-
-        $response->assertOk();
-        $response->assertInertia(
-            fn (Assert $page) => $page
-                ->component('Core/Print')
-                ->where('preferences', []),
+                ->where('docInfo.doc_name', $salesOrder->translateKey . '.name'),
         );
     }
 

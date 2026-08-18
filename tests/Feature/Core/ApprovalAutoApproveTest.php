@@ -2,6 +2,7 @@
 
 namespace Tests\Feature\Core;
 
+use App\Contracts\SubmitableService;
 use App\Enums\FormStatus;
 use App\Http\Controllers\Controller;
 use App\Http\Middleware\AppMiddleware;
@@ -12,6 +13,7 @@ use App\Models\Core\ApprovalInstanceStep;
 use App\Models\Model as AppModel;
 use App\Models\User\Role;
 use App\Models\User\User;
+use App\Traits\HasDefaultDelete;
 use Illuminate\Database\Eloquent\Concerns\HasUlids;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Illuminate\Http\Request;
@@ -19,13 +21,49 @@ use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Schema;
 use Tests\TestCase;
 
-// Dokumen stub — cukup punya id, created_by_id & status
+// Service stub — sets doc status to 'approved' on onApproved
+class ApprovalTestDocumentService implements SubmitableService {
+    use HasDefaultDelete;
+
+    public function create(array $data): AppModel {
+        return new ApprovalTestDocument($data);
+    }
+
+    public function update(AppModel $model, array $data): AppModel {
+        return $model;
+    }
+
+    public function submit(AppModel $model): mixed {
+        return null;
+    }
+
+    public function cancel(AppModel $model): mixed {
+        return null;
+    }
+
+    public function amend(AppModel $model): mixed {
+        return null;
+    }
+
+    public function onApproved(AppModel $model): mixed {
+        $model->update(['status' => 'approved']);
+
+        return back();
+    }
+
+    public function onRejected(AppModel $model): mixed {
+        return back();
+    }
+}
+
+// Dokumen stub — punya id, created_by_id, status, dan $service
 class ApprovalTestDocument extends AppModel {
     use HasUlids;
 
-    protected $table   = 'approval_test_documents';
-    protected $guarded = ['id'];
-    public $timestamps = false;
+    protected $table              = 'approval_test_documents';
+    protected $guarded            = ['id'];
+    public $timestamps            = false;
+    public static string $service = ApprovalTestDocumentService::class;
 
     public function getRouteKeyName(): string {
         return 'id';
@@ -37,12 +75,6 @@ class ApprovalTestDocument extends AppModel {
 class ApprovalTestDocumentController extends Controller {
     public function __construct(Request $request) {
         parent::__construct($request, ApprovalTestDocument::class);
-    }
-
-    public function onApproved(mixed $id) {
-        ApprovalTestDocument::findOrFail($id)->update(['status' => 'approved']);
-
-        return back();
     }
 }
 

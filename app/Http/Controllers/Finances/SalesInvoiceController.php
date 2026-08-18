@@ -173,7 +173,6 @@ class SalesInvoiceController extends Controller {
 
         // create SO
         $so = $this->service->create($data);
-        $so->logForCreated();
 
         DB::commit();
 

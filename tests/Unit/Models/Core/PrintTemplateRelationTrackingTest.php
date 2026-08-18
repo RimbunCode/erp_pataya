@@ -17,7 +17,7 @@ class PrintTemplateRelationTrackingTest extends TestCase {
             'html' => '
                 <div>{{relation doc.customer}}</div>
                 <table>
-                    {{#each items}}
+                    {{#each doc.items}}
                     <tr>
                         <td>{{this.product.name}}</td>
                     </tr>
@@ -31,7 +31,7 @@ class PrintTemplateRelationTrackingTest extends TestCase {
         $this->assertIsArray($printTemplate->used_relations);
         $this->assertContains('customer', $printTemplate->used_relations);
         $this->assertContains('items', $printTemplate->used_relations);
-        $this->assertContains('product', $printTemplate->used_relations);
+        $this->assertContains('items.product', $printTemplate->used_relations);
     }
 
     /**

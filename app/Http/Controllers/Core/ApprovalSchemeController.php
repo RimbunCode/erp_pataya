@@ -123,7 +123,6 @@ class ApprovalSchemeController extends Controller {
             $approvalScheme->steps()->create($this->fillStepRelation($step, $index));
         }
         $this->syncStepApprovers($approvalScheme, $data['steps']);
-        $approvalScheme->logForCreated();
         DB::commit();
 
         return redirect()->back()->with('id', $approvalScheme->id);
@@ -186,7 +185,6 @@ class ApprovalSchemeController extends Controller {
             $approvalScheme->steps()->create($step);
         }
         $this->syncStepApprovers($approvalScheme, $data['steps']);
-        $approvalScheme->logForUpdated();
         DB::commit();
 
         return redirect()->back();

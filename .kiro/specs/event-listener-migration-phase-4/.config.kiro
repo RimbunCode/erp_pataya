@@ -1,0 +1,6 @@
+{
+  "specId": "f49459bc-bf1f-4ca8-a92a-f526301ee5c2",
+  "workflowType": "requirements-first",
+  "specType": "feature",
+  "description": "Fase 4 migrasi Event/Listener: LeadService::convertToCustomer() dipindah ke event/listener sync. Berbeda dari Fase 1-3 (bukan GL-entangled, bukan cross-domain status-sync) — masalahnya return-value-dependent: Controller butuh Customer::id balik untuk redirect. Solusi: ID Customer digenerate di Controller SEBELUM dispatch event, listener terima ID siap pakai."
+}

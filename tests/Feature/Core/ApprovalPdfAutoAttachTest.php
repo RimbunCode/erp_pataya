@@ -2,12 +2,13 @@
 
 namespace Tests\Feature\Core;
 
+use App\Contracts\SubmitableService;
 use App\Enums\FormStatus;
+use App\Events\Core\ApprovalDecided;
 use App\Http\Controllers\Controller;
 use App\Http\Middleware\AppMiddleware;
 use App\Http\Middleware\EnsureUserIsOnboarded;
 use App\Http\Middleware\LanguageMiddleware;
-use App\Jobs\Core\AttachGeneratedPdfJob;
 use App\Models\Core\ApprovalInstance;
 use App\Models\Core\ApprovalInstanceStep;
 use App\Models\Core\Fileable;
@@ -16,21 +17,57 @@ use App\Models\Model as AppModel;
 use App\Models\User\Role;
 use App\Models\User\User;
 use App\Services\Core\PrintTemplate\PdfExportService;
+use App\Traits\HasDefaultDelete;
 use Illuminate\Database\Eloquent\Concerns\HasUlids;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
-use Illuminate\Support\Facades\Queue;
+use Illuminate\Support\Facades\Event;
 use Illuminate\Support\Facades\Schema;
 use Illuminate\Support\Str;
 use Tests\TestCase;
 
+class PdfAttachTestDocumentService implements SubmitableService {
+    use HasDefaultDelete;
+
+    public function create(array $data): AppModel {
+        return new PdfAttachTestDocument($data);
+    }
+
+    public function update(AppModel $model, array $data): AppModel {
+        return $model;
+    }
+
+    public function submit(AppModel $model): mixed {
+        return null;
+    }
+
+    public function cancel(AppModel $model): mixed {
+        return null;
+    }
+
+    public function amend(AppModel $model): mixed {
+        return null;
+    }
+
+    public function onApproved(AppModel $model): mixed {
+        $model->update(['status' => 'approved']);
+
+        return back();
+    }
+
+    public function onRejected(AppModel $model): mixed {
+        return back();
+    }
+}
+
 class PdfAttachTestDocument extends AppModel {
     use HasUlids;
 
-    protected $table   = 'pdf_attach_test_documents';
-    protected $guarded = ['id'];
-    public $timestamps = false;
+    protected $table              = 'pdf_attach_test_documents';
+    protected $guarded            = ['id'];
+    public $timestamps            = false;
+    public static string $service = PdfAttachTestDocumentService::class;
 
     public function getRouteKeyName(): string {
         return 'id';
@@ -40,12 +77,6 @@ class PdfAttachTestDocument extends AppModel {
 class PdfAttachTestDocumentController extends Controller {
     public function __construct(Request $request) {
         parent::__construct($request, PdfAttachTestDocument::class);
-    }
-
-    public function onApproved(mixed $id) {
-        PdfAttachTestDocument::findOrFail($id)->update(['status' => 'approved']);
-
-        return back();
     }
 }
 
@@ -226,7 +257,7 @@ class ApprovalPdfAutoAttachTest extends TestCase {
     }
 
     public function test_approval_completion_dispatches_attach_job_instead_of_running_inline(): void {
-        Queue::fake();
+        Event::fake([ApprovalDecided::class]);
 
         $role     = $this->makeRole('QueueRoleA');
         $approver = $this->makeUser('QueueApprover');
@@ -247,12 +278,10 @@ class ApprovalPdfAutoAttachTest extends TestCase {
         $this->assertNotEquals(500, $response->getStatusCode(), (string) $response->getContent());
         $this->assertEquals(FormStatus::APPROVED->value, $instance->fresh()->status->value);
 
-        Queue::assertPushed(AttachGeneratedPdfJob::class, function (AttachGeneratedPdfJob $job) use ($instance) {
-            return $job->approval->id === $instance->id;
+        Event::assertDispatched(ApprovalDecided::class, function ($event) use ($instance) {
+            return $event->approvalInstance->id === $instance->id
+                && $event->decision === 'approved';
         });
-
-        // No Fileable should exist yet — the job was faked, not executed.
-        $this->assertNull(Fileable::where('fileable_id', $doc->id)->first());
     }
 
     public function test_approval_completion_attaches_generated_pdf_to_document(): void {

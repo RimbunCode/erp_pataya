@@ -2,24 +2,32 @@
 
 namespace App\Services\Purchase;
 
+use App\Contracts\SubmitableService;
 use App\Enums\FormStatus;
+use App\Events\Asset\FixedAssetItemApproved;
+use App\Events\Core\DocumentSubmitted;
+use App\Events\Purchase\Order\PurchaseOrderReceiveStatusRecalculationRequested;
+use App\Events\Purchase\PurchaseReceiptGeneralLedgerPostingRequested;
 use App\Models\Core\FormatingSeries;
+use App\Models\Core\GlPostingStatus;
 use App\Models\Core\ModelConnection;
-use App\Models\Finances\Account;
 use App\Models\Finances\PurchaseInvoice;
 use App\Models\Finances\PurchaseInvoiceItem;
 use App\Models\Inventory\ItemUnit;
 use App\Models\Inventory\Stock;
 use App\Models\Inventory\StockLedgerEntry;
+use App\Models\Model;
 use App\Models\Purchase\PurchaseOrder;
 use App\Models\Purchase\PurchaseOrderItem;
 use App\Models\Purchase\PurchaseReceipt;
-use App\Utils;
+use App\Traits\HasDefaultDelete;
 use Illuminate\Support\Collection;
 use Illuminate\Support\Facades\DB;
 use Symfony\Component\Uid\Ulid;
 
-class PurchaseReceiptService {
+class PurchaseReceiptService implements SubmitableService {
+    use HasDefaultDelete;
+
     private function fillRelations(array $data) {
         $data['purchase_order_id'] = $data['purchase_order']['id'];
         $data['supplier_id']       = $data['supplier']['id'];
@@ -50,7 +58,7 @@ class PurchaseReceiptService {
         return ItemUnit::whereIn('item_units.id', $unitIds)->get()->keyBy('id')->all();
     }
 
-    public function create(array $data) {
+    public function create(array $data): Model {
         $data['code']       = FormatingSeries::generate(PurchaseReceipt::class, $data, true);
         $purchaseReceipt    = PurchaseReceipt::create($this->fillRelations($data));
         $units              = $this->batchLoadUnits($data);
@@ -59,12 +67,11 @@ class PurchaseReceiptService {
             $item = $this->fillItemRelations($item, $units, $purchaseOrderItems);
             $purchaseReceipt->items()->create($item);
         }
-        $purchaseReceipt->logForCreated();
 
         return $purchaseReceipt;
     }
 
-    public function update(PurchaseReceipt $purchaseReceipt, array $data) {
+    public function update(Model $purchaseReceipt, array $data): Model {
         $purchaseReceipt->fillForUpdate($this->fillRelations($data));
 
         $purchaseReceipt->items()
@@ -93,30 +100,27 @@ class PurchaseReceiptService {
             $purchaseReceipt->items()->create($item);
         }
 
-        $purchaseReceipt->logForUpdated();
-
         return $purchaseReceipt;
     }
 
-    public function submit(PurchaseReceipt $purchaseReceipt) {
+    public function submit(Model $purchaseReceipt): mixed {
         DB::beginTransaction();
 
         $purchaseReceipt->update([
             'code' => FormatingSeries::generate(PurchaseReceipt::class, $purchaseReceipt),
         ]);
-        ModelConnection::create([
-            'model_type'     => PurchaseOrder::class,
-            'model_id'       => $purchaseReceipt->purchase_order_id,
-            'reference_type' => PurchaseReceipt::class,
-            'reference_id'   => $purchaseReceipt->id,
-        ]);
+        event(new DocumentSubmitted($purchaseReceipt, $purchaseReceipt->purchaseOrder));
         DB::commit();
         $purchaseReceipt->checkApproval();
 
         return $purchaseReceipt;
     }
 
-    public function onApproved(PurchaseReceipt $purchaseReceipt) {
+    public function amend(Model $model): mixed {
+        return $model;
+    }
+
+    public function onApproved(Model $purchaseReceipt): mixed {
         DB::beginTransaction();
         $returnAgainst = $purchaseReceipt->returnAgainst;
         $purchaseReceipt->update([
@@ -201,7 +205,9 @@ class PurchaseReceiptService {
                     'quantity'    => $stock->quantity - $quantity,
                 ]);
                 $stock->updateDetails('increment', 'incomings', $purchaseOrder->code, $quantity);
-                $item->returnAgainstItem->increment('returned_quantity', $quantity);
+                // Lock returnAgainstItem sebelum baca-modifikasi-tulis (Req 1.3)
+                $returnAgainstItem = $item->returnAgainstItem()->lockForUpdate()->first();
+                $returnAgainstItem->increment('returned_quantity', $quantity);
                 $poItem->decrement('received_quantity', $quantity);
                 $stock->refresh();
 
@@ -219,12 +225,15 @@ class PurchaseReceiptService {
                     'referenceable_type'         => PurchaseReceipt::class,
                     'referenceable_id'           => $purchaseReceipt->id,
                     'is_valuated'                => true,
+                    'transaction_date'           => now(),
                 ]);
 
                 continue;
             }
 
             // === DUAL FLOW: cek apakah Invoice sudah ada duluan ===
+            // Lock PO Item untuk mencegah race condition pada billed_quantity (Req 1.1)
+            $poItem          = PurchaseOrderItem::where('id', $poItem->id)->lockForUpdate()->first();
             $isAlreadyBilled = $poItem->billed_quantity > 0;
 
             if ($isAlreadyBilled) {
@@ -274,6 +283,7 @@ class PurchaseReceiptService {
                         'referenceable_type'         => PurchaseReceipt::class,
                         'referenceable_id'           => $purchaseReceipt->id,
                         'is_valuated'                => true,
+                        'transaction_date'           => now(),
                     ]);
 
                     // 3. Patch queue entry terakhir dengan sle_id
@@ -316,6 +326,7 @@ class PurchaseReceiptService {
                         'referenceable_type'         => PurchaseReceipt::class,
                         'referenceable_id'           => $purchaseReceipt->id,
                         'is_valuated'                => false,
+                        'transaction_date'           => now(),
                     ]);
 
                     // 3. Patch queue entry terakhir dengan sle_id
@@ -360,6 +371,7 @@ class PurchaseReceiptService {
                     'referenceable_type'         => PurchaseReceipt::class,
                     'referenceable_id'           => $purchaseReceipt->id,
                     'is_valuated'                => false,
+                    'transaction_date'           => now(),
                 ]);
 
                 // 3. Patch queue entry terakhir dengan sle_id
@@ -369,42 +381,35 @@ class PurchaseReceiptService {
         }
 
         // === UPDATE STATUS PO ===
-        $this->updatePurchaseOrderReceiveStatus($purchaseOrder);
+        event(new PurchaseOrderReceiveStatusRecalculationRequested($purchaseOrder));
 
-        // === GL Stock/SRNB: Hanya untuk ALUR-2 (dan Return) ===
+        // === GL Stock/SRNB: dipindah ke queued Job ===
         if ($returnAgainst || $totalRatesForGL > 0) {
-            $glAmount = $returnAgainst
-                ? $purchaseReceipt->items->sum(fn ($i) => $i->purchaseOrderItem->rate * ($i->quantity * $i->conversion_factor / $stocks->get("{$i->item_id}-{$i->target_warehouse_id}")?->conversion_factor ?? 1))
-                : $totalRatesForGL;
-
-            $debitAccount = Account::lockForUpdate()
-                ->where('root_type', 'asset')
-                ->where('account_type', 'stock')
-                ->latest()->first();
-
-            $creditAccount = Account::lockForUpdate()
-                ->where('root_type', 'liability')
-                ->where('account_type', 'stock_received_but_not_billed')
-                ->latest()->first();
-
-            $creditAccount->generalLedgerEntries()->create([
-                'against_account_id' => $debitAccount->id,
-                'credit'             => $returnAgainst ? 0 : $glAmount,
-                'debit'              => $returnAgainst ? $glAmount : 0,
+            GlPostingStatus::create([
                 'referenceable_type' => PurchaseReceipt::class,
                 'referenceable_id'   => $purchaseReceipt->id,
+                'status'             => FormStatus::PENDING,
             ]);
-
-            $debitAccount->generalLedgerEntries()->create([
-                'against_account_id' => $creditAccount->id,
-                'credit'             => $returnAgainst ? $glAmount : 0,
-                'debit'              => $returnAgainst ? 0 : $glAmount,
-                'referenceable_type' => PurchaseReceipt::class,
-                'referenceable_id'   => $purchaseReceipt->id,
-            ]);
+            event(new PurchaseReceiptGeneralLedgerPostingRequested(
+                $purchaseReceipt,
+                $returnAgainst
+                    ? $purchaseReceipt->items->sum(fn ($i) => $i->purchaseOrderItem->rate * ($i->quantity * $i->conversion_factor / $stocks->get("{$i->item_id}-{$i->target_warehouse_id}")?->conversion_factor ?? 1))
+                    : $totalRatesForGL,
+                (bool) $returnAgainst,
+                now(),
+            ));
         }
 
         DB::commit();
+
+        // Dispatch FixedAssetItemApproved for each fixed-asset item
+        foreach ($items as $item) {
+            $variant = $item->item;
+            if (! $variant || ! $variant->item || ! $variant->item->is_fixed_asset) {
+                continue;
+            }
+            FixedAssetItemApproved::dispatch($purchaseReceipt, $item, $variant->item);
+        }
 
         return $purchaseReceipt;
     }
@@ -419,35 +424,12 @@ class PurchaseReceiptService {
             ->where('purchase_order_item_id', $poItem->id)
             ->whereHas('purchaseInvoice', fn ($q) => $q->whereNotNull('submitted_at'))
             ->with('purchaseInvoice')
+            ->lockForUpdate()
             ->get()
             ->sortBy('purchaseInvoice.date');
     }
 
-    private function updatePurchaseOrderReceiveStatus(PurchaseOrder $purchaseOrder): void {
-        $items         = $purchaseOrder->items()->select('quantity', 'received_quantity')->get();
-        $totalQty      = $items->sum('quantity');
-        $totalReceived = $items->sum('received_quantity');
-
-        if ($totalReceived == 0) {
-            $newStatus      = FormStatus::TO_RECEIVE;
-            $removeStatuses = [FormStatus::RECEIVED, FormStatus::PARTIALLY_RECEIVED, FormStatus::OVER_RECEIVED];
-        } elseif ($totalReceived > $totalQty) {
-            $newStatus      = FormStatus::OVER_RECEIVED;
-            $removeStatuses = [FormStatus::TO_RECEIVE, FormStatus::PARTIALLY_RECEIVED, FormStatus::RECEIVED];
-        } elseif ($totalReceived < $totalQty) {
-            $newStatus      = FormStatus::PARTIALLY_RECEIVED;
-            $removeStatuses = [FormStatus::TO_RECEIVE, FormStatus::RECEIVED, FormStatus::OVER_RECEIVED];
-        } else {
-            $newStatus      = FormStatus::RECEIVED;
-            $removeStatuses = [FormStatus::TO_RECEIVE, FormStatus::PARTIALLY_RECEIVED, FormStatus::OVER_RECEIVED];
-        }
-
-        $purchaseOrder->update([
-            'status' => Utils::replaceStatus($purchaseOrder->status, $removeStatuses, $newStatus),
-        ]);
-    }
-
-    public function onRejected(PurchaseReceipt $purchaseReceipt) {
+    public function onRejected(Model $purchaseReceipt): mixed {
         $purchaseReceipt->update([
             'status' => [
                 FormStatus::REJECTED,
@@ -457,7 +439,7 @@ class PurchaseReceiptService {
         return $purchaseReceipt;
     }
 
-    public function cancel(PurchaseReceipt $purchaseReceipt) {
+    public function cancel(Model $purchaseReceipt): mixed {
         $purchaseReceipt->update([
             'status' => [
                 FormStatus::CANCELED,

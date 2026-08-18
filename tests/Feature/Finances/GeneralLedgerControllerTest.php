@@ -9,6 +9,7 @@ use App\Models\Finances\Account;
 use App\Models\Finances\GeneralLedger;
 use App\Models\Inventory\StockEntry;
 use App\Models\User\User;
+use BeyondCode\QueryDetector\QueryDetectorMiddleware;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\DB;
@@ -26,6 +27,10 @@ class GeneralLedgerControllerTest extends TestCase {
 
     protected function setUp(): void {
         parent::setUp();
+
+        $this->withoutMiddleware([
+            QueryDetectorMiddleware::class,
+        ]);
 
         foreach (Schema::getTables() as $tableInfo) {
             $table = $tableInfo['name'];
@@ -80,6 +85,7 @@ class GeneralLedgerControllerTest extends TestCase {
             'branch_id'          => $this->branch->id,
             'debit'              => 1000,
             'credit'             => 0,
+            'transaction_date'   => now(),
         ]);
     }
 

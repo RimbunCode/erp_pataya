@@ -2,6 +2,8 @@ import { FormPageContent, useFormPage } from "@/Pages/Core/FormPage";
 import React, { useCallback, useMemo, useRef } from "react";
 
 import NumberInput from "@/Components/NumberInput";
+import AssetServiceLinkModel from "@/Pages/Asset/Services/AssetServiceLinkModel";
+import AssetServiceConsumedItemLinkModel from "@/Pages/Asset/Services/AssetServiceConsumedItemLinkModel";
 import DatetimePicker from "@/Components/DatetimePicker";
 import FormInput from "@/Components/FormInput";
 import FormTable from "@/Components/FormTable";
@@ -79,6 +81,46 @@ export default function Form() {
               fields={["is_stock_item"]}
               with={["defaultUom", "item"]}
             />
+          );
+        },
+      },
+      {
+        name: "referenceable",
+        titleTrans: "sales.internalOrder.columns.referenceable_asset_service",
+        show: false,
+        width: 3,
+        cell({ data: value, setData, attributes }) {
+          // Requirement 1, spec asset-service-internal-order: opsional, TIDAK
+          // mempengaruhi baris ItemVariant biasa (default null/kosong).
+          const type = value?.type;
+          return (
+            <div className="flex w-full gap-x-1">
+              {type === "App\\Models\\Asset\\AssetServiceConsumedItem" ? (
+                <AssetServiceConsumedItemLinkModel
+                  value={value?.id ? { id: value.id } : null}
+                  onValueChange={(val) =>
+                    setData("referenceable", val ? { type, id: val.id } : null)
+                  }
+                  {...attributes}
+                />
+              ) : (
+                <AssetServiceLinkModel
+                  value={value?.id ? { id: value.id } : null}
+                  onValueChange={(val) =>
+                    setData(
+                      "referenceable",
+                      val
+                        ? {
+                            type: "App\\Models\\Asset\\AssetService",
+                            id: val.id,
+                          }
+                        : null,
+                    )
+                  }
+                  {...attributes}
+                />
+              )}
+            </div>
           );
         },
       },

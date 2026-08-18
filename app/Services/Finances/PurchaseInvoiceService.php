@@ -2,8 +2,16 @@
 
 namespace App\Services\Finances;
 
+use App\Contracts\SubmitableService;
 use App\Enums\FormStatus;
+use App\Events\Asset\FixedAssetItemApproved;
+use App\Events\Core\DocumentSubmitted;
+use App\Events\Finances\PurchaseInvoiceGeneralLedgerPostingRequested;
+use App\Events\Purchase\Invoice\PurchaseInvoiceReturnStatusChanged;
+use App\Events\Purchase\Invoice\PurchaseOrderItemBillingChanged;
+use App\Events\Purchase\Order\PurchaseOrderBillStatusRecalculationRequested;
 use App\Models\Core\FormatingSeries;
+use App\Models\Core\GlPostingStatus;
 use App\Models\Core\ModelConnection;
 use App\Models\Core\Preference;
 use App\Models\Finances\Account;
@@ -12,16 +20,26 @@ use App\Models\Finances\Tax;
 use App\Models\Inventory\ItemUnit;
 use App\Models\Inventory\Stock;
 use App\Models\Inventory\StockLedgerEntry;
+use App\Models\Model;
 use App\Models\Purchase\PurchaseOrder;
 use App\Models\Purchase\PurchaseOrderItem;
 use App\Models\Purchase\PurchaseReceipt;
 use App\Models\Purchase\Supplier;
+use App\Traits\HasDefaultDelete;
 use App\Utils;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Validation\ValidationException;
 use Symfony\Component\Uid\Ulid;
 
-class PurchaseInvoiceService {
+class PurchaseInvoiceService implements SubmitableService {
+    use HasDefaultDelete;
+
+    /**
+     * Faktor DPP Nilai Lain PPN 12% (tarif efektif 11%) -- lihat migration
+     * add_dpp_amount_to_purchase_invoice_items_table, spec invoice-dpp-adjustment.
+     */
+    private const float DPP_FACTOR = 11 / 12;
+
     private function fillRelations(array $data) {
         $data['purchase_order_id'] = $data['purchase_order']['id'];
         $data['supplier_id']       = $data['supplier']['id'];
@@ -88,44 +106,39 @@ class PurchaseInvoiceService {
         return $data;
     }
 
-    public function create(array $data) {
+    public function create(array $data): Model {
         $data['code']    = FormatingSeries::generate(PurchaseInvoice::class, $data, true);
         $purchaseInvoice = PurchaseInvoice::create($this->fillRelations($data));
-
-        $basicAmount = 0;
-        $taxAmount   = 0;
 
         $units              = $this->batchLoadUnits($data);
         $taxes              = $this->batchLoadTaxes($data);
         $purchaseOrderItems = $this->batchLoadPurchaseOrderItems($data);
 
+        $items = collect();
         foreach ($data['items'] as $item) {
-            $item = $this->fillItemRelations($item, $purchaseInvoice, $units, $taxes, $purchaseOrderItems);
-            $item = $purchaseInvoice->items()->create($item);
-            $item->refresh();
-            $basicAmount += $item->basic_amount;
-            $taxAmount += $item->tax_amount;
+            $item      = $this->fillItemRelations($item, $purchaseInvoice, $units, $taxes, $purchaseOrderItems);
+            $itemModel = $purchaseInvoice->items()->create($item);
+            // basic_amount generated column (quantity * rate) -- belum terisi di object
+            // sampai di-refresh dari DB.
+            $itemModel->refresh();
+            $items->push($itemModel);
         }
 
-        $totalAmount = Utils::countAmount($basicAmount, $taxAmount, $purchaseInvoice->discount_on, $purchaseInvoice->discount_amount);
+        $totals = DocumentDiscountCalculator::applyDiscountColumnToItems($purchaseInvoice, $items, self::DPP_FACTOR);
         $purchaseInvoice->update([
-            'amount' => $totalAmount,
+            'amount' => $totals['basic_amount'] + $totals['tax_amount'],
         ]);
 
         foreach ($data['payment_schedules'] ?? [] as $payment_schedule) {
             $payment_schedule = $this->fillPaymentScheduleRelations($payment_schedule, $purchaseInvoice);
             $purchaseInvoice->paymentSchedules()->create($payment_schedule);
         }
-        $purchaseInvoice->logForCreated();
 
         return $purchaseInvoice;
     }
 
-    public function update(PurchaseInvoice $purchaseInvoice, array $data) {
+    public function update(Model $purchaseInvoice, array $data): Model {
         $purchaseInvoice->fillForUpdate($this->fillRelations($data));
-
-        $basicAmount = 0;
-        $taxAmount   = 0;
 
         $purchaseInvoice->items()
             ->whereNotIn('id', array_column($data['items'], 'id'))
@@ -144,6 +157,7 @@ class PurchaseInvoiceService {
         $taxes              = $this->batchLoadTaxes($data);
         $purchaseOrderItems = $this->batchLoadPurchaseOrderItems($data);
 
+        $items = collect();
         foreach ($data['items'] as $item) {
             $item = $this->fillItemRelations($item, $purchaseInvoice, $units, $taxes, $purchaseOrderItems);
 
@@ -152,23 +166,22 @@ class PurchaseInvoiceService {
                 if ($itemModel) {
                     $itemModel->fill($item);
                     $itemModel->save();
-                    $itemModel->refresh();
                 } else {
                     $itemModel = $purchaseInvoice->items()->create($item);
-                    $itemModel->refresh();
                 }
             } else {
                 $itemModel = $purchaseInvoice->items()->create($item);
-                $itemModel->refresh();
             }
 
-            $basicAmount += $itemModel->basic_amount;
-            $taxAmount += $itemModel->tax_amount;
+            // basic_amount generated column -- refresh supaya nilai terbaru (quantity/rate
+            // baru) terbaca sebelum dialokasikan diskon.
+            $itemModel->refresh();
+            $items->push($itemModel);
         }
 
-        $totalAmount = Utils::countAmount($basicAmount, $taxAmount, $purchaseInvoice->discount_on, $purchaseInvoice->discount_amount);
+        $totals = DocumentDiscountCalculator::applyDiscountColumnToItems($purchaseInvoice, $items, self::DPP_FACTOR);
         $purchaseInvoice->update([
-            'amount' => $totalAmount,
+            'amount' => $totals['basic_amount'] + $totals['tax_amount'],
         ]);
 
         $paymentSchedules = $data['payment_schedules'] ?? [];
@@ -193,12 +206,11 @@ class PurchaseInvoiceService {
             }
             $purchaseInvoice->paymentSchedules()->create($payment_schedule);
         }
-        $purchaseInvoice->logForUpdated();
 
         return $purchaseInvoice;
     }
 
-    public function submit(PurchaseInvoice $purchaseInvoice) {
+    public function submit(Model $purchaseInvoice): mixed {
         DB::beginTransaction();
 
         $purchaseInvoice->update([
@@ -227,12 +239,7 @@ class PurchaseInvoiceService {
                 ]);
             }
         }
-        ModelConnection::create([
-            'model_type'     => PurchaseOrder::class,
-            'model_id'       => $purchaseInvoice->purchase_order_id,
-            'reference_type' => PurchaseInvoice::class,
-            'reference_id'   => $purchaseInvoice->id,
-        ]);
+        event(new DocumentSubmitted($purchaseInvoice, $purchaseInvoice->purchaseOrder));
 
         DB::commit();
 
@@ -241,7 +248,7 @@ class PurchaseInvoiceService {
         return $purchaseInvoice;
     }
 
-    public function onApproved(PurchaseInvoice $purchaseInvoice) {
+    public function onApproved(Model $purchaseInvoice): mixed {
         DB::beginTransaction();
 
         try {
@@ -252,6 +259,8 @@ class PurchaseInvoiceService {
                 'returnAgainst',
                 'items.returnAgainstItem',
                 'items.purchaseOrderItem',
+                'items.item',
+                'items.item.item',
             ]);
 
             $returnAgainst = $purchaseInvoice->returnAgainst;
@@ -263,19 +272,21 @@ class PurchaseInvoiceService {
             $totalStockGL = 0; // Untuk GL Stock/SRNB (ALUR-1)
 
             foreach ($items as $item) {
-                $basicAmount += $item->basic_amount;
+                $basicAmount += $item->basic_amount - $item->discount_amount;
                 $taxAmount += $item->tax_amount;
 
                 $poItem = $item->purchaseOrderItem;
                 $qty    = $item->quantity;
                 $rate   = $item->rate;
 
-                if ($returnAgainst) {
-                    $item->returnAgainstItem->increment('returned_quantity', $qty);
-                    $poItem->decrement('billed_quantity', $qty);
-                } else {
-                    $poItem->increment('billed_quantity', $qty);
+                event(new PurchaseOrderItemBillingChanged(
+                    $poItem,
+                    $qty,
+                    $returnAgainst ? 'decrement' : 'increment',
+                    $returnAgainst ? $item->returnAgainstItem : null,
+                ));
 
+                if (! $returnAgainst) {
                     // === ALUR-1: Receipt sudah ada duluan → update SLE pending ===
                     $isAlreadyReceived = $poItem->received_quantity > 0;
 
@@ -287,60 +298,28 @@ class PurchaseInvoiceService {
                 }
             }
 
-            $totalAmount = Utils::countAmount($basicAmount, $taxAmount, $purchaseInvoice->discount_on, $purchaseInvoice->discount_amount);
+            // basic_amount/tax_amount item sudah net (dikurangi discount_amount) sejak
+            // create()/update() -- di sini murni sum, bukan alokasi ulang diskon.
+            $totalAmount = $basicAmount + $taxAmount;
 
-            $debitAccount  = $purchaseInvoice->expenseHeadAccount;
-            $creditAccount = $purchaseInvoice->creditAccount;
-
-            // === GL Stock/SRNB untuk ALUR-1 ===
-            if ($totalStockGL > 0 && ! $returnAgainst) {
-                $stockAccount = Account::lockForUpdate()
-                    ->where('root_type', 'asset')
-                    ->where('account_type', 'stock')
-                    ->latest()->first();
-
-                $srnbAccount = Account::lockForUpdate()
-                    ->where('root_type', 'liability')
-                    ->where('account_type', 'stock_received_but_not_billed')
-                    ->latest()->first();
-
-                // Debit Stock Asset / Credit SRNB
-                $stockAccount->generalLedgerEntries()->create([
-                    'against_account_id' => $srnbAccount->id,
-                    'debit'              => $totalStockGL,
-                    'credit'             => 0,
-                    'referenceable_type' => PurchaseInvoice::class,
-                    'referenceable_id'   => $purchaseInvoice->id,
-                ]);
-
-                $srnbAccount->generalLedgerEntries()->create([
-                    'against_account_id' => $stockAccount->id,
-                    'debit'              => 0,
-                    'credit'             => $totalStockGL,
-                    'referenceable_type' => PurchaseInvoice::class,
-                    'referenceable_id'   => $purchaseInvoice->id,
-                ]);
-            }
-
-            // === GL SRNB/AP (kedua alur selalu dibuat) ===
-            $debitAccount->generalLedgerEntries()->create([
-                'against_account_id' => $creditAccount->id,
-                'debit'              => $returnAgainst ? 0 : $totalAmount,
-                'credit'             => $returnAgainst ? $totalAmount : 0,
+            // === GL posting dipindah ke queued Job (Stock/SRNB + Expense/Credit digabung 1 event) ===
+            GlPostingStatus::create([
                 'referenceable_type' => PurchaseInvoice::class,
                 'referenceable_id'   => $purchaseInvoice->id,
+                'status'             => FormStatus::PENDING,
             ]);
-
-            $creditAccount->generalLedgerEntries()->create([
-                'against_account_id' => $debitAccount->id,
-                'debit'              => $returnAgainst ? $totalAmount : 0,
-                'credit'             => $returnAgainst ? 0 : $totalAmount,
-                'referenceable_type' => PurchaseInvoice::class,
-                'referenceable_id'   => $purchaseInvoice->id,
-            ]);
+            event(new PurchaseInvoiceGeneralLedgerPostingRequested(
+                $purchaseInvoice,
+                $totalStockGL,
+                $totalAmount,
+                (bool) $returnAgainst,
+                now(),
+                $purchaseInvoice->expenseHeadAccount->id,
+                $purchaseInvoice->creditAccount->id,
+            ));
 
             // === UPDATE STATUS PO ===
-            $this->updatePurchaseOrderBillStatus($purchaseOrder, $returnAgainst);
+            event(new PurchaseOrderBillStatusRecalculationRequested($purchaseOrder, $returnAgainst));
 
             $purchaseInvoice->update([
                 'amount' => $totalAmount,
@@ -348,6 +327,8 @@ class PurchaseInvoiceService {
             ]);
 
             if ($returnAgainst) {
+                // Lock returnAgainst (PurchaseInvoice asal) untuk kalkulasi status retur (Req 1.6)
+                $returnAgainst      = PurchaseInvoice::where('id', $returnAgainst->id)->lockForUpdate()->first();
                 $unbilledItems      = $returnAgainst->items()->select(['returned_quantity', 'quantity'])->get();
                 $countReturnedItems = $unbilledItems->sum('returned_quantity');
                 $sumQuantity        = $unbilledItems->sum('quantity');
@@ -367,10 +348,19 @@ class PurchaseInvoiceService {
                 } else {
                     $status = $returnAgainst->status;
                 }
-                $returnAgainst->update(['status' => $status]);
+                event(new PurchaseInvoiceReturnStatusChanged($returnAgainst, $status));
             }
 
             DB::commit();
+
+            // Dispatch FixedAssetItemApproved for each fixed-asset item
+            foreach ($items as $item) {
+                $variant = $item->item;
+                if (! $variant || ! $variant->item || ! $variant->item->is_fixed_asset) {
+                    continue;
+                }
+                FixedAssetItemApproved::dispatch($purchaseInvoice, $item, $variant->item);
+            }
 
             return $purchaseInvoice;
         } catch (\Exception $e) {
@@ -399,6 +389,7 @@ class PurchaseInvoiceService {
                 $q->whereHas('items', fn ($q2) => $q2->where('purchase_order_item_id', $poItem->id));
             })
             ->orderBy('created_at') // FIFO
+            ->lockForUpdate()
             ->get();
 
         $remainingQty = $qty;
@@ -496,31 +487,7 @@ class PurchaseInvoiceService {
     /**
      * Update status PO untuk billed quantity (termasuk OVER_BILLED)
      */
-    private function updatePurchaseOrderBillStatus(PurchaseOrder $purchaseOrder, $returnAgainst): void {
-        $unbilledItems = $purchaseOrder->items()->select(['id', 'unbilled_quantity', 'quantity', 'billed_quantity'])->get();
-        $totalQty      = $unbilledItems->sum('quantity');
-        $totalBilled   = $unbilledItems->sum('billed_quantity');
-
-        if ($totalBilled == 0) {
-            $newStatus      = FormStatus::TO_BILL;
-            $removeStatuses = [FormStatus::BILLED, FormStatus::PARTIALLY_BILLED, FormStatus::OVER_BILLED];
-        } elseif ($totalBilled > $totalQty) {
-            $newStatus      = FormStatus::OVER_BILLED;
-            $removeStatuses = [FormStatus::TO_BILL, FormStatus::PARTIALLY_BILLED, FormStatus::BILLED];
-        } elseif ($totalBilled < $totalQty) {
-            $newStatus      = FormStatus::PARTIALLY_BILLED;
-            $removeStatuses = [FormStatus::TO_BILL, FormStatus::BILLED, FormStatus::OVER_BILLED];
-        } else {
-            $newStatus      = FormStatus::BILLED;
-            $removeStatuses = [FormStatus::TO_BILL, FormStatus::PARTIALLY_BILLED, FormStatus::OVER_BILLED];
-        }
-
-        $purchaseOrder->update([
-            'status' => Utils::replaceStatus($purchaseOrder->status, $removeStatuses, $newStatus),
-        ]);
-    }
-
-    public function onRejected(PurchaseInvoice $purchaseInvoice) {
+    public function onRejected(Model $purchaseInvoice): mixed {
         DB::beginTransaction();
         $purchaseInvoice->update([
             'status' => FormStatus::REJECTED,
@@ -531,12 +498,16 @@ class PurchaseInvoiceService {
         return $purchaseInvoice;
     }
 
-    public function cancel(PurchaseInvoice $purchaseInvoice) {
+    public function cancel(Model $purchaseInvoice): mixed {
         $purchaseInvoice->update([
             'status' => FormStatus::CANCELED,
         ]);
 
         return $purchaseInvoice;
+    }
+
+    public function amend(Model $model): mixed {
+        return $model;
     }
 
     /**

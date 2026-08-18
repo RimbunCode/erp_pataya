@@ -6,6 +6,7 @@ import {
 } from "@/Components/ui/dropdown-menu";
 import { calculateArray, inArray, isValidStatus } from "@/lib/utils";
 
+import AssetCompletionAlert from "@/Pages/Asset/Assets/AssetCompletionAlert";
 import { Button } from "@/Components/ui/button";
 import { ChevronsUpDownIcon } from "lucide-react";
 import Form from "./Form";
@@ -13,7 +14,7 @@ import { FormPage } from "@/Pages/Core/FormPage";
 import Link from "@/Components/Link";
 import { useLaravelReactI18n } from "laravel-react-i18n";
 
-export default function Show({ purchaseInvoice, defaultData }) {
+export default function Show({ purchaseInvoice, defaultData, fixedAssets }) {
   const { t } = useLaravelReactI18n();
   return (
     <FormPage
@@ -91,6 +92,7 @@ export default function Show({ purchaseInvoice, defaultData }) {
           );
         }
       }}
+      banner={<AssetCompletionAlert assets={fixedAssets} />}
     >
       <Form />
     </FormPage>

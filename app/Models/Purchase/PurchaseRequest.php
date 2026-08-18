@@ -4,6 +4,7 @@ namespace App\Models\Purchase;
 
 use App\Enums\FormStatus;
 use App\Models\Model;
+use App\Services\Purchase\PurchaseRequestService;
 use App\Traits\DataTable;
 use App\Traits\Submitable;
 use Illuminate\Database\Eloquent\Concerns\HasUlids;
@@ -12,8 +13,9 @@ use Illuminate\Database\Eloquent\SoftDeletes;
 class PurchaseRequest extends Model {
     use DataTable, HasUlids, SoftDeletes, Submitable;
 
-    protected $guarded = ['id'];
-    protected $casts   = [
+    public static string $service = PurchaseRequestService::class;
+    protected $guarded            = ['id'];
+    protected $casts              = [
         'date'          => 'datetime',
         'required_date' => 'datetime',
     ];

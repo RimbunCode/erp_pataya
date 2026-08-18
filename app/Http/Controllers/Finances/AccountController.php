@@ -64,7 +64,6 @@ class AccountController extends Controller {
             $data['root_type']         = $parent_account->root_type;
             $data['report_type']       = $parent_account->report_type;
             $account                   = Account::create($data);
-            $account->logForCreated();
             DB::commit();
 
             return redirect()->route('accounts.show', $account)
@@ -111,7 +110,6 @@ class AccountController extends Controller {
         $data['root_type']         = $parent_account->root_type;
         $data['report_type']       = $parent_account->report_type;
         $account->fillForUpdate($data);
-        $account->logForUpdated();
         DB::commit();
 
         return redirect()->back();

@@ -415,7 +415,6 @@ function Form() {
               name="supplier"
               label={t("purchase.purchaseOrder.columns.supplier")}
               required
-              name="supplier"
             >
               <SupplierLinkModel
                 value={data.supplier}
@@ -581,16 +580,21 @@ function Form() {
               onValueChange={(v) => setData("items", v)}
               form={<ItemForm />}
               mapItem={({ item, dataTable, index }) => {
-                // Diskon dokumen (Diskon Tambahan) mengubah basic_amount/tax_amount
+                // Diskon dokumen (Diskon Tambahan) mengubah discount_amount/tax_amount
                 // SETIAP baris secara pro-rata, bukan cuma baris yang sedang di-edit --
                 // jadi alokasi dihitung ulang dari seluruh dataTable tiap kali salah
                 // satu baris berubah, lalu diambil hasil untuk baris ke-`index` ini saja.
+                // basic_amount TIDAK ditimpa di sini -- kolom itu generated (quantity*rate)
+                // di server, konsisten dgn App\Services\Finances\DocumentDiscountCalculator::
+                // applyToItems() yang menulis discount_amount terpisah, bukan overwrite basic_amount.
                 const rows = dataTable ?? [];
+                const grossAmounts = rows.map((row, i) =>
+                  i === index
+                    ? (item.quantity ?? 0) * (item.rate ?? 0)
+                    : (row.quantity ?? 0) * (row.rate ?? 0),
+                );
                 const lines = rows.map((row, i) => ({
-                  basic_amount:
-                    i === index
-                      ? (item.quantity ?? 0) * (item.rate ?? 0)
-                      : (row.quantity ?? 0) * (row.rate ?? 0),
+                  basic_amount: grossAmounts[i],
                   tax_rate:
                     i === index ? (item.tax?.rate ?? 0) : (row.tax?.rate ?? 0),
                 }));
@@ -604,7 +608,10 @@ function Form() {
                 const result = allocated[index] ?? allocated[0];
                 return {
                   ...item,
-                  basic_amount: result?.basic_amount ?? 0,
+                  discount_amount:
+                    Math.round(
+                      (grossAmounts[index] - (result?.basic_amount ?? 0)) * 100,
+                    ) / 100,
                   tax_amount: result?.tax_amount ?? 0,
                 };
               }}
@@ -614,7 +621,7 @@ function Form() {
             data?.currency?.code !== default_currency_id && (
               <FormInput
                 readOnly
-                label={`${t("purchase.purchaseOrder.columns.basic_amount")} (${default_currency_id.toUpperCase()})`}
+                label={`${t("purchase.purchaseOrder.columns.net_total")} (${default_currency_id.toUpperCase()})`}
               >
                 <NumberInput
                   className="text-right"
@@ -626,7 +633,7 @@ function Form() {
             )}
           <FormInput
             readOnly
-            label={`${t("purchase.purchaseOrder.columns.basic_amount")} (${(data?.currency?.code ?? default_currency_id).toUpperCase()})`}
+            label={`${t("purchase.purchaseOrder.columns.net_total")} (${(data?.currency?.code ?? default_currency_id).toUpperCase()})`}
             className="col-start-2"
           >
             <NumberInput

@@ -3,20 +3,16 @@
 namespace App\Http\Controllers\Core;
 
 use App\Enums\FormStatus;
+use App\Events\Core\ApprovalDecided;
 use App\Http\Controllers\Controller;
 use App\Http\Requests\Core\ApprovalDecisionRequest;
-use App\Jobs\Core\AttachGeneratedPdfJob;
 use App\Models\Core\ApprovalInstance;
 use App\Models\Core\ApprovalInstanceStep;
 use App\Models\Model;
-use App\Notifications\ApprovalDecidedNotification;
-use App\Notifications\ApprovalPendingNotification;
-use App\Services\Core\Notification\NotifyUser;
 use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\DB;
-use Illuminate\Support\Facades\Route;
 use Illuminate\Support\Facades\URL;
 use Illuminate\Support\Str;
 use Inertia\Inertia;
@@ -104,7 +100,7 @@ class ApprovalInstanceController extends Controller {
             return false;
         }
 
-        $roleIds = $user->roles()->pluck('roles.id');
+        $roleIds = $user->roles->pluck('id');
 
         return $approvalInstance->steps()
             ->where(function (Builder $query) use ($user, $roleIds) {
@@ -135,58 +131,6 @@ class ApprovalInstanceController extends Controller {
                     ->orWhere('acted_by_id', $user->id);
             })
             ->exists();
-    }
-
-    public function checkApproval(Model $data, array $options = [], string $triggerOn = 'submit') {
-        return DB::transaction(function () use ($data, $options, $triggerOn) {
-            $currentRoute     = Route::getCurrentRoute();
-            $controller       = $currentRoute->getControllerClass();
-            $parameters       = $currentRoute->originalParameters();
-            $instanceApproval = ApprovalInstance::makeInstance($data, [
-                'controller' => $controller,
-                'parameters' => $parameters,
-                'options'    => $options,
-            ], $triggerOn);
-
-            if (! $instanceApproval || $instanceApproval->status == FormStatus::APPROVED) {
-                $result = app()->call("$controller@onApproved", ['id' => $data->id]);
-            } elseif ($instanceApproval->status == FormStatus::REJECTED) {
-                $result = app()->call("$controller@onRejected", ['id' => $data->id]);
-            } else {
-                $data->update([
-                    'status' => FormStatus::NEED_APPROVAL,
-                ]);
-            }
-
-            $data->logForSubmitted();
-
-            DB::commit();
-
-            return $result ?? null;
-        });
-    }
-
-    /**
-     * Panggil onApproved()/onRejected() controller dokumen. Resolusi dokumen
-     * lewat ApprovalInstance::document (morphOne) — bukan reflection atas
-     * signature controller — supaya kompatibel dengan base Controller yang
-     * memakai signature generik `mixed $id`.
-     */
-    private function callDocumentCallback(ApprovalInstance $approval, string $method) {
-        $controller = (string) ($approval->options['controller'] ?? '');
-        $documentId = $approval->document_id;
-
-        if ($controller === '' || ! $documentId || ! method_exists($controller, $method)) {
-            return back();
-        }
-
-        request()->attributes->set('isApprovalCallback', true);
-
-        try {
-            return app()->call("$controller@$method", ['id' => $documentId]);
-        } finally {
-            request()->attributes->remove('isApprovalCallback');
-        }
     }
 
     private function approve(ApprovalInstanceStep $approvalInstanceStep, ?string $notes = null) {
@@ -232,39 +176,28 @@ class ApprovalInstanceController extends Controller {
             $approval->save();
             DB::commit();
 
-            // Attachment is a side effect of a decision that already
-            // committed above — queued rather than run inline so approving
-            // doesn't wait on Handlebars render + PDF generation. A
-            // failure inside the job is caught and logged there; it never
-            // affects this already-committed approval.
-            AttachGeneratedPdfJob::dispatch($approval);
+            $document     = $approval->document;
+            $serviceClass = $document::$service ?? null;
 
-            // Same pattern: notification is a side effect of an already-
-            // committed decision, sent after commit so a failure here never
-            // rolls back or blocks the approval itself.
-            $creator = $approval->document?->createdBy;
-            if ($creator) {
-                app(NotifyUser::class)->send($creator, new ApprovalDecidedNotification($approval, 'approved'));
+            event(new ApprovalDecided($approval, 'approved'));
+
+            if ($serviceClass) {
+                return app($serviceClass)->onApproved($document);
             }
 
-            return $this->callDocumentCallback($approval, 'onApproved');
+            return back();
         }
         $approval->save();
         DB::commit();
 
-        if ($nextPending) {
-            $candidates = $nextPending->resolveCandidateUsers();
-            if ($candidates->isNotEmpty()) {
-                app(NotifyUser::class)->send($candidates, new ApprovalPendingNotification($nextPending));
-            }
-        }
+        event(new ApprovalDecided($approval, 'approved', $nextPending));
 
         return back();
     }
 
     private function recordApproverChildDecision(ApprovalInstanceStep $step, FormStatus $status): void {
         $user    = Auth::user();
-        $roleIds = $user->roles()->pluck('roles.id');
+        $roleIds = $user->roles->pluck('id');
 
         $matched = $step->approvers()
             ->where(function ($q) use ($user, $roleIds) {
@@ -324,12 +257,16 @@ class ApprovalInstanceController extends Controller {
             $approval->save();
             DB::commit();
 
-            $creator = $approval->document?->createdBy;
-            if ($creator) {
-                app(NotifyUser::class)->send($creator, new ApprovalDecidedNotification($approval, 'rejected', $notes));
+            $document     = $approval->document;
+            $serviceClass = $document::$service ?? null;
+
+            event(new ApprovalDecided($approval, 'rejected', notes: $notes));
+
+            if ($serviceClass) {
+                return app($serviceClass)->onRejected($document);
             }
 
-            return $this->callDocumentCallback($approval, 'onRejected');
+            return back();
         }
         $approval->save();
         DB::commit();

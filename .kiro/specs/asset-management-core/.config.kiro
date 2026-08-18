@@ -1,0 +1,6 @@
+{
+  "specId": "bf7a0cca-c869-455c-bb74-5ead3536db2d",
+  "workflowType": "requirements-first",
+  "specType": "feature",
+  "description": "Spec 1 dari 5-fase modul Asset Management (mirip ERPNext): model Asset, Asset Category, Asset Location beserta lifecycle status via Submitable, ownership (Company/Supplier/Customer), dan flag is_rentable untuk mempersiapkan fix sistem rental di Spec 4."
+}

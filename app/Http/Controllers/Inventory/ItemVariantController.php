@@ -106,7 +106,6 @@ class ItemVariantController extends Controller {
         $data = $request->validated();
         $itemVariant->fillForUpdate($data);
         $this->itemService->updateBarcodes($itemVariant, $data['barcodes']);
-        $itemVariant->logForUpdated();
 
         return back();
     }

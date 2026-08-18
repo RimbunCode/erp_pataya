@@ -69,6 +69,8 @@ class ApprovalInstance extends Model {
             ->first();
 
         if (! $scheme) {
+            DB::rollBack();
+
             return null;
         }
         $schemeSteps = $scheme->steps()->with('approvers')->get();

@@ -3,6 +3,8 @@
 namespace Tests\Feature;
 
 use App\Models\Core\FormatingSeries;
+use App\Models\Inventory\Item;
+use App\Models\Inventory\Unit;
 use App\Models\Purchase\PurchaseOrder;
 use App\Models\Purchase\Supplier;
 use App\Models\User\User;
@@ -66,7 +68,14 @@ class PurchaseOrderDiscountPersistenceTest extends TestCase {
      * @return array{item_id: string, unit_id: string}
      */
     private function createItemWithUnit(): array {
-        $itemVariant = ItemVariantFactory::new()->create();
+        $unit = Unit::create([
+            'code' => 'UNIT-' . Str::random(6),
+            'name' => 'Unit ' . Str::random(6),
+        ]);
+
+        $item = Item::factory()->create(['default_unit_id' => $unit->id]);
+
+        $itemVariant = ItemVariantFactory::new()->for($item, 'item')->create();
 
         $itemUnitId = (string) Str::ulid();
         DB::table('item_units')->insert([
@@ -132,9 +141,16 @@ class PurchaseOrderDiscountPersistenceTest extends TestCase {
     public function test_case_a_create_without_discount(): void {
         $purchaseOrder = app(PurchaseOrderService::class)->create($this->buildPayload());
 
-        $this->assertEqualsWithDelta(2000000, $purchaseOrder->items->sum('basic_amount'), 0.01);
+        // Re-fetch -- create() mengubah basic_amount/tax_amount item lewat
+        // applyDiscountToItems() SETELAH items()->create(), jadi relasi items
+        // yang sudah ter-cache di $purchaseOrder masih berisi nilai sebelum
+        // alokasi diskon (HasMany::create() men-cache child ke parent).
+        $purchaseOrder = $purchaseOrder->fresh(['items']);
+
+        $this->assertEqualsWithDelta(2000000, $purchaseOrder->items->sum('net_amount'), 0.01);
+        $this->assertEqualsWithDelta(0, $purchaseOrder->items->sum('discount_amount'), 0.01, 'tanpa diskon, discount_amount harus 0');
         $this->assertEqualsWithDelta(210000, $purchaseOrder->items->sum('tax_amount'), 0.01);
-        $this->assertEqualsWithDelta(2210000, $purchaseOrder->fresh()->amount, 0.01);
+        $this->assertEqualsWithDelta(2210000, $purchaseOrder->amount, 0.01);
     }
 
     public function test_case_b_create_with_ten_percent_discount_on_net_total(): void {
@@ -145,13 +161,16 @@ class PurchaseOrderDiscountPersistenceTest extends TestCase {
         $purchaseOrder->refresh();
         $purchaseOrder->load('items');
 
-        $this->assertEqualsWithDelta(1800000, $purchaseOrder->items->sum('basic_amount'), 0.01, 'DPP header harus turun setelah diskon, bukan beku');
+        // basic_amount (kotor) TIDAK berubah -- diskon disimpan di discount_amount terpisah
+        $this->assertEqualsWithDelta(2000000, $purchaseOrder->items->sum('basic_amount'), 0.01, 'basic_amount kotor tidak boleh berubah');
+        $this->assertEqualsWithDelta(200000, $purchaseOrder->items->sum('discount_amount'), 0.01);
+        $this->assertEqualsWithDelta(1800000, $purchaseOrder->items->sum('net_amount'), 0.01, 'DPP header harus turun setelah diskon, bukan beku');
         $this->assertEqualsWithDelta(189000, $purchaseOrder->items->sum('tax_amount'), 0.01, 'Pajak harus dihitung ulang dari basic_amount yang sudah dipotong diskon');
         $this->assertEqualsWithDelta(1989000, $purchaseOrder->amount, 0.01);
 
         // Reload dari DB murni (bukan dari memory) -- membuktikan nilai persisted, bukan cuma di render/memory
         $reloaded = $purchaseOrder->fresh(['items']);
-        $this->assertEqualsWithDelta(1800000, $reloaded->items->sum('basic_amount'), 0.01);
+        $this->assertEqualsWithDelta(1800000, $reloaded->items->sum('net_amount'), 0.01);
         $this->assertEqualsWithDelta(189000, $reloaded->items->sum('tax_amount'), 0.01);
         $this->assertEqualsWithDelta(1989000, $reloaded->amount, 0.01);
     }
@@ -164,7 +183,7 @@ class PurchaseOrderDiscountPersistenceTest extends TestCase {
         $purchaseOrder->refresh();
         $purchaseOrder->load('items');
 
-        $this->assertEqualsWithDelta(1800000, $purchaseOrder->items->sum('basic_amount'), 0.01);
+        $this->assertEqualsWithDelta(1800000, $purchaseOrder->items->sum('net_amount'), 0.01);
         $this->assertEqualsWithDelta(189000, $purchaseOrder->items->sum('tax_amount'), 0.01);
         $this->assertEqualsWithDelta(1989000, $purchaseOrder->amount, 0.01);
     }
@@ -191,10 +210,10 @@ class PurchaseOrderDiscountPersistenceTest extends TestCase {
         $updated = $service->update($purchaseOrder, $payload);
         $updated->load('items');
 
-        $newSumBasic = $updated->items->sum('basic_amount');
+        $newSumBasic = $updated->items->sum('net_amount');
         $newSumTax   = $updated->items->sum('tax_amount');
 
         $this->assertEqualsWithDelta($newSumBasic + $newSumTax, $updated->amount, 0.01, 'Total == DPP + Tax harus tetap benar setelah update dengan item berubah');
-        $this->assertEqualsWithDelta($newSumBasic, $updated->fresh(['items'])->items->sum('basic_amount'), 0.01, 'nilai persisted harus sama dengan yang di-load ulang');
+        $this->assertEqualsWithDelta($newSumBasic, $updated->fresh(['items'])->items->sum('net_amount'), 0.01, 'nilai persisted harus sama dengan yang di-load ulang');
     }
 }

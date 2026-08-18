@@ -3,8 +3,8 @@
 namespace Database\Factories\Purchase;
 
 use App\Models\Purchase\PurchaseOrder;
-use App\Models\Purchase\Supplier;
 use App\Models\User\User;
+use Database\Factories\Core\CountryFactory;
 use Illuminate\Database\Eloquent\Factories\Factory;
 
 /**
@@ -18,12 +18,9 @@ class PurchaseOrderFactory extends Factory {
      */
     public function definition(): array {
         return [
-            'code'        => fake()->unique()->bothify('PO-####'),
-            'date'        => now(),
-            'supplier_id' => Supplier::query()->create([
-                'name'        => fake()->unique()->company(),
-                'is_disabled' => false,
-            ])->id,
+            'code'          => fake()->unique()->bothify('PO-####'),
+            'date'          => now(),
+            'supplier_id'   => SupplierFactory::new()->create(['country_id' => CountryFactory::new()->create()->code])->id,
             'created_by_id' => User::factory(),
         ];
     }

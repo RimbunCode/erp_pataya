@@ -42,7 +42,6 @@ class CustomerController extends Controller {
         $data['country_id'] = $data['country']['code'];
         $customer           = Customer::create($data);
         $this->customerService->storeBranches($customer, $data['branches'] ?? []);
-        $customer->logForCreated();
         DB::commit();
 
         return back()->with('id', $customer->id);
@@ -73,7 +72,6 @@ class CustomerController extends Controller {
         $data['country_id'] = $data['country']['code'];
         $customer->fillForUpdate($data);
         $this->customerService->storeBranches($customer, $data['branches'] ?? []);
-        $customer->logForUpdated();
         DB::commit();
 
         return back();

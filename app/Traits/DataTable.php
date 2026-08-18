@@ -2,6 +2,7 @@
 
 namespace App\Traits;
 
+use App\Events\Core\AuditableModelSaved;
 use App\Models\Core\EmailTemplate;
 use App\Models\Core\File;
 use App\Models\Core\FormatingSeries;
@@ -57,6 +58,42 @@ trait DataTable {
         });
 
         static::created(function ($model) {
+            // Log model sendiri: skip TOTAL (audit dispatch DAN attachment check).
+            // Log::create() dipanggil dari dalam RecordAuditLog listener (event
+            // AuditableModelSaved, queue sync di test) — tanpa early return ini,
+            // request yang masih bind `buffered_assignees` (dari flow model lain
+            // yang sedang dibuat) akan lolos ke BufferedAttachmentService::attach(),
+            // yang bisa membuat Todo baru → Todo::created() dispatch event lagi →
+            // Log::create() lagi → rekursi tak henti antara Log dan Todo.
+            if (get_class($model) === Log::class) {
+                return;
+            }
+
+            // Audit log: dispatch event untuk semua model DataTable lainnya.
+            // Guard: skip jika tidak ada user terautentikasi (mis. test/seeder).
+            //
+            // CATATAN (2026-08-07): idealnya log tetap tercatat dengan user_id
+            // null saat tidak ada auth (nilai audit trail lebih tinggi daripada
+            // silent-skip), TAPI percobaan menghapus guard ini + memanggil
+            // loadRelations() di $model->fresh() untuk hindari cache relasi
+            // stale (lihat riwayat commit) menyebabkan 37 error baru di full
+            // suite (factory yang membuat model dalam urutan tertentu crash
+            // saat accessor baca relasi dari instance fresh() yang state-nya
+            // beda dari $model asli). BUTUH DESAIN ULANG lebih hati-hati
+            // sebagai task terpisah — jangan hapus guard ini tanpa itu.
+            if (Auth::id()) {
+                $model->loadRelations();
+                $keys = $model->logableFields();
+                event(new AuditableModelSaved(
+                    $model,
+                    'created',
+                    dataAfter: \array_replace(
+                        \array_fill_keys($keys, null),
+                        \array_intersect_key($model->toArray(), array_flip($keys)),
+                    ),
+                ));
+            }
+
             if (! app()->bound('request')) {
                 return;
             }
@@ -78,6 +115,31 @@ trait DataTable {
                 return;
             }
             BufferedAttachmentService::attach($model, $request);
+        });
+
+        static::updated(function ($model) {
+            // Guard: skip jika tidak ada user terautentikasi (mis. test/seeder),
+            // skip Log model sendiri (anti-rekursi), dan skip jika
+            // dataBefore kosong — artinya model tidak di-update lewat
+            // fillForUpdate() yang memanggil recordLogs() untuk snapshot.
+            // Lihat catatan guard Auth::id() di hook created() di atas.
+            if (! Auth::id() || get_class($model) === Log::class || ! $model->dataBefore) {
+                return;
+            }
+            $model->loadRelations();
+            $keys = $model->logableFields();
+            event(new AuditableModelSaved(
+                $model,
+                'updated',
+                dataBefore: \array_replace(
+                    \array_fill_keys($keys, null),
+                    \array_intersect_key($model->dataBefore, array_flip($keys)),
+                ),
+                dataAfter: \array_replace(
+                    \array_fill_keys($keys, null),
+                    \array_intersect_key($model->toArray(), array_flip($keys)),
+                ),
+            ));
         });
     }
 

@@ -36,6 +36,7 @@ class ItemRequest extends BaseFormRequest {
             'default_unit.id'               => ['required', 'string', new ExistsExcludingTrashed('units')],
             'is_disabled'                   => ['nullable', 'boolean'],
             'allow_alternative_item'        => ['nullable', 'boolean'],
+            'is_fixed_asset'                => ['nullable', 'boolean'],
             'uoms'                          => ['required', 'array', 'min:1'],
             'uoms.*.id'                     => ['required', 'string', new ExistsExcludingTrashed('units')],
             'uoms.*.conversion_factor'      => ['nullable', 'numeric'],

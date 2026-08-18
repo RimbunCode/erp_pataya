@@ -1,0 +1,6 @@
+{
+  "specId": "9f1b2e3a-6c4d-4a2f-8e1b-1a2b3c4d5e6f",
+  "workflowType": "requirements-first",
+  "specType": "feature",
+  "description": "Tombol manual di halaman Show AssetService untuk membuat PurchaseRequest/PurchaseOrder pre-filled dari AssetServiceConsumedItem, mereplikasi mekanisme $ref-based switch yang sudah dipakai WorkOrder di PurchaseRequestController/PurchaseOrderController. Bagian terakhir dari rencana besar 'Spec 7' (dipecah dari rencana awal), sub-area Procurement. Termasuk perbaikan gap: AssetServiceConsumedItem belum punya item_unit_id, ditambahkan sebagai prasyarat mapping baris PR/PO. Setelah spec ini selesai, AssetService mencapai parity penuh dengan WorkOrder (billing via 7a, InternalOrder via 7b, Procurement via spec ini) — keputusan hapus WorkOrder BUKAN scope spec ini, hanya dicatat sebagai konteks penutup rencana Spec 7."
+}

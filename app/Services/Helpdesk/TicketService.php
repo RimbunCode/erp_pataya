@@ -49,8 +49,6 @@ class TicketService {
             'content_json'   => null,
         ]);
 
-        $ticket->logForCreated();
-
         return $ticket;
     }
 
@@ -58,7 +56,6 @@ class TicketService {
         $data = [...$data, ...$this->assigneeAttributes($data)];
 
         $ticket->fillForUpdate($data);
-        $ticket->logForUpdated();
 
         return $ticket;
     }
@@ -84,8 +81,6 @@ class TicketService {
             'due_date'       => $ticket->due_date,
             'end_date'       => now(),
         ]);
-
-        $ticket->logForUpdated();
 
         return $ticket;
     }
@@ -119,8 +114,6 @@ class TicketService {
             'content'        => "Diselesaikan pada deploy {$version}.",
             'content_json'   => null,
         ]);
-
-        $ticket->logForUpdated();
 
         return $alreadySettled;
     }
@@ -157,8 +150,6 @@ class TicketService {
             'content'      => $data['content'] ?? null,
             'content_json' => $data['content_json'] ?? null,
         ]);
-
-        $ticket->logForUpdated();
 
         return $response;
     }

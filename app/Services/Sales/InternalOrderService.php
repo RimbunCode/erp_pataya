@@ -2,16 +2,23 @@
 
 namespace App\Services\Sales;
 
+use App\Contracts\SubmitableService;
 use App\Enums\FormStatus;
+use App\Events\Inventory\StockReservationChanged;
 use App\Models\Core\FormatingSeries;
 use App\Models\Inventory\ItemUnit;
 use App\Models\Inventory\Stock;
+use App\Models\Model;
 use App\Models\Sales\InternalOrder;
+use App\Traits\HasDefaultDelete;
+use App\Utils;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Validation\ValidationException;
 use Symfony\Component\Uid\Ulid;
 
-class InternalOrderService {
+class InternalOrderService implements SubmitableService {
+    use HasDefaultDelete;
+
     private function fillRelations(array $data) {
         return $data;
     }
@@ -23,6 +30,14 @@ class InternalOrderService {
         $data['conversion_factor']   = $unit?->conversion_factor ?? 1;
         $data['source_warehouse_id'] = $data['source_warehouse']['id'] ?? null;
 
+        // Requirement 1, spec asset-service-internal-order: baris referenceable
+        // ke AssetService/AssetServiceConsumedItem (opsional) — TIDAK mengubah
+        // logic ItemVariant existing di atas, cuma cabang baru untuk field baru.
+        if (! empty($data['referenceable']['type']) && ! empty($data['referenceable']['id'])) {
+            $data['referenceable_type'] = $data['referenceable']['type'];
+            $data['referenceable_id']   = $data['referenceable']['id'];
+        }
+
         return $data;
     }
 
@@ -32,7 +47,7 @@ class InternalOrderService {
         return ItemUnit::whereIn('item_units.id', $unitIds)->get()->keyBy('id')->all();
     }
 
-    public function create(array $data) {
+    public function create(array $data): Model {
         $data['code']  = FormatingSeries::generate(InternalOrder::class, $data, true);
         $internalOrder = InternalOrder::create($this->fillRelations($data));
         $units         = $this->batchLoadUnits($data);
@@ -40,12 +55,11 @@ class InternalOrderService {
             $item = $this->fillItemRelations($item, $units);
             $internalOrder->items()->create($item);
         }
-        $internalOrder->logForCreated();
 
         return $internalOrder;
     }
 
-    public function update(InternalOrder $internalOrder, array $data) {
+    public function update(Model $internalOrder, array $data): Model {
         $internalOrder->fillForUpdate($this->fillRelations($data));
 
         $internalOrder->items()
@@ -74,12 +88,10 @@ class InternalOrderService {
             $internalOrder->items()->create($item);
         }
 
-        $internalOrder->logForUpdated();
-
         return $internalOrder;
     }
 
-    public function submit(InternalOrder $internalOrder) {
+    public function submit(Model $internalOrder): mixed {
         DB::beginTransaction();
 
         $internalOrder->update([
@@ -92,7 +104,8 @@ class InternalOrderService {
             ->lockForUpdate()
             ->get()
             ->keyBy(fn ($stock) => "{$stock->item_variant_id}-{$stock->warehouse_id}");
-        $errorItems = [];
+        $errorItems     = [];
+        $validatedItems = [];
 
         foreach ($items as $item) {
             $stockKey = "{$item->item_id}-{$item->source_warehouse_id}";
@@ -112,8 +125,11 @@ class InternalOrderService {
                 continue;
             }
 
-            // sama pola dengan SalesOrder
-            $stock->updateDetails('increment', 'reservations', $internalOrder->code, $quantity);
+            $validatedItems[] = [
+                'itemVariantId' => $item->item_id,
+                'warehouseId'   => $item->source_warehouse_id,
+                'quantity'      => $quantity,
+            ];
         }
 
         if (count($errorItems) > 0) {
@@ -123,13 +139,47 @@ class InternalOrderService {
             ]);
         }
 
+        if (\count($validatedItems) > 0) {
+            event(new StockReservationChanged($internalOrder, 'increment', 'reservations', $validatedItems));
+        }
+
         DB::commit();
         $internalOrder->checkApproval();
 
         return $internalOrder;
     }
 
-    public function onApproved(InternalOrder $internalOrder) {
+    public function updateInternalOrderStatus(InternalOrder $internalOrder): void {
+        $undeliveredItems = $internalOrder->items()
+            ->leftJoin('item_variants', 'item_variants.id', '=', 'internal_order_items.item_id')
+            ->where('is_stock_item', true)
+            ->select(['undelivered_quantity', 'quantity'])->get();
+        $countUndeliveredItems = $undeliveredItems->sum('undelivered_quantity');
+        $sumQuantity           = $undeliveredItems->sum('quantity');
+        if ($countUndeliveredItems == $sumQuantity) {
+            $status = Utils::replaceStatus(
+                $internalOrder->status,
+                [FormStatus::DELIVERED, FormStatus::PARTIALLY_DELIVERED],
+                FormStatus::TO_DELIVER,
+            );
+        } elseif ($countUndeliveredItems > 0) {
+            $status = Utils::replaceStatus(
+                $internalOrder->status,
+                FormStatus::TO_DELIVER,
+                FormStatus::PARTIALLY_DELIVERED,
+            );
+        } else {
+            $status = Utils::replaceStatus(
+                $internalOrder->status,
+                [FormStatus::TO_DELIVER, FormStatus::PARTIALLY_DELIVERED],
+                FormStatus::DELIVERED,
+            );
+        }
+
+        $internalOrder->update(['status' => $status]);
+    }
+
+    public function onApproved(Model $internalOrder): mixed {
         $internalOrder->update([
             'status' => [
                 FormStatus::TO_DELIVER,
@@ -147,6 +197,7 @@ class InternalOrderService {
             ->get()
             ->keyBy(fn ($stock) => "{$stock->item_variant_id}-{$stock->warehouse_id}");
 
+        $validatedItems = [];
         foreach ($items as $item) {
             $stockKey = "{$item->item_id}-{$item->source_warehouse_id}";
             $stock    = $stocks->get($stockKey);
@@ -154,11 +205,20 @@ class InternalOrderService {
                 continue;
             }
 
-            $stock->updateDetails('decrement', 'reservations', $internalOrder->code);
+            $quantity         = $item->quantity * $item->conversion_factor / $stock->conversion_factor;
+            $validatedItems[] = [
+                'itemVariantId' => $item->item_id,
+                'warehouseId'   => $item->source_warehouse_id,
+                'quantity'      => $quantity,
+            ];
+        }
+
+        if (\count($validatedItems) > 0) {
+            event(new StockReservationChanged($internalOrder, 'decrement', 'reservations', $validatedItems));
         }
     }
 
-    public function onRejected(InternalOrder $internalOrder) {
+    public function onRejected(Model $internalOrder): mixed {
         DB::beginTransaction();
 
         $internalOrder->update([
@@ -174,7 +234,7 @@ class InternalOrderService {
         return $internalOrder;
     }
 
-    public function cancel(InternalOrder $internalOrder) {
+    public function cancel(Model $internalOrder): mixed {
         DB::beginTransaction();
 
         $internalOrder->update([
@@ -188,5 +248,9 @@ class InternalOrderService {
         DB::commit();
 
         return $internalOrder;
+    }
+
+    public function amend(Model $model): mixed {
+        return $model;
     }
 }

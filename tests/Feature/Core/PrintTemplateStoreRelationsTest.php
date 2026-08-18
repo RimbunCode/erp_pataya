@@ -50,6 +50,7 @@ class PrintTemplateStoreRelationsTest extends TestCase {
                 $table->double('margin_right')->nullable();
                 $table->boolean('show_absolute_values')->default(false);
                 $table->string('unit')->nullable();
+                $table->boolean('is_example')->default(false);
                 $table->timestamps();
                 $table->softDeletes();
             });
@@ -111,7 +112,7 @@ class PrintTemplateStoreRelationsTest extends TestCase {
         $user          = User::factory()->create();
         $printTemplate = $this->createPrintTemplate();
 
-        $html = '<div>{{doc.customer.name}}</div><table>{{#each items}}<tr><td>{{this.product.name}}</td></tr>{{/each}}</table>';
+        $html = '<div>{{doc.customer.name}}</div><table>{{#each doc.items}}<tr><td>{{this.product.name}}</td></tr>{{/each}}</table>';
 
         $response = $this->editorSave($user, $printTemplate->id, [
             'data'      => ['components' => []],
@@ -125,12 +126,14 @@ class PrintTemplateStoreRelationsTest extends TestCase {
         $this->assertIsArray($usedRelations);
         $this->assertContains('customer', $usedRelations);
         $this->assertContains('items', $usedRelations);
+        $this->assertContains('items.product', $usedRelations);
 
         // Verify persisted in database
         $printTemplate->refresh();
         $this->assertIsArray($printTemplate->used_relations);
         $this->assertContains('customer', $printTemplate->used_relations);
         $this->assertContains('items', $printTemplate->used_relations);
+        $this->assertContains('items.product', $printTemplate->used_relations);
     }
 
     /**
@@ -188,7 +191,7 @@ class PrintTemplateStoreRelationsTest extends TestCase {
         $usedRelations = $printTemplate->used_relations;
         $this->assertContains('customer', $usedRelations);
         $this->assertContains('customer.address', $usedRelations);
-        $this->assertContains('customer.address.city', $usedRelations);
+        $this->assertNotContains('customer.address.city', $usedRelations); // karena pola token ini tidak ada "relation" maka city (properti akhir) bukanlah relasi
     }
 
     /**

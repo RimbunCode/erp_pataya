@@ -54,7 +54,6 @@ class ItemAlternativeController extends Controller {
                 'two_way'             => $data['two_way'] ?? false,
             ],
         );
-        $itemAlternative->logForCreated();
         DB::commit();
 
         return back()->with('id', $itemAlternative->id);
@@ -95,7 +94,6 @@ class ItemAlternativeController extends Controller {
                 'two_way'             => $data['two_way'] ?? false,
             ],
         );
-        $itemAlternative->logForUpdated();
         DB::commit();
 
         return back();

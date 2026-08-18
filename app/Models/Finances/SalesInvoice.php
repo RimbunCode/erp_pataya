@@ -8,17 +8,20 @@ use App\Models\Core\Currency;
 use App\Models\Model;
 use App\Models\Sales\Customer;
 use App\Models\Sales\SalesOrder;
+use App\Services\Finances\SalesInvoiceService;
 use App\Traits\DataTable;
 use App\Traits\Submitable;
 use Illuminate\Database\Eloquent\Concerns\HasUlids;
+use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\SoftDeletes;
 
 class SalesInvoice extends Model {
-    use DataTable, HasUlids, SoftDeletes, Submitable;
+    use DataTable, HasFactory, HasUlids, SoftDeletes, Submitable;
 
-    public string $formComponent = 'Finances/SalesInvoice/Form';
-    protected $guarded           = ['id'];
-    protected $casts             = [
+    public static string $service = SalesInvoiceService::class;
+    public string $formComponent  = 'Finances/SalesInvoice/Form';
+    protected $guarded            = ['id'];
+    protected $casts              = [
         'date'                             => 'datetime',
         'exchange_rate'                    => 'float',
         'amount'                           => 'float',
@@ -97,13 +100,13 @@ class SalesInvoice extends Model {
         'base_currency_code' => [
             'hidden' => true,
         ],
-        'base_amount' => [
+        'amount_base_currency' => [
             'hidden' => true,
         ],
-        'base_outstanding_amount' => [
+        'outstanding_amount_base_currency' => [
             'hidden' => true,
         ],
-        'base_paid_amount' => [
+        'paid_amount_base_currency' => [
             'hidden' => true,
         ],
         'customer_branch_name' => [

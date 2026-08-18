@@ -19,7 +19,6 @@ export default function Form() {
             name="name"
             required={true}
             label={t("finances.paymentMethod.columns.name")}
-            name="name"
           >
             <Input
               value={data?.name ?? ""}
@@ -29,7 +28,6 @@ export default function Form() {
           <FormInput
             name="default_account"
             label={t("finances.paymentMethod.columns.default_account")}
-            name="default_account"
           >
             <AccountLinkModel
               filters={{

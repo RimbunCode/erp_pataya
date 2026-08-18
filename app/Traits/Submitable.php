@@ -4,9 +4,11 @@ namespace App\Traits;
 
 use App\Casts\FormStatusesCast;
 use App\Casts\Json;
+use App\Contracts\SubmitableService;
 use App\Enums\FormStatus;
+use App\Events\Core\AuditableModelSaved;
 use App\Events\Core\DocumentCanceled;
-use App\Http\Controllers\Core\ApprovalInstanceController;
+use App\Events\Core\DocumentStatusChanged;
 use App\Models\Core\ApprovalInstance;
 use App\Models\Core\Branch;
 use App\Models\Core\FormatingSeries;
@@ -15,9 +17,7 @@ use App\Models\Finances\GeneralLedger;
 use App\Models\Inventory\StockLedgerEntry;
 use App\Models\Model;
 use App\Models\User\User;
-use App\Notifications\ApprovalCanceledNotification;
-use App\Notifications\DocumentSubmittedNotification;
-use App\Services\Core\Notification\NotifyUser;
+use App\Services\Core\Approval\ApprovalService;
 use Illuminate\Database\Eloquent\Relations\HasMany;
 use Illuminate\Database\Eloquent\Relations\MorphMany;
 use Illuminate\Database\QueryException;
@@ -106,12 +106,10 @@ trait Submitable {
             }
         });
 
-        // Notifikasi ke approver kandidat dari step yang masih PENDING/WAITING
-        // dikirim setelah save() sukses (event saved, bukan saving) — supaya
-        // tidak terkirim untuk save yang gagal. Cascade update status step ke
-        // CANCELED ditangani terpisah lewat event DocumentCanceled + listener
-        // CancelPendingApprovalSteps (lihat .kiro/specs/cancel-workflow-improvements) —
-        // dispatch di sini, PALING AWAL, sebelum notifikasi (guard identik).
+        // Cascade update status step ke CANCELED + notifikasi ApprovalCanceledNotification
+        // ke approver kandidat ditangani lewat event DocumentCanceled + listener
+        // CancelPendingApprovalSteps (ShouldQueue). Dispatch di sini, setelah save()
+        // sukses — supaya tidak terkirim untuk save yang gagal.
         self::saved(function ($model) {
             if (! ($model->isSubmitable() ?? false) || ! $model->wasChanged('status')) {
                 return;
@@ -126,29 +124,12 @@ trait Submitable {
             }
 
             event(new DocumentCanceled($model, $approval));
-
-            $pendingSteps = $approval->steps->whereIn('status', [FormStatus::PENDING, FormStatus::WAITING]);
-            if ($pendingSteps->isEmpty()) {
-                return;
-            }
-
-            $candidates = $pendingSteps
-                ->flatMap(fn ($step) => $step->resolveCandidateUsers())
-                ->unique('id')
-                ->values();
-
-            if ($candidates->isNotEmpty()) {
-                app(NotifyUser::class)->send(
-                    $candidates,
-                    new ApprovalCanceledNotification($approval, $pendingSteps->pluck('sequence')->all()),
-                );
-            }
         });
 
         // Role-based document notification: model submitable meng-override
         // notifyRolesOnStatus() untuk menentukan role mana yang dinotifikasi
-        // saat dokumen transisi ke status tertentu. Kosong secara default —
-        // tidak ada notifikasi terkirim untuk model yang tidak mengonfigurasi.
+        // saat dokumen transisi ke status tertentu. Notifikasi dikirim lewat
+        // event DocumentStatusChanged + listener NotifyRoleOnStatusChange (ShouldQueue).
         self::saved(function ($model) {
             if (! ($model->isSubmitable() ?? false) || ! $model->wasChanged('status')) {
                 return;
@@ -165,12 +146,7 @@ trait Submitable {
                 return;
             }
 
-            $candidates = User::whereHas('roles', fn ($q) => $q->whereIn('name', $roles))->get();
-            if ($candidates->isEmpty()) {
-                return;
-            }
-
-            app(NotifyUser::class)->send($candidates, new DocumentSubmittedNotification($model, implode(',', $roles)));
+            event(new DocumentStatusChanged($model, $roles));
         });
     }
 
@@ -201,11 +177,25 @@ trait Submitable {
     }
 
     public function checkApproval(array $options = [], string $triggerOn = 'submit') {
-        return app()->call(\implode([ApprovalInstanceController::class, '@', 'checkApproval']), [
-            'data'    => $this,
-            'options' => $options,
-            'trigger' => $triggerOn,
-        ]);
+        if (! \property_exists(static::class, 'service')) {
+            throw new \LogicException(
+                static::class . ' harus mendeklarasikan property $service untuk memakai checkApproval().',
+            );
+        }
+
+        if (! \is_subclass_of(static::$service, SubmitableService::class)) {
+            throw new \LogicException(
+                static::$service . ' harus implement ' . SubmitableService::class . '.',
+            );
+        }
+
+        return DB::transaction(function () use ($options, $triggerOn) {
+            $result = app(ApprovalService::class)->check($this, static::$service, $options, $triggerOn);
+            event(new AuditableModelSaved($this, 'submitted'));
+            DB::commit();
+
+            return $result;
+        });
     }
 
     /**
@@ -344,8 +334,9 @@ trait Submitable {
             throw $e;
         }
 
-        $this->logForAmended();
-        $newData->logForCreated();
+        event(new AuditableModelSaved($this, 'amended'));
+        // logForCreated() untuk $newData sekarang ditangani lewat hook
+        // static::created() di DataTable::bootDataTable().
         DB::commit();
 
         return $newData;

@@ -1,0 +1,6 @@
+{
+  "specId": "d8e516a4-9c91-4bae-b81a-3f49046b053d",
+  "workflowType": "requirements-first",
+  "specType": "feature",
+  "description": "2 bagian: (A) Unifikasi AssetMovement jadi satu-satunya sumber kebenaran pergerakan Asset, mencakup rental/sale (gap dari asset-rental-migration) selain lokasi/custodian (Spec 4) — AssetMovement dibuat otomatis bypass-approval saat DeliveryNote rental/sale di-approve. (B) Bridge AssetService (repair/maintenance) ke billing customer lewat SalesOrder/DeliveryNote/SalesInvoice, termasuk opsi tagih ke penyewa aktif (bukan cuma ownership customer) memakai data dari Bagian A. Bagian dari Spec 7 (dipecah dari rencana awal), sub-area billing customer saja — InternalOrder, procurement (PR/PO), dan migrasi WorkOrder didefer ke spec terpisah."
+}

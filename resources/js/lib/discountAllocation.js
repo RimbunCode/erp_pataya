@@ -52,6 +52,9 @@ function toResult(lines, basicAmounts, taxAmounts) {
  * @param {number} discountRate
  * @param {number} discountAmount
  * @param {string} latestDiscountKey 'discount_rate' | 'discount_amount' -- input mana yang otoritatif
+ * @param {number|null} dppFactor null = pajak dihitung basic_amount*tax_rate/100 langsung (PO/SO).
+ *                                Diisi (mis. 11/12) = pajak dihitung lewat basis DPP Nilai Lain:
+ *                                (basic_amount*dppFactor)*tax_rate/100 (Purchase/Sales Invoice).
  * @returns {Array<{basic_amount: number, tax_amount: number, amount: number}>}
  */
 export function allocateDiscount(
@@ -60,10 +63,16 @@ export function allocateDiscount(
   discountRate,
   discountAmount,
   latestDiscountKey = "discount_rate",
+  dppFactor = null,
 ) {
   if (!lines || lines.length === 0) return [];
 
-  const preTax = lines.map((line) => (line.basic_amount * line.tax_rate) / 100);
+  const taxBasisOf = (basicAmount) =>
+    dppFactor === null ? basicAmount : basicAmount * dppFactor;
+
+  const preTax = lines.map(
+    (line) => (taxBasisOf(line.basic_amount) * line.tax_rate) / 100,
+  );
 
   if (discountOn !== BASIS_NET_TOTAL && discountOn !== BASIS_GRAND_TOTAL) {
     return toResult(
@@ -102,7 +111,7 @@ export function allocateDiscount(
   });
 
   const newTaxAmounts = lines.map(
-    (line, i) => (newBasicAmounts[i] * line.tax_rate) / 100,
+    (line, i) => (taxBasisOf(newBasicAmounts[i]) * line.tax_rate) / 100,
   );
 
   return toResult(lines, newBasicAmounts, newTaxAmounts);

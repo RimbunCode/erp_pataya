@@ -2,20 +2,25 @@
 
 namespace App\Services\Finances;
 
+use App\Contracts\SubmitableService;
 use App\Enums\FormStatus;
+use App\Events\Core\DocumentSubmitted;
+use App\Events\Finances\PaymentApplied;
 use App\Models\Core\FormatingSeries;
-use App\Models\Core\ModelConnection;
 use App\Models\Core\Preference;
 use App\Models\Finances\PaymentEntry;
 use App\Models\Finances\PurchaseInvoice;
 use App\Models\Finances\SalesInvoice;
+use App\Models\Model;
 use App\Models\Purchase\Supplier;
 use App\Models\Sales\Customer;
-use App\Utils;
+use App\Traits\HasDefaultDelete;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Validation\ValidationException;
 
-class PaymentEntryService {
+class PaymentEntryService implements SubmitableService {
+    use HasDefaultDelete;
+
     private function fillRelations(array $data) {
         $data['default_account_id'] = $data['default_account']['id'] ?? null;
         $defaultCurrency            = Preference::find('default_currency_id')?->value;
@@ -39,52 +44,48 @@ class PaymentEntryService {
         return $data;
     }
 
-    public function create(array $data) {
+    public function create(array $data): Model {
         DB::beginTransaction();
         $data['code'] = FormatingSeries::generate(PaymentEntry::class, $data, true);
         $paymentEntry = PaymentEntry::create($this->fillRelations($data));
-        $paymentEntry->logForCreated();
         DB::commit();
 
         return $paymentEntry;
     }
 
-    public function update(PaymentEntry $paymentEntry, array $data) {
+    public function update(Model $paymentEntry, array $data): Model {
         DB::beginTransaction();
         $paymentEntry->fillForUpdate($this->fillRelations($data));
-        $paymentEntry->logForUpdated();
         DB::commit();
 
         return $paymentEntry;
     }
 
-    public function submit(PaymentEntry $paymentEntry) {
+    public function submit(Model $paymentEntry): mixed {
         $paymentEntry->update([
             'code' => FormatingSeries::generate(PaymentEntry::class, $paymentEntry),
         ]);
-        ModelConnection::create([
-            'model_id'       => $paymentEntry->id,
-            'model_type'     => PaymentEntry::class,
-            'reference_id'   => $paymentEntry->paymentable_id,
-            'reference_type' => $paymentEntry->paymentable_type,
-        ]);
+        event(new DocumentSubmitted($paymentEntry, $paymentEntry->paymentable));
         $paymentEntry->checkApproval();
 
         return $paymentEntry;
     }
 
-    public function onApproved(PaymentEntry $paymentEntry) {
+    public function onApproved(Model $paymentEntry): mixed {
         DB::beginTransaction();
 
         $paymentEntry->load([
-            'paymentable',
-            'paymentable.paymentSchedules',
             'accountPaidFrom',
             'accountPaidTo',
         ]);
 
-        $paymentable      = $paymentEntry->paymentable;
-        $paymentSchedules = $paymentEntry->paymentable->paymentSchedules;
+        $paymentableClass = $paymentEntry->paymentable_type;
+        $paymentable      = $paymentableClass::where('id', $paymentEntry->paymentable_id)
+            ->lockForUpdate()
+            ->firstOrFail();
+        $paymentable->load('paymentSchedules');
+
+        $paymentSchedules = $paymentable->paymentSchedules;
 
         $totalPaid         = $paymentEntry->paid_amount;
         $outstandingAmount = $totalPaid;
@@ -103,29 +104,8 @@ class PaymentEntryService {
             }
         }
 
-        $paymentable->paid_amount += $totalPaid;
-
-        if ($paymentable->paid_amount >= $paymentable->amount) {
-            $status = Utils::replaceStatus(
-                $paymentable->status,
-                [FormStatus::UNPAID, FormStatus::PARTIALLY_PAID],
-                FormStatus::PAID,
-            );
-        } elseif ($paymentable->paid_amount > 0) {
-            $status = Utils::replaceStatus(
-                $paymentable->status,
-                [FormStatus::UNPAID, FormStatus::PAID],
-                FormStatus::PARTIALLY_PAID,
-            );
-        } else {
-            $status = Utils::replaceStatus(
-                $paymentable->status,
-                [FormStatus::UNPAID, FormStatus::PARTIALLY_PAID],
-                FormStatus::PARTIALLY_PAID,
-            );
-        }
-        $paymentable->status = $status;
-        $paymentable->save();
+        $newPaidAmount = $paymentable->paid_amount + $totalPaid;
+        event(new PaymentApplied($paymentable, $newPaidAmount));
 
         $paymentEntry->update([
             'status' => [
@@ -159,7 +139,7 @@ class PaymentEntryService {
         return $paymentEntry;
     }
 
-    public function onRejected(PaymentEntry $paymentEntry) {
+    public function onRejected(Model $paymentEntry): mixed {
         DB::beginTransaction();
         $paymentEntry->update([
             'status' => [
@@ -172,7 +152,7 @@ class PaymentEntryService {
         return $paymentEntry;
     }
 
-    public function cancel(PaymentEntry $paymentEntry) {
+    public function cancel(Model $paymentEntry): mixed {
         $paymentEntry->update([
             'status' => [
                 FormStatus::CANCELED,
@@ -180,5 +160,9 @@ class PaymentEntryService {
         ]);
 
         return $paymentEntry;
+    }
+
+    public function amend(Model $model): mixed {
+        return $model;
     }
 }

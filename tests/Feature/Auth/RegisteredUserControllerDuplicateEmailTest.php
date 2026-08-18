@@ -63,10 +63,9 @@ class RegisteredUserControllerDuplicateEmailTest extends TestCase {
             'password_confirmation' => 'password123',
         ]);
 
-        dump('status: ' . $response->getStatusCode());
-        dump('redirect: ' . $response->headers->get('Location'));
-        dump('session errors: ' . json_encode(session('errors')));
-        dump('user count (with trashed): ' . User::withTrashed()->where('email', 'soft-deleted@example.com')->count());
-        dump('authenticated as: ' . (Auth::check() ? Auth::user()->id : 'guest'));
+        $response->assertSessionHasNoErrors();
+        $response->assertRedirect(route('dashboard', absolute: false));
+        $this->assertAuthenticated();
+        $this->assertSame(2, User::withTrashed()->where('email', 'soft-deleted@example.com')->count());
     }
 }

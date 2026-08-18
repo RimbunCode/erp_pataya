@@ -2,24 +2,39 @@
 
 namespace App\Services\Finances;
 
+use App\Contracts\SubmitableService;
 use App\Enums\FormStatus;
+use App\Events\Asset\AssetSoldViaInvoice;
+use App\Events\Core\DocumentSubmitted;
+use App\Events\Finances\SalesInvoiceGeneralLedgerPostingRequested;
+use App\Events\Sales\Invoice\SalesInvoiceReturnStatusChanged;
+use App\Events\Sales\Invoice\SalesOrderItemBillingChanged;
+use App\Events\Sales\Order\DocumentDeliveryStatusRecalculationRequested;
 use App\Models\Core\Branch;
 use App\Models\Core\FormatingSeries;
-use App\Models\Core\ModelConnection;
+use App\Models\Core\GlPostingStatus;
 use App\Models\Core\Preference;
 use App\Models\Finances\SalesInvoice;
 use App\Models\Finances\Tax;
 use App\Models\Inventory\ItemUnit;
+use App\Models\Model;
 use App\Models\Sales\Customer;
-use App\Models\Sales\SalesOrder;
 use App\Models\Sales\SalesOrderItem;
-use App\Services\Sales\SalesOrderService;
+use App\Traits\HasDefaultDelete;
 use App\Utils;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Validation\ValidationException;
 use Symfony\Component\Uid\Ulid;
 
-class SalesInvoiceService {
+class SalesInvoiceService implements SubmitableService {
+    use HasDefaultDelete;
+
+    /**
+     * Faktor DPP Nilai Lain PPN 12% (tarif efektif 11%) -- lihat migration
+     * add_dpp_amount_to_sales_invoice_items_table, spec invoice-dpp-adjustment.
+     */
+    private const float DPP_FACTOR = 11 / 12;
+
     private function fillRelations(array $data) {
         $data['sales_order_id']    = $data['sales_order']['id'];
         $data['customer_id']       = $data['customer']['id'];
@@ -94,28 +109,27 @@ class SalesInvoiceService {
         return $data;
     }
 
-    public function create(array $data) {
+    public function create(array $data): Model {
         $data['code'] = FormatingSeries::generate(SalesInvoice::class, $data, true);
         $salesInvoice = SalesInvoice::create($this->fillRelations($data));
-        $basicAmount  = 0;
-        $taxAmount    = 0;
 
         $units           = $this->batchLoadUnits($data);
         $taxes           = $this->batchLoadTaxes($data);
         $salesOrderItems = $this->batchLoadSalesOrderItems($data);
 
+        $items = collect();
         foreach ($data['items'] as $item) {
-            $item = $this->fillItemRelations($item, $salesInvoice, $units, $taxes, $salesOrderItems);
-            $item = $salesInvoice->items()->create($item);
-
-            $item->refresh();
-            $basicAmount += $item->basic_amount;
-            $taxAmount += $item->tax_amount;
+            $item      = $this->fillItemRelations($item, $salesInvoice, $units, $taxes, $salesOrderItems);
+            $itemModel = $salesInvoice->items()->create($item);
+            // basic_amount generated column (quantity * price) -- belum terisi di object
+            // sampai di-refresh dari DB.
+            $itemModel->refresh();
+            $items->push($itemModel);
         }
 
-        $totalAmount = Utils::countAmount($basicAmount, $taxAmount, $salesInvoice->discount_on, $salesInvoice->discount_amount);
+        $totals = DocumentDiscountCalculator::applyDiscountColumnToItems($salesInvoice, $items, self::DPP_FACTOR);
         $salesInvoice->update([
-            'amount' => $totalAmount,
+            'amount' => $totals['basic_amount'] + $totals['tax_amount'],
         ]);
         foreach ($data['payment_schedules'] ?? [] as $payment_schedule) {
             $payment_schedule = $this->fillPaymentScheduleRelations($payment_schedule, $salesInvoice);
@@ -123,15 +137,12 @@ class SalesInvoiceService {
                 ...$payment_schedule,
             ]);
         }
-        $salesInvoice->logForCreated();
 
         return $salesInvoice;
     }
 
-    public function update(SalesInvoice $salesInvoice, array $data) {
+    public function update(Model $salesInvoice, array $data): Model {
         $salesInvoice->fillForUpdate($this->fillRelations($data), true);
-        $basicAmount = 0;
-        $taxAmount   = 0;
         $salesInvoice->items()
             ->whereNotIn('id', array_column($data['items'], 'id'))
             ->delete();
@@ -149,6 +160,7 @@ class SalesInvoiceService {
         $taxes           = $this->batchLoadTaxes($data);
         $salesOrderItems = $this->batchLoadSalesOrderItems($data);
 
+        $items = collect();
         foreach ($data['items'] as $item) {
             $item = $this->fillItemRelations($item, $salesInvoice, $units, $taxes, $salesOrderItems);
 
@@ -163,14 +175,16 @@ class SalesInvoiceService {
             } else {
                 $itemModel = $salesInvoice->items()->create($item);
             }
-            $itemModel->refresh();
-            $basicAmount += $itemModel->basic_amount;
-            $taxAmount += $itemModel->tax_amount;
-        }
-        $totalAmount = Utils::countAmount($basicAmount, $taxAmount, $salesInvoice->discount_on, $salesInvoice->discount_amount);
 
+            // basic_amount generated column -- refresh supaya nilai terbaru (quantity/price
+            // baru) terbaca sebelum dialokasikan diskon.
+            $itemModel->refresh();
+            $items->push($itemModel);
+        }
+
+        $totals = DocumentDiscountCalculator::applyDiscountColumnToItems($salesInvoice, $items, self::DPP_FACTOR);
         $salesInvoice->fill([
-            'amount' => $totalAmount,
+            'amount' => $totals['basic_amount'] + $totals['tax_amount'],
         ]);
         $salesInvoice->save();
 
@@ -197,12 +211,11 @@ class SalesInvoiceService {
                 ...$payment_schedule,
             ]);
         }
-        $salesInvoice->logForUpdated();
 
         return $salesInvoice;
     }
 
-    public function submit(SalesInvoice $salesInvoice) {
+    public function submit(Model $salesInvoice): mixed {
         DB::beginTransaction();
 
         $salesInvoice->update([
@@ -233,12 +246,7 @@ class SalesInvoiceService {
                 ]);
             }
         }
-        ModelConnection::create([
-            'model_type'     => SalesOrder::class,
-            'model_id'       => $salesInvoice->sales_order_id,
-            'reference_type' => SalesInvoice::class,
-            'reference_id'   => $salesInvoice->id,
-        ]);
+        event(new DocumentSubmitted($salesInvoice, $salesInvoice->salesOrder));
 
         DB::commit();
 
@@ -247,7 +255,7 @@ class SalesInvoiceService {
         return $salesInvoice;
     }
 
-    public function onApproved(SalesInvoice $salesInvoice) {
+    public function onApproved(Model $salesInvoice): mixed {
         DB::beginTransaction();
 
         try {
@@ -258,6 +266,7 @@ class SalesInvoiceService {
                 'returnAgainst',
                 'items.returnAgainstItem',
                 'items.salesOrderItem',
+                'items.assetLines',
             ]);
 
             $returnAgainst = $salesInvoice->returnAgainst;
@@ -267,41 +276,46 @@ class SalesInvoiceService {
             $taxAmount   = 0;
 
             foreach ($items as $item) {
-                $basicAmount += $item->basic_amount;
+                $basicAmount += $item->basic_amount - $item->discount_amount;
                 $taxAmount += $item->tax_amount;
-                if ($returnAgainst) {
-                    $item->returnAgainstItem->increment('returned_quantity', $item->quantity);
-                    $item->salesOrderItem->decrement('billed_quantity', $item->quantity);
-                } else {
-                    $item->salesOrderItem->increment('billed_quantity', $item->quantity);
+                event(new SalesOrderItemBillingChanged(
+                    $item->salesOrderItem,
+                    $item->quantity,
+                    $returnAgainst ? 'decrement' : 'increment',
+                    $returnAgainst ? $item->returnAgainstItem : null,
+                ));
+
+                // Requirement 3.4, spec asset-rental-migration: baris jual-putus Asset
+                // yang sudah py assetLines saat approve — dispatch gain/loss langsung.
+                foreach ($item->assetLines as $line) {
+                    event(new AssetSoldViaInvoice($line));
                 }
             }
-            $totalAmount = Utils::countAmount($basicAmount, $taxAmount, $salesInvoice->discount_on, $salesInvoice->discount_amount);
+            // basic_amount/tax_amount item sudah net (dikurangi discount_amount) sejak
+            // create()/update() -- di sini murni sum, bukan alokasi ulang diskon.
+            $totalAmount = $basicAmount + $taxAmount;
 
             $debitAccount  = $salesInvoice->debitAccount;
             $creditAccount = $salesInvoice->incomeAccount;
 
-            // Credit stock account (reducing inventory)
-            $creditAccount->generalLedgerEntries()->create([
-                'against_account_id' => $debitAccount->id,
-                'credit'             => $returnAgainst ? 0 : $totalAmount,
-                'debit'              => $returnAgainst ? $totalAmount : 0,
+            // === GL posting dipindah ke queued Job (pola sama PurchaseInvoiceService) ===
+            GlPostingStatus::create([
                 'referenceable_type' => SalesInvoice::class,
                 'referenceable_id'   => $salesInvoice->id,
+                'status'             => FormStatus::PENDING,
             ]);
-
-            // Debit income account (recording revenue)
-            $debitAccount->generalLedgerEntries()->create([
-                'against_account_id' => $creditAccount->id,
-                'credit'             => $returnAgainst ? $totalAmount : 0,
-                'debit'              => $returnAgainst ? 0 : $totalAmount,
-                'referenceable_type' => SalesInvoice::class,
-                'referenceable_id'   => $salesInvoice->id,
-            ]);
+            event(new SalesInvoiceGeneralLedgerPostingRequested(
+                $salesInvoice,
+                $totalAmount,
+                (bool) $returnAgainst,
+                now(),
+                $debitAccount->id,
+                $creditAccount->id,
+            ));
 
             $salesOrder = $salesInvoice->salesOrder;
             if ($salesOrder) {
-                (new SalesOrderService)->updateSalesOrderStatus($salesOrder);
+                event(new DocumentDeliveryStatusRecalculationRequested($salesOrder));
             }
 
             $salesInvoice->update([
@@ -329,9 +343,7 @@ class SalesInvoiceService {
                 } else {
                     $status = $returnAgainst->status;
                 }
-                $returnAgainst->update([
-                    'status' => $status,
-                ]);
+                event(new SalesInvoiceReturnStatusChanged($returnAgainst, $status));
             }
 
             DB::commit();
@@ -343,7 +355,7 @@ class SalesInvoiceService {
         }
     }
 
-    public function onRejected(SalesInvoice $salesInvoice) {
+    public function onRejected(Model $salesInvoice): mixed {
         $salesInvoice->update([
             'status' => FormStatus::REJECTED,
         ]);
@@ -351,12 +363,16 @@ class SalesInvoiceService {
         return $salesInvoice;
     }
 
-    public function cancel(SalesInvoice $salesInvoice) {
+    public function cancel(Model $salesInvoice): mixed {
         $salesInvoice->update([
             'status' => FormStatus::CANCELED,
         ]);
 
         return $salesInvoice;
+    }
+
+    public function amend(Model $model): mixed {
+        return $model;
     }
 
     /**

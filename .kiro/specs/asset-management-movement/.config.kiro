@@ -1,0 +1,6 @@
+{
+  "specId": "b7e2c4f1-9a3d-4e6b-8c1a-2f5d9b7e3a6c",
+  "workflowType": "requirements-first",
+  "specType": "feature",
+  "description": "Spec 4 modul Asset Management: AssetMovement + AssetMovementItem — transfer/issue/receipt lokasi & custodian Asset via dokumen Submitable dengan approval chain, terintegrasi Event/Listener (pola Fase 3 & Spec 3 Depreciation)."
+}

@@ -3,6 +3,7 @@
 namespace App\Traits;
 
 use Illuminate\Database\Eloquent\Builder;
+use Illuminate\Support\Facades\Schema;
 
 /**
  * Trait HasExampleData
@@ -24,6 +25,15 @@ trait HasExampleData {
      */
     public static function bootHasExampleData(): void {
         static::addGlobalScope('exclude_example_data', function (Builder $builder): void {
+            // ponytail: skip scope if column doesn't exist — avoids test-environment errors
+            // on tables created before is_example was adopted. Add column via migration
+            // when the table's module is actively worked on.
+            if (! Schema::hasColumn(
+                $builder->getModel()->getTable(),
+                'is_example',
+            )) {
+                return;
+            }
             $builder->where(static::resolveExampleColumn(), false);
         });
     }

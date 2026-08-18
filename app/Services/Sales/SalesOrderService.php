@@ -2,7 +2,10 @@
 
 namespace App\Services\Sales;
 
+use App\Contracts\SubmitableService;
 use App\Enums\FormStatus;
+use App\Events\Core\DocumentSubmitted;
+use App\Events\Inventory\StockReservationChanged;
 use App\Models\Core\Branch;
 use App\Models\Core\FormatingSeries;
 use App\Models\Core\ModelConnection;
@@ -14,10 +17,12 @@ use App\Models\Inventory\DeliveryNote;
 use App\Models\Inventory\DeliveryNoteItem;
 use App\Models\Inventory\ItemUnit;
 use App\Models\Inventory\Stock;
+use App\Models\Model;
 use App\Models\Sales\Customer;
 use App\Models\Sales\SalesOrder;
 use App\Models\Sales\SalesOrderItem;
 use App\Services\Finances\DocumentDiscountCalculator;
+use App\Traits\HasDefaultDelete;
 use App\Utils;
 use Illuminate\Support\Collection;
 use Illuminate\Support\Facades\Auth;
@@ -26,7 +31,9 @@ use Illuminate\Support\Str;
 use Illuminate\Validation\ValidationException;
 use Symfony\Component\Uid\Ulid;
 
-class SalesOrderService {
+class SalesOrderService implements SubmitableService {
+    use HasDefaultDelete;
+
     private function fillRelations(array $data) {
         $data['customer_id']          = $data['customer']['id'];
         $data['customer_name']        = Customer::find($data['customer']['id'])?->name;
@@ -58,45 +65,29 @@ class SalesOrderService {
         $data['base_currency_code']  = $salesOrder->base_currency_code;
         $data['exchange_rate']       = $salesOrder->exchange_rate;
         $data['source_warehouse_id'] = $data['source_warehouse']['id'] ?? null;
-        $data['basic_amount']        = $data['quantity'] * $data['price'];
+
+        // Requirement 4, spec asset-service-billing: baris referenceable ke
+        // AssetService/AssetServiceConsumedItem (opsional) — TIDAK mengubah
+        // logic ItemVariant existing di atas, cuma cabang baru untuk field baru.
+        if (! empty($data['referenceable']['type']) && ! empty($data['referenceable']['id'])) {
+            $data['referenceable_type'] = $data['referenceable']['type'];
+            $data['referenceable_id']   = $data['referenceable']['id'];
+        }
 
         return $data;
     }
 
     /**
-     * Alokasikan diskon dokumen (jika ada) ke seluruh item, tulis basic_amount/tax_amount/
-     * amount hasil alokasi ke tiap item model, lalu kembalikan total basic_amount & tax_amount
-     * header. basic_amount/tax_amount/amount bukan generated column lagi (lihat migration
-     * convert_sales_order_items_amounts_to_stored_columns) -- Service layer ini yang jadi
-     * satu-satunya penulis nilai tsb. discount_amount selalu dipakai sebagai nilai otoritatif
-     * (bukan discount_rate) -- lihat catatan yang sama di PurchaseOrderService.
+     * basic_amount generated column KOTOR (quantity * price) sejak migration
+     * add_discount_amount_to_sales_order_items_table -- delegasi ke
+     * DocumentDiscountCalculator::applyToItems() (dipakai juga PurchaseOrderService,
+     * logic alokasi identik disatukan supaya tidak terduplikasi per Service).
      *
      * @param  Collection<int, SalesOrderItem>  $items
      * @return array{basic_amount: float, tax_amount: float}
      */
     private function applyDiscountToItems(SalesOrder $salesOrder, Collection $items): array {
-        $lines = $items->map(fn (SalesOrderItem $item) => [
-            'basic_amount' => $item->basic_amount,
-            'tax_rate'     => $item->tax_rate,
-        ])->all();
-
-        $allocated = DocumentDiscountCalculator::allocate(
-            $lines,
-            $salesOrder->discount_on,
-            $salesOrder->discount_rate ?? 0,
-            $salesOrder->discount_amount ?? 0,
-            'discount_amount',
-        );
-
-        $basicAmount = 0;
-        $taxAmount   = 0;
-        foreach ($items->values() as $index => $item) {
-            $item->forceFill($allocated[$index])->save();
-            $basicAmount += $allocated[$index]['basic_amount'];
-            $taxAmount += $allocated[$index]['tax_amount'];
-        }
-
-        return ['basic_amount' => $basicAmount, 'tax_amount' => $taxAmount];
+        return DocumentDiscountCalculator::applyToItems($salesOrder, $items);
     }
 
     private function fillPaymentScheduleRelations(array $data, SalesOrder $salesOrder) {
@@ -111,7 +102,7 @@ class SalesOrderService {
         return $data;
     }
 
-    public function create(array $data) {
+    public function create(array $data): Model {
         $data['code'] = FormatingSeries::generate(SalesOrder::class, $data, true);
         $salesOrder   = SalesOrder::create($this->fillRelations($data));
 
@@ -122,8 +113,12 @@ class SalesOrderService {
 
         $items = collect();
         foreach ($data['items'] as $item) {
-            $item = $this->fillItemRelations($item, $salesOrder, $units, $taxes);
-            $items->push($salesOrder->items()->create($item));
+            $item      = $this->fillItemRelations($item, $salesOrder, $units, $taxes);
+            $itemModel = $salesOrder->items()->create($item);
+            // basic_amount generated column (quantity * price) -- belum terisi di object
+            // sampai di-refresh dari DB.
+            $itemModel->refresh();
+            $items->push($itemModel);
         }
 
         $totals = $this->applyDiscountToItems($salesOrder, $items);
@@ -136,12 +131,11 @@ class SalesOrderService {
                 ...$payment_schedule,
             ]);
         }
-        $salesOrder->logForCreated();
 
         return $salesOrder;
     }
 
-    public function update(SalesOrder $salesOrder, array $data) {
+    public function update(Model $salesOrder, array $data): Model {
         $salesOrder->fillForUpdate($this->fillRelations($data), true);
 
         $salesOrder->items()
@@ -178,6 +172,9 @@ class SalesOrderService {
                 $itemModel = $salesOrder->items()->create($item);
             }
 
+            // basic_amount generated column -- refresh supaya nilai terbaru (quantity/price
+            // baru) terbaca sebelum dialokasikan diskon.
+            $itemModel->refresh();
             $items->push($itemModel);
         }
 
@@ -211,12 +208,10 @@ class SalesOrderService {
             ]);
         }
 
-        $salesOrder->logForUpdated();
-
         return $salesOrder;
     }
 
-    public function submit(SalesOrder $salesOrder) {
+    public function submit(Model $salesOrder): mixed {
         DB::beginTransaction();
 
         $salesOrder->update([
@@ -224,12 +219,7 @@ class SalesOrderService {
         ]);
 
         if ($salesOrder->referenceable_type && $salesOrder->referenceable_id) {
-            ModelConnection::create([
-                'model_type'     => $salesOrder->referenceable_type,
-                'model_id'       => $salesOrder->referenceable_id,
-                'reference_type' => SalesOrder::class,
-                'reference_id'   => $salesOrder->id,
-            ]);
+            event(new DocumentSubmitted($salesOrder, $salesOrder->referenceable));
             $additionalData          = $salesOrder->referenceable->additional_data ?? [];
             $additionalData['order'] = true;
             $salesOrder->referenceable->update(['additional_data' => $additionalData]);
@@ -254,8 +244,9 @@ class SalesOrderService {
             ->get()
             ->keyBy(fn ($stock) => "{$stock->item_variant_id}-{$stock->warehouse_id}");
 
-        $isValid    = ! $salesOrder->is_rent;
-        $errorItems = [];
+        $isValid        = ! $salesOrder->is_rent;
+        $errorItems     = [];
+        $validatedItems = [];
         foreach ($items as $item) {
             if (! $item->item->is_stock_item) {
                 continue;
@@ -279,7 +270,11 @@ class SalesOrderService {
 
                 continue;
             }
-            $stock->updateDetails('increment', 'reservations', $salesOrder->code, $quantity);
+            $validatedItems[] = [
+                'itemVariantId' => $item->item_id,
+                'warehouseId'   => $item->source_warehouse_id,
+                'quantity'      => $quantity,
+            ];
         }
         if (! $isValid) {
             $errorItems[] = 'This order is not valid for renting';
@@ -291,13 +286,21 @@ class SalesOrderService {
             ]);
         }
 
+        if (\count($validatedItems) > 0) {
+            event(new StockReservationChanged($salesOrder, 'increment', 'reservations', $validatedItems));
+        }
+
         DB::commit();
         $salesOrder->checkApproval();
 
         return $salesOrder;
     }
 
-    public function onApproved(SalesOrder $salesOrder) {
+    public function amend(Model $model): mixed {
+        return $model;
+    }
+
+    public function onApproved(Model $salesOrder): mixed {
         $salesOrder->update([
             'status' => [
                 FormStatus::TO_DELIVER,
@@ -309,6 +312,7 @@ class SalesOrderService {
     }
 
     public function updateSalesOrderStatus(SalesOrder $salesOrder): void {
+        $salesOrder = SalesOrder::where('id', $salesOrder->id)->lockForUpdate()->firstOrFail();
         $salesOrder->loadMissing('items');
         $totalQty       = $salesOrder->items->sum('quantity');
         $totalDelivered = $salesOrder->items->sum('delivered_quantity');
@@ -427,7 +431,6 @@ class SalesOrderService {
                         'tax_id'              => $g['tax_id'],
                         'tax_rate'            => $g['tax_rate'],
                         'source_warehouse_id' => $g['warehouse_id'],
-                        'basic_amount'        => $soItem->quantity * $g['price'],
                     ]);
                     $soItem->refresh();
                     $syncLog[] = ['action' => 'update', 'so_item_id' => $soItem->id, 'price' => $g['price']];
@@ -445,7 +448,6 @@ class SalesOrderService {
                             'delivered_quantity'  => 0,
                             'billed_quantity'     => 0,
                             'parent_item_id'      => $parentId,
-                            'basic_amount'        => $g['qty'] * $g['price'],
                         ]);
                         $newItem->id = (string) Str::ulid();
                         $newItem->save();
@@ -564,7 +566,7 @@ class SalesOrderService {
         });
     }
 
-    private function rolllbackItems(SalesOrder $salesOrder) {
+    private function rollbackItems(SalesOrder $salesOrder) {
         if ($salesOrder->referenceable_type && $salesOrder->referenceable_id) {
             $additionalData          = $salesOrder->referenceable->additional_data ?? [];
             $additionalData['order'] = false;
@@ -577,6 +579,7 @@ class SalesOrderService {
             ->lockForUpdate()
             ->get()
             ->keyBy(fn ($stock) => "{$stock->item_variant_id}-{$stock->warehouse_id}");
+        $validatedItems = [];
         foreach ($items as $item) {
             $stockKey = "{$item->item_id}-{$item->source_warehouse_id}";
             $stock    = $stocks->get($stockKey);
@@ -586,11 +589,19 @@ class SalesOrderService {
 
             $quantity = $item->quantity * $item->conversion_factor / $stock->conversion_factor;
 
-            $stock->updateDetails('decrement', 'reservations', $salesOrder->code, $quantity);
+            $validatedItems[] = [
+                'itemVariantId' => $item->item_id,
+                'warehouseId'   => $item->source_warehouse_id,
+                'quantity'      => $quantity,
+            ];
+        }
+
+        if (\count($validatedItems) > 0) {
+            event(new StockReservationChanged($salesOrder, 'decrement', 'reservations', $validatedItems));
         }
     }
 
-    public function onRejected(SalesOrder $salesOrder) {
+    public function onRejected(Model $salesOrder): mixed {
         DB::beginTransaction();
         $salesOrder->update([
             'status' => [
@@ -598,14 +609,14 @@ class SalesOrderService {
             ],
         ]);
 
-        $this->rolllbackItems($salesOrder);
+        $this->rollbackItems($salesOrder);
 
         DB::commit();
 
         return $salesOrder;
     }
 
-    public function cancel(SalesOrder $salesOrder) {
+    public function cancel(Model $salesOrder): mixed {
         DB::beginTransaction();
         $salesOrder->update([
             'status' => [
@@ -613,7 +624,7 @@ class SalesOrderService {
             ],
         ]);
 
-        $this->rolllbackItems($salesOrder);
+        $this->rollbackItems($salesOrder);
 
         DB::commit();
 

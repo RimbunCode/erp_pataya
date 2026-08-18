@@ -4,8 +4,9 @@ import { FormPage } from "@/Pages/Core/FormPage";
 import Link from "@/Components/Link";
 import { useLaravelReactI18n } from "laravel-react-i18n";
 import { calculateArray, inArray, isValidStatus } from "@/lib/utils";
+import AssetCompletionAlert from "@/Pages/Asset/Assets/AssetCompletionAlert";
 
-export default function Show({ purchaseReceipt, defaultData }) {
+export default function Show({ purchaseReceipt, defaultData, fixedAssets }) {
   const { t } = useLaravelReactI18n();
   const route = window.route;
   return (
@@ -41,6 +42,7 @@ export default function Show({ purchaseReceipt, defaultData }) {
           );
         }
       }}
+      banner={<AssetCompletionAlert assets={fixedAssets} />}
     >
       <Form />
     </FormPage>

@@ -12,9 +12,10 @@ use Illuminate\Database\Eloquent\SoftDeletes;
 class InternalOrder extends Model {
     use DataTable, HasUlids, SoftDeletes, Submitable;
 
-    public string $formComponent = 'Sales/InternalOrders/Form';
-    protected $guarded           = ['id'];
-    protected $casts             = [
+    public static string $service = App\Services\Sales\InternalOrderService::class;
+    public string $formComponent  = 'Sales/InternalOrders/Form';
+    protected $guarded            = ['id'];
+    protected $casts              = [
         'date' => 'datetime',
     ];
     protected static string $defaultFormatCode = '@[branch_code]/IO-@[iiii]/@[yy]';

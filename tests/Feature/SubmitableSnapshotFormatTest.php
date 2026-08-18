@@ -34,7 +34,32 @@ class SubmitableSnapshotFormatTest extends TestCase {
 
         Schema::dropIfExists('formating_series');
         Schema::dropIfExists('test_submitable_documents');
+        Schema::dropIfExists('logs');
+        Schema::dropIfExists('approval_instances');
         Schema::dropIfExists('preferences');
+
+        Schema::create('approval_instances', function (Blueprint $table) {
+            $table->ulid('id')->primary();
+            $table->ulidMorphs('document');
+            $table->string('status')->nullable();
+            $table->timestamps();
+            $table->softDeletes();
+        });
+
+        Schema::create('logs', function (Blueprint $table) {
+            $table->ulid('id')->primary();
+            $table->longText('activity');
+            $table->json('comment_json')->nullable();
+            $table->text('notes')->nullable();
+            $table->string('type')->default('log');
+            $table->string('action')->nullable();
+            $table->json('data_before')->nullable();
+            $table->json('data_after')->nullable();
+            $table->ulidMorphs('loggable');
+            $table->ulid('user_id')->nullable();
+            $table->timestamps();
+            $table->softDeletes();
+        });
 
         Schema::create('formating_series', function (Blueprint $table) {
             $table->string('id')->primary();
