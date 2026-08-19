@@ -9,15 +9,13 @@ const sourcePath = resolve(
 const source = readFileSync(sourcePath, "utf8");
 
 describe("VariableItem handleInsert trans title wiring", () => {
-  it("menormalisasi titleTrans dari payload sebelum dipakai", () => {
+  it("menurunkan labelKey dari formatted token sebelum dipakai", () => {
     expect(source).toMatch(
-      /const normalizedTitleTrans =[\s\S]*payload\.titleTrans[\s\S]*payload\.titleTrans\.trim\(\)/,
+      /labelKey:\s*extractLabelKeyFromToken\(tokenValue\)/,
     );
   });
 
-  it("menyertakan atribut data-trans-title pada komponen label hasil handleInsert", () => {
-    expect(source).toMatch(
-      /"data-label-key":\s*labelKey[\s\S]*"data-trans-title":\s*normalizedTitleTrans/,
-    );
+  it("menyertakan atribut data-label-key pada komponen token hasil handleInsert", () => {
+    expect(source).toMatch(/"data-label-key":\s*payloadWithToken\.labelKey/);
   });
 });

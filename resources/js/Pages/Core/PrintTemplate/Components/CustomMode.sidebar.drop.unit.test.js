@@ -72,9 +72,9 @@ describe("Sidebar panel switching — source code verification (Task 6.4)", () =
   });
 
   it("suppresses TokenConfigurationManager for gjsRelationsTable — requirement 1.4", () => {
-    // When isRelationsTableSelected, TokenConfigurationManager should not render
+    // When isRelationsTableSelected && customMode, CustomModePanel renders instead of TokenConfigurationManager
     expect(sidebarSource).toMatch(
-      /isRelationsTableSelected.*\?.*null.*:.*<TokenConfigurationManager/,
+      /isRelationsTableSelected &&[\s\S]*customMode.*===.*true.*\?[\s\S]*<CustomModePanel[\s\S]*:[\s\S]*<TokenConfigurationManager/,
     );
   });
 

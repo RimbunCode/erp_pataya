@@ -78,6 +78,18 @@ File-file yang berhubungan (mis. Event dan Listener pasangannya, atau Job dan Se
 
 `Services`, `Models`, dan `Controllers` per-model saat ini semuanya flat — BUKAN berarti prinsipnya tidak berlaku di situ, tapi karena satu model secara alami hanya butuh satu Controller/Service/Model, tidak ada dorongan untuk pecah jadi banyak file. Kalau ada model/fitur yang Controller atau Service-nya diprediksi perlu dipecah (mis. logic terlalu besar, butuh helper class terpisah), nested Feature berlaku sama.
 
+## Testing Frontend (Vitest)
+
+Detail lengkap: [`docs/frontend.md#testing`](docs/frontend.md#testing). Ringkasan aturan wajib saat menulis test FE baru:
+
+- **Co-located** dengan source, bukan folder `__tests__`. Tiga jenis test, urutan prioritas:
+  1. **Unit test fungsi murni** (`.test.js`, environment `node`) — **paling diutamakan**, pakai kalau logic bisa diuji tanpa render.
+  2. **Component test React Testing Library** (`.rtl.test.jsx`, environment `jsdom`) — **rekomendasi default untuk komponen UI baru** dengan interaksi user (form, input, tombol). Render sungguhan + `@testing-library/user-event` + `screen.getByRole()`.
+  3. **Source-assertion test** (`readFileSync` + regex `toMatch`) — **hindari untuk komponen baru**, hanya kalau behavior genuinely sulit di-render (mis. GrapesJS canvas). Rapuh terhadap refactor (rename variabel/reorder — regex ketinggalan zaman tanpa behavior berubah).
+- **Naming `.rtl.test.jsx` wajib** untuk test yang me-render komponen — `vitest.config.js` pakai `test.projects` (bukan `environmentMatchGlobs`, sudah dihapus di Vitest v4) untuk assign `jsdom` berdasar suffix ini. Lupa suffix → jalan di project `unit` (`node`) → gagal `document is not defined`.
+- **Property-based test (`fast-check`)**: precondition `fc.pre(...)`/`.filter()` pada generator **harus selaras persis** dengan validasi source (bukan sekadar mirip) — contoh nyata: source pakai `Boolean(value.trim())`, precondition `fc.pre(Boolean(value))` saja meloloskan string whitespace-only yang seharusnya ditolak, dan random seed fast-check membuat bug ini nyaris tidak pernah ketahuan.
+- CI (`.github/workflows/tests.yml`) menjalankan `npm run test` tanpa `continue-on-error` — test FE gagal = CI merah.
+
 <laravel-boost-guidelines>
 === foundation rules ===
 
