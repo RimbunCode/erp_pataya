@@ -6,7 +6,7 @@ import EmailChipInput from "./EmailChipInput";
 
 describe("EmailChipInput", () => {
   it("menambahkan chip saat Enter ditekan pada email valid", async () => {
-    const user = userEvent.setup();
+    const user = userEvent.setup({ delay: null });
     const onValueChange = vi.fn();
 
     render(<EmailChipInput value={[]} onValueChange={onValueChange} />);
@@ -17,7 +17,7 @@ describe("EmailChipInput", () => {
   });
 
   it("tidak menambahkan chip untuk email tidak valid", async () => {
-    const user = userEvent.setup();
+    const user = userEvent.setup({ delay: null });
     const onValueChange = vi.fn();
 
     render(<EmailChipInput value={[]} onValueChange={onValueChange} />);
@@ -28,7 +28,7 @@ describe("EmailChipInput", () => {
   });
 
   it("tidak menambahkan duplikat email yang sudah ada di value", async () => {
-    const user = userEvent.setup();
+    const user = userEvent.setup({ delay: null });
     const onValueChange = vi.fn();
 
     render(
@@ -44,7 +44,7 @@ describe("EmailChipInput", () => {
   });
 
   it("menghapus chip saat tombol hapus diklik", async () => {
-    const user = userEvent.setup();
+    const user = userEvent.setup({ delay: null });
     const onValueChange = vi.fn();
 
     render(
@@ -61,7 +61,7 @@ describe("EmailChipInput", () => {
   });
 
   it("menghapus chip terakhir saat Backspace ditekan pada input kosong", async () => {
-    const user = userEvent.setup();
+    const user = userEvent.setup({ delay: null });
     const onValueChange = vi.fn();
 
     render(
