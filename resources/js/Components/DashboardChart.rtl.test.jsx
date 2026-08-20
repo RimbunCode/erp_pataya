@@ -72,8 +72,12 @@ describe("DashboardChart", () => {
     });
     render(<DashboardChart widget={{ ...baseWidget, type: "card" }} />);
 
-    // total = 100 + 250 = 350
-    expect(await screen.findByText("350")).toBeInTheDocument();
+    // total = 100 + 250 = 350. Timeout diperpanjang (default findByText 1000ms
+    // mepet dgn debounce fetch 500ms di source -- rawan flaky saat CPU
+    // contention pada suite besar, lihat testTimeout global di vitest.config.js).
+    expect(
+      await screen.findByText("350", {}, { timeout: 3000 }),
+    ).toBeInTheDocument();
   });
 
   it("menampilkan rata-rata dari data yang diterima (calculation_type='average')", async () => {
@@ -90,13 +94,17 @@ describe("DashboardChart", () => {
     );
 
     // average = (100 + 300) / 2 = 200
-    expect(await screen.findByText("200")).toBeInTheDocument();
+    expect(
+      await screen.findByText("200", {}, { timeout: 3000 }),
+    ).toBeInTheDocument();
   });
 
   it("menampilkan 0 saat data kosong", async () => {
     axiosPost.mockResolvedValue({ data: [] });
     render(<DashboardChart widget={{ ...baseWidget, type: "card" }} />);
 
-    expect(await screen.findByText("0")).toBeInTheDocument();
+    expect(
+      await screen.findByText("0", {}, { timeout: 3000 }),
+    ).toBeInTheDocument();
   });
 });
