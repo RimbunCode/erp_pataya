@@ -319,11 +319,16 @@ export function isDeepEmpty(value) {
 }
 
 export function inArray(haystack, needles) {
+  // haystack boleh berupa array ATAU value tunggal (mis. inArray(status, "draft")
+  // dan inArray(["a","b"], value) sama-sama dipakai di codebase). Value tunggal
+  // dibungkus jadi array 1 elemen agar tidak ter-iterasi per-karakter (kasus string).
+  const haystackList = Array.isArray(haystack) ? haystack : [haystack];
+
   let found = false;
-  for (let i in haystack) {
+  for (let i in haystackList) {
     if (Array.isArray(needles)) {
       for (let j in needles) {
-        if (haystack[i] == needles[j]) {
+        if (haystackList[i] == needles[j]) {
           found = true;
           break;
         }
@@ -331,7 +336,7 @@ export function inArray(haystack, needles) {
       if (found) break;
       continue;
     }
-    if (haystack[i] == needles) {
+    if (haystackList[i] == needles) {
       found = true;
       break;
     }

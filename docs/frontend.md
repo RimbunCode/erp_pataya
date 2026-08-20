@@ -921,16 +921,19 @@ Test frontend **co-located** dengan source-nya — bukan folder `__tests__` terp
 | `npm run test` | Jalankan semua test sekali (dipakai [CI](#ci-gate)) |
 | `npm run test:watch` | Mode watch untuk dev lokal |
 
-**Config:** `vitest.config.js` di root project, memakai `test.projects` (bukan `environmentMatchGlobs` — opsi itu sudah dihapus di Vitest v4). Ada 2 project:
+**Config:** `vitest.config.js` di root project, memakai `test.projects` (bukan `environmentMatchGlobs` — opsi itu sudah dihapus di Vitest v4). Ada 3 project:
 
 | Project | Environment | Include pattern | setupFiles |
 |---|---|---|---|
-| `unit` | `node` | `resources/js/**/*.test.{js,ts}` | — |
+| `unit` | `node` | `resources/js/**/*.test.{js,ts}` (exclude `*.dom.test.js`) | — |
+| `dom` | `jsdom` | `resources/js/**/*.dom.test.js` | — |
 | `component` | `jsdom` | `resources/js/**/*.rtl.test.{jsx,tsx}` | `./resources/js/test-setup.js` |
 
-Alias `@/...` → `resources/js` berlaku di kedua project (lewat `extends: true`).
+Alias `@/...` → `resources/js` berlaku di semua project (lewat `extends: true`).
 
-> ⚠️ **Naming menentukan environment.** File `*.test.js`/`*.test.ts` biasa dijalankan di project `unit` (environment `node` — tidak ada `document`). File yang me-*render* komponen React **wajib** disuffix `.rtl.test.jsx` agar otomatis masuk project `component` (environment `jsdom`). Lupa suffix → test render gagal dengan `document is not defined`.
+> ⚠️ **Naming menentukan environment.** File `*.test.js`/`*.test.ts` biasa dijalankan di project `unit` (environment `node` — tidak ada `window`/`document`). File yang butuh browser API (`window.location`, `matchMedia`, `localStorage`, dll) **tapi tidak me-render komponen React** wajib disuffix `.dom.test.js` agar masuk project `dom` (jsdom). File yang me-*render* komponen React **wajib** disuffix `.rtl.test.jsx` agar masuk project `component` (jsdom). Lupa suffix → test gagal dengan `window`/`document is not defined`.
+>
+> **Gotcha `localStorage` di jsdom:** pada kombinasi Vitest 4.1.7 + Node 22+ di lingkungan ini, `localStorage` global (baik bare maupun `window.localStorage`) tidak selalu ter-bridge dengan bersih dari jsdom ke global scope — Node punya lazy getter `localStorage` sendiri yang bisa menabrak polyfill jsdom (`ExperimentalWarning: localStorage is not available because --localstorage-file was not provided`). Jangan gantungkan test pada `localStorage` bawaan jsdom; mock manual dengan `vi.stubGlobal("localStorage", <in-memory store>)` di `beforeEach`, lalu `vi.unstubAllGlobals()` di `afterEach`. Lihat contoh di [`resources/js/Hooks/useTheme.dom.test.js`](../resources/js/Hooks/useTheme.dom.test.js).
 
 ### Tiga Jenis Test FE
 
@@ -1009,11 +1012,12 @@ Pakai jenis ini untuk komponen dengan interaksi user nyata (form, input, tombol,
 
 **Dependency baru** (devDependencies): `@testing-library/react`, `@testing-library/jest-dom`, `@testing-library/user-event`, `jsdom`.
 
-**Ringkasan ketiga jenis:**
+**Ringkasan jenis-jenis test:**
 
 | Jenis | Suffix file | Environment | Kapan dipakai |
 |---|---|---|---|
-| Unit fungsi murni | `.test.js` | `node` | Logic bisa diuji sebagai fungsi murni — **prioritas utama** |
+| Unit fungsi murni | `.test.js` | `node` | Logic bisa diuji sebagai fungsi murni, tanpa `window`/`document` — **prioritas utama** |
+| Unit butuh browser API | `.dom.test.js` | `jsdom` | Fungsi/hook pakai `window`, `matchMedia`, `localStorage`, dll tapi tidak me-render komponen React (mis. `lib/utils.js`, hook `use-mobile.jsx`) |
 | Source-assertion | `.test.js` | `node` | Hanya kalau behavior genuinely sulit di-render (mis. GrapesJS canvas) — **hindari untuk komponen baru** |
 | Component (RTL) | `.rtl.test.jsx` | `jsdom` | Komponen dengan interaksi user nyata — **rekomendasi default untuk UI baru** |
 

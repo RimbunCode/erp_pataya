@@ -78,12 +78,13 @@ describe("EmailChipInput", () => {
   });
 
   it("tidak menampilkan tombol hapus saat disabled", () => {
-    render(
-      <EmailChipInput value={["customer@example.com"]} disabled />,
-    );
+    render(<EmailChipInput value={["customer@example.com"]} disabled />);
 
     expect(
-      screen.getByText("customer@example.com").closest("div").querySelector("button"),
+      screen
+        .getByText("customer@example.com")
+        .closest("div")
+        .querySelector("button"),
     ).toBeNull();
   });
 });

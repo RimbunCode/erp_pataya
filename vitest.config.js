@@ -4,8 +4,10 @@ import path from "path";
 export default defineConfig({
   test: {
     globals: true,
-    // Test yang render komponen React (butuh DOM) pakai jsdom (*.rtl.test.jsx);
-    // sisanya (unit test fungsi murni, source-assertion) tetap "node" (lebih cepat).
+    // Tiga kelompok test dibedakan lewat suffix nama file:
+    // - *.test.js        -> "unit" (node)   : fungsi murni, tanpa window/document
+    // - *.dom.test.js     -> "dom" (jsdom)   : butuh browser API (window/document) tapi tidak render React
+    // - *.rtl.test.jsx    -> "component" (jsdom) : render komponen React + interaksi user
     projects: [
       {
         extends: true,
@@ -13,6 +15,15 @@ export default defineConfig({
           name: "unit",
           environment: "node",
           include: ["resources/js/**/*.test.{js,ts}"],
+          exclude: ["resources/js/**/*.dom.test.js"],
+        },
+      },
+      {
+        extends: true,
+        test: {
+          name: "dom",
+          environment: "jsdom",
+          include: ["resources/js/**/*.dom.test.js"],
         },
       },
       {
