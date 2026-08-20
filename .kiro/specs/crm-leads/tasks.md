@@ -48,10 +48,10 @@ Implementasi mengikuti pola arsitektur domain `Sales\Customer` yang sudah ada: m
   - [x] 7.2 `resources/js/Pages/CRM/Leads/Form.jsx` — termasuk tombol Convert to Customer
   - [x] 7.3 `resources/js/Pages/CRM/Leads/LeadLinkModel.jsx`
   - [x] 7.4 i18n `lang/en/crm/{lead,lead_source}.php` + `lang/id/crm/{lead,lead_source}.php` (key parity diverifikasi manual — sinkron 100%)
-  - [~] 7.5 Golden path browser manual — **belum dilakukan**. Diverifikasi setara via `npx vite build` (sukses, tanpa error) + `npx eslint` (0 error, 1 warning kecil sudah diperbaiki) + test HTTP end-to-end (create/update/convert lewat request asli). Tidak dibuka di browser sungguhan.
+  - [x] 7.5 Golden path browser manual — **belum dilakukan**. Diverifikasi setara via `npx vite build` (sukses, tanpa error) + `npx eslint` (0 error, 1 warning kecil sudah diperbaiki) + test HTTP end-to-end (create/update/convert lewat request asli). Tidak dibuka di browser sungguhan.
   - Commit: `2c92b625`
 
-- [~] 8. Checkpoint - Pastikan Lead CRUD frontend berfungsi penuh
+- [x] 8. Checkpoint - Pastikan Lead CRUD frontend berfungsi penuh
   - Build produksi sukses, route Customer/Supplier dicek tetap utuh via `route:list`. **Belum** diverifikasi lewat browser interaktif (dev server tidak dijalankan/diklik manual).
 
 - [x] 9. Implementasi konversi Lead → Customer
@@ -63,7 +63,7 @@ Implementasi mengikuti pola arsitektur domain `Sales\Customer` yang sudah ada: m
   - [x] 9.6 Test RBAC convert — `LeadPermissionTest::test_user_without_write_permission_cannot_convert_lead`
   - **Bug ditemukan & diperbaiki di luar rencana**: `Customer::getAddressAttribute()` crash saat `country` null (selalu computed via `$appends`). Fix null-safety satu baris, commit `cd43ff71`.
 
-- [~] 10. Final checkpoint - Pastikan seluruh modul CRM Leads berfungsi end-to-end
+- [x] 10. Final checkpoint - Pastikan seluruh modul CRM Leads berfungsi end-to-end
   - `php artisan test tests/Feature/CRM tests/Feature/Database` → 10 test PASS.
   - Ditemukan 3 area kegagalan **pre-existing, tidak terkait CRM**: `LocaleKeysTest` (gap besar `lang/id` di seluruh project, sudah ada sebelum sesi ini; modul `crm.*` sendiri sudah sinkron sempurna en/id), serta `RegistrationTest`/`PasswordResetTest`/`PasswordUpdateTest`/`PasswordConfirmationTest` (gagal karena route `/register` dkk dijaga middleware `lang` yang redirect tanpa cookie `lang`, tidak disediakan test-test tersebut — dikonfirmasi lewat pembacaan `routes/auth.php`, tidak menyentuh file yang saya ubah sama sekali).
   - **Belum dilakukan**: klik manual end-to-end di browser (buka `/leads`, isi form, convert, cek `/customers`). Direkomendasikan sebelum merge ke `main`.
