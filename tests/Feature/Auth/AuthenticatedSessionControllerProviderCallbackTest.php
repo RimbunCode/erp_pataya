@@ -109,7 +109,7 @@ class AuthenticatedSessionControllerProviderCallbackTest extends TestCase {
         $response = $this->get('/auth/google/callback');
 
         $this->assertAuthenticatedAs($user);
-        $response->assertRedirect(route('dashboard', absolute: false));
+        $response->assertRedirect(route('desks.index', absolute: false));
     }
 
     public function test_existing_active_user_login_via_provider_verifies_email(): void {
@@ -183,7 +183,7 @@ class AuthenticatedSessionControllerProviderCallbackTest extends TestCase {
         $response = $this->get('/auth/google/callback');
 
         $this->assertAuthenticatedAs($existing);
-        $response->assertRedirect(route('dashboard', absolute: false));
+        $response->assertRedirect(route('desks.index', absolute: false));
         $this->assertSame(1, User::where('email', 'link-me@example.com')->count());
         $this->assertSame(1, UserProvider::where('user_id', $existing->id)->where('provider_id', 'google-10')->count());
     }

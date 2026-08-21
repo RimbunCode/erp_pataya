@@ -16,47 +16,24 @@ import {
 import { Fragment, memo, useMemo } from "react";
 
 import { Button } from "@/Components/ui/button";
-import LanguageSwitcher from "@/Components/LanguageSwitcher";
 import Link from "../Link";
 import Notifications from "./Notifications";
 import { Separator } from "@/Components/ui/separator";
 import { SidebarTrigger } from "@/Components/ui/sidebar";
-import ToggleTheme from "@/Components/ToggleTheme";
 import UserInfo from "./UserInfo";
+import BranchSwitcher from "@/Components/Sidebar/BranchSwitcher";
+import DeskSwitcher from "@/Components/Sidebar/DeskSwitcher";
 import { cn } from "@/lib/utils";
 import { useIsMobile } from "@/Hooks/use-mobile";
 import { useLaravelReactI18n } from "laravel-react-i18n";
 import { usePage } from "@inertiajs/react";
+import { Home } from "lucide-react";
 
-function ChangelogBadge() {
-  const count = usePage().props.unread_changelogs_count || 0;
-
-  return (
-    <Link
-      href="/changelogs"
-      className="relative rounded-md p-1.5 text-muted-foreground hover:bg-muted hover:text-foreground transition-colors"
-      aria-label="Changelog"
-    >
-      <svg
-        xmlns="http://www.w3.org/2000/svg"
-        className="size-5"
-        viewBox="0 0 24 24"
-      >
-        <path
-          fill="currentColor"
-          d="M19 3H5c-1.1 0-2 .9-2 2v14c0 1.1.9 2 2 2h14c1.1 0 2-.9 2-2V5c0-1.1-.9-2-2-2m-5 14H7v-2h7zm3-4H7v-2h10zm0-4H7V7h10z"
-        />
-      </svg>
-      {count > 0 && (
-        <span className="absolute -top-0.5 -right-0.5 min-w-[1rem] h-4 rounded-full bg-blue-500 px-1 text-[10px] font-bold leading-4 text-white text-center">
-          {count > 99 ? "99+" : count}
-        </span>
-      )}
-    </Link>
-  );
-}
-
-export default memo(function Navbar({ actions, onOpenSearch }) {
+export default memo(function Navbar({
+  actions,
+  onOpenSearch,
+  hideSidebar = false,
+}) {
   const { t, loading } = useLaravelReactI18n();
   const breadcrumbs = usePage().props.breadcrumbs;
   const isMobile = useIsMobile();
@@ -140,8 +117,33 @@ export default memo(function Navbar({ actions, onOpenSearch }) {
   return (
     <header className="print:hidden overflow-hidden sticky top-0 bg-background z-10 max-w-full w-full border-b border-muted-foreground/50 flex h-16 justify-between shrink-0 items-center gap-2 transition-[width,height] ease-linear group-has-data-[collapsible=icon]/sidebar-wrapper:h-12">
       <div className="overflow-hidden flex w-full items-center gap-2 px-4">
-        <SidebarTrigger className="-ml-1" />
-        <Separator orientation="vertical" className="h-4 mr-2" />
+        {!hideSidebar && (
+          <>
+            <SidebarTrigger className="-ml-1" />
+            <Separator orientation="vertical" className="h-4 mr-2" />
+            <Breadcrumb className="shrink-0">
+              <BreadcrumbList className="gap-1 sm:gap-1">
+                <BreadcrumbItem>
+                  <BreadcrumbLink asChild>
+                    <Link
+                      href={route("desks.index")}
+                      className="rounded-md p-1.5 text-muted-foreground hover:bg-muted hover:text-foreground transition-colors"
+                      aria-label="Home"
+                    >
+                      <Home className="size-4" />
+                    </Link>
+                  </BreadcrumbLink>
+                </BreadcrumbItem>
+                <BreadcrumbSeparator className="[&>svg]:size-3.5" />
+                <BreadcrumbItem>
+                  <DeskSwitcher />
+                </BreadcrumbItem>
+                <BreadcrumbSeparator className="[&>svg]:size-3.5" />
+              </BreadcrumbList>
+            </Breadcrumb>
+          </>
+        )}
+        {hideSidebar && <BranchSwitcher className="w-full max-w-64" />}
         {breadcrumbsMenu}
       </div>
       <div className="flex flex-1 items-center gap-2 px-4 justify-end">
@@ -168,9 +170,6 @@ export default memo(function Navbar({ actions, onOpenSearch }) {
             <span className="text-xs">Ctrl + K</span>
           </kbd>
         </Button>
-        <LanguageSwitcher className="size-4" />
-        <ToggleTheme className="size-4" />
-        <ChangelogBadge />
         <Notifications />
         <UserInfo />
       </div>

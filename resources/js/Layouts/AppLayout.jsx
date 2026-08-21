@@ -9,7 +9,7 @@ import { cn } from "@/lib/utils";
 
 export default memo(
   forwardRef(function AppLayout(
-    { className, actions, children, ...props },
+    { className, actions, children, hideSidebar = false, ...props },
     ref,
   ) {
     const searchTriggerRef = React.useRef(null);
@@ -26,9 +26,13 @@ export default memo(
       <MasterLayout>
         <div className="relative mx-auto max-w-full print:invisible print:bg-white!">
           <SidebarProvider>
-            <AppSidebar className="print:hidden " />
+            {!hideSidebar && <AppSidebar className="print:hidden " />}
             <SidebarInset>
-              <Navbar actions={actions} onOpenSearch={handleOpenSearch} />
+              <Navbar
+                actions={actions}
+                onOpenSearch={handleOpenSearch}
+                hideSidebar={hideSidebar}
+              />
               <GlobalCommandPalette
                 onRegisterOpenTrigger={registerOpenSearchTrigger}
               />

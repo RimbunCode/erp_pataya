@@ -8,16 +8,21 @@ import {
   DropdownMenuSeparator,
   DropdownMenuTrigger,
 } from "@/Components/ui/dropdown-menu";
-import { LogOut, UserCog2 } from "lucide-react";
+import { LogOut, Megaphone, UserCog2 } from "lucide-react";
 
 import Link from "../Link";
+import LanguageSwitcherSub from "@/Components/LanguageSwitcherSub";
+import ToggleThemeSub from "@/Components/ToggleThemeSub";
 import { memo } from "react";
 import { resolveImageSrc } from "@/lib/utils";
+import { useLaravelReactI18n } from "laravel-react-i18n";
 import { usePage } from "@inertiajs/react";
 
 export default memo(function UserInfo() {
   const route = window.route;
+  const { _t } = useLaravelReactI18n();
   const user = usePage().props.auth.user;
+  const changelogCount = usePage().props.unread_changelogs_count || 0;
   const alias = user.name
     .split(" ")
     .slice(0, 2)
@@ -89,6 +94,23 @@ export default memo(function UserInfo() {
             </Link>
           </DropdownMenuItem>
         </DropdownMenuGroup>
+        <DropdownMenuSeparator />
+        <DropdownMenuGroup>
+          <LanguageSwitcherSub />
+          <ToggleThemeSub />
+          <DropdownMenuItem asChild>
+            <Link href="/changelogs" as="button" className="w-full">
+              <Megaphone />
+              Changelog
+              {changelogCount > 0 && (
+                <span className="ml-auto flex h-4 min-w-4 items-center justify-center rounded-full bg-blue-500 px-1 text-[10px] font-bold leading-4 text-white">
+                  {changelogCount > 99 ? "99+" : changelogCount}
+                </span>
+              )}
+            </Link>
+          </DropdownMenuItem>
+        </DropdownMenuGroup>
+        <DropdownMenuSeparator />
         <DropdownMenuItem asChild>
           <Link
             href={route("logout")}

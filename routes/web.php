@@ -18,6 +18,7 @@ use App\Http\Controllers\Core\CompanyLogoController;
 use App\Http\Controllers\Core\CountryController;
 use App\Http\Controllers\Core\CurrencyController;
 use App\Http\Controllers\Core\DashboardController;
+use App\Http\Controllers\Core\DeskController;
 use App\Http\Controllers\Core\EmailTemplateController;
 use App\Http\Controllers\Core\FileController;
 use App\Http\Controllers\Core\FormatingSeriesController;
@@ -174,7 +175,7 @@ Route::delete('/commands/recent', [CommandSearchController::class, 'remove'])
     ->withoutMiddleware([HandleInertiaRequests::class])
     ->name('commands.recent.remove');
 
-Route::middleware(['auth', 'lang', 'onboarded', 'app'])->group(function () {
+Route::middleware(['auth', 'lang', 'onboarded', 'app', 'desk'])->group(function () {
     if (config('app.debug')) {
         Route::get('/test/link-model', function () {
             return Inertia::render('Test/LinkModelTest');
@@ -203,6 +204,12 @@ Route::middleware(['auth', 'lang', 'onboarded', 'app'])->group(function () {
     Route::post('/gl-posting-statuses/{glPostingStatus}/retry', [GlPostingStatusController::class, 'retry'])->name('gl-posting-statuses.retry');
     // Branch Switcher
     Route::put('/switch_branch/{id}', [BranchController::class, 'switch'])->name('branch.switch');
+    // Desk
+    Route::get('/desks', [DeskController::class, 'index'])->name('desks.index');
+    Route::post('/desks', [DeskController::class, 'store'])->name('desks.store');
+    Route::post('/desk/switch', [DeskController::class, 'switch'])->name('desk.switch');
+    Route::post('/desk/{desk}/default', [DeskController::class, 'setDefault'])->name('desk.setDefault');
+    Route::post('/desk/{desk}/roles', [DeskController::class, 'storeRoleScoped'])->name('desk.roles.store');
     // Dashboard
     Route::get('dashboard-view', [DashboardController::class, 'view'])->name('dashboard');
     Route::post('dashboard-update', [DashboardController::class, 'storeUserDashboard'])->name('dashboardForms.store');
