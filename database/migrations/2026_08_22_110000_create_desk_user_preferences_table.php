@@ -10,12 +10,15 @@ return new class extends Migration
      * Run the migrations.
      */
     public function up(): void {
-        Schema::create('desk_user', function (Blueprint $table) {
+        Schema::create('desk_user_preferences', function (Blueprint $table) {
             $table->ulid('id')->primary();
-            $table->foreignUlid('desk_id')->references('id')->on('desks')->cascadeOnDelete();
             $table->foreignUlid('user_id')->references('id')->on('users')->cascadeOnDelete();
+            $table->foreignUlid('desk_id')->references('id')->on('desks')->cascadeOnDelete();
+            $table->unsignedInteger('order')->nullable();
+            $table->boolean('is_hidden')->default(false);
             $table->timestamps();
-            $table->unique(['desk_id', 'user_id']);
+
+            $table->unique(['user_id', 'desk_id']);
         });
     }
 
@@ -23,6 +26,6 @@ return new class extends Migration
      * Reverse the migrations.
      */
     public function down(): void {
-        Schema::dropIfExists('desk_user');
+        Schema::dropIfExists('desk_user_preferences');
     }
 };

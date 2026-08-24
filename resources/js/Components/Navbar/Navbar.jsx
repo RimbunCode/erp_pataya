@@ -33,6 +33,9 @@ export default memo(function Navbar({
   actions,
   onOpenSearch,
   hideSidebar = false,
+  hideBranchSwitcher = false,
+  hideDeskSwitcher = false,
+  hideHomeBreadcrumb = false,
 }) {
   const { t, loading } = useLaravelReactI18n();
   const breadcrumbs = usePage().props.breadcrumbs;
@@ -121,29 +124,37 @@ export default memo(function Navbar({
           <>
             <SidebarTrigger className="-ml-1" />
             <Separator orientation="vertical" className="h-4 mr-2" />
-            <Breadcrumb className="shrink-0">
-              <BreadcrumbList className="gap-1 sm:gap-1">
-                <BreadcrumbItem>
-                  <BreadcrumbLink asChild>
-                    <Link
-                      href={route("desks.index")}
-                      className="rounded-md p-1.5 text-muted-foreground hover:bg-muted hover:text-foreground transition-colors"
-                      aria-label="Home"
-                    >
-                      <Home className="size-4" />
-                    </Link>
-                  </BreadcrumbLink>
-                </BreadcrumbItem>
-                <BreadcrumbSeparator className="[&>svg]:size-3.5" />
-                <BreadcrumbItem>
-                  <DeskSwitcher />
-                </BreadcrumbItem>
-                <BreadcrumbSeparator className="[&>svg]:size-3.5" />
-              </BreadcrumbList>
-            </Breadcrumb>
           </>
         )}
-        {hideSidebar && <BranchSwitcher className="w-full max-w-64" />}
+        {!hideHomeBreadcrumb && (
+          <Breadcrumb className="shrink-0">
+            <BreadcrumbList className="gap-1 sm:gap-1">
+              <BreadcrumbItem>
+                <BreadcrumbLink asChild>
+                  <Link
+                    href={route("desks.index")}
+                    className="rounded-md p-1.5 text-muted-foreground hover:bg-muted hover:text-foreground transition-colors"
+                    aria-label="Home"
+                  >
+                    <Home className="size-4" />
+                  </Link>
+                </BreadcrumbLink>
+              </BreadcrumbItem>
+              {!hideDeskSwitcher && (
+                <>
+                  <BreadcrumbSeparator className="[&>svg]:size-3.5" />
+                  <BreadcrumbItem>
+                    <DeskSwitcher />
+                  </BreadcrumbItem>
+                </>
+              )}
+              <BreadcrumbSeparator className="[&>svg]:size-3.5" />
+            </BreadcrumbList>
+          </Breadcrumb>
+        )}
+        {hideSidebar && !hideBranchSwitcher && (
+          <BranchSwitcher className="w-full max-w-64" />
+        )}
         {breadcrumbsMenu}
       </div>
       <div className="flex flex-1 items-center gap-2 px-4 justify-end">

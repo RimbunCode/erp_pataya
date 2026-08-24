@@ -225,9 +225,57 @@ class DeskResolverServiceTest extends TestCase {
         $member->roles()->attach($role->id);
 
         $desk = Desk::factory()->create(['type' => DeskType::Custom]);
-        $desk->roles()->attach($role->id);
+        $desk->assignables()->create(['assignable_type' => 'role', 'assignable_id' => $role->id]);
 
         $this->assertTrue($this->resolver->visibleDesksFor($member)->contains('id', $desk->id));
         $this->assertFalse($this->resolver->visibleDesksFor($nonMember)->contains('id', $desk->id));
+    }
+
+    public function test_visible_desks_for_custom_directly_assigned_to_user(): void {
+        $assignedUser = User::factory()->create();
+        $otherUser    = User::factory()->create();
+        $desk         = Desk::factory()->create(['type' => DeskType::Custom]);
+        $desk->assignables()->create(['assignable_type' => 'user', 'assignable_id' => $assignedUser->id]);
+
+        $this->assertTrue($this->resolver->visibleDesksFor($assignedUser)->contains('id', $desk->id));
+        $this->assertFalse($this->resolver->visibleDesksFor($otherUser)->contains('id', $desk->id));
+    }
+
+    public function test_visible_desks_for_custom_shared_all_visible_to_any_authenticated_user(): void {
+        $anyUser = User::factory()->create();
+        $desk    = Desk::factory()->create(['type' => DeskType::Custom, 'is_shared_all' => true]);
+
+        $this->assertTrue($this->resolver->visibleDesksFor($anyUser)->contains('id', $desk->id));
+    }
+
+    public function test_visible_desks_excludes_disabled_desk_even_for_owner(): void {
+        $owner = User::factory()->create();
+        $desk  = Desk::factory()->create(['type' => DeskType::Custom, 'owner_id' => $owner->id, 'is_disabled' => true]);
+
+        $this->assertFalse($this->resolver->visibleDesksFor($owner)->contains('id', $desk->id));
+    }
+
+    public function test_visible_desks_excludes_disabled_system_desk(): void {
+        $user = User::factory()->create();
+        $this->grantSelectPermission($user, 'App\\Models\\Test\\Foo');
+
+        $desk     = Desk::factory()->create(['type' => DeskType::System, 'is_disabled' => true]);
+        $menuItem = MenuItem::factory()->create([
+            'primary_desk_id' => $desk->id,
+            'model'           => 'App\\Models\\Test\\Foo',
+        ]);
+        $desk->menuItems()->attach($menuItem->id, ['order' => 0]);
+
+        $this->assertFalse($this->resolver->visibleDesksFor($user)->contains('id', $desk->id));
+    }
+
+    public function test_deleting_desk_cascades_assignables(): void {
+        $user = User::factory()->create();
+        $desk = Desk::factory()->create(['type' => DeskType::Custom]);
+        $desk->assignables()->create(['assignable_type' => 'user', 'assignable_id' => $user->id]);
+
+        $desk->delete();
+
+        $this->assertDatabaseMissing('desk_assignables', ['desk_id' => $desk->id]);
     }
 }

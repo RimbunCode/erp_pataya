@@ -205,11 +205,10 @@ Route::middleware(['auth', 'lang', 'onboarded', 'app', 'desk'])->group(function 
     // Branch Switcher
     Route::put('/switch_branch/{id}', [BranchController::class, 'switch'])->name('branch.switch');
     // Desk
-    Route::get('/desks', [DeskController::class, 'index'])->name('desks.index');
-    Route::post('/desks', [DeskController::class, 'store'])->name('desks.store');
+    Route::resourceDetail('desk', DeskController::class);
     Route::post('/desk/switch', [DeskController::class, 'switch'])->name('desk.switch');
     Route::post('/desk/{desk}/default', [DeskController::class, 'setDefault'])->name('desk.setDefault');
-    Route::post('/desk/{desk}/roles', [DeskController::class, 'storeRoleScoped'])->name('desk.roles.store');
+    Route::post('/desk/reorder', [DeskController::class, 'reorder'])->name('desk.reorder');
     // Dashboard
     Route::get('dashboard-view', [DashboardController::class, 'view'])->name('dashboard');
     Route::post('dashboard-update', [DashboardController::class, 'storeUserDashboard'])->name('dashboardForms.store');

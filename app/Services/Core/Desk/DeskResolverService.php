@@ -38,27 +38,40 @@ class DeskResolverService {
         $accessibleModels = $this->accessibleModels($checker);
 
         $desks = Desk::query()
-            ->where(function ($query) use ($accessibleModels) {
-                $query->where('type', DeskType::System);
+            ->where('is_disabled', false)
+            ->where(function ($query) use ($accessibleModels, $roleIds, $user) {
+                $query->where(function ($systemQuery) use ($accessibleModels) {
+                    $systemQuery->where('type', DeskType::System);
 
-                if (empty($accessibleModels)) {
-                    $query->whereRaw('1 = 0');
+                    if (empty($accessibleModels)) {
+                        $systemQuery->whereRaw('1 = 0');
 
-                    return;
-                }
+                        return;
+                    }
 
-                $query->whereHas('menuItems', function ($menuQuery) use ($accessibleModels) {
-                    $menuQuery->whereNotNull('model')
-                        ->whereIn('model', $accessibleModels);
-                });
-            })
-            ->orWhere(function ($query) use ($user) {
-                $query->where('type', DeskType::Custom)
-                    ->where('owner_id', $user->id);
-            })
-            ->orWhere(function ($query) use ($roleIds) {
-                $query->where('type', DeskType::Custom)
-                    ->whereHas('roles', fn ($roleQuery) => $roleQuery->whereIn('roles.id', $roleIds));
+                    $systemQuery->whereHas('menuItems', function ($menuQuery) use ($accessibleModels) {
+                        $menuQuery->whereNotNull('model')
+                            ->whereIn('model', $accessibleModels);
+                    });
+                })
+                    ->orWhere(function ($ownerQuery) use ($user) {
+                        $ownerQuery->where('type', DeskType::Custom)
+                            ->where('owner_id', $user->id);
+                    })
+                    ->orWhere(function ($assignableQuery) use ($roleIds, $user) {
+                        $assignableQuery->where('type', DeskType::Custom)
+                            ->whereHas('assignables', function ($q) use ($roleIds, $user) {
+                                $q->where(function ($qq) use ($roleIds) {
+                                    $qq->where('assignable_type', 'role')->whereIn('assignable_id', $roleIds);
+                                })->orWhere(function ($qq) use ($user) {
+                                    $qq->where('assignable_type', 'user')->where('assignable_id', $user->id);
+                                });
+                            });
+                    })
+                    ->orWhere(function ($sharedAllQuery) {
+                        $sharedAllQuery->where('type', DeskType::Custom)
+                            ->where('is_shared_all', true);
+                    });
             })
             ->get();
 

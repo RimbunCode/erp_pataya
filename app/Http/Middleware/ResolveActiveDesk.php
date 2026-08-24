@@ -4,6 +4,7 @@ namespace App\Http\Middleware;
 
 use App\Enums\Permission;
 use App\Models\Core\Desk;
+use App\Models\Core\DeskMenuItem;
 use App\Models\Core\MenuItem;
 use App\Models\User\User;
 use App\Services\Core\Desk\DeskResolverService;
@@ -49,9 +50,9 @@ class ResolveActiveDesk {
         }
 
         Inertia::share([
-            'activeDesk' => $desk->only(['id', 'name', 'icon', 'color']),
+            'activeDesk' => $desk->only(['id', 'name', 'icon', 'background_color', 'foreground_color']),
             'deskList'   => $this->resolver->visibleDesksFor($user, $checker, $request)
-                ->map->only(['id', 'name', 'icon', 'color'])
+                ->map->only(['id', 'name', 'icon', 'background_color', 'foreground_color'])
                 ->values(),
             'menuItems' => $this->buildMenuTree($desk, $checker),
         ]);
@@ -62,40 +63,48 @@ class ResolveActiveDesk {
     }
 
     private function buildMenuTree(Desk $desk, PermissionChecker $checker): array {
-        $topLevel = $desk->menuItems()
+        $topLevel = $desk->menuItemPivots()
             ->whereNull('parent_id')
-            ->with('children')
+            ->with(['menuItem', 'children.menuItem'])
             ->get();
 
         return $topLevel
-            ->map(fn (MenuItem $item) => $this->buildMenuItem($item, $item->pivot->icon, $checker))
+            ->map(fn (DeskMenuItem $pivot) => $this->buildMenuItem($pivot, $checker))
             ->filter()
             ->values()
             ->all();
     }
 
-    private function buildMenuItem(MenuItem $item, ?string $iconOverride, PermissionChecker $checker): ?array {
-        if ($item->model && ! $checker->can($item->model, Permission::Select)) {
+    /**
+     * $pivot->menuItem null berarti baris ini grup virtual (label/icon
+     * custom per-desk, tanpa route/model) — selalu jadi Collapsible trigger
+     * murni kalau punya children, atau di-drop kalau kosong (tidak pernah
+     * py url sendiri).
+     */
+    private function buildMenuItem(DeskMenuItem $pivot, PermissionChecker $checker): ?array {
+        $menuItem = $pivot->menuItem;
+
+        if ($menuItem?->model && ! $checker->can($menuItem->model, Permission::Select)) {
             return null;
         }
 
-        $children = $item->children
-            ->map(fn (MenuItem $child) => $this->buildMenuItem($child, null, $checker))
+        $children = $pivot->children
+            ->map(fn (DeskMenuItem $child) => $this->buildMenuItem($child, $checker))
             ->filter()
             ->values();
 
-        $url = $this->resolveUrl($item);
+        $url = $menuItem ? $this->resolveUrl($menuItem) : null;
 
         if (! $url && $children->isEmpty()) {
             return null;
         }
 
         return [
-            'title'     => $item->label,
-            'icon'      => $iconOverride ?? $item->icon,
+            'title'     => $menuItem?->label ?? $pivot->label,
+            'icon'      => $pivot->icon ?? $menuItem?->icon,
             'url'       => $url,
-            'routeName' => $item->route_name,
-            'model'     => $item->model,
+            'routeName' => $menuItem?->route_name,
+            'model'     => $menuItem?->model,
             'items'     => $children->isNotEmpty() ? $children->all() : null,
         ];
     }

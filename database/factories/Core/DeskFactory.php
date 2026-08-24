@@ -18,11 +18,13 @@ class DeskFactory extends Factory {
      */
     public function definition(): array {
         return [
-            'name'   => fake()->unique()->words(2, true),
-            'icon'   => 'LayoutDashboard',
-            'color'  => fake()->safeColorName(),
-            'domain' => null,
-            'type'   => DeskType::Custom,
+            'name'             => fake()->unique()->words(2, true),
+            'icon'             => 'LayoutDashboard',
+            'background_color' => fake()->hexColor(),
+            'foreground_color' => fake()->randomElement(['#ffffff', '#000000']),
+            'domain'           => null,
+            'type'             => DeskType::Custom,
+            'is_personal_only' => false,
         ];
     }
 

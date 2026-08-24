@@ -1,18 +1,5 @@
-import {
-  Boxes,
-  HandCoins,
-  HistoryIcon,
-  LayoutDashboard,
-  ListTodo,
-  PackageIcon,
-  Receipt,
-  Settings2,
-  ShoppingBagIcon,
-  StampIcon,
-  TicketsIcon,
-  Users2,
-  Wrench,
-} from "lucide-react";
+import { cn } from "@/lib/utils";
+import * as lucideIcons from "lucide-react";
 
 // Icon kustom yang di navList lama berupa raw SVG inline, bukan lucide-react.
 function ServiceIcon(props) {
@@ -41,28 +28,43 @@ function CustomerIcon(props) {
   );
 }
 
-// Map nama string (disimpan di menu_items.icon / desks.icon) -> komponen React.
-// Nama harus sinkron dengan yang dipakai database/seeders/DeskSeeder.php.
-export const deskIcons = {
-  Boxes,
-  HandCoins,
-  HistoryIcon,
-  LayoutDashboard,
-  ListTodo,
-  PackageIcon,
-  Receipt,
-  Settings2,
-  ShoppingBagIcon,
-  StampIcon,
-  TicketsIcon,
-  Users2,
-  Wrench,
+// Icon custom (bukan bagian lucide-react) — dicek lebih dulu di resolveIcon()
+// krn namanya TIDAK ikut konvensi suffix "Icon" milik lucide-react asli.
+const customIcons = {
   ServiceIcon,
   CustomerIcon,
 };
 
+// Resolve nama string (disimpan di menu_items.icon / desks.icon) -> komponen
+// React — sumber utamanya SELURUH lucide-react (~1930 icon, sama persis dgn
+// yg ditawarkan IconPicker.jsx), BUKAN cuma subset kecil spt sebelumnya.
+// Kalau resolveIcon tidak sinkron dgn IconPicker, icon yg dipilih user via
+// IconPicker (bebas dari seluruh lucide) bisa tersimpan tapi hilang tak
+// tampil di sini — itulah yg diperbaiki di sini.
 export function resolveIcon(name) {
-  const Icon = deskIcons[name];
+  const Icon = customIcons[name] ?? lucideIcons[name];
 
   return Icon ? <Icon /> : null;
+}
+
+// Tiap warna (background/foreground) berlaku INDEPENDEN — yg diisi dipakai
+// literal (TIDAK boleh terpengaruh dark/light mode), yg kosong fallback ke
+// token tema per-channel (bg-muted / text-foreground) supaya tetap kontras
+// walau cuma salah satu warna di-set user.
+export function getDeskColorStyle(desk) {
+  const backgroundColor = desk?.background_color;
+  const foregroundColor = desk?.foreground_color;
+
+  const style = {};
+  if (backgroundColor) style.backgroundColor = backgroundColor;
+  if (foregroundColor) style.color = foregroundColor;
+
+  return {
+    className: cn(
+      "border",
+      !backgroundColor && "bg-muted",
+      !foregroundColor && "text-foreground",
+    ),
+    style,
+  };
 }

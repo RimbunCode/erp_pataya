@@ -29,16 +29,16 @@ class DeskModelTest extends TestCase {
         $this->assertNull($ordered->firstWhere('id', $itemB->id)->pivot->icon);
     }
 
-    public function test_users_and_roles_relations_return_assigned_records(): void {
+    public function test_assignables_relation_returns_assigned_records(): void {
         $desk = Desk::factory()->create(['type' => DeskType::Custom]);
         $user = User::factory()->create();
         $role = Role::create(['name' => 'desk-role-test-' . uniqid()]);
 
-        $desk->users()->attach($user->id);
-        $desk->roles()->attach($role->id);
+        $desk->assignables()->create(['assignable_type' => 'user', 'assignable_id' => $user->id]);
+        $desk->assignables()->create(['assignable_type' => 'role', 'assignable_id' => $role->id]);
 
-        $this->assertTrue($desk->users()->get()->contains('id', $user->id));
-        $this->assertTrue($desk->roles()->get()->contains('id', $role->id));
+        $this->assertTrue($desk->assignables()->where('assignable_type', 'user')->where('assignable_id', $user->id)->exists());
+        $this->assertTrue($desk->assignables()->where('assignable_type', 'role')->where('assignable_id', $role->id)->exists());
     }
 
     public function test_deleting_desk_cascades_pivot_rows(): void {
@@ -48,14 +48,17 @@ class DeskModelTest extends TestCase {
         $role     = Role::create(['name' => 'desk-role-cascade-' . uniqid()]);
 
         $desk->menuItems()->attach($menuItem->id, ['order' => 0]);
-        $desk->users()->attach($user->id);
-        $desk->roles()->attach($role->id);
+        $desk->assignables()->create(['assignable_type' => 'user', 'assignable_id' => $user->id]);
+        $desk->assignables()->create(['assignable_type' => 'role', 'assignable_id' => $role->id]);
+        $desk->userPreferences()->create(['user_id' => $user->id, 'order' => 0, 'is_hidden' => true]);
 
         $desk->delete();
 
         $this->assertDatabaseMissing('desk_menu_item', ['desk_id' => $desk->id]);
-        $this->assertDatabaseMissing('desk_user', ['desk_id' => $desk->id]);
-        $this->assertDatabaseMissing('desk_role', ['desk_id' => $desk->id]);
+        $this->assertDatabaseMissing('desk_assignables', ['desk_id' => $desk->id]);
+        // Desk pakai SoftDeletes — FK cascadeOnDelete TIDAK ter-trigger (cuma
+        // UPDATE deleted_at), listener DetachDeskAssignments harus bersihkan manual.
+        $this->assertDatabaseMissing('desk_user_preferences', ['desk_id' => $desk->id]);
     }
 
     public function test_deleting_desk_nulls_default_desk_id_for_users(): void {

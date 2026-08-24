@@ -14,9 +14,11 @@ return new class extends Migration
             $table->ulid('id')->primary();
             $table->string('name');
             $table->string('icon');
-            $table->string('color')->nullable();
+            $table->string('background_color')->nullable();
+            $table->string('foreground_color')->nullable();
             $table->string('domain')->nullable();
             $table->string('type');
+            $table->boolean('is_personal_only')->default(false);
             $table->foreignUlid('owner_id')->nullable()->references('id')->on('users')->nullOnDelete();
             $table->foreignUlid('dashboard_id')->nullable()->references('id')->on('dashboards')->nullOnDelete();
             $table->softDeletes();

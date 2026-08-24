@@ -32,6 +32,15 @@ class DeskSeederTest extends TestCase {
         foreach (MenuItem::all() as $menuItem) {
             $routeName = $menuItem->route_name;
 
+            // Folder murni pengelompokan "per Modul" (route_name sintetis
+            // "_group.*", lihat DeskSeeder::menuGroup()) TIDAK PERNAH jadi
+            // tujuan navigasi — tidak terdaftar di router BY DESIGN, bukan
+            // bug. ResolveActiveDesk::resolveUrl() sudah toleran (catch +
+            // log warning + url null) terhadap kasus ini.
+            if (\str_starts_with($routeName, '_group.')) {
+                continue;
+            }
+
             // Wildcard (mis. "users.*") — Requirement 4 AC 4: valid selama ADA
             // minimal satu route terdaftar yang cocok pola-nya (fnmatch),
             // bukan literal route name yang bisa langsung di-resolve route().
@@ -73,5 +82,23 @@ class DeskSeederTest extends TestCase {
 
         $this->assertContains('sales', $deskDomains);
         $this->assertContains('inventory', $deskDomains);
+    }
+
+    public function test_seeder_groups_menu_items_under_module_folders(): void {
+        (new DeskSeeder)->run();
+
+        $inventoriesGroup = MenuItem::where('route_name', '_group.inventories')->firstOrFail();
+
+        $this->assertNull($inventoriesGroup->model);
+        $this->assertNull($inventoriesGroup->parent_id);
+
+        $itemMenu = MenuItem::where('route_name', 'items.*')->firstOrFail();
+        $this->assertSame($inventoriesGroup->id, $itemMenu->parent_id);
+
+        // Section tunggal (hanya 1 item, mis. Tickets/Logs) SENGAJA tidak
+        // diberi folder — memaksa grup utk anak tunggal cuma menambah 1
+        // level klik tanpa manfaat pengelompokan nyata.
+        $ticketsMenu = MenuItem::where('route_name', 'tickets.*')->firstOrFail();
+        $this->assertNull($ticketsMenu->parent_id);
     }
 }

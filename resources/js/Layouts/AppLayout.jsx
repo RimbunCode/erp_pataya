@@ -9,7 +9,16 @@ import { cn } from "@/lib/utils";
 
 export default memo(
   forwardRef(function AppLayout(
-    { className, actions, children, hideSidebar = false, ...props },
+    {
+      className,
+      actions,
+      children,
+      hideSidebar = false,
+      hideBranchSwitcher = false,
+      hideDeskSwitcher = false,
+      hideHomeBreadcrumb = false,
+      ...props
+    },
     ref,
   ) {
     const searchTriggerRef = React.useRef(null);
@@ -32,6 +41,9 @@ export default memo(
                 actions={actions}
                 onOpenSearch={handleOpenSearch}
                 hideSidebar={hideSidebar}
+                hideBranchSwitcher={hideBranchSwitcher}
+                hideDeskSwitcher={hideDeskSwitcher}
+                hideHomeBreadcrumb={hideHomeBreadcrumb}
               />
               <GlobalCommandPalette
                 onRegisterOpenTrigger={registerOpenSearchTrigger}
