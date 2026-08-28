@@ -8,17 +8,18 @@ use App\Models\Core\DeskMenuItem;
 use App\Models\Core\MenuItem;
 use App\Models\User\User;
 use App\Services\Core\Desk\DeskResolverService;
+use App\Services\Core\Desk\MenuItemUrlResolver;
 use App\Services\Core\PermissionChecker;
 use Closure;
 use Illuminate\Http\Request;
-use Illuminate\Support\Facades\Log;
-use Illuminate\Support\Facades\Route as RouteFacade;
 use Inertia\Inertia;
 use Symfony\Component\HttpFoundation\Response;
-use Symfony\Component\Routing\Exception\RouteNotFoundException;
 
 class ResolveActiveDesk {
-    public function __construct(private DeskResolverService $resolver) {}
+    public function __construct(
+        private DeskResolverService $resolver,
+        private MenuItemUrlResolver $urlResolver,
+    ) {}
 
     /**
      * @param  Closure(Request): (Response)  $next
@@ -32,7 +33,11 @@ class ResolveActiveDesk {
         // Route desk.*/desks.* adalah jalan keluar dari kondisi "belum punya
         // Desk apa pun" (mis. buat desk personal pertama) — jangan resolve
         // desk aktif di sini, karena user yang benar-benar tanpa Desk sama
-        // sekali justru butuh mengakses endpoint ini dulu.
+        // sekali justru butuh mengakses endpoint ini dulu. Route "dashboard"
+        // (Desk Home, desk-dashboard-builder Requirement 4) TIDAK match
+        // prefix ini (nama route-nya "dashboard"/"dashboard.widgets.update",
+        // bukan "desk.*") — otomatis TIDAK bypass, sesuai kebutuhan (halaman
+        // itu justru BUTUH desk aktif ter-resolve via 'resolvedDesk' di bawah).
         $routeName = $request->route()?->getName();
         if ($routeName && (\str_starts_with($routeName, 'desk.') || \str_starts_with($routeName, 'desks.'))) {
             return $next($request);
@@ -48,6 +53,10 @@ class ResolveActiveDesk {
             // request lanjut tanpa konteks Desk, bukan block seluruh akses.
             return $next($request);
         }
+
+        // desk-dashboard-builder: expose Desk aktif ke controller lain
+        // (DeskController::home()/updateDashboardWidgets()) tanpa re-resolve.
+        $request->attributes->set('resolvedDesk', $desk);
 
         Inertia::share([
             'activeDesk' => $desk->only(['id', 'name', 'icon', 'background_color', 'foreground_color']),
@@ -131,41 +140,12 @@ class ResolveActiveDesk {
      * kandidat "*.index" yang berhasil di-generate, baru fallback ke kandidat
      * lain terurut alfabetis sampai ada yang berhasil tanpa parameter wajib.
      */
+    /**
+     * Delegasi ke MenuItemUrlResolver — logikanya dipakai bersama dengan
+     * DeskController (prop allMenuItems untuk link dashboard), jadi tidak
+     * lagi berdiri sendiri di sini.
+     */
     private function resolveUrl(MenuItem $item): ?string {
-        if ($item->url_override !== null) {
-            return $item->url_override;
-        }
-
-        $routeName = $item->route_name;
-
-        if (! \str_contains($routeName, '*')) {
-            try {
-                return route($routeName);
-            } catch (RouteNotFoundException $e) {
-                Log::warning("MenuItem route_name tidak dapat di-resolve: {$routeName}", ['exception' => $e]);
-
-                return null;
-            }
-        }
-
-        $candidates = collect(RouteFacade::getRoutes())
-            ->map(fn ($route) => $route->getName())
-            ->filter()
-            ->unique()
-            ->filter(fn ($name) => fnmatch($routeName, $name))
-            ->sort()
-            ->sortByDesc(fn ($name) => \str_ends_with($name, '.index'));
-
-        foreach ($candidates as $candidate) {
-            try {
-                return route($candidate);
-            } catch (\Throwable $e) {
-                continue;
-            }
-        }
-
-        Log::warning("MenuItem route_name wildcard tidak menemukan route tanpa parameter wajib: {$routeName}");
-
-        return null;
+        return $this->urlResolver->resolve($item);
     }
 }

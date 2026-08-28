@@ -5,14 +5,20 @@ namespace App\Http\Controllers\Core;
 use App\Enums\DeskType;
 use App\Enums\Permission;
 use App\Http\Controllers\Controller;
+use App\Http\Requests\Core\DashboardWidgetRequest;
 use App\Models\Core\Desk;
 use App\Models\Core\DeskAssignable;
 use App\Models\Core\DeskMenuItem;
 use App\Models\Core\DeskUserPreference;
 use App\Models\Core\MenuItem;
+use App\Models\DashboardWidget;
+use App\Models\User\Permission as PermissionModel;
 use App\Services\Core\Desk\DeskResolverService;
+use App\Services\Core\Desk\MenuItemUrlResolver;
 use App\Services\Core\PermissionChecker;
+use App\Services\Core\PrintTemplate\HTMLSanitizerService;
 use Illuminate\Http\Request;
+use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Route as RouteFacade;
 use Inertia\Inertia;
 use Symfony\Component\Routing\Exception\ResourceNotFoundException;
@@ -42,7 +48,12 @@ class DeskController extends Controller {
         // terlepas dari Permission Desk formal — permission Create HANYA
         // menentukan APAKAH boleh membuat mode "dibagikan" (dicek manual di
         // dalam store() sendiri via $canShare), bukan gerbang store() itu sendiri.
-        if (\in_array($method, ['index', 'switch', 'setDefault', 'create', 'store', 'reorder'])) {
+        // desk-dashboard-builder Requirement 5: home()/updateDashboardWidgets()
+        // punya otorisasi sendiri (canEdit berbasis hasWritePermission ATAU
+        // owner Custom Desk, dicek manual di dalam method masing-masing) —
+        // BUKAN gerbang permission formal Desk CRUD biasa (bisa diakses baca
+        // oleh siapapun yang boleh lihat Desk itu, edit dibatasi terpisah).
+        if (\in_array($method, ['index', 'switch', 'setDefault', 'create', 'store', 'reorder', 'home', 'updateDashboardWidgets'])) {
             return true;
         }
 
@@ -141,10 +152,21 @@ class DeskController extends Controller {
      * "Tambah Menu" — dikirim flat dengan `parent_id` (Modul asal) supaya
      * FE yang mengelompokkan per-Accordion.
      */
+    /**
+     * Bug ditemukan: prop ini SEBELUMNYA tidak menyertakan `url`, padahal
+     * blok dashboard (shortcut & link_card_item) memakainya untuk href —
+     * akibatnya setiap link bertipe `menu_item` di dashboard tidak pernah
+     * bisa diklik. URL di-resolve lewat service yang SAMA dengan sidebar.
+     */
     private function menuItemOptions() {
+        $urlResolver = app(MenuItemUrlResolver::class);
+
         return MenuItem::query()
-            ->get(['id', 'label', 'icon', 'parent_id'])
-            ->map(fn (MenuItem $item) => $item->only(['id', 'label', 'icon', 'parent_id']));
+            ->get(['id', 'label', 'icon', 'parent_id', 'route_name', 'url_override'])
+            ->map(fn (MenuItem $item) => [
+                ...$item->only(['id', 'label', 'icon', 'parent_id']),
+                'url' => $urlResolver->resolve($item),
+            ]);
     }
 
     private function menuItemsValidationRules(): array {
@@ -447,5 +469,207 @@ class DeskController extends Controller {
         $user->update(['default_desk_id' => $desk->id]);
 
         return back();
+    }
+
+    /**
+     * desk-dashboard-builder: route "dashboard" (name existing) — landing
+     * page per-Desk, render Dashboard hasil resolveDashboard(). Desk aktif
+     * diambil dari request attribute yang di-set ResolveActiveDesk.
+     * Menggantikan total DashboardController::view() lama (union banyak
+     * Dashboard per-user via user_dashboards) — 1 Desk aktif = 1 Dashboard.
+     */
+    public function home(Request $request) {
+        $desk = $request->attributes->get('resolvedDesk');
+        abort_unless($desk, 404);
+
+        // Breadcrumb selalu "Home > DeskSwitcher > Dashboard" — label statis
+        // "Dashboard", BUKAN $dashboard->title (mis. "Core Dashboard") yang
+        // sudah terwakili DeskSwitcher itu sendiri (nama Desk aktif).
+        Inertia::share(['breadcrumbs' => [['name' => 'Dashboard']]]);
+
+        $dashboard = $desk->resolveDashboard();
+        // Eager-load 2 tingkat (Requirement 1.6: depth maksimal 2) — root ->
+        // children (link_card / block lain di dalam section) -> grandchildren
+        // (link_card_item di dalam link_card yang ada di dalam section).
+        $dashboard->load([
+            'widgets' => fn ($q) => $q->whereNull('parent_id')
+                ->orderBy('order')
+                ->with(['widget', 'children.widget', 'children.children.widget']),
+        ]);
+
+        $this->hydrateQuickListModels($dashboard->widgets);
+
+        return Inertia::render('Dashboard/Dashboard', [
+            'dashboard' => $dashboard,
+            'canEdit'   => $this->canEditDashboard($desk, $request),
+            // desk-dashboard-builder Requirement 2.11: sumber opsi LinkPicker
+            // (link_type=menu_item) — pola sama seperti share() di show()/create().
+            'allMenuItems' => $this->menuItemOptions(),
+        ]);
+    }
+
+    /**
+     * desk-dashboard-builder Requirement 5.1: pemilik Custom Desk milik
+     * sendiri ATAU pemegang Permission Write formal atas Desk — pola sama
+     * dengan exceptPermission() show/update/destroy di atas.
+     */
+    private function canEditDashboard(Desk $desk, Request $request): bool {
+        $isOwnCustom = $desk->type === DeskType::Custom && $desk->owner_id === $request->user()->id;
+        $checker     = PermissionChecker::forUser($request);
+
+        return $isOwnCustom || $checker->can(Desk::class, Permission::Write);
+    }
+
+    /**
+     * desk-dashboard-builder Requirement 3, 5.3: full-replace seluruh baris
+     * DashboardWidget milik Dashboard ini — pola sama seperti
+     * menuItemPivots() di store()/update() (delete lalu create ulang).
+     *
+     * Requirement 1.6: kedalaman maksimal 2 level (section -> link_card ->
+     * link_card_item, ATAU section -> block lain) berarti create HARUS 3
+     * pass berurutan berdasar parent_ref — child pass-N butuh id hasil
+     * create pass-(N-1) untuk resolve parent_id-nya sendiri via $refToId.
+     */
+    public function updateDashboardWidgets(DashboardWidgetRequest $request) {
+        $desk = $request->attributes->get('resolvedDesk');
+        abort_unless($desk, 404);
+        abort_unless($this->canEditDashboard($desk, $request), 403);
+
+        $dashboard = $desk->resolveDashboard();
+        $rows      = $request->validated('widgets');
+
+        $textLikeSanitizer = new HTMLSanitizerService(extraAllowedTags: ['blockquote', 'pre', 'code', 's', 'u', 'hr']);
+        // "p" wajib ada di whitelist — TipTap SELALU membungkus teks dalam
+        // <p> (paragraph node), bahkan untuk konten satu-baris seperti label
+        // section. Tanpa "p", HTMLSanitizerService menghapus SELURUH root
+        // elemen (beserta text node di dalamnya) karena root document selalu
+        // berbentuk <p>...</p> — bug nyata ditemukan saat verifikasi visual
+        // (label section tersimpan html:"" walau json terisi benar).
+        $labelSanitizer = new HTMLSanitizerService(allowedTagsOverride: ['p', 'span', 'strong', 'em', 'u', 's', 'br']);
+
+        foreach ($rows as $idx => $row) {
+            $rows[$idx] = $this->sanitizeRowHtml($row, $textLikeSanitizer, $labelSanitizer);
+        }
+
+        DB::beginTransaction();
+        $dashboard->widgets()->delete();
+
+        $refToId   = [];
+        $createRow = function (array $row, int $order, ?string $parentId) use ($dashboard, &$refToId) {
+            $created = $dashboard->widgets()->create([
+                'type'       => $row['type'],
+                'widget_id'  => $row['widget']['id'] ?? null,
+                'config'     => $row['config'] ?? null,
+                'width'      => $row['width'],
+                'order'      => $order,
+                'parent_id'  => $parentId,
+                'is_visible' => $row['is_visible'] ?? true,
+            ]);
+            if (! empty($row['ref'])) {
+                $refToId[$row['ref']] = $created->id;
+            }
+        };
+
+        // Pass 1: root — section, dan block manapun yang tidak dinestingkan.
+        foreach ($rows as $order => $row) {
+            if (empty($row['parent_ref'])) {
+                $createRow($row, $order, null);
+            }
+        }
+        // Pass 2: level-1 — link_card di dalam section, ATAU block lain
+        // (chart/text/shortcut/dst) di dalam section.
+        foreach ($rows as $order => $row) {
+            if (! empty($row['parent_ref']) && isset($refToId[$row['parent_ref']]) && ($row['type'] ?? null) !== 'link_card_item') {
+                $createRow($row, $order, $refToId[$row['parent_ref']]);
+            }
+        }
+        // Pass 3: level-2 — link_card_item. parent_ref-nya (menunjuk suatu
+        // link_card) baru pasti tersedia di $refToId setelah pass 2 selesai,
+        // karena link_card induknya bisa saja baru dibuat di pass 2 (kalau
+        // link_card itu sendiri berada di dalam section).
+        foreach ($rows as $order => $row) {
+            if (($row['type'] ?? null) === 'link_card_item') {
+                $createRow($row, $order, $refToId[$row['parent_ref']] ?? null);
+            }
+        }
+
+        DB::commit();
+
+        return response()->noContent();
+    }
+
+    /**
+     * Blok `quick_list` menyimpan `config.model_id` untuk query, dan
+     * `config.model` (record Permission utuh) HANYA untuk ditampilkan di
+     * LinkModel saat form dibuka.
+     *
+     * Bug: konfigurasi lama — dan konfigurasi apa pun yang objeknya tidak
+     * lengkap — membuat LinkModel gagal menampilkan nilainya, lalu memanggil
+     * onValueChange(null) yang menghapus pilihan model begitu dialog dibuka.
+     * Karena itu record-nya dimuat ulang di sini setiap kali halaman
+     * dirender, sehingga frontend selalu menerima objek yang bisa
+     * ditampilkan tanpa bergantung pada bentuk data yang tersimpan.
+     */
+    private function hydrateQuickListModels(mixed $widgets): void {
+        $quickLists = collect();
+
+        $collect = function ($items) use (&$collect, $quickLists) {
+            foreach ($items as $item) {
+                if ($item->type === 'quick_list') {
+                    $quickLists->push($item);
+                }
+                if ($item->relationLoaded('children')) {
+                    $collect($item->children);
+                }
+            }
+        };
+        $collect($widgets);
+
+        $permissionIds = $quickLists
+            ->map(fn (DashboardWidget $row) => $row->config['model_id'] ?? null)
+            ->filter()
+            ->unique();
+
+        if ($permissionIds->isEmpty()) {
+            return;
+        }
+
+        $permissions = PermissionModel::query()->whereKey($permissionIds)->get()->keyBy('id');
+
+        foreach ($quickLists as $row) {
+            $permission = $permissions->get($row->config['model_id'] ?? null);
+            if (! $permission) {
+                continue;
+            }
+
+            $row->config = [...$row->config, 'model' => $permission->toArray()];
+        }
+    }
+
+    /**
+     * desk-dashboard-builder Requirement 2a, 2.1b, 2.1c: sanitasi HTML
+     * per-tipe SEBELUM disimpan — sanitasi client TIDAK CUKUP karena bukan
+     * satu-satunya jalur data mencapai penyimpanan.
+     */
+    private function sanitizeRowHtml(array $row, HTMLSanitizerService $textLikeSanitizer, HTMLSanitizerService $labelSanitizer): array {
+        if (($row['type'] ?? null) === 'text' && ! empty($row['config']['html'] ?? null)) {
+            $row['config']['html'] = $textLikeSanitizer->sanitize($row['config']['html'])->sanitizedHTML;
+        }
+
+        if (($row['type'] ?? null) === 'section') {
+            if (! empty($row['config']['label']['html'] ?? null)) {
+                $row['config']['label']['html'] = $labelSanitizer->sanitize($row['config']['label']['html'])->sanitizedHTML;
+            }
+        }
+
+        // Feedback user: description Link Card & Quick List kini memakai
+        // TiptapEditor (sebelumnya teks polos), jadi ikut jalur sanitasi
+        // yang sama dengan description Section — bentuknya {json, html}.
+        if (\in_array($row['type'] ?? null, ['section', 'link_card', 'quick_list'], true)
+            && ! empty($row['config']['description']['html'] ?? null)) {
+            $row['config']['description']['html'] = $textLikeSanitizer->sanitize($row['config']['description']['html'])->sanitizedHTML;
+        }
+
+        return $row;
     }
 }

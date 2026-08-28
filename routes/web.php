@@ -209,11 +209,20 @@ Route::middleware(['auth', 'lang', 'onboarded', 'app', 'desk'])->group(function 
     Route::post('/desk/switch', [DeskController::class, 'switch'])->name('desk.switch');
     Route::post('/desk/{desk}/default', [DeskController::class, 'setDefault'])->name('desk.setDefault');
     Route::post('/desk/reorder', [DeskController::class, 'reorder'])->name('desk.reorder');
-    // Dashboard
-    Route::get('dashboard-view', [DashboardController::class, 'view'])->name('dashboard');
-    Route::post('dashboard-update', [DashboardController::class, 'storeUserDashboard'])->name('dashboardForms.store');
-    Route::post('dashboard-widget-order/{dashboard}', [DashboardController::class, 'reorderWidgets'])->name('dashboard.widgets.reorder');
+    // desk-dashboard-builder: route "dashboard" (name existing, dipakai luas
+    // — Welcome.jsx, SetupUserController, DeskController::switch()) sekarang
+    // MERUPAKAN Desk Home (1 Desk = 1 Dashboard via resolveDashboard()),
+    // menggantikan total mekanisme lama union-banyak-dashboard-per-user
+    // (user_dashboards, storeUserDashboard, reorderWidgets — dihapus).
+    Route::get('dashboard-view', [DeskController::class, 'home'])->name('dashboard');
+    Route::post('dashboard-view/widgets', [DeskController::class, 'updateDashboardWidgets'])->name('dashboard.widgets.update');
     Route::post('get-chart/{widget}', [WidgetController::class, 'getChartData'])->name('get-chart');
+    // desk-dashboard-builder: block quick_list — query generik N-dokumen-terbaru (Requirement 2.7)
+    // Feedback user: model class di BODY (bukan URL segment) — POST body adalah
+    // tempat semestinya utk data request, tanpa perlu whitelist regex `.*` utk
+    // menampung backslash namespace PHP.
+    Route::post('dashboard/quick-list', [DashboardController::class, 'quickList'])
+        ->name('dashboard.quickList');
     // Settings
     Route::prefix('/settings')->group(function () {
         // Dashboard
