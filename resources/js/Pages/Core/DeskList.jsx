@@ -4,6 +4,7 @@ import {
   MouseSensor,
   TouchSensor,
   closestCenter,
+  pointerWithin,
   useDroppable,
   useSensor,
   useSensors,
@@ -36,6 +37,21 @@ import useDeleteModal from "@/Hooks/useDeleteModal";
 
 const VISIBLE_CONTAINER = "visible";
 const HIDDEN_CONTAINER = "hidden";
+
+// Bug: `closestCenter` murni bandingin jarak ke titik-tengah tiap droppable
+// — area "Tersembunyi" saat kosong lebar penuh (cuma min-h-24), titik-
+// tengahnya ada di tengah layar, jadi drop di pinggir kiri/kanan area itu
+// malah ke-attach ke card lain di grid Terlihat yang centroid-nya kebetulan
+// lebih dekat, bukan ke area Tersembunyi yang jelas-jelas ada di bawah
+// kursor. Fix standar dnd-kit multi-container: coba `pointerWithin` dulu
+// (cek kursor beneran di dalam rect droppable mana pun — cakup seluruh
+// area, termasuk pinggirnya), fallback `closestCenter` cuma kalau kursor
+// di luar semua rect (celah antar card, drag baru mulai, dst).
+function collisionDetectionStrategy(args) {
+  const pointerCollisions = pointerWithin(args);
+
+  return pointerCollisions.length > 0 ? pointerCollisions : closestCenter(args);
+}
 
 function DeskCardVisual({
   desk,
@@ -465,7 +481,7 @@ export default function DeskList({ desks: initialDesks }) {
       {editMode ? (
         <DndContext
           sensors={sensors}
-          collisionDetection={closestCenter}
+          collisionDetection={collisionDetectionStrategy}
           onDragStart={handleDragStart}
           onDragOver={handleDragOver}
           onDragEnd={handleDragEnd}
