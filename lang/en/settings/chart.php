@@ -1,0 +1,68 @@
+<?php
+
+return [
+    'title'       => 'Charts',
+    'add'         => 'Add Chart',
+    'new'         => 'Create Chart',
+    'details'     => 'Details',
+    'time_series' => 'Time Series',
+    'sharing'     => 'Sharing',
+    'columns'     => [
+        'chart_name'                  => 'Name',
+        'chart_source_type'           => 'Source',
+        'visual_type'                 => 'Chart Type',
+        'model'                       => 'Model',
+        'model.placeholder'           => 'Select a model',
+        'created_at'                  => 'Created At',
+        'based_on'                    => 'Time Based On',
+        'value_based_on'              => 'Value Based On',
+        'timespan'                    => 'Timespan',
+        'time_interval'               => 'Time Interval',
+        'group_by_based_on'           => 'Group By Field',
+        'group_by_type'               => 'Group By Function',
+        'aggregate_function_based_on' => 'Aggregate Field',
+        'number_of_groups'            => 'Number of Groups',
+        'heatmap_year'                => 'Year',
+        'color'                       => 'Color',
+        'currency'                    => 'Currency',
+        'is_shared_all'               => 'Share to all Users/Roles',
+    ],
+    'descriptions' => [
+        'is_shared_all' => 'This chart is visible to ALL users, regardless of their permission on the target model. This is additive, not a replacement — users with Select permission on the target model can still see this chart even when this option is off.',
+    ],
+
+    'chart_source_types' => [
+        'count'    => 'Count',
+        'sum'      => 'Sum',
+        'average'  => 'Average',
+        'group_by' => 'Group By',
+        'custom'   => 'Custom',
+    ],
+    'visual_types' => [
+        'line'       => 'Line',
+        'bar'        => 'Bar',
+        'pie'        => 'Pie',
+        'donut'      => 'Donut',
+        'percentage' => 'Percentage',
+        'heatmap'    => 'Heatmap',
+    ],
+    'group_by_types' => [
+        'count'   => 'Count',
+        'sum'     => 'Sum',
+        'average' => 'Average',
+    ],
+    'time_intervals' => [
+        'daily'     => 'Daily',
+        'weekly'    => 'Weekly',
+        'monthly'   => 'Monthly',
+        'quarterly' => 'Quarterly',
+        'yearly'    => 'Yearly',
+    ],
+    'timespans' => [
+        'last_week'    => 'Last Week',
+        'last_month'   => 'Last Month',
+        'last_quarter' => 'Last Quarter',
+        'last_year'    => 'Last Year',
+        'custom'       => 'Specific Date Range',
+    ],
+];

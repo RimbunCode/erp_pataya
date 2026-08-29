@@ -127,6 +127,7 @@ export default memo(function Form() {
             <div className="flex flex-col gap-4">
               <FormCheckbox
                 label="Jadikan Default"
+                description="Berlaku personal untuk akun Anda sendiri — tidak mengubah desk default user lain."
                 checked={data.is_default ?? data.isDefault ?? false}
                 onCheckedChange={(val) => setData("is_default", val)}
                 readOnly={disabled}
@@ -136,6 +137,7 @@ export default memo(function Form() {
               {hasWritePermission && (
                 <FormCheckbox
                   label="Nonaktifkan Desk"
+                  description="Menyembunyikan Desk ini dari grid /desks tanpa menghapus data atau pengaturannya — bisa diaktifkan lagi kapan saja."
                   checked={data.is_disabled ?? false}
                   onCheckedChange={(val) => setData("is_disabled", val)}
                   readOnly={disabled}
@@ -149,6 +151,7 @@ export default memo(function Form() {
               <div className="flex flex-col gap-4">
                 <FormCheckbox
                   label="Bagikan ke Role/User"
+                  description="Jika nonaktif, Desk ini bersifat pribadi — hanya Anda (pembuat) yang bisa melihatnya."
                   checked={isShared}
                   onCheckedChange={(val) => setData("is_personal_only", !val)}
                   readOnly={disabled}
@@ -156,6 +159,7 @@ export default memo(function Form() {
                 {isShared && (
                   <FormCheckbox
                     label="Bagikan ke semua User/Role"
+                    description="Desk ini terlihat oleh SEMUA User/Role — daftar Role/User spesifik di bawah jadi tidak berlaku."
                     checked={data.is_shared_all ?? false}
                     onCheckedChange={(val) => setData("is_shared_all", val)}
                     readOnly={disabled}

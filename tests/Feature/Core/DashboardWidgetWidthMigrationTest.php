@@ -17,7 +17,13 @@ class DashboardWidgetWidthMigrationTest extends TestCase {
     use RefreshDatabase;
 
     public function test_half_and_full_width_values_are_converted_to_integer_col_span(): void {
-        Artisan::call('migrate:rollback', ['--step' => 2]);
+        // --step tidak lagi 2: number-card-chart-redesign menambah 6 migration
+        // BARU setelah 2 migration width ini (create_number_cards/charts/
+        // assignables + alter/drop dashboard_widgets/widgets) — --step harus
+        // mundur SAMPAI SEBELUM kedua migration width, bukan cuma 2 langkah
+        // terakhir (yang sekarang migration lain). Lihat `php artisan
+        // migrate:status` utk hitungan pasti kalau ada migration baru lagi.
+        Artisan::call('migrate:rollback', ['--step' => 8]);
 
         $dashboardId = (string) Str::ulid();
         DB::table('dashboards')->insert([

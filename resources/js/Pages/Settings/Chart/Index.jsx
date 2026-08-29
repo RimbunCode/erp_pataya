@@ -11,15 +11,11 @@ export default function Index() {
     <DataTable2
       templateItem={({ dataRow }) => (
         <div className="flex items-center justify-between p-4 border-b gap-x-4 border-muted-foreground/25">
-          <Link
-            as="button"
-            href={route("widget.show", dataRow.id)}
-            className=""
-          >
+          <Link as="button" href={route("charts.show", dataRow.id)}>
             <p className="text-base font-medium text-left text-muted-foreground">
-              {t(`settings.widget.types.${dataRow.type}`)}
+              {t(`settings.chart.visual_types.${dataRow.visual_type}`)}
             </p>
-            <p className="text-base font-medium text-left">{dataRow.name}</p>
+            <p className="text-base font-medium text-left">{dataRow.chart_name}</p>
           </Link>
         </div>
       )}

@@ -1,9 +1,9 @@
-import Form from "./Form";
+import Form from "@/Pages/Settings/NumberCard/Form";
 import LinkModel from "@/Components/LinkModel";
 import { forwardRef } from "react";
 import { useLaravelReactI18n } from "laravel-react-i18n";
 
-export default forwardRef(function WidgetLinkModel(
+export default forwardRef(function NumberCardLinkModel(
   { value, onValueChange, placeholder, ...props },
   ref,
 ) {
@@ -13,8 +13,8 @@ export default forwardRef(function WidgetLinkModel(
       placeholder={placeholder}
       value={value}
       onValueChange={onValueChange}
-      model="App\Models\Core\Widget"
-      titleDialog={t("settings.widget.new")}
+      model="App\Models\Core\NumberCard"
+      titleDialog={t("settings.number_card.new")}
       classNameDialog="max-w-(--breakpoint-md)"
       form={<Form />}
       {...props}

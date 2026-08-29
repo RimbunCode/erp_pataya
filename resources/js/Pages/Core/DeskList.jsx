@@ -66,8 +66,8 @@ function DeskCardVisual({
         isOverlay && willHide && "opacity-60 shadow-lg ring-2 ring-destructive",
       )}
     >
-      {editMode ? (
-        !desk.isHidden && (
+      <div className="absolute top-1 right-1 flex items-center gap-0.5">
+        {editMode && !desk.isHidden && (
           <button
             type="button"
             // dnd-kit listeners terpasang di onPointerDown card (parent) —
@@ -81,54 +81,62 @@ function DeskCardVisual({
               event.stopPropagation();
               onToggleHidden(desk);
             }}
-            className="absolute top-1 right-1 rounded p-1 text-muted-foreground hover:bg-muted"
+            className="rounded p-1 text-muted-foreground hover:bg-muted"
             aria-label="Sembunyikan desk"
           >
             <X className="size-4" />
           </button>
-        )
-      ) : (
-        <div className="absolute top-1 right-1">
-          <DropdownMenu>
-            <DropdownMenuTrigger asChild>
-              <Button
-                type="button"
-                variant="ghost"
-                size="icon"
-                className="size-7 opacity-0 group-hover:opacity-100 focus-visible:opacity-100 data-[state=open]:opacity-100"
-                onClick={(event) => event.stopPropagation()}
-                aria-label="Opsi desk"
-              >
-                <EllipsisVertical className="size-4" />
-              </Button>
-            </DropdownMenuTrigger>
-            <DropdownMenuContent
-              align="end"
+        )}
+        {/* Revisi: menu opsi (Jadikan Default/Edit/Hapus) tetap tersedia di
+            edit mode juga — sebelumnya sepenuhnya digantikan tombol X hide.
+            Trigger-nya butuh stopPropagation pointerdown/mousedown yg sama
+            spt tombol X di atas (alasan sama: listeners dnd-kit ada di card
+            parent saat editMode). */}
+        <DropdownMenu>
+          <DropdownMenuTrigger asChild>
+            <Button
+              type="button"
+              variant="ghost"
+              size="icon"
+              className={cn(
+                "size-7",
+                !editMode &&
+                  "opacity-0 group-hover:opacity-100 focus-visible:opacity-100 data-[state=open]:opacity-100",
+              )}
+              onPointerDown={(event) => event.stopPropagation()}
+              onMouseDown={(event) => event.stopPropagation()}
               onClick={(event) => event.stopPropagation()}
+              aria-label="Opsi desk"
             >
-              <DropdownMenuItem
-                disabled={desk.isDefault}
-                onSelect={() => onSetDefault(desk)}
-              >
-                Jadikan Default
+              <EllipsisVertical className="size-4" />
+            </Button>
+          </DropdownMenuTrigger>
+          <DropdownMenuContent
+            align="end"
+            onClick={(event) => event.stopPropagation()}
+          >
+            <DropdownMenuItem
+              disabled={desk.isDefault}
+              onSelect={() => onSetDefault(desk)}
+            >
+              Jadikan Default
+            </DropdownMenuItem>
+            {desk.canEdit && (
+              <DropdownMenuItem onSelect={() => onEdit(desk)}>
+                Edit
               </DropdownMenuItem>
-              {desk.canEdit && (
-                <DropdownMenuItem onSelect={() => onEdit(desk)}>
-                  Edit
-                </DropdownMenuItem>
-              )}
-              {desk.canDelete && (
-                <DropdownMenuItem
-                  className="text-destructive focus:text-destructive"
-                  onSelect={() => onDestroy(desk)}
-                >
-                  Hapus
-                </DropdownMenuItem>
-              )}
-            </DropdownMenuContent>
-          </DropdownMenu>
-        </div>
-      )}
+            )}
+            {desk.canDelete && (
+              <DropdownMenuItem
+                className="text-destructive focus:text-destructive"
+                onSelect={() => onDestroy(desk)}
+              >
+                Hapus
+              </DropdownMenuItem>
+            )}
+          </DropdownMenuContent>
+        </DropdownMenu>
+      </div>
 
       <span
         className={cn(

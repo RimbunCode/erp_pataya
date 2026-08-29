@@ -7,7 +7,13 @@ import { Textarea } from "@/Components/ui/textarea";
 import { useLaravelReactI18n } from "laravel-react-i18n";
 import { useMemo } from "react";
 
-import WidgetLinkModel from "../Widget/WidgetLinkModel";
+// number-card-chart-redesign: WidgetLinkModel/Widget dihapus (split jadi
+// NumberCard+Chart). Halaman ini SUDAH stale sejak desk-dashboard-builder
+// (schema `width` half/full string vs kolom integer sekarang, `data.widgets`
+// flat vs block tree ber-`type`/`parent_id` sekarang) — fix minimal di sini
+// cuma supaya import tidak pecah build, BUKAN modernisasi penuh (di luar
+// scope spec ini).
+import NumberCardLinkModel from "@/Components/NumberCardLinkModel";
 import Select from "@/Components/Select";
 import { FormCheckbox } from "@/Components/ui/checkbox";
 import { Input } from "@/Components/ui/input";
@@ -30,7 +36,7 @@ function Form() {
         width: 3,
         cell({ dataRow, setData, attributes }) {
           return (
-            <WidgetLinkModel
+            <NumberCardLinkModel
               value={dataRow?.widget}
               onValueChange={(val) => setData("widget", val)}
               {...attributes}

@@ -12,6 +12,7 @@ use App\Http\Controllers\Core\ApprovalInstanceController;
 use App\Http\Controllers\Core\ApprovalSchemeController;
 use App\Http\Controllers\Core\BranchController;
 use App\Http\Controllers\Core\ChangelogController;
+use App\Http\Controllers\Core\ChartController;
 use App\Http\Controllers\Core\CommandSearchController;
 use App\Http\Controllers\Core\CompanyController;
 use App\Http\Controllers\Core\CompanyLogoController;
@@ -28,11 +29,11 @@ use App\Http\Controllers\Core\LanguageController;
 use App\Http\Controllers\Core\LogController;
 use App\Http\Controllers\Core\ManualBookController;
 use App\Http\Controllers\Core\NotificationController;
+use App\Http\Controllers\Core\NumberCardController;
 use App\Http\Controllers\Core\PrintTemplateController;
 use App\Http\Controllers\Core\SavedFilterController;
 use App\Http\Controllers\Core\TagController;
 use App\Http\Controllers\Core\TodoController;
-use App\Http\Controllers\Core\WidgetController;
 use App\Http\Controllers\CRM\LeadController;
 use App\Http\Controllers\CRM\OpportunityController;
 use App\Http\Controllers\CRM\QuotationController;
@@ -216,7 +217,8 @@ Route::middleware(['auth', 'lang', 'onboarded', 'app', 'desk'])->group(function 
     // (user_dashboards, storeUserDashboard, reorderWidgets — dihapus).
     Route::get('dashboard-view', [DeskController::class, 'home'])->name('dashboard');
     Route::post('dashboard-view/widgets', [DeskController::class, 'updateDashboardWidgets'])->name('dashboard.widgets.update');
-    Route::post('get-chart/{widget}', [WidgetController::class, 'getChartData'])->name('get-chart');
+    Route::post('number-cards/{numberCard}/value', [NumberCardController::class, 'getValue'])->name('numberCards.getValue');
+    Route::post('charts/{chart}/data', [ChartController::class, 'getData'])->name('charts.getData');
     // desk-dashboard-builder: block quick_list — query generik N-dokumen-terbaru (Requirement 2.7)
     // Feedback user: model class di BODY (bukan URL segment) — POST body adalah
     // tempat semestinya utk data request, tanpa perlu whitelist regex `.*` utk
@@ -251,7 +253,8 @@ Route::middleware(['auth', 'lang', 'onboarded', 'app', 'desk'])->group(function 
         Route::get('/emailTemplates/fields', [EmailTemplateController::class, 'fields'])->name('emailTemplates.fields');
         Route::resourceDetail('emailTemplate', EmailTemplateController::class);
         Route::post('/emailTemplates/{emailTemplate}/test-send', [EmailTemplateController::class, 'testSend'])->name('emailTemplates.testSend');
-        Route::resourceDetail('widget', WidgetController::class);
+        Route::resourceDetail('numberCard', NumberCardController::class);
+        Route::resourceDetail('chart', ChartController::class);
     });
     // Tags
     Route::resourceDetail('tag', TagController::class);

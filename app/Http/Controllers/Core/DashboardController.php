@@ -25,8 +25,18 @@ class DashboardController extends Controller {
         }
     }
 
+    /**
+     * number-card-chart-redesign: `widget_id` (Widget lama) sudah tidak
+     * ada. Form legacy ini (Settings/Dashboard/Form.jsx) tidak punya
+     * selector type per baris (peninggalan sebelum entity Chart/NumberCard
+     * dipisah) — picker-nya sudah diarahkan ke NumberCardLinkModel, jadi
+     * di sini konsisten diarahkan ke `number_card_id` saja. TIDAK
+     * dimodernisasi lebih lanjut (halaman ini sudah stale sejak
+     * desk-dashboard-builder — width string vs kolom integer sekarang,
+     * di luar scope spec ini).
+     */
     private function fillWidgetRelation(array $data, Dashboard $dashboard) {
-        $data['widget_id'] = $data['widget']['id'];
+        $data['number_card_id'] = $data['widget']['id'];
 
         return $data;
     }

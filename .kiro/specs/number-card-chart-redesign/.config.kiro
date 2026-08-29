@@ -1,0 +1,6 @@
+{
+  "specId": "117cd6f7-1e45-4db8-bce8-e7b1f7f4c247",
+  "workflowType": "design-first",
+  "specType": "feature",
+  "description": "Split model Widget (campur Number Card + Chart dalam satu entity) jadi 2 model terpisah, NumberCard dan Chart, mengikuti pola ERPNext v16 (Number Card + Dashboard Chart DocType) dengan penyesuaian: source Report di-drop (tidak ada entity Report setara di codebase ini), Custom source pakai registry tertutup (bukan whitelist method-path bebas ala ERPNext), dan visibility pakai gate ganda (permission Select/Read ke model target ATAU is_shared_all/assign ke User-Role spesifik, meniru pola Desk assignables)."
+}

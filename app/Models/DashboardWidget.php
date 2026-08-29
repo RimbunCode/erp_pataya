@@ -3,8 +3,9 @@
 namespace App\Models;
 
 use App\Casts\Json;
+use App\Models\Core\Chart;
 use App\Models\Core\Dashboard;
-use App\Models\Core\Widget;
+use App\Models\Core\NumberCard;
 use Illuminate\Database\Eloquent\Concerns\HasUlids;
 use Illuminate\Database\Eloquent\Relations\HasMany;
 use Illuminate\Database\Eloquent\SoftDeletes;
@@ -42,17 +43,22 @@ class DashboardWidget extends Model {
     ];
 
     protected static function loadRelationsOnShow() {
-        return ['widget', 'dashboard', 'parent'];
+        return ['numberCard', 'chart', 'dashboard', 'parent'];
     }
 
     protected array $configColumns = [
-        'widget',
+        'numberCard',
+        'chart',
         'dashboard',
         'parent',
     ];
 
-    public function widget() {
-        return $this->belongsTo(Widget::class, 'widget_id');
+    public function numberCard() {
+        return $this->belongsTo(NumberCard::class, 'number_card_id');
+    }
+
+    public function chart() {
+        return $this->belongsTo(Chart::class, 'chart_id');
     }
 
     public function dashboard() {

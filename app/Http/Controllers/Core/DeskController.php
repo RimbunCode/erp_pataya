@@ -494,7 +494,11 @@ class DeskController extends Controller {
         $dashboard->load([
             'widgets' => fn ($q) => $q->whereNull('parent_id')
                 ->orderBy('order')
-                ->with(['widget', 'children.widget', 'children.children.widget']),
+                ->with([
+                    'numberCard', 'chart',
+                    'children.numberCard', 'children.chart',
+                    'children.children.numberCard', 'children.children.chart',
+                ]),
         ]);
 
         $this->hydrateQuickListModels($dashboard->widgets);
@@ -556,14 +560,18 @@ class DeskController extends Controller {
 
         $refToId   = [];
         $createRow = function (array $row, int $order, ?string $parentId) use ($dashboard, &$refToId) {
+            // number-card-chart-redesign: `widget_id` (Widget lama) pecah
+            // jadi `number_card_id`/`chart_id`, dipilih sesuai `type` block
+            // (mutually exclusive per baris — Requirement 9.2).
             $created = $dashboard->widgets()->create([
-                'type'       => $row['type'],
-                'widget_id'  => $row['widget']['id'] ?? null,
-                'config'     => $row['config'] ?? null,
-                'width'      => $row['width'],
-                'order'      => $order,
-                'parent_id'  => $parentId,
-                'is_visible' => $row['is_visible'] ?? true,
+                'type'           => $row['type'],
+                'number_card_id' => $row['type'] === 'card' ? ($row['numberCard']['id'] ?? null) : null,
+                'chart_id'       => $row['type'] === 'chart' ? ($row['chart']['id'] ?? null) : null,
+                'config'         => $row['config'] ?? null,
+                'width'          => $row['width'],
+                'order'          => $order,
+                'parent_id'      => $parentId,
+                'is_visible'     => $row['is_visible'] ?? true,
             ]);
             if (! empty($row['ref'])) {
                 $refToId[$row['ref']] = $created->id;

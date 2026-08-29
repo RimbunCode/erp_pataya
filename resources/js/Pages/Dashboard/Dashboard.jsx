@@ -14,12 +14,24 @@ import { gooeyToast } from "@/lib/gooeyToast";
 // TOTAL (mekanisme lama, multi-dashboard-per-user, dihapus). State
 // top-level NESTED (block.children) — flatten hanya sesaat sebelum
 // dikirim ke endpoint update (design.md: "Bentuk state FE vs payload BE").
+// Bug ditemukan (verifikasi manual, 2 lapis):
+// 1) Sebelum number-card-chart-redesign, baris ini baca `row.widget`
+//    (Widget lama, satu field utk chart+card) — field itu sudah tidak ada
+//    di response backend (diganti `numberCard`/`chart` terpisah).
+// 2) Setelah fix #1, `chart` tetap kosong utk block "card": Eloquent
+//    men-serialize NAMA RELASI `numberCard()` (camelCase) jadi
+//    `number_card` (snake_case) di JSON — beda dari `chart()` (satu kata,
+//    tak berubah case-nya). Baca `row.number_card` (bukan `row.numberCard`)
+//    di sisi LOAD ini; sisi SAVE (flattenBlocks, payload ke
+//    DeskController::updateDashboardWidgets) tetap `numberCard` camelCase
+//    apa adanya — itu murni state client, tidak lewat Eloquent serialize.
 function toStateBlock(row) {
   return {
     ref: row.id,
     id: row.id,
     type: row.type,
-    widget: row.widget,
+    numberCard: row.number_card,
+    chart: row.chart,
     config: row.config,
     width: row.width,
     is_visible: row.is_visible,

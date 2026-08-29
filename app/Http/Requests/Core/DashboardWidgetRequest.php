@@ -32,10 +32,14 @@ class DashboardWidgetRequest extends BaseFormRequest {
      */
     public function rules(): array {
         return [
-            'widgets'             => ['present', 'array'],
-            'widgets.*.type'      => ['required', 'string', Rule::in(array_keys(DashboardWidget::VALID_PARENTS))],
-            'widgets.*.widget.id' => ['required_if:widgets.*.type,chart,card', 'nullable', 'string', new ExistsExcludingTrashed('widgets')],
-            'widgets.*.config'    => ['nullable', 'array'],
+            'widgets'        => ['present', 'array'],
+            'widgets.*.type' => ['required', 'string', Rule::in(array_keys(DashboardWidget::VALID_PARENTS))],
+            // number-card-chart-redesign: `widget` (Widget lama) pecah jadi
+            // `numberCard`/`chart` — masing-masing hanya wajib utk type-nya
+            // sendiri, exists check ke tabel baru masing-masing.
+            'widgets.*.numberCard.id' => ['required_if:widgets.*.type,card', 'nullable', 'string', new ExistsExcludingTrashed('number_cards')],
+            'widgets.*.chart.id'      => ['required_if:widgets.*.type,chart', 'nullable', 'string', new ExistsExcludingTrashed('charts')],
+            'widgets.*.config'        => ['nullable', 'array'],
             // Wildcard generik agar Laravel validated() mempertahankan
             // SELURUH isi config (json/html/label/dst) — tanpa ini,
             // validated() men-strip key yang tidak disebut eksplisit di
