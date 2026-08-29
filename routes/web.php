@@ -227,9 +227,6 @@ Route::middleware(['auth', 'lang', 'onboarded', 'app', 'desk'])->group(function 
         ->name('dashboard.quickList');
     // Settings
     Route::prefix('/settings')->group(function () {
-        // Dashboard
-        Route::resourceDetail('dashboard', DashboardController::class);
-
         // Company
         Route::controller(CompanyController::class)->group(function () {
             Route::get('company', 'index')->name('companies.index');

@@ -4,16 +4,21 @@ namespace App\Http\Controllers\Core;
 
 use App\Enums\Permission;
 use App\Http\Controllers\Controller;
-use App\Http\Requests\Core\DashboardRequest;
 use App\Models\Core\Dashboard;
 use App\Models\Model;
 use App\Services\Core\PermissionChecker;
 use Illuminate\Http\Request;
-use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Schema;
-use Inertia\Inertia;
-use Symfony\Component\Uid\Ulid;
 
+/**
+ * CRUD `Settings/Dashboard` lama (index/create/store/show/edit/update) sudah
+ * dihapus — halaman itu adalah peninggalan sebelum desk-dashboard-builder
+ * (multi-dashboard-per-user), sudah tidak ter-link di menu manapun, dan
+ * skemanya basi vs canvas block Desk sekarang. Konstruktor & quickList()
+ * TETAP dipertahankan: quickList() dipakai block `quick_list` di Desk
+ * canvas (lihat DeskController::home()), model Dashboard sendiri masih
+ * live sebagai backing-store 1:1 per Desk (Desk::resolveDashboard()).
+ */
 class DashboardController extends Controller {
     public function __construct(Request $request) {
         parent::__construct($request, Dashboard::class);
@@ -23,129 +28,6 @@ class DashboardController extends Controller {
         if ($method == 'quickList') {
             return true;
         }
-    }
-
-    /**
-     * number-card-chart-redesign: `widget_id` (Widget lama) sudah tidak
-     * ada. Form legacy ini (Settings/Dashboard/Form.jsx) tidak punya
-     * selector type per baris (peninggalan sebelum entity Chart/NumberCard
-     * dipisah) — picker-nya sudah diarahkan ke NumberCardLinkModel, jadi
-     * di sini konsisten diarahkan ke `number_card_id` saja. TIDAK
-     * dimodernisasi lebih lanjut (halaman ini sudah stale sejak
-     * desk-dashboard-builder — width string vs kolom integer sekarang,
-     * di luar scope spec ini).
-     */
-    private function fillWidgetRelation(array $data, Dashboard $dashboard) {
-        $data['number_card_id'] = $data['widget']['id'];
-
-        return $data;
-    }
-
-    /**
-     * Display a listing of the resource.
-     */
-    public function index(Request $request) {
-        $this->setBreadcrumbs();
-        Dashboard::dataTable($request);
-
-        return Inertia::render(
-            'Settings/Dashboard/Index',
-        );
-    }
-
-    /**
-     * Show the form for creating a new resource.
-     */
-    public function create() {
-        $this->setBreadcrumbs();
-
-        return Inertia::render('Settings/Dashboard/Show');
-    }
-
-    /**
-     * Store a newly created resource in storage.
-     */
-    public function store(DashboardRequest $request) {
-        $data                  = $request->validated();
-        $data['created_by_id'] = $request->user()->id;
-        DB::beginTransaction();
-        $dashboard = Dashboard::create($data);
-
-        foreach ($data['widgets'] as $idx => $widget) {
-            $widget['order'] = $idx;
-            $widget          = $this->fillWidgetRelation($widget, $dashboard);
-            $widget          = $dashboard->widgets()->create($widget);
-
-            $widget->refresh();
-
-        }
-        DB::commit();
-
-        return redirect()->back()->with('id', $dashboard->id);
-    }
-
-    /**
-     * Display the specified resource.
-     */
-    public function show(Dashboard $dashboard) {
-        $this->setBreadcrumbs($dashboard);
-        $dashboard->showDetail();
-
-        return Inertia::render('Settings/Dashboard/Show', [
-            'dashboard' => function () use ($dashboard) {
-                $dashboard->loadRelations();
-
-                return $dashboard;
-            },
-        ]);
-    }
-
-    /**
-     * Show the form for editing the specified resource.
-     */
-    public function edit(Dashboard $dashboard) {
-        //
-    }
-
-    /**
-     * Update the specified resource in storage.
-     */
-    public function update(DashboardRequest $request, Dashboard $dashboard) {
-        $data = $request->validated();
-        DB::beginTransaction();
-        $data['created_by_id'] = $request->user()->id;
-        $dashboard->widgets()
-            ->whereNotIn('id', array_column($data['widgets'], 'id'))
-            ->delete();
-        $widgetIds = collect($data['widgets'])
-            ->pluck('id')
-            ->filter(fn ($id) => Ulid::isValid((string) $id))
-            ->values()
-            ->all();
-        $existingWidgets = $dashboard->widgets()
-            ->whereIn('id', $widgetIds)
-            ->get()
-            ->keyBy('id');
-        foreach ($data['widgets'] as $idx => $widget) {
-            $widget['order'] = $idx;
-            $widget          = $this->fillWidgetRelation($widget, $dashboard);
-            $dashboardWidget = null;
-            if (Ulid::isValid($widget['id'])) {
-                $dashboardWidget = $existingWidgets->get($widget['id']);
-                if ($dashboardWidget) {
-                    $dashboardWidget->fill($widget);
-                    $dashboardWidget->save();
-                }
-            } else {
-                $dashboardWidget = $dashboard->widgets()->create($widget);
-            }
-
-            $dashboardWidget?->refresh();
-        }
-        $dashboard->fillForUpdate($data);
-        DB::commit();
-
-        return redirect()->back();
     }
 
     /**
