@@ -10,16 +10,18 @@ import userEvent from "@testing-library/user-event";
 //
 // Sesuai arahan task: SEMUA komponen anak yang sudah py test sendiri di-stub
 // (FormPageContent/useFormPage, FormTable, DatetimePicker, ItemBarcode,
-// WarehouseLinkModel, ItemVariantLinkModel, ItemUnitLinkModel,
-// AssetServiceLinkModel, AssetServiceConsumedItemLinkModel). Fokus test HANYA
-// pada logic UNIK milik Form.jsx InternalOrders sendiri:
+// WarehouseLinkModel, ItemVariantLinkModel, ItemUnitLinkModel). Fokus test
+// HANYA pada logic UNIK milik Form.jsx InternalOrders sendiri:
 // - itemColumns["item"].cell onValueChange: set item/unit/conversion_factor/
 //   source_warehouse dgn cascade dari dataRow.source_warehouse ATAU
 //   sourceWarehouseRef.current (ref yang selalu sinkron ke data.source_warehouse
 //   terbaru lewat assignment langsung tiap render -- BUKAN useEffect).
-// - itemColumns["referenceable"].cell: pilih AssetServiceConsumedItemLinkModel
-//   vs AssetServiceLinkModel berdasar value?.type, shape payload setData beda
-//   antara keduanya.
+// - itemColumns["item"].cell (spec asset-service-billing-reference-flow):
+//   saat data.referenceable_type=AssetService, filter Item (item.category.type
+//   =service OR id in consumedItems), auto-link referenceable ke
+//   AssetServiceConsumedItem (match persis) atau AssetService (item Jasa),
+//   lock Item+Quantity utk baris part -- kolom "referenceable" per-baris lama
+//   (AssetServiceLinkModel/AssetServiceConsumedItemLinkModel) SUDAH DIHAPUS.
 // - itemColumns["unit"].cell onValueChange: set unit + conversion_factor.
 // - handleBarcodeSelect: tambah baris baru vs increment quantity kalau
 //   item+unit yang sama sudah ada di data.items (TIDAK ditemukan pola bug
@@ -71,7 +73,9 @@ vi.mock("@/Pages/Core/FormPage", async () => {
   const ctx = React.createContext();
   return {
     FormPageContent: ({ title, collapsible, defaultOpen, children }) => (
-      <section data-collapsible={collapsible ? String(!!defaultOpen) : undefined}>
+      <section
+        data-collapsible={collapsible ? String(!!defaultOpen) : undefined}
+      >
         {title && <h3>{title}</h3>}
         {children}
       </section>
@@ -155,11 +159,15 @@ vi.mock("@/Pages/Inventory/Items/ItemVariantLinkModel", () => ({
 vi.mock("@/Pages/Inventory/Items/ItemUnitLinkModel", () => ({
   default: () => <div>item-unit-link</div>,
 }));
-vi.mock("@/Pages/Asset/Services/AssetServiceLinkModel", () => ({
-  default: () => <div>asset-service-link</div>,
-}));
-vi.mock("@/Pages/Asset/Services/AssetServiceConsumedItemLinkModel", () => ({
-  default: () => <div>asset-service-consumed-item-link</div>,
+// @/Components/LinkModel dipakai field "Reference To" header (Requirement
+// 2.3/1.4, spec asset-service-billing-reference-flow) -- distub supaya tidak
+// perlu usePermission()/usePage().props.auth sungguhan.
+vi.mock("@/Components/LinkModel", () => ({
+  default: ({ model, value }) => (
+    <div>
+      link-model:{model}:{value?.id ?? "none"}
+    </div>
+  ),
 }));
 
 import { useState } from "react";
@@ -173,17 +181,18 @@ import Form from "./Form";
 // assertion di test bisa membaca data.items final setelah interaksi.
 function TestFormPageState({ initial, stateRef, children }) {
   const [data, setDataState] = useState(initial.data);
+  // Meniru semantik ASLI Inertia useForm().setData(): argumen string ->
+  // set 1 field (merge), argumen fungsi -> updater, argumen objek MENGGANTI
+  // SELURUH data form (bukan merge) -- lihat catatan sama di
+  // SalesOrders/Form.rtl.test.jsx.
   const setData = (arg, val) => {
     setDataState((prev) => {
-      let next;
       if (typeof arg === "function") {
-        next = arg(prev);
+        return arg(prev);
       } else if (typeof arg === "string") {
-        next = { ...prev, [arg]: val };
-      } else {
-        next = { ...prev, ...arg };
+        return { ...prev, [arg]: val };
       }
-      return next;
+      return arg;
     });
   };
   stateRef.data = data;
@@ -231,9 +240,7 @@ describe("Internal Order Form.jsx", () => {
       expect(
         screen.getByText("sales.internalOrder.detail"),
       ).toBeInTheDocument();
-      expect(
-        screen.getByText("sales.internalOrder.items"),
-      ).toBeInTheDocument();
+      expect(screen.getByText("sales.internalOrder.items")).toBeInTheDocument();
       expect(
         screen.getByText("sales.internalOrder.columns.external_note"),
       ).toBeInTheDocument();
@@ -264,6 +271,32 @@ describe("Internal Order Form.jsx", () => {
         (s) => s.getAttribute("data-collapsible") === "true",
       );
       expect(target).toBeTruthy();
+    });
+
+    it("data.referenceable menampilkan FormInput reference_to readOnly berisi LinkModel (Requirement 2.3/1.4)", () => {
+      renderForm({
+        data: {
+          date: new Date(),
+          items: [],
+          referenceable: { id: 10 },
+          referenceable_type: "App\\Models\\Asset\\AssetService",
+        },
+      });
+
+      expect(
+        screen.getByText("sales.internalOrder.columns.reference_to"),
+      ).toBeInTheDocument();
+      expect(
+        screen.getByText(/link-model:App\\Models\\Asset\\AssetService:10/),
+      ).toBeInTheDocument();
+    });
+
+    it("tanpa data.referenceable, FormInput reference_to tidak dirender", () => {
+      renderForm({ data: { date: new Date(), items: [] } });
+
+      expect(
+        screen.queryByText("sales.internalOrder.columns.reference_to"),
+      ).not.toBeInTheDocument();
     });
   });
 
@@ -332,78 +365,177 @@ describe("Internal Order Form.jsx", () => {
   });
 
   // --------------------------------------------------------------------
-  // itemColumns["referenceable"].cell -- pilih komponen berdasar value?.type
+  // Requirement 3-6, spec asset-service-billing-reference-flow: kolom
+  // "referenceable" per-baris DIHAPUS, logic-nya pindah ke itemColumns["item"].
+  // InternalOrder TIDAK punya field price/customer (beda dari SalesOrder).
   // --------------------------------------------------------------------
-  describe("itemColumns referenceable.cell", () => {
-    it("type AssetServiceConsumedItem merender AssetServiceConsumedItemLinkModel dan setData payload {type, id}", () => {
-      renderForm({ data: { date: new Date(), items: [] } });
+  describe("itemColumns item.cell -- filter/auto-link/lock AssetService", () => {
+    const ASSET_SERVICE_CLASS = "App\\Models\\Asset\\AssetService";
+    const ASSET_SERVICE_CONSUMED_ITEM_CLASS =
+      "App\\Models\\Asset\\AssetServiceConsumedItem";
 
-      const setDataRow = vi.fn();
-      const referenceableColumn = captured.formTableProps.columns.find(
-        (c) => c.name === "referenceable",
-      );
-      const value = {
-        type: "App\\Models\\Asset\\AssetServiceConsumedItem",
-        id: 7,
+    function assetServiceReferenceable(overrides = {}) {
+      return {
+        id: 10,
+        consumed_items: [
+          {
+            id: 5,
+            item: { id: 501 },
+            quantity: 4,
+            item_unit: { id: 9, conversion_factor: 1 },
+          },
+        ],
+        ...overrides,
       };
-      const element = referenceableColumn.cell({
-        data: value,
+    }
+
+    it("kolom referenceable per-baris tidak lagi dirender", () => {
+      renderForm({ data: { date: new Date(), items: [] } });
+
+      expect(
+        captured.formTableProps.columns.find((c) => c.name === "referenceable"),
+      ).toBeUndefined();
+    });
+
+    it("referenceable_type AssetService: filters berisi or item.category.type=service DAN id in consumedItemVariantIds", () => {
+      renderForm({
+        data: {
+          date: new Date(),
+          items: [],
+          referenceable_type: ASSET_SERVICE_CLASS,
+          referenceable_id: 10,
+          referenceable: assetServiceReferenceable(),
+        },
+      });
+
+      const itemColumn = captured.formTableProps.columns.find(
+        (c) => c.name === "item",
+      );
+      const element = itemColumn.cell({
         dataRow: {},
-        setData: setDataRow,
+        setData: vi.fn(),
         attributes: {},
       });
 
-      // Wadah div membungkus 1 elemen hasil ternary (bukan array)
-      const inner = element.props.children;
-      inner.props.onValueChange({ id: 55 });
-
-      expect(setDataRow).toHaveBeenCalledWith("referenceable", {
-        type: "App\\Models\\Asset\\AssetServiceConsumedItem",
-        id: 55,
+      expect(element.props.filters).toEqual({
+        or: {
+          "item.category.type": "service",
+          id: { in: [501] },
+        },
       });
     });
 
-    it("type lain (default) merender AssetServiceLinkModel dan setData type tetap AssetService", () => {
+    it("tanpa referenceable_type AssetService: filters kosong (regresi)", () => {
       renderForm({ data: { date: new Date(), items: [] } });
 
-      const setDataRow = vi.fn();
-      const referenceableColumn = captured.formTableProps.columns.find(
-        (c) => c.name === "referenceable",
+      const itemColumn = captured.formTableProps.columns.find(
+        (c) => c.name === "item",
       );
-      const element = referenceableColumn.cell({
-        data: null,
+      const element = itemColumn.cell({
         dataRow: {},
-        setData: setDataRow,
+        setData: vi.fn(),
         attributes: {},
       });
 
-      const inner = element.props.children;
-      inner.props.onValueChange({ id: 88 });
-
-      expect(setDataRow).toHaveBeenCalledWith("referenceable", {
-        type: "App\\Models\\Asset\\AssetService",
-        id: 88,
-      });
+      expect(element.props.filters).toBeUndefined();
     });
 
-    it("AssetServiceLinkModel onValueChange(null) mengirim referenceable null (hapus referensi)", () => {
-      renderForm({ data: { date: new Date(), items: [] } });
+    it("pilih ItemVariant yang cocok consumedItem: auto-link ke AssetServiceConsumedItem, quantity/unit ikut, assetServiceLocked true", () => {
+      renderForm({
+        data: {
+          date: new Date(),
+          items: [],
+          referenceable_type: ASSET_SERVICE_CLASS,
+          referenceable_id: 10,
+          referenceable: assetServiceReferenceable(),
+        },
+      });
 
       const setDataRow = vi.fn();
-      const referenceableColumn = captured.formTableProps.columns.find(
-        (c) => c.name === "referenceable",
+      const itemColumn = captured.formTableProps.columns.find(
+        (c) => c.name === "item",
       );
-      const element = referenceableColumn.cell({
-        data: null,
+      const element = itemColumn.cell({
         dataRow: {},
         setData: setDataRow,
         attributes: {},
       });
 
-      const inner = element.props.children;
-      inner.props.onValueChange(null);
+      element.props.onValueChange({ id: 501, default_uom: null });
 
-      expect(setDataRow).toHaveBeenCalledWith("referenceable", null);
+      expect(setDataRow).toHaveBeenCalledWith(
+        expect.objectContaining({
+          referenceable: {
+            type: ASSET_SERVICE_CONSUMED_ITEM_CLASS,
+            id: 5,
+          },
+          quantity: 4,
+          unit: { id: 9, conversion_factor: 1 },
+          conversion_factor: 1,
+          assetServiceLocked: true,
+        }),
+      );
+    });
+
+    it("pilih ItemVariant kategori service tanpa match consumedItem: auto-link ke AssetService header, TIDAK locked", () => {
+      renderForm({
+        data: {
+          date: new Date(),
+          items: [],
+          referenceable_type: ASSET_SERVICE_CLASS,
+          referenceable_id: 10,
+          referenceable: assetServiceReferenceable(),
+        },
+      });
+
+      const setDataRow = vi.fn();
+      const itemColumn = captured.formTableProps.columns.find(
+        (c) => c.name === "item",
+      );
+      const element = itemColumn.cell({
+        dataRow: {},
+        setData: setDataRow,
+        attributes: {},
+      });
+
+      element.props.onValueChange({
+        id: 999,
+        default_uom: null,
+        item: { category: { type: "service" } },
+      });
+
+      expect(setDataRow).toHaveBeenCalledWith(
+        expect.objectContaining({
+          referenceable: { type: ASSET_SERVICE_CLASS, id: 10 },
+          assetServiceLocked: false,
+        }),
+      );
+    });
+
+    it("dataRow.assetServiceLocked true: kolom Item DAN Quantity disabled", () => {
+      renderForm({ data: { date: new Date(), items: [] } });
+
+      const itemColumn = captured.formTableProps.columns.find(
+        (c) => c.name === "item",
+      );
+      const quantityColumn = captured.formTableProps.columns.find(
+        (c) => c.name === "quantity",
+      );
+
+      const itemEl = itemColumn.cell({
+        dataRow: { item: { id: 1 }, assetServiceLocked: true },
+        setData: vi.fn(),
+        attributes: {},
+      });
+      const quantityEl = quantityColumn.cell({
+        dataRow: { item: { id: 1 }, assetServiceLocked: true },
+        data: 4,
+        setData: vi.fn(),
+        attributes: {},
+      });
+
+      expect(itemEl.props.disabled).toBe(true);
+      expect(quantityEl.props.disabled).toBe(true);
     });
   });
 
@@ -527,7 +659,9 @@ describe("Internal Order Form.jsx", () => {
 
     it("scan tanpa item/unit valid (selected null) tidak mengubah data.items", async () => {
       const user = userEvent.setup({ delay: null });
-      const { stateRef } = renderForm({ data: { date: new Date(), items: [] } });
+      const { stateRef } = renderForm({
+        data: { date: new Date(), items: [] },
+      });
       captured.barcodePayload = null;
 
       await user.click(screen.getByRole("button", { name: "scan-barcode" }));
@@ -537,7 +671,9 @@ describe("Internal Order Form.jsx", () => {
 
     it("selected berupa item langsung (tanpa wrapper .item) memakai default_uom sebagai unit", async () => {
       const user = userEvent.setup({ delay: null });
-      const { stateRef } = renderForm({ data: { date: new Date(), items: [] } });
+      const { stateRef } = renderForm({
+        data: { date: new Date(), items: [] },
+      });
       // handleBarcodeSelect: selectedItem = selected?.item ?? selected;
       // selectedUnit = selected?.unit ?? selected?.default_uom;
       captured.barcodePayload = {
@@ -583,7 +719,10 @@ describe("Internal Order Form.jsx", () => {
       });
       await user.click(warehouseButton);
 
-      expect(stateRef.data.source_warehouse).toEqual({ id: 30, name: "Gudang B" });
+      expect(stateRef.data.source_warehouse).toEqual({
+        id: 30,
+        name: "Gudang B",
+      });
       expect(stateRef.data.items[0].source_warehouse).toEqual({
         id: 30,
         name: "Gudang B",
@@ -597,14 +736,19 @@ describe("Internal Order Form.jsx", () => {
     it("cascade tetap berjalan walau data.items kosong (tidak crash pada map array kosong)", async () => {
       const user = userEvent.setup({ delay: null });
       captured.warehousePayload = { id: 30, name: "Gudang B" };
-      const { stateRef } = renderForm({ data: { date: new Date(), items: [] } });
+      const { stateRef } = renderForm({
+        data: { date: new Date(), items: [] },
+      });
 
       const warehouseButton = screen.getByRole("button", {
         name: /^warehouse:/,
       });
       await user.click(warehouseButton);
 
-      expect(stateRef.data.source_warehouse).toEqual({ id: 30, name: "Gudang B" });
+      expect(stateRef.data.source_warehouse).toEqual({
+        id: 30,
+        name: "Gudang B",
+      });
       expect(stateRef.data.items).toEqual([]);
     });
   });

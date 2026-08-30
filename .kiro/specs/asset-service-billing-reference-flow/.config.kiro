@@ -1,0 +1,6 @@
+{
+  "specId": "e8e388d1-b629-4f9a-a965-fce848a3df84",
+  "workflowType": "design-first",
+  "specType": "feature",
+  "description": "Redesign alur billing AssetService di SalesOrder/InternalOrder: dari picker referenceable per-baris (spec asset-service-billing Req 4) jadi create-from-source (reuse field Reference To existing) + filter ItemVariant per-baris + auto-derive + lock baris part."
+}

@@ -25,6 +25,7 @@ return [
         'created_at'                   => 'Dibuat pada',
         'external_note'                => 'Catatan Eksternal',
         'referenceable_asset_service'  => 'Asset Service (opsional)',
+        'reference_to'                 => 'Referensi Ke',
     ],
     'actions' => [
         'create_delivery_note' => 'Buat Delivery Note',

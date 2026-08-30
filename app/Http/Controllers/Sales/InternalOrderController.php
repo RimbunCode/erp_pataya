@@ -4,8 +4,11 @@ namespace App\Http\Controllers\Sales;
 
 use App\Http\Controllers\Controller;
 use App\Http\Requests\Sales\InternalOrderRequest;
+use App\Models\Asset\AssetService;
+use App\Models\Asset\AssetServiceConsumedItem;
 use App\Models\Sales\InternalOrder;
 use App\Services\Sales\InternalOrderService;
+use App\Utils;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
 use Inertia\Inertia;
@@ -29,10 +32,43 @@ class InternalOrderController extends Controller {
     /**
      * Show the form for creating a new resource.
      */
-    public function create() {
+    public function create(Request $request, ?string $ref = null) {
+        if ($ref) {
+            $split    = \explode('/', $ref);
+            $modelOri = $split[0] ?? null;
+            if ($modelOri) {
+                switch ($modelOri) {
+                    case 'assetService':
+                        $svc = AssetService::find($split[1]);
+                        if ($svc) {
+                            $svc->loadRelations();
+                            $defaultData = [
+                                'date'               => now(),
+                                'referenceable_type' => AssetService::class,
+                                'referenceable_id'   => $svc->id,
+                                'referenceable'      => $svc,
+                                'items'              => $svc->consumedItems->map(fn ($item) => [
+                                    'id'                 => Utils::generateRandom(5),
+                                    'item'               => $item->item,
+                                    'quantity'           => $item->quantity,
+                                    'unit'               => $item->itemUnit,
+                                    'referenceable'      => $item,
+                                    'referenceable_type' => AssetServiceConsumedItem::class,
+                                    'referenceable_id'   => $item->id,
+                                    'assetServiceLocked' => true,
+                                ]),
+                            ];
+                        }
+                        break;
+                }
+            }
+        }
+
         $this->setBreadcrumbs();
 
-        return Inertia::render('Sales/InternalOrders/Show');
+        return Inertia::render('Sales/InternalOrders/Show', [
+            'defaultData' => $defaultData ?? null,
+        ]);
     }
 
     /**

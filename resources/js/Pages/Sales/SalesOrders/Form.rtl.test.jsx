@@ -1,5 +1,5 @@
 import { describe, expect, it, vi, beforeEach } from "vitest";
-import { render, screen } from "@testing-library/react";
+import { act, render, screen } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 
 // ============================================================================
@@ -124,7 +124,10 @@ vi.mock("@/Pages/Finances/Components/PaymentSchedule", () => ({
 const loadFromModelMock = vi.fn();
 vi.mock("@/Components/SelectModel", () => ({
   default: ({ onSelected, label }) => (
-    <button type="button" onClick={() => onSelected(captured.selectModelPayload)}>
+    <button
+      type="button"
+      onClick={() => onSelected(captured.selectModelPayload)}
+    >
       {label}
     </button>
   ),
@@ -162,17 +165,17 @@ vi.mock("@/Pages/Settings/Branches/BranchLinkModel", () => ({
 }));
 vi.mock("@/Pages/Core/CurrencyLinkModel", () => ({
   default: ({ value, onValueChange }) => (
-    <button
-      type="button"
-      onClick={() => onValueChange({ id: 2, code: "USD" })}
-    >
+    <button type="button" onClick={() => onValueChange({ id: 2, code: "USD" })}>
       currency:{value?.code ?? "none"}
     </button>
   ),
 }));
 vi.mock("./SalesOrderLinkModel", () => ({
   default: ({ value, onValueChange }) => (
-    <button type="button" onClick={() => onValueChange({ id: 99, code: "SO-099" })}>
+    <button
+      type="button"
+      onClick={() => onValueChange({ id: 99, code: "SO-099" })}
+    >
       reference_so:{value?.code ?? "none"}
     </button>
   ),
@@ -195,7 +198,13 @@ vi.mock("@/Pages/Inventory/Warehouses/WarehouseLinkModel", () => ({
   default: ({ value, onValueChange }) => (
     <button
       type="button"
-      onClick={() => onValueChange({ id: 20, name: "Gudang A", item: { is_stock_item: true } })}
+      onClick={() =>
+        onValueChange({
+          id: 20,
+          name: "Gudang A",
+          item: { is_stock_item: true },
+        })
+      }
     >
       warehouse:{value?.name ?? "none"}
     </button>
@@ -212,10 +221,10 @@ vi.mock("@/Components/DatetimePicker", () => ({
     />
   ),
 }));
-// Kolom item (ItemVariantLinkModel/ItemUnitLinkModel/TaxLinkModel/
-// AssetService*LinkModel) hanya dipanggil lewat itemColumns[].cell -- tidak
-// ikut render krn FormTable distub -- tapi tetap dimock defensif supaya
-// import module-nya tidak melempar error saat dievaluasi.
+// Kolom item (ItemVariantLinkModel/ItemUnitLinkModel/TaxLinkModel) hanya
+// dipanggil lewat itemColumns[].cell -- tidak ikut render krn FormTable
+// distub -- tapi tetap dimock defensif supaya import module-nya tidak
+// melempar error saat dievaluasi.
 vi.mock("@/Pages/Inventory/Items/ItemVariantLinkModel", () => ({
   default: () => <div>item-variant-link</div>,
 }));
@@ -224,12 +233,6 @@ vi.mock("@/Pages/Inventory/Items/ItemUnitLinkModel", () => ({
 }));
 vi.mock("@/Pages/Finances/Taxes/TaxLinkModel", () => ({
   default: () => <div>tax-link</div>,
-}));
-vi.mock("@/Pages/Asset/Services/AssetServiceLinkModel", () => ({
-  default: () => <div>asset-service-link</div>,
-}));
-vi.mock("@/Pages/Asset/Services/AssetServiceConsumedItemLinkModel", () => ({
-  default: () => <div>asset-service-consumed-item-link</div>,
 }));
 
 import { useState } from "react";
@@ -244,17 +247,21 @@ import Form from "./Form";
 // ref supaya assertion di test bisa membaca data.items final setelah interaksi.
 function TestFormPageState({ initial, stateRef, children }) {
   const [data, setDataState] = useState(initial.data);
+  // Meniru semantik ASLI Inertia useForm().setData() (lihat
+  // @inertiajs/react setDataFunction): argumen string -> set 1 field
+  // (merge), argumen fungsi -> updater (bebas merge/replace sesuai
+  // implementasi fungsinya), TAPI argumen objek MENGGANTI SELURUH data
+  // form -- BUKAN merge. Mock lama (selalu merge utk objek) pernah
+  // menyembunyikan bug nyata (Form.jsx sempat memanggil setData({...})
+  // form-level yg menghapus date/referenceable/items).
   const setData = (arg, val) => {
     setDataState((prev) => {
-      let next;
       if (typeof arg === "function") {
-        next = arg(prev);
+        return arg(prev);
       } else if (typeof arg === "string") {
-        next = { ...prev, [arg]: val };
-      } else {
-        next = { ...prev, ...arg };
+        return { ...prev, [arg]: val };
       }
-      return next;
+      return arg;
     });
   };
   stateRef.data = data;
@@ -306,9 +313,7 @@ describe("Sales Order Form.jsx", () => {
       // net_total & tax_amount & grand_total masing-masing dirender readOnly
       // NumberInput bernilai 0 -- FormTable distub jadi cukup pastikan tidak
       // ada error dan header FormPageContent utama muncul.
-      expect(
-        screen.getByText("sales.salesOrder.detail"),
-      ).toBeInTheDocument();
+      expect(screen.getByText("sales.salesOrder.detail")).toBeInTheDocument();
       expect(captured.formTableProps.value).toEqual([]);
     });
 
@@ -521,7 +526,9 @@ describe("Sales Order Form.jsx", () => {
   describe("mergeItems", () => {
     it("SelectModel.onSelected menambah baris baru ke data.items", async () => {
       const user = userEvent.setup({ delay: null });
-      const { stateRef } = renderForm({ data: { date: new Date(), items: [] } });
+      const { stateRef } = renderForm({
+        data: { date: new Date(), items: [] },
+      });
       captured.selectModelPayload = {
         model: "App\\Models\\Service\\WorkOrder",
         items: [
@@ -580,7 +587,12 @@ describe("Sales Order Form.jsx", () => {
       captured.selectModelPayload = {
         model: "App\\Models\\Service\\WorkOrder",
         items: [
-          { id: 501, item: { id: 1, name: "Item A" }, unit: { id: 1 }, quantity: 7 },
+          {
+            id: 501,
+            item: { id: 1, name: "Item A" },
+            unit: { id: 1 },
+            quantity: 7,
+          },
         ],
       };
 
@@ -640,16 +652,27 @@ describe("Sales Order Form.jsx", () => {
       usePageMock.mockReturnValue({
         props: {
           preferences: { default_currency_id: "idr" },
-          loadFrom: { model: "App\\Models\\CRM\\Quotation", id: 77, select: null },
+          loadFrom: {
+            model: "App\\Models\\CRM\\Quotation",
+            id: 77,
+            select: null,
+          },
         },
       });
       loadFromModelMock.mockResolvedValue({
         model: "App\\Models\\CRM\\Quotation",
         items: [
-          { id: 1, item: { id: 9, name: "Dari Quotation" }, unit: { id: 1 }, quantity: 4 },
+          {
+            id: 1,
+            item: { id: 9, name: "Dari Quotation" },
+            unit: { id: 1 },
+            quantity: 4,
+          },
         ],
       });
-      const { stateRef } = renderForm({ data: { date: new Date(), items: [] } });
+      const { stateRef } = renderForm({
+        data: { date: new Date(), items: [] },
+      });
 
       await vi.waitFor(() => {
         expect(stateRef.data.items).toHaveLength(1);
@@ -687,7 +710,9 @@ describe("Sales Order Form.jsx", () => {
   describe("handleBarcodeSelect (scan barcode)", () => {
     it("scan item+unit baru menambah baris baru dengan quantity 1", async () => {
       const user = userEvent.setup({ delay: null });
-      const { stateRef } = renderForm({ data: { date: new Date(), items: [] } });
+      const { stateRef } = renderForm({
+        data: { date: new Date(), items: [] },
+      });
       captured.barcodePayload = {
         item: { id: 5, name: "Barang Scan" },
         unit: { id: 2, name: "Pcs" },
@@ -734,7 +759,9 @@ describe("Sales Order Form.jsx", () => {
 
     it("scan tanpa item/unit valid (selected null) tidak mengubah data.items", async () => {
       const user = userEvent.setup({ delay: null });
-      const { stateRef } = renderForm({ data: { date: new Date(), items: [] } });
+      const { stateRef } = renderForm({
+        data: { date: new Date(), items: [] },
+      });
       captured.barcodePayload = null;
 
       await user.click(screen.getByRole("button", { name: "scan-barcode" }));
@@ -855,6 +882,266 @@ describe("Sales Order Form.jsx", () => {
       expect(stateRef.data.items[1].source_warehouse).toEqual(
         expect.objectContaining({ id: 20 }),
       );
+    });
+  });
+
+  // --------------------------------------------------------------------
+  // Requirement 3-7, spec asset-service-billing-reference-flow: kolom
+  // "referenceable" per-baris DIHAPUS, logic-nya pindah ke itemColumns["item"].
+  // --------------------------------------------------------------------
+  describe("itemColumns item.cell -- filter/auto-link/lock AssetService", () => {
+    const ASSET_SERVICE_CLASS = "App\\Models\\Asset\\AssetService";
+    const ASSET_SERVICE_CONSUMED_ITEM_CLASS =
+      "App\\Models\\Asset\\AssetServiceConsumedItem";
+
+    function assetServiceReferenceable(overrides = {}) {
+      return {
+        id: 10,
+        bill_to_renter: true,
+        customer: { id: 77, name: "Cust A" },
+        customer_branch: { id: 88, name: "Branch A" },
+        consumed_items: [
+          {
+            id: 5,
+            item: { id: 501 },
+            quantity: 4,
+            valuation_rate: 15000,
+            item_unit: { id: 9, conversion_factor: 1 },
+          },
+        ],
+        ...overrides,
+      };
+    }
+
+    it("kolom referenceable per-baris tidak lagi dirender", () => {
+      renderForm({ data: { date: new Date(), items: [] } });
+
+      expect(
+        captured.formTableProps.columns.find((c) => c.name === "referenceable"),
+      ).toBeUndefined();
+    });
+
+    it("tanpa referenceable_type AssetService: filters kosong, perilaku item.cell normal (regresi)", () => {
+      renderForm({ data: { date: new Date(), items: [] } });
+
+      const setDataRow = vi.fn();
+      const itemColumn = captured.formTableProps.columns.find(
+        (c) => c.name === "item",
+      );
+      const selectedVal = {
+        id: 1,
+        default_uom: { id: 11, conversion_factor: 2 },
+      };
+      const element = itemColumn.cell({
+        dataRow: {},
+        setData: setDataRow,
+        attributes: {},
+      });
+
+      expect(element.props.filters).toBeUndefined();
+
+      element.props.onValueChange(selectedVal);
+
+      expect(setDataRow).toHaveBeenCalledWith({
+        item: selectedVal,
+        unit: selectedVal.default_uom,
+        conversion_factor: 2,
+        source_warehouse: undefined,
+      });
+    });
+
+    it("referenceable_type AssetService: filters berisi or item.category.type=service DAN id in consumedItemVariantIds", () => {
+      renderForm({
+        data: {
+          date: new Date(),
+          items: [],
+          referenceable_type: ASSET_SERVICE_CLASS,
+          referenceable_id: 10,
+          referenceable: assetServiceReferenceable(),
+        },
+      });
+
+      const itemColumn = captured.formTableProps.columns.find(
+        (c) => c.name === "item",
+      );
+      const element = itemColumn.cell({
+        dataRow: {},
+        setData: vi.fn(),
+        attributes: {},
+      });
+
+      expect(element.props.filters).toEqual({
+        or: {
+          "item.category.type": "service",
+          id: { in: [501] },
+        },
+      });
+    });
+
+    it("pilih ItemVariant yang cocok consumedItem: auto-link ke AssetServiceConsumedItem, quantity/price/unit ikut, assetServiceLocked true, customer header ikut terisi (bill_to_renter)", () => {
+      const { stateRef } = renderForm({
+        data: {
+          date: new Date(),
+          items: [],
+          referenceable_type: ASSET_SERVICE_CLASS,
+          referenceable_id: 10,
+          referenceable: assetServiceReferenceable(),
+        },
+      });
+
+      const setDataRow = vi.fn();
+      const itemColumn = captured.formTableProps.columns.find(
+        (c) => c.name === "item",
+      );
+      const element = itemColumn.cell({
+        dataRow: {},
+        setData: setDataRow,
+        attributes: {},
+      });
+
+      act(() => {
+        element.props.onValueChange({ id: 501, default_uom: null });
+      });
+
+      expect(setDataRow).toHaveBeenCalledWith(
+        expect.objectContaining({
+          referenceable: {
+            type: ASSET_SERVICE_CONSUMED_ITEM_CLASS,
+            id: 5,
+          },
+          quantity: 4,
+          price: 15000,
+          unit: { id: 9, conversion_factor: 1 },
+          conversion_factor: 1,
+          assetServiceLocked: true,
+        }),
+      );
+      // customer/customer_branch adalah field HEADER (form-level setData),
+      // bukan field baris -- diverifikasi lewat stateRef, bukan setDataRow.
+      expect(stateRef.data.customer).toEqual({ id: 77, name: "Cust A" });
+      expect(stateRef.data.customer_branch).toEqual({
+        id: 88,
+        name: "Branch A",
+      });
+    });
+
+    it("pilih ItemVariant kategori service tanpa match consumedItem: auto-link ke AssetService header, TIDAK locked", () => {
+      renderForm({
+        data: {
+          date: new Date(),
+          items: [],
+          referenceable_type: ASSET_SERVICE_CLASS,
+          referenceable_id: 10,
+          referenceable: assetServiceReferenceable(),
+        },
+      });
+
+      const setDataRow = vi.fn();
+      const itemColumn = captured.formTableProps.columns.find(
+        (c) => c.name === "item",
+      );
+      const element = itemColumn.cell({
+        dataRow: {},
+        setData: setDataRow,
+        attributes: {},
+      });
+
+      element.props.onValueChange({
+        id: 999,
+        default_uom: null,
+        item: { category: { type: "service" } },
+      });
+
+      expect(setDataRow).toHaveBeenCalledWith(
+        expect.objectContaining({
+          referenceable: { type: ASSET_SERVICE_CLASS, id: 10 },
+          assetServiceLocked: false,
+        }),
+      );
+    });
+
+    it("pilih ItemVariant non-service tanpa match consumedItem: tidak auto-link, tidak locked", () => {
+      renderForm({
+        data: {
+          date: new Date(),
+          items: [],
+          referenceable_type: ASSET_SERVICE_CLASS,
+          referenceable_id: 10,
+          referenceable: assetServiceReferenceable(),
+        },
+      });
+
+      const setDataRow = vi.fn();
+      const itemColumn = captured.formTableProps.columns.find(
+        (c) => c.name === "item",
+      );
+      const element = itemColumn.cell({
+        dataRow: {},
+        setData: setDataRow,
+        attributes: {},
+      });
+
+      element.props.onValueChange({
+        id: 12345,
+        default_uom: null,
+        item: { category: { type: "inventory" } },
+      });
+
+      const patch = setDataRow.mock.calls[0][0];
+      expect(patch.referenceable).toBeUndefined();
+      expect(patch.assetServiceLocked).toBe(false);
+    });
+
+    it("dataRow.assetServiceLocked true: kolom Item DAN Quantity disabled", () => {
+      renderForm({ data: { date: new Date(), items: [] } });
+
+      const itemColumn = captured.formTableProps.columns.find(
+        (c) => c.name === "item",
+      );
+      const quantityColumn = captured.formTableProps.columns.find(
+        (c) => c.name === "quantity",
+      );
+
+      const itemEl = itemColumn.cell({
+        dataRow: { item: { id: 1 }, assetServiceLocked: true },
+        setData: vi.fn(),
+        attributes: {},
+      });
+      const quantityEl = quantityColumn.cell({
+        dataRow: { item: { id: 1 }, assetServiceLocked: true },
+        data: 4,
+        setData: vi.fn(),
+        attributes: {},
+      });
+
+      expect(itemEl.props.disabled).toBe(true);
+      expect(quantityEl.props.disabled).toBe(true);
+    });
+
+    it("dataRow.assetServiceLocked false/undefined: kolom Item DAN Quantity tidak disabled (selama ada item)", () => {
+      renderForm({ data: { date: new Date(), items: [] } });
+
+      const itemColumn = captured.formTableProps.columns.find(
+        (c) => c.name === "item",
+      );
+      const quantityColumn = captured.formTableProps.columns.find(
+        (c) => c.name === "quantity",
+      );
+
+      const itemEl = itemColumn.cell({
+        dataRow: { item: { id: 1 } },
+        setData: vi.fn(),
+        attributes: {},
+      });
+      const quantityEl = quantityColumn.cell({
+        dataRow: { item: { id: 1 } },
+        data: 4,
+        setData: vi.fn(),
+        attributes: {},
+      });
+
+      expect(itemEl.props.disabled).toBeFalsy();
+      expect(quantityEl.props.disabled).toBeFalsy();
     });
   });
 });

@@ -123,9 +123,7 @@ describe("Show (Asset/Services)", () => {
         JSON.stringify({ isCreate: true, disabled: false }),
       );
       expect(screen.getByTestId("stub-form")).toBeInTheDocument();
-      expect(
-        screen.getByTestId("form-page-controls"),
-      ).toBeEmptyDOMElement();
+      expect(screen.getByTestId("form-page-controls")).toBeEmptyDOMElement();
     });
 
     it("mode edit belum submit: isCreate=false, disabled=false (submitted_at kosong)", () => {
@@ -245,32 +243,93 @@ describe("Show (Asset/Services)", () => {
     });
   });
 
+  // --- controls(): gating canRequestPurchase + tombol create_so/create_io --
+  describe("controls() -- tombol create SalesOrder/InternalOrder", () => {
+    it("submitted_at ada, canGlobal true untuk keduanya: kedua tombol muncul dengan href benar", () => {
+      const assetService = baseAssetService({
+        id: 9,
+        submitted_at: "2026-08-01T00:00:00Z",
+      });
+      canGlobalMock.mockReturnValue(true);
+      render(<Show assetService={assetService} defaultData={{}} />);
+
+      const soLink = screen.getByText("asset.service.actions.create_so");
+      expect(soLink.closest("a")).toHaveAttribute(
+        "href",
+        `salesOrders.create/${JSON.stringify({ ref: "assetService/9" })}`,
+      );
+
+      const ioLink = screen.getByText("asset.service.actions.create_io");
+      expect(ioLink.closest("a")).toHaveAttribute(
+        "href",
+        `internalOrders.create/${JSON.stringify({ ref: "assetService/9" })}`,
+      );
+
+      expect(canGlobalMock).toHaveBeenCalledWith(
+        "App\\Models\\Sales\\SalesOrder",
+        "create",
+      );
+      expect(canGlobalMock).toHaveBeenCalledWith(
+        "App\\Models\\Sales\\InternalOrder",
+        "create",
+      );
+    });
+
+    it("hanya SalesOrder yang diizinkan: hanya tombol create_so yang muncul (independen)", () => {
+      const assetService = baseAssetService({
+        submitted_at: "2026-08-01T00:00:00Z",
+      });
+      canGlobalMock.mockImplementation(
+        (model) => model === "App\\Models\\Sales\\SalesOrder",
+      );
+      render(<Show assetService={assetService} defaultData={{}} />);
+
+      expect(
+        screen.getByText("asset.service.actions.create_so"),
+      ).toBeInTheDocument();
+      expect(
+        screen.queryByText("asset.service.actions.create_io"),
+      ).not.toBeInTheDocument();
+    });
+
+    it("hanya InternalOrder yang diizinkan: hanya tombol create_io yang muncul (independen)", () => {
+      const assetService = baseAssetService({
+        submitted_at: "2026-08-01T00:00:00Z",
+      });
+      canGlobalMock.mockImplementation(
+        (model) => model === "App\\Models\\Sales\\InternalOrder",
+      );
+      render(<Show assetService={assetService} defaultData={{}} />);
+
+      expect(
+        screen.queryByText("asset.service.actions.create_so"),
+      ).not.toBeInTheDocument();
+      expect(
+        screen.getByText("asset.service.actions.create_io"),
+      ).toBeInTheDocument();
+    });
+  });
+
   // --- isApproved / ServiceActivityLog gating ------------------------------
   describe("ServiceActivityLog -- gating status approved", () => {
     it("assetService null (create mode): ServiceActivityLog tidak dirender", () => {
       render(<Show assetService={null} defaultData={{}} />);
 
-      expect(
-        screen.queryByTestId("stub-activity-log"),
-      ).not.toBeInTheDocument();
+      expect(screen.queryByTestId("stub-activity-log")).not.toBeInTheDocument();
     });
 
     it("assetService ada tapi status tidak termasuk 'approved': tidak dirender", () => {
       const assetService = baseAssetService({ status: ["draft"] });
       render(<Show assetService={assetService} defaultData={{}} />);
 
-      expect(
-        screen.queryByTestId("stub-activity-log"),
-      ).not.toBeInTheDocument();
+      expect(screen.queryByTestId("stub-activity-log")).not.toBeInTheDocument();
     });
 
     it("assetService ada dengan status kosong/null: tidak dirender (bukan crash)", () => {
       const assetService = baseAssetService({ status: null });
       render(<Show assetService={assetService} defaultData={{}} />);
 
-      expect(
-        screen.queryByTestId("stub-activity-log"),
-      ).not.toBeInTheDocument();
+      expect(screen.queryByTestId("stub-activity-log")).not.toBeInTheDocument();
     });
 
     it("assetService ada dan status termasuk 'approved': ServiceActivityLog dirender dengan assetService diteruskan", () => {

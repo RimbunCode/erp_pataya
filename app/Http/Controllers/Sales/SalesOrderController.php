@@ -2,8 +2,11 @@
 
 namespace App\Http\Controllers\Sales;
 
+use App\Enums\AssetOwnershipType;
 use App\Http\Controllers\Controller;
 use App\Http\Requests\Sales\SalesOrderRequest;
+use App\Models\Asset\AssetService;
+use App\Models\Asset\AssetServiceConsumedItem;
 use App\Models\Core\Branch;
 use App\Models\CRM\Quotation;
 use App\Models\Sales\SalesOrder;
@@ -23,7 +26,7 @@ class SalesOrderController extends Controller {
     protected function enforcePermission(string $method): ?string {
         return match ($method) {
             'markDone', 'syncItems' => 'write',
-            default                 => null,
+            default => null,
         };
     }
 
@@ -101,6 +104,50 @@ class SalesOrderController extends Controller {
                                     'description' => $item->description,
                                     'quantity'    => $item->quantity,
                                     'price'       => $item->price,
+                                ]),
+                            ];
+                        }
+                        break;
+
+                    case 'assetService':
+                        $svc = AssetService::find($split[1]);
+                        if ($svc) {
+                            $svc->loadRelations();
+                            // Requirement 7.1-7.4, spec asset-service-billing-reference-flow:
+                            // di controller (native Eloquent::load()), batasan kedalaman
+                            // `with` 2-segmen milik endpoint /model TIDAK berlaku — jadi
+                            // path ownership_customer bisa dimuat penuh walau lewat chain
+                            // assetMaintenanceTask.assetMaintenance.asset.
+                            $svc->load([
+                                'asset.ownershipCustomer',
+                                'asset.ownershipCustomerBranch',
+                                'assetMaintenanceTask.assetMaintenance.asset.ownershipCustomer',
+                                'assetMaintenanceTask.assetMaintenance.asset.ownershipCustomerBranch',
+                            ]);
+                            $resolvedAsset   = $svc->resolvedAsset();
+                            $billingCustomer = null;
+                            if ($svc->bill_to_renter) {
+                                $billingCustomer = [$svc->customer, $svc->customerBranch];
+                            } elseif ($resolvedAsset?->ownership_type === AssetOwnershipType::CUSTOMER) {
+                                $billingCustomer = [$resolvedAsset->ownershipCustomer, $resolvedAsset->ownershipCustomerBranch];
+                            }
+                            $defaultData = [
+                                'date'               => now(),
+                                'referenceable_type' => AssetService::class,
+                                'referenceable_id'   => $svc->id,
+                                'referenceable'      => $svc,
+                                'customer'           => $billingCustomer[0] ?? null,
+                                'customer_branch'    => $billingCustomer[1] ?? null,
+                                'items'              => $svc->consumedItems->map(fn ($item) => [
+                                    'id'                 => Utils::generateRandom(5),
+                                    'item'               => $item->item,
+                                    'quantity'           => $item->quantity,
+                                    'unit'               => $item->itemUnit,
+                                    'price'              => $item->valuation_rate,
+                                    'referenceable'      => $item,
+                                    'referenceable_type' => AssetServiceConsumedItem::class,
+                                    'referenceable_id'   => $item->id,
+                                    'assetServiceLocked' => true,
                                 ]),
                             ];
                         }
