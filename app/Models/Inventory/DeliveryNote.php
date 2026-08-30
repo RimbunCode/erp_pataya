@@ -6,6 +6,7 @@ use App\Models\Core\Branch;
 use App\Models\Model;
 use App\Models\Sales\Customer;
 use App\Models\User\Permission;
+use App\Services\Inventory\DeliveryNoteService;
 use App\Traits\DataTable;
 use App\Traits\Submitable;
 use Illuminate\Database\Eloquent\Concerns\HasUlids;
@@ -15,7 +16,7 @@ use Illuminate\Database\Eloquent\SoftDeletes;
 class DeliveryNote extends Model {
     use DataTable, HasFactory, HasUlids, SoftDeletes, Submitable;
 
-    public static string $service = App\Services\Inventory\DeliveryNoteService::class;
+    public static string $service = DeliveryNoteService::class;
     public string $formComponent  = 'Inventory/DeliveryNotes/Form';
     protected $guarded            = ['id'];
     protected $casts              = [
