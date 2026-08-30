@@ -5,11 +5,13 @@ namespace Tests\Feature\Inventory;
 use App\Enums\FormStatus;
 use App\Models\Core\Branch;
 use App\Models\Core\FormatingSeries;
+use App\Models\Finances\GeneralLedger;
 use App\Models\Inventory\Item;
 use App\Models\Inventory\ItemUnit;
 use App\Models\Inventory\ItemVariant;
 use App\Models\Inventory\Stock;
 use App\Models\Inventory\StockEntry;
+use App\Models\Inventory\StockLedgerEntry;
 use App\Models\Inventory\Unit;
 use App\Models\Inventory\Warehouse;
 use App\Models\User\User;
@@ -18,6 +20,7 @@ use Illuminate\Database\Eloquent\RelationNotFoundException;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\DB;
+use Illuminate\Support\Str;
 use Illuminate\Validation\ValidationException;
 use Tests\TestCase;
 
@@ -30,7 +33,7 @@ class StockEntrySubmitTest extends TestCase {
         // initPermissions() menambah kolom runtime (is_example, status, code, dst)
         // yang di produksi dibuat oleh PermissionSeeder, bukan migration.
         // Juga otomatis membuat row formating_series untuk StockEntry.
-        foreach ([User::class, FormatingSeries::class, Branch::class, Unit::class, Warehouse::class, Item::class, ItemVariant::class, StockEntry::class] as $model) {
+        foreach ([User::class, FormatingSeries::class, Branch::class, Unit::class, Warehouse::class, Item::class, ItemVariant::class, StockEntry::class, StockLedgerEntry::class, GeneralLedger::class] as $model) {
             $model::initPermissions();
         }
 
@@ -148,5 +151,98 @@ class StockEntrySubmitTest extends TestCase {
             $messages = collect($e->errors()['items'] ?? [])->implode(' ');
             $this->assertStringContainsString('Warehouse 1', $messages);
         }
+    }
+
+    private function makeAccountId(string $rootType, string $accountType): string {
+        $id = (string) Str::ulid();
+        DB::table('accounts')->insert([
+            'id'             => $id,
+            'account_name'   => ucfirst($accountType),
+            'account_number' => (string) random_int(1000, 9999),
+            'root_type'      => $rootType,
+            'account_type'   => $accountType,
+            'report_type'    => 'balance_sheet',
+            'balance_amount' => 0,
+            'created_at'     => now(),
+            'updated_at'     => now(),
+        ]);
+
+        return $id;
+    }
+
+    /**
+     * Regresi untuk bug: StockEntryService::onApproved() memanggil
+     * GeneralLedger::create() tanpa 'transaction_date' padahal kolom itu
+     * NOT NULL tanpa default -> QueryException 1364 saat submit item_receipt.
+     */
+    public function test_on_approved_item_receipt_creates_general_ledger_with_transaction_date(): void {
+        $branch = Branch::create(['name' => 'Main Branch', 'code' => 'MB']);
+
+        $warehouse = Warehouse::create([
+            'branch_id' => $branch->id,
+            'name'      => 'Gudang Terima',
+            'code'      => 'WH-IN',
+        ]);
+
+        $unit = Unit::create(['code' => 'PCS', 'name' => 'Piece']);
+
+        $item = Item::create([
+            'code'            => 'ITEM-RCV',
+            'name'            => 'Item Receipt',
+            'default_unit_id' => $unit->id,
+            'type'            => 'inventory',
+        ]);
+
+        $itemVariant = ItemVariant::create([
+            'item_id'         => $item->id,
+            'code'            => 'ITEM-RCV-VAR',
+            'item_code'       => 'ITEM-RCV',
+            'item_name'       => 'Item Receipt',
+            'type'            => 'inventory',
+            'default_unit_id' => $unit->id,
+        ]);
+
+        $itemUnit = ItemUnit::create([
+            'item_id'    => $item->id,
+            'unit_id'    => $unit->id,
+            'is_default' => true,
+        ]);
+
+        // debit: akun stok (root_type asset / account_type stock)
+        $this->makeAccountId('asset', 'stock');
+        // credit: difference account milik stock entry
+        $differenceAccountId = $this->makeAccountId('expense', 'stock_adjustment');
+
+        Auth::login($this->makeUser());
+
+        $stockEntry = StockEntry::create([
+            'code'                  => 'SE-RCV-1',
+            'date'                  => now(),
+            'type'                  => 'item_receipt',
+            'status'                => [FormStatus::DRAFT],
+            'branch_id'             => $branch->id,
+            'difference_account_id' => $differenceAccountId,
+        ]);
+
+        $stockEntry->items()->create([
+            'item_id'             => $itemVariant->id,
+            'target_warehouse_id' => $warehouse->id,
+            'quantity'            => 5,
+            'item_unit_id'        => $itemUnit->id,
+            'conversion_factor'   => 1,
+            'basic_rate'          => 2000,
+        ]);
+
+        (new StockEntryService)->onApproved($stockEntry->fresh());
+
+        $entries = GeneralLedger::where('referenceable_type', StockEntry::class)
+            ->where('referenceable_id', $stockEntry->id)
+            ->get();
+
+        $this->assertCount(2, $entries);
+        $entries->each(fn (GeneralLedger $gl) => $this->assertNotNull(
+            $gl->transaction_date,
+            'GeneralLedger.transaction_date wajib terisi saat onApproved.',
+        ));
     }
 }
