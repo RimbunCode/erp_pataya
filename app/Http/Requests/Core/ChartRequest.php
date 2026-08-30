@@ -38,6 +38,7 @@ class ChartRequest extends BaseFormRequest {
             'color'                         => ['nullable', 'string', 'max:32'],
             'currency'                      => ['nullable', 'string', 'max:10'],
             'show_values_over_chart'        => ['nullable', 'boolean'],
+            'show_full_number'              => ['nullable', 'boolean'],
             'custom_options'                => ['nullable', 'array'],
             'method'                        => ['nullable', 'string', 'max:100'],
             'filters'                       => ['nullable', 'array'],

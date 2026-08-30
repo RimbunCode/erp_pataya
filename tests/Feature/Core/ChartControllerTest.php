@@ -73,6 +73,34 @@ class ChartControllerTest extends TestCase {
         $this->assertDatabaseHas('charts', ['chart_name' => 'By Category', 'chart_source_type' => 'group_by']);
     }
 
+    /** chart-compact-number-display Req 1.1/1.2: show_full_number tersimpan sesuai input. */
+    public function test_store_chart_with_show_full_number_true(): void {
+        $permission = PermissionModel::create(['model' => ChartTargetRecord::class, 'module' => 'Core', 'name' => 'Chart Target Record']);
+
+        $response = $this->actingWith([ChartTargetRecord::class])->post(route('charts.store'), [
+            'chart_name'        => 'Full Number Chart', 'chart_source_type' => 'group_by', 'visual_type' => 'bar',
+            'group_by_based_on' => 'category', 'group_by_type' => 'count', 'show_full_number' => true,
+            'model'             => ['id' => $permission->id, 'model' => ChartTargetRecord::class],
+        ]);
+
+        $response->assertRedirect();
+        $this->assertDatabaseHas('charts', ['chart_name' => 'Full Number Chart', 'show_full_number' => true]);
+    }
+
+    /** chart-compact-number-display Req 4.1: field tidak dikirim -> default false (compact). */
+    public function test_store_chart_without_show_full_number_defaults_false(): void {
+        $permission = PermissionModel::create(['model' => ChartTargetRecord::class, 'module' => 'Core', 'name' => 'Chart Target Record']);
+
+        $response = $this->actingWith([ChartTargetRecord::class])->post(route('charts.store'), [
+            'chart_name'        => 'Compact Chart', 'chart_source_type' => 'group_by', 'visual_type' => 'bar',
+            'group_by_based_on' => 'category', 'group_by_type' => 'count',
+            'model'             => ['id' => $permission->id, 'model' => ChartTargetRecord::class],
+        ]);
+
+        $response->assertRedirect();
+        $this->assertDatabaseHas('charts', ['chart_name' => 'Compact Chart', 'show_full_number' => false]);
+    }
+
     /** Requirement 8.4: getData wajib re-cek gate per request. */
     public function test_get_data_rejected_when_not_visible(): void {
         $chart = Chart::create(['chart_name' => 'Private', 'model_class' => ChartTargetRecord::class, 'chart_source_type' => 'group_by', 'group_by_based_on' => 'category']);

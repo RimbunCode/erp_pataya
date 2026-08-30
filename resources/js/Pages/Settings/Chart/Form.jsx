@@ -36,7 +36,9 @@ export default function Form() {
   const getNameColumns = (types, isExcept = false) => {
     const typeList = Array.isArray(types) ? types : [types];
     return columns
-      .filter((x) => (isExcept ? !typeList.includes(x.type) : typeList.includes(x.type)))
+      .filter((x) =>
+        isExcept ? !typeList.includes(x.type) : typeList.includes(x.type),
+      )
       .map((x) => ({ value: x.name, titleTrans: x.titleTrans }));
   };
 
@@ -79,10 +81,21 @@ export default function Form() {
     <>
       <FormPageContent value="detail" title={t("settings.chart.details")}>
         <div className="grid gap-x-4 gap-y-4 md:grid-cols-2">
-          <FormInput name="chart_name" label={t("settings.chart.columns.chart_name")} required>
-            <Input value={data?.chart_name} onValueChange={(val) => setData("chart_name", val)} />
+          <FormInput
+            name="chart_name"
+            label={t("settings.chart.columns.chart_name")}
+            required
+          >
+            <Input
+              value={data?.chart_name}
+              onValueChange={(val) => setData("chart_name", val)}
+            />
           </FormInput>
-          <FormInput name="chart_source_type" label={t("settings.chart.columns.chart_source_type")} required>
+          <FormInput
+            name="chart_source_type"
+            label={t("settings.chart.columns.chart_source_type")}
+            required
+          >
             <Select
               value={chartSourceType}
               onValueChange={(val) => setData("chart_source_type", val)}
@@ -90,47 +103,83 @@ export default function Form() {
               options={["count", "sum", "average", "group_by", "custom"]}
             />
           </FormInput>
-          <FormInput name="visual_type" label={t("settings.chart.columns.visual_type")} required>
+          <FormInput
+            name="visual_type"
+            label={t("settings.chart.columns.visual_type")}
+            required
+          >
             <Select
               value={data?.visual_type}
               onValueChange={(val) => setData("visual_type", val)}
               optionTrans="settings.chart.visual_types"
-              options={["line", "bar", "pie", "donut", "percentage", ...(isGroupBy ? [] : ["heatmap"])]}
+              options={[
+                "line",
+                "bar",
+                "pie",
+                "donut",
+                "percentage",
+                ...(isGroupBy ? [] : ["heatmap"]),
+              ]}
             />
           </FormInput>
 
           {!isCustom && (
-            <FormInput name="model" label={t("settings.chart.columns.model")} required>
-              <PermissionLinkModel value={data.model} onValueChange={(val) => setData("model", val)} />
+            <FormInput
+              name="model"
+              label={t("settings.chart.columns.model")}
+              required
+            >
+              <PermissionLinkModel
+                value={data.model}
+                onValueChange={(val) => setData("model", val)}
+              />
             </FormInput>
           )}
 
           {isCustom && (
             <FormInput name="method" label="Custom Source">
-              <Input value={data?.method} onValueChange={(val) => setData("method", val)} />
-            </FormInput>
-          )}
-
-          {!isCustom && (chartSourceType === "sum" || chartSourceType === "average") && (
-            <FormInput name="value_based_on" label={t("settings.chart.columns.value_based_on")} disabled={!modelClass}>
-              <Select
-                value={data?.value_based_on}
-                onValueChange={(val) => setData("value_based_on", val)}
-                options={getNameColumns(["number", "currency"])}
+              <Input
+                value={data?.method}
+                onValueChange={(val) => setData("method", val)}
               />
             </FormInput>
           )}
 
+          {!isCustom &&
+            (chartSourceType === "sum" || chartSourceType === "average") && (
+              <FormInput
+                name="value_based_on"
+                label={t("settings.chart.columns.value_based_on")}
+                disabled={!modelClass}
+              >
+                <Select
+                  value={data?.value_based_on}
+                  onValueChange={(val) => setData("value_based_on", val)}
+                  options={getNameColumns(["number", "currency"])}
+                />
+              </FormInput>
+            )}
+
           {isGroupBy && (
             <>
-              <FormInput name="group_by_based_on" label={t("settings.chart.columns.group_by_based_on")} disabled={!modelClass} required>
+              <FormInput
+                name="group_by_based_on"
+                label={t("settings.chart.columns.group_by_based_on")}
+                disabled={!modelClass}
+                required
+              >
                 <Select
                   value={data?.group_by_based_on}
                   onValueChange={(val) => setData("group_by_based_on", val)}
                   options={getNameColumns(["relations", "mixed", "json"], true)}
                 />
               </FormInput>
-              <FormInput name="group_by_type" label={t("settings.chart.columns.group_by_type")} disabled={!modelClass} required>
+              <FormInput
+                name="group_by_type"
+                label={t("settings.chart.columns.group_by_type")}
+                disabled={!modelClass}
+                required
+              >
                 <Select
                   value={data?.group_by_type}
                   onValueChange={(val) => setData("group_by_type", val)}
@@ -141,28 +190,55 @@ export default function Form() {
               {data?.group_by_type && data.group_by_type !== "count" && (
                 <FormInput
                   name="aggregate_function_based_on"
-                  label={t("settings.chart.columns.aggregate_function_based_on")}
+                  label={t(
+                    "settings.chart.columns.aggregate_function_based_on",
+                  )}
                   disabled={!modelClass}
                 >
                   <Select
                     value={data?.aggregate_function_based_on}
-                    onValueChange={(val) => setData("aggregate_function_based_on", val)}
-                    options={getNameColumns("number")}
+                    onValueChange={(val) =>
+                      setData("aggregate_function_based_on", val)
+                    }
+                    options={getNameColumns(["number", "currency"])}
                   />
                 </FormInput>
               )}
-              <FormInput name="number_of_groups" label={t("settings.chart.columns.number_of_groups")}>
-                <Input type="number" value={data?.number_of_groups} onValueChange={(val) => setData("number_of_groups", val)} />
+              <FormInput
+                name="number_of_groups"
+                label={t("settings.chart.columns.number_of_groups")}
+              >
+                <Input
+                  type="number"
+                  value={data?.number_of_groups}
+                  onValueChange={(val) => setData("number_of_groups", val)}
+                />
               </FormInput>
             </>
           )}
 
           <FormInput name="color" label={t("settings.chart.columns.color")}>
-            <ColorInput value={data?.color} onValueChange={(val) => setData("color", val)} />
+            <ColorInput
+              value={data?.color}
+              onValueChange={(val) => setData("color", val)}
+            />
           </FormInput>
-          <FormInput name="currency" label={t("settings.chart.columns.currency")}>
-            <Input value={data?.currency} onValueChange={(val) => setData("currency", val)} />
+          <FormInput
+            name="currency"
+            label={t("settings.chart.columns.currency")}
+          >
+            <Input
+              value={data?.currency}
+              onValueChange={(val) => setData("currency", val)}
+            />
           </FormInput>
+
+          <FormCheckbox
+            label={t("settings.chart.columns.show_full_number")}
+            description={t("settings.chart.descriptions.show_full_number")}
+            checked={data?.show_full_number ?? false}
+            onCheckedChange={(val) => setData("show_full_number", val)}
+          />
         </div>
       </FormPageContent>
 
@@ -170,33 +246,64 @@ export default function Form() {
         <FormPageContent value="detail" title={t("settings.chart.time_series")}>
           {isHeatmap ? (
             <div className="grid gap-x-4 gap-y-4 md:grid-cols-2">
-              <FormInput name="heatmap_year" label={t("settings.chart.columns.heatmap_year")}>
-                <Input type="number" value={data?.heatmap_year} onValueChange={(val) => setData("heatmap_year", val)} />
+              <FormInput
+                name="heatmap_year"
+                label={t("settings.chart.columns.heatmap_year")}
+              >
+                <Input
+                  type="number"
+                  value={data?.heatmap_year}
+                  onValueChange={(val) => setData("heatmap_year", val)}
+                />
               </FormInput>
             </div>
           ) : (
             <div className="grid gap-x-4 gap-y-4 md:grid-cols-2">
-              <FormInput name="based_on" label={t("settings.chart.columns.based_on")} disabled={!modelClass} required>
+              <FormInput
+                name="based_on"
+                label={t("settings.chart.columns.based_on")}
+                disabled={!modelClass}
+                required
+              >
                 <Select
                   value={data?.based_on}
                   onValueChange={(val) => setData("based_on", val)}
                   options={getNameColumns("datetime")}
                 />
               </FormInput>
-              <FormInput name="timespan" className="col-start-1" label={t("settings.chart.columns.timespan")}>
+              <FormInput
+                name="timespan"
+                className="col-start-1"
+                label={t("settings.chart.columns.timespan")}
+              >
                 <Select
                   value={data?.timespan}
                   onValueChange={(val) => setData("timespan", val)}
                   optionTrans="settings.chart.timespans"
-                  options={["last_week", "last_month", "last_quarter", "last_year"]}
+                  options={[
+                    "last_week",
+                    "last_month",
+                    "last_quarter",
+                    "last_year",
+                  ]}
                 />
               </FormInput>
-              <FormInput name="time_interval" className="col-start-2" label={t("settings.chart.columns.time_interval")}>
+              <FormInput
+                name="time_interval"
+                className="col-start-2"
+                label={t("settings.chart.columns.time_interval")}
+              >
                 <Select
                   value={data?.time_interval}
                   onValueChange={(val) => setData("time_interval", val)}
                   optionTrans="settings.chart.time_intervals"
-                  options={["daily", "weekly", "monthly", "quarterly", "yearly"]}
+                  options={[
+                    "daily",
+                    "weekly",
+                    "monthly",
+                    "quarterly",
+                    "yearly",
+                  ]}
                 />
               </FormInput>
             </div>

@@ -26,9 +26,11 @@ return [
         'color'                       => 'Warna',
         'currency'                    => 'Mata Uang',
         'is_shared_all'               => 'Bagikan ke semua User/Role',
+        'show_full_number'            => 'Tampilkan Angka Penuh',
     ],
     'descriptions' => [
-        'is_shared_all' => 'Chart ini terlihat oleh SEMUA user, berapa pun permission-nya ke model target. Ini tambahan, bukan pengganti — user yang punya permission Select ke model target tetap bisa melihat chart ini meski opsi ini nonaktif.',
+        'is_shared_all'    => 'Chart ini terlihat oleh SEMUA user, berapa pun permission-nya ke model target. Ini tambahan, bukan pengganti — user yang punya permission Select ke model target tetap bisa melihat chart ini meski opsi ini nonaktif.',
+        'show_full_number' => 'Tampilkan angka lengkap dengan pemisah ribuan (mis. 1.234.567) di axis, tooltip, dan label chart. Jika nonaktif, angka disingkat (mis. 1,2 jt).',
     ],
 
     'chart_source_types' => [

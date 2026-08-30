@@ -26,9 +26,11 @@ return [
         'color'                       => 'Color',
         'currency'                    => 'Currency',
         'is_shared_all'               => 'Share to all Users/Roles',
+        'show_full_number'            => 'Show Full Number',
     ],
     'descriptions' => [
-        'is_shared_all' => 'This chart is visible to ALL users, regardless of their permission on the target model. This is additive, not a replacement — users with Select permission on the target model can still see this chart even when this option is off.',
+        'is_shared_all'    => 'This chart is visible to ALL users, regardless of their permission on the target model. This is additive, not a replacement — users with Select permission on the target model can still see this chart even when this option is off.',
+        'show_full_number' => 'Show the full number with thousand separators (e.g. 1,234,567) in the axis, tooltip, and chart label. If off, the number is abbreviated (e.g. 1.2M).',
     ],
 
     'chart_source_types' => [

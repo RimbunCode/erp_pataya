@@ -24,6 +24,7 @@ class Chart extends Model {
         'is_shared_all'          => 'boolean',
         'timeseries'             => 'boolean',
         'show_values_over_chart' => 'boolean',
+        'show_full_number'       => 'boolean',
     ];
     public $translateKey = 'settings.chart';
 
