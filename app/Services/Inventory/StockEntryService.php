@@ -575,6 +575,7 @@ class StockEntryService implements SubmitableService {
                 'credit'             => 0,
                 'referenceable_type' => StockEntry::class,
                 'referenceable_id'   => $stockEntry->id,
+                'transaction_date'   => now(),
             ]);
             GeneralLedger::create([
                 'account_id'         => $creditAccount->id,
@@ -583,6 +584,7 @@ class StockEntryService implements SubmitableService {
                 'credit'             => $totalBasicAmount,
                 'referenceable_type' => StockEntry::class,
                 'referenceable_id'   => $stockEntry->id,
+                'transaction_date'   => now(),
             ]);
         } elseif (\in_array($stockEntry->type, ['item_issue'])) {
             $debitAccount->update([
@@ -602,6 +604,7 @@ class StockEntryService implements SubmitableService {
                 'credit'             => $totalBasicAmount,
                 'referenceable_type' => StockEntry::class,
                 'referenceable_id'   => $stockEntry->id,
+                'transaction_date'   => now(),
             ]);
             GeneralLedger::create([
                 'account_id'         => $creditAccount->id,
@@ -610,6 +613,7 @@ class StockEntryService implements SubmitableService {
                 'credit'             => 0,
                 'referenceable_type' => StockEntry::class,
                 'referenceable_id'   => $stockEntry->id,
+                'transaction_date'   => now(),
             ]);
         }
 
@@ -633,6 +637,7 @@ class StockEntryService implements SubmitableService {
                     'credit'             => 0,
                     'referenceable_type' => StockEntry::class,
                     'referenceable_id'   => $stockEntry->id,
+                    'transaction_date'   => now(),
                 ]);
                 GeneralLedger::create([
                     'account_id'         => $expenseAccount->id,
@@ -641,6 +646,7 @@ class StockEntryService implements SubmitableService {
                     'credit'             => $additionalCost->amount,
                     'referenceable_type' => StockEntry::class,
                     'referenceable_id'   => $stockEntry->id,
+                    'transaction_date'   => now(),
                 ]);
             }
         }
