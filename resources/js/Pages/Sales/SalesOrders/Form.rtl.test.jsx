@@ -846,6 +846,60 @@ describe("Sales Order Form.jsx", () => {
   });
 
   // --------------------------------------------------------------------
+  // itemColumns["source_warehouse"].cell -- disabled utk item jasa
+  // (is_stock_item=false), item jasa tidak butuh gudang asal.
+  // --------------------------------------------------------------------
+  describe("itemColumns source_warehouse.cell disabled state", () => {
+    it("item stock (is_stock_item true): tidak disabled", () => {
+      renderForm({ data: { date: new Date(), items: [] } });
+
+      const column = captured.formTableProps.columns.find(
+        (c) => c.name === "source_warehouse",
+      );
+      const element = column.cell({
+        dataRow: { item: { id: 1, is_stock_item: true } },
+        data: null,
+        setData: vi.fn(),
+        attributes: {},
+      });
+
+      expect(element.props.disabled).toBeFalsy();
+    });
+
+    it("item jasa (is_stock_item false): disabled", () => {
+      renderForm({ data: { date: new Date(), items: [] } });
+
+      const column = captured.formTableProps.columns.find(
+        (c) => c.name === "source_warehouse",
+      );
+      const element = column.cell({
+        dataRow: { item: { id: 1, is_stock_item: false } },
+        data: null,
+        setData: vi.fn(),
+        attributes: {},
+      });
+
+      expect(element.props.disabled).toBe(true);
+    });
+
+    it("belum ada item dipilih: disabled", () => {
+      renderForm({ data: { date: new Date(), items: [] } });
+
+      const column = captured.formTableProps.columns.find(
+        (c) => c.name === "source_warehouse",
+      );
+      const element = column.cell({
+        dataRow: {},
+        data: null,
+        setData: vi.fn(),
+        attributes: {},
+      });
+
+      expect(element.props.disabled).toBe(true);
+    });
+  });
+
+  // --------------------------------------------------------------------
   // Warehouse header cascade: mengganti source_warehouse header menerapkan
   // nilai yang sama ke semua baris item, gated oleh `is_stock_item` MILIK
   // WAREHOUSE YANG DIPILIH (val.item.is_stock_item) -- BUKAN is_stock_item

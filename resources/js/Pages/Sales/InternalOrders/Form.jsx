@@ -167,7 +167,7 @@ export default function Form() {
         cell({ dataRow, data, setData, attributes }) {
           return (
             <WarehouseLinkModel
-              disabled={!dataRow?.item}
+              disabled={!dataRow?.item || !dataRow?.item?.is_stock_item}
               placeholder={t(
                 "sales.internalOrder.columns.source_warehouse.placeholder",
               )}
