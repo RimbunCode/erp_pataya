@@ -113,14 +113,16 @@ class PaymentEntryService implements SubmitableService {
             ],
         ]);
 
-        $debitAccount  = $paymentEntry->accountPaidFrom;
-        $creditAccount = $paymentEntry->accountPaidTo;
+        $debitAccount    = $paymentEntry->accountPaidFrom;
+        $creditAccount   = $paymentEntry->accountPaidTo;
+        $transactionDate = $paymentEntry->date ?? now();
 
         // Credit stock account
         $creditAccount->generalLedgerEntries()->create([
             'against_account_id' => $debitAccount->id,
             'credit'             => $paymentable->paid_amount,
             'debit'              => 0,
+            'transaction_date'   => $transactionDate,
             'referenceable_type' => PaymentEntry::class,
             'referenceable_id'   => $paymentEntry->id,
         ]);
@@ -130,6 +132,7 @@ class PaymentEntryService implements SubmitableService {
             'against_account_id' => $creditAccount->id,
             'credit'             => 0,
             'debit'              => $paymentable->paid_amount,
+            'transaction_date'   => $transactionDate,
             'referenceable_type' => PaymentEntry::class,
             'referenceable_id'   => $paymentEntry->id,
         ]);
