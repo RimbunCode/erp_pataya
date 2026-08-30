@@ -7,6 +7,7 @@ use App\Models\Core\Branch;
 use App\Models\Finances\Account;
 use App\Models\Finances\AdditionalCost;
 use App\Models\Model;
+use App\Services\Inventory\StockEntryService;
 use App\Traits\DataTable;
 use App\Traits\Submitable;
 use Illuminate\Database\Eloquent\Concerns\HasUlids;
@@ -15,7 +16,7 @@ use Illuminate\Database\Eloquent\SoftDeletes;
 class StockEntry extends Model {
     use DataTable, HasUlids, SoftDeletes, Submitable;
 
-    public static string $service = App\Services\Inventory\StockEntryService::class;
+    public static string $service = StockEntryService::class;
     public string $formComponent  = 'Inventory/StockEntries/Form';
     protected $guarded            = ['id'];
     protected $casts              = [

@@ -4,6 +4,7 @@ namespace App\Models\Sales;
 
 use App\Models\Core\Branch;
 use App\Models\Model;
+use App\Services\Sales\InternalOrderService;
 use App\Traits\DataTable;
 use App\Traits\Submitable;
 use Illuminate\Database\Eloquent\Concerns\HasUlids;
@@ -12,7 +13,7 @@ use Illuminate\Database\Eloquent\SoftDeletes;
 class InternalOrder extends Model {
     use DataTable, HasUlids, SoftDeletes, Submitable;
 
-    public static string $service = App\Services\Sales\InternalOrderService::class;
+    public static string $service = InternalOrderService::class;
     public string $formComponent  = 'Sales/InternalOrders/Form';
     protected $guarded            = ['id'];
     protected $casts              = [
