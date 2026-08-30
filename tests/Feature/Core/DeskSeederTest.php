@@ -13,10 +13,11 @@ use Tests\TestCase;
 class DeskSeederTest extends TestCase {
     use RefreshDatabase;
 
-    public function test_seeder_creates_ten_system_desks(): void {
+    /** Feedback user: desk Migration dihapus (fitur migrasi data murni Artisan/backend, tanpa halaman web). */
+    public function test_seeder_creates_nine_system_desks(): void {
         (new DeskSeeder)->run();
 
-        $this->assertSame(10, Desk::where('type', DeskType::System->value)->count());
+        $this->assertSame(9, Desk::where('type', DeskType::System->value)->count());
     }
 
     public function test_seeder_menu_items_have_resolvable_route_names(): void {
@@ -84,21 +85,61 @@ class DeskSeederTest extends TestCase {
         $this->assertContains('inventory', $deskDomains);
     }
 
+    /**
+     * Feedback user: grup HANYA dibuat kalau ada kedekatan konsep nyata,
+     * bukan "1 domain = 1 folder besar" — "Inventories" lama (10 item jadi
+     * 1 folder) dipecah jadi "Item Master" (definisi produk) + "Stock &
+     * Movements" (transaksi), Warehouses berdiri sendiri.
+     */
     public function test_seeder_groups_menu_items_under_module_folders(): void {
         (new DeskSeeder)->run();
 
-        $inventoriesGroup = MenuItem::where('route_name', '_group.inventories')->firstOrFail();
+        $itemMasterGroup = MenuItem::where('route_name', '_group.item-master')->firstOrFail();
 
-        $this->assertNull($inventoriesGroup->model);
-        $this->assertNull($inventoriesGroup->parent_id);
+        $this->assertNull($itemMasterGroup->model);
+        $this->assertNull($itemMasterGroup->parent_id);
 
         $itemMenu = MenuItem::where('route_name', 'items.*')->firstOrFail();
-        $this->assertSame($inventoriesGroup->id, $itemMenu->parent_id);
+        $this->assertSame($itemMasterGroup->id, $itemMenu->parent_id);
+
+        // Warehouses SENGAJA flat (beda konsep dari Item Master maupun
+        // Stock & Movements) — tidak boleh punya parent_id.
+        $warehousesMenu = MenuItem::where('route_name', 'warehouses.*')->firstOrFail();
+        $this->assertNull($warehousesMenu->parent_id);
 
         // Section tunggal (hanya 1 item, mis. Tickets/Logs) SENGAJA tidak
         // diberi folder — memaksa grup utk anak tunggal cuma menambah 1
         // level klik tanpa manfaat pengelompokan nyata.
         $ticketsMenu = MenuItem::where('route_name', 'tickets.*')->firstOrFail();
         $this->assertNull($ticketsMenu->parent_id);
+
+        // Feedback user: Suppliers/Customers keluar dari grup "Purchases"/
+        // "Sales" — relasi vendor/pelanggan beda konsep dari dokumen
+        // transaksi, sekaligus dipakai lintas desk (Finances).
+        $suppliersMenu = MenuItem::where('route_name', 'suppliers.*')->firstOrFail();
+        $this->assertNull($suppliersMenu->parent_id);
+
+        $customersMenu = MenuItem::where('route_name', 'customers.*')->firstOrFail();
+        $this->assertNull($customersMenu->parent_id);
+    }
+
+    /**
+     * Feedback user: Suppliers juga relevan di desk Finances (konteks
+     * pembayaran vendor); Assets/Maintenance Teams/Asset Maintenance juga
+     * relevan di desk Service (aset yang sedang diservis).
+     */
+    public function test_seeder_assigns_cross_desk_menu_items_per_feedback(): void {
+        (new DeskSeeder)->run();
+
+        $supplierDomains = MenuItem::where('route_name', 'suppliers.*')->firstOrFail()
+            ->desks()->pluck('domain')->map(fn ($d) => $d->value)->all();
+        $this->assertContains('finances', $supplierDomains);
+        $this->assertContains('purchase', $supplierDomains);
+
+        foreach (['assets.*', 'assetMaintenanceTeams.*', 'assetMaintenances.*'] as $routeName) {
+            $domains = MenuItem::where('route_name', $routeName)->firstOrFail()
+                ->desks()->pluck('domain')->map(fn ($d) => $d->value)->all();
+            $this->assertContains('service', $domains, "{$routeName} harus attach ke desk Service");
+        }
     }
 }

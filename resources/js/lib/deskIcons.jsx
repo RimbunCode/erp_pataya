@@ -47,6 +47,33 @@ export function resolveIcon(name) {
   return Icon ? <Icon /> : null;
 }
 
+// Feedback user: icon Menu Item top-level di form Desk (grup virtual/item
+// custom) tetap opsional (nullable), tapi kalau kosong sidebar jangan
+// kosong juga — tampilkan inisial label, mirip fallback foto profil akun
+// (lihat UserInfo.jsx). Ukuran size-4 disamakan manual dgn slot svg icon
+// lain (selector [&>svg]:size-4 di sidebar.jsx cuma target elemen <svg>,
+// span ini bukan svg jadi tidak ikut ke-style otomatis).
+function getInitials(label) {
+  return (label ?? "")
+    .split(" ")
+    .filter(Boolean)
+    .slice(0, 2)
+    .map((word) => word.charAt(0))
+    .join("")
+    .toUpperCase();
+}
+
+export function resolveMenuIcon(name, label) {
+  const icon = resolveIcon(name);
+  if (icon) return icon;
+
+  return (
+    <span className="flex size-4 shrink-0 items-center justify-center rounded-full bg-muted text-[9px] font-semibold text-muted-foreground">
+      {getInitials(label)}
+    </span>
+  );
+}
+
 // Tiap warna (background/foreground) berlaku INDEPENDEN — yg diisi dipakai
 // literal (TIDAK boleh terpengaruh dark/light mode), yg kosong fallback ke
 // token tema per-channel (bg-muted / text-foreground) supaya tetap kontras

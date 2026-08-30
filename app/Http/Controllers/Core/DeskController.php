@@ -480,7 +480,18 @@ class DeskController extends Controller {
      */
     public function home(Request $request) {
         $desk = $request->attributes->get('resolvedDesk');
-        abort_unless($desk, 404);
+
+        // Bug ditemukan: ResolveActiveDesk::handle() SENGAJA tidak fatal
+        // ketika user benar-benar tanpa Desk visible (attribute
+        // 'resolvedDesk' sengaja tidak di-set, request dibiarkan lanjut —
+        // lihat komentar di sana), tapi method ini dulu abort_unless(404)
+        // langsung, jadi niat "proceed tanpa konteks Desk" itu tetap dead-end
+        // 404 khusus di route 'dashboard'. Redirect ke desks.index — jalan
+        // keluar yang sama yang sudah dipakai ResolveActiveDesk utk bypass
+        // desk.*/desks.* (mis. bikin Desk personal pertama).
+        if (! $desk) {
+            return redirect()->route('desks.index');
+        }
 
         // Breadcrumb selalu "Home > DeskSwitcher > Dashboard" — label statis
         // "Dashboard", BUKAN $dashboard->title (mis. "Core Dashboard") yang

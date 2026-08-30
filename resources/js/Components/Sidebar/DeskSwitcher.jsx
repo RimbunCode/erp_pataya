@@ -3,17 +3,28 @@ import {
   DropdownMenuContent,
   DropdownMenuItem,
   DropdownMenuLabel,
+  DropdownMenuSeparator,
   DropdownMenuTrigger,
 } from "@/Components/ui/dropdown-menu";
+import { Fragment, memo, useMemo } from "react";
 
-import { memo } from "react";
 import { resolveIcon } from "@/lib/deskIcons";
 import { router } from "@inertiajs/react";
 import { usePage } from "@inertiajs/react";
 
+// Feedback user: desk System dulu baru Custom (dgn divider di antaranya),
+// tiap grup diurutkan alfabetis by nama.
+function sortDesks(deskList) {
+  return [...(deskList ?? [])].sort((a, b) => {
+    if (a.type !== b.type) return a.type === "system" ? -1 : 1;
+    return a.name.localeCompare(b.name);
+  });
+}
+
 export default memo(function DeskSwitcher() {
   const route = window.route;
   const { activeDesk, deskList } = usePage().props;
+  const sortedDeskList = useMemo(() => sortDesks(deskList), [deskList]);
 
   function switchDesk(deskId) {
     const urlBeforeSwitch = window.location.pathname;
@@ -56,15 +67,19 @@ export default memo(function DeskSwitcher() {
         <DropdownMenuLabel className="text-xs text-muted-foreground">
           Desks
         </DropdownMenuLabel>
-        {(deskList ?? []).map((desk) => (
-          <DropdownMenuItem
-            key={desk.id}
-            className="gap-2 cursor-pointer"
-            onSelect={() => switchDesk(desk.id)}
-          >
-            {resolveIcon(desk.icon)}
-            {desk.name}
-          </DropdownMenuItem>
+        {sortedDeskList.map((desk, index) => (
+          <Fragment key={desk.id}>
+            {index > 0 &&
+              sortedDeskList[index - 1].type === "system" &&
+              desk.type === "custom" && <DropdownMenuSeparator />}
+            <DropdownMenuItem
+              className="gap-2 cursor-pointer"
+              onSelect={() => switchDesk(desk.id)}
+            >
+              {resolveIcon(desk.icon)}
+              {desk.name}
+            </DropdownMenuItem>
+          </Fragment>
         ))}
       </DropdownMenuContent>
     </DropdownMenu>

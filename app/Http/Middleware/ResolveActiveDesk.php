@@ -60,8 +60,10 @@ class ResolveActiveDesk {
 
         Inertia::share([
             'activeDesk' => $desk->only(['id', 'name', 'icon', 'background_color', 'foreground_color']),
-            'deskList'   => $this->resolver->visibleDesksFor($user, $checker, $request)
-                ->map->only(['id', 'name', 'icon', 'background_color', 'foreground_color'])
+            // 'type' (system|custom) diikutkan — feedback user: DeskSwitcher
+            // urutkan system dulu baru custom, dengan divider di antaranya.
+            'deskList' => $this->resolver->visibleDesksFor($user, $checker, $request)
+                ->map->only(['id', 'name', 'icon', 'background_color', 'foreground_color', 'type'])
                 ->values(),
             'menuItems' => $this->buildMenuTree($desk, $checker),
         ]);
@@ -71,17 +73,122 @@ class ResolveActiveDesk {
         );
     }
 
+    /**
+     * Feedback user: 4 menu ini (Dashboard, lalu di urutan terakhir Approvals/
+     * ToDo/Manual Book) WAJIB ada di SEMUA desk — system maupun custom yang
+     * dibuat user — dan TIDAK BOLEH muncul sebagai opsi yang bisa
+     * dihapus/diedit di picker/editor Menu Form Desk. Disuntik di SINI
+     * (satu-satunya titik yang membangun prop `menuItems` utk desk apa pun),
+     * BUKAN sebagai row MenuItem/DeskMenuItem — supaya otomatis tidak pernah
+     * tersimpan per-desk (karenanya juga otomatis tidak muncul di
+     * DeskMenuItemManager, yang membaca dari DB).
+     */
+    private const MANDATORY_TOP = ['title' => 'Dashboard', 'icon' => 'LayoutDashboard', 'routeName' => 'dashboard'];
+
+    private const MANDATORY_BOTTOM = [
+        ['title' => 'Approvals', 'icon' => 'StampIcon', 'routeName' => 'approvalInstances.*'],
+        ['title' => 'ToDo', 'icon' => 'ListTodo', 'routeName' => 'todos.*'],
+        ['title' => 'Manual Book', 'icon' => 'BookOpen', 'routeName' => 'manualBook.*'],
+    ];
+
     private function buildMenuTree(Desk $desk, PermissionChecker $checker): array {
         $topLevel = $desk->menuItemPivots()
             ->whereNull('parent_id')
-            ->with(['menuItem', 'children.menuItem'])
+            ->with(['menuItem.parent', 'children.menuItem'])
             ->get();
 
-        return $topLevel
-            ->map(fn (DeskMenuItem $pivot) => $this->buildMenuItem($pivot, $checker))
-            ->filter()
-            ->values()
-            ->all();
+        $items = $this->groupByMenuItemParent($topLevel, $checker);
+
+        return [
+            $this->mandatoryMenuItem(self::MANDATORY_TOP),
+            ...$items,
+            ...array_map($this->mandatoryMenuItem(...), self::MANDATORY_BOTTOM),
+        ];
+    }
+
+    /**
+     * Bug ditemukan: DeskSeeder mengelompokkan menu system desk via
+     * `MenuItem::parent_id` (`menuGroup()`/param `group:`, mis. folder
+     * "Inventories"), TAPI method ini SEBELUMNYA cuma baca nesting dari
+     * `DeskMenuItem::parent_id` (level PIVOT, dipakai custom desk lewat
+     * drag-drop di DeskMenuItemManager) — folder grup-nya sendiri bahkan
+     * tidak pernah di-attach ke desk manapun. Akibatnya SEMUA anak grup
+     * (mis. 10 item "Inventories") tampil FLAT di sidebar sungguhan,
+     * bukan nested collapsible seperti maksud seeder.
+     *
+     * Di sini pivot top-level dikelompokkan ULANG berdasar
+     * `MenuItem::parent_id` (BEDA sumbu dari `DeskMenuItem::parent_id`,
+     * yang tetap dihormati lewat `buildMenuItem()`'s `$pivot->children`
+     * seperti sebelumnya) — pivot yang berbagi parent MenuItem yang sama
+     * dibungkus jadi SATU node collapsible (label/icon dari parent
+     * MenuItem). Berlaku juga utk custom desk (bukan cuma system) —
+     * konsisten, custom desk otomatis dapat efek sama tanpa perlu user
+     * bikin virtual group manual kalau kebetulan pilih MenuItem yang
+     * memang sudah punya grup di seeder.
+     *
+     * Feedback user: jangan grouping kalau cuma 1 item — tapi keanggotaan
+     * grup itu SENDIRI per-desk (satu MenuItem yg sama bisa attach ke
+     * beberapa desk berbeda, dgn saudara grup yg berbeda2 di tiap desk;
+     * lihat mis. "Assets" yg di desk Asset ikut grup "Asset Master" 3
+     * anak, tapi di desk Service cuma dia sendirian dari grup itu). Jadi
+     * cek jumlah CHILD SETELAH filter permission, bukan asumsi statis
+     * dari seeder — kalau hasilnya cuma 1, unwrap jadi item flat biasa
+     * (bukan node collapsible ber-anak 1).
+     *
+     * @return array<int, array>
+     */
+    private function groupByMenuItemParent($pivots, PermissionChecker $checker): array {
+        $grouped = $pivots->groupBy(fn (DeskMenuItem $pivot) => $pivot->menuItem?->parent_id ?? $pivot->id);
+
+        $items = [];
+        foreach ($grouped as $pivotsInGroup) {
+            $parentMenuItem = $pivotsInGroup->first()->menuItem?->parent;
+
+            if (! $parentMenuItem) {
+                foreach ($pivotsInGroup as $pivot) {
+                    $built = $this->buildMenuItem($pivot, $checker);
+                    if ($built) {
+                        $items[] = $built;
+                    }
+                }
+
+                continue;
+            }
+
+            $children = $pivotsInGroup
+                ->map(fn (DeskMenuItem $pivot) => $this->buildMenuItem($pivot, $checker))
+                ->filter()
+                ->values();
+
+            if ($children->count() === 1) {
+                $items[] = $children->first();
+            } elseif ($children->count() > 1) {
+                $items[] = [
+                    'title'     => $parentMenuItem->label,
+                    'icon'      => $parentMenuItem->icon,
+                    'url'       => null,
+                    'routeName' => null,
+                    'model'     => null,
+                    'items'     => $children->all(),
+                ];
+            }
+        }
+
+        return $items;
+    }
+
+    /**
+     * @param  array{title: string, icon: string, routeName: string}  $def
+     */
+    private function mandatoryMenuItem(array $def): array {
+        return [
+            'title'     => $def['title'],
+            'icon'      => $def['icon'],
+            'url'       => $this->urlResolver->resolve(new MenuItem(['route_name' => $def['routeName']])),
+            'routeName' => $def['routeName'],
+            'model'     => null,
+            'items'     => null,
+        ];
     }
 
     /**

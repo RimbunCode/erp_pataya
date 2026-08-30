@@ -38,12 +38,18 @@ class ResolveActiveDeskTest extends TestCase {
         $response->assertCookie('active_desk', $desk->id);
     }
 
+    /**
+     * Feedback user: Dashboard/Approvals/ToDo/Manual Book disuntik di
+     * buildMenuTree() (BUKAN row DB) — SELALU ada di posisi tetap: Dashboard
+     * paling atas, 3 lainnya paling bawah. `route_name` custom di sini
+     * SENGAJA bukan 'dashboard' (bentrok makna dgn item wajib yg disuntik).
+     */
     public function test_middleware_shares_inertia_props(): void {
         $user = User::factory()->create();
         $desk = Desk::factory()->create(['type' => DeskType::Custom, 'owner_id' => $user->id, 'name' => 'My Desk']);
         $user->update(['default_desk_id' => $desk->id]);
 
-        $menuItem = MenuItem::factory()->create(['primary_desk_id' => $desk->id, 'route_name' => 'dashboard']);
+        $menuItem = MenuItem::factory()->create(['primary_desk_id' => $desk->id, 'route_name' => 'todos.index']);
         $desk->menuItems()->attach($menuItem->id, ['order' => 0]);
 
         $response = $this->actingAs($user)
@@ -56,8 +62,12 @@ class ResolveActiveDeskTest extends TestCase {
                 ->where('activeDesk.id', $desk->id)
                 ->where('activeDesk.name', 'My Desk')
                 ->has('deskList')
-                ->has('menuItems', 1)
-                ->where('menuItems.0.title', $menuItem->label),
+                ->has('menuItems', 5)
+                ->where('menuItems.0.title', 'Dashboard')
+                ->where('menuItems.1.title', $menuItem->label)
+                ->where('menuItems.2.title', 'Approvals')
+                ->where('menuItems.3.title', 'ToDo')
+                ->where('menuItems.4.title', 'Manual Book'),
         );
     }
 
@@ -126,11 +136,26 @@ class ResolveActiveDeskTest extends TestCase {
             ->get(route('dashboard'));
 
         $response->assertOk();
-        $response->assertInertia(fn ($page) => $page->has('menuItems', 0));
+        // 4 item wajib (Dashboard/Approvals/ToDo/Manual Book) tetap tampil
+        // walau satu-satunya menu custom desk ini broken & ke-drop.
+        $response->assertInertia(fn ($page) => $page->has('menuItems', 4));
     }
 
-    public function test_request_proceeds_without_desk_context_when_user_has_no_visible_desk(): void {
+    /**
+     * Feedback user: grup jangan dipakai kalau cuma 1 item — tapi keanggotaan
+     * grup itu per-desk (parent MenuItem yang sama bisa attach ke beberapa
+     * desk dengan saudara yang beda2 tiap desk). Di sini parent group
+     * ("Test Group") punya 1 child yang di-attach ke desk custom ini —
+     * harus render FLAT (title = child, bukan title grup, tanpa nested items).
+     */
+    public function test_group_with_single_attached_child_is_unwrapped_to_flat_item(): void {
         $user = User::factory()->create();
+        $desk = Desk::factory()->create(['type' => DeskType::Custom, 'owner_id' => $user->id]);
+        $user->update(['default_desk_id' => $desk->id]);
+
+        $group = MenuItem::factory()->create(['primary_desk_id' => $desk->id, 'route_name' => '_group.test-group', 'label' => 'Test Group']);
+        $child = MenuItem::factory()->create(['primary_desk_id' => $desk->id, 'route_name' => 'todos.index', 'label' => 'Only Child', 'parent_id' => $group->id]);
+        $desk->menuItems()->attach($child->id, ['order' => 0]);
 
         $response = $this->actingAs($user)
             ->withCookie('lang', 'en')
@@ -139,9 +164,27 @@ class ResolveActiveDeskTest extends TestCase {
         $response->assertOk();
         $response->assertInertia(
             fn ($page) => $page
-                ->missing('activeDesk')
-                ->missing('deskList')
-                ->missing('menuItems'),
+                ->has('menuItems', 5)
+                ->where('menuItems.1.title', 'Only Child')
+                ->where('menuItems.1.items', null),
         );
+    }
+
+    /**
+     * Bug ditemukan: ResolveActiveDesk::handle() sengaja tidak fatal saat
+     * user tanpa Desk visible (lanjut $next($request) tanpa set
+     * 'resolvedDesk') — tapi DeskController::home() dulu abort_unless(404)
+     * langsung, jadi niat "proceed tanpa konteks Desk" itu dead-end 404
+     * khusus di route 'dashboard'. Sekarang redirect ke desks.index (jalan
+     * keluar yang sama dgn bypass prefix desk./desks. di middleware).
+     */
+    public function test_redirects_to_desks_index_when_user_has_no_visible_desk(): void {
+        $user = User::factory()->create();
+
+        $response = $this->actingAs($user)
+            ->withCookie('lang', 'en')
+            ->get(route('dashboard'));
+
+        $response->assertRedirect(route('desks.index'));
     }
 }

@@ -9,14 +9,20 @@ import {
 
 import BranchSwitcher from "@/Components/Sidebar/BranchSwitcher";
 import { NavMain } from "@/Components/Sidebar/NavMain";
-import { resolveIcon } from "@/lib/deskIcons";
+import { resolveIcon, resolveMenuIcon } from "@/lib/deskIcons";
 import { usePage } from "@inertiajs/react";
 
-function resolveMenuItems(items) {
+// Fallback inisial (feedback user) cuma relevan utk item TOP-LEVEL — NavMain
+// memang tidak pernah render icon anak grup yang di-collapse (cuma label),
+// jadi children tetap resolveIcon() biasa (null kalau kosong, aman, tidak
+// terpakai visual).
+function resolveMenuItems(items, isTopLevel = true) {
   return (items ?? []).map((item) => ({
     ...item,
-    icon: resolveIcon(item.icon),
-    items: item.items ? resolveMenuItems(item.items) : undefined,
+    icon: isTopLevel
+      ? resolveMenuIcon(item.icon, item.title)
+      : resolveIcon(item.icon),
+    items: item.items ? resolveMenuItems(item.items, false) : undefined,
   }));
 }
 

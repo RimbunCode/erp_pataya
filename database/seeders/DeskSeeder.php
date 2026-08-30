@@ -14,18 +14,18 @@ use App\Models\Asset\Maintenance\AssetMaintenance;
 use App\Models\Asset\Maintenance\AssetMaintenanceTeam;
 use App\Models\Core\ApprovalScheme;
 use App\Models\Core\Branch;
+use App\Models\Core\Chart;
 use App\Models\Core\Country;
 use App\Models\Core\Currency;
-use App\Models\Core\Dashboard;
 use App\Models\Core\Desk;
 use App\Models\Core\EmailTemplate;
 use App\Models\Core\File;
 use App\Models\Core\FormatingSeries;
 use App\Models\Core\Log;
 use App\Models\Core\MenuItem;
+use App\Models\Core\NumberCard;
 use App\Models\Core\Preference;
 use App\Models\Core\PrintTemplate;
-use App\Models\Core\Widget;
 use App\Models\Finances\Account;
 use App\Models\Finances\GeneralLedger;
 use App\Models\Finances\PaymentEntry;
@@ -84,7 +84,6 @@ class DeskSeeder extends Seeder {
             Domain::Service->value   => ['domain' => Domain::Service, 'name' => 'Service', 'icon' => 'Wrench', 'background_color' => '#7c3aed', 'foreground_color' => '#ffffff'],
             Domain::Helpdesk->value  => ['domain' => Domain::Helpdesk, 'name' => 'Helpdesk', 'icon' => 'TicketsIcon', 'background_color' => '#e11d48', 'foreground_color' => '#ffffff'],
             Domain::User->value      => ['domain' => Domain::User, 'name' => 'User Management', 'icon' => 'Users2', 'background_color' => '#0891b2', 'foreground_color' => '#ffffff'],
-            Domain::Migration->value => ['domain' => Domain::Migration, 'name' => 'Migration', 'icon' => 'HistoryIcon', 'background_color' => '#4b5563', 'foreground_color' => '#ffffff'],
         ];
 
         foreach ($defs as $domainValue => $attrs) {
@@ -122,7 +121,14 @@ class DeskSeeder extends Seeder {
         $menuItem = MenuItem::updateOrCreate(
             ['route_name' => $routeName],
             [
-                'label'           => $label,
+                'label' => $label,
+                // Feedback user: grup di-skip (unwrap jadi flat) kalau cuma
+                // punya 1 child DI DESK TERTENTU (lihat
+                // ResolveActiveDesk::groupByMenuItemParent()) — keanggotaan
+                // grup per-desk BISA beda2 tergantung item mana yg attach ke
+                // desk itu, jadi icon TIDAK BISA di-skip saat seed (statis,
+                // global), harus selalu icon asli item ini supaya tetap benar
+                // saat kebetulan ke-unwrap flat di sebagian desk.
                 'icon'            => $icon,
                 'model'           => $model,
                 'order'           => $order,
@@ -161,101 +167,150 @@ class DeskSeeder extends Seeder {
     }
 
     private function seedMenuItems(): void {
-        // Folder murni pengelompokan "per Modul" (Requirement picker MenuItem
-        // Desk) — dibuat SEBELUM child-nya karena menuItem() butuh
+        // Folder murni pengelompokan (Requirement picker MenuItem Desk) —
+        // dibuat SEBELUM child-nya karena menuItem() butuh
         // $this->menuGroups[$group] sudah terisi.
-        $this->menuGroup('Inventories', 'PackageIcon', Domain::Inventory);
-        $this->menuGroup('Assets', 'Boxes', Domain::Asset);
+        //
+        // Feedback user: grup HANYA dibuat kalau memang ada kedekatan
+        // konsep NYATA antar item (mis. Items+Attributes+Categories =
+        // "Item Master") — BUKAN "1 domain = 1 folder besar" (dulu SEMUA
+        // 10 item Inventory dijejalkan ke satu folder "Inventories"; itu
+        // sama percumanya dgn tanpa grouping sama sekali, menghilangkan
+        // manfaat Desk-based management yang justru dimaksudkan memecah
+        // per-konteks). Item yang TIDAK cukup dekat konsepnya ke item lain
+        // di domain yang sama dibiarkan FLAT (top-level, tanpa grup).
+        $this->menuGroup('Item Master', 'PackageIcon', Domain::Inventory);
+        $this->menuGroup('Stock & Movements', 'PackageCheck', Domain::Inventory);
+        $this->menuGroup('Asset Master', 'Boxes', Domain::Asset);
+        $this->menuGroup('Maintenance', 'Wrench', Domain::Asset);
         $this->menuGroup('Purchases', 'ShoppingBagIcon', Domain::Purchase);
         $this->menuGroup('Sales', 'Receipt', Domain::Sales);
-        $this->menuGroup('Finances', 'HandCoins', Domain::Finances);
+        $this->menuGroup('Accounting', 'Calculator', Domain::Finances);
+        $this->menuGroup('Payments', 'CreditCard', Domain::Finances);
+        $this->menuGroup('Invoices', 'FileText', Domain::Finances);
         $this->menuGroup('Users', 'Users2', Domain::User);
-        $this->menuGroup('Settings', 'Settings2', Domain::Core);
+        $this->menuGroup('General', 'Building2', Domain::Core);
+        $this->menuGroup('Workflow', 'Workflow', Domain::Core);
+        $this->menuGroup('Templates', 'LayoutTemplate', Domain::Core);
+        $this->menuGroup('Dashboard Widgets', 'Gauge', Domain::Core);
 
-        // Dashboard — muncul di semua desk, primary Core
-        $this->menuItem('Dashboard', 'LayoutDashboard', 'dashboard', null, [
-            Domain::Core, Domain::Sales, Domain::Purchase, Domain::Inventory,
-            Domain::Asset, Domain::Finances, Domain::Service, Domain::Helpdesk, Domain::User,
-        ], 0);
+        // Dashboard/Approvals/ToDo/Manual Book — TIDAK di-seed di sini lagi.
+        // Feedback user: 4 menu ini wajib ada di SEMUA desk (termasuk custom
+        // yang dibuat user, bukan cuma system desk) dan TIDAK boleh muncul di
+        // picker/editor menu Form Desk. Disuntik langsung di kode render-time
+        // (ResolveActiveDesk::buildMenuTree() — satu titik yang membangun
+        // prop `menuItems` utk SEMUA desk, system maupun custom), BUKAN
+        // sebagai row MenuItem/DeskMenuItem — supaya otomatis tidak pernah
+        // muncul sebagai opsi yang bisa dihapus/diedit user.
 
-        // Inventories — primary Inventory; Items/Warehouses juga relevan Sales & Purchase
-        $this->menuItem('Items', 'PackageIcon', 'items.*', Item::class, [Domain::Inventory, Domain::Sales, Domain::Purchase], 1, group: 'Inventories');
-        $this->menuItem('Item Alternatives', 'PackageIcon', 'itemAlternatives.*', ItemAlternative::class, [Domain::Inventory], 2, group: 'Inventories');
-        $this->menuItem('Warehouses', 'PackageIcon', 'warehouses.*', Warehouse::class, [Domain::Inventory, Domain::Sales, Domain::Purchase], 3, group: 'Inventories');
-        $this->menuItem('Attributes', 'PackageIcon', 'attributes.*', Attribute::class, [Domain::Inventory], 4, group: 'Inventories');
-        $this->menuItem('Categories', 'PackageIcon', 'categories.*', Category::class, [Domain::Inventory], 5, group: 'Inventories');
-        $this->menuItem('Units', 'PackageIcon', 'units.*', Unit::class, [Domain::Inventory], 6, group: 'Inventories');
-        $this->menuItem('Stock Entries', 'PackageIcon', 'stockEntries.*', StockEntry::class, [Domain::Inventory], 7, group: 'Inventories');
-        $this->menuItem('Purchase Receipts', 'PackageIcon', 'purchaseReceipts.*', PurchaseReceipt::class, [Domain::Purchase, Domain::Inventory], 8, group: 'Inventories');
-        $this->menuItem('Delivery Notes', 'PackageIcon', 'deliveryNotes.*', DeliveryNote::class, [Domain::Inventory, Domain::Sales], 9, group: 'Inventories');
-        $this->menuItem('Stock Ledgers', 'PackageIcon', 'stockLedgers.*', StockLedgerEntry::class, [Domain::Inventory], 10, group: 'Inventories');
+        // Inventory: Item Master — definisi produk/katalog, genuinely terkait
+        $this->menuItem('Items', 'PackageIcon', 'items.*', Item::class, [Domain::Inventory, Domain::Sales, Domain::Purchase], 1, group: 'Item Master');
+        $this->menuItem('Item Alternatives', 'PackageIcon', 'itemAlternatives.*', ItemAlternative::class, [Domain::Inventory], 2, group: 'Item Master');
+        $this->menuItem('Attributes', 'PackageIcon', 'attributes.*', Attribute::class, [Domain::Inventory], 3, group: 'Item Master');
+        $this->menuItem('Categories', 'PackageIcon', 'categories.*', Category::class, [Domain::Inventory], 4, group: 'Item Master');
+        $this->menuItem('Units', 'PackageIcon', 'units.*', Unit::class, [Domain::Inventory], 5, group: 'Item Master');
 
-        // Assets — primary Asset
-        $this->menuItem('Assets', 'Boxes', 'assets.*', Asset::class, [Domain::Asset], 1, group: 'Assets');
-        $this->menuItem('Asset Categories', 'Boxes', 'assetCategories.*', AssetCategory::class, [Domain::Asset], 2, group: 'Assets');
-        $this->menuItem('Asset Locations', 'Boxes', 'assetLocations.*', AssetLocation::class, [Domain::Asset], 3, group: 'Assets');
-        $this->menuItem('Asset Value Adjustments', 'Boxes', 'assetValueAdjustments.*', AssetValueAdjustment::class, [Domain::Asset], 4, group: 'Assets');
-        $this->menuItem('Asset Movements', 'Boxes', 'assetMovements.*', AssetMovement::class, [Domain::Asset], 5, group: 'Assets');
-        $this->menuItem('Maintenance Teams', 'Boxes', 'assetMaintenanceTeams.*', AssetMaintenanceTeam::class, [Domain::Asset], 6, group: 'Assets');
-        $this->menuItem('Asset Maintenance', 'Boxes', 'assetMaintenances.*', AssetMaintenance::class, [Domain::Asset], 7, group: 'Assets');
-        $this->menuItem('Asset Services', 'Boxes', 'assetServices.*', AssetService::class, [Domain::Asset, Domain::Service], 8, group: 'Assets');
+        // Inventory: Warehouses berdiri sendiri — soal LOKASI, beda konsep
+        // dari Item Master (definisi produk) maupun Stock & Movements (transaksi)
+        $this->menuItem('Warehouses', 'Warehouse', 'warehouses.*', Warehouse::class, [Domain::Inventory, Domain::Sales, Domain::Purchase], 6);
+
+        // Inventory: Stock & Movements — transaksi pergerakan stok
+        $this->menuItem('Stock Entries', 'PackageCheck', 'stockEntries.*', StockEntry::class, [Domain::Inventory], 7, group: 'Stock & Movements');
+        $this->menuItem('Purchase Receipts', 'PackageCheck', 'purchaseReceipts.*', PurchaseReceipt::class, [Domain::Purchase, Domain::Inventory], 8, group: 'Stock & Movements');
+        $this->menuItem('Delivery Notes', 'PackageCheck', 'deliveryNotes.*', DeliveryNote::class, [Domain::Inventory, Domain::Sales], 9, group: 'Stock & Movements');
+        $this->menuItem('Stock Ledgers', 'PackageCheck', 'stockLedgers.*', StockLedgerEntry::class, [Domain::Inventory], 10, group: 'Stock & Movements');
+
+        // Assets: Asset Master — definisi aset. Feedback user: Assets juga
+        // relevan di desk Service (aset yg diservis) — Categories/Locations
+        // TIDAK diminta, tetap Asset-only.
+        $this->menuItem('Assets', 'Boxes', 'assets.*', Asset::class, [Domain::Asset, Domain::Service], 1, group: 'Asset Master');
+        $this->menuItem('Asset Categories', 'Boxes', 'assetCategories.*', AssetCategory::class, [Domain::Asset], 2, group: 'Asset Master');
+        $this->menuItem('Asset Locations', 'Boxes', 'assetLocations.*', AssetLocation::class, [Domain::Asset], 3, group: 'Asset Master');
+
+        // Assets: transaksi berdiri sendiri — bukan master data, bukan maintenance
+        $this->menuItem('Asset Value Adjustments', 'ArrowUpDown', 'assetValueAdjustments.*', AssetValueAdjustment::class, [Domain::Asset], 4);
+        $this->menuItem('Asset Movements', 'Truck', 'assetMovements.*', AssetMovement::class, [Domain::Asset], 5);
+
+        // Assets: Maintenance. Feedback user: Maintenance Teams + Asset
+        // Maintenance juga relevan di desk Service (Asset Services sudah
+        // duluan ada di sana) — di desk Service ketiganya otomatis tetap
+        // ke-grup "Maintenance" (3 anak, syarat >1 item terpenuhi).
+        $this->menuItem('Maintenance Teams', 'Wrench', 'assetMaintenanceTeams.*', AssetMaintenanceTeam::class, [Domain::Asset, Domain::Service], 6, group: 'Maintenance');
+        $this->menuItem('Asset Maintenance', 'Wrench', 'assetMaintenances.*', AssetMaintenance::class, [Domain::Asset, Domain::Service], 7, group: 'Maintenance');
+        $this->menuItem('Asset Services', 'Wrench', 'assetServices.*', AssetService::class, [Domain::Asset, Domain::Service], 8, group: 'Maintenance');
 
         // Services — primary Service (section tunggal, tidak butuh folder)
         $this->menuItem('Work Orders', 'ServiceIcon', 'workOrders.*', WorkOrder::class, [Domain::Service], 1);
 
-        // Purchases — primary Purchase
-        $this->menuItem('Suppliers', 'ShoppingBagIcon', 'suppliers.*', Supplier::class, [Domain::Purchase], 1, group: 'Purchases');
+        // Purchases — Requests+Orders tetap 1 grup kecil (alur procurement).
+        // Suppliers feedback user: keluarkan dari grup (relasi vendor beda
+        // konsep dari dokumen transaksi procurement) + dipakai juga di
+        // Finances (konteks pembayaran vendor) — icon beda dari grup
+        // 'Purchases' krn sama2 flat/top-level di desk Purchase.
+        $this->menuItem('Suppliers', 'Handshake', 'suppliers.*', Supplier::class, [Domain::Purchase, Domain::Finances], 1);
         $this->menuItem('Purchase Requests', 'ShoppingBagIcon', 'purchaseRequests.*', PurchaseRequest::class, [Domain::Purchase], 2, group: 'Purchases');
         $this->menuItem('Purchase Orders', 'ShoppingBagIcon', 'purchaseOrders.*', PurchaseOrder::class, [Domain::Purchase], 3, group: 'Purchases');
 
-        // Customers — primary Sales (dipakai juga di Finances utk invoicing context)
-        $this->menuItem('Customers', 'CustomerIcon', 'customers.*', Customer::class, [Domain::Sales, Domain::Finances], 1, group: 'Sales');
-
-        // Sales — primary Sales
+        // Sales — Orders+Internal Orders tetap 1 grup kecil. Customers
+        // feedback user: keluarkan dari grup (relasi pelanggan beda konsep
+        // dari dokumen transaksi) — juga dipakai di Finances.
+        $this->menuItem('Customers', 'CustomerIcon', 'customers.*', Customer::class, [Domain::Sales, Domain::Finances], 1);
         $this->menuItem('Sales Orders', 'Receipt', 'salesOrders.*', SalesOrder::class, [Domain::Sales], 2, group: 'Sales');
         $this->menuItem('Internal Orders', 'Receipt', 'internalOrders.*', InternalOrder::class, [Domain::Sales], 3, group: 'Sales');
 
-        // Finances — primary Finances
-        $this->menuItem('Accounts', 'HandCoins', 'accounts.*', Account::class, [Domain::Finances], 1, group: 'Finances');
-        $this->menuItem('Payment Methods', 'HandCoins', 'paymentMethods.*', PaymentMethod::class, [Domain::Finances], 2, group: 'Finances');
-        $this->menuItem('Payment Term Templates', 'HandCoins', 'paymentTermTemplates.*', PaymentTermTemplate::class, [Domain::Finances], 3, group: 'Finances');
-        $this->menuItem('Payment Entries', 'HandCoins', 'paymentEntries.*', PaymentEntry::class, [Domain::Finances], 4, group: 'Finances');
-        $this->menuItem('Purchase Invoices', 'HandCoins', 'purchaseInvoices.*', PurchaseInvoice::class, [Domain::Finances, Domain::Purchase], 5, group: 'Finances');
-        $this->menuItem('Sales Invoices', 'HandCoins', 'salesInvoices.*', SalesInvoice::class, [Domain::Finances, Domain::Sales], 6, group: 'Finances');
-        $this->menuItem('Taxes', 'HandCoins', 'taxes.*', Tax::class, [Domain::Finances], 7, group: 'Finances');
-        $this->menuItem('General Ledgers', 'HandCoins', 'generalLedgers.*', GeneralLedger::class, [Domain::Finances], 8, group: 'Finances');
+        // Finances: Accounting
+        $this->menuItem('Accounts', 'Calculator', 'accounts.*', Account::class, [Domain::Finances], 1, group: 'Accounting');
+        $this->menuItem('General Ledgers', 'Calculator', 'generalLedgers.*', GeneralLedger::class, [Domain::Finances], 2, group: 'Accounting');
 
-        // Approvals — muncul di semua desk (proses lintas-domain), primary Core
-        $this->menuItem('Approvals', 'StampIcon', 'approvalInstances.*', null, [
-            Domain::Core, Domain::Sales, Domain::Purchase, Domain::Inventory, Domain::Asset, Domain::Finances, Domain::Service,
-        ], 11);
+        // Finances: Payments
+        $this->menuItem('Payment Methods', 'CreditCard', 'paymentMethods.*', PaymentMethod::class, [Domain::Finances], 3, group: 'Payments');
+        $this->menuItem('Payment Term Templates', 'CreditCard', 'paymentTermTemplates.*', PaymentTermTemplate::class, [Domain::Finances], 4, group: 'Payments');
+        $this->menuItem('Payment Entries', 'CreditCard', 'paymentEntries.*', PaymentEntry::class, [Domain::Finances], 5, group: 'Payments');
 
-        // Users — primary User
+        // Finances: Invoices
+        $this->menuItem('Purchase Invoices', 'FileText', 'purchaseInvoices.*', PurchaseInvoice::class, [Domain::Finances, Domain::Purchase], 6, group: 'Invoices');
+        $this->menuItem('Sales Invoices', 'FileText', 'salesInvoices.*', SalesInvoice::class, [Domain::Finances, Domain::Sales], 7, group: 'Invoices');
+        $this->menuItem('Taxes', 'FileText', 'taxes.*', Tax::class, [Domain::Finances], 8, group: 'Invoices');
+
+        // Users — 2 item terkait erat
         $this->menuItem('Manage Users', 'Users2', 'users.*', User::class, [Domain::User], 1, group: 'Users');
         $this->menuItem('Roles', 'Users2', 'roles.*', Role::class, [Domain::User], 2, group: 'Users');
 
         // Tickets — primary Helpdesk (section tunggal, tidak butuh folder)
         $this->menuItem('Tickets', 'TicketsIcon', 'tickets.*', null, [Domain::Helpdesk], 1);
 
-        // ToDo — muncul di semua desk (personal task list), primary Core
-        $this->menuItem('ToDo', 'ListTodo', 'todos.*', null, [
-            Domain::Core, Domain::Sales, Domain::Purchase, Domain::Inventory, Domain::Asset, Domain::Finances, Domain::Service, Domain::Helpdesk, Domain::User,
-        ], 12);
+        // Settings: General — config level perusahaan/lokasi/mata uang
+        $this->menuItem('Company', 'Building2', 'companies.*', Preference::class, [Domain::Core], 14, group: 'General');
+        $this->menuItem('Branches', 'Building2', 'branches.*', Branch::class, [Domain::Core], 15, group: 'General');
+        $this->menuItem('Countries', 'Building2', 'countries.*', Country::class, [Domain::Core], 16, group: 'General');
+        $this->menuItem('Currencies', 'Building2', 'currencies.*', Currency::class, [Domain::Core], 17, group: 'General');
+        // 'Manage Dashboards' (dashboards.*) DIHAPUS — bug lain ditemukan sesi
+        // ini: halaman CRUD Dashboard lama & route-nya sudah dihapus total
+        // (commit "hapus halaman CRUD Dashboard lama yang sudah orphaned"),
+        // menu ini ketinggalan tidak ikut dibersihkan, jadi nunjuk route mati.
 
-        // Logs — primary Core (section tunggal, tidak butuh folder)
-        $this->menuItem('Logs', 'HistoryIcon', 'logs.*', Log::class, [Domain::Core], 13);
+        // Settings: Workflow — pengaturan proses/penomoran
+        $this->menuItem('Formating Series', 'Workflow', 'formatingSeries.*', FormatingSeries::class, [Domain::Core], 18, group: 'Workflow');
+        $this->menuItem('Approval Schemes', 'Workflow', 'approvalSchemes.*', ApprovalScheme::class, [Domain::Core], 19, group: 'Workflow');
 
-        // Settings — primary Core
-        $this->menuItem('Company', 'Settings2', 'companies.*', Preference::class, [Domain::Core], 14, group: 'Settings');
-        $this->menuItem('Branches', 'Settings2', 'branches.*', Branch::class, [Domain::Core], 15, group: 'Settings');
-        $this->menuItem('Countries', 'Settings2', 'countries.*', Country::class, [Domain::Core], 16, group: 'Settings');
-        $this->menuItem('Currencies', 'Settings2', 'currencies.*', Currency::class, [Domain::Core], 17, group: 'Settings');
-        $this->menuItem('Manage Dashboards', 'Settings2', 'dashboards.*', Dashboard::class, [Domain::Core], 18, group: 'Settings');
-        $this->menuItem('Formating Series', 'Settings2', 'formatingSeries.*', FormatingSeries::class, [Domain::Core], 19, group: 'Settings');
-        $this->menuItem('Approval Schemes', 'Settings2', 'approvalSchemes.*', ApprovalScheme::class, [Domain::Core], 20, group: 'Settings');
-        $this->menuItem('Print Templates', 'Settings2', 'printTemplates.*', PrintTemplate::class, [Domain::Core], 21, group: 'Settings');
-        $this->menuItem('Email Templates', 'Settings2', 'emailTemplates.*', EmailTemplate::class, [Domain::Core], 22, group: 'Settings');
-        $this->menuItem('Widgets', 'Settings2', 'widgets.*', Widget::class, [Domain::Core], 23, group: 'Settings');
-        $this->menuItem('Files', 'Settings2', 'files.*', File::class, [Domain::Core], 24, group: 'Settings');
+        // Settings: Templates — dokumen/komunikasi
+        $this->menuItem('Print Templates', 'LayoutTemplate', 'printTemplates.*', PrintTemplate::class, [Domain::Core], 20, group: 'Templates');
+        $this->menuItem('Email Templates', 'LayoutTemplate', 'emailTemplates.*', EmailTemplate::class, [Domain::Core], 21, group: 'Templates');
+
+        // Settings: Dashboard Widgets
+        // number-card-chart-redesign: Widget lama pecah jadi 2 entity terpisah
+        // — bug ditemukan sesi ini: menu Settings lama ('Widgets' -> Widget::class)
+        // tidak pernah diperbarui saat Widget dihapus, DeskSeeder fatal error
+        // krn class-nya sudah tidak ada. Sekaligus menutup gap: /settings/numberCards
+        // & /settings/charts sejak awal tidak punya menu entry sama sekali.
+        $this->menuItem('Number Card', 'Gauge', 'numberCards.*', NumberCard::class, [Domain::Core], 22, group: 'Dashboard Widgets');
+        $this->menuItem('Chart', 'Gauge', 'charts.*', Chart::class, [Domain::Core], 23, group: 'Dashboard Widgets');
+
+        // Settings: Files berdiri sendiri — bukan bagian empat sub-grup di atas
+        $this->menuItem('Files', 'Folder', 'files.*', File::class, [Domain::Core], 24);
+
+        // Logs — feedback user: posisi di bawah, setelah Files (section
+        // tunggal, tidak butuh folder)
+        $this->menuItem('Logs', 'HistoryIcon', 'logs.*', Log::class, [Domain::Core], 25);
     }
 }
