@@ -31,7 +31,17 @@ class AssetCompleteDataControllerTest extends TestCase {
             LanguageMiddleware::class,
         ]);
 
-        foreach ([FormatingSeries::class, Asset::class] as $model) {
+        // Root cause (2026-08-31): PurchaseReceipt dipakai di makePurchaseReceipt()
+        // helper tapi tidak ikut initPermissions() -> Laravel meng-cache daftar
+        // "guardable columns" per model class (GuardsAttributes::isGuardableColumn())
+        // dari schema SAAT ITU (belum ada kolom code/created_by_id, karena baru
+        // ditambah runtime oleh initPermissions() — bukan migration). Cache itu
+        // TIDAK PERNAH di-refresh sepanjang proses, jadi kalau test class lain
+        // yang jalan SESUDAHNYA baru memanggil initPermissions() (nambah kolom
+        // code di schema), mass-assignment tetap diam-diam nge-drop 'code' utk
+        // SEMUA test PurchaseReceipt selanjutnya di proses yang sama -> NOT NULL
+        // constraint violation di file yang sama sekali tidak terkait.
+        foreach ([FormatingSeries::class, Asset::class, PurchaseReceipt::class] as $model) {
             $model::initPermissions();
         }
 

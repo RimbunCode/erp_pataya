@@ -23,7 +23,12 @@ class DashboardWidgetWidthMigrationTest extends TestCase {
         // mundur SAMPAI SEBELUM kedua migration width, bukan cuma 2 langkah
         // terakhir (yang sekarang migration lain). Lihat `php artisan
         // migrate:status` utk hitungan pasti kalau ada migration baru lagi.
-        Artisan::call('migrate:rollback', ['--step' => 8]);
+        //
+        // Update 2026-08-31 (merge dev-rahmad-5): 4 migration lagi nambah
+        // setelah ke-8 migration di atas (asset_service_consumed_items FK
+        // change, show_full_number, icon+description NumberCard & Chart) —
+        // 8 + 4 = 12.
+        Artisan::call('migrate:rollback', ['--step' => 12]);
 
         $dashboardId = (string) Str::ulid();
         DB::table('dashboards')->insert([
