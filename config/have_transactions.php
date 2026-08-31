@@ -45,7 +45,8 @@ return [
         'units',
         'users',
         'warehouses',
-        'widgets',
+        'number_cards',
+        'charts',
     ],
 
     'excluded_source_tables' => [

@@ -1,0 +1,140 @@
+import { ArrowDownRight, ArrowUpRight } from "lucide-react";
+import { Card, CardContent } from "./ui/card";
+
+import BlockDescriptionTooltip from "@/Components/DashboardBlocks/BlockDescriptionTooltip";
+import LoadingIcon from "@/Components/LoadingIcon";
+import React from "react";
+import { Separator } from "./ui/separator";
+import axios from "axios";
+import { formatNumber } from "@/lib/numberFormat";
+import { resolveIcon } from "@/lib/deskIcons";
+import { useLaravelReactI18n } from "laravel-react-i18n";
+import { usePage } from "@inertiajs/react";
+
+// Feedback user: split dari DashboardChart.jsx — Number Card TIDAK butuh
+// recharts sama sekali (bukan bar/line/pie, cuma 1 angka + delta persentase).
+// Beda arsitektur dari Chart: backend NumberCardService::getValue() SUDAH
+// mengembalikan {value, percentage} langsung (1 query agregat + 1 requery
+// as-of-date), TIDAK ada time-series di-diff client-side lagi seperti dulu.
+function NumberCardDisplay({ numberCard, filters = {} }) {
+  const { t, currentLocale } = useLaravelReactI18n();
+  const { preferences } = usePage().props;
+  const [state, setState] = React.useState({
+    loading: true,
+    value: 0,
+    percentage: null,
+    error: false,
+  });
+
+  React.useEffect(() => {
+    let cancelled = false;
+    setState((prev) => ({ ...prev, loading: true, error: false }));
+
+    axios
+      .post(route("numberCards.getValue", numberCard.id), { filters })
+      .then((res) => {
+        if (cancelled) return;
+        setState({
+          loading: false,
+          value: res.data?.value ?? 0,
+          percentage: res.data?.percentage ?? null,
+          error: false,
+        });
+      })
+      .catch(() => {
+        if (cancelled) return;
+        setState((prev) => ({ ...prev, loading: false, error: true }));
+      });
+
+    return () => {
+      cancelled = true;
+    };
+  }, [numberCard.id, JSON.stringify(filters)]);
+
+  // chart-compact-number-display: mode full DELEGASI ke NumberInput/
+  // formatNumber via preferences.default_number_format (sumber tunggal
+  // "angka penuh" yang SUDAH dipakai Table2/PrintTemplate di seluruh app —
+  // BUKAN toLocaleString(locale) buatan sendiri). Mode compact tetap baru,
+  // locale-nya ikut lang AKTIF APP (currentLocale()) krn kata singkatan
+  // ("jt"/"rb" vs "K"/"M") itu soal bahasa, beda sumbu dari pattern
+  // pemisah desimal company. Lihat lib/numberFormat.js.
+  const fmt = (value) =>
+    formatNumber(value, {
+      full: numberCard.show_full_number,
+      locale: currentLocale(),
+      numberFormat: preferences?.default_number_format,
+    });
+
+  const isPositiveTrend = (state.percentage ?? 0) >= 0;
+  const trendBadgeClass = isPositiveTrend
+    ? "bg-emerald-500/10 text-emerald-600 border border-emerald-500/20"
+    : "bg-rose-500/10 text-rose-600 border border-rose-500/20";
+
+  return (
+    <Card
+      className="w-full rounded-xl border bg-card shadow-sm"
+      style={{ backgroundColor: numberCard.background_color || undefined }}
+    >
+      <CardContent className="flex flex-col gap-5 p-5">
+        {/* Feedback user: icon + deskripsi (tooltip) mirip pola komponen
+            lain (Quick List/Link Card/Section) — icon opsional, deskripsi
+            opsional sbg tooltip di ikon info. */}
+        <div className="flex items-center gap-2">
+          {numberCard.icon && (
+            <span className="flex size-4 shrink-0 items-center justify-center text-muted-foreground [&>svg]:size-4">
+              {resolveIcon(numberCard.icon)}
+            </span>
+          )}
+          <h3 className="text-muted-foreground text-sm font-medium">
+            {numberCard.label}
+          </h3>
+          <BlockDescriptionTooltip description={numberCard.description} />
+        </div>
+
+        {state.loading ? (
+          <div className="flex items-center gap-2 text-muted-foreground text-sm">
+            <LoadingIcon className="size-4" />
+            <span>Memuat data...</span>
+          </div>
+        ) : state.error ? (
+          <div className="text-sm text-destructive">Gagal memuat data.</div>
+        ) : (
+          <div className="space-y-2.5">
+            <div className="flex items-center gap-2.5">
+              <span
+                className="text-2xl font-medium tracking-tight tabular-nums"
+                style={{ color: numberCard.color || undefined }}
+              >
+                {fmt(state.value)}
+              </span>
+              {state.percentage !== null && (
+                <span
+                  className={`inline-flex items-center gap-1 rounded-full px-2 py-0.5 text-xs font-medium ${trendBadgeClass}`}
+                >
+                  {isPositiveTrend ? (
+                    <ArrowUpRight className="h-3.5 w-3.5" />
+                  ) : (
+                    <ArrowDownRight className="h-3.5 w-3.5" />
+                  )}
+                  {Math.abs(state.percentage).toFixed(1)}%
+                </span>
+              )}
+            </div>
+            {state.percentage !== null && (
+              <>
+                <Separator />
+                <div className="text-muted-foreground text-xs">
+                  {t(
+                    `settings.number_card.stats_time_intervals.${numberCard.stats_time_interval ?? "daily"}`,
+                  )}
+                </div>
+              </>
+            )}
+          </div>
+        )}
+      </CardContent>
+    </Card>
+  );
+}
+
+export default NumberCardDisplay;

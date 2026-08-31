@@ -42,6 +42,7 @@ const FormCheckbox = React.forwardRef(
       valueBefore,
       onCheckedChange,
       label,
+      description,
       className,
       classNameCheckbox,
       classNameLabel,
@@ -73,7 +74,13 @@ const FormCheckbox = React.forwardRef(
     );
 
     return (
-      <div className={cn("flex min-w-0 items-center gap-2", className)}>
+      <div
+        className={cn(
+          "flex min-w-0 gap-2",
+          description ? "items-start" : "items-center",
+          className,
+        )}
+      >
         {changed ? (
           <Tooltip>
             <TooltipTrigger asChild>{checkbox}</TooltipTrigger>
@@ -86,21 +93,28 @@ const FormCheckbox = React.forwardRef(
         ) : (
           checkbox
         )}
-        <RunningText
-          asChild
-          className={cn(
-            "min-w-0 flex-1 text-sm font-medium leading-none peer-disabled:cursor-not-allowed peer-disabled:opacity-70",
-            classNameLabel,
+        <div className="min-w-0 flex-1">
+          <RunningText
+            asChild
+            className={cn(
+              "min-w-0 text-sm font-medium leading-none peer-disabled:cursor-not-allowed peer-disabled:opacity-70",
+              classNameLabel,
+            )}
+          >
+            {hasPlainLabel ? (
+              <label htmlFor={id ?? defaultId}>
+                <RunningTextContent text={labelContent} />
+              </label>
+            ) : (
+              labelContent
+            )}
+          </RunningText>
+          {description && (
+            <p className="mt-0.5 text-sm font-normal text-muted-foreground">
+              {description}
+            </p>
           )}
-        >
-          {hasPlainLabel ? (
-            <label htmlFor={id ?? defaultId}>
-              <RunningTextContent text={labelContent} />
-            </label>
-          ) : (
-            labelContent
-          )}
-        </RunningText>
+        </div>
       </div>
     );
   },

@@ -71,6 +71,37 @@ class PermissionChecker {
     }
 
     /**
+     * True bila SATU-SATUNYA cara user punya `$action` pada `$model` di `$level`
+     * adalah lewat entry `only_creator`-scoped — mirror `DataTable::_checkPermission()`
+     * (least-restrictive-wins: begitu SATU entry granting yang TIDAK only_creator
+     * ditemukan, langsung false — user boleh lihat semua, bukan cuma miliknya).
+     * Beda dgn `guard()`/`_checkPermission()` di Controller: method itu terikat
+     * `static::class` (satu model tetap per-controller) dan `abort(403)` bila
+     * tak ada akses; di sini utk model DINAMIS (quickList lintas model) & tanpa
+     * abort — pemanggil sudah pastikan `can()` true lebih dulu.
+     */
+    public function isOnlyCreator(string $model, Permission $action, int $level = 0): bool {
+        $levelPermissions = $this->permissions[$model][$level] ?? null;
+        if (! is_array($levelPermissions)) {
+            return false;
+        }
+
+        $onlyCreator = false;
+        foreach ($levelPermissions as $entry) {
+            $perms = $entry['permissions'] ?? [];
+            if (empty($perms[$action->value])) {
+                continue;
+            }
+            if (empty($entry['only_creator'])) {
+                return false;
+            }
+            $onlyCreator = true;
+        }
+
+        return $onlyCreator;
+    }
+
+    /**
      * Evaluasi pohon `visibleFor` (any/all bersarang, di level node MAUPUN aksi).
      *
      * node       := { any: node[] } | { all: node[] } | leaf

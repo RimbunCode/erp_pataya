@@ -4,13 +4,12 @@ namespace Database\Seeders;
 
 use App\Models\Core\Branch;
 use App\Models\Core\Dashboard;
-use App\Models\Core\Widget;
+use App\Models\Core\NumberCard;
 use App\Models\DashboardWidget;
 use App\Models\Sales\Customer;
 use App\Models\User\User;
 use Database\Factories\Core\DashboardFactory;
 use Database\Factories\Core\TagFactory;
-use Database\Factories\Core\WidgetFactory;
 use Database\Factories\Finances\PaymentMethodFactory;
 use Database\Factories\Finances\PaymentTermTemplateFactory;
 use Database\Factories\Finances\TaxFactory;
@@ -50,8 +49,10 @@ class DataTableNonSubmitableSeeder extends Seeder {
         ItemAlternativeFactory::new()->count(self::SEED_COUNT)->create();
         WarehouseFactory::new()->count(self::SEED_COUNT)->create();
 
-        /** @var Collection<int, Widget> $widgets */
-        $widgets = WidgetFactory::new()->count(self::SEED_COUNT)->create();
+        /** @var Collection<int, NumberCard> $widgets */
+        $widgets = collect(range(1, self::SEED_COUNT))->map(
+            fn ($i) => NumberCard::create(['label' => "Demo Number Card {$i}", 'function' => 'count']),
+        );
         /** @var Collection<int, Dashboard> $dashboards */
         $dashboards = DashboardFactory::new()->count(self::SEED_COUNT)->create();
 
@@ -81,7 +82,7 @@ class DataTableNonSubmitableSeeder extends Seeder {
 
     /**
      * @param  Collection<int, Dashboard>  $dashboards
-     * @param  Collection<int, Widget>  $widgets
+     * @param  Collection<int, NumberCard>  $widgets
      */
     private function ensureDashboardWidgetRelations(Collection $dashboards, Collection $widgets): void {
         if ($dashboards->isEmpty() || $widgets->isEmpty()) {
@@ -89,24 +90,24 @@ class DataTableNonSubmitableSeeder extends Seeder {
         }
 
         foreach ($dashboards as $dashboard) {
-            if ($dashboard->widgets()->exists()) {
+            if (DashboardWidget::query()->where('dashboard_id', $dashboard->id)->exists()) {
                 continue;
             }
 
             $widget = $widgets->random();
             DashboardWidget::query()->create([
-                'width'        => 'full',
-                'dashboard_id' => $dashboard->id,
-                'widget_id'    => $widget->id,
-                'type'         => 'widget',
-                'order'        => 0,
-                'is_visible'   => true,
+                'width'          => 'full',
+                'dashboard_id'   => $dashboard->id,
+                'number_card_id' => $widget->id,
+                'type'           => 'card',
+                'order'          => 0,
+                'is_visible'     => true,
             ]);
         }
 
         foreach ($widgets as $widget) {
             $alreadyLinked = DashboardWidget::query()
-                ->where('widget_id', $widget->id)
+                ->where('number_card_id', $widget->id)
                 ->exists();
 
             if ($alreadyLinked) {
@@ -119,12 +120,12 @@ class DataTableNonSubmitableSeeder extends Seeder {
                 ->max('order')) + 1;
 
             DashboardWidget::query()->create([
-                'width'        => 'half',
-                'dashboard_id' => $dashboard->id,
-                'widget_id'    => $widget->id,
-                'type'         => 'widget',
-                'order'        => $nextOrder,
-                'is_visible'   => true,
+                'width'          => 'half',
+                'dashboard_id'   => $dashboard->id,
+                'number_card_id' => $widget->id,
+                'type'           => 'card',
+                'order'          => $nextOrder,
+                'is_visible'     => true,
             ]);
         }
     }

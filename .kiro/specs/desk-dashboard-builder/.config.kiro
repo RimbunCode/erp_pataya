@@ -1,0 +1,6 @@
+{
+  "specId": "c541a966-e512-4312-b672-f0b7cecf24e9",
+  "workflowType": "requirements-first",
+  "specType": "feature",
+  "description": "Dashboard block builder per Desk (ala ERPNext Workspace Home): landing page tiap Desk menampilkan kanvas block editor (chart/card/heading/text/spacer/shortcut/link card/quick list) yang bisa disusun drag-drop grid 12-kolom, melengkapi Desk::resolveDashboard() yang sudah ada tapi belum di-wire ke UI (Requirement 7, spec desk-based-ui)."
+}

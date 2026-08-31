@@ -72,23 +72,6 @@ export const resolveImageSrc = (value) => {
   return `${base}?v=${encodeURIComponent(value)}`;
 };
 
-export const checkUrlPath = (pathPatern) => {
-  const currentPath = window.location.pathname;
-  if (pathPatern === currentPath) {
-    return true;
-  }
-
-  const patern = "^"
-    .concat(pathPatern)
-    .replaceAll("/**", "/.*")
-    .replaceAll("/*/", "/[^/]*/")
-    .replaceAll("/*", "/.*")
-    .replaceAll("/", "\\/?")
-    .concat("$");
-
-  const rgx = new RegExp(patern, "g");
-  return currentPath.search(rgx) >= 0;
-};
 export function mergeRefs(...inputRefs) {
   return (ref) => {
     inputRefs.forEach((inputRef) => {
