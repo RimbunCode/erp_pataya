@@ -11,7 +11,6 @@ use App\Services\Asset\AssetService;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
 use Inertia\Inertia;
-use LogicException;
 
 class AssetController extends Controller {
     private AssetService $assetService;
@@ -19,6 +18,10 @@ class AssetController extends Controller {
     protected function exceptPermission(string $method): bool {
         // ponytail: completeData is internal data completion, not separate CRUD
         return $method === 'completeData';
+    }
+
+    protected function enforcePermission(string $method): ?string {
+        return $method === 'action' ? 'write' : null;
     }
 
     public function __construct(Request $request) {
@@ -78,7 +81,7 @@ class AssetController extends Controller {
                 'setInMaintenance' => $asset->setInMaintenance(),
                 'setOutOfOrder'    => $asset->setOutOfOrder(),
                 'reactivate'       => $asset->reactivate(),
-                'sell'             => throw new LogicException(__('asset/asset.sell_not_implemented')),
+                'sell'             => $asset->sell(),
                 default            => abort(404, "Unknown action: {$action}"),
             };
 

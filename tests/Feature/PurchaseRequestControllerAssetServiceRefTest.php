@@ -9,6 +9,7 @@ use App\Models\Asset\AssetService;
 use App\Models\Asset\AssetServiceConsumedItem;
 use App\Models\Inventory\Item;
 use App\Models\Inventory\ItemUnit;
+use App\Models\Inventory\ItemVariant;
 use App\Models\Inventory\Unit;
 use App\Models\Purchase\PurchaseRequest;
 use App\Models\User\User;
@@ -72,9 +73,16 @@ class PurchaseRequestControllerAssetServiceRefTest extends TestCase {
         ];
     }
 
+    /**
+     * Requirement 4.5, spec asset-service-billing: AssetServiceConsumedItem.item_id
+     * menunjuk ItemVariant (bukan Item langsung) — factory helper ini kembalikan
+     * ItemVariant, bukan Item, supaya FK valid dan konsisten dengan
+     * PurchaseRequestItem.item_variant_id.
+     */
     private function makeItemWithUnit(bool $isStockItem = true): array {
-        $item = Item::factory()->create(['is_stock_item' => $isStockItem]);
-        $unit = Unit::create([
+        $item        = Item::factory()->create(['is_stock_item' => $isStockItem]);
+        $itemVariant = ItemVariant::factory()->create(['item_id' => $item->id, 'is_stock_item' => $isStockItem]);
+        $unit        = Unit::create([
             'code'              => 'PR-' . fake()->unique()->numerify('#####'),
             'name'              => 'PR Unit',
             'conversion_factor' => 1,
@@ -87,7 +95,7 @@ class PurchaseRequestControllerAssetServiceRefTest extends TestCase {
             'is_default'        => true,
         ]);
 
-        return [$item, $itemUnit];
+        return [$itemVariant, $itemUnit];
     }
 
     public function test_create_with_asset_service_ref_prefills_items_from_consumed_items(): void {

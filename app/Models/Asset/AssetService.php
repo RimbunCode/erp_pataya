@@ -31,6 +31,11 @@ class AssetService extends Model {
         'capitalize_repair_cost' => 'boolean',
         'bill_to_renter'         => 'boolean',
     ];
+
+    public static function templateLink() {
+        return ':code';
+    }
+
     protected array $configColumns = [
         'code' => [
             'show'   => true,
@@ -41,6 +46,26 @@ class AssetService extends Model {
             'show'       => true,
             'order'      => 1,
             'valueTrans' => 'service.type',
+        ],
+        /**
+         * Requirement 7.1/7.2, spec asset-service-billing: relasi ini HARUS
+         * terdaftar di configColumns (walau hidden) supaya bisa diminta lewat
+         * prop `with` LinkModel — resolver ModelController/DataTableColumnSelector
+         * menolak (RelationNotFoundException) atau diam-diam membuang relasi
+         * yang tidak terdaftar di sini, TERMASUK accessor Attribute:: (sudah
+         * dicoba & terbukti tidak didukung sama sekali oleh mekanisme ini).
+         */
+        'customer' => [
+            'type'   => 'relation',
+            'hidden' => true,
+        ],
+        'customerBranch' => [
+            'type'   => 'relation',
+            'hidden' => true,
+        ],
+        'asset' => [
+            'type'   => 'relation',
+            'hidden' => true,
         ],
         'status' => [
             'show'       => true,

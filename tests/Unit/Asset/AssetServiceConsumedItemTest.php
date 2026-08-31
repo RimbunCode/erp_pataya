@@ -4,7 +4,7 @@ namespace Tests\Unit\Asset;
 
 use App\Models\Asset\AssetService;
 use App\Models\Asset\AssetServiceConsumedItem;
-use App\Models\Inventory\Item;
+use App\Models\Inventory\ItemVariant;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use PHPUnit\Framework\Attributes\Test;
@@ -23,10 +23,12 @@ class AssetServiceConsumedItemTest extends TestCase {
 
     #[Test]
     public function item_returns_belongs_to_relation(): void {
+        // Requirement 4.5, spec asset-service-billing: item_id direwire ke
+        // ItemVariant (bukan Item), selaras SalesOrderItem/InternalOrderItem.
         $item = new AssetServiceConsumedItem;
 
         $this->assertInstanceOf(BelongsTo::class, $item->item());
-        $this->assertInstanceOf(Item::class, $item->item()->getRelated());
+        $this->assertInstanceOf(ItemVariant::class, $item->item()->getRelated());
     }
 
     #[Test]

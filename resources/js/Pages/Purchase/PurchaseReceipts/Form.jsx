@@ -1,5 +1,6 @@
 import { FormPageContent, useFormPage } from "@/Pages/Core/FormPage";
 
+import AssetCompletionRowBadge from "@/Pages/Asset/Assets/AssetCompletionRowBadge";
 import NumberInput from "@/Components/NumberInput";
 import DatetimePicker from "@/Components/DatetimePicker";
 import { FormCheckbox } from "@/Components/ui/checkbox";
@@ -16,10 +17,13 @@ import { Textarea } from "@/Components/ui/textarea";
 import { generateRandom } from "@/lib/utils";
 import { useLaravelReactI18n } from "laravel-react-i18n";
 import { useMemo } from "react";
+import { usePage } from "@inertiajs/react";
 import WarehouseLinkModel from "@/Pages/Inventory/Warehouses/WarehouseLinkModel";
 
 function Form() {
   const { t } = useLaravelReactI18n();
+  const fixedAssets = usePage().props.fixedAssets;
+  const purchaseReceiptId = usePage().props.purchaseReceipt?.id;
   const { data, setData } = useFormPage(
     {
       date: new Date(),
@@ -39,43 +43,52 @@ function Form() {
         width: 3,
         cell({ dataRow, setData, attributes }) {
           return (
-            <PurchaseOrderItemLinkModel
-              placeholder={t(
-                "purchase.purchaseReceipt.columns.item.placeholder",
-              )}
-              value={dataRow.purchase_order_item ?? null}
-              disabled={!data.purchase_order}
-              onValueChange={(val) => {
-                setData({
-                  purchase_order_item: val,
-                  purchase_order_item_id: val?.id,
-                  unit: val?.unit,
-                  conversion_factor: val?.conversion_factor,
-                  quantity: val?.unreceived_quantity,
-                  description: val?.description,
-                  target_warehouse: val?.target_warehouse,
-                });
-              }}
-              {...attributes}
-              as="item:item.item_id"
-              canNavigation="App\Models\Inventory\Item"
-              filters={{
-                purchase_order_id: data.purchase_order?.id ?? null,
-                unreceived_quantity: { ">": 0 },
-              }}
-              with={[
-                "item",
-                "unit",
-                "targetWarehouse",
-                "targetWarehouse.branch",
-              ]}
-              fields={[
-                "unreceived_quantity",
-                "description",
-                "conversion_factor",
-                "target_warehouse",
-              ]}
-            />
+            <div className="flex items-center">
+              <PurchaseOrderItemLinkModel
+                placeholder={t(
+                  "purchase.purchaseReceipt.columns.item.placeholder",
+                )}
+                value={dataRow.purchase_order_item ?? null}
+                disabled={!data.purchase_order}
+                onValueChange={(val) => {
+                  setData({
+                    purchase_order_item: val,
+                    purchase_order_item_id: val?.id,
+                    unit: val?.unit,
+                    conversion_factor: val?.conversion_factor,
+                    quantity: val?.unreceived_quantity,
+                    description: val?.description,
+                    target_warehouse: val?.target_warehouse,
+                  });
+                }}
+                {...attributes}
+                as="item:item.item_id"
+                canNavigation="App\Models\Inventory\Item"
+                filters={{
+                  purchase_order_id: data.purchase_order?.id ?? null,
+                  unreceived_quantity: { ">": 0 },
+                }}
+                with={[
+                  "item",
+                  "unit",
+                  "targetWarehouse",
+                  "targetWarehouse.branch",
+                ]}
+                fields={[
+                  "unreceived_quantity",
+                  "description",
+                  "conversion_factor",
+                  "target_warehouse",
+                ]}
+              />
+              <AssetCompletionRowBadge
+                fixedAssets={fixedAssets}
+                sourceItemId={dataRow.id}
+                sourceItemIdKey="purchase_receipt_item_id"
+                sourceDocumentType="purchase_receipt"
+                sourceDocumentId={purchaseReceiptId}
+              />
+            </div>
           );
         },
       },

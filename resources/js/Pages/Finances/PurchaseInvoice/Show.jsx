@@ -92,7 +92,13 @@ export default function Show({ purchaseInvoice, defaultData, fixedAssets }) {
           );
         }
       }}
-      banner={<AssetCompletionAlert assets={fixedAssets} />}
+      banner={
+        <AssetCompletionAlert
+          assets={fixedAssets}
+          sourceDocumentType="purchase_invoice"
+          sourceDocumentId={purchaseInvoice?.id}
+        />
+      }
     >
       <Form />
     </FormPage>

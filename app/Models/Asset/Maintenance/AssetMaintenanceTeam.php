@@ -18,7 +18,7 @@ class AssetMaintenanceTeam extends Model {
 
     protected static $service      = AssetMaintenanceTeamService::class;
     public string $formComponent   = 'Asset/MaintenanceTeams/Form';
-    public string $translateKey    = 'asset.maintenanceTeam';
+    public string $translateKey    = 'asset.maintenance.team';
     protected $guarded             = ['id'];
     protected array $configColumns = [
         'team_name' => [

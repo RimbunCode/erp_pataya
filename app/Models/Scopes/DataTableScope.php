@@ -97,7 +97,15 @@ class DataTableScope implements Scope {
             return;
         }
 
-        $branch = Branch::find(session('currentBranch'));
+        // select+withoutGlobalScope('country'): applyBranchFilter cuma butuh
+        // id/is_main_branch, tapi Branch::find() biasa memicu 2 query Country
+        // tambahan (billingCountry+shippingCountry via $with Branch) setiap
+        // kali macro dataTable() jalan — N+1 nyata karena dipanggil berulang
+        // per halaman (index utama + tiap LinkModel dropdown ber-HasBranch).
+        $branch = Branch::query()
+            ->withoutGlobalScope('country')
+            ->select(['id', 'is_main_branch'])
+            ->find(session('currentBranch'));
         if (! $branch || $branch->is_main_branch) {
             return;
         }

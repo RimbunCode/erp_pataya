@@ -12,7 +12,7 @@ import { FormCheckbox } from "@/Components/ui/checkbox";
 import FormInput from "@/Components/FormInput";
 import FormTable from "@/Components/FormTable";
 import { Input } from "@/Components/ui/input";
-import ItemLinkModel from "@/Pages/Inventory/Items/ItemLinkModel";
+import ItemVariantLinkModel from "@/Pages/Inventory/Items/ItemVariantLinkModel";
 import ItemUnitLinkModel from "@/Pages/Inventory/Items/ItemUnitLinkModel";
 import DatetimePicker from "@/Components/DatetimePicker";
 import React from "react";
@@ -44,10 +44,10 @@ export default function Form() {
         required: true,
         cell({ data: value, setData, attributes }) {
           return (
-            <ItemLinkModel
+            <ItemVariantLinkModel
               value={value}
               onValueChange={(val) => {
-                const defaultUnit = val?.defaultUom;
+                const defaultUnit = val?.default_uom;
                 setData({
                   item: val,
                   unit: defaultUnit,
@@ -70,7 +70,7 @@ export default function Form() {
               value={value}
               onValueChange={(val) => setData("unit", val)}
               {...attributes}
-              filters={{ item_id: dataRow?.item?.id }}
+              filters={{ item_id: dataRow?.item?.item_id }}
             />
           );
         },

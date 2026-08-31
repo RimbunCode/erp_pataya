@@ -11,6 +11,7 @@ use Illuminate\Foundation\Bus\Dispatchable;
 use Illuminate\Queue\InteractsWithQueue;
 use Illuminate\Queue\SerializesModels;
 use Illuminate\Support\Facades\DB;
+use Illuminate\Support\Facades\Log;
 use LogicException;
 use Throwable;
 
@@ -31,6 +32,12 @@ class PostDepreciationEntry implements ShouldQueue {
                 ->first();
 
             if (! $accounts) {
+                // Requirement 3.4, spec asset-management-depreciation: baris ini gagal
+                // posting (FAILED, butuh retry manual via GlPostingStatusController) —
+                // log warning supaya operator tahu ROOT CAUSE-nya dari log tanpa perlu
+                // buka detail error tiap baris FAILED satu-satu.
+                Log::warning("AssetCategoryAccount tidak ditemukan untuk Asset {$asset->id} (branch {$branchId}) — depreciation schedule {$schedule->id} gagal posting.");
+
                 throw new LogicException("AssetCategoryAccount tidak ditemukan untuk Asset {$asset->id} (branch {$branchId}).");
             }
 

@@ -15,7 +15,11 @@ export default function ShowGeneral({
   // Menggunakan useMemo untuk memuat komponen hanya ketika namefile berubah
   const FormComponent = useMemo(() => {
     // Gunakan import.meta.glob untuk daftar semua Form
-    let modules = import.meta.glob(`./**/*.jsx`);
+    let modules = import.meta.glob([
+      `./**/*.jsx`,
+      `!./**/*.test.jsx`,
+      `!./**/*.rtl.test.jsx`,
+    ]);
     if (Object.keys(modules).length <= 0) return null;
     const module = modules[`./${formPathname}.jsx`];
     if (typeof module === "undefined") {

@@ -12,7 +12,9 @@ return [
     'account_not_found' => 'Akun GL tidak ditemukan untuk kategori/cabang aset ini. Lengkapi konfigurasi AssetCategoryAccount terlebih dahulu.',
 
     'columns' => [
+        'code'                  => 'Kode',
         'asset_id'              => 'Aset',
+        'asset'                 => 'Aset',
         'date'                  => 'Tanggal',
         'current_asset_value'   => 'Nilai Aset Saat Ini',
         'new_asset_value'       => 'Nilai Aset Baru',

@@ -33,7 +33,9 @@ class AssetServiceSubmitGuardTest extends TestCase {
         ]);
 
         $this->expectException(LogicException::class);
-        $this->expectExceptionMessage(__('asset/asset.cannot_submit_incomplete'));
+        $this->expectExceptionMessage(__('asset/asset.cannot_submit_incomplete', [
+            'fields' => __('asset/asset.columns.asset_category'),
+        ]));
 
         $this->service->submit($asset);
     }
@@ -49,7 +51,9 @@ class AssetServiceSubmitGuardTest extends TestCase {
         ]);
 
         $this->expectException(LogicException::class);
-        $this->expectExceptionMessage(__('asset/asset.cannot_submit_incomplete'));
+        $this->expectExceptionMessage(__('asset/asset.cannot_submit_incomplete', [
+            'fields' => __('asset/asset.columns.asset_location'),
+        ]));
 
         $this->service->submit($asset);
     }
@@ -63,7 +67,12 @@ class AssetServiceSubmitGuardTest extends TestCase {
         ]);
 
         $this->expectException(LogicException::class);
-        $this->expectExceptionMessage(__('asset/asset.cannot_submit_incomplete'));
+        $this->expectExceptionMessage(__('asset/asset.cannot_submit_incomplete', [
+            'fields' => implode(', ', [
+                __('asset/asset.columns.asset_category'),
+                __('asset/asset.columns.asset_location'),
+            ]),
+        ]));
 
         $this->service->submit($asset);
     }

@@ -13,6 +13,7 @@ use App\Models\Asset\AssetServiceConsumedItem;
 use App\Models\Core\FormatingSeries;
 use App\Models\Inventory\Item;
 use App\Models\Inventory\ItemUnit;
+use App\Models\Inventory\ItemVariant;
 use App\Models\Inventory\Unit;
 use App\Models\User\User;
 use Illuminate\Foundation\Testing\RefreshDatabase;
@@ -80,10 +81,14 @@ class AssetServiceStoreConsumedItemPayloadTest extends TestCase {
     }
 
     public function test_store_accepts_nested_item_and_unit_payload_from_fe(): void {
-        $user  = User::factory()->create();
-        $asset = Asset::factory()->create();
-        $item  = Item::factory()->create();
-        $unit  = Unit::create([
+        // Requirement 4.5, spec asset-service-billing: FE kirim ItemVariant
+        // (bukan Item langsung) sejak AssetServiceConsumedItem.item_id
+        // direwire ke ItemVariant — lihat Asset/Services/Form.jsx.
+        $user        = User::factory()->create();
+        $asset       = Asset::factory()->create();
+        $item        = Item::factory()->create();
+        $itemVariant = ItemVariant::factory()->create(['item_id' => $item->id]);
+        $unit        = Unit::create([
             'code'              => 'FE-' . fake()->unique()->numerify('#####'),
             'name'              => 'FE Unit',
             'conversion_factor' => 1,
@@ -100,11 +105,11 @@ class AssetServiceStoreConsumedItemPayloadTest extends TestCase {
             ->withSession($this->permissions())
             ->post(route('assetServices.store'), [
                 'type'          => AssetServiceType::REPAIR->value,
-                'asset_id'      => $asset->id,
+                'asset'         => ['id' => $asset->id],
                 'failure_date'  => now()->toDateString(),
                 'consumedItems' => [
                     [
-                        'item'           => ['id' => $item->id],
+                        'item'           => ['id' => $itemVariant->id],
                         'unit'           => ['id' => $itemUnit->id],
                         'quantity'       => 4,
                         'valuation_rate' => 2500,
@@ -116,24 +121,24 @@ class AssetServiceStoreConsumedItemPayloadTest extends TestCase {
 
         $consumedItem = AssetServiceConsumedItem::first();
         $this->assertNotNull($consumedItem);
-        $this->assertSame($item->id, $consumedItem->item_id);
+        $this->assertSame($itemVariant->id, $consumedItem->item_id);
         $this->assertSame($itemUnit->id, $consumedItem->item_unit_id);
     }
 
     public function test_store_rejects_consumed_item_missing_unit(): void {
-        $user  = User::factory()->create();
-        $asset = Asset::factory()->create();
-        $item  = Item::factory()->create();
+        $user        = User::factory()->create();
+        $asset       = Asset::factory()->create();
+        $itemVariant = ItemVariant::factory()->create();
 
         $response = $this->actingAs($user)
             ->withSession($this->permissions())
             ->post(route('assetServices.store'), [
                 'type'          => AssetServiceType::REPAIR->value,
-                'asset_id'      => $asset->id,
+                'asset'         => ['id' => $asset->id],
                 'failure_date'  => now()->toDateString(),
                 'consumedItems' => [
                     [
-                        'item'           => ['id' => $item->id],
+                        'item'           => ['id' => $itemVariant->id],
                         'quantity'       => 4,
                         'valuation_rate' => 2500,
                     ],
