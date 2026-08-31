@@ -16,9 +16,11 @@ import {
 import { ChartContainer, ChartTooltip, ChartTooltipContent } from "./ui/chart";
 import React, { useEffect } from "react";
 
+import BlockDescriptionTooltip from "@/Components/DashboardBlocks/BlockDescriptionTooltip";
 import LoadingIcon from "@/Components/LoadingIcon";
 import axios from "axios";
 import { formatNumber } from "@/lib/numberFormat";
+import { resolveIcon } from "@/lib/deskIcons";
 import { useLaravelReactI18n } from "laravel-react-i18n";
 import { usePage } from "@inertiajs/react";
 
@@ -288,7 +290,18 @@ function ChartDisplay({ chart, filters = {} }) {
 
   return (
     <div>
-      <h3 className="text-2xl font-semibold w-full pb-4">{chart.chart_name}</h3>
+      {/* Feedback user: icon + deskripsi (tooltip) mirip pola komponen lain
+          (Quick List/Link Card/Section) — icon opsional, deskripsi opsional
+          sbg tooltip di ikon info. */}
+      <div className="flex w-full items-center gap-2 pb-4">
+        {chart.icon && (
+          <span className="flex size-6 shrink-0 items-center justify-center text-muted-foreground [&>svg]:size-5">
+            {resolveIcon(chart.icon)}
+          </span>
+        )}
+        <h3 className="text-2xl font-semibold">{chart.chart_name}</h3>
+        <BlockDescriptionTooltip description={chart.description} />
+      </div>
 
       {loading ? (
         <div className="flex h-40 items-center justify-center gap-2 text-sm text-muted-foreground">

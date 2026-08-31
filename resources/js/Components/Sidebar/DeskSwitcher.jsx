@@ -71,7 +71,13 @@ export default memo(function DeskSwitcher() {
           <Fragment key={desk.id}>
             {index > 0 &&
               sortedDeskList[index - 1].type === "system" &&
-              desk.type === "custom" && <DropdownMenuSeparator />}
+              desk.type === "custom" && (
+                // Feedback user: bg-muted default DropdownMenuSeparator
+                // terlalu samar di sini — dipertegas sedikit (tetap muted,
+                // bukan warna kontras), pola sama border-b yg dipakai
+                // UserInfo.jsx.
+                <DropdownMenuSeparator className="bg-muted-foreground/30" />
+              )}
             <DropdownMenuItem
               className="gap-2 cursor-pointer"
               onSelect={() => switchDesk(desk.id)}

@@ -1,11 +1,13 @@
 import { ArrowDownRight, ArrowUpRight } from "lucide-react";
 import { Card, CardContent } from "./ui/card";
 
+import BlockDescriptionTooltip from "@/Components/DashboardBlocks/BlockDescriptionTooltip";
 import LoadingIcon from "@/Components/LoadingIcon";
 import React from "react";
 import { Separator } from "./ui/separator";
 import axios from "axios";
 import { formatNumber } from "@/lib/numberFormat";
+import { resolveIcon } from "@/lib/deskIcons";
 import { useLaravelReactI18n } from "laravel-react-i18n";
 import { usePage } from "@inertiajs/react";
 
@@ -74,9 +76,20 @@ function NumberCardDisplay({ numberCard, filters = {} }) {
       style={{ backgroundColor: numberCard.background_color || undefined }}
     >
       <CardContent className="flex flex-col gap-5 p-5">
-        <h3 className="text-muted-foreground text-sm font-medium">
-          {numberCard.label}
-        </h3>
+        {/* Feedback user: icon + deskripsi (tooltip) mirip pola komponen
+            lain (Quick List/Link Card/Section) — icon opsional, deskripsi
+            opsional sbg tooltip di ikon info. */}
+        <div className="flex items-center gap-2">
+          {numberCard.icon && (
+            <span className="flex size-4 shrink-0 items-center justify-center text-muted-foreground [&>svg]:size-4">
+              {resolveIcon(numberCard.icon)}
+            </span>
+          )}
+          <h3 className="text-muted-foreground text-sm font-medium">
+            {numberCard.label}
+          </h3>
+          <BlockDescriptionTooltip description={numberCard.description} />
+        </div>
 
         {state.loading ? (
           <div className="flex items-center gap-2 text-muted-foreground text-sm">

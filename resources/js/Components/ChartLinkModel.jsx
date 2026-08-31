@@ -17,6 +17,10 @@ export default forwardRef(function ChartLinkModel(
       titleDialog={t("settings.chart.new")}
       classNameDialog="max-w-(--breakpoint-md)"
       form={<Form />}
+      // Feedback user: ChartBlock/ChartDisplay render icon + deskripsi +
+      // filter tersimpan — kolom ini di luar templateLink (":chart_name"),
+      // harus diminta eksplisit (lihat Chart::$configColumns).
+      fields={["icon", "description", "filters"]}
       {...props}
       ref={ref}
     />

@@ -3,13 +3,17 @@ import { useEffect, useMemo, useState } from "react";
 
 import AssignableLinkModel from "@/Pages/Users/ManageUsers/AssignableLinkModel";
 import ColorInput from "@/Components/ColorInput";
+import FilterTable2 from "@/Components/Table/Filter/FilterTable2";
 import { FormCheckbox } from "@/Components/ui/checkbox";
 import FormInput from "@/Components/FormInput";
 import FormTable from "@/Components/FormTable";
+import IconPicker from "@/Components/IconPicker";
 import { Input } from "@/Components/ui/input";
 import PermissionLinkModel from "@/Pages/Core/PermissionLinkModel";
 import Select from "@/Components/Select";
+import TiptapEditor from "@/Components/TiptapEditor";
 import axios from "axios";
+import { richTextValue } from "@/lib/richText";
 import { useLaravelReactI18n } from "laravel-react-i18n";
 
 // Feedback user: `chart_source_type` (count/sum/average/group_by/custom)
@@ -91,6 +95,24 @@ export default function Form() {
               onValueChange={(val) => setData("chart_name", val)}
             />
           </FormInput>
+          <FormInput name="icon" label={t("settings.chart.columns.icon")}>
+            <IconPicker
+              value={data?.icon}
+              onValueChange={(val) => setData("icon", val)}
+            />
+          </FormInput>
+          <FormInput
+            name="description"
+            label={t("settings.chart.columns.description")}
+            className="md:col-span-2"
+          >
+            <TiptapEditor
+              value={richTextValue(data?.description)}
+              onValueChange={(json, html) =>
+                setData("description", { json, html })
+              }
+            />
+          </FormInput>
           <FormInput
             name="chart_source_type"
             label={t("settings.chart.columns.chart_source_type")}
@@ -141,6 +163,21 @@ export default function Form() {
               <Input
                 value={data?.method}
                 onValueChange={(val) => setData("method", val)}
+              />
+            </FormInput>
+          )}
+
+          {!isCustom && modelClass && (
+            <FormInput
+              name="filters"
+              label={t("settings.chart.columns.filters")}
+              className="md:col-span-2"
+            >
+              <FilterTable2
+                columns={columns}
+                model={modelClass}
+                initialFilters={data?.filters}
+                onApply={(tree) => setData("filters", tree)}
               />
             </FormInput>
           )}

@@ -19,6 +19,8 @@ class ChartRequest extends BaseFormRequest {
     public function rules(): array {
         return [
             'chart_name'                    => ['required', 'string', 'max:100'],
+            'icon'                          => ['nullable', 'string'],
+            'description'                   => ['nullable', 'array'],
             'chart_source_type'             => ['required', 'string', 'in:count,sum,average,group_by,custom'],
             'visual_type'                   => ['required', 'string', 'in:line,bar,pie,donut,percentage,heatmap'],
             'model.id'                      => ['required_unless:chart_source_type,custom', new ExistsExcludingTrashed('permissions')],

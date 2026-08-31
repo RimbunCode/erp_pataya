@@ -8,6 +8,7 @@ use App\Http\Requests\Core\ChartRequest;
 use App\Models\Core\Chart;
 use App\Services\Core\ChartService;
 use App\Services\Core\PermissionChecker;
+use App\Services\Core\PrintTemplate\HTMLSanitizerService;
 use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Http\Request;
 use Inertia\Inertia;
@@ -78,6 +79,13 @@ class ChartController extends Controller {
         }
         $data['created_by_id'] = $request->user()->id;
         unset($data['model'], $data['assignables']);
+
+        // Sanitasi HTML SEBELUM disimpan — pola sama dgn
+        // NumberCardController::prepareData()/DeskController::sanitizeRowHtml().
+        if (! empty($data['description']['html'] ?? null)) {
+            $sanitizer                   = new HTMLSanitizerService(extraAllowedTags: ['blockquote', 'pre', 'code', 's', 'u', 'hr']);
+            $data['description']['html'] = $sanitizer->sanitize($data['description']['html'])->sanitizedHTML;
+        }
 
         return $data;
     }

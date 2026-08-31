@@ -17,6 +17,10 @@ export default forwardRef(function NumberCardLinkModel(
       titleDialog={t("settings.number_card.new")}
       classNameDialog="max-w-(--breakpoint-md)"
       form={<Form />}
+      // Feedback user: NumberCardBlock/NumberCardDisplay render icon +
+      // deskripsi + filter tersimpan — kolom ini di luar templateLink
+      // (":label"), harus diminta eksplisit (lihat NumberCard::$configColumns).
+      fields={["icon", "description", "filters"]}
       {...props}
       ref={ref}
     />

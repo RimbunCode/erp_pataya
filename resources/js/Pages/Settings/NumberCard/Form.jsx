@@ -3,13 +3,17 @@ import { useEffect, useMemo, useState } from "react";
 
 import AssignableLinkModel from "@/Pages/Users/ManageUsers/AssignableLinkModel";
 import ColorInput from "@/Components/ColorInput";
+import FilterTable2 from "@/Components/Table/Filter/FilterTable2";
 import { FormCheckbox } from "@/Components/ui/checkbox";
 import FormInput from "@/Components/FormInput";
 import FormTable from "@/Components/FormTable";
+import IconPicker from "@/Components/IconPicker";
 import { Input } from "@/Components/ui/input";
 import PermissionLinkModel from "@/Pages/Core/PermissionLinkModel";
 import Select from "@/Components/Select";
+import TiptapEditor from "@/Components/TiptapEditor";
 import axios from "axios";
+import { richTextValue } from "@/lib/richText";
 import { useLaravelReactI18n } from "laravel-react-i18n";
 
 // Feedback user: pisah dari Widget lama — NumberCard TANPA time-series
@@ -42,13 +46,12 @@ export default function Form() {
       }
       axios
         .get(window.route("model.columns", { model: modelClass }))
-        .then((res) => {
-          setColumns(
-            (res.data?.columns ?? []).filter(
-              (x) => !["relation", "relations", "formStatus", "formStatuses", "mixed"].includes(x.type),
-            ),
-          );
-        })
+        // Feedback user: tambahkan Filter (pola sama FilterTable2 di
+        // QuickList) — butuh SEMUA tipe kolom (termasuk relation/
+        // formStatus), bukan cuma yang bisa jadi target agregat. Filter
+        // number/currency utk aggregate_function_based_on tetap difilter
+        // terpisah lewat `numberColumns` di bawah, bukan di sini.
+        .then((res) => setColumns(res.data?.columns ?? []))
         .catch((err) => console.log(err));
     }, 500);
 
@@ -56,7 +59,10 @@ export default function Form() {
   }, [modelClass]);
 
   const numberColumns = useMemo(
-    () => columns.filter((x) => ["number", "currency"].includes(x.type)).map((x) => ({ value: x.name, titleTrans: x.titleTrans })),
+    () =>
+      columns
+        .filter((x) => ["number", "currency"].includes(x.type))
+        .map((x) => ({ value: x.name, titleTrans: x.titleTrans })),
     [columns],
   );
 
@@ -84,10 +90,39 @@ export default function Form() {
     <>
       <FormPageContent value="detail" title={t("settings.number_card.details")}>
         <div className="grid gap-x-4 gap-y-4 md:grid-cols-2">
-          <FormInput name="label" label={t("settings.number_card.columns.label")} required>
-            <Input value={data?.label} onValueChange={(val) => setData("label", val)} />
+          <FormInput
+            name="label"
+            label={t("settings.number_card.columns.label")}
+            required
+          >
+            <Input
+              value={data?.label}
+              onValueChange={(val) => setData("label", val)}
+            />
           </FormInput>
-          <FormInput name="source_type" label={t("settings.number_card.columns.source_type")} required>
+          <FormInput name="icon" label={t("settings.number_card.columns.icon")}>
+            <IconPicker
+              value={data?.icon}
+              onValueChange={(val) => setData("icon", val)}
+            />
+          </FormInput>
+          <FormInput
+            name="description"
+            label={t("settings.number_card.columns.description")}
+            className="md:col-span-2"
+          >
+            <TiptapEditor
+              value={richTextValue(data?.description)}
+              onValueChange={(json, html) =>
+                setData("description", { json, html })
+              }
+            />
+          </FormInput>
+          <FormInput
+            name="source_type"
+            label={t("settings.number_card.columns.source_type")}
+            required
+          >
             <Select
               value={sourceType}
               onValueChange={(val) => setData("source_type", val)}
@@ -98,10 +133,21 @@ export default function Form() {
 
           {sourceType === "document_type" && (
             <>
-              <FormInput name="model" label={t("settings.number_card.columns.model")} required>
-                <PermissionLinkModel value={data.model} onValueChange={(val) => setData("model", val)} />
+              <FormInput
+                name="model"
+                label={t("settings.number_card.columns.model")}
+                required
+              >
+                <PermissionLinkModel
+                  value={data.model}
+                  onValueChange={(val) => setData("model", val)}
+                />
               </FormInput>
-              <FormInput name="function" label={t("settings.number_card.columns.function")} required>
+              <FormInput
+                name="function"
+                label={t("settings.number_card.columns.function")}
+                required
+              >
                 <Select
                   value={data?.function}
                   onValueChange={(val) => setData("function", val)}
@@ -112,14 +158,32 @@ export default function Form() {
               {data.function && data.function !== "count" && (
                 <FormInput
                   name="aggregate_function_based_on"
-                  label={t("settings.number_card.columns.aggregate_function_based_on")}
+                  label={t(
+                    "settings.number_card.columns.aggregate_function_based_on",
+                  )}
                   disabled={!modelClass}
                   required
                 >
                   <Select
                     value={data?.aggregate_function_based_on}
-                    onValueChange={(val) => setData("aggregate_function_based_on", val)}
+                    onValueChange={(val) =>
+                      setData("aggregate_function_based_on", val)
+                    }
                     options={numberColumns}
+                  />
+                </FormInput>
+              )}
+              {modelClass && (
+                <FormInput
+                  name="filters"
+                  label={t("settings.number_card.columns.filters")}
+                  className="md:col-span-2"
+                >
+                  <FilterTable2
+                    columns={columns}
+                    model={modelClass}
+                    initialFilters={data?.filters}
+                    onApply={(tree) => setData("filters", tree)}
                   />
                 </FormInput>
               )}
@@ -128,26 +192,45 @@ export default function Form() {
 
           {sourceType === "custom" && (
             <FormInput name="method" label="Custom Source">
-              <Input value={data?.method} onValueChange={(val) => setData("method", val)} />
+              <Input
+                value={data?.method}
+                onValueChange={(val) => setData("method", val)}
+              />
             </FormInput>
           )}
 
-          <FormInput name="color" label={t("settings.number_card.columns.color")}>
-            <ColorInput value={data?.color} onValueChange={(val) => setData("color", val)} />
+          <FormInput
+            name="color"
+            label={t("settings.number_card.columns.color")}
+          >
+            <ColorInput
+              value={data?.color}
+              onValueChange={(val) => setData("color", val)}
+            />
           </FormInput>
-          <FormInput name="currency" label={t("settings.number_card.columns.currency")}>
-            <Input value={data?.currency} onValueChange={(val) => setData("currency", val)} />
+          <FormInput
+            name="currency"
+            label={t("settings.number_card.columns.currency")}
+          >
+            <Input
+              value={data?.currency}
+              onValueChange={(val) => setData("currency", val)}
+            />
           </FormInput>
 
           <FormCheckbox
             label={t("settings.number_card.columns.show_full_number")}
-            description={t("settings.number_card.descriptions.show_full_number")}
+            description={t(
+              "settings.number_card.descriptions.show_full_number",
+            )}
             checked={data?.show_full_number ?? false}
             onCheckedChange={(val) => setData("show_full_number", val)}
           />
           <FormCheckbox
             label={t("settings.number_card.columns.show_percentage_stats")}
-            description={t("settings.number_card.descriptions.show_percentage_stats")}
+            description={t(
+              "settings.number_card.descriptions.show_percentage_stats",
+            )}
             checked={data?.show_percentage_stats ?? true}
             onCheckedChange={(val) => setData("show_percentage_stats", val)}
           />
@@ -156,6 +239,7 @@ export default function Form() {
               name="stats_time_interval"
               className="col-start-2"
               label={t("settings.number_card.columns.stats_time_interval")}
+              required
             >
               <Select
                 value={data?.stats_time_interval}

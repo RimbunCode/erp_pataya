@@ -9,6 +9,9 @@ return [
     'sharing'     => 'Sharing',
     'columns'     => [
         'chart_name'                  => 'Name',
+        'icon'                        => 'Icon',
+        'description'                 => 'Description',
+        'filters'                     => 'Filter',
         'chart_source_type'           => 'Source',
         'visual_type'                 => 'Chart Type',
         'model'                       => 'Model',

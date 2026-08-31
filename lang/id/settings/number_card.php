@@ -8,6 +8,9 @@ return [
     'sharing' => 'Berbagi',
     'columns' => [
         'label'                       => 'Label',
+        'icon'                        => 'Icon',
+        'description'                 => 'Deskripsi',
+        'filters'                     => 'Filter',
         'function'                    => 'Fungsi',
         'model'                       => 'Model',
         'model.placeholder'           => 'Pilih model',

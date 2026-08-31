@@ -76,6 +76,42 @@ class NumberCardControllerTest extends TestCase {
     }
 
     /**
+     * Feedback user: "Compare Against" (stats_time_interval) membingungkan
+     * kalau dibiarkan opsional saat "Show Percentage Stats" aktif — backend
+     * punya default implisit (match's `default` arm di
+     * NumberCardService::resolveAsOfDate() jatuh ke "daily"), tapi itu tidak
+     * jelas bagi user yang mengisi form. Sekarang wajib diisi eksplisit.
+     */
+    public function test_store_rejects_missing_stats_time_interval_when_percentage_stats_enabled(): void {
+        $permission = PermissionModel::create(['model' => NumberCardTargetRecord::class, 'module' => 'Core', 'name' => 'Number Card Target Record']);
+
+        $response = $this->actingWith([NumberCardTargetRecord::class])->post(route('numberCards.store'), [
+            'label'                 => 'Total Records', 'source_type' => 'document_type', 'function' => 'count',
+            'model'                 => ['id' => $permission->id, 'model' => NumberCardTargetRecord::class],
+            'show_percentage_stats' => true,
+        ]);
+
+        // Accept: application/json (set di actingWith()) -> Laravel balikin
+        // 422 JSON body, bukan redirect+session flash.
+        $response->assertJsonValidationErrors(['stats_time_interval']);
+        $this->assertDatabaseMissing('number_cards', ['label' => 'Total Records']);
+    }
+
+    public function test_store_accepts_stats_time_interval_when_percentage_stats_enabled(): void {
+        $permission = PermissionModel::create(['model' => NumberCardTargetRecord::class, 'module' => 'Core', 'name' => 'Number Card Target Record']);
+
+        $response = $this->actingWith([NumberCardTargetRecord::class])->post(route('numberCards.store'), [
+            'label'                 => 'Total Records', 'source_type' => 'document_type', 'function' => 'count',
+            'model'                 => ['id' => $permission->id, 'model' => NumberCardTargetRecord::class],
+            'show_percentage_stats' => true,
+            'stats_time_interval'   => 'weekly',
+        ]);
+
+        $response->assertRedirect();
+        $this->assertDatabaseHas('number_cards', ['label' => 'Total Records', 'stats_time_interval' => 'weekly']);
+    }
+
+    /**
      * Requirement 8.1/8.2 — level query (bukan lewat halaman Inertia index(),
      * yang butuh Vite manifest belum ada sampai Task 7/8 frontend selesai;
      * verifikasi end-to-end lewat browser tetap dilakukan di Task 11).

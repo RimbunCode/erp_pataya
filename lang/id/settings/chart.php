@@ -9,6 +9,9 @@ return [
     'sharing'     => 'Berbagi',
     'columns'     => [
         'chart_name'                  => 'Nama',
+        'icon'                        => 'Icon',
+        'description'                 => 'Deskripsi',
+        'filters'                     => 'Filter',
         'chart_source_type'           => 'Sumber',
         'visual_type'                 => 'Tipe Chart',
         'model'                       => 'Model',

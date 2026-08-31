@@ -19,6 +19,8 @@ class NumberCardRequest extends BaseFormRequest {
     public function rules(): array {
         return [
             'label'                         => ['required', 'string', 'max:100'],
+            'icon'                          => ['nullable', 'string'],
+            'description'                   => ['nullable', 'array'],
             'source_type'                   => ['required', 'string', 'in:document_type,custom'],
             'function'                      => ['nullable', 'string', 'in:count,sum,average,minimum,maximum'],
             'aggregate_function_based_on'   => ['nullable', 'string', 'max:255'],
@@ -30,7 +32,7 @@ class NumberCardRequest extends BaseFormRequest {
             'background_color'              => ['nullable', 'string', 'max:32'],
             'show_full_number'              => ['nullable', 'boolean'],
             'show_percentage_stats'         => ['nullable', 'boolean'],
-            'stats_time_interval'           => ['nullable', 'string', 'in:daily,weekly,monthly,yearly'],
+            'stats_time_interval'           => ['required_if:show_percentage_stats,true', 'nullable', 'string', 'in:daily,weekly,monthly,yearly'],
             'method'                        => ['nullable', 'string', 'max:100'],
             'is_shared_all'                 => ['nullable', 'boolean'],
             'assignables'                   => ['nullable', 'array'],

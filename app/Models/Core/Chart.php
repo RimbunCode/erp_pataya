@@ -21,6 +21,7 @@ class Chart extends Model {
     public $casts                = [
         'filters'                => Json::class,
         'custom_options'         => Json::class,
+        'description'            => Json::class,
         'is_shared_all'          => 'boolean',
         'timeseries'             => 'boolean',
         'show_values_over_chart' => 'boolean',
@@ -55,6 +56,18 @@ class Chart extends Model {
             'show'   => true,
             'order'  => 0,
             'isLink' => true,
+        ],
+        // Feedback user: ChartBlock/ChartDisplay butuh field ini di luar
+        // templateLink (":chart_name") — linkable + diminta eksplisit lewat
+        // ChartLinkModel's `fields` prop (lihat safeLookupColumns()).
+        'icon' => [
+            'linkable' => true,
+        ],
+        'description' => [
+            'linkable' => true,
+        ],
+        'filters' => [
+            'linkable' => true,
         ],
         'chart_source_type' => [
             'show'       => true,

@@ -20,6 +20,7 @@ class NumberCard extends Model {
     protected $guarded           = ['id'];
     public $casts                = [
         'filters'               => Json::class,
+        'description'           => Json::class,
         'is_shared_all'         => 'boolean',
         'show_full_number'      => 'boolean',
         'show_percentage_stats' => 'boolean',
@@ -53,6 +54,18 @@ class NumberCard extends Model {
             'show'   => true,
             'order'  => 0,
             'isLink' => true,
+        ],
+        // Feedback user: NumberCardBlock/NumberCardDisplay butuh field ini di
+        // luar templateLink (":label") — linkable + diminta eksplisit lewat
+        // NumberCardLinkModel's `fields` prop (lihat safeLookupColumns()).
+        'icon' => [
+            'linkable' => true,
+        ],
+        'description' => [
+            'linkable' => true,
+        ],
+        'filters' => [
+            'linkable' => true,
         ],
         'function' => [
             'show'       => true,

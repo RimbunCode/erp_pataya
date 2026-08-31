@@ -8,6 +8,9 @@ return [
     'sharing' => 'Sharing',
     'columns' => [
         'label'                       => 'Label',
+        'icon'                        => 'Icon',
+        'description'                 => 'Description',
+        'filters'                     => 'Filter',
         'function'                    => 'Function',
         'model'                       => 'Model',
         'model.placeholder'           => 'Select a model',

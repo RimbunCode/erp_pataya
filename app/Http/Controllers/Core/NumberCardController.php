@@ -8,6 +8,7 @@ use App\Http\Requests\Core\NumberCardRequest;
 use App\Models\Core\NumberCard;
 use App\Services\Core\NumberCardService;
 use App\Services\Core\PermissionChecker;
+use App\Services\Core\PrintTemplate\HTMLSanitizerService;
 use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Http\Request;
 use Inertia\Inertia;
@@ -78,6 +79,14 @@ class NumberCardController extends Controller {
         }
         $data['created_by_id'] = $request->user()->id;
         unset($data['model'], $data['assignables']);
+
+        // Sanitasi HTML SEBELUM disimpan — sanitasi client tidak cukup,
+        // pola sama dgn DeskController::sanitizeRowHtml() (description
+        // Link Card/Quick List/Section, bentuk {json, html}).
+        if (! empty($data['description']['html'] ?? null)) {
+            $sanitizer                   = new HTMLSanitizerService(extraAllowedTags: ['blockquote', 'pre', 'code', 's', 'u', 'hr']);
+            $data['description']['html'] = $sanitizer->sanitize($data['description']['html'])->sanitizedHTML;
+        }
 
         return $data;
     }
