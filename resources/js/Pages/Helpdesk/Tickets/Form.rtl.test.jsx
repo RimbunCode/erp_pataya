@@ -113,9 +113,9 @@ describe("Helpdesk Tickets Form", () => {
   it("default type/priority/status/progress terisi dari default useFormPage", () => {
     renderForm(<Form />);
 
-    const typeSelect = within(
-      screen.getByTestId("forminput-type"),
-    ).getByRole("combobox");
+    const typeSelect = within(screen.getByTestId("forminput-type")).getByRole(
+      "combobox",
+    );
     expect(typeSelect).toHaveValue("task");
   });
 

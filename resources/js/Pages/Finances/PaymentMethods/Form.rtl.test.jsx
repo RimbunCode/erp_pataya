@@ -40,7 +40,10 @@ vi.mock("@/Components/FormInput", () => ({
 
 vi.mock("../Accounts/AccountLinkModel", () => ({
   default: ({ value, filters }) => (
-    <div data-testid="account-link-model" data-filters={JSON.stringify(filters ?? {})}>
+    <div
+      data-testid="account-link-model"
+      data-filters={JSON.stringify(filters ?? {})}
+    >
       account:{value?.name ?? "none"}
     </div>
   ),

@@ -97,8 +97,18 @@ describe("formatDateValue", () => {
     const customI18n = {
       ...DEFAULT_DATE_SELECTOR_I18N,
       monthsShort: [
-        "Jan-ID", "Feb-ID", "Mar-ID", "Apr-ID", "Mei-ID", "Jun-ID",
-        "Jul-ID", "Agu-ID", "Sep-ID", "Okt-ID", "Nov-ID", "Des-ID",
+        "Jan-ID",
+        "Feb-ID",
+        "Mar-ID",
+        "Apr-ID",
+        "Mei-ID",
+        "Jun-ID",
+        "Jul-ID",
+        "Agu-ID",
+        "Sep-ID",
+        "Okt-ID",
+        "Nov-ID",
+        "Des-ID",
       ],
     };
     expect(

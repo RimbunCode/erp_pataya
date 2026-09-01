@@ -145,7 +145,9 @@ describe("Show (SalesOrders)", () => {
       );
 
       const banner = screen.getByTestId("form-page-banner");
-      expect(within(banner).getByText("core.form.errors.title")).toBeInTheDocument();
+      expect(
+        within(banner).getByText("core.form.errors.title"),
+      ).toBeInTheDocument();
       expect(within(banner).getByText("error.satu")).toBeInTheDocument();
       expect(within(banner).getByText("error.dua")).toBeInTheDocument();
     });
@@ -562,7 +564,7 @@ describe("Show (SalesOrders)", () => {
     });
 
     it("konfirmasi Sync Items memanggil router.post ke route salesOrders.syncItems dengan id, lalu menutup dialog onFinish", async () => {
-      routerPost.mockImplementation((url, data, options) => {
+      routerPost.mockImplementation((_url, _data, options) => {
         options?.onFinish?.();
       });
       const user = userEvent.setup({ delay: null });
@@ -603,7 +605,7 @@ describe("Show (SalesOrders)", () => {
     });
 
     it("konfirmasi sukses memanggil router.post ke salesOrders.markDone dan menutup dialog onSuccess", async () => {
-      routerPost.mockImplementation((url, data, options) => {
+      routerPost.mockImplementation((_url, _data, options) => {
         options?.onSuccess?.();
       });
       const user = userEvent.setup({ delay: null });
@@ -624,7 +626,7 @@ describe("Show (SalesOrders)", () => {
     });
 
     it("onError dengan errors.mismatches (array) menampilkan daftar mismatch dan dialog tetap terbuka", async () => {
-      routerPost.mockImplementation((url, data, options) => {
+      routerPost.mockImplementation((_url, _data, options) => {
         options?.onError?.({
           mismatches: [
             { item_name: "Barang X", delivered_qty: 3, billed_qty: 5 },
@@ -649,7 +651,7 @@ describe("Show (SalesOrders)", () => {
     });
 
     it("onError dengan errors.mismatches berupa JSON string (bukan array) di-parse dengan benar", async () => {
-      routerPost.mockImplementation((url, data, options) => {
+      routerPost.mockImplementation((_url, _data, options) => {
         options?.onError?.({
           mismatches: JSON.stringify([
             { item_name: "Barang Y", delivered_qty: 1, billed_qty: 2 },

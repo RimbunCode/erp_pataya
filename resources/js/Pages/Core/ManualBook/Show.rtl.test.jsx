@@ -13,7 +13,9 @@ vi.mock("@inertiajs/react", () => ({
 }));
 
 vi.mock("@/Layouts/AppLayout", () => ({
-  default: ({ children }) => <div data-testid="stub-app-layout">{children}</div>,
+  default: ({ children }) => (
+    <div data-testid="stub-app-layout">{children}</div>
+  ),
 }));
 
 vi.mock("@inertiajs/core", async () => {
@@ -43,7 +45,12 @@ vi.mock("@/Components/ManualBook/ManualBookToc", () => ({
 const renderShow = (props) =>
   render(
     <TooltipProvider>
-      <Show title="Panduan A" description="Deskripsi" content_html="<p>Hi</p>" {...props} />
+      <Show
+        title="Panduan A"
+        description="Deskripsi"
+        content_html="<p>Hi</p>"
+        {...props}
+      />
     </TooltipProvider>,
   );
 

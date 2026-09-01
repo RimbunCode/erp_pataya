@@ -31,7 +31,7 @@ vi.mock("@/lib/gooeyToast", () => ({
 // (dropzone/file list) dan wrapper dialog itu sendiri.
 vi.mock("@/Pages/Core/Components/Library/Library", () => ({
   default: React.forwardRef(
-    ({ setMenu, checklistFile, setChecklistFile }, ref) => (
+    ({ setMenu, checklistFile, setChecklistFile }, _ref) => (
       <div data-testid="library-stub">
         <button type="button" onClick={() => setMenu("home")}>
           back-to-home

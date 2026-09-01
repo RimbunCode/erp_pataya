@@ -408,13 +408,9 @@ describe("PurchaseRequests Form", () => {
       // DUS) -- harus jadi baris baru, bukan increment baris lama.
       expect(screen.getByTestId("row-1")).toBeInTheDocument();
       const row0QtyCell = screen.getByTestId("cell-quantity-0");
-      expect(
-        within(row0QtyCell).getByTestId("number-input"),
-      ).toHaveValue("4");
+      expect(within(row0QtyCell).getByTestId("number-input")).toHaveValue("4");
       const row1QtyCell = screen.getByTestId("cell-quantity-1");
-      expect(
-        within(row1QtyCell).getByTestId("number-input"),
-      ).toHaveValue("1");
+      expect(within(row1QtyCell).getByTestId("number-input")).toHaveValue("1");
     });
   });
 

@@ -40,7 +40,12 @@ function basePageProps(overrides = {}) {
     dataBefore: { code: "PO-001", name: "Sebelum" },
     log: {
       created_at: "2026-01-01T00:00:00Z",
-      user: { name: "Budi Santoso", picture: null, username: "budi", email: "budi@example.com" },
+      user: {
+        name: "Budi Santoso",
+        picture: null,
+        username: "budi",
+        email: "budi@example.com",
+      },
     },
     lang: "en",
     ...overrides,
@@ -105,7 +110,12 @@ describe("FormPageDiff", () => {
       props: basePageProps({
         log: {
           created_at: "2026-01-01T00:00:00Z",
-          user: { name: "Ani Wijaya Kusuma", picture: null, username: "ani", email: "ani@x.com" },
+          user: {
+            name: "Ani Wijaya Kusuma",
+            picture: null,
+            username: "ani",
+            email: "ani@x.com",
+          },
         },
       }),
     });

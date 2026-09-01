@@ -10,7 +10,14 @@ vi.mock("./Form", () => ({
 }));
 
 vi.mock("@/Pages/Core/FormPage", () => ({
-  FormPage: ({ isCreate, disabled, submitable, ignoreDraft, defaultValues, children }) => (
+  FormPage: ({
+    isCreate,
+    disabled,
+    submitable,
+    ignoreDraft,
+    defaultValues,
+    children,
+  }) => (
     <div data-testid="stub-form-page">
       <div data-testid="form-page-meta">
         {JSON.stringify({
@@ -62,9 +69,7 @@ describe("Show (Asset/Movements)", () => {
   });
 
   it("ignoreDraft dan defaultValues diteruskan dari defaultData", () => {
-    render(
-      <Show assetMovement={null} defaultData={{ asset: { id: 1 } }} />,
-    );
+    render(<Show assetMovement={null} defaultData={{ asset: { id: 1 } }} />);
 
     expect(screen.getByTestId("form-page-meta")).toHaveTextContent(
       JSON.stringify({

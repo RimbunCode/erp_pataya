@@ -92,12 +92,7 @@ describe("Show (CRM/Opportunities)", () => {
   });
 
   it("tombol create_quotation tetap muncul apapun field lain di opportunity (tidak ada gating status)", () => {
-    render(
-      <Show
-        opportunity={{ id: 3, status: "lost" }}
-        defaultData={{}}
-      />,
-    );
+    render(<Show opportunity={{ id: 3, status: "lost" }} defaultData={{}} />);
 
     expect(
       screen.getByText("crm.opportunity.create_quotation"),

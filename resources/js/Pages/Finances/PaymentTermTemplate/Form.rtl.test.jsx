@@ -76,10 +76,19 @@ vi.mock("../PaymentMethods/PaymentMethodLinkModel", () => ({
 // PaymentTermTemplate (definisi kolom, cell renderer, additionalData) yang
 // diuji, bukan mekanisme drag-drop/tabel FormTable itu sendiri.
 vi.mock("@/Components/FormTable", () => ({
-  default: ({ name, columns, value, onValueChange, additionalData, readOnly }) => {
+  default: ({
+    name,
+    columns,
+    value,
+    onValueChange,
+    additionalData,
+    readOnly,
+  }) => {
     const rows = value && value.length > 0 ? value : [];
     const resolvedAdditionalData =
-      typeof additionalData === "function" ? additionalData(rows) : additionalData;
+      typeof additionalData === "function"
+        ? additionalData(rows)
+        : additionalData;
     const updateData = (index, keyOrObj, val) => {
       const next = [...rows];
       const row = { ...next[index] };
@@ -92,11 +101,17 @@ vi.mock("@/Components/FormTable", () => ({
       onValueChange?.(next);
     };
     return (
-      <div data-testid={`stub-form-table-${name}`} data-readonly={String(!!readOnly)}>
+      <div
+        data-testid={`stub-form-table-${name}`}
+        data-readonly={String(!!readOnly)}
+      >
         {rows.map((row, index) => (
           <div key={row.id ?? index} data-testid={`row-${name}-${index}`}>
             {columns.map((col) => (
-              <div key={col.name} data-testid={`cell-${name}-${col.name}-${index}`}>
+              <div
+                key={col.name}
+                data-testid={`cell-${name}-${col.name}-${index}`}
+              >
                 {col.cell({
                   dataRow: row,
                   data: row[col.name],
@@ -141,7 +156,9 @@ describe("PaymentTermTemplate Form", () => {
   it("render tanpa error dan menampilkan field name & description", () => {
     render(<Form />);
 
-    expect(screen.getByText("TR:finances.paymentTerm.columns.name")).toBeInTheDocument();
+    expect(
+      screen.getByText("TR:finances.paymentTerm.columns.name"),
+    ).toBeInTheDocument();
     expect(
       screen.getByText("TR:finances.paymentTerm.columns.description"),
     ).toBeInTheDocument();
@@ -185,7 +202,10 @@ describe("PaymentTermTemplate Form", () => {
     const setData = vi.fn();
     useFormPageMock.mockReturnValue({
       ...baseFormPage,
-      data: { ...baseFormPage.data, items: [{ id: "row1", invoice_portion: null }] },
+      data: {
+        ...baseFormPage.data,
+        items: [{ id: "row1", invoice_portion: null }],
+      },
       setData,
     });
 

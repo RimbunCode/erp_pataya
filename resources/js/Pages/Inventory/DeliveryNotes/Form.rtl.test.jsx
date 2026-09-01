@@ -543,14 +543,18 @@ describe("Inventory DeliveryNotes Form.jsx", () => {
       // FormInput (wrapper label field lain) JUGA memakai role="forminput"
       // pada div pembungkusnya -- checkbox sungguhan dibedakan lewat atribut
       // aria-checked (dipasang Radix Checkbox, tidak ada di div FormInput).
-      const checkbox = document.querySelector('[role="forminput"][aria-checked]');
+      const checkbox = document.querySelector(
+        '[role="forminput"][aria-checked]',
+      );
       expect(checkbox).toHaveAttribute("data-state", "checked");
     });
 
     it("unchecked ketika is_return dan return_against dua-duanya kosong", () => {
       renderForm();
 
-      const checkbox = document.querySelector('[role="forminput"][aria-checked]');
+      const checkbox = document.querySelector(
+        '[role="forminput"][aria-checked]',
+      );
       expect(checkbox).toHaveAttribute("data-state", "unchecked");
     });
   });
@@ -628,7 +632,11 @@ describe("Inventory DeliveryNotes Form.jsx", () => {
 
     it("return_against DIRENDER ketika is_return true", () => {
       renderForm({
-        data: { delivery_date: new Date("2026-01-01"), items: [], is_return: true },
+        data: {
+          delivery_date: new Date("2026-01-01"),
+          items: [],
+          is_return: true,
+        },
       });
 
       expect(
@@ -682,9 +690,7 @@ describe("Inventory DeliveryNotes Form.jsx", () => {
         },
       });
 
-      await user.click(
-        screen.getByRole("button", { name: /^customer:/ }),
-      );
+      await user.click(screen.getByRole("button", { name: /^customer:/ }));
 
       expect(stateRef.data.customer).toEqual(
         expect.objectContaining({ id: 1, name: "PT Pelanggan" }),
@@ -850,7 +856,9 @@ describe("Inventory DeliveryNotes Form.jsx", () => {
       renderForm({
         data: {
           delivery_date: new Date("2026-01-01"),
-          items: [{ id: 1, referenceable: { item: { is_fixed_asset: false } } }],
+          items: [
+            { id: 1, referenceable: { item: { is_fixed_asset: false } } },
+          ],
         },
       });
 
@@ -865,7 +873,9 @@ describe("Inventory DeliveryNotes Form.jsx", () => {
     });
 
     it("tidak ada pesan mismatch ketika total quantity asset_lines sama dengan quantity baris", () => {
-      renderForm({ data: { delivery_date: new Date("2026-01-01"), items: [] } });
+      renderForm({
+        data: { delivery_date: new Date("2026-01-01"), items: [] },
+      });
 
       const col = getAssetLinesColumn();
       const cellEl = col.cell({
@@ -884,7 +894,9 @@ describe("Inventory DeliveryNotes Form.jsx", () => {
     });
 
     it("menampilkan pesan mismatch ketika total quantity asset_lines beda dari quantity baris", () => {
-      renderForm({ data: { delivery_date: new Date("2026-01-01"), items: [] } });
+      renderForm({
+        data: { delivery_date: new Date("2026-01-01"), items: [] },
+      });
 
       const col = getAssetLinesColumn();
       const cellEl = col.cell({
@@ -901,7 +913,9 @@ describe("Inventory DeliveryNotes Form.jsx", () => {
     });
 
     it("total quantity asset mengabaikan nilai non-numerik (Number(...)||0)", () => {
-      renderForm({ data: { delivery_date: new Date("2026-01-01"), items: [] } });
+      renderForm({
+        data: { delivery_date: new Date("2026-01-01"), items: [] },
+      });
 
       const col = getAssetLinesColumn();
       const cellEl = col.cell({

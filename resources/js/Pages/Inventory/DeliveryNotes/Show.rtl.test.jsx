@@ -1,6 +1,5 @@
 import { describe, expect, it, vi, beforeEach } from "vitest";
 import { render, screen } from "@testing-library/react";
-import userEvent from "@testing-library/user-event";
 
 // ============================================================================
 // Show.jsx (66 baris) adalah halaman detail Delivery Note -- JAUH lebih
@@ -89,12 +88,7 @@ function baseDeliveryNote(overrides = {}) {
 
 function renderShow(props = {}) {
   return render(
-    <Show
-      deliveryNote={null}
-      defaultData={{}}
-      flash={{}}
-      {...props}
-    />,
+    <Show deliveryNote={null} defaultData={{}} flash={{}} {...props} />,
   );
 }
 
@@ -120,7 +114,12 @@ describe("Show (DeliveryNotes)", () => {
     });
 
     it("mode edit belum submit: isCreate=false, disabled=false (submitted_at kosong)", () => {
-      const deliveryNote = { id: 1, submitted_at: null, status: "draft", items: [] };
+      const deliveryNote = {
+        id: 1,
+        submitted_at: null,
+        status: "draft",
+        items: [],
+      };
       renderShow({ deliveryNote });
 
       expect(screen.getByTestId("form-page-meta")).toHaveTextContent(

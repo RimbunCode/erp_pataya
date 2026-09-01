@@ -64,9 +64,7 @@ describe("NumberInput", () => {
   it("onBlur membulatkan sesuai decimalScale (round half-up)", async () => {
     const user = userEvent.setup({ delay: null });
     const onValueChange = vi.fn();
-    renderInput(
-      <NumberInput decimalScale={2} onValueChange={onValueChange} />,
-    );
+    renderInput(<NumberInput decimalScale={2} onValueChange={onValueChange} />);
 
     const input = screen.getByRole("textbox");
     await user.type(input, "1.005");
@@ -135,10 +133,7 @@ describe("NumberInput", () => {
 
   it("prefix eksplisit dipakai sebagai placeholder default", () => {
     renderInput(<NumberInput prefix="$" decimalScale={2} />);
-    expect(screen.getByRole("textbox")).toHaveAttribute(
-      "placeholder",
-      "$0.00",
-    );
+    expect(screen.getByRole("textbox")).toHaveAttribute("placeholder", "$0.00");
   });
 
   it("Escape membuat input blur", async () => {

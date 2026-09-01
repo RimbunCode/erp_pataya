@@ -160,6 +160,11 @@ function makeUnit(overrides = {}) {
  * memperbarui data). Cocok untuk skenario "kondisi awal saat mount" --
  * bukan untuk menguji efek yang butuh Form re-render dalam mounted
  * instance yang sama (pakai renderFormStateful untuk itu).
+ * @param root0
+ * @param root0.data
+ * @param root0.item
+ * @param root0.variants
+ * @param root0.disabled
  */
 function renderForm({
   data = {},
@@ -187,8 +192,16 @@ function renderForm({
  * memicu re-render Form lewat context propagation (bypass bail-out memo).
  * Mengembalikan getData() untuk membaca data terkini dan setExternalData()
  * untuk memicu perubahan data dari luar seolah field lain yang mengubahnya.
+ * @param root0
+ * @param root0.data
+ * @param root0.item
+ * @param root0.variants
  */
-function renderFormStateful({ data: initialData = {}, item = null, variants = null }) {
+function renderFormStateful({
+  data: initialData = {},
+  item = null,
+  variants = null,
+}) {
   usePageMock.mockReturnValue({ props: { item, variants } });
   let latestData = initialData;
   let externalSetData = null;
@@ -242,9 +255,7 @@ describe("Inventory/Items Form", () => {
     it("tidak merender FormStockLevels ketika item null", () => {
       renderForm({ data: {}, item: null });
 
-      expect(
-        screen.queryByTestId("form-stock-levels"),
-      ).not.toBeInTheDocument();
+      expect(screen.queryByTestId("form-stock-levels")).not.toBeInTheDocument();
     });
 
     it("merender FormStockLevels ketika item ada, tanpa attributes, dan form tidak disabled", () => {
@@ -260,17 +271,13 @@ describe("Inventory/Items Form", () => {
         disabled: false,
       });
 
-      expect(
-        screen.queryByTestId("form-stock-levels"),
-      ).not.toBeInTheDocument();
+      expect(screen.queryByTestId("form-stock-levels")).not.toBeInTheDocument();
     });
 
     it("tidak merender FormStockLevels ketika form disabled", () => {
       renderForm({ data: {}, item: { id: 1, code: "ITM-1" }, disabled: true });
 
-      expect(
-        screen.queryByTestId("form-stock-levels"),
-      ).not.toBeInTheDocument();
+      expect(screen.queryByTestId("form-stock-levels")).not.toBeInTheDocument();
     });
 
     it("section Variants disembunyikan ketika category.type == 'service'", () => {
@@ -286,9 +293,7 @@ describe("Inventory/Items Form", () => {
     it("format_variant MentionsInput tidak tampil ketika data.attributes kosong", () => {
       renderForm({ data: { attributes: [] } });
 
-      expect(
-        screen.queryByLabelText("format-variant"),
-      ).not.toBeInTheDocument();
+      expect(screen.queryByLabelText("format-variant")).not.toBeInTheDocument();
     });
 
     it("format_variant MentionsInput tampil ketika data.attributes terisi", () => {

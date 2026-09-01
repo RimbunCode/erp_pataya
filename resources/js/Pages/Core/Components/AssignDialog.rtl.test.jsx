@@ -112,7 +112,9 @@ describe("AssignDialog", () => {
     const onClose = vi.fn();
     renderDialog({ initialValue: null, onSubmit: vi.fn(), onClose });
 
-    await user.click(screen.getByRole("button", { name: "TR:core.form.cancel" }));
+    await user.click(
+      screen.getByRole("button", { name: "TR:core.form.cancel" }),
+    );
 
     expect(onClose).toHaveBeenCalledTimes(1);
   });
@@ -131,7 +133,9 @@ describe("AssignDialog", () => {
     };
     renderDialog({ initialValue, onSubmit, onClose: vi.fn() });
 
-    await user.click(screen.getByRole("button", { name: "TR:core.form.assign" }));
+    await user.click(
+      screen.getByRole("button", { name: "TR:core.form.assign" }),
+    );
 
     expect(onSubmit).toHaveBeenCalledWith(initialValue);
   });
@@ -146,7 +150,9 @@ describe("AssignDialog", () => {
       onChange("priority", "high");
     });
 
-    await user.click(screen.getByRole("button", { name: "TR:core.form.assign" }));
+    await user.click(
+      screen.getByRole("button", { name: "TR:core.form.assign" }),
+    );
 
     expect(onSubmit).toHaveBeenCalledWith(
       expect.objectContaining({ priority: "high" }),
@@ -167,7 +173,11 @@ describe("AssignDialog", () => {
 
     const { rerender } = render(
       <Dialog open>
-        <AssignDialog initialValue={initialA} onSubmit={vi.fn()} onClose={vi.fn()} />
+        <AssignDialog
+          initialValue={initialA}
+          onSubmit={vi.fn()}
+          onClose={vi.fn()}
+        />
       </Dialog>,
     );
     expect(assignedToFieldsProps).toHaveBeenLastCalledWith(
@@ -176,7 +186,11 @@ describe("AssignDialog", () => {
 
     rerender(
       <Dialog open>
-        <AssignDialog initialValue={initialB} onSubmit={vi.fn()} onClose={vi.fn()} />
+        <AssignDialog
+          initialValue={initialB}
+          onSubmit={vi.fn()}
+          onClose={vi.fn()}
+        />
       </Dialog>,
     );
 

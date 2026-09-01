@@ -69,9 +69,9 @@ describe("Inventory ItemAlternatives Form", () => {
   it("filter item selalu berisi kondisi allow_alternative_item (or)", () => {
     renderForm(<Form />);
 
-    const itemModel = within(
-      screen.getByTestId("forminput-item"),
-    ).getByText(/value:/);
+    const itemModel = within(screen.getByTestId("forminput-item")).getByText(
+      /value:/,
+    );
     expect(itemModel).toHaveAttribute(
       "data-filters",
       JSON.stringify({

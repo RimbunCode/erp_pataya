@@ -100,9 +100,9 @@ describe("CRM Opportunities Form", () => {
     const user = userEvent.setup({ delay: null });
     renderForm(<Form />);
 
-    const titleInput = within(
-      screen.getByTestId("forminput-title"),
-    ).getByRole("textbox");
+    const titleInput = within(screen.getByTestId("forminput-title")).getByRole(
+      "textbox",
+    );
     await user.type(titleInput, "Deal Besar");
 
     expect(titleInput).toHaveValue("Deal Besar");
@@ -155,9 +155,9 @@ describe("CRM Opportunities Form", () => {
     const user = userEvent.setup({ delay: null });
     renderForm(<Form />);
 
-    const input = within(
-      screen.getByTestId("forminput-probability"),
-    ).getByRole("textbox");
+    const input = within(screen.getByTestId("forminput-probability")).getByRole(
+      "textbox",
+    );
     await user.type(input, "150");
     await user.tab();
 

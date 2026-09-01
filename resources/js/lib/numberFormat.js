@@ -23,9 +23,15 @@ import { formatNumber as formatFullNumber } from "@/Components/NumberInput/forma
  * @param {string} [options.numberFormat] pattern utk mode full, mis. "#.###,##" dari preferences.default_number_format
  * @returns {string}
  */
-export function formatNumber(value, { full = false, locale, numberFormat } = {}) {
+export function formatNumber(
+  value,
+  { full = false, locale, numberFormat } = {},
+) {
   const num = Number(value ?? 0);
   return full
     ? formatFullNumber(num, { numberFormat })
-    : Intl.NumberFormat(locale, { notation: "compact", maximumFractionDigits: 1 }).format(num);
+    : Intl.NumberFormat(locale, {
+        notation: "compact",
+        maximumFractionDigits: 1,
+      }).format(num);
 }

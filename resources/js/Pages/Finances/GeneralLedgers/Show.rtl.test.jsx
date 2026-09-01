@@ -101,9 +101,9 @@ describe("Show (Finances/GeneralLedgers)", () => {
       />,
     );
 
-    const link = screen.getByText(
-      "finances.generalLedger.actions.view_reference",
-    ).closest("a");
+    const link = screen
+      .getByText("finances.generalLedger.actions.view_reference")
+      .closest("a");
     expect(link).toHaveAttribute(
       "href",
       `salesInvoices.show/${JSON.stringify(42)}`,
@@ -120,9 +120,9 @@ describe("Show (Finances/GeneralLedgers)", () => {
       />,
     );
 
-    const link = screen.getByText(
-      "finances.generalLedger.actions.view_reference",
-    ).closest("a");
+    const link = screen
+      .getByText("finances.generalLedger.actions.view_reference")
+      .closest("a");
     expect(link).toHaveAttribute(
       "href",
       `purchaseInvoices.show/${JSON.stringify(7)}`,

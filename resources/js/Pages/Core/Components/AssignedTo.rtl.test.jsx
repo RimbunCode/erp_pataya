@@ -40,7 +40,9 @@ vi.mock("./AssignDialog", () => ({
     assignDialogProps(props);
     return (
       <div data-testid="stub-assign-dialog">
-        <button onClick={() => props.onSubmit({ allocated_to: null, type: "task" })}>
+        <button
+          onClick={() => props.onSubmit({ allocated_to: null, type: "task" })}
+        >
           submit-dialog
         </button>
         <button onClick={props.onClose}>close-dialog</button>
@@ -78,7 +80,13 @@ describe("AssignedTo", () => {
     usePageMock.mockReturnValue({
       props: {
         assignees: [
-          { id: 1, allocated_to_id: 9, name: "Budi", type: "task", status: "open" },
+          {
+            id: 1,
+            allocated_to_id: 9,
+            name: "Budi",
+            type: "task",
+            status: "open",
+          },
         ],
         auth: { user: { id: 1, name: "Aku" } },
       },
@@ -95,14 +103,27 @@ describe("AssignedTo", () => {
       isCreate: true,
       data: {
         buffered_assignees: [
-          { id: "buf1", allocated_to_id: 3, name: "Citra", type: "event", status: "open" },
+          {
+            id: "buf1",
+            allocated_to_id: 3,
+            name: "Citra",
+            type: "event",
+            status: "open",
+          },
         ],
       },
       setData: vi.fn(),
     });
     usePageMock.mockReturnValue({
       props: {
-        assignees: [{ id: 999, allocated_to_id: 1, name: "Harus Diabaikan", status: "open" }],
+        assignees: [
+          {
+            id: 999,
+            allocated_to_id: 1,
+            name: "Harus Diabaikan",
+            status: "open",
+          },
+        ],
         auth: { user: { id: 1, name: "Aku" } },
       },
     });
@@ -185,7 +206,13 @@ describe("AssignedTo", () => {
     usePageMock.mockReturnValue({
       props: {
         assignees: [
-          { id: 42, allocated_to_id: 9, name: "Budi", type: "task", status: "open" },
+          {
+            id: 42,
+            allocated_to_id: 9,
+            name: "Budi",
+            type: "task",
+            status: "open",
+          },
         ],
         auth: { user: { id: 1, name: "Aku" } },
       },
@@ -203,7 +230,13 @@ describe("AssignedTo", () => {
     usePageMock.mockReturnValue({
       props: {
         assignees: [
-          { id: 42, allocated_to_id: 9, name: "Budi", type: "task", status: "open" },
+          {
+            id: 42,
+            allocated_to_id: 9,
+            name: "Budi",
+            type: "task",
+            status: "open",
+          },
         ],
         auth: { user: { id: 1, name: "Aku" } },
       },
@@ -226,8 +259,20 @@ describe("AssignedTo", () => {
     usePageMock.mockReturnValue({
       props: {
         assignees: [
-          { id: 1, allocated_to_id: 9, name: "Budi", type: "task", status: "closed" },
-          { id: 2, allocated_to_id: 8, name: "Citra", type: "task", status: "canceled" },
+          {
+            id: 1,
+            allocated_to_id: 9,
+            name: "Budi",
+            type: "task",
+            status: "closed",
+          },
+          {
+            id: 2,
+            allocated_to_id: 8,
+            name: "Citra",
+            type: "task",
+            status: "canceled",
+          },
         ],
         auth: { user: { id: 1, name: "Aku" } },
       },
@@ -249,7 +294,13 @@ describe("AssignedTo", () => {
       isCreate: true,
       data: {
         buffered_assignees: [
-          { id: "buf1", allocated_to_id: 3, name: "Citra", type: "task", status: "open" },
+          {
+            id: "buf1",
+            allocated_to_id: 3,
+            name: "Citra",
+            type: "task",
+            status: "open",
+          },
         ],
       },
       setData,

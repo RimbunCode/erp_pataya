@@ -126,8 +126,7 @@ vi.mock("@/Components/FormTable", () => ({
                 {col.cell({
                   dataRow: row,
                   data: row[col.name],
-                  setData: (keyOrObj, val) =>
-                    updateData(index, keyOrObj, val),
+                  setData: (keyOrObj, val) => updateData(index, keyOrObj, val),
                   additionalData,
                   attributes: {},
                 })}

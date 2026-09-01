@@ -16,7 +16,9 @@ vi.mock("laravel-react-i18n", () => ({
 }));
 
 function makeContextValue(overrides = {}) {
-  const menus = overrides.menus ?? [{ id: "m1", title: "Detail", value: "detail" }];
+  const menus = overrides.menus ?? [
+    { id: "m1", title: "Detail", value: "detail" },
+  ];
   return {
     menus,
     addMenu: vi.fn(),

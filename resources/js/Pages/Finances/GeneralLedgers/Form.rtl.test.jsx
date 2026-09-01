@@ -29,9 +29,7 @@ vi.mock("@/Components/FormInput", () => ({
 
 vi.mock("../Accounts/AccountLinkModel", () => ({
   default: ({ value }) => (
-    <div data-testid="account-link-model">
-      account:{value?.name ?? "none"}
-    </div>
+    <div data-testid="account-link-model">account:{value?.name ?? "none"}</div>
   ),
 }));
 

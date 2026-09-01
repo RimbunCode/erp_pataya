@@ -2,7 +2,7 @@ import { describe, expect, it, vi, beforeEach } from "vitest";
 import { render, screen, within, waitFor } from "@testing-library/react";
 import { TooltipProvider } from "@/Components/ui/tooltip";
 import userEvent from "@testing-library/user-event";
-import React, { createContext, useContext, useState } from "react";
+import React, { useContext, useState } from "react";
 
 // ============================================================================
 // Form.jsx (Inventory/Units) adalah form master data Unit (satuan
@@ -97,7 +97,15 @@ vi.mock("@/Components/FormInput", () => ({
 // (sudah punya test sendiri). Prefix "opt:" pada label agar tidak bentrok
 // dengan teks lain di halaman.
 vi.mock("@/Components/Select", () => ({
-  default: ({ value, onValueChange, onSearchChange, options, disabled, readOnly, placeholder }) => (
+  default: ({
+    value,
+    onValueChange,
+    onSearchChange,
+    options,
+    disabled,
+    readOnly,
+    placeholder,
+  }) => (
     <select
       data-testid="select"
       aria-label={placeholder}
@@ -111,7 +119,8 @@ vi.mock("@/Components/Select", () => ({
       <option value="" />
       {(options ?? []).map((opt) => {
         const optValue = typeof opt === "object" ? opt.value : opt;
-        const optLabel = typeof opt === "object" ? (opt.label ?? opt.value) : opt;
+        const optLabel =
+          typeof opt === "object" ? (opt.label ?? opt.value) : opt;
         return (
           <option key={optValue} value={optValue}>
             opt:{optLabel}
@@ -131,6 +140,11 @@ import Form from "./Form";
  * Render Form dengan useFormPage()/FormPageContext STATEFUL sungguhan --
  * setData yang dipanggil Form.jsx sendiri betul-betul memperbarui data dan
  * memicu re-render lewat context propagation.
+ * @param root0
+ * @param root0.data
+ * @param root0.dataBefore
+ * @param root0.disabled
+ * @param root0.defaultData
  */
 function renderForm({
   data: initialData = {},
@@ -200,18 +214,24 @@ describe("Inventory/Units Form", () => {
 
   describe("rendering dasar & field wajib", () => {
     it("merender field group, code, name, dan checkbox customable", () => {
-      renderForm({ data: { id: 1, group: "Weight", code: "KG", name: "Kilogram" } });
+      renderForm({
+        data: { id: 1, group: "Weight", code: "KG", name: "Kilogram" },
+      });
 
       expect(screen.getByTestId("forminput-group")).toBeInTheDocument();
       expect(screen.getByTestId("forminput-code")).toBeInTheDocument();
       expect(screen.getByTestId("forminput-name")).toBeInTheDocument();
-      expect(screen.getByText("inventory.unit.columns.customable")).toBeInTheDocument();
+      expect(
+        screen.getByText("inventory.unit.columns.customable"),
+      ).toBeInTheDocument();
     });
 
     it("field conversion_factor dirender ketika data.customable falsy", () => {
       renderForm({ data: { id: 1, customable: false } });
 
-      expect(screen.getByTestId("forminput-conversion_factor")).toBeInTheDocument();
+      expect(
+        screen.getByTestId("forminput-conversion_factor"),
+      ).toBeInTheDocument();
     });
 
     it("field conversion_factor TIDAK dirender ketika data.customable true", () => {
@@ -388,13 +408,28 @@ describe("Inventory/Units Form", () => {
       axiosGet.mockImplementation((url) => {
         if (url.includes("units.index")) {
           return Promise.resolve({
-            data: [makeUnit({ id: 2, code: "GR", name: "Gram", group: "Weight", conversion_factor: 0.001 })],
+            data: [
+              makeUnit({
+                id: 2,
+                code: "GR",
+                name: "Gram",
+                group: "Weight",
+                conversion_factor: 0.001,
+              }),
+            ],
           });
         }
         return Promise.resolve({ data: [] });
       });
       renderForm({
-        data: { id: 1, group: "Weight", code: "KG", name: "Kilogram", customable: false, conversion_factor: 1 },
+        data: {
+          id: 1,
+          group: "Weight",
+          code: "KG",
+          name: "Kilogram",
+          customable: false,
+          conversion_factor: 1,
+        },
       });
 
       expect(
@@ -435,13 +470,22 @@ describe("Inventory/Units Form", () => {
       axiosGet.mockImplementation((url) => {
         if (url.includes("units.index")) {
           return Promise.resolve({
-            data: [makeUnit({ id: 2, code: "GR", name: "Gram", group: "Weight" })],
+            data: [
+              makeUnit({ id: 2, code: "GR", name: "Gram", group: "Weight" }),
+            ],
           });
         }
         return Promise.resolve({ data: [] });
       });
       renderForm({
-        data: { id: 1, group: "Weight", code: "KG", name: "Kilogram", customable: false, conversion_factor: 1 },
+        data: {
+          id: 1,
+          group: "Weight",
+          code: "KG",
+          name: "Kilogram",
+          customable: false,
+          conversion_factor: 1,
+        },
       });
 
       await screen.findByText("inventory.unit.playground");
@@ -449,9 +493,7 @@ describe("Inventory/Units Form", () => {
         "forminput-inventory.unit.columns.units.from",
       );
       const selectFrom = within(fromWrapper).getByTestId("select");
-      expect(
-        within(selectFrom).getByText("opt:Gram (GR)"),
-      ).toBeInTheDocument();
+      expect(within(selectFrom).getByText("opt:Gram (GR)")).toBeInTheDocument();
     });
 
     it("unit data.id sendiri disuntikkan ke opsi meski tidak ada di `units` (mis. tersaring except)", async () => {
@@ -460,13 +502,22 @@ describe("Inventory/Units Form", () => {
           // data.id (1) sengaja tidak dikembalikan backend (mis. filter
           // except=1 di server) -- hanya unit lain.
           return Promise.resolve({
-            data: [makeUnit({ id: 2, code: "GR", name: "Gram", group: "Weight" })],
+            data: [
+              makeUnit({ id: 2, code: "GR", name: "Gram", group: "Weight" }),
+            ],
           });
         }
         return Promise.resolve({ data: [] });
       });
       renderForm({
-        data: { id: 1, group: "Weight", code: "KG", name: "Kilogram", customable: false, conversion_factor: 1 },
+        data: {
+          id: 1,
+          group: "Weight",
+          code: "KG",
+          name: "Kilogram",
+          customable: false,
+          conversion_factor: 1,
+        },
       });
 
       await screen.findByText("inventory.unit.playground");

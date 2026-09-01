@@ -135,7 +135,9 @@ describe("Show (CRM/Leads)", () => {
 
       await user.click(screen.getByText("crm.lead.convert_to_customer"));
 
-      expect(routerPut).toHaveBeenCalledWith(`leads.convert/${JSON.stringify(42)}`);
+      expect(routerPut).toHaveBeenCalledWith(
+        `leads.convert/${JSON.stringify(42)}`,
+      );
     });
   });
 
@@ -149,9 +151,7 @@ describe("Show (CRM/Leads)", () => {
       });
 
       expect(screen.getByText("crm.lead.converted_to")).toBeInTheDocument();
-      expect(
-        screen.getByText("templateLink:PT Maju Jaya"),
-      ).toBeInTheDocument();
+      expect(screen.getByText("templateLink:PT Maju Jaya")).toBeInTheDocument();
     });
 
     it("link customer mengarah ke route customers.show dengan converted_customer_id", () => {

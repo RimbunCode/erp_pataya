@@ -84,7 +84,9 @@ describe("AdditionalDiscount", () => {
   });
 
   it("total (Total di currency dokumen) hanya tampil setelah discount_on dipilih", () => {
-    const { rerender } = render(<AdditionalDiscount {...baseProps} data={{}} />);
+    const { rerender } = render(
+      <AdditionalDiscount {...baseProps} data={{}} />,
+    );
 
     expect(
       screen.queryByText(/TR:sales.salesOrder.columns.total/),

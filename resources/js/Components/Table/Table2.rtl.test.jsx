@@ -74,6 +74,8 @@ describe("Table2", () => {
     const [selectAll, ...rowChecks] = screen.getAllByRole("forminput");
     await user.click(selectAll);
 
-    rowChecks.forEach((cb) => expect(cb).toHaveAttribute("data-state", "checked"));
+    rowChecks.forEach((cb) =>
+      expect(cb).toHaveAttribute("data-state", "checked"),
+    );
   });
 });

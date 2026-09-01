@@ -9,6 +9,7 @@
  *
  * TiptapEditor menerima ProseMirror JSON maupun string HTML sebagai
  * content, jadi keduanya aman dikembalikan apa adanya.
+ * @param value
  */
 export function richTextValue(value) {
   if (!value) return null;

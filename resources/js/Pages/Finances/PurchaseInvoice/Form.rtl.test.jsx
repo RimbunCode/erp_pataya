@@ -104,7 +104,9 @@ function makeLinkModelStub(testId) {
         type="button"
         data-testid={testId}
         disabled={disabled}
-        onClick={() => onValueChange?.(globalThis.__linkModelPayloads?.[testId])}
+        onClick={() =>
+          onValueChange?.(globalThis.__linkModelPayloads?.[testId])
+        }
       >
         {testId}:{value?.id ?? value?.code ?? "none"}
       </button>
@@ -415,9 +417,7 @@ describe("PurchaseInvoice Form", () => {
       render(<Form />);
 
       const itemColumns = formTablePropsSpy.mock.calls[0][0].columns;
-      const itemCol = itemColumns.find(
-        (c) => c.name === "purchase_order_item",
-      );
+      const itemCol = itemColumns.find((c) => c.name === "purchase_order_item");
       const cellUi = itemCol.cell({
         dataRow: { id: 1 },
         setData: vi.fn(),
@@ -440,9 +440,7 @@ describe("PurchaseInvoice Form", () => {
       render(<Form />);
 
       const itemColumns = formTablePropsSpy.mock.calls[0][0].columns;
-      const itemCol = itemColumns.find(
-        (c) => c.name === "purchase_order_item",
-      );
+      const itemCol = itemColumns.find((c) => c.name === "purchase_order_item");
       const cellUi = itemCol.cell({
         dataRow: { id: 1 },
         setData: vi.fn(),
@@ -458,9 +456,7 @@ describe("PurchaseInvoice Form", () => {
       render(<Form />);
 
       const itemColumns = formTablePropsSpy.mock.calls[0][0].columns;
-      const itemCol = itemColumns.find(
-        (c) => c.name === "purchase_order_item",
-      );
+      const itemCol = itemColumns.find((c) => c.name === "purchase_order_item");
       const setDataRow = vi.fn();
       const cellUi = itemCol.cell({
         dataRow: { id: 1 },
@@ -621,7 +617,7 @@ describe("PurchaseInvoice Form", () => {
       // dpp_amount = basic_amount_setelah_alokasi * DPP_FACTOR = 1000 * 11/12.
       expect(result.dpp_amount).toBeCloseTo(1000 * (11 / 12), 5);
       // tax_amount = dpp_amount * tax_rate/100 = (1000*11/12)*11/100.
-      expect(result.tax_amount).toBeCloseTo(((1000 * (11 / 12)) * 11) / 100, 2);
+      expect(result.tax_amount).toBeCloseTo((1000 * (11 / 12) * 11) / 100, 2);
       // amount = gross - discountForLine(0) + tax_amount.
       expect(result.amount).toBeCloseTo(1000 + result.tax_amount, 2);
     });
@@ -679,9 +675,7 @@ describe("PurchaseInvoice Form", () => {
   it("meneruskan netAmount & taxAmount ke AdditionalDiscount", () => {
     formPageState = makeFormPageState({
       data: {
-        items: [
-          { basic_amount: 1000, discount_amount: 0, tax_amount: 110 },
-        ],
+        items: [{ basic_amount: 1000, discount_amount: 0, tax_amount: 110 }],
       },
     });
     render(<Form />);

@@ -31,7 +31,8 @@ import { SidebarProvider } from "@/Components/ui/sidebar";
 // referensi INTRA-MODUL di sidebar.jsx sendiri -- vi.mock hanya bisa override
 // binding yang di-export, bukan pemanggilan lokal semacam ini. Maka wrapper
 // SidebarProvider ASLI dipakai di sini, bukan mock useSidebar parsial.
-const renderWithSidebar = (ui) => render(<SidebarProvider>{ui}</SidebarProvider>);
+const renderWithSidebar = (ui) =>
+  render(<SidebarProvider>{ui}</SidebarProvider>);
 
 const branches = [
   { id: 1, name: "Jakarta" },

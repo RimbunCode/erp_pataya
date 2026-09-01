@@ -136,7 +136,10 @@ vi.mock("@/Components/FormTable", () => ({
   default: ({ name, readOnly, columns, value, onValueChange, mapItem }) => {
     const rows = value ?? [];
     return (
-      <div data-testid={`form-table-${name}`} data-readonly={readOnly ? "true" : "false"}>
+      <div
+        data-testid={`form-table-${name}`}
+        data-readonly={readOnly ? "true" : "false"}
+      >
         <button
           type="button"
           data-testid={`form-table-${name}-add-row`}
@@ -152,7 +155,10 @@ vi.mock("@/Components/FormTable", () => ({
         {rows.map((row, index) => (
           <div key={row.id ?? index} data-testid={`row-${name}-${index}`}>
             {columns.filter(Boolean).map((col) => (
-              <div key={col.name} data-testid={`cell-${col.name}-${name}-${index}`}>
+              <div
+                key={col.name}
+                data-testid={`cell-${col.name}-${name}-${index}`}
+              >
                 <span data-testid={`col-required-${col.name}-${name}-${index}`}>
                   {col.required ? "required" : "optional"}
                 </span>
@@ -196,9 +202,10 @@ describe("Form (Asset/Movements)", () => {
         "data-required",
         "true",
       );
-      expect(
-        screen.getByTestId("forminput-transaction_date"),
-      ).toHaveAttribute("data-required", "true");
+      expect(screen.getByTestId("forminput-transaction_date")).toHaveAttribute(
+        "data-required",
+        "true",
+      );
     });
 
     it("Select purpose berisi ke-4 opsi dengan i18n key yang benar", () => {
@@ -254,22 +261,16 @@ describe("Form (Asset/Movements)", () => {
       await user.click(addRow);
 
       expect(
-        screen.getByTestId(
-          "col-required-source_location-AssetMovementItems-0",
-        ),
+        screen.getByTestId("col-required-source_location-AssetMovementItems-0"),
       ).toHaveTextContent("optional");
       expect(
-        screen.getByTestId(
-          "col-required-target_location-AssetMovementItems-0",
-        ),
+        screen.getByTestId("col-required-target_location-AssetMovementItems-0"),
       ).toHaveTextContent("optional");
       expect(
         screen.getByTestId("col-required-asset-AssetMovementItems-0"),
       ).toHaveTextContent("required");
       expect(
-        screen.getByTestId(
-          "col-required-to_custodian-AssetMovementItems-0",
-        ),
+        screen.getByTestId("col-required-to_custodian-AssetMovementItems-0"),
       ).toHaveTextContent("optional");
     });
 
@@ -303,14 +304,10 @@ describe("Form (Asset/Movements)", () => {
       render(<Form />);
 
       expect(
-        screen.getByTestId(
-          "col-required-source_location-AssetMovementItems-0",
-        ),
+        screen.getByTestId("col-required-source_location-AssetMovementItems-0"),
       ).toHaveTextContent("optional");
       expect(
-        screen.getByTestId(
-          "col-required-target_location-AssetMovementItems-0",
-        ),
+        screen.getByTestId("col-required-target_location-AssetMovementItems-0"),
       ).toHaveTextContent("required");
 
       const wrapper = screen.getByTestId("forminput-purpose");
@@ -318,14 +315,10 @@ describe("Form (Asset/Movements)", () => {
       await user.selectOptions(select, "receipt");
 
       expect(
-        screen.getByTestId(
-          "col-required-source_location-AssetMovementItems-0",
-        ),
+        screen.getByTestId("col-required-source_location-AssetMovementItems-0"),
       ).toHaveTextContent("required");
       expect(
-        screen.getByTestId(
-          "col-required-target_location-AssetMovementItems-0",
-        ),
+        screen.getByTestId("col-required-target_location-AssetMovementItems-0"),
       ).toHaveTextContent("optional");
     });
   });
@@ -339,9 +332,7 @@ describe("Form (Asset/Movements)", () => {
       const user = userEvent.setup({ delay: null });
       render(<Form />);
 
-      const cell = screen.getByTestId(
-        "cell-asset-AssetMovementItems-0",
-      );
+      const cell = screen.getByTestId("cell-asset-AssetMovementItems-0");
       await user.click(within(cell).getByText("pilih-asset-link"));
 
       expect(within(cell).getByTestId("asset-link-input")).toHaveValue(
@@ -358,9 +349,9 @@ describe("Form (Asset/Movements)", () => {
       );
       await user.click(within(cell).getByText("pilih-asset-location-link"));
 
-      expect(
-        within(cell).getByTestId("asset-location-link-input"),
-      ).toHaveValue("Gudang A");
+      expect(within(cell).getByTestId("asset-location-link-input")).toHaveValue(
+        "Gudang A",
+      );
     });
 
     it("memilih target_location via AssetLocationLinkModel memanggil setData pada baris tersebut", async () => {
@@ -372,18 +363,16 @@ describe("Form (Asset/Movements)", () => {
       );
       await user.click(within(cell).getByText("pilih-asset-location-link"));
 
-      expect(
-        within(cell).getByTestId("asset-location-link-input"),
-      ).toHaveValue("Gudang A");
+      expect(within(cell).getByTestId("asset-location-link-input")).toHaveValue(
+        "Gudang A",
+      );
     });
 
     it("memilih to_custodian via UserLinkModel memanggil setData pada baris tersebut", async () => {
       const user = userEvent.setup({ delay: null });
       render(<Form />);
 
-      const cell = screen.getByTestId(
-        "cell-to_custodian-AssetMovementItems-0",
-      );
+      const cell = screen.getByTestId("cell-to_custodian-AssetMovementItems-0");
       await user.click(within(cell).getByText("pilih-user-link"));
 
       expect(within(cell).getByTestId("user-link-input")).toHaveValue("Budi");

@@ -1,4 +1,9 @@
-import { PencilIcon, PlusIcon, SquareArrowOutUpRightIcon, XIcon } from "lucide-react";
+import {
+  PencilIcon,
+  PlusIcon,
+  SquareArrowOutUpRightIcon,
+  XIcon,
+} from "lucide-react";
 import {
   SortableContext,
   useSortable,
@@ -34,7 +39,14 @@ function makeLocalItemRef() {
 function LinkCardItemRow({ item, canEdit, onUpdate, onDelete, allMenuItems }) {
   const [open, setOpen] = useState(!!item.isNew);
   const config = item.config ?? {};
-  const { attributes, listeners, setNodeRef, transform, transition, isDragging } = useSortable({
+  const {
+    attributes,
+    listeners,
+    setNodeRef,
+    transform,
+    transition,
+    isDragging,
+  } = useSortable({
     id: item.ref ?? item.id,
     disabled: !canEdit,
   });
@@ -79,9 +91,12 @@ function LinkCardItemRow({ item, canEdit, onUpdate, onDelete, allMenuItems }) {
           {...listeners}
         >
           <svg viewBox="0 0 16 16" className="size-3" fill="currentColor">
-            <circle cx="5" cy="3" r="1.3" /><circle cx="11" cy="3" r="1.3" />
-            <circle cx="5" cy="8" r="1.3" /><circle cx="11" cy="8" r="1.3" />
-            <circle cx="5" cy="13" r="1.3" /><circle cx="11" cy="13" r="1.3" />
+            <circle cx="5" cy="3" r="1.3" />
+            <circle cx="11" cy="3" r="1.3" />
+            <circle cx="5" cy="8" r="1.3" />
+            <circle cx="11" cy="8" r="1.3" />
+            <circle cx="5" cy="13" r="1.3" />
+            <circle cx="11" cy="13" r="1.3" />
           </svg>
         </button>
         <span className="truncate">{config.label || "Item baru"}</span>
@@ -110,7 +125,9 @@ function LinkCardItemRow({ item, canEdit, onUpdate, onDelete, allMenuItems }) {
         onOpenChange={setOpen}
         isNew={item.isNew}
         onCancelNew={onDelete}
-        validate={(draft) => (!draft.label?.trim() ? "Label wajib diisi." : null)}
+        validate={(draft) =>
+          !draft.label?.trim() ? "Label wajib diisi." : null
+        }
         onSave={(draft) => onUpdate({ ...item, config: draft, isNew: false })}
         renderForm={(draft, patchDraft) => (
           <>
@@ -144,7 +161,16 @@ function LinkCardItemRow({ item, canEdit, onUpdate, onDelete, allMenuItems }) {
 // (terpisah dari DashboardCanvas rekursif — link_card_item bukan
 // root-level widget kanvas). Drag-to-nest dari LUAR (GroupDropZone) TETAP
 // tersedia sbg cara alternatif menambah item.
-export default function LinkCardBlock({ block, canEdit, onUpdate, onDelete, isDragActive, activeDragType, editOpen, onEditOpenChange }) {
+export default function LinkCardBlock({
+  block,
+  canEdit,
+  onUpdate,
+  onDelete,
+  isDragActive,
+  activeDragType,
+  editOpen,
+  onEditOpenChange,
+}) {
   const { allMenuItems = [] } = usePage().props;
   const config = block.config ?? {};
   const hasIcon = !!config.icon;
@@ -155,21 +181,34 @@ export default function LinkCardBlock({ block, canEdit, onUpdate, onDelete, isDr
   const updateChild = (updated) => {
     onUpdate({
       ...block,
-      children: children.map((c) => ((c.ref ?? c.id) === (updated.ref ?? updated.id) ? updated : c)),
+      children: children.map((c) =>
+        (c.ref ?? c.id) === (updated.ref ?? updated.id) ? updated : c,
+      ),
     });
   };
 
   const deleteChild = (target) => {
     onUpdate({
       ...block,
-      children: children.filter((c) => (c.ref ?? c.id) !== (target.ref ?? target.id)),
+      children: children.filter(
+        (c) => (c.ref ?? c.id) !== (target.ref ?? target.id),
+      ),
     });
   };
 
   const addChild = () => {
     onUpdate({
       ...block,
-      children: [...children, { ref: makeLocalItemRef(), type: "link_card_item", config: {}, width: 12, isNew: true }],
+      children: [
+        ...children,
+        {
+          ref: makeLocalItemRef(),
+          type: "link_card_item",
+          config: {},
+          width: 12,
+          isNew: true,
+        },
+      ],
     });
   };
 
@@ -224,7 +263,13 @@ export default function LinkCardBlock({ block, canEdit, onUpdate, onDelete, isDr
 
       {canEdit && (
         <>
-          <Button type="button" variant="outline" size="sm" className="mt-2 gap-1.5" onClick={addChild}>
+          <Button
+            type="button"
+            variant="outline"
+            size="sm"
+            className="mt-2 gap-1.5"
+            onClick={addChild}
+          >
             <PlusIcon className="size-3.5" />
             Tambah Item
           </Button>
@@ -247,8 +292,12 @@ export default function LinkCardBlock({ block, canEdit, onUpdate, onDelete, isDr
           onOpenChange={onEditOpenChange}
           isNew={block.isNew}
           onCancelNew={onDelete}
-          validate={(draft) => (!draft.label?.trim() ? "Judul grup wajib diisi." : null)}
-          onSave={(draft) => onUpdate({ ...block, config: draft, isNew: false })}
+          validate={(draft) =>
+            !draft.label?.trim() ? "Judul grup wajib diisi." : null
+          }
+          onSave={(draft) =>
+            onUpdate({ ...block, config: draft, isNew: false })
+          }
           renderForm={(draft, patchDraft) => (
             <>
               <div className="flex flex-col gap-1.5">
@@ -268,11 +317,16 @@ export default function LinkCardBlock({ block, canEdit, onUpdate, onDelete, isDr
               </div>
               <div className="flex flex-col gap-1.5">
                 <label className="text-sm font-medium">
-                  Deskripsi <span className="text-muted-foreground">(opsional, tampil sbg tooltip)</span>
+                  Deskripsi{" "}
+                  <span className="text-muted-foreground">
+                    (opsional, tampil sbg tooltip)
+                  </span>
                 </label>
                 <TiptapEditor
                   value={richTextValue(draft.description)}
-                  onValueChange={(json, html) => patchDraft({ description: { json, html } })}
+                  onValueChange={(json, html) =>
+                    patchDraft({ description: { json, html } })
+                  }
                 />
               </div>
             </>

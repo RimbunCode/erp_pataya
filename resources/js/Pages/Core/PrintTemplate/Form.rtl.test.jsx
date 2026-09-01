@@ -79,10 +79,7 @@ vi.mock("@/Components/FormInput", () => ({
 
 vi.mock("@/Components/Select", () => ({
   default: ({ value, onValueChange, options }) => (
-    <select
-      value={value ?? ""}
-      onChange={(e) => onValueChange(e.target.value)}
-    >
+    <select value={value ?? ""} onChange={(e) => onValueChange(e.target.value)}>
       <option value="" />
       {(options ?? []).map((opt) => {
         const optValue = typeof opt === "object" ? opt.value : opt;
@@ -143,6 +140,9 @@ import Form from "./Form";
  * ber-state) supaya interaksi user (klik/ketik) benar-benar memicu re-render
  * Form.jsx dengan data terbaru -- meniru FormPageProvider asli secara
  * minimal, cukup untuk kebutuhan Form.jsx & FormCheckbox.
+ * @param root0
+ * @param root0.initialData
+ * @param root0.disabled
  */
 function Harness({ initialData = {}, disabled = false }) {
   const [data, setData] = useState(initialData);
@@ -179,6 +179,7 @@ function renderForm(props) {
  * menghindari ambiguous-query karena banyak <select>/<option> dengan teks
  * yang sama (mis. "portrait" dipakai baik sbg option orientation maupun
  * kata dalam field lain).
+ * @param label
  */
 function getField(label) {
   return document.querySelector(`[data-field="${label}"]`);
@@ -219,9 +220,7 @@ describe("PrintTemplate Form", () => {
     it("menampilkan field model (PermissionLinkModel) & style settings ketika is_letter_head=false", () => {
       renderForm({ initialData: { is_letter_head: false } });
 
-      expect(
-        screen.getByTestId("permission-link-model"),
-      ).toBeInTheDocument();
+      expect(screen.getByTestId("permission-link-model")).toBeInTheDocument();
       expect(
         screen.getByText("core.printTemplate.style_settings"),
       ).toBeInTheDocument();
@@ -427,9 +426,7 @@ describe("PrintTemplate Form", () => {
       // cm(10) -> mm(1): rasio 10/1 = 10x untuk width/height/margin (paper
       // custom memakai jalur width * (last/curr)).
       expect(
-        Number(
-          getNumberInputInField("core.printTemplate.columns.width").value,
-        ),
+        Number(getNumberInputInField("core.printTemplate.columns.width").value),
       ).toBeCloseTo(100, 2);
       expect(
         Number(
@@ -438,8 +435,7 @@ describe("PrintTemplate Form", () => {
       ).toBeCloseTo(200, 2);
       expect(
         Number(
-          getNumberInputInField("core.printTemplate.columns.margin_top")
-            .value,
+          getNumberInputInField("core.printTemplate.columns.margin_top").value,
         ),
       ).toBeCloseTo(10, 2);
     });
@@ -466,9 +462,7 @@ describe("PrintTemplate Form", () => {
 
       // A4 width 210mm / conversion_factor(in=25.4) = 8.267...
       expect(
-        Number(
-          getNumberInputInField("core.printTemplate.columns.width").value,
-        ),
+        Number(getNumberInputInField("core.printTemplate.columns.width").value),
       ).toBeCloseTo(8.27, 1);
     });
   });

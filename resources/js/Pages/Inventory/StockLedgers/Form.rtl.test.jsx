@@ -74,9 +74,7 @@ describe("Inventory StockLedgers Form", () => {
     formPageSeed = { code: "SLE-001" };
     renderForm(<Form />);
 
-    const input = screen
-      .getByTestId("forminput-code")
-      .querySelector("input");
+    const input = screen.getByTestId("forminput-code").querySelector("input");
     expect(input).toHaveValue("SLE-001");
     expect(input).toHaveAttribute("readonly");
   });
@@ -92,9 +90,7 @@ describe("Inventory StockLedgers Form", () => {
     expect(screen.getByTestId("item-link-model")).toHaveTextContent(
       "item:Item A",
     );
-    expect(screen.getByTestId("unit-link-model")).toHaveTextContent(
-      "unit:PCS",
-    );
+    expect(screen.getByTestId("unit-link-model")).toHaveTextContent("unit:PCS");
     expect(screen.getByTestId("warehouse-link-model")).toHaveTextContent(
       "warehouse:Gudang A",
     );

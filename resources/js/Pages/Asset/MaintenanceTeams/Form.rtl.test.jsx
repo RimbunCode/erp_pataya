@@ -57,7 +57,9 @@ vi.mock("@/Components/FormTable", () => ({
       data-testid="stub-form-table"
       data-readonly={readOnly ? "true" : "false"}
       data-count={(value ?? []).length}
-      data-mapped-id={mapItem?.({ item: { name: "Budi" } })?.id ? "has-id" : "no-id"}
+      data-mapped-id={
+        mapItem?.({ item: { name: "Budi" } })?.id ? "has-id" : "no-id"
+      }
     />
   ),
 }));

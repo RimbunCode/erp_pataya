@@ -10,7 +10,14 @@ vi.mock("./Form", () => ({
 }));
 
 vi.mock("@/Pages/Core/FormPage", () => ({
-  FormPage: ({ isCreate, disabled, submitable, ignoreDraft, defaultValues, children }) => (
+  FormPage: ({
+    isCreate,
+    disabled,
+    submitable,
+    ignoreDraft,
+    defaultValues,
+    children,
+  }) => (
     <div data-testid="stub-form-page">
       <div data-testid="form-page-meta">
         {JSON.stringify({

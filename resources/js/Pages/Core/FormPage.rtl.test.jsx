@@ -146,9 +146,7 @@ describe("FormPage", () => {
       </FormPage>,
     );
 
-    expect(
-      screen.getByRole("heading", { name: "PO-005" }),
-    ).toBeInTheDocument();
+    expect(screen.getByRole("heading", { name: "PO-005" })).toBeInTheDocument();
   });
 
   it("submit create memanggil form.post ke route `${name}.store` (pluralized)", async () => {

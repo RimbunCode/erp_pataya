@@ -223,7 +223,11 @@ describe("Print - initialTemplate (useMemo)", () => {
   it("orientation selain 'landscape' dinormalisasi ke 'portrait'", () => {
     render(
       <Print
-        printTemplate={{ paper: "A4", unit: "cm", orientation: "invalid-value" }}
+        printTemplate={{
+          paper: "A4",
+          unit: "cm",
+          orientation: "invalid-value",
+        }}
         lang="en"
       />,
     );
@@ -234,7 +238,11 @@ describe("Print - initialTemplate (useMemo)", () => {
   it("paper tidak dikenal fallback ke metrik A4", () => {
     render(
       <Print
-        printTemplate={{ paper: "UnknownPaper", unit: "mm", orientation: "portrait" }}
+        printTemplate={{
+          paper: "UnknownPaper",
+          unit: "mm",
+          orientation: "portrait",
+        }}
         lang="en"
       />,
     );
@@ -248,7 +256,11 @@ describe("Print - initialTemplate (useMemo)", () => {
   it("unit tidak dikenal fallback conversion_factor 1 (setara mm)", () => {
     render(
       <Print
-        printTemplate={{ paper: "A4", unit: "unknown-unit", orientation: "portrait" }}
+        printTemplate={{
+          paper: "A4",
+          unit: "unknown-unit",
+          orientation: "portrait",
+        }}
         lang="en"
       />,
     );
@@ -354,14 +366,18 @@ describe("Print - handleDownloadPdf", () => {
     // falsy pada stub div -- axios.post tidak boleh terpanggil, dan tombol
     // tidak masuk mode "generating_pdf".
     expect(window.axios.post).not.toHaveBeenCalled();
-    expect(screen.queryByText("TR:core.form.generating_pdf")).not.toBeInTheDocument();
+    expect(
+      screen.queryByText("TR:core.form.generating_pdf"),
+    ).not.toBeInTheDocument();
   });
 });
 
 describe("Print - font_family options (fontOptions useMemo)", () => {
   it("Select font_family menampilkan opsi tanpa duplikat saat font_family template sama dengan salah satu DEFAULT_PRINT_FONTS", async () => {
     const user = userEvent.setup({ delay: null });
-    render(<Print printTemplate={{ font_family: "Times New Roman" }} lang="en" />);
+    render(
+      <Print printTemplate={{ font_family: "Times New Roman" }} lang="en" />,
+    );
 
     const fontInput = getSelectInputByLabel(
       "TR:core.printTemplate.columns.font_family",

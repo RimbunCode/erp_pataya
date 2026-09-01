@@ -50,7 +50,12 @@ window.route = (name, params) =>
 
 import Show from "./Show";
 
-function renderShow({ todo, defaultData, referenceRoute, referenceLabel } = {}) {
+function renderShow({
+  todo,
+  defaultData,
+  referenceRoute,
+  referenceLabel,
+} = {}) {
   usePageMock.mockReturnValue({ props: { referenceRoute, referenceLabel } });
   return render(<Show todo={todo} defaultData={defaultData} />);
 }
@@ -101,9 +106,7 @@ describe("Show (Core/Todos)", () => {
       referenceLabel: "PO-0001",
     });
 
-    expect(
-      screen.getByText("core.todo.columns.reference"),
-    ).toBeInTheDocument();
+    expect(screen.getByText("core.todo.columns.reference")).toBeInTheDocument();
     const link = screen.getByText("PO-0001");
     expect(link.closest("a")).toHaveAttribute(
       "href",
@@ -118,9 +121,7 @@ describe("Show (Core/Todos)", () => {
       referenceLabel: null,
     });
 
-    expect(
-      screen.getByText("core.todo.reference_deleted"),
-    ).toBeInTheDocument();
+    expect(screen.getByText("core.todo.reference_deleted")).toBeInTheDocument();
     expect(screen.queryByRole("link")).not.toBeInTheDocument();
   });
 
@@ -131,8 +132,6 @@ describe("Show (Core/Todos)", () => {
       referenceLabel: null,
     });
 
-    expect(
-      screen.getByText("core.todo.reference_deleted"),
-    ).toBeInTheDocument();
+    expect(screen.getByText("core.todo.reference_deleted")).toBeInTheDocument();
   });
 });

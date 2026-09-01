@@ -42,7 +42,10 @@ vi.mock("@/Components/FormTable", () => ({
   default: (props) => {
     captured.formTableProps = props;
     return (
-      <div data-testid="stub-form-table" data-readonly={props.readOnly ? "true" : "false"}>
+      <div
+        data-testid="stub-form-table"
+        data-readonly={props.readOnly ? "true" : "false"}
+      >
         {(props.value ?? []).map((row, i) => (
           <div key={row.id ?? i} data-testid="row">
             {row.task_name}
@@ -175,9 +178,7 @@ describe("Asset Maintenances Show", () => {
       (c) => c.name === "periodicity",
     );
     const setDataCell = vi.fn();
-    render(
-      column.cell({ data: 30, setData: setDataCell, attributes: {} }),
-    );
+    render(column.cell({ data: 30, setData: setDataCell, attributes: {} }));
 
     const input = screen.getByDisplayValue("30");
     fireEvent.change(input, { target: { value: "60" } });
@@ -203,13 +204,14 @@ describe("Asset Maintenances Show", () => {
       (c) => c.name === "assign_to",
     );
     const setDataCell = vi.fn();
-    render(
-      column.cell({ data: null, setData: setDataCell, attributes: {} }),
-    );
+    render(column.cell({ data: null, setData: setDataCell, attributes: {} }));
 
     fireEvent.click(screen.getByTestId("user-link-model"));
 
-    expect(setDataCell).toHaveBeenCalledWith("assign_to", { id: 3, name: "User C" });
+    expect(setDataCell).toHaveBeenCalledWith("assign_to", {
+      id: 3,
+      name: "User C",
+    });
   });
 
   it("tidak menampilkan blok service saat semua task tidak punya services", () => {
@@ -247,7 +249,11 @@ describe("Asset Maintenances Show", () => {
   it("link service mengarah ke route assetServices.show dengan id service", () => {
     formPageSeed = {
       tasks: [
-        { id: 1, task_name: "A", services: [{ id: 10, code: "SRV-001", status: [] }] },
+        {
+          id: 1,
+          task_name: "A",
+          services: [{ id: 10, code: "SRV-001", status: [] }],
+        },
       ],
     };
     render(<Show />);

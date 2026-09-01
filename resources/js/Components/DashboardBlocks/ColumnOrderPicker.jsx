@@ -44,6 +44,7 @@ const NON_RENDERABLE_TYPES = ["relations", "mixed", "json"];
  * thisModel, ...) dibuang BY NAME, bukan by-type — supaya accessor bisnis
  * asli (type `attribute` yang bukan metadata) tetap bisa dipilih. Kolom
  * yang ditandai `hidden`/`ignore` (configColumns per-model) juga dibuang.
+ * @param column
  */
 export function isSelectableColumn(column) {
   if (NON_RENDERABLE_TYPES.includes(column.type)) return false;
@@ -57,13 +58,24 @@ export function isSelectableColumn(column) {
  * FormTable: pakai `title` bila ada, kalau tidak terjemahkan `titleTrans`.
  * Sebelumnya Quick List menampilkan `name` mentah (mis. "lang_code"),
  * tidak konsisten dengan tabel lain di aplikasi.
+ * @param column
+ * @param t
  */
 export function columnLabel(column, t) {
-  return column?.title ?? (column?.titleTrans ? t(column.titleTrans) : column?.name);
+  return (
+    column?.title ?? (column?.titleTrans ? t(column.titleTrans) : column?.name)
+  );
 }
 
 function SelectedColumnRow({ column, label, onRemove }) {
-  const { attributes, listeners, setNodeRef, transform, transition, isDragging } = useSortable({
+  const {
+    attributes,
+    listeners,
+    setNodeRef,
+    transform,
+    transition,
+    isDragging,
+  } = useSortable({
     id: column.name,
   });
 
@@ -105,11 +117,17 @@ function SelectedColumnRow({ column, label, onRemove }) {
  *
  * `value` adalah array nama kolom TERURUT; urutannya ikut menentukan
  * urutan kolom di tabel Quick List.
+ * @param root0
+ * @param root0.columns
+ * @param root0.value
+ * @param root0.onChange
  */
 export default function ColumnOrderPicker({ columns, value, onChange }) {
   const { t } = useLaravelReactI18n();
   const [pickerOpen, setPickerOpen] = useState(false);
-  const sensors = useSensors(useSensor(PointerSensor, { activationConstraint: { distance: 8 } }));
+  const sensors = useSensors(
+    useSensor(PointerSensor, { activationConstraint: { distance: 8 } }),
+  );
 
   const available = columns.filter(isSelectableColumn);
   const byName = new Map(available.map((c) => [c.name, c]));
@@ -130,8 +148,15 @@ export default function ColumnOrderPicker({ columns, value, onChange }) {
           Belum ada kolom dipilih — pilih minimal satu kolom untuk ditampilkan.
         </p>
       ) : (
-        <DndContext sensors={sensors} collisionDetection={closestCenter} onDragEnd={handleDragEnd}>
-          <SortableContext items={selected} strategy={verticalListSortingStrategy}>
+        <DndContext
+          sensors={sensors}
+          collisionDetection={closestCenter}
+          onDragEnd={handleDragEnd}
+        >
+          <SortableContext
+            items={selected}
+            strategy={verticalListSortingStrategy}
+          >
             <div className="flex flex-col gap-1">
               {selected.map((name) => (
                 <SelectedColumnRow
@@ -174,6 +199,12 @@ export default function ColumnOrderPicker({ columns, value, onChange }) {
  * Semua + Terapkan). Perbedaannya, di sini hasilnya berupa DAFTAR NAMA
  * TERURUT (bukan flag `show` per kolom), karena urutan kolom Quick List
  * ditentukan oleh urutan array itu sendiri.
+ * @param root0
+ * @param root0.columns
+ * @param root0.selected
+ * @param root0.open
+ * @param root0.setOpen
+ * @param root0.onApply
  */
 function SelectColumnDialog({ columns, selected, open, setOpen, onApply }) {
   const { t } = useLaravelReactI18n();
@@ -181,9 +212,7 @@ function SelectColumnDialog({ columns, selected, open, setOpen, onApply }) {
 
   const toggle = (name, checked) =>
     setDraft((current) =>
-      checked
-        ? [...current, name]
-        : current.filter((n) => n !== name),
+      checked ? [...current, name] : current.filter((n) => n !== name),
     );
 
   return (
@@ -225,7 +254,11 @@ function SelectColumnDialog({ columns, selected, open, setOpen, onApply }) {
             {t("core.formtable.select_all")}
           </Button>
           <DialogClose asChild>
-            <Button type="button" className="h-8" onClick={() => onApply(draft)}>
+            <Button
+              type="button"
+              className="h-8"
+              onClick={() => onApply(draft)}
+            >
               {t("core.formtable.apply")}
             </Button>
           </DialogClose>

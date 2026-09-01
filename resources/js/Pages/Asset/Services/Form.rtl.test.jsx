@@ -263,9 +263,9 @@ describe("Asset Services Form", () => {
     formPageSeed = { type: "repair" };
     renderForm(<Form />);
 
-    const input = within(
-      screen.getByTestId("forminput-description"),
-    ).getByRole("textbox");
+    const input = within(screen.getByTestId("forminput-description")).getByRole(
+      "textbox",
+    );
     await user.type(input, "Servis rutin");
 
     expect(input).toHaveValue("Servis rutin");

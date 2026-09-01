@@ -117,9 +117,7 @@ describe("Show (PurchaseRequests)", () => {
       );
       expect(screen.getByTestId("stub-form")).toBeInTheDocument();
       expect(
-        screen.queryByText(
-          "purchase.purchaseRequest.actions.create_po",
-        ),
+        screen.queryByText("purchase.purchaseRequest.actions.create_po"),
       ).not.toBeInTheDocument();
     });
 
@@ -136,9 +134,7 @@ describe("Show (PurchaseRequests)", () => {
         JSON.stringify({ isCreate: false, disabled: false, submitable: true }),
       );
       expect(
-        screen.queryByText(
-          "purchase.purchaseRequest.actions.create_po",
-        ),
+        screen.queryByText("purchase.purchaseRequest.actions.create_po"),
       ).not.toBeInTheDocument();
     });
 
@@ -181,9 +177,7 @@ describe("Show (PurchaseRequests)", () => {
       render(<Show purchaseRequest={purchaseRequest} defaultData={{}} />);
 
       expect(
-        screen.queryByText(
-          "purchase.purchaseRequest.actions.create_po",
-        ),
+        screen.queryByText("purchase.purchaseRequest.actions.create_po"),
       ).not.toBeInTheDocument();
     });
 
@@ -192,9 +186,7 @@ describe("Show (PurchaseRequests)", () => {
       render(<Show purchaseRequest={purchaseRequest} defaultData={{}} />);
 
       expect(
-        screen.queryByText(
-          "purchase.purchaseRequest.actions.create_po",
-        ),
+        screen.queryByText("purchase.purchaseRequest.actions.create_po"),
       ).not.toBeInTheDocument();
     });
 
@@ -203,9 +195,7 @@ describe("Show (PurchaseRequests)", () => {
       render(<Show purchaseRequest={purchaseRequest} defaultData={{}} />);
 
       expect(
-        screen.queryByText(
-          "purchase.purchaseRequest.actions.create_po",
-        ),
+        screen.queryByText("purchase.purchaseRequest.actions.create_po"),
       ).not.toBeInTheDocument();
     });
 
@@ -228,9 +218,7 @@ describe("Show (PurchaseRequests)", () => {
       render(<Show purchaseRequest={purchaseRequest} defaultData={{}} />);
 
       expect(
-        screen.queryByText(
-          "purchase.purchaseRequest.actions.create_po",
-        ),
+        screen.queryByText("purchase.purchaseRequest.actions.create_po"),
       ).not.toBeInTheDocument();
     });
 
@@ -241,9 +229,7 @@ describe("Show (PurchaseRequests)", () => {
       render(<Show purchaseRequest={purchaseRequest} defaultData={{}} />);
 
       expect(
-        screen.queryByText(
-          "purchase.purchaseRequest.actions.create_po",
-        ),
+        screen.queryByText("purchase.purchaseRequest.actions.create_po"),
       ).not.toBeInTheDocument();
     });
 
@@ -252,9 +238,7 @@ describe("Show (PurchaseRequests)", () => {
       render(<Show purchaseRequest={purchaseRequest} defaultData={{}} />);
 
       expect(
-        screen.queryByText(
-          "purchase.purchaseRequest.actions.create_po",
-        ),
+        screen.queryByText("purchase.purchaseRequest.actions.create_po"),
       ).not.toBeInTheDocument();
     });
 

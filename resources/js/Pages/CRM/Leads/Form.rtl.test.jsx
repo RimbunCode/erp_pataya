@@ -161,9 +161,9 @@ describe("CRM Leads Form", () => {
     const user = userEvent.setup({ delay: null });
     renderForm(<Form />);
 
-    const cityInput = within(
-      screen.getByTestId("forminput-city"),
-    ).getByRole("textbox");
+    const cityInput = within(screen.getByTestId("forminput-city")).getByRole(
+      "textbox",
+    );
     await user.type(cityInput, "Jakarta");
 
     expect(cityInput).toHaveValue("Jakarta");

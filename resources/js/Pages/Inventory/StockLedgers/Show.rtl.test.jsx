@@ -102,9 +102,9 @@ describe("Show (Inventory/StockLedgers)", () => {
       />,
     );
 
-    const link = screen.getByText(
-      "inventory.stockLedger.actions.view_reference",
-    ).closest("a");
+    const link = screen
+      .getByText("inventory.stockLedger.actions.view_reference")
+      .closest("a");
     expect(link).toHaveAttribute(
       "href",
       `purchaseOrders.show/${JSON.stringify(42)}`,
@@ -121,9 +121,9 @@ describe("Show (Inventory/StockLedgers)", () => {
       />,
     );
 
-    const link = screen.getByText(
-      "inventory.stockLedger.actions.view_reference",
-    ).closest("a");
+    const link = screen
+      .getByText("inventory.stockLedger.actions.view_reference")
+      .closest("a");
     expect(link).toHaveAttribute(
       "href",
       `salesOrders.show/${JSON.stringify(7)}`,

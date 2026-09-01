@@ -210,7 +210,7 @@ describe("PaymentEntries Form", () => {
       // FormInput ("_r_19_" dst tidak stabil, jadi query by role combobox-
       // like/textbox pada urutan render: payment_type adalah Select kedua
       // setelah date). Opsi dropdown berupa text node sungguhan (CommandItem).
-      const triggers = document.querySelectorAll('[cmdk-root] input');
+      const triggers = document.querySelectorAll("[cmdk-root] input");
       const trigger = triggers[0];
       await user.click(trigger);
       await user.click(
@@ -232,7 +232,7 @@ describe("PaymentEntries Form", () => {
       formPageState = makeFormPageState({ setData });
       render(<Form />);
 
-      const trigger = document.querySelectorAll('[cmdk-root] input')[0];
+      const trigger = document.querySelectorAll("[cmdk-root] input")[0];
       await user.click(trigger);
       await user.click(
         await screen.findByText(
@@ -251,7 +251,7 @@ describe("PaymentEntries Form", () => {
       formPageState = makeFormPageState({ setData });
       render(<Form />);
 
-      const trigger = document.querySelectorAll('[cmdk-root] input')[0];
+      const trigger = document.querySelectorAll("[cmdk-root] input")[0];
       await user.click(trigger);
       await user.click(
         await screen.findByText(
@@ -267,10 +267,13 @@ describe("PaymentEntries Form", () => {
     it("mengganti payment_type yang sudah berbeda dari sebelumnya mereset payment_method ke null", async () => {
       const user = userEvent.setup({ delay: null });
       const setData = vi.fn();
-      formPageState = makeFormPageState({ setData, data: { payment_type: "pay" } });
+      formPageState = makeFormPageState({
+        setData,
+        data: { payment_type: "pay" },
+      });
       render(<Form />);
 
-      const trigger = document.querySelectorAll('[cmdk-root] input')[0];
+      const trigger = document.querySelectorAll("[cmdk-root] input")[0];
       await user.click(trigger);
       await user.click(
         await screen.findByText(
@@ -279,7 +282,10 @@ describe("PaymentEntries Form", () => {
       );
 
       const updater = setData.mock.calls[setData.mock.calls.length - 1][0];
-      const result = updater({ payment_type: "pay", payment_method: { id: 1 } });
+      const result = updater({
+        payment_type: "pay",
+        payment_method: { id: 1 },
+      });
       expect(result.payment_method).toBeNull();
     });
   });
@@ -302,7 +308,11 @@ describe("PaymentEntries Form", () => {
           {
             outstanding_amount: 1000,
             due_date: futureDate,
-            payment_method: { id: 1, name: "Transfer", default_account: { id: 10 } },
+            payment_method: {
+              id: 1,
+              name: "Transfer",
+              default_account: { id: 10 },
+            },
           },
         ],
       };
@@ -339,7 +349,11 @@ describe("PaymentEntries Form", () => {
         payment_schedules: [
           { outstanding_amount: 500, due_date: pastDate, payment_method: null },
           { outstanding_amount: 300, due_date: pastDate, payment_method: null },
-          { outstanding_amount: 200, due_date: futureDate, payment_method: null },
+          {
+            outstanding_amount: 200,
+            due_date: futureDate,
+            payment_method: null,
+          },
         ],
       };
 
@@ -471,9 +485,7 @@ describe("PaymentEntries Form", () => {
         id: 13,
         currency: { id: 1, code: "idr" },
         customer: { id: 1 },
-        payment_schedules: [
-          { outstanding_amount: 100, payment_method: null },
-        ],
+        payment_schedules: [{ outstanding_amount: 100, payment_method: null }],
       };
 
       render(<Form />);
@@ -611,7 +623,9 @@ describe("PaymentEntries Form", () => {
           party_type: "customer",
           paymentable: {
             id: 1,
-            payment_schedules: [{ outstanding_amount: 0, payment_method: null }],
+            payment_schedules: [
+              { outstanding_amount: 0, payment_method: null },
+            ],
           },
         },
       });
@@ -629,7 +643,9 @@ describe("PaymentEntries Form", () => {
           party_type: "customer",
           paymentable: {
             id: 1,
-            payment_schedules: [{ outstanding_amount: 500, payment_method: null }],
+            payment_schedules: [
+              { outstanding_amount: 500, payment_method: null },
+            ],
           },
         },
       });
@@ -650,7 +666,9 @@ describe("PaymentEntries Form", () => {
     });
 
     it("FormTable payment schedules dirender & menerima value=paymentable.payment_schedules bila paymentable sudah dipilih", () => {
-      const schedules = [{ id: 1, outstanding_amount: 100, payment_method: null }];
+      const schedules = [
+        { id: 1, outstanding_amount: 100, payment_method: null },
+      ];
       formPageState = makeFormPageState({
         data: {
           payment_type: "receive",

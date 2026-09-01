@@ -209,9 +209,7 @@ describe("Show (Assets)", () => {
       expect(
         await screen.findByText("asset.asset.actions.reactivate"),
       ).toBeInTheDocument();
-      expect(
-        screen.getByText("asset.asset.actions.scrap"),
-      ).toBeInTheDocument();
+      expect(screen.getByText("asset.asset.actions.scrap")).toBeInTheDocument();
     });
 
     it("status berupa multi-array dengan overlap (active + issued): action di-dedupe (masing-masing muncul 1x)", async () => {
@@ -255,9 +253,7 @@ describe("Show (Assets)", () => {
         screen.getByText("asset.asset.actions.set_out_of_order"),
       ).toBeInTheDocument();
       // scrap ada di kedua status -- tetap cuma 1 (dedupe)
-      expect(
-        screen.getAllByText("asset.asset.actions.scrap"),
-      ).toHaveLength(1);
+      expect(screen.getAllByText("asset.asset.actions.scrap")).toHaveLength(1);
     });
   });
 
@@ -271,9 +267,7 @@ describe("Show (Assets)", () => {
       await user.click(
         screen.getByRole("button", { name: "core.form.actions" }),
       );
-      await user.click(
-        await screen.findByText("asset.asset.actions.scrap"),
-      );
+      await user.click(await screen.findByText("asset.asset.actions.scrap"));
 
       expect(routerPost).toHaveBeenCalledTimes(1);
       const [url, payload, options] = routerPost.mock.calls[0];
@@ -313,9 +307,7 @@ describe("Show (Assets)", () => {
       await user.click(
         screen.getByRole("button", { name: "core.form.actions" }),
       );
-      await user.click(
-        await screen.findByText("asset.asset.actions.scrap"),
-      );
+      await user.click(await screen.findByText("asset.asset.actions.scrap"));
 
       expect(
         screen.getByRole("button", { name: "core.form.actions" }),
@@ -324,7 +316,7 @@ describe("Show (Assets)", () => {
 
     it("onFinish men-set loading kembali false", async () => {
       let onFinishCb;
-      routerPost.mockImplementation((url, data, options) => {
+      routerPost.mockImplementation((_url, _data, options) => {
         onFinishCb = options.onFinish;
       });
       const user = userEvent.setup({ delay: null });
@@ -334,9 +326,7 @@ describe("Show (Assets)", () => {
       await user.click(
         screen.getByRole("button", { name: "core.form.actions" }),
       );
-      await user.click(
-        await screen.findByText("asset.asset.actions.scrap"),
-      );
+      await user.click(await screen.findByText("asset.asset.actions.scrap"));
       expect(
         screen.getByRole("button", { name: "core.form.actions" }),
       ).toBeDisabled();

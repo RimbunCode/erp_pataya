@@ -45,7 +45,10 @@ vi.mock("@/Components/FormInput", () => ({
 
 vi.mock("@/Pages/Settings/Branches/BranchLinkModel", () => ({
   default: ({ value, filters }) => (
-    <div data-testid="branch-link-model" data-filters={JSON.stringify(filters ?? {})}>
+    <div
+      data-testid="branch-link-model"
+      data-filters={JSON.stringify(filters ?? {})}
+    >
       branch:{value?.name ?? "none"}
     </div>
   ),
@@ -117,8 +120,6 @@ describe("Inventory Warehouses Form", () => {
     formPageSeed = { pic: { name: "Budi" } };
     renderForm(<Form />);
 
-    expect(screen.getByTestId("user-link-model")).toHaveTextContent(
-      "pic:Budi",
-    );
+    expect(screen.getByTestId("user-link-model")).toHaveTextContent("pic:Budi");
   });
 });

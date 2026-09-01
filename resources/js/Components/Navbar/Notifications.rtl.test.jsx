@@ -58,7 +58,11 @@ describe("Notifications", () => {
 
   it("unread count 0 tidak menampilkan badge", () => {
     usePageMock.mockReturnValue({
-      props: { unread_notifications_count: 0, auth: { user: { id: 1 } }, lang: "en" },
+      props: {
+        unread_notifications_count: 0,
+        auth: { user: { id: 1 } },
+        lang: "en",
+      },
     });
     render(<Notifications />);
     expect(screen.queryByText("0")).not.toBeInTheDocument();
@@ -66,7 +70,11 @@ describe("Notifications", () => {
 
   it("badge >99 ditampilkan sebagai '99+'", () => {
     usePageMock.mockReturnValue({
-      props: { unread_notifications_count: 150, auth: { user: { id: 1 } }, lang: "en" },
+      props: {
+        unread_notifications_count: 150,
+        auth: { user: { id: 1 } },
+        lang: "en",
+      },
     });
     render(<Notifications />);
     expect(screen.getByText("99+")).toBeInTheDocument();
@@ -97,7 +105,9 @@ describe("Notifications", () => {
 
   it("popover kosong menampilkan empty state", async () => {
     const user = userEvent.setup({ delay: null });
-    axiosGet.mockResolvedValue({ data: { notifications: [], unread_count: 0 } });
+    axiosGet.mockResolvedValue({
+      data: { notifications: [], unread_count: 0 },
+    });
     render(<Notifications />);
 
     await user.click(screen.getByRole("button", { name: /notifications/ }));
@@ -143,7 +153,9 @@ describe("Notifications", () => {
     await user.click(await screen.findByText("Todo X"));
 
     expect(axiosPost).toHaveBeenCalledWith("notifications.read/5");
-    await vi.waitFor(() => expect(routerVisit).toHaveBeenCalledWith("todos.show/9"));
+    await vi.waitFor(() =>
+      expect(routerVisit).toHaveBeenCalledWith("todos.show/9"),
+    );
   });
 
   it("mark all as read men-set semua notifikasi terbaca dan unreadCount ke 0", async () => {

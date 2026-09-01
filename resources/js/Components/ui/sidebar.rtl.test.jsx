@@ -42,9 +42,7 @@ describe("SidebarProvider + SidebarTrigger", () => {
 
   it("open=true (defaultOpen) menghasilkan state='expanded'", () => {
     const { result } = renderHook(() => useSidebar(), {
-      wrapper: ({ children }) => (
-        <SidebarProvider>{children}</SidebarProvider>
-      ),
+      wrapper: ({ children }) => <SidebarProvider>{children}</SidebarProvider>,
     });
     expect(result.current.state).toBe("expanded");
     expect(result.current.open).toBe(true);
@@ -90,9 +88,7 @@ describe("SidebarProvider + SidebarTrigger", () => {
     document.cookie = `${SIDEBAR_COOKIE_NAME}=false; path=/`;
 
     const { result } = renderHook(() => useSidebar(), {
-      wrapper: ({ children }) => (
-        <SidebarProvider>{children}</SidebarProvider>
-      ),
+      wrapper: ({ children }) => <SidebarProvider>{children}</SidebarProvider>,
     });
 
     expect(result.current.open).toBe(false);
@@ -101,9 +97,7 @@ describe("SidebarProvider + SidebarTrigger", () => {
   it("mode mobile: toggleSidebar mengubah openMobile, bukan open (open tetap desktop default)", () => {
     useIsMobileMock.mockReturnValue(true);
     const { result } = renderHook(() => useSidebar(), {
-      wrapper: ({ children }) => (
-        <SidebarProvider>{children}</SidebarProvider>
-      ),
+      wrapper: ({ children }) => <SidebarProvider>{children}</SidebarProvider>,
     });
 
     expect(result.current.openMobile).toBe(false);
@@ -114,9 +108,7 @@ describe("SidebarProvider + SidebarTrigger", () => {
 
   it("Ctrl+B men-toggle sidebar via keyboard shortcut", () => {
     const { result } = renderHook(() => useSidebar(), {
-      wrapper: ({ children }) => (
-        <SidebarProvider>{children}</SidebarProvider>
-      ),
+      wrapper: ({ children }) => <SidebarProvider>{children}</SidebarProvider>,
     });
 
     expect(result.current.open).toBe(true);

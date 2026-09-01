@@ -51,9 +51,7 @@ vi.mock("@/Pages/Asset/Assets/AssetLinkModel", () => ({
 
 vi.mock("@/Pages/Finances/Accounts/AccountLinkModel", () => ({
   default: ({ value }) => (
-    <div data-testid="account-link-model">
-      account:{value?.name ?? "none"}
-    </div>
+    <div data-testid="account-link-model">account:{value?.name ?? "none"}</div>
   ),
 }));
 

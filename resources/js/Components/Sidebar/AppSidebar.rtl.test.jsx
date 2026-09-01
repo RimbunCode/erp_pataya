@@ -25,8 +25,6 @@ describe("AppSidebar", () => {
     );
     expect(screen.getByTestId("stub-branch-switcher")).toBeInTheDocument();
     expect(screen.getByTestId("stub-nav-main")).toBeInTheDocument();
-    expect(screen.getByTestId("stub-nav-main").textContent).not.toBe(
-      "0 items",
-    );
+    expect(screen.getByTestId("stub-nav-main").textContent).not.toBe("0 items");
   });
 });

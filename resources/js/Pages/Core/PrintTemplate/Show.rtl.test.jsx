@@ -1,6 +1,5 @@
 import { describe, expect, it, vi, beforeEach } from "vitest";
 import { render, screen } from "@testing-library/react";
-import userEvent from "@testing-library/user-event";
 
 // Show.jsx (Core/PrintTemplate) compose <FormPage><Form/></FormPage> dengan
 // controls() render-prop. Logic UNIK:
@@ -84,9 +83,9 @@ describe("Show (Core/PrintTemplate)", () => {
   it("printTemplate ada: tombol open_editor muncul dengan href route printTemplates.editor + id", async () => {
     renderShow({ id: 42 });
 
-    const link = screen.getByText("core.printTemplate.open_editor").closest(
-      "a",
-    );
+    const link = screen
+      .getByText("core.printTemplate.open_editor")
+      .closest("a");
     expect(link).toHaveAttribute(
       "href",
       `printTemplates.editor/${JSON.stringify(42)}`,

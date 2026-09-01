@@ -12,7 +12,14 @@ import { richTextValue } from "@/lib/richText";
 // block Text di kanvas begitu canEdit — lambat kalau banyak block) ke
 // pola Dialog SAMA seperti block lain — TipTap HANYA ter-mount saat
 // Dialog benar-benar terbuka, bukan sepanjang mode edit aktif.
-export default function TextBlock({ block, canEdit, onUpdate, onDelete, editOpen, onEditOpenChange }) {
+export default function TextBlock({
+  block,
+  canEdit,
+  onUpdate,
+  onDelete,
+  editOpen,
+  onEditOpenChange,
+}) {
   return (
     <div>
       <div
@@ -28,7 +35,9 @@ export default function TextBlock({ block, canEdit, onUpdate, onDelete, editOpen
           onOpenChange={onEditOpenChange}
           isNew={block.isNew}
           onCancelNew={onDelete}
-          onSave={(draft) => onUpdate({ ...block, config: draft, isNew: false })}
+          onSave={(draft) =>
+            onUpdate({ ...block, config: draft, isNew: false })
+          }
           renderForm={(draft, patchDraft) => (
             <TiptapEditor
               value={richTextValue(draft)}

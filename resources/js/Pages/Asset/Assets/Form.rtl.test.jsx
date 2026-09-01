@@ -132,38 +132,29 @@ function makeLinkModelStub(testId, labelField, dummyValue) {
   };
 }
 
-vi.mock(
-  "@/Pages/Asset/Categories/AssetCategoryLinkModel",
-  () =>
-    makeLinkModelStub("asset-category-link", "name", {
-      id: 1,
-      name: "Elektronik",
-    }),
+vi.mock("@/Pages/Asset/Categories/AssetCategoryLinkModel", () =>
+  makeLinkModelStub("asset-category-link", "name", {
+    id: 1,
+    name: "Elektronik",
+  }),
 );
-vi.mock(
-  "@/Pages/Asset/Locations/AssetLocationLinkModel",
-  () =>
-    makeLinkModelStub("asset-location-link", "name", {
-      id: 2,
-      name: "Gudang A",
-    }),
+vi.mock("@/Pages/Asset/Locations/AssetLocationLinkModel", () =>
+  makeLinkModelStub("asset-location-link", "name", {
+    id: 2,
+    name: "Gudang A",
+  }),
 );
-vi.mock(
-  "@/Pages/Sales/Customers/CustomerLinkModel",
-  () =>
-    makeLinkModelStub("customer-link", "name", { id: 3, name: "PT Pelanggan" }),
+vi.mock("@/Pages/Sales/Customers/CustomerLinkModel", () =>
+  makeLinkModelStub("customer-link", "name", { id: 3, name: "PT Pelanggan" }),
 );
-vi.mock(
-  "@/Pages/Inventory/Items/ItemLinkModel",
-  () => makeLinkModelStub("item-link", "name", { id: 4, name: "Laptop" }),
+vi.mock("@/Pages/Inventory/Items/ItemLinkModel", () =>
+  makeLinkModelStub("item-link", "name", { id: 4, name: "Laptop" }),
 );
-vi.mock(
-  "@/Pages/Purchase/Suppliers/SupplierLinkModel",
-  () => makeLinkModelStub("supplier-link", "name", { id: 5, name: "CV Pemasok" }),
+vi.mock("@/Pages/Purchase/Suppliers/SupplierLinkModel", () =>
+  makeLinkModelStub("supplier-link", "name", { id: 5, name: "CV Pemasok" }),
 );
-vi.mock(
-  "@/Pages/Users/ManageUsers/UserLinkModel",
-  () => makeLinkModelStub("user-link", "name", { id: 6, name: "Budi" }),
+vi.mock("@/Pages/Users/ManageUsers/UserLinkModel", () =>
+  makeLinkModelStub("user-link", "name", { id: 6, name: "Budi" }),
 );
 
 window.route = (name, params) =>
@@ -182,6 +173,9 @@ function FormPageProviderFake({ value, children }) {
 /**
  * Render Form dengan state data terkelola (setData asli, reaktif) supaya
  * computed value & conditional visibility bisa diverifikasi lewat re-render.
+ * @param root0
+ * @param root0.initialData
+ * @param root0.disabled
  */
 function renderForm({ initialData = {}, disabled = false } = {}) {
   function Wrapper() {
@@ -249,9 +243,9 @@ describe("Form (Asset/Assets)", () => {
 
       await user.click(screen.getByText("pilih-asset-category-link"));
 
-      expect(
-        screen.getByTestId("asset-category-link-input"),
-      ).toHaveValue("Elektronik");
+      expect(screen.getByTestId("asset-category-link-input")).toHaveValue(
+        "Elektronik",
+      );
     });
 
     it("memilih asset_location via AssetLocationLinkModel memanggil setData", async () => {
@@ -260,9 +254,9 @@ describe("Form (Asset/Assets)", () => {
 
       await user.click(screen.getByText("pilih-asset-location-link"));
 
-      expect(
-        screen.getByTestId("asset-location-link-input"),
-      ).toHaveValue("Gudang A");
+      expect(screen.getByTestId("asset-location-link-input")).toHaveValue(
+        "Gudang A",
+      );
     });
 
     it("asset_type default 'existing_asset' saat data kosong, dan selalu disabled", () => {
@@ -443,16 +437,13 @@ describe("Form (Asset/Assets)", () => {
       const additionalWrapper = screen.getByTestId(
         "forminput-additional_asset_cost",
       );
-      const additionalInput = within(additionalWrapper).getByTestId(
-        "number-input",
-      );
+      const additionalInput =
+        within(additionalWrapper).getByTestId("number-input");
       await user.clear(additionalInput);
       await user.type(additionalInput, "250");
 
       const totalWrapper = screen.getByTestId("forminput-total_asset_cost");
-      expect(
-        within(totalWrapper).getByDisplayValue("750"),
-      ).toBeInTheDocument();
+      expect(within(totalWrapper).getByDisplayValue("750")).toBeInTheDocument();
     });
   });
 
@@ -475,9 +466,7 @@ describe("Form (Asset/Assets)", () => {
         screen.queryByTestId("forminput-total_number_of_depreciations"),
       ).not.toBeInTheDocument();
       expect(
-        screen.queryByTestId(
-          "forminput-expected_value_after_useful_life",
-        ),
+        screen.queryByTestId("forminput-expected_value_after_useful_life"),
       ).not.toBeInTheDocument();
     });
 
@@ -535,9 +524,7 @@ describe("Form (Asset/Assets)", () => {
         },
       });
 
-      const wrapper = screen.getByTestId(
-        "forminput-frequency_of_depreciation",
-      );
+      const wrapper = screen.getByTestId("forminput-frequency_of_depreciation");
       const numberInput = within(wrapper).getByTestId("number-input");
       await user.type(numberInput, "12");
 
@@ -598,9 +585,7 @@ describe("Form (Asset/Assets)", () => {
       const user = userEvent.setup({ delay: null });
       renderForm({ initialData: { insurance_insured_value: "" } });
 
-      const wrapper = screen.getByTestId(
-        "forminput-insurance_insured_value",
-      );
+      const wrapper = screen.getByTestId("forminput-insurance_insured_value");
       const numberInput = within(wrapper).getByTestId("number-input");
       await user.type(numberInput, "5000000");
 

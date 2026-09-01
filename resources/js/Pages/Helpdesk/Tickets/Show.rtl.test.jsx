@@ -448,9 +448,7 @@ describe("Helpdesk Tickets Show", () => {
       expect(newerDiffBlock.getByText("40%")).toBeInTheDocument();
 
       // subject TIDAK berubah -> tidak ditampilkan sebagai diff sama sekali
-      expect(
-        newerDiffBlock.queryByText("Subjek sama"),
-      ).not.toBeInTheDocument();
+      expect(newerDiffBlock.queryByText("Subjek sama")).not.toBeInTheDocument();
 
       // type TIDAK berubah -> tidak ditampilkan
       expect(
@@ -553,9 +551,7 @@ describe("Helpdesk Tickets Show", () => {
       const expectedStart = new Date(
         "2026-08-01T00:00:00Z",
       ).toLocaleDateString();
-      const expectedDue = new Date(
-        "2026-08-15T00:00:00Z",
-      ).toLocaleDateString();
+      const expectedDue = new Date("2026-08-15T00:00:00Z").toLocaleDateString();
       expect(screen.getByText(expectedStart)).toBeInTheDocument();
       expect(screen.getByText(expectedDue)).toBeInTheDocument();
     });
@@ -577,7 +573,7 @@ describe("Helpdesk Tickets Show", () => {
             start_date: null,
             due_date: null,
             content:
-              '<p>Halo <strong>dunia</strong></p><script>alert(1)</script>',
+              "<p>Halo <strong>dunia</strong></p><script>alert(1)</script>",
           },
         ],
       });

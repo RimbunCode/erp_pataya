@@ -160,7 +160,9 @@ vi.mock("./PurchaseReceiptLinkModel", () => ({
 
 vi.mock("../Suppliers/SupplierLinkModel", () => ({
   default: ({ value }) => (
-    <div data-testid="supplier-link-model">supplier:{value?.name ?? "none"}</div>
+    <div data-testid="supplier-link-model">
+      supplier:{value?.name ?? "none"}
+    </div>
   ),
 }));
 
@@ -196,8 +198,7 @@ vi.mock("@/Pages/Inventory/Warehouses/WarehouseLinkModel", () => ({
   ),
 }));
 
-const renderForm = (ui) =>
-  render(<TooltipProvider>{ui}</TooltipProvider>);
+const renderForm = (ui) => render(<TooltipProvider>{ui}</TooltipProvider>);
 
 import Form from "./Form";
 
@@ -309,9 +310,7 @@ describe("PurchaseReceipts Form", () => {
     formPageSeed = { is_return: true, items: [] };
     renderForm(<Form />);
 
-    expect(
-      screen.getByTestId("forminput-return_against"),
-    ).toBeInTheDocument();
+    expect(screen.getByTestId("forminput-return_against")).toBeInTheDocument();
 
     await user.click(screen.getByTestId("purchase-receipt-link-model"));
 

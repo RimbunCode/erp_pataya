@@ -31,9 +31,9 @@ describe("formatNumber", () => {
 
   it("angka negatif diberi tanda minus di depan prefix hanya bila allowNegativeValue", () => {
     expect(formatNumber(-500, { decimalScale: 0 })).toBe("-500");
-    expect(formatNumber(-500, { decimalScale: 0, allowNegativeValue: false })).toBe(
-      "500",
-    );
+    expect(
+      formatNumber(-500, { decimalScale: 0, allowNegativeValue: false }),
+    ).toBe("500");
   });
 
   it("tanpa decimalScale, desimal dipertahankan apa adanya", () => {

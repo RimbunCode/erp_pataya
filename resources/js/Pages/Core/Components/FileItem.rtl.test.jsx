@@ -25,7 +25,10 @@ function makeFile({
 
 describe("FileItem", () => {
   it("menampilkan nama file (tanpa ekstensi) di input, ekstensi, dan ukuran", () => {
-    const file = makeFile({ name: "laporan-akhir.pdf", content: "x".repeat(2048) });
+    const file = makeFile({
+      name: "laporan-akhir.pdf",
+      content: "x".repeat(2048),
+    });
     render(
       <FileItem id="1" file={file} onRemove={vi.fn()} onUpdate={vi.fn()} />,
     );

@@ -113,9 +113,7 @@ describe("Core Todos Form", () => {
     };
     render(<Form />);
 
-    await user.click(
-      screen.getByRole("button", { name: "core.form.submit" }),
-    );
+    await user.click(screen.getByRole("button", { name: "core.form.submit" }));
 
     expect(formTransform).toHaveBeenCalled();
     // Verifikasi transformer menyisipkan confirm_reassign: true.
@@ -134,9 +132,7 @@ describe("Core Todos Form", () => {
     };
     render(<Form />);
 
-    await user.click(
-      screen.getByRole("button", { name: "core.form.cancel" }),
-    );
+    await user.click(screen.getByRole("button", { name: "core.form.cancel" }));
 
     expect(formPut).not.toHaveBeenCalled();
   });

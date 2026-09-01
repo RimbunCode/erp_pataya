@@ -182,9 +182,7 @@ describe("FormPageDialog", () => {
       </FormPageDialog>,
     );
 
-    await user.click(
-      screen.getByRole("button", { name: "core.form.cancel" }),
-    );
+    await user.click(screen.getByRole("button", { name: "core.form.cancel" }));
 
     expect(onOpenChange).toHaveBeenCalledWith(false);
   });

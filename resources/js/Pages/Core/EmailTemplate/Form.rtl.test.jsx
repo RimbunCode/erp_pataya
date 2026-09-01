@@ -136,7 +136,9 @@ describe("EmailTemplate Form", () => {
     render(<Form />);
 
     expect(
-      screen.getByRole("button", { name: "core.emailTemplate.testSend.button" }),
+      screen.getByRole("button", {
+        name: "core.emailTemplate.testSend.button",
+      }),
     ).toBeDisabled();
   });
 
@@ -146,7 +148,9 @@ describe("EmailTemplate Form", () => {
     render(<Form />);
 
     await user.click(
-      screen.getByRole("button", { name: "core.emailTemplate.testSend.button" }),
+      screen.getByRole("button", {
+        name: "core.emailTemplate.testSend.button",
+      }),
     );
 
     expect(routerPost).toHaveBeenCalledWith(
@@ -165,7 +169,9 @@ describe("EmailTemplate Form", () => {
     render(<Form />);
 
     await user.click(
-      screen.getByRole("button", { name: "core.emailTemplate.testSend.button" }),
+      screen.getByRole("button", {
+        name: "core.emailTemplate.testSend.button",
+      }),
     );
 
     expect(toastSuccess).toHaveBeenCalledWith(
@@ -217,7 +223,9 @@ describe("EmailTemplate Form", () => {
         params: { model: "App\\Models\\Core\\Todo" },
       }),
     );
-    expect(result).toEqual([{ id: "doc.title", label: "title", name: "title" }]);
+    expect(result).toEqual([
+      { id: "doc.title", label: "title", name: "title" },
+    ]);
   });
 
   it("mentionSource memfilter hasil berdasarkan query (label atau name, case-insensitive)", async () => {
@@ -235,7 +243,9 @@ describe("EmailTemplate Form", () => {
     const { mentionSource } = tiptapProps.mock.calls[0][0];
     const result = await mentionSource("TIT");
 
-    expect(result).toEqual([{ id: "doc.title", label: "title", name: "title" }]);
+    expect(result).toEqual([
+      { id: "doc.title", label: "title", name: "title" },
+    ]);
   });
 
   it("fetchFieldColumns tanpa permission.model resolve array kosong tanpa axios call", async () => {

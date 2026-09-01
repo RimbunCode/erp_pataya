@@ -126,9 +126,7 @@ describe("Show (PurchaseInvoice)", () => {
   // --- Compose FormPage/Form dasar ----------------------------------------
   describe("compose FormPage + Form", () => {
     it("mode create (purchaseInvoice null): isCreate=true, disabled=false diteruskan ke FormPage, tidak ada dropdown", () => {
-      render(
-        <Show purchaseInvoice={null} defaultData={{}} fixedAssets={[]} />,
-      );
+      render(<Show purchaseInvoice={null} defaultData={{}} fixedAssets={[]} />);
 
       expect(screen.getByTestId("form-page-meta")).toHaveTextContent(
         JSON.stringify({ isCreate: true, disabled: false }),
@@ -195,7 +193,11 @@ describe("Show (PurchaseInvoice)", () => {
     it("meneruskan fixedAssets ke AssetCompletionAlert lewat banner", () => {
       const fixedAssets = [{ id: 1, asset_name: "Laptop" }];
       render(
-        <Show purchaseInvoice={null} defaultData={{}} fixedAssets={fixedAssets} />,
+        <Show
+          purchaseInvoice={null}
+          defaultData={{}}
+          fixedAssets={fixedAssets}
+        />,
       );
 
       const banner = screen.getByTestId("form-page-banner");
@@ -456,9 +458,7 @@ describe("Show (PurchaseInvoice)", () => {
         ),
       ).toBeInTheDocument();
       expect(
-        screen.getByText(
-          "finances.purchaseInvoice.actions.create_debit_note",
-        ),
+        screen.getByText("finances.purchaseInvoice.actions.create_debit_note"),
       ).toBeInTheDocument();
     });
 

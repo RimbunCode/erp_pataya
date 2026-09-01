@@ -576,9 +576,7 @@ describe("Inventory/StockEntries Form", () => {
       const [sourceWarehouseButton] = screen.getAllByTestId(
         "warehouse-link-model",
       );
-      await expect(
-        user.click(sourceWarehouseButton),
-      ).resolves.not.toThrow();
+      await expect(user.click(sourceWarehouseButton)).resolves.not.toThrow();
     });
   });
 

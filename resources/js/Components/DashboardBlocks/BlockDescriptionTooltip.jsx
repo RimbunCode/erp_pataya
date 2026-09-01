@@ -14,6 +14,7 @@ import { Info } from "lucide-react";
  * masih berupa string biasa, jadi kedua bentuk tetap dirender: string
  * ditampilkan apa adanya, HTML lewat dangerouslySetInnerHTML — aman
  * karena sudah disanitasi backend (DeskController::sanitizeRowHtml).
+ * @param description
  */
 export function hasBlockDescription(description) {
   if (!description) return false;

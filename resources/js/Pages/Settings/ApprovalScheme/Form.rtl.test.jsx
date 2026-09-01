@@ -81,7 +81,11 @@ vi.mock("@/Pages/Core/PermissionLinkModel", () => ({
       type="button"
       data-testid="permission-link-model"
       onClick={() =>
-        onValueChange?.({ id: 1, model: "App\\Models\\Sales\\SalesOrder", name: "Sales Order" })
+        onValueChange?.({
+          id: 1,
+          model: "App\\Models\\Sales\\SalesOrder",
+          name: "Sales Order",
+        })
       }
     >
       permission:{value?.model ?? "none"}
@@ -174,9 +178,9 @@ describe("ApprovalScheme Form", () => {
 
     await user.click(screen.getByTestId("permission-link-model"));
 
-    const nameInput = within(
-      screen.getByTestId("forminput-name"),
-    ).getByRole("textbox");
+    const nameInput = within(screen.getByTestId("forminput-name")).getByRole(
+      "textbox",
+    );
     expect(nameInput.value).toMatch(/^Sales Order_[a-z0-9]+$/);
   });
 
@@ -203,9 +207,9 @@ describe("ApprovalScheme Form", () => {
     expect(screen.getByTestId("cell-approver_type-0")).toBeInTheDocument();
     // Ada 2 instance LinkModel (kolom baris + StepFormDialog simple-mode) --
     // scope ke cell baris saja.
-    const linkModel = within(
-      screen.getByTestId("cell-approver-0"),
-    ).getByTestId("link-model");
+    const linkModel = within(screen.getByTestId("cell-approver-0")).getByTestId(
+      "link-model",
+    );
     expect(linkModel).toHaveAttribute("data-disabled", "true"); // approver_type kosong
   });
 
@@ -241,7 +245,9 @@ describe("ApprovalScheme Form", () => {
     // ambil instance PERTAMA (kolom baris FormTable luar).
     const cell = screen.getAllByTestId("cell-approver-0")[0];
     expect(cell).toHaveTextContent("role");
-    expect(cell.querySelector('[data-testid="link-model"]')).not.toBeInTheDocument();
+    expect(
+      cell.querySelector('[data-testid="link-model"]'),
+    ).not.toBeInTheDocument();
   });
 
   it("baris tanpa approvers (is_advanced=true) menampilkan placeholder '—'", () => {

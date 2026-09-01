@@ -71,7 +71,9 @@ describe("Inventory Attributes Form", () => {
 
     expect(screen.getByTestId("stub-form-table")).toBeInTheDocument();
     expect(screen.getByTestId("values-count")).toHaveTextContent("1");
-    expect(screen.queryByTestId("forminput-from_range")).not.toBeInTheDocument();
+    expect(
+      screen.queryByTestId("forminput-from_range"),
+    ).not.toBeInTheDocument();
   });
 
   it("is_numeric=true menampilkan range fields (from_range/to_range/increment), TIDAK menampilkan FormTable values", () => {

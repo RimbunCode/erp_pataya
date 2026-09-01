@@ -1,5 +1,5 @@
 import { describe, expect, it, vi, beforeEach } from "vitest";
-import { render, screen, within } from "@testing-library/react";
+import { render, screen } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 
 // Show.jsx (Services/WorkOrders) compose <FormPage><Form/></FormPage> dengan
@@ -41,7 +41,9 @@ vi.mock("@/Pages/Core/FormPage", () => ({
         {JSON.stringify({ isCreate: !!isCreate, disabled: !!disabled })}
       </div>
       <div data-testid="form-page-controls">
-        {typeof controls === "function" ? controls({ form: mockForm }) : controls}
+        {typeof controls === "function"
+          ? controls({ form: mockForm })
+          : controls}
       </div>
       <div data-testid="form-page-children">{children}</div>
     </div>
@@ -240,9 +242,7 @@ describe("Show (Services/WorkOrders)", () => {
         />,
       );
 
-      expect(
-        screen.queryByText("core.form.actions"),
-      ).not.toBeInTheDocument();
+      expect(screen.queryByText("core.form.actions")).not.toBeInTheDocument();
     });
 
     it("tanpa item stock (canRequest false): link create_pr tidak muncul", async () => {
@@ -273,18 +273,16 @@ describe("Show (Services/WorkOrders)", () => {
             id: 7,
             status: "open",
             submitted_at: "2026-08-01",
-            items: [
-              { item: { is_stock_item: true }, required_quantity: 5 },
-            ],
+            items: [{ item: { is_stock_item: true }, required_quantity: 5 }],
           }}
         />,
       );
 
       await user.click(screen.getByText("core.form.actions"));
 
-      const link = screen.getByText(
-        "service.workOrder.actions.create_pr",
-      ).closest("a");
+      const link = screen
+        .getByText("service.workOrder.actions.create_pr")
+        .closest("a");
       expect(link).toHaveAttribute(
         "href",
         `purchaseRequests.create/${JSON.stringify({ ref: "workOrder/7" })}`,
@@ -306,9 +304,9 @@ describe("Show (Services/WorkOrders)", () => {
 
       await user.click(screen.getByText("core.form.actions"));
 
-      const link = screen.getByText(
-        "service.workOrder.actions.create_so",
-      ).closest("a");
+      const link = screen
+        .getByText("service.workOrder.actions.create_so")
+        .closest("a");
       expect(link).toHaveAttribute(
         "href",
         `salesOrders.create/${JSON.stringify({ ref: "workOrder/3" })}`,
@@ -330,9 +328,9 @@ describe("Show (Services/WorkOrders)", () => {
 
       await user.click(screen.getByText("core.form.actions"));
 
-      const link = screen.getByText(
-        "service.workOrder.actions.create_io",
-      ).closest("a");
+      const link = screen
+        .getByText("service.workOrder.actions.create_io")
+        .closest("a");
       expect(link).toHaveAttribute(
         "href",
         `internalOrders.create/${JSON.stringify({ ref: "workOrder/3" })}`,

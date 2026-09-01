@@ -25,7 +25,10 @@ vi.mock("axios", () => ({
 const toastSuccess = vi.fn();
 const toastError = vi.fn();
 vi.mock("@/lib/gooeyToast", () => ({
-  gooeyToast: { success: (...a) => toastSuccess(...a), error: (...a) => toastError(...a) },
+  gooeyToast: {
+    success: (...a) => toastSuccess(...a),
+    error: (...a) => toastError(...a),
+  },
 }));
 
 // FilterBuilderBody (isi tree AND/OR) sudah punya test sendiri lewat
@@ -54,7 +57,13 @@ describe("FilterTable2", () => {
   });
 
   it("render tombol trigger filter tanpa badge saat tidak ada filter aktif", () => {
-    render(<FilterTable2 columns={columns} initialFilters={null} onApply={vi.fn()} />);
+    render(
+      <FilterTable2
+        columns={columns}
+        initialFilters={null}
+        onApply={vi.fn()}
+      />,
+    );
     expect(
       screen.getByRole("button", { name: /TR:core.datatable.filter.filter/ }),
     ).toBeInTheDocument();
@@ -108,7 +117,11 @@ describe("FilterTable2", () => {
   it("tanpa model, SavedFilterBar tidak dirender", async () => {
     const user = userEvent.setup({ delay: null });
     render(
-      <FilterTable2 columns={columns} initialFilters={null} onApply={vi.fn()} />,
+      <FilterTable2
+        columns={columns}
+        initialFilters={null}
+        onApply={vi.fn()}
+      />,
     );
 
     await user.click(
@@ -173,11 +186,13 @@ describe("FilterTable2", () => {
     );
     await screen.findByText("Filter A");
 
-    const deleteButton = screen.getByTitle("TR:core.datatable.filter.delete.label");
+    const deleteButton = screen.getByTitle(
+      "TR:core.datatable.filter.delete.label",
+    );
     await user.click(deleteButton);
 
     expect(axiosDelete).toHaveBeenCalledWith(
-      "saved-filters.destroy/{\"savedFilter\":1}",
+      'saved-filters.destroy/{"savedFilter":1}',
     );
   });
 
@@ -198,7 +213,9 @@ describe("FilterTable2", () => {
       screen.getByRole("button", { name: /TR:core.datatable.filter.filter/ }),
     );
     await user.click(
-      screen.getByRole("button", { name: /TR:core.datatable.filter.saved.save/ }),
+      screen.getByRole("button", {
+        name: /TR:core.datatable.filter.saved.save/,
+      }),
     );
     await user.click(
       screen.getByText("TR:core.datatable.filter.saved.save_new"),
@@ -209,7 +226,9 @@ describe("FilterTable2", () => {
     );
     await user.type(input, "Filter Baru");
     await user.click(
-      screen.getByRole("button", { name: "TR:core.datatable.filter.saved.save" }),
+      screen.getByRole("button", {
+        name: "TR:core.datatable.filter.saved.save",
+      }),
     );
 
     expect(axiosPost).toHaveBeenCalledWith(
@@ -220,6 +239,10 @@ describe("FilterTable2", () => {
       'saved-filters.update/{"savedFilter":99}',
       { name: "Filter Baru" },
     );
-    expect(await screen.findByRole("button", { name: /TR:core.datatable.filter.saved.save/ })).toBeInTheDocument();
+    expect(
+      await screen.findByRole("button", {
+        name: /TR:core.datatable.filter.saved.save/,
+      }),
+    ).toBeInTheDocument();
   });
 });

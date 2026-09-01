@@ -1,4 +1,4 @@
-import { describe, expect, it, vi, beforeEach, afterEach } from "vitest";
+import { describe, expect, it, beforeEach, afterEach } from "vitest";
 import { mountLetterheadPreview } from "./letterheadPreviewUtils";
 
 function createFakeEditor(frame, wrapperEl) {

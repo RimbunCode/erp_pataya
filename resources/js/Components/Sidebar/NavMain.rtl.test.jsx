@@ -44,7 +44,11 @@ const groupItem = (overrides = {}) => ({
   icon: null,
   items: [
     { title: "Orders", url: "/sales/orders", urlPattern: "/sales/orders" },
-    { title: "Invoices", url: "/sales/invoices", urlPattern: "/sales/invoices" },
+    {
+      title: "Invoices",
+      url: "/sales/invoices",
+      urlPattern: "/sales/invoices",
+    },
   ],
   ...overrides,
 });

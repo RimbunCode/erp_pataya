@@ -100,7 +100,9 @@ function makeLinkModelStub(testId) {
         type="button"
         data-testid={testId}
         disabled={disabled}
-        onClick={() => onValueChange?.(globalThis.__linkModelPayloads?.[testId])}
+        onClick={() =>
+          onValueChange?.(globalThis.__linkModelPayloads?.[testId])
+        }
       >
         {testId}:{value?.id ?? value?.code ?? "none"}
       </button>
@@ -280,8 +282,18 @@ describe("SalesInvoice Form", () => {
       formPageState = makeFormPageState({
         data: {
           items: [
-            { basic_amount: 1000, discount_amount: 0, dpp_amount: 916.67, tax_amount: 110 },
-            { basic_amount: 500, discount_amount: 0, dpp_amount: 458.33, tax_amount: 55 },
+            {
+              basic_amount: 1000,
+              discount_amount: 0,
+              dpp_amount: 916.67,
+              tax_amount: 110,
+            },
+            {
+              basic_amount: 500,
+              discount_amount: 0,
+              dpp_amount: 458.33,
+              tax_amount: 55,
+            },
           ],
         },
       });
@@ -496,7 +508,9 @@ describe("SalesInvoice Form", () => {
       // dijamin, jadi cari pemanggilan functional updater yang menghasilkan
       // is_return alih-alih mengasumsikan salah satu index tetap.
       const resetCall = setData.mock.calls
-        .map(([arg]) => (typeof arg === "function" ? arg(formPageState.data) : arg))
+        .map(([arg]) =>
+          typeof arg === "function" ? arg(formPageState.data) : arg,
+        )
         .find((result) => result?.is_return === true);
 
       expect(resetCall).toBeDefined();
@@ -568,9 +582,7 @@ describe("SalesInvoice Form", () => {
     it("tanpa discount_on: discount_amount 0, dpp_amount = basic_amount * 11/12, tax_amount dari tax_rate item", () => {
       formPageState = makeFormPageState({
         data: {
-          items: [
-            { id: 1, quantity: 2, price: 500, tax: { rate: 11 } },
-          ],
+          items: [{ id: 1, quantity: 2, price: 500, tax: { rate: 11 } }],
         },
       });
       render(<Form />);
@@ -585,7 +597,7 @@ describe("SalesInvoice Form", () => {
       // dpp_amount = basic_amount_setelah_alokasi * DPP_FACTOR = 1000 * 11/12.
       expect(result.dpp_amount).toBeCloseTo(1000 * (11 / 12), 5);
       // tax_amount = dpp_amount * tax_rate/100 = (1000*11/12)*11/100.
-      expect(result.tax_amount).toBeCloseTo(((1000 * (11 / 12)) * 11) / 100, 2);
+      expect(result.tax_amount).toBeCloseTo((1000 * (11 / 12) * 11) / 100, 2);
     });
 
     it("dengan discount_on=net_total: discount_amount mencerminkan selisih gross vs basic_amount hasil alokasi", () => {

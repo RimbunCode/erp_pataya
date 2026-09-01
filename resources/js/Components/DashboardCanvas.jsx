@@ -29,7 +29,6 @@ import {
   PencilIcon,
   PlusIcon,
   SquareStackIcon,
-  TrashIcon,
   TypeIcon,
   XIcon,
 } from "lucide-react";
@@ -42,7 +41,6 @@ import {
 } from "@/Components/ui/dropdown-menu";
 import { useCallback, useMemo, useState } from "react";
 
-import { Button } from "@/Components/ui/button";
 import { CSS } from "@dnd-kit/utilities";
 import DashboardBlock from "@/Components/DashboardBlock";
 import {
@@ -93,6 +91,8 @@ function minWidthFor(type) {
  * (mis. mobile 3 kolom dengan lebar 2 -> 1.5). Kasus itu diturunkan ke
  * 1 block per baris alias full-width — sesuai aturan "mobile: lebar 2
  * dipaksa jadi 3".
+ * @param width
+ * @param totalColumns
  */
 function spanFor(width, totalColumns) {
   const base = Math.min(MAX_WIDTH, Math.max(1, width ?? MAX_WIDTH));
@@ -121,14 +121,34 @@ const DEFAULT_WIDTH_BY_TYPE = {
 // ChartCardBlock) minta pilih Widget existing (WidgetLinkModel, sudah
 // dukung create-inline juga), bukan query-builder baru di sini.
 const BLOCK_TYPES = [
-  { type: "section", label: "Section", icon: SquareStackIcon, availableAtRoot: true },
+  {
+    type: "section",
+    label: "Section",
+    icon: SquareStackIcon,
+    availableAtRoot: true,
+  },
   { type: "text", label: "Text", icon: TypeIcon, availableAtRoot: true },
   { type: "spacer", label: "Spacer", icon: MinusIcon, availableAtRoot: true },
   { type: "shortcut", label: "Shortcut", icon: BoxIcon, availableAtRoot: true },
-  { type: "link_card", label: "Link Card", icon: LinkIcon, availableAtRoot: true },
-  { type: "quick_list", label: "Quick List", icon: ListIcon, availableAtRoot: true },
+  {
+    type: "link_card",
+    label: "Link Card",
+    icon: LinkIcon,
+    availableAtRoot: true,
+  },
+  {
+    type: "quick_list",
+    label: "Quick List",
+    icon: ListIcon,
+    availableAtRoot: true,
+  },
   { type: "chart", label: "Chart", icon: LayoutIcon, availableAtRoot: true },
-  { type: "card", label: "Number Card", icon: CreditCardIcon, availableAtRoot: true },
+  {
+    type: "card",
+    label: "Number Card",
+    icon: CreditCardIcon,
+    availableAtRoot: true,
+  },
 ];
 
 let localRefCounter = 0;
@@ -150,16 +170,38 @@ function defaultConfigFor(type) {
     case "text":
       return { json: null, html: "" };
     case "shortcut":
-      return { icon: null, link_type: "menu_item", link_to: "", background_color: null, foreground_color: null, stats_filter: null };
+      return {
+        icon: null,
+        link_type: "menu_item",
+        link_to: "",
+        background_color: null,
+        foreground_color: null,
+        stats_filter: null,
+      };
     case "link_card":
       // description: {json, html} (TiptapEditor) — null saat kosong, sama
       // seperti description Section. Data lama masih bisa berupa string;
       // BlockDescriptionTooltip merender kedua bentuk.
       return { label: "", icon: null, description: null };
     case "quick_list":
-      return { label: "", icon: null, description: null, model_id: null, model_class: null, filters: null, sort_by: null, sort_direction: "desc", limit: 5 };
+      return {
+        label: "",
+        icon: null,
+        description: null,
+        model_id: null,
+        model_class: null,
+        filters: null,
+        sort_by: null,
+        sort_direction: "desc",
+        limit: 5,
+      };
     case "spacer":
-      return { variant: "spacer", size: "md", lineStyle: "solid", position: "center" };
+      return {
+        variant: "spacer",
+        size: "md",
+        lineStyle: "solid",
+        position: "center",
+      };
     default:
       return null;
   }
@@ -169,7 +211,9 @@ function BlockTypeOptions({ depth, onSelect }) {
   // section HANYA boleh root (VALID_PARENTS['section']=[]) — semua tipe
   // lain (termasuk chart/card SEKARANG) boleh di root ATAU di dalam
   // section (VALID_PARENTS mengizinkan [null,'section']).
-  const options = BLOCK_TYPES.filter((b) => depth === 0 || b.type !== "section");
+  const options = BLOCK_TYPES.filter(
+    (b) => depth === 0 || b.type !== "section",
+  );
 
   return (
     <div className="grid w-56 grid-cols-2 gap-1 p-2">
@@ -198,6 +242,10 @@ function BlockTypeOptions({ depth, onSelect }) {
  * dua block 3-kolom tidak pernah bisa bersebelahan di mode edit. Overlay
  * absolut menghilangkan kedua efek samping itu — tombol tidak lagi ikut
  * mempengaruhi alur grid sama sekali.
+ * @param root0
+ * @param root0.onInsert
+ * @param root0.depth
+ * @param root0.side
  */
 function InsertBlockButton({ onInsert, depth, side = "right" }) {
   const [open, setOpen] = useState(false);
@@ -207,7 +255,11 @@ function InsertBlockButton({ onInsert, depth, side = "right" }) {
       <PopoverTrigger asChild>
         <button
           type="button"
-          aria-label={side === "left" ? "Sisipkan block sebelum" : "Sisipkan block sesudah"}
+          aria-label={
+            side === "left"
+              ? "Sisipkan block sebelum"
+              : "Sisipkan block sesudah"
+          }
           className={cn(
             "absolute top-1/2 z-10 hidden size-5 -translate-y-1/2 items-center justify-center rounded-full bg-primary text-primary-foreground shadow group-hover/block:flex",
             side === "left" ? "-left-2.5" : "-right-2.5",
@@ -218,7 +270,13 @@ function InsertBlockButton({ onInsert, depth, side = "right" }) {
         </button>
       </PopoverTrigger>
       <PopoverContent className="p-0">
-        <BlockTypeOptions depth={depth} onSelect={(type) => { onInsert(type); setOpen(false); }} />
+        <BlockTypeOptions
+          depth={depth}
+          onSelect={(type) => {
+            onInsert(type);
+            setOpen(false);
+          }}
+        />
       </PopoverContent>
     </Popover>
   );
@@ -239,7 +297,13 @@ function EmptyStateInsertButton({ onInsert, depth }) {
         </button>
       </PopoverTrigger>
       <PopoverContent className="p-0">
-        <BlockTypeOptions depth={depth} onSelect={(type) => { onInsert(type); setOpen(false); }} />
+        <BlockTypeOptions
+          depth={depth}
+          onSelect={(type) => {
+            onInsert(type);
+            setOpen(false);
+          }}
+        />
       </PopoverContent>
     </Popover>
   );
@@ -258,7 +322,10 @@ function ResizeHandle({ width, minWidth = MIN_WIDTH, onResize }) {
       // Drag resize memakai aturan grid yang sama dgn tombol shrink/expand
       // — kelipatan 1 kolom, dibatasi MIN_WIDTH..MAX_WIDTH.
       const deltaSteps = Math.round(delta / (colWidthPx * GRID_STEP));
-      const nextWidth  = Math.min(MAX_WIDTH, Math.max(minWidth, startWidth + deltaSteps * GRID_STEP));
+      const nextWidth = Math.min(
+        MAX_WIDTH,
+        Math.max(minWidth, startWidth + deltaSteps * GRID_STEP),
+      );
       onResize(nextWidth);
     };
     const onUp = () => {
@@ -280,7 +347,19 @@ function ResizeHandle({ width, minWidth = MIN_WIDTH, onResize }) {
 // Feedback user: dropdown "..." per-block setara ERPNext (Move Up/Down,
 // Shrink/Expand, Duplicate) — di luar drag-reorder yang sudah ada, sebagai
 // cara presisi tanpa perlu drag utk operasi yang sama.
-function BlockActionsMenu({ canMoveUp, canMoveDown, width, minWidth = MIN_WIDTH, onMoveUp, onMoveDown, onShrink, onExpand, onDuplicate, onEject, hideResize }) {
+function BlockActionsMenu({
+  canMoveUp,
+  canMoveDown,
+  width,
+  minWidth = MIN_WIDTH,
+  onMoveUp,
+  onMoveDown,
+  onShrink,
+  onExpand,
+  onDuplicate,
+  onEject,
+  hideResize,
+}) {
   return (
     <DropdownMenu>
       <DropdownMenuTrigger asChild>
@@ -341,10 +420,46 @@ function BlockActionsMenu({ canMoveUp, canMoveDown, width, minWidth = MIN_WIDTH,
 // sama sekali (Text TIDAK — migrasi ke Dialog juga per feedback terbaru,
 // lihat TextBlock.jsx; link_card_item pakai mekanisme Dialog-per-item
 // tersendiri di LinkCardBlock.jsx, bukan lewat toolbar generik ini).
-const EDITABLE_BLOCK_TYPES = new Set(["section", "text", "spacer", "shortcut", "link_card", "quick_list", "chart", "card"]);
+const EDITABLE_BLOCK_TYPES = new Set([
+  "section",
+  "text",
+  "spacer",
+  "shortcut",
+  "link_card",
+  "quick_list",
+  "chart",
+  "card",
+]);
 
-function SortableBlock({ block, canEdit, onUpdate, onDelete, onMoveUp, onMoveDown, onShrink, onExpand, onDuplicate, onEject, canMoveUp, canMoveDown, isDragActive, isDropTarget, editOpen, onEditOpenChange, insertBefore, insertAfter, children }) {
-  const { attributes, listeners, setNodeRef, transform, transition, isDragging } = useSortable({
+function SortableBlock({
+  block,
+  canEdit,
+  onUpdate,
+  onDelete,
+  onMoveUp,
+  onMoveDown,
+  onShrink,
+  onExpand,
+  onDuplicate,
+  onEject,
+  canMoveUp,
+  canMoveDown,
+  _isDragActive,
+  isDropTarget,
+  _editOpen,
+  onEditOpenChange,
+  insertBefore,
+  insertAfter,
+  children,
+}) {
+  const {
+    attributes,
+    listeners,
+    setNodeRef,
+    transform,
+    transition,
+    isDragging,
+  } = useSortable({
     id: block.ref ?? block.id,
   });
 
@@ -357,13 +472,14 @@ function SortableBlock({ block, canEdit, onUpdate, onDelete, onMoveUp, onMoveDow
   // dan body-nya diberi h-full di bawah.
   // Feedback user: Spacer/Divider selalu selebar penuh dan tanpa kontrol
   // ukuran — hanya tinggi (size-tier) yang bisa diatur, lewat Dialog.
-  const isSpacer     = block.type === "spacer";
+  const isSpacer = block.type === "spacer";
   // Link Card & Quick List harus setinggi baris (sejajar dengan block di
   // sebelahnya), bukan setinggi isinya sendiri — feedback user: dua Quick
   // List bersebelahan dgn jumlah baris beda kelihatan janggal kalau salah
   // satu lebih pendek.
-  const stretchToRow = block.type === "link_card" || block.type === "quick_list";
-  const width        = isSpacer ? MAX_WIDTH : (block.width ?? MAX_WIDTH);
+  const stretchToRow =
+    block.type === "link_card" || block.type === "quick_list";
+  const width = isSpacer ? MAX_WIDTH : (block.width ?? MAX_WIDTH);
   const style = {
     transform: CSS.Transform.toString(transform),
     transition,
@@ -386,7 +502,8 @@ function SortableBlock({ block, canEdit, onUpdate, onDelete, onMoveUp, onMoveDow
         // block kelihatan jelas — bukan cuma saat hover, tapi selalu
         // terlihat selama canEdit aktif. isDropTarget: highlight lebih
         // kuat saat block ini jadi TARGET drop drag-reorder standar.
-        canEdit && "rounded-lg border border-dashed border-border/70 p-2 transition-colors",
+        canEdit &&
+          "rounded-lg border border-dashed border-border/70 p-2 transition-colors",
         canEdit && isDropTarget && "border-primary bg-muted-foreground/10",
         // Link Card setinggi block tetangga di baris yang sama (grid
         // sudah stretch; rantai h-full yang perlu).
@@ -428,7 +545,6 @@ function SortableBlock({ block, canEdit, onUpdate, onDelete, onMoveUp, onMoveDow
             onShrink={onShrink}
             onExpand={onExpand}
             onDuplicate={onDuplicate}
-
           />
           <button
             type="button"
@@ -456,7 +572,14 @@ function SortableBlock({ block, canEdit, onUpdate, onDelete, onMoveUp, onMoveDow
 // (GroupDropZone, bukan geometric threshold spt DeskMenuItemManager — scope
 // lebih sederhana krn nesting di sini 2 jenis parent, bukan 1). Dipanggil
 // REKURSIF oleh SectionBlock utk grid lokal children-nya (depth=1).
-export default function DashboardCanvas({ widgets, canEdit, onChange, depth = 0, dndContextId, onEjectBlock }) {
+export default function DashboardCanvas({
+  widgets,
+  canEdit,
+  onChange,
+  depth = 0,
+  dndContextId,
+  onEjectBlock,
+}) {
   const [isDragActive, setIsDragActive] = useState(false);
   // Tipe block yang SEDANG diseret — dipakai drop-zone utk memutuskan
   // apakah dirinya relevan (feedback user: drop-zone Link Card ikut
@@ -467,7 +590,9 @@ export default function DashboardCanvas({ widgets, canEdit, onChange, depth = 0,
   // config jadi controlled — set berisi ref/id block yang Dialog-nya
   // sedang terbuka (auto-diisi saat block baru disisipkan, lihat insertBlock).
   const [openEditRefs, setOpenEditRefs] = useState(() => new Set());
-  const sensors = useSensors(useSensor(PointerSensor, { activationConstraint: { distance: 8 } }));
+  const sensors = useSensors(
+    useSensor(PointerSensor, { activationConstraint: { distance: 8 } }),
+  );
 
   const itemIds = useMemo(() => widgets.map((w) => w.ref ?? w.id), [widgets]);
 
@@ -482,7 +607,11 @@ export default function DashboardCanvas({ widgets, canEdit, onChange, depth = 0,
 
   const updateBlock = useCallback(
     (updated) => {
-      onChange(widgets.map((w) => ((w.ref ?? w.id) === (updated.ref ?? updated.id) ? updated : w)));
+      onChange(
+        widgets.map((w) =>
+          (w.ref ?? w.id) === (updated.ref ?? updated.id) ? updated : w,
+        ),
+      );
     },
     [widgets, onChange],
   );
@@ -490,10 +619,15 @@ export default function DashboardCanvas({ widgets, canEdit, onChange, depth = 0,
   const deleteBlock = useCallback(
     (target) => {
       const hasChildren = (target.children ?? []).length > 0;
-      if (hasChildren && !window.confirm("Hapus block ini beserta seluruh isinya?")) {
+      if (
+        hasChildren &&
+        !window.confirm("Hapus block ini beserta seluruh isinya?")
+      ) {
         return;
       }
-      onChange(widgets.filter((w) => (w.ref ?? w.id) !== (target.ref ?? target.id)));
+      onChange(
+        widgets.filter((w) => (w.ref ?? w.id) !== (target.ref ?? target.id)),
+      );
     },
     [widgets, onChange],
   );
@@ -543,9 +677,12 @@ export default function DashboardCanvas({ widgets, canEdit, onChange, depth = 0,
   // Quick List (half/full diskrit) DIHAPUS.
   const resizeBlock = useCallback(
     (target, direction) => {
-      const current   = target.width ?? MAX_WIDTH;
-      const minWidth  = minWidthFor(target.type);
-      const nextWidth = Math.min(MAX_WIDTH, Math.max(minWidth, current + direction * GRID_STEP));
+      const current = target.width ?? MAX_WIDTH;
+      const minWidth = minWidthFor(target.type);
+      const nextWidth = Math.min(
+        MAX_WIDTH,
+        Math.max(minWidth, current + direction * GRID_STEP),
+      );
       updateBlock({ ...target, width: nextWidth });
     },
     [updateBlock],
@@ -556,7 +693,12 @@ export default function DashboardCanvas({ widgets, canEdit, onChange, depth = 0,
       // ref lokal baru wajib — ref lama akan collide (jadi "sama" di mata
       // React key + backend saat flatten, dua row berbeda tidak boleh
       // berbagi identity sementara yang sama).
-      const clone = { ...target, ref: makeLocalRef(), id: undefined, isNew: false };
+      const clone = {
+        ...target,
+        ref: makeLocalRef(),
+        id: undefined,
+        isNew: false,
+      };
       const next = [...widgets];
       next.splice(index + 1, 0, clone);
       onChange(next);
@@ -570,7 +712,9 @@ export default function DashboardCanvas({ widgets, canEdit, onChange, depth = 0,
     (itemId) => {
       for (const card of widgets) {
         if (card.type !== "link_card") continue;
-        const index = (card.children ?? []).findIndex((c) => (c.ref ?? c.id) === itemId);
+        const index = (card.children ?? []).findIndex(
+          (c) => (c.ref ?? c.id) === itemId,
+        );
         if (index !== -1) return { card, item: card.children[index], index };
       }
 
@@ -585,10 +729,15 @@ export default function DashboardCanvas({ widgets, canEdit, onChange, depth = 0,
   const ejectFromSection = useCallback(
     (section, child) => {
       const sectionKey = section.ref ?? section.id;
-      const childKey   = child.ref ?? child.id;
+      const childKey = child.ref ?? child.id;
       const next = widgets.map((w) =>
         (w.ref ?? w.id) === sectionKey
-          ? { ...w, children: (w.children ?? []).filter((c) => (c.ref ?? c.id) !== childKey) }
+          ? {
+              ...w,
+              children: (w.children ?? []).filter(
+                (c) => (c.ref ?? c.id) !== childKey,
+              ),
+            }
           : w,
       );
 
@@ -601,7 +750,11 @@ export default function DashboardCanvas({ widgets, canEdit, onChange, depth = 0,
     setIsDragActive(true);
     const draggedId = event.active?.id;
     const rootBlock = widgets.find((w) => (w.ref ?? w.id) === draggedId);
-    setActiveDragType(rootBlock ? rootBlock.type : (findItemLocation(draggedId)?.item?.type ?? null));
+    setActiveDragType(
+      rootBlock
+        ? rootBlock.type
+        : (findItemLocation(draggedId)?.item?.type ?? null),
+    );
   };
 
   const handleDragOver = (event) => setOverId(event.over?.id ?? null);
@@ -645,11 +798,20 @@ export default function DashboardCanvas({ widgets, canEdit, onChange, depth = 0,
           // Buang dulu dari sumbernya, baru sisipkan di tujuan — urutan
           // ini penting saat sumber & tujuan adalah card yang SAMA
           // (reorder), supaya indeks tujuan tidak bergeser dua kali.
-          let children = (w.children ?? []).filter((c) => (c.ref ?? c.id) !== active.id);
+          let children = (w.children ?? []).filter(
+            (c) => (c.ref ?? c.id) !== active.id,
+          );
 
           if (key === targetCardKey) {
-            const at = insertAt === null ? children.length : Math.min(insertAt, children.length);
-            children = [...children.slice(0, at), draggedItem.item, ...children.slice(at)];
+            const at =
+              insertAt === null
+                ? children.length
+                : Math.min(insertAt, children.length);
+            children = [
+              ...children.slice(0, at),
+              draggedItem.item,
+              ...children.slice(at),
+            ];
           }
 
           return { ...w, children };
@@ -665,11 +827,20 @@ export default function DashboardCanvas({ widgets, canEdit, onChange, depth = 0,
       const draggedBlock = widgets.find((w) => (w.ref ?? w.id) === active.id);
       if (!draggedBlock || draggedBlock.type === "section") return;
 
-      const withoutDragged = widgets.filter((w) => (w.ref ?? w.id) !== active.id);
+      const withoutDragged = widgets.filter(
+        (w) => (w.ref ?? w.id) !== active.id,
+      );
       const target = withoutDragged.find((w) => (w.ref ?? w.id) === targetRef);
       if (!target) return;
-      const nextTarget = { ...target, children: [...(target.children ?? []), draggedBlock] };
-      onChange(withoutDragged.map((w) => ((w.ref ?? w.id) === targetRef ? nextTarget : w)));
+      const nextTarget = {
+        ...target,
+        children: [...(target.children ?? []), draggedBlock],
+      };
+      onChange(
+        withoutDragged.map((w) =>
+          (w.ref ?? w.id) === targetRef ? nextTarget : w,
+        ),
+      );
 
       return;
     }
@@ -695,10 +866,16 @@ export default function DashboardCanvas({ widgets, canEdit, onChange, depth = 0,
         {/* Feedback user: jumlah kolom grid berbeda per breakpoint —
             mobile 3, tablet (md) 6, desktop (lg) 12. Lebar block disimpan
             dalam satuan 12-kolom lalu di-scale turun (lihat spanFor()). */}
-        <div data-dashboard-grid className="grid grid-cols-3 gap-4 md:grid-cols-6 lg:grid-cols-12">
+        <div
+          data-dashboard-grid
+          className="grid grid-cols-3 gap-4 md:grid-cols-6 lg:grid-cols-12"
+        >
           {widgets.length === 0 && canEdit && (
             <div className="col-span-3 md:col-span-6 lg:col-span-12 flex h-24 items-center justify-center rounded-lg border border-dashed">
-              <EmptyStateInsertButton onInsert={(type) => insertBlock(type, 0)} depth={depth} />
+              <EmptyStateInsertButton
+                onInsert={(type) => insertBlock(type, 0)}
+                depth={depth}
+              />
             </div>
           )}
           {widgets.map((block, index) => {
@@ -707,49 +884,57 @@ export default function DashboardCanvas({ widgets, canEdit, onChange, depth = 0,
             const onEditOpenChange = (isOpen) => setEditOpen(blockKey, isOpen);
 
             return (
-            <div key={blockKey} className="contents">
-              <SortableBlock
-                block={block}
-                canEdit={canEdit}
-                onUpdate={updateBlock}
-                onDelete={() => deleteBlock(block)}
-                onMoveUp={() => moveBlock(index, -1)}
-                onMoveDown={() => moveBlock(index, 1)}
-                onShrink={() => resizeBlock(block, -1)}
-                onExpand={() => resizeBlock(block, 1)}
-                onDuplicate={() => duplicateBlock(index, block)}
-                onEject={onEjectBlock ? () => onEjectBlock(block) : undefined}
-                canMoveUp={index > 0}
-                canMoveDown={index < widgets.length - 1}
-                isDragActive={isDragActive}
-                isDropTarget={isDragActive && overId === blockKey}
-                editOpen={editOpen}
-                onEditOpenChange={onEditOpenChange}
-                insertBefore={
-                  canEdit && index === 0 ? (
-                    <InsertBlockButton side="left" onInsert={(type) => insertBlock(type, 0)} depth={depth} />
-                  ) : null
-                }
-                insertAfter={
-                  canEdit ? (
-                    <InsertBlockButton side="right" onInsert={(type) => insertBlock(type, index + 1)} depth={depth} />
-                  ) : null
-                }
-              >
-                <DashboardBlock
+              <div key={blockKey} className="contents">
+                <SortableBlock
                   block={block}
                   canEdit={canEdit}
                   onUpdate={updateBlock}
                   onDelete={() => deleteBlock(block)}
+                  onMoveUp={() => moveBlock(index, -1)}
+                  onMoveDown={() => moveBlock(index, 1)}
+                  onShrink={() => resizeBlock(block, -1)}
+                  onExpand={() => resizeBlock(block, 1)}
+                  onDuplicate={() => duplicateBlock(index, block)}
+                  onEject={onEjectBlock ? () => onEjectBlock(block) : undefined}
+                  canMoveUp={index > 0}
+                  canMoveDown={index < widgets.length - 1}
                   isDragActive={isDragActive}
-                  activeDragType={activeDragType}
-                  depth={depth}
+                  isDropTarget={isDragActive && overId === blockKey}
                   editOpen={editOpen}
                   onEditOpenChange={onEditOpenChange}
-                  onEjectChild={(child) => ejectFromSection(block, child)}
-                />
-              </SortableBlock>
-            </div>
+                  insertBefore={
+                    canEdit && index === 0 ? (
+                      <InsertBlockButton
+                        side="left"
+                        onInsert={(type) => insertBlock(type, 0)}
+                        depth={depth}
+                      />
+                    ) : null
+                  }
+                  insertAfter={
+                    canEdit ? (
+                      <InsertBlockButton
+                        side="right"
+                        onInsert={(type) => insertBlock(type, index + 1)}
+                        depth={depth}
+                      />
+                    ) : null
+                  }
+                >
+                  <DashboardBlock
+                    block={block}
+                    canEdit={canEdit}
+                    onUpdate={updateBlock}
+                    onDelete={() => deleteBlock(block)}
+                    isDragActive={isDragActive}
+                    activeDragType={activeDragType}
+                    depth={depth}
+                    editOpen={editOpen}
+                    onEditOpenChange={onEditOpenChange}
+                    onEjectChild={(child) => ejectFromSection(block, child)}
+                  />
+                </SortableBlock>
+              </div>
             );
           })}
         </div>

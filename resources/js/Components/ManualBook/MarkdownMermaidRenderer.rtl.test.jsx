@@ -27,7 +27,9 @@ describe("MarkdownMermaidRenderer", () => {
       />,
     );
 
-    await vi.waitFor(() => expect(onReadyChange).toHaveBeenLastCalledWith(true));
+    await vi.waitFor(() =>
+      expect(onReadyChange).toHaveBeenLastCalledWith(true),
+    );
     expect(mermaidRender).not.toHaveBeenCalled();
     expect(screen.getByText("Halo dunia")).toBeInTheDocument();
   });
@@ -42,7 +44,9 @@ describe("MarkdownMermaidRenderer", () => {
       <MarkdownMermaidRenderer html={html} onReadyChange={onReadyChange} />,
     );
 
-    await vi.waitFor(() => expect(onReadyChange).toHaveBeenLastCalledWith(true));
+    await vi.waitFor(() =>
+      expect(onReadyChange).toHaveBeenLastCalledWith(true),
+    );
     expect(mermaidRender).toHaveBeenCalledWith(
       expect.stringContaining("manual-book-mermaid-0-"),
       "graph TD; A-->B;",
@@ -61,7 +65,9 @@ describe("MarkdownMermaidRenderer", () => {
       <MarkdownMermaidRenderer html={html} onReadyChange={onReadyChange} />,
     );
 
-    await vi.waitFor(() => expect(onReadyChange).toHaveBeenLastCalledWith(true));
+    await vi.waitFor(() =>
+      expect(onReadyChange).toHaveBeenLastCalledWith(true),
+    );
     expect(container.querySelector("pre")).toHaveAttribute(
       "data-mermaid-error",
       "true",
@@ -74,7 +80,10 @@ describe("MarkdownMermaidRenderer", () => {
       '<h2 id="sec-1">Bagian 1</h2><h3 id="sec-1-a">Sub A</h3><p>teks</p>';
 
     render(
-      <MarkdownMermaidRenderer html={html} onHeadingsChange={onHeadingsChange} />,
+      <MarkdownMermaidRenderer
+        html={html}
+        onHeadingsChange={onHeadingsChange}
+      />,
     );
 
     await vi.waitFor(() =>
@@ -90,16 +99,17 @@ describe("MarkdownMermaidRenderer", () => {
     const html = "<h2>Tanpa ID</h2>";
 
     render(
-      <MarkdownMermaidRenderer html={html} onHeadingsChange={onHeadingsChange} />,
+      <MarkdownMermaidRenderer
+        html={html}
+        onHeadingsChange={onHeadingsChange}
+      />,
     );
 
     await vi.waitFor(() => expect(onHeadingsChange).toHaveBeenCalledWith([]));
   });
 
   it("data-diagrams-ready pada wrapper mencerminkan state isReady", async () => {
-    const { container } = render(
-      <MarkdownMermaidRenderer html="<p>x</p>" />,
-    );
+    const { container } = render(<MarkdownMermaidRenderer html="<p>x</p>" />);
 
     await vi.waitFor(() =>
       expect(container.firstChild).toHaveAttribute(

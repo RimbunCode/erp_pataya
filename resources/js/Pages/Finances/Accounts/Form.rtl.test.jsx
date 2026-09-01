@@ -103,7 +103,13 @@ vi.mock("@/Components/NumberInput", () => ({
 // meneruskan value/onValueChange/filters/disabledAddButton supaya bisa
 // diverifikasi lewat data-* attribute (filters di-JSON.stringify).
 vi.mock("./AccountLinkModel", () => ({
-  default: ({ value, onValueChange, filters, disabledAddButton, placeholder }) => (
+  default: ({
+    value,
+    onValueChange,
+    filters,
+    disabledAddButton,
+    placeholder,
+  }) => (
     <div>
       <input
         data-testid="account-link-model"
@@ -151,6 +157,9 @@ function FormPageProviderFake({ value, children }) {
  * Render Form dengan state data terkelola (setData asli, reaktif) supaya
  * cascade parent_account -> root_type/report_type/balance_type bisa
  * diverifikasi lewat re-render.
+ * @param root0
+ * @param root0.initialData
+ * @param root0.disabled
  */
 function renderForm({ initialData = {}, disabled = false } = {}) {
   function Wrapper() {
@@ -228,7 +237,8 @@ describe("Form (Finances/Accounts)", () => {
       // balance_type via Select stub -- cari yang berada di forminput
       // balance_type supaya tidak ambigu dgn select account_type.
       const balanceTypeWrapper = screen.getByTestId("forminput-balance_type");
-      const selectBalanceType = within(balanceTypeWrapper).getByTestId("select");
+      const selectBalanceType =
+        within(balanceTypeWrapper).getByTestId("select");
       expect(selectBalanceType).toHaveValue("debit");
     });
 
@@ -265,7 +275,8 @@ describe("Form (Finances/Accounts)", () => {
       expect(reportTypeInput).toHaveValue("");
 
       const balanceTypeWrapper = screen.getByTestId("forminput-balance_type");
-      const selectBalanceType = within(balanceTypeWrapper).getByTestId("select");
+      const selectBalanceType =
+        within(balanceTypeWrapper).getByTestId("select");
       expect(selectBalanceType).toHaveValue("");
     });
   });

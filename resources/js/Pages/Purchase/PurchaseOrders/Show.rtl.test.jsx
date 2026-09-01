@@ -372,9 +372,7 @@ describe("Show (PurchaseOrders)", () => {
 
     it("klik tombol Sync Items membuka dialog konfirmasi berisi ItemsQtyTable", async () => {
       const user = userEvent.setup({ delay: null });
-      render(
-        <Show purchaseOrder={mismatchPurchaseOrder()} defaultData={{}} />,
-      );
+      render(<Show purchaseOrder={mismatchPurchaseOrder()} defaultData={{}} />);
 
       await user.click(screen.getByRole("button", { name: "Sync Items" }));
 
@@ -385,16 +383,12 @@ describe("Show (PurchaseOrders)", () => {
         screen.getByRole("heading", { name: "Sync Items" }),
       ).toBeInTheDocument();
       // ItemsQtyTable direplikasi di dalam dialog -- nama item juga muncul di sana
-      expect(screen.getAllByText("Barang Mismatch").length).toBeGreaterThan(
-        0,
-      );
+      expect(screen.getAllByText("Barang Mismatch").length).toBeGreaterThan(0);
     });
 
     it("tombol Batal menutup dialog tanpa memanggil router.post", async () => {
       const user = userEvent.setup({ delay: null });
-      render(
-        <Show purchaseOrder={mismatchPurchaseOrder()} defaultData={{}} />,
-      );
+      render(<Show purchaseOrder={mismatchPurchaseOrder()} defaultData={{}} />);
 
       await user.click(screen.getByRole("button", { name: "Sync Items" }));
       await user.click(screen.getByRole("button", { name: "Batal" }));
@@ -404,7 +398,7 @@ describe("Show (PurchaseOrders)", () => {
     });
 
     it("konfirmasi Sync Items memanggil router.post ke route purchaseOrders.syncItems dengan id, lalu menutup dialog onFinish", async () => {
-      routerPost.mockImplementation((url, data, options) => {
+      routerPost.mockImplementation((_url, _data, options) => {
         options?.onFinish?.();
       });
       const user = userEvent.setup({ delay: null });
@@ -433,9 +427,7 @@ describe("Show (PurchaseOrders)", () => {
         // Sengaja tidak memanggil onFinish supaya state loading bisa diamati.
       });
       const user = userEvent.setup({ delay: null });
-      render(
-        <Show purchaseOrder={mismatchPurchaseOrder()} defaultData={{}} />,
-      );
+      render(<Show purchaseOrder={mismatchPurchaseOrder()} defaultData={{}} />);
 
       await user.click(screen.getByRole("button", { name: "Sync Items" }));
       const dialog = screen.getByRole("dialog");
@@ -463,14 +455,12 @@ describe("Show (PurchaseOrders)", () => {
 
       expect(screen.getByRole("dialog")).toBeInTheDocument();
       expect(
-        screen.getByText(
-          /Validasi bahwa qty receipt sama dengan qty invoice/,
-        ),
+        screen.getByText(/Validasi bahwa qty receipt sama dengan qty invoice/),
       ).toBeInTheDocument();
     });
 
     it("konfirmasi sukses memanggil router.post ke purchaseOrders.markDone dan menutup dialog onSuccess", async () => {
-      routerPost.mockImplementation((url, data, options) => {
+      routerPost.mockImplementation((_url, _data, options) => {
         options?.onSuccess?.();
       });
       const user = userEvent.setup({ delay: null });
@@ -492,7 +482,7 @@ describe("Show (PurchaseOrders)", () => {
     });
 
     it("onError dengan errors.mismatches (array) menampilkan daftar mismatch dan dialog tetap terbuka", async () => {
-      routerPost.mockImplementation((url, data, options) => {
+      routerPost.mockImplementation((_url, _data, options) => {
         options?.onError?.({
           mismatches: [
             { item_name: "Barang X", received_qty: 3, billed_qty: 5 },
@@ -517,7 +507,7 @@ describe("Show (PurchaseOrders)", () => {
     });
 
     it("onError dengan errors.mismatches berupa JSON string (bukan array) di-parse dengan benar", async () => {
-      routerPost.mockImplementation((url, data, options) => {
+      routerPost.mockImplementation((_url, _data, options) => {
         options?.onError?.({
           mismatches: JSON.stringify([
             { item_name: "Barang Y", received_qty: 1, billed_qty: 2 },
@@ -551,7 +541,7 @@ describe("Show (PurchaseOrders)", () => {
 
     it("mismatchErrors direset ke [] saat submit ulang setelah error sebelumnya", async () => {
       let callCount = 0;
-      routerPost.mockImplementation((url, data, options) => {
+      routerPost.mockImplementation((_url, _data, options) => {
         callCount += 1;
         if (callCount === 1) {
           options?.onError?.({

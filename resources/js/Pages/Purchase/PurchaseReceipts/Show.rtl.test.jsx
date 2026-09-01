@@ -111,7 +111,12 @@ function basePurchaseReceipt(overrides = {}) {
 
 function renderShow(props = {}) {
   return render(
-    <Show purchaseReceipt={null} defaultData={{}} fixedAssets={[]} {...props} />,
+    <Show
+      purchaseReceipt={null}
+      defaultData={{}}
+      fixedAssets={[]}
+      {...props}
+    />,
   );
 }
 
@@ -130,9 +135,7 @@ describe("Show (PurchaseReceipts)", () => {
       );
       expect(screen.getByTestId("stub-form")).toBeInTheDocument();
       expect(
-        screen.queryByText(
-          "purchase.purchaseReceipt.create_purchase_return",
-        ),
+        screen.queryByText("purchase.purchaseReceipt.create_purchase_return"),
       ).not.toBeInTheDocument();
     });
 
@@ -224,9 +227,7 @@ describe("Show (PurchaseReceipts)", () => {
       renderShow({ purchaseReceipt });
 
       expect(
-        screen.queryByText(
-          "purchase.purchaseReceipt.create_purchase_return",
-        ),
+        screen.queryByText("purchase.purchaseReceipt.create_purchase_return"),
       ).not.toBeInTheDocument();
     });
 
@@ -235,9 +236,7 @@ describe("Show (PurchaseReceipts)", () => {
       renderShow({ purchaseReceipt });
 
       expect(
-        screen.queryByText(
-          "purchase.purchaseReceipt.create_purchase_return",
-        ),
+        screen.queryByText("purchase.purchaseReceipt.create_purchase_return"),
       ).not.toBeInTheDocument();
     });
 
@@ -246,9 +245,7 @@ describe("Show (PurchaseReceipts)", () => {
       renderShow({ purchaseReceipt });
 
       expect(
-        screen.queryByText(
-          "purchase.purchaseReceipt.create_purchase_return",
-        ),
+        screen.queryByText("purchase.purchaseReceipt.create_purchase_return"),
       ).not.toBeInTheDocument();
     });
 
@@ -257,9 +254,7 @@ describe("Show (PurchaseReceipts)", () => {
       renderShow({ purchaseReceipt });
 
       expect(
-        screen.queryByText(
-          "purchase.purchaseReceipt.create_purchase_return",
-        ),
+        screen.queryByText("purchase.purchaseReceipt.create_purchase_return"),
       ).not.toBeInTheDocument();
     });
 
@@ -273,9 +268,7 @@ describe("Show (PurchaseReceipts)", () => {
       renderShow({ purchaseReceipt });
 
       expect(
-        screen.queryByText(
-          "purchase.purchaseReceipt.create_purchase_return",
-        ),
+        screen.queryByText("purchase.purchaseReceipt.create_purchase_return"),
       ).not.toBeInTheDocument();
     });
 
@@ -286,9 +279,7 @@ describe("Show (PurchaseReceipts)", () => {
       renderShow({ purchaseReceipt });
 
       expect(
-        screen.queryByText(
-          "purchase.purchaseReceipt.create_purchase_return",
-        ),
+        screen.queryByText("purchase.purchaseReceipt.create_purchase_return"),
       ).not.toBeInTheDocument();
     });
 
@@ -297,9 +288,7 @@ describe("Show (PurchaseReceipts)", () => {
       renderShow({ purchaseReceipt });
 
       expect(
-        screen.queryByText(
-          "purchase.purchaseReceipt.create_purchase_return",
-        ),
+        screen.queryByText("purchase.purchaseReceipt.create_purchase_return"),
       ).not.toBeInTheDocument();
     });
 
@@ -326,9 +315,7 @@ describe("Show (PurchaseReceipts)", () => {
       renderShow({ purchaseReceipt: null });
 
       expect(
-        screen.queryByText(
-          "purchase.purchaseReceipt.create_purchase_return",
-        ),
+        screen.queryByText("purchase.purchaseReceipt.create_purchase_return"),
       ).not.toBeInTheDocument();
     });
   });

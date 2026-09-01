@@ -1,6 +1,6 @@
 import { describe, expect, it, vi, beforeEach } from "vitest";
 import { render, screen } from "@testing-library/react";
-import userEvent from "@testing-library/user-event";
+
 import { TooltipProvider } from "@/Components/ui/tooltip";
 
 const stableT = (key) => key;
@@ -42,7 +42,10 @@ vi.mock("@/Pages/Core/FormPage", async () => {
 
 vi.mock("@/Components/FormInput", () => ({
   default: ({ name, label, readOnly, children }) => (
-    <div data-testid={`forminput-${name ?? label}`} data-readonly={readOnly ? "true" : "false"}>
+    <div
+      data-testid={`forminput-${name ?? label}`}
+      data-readonly={readOnly ? "true" : "false"}
+    >
       <label>{label}</label>
       {children}
     </div>
@@ -55,13 +58,19 @@ vi.mock("@/Components/DatetimePicker", () => ({
 
 vi.mock("@/Pages/Sales/Customers/CustomerLinkModel", () => ({
   default: ({ value }) => (
-    <div data-testid="customer-link-model">customer:{value?.name ?? "none"}</div>
+    <div data-testid="customer-link-model">
+      customer:{value?.name ?? "none"}
+    </div>
   ),
 }));
 
 vi.mock("@/Pages/CRM/Opportunities/OpportunityLinkModel", () => ({
   default: ({ value, disabled }) => (
-    <button type="button" data-testid="opportunity-link-model" data-disabled={disabled ? "true" : "false"}>
+    <button
+      type="button"
+      data-testid="opportunity-link-model"
+      data-disabled={disabled ? "true" : "false"}
+    >
       opportunity:{value?.name ?? "none"}
     </button>
   ),
@@ -167,9 +176,7 @@ describe("CRM Quotations Form", () => {
     formPageSeed = { items: [{ quantity: 1, price: 1 }] };
     renderForm(<Form />);
 
-    expect(screen.getByTestId("quotation-items")).toHaveTextContent(
-      "items:1",
-    );
+    expect(screen.getByTestId("quotation-items")).toHaveTextContent("items:1");
   });
 
   it("memilih customer menampilkan value terkini", () => {

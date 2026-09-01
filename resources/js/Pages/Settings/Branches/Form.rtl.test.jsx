@@ -116,6 +116,8 @@ function FormPageProviderFake({ value, children }) {
  * Render Form dengan state data terkelola (setData asli, reaktif) supaya
  * interaksi checkbox/select/conditional rendering bisa diverifikasi lewat
  * re-render.
+ * @param root0
+ * @param root0.initialData
  */
 function renderForm({ initialData = {} } = {}) {
   function Wrapper() {
@@ -255,12 +257,9 @@ describe("Form (Settings/Branches)", () => {
     it("shipping_country fallback ke string kosong saat data.shipping_country undefined", () => {
       renderForm({ initialData: {} });
 
-      const countryWrapper = screen.getByTestId(
-        "forminput-shipping_country",
-      );
-      const countryInput = within(countryWrapper).getByTestId(
-        "country-link-model",
-      );
+      const countryWrapper = screen.getByTestId("forminput-shipping_country");
+      const countryInput =
+        within(countryWrapper).getByTestId("country-link-model");
       expect(countryInput).toHaveValue("");
     });
   });
@@ -364,12 +363,9 @@ describe("Form (Settings/Branches)", () => {
         },
       });
 
-      const countryWrapper = screen.getByTestId(
-        "forminput-billing_country",
-      );
-      const countryInput = within(countryWrapper).getByTestId(
-        "country-link-model",
-      );
+      const countryWrapper = screen.getByTestId("forminput-billing_country");
+      const countryInput =
+        within(countryWrapper).getByTestId("country-link-model");
       await user.type(countryInput, "ID");
 
       expect(countryInput).toHaveValue("ID");

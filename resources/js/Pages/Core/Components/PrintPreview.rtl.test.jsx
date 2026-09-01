@@ -122,9 +122,8 @@ describe("PrintPreview", () => {
     const { ref } = renderPrintPreview();
 
     await vi.waitFor(() => {
-      const link = ref.current.contentDocument.getElementById(
-        "bootstrap-css-link",
-      );
+      const link =
+        ref.current.contentDocument.getElementById("bootstrap-css-link");
       expect(link).toBeTruthy();
       expect(link.getAttribute("href")).toContain("bootstrap");
     });

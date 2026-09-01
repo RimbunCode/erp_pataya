@@ -75,7 +75,9 @@ describe("ApproverDecision", () => {
         },
       ],
     });
-    usePageMock.mockReturnValue({ props: { auth: { user: { id: 1, id_roles: [] } } } });
+    usePageMock.mockReturnValue({
+      props: { auth: { user: { id: 1, id_roles: [] } } },
+    });
 
     const { container } = render(
       <ApproverDecision name="logs" approval={approval} />,
@@ -162,7 +164,9 @@ describe("ApproverDecision", () => {
 
     render(<ApproverDecision name="logs" approval={approval} />);
     await user.click(
-      screen.getByRole("button", { name: "TR:core.form.approvalDecision.trigger" }),
+      screen.getByRole("button", {
+        name: "TR:core.form.approvalDecision.trigger",
+      }),
     );
 
     expect(
@@ -182,7 +186,9 @@ describe("ApproverDecision", () => {
 
     render(<ApproverDecision name="logs" approval={approval} />);
     await user.click(
-      screen.getByRole("button", { name: "TR:core.form.approvalDecision.trigger" }),
+      screen.getByRole("button", {
+        name: "TR:core.form.approvalDecision.trigger",
+      }),
     );
     await user.click(
       screen.getByRole("button", { name: "TR:core.form.submit" }),
@@ -206,9 +212,13 @@ describe("ApproverDecision", () => {
 
     render(<ApproverDecision name="logs" approval={approval} />);
     await user.click(
-      screen.getByRole("button", { name: "TR:core.form.approvalDecision.trigger" }),
+      screen.getByRole("button", {
+        name: "TR:core.form.approvalDecision.trigger",
+      }),
     );
-    await user.click(screen.getByRole("button", { name: "TR:core.form.cancel" }));
+    await user.click(
+      screen.getByRole("button", { name: "TR:core.form.cancel" }),
+    );
 
     expect(useFormReturn.post).not.toHaveBeenCalled();
     expect(
@@ -225,7 +235,9 @@ describe("ApproverDecision", () => {
 
     render(<ApproverDecision name="logs" approval={approval} />);
     await user.click(
-      screen.getByRole("button", { name: "TR:core.form.approvalDecision.trigger" }),
+      screen.getByRole("button", {
+        name: "TR:core.form.approvalDecision.trigger",
+      }),
     );
 
     expect(

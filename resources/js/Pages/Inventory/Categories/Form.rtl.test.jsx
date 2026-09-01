@@ -83,9 +83,7 @@ describe("Inventory Categories Form", () => {
     const user = userEvent.setup({ delay: null });
     renderForm(<Form />);
 
-    const select = screen
-      .getByTestId("forminput-type")
-      .querySelector("select");
+    const select = screen.getByTestId("forminput-type").querySelector("select");
     await user.selectOptions(select, "vehicle");
 
     expect(select).toHaveValue("vehicle");
@@ -95,8 +93,6 @@ describe("Inventory Categories Form", () => {
     formPageSeed = { default_unit: { name: "PCS" } };
     renderForm(<Form />);
 
-    expect(screen.getByTestId("unit-link-model")).toHaveTextContent(
-      "unit:PCS",
-    );
+    expect(screen.getByTestId("unit-link-model")).toHaveTextContent("unit:PCS");
   });
 });

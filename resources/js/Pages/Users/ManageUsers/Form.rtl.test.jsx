@@ -152,6 +152,13 @@ function FormPageProviderFake({ value, children }) {
 /**
  * Render Form dengan state data terkelola (setData asli, reaktif) supaya
  * interaksi checkbox role/branch bisa diverifikasi lewat re-render.
+ * @param root0
+ * @param root0.authUser
+ * @param root0.isCreate
+ * @param root0.initialData
+ * @param root0.roles
+ * @param root0.branches
+ * @param root0.permissions
  */
 function renderForm({
   authUser = { id: 1 },
@@ -169,8 +176,12 @@ function renderForm({
     },
   });
 
-  canUserMock.mockImplementation((action) => Boolean(permissions.user?.[action]));
-  canRoleMock.mockImplementation((action) => Boolean(permissions.role?.[action]));
+  canUserMock.mockImplementation((action) =>
+    Boolean(permissions.user?.[action]),
+  );
+  canRoleMock.mockImplementation((action) =>
+    Boolean(permissions.role?.[action]),
+  );
   canBranchMock.mockImplementation((action) =>
     Boolean(permissions.branch?.[action]),
   );
@@ -185,7 +196,9 @@ function renderForm({
       }
     };
     return (
-      <FormPageProviderFake value={{ data, setData, isCreate, disabled: false }}>
+      <FormPageProviderFake
+        value={{ data, setData, isCreate, disabled: false }}
+      >
         <Form />
       </FormPageProviderFake>
     );
@@ -206,7 +219,10 @@ describe("Form (Users/ManageUsers)", () => {
 
   describe("field profile: visibility & disabled berdasar isCreate/authUser", () => {
     it("mode create: field username, gender, phone, birthdate TIDAK dirender", () => {
-      renderForm({ isCreate: true, initialData: { email: "a@a.com", name: "A" } });
+      renderForm({
+        isCreate: true,
+        initialData: { email: "a@a.com", name: "A" },
+      });
 
       expect(
         screen.queryByTestId("forminput-user.user.columns.username"),
@@ -297,7 +313,11 @@ describe("Form (Users/ManageUsers)", () => {
       renderForm({
         authUser: { id: 1 },
         isCreate: false,
-        initialData: { id: 1, email: "me@a.com", email_verified_at: "2026-01-01" },
+        initialData: {
+          id: 1,
+          email: "me@a.com",
+          email_verified_at: "2026-01-01",
+        },
       });
 
       expect(screen.queryByTestId("forminput-error")).not.toBeInTheDocument();
@@ -418,7 +438,7 @@ describe("Form (Users/ManageUsers)", () => {
     });
 
     it("tombol 'show_permissions' disabled saat data.roles kosong, enabled saat terisi", () => {
-      const { rerender } = renderForm({
+      const { _rerender } = renderForm({
         initialData: { roles: [] },
         permissions: { user: { manage_roles: true } },
         roles: [{ id: 5, name: "Editor", is_disabled: false }],
@@ -463,9 +483,8 @@ describe("Form (Users/ManageUsers)", () => {
       const defaultBranchWrapper = screen.getByTestId(
         "forminput-user.user.default_branch",
       );
-      const selectDefaultBranch = within(defaultBranchWrapper).getByTestId(
-        "select",
-      );
+      const selectDefaultBranch =
+        within(defaultBranchWrapper).getByTestId("select");
       expect(selectDefaultBranch).toHaveValue("9");
 
       await user.click(checkbox);
@@ -492,9 +511,8 @@ describe("Form (Users/ManageUsers)", () => {
       const defaultBranchWrapper = screen.getByTestId(
         "forminput-user.user.default_branch",
       );
-      const selectDefaultBranch = within(defaultBranchWrapper).getByTestId(
-        "select",
-      );
+      const selectDefaultBranch =
+        within(defaultBranchWrapper).getByTestId("select");
       expect(selectDefaultBranch).toHaveValue("10");
     });
   });
@@ -570,7 +588,9 @@ describe("Form (Users/ManageUsers)", () => {
 
       await user.click(screen.getByText("Editor"));
 
-      expect(await screen.findByText("App\\Models\\Core\\Branch")).toBeInTheDocument();
+      expect(
+        await screen.findByText("App\\Models\\Core\\Branch"),
+      ).toBeInTheDocument();
       expect(screen.getByText("2")).toBeInTheDocument();
     });
   });

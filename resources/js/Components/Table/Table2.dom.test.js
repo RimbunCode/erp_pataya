@@ -63,8 +63,7 @@ describe("datatableColumnsCookieKey", () => {
 
 describe("createHeaders", () => {
   beforeEach(() => {
-    document.cookie =
-      "datatable_columns_test=; path=/; max-age=0";
+    document.cookie = "datatable_columns_test=; path=/; max-age=0";
     window.history.pushState({}, "", "/test");
   });
 

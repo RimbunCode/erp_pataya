@@ -13,7 +13,18 @@ import TiptapEditor from "@/Components/TiptapEditor";
 // (TiptapEditor full), KEDUANYA dikonfigurasi dalam SATU Dialog yang sama
 // (feedback user: description ikut masuk Edit Dialog, tidak lagi inline
 // terpisah) — grid nested-lokal via rekursi DashboardCanvas (depth=1).
-export default function SectionBlock({ block, canEdit, onUpdate, onDelete, depth, isDragActive, activeDragType, onEjectChild, editOpen, onEditOpenChange }) {
+export default function SectionBlock({
+  block,
+  canEdit,
+  onUpdate,
+  onDelete,
+  depth,
+  isDragActive,
+  activeDragType,
+  onEjectChild,
+  editOpen,
+  onEditOpenChange,
+}) {
   const config = block.config ?? {};
 
   return (
@@ -21,7 +32,12 @@ export default function SectionBlock({ block, canEdit, onUpdate, onDelete, depth
     // edit (menandai batas container yang bisa di-drop). Di mode baca,
     // section adalah pengelompokan visual murni — bingkai justru bikin
     // dashboard terlihat penuh kotak bersarang.
-    <div className={cn(canEdit && "rounded-lg border-2 border-dashed px-4", "py-2")}>
+    <div
+      className={cn(
+        canEdit && "rounded-lg border-2 border-dashed px-4",
+        "py-2",
+      )}
+    >
       {/* Feedback user: header Section kini seragam dengan block lain —
           ikon opsional + judul + deskripsi sebagai tooltip (bukan lagi
           paragraf terpisah di bawah judul). */}
@@ -47,9 +63,13 @@ export default function SectionBlock({ block, canEdit, onUpdate, onDelete, depth
           isNew={block.isNew}
           onCancelNew={onDelete}
           validate={(draft) =>
-            !draft.label?.html?.replace(/<[^>]*>/g, "").trim() ? "Judul Section wajib diisi." : null
+            !draft.label?.html?.replace(/<[^>]*>/g, "").trim()
+              ? "Judul Section wajib diisi."
+              : null
           }
-          onSave={(draft) => onUpdate({ ...block, config: draft, isNew: false })}
+          onSave={(draft) =>
+            onUpdate({ ...block, config: draft, isNew: false })
+          }
           renderForm={(draft, patchDraft) => (
             <>
               <div className="flex flex-col gap-1.5">
@@ -57,7 +77,9 @@ export default function SectionBlock({ block, canEdit, onUpdate, onDelete, depth
                 <TiptapEditor
                   variant="minimal"
                   value={richTextValue(draft.label)}
-                  onValueChange={(json, html) => patchDraft({ label: { json, html } })}
+                  onValueChange={(json, html) =>
+                    patchDraft({ label: { json, html } })
+                  }
                 />
               </div>
               <div className="flex flex-col gap-1.5">
@@ -71,11 +93,16 @@ export default function SectionBlock({ block, canEdit, onUpdate, onDelete, depth
               </div>
               <div className="flex flex-col gap-1.5">
                 <label className="text-sm font-medium">
-                  Deskripsi <span className="text-muted-foreground">(opsional, tampil sbg tooltip)</span>
+                  Deskripsi{" "}
+                  <span className="text-muted-foreground">
+                    (opsional, tampil sbg tooltip)
+                  </span>
                 </label>
                 <TiptapEditor
                   value={richTextValue(draft.description)}
-                  onValueChange={(json, html) => patchDraft({ description: { json, html } })}
+                  onValueChange={(json, html) =>
+                    patchDraft({ description: { json, html } })
+                  }
                 />
               </div>
             </>
@@ -102,7 +129,12 @@ export default function SectionBlock({ block, canEdit, onUpdate, onDelete, depth
       {canEdit && (
         <GroupDropZone
           dropZoneId={`section-footer:${block.ref ?? block.id}`}
-          isActive={isDragActive && activeDragType !== null && activeDragType !== "section" && activeDragType !== "link_card_item"}
+          isActive={
+            isDragActive &&
+            activeDragType !== null &&
+            activeDragType !== "section" &&
+            activeDragType !== "link_card_item"
+          }
           label="Lepas di sini untuk masuk section"
         />
       )}

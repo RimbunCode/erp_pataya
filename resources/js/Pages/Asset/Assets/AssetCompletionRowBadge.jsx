@@ -12,6 +12,8 @@ import { useState } from "react";
  * @param root0.fixedAssets
  * @param root0.sourceItemId
  * @param root0.sourceItemIdKey
+ * @param root0.sourceDocumentType
+ * @param root0.sourceDocumentId
  */
 export default function AssetCompletionRowBadge({
   fixedAssets,

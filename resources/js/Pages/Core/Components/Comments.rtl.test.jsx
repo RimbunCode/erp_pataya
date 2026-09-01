@@ -1,5 +1,5 @@
 import { describe, expect, it, vi, beforeEach } from "vitest";
-import { render, screen, within } from "@testing-library/react";
+import { render, screen } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 
 // t harus stabil -- Comments.jsx tidak punya useEffect ber-dependency `t`,
@@ -47,9 +47,7 @@ vi.mock("@/Components/TiptapEditor", () => ({
     // getHTML() harus mencerminkan draft TERAKHIR yang diketik user di sesi
     // dialog ini, bukan `value` prop awal (yang untuk mode edit berisi
     // comment_json existing dan tidak berubah walau user mengetik ulang).
-    const draftRef = React.useRef(
-      value ? "<p>existing</p>" : "",
-    );
+    const draftRef = React.useRef(value ? "<p>existing</p>" : "");
     React.useImperativeHandle(ref, () => ({
       getHTML: () => draftRef.current,
       isEmpty: !draftRef.current,

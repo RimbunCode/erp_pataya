@@ -117,7 +117,10 @@ describe("Tags", () => {
 
   it("mengetik search memanggil axios.get ke tags.index setelah debounce", async () => {
     vi.useFakeTimers({ shouldAdvanceTime: true });
-    const user = userEvent.setup({ delay: null, advanceTimers: vi.advanceTimersByTime });
+    const user = userEvent.setup({
+      delay: null,
+      advanceTimers: vi.advanceTimersByTime,
+    });
     axiosGet.mockResolvedValue({
       data: [{ id: 10, name: "penting" }],
     });
@@ -141,7 +144,10 @@ describe("Tags", () => {
 
   it("axios.get gagal saat search menampilkan toast error", async () => {
     vi.useFakeTimers({ shouldAdvanceTime: true });
-    const user = userEvent.setup({ delay: null, advanceTimers: vi.advanceTimersByTime });
+    const user = userEvent.setup({
+      delay: null,
+      advanceTimers: vi.advanceTimersByTime,
+    });
     axiosGet.mockRejectedValue(new Error("network error"));
 
     render(<Tags />);
@@ -162,7 +168,10 @@ describe("Tags", () => {
 
   it("mode edit: memilih tag hasil pencarian memanggil router.post ke basePath/tag", async () => {
     vi.useFakeTimers({ shouldAdvanceTime: true });
-    const user = userEvent.setup({ delay: null, advanceTimers: vi.advanceTimersByTime });
+    const user = userEvent.setup({
+      delay: null,
+      advanceTimers: vi.advanceTimersByTime,
+    });
     axiosGet.mockResolvedValue({
       data: [{ id: 20, name: "important" }],
     });
@@ -197,7 +206,10 @@ describe("Tags", () => {
 
   it("mode create: memilih tag hasil pencarian menyimpan ke buffered_tags via setData (bukan router.post)", async () => {
     vi.useFakeTimers({ shouldAdvanceTime: true });
-    const user = userEvent.setup({ delay: null, advanceTimers: vi.advanceTimersByTime });
+    const user = userEvent.setup({
+      delay: null,
+      advanceTimers: vi.advanceTimersByTime,
+    });
     const setData = vi.fn();
     useFormPageMock.mockReturnValue({
       isCreate: true,
@@ -277,7 +289,10 @@ describe("Tags", () => {
 
   it("menambah tag yang namanya sudah ada di daftar tidak memanggil router.post/setData", async () => {
     vi.useFakeTimers({ shouldAdvanceTime: true });
-    const user = userEvent.setup({ delay: null, advanceTimers: vi.advanceTimersByTime });
+    const user = userEvent.setup({
+      delay: null,
+      advanceTimers: vi.advanceTimersByTime,
+    });
     usePageMock.mockReturnValue({
       props: { tags: [{ id: 1, name: "sudah-ada" }] },
     });

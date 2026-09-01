@@ -5,7 +5,12 @@ import { useDroppable } from "@dnd-kit/core";
 // GroupDropZone lokal di DeskMenuItemManager.jsx (selalu mounted di DOM
 // spy dnd-kit mendaftarkannya sbg target valid sebelum drag dimulai,
 // visually hidden via opacity-0 sampai drag aktif).
-export default function GroupDropZone({ dropZoneId, disabled, isActive, label = "Lepas di sini" }) {
+export default function GroupDropZone({
+  dropZoneId,
+  disabled,
+  isActive,
+  label = "Lepas di sini",
+}) {
   const { setNodeRef, isOver } = useDroppable({ id: dropZoneId, disabled });
 
   if (disabled) return null;

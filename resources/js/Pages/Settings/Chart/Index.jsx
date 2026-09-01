@@ -15,7 +15,9 @@ export default function Index() {
             <p className="text-base font-medium text-left text-muted-foreground">
               {t(`settings.chart.visual_types.${dataRow.visual_type}`)}
             </p>
-            <p className="text-base font-medium text-left">{dataRow.chart_name}</p>
+            <p className="text-base font-medium text-left">
+              {dataRow.chart_name}
+            </p>
           </Link>
         </div>
       )}

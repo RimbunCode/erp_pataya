@@ -105,9 +105,7 @@ describe("Show (InternalOrders)", () => {
       );
       expect(screen.getByTestId("stub-form")).toBeInTheDocument();
       expect(
-        screen.queryByText(
-          "sales.internalOrder.actions.create_delivery_note",
-        ),
+        screen.queryByText("sales.internalOrder.actions.create_delivery_note"),
       ).not.toBeInTheDocument();
     });
 
@@ -124,9 +122,7 @@ describe("Show (InternalOrders)", () => {
         JSON.stringify({ isCreate: false, disabled: false, submitable: true }),
       );
       expect(
-        screen.queryByText(
-          "sales.internalOrder.actions.create_delivery_note",
-        ),
+        screen.queryByText("sales.internalOrder.actions.create_delivery_note"),
       ).not.toBeInTheDocument();
     });
 
@@ -161,9 +157,7 @@ describe("Show (InternalOrders)", () => {
       render(<Show internalOrder={internalOrder} />);
 
       expect(
-        screen.queryByText(
-          "sales.internalOrder.actions.create_delivery_note",
-        ),
+        screen.queryByText("sales.internalOrder.actions.create_delivery_note"),
       ).not.toBeInTheDocument();
     });
 
@@ -172,9 +166,7 @@ describe("Show (InternalOrders)", () => {
       render(<Show internalOrder={internalOrder} />);
 
       expect(
-        screen.queryByText(
-          "sales.internalOrder.actions.create_delivery_note",
-        ),
+        screen.queryByText("sales.internalOrder.actions.create_delivery_note"),
       ).not.toBeInTheDocument();
     });
 
@@ -183,9 +175,7 @@ describe("Show (InternalOrders)", () => {
       render(<Show internalOrder={internalOrder} />);
 
       expect(
-        screen.queryByText(
-          "sales.internalOrder.actions.create_delivery_note",
-        ),
+        screen.queryByText("sales.internalOrder.actions.create_delivery_note"),
       ).not.toBeInTheDocument();
     });
 
@@ -208,9 +198,7 @@ describe("Show (InternalOrders)", () => {
       render(<Show internalOrder={internalOrder} />);
 
       expect(
-        screen.queryByText(
-          "sales.internalOrder.actions.create_delivery_note",
-        ),
+        screen.queryByText("sales.internalOrder.actions.create_delivery_note"),
       ).not.toBeInTheDocument();
     });
 
@@ -221,9 +209,7 @@ describe("Show (InternalOrders)", () => {
       render(<Show internalOrder={internalOrder} />);
 
       expect(
-        screen.queryByText(
-          "sales.internalOrder.actions.create_delivery_note",
-        ),
+        screen.queryByText("sales.internalOrder.actions.create_delivery_note"),
       ).not.toBeInTheDocument();
     });
 
@@ -232,9 +218,7 @@ describe("Show (InternalOrders)", () => {
       render(<Show internalOrder={internalOrder} />);
 
       expect(
-        screen.queryByText(
-          "sales.internalOrder.actions.create_delivery_note",
-        ),
+        screen.queryByText("sales.internalOrder.actions.create_delivery_note"),
       ).not.toBeInTheDocument();
     });
 
@@ -243,9 +227,7 @@ describe("Show (InternalOrders)", () => {
       render(<Show internalOrder={internalOrder} />);
 
       expect(
-        screen.queryByText(
-          "sales.internalOrder.actions.create_delivery_note",
-        ),
+        screen.queryByText("sales.internalOrder.actions.create_delivery_note"),
       ).not.toBeInTheDocument();
     });
 
@@ -273,9 +255,7 @@ describe("Show (InternalOrders)", () => {
 
       expect(screen.getByTestId("form-page-controls")).toBeInTheDocument();
       expect(
-        screen.queryByText(
-          "sales.internalOrder.actions.create_delivery_note",
-        ),
+        screen.queryByText("sales.internalOrder.actions.create_delivery_note"),
       ).not.toBeInTheDocument();
     });
   });

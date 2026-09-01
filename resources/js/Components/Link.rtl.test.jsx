@@ -8,7 +8,10 @@ vi.mock("@inertiajs/core", async () => {
   const actual = await vi.importActual("@inertiajs/core");
   return {
     ...actual,
-    router: { visit: (...a) => routerVisit(...a), prefetch: (...a) => routerPrefetch(...a) },
+    router: {
+      visit: (...a) => routerVisit(...a),
+      prefetch: (...a) => routerPrefetch(...a),
+    },
   };
 });
 
@@ -19,7 +22,11 @@ describe("Link", () => {
   beforeEach(() => {
     routerVisit.mockReset();
     routerPrefetch.mockReset();
-    useIsDirtyForm.setState({ isDirty: false, showAlert: false, keepDraftOnClean: {} });
+    useIsDirtyForm.setState({
+      isDirty: false,
+      showAlert: false,
+      keepDraftOnClean: {},
+    });
     vi.useRealTimers();
   });
 

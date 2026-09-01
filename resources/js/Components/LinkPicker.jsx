@@ -55,7 +55,9 @@ export default function LinkPicker({ value, onValueChange, disabled }) {
       {linkType === "menu_item" ? (
         <Select
           value={linkTo}
-          onValueChange={(val) => onValueChange({ link_type: "menu_item", link_to: val })}
+          onValueChange={(val) =>
+            onValueChange({ link_type: "menu_item", link_to: val })
+          }
           options={menuItemOptions}
           disabled={disabled}
           placeholder="Pilih menu..."
@@ -63,7 +65,9 @@ export default function LinkPicker({ value, onValueChange, disabled }) {
       ) : (
         <Input
           value={linkTo}
-          onChange={(e) => onValueChange({ link_type: "url", link_to: e.target.value })}
+          onChange={(e) =>
+            onValueChange({ link_type: "url", link_to: e.target.value })
+          }
           pattern={URL_PATTERN}
           placeholder="https://... atau /path"
           disabled={disabled}

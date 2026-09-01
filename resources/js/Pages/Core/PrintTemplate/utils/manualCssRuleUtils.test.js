@@ -55,15 +55,11 @@ describe("normalizeCssInputToSelectorMap", () => {
   });
 
   it("tanpa primarySelector dan tanpa rule-block -> object kosong", () => {
-    expect(
-      normalizeCssInputToSelectorMap("color: red;", ""),
-    ).toEqual({});
+    expect(normalizeCssInputToSelectorMap("color: red;", "")).toEqual({});
   });
 
   it("teks dengan rule-block syntax ({ }) diparse sebagai selector map, key ter-trim", () => {
-    const result = normalizeCssInputToSelectorMap(
-      "  .card  { color: red; }",
-    );
+    const result = normalizeCssInputToSelectorMap("  .card  { color: red; }");
     expect(result).toEqual({ ".card": { color: "red" } });
   });
 });
@@ -76,7 +72,10 @@ describe("resolveProtectedSelectorsForComponent", () => {
   it("componentType 'grid' menghasilkan kandidat .gjs-grid, difilter oleh availability di currentRules", () => {
     const component = { getType: () => "grid", getClasses: () => [] };
     const currentRules = [{ selectors: ".gjs-grid" }, { selectors: ".other" }];
-    const result = resolveProtectedSelectorsForComponent(component, currentRules);
+    const result = resolveProtectedSelectorsForComponent(
+      component,
+      currentRules,
+    );
     expect(result).toEqual(new Set([".gjs-grid"]));
   });
 
@@ -86,7 +85,10 @@ describe("resolveProtectedSelectorsForComponent", () => {
       getClasses: () => ["gjs-row", "custom-class"],
     };
     const currentRules = [{ selectors: ".gjs-row" }];
-    const result = resolveProtectedSelectorsForComponent(component, currentRules);
+    const result = resolveProtectedSelectorsForComponent(
+      component,
+      currentRules,
+    );
     expect(result).toEqual(new Set([".gjs-row"]));
   });
 
@@ -201,9 +203,9 @@ describe("mergeProtectedSelectorStyles", () => {
 
 describe("findProtectedSelectorsInCssText", () => {
   it("protectedSelectors kosong -> array kosong", () => {
-    expect(findProtectedSelectorsInCssText(".card { color: red; }", [])).toEqual(
-      [],
-    );
+    expect(
+      findProtectedSelectorsInCssText(".card { color: red; }", []),
+    ).toEqual([]);
   });
 
   it("mendeteksi protected selector yang muncul sebagai selector map key", () => {

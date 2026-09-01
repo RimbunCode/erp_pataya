@@ -66,7 +66,13 @@ function useFormPageStateful() {
 vi.mock("@/Pages/Core/FormPage", async () => {
   const React = await import("react");
   return {
-    FormPageContent: ({ title, actions, children, collapsible, defaultOpen }) => (
+    FormPageContent: ({
+      title,
+      actions,
+      children,
+      collapsible,
+      defaultOpen,
+    }) => (
       <div
         data-testid="form-page-content"
         data-collapsible={collapsible ? "true" : "false"}
@@ -103,7 +109,10 @@ vi.mock("@/Components/FormTable", () => ({
       onValueChange?.(next);
     };
     return (
-      <div data-testid="stub-form-table" data-readonly={tableReadOnly ? "true" : "false"}>
+      <div
+        data-testid="stub-form-table"
+        data-readonly={tableReadOnly ? "true" : "false"}
+      >
         {rows.map((row, index) => (
           <div key={row.id ?? index} data-testid={`row-${index}`}>
             {columns.map((col) => (
@@ -654,9 +663,7 @@ describe("WorkOrders Form", () => {
       formPageSeed = { for_internal: false, items: [] };
       render(<Form />);
 
-      await user.click(
-        screen.getByTestId("customer-link-model-multi-branch"),
-      );
+      await user.click(screen.getByTestId("customer-link-model-multi-branch"));
 
       expect(screen.getByTestId("branch-link-model")).toHaveTextContent(
         "branch:none",
@@ -707,9 +714,7 @@ describe("WorkOrders Form", () => {
 
       const panels = screen.getAllByTestId("form-page-content");
       const externalNotePanel = panels.find((el) =>
-        el.textContent.includes(
-          "service.workOrder.columns.external_note",
-        ),
+        el.textContent.includes("service.workOrder.columns.external_note"),
       );
       expect(externalNotePanel).toHaveAttribute("data-default-open", "false");
       expect(externalNotePanel).toHaveAttribute("data-collapsible", "true");
@@ -722,9 +727,7 @@ describe("WorkOrders Form", () => {
 
       const panels = screen.getAllByTestId("form-page-content");
       const externalNotePanel = panels.find((el) =>
-        el.textContent.includes(
-          "service.workOrder.columns.external_note",
-        ),
+        el.textContent.includes("service.workOrder.columns.external_note"),
       );
       expect(externalNotePanel).toHaveAttribute("data-default-open", "true");
     });
@@ -740,7 +743,8 @@ describe("WorkOrders Form", () => {
       const buttons = screen.getAllByTestId("item-variant-link-model");
       const itemServiceButton = buttons.find(
         (btn) =>
-          btn.getAttribute("data-filters") === JSON.stringify({ type: "vehicle" }),
+          btn.getAttribute("data-filters") ===
+          JSON.stringify({ type: "vehicle" }),
       );
       expect(itemServiceButton).toBeDefined();
     });

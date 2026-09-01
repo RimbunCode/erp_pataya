@@ -3,7 +3,10 @@ import { flattenFilters } from "@/Hooks/useNestedFilters";
 
 import BlockDescriptionTooltip from "@/Components/DashboardBlocks/BlockDescriptionTooltip";
 import BlockEditDialog from "@/Components/DashboardBlocks/BlockEditDialog";
-import ColumnOrderPicker, { columnLabel, isSelectableColumn } from "@/Components/DashboardBlocks/ColumnOrderPicker";
+import ColumnOrderPicker, {
+  columnLabel,
+  isSelectableColumn,
+} from "@/Components/DashboardBlocks/ColumnOrderPicker";
 import FilterTable2 from "@/Components/Table/Filter/FilterTable2";
 import IconPicker from "@/Components/IconPicker";
 import { Input } from "@/Components/ui/input";
@@ -65,7 +68,11 @@ function useModelColumns(modelClass) {
     axios
       .get(window.route("model.columns", { model: modelClass }))
       .then((res) => {
-        if (!cancelled) setState({ columns: res.data?.columns ?? [], route: res.data?.route ?? null });
+        if (!cancelled)
+          setState({
+            columns: res.data?.columns ?? [],
+            route: res.data?.route ?? null,
+          });
       })
       .catch(() => {
         if (!cancelled) setState({ columns: [], route: null });
@@ -98,14 +105,25 @@ function useModelColumns(modelClass) {
 //   Quick List sengaja TIDAK dukung nested group/OR kompleks di backend
 //   — widget kecil dashboard, bukan listing DataTable penuh.
 // - pagination server-side: `limit` config = ukuran per halaman.
-export default function QuickListBlock({ block, canEdit, onUpdate, onDelete, editOpen, onEditOpenChange }) {
+export default function QuickListBlock({
+  block,
+  canEdit,
+  onUpdate,
+  onDelete,
+  editOpen,
+  onEditOpenChange,
+}) {
   const config = block.config ?? {};
   const [items, setItems] = useState([]);
   const [page, setPage] = useState(1);
   const [pageMeta, setPageMeta] = useState({ total: 0, lastPage: 1 });
   const [isLoading, setIsLoading] = useState(false);
   const modelClass = config.model_class;
-  const { columns: savedColumns, route: modelRoute, isLoading: isLoadingColumns } = useModelColumns(modelClass);
+  const {
+    columns: savedColumns,
+    route: modelRoute,
+    isLoading: isLoadingColumns,
+  } = useModelColumns(modelClass);
   const { t } = useLaravelReactI18n();
 
   // Bug ditemukan: dulu request FETCH kirim `config.columns` MENTAH (bisa
@@ -123,13 +141,23 @@ export default function QuickListBlock({ block, canEdit, onUpdate, onDelete, edi
   // sudah jadi keputusan tiap model, bukan diterka dari urutan).
   const visibleColumns = config.columns?.length
     ? config.columns
-    : savedColumns.filter(isSelectableColumn).filter((c) => c.show === true).map((c) => c.name);
+    : savedColumns
+        .filter(isSelectableColumn)
+        .filter((c) => c.show === true)
+        .map((c) => c.name);
 
   // Ganti model/filter/kolom/sort/limit → kembali ke halaman 1 (halaman
   // lama bisa saja sudah melewati total halaman baru).
   useEffect(() => {
     setPage(1);
-  }, [modelClass, config.filters, visibleColumns.join(","), config.sort_by, config.sort_direction, config.limit]);
+  }, [
+    modelClass,
+    config.filters,
+    visibleColumns.join(","),
+    config.sort_by,
+    config.sort_direction,
+    config.limit,
+  ]);
 
   useEffect(() => {
     if (!modelClass || visibleColumns.length === 0) {
@@ -138,7 +166,9 @@ export default function QuickListBlock({ block, canEdit, onUpdate, onDelete, edi
       return;
     }
     const flatFilters = config.filters?.root
-      ? flattenFilters(config.filters.root.c ?? config.filters.root.children ?? {})
+      ? flattenFilters(
+          config.filters.root.c ?? config.filters.root.children ?? {},
+        )
       : [];
     let cancelled = false;
     setIsLoading(true);
@@ -164,7 +194,10 @@ export default function QuickListBlock({ block, canEdit, onUpdate, onDelete, edi
         // whitelist kolom ketat), tapi nilainya cuma nama class model —
         // metadata, SAMA PERSIS dgn `modelClass` yang FE kirim sendiri di
         // request ini, bukan data sensitif yang perlu izin server.
-        const rows = (res.data?.data ?? []).map((row) => ({ ...row, thisModel: modelClass }));
+        const rows = (res.data?.data ?? []).map((row) => ({
+          ...row,
+          thisModel: modelClass,
+        }));
         setItems(rows);
         setPageMeta({
           total: res.data?.total ?? 0,
@@ -185,9 +218,20 @@ export default function QuickListBlock({ block, canEdit, onUpdate, onDelete, edi
     return () => {
       cancelled = true;
     };
-  }, [modelClass, config.filters, visibleColumns.join(","), config.sort_by, config.sort_direction, config.limit, page]);
+  }, [
+    modelClass,
+    config.filters,
+    visibleColumns.join(","),
+    config.sort_by,
+    config.sort_direction,
+    config.limit,
+    page,
+  ]);
 
-  const columnByName = useMemo(() => new Map(savedColumns.map((c) => [c.name, c])), [savedColumns]);
+  const columnByName = useMemo(
+    () => new Map(savedColumns.map((c) => [c.name, c])),
+    [savedColumns],
+  );
 
   return (
     // h-full: block mengisi tinggi baris grid (SortableBlock sudah
@@ -210,7 +254,9 @@ export default function QuickListBlock({ block, canEdit, onUpdate, onDelete, edi
       </div>
 
       {!modelClass ? (
-        <div className="text-sm text-muted-foreground">Belum ada Model dipilih.</div>
+        <div className="text-sm text-muted-foreground">
+          Belum ada Model dipilih.
+        </div>
       ) : (
         <>
           {/* flex-1 + min-h-0: tabel mengisi SISA tinggi block (bukan lagi
@@ -251,7 +297,10 @@ export default function QuickListBlock({ block, canEdit, onUpdate, onDelete, edi
                   </tr>
                 ) : items.length === 0 ? (
                   <tr>
-                    <td colSpan={visibleColumns.length || 1} className="py-6 text-center text-sm text-muted-foreground">
+                    <td
+                      colSpan={visibleColumns.length || 1}
+                      className="py-6 text-center text-sm text-muted-foreground"
+                    >
                       Tidak ada data.
                     </td>
                   </tr>
@@ -260,10 +309,16 @@ export default function QuickListBlock({ block, canEdit, onUpdate, onDelete, edi
                   // jadi fallback ke index — backend sudah menjamin urutan
                   // baris stabil lewat orderBy.
                   items.map((item, rowIndex) => (
-                    <tr key={item.id ?? rowIndex} className="border-b last:border-0 hover:bg-muted/40">
+                    <tr
+                      key={item.id ?? rowIndex}
+                      className="border-b last:border-0 hover:bg-muted/40"
+                    >
                       {visibleColumns.map((colName) => {
                         const { type, name, parse, valueTrans, ...colProps } =
-                          columnByName.get(colName) ?? { name: colName, type: "string" };
+                          columnByName.get(colName) ?? {
+                            name: colName,
+                            type: "string",
+                          };
                         // Kolom fisik isLink (mis. "code") tidak bawa `route`
                         // sendiri dari backend (beda dgn kolom relasi yang
                         // sudah punya route spesifik) — pola sama DataTable2
@@ -276,7 +331,14 @@ export default function QuickListBlock({ block, canEdit, onUpdate, onDelete, edi
 
                         return (
                           <td key={colName} className="truncate px-2 py-1.5">
-                            <Cell row={item} type={type} name={name} parse={parse} valueTrans={valueTrans} {...colProps} />
+                            <Cell
+                              row={item}
+                              type={type}
+                              name={name}
+                              parse={parse}
+                              valueTrans={valueTrans}
+                              {...colProps}
+                            />
                           </td>
                         );
                       })}
@@ -312,12 +374,15 @@ export default function QuickListBlock({ block, canEdit, onUpdate, onDelete, edi
             // di-auto-fill ke draft SEKALI saat model dipilih (lihat useEffect
             // di QuickListForm), tapi tetap WAJIB tervalidasi supaya model
             // tanpa kolom show:true/created_at memaksa user memilih manual.
-            if (!draft.columns?.length) return "Pilih minimal satu kolom untuk ditampilkan.";
+            if (!draft.columns?.length)
+              return "Pilih minimal satu kolom untuk ditampilkan.";
             if (!draft.sort_by) return "Urutkan berdasarkan wajib diisi.";
 
             return null;
           }}
-          onSave={(draft) => onUpdate({ ...block, config: draft, isNew: false })}
+          onSave={(draft) =>
+            onUpdate({ ...block, config: draft, isNew: false })
+          }
           renderForm={(draft, patchDraft) => (
             <QuickListForm draft={draft} patchDraft={patchDraft} />
           )}
@@ -331,15 +396,18 @@ export default function QuickListBlock({ block, canEdit, onUpdate, onDelete, edi
 // react ke draft.model_class (bukan config.model_class yang sudah
 // tersimpan) — bug utama yang diperbaiki di sesi ini.
 function QuickListForm({ draft, patchDraft }) {
-  const { columns, isLoading: isLoadingColumns } = useModelColumns(draft.model_class);
+  const { columns, isLoading: isLoadingColumns } = useModelColumns(
+    draft.model_class,
+  );
   const { t } = useLaravelReactI18n();
   // sort_by HANYA masuk akal utk kolom yang backend bisa ORDER BY —
   // kolom relasi/metadata sudah ditandai sortable:false di getColumns().
   const columnOptions = useMemo(
-    () => columns
-      .filter(isSelectableColumn)
-      .filter((c) => c.sortable !== false)
-      .map((c) => ({ value: c.name, label: columnLabel(c, t) })),
+    () =>
+      columns
+        .filter(isSelectableColumn)
+        .filter((c) => c.sortable !== false)
+        .map((c) => ({ value: c.name, label: columnLabel(c, t) })),
     [columns, t],
   );
 
@@ -400,11 +468,16 @@ function QuickListForm({ draft, patchDraft }) {
       </div>
       <div className="flex flex-col gap-1.5">
         <label className="text-sm font-medium">
-          Deskripsi <span className="text-muted-foreground">(opsional, tampil sbg tooltip)</span>
+          Deskripsi{" "}
+          <span className="text-muted-foreground">
+            (opsional, tampil sbg tooltip)
+          </span>
         </label>
         <TiptapEditor
           value={richTextValue(draft.description)}
-          onValueChange={(json, html) => patchDraft({ description: { json, html } })}
+          onValueChange={(json, html) =>
+            patchDraft({ description: { json, html } })
+          }
         />
       </div>
       <div className="flex flex-col gap-1.5">

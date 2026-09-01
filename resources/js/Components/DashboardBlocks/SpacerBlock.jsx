@@ -89,8 +89,17 @@ function PositionToggle({ value, onChange }) {
 // maupun Expand/Shrink (lihat DashboardCanvas: hideResize untuk spacer).
 // Yang diatur: tipe (jarak kosong vs garis), ukuran tinggi, dan — khusus
 // divider — style garis serta posisinya dalam tinggi box.
-export default function SpacerBlock({ block, canEdit, onUpdate, onDelete, editOpen, onEditOpenChange }) {
-  const { variant, size, lineStyle, position } = defaultSpacerConfig(block.config);
+export default function SpacerBlock({
+  block,
+  canEdit,
+  onUpdate,
+  onDelete,
+  editOpen,
+  onEditOpenChange,
+}) {
+  const { variant, size, lineStyle, position } = defaultSpacerConfig(
+    block.config,
+  );
   const isDivider = variant === "divider";
   const sizePx = SIZE_PX[size] ?? SIZE_PX.md;
 
@@ -122,7 +131,9 @@ export default function SpacerBlock({ block, canEdit, onUpdate, onDelete, editOp
           />
         ) : (
           canEdit && (
-            <span className="text-[10px] text-muted-foreground">Spacer · {size}</span>
+            <span className="text-[10px] text-muted-foreground">
+              Spacer · {size}
+            </span>
           )
         )}
       </div>
@@ -135,7 +146,9 @@ export default function SpacerBlock({ block, canEdit, onUpdate, onDelete, editOp
           onOpenChange={onEditOpenChange}
           isNew={block.isNew}
           onCancelNew={onDelete}
-          onSave={(draft) => onUpdate({ ...block, config: draft, isNew: false })}
+          onSave={(draft) =>
+            onUpdate({ ...block, config: draft, isNew: false })
+          }
           renderForm={(draft, patchDraft) => (
             <>
               <div className="flex flex-col gap-1.5">

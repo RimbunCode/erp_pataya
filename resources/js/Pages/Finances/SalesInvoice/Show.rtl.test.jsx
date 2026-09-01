@@ -293,9 +293,7 @@ describe("Show (SalesInvoice)", () => {
       );
 
       expect(
-        screen.queryByText(
-          "finances.salesInvoice.actions.create_credit_note",
-        ),
+        screen.queryByText("finances.salesInvoice.actions.create_credit_note"),
       ).not.toBeInTheDocument();
     });
 
@@ -314,9 +312,7 @@ describe("Show (SalesInvoice)", () => {
       );
 
       expect(
-        screen.queryByText(
-          "finances.salesInvoice.actions.create_credit_note",
-        ),
+        screen.queryByText("finances.salesInvoice.actions.create_credit_note"),
       ).not.toBeInTheDocument();
     });
 
@@ -334,9 +330,7 @@ describe("Show (SalesInvoice)", () => {
       );
 
       expect(
-        screen.queryByText(
-          "finances.salesInvoice.actions.create_credit_note",
-        ),
+        screen.queryByText("finances.salesInvoice.actions.create_credit_note"),
       ).not.toBeInTheDocument();
     });
 

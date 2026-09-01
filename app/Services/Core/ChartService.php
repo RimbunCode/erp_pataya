@@ -192,12 +192,12 @@ class ChartService {
         $startDate = $config['dateRange']['from'] ?? null;
         $endDate   = $config['dateRange']['to'] ?? null;
         $interval  = match ($chart->time_interval) {
-            'daily', 'day' => 'day',
-            'weekly', 'week' => 'week',
-            'monthly', 'month' => 'month',
+            'daily', 'day'         => 'day',
+            'weekly', 'week'       => 'week',
+            'monthly', 'month'     => 'month',
             'quarterly', 'quarter' => 'quarter',
-            'yearly', 'year' => 'year',
-            default => 'month',
+            'yearly', 'year'       => 'year',
+            default                => 'month',
         };
         $locale      = $config['locale'] ?? app()->getLocale();
         $timeBasedOn = $chart->based_on;

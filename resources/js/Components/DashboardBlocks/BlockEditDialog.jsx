@@ -40,12 +40,12 @@ export default function BlockEditDialog({
   onCancelNew,
   validate,
 }) {
-  const resolveInitial = () => (initialDraft !== undefined ? initialDraft : (block.config ?? {}));
+  const resolveInitial = () =>
+    initialDraft !== undefined ? initialDraft : (block.config ?? {});
   const [draft, setDraft] = useState(resolveInitial);
 
   useEffect(() => {
     if (open) setDraft(resolveInitial());
-    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [open, block.config, initialDraft]);
 
   if (!canEdit) return null;
@@ -84,7 +84,9 @@ export default function BlockEditDialog({
           <DialogTitle>{title}</DialogTitle>
         </DialogHeader>
         <div className="flex flex-col gap-3">
-          {renderForm(draft, (patch) => setDraft((prev) => ({ ...prev, ...patch })))}
+          {renderForm(draft, (patch) =>
+            setDraft((prev) => ({ ...prev, ...patch })),
+          )}
           {errorMessage && (
             <div className="text-xs text-destructive">{errorMessage}</div>
           )}

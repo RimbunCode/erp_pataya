@@ -8,12 +8,18 @@ import { formatNumber } from "./numberFormat";
 
 describe("formatNumber", () => {
   it("full=true delegasi ke NumberInput/formatNumber via pattern numberFormat", () => {
-    expect(formatNumber(1234567, { full: true, numberFormat: "#,###.##" })).toBe("1,234,567.00");
+    expect(
+      formatNumber(1234567, { full: true, numberFormat: "#,###.##" }),
+    ).toBe("1,234,567.00");
   });
 
   it("full=true pattern id (#.###,##) menghasilkan pemisah beda dari pattern en", () => {
-    expect(formatNumber(1234567, { full: true, numberFormat: "#.###,##" })).toBe("1.234.567,00");
-    expect(formatNumber(1234567, { full: true, numberFormat: "#,###.##" })).toBe("1,234,567.00");
+    expect(
+      formatNumber(1234567, { full: true, numberFormat: "#.###,##" }),
+    ).toBe("1.234.567,00");
+    expect(
+      formatNumber(1234567, { full: true, numberFormat: "#,###.##" }),
+    ).toBe("1,234,567.00");
   });
 
   it("full=true tanpa numberFormat pakai default groupSeparator NumberInput/formatNumber sendiri (desimal dipertahankan apa adanya, tidak dipaksa 2 digit)", () => {
@@ -36,10 +42,14 @@ describe("formatNumber", () => {
   });
 
   it("value null/undefined diperlakukan sebagai 0, bukan crash/NaN (full)", () => {
-    expect(formatNumber(null, { full: true, numberFormat: "#,###.##" })).toBe("0.00");
+    expect(formatNumber(null, { full: true, numberFormat: "#,###.##" })).toBe(
+      "0.00",
+    );
   });
 
   it("value string numerik tetap diformat benar", () => {
-    expect(formatNumber("1234567", { full: true, numberFormat: "#,###.##" })).toBe("1,234,567.00");
+    expect(
+      formatNumber("1234567", { full: true, numberFormat: "#,###.##" }),
+    ).toBe("1,234,567.00");
   });
 });

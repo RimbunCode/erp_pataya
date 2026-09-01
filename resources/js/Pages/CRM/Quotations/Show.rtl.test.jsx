@@ -69,7 +69,9 @@ describe("Show (CRM/Quotations)", () => {
 
   it("disabled mengikuti quotation.submitted_at", () => {
     render(
-      <Show quotation={{ id: 1, status: "submitted", submitted_at: "2026-08-01" }} />,
+      <Show
+        quotation={{ id: 1, status: "submitted", submitted_at: "2026-08-01" }}
+      />,
     );
 
     expect(screen.getByTestId("form-page-meta")).toHaveTextContent(
@@ -86,9 +88,9 @@ describe("Show (CRM/Quotations)", () => {
   it("status submitted: tombol create_sales_order muncul dengan href ref quotation/{id}", () => {
     render(<Show quotation={{ id: 7, status: "submitted" }} />);
 
-    const link = screen.getByText(
-      "crm.quotation.actions.create_sales_order",
-    ).closest("a");
+    const link = screen
+      .getByText("crm.quotation.actions.create_sales_order")
+      .closest("a");
     expect(link).toHaveAttribute(
       "href",
       `salesOrders.create/${JSON.stringify({ ref: "quotation/7" })}`,

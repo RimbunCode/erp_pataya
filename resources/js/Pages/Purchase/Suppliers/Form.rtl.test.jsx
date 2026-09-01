@@ -101,9 +101,9 @@ describe("Suppliers Form", () => {
     const user = userEvent.setup({ delay: null });
     renderForm(<Form />);
 
-    const nameInput = within(
-      screen.getByTestId("forminput-name"),
-    ).getByRole("textbox");
+    const nameInput = within(screen.getByTestId("forminput-name")).getByRole(
+      "textbox",
+    );
     await user.type(nameInput, "PT Sukses");
 
     expect(nameInput).toHaveValue("PT Sukses");

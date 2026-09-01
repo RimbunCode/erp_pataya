@@ -9,7 +9,11 @@ vi.mock("laravel-react-i18n", () => ({
 // sini, cukup ekspos title & children untuk verifikasi ShowLog meneruskannya.
 vi.mock("./FormPage", () => ({
   FormPageDiff: ({ title, disabled, children }) => (
-    <div data-testid="stub-form-page-diff" data-title={title} data-disabled={disabled}>
+    <div
+      data-testid="stub-form-page-diff"
+      data-title={title}
+      data-disabled={disabled}
+    >
       {children}
     </div>
   ),

@@ -23,7 +23,14 @@ function resolveShortcutHref(config, allMenuItems) {
 // grid /desks (satu sumber kebenaran styling, bukan implementasi kedua
 // yang bisa drift). Trigger Edit di toolbar SortableBlock (Dialog
 // controlled lewat editOpen/onEditOpenChange).
-export default function ShortcutBlock({ block, canEdit, onUpdate, onDelete, editOpen, onEditOpenChange }) {
+export default function ShortcutBlock({
+  block,
+  canEdit,
+  onUpdate,
+  onDelete,
+  editOpen,
+  onEditOpenChange,
+}) {
   const { allMenuItems = [] } = usePage().props;
   const config = block.config ?? {};
   const { className: colorClassName, style: colorStyle } = getDeskColorStyle({
@@ -56,7 +63,9 @@ export default function ShortcutBlock({ block, canEdit, onUpdate, onDelete, edit
         >
           {resolveIcon(config.icon)}
         </span>
-        <span className="text-sm font-medium">{config.label ?? "Shortcut"}</span>
+        <span className="text-sm font-medium">
+          {config.label ?? "Shortcut"}
+        </span>
       </Wrapper>
       {canEdit && (
         <BlockEditDialog
@@ -67,8 +76,12 @@ export default function ShortcutBlock({ block, canEdit, onUpdate, onDelete, edit
           onOpenChange={onEditOpenChange}
           isNew={block.isNew}
           onCancelNew={onDelete}
-          validate={(draft) => (!draft.label?.trim() ? "Label wajib diisi." : null)}
-          onSave={(draft) => onUpdate({ ...block, config: draft, isNew: false })}
+          validate={(draft) =>
+            !draft.label?.trim() ? "Label wajib diisi." : null
+          }
+          onSave={(draft) =>
+            onUpdate({ ...block, config: draft, isNew: false })
+          }
           renderForm={(draft, patchDraft) => (
             <>
               <div className="flex flex-col gap-1.5">
@@ -98,14 +111,18 @@ export default function ShortcutBlock({ block, canEdit, onUpdate, onDelete, edit
                   <label className="text-sm font-medium">Warna Latar</label>
                   <ColorInput
                     value={draft.background_color ?? ""}
-                    onValueChange={(val) => patchDraft({ background_color: val })}
+                    onValueChange={(val) =>
+                      patchDraft({ background_color: val })
+                    }
                   />
                 </div>
                 <div className="flex flex-col gap-1.5">
                   <label className="text-sm font-medium">Warna Icon</label>
                   <ColorInput
                     value={draft.foreground_color ?? ""}
-                    onValueChange={(val) => patchDraft({ foreground_color: val })}
+                    onValueChange={(val) =>
+                      patchDraft({ foreground_color: val })
+                    }
                   />
                 </div>
               </div>
