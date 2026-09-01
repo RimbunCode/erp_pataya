@@ -20,7 +20,17 @@ if (typeof globalThis.ResizeObserver === "undefined") {
 // test untuk useTheme sendiri. Polyfill in-memory global di sini (bukan
 // per-test-file) supaya seluruh komponen yang narik useTheme tetap bisa
 // di-render. Lihat juga Hooks/useTheme.dom.test.js untuk detail root cause.
-if (typeof globalThis.localStorage === "undefined") {
+//
+// Guard juga harus cek `getItem` benar-benar function, bukan cuma
+// `typeof === "undefined"` -- pada Node versi lain (mis. CI pakai versi
+// beda dari mesin dev via .nvmrc), globalThis.localStorage sudah TERISI
+// native (bukan undefined) tapi objeknya rusak/tidak lengkap tanpa flag
+// --localstorage-file, jadi getItem bukan function. Guard yang cuma cek
+// undefined lolos di kondisi ini dan polyfill tidak pernah terpasang.
+if (
+  typeof globalThis.localStorage === "undefined" ||
+  typeof globalThis.localStorage.getItem !== "function"
+) {
   const store = new Map();
   globalThis.localStorage = {
     getItem: (key) => (store.has(key) ? store.get(key) : null),
