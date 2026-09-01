@@ -1,5 +1,5 @@
 import { describe, expect, it, vi, beforeEach } from "vitest";
-import { render, screen, within } from "@testing-library/react";
+import { act, render, screen, within } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import React, { useState } from "react";
 
@@ -165,8 +165,12 @@ function Harness({ initialData = {}, disabled = false }) {
   );
 }
 
-function renderForm(props) {
-  return render(<Harness {...props} />);
+async function renderForm(props) {
+  let utils;
+  await act(async () => {
+    utils = render(<Harness {...props} />);
+  });
+  return utils;
 }
 
 /**
@@ -217,8 +221,8 @@ describe("PrintTemplate Form", () => {
   });
 
   describe("rendering dasar & toggle is_letter_head", () => {
-    it("menampilkan field model (PermissionLinkModel) & style settings ketika is_letter_head=false", () => {
-      renderForm({ initialData: { is_letter_head: false } });
+    it("menampilkan field model (PermissionLinkModel) & style settings ketika is_letter_head=false", async () => {
+      await renderForm({ initialData: { is_letter_head: false } });
 
       expect(screen.getByTestId("permission-link-model")).toBeInTheDocument();
       expect(
@@ -226,8 +230,8 @@ describe("PrintTemplate Form", () => {
       ).toBeInTheDocument();
     });
 
-    it("menyembunyikan field model & style settings, tapi tetap tampilkan name & letter_head selector ketika is_letter_head=true", () => {
-      renderForm({ initialData: { is_letter_head: true } });
+    it("menyembunyikan field model & style settings, tapi tetap tampilkan name & letter_head selector ketika is_letter_head=true", async () => {
+      await renderForm({ initialData: { is_letter_head: true } });
 
       expect(
         screen.queryByTestId("permission-link-model"),
@@ -247,7 +251,7 @@ describe("PrintTemplate Form", () => {
 
     it("mencentang checkbox is_letter_head memicu setData dan menyembunyikan section style settings", async () => {
       const user = userEvent.setup({ delay: null });
-      renderForm({ initialData: { is_letter_head: false } });
+      await renderForm({ initialData: { is_letter_head: false } });
 
       expect(
         screen.getByText("core.printTemplate.style_settings"),
@@ -273,7 +277,7 @@ describe("PrintTemplate Form", () => {
       // re-render (bukan bug Form.jsx). Interaksi lewat UI (ganti Select
       // page_number sungguhan) supaya reaktif thd context nyata.
       const user = userEvent.setup({ delay: null });
-      renderForm({
+      await renderForm({
         initialData: { is_letter_head: false, page_number: "hide" },
       });
       expect(
@@ -294,7 +298,7 @@ describe("PrintTemplate Form", () => {
   describe("kalkulasi paper size", () => {
     it("memilih paper baru menghitung ulang width/height sesuai paperSize & conversion_factor unit aktif", async () => {
       const user = userEvent.setup({ delay: null });
-      renderForm({
+      await renderForm({
         initialData: {
           is_letter_head: false,
           paper: "A4",
@@ -321,7 +325,7 @@ describe("PrintTemplate Form", () => {
 
     it("memilih paper='custom' TIDAK mengubah width/height (dipertahankan dari state sebelumnya)", async () => {
       const user = userEvent.setup({ delay: null });
-      renderForm({
+      await renderForm({
         initialData: {
           is_letter_head: false,
           paper: "A4",
@@ -347,7 +351,7 @@ describe("PrintTemplate Form", () => {
 
     it("orientation=landscape menukar posisi width/height saat memilih paper baru", async () => {
       const user = userEvent.setup({ delay: null });
-      renderForm({
+      await renderForm({
         initialData: {
           is_letter_head: false,
           paper: "A4",
@@ -377,7 +381,7 @@ describe("PrintTemplate Form", () => {
   describe("kalkulasi orientation", () => {
     it("mengganti orientation menukar nilai width & height", async () => {
       const user = userEvent.setup({ delay: null });
-      renderForm({
+      await renderForm({
         initialData: {
           is_letter_head: false,
           orientation: "portrait",
@@ -405,7 +409,7 @@ describe("PrintTemplate Form", () => {
   describe("kalkulasi unit (konversi width/height/margin)", () => {
     it("mengganti unit dari cm ke mm mengalikan width/height/margin dengan rasio conversion_factor", async () => {
       const user = userEvent.setup({ delay: null });
-      renderForm({
+      await renderForm({
         initialData: {
           is_letter_head: false,
           paper: "custom",
@@ -442,7 +446,7 @@ describe("PrintTemplate Form", () => {
 
     it("mengganti unit dengan paper preset (bukan custom) menghitung width/height dari paperSize baru", async () => {
       const user = userEvent.setup({ delay: null });
-      renderForm({
+      await renderForm({
         initialData: {
           is_letter_head: false,
           paper: "A4",
@@ -470,7 +474,7 @@ describe("PrintTemplate Form", () => {
   describe("kalkulasi width/height manual & auto-switch ke paper=custom", () => {
     it("mengubah width secara manual (beda dari paperSize aktif) mengubah paper jadi custom", async () => {
       const user = userEvent.setup({ delay: null });
-      renderForm({
+      await renderForm({
         initialData: {
           is_letter_head: false,
           paper: "A4",
@@ -493,7 +497,7 @@ describe("PrintTemplate Form", () => {
 
     it("width lebih besar dari height mengubah orientation jadi landscape", async () => {
       const user = userEvent.setup({ delay: null });
-      renderForm({
+      await renderForm({
         initialData: {
           is_letter_head: false,
           paper: "custom",
@@ -518,7 +522,7 @@ describe("PrintTemplate Form", () => {
 
     it("height >= width membuat orientation portrait", async () => {
       const user = userEvent.setup({ delay: null });
-      renderForm({
+      await renderForm({
         initialData: {
           is_letter_head: false,
           paper: "custom",
@@ -545,7 +549,7 @@ describe("PrintTemplate Form", () => {
   describe("fontOptions (dedup case-insensitive)", () => {
     it("menggabungkan font_family aktif dengan daftar font dari getFonts tanpa duplikat (case-insensitive)", async () => {
       getFontsMock.mockResolvedValue(["times new roman", "Calibri"]);
-      renderForm({
+      await renderForm({
         initialData: { is_letter_head: false, font_family: "Times New Roman" },
       });
 
@@ -572,7 +576,7 @@ describe("PrintTemplate Form", () => {
 
     it("font_family kosong/whitespace tidak masuk ke opsi (filter Boolean+trim)", async () => {
       getFontsMock.mockResolvedValue(["Arial"]);
-      renderForm({
+      await renderForm({
         initialData: { is_letter_head: false, font_family: "   " },
       });
 
@@ -591,7 +595,7 @@ describe("PrintTemplate Form", () => {
   describe("show_absolute_values", () => {
     it("checkbox show_absolute_values memanggil setData saat diklik", async () => {
       const user = userEvent.setup({ delay: null });
-      renderForm({
+      await renderForm({
         initialData: { is_letter_head: false, show_absolute_values: false },
       });
 

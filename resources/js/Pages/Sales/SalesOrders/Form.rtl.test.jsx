@@ -290,6 +290,22 @@ function renderForm(overrides = {}) {
   return { ...utils, stateRef };
 }
 
+// Varian async renderForm() -- dipakai HANYA oleh test yang datanya memicu
+// efek async saat mount (loadFrom -> loadFromModel, referenceable ->
+// AssetService lookup): render() polos RTL cuma membungkus act() bagian
+// SINKRON; promise mock (walau instan) tetap lanjut di microtask SESUDAH
+// act() itu selesai, dan waitFor() pasca-render cuma membungkus tiap
+// POLL-nya sendiri (balapan vs resolusi microtask pertama). Bungkus render()
+// ITU SENDIRI dalam `await act(async () => {})` -- versi async act() secara
+// eksplisit menunggu SEMUA microtask sampai stabil dulu.
+async function renderFormAsync(overrides = {}) {
+  let result;
+  await act(async () => {
+    result = renderForm(overrides);
+  });
+  return result;
+}
+
 describe("Sales Order Form.jsx", () => {
   beforeEach(() => {
     vi.clearAllMocks();
@@ -670,7 +686,7 @@ describe("Sales Order Form.jsx", () => {
           },
         ],
       });
-      const { stateRef } = renderForm({
+      const { stateRef } = await renderFormAsync({
         data: { date: new Date(), items: [] },
       });
 
@@ -1079,8 +1095,8 @@ describe("Sales Order Form.jsx", () => {
       });
     });
 
-    it("pilih ItemVariant kategori service tanpa match consumedItem: auto-link ke AssetService header, TIDAK locked", () => {
-      renderForm({
+    it("pilih ItemVariant kategori service tanpa match consumedItem: auto-link ke AssetService header, TIDAK locked", async () => {
+      await renderFormAsync({
         data: {
           date: new Date(),
           items: [],
@@ -1100,10 +1116,12 @@ describe("Sales Order Form.jsx", () => {
         attributes: {},
       });
 
-      element.props.onValueChange({
-        id: 999,
-        default_uom: null,
-        item: { category: { type: "service" } },
+      act(() => {
+        element.props.onValueChange({
+          id: 999,
+          default_uom: null,
+          item: { category: { type: "service" } },
+        });
       });
 
       expect(setDataRow).toHaveBeenCalledWith(
@@ -1114,8 +1132,8 @@ describe("Sales Order Form.jsx", () => {
       );
     });
 
-    it("pilih ItemVariant non-service tanpa match consumedItem: tidak auto-link, tidak locked", () => {
-      renderForm({
+    it("pilih ItemVariant non-service tanpa match consumedItem: tidak auto-link, tidak locked", async () => {
+      await renderFormAsync({
         data: {
           date: new Date(),
           items: [],
@@ -1135,10 +1153,12 @@ describe("Sales Order Form.jsx", () => {
         attributes: {},
       });
 
-      element.props.onValueChange({
-        id: 12345,
-        default_uom: null,
-        item: { category: { type: "inventory" } },
+      act(() => {
+        element.props.onValueChange({
+          id: 12345,
+          default_uom: null,
+          item: { category: { type: "inventory" } },
+        });
       });
 
       const patch = setDataRow.mock.calls[0][0];

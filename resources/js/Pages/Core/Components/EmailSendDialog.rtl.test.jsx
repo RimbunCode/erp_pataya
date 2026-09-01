@@ -1,5 +1,5 @@
 import { describe, expect, it, vi, beforeEach } from "vitest";
-import { render, screen } from "@testing-library/react";
+import { act, render, screen } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import React from "react";
 
@@ -100,17 +100,26 @@ const basePreview = {
   resolvedFields: [{ value: "{{customer.name}}", label: "Customer Name" }],
 };
 
-function renderDialog(props = {}) {
-  return render(
-    <EmailSendDialog
-      open={true}
-      onOpenChange={vi.fn()}
-      resourceNamePlural="salesOrders"
-      documentId={42}
-      emailTemplateId={7}
-      {...props}
-    />,
-  );
+// EmailSendDialog fetch preview via axios.get di useEffect saat mount TANPA
+// di-await test-nya -- render() polos RTL cuma membungkus bagian SINKRON
+// dalam act(), promise mock (walau resolve instan) tetap lanjut di
+// microtask SESUDAH act() itu selesai. Bungkus render() ITU SENDIRI dalam
+// `await act(async () => {})` supaya semua microtask stabil dulu.
+async function renderDialog(props = {}) {
+  let result;
+  await act(async () => {
+    result = render(
+      <EmailSendDialog
+        open={true}
+        onOpenChange={vi.fn()}
+        resourceNamePlural="salesOrders"
+        documentId={42}
+        emailTemplateId={7}
+        {...props}
+      />,
+    );
+  });
+  return result;
 }
 
 beforeEach(() => {
@@ -122,13 +131,13 @@ beforeEach(() => {
 });
 
 describe("EmailSendDialog", () => {
-  it("tidak fetch preview saat open=false", () => {
-    renderDialog({ open: false });
+  it("tidak fetch preview saat open=false", async () => {
+    await renderDialog({ open: false });
     expect(axiosGet).not.toHaveBeenCalled();
   });
 
   it("fetch preview via axios.get saat open=true dengan route yang benar", async () => {
-    renderDialog();
+    await renderDialog();
     expect(axiosGet).toHaveBeenCalledWith("salesOrders.email.preview/42,7");
     expect(await screen.findByText("customer@example.com")).toBeTruthy();
   });
@@ -140,7 +149,7 @@ describe("EmailSendDialog", () => {
         resolvePreview = resolve;
       }),
     );
-    renderDialog();
+    await renderDialog();
 
     expect(screen.getByText("TR:core.form.loading")).toBeInTheDocument();
 
@@ -149,7 +158,7 @@ describe("EmailSendDialog", () => {
   });
 
   it("mengisi form dari hasil preview (from name, to, subject)", async () => {
-    renderDialog();
+    await renderDialog();
 
     expect(await screen.findByDisplayValue("PT Contoh")).toBeInTheDocument();
     expect(screen.getByText("customer@example.com")).toBeInTheDocument();
@@ -158,7 +167,7 @@ describe("EmailSendDialog", () => {
 
   it("preview gagal dimuat menampilkan toast error dan fallback ke state kosong", async () => {
     axiosGet.mockRejectedValue(new Error("network error"));
-    renderDialog();
+    await renderDialog();
 
     await vi.waitFor(() =>
       expect(toastError).toHaveBeenCalledWith("TR:core.errors.fetch_failed"),
@@ -172,7 +181,7 @@ describe("EmailSendDialog", () => {
   });
 
   it("checkbox file PDF existing sudah tercentang otomatis (preselected)", async () => {
-    renderDialog();
+    await renderDialog();
     await screen.findByDisplayValue("Invoice #123");
 
     const pdfCheckbox = screen.getByRole("forminput", { name: /invoice.pdf/ });
@@ -186,7 +195,7 @@ describe("EmailSendDialog", () => {
 
   it("toggle checkbox attachment existing mengubah selectedFileIds", async () => {
     const user = userEvent.setup({ delay: null });
-    renderDialog();
+    await renderDialog();
     await screen.findByDisplayValue("Invoice #123");
 
     const nonPdfCheckbox = screen.getByRole("forminput", {
@@ -207,7 +216,7 @@ describe("EmailSendDialog", () => {
         files: [],
       },
     });
-    renderDialog();
+    await renderDialog();
     await screen.findByDisplayValue("Invoice #123");
 
     expect(
@@ -217,7 +226,7 @@ describe("EmailSendDialog", () => {
 
   it("upload file baru via UploadDialog menambah ke daftar attachment baru dan terselect", async () => {
     const user = userEvent.setup({ delay: null });
-    renderDialog();
+    await renderDialog();
     await screen.findByDisplayValue("Invoice #123");
 
     await user.click(screen.getByText("stub-upload-attach"));
@@ -231,7 +240,7 @@ describe("EmailSendDialog", () => {
 
   it("tombol kirim disabled saat 'to' kosong", async () => {
     axiosGet.mockResolvedValue({ data: { ...basePreview, recipient: null } });
-    renderDialog();
+    await renderDialog();
     await screen.findByDisplayValue("Invoice #123");
 
     expect(
@@ -243,7 +252,7 @@ describe("EmailSendDialog", () => {
     const user = userEvent.setup({ delay: null });
     const onOpenChange = vi.fn();
     routerPost.mockImplementation((_url, _data, opts) => opts.onSuccess?.());
-    renderDialog({ onOpenChange });
+    await renderDialog({ onOpenChange });
     await screen.findByDisplayValue("Invoice #123");
 
     await user.click(
@@ -269,7 +278,7 @@ describe("EmailSendDialog", () => {
     const user = userEvent.setup({ delay: null });
     const onOpenChange = vi.fn();
     routerPost.mockImplementation((_url, _data, opts) => opts.onError?.());
-    renderDialog({ onOpenChange });
+    await renderDialog({ onOpenChange });
     await screen.findByDisplayValue("Invoice #123");
 
     await user.click(
@@ -283,7 +292,7 @@ describe("EmailSendDialog", () => {
   it("klik tombol batal memanggil onOpenChange(false)", async () => {
     const user = userEvent.setup({ delay: null });
     const onOpenChange = vi.fn();
-    renderDialog({ onOpenChange });
+    await renderDialog({ onOpenChange });
     await screen.findByDisplayValue("Invoice #123");
 
     await user.click(

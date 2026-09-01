@@ -85,7 +85,9 @@ describe("ManualBook Show", () => {
     renderShow();
 
     const { onReadyChange } = mmrProps.mock.calls[0][0];
-    onReadyChange(true);
+    act(() => {
+      onReadyChange(true);
+    });
 
     const printButton = await screen.findAllByText("Cetak");
     expect(printButton.length).toBeGreaterThan(0);

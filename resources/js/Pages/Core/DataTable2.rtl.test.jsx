@@ -1,5 +1,5 @@
 import { describe, expect, it, vi, beforeEach, afterEach } from "vitest";
-import { render, screen, within } from "@testing-library/react";
+import { act, render, screen, within } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 
 // t harus stabil (konstanta module-level) -- DataTable2 punya beberapa
@@ -198,8 +198,17 @@ import { TooltipProvider } from "@/Components/ui/tooltip";
 // TooltipProvider sendiri -- di app nyata provider ini datang dari ancestor
 // (root layout). Karena AppLayout di-stub di atas, sediakan provider di sini
 // agar Tooltip tidak throw "must be used within TooltipProvider".
-function renderDataTable2(ui, options) {
-  return render(<TooltipProvider>{ui}</TooltipProvider>, options);
+// DataTable2 menembak axios (loadData) di useEffect saat mount TANPA
+// di-await test-nya -- render() polos RTL cuma membungkus bagian SINKRON
+// dalam act(), promise mock (walau resolve instan) tetap lanjut di
+// microtask SESUDAH act() itu selesai. Bungkus render() ITU SENDIRI dalam
+// `await act(async () => {})` supaya semua microtask stabil dulu.
+async function renderDataTable2(ui, options) {
+  let result;
+  await act(async () => {
+    result = render(<TooltipProvider>{ui}</TooltipProvider>, options);
+  });
+  return result;
 }
 
 const dataTableColumns = {
@@ -294,13 +303,13 @@ describe("DataTable2", () => {
     vi.useRealTimers();
   });
 
-  it("merender judul halaman dari translateKey", () => {
-    renderDataTable2(<DataTable2 />);
+  it("merender judul halaman dari translateKey", async () => {
+    await renderDataTable2(<DataTable2 />);
     expect(screen.getByText("TR:supplier.title")).toBeInTheDocument();
   });
 
-  it("meneruskan mapColumns yang sudah difilter (tanpa hidden & meta-append) ke Table2", () => {
-    renderDataTable2(<DataTable2 />);
+  it("meneruskan mapColumns yang sudah difilter (tanpa hidden & meta-append) ke Table2", async () => {
+    await renderDataTable2(<DataTable2 />);
     const props = table2Props.mock.calls.at(-1)[0];
     const columnNames = Object.keys(props.columns);
     expect(columnNames).toEqual(["name", "code"]);
@@ -308,8 +317,8 @@ describe("DataTable2", () => {
     expect(columnNames).not.toContain("canDelete");
   });
 
-  it("meneruskan data.data dan options awal (sort/page/show) ke Table2", () => {
-    renderDataTable2(<DataTable2 />);
+  it("meneruskan data.data dan options awal (sort/page/show) ke Table2", async () => {
+    await renderDataTable2(<DataTable2 />);
     const props = table2Props.mock.calls.at(-1)[0];
     expect(props.data).toEqual(baseData.data);
     expect(props.options).toEqual(
@@ -317,27 +326,27 @@ describe("DataTable2", () => {
     );
   });
 
-  it("options.show awal mengikuti query param ?show jika ada", () => {
+  it("options.show awal mengikuti query param ?show jika ada", async () => {
     usePageMock.mockReturnValue({
       props: makePageProps({ ziggy: { query: { show: "50" } } }),
     });
-    renderDataTable2(<DataTable2 />);
+    await renderDataTable2(<DataTable2 />);
     const props = table2Props.mock.calls.at(-1)[0];
     expect(props.options.show).toBe("50");
   });
 
-  it("options.show awal fallback ke cookie datatable_show jika query tidak ada", () => {
+  it("options.show awal fallback ke cookie datatable_show jika query tidak ada", async () => {
     document.cookie = "datatable_show=100";
-    renderDataTable2(<DataTable2 />);
+    await renderDataTable2(<DataTable2 />);
     const props = table2Props.mock.calls.at(-1)[0];
     expect(props.options.show).toBe("100");
   });
 
-  it("Select show (desktop footer) menampilkan value show saat ini, termasuk value non-default dari query", () => {
+  it("Select show (desktop footer) menampilkan value show saat ini, termasuk value non-default dari query", async () => {
     usePageMock.mockReturnValue({
       props: makePageProps({ ziggy: { query: { show: "77" } } }),
     });
-    renderDataTable2(<DataTable2 />);
+    await renderDataTable2(<DataTable2 />);
 
     expect(screen.getByText("77")).toBeInTheDocument();
   });
@@ -348,7 +357,7 @@ describe("DataTable2", () => {
     // lalu pasang lagi fake timers khusus untuk menguji debounce loadData.
     vi.useRealTimers();
     const user = userEvent.setup({ delay: null, pointerEventsCheck: 0 });
-    renderDataTable2(<DataTable2 />);
+    await renderDataTable2(<DataTable2 />);
 
     const showTrigger = screen.getByText("25").closest("button");
     showTrigger.focus();
@@ -375,7 +384,7 @@ describe("DataTable2", () => {
 
   it("klik tombol reload memanggil loadData langsung", async () => {
     const user = userEvent.setup({ delay: null });
-    renderDataTable2(<DataTable2 />);
+    await renderDataTable2(<DataTable2 />);
 
     const reloadButton = document
       .querySelector("button svg.lucide-refresh-cw")
@@ -404,7 +413,7 @@ describe("DataTable2", () => {
     usePageMock.mockReturnValue({
       props: makePageProps({ ziggy: { query: { sort: "name", page: "3" } } }),
     });
-    renderDataTable2(<DataTable2 />);
+    await renderDataTable2(<DataTable2 />);
 
     await user.click(screen.getByText("trigger-set-sort"));
     await vi.advanceTimersByTimeAsync(600);
@@ -426,7 +435,7 @@ describe("DataTable2", () => {
         ziggy: { query: { sort: "-name", page: "5" } },
       }),
     });
-    renderDataTable2(<DataTable2 />);
+    await renderDataTable2(<DataTable2 />);
 
     await user.click(screen.getByText("trigger-reset-sort"));
     await vi.advanceTimersByTimeAsync(600);
@@ -441,7 +450,7 @@ describe("DataTable2", () => {
       delay: null,
       advanceTimers: vi.advanceTimersByTime,
     });
-    renderDataTable2(<DataTable2 />);
+    await renderDataTable2(<DataTable2 />);
 
     await user.click(screen.getByText("trigger-options-changed"));
     await vi.advanceTimersByTimeAsync(600);
@@ -461,7 +470,7 @@ describe("DataTable2", () => {
       delay: null,
       advanceTimers: vi.advanceTimersByTime,
     });
-    renderDataTable2(<DataTable2 />);
+    await renderDataTable2(<DataTable2 />);
 
     const props = paginationProps.mock.calls.at(-1)[0];
     expect(props.currentPage).toBe(2);
@@ -476,7 +485,7 @@ describe("DataTable2", () => {
 
   it("tombol delete (actions bawaan) memanggil deleteItem dengan route plural & id yang benar", async () => {
     const user = userEvent.setup({ delay: null });
-    renderDataTable2(<DataTable2 />);
+    await renderDataTable2(<DataTable2 />);
 
     const row1 = screen.getByTestId("row-1");
     const deleteButton = within(row1).getByRole("button");
@@ -489,7 +498,7 @@ describe("DataTable2", () => {
     );
   });
 
-  it("tombol delete tidak muncul saat dataRow.canDelete === false", () => {
+  it("tombol delete tidak muncul saat dataRow.canDelete === false", async () => {
     usePageMock.mockReturnValue({
       props: makePageProps({
         data: {
@@ -498,15 +507,15 @@ describe("DataTable2", () => {
         },
       }),
     });
-    renderDataTable2(<DataTable2 />);
+    await renderDataTable2(<DataTable2 />);
 
     const row = screen.getByTestId("row-3");
     expect(within(row).queryByRole("button")).not.toBeInTheDocument();
   });
 
-  it("tombol delete tidak muncul saat can('delete') false", () => {
+  it("tombol delete tidak muncul saat can('delete') false", async () => {
     canMock.mockImplementation((action) => action !== "delete");
-    renderDataTable2(<DataTable2 />);
+    await renderDataTable2(<DataTable2 />);
 
     const row1 = screen.getByTestId("row-1");
     expect(within(row1).queryByRole("button")).not.toBeInTheDocument();
@@ -514,7 +523,7 @@ describe("DataTable2", () => {
 
   it("usePasswordConfirmationForDelete diteruskan ke deleteItem", async () => {
     const user = userEvent.setup({ delay: null });
-    renderDataTable2(<DataTable2 usePasswordConfirmationForDelete />);
+    await renderDataTable2(<DataTable2 usePasswordConfirmationForDelete />);
 
     const row1 = screen.getByTestId("row-1");
     await user.click(within(row1).getByRole("button"));
@@ -527,25 +536,25 @@ describe("DataTable2", () => {
   });
 
   describe("tombol tambah (create) & FormPageDialog", () => {
-    it("menampilkan tombol Add saat form diberikan dan canCreate true", () => {
-      renderDataTable2(<DataTable2 form={<div>Form Isi</div>} />);
+    it("menampilkan tombol Add saat form diberikan dan canCreate true", async () => {
+      await renderDataTable2(<DataTable2 form={<div>Form Isi</div>} />);
       expect(screen.getByText("TR:supplier.add")).toBeInTheDocument();
     });
 
-    it("tidak menampilkan tombol Add saat form tidak diberikan", () => {
-      renderDataTable2(<DataTable2 />);
+    it("tidak menampilkan tombol Add saat form tidak diberikan", async () => {
+      await renderDataTable2(<DataTable2 />);
       expect(screen.queryByText("TR:supplier.add")).not.toBeInTheDocument();
     });
 
-    it("tidak menampilkan tombol Add saat can('create') false", () => {
+    it("tidak menampilkan tombol Add saat can('create') false", async () => {
       canMock.mockImplementation((action) => action !== "create");
-      renderDataTable2(<DataTable2 form={<div>Form Isi</div>} />);
+      await renderDataTable2(<DataTable2 form={<div>Form Isi</div>} />);
       expect(screen.queryByText("TR:supplier.add")).not.toBeInTheDocument();
     });
 
-    it("forceCanCreate=true menampilkan tombol Add walau can('create') false", () => {
+    it("forceCanCreate=true menampilkan tombol Add walau can('create') false", async () => {
       canMock.mockImplementation((action) => action !== "create");
-      renderDataTable2(
+      await renderDataTable2(
         <DataTable2 form={<div>Form Isi</div>} forceCanCreate />,
       );
       expect(screen.getByText("TR:supplier.add")).toBeInTheDocument();
@@ -553,7 +562,7 @@ describe("DataTable2", () => {
 
     it("klik tombol Add membuka FormPageDialog berisi form", async () => {
       const user = userEvent.setup({ delay: null });
-      renderDataTable2(<DataTable2 form={<div>Form Isi</div>} />);
+      await renderDataTable2(<DataTable2 form={<div>Form Isi</div>} />);
 
       await user.click(screen.getByText("TR:supplier.add"));
 
@@ -567,22 +576,22 @@ describe("DataTable2", () => {
       isMobileMock.mockReturnValue(true);
     });
 
-    it("merender templateItem per baris data, bukan Table2", () => {
+    it("merender templateItem per baris data, bukan Table2", async () => {
       const templateItem = ({ dataRow }) => (
         <div>Mobile Row {dataRow.name}</div>
       );
-      renderDataTable2(<DataTable2 templateItem={templateItem} />);
+      await renderDataTable2(<DataTable2 templateItem={templateItem} />);
 
       expect(screen.getByText("Mobile Row Supplier A")).toBeInTheDocument();
       expect(screen.getByText("Mobile Row Supplier B")).toBeInTheDocument();
       expect(screen.queryByTestId("stub-table2")).not.toBeInTheDocument();
     });
 
-    it("menampilkan NoDataImg saat data kosong", () => {
+    it("menampilkan NoDataImg saat data kosong", async () => {
       usePageMock.mockReturnValue({
         props: makePageProps({ data: { data: [], last_page: 1 } }),
       });
-      renderDataTable2(<DataTable2 />);
+      await renderDataTable2(<DataTable2 />);
 
       expect(screen.getByTestId("stub-no-data-img")).toBeInTheDocument();
     });
@@ -592,7 +601,7 @@ describe("DataTable2", () => {
       const templateItem = ({ dataRow, deleteItem }) => (
         <button onClick={deleteItem}>Hapus {dataRow.name}</button>
       );
-      renderDataTable2(<DataTable2 templateItem={templateItem} />);
+      await renderDataTable2(<DataTable2 templateItem={templateItem} />);
 
       await user.click(screen.getByText("Hapus Supplier A"));
 
@@ -605,11 +614,11 @@ describe("DataTable2", () => {
   });
 
   describe("filter builder (FilterTable2) & saved filter", () => {
-    it("meneruskan mapColumns & activeFid (dari options.fid) ke FilterTable2", () => {
+    it("meneruskan mapColumns & activeFid (dari options.fid) ke FilterTable2", async () => {
       usePageMock.mockReturnValue({
         props: makePageProps({ ziggy: { query: { fid: "12" } } }),
       });
-      renderDataTable2(<DataTable2 />);
+      await renderDataTable2(<DataTable2 />);
 
       const props = filterTableProps.mock.calls.at(-1)[0];
       expect(props.activeFid).toBe("12");
@@ -623,7 +632,7 @@ describe("DataTable2", () => {
       usePageMock.mockReturnValue({
         props: makePageProps({ ziggy: { query: { fid: "12" } } }),
       });
-      renderDataTable2(<DataTable2 />);
+      await renderDataTable2(<DataTable2 />);
 
       await vi.waitFor(() => {
         expect(axiosGet).toHaveBeenCalledWith(
@@ -635,7 +644,7 @@ describe("DataTable2", () => {
     it("onApply (bukan useExisting) memanggil axios.post saved-filters.store dengan model & tree, lalu set fid dari response & toast success", async () => {
       const user = userEvent.setup({ delay: null });
       axiosPost.mockResolvedValue({ data: { id: 77 } });
-      renderDataTable2(<DataTable2 />);
+      await renderDataTable2(<DataTable2 />);
 
       await user.click(screen.getByText("trigger-apply-filter"));
 
@@ -661,7 +670,7 @@ describe("DataTable2", () => {
           data: { errors: { filter: ["Filter kosong"] } },
         },
       });
-      renderDataTable2(<DataTable2 />);
+      await renderDataTable2(<DataTable2 />);
 
       await user.click(screen.getByText("trigger-apply-filter"));
 
@@ -673,7 +682,7 @@ describe("DataTable2", () => {
     it("onApply gagal non-422 menampilkan toast error umum", async () => {
       const user = userEvent.setup({ delay: null });
       axiosPost.mockRejectedValue({ response: { status: 500 } });
-      renderDataTable2(<DataTable2 />);
+      await renderDataTable2(<DataTable2 />);
 
       await user.click(screen.getByText("trigger-apply-filter"));
 
@@ -689,7 +698,7 @@ describe("DataTable2", () => {
         delay: null,
         advanceTimers: vi.advanceTimersByTime,
       });
-      renderDataTable2(<DataTable2 />);
+      await renderDataTable2(<DataTable2 />);
 
       await user.click(screen.getByText("trigger-saved-filter"));
       await vi.advanceTimersByTimeAsync(600);
@@ -706,7 +715,7 @@ describe("DataTable2", () => {
       usePageMock.mockReturnValue({
         props: makePageProps({ ziggy: { query: { fid: "12" } } }),
       });
-      renderDataTable2(<DataTable2 />);
+      await renderDataTable2(<DataTable2 />);
 
       await user.click(screen.getByText("trigger-clear-saved-filter"));
       await vi.advanceTimersByTimeAsync(600);
@@ -723,7 +732,7 @@ describe("DataTable2", () => {
       usePageMock.mockReturnValue({
         props: makePageProps({ ziggy: { query: { fid: "12" } } }),
       });
-      renderDataTable2(<DataTable2 />);
+      await renderDataTable2(<DataTable2 />);
 
       const clearButton = document
         .querySelector("button svg.lucide-x")
@@ -736,8 +745,8 @@ describe("DataTable2", () => {
       expect(url).not.toContain("fid=12");
     });
 
-    it("tombol X (clear filter) tidak muncul saat tidak ada fid aktif", () => {
-      renderDataTable2(<DataTable2 />);
+    it("tombol X (clear filter) tidak muncul saat tidak ada fid aktif", async () => {
+      await renderDataTable2(<DataTable2 />);
       const clearButton = document.querySelector("button svg.lucide-x");
       expect(clearButton).toBeFalsy();
     });
@@ -747,12 +756,23 @@ describe("DataTable2", () => {
     it("memanggil ref.addFilter membangun filter item baru dan mem-persist via axios.post", async () => {
       axiosPost.mockResolvedValue({ data: { id: 88 } });
       const ref = React.createRef();
-      renderDataTable2(<DataTable2 ref={ref} />);
+      await renderDataTable2(<DataTable2 ref={ref} />);
 
-      ref.current.addFilter("name", "=", "Supplier A");
+      // addFilter dipanggil langsung via ref (bukan lewat userEvent), lalu
+      // internal-nya memicu persistFilterTree (async, axios.post lalu
+      // setFilterTree/setOptions) TANPA di-await si pemanggil (fire-and-
+      // forget, lihat komentar addFilter di DataTable2.jsx). React tidak
+      // tahu update state itu bagian dari "aksi test" kecuali dibungkus
+      // act() -- bungkus panggilan & polling vi.waitFor terpisah supaya
+      // microtask promise mock + setState-nya stabil sebelum lanjut.
+      await act(async () => {
+        ref.current.addFilter("name", "=", "Supplier A");
+      });
 
-      await vi.waitFor(() => {
-        expect(axiosPost).toHaveBeenCalledTimes(1);
+      await act(async () => {
+        await vi.waitFor(() => {
+          expect(axiosPost).toHaveBeenCalledTimes(1);
+        });
       });
 
       const [routeName, payload] = axiosPost.mock.calls[0];

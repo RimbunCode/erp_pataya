@@ -1,11 +1,27 @@
 import { describe, expect, it, vi, beforeEach, afterEach } from "vitest";
-import { render, screen, fireEvent } from "@testing-library/react";
+import { act, render, screen, fireEvent } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import React from "react";
 
 vi.mock("laravel-react-i18n", () => ({
   useLaravelReactI18n: () => ({ t: (key) => `TR:${key}` }),
 }));
+
+// HeadlessUI <Transition> (dipakai UploadDialog.jsx sendiri utk toggle
+// visibilitas dropzone) menyelesaikan state "enter transition selesai" lewat
+// mekanisme timing internalnya sendiri (rAF/CSS transitionend fallback) yang
+// TIDAK pernah benar-benar tertangkap act() di jsdom (sudah dicoba flush
+// macrotask berkali-kali, tetap warning) -- masalah timing act()+HeadlessUI
+// di jsdom yang sudah dikenal luas, bukan bug di UploadDialog.jsx. Test di
+// sini tidak menguji animasi transisi itu sendiri, jadi stub jadi passthrough
+// kondisional (render children langsung berdasar `show`, tanpa animasi).
+vi.mock("@headlessui/react", async (importOriginal) => {
+  const actual = await importOriginal();
+  return {
+    ...actual,
+    Transition: ({ show, children }) => (show ? children : null),
+  };
+});
 
 const routerPost = vi.fn();
 vi.mock("@inertiajs/react", () => ({
@@ -30,8 +46,11 @@ vi.mock("@/lib/gooeyToast", () => ({
 // Di sini cukup distub agar test UploadDialog fokus ke menu "home"
 // (dropzone/file list) dan wrapper dialog itu sendiri.
 vi.mock("@/Pages/Core/Components/Library/Library", () => ({
-  default: React.forwardRef(
-    ({ setMenu, checklistFile, setChecklistFile }, _ref) => (
+  default: React.forwardRef(function LibraryStub(
+    { setMenu, checklistFile, setChecklistFile },
+    _ref,
+  ) {
+    return (
       <div data-testid="library-stub">
         <button type="button" onClick={() => setMenu("home")}>
           back-to-home
@@ -47,8 +66,8 @@ vi.mock("@/Pages/Core/Components/Library/Library", () => ({
           pick-library-file-123
         </button>
       </div>
-    ),
-  ),
+    );
+  }),
 }));
 
 function mockMatchMedia(matches = false) {
@@ -65,13 +84,21 @@ window.route = (name) => name;
 import { Dialog } from "@/Components/ui/dialog";
 import UploadDialog from "./UploadDialog";
 
-function renderDialog(props = {}) {
+// UploadDialog/Library membaca file via FileReader (async) saat file dipilih
+// -- render() polos RTL cuma membungkus bagian SINKRON dalam act(), promise/
+// callback FileReader tetap lanjut di microtask SESUDAH act() itu selesai.
+// Bungkus render() ITU SENDIRI dalam `await act(async () => {})` supaya
+// semua microtask stabil dulu.
+async function renderDialog(props = {}) {
   const onClose = props.onClose ?? vi.fn();
-  const utils = render(
-    <Dialog open onOpenChange={() => {}}>
-      <UploadDialog onClose={onClose} {...props} />
-    </Dialog>,
-  );
+  let utils;
+  await act(async () => {
+    utils = render(
+      <Dialog open onOpenChange={() => {}}>
+        <UploadDialog onClose={onClose} {...props} />
+      </Dialog>,
+    );
+  });
   return { ...utils, onClose };
 }
 
@@ -113,15 +140,15 @@ afterEach(() => {
 });
 
 describe("UploadDialog", () => {
-  it("merender dropzone home dengan tombol My Device dan Library", () => {
-    renderDialog();
+  it("merender dropzone home dengan tombol My Device dan Library", async () => {
+    await renderDialog();
     expect(screen.getByText("My Device")).toBeInTheDocument();
     expect(screen.getByText("Library")).toBeInTheDocument();
     expect(screen.getByRole("button", { name: "Attach" })).toBeDisabled();
   });
 
-  it("memilih file lewat input file menambahkannya ke daftar dan mengaktifkan tombol Attach", () => {
-    renderDialog();
+  it("memilih file lewat input file menambahkannya ke daftar dan mengaktifkan tombol Attach", async () => {
+    await renderDialog();
 
     const input = document.querySelector('input[type="file"]');
     uploadFile(input, makeFile());
@@ -132,7 +159,7 @@ describe("UploadDialog", () => {
 
   it("menghapus file dari daftar mengembalikan tombol Attach ke disabled", async () => {
     const user = setupUser();
-    renderDialog();
+    await renderDialog();
 
     const input = document.querySelector('input[type="file"]');
     uploadFile(input, makeFile());
@@ -151,7 +178,7 @@ describe("UploadDialog", () => {
 
   it("beralih ke menu Library menyembunyikan dropzone dan menampilkan Library stub", async () => {
     const user = setupUser();
-    renderDialog();
+    await renderDialog();
 
     await user.click(screen.getByText("Library"));
 
@@ -166,7 +193,7 @@ describe("UploadDialog", () => {
     axiosPost.mockResolvedValue({
       data: [{ id: 1, name: "photo.png" }],
     });
-    renderDialog({ onBuffer, onClose });
+    await renderDialog({ onBuffer, onClose });
 
     const input = document.querySelector('input[type="file"]');
     uploadFile(input, makeFile());
@@ -191,7 +218,7 @@ describe("UploadDialog", () => {
     const onBuffer = vi.fn();
     const onClose = vi.fn();
     axiosPost.mockRejectedValue(new Error("network error"));
-    renderDialog({ onBuffer, onClose });
+    await renderDialog({ onBuffer, onClose });
 
     const input = document.querySelector('input[type="file"]');
     uploadFile(input, makeFile());
@@ -210,7 +237,7 @@ describe("UploadDialog", () => {
     delete window.location;
     window.location = new URL("https://example.test/todos/9?tab=files");
     routerPost.mockImplementation((_url, _data, opts) => opts.onSuccess?.());
-    renderDialog({ onClose });
+    await renderDialog({ onClose });
 
     const input = document.querySelector('input[type="file"]');
     uploadFile(input, makeFile());
@@ -235,8 +262,8 @@ describe("UploadDialog", () => {
   // (drag-drop) -- dan bahkan di situ pun logic-nya TERBALIK: kondisi
   // `if (imageOnly && checkFileType("image/*", file.type)) return;`
   // menolak file yang MEMANG image, bukan yang bukan-image.
-  it("imageOnly=true (BUG: tidak divalidasi) tetap menerima file non-image lewat input picker", () => {
-    renderDialog({ imageOnly: true });
+  it("imageOnly=true (BUG: tidak divalidasi) tetap menerima file non-image lewat input picker", async () => {
+    await renderDialog({ imageOnly: true });
 
     const input = document.querySelector('input[type="file"]');
     uploadFile(input, makeFile("doc.pdf", "application/pdf"));
@@ -249,7 +276,7 @@ describe("UploadDialog", () => {
 
   it("memilih file dari Library mengaktifkan Attach berdasar checklistFile, bukan files[]", async () => {
     const user = setupUser();
-    renderDialog();
+    await renderDialog();
 
     await user.click(screen.getByText("Library"));
     expect(screen.getByRole("button", { name: "Attach" })).toBeDisabled();
@@ -258,8 +285,8 @@ describe("UploadDialog", () => {
     expect(screen.getByRole("button", { name: "Attach" })).not.toBeDisabled();
   });
 
-  it("single=true menyembunyikan tombol Browse tambahan di footer", () => {
-    renderDialog({ single: true });
+  it("single=true menyembunyikan tombol Browse tambahan di footer", async () => {
+    await renderDialog({ single: true });
 
     const input = document.querySelector('input[type="file"]');
     uploadFile(input, makeFile());

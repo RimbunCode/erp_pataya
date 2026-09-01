@@ -1,5 +1,12 @@
 import { describe, expect, it, vi, beforeEach } from "vitest";
-import { render, screen } from "@testing-library/react";
+import { act, screen } from "@testing-library/react";
+// Tags.jsx menembak axios.get (search suggestions) di useEffect saat mount
+// TANPA di-await test-nya -- render() polos RTL cuma membungkus bagian
+// SINKRON dalam act(), promise mock (walau resolve instan) tetap lanjut di
+// microtask SESUDAH act() itu selesai. renderAsync membungkus render() ITU
+// SENDIRI dalam `await act(async () => {})` supaya semua microtask stabil
+// dulu -- lihat resources/js/test-utils/renderAsync.js.
+import { renderAsync as render } from "@/test-utils/renderAsync";
 import userEvent from "@testing-library/user-event";
 
 // t harus stabil -- Tags.jsx TIDAK punya useEffect ber-dependency `t`, tapi
@@ -68,7 +75,7 @@ describe("Tags", () => {
     axiosGet.mockResolvedValue({ data: [] });
   });
 
-  it("mode edit: menampilkan daftar tag dari shared props", () => {
+  it("mode edit: menampilkan daftar tag dari shared props", async () => {
     usePageMock.mockReturnValue({
       props: {
         tags: [
@@ -78,13 +85,13 @@ describe("Tags", () => {
       },
     });
 
-    render(<Tags />);
+    await render(<Tags />);
 
     expect(screen.getByText("urgent")).toBeInTheDocument();
     expect(screen.getByText("review")).toBeInTheDocument();
   });
 
-  it("mode create: menampilkan tag dari buffer form (data.buffered_tags)", () => {
+  it("mode create: menampilkan tag dari buffer form (data.buffered_tags)", async () => {
     useFormPageMock.mockReturnValue({
       isCreate: true,
       data: { buffered_tags: [{ id: 5, name: "draft-tag" }] },
@@ -94,7 +101,7 @@ describe("Tags", () => {
       props: { tags: [{ id: 999, name: "harus-tidak-tampil" }] },
     });
 
-    render(<Tags />);
+    await render(<Tags />);
 
     expect(screen.getByText("draft-tag")).toBeInTheDocument();
     expect(screen.queryByText("harus-tidak-tampil")).not.toBeInTheDocument();
@@ -102,7 +109,7 @@ describe("Tags", () => {
 
   it("klik tombol Plus membuka search box tag", async () => {
     const user = userEvent.setup({ delay: null });
-    render(<Tags />);
+    await render(<Tags />);
 
     expect(
       screen.queryByPlaceholderText("TR:core.form.tag.search"),
@@ -125,14 +132,16 @@ describe("Tags", () => {
       data: [{ id: 10, name: "penting" }],
     });
 
-    render(<Tags />);
+    await render(<Tags />);
     await user.click(screen.getByRole("button"));
     await user.type(
       screen.getByPlaceholderText("TR:core.form.tag.search"),
       "pent",
     );
 
-    await vi.advanceTimersByTimeAsync(500);
+    await act(async () => {
+      await vi.advanceTimersByTimeAsync(500);
+    });
 
     expect(axiosGet).toHaveBeenCalled();
     const calledUrl = axiosGet.mock.calls[0][0];
@@ -150,14 +159,16 @@ describe("Tags", () => {
     });
     axiosGet.mockRejectedValue(new Error("network error"));
 
-    render(<Tags />);
+    await render(<Tags />);
     await user.click(screen.getByRole("button"));
     await user.type(
       screen.getByPlaceholderText("TR:core.form.tag.search"),
       "x",
     );
 
-    await vi.advanceTimersByTimeAsync(500);
+    await act(async () => {
+      await vi.advanceTimersByTimeAsync(500);
+    });
     // flush microtask promise rejection handler
     await vi.waitFor(() =>
       expect(toastError).toHaveBeenCalledWith("TR:core.errors.fetch_failed"),
@@ -176,13 +187,15 @@ describe("Tags", () => {
       data: [{ id: 20, name: "important" }],
     });
 
-    render(<Tags />);
+    await render(<Tags />);
     await user.click(screen.getByRole("button"));
     await user.type(
       screen.getByPlaceholderText("TR:core.form.tag.search"),
       "impor",
     );
-    await vi.advanceTimersByTimeAsync(500);
+    await act(async () => {
+      await vi.advanceTimersByTimeAsync(500);
+    });
 
     vi.useRealTimers();
     const option = await screen.findByText("important");
@@ -220,13 +233,15 @@ describe("Tags", () => {
       data: [{ id: 30, name: "baru", isNew: true }],
     });
 
-    render(<Tags />);
+    await render(<Tags />);
     await user.click(screen.getByRole("button"));
     await user.type(
       screen.getByPlaceholderText("TR:core.form.tag.search"),
       "baru",
     );
-    await vi.advanceTimersByTimeAsync(500);
+    await act(async () => {
+      await vi.advanceTimersByTimeAsync(500);
+    });
 
     vi.useRealTimers();
     const option = await screen.findByText("baru");
@@ -244,7 +259,7 @@ describe("Tags", () => {
       props: { tags: [{ id: 7, name: "hapus-saya" }] },
     });
 
-    render(<Tags />);
+    await render(<Tags />);
 
     const tagChip = screen.getByText("hapus-saya").closest("div");
     await user.click(tagChip.querySelector("button"));
@@ -276,7 +291,7 @@ describe("Tags", () => {
       setData,
     });
 
-    render(<Tags />);
+    await render(<Tags />);
 
     const tagChip = screen.getByText("tag-a").closest("div");
     await user.click(tagChip.querySelector("button"));
@@ -300,7 +315,7 @@ describe("Tags", () => {
       data: [{ id: 1, name: "sudah-ada" }],
     });
 
-    render(<Tags />);
+    await render(<Tags />);
     // Sudah ada 1 tag terpasang (chip dengan tombol hapus) -- tombol toggle
     // pencarian (Plus) adalah button pertama di header.
     await user.click(screen.getAllByRole("button")[0]);
@@ -308,7 +323,9 @@ describe("Tags", () => {
       screen.getByPlaceholderText("TR:core.form.tag.search"),
       "sudah",
     );
-    await vi.advanceTimersByTimeAsync(500);
+    await act(async () => {
+      await vi.advanceTimersByTimeAsync(500);
+    });
 
     vi.useRealTimers();
     const options = await screen.findAllByText("sudah-ada");
