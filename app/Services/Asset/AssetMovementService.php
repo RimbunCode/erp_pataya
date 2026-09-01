@@ -26,7 +26,7 @@ class AssetMovementService implements SubmitableService {
             ]);
 
             foreach ($data['items'] ?? [] as $item) {
-                $movement->items()->create(Arr::only($item, [
+                $movement->items()->create(Arr::only($this->flattenItemRelations($item), [
                     'asset_id', 'source_location_id', 'target_location_id',
                     'from_custodian_id', 'to_custodian_id',
                 ]));
@@ -50,7 +50,7 @@ class AssetMovementService implements SubmitableService {
             if (array_key_exists('items', $data)) {
                 $model->items()->delete();
                 foreach ($data['items'] as $item) {
-                    $model->items()->create(Arr::only($item, [
+                    $model->items()->create(Arr::only($this->flattenItemRelations($item), [
                         'asset_id', 'source_location_id', 'target_location_id',
                         'from_custodian_id', 'to_custodian_id',
                     ]));
@@ -68,6 +68,32 @@ class AssetMovementService implements SubmitableService {
 
     public function delete(Model $model): void {
         $model->delete();
+    }
+
+    /**
+     * Frontend mengirim relasi item (asset, source_location, target_location,
+     * to_custodian) sebagai objek LinkModel utuh ({id, ...}), bukan string id
+     * flat. Ekstrak `.id` ke key `_id` yang dikonsumsi Arr::only() di atas,
+     * sama seperti pola PurchaseOrderService::fillItemRelations().
+     *
+     * @param  array<string, mixed>  $item
+     * @return array<string, mixed>
+     */
+    private function flattenItemRelations(array $item): array {
+        if (isset($item['asset']['id'])) {
+            $item['asset_id'] = $item['asset']['id'];
+        }
+        if (isset($item['source_location']['id'])) {
+            $item['source_location_id'] = $item['source_location']['id'];
+        }
+        if (isset($item['target_location']['id'])) {
+            $item['target_location_id'] = $item['target_location']['id'];
+        }
+        if (isset($item['to_custodian']['id'])) {
+            $item['to_custodian_id'] = $item['to_custodian']['id'];
+        }
+
+        return $item;
     }
 
     public function submit(Model $model): mixed {

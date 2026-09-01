@@ -18,6 +18,7 @@ class AssetValueAdjustmentService implements SubmitableService {
         DB::beginTransaction();
 
         try {
+            $data       = $this->flattenRelationFields($data);
             $asset      = Asset::findOrFail($data['asset_id']);
             $adjustment = AssetValueAdjustment::create([
                 'code'                => FormatingSeries::generate(AssetValueAdjustment::class, $data, true),
@@ -41,6 +42,7 @@ class AssetValueAdjustmentService implements SubmitableService {
         DB::beginTransaction();
 
         try {
+            $data = $this->flattenRelationFields($data);
             $model->update(Arr::only($data, [
                 'asset_id', 'date', 'new_asset_value',
                 'difference_account_id', 'branch_id',
@@ -57,6 +59,26 @@ class AssetValueAdjustmentService implements SubmitableService {
 
     public function delete(Model $model): void {
         $model->delete();
+    }
+
+    /**
+     * Frontend mengirim relasi (asset, difference_account) sebagai objek
+     * LinkModel utuh ({id, ...}), bukan string id flat. Ekstrak `.id` ke key
+     * `_id` yang dikonsumsi Arr::only() di atas, sama seperti pola
+     * PurchaseOrderService::fillItemRelations() / AssetService::flattenRelationFields().
+     *
+     * @param  array<string, mixed>  $data
+     * @return array<string, mixed>
+     */
+    private function flattenRelationFields(array $data): array {
+        if (isset($data['asset']['id'])) {
+            $data['asset_id'] = $data['asset']['id'];
+        }
+        if (isset($data['difference_account']['id'])) {
+            $data['difference_account_id'] = $data['difference_account']['id'];
+        }
+
+        return $data;
     }
 
     public function submit(Model $model): mixed {

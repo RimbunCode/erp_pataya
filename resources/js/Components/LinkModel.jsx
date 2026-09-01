@@ -145,6 +145,15 @@ export default memo(
       }
     }, []);
 
+    // String stabil dari `filters` -- dipakai sbg dependency effect (lihat
+    // useDidMountEffect "on open" di bawah) supaya perbandingan berbasis
+    // NILAI (bukan reference objek baru tiap render, yg selalu != sebelumnya
+    // utk inline object literal seperti `filters={{...}}`).
+    const filtersKey = useMemo(
+      () => stableStringify(filters),
+      [filters, stableStringify],
+    );
+
     const cacheKey = useMemo(() => {
       if (!cacheConfig.enabled) return null;
       return `linkmodel:${model}:${stableStringify({
@@ -527,7 +536,10 @@ export default memo(
       return () => {
         clearTimeout(reloadModel);
       };
-    }, [search]);
+      // filtersKey: sama alasan seperti effect "on open" di atas -- baris
+      // FormTable yang di-auto-tambah butuh filters terbaru saat user mulai
+      // mengetik pencarian, bukan cuma saat dropdown dibuka.
+    }, [search, filtersKey]);
     const defaultKey = useMemo(
       () => (defaultValue ? JSON.stringify(defaultValue) : null),
       [defaultValue],
@@ -576,7 +588,14 @@ export default memo(
       return () => {
         clearTimeout(reloadModel);
       };
-    }, [open]);
+      // `filtersKey` disertakan supaya baris FormTable yang di-auto-tambah
+      // SETELAH mount awal (mis. trailing row baru) tetap fetch dengan
+      // filter terbaru saat dibuka -- tanpa ini, useDidMountEffect (yang
+      // sengaja skip firing pertama) bisa memakai closure `filters` lama
+      // dari sebelum prop-nya benar-benar terisi. Pakai string stabil
+      // (bukan objek `filters` mentah) supaya tidak refetch tiap render
+      // untuk consumer yang mengirim inline object literal `filters={{...}}`.
+    }, [open, filtersKey]);
     const onInputKeyDown = (e) => {
       if (e.key == "Enter" && open) return;
       if (

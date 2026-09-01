@@ -24,7 +24,15 @@ trait HasBranch {
                 return;
             }
 
-            $branch = Branch::find(session('currentBranch'));
+            // select+withoutGlobalScope('country'): global scope ini cuma
+            // butuh id, tapi Branch::find() biasa memicu 2 query Country
+            // tambahan (billingCountry+shippingCountry via $with Branch)
+            // SETIAP query model ber-HasBranch (Asset listing eager-load
+            // assetLocation nested berkali-kali) — N+1 nyata.
+            $branch = Branch::query()
+                ->withoutGlobalScope('country')
+                ->select(['id'])
+                ->find(session('currentBranch'));
             if (! $branch) {
                 return;
             }

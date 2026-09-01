@@ -11,8 +11,9 @@ return [
 
     'sell_not_implemented'                   => 'Sell Asset is not yet available, will be implemented in Phase 4.',
     'cannot_cancel'                          => 'Asset cannot be cancelled.',
-    'cannot_submit_incomplete'               => 'Asset cannot be submitted because the category or location has not been filled in. Please complete the data first.',
+    'cannot_submit_incomplete'               => 'Asset cannot be submitted because :fields has not been filled in. Please complete the data first.',
     'cannot_complete_after_submit'           => 'Asset data cannot be completed after the asset has been submitted.',
+    'source_document_mismatch'               => 'This asset does not originate from the document currently open.',
     'complete_data_title'                    => 'Complete Asset Data',
     'complete_data_description'              => 'Select a category and location for this asset. Data must be completed before the asset can be submitted.',
     'split_mode_single'                      => 'Keep as One Asset',
@@ -55,6 +56,8 @@ return [
         'code'               => 'Code',
         'asset_category_id'  => 'Asset Category',
         'asset_location_id'  => 'Asset Location',
+        'asset_category'     => 'Asset Category',
+        'asset_location'     => 'Asset Location',
         'asset_type'         => 'Asset Type',
         'asset_type.options' => [
             'existing_asset'      => 'Existing Asset',

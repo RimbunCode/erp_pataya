@@ -31,6 +31,7 @@ class AssetServiceService implements SubmitableService {
 
     public function create(array $data): Model {
         return DB::transaction(function () use ($data) {
+            $data         = $this->flattenRelationFields($data);
             $assetService = AssetService::create([
                 'code' => FormatingSeries::generate(AssetService::class, $data, true),
                 ...Arr::only($data, [
@@ -47,6 +48,7 @@ class AssetServiceService implements SubmitableService {
 
     public function update(Model $model, array $data): Model {
         return DB::transaction(function () use ($model, $data) {
+            $data = $this->flattenRelationFields($data);
             $model->update(Arr::only($data, [
                 'type', 'asset_id', 'asset_maintenance_task_id', 'failure_date',
                 'capitalize_repair_cost', 'increase_in_asset_life', 'description', 'branch_id',
@@ -58,6 +60,24 @@ class AssetServiceService implements SubmitableService {
 
             return $model;
         });
+    }
+
+    /**
+     * Frontend mengirim relasi `asset` (repair only) sebagai objek LinkModel
+     * utuh ({id, ...}), bukan string id flat. Ekstrak `.id` ke key `asset_id`
+     * yang dikonsumsi Arr::only() di atas, sama seperti pola
+     * PurchaseOrderService::fillItemRelations() / AssetService::flattenRelationFields().
+     * `consumedItems.*.item`/`.unit` sudah di-flatten terpisah di syncConsumedItems().
+     *
+     * @param  array<string, mixed>  $data
+     * @return array<string, mixed>
+     */
+    private function flattenRelationFields(array $data): array {
+        if (isset($data['asset']['id'])) {
+            $data['asset_id'] = $data['asset']['id'];
+        }
+
+        return $data;
     }
 
     private function syncConsumedItems(AssetService $assetService, array $items): void {

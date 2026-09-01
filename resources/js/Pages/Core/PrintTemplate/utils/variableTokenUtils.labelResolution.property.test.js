@@ -105,7 +105,11 @@ describe("Feature: editor-label-resolution, Property 2", () => {
 
 describe("Feature: editor-label-resolution, Property 3", () => {
   it("resolveLabel mengikuti prioritas title -> t(titleTrans) -> name", () => {
-    const nonEmptyArb = fc.string({ minLength: 1, maxLength: 24 });
+    // Source (resolveColumnDisplayLabel) menganggap string whitespace-only
+    // sebagai kosong (pakai .trim()), jadi generator harus konsisten dgn itu.
+    const nonEmptyArb = fc
+      .string({ minLength: 1, maxLength: 24 })
+      .filter((value) => value.trim().length > 0);
 
     fc.assert(
       fc.property(

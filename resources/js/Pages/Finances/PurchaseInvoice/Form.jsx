@@ -8,6 +8,7 @@ import { calculateArray, generateRandom, getDataModel } from "@/lib/utils";
 import { allocateDiscount } from "@/lib/discountAllocation";
 
 import AccountLinkModel from "../Accounts/AccountLinkModel";
+import AssetCompletionRowBadge from "@/Pages/Asset/Assets/AssetCompletionRowBadge";
 import AdditionalDiscount from "../Components/AdditionalDiscount";
 import NumberInput from "@/Components/NumberInput";
 import CurrencyLinkModel from "@/Pages/Core/CurrencyLinkModel";
@@ -58,6 +59,8 @@ export default function Form() {
   });
 
   const { default_currency_id } = usePage().props.preferences;
+  const fixedAssets = usePage().props.fixedAssets;
+  const purchaseInvoiceId = usePage().props.purchaseInvoice?.id;
   const amount = useMemo(() => {
     return calculateArray(data.items, "amount", "+");
   }, [data.items]);
@@ -93,38 +96,47 @@ export default function Form() {
         width: 2,
         cell({ dataRow, setData, attributes }) {
           return (
-            <PurchaseOrderItemLinkModel
-              placeholder={t(
-                "finances.purchaseInvoice.columns.item.placeholder",
-              )}
-              value={dataRow.purchase_order_item ?? null}
-              disabled={!data.purchase_order}
-              onValueChange={(val) => {
-                setData({
-                  purchase_order_item: val,
-                  unit: val?.unit,
-                  conversion_factor: val?.conversion_factor,
-                  quantity: val?.unbilled_quantity,
-                  rate: val?.rate,
-                  tax: val?.tax,
-                  description: val?.description,
-                });
-              }}
-              {...attributes}
-              as="item:item.item_id"
-              canNavigation="App\Models\Inventory\Item"
-              filters={{
-                purchase_order_id: data.purchase_order?.id ?? null,
-                unbilled_quantity: { ">": 0 },
-              }}
-              with={["item", "unit", "tax"]}
-              fields={[
-                "unbilled_quantity",
-                "rate",
-                "description",
-                "conversion_factor",
-              ]}
-            />
+            <div className="flex items-center">
+              <PurchaseOrderItemLinkModel
+                placeholder={t(
+                  "finances.purchaseInvoice.columns.item.placeholder",
+                )}
+                value={dataRow.purchase_order_item ?? null}
+                disabled={!data.purchase_order}
+                onValueChange={(val) => {
+                  setData({
+                    purchase_order_item: val,
+                    unit: val?.unit,
+                    conversion_factor: val?.conversion_factor,
+                    quantity: val?.unbilled_quantity,
+                    rate: val?.rate,
+                    tax: val?.tax,
+                    description: val?.description,
+                  });
+                }}
+                {...attributes}
+                as="item:item.item_id"
+                canNavigation="App\Models\Inventory\Item"
+                filters={{
+                  purchase_order_id: data.purchase_order?.id ?? null,
+                  unbilled_quantity: { ">": 0 },
+                }}
+                with={["item", "unit", "tax"]}
+                fields={[
+                  "unbilled_quantity",
+                  "rate",
+                  "description",
+                  "conversion_factor",
+                ]}
+              />
+              <AssetCompletionRowBadge
+                fixedAssets={fixedAssets}
+                sourceItemId={dataRow.id}
+                sourceItemIdKey="purchase_invoice_item_id"
+                sourceDocumentType="purchase_invoice"
+                sourceDocumentId={purchaseInvoiceId}
+              />
+            </div>
           );
         },
       },

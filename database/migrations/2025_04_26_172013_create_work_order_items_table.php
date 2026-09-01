@@ -17,7 +17,7 @@ return new class extends Migration
             $table->string('item_name')->nullable();
             $table->double('quantity')->default(0);
             $table->double('ordered_quantity')->default(0);
-            $table->double('required_quantity')->storedAs('IF((quantity - ordered_quantity - transferred_quantity) > quantity, 0, (quantity - ordered_quantity - transferred_quantity))');
+            $table->double('required_quantity')->storedAs('CASE WHEN (quantity - ordered_quantity - transferred_quantity) > quantity THEN 0 ELSE (quantity - ordered_quantity - transferred_quantity) END');
             $table->double('received_quantity')->default(0);
             $table->double('ready_quantity')->storedAs('quantity - (ordered_quantity - received_quantity)');
             $table->double('transferred_quantity')->default(0);

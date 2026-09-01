@@ -11,8 +11,14 @@ import CompleteDataDialog from "./CompleteDataDialog";
  * Props: assets = array of { id, asset_name, code, asset_quantity, asset_category_id, asset_location_id }
  * @param root0
  * @param root0.assets
+ * @param root0.sourceDocumentType
+ * @param root0.sourceDocumentId
  */
-export default function AssetCompletionAlert({ assets }) {
+export default function AssetCompletionAlert({
+  assets,
+  sourceDocumentType,
+  sourceDocumentId,
+}) {
   const { t } = useLaravelReactI18n();
   const [openAssetId, setOpenAssetId] = useState(null);
 
@@ -65,6 +71,8 @@ export default function AssetCompletionAlert({ assets }) {
                       onOpenChange={(open) => {
                         if (!open) setOpenAssetId(null);
                       }}
+                      sourceDocumentType={sourceDocumentType}
+                      sourceDocumentId={sourceDocumentId}
                     />
                   )}
                 </li>

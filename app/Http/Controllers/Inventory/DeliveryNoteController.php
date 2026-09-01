@@ -128,6 +128,7 @@ class DeliveryNoteController extends Controller {
                             }
 
                             $doTarget->loadRelations();
+                            $doTarget->load('items.assetLines.asset');
                             $defaultData = [
                                 'is_return'          => true,
                                 'return_against'     => $doTarget,
@@ -139,7 +140,10 @@ class DeliveryNoteController extends Controller {
                                 'referenceable_id'   => $doTarget->referenceable_id,
                                 'referenceable'      => $doTarget->referenceable,
                                 'external_note'      => $doTarget->external_note,
-                                'items'              => $doTarget->items->map(fn ($item) => [
+                                // Requirement 1.7, spec asset-rental-migration: asset_lines
+                                // disalin dari DN asal — user tidak pilih ulang Asset, tapi
+                                // boleh mengurangi quantity per baris (retur sebagian).
+                                'items' => $doTarget->items->map(fn ($item) => [
                                     'id'                  => Utils::generateRandom(5),
                                     'source_warehouse'    => $item->sourceWarehouse,
                                     'quantity'            => $item->unreturned_quantity,
@@ -149,6 +153,10 @@ class DeliveryNoteController extends Controller {
                                     'referenceable_type'  => $item->referenceable_type,
                                     'referenceable_id'    => $item->referenceable_id,
                                     'return_against_item' => $item,
+                                    'asset_lines'         => $item->assetLines->map(fn ($line) => [
+                                        'asset'    => $line->asset,
+                                        'quantity' => $line->quantity,
+                                    ]),
                                 ]),
                             ];
                         }

@@ -90,11 +90,32 @@ class DeliveryNoteService implements SubmitableService {
         $units              = $this->batchLoadUnits($data);
         $referenceableItems = $this->batchLoadReferenceableItems($data);
         foreach ($data['items'] as $item) {
-            $item = $this->fillItemRelations($item, $units, $referenceableItems);
-            $deliveryNote->items()->create($item);
+            $item       = $this->fillItemRelations($item, $units, $referenceableItems);
+            $assetLines = $item['asset_lines'] ?? [];
+            unset($item['asset_lines']);
+            $deliveryNoteItem = $deliveryNote->items()->create($item);
+            $this->syncAssetLines($deliveryNoteItem, $assetLines);
         }
 
         return $deliveryNote;
+    }
+
+    /**
+     * Requirement 1.1, spec asset-rental-migration: persist child
+     * DeliveryNoteItemAsset dari payload FE (dulu tidak pernah tersimpan sama
+     * sekali — asset_lines terbuang di FormRequest::validated() karena tidak
+     * dideklarasikan di rules()). Delete-and-recreate karena baris ini hanya
+     * editable saat draft (sebelum submit/approve), tidak ada histori per-line
+     * yang perlu dipertahankan.
+     */
+    private function syncAssetLines(DeliveryNoteItem $item, array $lines): void {
+        $item->assetLines()->delete();
+        foreach ($lines as $line) {
+            $item->assetLines()->create([
+                'asset_id' => data_get($line, 'asset.id'),
+                'quantity' => data_get($line, 'quantity'),
+            ]);
+        }
     }
 
     public function update(Model $deliveryNote, array $data): Model {
@@ -116,15 +137,22 @@ class DeliveryNoteService implements SubmitableService {
         $units              = $this->batchLoadUnits($data);
         $referenceableItems = $this->batchLoadReferenceableItems($data);
         foreach ($data['items'] as $item) {
-            $item = $this->fillItemRelations($item, $units, $referenceableItems);
+            $item       = $this->fillItemRelations($item, $units, $referenceableItems);
+            $assetLines = $item['asset_lines'] ?? [];
+            unset($item['asset_lines']);
 
             if (Ulid::isValid($item['id'])) {
-                $existingItems->get($item['id'])?->update($item);
+                $existingItem = $existingItems->get($item['id']);
+                $existingItem?->update($item);
+                if ($existingItem) {
+                    $this->syncAssetLines($existingItem, $assetLines);
+                }
 
                 continue;
             }
 
-            $deliveryNote->items()->create($item);
+            $deliveryNoteItem = $deliveryNote->items()->create($item);
+            $this->syncAssetLines($deliveryNoteItem, $assetLines);
         }
 
         return $deliveryNote;
@@ -186,7 +214,6 @@ class DeliveryNoteService implements SubmitableService {
 
         $errorItems  = [];
         $totalPicked = 0;
-        $isRent      = false;
         foreach ($items as $item) {
             // update delivered quantity dari Sales Order Item
             if (! $item->referenceable) {
@@ -221,11 +248,10 @@ class DeliveryNoteService implements SubmitableService {
                 continue;
             }
 
-            $availableToRent = $toReference->is_rent && $item->item->type == 'vehicle';
-            if ($availableToRent) {
-                $isRent = true;
-            }
-            if ($returnAgainst && ! $availableToRent) {
+            // Requirement 1.4, spec asset-rental-migration: gate rental lama
+            // ($item->item->type == 'vehicle') dihapus total — kelayakan rental
+            // sekarang murni ditentukan Item.is_fixed_asset (branch di atas).
+            if ($returnAgainst) {
                 $item->referenceable->decrement('delivered_quantity', $item->quantity);
             } else {
                 $item->referenceable->increment('delivered_quantity', $item->quantity);
@@ -249,45 +275,6 @@ class DeliveryNoteService implements SubmitableService {
 
                 continue;
             }
-            if ($availableToRent) {
-                $stock->updateDetails(
-                    [
-                        [
-                            'operator' => $returnAgainst ? 'decrement' : 'increment',
-                            'type'     => 'rents',
-                            'key'      => $toReference->code,
-                            'value'    => $quantity,
-                        ],
-                        ...($returnAgainst ? [] : [
-                            [
-                                'operator' => 'decrement',
-                                'type'     => 'reservations',
-                                'key'      => $toReference->code,
-                                'value'    => $quantity,
-                            ],
-                        ]),
-                    ],
-                );
-                $stock->refresh();
-                StockLedgerEntry::create([
-                    'item_id'                    => $item->item_id,
-                    'warehouse_id'               => $item->source_warehouse_id,
-                    'item_unit_id'               => $stock->item_unit_id,
-                    'conversion_factor'          => $stock->conversion_factor,
-                    'quantity_change'            => $returnAgainst ? $quantity : -$quantity,
-                    'quantity_after_transaction' => $stock->actual_quantity,
-                    'valuation_rate'             => $stock->valuation_rate,
-                    'balance_stock_value'        => \array_sum(array_map(fn ($q) => $q['rate'] * $q['quantity'], $stock->stock_queue)),
-                    'change_in_stock_value'      => 0,
-                    'stock_queue'                => $stock->stock_queue,
-                    'referenceable_type'         => DeliveryNote::class,
-                    'referenceable_id'           => $deliveryNote->id,
-                    'transaction_date'           => $deliveryNote->delivery_date,
-                ]);
-
-                continue;
-            }
-
             $rentedQuantity  = $stock->rented_quantity ?? 0;
             $quantityRequest = $quantity;
 
@@ -404,18 +391,6 @@ class DeliveryNoteService implements SubmitableService {
         }
 
         event(new DocumentDeliveryStatusRecalculationRequested($toReference));
-        $status = $toReference->fresh()->status;
-
-        if ($isRent) {
-            if ($returnAgainst) {
-                $status = \array_filter($status, fn ($s) => $s != FormStatus::IN_RENT);
-            } else {
-                $status[] = FormStatus::IN_RENT;
-            }
-        }
-        $toReference->update([
-            'status' => $status,
-        ]);
 
         if ($totalPicked > 0) {
             GlPostingStatus::create([

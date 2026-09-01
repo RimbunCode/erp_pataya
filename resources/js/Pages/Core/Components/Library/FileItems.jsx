@@ -60,8 +60,10 @@ export default memo(function FileItems({ files, folderId = null }) {
                 onCheckedChange={(val) => setChecklistFile(file.id, val)}
                 classNameLabel="flex items-center gap-x-2 overflow-hidden [&_svg]:size-5 group-hover:underline text-sm font-normal cursor-pointer"
               >
-                <FileTextIcon />
-                <span className="truncate ">{file.fullname}</span>
+                <span className="flex items-center gap-x-2 overflow-hidden">
+                  <FileTextIcon />
+                  <span className="truncate">{file.fullname}</span>
+                </span>
               </FormCheckbox>
               <Button
                 variant="ghost"

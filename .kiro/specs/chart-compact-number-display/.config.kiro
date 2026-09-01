@@ -1,0 +1,6 @@
+{
+  "specId": "06df736a-297f-41a4-b0d2-ba973b4ed997",
+  "workflowType": "design-first",
+  "specType": "feature",
+  "description": "Toggle Tampilkan Angka Penuh/Singkat pada Chart, mirror show_full_number di NumberCard, diterapkan ke axis/tooltip/label pie-donut via recharts tickFormatter/formatter."
+}

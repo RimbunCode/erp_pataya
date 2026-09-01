@@ -144,7 +144,7 @@ class PurchaseReceiptController extends Controller {
         // Load fixed-asset items for completion indicator
         $itemIds     = $purchaseReceipt->items()->pluck('id');
         $fixedAssets = Asset::whereIn('purchase_receipt_item_id', $itemIds)
-            ->select('id', 'asset_name', 'code', 'asset_quantity', 'asset_category_id', 'asset_location_id')
+            ->select('id', 'asset_name', 'code', 'asset_quantity', 'asset_category_id', 'asset_location_id', 'purchase_receipt_item_id')
             ->get();
 
         return Inertia::render('Purchase/PurchaseReceipts/Show', [

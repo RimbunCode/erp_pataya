@@ -5,14 +5,16 @@ import { Button } from "@/Components/ui/button";
 import { calculateArray, isValidStatus } from "@/lib/utils";
 import { useLaravelReactI18n } from "laravel-react-i18n";
 
-export default function Show({ internalOrder }) {
+export default function Show({ internalOrder, defaultData }) {
   const { t } = useLaravelReactI18n();
   return (
     <FormPage
       isCreate={!internalOrder}
+      ignoreDraft={defaultData}
       name="internalOrder"
       disabled={internalOrder?.submitted_at}
       submitable
+      defaultValues={defaultData}
       controls={() => {
         if (
           internalOrder?.submitted_at &&

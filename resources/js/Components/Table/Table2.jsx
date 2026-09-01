@@ -111,7 +111,7 @@ export const createHeaders = (headers, ignoreCookie = false) => {
   });
   return Object.values(headers);
 };
-const Cell = memo(
+export const Cell = memo(
   ({
     row,
     cell,

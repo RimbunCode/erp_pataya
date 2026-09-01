@@ -8,6 +8,7 @@ use App\Casts\FormStatusCast;
 use App\Enums\FormStatus;
 use App\Models\Core\Branch;
 use App\Models\Core\Dashboard;
+use App\Models\Core\Desk;
 use App\Notifications\UserInvitedNotification;
 use App\Services\Core\Notification\NotifyUser;
 use App\Traits\DataTable;
@@ -121,6 +122,10 @@ class User extends Authenticatable {
 
     public function defaultBranch() {
         return $this->belongsTo(Branch::class, 'default_branch_id');
+    }
+
+    public function defaultDesk() {
+        return $this->belongsTo(Desk::class, 'default_desk_id');
     }
 
     public function roles() {

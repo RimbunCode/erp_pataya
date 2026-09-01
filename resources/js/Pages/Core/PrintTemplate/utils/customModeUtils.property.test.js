@@ -317,7 +317,7 @@ describe("Feature: gjs-table-relation-custom-mode, Property 3: Span Validation a
           const grid = makeEmptyGrid(totalRows, totalColumns);
           const result = validateSpan(grid, 0, 0, totalColumns + 1, 1);
           expect(result.valid).toBe(false);
-          expect(result.error).toBeTruthy();
+          expect(result.errorCode).toBeTruthy();
         },
       ),
       { numRuns: 100 },
@@ -333,7 +333,7 @@ describe("Feature: gjs-table-relation-custom-mode, Property 3: Span Validation a
           const grid = makeEmptyGrid(totalRows, totalColumns);
           const result = validateSpan(grid, 0, 0, 1, totalRows + 1);
           expect(result.valid).toBe(false);
-          expect(result.error).toBeTruthy();
+          expect(result.errorCode).toBeTruthy();
         },
       ),
       { numRuns: 100 },

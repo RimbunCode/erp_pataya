@@ -24,7 +24,15 @@ class AppMiddleware extends Middleware {
                 $currentBranch = $user->default_branch_id;
                 $request->session()->put('currentBranch', $currentBranch);
             }
-            $branches                 = $user->branches()->get();
+            // without()+withoutGlobalScope('country'): dropdown branch selector
+            // cuma butuh id/name/is_main_branch, tapi Branch::$with (property
+            // model, beda dari global scope) selalu eager-load 2 relasi Country
+            // — N+1 nyata karena middleware ini eksekusi di SETIAP request
+            // (Inertia::share jalan di semua halaman).
+            $branches = $user->branches()
+                ->withoutGlobalScope('country')
+                ->without(['billingCountry', 'shippingCountry'])
+                ->get();
             $permissions              = $request->session()->get('permissions');
             $permissionsVersion       = $request->session()->get('permissions_version');
             $latestPermissionsVersion = $this->resolvePermissionsVersion($user->id);

@@ -15,7 +15,11 @@ createServer((page) =>
     resolve: (name) =>
       resolvePageComponent(
         `./Pages/${name}.jsx`,
-        import.meta.glob("./Pages/**/*.jsx"),
+        import.meta.glob([
+          "./Pages/**/*.jsx",
+          "!./Pages/**/*.test.jsx",
+          "!./Pages/**/*.rtl.test.jsx",
+        ]),
       ),
     setup: ({ App, props }) => {
       global.route = (name, params, absolute) =>

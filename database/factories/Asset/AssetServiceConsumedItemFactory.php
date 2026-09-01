@@ -6,6 +6,7 @@ use App\Models\Asset\AssetService;
 use App\Models\Asset\AssetServiceConsumedItem;
 use App\Models\Inventory\Item;
 use App\Models\Inventory\ItemUnit;
+use App\Models\Inventory\ItemVariant;
 use App\Models\Inventory\Unit;
 use Illuminate\Database\Eloquent\Factories\Factory;
 
@@ -21,7 +22,7 @@ class AssetServiceConsumedItemFactory extends Factory {
     public function definition(): array {
         return [
             'asset_service_id' => AssetService::factory(),
-            'item_id'          => Item::factory(),
+            'item_id'          => ItemVariant::factory(),
             'item_unit_id'     => function (array $attributes) {
                 return $this->makeItemUnit($attributes['item_id']);
             },
@@ -33,11 +34,13 @@ class AssetServiceConsumedItemFactory extends Factory {
     /**
      * Item::defaultUom() mencocokkan ItemUnit.unit_id == Item.default_unit_id
      * — ItemFactory tidak otomatis mengisi default_unit_id, jadi factory ini
-     * membuat Unit + ItemUnit lalu mengaitkannya ke Item secara eksplisit
-     * (production selalu terisi lewat alur create Item normal).
+     * membuat Unit + ItemUnit lalu mengaitkannya ke Item (parent dari
+     * ItemVariant) secara eksplisit (production selalu terisi lewat alur
+     * create Item normal).
      */
-    private function makeItemUnit(mixed $itemId): string {
-        $item = $itemId instanceof Item ? $itemId : Item::find($itemId);
+    private function makeItemUnit(mixed $itemVariantId): string {
+        $itemVariant = $itemVariantId instanceof ItemVariant ? $itemVariantId : ItemVariant::find($itemVariantId);
+        $item        = Item::find($itemVariant->item_id);
 
         $unit = Unit::create([
             'code'              => 'PCS-' . fake()->unique()->numerify('#####'),

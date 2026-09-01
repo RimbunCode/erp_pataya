@@ -27,7 +27,13 @@ function SplitRowForm({ getColumn }) {
   );
 }
 
-export default function CompleteDataDialog({ asset, open, onOpenChange }) {
+export default function CompleteDataDialog({
+  asset,
+  open,
+  onOpenChange,
+  sourceDocumentType,
+  sourceDocumentId,
+}) {
   const { t } = useLaravelReactI18n();
   const [mode, setMode] = useState("single");
   const [category, setCategory] = useState(null);
@@ -109,8 +115,10 @@ export default function CompleteDataDialog({ asset, open, onOpenChange }) {
     // Kirim object relasi mentah (bukan extract .id manual) — konsisten pola
     // Form.jsx (Spec 1): FE selalu kirim object LinkModel utuh, backend
     // (CompleteAssetDataRequest::prepareForValidation) yang transform ke *_id.
-    const payload =
-      mode === "single"
+    const payload = {
+      source_document_type: sourceDocumentType,
+      source_document_id: sourceDocumentId,
+      ...(mode === "single"
         ? { mode: "single", asset_category: category, asset_location: location }
         : {
             mode: "split",
@@ -119,7 +127,8 @@ export default function CompleteDataDialog({ asset, open, onOpenChange }) {
               asset_location: row.asset_location,
               quantity: row.quantity,
             })),
-          };
+          }),
+    };
 
     router.put(route("assets.completeData", asset.id), payload, {
       onFinish: () => {

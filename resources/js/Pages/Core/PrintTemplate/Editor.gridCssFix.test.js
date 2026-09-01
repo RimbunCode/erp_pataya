@@ -49,12 +49,12 @@ describe("PrintTemplate Editor grid/subgrid CSS wiring", () => {
     );
   });
 
-  it("adds classes to dropped variable component and auto-created grid wrapper", () => {
+  it("registers SUBGRID_CLASS/GRID_CLASS as defaults on the gjsSubGrid/gjsGrid component types", () => {
     expect(variableDropSource).toMatch(
-      /result\.content = \{[\s\S]*classes:\s*\[SUBGRID_CLASS\]/,
+      /addType\("gjsSubGrid"[\s\S]*classes:\s*\[SUBGRID_CLASS\]/,
     );
     expect(variableDropSource).toMatch(
-      /type:\s*"gjsGrid",[\s\S]*classes:\s*\[GRID_CLASS\]/,
+      /addType\("gjsGrid"[\s\S]*classes:\s*\[GRID_CLASS\]/,
     );
   });
 

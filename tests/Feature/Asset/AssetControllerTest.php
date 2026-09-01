@@ -101,8 +101,8 @@ class AssetControllerTest extends TestCase {
             ->withSession($this->permissions())
             ->postJson(route('assets.store'), [
                 'asset_name'            => 'Toyota Avanza B 1234 XYZ',
-                'asset_category_id'     => $category->id,
-                'asset_location_id'     => $location->id,
+                'asset_category'        => ['id' => $category->id],
+                'asset_location'        => ['id' => $location->id],
                 'asset_quantity'        => 1,
                 'ownership_type'        => 'company',
                 'ownership_company_id'  => (string) Str::ulid(),
@@ -125,7 +125,7 @@ class AssetControllerTest extends TestCase {
             ->withSession($this->permissions())
             ->postJson(route('assets.store'), [])
             ->assertUnprocessable()
-            ->assertJsonValidationErrors(['asset_name', 'asset_category_id', 'asset_location_id']);
+            ->assertJsonValidationErrors(['asset_name', 'asset_category.id', 'asset_location.id']);
     }
 
     public function test_update_modifies_existing_asset(): void {
@@ -135,9 +135,9 @@ class AssetControllerTest extends TestCase {
         $this->actingAs($user)
             ->withSession($this->permissions())
             ->putJson(route('assets.update', $asset), [
-                'asset_name'        => 'Baru',
-                'asset_category_id' => $asset->asset_category_id,
-                'asset_location_id' => $asset->asset_location_id,
+                'asset_name'     => 'Baru',
+                'asset_category' => ['id' => $asset->asset_category_id],
+                'asset_location' => ['id' => $asset->asset_location_id],
             ])
             ->assertRedirect();
 
@@ -159,10 +159,10 @@ class AssetControllerTest extends TestCase {
         $this->actingAs($user)
             ->withSession($this->permissions())
             ->putJson(route('assets.update', $asset), [
-                'asset_name'        => $asset->asset_name,
-                'asset_category_id' => $asset->asset_category_id,
-                'asset_location_id' => $asset->asset_location_id,
-                'ownership_type'    => 'supplier',
+                'asset_name'     => $asset->asset_name,
+                'asset_category' => ['id' => $asset->asset_category_id],
+                'asset_location' => ['id' => $asset->asset_location_id],
+                'ownership_type' => 'supplier',
                 // ownership_supplier_id sengaja TIDAK diisi
             ])
             ->assertUnprocessable()
@@ -182,10 +182,10 @@ class AssetControllerTest extends TestCase {
         $this->actingAs($user)
             ->withSession($this->permissions())
             ->postJson(route('assets.store'), [
-                'asset_name'        => 'Excavator Banyak',
-                'asset_category_id' => $category->id,
-                'asset_location_id' => $location->id,
-                'asset_quantity'    => 5,
+                'asset_name'     => 'Excavator Banyak',
+                'asset_category' => ['id' => $category->id],
+                'asset_location' => ['id' => $location->id],
+                'asset_quantity' => 5,
             ])
             ->assertUnprocessable()
             ->assertJsonValidationErrors(['asset_quantity']);

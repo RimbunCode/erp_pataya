@@ -56,5 +56,7 @@ return [
     'actions' => [
         'create_pr' => 'Create Purchase Request',
         'create_po' => 'Create Purchase Order',
+        'create_so' => 'Create Sales Order',
+        'create_io' => 'Create Internal Order',
     ],
 ];

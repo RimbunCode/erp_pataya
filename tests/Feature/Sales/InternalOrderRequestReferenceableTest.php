@@ -7,10 +7,12 @@ use App\Http\Requests\Sales\InternalOrderRequest;
 use App\Http\Requests\Sales\SalesOrderRequest;
 use App\Models\Asset\AssetService;
 use App\Models\Asset\AssetServiceConsumedItem;
+use App\Models\Core\Branch;
 use App\Models\Inventory\Item;
 use App\Models\Inventory\ItemUnit;
 use App\Models\Inventory\ItemVariant;
 use App\Models\Inventory\Unit;
+use App\Models\Inventory\Warehouse;
 use App\Models\Sales\Customer;
 use App\Models\Sales\InternalOrder;
 use App\Models\Sales\InternalOrderItem;
@@ -161,22 +163,30 @@ class InternalOrderRequestReferenceableTest extends TestCase {
         $consumedItemA->assetService->update(['status' => [FormStatus::APPROVED]]);
         $consumedItemB->assetService->update(['status' => [FormStatus::APPROVED]]);
 
-        $unit = $this->makeItemUnit();
+        $unit      = $this->makeItemUnit();
+        $branch    = Branch::create(['name' => 'Test Branch', 'is_main_branch' => true]);
+        $warehouse = Warehouse::create([
+            'branch_id' => $branch->id,
+            'name'      => 'Test Warehouse',
+            'code'      => 'WH-' . fake()->unique()->numerify('####'),
+        ]);
 
         $validator = $this->validateInternalOrder([
             [
-                'id'            => (string) Str::ulid(),
-                'item'          => ['id' => $sharedItemVariant->id],
-                'quantity'      => (float) $consumedItemA->quantity,
-                'unit'          => ['id' => $unit->id],
-                'referenceable' => ['type' => AssetServiceConsumedItem::class, 'id' => $consumedItemA->id],
+                'id'               => (string) Str::ulid(),
+                'item'             => ['id' => $sharedItemVariant->id],
+                'quantity'         => (float) $consumedItemA->quantity,
+                'unit'             => ['id' => $unit->id],
+                'source_warehouse' => ['id' => $warehouse->id],
+                'referenceable'    => ['type' => AssetServiceConsumedItem::class, 'id' => $consumedItemA->id],
             ],
             [
-                'id'            => (string) Str::ulid(),
-                'item'          => ['id' => $sharedItemVariant->id],
-                'quantity'      => (float) $consumedItemB->quantity,
-                'unit'          => ['id' => $unit->id],
-                'referenceable' => ['type' => AssetServiceConsumedItem::class, 'id' => $consumedItemB->id],
+                'id'               => (string) Str::ulid(),
+                'item'             => ['id' => $sharedItemVariant->id],
+                'quantity'         => (float) $consumedItemB->quantity,
+                'unit'             => ['id' => $unit->id],
+                'source_warehouse' => ['id' => $warehouse->id],
+                'referenceable'    => ['type' => AssetServiceConsumedItem::class, 'id' => $consumedItemB->id],
             ],
         ]);
 

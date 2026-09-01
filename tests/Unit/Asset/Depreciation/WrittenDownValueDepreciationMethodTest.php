@@ -42,4 +42,23 @@ class WrittenDownValueDepreciationMethodTest extends TestCase {
 
         $this->assertLessThanOrEqual(9000.0, end($rows)['accumulated_depreciation_amount']);
     }
+
+    #[Test]
+    public function prorates_first_period_when_daily_prorata_based_and_not_starting_on_first_of_month(): void {
+        $asset = new Asset([
+            'gross_purchase_amount'            => 10000,
+            'expected_value_after_useful_life' => 0,
+            'total_number_of_depreciations'    => 3,
+            'frequency_of_depreciation'        => 1,
+            'rate_of_depreciation'             => 0.20,
+            'opening_accumulated_depreciation' => 0,
+            'depreciation_start_date'          => '2026-01-15',
+            'daily_prorata_based'              => true,
+        ]);
+
+        $rows = (new WrittenDownValueDepreciationMethod)->calculate($asset);
+
+        // Full amount period 1 = 2000; Jan 2026 py 31 hari, dimiliki 17 hari.
+        $this->assertEqualsWithDelta(2000 * 17 / 31, $rows[0]['depreciation_amount'], 0.02);
+    }
 }

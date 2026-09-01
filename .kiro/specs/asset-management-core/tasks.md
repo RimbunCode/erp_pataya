@@ -353,7 +353,7 @@ Membangun domain `Asset` baru: model `AssetCategory` (flat), `AssetLocation` (tr
   - Ditambah grup "Assets" (icon `Boxes`, lucide-react) setelah "Inventories", berisi 3 item: Assets (`/assets`), Asset Categories (`/assetCategories`), Asset Locations (`/assetLocations`) — field `model` FQCN diisi utk permission-gate otomatis via `NavMain.jsx` (`checkPermission`), konsisten pola grup Inventories/Purchases.
   - Diverifikasi `php artisan route:list --path=asset` — URL sidebar match persis nama route (`assets.index`/`assetCategories.index`/`assetLocations.index`).
 
-- [~] 22. Final checkpoint (FE + lang) — backend+lang teruji penuh, FE belum di-build/verifikasi visual
+- [x] 22. Final checkpoint (FE + lang) — backend+lang teruji penuh, FE belum di-build/verifikasi visual
   - Backend (group 1-15), Lang (16-17), FE kode (18-20) semua selesai ditulis. **75 test PHP (Feature+Unit Asset domain) PASS, 0 failure** — verifikasi terakhir dijalankan setelah seluruh perubahan Controller (Show.jsx refactor) dan lang key format fix.
   - **BELUM DILAKUKAN** (di luar tool yang tersedia pada sesi pengerjaan ini — tidak ada akses jalankan `npm run build`/browser): kompilasi Vite, verifikasi visual browser bahwa AssetCategory/AssetLocation/Asset pages benar-benar render tanpa error React/Inertia runtime. Kode React ditulis mengikuti pola existing yang terbukti bekerja (Category, Warehouse, Account, PurchaseOrder) sepresisi mungkin, tapi TIDAK ADA jaminan zero-typo/zero-runtime-error tanpa build+browser check.
   - **Todo sebelum benar-benar dianggap selesai**: jalankan `npm run build` (atau `npm run dev` + buka browser), buka `/assetCategories`, `/assetLocations`, `/assets`, `/assets/create`, verifikasi tidak ada console error dan seluruh field ter-render.

@@ -8,6 +8,7 @@ use App\Http\Requests\Finances\Rules\AdditionalDiscountRules;
 use App\Http\Requests\Finances\Rules\PaymentSchedulesRules;
 use App\Models\Asset\AssetService;
 use App\Models\Asset\AssetServiceConsumedItem;
+use App\Models\Inventory\ItemVariant;
 use App\Models\Sales\InternalOrderItem;
 use App\Models\Sales\SalesOrderItem;
 use App\Rules\ExistsExcludingTrashed;
@@ -73,7 +74,34 @@ class SalesOrderRequest extends BaseFormRequest {
             }
 
             $this->validateAssetServiceReferenceables($validator);
+            $this->validateSourceWarehouseRequired($validator);
         });
+    }
+
+    /**
+     * Gudang Asal wajib diisi untuk baris ItemVariant yang is_stock_item —
+     * item jasa (is_stock_item=false) tidak butuh gudang, kolomnya di-disable
+     * di FE, jadi TIDAK boleh diwajibkan di sini juga.
+     */
+    private function validateSourceWarehouseRequired(Validator $validator): void {
+        foreach ((array) $this->input('items', []) as $index => $item) {
+            $itemVariantId = $item['item']['id'] ?? null;
+            if (! $itemVariantId) {
+                continue;
+            }
+
+            $itemVariant = ItemVariant::find($itemVariantId);
+            if (! $itemVariant?->is_stock_item) {
+                continue;
+            }
+
+            if (empty($item['source_warehouse']['id'] ?? null)) {
+                $validator->errors()->add(
+                    "items.{$index}.source_warehouse.id",
+                    __('sales/salesOrder.source_warehouse_required'),
+                );
+            }
+        }
     }
 
     /**

@@ -40,6 +40,8 @@ class CompleteAssetDataRequest extends BaseFormRequest {
 
         return [
             'mode'                     => ['required', 'in:single,split'],
+            'source_document_type'     => ['required', 'in:purchase_receipt,purchase_invoice'],
+            'source_document_id'       => ['required', 'string'],
             'asset_category_id'        => [$isSplit ? 'nullable' : 'required', 'string', 'exists:asset_categories,id'],
             'asset_location_id'        => [$isSplit ? 'nullable' : 'required', 'string', 'exists:asset_locations,id'],
             'rows'                     => [$isSplit ? 'required' : 'nullable', 'array', 'min:1'],
@@ -51,24 +53,57 @@ class CompleteAssetDataRequest extends BaseFormRequest {
 
     public function withValidator(Validator $validator): void {
         $validator->after(function (Validator $validator) {
-            if ($validator->errors()->isNotEmpty() || $this->input('mode') !== 'split') {
+            if ($validator->errors()->isNotEmpty()) {
                 return;
             }
 
             /** @var Asset $asset */
             $asset = $this->route('asset');
-            $rows  = $this->input('rows', []);
-            $total = array_sum(array_column($rows, 'quantity'));
+            $this->validateSourceDocument($validator, $asset);
 
-            if (abs($total - (float) $asset->asset_quantity) > 0.0001) {
-                $validator->errors()->add(
-                    'rows',
-                    __('asset/asset.split_quantity_mismatch', [
-                        'total'    => $total,
-                        'expected' => $asset->asset_quantity,
-                    ]),
-                );
+            if ($this->input('mode') === 'split') {
+                $this->validateSplitQuantity($validator, $asset);
             }
         });
+    }
+
+    /**
+     * Requirement 6.6: dialog "Lengkapi Data Asset" hanya boleh dipakai untuk
+     * Asset yang benar-benar berasal dari dokumen Purchase yang sedang dibuka
+     * — mencegah user melengkapi Asset milik dokumen lain lewat manipulasi
+     * request langsung ke endpoint (bypass UI, yang sudah men-scope daftar
+     * Asset per dokumen lewat query fixedAssets di Controller).
+     */
+    private function validateSourceDocument(Validator $validator, Asset $asset): void {
+        $type = $this->input('source_document_type');
+        $id   = $this->input('source_document_id');
+
+        $matches = match ($type) {
+            'purchase_receipt' => $asset->purchase_receipt_id === $id,
+            'purchase_invoice' => $asset->purchase_invoice_id === $id,
+            default            => false,
+        };
+
+        if (! $matches) {
+            $validator->errors()->add(
+                'source_document_id',
+                __('asset/asset.source_document_mismatch'),
+            );
+        }
+    }
+
+    private function validateSplitQuantity(Validator $validator, Asset $asset): void {
+        $rows  = $this->input('rows', []);
+        $total = array_sum(array_column($rows, 'quantity'));
+
+        if (abs($total - (float) $asset->asset_quantity) > 0.0001) {
+            $validator->errors()->add(
+                'rows',
+                __('asset/asset.split_quantity_mismatch', [
+                    'total'    => $total,
+                    'expected' => $asset->asset_quantity,
+                ]),
+            );
+        }
     }
 }

@@ -1,0 +1,6 @@
+{
+  "specId": "544ab00a-8172-463e-b0c8-3ab454e677d8",
+  "workflowType": "design-first",
+  "specType": "feature",
+  "description": "Seeder konten dashboard (DashboardWidget: card/chart/quick_list/link_card) untuk 9 System Desk di DeskSeeder — mengisi Dashboard kosong hasil Desk::resolveDashboard() dengan metrik ERP yang relevan per domain, tanpa menimpa hasil edit manual user."
+}

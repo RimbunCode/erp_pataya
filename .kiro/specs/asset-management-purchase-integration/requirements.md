@@ -86,14 +86,15 @@ Spec ini adalah **Fase 2 dari 4 fase modul Asset Management**. Fase ini menghubu
 #### Acceptance Criteria
 
 1. THE halaman Show `PurchaseReceipt` dan `PurchaseInvoice` SHALL menampilkan indikator (badge/alert) pada baris item yang memiliki Asset auto-created dengan `asset_category_id` atau `asset_location_id` masih kosong.
-2. THE system SHALL menyediakan tombol aksi pada baris tersebut yang membuka dialog inline (BUKAN redirect halaman) berisi form: pilih `AssetCategory` (LinkModel), pilih `AssetLocation` (LinkModel), dan opsi jumlah pecahan (jika `asset_quantity > 1`).
-3. WHEN user submit dialog TANPA memilih split (jumlah pecahan = 1 atau tidak diisi), THE system SHALL meng-update Asset yang sudah ada dengan `asset_category_id`/`asset_location_id` terpilih, `asset_quantity` tidak berubah.
-4. WHEN user submit dialog DENGAN memilih split menjadi N bagian (N > 1, N ≤ `asset_quantity`), THE system SHALL:
-   - Mengisi `asset_category_id`/`asset_location_id` yang sama pada seluruh hasil split.
-   - Membuat N record `Asset` baru dengan total `asset_quantity` sama dengan `asset_quantity` Asset asal (pembagian merata; sisa pembagian bulat masuk ke unit pertama — mis. qty 5 split 3 menghasilkan `[2, 2, 1]` atau `[3, 1, 1]`, pilih salah satu aturan konsisten dan dokumentasikan di design.md).
+2. THE system SHALL menyediakan tombol aksi pada baris tersebut yang membuka dialog inline (BUKAN redirect halaman) berisi form: pilih `AssetCategory` (LinkModel), pilih `AssetLocation` (LinkModel), dan opsi mode split manual (jika `asset_quantity > 1`).
+3. WHEN user submit dialog dalam mode single (tanpa split), THE system SHALL meng-update Asset yang sudah ada dengan `asset_category_id`/`asset_location_id` terpilih, `asset_quantity` tidak berubah.
+4. WHEN user submit dialog dalam mode split, THE system SHALL:
+   - Menerima daftar baris (`rows`) berisi `asset_category_id`/`asset_location_id`/`quantity` PER BARIS yang diisi MANUAL oleh user satu-satu (BUKAN auto-split merata/proporsional) — tiap baris boleh punya kategori/lokasi berbeda.
+   - Memvalidasi `sum(rows.quantity)` SAMA DENGAN `asset_quantity` Asset asal — ditolak (422) jika tidak sama.
+   - Membuat satu record `Asset` baru per baris sesuai `rows` yang diisi user.
    - Menghapus (soft-delete) Asset asal, MENGAITKAN seluruh Asset hasil split ke dokumen sumber yang sama (`purchase_receipt_id`/`purchase_invoice_id` tetap sama seperti Asset asal).
-   - MEWARISKAN seluruh field lain (nama, tanggal beli, nilai — dibagi proporsional untuk nilai moneter) dari Asset asal ke tiap hasil split.
-5. THE endpoint dialog SHALL divalidasi lewat FormRequest baru (mis. `CompleteAssetDataRequest`), memastikan `asset_category_id`/`asset_location_id` yang dipilih valid dan N split tidak melebihi `asset_quantity`.
+   - MEWARISKAN seluruh field lain (nama, tanggal beli, nilai — dibagi proporsional sesuai rasio quantity per baris untuk nilai moneter) dari Asset asal ke tiap hasil split.
+5. THE endpoint dialog SHALL divalidasi lewat FormRequest baru (mis. `CompleteAssetDataRequest`), memastikan `asset_category_id`/`asset_location_id` per baris valid dan total `rows.quantity` sama dengan `asset_quantity`.
 6. THE aksi ini SHALL hanya tersedia untuk Asset yang masih `DRAFT` dan berasal dari dokumen Purchase yang sedang dilihat (tidak bisa melengkapi Asset milik dokumen lain dari halaman ini).
 
 ### Requirement 7: Konvensi struktur dan non-tujuan

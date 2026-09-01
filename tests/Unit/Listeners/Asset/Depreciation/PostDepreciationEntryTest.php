@@ -13,6 +13,7 @@ use App\Models\Core\GlPostingStatus;
 use App\Models\Finances\GeneralLedger;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Illuminate\Support\Facades\DB;
+use Illuminate\Support\Facades\Log;
 use Illuminate\Support\Facades\Schema;
 use Illuminate\Support\Str;
 use LogicException;
@@ -152,9 +153,17 @@ class PostDepreciationEntryTest extends TestCase {
             'status'             => FormStatus::PENDING,
         ]);
 
+        Log::spy();
+
         $this->expectException(LogicException::class);
 
-        (new PostDepreciationEntry)->handle(new AssetDepreciationDue($schedule, now()));
+        try {
+            (new PostDepreciationEntry)->handle(new AssetDepreciationDue($schedule, now()));
+        } finally {
+            Log::shouldHaveReceived('warning')->once()->withArgs(
+                fn (string $message) => str_contains($message, $asset->id) && str_contains($message, $schedule->id),
+            );
+        }
     }
 
     #[Test]

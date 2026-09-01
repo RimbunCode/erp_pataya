@@ -20,7 +20,7 @@ import { memo, useEffect, useState } from "react";
 import { useLaravelReactI18n } from "laravel-react-i18n";
 import usePermission from "@/Hooks/usePermission";
 
-export default memo(function BranchSwitcher() {
+export default memo(function BranchSwitcher({ className }) {
   const route = window.route;
   const { can } = usePermission("App\\Models\\Core\\Branch");
   const { branches, currentBranch } = usePage().props.branchSettings;
@@ -55,13 +55,13 @@ export default memo(function BranchSwitcher() {
   }, []);
 
   return (
-    <SidebarMenu>
+    <SidebarMenu className={className}>
       <SidebarMenuItem>
         <DropdownMenu>
           <DropdownMenuTrigger asChild>
             <SidebarMenuButton
               size="lg"
-              className="data-[state=open]:bg-sidebar-accent data-[state=open]:text-sidebar-accent-foreground "
+              className="w-full data-[state=open]:bg-sidebar-accent data-[state=open]:text-sidebar-accent-foreground"
             >
               <div className="flex items-center justify-center rounded-lg aspect-square size-8 bg-sidebar-foreground dark:text-muted! text-sidebar-primary-foreground">
                 <Building2Icon className="size-5" />

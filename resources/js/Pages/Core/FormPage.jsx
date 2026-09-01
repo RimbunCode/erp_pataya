@@ -701,6 +701,9 @@ const FormPage = memo(
       printable: _printable,
       usePasswordConfirmationForDelete,
       primaryKey = "id",
+      hideSidebar = false,
+      hideBranchSwitcher = false,
+      hideDeskSwitcher = false,
     },
     ref,
   ) {
@@ -868,6 +871,9 @@ const FormPage = memo(
         // data-disabled={disabled}
         className="pt-0! relative group/form"
         onScroll={handleScroll}
+        hideSidebar={hideSidebar}
+        hideBranchSwitcher={hideBranchSwitcher}
+        hideDeskSwitcher={hideDeskSwitcher}
       >
         <form
           onKeyDown={onKeyDown}

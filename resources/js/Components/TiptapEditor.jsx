@@ -72,7 +72,13 @@ function ToolbarDivider() {
   return <div className="w-px h-5 bg-border mx-0.5 shrink-0" />;
 }
 
-function MenuBar({ editor, imageUploadUrl, handleImageUpload, fileInputRef }) {
+function MenuBar({
+  editor,
+  imageUploadUrl,
+  handleImageUpload,
+  fileInputRef,
+  minimal,
+}) {
   if (!editor) return null;
 
   const setLink = () => {
@@ -85,6 +91,46 @@ function MenuBar({ editor, imageUploadUrl, handleImageUpload, fileInputRef }) {
     }
     editor.chain().focus().extendMarkRange("link").setLink({ href: url }).run();
   };
+
+  // desk-dashboard-builder: toolbar minimal (mark-level saja) untuk konteks
+  // seperti label section — TIDAK menampilkan tombol heading/list/blockquote/
+  // align/image karena extension node-level itu sengaja tidak diaktifkan
+  // (lihat prop `extensions` di TiptapEditor), tombolnya akan no-op kalau
+  // tetap ditampilkan.
+  if (minimal) {
+    return (
+      <div className="flex flex-wrap items-center gap-0.5 p-1.5 border-b border-border bg-muted/50">
+        <ToolbarButton
+          onClick={() => editor.chain().focus().toggleBold().run()}
+          active={editor.isActive("bold")}
+          title="Bold"
+        >
+          <Bold className="size-3.5" />
+        </ToolbarButton>
+        <ToolbarButton
+          onClick={() => editor.chain().focus().toggleItalic().run()}
+          active={editor.isActive("italic")}
+          title="Italic"
+        >
+          <Italic className="size-3.5" />
+        </ToolbarButton>
+        <ToolbarButton
+          onClick={() => editor.chain().focus().toggleUnderline().run()}
+          active={editor.isActive("underline")}
+          title="Underline"
+        >
+          <UnderlineIcon className="size-3.5" />
+        </ToolbarButton>
+        <ToolbarButton
+          onClick={() => editor.chain().focus().toggleStrike().run()}
+          active={editor.isActive("strike")}
+          title="Strikethrough"
+        >
+          <Strikethrough className="size-3.5" />
+        </ToolbarButton>
+      </div>
+    );
+  }
 
   return (
     <div className="flex flex-wrap items-center gap-0.5 p-1.5 border-b border-border bg-muted/50">
@@ -393,9 +439,17 @@ const TiptapEditor = forwardRef(function TiptapEditor(
     mentionRenderMode = "label",
     scrollable,
     imageUploadUrl,
+    // desk-dashboard-builder: variant minimal (mark-level saja: Bold/
+    // Italic/Underline/Strike, TANPA Heading/List/Blockquote/Image/
+    // TextAlign/Link/Mention) untuk konteks label satu-baris seperti
+    // section label — TIDAK mengubah default (variant="full") sehingga
+    // Comments.jsx/EmailTemplate/Form.jsx dst tidak terpengaruh sama
+    // sekali.
+    variant = "full",
   },
   ref,
 ) {
+  const minimal = variant === "minimal";
   const { t } = useLaravelReactI18n();
   const isUpdatingRef = useRef(false);
   const fileInputRef = useRef(null);
@@ -407,50 +461,72 @@ const TiptapEditor = forwardRef(function TiptapEditor(
   }, [mentionSource]);
 
   const editor = useEditor({
-    extensions: [
-      StarterKit,
-      Underline,
-      Image.configure({ inline: false, allowBase64: false }),
-      TextAlign.configure({
-        types: ["heading", "paragraph"],
-        alignments: ["left", "center", "right", "justify"],
-      }),
-      Link.configure({
-        openOnClick: false,
-        HTMLAttributes: {
-          rel: "noopener noreferrer",
-          target: "_blank",
-          class: "tiptap-link",
-        },
-      }),
-      ...(mentionSource
-        ? [
-            Mention.configure({
-              HTMLAttributes: { class: "mention" },
-              suggestion: buildMentionSuggestion(mentionSourceRef),
-              renderHTML({ options, node }) {
-                if (mentionRenderMode === "mergeTag") {
-                  return [
-                    "span",
-                    { "data-type": "mention", "data-merge-tag": node.attrs.id },
-                    dotPathToMergeTagToken(node.attrs.id),
-                  ];
-                }
+    extensions: minimal
+      ? [
+          // Mark-level saja — StarterKit dilewati (bawa node Heading/List/
+          // Blockquote/CodeBlock/dst yang tidak diinginkan untuk label
+          // satu-baris). Document/Paragraph/Text minimal wajib ada supaya
+          // ProseMirror schema valid; StarterKit.configure menonaktifkan
+          // node yang tidak dipakai alih-alih exclude manual satu-satu.
+          StarterKit.configure({
+            heading: false,
+            bulletList: false,
+            orderedList: false,
+            listItem: false,
+            blockquote: false,
+            codeBlock: false,
+            horizontalRule: false,
+            code: false,
+          }),
+          Underline,
+        ]
+      : [
+          StarterKit,
+          Underline,
+          Image.configure({ inline: false, allowBase64: false }),
+          TextAlign.configure({
+            types: ["heading", "paragraph"],
+            alignments: ["left", "center", "right", "justify"],
+          }),
+          Link.configure({
+            openOnClick: false,
+            HTMLAttributes: {
+              rel: "noopener noreferrer",
+              target: "_blank",
+              class: "tiptap-link",
+            },
+          }),
+          ...(mentionSource
+            ? [
+                Mention.configure({
+                  HTMLAttributes: { class: "mention" },
+                  suggestion: buildMentionSuggestion(mentionSourceRef),
+                  renderHTML({ options, node }) {
+                    if (mentionRenderMode === "mergeTag") {
+                      return [
+                        "span",
+                        {
+                          "data-type": "mention",
+                          "data-merge-tag": node.attrs.id,
+                        },
+                        dotPathToMergeTagToken(node.attrs.id),
+                      ];
+                    }
 
-                return [
-                  "span",
-                  {
-                    "data-type": "mention",
-                    "data-id": node.attrs.id,
-                    class: "mention",
+                    return [
+                      "span",
+                      {
+                        "data-type": "mention",
+                        "data-id": node.attrs.id,
+                        class: "mention",
+                      },
+                      `${options.suggestion.char}${node.attrs.label ?? node.attrs.id}`,
+                    ];
                   },
-                  `${options.suggestion.char}${node.attrs.label ?? node.attrs.id}`,
-                ];
-              },
-            }),
-          ]
-        : []),
-    ],
+                }),
+              ]
+            : []),
+        ],
     content: sanitizeProseMirrorJSON(value) ?? "",
     editorProps: {
       attributes: {
@@ -529,15 +605,16 @@ const TiptapEditor = forwardRef(function TiptapEditor(
     >
       <MenuBar
         editor={editor}
-        imageUploadUrl={imageUploadUrl}
+        imageUploadUrl={minimal ? undefined : imageUploadUrl}
         handleImageUpload={handleImageUpload}
         fileInputRef={fileInputRef}
+        minimal={minimal}
       />
       <EditorContent
         editor={editor}
         className={scrollable ? "flex-1 min-h-0 overflow-y-auto" : undefined}
       />
-      {editor && (
+      {editor && !minimal && (
         <BubbleMenu
           editor={editor}
           tippyOptions={{ duration: 100 }}
