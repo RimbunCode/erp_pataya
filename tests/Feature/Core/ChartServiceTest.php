@@ -2,10 +2,14 @@
 
 namespace Tests\Feature\Core;
 
+use App\Enums\FormStatus;
 use App\Models\Core\Chart;
 use App\Models\Core\Dashboard;
 use App\Models\DashboardWidget;
 use App\Models\Model as AppModel;
+use App\Models\Sales\Customer;
+use App\Models\Sales\SalesOrder;
+use App\Models\User\User;
 use App\Services\Core\ChartService;
 use App\Services\Core\PermissionChecker;
 use App\Traits\DataTable;
@@ -126,6 +130,42 @@ class ChartServiceTest extends TestCase {
         $resultWithoutPermission = $this->service()->getData($chart, [], $this->noopChecker());
         $this->assertNotContains('Dashboard A', $resultWithoutPermission['labels']);
         $this->assertContains($dashboardA->id, $resultWithoutPermission['labels']);
+    }
+
+    /**
+     * Spec desk-dashboard-content-seeder — kolom `formStatus(es)` (JSON-array
+     * cast enum FormStatus, mis. `status`) TIDAK boleh tampil sebagai JSON
+     * mentah (`["draft"]`) di label chart group_by — harus diterjemahkan
+     * lewat `valueTrans` kolom (sama seperti FormStatus::label()).
+     */
+    public function test_group_by_formstatuses_column_shows_translated_label_not_raw_json(): void {
+        // Kolom `status` (Submitable) di-add DINAMIS oleh initPermissions(),
+        // bukan migration statis — belum ada di DB test fresh tanpa ini.
+        SalesOrder::initPermissions();
+        $customer = Customer::query()->create(['name' => 'C', 'is_disabled' => false]);
+        $user     = User::factory()->create();
+
+        SalesOrder::create([
+            'code'          => 'SO-STATUS-1', 'date' => now(), 'customer_id' => $customer->id,
+            'created_by_id' => $user->id, 'status' => [FormStatus::DRAFT],
+        ]);
+        SalesOrder::create([
+            'code'          => 'SO-STATUS-2', 'date' => now(), 'customer_id' => $customer->id,
+            'created_by_id' => $user->id, 'status' => [FormStatus::APPROVED],
+        ]);
+
+        $chart = Chart::create([
+            'chart_name'        => 'SO by Status', 'model_class' => SalesOrder::class,
+            'chart_source_type' => 'group_by', 'group_by_based_on' => 'status', 'group_by_type' => 'count',
+        ]);
+
+        $result = $this->service()->getData($chart, [], $this->noopChecker());
+
+        $this->assertContains(__('status.draft'), $result['labels']);
+        $this->assertContains(__('status.approved'), $result['labels']);
+        foreach ($result['labels'] as $label) {
+            $this->assertStringNotContainsString('[', $label, 'Label chart tidak boleh mengandung JSON mentah.');
+        }
     }
 
     /** Requirement 6.1: count per hari dalam heatmap_year. */

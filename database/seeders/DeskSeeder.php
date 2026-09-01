@@ -6,6 +6,7 @@ use App\Enums\DeskType;
 use App\Enums\Domain;
 use App\Models\Asset\Asset;
 use App\Models\Asset\AssetCategory;
+use App\Models\Asset\AssetDepreciationSchedule;
 use App\Models\Asset\AssetLocation;
 use App\Models\Asset\AssetMovement;
 use App\Models\Asset\AssetService;
@@ -17,6 +18,7 @@ use App\Models\Core\Branch;
 use App\Models\Core\Chart;
 use App\Models\Core\Country;
 use App\Models\Core\Currency;
+use App\Models\Core\Dashboard;
 use App\Models\Core\Desk;
 use App\Models\Core\EmailTemplate;
 use App\Models\Core\File;
@@ -26,6 +28,7 @@ use App\Models\Core\MenuItem;
 use App\Models\Core\NumberCard;
 use App\Models\Core\Preference;
 use App\Models\Core\PrintTemplate;
+use App\Models\DashboardWidget;
 use App\Models\Finances\Account;
 use App\Models\Finances\GeneralLedger;
 use App\Models\Finances\PaymentEntry;
@@ -34,6 +37,7 @@ use App\Models\Finances\PaymentTermTemplate;
 use App\Models\Finances\PurchaseInvoice;
 use App\Models\Finances\SalesInvoice;
 use App\Models\Finances\Tax;
+use App\Models\Helpdesk\Ticket;
 use App\Models\Inventory\Attribute;
 use App\Models\Inventory\Category;
 use App\Models\Inventory\DeliveryNote;
@@ -51,9 +55,11 @@ use App\Models\Sales\Customer;
 use App\Models\Sales\InternalOrder;
 use App\Models\Sales\SalesOrder;
 use App\Models\Service\WorkOrder;
+use App\Models\User\Permission as PermissionModel;
 use App\Models\User\Role;
 use App\Models\User\User;
 use Illuminate\Database\Seeder;
+use Illuminate\Support\Str;
 
 /**
  * Migrasi data `navList` (`resources/js/Components/Sidebar/AppSidebar.jsx`)
@@ -68,9 +74,15 @@ class DeskSeeder extends Seeder {
     /** @var array<string, MenuItem> folder murni (parent_id target), keyed by label */
     private array $menuGroups = [];
 
+    /** @var array<string,string|null> cache model FQCN -> Permission.id */
+    private array $permissionIdCache = [];
+
+    private ?string $adminUserId = null;
+
     public function run(): void {
         $this->createSystemDesks();
         $this->seedMenuItems();
+        $this->seedDashboards();
     }
 
     private function createSystemDesks(): void {
@@ -312,5 +324,687 @@ class DeskSeeder extends Seeder {
         // Logs — feedback user: posisi di bawah, setelah Files (section
         // tunggal, tidak butuh folder)
         $this->menuItem('Logs', 'HistoryIcon', 'logs.*', Log::class, [Domain::Core], 25);
+    }
+
+    // ========================================================================
+    // Dashboard content seeder (spec desk-dashboard-content-seeder)
+    // ========================================================================
+
+    /**
+     * Isi Dashboard tiap Desk system dengan konten bermakna — HANYA kalau
+     * Dashboard-nya BENAR-BENAR kosong (0 widget). Begitu ada widget apapun
+     * (dari run seeder sebelumnya, ATAU hasil edit manual user lewat
+     * desk-dashboard-builder), skip total untuk desk itu — seeder ini TIDAK
+     * PERNAH menimpa/menghapus ulang, supaya edit user tidak hilang saat
+     * `db:seed` dijalankan ulang (mis. saat deploy).
+     */
+    private function seedDashboards(): void {
+        foreach ($this->desks as $desk) {
+            $dashboard = $desk->dashboard_id
+                ? Dashboard::find($desk->dashboard_id)
+                : $desk->resolveDashboard();
+            if (! $dashboard || $dashboard->widgets()->count() > 0) {
+                continue;
+            }
+
+            $method = 'seedDashboardFor' . Str::studly($desk->domain->value);
+            if (method_exists($this, $method)) {
+                $this->{$method}($dashboard);
+            }
+        }
+    }
+
+    private function adminUserId(): ?string {
+        return $this->adminUserId ??= User::query()->value('id');
+    }
+
+    private function permissionId(string $modelClass): ?string {
+        return $this->permissionIdCache[$modelClass] ??=
+            PermissionModel::where('model', $modelClass)->value('id');
+    }
+
+    /**
+     * Tree filter FilterEvaluator `{root:{k,o,v,c}}` — dipakai Chart/
+     * NumberCard.filters DAN DashboardWidget(quick_list).config.filters
+     * (format sama, konsumen beda: FilterEvaluator::apply() vs
+     * DashboardController::quickList() yang flatten dulu via flattenFilters()
+     * FE, tapi bentuk tree-nya identik — lihat resources/js/Hooks/
+     * useNestedFilters.jsx: GROUP_CHILDREN='c', ITEM_KEY='k', ITEM_OPERATOR=
+     * 'o', ITEM_VALUE='v').
+     *
+     * @param  list<array{0:string,1:string,2:mixed}|array<string,mixed>>  $items  triple [field,operator,value] ATAU node k/o/v mentah (mis. hasil monthCondition())
+     */
+    private function filterTree(array $items): array {
+        $children = [];
+        foreach ($items as $i => $item) {
+            $children["f{$i}"] = isset($item['k'])
+                ? $item
+                : ['k' => $item[0], 'o' => $item[1], 'v' => $item[2]];
+        }
+
+        return ['root' => ['k' => 'and', 'c' => $children]];
+    }
+
+    /** Kondisi "field jatuh di bulan berjalan" — FilterEvaluator wajib in_period utk kolom date/datetime. */
+    private function monthCondition(string $field): array {
+        return ['k' => $field, 'o' => 'in_period', 'v' => [
+            'period'    => 'day',
+            'operator'  => 'between',
+            'startDate' => now()->startOfMonth()->toDateString(),
+            'endDate'   => now()->endOfMonth()->toDateString(),
+        ]];
+    }
+
+    /** Kondisi "field jatuh hari ini". */
+    private function todayCondition(string $field): array {
+        return ['k' => $field, 'o' => 'in_period', 'v' => [
+            'period'    => 'day',
+            'operator'  => 'is',
+            'startDate' => now()->toDateString(),
+        ]];
+    }
+
+    /**
+     * Bikin NumberCard + DashboardWidget bertipe 'card' sekaligus.
+     * Validasi kondisional (Requirement 3.2/3.3 spec desk-dashboard-content-seeder)
+     * ditegakkan DI KODE, bukan cuma dokumentasi.
+     */
+    private function card(Dashboard $dashboard, array $attrs, ?string $parentId, int $order, int $width = 3): DashboardWidget {
+        $function = $attrs['function'] ?? 'count';
+        if ($function !== 'count' && empty($attrs['aggregate_function_based_on'])) {
+            throw new \RuntimeException("card(): function='{$function}' wajib aggregate_function_based_on — [{$attrs['label']}]");
+        }
+        if (! empty($attrs['show_percentage_stats']) && empty($attrs['stats_time_interval'])) {
+            throw new \RuntimeException("card(): show_percentage_stats wajib stats_time_interval — [{$attrs['label']}]");
+        }
+        if (! empty($attrs['model_class']) && empty($attrs['model_id'])) {
+            $attrs['model_id'] = $this->permissionId($attrs['model_class']);
+        }
+
+        $numberCard = NumberCard::create($attrs + [
+            'source_type'   => $attrs['source_type'] ?? 'document_type',
+            'function'      => $function,
+            'is_shared_all' => true,
+            'created_by_id' => $this->adminUserId(),
+        ]);
+
+        return DashboardWidget::create([
+            'dashboard_id'   => $dashboard->id,
+            'parent_id'      => $parentId,
+            'type'           => 'card',
+            'number_card_id' => $numberCard->id,
+            'order'          => $order,
+            'width'          => $width,
+            'is_visible'     => true,
+        ]);
+    }
+
+    /** Bikin Chart + DashboardWidget bertipe 'chart' sekaligus. */
+    private function chart(Dashboard $dashboard, array $attrs, ?string $parentId, int $order, int $width = 6): DashboardWidget {
+        $sourceType = $attrs['chart_source_type'] ?? 'count';
+        if ($sourceType === 'group_by' && (empty($attrs['group_by_based_on']) || empty($attrs['group_by_type']))) {
+            throw new \RuntimeException("chart(): group_by wajib group_by_based_on+group_by_type — [{$attrs['chart_name']}]");
+        }
+        if (! empty($attrs['model_class']) && empty($attrs['model_id'])) {
+            $attrs['model_id'] = $this->permissionId($attrs['model_class']);
+        }
+
+        $chart = Chart::create($attrs + [
+            'chart_source_type' => $sourceType,
+            'visual_type'       => $attrs['visual_type'] ?? 'line',
+            'is_shared_all'     => true,
+            'created_by_id'     => $this->adminUserId(),
+        ]);
+
+        return DashboardWidget::create([
+            'dashboard_id' => $dashboard->id,
+            'parent_id'    => $parentId,
+            'type'         => 'chart',
+            'chart_id'     => $chart->id,
+            'order'        => $order,
+            'width'        => $width,
+            'is_visible'   => true,
+        ]);
+    }
+
+    /** DashboardWidget generik (section/text/spacer/quick_list/link_card/link_card_item). */
+    private function widget(Dashboard $dashboard, string $type, array $config, ?string $parentId, int $order, int $width = 12): DashboardWidget {
+        return DashboardWidget::create([
+            'dashboard_id' => $dashboard->id,
+            'parent_id'    => $parentId,
+            'type'         => $type,
+            'config'       => $config,
+            'order'        => $order,
+            'width'        => $width,
+            'is_visible'   => true,
+        ]);
+    }
+
+    /** Config quick_list — filter opsional HANYA kolom fisik model root (DashboardController::quickList()). */
+    private function quickListConfig(string $label, string $modelClass, array $columns, ?array $filters, string $sortBy, string $sortDirection = 'desc', int $limit = 5): array {
+        return [
+            'label'          => $label,
+            'model_id'       => $this->permissionId($modelClass),
+            'model_class'    => $modelClass,
+            'columns'        => $columns,
+            'filters'        => $filters,
+            'sort_by'        => $sortBy,
+            'sort_direction' => $sortDirection,
+            'limit'          => $limit,
+        ];
+    }
+
+    /** Section pembuka "Ringkasan" — dipakai tiap desk, order selalu 0. */
+    private function openingSection(Dashboard $dashboard, string $label): string {
+        $section = $this->widget($dashboard, 'section', [
+            'label'       => ['json' => null, 'html' => "<strong>{$label}</strong>"],
+            'description' => null,
+        ], null, 0, 12);
+
+        return $section->id;
+    }
+
+    private function seedDashboardForSales(Dashboard $dashboard): void {
+        $this->openingSection($dashboard, 'Ringkasan Sales');
+
+        $this->card($dashboard, [
+            'label'                       => 'Total SO Bulan Ini',
+            'function'                    => 'sum',
+            'aggregate_function_based_on' => 'amount',
+            'model_class'                 => SalesOrder::class,
+            'filters'                     => $this->filterTree([$this->monthCondition('date')]),
+        ], null, 1);
+        $this->card($dashboard, [
+            'label'       => 'Total Customer',
+            'function'    => 'count',
+            'model_class' => Customer::class,
+        ], null, 2);
+
+        $this->chart($dashboard, [
+            'chart_name'        => 'Sales Order per Status',
+            'chart_source_type' => 'group_by',
+            'group_by_based_on' => 'status',
+            'group_by_type'     => 'count',
+            'visual_type'       => 'pie',
+            'model_class'       => SalesOrder::class,
+        ], null, 3);
+        $this->chart($dashboard, [
+            'chart_name'        => 'Trend Sales Order',
+            'chart_source_type' => 'count',
+            'timeseries'        => true,
+            'based_on'          => 'date',
+            'time_interval'     => 'monthly',
+            'visual_type'       => 'line',
+            'model_class'       => SalesOrder::class,
+        ], null, 4);
+        $this->chart($dashboard, [
+            'chart_name'        => 'Trend Internal Order',
+            'chart_source_type' => 'count',
+            'timeseries'        => true,
+            'based_on'          => 'date',
+            'time_interval'     => 'monthly',
+            'visual_type'       => 'line',
+            'model_class'       => InternalOrder::class,
+        ], null, 5);
+
+        $this->widget($dashboard, 'quick_list', $this->quickListConfig(
+            'Sales Order Terbaru',
+            SalesOrder::class,
+            ['code', 'customer', 'date', 'amount'],
+            null,
+            'date',
+        ), null, 6, 6);
+        $this->widget($dashboard, 'quick_list', $this->quickListConfig(
+            'Internal Order Terbaru',
+            InternalOrder::class,
+            ['code', 'date'],
+            null,
+            'date',
+        ), null, 7, 6);
+        $this->widget($dashboard, 'quick_list', $this->quickListConfig(
+            'Delivery Note Belum Terkirim',
+            DeliveryNote::class,
+            ['code', 'customer', 'created_at'],
+            $this->filterTree([['status', 'like', 'to_deliver']]),
+            'created_at',
+        ), null, 8, 12);
+
+        $linkCard = $this->widget($dashboard, 'link_card', ['label' => 'Laporan'], null, 9, 12);
+        $this->linkCardItems($dashboard, $linkCard->id, [
+            'Sales Orders'    => 'salesOrders.*',
+            'Internal Orders' => 'internalOrders.*',
+            'Customers'       => 'customers.*',
+        ]);
+    }
+
+    private function seedDashboardForPurchase(Dashboard $dashboard): void {
+        $this->openingSection($dashboard, 'Ringkasan Purchase');
+
+        $this->card($dashboard, [
+            'label'                       => 'Total PO Bulan Ini',
+            'function'                    => 'sum',
+            'aggregate_function_based_on' => 'amount',
+            'model_class'                 => PurchaseOrder::class,
+            'filters'                     => $this->filterTree([$this->monthCondition('date')]),
+        ], null, 1);
+        $this->card($dashboard, [
+            'label'       => 'PR Menunggu Approval',
+            'function'    => 'count',
+            'model_class' => PurchaseRequest::class,
+            'filters'     => $this->filterTree([['status', 'like', 'pending']]),
+        ], null, 2);
+
+        $this->chart($dashboard, [
+            'chart_name'        => 'Trend Purchase Order',
+            'chart_source_type' => 'count',
+            'timeseries'        => true,
+            'based_on'          => 'date',
+            'time_interval'     => 'monthly',
+            'visual_type'       => 'line',
+            'model_class'       => PurchaseOrder::class,
+        ], null, 3);
+        $this->chart($dashboard, [
+            'chart_name'        => 'Purchase Request per Status',
+            'chart_source_type' => 'group_by',
+            'group_by_based_on' => 'status',
+            'group_by_type'     => 'count',
+            'visual_type'       => 'pie',
+            'model_class'       => PurchaseRequest::class,
+        ], null, 4);
+        $this->chart($dashboard, [
+            'chart_name'        => 'Purchase Order per Status',
+            'chart_source_type' => 'group_by',
+            'group_by_based_on' => 'status',
+            'group_by_type'     => 'count',
+            'visual_type'       => 'pie',
+            'model_class'       => PurchaseOrder::class,
+        ], null, 5);
+
+        $this->widget($dashboard, 'quick_list', $this->quickListConfig(
+            'Purchase Request Terbaru',
+            PurchaseRequest::class,
+            ['code', 'date'],
+            null,
+            'date',
+        ), null, 6, 6);
+        $this->widget($dashboard, 'quick_list', $this->quickListConfig(
+            'PO Sudah Lewat Tanggal Dibutuhkan',
+            PurchaseOrder::class,
+            ['code', 'supplier', 'required_date'],
+            $this->filterTree([['required_date', '<', now()->toDateString()]]),
+            'required_date',
+            'asc',
+        ), null, 7, 6);
+
+        $linkCard = $this->widget($dashboard, 'link_card', ['label' => 'Procurement'], null, 8, 12);
+        $this->linkCardItems($dashboard, $linkCard->id, [
+            'Purchase Requests' => 'purchaseRequests.*',
+            'Purchase Orders'   => 'purchaseOrders.*',
+            'Purchase Receipts' => 'purchaseReceipts.*',
+            'Suppliers'         => 'suppliers.*',
+        ]);
+    }
+
+    private function seedDashboardForInventory(Dashboard $dashboard): void {
+        $this->openingSection($dashboard, 'Ringkasan Inventory');
+
+        $this->card($dashboard, ['label' => 'Total Item', 'function' => 'count', 'model_class' => Item::class], null, 1);
+        $this->card($dashboard, ['label' => 'Total Warehouse', 'function' => 'count', 'model_class' => Warehouse::class], null, 2);
+
+        $this->chart($dashboard, [
+            'chart_name'        => 'Item per Kategori',
+            'chart_source_type' => 'group_by',
+            'group_by_based_on' => 'category',
+            'group_by_type'     => 'count',
+            'visual_type'       => 'bar',
+            'model_class'       => Item::class,
+        ], null, 3);
+
+        $this->widget($dashboard, 'quick_list', $this->quickListConfig(
+            'Stock Entry Terbaru',
+            StockEntry::class,
+            ['code', 'date'],
+            null,
+            'date',
+        ), null, 4, 4);
+        $this->widget($dashboard, 'quick_list', $this->quickListConfig(
+            'Purchase Receipt Terbaru',
+            PurchaseReceipt::class,
+            ['code', 'date'],
+            null,
+            'date',
+        ), null, 5, 4);
+        $this->widget($dashboard, 'quick_list', $this->quickListConfig(
+            'Delivery Note Terbaru',
+            DeliveryNote::class,
+            ['code', 'created_at'],
+            null,
+            'created_at',
+        ), null, 6, 4);
+
+        $linkCard = $this->widget($dashboard, 'link_card', ['label' => 'Item Master'], null, 7, 12);
+        $this->linkCardItems($dashboard, $linkCard->id, [
+            'Items'             => 'items.*',
+            'Item Alternatives' => 'itemAlternatives.*',
+            'Attributes'        => 'attributes.*',
+            'Categories'        => 'categories.*',
+            'Units'             => 'units.*',
+        ]);
+    }
+
+    private function seedDashboardForAsset(Dashboard $dashboard): void {
+        $this->openingSection($dashboard, 'Ringkasan Asset');
+
+        $this->card($dashboard, [
+            'label'   => 'Total Asset Aktif', 'function' => 'count', 'model_class' => Asset::class,
+            'filters' => $this->filterTree([['status', 'like', 'active']]),
+        ], null, 1);
+        $this->card($dashboard, [
+            'label'   => 'Value Adjustment Bulan Ini', 'function' => 'count', 'model_class' => AssetValueAdjustment::class,
+            'filters' => $this->filterTree([$this->monthCondition('date')]),
+        ], null, 2);
+        $this->card($dashboard, [
+            'label'                       => 'Total Depresiasi Terakumulasi',
+            'function'                    => 'sum',
+            'aggregate_function_based_on' => 'depreciation_amount',
+            'model_class'                 => AssetDepreciationSchedule::class,
+        ], null, 3);
+
+        $this->chart($dashboard, [
+            'chart_name'        => 'Asset per Status',
+            'chart_source_type' => 'group_by',
+            'group_by_based_on' => 'status',
+            'group_by_type'     => 'count',
+            'visual_type'       => 'pie',
+            'model_class'       => Asset::class,
+        ], null, 4);
+        $this->chart($dashboard, [
+            'chart_name'        => 'AssetService per Bulan',
+            'chart_source_type' => 'count',
+            'timeseries'        => true,
+            'based_on'          => 'failure_date',
+            'time_interval'     => 'monthly',
+            'visual_type'       => 'bar',
+            'model_class'       => AssetService::class,
+        ], null, 5);
+
+        $this->widget($dashboard, 'quick_list', $this->quickListConfig(
+            'AssetService Terbaru',
+            AssetService::class,
+            ['code', 'failure_date'],
+            null,
+            'failure_date',
+        ), null, 6, 6);
+        $this->widget($dashboard, 'quick_list', $this->quickListConfig(
+            'Asset Movement Terbaru',
+            AssetMovement::class,
+            ['created_at'],
+            null,
+            'created_at',
+        ), null, 7, 6);
+
+        $linkCard = $this->widget($dashboard, 'link_card', ['label' => 'Maintenance'], null, 8, 12);
+        $this->linkCardItems($dashboard, $linkCard->id, [
+            'Asset Maintenance' => 'assetMaintenances.*',
+            'Maintenance Teams' => 'assetMaintenanceTeams.*',
+            'Asset Services'    => 'assetServices.*',
+        ]);
+    }
+
+    private function seedDashboardForService(Dashboard $dashboard): void {
+        $this->openingSection($dashboard, 'Ringkasan Service');
+
+        $this->card($dashboard, [
+            'label'   => 'Work Order Open', 'function' => 'count', 'model_class' => WorkOrder::class,
+            'filters' => $this->filterTree([['status', 'like', 'work_in_progress']]),
+        ], null, 1);
+        $this->card($dashboard, [
+            'label'   => 'AssetService Bulan Ini', 'function' => 'count', 'model_class' => AssetService::class,
+            'filters' => $this->filterTree([$this->monthCondition('failure_date')]),
+        ], null, 2);
+
+        $this->chart($dashboard, [
+            'chart_name'        => 'Work Order per Status',
+            'chart_source_type' => 'group_by',
+            'group_by_based_on' => 'status',
+            'group_by_type'     => 'count',
+            'visual_type'       => 'pie',
+            'model_class'       => WorkOrder::class,
+        ], null, 3);
+        $this->chart($dashboard, [
+            'chart_name'        => 'AssetService per Bulan',
+            'chart_source_type' => 'count',
+            'timeseries'        => true,
+            'based_on'          => 'failure_date',
+            'time_interval'     => 'monthly',
+            'visual_type'       => 'bar',
+            'model_class'       => AssetService::class,
+        ], null, 4);
+
+        $this->widget($dashboard, 'quick_list', $this->quickListConfig(
+            'Work Order In Progress',
+            WorkOrder::class,
+            ['code', 'date'],
+            $this->filterTree([['status', 'like', 'work_in_progress']]),
+            'date',
+        ), null, 5, 6);
+        $this->widget($dashboard, 'quick_list', $this->quickListConfig(
+            'AssetService Terbaru',
+            AssetService::class,
+            ['code', 'failure_date'],
+            null,
+            'failure_date',
+        ), null, 6, 6);
+
+        $linkCard = $this->widget($dashboard, 'link_card', ['label' => 'Maintenance'], null, 7, 12);
+        $this->linkCardItems($dashboard, $linkCard->id, [
+            'Asset Services'    => 'assetServices.*',
+            'Asset Maintenance' => 'assetMaintenances.*',
+        ]);
+    }
+
+    private function seedDashboardForFinances(Dashboard $dashboard): void {
+        $this->openingSection($dashboard, 'Ringkasan Finances');
+
+        $this->card($dashboard, [
+            'label'       => 'Sales Invoice Bulan Ini', 'function' => 'sum', 'aggregate_function_based_on' => 'amount',
+            'model_class' => SalesInvoice::class, 'filters' => $this->filterTree([$this->monthCondition('date')]),
+        ], null, 1);
+        $this->card($dashboard, [
+            'label'       => 'Purchase Invoice Bulan Ini', 'function' => 'sum', 'aggregate_function_based_on' => 'amount',
+            'model_class' => PurchaseInvoice::class, 'filters' => $this->filterTree([$this->monthCondition('date')]),
+        ], null, 2);
+        $this->card($dashboard, [
+            'label'       => 'Total Saldo Account', 'function' => 'sum', 'aggregate_function_based_on' => 'balance_amount',
+            'model_class' => Account::class,
+        ], null, 3);
+
+        $this->chart($dashboard, [
+            'chart_name'        => 'General Ledger per Bulan',
+            'chart_source_type' => 'count',
+            'timeseries'        => true,
+            'based_on'          => 'date',
+            'time_interval'     => 'monthly',
+            'visual_type'       => 'line',
+            'model_class'       => GeneralLedger::class,
+        ], null, 4);
+        $this->chart($dashboard, [
+            'chart_name'        => 'Sales Invoice per Status',
+            'chart_source_type' => 'group_by',
+            'group_by_based_on' => 'status',
+            'group_by_type'     => 'count',
+            'visual_type'       => 'pie',
+            'model_class'       => SalesInvoice::class,
+        ], null, 5);
+
+        $this->widget($dashboard, 'quick_list', $this->quickListConfig(
+            'Sales Invoice Belum Lunas (AR)',
+            SalesInvoice::class,
+            ['code', 'customer', 'outstanding_amount'],
+            $this->filterTree([['outstanding_amount', '>', 0]]),
+            'outstanding_amount',
+            'desc',
+        ), null, 6, 6);
+        $this->widget($dashboard, 'quick_list', $this->quickListConfig(
+            'Purchase Invoice Belum Lunas (AP)',
+            PurchaseInvoice::class,
+            ['code', 'outstanding_amount'],
+            $this->filterTree([['outstanding_amount', '>', 0]]),
+            'outstanding_amount',
+            'desc',
+        ), null, 7, 6);
+
+        $linkCard = $this->widget($dashboard, 'link_card', ['label' => 'Accounting & Invoices'], null, 8, 12);
+        $this->linkCardItems($dashboard, $linkCard->id, [
+            'Accounts'          => 'accounts.*',
+            'General Ledgers'   => 'generalLedgers.*',
+            'Sales Invoices'    => 'salesInvoices.*',
+            'Purchase Invoices' => 'purchaseInvoices.*',
+            'Payment Entries'   => 'paymentEntries.*',
+        ]);
+    }
+
+    private function seedDashboardForUser(Dashboard $dashboard): void {
+        $this->openingSection($dashboard, 'Ringkasan User Management');
+
+        $this->card($dashboard, ['label' => 'Total User', 'function' => 'count', 'model_class' => User::class], null, 1);
+        $this->card($dashboard, ['label' => 'Total Role', 'function' => 'count', 'model_class' => Role::class], null, 2);
+
+        // Chart "User per Role" DIHILANGKAN dari desain awal: User::roles()
+        // adalah belongsToMany (pivot), sedangkan ChartService::getGroupByChartConfig()
+        // cuma resolve FK fisik utk relasi belongsTo — tidak jalan utk pivot.
+        $this->chart($dashboard, [
+            'chart_name'        => 'User Baru per Bulan',
+            'chart_source_type' => 'count',
+            'timeseries'        => true,
+            'based_on'          => 'created_at',
+            'time_interval'     => 'monthly',
+            'visual_type'       => 'line',
+            'model_class'       => User::class,
+        ], null, 3);
+
+        $this->widget($dashboard, 'quick_list', $this->quickListConfig(
+            'User Terbaru',
+            User::class,
+            ['name', 'email', 'created_at'],
+            null,
+            'created_at',
+        ), null, 4, 12);
+
+        $linkCard = $this->widget($dashboard, 'link_card', ['label' => 'Users'], null, 5, 12);
+        $this->linkCardItems($dashboard, $linkCard->id, [
+            'Manage Users' => 'users.*',
+            'Roles'        => 'roles.*',
+        ]);
+    }
+
+    private function seedDashboardForHelpdesk(Dashboard $dashboard): void {
+        $this->openingSection($dashboard, 'Ringkasan Helpdesk');
+
+        $this->card($dashboard, [
+            'label'   => 'Ticket Open', 'function' => 'count', 'model_class' => Ticket::class,
+            'filters' => $this->filterTree([['status', 'like', 'in_progress']]),
+        ], null, 1);
+        $this->card($dashboard, [
+            'label'   => 'Ticket Dibuat Bulan Ini', 'function' => 'count', 'model_class' => Ticket::class,
+            'filters' => $this->filterTree([$this->monthCondition('created_at')]),
+        ], null, 2);
+
+        $this->chart($dashboard, [
+            'chart_name'        => 'Ticket per Status',
+            'chart_source_type' => 'group_by',
+            'group_by_based_on' => 'status',
+            'group_by_type'     => 'count',
+            'visual_type'       => 'pie',
+            'model_class'       => Ticket::class,
+        ], null, 3);
+        $this->chart($dashboard, [
+            'chart_name'        => 'Ticket per Bulan',
+            'chart_source_type' => 'count',
+            'timeseries'        => true,
+            'based_on'          => 'created_at',
+            'time_interval'     => 'monthly',
+            'visual_type'       => 'line',
+            'model_class'       => Ticket::class,
+        ], null, 4);
+
+        // Sengaja BUKAN "belum done" (butuh negasi — quickList() tidak
+        // dukung not_like) — "sedang dikerjakan" urutan terlama, prioritas
+        // risiko SLA (bukan terbaru).
+        $this->widget($dashboard, 'quick_list', $this->quickListConfig(
+            'Ticket Sedang Dikerjakan (Terlama Dulu)',
+            Ticket::class,
+            ['code', 'subject', 'created_at'],
+            $this->filterTree([['status', 'like', 'in_progress']]),
+            'created_at',
+            'asc',
+        ), null, 5, 12);
+
+        $linkCard = $this->widget($dashboard, 'link_card', ['label' => 'Tickets'], null, 6, 12);
+        $this->linkCardItems($dashboard, $linkCard->id, [
+            'Semua Tickets' => 'tickets.*',
+        ]);
+    }
+
+    private function seedDashboardForCore(Dashboard $dashboard): void {
+        $this->openingSection($dashboard, 'Ringkasan Core');
+
+        $this->card($dashboard, ['label' => 'Total Branch', 'function' => 'count', 'model_class' => Branch::class], null, 1);
+        $this->card($dashboard, ['label' => 'Total File', 'function' => 'count', 'model_class' => File::class], null, 2);
+        $this->card($dashboard, [
+            'label'                 => 'Aktivitas Hari Ini', 'function' => 'count', 'model_class' => Log::class,
+            'filters'               => $this->filterTree([$this->todayCondition('created_at')]),
+            'show_percentage_stats' => true,
+            'stats_time_interval'   => 'daily',
+        ], null, 3);
+
+        $this->chart($dashboard, [
+            'chart_name'        => 'Aktivitas per Hari',
+            'chart_source_type' => 'count',
+            'timeseries'        => true,
+            'based_on'          => 'created_at',
+            'time_interval'     => 'daily',
+            'visual_type'       => 'line',
+            'model_class'       => Log::class,
+        ], null, 4);
+
+        $this->widget($dashboard, 'quick_list', $this->quickListConfig(
+            'Log Terbaru',
+            Log::class,
+            ['event', 'created_at'],
+            null,
+            'created_at',
+        ), null, 5, 12);
+
+        $linkCard = $this->widget($dashboard, 'link_card', ['label' => 'Pengaturan Cepat'], null, 6, 12);
+        $this->linkCardItems($dashboard, $linkCard->id, [
+            'Company'          => 'companies.*',
+            'Countries'        => 'countries.*',
+            'Currencies'       => 'currencies.*',
+            'Formating Series' => 'formatingSeries.*',
+            'Approval Schemes' => 'approvalSchemes.*',
+            'Print Templates'  => 'printTemplates.*',
+            'Email Templates'  => 'emailTemplates.*',
+        ]);
+    }
+
+    /**
+     * Bikin `link_card_item` untuk tiap [label => route_name] — resolve ke
+     * MenuItem existing (sudah diseed `seedMenuItems()`) supaya `link_to`
+     * konsisten dgn navigasi sidebar, bukan URL hardcode baru.
+     */
+    private function linkCardItems(Dashboard $dashboard, string $linkCardId, array $items): void {
+        $order = 0;
+        foreach ($items as $label => $routeName) {
+            $menuItem = MenuItem::where('route_name', $routeName)->first();
+            if (! $menuItem) {
+                continue;
+            }
+            $this->widget($dashboard, 'link_card_item', [
+                'label'     => $label,
+                'link_type' => 'menu_item',
+                'link_to'   => $menuItem->id,
+            ], $linkCardId, $order++, 4);
+        }
     }
 }

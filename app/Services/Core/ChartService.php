@@ -98,8 +98,29 @@ class ChartService {
      * Requirement 5.3: label relasi HANYA di-resolve kalau user punya
      * Select ke model relasinya — kalau tidak, nilai mentah (FK id) apa
      * adanya, TIDAK ada lookup ke model relasi sama sekali.
+     *
+     * Kolom `formStatus`/`formStatuses` (mis. `status`, JSON-array cast dari
+     * enum FormStatus) ditangani TERPISAH: `GROUP BY` di getGroupByChartConfig()
+     * mengelompokkan berdasar representasi JSON MENTAH per baris (mis.
+     * `["draft"]`), bukan nilai status bersih — tanpa ini, label chart tampil
+     * sebagai JSON mentah alih-alih "Draft". Dipetakan lewat `valueTrans`
+     * milik kolom (metadata SAMA yang dipakai FE utk translate value biasa,
+     * lihat getColumns() — utk `status` selalu `valueTrans: "status"`,
+     * cocok dgn `FormStatus::label()`: `__("status.{value}")`).
      */
     private function resolveGroupLabels(array $rawKeys, ?array $columnMeta, PermissionChecker $checker): array {
+        if (in_array($columnMeta['type'] ?? null, ['formStatus', 'formStatuses'], true) && ! empty($columnMeta['valueTrans'])) {
+            return array_map(function ($k) use ($columnMeta) {
+                if ($k === null) {
+                    return 'Not Specified';
+                }
+                $decoded = json_decode((string) $k, true);
+                $value   = is_array($decoded) ? ($decoded[0] ?? null) : $k;
+
+                return $value !== null ? __("{$columnMeta['valueTrans']}.{$value}") : $k;
+            }, $rawKeys);
+        }
+
         if (($columnMeta['type'] ?? null) !== 'relation' || empty($columnMeta['related'])) {
             return array_map(fn ($k) => $k ?? 'Not Specified', $rawKeys);
         }
