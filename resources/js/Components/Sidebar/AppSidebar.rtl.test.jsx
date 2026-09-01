@@ -12,6 +12,16 @@ vi.mock("@/Components/Sidebar/NavMain", () => ({
     <div data-testid="stub-nav-main">{items.length} items</div>
   ),
 }));
+// AppSidebar.jsx menarik menuItems dari usePage().props -- tanpa mock ini
+// crash "usePage must be used within the Inertia component" (tidak ada
+// InertiaApp context di test).
+vi.mock("@inertiajs/react", () => ({
+  usePage: () => ({
+    props: {
+      menuItems: [{ title: "Dashboard", url: "/dashboard", icon: null }],
+    },
+  }),
+}));
 
 import AppSidebar from "./AppSidebar";
 import { SidebarProvider } from "@/Components/ui/sidebar";

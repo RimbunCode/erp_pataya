@@ -59,3 +59,22 @@ if (typeof globalThis.matchMedia === "undefined") {
 if (typeof Element !== "undefined" && !Element.prototype.scrollIntoView) {
   Element.prototype.scrollIntoView = () => {};
 }
+
+// jsdom's requestAnimationFrame pakai real timer (~16ms), bukan sinkron.
+// FormTable.scheduleParentUpdate() -- dipakai SEMUA Form berbasis FormTable
+// untuk propagate kalkulasi total item (net_amount/tax_amount/dst) ke parent
+// -- menjadwalkan update lewat rAF ini secara default (immediate=false).
+// Karena rAF asli jsdom baru jalan SETELAH act() dari render()/fireEvent()
+// pada test sudah selesai, update state yang di-trigger dari dalamnya
+// (parent re-render -> NumberInput menerima value baru -> setDisplayValue)
+// jatuh DI LUAR act(), memicu warning "not wrapped in act(...)" -- ini
+// penyebab tunggal mayoritas warning ForwardRef(NumberInput) di suite ini,
+// bukan bug di test/komponen manapun secara individual. Jalankan callback
+// SINKRON di test (production tetap pakai rAF asli browser) supaya update
+// terjadi dalam call-stack yang sama dengan act() yang sudah membungkus
+// render()/fireEvent().
+globalThis.requestAnimationFrame = (cb) => {
+  cb(Date.now());
+  return 0;
+};
+globalThis.cancelAnimationFrame = () => {};

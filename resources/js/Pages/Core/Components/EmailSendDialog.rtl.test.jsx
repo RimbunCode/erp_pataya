@@ -35,19 +35,27 @@ vi.mock("@/lib/gooeyToast", () => ({
 // TiptapEditor (ProseMirror) berat & tidak reliable di jsdom -- stub textarea
 // yang memanggil onValueChange(json, html) sesuai signature aslinya.
 vi.mock("@/Components/TiptapEditor", () => ({
-  default: React.forwardRef(({ value, onValueChange }, _ref) => (
-    <textarea
-      data-testid="body-editor-stub"
-      defaultValue={typeof value === "string" ? value : ""}
-      onChange={(e) => onValueChange?.(null, e.target.value)}
-    />
-  )),
+  default: React.forwardRef(function TiptapEditorStub(
+    { value, onValueChange },
+    _ref,
+  ) {
+    return (
+      <textarea
+        data-testid="body-editor-stub"
+        defaultValue={typeof value === "string" ? value : ""}
+        onChange={(e) => onValueChange?.(null, e.target.value)}
+      />
+    );
+  }),
 }));
 
 // react-mentions (Mention/MentionsInput) juga berat -- stub input polos yang
 // tetap memanggil onChange(event, value) sesuai signature yang dipakai source.
 vi.mock("@/Components/Mention", () => ({
-  MentionsInput: ({ value, onChange, _children, ...props }) => (
+  // `children` (elemen <Mention/> asli) HARUS didestruktur di sini supaya
+  // TIDAK ikut ...props -- kalau tidak, ia ke-spread ke <input> yang
+  // merupakan void element (React menolak <input> punya prop children).
+  MentionsInput: ({ value, onChange, children: _children, ...props }) => (
     <input
       data-testid="subject-mentions-stub"
       value={value}

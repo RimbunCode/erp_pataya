@@ -1,9 +1,8 @@
-import { describe, it, expect, afterEach } from "vitest";
+import { describe, it, expect } from "vitest";
 import {
   isMetaAppendColumn,
   formatBytes,
   isImageUrl,
-  checkUrlPath,
   toSnakeCase,
   isNullOrWhitespace,
   getValueObject,
@@ -70,36 +69,11 @@ describe("isImageUrl", () => {
   });
 });
 
-describe("checkUrlPath", () => {
-  const originalLocation = window.location;
-
-  afterEach(() => {
-    window.location = originalLocation;
-  });
-
-  const setPath = (pathname) => {
-    delete window.location;
-    window.location = { ...originalLocation, pathname };
-  };
-
-  it("match persis untuk path tanpa wildcard", () => {
-    setPath("/users");
-    expect(checkUrlPath("/users")).toBe(true);
-    expect(checkUrlPath("/customers")).toBe(false);
-  });
-
-  it("match wildcard /** sebagai prefix apapun", () => {
-    setPath("/users/1/edit");
-    expect(checkUrlPath("/users/**")).toBe(true);
-  });
-
-  it("match wildcard /*/ sebagai satu segmen", () => {
-    setPath("/users/1/edit");
-    expect(checkUrlPath("/users/*/edit")).toBe(true);
-    setPath("/users/1/2/edit");
-    expect(checkUrlPath("/users/*/edit")).toBe(false);
-  });
-});
+// checkUrlPath (pathname-wildcard matching) SUDAH DIHAPUS dari utils.js --
+// digantikan Ziggy `route().current(routeName)` sejak refactor sidebar Desk
+// (lihat NavMain.jsx). Tidak ada pemakai lain (grep seluruh resources/js),
+// jadi 3 test lama di sini dihapus, bukan di-skip -- fungsi yang diuji
+// memang sudah tidak ada.
 
 describe("toSnakeCase", () => {
   it("mengubah camelCase menjadi snake_case", () => {

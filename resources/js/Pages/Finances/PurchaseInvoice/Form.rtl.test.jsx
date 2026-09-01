@@ -423,14 +423,18 @@ describe("PurchaseInvoice Form", () => {
         setData: vi.fn(),
         attributes: {},
       });
+      // cell() membungkus PurchaseOrderItemLinkModel dalam <div> bersama
+      // AssetCompletionRowBadge (fitur asset-management-purchase-integration)
+      // -- child pertama adalah LinkModel-nya, bukan cellUi langsung.
+      const linkModel = cellUi.props.children[0];
 
-      expect(cellUi.props.filters).toEqual(
+      expect(linkModel.props.filters).toEqual(
         expect.objectContaining({
           purchase_order_id: 9,
           unbilled_quantity: { ">": 0 },
         }),
       );
-      expect(cellUi.props.disabled).toBe(false);
+      expect(linkModel.props.disabled).toBe(false);
     });
 
     it("kolom item PurchaseOrderItemLinkModel disabled ketika data.purchase_order belum dipilih", () => {
@@ -446,7 +450,8 @@ describe("PurchaseInvoice Form", () => {
         setData: vi.fn(),
         attributes: {},
       });
-      expect(cellUi.props.disabled).toBe(true);
+      const linkModel = cellUi.props.children[0];
+      expect(linkModel.props.disabled).toBe(true);
     });
 
     it("memilih purchase_order_item pada baris item mengisi unit/conversion_factor/quantity/rate/tax/description", () => {
@@ -463,8 +468,9 @@ describe("PurchaseInvoice Form", () => {
         setData: setDataRow,
         attributes: {},
       });
+      const linkModel = cellUi.props.children[0];
 
-      cellUi.props.onValueChange({
+      linkModel.props.onValueChange({
         id: 500,
         unit: { id: 1, name: "Pcs" },
         conversion_factor: 2,

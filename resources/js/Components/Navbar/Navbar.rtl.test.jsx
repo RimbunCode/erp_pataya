@@ -26,6 +26,9 @@ vi.mock("@/Components/ui/sidebar", () => ({
   SidebarTrigger: () => <button type="button">trigger</button>,
 }));
 
+// Navbar.jsx memanggil route("desks.index") untuk link Home breadcrumb.
+window.route = (name) => name;
+
 import Navbar from "./Navbar";
 
 const basePage = (overrides = {}) => ({
@@ -37,10 +40,14 @@ const basePage = (overrides = {}) => ({
 });
 
 describe("Navbar", () => {
-  it("tanpa breadcrumbs, tidak merender breadcrumb list", () => {
+  it("tanpa breadcrumbs, tidak merender breadcrumb trail halaman (Home icon breadcrumb tetap ada)", () => {
     usePageMock.mockReturnValue(basePage());
     render(<Navbar />);
-    expect(screen.queryByRole("list")).not.toBeInTheDocument();
+    // Breadcrumb "Home" (ikon, aria-label "Home") dirender TERPISAH dari
+    // breadcrumbsMenu (trail per-halaman berdasar props.breadcrumbs) --
+    // jadi selalu ada TEPAT 1 <ol>, bukan nol, walau breadcrumbs kosong.
+    expect(screen.getAllByRole("list")).toHaveLength(1);
+    expect(screen.getByLabelText("Home")).toBeInTheDocument();
   });
 
   it("breadcrumbs <=3 item (desktop) merender semua sebagai link kecuali item terakhir", () => {
@@ -110,16 +117,13 @@ describe("Navbar", () => {
     expect(screen.getByText("Sales Order")).toBeInTheDocument();
   });
 
-  it("changelog badge tersembunyi saat count 0", () => {
-    usePageMock.mockReturnValue(basePage({ unread_changelogs_count: 0 }));
-    render(<Navbar />);
-    expect(screen.getByLabelText("Changelog")).toBeInTheDocument();
-    expect(screen.queryByText("0")).not.toBeInTheDocument();
-  });
-
-  it("changelog badge menampilkan count, >99 sebagai '99+'", () => {
-    usePageMock.mockReturnValue(basePage({ unread_changelogs_count: 150 }));
-    render(<Navbar />);
-    expect(screen.getByText("99+")).toBeInTheDocument();
-  });
+  // "Changelog badge" (unread_changelogs_count, aria-label "Changelog") SUDAH
+  // TIDAK ADA di Navbar.jsx -- badge unread count sekarang konsolidasi ke
+  // Notifications.jsx (prop unread_notifications_count, bukan
+  // unread_changelogs_count), dan Notifications di sini di-stub jadi <div/>.
+  // Perilaku badge (0 -> hidden, >99 -> "99+") sudah tercakup di
+  // Notifications.rtl.test.jsx ("unread count 0 tidak menampilkan badge",
+  // "badge >99 ditampilkan sebagai '99+'") terhadap komponen asli, jadi 2
+  // test lama di sini (menguji fitur yang sudah tidak ada) dihapus, bukan
+  // di-skip -- coverage-nya tidak hilang, cuma pindah ke file yang benar.
 });

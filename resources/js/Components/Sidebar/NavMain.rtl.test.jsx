@@ -7,6 +7,21 @@ vi.mock("@inertiajs/react", () => ({
   usePage: () => usePageMock(),
 }));
 
+// NavMain.jsx menandai isActive lewat Ziggy `route().current(routeName)` --
+// route() TANPA argumen mengembalikan instance Ziggy itu sendiri (bukan
+// undefined), yang baru punya method `.current()`. Bukan pathname/urlPattern
+// (field itu ada di data tapi tidak pernah dibaca komponen).
+// `currentRouteName` di-reset tiap test lewat beforeEach.
+let currentRouteName = null;
+const routeMock = Object.assign(
+  (name, params) => {
+    if (name === undefined) return routeMock; // route() no-arg -> instance Ziggy (self)
+    return params !== undefined ? `${name}/${JSON.stringify(params)}` : name;
+  },
+  { current: (name) => name === currentRouteName },
+);
+window.route = routeMock;
+
 const useIsMobileMock = vi.fn(() => false);
 vi.mock("@/Hooks/use-mobile", () => ({
   useIsMobile: () => useIsMobileMock(),
@@ -34,7 +49,7 @@ const renderNav = (items, { open = true } = {}) =>
 const flatItem = (overrides = {}) => ({
   title: "Dashboard",
   url: "/dashboard",
-  urlPattern: "/dashboard",
+  routeName: "dashboard",
   icon: null,
   ...overrides,
 });
@@ -43,11 +58,11 @@ const groupItem = (overrides = {}) => ({
   title: "Sales",
   icon: null,
   items: [
-    { title: "Orders", url: "/sales/orders", urlPattern: "/sales/orders" },
+    { title: "Orders", url: "/sales/orders", routeName: "sales.orders" },
     {
       title: "Invoices",
       url: "/sales/invoices",
-      urlPattern: "/sales/invoices",
+      routeName: "sales.invoices",
     },
   ],
   ...overrides,
@@ -58,7 +73,7 @@ describe("NavMain", () => {
     usePageMock.mockReturnValue({
       props: { permissions: {}, ignorePermissionModels: [] },
     });
-    window.history.pushState({}, "", "/dashboard");
+    currentRouteName = null;
   });
 
   it("merender item flat dengan title dan link ke url-nya", () => {
@@ -102,8 +117,8 @@ describe("NavMain", () => {
     );
   });
 
-  it("sub-item yang urlPattern-nya cocok pathname membuat collapsible default terbuka", () => {
-    window.history.pushState({}, "", "/sales/orders");
+  it("sub-item yang routeName-nya cocok route aktif membuat collapsible default terbuka", () => {
+    currentRouteName = "sales.orders";
     renderNav([groupItem()]);
     const trigger = screen.getByText("Sales").closest("button");
     expect(trigger).toHaveAttribute("data-state", "open");
@@ -134,16 +149,16 @@ describe("NavMain", () => {
     expect(await screen.findByText("Orders")).toBeInTheDocument();
   });
 
-  it("urlPattern yang cocok pathname aktif menandai isActive pada item flat", () => {
-    window.history.pushState({}, "", "/dashboard");
+  it("routeName yang cocok route aktif menandai isActive pada item flat", () => {
+    currentRouteName = "dashboard";
     renderNav([flatItem()]);
     // SidebarMenuButton asChild meneruskan data-active ke child (<a>, via Slot).
     const link = screen.getByText("Dashboard").closest("a");
     expect(link).toHaveAttribute("data-active", "true");
   });
 
-  it("urlPattern yang TIDAK cocok pathname tidak menandai isActive", () => {
-    window.history.pushState({}, "", "/other-page");
+  it("routeName yang TIDAK cocok route aktif tidak menandai isActive", () => {
+    currentRouteName = "other.route";
     renderNav([flatItem()]);
     const link = screen.getByText("Dashboard").closest("a");
     expect(link).toHaveAttribute("data-active", "false");
