@@ -60,6 +60,20 @@ if (typeof Element !== "undefined" && !Element.prototype.scrollIntoView) {
   Element.prototype.scrollIntoView = () => {};
 }
 
+// jsdom tidak mengimplementasikan Element.hasPointerCapture/setPointerCapture/
+// releasePointerCapture -- dipakai Radix UI (Select, Slider, Tooltip, Switch,
+// dll) di handler onPointerDown untuk cek/klaim pointer capture sebelum
+// membuka/menutup state. Tanpa polyfill ini, pemanggilan
+// `event.currentTarget.hasPointerCapture(...)` melempar TypeError yang
+// ditelan diam-diam oleh React event system -- listbox/popup Radix jadi
+// TIDAK PERNAH terbuka di test (bukan gagal assert, tapi elemen memang tidak
+// pernah ter-render), tanpa pesan error yang jelas menunjuk ke sini.
+if (typeof Element !== "undefined" && !Element.prototype.hasPointerCapture) {
+  Element.prototype.hasPointerCapture = () => false;
+  Element.prototype.setPointerCapture = () => {};
+  Element.prototype.releasePointerCapture = () => {};
+}
+
 // jsdom's requestAnimationFrame pakai real timer (~16ms), bukan sinkron.
 // FormTable.scheduleParentUpdate() -- dipakai SEMUA Form berbasis FormTable
 // untuk propagate kalkulasi total item (net_amount/tax_amount/dst) ke parent
