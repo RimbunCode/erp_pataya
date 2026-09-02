@@ -11,14 +11,16 @@ use Illuminate\Http\Request;
 
 class SavedFilterController extends Controller {
     /**
-     * Listing private: named filter milik user untuk sebuah model.
+     * Listing gabungan untuk dropdown filter: named filter milik user sendiri
+     * + shared filter (dipublish pengelola via Filter Templates) untuk model
+     * yang sama.
      */
     public function index(Request $request): JsonResponse {
         $request->validate(['model' => ['required', 'string']]);
 
-        $filters = SavedFilter::ownedListing($request->user()->id, $request->input('model'))
+        $filters = SavedFilter::visibleTo($request->user()->id, $request->input('model'))
             ->latest()
-            ->get(['id', 'name', 'filter', 'is_saved', 'created_at']);
+            ->get(['id', 'name', 'filter', 'sort', 'is_saved', 'is_shared', 'is_default', 'created_at']);
 
         return response()->json($filters);
     }

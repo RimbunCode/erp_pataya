@@ -1,0 +1,6 @@
+{
+  "specId": "2c599402-6b92-40b3-a81f-1049a822db56",
+  "workflowType": "requirements-first",
+  "specType": "feature",
+  "description": "Menu \"Menu Filters\" di module Core untuk mengelola (CRUD) saved filter yang di-share global ke semua user, sebagai perluasan dari SavedFilter yang saat ini private per-user."
+}

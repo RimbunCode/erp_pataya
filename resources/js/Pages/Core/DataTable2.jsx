@@ -152,8 +152,15 @@ export default memo(
     const { t } = useLaravelReactI18n();
     const query = usePage().props.ziggy.query;
     const { deleteItem } = useDeleteModal();
-    const { data, defaultSort, dataTableColumns, translateKey, model, name } =
-      usePage().props;
+    const {
+      data,
+      defaultSort,
+      defaultFilterId,
+      dataTableColumns,
+      translateKey,
+      model,
+      name,
+    } = usePage().props;
     const { can } = usePermission(model);
     const canCreate = forceCanCreate || can("create");
     const { num_per_page: numPerPage, per_page_options: perPageOptions } =
@@ -167,7 +174,10 @@ export default memo(
       query?.show ?? getCookieByName("datatable_show") ?? numPerPage;
     const [options, setOptions] = useState({
       sort: query?.sort ?? defaultSort,
-      fid: query?.fid ?? null,
+      // Tanpa ?fid= eksplisit: pakai default shared filter (Filter Templates)
+      // bila ada. Hanya dievaluasi sekali saat mount — perubahan filter
+      // eksplisit oleh user setelahnya tidak pernah "dipaksa balik" ke sini.
+      fid: query?.fid ?? defaultFilterId ?? null,
       page: query?.page ?? 1,
       show: initialShow,
     });
@@ -336,11 +346,13 @@ export default memo(
 
       return () => clearTimeout(reloadData);
     }, [options]);
-    // Seed builder dari `?fid=` saat load awal: ambil tree dari saved filter
-    // by-id (termasuk ephemeral) agar filter aktif termuat saat builder dibuka.
-    // `saved-filters.index` tidak dipakai karena hanya mengembalikan named filter.
+    // Seed builder dari fid aktif (baik `?fid=` di URL maupun default filter
+    // yang auto-applied dari state, lihat useState options di atas) — ambil
+    // tree dari saved filter by-id (termasuk ephemeral) agar filter aktif
+    // termuat saat builder dibuka. `saved-filters.index` tidak dipakai karena
+    // hanya mengembalikan named filter.
     useEffect(() => {
-      const fid = query?.fid;
+      const fid = options.fid;
       if (!fid || filterTree) return;
       axios
         .get(window.route("saved-filters.show", { savedFilter: fid }))
@@ -348,11 +360,11 @@ export default memo(
           if (res.data?.filter) setFilterTree(res.data.filter);
         })
         .catch(() => {});
-    }, []);
+    }, [options.fid]);
     // Simpan tree sebagai saved filter ephemeral → dapat `fid` → navigasi.
     // Tree kosong → bersihkan filter (drop fid).
     const persistFilterTree = useCallback(
-      async (tree, fid = options.fid) => {
+      async (tree, fid = options.fid, sort) => {
         const hasItems = tree && Object.keys(tree.root?.c ?? {}).length > 0;
         if (!hasItems) {
           setFilterTree(null);
@@ -368,7 +380,12 @@ export default memo(
             fid: fid ?? null,
           });
           setFilterTree(tree);
-          setOptions((prev) => ({ ...prev, fid: res.data?.id ?? null }));
+          setOptions((prev) => ({
+            ...prev,
+            fid: res.data?.id ?? null,
+            // sort filter (Requirement 5) — null berarti jangan override.
+            sort: sort ?? prev.sort,
+          }));
           toast.success(t("core.datatable.filter.save.success"));
         } catch (error) {
           console.error(error);
@@ -393,11 +410,16 @@ export default memo(
         // baru — cukup aktifkan id-nya & reload tabel.
         if (opts?.useExisting && fid) {
           setFilterTree(tree);
-          setOptions((prev) => ({ ...prev, fid }));
+          setOptions((prev) => ({
+            ...prev,
+            fid,
+            // sort filter (Requirement 5) — null berarti jangan override.
+            sort: opts?.sort ?? prev.sort,
+          }));
           toast.success(t("core.datatable.filter.save.success"));
           return Promise.resolve();
         }
-        return persistFilterTree(tree, fid);
+        return persistFilterTree(tree, fid, opts?.sort);
       },
       [persistFilterTree],
     );
