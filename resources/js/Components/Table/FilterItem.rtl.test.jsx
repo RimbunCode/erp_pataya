@@ -234,24 +234,29 @@ describe("FilterItem — daftar operator (changeOperators)", () => {
     ]);
   });
 
-  it("kolom number -> operatorsGeneral + operatorsNumber (14 opsi)", () => {
-    // BUG (lihat bugFindings): changeOperators() case "number" (FilterItem.jsx
-    // ~L240) melakukan [...operatorsGeneral, ...operatorsNumber] apa adanya,
-    // padahal KEDUA array itu masing-masing sudah punya entri "in"/"!in"
-    // sendiri -> utk kolom number, operator "in" dan "!in" muncul GANDA di
-    // hasil (14 opsi, tapi cuma 12 nama unik). React juga melempar warning
-    // "Encountered two children with the same key" saat operator select
-    // merender daftar ini. Test ini meng-assert PERILAKU SAAT INI (duplikat
-    // ikut ter-assert), bukan perilaku yang seharusnya.
+  it("kolom number -> operatorsGeneral + operatorsNumber (12 opsi unik)", () => {
     render(<FilterItem {...baseProps({ column: "amount" })} />);
     const { options } = operatorSelectSpy.mock.calls.at(-1)[0];
     const values = options.map((o) => o.value);
-    expect(values).toHaveLength(14);
-    expect(values.filter((v) => v === "in")).toHaveLength(2);
-    expect(values.filter((v) => v === "!in")).toHaveLength(2);
+    expect(values).toHaveLength(12);
+    expect(values.filter((v) => v === "in")).toHaveLength(1);
+    expect(values.filter((v) => v === "!in")).toHaveLength(1);
     expect(new Set(values).size).toBe(12);
     expect(values).toEqual(
-      expect.arrayContaining([">", "<", ">=", "<=", "between", "!between"]),
+      expect.arrayContaining([
+        "eq",
+        "!eq",
+        "like",
+        "!like",
+        ">",
+        "<",
+        ">=",
+        "<=",
+        "in",
+        "!in",
+        "between",
+        "!between",
+      ]),
     );
   });
 
@@ -300,7 +305,7 @@ describe("FilterItem — cascade ganti kolom (Harness)", () => {
     });
   });
 
-  it("ganti kolom text->number memperbarui daftar opsi operator dari 6 jadi 14", async () => {
+  it("ganti kolom text->number memperbarui daftar opsi operator dari 6 jadi 12", async () => {
     const user = userEvent.setup();
     render(
       <Harness
@@ -315,7 +320,7 @@ describe("FilterItem — cascade ganti kolom (Harness)", () => {
     );
 
     await waitFor(() => {
-      expect(operatorSelectSpy.mock.calls.at(-1)[0].options).toHaveLength(14);
+      expect(operatorSelectSpy.mock.calls.at(-1)[0].options).toHaveLength(12);
     });
   });
 });

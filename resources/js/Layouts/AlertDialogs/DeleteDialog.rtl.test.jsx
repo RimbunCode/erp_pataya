@@ -213,7 +213,7 @@ describe("DeleteDialog — submit (onDelete -> router.delete)", () => {
     expect(useDeleteModal.getState().isOpen).toBe(false);
   });
 
-  it("BUG (lihat bugFindings): dialog sudah hilang dari layar begitu tombol Confirm diklik, sebelum onSuccess/onError dari router.delete direspons", async () => {
+  it("dialog TETAP terbuka setelah tombol Confirm diklik, sampai onSuccess/onError dari router.delete direspons", async () => {
     const user = userEvent.setup();
     act(() => {
       useDeleteModal.getState().deleteItem("items.destroy", 5);
@@ -227,9 +227,10 @@ describe("DeleteDialog — submit (onDelete -> router.delete)", () => {
 
     // Request tetap terkirim...
     expect(routerDelete).toHaveBeenCalledTimes(1);
-    // ...tapi dialog SUDAH hilang, walau onSuccess belum pernah dipanggil
-    // (mock router.delete di test ini tidak meng-invoke callback-nya sendiri).
-    expect(screen.queryByRole("alertdialog")).not.toBeInTheDocument();
+    // ...dan dialog TETAP terlihat, karena penutupan cuma dikendalikan oleh
+    // closeDeleteDialog() di callback onSuccess (mock router.delete di test
+    // ini tidak meng-invoke callback-nya sendiri).
+    expect(screen.getByRole("alertdialog")).toBeInTheDocument();
   });
 });
 

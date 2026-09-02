@@ -214,17 +214,7 @@ describe("ColumnOrderPicker — dialog tambah/buang kolom", () => {
     ).not.toBeInTheDocument();
   });
 
-  it("BUG (lihat bugFindings): perubahan checkbox yg TIDAK diterapkan (batal via Escape) JUSTRU BOCOR ke pembukaan dialog berikutnya -- draft tidak pernah di-reset", async () => {
-    // Niat aslinya (lihat komentar "Sinkronkan draft tiap kali dibuka" di
-    // source) adalah me-reset draft via onOpenChange(true) tiap dialog
-    // dibuka lagi. TAPI dialog ini tidak punya DialogTrigger internal --
-    // dibuka murni lewat prop `open` terkontrol dari tombol di PARENT
-    // (ColumnOrderPicker), sedangkan Radix onOpenChange HANYA terpanggil
-    // untuk trigger internal Radix sendiri (Escape/klik-luar/DialogClose).
-    // Akibatnya cabang `if (next) setDraft(selected)` di source TIDAK
-    // PERNAH tereksekusi dgn next===true -- draft state nyangkut dari sesi
-    // dialog sebelumnya. Test ini meng-assert PERILAKU SAAT INI (bug),
-    // bukan perilaku yang dimaksud.
+  it("perubahan checkbox yg TIDAK diterapkan (batal via Escape) TIDAK bocor ke pembukaan dialog berikutnya -- draft di-reset via useEffect(open)", async () => {
     const user = userEvent.setup({ delay: null });
     const onChange = vi.fn();
     renderPicker({ value: ["name"], onChange });
@@ -235,17 +225,15 @@ describe("ColumnOrderPicker — dialog tambah/buang kolom", () => {
 
     expect(onChange).not.toHaveBeenCalled();
 
-    await user.click(addButton()); // buka lagi -- draft SEHARUSNYA sinkron ulang ke selected ["name"]
+    await user.click(addButton()); // buka lagi -- draft sinkron ulang ke selected ["name"]
 
     expect(screen.getByLabelText("Nama")).toHaveAttribute(
       "data-state",
       "checked",
     );
-    // BUG: seharusnya "unchecked" (sinkron ulang ke prop `selected`), tapi
-    // draft nyangkut checked krn onOpenChange(true) tidak pernah terpanggil.
     expect(screen.getByLabelText("Kode")).toHaveAttribute(
       "data-state",
-      "checked",
+      "unchecked",
     );
   });
 });

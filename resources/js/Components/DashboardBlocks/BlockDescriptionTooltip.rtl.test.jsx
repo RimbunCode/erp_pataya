@@ -167,18 +167,18 @@ describe("BlockDescriptionTooltip (deskripsi objek { json, html } -- TiptapEdito
 });
 
 describe("BlockDescriptionTooltip (aksesibilitas keyboard trigger)", () => {
-  it("BUG (lihat bugFindings): trigger <span> tanpa tabIndex tidak menerima fokus keyboard, sehingga fokus TIDAK membuka tooltip", async () => {
+  it("trigger <span> punya tabIndex, sehingga fokus keyboard membuka tooltip", async () => {
     await render(<BlockDescriptionTooltip description="Deskripsi block" />);
 
     const trigger = getTrigger();
-    expect(trigger).not.toHaveAttribute("tabindex");
+    expect(trigger).toHaveAttribute("tabindex", "0");
 
     await act(async () => {
       trigger.focus();
     });
 
-    expect(document.activeElement).not.toBe(trigger);
-    expect(screen.queryByRole("tooltip")).not.toBeInTheDocument();
+    expect(document.activeElement).toBe(trigger);
+    expect(screen.getByRole("tooltip")).toBeInTheDocument();
   });
 });
 
