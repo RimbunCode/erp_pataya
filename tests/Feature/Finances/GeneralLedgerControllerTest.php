@@ -137,6 +137,27 @@ class GeneralLedgerControllerTest extends TestCase {
         );
     }
 
+    public function test_show_keeps_soft_deleted_account_relation(): void {
+        // Rollout withTrashed: true (spec soft-delete-relation-context Task 5.2) —
+        // account yang sudah di-soft-delete tetap harus tampil di Show, bukan null,
+        // supaya histori GL tidak kehilangan nama akun.
+        $this->account->delete();
+
+        $response = $this
+            ->withSession($this->sessionWithPermission(['select' => true, 'read' => true]))
+            ->withCookie('lang', 'en')
+            ->actingAs($this->user)
+            ->get(route('generalLedgers.show', $this->generalLedger));
+
+        $response->assertOk();
+        $response->assertInertia(
+            fn ($page) => $page
+                ->component('Finances/GeneralLedgers/Show')
+                ->where('generalLedger.account.id', $this->account->id)
+                ->where('generalLedger.account.deleted_at', fn ($value) => $value !== null),
+        );
+    }
+
     public function test_index_still_returns_200(): void {
         $response = $this
             ->withSession($this->sessionWithPermission(['select' => true, 'read' => true]))
