@@ -1,5 +1,5 @@
 import { describe, expect, it, vi, beforeEach } from "vitest";
-import { render, screen, waitFor } from "@testing-library/react";
+import { act, render, screen, waitFor } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { createContext, useContext, useState } from "react";
 
@@ -192,12 +192,20 @@ function renderForm({
  * memicu re-render Form lewat context propagation (bypass bail-out memo).
  * Mengembalikan getData() untuk membaca data terkini dan setExternalData()
  * untuk memicu perubahan data dari luar seolah field lain yang mengubahnya.
+ *
+ * render() dan setExternalData() SAMA-SAMA dibungkus `await act(async () =>
+ * {})`: render() awal membungkus efek sinkron mount, sedangkan
+ * setExternalData() memicu state update pada Wrapper (di luar sistem event
+ * RTL yang auto-act) YANG SELANJUTNYA memicu useDidMountEffect di Form
+ * (axios.post) -- act(async) menunggu SEMUA microtask itu stabil sebelum
+ * baris berikutnya jalan, termasuk resolusi axios mock yang jatuh di
+ * microtask setelah pemanggilan sinkronnya.
  * @param root0
  * @param root0.data
  * @param root0.item
  * @param root0.variants
  */
-function renderFormStateful({
+async function renderFormStateful({
   data: initialData = {},
   item = null,
   variants = null,
@@ -227,11 +235,18 @@ function renderFormStateful({
     );
   }
 
-  const utils = render(<Wrapper />);
+  let utils;
+  await act(async () => {
+    utils = render(<Wrapper />);
+  });
   return {
     ...utils,
     getData: () => latestData,
-    setExternalData: (...args) => externalSetData(...args),
+    setExternalData: async (...args) => {
+      await act(async () => {
+        externalSetData(...args);
+      });
+    },
   };
 }
 
@@ -515,7 +530,7 @@ describe("Inventory/Items Form", () => {
           data: [makeUnit({ id: 5, group: "Weight", conversion_factor: 1 })],
         },
       });
-      const { setExternalData } = renderFormStateful({
+      const { setExternalData } = await renderFormStateful({
         data: { uoms: [], attributes: [], default_unit: null },
       });
       expect(axiosPost).not.toHaveBeenCalled();
@@ -525,7 +540,10 @@ describe("Inventory/Items Form", () => {
       // setData langsung -- ini memicu re-render Form dalam mounted
       // instance yang sama lewat context, sehingga useDidMountEffect (yang
       // sudah lewat mount pertama) fire.
-      setExternalData("default_unit", makeUnit({ id: 5, group: "Weight" }));
+      await setExternalData(
+        "default_unit",
+        makeUnit({ id: 5, group: "Weight" }),
+      );
 
       await waitFor(() => expect(axiosPost).toHaveBeenCalled());
       expect(axiosPost).toHaveBeenCalledWith(
@@ -538,11 +556,14 @@ describe("Inventory/Items Form", () => {
     });
 
     it("default_unit berubah tanpa group (Others) TIDAK memicu axios.post, langsung set uom tunggal dari default_unit", async () => {
-      const { setExternalData, getData } = renderFormStateful({
+      const { setExternalData, getData } = await renderFormStateful({
         data: { uoms: [], attributes: [], default_unit: null },
       });
 
-      setExternalData("default_unit", makeUnit({ id: 6, group: "Others" }));
+      await setExternalData(
+        "default_unit",
+        makeUnit({ id: 6, group: "Others" }),
+      );
 
       await waitFor(() =>
         expect(getData().uoms.some((u) => u.id === 6)).toBe(true),

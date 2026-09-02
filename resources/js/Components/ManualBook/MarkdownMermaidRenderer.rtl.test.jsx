@@ -1,5 +1,6 @@
 import { describe, expect, it, vi, beforeEach } from "vitest";
-import { render, screen } from "@testing-library/react";
+import { screen } from "@testing-library/react";
+import { renderAsync } from "@/test-utils/renderAsync";
 
 const mermaidRender = vi.fn();
 const mermaidInitialize = vi.fn();
@@ -20,7 +21,7 @@ describe("MarkdownMermaidRenderer", () => {
 
   it("HTML tanpa blok mermaid langsung ready tanpa memanggil mermaid.render", async () => {
     const onReadyChange = vi.fn();
-    render(
+    await renderAsync(
       <MarkdownMermaidRenderer
         html="<p>Halo dunia</p>"
         onReadyChange={onReadyChange}
@@ -40,7 +41,7 @@ describe("MarkdownMermaidRenderer", () => {
     const html =
       '<pre><code class="language-mermaid">graph TD; A-->B;</code></pre>';
 
-    const { container } = render(
+    const { container } = await renderAsync(
       <MarkdownMermaidRenderer html={html} onReadyChange={onReadyChange} />,
     );
 
@@ -61,7 +62,7 @@ describe("MarkdownMermaidRenderer", () => {
     const html =
       '<pre><code class="language-mermaid">invalid syntax</code></pre>';
 
-    const { container } = render(
+    const { container } = await renderAsync(
       <MarkdownMermaidRenderer html={html} onReadyChange={onReadyChange} />,
     );
 
@@ -79,7 +80,7 @@ describe("MarkdownMermaidRenderer", () => {
     const html =
       '<h2 id="sec-1">Bagian 1</h2><h3 id="sec-1-a">Sub A</h3><p>teks</p>';
 
-    render(
+    await renderAsync(
       <MarkdownMermaidRenderer
         html={html}
         onHeadingsChange={onHeadingsChange}
@@ -98,7 +99,7 @@ describe("MarkdownMermaidRenderer", () => {
     const onHeadingsChange = vi.fn();
     const html = "<h2>Tanpa ID</h2>";
 
-    render(
+    await renderAsync(
       <MarkdownMermaidRenderer
         html={html}
         onHeadingsChange={onHeadingsChange}
@@ -109,7 +110,9 @@ describe("MarkdownMermaidRenderer", () => {
   });
 
   it("data-diagrams-ready pada wrapper mencerminkan state isReady", async () => {
-    const { container } = render(<MarkdownMermaidRenderer html="<p>x</p>" />);
+    const { container } = await renderAsync(
+      <MarkdownMermaidRenderer html="<p>x</p>" />,
+    );
 
     await vi.waitFor(() =>
       expect(container.firstChild).toHaveAttribute(

@@ -1,5 +1,5 @@
 import { describe, expect, it, vi, beforeEach } from "vitest";
-import { render } from "@testing-library/react";
+import { act, render } from "@testing-library/react";
 import React from "react";
 
 // t harus stabil -- source PrintPreview.jsx pakai `t` di dependency array
@@ -74,31 +74,40 @@ beforeEach(() => {
   setPageProps();
 });
 
-function renderPrintPreview(template = baseTemplate) {
+// getCurrencyConfig (via NumberInput) menembak axios/localStorage-cache di
+// useEffect saat mount TANPA di-await test-nya -- render() polos RTL cuma
+// membungkus bagian SINKRON dalam act(), promise mock (walau resolve
+// instan) tetap lanjut di microtask SESUDAH act() itu selesai. Bungkus
+// render() ITU SENDIRI dalam `await act(async () => {})` supaya semua
+// microtask sudah stabil dulu.
+async function renderPrintPreview(template = baseTemplate) {
   const ref = React.createRef();
-  const utils = render(<PrintPreview ref={ref} template={template} />);
+  let utils;
+  await act(async () => {
+    utils = render(<PrintPreview ref={ref} template={template} />);
+  });
   return { ...utils, ref };
 }
 
 describe("PrintPreview", () => {
-  it("merender sebuah iframe dengan data-role print-preview", () => {
-    const { container } = renderPrintPreview();
+  it("merender sebuah iframe dengan data-role print-preview", async () => {
+    const { container } = await renderPrintPreview();
     const iframe = container.querySelector('iframe[data-role="print-preview"]');
     expect(iframe).toBeInTheDocument();
   });
 
-  it("memanggil setLocale sesuai template.default_language", () => {
-    renderPrintPreview({ ...baseTemplate, default_language: "id" });
+  it("memanggil setLocale sesuai template.default_language", async () => {
+    await renderPrintPreview({ ...baseTemplate, default_language: "id" });
     expect(setLocaleMock).toHaveBeenCalledWith("id");
   });
 
-  it("default_language kosong fallback ke 'en' untuk setLocale", () => {
-    renderPrintPreview({ ...baseTemplate, default_language: undefined });
+  it("default_language kosong fallback ke 'en' untuk setLocale", async () => {
+    await renderPrintPreview({ ...baseTemplate, default_language: undefined });
     expect(setLocaleMock).toHaveBeenCalledWith("en");
   });
 
   it("menulis hasil compile Handlebars (data doc) ke dalam iframe body", async () => {
-    const { ref } = renderPrintPreview();
+    const { ref } = await renderPrintPreview();
 
     await vi.waitFor(() => {
       const body = ref.current.contentDocument.body;
@@ -107,7 +116,7 @@ describe("PrintPreview", () => {
   });
 
   it("menyuntikkan <style> print-preview ke iframe head dengan ukuran halaman template", async () => {
-    const { ref } = renderPrintPreview();
+    const { ref } = await renderPrintPreview();
 
     await vi.waitFor(() => {
       const style = ref.current.contentDocument.head.querySelector(
@@ -119,7 +128,7 @@ describe("PrintPreview", () => {
   });
 
   it("menambahkan <link> Bootstrap CSS ke iframe head", async () => {
-    const { ref } = renderPrintPreview();
+    const { ref } = await renderPrintPreview();
 
     await vi.waitFor(() => {
       const link =
@@ -130,7 +139,7 @@ describe("PrintPreview", () => {
   });
 
   it("mengatur iframe.style.width/minHeight sesuai template width/height + unit", async () => {
-    const { ref } = renderPrintPreview();
+    const { ref } = await renderPrintPreview();
 
     await vi.waitFor(() => {
       expect(ref.current.style.width).toBe("21cm");
@@ -139,16 +148,16 @@ describe("PrintPreview", () => {
   });
 
   it("memanggil getCurrencyConfig untuk default_currency_id preferences", async () => {
-    renderPrintPreview();
+    await renderPrintPreview();
 
     await vi.waitFor(() => {
       expect(getCurrencyConfigMock).toHaveBeenCalledWith("IDR", "IDR");
     });
   });
 
-  it("tidak memanggil getCurrencyConfig saat tidak ada kolom currency & default_currency_id kosong", () => {
+  it("tidak memanggil getCurrencyConfig saat tidak ada kolom currency & default_currency_id kosong", async () => {
     setPageProps({ preferences: {} });
-    renderPrintPreview();
+    await renderPrintPreview();
 
     expect(getCurrencyConfigMock).not.toHaveBeenCalled();
   });
@@ -162,7 +171,7 @@ describe("PrintPreview", () => {
         },
       },
     });
-    const { ref } = renderPrintPreview({
+    const { ref } = await renderPrintPreview({
       ...baseTemplate,
       html: "<div>{{doc.delivery_date}}</div>",
     });
@@ -175,7 +184,7 @@ describe("PrintPreview", () => {
   });
 
   it("halaman huruf kepala (letter head) ikut di-compile ke html saat is_letter_head=false dan letter_head tersedia", async () => {
-    const { ref } = renderPrintPreview({
+    const { ref } = await renderPrintPreview({
       ...baseTemplate,
       letter_head: {
         html: "<body class='lh'>LETTERHEAD-MARK</body>",
@@ -190,7 +199,7 @@ describe("PrintPreview", () => {
   });
 
   it("page_number != 'hide' menghasilkan aturan @page counter pada style", async () => {
-    const { ref } = renderPrintPreview({
+    const { ref } = await renderPrintPreview({
       ...baseTemplate,
       page_number: "bottom_center",
       page_number_format: ":page / :total",

@@ -1,5 +1,5 @@
 import { describe, expect, it, vi, beforeEach } from "vitest";
-import { render, screen, within, waitFor } from "@testing-library/react";
+import { act, render, screen, within, waitFor } from "@testing-library/react";
 import { TooltipProvider } from "@/Components/ui/tooltip";
 import userEvent from "@testing-library/user-event";
 import React, { useContext, useState } from "react";
@@ -146,7 +146,7 @@ import Form from "./Form";
  * @param root0.disabled
  * @param root0.defaultData
  */
-function renderForm({
+async function renderForm({
   data: initialData = {},
   dataBefore = {},
   disabled = false,
@@ -182,11 +182,14 @@ function renderForm({
     );
   }
 
-  const utils = render(
-    <TooltipProvider>
-      <Wrapper />
-    </TooltipProvider>,
-  );
+  let utils;
+  await act(async () => {
+    utils = render(
+      <TooltipProvider>
+        <Wrapper />
+      </TooltipProvider>,
+    );
+  });
   return {
     ...utils,
     getData: () => latestData,
@@ -213,8 +216,8 @@ describe("Inventory/Units Form", () => {
   });
 
   describe("rendering dasar & field wajib", () => {
-    it("merender field group, code, name, dan checkbox customable", () => {
-      renderForm({
+    it("merender field group, code, name, dan checkbox customable", async () => {
+      await renderForm({
         data: { id: 1, group: "Weight", code: "KG", name: "Kilogram" },
       });
 
@@ -226,16 +229,16 @@ describe("Inventory/Units Form", () => {
       ).toBeInTheDocument();
     });
 
-    it("field conversion_factor dirender ketika data.customable falsy", () => {
-      renderForm({ data: { id: 1, customable: false } });
+    it("field conversion_factor dirender ketika data.customable falsy", async () => {
+      await renderForm({ data: { id: 1, customable: false } });
 
       expect(
         screen.getByTestId("forminput-conversion_factor"),
       ).toBeInTheDocument();
     });
 
-    it("field conversion_factor TIDAK dirender ketika data.customable true", () => {
-      renderForm({ data: { id: 1, customable: true } });
+    it("field conversion_factor TIDAK dirender ketika data.customable true", async () => {
+      await renderForm({ data: { id: 1, customable: true } });
 
       expect(
         screen.queryByTestId("forminput-conversion_factor"),
@@ -244,7 +247,9 @@ describe("Inventory/Units Form", () => {
 
     it("mengubah input code memanggil setData('code', ...)", async () => {
       const user = userEvent.setup({ delay: null });
-      const { getData } = renderForm({ data: { id: 1, code: "", name: "" } });
+      const { getData } = await renderForm({
+        data: { id: 1, code: "", name: "" },
+      });
 
       const codeWrapper = screen.getByTestId("forminput-code");
       const codeInput = within(codeWrapper).getByRole("textbox");
@@ -255,7 +260,9 @@ describe("Inventory/Units Form", () => {
 
     it("mengubah input name memanggil setData('name', ...)", async () => {
       const user = userEvent.setup({ delay: null });
-      const { getData } = renderForm({ data: { id: 1, code: "", name: "" } });
+      const { getData } = await renderForm({
+        data: { id: 1, code: "", name: "" },
+      });
 
       const nameWrapper = screen.getByTestId("forminput-name");
       const nameInput = within(nameWrapper).getByRole("textbox");
@@ -266,15 +273,15 @@ describe("Inventory/Units Form", () => {
   });
 
   describe("checkbox customable", () => {
-    it("disabled ketika data.group === 'Others'", () => {
-      renderForm({ data: { id: 1, group: "Others", customable: true } });
+    it("disabled ketika data.group === 'Others'", async () => {
+      await renderForm({ data: { id: 1, group: "Others", customable: true } });
 
       const checkbox = screen.getByRole("forminput");
       expect(checkbox).toBeDisabled();
     });
 
-    it("tidak disabled ketika data.group bukan 'Others'", () => {
-      renderForm({ data: { id: 1, group: "Weight", customable: false } });
+    it("tidak disabled ketika data.group bukan 'Others'", async () => {
+      await renderForm({ data: { id: 1, group: "Weight", customable: false } });
 
       const checkbox = screen.getByRole("forminput");
       expect(checkbox).not.toBeDisabled();
@@ -282,7 +289,7 @@ describe("Inventory/Units Form", () => {
 
     it("mencentang checkbox memanggil setData('customable', true)", async () => {
       const user = userEvent.setup({ delay: null });
-      const { getData } = renderForm({
+      const { getData } = await renderForm({
         data: { id: 1, group: "Weight", customable: false },
       });
 
@@ -297,7 +304,7 @@ describe("Inventory/Units Form", () => {
     it("memilih group 'Others' otomatis set customable=true", async () => {
       const user = userEvent.setup({ delay: null });
       axiosGet.mockResolvedValue({ data: ["Weight", "Others"] });
-      const { getData } = renderForm({
+      const { getData } = await renderForm({
         data: { id: 1, group: "Weight", customable: false },
       });
 
@@ -316,7 +323,7 @@ describe("Inventory/Units Form", () => {
     it("memilih group selain 'Others' mempertahankan customable sebelumnya (true)", async () => {
       const user = userEvent.setup({ delay: null });
       axiosGet.mockResolvedValue({ data: ["Weight", "Length"] });
-      const { getData } = renderForm({
+      const { getData } = await renderForm({
         data: { id: 1, group: "Others", customable: true },
       });
 
@@ -334,7 +341,7 @@ describe("Inventory/Units Form", () => {
     it("memilih group selain 'Others' mempertahankan customable sebelumnya (false)", async () => {
       const user = userEvent.setup({ delay: null });
       axiosGet.mockResolvedValue({ data: ["Weight", "Length"] });
-      const { getData } = renderForm({
+      const { getData } = await renderForm({
         data: { id: 1, group: "Weight", customable: false },
       });
 
@@ -354,7 +361,7 @@ describe("Inventory/Units Form", () => {
     it("memanggil axios.get ke units.groups 300ms setelah mount", async () => {
       vi.useFakeTimers({ shouldAdvanceTime: true });
       axiosGet.mockResolvedValue({ data: ["Weight"] });
-      renderForm({ data: { id: 1 } });
+      await renderForm({ data: { id: 1 } });
 
       // loadUnits (units.index) TIDAK didebounce -- terpanggil segera saat
       // mount, jadi assert difokuskan ke keberadaan panggilan units.groups
@@ -364,7 +371,9 @@ describe("Inventory/Units Form", () => {
       );
       expect(groupsCallBeforeDebounce).toBeUndefined();
 
-      await vi.advanceTimersByTimeAsync(300);
+      await act(async () => {
+        await vi.advanceTimersByTimeAsync(300);
+      });
 
       const groupsCall = axiosGet.mock.calls.find((c) =>
         c[0].includes("units.groups"),
@@ -377,9 +386,11 @@ describe("Inventory/Units Form", () => {
     it("axios.get gagal pada loadGroups menampilkan toast error", async () => {
       vi.useFakeTimers({ shouldAdvanceTime: true });
       axiosGet.mockRejectedValue(new Error("network error"));
-      renderForm({ data: { id: 1 } });
+      await renderForm({ data: { id: 1 } });
 
-      await vi.advanceTimersByTimeAsync(300);
+      await act(async () => {
+        await vi.advanceTimersByTimeAsync(300);
+      });
       await vi.waitFor(() =>
         expect(toastError).toHaveBeenCalledWith(
           "core.form.errors.something_went_wrong",
@@ -393,7 +404,7 @@ describe("Inventory/Units Form", () => {
   describe("loadUnits: axios.get ke units.index saat data.group berubah", () => {
     it("memanggil axios.get ke units.index dengan querystring group & except saat mount", async () => {
       axiosGet.mockResolvedValue({ data: [] });
-      renderForm({ data: { id: 42, group: "Weight" } });
+      await renderForm({ data: { id: 42, group: "Weight" } });
 
       await waitFor(() => expect(axiosGet).toHaveBeenCalled());
       const unitsCall = axiosGet.mock.calls.find((c) =>
@@ -421,7 +432,7 @@ describe("Inventory/Units Form", () => {
         }
         return Promise.resolve({ data: [] });
       });
-      renderForm({
+      await renderForm({
         data: {
           id: 1,
           group: "Weight",
@@ -439,7 +450,7 @@ describe("Inventory/Units Form", () => {
 
     it("playground TIDAK dirender ketika units kosong", async () => {
       axiosGet.mockResolvedValue({ data: [] });
-      renderForm({ data: { id: 1, group: "Weight", customable: false } });
+      await renderForm({ data: { id: 1, group: "Weight", customable: false } });
 
       await waitFor(() => expect(axiosGet).toHaveBeenCalled());
       expect(
@@ -456,7 +467,7 @@ describe("Inventory/Units Form", () => {
         }
         return Promise.resolve({ data: [] });
       });
-      renderForm({ data: { id: 1, group: "Weight", customable: true } });
+      await renderForm({ data: { id: 1, group: "Weight", customable: true } });
 
       await waitFor(() => expect(axiosGet).toHaveBeenCalled());
       expect(
@@ -477,7 +488,7 @@ describe("Inventory/Units Form", () => {
         }
         return Promise.resolve({ data: [] });
       });
-      renderForm({
+      await renderForm({
         data: {
           id: 1,
           group: "Weight",
@@ -509,7 +520,7 @@ describe("Inventory/Units Form", () => {
         }
         return Promise.resolve({ data: [] });
       });
-      renderForm({
+      await renderForm({
         data: {
           id: 1,
           group: "Weight",
@@ -639,7 +650,7 @@ describe("Inventory/Units Form", () => {
         }
         return Promise.resolve({ data: [] });
       });
-      renderForm({
+      await renderForm({
         data: {
           id: 1,
           group: "Weight",
@@ -693,7 +704,7 @@ describe("Inventory/Units Form", () => {
         }
         return Promise.resolve({ data: [] });
       });
-      renderForm({
+      await renderForm({
         data: {
           id: 1,
           group: "Weight",
@@ -732,8 +743,8 @@ describe("Inventory/Units Form", () => {
   });
 
   describe("field group: canUpdateGroup via FormPageContext", () => {
-    it("Select group disabled ketika defaultData.canUpdate.group === false", () => {
-      renderForm({
+    it("Select group disabled ketika defaultData.canUpdate.group === false", async () => {
+      await renderForm({
         data: { id: 1, group: "Weight" },
         defaultData: { canUpdate: { group: false } },
       });
@@ -743,8 +754,8 @@ describe("Inventory/Units Form", () => {
       expect(selectGroup).toBeDisabled();
     });
 
-    it("Select group TIDAK disabled ketika canUpdate.group true/tidak diset", () => {
-      renderForm({
+    it("Select group TIDAK disabled ketika canUpdate.group true/tidak diset", async () => {
+      await renderForm({
         data: { id: 1, group: "Weight" },
         defaultData: { canUpdate: { group: true } },
       });
@@ -754,8 +765,8 @@ describe("Inventory/Units Form", () => {
       expect(selectGroup).not.toBeDisabled();
     });
 
-    it("Select group disabled ketika disabled (whole-form) true, mengalahkan canUpdate", () => {
-      renderForm({
+    it("Select group disabled ketika disabled (whole-form) true, mengalahkan canUpdate", async () => {
+      await renderForm({
         data: { id: 1, group: "Weight" },
         disabled: true,
         defaultData: { canUpdate: { group: true } },

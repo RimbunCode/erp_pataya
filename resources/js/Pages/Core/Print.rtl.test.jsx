@@ -1,5 +1,5 @@
 import { describe, expect, it, vi, beforeEach } from "vitest";
-import { render as rtlRender, screen } from "@testing-library/react";
+import { act, render as rtlRender, screen } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import React from "react";
 
@@ -127,8 +127,17 @@ import Print from "./Print";
 import { TooltipProvider } from "@/Components/ui/tooltip";
 import * as InertiaReact from "@inertiajs/react";
 
-function render(ui) {
-  return rtlRender(<TooltipProvider>{ui}</TooltipProvider>);
+// Print.jsx menembak axios.get (getFonts, useEffect saat mount) TANPA
+// di-await test-nya -- render() polos RTL cuma membungkus bagian SINKRON
+// dalam act(), promise mock (walau resolve instan) tetap lanjut di
+// microtask SESUDAH act() itu selesai. Bungkus render() ITU SENDIRI dalam
+// `await act(async () => {})` supaya semua microtask sudah stabil dulu.
+async function render(ui) {
+  let result;
+  await act(async () => {
+    result = rtlRender(<TooltipProvider>{ui}</TooltipProvider>);
+  });
+  return result;
 }
 
 /**
@@ -189,8 +198,8 @@ beforeEach(() => {
 });
 
 describe("Print - initialTemplate (useMemo)", () => {
-  it("fallback lengkap saat printTemplate kosong: paper A4, unit cm, orientation portrait, width/height dari A4/cm", () => {
-    render(<Print printTemplate={{}} lang="en" />);
+  it("fallback lengkap saat printTemplate kosong: paper A4, unit cm, orientation portrait, width/height dari A4/cm", async () => {
+    await render(<Print printTemplate={{}} lang="en" />);
 
     const template = getTemplateFromPreview();
     expect(template.paper).toBe("A4");
@@ -205,8 +214,8 @@ describe("Print - initialTemplate (useMemo)", () => {
     expect(template.last_conversion_factor).toBe(10);
   });
 
-  it("orientation landscape menukar width/height dari basis portrait paper", () => {
-    render(
+  it("orientation landscape menukar width/height dari basis portrait paper", async () => {
+    await render(
       <Print
         printTemplate={{ paper: "A4", unit: "cm", orientation: "landscape" }}
         lang="en"
@@ -220,8 +229,8 @@ describe("Print - initialTemplate (useMemo)", () => {
     expect(template.height).toBeCloseTo(21);
   });
 
-  it("orientation selain 'landscape' dinormalisasi ke 'portrait'", () => {
-    render(
+  it("orientation selain 'landscape' dinormalisasi ke 'portrait'", async () => {
+    await render(
       <Print
         printTemplate={{
           paper: "A4",
@@ -235,8 +244,8 @@ describe("Print - initialTemplate (useMemo)", () => {
     expect(getTemplateFromPreview().orientation).toBe("portrait");
   });
 
-  it("paper tidak dikenal fallback ke metrik A4", () => {
-    render(
+  it("paper tidak dikenal fallback ke metrik A4", async () => {
+    await render(
       <Print
         printTemplate={{
           paper: "UnknownPaper",
@@ -253,8 +262,8 @@ describe("Print - initialTemplate (useMemo)", () => {
     expect(template.height).toBeCloseTo(297);
   });
 
-  it("unit tidak dikenal fallback conversion_factor 1 (setara mm)", () => {
-    render(
+  it("unit tidak dikenal fallback conversion_factor 1 (setara mm)", async () => {
+    await render(
       <Print
         printTemplate={{
           paper: "A4",
@@ -271,8 +280,8 @@ describe("Print - initialTemplate (useMemo)", () => {
     expect(template.height).toBeCloseTo(297);
   });
 
-  it("width/height/default_language/page_number/font_family eksplisit di printTemplate TIDAK ditimpa fallback", () => {
-    render(
+  it("width/height/default_language/page_number/font_family eksplisit di printTemplate TIDAK ditimpa fallback", async () => {
+    await render(
       <Print
         printTemplate={{
           paper: "A4",
@@ -298,18 +307,18 @@ describe("Print - initialTemplate (useMemo)", () => {
     expect(template.last_conversion_factor).toBe(5);
   });
 
-  it("default_language fallback ke prop `lang` saat printTemplate.default_language kosong", () => {
-    render(<Print printTemplate={{}} lang="id" />);
+  it("default_language fallback ke prop `lang` saat printTemplate.default_language kosong", async () => {
+    await render(<Print printTemplate={{}} lang="id" />);
     expect(getTemplateFromPreview().default_language).toBe("id");
   });
 
-  it("default_language fallback ke 'en' saat printTemplate DAN lang kosong", () => {
-    render(<Print printTemplate={{}} lang={undefined} />);
+  it("default_language fallback ke 'en' saat printTemplate DAN lang kosong", async () => {
+    await render(<Print printTemplate={{}} lang={undefined} />);
     expect(getTemplateFromPreview().default_language).toBe("en");
   });
 
-  it("F4 portrait cm menghasilkan width 21 height 33 (210x330mm / 10)", () => {
-    render(
+  it("F4 portrait cm menghasilkan width 21 height 33 (210x330mm / 10)", async () => {
+    await render(
       <Print
         printTemplate={{ paper: "F4", unit: "cm", orientation: "portrait" }}
         lang="en"
@@ -323,20 +332,20 @@ describe("Print - initialTemplate (useMemo)", () => {
 });
 
 describe("Print - render dasar", () => {
-  it("merender judul halaman print preview", () => {
+  it("merender judul halaman print preview", async () => {
     setPageProps({ doc: { id: 1, code: "PO-001" } });
-    render(<Print printTemplate={{}} lang="en" />);
+    await render(<Print printTemplate={{}} lang="en" />);
 
     expect(screen.getByText("TR:core.form.print_preview")).toBeInTheDocument();
   });
 
-  it("merender PrintPreview stub dengan template yang sudah dihitung", () => {
-    render(<Print printTemplate={{}} lang="en" />);
+  it("merender PrintPreview stub dengan template yang sudah dihitung", async () => {
+    await render(<Print printTemplate={{}} lang="en" />);
     expect(screen.getByTestId("print-preview-stub")).toBeInTheDocument();
   });
 
-  it("tombol edit template mengarah ke route printTemplates.editor dengan id template", () => {
-    render(<Print printTemplate={{ id: 42 }} lang="en" />);
+  it("tombol edit template mengarah ke route printTemplates.editor dengan id template", async () => {
+    await render(<Print printTemplate={{ id: 42 }} lang="en" />);
 
     const link = screen.getByText("TR:core.form.edit_template").closest("a");
     expect(link).toHaveAttribute("href", "printTemplates.editor/42");
@@ -344,8 +353,8 @@ describe("Print - render dasar", () => {
 });
 
 describe("Print - handleDownloadPdf", () => {
-  it("tombol download tidak disabled sebelum diklik (state awal isDownloadingPdf=false)", () => {
-    render(<Print printTemplate={{ id: 1 }} lang="en" />);
+  it("tombol download tidak disabled sebelum diklik (state awal isDownloadingPdf=false)", async () => {
+    await render(<Print printTemplate={{ id: 1 }} lang="en" />);
 
     const button = screen
       .getByText("TR:core.form.download_pdf")
@@ -355,7 +364,7 @@ describe("Print - handleDownloadPdf", () => {
 
   it("klik tombol download TIDAK memanggil axios saat iframe belum ready (frame.current bukan iframe asli, contentDocument undefined)", async () => {
     const user = userEvent.setup({ delay: null });
-    render(<Print printTemplate={{ id: 1 }} lang="en" />);
+    await render(<Print printTemplate={{ id: 1 }} lang="en" />);
 
     const button = screen
       .getByText("TR:core.form.download_pdf")
@@ -375,7 +384,7 @@ describe("Print - handleDownloadPdf", () => {
 describe("Print - font_family options (fontOptions useMemo)", () => {
   it("Select font_family menampilkan opsi tanpa duplikat saat font_family template sama dengan salah satu DEFAULT_PRINT_FONTS", async () => {
     const user = userEvent.setup({ delay: null });
-    render(
+    await render(
       <Print printTemplate={{ font_family: "Times New Roman" }} lang="en" />,
     );
 
@@ -395,7 +404,7 @@ describe("Print - font_family options (fontOptions useMemo)", () => {
 
   it("font_family custom (di luar DEFAULT_PRINT_FONTS) ikut muncul sebagai opsi tambahan", async () => {
     const user = userEvent.setup({ delay: null });
-    render(
+    await render(
       <Print printTemplate={{ font_family: "My Custom Font" }} lang="en" />,
     );
 
@@ -411,7 +420,7 @@ describe("Print - font_family options (fontOptions useMemo)", () => {
 describe("Print - kontrol paper/orientation/unit", () => {
   it("mengganti paper size memperbarui width/height sesuai metrik paper baru", async () => {
     const user = userEvent.setup({ delay: null });
-    render(
+    await render(
       <Print
         printTemplate={{ paper: "A4", unit: "cm", orientation: "portrait" }}
         lang="en"
@@ -434,7 +443,7 @@ describe("Print - kontrol paper/orientation/unit", () => {
 
   it("mengganti orientation menukar width dan height", async () => {
     const user = userEvent.setup({ delay: null });
-    render(
+    await render(
       <Print
         printTemplate={{ paper: "A4", unit: "cm", orientation: "portrait" }}
         lang="en"
@@ -460,7 +469,7 @@ describe("Print - kontrol paper/orientation/unit", () => {
 
   it("mengganti unit mengonversi width/height/margin sesuai conversion_factor baru", async () => {
     const user = userEvent.setup({ delay: null });
-    render(
+    await render(
       <Print
         printTemplate={{
           paper: "custom",
@@ -494,7 +503,7 @@ describe("Print - kontrol paper/orientation/unit", () => {
 
   it("mengganti page_number ke selain 'hide' menampilkan field format nomor halaman", async () => {
     const user = userEvent.setup({ delay: null });
-    render(
+    await render(
       <Print
         printTemplate={{
           paper: "A4",
@@ -532,7 +541,7 @@ describe("Print - kontrol paper/orientation/unit", () => {
 
   it("mengganti width secara manual menandai paper jadi 'custom' dan menentukan orientation dari perbandingan width/height", async () => {
     const user = userEvent.setup({ delay: null });
-    render(
+    await render(
       <Print
         printTemplate={{ paper: "A4", unit: "cm", orientation: "portrait" }}
         lang="en"
@@ -553,7 +562,7 @@ describe("Print - kontrol paper/orientation/unit", () => {
 
   it("checkbox show_absolute_values toggle memperbarui template", async () => {
     const user = userEvent.setup({ delay: null });
-    render(<Print printTemplate={{}} lang="en" />);
+    await render(<Print printTemplate={{}} lang="en" />);
 
     // Checkbox.jsx menyetel role="forminput" secara eksplisit pada elemen
     // Radix CheckboxPrimitive.Root (menimpa role default "checkbox" dari
@@ -571,7 +580,7 @@ describe("Print - kontrol paper/orientation/unit", () => {
 
   it("mengganti letter_head lewat LinkModel stub memperbarui template.letter_head", async () => {
     const user = userEvent.setup({ delay: null });
-    render(<Print printTemplate={{}} lang="en" />);
+    await render(<Print printTemplate={{}} lang="en" />);
 
     await user.click(screen.getByTestId("link-model-stub"));
 

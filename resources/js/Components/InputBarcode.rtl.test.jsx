@@ -1,5 +1,5 @@
 import { describe, expect, it, vi, beforeEach } from "vitest";
-import { render, screen } from "@testing-library/react";
+import { act, render, screen } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 
 vi.mock("laravel-react-i18n", () => ({
@@ -40,7 +40,9 @@ describe("InputBarcode", () => {
     );
 
     await user.type(input, "widget");
-    vi.advanceTimersByTime(500);
+    await act(async () => {
+      vi.advanceTimersByTime(500);
+    });
 
     await vi.waitFor(() => expect(axiosPost).toHaveBeenCalled());
     expect(axiosPost).toHaveBeenCalledWith(
@@ -62,7 +64,9 @@ describe("InputBarcode", () => {
 
     await user.type(input, "a");
     await user.clear(input);
-    vi.advanceTimersByTime(500);
+    await act(async () => {
+      vi.advanceTimersByTime(500);
+    });
 
     expect(axiosPost).not.toHaveBeenCalled();
     vi.useRealTimers();

@@ -83,7 +83,12 @@ describe("TiptapMentionList", () => {
       <TiptapMentionList items={items} command={vi.fn()} query="" ref={ref} />,
     );
 
-    ref.current.onKeyDown({ event: { key: "ArrowDown" } });
+    // onKeyDown dipanggil lewat ref.current (bukan event React biasa) dan
+    // memicu setSelectedIndex, jadi act() perlu dibungkus manual -- sama
+    // seperti pola di test "navigasi keyboard via ref.onKeyDown" di atas.
+    act(() => {
+      ref.current.onKeyDown({ event: { key: "ArrowDown" } });
+    });
 
     const newItems = [{ id: "9", label: "Item Baru" }];
     rerender(
