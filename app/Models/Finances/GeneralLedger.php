@@ -12,11 +12,12 @@ use Illuminate\Database\Eloquent\SoftDeletes;
 class GeneralLedger extends Model {
     use DataTable, HasUlids, SoftDeletes;
 
-    protected $guarded                         = ['id'];
-    protected $casts                           = ['debit' => 'float', 'credit' => 'float', 'transaction_date' => 'datetime'];
-    protected static string $defaultFormatCode = 'GL-@[iiii]/@[yy]';
-    protected static $generateCodeSeries       = true;
-    public string $translateKey                = 'finances.generalLedger';
+    protected $guarded                          = ['id'];
+    protected $casts                            = ['debit' => 'float', 'credit' => 'float', 'transaction_date' => 'datetime'];
+    protected static string $defaultFormatCode  = 'GL-@[iiii]/@[yy]';
+    protected static $generateCodeSeries        = true;
+    protected static ?string $defaultSortColumn = 'transaction_date';
+    public string $translateKey                 = 'finances.generalLedger';
 
     protected static function permissions() {
         return [
