@@ -62,9 +62,11 @@ export const useDraftForm = (
   const lastSavedFingerprintRef = useRef(null);
   const user = usePage().props.auth.user;
   let key = user ? `${name}_${user.id}` : null;
-  key = isCreate
-    ? `${key}_create`
-    : `${key}_update_${initialData?.id ?? initialData?.code ?? ""}`;
+  if (key) {
+    key = isCreate
+      ? `${key}_create`
+      : `${key}_update_${initialData?.id ?? initialData?.code ?? ""}`;
+  }
   const {
     submit: submitForm,
     get: getForm,

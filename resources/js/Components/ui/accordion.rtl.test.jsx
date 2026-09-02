@@ -110,7 +110,7 @@ describe("AccordionTrigger", () => {
     expect(trigger.className).toContain("justify-between");
   });
 
-  it("tanpa prop asChild: className mengandung justify-between & selector rotate chevron", () => {
+  it("tanpa prop hideDefaultChevronStyles: className mengandung justify-between & selector rotate chevron", () => {
     render(
       <Accordion type="single" collapsible>
         <AccordionItem value="item-1">
@@ -124,11 +124,11 @@ describe("AccordionTrigger", () => {
     expect(trigger.className).toContain("[&[data-state=open]>svg]:rotate-180");
   });
 
-  it("dengan prop asChild=true: className justify-between & rotate chevron dihilangkan, dan prop asChild TIDAK diteruskan sbg atribut DOM", () => {
+  it("dengan prop hideDefaultChevronStyles=true: className justify-between & rotate chevron dihilangkan, dan prop tidak diteruskan sbg atribut DOM", () => {
     render(
       <Accordion type="single" collapsible>
         <AccordionItem value="item-1">
-          <AccordionTrigger asChild>Trigger</AccordionTrigger>
+          <AccordionTrigger hideDefaultChevronStyles>Trigger</AccordionTrigger>
           <AccordionContent>Content</AccordionContent>
         </AccordionItem>
       </Accordion>,
@@ -138,10 +138,10 @@ describe("AccordionTrigger", () => {
     expect(trigger.className).not.toContain(
       "[&[data-state=open]>svg]:rotate-180",
     );
-    expect(trigger).not.toHaveAttribute("aschild");
-    // ChevronDown tetap dirender walau asChild=true (bukan diteruskan ke
-    // Radix Slot untuk composition sungguhan -- hanya dipakai sbg toggle
-    // className lokal di wrapper ini).
+    expect(trigger).not.toHaveAttribute("hidedefaultchevronstyles");
+    // ChevronDown tetap dirender walau hideDefaultChevronStyles=true --
+    // prop ini hanya toggle className lokal di wrapper ini, bukan Radix
+    // Slot composition.
     expect(trigger.querySelector("svg")).toBeInTheDocument();
   });
 });

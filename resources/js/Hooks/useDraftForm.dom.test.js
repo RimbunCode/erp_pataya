@@ -160,13 +160,84 @@ describe("useDraftForm: key generation", () => {
     expect(result.current.key).toBe("po_1_update_");
   });
 
-  it("BUG (lihat bugFindings): tanpa user (auth.user null), key TETAP string truthy 'null_create' -- bukan null seperti diniatkan ternary `user ? ... : null`", () => {
+  it("tanpa user (auth.user null): key tetap null, bukan string 'null_create'", () => {
     setUser(null);
     const { result } = renderHook(() =>
       useDraftForm("po", {}, { isCreate: true }),
     );
-    expect(result.current.key).toBe("null_create");
-    expect(result.current.key).not.toBeNull();
+    expect(result.current.key).toBeNull();
+  });
+});
+
+describe("useDraftForm: tanpa user -- fitur draft nonaktif total (key null)", () => {
+  it("window.keyForm tidak diisi", () => {
+    setUser(null);
+    renderHook(() => useDraftForm("po", {}, { isCreate: true }));
+    expect(window.keyForm).toBeUndefined();
+  });
+
+  it("loadDraft otomatis saat mount tidak memicu alert", async () => {
+    setUser(null);
+    renderHook(() => useDraftForm("po", {}, { isCreate: true }));
+
+    await new Promise((r) => setTimeout(r, 0));
+    expect(useAlertDraftForm.getState().showAlert).toBe(false);
+  });
+
+  it("listener beforeunload TIDAK terdaftar meski form dirty", () => {
+    setUser(null);
+    fakeFormState.isDirty = true;
+    const addSpy = vi.spyOn(window, "addEventListener");
+
+    renderHook(() => useDraftForm("po", { note: "isi" }, { isCreate: true }));
+
+    const registered = addSpy.mock.calls.some(
+      ([type]) => type === "beforeunload",
+    );
+    expect(registered).toBe(false);
+    addSpy.mockRestore();
+  });
+
+  it("autosave (scheduleDraftSave/flushDraftSave) tidak pernah menyimpan draft ke localStorage meski dirty & data berubah", async () => {
+    vi.useFakeTimers({ shouldAdvanceTime: true });
+    setUser(null);
+    fakeFormState.isDirty = true;
+    const { result } = renderHook(() =>
+      useDraftForm("po", { note: "" }, { isCreate: true }),
+    );
+
+    act(() => {
+      result.current.setData("note", "harusnya tidak tersimpan");
+    });
+
+    await vi.advanceTimersByTimeAsync(DEBOUNCE_MS);
+
+    expect(localStorage.length).toBe(0);
+  });
+
+  it("getOptions onSuccess/onBefore/onError (via patch) tidak menyentuh localStorage", () => {
+    setUser(null);
+    fakeFormState.isDirty = true;
+    const { result } = renderHook(() =>
+      useDraftForm("po", { id: 1 }, { isCreate: false }),
+    );
+
+    act(() => {
+      result.current.patch("/po/1");
+    });
+    const opts = patchSpy.mock.calls[0][1];
+
+    act(() => {
+      opts.onBefore({});
+    });
+    act(() => {
+      opts.onError({ note: "wajib diisi" });
+    });
+    act(() => {
+      opts.onSuccess({ props: { po: { id: 1 } } });
+    });
+
+    expect(localStorage.length).toBe(0);
   });
 });
 
