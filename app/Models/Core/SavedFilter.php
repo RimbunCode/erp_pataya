@@ -47,11 +47,17 @@ class SavedFilter extends Model {
             'show'  => true,
             'order' => 4,
         ],
+        // show:false (BUKAN ignore:true) — sembunyi dari listing tapi tetap
+        // ada di getColumns() sehingga bisa di-fetch eksplisit via LinkModel
+        // `fields` (field "Import dari Filter Lain" butuh nilai `filter`).
+        // ignore:true akan MEMBUANG kolom dari getColumns() sama sekali,
+        // membuatnya tidak bisa di-fetch lewat jalur manapun.
         'filter' => [
-            'ignore' => true,
+            'show'     => false,
+            'linkable' => true,
         ],
         'sort' => [
-            'ignore' => true,
+            'show' => false,
         ],
         'is_shared' => [
             'ignore' => true,
@@ -105,6 +111,14 @@ class SavedFilter extends Model {
      */
     public function getNameClass() {
         return 'filterTemplate';
+    }
+
+    /**
+     * Dipakai LinkModel (field "Import dari Filter Lain" di Filter Templates
+     * Form) untuk menampilkan & mencari shared/private filter berdasar nama.
+     */
+    public static function templateLink() {
+        return ':name';
     }
 
     /**
