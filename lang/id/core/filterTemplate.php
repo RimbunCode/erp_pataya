@@ -1,0 +1,36 @@
+<?php
+
+return [
+    'title'              => 'Filter Templates',
+    'add'                => 'Buat Filter Template',
+    'filterTemplates'    => 'Filter Templates',
+    'new'                => 'Filter Template Baru',
+    'delete'             => 'Hapus Filter Template',
+    'delete.description' => 'Apakah Anda yakin ingin menghapus filter template ini?',
+    'delete.confirm'     => 'Hapus',
+    'cancel'             => 'Batal',
+    'filterTemplate'     => 'Filter Template',
+    'columns'            => [
+        'name'              => 'Nama',
+        'model'             => 'Model',
+        'model.placeholder' => 'Pilih model',
+        'creator'           => 'Pembuat',
+        'user'              => 'Pembuat',
+        'updated_at'        => 'Terakhir Diubah',
+        'is_default'        => 'Default',
+    ],
+    'form' => [
+        'import'             => 'Import dari Filter Lain',
+        'import.placeholder' => 'Pilih filter untuk diimpor',
+        'sort'               => 'Urutan Data',
+        'sort.none'          => 'Tidak diatur',
+        'sort.ascending'     => 'Menaik',
+        'sort.descending'    => 'Menurun',
+        'preview'            => 'Preview',
+        'preview.empty'      => 'Belum ada data untuk ditampilkan.',
+        'setDefault'         => 'Jadikan Default',
+        'setDefault.success' => 'Filter dijadikan default.',
+        'unsetDefault'       => 'Lepas status Default',
+        'isDefault'          => 'Sudah Default',
+    ],
+];

@@ -1,0 +1,36 @@
+<?php
+
+return [
+    'title'              => 'Filter Templates',
+    'add'                => 'Add Filter Template',
+    'filterTemplates'    => 'Filter Templates',
+    'new'                => 'New Filter Template',
+    'delete'             => 'Delete Filter Template',
+    'delete.description' => 'Are you sure you want to delete this filter template?',
+    'delete.confirm'     => 'Delete',
+    'cancel'             => 'Cancel',
+    'filterTemplate'     => 'Filter Template',
+    'columns'            => [
+        'name'              => 'Name',
+        'model'             => 'Model',
+        'model.placeholder' => 'Select a model',
+        'creator'           => 'Creator',
+        'user'              => 'Creator',
+        'updated_at'        => 'Last Updated',
+        'is_default'        => 'Default',
+    ],
+    'form' => [
+        'import'             => 'Import from Another Filter',
+        'import.placeholder' => 'Select a filter to import',
+        'sort'               => 'Sort Order',
+        'sort.none'          => 'Not set',
+        'sort.ascending'     => 'Ascending',
+        'sort.descending'    => 'Descending',
+        'preview'            => 'Preview',
+        'preview.empty'      => 'No data to display yet.',
+        'setDefault'         => 'Set as Default',
+        'setDefault.success' => 'Filter set as default.',
+        'unsetDefault'       => 'Unset Default',
+        'isDefault'          => 'Already Default',
+    ],
+];

@@ -261,7 +261,10 @@ function FilterTableContent({
       // named itu, tanpa membuat record baru. Bila diubah (dirty) atau ephemeral
       // → store (backend update-or-create; named yang dirty tak akan ditimpa).
       const useExisting = Boolean(loadedSaved?.is_saved) && !isDirty;
-      await onApply?.(filters, loadedFid, { useExisting });
+      // sort filter yang dimuat (null bila tak diatur) — dipakai caller utk
+      // override sort halaman aktif (Requirement 5), tidak pernah dipaksa
+      // bila null (AC 5.2).
+      await onApply?.(filters, loadedFid, { useExisting, sort: loadedSaved?.sort ?? null });
       setOpen?.(false);
     } catch {
       // Caller (DataTable2.persistFilterTree) sudah menampilkan toast error.
@@ -435,15 +438,25 @@ function SavedFilterBar({ items, loading, activeFid, onPick, onRemove }) {
                   )}
                 />
                 {item.name || t("core.datatable.filter.saved.untitled")}
+                {item.is_shared && (
+                  <span className="inline-flex items-center rounded-full bg-muted-foreground/15 px-1.5 py-0 text-xs font-normal text-muted-foreground">
+                    {t("core.datatable.filter.saved.shared_badge")}
+                  </span>
+                )}
               </button>
-              <button
-                type="button"
-                className="ml-1 inline-flex size-5 cursor-pointer items-center justify-center rounded-full text-muted-foreground transition-colors hover:bg-destructive/10 hover:text-destructive"
-                title={t("core.datatable.filter.delete.label")}
-                onClick={() => onRemove?.(item.id)}
-              >
-                <Trash2 className="size-3.5" />
-              </button>
+              {/* Shared filter dikelola lewat halaman Filter Templates, bukan
+                  dari dropdown ini — sembunyikan aksi hapus di sini agar tidak
+                  memicu 403 (destroy owner-only) untuk non-pengelola. */}
+              {!item.is_shared && (
+                <button
+                  type="button"
+                  className="ml-1 inline-flex size-5 cursor-pointer items-center justify-center rounded-full text-muted-foreground transition-colors hover:bg-destructive/10 hover:text-destructive"
+                  title={t("core.datatable.filter.delete.label")}
+                  onClick={() => onRemove?.(item.id)}
+                >
+                  <Trash2 className="size-3.5" />
+                </button>
+              )}
             </span>
           );
         })

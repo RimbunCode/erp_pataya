@@ -115,6 +115,7 @@ return [
             'save_error'       => 'Gagal menyimpan filter.',
             'empty'            => 'Belum ada filter tersimpan.',
             'untitled'         => 'Tanpa nama',
+            'shared_badge'     => 'Shared',
             'loading'          => 'Memuat filter…',
             'dirty'            => 'Ada perubahan yang belum disimpan',
         ],

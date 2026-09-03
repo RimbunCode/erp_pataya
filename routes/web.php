@@ -22,6 +22,7 @@ use App\Http\Controllers\Core\DashboardController;
 use App\Http\Controllers\Core\DeskController;
 use App\Http\Controllers\Core\EmailTemplateController;
 use App\Http\Controllers\Core\FileController;
+use App\Http\Controllers\Core\FilterTemplateController;
 use App\Http\Controllers\Core\FormatingSeriesController;
 use App\Http\Controllers\Core\GlPostingStatusController;
 use App\Http\Controllers\Core\HtmlSanitizeController;
@@ -250,6 +251,11 @@ Route::middleware(['auth', 'lang', 'onboarded', 'app', 'desk'])->group(function 
         Route::get('/emailTemplates/fields', [EmailTemplateController::class, 'fields'])->name('emailTemplates.fields');
         Route::resourceDetail('emailTemplate', EmailTemplateController::class);
         Route::post('/emailTemplates/{emailTemplate}/test-send', [EmailTemplateController::class, 'testSend'])->name('emailTemplates.testSend');
+
+        Route::resourceDetail('filterTemplate', FilterTemplateController::class);
+        Route::post('/filterTemplates/{filterTemplate}/setDefault', [FilterTemplateController::class, 'setDefault'])->name('filterTemplates.setDefault');
+        Route::post('/filterTemplates/preview', [FilterTemplateController::class, 'preview'])->name('filterTemplates.preview');
+
         Route::resourceDetail('numberCard', NumberCardController::class);
         Route::resourceDetail('chart', ChartController::class);
     });

@@ -196,6 +196,53 @@ describe("FilterTable2", () => {
     );
   });
 
+  it("shared filter menampilkan badge Shared dan menyembunyikan tombol hapus", async () => {
+    const user = userEvent.setup({ delay: null });
+    axiosGet.mockResolvedValue({
+      data: {
+        data: [
+          {
+            id: 1,
+            name: "Filter Privat",
+            is_saved: true,
+            is_shared: false,
+            filter: {},
+          },
+          {
+            id: 2,
+            name: "Filter Shared",
+            is_saved: true,
+            is_shared: true,
+            filter: {},
+          },
+        ],
+      },
+    });
+    render(
+      <FilterTable2
+        columns={columns}
+        initialFilters={null}
+        onApply={vi.fn()}
+        model="AppModelsItem"
+      />,
+    );
+
+    await user.click(
+      screen.getByRole("button", { name: /TR:core.datatable.filter.filter/ }),
+    );
+    await screen.findByText("Filter Privat");
+
+    expect(
+      screen.getByText("TR:core.datatable.filter.saved.shared_badge"),
+    ).toBeInTheDocument();
+
+    const deleteButtons = screen.getAllByTitle(
+      "TR:core.datatable.filter.delete.label",
+    );
+    // Hanya satu tombol hapus (utk item privat) — item shared tidak punya.
+    expect(deleteButtons).toHaveLength(1);
+  });
+
   it("Simpan sebagai baru: submit nama memanggil POST lalu PATCH nama", async () => {
     const user = userEvent.setup({ delay: null });
     axiosPost.mockResolvedValue({ data: { id: 99 } });
