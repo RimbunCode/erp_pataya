@@ -2114,12 +2114,17 @@ const FormPageDiff = memo(
       tabsEl?.style.setProperty("--tabs-top", nextShow ? "3.5rem" : "0px");
     }, []);
     const alias = useMemo(() => {
+      // log.user null -- log tercatat tanpa user terautentikasi (mis.
+      // seeder/artisan/job), backend render "System" (lihat Log::code()/
+      // activityText() accessor), FE ikut fallback yang sama.
+      if (!log.user) return "S";
+
       return log.user.name
         .split(" ")
         .slice(0, 2)
         .map((n) => n.charAt(0))
         .join("");
-    }, [log.user.name]);
+    }, [log.user]);
     return (
       <AppLayout
         data-disabled={true}
@@ -2189,7 +2194,7 @@ const FormPageDiff = memo(
                       <p>{t("core.form.updated_by")}</p>
                       <div className="flex items-center gap-3 px-1 py-1.5 text-left text-sm">
                         <Avatar className="rounded-lg size-20">
-                          {log.user.picture && (
+                          {log.user?.picture && (
                             <AvatarImage
                               src={resolveImageSrc(log.user.picture)}
                               alt={log.user.name}
@@ -2201,16 +2206,20 @@ const FormPageDiff = memo(
                         </Avatar>
                         <div className="grid flex-1 text-base leading-tight text-left gap-y-0.5">
                           <span className="font-semibold truncate">
-                            {log.user.name}
+                            {log.user ? log.user.name : t("core.form.system")}
                           </span>
-                          <span className="text-sm truncate text-foreground/80">
-                            {log.user.username}
-                          </span>
-                          <div className="w-fit px-2 py-0.5 rounded-full gap-x-1 items-center text-foreground/80  bg-muted">
-                            <span className="text-sm truncate">
-                              {log.user.email}
-                            </span>
-                          </div>
+                          {log.user && (
+                            <>
+                              <span className="text-sm truncate text-foreground/80">
+                                {log.user.username}
+                              </span>
+                              <div className="w-fit px-2 py-0.5 rounded-full gap-x-1 items-center text-foreground/80  bg-muted">
+                                <span className="text-sm truncate">
+                                  {log.user.email}
+                                </span>
+                              </div>
+                            </>
+                          )}
                         </div>
                       </div>
                     </div>
