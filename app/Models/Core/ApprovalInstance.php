@@ -49,7 +49,14 @@ class ApprovalInstance extends Model {
     }
 
     public function document() {
-        return $this->morphTo('document', 'document_type', 'document_id');
+        // withTrashed unconditional -- document historis-read-only, sama alasan
+        // approver()/actedBy() di ApprovalInstanceStep. Beda dari approver()
+        // (constrain() eksplisit ke User/Role), document() morphTo ke SEMUA
+        // model Submitable (~13 model, open set, terus bertambah) -- constrain()
+        // per-type tidak scalable di sini. MorphTo::withTrashed() native aman
+        // dipanggil unconditional: no-op kalau target type kebetulan bukan
+        // SoftDeletes (cek query()->hasMacro('withTrashed') internal Laravel).
+        return $this->morphTo('document', 'document_type', 'document_id')->withTrashed();
     }
 
     public function steps() {

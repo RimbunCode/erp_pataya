@@ -2,6 +2,7 @@
 
 namespace Tests\Feature\Models;
 
+use App\Models\Core\ApprovalInstance;
 use App\Models\Core\ApprovalInstanceStep;
 use App\Models\User\Role;
 use App\Models\User\User;
@@ -39,7 +40,7 @@ class ApprovalInstanceStepSoftDeleteTest extends TestCase {
      * ExistsExcludingTrashedTest (yang diuji relasi model, bukan business logic
      * pembuatan approval scheme/instance).
      */
-    private function makeApprovalInstanceId(): string {
+    private function makeApprovalInstanceId(array $overrides = []): string {
         $permissionId = (string) Str::ulid();
         DB::table('permissions')->insert([
             'id'         => $permissionId,
@@ -62,14 +63,14 @@ class ApprovalInstanceStepSoftDeleteTest extends TestCase {
         ]);
 
         $instanceId = (string) Str::ulid();
-        DB::table('approval_instances')->insert([
+        DB::table('approval_instances')->insert(array_merge([
             'id'                 => $instanceId,
             'approval_scheme_id' => $schemeId,
             'document_type'      => 'App\\Models\\Test',
             'document_id'        => (string) Str::ulid(),
             'created_at'         => now(),
             'updated_at'         => now(),
-        ]);
+        ], $overrides));
 
         return $instanceId;
     }
@@ -152,5 +153,29 @@ class ApprovalInstanceStepSoftDeleteTest extends TestCase {
 
         $this->assertNotNull($step->approver);
         $this->assertNull($step->approver->deleted_at);
+    }
+
+    /**
+     * ApprovalInstance::document() -- morphTo ke ~13 model Submitable (open
+     * set), pakai withTrashed() native (bukan constrain() spt approver(), yang
+     * enumerasi User/Role saja karena target-nya fixed 2 tipe). Role dipakai
+     * di sini sebagai stand-in target SoftDeletes generik -- mekanisme yang
+     * diuji sama persis dgn document beneran (Submitable), cukup buat
+     * membuktikan withTrashed() bekerja tanpa perlu setup SalesOrder penuh.
+     */
+    public function test_document_stays_visible_when_target_document_soft_deleted(): void {
+        $document = Role::create(['name' => 'Document Stand-in ' . Str::ulid()]);
+        $document->delete();
+
+        $instanceId = $this->makeApprovalInstanceId([
+            'document_type' => Role::class,
+            'document_id'   => $document->id,
+        ]);
+
+        $instance = ApprovalInstance::findOrFail($instanceId);
+
+        $this->assertNotNull($instance->document, 'document tidak boleh null walau sudah di-soft-delete.');
+        $this->assertNotNull($instance->document->deleted_at);
+        $this->assertSame($document->id, $instance->document->id);
     }
 }
