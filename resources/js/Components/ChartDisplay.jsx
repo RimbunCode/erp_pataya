@@ -23,6 +23,7 @@ import { formatNumber } from "@/lib/numberFormat";
 import { resolveIcon } from "@/lib/deskIcons";
 import { useLaravelReactI18n } from "laravel-react-i18n";
 import { usePage } from "@inertiajs/react";
+import useInViewport from "@/Hooks/useInViewport";
 
 // Feedback user: split dari DashboardChart.jsx — Chart tetap pakai recharts
 // (line/bar/pie/donut), Number Card (tanpa recharts) dipisah ke
@@ -37,6 +38,11 @@ function ChartDisplay({ chart, filters = {} }) {
   const [loading, setLoading] = React.useState(true);
   const [error, setError] = React.useState(false);
   const [activePeriod, setActivePeriod] = React.useState(null);
+  // Opsi C optimasi dashboard: tunda POST getData sampai Chart ini
+  // mendekati viewport -- ref nempel di root <div> (baris return di bawah),
+  // yang SELALU ter-render terlepas dari state loading.
+  const containerRef = React.useRef(null);
+  const isInView = useInViewport(containerRef);
 
   const isGroupBy = chart.chart_source_type === "group_by";
   const isHeatmap = chart.visual_type === "heatmap";
@@ -63,8 +69,9 @@ function ChartDisplay({ chart, filters = {} }) {
   }, [chart.id, JSON.stringify(filters)]);
 
   useEffect(() => {
+    if (!isInView) return;
     reload();
-  }, [reload]);
+  }, [reload, isInView]);
 
   const seriesData = React.useMemo(() => {
     if (!data || isGroupBy || isHeatmap) return [];
@@ -289,7 +296,7 @@ function ChartDisplay({ chart, filters = {} }) {
   };
 
   return (
-    <div>
+    <div ref={containerRef}>
       {/* Feedback user: icon + deskripsi (tooltip) mirip pola komponen lain
           (Quick List/Link Card/Section) — icon opsional, deskripsi opsional
           sbg tooltip di ikon info. */}

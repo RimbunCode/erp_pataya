@@ -10,6 +10,7 @@ import { formatNumber } from "@/lib/numberFormat";
 import { resolveIcon } from "@/lib/deskIcons";
 import { useLaravelReactI18n } from "laravel-react-i18n";
 import { usePage } from "@inertiajs/react";
+import useInViewport from "@/Hooks/useInViewport";
 
 // Feedback user: split dari DashboardChart.jsx — Number Card TIDAK butuh
 // recharts sama sekali (bukan bar/line/pie, cuma 1 angka + delta persentase).
@@ -25,8 +26,16 @@ function NumberCardDisplay({ numberCard, filters = {} }) {
     percentage: null,
     error: false,
   });
+  // Opsi C optimasi dashboard: tunda POST getValue sampai Card ini
+  // mendekati viewport -- Desk dgn banyak block tidak langsung nembak N
+  // request paralel begitu halaman dibuka. Ref nempel di <Card> ROOT (baris
+  // di bawah), yang SELALU ter-render terlepas dari state loading.
+  const cardRef = React.useRef(null);
+  const isInView = useInViewport(cardRef);
 
   React.useEffect(() => {
+    if (!isInView) return;
+
     let cancelled = false;
     setState((prev) => ({ ...prev, loading: true, error: false }));
 
@@ -49,7 +58,7 @@ function NumberCardDisplay({ numberCard, filters = {} }) {
     return () => {
       cancelled = true;
     };
-  }, [numberCard.id, JSON.stringify(filters)]);
+  }, [numberCard.id, JSON.stringify(filters), isInView]);
 
   // chart-compact-number-display: mode full DELEGASI ke NumberInput/
   // formatNumber via preferences.default_number_format (sumber tunggal
@@ -72,6 +81,7 @@ function NumberCardDisplay({ numberCard, filters = {} }) {
 
   return (
     <Card
+      ref={cardRef}
       className="w-full rounded-xl border bg-card shadow-sm"
       style={{ backgroundColor: numberCard.background_color || undefined }}
     >

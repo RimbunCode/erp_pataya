@@ -21,6 +21,7 @@ import { resolveIcon } from "@/lib/deskIcons";
 import axios from "axios";
 import { useLaravelReactI18n } from "laravel-react-i18n";
 import { richTextValue } from "@/lib/richText";
+import useInViewport from "@/Hooks/useInViewport";
 
 // Optimasi dashboard: metadata kolom model (dari endpoint model.columns)
 // nyaris tidak pernah berubah dalam satu sesi browser — tanpa cache ini,
@@ -174,6 +175,11 @@ export default function QuickListBlock({
   const [pageMeta, setPageMeta] = useState({ total: 0, lastPage: 1 });
   const [isLoading, setIsLoading] = useState(false);
   const modelClass = config.model_class;
+  // Opsi C optimasi dashboard: tunda POST dashboard.quickList sampai block
+  // ini mendekati viewport -- ref nempel di root <div> (return di bawah),
+  // yang SELALU ter-render terlepas dari state loading/model belum dipilih.
+  const containerRef = useRef(null);
+  const isInView = useInViewport(containerRef);
   const {
     columns: savedColumns,
     route: modelRoute,
@@ -215,7 +221,7 @@ export default function QuickListBlock({
   ]);
 
   useEffect(() => {
-    if (!modelClass || visibleColumns.length === 0) {
+    if (!modelClass || visibleColumns.length === 0 || !isInView) {
       setItems([]);
       setPageMeta({ total: 0, lastPage: 1 });
       return;
@@ -281,6 +287,7 @@ export default function QuickListBlock({
     config.sort_direction,
     config.limit,
     page,
+    isInView,
   ]);
 
   const columnByName = useMemo(
@@ -294,7 +301,10 @@ export default function QuickListBlock({
     // sejajar dengan block di sebelahnya — pola SAMA dgn LinkCardBlock.
     // Feedback user: dua Quick List bersebelahan kelihatan janggal kalau
     // tingginya beda-beda ikut jumlah baris data masing-masing.
-    <div className="flex h-full flex-col rounded-lg border p-3">
+    <div
+      ref={containerRef}
+      className="flex h-full flex-col rounded-lg border p-3"
+    >
       {/* Feedback user: Quick List kini punya identitas sendiri — label
           (wajib), ikon opsional, dan deskripsi opsional sebagai tooltip,
           pola sama dengan Link Card. */}
@@ -340,8 +350,10 @@ export default function QuickListBlock({
                     isLoadingColumns SEKARANG ikut menahan render baris,
                     sama seperti isLoading (fetch data) — dua-duanya harus
                     selesai sebelum Cell dipanggil dengan metadata kolom
-                    yang benar. */}
-                {isLoading || isLoadingColumns ? (
+                    yang benar. `!isInView` (opsi C, lazy-load) ikut sama:
+                    fetch belum SEMPAT jalan sampai block masuk viewport,
+                    jangan sampai kelihatan seperti "Tidak ada data." dulu. */}
+                {isLoading || isLoadingColumns || !isInView ? (
                   <tr>
                     <td colSpan={visibleColumns.length || 1} className="py-6">
                       <div className="flex items-center justify-center gap-2 text-sm text-muted-foreground">
