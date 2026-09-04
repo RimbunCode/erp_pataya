@@ -34,7 +34,7 @@ class NumberCard extends Model {
     public $appends = ['translateModelKey'];
 
     protected function getTranslateModelKeyAttribute() {
-        if (! $this->model_class) {
+        if (! $this->model_class || ! class_exists($this->model_class)) {
             return null;
         }
         $model = new $this->model_class;
