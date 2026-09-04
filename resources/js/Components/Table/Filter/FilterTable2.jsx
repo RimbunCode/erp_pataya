@@ -264,7 +264,10 @@ function FilterTableContent({
       // sort filter yang dimuat (null bila tak diatur) — dipakai caller utk
       // override sort halaman aktif (Requirement 5), tidak pernah dipaksa
       // bila null (AC 5.2).
-      await onApply?.(filters, loadedFid, { useExisting, sort: loadedSaved?.sort ?? null });
+      await onApply?.(filters, loadedFid, {
+        useExisting,
+        sort: loadedSaved?.sort ?? null,
+      });
       setOpen?.(false);
     } catch {
       // Caller (DataTable2.persistFilterTree) sudah menampilkan toast error.
