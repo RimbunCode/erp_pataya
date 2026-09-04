@@ -1,5 +1,6 @@
 import { describe, expect, it, vi, beforeEach } from "vitest";
-import { act, render, screen } from "@testing-library/react";
+import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
+import { act, render, screen, waitFor } from "@testing-library/react";
 
 vi.mock("laravel-react-i18n", () => ({
   useLaravelReactI18n: () => ({
@@ -38,20 +39,25 @@ const baseChart = {
   visual_type: "bar",
 };
 
-// reload() di ChartDisplay.jsx memanggil axios.post(...).then(setData/
-// setLoading) di useEffect saat mount. `render()` polos dari RTL cuma
-// membungkus bagian SINKRON dalam act() -- promise mock (walau resolve
-// instan) tetap lanjut di microtask SESUDAH act() itu selesai, plus
-// `waitFor()` pasca-render cuma membungkus tiap POLL-nya sendiri (balapan
-// vs resolusi microtask pertama). Fix yang benar: bungkus render() ITU
-// SENDIRI dalam `await act(async () => {...})` -- versi async act() secara
-// eksplisit menunggu SEMUA microtask (termasuk .then() axios) sampai stabil
-// sebelum baris berikutnya jalan.
+// QueryClientProvider WAJIB (opsi L, komponen pakai useQuery) — queryClient
+// FRESH per render() supaya cache tidak bocor lintas test. render() polos
+// dari RTL cuma membungkus bagian SINKRON dalam act() -- promise mock (walau
+// resolve instan) tetap lanjut di microtask SESUDAH act() itu selesai, plus
+// scheduling internal TanStack Query bisa butuh lebih dari satu flush
+// microtask. Fix: bungkus render() dalam `await act(async () => {...})`
+// UNTUK microtask pertama, lalu assert state pasca-fetch pakai waitFor()
+// (act-safe internal RTL) yang polling sampai benar-benar stabil.
 const renderSettled = async (props) => {
-  const utils = render.bind(null);
+  const queryClient = new QueryClient({
+    defaultOptions: { queries: { retry: false, gcTime: Infinity } },
+  });
   let result;
   await act(async () => {
-    result = utils(<ChartDisplay {...props} />);
+    result = render(
+      <QueryClientProvider client={queryClient}>
+        <ChartDisplay {...props} />
+      </QueryClientProvider>,
+    );
   });
   return result;
 };
@@ -65,12 +71,14 @@ describe("ChartDisplay", () => {
     axiosPost.mockResolvedValue({ data: [{ period: "Jan", total: 100 }] });
     await renderSettled({ chart: baseChart, filters: { branch_id: "b1" } });
 
-    expect(axiosPost).toHaveBeenCalledWith(
-      "charts.getData/5",
-      expect.objectContaining({
-        filters: { branch_id: "b1" },
-        config: {},
-      }),
+    await waitFor(() =>
+      expect(axiosPost).toHaveBeenCalledWith(
+        "charts.getData/5",
+        expect.objectContaining({
+          filters: { branch_id: "b1" },
+          config: {},
+        }),
+      ),
     );
     expect(screen.queryByText("Memuat data...")).not.toBeInTheDocument();
   });
@@ -79,14 +87,18 @@ describe("ChartDisplay", () => {
     axiosPost.mockRejectedValue(new Error("network error"));
     await renderSettled({ chart: baseChart });
 
-    expect(screen.getByText("Gagal memuat data.")).toBeInTheDocument();
+    await waitFor(() =>
+      expect(screen.getByText("Gagal memuat data.")).toBeInTheDocument(),
+    );
   });
 
   it("berhenti loading & tidak error setelah data berhasil dimuat", async () => {
     axiosPost.mockResolvedValue({ data: [{ period: "Jan", total: 100 }] });
     await renderSettled({ chart: baseChart });
 
-    expect(screen.queryByText("Memuat data...")).not.toBeInTheDocument();
+    await waitFor(() =>
+      expect(screen.queryByText("Memuat data...")).not.toBeInTheDocument(),
+    );
     expect(screen.queryByText("Gagal memuat data.")).not.toBeInTheDocument();
   });
 

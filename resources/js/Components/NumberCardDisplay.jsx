@@ -10,6 +10,7 @@ import { formatNumber } from "@/lib/numberFormat";
 import { resolveIcon } from "@/lib/deskIcons";
 import { useLaravelReactI18n } from "laravel-react-i18n";
 import { usePage } from "@inertiajs/react";
+import { useQuery } from "@tanstack/react-query";
 import useInViewport from "@/Hooks/useInViewport";
 
 // Feedback user: split dari DashboardChart.jsx — Number Card TIDAK butuh
@@ -20,12 +21,6 @@ import useInViewport from "@/Hooks/useInViewport";
 function NumberCardDisplay({ numberCard, filters = {} }) {
   const { t, currentLocale } = useLaravelReactI18n();
   const { preferences } = usePage().props;
-  const [state, setState] = React.useState({
-    loading: true,
-    value: 0,
-    percentage: null,
-    error: false,
-  });
   // Opsi C optimasi dashboard: tunda POST getValue sampai Card ini
   // mendekati viewport -- Desk dgn banyak block tidak langsung nembak N
   // request paralel begitu halaman dibuka. Ref nempel di <Card> ROOT (baris
@@ -33,32 +28,29 @@ function NumberCardDisplay({ numberCard, filters = {} }) {
   const cardRef = React.useRef(null);
   const isInView = useInViewport(cardRef);
 
-  React.useEffect(() => {
-    if (!isInView) return;
-
-    let cancelled = false;
-    setState((prev) => ({ ...prev, loading: true, error: false }));
-
-    axios
-      .post(route("numberCards.getValue", numberCard.id), { filters })
-      .then((res) => {
-        if (cancelled) return;
-        setState({
-          loading: false,
+  // Opsi L optimasi dashboard: TanStack Query gantikan axios+useEffect+
+  // useState manual — dedup otomatis (2 NumberCardDisplay dgn id+filters
+  // SAMA yang mount bersamaan cukup 1 request, bukan 2) & cache lintas
+  // remount dalam window `staleTime` (lihat lib/queryClient.js), tanpa perlu
+  // guard `cancelled` manual (TanStack Query sudah abaikan hasil query yang
+  // sudah tidak relevan/unmounted). `enabled: isInView` gantikan early-return
+  // manual opsi C — `isPending` otomatis true baik selagi NUNGGU viewport
+  // MAUPUN selagi request aktif, jadi behavior "Memuat data..." sama persis.
+  const { data, isPending, isError } = useQuery({
+    queryKey: ["numberCard", numberCard.id, filters],
+    queryFn: () =>
+      axios
+        .post(route("numberCards.getValue", numberCard.id), { filters })
+        .then((res) => ({
           value: res.data?.value ?? 0,
           percentage: res.data?.percentage ?? null,
-          error: false,
-        });
-      })
-      .catch(() => {
-        if (cancelled) return;
-        setState((prev) => ({ ...prev, loading: false, error: true }));
-      });
+        })),
+    enabled: isInView,
+  });
 
-    return () => {
-      cancelled = true;
-    };
-  }, [numberCard.id, JSON.stringify(filters), isInView]);
+  const loading = isPending;
+  const value = data?.value ?? 0;
+  const percentage = data?.percentage ?? null;
 
   // chart-compact-number-display: mode full DELEGASI ke NumberInput/
   // formatNumber via preferences.default_number_format (sumber tunggal
@@ -74,7 +66,7 @@ function NumberCardDisplay({ numberCard, filters = {} }) {
       numberFormat: preferences?.default_number_format,
     });
 
-  const isPositiveTrend = (state.percentage ?? 0) >= 0;
+  const isPositiveTrend = (percentage ?? 0) >= 0;
   const trendBadgeClass = isPositiveTrend
     ? "bg-emerald-500/10 text-emerald-600 border border-emerald-500/20"
     : "bg-rose-500/10 text-rose-600 border border-rose-500/20";
@@ -101,12 +93,12 @@ function NumberCardDisplay({ numberCard, filters = {} }) {
           <BlockDescriptionTooltip description={numberCard.description} />
         </div>
 
-        {state.loading ? (
+        {loading ? (
           <div className="flex items-center gap-2 text-muted-foreground text-sm">
             <LoadingIcon className="size-4" />
             <span>Memuat data...</span>
           </div>
-        ) : state.error ? (
+        ) : isError ? (
           <div className="text-sm text-destructive">Gagal memuat data.</div>
         ) : (
           <div className="space-y-2.5">
@@ -115,9 +107,9 @@ function NumberCardDisplay({ numberCard, filters = {} }) {
                 className="text-2xl font-medium tracking-tight tabular-nums"
                 style={{ color: numberCard.color || undefined }}
               >
-                {fmt(state.value)}
+                {fmt(value)}
               </span>
-              {state.percentage !== null && (
+              {percentage !== null && (
                 <span
                   className={`inline-flex items-center gap-1 rounded-full px-2 py-0.5 text-xs font-medium ${trendBadgeClass}`}
                 >
@@ -126,11 +118,11 @@ function NumberCardDisplay({ numberCard, filters = {} }) {
                   ) : (
                     <ArrowDownRight className="h-3.5 w-3.5" />
                   )}
-                  {Math.abs(state.percentage).toFixed(1)}%
+                  {Math.abs(percentage).toFixed(1)}%
                 </span>
               )}
             </div>
-            {state.percentage !== null && (
+            {percentage !== null && (
               <>
                 <Separator />
                 <div className="text-muted-foreground text-xs">

@@ -23,6 +23,7 @@ import { formatNumber } from "@/lib/numberFormat";
 import { resolveIcon } from "@/lib/deskIcons";
 import { useLaravelReactI18n } from "laravel-react-i18n";
 import { usePage } from "@inertiajs/react";
+import { useQuery } from "@tanstack/react-query";
 import useInViewport from "@/Hooks/useInViewport";
 
 // Feedback user: split dari DashboardChart.jsx — Chart tetap pakai recharts
@@ -34,9 +35,6 @@ import useInViewport from "@/Hooks/useInViewport";
 function ChartDisplay({ chart, filters = {} }) {
   const { currentLocale } = useLaravelReactI18n();
   const { preferences } = usePage().props;
-  const [data, setData] = React.useState(null);
-  const [loading, setLoading] = React.useState(true);
-  const [error, setError] = React.useState(false);
   const [activePeriod, setActivePeriod] = React.useState(null);
   // Opsi C optimasi dashboard: tunda POST getData sampai Chart ini
   // mendekati viewport -- ref nempel di root <div> (baris return di bawah),
@@ -53,25 +51,23 @@ function ChartDisplay({ chart, filters = {} }) {
     [],
   );
 
-  const reload = React.useCallback(() => {
-    setLoading(true);
-    setError(false);
-    axios
-      .post(route("charts.getData", chart.id), { filters, config: {} })
-      .then((res) => {
-        setData(res.data ?? null);
-        setLoading(false);
-      })
-      .catch(() => {
-        setError(true);
-        setLoading(false);
-      });
-  }, [chart.id, JSON.stringify(filters)]);
-
-  useEffect(() => {
-    if (!isInView) return;
-    reload();
-  }, [reload, isInView]);
+  // Opsi L optimasi dashboard: TanStack Query gantikan axios+useEffect+
+  // useState manual (dedup + cache lintas remount, lihat NumberCardDisplay.jsx
+  // utk penjelasan lebih lengkap pola yang sama). `config: {}` tetap
+  // di-hardcode APA ADANYA (perilaku lama, chart block dashboard belum
+  // pernah kirim dateRange/heatmap_year dari sini).
+  const {
+    data,
+    isPending: loading,
+    isError: error,
+  } = useQuery({
+    queryKey: ["chart", chart.id, filters],
+    queryFn: () =>
+      axios
+        .post(route("charts.getData", chart.id), { filters, config: {} })
+        .then((res) => res.data ?? null),
+    enabled: isInView,
+  });
 
   const seriesData = React.useMemo(() => {
     if (!data || isGroupBy || isHeatmap) return [];

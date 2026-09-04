@@ -21,55 +21,8 @@ import { resolveIcon } from "@/lib/deskIcons";
 import axios from "axios";
 import { useLaravelReactI18n } from "laravel-react-i18n";
 import { richTextValue } from "@/lib/richText";
+import { useQuery } from "@tanstack/react-query";
 import useInViewport from "@/Hooks/useInViewport";
-
-// Optimasi dashboard: metadata kolom model (dari endpoint model.columns)
-// nyaris tidak pernah berubah dalam satu sesi browser — tanpa cache ini,
-// tiap QuickListBlock yang mount (dan tiap kali dialog edit dibuka) fetch
-// ulang endpoint yang sama walau modelClass-nya sama dgn block lain di
-// Desk yang sama. Cache module-level (bukan React state) supaya nilainya
-// SHARED lintas instance komponen, plus `inflight` men-dedupe request
-// yang nembak bersamaan (mis. 3 QuickList dgn model sama mount serentak
-// saat Dashboard pertama kali dibuka -> cukup 1 request, bukan 3).
-const modelColumnsCache = new Map();
-const modelColumnsInflight = new Map();
-
-// Test-only: cache module-level di atas SENGAJA hidup selintas seluruh proses
-// (bukan per-render) — tanpa reset ini, test file yang jalankan banyak
-// `it()` dgn modelClass sama tapi payload columns BEDA (mis. validate()
-// kolom kosong vs terisi) akan saling bocor lintas test lewat cache.
-export function __resetModelColumnsCacheForTests() {
-  modelColumnsCache.clear();
-  modelColumnsInflight.clear();
-}
-
-function fetchModelColumns(modelClass) {
-  if (modelColumnsCache.has(modelClass)) {
-    return Promise.resolve(modelColumnsCache.get(modelClass));
-  }
-  if (modelColumnsInflight.has(modelClass)) {
-    return modelColumnsInflight.get(modelClass);
-  }
-
-  const promise = axios
-    .get(window.route("model.columns", { model: modelClass }))
-    .then((res) => {
-      const data = {
-        columns: res.data?.columns ?? [],
-        route: res.data?.route ?? null,
-      };
-      modelColumnsCache.set(modelClass, data);
-
-      return data;
-    })
-    .finally(() => {
-      modelColumnsInflight.delete(modelClass);
-    });
-
-  modelColumnsInflight.set(modelClass, promise);
-
-  return promise;
-}
 
 // Hook lokal — fetch kolom model via endpoint model.columns (sama dipakai
 // Settings/Widget/Form.jsx). DIPISAH dari komponen utama krn dibutuhkan
@@ -82,67 +35,37 @@ function fetchModelColumns(modelClass) {
 // Dialog bisa kasih indikator visual saat fetch masih berjalan — tanpa
 // ini, jeda antara pilih Model & checklist kolom muncul terlihat seperti
 // pilihan tidak tersimpan (feedback user).
+//
+// Opsi L optimasi dashboard: TanStack Query gantikan cache Map module-level
+// manual (opsi A) — `queryKey` per modelClass sudah otomatis SHARED &
+// deduped lintas instance (2 QuickListBlock dgn model sama mount bersamaan
+// cukup 1 request), DAN otomatis reset `data` ke `undefined` SAAT RENDER
+// begitu modelClass/queryKey berubah (persis pola resmi React "adjusting
+// state when a prop changes" yang dulu diimplementasi manual via
+// lastModelClassRef) — tanpa itu, konsumen (auto-fill QuickListForm) bisa
+// sempat baca kolom MODEL LAMA sambil draft.model_class sudah model baru.
 function useModelColumns(modelClass) {
-  // `columns` & `route` (slug route model, mis. "items" — dipakai bangun
-  // href navigasi kolom isLink: `${route}.show`) DISATUKAN dalam SATU
-  // state supaya keduanya SELALU update bersamaan/atomik — dua state
-  // terpisah rawan salah satunya "telat" satu render dibanding lainnya,
-  // persis penyebab bug reset-columns di bawah.
-  const cached = modelClass ? modelColumnsCache.get(modelClass) : undefined;
-  const [state, setState] = useState(cached ?? { columns: [], route: null });
-  const [isLoading, setIsLoading] = useState(!cached && !!modelClass);
+  const { data, isPending } = useQuery({
+    queryKey: ["modelColumns", modelClass],
+    queryFn: () =>
+      axios
+        .get(window.route("model.columns", { model: modelClass }))
+        .then((res) => ({
+          columns: res.data?.columns ?? [],
+          route: res.data?.route ?? null,
+        }))
+        // Fetch metadata kolom gagal -> degradasi diam-diam ke kolom kosong
+        // (perilaku lama), BUKAN state error terpisah — konsumen di sini
+        // tidak pernah menampilkan pesan error khusus utk ini.
+        .catch(() => ({ columns: [], route: null })),
+    enabled: !!modelClass,
+  });
 
-  // Bug ditemukan: reset state di dalam useEffect (di bawah) SELALU telat
-  // satu render dibanding `modelClass` yang sudah berubah lebih dulu (via
-  // patchDraft di handler pilih Model) — dalam window renders itu,
-  // consumer (auto-fill QuickListForm) sempat baca `columns` MASIH kolom
-  // MODEL LAMA sambil `draft.model_class` SUDAH model baru, lolos guard
-  // "sudah siap" secara keliru. Reset SAAT RENDER (bukan di effect, pola
-  // resmi React "adjusting state when a prop changes") membuat React
-  // langsung re-render dgn `columns=[]` SEBELUM efek manapun (termasuk
-  // effect QuickListForm) sempat baca versi stale-nya. Kalau model baru
-  // SUDAH ada di cache, langsung pakai itu (bukan `[]`) — hindari kedipan
-  // "Memuat kolom..." percuma utk model yang sudah pernah di-fetch.
-  const lastModelClassRef = useRef(modelClass);
-  if (lastModelClassRef.current !== modelClass) {
-    lastModelClassRef.current = modelClass;
-    const nowCached = modelClass
-      ? modelColumnsCache.get(modelClass)
-      : undefined;
-    setState(nowCached ?? { columns: [], route: null });
-    setIsLoading(!nowCached && !!modelClass);
-  }
-
-  useEffect(() => {
-    if (!modelClass) {
-      setState({ columns: [], route: null });
-      setIsLoading(false);
-      return;
-    }
-    if (modelColumnsCache.has(modelClass)) {
-      setState(modelColumnsCache.get(modelClass));
-      setIsLoading(false);
-      return;
-    }
-    let cancelled = false;
-    setIsLoading(true);
-    fetchModelColumns(modelClass)
-      .then((data) => {
-        if (!cancelled) setState(data);
-      })
-      .catch(() => {
-        if (!cancelled) setState({ columns: [], route: null });
-      })
-      .finally(() => {
-        if (!cancelled) setIsLoading(false);
-      });
-
-    return () => {
-      cancelled = true;
-    };
-  }, [modelClass]);
-
-  return { columns: state.columns, route: state.route, isLoading };
+  return {
+    columns: data?.columns ?? [],
+    route: data?.route ?? null,
+    isLoading: !!modelClass && isPending,
+  };
 }
 
 // Requirement 2.7, 2.8, 2.12: pilih model (izin select via
@@ -170,10 +93,7 @@ export default function QuickListBlock({
   onEditOpenChange,
 }) {
   const config = block.config ?? {};
-  const [items, setItems] = useState([]);
   const [page, setPage] = useState(1);
-  const [pageMeta, setPageMeta] = useState({ total: 0, lastPage: 1 });
-  const [isLoading, setIsLoading] = useState(false);
   const modelClass = config.model_class;
   // Opsi C optimasi dashboard: tunda POST dashboard.quickList sampai block
   // ini mendekati viewport -- ref nempel di root <div> (return di bawah),
@@ -220,75 +140,85 @@ export default function QuickListBlock({
     config.limit,
   ]);
 
-  useEffect(() => {
-    if (!modelClass || visibleColumns.length === 0 || !isInView) {
-      setItems([]);
-      setPageMeta({ total: 0, lastPage: 1 });
-      return;
-    }
-    const flatFilters = config.filters?.root
-      ? flattenFilters(
-          config.filters.root.c ?? config.filters.root.children ?? {},
-        )
-      : [];
-    let cancelled = false;
-    setIsLoading(true);
-    axios
-      // Feedback user: model class di BODY (bukan URL segment) — pola
-      // umum REST utk data request POST, route tak perlu lagi whitelist
-      // regex `.*` khusus menampung backslash namespace PHP.
-      .post(window.route("dashboard.quickList"), {
-        model: modelClass,
-        filters: flatFilters,
-        columns: visibleColumns,
-        sort_by: config.sort_by ?? null,
-        sort_direction: config.sort_direction ?? "desc",
-        limit: config.limit ?? 5,
-        page,
-      })
-      .then((res) => {
-        if (cancelled) return;
-        // Feedback user: kolom isLink harus bisa redirect ke halaman show
-        // (dgn permission-check), sama seperti Table2 — Cell butuh
-        // `row.thisModel` (nama class model) utk usePermission(). Backend
-        // sengaja TIDAK mengirim ini (baris ROOT di-strip appends demi
-        // whitelist kolom ketat), tapi nilainya cuma nama class model —
-        // metadata, SAMA PERSIS dgn `modelClass` yang FE kirim sendiri di
-        // request ini, bukan data sensitif yang perlu izin server.
-        const rows = (res.data?.data ?? []).map((row) => ({
-          ...row,
-          thisModel: modelClass,
-        }));
-        setItems(rows);
-        setPageMeta({
-          total: res.data?.total ?? 0,
-          lastPage: res.data?.last_page ?? 1,
-          currentPage: res.data?.current_page ?? page,
-        });
-      })
-      .catch(() => {
-        if (cancelled) return;
-        setItems([]);
-        setPageMeta({ total: 0, lastPage: 1 });
-        toast.error("Gagal memuat data Quick List.");
-      })
-      .finally(() => {
-        if (!cancelled) setIsLoading(false);
-      });
+  // Opsi L optimasi dashboard: TanStack Query gantikan axios+useEffect+
+  // useState manual (dedup + cache lintas remount/rerender, lihat
+  // NumberCardDisplay.jsx utk pola yang sama lebih lengkap penjelasannya).
+  // `enabled` HANYA gate model & opsi C lazy-load — visibleColumns kosong
+  // SENGAJA tidak ikut `enabled` (kalau ikut, query permanen "pending" tanpa
+  // pernah resolve krn tak pernah dijalankan -- render jadi macet di
+  // "Memuat data..." selamanya alih-alih "Tidak ada data.", beda dari
+  // perilaku lama). Kolom kosong ditangani DI DALAM queryFn (early-return
+  // hasil kosong, resolve instan) supaya query tetap "selesai" dgn benar.
+  const { data: queryData, isPending: isLoading } = useQuery({
+    queryKey: [
+      "quickList",
+      modelClass,
+      config.filters,
+      visibleColumns,
+      config.sort_by,
+      config.sort_direction,
+      config.limit,
+      page,
+    ],
+    queryFn: () => {
+      if (visibleColumns.length === 0) {
+        return { items: [], pageMeta: { total: 0, lastPage: 1 } };
+      }
 
-    return () => {
-      cancelled = true;
-    };
-  }, [
-    modelClass,
-    config.filters,
-    visibleColumns.join(","),
-    config.sort_by,
-    config.sort_direction,
-    config.limit,
-    page,
-    isInView,
-  ]);
+      const flatFilters = config.filters?.root
+        ? flattenFilters(
+            config.filters.root.c ?? config.filters.root.children ?? {},
+          )
+        : [];
+
+      return (
+        axios
+          // Feedback user: model class di BODY (bukan URL segment) — pola
+          // umum REST utk data request POST, route tak perlu lagi whitelist
+          // regex `.*` khusus menampung backslash namespace PHP.
+          .post(window.route("dashboard.quickList"), {
+            model: modelClass,
+            filters: flatFilters,
+            columns: visibleColumns,
+            sort_by: config.sort_by ?? null,
+            sort_direction: config.sort_direction ?? "desc",
+            limit: config.limit ?? 5,
+            page,
+          })
+          .then((res) => {
+            // Feedback user: kolom isLink harus bisa redirect ke halaman show
+            // (dgn permission-check), sama seperti Table2 — Cell butuh
+            // `row.thisModel` (nama class model) utk usePermission(). Backend
+            // sengaja TIDAK mengirim ini (baris ROOT di-strip appends demi
+            // whitelist kolom ketat), tapi nilainya cuma nama class model —
+            // metadata, SAMA PERSIS dgn `modelClass` yang FE kirim sendiri di
+            // request ini, bukan data sensitif yang perlu izin server.
+            const items = (res.data?.data ?? []).map((row) => ({
+              ...row,
+              thisModel: modelClass,
+            }));
+
+            return {
+              items,
+              pageMeta: {
+                total: res.data?.total ?? 0,
+                lastPage: res.data?.last_page ?? 1,
+                currentPage: res.data?.current_page ?? page,
+              },
+            };
+          })
+          .catch(() => {
+            toast.error("Gagal memuat data Quick List.");
+
+            return { items: [], pageMeta: { total: 0, lastPage: 1 } };
+          })
+      );
+    },
+    enabled: !!modelClass && isInView,
+  });
+
+  const items = queryData?.items ?? [];
+  const pageMeta = queryData?.pageMeta ?? { total: 0, lastPage: 1 };
 
   const columnByName = useMemo(
     () => new Map(savedColumns.map((c) => [c.name, c])),
@@ -350,10 +280,10 @@ export default function QuickListBlock({
                     isLoadingColumns SEKARANG ikut menahan render baris,
                     sama seperti isLoading (fetch data) — dua-duanya harus
                     selesai sebelum Cell dipanggil dengan metadata kolom
-                    yang benar. `!isInView` (opsi C, lazy-load) ikut sama:
-                    fetch belum SEMPAT jalan sampai block masuk viewport,
-                    jangan sampai kelihatan seperti "Tidak ada data." dulu. */}
-                {isLoading || isLoadingColumns || !isInView ? (
+                    yang benar. isLoading (opsi L, TanStack Query isPending)
+                    otomatis mencakup opsi C (lazy-load, `enabled: isInView`)
+                    juga -- tidak perlu dicek terpisah lagi di sini. */}
+                {isLoading || isLoadingColumns ? (
                   <tr>
                     <td colSpan={visibleColumns.length || 1} className="py-6">
                       <div className="flex items-center justify-center gap-2 text-sm text-muted-foreground">
