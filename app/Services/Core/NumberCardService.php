@@ -5,6 +5,7 @@ namespace App\Services\Core;
 use App\Models\Core\NumberCard;
 use App\Services\Core\CustomChartSource\CustomChartSourceRegistry;
 use Carbon\Carbon;
+use Illuminate\Support\Facades\Cache;
 use Illuminate\Support\Facades\Schema;
 
 /**
@@ -14,6 +15,13 @@ use Illuminate\Support\Facades\Schema;
  * requery TERPISAH dengan cutoff `created_at` (bukan diff antar-bucket).
  */
 class NumberCardService {
+    /**
+     * Optimasi dashboard: redam query agregat berulang lintas-request/user —
+     * TTL pendek (bukan lama seperti DataTableConfigCache) krn nilainya data
+     * transaksional yang wajar berubah, bukan metadata statis.
+     */
+    protected int $cacheDuration = 120;
+
     public function __construct(private CustomChartSourceRegistry $customSources) {}
 
     /** @param  array<string,mixed>  $filters  filter tree (FilterEvaluator) */
@@ -55,27 +63,35 @@ class NumberCardService {
             return 0.0;
         }
 
-        $table = (new $modelClass)->getTable();
-        $query = $modelClass::query();
+        // Key ikut sertakan updated_at card supaya edit konfigurasi (function,
+        // aggregate_function_based_on, dst) langsung invalidasi cache lama —
+        // tanpa ini, TTL window bisa balikin nilai dihitung dgn formula basi.
+        $cacheKey = 'number_card_aggregate:' . $card->id . ':' . $card->updated_at?->timestamp
+            . ':' . md5(json_encode([$filters, $asOfDate?->toDateTimeString()]));
 
-        $columns = collect($modelClass::getColumns(1))->keyBy('name')->all();
-        (new FilterEvaluator($columns))->apply($query, $filters);
+        return Cache::remember($cacheKey, $this->cacheDuration, function () use ($card, $modelClass, $filters, $asOfDate) {
+            $table = (new $modelClass)->getTable();
+            $query = $modelClass::query();
 
-        if ($asOfDate !== null && Schema::hasColumn($table, 'created_at')) {
-            $query->where('created_at', '<=', $asOfDate);
-        }
+            $columns = collect($modelClass::getColumns(1))->keyBy('name')->all();
+            (new FilterEvaluator($columns))->apply($query, $filters);
 
-        $column = $card->function === 'count' ? '*' : $card->aggregate_function_based_on;
+            if ($asOfDate !== null && Schema::hasColumn($table, 'created_at')) {
+                $query->where('created_at', '<=', $asOfDate);
+            }
 
-        $value = match ($card->function) {
-            'sum'     => $query->sum($column),
-            'average' => $query->average($column),
-            'minimum' => $query->min($column),
-            'maximum' => $query->max($column),
-            default   => $query->count(),
-        };
+            $column = $card->function === 'count' ? '*' : $card->aggregate_function_based_on;
 
-        return (float) ($value ?? 0);
+            $value = match ($card->function) {
+                'sum'     => $query->sum($column),
+                'average' => $query->average($column),
+                'minimum' => $query->min($column),
+                'maximum' => $query->max($column),
+                default   => $query->count(),
+            };
+
+            return (float) ($value ?? 0);
+        });
     }
 
     private function resolveAsOfDate(?string $interval): Carbon {

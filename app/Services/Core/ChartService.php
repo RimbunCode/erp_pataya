@@ -6,6 +6,7 @@ use App\Enums\Permission;
 use App\Models\Core\Chart;
 use App\Services\Core\CustomChartSource\CustomChartSourceRegistry;
 use Carbon\Carbon;
+use Illuminate\Support\Facades\Cache;
 use Illuminate\Support\Facades\Schema;
 
 /**
@@ -15,6 +16,16 @@ use Illuminate\Support\Facades\Schema;
  * selalu jatuh ke count-by-time), heatmap. Ketiganya tidak saling memanggil.
  */
 class ChartService {
+    /**
+     * Optimasi dashboard: redam query agregat berulang lintas-request/user.
+     * HANYA dipakai heatmap & time-series — group_by SENGAJA TIDAK di-cache:
+     * label relasinya di-resolve beda per izin Select user (resolveGroupLabels),
+     * dan PermissionChecker bisa dibangun manual lepas dari user/session
+     * (lihat ChartServiceTest::noopChecker()) sehingga tidak ada key yang
+     * aman & deterministik utk merepresentasikan "identitas permission" itu.
+     */
+    protected int $cacheDuration = 120;
+
     public function __construct(private CustomChartSourceRegistry $customSources) {}
 
     /** @param  array<string,mixed>  $filters filter tree (FilterEvaluator) */
@@ -166,17 +177,22 @@ class ChartService {
             return [];
         }
 
-        $query   = $modelClass::query();
-        $columns = collect($modelClass::getColumns(1))->keyBy('name')->all();
-        (new FilterEvaluator($columns))->apply($query, $filters);
+        $cacheKey = 'chart_heatmap:' . $chart->id . ':' . $chart->updated_at?->timestamp
+            . ':' . $year . ':' . md5(json_encode($filters));
 
-        $rows = $query
-            ->whereBetween($dateField, ["{$year}-01-01 00:00:00", "{$year}-12-31 23:59:59"])
-            ->selectRaw("DATE({$dateField}) as day, COUNT(*) as total")
-            ->groupBy('day')
-            ->pluck('total', 'day');
+        return Cache::remember($cacheKey, $this->cacheDuration, function () use ($modelClass, $filters, $dateField, $year) {
+            $query   = $modelClass::query();
+            $columns = collect($modelClass::getColumns(1))->keyBy('name')->all();
+            (new FilterEvaluator($columns))->apply($query, $filters);
 
-        return $rows->mapWithKeys(fn ($total, $day) => [strtotime($day) => (int) $total])->all();
+            $rows = $query
+                ->whereBetween($dateField, ["{$year}-01-01 00:00:00", "{$year}-12-31 23:59:59"])
+                ->selectRaw("DATE({$dateField}) as day, COUNT(*) as total")
+                ->groupBy('day')
+                ->pluck('total', 'day');
+
+            return $rows->mapWithKeys(fn ($total, $day) => [strtotime($day) => (int) $total])->all();
+        });
     }
 
     /**
@@ -189,75 +205,80 @@ class ChartService {
             return [];
         }
 
-        $startDate = $config['dateRange']['from'] ?? null;
-        $endDate   = $config['dateRange']['to'] ?? null;
-        $interval  = match ($chart->time_interval) {
-            'daily', 'day'         => 'day',
-            'weekly', 'week'       => 'week',
-            'monthly', 'month'     => 'month',
-            'quarterly', 'quarter' => 'quarter',
-            'yearly', 'year'       => 'year',
-            default                => 'month',
-        };
-        $locale      = $config['locale'] ?? app()->getLocale();
-        $timeBasedOn = $chart->based_on;
+        $cacheKey = 'chart_timeseries:' . $chart->id . ':' . $chart->updated_at?->timestamp
+            . ':' . md5(json_encode([$filters, $config]));
 
-        $periodExpression = match ($interval) {
-            'day'     => "DATE_FORMAT($timeBasedOn, '%Y-%m-%d')",
-            'week'    => "DATE_FORMAT($timeBasedOn, '%x-%v')",
-            'month'   => "DATE_FORMAT($timeBasedOn, '%Y-%m')",
-            'quarter' => "CONCAT(DATE_FORMAT($timeBasedOn, '%Y'), '-Q', QUARTER($timeBasedOn))",
-            'year'    => "DATE_FORMAT($timeBasedOn, '%Y')",
-            default   => "DATE_FORMAT($timeBasedOn, '%Y-%m')",
-        };
-        $valueBasedOn = $chart->value_based_on;
-        $query        = $modelClass::query();
-        $columns      = collect($modelClass::getColumns(1))->keyBy('name')->all();
-        (new FilterEvaluator($columns))->apply($query, $filters);
+        return Cache::remember($cacheKey, $this->cacheDuration, function () use ($chart, $modelClass, $filters, $config) {
+            $startDate = $config['dateRange']['from'] ?? null;
+            $endDate   = $config['dateRange']['to'] ?? null;
+            $interval  = match ($chart->time_interval) {
+                'daily', 'day' => 'day',
+                'weekly', 'week' => 'week',
+                'monthly', 'month' => 'month',
+                'quarterly', 'quarter' => 'quarter',
+                'yearly', 'year' => 'year',
+                default => 'month',
+            };
+            $locale      = $config['locale'] ?? app()->getLocale();
+            $timeBasedOn = $chart->based_on;
 
-        $metricAlias = $chart->chart_source_type === 'average' ? 'average' : 'total';
-        switch ($chart->chart_source_type) {
-            case 'count':
-                $query->selectRaw("{$periodExpression} as period, COUNT(*) as total");
-                break;
-            case 'sum':
-                $query->selectRaw("{$periodExpression} as period, SUM($valueBasedOn) as total");
-                break;
-            case 'average':
-                $query->selectRaw("{$periodExpression} as period, AVG($valueBasedOn) as average");
-                break;
-        }
+            $periodExpression = match ($interval) {
+                'day'     => "DATE_FORMAT($timeBasedOn, '%Y-%m-%d')",
+                'week'    => "DATE_FORMAT($timeBasedOn, '%x-%v')",
+                'month'   => "DATE_FORMAT($timeBasedOn, '%Y-%m')",
+                'quarter' => "CONCAT(DATE_FORMAT($timeBasedOn, '%Y'), '-Q', QUARTER($timeBasedOn))",
+                'year'    => "DATE_FORMAT($timeBasedOn, '%Y')",
+                default   => "DATE_FORMAT($timeBasedOn, '%Y-%m')",
+            };
+            $valueBasedOn = $chart->value_based_on;
+            $query        = $modelClass::query();
+            $columns      = collect($modelClass::getColumns(1))->keyBy('name')->all();
+            (new FilterEvaluator($columns))->apply($query, $filters);
 
-        if ($startDate && $endDate) {
-            $query->whereBetween($timeBasedOn, [$startDate, $endDate]);
-        }
-        $data = $query->groupBy('period')->orderBy('period')->get();
+            $metricAlias = $chart->chart_source_type === 'average' ? 'average' : 'total';
+            switch ($chart->chart_source_type) {
+                case 'count':
+                    $query->selectRaw("{$periodExpression} as period, COUNT(*) as total");
+                    break;
+                case 'sum':
+                    $query->selectRaw("{$periodExpression} as period, SUM($valueBasedOn) as total");
+                    break;
+                case 'average':
+                    $query->selectRaw("{$periodExpression} as period, AVG($valueBasedOn) as average");
+                    break;
+            }
 
-        $shouldFillEmptyPeriods = in_array((string) $chart->visual_type, ['bar', 'line'], true);
-        $periodKeys             = $shouldFillEmptyPeriods
-            ? $this->buildPeriodKeys($startDate, $endDate, $interval)
-            : [];
+            if ($startDate && $endDate) {
+                $query->whereBetween($timeBasedOn, [$startDate, $endDate]);
+            }
+            $data = $query->groupBy('period')->orderBy('period')->get();
 
-        if ($periodKeys !== []) {
-            $rowsByPeriod = $data->keyBy('period');
-            $data         = collect($periodKeys)->map(function (string $periodKey) use ($rowsByPeriod, $interval, $locale, $metricAlias, $chart) {
-                $row = $rowsByPeriod->get($periodKey);
+            $shouldFillEmptyPeriods = in_array((string) $chart->visual_type, ['bar', 'line'], true);
+            $periodKeys             = $shouldFillEmptyPeriods
+                ? $this->buildPeriodKeys($startDate, $endDate, $interval)
+                : [];
 
-                return [
-                    'period'     => $this->formatPeriod($periodKey, $interval, $locale),
-                    $metricAlias => $this->resolveMetricValue($row, $metricAlias, (string) $chart->chart_source_type),
-                ];
-            });
-        } else {
-            $data = $data->map(function ($row) use ($interval, $locale, $metricAlias, $chart) {
-                return [
-                    'period'     => $this->formatPeriod((string) $row->period, $interval, $locale),
-                    $metricAlias => $this->resolveMetricValue($row, $metricAlias, (string) $chart->chart_source_type),
-                ];
-            });
-        }
+            if ($periodKeys !== []) {
+                $rowsByPeriod = $data->keyBy('period');
+                $data         = collect($periodKeys)->map(function (string $periodKey) use ($rowsByPeriod, $interval, $locale, $metricAlias, $chart) {
+                    $row = $rowsByPeriod->get($periodKey);
 
-        return $data->all();
+                    return [
+                        'period'     => $this->formatPeriod($periodKey, $interval, $locale),
+                        $metricAlias => $this->resolveMetricValue($row, $metricAlias, (string) $chart->chart_source_type),
+                    ];
+                });
+            } else {
+                $data = $data->map(function ($row) use ($interval, $locale, $metricAlias, $chart) {
+                    return [
+                        'period'     => $this->formatPeriod((string) $row->period, $interval, $locale),
+                        $metricAlias => $this->resolveMetricValue($row, $metricAlias, (string) $chart->chart_source_type),
+                    ];
+                });
+            }
+
+            return $data->all();
+        });
     }
 
     private function buildPeriodKeys(?string $startDate, ?string $endDate, string $interval): array {

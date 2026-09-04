@@ -194,7 +194,9 @@ window.route = (name, params) => {
   return name;
 };
 
-import QuickListBlock from "./QuickListBlock";
+import QuickListBlock, {
+  __resetModelColumnsCacheForTests,
+} from "./QuickListBlock";
 
 const noop = () => {};
 
@@ -292,6 +294,7 @@ const renderSettled = async (props = {}) => {
 };
 
 beforeEach(() => {
+  __resetModelColumnsCacheForTests();
   axiosGet.mockReset();
   axiosPost.mockReset();
   toastErrorMock.mockReset();

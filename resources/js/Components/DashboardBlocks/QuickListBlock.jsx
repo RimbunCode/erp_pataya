@@ -22,6 +22,54 @@ import axios from "axios";
 import { useLaravelReactI18n } from "laravel-react-i18n";
 import { richTextValue } from "@/lib/richText";
 
+// Optimasi dashboard: metadata kolom model (dari endpoint model.columns)
+// nyaris tidak pernah berubah dalam satu sesi browser — tanpa cache ini,
+// tiap QuickListBlock yang mount (dan tiap kali dialog edit dibuka) fetch
+// ulang endpoint yang sama walau modelClass-nya sama dgn block lain di
+// Desk yang sama. Cache module-level (bukan React state) supaya nilainya
+// SHARED lintas instance komponen, plus `inflight` men-dedupe request
+// yang nembak bersamaan (mis. 3 QuickList dgn model sama mount serentak
+// saat Dashboard pertama kali dibuka -> cukup 1 request, bukan 3).
+const modelColumnsCache = new Map();
+const modelColumnsInflight = new Map();
+
+// Test-only: cache module-level di atas SENGAJA hidup selintas seluruh proses
+// (bukan per-render) — tanpa reset ini, test file yang jalankan banyak
+// `it()` dgn modelClass sama tapi payload columns BEDA (mis. validate()
+// kolom kosong vs terisi) akan saling bocor lintas test lewat cache.
+export function __resetModelColumnsCacheForTests() {
+  modelColumnsCache.clear();
+  modelColumnsInflight.clear();
+}
+
+function fetchModelColumns(modelClass) {
+  if (modelColumnsCache.has(modelClass)) {
+    return Promise.resolve(modelColumnsCache.get(modelClass));
+  }
+  if (modelColumnsInflight.has(modelClass)) {
+    return modelColumnsInflight.get(modelClass);
+  }
+
+  const promise = axios
+    .get(window.route("model.columns", { model: modelClass }))
+    .then((res) => {
+      const data = {
+        columns: res.data?.columns ?? [],
+        route: res.data?.route ?? null,
+      };
+      modelColumnsCache.set(modelClass, data);
+
+      return data;
+    })
+    .finally(() => {
+      modelColumnsInflight.delete(modelClass);
+    });
+
+  modelColumnsInflight.set(modelClass, promise);
+
+  return promise;
+}
+
 // Hook lokal — fetch kolom model via endpoint model.columns (sama dipakai
 // Settings/Widget/Form.jsx). DIPISAH dari komponen utama krn dibutuhkan
 // dua tempat dengan sumber modelClass BERBEDA: body block (config.model_
@@ -39,8 +87,9 @@ function useModelColumns(modelClass) {
   // state supaya keduanya SELALU update bersamaan/atomik — dua state
   // terpisah rawan salah satunya "telat" satu render dibanding lainnya,
   // persis penyebab bug reset-columns di bawah.
-  const [state, setState] = useState({ columns: [], route: null });
-  const [isLoading, setIsLoading] = useState(false);
+  const cached = modelClass ? modelColumnsCache.get(modelClass) : undefined;
+  const [state, setState] = useState(cached ?? { columns: [], route: null });
+  const [isLoading, setIsLoading] = useState(!cached && !!modelClass);
 
   // Bug ditemukan: reset state di dalam useEffect (di bawah) SELALU telat
   // satu render dibanding `modelClass` yang sudah berubah lebih dulu (via
@@ -50,11 +99,17 @@ function useModelColumns(modelClass) {
   // "sudah siap" secara keliru. Reset SAAT RENDER (bukan di effect, pola
   // resmi React "adjusting state when a prop changes") membuat React
   // langsung re-render dgn `columns=[]` SEBELUM efek manapun (termasuk
-  // effect QuickListForm) sempat baca versi stale-nya.
+  // effect QuickListForm) sempat baca versi stale-nya. Kalau model baru
+  // SUDAH ada di cache, langsung pakai itu (bukan `[]`) — hindari kedipan
+  // "Memuat kolom..." percuma utk model yang sudah pernah di-fetch.
   const lastModelClassRef = useRef(modelClass);
   if (lastModelClassRef.current !== modelClass) {
     lastModelClassRef.current = modelClass;
-    setState({ columns: [], route: null });
+    const nowCached = modelClass
+      ? modelColumnsCache.get(modelClass)
+      : undefined;
+    setState(nowCached ?? { columns: [], route: null });
+    setIsLoading(!nowCached && !!modelClass);
   }
 
   useEffect(() => {
@@ -63,16 +118,16 @@ function useModelColumns(modelClass) {
       setIsLoading(false);
       return;
     }
+    if (modelColumnsCache.has(modelClass)) {
+      setState(modelColumnsCache.get(modelClass));
+      setIsLoading(false);
+      return;
+    }
     let cancelled = false;
     setIsLoading(true);
-    axios
-      .get(window.route("model.columns", { model: modelClass }))
-      .then((res) => {
-        if (!cancelled)
-          setState({
-            columns: res.data?.columns ?? [],
-            route: res.data?.route ?? null,
-          });
+    fetchModelColumns(modelClass)
+      .then((data) => {
+        if (!cancelled) setState(data);
       })
       .catch(() => {
         if (!cancelled) setState({ columns: [], route: null });
