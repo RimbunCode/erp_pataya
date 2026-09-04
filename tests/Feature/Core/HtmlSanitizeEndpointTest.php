@@ -29,6 +29,28 @@ class HtmlSanitizeEndpointTest extends TestCase {
                 $table->softDeletes();
             });
         }
+
+        // RecordAuditLog listener mencatat audit log utk SEMUA model
+        // created/updated tanpa syarat user terautentikasi -- User::factory()
+        // di test ini memicunya. Stub tabel `logs` (test ini tidak pakai
+        // RefreshDatabase). Skema identik migration create_logs_table +
+        // add_action_to_logs_table.
+        if (! Schema::hasTable('logs')) {
+            Schema::create('logs', function (Blueprint $table): void {
+                $table->ulid('id')->primary();
+                $table->longText('activity');
+                $table->json('comment_json')->nullable();
+                $table->text('notes')->nullable();
+                $table->string('type')->default('log');
+                $table->string('action')->nullable();
+                $table->json('data_before')->nullable();
+                $table->json('data_after')->nullable();
+                $table->ulidMorphs('loggable');
+                $table->char('user_id', 26)->nullable();
+                $table->timestamps();
+                $table->softDeletes();
+            });
+        }
     }
 
     public function test_sanitize_endpoint_returns_sanitized_html(): void {

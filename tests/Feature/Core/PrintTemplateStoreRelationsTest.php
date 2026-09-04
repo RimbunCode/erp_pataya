@@ -103,6 +103,30 @@ class PrintTemplateStoreRelationsTest extends TestCase {
                 $table->timestamps();
             });
         }
+
+        // RecordAuditLog listener (app/Listeners/Core/Audit/RecordAuditLog.php)
+        // sekarang mencatat audit log utk SEMUA model created/updated tanpa
+        // syarat user terautentikasi -- User::factory()->create() di test ini
+        // memicunya. Stub tabel `logs` supaya insert-nya tidak gagal (test ini
+        // tidak pakai RefreshDatabase, jadi harus bikin sendiri sama seperti
+        // tabel lain di atas). Skema identik migration create_logs_table +
+        // add_action_to_logs_table.
+        if (! Schema::hasTable('logs')) {
+            Schema::create('logs', function (Blueprint $table): void {
+                $table->ulid('id')->primary();
+                $table->longText('activity');
+                $table->json('comment_json')->nullable();
+                $table->text('notes')->nullable();
+                $table->string('type')->default('log');
+                $table->string('action')->nullable();
+                $table->json('data_before')->nullable();
+                $table->json('data_after')->nullable();
+                $table->ulidMorphs('loggable');
+                $table->char('user_id', 26)->nullable();
+                $table->timestamps();
+                $table->softDeletes();
+            });
+        }
     }
 
     /**

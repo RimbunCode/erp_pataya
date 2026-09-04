@@ -89,7 +89,16 @@ describe("Asset Assets Index", () => {
   });
 
   it("mengklik Link tidak melempar error (tidak ada tombol hapus di templateItem ini)", async () => {
+    // Link custom (@/Components/Link) memanggil @inertiajs/core router.visit()
+    // sungguhan saat diklik -- tanpa app Inertia nyata (root jsdom kosong),
+    // itu throw TypeError "Cannot read properties of undefined (reading
+    // 'url')" secara ASYNC (lolos dari try/catch test, muncul sbg Unhandled
+    // Error terpisah, bikin seluruh run Vitest exit 1 walau test lain pass).
+    // Spy router.visit spy jadi no-op, pola sama persis dgn
+    // Asset/Movements/Index.rtl.test.jsx.
     const user = userEvent.setup();
+    const { router } = await import("@inertiajs/core");
+    const visitSpy = vi.spyOn(router, "visit").mockImplementation(() => {});
     render(<Index />);
     const dataRow = { id: 5, code: "AST-0005", asset_name: "Mesin Las" };
     const { container } = render(
@@ -97,8 +106,7 @@ describe("Asset Assets Index", () => {
     );
     const button = container.querySelector("button");
     await user.click(button);
-    // Link custom (Components/Link) tidak melakukan navigasi nyata di jsdom;
-    // cukup pastikan klik tidak melempar error.
     expect(button).toBeInTheDocument();
+    visitSpy.mockRestore();
   });
 });

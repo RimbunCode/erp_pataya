@@ -28,7 +28,19 @@ class DashboardWidgetWidthMigrationTest extends TestCase {
         // setelah ke-8 migration di atas (asset_service_consumed_items FK
         // change, show_full_number, icon+description NumberCard & Chart) —
         // 8 + 4 = 12.
-        Artisan::call('migrate:rollback', ['--step' => 12]);
+        // Update 2026-09-04: 1 migration lagi nambah (Filter Templates,
+        // add_shared_columns_to_saved_filters_table) — 12 + 1 = 13. --step
+        // yang salah TIDAK bikin test ini sendiri gagal (SQLite lenient
+        // soal kolom insert), tapi migrate:rollback+migrate di koneksi
+        // :memory: PERSISTEN sepanjang run PHPUnit ini efeknya BOCOR ke
+        // SEMUA test lain yang jalan setelahnya dalam proses yang sama --
+        // step yang salah membuat re-migrate berhenti di tengah tanpa
+        // exception (Artisan::call tidak throw), meninggalkan skema rusak
+        // (mis. tabel `logs` hilang) utk sisa suite. WAJIB dihitung ulang
+        // via `ls database/migrations | sort | grep -A 999
+        // "<migration width pertama>" | wc -l` tiap kali ada migration baru,
+        // BUKAN ditambah manual berdasar ingatan.
+        Artisan::call('migrate:rollback', ['--step' => 13]);
 
         $dashboardId = (string) Str::ulid();
         DB::table('dashboards')->insert([

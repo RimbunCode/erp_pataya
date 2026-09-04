@@ -59,10 +59,19 @@ describe("Core/Changelogs Index", () => {
     expect(screen.getByText("1.2.0")).toBeInTheDocument();
     expect(screen.getByText("production")).toBeInTheDocument();
     expect(screen.getByText("Perbaikan bug login")).toBeInTheDocument();
-    // toLocaleDateString(undefined, { day:"numeric", month:"long", year:"numeric" })
-    // pada UTC 2026-03-15 -- locale default lingkungan test ini adalah id-ID:
-    // "15 Maret 2026".
-    expect(screen.getByText("15 Maret 2026")).toBeInTheDocument();
+    // toLocaleDateString(undefined, {...}) pakai locale DEFAULT runtime --
+    // beda antar mesin (mis. id-ID lokal vs en-US di CI GitHub Actions).
+    // Hitung string yang diharapkan dgn cara IDENTIK ke source, bukan
+    // hardcode satu locale tertentu, supaya test env-agnostic.
+    const expectedDate = new Date(changelogs[0].deployed_at).toLocaleDateString(
+      undefined,
+      {
+        day: "numeric",
+        month: "long",
+        year: "numeric",
+      },
+    );
+    expect(screen.getByText(expectedDate)).toBeInTheDocument();
     expect(screen.queryByText("Belum ada changelog.")).not.toBeInTheDocument();
   });
 

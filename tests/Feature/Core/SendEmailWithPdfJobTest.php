@@ -136,6 +136,28 @@ class SendEmailWithPdfJobTest extends TestCase {
             });
         }
 
+        // RecordAuditLog listener mencatat audit log utk SEMUA model
+        // created/updated tanpa syarat user terautentikasi -- model dibuat
+        // di test ini (mis. PrintTemplate::create()) memicunya. Stub tabel
+        // `logs` (test ini tidak pakai RefreshDatabase). Skema identik
+        // migration create_logs_table + add_action_to_logs_table.
+        if (! Schema::hasTable('logs')) {
+            Schema::create('logs', function ($table): void {
+                $table->ulid('id')->primary();
+                $table->longText('activity');
+                $table->json('comment_json')->nullable();
+                $table->text('notes')->nullable();
+                $table->string('type')->default('log');
+                $table->string('action')->nullable();
+                $table->json('data_before')->nullable();
+                $table->json('data_after')->nullable();
+                $table->ulidMorphs('loggable');
+                $table->char('user_id', 26)->nullable();
+                $table->timestamps();
+                $table->softDeletes();
+            });
+        }
+
         // Paksa fallback ke dompdf pure-PHP (binary wkhtmltopdf sengaja tidak ada).
         config(['pdf.wkhtmltopdf_binary' => storage_path('app/bin/does-not-exist-binary')]);
 
