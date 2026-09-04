@@ -388,7 +388,7 @@ class PurchaseInvoiceService implements SubmitableService {
             ->whereHasMorph('referenceable', [PurchaseReceipt::class], function ($q) use ($poItem) {
                 $q->whereHas('items', fn ($q2) => $q2->where('purchase_order_item_id', $poItem->id));
             })
-            ->orderBy('created_at') // FIFO
+            ->orderBy('transaction_date') // FIFO
             ->lockForUpdate()
             ->get();
 

@@ -1,91 +1,49 @@
-import { describe, expect, it, vi } from "vitest";
-import { render } from "@testing-library/react";
-import userEvent from "@testing-library/user-event";
+import { readFileSync } from "node:fs";
+import { resolve } from "node:path";
+import { describe, expect, it, vi, beforeEach } from "vitest";
+import { render, screen } from "@testing-library/react";
 
-const stableT = (key) => `TR:${key}`;
-vi.mock("laravel-react-i18n", () => ({
-  useLaravelReactI18n: () => ({ t: stableT }),
-}));
-
-let capturedProps = null;
+const dataTable2Props = vi.fn();
 vi.mock("@/Pages/Core/DataTable2", () => ({
   default: (props) => {
-    capturedProps = props;
-    return null; // detail lain DataTable2 di luar cakupan test ini
+    dataTable2Props(props);
+    return <div data-testid="stub-datatable2" />;
   },
 }));
 
+window.route = (name, params) =>
+  params ? `${name}/${JSON.stringify(params)}` : name;
+
 import Index from "./Index";
 
-window.route = (name, param) => (param != null ? `${name}/${param}` : name);
-
-describe("Finances PurchaseInvoice Index", () => {
-  it("meneruskan templateItem, form, dan classNameDialog ke DataTable2", () => {
-    render(<Index />);
-    expect(typeof capturedProps.templateItem).toBe("function");
-    expect(capturedProps.classNameDialog).toBe("max-w-(--breakpoint-2xl)!");
-    expect(capturedProps.form).toBeTruthy();
+describe("Finances/PurchaseInvoice/Index", () => {
+  beforeEach(() => {
+    dataTable2Props.mockReset();
   });
 
-  it("templateItem merender type (diterjemahkan) dan name dataRow", () => {
+  it("templateItem menampilkan code & supplier_name (bukan name/type yang tak pernah ada)", () => {
     render(<Index />);
-    const dataRow = { id: 1, type: "standard", name: "PI-0001" };
-    const { container } = render(
-      capturedProps.templateItem({ dataRow, deleteItem: vi.fn() }),
+    const { templateItem } = dataTable2Props.mock.calls.at(-1)[0];
+    render(
+      templateItem({
+        dataRow: { id: 1, code: "PI-0001", supplier_name: "Acme Supplier" },
+      }),
     );
-    expect(container).toHaveTextContent(
-      "TR:finance.purchaseInvoice.types.standard",
-    );
-    expect(container).toHaveTextContent("PI-0001");
+    expect(screen.getByText("PI-0001")).toBeInTheDocument();
+    expect(screen.getByText("Acme Supplier")).toBeInTheDocument();
   });
 
-  it("dataRow.type berbeda menghasilkan key terjemahan yang sesuai", () => {
-    render(<Index />);
-    const dataRow = { id: 2, type: "return", name: "PI-0002" };
-    const { container } = render(
-      capturedProps.templateItem({ dataRow, deleteItem: vi.fn() }),
+  it("source memakai route purchaseInvoices.show (plural) & field code/supplier_name, bukan name/type/purchaseInvoice.show singular", () => {
+    const source = readFileSync(
+      resolve(
+        process.cwd(),
+        "resources/js/Pages/Finances/PurchaseInvoice/Index.jsx",
+      ),
+      "utf8",
     );
-    expect(container).toHaveTextContent(
-      "TR:finance.purchaseInvoice.types.return",
-    );
-    expect(container).toHaveTextContent("PI-0002");
-  });
-
-  it('Link (as="button") merender <button type="button"> tanpa href', () => {
-    render(<Index />);
-    const dataRow = { id: 3, type: "standard", name: "PI-0003" };
-    const { container } = render(
-      capturedProps.templateItem({ dataRow, deleteItem: vi.fn() }),
-    );
-    const button = container.querySelector("button");
-    expect(button).toHaveAttribute("type", "button");
-    expect(container.querySelector("a")).not.toBeInTheDocument();
-  });
-
-  it("mengklik Link memicu router.visit ke route purchaseInvoice.show dengan id dataRow", async () => {
-    const user = userEvent.setup();
-    const { router } = await import("@inertiajs/core");
-    const visitSpy = vi.spyOn(router, "visit").mockImplementation(() => {});
-    render(<Index />);
-    const dataRow = { id: 7, type: "standard", name: "PI-0007" };
-    const { container } = render(
-      capturedProps.templateItem({ dataRow, deleteItem: vi.fn() }),
-    );
-    const button = container.querySelector("button");
-    await user.click(button);
-    expect(visitSpy).toHaveBeenCalledWith(
-      "purchaseInvoice.show/7",
-      expect.anything(),
-    );
-    visitSpy.mockRestore();
-  });
-
-  it("templateItem tidak merender tombol hapus (tidak ada UI delete di templateItem ini)", () => {
-    render(<Index />);
-    const dataRow = { id: 4, type: "standard", name: "PI-0004" };
-    const { container } = render(
-      capturedProps.templateItem({ dataRow, deleteItem: vi.fn() }),
-    );
-    expect(container.querySelectorAll("button").length).toBe(1);
+    expect(source).toMatch(/route\("purchaseInvoices\.show"/);
+    expect(source).toMatch(/dataRow\.code/);
+    expect(source).not.toMatch(/dataRow\.name\b/);
+    expect(source).not.toMatch(/dataRow\.type\b/);
   });
 });

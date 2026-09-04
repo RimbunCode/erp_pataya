@@ -42,46 +42,38 @@ describe("ScrollArea", () => {
     expect(container.firstChild.className).toBe("relative overflow-hidden");
   });
 
-  // BUG (lihat bugFindings): className yang diberikan ke <ScrollArea> semestinya
-  // digabung (cn) ke Root -- mengikuti implementasi shadcn/ui asli & seluruh
-  // komponen ui/* lain di codebase ini (mis. popover.jsx, drawer.jsx: selalu
-  // `cn("...default...", className)`) -- tapi source scroll-area.jsx memanggil
-  // `cn("relative overflow-hidden")` TANPA meneruskan `className` sama sekali.
-  // Root SELALU persis "relative overflow-hidden", prop className diabaikan total.
-  it("BUG: className custom TIDAK pernah diterapkan ke Root, walau diberikan", () => {
+  // className yang diberikan ke <ScrollArea> digabung (cn) ke Root --
+  // mengikuti implementasi shadcn/ui asli & seluruh komponen ui/* lain di
+  // codebase ini (mis. popover.jsx, drawer.jsx: selalu
+  // `cn("...default...", className)`).
+  it("className custom digabung ke Root bersama default 'relative overflow-hidden'", () => {
     const { container } = render(<ScrollArea className="h-72 w-48 border" />);
     const root = container.firstChild;
-    expect(root.className).toBe("relative overflow-hidden");
-    expect(root.className).not.toContain("h-72");
+    expect(root.className).toContain("relative");
+    expect(root.className).toContain("overflow-hidden");
+    expect(root.className).toContain("h-72");
+    expect(root.className).toContain("w-48");
+    expect(root.className).toContain("border");
   });
 
-  // BUG (lihat bugFindings): className justru "nyasar" ke <div> pembungkus
-  // children di dalam Viewport, diterapkan mentah tanpa cn() (tidak digabung
-  // dengan default apapun). Konsumen nyata di codebase (DataTable2.jsx,
-  // FilterItem.jsx, date-selector.jsx) memberi className seperti "max-h-56"
-  // atau "h-[200px] w-full" dengan asumsi itu mengatur tinggi/lebar area
-  // scroll (pola shadcn/ui standar: className mengatur Root) -- padahal yang
-  // terjadi className itu hanya nempel di div anak dalam Viewport yang tidak
-  // overflow-hidden (overflow-hidden ada di Root, bukan di div ini).
-  it("BUG: className custom malah diterapkan mentah ke div pembungkus children (bukan ke Root)", () => {
+  // children dirender langsung di dalam Viewport tanpa div wrapper tambahan
+  // -- className konsumen (DataTable2.jsx, FilterItem.jsx, date-selector.jsx:
+  // "max-h-56", "h-[200px] w-full", dst) mengatur Root sesuai pola shadcn/ui
+  // standar, bukan nyasar ke elemen anak.
+  it("children dirender langsung di dalam Viewport, tanpa div pembungkus tambahan", () => {
     render(
       <ScrollArea className="h-72 custom-wrap">
         <span data-testid="child">Isi</span>
       </ScrollArea>,
     );
-    const wrapper = screen.getByTestId("child").parentElement;
-    expect(wrapper.tagName).toBe("DIV");
-    expect(wrapper.className).toBe("h-72 custom-wrap");
-  });
-
-  it("tanpa className diberikan, div pembungkus children tidak mendapat atribut class", () => {
-    render(
-      <ScrollArea>
-        <span data-testid="child">Isi</span>
-      </ScrollArea>,
-    );
-    const wrapper = screen.getByTestId("child").parentElement;
-    expect(wrapper.className).toBe("");
+    const child = screen.getByTestId("child");
+    // Radix ScrollAreaViewport selalu membungkus children dengan div
+    // internalnya sendiri (utk content measurement) -- jadi parent LANGSUNG
+    // bukan elemen Viewport, tapi tetap harus ada DI DALAM Viewport, tanpa
+    // div wrapper TAMBAHAN dari ScrollArea kita sendiri.
+    expect(
+      child.closest("[data-radix-scroll-area-viewport]"),
+    ).toBeInTheDocument();
   });
 
   it("Viewport Radix (data-radix-scroll-area-viewport) dirender dengan className default & memuat children di dalamnya", () => {

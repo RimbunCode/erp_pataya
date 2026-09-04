@@ -1,70 +1,44 @@
-import { describe, expect, it, vi } from "vitest";
-import { render } from "@testing-library/react";
-import userEvent from "@testing-library/user-event";
+import { readFileSync } from "node:fs";
+import { resolve } from "node:path";
+import { describe, expect, it, vi, beforeEach } from "vitest";
+import { render, screen } from "@testing-library/react";
 
-const stableT = (key) => `TR:${key}`;
-vi.mock("laravel-react-i18n", () => ({
-  useLaravelReactI18n: () => ({ t: stableT }),
-}));
-
-let capturedProps = null;
+const dataTable2Props = vi.fn();
 vi.mock("@/Pages/Core/DataTable2", () => ({
   default: (props) => {
-    capturedProps = props;
-    return null; // detail lain DataTable2 di luar cakupan test ini
+    dataTable2Props(props);
+    return <div data-testid="stub-datatable2" />;
   },
 }));
 
+window.route = (name, params) =>
+  params ? `${name}/${JSON.stringify(params)}` : name;
+
 import Index from "./Index";
 
-window.route = (name, param) => (param != null ? `${name}/${param}` : name);
-
-// BUG (lihat bugFindings di memory project_salesorders_internalorders_index_blank_name_root_bug):
-// templateItem di sini copy-paste dari Sales/SalesOrders/Index.jsx (route & i18n key SUDAH
-// disesuaikan ke "internalOrder.show"/"sales.internalOrder.types", tapi field dataRow.name &
-// dataRow.type TIDAK pernah disesuaikan -- keduanya juga tidak pernah disesuaikan di file ASLI
-// SalesOrders sendiri krn memang tidak pernah ada). Tabel `internal_orders`
-// (database/migrations/2025_08_23_074916_create_internal_orders_table.php) HANYA punya kolom
-// id/date/timestamps/softDeletes -- TIDAK ADA name/type sama sekali.
-// app/Models/Sales/InternalOrder.php templateLink() = ':code' (bukan :name).
-describe("Sales/InternalOrders Index", () => {
-  it("meneruskan templateItem ke DataTable2", () => {
-    render(<Index />);
-    expect(typeof capturedProps.templateItem).toBe("function");
+describe("Sales/InternalOrders/Index", () => {
+  beforeEach(() => {
+    dataTable2Props.mockReset();
   });
 
-  it("BUG (lihat bugFindings): templateItem membaca dataRow.name & dataRow.type yang TIDAK PERNAH ada di tabel internal_orders -- kartu mobile tampil kosong", () => {
+  it("templateItem menampilkan code (bukan name/type yang tak pernah ada)", () => {
     render(<Index />);
-    // Row nyata backend internal_orders cuma py id/date -- disimulasikan
-    // TANPA name/type utk membuktikan kartu jadi kosong, bukan crash.
-    const dataRow = { id: 1, date: "2026-09-01" };
-    const { container } = render(
-      capturedProps.templateItem({ dataRow, deleteItem: vi.fn() }),
-    );
-    const paragraphs = container.querySelectorAll("p");
-    expect(paragraphs).toHaveLength(2);
-    expect(paragraphs[1].textContent).toBe("");
-    expect(paragraphs[0]).toHaveTextContent(
-      "TR:sales.internalOrder.types.undefined",
-    );
+    const { templateItem } = dataTable2Props.mock.calls.at(-1)[0];
+    render(templateItem({ dataRow: { id: 1, code: "IO-0001" } }));
+    expect(screen.getByText("IO-0001")).toBeInTheDocument();
   });
 
-  it('Link (as="button") memicu router.visit ke route internalOrder.show dengan id dataRow (route SUDAH benar disesuaikan, beda dari kasus Accounts/DeliveryNotes/StockEntries)', async () => {
-    const user = userEvent.setup();
-    const { router } = await import("@inertiajs/core");
-    const visitSpy = vi.spyOn(router, "visit").mockImplementation(() => {});
-    render(<Index />);
-    const dataRow = { id: 7 };
-    const { container } = render(
-      capturedProps.templateItem({ dataRow, deleteItem: vi.fn() }),
+  it("source memakai route internalOrders.show (plural) & field code, bukan name/type/internalOrder.show", () => {
+    const source = readFileSync(
+      resolve(
+        process.cwd(),
+        "resources/js/Pages/Sales/InternalOrders/Index.jsx",
+      ),
+      "utf8",
     );
-    const button = container.querySelector("button");
-    expect(button).toHaveAttribute("type", "button");
-    await user.click(button);
-    expect(visitSpy).toHaveBeenCalledWith(
-      "internalOrder.show/7",
-      expect.anything(),
-    );
-    visitSpy.mockRestore();
+    expect(source).toMatch(/route\("internalOrders\.show"/);
+    expect(source).toMatch(/dataRow\.code/);
+    expect(source).not.toMatch(/dataRow\.name\b/);
+    expect(source).not.toMatch(/dataRow\.type\b/);
   });
 });

@@ -26,7 +26,7 @@ import { Button } from "@/Components/ui/button";
 import { CSS } from "@dnd-kit/utilities";
 import { FormCheckbox } from "@/Components/ui/checkbox";
 import { cn, isMetaAppendColumn } from "@/lib/utils";
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { useLaravelReactI18n } from "laravel-react-i18n";
 
 // Tipe yang secara STRUKTURAL tidak bisa dirender sebagai satu sel tabel
@@ -210,6 +210,10 @@ function SelectColumnDialog({ columns, selected, open, setOpen, onApply }) {
   const { t } = useLaravelReactI18n();
   const [draft, setDraft] = useState(selected);
 
+  useEffect(() => {
+    if (open) setDraft(selected);
+  }, [open]);
+
   const toggle = (name, checked) =>
     setDraft((current) =>
       checked ? [...current, name] : current.filter((n) => n !== name),
@@ -219,9 +223,6 @@ function SelectColumnDialog({ columns, selected, open, setOpen, onApply }) {
     <Dialog
       open={open}
       onOpenChange={(next) => {
-        // Sinkronkan draft tiap kali dibuka supaya perubahan yang batal
-        // diterapkan tidak bocor ke pembukaan berikutnya.
-        if (next) setDraft(selected);
         setOpen(next);
       }}
     >

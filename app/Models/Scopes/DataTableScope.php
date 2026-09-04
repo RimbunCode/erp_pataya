@@ -158,7 +158,10 @@ class DataTableScope implements Scope {
 
             // Sort — konvensi: prefix `-` = descending, tanpa prefix = ascending.
             // Parse via str_starts_with agar key ber-dash / nested tetap utuh.
-            $sort          = $request->input('sort') ?? $appliedFilter?->sort ?? '-created_at';
+            // Prioritas: ?sort= eksplisit > sort bawaan filter default (Filter
+            // Templates) > default kolom sort per-model (Model::$defaultSortColumn,
+            // fallback 'created_at' kalau model tidak override).
+            $sort          = $request->input('sort') ?? $appliedFilter?->sort ?? '-' . $query->getModel()::getDefaultSortColumn();
             $sortDirection = \str_starts_with($sort, '-') ? 'desc' : 'asc';
             $sortKeyRaw    = $sortDirection === 'desc' ? \substr($sort, 1) : $sort;
             $sortKey       = $this->isTableIncluded($sortKeyRaw) ? $sortKeyRaw : "$nameOfTable.$sortKeyRaw";

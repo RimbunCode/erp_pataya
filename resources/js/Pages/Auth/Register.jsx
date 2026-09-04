@@ -63,7 +63,7 @@ export default function Register() {
           <div className="grid gap-6">
             <div className="grid gap-6">
               <div className="grid gap-2">
-                <Label htmlFor="username">
+                <Label htmlFor="name">
                   {loading ? (
                     <Skeleton className="w-52 h-7" />
                   ) : (

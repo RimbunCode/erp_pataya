@@ -1,104 +1,63 @@
-import { describe, expect, it, vi } from "vitest";
-import { render } from "@testing-library/react";
-import userEvent from "@testing-library/user-event";
+import { readFileSync } from "node:fs";
+import { resolve } from "node:path";
+import { describe, expect, it, vi, beforeEach } from "vitest";
+import { render, screen } from "@testing-library/react";
 
-vi.mock("laravel-react-i18n", () => ({
-  useLaravelReactI18n: () => ({ t: (key) => `TR:${key}` }),
-}));
-
-let capturedProps = null;
+const dataTable2Props = vi.fn();
 vi.mock("@/Pages/Core/DataTable2", () => ({
   default: (props) => {
-    capturedProps = props;
-    return null; // detail lain DataTable2 di luar cakupan test ini
+    dataTable2Props(props);
+    return <div data-testid="stub-datatable2" />;
   },
 }));
 
+window.route = (name, params) =>
+  params ? `${name}/${JSON.stringify(params)}` : name;
+
 import Index from "./Index";
 
-window.route = (name, param) => (param != null ? `${name}/${param}` : name);
-
-describe("Inventory StockEntries Index", () => {
-  it("meneruskan templateItem, classNameDialog, dan form ke DataTable2", () => {
-    render(<Index />);
-    expect(typeof capturedProps.templateItem).toBe("function");
-    expect(capturedProps.classNameDialog).toBe("max-w-(--breakpoint-2xl)!");
-    expect(capturedProps.form).toBeTruthy();
+describe("Inventory/StockEntries/Index", () => {
+  beforeEach(() => {
+    dataTable2Props.mockReset();
   });
 
-  // BUG (lihat bugFindings): templateItem di source membaca dataRow.name dan
-  // dataRow.type serta route/translasi domain Inventory Categories
-  // ("categories.show", "inventory.category.types.*") padahal ini page
-  // Inventory/StockEntries (model StockEntry submitable dengan field seperti
-  // date, warehouse, items, difference_account -- lihat Form.jsx/Show.jsx co-located
-  // -- bukan name/type, dan route stock entry didaftarkan sebagai resourceDetail
-  // "stockEntry", bukan "categories"). Nampak sisa copy-paste dari
-  // Inventory/Categories/Index.jsx. Test ini meng-assert PERILAKU SAAT INI,
-  // bukan perilaku yang seharusnya.
-  it("templateItem merender dataRow.name dan translasi dataRow.type via key inventory.category.types (perilaku saat ini)", () => {
+  it("templateItem menampilkan code, bukan name yang tak pernah ada", () => {
     render(<Index />);
-    const dataRow = { id: 1, name: "Stock Entry #1", type: "material_issue" };
-    const { container } = render(
-      capturedProps.templateItem({ dataRow, deleteItem: vi.fn() }),
+    const { templateItem } = dataTable2Props.mock.calls.at(-1)[0];
+    render(
+      templateItem({ dataRow: { id: 1, code: "SE-0001", type: "item_issue" } }),
     );
-    expect(container).toHaveTextContent("Stock Entry #1");
-    expect(container).toHaveTextContent(
-      "TR:inventory.category.types.material_issue",
-    );
+    expect(screen.getByText("SE-0001")).toBeInTheDocument();
   });
 
-  it("templateItem tidak merender field StockEntry asli seperti date/warehouse (perilaku saat ini, lihat bugFindings)", () => {
+  it("baris type hanya dirender kalau dataRow.type ada (kondisional)", () => {
     render(<Index />);
-    const dataRow = {
-      id: 2,
-      date: "2026-09-01",
-      warehouse: { name: "Gudang Utama" },
-    };
-    const { container } = render(
-      capturedProps.templateItem({ dataRow, deleteItem: vi.fn() }),
+    const { templateItem } = dataTable2Props.mock.calls.at(-1)[0];
+
+    const { container: withType } = render(
+      templateItem({ dataRow: { id: 1, code: "SE-0002", type: "item_issue" } }),
     );
-    expect(container).not.toHaveTextContent("2026-09-01");
-    expect(container).not.toHaveTextContent("Gudang Utama");
+    expect(withType.querySelectorAll("p")).toHaveLength(2);
+
+    const { container: withoutType } = render(
+      templateItem({ dataRow: { id: 2, code: "SE-0003" } }),
+    );
+    expect(withoutType.querySelectorAll("p")).toHaveLength(1);
   });
 
-  it("Link (as='button') dirender sebagai <button>, bukan <a>, dengan href ke route categories.show (perilaku saat ini)", () => {
-    // Komponen Link custom (@/Components/Link) memaksa as="button" jadi
-    // elemen <button type="button">, tanpa atribut href di DOM (lihat
-    // Link.jsx elProps: hanya "a" yang diberi href). href tetap dipakai
-    // internal utk Inertia visit saat diklik.
-    render(<Index />);
-    const dataRow = {
-      id: 42,
-      name: "Stock Entry #42",
-      type: "material_transfer",
-    };
-    const { container } = render(
-      capturedProps.templateItem({ dataRow, deleteItem: vi.fn() }),
+  it("source memakai route stockEntries.show (plural) & field code/type, bukan name/categories.show", () => {
+    const source = readFileSync(
+      resolve(
+        process.cwd(),
+        "resources/js/Pages/Inventory/StockEntries/Index.jsx",
+      ),
+      "utf8",
     );
-    const linkButton = container.querySelector("button[type='button']");
-    expect(linkButton).toBeInTheDocument();
-    expect(linkButton).not.toHaveAttribute("href");
-  });
-
-  it("tombol hapus memanggil deleteItem() tanpa argumen saat diklik", async () => {
-    const user = userEvent.setup();
-    const deleteItem = vi.fn();
-    render(<Index />);
-    const dataRow = { id: 5, name: "Stock Entry #5", type: "material_receipt" };
-    const { container } = render(
-      capturedProps.templateItem({ dataRow, deleteItem }),
-    );
-    const deleteButton = container.querySelector("button.size-8");
-    await user.click(deleteButton);
-    expect(deleteItem).toHaveBeenCalledTimes(1);
-    expect(deleteItem).toHaveBeenCalledWith();
-  });
-
-  it("tidak melempar error saat dataRow.type undefined", () => {
-    render(<Index />);
-    const dataRow = { id: 6, name: "Stock Entry Tanpa Tipe" };
-    expect(() =>
-      render(capturedProps.templateItem({ dataRow, deleteItem: vi.fn() })),
-    ).not.toThrow();
+    expect(source).toMatch(/route\("stockEntries\.show"/);
+    expect(source).toMatch(/dataRow\.code/);
+    expect(source).toMatch(/inventory\.stockEntry\.types/);
+    expect(source).not.toMatch(/dataRow\.name\b/);
+    expect(source).not.toMatch(/categories\.show/);
+    expect(source).not.toMatch(/inventory\.category\.types/);
   });
 });

@@ -299,39 +299,43 @@ describe("Table / update prop `data`", () => {
   });
 });
 
-describe("Table / bug findings (perilaku SAAT INI, bukan perbaikan)", () => {
-  // BUG (lihat bugFindings): prop `options` didefaultkan ke literal objek
-  // baru `{}` (bukan `undefined`/`null`) di setiap render. `const options =
-  // initialOptions ?? _options` memakai `??`, yg hanya fallback ke state
-  // internal `_options` saat nilainya null/undefined -- `{}` LOLOS dari
-  // check itu (truthy AND bukan nullish). Akibatnya: kalau pemanggil TIDAK
-  // memberi prop `options` maupun `onOptionsChanged`, hasil `setOptions(...)`
-  // memang mengubah state internal `_options`, tapi `options` yg dibaca ulang
-  // di render berikutnya SELALU balik ke objek `{}` baru dari default param
-  // -- update tidak pernah terlihat oleh konsumen (Header, dst).
-  it("BUG: tanpa prop options & onOptionsChanged, setOptions() tidak pernah terlihat di render berikutnya (default {} selalu menang atas state internal)", async () => {
+describe("Table / mode uncontrolled & rerender jumlah kolom", () => {
+  // FIX: prop `options` tidak lagi didefaultkan ke literal objek baru `{}`
+  // (default param dihapus, jadi `initialOptions` benar-benar `undefined`
+  // saat pemanggil tidak memberi prop). `const options = initialOptions ??
+  // _options` kini jatuh ke state internal `_options` sesuai maksud desain,
+  // sehingga tanpa prop `options`/`onOptionsChanged`, `setOptions(...)`
+  // mengubah state internal DAN terlihat di render berikutnya (mode
+  // uncontrolled berfungsi).
+  it("tanpa prop options & onOptionsChanged, setOptions() terlihat di render berikutnya (mode uncontrolled)", async () => {
     const user = userEvent.setup({ delay: null });
     const columns = [{ name: "name", title: "Name" }];
     render(<Table columns={columns} data={[]} />);
 
-    expect(screen.getByTestId("options-name").textContent).toBe("{}");
+    expect(screen.getByTestId("options-name").textContent).toBe(
+      JSON.stringify({
+        page: 1,
+        sort: { key: null, order: null },
+        search: {},
+      }),
+    );
 
     await user.click(screen.getByText("set-options-name"));
 
-    // Perilaku SAAT INI: tetap "{}" walau setOptions({page:99}) sudah dipanggil.
-    expect(screen.getByTestId("options-name").textContent).toBe("{}");
+    expect(screen.getByTestId("options-name").textContent).toBe(
+      JSON.stringify({ page: 99 }),
+    );
   });
 
-  // BUG (lihat bugFindings): `createHeaders(headers)` dipanggil LANGSUNG
-  // sbg argumen `useState(createHeaders(headers))` (bukan lazy initializer
-  // `useState(() => ...)`), jadi ekspresinya dievaluasi ULANG di SETIAP
-  // render Table -- bukan cuma saat mount. Di dalamnya, `createHeaders`
-  // memanggil `useRef()` sekali per kolom `headers`. Kalau jumlah kolom
-  // (headers.length) berubah antar render pada instance Table yang SAMA
-  // (tanpa unmount), jumlah pemanggilan hook berubah di posisi yg sama --
-  // melanggar Rules of Hooks (urutan/jumlah hook harus konsisten) dan React
-  // melempar error runtime.
-  it("BUG: rerender dgn jumlah kolom (headers.length) berbeda melempar error hooks-order React", () => {
+  // FIX: ref per-kolom tidak lagi dibuat lewat `useRef()` di dalam
+  // `createHeaders` (helper biasa, bukan hook). Ref dikelola lewat
+  // `useRef(new Map())` di level komponen Table dan diambil/dibuat per key
+  // kolom, sementara `useState(() => createHeaders(headers, columnRefs))`
+  // pakai lazy initializer sehingga `createHeaders` cuma dieksekusi saat
+  // mount. Jumlah hook Table jadi konsisten antar render, jadi rerender
+  // dgn jumlah kolom (headers.length) berbeda pada instance yang sama
+  // TIDAK melempar error hooks-order React.
+  it("rerender dgn jumlah kolom (headers.length) berbeda tidak crash", () => {
     const twoCols = [
       { name: "a", title: "A" },
       { name: "b", title: "B" },
@@ -343,7 +347,9 @@ describe("Table / bug findings (perilaku SAAT INI, bukan perbaikan)", () => {
       .mockImplementation(() => {});
     const { rerender } = render(<Table columns={twoCols} data={[]} />);
 
-    expect(() => rerender(<Table columns={threeCols} data={[]} />)).toThrow();
+    expect(() =>
+      rerender(<Table columns={threeCols} data={[]} />),
+    ).not.toThrow();
 
     consoleError.mockRestore();
   });

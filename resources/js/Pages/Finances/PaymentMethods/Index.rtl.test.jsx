@@ -1,36 +1,74 @@
-import { describe, expect, it, vi } from "vitest";
-import { render } from "@testing-library/react";
+import { readFileSync } from "node:fs";
+import { resolve } from "node:path";
+import { describe, expect, it, vi, beforeEach } from "vitest";
+import { render, screen } from "@testing-library/react";
+import userEvent from "@testing-library/user-event";
 
-let capturedProps = null;
+const dataTable2Props = vi.fn();
 vi.mock("@/Pages/Core/DataTable2", () => ({
   default: (props) => {
-    capturedProps = props;
-    return null; // detail lain DataTable2 di luar cakupan test ini
+    dataTable2Props(props);
+    return <div data-testid="stub-datatable2" />;
   },
 }));
 
+window.route = (name, params) =>
+  params ? `${name}/${JSON.stringify(params)}` : name;
+
 import Index from "./Index";
-import Form from "./Form";
 
-describe("Finances/PaymentMethods Index", () => {
-  it("meneruskan form (elemen Form) ke DataTable2", () => {
-    render(<Index />);
-    expect(capturedProps.form).toBeTruthy();
-    expect(capturedProps.form.type).toBe(Form);
+describe("Finances/PaymentMethods/Index", () => {
+  beforeEach(() => {
+    dataTable2Props.mockReset();
   });
 
-  it("tidak meneruskan templateItem ke DataTable2 -- seluruh blok template mobile di-comment total di source", () => {
+  it("templateItem menampilkan name & description (bukan lagi dead code di-comment)", () => {
     render(<Index />);
-    // BUG (lihat bugFindings): blok templateItem di Index.jsx (baris ~9-31)
-    // di-comment total (bukan diimplementasikan), jadi prop templateItem
-    // TIDAK dikirim sama sekali (undefined) ke DataTable2 -- berbeda dgn
-    // pola Finances lain yg templateItem-nya aktif. Test ini meng-assert
-    // perilaku saat ini apa adanya, bukan perilaku yg diharapkan.
-    expect(capturedProps.templateItem).toBeUndefined();
+    const { templateItem } = dataTable2Props.mock.calls.at(-1)[0];
+    render(
+      templateItem({
+        dataRow: { id: 1, name: "Bank Transfer", description: "Transfer bank" },
+        deleteItem: vi.fn(),
+      }),
+    );
+
+    expect(screen.getByText("Bank Transfer")).toBeInTheDocument();
+    expect(screen.getByText("Transfer bank")).toBeInTheDocument();
   });
 
-  it("tidak meneruskan classNameDialog custom ke DataTable2", () => {
+  it("description tidak dirender kalau kosong (kondisional)", () => {
     render(<Index />);
-    expect(capturedProps.classNameDialog).toBeUndefined();
+    const { templateItem } = dataTable2Props.mock.calls.at(-1)[0];
+    const { container } = render(
+      templateItem({ dataRow: { id: 1, name: "Cash" }, deleteItem: vi.fn() }),
+    );
+
+    expect(container.querySelectorAll("p")).toHaveLength(1);
+  });
+
+  it("tombol hapus memanggil deleteItem() dari DataTable2 (bukan setIdDelete yang tak terdefinisi)", async () => {
+    const user = userEvent.setup();
+    render(<Index />);
+    const { templateItem } = dataTable2Props.mock.calls.at(-1)[0];
+    const deleteItem = vi.fn();
+    render(templateItem({ dataRow: { id: 1, name: "Cash" }, deleteItem }));
+
+    const buttons = screen.getAllByRole("button");
+    await user.click(buttons[buttons.length - 1]);
+
+    expect(deleteItem).toHaveBeenCalledTimes(1);
+  });
+
+  it("source tidak lagi punya templateItem di-comment atau setIdDelete", () => {
+    const source = readFileSync(
+      resolve(
+        process.cwd(),
+        "resources/js/Pages/Finances/PaymentMethods/Index.jsx",
+      ),
+      "utf8",
+    );
+    expect(source).not.toMatch(/setIdDelete/);
+    expect(source).not.toMatch(/\/\/\s*templateItem/);
+    expect(source).toMatch(/route\("paymentMethods\.show"/);
   });
 });
