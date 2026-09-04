@@ -18,11 +18,11 @@ use Illuminate\Support\Facades\Schema;
 class ChartService {
     /**
      * Optimasi dashboard: redam query agregat berulang lintas-request/user.
-     * HANYA dipakai heatmap & time-series — group_by SENGAJA TIDAK di-cache:
-     * label relasinya di-resolve beda per izin Select user (resolveGroupLabels),
-     * dan PermissionChecker bisa dibangun manual lepas dari user/session
-     * (lihat ChartServiceTest::noopChecker()) sehingga tidak ada key yang
-     * aman & deterministik utk merepresentasikan "identitas permission" itu.
+     * group_by IKUT di-cache (Requirement G) — satu-satunya bagian output
+     * yang bergantung identitas user (resolveGroupLabels: label relasi
+     * di-resolve HANYA kalau user punya Select ke model relasinya) direduksi
+     * jadi SATU boolean di cache key (lihat getGroupByChartConfig()), bukan
+     * checker/user id utuh — aman di-share lintas user dengan izin yang sama.
      */
     protected int $cacheDuration = 120;
 
@@ -77,32 +77,47 @@ class ChartService {
             return ['labels' => [], 'datasets' => []];
         }
 
-        $query = $modelClass::query();
-        (new FilterEvaluator($columns))->apply($query, $filters);
+        // Requirement G: resolveGroupLabels() cuma bergantung PADA SATU
+        // boolean identitas user — izin Select ke model relasi kolom
+        // group-by-nya (kalau memang kolomnya tipe relasi; formStatus &
+        // kolom biasa TIDAK pernah bergantung permission sama sekali).
+        // Cache key ikut boolean ini (BUKAN checker/user id) — aman
+        // di-share ke user LAIN dengan hasil `can()` yang sama, tanpa perlu
+        // "identitas" checker yang bisa dibangun manual lepas dari session.
+        $relatedClass     = ($meta['type'] ?? null) === 'relation' ? ($meta['related'] ?? null) : null;
+        $canSelectRelated = $relatedClass && $checker->can($relatedClass, Permission::Select);
 
-        $aggFunc  = $chart->group_by_type ?? 'count';
-        $aggField = $aggFunc === 'count' ? '*' : $chart->aggregate_function_based_on;
-        $alias    = 'agg_value';
+        $cacheKey = 'chart_group_by:' . $chart->id . ':' . $chart->updated_at?->timestamp
+            . ':' . (int) $canSelectRelated . ':' . md5(json_encode($filters));
 
-        $selectRaw = match ($aggFunc) {
-            'sum'     => "SUM({$aggField}) as {$alias}",
-            'average' => "AVG({$aggField}) as {$alias}",
-            default   => "COUNT(*) as {$alias}",
-        };
+        return Cache::remember($cacheKey, $this->cacheDuration, function () use ($chart, $modelClass, $filters, $columns, $sqlColumn, $meta, $checker) {
+            $query = $modelClass::query();
+            (new FilterEvaluator($columns))->apply($query, $filters);
 
-        $rows = $query
-            ->selectRaw("{$sqlColumn} as group_key, {$selectRaw}")
-            ->groupBy($sqlColumn)
-            ->orderByDesc($alias)
-            ->when($chart->number_of_groups, fn ($q) => $q->limit($chart->number_of_groups))
-            ->get();
+            $aggFunc  = $chart->group_by_type ?? 'count';
+            $aggField = $aggFunc === 'count' ? '*' : $chart->aggregate_function_based_on;
+            $alias    = 'agg_value';
 
-        $labels = $this->resolveGroupLabels($rows->pluck('group_key')->all(), $meta, $checker);
+            $selectRaw = match ($aggFunc) {
+                'sum'     => "SUM({$aggField}) as {$alias}",
+                'average' => "AVG({$aggField}) as {$alias}",
+                default   => "COUNT(*) as {$alias}",
+            };
 
-        return [
-            'labels'   => $labels,
-            'datasets' => [['name' => $chart->chart_name, 'values' => $rows->pluck($alias)->map(fn ($v) => (float) $v)->all()]],
-        ];
+            $rows = $query
+                ->selectRaw("{$sqlColumn} as group_key, {$selectRaw}")
+                ->groupBy($sqlColumn)
+                ->orderByDesc($alias)
+                ->when($chart->number_of_groups, fn ($q) => $q->limit($chart->number_of_groups))
+                ->get();
+
+            $labels = $this->resolveGroupLabels($rows->pluck('group_key')->all(), $meta, $checker);
+
+            return [
+                'labels'   => $labels,
+                'datasets' => [['name' => $chart->chart_name, 'values' => $rows->pluck($alias)->map(fn ($v) => (float) $v)->all()]],
+            ];
+        });
     }
 
     /**

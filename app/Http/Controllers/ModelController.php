@@ -970,11 +970,18 @@ class ModelController extends Controller {
             }
         }
 
+        // Requirement I (optimasi dashboard): response ini murni metadata
+        // schema (getColumns()) — TIDAK ada gating PermissionChecker/visibleFor
+        // sama sekali di method ini (beda dari __invoke()/selectData()), jadi
+        // SAMA utk semua user & aman di-cache browser. max_age pendek (bukan
+        // selama-lamanya) krn schema BISA berubah stlh deploy; opsi A (cache
+        // module-level FE) sudah nutup dalam satu sesi SPA, ini nutup jarak
+        // full-reload (F5) yang bikin cache module-level itu hilang.
         return response()->json([
             'model'   => $model,
             'route'   => Str::plural((new $model)->getNameClass()),
             'columns' => $columns,
-        ]);
+        ])->setCache(['private' => true, 'max_age' => 300]);
     }
 
     public function datatable(Request $request) {
