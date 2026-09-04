@@ -388,7 +388,7 @@ describe("ChartTooltipContent", () => {
     expect(screen.queryByText((999).toLocaleString())).not.toBeInTheDocument();
   });
 
-  it("BUG (upstream): value 0 dirender bare TANPA span pembungkus font-mono (className styling hilang) -- `item.value && (...)` React merender 0 apa adanya, bukan mengecek undefined. Perilaku SAAT INI didokumentasikan, bukan diperbaiki", () => {
+  it("value 0 dirender DI DALAM span berclass font-mono (styling konsisten dgn value lain, bukan teks polos)", () => {
     const { container } = renderTooltip({
       active: true,
       label: "Januari",
@@ -403,13 +403,18 @@ describe("ChartTooltipContent", () => {
     });
     // label series tetap tampil...
     expect(screen.getByText("Pendapatan")).toBeInTheDocument();
-    // ...value "0" tetap muncul di teks (React merender angka 0 apa adanya),
-    // TAPI tanpa span berclass font-mono/tabular-nums seperti value lainnya
-    // -- karena `item.value && (<span>...)` mengembalikan literal 0, bukan
-    // elemen JSX, saat item.value falsy (0).
-    expect(container.querySelector("span.font-mono")).toBeNull();
-    const row = container.querySelector(".flex.flex-1.justify-between");
-    expect(row.textContent).toContain("0");
+    // ...value "0" dirender di dalam span berclass font-mono/tabular-nums,
+    // sama seperti value non-zero -- karena kondisi cek `item.value != null`
+    // (bukan truthiness), bukan literal 0 lolos ke DOM tanpa pembungkus.
+    const valueSpan = container.querySelector("span.font-mono");
+    expect(valueSpan).not.toBeNull();
+    expect(valueSpan).toHaveClass(
+      "font-mono",
+      "font-medium",
+      "tabular-nums",
+      "text-foreground",
+    );
+    expect(valueSpan.textContent).toBe((0).toLocaleString());
   });
 
   it("nameKey: resolusi config lewat property BERNAMA nameKey langsung di item (bukan di item.payload)", () => {

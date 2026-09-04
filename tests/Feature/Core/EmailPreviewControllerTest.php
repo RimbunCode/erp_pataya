@@ -190,6 +190,28 @@ class EmailPreviewControllerTest extends TestCase {
             });
         }
 
+        // RecordAuditLog listener mencatat audit log utk SEMUA model
+        // created/updated tanpa syarat user terautentikasi -- User::factory()
+        // di test ini memicunya. Stub tabel `logs` (test ini tidak pakai
+        // RefreshDatabase). Skema identik migration create_logs_table +
+        // add_action_to_logs_table.
+        if (! Schema::hasTable('logs')) {
+            Schema::create('logs', function ($table): void {
+                $table->ulid('id')->primary();
+                $table->longText('activity');
+                $table->json('comment_json')->nullable();
+                $table->text('notes')->nullable();
+                $table->string('type')->default('log');
+                $table->string('action')->nullable();
+                $table->json('data_before')->nullable();
+                $table->json('data_after')->nullable();
+                $table->ulidMorphs('loggable');
+                $table->char('user_id', 26)->nullable();
+                $table->timestamps();
+                $table->softDeletes();
+            });
+        }
+
         Route::middleware('web')->group(function () {
             Route::get('/_test/email-preview-doc/{id}/email/{emailTemplate?}', [EmailPreviewTestDocumentController::class, 'emailPreview'])
                 ->name('_test.emailPreviewDoc.email.preview');

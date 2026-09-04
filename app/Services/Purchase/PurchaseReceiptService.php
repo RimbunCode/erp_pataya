@@ -23,6 +23,7 @@ use App\Models\Purchase\PurchaseReceipt;
 use App\Traits\HasDefaultDelete;
 use Illuminate\Support\Collection;
 use Illuminate\Support\Facades\DB;
+use Illuminate\Validation\ValidationException;
 use Symfony\Component\Uid\Ulid;
 
 class PurchaseReceiptService implements SubmitableService {
@@ -138,6 +139,25 @@ class PurchaseReceiptService implements SubmitableService {
                 'targetWarehouse',
                 'returnAgainstItem',
             ])->get();
+
+        // Guard: defaultUom (ItemVariant::defaultUom(), hasOne via join ke ItemUnit
+        // yg unit_id-nya cocok default_unit_id) bisa null -- default_unit_id nullable,
+        // atau ItemUnit konversi utk unit itu belum didaftarkan. Validasi di sini
+        // (sebelum item dipakai di 2 loop bawah) supaya gagal jelas via error bag,
+        // bukan ErrorException null property access di tengah proses approve.
+        $missingDefaultUomItems = [];
+        foreach ($items as $item) {
+            if (! $item->item->defaultUom) {
+                $missingDefaultUomItems[] = "Item {$item->item->code} tidak memiliki unit konversi default (defaultUom) terdaftar.";
+            }
+        }
+        if (\count($missingDefaultUomItems) > 0) {
+            DB::rollBack();
+            throw ValidationException::withMessages([
+                'items' => $missingDefaultUomItems,
+            ]);
+        }
+
         $stocks = Stock::whereIn('item_variant_id', $items->pluck('item_id'))
             ->whereIn('warehouse_id', $items->pluck('target_warehouse_id'))
             ->lockForUpdate()

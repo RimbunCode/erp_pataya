@@ -5,6 +5,7 @@ namespace App\Models\Core;
 use App\Casts\FormStatusCast;
 use App\Casts\Json;
 use App\Models\Model;
+use App\Models\User\Role;
 use App\Models\User\User;
 use App\Traits\DataTable;
 use Illuminate\Database\Eloquent\Concerns\HasUlids;
@@ -78,11 +79,20 @@ class ApprovalInstanceStep extends Model {
     }
 
     public function approver() {
-        return $this->morphTo('approver', 'approverable_type', 'approverable_id');
+        // withTrashed unconditional (bukan kondisional row-state) -- approver
+        // adalah field historis-read-only (Requirement 2.6, spec
+        // soft-delete-relation-context), bukan field yang perlu reselect ulang.
+        // MorphTo target cuma User/Role (fixed, bukan set terbuka spt document()
+        // di ApprovalInstance -- itu TIDAK di-constrain di sini, backlog terpisah).
+        return $this->morphTo('approver', 'approverable_type', 'approverable_id')
+            ->constrain([
+                User::class => fn ($query) => $query->withTrashed(),
+                Role::class => fn ($query) => $query->withTrashed(),
+            ]);
     }
 
     public function actedBy() {
-        return $this->belongsTo(User::class, 'acted_by_id');
+        return $this->belongsTo(User::class, 'acted_by_id')->withTrashed();
     }
 
     public function approvers() {

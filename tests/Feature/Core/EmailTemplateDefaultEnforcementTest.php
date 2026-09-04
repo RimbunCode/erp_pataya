@@ -64,7 +64,13 @@ class EmailTemplateDefaultEnforcementTest extends TestCase {
         ]);
 
         $invoiceDefault = EmailTemplate::factory()->create([
-            'model'      => 'App\\Models\\Sales\\Invoice',
+            // Class asli App\Models\Finances\SalesInvoice -- sebelumnya
+            // "App\Models\Sales\Invoice" (typo, class tidak pernah ada),
+            // lolos diam-diam krn accessor title() dulu tidak divalidasi
+            // class_exists(). Sekarang RecordAuditLog men-serialize model
+            // (termasuk $appends) saat create, jadi typo ini bikin fatal
+            // "Class ... not found" alih-alih silently correct.
+            'model'      => 'App\\Models\\Finances\\SalesInvoice',
             'is_default' => true,
         ]);
 

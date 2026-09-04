@@ -27,7 +27,7 @@ class EmailTemplate extends Model {
         return new Attribute(
             get: function () {
                 $model = $this->model;
-                if ($model == null) {
+                if ($model == null || ! class_exists($model)) {
                     return '';
                 }
                 $modelInstance = new $model;

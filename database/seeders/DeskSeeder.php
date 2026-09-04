@@ -28,6 +28,7 @@ use App\Models\Core\MenuItem;
 use App\Models\Core\NumberCard;
 use App\Models\Core\Preference;
 use App\Models\Core\PrintTemplate;
+use App\Models\Core\SavedFilter;
 use App\Models\DashboardWidget;
 use App\Models\Finances\Account;
 use App\Models\Finances\GeneralLedger;
@@ -308,6 +309,7 @@ class DeskSeeder extends Seeder {
         // Settings: Templates — dokumen/komunikasi
         $this->menuItem('Print Templates', 'LayoutTemplate', 'printTemplates.*', PrintTemplate::class, [Domain::Core], 20, group: 'Templates');
         $this->menuItem('Email Templates', 'LayoutTemplate', 'emailTemplates.*', EmailTemplate::class, [Domain::Core], 21, group: 'Templates');
+        $this->menuItem('Filter Templates', 'Filter', 'filterTemplates.*', SavedFilter::class, [Domain::Core], 22, group: 'Templates');
 
         // Settings: Dashboard Widgets
         // number-card-chart-redesign: Widget lama pecah jadi 2 entity terpisah

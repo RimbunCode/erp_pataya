@@ -31,7 +31,12 @@ export default function BlockDescriptionTooltip({ description }) {
   return (
     <Tooltip>
       <TooltipTrigger asChild>
-        <span className="inline-flex size-4 items-center justify-center text-muted-foreground">
+        <span
+          tabIndex={0}
+          role="button"
+          aria-label="Informasi tambahan"
+          className="inline-flex size-4 items-center justify-center text-muted-foreground"
+        >
           <Info className="size-3.5" />
         </span>
       </TooltipTrigger>

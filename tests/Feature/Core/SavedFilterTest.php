@@ -6,6 +6,7 @@ use App\Models\Core\ApprovalScheme;
 use App\Models\Core\Branch;
 use App\Models\Core\SavedFilter;
 use App\Models\Model as AppModel;
+use App\Models\User\Permission;
 use App\Models\User\User;
 use App\Traits\DataTable;
 use Illuminate\Database\Eloquent\Concerns\HasUlids;
@@ -424,6 +425,74 @@ class SavedFilterTest extends TestCase {
         $this->assertSame(['s2', 's1'], $ids);
     }
 
+    /**
+     * Requirement 5 AC1: saved filter yang punya `sort` ikut diterapkan saat
+     * dipakai (?fid=), meski tanpa ?sort= eksplisit di URL.
+     */
+    public function test_fid_filter_with_sort_overrides_default_sort(): void {
+        $user = $this->makeUser();
+        $this->seedScopeRecords(); // s1=Apple, s2=Banana
+
+        $saved = SavedFilter::create([
+            'user_id' => $user->id, 'model' => FilterScopeRecord::class,
+            'filter'  => $this->sampleTree('a'), 'name' => 'A', 'is_saved' => true,
+            'sort'    => '-name',
+        ]);
+        // filter tree tak menyaring apa pun (key 'name' selalu ada) — fokus ke sort.
+        $saved->update(['filter' => ['root' => ['k' => 'and', 'c' => []]]]);
+
+        $request = Request::create('/x', 'GET', ['fid' => $saved->id], server: ['HTTP_X_REQUESTED_WITH' => 'XMLHttpRequest']);
+        $result  = FilterScopeRecord::dataTable($request);
+        $ids     = collect($result['data']->items())->pluck('id')->all();
+
+        // sort filter '-name' (desc) → Banana (s2) dulu, walau tak ada ?sort= eksplisit.
+        $this->assertSame(['s2', 's1'], $ids);
+    }
+
+    /**
+     * Requirement 5 AC2: filter tanpa `sort` (null) TIDAK memaksa reset —
+     * ?sort= eksplisit dari halaman tetap dihormati.
+     */
+    public function test_fid_filter_without_sort_does_not_override_explicit_sort(): void {
+        $user = $this->makeUser();
+        $this->seedScopeRecords();
+
+        $saved = SavedFilter::create([
+            'user_id' => $user->id, 'model' => FilterScopeRecord::class,
+            'filter'  => ['root' => ['k' => 'and', 'c' => []]], 'name' => 'A', 'is_saved' => true,
+            'sort'    => null,
+        ]);
+
+        $request = Request::create('/x', 'GET', ['fid' => $saved->id, 'sort' => 'name'], server: ['HTTP_X_REQUESTED_WITH' => 'XMLHttpRequest']);
+        $result  = FilterScopeRecord::dataTable($request);
+        $ids     = collect($result['data']->items())->pluck('id')->all();
+
+        // ?sort=name (asc) tetap dipakai — Apple (s1) dulu.
+        $this->assertSame(['s1', 's2'], $ids);
+    }
+
+    /**
+     * Requirement 2 AC4 (end-to-end via macro): tanpa fid sama sekali, default
+     * shared filter untuk model tsb ikut menerapkan sort-nya.
+     */
+    public function test_default_filter_sort_applied_without_fid(): void {
+        $user = $this->makeUser();
+        $this->seedScopeRecords();
+
+        SavedFilter::create([
+            'user_id'  => $user->id, 'model' => FilterScopeRecord::class,
+            'filter'   => ['root' => ['k' => 'and', 'c' => []]], 'name' => 'Default',
+            'is_saved' => true, 'is_shared' => true, 'is_default' => true,
+            'sort'     => '-name',
+        ]);
+
+        $request = Request::create('/x', 'GET', [], server: ['HTTP_X_REQUESTED_WITH' => 'XMLHttpRequest']);
+        $result  = FilterScopeRecord::dataTable($request);
+        $ids     = collect($result['data']->items())->pluck('id')->all();
+
+        $this->assertSame(['s2', 's1'], $ids);
+    }
+
     public function test_update_promotes_to_named_owner_only(): void {
         $owner = $this->makeUser();
         $saved = SavedFilter::create([
@@ -512,6 +581,104 @@ class SavedFilterTest extends TestCase {
         $this->actingAs($other)->deleteJson("/saved-filters/{$saved->id}")->assertStatus(403);
         $this->actingAs($owner)->deleteJson("/saved-filters/{$saved->id}")->assertOk();
         $this->assertDatabaseMissing('saved_filters', ['id' => $saved->id]);
+    }
+
+    public function test_get_name_class_is_overridden_for_route_naming(): void {
+        // Nama route resource ('filterTemplate') beda dari nama class
+        // ('SavedFilter') — dipakai breadcrumb/DataTableScope/CommandSearch
+        // agar tidak nyasar ke route savedFilters.* yang tidak terdaftar.
+        $this->assertSame('filterTemplate', (new SavedFilter)->getNameClass());
+    }
+
+    public function test_init_permissions_provisions_permission_row_with_alias_name(): void {
+        SavedFilter::initPermissions();
+
+        $this->assertDatabaseHas('permissions', [
+            'model'  => SavedFilter::class,
+            'name'   => 'Filter Templates',
+            'module' => 'Core',
+        ]);
+
+        $permission = Permission::where('model', SavedFilter::class)->first();
+        foreach (['select', 'read', 'write', 'create', 'delete', 'import', 'export', 'share'] as $key) {
+            $this->assertContains($key, $permission->permissions, "permission key '{$key}' harus ada");
+        }
+    }
+
+    public function test_scope_visible_to_merges_own_private_and_shared_filters(): void {
+        $me    = $this->makeUser();
+        $other = $this->makeUser();
+
+        $mine = SavedFilter::create([
+            'user_id' => $me->id, 'model' => ApprovalScheme::class,
+            'filter'  => $this->sampleTree(), 'name' => 'Mine', 'is_saved' => true,
+        ]);
+        $othersPrivate = SavedFilter::create([
+            'user_id' => $other->id, 'model' => ApprovalScheme::class,
+            'filter'  => $this->sampleTree(), 'name' => 'OthersPrivate', 'is_saved' => true,
+        ]);
+        $shared = SavedFilter::create([
+            'user_id' => $other->id, 'model' => ApprovalScheme::class,
+            'filter'  => $this->sampleTree(), 'name' => 'Shared', 'is_saved' => true, 'is_shared' => true,
+        ]);
+
+        $ids = SavedFilter::visibleTo($me->id, ApprovalScheme::class)->pluck('id')->all();
+
+        $this->assertContains($mine->id, $ids);
+        $this->assertContains($shared->id, $ids);
+        $this->assertNotContains($othersPrivate->id, $ids);
+    }
+
+    public function test_scope_default_for_returns_only_shared_default(): void {
+        $user = $this->makeUser();
+
+        $default = SavedFilter::create([
+            'user_id'   => $user->id, 'model' => ApprovalScheme::class,
+            'filter'    => $this->sampleTree(), 'name' => 'Default', 'is_saved' => true,
+            'is_shared' => true, 'is_default' => true,
+        ]);
+        SavedFilter::create([
+            'user_id'   => $user->id, 'model' => ApprovalScheme::class,
+            'filter'    => $this->sampleTree(), 'name' => 'Shared not default', 'is_saved' => true,
+            'is_shared' => true, 'is_default' => false,
+        ]);
+        SavedFilter::create([
+            'user_id'   => $user->id, 'model' => ApprovalScheme::class,
+            'filter'    => $this->sampleTree(), 'name' => 'Private', 'is_saved' => true,
+            'is_shared' => false,
+        ]);
+
+        $result = SavedFilter::defaultFor(ApprovalScheme::class)->get();
+
+        $this->assertCount(1, $result);
+        $this->assertSame($default->id, $result->first()->id);
+    }
+
+    /**
+     * Property P3 — fork-on-edit: user BUKAN pemilik shared filter yang
+     * mengubah+apply tidak pernah menimpa row shared asal (guard ownership
+     * `reusableEphemeral` sudah cukup — TIDAK ada perubahan kode baru).
+     */
+    public function test_editing_shared_filter_forks_new_row_not_overwriting_original(): void {
+        $pengelola = $this->makeUser();
+        $user      = $this->makeUser();
+        $shared    = SavedFilter::create([
+            'user_id' => $pengelola->id, 'model' => ApprovalScheme::class,
+            'filter'  => $this->sampleTree('Original'), 'name' => 'Shared', 'is_saved' => true, 'is_shared' => true,
+        ]);
+
+        $res = $this->actingAs($user)->postJson('/saved-filters', [
+            'model'  => ApprovalScheme::class,
+            'filter' => $this->sampleTree('Edited'),
+            'fid'    => $shared->id,
+        ]);
+
+        $res->assertOk();
+        $this->assertNotSame($shared->id, $res->json('id'));
+        $this->assertSame('Original', SavedFilter::find($shared->id)->filter['root']['c']['i1']['v']);
+        $this->assertDatabaseHas('saved_filters', [
+            'id' => $res->json('id'), 'user_id' => $user->id, 'is_shared' => false,
+        ]);
     }
 
     public function test_prune_removes_old_ephemeral_keeps_named(): void {

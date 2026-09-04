@@ -120,13 +120,11 @@ export default function Login({ errors }) {
                     checked={data.remember}
                     onCheckedChange={(v) => setData("remember", v)}
                     label={
-                      <>
-                        {loading ? (
-                          <Skeleton className="w-32 h-7" />
-                        ) : (
-                          t("auth.login.remember")
-                        )}
-                      </>
+                      loading ? (
+                        <Skeleton className="w-32 h-7" />
+                      ) : (
+                        t("auth.login.remember")
+                      )
                     }
                   />
                   <Link

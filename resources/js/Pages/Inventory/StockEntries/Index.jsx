@@ -14,13 +14,15 @@ export default function Index() {
         <div className="flex items-center justify-between p-4 border-b gap-x-4 border-muted-foreground/25">
           <Link
             as="button"
-            href={route("categories.show", dataRow.id)}
+            href={route("stockEntries.show", dataRow.id)}
             className=""
           >
-            <p className="text-base font-medium text-left text-muted-foreground">
-              {t(`inventory.category.types.${dataRow.type}`)}
-            </p>
-            <p className="text-base font-medium text-left">{dataRow.name}</p>
+            <p className="text-base font-medium text-left">{dataRow.code}</p>
+            {dataRow.type && (
+              <p className="text-sm text-left text-muted-foreground">
+                {t(`inventory.stockEntry.types.${dataRow.type}`)}
+              </p>
+            )}
           </Link>
 
           <Button

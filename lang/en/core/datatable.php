@@ -115,6 +115,7 @@ return [
             'save_error'       => 'Failed to save filter.',
             'empty'            => 'No saved filters yet.',
             'untitled'         => 'Untitled',
+            'shared_badge'     => 'Shared',
             'loading'          => 'Loading filters…',
             'dirty'            => 'Unsaved changes',
         ],

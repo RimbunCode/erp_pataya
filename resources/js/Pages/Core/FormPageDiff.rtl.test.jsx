@@ -131,6 +131,31 @@ describe("FormPageDiff", () => {
     expect(screen.getByText("AW")).toBeInTheDocument();
   });
 
+  it("log.user null (log system tanpa user terautentikasi) -- tampilkan fallback System, tidak crash", () => {
+    // Sekarang genuinely reachable: audit log tetap tercatat dgn user_id
+    // null saat tidak ada Auth (seeder/artisan/job) -- lihat
+    // app/Traits/DataTable.php bootDataTable(). Sebelum fix ini, log.user
+    // diakses langsung tanpa null-check (log.user.name dst) -- crash.
+    usePageMock.mockReturnValue({
+      props: basePageProps({
+        log: {
+          created_at: "2026-01-01T00:00:00Z",
+          user: null,
+        },
+      }),
+    });
+
+    render(
+      <FormPageDiff title="Diff">
+        <FormPageContent value="detail" title="Detail">
+          <p>Konten</p>
+        </FormPageContent>
+      </FormPageDiff>,
+    );
+
+    expect(screen.getByText("core.form.system")).toBeInTheDocument();
+  });
+
   it("tidak merender tombol save (readOnly) -- tidak ada button[type=submit] role save", () => {
     render(
       <FormPageDiff title="Diff">

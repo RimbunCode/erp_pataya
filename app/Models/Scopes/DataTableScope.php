@@ -141,9 +141,27 @@ class DataTableScope implements Scope {
                     Cookie::make('datatable_show', (string) $show, 60 * 24 * 7, '/' . ltrim($request->path(), '/')),
                 );
             }
+            // Default shared filter (Filter Templates): resolusi lebih dulu (sebelum
+            // sort di-parse) agar sort BAWAAN filter default bisa ikut jadi default
+            // sort halaman. `fid` eksplisit SELALU menang — default hanya dipakai
+            // saat request benar-benar tanpa fid.
+            $modelClassForFilter = \get_class($query->getModel());
+            $appliedFilter       = null;
+            if ($request->filled('fid')) {
+                $candidate = SavedFilter::find($request->input('fid'));
+                if ($candidate && $candidate->model === $modelClassForFilter) {
+                    $appliedFilter = $candidate;
+                }
+            } else {
+                $appliedFilter = SavedFilter::defaultFor($modelClassForFilter)->first();
+            }
+
             // Sort — konvensi: prefix `-` = descending, tanpa prefix = ascending.
             // Parse via str_starts_with agar key ber-dash / nested tetap utuh.
-            $sort          = $request->input('sort', '-created_at');
+            // Prioritas: ?sort= eksplisit > sort bawaan filter default (Filter
+            // Templates) > default kolom sort per-model (Model::$defaultSortColumn,
+            // fallback 'created_at' kalau model tidak override).
+            $sort          = $request->input('sort') ?? $appliedFilter?->sort ?? '-' . $query->getModel()::getDefaultSortColumn();
             $sortDirection = \str_starts_with($sort, '-') ? 'desc' : 'asc';
             $sortKeyRaw    = $sortDirection === 'desc' ? \substr($sort, 1) : $sort;
             $sortKey       = $this->isTableIncluded($sortKeyRaw) ? $sortKeyRaw : "$nameOfTable.$sortKeyRaw";
@@ -219,19 +237,17 @@ class DataTableScope implements Scope {
                     'dataTableColumns' => $dataTableColumns,
                 ];
             }
-            // Filter — saved filter (nested tree) via ?fid=<id>.
+            // Filter — saved filter (nested tree) via ?fid=<id>, ATAU default
+            // shared filter (Filter Templates) saat request tanpa fid sama sekali
+            // ($appliedFilter sudah diresolusi di atas, sebelum parsing sort).
             // Akses by-id terbuka (tanpa cek owner); cocokkan model halaman.
-            if ($request->filled('fid')) {
-                $saved      = SavedFilter::find($request->input('fid'));
-                $modelClass = \get_class($query->getModel());
-                if ($saved && $saved->model === $modelClass) {
-                    (new FilterEvaluator($dataTableColumns))
-                        ->apply($query, $saved->filter ?? []);
-                    // Expand kolom relasi yang dipakai filter agar frontend dapat
-                    // me-resolve value tanpa fetch async (hilangkan kedip/lag).
-                    $dataTableColumns = (new FilterColumnResolver($dataTableColumns))
-                        ->expandColumnsForTree($saved->filter ?? []);
-                }
+            if ($appliedFilter) {
+                (new FilterEvaluator($dataTableColumns))
+                    ->apply($query, $appliedFilter->filter ?? []);
+                // Expand kolom relasi yang dipakai filter agar frontend dapat
+                // me-resolve value tanpa fetch async (hilangkan kedip/lag).
+                $dataTableColumns = (new FilterColumnResolver($dataTableColumns))
+                    ->expandColumnsForTree($appliedFilter->filter ?? []);
             }
             if ($isSubmitable) {
                 $query->where(function (Builder $query) use ($request) {
@@ -252,7 +268,11 @@ class DataTableScope implements Scope {
             }
             Inertia::share([
                 ...$data,
-                'defaultSort'      => '-created_at',
+                'defaultSort' => '-created_at',
+                // fid yang otomatis diterapkan tanpa ?fid= eksplisit (shared filter
+                // default dari Filter Templates) — null bila request punya fid
+                // sendiri atau tidak ada default utk model ini.
+                'defaultFilterId'  => ! $request->filled('fid') ? $appliedFilter?->id : null,
                 'name'             => $query->getModel()->getNameClass(),
                 'translateKey'     => $query->getModel()->translateKey ?? null,
                 'dataTableColumns' => $dataTableColumns,
