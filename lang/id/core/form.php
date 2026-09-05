@@ -131,4 +131,6 @@ return [
 
     'link_model_deleted'                   => 'Data ini sudah dihapus.',
     'link_model_deleted_reselect_required' => 'Data ini sudah dihapus. Silakan pilih ulang.',
+
+    'system' => 'Sistem',
 ];

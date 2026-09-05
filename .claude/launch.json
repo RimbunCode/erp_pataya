@@ -18,7 +18,17 @@
         "dev"
       ],
       "port": 5173
+    },
+    {
+      "name": "serve",
+      "runtimeExecutable": "php",
+      "runtimeArgs": [
+        "artisan",
+        "serve",
+        "--port=8011"
+      ],
+      "port": 8011
     }
   ],
-  "autoVerify": false
+  "autoVerify": true
 }

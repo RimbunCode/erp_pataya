@@ -58,7 +58,7 @@ return new class extends Migration
 
         Schema::table('sales_order_items', function (Blueprint $table) {
             $table->double('basic_amount_base_currency')
-                ->storedAs('IF(exchange_rate IS NULL, basic_amount, basic_amount * exchange_rate)')
+                ->storedAs('CASE WHEN exchange_rate IS NULL THEN basic_amount ELSE basic_amount * exchange_rate END')
                 ->after('amount');
         });
 
@@ -123,7 +123,7 @@ return new class extends Migration
 
         Schema::table('sales_order_items', function (Blueprint $table) {
             $table->double('basic_amount_base_currency')
-                ->storedAs('IF(exchange_rate IS NULL, basic_amount, basic_amount * exchange_rate)')
+                ->storedAs('CASE WHEN exchange_rate IS NULL THEN basic_amount ELSE basic_amount * exchange_rate END')
                 ->after('amount');
         });
 

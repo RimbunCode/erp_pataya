@@ -1,0 +1,6 @@
+{
+  "specId": "1f4f21b3-1b91-4bc8-a449-70b34fca7dc8",
+  "workflowType": "design-first",
+  "specType": "feature",
+  "description": "Ekstensi Desk: warna icon terpisah (background_color/foreground_color) menggantikan color tunggal, plus fitur CRUD custom desk lengkap (create/edit/delete dari UI) dengan percabangan permission — user biasa (desk personal single-owner) vs user berPermission Desk (kelola semua desk, opsional bagikan ke role/user via skema desk_assignables baru, migrasi DeskController ke pola Route::resourceDetail)."
+}

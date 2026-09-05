@@ -10,8 +10,9 @@ return [
     'cancel'             => 'Cancel',
 
     'columns' => [
-        'asset'           => 'Asset',
-        'maintenanceTeam' => 'Maintenance Team',
+        'asset'            => 'Asset',
+        'maintenanceTeam'  => 'Maintenance Team',
+        'maintenance_team' => 'Maintenance Team',
     ],
 
     'task' => [

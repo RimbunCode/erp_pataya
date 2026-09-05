@@ -1,6 +1,5 @@
 import {
   AlertDialog,
-  AlertDialogAction,
   AlertDialogCancel,
   AlertDialogContent,
   AlertDialogDescription,
@@ -11,6 +10,7 @@ import {
 import React, { useEffect, useState } from "react";
 import { router, usePage } from "@inertiajs/react";
 
+import { Button } from "@/Components/ui/button";
 import FormInput from "@/Components/FormInput";
 import PasswordInput from "@/Components/PasswordInput";
 import useDeleteModal from "@/Hooks/useDeleteModal";
@@ -81,9 +81,14 @@ function DeleteDialog() {
         <AlertDialogCancel onClick={closeDeleteDialog}>
           {t("core.form.leave.cancel")}
         </AlertDialogCancel>
-        <AlertDialogAction type="submit">
+        <Button
+          type="submit"
+          variant="primary"
+          size="lg"
+          className="p-2 md:size-fit"
+        >
           {t(`${translateKey}.delete.confirm`)}
-        </AlertDialogAction>
+        </Button>
       </AlertDialogFooter>
     </form>
   );

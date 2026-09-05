@@ -5,8 +5,6 @@ import { calculateArray, generateRandom } from "@/lib/utils";
 import { allocateDiscount } from "@/lib/discountAllocation";
 
 import AdditionalDiscount from "@/Pages/Finances/Components/AdditionalDiscount";
-import AssetServiceLinkModel from "@/Pages/Asset/Services/AssetServiceLinkModel";
-import AssetServiceConsumedItemLinkModel from "@/Pages/Asset/Services/AssetServiceConsumedItemLinkModel";
 import BranchLinkModel from "@/Pages/Settings/Branches/BranchLinkModel";
 import NumberInput from "@/Components/NumberInput";
 import CurrencyLinkModel from "@/Pages/Core/CurrencyLinkModel";
@@ -28,6 +26,40 @@ import WarehouseLinkModel from "@/Pages/Inventory/Warehouses/WarehouseLinkModel"
 import axios from "axios";
 import { useLaravelReactI18n } from "laravel-react-i18n";
 import { usePage } from "@inertiajs/react";
+
+const ASSET_SERVICE_CLASS = "App\\Models\\Asset\\AssetService";
+const ASSET_SERVICE_CONSUMED_ITEM_CLASS =
+  "App\\Models\\Asset\\AssetServiceConsumedItem";
+
+/**
+ * Requirement 7.1-7.4, spec asset-service-billing-reference-flow: customer
+ * billing diturunkan dari AssetService yang sudah dimuat penuh di
+ * `data.referenceable` (header dokumen, hasil create-from-source) — BUKAN
+ * lagi dari request `/model` LinkModel per-baris seperti pola lama (lihat
+ * memory reference_linkmodel_search_endpoint_constraints: batasan kedalaman
+ * `with` 2-segmen itu cuma berlaku di endpoint /model, bukan di
+ * Eloquent::load() yang dipakai controller create() untuk mengisi
+ * `data.referenceable`) — jadi path ownership_customer sekarang berlaku utk
+ * baris jasa MAUPUN baris part.
+ * @param {object|null} assetService
+ * @returns {{customer: object, customer_branch: object}|null}
+ */
+function resolveAssetServiceBillingCustomer(assetService) {
+  if (!assetService) return null;
+  if (assetService.bill_to_renter) {
+    return {
+      customer: assetService.customer,
+      customer_branch: assetService.customer_branch,
+    };
+  }
+  if (assetService.asset?.ownership_type === "customer") {
+    return {
+      customer: assetService.asset.ownership_customer,
+      customer_branch: assetService.asset.ownership_customer_branch,
+    };
+  }
+  return null;
+}
 
 export default memo(function Form() {
   const { t } = useLaravelReactI18n();
@@ -204,67 +236,99 @@ export default memo(function Form() {
     [setData],
   );
 
+  // Requirement 4.1, spec asset-service-billing-reference-flow: daftar id
+  // ItemVariant dari consumedItems milik AssetService header — dipakai utk
+  // filter kolom Item (lihat kolom "item" di bawah). Header `data.referenceable`
+  // sudah dimuat penuh lewat controller create() (Eloquent::load(), bukan
+  // /model), jadi tidak perlu request tambahan.
+  const consumedItemVariantIds =
+    data.referenceable_type === ASSET_SERVICE_CLASS
+      ? (data.referenceable?.consumed_items ?? [])
+          .map((ci) => ci.item?.id)
+          .filter(Boolean)
+      : [];
+
   const itemColumns = [
     {
       name: "item",
       titleTrans: "sales.salesOrder.columns.item",
       required: true,
       width: 3,
-      cell({ dataRow, setData, attributes }) {
+      cell({ dataRow, setData: setRowData, attributes }) {
         return (
           <ItemVariantLinkModel
             placeholder={t("sales.salesOrder.columns.item.placeholder")}
             fields={["is_stock_item"]}
+            disabled={dataRow?.assetServiceLocked}
             value={dataRow.item}
+            filters={
+              data.referenceable_type === ASSET_SERVICE_CLASS
+                ? {
+                    or: {
+                      "item.category.type": "service",
+                      id: { in: consumedItemVariantIds },
+                    },
+                  }
+                : undefined
+            }
             onValueChange={(val) => {
               const defaultUnit = val?.default_uom;
-              setData({
+              const rowPatch = {
                 item: val,
                 unit: defaultUnit,
                 conversion_factor: defaultUnit?.conversion_factor,
                 source_warehouse: data.source_warehouse,
-              });
+              };
+              // Requirement 6, spec asset-service-billing-reference-flow:
+              // auto-link baris ke AssetServiceConsumedItem (match persis via
+              // item_id) atau ke AssetService langsung (item kategori Jasa),
+              // lock Item+Quantity utk baris part (Requirement 5).
+              if (data.referenceable_type === ASSET_SERVICE_CLASS) {
+                const matched = (data.referenceable?.consumed_items ?? []).find(
+                  (ci) => ci.item?.id === val?.id,
+                );
+                if (matched) {
+                  rowPatch.referenceable = {
+                    type: ASSET_SERVICE_CONSUMED_ITEM_CLASS,
+                    id: matched.id,
+                  };
+                  rowPatch.quantity = matched.quantity;
+                  rowPatch.price = matched.valuation_rate;
+                  rowPatch.unit = matched.item_unit;
+                  rowPatch.conversion_factor =
+                    matched.item_unit?.conversion_factor;
+                  rowPatch.assetServiceLocked = true;
+                } else {
+                  rowPatch.assetServiceLocked = false;
+                  if (val?.item?.category?.type === "service") {
+                    rowPatch.referenceable = {
+                      type: ASSET_SERVICE_CLASS,
+                      id: data.referenceable_id,
+                    };
+                  }
+                }
+                // setData di sini SENGAJA pakai versi form-level (closure
+                // luar), BUKAN setRowData -- customer/customer_branch adalah
+                // field header dokumen, bukan field per-baris. WAJIB pakai
+                // bentuk fungsi (updater) -- Inertia useForm().setData(obj)
+                // dengan argumen objek MENGGANTI SELURUH data form (bukan
+                // merge), yang akan menghapus date/referenceable/items dkk.
+                const billing = resolveAssetServiceBillingCustomer(
+                  data.referenceable,
+                );
+                if (billing?.customer) {
+                  setData((prev) => ({
+                    ...prev,
+                    customer: billing.customer,
+                    customer_branch: billing.customer_branch,
+                  }));
+                }
+              }
+              setRowData(rowPatch);
             }}
             {...attributes}
-            with={["defaultUom", "item"]}
+            with={["defaultUom", "item", "item.category"]}
           />
-        );
-      },
-    },
-    {
-      name: "referenceable",
-      titleTrans: "sales.salesOrder.columns.referenceable_asset_service",
-      show: false,
-      width: 3,
-      cell({ _dataRow, data: value, setData, attributes }) {
-        // Requirement 4, spec asset-service-billing: opsional, TIDAK
-        // mempengaruhi baris ItemVariant biasa (default null/kosong).
-        const type = value?.type;
-        return (
-          <div className="flex w-full gap-x-1">
-            {type === "App\\Models\\Asset\\AssetServiceConsumedItem" ? (
-              <AssetServiceConsumedItemLinkModel
-                value={value?.id ? { id: value.id } : null}
-                onValueChange={(val) =>
-                  setData("referenceable", val ? { type, id: val.id } : null)
-                }
-                {...attributes}
-              />
-            ) : (
-              <AssetServiceLinkModel
-                value={value?.id ? { id: value.id } : null}
-                onValueChange={(val) =>
-                  setData(
-                    "referenceable",
-                    val
-                      ? { type: "App\\Models\\Asset\\AssetService", id: val.id }
-                      : null,
-                  )
-                }
-                {...attributes}
-              />
-            )}
-          </div>
         );
       },
     },
@@ -339,7 +403,7 @@ export default memo(function Form() {
         return (
           <NumberInput
             {...attributes}
-            disabled={!dataRow?.item}
+            disabled={!dataRow?.item || dataRow?.assetServiceLocked}
             readOnly={
               attributes.readOnly || (dataRow.readOnly && !dataRow.isCustom)
             }

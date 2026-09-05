@@ -42,7 +42,13 @@ export default function Show({ purchaseReceipt, defaultData, fixedAssets }) {
           );
         }
       }}
-      banner={<AssetCompletionAlert assets={fixedAssets} />}
+      banner={
+        <AssetCompletionAlert
+          assets={fixedAssets}
+          sourceDocumentType="purchase_receipt"
+          sourceDocumentId={purchaseReceipt?.id}
+        />
+      }
     >
       <Form />
     </FormPage>

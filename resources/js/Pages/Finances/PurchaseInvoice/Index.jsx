@@ -2,24 +2,24 @@ import DataTable2 from "@/Pages/Core/DataTable2";
 import Form from "./Form";
 import Link from "@/Components/Link";
 import React from "react";
-import { useLaravelReactI18n } from "laravel-react-i18n";
 
 export default function Index() {
   const route = window.route;
-  const { t } = useLaravelReactI18n();
   return (
     <DataTable2
       templateItem={({ dataRow }) => (
         <div className="flex items-center justify-between p-4 border-b gap-x-4 border-muted-foreground/25">
           <Link
             as="button"
-            href={route("purchaseInvoice.show", dataRow.id)}
+            href={route("purchaseInvoices.show", dataRow.id)}
             className=""
           >
-            <p className="text-base font-medium text-left text-muted-foreground">
-              {t(`finance.purchaseInvoice.types.${dataRow.type}`)}
-            </p>
-            <p className="text-base font-medium text-left">{dataRow.name}</p>
+            <p className="text-base font-medium text-left">{dataRow.code}</p>
+            {dataRow.supplier_name && (
+              <p className="text-sm text-left text-muted-foreground">
+                {dataRow.supplier_name}
+              </p>
+            )}
           </Link>
         </div>
       )}

@@ -11,8 +11,9 @@ return [
 
     'sell_not_implemented'                   => 'Jual Aset belum tersedia, akan diimplementasikan pada Fase 4.',
     'cannot_cancel'                          => 'Aset tidak dapat dibatalkan.',
-    'cannot_submit_incomplete'               => 'Aset tidak dapat diajukan karena kategori atau lokasi belum diisi. Lengkapi data terlebih dahulu.',
+    'cannot_submit_incomplete'               => 'Aset tidak dapat diajukan karena :fields belum diisi. Lengkapi data terlebih dahulu.',
     'cannot_complete_after_submit'           => 'Data aset tidak dapat dilengkapi setelah aset diajukan.',
+    'source_document_mismatch'               => 'Aset ini bukan berasal dari dokumen yang sedang dibuka.',
     'complete_data_title'                    => 'Lengkapi Data Aset',
     'complete_data_description'              => 'Pilih kategori dan lokasi untuk aset ini. Data wajib diisi sebelum aset dapat diajukan.',
     'split_mode_single'                      => 'Jadikan Satu Aset',
@@ -55,6 +56,8 @@ return [
         'code'               => 'Kode',
         'asset_category_id'  => 'Kategori Aset',
         'asset_location_id'  => 'Lokasi Aset',
+        'asset_category'     => 'Kategori Aset',
+        'asset_location'     => 'Lokasi Aset',
         'asset_type'         => 'Tipe Aset',
         'asset_type.options' => [
             'existing_asset'      => 'Aset Existing',

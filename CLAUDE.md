@@ -78,6 +78,18 @@ File-file yang berhubungan (mis. Event dan Listener pasangannya, atau Job dan Se
 
 `Services`, `Models`, dan `Controllers` per-model saat ini semuanya flat — BUKAN berarti prinsipnya tidak berlaku di situ, tapi karena satu model secara alami hanya butuh satu Controller/Service/Model, tidak ada dorongan untuk pecah jadi banyak file. Kalau ada model/fitur yang Controller atau Service-nya diprediksi perlu dipecah (mis. logic terlalu besar, butuh helper class terpisah), nested Feature berlaku sama.
 
+## Testing Frontend (Vitest)
+
+Detail lengkap: [`docs/frontend.md#testing`](docs/frontend.md#testing). Ringkasan aturan wajib saat menulis test FE baru:
+
+- **Co-located** dengan source, bukan folder `__tests__`. Tiga jenis test, urutan prioritas:
+  1. **Unit test fungsi murni** (`.test.js`, environment `node`) — **paling diutamakan**, pakai kalau logic bisa diuji tanpa render.
+  2. **Component test React Testing Library** (`.rtl.test.jsx`, environment `jsdom`) — **rekomendasi default untuk komponen UI baru** dengan interaksi user (form, input, tombol). Render sungguhan + `@testing-library/user-event` + `screen.getByRole()`.
+  3. **Source-assertion test** (`readFileSync` + regex `toMatch`) — **hindari untuk komponen baru**, hanya kalau behavior genuinely sulit di-render (mis. GrapesJS canvas). Rapuh terhadap refactor (rename variabel/reorder — regex ketinggalan zaman tanpa behavior berubah).
+- **Naming `.rtl.test.jsx` wajib** untuk test yang me-render komponen — `vitest.config.js` pakai `test.projects` (bukan `environmentMatchGlobs`, sudah dihapus di Vitest v4) untuk assign `jsdom` berdasar suffix ini. Lupa suffix → jalan di project `unit` (`node`) → gagal `document is not defined`.
+- **Property-based test (`fast-check`)**: precondition `fc.pre(...)`/`.filter()` pada generator **harus selaras persis** dengan validasi source (bukan sekadar mirip) — contoh nyata: source pakai `Boolean(value.trim())`, precondition `fc.pre(Boolean(value))` saja meloloskan string whitespace-only yang seharusnya ditolak, dan random seed fast-check membuat bug ini nyaris tidak pernah ketahuan.
+- CI (`.github/workflows/tests.yml`) menjalankan `npm run test` tanpa `continue-on-error` — test FE gagal = CI merah.
+
 <laravel-boost-guidelines>
 === foundation rules ===
 
@@ -119,6 +131,8 @@ This project has domain-specific skills available. You MUST activate the relevan
 - `laravel-best-practices` — Apply this skill whenever writing, reviewing, or refactoring Laravel PHP code. This includes creating or modifying controllers, models, migrations, form requests, policies, jobs, scheduled commands, service classes, and Eloquent queries. Triggers for N+1 and query performance issues, caching strategies, authorization and security patterns, validation, error handling, queue and job configuration, route definitions, and architectural decisions. Also use for Laravel code reviews and refactoring existing Laravel code to follow best practices. Covers any task involving Laravel backend PHP code patterns.
 - `socialite-development` — Manages OAuth social authentication with Laravel Socialite. Activate when adding social login providers; configuring OAuth redirect/callback flows; retrieving authenticated user details; customizing scopes or parameters; setting up community providers; testing with Socialite fakes; or when the user mentions social login, OAuth, Socialite, or third-party authentication.
 - `inertia-react-development` — Develops Inertia.js v2 React client-side applications. Activates when creating React pages, forms, or navigation; using <Link>, <Form>, useForm, or router; working with deferred props, prefetching, or polling; or when user mentions React with Inertia, React pages, React forms, or React navigation.
+- `echo-react-development` — Develops real-time broadcasting in React applications with Laravel Echo. Activates when configuring Echo in React (configureEcho); using hooks (useEcho, useEchoPublic, useEchoPresence, useEchoModel, useEchoNotification, useConnectionStatus); listening for broadcast events in React components; implementing client events (whisper) in React; or when the user mentions Echo with React, real-time React hooks, or broadcasting in React components.
+- `echo-development` — Develops real-time broadcasting with Laravel Echo. Activates when setting up broadcasting (Reverb, Pusher, Ably); creating ShouldBroadcast events; defining broadcast channels (public, private, presence, encrypted); authorizing channels; configuring Echo; listening for events; implementing client events (whisper); setting up model broadcasting; broadcasting notifications; or when the user mentions broadcasting, Echo, WebSockets, real-time events, Reverb, or presence channels.
 - `tailwindcss-development` — Always invoke when the user's message includes 'tailwind' in any form. Also invoke for: building responsive grid layouts (multi-column card grids, product grids), flex/grid page structures (dashboards with sidebars, fixed topbars, mobile-toggle navs), styling UI components (cards, tables, navbars, pricing sections, forms, inputs, badges), adding dark mode variants, fixing spacing or typography, and Tailwind v3/v4 work. The core use case: writing or fixing Tailwind utility classes in HTML templates (Blade, JSX, Vue). Skip for backend PHP logic, database queries, API routes, JavaScript with no HTML/CSS component, CSS file audits, build tool configuration, and vanilla CSS.
 
 ## Conventions

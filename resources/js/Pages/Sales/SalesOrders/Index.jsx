@@ -16,10 +16,17 @@ export default function Index() {
             href={route("salesOrders.show", dataRow.id)}
             className=""
           >
-            <p className="text-base font-medium text-left text-muted-foreground">
-              {t(`sales.salesOrders.types.${dataRow.type}`)}
-            </p>
-            <p className="text-base font-medium text-left">{dataRow.name}</p>
+            <p className="text-base font-medium text-left">{dataRow.code}</p>
+            {dataRow.customer_name && (
+              <p className="text-sm text-left text-muted-foreground">
+                {dataRow.customer_name}
+              </p>
+            )}
+            {dataRow.is_rent && (
+              <p className="text-sm text-left text-muted-foreground">
+                {t("sales.salesOrder.columns.is_rent")}
+              </p>
+            )}
           </Link>
         </div>
       )}

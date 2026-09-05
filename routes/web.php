@@ -12,14 +12,17 @@ use App\Http\Controllers\Core\ApprovalInstanceController;
 use App\Http\Controllers\Core\ApprovalSchemeController;
 use App\Http\Controllers\Core\BranchController;
 use App\Http\Controllers\Core\ChangelogController;
+use App\Http\Controllers\Core\ChartController;
 use App\Http\Controllers\Core\CommandSearchController;
 use App\Http\Controllers\Core\CompanyController;
 use App\Http\Controllers\Core\CompanyLogoController;
 use App\Http\Controllers\Core\CountryController;
 use App\Http\Controllers\Core\CurrencyController;
 use App\Http\Controllers\Core\DashboardController;
+use App\Http\Controllers\Core\DeskController;
 use App\Http\Controllers\Core\EmailTemplateController;
 use App\Http\Controllers\Core\FileController;
+use App\Http\Controllers\Core\FilterTemplateController;
 use App\Http\Controllers\Core\FormatingSeriesController;
 use App\Http\Controllers\Core\GlPostingStatusController;
 use App\Http\Controllers\Core\HtmlSanitizeController;
@@ -27,11 +30,11 @@ use App\Http\Controllers\Core\LanguageController;
 use App\Http\Controllers\Core\LogController;
 use App\Http\Controllers\Core\ManualBookController;
 use App\Http\Controllers\Core\NotificationController;
+use App\Http\Controllers\Core\NumberCardController;
 use App\Http\Controllers\Core\PrintTemplateController;
 use App\Http\Controllers\Core\SavedFilterController;
 use App\Http\Controllers\Core\TagController;
 use App\Http\Controllers\Core\TodoController;
-use App\Http\Controllers\Core\WidgetController;
 use App\Http\Controllers\CRM\LeadController;
 use App\Http\Controllers\CRM\OpportunityController;
 use App\Http\Controllers\CRM\QuotationController;
@@ -174,7 +177,7 @@ Route::delete('/commands/recent', [CommandSearchController::class, 'remove'])
     ->withoutMiddleware([HandleInertiaRequests::class])
     ->name('commands.recent.remove');
 
-Route::middleware(['auth', 'lang', 'onboarded', 'app'])->group(function () {
+Route::middleware(['auth', 'lang', 'onboarded', 'app', 'desk'])->group(function () {
     if (config('app.debug')) {
         Route::get('/test/link-model', function () {
             return Inertia::render('Test/LinkModelTest');
@@ -203,16 +206,28 @@ Route::middleware(['auth', 'lang', 'onboarded', 'app'])->group(function () {
     Route::post('/gl-posting-statuses/{glPostingStatus}/retry', [GlPostingStatusController::class, 'retry'])->name('gl-posting-statuses.retry');
     // Branch Switcher
     Route::put('/switch_branch/{id}', [BranchController::class, 'switch'])->name('branch.switch');
-    // Dashboard
-    Route::get('dashboard-view', [DashboardController::class, 'view'])->name('dashboard');
-    Route::post('dashboard-update', [DashboardController::class, 'storeUserDashboard'])->name('dashboardForms.store');
-    Route::post('dashboard-widget-order/{dashboard}', [DashboardController::class, 'reorderWidgets'])->name('dashboard.widgets.reorder');
-    Route::post('get-chart/{widget}', [WidgetController::class, 'getChartData'])->name('get-chart');
+    // Desk
+    Route::resourceDetail('desk', DeskController::class);
+    Route::post('/desk/switch', [DeskController::class, 'switch'])->name('desk.switch');
+    Route::post('/desk/{desk}/default', [DeskController::class, 'setDefault'])->name('desk.setDefault');
+    Route::post('/desk/reorder', [DeskController::class, 'reorder'])->name('desk.reorder');
+    // desk-dashboard-builder: route "dashboard" (name existing, dipakai luas
+    // — Welcome.jsx, SetupUserController, DeskController::switch()) sekarang
+    // MERUPAKAN Desk Home (1 Desk = 1 Dashboard via resolveDashboard()),
+    // menggantikan total mekanisme lama union-banyak-dashboard-per-user
+    // (user_dashboards, storeUserDashboard, reorderWidgets — dihapus).
+    Route::get('dashboard-view', [DeskController::class, 'home'])->name('dashboard');
+    Route::post('dashboard-view/widgets', [DeskController::class, 'updateDashboardWidgets'])->name('dashboard.widgets.update');
+    Route::post('number-cards/{numberCard}/value', [NumberCardController::class, 'getValue'])->name('numberCards.getValue');
+    Route::post('charts/{chart}/data', [ChartController::class, 'getData'])->name('charts.getData');
+    // desk-dashboard-builder: block quick_list — query generik N-dokumen-terbaru (Requirement 2.7)
+    // Feedback user: model class di BODY (bukan URL segment) — POST body adalah
+    // tempat semestinya utk data request, tanpa perlu whitelist regex `.*` utk
+    // menampung backslash namespace PHP.
+    Route::post('dashboard/quick-list', [DashboardController::class, 'quickList'])
+        ->name('dashboard.quickList');
     // Settings
     Route::prefix('/settings')->group(function () {
-        // Dashboard
-        Route::resourceDetail('dashboard', DashboardController::class);
-
         // Company
         Route::controller(CompanyController::class)->group(function () {
             Route::get('company', 'index')->name('companies.index');
@@ -236,7 +251,13 @@ Route::middleware(['auth', 'lang', 'onboarded', 'app'])->group(function () {
         Route::get('/emailTemplates/fields', [EmailTemplateController::class, 'fields'])->name('emailTemplates.fields');
         Route::resourceDetail('emailTemplate', EmailTemplateController::class);
         Route::post('/emailTemplates/{emailTemplate}/test-send', [EmailTemplateController::class, 'testSend'])->name('emailTemplates.testSend');
-        Route::resourceDetail('widget', WidgetController::class);
+
+        Route::resourceDetail('filterTemplate', FilterTemplateController::class);
+        Route::post('/filterTemplates/{filterTemplate}/setDefault', [FilterTemplateController::class, 'setDefault'])->name('filterTemplates.setDefault');
+        Route::post('/filterTemplates/preview', [FilterTemplateController::class, 'preview'])->name('filterTemplates.preview');
+
+        Route::resourceDetail('numberCard', NumberCardController::class);
+        Route::resourceDetail('chart', ChartController::class);
     });
     // Tags
     Route::resourceDetail('tag', TagController::class);

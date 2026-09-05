@@ -32,11 +32,11 @@ return new class extends Migration
             $table->foreign('base_currency_code')->references('code')->on('currencies')->nullOnDelete();
             $table->double('exchange_rate')->nullable();
             $table->double('price')->default(0);
-            $table->double('price_base_currency')->storedAs('IF(exchange_rate IS NULL, price, price * exchange_rate)');
+            $table->double('price_base_currency')->storedAs('CASE WHEN exchange_rate IS NULL THEN price ELSE price * exchange_rate END');
             $table->double('basic_amount')->storedAs('quantity * price');
             $table->double('tax_amount')->storedAs('basic_amount * tax_rate / 100');
             $table->double('amount')->storedAs('basic_amount + tax_amount');
-            $table->double('basic_amount_base_currency')->storedAs('IF(exchange_rate IS NULL, basic_amount, basic_amount * exchange_rate)');
+            $table->double('basic_amount_base_currency')->storedAs('CASE WHEN exchange_rate IS NULL THEN basic_amount ELSE basic_amount * exchange_rate END');
             $table->double('tax_amount_base_currency')->storedAs('basic_amount_base_currency * tax_rate / 100');
             $table->double('amount_base_currency')->storedAs('basic_amount_base_currency + tax_amount_base_currency');
             $table->softDeletes();

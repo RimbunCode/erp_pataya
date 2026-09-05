@@ -6,6 +6,7 @@ use App\Models\Asset\AssetService;
 use App\Models\Asset\AssetServiceConsumedItem;
 use App\Models\Inventory\Item;
 use App\Models\Inventory\ItemUnit;
+use App\Models\Inventory\ItemVariant;
 use App\Models\Inventory\Unit;
 use App\Services\Asset\AssetServiceService;
 use Illuminate\Foundation\Testing\RefreshDatabase;
@@ -20,9 +21,15 @@ class AssetServiceServiceConsumedItemUnitTest extends TestCase {
         AssetService::initPermissions();
     }
 
+    /**
+     * Requirement 4.5, spec asset-service-billing: FE kirim ItemVariant
+     * (bukan Item langsung) sejak AssetServiceConsumedItem.item_id direwire
+     * ke ItemVariant — lihat Asset/Services/Form.jsx.
+     */
     private function makeItemWithUnit(): array {
-        $item = Item::factory()->create();
-        $unit = Unit::create([
+        $item        = Item::factory()->create();
+        $itemVariant = ItemVariant::factory()->create(['item_id' => $item->id]);
+        $unit        = Unit::create([
             'code'              => 'U-' . fake()->unique()->numerify('#####'),
             'name'              => 'Test Unit',
             'conversion_factor' => 1,
@@ -35,7 +42,7 @@ class AssetServiceServiceConsumedItemUnitTest extends TestCase {
             'is_default'        => true,
         ]);
 
-        return [$item, $itemUnit];
+        return [$itemVariant, $itemUnit];
     }
 
     #[Test]

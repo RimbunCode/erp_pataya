@@ -56,5 +56,7 @@ return [
     'actions' => [
         'create_pr' => 'Buat Purchase Request',
         'create_po' => 'Buat Purchase Order',
+        'create_so' => 'Buat Sales Order',
+        'create_io' => 'Buat Internal Order',
     ],
 ];

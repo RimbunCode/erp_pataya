@@ -25,6 +25,7 @@ return [
         'created_at'                   => 'Created at',
         'external_note'                => 'External Note',
         'referenceable_asset_service'  => 'Asset Service (optional)',
+        'reference_to'                 => 'Reference To',
     ],
     'actions' => [
         'create_delivery_note' => 'Create Delivery Note',

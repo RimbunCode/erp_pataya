@@ -59,6 +59,38 @@ export default function Show({ assetService, defaultData }) {
                 </Link>
               </Button>
             )}
+            {canGlobal("App\\Models\\Sales\\SalesOrder", "create") && (
+              <Button
+                type="button"
+                className="p-2! size-fit h-8"
+                variant="secondary"
+                asChild
+              >
+                <Link
+                  href={route("salesOrders.create", {
+                    ref: `assetService/${assetService.id}`,
+                  })}
+                >
+                  {t("asset.service.actions.create_so")}
+                </Link>
+              </Button>
+            )}
+            {canGlobal("App\\Models\\Sales\\InternalOrder", "create") && (
+              <Button
+                type="button"
+                className="p-2! size-fit h-8"
+                variant="secondary"
+                asChild
+              >
+                <Link
+                  href={route("internalOrders.create", {
+                    ref: `assetService/${assetService.id}`,
+                  })}
+                >
+                  {t("asset.service.actions.create_io")}
+                </Link>
+              </Button>
+            )}
           </>
         );
       }}

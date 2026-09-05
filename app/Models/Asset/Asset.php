@@ -86,6 +86,19 @@ class Asset extends Model {
             'show'  => true,
             'order' => 5,
         ],
+        /**
+         * Requirement 7.1/7.2, spec asset-service-billing: dibutuhkan lewat
+         * prop `with` LinkModel (AssetServiceLinkModel) saat resolve customer
+         * billing dari Asset.ownership_type=customer.
+         */
+        'ownershipCustomer' => [
+            'type'   => 'relation',
+            'hidden' => true,
+        ],
+        'ownershipCustomerBranch' => [
+            'type'   => 'relation',
+            'hidden' => true,
+        ],
     ];
 
     protected static function loadRelationsOnShow() {

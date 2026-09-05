@@ -19,6 +19,7 @@ return [
     'rent'                       => 'Rent',
     'referenceable_not_approved' => 'This line references an AssetService/AssetServiceConsumedItem that is not yet approved.',
     'referenceable_already_used' => 'This consumed item is already referenced by another Sales Order line.',
+    'source_warehouse_required'  => 'Source Warehouse is required for stock items.',
     'actions'                    => [
         'create_sales_invoice' => 'Create Sales Invoice',
         'create_delivery_note' => 'Create Delivery Note',

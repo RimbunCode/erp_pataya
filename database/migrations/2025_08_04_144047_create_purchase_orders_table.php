@@ -26,7 +26,7 @@ return new class extends Migration
             $table->string('discount_on')->nullable();
             $table->double('discount_rate')->default(0);
             $table->double('discount_amount')->default(0);
-            $table->double('discount_amount_base_currency')->storedAs('IF(exchange_rate IS NULL, discount_amount, discount_amount * exchange_rate)');
+            $table->double('discount_amount_base_currency')->storedAs('CASE WHEN exchange_rate IS NULL THEN discount_amount ELSE discount_amount * exchange_rate END');
             $table->text('external_note')->nullable();
             $table->timestamps();
             $table->softDeletes();

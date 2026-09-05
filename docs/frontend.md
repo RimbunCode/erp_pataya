@@ -59,6 +59,11 @@
 - [Inertia Shared Props](#inertia-shared-props)
 - [i18n](#i18n-laravel-react-i18n)
 - [Ziggy Routes](#ziggy-routes)
+- [Testing](#testing)
+  - [Konvensi Lokasi & Command](#konvensi-lokasi--command)
+  - [Tiga Jenis Test FE](#tiga-jenis-test-fe)
+  - [Property-Based Testing (fast-check)](#property-based-testing-fast-check)
+  - [CI Gate](#ci-gate)
 
 ---
 
@@ -902,6 +907,167 @@ router.put(route("salesOrders.submit", id));
 ```
 
 Semua nama route: [Referensi Route](routes.md).
+
+---
+
+## Testing
+
+Test frontend **co-located** dengan source-nya — bukan folder `__tests__` terpisah. Contoh: `resources/js/Components/EmailChipInput.jsx` + `resources/js/Components/EmailChipInput.rtl.test.jsx` di folder yang sama.
+
+### Konvensi Lokasi & Command
+
+| Command | Kegunaan |
+|---|---|
+| `npm run test` | Jalankan semua test sekali (dipakai [CI](#ci-gate)) |
+| `npm run test:watch` | Mode watch untuk dev lokal |
+
+**Config:** `vitest.config.js` di root project, memakai `test.projects` (bukan `environmentMatchGlobs` — opsi itu sudah dihapus di Vitest v4). Ada 3 project:
+
+| Project | Environment | Include pattern | setupFiles |
+|---|---|---|---|
+| `unit` | `node` | `resources/js/**/*.test.{js,ts}` (exclude `*.dom.test.js`) | — |
+| `dom` | `jsdom` | `resources/js/**/*.dom.test.js` | — |
+| `component` | `jsdom` | `resources/js/**/*.rtl.test.{jsx,tsx}` | `./resources/js/test-setup.js` |
+
+Alias `@/...` → `resources/js` berlaku di semua project (lewat `extends: true`).
+
+> ⚠️ **Naming menentukan environment.** File `*.test.js`/`*.test.ts` biasa dijalankan di project `unit` (environment `node` — tidak ada `window`/`document`). File yang butuh browser API (`window.location`, `matchMedia`, `localStorage`, dll) **tapi tidak me-render komponen React** wajib disuffix `.dom.test.js` agar masuk project `dom` (jsdom). File yang me-*render* komponen React **wajib** disuffix `.rtl.test.jsx` agar masuk project `component` (jsdom). Lupa suffix → test gagal dengan `window`/`document is not defined`.
+>
+> **Gotcha `localStorage` di jsdom:** pada kombinasi Vitest 4.1.7 + Node 22+ di lingkungan ini, `localStorage` global (baik bare maupun `window.localStorage`) tidak selalu ter-bridge dengan bersih dari jsdom ke global scope — Node punya lazy getter `localStorage` sendiri yang bisa menabrak polyfill jsdom (`ExperimentalWarning: localStorage is not available because --localstorage-file was not provided`). Jangan gantungkan test pada `localStorage` bawaan jsdom; mock manual dengan `vi.stubGlobal("localStorage", <in-memory store>)` di `beforeEach`, lalu `vi.unstubAllGlobals()` di `afterEach`. Lihat contoh di [`resources/js/Hooks/useTheme.dom.test.js`](../resources/js/Hooks/useTheme.dom.test.js).
+
+### Tiga Jenis Test FE
+
+Codebase ini punya tiga pola test frontend. Pahami kapan masing-masing dipakai — jangan asal pilih pola yang familiar.
+
+#### a) Unit test fungsi murni
+
+Panggil function langsung, tanpa DOM. **Ini jenis yang PALING DIUTAMAKAN** — paling cepat dan paling stabil.
+
+Contoh: [`resources/js/Components/NumberInput/index.test.js`](../resources/js/Components/NumberInput/index.test.js) (test `parseNumberFormat`, `formatNumber`, dll), [`resources/js/Pages/Core/PrintTemplate/utils/customModeUtils.property.test.js`](../resources/js/Pages/Core/PrintTemplate/utils/customModeUtils.property.test.js).
+
+Pakai jenis ini kalau logic bisa diuji sebagai fungsi murni tanpa render apa pun.
+
+```js
+// resources/js/Components/NumberInput/index.test.js (pola)
+import { describe, it, expect } from "vitest";
+import { formatNumber } from "./formatNumber";
+
+describe("formatNumber", () => {
+  it("format ribuan dengan 2 desimal", () => {
+    expect(formatNumber(1234567.5, { decimalScale: 2 })).toBe("1,234,567.50");
+  });
+});
+```
+
+#### b) Source-assertion test (regex baca source sebagai string)
+
+Pola: `readFileSync` file `.jsx`/`.js` lalu `expect(source).toMatch(/regex/)` untuk verifikasi **pola kode** tertentu ada (misal: komponen tertentu dirender kondisional, konstanta terdaftar di tempat yang benar).
+
+Contoh: [`resources/js/Pages/Core/PrintTemplate/Editor.gridCssFix.test.js`](../resources/js/Pages/Core/PrintTemplate/Editor.gridCssFix.test.js), [`resources/js/Pages/Core/PrintTemplate/Components/CustomMode.sidebar.drop.unit.test.js`](../resources/js/Pages/Core/PrintTemplate/Components/CustomMode.sidebar.drop.unit.test.js).
+
+```js
+// Editor.gridCssFix.test.js (pola)
+import { readFileSync } from "node:fs";
+const variableDropSource = readFileSync(variableDropUtilsPath, "utf8");
+
+it("registers grid and subGrid component classes in variableDropUtils", () => {
+  expect(variableDropSource).toMatch(/classes:\s*\[GRID_CLASS\]/);
+});
+```
+
+> ⚠️ **RAPUH — pakai hanya kalau kepepet.** Kalau source di-refactor (ganti nama variabel, ubah urutan properti objek, ubah struktur kondisional) **tanpa** update regex, test gagal walau behavior tetap benar. Baru saja ditemukan 4 test gagal persis karena ini — source sudah lebih maju dari regex test yang ketinggalan.
+>
+> Rekomendasi: pakai jenis ini **hanya** kalau behavior-nya genuinely sulit diuji lewat render (misal: verifikasi struktur editor plugin GrapesJS yang butuh full canvas). Untuk kasus lain, **prefer render test asli** (poin c) — ini pola yang direkomendasikan menggantikan source-assertion test lama.
+
+#### c) Component test (React Testing Library)
+
+Jenis **BARU** ditambahkan — render komponen React sungguhan ke jsdom, simulasi interaksi user asli (klik, ketik, keyboard) pakai `@testing-library/user-event`, assert lewat `screen.getByRole()` dll (query by accessible role/text, **bukan** CSS selector).
+
+Contoh lengkap: [`resources/js/Components/EmailChipInput.rtl.test.jsx`](../resources/js/Components/EmailChipInput.rtl.test.jsx).
+
+```jsx
+import { describe, expect, it, vi } from "vitest";
+import { render, screen } from "@testing-library/react";
+import userEvent from "@testing-library/user-event";
+
+import EmailChipInput from "./EmailChipInput";
+
+describe("EmailChipInput", () => {
+  it("menambahkan chip saat Enter ditekan pada email valid", async () => {
+    const user = userEvent.setup();
+    const onValueChange = vi.fn();
+
+    render(<EmailChipInput value={[]} onValueChange={onValueChange} />);
+
+    await user.type(screen.getByRole("textbox"), "customer@example.com{Enter}");
+
+    expect(onValueChange).toHaveBeenCalledWith(["customer@example.com"]);
+  });
+});
+```
+
+**Naming convention wajib:** suffix `.rtl.test.jsx` (bukan `.test.jsx` biasa) — ini yang membuat `vitest.config.js` otomatis assign environment `jsdom` lewat project `component`. Lupa suffix → file otomatis coba jalan di project `unit` dengan environment `node` dan gagal (`document` undefined).
+
+Pakai jenis ini untuk komponen dengan interaksi user nyata (form, input, tombol, dsb) — **pola yang paling direkomendasikan untuk komponen UI baru** ke depan, menggantikan source-assertion test lama.
+
+**Dependency baru** (devDependencies): `@testing-library/react`, `@testing-library/jest-dom`, `@testing-library/user-event`, `jsdom`.
+
+**Ringkasan jenis-jenis test:**
+
+| Jenis | Suffix file | Environment | Kapan dipakai |
+|---|---|---|---|
+| Unit fungsi murni | `.test.js` | `node` | Logic bisa diuji sebagai fungsi murni, tanpa `window`/`document` — **prioritas utama** |
+| Unit butuh browser API | `.dom.test.js` | `jsdom` | Fungsi/hook pakai `window`, `matchMedia`, `localStorage`, dll tapi tidak me-render komponen React (mis. `lib/utils.js`, hook `use-mobile.jsx`) |
+| Source-assertion | `.test.js` | `node` | Hanya kalau behavior genuinely sulit di-render (mis. GrapesJS canvas) — **hindari untuk komponen baru** |
+| Component (RTL) | `.rtl.test.jsx` | `jsdom` | Komponen dengan interaksi user nyata — **rekomendasi default untuk UI baru** |
+
+### Property-Based Testing (fast-check)
+
+Beberapa test pakai [`fast-check`](https://github.com/dubzzz/fast-check) (`fc.assert` + `fc.property`) untuk generate ratusan kombinasi input acak — cocok untuk validasi function dengan banyak edge case.
+
+Contoh: [`resources/js/Pages/Core/PrintTemplate/utils/customModeUtils.property.test.js`](../resources/js/Pages/Core/PrintTemplate/utils/customModeUtils.property.test.js), [`resources/js/Pages/Core/PrintTemplate/utils/variableTokenUtils.labelResolution.property.test.js`](../resources/js/Pages/Core/PrintTemplate/utils/variableTokenUtils.labelResolution.property.test.js).
+
+```js
+import { describe, it } from "vitest";
+import * as fc from "fast-check";
+
+it("properti X selalu benar untuk semua kombinasi input", () => {
+  fc.assert(
+    fc.property(fc.string(), fc.integer(), (str, num) => {
+      // assertion di sini harus jalan untuk RATUSAN kombinasi random
+    }),
+  );
+});
+```
+
+> ⚠️ **ATURAN WAJIB:** precondition `fc.pre(...)` (atau `.filter()` pada generator) **harus selaras persis** dengan validasi yang dipakai source code — bukan sekadar mirip.
+>
+> **Kasus nyata (bug yang sudah diperbaiki):** source pakai `Boolean(value.trim())` untuk menganggap string valid (whitespace-only dianggap kosong — lihat pola serupa di `variableTokenUtils.js`, misal `col.title.trim()`), tapi test lama pakai precondition `fc.pre(Boolean(value))`. String `" "` (spasi) lolos precondition test tapi ditolak oleh source, sehingga expected value test menyimpang dari actual behavior.
+>
+> Test ini **sempat lolos di sebagian besar run** karena fast-check pakai random seed berbeda tiap eksekusi — whitespace-only string jarang di-generate — sehingga bug ini nyaris tidak pernah ketahuan lewat testing manual biasa.
+>
+> **Fix:** generator string harus di-`.filter()` (atau `fc.pre()`) dengan kondisi **PERSIS SAMA** seperti validasi source, bukan sekadar `Boolean(x)`:
+>
+> ```js
+> // ❌ SALAH — tidak selaras dengan source Boolean(value.trim())
+> fc.pre(Boolean(value));
+>
+> // ✅ BENAR — persis sama dengan validasi source
+> const validStringArb = fc.string().filter((s) => Boolean(s.trim()));
+> ```
+
+### CI Gate
+
+File [`.github/workflows/tests.yml`](../.github/workflows/tests.yml) menjalankan 2 job **paralel** setiap push (kecuali branch `production`) dan setiap pull request:
+
+| Job | Setup | Command |
+|---|---|---|
+| `backend` | PHP 8.4, `composer install` | `php artisan test --compact` (PHPUnit, DB sqlite in-memory dari `phpunit.xml`) |
+| `frontend` | Node (versi dari `.nvmrc`), `npm ci` | `npm run test` (Vitest, kedua project `unit` + `component`) |
+
+Tidak ada `continue-on-error` — kalau ada test gagal, CI merah, PR seharusnya tidak di-merge sampai fix.
+
+> Terpisah dari [`.github/workflows/lint.yml`](../.github/workflows/lint.yml) (format/lint auto-commit via Pint + ESLint, `continue-on-error: true` — beda tujuan, bukan gate).
 
 ---
 

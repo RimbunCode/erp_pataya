@@ -48,18 +48,25 @@ export const convertColWidth = (colWidth) => {
     return "minmax(0px, 1fr)";
   }
 };
-export const createHeaders = (headers) => {
+export const createHeaders = (headers, columnRefs) => {
   const columnsMap = new Map(
-    headers.map((col) => [
-      col.name,
-      {
-        ...col,
-        sort: null,
-        show: col.show ?? true,
-        ref: useRef(),
-        size: convertColWidth(col.width),
-      },
-    ]),
+    headers.map((col) => {
+      let ref = columnRefs.current.get(col.name);
+      if (!ref) {
+        ref = { current: null };
+        columnRefs.current.set(col.name, ref);
+      }
+      return [
+        col.name,
+        {
+          ...col,
+          sort: null,
+          show: col.show ?? true,
+          ref,
+          size: convertColWidth(col.width),
+        },
+      ];
+    }),
   );
 
   let finalColumns = [];
@@ -90,7 +97,7 @@ function Table({
   columns: headers,
   freezeColumn = 0,
   onOptionsChanged,
-  options: initialOptions = {},
+  options: initialOptions,
   data: initialData = [],
   setSort,
   resetSorting,
@@ -126,7 +133,10 @@ function Table({
   const [tableHeight, setTableHeight] = useState("auto");
   const [activeIndex, setActiveIndex] = useState(null);
   const tableElement = useRef(null);
-  const [columns, setColumns] = useState(createHeaders(headers));
+  const columnRefs = useRef(new Map());
+  const [columns, setColumns] = useState(() =>
+    createHeaders(headers, columnRefs),
+  );
   const [openColumnsFilter, setOpenColumnsFilter] = useState(false);
   const sensors = useSensors(
     useSensor(MouseSensor, {

@@ -19,6 +19,7 @@ return [
     'rent'                       => 'Sewa',
     'referenceable_not_approved' => 'Baris ini merujuk ke AssetService/AssetServiceConsumedItem yang belum disetujui.',
     'referenceable_already_used' => 'Consumed item ini sudah dirujuk oleh baris Sales Order lain.',
+    'source_warehouse_required'  => 'Gudang Asal wajib diisi untuk item stock.',
     'actions'                    => [
         'create_sales_invoice' => 'Buat Sales Invoice',
         'create_delivery_note' => 'Buat Delivery Note',

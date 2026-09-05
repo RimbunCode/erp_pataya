@@ -19,6 +19,30 @@ class ItemUomBackendSyncTest extends TestCase {
         Schema::dropIfExists('items');
         Schema::dropIfExists('units');
 
+        // RecordAuditLog listener mencatat audit log utk SEMUA model
+        // created/updated tanpa syarat user terautentikasi -- Unit::create()
+        // (via createUnit() helper di bawah) memicunya. Stub tabel `logs`
+        // kalau belum ada (test ini tidak pakai RefreshDatabase, dan TIDAK
+        // di-drop+recreate spt tabel lain di atas krn `logs` dipakai bersama
+        // test lain dalam :memory: yang sama). Skema identik migration
+        // create_logs_table + add_action_to_logs_table.
+        if (! Schema::hasTable('logs')) {
+            Schema::create('logs', function (Blueprint $table) {
+                $table->ulid('id')->primary();
+                $table->longText('activity');
+                $table->json('comment_json')->nullable();
+                $table->text('notes')->nullable();
+                $table->string('type')->default('log');
+                $table->string('action')->nullable();
+                $table->json('data_before')->nullable();
+                $table->json('data_after')->nullable();
+                $table->ulidMorphs('loggable');
+                $table->char('user_id', 26)->nullable();
+                $table->timestamps();
+                $table->softDeletes();
+            });
+        }
+
         Schema::create('permissions', function (Blueprint $table) {
             $table->ulid('id')->primary();
             $table->string('model');

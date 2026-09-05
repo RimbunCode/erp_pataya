@@ -13,6 +13,21 @@ use Throwable;
 class Model extends EloquentModel {
     use LinkModel;
 
+    /**
+     * Kolom sort default untuk halaman List/DataTable (dibaca
+     * DataTableScope::addDataTable() sebagai fallback saat request tidak
+     * kirim `?sort=`). Null berarti pakai default macro ('created_at').
+     * Override di model yang butuh kolom lain lebih representatif sebagai
+     * urutan kronologis transaksi (mis. `transaction_date` di GeneralLedger/
+     * StockLedgerEntry, di mana created_at bisa beda dari waktu transaksi
+     * sebenarnya -- lihat Requirement 2.4 spec event-listener-migration-phase-3).
+     */
+    protected static ?string $defaultSortColumn = null;
+
+    public static function getDefaultSortColumn(): string {
+        return static::$defaultSortColumn ?? 'created_at';
+    }
+
     public static function resolveRelationPath(array|string $relationPaths): array {
         if (\is_string($relationPaths)) {
             $relationPaths = [$relationPaths];

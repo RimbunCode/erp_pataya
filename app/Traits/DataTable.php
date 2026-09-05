@@ -70,29 +70,36 @@ trait DataTable {
             }
 
             // Audit log: dispatch event untuk semua model DataTable lainnya.
-            // Guard: skip jika tidak ada user terautentikasi (mis. test/seeder).
+            // Tercatat juga saat tidak ada user terautentikasi (mis. seeder/
+            // artisan/job) -- RecordAuditLog listener pakai Auth::id() (null-safe),
+            // Log::user_id nullable, FE (Log::code()/activityText() accessor)
+            // sudah fallback "System"/:user -> 'System' saat user null.
             //
-            // CATATAN (2026-08-07): idealnya log tetap tercatat dengan user_id
-            // null saat tidak ada auth (nilai audit trail lebih tinggi daripada
-            // silent-skip), TAPI percobaan menghapus guard ini + memanggil
-            // loadRelations() di $model->fresh() untuk hindari cache relasi
-            // stale (lihat riwayat commit) menyebabkan 37 error baru di full
-            // suite (factory yang membuat model dalam urutan tertentu crash
-            // saat accessor baca relasi dari instance fresh() yang state-nya
-            // beda dari $model asli). BUTUH DESAIN ULANG lebih hati-hati
-            // sebagai task terpisah — jangan hapus guard ini tanpa itu.
+            // CATATAN (2026-09-02): percobaan sebelumnya menghapus guard ini
+            // TAPI tetap memanggil loadRelations()/fresh() untuk snapshot data
+            // menyebabkan cache relasi $model ter-mutasi prematur (atau
+            // instance fresh() beda state dari $model asli) -- merusak business
+            // logic lain yang baca relasi $model yang SAMA setelahnya (lihat
+            // riwayat commit, [[project_audit_log_auth_guard_revert]]). Fix di
+            // sini: HANYA panggil loadRelations() saat authenticated (jalur yang
+            // sudah stabil/teruji, tidak diubah). Saat tidak authenticated,
+            // snapshot pakai getAttributes() mentah (kolom DB polos, zero query
+            // relasi, zero sentuh cache) -- trade-off: log tanpa-auth tidak
+            // memuat nama relasi (mis. nama customer), hanya kolom FK id.
+            $keys = $model->logableFields();
             if (Auth::id()) {
                 $model->loadRelations();
-                $keys = $model->logableFields();
-                event(new AuditableModelSaved(
-                    $model,
-                    'created',
-                    dataAfter: \array_replace(
-                        \array_fill_keys($keys, null),
-                        \array_intersect_key($model->toArray(), array_flip($keys)),
-                    ),
-                ));
+                $dataAfter = \array_replace(
+                    \array_fill_keys($keys, null),
+                    \array_intersect_key($model->toArray(), array_flip($keys)),
+                );
+            } else {
+                $dataAfter = \array_replace(
+                    \array_fill_keys($keys, null),
+                    \array_intersect_key($model->getAttributes(), array_flip($keys)),
+                );
             }
+            event(new AuditableModelSaved($model, 'created', dataAfter: $dataAfter));
 
             if (! app()->bound('request')) {
                 return;
@@ -118,16 +125,27 @@ trait DataTable {
         });
 
         static::updated(function ($model) {
-            // Guard: skip jika tidak ada user terautentikasi (mis. test/seeder),
-            // skip Log model sendiri (anti-rekursi), dan skip jika
+            // Guard: skip Log model sendiri (anti-rekursi), dan skip jika
             // dataBefore kosong — artinya model tidak di-update lewat
             // fillForUpdate() yang memanggil recordLogs() untuk snapshot.
-            // Lihat catatan guard Auth::id() di hook created() di atas.
-            if (! Auth::id() || get_class($model) === Log::class || ! $model->dataBefore) {
+            // Tidak lagi skip semata karena tidak authenticated -- lihat
+            // catatan lengkap di hook created() di atas.
+            if (get_class($model) === Log::class || ! $model->dataBefore) {
                 return;
             }
-            $model->loadRelations();
             $keys = $model->logableFields();
+            if (Auth::id()) {
+                $model->loadRelations();
+                $dataAfter = \array_replace(
+                    \array_fill_keys($keys, null),
+                    \array_intersect_key($model->toArray(), array_flip($keys)),
+                );
+            } else {
+                $dataAfter = \array_replace(
+                    \array_fill_keys($keys, null),
+                    \array_intersect_key($model->getAttributes(), array_flip($keys)),
+                );
+            }
             event(new AuditableModelSaved(
                 $model,
                 'updated',
@@ -135,10 +153,7 @@ trait DataTable {
                     \array_fill_keys($keys, null),
                     \array_intersect_key($model->dataBefore, array_flip($keys)),
                 ),
-                dataAfter: \array_replace(
-                    \array_fill_keys($keys, null),
-                    \array_intersect_key($model->toArray(), array_flip($keys)),
-                ),
+                dataAfter: $dataAfter,
             ));
         });
     }

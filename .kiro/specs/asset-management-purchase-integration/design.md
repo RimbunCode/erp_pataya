@@ -35,11 +35,11 @@ flowchart TD
 
     C1 --> UI["Halaman Show PurchaseReceipt/Invoice:\nbadge 'Lengkapi Data Asset'"]
     U1 --> UI
-    UI -->|klik tombol| DLG["Dialog inline:\npilih AssetCategory/AssetLocation\n+ opsi split N"]
+    UI -->|klik tombol| DLG["Dialog inline:\npilih AssetCategory/AssetLocation\n+ mode split manual (rows)"]
     DLG -->|submit| CTRL["AssetController::completeData()\n+ CompleteAssetDataRequest"]
-    CTRL --> SPLIT{"N > 1?"}
+    CTRL --> SPLIT{"mode == split?"}
     SPLIT -->|tidak| UPD["update asset_category_id/location_id"]
-    SPLIT -->|ya| SP["AssetService::split()\nN Asset baru, asal soft-delete"]
+    SPLIT -->|ya| SP["AssetService::split()\nAsset baru per baris (rows), asal soft-delete"]
 ```
 
 ### Data Flow
@@ -144,19 +144,27 @@ Catatan desain: `Asset` butuh relasi baru `purchaseReceiptItem()`/`purchaseInvoi
       throw new LogicException(__('asset/asset.cannot_submit_incomplete'));
   }
   ```
-- Method baru `split(Asset $asset, int $parts): Collection` — dipakai Requirement 6.4. Distribusi qty: `intdiv($qty, $parts)` untuk semua bagian, sisa (`$qty % $parts`) ditambahkan ke bagian PERTAMA (qty 5 split 3 → `[3, 1, 1]`). Field moneter (`net_purchase_amount`, `gross_purchase_amount`, `additional_asset_cost`) dibagi proporsional per qty bagian; field lain (nama, kategori, lokasi, tanggal, dokumen sumber) disalin identik ke semua hasil split. Asset asal di-soft-delete di akhir, dalam transaction yang sama.
+- Method baru `split(Asset $asset, array $rows): Collection` — dipakai Requirement 6.4. **Keputusan final (beda dari draft awal)**: BUKAN auto-split merata — user mengisi `quantity` PER BARIS secara manual di dialog (`rows`), sistem hanya memvalidasi `sum(rows.*.quantity) === asset_quantity` (ditolak 422 kalau tidak sama). Field moneter (`net_purchase_amount`, `gross_purchase_amount`, `additional_asset_cost`) dibagi proporsional sesuai rasio quantity per baris; field lain (nama, tanggal, dokumen sumber) disalin identik ke semua hasil split. Asset asal di-soft-delete di akhir, dalam transaction yang sama.
 
 ### 6. `App\Http\Requests\Asset\CompleteAssetDataRequest` (baru)
 
 ```php
 public function rules(): array {
+    $isSplit = $this->input('mode') === 'split';
+
     return [
-        'asset_category_id' => ['required', 'string', 'exists:asset_categories,id'],
-        'asset_location_id' => ['required', 'string', 'exists:asset_locations,id'],
-        'split_into'         => ['nullable', 'integer', 'min:1', 'max:' . $this->route('asset')->asset_quantity],
+        'mode'                     => ['required', 'in:single,split'],
+        'asset_category_id'        => [$isSplit ? 'nullable' : 'required', 'string', 'exists:asset_categories,id'],
+        'asset_location_id'        => [$isSplit ? 'nullable' : 'required', 'string', 'exists:asset_locations,id'],
+        'rows'                     => [$isSplit ? 'required' : 'nullable', 'array', 'min:1'],
+        'rows.*.asset_category_id' => ['required_with:rows', 'string', 'exists:asset_categories,id'],
+        'rows.*.asset_location_id' => ['required_with:rows', 'string', 'exists:asset_locations,id'],
+        'rows.*.quantity'          => ['required_with:rows', 'numeric', 'gt:0'],
     ];
 }
 ```
+
+Validasi tambahan di `withValidator()`: `sum(rows.*.quantity)` harus sama dengan `asset_quantity` Asset asal.
 
 ### 7. `App\Http\Controllers\Asset\AssetController::completeData()` (method baru)
 
@@ -164,11 +172,11 @@ public function rules(): array {
 public function completeData(CompleteAssetDataRequest $request, Asset $asset) {
     abort_unless($asset->status->contains(FormStatus::DRAFT), 422);
 
-    $splitInto = $request->validated('split_into', 1);
-    if ($splitInto > 1) {
-        $this->assetService->split($asset, $splitInto, $request->validated());
+    $validated = $request->validated();
+    if ($validated['mode'] === 'split') {
+        $this->assetService->split($asset, $validated['rows']);
     } else {
-        $this->assetService->update($asset, $request->validated());
+        $this->assetService->update($asset, $validated);
     }
 
     return back();
@@ -180,7 +188,7 @@ Route baru: `Route::put('/assets/{asset}/completeData', [AssetController::class,
 ### 8. FE — badge + dialog di Show PurchaseReceipt/PurchaseInvoice
 
 - `resources/js/Pages/Purchase/PurchaseReceipts/Show.jsx` dan `resources/js/Pages/Finances/PurchaseInvoices/Show.jsx`: per baris item, jika `item.asset` ada DAN (`!item.asset.asset_category_id || !item.asset.asset_location_id`), tampilkan `Badge` "Lengkapi Data Asset" + tombol buka dialog.
-- Dialog baru `resources/js/Pages/Asset/Assets/CompleteDataDialog.jsx` (komponen reusable, dipakai kedua halaman): form `useForm` dengan `AssetCategoryLinkModel`, `AssetLocationLinkModel` (reuse Spec 1), input number `split_into` (muncul hanya jika `asset.asset_quantity > 1`), submit ke `route('assets.completeData', asset.id)` via `router.put`.
+- Dialog baru `resources/js/Pages/Asset/Assets/CompleteDataDialog.jsx` (komponen reusable, dipakai kedua halaman): form `useForm` dengan `AssetCategoryLinkModel`, `AssetLocationLinkModel` (reuse Spec 1), toggle mode single/split. Mode split menampilkan `FormTable` — user tambah baris manual, tiap baris isi kategori/lokasi/quantity sendiri; submit ke `route('assets.completeData', asset.id)` via `router.put`.
 
 ## Data Models
 
@@ -204,7 +212,7 @@ assets (edit, Spec 1 migration diedit langsung — belum production)
 **Property 2 — Invoice never orphans a Receipt-created Asset**: _For any_ `PurchaseInvoiceItem` yang `purchaseOrderItem`-nya sama dengan `purchaseOrderItem` milik `PurchaseReceiptItem` yang sudah punya Asset (`purchase_invoice_id` masih null), listener SHALL meng-update Asset tersebut, TIDAK membuat Asset baru — total jumlah Asset untuk `PurchaseOrderItem` tersebut tetap sama sebelum dan sesudah Invoice diproses.
 **Validates: Requirement 4.1, 4.2, 4.4**
 
-**Property 3 — Split preserves total quantity and monetary value**: _For any_ Asset dengan `asset_quantity = Q` dan `gross_purchase_amount = V` di-split menjadi `N` bagian, jumlah `asset_quantity` seluruh hasil split SHALL sama dengan `Q`, dan jumlah `gross_purchase_amount` seluruh hasil split SHALL sama dengan `V` (dalam toleransi pembulatan desimal terkecil mata uang).
+**Property 3 — Split preserves total quantity and monetary value**: _For any_ Asset dengan `asset_quantity = Q` dan `gross_purchase_amount = V` di-split menjadi baris `rows` (quantity per baris diisi manual user), `sum(rows.*.quantity)` SHALL sama dengan `Q` (ditolak jika tidak), dan jumlah `gross_purchase_amount` seluruh hasil split SHALL sama dengan `V` (dibagi proporsional sesuai rasio quantity per baris, dalam toleransi pembulatan desimal terkecil mata uang).
 **Validates: Requirement 6.4**
 
 **Property 4 — Incomplete Asset cannot be submitted**: _For any_ Asset dengan `asset_category_id = null` OR `asset_location_id = null`, memanggil `AssetService::submit()` SHALL selalu melempar `LogicException`, TIDAK PERNAH mengubah status Asset.
@@ -217,13 +225,13 @@ assets (edit, Spec 1 migration diedit langsung — belum production)
 | `Item.is_fixed_asset = true` tapi `Item.asset_category_id` kosong | Asset dibuat dengan `asset_category_id = null` (bukan error) — dilengkapi manual lewat dialog (Requirement 3.2) |
 | Listener `CreateAssetFromPurchase` gagal (mis. constraint DB) di queue | `ShouldQueue` default retry Laravel berlaku (tidak override `$tries`/`failed()` khusus di fase ini) — gagal permanen tercatat di `failed_jobs`, TIDAK mempengaruhi status PurchaseReceipt/Invoice yang sudah approved (event dispatch terpisah dari transaction dokumen) |
 | User coba `completeData()` pada Asset yang sudah `SUBMITTED` | HTTP 422, pesan lang `asset/asset.cannot_complete_after_submit` |
-| User input `split_into` > `asset_quantity` | Validasi `CompleteAssetDataRequest` menolak (rule `max`), 422 sebelum masuk service |
+| `sum(rows.*.quantity)` mode split tidak sama dengan `asset_quantity` | Validasi `CompleteAssetDataRequest` (`withValidator`) menolak, 422 sebelum masuk service |
 | `PurchaseInvoiceItem.purchaseOrderItem` null (invoice tanpa PO — dimungkinkan di alur existing?) | Diperlakukan sebagai "Asset tidak ditemukan" → jalur create baru (Requirement 4.3) |
 | Dua `PurchaseReceiptItem` berbeda (baris terpisah) merujuk `PurchaseOrderItem` yang sama, keduanya fixed-asset | Masing-masing punya `purchase_receipt_item_id` sendiri → masing-masing bikin Asset sendiri, TIDAK saling menimpa (Property 1 berbasis `purchase_receipt_item_id`, bukan `purchase_order_item_id`) |
 
 ## Testing Strategy
 
-- **Unit Tests**: `AssetService::split()` — verifikasi Property 3 (distribusi qty `[3,1,1]` utk qty=5/parts=3, distribusi nilai proporsional, soft-delete asal). `AssetService::submit()` — Property 4 (reject saat category/location null).
+- **Unit Tests**: `AssetService::split()` — verifikasi Property 3 (sum(rows.quantity) harus sama dengan asset_quantity asal, distribusi nilai proporsional sesuai rasio quantity per baris, soft-delete asal, reject saat mismatch). `AssetService::submit()` — Property 4 (reject saat category/location null).
 - **Feature Tests**: 
   - `PurchaseReceiptControllerTest`/Service test — approve PurchaseReceipt berisi item fixed-asset → assert 1 Asset baru DRAFT tercipta dengan field termapping benar (Requirement 3).
   - Approve PurchaseReceipt lalu PurchaseInvoice (PO sama) → assert Asset SAMA (id tidak berubah), `purchase_invoice_id` terisi, nilai ter-update (Requirement 4, Property 2).

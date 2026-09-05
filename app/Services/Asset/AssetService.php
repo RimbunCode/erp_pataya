@@ -30,6 +30,8 @@ class AssetService implements SubmitableService {
     }
 
     private function createInTransaction(array $data): Model {
+        $data = $this->flattenRelationFields($data);
+
         return Asset::create([
             'code' => FormatingSeries::generate(Asset::class, $data, true),
             ...Arr::only($data, [
@@ -60,6 +62,7 @@ class AssetService implements SubmitableService {
         DB::beginTransaction();
 
         try {
+            $data = $this->flattenRelationFields($data);
             $model->fill(Arr::only($data, [
                 'asset_name', 'asset_category_id', 'asset_location_id',
                 'item_id', 'asset_quantity',
@@ -97,10 +100,38 @@ class AssetService implements SubmitableService {
         $model->delete();
     }
 
+    /**
+     * Frontend mengirim relasi (asset_category, asset_location) sebagai objek
+     * LinkModel utuh ({id, ...}), bukan string id flat. Ekstrak `.id` ke key
+     * `_id` yang dikonsumsi Arr::only() di atas, sama seperti pola
+     * PurchaseOrderService::fillItemRelations().
+     *
+     * @param  array<string, mixed>  $data
+     * @return array<string, mixed>
+     */
+    private function flattenRelationFields(array $data): array {
+        if (isset($data['asset_category']['id'])) {
+            $data['asset_category_id'] = $data['asset_category']['id'];
+        }
+        if (isset($data['asset_location']['id'])) {
+            $data['asset_location_id'] = $data['asset_location']['id'];
+        }
+
+        return $data;
+    }
+
     public function submit(Model $model): mixed {
-        // Guard: reject submit if asset data is incomplete
-        if (! $model->asset_category_id || ! $model->asset_location_id) {
-            throw new LogicException(__('asset/asset.cannot_submit_incomplete'));
+        $missingFields = [];
+        if (! $model->asset_category_id) {
+            $missingFields[] = __('asset/asset.columns.asset_category');
+        }
+        if (! $model->asset_location_id) {
+            $missingFields[] = __('asset/asset.columns.asset_location');
+        }
+        if ($missingFields !== []) {
+            throw new LogicException(__('asset/asset.cannot_submit_incomplete', [
+                'fields' => implode(', ', $missingFields),
+            ]));
         }
 
         DB::beginTransaction();

@@ -16,7 +16,7 @@ import {
   SidebarMenuSubItem,
   useSidebar,
 } from "@/Components/ui/sidebar";
-import { checkPermission, checkUrlPath } from "@/lib/utils";
+import { checkPermission } from "@/lib/utils";
 
 import { ChevronRight } from "lucide-react";
 import Link from "../Link";
@@ -26,6 +26,7 @@ import { usePage } from "@inertiajs/react";
 import { useScreen } from "@/Hooks/useScreen";
 
 export function NavMain({ items: _items }) {
+  const route = window.route;
   const isMobile = useIsMobile();
   const isLargeDesktop = useScreen("108rem");
   const { permissions, ignorePermissionModels = [] } = usePage().props;
@@ -46,7 +47,9 @@ export function NavMain({ items: _items }) {
       if (item.items && Array.isArray(item.items)) {
         const subItems = item.items.map((subItem) => ({
           ...subItem,
-          isActive: checkUrlPath(subItem.urlPattern),
+          isActive: subItem.routeName
+            ? route().current(subItem.routeName)
+            : false,
           allowed: subItem.model
             ? checkPermission(
                 permissions,
@@ -149,7 +152,7 @@ export function NavMain({ items: _items }) {
       }
     }
 
-    const isActive = checkUrlPath(item.urlPattern);
+    const isActive = item.routeName ? route().current(item.routeName) : false;
     const allowed = item.model
       ? checkPermission(
           permissions,

@@ -71,6 +71,25 @@ class HTMLSanitizerService {
     ];
 
     /**
+     * @param  array<string>  $extraAllowedTags  Tag tambahan di luar whitelist
+     *                                           default — dipakai pemanggil yang butuh tag lebih luas dari konteks
+     *                                           Print Template (mis. desk-dashboard-builder untuk konten TipTap:
+     *                                           blockquote/pre/code/s/u/hr). Diabaikan jika $allowedTagsOverride diisi.
+     * @param  array<string>|null  $allowedTagsOverride  Jika diisi, GANTI
+     *                                                   TOTAL whitelist default (bukan extend) — dipakai konteks yang butuh
+     *                                                   whitelist LEBIH SEMPIT dari default (mis. label section
+     *                                                   desk-dashboard-builder: hanya span/strong/em/u/s/br, TANPA
+     *                                                   div/table/img/a yang ada di whitelist default Print Template).
+     *                                                   Default null = perilaku existing Print Template TIDAK berubah sama
+     *                                                   sekali.
+     */
+    public function __construct(array $extraAllowedTags = [], ?array $allowedTagsOverride = null) {
+        $this->allowedTags = $allowedTagsOverride !== null
+            ? \array_values(\array_unique($allowedTagsOverride))
+            : \array_values(\array_unique([...$this->allowedTags, ...$extraAllowedTags]));
+    }
+
+    /**
      * Sanitize HTML content
      *
      * Removes dangerous tags and attributes while preserving safe content.
@@ -103,10 +122,21 @@ class HTMLSanitizerService {
         $dom->loadHTML('<?xml encoding="UTF-8">' . $wrappedHTML, \LIBXML_HTML_NOIMPLIED | \LIBXML_HTML_NODEFDTD);
         \libxml_clear_errors();
 
-        // Process all elements starting from the wrapper
+        // Process CHILDREN of the wrapper, bukan wrapper itu sendiri —
+        // wrapper <div> murni teknis (pembungkus supaya DOMDocument parse
+        // fragment HTML tanpa <html>/<body> implisit), bukan bagian konten
+        // user. Memanggil processNode() pada wrapper LANGSUNG cek tag "div"
+        // terhadap whitelist: kalau "div" tidak ada di whitelist (mis.
+        // pemanggil pakai allowedTagsOverride ketat tanpa "div"), wrapper
+        // dihapus dan processNode() return LEBIH AWAL — SELURUH children-nya
+        // (termasuk tag berbahaya) tidak pernah diperiksa sama sekali dan
+        // lolos utuh tanpa sanitasi. Bug ini laten selama ini karena
+        // whitelist default SELALU mengandung "div".
         $wrapper = $dom->documentElement;
-        if ($wrapper !== null) {
-            $this->processNode($wrapper, $removedTags, $removedAttributes);
+        if ($wrapper !== null && $wrapper->hasChildNodes()) {
+            foreach (\iterator_to_array($wrapper->childNodes) as $child) {
+                $this->processNode($child, $removedTags, $removedAttributes);
+            }
         }
 
         // Get sanitized HTML from wrapper's children

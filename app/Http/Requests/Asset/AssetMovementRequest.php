@@ -13,11 +13,15 @@ class AssetMovementRequest extends FormRequest {
             'reference_type'             => ['nullable', 'string'],
             'reference_id'               => ['nullable', 'string'],
             'items'                      => ['required', 'array', 'min:1'],
-            'items.*.asset_id'           => ['required', 'string', 'exists:assets,id'],
-            'items.*.source_location_id' => ['nullable', 'string', 'exists:asset_locations,id'],
-            'items.*.target_location_id' => ['nullable', 'string', 'exists:asset_locations,id'],
+            'items.*.asset.id'           => ['required', 'string', 'exists:assets,id'],
+            'items.*.asset.*'            => ['nullable'],
+            'items.*.source_location.id' => ['nullable', 'string', 'exists:asset_locations,id'],
+            'items.*.source_location.*'  => ['nullable'],
+            'items.*.target_location.id' => ['nullable', 'string', 'exists:asset_locations,id'],
+            'items.*.target_location.*'  => ['nullable'],
             'items.*.from_custodian_id'  => ['nullable', 'string', 'exists:users,id'],
-            'items.*.to_custodian_id'    => ['nullable', 'string', 'exists:users,id'],
+            'items.*.to_custodian.id'    => ['nullable', 'string', 'exists:users,id'],
+            'items.*.to_custodian.*'     => ['nullable'],
         ];
     }
 }

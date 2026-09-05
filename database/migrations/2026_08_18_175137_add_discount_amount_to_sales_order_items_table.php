@@ -55,12 +55,12 @@ return new class extends Migration
         // reflect diskon yang sama seperti nilai currency dokumen.
         Schema::table('sales_order_items', function (Blueprint $table) {
             $table->double('basic_amount_base_currency')
-                ->storedAs('IF(exchange_rate IS NULL, basic_amount - discount_amount, (basic_amount - discount_amount) * exchange_rate)')
+                ->storedAs('CASE WHEN exchange_rate IS NULL THEN basic_amount - discount_amount ELSE (basic_amount - discount_amount) * exchange_rate END')
                 ->after('amount');
         });
 
         Schema::table('sales_order_items', function (Blueprint $table) {
-            $table->double('tax_amount_base_currency')->storedAs('tax_amount * IF(exchange_rate IS NULL, 1, exchange_rate)')->after('basic_amount_base_currency');
+            $table->double('tax_amount_base_currency')->storedAs('tax_amount * CASE WHEN exchange_rate IS NULL THEN 1 ELSE exchange_rate END')->after('basic_amount_base_currency');
         });
 
         Schema::table('sales_order_items', function (Blueprint $table) {
@@ -118,7 +118,7 @@ return new class extends Migration
 
         Schema::table('sales_order_items', function (Blueprint $table) {
             $table->double('basic_amount_base_currency')
-                ->storedAs('IF(exchange_rate IS NULL, basic_amount, basic_amount * exchange_rate)')
+                ->storedAs('CASE WHEN exchange_rate IS NULL THEN basic_amount ELSE basic_amount * exchange_rate END')
                 ->after('amount');
         });
 

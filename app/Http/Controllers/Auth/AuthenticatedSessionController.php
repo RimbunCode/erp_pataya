@@ -7,6 +7,7 @@ use App\Http\Controllers\Controller;
 use App\Http\Requests\Auth\LoginRequest;
 use App\Models\User\User;
 use App\Models\User\UserProvider;
+use App\Services\Core\Desk\DeskResolverService;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Auth;
@@ -39,7 +40,24 @@ class AuthenticatedSessionController extends Controller {
 
         $request->session()->put('currentBranch', Auth::user()->default_branch_id);
 
-        return redirect()->intended(route('dashboard', absolute: false));
+        return redirect()->intended($this->postLoginRedirectUrl(Auth::user()));
+    }
+
+    /**
+     * Requirement 5 AC 1-2: user dgn default_desk_id valid & visible langsung
+     * ke dashboard desk itu; selain itu diarahkan ke halaman pilih Desk.
+     */
+    private function postLoginRedirectUrl(User $user): string {
+        if ($user->default_desk_id) {
+            $resolver = app(DeskResolverService::class);
+            $visible  = $resolver->visibleDesksFor($user)->contains('id', $user->default_desk_id);
+
+            if ($visible) {
+                return route('dashboard', absolute: false);
+            }
+        }
+
+        return route('desks.index', absolute: false);
     }
 
     public function redirectToProvider(string $driver) {
@@ -155,7 +173,7 @@ class AuthenticatedSessionController extends Controller {
                 return redirect()->route('setup.show');
             }
 
-            return redirect()->intended(route('dashboard', absolute: false));
+            return redirect()->intended($this->postLoginRedirectUrl($authUser));
         }
     }
 

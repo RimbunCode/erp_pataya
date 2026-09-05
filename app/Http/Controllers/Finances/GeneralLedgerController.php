@@ -26,7 +26,7 @@ class GeneralLedgerController extends Controller {
 
         return Inertia::render('Finances/GeneralLedgers/Show', [
             'generalLedger' => function () use ($generalLedger) {
-                $generalLedger->loadRelations();
+                $generalLedger->loadRelations([], withTrashed: true);
 
                 return $generalLedger;
             },

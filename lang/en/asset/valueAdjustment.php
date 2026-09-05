@@ -12,7 +12,9 @@ return [
     'account_not_found' => 'GL account not found for this asset category/branch. Please configure AssetCategoryAccount first.',
 
     'columns' => [
+        'code'                  => 'Code',
         'asset_id'              => 'Asset',
+        'asset'                 => 'Asset',
         'date'                  => 'Date',
         'current_asset_value'   => 'Current Asset Value',
         'new_asset_value'       => 'New Asset Value',

@@ -11,8 +11,10 @@ class AssetRequest extends FormRequest {
     public function rules(): array {
         return [
             'asset_name'                       => ['required', 'string', 'max:255'],
-            'asset_category_id'                => ['required', 'string', 'exists:asset_categories,id'],
-            'asset_location_id'                => ['required', 'string', 'exists:asset_locations,id'],
+            'asset_category.id'                => ['required', 'string', 'exists:asset_categories,id'],
+            'asset_category.*'                 => ['nullable'],
+            'asset_location.id'                => ['required', 'string', 'exists:asset_locations,id'],
+            'asset_location.*'                 => ['nullable'],
             'asset_type'                       => ['string', Rule::in(['existing_asset', 'composite_asset', 'composite_component'])],
             'item_id'                          => ['nullable', 'string', 'exists:items,id'],
             'asset_quantity'                   => ['integer', 'min:1'],
@@ -87,7 +89,7 @@ class AssetRequest extends FormRequest {
     }
 
     private function validateRentableQuantity(Validator $validator): void {
-        $categoryId = $this->input('asset_category_id');
+        $categoryId = $this->input('asset_category.id');
         $quantity   = (int) $this->input('asset_quantity', 1);
 
         if (! $categoryId || $quantity <= 1) {

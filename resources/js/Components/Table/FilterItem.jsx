@@ -237,7 +237,10 @@ function FilterItem({ columns, id, onChanged, removeFilter, ...props }) {
         case "text":
           return [...operatorsGeneral];
         case "number":
-          return [...operatorsGeneral, ...operatorsNumber].map((x) => ({
+          return [
+            ...operatorsGeneral.filter((x) => !["in", "!in"].includes(x.name)),
+            ...operatorsNumber,
+          ].map((x) => ({
             ...x,
             searchType: "number",
           }));

@@ -28,6 +28,7 @@ use Illuminate\Foundation\Testing\RefreshDatabase;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Event;
 use Illuminate\Support\Facades\Schema;
+use Illuminate\Validation\ValidationException;
 use PHPUnit\Framework\Attributes\Test;
 use Tests\TestCase;
 
@@ -205,5 +206,66 @@ class PurchaseReceiptServiceFixedAssetDispatchTest extends TestCase {
         $this->service->onApproved($receipt);
 
         Event::assertNotDispatched(FixedAssetItemApproved::class);
+    }
+
+    /**
+     * Regression: item tanpa defaultUom (default_unit_id null ATAU belum ada
+     * ItemUnit konversi yg unit_id-nya cocok) dulu bikin ErrorException "Attempt
+     * to read property conversion_factor on null" di PurchaseReceiptService.php
+     * saat onApproved() -- ditemukan lewat full-suite run (bukan crash yg
+     * disengaja, item real produksi bisa kena kalau master data belum lengkap).
+     * Sekarang harus gagal jelas via ValidationException, bukan crash mentah.
+     */
+    #[Test]
+    public function throws_validation_exception_when_item_missing_default_uom(): void {
+        $warehouse = WarehouseFactory::new()->create();
+        $item      = ItemFactory::new()->create(['is_fixed_asset' => false]);
+        // Sengaja TIDAK panggil makeDefaultUom() -- variant tetap default_unit_id null.
+        $variant  = ItemVariantFactory::new()->create(['item_id' => $item->id]);
+        $supplier = SupplierFactory::new()->create();
+
+        $this->actingAs($this->testUser);
+        $po = $this->withoutModelEvents(fn () => PurchaseOrderFactory::new()->create([
+            'supplier_id' => $supplier->id,
+            'status'      => [FormStatus::SUBMITTED],
+        ]));
+
+        $poItem = PurchaseOrderItem::create([
+            'purchase_order_id'   => $po->id,
+            'item_id'             => $variant->id,
+            'quantity'            => 3,
+            'rate'                => 1000,
+            'target_warehouse_id' => $warehouse->id,
+        ]);
+
+        $receipt = $this->withoutModelEvents(fn () => PurchaseReceipt::create([
+            'code'              => 'PR-' . fake()->unique()->randomNumber(8),
+            'date'              => now(),
+            'purchase_order_id' => $po->id,
+            'created_by_id'     => $this->testUser->id,
+        ]));
+
+        PurchaseReceiptItem::create([
+            'purchase_receipt_id'    => $receipt->id,
+            'purchase_order_item_id' => $poItem->id,
+            'item_id'                => $poItem->item_id,
+            'quantity'               => 3,
+            'target_warehouse_id'    => $warehouse->id,
+        ]);
+
+        try {
+            $this->service->onApproved($receipt);
+            $this->fail('Diharapkan ValidationException, tidak ada exception yang dilempar.');
+        } catch (ValidationException $e) {
+            $this->assertArrayHasKey('items', $e->errors());
+            // Pesan pakai $item->item->code di PurchaseReceiptService -- itu
+            // code ItemVariant (PurchaseReceiptItem::item()), ItemVariant tidak
+            // punya kolom/accessor `name` (item_name cuma virtual dependsOn di
+            // templateLink, tidak selalu terisi di instance biasa).
+            $this->assertStringContainsString($variant->code, $e->errors()['items'][0]);
+        }
+
+        // DB::rollBack() harus mencegah stock ikut terbuat walau exception dilempar.
+        $this->assertDatabaseCount('stocks', 0);
     }
 }

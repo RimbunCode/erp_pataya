@@ -1,0 +1,6 @@
+{
+  "specId": "da2f638a-1115-4e49-9d28-43d1c34263f7",
+  "workflowType": "requirements-first",
+  "specType": "feature",
+  "description": "Redesign navigasi jadi Desk-based (ala ERPNext): pecah sidebar flat jadi workspace per-domain dengan menu dinamis dari DB, desk aktif disimpan di cookie, fallback resolve desk berdasar route/model, dan dashboard per-desk reuse model existing."
+}
