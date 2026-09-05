@@ -3,8 +3,6 @@
 namespace Database\Factories\Core;
 
 use App\Models\Core\Dashboard;
-use App\Models\Core\Widget;
-use App\Models\DashboardWidget;
 use App\Models\User\User;
 use Illuminate\Database\Eloquent\Factories\Factory;
 
@@ -27,7 +25,7 @@ class DashboardFactory extends Factory {
             'Warehouse',
             'Service',
         ]);
-        $view   = fake()->randomElement([
+        $view = fake()->randomElement([
             'Overview',
             'Performance',
             'Summary',
