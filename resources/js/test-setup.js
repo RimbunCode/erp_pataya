@@ -11,6 +11,25 @@ if (typeof globalThis.ResizeObserver === "undefined") {
   };
 }
 
+// jsdom tidak mengimplementasikan IntersectionObserver -- dibutuhkan
+// Hooks/useInViewport.js (lazy-fetch block dashboard, lihat komentar di
+// sana). jsdom tidak punya layout nyata, jadi anggap elemen LANGSUNG
+// intersecting begitu di-observe -- perilaku test SAMA seperti sebelum
+// lazy-load ditambahkan (fetch langsung on mount), tes yang butuh skenario
+// "belum kelihatan" boleh override window.IntersectionObserver sendiri.
+if (typeof globalThis.IntersectionObserver === "undefined") {
+  globalThis.IntersectionObserver = class _IntersectionObserver {
+    constructor(callback) {
+      this.callback = callback;
+    }
+    observe(target) {
+      this.callback([{ isIntersecting: true, target }]);
+    }
+    unobserve() {}
+    disconnect() {}
+  };
+}
+
 // Node 22+ punya lazy getter `localStorage` global yang butuh flag
 // --localstorage-file, dan pada kombinasi Vitest 4.1.7 + Node 22+ di
 // lingkungan ini jsdom's localStorage tidak ter-bridge dengan bersih ke

@@ -1,4 +1,5 @@
 import { describe, expect, it, vi, beforeEach } from "vitest";
+import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { act, render, screen, waitFor, within } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 
@@ -275,18 +276,35 @@ const defaultProps = {
 };
 
 // render() RTL polos cuma membungkus bagian SINKRON dgn act() -- axios
-// dipanggil di useEffect dan resolusinya (walau mock instan) lanjut di
-// microtask SESUDAH act() sinkron itu selesai. Bungkus render() ITU SENDIRI
-// dgn await act(async () => {...}) supaya React menunggu microtask pertama
-// stabil. Untuk chained effect kedua (get() resolve -> setState -> effect
-// items-fetch baru terpicu -> post()), assert lanjutan sesudahnya memakai
-// waitFor() (act-safe secara internal oleh RTL) -- BUKAN dipakai menggantikan
-// pembungkusan render() awal, cuma utk mengejar layer async KEDUA yang tidak
-// mungkin diprediksi selesai dalam satu await act() saja.
+// dipanggil lewat TanStack Query (opsi L) saat mount dan resolusinya (walau
+// mock instan) lanjut di microtask SESUDAH act() sinkron itu selesai.
+// Bungkus render() ITU SENDIRI dgn await act(async () => {...}) supaya React
+// menunggu microtask pertama stabil. Untuk chained fetch kedua (get() resolve
+// -> query kolom selesai -> effect/query items baru terpicu -> post()),
+// assert lanjutan sesudahnya memakai waitFor() (act-safe secara internal
+// oleh RTL) -- BUKAN dipakai menggantikan pembungkusan render() awal, cuma
+// utk mengejar layer async KEDUA (dan scheduling internal TanStack Query)
+// yang tidak mungkin diprediksi selesai dalam satu await act() saja.
+//
+// `wrapper` (bukan bungkus JSX manual) -- QueryClientProvider WAJIB (opsi L)
+// dan RTL otomatis pakai wrapper yang SAMA lagi tiap `rerender()` dipanggil,
+// tanpa itu rerender() lepas dari provider dan useQuery() error "No
+// QueryClient set". queryClient FRESH tiap renderSettled() supaya cache
+// TanStack Query tidak bocor lintas test (gantikan __resetModelColumnsCacheForTests
+// lama, yang cuma relevan utk cache Map module-level opsi A yang sudah dihapus).
 const renderSettled = async (props = {}) => {
+  const queryClient = new QueryClient({
+    defaultOptions: { queries: { retry: false, gcTime: Infinity } },
+  });
+  const Wrapper = ({ children }) => (
+    <QueryClientProvider client={queryClient}>{children}</QueryClientProvider>
+  );
+
   let utils;
   await act(async () => {
-    utils = render(<QuickListBlock {...defaultProps} {...props} />);
+    utils = render(<QuickListBlock {...defaultProps} {...props} />, {
+      wrapper: Wrapper,
+    });
   });
   return utils;
 };

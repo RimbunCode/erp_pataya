@@ -33,6 +33,16 @@ Schedule::command('assets:post-depreciation')
     ->dailyAt('02:30')
     ->withoutOverlapping();
 
+// Requirement H (optimasi dashboard): interval LEBIH PENDEK drpd cache TTL
+// (NumberCardService/ChartService::$cacheDuration = 120 detik) supaya ada
+// margin aman — job selesai jauh sebelum entri lama expire, cache PRAKTIS
+// tidak pernah kosong. Naikkan interval (mis. everyTwoMinutes) kalau jumlah
+// Number Card/Chart aktif besar & load background ini mulai terasa.
+Schedule::command('dashboard:warm-cache')
+    ->timezone('Asia/Jakarta')
+    ->everyMinute()
+    ->withoutOverlapping();
+
 Schedule::command('queue:work --stop-when-empty --tries=3 --max-time=50')
     ->everyMinute()
     ->withoutOverlapping();
