@@ -1,0 +1,6 @@
+{
+  "specId": "85b099ff-a4da-4f9f-8483-c80a707ab7a5",
+  "workflowType": "requirements-first",
+  "specType": "feature",
+  "description": "Gambar/screenshot di halaman Manual Book (in-app) bisa diklik untuk dibuka dalam modal overlay yang menampilkan berkas pada resolusi & kualitas aslinya, dengan kemampuan zoom/pan ketika gambar lebih besar dari viewport. Termasuk penyeragaman pola placeholder gambar + blok tutorial 'Cara Menaruh Gambar' pada docs/manual-book/penjualan.md sebagai contoh acuan untuk section lain."
+}
