@@ -69,6 +69,14 @@ trait DataTable {
                 return;
             }
 
+            // Model bisa opt-out dari audit log dengan $skipAuditLog = true
+            // (mis. Preference: config aplikasi, bukan record bisnis yang perlu
+            // riwayat perubahan; PK-nya berupa key string bebas panjang -- bukan
+            // ULID -- yang tidak relevan diaudit per-baris).
+            if (property_exists($model, 'skipAuditLog') && $model->skipAuditLog) {
+                return;
+            }
+
             // Audit log: dispatch event untuk semua model DataTable lainnya.
             // Tercatat juga saat tidak ada user terautentikasi (mis. seeder/
             // artisan/job) -- RecordAuditLog listener pakai Auth::id() (null-safe),
@@ -131,6 +139,9 @@ trait DataTable {
             // Tidak lagi skip semata karena tidak authenticated -- lihat
             // catatan lengkap di hook created() di atas.
             if (get_class($model) === Log::class || ! $model->dataBefore) {
+                return;
+            }
+            if (property_exists($model, 'skipAuditLog') && $model->skipAuditLog) {
                 return;
             }
             $keys = $model->logableFields();

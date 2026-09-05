@@ -321,7 +321,6 @@ function Form() {
       {
         name: "tax",
         titleTrans: "purchase.purchaseOrder.columns.tax",
-        required: true,
         cell({ data: value, setData, attributes, dataRow }) {
           return (
             <TaxLinkModel
