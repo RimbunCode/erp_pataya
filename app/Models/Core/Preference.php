@@ -36,6 +36,7 @@ class Preference extends Model {
     }
 
     public bool $skipAttachmentOnCreate = true;
+    public bool $skipAuditLog           = true;
     protected $primaryKey               = 'key';
     public $incrementing                = false;
     protected $keyType                  = 'string';

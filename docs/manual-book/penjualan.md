@@ -34,8 +34,8 @@ ajukan. Begitu kamu klik **Ajukan**, dokumen tidak langsung berlaku: ia
 menunggu disetujui approver dulu (statusnya jadi **Butuh Persetujuan**).
 Efek dokumen — barang berkurang, piutang tercatat, kas bertambah — baru
 terjadi **setelah dokumen itu disetujui**. Cara menyetujui dijelaskan di
-panduan **Pengaturan Umum**, bagian *Memproses Persetujuan Sebagai
-Approver*.
+panduan **Pengaturan Umum**, bagian _Memproses Persetujuan Sebagai
+Approver_.
 
 Yang menarik: **mengirim barang** dan **membuat tagihan** adalah dua hal
 yang terpisah dan boleh dilakukan dalam urutan bebas. Kamu boleh kirim

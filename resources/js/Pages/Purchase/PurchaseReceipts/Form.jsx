@@ -43,7 +43,7 @@ function Form() {
         width: 3,
         cell({ dataRow, setData, attributes }) {
           return (
-            <div className="flex items-center">
+            <div className="flex items-center w-full">
               <PurchaseOrderItemLinkModel
                 placeholder={t(
                   "purchase.purchaseReceipt.columns.item.placeholder",

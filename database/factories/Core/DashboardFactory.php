@@ -27,7 +27,7 @@ class DashboardFactory extends Factory {
             'Warehouse',
             'Service',
         ]);
-        $view = fake()->randomElement([
+        $view   = fake()->randomElement([
             'Overview',
             'Performance',
             'Summary',
@@ -42,25 +42,5 @@ class DashboardFactory extends Factory {
             'title'         => "{$module} {$view} {$period} " . fake()->unique()->numerify('##'),
             'created_by_id' => $adminId ?? User::query()->inRandomOrder()->value('id'),
         ];
-    }
-
-    public function configure(): static {
-        return $this->afterCreating(function (Dashboard $dashboard): void {
-            $widgets = Widget::query()->inRandomOrder()->limit(2)->get();
-            if ($widgets->isEmpty()) {
-                $widgets = WidgetFactory::new()->count(2)->create();
-            }
-
-            foreach ($widgets as $order => $widget) {
-                DashboardWidget::query()->create([
-                    'width'        => fake()->randomElement(['full', 'half', 'third']),
-                    'dashboard_id' => $dashboard->id,
-                    'widget_id'    => $widget->id,
-                    'type'         => 'widget',
-                    'order'        => $order,
-                    'is_visible'   => true,
-                ]);
-            }
-        });
     }
 }
