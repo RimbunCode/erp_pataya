@@ -14,7 +14,6 @@ use Tests\TestCase;
  */
 class ManualBookImageTest extends TestCase {
     private string $docsPath;
-
     private string $imagesPath;
 
     protected function setUp(): void {
