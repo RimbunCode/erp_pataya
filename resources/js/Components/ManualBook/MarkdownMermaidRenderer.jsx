@@ -41,12 +41,14 @@ const RawContent = memo(
  * @param {string} props.html
  * @param {(ready: boolean) => void} [props.onReadyChange]
  * @param {(headings: Array<{id: string, text: string, level: number}>) => void} [props.onHeadingsChange]
+ * @param {(image: {src: string, alt: string}) => void} [props.onImageActivate]
  * @returns {JSX.Element}
  */
 export default function MarkdownMermaidRenderer({
   html,
   onReadyChange,
   onHeadingsChange,
+  onImageActivate,
 }) {
   const containerRef = useRef(null);
   const [isReady, setIsReady] = useState(false);
@@ -65,6 +67,67 @@ export default function MarkdownMermaidRenderer({
 
     onHeadingsChange?.(headings);
   }, [html, onHeadingsChange]);
+
+  // Tandai tiap <img> di dalam konten sebagai "bisa dibuka lightbox". Hanya
+  // menyetel atribut/class pada node yang sudah ada — tidak mengubah string
+  // `html` dan tidak memanggil setState yang mengubahnya, supaya memo RawContent
+  // tidak re-render dan SVG Mermaid yang di-inject manual tidak ketimpa.
+  useEffect(() => {
+    const container = containerRef.current;
+    if (!container) return;
+
+    for (const img of container.querySelectorAll("img")) {
+      if (img.dataset.lightbox === "true") continue;
+      // Diagram Mermaid dirender jadi <svg>, bukan <img>; guard ini untuk jaga2
+      // seandainya ada <img> di dalam wrapper diagram.
+      if (img.closest(".manual-book-mermaid")) continue;
+
+      img.dataset.lightbox = "true";
+      img.setAttribute("role", "button");
+      img.setAttribute("tabindex", "0");
+      img.classList.add("cursor-zoom-in");
+      img.setAttribute(
+        "aria-label",
+        `Perbesar gambar: ${img.getAttribute("alt") || "screenshot"}`,
+      );
+    }
+  }, [html]);
+
+  // Satu listener delegation di container — tetap valid untuk <img> section baru
+  // saat `html` berganti, tanpa attach/detach per node. Dependency hanya
+  // `onImageActivate` (di-useCallback dari parent, jadi stabil), jadi effect ini
+  // praktis jalan sekali dan tidak mengganggu render Mermaid.
+  useEffect(() => {
+    const container = containerRef.current;
+    if (!container || !onImageActivate) return;
+
+    function handleActivate(event) {
+      if (
+        event.type === "keydown" &&
+        event.key !== "Enter" &&
+        event.key !== " "
+      ) {
+        return;
+      }
+
+      const img = event.target.closest?.("img[data-lightbox='true']");
+      if (!img) return;
+
+      event.preventDefault();
+      onImageActivate({
+        src: img.currentSrc || img.src,
+        alt: img.getAttribute("alt") || "",
+      });
+    }
+
+    container.addEventListener("click", handleActivate);
+    container.addEventListener("keydown", handleActivate);
+
+    return () => {
+      container.removeEventListener("click", handleActivate);
+      container.removeEventListener("keydown", handleActivate);
+    };
+  }, [onImageActivate]);
 
   useEffect(() => {
     let cancelled = false;

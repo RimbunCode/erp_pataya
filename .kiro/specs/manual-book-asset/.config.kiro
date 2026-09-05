@@ -1,0 +1,6 @@
+{
+  "specId": "42d891ea-96c5-467b-87e6-09002ecd0d78",
+  "workflowType": "design-first",
+  "specType": "feature",
+  "description": "Tulis Manual Book (in-app help, bahasa awam) untuk modul Asset Management yang sudah 100% diimplementasikan (9 spec: core, purchase-integration, depreciation, movement, maintenance-repair, rental-migration, service-billing, service-internal-order, service-procurement). Tambah section baru docs/manual-book/aset.md + revisi docs/manual-book/layanan.md karena WorkOrder lama masih hidup berdampingan dengan Asset Service baru."
+}

@@ -1,6 +1,7 @@
 import * as React from "react";
 
 import {
+  BookOpenIcon,
   Boxes,
   HandCoins,
   HistoryIcon,
@@ -346,13 +347,12 @@ const navList = [
     url: "/todos",
     urlPattern: "/todos/*",
   },
-  // Manual Book disembunyikan sementara dari sidebar (belum siap rilis)
-  // {
-  //   title: "Manual Book",
-  //   icon: <BookOpenIcon />,
-  //   url: "/manual-book",
-  //   urlPattern: "/manual-book*",
-  // },
+  {
+    title: "Manual Book",
+    icon: <BookOpenIcon />,
+    url: "/manual-book",
+    urlPattern: "/manual-book*",
+  },
   {
     title: "Logs",
     icon: <HistoryIcon />,

@@ -1,4 +1,5 @@
 import {
+  Boxes,
   FileText,
   HandCoins,
   Handshake,
@@ -17,6 +18,7 @@ const iconMap = {
   Package,
   HandCoins,
   Wrench,
+  Boxes,
   Handshake,
   TicketsIcon,
   Undo2,

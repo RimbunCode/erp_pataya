@@ -42,57 +42,86 @@ masing-masing punya stoknya sendiri per gudang.
 
 ## Langkah 1 — Mendaftarkan Produk Baru (Item)
 
-Buka menu **Inventory → Items → Tambah**.
+Buka menu **Inventory → Items** untuk melihat daftar produk, lalu klik
+**Tambah Barang**.
 
-1. Isi kode dan nama produk, pilih kategorinya, dan tentukan satuan dasar
-   (misalnya pcs, kg, atau box).
-2. Aktifkan opsi **Pantau Stok** kalau stok produk ini perlu dilacak
-   sistem (untuk barang fisik yang dijual/dibeli). Nonaktifkan kalau ini
-   produk jasa yang tidak punya stok.
-3. Klik **Save**.
+![Daftar Barang (Items)](/manual-book-images/inventory/list-items.png)
+
+1. Di tab **Detail**, isi **No. Part** dan **Nama** produk, pilih
+   **Kategori**, dan tentukan **Unit Bawaan** (satuan dasar — misalnya
+   pcs, kg, atau box).
+2. Kalau produk ini jasa yang tidak punya stok, centang sesuai kebutuhan
+   (mis. **Merupakan Aset Tetap** untuk barang modal). Untuk barang fisik
+   biasa, biarkan default.
+3. Klik **Simpan**.
+
+![Formulir Barang Baru tab Detail dengan tabel Satuan Ukur](/manual-book-images/inventory/form-item-detail.png)
 
 ### Menambah Satuan Lain (opsional)
 
 Kalau produk kamu dijual dalam beberapa satuan berbeda (misalnya bisa
-dijual per pcs atau per box isi 12), buka tab **Units** di form produk dan
-tambahkan satuan tambahan beserta faktor konversinya (mis. 1 Box = 12
-Pcs). Sistem akan otomatis mengonversi jumlahnya kapan pun satuan yang
-berbeda dipakai dalam transaksi.
+dijual per pcs atau per box isi 12), isi tabel **Satuan Ukur** di tab
+Detail dengan satuan tambahan beserta faktor konversinya (mis. 1 Box = 12
+Pcs). Kalau unit bawaannya termasuk satu grup satuan yang bisa
+dikonversi, tabel ini terisi otomatis. Sistem akan mengonversi jumlahnya
+kapan pun satuan yang berbeda dipakai dalam transaksi.
 
 ## Langkah 2 — Membuat Variant
 
-Masih di halaman yang sama, buka tab **Variant**.
+Atribut pembeda (Warna, Ukuran, dll.) disiapkan lebih dulu di menu
+**Inventory → Attributes**. Isi **Nama** atribut dan daftar **Nilai**-nya.
 
-1. Kombinasikan atribut produk yang membedakan tiap variasi — misalnya
-   Warna (Merah, Biru) dan Ukuran (M, L). Sistem otomatis membuatkan satu
-   Variant untuk setiap kombinasi (dalam contoh ini, otomatis jadi 4
-   Variant).
+![Formulir Atribut Baru: Warna dengan nilai Merah dan Biru](/manual-book-images/inventory/form-atribut.png)
+
+![Daftar Atribut](/manual-book-images/inventory/list-atribut.png)
+
+Setelah itu, buka detail produk lalu masuk tab **Varian**.
+
+![Halaman detail Item dengan tab Detail, Varian, Barcode, Level Stok](/manual-book-images/inventory/detail-item.png)
+
+1. Pilih **Atribut** (mis. Warna), lalu centang **Nilai** yang berlaku
+   (mis. Merah, Biru). Isi juga **Format Varian** — pola nama untuk tiap
+   varian, memakai `{NamaAtribut}` sebagai placeholder dan wajib memuat
+   kode produk. Sistem otomatis membuatkan satu Variant untuk setiap
+   kombinasi nilai.
 2. Setiap Variant yang terbentuk punya kode (SKU), stok, dan barcode
    sendiri-sendiri — terpisah satu sama lain meski berasal dari produk
    induk yang sama.
 
+![Tab Varian: kombinasi atribut Warna dengan Format Varian](/manual-book-images/inventory/form-varian.png)
+
 ### Menambahkan Barcode (opsional)
 
-Buka tab **Barcodes** untuk mendaftarkan barcode per Variant dan per
+Buka tab **Barcode** untuk mendaftarkan barcode per Variant dan per
 satuan — berguna untuk mempercepat pencarian barang saat input transaksi
 (misalnya lewat pemindai barcode).
+
+![Tab Barcode: kolom Barcode dan Unit per varian](/manual-book-images/inventory/tab-barcode.png)
 
 ## Langkah 3 — Mengisi Stok Awal
 
 Stok **tidak diisi langsung** di form produk. Untuk mencatat stok awal,
 kamu perlu membuat dokumen **Stock Entry** bertipe penerimaan:
 
-Buka menu **Inventory → Stock Entries → Tambah**, pilih tipe "Terima",
-lalu isi Variant dan jumlah barang yang mau dicatat sebagai stok awal.
+Buka menu **Inventory → Stock Entries**, klik **Tambah Entri Stok**,
+pilih tipe **Penerimaan Item**, lalu isi barang, jumlah, dan gudang
+tujuan yang mau dicatat sebagai stok awal.
 
-Setelah dokumen ini di-submit, Variant tersebut siap dipilih sebagai
-pilihan barang di transaksi penjualan maupun pembelian.
+![Daftar Entri Stok](/manual-book-images/inventory/list-stock-entries.png)
+
+![Formulir Entri Stok tipe Penerimaan Item](/manual-book-images/inventory/form-stock-entry-penerimaan.png)
+
+Dokumen ini juga melewati **langkah persetujuan** setelah diajukan.
+Setelah disetujui, barang tersebut siap dipilih sebagai pilihan di
+transaksi penjualan maupun pembelian.
 
 ## Mendaftarkan Gudang
 
 Sebelum bisa mencatat stok, pastikan gudangnya sudah terdaftar. Buka menu
-**Inventory → Warehouses → Tambah**, isi nama gudang dan tentukan siapa
-yang bertanggung jawab atasnya.
+**Inventory → Warehouses**, klik **Tambah Gudang**, isi nama gudang dan
+tentukan siapa penanggung jawabnya.
+
+![Daftar Gudang](/manual-book-images/inventory/list-gudang.png)
 
 ## Memindahkan Barang Antar Gudang atau Menyesuaikan Stok
 
@@ -105,10 +134,18 @@ Selain dari pembelian dan penjualan, stok juga bisa berubah lewat
 - **Pengeluaran** — mengeluarkan barang untuk kebutuhan internal di luar
   penjualan.
 
-Buka menu **Inventory → Stock Entries → Tambah**, pilih tipe yang sesuai
-kebutuhan, isi barang dan jumlahnya, lalu klik **Submit**. Kalau ini
-transfer antar gudang, stok otomatis berkurang di gudang asal dan
-bertambah di gudang tujuan begitu disubmit.
+Buka menu **Inventory → Stock Entries**, klik **Tambah Entri Stok**,
+pilih tipe yang sesuai kebutuhan (**Transfer Item**, **Penerimaan Item**,
+atau **Pengeluaran Item**), isi barang dan jumlahnya, lalu **Ajukan**.
+Kalau ini transfer antar gudang, isi **Gudang Asal** dan **Gudang
+Tujuan** per baris.
+
+Setelah diajukan, dokumen masuk ke **langkah persetujuan** dengan status
+**Butuh Persetujuan** — stok belum bergerak. Begitu approver
+menyetujuinya, stok otomatis berkurang di gudang asal dan bertambah di
+gudang tujuan.
+
+![Formulir Entri Stok tipe Transfer Item dengan gudang asal dan tujuan](/manual-book-images/inventory/form-stock-entry-transfer.png)
 
 > 💡 Kalau dokumen Stock Entry-nya ditolak atau dibatalkan, semua
 > perubahan stok yang sudah sempat terjadi akan otomatis dikembalikan —
@@ -119,7 +156,8 @@ bertambah di gudang tujuan begitu disubmit.
 Pengiriman barang ke pelanggan dicatat lewat **Delivery Note**, yang
 biasanya dibuat dari sebuah pesanan penjualan (Sales Order) — lihat
 panduan **Penjualan** untuk alur lengkapnya. Begitu Delivery Note
-disubmit, stok otomatis berkurang dari gudang asal.
+disetujui (setelah melewati langkah persetujuan), stok otomatis berkurang
+dari gudang asal.
 
 ## Melihat Riwayat Pergerakan Stok (Kartu Stok)
 
@@ -129,9 +167,11 @@ Ini adalah riwayat permanen yang tidak bisa diubah atau dihapus, jadi kamu
 selalu bisa menelusuri kembali dari mana asal setiap perubahan stok suatu
 barang.
 
-Halaman Kartu Stok hanya untuk dilihat — tidak ada input manual di sana,
-karena semua catatannya dibuat otomatis oleh sistem setiap kali dokumen
-terkait disubmit.
+Halaman Kartu Stok (menu **Inventory → Stock Ledgers**) hanya untuk
+dilihat — tidak ada input manual di sana, karena semua catatannya dibuat
+otomatis oleh sistem setiap kali dokumen terkait disetujui.
+
+![Buku Besar Stok / Kartu Stok dengan kolom perubahan dan nilai saldo](/manual-book-images/inventory/kartu-stok.png)
 
 > 💡 **Bagaimana harga pokok dihitung?** Sistem memakai metode
 > "masuk pertama, keluar pertama" — artinya stok yang masuk lebih dulu
@@ -148,10 +188,14 @@ disiapkan lebih dulu:
   dalamnya).
 - **Satuan** (menu **Inventory → Units**) — satuan pengukuran seperti pcs,
   kg, box. Satuan yang bisa saling dikonversi (misalnya Kg, Gram, Ton)
-  bisa dikelompokkan dalam satu grup supaya konversinya otomatis.
+  dikelompokkan dalam satu **Grup** supaya konversinya otomatis.
 - **Atribut** (menu **Inventory → Attributes**) — atribut pembeda Variant
   seperti warna atau ukuran, yang nanti dipakai saat membuat kombinasi
   Variant di Langkah 2.
+
+![Daftar Kategori](/manual-book-images/inventory/list-kategori.png)
+
+![Daftar Satuan dengan kolom Grup](/manual-book-images/inventory/list-satuan.png)
 
 ## Kalau Ada Barang yang Dikembalikan
 
@@ -174,5 +218,8 @@ Kartu Stok. Ini menjaga supaya angka stok selalu bisa dipertanggungjawabkan
 asal-usulnya.
 
 **Bagaimana cara memantau stok yang tersisa di suatu gudang?**
-Buka halaman detail Variant yang ingin dicek — di sana ada tab yang
-menampilkan posisi stok terkini per gudang.
+Buka halaman detail produk yang ingin dicek, lalu buka tab **Level Stok**
+— di sana ada rincian Kuantitas Nyata, Masuk, Disewa, dan Dipesan per
+gudang.
+
+![Tab Level Stok pada detail produk](/manual-book-images/inventory/tab-level-stok.png)

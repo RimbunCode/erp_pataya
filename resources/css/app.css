@@ -773,6 +773,21 @@ html {
   }
 }
 
+/* Afordansi "gambar bisa dibuka besar" di halaman Manual Book. Di-scope ke
+   .manual-book-content supaya tidak bocor ke .prose lain di aplikasi. Atribut
+   data-lightbox dipasang oleh MarkdownMermaidRenderer setelah konten dirender. */
+.manual-book-content .prose img[data-lightbox="true"] {
+  cursor: zoom-in;
+  transition:
+    filter 0.15s ease,
+    box-shadow 0.15s ease;
+}
+
+.manual-book-content .prose img[data-lightbox="true"]:hover {
+  filter: brightness(0.97);
+  box-shadow: 0 0 0 3px var(--color-ring, oklch(0.7 0.15 250));
+}
+
 @media print {
   @page {
     size: a4 portrait;
@@ -817,5 +832,19 @@ html {
   .manual-book-mermaid svg {
     max-width: 100%;
     height: auto;
+  }
+
+  /* Afordansi hover gambar tidak relevan di kertas. */
+  .manual-book-content .prose img[data-lightbox="true"] {
+    cursor: default;
+    filter: none;
+    box-shadow: none;
+  }
+
+  /* Modal lightbox di-portal ke <body>. Bila kebetulan masih terbuka saat
+     user menekan Cetak, jangan ikut tercetak — gambar inline tetap tercetak. */
+  [data-radix-popper-content-wrapper],
+  [role="dialog"][data-state="open"] {
+    display: none !important;
   }
 }

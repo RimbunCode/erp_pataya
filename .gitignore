@@ -14,6 +14,10 @@
 .qoder/agents
 .qoder/skills
 
+# manual book images (project-local junction/symlink to docs/manual-book/images;
+# real files live under docs/, this path just exposes them to the web server)
+/public/manual-book-images
+
 # opencode (project-local; junctions to .claude/.agents sources)
 /.opencode/command
 /.opencode/skills

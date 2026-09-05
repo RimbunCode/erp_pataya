@@ -16,6 +16,34 @@ return [
 
     /*
     |--------------------------------------------------------------------------
+    | Gambar / Screenshot Manual Book
+    |--------------------------------------------------------------------------
+    |
+    | File asli screenshot disimpan di repo pada `docs/manual-book/images/`,
+    | satu subfolder per section (mis. `docs/manual-book/images/helpdesk/`) —
+    | sejalan dengan file markdown sumbernya yang juga di `docs/manual-book/`.
+    |
+    | Folder `docs/` tidak dilayani web server. Agar gambar tetap tampil di
+    | halaman manual book, buat junction/symlink lokal (sudah di-.gitignore):
+    |
+    |     # dari folder public/ (Windows, tanpa admin):
+    |     cmd /c "mklink /J manual-book-images ..\docs\manual-book\images"
+    |     # Linux/macOS:
+    |     ln -s ../docs/manual-book/images manual-book-images
+    |
+    | Di file markdown, rujuk gambar dengan path absolut dari root situs:
+    |
+    |     ![Form tambah ticket](/manual-book-images/helpdesk/form-tambah-ticket.png)
+    |
+    | Path absolut wajib — file dilayani statis lewat junction di atas, di luar
+    | route `/manual-book/{section}` (yang bersifat catch-all; path relatif
+    | seperti `images/x.png` akan diperlakukan sebagai nama section dan
+    | menghasilkan 404). Nama file pakai kebab-case, ekstensi `.png`.
+    |
+    */
+
+    /*
+    |--------------------------------------------------------------------------
     | Pola Heading yang Disembunyikan (default, berlaku untuk semua section)
     |--------------------------------------------------------------------------
     |
@@ -80,6 +108,13 @@ return [
             'description' => 'Work Order untuk layanan servis dan rental.',
             'icon'        => 'Wrench',
             'source'      => 'layanan.md',
+        ],
+
+        'aset' => [
+            'title'       => 'Aset',
+            'description' => 'Asset, kategori, lokasi, movement, maintenance/repair, sewa/jual, dan depresiasi.',
+            'icon'        => 'Boxes',
+            'source'      => 'aset.md',
         ],
 
         // 'crm' => [

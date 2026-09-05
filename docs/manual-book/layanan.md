@@ -5,6 +5,13 @@ diberikan — baik untuk pelanggan (misalnya jasa servis) maupun untuk
 kebutuhan internal perusahaan sendiri. Kalau kamu bertugas mengelola
 pekerjaan servis atau tim teknisi, panduan ini untuk kamu.
 
+> 💡 **Servis aset tetap perusahaan** (kendaraan, mesin, peralatan kantor
+> yang terdaftar sebagai Asset) **tidak memakai Work Order** — dicatat
+> lewat **Asset Service** (menu **Assets → Asset Services**). Lihat
+> panduan **Aset** untuk detail lengkapnya. Work Order di halaman ini
+> tetap dipakai untuk jenis pekerjaan/layanan lain yang belum masuk ke
+> modul Aset.
+
 ## Istilah yang Perlu Kamu Tahu
 
 - **Work Order (WO)** — dokumen pekerjaan/layanan yang mencatat pekerjaan
