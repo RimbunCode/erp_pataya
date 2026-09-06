@@ -133,6 +133,39 @@ class DeskResolverServiceTest extends TestCase {
         $this->assertSame($desk->id, $resolved->id);
     }
 
+    /**
+     * Bug dilaporkan user: route yang match via wildcard MenuItem milik desk
+     * kandidat (cookie) tetap dianggap "tidak relevan" gara-gara ADA MenuItem
+     * lain (row berbeda) yang match SECARA EXACT dan attached ke desk lain.
+     * MenuItem::forRoute() (pemenang tunggal, prioritas exact) TIDAK boleh
+     * dipakai untuk cek relevansi — harus cek langsung apakah desk kandidat
+     * punya MenuItem row APAPUN yang match (Requirement 4 AC 3.1).
+     */
+    public function test_resolve_keeps_cookie_when_route_matches_via_wildcard_even_if_another_desk_has_exact_match(): void {
+        $user = User::factory()->create();
+
+        $deskA = Desk::factory()->create(['type' => DeskType::Custom, 'owner_id' => $user->id]);
+        $deskB = Desk::factory()->create(['type' => DeskType::Custom, 'owner_id' => $user->id]);
+
+        $wildcardMenuItem = MenuItem::factory()->create([
+            'primary_desk_id' => $deskA->id,
+            'route_name'      => 'assets.*',
+        ]);
+        $wildcardMenuItem->desks()->attach($deskA->id);
+
+        $exactMenuItem = MenuItem::factory()->create([
+            'primary_desk_id' => $deskB->id,
+            'route_name'      => 'assets.show',
+        ]);
+        $exactMenuItem->desks()->attach($deskB->id);
+
+        $request = $this->requestWithCookie($deskA->id, 'assets.show');
+
+        $resolved = $this->resolver->resolve($request, $user);
+
+        $this->assertSame($deskA->id, $resolved->id);
+    }
+
     public function test_resolve_keeps_cookie_when_route_is_not_registered_as_any_menu_item(): void {
         $user = User::factory()->create();
         $desk = Desk::factory()->create(['type' => DeskType::Custom, 'owner_id' => $user->id]);
