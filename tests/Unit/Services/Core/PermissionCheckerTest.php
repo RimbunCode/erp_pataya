@@ -96,4 +96,19 @@ class PermissionCheckerTest extends TestCase {
         $this->assertFalse($c->can('Invoice', Permission::Write));
         $this->assertFalse($c->satisfies([['Invoice', Permission::Write]]));
     }
+
+    public function test_can_action_true_for_extra_permission_string(): void {
+        // manage_roles/manage_branches (User::extraPermissions()) tidak punya
+        // representasi di enum Permission — canAction() menerima nama aksi mentah.
+        $c = $this->checker(['App\\Models\\User\\User' => ['manage_roles']]);
+        $this->assertTrue($c->canAction('App\\Models\\User\\User', 'manage_roles'));
+        $this->assertFalse($c->canAction('App\\Models\\User\\User', 'manage_branches'));
+        $this->assertFalse($c->canAction('Other', 'manage_roles'));
+    }
+
+    public function test_can_delegates_to_can_action(): void {
+        $c = $this->checker(['Invoice' => ['write']]);
+        $this->assertSame($c->canAction('Invoice', Permission::Write->value), $c->can('Invoice', Permission::Write));
+        $this->assertTrue($c->can('Invoice', Permission::Write));
+    }
 }

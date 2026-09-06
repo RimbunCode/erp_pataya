@@ -131,7 +131,8 @@ class UserController extends Controller {
      * Display the specified resource.
      */
     public function show(Request $request, User $user) {
-        $canSelect = PermissionChecker::forUser($request)->can(User::class, Permission::Select);
+        $permissionChecker = PermissionChecker::forUser($request);
+        $canSelect         = $permissionChecker->can(User::class, Permission::Select);
         if ($canSelect) {
             $this->setBreadcrumbs($user);
         } else {
@@ -139,17 +140,24 @@ class UserController extends Controller {
         }
         $user->showDetail();
 
+        $canManageRoles    = $permissionChecker->canAction(User::class, 'manage_roles');
+        $canManageBranches = $permissionChecker->canAction(User::class, 'manage_branches');
+
         return Inertia::render('Users/ManageUsers/Show', [
-            'user' => function () use ($user, $request) {
-                if ($request->user()->id != $user->id) {
-                    $user->roles    = $user->roles()->pluck('id');
+            'user' => function () use ($user, $canManageRoles, $canManageBranches) {
+                if ($canManageRoles) {
+                    $user->roles = $user->roles()->pluck('id');
+                }
+                if ($canManageBranches) {
                     $user->branches = $user->branches()->pluck('id');
                 }
 
                 return $user;
             },
-            ...($request->user()->id != $user->id ? [
-                'roles'    => Inertia::defer(Role::with(['rules', 'rules.permission'])->get(...)),
+            ...($canManageRoles ? [
+                'roles' => Inertia::defer(Role::with(['rules', 'rules.permission'])->get(...)),
+            ] : []),
+            ...($canManageBranches ? [
                 'branches' => Inertia::defer(Branch::whereNull('branchable_type')->whereNull('branchable_id')->get(...)),
             ] : []),
         ]);
@@ -159,12 +167,17 @@ class UserController extends Controller {
      * Update the specified resource in storage.
      */
     public function update(UserRequest $request, User $user) {
-        $data = $request->validated();
+        $data              = $request->validated();
+        $permissionChecker = PermissionChecker::forUser($request);
         DB::beginTransaction();
         if ($user->id != $request->user()->id) {
             $data['status'] = \in_array($user->status, [FormStatus::ACTIVE, FormStatus::INACTIVE]) ? $user->status : FormStatus::ACTIVE;
-            $user->roles()->sync($data['roles']);
-            $user->branches()->sync($data['branches']);
+        }
+        if ($permissionChecker->canAction(User::class, 'manage_roles')) {
+            $user->roles()->sync($data['roles'] ?? []);
+        }
+        if ($permissionChecker->canAction(User::class, 'manage_branches')) {
+            $user->branches()->sync($data['branches'] ?? []);
         }
         $user->fillForUpdate($data);
         DB::commit();
