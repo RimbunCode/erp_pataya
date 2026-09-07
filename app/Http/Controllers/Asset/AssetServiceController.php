@@ -8,7 +8,10 @@ use App\Http\Requests\Asset\AssetServiceActivityRequest;
 use App\Http\Requests\Asset\AssetServiceRequest;
 use App\Models\Asset\AssetService;
 use App\Models\Asset\AssetServiceActivity;
+use App\Models\Core\File;
+use App\Models\Core\Fileable;
 use App\Services\Asset\AssetServiceService;
+use App\Services\Core\BufferedAttachmentService;
 use Illuminate\Http\Request;
 use Inertia\Inertia;
 use LogicException;
@@ -88,15 +91,17 @@ class AssetServiceController extends Controller {
 
     protected function enforcePermission(string $method) {
         return match ($method) {
-            'complete', 'storeActivity', 'updateActivity', 'billToRenter' => 'write',
-            default                                                       => parent::enforcePermission($method),
+            'complete', 'storeActivity', 'updateActivity', 'billToRenter',
+            'addActivityFile', 'removeActivityFile' => 'write',
+            default => parent::enforcePermission($method),
         };
     }
 
     public function storeActivity(AssetServiceActivityRequest $request, AssetService $assetService) {
         $this->assertApproved($assetService);
 
-        $assetService->activities()->create($request->validated());
+        $activity = $assetService->activities()->create($request->validated());
+        BufferedAttachmentService::attach($activity, $request);
 
         return back();
     }
@@ -105,6 +110,31 @@ class AssetServiceController extends Controller {
         $this->assertApproved($activity->assetService);
 
         $activity->update($request->validated());
+
+        return back();
+    }
+
+    public function addActivityFile(Request $request, AssetServiceActivity $activity) {
+        $this->assertApproved($activity->assetService);
+
+        File::uploadFile($request, 'AssetServiceActivity', function ($file) use ($activity) {
+            Fileable::firstOrCreate([
+                'fileable_id'   => $activity->id,
+                'fileable_type' => AssetServiceActivity::class,
+                'file_id'       => $file->id,
+            ]);
+        });
+
+        return back();
+    }
+
+    public function removeActivityFile(Request $request, AssetServiceActivity $activity, File $file) {
+        $this->assertApproved($activity->assetService);
+
+        Fileable::where('fileable_id', $activity->id)
+            ->where('fileable_type', AssetServiceActivity::class)
+            ->where('file_id', $file->id)
+            ->delete();
 
         return back();
     }

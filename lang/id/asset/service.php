@@ -27,6 +27,7 @@ return [
         'pic'                          => 'PIC',
         'description'                  => 'Deskripsi',
         'is_done'                      => 'Selesai',
+        'attachments'                  => 'Lampiran',
         'save'                         => 'Simpan',
         'empty'                        => 'Belum ada aktivitas tercatat.',
         'mark_complete'                => 'Tandai Servis Selesai',

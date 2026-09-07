@@ -27,6 +27,7 @@ return [
         'pic'                          => 'PIC',
         'description'                  => 'Description',
         'is_done'                      => 'Done',
+        'attachments'                  => 'Attachments',
         'save'                         => 'Save',
         'empty'                        => 'No activity logged yet.',
         'mark_complete'                => 'Mark Service as Complete',

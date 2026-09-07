@@ -2,11 +2,13 @@
 
 namespace App\Models\Asset;
 
+use App\Models\Core\File;
 use App\Models\Model;
 use App\Models\User\User;
 use Illuminate\Database\Eloquent\Concerns\HasUlids;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
+use Illuminate\Database\Eloquent\Relations\MorphToMany;
 use Illuminate\Database\Eloquent\SoftDeletes;
 
 class AssetServiceActivity extends Model {
@@ -25,5 +27,10 @@ class AssetServiceActivity extends Model {
 
     public function pic(): BelongsTo {
         return $this->belongsTo(User::class, 'pic_id');
+    }
+
+    public function files(): MorphToMany {
+        return $this->morphToMany(File::class, 'fileable')
+            ->whereNull('fileables.deleted_at');
     }
 }

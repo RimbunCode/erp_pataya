@@ -80,6 +80,7 @@ class AssetService extends Model {
             'asset',
             'assetMaintenanceTask.assetMaintenance.asset',
             'activities.pic',
+            'activities.files',
             'consumedItems.item',
             'consumedItems.itemUnit',
             'branch',

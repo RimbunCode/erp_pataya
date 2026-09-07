@@ -1,0 +1,6 @@
+{
+  "specId": "21c6edfb-c54b-433a-a413-a71c5e467d9b",
+  "workflowType": "design-first",
+  "specType": "feature",
+  "description": "Tambah dukungan attachment/lampiran file pada Log Aktivitas (AssetServiceActivity) di fitur AssetService (\"Work Orders\") — mereplikasi pola Fileable/BufferedAttachmentService yang sudah established di codebase (contoh: TicketController), bukan mekanisme baru."
+}

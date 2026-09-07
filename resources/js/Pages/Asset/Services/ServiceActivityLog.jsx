@@ -4,13 +4,22 @@ import {
   DialogFooter,
   DialogHeader,
   DialogTitle,
+  DialogTrigger,
 } from "@/Components/ui/dialog";
-import React, { useState } from "react";
+import { FileTextIcon, Paperclip, Plus, X } from "lucide-react";
+import React, { useEffect, useState } from "react";
+import {
+  Tooltip,
+  TooltipContent,
+  TooltipTrigger,
+} from "@/Components/ui/tooltip";
 
 import { Button } from "@/Components/ui/button";
 import { Checkbox } from "@/Components/ui/checkbox";
 import DatetimePicker from "@/Components/DatetimePicker";
-import { Input } from "@/Components/ui/input";
+import Link from "@/Components/Link";
+import { Textarea } from "@/Components/ui/textarea";
+import UploadDialog from "@/Pages/Core/Components/UploadDialog";
 import UserLinkModel from "@/Pages/Users/ManageUsers/UserLinkModel";
 import { router } from "@inertiajs/react";
 import { useLaravelReactI18n } from "laravel-react-i18n";
@@ -18,11 +27,55 @@ import { useLaravelReactI18n } from "laravel-react-i18n";
 function ActivityFormDialog({ assetService, activity, open, onOpenChange }) {
   const { t } = useLaravelReactI18n();
   const [form, setForm] = useState(
-    activity ?? { action_date: null, pic: null, description: "" },
+    activity ?? { action_date: null, pic: null, description: "", files: [] },
   );
+  // ActivityFormDialog selalu mounted (dialog cuma disembunyikan via prop
+  // `open`, bukan di-unmount) -- useState initializer di atas cuma jalan
+  // sekali saat mount pertama. Tanpa effect ini, ganti activity yang diedit
+  // (atau pindah Add<->Edit) tidak pernah re-sync form ke data yang baru --
+  // field selalu kosong/basi. Sengaja BUKAN pakai `key` di parent (itu
+  // unmount+remount <Dialog>, bentrok dengan animasi transisi Radix --
+  // TimeoutError "Transition aborted" muncul di console saat dicoba).
+  //
+  // Dependency `activity?.id` (bukan `activity`) SENGAJA -- attach/hapus
+  // lampiran mode edit memicu reload prop (activity dapat reference baru
+  // tiap kali walau field lain sama persis). Kalau effect ini trigger ulang
+  // di setiap reload, perubahan description/dll yang sedang diketik user
+  // (belum sempat Simpan) akan ketimpa balik ke nilai lama tiap kali attach
+  // file -- effect ini HARUS hanya reset saat activity yang diedit benar2
+  // BERGANTI (ganti id, atau pindah Add<->Edit), bukan tiap reload activity
+  // yang sama.
+  useEffect(() => {
+    setForm(
+      activity ?? { action_date: null, pic: null, description: "", files: [] },
+    );
+  }, [activity?.id]);
   const [saving, setSaving] = useState(false);
+  const [attachOpen, setAttachOpen] = useState(false);
+  const route = window.route;
 
   const isEdit = !!activity?.id;
+  // Create: buffer lokal (form.files). Edit: live dari activity.files, di-refresh
+  // server tiap add/remove (bukan bagian payload Simpan).
+  const attachments = isEdit ? (activity?.files ?? []) : (form.files ?? []);
+
+  const handleBuffer = (items) => {
+    setForm((f) => ({ ...f, files: [...(f.files ?? []), ...items] }));
+  };
+
+  const removeAttachment = (fileId) => {
+    if (!isEdit) {
+      setForm((f) => ({
+        ...f,
+        files: (f.files ?? []).filter((x) => x.id !== fileId),
+      }));
+      return;
+    }
+    router.delete(
+      route("assetServices.activities.removeFile", [activity.id, fileId]),
+      { preserveScroll: true },
+    );
+  };
 
   const submit = () => {
     setSaving(true);
@@ -31,6 +84,10 @@ function ActivityFormDialog({ assetService, activity, open, onOpenChange }) {
       pic_id: form.pic?.id ?? null,
       description: form.description,
       is_done: form.is_done ?? false,
+      ...(!isEdit &&
+        form.files?.length > 0 && {
+          filesId: form.files.map((f) => f.id).filter(Boolean),
+        }),
     };
 
     const url = isEdit
@@ -66,7 +123,8 @@ function ActivityFormDialog({ assetService, activity, open, onOpenChange }) {
             onValueChange={(val) => setForm({ ...form, pic: val })}
             placeholder={t("asset.service.activity.pic")}
           />
-          <Input
+          <Textarea
+            rows={3}
             value={form.description ?? ""}
             placeholder={t("asset.service.activity.description")}
             onChange={(e) => setForm({ ...form, description: e.target.value })}
@@ -78,6 +136,71 @@ function ActivityFormDialog({ assetService, activity, open, onOpenChange }) {
             />
             {t("asset.service.activity.is_done")}
           </label>
+
+          <div className="flex flex-col gap-y-2 pt-2 border-t">
+            <div className="flex items-center justify-between">
+              <div className="flex items-center gap-x-2 text-sm font-medium">
+                <Paperclip className="size-4" />
+                {t("asset.service.activity.attachments")}
+              </div>
+              <Dialog open={attachOpen} onOpenChange={setAttachOpen}>
+                <DialogTrigger asChild>
+                  <Button
+                    type="button"
+                    variant="ghost"
+                    size="icon"
+                    className="rounded-full"
+                  >
+                    <Plus />
+                  </Button>
+                </DialogTrigger>
+                <UploadDialog
+                  onClose={() => setAttachOpen(false)}
+                  onBuffer={isEdit ? null : handleBuffer}
+                  options={
+                    isEdit
+                      ? {
+                          route: route(
+                            "assetServices.activities.addFile",
+                            activity.id,
+                          ),
+                        }
+                      : undefined
+                  }
+                />
+              </Dialog>
+            </div>
+            <ul className="flex flex-col gap-y-1">
+              {attachments.map((file) => (
+                <li
+                  key={file.id}
+                  className="flex items-center justify-between gap-x-2 text-sm"
+                >
+                  <Tooltip>
+                    <TooltipTrigger asChild>
+                      <Link
+                        href={route("files.preview", file.id)}
+                        className="flex items-center flex-1 min-w-0 gap-x-2 hover:underline"
+                      >
+                        <FileTextIcon className="size-4 shrink-0" />
+                        <span className="truncate">{file.name}</span>
+                      </Link>
+                    </TooltipTrigger>
+                    <TooltipContent align="start">{file.name}</TooltipContent>
+                  </Tooltip>
+                  <Button
+                    type="button"
+                    variant="ghost"
+                    size="icon"
+                    className="rounded-full p-0!"
+                    onClick={() => removeAttachment(file.id)}
+                  >
+                    <X className="size-4" />
+                  </Button>
+                </li>
+              ))}
+            </ul>
+          </div>
         </div>
         <DialogFooter>
           <Button disabled={saving} onClick={submit}>
@@ -180,6 +303,12 @@ export default function ServiceActivityLog({ assetService }) {
                 {activity.pic?.name} — {activity.action_date}
               </p>
             </div>
+            {activity.files?.length > 0 && (
+              <div className="flex items-center gap-x-1 text-xs text-muted-foreground shrink-0">
+                <Paperclip className="size-3.5" />
+                {activity.files.length}
+              </div>
+            )}
           </div>
         ))}
         {activities.length === 0 && (
@@ -196,8 +325,24 @@ export default function ServiceActivityLog({ assetService }) {
       )}
 
       <ActivityFormDialog
+        // key berbasis id activity yang sedang di-edit -- ActivityFormDialog
+        // selalu mounted (dialog cuma disembunyikan via prop `open`, bukan
+        // di-unmount), dan useState(activity ?? {...}) di dalamnya cuma jalan
+        // sekali saat mount pertama. Tanpa key ini, ganti activity yang
+        // diedit (atau pindah dari Add ke Edit) TIDAK memicu re-init form --
+        // field selalu kosong. Key berubah -> React remount -> form terisi
+        // ulang dari activity yang benar.
+        key={editingActivity?.id ?? "new"}
         assetService={assetService}
-        activity={editingActivity}
+        // Ambil ulang dari activities (bukan snapshot editingActivity) supaya
+        // attach/hapus lampiran mode edit (efek langsung, back() reload) ikut
+        // ter-refresh di dialog yang masih terbuka.
+        activity={
+          editingActivity
+            ? (activities.find((a) => a.id === editingActivity.id) ??
+              editingActivity)
+            : null
+        }
         open={dialogOpen}
         onOpenChange={setDialogOpen}
       />
