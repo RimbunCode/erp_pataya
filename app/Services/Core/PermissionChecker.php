@@ -55,6 +55,16 @@ class PermissionChecker {
      * "punya aksi ini", bukan "boleh atas record tertentu".)
      */
     public function can(string $model, Permission $action, int $level = 0): bool {
+        return $this->canAction($model, $action->value, $level);
+    }
+
+    /**
+     * Sama seperti `can()`, tapi menerima nama aksi mentah (string) alih-alih
+     * enum `Permission` — untuk extra permission per-model di luar aksi baku
+     * (mis. `manage_roles`/`manage_branches` pada `User::extraPermissions()`)
+     * yang tidak punya representasi di enum `Permission`.
+     */
+    public function canAction(string $model, string $action, int $level = 0): bool {
         $levelPermissions = $this->permissions[$model][$level] ?? null;
         if (! is_array($levelPermissions)) {
             return false;
@@ -62,7 +72,7 @@ class PermissionChecker {
 
         foreach ($levelPermissions as $entry) {
             $perms = $entry['permissions'] ?? [];
-            if (! empty($perms[$action->value])) {
+            if (! empty($perms[$action])) {
                 return true;
             }
         }

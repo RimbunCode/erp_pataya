@@ -55,7 +55,6 @@ use App\Models\Purchase\Supplier;
 use App\Models\Sales\Customer;
 use App\Models\Sales\InternalOrder;
 use App\Models\Sales\SalesOrder;
-use App\Models\Service\WorkOrder;
 use App\Models\User\Permission as PermissionModel;
 use App\Models\User\Role;
 use App\Models\User\User;
@@ -245,15 +244,25 @@ class DeskSeeder extends Seeder {
         $this->menuItem('Asset Movements', 'Truck', 'assetMovements.*', AssetMovement::class, [Domain::Asset], 5);
 
         // Assets: Maintenance. Feedback user: Maintenance Teams + Asset
-        // Maintenance juga relevan di desk Service (Asset Services sudah
-        // duluan ada di sana) — di desk Service ketiganya otomatis tetap
-        // ke-grup "Maintenance" (3 anak, syarat >1 item terpenuhi).
+        // Maintenance juga relevan di desk Service — di desk Service keduanya
+        // otomatis tetap ke-grup "Maintenance" (2 anak, syarat >1 item
+        // terpenuhi). Asset Services SUDAH TIDAK di sini — lihat menuItem
+        // "Work Orders" di bawah (WorkOrder lama digantikan AssetService).
         $this->menuItem('Maintenance Teams', 'Wrench', 'assetMaintenanceTeams.*', AssetMaintenanceTeam::class, [Domain::Asset, Domain::Service], 6, group: 'Maintenance');
         $this->menuItem('Asset Maintenance', 'Wrench', 'assetMaintenances.*', AssetMaintenance::class, [Domain::Asset, Domain::Service], 7, group: 'Maintenance');
-        $this->menuItem('Asset Services', 'Wrench', 'assetServices.*', AssetService::class, [Domain::Asset, Domain::Service], 8, group: 'Maintenance');
 
-        // Services — primary Service (section tunggal, tidak butuh folder)
-        $this->menuItem('Work Orders', 'ServiceIcon', 'workOrders.*', WorkOrder::class, [Domain::Service], 1);
+        // Services — primary Service (section tunggal, tidak butuh folder).
+        // AssetService dipromosikan jadi "Work Orders" (menggantikan WorkOrder
+        // lama) — keluar dari grup Maintenance, prioritas 1 sama seperti
+        // WorkOrder sebelumnya. Model/route/table AssetService TIDAK berubah,
+        // cuma label tampilan (lihat AssetService::$alias untuk Permission.name).
+        $this->menuItem('Work Orders', 'ServiceIcon', 'assetServices.*', AssetService::class, [Domain::Asset, Domain::Service], 1);
+
+        // WorkOrder lama disembunyikan (BUKAN dihapus — model/data/route tetap
+        // ada, cuma tidak muncul di menu). MenuItem lama di-soft-delete supaya
+        // env yang sudah pernah ke-seed (staging/production) ikut ter-update
+        // saat db:seed dijalankan ulang di deploy berikutnya.
+        MenuItem::where('route_name', 'workOrders.*')->delete();
 
         // Purchases — Requests+Orders tetap 1 grup kecil (alur procurement).
         // Suppliers feedback user: keluarkan dari grup (relasi vendor beda
@@ -721,7 +730,7 @@ class DeskSeeder extends Seeder {
             'model_class'       => Asset::class,
         ], null, 4);
         $this->chart($dashboard, [
-            'chart_name'        => 'AssetService per Bulan',
+            'chart_name'        => 'Work Order per Bulan',
             'chart_source_type' => 'count',
             'timeseries'        => true,
             'based_on'          => 'failure_date',
@@ -731,7 +740,7 @@ class DeskSeeder extends Seeder {
         ], null, 5);
 
         $this->widget($dashboard, 'quick_list', $this->quickListConfig(
-            'AssetService Terbaru',
+            'Work Order Terbaru',
             AssetService::class,
             ['code', 'failure_date'],
             null,
@@ -749,58 +758,42 @@ class DeskSeeder extends Seeder {
         $this->linkCardItems($dashboard, $linkCard->id, [
             'Asset Maintenance' => 'assetMaintenances.*',
             'Maintenance Teams' => 'assetMaintenanceTeams.*',
-            'Asset Services'    => 'assetServices.*',
+            'Work Orders'       => 'assetServices.*',
         ]);
     }
 
     private function seedDashboardForService(Dashboard $dashboard): void {
         $this->openingSection($dashboard, 'Ringkasan Service');
 
+        // WorkOrder lama sudah digantikan AssetService (lihat menuItem "Work
+        // Orders" di seedMenuItems) — dashboard ini konsolidasi ke AssetService
+        // saja, tidak lagi menampilkan WorkOrder::class secara terpisah.
         $this->card($dashboard, [
-            'label'   => 'Work Order Open', 'function' => 'count', 'model_class' => WorkOrder::class,
-            'filters' => $this->filterTree([['status', 'like', 'work_in_progress']]),
-        ], null, 1);
-        $this->card($dashboard, [
-            'label'   => 'AssetService Bulan Ini', 'function' => 'count', 'model_class' => AssetService::class,
+            'label'   => 'Work Order Bulan Ini', 'function' => 'count', 'model_class' => AssetService::class,
             'filters' => $this->filterTree([$this->monthCondition('failure_date')]),
-        ], null, 2);
+        ], null, 1);
 
         $this->chart($dashboard, [
-            'chart_name'        => 'Work Order per Status',
-            'chart_source_type' => 'group_by',
-            'group_by_based_on' => 'status',
-            'group_by_type'     => 'count',
-            'visual_type'       => 'pie',
-            'model_class'       => WorkOrder::class,
-        ], null, 3);
-        $this->chart($dashboard, [
-            'chart_name'        => 'AssetService per Bulan',
+            'chart_name'        => 'Work Order per Bulan',
             'chart_source_type' => 'count',
             'timeseries'        => true,
             'based_on'          => 'failure_date',
             'time_interval'     => 'monthly',
             'visual_type'       => 'bar',
             'model_class'       => AssetService::class,
-        ], null, 4);
+        ], null, 2);
 
         $this->widget($dashboard, 'quick_list', $this->quickListConfig(
-            'Work Order In Progress',
-            WorkOrder::class,
-            ['code', 'date'],
-            $this->filterTree([['status', 'like', 'work_in_progress']]),
-            'date',
-        ), null, 5, 6);
-        $this->widget($dashboard, 'quick_list', $this->quickListConfig(
-            'AssetService Terbaru',
+            'Work Order Terbaru',
             AssetService::class,
             ['code', 'failure_date'],
             null,
             'failure_date',
-        ), null, 6, 6);
+        ), null, 3, 12);
 
-        $linkCard = $this->widget($dashboard, 'link_card', ['label' => 'Maintenance'], null, 7, 12);
+        $linkCard = $this->widget($dashboard, 'link_card', ['label' => 'Maintenance'], null, 4, 12);
         $this->linkCardItems($dashboard, $linkCard->id, [
-            'Asset Services'    => 'assetServices.*',
+            'Work Orders'       => 'assetServices.*',
             'Asset Maintenance' => 'assetMaintenances.*',
         ]);
     }

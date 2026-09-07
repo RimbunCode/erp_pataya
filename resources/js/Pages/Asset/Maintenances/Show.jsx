@@ -5,6 +5,7 @@ import AssetMaintenanceTeamLinkModel from "@/Pages/Asset/MaintenanceTeams/AssetM
 import FormInput from "@/Components/FormInput";
 import FormTable from "@/Components/FormTable";
 import { Input } from "@/Components/ui/input";
+import { Textarea } from "@/Components/ui/textarea";
 import Link from "@/Components/Link";
 import React from "react";
 import UserLinkModel from "@/Pages/Users/ManageUsers/UserLinkModel";
@@ -53,6 +54,20 @@ export default function Show() {
         titleTrans: "asset.maintenance.task.columns.next_due_date",
         cell({ data: value }) {
           return <span>{value}</span>;
+        },
+      },
+      {
+        name: "description",
+        titleTrans: "asset.maintenance.task.columns.description",
+        cell({ data: value, setData, attributes }) {
+          return (
+            <Textarea
+              rows={1}
+              value={value ?? ""}
+              onChange={(e) => setData(e.target.value)}
+              {...attributes}
+            />
+          );
         },
       },
       {

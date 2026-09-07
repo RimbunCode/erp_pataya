@@ -178,6 +178,32 @@ class ResolveActiveDeskTest extends TestCase {
      * khusus di route 'dashboard'. Sekarang redirect ke desks.index (jalan
      * keluar yang sama dgn bypass prefix desk./desks. di middleware).
      */
+    /**
+     * Bug dilaporkan user: klik "Manage Account" (dropdown avatar, buka
+     * users.show milik diri sendiri) memicu pindah Desk ke Desk pemilik
+     * menu "Manage Users" (route_name "users.*"), padahal user tidak
+     * bermaksud navigasi ke fitur itu.
+     */
+    public function test_viewing_own_profile_does_not_switch_active_desk(): void {
+        $user = User::factory()->create();
+        $this->grantSelectPermission($user, User::class);
+
+        $currentDesk = Desk::factory()->create(['type' => DeskType::Custom, 'owner_id' => $user->id]);
+        $usersDesk   = Desk::factory()->create(['type' => DeskType::Custom, 'owner_id' => $user->id, 'name' => 'User Admin']);
+
+        $manageUsersMenuItem = MenuItem::factory()->create(['primary_desk_id' => $usersDesk->id, 'route_name' => 'users.*']);
+        $usersDesk->menuItems()->attach($manageUsersMenuItem->id, ['order' => 0]);
+
+        $response = $this->actingAs($user)
+            ->withCookie('lang', 'en')
+            ->withCookie('active_desk', $currentDesk->id)
+            ->get(route('users.show', $user));
+
+        $response->assertOk();
+        $response->assertCookie('active_desk', $currentDesk->id);
+        $response->assertInertia(fn ($page) => $page->where('activeDesk.id', $currentDesk->id));
+    }
+
     public function test_redirects_to_desks_index_when_user_has_no_visible_desk(): void {
         $user = User::factory()->create();
 

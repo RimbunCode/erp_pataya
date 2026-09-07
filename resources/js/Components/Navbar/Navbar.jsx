@@ -131,11 +131,7 @@ export default memo(function Navbar({
             <BreadcrumbList className="gap-1 sm:gap-1">
               <BreadcrumbItem>
                 <BreadcrumbLink asChild>
-                  <Link
-                    href={route("desks.index")}
-                    className="rounded-md p-1.5 text-muted-foreground hover:bg-muted hover:text-foreground transition-colors"
-                    aria-label="Home"
-                  >
+                  <Link href={route("desks.index")} aria-label="Home">
                     <Home className="size-4" />
                   </Link>
                 </BreadcrumbLink>

@@ -57,7 +57,7 @@ export default memo(function DeskSwitcher() {
       <DropdownMenuTrigger asChild>
         <button
           type="button"
-          className="flex shrink-0 cursor-pointer items-center gap-1.5 rounded-md px-1.5 py-1 text-sm font-medium text-muted-foreground outline-none hover:bg-muted hover:text-foreground transition-colors [&>svg]:size-4"
+          className="flex h-7 shrink-0 cursor-pointer items-center gap-1.5 rounded-md border border-zinc-300 px-1.5 text-sm font-medium text-primary outline-none transition-colors hover:bg-accent [&>svg]:size-4 dark:border-zinc-700"
         >
           {resolveIcon(activeDesk.icon)}
           <span className="truncate max-w-32">{activeDesk.name}</span>

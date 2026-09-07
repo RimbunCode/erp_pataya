@@ -22,12 +22,14 @@ import userEvent from "@testing-library/user-event";
 // onValueChange dengan nilai tetap saat diklik -- pola sama seperti
 // AssetLinkModel di Asset/Maintenances/Show.rtl.test.jsx.
 //
-// BUG (lihat bugFindings): ActivityFormDialog selalu dirender (tidak
-// dibungkus kondisional oleh `dialogOpen`), jadi ia mount SEKALI dengan
-// activity=null (nilai awal editingActivity). `useState(activity ?? {...})`
-// bukan lazy-initializer function, jadi form TIDAK PERNAH reset ke data
-// activity yang sedang di-edit -- form tetap kosong walau membuka dialog
-// edit pada activity yang sudah berisi data.
+// FIX (sebelumnya BUG, lihat riwayat git): ActivityFormDialog selalu
+// dirender oleh parent (tidak dibungkus kondisional oleh `dialogOpen` --
+// dialognya sendiri yang punya prop `open`). `useState(activity ?? {...})`
+// bukan lazy-initializer function, cuma jalan sekali saat mount pertama --
+// tanpa remount, form tidak pernah reset ke data activity yang sedang
+// di-edit. Fix: parent (`ServiceActivityLog`) memberi `key={activity.id}` ke
+// `<ActivityFormDialog>`, memaksa React unmount+remount tiap ganti activity
+// yang diedit, sehingga useState initializer re-run dengan data yang benar.
 // ============================================================================
 
 const stableT = (key) => key;
@@ -35,15 +37,49 @@ vi.mock("laravel-react-i18n", () => ({
   useLaravelReactI18n: () => ({ t: stableT }),
 }));
 
-window.route = (name, id) => `${name}/${id}`;
+window.route = (name, ...ids) => `${name}/${ids.join(",")}`;
 
 const routerPut = vi.fn();
 const routerPost = vi.fn();
+const routerDelete = vi.fn();
 vi.mock("@inertiajs/react", () => ({
   router: {
     put: (...a) => routerPut(...a),
     post: (...a) => routerPost(...a),
+    delete: (...a) => routerDelete(...a),
   },
+}));
+
+vi.mock("@/Components/Link", () => ({
+  default: ({ href, children }) => <a href={href}>{children}</a>,
+}));
+
+// TooltipContent (real Radix) tidak dirender ke DOM sampai tooltip terbuka
+// (hover/focus) -- mock ini meniru itu (return null) supaya teks nama file
+// tidak duplikat di DOM (sekali di trigger, sekali lagi di content).
+vi.mock("@/Components/ui/tooltip", () => ({
+  Tooltip: ({ children }) => <>{children}</>,
+  TooltipTrigger: ({ children }) => <>{children}</>,
+  TooltipContent: () => null,
+}));
+
+// UploadDialog asli (axios/router internal) distub -- fokus test ini cuma
+// memverifikasi ActivityFormDialog mengonfigurasinya dengan benar (onBuffer
+// vs options.route sesuai mode), bukan perilaku upload UploadDialog sendiri
+// (sudah ada test terpisah untuk itu).
+vi.mock("@/Pages/Core/Components/UploadDialog", () => ({
+  default: ({ onBuffer, options }) => (
+    <div data-testid="upload-dialog" data-route={options?.route ?? ""}>
+      {onBuffer && (
+        <button
+          type="button"
+          onClick={() => onBuffer([{ id: 99, name: "lampiran-baru.pdf" }])}
+        >
+          fake-buffer-upload
+        </button>
+      )}
+    </div>
+  ),
 }));
 
 vi.mock("@/Components/DatetimePicker", () => ({
@@ -82,6 +118,7 @@ describe("ServiceActivityLog", () => {
   beforeEach(() => {
     routerPut.mockReset();
     routerPost.mockReset();
+    routerDelete.mockReset();
   });
 
   it("activities kosong: menampilkan empty state, tombol Mark Complete tidak tampil", () => {
@@ -193,7 +230,7 @@ describe("ServiceActivityLog", () => {
     ).not.toBeInTheDocument();
   });
 
-  it("BUG (lihat bugFindings): klik baris activity untuk edit membuka dialog dengan title 'edit', tapi form TETAP KOSONG (data activity tidak ter-load)", async () => {
+  it("klik baris activity untuk edit membuka dialog dengan title 'edit' dan form TERISI data activity yang diklik", async () => {
     const user = userEvent.setup({ delay: null });
     const assetService = baseAssetService({
       activities: [
@@ -215,19 +252,60 @@ describe("ServiceActivityLog", () => {
       within(dialog).getByText("asset.service.activity.edit"),
     ).toBeInTheDocument();
 
-    // Title bilang "edit", tapi field form kosong -- bukan "Cek oli"/Budi/
-    // 2026-09-01/is_done=true milik activity yang diklik.
+    // Fix: ActivityFormDialog diberi key={activity.id} di parent supaya
+    // React remount komponen (dan re-init useState) tiap ganti activity yang
+    // diedit -- form HARUS terisi "Cek oli"/Budi/2026-09-01/is_done=true
+    // milik activity yang diklik, bukan kosong.
     expect(
       within(dialog).getByPlaceholderText("asset.service.activity.description"),
-    ).toHaveValue("");
+    ).toHaveValue("Cek oli");
     expect(within(dialog).getByTestId("datetime-picker")).toHaveTextContent(
-      "date:none",
+      "date:2026-09-01",
     );
     expect(within(dialog).getByTestId("user-link-model")).toHaveTextContent(
-      "pic:none",
+      "pic:Budi",
     );
     const isDoneCheckbox = within(dialog).getByRole("forminput");
-    expect(isDoneCheckbox).toHaveAttribute("aria-checked", "false");
+    expect(isDoneCheckbox).toHaveAttribute("aria-checked", "true");
+  });
+
+  it("ganti activity yang diedit (klik activity lain selagi dialog masih ke-render) me-reset form ke data activity baru", async () => {
+    const user = userEvent.setup({ delay: null });
+    const assetService = baseAssetService({
+      activities: [
+        {
+          id: 9,
+          description: "Cek oli",
+          pic: { id: 2, name: "Budi" },
+          action_date: "2026-09-01",
+          is_done: true,
+        },
+        {
+          id: 10,
+          description: "Ganti ban",
+          pic: null,
+          action_date: null,
+          is_done: false,
+        },
+      ],
+    });
+    render(<ServiceActivityLog assetService={assetService} />);
+
+    await user.click(screen.getByText("Cek oli"));
+    expect(
+      within(screen.getByRole("dialog")).getByPlaceholderText(
+        "asset.service.activity.description",
+      ),
+    ).toHaveValue("Cek oli");
+
+    await user.keyboard("{Escape}");
+    await user.click(screen.getByText("Ganti ban"));
+
+    expect(
+      within(screen.getByRole("dialog")).getByPlaceholderText(
+        "asset.service.activity.description",
+      ),
+    ).toHaveValue("Ganti ban");
   });
 
   it("mengisi form Add lalu submit memanggil router.post ke assetServices.activities.store dengan payload sesuai input", async () => {
@@ -469,5 +547,169 @@ describe("ServiceActivityLog", () => {
     });
 
     expect(confirmButton).not.toBeDisabled();
+  });
+
+  describe("lampiran", () => {
+    it("baris activity dengan files menampilkan indikator jumlah, yang tanpa files tidak", () => {
+      const assetService = baseAssetService({
+        activities: [
+          {
+            id: 1,
+            description: "Ada lampiran",
+            pic: null,
+            action_date: null,
+            is_done: false,
+            files: [
+              { id: 10, name: "a.pdf" },
+              { id: 11, name: "b.pdf" },
+            ],
+          },
+          {
+            id: 2,
+            description: "Tanpa lampiran",
+            pic: null,
+            action_date: null,
+            is_done: false,
+            files: [],
+          },
+        ],
+      });
+      render(<ServiceActivityLog assetService={assetService} />);
+
+      expect(screen.getByText("2")).toBeInTheDocument();
+      expect(screen.getByText("Ada lampiran").closest("div.flex")).toBeTruthy();
+    });
+
+    it("mode create: pilih file via UploadDialog (buffer) lalu Simpan mengirim filesId di payload", async () => {
+      const user = userEvent.setup({ delay: null });
+      const assetService = baseAssetService({ id: 3 });
+      render(<ServiceActivityLog assetService={assetService} />);
+
+      await user.click(
+        screen.getByRole("button", { name: "asset.service.activity.add" }),
+      );
+      const dialog = screen.getByRole("dialog");
+
+      await user.type(
+        within(dialog).getByPlaceholderText(
+          "asset.service.activity.description",
+        ),
+        "Servis rutin",
+      );
+      await user.click(within(dialog).getByText("fake-buffer-upload"));
+      await user.click(
+        within(dialog).getByRole("button", {
+          name: "asset.service.activity.save",
+        }),
+      );
+
+      expect(routerPost).toHaveBeenCalledWith(
+        "assetServices.activities.store/3",
+        expect.objectContaining({
+          description: "Servis rutin",
+          filesId: [99],
+        }),
+        expect.objectContaining({ onFinish: expect.any(Function) }),
+      );
+    });
+
+    it("mode create tanpa pilih file: payload TIDAK menyertakan filesId sama sekali", async () => {
+      const user = userEvent.setup({ delay: null });
+      render(<ServiceActivityLog assetService={baseAssetService({ id: 3 })} />);
+
+      await user.click(
+        screen.getByRole("button", { name: "asset.service.activity.add" }),
+      );
+      await user.click(
+        within(screen.getByRole("dialog")).getByRole("button", {
+          name: "asset.service.activity.save",
+        }),
+      );
+
+      const [, payload] = routerPost.mock.calls[0];
+      expect(payload).not.toHaveProperty("filesId");
+    });
+
+    it("mode edit: tombol + UploadDialog dikonfigurasi options.route ke assetServices.activities.addFile milik activity yang benar", async () => {
+      const user = userEvent.setup({ delay: null });
+      const assetService = baseAssetService({
+        activities: [
+          {
+            id: 9,
+            description: "Cek oli",
+            pic: null,
+            action_date: null,
+            is_done: false,
+            files: [],
+          },
+        ],
+      });
+      render(<ServiceActivityLog assetService={assetService} />);
+
+      await user.click(screen.getByText("Cek oli"));
+      const dialog = screen.getByRole("dialog");
+
+      expect(within(dialog).getByTestId("upload-dialog")).toHaveAttribute(
+        "data-route",
+        "assetServices.activities.addFile/9",
+      );
+      // Mode edit: onBuffer null -> tombol fake-buffer-upload tidak dirender.
+      expect(
+        within(dialog).queryByText("fake-buffer-upload"),
+      ).not.toBeInTheDocument();
+    });
+
+    it("mode edit: klik X pada lampiran existing memanggil router.delete ke assetServices.activities.removeFile dengan id activity+file yang benar", async () => {
+      const user = userEvent.setup({ delay: null });
+      const assetService = baseAssetService({
+        activities: [
+          {
+            id: 9,
+            description: "Cek oli",
+            pic: null,
+            action_date: null,
+            is_done: false,
+            files: [{ id: 55, name: "foto.jpg" }],
+          },
+        ],
+      });
+      render(<ServiceActivityLog assetService={assetService} />);
+
+      await user.click(screen.getByText("Cek oli"));
+      const dialog = screen.getByRole("dialog");
+      expect(within(dialog).getByText("foto.jpg")).toBeInTheDocument();
+
+      const removeButtons = within(dialog)
+        .getAllByRole("button")
+        .filter((b) => b.querySelector("svg.lucide-x"));
+      await user.click(removeButtons[0]);
+
+      expect(routerDelete).toHaveBeenCalledWith(
+        "assetServices.activities.removeFile/9,55",
+        expect.objectContaining({ preserveScroll: true }),
+      );
+    });
+
+    it("mode create: hapus file dari daftar SEBELUM Simpan cukup lokal, tidak memanggil router.delete", async () => {
+      const user = userEvent.setup({ delay: null });
+      render(<ServiceActivityLog assetService={baseAssetService()} />);
+
+      await user.click(
+        screen.getByRole("button", { name: "asset.service.activity.add" }),
+      );
+      const dialog = screen.getByRole("dialog");
+      await user.click(within(dialog).getByText("fake-buffer-upload"));
+      expect(within(dialog).getByText("lampiran-baru.pdf")).toBeInTheDocument();
+
+      const removeButtons = within(dialog)
+        .getAllByRole("button")
+        .filter((b) => b.querySelector("svg.lucide-x"));
+      await user.click(removeButtons[0]);
+
+      expect(
+        within(dialog).queryByText("lampiran-baru.pdf"),
+      ).not.toBeInTheDocument();
+      expect(routerDelete).not.toHaveBeenCalled();
+    });
   });
 });

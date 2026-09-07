@@ -3,6 +3,7 @@ import { FormPageContent, useFormPage } from "@/Pages/Core/FormPage";
 import AssetCategoryLinkModel from "@/Pages/Asset/Categories/AssetCategoryLinkModel";
 import AssetLocationLinkModel from "@/Pages/Asset/Locations/AssetLocationLinkModel";
 import CustomerLinkModel from "@/Pages/Sales/Customers/CustomerLinkModel";
+import DatetimePicker from "@/Components/DatetimePicker";
 import { FormCheckbox } from "@/Components/ui/checkbox";
 import FormInput from "@/Components/FormInput";
 import ItemLinkModel from "@/Pages/Inventory/Items/ItemLinkModel";
@@ -154,22 +155,20 @@ export default function Form() {
             name="purchase_date"
             label={t("asset.asset.columns.purchase_date")}
           >
-            <Input
+            <DatetimePicker
               type="date"
-              value={data?.purchase_date ?? ""}
-              onChange={(e) => setData("purchase_date", e.target.value)}
+              value={data?.purchase_date}
+              onValueChange={(val) => setData("purchase_date", val)}
             />
           </FormInput>
           <FormInput
             name="available_for_use_date"
             label={t("asset.asset.columns.available_for_use_date")}
           >
-            <Input
+            <DatetimePicker
               type="date"
-              value={data?.available_for_use_date ?? ""}
-              onChange={(e) =>
-                setData("available_for_use_date", e.target.value)
-              }
+              value={data?.available_for_use_date}
+              onValueChange={(val) => setData("available_for_use_date", val)}
             />
           </FormInput>
           <FormInput
@@ -314,20 +313,20 @@ export default function Form() {
             name="insurance_start_date"
             label={t("asset.asset.columns.insurance_start_date")}
           >
-            <Input
+            <DatetimePicker
               type="date"
-              value={data?.insurance_start_date ?? ""}
-              onChange={(e) => setData("insurance_start_date", e.target.value)}
+              value={data?.insurance_start_date}
+              onValueChange={(val) => setData("insurance_start_date", val)}
             />
           </FormInput>
           <FormInput
             name="insurance_end_date"
             label={t("asset.asset.columns.insurance_end_date")}
           >
-            <Input
+            <DatetimePicker
               type="date"
-              value={data?.insurance_end_date ?? ""}
-              onChange={(e) => setData("insurance_end_date", e.target.value)}
+              value={data?.insurance_end_date}
+              onValueChange={(val) => setData("insurance_end_date", val)}
             />
           </FormInput>
           <FormCheckbox

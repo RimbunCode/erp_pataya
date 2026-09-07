@@ -22,15 +22,16 @@ import userEvent from "@testing-library/user-event";
 // - asset_type & item selalu disabled (readonly fields, di-set oleh backend).
 //
 // Semua komponen anak yang sudah punya test sendiri di-stub: FormInput,
-// Select, NumberInput, dan semua *LinkModel (AssetCategoryLinkModel,
-// AssetLocationLinkModel, CustomerLinkModel, ItemLinkModel,
-// SupplierLinkModel, UserLinkModel), serta FormPageContent/useFormPage (dari
-// @/Pages/Core/FormPage). FormCheckbox (ui/checkbox) TIDAK distub -- simple
-// wrapper yang hanya bergantung pada useFormPage (sudah dimock), dan
-// justru lewat dia-lah interaksi checkbox calculate_depreciation /
-// insurance_comprehensive diuji. Input (ui/input) juga TIDAK distub --
-// dipakai langsung utk asset_name, tanggal, dan total_asset_cost (computed
-// display).
+// Select, NumberInput, DatetimePicker, dan semua *LinkModel
+// (AssetCategoryLinkModel, AssetLocationLinkModel, CustomerLinkModel,
+// ItemLinkModel, SupplierLinkModel, UserLinkModel), serta
+// FormPageContent/useFormPage (dari @/Pages/Core/FormPage). FormCheckbox
+// (ui/checkbox) TIDAK distub -- simple wrapper yang hanya bergantung pada
+// useFormPage (sudah dimock), dan justru lewat dia-lah interaksi checkbox
+// calculate_depreciation / insurance_comprehensive diuji. Input (ui/input)
+// juga TIDAK distub -- dipakai langsung utk asset_name dan total_asset_cost
+// (computed display). DatetimePicker WAJIB distub -- versi asli manggil
+// usePage() (butuh Inertia context yang tidak di-provide test ini).
 
 const stableT = (key) => key;
 vi.mock("laravel-react-i18n", () => ({
@@ -64,6 +65,17 @@ vi.mock("@/Components/FormInput", () => ({
       {error ? <span data-testid="forminput-error">{error}</span> : null}
       {children}
     </div>
+  ),
+}));
+
+vi.mock("@/Components/DatetimePicker", () => ({
+  default: ({ value, onValueChange }) => (
+    <input
+      data-testid="datetime-picker"
+      type="text"
+      value={value ?? ""}
+      onChange={(e) => onValueChange?.(e.target.value)}
+    />
   ),
 }));
 

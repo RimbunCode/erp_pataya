@@ -5,13 +5,16 @@ namespace App\Models\Core;
 use App\Models\Model;
 use App\Models\User\User;
 use App\Traits\DataTable;
+use Database\Factories\Core\BranchFactory;
 use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Database\Eloquent\Casts\Attribute;
 use Illuminate\Database\Eloquent\Concerns\HasUlids;
+use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\SoftDeletes;
 
 class Branch extends Model {
-    use DataTable, HasUlids, SoftDeletes;
+    /** @use HasFactory<BranchFactory> */
+    use DataTable, HasFactory, HasUlids, SoftDeletes;
 
     protected $guarded = ['id'];
     protected $casts   = [

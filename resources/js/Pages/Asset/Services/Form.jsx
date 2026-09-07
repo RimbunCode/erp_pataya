@@ -15,6 +15,7 @@ import { Input } from "@/Components/ui/input";
 import ItemVariantLinkModel from "@/Pages/Inventory/Items/ItemVariantLinkModel";
 import ItemUnitLinkModel from "@/Pages/Inventory/Items/ItemUnitLinkModel";
 import DatetimePicker from "@/Components/DatetimePicker";
+import { Textarea } from "@/Components/ui/textarea";
 import React from "react";
 import { generateRandom } from "@/lib/utils";
 import { useLaravelReactI18n } from "laravel-react-i18n";
@@ -202,7 +203,8 @@ export default function Form() {
           name="description"
           label={t("asset.service.columns.description")}
         >
-          <Input
+          <Textarea
+            rows={3}
             value={data?.description ?? ""}
             onChange={(e) => setData("description", e.target.value)}
           />

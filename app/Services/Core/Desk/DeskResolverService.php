@@ -19,13 +19,32 @@ class DeskResolverService {
     /** @var array<string, Collection> memoize per user->id — hindari query berulang dalam satu request */
     private array $visibleDesksCache = [];
 
-    public function resolve(Request $request, User $user, ?PermissionChecker $checker = null): Desk {
+    /**
+     * $ignoreRouteRelevance: lewati filter "route harus relevan dengan Desk
+     * aktif" (fromCookie/fromUserDefault) dan fallback fromCurrentRoute —
+     * dipakai untuk halaman yang TIDAK boleh memaksa pindah Desk walau
+     * route-nya terdaftar sebagai MenuItem milik Desk lain (mis. "Manage
+     * Account" membuka users.show milik diri sendiri, bukan navigasi menu
+     * "Manage Users").
+     */
+    public function resolve(Request $request, User $user, ?PermissionChecker $checker = null, bool $ignoreRouteRelevance = false): Desk {
         $checker ??= new PermissionChecker(AppMiddleware::resolvePermissionsFor($user->id));
+
+        if ($ignoreRouteRelevance) {
+            $deskId = $this->currentDeskId($request, $user);
+
+            return ($deskId ? $this->visible($deskId, $user, $checker, $request) : null)
+                ?? $this->firstVisible($request, $user, $checker);
+        }
 
         return $this->fromCookie($request, $user, $checker)
             ?? $this->fromUserDefault($request, $user, $checker)
             ?? $this->fromCurrentRoute($request, $user, $checker)
             ?? $this->firstVisible($request, $user, $checker);
+    }
+
+    private function currentDeskId(Request $request, User $user): ?string {
+        return $request->cookie('active_desk') ?? $user->default_desk_id;
     }
 
     public function visibleDesksFor(User $user, ?PermissionChecker $checker = null, ?Request $request = null): Collection {
@@ -136,12 +155,28 @@ class DeskResolverService {
             return $desk;
         }
 
-        $menuItem = MenuItem::forRoute($routeName);
-        if (! $menuItem) {
+        // forRoute() di sini HANYA memeriksa apakah route ini terdaftar
+        // sebagai MenuItem SAMA SEKALI (di desk manapun) — bukan menentukan
+        // Desk mana yang relevan (Requirement 4 AC 3.1: syarat relevansi
+        // diabaikan WHERE route tidak terdaftar sebagai MenuItem apa pun).
+        if (! MenuItem::forRoute($routeName)) {
             return $desk;
         }
 
-        return $menuItem->desks()->where('desks.id', $desk->id)->exists() ? $desk : null;
+        // Relevansi Desk KANDIDAT ini dicek LANGSUNG dari MenuItem miliknya
+        // sendiri (bukan dari objek forRoute() — pemenang tunggal yang
+        // memprioritaskan exact match secara GLOBAL). Dua MenuItem row
+        // BERBEDA bisa sama-sama match route yang sama (mis. row wildcard
+        // "assets.*" milik Desk A, row exact "assets.show" milik Desk B) —
+        // forRoute() akan memilih row exact (Desk B) dan mengabaikan row
+        // wildcard Desk A, padahal Desk A tetap relevan lewat row-nya
+        // sendiri. Requirement 4 AC 3.1 minta "Desk tersebut memiliki
+        // MenuItem ... di antara menuItems()-nya" — existence check dari
+        // sisi Desk, bukan dari satu row pemenang global.
+        return $desk->menuItems->contains(
+            fn (MenuItem $item) => $item->route_name === $routeName
+                || (\str_contains($item->route_name, '*') && \fnmatch($item->route_name, $routeName)),
+        ) ? $desk : null;
     }
 
     private function fromCurrentRoute(Request $request, User $user, PermissionChecker $checker): ?Desk {

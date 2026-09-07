@@ -1,7 +1,18 @@
 import { describe, expect, it, vi, beforeEach } from "vitest";
-import { render, screen } from "@testing-library/react";
+import { render, screen, within } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { TooltipProvider } from "@/Components/ui/tooltip";
+
+vi.mock("@/Components/DatetimePicker", () => ({
+  default: ({ value, onValueChange }) => (
+    <input
+      data-testid="datetime-picker"
+      type="text"
+      value={value ?? ""}
+      onChange={(e) => onValueChange?.(e.target.value)}
+    />
+  ),
+}));
 
 const stableT = (key) => key;
 vi.mock("laravel-react-i18n", () => ({
@@ -107,11 +118,10 @@ describe("Asset ValueAdjustments Form", () => {
     const user = userEvent.setup({ delay: null });
     renderForm(<Form />);
 
-    const input = screen
-      .getByTestId("forminput-date")
-      .querySelector('input[type="date"]');
-    await user.type(input, "2026-01-15");
+    const wrapper = screen.getByTestId("forminput-date");
+    const picker = within(wrapper).getByTestId("datetime-picker");
+    await user.type(picker, "2026-01-15");
 
-    expect(input).toHaveValue("2026-01-15");
+    expect(picker).toHaveValue("2026-01-15");
   });
 });

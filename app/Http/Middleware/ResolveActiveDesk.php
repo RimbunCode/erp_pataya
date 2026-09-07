@@ -21,6 +21,13 @@ class ResolveActiveDesk {
         private MenuItemUrlResolver $urlResolver,
     ) {}
 
+    /** Route model binding untuk {user} bisa berupa instance User atau raw ID, tergantung urutan middleware. */
+    private function routeUserId(Request $request): ?string {
+        $param = $request->route('user');
+
+        return $param instanceof User ? $param->getKey() : $param;
+    }
+
     /**
      * @param  Closure(Request): (Response)  $next
      */
@@ -45,8 +52,16 @@ class ResolveActiveDesk {
 
         $checker = PermissionChecker::forUser($request);
 
+        // "Manage Account" di dropdown UserInfo membuka users.show milik diri
+        // sendiri — route yang sama juga dipakai menu sidebar "Manage Users"
+        // (MenuItem route_name "users.*") untuk desk lain, tapi buka profil
+        // sendiri BUKAN navigasi ke fitur itu: Desk aktif harus tetap, tidak
+        // ikut lompat ke Desk pemilik menu "Manage Users".
+        $viewingOwnProfile = $routeName === 'users.show'
+            && (string) $this->routeUserId($request) === (string) $user->id;
+
         try {
-            $desk = $this->resolver->resolve($request, $user, $checker);
+            $desk = $this->resolver->resolve($request, $user, $checker, ignoreRouteRelevance: $viewingOwnProfile);
         } catch (\RuntimeException $e) {
             // User benar-benar tidak punya Desk visible sama sekali (mis.
             // data seeder Desk belum ada). Bukan kondisi fatal — biarkan
