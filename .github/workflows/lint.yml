@@ -53,5 +53,5 @@ jobs:
       - name: Commit linted files
         uses: stefanzweifel/git-auto-commit-action@v7
         with:
-          commit_message: "fix: apply lint fixer (eslint + pint) [skip ci]"
+          commit_message: "fix: apply lint fixer (eslint + pint)"
           commit_options: "--no-verify"
