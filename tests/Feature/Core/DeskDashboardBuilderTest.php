@@ -137,7 +137,7 @@ class DeskDashboardBuilderTest extends TestCase {
         $payload = [
             'widgets' => [
                 ['ref' => 'sec1', 'type' => 'section', 'config' => ['label' => ['json' => [], 'html' => 'Judul'], 'description' => null], 'width' => 12],
-                ['ref'  => 'lc1', 'type' => 'link_card', 'parent_ref' => 'sec1', 'config' => ['label' => 'Laporan'], 'width' => 6],
+                ['ref' => 'lc1', 'type' => 'link_card', 'parent_ref' => 'sec1', 'config' => ['label' => 'Laporan'], 'width' => 6],
                 ['type' => 'link_card_item', 'parent_ref' => 'lc1', 'config' => ['label' => 'Item A', 'link_type' => 'url', 'link_to' => '/foo'], 'width' => 4],
                 ['type' => 'link_card_item', 'parent_ref' => 'lc1', 'config' => ['label' => 'Item B', 'link_type' => 'url', 'link_to' => '/bar'], 'width' => 4],
             ],
