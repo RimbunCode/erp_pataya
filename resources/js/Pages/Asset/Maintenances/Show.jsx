@@ -5,6 +5,7 @@ import AssetMaintenanceTeamLinkModel from "@/Pages/Asset/MaintenanceTeams/AssetM
 import FormInput from "@/Components/FormInput";
 import FormTable from "@/Components/FormTable";
 import { Input } from "@/Components/ui/input";
+import NumberInput from "@/Components/NumberInput";
 import { Textarea } from "@/Components/ui/textarea";
 import Link from "@/Components/Link";
 import React from "react";
@@ -40,10 +41,10 @@ export default function Show() {
         required: true,
         cell({ data: value, setData, attributes }) {
           return (
-            <Input
-              type="number"
-              value={value ?? ""}
-              onChange={(e) => setData(Number(e.target.value))}
+            <NumberInput
+              allowDecimals={false}
+              value={value}
+              onValueChange={(val) => setData(val)}
               {...attributes}
             />
           );

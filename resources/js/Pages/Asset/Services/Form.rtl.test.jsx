@@ -11,6 +11,9 @@ vi.mock("laravel-react-i18n", () => ({
 const routerPost = vi.fn();
 vi.mock("@inertiajs/react", () => ({
   router: { post: (...a) => routerPost(...a) },
+  usePage: () => ({
+    props: { preferences: { default_number_format: "#,###.##" } },
+  }),
 }));
 
 window.route = (name, id) => `${name}/${id}`;

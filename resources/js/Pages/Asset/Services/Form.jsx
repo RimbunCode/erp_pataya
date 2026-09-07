@@ -15,6 +15,7 @@ import { Input } from "@/Components/ui/input";
 import ItemVariantLinkModel from "@/Pages/Inventory/Items/ItemVariantLinkModel";
 import ItemUnitLinkModel from "@/Pages/Inventory/Items/ItemUnitLinkModel";
 import DatetimePicker from "@/Components/DatetimePicker";
+import NumberInput from "@/Components/NumberInput";
 import { Textarea } from "@/Components/ui/textarea";
 import React from "react";
 import { generateRandom } from "@/lib/utils";
@@ -82,10 +83,9 @@ export default function Form() {
         required: true,
         cell({ data: value, setData, attributes }) {
           return (
-            <Input
-              type="number"
-              value={value ?? ""}
-              onChange={(e) => setData(Number(e.target.value))}
+            <NumberInput
+              value={value}
+              onValueChange={(val) => setData(val)}
               {...attributes}
             />
           );
@@ -97,10 +97,10 @@ export default function Form() {
         required: true,
         cell({ data: value, setData, attributes }) {
           return (
-            <Input
-              type="number"
-              value={value ?? ""}
-              onChange={(e) => setData(Number(e.target.value))}
+            <NumberInput
+              decimalScale={2}
+              value={value}
+              onValueChange={(val) => setData(val)}
               {...attributes}
             />
           );
@@ -174,11 +174,11 @@ export default function Form() {
                 name="increase_in_asset_life"
                 label={t("asset.service.columns.increase_in_asset_life")}
               >
-                <Input
-                  type="number"
-                  value={data?.increase_in_asset_life ?? ""}
-                  onChange={(e) =>
-                    setData("increase_in_asset_life", Number(e.target.value))
+                <NumberInput
+                  allowDecimals={false}
+                  value={data?.increase_in_asset_life}
+                  onValueChange={(val) =>
+                    setData("increase_in_asset_life", val)
                   }
                 />
               </FormInput>
