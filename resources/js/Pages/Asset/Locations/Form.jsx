@@ -6,26 +6,18 @@ import { FormCheckbox } from "@/Components/ui/checkbox";
 import FormInput from "@/Components/FormInput";
 import { Input } from "@/Components/ui/input";
 import React from "react";
+import useBranchFieldAccess from "@/Hooks/useBranchFieldAccess";
 import { useLaravelReactI18n } from "laravel-react-i18n";
 
 export default function Form() {
-  const { data, setData } = useFormPage();
+  const { currentBranch, isLocked, filters } = useBranchFieldAccess();
+  const { data, setData } = useFormPage({ branch: currentBranch });
   const { t } = useLaravelReactI18n();
 
   return (
     <>
       <FormPageContent title={null} value="detail">
         <div className="grid gap-x-3 gap-y-4">
-          <FormInput
-            name="location_name"
-            required={true}
-            label={t("asset.location.columns.location_name")}
-          >
-            <Input
-              value={data?.location_name ?? ""}
-              onChange={(e) => setData("location_name", e.target.value)}
-            />
-          </FormInput>
           <FormInput
             name="branch"
             required={true}
@@ -34,7 +26,21 @@ export default function Form() {
             <BranchLinkModel
               placeholder={t("asset.location.columns.branch.placeholder")}
               value={data?.branch}
-              onValueChange={(val) => setData("branch", val)}
+              onValueChange={(val) =>
+                setData((prev) => ({ ...prev, branch: val, parent: null }))
+              }
+              disabled={isLocked}
+              filters={filters}
+            />
+          </FormInput>
+          <FormInput
+            name="location_name"
+            required={true}
+            label={t("asset.location.columns.location_name")}
+          >
+            <Input
+              value={data?.location_name ?? ""}
+              onChange={(e) => setData("location_name", e.target.value)}
             />
           </FormInput>
           <FormInput
@@ -47,6 +53,7 @@ export default function Form() {
               onValueChange={(val) => setData("parent", val)}
               filters={{
                 id: { not: data?.id },
+                branch_id: data?.branch?.id ?? null,
               }}
             />
           </FormInput>
