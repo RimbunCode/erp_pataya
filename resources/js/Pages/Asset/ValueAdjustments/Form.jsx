@@ -2,8 +2,8 @@ import { FormPageContent, useFormPage } from "@/Pages/Core/FormPage";
 
 import AccountLinkModel from "@/Pages/Finances/Accounts/AccountLinkModel";
 import AssetLinkModel from "@/Pages/Asset/Assets/AssetLinkModel";
+import DatetimePicker from "@/Components/DatetimePicker";
 import FormInput from "@/Components/FormInput";
-import { Input } from "@/Components/ui/input";
 import NumberInput from "@/Components/NumberInput";
 import React from "react";
 import { useLaravelReactI18n } from "laravel-react-i18n";
@@ -30,10 +30,10 @@ export default function Form() {
           required={true}
           label={t("asset.valueAdjustment.columns.date")}
         >
-          <Input
+          <DatetimePicker
             type="date"
-            value={data?.date ?? ""}
-            onChange={(e) => setData("date", e.target.value)}
+            value={data?.date}
+            onValueChange={(val) => setData("date", val)}
           />
         </FormInput>
         <FormInput

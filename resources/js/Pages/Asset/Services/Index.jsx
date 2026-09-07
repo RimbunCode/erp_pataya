@@ -1,4 +1,5 @@
 import DataTable2 from "@/Pages/Core/DataTable2";
+import Form from "./Form";
 import Link from "@/Components/Link";
 import { useLaravelReactI18n } from "laravel-react-i18n";
 
@@ -33,6 +34,8 @@ export default function Index() {
           </div>
         </div>
       )}
+      classNameDialog="max-w-(--breakpoint-lg)!"
+      form={<Form />}
     />
   );
 }
