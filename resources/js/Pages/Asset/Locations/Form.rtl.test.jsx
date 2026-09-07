@@ -8,12 +8,20 @@ vi.mock("laravel-react-i18n", () => ({
   useLaravelReactI18n: () => ({ t: stableT }),
 }));
 
+const usePageMock = vi.fn(() => ({ props: {} }));
+vi.mock("@inertiajs/react", () => ({
+  usePage: () => usePageMock(),
+}));
+
 let formPageSeed = {};
 vi.mock("@/Pages/Core/FormPage", async () => {
   const React = await import("react");
   return {
-    useFormPage: () => {
-      const [data, setDataState] = React.useState(formPageSeed);
+    useFormPage: (defaultValue) => {
+      const [data, setDataState] = React.useState(() => ({
+        ...(defaultValue ?? {}),
+        ...formPageSeed,
+      }));
       const setData = (keyOrFn, val) => {
         if (typeof keyOrFn === "function") {
           setDataState((prev) => keyOrFn(prev));
@@ -50,8 +58,14 @@ vi.mock("./AssetLocationLinkModel", () => ({
 }));
 
 vi.mock("@/Pages/Settings/Branches/BranchLinkModel", () => ({
-  default: ({ value }) => (
-    <div data-testid="branch-link-model">branch:{value?.name ?? "none"}</div>
+  default: ({ value, filters, disabled }) => (
+    <div
+      data-testid="branch-link-model"
+      data-filters={JSON.stringify(filters ?? {})}
+      data-disabled={String(!!disabled)}
+    >
+      branch:{value?.name ?? "none"}
+    </div>
   ),
 }));
 
@@ -82,7 +96,57 @@ describe("Asset Locations Form", () => {
 
     expect(screen.getByTestId("parent-link-model")).toHaveAttribute(
       "data-filters",
-      JSON.stringify({ id: { not: 5 } }),
+      JSON.stringify({ id: { not: 5 }, branch_id: null }),
+    );
+  });
+
+  it("parent difilter oleh branch yang dipilih", () => {
+    formPageSeed = { id: 5, branch: { id: "b1", name: "Cabang A" } };
+    renderForm(<Form />);
+
+    expect(screen.getByTestId("parent-link-model")).toHaveAttribute(
+      "data-filters",
+      JSON.stringify({ id: { not: 5 }, branch_id: "b1" }),
+    );
+  });
+
+  it("field branch selalu dirender & prefill currentBranch saat create (akses main branch)", () => {
+    const mainBranch = { id: "main", name: "HQ", is_main_branch: true };
+    usePageMock.mockReturnValue({
+      props: {
+        branchSettings: { branches: [mainBranch], currentBranch: mainBranch },
+      },
+    });
+    renderForm(<Form />);
+
+    const branchEl = screen.getByTestId("branch-link-model");
+    expect(branchEl).toHaveTextContent("branch:HQ");
+    expect(branchEl).toHaveAttribute("data-disabled", "false");
+    expect(branchEl).toHaveAttribute(
+      "data-filters",
+      JSON.stringify({ branchable_type: null, branchable_id: null }),
+    );
+  });
+
+  it("field branch disabled & filter id:in ketika user hanya akses 1 branch non-main", () => {
+    const branchB = { id: "b1", name: "Cabang B", is_main_branch: false };
+    usePageMock.mockReturnValue({
+      props: {
+        branchSettings: { branches: [branchB], currentBranch: branchB },
+      },
+    });
+    renderForm(<Form />);
+
+    const branchEl = screen.getByTestId("branch-link-model");
+    expect(branchEl).toHaveTextContent("branch:Cabang B");
+    expect(branchEl).toHaveAttribute("data-disabled", "true");
+    expect(branchEl).toHaveAttribute(
+      "data-filters",
+      JSON.stringify({
+        branchable_type: null,
+        branchable_id: null,
+        id: { in: ["b1"] },
+      }),
     );
   });
 

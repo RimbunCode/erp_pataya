@@ -68,6 +68,7 @@ class AssetLocationControllerTest extends TestCase {
     public function test_store_creates_asset_location(): void {
         $user   = User::factory()->create();
         $branch = $this->createBranch();
+        $user->branches()->attach($branch->id);
 
         $this->actingAs($user)
             ->withSession($this->permissions())
@@ -111,6 +112,7 @@ class AssetLocationControllerTest extends TestCase {
     public function test_update_modifies_existing_location(): void {
         $user     = User::factory()->create();
         $location = AssetLocation::factory()->create(['location_name' => 'Lama']);
+        $user->branches()->attach($location->branch_id);
 
         $this->actingAs($user)
             ->withSession($this->permissions())

@@ -17,8 +17,11 @@ let formPageSeed = {};
 vi.mock("@/Pages/Core/FormPage", async () => {
   const React = await import("react");
   return {
-    useFormPage: () => {
-      const [data, setDataState] = React.useState(formPageSeed);
+    useFormPage: (defaultValue) => {
+      const [data, setDataState] = React.useState(() => ({
+        ...(defaultValue ?? {}),
+        ...formPageSeed,
+      }));
       const setData = (keyOrFn, val) => {
         if (typeof keyOrFn === "function") {
           setDataState((prev) => keyOrFn(prev));
@@ -44,10 +47,11 @@ vi.mock("@/Components/FormInput", () => ({
 }));
 
 vi.mock("@/Pages/Settings/Branches/BranchLinkModel", () => ({
-  default: ({ value, filters }) => (
+  default: ({ value, filters, disabled }) => (
     <div
       data-testid="branch-link-model"
       data-filters={JSON.stringify(filters ?? {})}
+      data-disabled={String(!!disabled)}
     >
       branch:{value?.name ?? "none"}
     </div>
@@ -73,33 +77,70 @@ describe("Inventory Warehouses Form", () => {
     formPageSeed = {};
   });
 
-  it("field branch TIDAK dirender saat currentBranch bukan main branch", () => {
+  it("field branch selalu dirender & prefill currentBranch saat create (akses main branch)", () => {
+    const mainBranch = { id: "main", name: "HQ", is_main_branch: true };
     usePageMock.mockReturnValue({
-      props: { branchSettings: { currentBranch: { is_main_branch: false } } },
-    });
-    renderForm(<Form />);
-
-    expect(screen.queryByTestId("forminput-branch")).not.toBeInTheDocument();
-  });
-
-  it("field branch dirender saat currentBranch adalah main branch", () => {
-    usePageMock.mockReturnValue({
-      props: { branchSettings: { currentBranch: { is_main_branch: true } } },
+      props: {
+        branchSettings: { branches: [mainBranch], currentBranch: mainBranch },
+      },
     });
     renderForm(<Form />);
 
     expect(screen.getByTestId("forminput-branch")).toBeInTheDocument();
-    expect(screen.getByTestId("branch-link-model")).toHaveAttribute(
+    const branchEl = screen.getByTestId("branch-link-model");
+    expect(branchEl).toHaveTextContent("branch:HQ");
+    expect(branchEl).toHaveAttribute("data-disabled", "false");
+    expect(branchEl).toHaveAttribute(
       "data-filters",
       JSON.stringify({ branchable_type: null, branchable_id: null }),
     );
   });
 
-  it("field branch TIDAK dirender saat branchSettings undefined (fallback aman)", () => {
-    usePageMock.mockReturnValue({ props: {} });
+  it("field branch disabled & filter id:in ketika user hanya akses 1 branch non-main", () => {
+    const branchB = { id: "b1", name: "Cabang B", is_main_branch: false };
+    usePageMock.mockReturnValue({
+      props: {
+        branchSettings: { branches: [branchB], currentBranch: branchB },
+      },
+    });
     renderForm(<Form />);
 
-    expect(screen.queryByTestId("forminput-branch")).not.toBeInTheDocument();
+    const branchEl = screen.getByTestId("branch-link-model");
+    expect(branchEl).toHaveTextContent("branch:Cabang B");
+    expect(branchEl).toHaveAttribute("data-disabled", "true");
+    expect(branchEl).toHaveAttribute(
+      "data-filters",
+      JSON.stringify({
+        branchable_type: null,
+        branchable_id: null,
+        id: { in: ["b1"] },
+      }),
+    );
+  });
+
+  it("field branch TIDAK disabled & filter dibatasi daftar akses saat user akses beberapa branch non-main", () => {
+    const branchA = { id: "b1", name: "Cabang A", is_main_branch: false };
+    const branchB = { id: "b2", name: "Cabang B", is_main_branch: false };
+    usePageMock.mockReturnValue({
+      props: {
+        branchSettings: {
+          branches: [branchA, branchB],
+          currentBranch: branchA,
+        },
+      },
+    });
+    renderForm(<Form />);
+
+    const branchEl = screen.getByTestId("branch-link-model");
+    expect(branchEl).toHaveAttribute("data-disabled", "false");
+    expect(branchEl).toHaveAttribute(
+      "data-filters",
+      JSON.stringify({
+        branchable_type: null,
+        branchable_id: null,
+        id: { in: ["b1", "b2"] },
+      }),
+    );
   });
 
   it("mengetik code/name memanggil setData", async () => {

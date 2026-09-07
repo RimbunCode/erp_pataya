@@ -15,11 +15,20 @@ abstract class BaseFormRequest extends FormRequest {
     public function validated($key = null, $default = null): mixed {
         $data = parent::validated();
 
-        $branch = $this->resolveCurrentBranch();
+        // Auto-tag branch_id dengan branch aktif HANYA kalau Request ini sendiri
+        // tidak punya rule branch/branch_id (mis. StockEntryRequest yang tidak
+        // pernah minta user pilih branch secara eksplisit). Kalau Request punya
+        // rule branch.id/branch_id sendiri (mis. WarehouseRequest), nilai yang
+        // sudah divalidasi+dicek akses (App\Rules\UserHasBranchAccess) itu yang
+        // dipakai — jangan ditimpa diam-diam oleh branch session, karena itu
+        // bikin pilihan Branch di form jadi percuma (selalu balik ke branch aktif).
+        if (! array_key_exists('branch', $data) && ! array_key_exists('branch_id', $data)) {
+            $branch = $this->resolveCurrentBranch();
 
-        if ($branch) {
-            $data['branch']    = $branch;
-            $data['branch_id'] = $branch['id'];
+            if ($branch) {
+                $data['branch']    = $branch;
+                $data['branch_id'] = $branch['id'];
+            }
         }
 
         if ($key !== null) {
