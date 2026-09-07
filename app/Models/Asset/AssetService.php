@@ -20,6 +20,7 @@ use LogicException;
 class AssetService extends Model {
     use DataTable, HasFactory, HasUlids, SoftDeletes, Submitable;
 
+    public static string $alias  = 'Work Order';
     protected static $service    = AssetServiceService::class;
     public string $formComponent = 'Asset/Services/Form';
     public string $translateKey  = 'asset.service';

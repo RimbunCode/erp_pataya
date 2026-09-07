@@ -17,6 +17,14 @@ use Illuminate\Database\Eloquent\SoftDeletes;
 class WorkOrder extends Model {
     use DataTable, HasUlids, SoftDeletes, Submitable;
 
+    /**
+     * Fitur ini sudah digantikan AssetService (menu disembunyikan di
+     * DeskSeeder), tapi model & data tetap dipertahankan. Alias di-set eksplisit
+     * supaya Permission.name tidak bentrok dengan AssetService yang sekarang
+     * memakai nama "Work Order" (lihat AssetService::$alias).
+     */
+    public static string $alias = 'Work Order (Lama)';
+
     public static string $service = WorkOrderService::class;
     protected $guarded            = ['id'];
     protected $casts              = [

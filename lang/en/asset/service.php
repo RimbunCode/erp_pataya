@@ -1,11 +1,11 @@
 <?php
 
 return [
-    'title'              => 'Asset Service',
-    'add'                => 'Add Service',
-    'new'                => 'New Service',
-    'delete'             => 'Delete Service',
-    'delete.description' => 'Are you sure you want to delete this service?',
+    'title'              => 'Work Orders',
+    'add'                => 'Add Work Order',
+    'new'                => 'New Work Order',
+    'delete'             => 'Delete Work Order',
+    'delete.description' => 'Are you sure you want to delete this work order?',
     'delete.confirm'     => 'Delete',
     'cancel'             => 'Cancel',
 

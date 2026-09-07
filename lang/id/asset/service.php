@@ -1,11 +1,11 @@
 <?php
 
 return [
-    'title'              => 'Servis Aset',
-    'add'                => 'Tambah Servis',
-    'new'                => 'Servis Baru',
-    'delete'             => 'Hapus Servis',
-    'delete.description' => 'Apakah Anda yakin ingin menghapus servis ini?',
+    'title'              => 'Work Orders',
+    'add'                => 'Tambah Work Order',
+    'new'                => 'Work Order Baru',
+    'delete'             => 'Hapus Work Order',
+    'delete.description' => 'Apakah Anda yakin ingin menghapus work order ini?',
     'delete.confirm'     => 'Hapus',
     'cancel'             => 'Batal',
 
