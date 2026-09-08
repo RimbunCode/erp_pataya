@@ -57,6 +57,7 @@ export default function Form() {
               }}
               {...attributes}
               with={["defaultUom"]}
+              filters={{ "item.is_fixed_asset": false }}
             />
           );
         },
