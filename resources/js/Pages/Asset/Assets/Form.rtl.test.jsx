@@ -19,12 +19,17 @@ import userEvent from "@testing-library/user-event";
 // - Default value non-persisted: asset_type default "existing_asset",
 //   ownership_type default "company", asset_quantity default 1 -- ini
 //   FALLBACK tampilan (?? di JSX), bukan disetel ke data oleh Form sendiri.
-// - asset_type & item selalu disabled (readonly fields, di-set oleh backend).
+// - asset_type selalu disabled (Fase 5 composite belum aktif, lihat spec
+//   asset-management-purchase-integration-v2). item TIDAK LAGI disabled sejak
+//   spec itu -- dibuka + difilter is_fixed_asset, jadi titik masuk link
+//   manual ke Purchase Receipt/Invoice (lihat describe "link manual Purchase"
+//   di bawah).
 //
 // Semua komponen anak yang sudah punya test sendiri di-stub: FormInput,
 // Select, NumberInput, DatetimePicker, dan semua *LinkModel
 // (AssetCategoryLinkModel, AssetLocationLinkModel, CustomerLinkModel,
-// ItemLinkModel, SupplierLinkModel, UserLinkModel), serta
+// ItemLinkModel, SupplierLinkModel, UserLinkModel, PurchaseReceiptItemLinkModel,
+// PurchaseInvoiceItemLinkModel), serta
 // FormPageContent/useFormPage (dari @/Pages/Core/FormPage). FormCheckbox
 // (ui/checkbox) TIDAK distub -- simple wrapper yang hanya bergantung pada
 // useFormPage (sudah dimock), dan justru lewat dia-lah interaksi checkbox
@@ -109,11 +114,12 @@ vi.mock("@/Components/Select", () => ({
 // concatenation string -- ini menyerupai kontrak NumberInput asli yang
 // mengirim value numerik lewat onValueChange.
 vi.mock("@/Components/NumberInput", () => ({
-  default: ({ value, onValueChange, decimalScale }) => (
+  default: ({ value, onValueChange, decimalScale, disabled }) => (
     <input
       data-testid="number-input"
       data-decimal-scale={decimalScale}
       value={value ?? ""}
+      disabled={disabled}
       onChange={(e) => {
         const raw = e.target.value;
         onValueChange?.(raw === "" ? "" : Number(raw));
@@ -123,11 +129,18 @@ vi.mock("@/Components/NumberInput", () => ({
 }));
 
 // Semua LinkModel di-stub sederhana: menampilkan value (via label field yang
-// relevan) dan tombol untuk memicu onValueChange dengan objek dummy.
+// relevan) dan tombol untuk memicu onValueChange dengan objek dummy. `filters`
+// diteruskan sebagai JSON di data-attribute supaya bisa diassert (dipakai
+// PurchaseReceiptItemLinkModel/PurchaseInvoiceItemLinkModel untuk verifikasi
+// filter dinamis berbasis Item terpilih, spec asset-management-purchase-integration-v2).
 function makeLinkModelStub(testId, labelField, dummyValue) {
   return {
-    default: ({ value, onValueChange, disabled }) => (
-      <div data-testid={testId} data-disabled={disabled ? "true" : "false"}>
+    default: ({ value, onValueChange, disabled, filters }) => (
+      <div
+        data-testid={testId}
+        data-disabled={disabled ? "true" : "false"}
+        data-filters={JSON.stringify(filters ?? {})}
+      >
         <input
           data-testid={`${testId}-input`}
           value={value?.[labelField] ?? ""}
@@ -160,13 +173,40 @@ vi.mock("@/Pages/Sales/Customers/CustomerLinkModel", () =>
   makeLinkModelStub("customer-link", "name", { id: 3, name: "PT Pelanggan" }),
 );
 vi.mock("@/Pages/Inventory/Items/ItemLinkModel", () =>
-  makeLinkModelStub("item-link", "name", { id: 4, name: "Laptop" }),
+  makeLinkModelStub("item-link", "name", {
+    id: 4,
+    name: "Laptop",
+    variants: [{ id: "variant-1" }],
+  }),
 );
 vi.mock("@/Pages/Purchase/Suppliers/SupplierLinkModel", () =>
   makeLinkModelStub("supplier-link", "name", { id: 5, name: "CV Pemasok" }),
 );
 vi.mock("@/Pages/Users/ManageUsers/UserLinkModel", () =>
   makeLinkModelStub("user-link", "name", { id: 6, name: "Budi" }),
+);
+
+// dummyValue Receipt/Invoice: item.item.id = 4 (sama dgn dummy ItemLinkModel)
+// supaya skenario "item_id belum ada -> ikut ter-derive" dan "sudah ada ->
+// match" bisa diuji keduanya.
+vi.mock("@/Pages/Purchase/PurchaseReceipts/PurchaseReceiptItemLinkModel", () =>
+  makeLinkModelStub("purchase-receipt-item-link", "quantity", {
+    id: "recv-1",
+    quantity: 3,
+    purchase_receipt_id: "pr-1",
+    purchaseReceipt: { date: "2026-01-01" },
+    item: { item: { id: 4, name: "Laptop" } },
+  }),
+);
+vi.mock("@/Pages/Finances/PurchaseInvoice/PurchaseInvoiceItemLinkModel", () =>
+  makeLinkModelStub("purchase-invoice-item-link", "basic_amount", {
+    id: "inv-1",
+    basic_amount: 5000000,
+    amount: 5500000,
+    purchase_invoice_id: "pi-1",
+    purchaseInvoice: { date: "2026-01-02" },
+    item: { item: { id: 4, name: "Laptop" } },
+  }),
 );
 
 window.route = (name, params) =>
@@ -280,13 +320,14 @@ describe("Form (Asset/Assets)", () => {
       expect(select).toBeDisabled();
     });
 
-    it("item LinkModel selalu disabled", () => {
+    it("item LinkModel TIDAK disabled, filter is_fixed_asset diteruskan", () => {
       renderForm({ initialData: {} });
 
-      expect(screen.getByTestId("item-link")).toHaveAttribute(
-        "data-disabled",
-        "true",
-      );
+      const itemLink = screen.getByTestId("item-link");
+      expect(itemLink).toHaveAttribute("data-disabled", "false");
+      expect(JSON.parse(itemLink.dataset.filters)).toEqual({
+        is_fixed_asset: true,
+      });
     });
 
     it("asset_quantity default 1 saat data kosong", () => {
@@ -602,6 +643,115 @@ describe("Form (Asset/Assets)", () => {
       await user.type(numberInput, "5000000");
 
       expect(numberInput).toHaveValue("5000000");
+    });
+  });
+
+  describe("link manual Purchase (spec asset-management-purchase-integration-v2)", () => {
+    it("filters baris pembelian kosong sebelum item_id dipilih", () => {
+      renderForm({ initialData: {} });
+
+      const receiptLink = screen.getByTestId("purchase-receipt-item-link");
+      const invoiceLink = screen.getByTestId("purchase-invoice-item-link");
+      expect(JSON.parse(receiptLink.dataset.filters)).toEqual({});
+      expect(JSON.parse(invoiceLink.dataset.filters)).toEqual({});
+    });
+
+    it("filters baris pembelian terisi item_id (in: variant ids) setelah Item dipilih", async () => {
+      const user = userEvent.setup({ delay: null });
+      renderForm({ initialData: {} });
+
+      await user.click(screen.getByText("pilih-item-link"));
+
+      const receiptLink = screen.getByTestId("purchase-receipt-item-link");
+      expect(JSON.parse(receiptLink.dataset.filters)).toEqual({
+        item_id: { in: ["variant-1"] },
+      });
+    });
+
+    it("memilih baris Purchase Receipt Item men-derive asset_quantity, purchase_date, dan mengunci asset_quantity", async () => {
+      const user = userEvent.setup({ delay: null });
+      renderForm({ initialData: {} });
+
+      await user.click(screen.getByText("pilih-purchase-receipt-item-link"));
+
+      const quantityWrapper = screen.getByTestId("forminput-asset_quantity");
+      const quantityInput = within(quantityWrapper).getByTestId("number-input");
+      expect(quantityInput).toHaveValue("3");
+      expect(quantityInput).toBeDisabled();
+
+      const dateWrapper = screen.getByTestId("forminput-purchase_date");
+      const dateInput = within(dateWrapper).getByTestId("datetime-picker");
+      expect(dateInput).toHaveValue("2026-01-01");
+    });
+
+    it("memilih baris Purchase Receipt Item saat item_id belum dipilih ikut men-derive Item", async () => {
+      const user = userEvent.setup({ delay: null });
+      renderForm({ initialData: {} });
+
+      await user.click(screen.getByText("pilih-purchase-receipt-item-link"));
+
+      // Dummy baris Receipt bawa item.item = {id:4, name:"Laptop"} -- item-link
+      // stub pakai labelField "name".
+      expect(screen.getByTestId("item-link-input")).toHaveValue("Laptop");
+    });
+
+    it("memilih baris Purchase Invoice Item men-derive gross_purchase_amount dan menguncinya", async () => {
+      const user = userEvent.setup({ delay: null });
+      renderForm({ initialData: {} });
+
+      await user.click(screen.getByText("pilih-purchase-invoice-item-link"));
+
+      const grossWrapper = screen.getByTestId(
+        "forminput-gross_purchase_amount",
+      );
+      const grossInput = within(grossWrapper).getByTestId("number-input");
+      expect(grossInput).toHaveValue("5500000");
+      expect(grossInput).toBeDisabled();
+    });
+
+    it("menghapus link Purchase Receipt Item mengembalikan asset_quantity jadi editable", async () => {
+      const user = userEvent.setup({ delay: null });
+      renderForm({ initialData: {} });
+
+      await user.click(screen.getByText("pilih-purchase-receipt-item-link"));
+      const quantityWrapper = screen.getByTestId("forminput-asset_quantity");
+      expect(
+        within(quantityWrapper).getByTestId("number-input"),
+      ).toBeDisabled();
+
+      await user.click(screen.getByText("clear-purchase-receipt-item-link"));
+
+      expect(
+        within(quantityWrapper).getByTestId("number-input"),
+      ).not.toBeDisabled();
+    });
+
+    it("mengubah item_id setelah link Receipt tidak match mereset link tersebut", async () => {
+      const user = userEvent.setup({ delay: null });
+      renderForm({
+        initialData: {
+          item: { id: 4, name: "Laptop" },
+          purchase_receipt_item: {
+            id: "recv-1",
+            quantity: 3,
+            item: { item: { id: 4 } },
+          },
+          purchase_receipt_id: "pr-1",
+          purchase_receipt_item_id: "recv-1",
+        },
+      });
+
+      expect(
+        screen.getByTestId("purchase-receipt-item-link-input"),
+      ).toHaveValue("3");
+
+      // "clear-item-link" mengirim null -> item_id berubah jadi undefined,
+      // berbeda dari 4 -> effect reset harus jalan.
+      await user.click(screen.getByText("clear-item-link"));
+
+      expect(
+        screen.getByTestId("purchase-receipt-item-link-input"),
+      ).toHaveValue("");
     });
   });
 });

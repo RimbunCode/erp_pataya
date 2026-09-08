@@ -9,7 +9,9 @@ import FormInput from "@/Components/FormInput";
 import ItemLinkModel from "@/Pages/Inventory/Items/ItemLinkModel";
 import { Input } from "@/Components/ui/input";
 import NumberInput from "@/Components/NumberInput";
-import React from "react";
+import PurchaseInvoiceItemLinkModel from "@/Pages/Finances/PurchaseInvoice/PurchaseInvoiceItemLinkModel";
+import PurchaseReceiptItemLinkModel from "@/Pages/Purchase/PurchaseReceipts/PurchaseReceiptItemLinkModel";
+import React, { useEffect, useRef } from "react";
 import Select from "@/Components/Select";
 import SupplierLinkModel from "@/Pages/Purchase/Suppliers/SupplierLinkModel";
 import UserLinkModel from "@/Pages/Users/ManageUsers/UserLinkModel";
@@ -18,6 +20,96 @@ import { useLaravelReactI18n } from "laravel-react-i18n";
 export default function Form() {
   const { data, setData, _disabled } = useFormPage();
   const { t } = useLaravelReactI18n();
+
+  // Requirement 2.6/2.8, spec asset-management-purchase-integration-v2:
+  // ubah item_id -> reset link Purchase yang sudah tidak match Item baru.
+  // Ref, bukan state biasa -- hanya perlu nilai SEBELUM render ini untuk
+  // deteksi perubahan, tidak perlu trigger re-render sendiri.
+  const prevItemIdRef = useRef(data?.item?.id);
+  useEffect(() => {
+    const currentItemId = data?.item?.id;
+    if (currentItemId === prevItemIdRef.current) return;
+    prevItemIdRef.current = currentItemId;
+
+    const receiptItemMatches =
+      data?.purchase_receipt_item?.item?.item?.id === currentItemId;
+    const invoiceItemMatches =
+      data?.purchase_invoice_item?.item?.item?.id === currentItemId;
+
+    if (data?.purchase_receipt_item && !receiptItemMatches) {
+      setData((prev) => ({
+        ...prev,
+        purchase_receipt_item: null,
+        purchase_receipt_id: null,
+        purchase_receipt_item_id: null,
+      }));
+    }
+    if (data?.purchase_invoice_item && !invoiceItemMatches) {
+      setData((prev) => ({
+        ...prev,
+        purchase_invoice_item: null,
+        purchase_invoice_id: null,
+        purchase_invoice_item_id: null,
+      }));
+    }
+  }, [data?.item?.id]);
+
+  const itemVariantIds = data?.item?.variants?.map((v) => v.id) ?? [];
+  const purchaseLinkFilters = itemVariantIds.length
+    ? { item_id: { in: itemVariantIds } }
+    : {};
+
+  const handlePurchaseReceiptItemChange = (val) => {
+    if (!val) {
+      setData((prev) => ({
+        ...prev,
+        purchase_receipt_item: null,
+        purchase_receipt_id: null,
+        purchase_receipt_item_id: null,
+      }));
+
+      return;
+    }
+
+    setData((prev) => ({
+      ...prev,
+      purchase_receipt_item: val,
+      purchase_receipt_id: val.purchase_receipt_id,
+      purchase_receipt_item_id: val.id,
+      asset_quantity: val.quantity,
+      purchase_date: val.purchaseReceipt?.date ?? prev.purchase_date,
+      // item_id ikut ter-derive HANYA kalau belum dipilih (Requirement 2.5/3.1).
+      ...(!prev.item ? { item: val.item?.item } : {}),
+    }));
+  };
+
+  const handlePurchaseInvoiceItemChange = (val) => {
+    if (!val) {
+      setData((prev) => ({
+        ...prev,
+        purchase_invoice_item: null,
+        purchase_invoice_id: null,
+        purchase_invoice_item_id: null,
+      }));
+
+      return;
+    }
+
+    setData((prev) => ({
+      ...prev,
+      purchase_invoice_item: val,
+      purchase_invoice_id: val.purchase_invoice_id,
+      purchase_invoice_item_id: val.id,
+      net_purchase_amount: val.basic_amount,
+      gross_purchase_amount: val.amount,
+      // Tanggal Receipt lebih relevan -- hanya pakai tanggal invoice kalau
+      // belum ada dari Receipt (Requirement 3.5).
+      purchase_date: prev.purchase_receipt_item
+        ? prev.purchase_date
+        : (val.purchaseInvoice?.date ?? prev.purchase_date),
+      ...(!prev.item ? { item: val.item?.item } : {}),
+    }));
+  };
 
   return (
     <>
@@ -72,7 +164,30 @@ export default function Form() {
             <ItemLinkModel
               value={data?.item}
               onValueChange={(val) => setData("item", val)}
-              disabled
+              filters={{ is_fixed_asset: true }}
+              with={["variants"]}
+            />
+          </FormInput>
+          <FormInput
+            name="purchase_receipt_item"
+            label={t("asset.asset.columns.purchase_receipt_item_id")}
+          >
+            <PurchaseReceiptItemLinkModel
+              value={data?.purchase_receipt_item}
+              onValueChange={handlePurchaseReceiptItemChange}
+              filters={purchaseLinkFilters}
+              with={["item.item", "purchaseReceipt"]}
+            />
+          </FormInput>
+          <FormInput
+            name="purchase_invoice_item"
+            label={t("asset.asset.columns.purchase_invoice_item_id")}
+          >
+            <PurchaseInvoiceItemLinkModel
+              value={data?.purchase_invoice_item}
+              onValueChange={handlePurchaseInvoiceItemChange}
+              filters={purchaseLinkFilters}
+              with={["item.item", "purchaseInvoice"]}
             />
           </FormInput>
           <FormInput
@@ -84,6 +199,7 @@ export default function Form() {
               decimalScale={0}
               onValueChange={(val) => setData("asset_quantity", val)}
               className="text-left"
+              disabled={!!data?.purchase_receipt_item}
             />
           </FormInput>
           <FormInput
@@ -177,6 +293,7 @@ export default function Form() {
               decimalScale={2}
               onValueChange={(val) => setData("gross_purchase_amount", val)}
               className="text-left"
+              disabled={!!data?.purchase_invoice_item}
             />
           </FormInput>
           <FormInput
