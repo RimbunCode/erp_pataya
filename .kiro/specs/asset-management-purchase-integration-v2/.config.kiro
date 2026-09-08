@@ -1,0 +1,6 @@
+{
+  "specId": "86cd35a0-118b-4bab-887d-af450ec3cc98",
+  "workflowType": "requirements-first",
+  "specType": "feature",
+  "description": "Izinkan jalur manual pembuatan Asset (/assets/create) untuk link ke dokumen Purchase (PurchaseReceipt/PurchaseInvoice + baris itemnya) sebagai entry point kedua selain auto-create via event FixedAssetItemApproved (Fase 2). item_id/asset_quantity/net_purchase_amount/gross_purchase_amount derive otomatis dari baris pembelian yang dipilih."
+}
