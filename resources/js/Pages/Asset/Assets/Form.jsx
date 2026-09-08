@@ -64,11 +64,7 @@ export default function Form() {
               value={data?.asset_type ?? "existing_asset"}
               onValueChange={(val) => setData("asset_type", val)}
               optionTrans="asset.asset.columns.asset_type.options"
-              options={[
-                "existing_asset",
-                "composite_asset",
-                "composite_component",
-              ]}
+              options={["existing_asset"]}
               disabled
             />
           </FormInput>
@@ -87,6 +83,7 @@ export default function Form() {
               value={data?.asset_quantity ?? 1}
               decimalScale={0}
               onValueChange={(val) => setData("asset_quantity", val)}
+              className="text-left"
             />
           </FormInput>
           <FormInput
@@ -179,6 +176,7 @@ export default function Form() {
               value={data?.gross_purchase_amount ?? 0}
               decimalScale={2}
               onValueChange={(val) => setData("gross_purchase_amount", val)}
+              className="text-left"
             />
           </FormInput>
           <FormInput
@@ -189,6 +187,7 @@ export default function Form() {
               value={data?.additional_asset_cost ?? 0}
               decimalScale={2}
               onValueChange={(val) => setData("additional_asset_cost", val)}
+              className="text-left"
             />
           </FormInput>
           <FormInput
@@ -241,6 +240,7 @@ export default function Form() {
                   onValueChange={(val) =>
                     setData("frequency_of_depreciation", val)
                   }
+                  className="text-left"
                 />
               </FormInput>
               <FormInput
@@ -253,6 +253,7 @@ export default function Form() {
                   onValueChange={(val) =>
                     setData("total_number_of_depreciations", val)
                   }
+                  className="text-left"
                 />
               </FormInput>
               <FormInput
@@ -267,6 +268,7 @@ export default function Form() {
                   onValueChange={(val) =>
                     setData("expected_value_after_useful_life", val)
                   }
+                  className="text-left"
                 />
               </FormInput>
             </>
@@ -307,6 +309,7 @@ export default function Form() {
               value={data?.insurance_insured_value}
               decimalScale={2}
               onValueChange={(val) => setData("insurance_insured_value", val)}
+              className="text-left"
             />
           </FormInput>
           <FormInput

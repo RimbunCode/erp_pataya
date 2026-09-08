@@ -86,6 +86,7 @@ export default function CompleteDataDialog({
               onValueChange={(val) => setData("quantity", val)}
               min={0.0001}
               {...attributes}
+              className="text-left"
             />
           );
         },

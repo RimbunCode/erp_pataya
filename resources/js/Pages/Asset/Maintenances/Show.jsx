@@ -46,6 +46,7 @@ export default function Show() {
               value={value}
               onValueChange={(val) => setData(val)}
               {...attributes}
+              className="text-left"
             />
           );
         },

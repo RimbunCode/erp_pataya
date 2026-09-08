@@ -87,6 +87,7 @@ export default function Form() {
               value={value}
               onValueChange={(val) => setData(val)}
               {...attributes}
+              className="text-left"
             />
           );
         },
@@ -102,6 +103,7 @@ export default function Form() {
               value={value}
               onValueChange={(val) => setData(val)}
               {...attributes}
+              className="text-left"
             />
           );
         },
@@ -180,6 +182,7 @@ export default function Form() {
                   onValueChange={(val) =>
                     setData("increase_in_asset_life", val)
                   }
+                  className="text-left"
                 />
               </FormInput>
             )}
