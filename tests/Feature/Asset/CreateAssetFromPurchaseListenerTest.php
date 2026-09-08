@@ -153,7 +153,7 @@ class CreateAssetFromPurchaseListenerTest extends TestCase {
             'item_id'                => $poItem->item_id,
             'quantity'               => $quantity,
             'rate'                   => $rate,
-        ]);
+        ])->refresh();
     }
 
     #[Test]
