@@ -170,6 +170,28 @@ class AssetControllerTest extends TestCase {
     }
 
     /**
+     * [FIXED] ownership_type=company tidak boleh mewajibkan ownership_company_id
+     * — tidak ada model Company (app single-tenant) dan Form.jsx tidak pernah
+     * mengirim field ini untuk tipe company, beda dengan supplier/customer yang
+     * memang punya entitas untuk dipilih.
+     */
+    public function test_ownership_type_company_does_not_require_company_id(): void {
+        $user  = User::factory()->create();
+        $asset = Asset::factory()->create();
+
+        $this->actingAs($user)
+            ->withSession($this->permissions())
+            ->putJson(route('assets.update', $asset), [
+                'asset_name'     => $asset->asset_name,
+                'asset_category' => ['id' => $asset->asset_category_id],
+                'asset_location' => ['id' => $asset->asset_location_id],
+                'ownership_type' => 'company',
+                // ownership_company_id sengaja TIDAK diisi — tidak wajib
+            ])
+            ->assertRedirect();
+    }
+
+    /**
      * [FIXED] AssetRequest sekarang memvalidasi asset_quantity=1 untuk kategori
      * is_rentable=true (Requirement 3.5) via withValidator() — ditolak HTTP 422
      * rapi, bukan LogicException dari model hook.

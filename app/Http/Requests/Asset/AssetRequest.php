@@ -77,7 +77,7 @@ class AssetRequest extends FormRequest {
         }
 
         $requiredField = $fieldByType[$ownershipType];
-        if (! $this->filled($requiredField)) {
+        if ($ownershipType !== 'company' && ! $this->filled($requiredField)) {
             $validator->errors()->add($requiredField, __('validation.required', ['attribute' => $requiredField]));
         }
 
