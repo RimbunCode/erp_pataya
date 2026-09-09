@@ -81,7 +81,9 @@ describe("PurchaseInvoiceItemLinkModel", () => {
   it("memilih opsi dari daftar hasil memanggil onValueChange", async () => {
     const user = userEvent.setup({ delay: null });
     const onValueChange = vi.fn();
-    await render(<PurchaseInvoiceItemLinkModel onValueChange={onValueChange} />);
+    await render(
+      <PurchaseInvoiceItemLinkModel onValueChange={onValueChange} />,
+    );
 
     await act(async () => {
       await user.type(screen.getByRole("textbox"), "2");
