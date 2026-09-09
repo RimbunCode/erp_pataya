@@ -52,6 +52,17 @@ class AssetServiceController extends Controller {
                 $assetService->loadRelations();
 
                 return array_merge($assetService->toArray(), [
+                    // Eloquent otomatis snake_case relation key (consumedItems()
+                    // -> "consumed_items", itemUnit() -> "item_unit") saat
+                    // toArray(), padahal Form.jsx (dan payload create/update)
+                    // memakai key camelCase "consumedItems" dgn sub-key "unit" --
+                    // remap eksplisit di sini supaya bentuk read selaras bentuk
+                    // write, tanpa mengubah kontrak request/validasi yang sudah ada.
+                    'consumedItems' => $assetService->consumedItems->map(
+                        fn ($consumedItem) => array_merge($consumedItem->toArray(), [
+                            'unit' => $consumedItem->itemUnit,
+                        ]),
+                    ),
                     // Requirement 6, spec asset-service-billing: dihitung sekali
                     // di sini (bukan Asset::$appends generik) supaya tidak
                     // membebani setiap query/listing Asset lain.
@@ -93,7 +104,7 @@ class AssetServiceController extends Controller {
         return match ($method) {
             'complete', 'storeActivity', 'updateActivity', 'billToRenter',
             'addActivityFile', 'removeActivityFile' => 'write',
-            default                                 => parent::enforcePermission($method),
+            default => parent::enforcePermission($method),
         };
     }
 
