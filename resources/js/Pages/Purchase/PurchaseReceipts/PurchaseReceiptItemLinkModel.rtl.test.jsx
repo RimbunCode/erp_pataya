@@ -1,6 +1,12 @@
 import { describe, expect, it, vi, beforeEach } from "vitest";
-import { act, render as rtlRender, screen } from "@testing-library/react";
+import {
+  act,
+  render as rtlRender,
+  screen,
+  waitFor,
+} from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
+import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 
 vi.mock("laravel-react-i18n", () => ({
   useLaravelReactI18n: () => ({ t: (key) => `TR:${key}` }),
@@ -27,11 +33,19 @@ window.route = (name) => name;
 import PurchaseReceiptItemLinkModel from "./PurchaseReceiptItemLinkModel";
 import { TooltipProvider } from "@/Components/ui/tooltip";
 
+// QueryClientProvider wajib sejak LinkModel migrasi ke TanStack Query --
+// useLinkModelOptions memanggil useQuery() tanpa syarat. QueryClient baru
+// per render() (bukan module-level) supaya cache tidak bocor lintas test.
 const render = async (ui) => {
+  const queryClient = new QueryClient({
+    defaultOptions: { queries: { retry: false, gcTime: Infinity } },
+  });
   let result;
   await act(async () => {
     result = rtlRender(
-      <TooltipProvider delayDuration={0}>{ui}</TooltipProvider>,
+      <QueryClientProvider client={queryClient}>
+        <TooltipProvider delayDuration={0}>{ui}</TooltipProvider>
+      </QueryClientProvider>,
     );
   });
   return result;
@@ -68,16 +82,18 @@ describe("PurchaseReceiptItemLinkModel", () => {
       await user.type(screen.getByRole("textbox"), "Laptop");
     });
 
-    await act(async () => {
-      await vi.waitFor(() => {
-        expect(axiosPost).toHaveBeenCalledWith(
-          "model",
-          expect.objectContaining({
-            model: "App\\Models\\Purchase\\PurchaseReceiptItem",
-            search: "Laptop",
-          }),
-        );
-      });
+    // WAJIB pakai `waitFor` dari @testing-library/react, BUKAN `vi.waitFor` --
+    // assertion ini menunggu update debouncedSearch (setTimeout mentah di
+    // useLinkModelOptions) di luar act() manapun. `vi.waitFor` tidak
+    // act()-aware sehingga re-render dari timer itu tidak ke-flush.
+    await waitFor(() => {
+      expect(axiosPost).toHaveBeenCalledWith(
+        "model",
+        expect.objectContaining({
+          model: "App\\Models\\Purchase\\PurchaseReceiptItem",
+          search: "Laptop",
+        }),
+      );
     });
   });
 
@@ -92,13 +108,11 @@ describe("PurchaseReceiptItemLinkModel", () => {
       await user.type(screen.getByRole("textbox"), "2");
     });
 
-    await act(async () => {
-      await vi.waitFor(() => {
-        expect(axiosPost).toHaveBeenCalledWith(
-          "model",
-          expect.objectContaining({ search: "2" }),
-        );
-      });
+    await waitFor(() => {
+      expect(axiosPost).toHaveBeenCalledWith(
+        "model",
+        expect.objectContaining({ search: "2" }),
+      );
     });
 
     const option = await screen.findByRole("option", { name: "2" });
@@ -121,15 +135,13 @@ describe("PurchaseReceiptItemLinkModel", () => {
       await user.type(screen.getByRole("textbox"), "x");
     });
 
-    await act(async () => {
-      await vi.waitFor(() => {
-        expect(axiosPost).toHaveBeenCalledWith(
-          "model",
-          expect.objectContaining({
-            filters: { item_id: { in: ["v1"] } },
-          }),
-        );
-      });
+    await waitFor(() => {
+      expect(axiosPost).toHaveBeenCalledWith(
+        "model",
+        expect.objectContaining({
+          filters: { item_id: { in: ["v1"] } },
+        }),
+      );
     });
   });
 });
