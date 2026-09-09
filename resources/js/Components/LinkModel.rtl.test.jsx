@@ -1,5 +1,11 @@
 import { describe, expect, it, vi, beforeEach } from "vitest";
-import { act, render as rtlRender, screen } from "@testing-library/react";
+import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
+import {
+  act,
+  render as rtlRender,
+  screen,
+  waitFor,
+} from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 
 vi.mock("laravel-react-i18n", () => ({
@@ -29,12 +35,25 @@ import { TooltipProvider } from "./ui/tooltip";
 // Sama seperti Select.jsx, LinkModel membungkus dirinya dengan <Tooltip>
 // internal tanpa menyediakan <TooltipProvider> sendiri.
 //
+// QueryClientProvider WAJIB sejak migrasi ke TanStack Query (opsi L, lihat
+// spec linkmodel-fetch-optimization) -- useLinkModelOptions memanggil
+// useQuery() TANPA syarat, jadi setiap render LinkModel butuh provider ini
+// atau langsung error "No QueryClient set". QueryClient BARU per render()
+// (bukan module-level) -- gcTime: Infinity + retry: false, pola sama
+// NumberCardDisplay.rtl.test.jsx -- supaya cache TIDAK bocor lintas test
+// (dua `it()` yang mount model sama akan punya queryKey sama; kalau
+// clientnya sama, test kedua bisa diam-diam serve dari cache test pertama
+// alih-alih benar-benar fetch, bikin assertion jumlah call salah).
+//
 // LinkModel menembak axios.post (search model) di useEffect saat mount
 // TANPA di-await test-nya -- render() polos RTL cuma membungkus bagian
 // SINKRON dalam act(), promise mock (walau resolve instan) tetap lanjut di
 // microtask SESUDAH act() itu selesai. Bungkus render() ITU SENDIRI dalam
 // `await act(async () => {})` supaya semua microtask stabil dulu.
 const render = async (ui) => {
+  const queryClient = new QueryClient({
+    defaultOptions: { queries: { retry: false, gcTime: Infinity } },
+  });
   let result;
   await act(async () => {
     // delayDuration=0 -- Radix TooltipProvider default (700ms) pakai
@@ -44,7 +63,9 @@ const render = async (ui) => {
     // bisa kita kontrol dari test. delayDuration=0 membuat Radix transisi
     // segera tanpa timer.
     result = rtlRender(
-      <TooltipProvider delayDuration={0}>{ui}</TooltipProvider>,
+      <QueryClientProvider client={queryClient}>
+        <TooltipProvider delayDuration={0}>{ui}</TooltipProvider>
+      </QueryClientProvider>,
     );
   });
   return result;
@@ -93,9 +114,19 @@ describe("LinkModel", () => {
   });
 
   it("mengetik di input memicu request axios pencarian", async () => {
-    // LinkModel fetch 2x: sekali saat dropdown terbuka (search kosong, debounce
-    // 100ms) dan sekali lagi setelah user berhenti mengetik (debounce 500ms).
-    // Test ini memverifikasi call KEDUA (dengan search terisi) benar-benar terjadi.
+    // LinkModel fetch 2x: sekali saat dropdown terbuka (search kosong) dan
+    // sekali lagi setelah user berhenti mengetik (debounce 500ms). Test ini
+    // memverifikasi call KEDUA (dengan search terisi) benar-benar terjadi.
+    //
+    // WAJIB pakai `waitFor` dari @testing-library/react, BUKAN `vi.waitFor`
+    // (Vitest) -- update `debouncedSearch` (state internal useLinkModelOptions)
+    // terjadi di dalam callback setTimeout MENTAH, di luar act() manapun yang
+    // eksplisit dibuat test ini. `vi.waitFor` cuma polling assertion generik,
+    // TIDAK act()-aware, jadi re-render React yang dipicu timer itu tidak
+    // pernah ke-flush selama polling -- assertion gagal terus walau timer-nya
+    // sendiri sudah beres (dead end: menaikkan timeout TIDAK menolong, sudah
+    // dicoba sampai 3000ms tetap gagal). `waitFor` RTL membungkus tiap polling
+    // dengan act() secara internal, jadi update dari timer ASLI tetap ke-flush.
     const user = userEvent.setup({ delay: null });
     await render(<LinkModel model="AppModelsItem" />);
 
@@ -103,14 +134,18 @@ describe("LinkModel", () => {
       await user.type(screen.getByRole("textbox"), "Alpha");
     });
 
-    await act(async () => {
-      await vi.waitFor(() => {
+    await waitFor(
+      () => {
         expect(axiosPost).toHaveBeenCalledWith(
           "model",
-          expect.objectContaining({ model: "AppModelsItem", search: "Alpha" }),
+          expect.objectContaining({
+            model: "AppModelsItem",
+            search: "Alpha",
+          }),
         );
-      });
-    });
+      },
+      { timeout: 3000 },
+    );
   });
 
   it("memilih opsi dari daftar hasil memanggil onValueChange", async () => {
@@ -127,14 +162,16 @@ describe("LinkModel", () => {
     // Tunggu request pencarian (debounce 500ms) benar-benar selesai sebelum
     // klik -- render opsi bisa berganti (unmount/remount) saat data axios
     // datang, sehingga elemen yang diklik lebih dulu bisa jadi stale.
-    await act(async () => {
-      await vi.waitFor(() => {
+    // `waitFor` RTL (bukan `vi.waitFor`) -- lihat catatan di test sebelumnya.
+    await waitFor(
+      () => {
         expect(axiosPost).toHaveBeenCalledWith(
           "model",
           expect.objectContaining({ search: "Al" }),
         );
-      });
-    });
+      },
+      { timeout: 3000 },
+    );
 
     // Label opsi di-highlight (<mark>Al</mark>pha), jadi cari via role
     // "option" + data-value alih-alih text match langsung.
@@ -146,6 +183,28 @@ describe("LinkModel", () => {
     expect(onValueChange).toHaveBeenCalledWith(
       expect.objectContaining({ id: 1, name: "Alpha" }),
     );
+  });
+
+  it("dua instance LinkModel identik yang sama-sama dibuka hanya memicu 1 network call (dedup)", async () => {
+    // queryKey dari kedua instance IDENTIK (model+filters+joins+search sama)
+    // -- TanStack Query harus dedup keduanya jadi 1 request, bukan 2.
+    const user = userEvent.setup({ delay: null });
+    await render(
+      <>
+        <LinkModel model="AppModelsItem" placeholder="first" />
+        <LinkModel model="AppModelsItem" placeholder="second" />
+      </>,
+    );
+
+    const [first, second] = screen.getAllByRole("textbox");
+    await act(async () => {
+      await user.click(first);
+    });
+    await act(async () => {
+      await user.click(second);
+    });
+
+    await waitFor(() => expect(axiosPost).toHaveBeenCalledTimes(1));
   });
 
   it("disabled mencegah input diedit", async () => {
