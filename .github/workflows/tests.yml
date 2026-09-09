@@ -14,7 +14,6 @@ jobs:
   lint:
     name: Fix Code Style
     runs-on: ubuntu-latest
-    continue-on-error: true
     permissions:
       contents: write
     outputs:
@@ -79,11 +78,6 @@ jobs:
         if: steps.check-autofix.outputs.is_autofix != 'true' && steps.npm-cache.outputs.cache-hit != 'true'
         run: npm ci
 
-      - name: Format Frontend
-        if: steps.check-autofix.outputs.is_autofix != 'true'
-        run: npm run format
-        continue-on-error: true
-
       - name: Lint Frontend
         if: steps.check-autofix.outputs.is_autofix != 'true'
         run: npm run lint:fix
@@ -100,7 +94,7 @@ jobs:
   backend:
     name: Backend (PHPUnit)
     needs: lint
-    if: needs.lint.outputs.changes_detected != 'true'
+    if: always() && needs.lint.outputs.changes_detected != 'true'
     runs-on: ubuntu-latest
     env:
       FORCE_JAVASCRIPT_ACTIONS_TO_NODE24: true
@@ -157,7 +151,7 @@ jobs:
   frontend:
     name: Frontend (Vitest) shard ${{ matrix.shard }}/${{ strategy.job-total }}
     needs: lint
-    if: needs.lint.outputs.changes_detected != 'true'
+    if: always() && needs.lint.outputs.changes_detected != 'true'
     runs-on: ubuntu-latest
     strategy:
       fail-fast: false
