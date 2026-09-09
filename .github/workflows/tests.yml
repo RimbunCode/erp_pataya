@@ -124,12 +124,16 @@ jobs:
         run: npm run build
 
       - name: Run PHPUnit
-        run: php artisan test --compact
+        run: php artisan test --parallel --compact
 
   frontend:
-    name: Frontend (Vitest)
+    name: Frontend (Vitest) shard ${{ matrix.shard }}/${{ strategy.job-total }}
     needs: lint
     runs-on: ubuntu-latest
+    strategy:
+      fail-fast: false
+      matrix:
+        shard: [1, 2, 3, 4]
     steps:
       - name: Checkout code
         uses: actions/checkout@v6
@@ -153,5 +157,5 @@ jobs:
         if: steps.npm-cache.outputs.cache-hit != 'true'
         run: npm ci
 
-      - name: Run Vitest
-        run: npm run test
+      - name: Run Vitest (shard ${{ matrix.shard }}/${{ strategy.job-total }})
+        run: npm run test -- --shard=${{ matrix.shard }}/${{ strategy.job-total }}
