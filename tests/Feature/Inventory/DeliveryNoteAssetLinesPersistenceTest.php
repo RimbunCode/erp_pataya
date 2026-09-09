@@ -103,9 +103,9 @@ class DeliveryNoteAssetLinesPersistenceTest extends TestCase {
 
     private function makeAsset(?string $itemId = null): Asset {
         $itemId ??= Item::factory()->create(['is_fixed_asset' => true])->id;
-        $category = AssetCategory::factory()->rentable()->create();
+        $category = AssetCategory::factory()->create();
 
-        return Asset::factory()->create(['asset_category_id' => $category->id, 'item_id' => $itemId]);
+        return Asset::factory()->rentable()->create(['asset_category_id' => $category->id, 'item_id' => $itemId]);
     }
 
     private function makeItemUnit(string $itemId): string {

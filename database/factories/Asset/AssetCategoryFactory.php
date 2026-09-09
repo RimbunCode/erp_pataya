@@ -28,7 +28,6 @@ class AssetCategoryFactory extends Factory {
             'category_name'            => $categoryName . ' ' . fake()->unique()->numerify('##'),
             'non_depreciable_category' => false,
             'enable_cwip_accounting'   => false,
-            'is_rentable'              => false,
         ];
     }
 
@@ -38,21 +37,9 @@ class AssetCategoryFactory extends Factory {
         ]);
     }
 
-    public function rentable(): static {
-        return $this->state(fn (array $attributes) => [
-            'is_rentable' => true,
-        ]);
-    }
-
     public function cwip(): static {
         return $this->state(fn (array $attributes) => [
             'enable_cwip_accounting' => true,
-        ]);
-    }
-
-    public function bulkQuantity(): static {
-        return $this->state(fn (array $attributes) => [
-            'allow_bulk_quantity' => true,
         ]);
     }
 }

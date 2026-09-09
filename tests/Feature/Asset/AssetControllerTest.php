@@ -216,13 +216,14 @@ class AssetControllerTest extends TestCase {
     }
 
     /**
-     * [FIXED] AssetRequest sekarang memvalidasi asset_quantity=1 untuk kategori
-     * is_rentable=true (Requirement 3.5) via withValidator() — ditolak HTTP 422
-     * rapi, bukan LogicException dari model hook.
+     * [FIXED] AssetRequest memvalidasi asset_quantity>1 lewat withValidator()
+     * — ditolak HTTP 422 rapi kalau allow_bulk_quantity tidak dikirim true
+     * (Spec asset-category-simplification: field milik Asset sendiri, bukan
+     * lagi AssetCategory), bukan LogicException dari model hook.
      */
     public function test_rentable_quantity_rejected_at_request_level(): void {
         $user     = User::factory()->create();
-        $category = AssetCategory::factory()->create(['is_rentable' => true]);
+        $category = AssetCategory::factory()->create();
         $location = AssetLocation::factory()->create();
 
         $this->actingAs($user)
@@ -235,6 +236,32 @@ class AssetControllerTest extends TestCase {
             ])
             ->assertUnprocessable()
             ->assertJsonValidationErrors(['asset_quantity']);
+    }
+
+    /**
+     * Spec asset-category-simplification, Requirement 2.2/4.2/4.3:
+     * allow_bulk_quantity kini milik Asset sendiri, independen dari kategori.
+     */
+    public function test_allow_bulk_quantity_true_accepts_quantity_greater_than_one(): void {
+        $user     = User::factory()->create();
+        $category = AssetCategory::factory()->create();
+        $location = AssetLocation::factory()->create();
+
+        $this->actingAs($user)
+            ->withSession($this->permissions())
+            ->postJson(route('assets.store'), [
+                'asset_name'          => 'Excavator Banyak',
+                'asset_category'      => ['id' => $category->id],
+                'asset_location'      => ['id' => $location->id],
+                'asset_quantity'      => 5,
+                'allow_bulk_quantity' => true,
+            ])
+            ->assertRedirect();
+
+        $this->assertDatabaseHas('assets', [
+            'asset_name'          => 'Excavator Banyak',
+            'allow_bulk_quantity' => true,
+        ]);
     }
 
     // ─── Spec asset-management-purchase-integration-v2 ─────────────────────
@@ -389,10 +416,10 @@ class AssetControllerTest extends TestCase {
         $user = User::factory()->create();
         // allow_bulk_quantity=true eksplisit -- quantity 3 (dari override
         // Receipt) dicek DUA layer: AssetRequest::validateRentableQuantity()
-        // (field is_rentable) DAN Asset::booted() saving hook (field
-        // allow_bulk_quantity, beda field, guard nyata di model). Default
-        // factory allow_bulk_quantity=false, jadi wajib override di sini.
-        $category         = AssetCategory::factory()->create(['allow_bulk_quantity' => true]);
+        // DAN Asset::booted() saving hook, keduanya kini baca field yang sama
+        // (allow_bulk_quantity milik Asset sendiri). Default false, jadi wajib
+        // dikirim eksplisit di payload di sini.
+        $category         = AssetCategory::factory()->create();
         $location         = AssetLocation::factory()->create();
         [$item, $variant] = $this->makeFixedAssetItem();
         $receiptItem      = $this->makeReceiptItem($variant, quantity: 3);
@@ -406,6 +433,7 @@ class AssetControllerTest extends TestCase {
                 'item_id'                  => $item->id,
                 'purchase_receipt_item_id' => $receiptItem->id,
                 'asset_quantity'           => 999,
+                'allow_bulk_quantity'      => true,
             ])
             ->assertRedirect();
 
@@ -468,7 +496,7 @@ class AssetControllerTest extends TestCase {
         $user = User::factory()->create();
         // allow_bulk_quantity=true -- quantity 2, lihat catatan di
         // test_asset_quantity_is_overridden_from_receipt_item_regardless_of_sent_value.
-        $category         = AssetCategory::factory()->create(['allow_bulk_quantity' => true]);
+        $category         = AssetCategory::factory()->create();
         $location         = AssetLocation::factory()->create();
         [$item, $variant] = $this->makeFixedAssetItem();
         $poItem           = $this->makePurchaseOrderItem($variant, quantity: 2, rate: 5000);
@@ -489,6 +517,7 @@ class AssetControllerTest extends TestCase {
                 'asset_quantity'           => 2,
                 'net_purchase_amount'      => $invoiceItem->basic_amount,
                 'gross_purchase_amount'    => $invoiceItem->amount,
+                'allow_bulk_quantity'      => true,
             ])
             ->assertRedirect();
 

@@ -3,7 +3,6 @@
 namespace App\Http\Requests\Asset;
 
 use App\Models\Asset\Asset;
-use App\Models\Asset\AssetCategory;
 use App\Models\Finances\PurchaseInvoiceItem;
 use App\Models\Inventory\Item;
 use App\Models\Purchase\PurchaseReceiptItem;
@@ -26,6 +25,8 @@ class AssetRequest extends FormRequest {
             'purchase_receipt_item_id'         => ['nullable', 'string', 'exists:purchase_receipt_items,id'],
             'purchase_invoice_item_id'         => ['nullable', 'string', 'exists:purchase_invoice_items,id'],
             'asset_quantity'                   => ['integer', 'min:1'],
+            'is_rentable'                      => ['boolean'],
+            'allow_bulk_quantity'              => ['boolean'],
             'ownership_type'                   => ['string', Rule::in(['company', 'supplier', 'customer'])],
             'ownership_company_id'             => ['nullable', 'string'],
             'ownership_supplier_id'            => ['nullable', 'string'],
@@ -159,8 +160,13 @@ class AssetRequest extends FormRequest {
         }
     }
 
+    /**
+     * Requirement 2.2, spec asset-category-simplification: allow_bulk_quantity
+     * kini milik Asset sendiri (bukan AssetCategory) -- baca dari input request,
+     * fallback ke record existing untuk update partial yang tidak mengirim
+     * ulang field ini (pola sama dengan validatePurchaseLinkConsistency()).
+     */
     private function validateRentableQuantity(Validator $validator): void {
-        $categoryId = $this->input('asset_category.id');
         // Kalau link Receipt ada, quantity efektif adalah hasil override
         // AssetService::applyPurchaseLinkOverrides() (dari baris pembelian),
         // BUKAN nilai mentah yang dikirim FE -- FE tidak wajib bisa
@@ -171,12 +177,15 @@ class AssetRequest extends FormRequest {
             ? (int) (PurchaseReceiptItem::find($receiptItemId)?->quantity ?? $this->input('asset_quantity', 1))
             : (int) $this->input('asset_quantity', 1);
 
-        if (! $categoryId || $quantity <= 1) {
+        if ($quantity <= 1) {
             return;
         }
 
-        $category = AssetCategory::find($categoryId);
-        if ($category && $category->is_rentable) {
+        $allowBulk = $this->has('allow_bulk_quantity')
+            ? $this->boolean('allow_bulk_quantity')
+            : (bool) $this->route('asset')?->allow_bulk_quantity;
+
+        if (! $allowBulk) {
             $validator->errors()->add('asset_quantity', __('asset/asset.rentable_must_be_single_unit'));
         }
     }

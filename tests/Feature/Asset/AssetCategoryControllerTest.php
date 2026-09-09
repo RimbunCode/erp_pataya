@@ -55,14 +55,12 @@ class AssetCategoryControllerTest extends TestCase {
             ->withSession($this->permissions())
             ->postJson(route('assetCategories.store'), [
                 'category_name'            => 'Kendaraan',
-                'is_rentable'              => true,
                 'non_depreciable_category' => false,
             ])
             ->assertRedirect();
 
         $this->assertDatabaseHas('asset_categories', [
             'category_name' => 'Kendaraan',
-            'is_rentable'   => true,
         ]);
     }
 

@@ -37,11 +37,11 @@ return [
     'needs_completion'                       => 'Needs Completion',
     'complete_now'                           => 'Complete Now',
     'ownership_field_must_be_empty'          => 'The :field field must be empty for the selected ownership type.',
-    'rentable_must_be_single_unit'           => 'This asset category does not allow bulk quantity — assets must have a quantity of 1.',
+    'rentable_must_be_single_unit'           => 'This asset does not allow bulk quantity — quantity must be 1.',
     'cannot_transition_status'               => 'Asset cannot transition to :to from its current status.',
     'total_number_of_depreciations_required' => 'Total number of depreciations is required to generate the depreciation schedule.',
     'insufficient_available_quantity'        => 'The requested quantity exceeds the available quantity of this asset.',
-    'category_not_rentable'                  => 'This asset category is not rentable/transactable.',
+    'asset_not_rentable'                     => 'This asset is not rentable/transactable.',
     'item_mismatch'                          => 'The selected asset does not belong to this item.',
     'quantity_mismatch'                      => 'The total quantity of selected assets does not match the line quantity.',
     'location'                               => [
@@ -73,6 +73,8 @@ return [
         'item_id'                  => 'Related Item',
         'purchase_receipt_item_id' => 'Purchase Receipt Line',
         'purchase_invoice_item_id' => 'Purchase Invoice Line',
+        'is_rentable'              => 'Rentable',
+        'allow_bulk_quantity'      => 'Allow Bulk Quantity',
         'asset_quantity'           => 'Quantity',
 
         'ownership_type'         => 'Ownership Type',

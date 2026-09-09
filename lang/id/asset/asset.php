@@ -37,11 +37,11 @@ return [
     'needs_completion'                       => 'Perlu Dilengkapi',
     'complete_now'                           => 'Lengkapi Sekarang',
     'ownership_field_must_be_empty'          => 'Field :field harus kosong untuk jenis kepemilikan yang dipilih.',
-    'rentable_must_be_single_unit'           => 'Kategori aset ini tidak mengizinkan kuantitas lebih dari 1 — aset harus berkuantitas 1.',
+    'rentable_must_be_single_unit'           => 'Aset ini tidak mengizinkan kuantitas lebih dari 1 — aset harus berkuantitas 1.',
     'cannot_transition_status'               => 'Aset tidak dapat bertransisi ke status :to dari status saat ini.',
     'total_number_of_depreciations_required' => 'Total jumlah penyusutan wajib diisi untuk menghitung jadwal penyusutan.',
     'insufficient_available_quantity'        => 'Kuantitas yang diminta melebihi kuantitas tersedia aset ini.',
-    'category_not_rentable'                  => 'Kategori aset ini tidak dapat disewakan/ditransaksikan.',
+    'asset_not_rentable'                     => 'Aset ini tidak dapat disewakan/ditransaksikan.',
     'item_mismatch'                          => 'Aset yang dipilih tidak sesuai dengan item baris ini.',
     'quantity_mismatch'                      => 'Total kuantitas aset yang dipilih tidak sesuai dengan kuantitas baris.',
     'location'                               => [
@@ -73,6 +73,8 @@ return [
         'item_id'                  => 'Item Terkait',
         'purchase_receipt_item_id' => 'Baris Purchase Receipt',
         'purchase_invoice_item_id' => 'Baris Purchase Invoice',
+        'is_rentable'              => 'Dapat Disewakan',
+        'allow_bulk_quantity'      => 'Izinkan Kuantitas Massal',
         'asset_quantity'           => 'Kuantitas',
 
         'ownership_type'         => 'Jenis Kepemilikan',

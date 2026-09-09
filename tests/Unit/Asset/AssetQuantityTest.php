@@ -4,7 +4,6 @@ namespace Tests\Unit\Asset;
 
 use App\Enums\FormStatus;
 use App\Models\Asset\Asset;
-use App\Models\Asset\AssetCategory;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use LogicException;
 use PHPUnit\Framework\Attributes\Test;
@@ -15,12 +14,10 @@ class AssetQuantityTest extends TestCase {
 
     #[Test]
     public function available_quantity_computed_correctly(): void {
-        $category = AssetCategory::factory()->bulkQuantity()->create();
-        $asset    = Asset::factory()->create([
-            'asset_category_id' => $category->id,
-            'asset_quantity'    => 10,
-            'rental_quantity'   => 3,
-            'sold_quantity'     => 2,
+        $asset = Asset::factory()->bulkQuantity()->create([
+            'asset_quantity'  => 10,
+            'rental_quantity' => 3,
+            'sold_quantity'   => 2,
         ]);
 
         $this->assertEqualsWithDelta(5.0, $asset->available_quantity, 0.0001);
@@ -37,11 +34,9 @@ class AssetQuantityTest extends TestCase {
 
     #[Test]
     public function add_rented_quantity_partial_keeps_active_and_adds_partially_rented(): void {
-        $category = AssetCategory::factory()->bulkQuantity()->create();
-        $asset    = Asset::factory()->create([
-            'asset_category_id' => $category->id,
-            'asset_quantity'    => 10,
-            'status'            => [FormStatus::ACTIVE],
+        $asset = Asset::factory()->bulkQuantity()->create([
+            'asset_quantity' => 10,
+            'status'         => [FormStatus::ACTIVE],
         ]);
 
         $asset->addRentedQuantity(4);
@@ -80,12 +75,10 @@ class AssetQuantityTest extends TestCase {
 
     #[Test]
     public function add_sold_quantity_partial_does_not_set_disposal_date(): void {
-        $category = AssetCategory::factory()->bulkQuantity()->create();
-        $asset    = Asset::factory()->create([
-            'asset_category_id' => $category->id,
-            'asset_quantity'    => 10,
-            'status'            => [FormStatus::ACTIVE],
-            'disposal_date'     => null,
+        $asset = Asset::factory()->bulkQuantity()->create([
+            'asset_quantity' => 10,
+            'status'         => [FormStatus::ACTIVE],
+            'disposal_date'  => null,
         ]);
 
         $asset->addSoldQuantity(3);
@@ -114,11 +107,9 @@ class AssetQuantityTest extends TestCase {
 
     #[Test]
     public function mixed_rental_and_sold_produce_combined_partial_statuses(): void {
-        $category = AssetCategory::factory()->bulkQuantity()->create();
-        $asset    = Asset::factory()->create([
-            'asset_category_id' => $category->id,
-            'asset_quantity'    => 10,
-            'status'            => [FormStatus::ACTIVE],
+        $asset = Asset::factory()->bulkQuantity()->create([
+            'asset_quantity' => 10,
+            'status'         => [FormStatus::ACTIVE],
         ]);
 
         $asset->addRentedQuantity(3);

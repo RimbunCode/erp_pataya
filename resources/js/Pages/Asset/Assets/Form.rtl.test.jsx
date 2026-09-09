@@ -357,6 +357,36 @@ describe("Form (Asset/Assets)", () => {
     });
   });
 
+  describe("identity section: is_rentable & allow_bulk_quantity (spec asset-category-simplification)", () => {
+    it("keduanya default unchecked, render tanpa asset_category dipilih", () => {
+      renderForm({ initialData: {} });
+
+      // asset_category kosong (belum dipilih) -- checkbox tetap render & tidak
+      // ter-disable, membuktikan independen dari kategori (Requirement 4.3).
+      expect(screen.getByTestId("asset-category-link-input")).toHaveValue("");
+
+      const checkboxes = screen.getAllByRole("forminput");
+      expect(checkboxes[0]).toHaveAttribute("data-state", "unchecked");
+      expect(checkboxes[1]).toHaveAttribute("data-state", "unchecked");
+    });
+
+    it("toggle is_rentable tidak mempengaruhi allow_bulk_quantity, dan sebaliknya", async () => {
+      const user = userEvent.setup({ delay: null });
+      renderForm({ initialData: {} });
+
+      const [isRentable, allowBulkQuantity] = screen.getAllByRole("forminput");
+      await user.click(isRentable);
+
+      expect(isRentable).toHaveAttribute("data-state", "checked");
+      expect(allowBulkQuantity).toHaveAttribute("data-state", "unchecked");
+
+      await user.click(allowBulkQuantity);
+
+      expect(isRentable).toHaveAttribute("data-state", "checked");
+      expect(allowBulkQuantity).toHaveAttribute("data-state", "checked");
+    });
+  });
+
   describe("ownership section: conditional field berdasar ownership_type", () => {
     it("ownership_type default 'company' saat data kosong", () => {
       renderForm({ initialData: {} });
@@ -504,10 +534,11 @@ describe("Form (Asset/Assets)", () => {
     it("calculate_depreciation default unchecked, field depresiasi tidak dirender", () => {
       renderForm({ initialData: {} });
 
-      // 2 checkbox forminput selalu dirender: calculate_depreciation
-      // (section purchase, index 0) lalu insurance_comprehensive (section
-      // insurance, index 1).
-      const checkbox = screen.getAllByRole("forminput")[0];
+      // 4 checkbox forminput selalu dirender: is_rentable (index 0),
+      // allow_bulk_quantity (index 1, section identity) lalu
+      // calculate_depreciation (section purchase, index 2), insurance_comprehensive
+      // (section insurance, index 3).
+      const checkbox = screen.getAllByRole("forminput")[2];
       expect(checkbox).toHaveAttribute("data-state", "unchecked");
       expect(
         screen.queryByTestId("forminput-depreciation_method"),
@@ -527,7 +558,7 @@ describe("Form (Asset/Assets)", () => {
       const user = userEvent.setup({ delay: null });
       renderForm({ initialData: { calculate_depreciation: false } });
 
-      const checkbox = screen.getAllByRole("forminput")[0];
+      const checkbox = screen.getAllByRole("forminput")[2];
       await user.click(checkbox);
 
       expect(checkbox).toHaveAttribute("data-state", "checked");

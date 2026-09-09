@@ -108,53 +108,28 @@ class AssetTest extends TestCase {
     }
 
     // 8.9 ── Property 2: Rentable quantity invariant ────────────────────────
+    // Spec asset-category-simplification: allow_bulk_quantity kini milik Asset
+    // sendiri (bukan AssetCategory) -- satu sumber kebenaran untuk guard ini.
 
     #[Test]
-    public function rentable_category_allows_quantity_one(): void {
-        $category = AssetCategory::factory()->rentable()->create();
-
-        $asset = Asset::factory()->create([
-            'asset_category_id' => $category->id,
-            'asset_quantity'    => 1,
-        ]);
+    public function asset_without_allow_bulk_quantity_accepts_quantity_one(): void {
+        $asset = Asset::factory()->create(['asset_quantity' => 1]);
 
         $this->assertEquals(1, $asset->asset_quantity);
     }
 
     #[Test]
-    public function rentable_category_rejects_quantity_greater_than_one(): void {
-        $category = AssetCategory::factory()->rentable()->create();
-
+    public function asset_without_allow_bulk_quantity_rejects_quantity_greater_than_one(): void {
         $this->expectException(LogicException::class);
 
-        Asset::factory()->create([
-            'asset_category_id' => $category->id,
-            'asset_quantity'    => 3,
-        ]);
+        Asset::factory()->create(['asset_quantity' => 3]);
     }
 
     #[Test]
-    public function category_with_allow_bulk_quantity_allows_quantity_greater_than_one(): void {
-        $category = AssetCategory::factory()->create(['is_rentable' => false, 'allow_bulk_quantity' => true]);
-
-        $asset = Asset::factory()->create([
-            'asset_category_id' => $category->id,
-            'asset_quantity'    => 10,
-        ]);
+    public function asset_with_allow_bulk_quantity_allows_quantity_greater_than_one(): void {
+        $asset = Asset::factory()->bulkQuantity()->create(['asset_quantity' => 10]);
 
         $this->assertEquals(10, $asset->asset_quantity);
-    }
-
-    #[Test]
-    public function non_bulk_category_rejects_quantity_greater_than_one(): void {
-        $category = AssetCategory::factory()->create(['is_rentable' => false, 'allow_bulk_quantity' => false]);
-
-        $this->expectException(LogicException::class);
-
-        Asset::factory()->create([
-            'asset_category_id' => $category->id,
-            'asset_quantity'    => 10,
-        ]);
     }
 
     // 8.10 ── Property 4: Status transition legality ────────────────────────

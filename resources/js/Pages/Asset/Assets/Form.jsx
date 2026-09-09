@@ -211,6 +211,20 @@ export default function Form() {
               onValueChange={(val) => setData("custodian", val)}
             />
           </FormInput>
+          <div className="flex flex-col gap-y-2">
+            <FormCheckbox
+              checked={data?.is_rentable ?? false}
+              onCheckedChange={(val) => setData("is_rentable", val)}
+            >
+              {t("asset.asset.columns.is_rentable")}
+            </FormCheckbox>
+            <FormCheckbox
+              checked={data?.allow_bulk_quantity ?? false}
+              onCheckedChange={(val) => setData("allow_bulk_quantity", val)}
+            >
+              {t("asset.asset.columns.allow_bulk_quantity")}
+            </FormCheckbox>
+          </div>
         </div>
       </FormPageContent>
 

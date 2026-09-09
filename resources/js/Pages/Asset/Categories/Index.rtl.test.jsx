@@ -2,10 +2,6 @@ import { describe, expect, it, vi } from "vitest";
 import { render, screen } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 
-vi.mock("laravel-react-i18n", () => ({
-  useLaravelReactI18n: () => ({ t: (key) => `TR:${key}` }),
-}));
-
 let capturedProps = null;
 vi.mock("@/Pages/Core/DataTable2", () => ({
   default: (props) => {
@@ -28,7 +24,7 @@ describe("Asset/Categories Index", () => {
 
   it("templateItem merender nama kategori sebagai tombol navigasi (Link as='button')", () => {
     render(<Index />);
-    const dataRow = { id: 7, category_name: "Kendaraan", is_rentable: false };
+    const dataRow = { id: 7, category_name: "Kendaraan" };
     const deleteItem = vi.fn();
     render(capturedProps.templateItem({ dataRow, deleteItem }));
 
@@ -39,37 +35,12 @@ describe("Asset/Categories Index", () => {
     const link = screen.getByRole("button", { name: "Kendaraan" });
     expect(link.tagName).toBe("BUTTON");
     expect(link).not.toHaveAttribute("href");
-    expect(
-      screen.queryByText("TR:asset.category.columns.is_rentable"),
-    ).not.toBeInTheDocument();
-  });
-
-  it("menampilkan label is_rentable saat dataRow.is_rentable true", () => {
-    render(<Index />);
-    const dataRow = { id: 8, category_name: "Alat Berat", is_rentable: true };
-    const deleteItem = vi.fn();
-    render(capturedProps.templateItem({ dataRow, deleteItem }));
-
-    expect(
-      screen.getByText("TR:asset.category.columns.is_rentable"),
-    ).toBeInTheDocument();
-  });
-
-  it("tidak menampilkan label is_rentable saat dataRow.is_rentable false", () => {
-    render(<Index />);
-    const dataRow = { id: 9, category_name: "Elektronik", is_rentable: false };
-    const deleteItem = vi.fn();
-    render(capturedProps.templateItem({ dataRow, deleteItem }));
-
-    expect(
-      screen.queryByText("TR:asset.category.columns.is_rentable"),
-    ).not.toBeInTheDocument();
   });
 
   it("tombol hapus memanggil deleteItem tanpa argumen saat diklik", async () => {
     const user = userEvent.setup();
     render(<Index />);
-    const dataRow = { id: 10, category_name: "Furniture", is_rentable: false };
+    const dataRow = { id: 10, category_name: "Furniture" };
     const deleteItem = vi.fn();
     render(capturedProps.templateItem({ dataRow, deleteItem }));
 

@@ -104,11 +104,11 @@ class AssetCompleteDataControllerTest extends TestCase {
 
     public function test_completes_data_in_split_mode_creates_multiple_assets_with_distinct_category_location(): void {
         $user      = User::factory()->create();
-        $categoryA = AssetCategory::factory()->bulkQuantity()->create();
-        $categoryB = AssetCategory::factory()->bulkQuantity()->create();
+        $categoryA = AssetCategory::factory()->create();
+        $categoryB = AssetCategory::factory()->create();
         $locationA = AssetLocation::factory()->create();
         $receipt   = $this->makePurchaseReceipt($user);
-        $asset     = Asset::factory()->create([
+        $asset     = Asset::factory()->bulkQuantity()->create([
             'asset_category_id'   => null,
             'asset_location_id'   => null,
             'asset_quantity'      => 5,
@@ -160,7 +160,7 @@ class AssetCompleteDataControllerTest extends TestCase {
         $category = AssetCategory::factory()->create();
         $location = AssetLocation::factory()->create();
         $receipt  = $this->makePurchaseReceipt($user);
-        $asset    = Asset::factory()->create([
+        $asset    = Asset::factory()->bulkQuantity()->create([
             'asset_category_id'   => null,
             'asset_location_id'   => null,
             'asset_quantity'      => 3,

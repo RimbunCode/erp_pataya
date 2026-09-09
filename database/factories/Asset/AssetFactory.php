@@ -27,6 +27,8 @@ class AssetFactory extends Factory {
             'asset_location_id'                      => AssetLocation::factory(),
             'asset_type'                             => AssetType::EXISTING_ASSET,
             'asset_quantity'                         => 1,
+            'is_rentable'                            => false,
+            'allow_bulk_quantity'                    => false,
             'ownership_type'                         => AssetOwnershipType::COMPANY,
             'calculate_depreciation'                 => false,
             'is_depreciable'                         => false,
@@ -58,6 +60,18 @@ class AssetFactory extends Factory {
         return $this->state(fn (array $attributes) => [
             'ownership_type'        => AssetOwnershipType::CUSTOMER,
             'ownership_customer_id' => (string) Str::ulid(),
+        ]);
+    }
+
+    public function rentable(): static {
+        return $this->state(fn (array $attributes) => [
+            'is_rentable' => true,
+        ]);
+    }
+
+    public function bulkQuantity(): static {
+        return $this->state(fn (array $attributes) => [
+            'allow_bulk_quantity' => true,
         ]);
     }
 }

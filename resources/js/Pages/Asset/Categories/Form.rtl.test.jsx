@@ -59,23 +59,22 @@ describe("Asset Categories Form", () => {
     expect(input).toHaveValue("Kendaraan");
   });
 
-  it("3 checkbox (is_rentable, allow_bulk_quantity, non_depreciable_category) independen, toggle satu tidak mempengaruhi lainnya", async () => {
+  it("checkbox non_depreciable_category toggle mengubah state", async () => {
     const user = userEvent.setup({ delay: null });
     formPageSeed = {
-      is_rentable: false,
-      allow_bulk_quantity: false,
       non_depreciable_category: false,
     };
     renderForm(<Form />);
 
     const checkboxes = screen.getAllByRole("forminput");
-    expect(checkboxes).toHaveLength(3);
+    expect(checkboxes).toHaveLength(1);
+    expect(checkboxes[0]).toHaveAttribute("data-state", "unchecked");
 
-    await user.click(checkboxes[1]); // allow_bulk_quantity
+    await user.click(checkboxes[0]);
 
-    const after = screen.getAllByRole("forminput");
-    expect(after[0]).toHaveAttribute("data-state", "unchecked"); // is_rentable
-    expect(after[1]).toHaveAttribute("data-state", "checked"); // allow_bulk_quantity
-    expect(after[2]).toHaveAttribute("data-state", "unchecked"); // non_depreciable_category
+    expect(screen.getAllByRole("forminput")[0]).toHaveAttribute(
+      "data-state",
+      "checked",
+    );
   });
 });

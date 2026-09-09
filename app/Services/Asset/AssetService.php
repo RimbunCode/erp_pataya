@@ -39,6 +39,7 @@ class AssetService implements SubmitableService {
             ...Arr::only($data, [
                 'asset_name', 'asset_category_id', 'asset_location_id',
                 'asset_type', 'item_id', 'asset_quantity',
+                'is_rentable', 'allow_bulk_quantity',
                 'ownership_type', 'ownership_company_id',
                 'ownership_supplier_id', 'ownership_customer_id',
                 'custodian_id',
@@ -68,6 +69,7 @@ class AssetService implements SubmitableService {
             $model->fill(Arr::only($data, [
                 'asset_name', 'asset_category_id', 'asset_location_id',
                 'item_id', 'asset_quantity',
+                'is_rentable', 'allow_bulk_quantity',
                 'ownership_type', 'ownership_company_id',
                 'ownership_supplier_id', 'ownership_customer_id',
                 'custodian_id',
@@ -263,6 +265,8 @@ class AssetService implements SubmitableService {
                     'asset_type'                       => $asset->asset_type,
                     'item_id'                          => $asset->item_id,
                     'asset_quantity'                   => $partQty,
+                    'is_rentable'                      => $asset->is_rentable,
+                    'allow_bulk_quantity'              => $asset->allow_bulk_quantity,
                     'ownership_type'                   => $asset->ownership_type,
                     'ownership_company_id'             => $asset->ownership_company_id,
                     'ownership_supplier_id'            => $asset->ownership_supplier_id,

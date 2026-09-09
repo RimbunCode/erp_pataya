@@ -26,18 +26,6 @@ export default function Form() {
           </FormInput>
           <div className="flex flex-col gap-y-2">
             <FormCheckbox
-              checked={data?.is_rentable ?? false}
-              onCheckedChange={(val) => setData("is_rentable", val)}
-            >
-              {t("asset.category.columns.is_rentable")}
-            </FormCheckbox>
-            <FormCheckbox
-              checked={data?.allow_bulk_quantity ?? false}
-              onCheckedChange={(val) => setData("allow_bulk_quantity", val)}
-            >
-              {t("asset.category.columns.allow_bulk_quantity")}
-            </FormCheckbox>
-            <FormCheckbox
               checked={data?.non_depreciable_category ?? false}
               onCheckedChange={(val) =>
                 setData("non_depreciable_category", val)

@@ -44,11 +44,16 @@ class CreateAssetFromPurchase implements ShouldQueue {
         $amount  = $rate * $receiptItem->quantity;
 
         $this->assetService->create([
-            'asset_name'               => $item->name,
-            'asset_category_id'        => $item->asset_category_id,
-            'asset_location_id'        => null,
-            'item_id'                  => $item->id,
-            'asset_quantity'           => (int) $receiptItem->quantity,
+            'asset_name'        => $item->name,
+            'asset_category_id' => $item->asset_category_id,
+            'asset_location_id' => null,
+            'item_id'           => $item->id,
+            'asset_quantity'    => (int) $receiptItem->quantity,
+            // Asset ala jalur otomatis merepresentasikan batch yang belum
+            // dipisah (bisa di-split manual belakangan via AssetService::split()) --
+            // selalu boleh multi-quantity, spec asset-category-simplification
+            // (Requirement 2) tidak bermaksud membatasi jalur ini.
+            'allow_bulk_quantity'      => true,
             'purchase_date'            => $receipt?->received_date,
             'net_purchase_amount'      => $amount,
             'gross_purchase_amount'    => $amount,
@@ -70,6 +75,7 @@ class CreateAssetFromPurchase implements ShouldQueue {
             'asset_location_id'        => null,
             'item_id'                  => $item->id,
             'asset_quantity'           => (int) $invoiceItem->quantity,
+            'allow_bulk_quantity'      => true,
             'purchase_date'            => $invoice?->posting_date,
             'net_purchase_amount'      => $invoiceItem->basic_amount ?? 0,
             'gross_purchase_amount'    => $invoiceItem->amount ?? 0,
