@@ -319,26 +319,20 @@ class Asset extends Model {
     }
 
     public function setInMaintenance(): void {
-        // SUBMITTED disertakan -- Asset::onApproved() (App\Services\Asset\AssetService)
-        // hanya meng-set status ACTIVE kalau available_for_use_date sudah lewat
-        // saat submit; kalau belum, Asset tetap SUBMITTED tanpa job terjadwal
-        // yang mempromosikannya ke ACTIVE nanti -- jadi SUBMITTED adalah status
-        // "siap dipakai" yang sah, bukan cuma status transisi sementara.
         $this->assertStatusTransition(
-            allowedFrom: [FormStatus::ACTIVE, FormStatus::SUBMITTED, FormStatus::ISSUED],
+            allowedFrom: [FormStatus::ACTIVE, FormStatus::ISSUED],
             to: FormStatus::IN_MAINTENANCE,
         );
-        $this->status = [...$this->removeStatuses([FormStatus::ACTIVE, FormStatus::SUBMITTED, FormStatus::ISSUED]), FormStatus::IN_MAINTENANCE];
+        $this->status = [...$this->removeStatuses([FormStatus::ACTIVE, FormStatus::ISSUED]), FormStatus::IN_MAINTENANCE];
         $this->save();
     }
 
     public function setOutOfOrder(): void {
-        // SUBMITTED disertakan -- lihat catatan di setInMaintenance().
         $this->assertStatusTransition(
-            allowedFrom: [FormStatus::ACTIVE, FormStatus::SUBMITTED, FormStatus::ISSUED, FormStatus::IN_MAINTENANCE],
+            allowedFrom: [FormStatus::ACTIVE, FormStatus::ISSUED, FormStatus::IN_MAINTENANCE],
             to: FormStatus::OUT_OF_ORDER,
         );
-        $this->status = [...$this->removeStatuses([FormStatus::ACTIVE, FormStatus::SUBMITTED, FormStatus::ISSUED, FormStatus::IN_MAINTENANCE]), FormStatus::OUT_OF_ORDER];
+        $this->status = [...$this->removeStatuses([FormStatus::ACTIVE, FormStatus::ISSUED, FormStatus::IN_MAINTENANCE]), FormStatus::OUT_OF_ORDER];
         $this->save();
     }
 

@@ -140,14 +140,14 @@ describe("Asset Services Form", () => {
     ).not.toBeInTheDocument();
   });
 
-  it("AssetLinkModel difilter hanya status active/submitted/issued/in_maintenance", () => {
+  it("AssetLinkModel difilter hanya status active/issued/in_maintenance", () => {
     formPageSeed = { type: "repair" };
     renderForm(<Form />);
 
     const assetLink = screen.getByTestId("asset-link-model");
     expect(JSON.parse(assetLink.dataset.filters)).toEqual({
       status: {
-        jsonContains: ["active", "submitted", "issued", "in_maintenance"],
+        jsonContains: ["active", "issued", "in_maintenance"],
       },
     });
   });

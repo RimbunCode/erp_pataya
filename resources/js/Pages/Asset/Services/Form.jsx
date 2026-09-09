@@ -139,12 +139,7 @@ export default function Form() {
                 // transisi status saat AssetService ini di-approve.
                 filters={{
                   status: {
-                    jsonContains: [
-                      "active",
-                      "submitted",
-                      "issued",
-                      "in_maintenance",
-                    ],
+                    jsonContains: ["active", "issued", "in_maintenance"],
                   },
                 }}
               />

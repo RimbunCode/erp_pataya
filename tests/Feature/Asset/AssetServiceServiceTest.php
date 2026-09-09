@@ -61,26 +61,23 @@ class AssetServiceServiceTest extends TestCase {
     }
 
     /**
-     * [FIXED] Asset::onApproved() (App\Services\Asset\AssetService) hanya
-     * meng-set status ACTIVE kalau available_for_use_date sudah lewat saat
-     * submit; kalau belum, Asset tetap SUBMITTED tanpa job terjadwal yang
-     * mempromosikannya ke ACTIVE nanti. setOutOfOrder() sebelumnya cuma
-     * mengizinkan transisi dari ACTIVE/ISSUED/IN_MAINTENANCE, jadi Asset
-     * SUBMITTED (kasus paling umum) tidak pernah bisa direpair sama sekali.
+     * SUBMITTED bukan status "siap pakai" yang sah -- Asset::onApproved()
+     * (App\Services\Asset\AssetService) selalu default available_for_use_date
+     * ke sekarang kalau kosong, jadi Asset ter-approve langsung ACTIVE, tidak
+     * pernah nyangkut permanen di SUBMITTED. setOutOfOrder() sengaja TIDAK
+     * mengizinkan transisi dari SUBMITTED.
      */
     #[Test]
-    public function submit_repair_succeeds_when_asset_status_submitted(): void {
+    public function submit_repair_rejected_when_asset_status_submitted(): void {
         $asset   = Asset::factory()->create(['status' => [FormStatus::SUBMITTED]]);
         $service = AssetService::factory()->create([
             'type'     => AssetServiceType::REPAIR,
             'asset_id' => $asset->id,
         ]);
 
-        (new AssetServiceService)->submit($service);
+        $this->expectException(LogicException::class);
 
-        $asset->refresh();
-        $this->assertTrue(\in_array(FormStatus::OUT_OF_ORDER, $asset->status, true));
-        $this->assertFalse(\in_array(FormStatus::SUBMITTED, $asset->status, true));
+        (new AssetServiceService)->submit($service);
     }
 
     /**
