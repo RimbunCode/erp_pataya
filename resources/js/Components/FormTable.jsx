@@ -1952,7 +1952,7 @@ const SelectColumn = memo(function SelectColumn({
         <p className="text-sm text-muted-foreground">
           {t("core.formtable.select_columns.description")}
         </p>
-        <div className="overflow-y-auto columns-[196px] space-y-4 space-x-4 [&_div]:break-inside-avoid">
+        <div className="overflow-y-auto overflow-x-hidden max-h-[60vh] grid items-start grid-cols-[repeat(auto-fill,minmax(196px,1fr))] gap-x-4 gap-y-5">
           {columns &&
             columns.map((col) => {
               return (

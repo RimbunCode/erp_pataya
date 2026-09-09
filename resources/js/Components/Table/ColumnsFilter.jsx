@@ -23,12 +23,12 @@ function ColumnsFilter({ columns: initColumn, onApply, onReset, open }) {
     onApply(columns);
   };
   return (
-    <DialogContent className="max-w-full md:max-w-[50%]  min-w-64">
+    <DialogContent className="max-w-full md:max-w-[85%]  min-w-64">
       <DialogHeader>
         <DialogTitle>{t("core.datatable.columns.select_column")}</DialogTitle>
         <DialogDescription className="sr-only">Select Column</DialogDescription>
       </DialogHeader>
-      <div className="overflow-y-auto columns-[196px] space-y-4 space-x-4 [&_div]:break-inside-avoid">
+      <div className="overflow-y-auto overflow-x-hidden max-h-[60vh] grid items-start grid-cols-[repeat(auto-fill,minmax(196px,1fr))] gap-x-4 gap-y-5">
         {columns.map(
           ({
             name,
