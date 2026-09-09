@@ -70,7 +70,7 @@ export default function Form() {
           return (
             <NumberInput
               value={value}
-              onValueChange={(val) => setData(val)}
+              onValueChange={(val) => setData("quantity", val)}
               {...attributes}
               className={cn(attributes.className, "text-left")}
             />

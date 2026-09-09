@@ -154,6 +154,21 @@ class AssetService implements SubmitableService {
         if (isset($data['asset_location']['id'])) {
             $data['asset_location_id'] = $data['asset_location']['id'];
         }
+        // item/custodian/ownership_supplier/ownership_customer nullable (bisa
+        // dikosongkan user) -- array_key_exists, bukan isset(...['id']), supaya
+        // pengiriman null ikut mengosongkan kolom _id, bukan diabaikan Arr::only().
+        if (array_key_exists('item', $data)) {
+            $data['item_id'] = $data['item']['id'] ?? null;
+        }
+        if (array_key_exists('custodian', $data)) {
+            $data['custodian_id'] = $data['custodian']['id'] ?? null;
+        }
+        if (array_key_exists('ownership_supplier', $data)) {
+            $data['ownership_supplier_id'] = $data['ownership_supplier']['id'] ?? null;
+        }
+        if (array_key_exists('ownership_customer', $data)) {
+            $data['ownership_customer_id'] = $data['ownership_customer']['id'] ?? null;
+        }
 
         return $data;
     }
@@ -165,6 +180,9 @@ class AssetService implements SubmitableService {
         }
         if (! $model->asset_location_id) {
             $missingFields[] = __('asset/asset.columns.asset_location');
+        }
+        if (! $model->item_id) {
+            $missingFields[] = __('asset/asset.columns.item_id');
         }
         $hasPurchaseHistory = $model->purchase_receipt_id || $model->purchase_invoice_id;
         if ($hasPurchaseHistory && ! ($model->purchase_receipt_id && $model->purchase_invoice_id)) {

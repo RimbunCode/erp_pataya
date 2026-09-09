@@ -287,6 +287,25 @@ describe("Asset Services Form", () => {
     expect(element.props.filters).toEqual({ "item.is_fixed_asset": false });
   });
 
+  it("kolom quantity consumedItems: onValueChange memanggil setData dengan key 'quantity'", () => {
+    formPageSeed = { type: "repair" };
+    renderForm(<Form />);
+
+    const quantityColumn = captured.formTableProps.columns.find(
+      (c) => c.name === "quantity",
+    );
+    const setData = vi.fn();
+    const element = quantityColumn.cell({
+      data: 20,
+      setData,
+      attributes: {},
+    });
+
+    element.props.onValueChange(20);
+
+    expect(setData).toHaveBeenCalledWith("quantity", 20);
+  });
+
   it("mengetik description memanggil setData", async () => {
     const user = userEvent.setup({ delay: null });
     formPageSeed = { type: "repair" };

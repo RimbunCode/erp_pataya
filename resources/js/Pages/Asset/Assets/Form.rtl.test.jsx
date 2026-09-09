@@ -339,12 +339,50 @@ describe("Form (Asset/Assets)", () => {
       expect(numberInput).toHaveAttribute("data-decimal-scale", "0");
     });
 
-    it("asset_quantity terisi menampilkan value dari data (bukan default)", () => {
-      renderForm({ initialData: { asset_quantity: 5 } });
+    it("asset_quantity terisi menampilkan value dari data saat allow_bulk_quantity=true (bukan default)", () => {
+      renderForm({
+        initialData: { asset_quantity: 5, allow_bulk_quantity: true },
+      });
 
       const wrapper = screen.getByTestId("forminput-asset_quantity");
       const numberInput = within(wrapper).getByTestId("number-input");
       expect(numberInput).toHaveValue("5");
+    });
+
+    it("item required=true", () => {
+      renderForm({ initialData: {} });
+
+      expect(screen.getByTestId("forminput-item")).toHaveAttribute(
+        "data-required",
+        "true",
+      );
+    });
+
+    it("asset_quantity terkunci ke 1 dan disabled saat allow_bulk_quantity=false, walau data punya value lain", () => {
+      renderForm({
+        initialData: { asset_quantity: 5, allow_bulk_quantity: false },
+      });
+
+      const wrapper = screen.getByTestId("forminput-asset_quantity");
+      const numberInput = within(wrapper).getByTestId("number-input");
+      expect(numberInput).toHaveValue("1");
+      expect(numberInput).toBeDisabled();
+    });
+
+    it("uncheck allow_bulk_quantity mereset asset_quantity ke 1 di data (bukan cuma tampilan)", async () => {
+      const user = userEvent.setup({ delay: null });
+      renderForm({
+        initialData: { asset_quantity: 5, allow_bulk_quantity: true },
+      });
+
+      const [, allowBulkQuantity] = screen.getAllByRole("forminput");
+      expect(allowBulkQuantity).toHaveAttribute("data-state", "checked");
+
+      await user.click(allowBulkQuantity);
+
+      expect(allowBulkQuantity).toHaveAttribute("data-state", "unchecked");
+      const wrapper = screen.getByTestId("forminput-asset_quantity");
+      expect(within(wrapper).getByTestId("number-input")).toHaveValue("1");
     });
 
     it("memilih custodian via UserLinkModel memanggil setData", async () => {
@@ -742,7 +780,10 @@ describe("Form (Asset/Assets)", () => {
 
     it("menghapus link Purchase Receipt Item mengembalikan asset_quantity jadi editable", async () => {
       const user = userEvent.setup({ delay: null });
-      renderForm({ initialData: {} });
+      // allow_bulk_quantity=true supaya penguncian di sini murni akibat
+      // purchase_receipt_item, terisolasi dari rule allow_bulk_quantity=false
+      // yang juga mengunci quantity (lihat describe "is_rentable & allow_bulk_quantity").
+      renderForm({ initialData: { allow_bulk_quantity: true } });
 
       await user.click(screen.getByText("pilih-purchase-receipt-item-link"));
       const quantityWrapper = screen.getByTestId("forminput-asset_quantity");

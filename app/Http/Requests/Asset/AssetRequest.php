@@ -19,7 +19,7 @@ class AssetRequest extends FormRequest {
             'asset_location.id'                => ['required', 'string', 'exists:asset_locations,id'],
             'asset_location.*'                 => ['nullable'],
             'asset_type'                       => ['string', Rule::in(['existing_asset', 'composite_asset', 'composite_component'])],
-            'item_id'                          => ['nullable', 'string', 'exists:items,id'],
+            'item_id'                          => ['required', 'string', 'exists:items,id'],
             'purchase_receipt_id'              => ['nullable', 'string', 'exists:purchase_receipts,id'],
             'purchase_invoice_id'              => ['nullable', 'string', 'exists:purchase_invoices,id'],
             'purchase_receipt_item_id'         => ['nullable', 'string', 'exists:purchase_receipt_items,id'],
