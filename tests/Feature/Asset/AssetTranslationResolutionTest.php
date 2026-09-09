@@ -2,6 +2,7 @@
 
 namespace Tests\Feature\Asset;
 
+use PHPUnit\Framework\Attributes\DataProvider;
 use Tests\TestCase;
 
 /**
@@ -34,9 +35,7 @@ class AssetTranslationResolutionTest extends TestCase {
         ];
     }
 
-    /**
-     * @dataProvider keyProvider
-     */
+    #[DataProvider('keyProvider')]
     public function test_translation_key_resolves_to_human_text_in_id(string $translationKey): void {
         app()->setLocale('id');
 
@@ -45,9 +44,7 @@ class AssetTranslationResolutionTest extends TestCase {
         $this->assertNotEquals($translationKey, $resolved, "Key '{$translationKey}' did not resolve (locale: id) — masih return key mentah.");
     }
 
-    /**
-     * @dataProvider keyProvider
-     */
+    #[DataProvider('keyProvider')]
     public function test_translation_key_resolves_to_human_text_in_en(string $translationKey): void {
         app()->setLocale('en');
 

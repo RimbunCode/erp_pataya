@@ -15,6 +15,7 @@ use Illuminate\Database\Eloquent\Concerns\HasUlids;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Illuminate\Support\Facades\Schema;
 use Illuminate\Support\Str;
+use PHPUnit\Framework\Attributes\DataProvider;
 use Tests\TestCase;
 
 /**
@@ -137,7 +138,7 @@ class DeskDashboardBuilderTest extends TestCase {
         $payload = [
             'widgets' => [
                 ['ref' => 'sec1', 'type' => 'section', 'config' => ['label' => ['json' => [], 'html' => 'Judul'], 'description' => null], 'width' => 12],
-                ['ref' => 'lc1', 'type' => 'link_card', 'parent_ref' => 'sec1', 'config' => ['label' => 'Laporan'], 'width' => 6],
+                ['ref'  => 'lc1', 'type' => 'link_card', 'parent_ref' => 'sec1', 'config' => ['label' => 'Laporan'], 'width' => 6],
                 ['type' => 'link_card_item', 'parent_ref' => 'lc1', 'config' => ['label' => 'Item A', 'link_type' => 'url', 'link_to' => '/foo'], 'width' => 4],
                 ['type' => 'link_card_item', 'parent_ref' => 'lc1', 'config' => ['label' => 'Item B', 'link_type' => 'url', 'link_to' => '/bar'], 'width' => 4],
             ],
@@ -258,7 +259,7 @@ class DeskDashboardBuilderTest extends TestCase {
 
     // ── Requirement 2.9-2.10: keamanan link bebas ──────────────────────
 
-    /** @dataProvider dangerousUrlSchemes */
+    #[DataProvider('dangerousUrlSchemes')]
     public function test_dangerous_url_schemes_are_rejected(string $url): void {
         $desk    = $this->ownDesk();
         $payload = ['widgets' => [
@@ -278,7 +279,7 @@ class DeskDashboardBuilderTest extends TestCase {
         ];
     }
 
-    /** @dataProvider safeUrlSchemes */
+    #[DataProvider('safeUrlSchemes')]
     public function test_safe_url_schemes_are_accepted(string $url): void {
         $desk    = $this->ownDesk();
         $payload = ['widgets' => [

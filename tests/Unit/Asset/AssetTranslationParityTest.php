@@ -2,6 +2,7 @@
 
 namespace Tests\Unit\Asset;
 
+use PHPUnit\Framework\Attributes\DataProvider;
 use PHPUnit\Framework\TestCase;
 
 /**
@@ -49,17 +50,13 @@ class AssetTranslationParityTest extends TestCase {
         ];
     }
 
-    /**
-     * @dataProvider assetLangFilesProvider
-     */
+    #[DataProvider('assetLangFilesProvider')]
     public function test_asset_translation_files_exist(string $relativePath): void {
         $this->assertFileExists("{$this->basePath()}/lang/en/{$relativePath}");
         $this->assertFileExists("{$this->basePath()}/lang/id/{$relativePath}");
     }
 
-    /**
-     * @dataProvider assetLangFilesProvider
-     */
+    #[DataProvider('assetLangFilesProvider')]
     public function test_asset_translation_key_parity_across_locales(string $relativePath): void {
         $en = require "{$this->basePath()}/lang/en/{$relativePath}";
         $id = require "{$this->basePath()}/lang/id/{$relativePath}";
