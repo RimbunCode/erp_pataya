@@ -2,11 +2,14 @@
 
 namespace App\Models\Purchase;
 
+use App\Models\Asset\Asset;
 use App\Models\Inventory\ItemUnit;
 use App\Models\Inventory\ItemVariant;
 use App\Models\Inventory\Warehouse;
 use App\Models\Model;
+use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Database\Eloquent\Concerns\HasUlids;
+use Illuminate\Database\Eloquent\Relations\HasOne;
 use Illuminate\Database\Eloquent\SoftDeletes;
 
 class PurchaseReceiptItem extends Model {
@@ -88,5 +91,28 @@ class PurchaseReceiptItem extends Model {
 
     public function returnAgainstItem() {
         return $this->belongsTo(PurchaseReceiptItem::class, 'return_against_item_id');
+    }
+
+    public function asset(): HasOne {
+        return $this->hasOne(Asset::class, 'purchase_receipt_item_id');
+    }
+
+    public static function templateLink() {
+        return '<title>:item.code - :item.item_name</title><b>:item.code</b><br/><span>:item.item_name</span> — Qty :quantity';
+    }
+
+    /**
+     * Baris untuk Item is_fixed_asset yang belum dikonversi jadi Asset —
+     * dipakai LinkModel link manual Asset↔Purchase (spec
+     * asset-management-purchase-integration-v2, Requirement 2).
+     */
+    public function scopeLinkModel(Builder $query, string $search): Builder {
+        return $query
+            ->whereHas('item.item', fn ($q) => $q->where('is_fixed_asset', true))
+            ->whereDoesntHave('asset')
+            ->when($search !== '', fn ($q) => $q->whereHas(
+                'item.item',
+                fn ($q2) => $q2->where('name', 'like', "%{$search}%"),
+            ));
     }
 }

@@ -62,8 +62,8 @@ class DeliveryNoteRequestAssetLinesTest extends TestCase {
     #[Test]
     public function accepts_asset_lines_matching_quantity_rentable_and_item(): void {
         $item     = ItemVariant::factory()->create();
-        $category = AssetCategory::factory()->rentable()->create();
-        $asset    = Asset::factory()->create(['asset_category_id' => $category->id, 'item_id' => $item->item_id]);
+        $category = AssetCategory::factory()->create();
+        $asset    = Asset::factory()->rentable()->create(['asset_category_id' => $category->id, 'item_id' => $item->item_id]);
         $soItem   = $this->makeSalesOrderItem($item, 5);
 
         $validator = $this->validate([
@@ -82,8 +82,8 @@ class DeliveryNoteRequestAssetLinesTest extends TestCase {
     #[Test]
     public function rejects_asset_lines_quantity_sum_mismatch(): void {
         $item     = ItemVariant::factory()->create();
-        $category = AssetCategory::factory()->rentable()->create();
-        $asset    = Asset::factory()->create(['asset_category_id' => $category->id, 'item_id' => $item->item_id]);
+        $category = AssetCategory::factory()->create();
+        $asset    = Asset::factory()->rentable()->create(['asset_category_id' => $category->id, 'item_id' => $item->item_id]);
         $soItem   = $this->makeSalesOrderItem($item, 5);
 
         $validator = $this->validate([
@@ -101,10 +101,10 @@ class DeliveryNoteRequestAssetLinesTest extends TestCase {
     }
 
     #[Test]
-    public function rejects_asset_with_non_rentable_category(): void {
+    public function rejects_asset_that_is_not_rentable(): void {
         $item     = ItemVariant::factory()->create();
-        $category = AssetCategory::factory()->create(['is_rentable' => false]);
-        $asset    = Asset::factory()->create(['asset_category_id' => $category->id, 'item_id' => $item->item_id]);
+        $category = AssetCategory::factory()->create();
+        $asset    = Asset::factory()->create(['asset_category_id' => $category->id, 'item_id' => $item->item_id, 'is_rentable' => false]);
         $soItem   = $this->makeSalesOrderItem($item, 5);
 
         $validator = $this->validate([
@@ -125,8 +125,8 @@ class DeliveryNoteRequestAssetLinesTest extends TestCase {
     public function rejects_asset_belonging_to_different_item(): void {
         $item      = ItemVariant::factory()->create(['item_id' => Item::factory()->create()->id]);
         $otherItem = ItemVariant::factory()->create(['item_id' => Item::factory()->create()->id]);
-        $category  = AssetCategory::factory()->rentable()->create();
-        $asset     = Asset::factory()->create(['asset_category_id' => $category->id, 'item_id' => $otherItem->item_id]);
+        $category  = AssetCategory::factory()->create();
+        $asset     = Asset::factory()->rentable()->create(['asset_category_id' => $category->id, 'item_id' => $otherItem->item_id]);
         $soItem    = $this->makeSalesOrderItem($item, 5);
 
         $validator = $this->validate([

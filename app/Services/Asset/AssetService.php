@@ -6,7 +6,9 @@ use App\Contracts\SubmitableService;
 use App\Enums\FormStatus;
 use App\Models\Asset\Asset;
 use App\Models\Core\FormatingSeries;
+use App\Models\Finances\PurchaseInvoiceItem;
 use App\Models\Model;
+use App\Models\Purchase\PurchaseReceiptItem;
 use App\Services\Asset\Depreciation\DepreciationScheduleGenerator;
 use Illuminate\Support\Arr;
 use Illuminate\Support\Collection;
@@ -30,13 +32,14 @@ class AssetService implements SubmitableService {
     }
 
     private function createInTransaction(array $data): Model {
-        $data = $this->flattenRelationFields($data);
+        $data = $this->applyPurchaseLinkOverrides($this->flattenRelationFields($data));
 
         return Asset::create([
             'code' => FormatingSeries::generate(Asset::class, $data, true),
             ...Arr::only($data, [
                 'asset_name', 'asset_category_id', 'asset_location_id',
                 'asset_type', 'item_id', 'asset_quantity',
+                'is_rentable', 'allow_bulk_quantity',
                 'ownership_type', 'ownership_company_id',
                 'ownership_supplier_id', 'ownership_customer_id',
                 'custodian_id',
@@ -62,10 +65,11 @@ class AssetService implements SubmitableService {
         DB::beginTransaction();
 
         try {
-            $data = $this->flattenRelationFields($data);
+            $data = $this->applyPurchaseLinkOverrides($this->flattenRelationFields($data));
             $model->fill(Arr::only($data, [
                 'asset_name', 'asset_category_id', 'asset_location_id',
                 'item_id', 'asset_quantity',
+                'is_rentable', 'allow_bulk_quantity',
                 'ownership_type', 'ownership_company_id',
                 'ownership_supplier_id', 'ownership_customer_id',
                 'custodian_id',
@@ -109,6 +113,40 @@ class AssetService implements SubmitableService {
      * @param  array<string, mixed>  $data
      * @return array<string, mixed>
      */
+    /**
+     * Override asset_quantity/purchase_date dari Purchase Receipt Item, dan
+     * net_purchase_amount/gross_purchase_amount dari Purchase Invoice Item,
+     * saat link manual diisi (spec asset-management-purchase-integration-v2,
+     * Requirement 3) -- SELALU dari data server, bukan trust nilai yang
+     * dikirim FE (kolom rate/amount PurchaseInvoiceItem bisa ter-gate
+     * `visibleFor` untuk user tanpa akses Purchase, target utama fitur ini).
+     *
+     * @param  array<string, mixed>  $data
+     * @return array<string, mixed>
+     */
+    private function applyPurchaseLinkOverrides(array $data): array {
+        if (! empty($data['purchase_receipt_item_id'])) {
+            $receiptItem = PurchaseReceiptItem::with('purchaseReceipt')->find($data['purchase_receipt_item_id']);
+            if ($receiptItem) {
+                $data['asset_quantity'] = $receiptItem->quantity;
+                $data['purchase_date']  = $receiptItem->purchaseReceipt?->date ?? ($data['purchase_date'] ?? null);
+            }
+        }
+
+        if (! empty($data['purchase_invoice_item_id'])) {
+            $invoiceItem = PurchaseInvoiceItem::with('purchaseInvoice')->find($data['purchase_invoice_item_id']);
+            if ($invoiceItem) {
+                $data['net_purchase_amount']   = $invoiceItem->basic_amount;
+                $data['gross_purchase_amount'] = $invoiceItem->amount;
+                // Tanggal Receipt lebih relevan (barang benar-benar diterima)
+                // -- hanya pakai tanggal invoice kalau belum di-set dari Receipt.
+                $data['purchase_date'] ??= $invoiceItem->purchaseInvoice?->date;
+            }
+        }
+
+        return $data;
+    }
+
     private function flattenRelationFields(array $data): array {
         if (isset($data['asset_category']['id'])) {
             $data['asset_category_id'] = $data['asset_category']['id'];
@@ -127,6 +165,10 @@ class AssetService implements SubmitableService {
         }
         if (! $model->asset_location_id) {
             $missingFields[] = __('asset/asset.columns.asset_location');
+        }
+        $hasPurchaseHistory = $model->purchase_receipt_id || $model->purchase_invoice_id;
+        if ($hasPurchaseHistory && ! ($model->purchase_receipt_id && $model->purchase_invoice_id)) {
+            $missingFields[] = __('asset/asset.purchase_receipt_or_invoice');
         }
         if ($missingFields !== []) {
             throw new LogicException(__('asset/asset.cannot_submit_incomplete', [
@@ -223,6 +265,8 @@ class AssetService implements SubmitableService {
                     'asset_type'                       => $asset->asset_type,
                     'item_id'                          => $asset->item_id,
                     'asset_quantity'                   => $partQty,
+                    'is_rentable'                      => $asset->is_rentable,
+                    'allow_bulk_quantity'              => $asset->allow_bulk_quantity,
                     'ownership_type'                   => $asset->ownership_type,
                     'ownership_company_id'             => $asset->ownership_company_id,
                     'ownership_supplier_id'            => $asset->ownership_supplier_id,

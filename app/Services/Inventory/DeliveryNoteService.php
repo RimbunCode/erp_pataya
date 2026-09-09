@@ -428,8 +428,8 @@ class DeliveryNoteService implements SubmitableService {
 
         foreach ($lines as $line) {
             $asset = $line->asset;
-            if (! $asset->assetCategory?->is_rentable) {
-                throw new LogicException(__('asset/asset.category_not_rentable'));
+            if (! $asset->is_rentable) {
+                throw new LogicException(__('asset/asset.asset_not_rentable'));
             }
             if ($asset->item_id !== $item->item?->item_id) {
                 throw new LogicException(__('asset/asset.item_mismatch'));

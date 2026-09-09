@@ -44,6 +44,7 @@ export default function Form() {
             value={data?.current_asset_value ?? 0}
             decimalScale={2}
             disabled
+            className="text-left"
           />
         </FormInput>
         <FormInput
@@ -55,6 +56,7 @@ export default function Form() {
             value={data?.new_asset_value ?? 0}
             decimalScale={2}
             onValueChange={(val) => setData("new_asset_value", val)}
+            className="text-left"
           />
         </FormInput>
         <FormInput

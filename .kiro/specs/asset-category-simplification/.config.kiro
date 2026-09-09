@@ -1,0 +1,6 @@
+{
+  "specId": "b3476af0-dd29-4df6-932c-bf476e42d790",
+  "workflowType": "requirements-first",
+  "specType": "feature",
+  "description": "Pindahkan field is_rentable dan allow_bulk_quantity dari AssetCategory ke Asset (per-instance). AssetCategory jadi murni pengkategorian (nama, non_depreciable_category, enable_cwip_accounting). Menyentuh workflow rental (asset-rental-migration) yang membaca is_rentable via AssetCategory."
+}

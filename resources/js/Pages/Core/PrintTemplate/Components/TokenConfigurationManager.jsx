@@ -451,7 +451,7 @@ function RelationColumnDialog({
           {t("core.formtable.select_columns.description")}
         </p>
 
-        <div className="overflow-y-auto columns-[196px] space-y-4 space-x-4 [&_div]:break-inside-avoid">
+        <div className="overflow-y-auto overflow-x-hidden max-h-[60vh] grid items-start grid-cols-[repeat(auto-fill,minmax(196px,1fr))] gap-x-4 gap-y-5">
           {isLoadingColumns && (
             <p className="text-xs text-muted-foreground">
               {t("core.printTemplate.editor.loading_latest_columns")}

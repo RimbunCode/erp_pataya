@@ -16,8 +16,6 @@ class AssetCategory extends Model {
     protected $casts   = [
         'non_depreciable_category' => 'boolean',
         'enable_cwip_accounting'   => 'boolean',
-        'is_rentable'              => 'boolean',
-        'allow_bulk_quantity'      => 'boolean',
     ];
     public string $formComponent = 'Asset/Categories/Form';
     public string $translateKey  = 'asset.category';
@@ -32,13 +30,9 @@ class AssetCategory extends Model {
             'show'   => true,
             'order'  => 0,
         ],
-        'is_rentable' => [
-            'show'  => true,
-            'order' => 1,
-        ],
         'non_depreciable_category' => [
             'show'  => true,
-            'order' => 2,
+            'order' => 1,
         ],
     ];
 

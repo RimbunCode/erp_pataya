@@ -6,6 +6,12 @@ vi.mock("laravel-react-i18n", () => ({
   useLaravelReactI18n: () => ({ t: stableT }),
 }));
 
+vi.mock("@inertiajs/react", () => ({
+  usePage: () => ({
+    props: { preferences: { default_number_format: "#,###.##" } },
+  }),
+}));
+
 let formPageSeed = {};
 let formPageDisabled = false;
 vi.mock("@/Pages/Core/FormPage", async () => {

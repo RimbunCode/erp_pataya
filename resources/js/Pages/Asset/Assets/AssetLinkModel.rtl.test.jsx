@@ -1,5 +1,11 @@
 import { describe, expect, it, vi, beforeEach } from "vitest";
-import { act, render as rtlRender, screen } from "@testing-library/react";
+import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
+import {
+  act,
+  render as rtlRender,
+  screen,
+  waitFor,
+} from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 
 vi.mock("laravel-react-i18n", () => ({
@@ -40,11 +46,23 @@ import { TooltipProvider } from "@/Components/ui/tooltip";
 // {})` supaya microtask stabil dulu. delayDuration=0 supaya Radix
 // TooltipProvider tidak memakai setTimeout asli (700ms) yang tidak
 // terkontrol test.
+//
+// QueryClientProvider WAJIB sejak migrasi ke TanStack Query (opsi L, lihat
+// spec linkmodel-fetch-optimization) -- useLinkModelOptions memanggil
+// useQuery() TANPA syarat, jadi setiap render LinkModel butuh provider ini
+// atau langsung error "No QueryClient set". QueryClient BARU per render()
+// (bukan module-level) supaya cache TIDAK bocor lintas test (dua `it()` yang
+// mount model sama akan punya queryKey sama).
 const render = async (ui) => {
+  const queryClient = new QueryClient({
+    defaultOptions: { queries: { retry: false, gcTime: Infinity } },
+  });
   let result;
   await act(async () => {
     result = rtlRender(
-      <TooltipProvider delayDuration={0}>{ui}</TooltipProvider>,
+      <QueryClientProvider client={queryClient}>
+        <TooltipProvider delayDuration={0}>{ui}</TooltipProvider>
+      </QueryClientProvider>,
     );
   });
   return result;
@@ -128,8 +146,14 @@ describe("AssetLinkModel", () => {
       await user.type(screen.getByRole("textbox"), "Laptop");
     });
 
-    await act(async () => {
-      await vi.waitFor(() => {
+    // WAJIB pakai `waitFor` dari @testing-library/react, BUKAN `vi.waitFor`
+    // -- assertion ini menunggu `debouncedSearch` (state internal
+    // useLinkModelOptions) yang di-update lewat setTimeout ASLI (debounce
+    // 500ms), di luar act() manapun yang eksplisit dibuat test ini.
+    // `vi.waitFor` TIDAK act()-aware sehingga re-render dari timer itu tidak
+    // pernah ke-flush selama polling. Lihat LinkModel.rtl.test.jsx.
+    await waitFor(
+      () => {
         expect(axiosPost).toHaveBeenCalledWith(
           "model",
           expect.objectContaining({
@@ -143,8 +167,9 @@ describe("AssetLinkModel", () => {
             search: "Laptop",
           }),
         );
-      });
-    });
+      },
+      { timeout: 3000 },
+    );
   });
 
   it("memilih opsi dari daftar hasil memanggil onValueChange", async () => {
@@ -158,15 +183,18 @@ describe("AssetLinkModel", () => {
 
     // Tunggu request pencarian benar-benar selesai sebelum klik -- render
     // opsi bisa berganti saat data axios datang, elemen yang diklik lebih
-    // dulu bisa jadi stale.
-    await act(async () => {
-      await vi.waitFor(() => {
+    // dulu bisa jadi stale. WAJIB pakai `waitFor` dari @testing-library/react
+    // (bukan `vi.waitFor`) -- assertion ini menunggu debounce 500ms
+    // (setTimeout ASLI di luar act()), lihat LinkModel.rtl.test.jsx.
+    await waitFor(
+      () => {
         expect(axiosPost).toHaveBeenCalledWith(
           "model",
           expect.objectContaining({ search: "Laptop" }),
         );
-      });
-    });
+      },
+      { timeout: 3000 },
+    );
 
     const option = await screen.findByRole("option", {
       name: "Laptop Dell Latitude",
@@ -209,14 +237,18 @@ describe("AssetLinkModel", () => {
       await user.type(screen.getByRole("textbox"), "Salah");
     });
 
-    await act(async () => {
-      await vi.waitFor(() => {
+    // WAJIB pakai `waitFor` dari @testing-library/react (bukan `vi.waitFor`)
+    // -- assertion ini menunggu debounce 500ms (setTimeout ASLI di luar
+    // act()), lihat LinkModel.rtl.test.jsx.
+    await waitFor(
+      () => {
         expect(axiosPost).toHaveBeenCalledWith(
           "model",
           expect.objectContaining({ search: "Salah" }),
         );
-      });
-    });
+      },
+      { timeout: 3000 },
+    );
 
     const option = await screen.findByRole("option", {
       name: "Salah Model",

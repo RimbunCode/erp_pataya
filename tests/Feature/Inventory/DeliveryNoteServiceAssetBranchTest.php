@@ -112,8 +112,8 @@ class DeliveryNoteServiceAssetBranchTest extends TestCase {
     #[Test]
     public function dn_approve_rental_increments_asset_rental_quantity_without_stock_ledger(): void {
         $item     = Item::factory()->create(['is_fixed_asset' => true]);
-        $category = AssetCategory::factory()->rentable()->create();
-        $asset    = Asset::factory()->create(['asset_category_id' => $category->id, 'item_id' => $item->id, 'status' => [FormStatus::ACTIVE]]);
+        $category = AssetCategory::factory()->create();
+        $asset    = Asset::factory()->rentable()->create(['asset_category_id' => $category->id, 'item_id' => $item->id, 'status' => [FormStatus::ACTIVE]]);
 
         $deliveryNote = $this->makeDeliveryNoteWithAssetLine(true, $asset);
 
@@ -130,8 +130,8 @@ class DeliveryNoteServiceAssetBranchTest extends TestCase {
     #[Test]
     public function dn_approve_sell_increments_asset_sold_quantity(): void {
         $item     = Item::factory()->create(['is_fixed_asset' => true]);
-        $category = AssetCategory::factory()->rentable()->create();
-        $asset    = Asset::factory()->create(['asset_category_id' => $category->id, 'item_id' => $item->id, 'status' => [FormStatus::ACTIVE]]);
+        $category = AssetCategory::factory()->create();
+        $asset    = Asset::factory()->rentable()->create(['asset_category_id' => $category->id, 'item_id' => $item->id, 'status' => [FormStatus::ACTIVE]]);
 
         $deliveryNote = $this->makeDeliveryNoteWithAssetLine(false, $asset);
 
@@ -143,10 +143,10 @@ class DeliveryNoteServiceAssetBranchTest extends TestCase {
     }
 
     #[Test]
-    public function dn_approve_rejects_non_rentable_asset_category(): void {
+    public function dn_approve_rejects_asset_that_is_not_rentable(): void {
         $item     = Item::factory()->create(['is_fixed_asset' => true]);
-        $category = AssetCategory::factory()->create(['is_rentable' => false]);
-        $asset    = Asset::factory()->create(['asset_category_id' => $category->id, 'item_id' => $item->id, 'status' => [FormStatus::ACTIVE]]);
+        $category = AssetCategory::factory()->create();
+        $asset    = Asset::factory()->create(['asset_category_id' => $category->id, 'item_id' => $item->id, 'status' => [FormStatus::ACTIVE], 'is_rentable' => false]);
 
         $deliveryNote = $this->makeDeliveryNoteWithAssetLine(true, $asset);
 

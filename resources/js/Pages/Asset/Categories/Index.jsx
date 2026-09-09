@@ -3,11 +3,9 @@ import DataTable2 from "@/Pages/Core/DataTable2";
 import Form from "./Form";
 import Link from "@/Components/Link";
 import { Trash2Icon } from "lucide-react";
-import { useLaravelReactI18n } from "laravel-react-i18n";
 
 export default function Index() {
   const route = window.route;
-  const { t } = useLaravelReactI18n();
   return (
     <DataTable2
       templateItem={({ dataRow, deleteItem }) => (
@@ -20,11 +18,6 @@ export default function Index() {
             <p className="text-base font-medium text-left">
               {dataRow.category_name}
             </p>
-            {dataRow.is_rentable && (
-              <p className="text-sm text-left text-muted-foreground">
-                {t("asset.category.columns.is_rentable")}
-              </p>
-            )}
           </Link>
 
           <Button

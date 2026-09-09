@@ -11,6 +11,9 @@ vi.mock("laravel-react-i18n", () => ({
 const routerPost = vi.fn();
 vi.mock("@inertiajs/react", () => ({
   router: { post: (...a) => routerPost(...a) },
+  usePage: () => ({
+    props: { preferences: { default_number_format: "#,###.##" } },
+  }),
 }));
 
 window.route = (name, id) => `${name}/${id}`;
@@ -90,14 +93,21 @@ vi.mock("@/Pages/Inventory/Items/ItemUnitLinkModel", () => ({
   default: () => <div data-testid="item-unit-link-model" />,
 }));
 
+// Ditangkap via captured.formTableProps supaya test bisa memanggil
+// consumedItemColumns[].cell(...) langsung (pure logic), sama pola dengan
+// Sales/InternalOrders dan Sales/SalesOrders Form.rtl.test.jsx.
+const captured = {};
 vi.mock("@/Components/FormTable", () => ({
-  default: ({ readOnly, value }) => (
-    <div
-      data-testid="stub-form-table"
-      data-readonly={readOnly ? "true" : "false"}
-      data-count={(value ?? []).length}
-    />
-  ),
+  default: ({ readOnly, value, columns }) => {
+    captured.formTableProps = { readOnly, value, columns };
+    return (
+      <div
+        data-testid="stub-form-table"
+        data-readonly={readOnly ? "true" : "false"}
+        data-count={(value ?? []).length}
+      />
+    );
+  },
 }));
 
 const renderForm = (ui) => render(<TooltipProvider>{ui}</TooltipProvider>);
@@ -256,6 +266,22 @@ describe("Asset Services Form", () => {
     const table = screen.getByTestId("stub-form-table");
     expect(table).toHaveAttribute("data-readonly", "true");
     expect(table).toHaveAttribute("data-count", "1");
+  });
+
+  it("kolom item consumedItems: filters exclude item.is_fixed_asset=true", () => {
+    formPageSeed = { type: "repair" };
+    renderForm(<Form />);
+
+    const itemColumn = captured.formTableProps.columns.find(
+      (c) => c.name === "item",
+    );
+    const element = itemColumn.cell({
+      data: undefined,
+      setData: vi.fn(),
+      attributes: {},
+    });
+
+    expect(element.props.filters).toEqual({ "item.is_fixed_asset": false });
   });
 
   it("mengetik description memanggil setData", async () => {

@@ -1,4 +1,5 @@
 import { describe, expect, it, vi, beforeEach } from "vitest";
+import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { act, render as rtlRender, screen } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 
@@ -31,6 +32,7 @@ window.route = (name) => name;
 
 import CurrencyLinkModel from "./CurrencyLinkModel";
 import { TooltipProvider } from "@/Components/ui/tooltip";
+import { buildPersistKey } from "@/Hooks/useLinkModelOptions";
 
 // Sama seperti NumberCardLinkModel.rtl.test.jsx & PermissionLinkModel.rtl.test.jsx:
 // LinkModel membungkus dirinya dengan <Tooltip> internal tanpa menyediakan
@@ -39,10 +41,15 @@ import { TooltipProvider } from "@/Components/ui/tooltip";
 // stabil dulu. delayDuration=0 supaya Radix TooltipProvider tidak memakai
 // setTimeout asli (700ms) yang tidak terkontrol test.
 const render = async (ui) => {
+  const queryClient = new QueryClient({
+    defaultOptions: { queries: { retry: false, gcTime: Infinity } },
+  });
   let result;
   await act(async () => {
     result = rtlRender(
-      <TooltipProvider delayDuration={0}>{ui}</TooltipProvider>,
+      <QueryClientProvider client={queryClient}>
+        <TooltipProvider delayDuration={0}>{ui}</TooltipProvider>
+      </QueryClientProvider>,
     );
   });
   return result;
@@ -137,13 +144,15 @@ describe("CurrencyLinkModel", () => {
   it("mount memicu SATU axios request dengan payload cacheMode (model Currency, TANPA search/fields) -- bukan debounce on-type biasa krn cache=true", async () => {
     // BEDA dari NumberCardLinkModel/ChartLinkModel/PermissionLinkModel (semua
     // cache=false): CurrencyLinkModel.jsx mengunci cache + cacheStorage=
-    // "sessionStorage" tetap. LinkModel.jsx efek baris ~522-526 langsung
-    // memanggil getModels({}, null, {cacheMode:true}) SAAT MOUNT (tanpa
-    // setTimeout debounce apapun) selama cacheLoaded masih false. Payload
-    // cache mode HANYA berisi {model, cacheMode, joins} -- search/fields/
-    // filters/with/keywords/order/translate TIDAK disertakan sama sekali
-    // (lihat getModels() baris ~461-481: blok Object.assign yang menambah
-    // field2 itu di-skip saat isCacheRequest true).
+    // "sessionStorage" tetap. useLinkModelOptions (spec linkmodel-fetch-
+    // optimization) langsung fetch SAAT MOUNT untuk mode cache (tanpa
+    // debounce apapun, `enabled` tidak digantungkan ke `open`). Payload
+    // cache mode TETAP TIDAK menyertakan search/fields/with/keywords/order/
+    // translate (difilter di client), TAPI `filters` SEKARANG selalu ikut
+    // terkirim meski kosong `{}` (fix bug lama: cache mode dulu strip
+    // `filters` sepenuhnya dari payload -- lihat design.md "Known Bugs
+    // Fixed"). Test ini tidak assert soal `filters` secara eksplisit karena
+    // CurrencyLinkModel tidak pernah mengirim prop `filters` sama sekali.
     await render(<CurrencyLinkModel />);
 
     await act(async () => {
@@ -162,13 +171,12 @@ describe("CurrencyLinkModel", () => {
   });
 
   it("mengetik TIDAK memicu request axios baru (cache mode) -- filter dilakukan client-side dari data yang sudah di-cache", async () => {
-    // Konsekuensi cache=true: useDidMountEffect on-type (LinkModel.jsx baris
-    // ~528) me-return awal begitu cacheConfig.enabled true, dan efek "on
-    // open" (baris ~570) hanya fetch ulang kalau cacheLoaded MASIH false.
-    // Setelah fetch mount pertama selesai (cacheLoaded jadi true), membuka
-    // dropdown & mengetik TIDAK memicu axios kedua -- filteredOptions
-    // (baris ~651) menyaring array `options` yang sudah ada di memori lewat
-    // convertTemplateLink(opt, "", true) secara sinkron di client.
+    // Konsekuensi cache=true: queryKey mode cache (useLinkModelOptions) TIDAK
+    // menyertakan search sama sekali -- mengetik cuma mengubah state `search`
+    // lokal LinkModel.jsx, tidak pernah mengubah queryKey, jadi TIDAK memicu
+    // fetch baru. filteredOptions di LinkModel.jsx menyaring array `options`
+    // (hasil query yang sudah di-cache) lewat convertTemplateLink(opt, "",
+    // true) secara sinkron di client.
     const user = userEvent.setup({ delay: null });
     await render(<CurrencyLinkModel />);
 
@@ -236,7 +244,7 @@ describe("CurrencyLinkModel", () => {
 
   it("opsi dengan thisModel model lain (bukan Currency) di-filter dari daftar SEBELUM dirender -- tidak pernah muncul di dropdown", async () => {
     // BEDA dari mode non-cache (NumberCard/Chart/Permission): filteredOptions
-    // cache mode (LinkModel.jsx baris ~653) memanggil
+    // cache mode (LinkModel.jsx) memanggil
     // `options.filter((opt) => validate(opt, model))` SEBELUM opsi dipetakan
     // jadi CommandItem -- opsi dengan thisModel salah tidak pernah dirender
     // ke DOM sama sekali, beda dari mode non-cache yang tetap merender semua
@@ -304,5 +312,35 @@ describe("CurrencyLinkModel", () => {
         );
       });
     });
+  });
+
+  // Task 7.2 spec linkmodel-fetch-optimization: verifikasi cacheStorage
+  // "sessionStorage" BENERAN nulis ke sessionStorage (bukan cuma payload
+  // axios/UI dropdown seperti test lain di atas) -- ini titik yang paling
+  // rawan regresi diam-diam kalau nanti persistence manual di
+  // useLinkModelOptions.js berubah, karena tidak ada satu pun test lain di
+  // file ini yang membaca sessionStorage secara langsung.
+  it("fetch cache mode menulis snapshot ke sessionStorage dengan key linkmodel:<model>:...", async () => {
+    await render(<CurrencyLinkModel />);
+
+    await act(async () => {
+      await vi.waitFor(() => expect(axiosPost).toHaveBeenCalledTimes(1));
+    });
+
+    const persistKey = buildPersistKey({
+      model: "App\\Models\\Core\\Currency",
+      filters: undefined,
+      joins: undefined,
+      with: undefined,
+      keywords: undefined,
+      order: undefined,
+      translate: undefined,
+    });
+    const stored = JSON.parse(window.sessionStorage.getItem(persistKey));
+    expect(stored?.data).toEqual([
+      expect.objectContaining({ id: 1, code: "IDR" }),
+      expect.objectContaining({ id: 2, code: "USD" }),
+    ]);
+    expect(typeof stored?.ts).toBe("number");
   });
 });

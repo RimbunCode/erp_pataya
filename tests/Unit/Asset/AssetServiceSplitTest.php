@@ -37,10 +37,10 @@ class AssetServiceSplitTest extends TestCase {
 
     #[Test]
     public function split_into_rows_with_uneven_quantity_distribution(): void {
-        $category = AssetCategory::factory()->bulkQuantity()->create();
+        $category = AssetCategory::factory()->create();
         $location = AssetLocation::factory()->create();
 
-        $asset = Asset::factory()->create([
+        $asset = Asset::factory()->bulkQuantity()->create([
             'asset_category_id'     => null,
             'asset_location_id'     => null,
             'asset_quantity'        => 5,
@@ -62,10 +62,10 @@ class AssetServiceSplitTest extends TestCase {
 
     #[Test]
     public function split_preserves_total_monetary_value(): void {
-        $category = AssetCategory::factory()->bulkQuantity()->create();
+        $category = AssetCategory::factory()->create();
         $location = AssetLocation::factory()->create();
 
-        $asset = Asset::factory()->create([
+        $asset = Asset::factory()->bulkQuantity()->create([
             'asset_category_id'     => null,
             'asset_location_id'     => null,
             'asset_quantity'        => 5,
@@ -87,12 +87,12 @@ class AssetServiceSplitTest extends TestCase {
 
     #[Test]
     public function split_rows_can_have_different_category_and_location(): void {
-        $categoryA = AssetCategory::factory()->bulkQuantity()->create();
+        $categoryA = AssetCategory::factory()->create();
         $categoryB = AssetCategory::factory()->create();
         $locationA = AssetLocation::factory()->create();
         $locationB = AssetLocation::factory()->create();
 
-        $asset = Asset::factory()->create([
+        $asset = Asset::factory()->bulkQuantity()->create([
             'asset_category_id' => null,
             'asset_location_id' => null,
             'asset_quantity'    => 3,
@@ -114,7 +114,7 @@ class AssetServiceSplitTest extends TestCase {
         $category = AssetCategory::factory()->create();
         $location = AssetLocation::factory()->create();
 
-        $asset = Asset::factory()->create([
+        $asset = Asset::factory()->bulkQuantity()->create([
             'asset_category_id' => null,
             'asset_location_id' => null,
             'asset_quantity'    => 5,
@@ -139,7 +139,7 @@ class AssetServiceSplitTest extends TestCase {
         $category = AssetCategory::factory()->create();
         $location = AssetLocation::factory()->create();
 
-        $asset = Asset::factory()->create([
+        $asset = Asset::factory()->bulkQuantity()->create([
             'asset_category_id' => null,
             'asset_location_id' => null,
             'asset_quantity'    => 2,
@@ -161,7 +161,7 @@ class AssetServiceSplitTest extends TestCase {
         $category = AssetCategory::factory()->create();
         $location = AssetLocation::factory()->create();
 
-        $asset = Asset::factory()->create([
+        $asset = Asset::factory()->bulkQuantity()->create([
             'asset_category_id' => null,
             'asset_location_id' => null,
             'asset_quantity'    => 5,

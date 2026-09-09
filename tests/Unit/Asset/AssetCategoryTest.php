@@ -19,7 +19,6 @@ class AssetCategoryTest extends TestCase {
 
         $this->assertFalse($category->non_depreciable_category);
         $this->assertFalse($category->enable_cwip_accounting);
-        $this->assertFalse($category->is_rentable);
     }
 
     #[Test]

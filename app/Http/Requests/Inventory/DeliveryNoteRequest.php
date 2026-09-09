@@ -100,8 +100,8 @@ class DeliveryNoteRequest extends BaseFormRequest {
 
                     continue;
                 }
-                if (! $asset->assetCategory?->is_rentable) {
-                    $validator->errors()->add("items.{$index}.asset_lines.{$lineIndex}.asset", __('asset/asset.category_not_rentable'));
+                if (! $asset->is_rentable) {
+                    $validator->errors()->add("items.{$index}.asset_lines.{$lineIndex}.asset", __('asset/asset.asset_not_rentable'));
                 }
                 if ($itemModelId && $asset->item_id !== $itemModelId) {
                     $validator->errors()->add("items.{$index}.asset_lines.{$lineIndex}.asset", __('asset/asset.item_mismatch'));

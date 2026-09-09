@@ -397,7 +397,7 @@ describe("Internal Order Form.jsx", () => {
       ).toBeUndefined();
     });
 
-    it("referenceable_type AssetService: filters berisi or item.category.type=service DAN id in consumedItemVariantIds", () => {
+    it("referenceable_type AssetService: filters berisi item.is_fixed_asset=false DAN or item.category.type=service DAN id in consumedItemVariantIds", () => {
       renderForm({
         data: {
           date: new Date(),
@@ -418,6 +418,7 @@ describe("Internal Order Form.jsx", () => {
       });
 
       expect(element.props.filters).toEqual({
+        "item.is_fixed_asset": false,
         or: {
           "item.category.type": "service",
           id: { in: [501] },
@@ -425,7 +426,7 @@ describe("Internal Order Form.jsx", () => {
       });
     });
 
-    it("tanpa referenceable_type AssetService: filters kosong (regresi)", () => {
+    it("tanpa referenceable_type AssetService: filters tetap exclude item.is_fixed_asset=true", () => {
       renderForm({ data: { date: new Date(), items: [] } });
 
       const itemColumn = captured.formTableProps.columns.find(
@@ -437,7 +438,7 @@ describe("Internal Order Form.jsx", () => {
         attributes: {},
       });
 
-      expect(element.props.filters).toBeUndefined();
+      expect(element.props.filters).toEqual({ "item.is_fixed_asset": false });
     });
 
     it("pilih ItemVariant yang cocok consumedItem: auto-link ke AssetServiceConsumedItem, quantity/unit ikut, assetServiceLocked true", () => {

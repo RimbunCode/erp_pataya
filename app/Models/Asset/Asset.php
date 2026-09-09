@@ -44,6 +44,8 @@ class Asset extends Model {
         'maintenance_required'    => 'boolean',
         'insurance_comprehensive' => 'boolean',
         'daily_prorata_based'     => 'boolean',
+        'is_rentable'             => 'boolean',
+        'allow_bulk_quantity'     => 'boolean',
         'purchase_date'           => 'date',
         'available_for_use_date'  => 'date',
         'disposal_date'           => 'date',
@@ -360,15 +362,13 @@ class Asset extends Model {
                 }
             }
 
-            // Validate asset_quantity > 1 only allowed when category opts in explicitly
+            // Validate asset_quantity > 1 only allowed when the Asset itself opts in
             if (
-                ($asset->isDirty('asset_category_id') || $asset->isDirty('asset_quantity'))
+                ($asset->isDirty('allow_bulk_quantity') || $asset->isDirty('asset_quantity'))
                 && $asset->asset_quantity > 1
+                && ! $asset->allow_bulk_quantity
             ) {
-                $category = AssetCategory::find($asset->asset_category_id);
-                if ($category && ! $category->allow_bulk_quantity) {
-                    throw new LogicException(__('asset/asset.rentable_must_be_single_unit'));
-                }
+                throw new LogicException(__('asset/asset.rentable_must_be_single_unit'));
             }
         });
     }

@@ -25,7 +25,8 @@
       "runtimeArgs": [
         "artisan",
         "serve",
-        "--port=8011"
+        "--port=8011",
+        "--no-reload"
       ],
       "port": 8011
     }
