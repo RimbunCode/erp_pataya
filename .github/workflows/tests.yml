@@ -63,7 +63,7 @@ jobs:
 
       - name: Run Pint
         if: steps.check-autofix.outputs.is_autofix != 'true'
-        run: pint
+        run: pint --parallel
         continue-on-error: true
 
       - name: Cache node_modules
