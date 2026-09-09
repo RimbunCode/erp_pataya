@@ -35,12 +35,15 @@ class DsPlainRecord extends AppModel {
 class DsTransactionDatedRecord extends AppModel {
     use DataTable;
 
-    protected $table                            = 'ds_transaction_dated_records';
-    protected $guarded                          = ['id'];
-    protected static ?string $defaultSortColumn = 'transaction_date';
-    protected array $configColumns              = [
+    protected $table               = 'ds_transaction_dated_records';
+    protected $guarded             = ['id'];
+    protected array $configColumns = [
         'name' => ['show' => true, 'order' => 0],
     ];
+
+    public static function getDefaultSortColumn(): string {
+        return 'transaction_date';
+    }
 
     public static function templateLink() {
         return ':name';

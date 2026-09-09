@@ -18,7 +18,7 @@ import DatetimePicker from "@/Components/DatetimePicker";
 import NumberInput from "@/Components/NumberInput";
 import { Textarea } from "@/Components/ui/textarea";
 import React from "react";
-import { generateRandom } from "@/lib/utils";
+import { cn, generateRandom } from "@/lib/utils";
 import { useLaravelReactI18n } from "laravel-react-i18n";
 import { useMemo } from "react";
 import { router } from "@inertiajs/react";
@@ -63,6 +63,21 @@ export default function Form() {
         },
       },
       {
+        name: "quantity",
+        titleTrans: "asset.service.columns.quantity",
+        required: true,
+        cell({ data: value, setData, attributes }) {
+          return (
+            <NumberInput
+              value={value}
+              onValueChange={(val) => setData(val)}
+              {...attributes}
+              className={cn(attributes.className, "text-left")}
+            />
+          );
+        },
+      },
+      {
         name: "unit",
         titleTrans: "asset.service.columns.unit",
         required: true,
@@ -74,37 +89,6 @@ export default function Form() {
               onValueChange={(val) => setData("unit", val)}
               {...attributes}
               filters={{ item_id: dataRow?.item?.item_id }}
-            />
-          );
-        },
-      },
-      {
-        name: "quantity",
-        titleTrans: "asset.service.columns.quantity",
-        required: true,
-        cell({ data: value, setData, attributes }) {
-          return (
-            <NumberInput
-              value={value}
-              onValueChange={(val) => setData(val)}
-              {...attributes}
-              className="text-left"
-            />
-          );
-        },
-      },
-      {
-        name: "valuation_rate",
-        titleTrans: "asset.service.columns.valuation_rate",
-        required: true,
-        cell({ data: value, setData, attributes }) {
-          return (
-            <NumberInput
-              decimalScale={2}
-              value={value}
-              onValueChange={(val) => setData(val)}
-              {...attributes}
-              className="text-left"
             />
           );
         },
@@ -144,7 +128,7 @@ export default function Form() {
             <FormInput
               name="asset"
               required={true}
-              label={t("asset.movement.columns.asset_id")}
+              label={t("asset.service.columns.asset_id")}
             >
               <AssetLinkModel
                 value={data?.asset}
@@ -161,17 +145,13 @@ export default function Form() {
                 onValueChange={(val) => setData("failure_date", val)}
               />
             </FormInput>
-            <FormInput
-              name="capitalize_repair_cost"
-              label={t("asset.service.columns.capitalize_repair_cost")}
+            <FormCheckbox
+              checked={data?.capitalize_repair_cost ?? false}
+              onCheckedChange={(val) => setData("capitalize_repair_cost", val)}
+              className="pt-4"
             >
-              <FormCheckbox
-                checked={data?.capitalize_repair_cost ?? false}
-                onCheckedChange={(val) =>
-                  setData("capitalize_repair_cost", val)
-                }
-              />
-            </FormInput>
+              {t("asset.service.columns.capitalize_repair_cost")}
+            </FormCheckbox>
             {data?.capitalize_repair_cost && (
               <FormInput
                 name="increase_in_asset_life"
@@ -206,6 +186,7 @@ export default function Form() {
         <FormInput
           name="description"
           label={t("asset.service.columns.description")}
+          className="col-span-full"
         >
           <Textarea
             rows={3}
@@ -215,19 +196,17 @@ export default function Form() {
         </FormInput>
 
         {canBillToRenter && (
-          <FormInput
-            name="bill_to_renter"
-            label={t("asset.service.columns.bill_to_renter")}
+          <FormCheckbox
+            checked={data?.bill_to_renter ?? false}
+            disabled={data?.bill_to_renter}
+            onCheckedChange={(val) => {
+              if (!val) return;
+              router.post(route("assetServices.billToRenter", data.id));
+            }}
+            className="pt-4"
           >
-            <FormCheckbox
-              checked={data?.bill_to_renter ?? false}
-              disabled={data?.bill_to_renter}
-              onCheckedChange={(val) => {
-                if (!val) return;
-                router.post(route("assetServices.billToRenter", data.id));
-              }}
-            />
-          </FormInput>
+            {t("asset.service.columns.bill_to_renter")}
+          </FormCheckbox>
         )}
         {data?.bill_to_renter && (
           <>

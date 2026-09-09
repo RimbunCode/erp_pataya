@@ -128,7 +128,7 @@ describe("Asset Services Form", () => {
     expect(screen.getByTestId("forminput-asset")).toBeInTheDocument();
     expect(screen.getByTestId("forminput-failure_date")).toBeInTheDocument();
     expect(
-      screen.getByTestId("forminput-capitalize_repair_cost"),
+      screen.getByLabelText("asset.service.columns.capitalize_repair_cost"),
     ).toBeInTheDocument();
     expect(
       screen.queryByTestId("forminput-asset_maintenance_task"),
@@ -172,7 +172,7 @@ describe("Asset Services Form", () => {
     renderForm(<Form />);
 
     expect(
-      screen.queryByTestId("forminput-bill_to_renter"),
+      screen.queryByLabelText("asset.service.columns.bill_to_renter"),
     ).not.toBeInTheDocument();
   });
 
@@ -185,7 +185,7 @@ describe("Asset Services Form", () => {
     renderForm(<Form />);
 
     expect(
-      screen.queryByTestId("forminput-bill_to_renter"),
+      screen.queryByLabelText("asset.service.columns.bill_to_renter"),
     ).not.toBeInTheDocument();
   });
 
@@ -197,7 +197,9 @@ describe("Asset Services Form", () => {
     };
     renderForm(<Form />);
 
-    expect(screen.getByTestId("forminput-bill_to_renter")).toBeInTheDocument();
+    expect(
+      screen.getByLabelText("asset.service.columns.bill_to_renter"),
+    ).toBeInTheDocument();
   });
 
   it("klik checkbox bill_to_renter memanggil router.post ke assetServices.billToRenter", async () => {
@@ -212,10 +214,11 @@ describe("Asset Services Form", () => {
     renderForm(<Form />);
 
     // Ada 2 checkbox di halaman (capitalize_repair_cost & bill_to_renter) --
-    // scope ke FormInput bill_to_renter.
-    const checkbox = within(
-      screen.getByTestId("forminput-bill_to_renter"),
-    ).getByRole("forminput");
+    // disambiguasi lewat label text (FormCheckbox merender <label htmlFor>
+    // sungguhan, bukan lewat testid FormInput lagi).
+    const checkbox = screen.getByLabelText(
+      "asset.service.columns.bill_to_renter",
+    );
     await user.click(checkbox);
 
     expect(routerPost).toHaveBeenCalledWith("assetServices.billToRenter/9");
@@ -233,9 +236,9 @@ describe("Asset Services Form", () => {
 
     // Checkbox disabled saat bill_to_renter sudah true -- tidak bisa diklik
     // untuk uncheck (guard `if (!val) return` di source untuk kasus lain).
-    const checkbox = within(
-      screen.getByTestId("forminput-bill_to_renter"),
-    ).getByRole("forminput");
+    const checkbox = screen.getByLabelText(
+      "asset.service.columns.bill_to_renter",
+    );
     expect(checkbox).toBeDisabled();
     expect(routerPost).not.toHaveBeenCalled();
   });
