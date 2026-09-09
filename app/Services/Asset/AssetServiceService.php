@@ -92,7 +92,15 @@ class AssetServiceService implements SubmitableService {
         foreach ($items as $item) {
             $item['item_id']      = $item['item']['id'];
             $item['item_unit_id'] = $item['unit']['id'];
-            $payload              = Arr::only($item, ['item_id', 'item_unit_id', 'quantity', 'valuation_rate']);
+            $payload              = Arr::only($item, ['item_id', 'item_unit_id', 'quantity']);
+            // TODO: valuation_rate di-hardcode 0 sementara -- form tidak lagi
+            // minta input manual, dan AssetService belum punya konsep warehouse
+            // utk auto-resolve dari Stock::valuation_rate (butuh field
+            // warehouse_id baru + migration). Efeknya: kapitalisasi biaya
+            // perbaikan (AssetService::totalRepairCost()) dan prefill
+            // SalesOrderItem.price dari consumedItem (SalesOrderController
+            // case 'assetService') sama-sama jadi 0 sampai ini diperbaiki.
+            $payload['valuation_rate'] = 0;
 
             if (Ulid::isValid((string) ($item['id'] ?? null))) {
                 $assetService->consumedItems()->where('id', $item['id'])->update($payload);

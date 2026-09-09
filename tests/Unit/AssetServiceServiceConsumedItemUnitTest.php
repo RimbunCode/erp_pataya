@@ -53,10 +53,9 @@ class AssetServiceServiceConsumedItemUnitTest extends TestCase {
             'type'          => 'repair',
             'consumedItems' => [
                 [
-                    'item'           => ['id' => $item->id],
-                    'unit'           => ['id' => $itemUnit->id],
-                    'quantity'       => 3,
-                    'valuation_rate' => 1000,
+                    'item'     => ['id' => $item->id],
+                    'unit'     => ['id' => $itemUnit->id],
+                    'quantity' => 3,
                 ],
             ],
         ]);
@@ -66,6 +65,33 @@ class AssetServiceServiceConsumedItemUnitTest extends TestCase {
         $this->assertNotNull($consumedItem);
         $this->assertSame($item->id, $consumedItem->item_id);
         $this->assertSame($itemUnit->id, $consumedItem->item_unit_id);
+    }
+
+    /**
+     * valuation_rate sengaja di-hardcode 0 -- form tidak lagi minta input
+     * manual, dan AssetService belum punya konsep warehouse utk auto-resolve
+     * dari Stock::valuation_rate. Payload yang tetap mengirim valuation_rate
+     * (mis. klien lama/dimodifikasi) harus diabaikan, bukan dipercaya mentah.
+     */
+    #[Test]
+    public function create_ignores_submitted_valuation_rate_and_stores_zero(): void {
+        [$item, $itemUnit] = $this->makeItemWithUnit();
+
+        $assetService = (new AssetServiceService)->create([
+            'type'          => 'repair',
+            'consumedItems' => [
+                [
+                    'item'           => ['id' => $item->id],
+                    'unit'           => ['id' => $itemUnit->id],
+                    'quantity'       => 3,
+                    'valuation_rate' => 9999,
+                ],
+            ],
+        ]);
+
+        $consumedItem = AssetServiceConsumedItem::where('asset_service_id', $assetService->id)->first();
+
+        $this->assertEqualsWithDelta(0.0, (float) $consumedItem->valuation_rate, 0.001);
     }
 
     #[Test]
@@ -85,11 +111,10 @@ class AssetServiceServiceConsumedItemUnitTest extends TestCase {
         (new AssetServiceService)->update($assetService, [
             'consumedItems' => [
                 [
-                    'id'             => $consumedItem->id,
-                    'item'           => ['id' => $item2->id],
-                    'unit'           => ['id' => $itemUnit2->id],
-                    'quantity'       => 7,
-                    'valuation_rate' => 2000,
+                    'id'       => $consumedItem->id,
+                    'item'     => ['id' => $item2->id],
+                    'unit'     => ['id' => $itemUnit2->id],
+                    'quantity' => 7,
                 ],
             ],
         ]);

@@ -11,9 +11,12 @@ use Illuminate\Database\Eloquent\SoftDeletes;
 class StockLedgerEntry extends Model {
     use DataTable, HasUlids, SoftDeletes;
 
-    protected $guarded                          = ['id'];
-    protected static ?string $defaultSortColumn = 'transaction_date';
-    public $translateKey                        = 'inventory.stockLedger';
+    protected $guarded   = ['id'];
+    public $translateKey = 'inventory.stockLedger';
+
+    public static function getDefaultSortColumn(): string {
+        return 'transaction_date';
+    }
 
     protected static function permissions() {
         return [

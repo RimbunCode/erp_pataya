@@ -22,10 +22,9 @@ class AssetServiceRequest extends FormRequest {
             // Requirement 4.5, spec asset-service-billing: item.id sekarang
             // ItemVariant (bukan Item langsung) — selaras SalesOrderItem/
             // InternalOrderItem.item_id, supaya bisa auto-derive 1:1 tanpa ambigu.
-            'consumedItems.*.item.id'        => ['required_with:consumedItems', 'string', 'exists:item_variants,id'],
-            'consumedItems.*.unit.id'        => ['required_with:consumedItems', 'string', 'exists:item_units,id'],
-            'consumedItems.*.quantity'       => ['required_with:consumedItems', 'numeric', 'min:0'],
-            'consumedItems.*.valuation_rate' => ['required_with:consumedItems', 'numeric', 'min:0'],
+            'consumedItems.*.item.id'  => ['required_with:consumedItems', 'string', 'exists:item_variants,id'],
+            'consumedItems.*.unit.id'  => ['required_with:consumedItems', 'string', 'exists:item_units,id'],
+            'consumedItems.*.quantity' => ['required_with:consumedItems', 'numeric', 'min:0'],
         ];
     }
 }

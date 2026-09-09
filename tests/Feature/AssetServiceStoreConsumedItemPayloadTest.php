@@ -109,10 +109,9 @@ class AssetServiceStoreConsumedItemPayloadTest extends TestCase {
                 'failure_date'  => now()->toDateString(),
                 'consumedItems' => [
                     [
-                        'item'           => ['id' => $itemVariant->id],
-                        'unit'           => ['id' => $itemUnit->id],
-                        'quantity'       => 4,
-                        'valuation_rate' => 2500,
+                        'item'     => ['id' => $itemVariant->id],
+                        'unit'     => ['id' => $itemUnit->id],
+                        'quantity' => 4,
                     ],
                 ],
             ]);
@@ -138,9 +137,8 @@ class AssetServiceStoreConsumedItemPayloadTest extends TestCase {
                 'failure_date'  => now()->toDateString(),
                 'consumedItems' => [
                     [
-                        'item'           => ['id' => $itemVariant->id],
-                        'quantity'       => 4,
-                        'valuation_rate' => 2500,
+                        'item'     => ['id' => $itemVariant->id],
+                        'quantity' => 4,
                     ],
                 ],
             ]);
