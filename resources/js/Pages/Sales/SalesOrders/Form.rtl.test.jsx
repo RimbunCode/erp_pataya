@@ -991,7 +991,7 @@ describe("Sales Order Form.jsx", () => {
       ).toBeUndefined();
     });
 
-    it("tanpa referenceable_type AssetService: filters exclude item.is_fixed_asset=true, perilaku item.cell normal (regresi)", () => {
+    it("tanpa referenceable_type AssetService: filters kosong, perilaku item.cell normal (regresi)", () => {
       renderForm({ data: { date: new Date(), items: [] } });
 
       const setDataRow = vi.fn();
@@ -1008,7 +1008,7 @@ describe("Sales Order Form.jsx", () => {
         attributes: {},
       });
 
-      expect(element.props.filters).toEqual({ "item.is_fixed_asset": false });
+      expect(element.props.filters).toBeUndefined();
 
       element.props.onValueChange(selectedVal);
 
@@ -1020,7 +1020,7 @@ describe("Sales Order Form.jsx", () => {
       });
     });
 
-    it("referenceable_type AssetService: filters berisi item.is_fixed_asset=false DAN or item.category.type=service DAN id in consumedItemVariantIds", () => {
+    it("referenceable_type AssetService: filters berisi or item.category.type=service DAN id in consumedItemVariantIds", () => {
       renderForm({
         data: {
           date: new Date(),
@@ -1041,7 +1041,6 @@ describe("Sales Order Form.jsx", () => {
       });
 
       expect(element.props.filters).toEqual({
-        "item.is_fixed_asset": false,
         or: {
           "item.category.type": "service",
           id: { in: [501] },

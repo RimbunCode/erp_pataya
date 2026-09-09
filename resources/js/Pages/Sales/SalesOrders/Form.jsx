@@ -261,17 +261,16 @@ export default memo(function Form() {
             fields={["is_stock_item"]}
             disabled={dataRow?.assetServiceLocked}
             value={dataRow.item}
-            filters={{
-              "item.is_fixed_asset": false,
-              ...(data.referenceable_type === ASSET_SERVICE_CLASS
+            filters={
+              data.referenceable_type === ASSET_SERVICE_CLASS
                 ? {
                     or: {
                       "item.category.type": "service",
                       id: { in: consumedItemVariantIds },
                     },
                   }
-                : {}),
-            }}
+                : undefined
+            }
             onValueChange={(val) => {
               const defaultUnit = val?.default_uom;
               const rowPatch = {
