@@ -17,6 +17,8 @@ jobs:
     continue-on-error: true
     permissions:
       contents: write
+    outputs:
+      changes_detected: ${{ steps.autocommit.outputs.changes_detected }}
     env:
       FORCE_JAVASCRIPT_ACTIONS_TO_NODE24: true
     strategy:
@@ -28,24 +30,45 @@ jobs:
         uses: actions/checkout@v6
         with:
           ref: ${{ github.head_ref }}
+          token: ${{ secrets.BOT_LINTER_TOKEN }}
+
+      # Commit auto-fix pakai BOT_LINTER_TOKEN (PAT), bukan GITHUB_TOKEN, supaya
+      # push berikutnya ter-attribute ke akun manusia -> tidak kena approval-gate
+      # GitHub utk pull_request run yang di-update oleh github-actions[bot].
+      # Konsekuensinya: kita sendiri yang harus deteksi & skip re-lint di run
+      # retrigger itu (di bawah), karena GITHUB_TOKEN punya proteksi bawaan
+      # utk itu tapi PAT tidak.
+      - name: Detect if HEAD is our own lint auto-fix commit
+        id: check-autofix
+        run: |
+          msg="$(git log -1 --pretty=%s)"
+          if [ "$msg" = "fix: apply lint fixer (eslint + pint)" ]; then
+            echo "is_autofix=true" >> "$GITHUB_OUTPUT"
+          else
+            echo "is_autofix=false" >> "$GITHUB_OUTPUT"
+          fi
 
       - name: Setup Node.js
+        if: steps.check-autofix.outputs.is_autofix != 'true'
         uses: actions/setup-node@v6
         with:
           node-version-file: .nvmrc
           cache: npm
 
       - name: Setup PHP
+        if: steps.check-autofix.outputs.is_autofix != 'true'
         uses: shivammathur/setup-php@v2
         with:
           php-version: ${{ matrix.php }}
           tools: pint
 
       - name: Run Pint
+        if: steps.check-autofix.outputs.is_autofix != 'true'
         run: pint
         continue-on-error: true
 
       - name: Cache node_modules
+        if: steps.check-autofix.outputs.is_autofix != 'true'
         id: npm-cache
         uses: actions/cache@v4
         with:
@@ -53,18 +76,22 @@ jobs:
           key: node-modules-${{ runner.os }}-${{ hashFiles('package-lock.json') }}
 
       - name: Install Dependencies
-        if: steps.npm-cache.outputs.cache-hit != 'true'
+        if: steps.check-autofix.outputs.is_autofix != 'true' && steps.npm-cache.outputs.cache-hit != 'true'
         run: npm ci
 
       - name: Format Frontend
+        if: steps.check-autofix.outputs.is_autofix != 'true'
         run: npm run format
         continue-on-error: true
 
       - name: Lint Frontend
+        if: steps.check-autofix.outputs.is_autofix != 'true'
         run: npm run lint:fix
         continue-on-error: true
 
       - name: Commit linted files
+        if: steps.check-autofix.outputs.is_autofix != 'true'
+        id: autocommit
         uses: stefanzweifel/git-auto-commit-action@v7
         with:
           commit_message: "fix: apply lint fixer (eslint + pint)"
@@ -73,6 +100,7 @@ jobs:
   backend:
     name: Backend (PHPUnit)
     needs: lint
+    if: needs.lint.outputs.changes_detected != 'true'
     runs-on: ubuntu-latest
     env:
       FORCE_JAVASCRIPT_ACTIONS_TO_NODE24: true
@@ -129,6 +157,7 @@ jobs:
   frontend:
     name: Frontend (Vitest) shard ${{ matrix.shard }}/${{ strategy.job-total }}
     needs: lint
+    if: needs.lint.outputs.changes_detected != 'true'
     runs-on: ubuntu-latest
     strategy:
       fail-fast: false
