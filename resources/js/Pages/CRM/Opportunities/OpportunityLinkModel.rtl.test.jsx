@@ -1,5 +1,11 @@
 import { describe, expect, it, vi, beforeEach } from "vitest";
-import { act, render as rtlRender, screen } from "@testing-library/react";
+import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
+import {
+  act,
+  render as rtlRender,
+  screen,
+  waitFor,
+} from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 
 vi.mock("laravel-react-i18n", () => ({
@@ -47,11 +53,22 @@ import { TooltipProvider } from "@/Components/ui/tooltip";
 // `await act(async () => {})` supaya microtask stabil dulu. delayDuration=0
 // supaya Radix TooltipProvider tidak memakai setTimeout asli (700ms) yang
 // tidak terkontrol test.
+//
+// QueryClientProvider WAJIB sejak migrasi ke TanStack Query (opsi L, lihat
+// spec linkmodel-fetch-optimization) -- useLinkModelOptions memanggil
+// useQuery() TANPA syarat, jadi setiap render LinkModel butuh provider ini
+// atau langsung error "No QueryClient set". QueryClient BARU per render()
+// (bukan module-level) supaya cache TIDAK bocor lintas test.
 const render = async (ui) => {
+  const queryClient = new QueryClient({
+    defaultOptions: { queries: { retry: false, gcTime: Infinity } },
+  });
   let result;
   await act(async () => {
     result = rtlRender(
-      <TooltipProvider delayDuration={0}>{ui}</TooltipProvider>,
+      <QueryClientProvider client={queryClient}>
+        <TooltipProvider delayDuration={0}>{ui}</TooltipProvider>
+      </QueryClientProvider>,
     );
   });
   return result;
@@ -135,22 +152,26 @@ describe("OpportunityLinkModel", () => {
       await user.type(screen.getByRole("textbox"), "Penawaran");
     });
 
-    await act(async () => {
-      await vi.waitFor(() => {
-        expect(axiosPost).toHaveBeenCalledWith(
-          "model",
-          expect.objectContaining({
-            // Literal atribut JSX di OpportunityLinkModel.jsx baris 16
-            // (model="App\Models\CRM\Opportunity") memakai satu backslash --
-            // berbeda dari string literal JS biasa, JSX TIDAK memproses
-            // escape sequence pada literal atribut string, jadi backslash-nya
-            // tetap utuh saat runtime dan cocok dgn FQCN Laravel asli
-            // app/Models/CRM/Opportunity.php.
-            model: "App\\Models\\CRM\\Opportunity",
-            search: "Penawaran",
-          }),
-        );
-      });
+    // WAJIB pakai `waitFor` dari @testing-library/react, BUKAN `vi.waitFor` --
+    // update `debouncedSearch` (state internal useLinkModelOptions) terjadi di
+    // dalam callback setTimeout MENTAH (debounce 500ms) di luar act() manapun
+    // yang eksplisit dibuat test ini. `vi.waitFor` tidak act()-aware, jadi
+    // re-render React dari timer itu tidak pernah ke-flush selama polling.
+    // Lihat LinkModel.rtl.test.jsx utk penjelasan lengkap.
+    await waitFor(() => {
+      expect(axiosPost).toHaveBeenCalledWith(
+        "model",
+        expect.objectContaining({
+          // Literal atribut JSX di OpportunityLinkModel.jsx baris 16
+          // (model="App\Models\CRM\Opportunity") memakai satu backslash --
+          // berbeda dari string literal JS biasa, JSX TIDAK memproses
+          // escape sequence pada literal atribut string, jadi backslash-nya
+          // tetap utuh saat runtime dan cocok dgn FQCN Laravel asli
+          // app/Models/CRM/Opportunity.php.
+          model: "App\\Models\\CRM\\Opportunity",
+          search: "Penawaran",
+        }),
+      );
     });
   });
 
@@ -182,14 +203,13 @@ describe("OpportunityLinkModel", () => {
 
     // Tunggu request pencarian benar-benar selesai sebelum klik -- render
     // opsi bisa berganti saat data axios datang, elemen yang diklik lebih
-    // dulu bisa jadi stale.
-    await act(async () => {
-      await vi.waitFor(() => {
-        expect(axiosPost).toHaveBeenCalledWith(
-          "model",
-          expect.objectContaining({ search: "Penawaran" }),
-        );
-      });
+    // dulu bisa jadi stale. `waitFor` RTL (bukan `vi.waitFor`) -- request ini
+    // butuh debounce 500ms (setTimeout mentah), lihat catatan test di atas.
+    await waitFor(() => {
+      expect(axiosPost).toHaveBeenCalledWith(
+        "model",
+        expect.objectContaining({ search: "Penawaran" }),
+      );
     });
 
     const option = await screen.findByRole("option", {
@@ -233,13 +253,13 @@ describe("OpportunityLinkModel", () => {
       await user.type(screen.getByRole("textbox"), "Salah");
     });
 
-    await act(async () => {
-      await vi.waitFor(() => {
-        expect(axiosPost).toHaveBeenCalledWith(
-          "model",
-          expect.objectContaining({ search: "Salah" }),
-        );
-      });
+    // `waitFor` RTL (bukan `vi.waitFor`) -- request ini butuh debounce 500ms
+    // (setTimeout mentah), lihat catatan test di atas.
+    await waitFor(() => {
+      expect(axiosPost).toHaveBeenCalledWith(
+        "model",
+        expect.objectContaining({ search: "Salah" }),
+      );
     });
 
     const option = await screen.findByRole("option", {
@@ -266,13 +286,13 @@ describe("OpportunityLinkModel", () => {
       await user.type(screen.getByRole("textbox"), "x");
     });
 
-    await act(async () => {
-      await vi.waitFor(() => {
-        expect(axiosPost).toHaveBeenCalledWith(
-          "model",
-          expect.objectContaining({ model: "AppModelsOverride" }),
-        );
-      });
+    // `waitFor` RTL (bukan `vi.waitFor`) -- request ini butuh debounce 500ms
+    // (setTimeout mentah), lihat catatan test di atas.
+    await waitFor(() => {
+      expect(axiosPost).toHaveBeenCalledWith(
+        "model",
+        expect.objectContaining({ model: "AppModelsOverride" }),
+      );
     });
   });
 });

@@ -19,6 +19,9 @@ import {
   useMemo,
   useState,
 } from "react";
+import useLinkModelOptions, {
+  buildOptionsPayload,
+} from "@/Hooks/useLinkModelOptions";
 
 import { Button } from "./ui/button";
 import ClickAwayListener from "react-click-away-listener";
@@ -51,8 +54,15 @@ import { useRef } from "react";
  *   Hanya kolom ber-`linkable` di server yang akan keluar; kolom sensitif tetap di-gate
  *   `visibleFor`. Default `[]` (hanya kolom templateLink). Lihat spec linkmodel-column-security.
  * @param props.keywords
- * @param props.cache boolean | { enabled?: boolean, refreshMs?: number }
+ * @param props.cache boolean -- muat SELURUH dataset model sekali, filter/cari di client.
+ *   Dipakai untuk data referensi kecil & jarang berubah (mis. Currency, Country). Sebelumnya
+ *   juga menerima bentuk object `{ enabled, refreshMs }`; bentuk itu DIHAPUS (lihat spec
+ *   linkmodel-fetch-optimization) -- kesegaran data sekarang murni dikontrol `staleTime`.
  * @param props.cacheStorage "memory" | "localStorage" | "sessionStorage" | "indexedDB"
+ * @param props.staleTime durasi (ms) data dianggap masih segar setelah fetch -- dalam window
+ *   ini, buka-tutup dropdown atau remount TIDAK memicu fetch baru. Default 120000 (2 menit),
+ *   sama dengan default global TanStack Query di `lib/queryClient.js`. Override per-instance
+ *   untuk field yang datanya sering berubah (mis. stok Item).
  * @param props.canNavigation FQCN model target navigasi (mis. "App\\Models\\Inventory\\Item").
  *   Kalau diisi, tombol navigasi di-gate `canGlobal(model, "read", { user_id })` ke model INI,
  *   bukan `model` prop utama. Dipakai saat target navigasi (`as="name:keyRoute"`) beda dari
@@ -85,6 +95,7 @@ export default memo(
       keywords,
       cache = false,
       cacheStorage = "memory",
+      staleTime = 120_000,
       translate,
       titleDialog,
       classNameDialog,
@@ -107,180 +118,33 @@ export default memo(
     const [open, setOpen] = useState(false);
     const [_option, _setOption] = useState(value);
     const [search, setSearch] = useState(convertTemplateLink(value ?? ""));
-    const [total, setTotal] = useState(0);
-    const [options, setOptions] = useState([]);
-    const [cacheLoaded, setCacheLoaded] = useState(false);
     const [allowSearch, setAllowSearch] = useState(true);
-    const [loading, setLoading] = useState(false);
+    const [resolvingDefault, setResolvingDefault] = useState(false);
     const [openDialog, setOpenDialog] = useState(false);
     const { can, canGlobal } = usePermission(model);
-    const cacheConfig = useMemo(() => {
-      if (typeof cache === "object") {
-        return {
-          enabled: cache.enabled ?? true,
-          refreshMs: cache.refreshMs ?? null,
-        };
-      }
-      return {
-        enabled: !!cache,
-        refreshMs: null,
-      };
-    }, [cache]);
 
-    const stableStringify = useCallback((val) => {
-      try {
-        return JSON.stringify(val, (_key, value) => {
-          if (value && typeof value === "object" && !Array.isArray(value)) {
-            return Object.keys(value)
-              .sort()
-              .reduce((acc, k) => {
-                acc[k] = value[k];
-                return acc;
-              }, {});
-          }
-          return value;
-        });
-      } catch {
-        return JSON.stringify(val);
-      }
-    }, []);
-
-    // String stabil dari `filters` -- dipakai sbg dependency effect (lihat
-    // useDidMountEffect "on open" di bawah) supaya perbandingan berbasis
-    // NILAI (bukan reference objek baru tiap render, yg selalu != sebelumnya
-    // utk inline object literal seperti `filters={{...}}`).
-    const filtersKey = useMemo(
-      () => stableStringify(filters),
-      [filters, stableStringify],
-    );
-
-    const cacheKey = useMemo(() => {
-      if (!cacheConfig.enabled) return null;
-      return `linkmodel:${model}:${stableStringify({
-        joins,
-        filters,
-        with: _with,
-        keywords,
-        order,
-        translate,
-      })}`;
-    }, [
-      cacheConfig.enabled,
-      joins,
+    const {
+      options,
+      total,
+      loading: fetchLoading,
+    } = useLinkModelOptions({
+      model,
       filters,
-      _with,
+      joins,
+      with: _with,
+      fields,
       keywords,
       order,
       translate,
-      model,
-      stableStringify,
-    ]);
-
-    const cacheStore = useMemo(() => {
-      if (!cacheConfig.enabled) return null;
-      if (cacheStorage === "localStorage") return window?.localStorage ?? null;
-      if (cacheStorage === "sessionStorage")
-        return window?.sessionStorage ?? null;
-      if (cacheStorage === "indexedDB") return "indexedDB";
-      return null; // memory handled by state
-    }, [cacheConfig.enabled, cacheStorage]);
-
-    const memoryCacheRef = useRef(new Map());
-    const idbInstanceRef = useRef(null);
-
-    const getIdb = useCallback(() => {
-      if (idbInstanceRef.current) return idbInstanceRef.current;
-      idbInstanceRef.current = new Promise((resolve, reject) => {
-        const request = window.indexedDB.open("linkmodel-cache", 1);
-        request.onupgradeneeded = () => {
-          const db = request.result;
-          if (!db.objectStoreNames.contains("entries")) {
-            db.createObjectStore("entries", { keyPath: "key" });
-          }
-        };
-        request.onsuccess = () => resolve(request.result);
-        request.onerror = () => reject(request.error);
-      });
-      return idbInstanceRef.current;
-    }, []);
-
-    const readCache = useCallback(
-      async (key) => {
-        if (!cacheConfig.enabled || !key) return null;
-        if (cacheStore === "indexedDB") {
-          try {
-            const db = await getIdb();
-            return await new Promise((resolve, reject) => {
-              const tx = db.transaction("entries", "readonly");
-              const store = tx.objectStore("entries");
-              const req = store.get(key);
-              req.onsuccess = () => resolve(req.result);
-              req.onerror = () => reject(req.error);
-            });
-          } catch {
-            return null;
-          }
-        }
-        if (cacheStore) {
-          const raw = cacheStore.getItem(key);
-          return raw ? JSON.parse(raw) : null;
-        }
-        return memoryCacheRef.current.get(key) ?? null;
-      },
-      [cacheConfig.enabled, cacheStore, getIdb],
-    );
-
-    const writeCache = useCallback(
-      async (key, value) => {
-        if (!cacheConfig.enabled || !key) return;
-        if (cacheStore === "indexedDB") {
-          try {
-            const db = await getIdb();
-            await new Promise((resolve, reject) => {
-              const tx = db.transaction("entries", "readwrite");
-              tx.oncomplete = () => resolve();
-              tx.onerror = () => reject(tx.error);
-              tx.objectStore("entries").put({ key, ...value });
-            });
-          } catch {
-            // ignore cache errors
-          }
-          return;
-        }
-        if (cacheStore) {
-          cacheStore.setItem(key, JSON.stringify(value));
-          return;
-        }
-        memoryCacheRef.current.set(key, value);
-      },
-      [cacheConfig.enabled, cacheStore, getIdb],
-    );
-
-    const removeCache = useCallback(
-      async (key) => {
-        if (!cacheConfig.enabled || !key) return;
-        if (cacheStore === "indexedDB") {
-          try {
-            const db = await getIdb();
-            await new Promise((resolve, reject) => {
-              const tx = db.transaction("entries", "readwrite");
-              tx.oncomplete = () => resolve();
-              tx.onerror = () => reject(tx.error);
-              tx.objectStore("entries").delete(key);
-            });
-          } catch {
-            // ignore
-          }
-          return;
-        }
-        if (cacheStore) {
-          cacheStore.removeItem(key);
-          return;
-        }
-        memoryCacheRef.current.delete(key);
-      },
-      [cacheConfig.enabled, cacheStore, getIdb],
-    );
+      limit,
+      search,
+      open,
+      allowSearch,
+      cacheMode: !!cache,
+      cacheStorage,
+      staleTime,
+    });
+    const loading = fetchLoading || resolvingDefault;
 
     const { name, keyRoute } = useMemo(() => {
       if (as) {
@@ -298,7 +162,6 @@ export default memo(
     const commandRef = useRef(null);
 
     const option = useMemo(() => {
-      setLoading(false);
       return isControlled ? value : _option;
     }, [isControlled, value, _option]);
 
@@ -359,7 +222,6 @@ export default memo(
     useEffect(() => {
       if (open) return;
 
-      setLoading(false);
       if (isControlled && value === null) {
         setAllowSearch(true);
         if (search) {
@@ -403,143 +265,12 @@ export default memo(
       }
     }, [filters, option, value, model]);
 
-    useEffect(() => {
-      if (!cacheConfig.enabled) return;
-      setCacheLoaded(false);
-      setOptions([]);
-      setTotal(0);
-      if (cacheKey) {
-        removeCache(cacheKey);
-      }
-    }, [
-      cacheConfig.enabled,
-      cacheConfig.refreshMs,
-      cacheKey,
-      removeCache,
-      model,
-    ]);
-
-    useEffect(() => {
-      if (!cacheConfig.enabled || !cacheKey) return;
-      let active = true;
-      (async () => {
-        const parsed = await readCache(cacheKey);
-        if (!parsed || !active) return;
-        const expired =
-          cacheConfig.refreshMs &&
-          parsed.ts &&
-          Date.now() - parsed.ts > cacheConfig.refreshMs;
-        if (!expired && parsed.data) {
-          setOptions(parsed.data);
-          setTotal(parsed.total ?? parsed.data.length);
-          setCacheLoaded(true);
-          setLoading(false);
-          return;
-        }
-        if (expired) {
-          removeCache(cacheKey);
-        }
-      })();
-      return () => {
-        active = false;
-      };
-    }, [
-      cacheConfig.enabled,
-      cacheConfig.refreshMs,
-      cacheKey,
-      readCache,
-      removeCache,
-    ]);
-
-    const getModels = (
-      filterForDefaultValue = {},
-      callback,
-      { cacheMode = false } = {},
-    ) => {
-      if (!model) return;
-      const isCacheRequest = cacheMode && cacheConfig.enabled;
-      const payload = {
-        model,
-        cacheMode: isCacheRequest,
-        joins,
-      };
-
-      if (!isCacheRequest) {
-        Object.assign(payload, {
-          limit: limit ?? 10,
-          search,
-          with: _with,
-          fields,
-          filters: {
-            ...filters,
-            ...filterForDefaultValue,
-          },
-          keywords,
-          order,
-          translate,
-        });
-      }
-
-      axios
-        .post(route("model"), payload)
-        .then((res) => {
-          const data = res.data.data;
-          setTotal(res.data.total ?? data.length);
-          setOptions(data);
-          if (cacheMode) {
-            setCacheLoaded(true);
-            if (cacheKey) {
-              writeCache(cacheKey, {
-                data,
-                total: res.data.total ?? data.length,
-                ts: Date.now(),
-              });
-            }
-          }
-          callback?.(data);
-        })
-        .catch(() => {
-          gooeyToast.error(t("core.errors.fetch_failed"));
-        })
-        .finally(() => {
-          setLoading(false);
-        });
-    };
-    useEffect(() => {
-      if (!cacheConfig.enabled || !cacheConfig.refreshMs || !model) return;
-      const refresh = setInterval(() => {
-        setLoading(true);
-        getModels({}, null, { cacheMode: true });
-      }, cacheConfig.refreshMs);
-      return () => clearInterval(refresh);
-    }, [
-      cacheConfig.enabled,
-      cacheConfig.refreshMs,
-      model,
-      JSON.stringify(joins),
-    ]);
-
-    useEffect(() => {
-      if (!cacheConfig.enabled || cacheLoaded || !model) return;
-      setLoading(true);
-      getModels({}, null, { cacheMode: true });
-    }, [cacheConfig, cacheLoaded, model]);
-
-    useDidMountEffect(() => {
-      if (!allowSearch) return;
-      if (cacheConfig.enabled) return;
-      if (!model) return;
-      setLoading(true);
-      const reloadModel = setTimeout(() => {
-        getModels();
-      }, 500);
-      return () => {
-        clearTimeout(reloadModel);
-      };
-      // filtersKey: sama alasan seperti effect "on open" di atas -- baris
-      // FormTable yang di-auto-tambah butuh filters terbaru saat user mulai
-      // mengetik pencarian, bukan cuma saat dropdown dibuka.
-    }, [search, filtersKey]);
+    // Resolve `defaultValue` -- fetch TERPISAH dari daftar opsi dropdown
+    // (query semantiknya beda: mengisi `option`, bukan menampilkan list).
+    // TETAP imperatif (bukan lewat useLinkModelOptions), lihat requirements.md
+    // Requirement 1 AC4. `cacheMode: !!cache` mempertahankan perilaku lama --
+    // payload tetap benar menyertakan `filters` berkat `buildOptionsPayload`
+    // (fix bug yang sama juga berlaku di jalur ini, bukan cuma di hook).
     const defaultKey = useMemo(
       () => (defaultValue ? JSON.stringify(defaultValue) : null),
       [defaultValue],
@@ -553,49 +284,40 @@ export default memo(
       if (loadedDefaultKeyRef.current === defaultKey) return;
       loadedDefaultKeyRef.current = defaultKey;
 
-      setLoading(true);
+      setResolvingDefault(true);
       const reloadModel = setTimeout(() => {
-        getModels(
-          defaultValue,
-          (data) => {
+        const payload = buildOptionsPayload({
+          model,
+          cacheMode: !!cache,
+          joins,
+          limit,
+          search,
+          with: _with,
+          fields,
+          filters,
+          filterForDefaultValue: defaultValue,
+          keywords,
+          order,
+          translate,
+        });
+        axios
+          .post(route("model"), payload)
+          .then((res) => {
+            const data = res.data.data;
             if (data.length <= 0) return;
             setOption(data[0]);
-          },
-          { cacheMode: cacheConfig.enabled },
-        );
+          })
+          .catch(() => {
+            gooeyToast.error(t("core.errors.fetch_failed"));
+          })
+          .finally(() => {
+            setResolvingDefault(false);
+          });
       }, 500);
 
       return () => clearTimeout(reloadModel);
     }, [defaultKey, value]);
-    useDidMountEffect(() => {
-      if (!open || !model) return;
-      if (cacheConfig.enabled) {
-        if (!cacheLoaded) {
-          setLoading(true);
-          const reloadModel = setTimeout(() => {
-            getModels({}, null, { cacheMode: true });
-          }, 100);
-          return () => {
-            clearTimeout(reloadModel);
-          };
-        }
-        return;
-      }
-      setLoading(true);
-      const reloadModel = setTimeout(() => {
-        getModels();
-      }, 100);
-      return () => {
-        clearTimeout(reloadModel);
-      };
-      // `filtersKey` disertakan supaya baris FormTable yang di-auto-tambah
-      // SETELAH mount awal (mis. trailing row baru) tetap fetch dengan
-      // filter terbaru saat dibuka -- tanpa ini, useDidMountEffect (yang
-      // sengaja skip firing pertama) bisa memakai closure `filters` lama
-      // dari sebelum prop-nya benar-benar terisi. Pakai string stabil
-      // (bukan objek `filters` mentah) supaya tidak refetch tiap render
-      // untuk consumer yang mengirim inline object literal `filters={{...}}`.
-    }, [open, filtersKey]);
+
     const onInputKeyDown = (e) => {
       if (e.key == "Enter" && open) return;
       if (
@@ -631,9 +353,6 @@ export default memo(
         })
         .catch(() => {
           gooeyToast.error(t("core.errors.fetch_failed"));
-        })
-        .finally(() => {
-          setLoading(false);
         });
     };
 
@@ -649,9 +368,9 @@ export default memo(
     }, [value, valueBefore]);
 
     const filteredOptions = useMemo(() => {
-      if (!cacheConfig.enabled) return options;
+      if (!cache) return options;
       let list = options.filter((opt) => validate(opt, model));
-      if (cacheConfig.enabled && order) {
+      if (cache && order) {
         const [col, dir = "asc"] = (order ?? "").split(":");
         list = [...list].sort((a, b) => {
           const va = col ? a[col] : convertTemplateLink(a);
@@ -672,11 +391,11 @@ export default memo(
       return list.filter((opt) =>
         convertTemplateLink(opt, "", true).toLowerCase().includes(keyword),
       );
-    }, [cacheConfig.enabled, options, search, filters, order]);
+    }, [cache, options, search, filters, order, model]);
 
     const showMore = useMemo(
-      () => !cacheConfig.enabled && total > limit,
-      [cacheConfig.enabled, limit, total],
+      () => !cache && total > limit,
+      [cache, limit, total],
     );
 
     const disabledAdd = useMemo(() => {

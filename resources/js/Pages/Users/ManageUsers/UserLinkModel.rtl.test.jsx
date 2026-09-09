@@ -1,5 +1,11 @@
 import { describe, expect, it, vi, beforeEach } from "vitest";
-import { act, render as rtlRender, screen } from "@testing-library/react";
+import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
+import {
+  act,
+  render as rtlRender,
+  screen,
+  waitFor,
+} from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 
 vi.mock("laravel-react-i18n", () => ({
@@ -24,11 +30,20 @@ window.route = (name) => name;
 import UserLinkModel from "./UserLinkModel";
 import { TooltipProvider } from "@/Components/ui/tooltip";
 
+// QueryClientProvider WAJIB sejak migrasi ke TanStack Query -- useLinkModelOptions
+// memanggil useQuery() TANPA syarat, LinkModel akan error "No QueryClient set" tanpa
+// ini. QueryClient BARU per render() (bukan module-level) supaya cache TIDAK bocor
+// lintas test (lihat LinkModel.rtl.test.jsx untuk penjelasan lengkap).
 const render = async (ui) => {
+  const queryClient = new QueryClient({
+    defaultOptions: { queries: { retry: false, gcTime: Infinity } },
+  });
   let result;
   await act(async () => {
     result = rtlRender(
-      <TooltipProvider delayDuration={0}>{ui}</TooltipProvider>,
+      <QueryClientProvider client={queryClient}>
+        <TooltipProvider delayDuration={0}>{ui}</TooltipProvider>
+      </QueryClientProvider>,
     );
   });
   return result;
@@ -95,16 +110,19 @@ describe("UserLinkModel", () => {
       await user.type(screen.getByRole("textbox"), "Budi");
     });
 
-    await act(async () => {
-      await vi.waitFor(() => {
-        expect(axiosPost).toHaveBeenCalledWith(
-          "model",
-          expect.objectContaining({
-            model: "App\\Models\\User\\User",
-            search: "Budi",
-          }),
-        );
-      });
+    // WAJIB pakai `waitFor` dari @testing-library/react, BUKAN `vi.waitFor` --
+    // assertion ini menunggu update `debouncedSearch` (setTimeout mentah 500ms
+    // di useLinkModelOptions), di luar act() manapun. `vi.waitFor` tidak
+    // act()-aware sehingga re-render dari timer itu tidak ke-flush selama
+    // polling (lihat LinkModel.rtl.test.jsx untuk detail).
+    await waitFor(() => {
+      expect(axiosPost).toHaveBeenCalledWith(
+        "model",
+        expect.objectContaining({
+          model: "App\\Models\\User\\User",
+          search: "Budi",
+        }),
+      );
     });
   });
 
@@ -136,13 +154,12 @@ describe("UserLinkModel", () => {
       await user.type(screen.getByRole("textbox"), "Budi");
     });
 
-    await act(async () => {
-      await vi.waitFor(() => {
-        expect(axiosPost).toHaveBeenCalledWith(
-          "model",
-          expect.objectContaining({ search: "Budi" }),
-        );
-      });
+    // `waitFor` RTL, bukan `vi.waitFor` -- lihat catatan test sebelumnya.
+    await waitFor(() => {
+      expect(axiosPost).toHaveBeenCalledWith(
+        "model",
+        expect.objectContaining({ search: "Budi" }),
+      );
     });
 
     const option = await screen.findByRole("option", { name: "Budi Santoso" });
@@ -178,13 +195,12 @@ describe("UserLinkModel", () => {
       await user.type(screen.getByRole("textbox"), "Salah");
     });
 
-    await act(async () => {
-      await vi.waitFor(() => {
-        expect(axiosPost).toHaveBeenCalledWith(
-          "model",
-          expect.objectContaining({ search: "Salah" }),
-        );
-      });
+    // `waitFor` RTL, bukan `vi.waitFor` -- lihat catatan test sebelumnya.
+    await waitFor(() => {
+      expect(axiosPost).toHaveBeenCalledWith(
+        "model",
+        expect.objectContaining({ search: "Salah" }),
+      );
     });
 
     const option = await screen.findByRole("option", { name: "Salah Model" });

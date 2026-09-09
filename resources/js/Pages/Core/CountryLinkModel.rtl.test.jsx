@@ -1,4 +1,5 @@
 import { describe, expect, it, vi, beforeEach } from "vitest";
+import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { act, render as rtlRender, screen } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 
@@ -30,6 +31,7 @@ window.route = (name) => name;
 
 import CountryLinkModel from "./CountryLinkModel";
 import { TooltipProvider } from "@/Components/ui/tooltip";
+import { buildPersistKey } from "@/Hooks/useLinkModelOptions";
 
 // Sama seperti NumberCardLinkModel.rtl.test.jsx & PermissionLinkModel.rtl.test.jsx:
 // LinkModel membungkus dirinya dengan <Tooltip> internal tanpa menyediakan
@@ -38,11 +40,23 @@ import { TooltipProvider } from "@/Components/ui/tooltip";
 // {})` supaya microtask stabil dulu. delayDuration=0 supaya Radix
 // TooltipProvider tidak memakai setTimeout asli (700ms) yang tidak
 // terkontrol test.
+//
+// QueryClientProvider WAJIB sejak migrasi ke TanStack Query (opsi L, lihat
+// spec linkmodel-fetch-optimization) -- useLinkModelOptions memanggil
+// useQuery() TANPA syarat, jadi setiap render LinkModel butuh provider ini
+// atau langsung error "No QueryClient set". QueryClient BARU per render()
+// (bukan module-level) supaya cache TIDAK bocor lintas test (dua `it()` yang
+// mount model sama akan punya queryKey sama).
 const render = async (ui) => {
+  const queryClient = new QueryClient({
+    defaultOptions: { queries: { retry: false, gcTime: Infinity } },
+  });
   let result;
   await act(async () => {
     result = rtlRender(
-      <TooltipProvider delayDuration={0}>{ui}</TooltipProvider>,
+      <QueryClientProvider client={queryClient}>
+        <TooltipProvider delayDuration={0}>{ui}</TooltipProvider>
+      </QueryClientProvider>,
     );
   });
   return result;
@@ -51,6 +65,23 @@ const render = async (ui) => {
 describe("CountryLinkModel", () => {
   beforeEach(() => {
     axiosPost.mockReset();
+    // cache aktif + cacheStorage="sessionStorage" -- useLinkModelOptions
+    // menulis snapshot ke sessionStorage dgn timestamp Date.now() tiap kali
+    // mount berhasil fetch, lalu membacanya kembali di mount BERIKUTNYA lewat
+    // `queryClient.setQueryData(..., { updatedAt: stored.ts })`. QueryClient
+    // BARU per render() (lihat komentar di atas) TIDAK cukup utk isolasi --
+    // staleTime (default 120s) dihitung dari `stored.ts` yang persis dari
+    // sessionStorage, bukan dari umur queryClient itu sendiri, jadi entry
+    // dari test sebelumnya (key sama: model/filters/joins semuanya konstan
+    // di seluruh file ini) selalu dianggap "masih segar" & bikin useQuery
+    // SKIP fetch ulang -- axios.post tidak pernah terpanggil lagi di test
+    // kedua dst. Sama seperti CurrencyLinkModel.rtl.test.jsx &
+    // LeadSourceLinkModel.rtl.test.jsx: bersihkan sessionStorage per test.
+    try {
+      window.sessionStorage.clear();
+    } catch {
+      // ignore
+    }
     axiosPost.mockResolvedValue({
       data: {
         data: [
@@ -300,5 +331,32 @@ describe("CountryLinkModel", () => {
         );
       });
     });
+  });
+
+  // Task 7.2 spec linkmodel-fetch-optimization -- lihat CurrencyLinkModel.rtl.test.jsx
+  // untuk penjelasan lengkap kenapa test ini perlu ada terpisah (tidak ada
+  // test lain di file ini yang membaca sessionStorage secara langsung).
+  it("fetch cache mode menulis snapshot ke sessionStorage dengan key linkmodel:<model>:...", async () => {
+    await render(<CountryLinkModel />);
+
+    await act(async () => {
+      await vi.waitFor(() => expect(axiosPost).toHaveBeenCalledTimes(1));
+    });
+
+    const persistKey = buildPersistKey({
+      model: "App\\Models\\Core\\Country",
+      filters: undefined,
+      joins: undefined,
+      with: undefined,
+      keywords: undefined,
+      order: undefined,
+      translate: undefined,
+    });
+    const stored = JSON.parse(window.sessionStorage.getItem(persistKey));
+    expect(stored?.data).toEqual([
+      expect.objectContaining({ id: "ID", code: "ID" }),
+      expect.objectContaining({ id: "MY", code: "MY" }),
+    ]);
+    expect(typeof stored?.ts).toBe("number");
   });
 });
