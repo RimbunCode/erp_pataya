@@ -133,6 +133,15 @@ export default function Form() {
               <AssetLinkModel
                 value={data?.asset}
                 onValueChange={(val) => setData("asset", val)}
+                // Hanya Asset yang statusnya memenuhi allowedFrom di
+                // Asset::setOutOfOrder() (lihat app/Models/Asset/Asset.php) --
+                // draft/out_of_order/scrapped/dst tidak akan pernah lolos
+                // transisi status saat AssetService ini di-approve.
+                filters={{
+                  status: {
+                    jsonContains: ["active", "issued", "in_maintenance"],
+                  },
+                }}
               />
             </FormInput>
             <FormInput

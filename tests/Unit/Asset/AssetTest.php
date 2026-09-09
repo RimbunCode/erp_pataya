@@ -169,6 +169,24 @@ class AssetTest extends TestCase {
         $this->assertNotContains(FormStatus::ACTIVE, $asset->status);
     }
 
+    /**
+     * SUBMITTED bukan status "siap pakai" yang sah -- Asset::onApproved()
+     * (App\Services\Asset\AssetService) selalu default available_for_use_date
+     * ke sekarang kalau kosong, jadi Asset ter-approve langsung ACTIVE, tidak
+     * pernah nyangkut permanen di SUBMITTED. setInMaintenance() sengaja TIDAK
+     * mengizinkan transisi dari SUBMITTED.
+     */
+    #[Test]
+    public function set_in_maintenance_from_submitted_rejected(): void {
+        $asset = Asset::factory()->create([
+            'status' => [FormStatus::SUBMITTED],
+        ]);
+
+        $this->expectException(LogicException::class);
+
+        $asset->setInMaintenance();
+    }
+
     #[Test]
     public function reactivate_from_out_of_order_succeeds(): void {
         $asset = Asset::factory()->create([

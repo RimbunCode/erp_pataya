@@ -15,6 +15,7 @@ use Illuminate\Database\Eloquent\Concerns\HasUlids;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Illuminate\Support\Facades\Schema;
 use Illuminate\Support\Str;
+use PHPUnit\Framework\Attributes\DataProvider;
 use Tests\TestCase;
 
 /**
@@ -258,7 +259,7 @@ class DeskDashboardBuilderTest extends TestCase {
 
     // ── Requirement 2.9-2.10: keamanan link bebas ──────────────────────
 
-    /** @dataProvider dangerousUrlSchemes */
+    #[DataProvider('dangerousUrlSchemes')]
     public function test_dangerous_url_schemes_are_rejected(string $url): void {
         $desk    = $this->ownDesk();
         $payload = ['widgets' => [
@@ -278,7 +279,7 @@ class DeskDashboardBuilderTest extends TestCase {
         ];
     }
 
-    /** @dataProvider safeUrlSchemes */
+    #[DataProvider('safeUrlSchemes')]
     public function test_safe_url_schemes_are_accepted(string $url): void {
         $desk    = $this->ownDesk();
         $payload = ['widgets' => [

@@ -150,6 +150,22 @@ class AssetServiceService implements SubmitableService {
     }
 
     public function cancel(Model $model): mixed {
+        /** @var AssetService $model */
+        // Rollback status Asset yang di-set onApproved() (setOutOfOrder()/
+        // setInMaintenance()) -- reactivate() melempar LogicException kalau
+        // Asset sudah bukan di salah satu status itu lagi (mis. sudah
+        // direaktivasi manual atau di-scrap sejak approval); tangkap supaya
+        // cancel dokumen ini tetap sukses walau tidak ada yang perlu
+        // di-rollback.
+        $asset = $model->resolvedAsset();
+        if ($asset) {
+            try {
+                $asset->reactivate();
+            } catch (LogicException) {
+                // Asset sudah tidak di status yang di-set servis ini -- skip.
+            }
+        }
+
         $model->update(['status' => [FormStatus::CANCELED]]);
 
         return $model;
@@ -168,6 +184,17 @@ class AssetServiceService implements SubmitableService {
         } else {
             $asset->setInMaintenance();
         }
+
+        // Repair: checkApproval() (lewat ApprovalService::check(), saat tidak ada
+        // ApprovalScheme aktif) memanggil onApproved() LANGSUNG tanpa pernah
+        // meng-update status $model sendiri -- beda dari cabang maintenance_task
+        // di submit() yang sudah eksplisit set status APPROVED sebelum
+        // onApproved() dipanggil. Tanpa baris ini, dokumen AssetService type
+        // repair tetap "draft" walau submit()-nya sukses. APPROVED (bukan
+        // SUBMITTED) supaya konsisten dengan status yang sudah di-set cabang
+        // maintenance_task -- onApproved() dipanggil kedua cabang, jadi baris
+        // ini idempoten untuk maintenance_task (status sudah APPROVED).
+        $model->update(['status' => [FormStatus::APPROVED]]);
 
         return $model;
     }
