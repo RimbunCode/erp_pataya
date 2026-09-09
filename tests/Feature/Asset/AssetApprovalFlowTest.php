@@ -25,6 +25,20 @@ class AssetApprovalFlowTest extends TestCase {
     }
 
     #[Test]
+    public function on_approved_defaults_available_date_to_now_and_sets_active_when_not_filled(): void {
+        $asset   = Asset::factory()->create(['available_for_use_date' => null]);
+        $service = new AssetService;
+
+        $service->onApproved($asset);
+        $asset->refresh();
+
+        $statusValues = array_map(fn (FormStatus $s) => $s->value, $asset->status);
+        $this->assertContains(FormStatus::ACTIVE->value, $statusValues);
+        $this->assertNotNull($asset->available_for_use_date);
+        $this->assertTrue($asset->available_for_use_date->lte(now()));
+    }
+
+    #[Test]
     public function on_approved_keeps_submitted_when_date_in_future(): void {
         $asset   = Asset::factory()->create(['available_for_use_date' => now()->addWeek()]);
         $service = new AssetService;

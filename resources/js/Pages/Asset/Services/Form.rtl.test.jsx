@@ -76,8 +76,13 @@ vi.mock("@/Components/ui/select", () => ({
 }));
 
 vi.mock("@/Pages/Asset/Assets/AssetLinkModel", () => ({
-  default: ({ value }) => (
-    <div data-testid="asset-link-model">asset:{value?.name ?? "none"}</div>
+  default: ({ value, filters }) => (
+    <div
+      data-testid="asset-link-model"
+      data-filters={JSON.stringify(filters ?? {})}
+    >
+      asset:{value?.name ?? "none"}
+    </div>
   ),
 }));
 
@@ -133,6 +138,18 @@ describe("Asset Services Form", () => {
     expect(
       screen.queryByTestId("forminput-asset_maintenance_task"),
     ).not.toBeInTheDocument();
+  });
+
+  it("AssetLinkModel difilter hanya status active/submitted/issued/in_maintenance", () => {
+    formPageSeed = { type: "repair" };
+    renderForm(<Form />);
+
+    const assetLink = screen.getByTestId("asset-link-model");
+    expect(JSON.parse(assetLink.dataset.filters)).toEqual({
+      status: {
+        jsonContains: ["active", "submitted", "issued", "in_maintenance"],
+      },
+    });
   });
 
   it("type='maintenance_task' menampilkan field asset_maintenance_task (read-only), TIDAK menampilkan field repair", () => {

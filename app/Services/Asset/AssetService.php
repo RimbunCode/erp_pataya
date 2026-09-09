@@ -226,14 +226,23 @@ class AssetService implements SubmitableService {
         $statusValues   = array_values(array_diff($statusValues, [FormStatus::DRAFT->value]));
         $statusValues[] = FormStatus::SUBMITTED->value;
 
+        // available_for_use_date default ke sekarang kalau belum diisi -- Asset
+        // tanpa tanggal eksplisit dianggap langsung siap pakai saat disubmit,
+        // bukan nyangkut di SUBMITTED tanpa job terjadwal yang mempromosikannya
+        // ke ACTIVE nanti.
+        $model->available_for_use_date ??= now();
+
         // ponytail: auto-active if available_for_use_date already reached
-        if ($model->available_for_use_date && $model->available_for_use_date->lte(now())) {
+        if ($model->available_for_use_date->lte(now())) {
             $statusValues   = array_values(array_diff($statusValues, [FormStatus::SUBMITTED->value]));
             $statusValues[] = FormStatus::ACTIVE->value;
         }
 
         // Convert back to enum objects for FormStatusesCast
-        $model->update(['status' => array_map(fn (string $v) => FormStatus::from($v), $statusValues)]);
+        $model->update([
+            'status'                 => array_map(fn (string $v) => FormStatus::from($v), $statusValues),
+            'available_for_use_date' => $model->available_for_use_date,
+        ]);
 
         if ($model->calculate_depreciation) {
             app(DepreciationScheduleGenerator::class)->generate($model);

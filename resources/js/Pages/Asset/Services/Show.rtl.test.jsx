@@ -1,15 +1,14 @@
 import { describe, expect, it, vi, beforeEach } from "vitest";
 import { render, screen } from "@testing-library/react";
+import userEvent from "@testing-library/user-event";
 
 // ============================================================================
-// Show.jsx (72 baris) adalah halaman detail Asset Service. Jauh lebih
-// sederhana dibanding Show.jsx PurchaseOrders (295 baris, jadi referensi
-// pola mock): tidak ada QtyBadge/ItemsQtyTable, tidak ada dialog konfirmasi
-// (Sync Items / Mark Done), tidak ada dropdown actions -- controls() cuma
-// merender 0-2 tombol Link statis (create PR / create PO), masing-masing
-// digate oleh canGlobal() permission SENDIRI-SENDIRI (independen satu sama
-// lain), semuanya di dalam gate luar canRequestPurchase
-// (assetService?.submitted_at).
+// Show.jsx (72 baris) adalah halaman detail Asset Service. controls() kini
+// membungkus tombol create PR/PO/SO/IO ke dropdown "core.form.actions",
+// pola sama dengan Sales/SalesOrders/Show.jsx -- dropdown TIDAK di-mock
+// (Radix asli), jadi tiap test yang mengecek menu item wajib klik tombol
+// trigger dulu (userEvent) baru findByText (async, konten dropdown
+// ter-portal setelah open).
 //
 // Logic UNIK Show.jsx ini sendiri:
 // - isApproved: (assetService?.status ?? []).includes("approved") --
@@ -17,12 +16,11 @@ import { render, screen } from "@testing-library/react";
 //   tunggal seperti kebanyakan dokumen submitable lain), method .includes()
 //   dipanggil langsung ke propnya.
 // - canRequestPurchase: assetService?.submitted_at (truthy check biasa).
-// - controls(): return null kalau !canRequestPurchase (FormPage stub akan
-//   merender null, bukan fragment kosong).
-// - Tombol "create_pr" hanya muncul kalau canGlobal(PurchaseRequest,create)
-//   true. Tombol "create_po" hanya muncul kalau
-//   canGlobal(PurchaseOrder,create) true. Keduanya independen -- kombinasi
-//   0/1/2 tombol semua mungkin.
+// - controls(): return null kalau !canRequestPurchase ATAU kalau keempat
+//   canGlobal() (PR/PO/SO/IO) semuanya false -- tidak ada tombol trigger
+//   dropdown sama sekali kalau tidak ada satupun action yang diizinkan.
+// - Tiap DropdownMenuItem digate canGlobal() masing-masing SENDIRI-SENDIRI
+//   (independen satu sama lain) -- kombinasi 0-4 item semua mungkin.
 // - href tombol pakai route() dengan params { ref: `assetService/${id}` }.
 // - <ServiceActivityLog/> hanya dirender kalau assetService ADA DAN
 //   isApproved true (dua syarat AND, bukan cuma submitted_at).
@@ -147,23 +145,21 @@ describe("Show (Asset/Services)", () => {
     });
   });
 
-  // --- controls(): gating canRequestPurchase + tombol create_pr/create_po --
-  describe("controls() -- tombol create PR/PO", () => {
+  // --- controls(): gating canRequestPurchase + dropdown "Actions" ---------
+  describe("controls() -- dropdown create PR/PO", () => {
     it("submitted_at kosong: controls() return null, tidak ada tombol sama sekali", () => {
       const assetService = baseAssetService({ submitted_at: null });
       canGlobalMock.mockReturnValue(true);
       render(<Show assetService={assetService} defaultData={{}} />);
 
       expect(
-        screen.queryByText("asset.service.actions.create_pr"),
-      ).not.toBeInTheDocument();
-      expect(
-        screen.queryByText("asset.service.actions.create_po"),
+        screen.queryByRole("button", { name: /core.form.actions/ }),
       ).not.toBeInTheDocument();
       expect(canGlobalMock).not.toHaveBeenCalled();
     });
 
-    it("submitted_at ada, canGlobal true untuk keduanya: kedua tombol muncul dengan href benar", () => {
+    it("submitted_at ada, canGlobal true untuk keduanya: kedua item dropdown muncul dengan href benar", async () => {
+      const user = userEvent.setup();
       const assetService = baseAssetService({
         id: 9,
         submitted_at: "2026-08-01T00:00:00Z",
@@ -171,7 +167,11 @@ describe("Show (Asset/Services)", () => {
       canGlobalMock.mockReturnValue(true);
       render(<Show assetService={assetService} defaultData={{}} />);
 
-      const prLink = screen.getByText("asset.service.actions.create_pr");
+      await user.click(
+        screen.getByRole("button", { name: /core.form.actions/ }),
+      );
+
+      const prLink = await screen.findByText("asset.service.actions.create_pr");
       expect(prLink.closest("a")).toHaveAttribute(
         "href",
         `purchaseRequests.create/${JSON.stringify({ ref: "assetService/9" })}`,
@@ -193,7 +193,7 @@ describe("Show (Asset/Services)", () => {
       );
     });
 
-    it("submitted_at ada, canGlobal false untuk keduanya: tidak ada tombol muncul", () => {
+    it("submitted_at ada, canGlobal false untuk semua: tidak ada tombol trigger dropdown sama sekali", () => {
       const assetService = baseAssetService({
         submitted_at: "2026-08-01T00:00:00Z",
       });
@@ -201,14 +201,12 @@ describe("Show (Asset/Services)", () => {
       render(<Show assetService={assetService} defaultData={{}} />);
 
       expect(
-        screen.queryByText("asset.service.actions.create_pr"),
-      ).not.toBeInTheDocument();
-      expect(
-        screen.queryByText("asset.service.actions.create_po"),
+        screen.queryByRole("button", { name: /core.form.actions/ }),
       ).not.toBeInTheDocument();
     });
 
-    it("hanya PurchaseRequest yang diizinkan: hanya tombol create_pr yang muncul (independen)", () => {
+    it("hanya PurchaseRequest yang diizinkan: hanya item create_pr yang muncul di dropdown (independen)", async () => {
+      const user = userEvent.setup();
       const assetService = baseAssetService({
         submitted_at: "2026-08-01T00:00:00Z",
       });
@@ -217,15 +215,20 @@ describe("Show (Asset/Services)", () => {
       );
       render(<Show assetService={assetService} defaultData={{}} />);
 
+      await user.click(
+        screen.getByRole("button", { name: /core.form.actions/ }),
+      );
+
       expect(
-        screen.getByText("asset.service.actions.create_pr"),
+        await screen.findByText("asset.service.actions.create_pr"),
       ).toBeInTheDocument();
       expect(
         screen.queryByText("asset.service.actions.create_po"),
       ).not.toBeInTheDocument();
     });
 
-    it("hanya PurchaseOrder yang diizinkan: hanya tombol create_po yang muncul (independen)", () => {
+    it("hanya PurchaseOrder yang diizinkan: hanya item create_po yang muncul di dropdown (independen)", async () => {
+      const user = userEvent.setup();
       const assetService = baseAssetService({
         submitted_at: "2026-08-01T00:00:00Z",
       });
@@ -234,18 +237,23 @@ describe("Show (Asset/Services)", () => {
       );
       render(<Show assetService={assetService} defaultData={{}} />);
 
+      await user.click(
+        screen.getByRole("button", { name: /core.form.actions/ }),
+      );
+
       expect(
         screen.queryByText("asset.service.actions.create_pr"),
       ).not.toBeInTheDocument();
       expect(
-        screen.getByText("asset.service.actions.create_po"),
+        await screen.findByText("asset.service.actions.create_po"),
       ).toBeInTheDocument();
     });
   });
 
-  // --- controls(): gating canRequestPurchase + tombol create_so/create_io --
-  describe("controls() -- tombol create SalesOrder/InternalOrder", () => {
-    it("submitted_at ada, canGlobal true untuk keduanya: kedua tombol muncul dengan href benar", () => {
+  // --- controls(): gating canRequestPurchase + dropdown SO/IO --------------
+  describe("controls() -- dropdown create SalesOrder/InternalOrder", () => {
+    it("submitted_at ada, canGlobal true untuk keduanya: kedua item dropdown muncul dengan href benar", async () => {
+      const user = userEvent.setup();
       const assetService = baseAssetService({
         id: 9,
         submitted_at: "2026-08-01T00:00:00Z",
@@ -253,7 +261,11 @@ describe("Show (Asset/Services)", () => {
       canGlobalMock.mockReturnValue(true);
       render(<Show assetService={assetService} defaultData={{}} />);
 
-      const soLink = screen.getByText("asset.service.actions.create_so");
+      await user.click(
+        screen.getByRole("button", { name: /core.form.actions/ }),
+      );
+
+      const soLink = await screen.findByText("asset.service.actions.create_so");
       expect(soLink.closest("a")).toHaveAttribute(
         "href",
         `salesOrders.create/${JSON.stringify({ ref: "assetService/9" })}`,
@@ -275,7 +287,8 @@ describe("Show (Asset/Services)", () => {
       );
     });
 
-    it("hanya SalesOrder yang diizinkan: hanya tombol create_so yang muncul (independen)", () => {
+    it("hanya SalesOrder yang diizinkan: hanya item create_so yang muncul di dropdown (independen)", async () => {
+      const user = userEvent.setup();
       const assetService = baseAssetService({
         submitted_at: "2026-08-01T00:00:00Z",
       });
@@ -284,15 +297,20 @@ describe("Show (Asset/Services)", () => {
       );
       render(<Show assetService={assetService} defaultData={{}} />);
 
+      await user.click(
+        screen.getByRole("button", { name: /core.form.actions/ }),
+      );
+
       expect(
-        screen.getByText("asset.service.actions.create_so"),
+        await screen.findByText("asset.service.actions.create_so"),
       ).toBeInTheDocument();
       expect(
         screen.queryByText("asset.service.actions.create_io"),
       ).not.toBeInTheDocument();
     });
 
-    it("hanya InternalOrder yang diizinkan: hanya tombol create_io yang muncul (independen)", () => {
+    it("hanya InternalOrder yang diizinkan: hanya item create_io yang muncul di dropdown (independen)", async () => {
+      const user = userEvent.setup();
       const assetService = baseAssetService({
         submitted_at: "2026-08-01T00:00:00Z",
       });
@@ -301,11 +319,15 @@ describe("Show (Asset/Services)", () => {
       );
       render(<Show assetService={assetService} defaultData={{}} />);
 
+      await user.click(
+        screen.getByRole("button", { name: /core.form.actions/ }),
+      );
+
       expect(
         screen.queryByText("asset.service.actions.create_so"),
       ).not.toBeInTheDocument();
       expect(
-        screen.getByText("asset.service.actions.create_io"),
+        await screen.findByText("asset.service.actions.create_io"),
       ).toBeInTheDocument();
     });
   });

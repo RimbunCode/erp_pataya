@@ -1,4 +1,12 @@
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuTrigger,
+} from "@/Components/ui/dropdown-menu";
+
 import { Button } from "@/Components/ui/button";
+import { ChevronsUpDown } from "lucide-react";
 import Form from "./Form";
 import { FormPage } from "@/Pages/Core/FormPage";
 import Link from "@/Components/Link";
@@ -25,73 +33,84 @@ export default function Show({ assetService, defaultData }) {
         if (!canRequestPurchase) {
           return null;
         }
+        const canCreatePr = canGlobal(
+          "App\\Models\\Purchase\\PurchaseRequest",
+          "create",
+        );
+        const canCreatePo = canGlobal(
+          "App\\Models\\Purchase\\PurchaseOrder",
+          "create",
+        );
+        const canCreateSo = canGlobal(
+          "App\\Models\\Sales\\SalesOrder",
+          "create",
+        );
+        const canCreateIo = canGlobal(
+          "App\\Models\\Sales\\InternalOrder",
+          "create",
+        );
+        if (!canCreatePr && !canCreatePo && !canCreateSo && !canCreateIo) {
+          return null;
+        }
         return (
-          <>
-            {canGlobal("App\\Models\\Purchase\\PurchaseRequest", "create") && (
+          <DropdownMenu>
+            <DropdownMenuTrigger asChild>
               <Button
                 type="button"
                 className="p-2! size-fit h-8"
                 variant="secondary"
-                asChild
               >
-                <Link
-                  href={route("purchaseRequests.create", {
-                    ref: `assetService/${assetService.id}`,
-                  })}
-                >
-                  {t("asset.service.actions.create_pr")}
-                </Link>
+                {t("core.form.actions")}
+                <ChevronsUpDown />
               </Button>
-            )}
-            {canGlobal("App\\Models\\Purchase\\PurchaseOrder", "create") && (
-              <Button
-                type="button"
-                className="p-2! size-fit h-8"
-                variant="secondary"
-                asChild
-              >
-                <Link
-                  href={route("purchaseOrders.create", {
-                    ref: `assetService/${assetService.id}`,
-                  })}
-                >
-                  {t("asset.service.actions.create_po")}
-                </Link>
-              </Button>
-            )}
-            {canGlobal("App\\Models\\Sales\\SalesOrder", "create") && (
-              <Button
-                type="button"
-                className="p-2! size-fit h-8"
-                variant="secondary"
-                asChild
-              >
-                <Link
-                  href={route("salesOrders.create", {
-                    ref: `assetService/${assetService.id}`,
-                  })}
-                >
-                  {t("asset.service.actions.create_so")}
-                </Link>
-              </Button>
-            )}
-            {canGlobal("App\\Models\\Sales\\InternalOrder", "create") && (
-              <Button
-                type="button"
-                className="p-2! size-fit h-8"
-                variant="secondary"
-                asChild
-              >
-                <Link
-                  href={route("internalOrders.create", {
-                    ref: `assetService/${assetService.id}`,
-                  })}
-                >
-                  {t("asset.service.actions.create_io")}
-                </Link>
-              </Button>
-            )}
-          </>
+            </DropdownMenuTrigger>
+            <DropdownMenuContent>
+              {canCreatePr && (
+                <DropdownMenuItem asChild>
+                  <Link
+                    href={route("purchaseRequests.create", {
+                      ref: `assetService/${assetService.id}`,
+                    })}
+                  >
+                    {t("asset.service.actions.create_pr")}
+                  </Link>
+                </DropdownMenuItem>
+              )}
+              {canCreatePo && (
+                <DropdownMenuItem asChild>
+                  <Link
+                    href={route("purchaseOrders.create", {
+                      ref: `assetService/${assetService.id}`,
+                    })}
+                  >
+                    {t("asset.service.actions.create_po")}
+                  </Link>
+                </DropdownMenuItem>
+              )}
+              {canCreateSo && (
+                <DropdownMenuItem asChild>
+                  <Link
+                    href={route("salesOrders.create", {
+                      ref: `assetService/${assetService.id}`,
+                    })}
+                  >
+                    {t("asset.service.actions.create_so")}
+                  </Link>
+                </DropdownMenuItem>
+              )}
+              {canCreateIo && (
+                <DropdownMenuItem asChild>
+                  <Link
+                    href={route("internalOrders.create", {
+                      ref: `assetService/${assetService.id}`,
+                    })}
+                  >
+                    {t("asset.service.actions.create_io")}
+                  </Link>
+                </DropdownMenuItem>
+              )}
+            </DropdownMenuContent>
+          </DropdownMenu>
         );
       }}
     >

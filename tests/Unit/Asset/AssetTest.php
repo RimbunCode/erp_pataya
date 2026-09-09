@@ -169,6 +169,24 @@ class AssetTest extends TestCase {
         $this->assertNotContains(FormStatus::ACTIVE, $asset->status);
     }
 
+    /**
+     * [FIXED] Asset yang baru disubmit (belum melewati available_for_use_date)
+     * tetap berstatus SUBMITTED, bukan ACTIVE -- setInMaintenance()/
+     * setOutOfOrder() sebelumnya tidak mengizinkan transisi dari SUBMITTED,
+     * jadi Asset paling umum (baru disubmit) tidak pernah bisa masuk service.
+     */
+    #[Test]
+    public function set_in_maintenance_from_submitted_succeeds(): void {
+        $asset = Asset::factory()->create([
+            'status' => [FormStatus::SUBMITTED],
+        ]);
+
+        $asset->setInMaintenance();
+
+        $this->assertContains(FormStatus::IN_MAINTENANCE, $asset->status);
+        $this->assertNotContains(FormStatus::SUBMITTED, $asset->status);
+    }
+
     #[Test]
     public function reactivate_from_out_of_order_succeeds(): void {
         $asset = Asset::factory()->create([
