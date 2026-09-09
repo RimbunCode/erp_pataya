@@ -25,16 +25,6 @@ jobs:
       matrix:
         php: [8.4]
     steps:
-      - name: Debug PAT presence (temporary)
-        env:
-          PAT_CHECK: ${{ secrets.BOT_LINTER_TOKEN }}
-        run: |
-          if [ -z "$PAT_CHECK" ]; then
-            echo "BOT_LINTER_TOKEN EMPTY di context job ini"
-          else
-            echo "BOT_LINTER_TOKEN non-empty, panjang: ${#PAT_CHECK}"
-          fi
-
       - name: Checkout code
         uses: actions/checkout@v6
         with:
@@ -104,7 +94,7 @@ jobs:
   backend:
     name: Backend (PHPUnit)
     needs: lint
-    if: always() && needs.lint.outputs.changes_detected != 'true'
+    if: "!cancelled() && needs.lint.outputs.changes_detected != 'true'"
     runs-on: ubuntu-latest
     env:
       FORCE_JAVASCRIPT_ACTIONS_TO_NODE24: true
@@ -161,7 +151,7 @@ jobs:
   frontend:
     name: Frontend (Vitest) shard ${{ matrix.shard }}/${{ strategy.job-total }}
     needs: lint
-    if: always() && needs.lint.outputs.changes_detected != 'true'
+    if: "!cancelled() && needs.lint.outputs.changes_detected != 'true'"
     runs-on: ubuntu-latest
     strategy:
       fail-fast: false
