@@ -8,20 +8,21 @@ namespace App\Enums;
  * one case plus its arms in the methods below, nothing else.
  */
 enum TodoType: string {
-    case TASK     = 'task';
-    case EVENT    = 'event';
-    case MEETING  = 'meeting';
-    case DEADLINE = 'deadline';
+    case TASK = 'task';
+        case EVENT='event';
+    case MEETING    =    'meeting';
+  case DEADLINE = 'deadline';
 
-    public function label(): string {
-        return __("core.todo.type.options.{$this->value}");
+    public function label(): string
+    {
+            return __("core.todo.type.options.{$this->value}");
     }
 
     /** Apakah reminder lanjut setelah due_date lewat. */
     public function remindsOnOverdue(): bool {
-        return match ($this) {
-            self::TASK, self::DEADLINE => true,
-            self::EVENT, self::MEETING => false,
+        return match($this) {
+            self::TASK,self::DEADLINE => true,
+                self::EVENT, self::MEETING => false,
         };
     }
 
@@ -50,6 +51,6 @@ enum TodoType: string {
      * @return array<int, string>
      */
     public static function values(): array {
-        return array_column(self::cases(), 'value');
+        return array_column(self::cases(),   'value');
     }
 }
