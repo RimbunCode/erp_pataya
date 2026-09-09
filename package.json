@@ -142,7 +142,27 @@
     "underscore": "1.13.8",
     "dompurify": "^3.4.8",
     "shell-quote": "^1.8.4",
-    "brace-expansion": "^5.0.9",
+    "glob": {
+      "minimatch": {
+        "brace-expansion": "^5.0.9"
+      }
+    },
+    "shadcn": {
+      "ts-morph": {
+        "@ts-morph/common": {
+          "minimatch": {
+            "brace-expansion": "^5.0.9"
+          }
+        }
+      }
+    },
+    "@7nohe/laravel-zodgen": {
+      "glob": {
+        "minimatch": {
+          "brace-expansion": "^5.0.9"
+        }
+      }
+    },
     "laravel-react-i18n": {
       "react": "19.2.4"
     }
