@@ -8,6 +8,7 @@ use App\Models\Asset\AssetCategory;
 use App\Models\Asset\AssetLocation;
 use App\Models\Core\FormatingSeries;
 use App\Models\Finances\PurchaseInvoice;
+use App\Models\Inventory\Item;
 use App\Models\Model as BaseModel;
 use App\Models\Purchase\PurchaseReceipt;
 use App\Models\User\User;
@@ -40,10 +41,12 @@ class AssetServiceSubmitGuardTest extends TestCase {
     #[Test]
     public function submit_rejects_when_category_is_null(): void {
         $location = AssetLocation::factory()->create();
+        $item     = Item::factory()->create();
 
         $asset = Asset::factory()->create([
             'asset_category_id' => null,
             'asset_location_id' => $location->id,
+            'item_id'           => $item->id,
             'status'            => [FormStatus::DRAFT],
         ]);
 
@@ -58,10 +61,12 @@ class AssetServiceSubmitGuardTest extends TestCase {
     #[Test]
     public function submit_rejects_when_location_is_null(): void {
         $category = AssetCategory::factory()->create();
+        $item     = Item::factory()->create();
 
         $asset = Asset::factory()->create([
             'asset_category_id' => $category->id,
             'asset_location_id' => null,
+            'item_id'           => $item->id,
             'status'            => [FormStatus::DRAFT],
         ]);
 
@@ -75,9 +80,11 @@ class AssetServiceSubmitGuardTest extends TestCase {
 
     #[Test]
     public function submit_rejects_when_both_category_and_location_are_null(): void {
+        $item  = Item::factory()->create();
         $asset = Asset::factory()->create([
             'asset_category_id' => null,
             'asset_location_id' => null,
+            'item_id'           => $item->id,
             'status'            => [FormStatus::DRAFT],
         ]);
 
@@ -136,10 +143,12 @@ class AssetServiceSubmitGuardTest extends TestCase {
     public function submit_rejects_when_purchase_history_incomplete(): void {
         $category = AssetCategory::factory()->create();
         $location = AssetLocation::factory()->create();
+        $item     = Item::factory()->create();
         $invoice  = $this->makeBareInvoice();
         $asset    = Asset::factory()->create([
             'asset_category_id'   => $category->id,
             'asset_location_id'   => $location->id,
+            'item_id'             => $item->id,
             'purchase_invoice_id' => $invoice->id,
             'purchase_receipt_id' => null,
             'status'              => [FormStatus::DRAFT],
@@ -157,9 +166,11 @@ class AssetServiceSubmitGuardTest extends TestCase {
     public function submit_accepted_when_no_purchase_history_at_all(): void {
         $category = AssetCategory::factory()->create();
         $location = AssetLocation::factory()->create();
+        $item     = Item::factory()->create();
         $asset    = Asset::factory()->create([
             'asset_category_id'   => $category->id,
             'asset_location_id'   => $location->id,
+            'item_id'             => $item->id,
             'purchase_receipt_id' => null,
             'purchase_invoice_id' => null,
             'status'              => [FormStatus::DRAFT],
@@ -174,11 +185,13 @@ class AssetServiceSubmitGuardTest extends TestCase {
     public function submit_accepted_when_purchase_history_complete(): void {
         $category = AssetCategory::factory()->create();
         $location = AssetLocation::factory()->create();
+        $item     = Item::factory()->create();
         $receipt  = $this->makeBareReceipt();
         $invoice  = $this->makeBareInvoice();
         $asset    = Asset::factory()->create([
             'asset_category_id'   => $category->id,
             'asset_location_id'   => $location->id,
+            'item_id'             => $item->id,
             'purchase_receipt_id' => $receipt->id,
             'purchase_invoice_id' => $invoice->id,
             'status'              => [FormStatus::DRAFT],
@@ -193,10 +206,12 @@ class AssetServiceSubmitGuardTest extends TestCase {
     public function completing_missing_link_via_update_then_submit_succeeds(): void {
         $category = AssetCategory::factory()->create();
         $location = AssetLocation::factory()->create();
+        $item     = Item::factory()->create();
         $receipt  = $this->makeBareReceipt();
         $asset    = Asset::factory()->create([
             'asset_category_id'   => $category->id,
             'asset_location_id'   => $location->id,
+            'item_id'             => $item->id,
             'purchase_receipt_id' => $receipt->id,
             'purchase_invoice_id' => null,
             'status'              => [FormStatus::DRAFT],

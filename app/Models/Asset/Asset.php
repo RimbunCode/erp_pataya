@@ -107,9 +107,17 @@ class Asset extends Model {
         return [
             'assetCategory',
             'assetLocation',
+            'item',
             'custodian',
             'ownershipSupplier',
             'ownershipCustomer',
+            // Nested sesuai `with` yang diminta FE (PurchaseReceiptItemLinkModel/
+            // PurchaseInvoiceItemLinkModel di Form.jsx) -- tanpa ini, relasi
+            // tersimpan tapi FE tidak pernah melihatnya utuh setelah reload.
+            'purchaseReceiptItem.item.item',
+            'purchaseReceiptItem.purchaseReceipt',
+            'purchaseInvoiceItem.item.item',
+            'purchaseInvoiceItem.purchaseInvoice',
         ];
     }
 

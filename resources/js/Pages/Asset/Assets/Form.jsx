@@ -160,7 +160,11 @@ export default function Form() {
               disabled
             />
           </FormInput>
-          <FormInput name="item" label={t("asset.asset.columns.item_id")}>
+          <FormInput
+            name="item"
+            required={true}
+            label={t("asset.asset.columns.item_id")}
+          >
             <ItemLinkModel
               value={data?.item}
               onValueChange={(val) => setData("item", val)}
@@ -195,11 +199,17 @@ export default function Form() {
             label={t("asset.asset.columns.asset_quantity")}
           >
             <NumberInput
-              value={data?.asset_quantity ?? 1}
+              value={
+                data?.purchase_receipt_item || data?.allow_bulk_quantity
+                  ? (data?.asset_quantity ?? 1)
+                  : 1
+              }
               decimalScale={0}
               onValueChange={(val) => setData("asset_quantity", val)}
               className="text-left"
-              disabled={!!data?.purchase_receipt_item}
+              disabled={
+                !!data?.purchase_receipt_item || !data?.allow_bulk_quantity
+              }
             />
           </FormInput>
           <FormInput
@@ -220,7 +230,13 @@ export default function Form() {
             </FormCheckbox>
             <FormCheckbox
               checked={data?.allow_bulk_quantity ?? false}
-              onCheckedChange={(val) => setData("allow_bulk_quantity", val)}
+              onCheckedChange={(val) =>
+                setData((prev) => ({
+                  ...prev,
+                  allow_bulk_quantity: val,
+                  ...(!val ? { asset_quantity: 1 } : {}),
+                }))
+              }
             >
               {t("asset.asset.columns.allow_bulk_quantity")}
             </FormCheckbox>

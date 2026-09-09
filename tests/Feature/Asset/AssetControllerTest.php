@@ -120,6 +120,7 @@ class AssetControllerTest extends TestCase {
         $user     = User::factory()->create();
         $category = AssetCategory::factory()->create();
         $location = AssetLocation::factory()->create();
+        $item     = ItemFactory::new()->create(['is_fixed_asset' => true]);
 
         $this->actingAs($user)
             ->withSession($this->permissions())
@@ -127,6 +128,7 @@ class AssetControllerTest extends TestCase {
                 'asset_name'            => 'Toyota Avanza B 1234 XYZ',
                 'asset_category'        => ['id' => $category->id],
                 'asset_location'        => ['id' => $location->id],
+                'item_id'               => $item->id,
                 'asset_quantity'        => 1,
                 'ownership_type'        => 'company',
                 'ownership_company_id'  => (string) Str::ulid(),
@@ -154,7 +156,8 @@ class AssetControllerTest extends TestCase {
 
     public function test_update_modifies_existing_asset(): void {
         $user  = User::factory()->create();
-        $asset = Asset::factory()->create(['asset_name' => 'Lama']);
+        $item  = ItemFactory::new()->create(['is_fixed_asset' => true]);
+        $asset = Asset::factory()->create(['asset_name' => 'Lama', 'item_id' => $item->id]);
 
         $this->actingAs($user)
             ->withSession($this->permissions())
@@ -162,6 +165,7 @@ class AssetControllerTest extends TestCase {
                 'asset_name'     => 'Baru',
                 'asset_category' => ['id' => $asset->asset_category_id],
                 'asset_location' => ['id' => $asset->asset_location_id],
+                'item_id'        => $item->id,
             ])
             ->assertRedirect();
 
@@ -178,7 +182,8 @@ class AssetControllerTest extends TestCase {
      */
     public function test_ownership_exclusivity_rejected_at_request_level(): void {
         $user  = User::factory()->create();
-        $asset = Asset::factory()->create();
+        $item  = ItemFactory::new()->create(['is_fixed_asset' => true]);
+        $asset = Asset::factory()->create(['item_id' => $item->id]);
 
         $this->actingAs($user)
             ->withSession($this->permissions())
@@ -186,6 +191,7 @@ class AssetControllerTest extends TestCase {
                 'asset_name'     => $asset->asset_name,
                 'asset_category' => ['id' => $asset->asset_category_id],
                 'asset_location' => ['id' => $asset->asset_location_id],
+                'item_id'        => $item->id,
                 'ownership_type' => 'supplier',
                 // ownership_supplier_id sengaja TIDAK diisi
             ])
@@ -201,7 +207,8 @@ class AssetControllerTest extends TestCase {
      */
     public function test_ownership_type_company_does_not_require_company_id(): void {
         $user  = User::factory()->create();
-        $asset = Asset::factory()->create();
+        $item  = ItemFactory::new()->create(['is_fixed_asset' => true]);
+        $asset = Asset::factory()->create(['item_id' => $item->id]);
 
         $this->actingAs($user)
             ->withSession($this->permissions())
@@ -209,6 +216,7 @@ class AssetControllerTest extends TestCase {
                 'asset_name'     => $asset->asset_name,
                 'asset_category' => ['id' => $asset->asset_category_id],
                 'asset_location' => ['id' => $asset->asset_location_id],
+                'item_id'        => $item->id,
                 'ownership_type' => 'company',
                 // ownership_company_id sengaja TIDAK diisi — tidak wajib
             ])
@@ -225,6 +233,7 @@ class AssetControllerTest extends TestCase {
         $user     = User::factory()->create();
         $category = AssetCategory::factory()->create();
         $location = AssetLocation::factory()->create();
+        $item     = ItemFactory::new()->create(['is_fixed_asset' => true]);
 
         $this->actingAs($user)
             ->withSession($this->permissions())
@@ -232,6 +241,7 @@ class AssetControllerTest extends TestCase {
                 'asset_name'     => 'Excavator Banyak',
                 'asset_category' => ['id' => $category->id],
                 'asset_location' => ['id' => $location->id],
+                'item_id'        => $item->id,
                 'asset_quantity' => 5,
             ])
             ->assertUnprocessable()
@@ -246,6 +256,7 @@ class AssetControllerTest extends TestCase {
         $user     = User::factory()->create();
         $category = AssetCategory::factory()->create();
         $location = AssetLocation::factory()->create();
+        $item     = ItemFactory::new()->create(['is_fixed_asset' => true]);
 
         $this->actingAs($user)
             ->withSession($this->permissions())
@@ -253,6 +264,7 @@ class AssetControllerTest extends TestCase {
                 'asset_name'          => 'Excavator Banyak',
                 'asset_category'      => ['id' => $category->id],
                 'asset_location'      => ['id' => $location->id],
+                'item_id'             => $item->id,
                 'asset_quantity'      => 5,
                 'allow_bulk_quantity' => true,
             ])
