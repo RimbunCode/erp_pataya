@@ -11,6 +11,24 @@ use Illuminate\Validation\Rule;
 use Illuminate\Validation\Validator;
 
 class AssetRequest extends FormRequest {
+    /**
+     * FE (Form.jsx) mengirim item/custodian/ownership_supplier/ownership_customer
+     * sebagai objek relasi utuh ({id, ...}), bukan `_id` flat -- normalisasi ke
+     * `_id` di sini SEBELUM validasi jalan, supaya rule `item_id` (required) dan
+     * validator custom (validateItemIsFixedAsset/validatePurchaseLinkConsistency,
+     * keduanya baca $this->input('item_id')) melihat nilai yang sebenarnya
+     * dikirim FE. Sama pola dengan AssetService::flattenRelationFields(), hanya
+     * dijalankan lebih awal (pre-validation, bukan pre-save).
+     */
+    protected function prepareForValidation(): void {
+        foreach (['item', 'custodian', 'ownership_supplier', 'ownership_customer'] as $field) {
+            $idKey = "{$field}_id";
+            if (! $this->filled($idKey) && $this->filled("{$field}.id")) {
+                $this->merge([$idKey => $this->input("{$field}.id")]);
+            }
+        }
+    }
+
     public function rules(): array {
         return [
             'asset_name'                       => ['required', 'string', 'max:255'],

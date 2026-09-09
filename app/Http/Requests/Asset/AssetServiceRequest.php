@@ -9,13 +9,19 @@ class AssetServiceRequest extends FormRequest {
         $type = $this->input('type');
 
         return [
-            'type'                      => ['required', 'string', 'in:maintenance_task,repair'],
-            'branch_id'                 => ['nullable', 'string', 'exists:branches,id'],
-            'description'               => ['nullable', 'string'],
-            'asset.id'                  => [$type === 'repair' ? 'required' : 'prohibited', 'string', 'exists:assets,id'],
+            'type'        => ['required', 'string', 'in:maintenance_task,repair'],
+            'branch_id'   => ['nullable', 'string', 'exists:branches,id'],
+            'description' => ['nullable', 'string'],
+            // 'nullable' wajib disertakan di samping required/prohibited kondisional --
+            // Inertia useForm() selalu mengirim SELURUH key `data` (termasuk yang
+            // bernilai null untuk cabang type yang sedang tidak aktif), tanpa
+            // 'nullable' rule format (string/date/exists) tetap dievaluasi thd
+            // null dan gagal "must be a string"/"must be a date" walau field
+            // memang seharusnya kosong untuk type tsb.
+            'asset.id'                  => [$type === 'repair' ? 'required' : 'prohibited', 'nullable', 'string', 'exists:assets,id'],
             'asset.*'                   => ['nullable'],
-            'asset_maintenance_task_id' => [$type === 'maintenance_task' ? 'required' : 'prohibited', 'string', 'exists:asset_maintenance_tasks,id'],
-            'failure_date'              => [$type === 'repair' ? 'required' : 'prohibited', 'date'],
+            'asset_maintenance_task_id' => [$type === 'maintenance_task' ? 'required' : 'prohibited', 'nullable', 'string', 'exists:asset_maintenance_tasks,id'],
+            'failure_date'              => [$type === 'repair' ? 'required' : 'prohibited', 'nullable', 'date'],
             'capitalize_repair_cost'    => ['nullable', 'boolean'],
             'increase_in_asset_life'    => ['nullable', 'integer'],
             'consumedItems'             => ['nullable', 'array'],

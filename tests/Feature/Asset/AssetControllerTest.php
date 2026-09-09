@@ -176,6 +176,33 @@ class AssetControllerTest extends TestCase {
     }
 
     /**
+     * [FIXED] Form.jsx (FE asli) mengirim `item` sebagai objek relasi utuh
+     * ({id, name, ...}), BUKAN `item_id` flat -- prepareForValidation() harus
+     * menormalisasi ini sebelum rule `item_id` required dievaluasi, kalau
+     * tidak field yang sudah dipilih user di layar tetap ditolak "required".
+     */
+    public function test_update_accepts_item_as_nested_relation_object_from_fe(): void {
+        $user  = User::factory()->create();
+        $item  = ItemFactory::new()->create(['is_fixed_asset' => true]);
+        $asset = Asset::factory()->create(['item_id' => null]);
+
+        $this->actingAs($user)
+            ->withSession($this->permissions())
+            ->putJson(route('assets.update', $asset), [
+                'asset_name'     => $asset->asset_name,
+                'asset_category' => ['id' => $asset->asset_category_id],
+                'asset_location' => ['id' => $asset->asset_location_id],
+                'item'           => ['id' => $item->id, 'name' => $item->name],
+            ])
+            ->assertRedirect();
+
+        $this->assertDatabaseHas('assets', [
+            'id'      => $asset->id,
+            'item_id' => $item->id,
+        ]);
+    }
+
+    /**
      * [FIXED] AssetRequest sekarang memvalidasi ownership exclusivity
      * (Requirement 4.3-4.5) via withValidator() — ownership_type=supplier tanpa
      * ownership_supplier_id sekarang ditolak HTTP 422, bukan lolos ke model.
