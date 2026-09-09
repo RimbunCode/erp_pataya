@@ -94,7 +94,7 @@ jobs:
   backend:
     name: Backend (PHPUnit)
     needs: lint
-    if: "!cancelled() && needs.lint.outputs.changes_detected != 'true'"
+    if: needs.lint.outputs.changes_detected != 'true'
     runs-on: ubuntu-latest
     env:
       FORCE_JAVASCRIPT_ACTIONS_TO_NODE24: true
@@ -151,7 +151,7 @@ jobs:
   frontend:
     name: Frontend (Vitest) shard ${{ matrix.shard }}/${{ strategy.job-total }}
     needs: lint
-    if: "!cancelled() && needs.lint.outputs.changes_detected != 'true'"
+    if: needs.lint.outputs.changes_detected != 'true'
     runs-on: ubuntu-latest
     strategy:
       fail-fast: false
