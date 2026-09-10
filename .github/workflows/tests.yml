@@ -92,16 +92,17 @@ jobs:
           commit_options: "--no-verify"
 
   backend:
-    name: Backend (PHPUnit)
+    name: Backend (PHPUnit) shard ${{ matrix.shard }}/${{ strategy.job-total }}
     needs: lint
     if: needs.lint.outputs.changes_detected != 'true'
     runs-on: ubuntu-latest
     env:
       FORCE_JAVASCRIPT_ACTIONS_TO_NODE24: true
     strategy:
-      fail-fast: true
+      fail-fast: false
       matrix:
         php: [8.4]
+        shard: [1, 2, 3, 4]
     steps:
       - name: Checkout code
         uses: actions/checkout@v6
@@ -145,8 +146,11 @@ jobs:
       - name: Build frontend assets
         run: npm run build
 
-      - name: Run PHPUnit
-        run: php artisan test --parallel --compact
+      - name: Patch PHPUnit for shard support
+        run: php artisan shards:patch-phpunit --no-interaction
+
+      - name: Run PHPUnit (shard ${{ matrix.shard }}/${{ strategy.job-total }})
+        run: SHARD=${{ matrix.shard }}/${{ strategy.job-total }} SEED=1 vendor/bin/paratest --functional
 
   frontend:
     name: Frontend (Vitest) shard ${{ matrix.shard }}/${{ strategy.job-total }}
@@ -156,7 +160,7 @@ jobs:
     strategy:
       fail-fast: false
       matrix:
-        shard: [1, 2, 3, 4, 5, 6, 7, 8]
+        shard: [1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16]
     steps:
       - name: Checkout code
         uses: actions/checkout@v6
