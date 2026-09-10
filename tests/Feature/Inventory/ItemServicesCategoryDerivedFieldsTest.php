@@ -16,13 +16,8 @@ use Tests\TestCase;
 class ItemServicesCategoryDerivedFieldsTest extends TestCase {
     use RefreshDatabase;
 
-    // Category model tidak pakai trait HasFactory (gap pre-existing, di luar
-    // scope perubahan ini) -- Category::create() langsung dipakai di sini.
     private function makeCategory(string $type): Category {
-        return Category::create([
-            'name' => "Kategori {$type}",
-            'type' => $type,
-        ]);
+        return Category::factory()->create(['type' => $type]);
     }
 
     #[Test]
