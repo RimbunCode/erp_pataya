@@ -29,6 +29,7 @@ class Category extends Model {
             'order'      => 1,
             'valueTrans' => 'inventory.category.types',
             'options'    => ['inventory', 'vehicle', 'service'],
+            'linkable'   => true,
         ],
         'defaultUnit' => [
             'show'       => true,

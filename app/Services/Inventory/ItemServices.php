@@ -2,12 +2,30 @@
 
 namespace App\Services\Inventory;
 
+use App\Models\Inventory\Category;
 use App\Models\Inventory\Item;
 use App\Models\Inventory\ItemVariant;
 use App\Models\Inventory\Unit;
 use Illuminate\Support\Collection;
 
 class ItemServices {
+    /**
+     * Turunkan `type`, `is_fixed_asset`, dan `is_stock_item` dari Category yang dipilih.
+     * Kategori jasa (`type = 'service'`) tidak bisa jadi aset tetap, dan aset tetap
+     * tidak pernah tercatat sebagai barang stok.
+     *
+     * @param  array<string, mixed>  $data
+     * @return array<string, mixed>
+     */
+    public function applyCategoryDerivedFields(array $data, Category $category): array {
+        $categoryIsStock        = $category->type != 'service';
+        $data['is_fixed_asset'] = $categoryIsStock && ($data['is_fixed_asset'] ?? false);
+        $data['is_stock_item']  = $categoryIsStock && ! $data['is_fixed_asset'];
+        $data['type']           = $category->type;
+
+        return $data;
+    }
+
     /**
      * Summary of getSku
      *

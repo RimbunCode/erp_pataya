@@ -61,11 +61,10 @@ class ItemController extends Controller {
         );
 
         DB::beginTransaction();
-        $category              = Category::find($data['category_id']);
-        $data['is_stock_item'] = $category->type != 'service';
-        $data['type']          = $category->type;
-        $data['image']         = $image;
-        $item                  = Item::create($data);
+        $category      = Category::find($data['category_id']);
+        $data          = $this->service->applyCategoryDerivedFields($data, $category);
+        $data['image'] = $image;
+        $item          = Item::create($data);
         $this->service->updateUom($item, $data['uoms']);
         $itemVariant = $this->service->updateVariants($item, $data['format_variant'] ?? '', $data['attributes'] ?? []);
         $this->service->updateBarcodes($itemVariant, $data['barcodes'] ?? []);
@@ -141,9 +140,8 @@ class ItemController extends Controller {
         );
 
         DB::beginTransaction();
-        $category              = Category::find($data['category_id']);
-        $data['is_stock_item'] = $category->type != 'service';
-        $data['type']          = $category->type;
+        $category = Category::find($data['category_id']);
+        $data     = $this->service->applyCategoryDerivedFields($data, $category);
         $item->fillForUpdate($data);
         $this->service->updateUom($item, $data['uoms']);
         $itemVariant = $this->service->updateVariants($item, $data['format_variant'] ?? '', $data['attributes'] ?? []);
