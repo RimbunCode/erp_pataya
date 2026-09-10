@@ -19,7 +19,9 @@ class SubmitableSnapshotFormatTest extends TestCase {
     protected function setUp(): void {
         parent::setUp();
 
-        $this->sqliteDatabasePath = database_path('submitable-snapshot-test.sqlite');
+        // Nama file unik per-proses -- lihat catatan sama di
+        // CommandSearchFeatureTest.php (race paratest --functional).
+        $this->sqliteDatabasePath = database_path('submitable-snapshot-test-' . getmypid() . '-' . uniqid() . '.sqlite');
         if (file_exists($this->sqliteDatabasePath)) {
             unlink($this->sqliteDatabasePath);
         }

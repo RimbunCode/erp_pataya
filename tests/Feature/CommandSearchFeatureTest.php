@@ -19,7 +19,11 @@ class CommandSearchFeatureTest extends TestCase {
     protected function setUp(): void {
         parent::setUp();
 
-        $this->sqliteDatabasePath = database_path('command-search-test.sqlite');
+        // Nama file unik per-proses -- paratest --functional bisa dispatch
+        // method lain di class ini ke worker proses berbeda secara bersamaan;
+        // path tetap sebelumnya menyebabkan race antar proses ("disk I/O
+        // error") karena semua saling unlink/recreate file yang sama.
+        $this->sqliteDatabasePath = database_path('command-search-test-' . getmypid() . '-' . uniqid() . '.sqlite');
         if (file_exists($this->sqliteDatabasePath)) {
             unlink($this->sqliteDatabasePath);
         }

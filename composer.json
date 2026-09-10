@@ -27,6 +27,7 @@
   },
   "require-dev": {
     "beyondcode/laravel-query-detector": "^2.3",
+    "boltci/shards": "^0.1.2",
     "brianium/paratest": "^7.8",
     "fakerphp/faker": "^1.23",
     "larastan/larastan": "^3.9",
