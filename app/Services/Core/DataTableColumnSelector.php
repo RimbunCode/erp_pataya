@@ -428,8 +428,14 @@ class DataTableColumnSelector {
                 $cols[] = $deletedAt;
             }
         }
-        // HasExampleData mendaftarkan global scope `where is_example = false`.
-        $cols[] = 'is_example';
+        // HasExampleData mendaftarkan global scope `where is_example = false` --
+        // tapi scope itu sendiri sudah defensive (skip kalau kolom tak ada, lihat
+        // HasExampleData::bootHasExampleData). Cek di sini juga, supaya table yang
+        // belum punya kolom (mis. belum diadopsi via migration) tidak ikut di-SELECT
+        // dan bikin query "no such column".
+        if (Schema::hasColumn($model->getTable(), 'is_example')) {
+            $cols[] = 'is_example';
+        }
 
         return $cols;
     }
