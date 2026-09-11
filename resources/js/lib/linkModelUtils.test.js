@@ -55,13 +55,25 @@ describe("convertTemplateLink", () => {
     expect(convertTemplateLink(value)).toBe("Halo Budi");
   });
 
-  it("resolve nested object dan escape HTML pada nilai substitusi", () => {
+  it("hasil plain text (bukan asObject, tanpa search) di-unescape kembali ke karakter asli", () => {
+    // Branch ini dipakai sbg plain text (value input search, sorting, diff) -- bukan
+    // lewat dangerouslySetInnerHTML -- jadi harus keluar sbg teks asli, bukan entity HTML.
+    // Regresi: "Seals & Gaskets" pernah tampil literal sbg "Seals &amp; Gaskets".
+    const value = {
+      templateLink: ":name",
+      name: "Seals & Gaskets",
+    };
+    expect(convertTemplateLink(value)).toBe("Seals & Gaskets");
+  });
+
+  it("resolve nested object, escape saat substitusi lalu unescape balik di output plain text", () => {
     const value = {
       templateLink: ":customer",
       customer: { name: "<script>alert(1)</script>" },
     };
-    expect(convertTemplateLink(value)).toContain("&lt;script&gt;");
-    expect(convertTemplateLink(value)).not.toContain("<script>");
+    // Escaping tetap terjadi saat substitusi ke template HTML (mencegah tag asing
+    // menembus struktur template), tapi hasil akhir plain text dikembalikan ke teks asli.
+    expect(convertTemplateLink(value)).toBe("<script>alert(1)</script>");
   });
 
   it("highlight kata pencarian dengan <mark> saat search diberikan", () => {

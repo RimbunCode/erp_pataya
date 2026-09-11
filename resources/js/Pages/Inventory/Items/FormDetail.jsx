@@ -6,6 +6,11 @@ import FormInput from "@/Components/FormInput";
 import { FormPageContent } from "@/Pages/Core/FormPage";
 import { Input } from "@/Components/ui/input";
 import { Textarea } from "@/Components/ui/textarea";
+import {
+  Tooltip,
+  TooltipContent,
+  TooltipTrigger,
+} from "@/Components/ui/tooltip";
 import UnitLinkModel from "../Units/UnitLinkModel";
 import { useLaravelReactI18n } from "laravel-react-i18n";
 
@@ -67,6 +72,20 @@ export default function FormDetail({
     };
   }, []);
 
+  const stockCategory = isVariant ? item?.category : data.category;
+  // Baseline murni dari Category (independen dari is_fixed_asset) -- dipakai
+  // sbg gate checkbox Aset Tetap supaya tidak circular saat is_fixed_asset
+  // sendiri yang membuat is_stock_item akhir jadi false (lihat di bawah).
+  const categoryStockItem =
+    stockCategory?.type != null
+      ? stockCategory.type !== "service"
+      : (data.is_stock_item ?? false);
+  const isFixedAsset = isVariant
+    ? (item?.is_fixed_asset ?? false)
+    : (data.is_fixed_asset ?? false);
+  // Nilai akhir yg ditampilkan: aset tetap tidak pernah tercatat sbg barang stok.
+  const isStockItem = categoryStockItem && !isFixedAsset;
+
   return (
     <FormPageContent title={t("inventory.item.menu.details")} value="detail">
       <div className="columns-xs space-y-4 [&>div]:break-inside-avoid">
@@ -112,13 +131,43 @@ export default function FormDetail({
           }}
           label={t("inventory.item.columns.allow_alternative_item")}
         />
-        {!isVariant && (
-          <FormCheckbox
-            checked={data.is_fixed_asset ?? false}
-            onCheckedChange={(val) => setData("is_fixed_asset", val)}
-            label={t("inventory.item.columns.is_fixed_asset")}
-          />
-        )}
+        <Tooltip>
+          <TooltipTrigger asChild>
+            <span className="inline-flex min-w-0">
+              <FormCheckbox
+                checked={isStockItem}
+                disabled
+                label={t("inventory.item.columns.is_stock_item")}
+              />
+            </span>
+          </TooltipTrigger>
+          <TooltipContent side="top" align="start" className="max-w-xs">
+            {t("inventory.item.columns.is_stock_item.tooltip")}
+          </TooltipContent>
+        </Tooltip>
+        {!isVariant &&
+          (categoryStockItem ? (
+            <FormCheckbox
+              checked={data.is_fixed_asset ?? false}
+              onCheckedChange={(val) => setData("is_fixed_asset", val)}
+              label={t("inventory.item.columns.is_fixed_asset")}
+            />
+          ) : (
+            <Tooltip>
+              <TooltipTrigger asChild>
+                <span className="inline-flex min-w-0">
+                  <FormCheckbox
+                    checked={data.is_fixed_asset ?? false}
+                    disabled
+                    label={t("inventory.item.columns.is_fixed_asset")}
+                  />
+                </span>
+              </TooltipTrigger>
+              <TooltipContent side="top" align="start" className="max-w-xs">
+                {t("inventory.item.columns.is_fixed_asset.tooltip")}
+              </TooltipContent>
+            </Tooltip>
+          ))}
       </div>
       <div className="mt-4 space-y-4 gap-x-8 columns-xs [&>div]:break-inside-avoid">
         <FormInput
@@ -175,11 +224,17 @@ export default function FormDetail({
                 ) {
                   updated.default_unit = val?.default_unit;
                 }
+                // Kategori jasa tidak bisa jadi aset tetap -- reset di FE juga
+                // supaya checkbox tidak nyangkut checked+disabled yg kontradiktif
+                // dgn tooltip-nya sendiri (BE sudah memaksa ini juga saat save).
+                if (val?.type === "service" && prev.is_fixed_asset) {
+                  updated.is_fixed_asset = false;
+                }
                 return updated;
               })
             }
             with={["defaultUnit"]}
-            fields={["defaultUnit.group"]}
+            fields={["type", "defaultUnit.group"]}
             filters={
               !isVariant && data.have_transations
                 ? {
