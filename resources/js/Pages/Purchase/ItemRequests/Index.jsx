@@ -192,9 +192,7 @@ function Index({ rows, filterOptions, appliedFilters, documentModels }) {
               onValueChange={(values) => applyFilter("source_types", values)}
               options={filterOptions?.sourceTypes ?? []}
               showAllOption
-              allOptionLabel={t(
-                "purchase.itemRequest.filters.allSourceTypes",
-              )}
+              allOptionLabel={t("purchase.itemRequest.filters.allSourceTypes")}
               changeOnBlur
               placeholder={t("purchase.itemRequest.filters.sourceType")}
             />
