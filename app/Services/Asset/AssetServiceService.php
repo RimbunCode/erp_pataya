@@ -8,10 +8,13 @@ use App\Enums\FormStatus;
 use App\Events\Asset\AssetServiceCompleted;
 use App\Models\Asset\Asset;
 use App\Models\Asset\AssetService;
+use App\Models\Asset\AssetServiceConsumedItem;
 use App\Models\Asset\Maintenance\AssetMaintenanceTask;
 use App\Models\Core\FormatingSeries;
+use App\Models\Inventory\Stock;
 use App\Models\Model;
 use Illuminate\Support\Arr;
+use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\DB;
 use LogicException;
 use Symfony\Component\Uid\Ulid;
@@ -140,7 +143,7 @@ class AssetServiceService implements SubmitableService {
         return DB::transaction(function () use ($model) {
             $model->update([
                 'code'   => FormatingSeries::generate(AssetService::class, $model),
-                'status' => [FormStatus::APPROVED],
+                'status' => [FormStatus::NEED_CONFIRMATION],
             ]);
 
             $this->onApproved($model);
@@ -188,13 +191,14 @@ class AssetServiceService implements SubmitableService {
         // Repair: checkApproval() (lewat ApprovalService::check(), saat tidak ada
         // ApprovalScheme aktif) memanggil onApproved() LANGSUNG tanpa pernah
         // meng-update status $model sendiri -- beda dari cabang maintenance_task
-        // di submit() yang sudah eksplisit set status APPROVED sebelum
+        // di submit() yang sudah eksplisit set status NEED_CONFIRMATION sebelum
         // onApproved() dipanggil. Tanpa baris ini, dokumen AssetService type
-        // repair tetap "draft" walau submit()-nya sukses. APPROVED (bukan
-        // SUBMITTED) supaya konsisten dengan status yang sudah di-set cabang
-        // maintenance_task -- onApproved() dipanggil kedua cabang, jadi baris
-        // ini idempoten untuk maintenance_task (status sudah APPROVED).
-        $model->update(['status' => [FormStatus::APPROVED]]);
+        // repair tetap "draft" walau submit()-nya sukses. NEED_CONFIRMATION
+        // (Requirement 1 AC2, bukan APPROVED lagi) supaya konsisten dengan
+        // status yang sudah di-set cabang maintenance_task -- onApproved()
+        // dipanggil kedua cabang, jadi baris ini idempoten untuk
+        // maintenance_task (status sudah NEED_CONFIRMATION).
+        $model->update(['status' => [FormStatus::NEED_CONFIRMATION]]);
 
         return $model;
     }
@@ -203,6 +207,85 @@ class AssetServiceService implements SubmitableService {
         $model->update(['status' => [FormStatus::DRAFT]]);
 
         return $model;
+    }
+
+    /**
+     * Requirement 5 AC1-4, 9 AC3: mulai pekerjaan dari status NEED_CONFIRMATION.
+     * Validasi stok server-side (jangan percaya gate FE), set start_date,
+     * lalu buat 1 activity awal -- AssetServiceActivity::booted() yang
+     * menyinkronkan status AssetService ke IN_PROGRESS, method ini TIDAK
+     * menulis status secara terpisah (Requirement 9 AC3: "SATU-SATUNYA
+     * mekanisme").
+     */
+    public function startWork(AssetService $assetService): AssetService {
+        if (! $this->hasStockAvailable($assetService)) {
+            throw new LogicException(__('asset/service.no_stock_available'));
+        }
+
+        return DB::transaction(function () use ($assetService) {
+            $assetService->update(['start_date' => now()]);
+            $assetService->activities()->create([
+                'status'      => FormStatus::IN_PROGRESS,
+                'action_date' => now(),
+                'pic_id'      => Auth::id(),
+                'description' => '',
+            ]);
+
+            return $assetService->fresh();
+        });
+    }
+
+    /**
+     * Requirement 5 AC1/AC2: dipakai server-side (gate startWork()) DAN
+     * dikirim sebagai computed prop `has_available_stock` di
+     * AssetServiceController::show() (FE, gating visibilitas tombol "Mulai
+     * pekerjaan" -- UX saja, bukan sumber kebenaran).
+     *
+     * Pakai model Stock (balance resmi yang sudah di-maintain), field
+     * ready_quantity (BUKAN quantity/actual_quantity -- keputusan user,
+     * konsisten dengan AssetServiceController::stockAvailability()).
+     */
+    public function hasStockAvailable(AssetService $assetService): bool {
+        $itemVariantIds = $assetService->consumedItems()
+            ->whereHas('item', fn ($q) => $q->where('is_stock_item', true))
+            ->pluck('item_id');
+
+        if ($itemVariantIds->isEmpty()) {
+            return false;
+        }
+
+        return Stock::whereIn('item_variant_id', $itemVariantIds)
+            ->where('ready_quantity', '>', 0)
+            ->whereHas('warehouse', fn ($q) => $q->where('branch_id', $assetService->branch_id))
+            ->exists();
+    }
+
+    /**
+     * Requirement 4 AC3/AC4: dipanggil dari PurchaseRequestController/
+     * PurchaseOrderController::store() SETELAH item PR/PO berhasil disimpan.
+     * TIDAK lewat mekanisme AssetServiceActivity (WAITING_PARTS bukan hasil
+     * activity) -- lihat Correctness Property 5: hanya AssetService yang
+     * SAAT DIPANGGIL berstatus NEED_CONFIRMATION yang diubah, mencegah PR/PO
+     * susulan menimpa balik status yang sudah maju.
+     *
+     * @param  array<int, string>  $consumedItemIds  id AssetServiceConsumedItem yang jadi referenceable baris PR/PO baru
+     */
+    public function markWaitingPartsForConsumedItems(array $consumedItemIds): void {
+        if ($consumedItemIds === []) {
+            return;
+        }
+
+        AssetServiceConsumedItem::whereIn('id', $consumedItemIds)
+            ->with('assetService')
+            ->get()
+            ->pluck('assetService')
+            ->filter()
+            ->unique('id')
+            ->each(function (AssetService $assetService) {
+                if (in_array(FormStatus::NEED_CONFIRMATION, $assetService->status ?? [], true)) {
+                    $assetService->update(['status' => [FormStatus::WAITING_PARTS]]);
+                }
+            });
     }
 
     /**
@@ -215,7 +298,15 @@ class AssetServiceService implements SubmitableService {
         }
 
         return DB::transaction(function () use ($assetService) {
-            $assetService->update(['completion_date' => now()]);
+            // Requirement 9 AC5 (revisi): completion_date dari action_date
+            // activity COMPLETED, BUKAN now() (waktu klik/submit).
+            // reorder() WAJIB -- lihat catatan AssetServiceActivity::booted().
+            $completedActivity = $assetService->activities()
+                ->where('status', FormStatus::COMPLETED)
+                ->reorder('action_date', 'desc')
+                ->first();
+
+            $assetService->update(['completion_date' => $completedActivity->action_date]);
 
             if ($assetService->type === AssetServiceType::REPAIR && $assetService->capitalize_repair_cost) {
                 $asset                        = $assetService->asset;

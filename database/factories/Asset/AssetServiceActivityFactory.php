@@ -2,6 +2,7 @@
 
 namespace Database\Factories\Asset;
 
+use App\Enums\FormStatus;
 use App\Models\Asset\AssetService;
 use App\Models\Asset\AssetServiceActivity;
 use Illuminate\Database\Eloquent\Factories\Factory;
@@ -20,7 +21,7 @@ class AssetServiceActivityFactory extends Factory {
             'asset_service_id' => AssetService::factory(),
             'action_date'      => now(),
             'description'      => fake()->sentence(),
-            'is_done'          => false,
+            'status'           => FormStatus::IN_PROGRESS,
         ];
     }
 }

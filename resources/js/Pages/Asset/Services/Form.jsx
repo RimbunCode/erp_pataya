@@ -19,6 +19,7 @@ import NumberInput from "@/Components/NumberInput";
 import { Textarea } from "@/Components/ui/textarea";
 import React from "react";
 import { cn, generateRandom } from "@/lib/utils";
+import { hasPassedApproval } from "./statusUtils";
 import { useLaravelReactI18n } from "laravel-react-i18n";
 import { useMemo } from "react";
 import { router } from "@inertiajs/react";
@@ -31,12 +32,13 @@ export default function Form() {
 
   const isRepair = data?.type === "repair";
   const isMaintenanceTask = data?.type === "maintenance_task";
-  const isApproved = (data?.status ?? []).includes("approved");
+  // Requirement 8: hasPassedApproval() (BUKAN cek literal "approved").
+  const approved = hasPassedApproval(data?.status);
   // Requirement 6, spec asset-service-billing: checkbox hanya tersedia kalau
   // Asset terkait sedang berstatus rental (backend expose via has_active_renter,
   // dihitung controller saat show — TIDAK di Asset::$appends, supaya tidak
   // menambah query di setiap listing Asset).
-  const canBillToRenter = isApproved && data?.has_active_renter;
+  const canBillToRenter = approved && data?.has_active_renter;
 
   const consumedItemColumns = useMemo(
     () => [
@@ -154,6 +156,25 @@ export default function Form() {
                 onValueChange={(val) => setData("failure_date", val)}
               />
             </FormInput>
+            {/* Requirement 5 AC5, 9 AC7: tampil HANYA JIKA terisi (bukan
+                kosong/dash) -- start_date field baru, completion_date field
+                existing yang sebelumnya belum pernah dirender di FE. */}
+            {data?.start_date && (
+              <FormInput
+                name="start_date"
+                label={t("asset.service.columns.start_date")}
+              >
+                <Input value={data.start_date} disabled readOnly />
+              </FormInput>
+            )}
+            {data?.completion_date && (
+              <FormInput
+                name="completion_date"
+                label={t("asset.service.columns.completion_date")}
+              >
+                <Input value={data.completion_date} disabled readOnly />
+              </FormInput>
+            )}
             <FormCheckbox
               checked={data?.capitalize_repair_cost ?? false}
               onCheckedChange={(val) => setData("capitalize_repair_cost", val)}

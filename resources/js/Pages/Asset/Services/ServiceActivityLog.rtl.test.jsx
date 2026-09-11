@@ -3,33 +3,24 @@ import { act, render, screen, within } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 
 // ============================================================================
-// ServiceActivityLog.jsx merender 3 komponen:
-// - ActivityFormDialog (internal, tidak diexport): dialog add/edit satu
-//   activity, submit via router.post (create) / router.put (update).
-// - CompleteConfirmDialog (internal): dialog konfirmasi
-//   router.post(assetServices.complete).
-// - ServiceActivityLog (default export): daftar activity + checkbox toggle
-//   is_done (router.put) + tombol "Mark Complete" (tampil hanya kalau semua
-//   activity is_done, activities.length > 0).
+// ServiceActivityLog.jsx (spec asset-service-progress-workflow) merender:
+// - ActivityFormDialog (named export): dialog add/edit satu activity, field
+//   `status` (pengganti checkbox is_done, dihapus) via Select, submit via
+//   router.post (create) / router.put (update).
+// - ServiceActivityLog (default export): daftar activity (badge status,
+//   pengganti checkbox) + tombol "Add" + tombol "Complete" (tampil kalau
+//   activity TERAKHIR -- action_date terbesar, `.at(-1)` -- BUKAN "completed",
+//   bukan lagi "semua activity is_done"). Klik "Complete" membuka
+//   ActivityFormDialog YANG SAMA dengan prefillStatus="completed" (BUKAN
+//   dialog konfirmasi terpisah -- CompleteConfirmDialog dihapus total).
 //
-// Dialog (@/Components/ui/dialog, Radix) & Checkbox (@/Components/ui/checkbox)
-// DIRENDER SUNGGUHAN (tidak distub) -- pola sama seperti
-// AssignDialog.rtl.test.jsx & Asset/Maintenances/Show.rtl.test.jsx. Checkbox
-// custom di-set role="forminput" (bukan default "checkbox"), lihat
-// Components/ui/checkbox.jsx.
+// Dialog (@/Components/ui/dialog, Radix) DIRENDER SUNGGUHAN. Select (Radix)
+// distub jadi native <select> (pola sama Form.rtl.test.jsx) -- fokus test di
+// sini ada di logic gating tombol Complete & payload submit, bukan detail
+// interaksi Radix Select.
 //
 // DatetimePicker & UserLinkModel distub jadi tombol yang memanggil
-// onValueChange dengan nilai tetap saat diklik -- pola sama seperti
-// AssetLinkModel di Asset/Maintenances/Show.rtl.test.jsx.
-//
-// FIX (sebelumnya BUG, lihat riwayat git): ActivityFormDialog selalu
-// dirender oleh parent (tidak dibungkus kondisional oleh `dialogOpen` --
-// dialognya sendiri yang punya prop `open`). `useState(activity ?? {...})`
-// bukan lazy-initializer function, cuma jalan sekali saat mount pertama --
-// tanpa remount, form tidak pernah reset ke data activity yang sedang
-// di-edit. Fix: parent (`ServiceActivityLog`) memberi `key={activity.id}` ke
-// `<ActivityFormDialog>`, memaksa React unmount+remount tiap ganti activity
-// yang diedit, sehingga useState initializer re-run dengan data yang benar.
+// onValueChange dengan nilai tetap saat diklik.
 // ============================================================================
 
 const stableT = (key) => key;
@@ -48,10 +39,27 @@ vi.mock("@inertiajs/react", () => ({
     post: (...a) => routerPost(...a),
     delete: (...a) => routerDelete(...a),
   },
+  usePage: () => ({ props: { lang: "id" } }),
 }));
 
 vi.mock("@/Components/Link", () => ({
   default: ({ href, children }) => <a href={href}>{children}</a>,
+}));
+
+// ServiceActivityLog kini merender diri sebagai tab terpisah (FormPageContent
+// value="activities") -- FormPageContent asli butuh FormPageContext (dari
+// <FormPage>) yang tidak dipasang di test ini (render standalone), jadi
+// distub jadi passthrough sederhana (pola sama Form.rtl.test.jsx).
+vi.mock("@/Pages/Core/FormPage", () => ({
+  FormPageContent: ({ title, children }) => (
+    <div data-testid={`form-page-content-${title ?? "untitled"}`}>
+      {children}
+    </div>
+  ),
+}));
+
+vi.mock("@/Components/BadgeStatus", () => ({
+  default: ({ status }) => <span data-testid="badge-status">{status}</span>,
 }));
 
 // TooltipContent (real Radix) tidak dirender ke DOM sampai tooltip terbuka
@@ -83,13 +91,18 @@ vi.mock("@/Pages/Core/Components/UploadDialog", () => ({
 }));
 
 vi.mock("@/Components/DatetimePicker", () => ({
+  // value bisa berupa Date object (prefill now() mode create, Requirement
+  // 6 AC5) ATAU string (dari onValueChange mock di bawah, atau data activity
+  // existing mode edit) -- String(value) aman utk keduanya, BEDA dari mock
+  // lama yang assign `value ?? "none"` langsung sbg child (crash React kalau
+  // value Date object mentah).
   default: ({ value, onValueChange }) => (
     <button
       type="button"
       data-testid="datetime-picker"
       onClick={() => onValueChange("2026-09-10")}
     >
-      date:{value ?? "none"}
+      date:{value ? String(value) : "none"}
     </button>
   ),
 }));
@@ -106,7 +119,30 @@ vi.mock("@/Pages/Users/ManageUsers/UserLinkModel", () => ({
   ),
 }));
 
-import ServiceActivityLog from "./ServiceActivityLog";
+// Select (Radix, dari @/Components/ui/select) distub jadi native <select> --
+// pola sama Form.rtl.test.jsx.
+vi.mock("@/Components/ui/select", () => ({
+  Select: ({ value, onValueChange, children }) => (
+    <select
+      data-testid="status-select"
+      value={value ?? ""}
+      onChange={(e) => onValueChange?.(e.target.value)}
+    >
+      <option value="" disabled>
+        placeholder
+      </option>
+      {children}
+    </select>
+  ),
+  SelectTrigger: ({ children }) => children,
+  SelectValue: () => null,
+  SelectContent: ({ children }) => children,
+  SelectItem: ({ value, children }) => (
+    <option value={value}>{children}</option>
+  ),
+}));
+
+import ServiceActivityLog, { ActivityFormDialog } from "./ServiceActivityLog";
 
 const baseAssetService = (overrides = {}) => ({
   id: 1,
@@ -121,7 +157,11 @@ describe("ServiceActivityLog", () => {
     routerDelete.mockReset();
   });
 
-  it("activities kosong: menampilkan empty state, tombol Mark Complete tidak tampil", () => {
+  it("exports ActivityFormDialog sebagai named export (dipakai ConfirmWorkflowDialog)", () => {
+    expect(typeof ActivityFormDialog).toBe("function");
+  });
+
+  it("activities kosong: menampilkan empty state, tombol Complete tidak tampil", () => {
     render(<ServiceActivityLog assetService={baseAssetService()} />);
 
     expect(
@@ -134,7 +174,7 @@ describe("ServiceActivityLog", () => {
     ).not.toBeInTheDocument();
   });
 
-  it("menampilkan daftar activity dengan description, nama pic, dan action_date", () => {
+  it("menampilkan daftar activity dengan description, nama pic, action_date, dan badge status", () => {
     const assetService = baseAssetService({
       activities: [
         {
@@ -142,75 +182,23 @@ describe("ServiceActivityLog", () => {
           description: "Cek oli",
           pic: { id: 2, name: "Budi" },
           action_date: "2026-09-01",
-          is_done: false,
+          status: "in_progress",
         },
       ],
     });
     render(<ServiceActivityLog assetService={assetService} />);
 
     expect(screen.getByText("Cek oli")).toBeInTheDocument();
-    expect(screen.getByText("Budi — 2026-09-01")).toBeInTheDocument();
+    // Requirement (permintaan user): timestamp diformat via date-fns
+    // (TZDate + format "PPPp", locale dari usePage().props.lang) --
+    // bukan lagi raw string action_date dari backend.
+    expect(
+      screen.getByText("Budi — 1 September 2026 pukul 00.00"),
+    ).toBeInTheDocument();
+    expect(screen.getByTestId("badge-status")).toHaveTextContent("in_progress");
     expect(
       screen.queryByText("asset.service.activity.empty"),
     ).not.toBeInTheDocument();
-  });
-
-  it("checkbox baris mengikuti field is_done tiap activity", () => {
-    const assetService = baseAssetService({
-      activities: [
-        {
-          id: 1,
-          description: "A",
-          pic: null,
-          action_date: null,
-          is_done: true,
-        },
-        {
-          id: 2,
-          description: "B",
-          pic: null,
-          action_date: null,
-          is_done: false,
-        },
-      ],
-    });
-    render(<ServiceActivityLog assetService={assetService} />);
-
-    const [checkboxA, checkboxB] = screen.getAllByRole("forminput");
-    expect(checkboxA).toHaveAttribute("aria-checked", "true");
-    expect(checkboxB).toHaveAttribute("aria-checked", "false");
-  });
-
-  it("klik checkbox baris memanggil router.put toggleDone dengan is_done dibalik, TIDAK membuka dialog edit", async () => {
-    const user = userEvent.setup({ delay: null });
-    const assetService = baseAssetService({
-      activities: [
-        {
-          id: 5,
-          description: "Cek oli",
-          pic: { id: 2, name: "Budi" },
-          action_date: "2026-09-01",
-          is_done: false,
-        },
-      ],
-    });
-    render(<ServiceActivityLog assetService={assetService} />);
-
-    await user.click(screen.getByRole("forminput"));
-
-    expect(routerPut).toHaveBeenCalledTimes(1);
-    expect(routerPut).toHaveBeenCalledWith(
-      "assetServices.activities.update/5",
-      {
-        action_date: "2026-09-01",
-        pic_id: 2,
-        description: "Cek oli",
-        is_done: true,
-      },
-    );
-    // stopPropagation di checkbox mencegah klik memicu openEdit (onClick
-    // parent row) -- dialog edit tidak boleh terbuka.
-    expect(screen.queryByRole("dialog")).not.toBeInTheDocument();
   });
 
   it("klik tombol Add membuka dialog dengan title 'add' (bukan 'edit')", async () => {
@@ -230,7 +218,7 @@ describe("ServiceActivityLog", () => {
     ).not.toBeInTheDocument();
   });
 
-  it("klik baris activity untuk edit membuka dialog dengan title 'edit' dan form TERISI data activity yang diklik", async () => {
+  it("klik baris activity untuk edit membuka dialog dengan title 'edit' dan form TERISI data activity yang diklik (termasuk status)", async () => {
     const user = userEvent.setup({ delay: null });
     const assetService = baseAssetService({
       activities: [
@@ -239,7 +227,7 @@ describe("ServiceActivityLog", () => {
           description: "Cek oli",
           pic: { id: 2, name: "Budi" },
           action_date: "2026-09-01",
-          is_done: true,
+          status: "waiting",
         },
       ],
     });
@@ -251,11 +239,6 @@ describe("ServiceActivityLog", () => {
     expect(
       within(dialog).getByText("asset.service.activity.edit"),
     ).toBeInTheDocument();
-
-    // Fix: ActivityFormDialog diberi key={activity.id} di parent supaya
-    // React remount komponen (dan re-init useState) tiap ganti activity yang
-    // diedit -- form HARUS terisi "Cek oli"/Budi/2026-09-01/is_done=true
-    // milik activity yang diklik, bukan kosong.
     expect(
       within(dialog).getByPlaceholderText("asset.service.activity.description"),
     ).toHaveValue("Cek oli");
@@ -265,8 +248,7 @@ describe("ServiceActivityLog", () => {
     expect(within(dialog).getByTestId("user-link-model")).toHaveTextContent(
       "pic:Budi",
     );
-    const isDoneCheckbox = within(dialog).getByRole("forminput");
-    expect(isDoneCheckbox).toHaveAttribute("aria-checked", "true");
+    expect(within(dialog).getByTestId("status-select")).toHaveValue("waiting");
   });
 
   it("ganti activity yang diedit (klik activity lain selagi dialog masih ke-render) me-reset form ke data activity baru", async () => {
@@ -278,14 +260,14 @@ describe("ServiceActivityLog", () => {
           description: "Cek oli",
           pic: { id: 2, name: "Budi" },
           action_date: "2026-09-01",
-          is_done: true,
+          status: "waiting",
         },
         {
           id: 10,
           description: "Ganti ban",
           pic: null,
           action_date: null,
-          is_done: false,
+          status: "on_hold",
         },
       ],
     });
@@ -306,9 +288,43 @@ describe("ServiceActivityLog", () => {
         "asset.service.activity.description",
       ),
     ).toHaveValue("Ganti ban");
+    expect(
+      within(screen.getByRole("dialog")).getByTestId("status-select"),
+    ).toHaveValue("on_hold");
   });
 
-  it("mengisi form Add lalu submit memanggil router.post ke assetServices.activities.store dengan payload sesuai input", async () => {
+  it("mode create biasa: status ter-prefill dari activity dengan action_date terbesar (activity terakhir milik AssetService)", async () => {
+    const user = userEvent.setup({ delay: null });
+    const assetService = baseAssetService({
+      activities: [
+        {
+          id: 1,
+          description: "A",
+          pic: null,
+          action_date: "2026-09-01",
+          status: "in_progress",
+        },
+        {
+          id: 2,
+          description: "B",
+          pic: null,
+          action_date: "2026-09-05",
+          status: "waiting",
+        },
+      ],
+    });
+    render(<ServiceActivityLog assetService={assetService} />);
+
+    await user.click(
+      screen.getByRole("button", { name: "asset.service.activity.add" }),
+    );
+
+    expect(
+      within(screen.getByRole("dialog")).getByTestId("status-select"),
+    ).toHaveValue("waiting");
+  });
+
+  it("mengisi form Add lalu submit memanggil router.post ke assetServices.activities.store dengan payload status terpilih", async () => {
     const user = userEvent.setup({ delay: null });
     const assetService = baseAssetService({ id: 3 });
     render(<ServiceActivityLog assetService={assetService} />);
@@ -324,7 +340,10 @@ describe("ServiceActivityLog", () => {
     );
     await user.click(within(dialog).getByTestId("datetime-picker"));
     await user.click(within(dialog).getByTestId("user-link-model"));
-    await user.click(within(dialog).getByRole("forminput"));
+    await user.selectOptions(
+      within(dialog).getByTestId("status-select"),
+      "resolved",
+    );
 
     await user.click(
       within(dialog).getByRole("button", {
@@ -339,9 +358,12 @@ describe("ServiceActivityLog", () => {
         action_date: "2026-09-10",
         pic_id: 7,
         description: "Servis rutin",
-        is_done: true,
+        status: "resolved",
       },
-      expect.objectContaining({ onFinish: expect.any(Function) }),
+      expect.objectContaining({
+        onSuccess: expect.any(Function),
+        onFinish: expect.any(Function),
+      }),
     );
   });
 
@@ -364,9 +386,38 @@ describe("ServiceActivityLog", () => {
     expect(saveButton).toBeDisabled();
   });
 
-  it("onFinish menutup dialog add/edit setelah submit", async () => {
+  it("onSuccess menutup dialog add/edit setelah submit berhasil", async () => {
+    let onSuccessCb;
+    routerPost.mockImplementation((_url, _payload, options) => {
+      onSuccessCb = options.onSuccess;
+    });
+    const user = userEvent.setup({ delay: null });
+    render(<ServiceActivityLog assetService={baseAssetService()} />);
+
+    await user.click(
+      screen.getByRole("button", { name: "asset.service.activity.add" }),
+    );
+    expect(screen.getByRole("dialog")).toBeInTheDocument();
+
+    await user.click(
+      within(screen.getByRole("dialog")).getByRole("button", {
+        name: "asset.service.activity.save",
+      }),
+    );
+    expect(typeof onSuccessCb).toBe("function");
+
+    act(() => {
+      onSuccessCb();
+    });
+
+    expect(screen.queryByRole("dialog")).not.toBeInTheDocument();
+  });
+
+  it("permintaan user: onFinish TANPA onSuccess (mis. gagal validasi backend) TIDAK menutup dialog", async () => {
     let onFinishCb;
     routerPost.mockImplementation((_url, _payload, options) => {
+      // Simulasikan request gagal -- Inertia tetap memanggil onFinish,
+      // tapi onSuccess TIDAK pernah terpanggil.
       onFinishCb = options.onFinish;
     });
     const user = userEvent.setup({ delay: null });
@@ -388,165 +439,143 @@ describe("ServiceActivityLog", () => {
       onFinishCb();
     });
 
-    expect(screen.queryByRole("dialog")).not.toBeInTheDocument();
+    expect(screen.getByRole("dialog")).toBeInTheDocument();
   });
 
-  it("tombol Mark Complete tampil hanya kalau SEMUA activity is_done=true", () => {
-    const allDone = baseAssetService({
-      activities: [
-        {
-          id: 1,
-          description: "A",
-          pic: null,
-          action_date: null,
-          is_done: true,
-        },
-        {
-          id: 2,
-          description: "B",
-          pic: null,
-          action_date: null,
-          is_done: true,
-        },
-      ],
-    });
-    const { rerender } = render(<ServiceActivityLog assetService={allDone} />);
-    expect(
-      screen.getByRole("button", {
-        name: "asset.service.activity.mark_complete",
-      }),
-    ).toBeInTheDocument();
+  describe("tombol Complete (Requirement 7, revisi -- bukan lagi 'semua is_done')", () => {
+    it("tampil kalau activity TERAKHIR bukan completed", () => {
+      const assetService = baseAssetService({
+        activities: [
+          {
+            id: 1,
+            description: "A",
+            pic: null,
+            action_date: null,
+            status: "in_progress",
+          },
+        ],
+      });
+      render(<ServiceActivityLog assetService={assetService} />);
 
-    const notAllDone = baseAssetService({
-      activities: [
-        {
-          id: 1,
-          description: "A",
-          pic: null,
-          action_date: null,
-          is_done: true,
-        },
-        {
-          id: 2,
-          description: "B",
-          pic: null,
-          action_date: null,
-          is_done: false,
-        },
-      ],
-    });
-    rerender(<ServiceActivityLog assetService={notAllDone} />);
-    expect(
-      screen.queryByRole("button", {
-        name: "asset.service.activity.mark_complete",
-      }),
-    ).not.toBeInTheDocument();
-  });
-
-  it("klik Mark Complete membuka dialog konfirmasi complete", async () => {
-    const user = userEvent.setup({ delay: null });
-    const assetService = baseAssetService({
-      activities: [
-        {
-          id: 1,
-          description: "A",
-          pic: null,
-          action_date: null,
-          is_done: true,
-        },
-      ],
-    });
-    render(<ServiceActivityLog assetService={assetService} />);
-
-    await user.click(
-      screen.getByRole("button", {
-        name: "asset.service.activity.mark_complete",
-      }),
-    );
-
-    const dialog = screen.getByRole("dialog");
-    expect(
-      within(dialog).getByText("asset.service.activity.confirm_complete"),
-    ).toBeInTheDocument();
-    expect(
-      within(dialog).getByText(
-        "asset.service.activity.confirm_complete_description",
-      ),
-    ).toBeInTheDocument();
-  });
-
-  it("klik confirm pada dialog complete memanggil router.post ke assetServices.complete dengan assetService.id", async () => {
-    const user = userEvent.setup({ delay: null });
-    const assetService = baseAssetService({
-      id: 42,
-      activities: [
-        {
-          id: 1,
-          description: "A",
-          pic: null,
-          action_date: null,
-          is_done: true,
-        },
-      ],
-    });
-    render(<ServiceActivityLog assetService={assetService} />);
-
-    await user.click(
-      screen.getByRole("button", {
-        name: "asset.service.activity.mark_complete",
-      }),
-    );
-    await user.click(
-      within(screen.getByRole("dialog")).getByRole("button", {
-        name: "asset.service.activity.confirm_complete_action",
-      }),
-    );
-
-    expect(routerPost).toHaveBeenCalledTimes(1);
-    expect(routerPost).toHaveBeenCalledWith(
-      "assetServices.complete/42",
-      {},
-      expect.objectContaining({ onFinish: expect.any(Function) }),
-    );
-  });
-
-  it("tombol confirm complete disabled selagi loading, kembali aktif setelah onFinish", async () => {
-    let onFinishCb;
-    routerPost.mockImplementation((_url, _payload, options) => {
-      onFinishCb = options.onFinish;
-    });
-    const user = userEvent.setup({ delay: null });
-    const assetService = baseAssetService({
-      activities: [
-        {
-          id: 1,
-          description: "A",
-          pic: null,
-          action_date: null,
-          is_done: true,
-        },
-      ],
-    });
-    render(<ServiceActivityLog assetService={assetService} />);
-
-    await user.click(
-      screen.getByRole("button", {
-        name: "asset.service.activity.mark_complete",
-      }),
-    );
-    const confirmButton = within(screen.getByRole("dialog")).getByRole(
-      "button",
-      { name: "asset.service.activity.confirm_complete_action" },
-    );
-    await user.click(confirmButton);
-
-    expect(confirmButton).toBeDisabled();
-
-    act(() => {
-      onFinishCb();
+      expect(
+        screen.getByRole("button", {
+          name: "asset.service.activity.mark_complete",
+        }),
+      ).toBeInTheDocument();
     });
 
-    expect(confirmButton).not.toBeDisabled();
+    it("TIDAK tampil kalau activity terakhir sudah completed", () => {
+      const assetService = baseAssetService({
+        activities: [
+          {
+            id: 1,
+            description: "A",
+            pic: null,
+            action_date: "2026-09-01",
+            status: "in_progress",
+          },
+          {
+            id: 2,
+            description: "B",
+            pic: null,
+            action_date: "2026-09-05",
+            status: "completed",
+          },
+        ],
+      });
+      render(<ServiceActivityLog assetService={assetService} />);
+
+      expect(
+        screen.queryByRole("button", {
+          name: "asset.service.activity.mark_complete",
+        }),
+      ).not.toBeInTheDocument();
+    });
+
+    it("klik Complete membuka ActivityFormDialog YANG SAMA dengan status ter-prefill 'completed', mode create (title 'add')", async () => {
+      const user = userEvent.setup({ delay: null });
+      const assetService = baseAssetService({
+        activities: [
+          {
+            id: 1,
+            description: "A",
+            pic: null,
+            action_date: null,
+            status: "in_progress",
+          },
+        ],
+      });
+      render(<ServiceActivityLog assetService={assetService} />);
+
+      await user.click(
+        screen.getByRole("button", {
+          name: "asset.service.activity.mark_complete",
+        }),
+      );
+
+      const dialog = screen.getByRole("dialog");
+      expect(
+        within(dialog).getByText("asset.service.activity.add"),
+      ).toBeInTheDocument();
+      expect(within(dialog).getByTestId("status-select")).toHaveValue(
+        "completed",
+      );
+    });
+
+    it("submit dialog Complete sukses (onSuccess) memicu router.post KEDUA ke assetServices.complete", async () => {
+      let onSuccessCb;
+      routerPost.mockImplementation((_url, _payload, options) => {
+        // panggilan KEDUA (assetServices.complete) cuma 1 argumen (url),
+        // options undefined -- jangan timpa onSuccessCb yang sudah ditangkap
+        // dari panggilan PERTAMA (activities.store).
+        if (options) {
+          onSuccessCb = options.onSuccess;
+        }
+      });
+      const user = userEvent.setup({ delay: null });
+      const assetService = baseAssetService({
+        id: 42,
+        activities: [
+          {
+            id: 1,
+            description: "A",
+            pic: null,
+            action_date: null,
+            status: "in_progress",
+          },
+        ],
+      });
+      render(<ServiceActivityLog assetService={assetService} />);
+
+      await user.click(
+        screen.getByRole("button", {
+          name: "asset.service.activity.mark_complete",
+        }),
+      );
+      const dialog = screen.getByRole("dialog");
+      await user.type(
+        within(dialog).getByPlaceholderText(
+          "asset.service.activity.description",
+        ),
+        "Selesai",
+      );
+      await user.click(
+        within(dialog).getByRole("button", {
+          name: "asset.service.activity.save",
+        }),
+      );
+
+      expect(typeof onSuccessCb).toBe("function");
+      act(() => {
+        onSuccessCb();
+      });
+
+      expect(routerPost).toHaveBeenCalledTimes(2);
+      expect(routerPost).toHaveBeenNthCalledWith(
+        2,
+        "assetServices.complete/42",
+      );
+    });
   });
 
   describe("lampiran", () => {
@@ -558,7 +587,7 @@ describe("ServiceActivityLog", () => {
             description: "Ada lampiran",
             pic: null,
             action_date: null,
-            is_done: false,
+            status: "in_progress",
             files: [
               { id: 10, name: "a.pdf" },
               { id: 11, name: "b.pdf" },
@@ -569,7 +598,7 @@ describe("ServiceActivityLog", () => {
             description: "Tanpa lampiran",
             pic: null,
             action_date: null,
-            is_done: false,
+            status: "in_progress",
             files: [],
           },
         ],
@@ -639,7 +668,7 @@ describe("ServiceActivityLog", () => {
             description: "Cek oli",
             pic: null,
             action_date: null,
-            is_done: false,
+            status: "in_progress",
             files: [],
           },
         ],
@@ -668,7 +697,7 @@ describe("ServiceActivityLog", () => {
             description: "Cek oli",
             pic: null,
             action_date: null,
-            is_done: false,
+            status: "in_progress",
             files: [{ id: 55, name: "foto.jpg" }],
           },
         ],

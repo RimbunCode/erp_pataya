@@ -1,0 +1,6 @@
+{
+  "specId": "067852f6-5b11-4150-9e55-4ea341fd74a2",
+  "workflowType": "requirements-first",
+  "specType": "feature",
+  "description": "Status progress granular untuk AssetService pasca-approval: status baru NEED_CONFIRMATION (replace total, APPROVED tidak lagi persisten) dengan dialog konfirmasi (cek stok, Hold, Create PR/PO -> WAITING_PARTS, Mulai pekerjaan -> IN_PROGRESS), redesain AssetServiceActivity jadi pola ticket-like (status per-entry: NEW/IN_PROGRESS/RESOLVED/WAITING/ON_HOLD/DONE), tombol Complete dengan prefill activity, dan status AssetService disinkronkan otomatis dari status activity terakhir. Termasuk audit wajib 5 consumer kode existing yang cek FormStatus::APPROVED literal (rusak akibat replace-total). TIDAK termasuk: (1) relasi/sync status balik dari PurchaseRequest/PurchaseOrder/SalesOrder/InternalOrder ke AssetService — dijatuhkan karena bertabrakan dengan domain-boundary rule di spec asset-service-internal-order (Req 5) dan asset-service-billing (Req 10.2); (2) perluasan App\\Models\\Core\\Log untuk custom data — dijatuhkan setelah Hold direvisi memakai AssetServiceActivity, bukan Log."
+}

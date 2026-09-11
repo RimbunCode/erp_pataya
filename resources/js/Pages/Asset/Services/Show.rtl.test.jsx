@@ -86,6 +86,16 @@ vi.mock("./ServiceActivityLog", () => ({
   ),
 }));
 
+// --- ./ConfirmWorkflowDialog (spec asset-service-progress-workflow) --------
+// Komponen terpisah (dialog Hold/PR/PO/Mulai pekerjaan) -- di luar scope
+// test Show.jsx. Distub sebagai black-box yang menangkap open/assetService.
+vi.mock("./ConfirmWorkflowDialog", () => ({
+  default: ({ assetService, open }) =>
+    open ? (
+      <div data-testid="stub-confirm-dialog">{assetService?.id}</div>
+    ) : null,
+}));
+
 // --- @/Components/Link ----------------------------------------------------
 // Link.jsx memakai router/shouldIntercept dari @inertiajs/core plus
 // useIsDirtyForm/useAlertDraftForm -- di luar scope test Show.jsx. Distub
@@ -369,6 +379,62 @@ describe("Show (Asset/Services)", () => {
     it("status array berisi 'approved' di antara status lain: tetap dirender", () => {
       const assetService = baseAssetService({
         status: ["submitted", "approved", "completed"],
+      });
+      render(<Show assetService={assetService} defaultData={{}} />);
+
+      expect(screen.getByTestId("stub-activity-log")).toBeInTheDocument();
+    });
+  });
+
+  // --- Requirement 2 (spec asset-service-progress-workflow): tombol Confirm --
+  describe("tombol Confirm -- gating status need_confirmation", () => {
+    it("status TIDAK mengandung need_confirmation: tombol Confirm tidak tampil, canGlobal tidak dipanggil untuk dropdown lain (submitted_at kosong)", () => {
+      const assetService = baseAssetService({ status: ["draft"] });
+      render(<Show assetService={assetService} defaultData={{}} />);
+
+      expect(
+        screen.queryByRole("button", { name: "asset.service.confirm" }),
+      ).not.toBeInTheDocument();
+      expect(canGlobalMock).not.toHaveBeenCalled();
+    });
+
+    it("status mengandung need_confirmation: tombol Confirm tampil", () => {
+      const assetService = baseAssetService({
+        status: ["need_confirmation"],
+      });
+      render(<Show assetService={assetService} defaultData={{}} />);
+
+      expect(
+        screen.getByRole("button", { name: "asset.service.confirm" }),
+      ).toBeInTheDocument();
+    });
+
+    it("klik tombol Confirm membuka ConfirmWorkflowDialog dengan assetService diteruskan", async () => {
+      const user = userEvent.setup();
+      const assetService = baseAssetService({
+        id: 33,
+        status: ["need_confirmation"],
+      });
+      render(<Show assetService={assetService} defaultData={{}} />);
+
+      expect(
+        screen.queryByTestId("stub-confirm-dialog"),
+      ).not.toBeInTheDocument();
+
+      await user.click(
+        screen.getByRole("button", { name: "asset.service.confirm" }),
+      );
+
+      const dialog = screen.getByTestId("stub-confirm-dialog");
+      expect(dialog).toBeInTheDocument();
+      expect(dialog).toHaveTextContent("33");
+    });
+
+    it("status need_confirmation TIDAK mempengaruhi gating ServiceActivityLog (butuh hasPassedApproval, bukan cek 'approved' literal)", () => {
+      // need_confirmation TERMASUK "sudah lewat approval" (bukan
+      // draft/need_approval/canceled) -- ServiceActivityLog TETAP dirender.
+      const assetService = baseAssetService({
+        status: ["need_confirmation"],
       });
       render(<Show assetService={assetService} defaultData={{}} />);
 

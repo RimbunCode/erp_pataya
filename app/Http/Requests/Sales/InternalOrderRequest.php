@@ -2,7 +2,6 @@
 
 namespace App\Http\Requests\Sales;
 
-use App\Enums\FormStatus;
 use App\Http\Requests\BaseFormRequest;
 use App\Models\Asset\AssetService;
 use App\Models\Asset\AssetServiceConsumedItem;
@@ -133,7 +132,7 @@ class InternalOrderRequest extends BaseFormRequest {
 
             if ($type === AssetService::class) {
                 $assetService = AssetService::find($id);
-                if (! $assetService || ! in_array(FormStatus::APPROVED, $assetService->status ?? [], true)) {
+                if (! $assetService || ! $assetService->hasPassedApproval()) {
                     $validator->errors()->add(
                         "items.{$index}.referenceable.id",
                         __('sales/salesOrder.referenceable_not_approved'),
@@ -145,7 +144,7 @@ class InternalOrderRequest extends BaseFormRequest {
 
             if ($type === AssetServiceConsumedItem::class) {
                 $consumedItem = AssetServiceConsumedItem::with('assetService')->find($id);
-                if (! $consumedItem || ! in_array(FormStatus::APPROVED, $consumedItem->assetService?->status ?? [], true)) {
+                if (! $consumedItem || ! $consumedItem->assetService?->hasPassedApproval()) {
                     $validator->errors()->add(
                         "items.{$index}.referenceable.id",
                         __('sales/salesOrder.referenceable_not_approved'),

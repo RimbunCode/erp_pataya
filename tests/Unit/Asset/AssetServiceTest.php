@@ -3,6 +3,7 @@
 namespace Tests\Unit\Asset;
 
 use App\Enums\AssetServiceType;
+use App\Enums\FormStatus;
 use App\Models\Asset\Asset;
 use App\Models\Asset\AssetService;
 use App\Models\Asset\AssetServiceActivity;
@@ -78,5 +79,57 @@ class AssetServiceTest extends TestCase {
         ]);
 
         $this->assertTrue($service->resolvedAsset()->is($asset));
+    }
+
+    #[Test]
+    public function has_passed_approval_is_false_for_draft_need_approval_and_canceled(): void {
+        $service = AssetService::factory()->create();
+
+        foreach ([FormStatus::DRAFT, FormStatus::NEED_APPROVAL, FormStatus::CANCELED] as $status) {
+            $service->update(['status' => [$status]]);
+            $this->assertFalse($service->fresh()->hasPassedApproval(), "status {$status->value} seharusnya belum lewat approval");
+        }
+    }
+
+    /**
+     * Bug ketemu (regression guard): array_intersect([], [...]) === []
+     * vacuously true tanpa guard eksplisit -- status kosong/null harus tetap
+     * "belum lewat approval", BUKAN otomatis true.
+     */
+    #[Test]
+    public function has_passed_approval_is_false_when_status_empty(): void {
+        $service = AssetService::factory()->create();
+        $service->update(['status' => []]);
+
+        $this->assertFalse($service->fresh()->hasPassedApproval());
+    }
+
+    #[Test]
+    public function has_passed_approval_is_true_for_post_approval_statuses(): void {
+        $service = AssetService::factory()->create();
+
+        foreach ([
+            FormStatus::NEED_CONFIRMATION,
+            FormStatus::ON_HOLD,
+            FormStatus::WAITING_PARTS,
+            FormStatus::IN_PROGRESS,
+            FormStatus::RESOLVED,
+            FormStatus::WAITING,
+            FormStatus::COMPLETED,
+        ] as $status) {
+            $service->update(['status' => [$status]]);
+            $this->assertTrue($service->fresh()->hasPassedApproval(), "status {$status->value} seharusnya sudah lewat approval");
+        }
+    }
+
+    #[Test]
+    public function is_fully_checked_reads_status_directly(): void {
+        $service = AssetService::factory()->create();
+
+        $service->update(['status' => [FormStatus::IN_PROGRESS]]);
+        $this->assertFalse($service->fresh()->isFullyChecked());
+
+        $service->update(['status' => [FormStatus::COMPLETED]]);
+        $this->assertTrue($service->fresh()->isFullyChecked());
     }
 }

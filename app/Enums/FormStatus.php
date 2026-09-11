@@ -59,6 +59,8 @@ enum FormStatus: string {
     case WORK_IN_PROGRESS      = 'work_in_progress';
     case PARTIALLY_RENTED      = 'partially_rented';
     case PARTIALLY_SOLD        = 'partially_sold';
+    case NEED_CONFIRMATION     = 'need_confirmation';
+    case WAITING_PARTS         = 'waiting_parts';
 
     public function label() {
         return __("status.{$this->value}");
