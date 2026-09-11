@@ -78,4 +78,62 @@ describe("Table2", () => {
       expect(cb).toHaveAttribute("data-state", "checked"),
     );
   });
+
+  // Kolom isLink tanpa `route` (mis. dari SelectModel/useSelectModel yang tak
+  // menurunkan route seperti DataTable2) dulu crash: window.route(route ?? "", ...)
+  // memanggil Ziggy dengan nama route kosong, lalu Link (Inertia mergeDataIntoQueryString)
+  // memanggil href.toString() pada Router object rusak → "Cannot convert undefined
+  // or null to object". Cell harus fallback ke teks biasa, bukan <Link>.
+  it("kolom isLink tanpa route dirender sebagai teks biasa, bukan Link", () => {
+    window.route = vi.fn(() => "/should-not-be-called");
+    const isLinkColumns = {
+      code: {
+        name: "code",
+        title: "Code",
+        type: "string",
+        isLink: true,
+        primaryKey: "id",
+      },
+    };
+    render(
+      <Table2
+        columns={isLinkColumns}
+        data={[{ id: 1, code: "PSN/PR-0001" }]}
+        persistColumns={false}
+        isDynamicData
+      />,
+    );
+
+    expect(screen.getByText("PSN/PR-0001")).toBeInTheDocument();
+    expect(screen.queryByRole("link")).not.toBeInTheDocument();
+    expect(window.route).not.toHaveBeenCalled();
+  });
+
+  it("kolom isLink dengan route tetap dirender sebagai Link", () => {
+    window.route = vi.fn(() => "/purchase-requests/1");
+    const isLinkColumns = {
+      code: {
+        name: "code",
+        title: "Code",
+        type: "string",
+        isLink: true,
+        route: "purchaseRequests.show",
+        primaryKey: "id",
+      },
+    };
+    render(
+      <Table2
+        columns={isLinkColumns}
+        data={[{ id: 1, code: "PSN/PR-0001" }]}
+        persistColumns={false}
+        isDynamicData
+      />,
+    );
+
+    expect(screen.getByRole("link", { name: "PSN/PR-0001" })).toHaveAttribute(
+      "href",
+      "/purchase-requests/1",
+    );
+    expect(window.route).toHaveBeenCalledWith("purchaseRequests.show", 1);
+  });
 });

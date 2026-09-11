@@ -29,6 +29,17 @@
         "--no-reload"
       ],
       "port": 8011
+    },
+    {
+      "name": "serve-visual",
+      "runtimeExecutable": "php",
+      "runtimeArgs": [
+        "artisan",
+        "serve",
+        "--port=8012",
+        "--no-reload"
+      ],
+      "port": 8012
     }
   ],
   "autoVerify": true

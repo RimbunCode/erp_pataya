@@ -29,6 +29,7 @@ use App\Events\Purchase\Invoice\PurchaseOrderItemBillingChanged;
 use App\Events\Purchase\Order\PurchaseOrderBillStatusRecalculationRequested;
 use App\Events\Purchase\Order\PurchaseOrderReceiveStatusRecalculationRequested;
 use App\Events\Purchase\PurchaseReceiptGeneralLedgerPostingRequested;
+use App\Events\Purchase\Request\PurchaseRequestReceiveStatusRecalculationRequested;
 use App\Events\Sales\Invoice\SalesInvoiceReturnStatusChanged;
 use App\Events\Sales\Invoice\SalesOrderItemBillingChanged;
 use App\Events\Sales\Order\DocumentDeliveryStatusRecalculationRequested;
@@ -62,6 +63,7 @@ use App\Listeners\Purchase\Invoice\UpdatePurchaseOrderItemBilling;
 use App\Listeners\Purchase\Ledger\PostPurchaseReceiptGeneralLedger;
 use App\Listeners\Purchase\Order\RecalculatePurchaseOrderBillStatus;
 use App\Listeners\Purchase\Order\RecalculatePurchaseOrderReceiveStatus;
+use App\Listeners\Purchase\Request\RecalculatePurchaseRequestReceiveStatus;
 use App\Listeners\Sales\Invoice\UpdateSalesInvoiceReturnStatus;
 use App\Listeners\Sales\Invoice\UpdateSalesOrderItemBilling;
 use App\Listeners\Sales\Order\RecalculateDocumentDeliveryStatus;
@@ -107,6 +109,9 @@ class EventServiceProvider extends ServiceProvider {
         ],
         PurchaseOrderReceiveStatusRecalculationRequested::class => [
             RecalculatePurchaseOrderReceiveStatus::class,
+        ],
+        PurchaseRequestReceiveStatusRecalculationRequested::class => [
+            RecalculatePurchaseRequestReceiveStatus::class,
         ],
         SalesOrderItemBillingChanged::class => [
             UpdateSalesOrderItemBilling::class,
