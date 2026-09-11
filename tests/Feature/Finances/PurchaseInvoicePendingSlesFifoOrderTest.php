@@ -239,4 +239,111 @@ class PurchaseInvoicePendingSlesFifoOrderTest extends TestCase {
             'SLE dengan transaction_date lebih akhir belum boleh divaluasi -- qty invoice cuma cukup utk SLE pertama.',
         );
     }
+
+    #[Test]
+    public function over_billed_qty_creates_pending_sle_with_transaction_date(): void {
+        // Regresi: StockLedgerEntry::create() untuk sisa qty over-bill
+        // (remainingQty > 0) tidak mengisi transaction_date (NOT NULL),
+        // menyebabkan 500 "Field 'transaction_date' doesn't have a default
+        // value" saat submit Purchase Invoice dengan qty > qty pending SLE.
+        Event::fake([PurchaseInvoiceGeneralLedgerPostingRequested::class]);
+
+        $warehouse = WarehouseFactory::new()->create();
+        $item      = ItemFactory::new()->create();
+        $variant   = ItemVariantFactory::new()->create(['item_id' => $item->id]);
+
+        $unit = Unit::create([
+            'code'              => 'PCS-' . fake()->unique()->numerify('####'),
+            'name'              => 'Pieces',
+            'conversion_factor' => 1,
+            'is_default'        => true,
+        ]);
+        $itemUnit = ItemUnit::create([
+            'item_id'           => $item->id,
+            'unit_id'           => $unit->id,
+            'conversion_factor' => 1,
+            'is_default'        => true,
+        ]);
+        $variant->update(['default_unit_id' => $unit->id]);
+
+        $supplier = SupplierFactory::new()->create();
+        $this->actingAs($this->testUser);
+        $po = $this->withoutModelEvents(fn () => PurchaseOrderFactory::new()->create([
+            'supplier_id' => $supplier->id,
+            'status'      => [FormStatus::SUBMITTED],
+        ]));
+
+        $poItem = PurchaseOrderItem::create([
+            'purchase_order_id'   => $po->id,
+            'item_id'             => $variant->id,
+            'quantity'            => 10,
+            'rate'                => 1000,
+            'target_warehouse_id' => $warehouse->id,
+            'received_quantity'   => 10,
+        ]);
+
+        $receipt = $this->withoutModelEvents(fn () => PurchaseReceipt::create([
+            'code'              => 'PR-' . fake()->unique()->randomNumber(8),
+            'date'              => now(),
+            'purchase_order_id' => $po->id,
+            'created_by_id'     => $this->testUser->id,
+        ]));
+
+        ModelConnection::create([
+            'model_type'     => PurchaseOrder::class,
+            'model_id'       => $po->id,
+            'reference_type' => PurchaseReceipt::class,
+            'reference_id'   => $receipt->id,
+        ]);
+
+        PurchaseReceiptItem::create([
+            'purchase_receipt_id'    => $receipt->id,
+            'purchase_order_item_id' => $poItem->id,
+            'item_id'                => $poItem->item_id,
+            'quantity'               => 10,
+            'target_warehouse_id'    => $warehouse->id,
+        ]);
+
+        // Pending SLE cuma qty 10, invoice akan minta 15 -- sisa 5 over-bill.
+        StockLedgerEntry::create([
+            'referenceable_type'         => PurchaseReceipt::class,
+            'referenceable_id'           => $receipt->id,
+            'item_id'                    => $variant->id,
+            'warehouse_id'               => $warehouse->id,
+            'item_unit_id'               => $itemUnit->id,
+            'conversion_factor'          => 1,
+            'quantity_change'            => 10,
+            'quantity_after_transaction' => 10,
+            'is_valuated'                => false,
+            'transaction_date'           => now()->subDay(),
+        ]);
+
+        $invoice = $this->withoutModelEvents(fn () => PurchaseInvoice::create([
+            'code'                    => 'PI-' . fake()->unique()->randomNumber(8),
+            'date'                    => now(),
+            'purchase_order_id'       => $po->id,
+            'credit_account_id'       => $this->creditAccount->id,
+            'expanse_head_account_id' => $this->expenseAccount->id,
+            'created_by_id'           => $this->testUser->id,
+        ]));
+
+        PurchaseInvoiceItem::create([
+            'purchase_invoice_id'    => $invoice->id,
+            'purchase_order_item_id' => $poItem->id,
+            'item_id'                => $poItem->item_id,
+            'quantity'               => 15,
+            'rate'                   => 1500,
+        ]);
+
+        $this->service->onApproved($invoice);
+
+        $overBilledSle = StockLedgerEntry::where('referenceable_type', PurchaseInvoice::class)
+            ->where('referenceable_id', $invoice->id)
+            ->where('is_valuated', false)
+            ->first();
+
+        $this->assertNotNull($overBilledSle, 'SLE pending untuk sisa qty over-bill harus dibuat.');
+        $this->assertEquals(5, (float) $overBilledSle->quantity_change);
+        $this->assertNotNull($overBilledSle->transaction_date, 'transaction_date wajib terisi (kolom NOT NULL).');
+    }
 }
