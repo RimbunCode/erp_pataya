@@ -55,7 +55,7 @@ class PurchaseOrderService implements SubmitableService {
         $data['item_unit_id']        = $data['unit']['id'];
         $data['conversion_factor']   = $unit?->conversion_factor ?? 1;
         $data['exchange_rate']       = $purchaseOrder->exchange_rate;
-        $data['tax_id']              = $data['tax']['id'];
+        $data['tax_id']              = $data['tax']['id'] ?? null;
         $data['tax_rate']            = $tax?->rate ?? 0;
         $data['target_warehouse_id'] = $data['target_warehouse']['id'];
 

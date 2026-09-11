@@ -14,16 +14,23 @@ Buka menu **Settings → Company** untuk mengisi nama, alamat, dan
 mengunggah logo perusahaan. Logo ini nanti otomatis dipakai di dokumen
 cetak yang menyertakan kop surat.
 
+![Halaman Pengaturan Perusahaan](/manual-book-images/pengaturan-umum/settings-company.png)
+
 ### Cabang (Branch)
 
 Setiap dokumen yang kamu buat (pesanan, tagihan, dll.) selalu tercatat di
-bawah satu cabang tertentu. Buka menu **Settings → Branches → Tambah**
-untuk mendaftarkan cabang — minimal satu cabang utama harus ada sebelum
-aplikasi bisa dipakai bertransaksi.
+bawah satu cabang tertentu. Buka menu **Settings → Branches** untuk
+melihat daftar cabang, lalu klik **Tambah Cabang** untuk mendaftarkan
+yang baru — minimal satu cabang utama harus ada sebelum aplikasi bisa
+dipakai bertransaksi.
+
+![Daftar cabang perusahaan](/manual-book-images/pengaturan-umum/list-branches.png)
 
 Setiap cabang punya kode singkat (misalnya "HO" untuk kantor pusat) yang
 bisa dipakai dalam penomoran dokumen otomatis, dan alamat pengiriman/
 penagihan sendiri.
+
+![Formulir Cabang Baru](/manual-book-images/pengaturan-umum/form-branch.png)
 
 ### Berpindah Cabang Aktif
 
@@ -35,6 +42,8 @@ Cabang aktif ini menentukan:
 - Nomor urut kode dokumen (kalau formatnya menyertakan kode cabang).
 - Data apa saja yang ditampilkan di beberapa laporan.
 
+![Dropdown pemilih cabang aktif di navbar](/manual-book-images/pengaturan-umum/pemilih-cabang.png)
+
 > 💡 Cabang aktif tersimpan selama kamu masih login. Begitu logout dan
 > login lagi, cabang aktif kembali ke pengaturan default kamu.
 
@@ -42,8 +51,10 @@ Cabang aktif ini menentukan:
 
 Setiap dokumen (pesanan, tagihan, dll.) mendapat nomor kode secara
 otomatis, jadi kamu tidak perlu mengetiknya manual. Buka menu
-**Settings → Formating Series → Tambah** untuk mengatur pola nomornya per
-jenis dokumen.
+**Settings → Formating Series** untuk melihat pola nomor tiap jenis
+dokumen, lalu klik salah satu baris untuk mengatur polanya.
+
+![Daftar Seri Pemformatan per jenis dokumen](/manual-book-images/pengaturan-umum/list-formating-series.png)
 
 Pola disusun dari teks bebas ditambah kode-kode berikut yang otomatis
 digantikan sistem:
@@ -56,7 +67,10 @@ digantikan sistem:
 | Kode Cabang | Kode cabang yang sedang aktif | `HO` |
 
 Contoh pola `[Kode Cabang]/SO-[Nomor Urut 4 digit]/[Tahun 2 digit]` akan
-menghasilkan kode seperti `HO/SO-0001/25`.
+menghasilkan kode seperti `HO/SO-0001/25`. Di halaman detail, kolom
+**Contoh Hasil** menunjukkan langsung bentuk kode yang akan dibuat.
+
+![Detail pola Seri Pemformatan dengan contoh hasil](/manual-book-images/pengaturan-umum/detail-formating-series.png)
 
 > 💡 Kalau pola kamu menyertakan kode bulan **dan** tahun, nomor urutnya
 > otomatis mulai dari 1 lagi setiap bulan. Kalau hanya menyertakan tahun
@@ -97,9 +111,11 @@ Setiap skema bisa terdiri dari satu atau lebih langkah berurutan. Untuk
 tiap langkah, tentukan:
 
 - **Urutan** — langkah ke berapa dalam alur (langkah 1, 2, 3, dst.)
-- **Penyetuju** — siapa yang harus menyetujui di langkah ini, bisa berupa
-  satu Role tertentu (siapa pun yang punya role itu bisa menyetujui) atau
-  satu user spesifik.
+- **Tipe Penyetuju** dan **Penyetuju** — siapa yang harus menyetujui di
+  langkah ini, bisa berupa satu **Peran** tertentu (siapa pun yang punya
+  role itu bisa menyetujui) atau satu **Pengguna** spesifik.
+
+![Formulir Skema Persetujuan Baru dengan langkah penyetuju](/manual-book-images/pengaturan-umum/form-skema-persetujuan.png)
 
 ### Bagaimana Persetujuan Berjalan
 
@@ -121,6 +137,8 @@ Kalau kamu ditugaskan sebagai penyetuju, buka menu **Approvals** untuk
 melihat daftar dokumen yang menunggu persetujuanmu. Buka detail
 dokumennya, lalu klik **Approve** untuk menyetujui atau **Reject** untuk
 menolak.
+
+![Menu Approvals berisi daftar dokumen menunggu persetujuan](/manual-book-images/pengaturan-umum/menu-approvals.png)
 
 ## Alur Status Dokumen Secara Umum
 
@@ -174,6 +192,14 @@ cancel, cetak) pada suatu jenis data.
 | Approver | Menyetujui/menolak dokumen, bisa melihat semua modul |
 | Auditor | Hanya bisa melihat dan mengekspor data di semua modul, tanpa bisa mengubah |
 
+![Daftar Peran (Roles) bawaan dan kustom](/manual-book-images/pengaturan-umum/list-roles.png)
+
+Buka detail satu Role, lalu buka tab **Manajer Izin** untuk mengatur
+persis apa yang boleh dilakukan — dicentang per jenis data (Baca, Tulis,
+Buat, Hapus, Impor, Ekspor) dan per aksi khusus (Ajukan, Batal, Cetak).
+
+![Tab Manajer Izin dengan matriks hak akses per model](/manual-book-images/pengaturan-umum/manajer-izin.png)
+
 > 💡 Satu user boleh punya lebih dari satu Role sekaligus — hak aksesnya
 > adalah gabungan dari semua Role yang dimiliki.
 
@@ -187,13 +213,19 @@ Buka menu **Settings → Print Templates** untuk mendesain tampilan cetak
 (PDF) dokumen bisnis seperti pesanan atau tagihan — memakai editor
 visual seret-lepas, tidak perlu menulis kode.
 
-1. Buka editor template, susun tampilannya dengan menyeret elemen (teks,
-   tabel barang, logo, dll.) ke posisi yang diinginkan.
-2. Gunakan tombol **Preview** untuk melihat hasil cetaknya dengan data
+![Daftar Template Cetak](/manual-book-images/pengaturan-umum/list-print-templates.png)
+
+1. Klik **Buka Editor** pada template, lalu susun tampilannya dengan
+   menyeret elemen (teks, tabel barang, logo, dll.) dari panel kanan ke
+   kanvas. Panel **Variabel Dokumen** berisi data yang bisa ditempel
+   (detail perusahaan, info dokumen, baris barang).
+2. Gunakan tombol **Pratinjau** untuk melihat hasil cetaknya dengan data
    contoh sebelum disimpan.
 3. Tandai satu template sebagai **default** — ini yang otomatis dipakai
    setiap kali dokumen dicetak, kecuali kamu pilih template lain secara
    manual saat mencetak.
+
+![Editor visual Print Template dengan panel Variabel Dokumen](/manual-book-images/pengaturan-umum/editor-print-template.png)
 
 Kamu bisa membuat lebih dari satu template untuk jenis dokumen yang sama
 (misalnya versi ringkas dan versi lengkap) dan memilih salah satunya saat
@@ -205,10 +237,12 @@ Setiap user bisa menyusun dashboard sendiri berisi widget (grafik, tabel,
 atau angka ringkasan) yang menampilkan data yang relevan buat mereka.
 
 1. Buka halaman **Dashboard**, klik tombol tambah widget.
-2. Pilih sumber datanya (misalnya pesanan penjualan atau tagihan), tipe
-   tampilan (grafik/tabel/angka), dan filter data yang diinginkan
-   (misalnya hanya data bulan ini).
+2. Isi **Judul**, pilih **Model** (sumber datanya — misalnya pesanan
+   penjualan atau tagihan), **Tipe Perhitungan**, dan **Tipe** tampilan.
+   Untuk widget berbasis waktu, atur juga rentang dan interval waktunya.
 3. Widget bisa disusun ulang urutannya dengan cara diseret.
+
+![Formulir Buat Gawai (widget) dashboard](/manual-book-images/pengaturan-umum/form-widget.png)
 
 > 💡 Dashboard bersifat personal — susunan widget milik satu user tidak
 > memengaruhi tampilan dashboard user lain.
@@ -228,12 +262,18 @@ Todo dipakai untuk mencatat pekerjaan yang tidak terikat pada satu
 dokumen transaksi tertentu — misalnya "follow up pelanggan X" atau
 "siapkan laporan bulanan".
 
-Buka menu **Todo → Tambah**, isi uraian tugasnya, lalu tugaskan ke:
+Buka menu **Todo**, lihat daftar tugas yang ada, lalu klik **ToDo Baru**.
+Isi **Deskripsi** tugasnya, lalu tugaskan lewat kolom **Ditugaskan Ke**:
 
-- **User tertentu** — hanya orang itu yang menerima tugasnya.
+- **User tertentu** — hanya orang itu yang menerima tugasnya. Dikosongkan
+  berarti tugas untuk diri sendiri.
 - **Role tertentu** — berlaku untuk **semua** user yang memegang role
   tersebut, siapa pun di antara mereka bisa menindaklanjuti dan
   menyelesaikannya.
+
+![Daftar ToDo](/manual-book-images/pengaturan-umum/list-todo.png)
+
+![Formulir ToDo Baru](/manual-book-images/pengaturan-umum/form-todo.png)
 
 Begitu tugas dibuat, sistem otomatis mengirim notifikasi ke semua
 penerimanya. Halaman daftar Todo terbagi dua tampilan: **Ditugaskan ke
@@ -246,19 +286,26 @@ misalnya saat menerima tugas Todo baru. Buka ikon lonceng di pojok atas
 aplikasi untuk melihatnya, dan tandai sebagai sudah dibaca satu per satu
 atau sekaligus semua.
 
+![Panel notifikasi dari ikon lonceng](/manual-book-images/pengaturan-umum/panel-notifikasi.png)
+
 ## Pencarian Cepat (Command Palette)
 
 Untuk berpindah ke halaman atau dokumen mana pun tanpa perlu klik menu
-satu per satu, gunakan pencarian cepat global — cukup ketik kata kunci
-seperti nama halaman ("Sales Order", "Dashboard") atau kode dokumen
-spesifik yang kamu cari. Riwayat pencarian terakhir ikut tersimpan supaya
-navigasi berikutnya lebih cepat, dan bisa dihapus kapan saja.
+satu per satu, gunakan pencarian cepat global (klik kolom **Search** di
+navbar atau tekan `Ctrl + K`) — cukup ketik kata kunci seperti nama
+halaman ("Sales Order", "Dashboard") atau kode dokumen spesifik yang kamu
+cari. Riwayat pencarian terakhir ikut tersimpan supaya navigasi
+berikutnya lebih cepat, dan bisa dihapus kapan saja.
+
+![Pencarian cepat menampilkan hasil Navigation dan Documents](/manual-book-images/pengaturan-umum/command-palette.png)
 
 ## Pengaturan Umum Lainnya (Preferences)
 
-Buka menu **Settings → Preferences** untuk mengatur hal-hal yang berlaku
-untuk seluruh perusahaan, seperti mata uang default dan zona waktu acuan
-untuk penomoran dokumen dan pencatatan tanggal.
+Buka menu **Settings → Company → tab Preferensi** untuk mengatur hal-hal
+yang berlaku untuk seluruh perusahaan, seperti mata uang default, zona
+waktu acuan, dan jumlah baris per halaman default di semua tabel.
+
+![Tab Preferensi berisi mata uang, zona waktu, dan baris per halaman](/manual-book-images/pengaturan-umum/preferences.png)
 
 ## Urutan yang Disarankan Saat Pertama Kali Setup
 

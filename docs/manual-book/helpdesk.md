@@ -26,18 +26,26 @@ perlu disetujui atasan.
 
 ## Langkah 1 — Membuat Ticket Baru
 
-Buka menu **Helpdesk → Tickets → Tambah**.
+Buka menu **Helpdesk → Tickets**. Daftar semua ticket tampil di sini; klik
+tombol **Ticket Baru** di kanan atas untuk membuat yang baru.
+
+![Daftar ticket helpdesk dengan tombol Ticket Baru](/manual-book-images/helpdesk/list-tiket.png)
 
 1. Pilih tipe laporan kamu: **Bug/Masalah**, **Tugas**, **Pertanyaan**,
    atau **Lainnya**.
 2. Pilih tingkat prioritas: Rendah, Sedang, Tinggi, atau Kritis.
-3. Tulis judul yang ringkas menjelaskan masalah/permintaan kamu.
+3. Tulis judul yang ringkas menjelaskan masalah/permintaan kamu di kolom
+   **Subjek**, dan uraian lengkapnya di kolom **Konten**.
 4. Isi tanggal mulai dan batas waktu penyelesaian (kalau ada tenggat
-   tertentu).
-5. Klik **Save**.
+   tertentu), serta pilih siapa yang ditugaskan menangani.
+5. Klik **Simpan**.
+
+![Formulir Ticket Baru terisi lengkap](/manual-book-images/helpdesk/form-tambah-ticket.png)
 
 Begitu tersimpan, sistem otomatis membuatkan kode ticket dan mencatat satu
 baris riwayat sebagai kondisi awal ticket ini dibuat.
+
+![Detail ticket dengan Riwayat Tickets kondisi awal](/manual-book-images/helpdesk/detail-ticket-riwayat.png)
 
 > 💡 Ticket **tidak bisa dihapus** dari tampilan — ini disengaja, supaya
 > riwayat penanganan semua laporan tetap utuh dan bisa ditelusuri kapan
@@ -47,18 +55,45 @@ baris riwayat sebagai kondisi awal ticket ini dibuat.
 
 Ticket yang masuk perlu ditugaskan ke seseorang untuk ditindaklanjuti:
 
-1. Buka detail ticket, tugaskan ke user yang akan menanganinya.
-2. Ubah statusnya menjadi **Sedang Dikerjakan** saat mulai ditangani.
-3. Gunakan tombol **Balas/Update** untuk menambahkan catatan progres —
-   ini bisa sekaligus mengubah siapa yang ditugaskan, status, dan
-   persentase penyelesaiannya. Setiap kali kamu melakukan ini, satu baris
-   riwayat baru otomatis ditambahkan berisi catatan yang kamu tulis.
+1. Buka detail ticket, klik tombol **Update Ticket** di kanan atas.
+2. Ubah **Ditugaskan Ke** ke user yang akan menanganinya, dan ubah
+   **Status** menjadi **Sedang Dikerjakan** saat mulai ditangani.
+3. Isi kolom **Konten** dengan catatan progres, lalu klik **Simpan**.
+   Lewat form ini kamu bisa sekaligus mengubah siapa yang ditugaskan,
+   status, dan persentase penyelesaiannya. Setiap kali kamu menyimpannya,
+   satu baris riwayat baru otomatis ditambahkan berisi catatan yang kamu
+   tulis.
+
+![Formulir Update Ticket dengan perubahan status dan catatan progres](/manual-book-images/helpdesk/assign-dan-status.png)
+
+Setelah disimpan, baris baru langsung muncul di **Riwayat Tickets** —
+mencatat perubahan status "Baru → Sedang Dikerjakan" beserta catatannya.
+
+![Riwayat Tickets bertambah satu baris setelah update](/manual-book-images/helpdesk/riwayat-setelah-update.png)
+
+Kalau kamu hanya ingin menambahkan komentar tanpa mengubah data ticket,
+pakai tombol **Tambah Catatan / Komentar** di bagian **Aktivitas** di
+bawah halaman detail.
+
+![Formulir Tambah Catatan / Komentar](/manual-book-images/helpdesk/tambah-catatan.png)
+
+Komentar yang dikirim langsung tampil di daftar **Aktivitas**.
+
+![Komentar tampil di daftar Aktivitas](/manual-book-images/helpdesk/aktivitas-komentar.png)
 
 ## Langkah 3 — Menandai Ticket Selesai
 
 Kalau masalah/permintaan sudah selesai ditangani, klik tombol **Tandai
-Selesai** pada ticket tersebut. Status berubah jadi "Selesai", progresnya
-otomatis 100%, dan tanggal selesainya tercatat otomatis.
+Selesai** pada ticket tersebut. Sistem meminta konfirmasi dulu karena
+aksi ini tidak bisa dibatalkan.
+
+![Dialog konfirmasi Tandai Sebagai Selesai](/manual-book-images/helpdesk/konfirmasi-tandai-selesai.png)
+
+Setelah dikonfirmasi, status berubah jadi "Selesai", progresnya otomatis
+100%, dan tanggal selesainya tercatat otomatis. Semua perubahan ini juga
+tercatat sebagai baris terakhir di Riwayat Tickets.
+
+![Ticket berstatus Selesai dengan Riwayat Tickets lengkap](/manual-book-images/helpdesk/tombol-tandai-selesai.png)
 
 > 💡 Aksi ini **tidak bisa dibatalkan** — pastikan pekerjaannya memang
 > sudah benar-benar selesai sebelum menandainya.

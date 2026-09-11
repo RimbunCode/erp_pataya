@@ -478,6 +478,7 @@ class PurchaseInvoiceService implements SubmitableService {
                 'referenceable_type'         => PurchaseInvoice::class,
                 'referenceable_id'           => $purchaseInvoice->id,
                 'is_valuated'                => false,
+                'transaction_date'           => $purchaseInvoice->date,
             ]);
         }
 
