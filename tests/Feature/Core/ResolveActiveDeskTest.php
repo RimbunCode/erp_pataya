@@ -6,6 +6,7 @@ use App\Enums\DeskType;
 use App\Enums\Permission as PermissionEnum;
 use App\Models\Core\Desk;
 use App\Models\Core\MenuItem;
+use App\Models\Purchase\PurchaseOrder;
 use App\Models\Purchase\PurchaseRequest;
 use App\Models\User\Permission;
 use App\Models\User\Role;
@@ -212,5 +213,79 @@ class ResolveActiveDeskTest extends TestCase {
             ->get(route('dashboard'));
 
         $response->assertRedirect(route('desks.index'));
+    }
+
+    /**
+     * spec item-request-auto-detect (lanjutan diskusi user): MenuItem dengan
+     * `visibility_permission` (any lintas PurchaseRequest/PurchaseOrder) HARUS
+     * tetap tampil untuk user yang HANYA punya izin salah satu -- ini fix atas
+     * bug: model=PurchaseRequest tunggal akan sembunyikan menu dari user yang
+     * cuma punya izin PurchaseOrder, walau backend controller-nya sendiri
+     * (ItemRequestController::requirePermissionToViewList()) mengizinkan.
+     */
+    private function makeItemRequestMenuItem(Desk $desk): MenuItem {
+        return MenuItem::factory()->create([
+            'primary_desk_id'       => $desk->id,
+            'route_name'            => 'itemRequests.index',
+            'model'                 => null,
+            'visibility_permission' => [
+                'any' => [
+                    [PurchaseRequest::class, PermissionEnum::Select],
+                    [PurchaseOrder::class, PermissionEnum::Select],
+                ],
+            ],
+        ]);
+    }
+
+    public function test_visibility_permission_shows_menu_with_only_purchase_order_select(): void {
+        $user = User::factory()->create();
+        $this->grantSelectPermission($user, PurchaseOrder::class);
+
+        $desk = Desk::factory()->create(['type' => DeskType::Custom, 'owner_id' => $user->id]);
+        $user->update(['default_desk_id' => $desk->id]);
+        $menuItem = $this->makeItemRequestMenuItem($desk);
+        $desk->menuItems()->attach($menuItem->id, ['order' => 0]);
+
+        $response = $this->actingAs($user)
+            ->withCookie('lang', 'en')
+            ->get(route('dashboard'));
+
+        $response->assertOk();
+        $response->assertInertia(fn ($page) => $page->where('menuItems.1.title', $menuItem->label));
+    }
+
+    public function test_visibility_permission_shows_menu_with_only_purchase_request_select(): void {
+        $user = User::factory()->create();
+        $this->grantSelectPermission($user, PurchaseRequest::class);
+
+        $desk = Desk::factory()->create(['type' => DeskType::Custom, 'owner_id' => $user->id]);
+        $user->update(['default_desk_id' => $desk->id]);
+        $menuItem = $this->makeItemRequestMenuItem($desk);
+        $desk->menuItems()->attach($menuItem->id, ['order' => 0]);
+
+        $response = $this->actingAs($user)
+            ->withCookie('lang', 'en')
+            ->get(route('dashboard'));
+
+        $response->assertOk();
+        $response->assertInertia(fn ($page) => $page->where('menuItems.1.title', $menuItem->label));
+    }
+
+    public function test_visibility_permission_hides_menu_without_either_permission(): void {
+        $user = User::factory()->create();
+
+        $desk = Desk::factory()->create(['type' => DeskType::Custom, 'owner_id' => $user->id]);
+        $user->update(['default_desk_id' => $desk->id]);
+        $menuItem = $this->makeItemRequestMenuItem($desk);
+        $desk->menuItems()->attach($menuItem->id, ['order' => 0]);
+
+        $response = $this->actingAs($user)
+            ->withCookie('lang', 'en')
+            ->get(route('dashboard'));
+
+        $response->assertOk();
+        // 4 item wajib (Dashboard/Approvals/ToDo/Manual Book) saja -- menu
+        // Item Request ke-drop karena visibility_permission tidak terpenuhi.
+        $response->assertInertia(fn ($page) => $page->has('menuItems', 4));
     }
 }

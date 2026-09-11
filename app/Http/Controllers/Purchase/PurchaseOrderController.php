@@ -11,6 +11,7 @@ use App\Models\Purchase\PurchaseRequest;
 use App\Models\Purchase\PurchaseRequestItem;
 use App\Models\Service\WorkOrder;
 use App\Models\Service\WorkOrderItem;
+use App\Services\Purchase\ItemRequestService;
 use App\Services\Purchase\PurchaseOrderService;
 use App\Utils;
 use Illuminate\Http\Request;
@@ -27,7 +28,7 @@ class PurchaseOrderController extends Controller {
     protected function enforcePermission(string $method): ?string {
         return match ($method) {
             'markDone', 'syncItems' => 'write',
-            default                 => null,
+            default => null,
         };
     }
 
@@ -105,6 +106,15 @@ class PurchaseOrderController extends Controller {
                                     ]),
                             ];
                         }
+                        break;
+
+                        // spec item-request-auto-detect: batch multi-select lintas
+                        // banyak Source Document (SO/IO/AssetService) sekaligus —
+                        // beda dari case lain di atas yang cuma 1 parent id.
+                    case 'itemRequestBatch':
+                        $defaultData = [
+                            'items' => app(ItemRequestService::class)->resolveBatch($split[1]),
+                        ];
                         break;
 
                 }

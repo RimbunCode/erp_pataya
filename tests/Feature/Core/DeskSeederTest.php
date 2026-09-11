@@ -142,4 +142,18 @@ class DeskSeederTest extends TestCase {
             $this->assertContains('service', $domains, "{$routeName} harus attach ke desk Service");
         }
     }
+
+    /** spec item-request-auto-detect, Requirement 5.2 — muncul di 5 desk sekaligus, FLAT (bukan grup 'Purchases'). */
+    public function test_item_request_menu_is_assigned_to_five_desks_and_is_flat(): void {
+        (new DeskSeeder)->run();
+
+        $menu = MenuItem::where('route_name', 'itemRequests.*')->firstOrFail();
+
+        $domains = $menu->desks()->pluck('domain')->map(fn ($d) => $d->value)->all();
+        foreach (['purchase', 'inventory', 'sales', 'service', 'asset'] as $expected) {
+            $this->assertContains($expected, $domains, "itemRequests.* harus attach ke desk {$expected}");
+        }
+
+        $this->assertNull($menu->parent_id);
+    }
 }
