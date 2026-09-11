@@ -465,9 +465,8 @@ class PurchaseInvoiceService implements SubmitableService {
         if ($remainingQty > 0) {
             StockLedgerEntry::create([
                 'item_id'                    => $pendingSLEs->first()?->item_id ?? $poItem->item_id,
-                'warehouse_id'               => $pendingSLEs->first()?->warehouse_id,
-                'unit_id'                    => $pendingSLEs->first()?->unit_id,
-                'item_unit_id'               => $pendingSLEs->first()?->item_unit_id,
+                'warehouse_id'               => $pendingSLEs->first()?->warehouse_id ?? $poItem->target_warehouse_id,
+                'item_unit_id'               => $pendingSLEs->first()?->item_unit_id ?? $poItem->item_unit_id,
                 'conversion_factor'          => $pendingSLEs->first()?->conversion_factor ?? 1,
                 'quantity_change'            => $remainingQty,
                 'quantity_after_transaction' => 0,
