@@ -1,7 +1,16 @@
 import { beforeEach, describe, expect, it, vi } from "vitest";
-import { render, screen, waitFor } from "@testing-library/react";
+import { render as rtlRender, screen, waitFor } from "@testing-library/react";
 
 import userEvent from "@testing-library/user-event";
+import { TooltipProvider } from "@/Components/ui/tooltip";
+
+// MultiSelect membungkus dirinya dengan <Tooltip> internal (ringkasan value
+// terpilih saat popover tertutup) tanpa menyediakan <TooltipProvider>
+// sendiri -- provider itu disediakan sekali di app-level (MasterLayout.jsx),
+// tapi `@/Layouts/AppLayout` di-mock jadi div polos di atas, jadi provider
+// asli gak ikut ke-mount. Sediakan di sini, pola sama MultiSelect.rtl.test.jsx.
+const render = (ui) =>
+  rtlRender(<TooltipProvider delayDuration={0}>{ui}</TooltipProvider>);
 
 vi.mock("laravel-react-i18n", () => ({
   useLaravelReactI18n: () => ({ t: (key) => key }),
@@ -56,7 +65,9 @@ const documentModels = {
 };
 
 function permissionsFor(model, action = "create") {
-  return { [model]: { 0: [{ permissions: { [action]: true }, only_creator: false }] } };
+  return {
+    [model]: { 0: [{ permissions: { [action]: true }, only_creator: false }] },
+  };
 }
 
 function makeRow(overrides = {}) {
@@ -97,9 +108,7 @@ describe("Purchase/ItemRequests Index", () => {
       />,
     );
 
-    expect(
-      screen.getByText("purchase.itemRequest.empty"),
-    ).toBeInTheDocument();
+    expect(screen.getByText("purchase.itemRequest.empty")).toBeInTheDocument();
   });
 
   it("menampilkan baris shortage dari props", () => {
@@ -520,10 +529,9 @@ describe("Purchase/ItemRequests Index", () => {
 
       expect(routerGet).not.toHaveBeenCalled();
 
-      await waitFor(
-        () => expect(routerGet).toHaveBeenCalledTimes(1),
-        { timeout: 3000 },
-      );
+      await waitFor(() => expect(routerGet).toHaveBeenCalledTimes(1), {
+        timeout: 3000,
+      });
       expect(routerGet).toHaveBeenCalledWith(
         "itemRequests.index",
         expect.objectContaining({

@@ -1,5 +1,10 @@
 import { describe, expect, it, vi } from "vitest";
-import { render, screen, waitFor } from "@testing-library/react";
+import {
+  render as rtlRender,
+  screen,
+  waitFor,
+  within,
+} from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 
 vi.mock("laravel-react-i18n", () => ({
@@ -7,6 +12,17 @@ vi.mock("laravel-react-i18n", () => ({
 }));
 
 import MultiSelect from "./MultiSelect";
+import { TooltipProvider } from "./ui/tooltip";
+
+// MultiSelect membungkus dirinya dengan <Tooltip> internal (ringkasan value
+// terpilih saat popover tertutup) tanpa menyediakan <TooltipProvider> sendiri
+// -- provider itu disediakan sekali di app-level (lihat pemakaian nyata di
+// Select.jsx/LinkModel.jsx, pola sama). delayDuration=0 -- Radix default
+// (700ms hover-intent) pakai setTimeout ASLI di luar act() manapun yang bisa
+// dikontrol test; nol-kan biar transisi Radix langsung tanpa timer (pola sama
+// LinkModel.rtl.test.jsx).
+const render = (ui) =>
+  rtlRender(<TooltipProvider delayDuration={0}>{ui}</TooltipProvider>);
 
 const options = [
   { value: "a", label: "Alpha" },
@@ -732,27 +748,97 @@ describe("MultiSelect", () => {
     });
   });
 
-  describe("title (tooltip native) saat popover tertutup", () => {
-    it("ada value terpilih & popover tertutup -> title berisi daftar label lengkap", () => {
+  describe("tooltip (Radix) saat popover tertutup", () => {
+    // Radix Tooltip (bukan native `title` lagi) -- lihat dok prop di atas.
+    // Percobaan pertama nesting Tooltip+Popover di komponen ini SEMPAT
+    // dikira gak bisa (popover ketutup sendiri abis 1 klik checkbox), TAPI
+    // itu ternyata bug di STRUKTUR percobaan itu (ada div ekstra nyelip di
+    // antara TooltipTrigger asChild & PopoverTrigger asChild), BUKAN
+    // ketidakcocokan Radix Tooltip+Popover secara umum -- Select.jsx &
+    // LinkModel.jsx sudah lama pakai pola nesting yg SAMA (TooltipTrigger
+    // asChild membungkus PopoverTrigger asChild LANGSUNG, tanpa elemen
+    // perantara) dan popovernya baik-baik saja. Diverifikasi ulang di sini:
+    // 48/49 test lain (semua interaksi checkbox/Tab/delimiter dst) TETAP
+    // hijau dengan Tooltip asli terpasang.
+    it("ada value terpilih & popover tertutup -> tooltip muncul saat di-hover, berisi daftar per-item (bukan satu string gabungan)", async () => {
+      const user = userEvent.setup({ delay: null });
       render(<MultiSelect options={options} value={["a", "b"]} />);
-      expect(screen.getByRole("textbox")).toHaveAttribute(
-        "title",
-        "Alpha, Beta",
-      );
+
+      await user.hover(screen.getByRole("textbox"));
+      const tooltip = await screen.findByRole("tooltip");
+
+      // List terpisah -- masing-masing label muncul sbg baris sendiri.
+      expect(within(tooltip).getByText("Alpha")).toBeInTheDocument();
+      expect(within(tooltip).getByText("Beta")).toBeInTheDocument();
     });
 
-    it("tidak ada value terpilih -> tidak ada title", () => {
+    it("tidak ada value terpilih -> tooltip tidak dirender sama sekali (gak ada apa pun buat ditampilkan)", () => {
       render(<MultiSelect options={options} value={[]} />);
-      expect(screen.getByRole("textbox")).not.toHaveAttribute("title");
+      expect(screen.queryByRole("tooltip")).not.toBeInTheDocument();
     });
 
-    it("popover TERBUKA -> title dihapus (lagi mode edit, bukan lihat ringkasan)", async () => {
+    it("popover TERBUKA -> tooltip tidak dirender (lagi mode edit, bukan lihat ringkasan)", async () => {
       const user = userEvent.setup({ delay: null });
       render(<MultiSelect options={options} value={["a"]} />);
 
       const input = screen.getByRole("textbox");
       await user.click(input);
-      expect(input).not.toHaveAttribute("title");
+
+      expect(screen.queryByRole("tooltip")).not.toBeInTheDocument();
+    });
+  });
+
+  describe("valueBefore -- diff before/after (pola sama Select.jsx/LinkModel.jsx)", () => {
+    it("value beda dari valueBefore -> border ke-highlight & tooltip tandai per-item added/removed", async () => {
+      const user = userEvent.setup({ delay: null });
+      render(
+        <MultiSelect
+          options={options}
+          value={["a", "c"]}
+          valueBefore={["a", "b"]}
+        />,
+      );
+
+      const input = screen.getByRole("textbox");
+      expect(input.closest('[class*="bg-yellow-200"]')).toBeInTheDocument();
+
+      await user.hover(input);
+      const tooltip = await screen.findByRole("tooltip");
+
+      // Alpha gak berubah -- tanpa class diff apapun.
+      expect(within(tooltip).getByText("Alpha").className).not.toMatch(
+        /bg-(green|red)/,
+      );
+      // Gamma baru ditambahkan.
+      expect(within(tooltip).getByText("Gamma").className).toMatch(/bg-green/);
+      // Beta dihapus -- ditampilkan tercoret.
+      const removed = within(tooltip).getByText("Beta");
+      expect(removed.className).toMatch(/bg-red/);
+      expect(removed.className).toMatch(/line-through/);
+    });
+
+    it("valueBefore SAMA dgn value (urutan beda) -> TIDAK dianggap berubah, gak ada highlight border", () => {
+      render(
+        <MultiSelect
+          options={options}
+          value={["a", "b"]}
+          valueBefore={["b", "a"]}
+        />,
+      );
+      const input = screen.getByRole("textbox");
+      expect(input.closest('[class*="bg-yellow-200"]')).not.toBeInTheDocument();
+    });
+
+    it("tanpa valueBefore -> tooltip list biasa, gak ada class diff apapun", async () => {
+      const user = userEvent.setup({ delay: null });
+      render(<MultiSelect options={options} value={["a"]} />);
+
+      await user.hover(screen.getByRole("textbox"));
+      const tooltip = await screen.findByRole("tooltip");
+
+      expect(within(tooltip).getByText("Alpha").className).not.toMatch(
+        /bg-(green|red)/,
+      );
     });
   });
 });

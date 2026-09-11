@@ -38,6 +38,14 @@ import { useLaravelReactI18n } from "laravel-react-i18n";
 import usePermission from "@/Hooks/usePermission";
 import { useRef } from "react";
 
+// Sentinel value utk baris "more"/"add" di CommandList -- BUKAN opsi data
+// asli, jadi dikasih value string eksplisit (bukan diserahkan ke inferensi
+// otomatis cmdk dari textContent, yg rapuh & beda tiap locale) supaya bisa
+// dilacak di `visibleValues` (lihat Tab-autocomplete di bawah) tanpa ikut
+// ke-override balik ke opsi data pas user arrow-navigate ke baris ini.
+const MORE_VALUE = "__linkmodel_more__";
+const ADD_VALUE = "__linkmodel_add__";
+
 /**
  *
  * @param props
@@ -121,6 +129,13 @@ export default memo(
     const [allowSearch, setAllowSearch] = useState(true);
     const [resolvingDefault, setResolvingDefault] = useState(false);
     const [openDialog, setOpenDialog] = useState(false);
+    // Dipakai KHUSUS utk keputusan fokus-lock Tab-autocomplete di bawah --
+    // LinkModel gak py flag "lagi ngetik" spt Select/MultiSelect (di sini
+    // ketikan langsung `setOption(null)` di `onInputKeyDown`, gak ditunda).
+    const [isDirty, setIsDirty] = useState(false);
+    useEffect(() => {
+      if (open) setIsDirty(false);
+    }, [open]);
     const { can, canGlobal } = usePermission(model);
 
     const {
@@ -335,6 +350,7 @@ export default memo(
       if (option) {
         setOption(null);
       }
+      setIsDirty(true);
       if (!open) {
         setOpen(true);
       }
@@ -405,6 +421,33 @@ export default memo(
       return false;
     }, [disabledAddButton, form, can]);
 
+    // cmdk dikontrol via `value`/`onValueChange` sendiri (bukan diserahkan ke
+    // auto-highlight bawaan cmdk) -- auto-highlight cmdk cuma jalan SEKALI
+    // saat mount/registrasi item pertama, TIDAK otomatis pindah ke item lain
+    // kalau item yg lagi ke-highlight hilang dari DOM krn hasil search server
+    // berubah (`filteredOptions` bisa berganti total begitu fetch baru
+    // selesai). Sama gotcha yg ditemukan & difix di MultiSelect.jsx/
+    // Select.jsx. Baris "more"/"add" ikut dilacak (via MORE_VALUE/ADD_VALUE)
+    // biar navigasi arrow ke situ gak ke-override balik ke opsi data.
+    const [highlightedValue, setHighlightedValue] = useState();
+    const visibleValues = useMemo(() => {
+      // Selalu di-stringify -- cmdk internal nge-treat `value` sbg string
+      // (panggil `.trim()` dsb saat controlled via prop `value`/onValueChange
+      // di <Command>), sedangkan `opt.id` di sini bisa numeric (PK integer,
+      // bukan cuma ULID string).
+      const ids = (filteredOptions ?? []).map(
+        (opt, index) => `${opt.id ?? index}`,
+      );
+      if (showMore) ids.push(MORE_VALUE);
+      if (!disabledAdd) ids.push(ADD_VALUE);
+      return ids;
+    }, [filteredOptions, showMore, disabledAdd]);
+    useEffect(() => {
+      if (!visibleValues.includes(highlightedValue)) {
+        setHighlightedValue(visibleValues[0]);
+      }
+    }, [visibleValues]);
+
     const routeId = useMemo(
       () => get(option, keyRoute ?? "id"),
       [option, keyRoute],
@@ -430,6 +473,33 @@ export default memo(
               className="relative h-full overflow-visible bg-transparent"
               ref={commandRef}
               loop
+              value={highlightedValue}
+              onValueChange={setHighlightedValue}
+              onKeyDown={(e) => {
+                // Tab CUMA nulis label opsi yg lagi di-highlight keyboard ke
+                // search (autocomplete) -- TIDAK langsung memilihnya. Commit
+                // beneran tetap lewat mekanisme exact-match on-close yg SUDAH
+                // ada (efek `[open, ...]` di bawah), sama kayak kalau user
+                // ngetik label itu manual lalu blur. Baris "more"/"add"
+                // sengaja DIABAIKAN -- itu bukan opsi data, gak ada teks yg
+                // masuk akal buat di-autocomplete-kan.
+                if (e.key !== "Tab") return;
+                if (
+                  highlightedValue == null ||
+                  highlightedValue === MORE_VALUE ||
+                  highlightedValue === ADD_VALUE
+                ) {
+                  return;
+                }
+                const opt = filteredOptions.find(
+                  (o, i) => `${o.id ?? i}` === highlightedValue,
+                );
+                if (!opt) return;
+                if (isDirty) e.preventDefault();
+                setAllowSearch(true);
+                setSearch(convertTemplateLink(opt));
+                setIsDirty(true);
+              }}
             >
               <Tooltip>
                 <TooltipTrigger asChild>
@@ -462,6 +532,16 @@ export default memo(
                         onChange={(e) => {
                           setAllowSearch(true);
                           setSearch(e.target.value);
+                        }}
+                        onBlur={() => {
+                          // Diperlukan spesifik utk Tab-autocomplete: Tab
+                          // TANPA klik gak lewat ClickAwayListener (itu cuma
+                          // dengar mousedown/click), jadi tanpa onBlur ini
+                          // popover gak pernah nutup+commit teks yg ditulis
+                          // Tab abis fokus pindah keluar. Efek exact-match
+                          // on-close yang commit -- satu sumber kebenaran,
+                          // sama kayak jalur ngetik manual.
+                          setOpen(false);
                         }}
                         className={cn(
                           "focus:border-0! bg-inherit! disabled:opacity-100! h-8 w-full rounded-none! pr-2! border-0!  focus-visible:ring-0! focus-visible:ring-offset-0!  ",
@@ -551,7 +631,16 @@ export default memo(
                   forceMount
                   asChild
                 >
-                  <CommandList className="p-1 space-y-2">
+                  <CommandList
+                    className="p-1 space-y-2"
+                    // Cegah browser memindah/menghapus fokus dari Input saat
+                    // area ini di-mousedown (klik opsi/more/add) -- Input
+                    // sekarang punya `onBlur` (utk Tab-autocomplete di atas),
+                    // tanpa guard ini klik bisa nge-trigger blur DULUAN
+                    // (browser default: mousedown geser fokus) sebelum
+                    // onSelect klik itu sendiri sempat jalan.
+                    onMouseDown={(e) => e.preventDefault()}
+                  >
                     {loading ? (
                       <CommandPrimitive.Loading>
                         <div className="flex justify-center py-6 text-sm font-normal text-center text-foreground gap-x-4">
@@ -567,7 +656,7 @@ export default memo(
                             return (
                               <CommandItem
                                 key={opt.id ?? index}
-                                value={opt.id ?? index}
+                                value={`${opt.id ?? index}`}
                                 onSelect={() => {
                                   setOption(opt);
 
@@ -588,6 +677,7 @@ export default memo(
                         {showMore && !disabledAdd && <CommandSeparator />}
                         {showMore && (
                           <CommandItem
+                            value={MORE_VALUE}
                             className="text-blue-700 hover:text-blue-900! dark:text-blue-300 dark:hover:text-blue-200!"
                             onSelect={() => {
                               // setOpenDialog(true);
@@ -598,6 +688,7 @@ export default memo(
                         )}
                         {!disabledAdd && (
                           <CommandItem
+                            value={ADD_VALUE}
                             onSelect={() => {
                               if (form) {
                                 setOpenDialog(true);

@@ -1,5 +1,12 @@
 import { Command, CommandEmpty, CommandItem, CommandList } from "./ui/command";
+import {
+  DIFF_ADDED,
+  DIFF_HIGHLIGHT,
+  DIFF_REMOVED,
+  DIFF_REMOVED_TEXT,
+} from "@/lib/diffUtils";
 import { Popover, PopoverContent, PopoverTrigger } from "./ui/popover";
+import { Tooltip, TooltipContent, TooltipTrigger } from "./ui/tooltip";
 import { cn, isNullOrWhitespace } from "@/lib/utils";
 import {
   forwardRef,
@@ -35,6 +42,13 @@ const escapeRegExp = (s) => s.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
  * Props:
  *   value          : array nilai terpilih
  *   onValueChange  : (array) => void
+ *   valueBefore    : array nilai SEBELUM perubahan (opsional, pola sama
+ *                    Select.jsx/LinkModel.jsx) -- kalau diisi & beda dari
+ *                    `value`, border di-highlight (`DIFF_HIGHLIGHT`) & tooltip
+ *                    (Radix, muncul saat hover popover tertutup) menandai
+ *                    tiap entry yang ditambah/dihapus
+ *                    (`DIFF_ADDED`/`DIFF_REMOVED`), bukan cuma satu baris
+ *                    before/after spt varian single-value.
  *   options        : array option (bentuk apa pun di atas)
  *   optionTrans    : prefix lang key untuk label (mis. "status")
  *   onSearchChange : (string) => void — opsional
@@ -93,6 +107,7 @@ const MultiSelect = memo(
     {
       id,
       value,
+      valueBefore,
       onValueChange,
       className,
       disabled,
@@ -156,20 +171,6 @@ const MultiSelect = memo(
       if (normalizedDelimiters.length === 0) return null;
       return new RegExp(normalizedDelimiters.map(escapeRegExp).join("|"));
     }, [normalizedDelimiters]);
-
-    // Gabungan literal label yg terpilih, dipisah delimiter -- dipakai utk
-    // tooltip `title` (daftar LENGKAP, gak pernah diciutkan jadi label All,
-    // beda dari `labelOfValues` di bawah).
-    const joinLabels = useCallback(
-      (vals) => {
-        const sep = `${normalizedDelimiters[0] ?? ","} `;
-        return oriOptions
-          .filter((opt) => (vals ?? []).includes(opt.value))
-          .map((opt) => opt.label)
-          .join(sep);
-      },
-      [oriOptions, normalizedDelimiters],
-    );
 
     const allValues = useMemo(
       () => oriOptions.map((opt) => opt.value),
@@ -283,6 +284,41 @@ const MultiSelect = memo(
       const setA = new Set(a ?? []);
       return (b ?? []).every((x) => setA.has(x));
     }, []);
+
+    // Baris tooltip (Radix) saat popover tertutup -- SELALU daftar per-item
+    // (bukan satu string gabungan), biar gampang dibaca utk value banyak.
+    // Kalau `valueBefore` diisi & memang beda dari `values` saat ini, tiap
+    // baris ditandai status "added"/"removed" (dibanding satu baris
+    // before/after spt Select.jsx/LinkModel.jsx -- masuk akal di sana krn
+    // single-value, tapi kurang informatif kalau diterapkan mentah2 ke array).
+    const tooltipRows = useMemo(() => {
+      const currentRows = (values ?? []).map((v) => ({
+        key: `${v}`,
+        label: oriOptions.find((opt) => opt.value === v)?.label ?? v,
+        status: undefined,
+      }));
+      if (valueBefore === undefined) return currentRows;
+
+      const beforeArr = Array.isArray(valueBefore)
+        ? valueBefore
+        : (valueBefore ?? []);
+      if (sameSet(beforeArr, values ?? [])) return currentRows;
+
+      const beforeSet = new Set(beforeArr);
+      const afterSet = new Set(values ?? []);
+      const addedMarked = currentRows.map((row, i) =>
+        beforeSet.has(values[i]) ? row : { ...row, status: "added" },
+      );
+      const removedRows = beforeArr
+        .filter((v) => !afterSet.has(v))
+        .map((v) => ({
+          key: `removed-${v}`,
+          label: oriOptions.find((opt) => opt.value === v)?.label ?? v,
+          status: "removed",
+        }));
+      return [...addedMarked, ...removedRows];
+    }, [values, valueBefore, oriOptions, sameSet]);
+    const hasDiffChange = tooltipRows.some((row) => row.status);
 
     // Cari segmen teks yg match persis label option, lalu CHECK yg belum
     // ke-check -- TIDAK PERNAH uncheck (beda dari desain lama). Entry
@@ -526,150 +562,165 @@ const MultiSelect = memo(
                 }
               }}
             >
-              <PopoverTrigger
-                asChild
-                className={cn(
-                  "flex h-8 items-center overflow-hidden border rounded-md cursor-default group/model relative focus-within:border-0 border-input ring-offset-background bg-muted focus-within:outline-none focus-within:ring-1 focus-within:ring-ring focus-within:ring-offset-1",
-                  disabled && "cursor-not-allowed opacity-50",
-                  className,
-                )}
-              >
-                <div>
-                  <Input
-                    id={id}
-                    ref={ref}
-                    disabled={disabled}
-                    readOnly={readOnly}
-                    onKeyDown={onInputKeyDown}
-                    onClick={(e) => {
-                      e.preventDefault();
-                      if (!open) setOpen(true);
-                    }}
-                    required={required}
-                    value={search}
-                    onChange={(e) => {
-                      const nextValue = e.target.value;
-                      onSearchChange?.(nextValue);
-                      // Ketik delimiter = "selesai" utk entry ini -> commit
-                      // (kalau match) & kosongkan lagi input siap utk entry
-                      // berikutnya (bukan disimpan sbg representasi teks
-                      // permanen -- lihat dok prop `delimiters`).
-                      const endsWithDelimiter = normalizedDelimiters.some(
-                        (d) => d && nextValue.endsWith(d),
-                      );
-                      if (endsWithDelimiter) {
-                        const nextValues = commitMatchingSegments(
-                          nextValue,
-                          values,
-                        );
-                        if (!sameSet(nextValues, values)) {
-                          setValues(nextValues);
-                        }
-                        setSearch("");
-                        setIsDirty(false);
-                        return;
-                      }
-                      setIsDirty(true);
-                      setSearch(nextValue);
-                    }}
-                    onPaste={(e) => {
-                      // Paste teks berisi >1 entry (mis. "Demo Warehouse,
-                      // Warehouse Utama") langsung di-commit SEMUA yg match
-                      // walau entry terakhir gak diakhiri delimiter -- beda
-                      // dari ngetik manual (yg nunggu delimiter/blur dulu utk
-                      // entry terakhir), krn paste itu aksi sekali-jadi, bukan
-                      // "lagi diketik". Paste 1 entry biasa (tanpa delimiter
-                      // sama sekali) dibiarkan lewat jalur onChange normal.
-                      if (readOnly || disabled) return;
-                      const pasted = e.clipboardData?.getData("text") ?? "";
-                      if (!delimiterRegex?.test(pasted)) return;
-                      e.preventDefault();
-                      const el = e.target;
-                      const before = search.slice(
-                        0,
-                        el.selectionStart ?? search.length,
-                      );
-                      const after = search.slice(
-                        el.selectionEnd ?? search.length,
-                      );
-                      const combined = `${before}${pasted}${after}`;
-                      const nextValues = commitMatchingSegments(
-                        combined,
-                        values,
-                        { includeInProgress: true },
-                      );
-                      if (!sameSet(nextValues, values)) {
-                        setValues(nextValues);
-                      }
-                      setSearch("");
-                      setIsDirty(false);
-                      onSearchChange?.("");
-                    }}
-                    onBlur={() => {
-                      // Logika commit+rebuild teks ada di efek [open] di atas
-                      // (satu sumber kebenaran utk semua jalur tutup --
-                      // blur, klik-luar via ClickAwayListener, dst).
-                      setOpen(false);
-                    }}
+              <Tooltip>
+                <TooltipTrigger asChild>
+                  <PopoverTrigger
+                    asChild
                     className={cn(
-                      "focus:border-0! bg-inherit! disabled:opacity-100! h-8 w-full rounded-none! pr-2! border-0! focus-visible:ring-0! focus-visible:ring-offset-0!",
+                      "flex h-8 items-center overflow-hidden border rounded-md cursor-default group/model relative focus-within:border-0 border-input ring-offset-background bg-muted focus-within:outline-none focus-within:ring-1 focus-within:ring-ring focus-within:ring-offset-1",
+                      valueBefore !== undefined &&
+                        hasDiffChange &&
+                        DIFF_HIGHLIGHT,
+                      disabled && "cursor-not-allowed opacity-50",
+                      className,
                     )}
-                    placeholder={
-                      placeholder ??
-                      (values?.length ? labelOfValues(values) : "")
-                    }
-                    // Tooltip native browser (bukan Radix -- nesting Radix
-                    // Tooltip+Popover di elemen yg sama TERBUKTI bikin
-                    // popover nutup sendiri saat klik checkbox, regresi
-                    // serius). Muncul saat popover TERTUTUP & ada value
-                    // terpilih -- user bisa lihat daftar lengkap (gak
-                    // kepotong) tanpa perlu buka popover.
-                    title={
-                      !open && (values?.length ?? 0) > 0
-                        ? joinLabels(values)
-                        : undefined
-                    }
-                  />
-                  <div className="flex items-center h-8 pr-2 gap-x-2">
-                    {/* Terbuka: selalu tampil kalau ada value (umpan balik
+                  >
+                    <div>
+                      <Input
+                        id={id}
+                        ref={ref}
+                        disabled={disabled}
+                        readOnly={readOnly}
+                        onKeyDown={onInputKeyDown}
+                        onClick={(e) => {
+                          e.preventDefault();
+                          if (!open) setOpen(true);
+                        }}
+                        required={required}
+                        value={search}
+                        onChange={(e) => {
+                          const nextValue = e.target.value;
+                          onSearchChange?.(nextValue);
+                          // Ketik delimiter = "selesai" utk entry ini -> commit
+                          // (kalau match) & kosongkan lagi input siap utk entry
+                          // berikutnya (bukan disimpan sbg representasi teks
+                          // permanen -- lihat dok prop `delimiters`).
+                          const endsWithDelimiter = normalizedDelimiters.some(
+                            (d) => d && nextValue.endsWith(d),
+                          );
+                          if (endsWithDelimiter) {
+                            const nextValues = commitMatchingSegments(
+                              nextValue,
+                              values,
+                            );
+                            if (!sameSet(nextValues, values)) {
+                              setValues(nextValues);
+                            }
+                            setSearch("");
+                            setIsDirty(false);
+                            return;
+                          }
+                          setIsDirty(true);
+                          setSearch(nextValue);
+                        }}
+                        onPaste={(e) => {
+                          // Paste teks berisi >1 entry (mis. "Demo Warehouse,
+                          // Warehouse Utama") langsung di-commit SEMUA yg match
+                          // walau entry terakhir gak diakhiri delimiter -- beda
+                          // dari ngetik manual (yg nunggu delimiter/blur dulu utk
+                          // entry terakhir), krn paste itu aksi sekali-jadi, bukan
+                          // "lagi diketik". Paste 1 entry biasa (tanpa delimiter
+                          // sama sekali) dibiarkan lewat jalur onChange normal.
+                          if (readOnly || disabled) return;
+                          const pasted = e.clipboardData?.getData("text") ?? "";
+                          if (!delimiterRegex?.test(pasted)) return;
+                          e.preventDefault();
+                          const el = e.target;
+                          const before = search.slice(
+                            0,
+                            el.selectionStart ?? search.length,
+                          );
+                          const after = search.slice(
+                            el.selectionEnd ?? search.length,
+                          );
+                          const combined = `${before}${pasted}${after}`;
+                          const nextValues = commitMatchingSegments(
+                            combined,
+                            values,
+                            { includeInProgress: true },
+                          );
+                          if (!sameSet(nextValues, values)) {
+                            setValues(nextValues);
+                          }
+                          setSearch("");
+                          setIsDirty(false);
+                          onSearchChange?.("");
+                        }}
+                        onBlur={() => {
+                          // Logika commit+rebuild teks ada di efek [open] di atas
+                          // (satu sumber kebenaran utk semua jalur tutup --
+                          // blur, klik-luar via ClickAwayListener, dst).
+                          setOpen(false);
+                        }}
+                        className={cn(
+                          "focus:border-0! bg-inherit! disabled:opacity-100! h-8 w-full rounded-none! pr-2! border-0! focus-visible:ring-0! focus-visible:ring-offset-0!",
+                        )}
+                        placeholder={
+                          placeholder ??
+                          (values?.length ? labelOfValues(values) : "")
+                        }
+                      />
+                      <div className="flex items-center h-8 pr-2 gap-x-2">
+                        {/* Terbuka: selalu tampil kalau ada value (umpan balik
                         realtime, gak berubah). Tertutup: tampil jg (quick-
                         glance count) KECUALI ringkasan teks udah diciutkan
                         jadi label All (showAllOption + semua ke-check) --
                         badge angka jadi redundan di samping teks "All". */}
-                    {values?.length > 0 &&
-                      (open || !(showAllOption && isAllSelected)) && (
-                        <span className="badge secondary text-xs px-1.5 py-0 h-5 min-w-5 justify-center">
-                          {values.length}
-                        </span>
-                      )}
-                    {!(readOnly || disabled) && (
-                      <Button
-                        type="button"
-                        variant="ghost"
-                        size="icon"
-                        className={cn(
-                          "size-6",
-                          (!(values?.length || search) ||
-                            disabled ||
-                            readOnly) &&
-                            "hidden",
+                        {values?.length > 0 &&
+                          (open || !(showAllOption && isAllSelected)) && (
+                            <span className="badge secondary text-xs px-1.5 py-0 h-5 min-w-5 justify-center">
+                              {values.length}
+                            </span>
+                          )}
+                        {!(readOnly || disabled) && (
+                          <Button
+                            type="button"
+                            variant="ghost"
+                            size="icon"
+                            className={cn(
+                              "size-6",
+                              (!(values?.length || search) ||
+                                disabled ||
+                                readOnly) &&
+                                "hidden",
+                            )}
+                            onClick={() => {
+                              // Selalu commit langsung -- aksi eksplisit tunggal,
+                              // bukan bagian rentetan toggle yang perlu di-batch
+                              // walau changeOnBlur aktif.
+                              setValuesLocalOnly([]);
+                              onValueChange?.([]);
+                              setSearch("");
+                              onSearchChange?.("");
+                            }}
+                          >
+                            <XIcon className="size-3" />
+                          </Button>
                         )}
-                        onClick={() => {
-                          // Selalu commit langsung -- aksi eksplisit tunggal,
-                          // bukan bagian rentetan toggle yang perlu di-batch
-                          // walau changeOnBlur aktif.
-                          setValuesLocalOnly([]);
-                          onValueChange?.([]);
-                          setSearch("");
-                          onSearchChange?.("");
-                        }}
-                      >
-                        <XIcon className="size-3" />
-                      </Button>
-                    )}
-                  </div>
-                </div>
-              </PopoverTrigger>
+                      </div>
+                    </div>
+                  </PopoverTrigger>
+                </TooltipTrigger>
+                {!open && tooltipRows.length > 0 && (
+                  <TooltipContent side="top" align="start" className="max-w-xs">
+                    <ul className="space-y-0.5">
+                      {tooltipRows.map((row) => (
+                        <li
+                          key={row.key}
+                          className={cn(
+                            "rounded px-1 truncate",
+                            row.status === "added" && DIFF_ADDED,
+                            row.status === "removed" &&
+                              cn(DIFF_REMOVED, DIFF_REMOVED_TEXT),
+                          )}
+                        >
+                          {row.label}
+                        </li>
+                      ))}
+                    </ul>
+                  </TooltipContent>
+                )}
+              </Tooltip>
               {!(disabled || readOnly) && (
                 <PopoverContent
                   onOpenAutoFocus={(e) => e.preventDefault()}
