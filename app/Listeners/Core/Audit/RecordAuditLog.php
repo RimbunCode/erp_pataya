@@ -17,6 +17,12 @@ class RecordAuditLog {
     ];
 
     public function handle(AuditableModelSaved $event): void {
+        // Model bisa opt-out dari audit log lewat $auditable = false (pola sama dgn
+        // $skipAttachmentOnCreate di DataTable trait).
+        if (property_exists($event->model, 'auditable') && ! $event->model->auditable) {
+            return;
+        }
+
         Log::create([
             'user_id'       => Auth::id(),
             'loggable_id'   => $event->model->getKey(),
