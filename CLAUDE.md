@@ -5,6 +5,10 @@
 Semua terminal command harus Bash-compatible (`C:/Program Files/Git/usr/bin/bash.exe`). Jangan gunakan PowerShell/cmd.
 Gunakan: `ls`, `cp`, `mv`, `rm`, `export VAR=value`, forward slashes di path.
 
+## Verifikasi Sebelum Klaim Teknis
+
+Jangan berasumsi atau menjawab pertanyaan arsitektur/desain ("kenapa X begini", "apakah Y akan konflik dengan Z") dari ingatan umum. Telusuri dulu implementasi konkret — baca kode terkait, cari precedent pola serupa di module lain di codebase ini — sebelum menyampaikan sesuatu sebagai fakta. Kalau setelah ditelusuri masih ambigu atau belum ketemu jawaban pasti, konfirmasi ke user secara eksplisit alih-alih menyimpulkan sendiri.
+
 # Spec-Driven Development Workflow
 
 ## Evaluasi Request
@@ -210,13 +214,6 @@ This project has domain-specific skills available. You MUST activate the relevan
 - Use TitleCase for Enum keys: `FavoritePerson`, `BestLake`, `Monthly`.
 - Prefer PHPDoc blocks over inline comments. Only add inline comments for exceptionally complex logic.
 - Use array shape type definitions in PHPDoc blocks.
-
-=== herd rules ===
-
-# Laravel Herd
-
-- The application is served by Laravel Herd at `https?://[kebab-case-project-dir].test`. Use the `get-absolute-url` tool to generate valid URLs. Never run commands to serve the site. It is always available.
-- Use the `herd` CLI to manage services, PHP versions, and sites (e.g. `herd sites`, `herd services:start <service>`, `herd php:list`). Run `herd list` to discover all available commands.
 
 === tests rules ===
 
