@@ -4,13 +4,28 @@ export function validate(value, model) {
   if (!value || !model) return true;
   return value.thisModel === model;
 }
+// Satu sumber pasangan char<->entity -- escapeHtml dan unescapeHtml pakai list yg
+// sama supaya keduanya selalu simetris (tambah karakter baru cukup di satu tempat).
+const HTML_ENTITIES = [
+  ["&", "&amp;"], // harus tetap paling awal saat escape, biar & hasil entity lain tidak ikut ke-escape ulang
+  ["<", "&lt;"],
+  [">", "&gt;"],
+  ['"', "&quot;"],
+  ["'", "&#39;"],
+];
+
 function escapeHtml(value) {
-  return String(value)
-    .replace(/&/g, "&amp;")
-    .replace(/</g, "&lt;")
-    .replace(/>/g, "&gt;")
-    .replace(/"/g, "&quot;")
-    .replace(/'/g, "&#39;");
+  return HTML_ENTITIES.reduce(
+    (result, [char, entity]) => result.split(char).join(entity),
+    String(value),
+  );
+}
+
+function unescapeHtml(value) {
+  return HTML_ENTITIES.reduce(
+    (result, [char, entity]) => result.split(entity).join(char),
+    String(value),
+  );
 }
 
 export const convertTemplateLink = (value, search, asObject = false) => {
@@ -35,9 +50,9 @@ export const convertTemplateLink = (value, search, asObject = false) => {
     const plainTextMatch = item.match(/^[^<]+/g);
 
     return titleMatch
-      ? titleMatch[2].trim()
+      ? unescapeHtml(titleMatch[2].trim())
       : plainTextMatch
-        ? plainTextMatch[0].trim()
+        ? unescapeHtml(plainTextMatch[0].trim())
         : "";
   }
 
