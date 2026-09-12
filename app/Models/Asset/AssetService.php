@@ -21,8 +21,17 @@ use LogicException;
 class AssetService extends Model {
     use DataTable, HasFactory, HasUlids, SoftDeletes, Submitable;
 
-    public static string $alias                = 'Work Order';
-    protected static string $defaultFormatCode = '@[branch_code]/WO-@[iiii]/@[yy]';
+    public static string $alias = 'Work Order';
+
+    // Requirement (bug fix, CI): TANPA @[branch_code] -- placeholder itu
+    // butuh $data['branch']['code'] ter-resolve di setiap create()/submit()/
+    // complete()/cancel() (FormatingSeries::generate() melempar Error keras
+    // kalau tidak ketemu), tapi AssetService TIDAK PERNAH punya konsep
+    // branch wajib sepanjang siklus hidupnya (banyak test & sebagian jalur
+    // produksi membuat/mengubah AssetService tanpa branch_id sama sekali).
+    // Format "WO-@[iiii]/@[yy]" tetap mirip WorkOrder tanpa butuh resolusi
+    // relasi apa pun (placeholder bawaan doang).
+    protected static string $defaultFormatCode = 'WO-@[iiii]/@[yy]';
     protected static $service                  = AssetServiceService::class;
     public string $formComponent               = 'Asset/Services/Form';
     public string $translateKey                = 'asset.service';
@@ -38,12 +47,6 @@ class AssetService extends Model {
 
     public static function templateLink() {
         return ':code';
-    }
-
-    public function codeRelations() {
-        return [
-            'branch_code:branch.code',
-        ];
     }
 
     protected array $configColumns = [

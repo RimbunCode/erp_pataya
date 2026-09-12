@@ -28,6 +28,7 @@ return [
     ],
     'select'               => 'Select',
     'select.placeholder'   => 'Select an option',
+    'all'                  => 'All',
     'select_model'         => 'Select Model',
     'from'                 => 'From',
     'commented'            => 'commented',

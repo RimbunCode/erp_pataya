@@ -11,6 +11,9 @@ class MenuItem extends Model {
     use HasFactory, HasUlids, SoftDeletes;
 
     protected $guarded = ['id'];
+    protected $casts   = [
+        'visibility_permission' => 'array',
+    ];
 
     public function parent() {
         return $this->belongsTo(MenuItem::class, 'parent_id');

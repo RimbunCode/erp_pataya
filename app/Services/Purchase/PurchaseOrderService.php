@@ -5,6 +5,7 @@ namespace App\Services\Purchase;
 use App\Contracts\SubmitableService;
 use App\Enums\FormStatus;
 use App\Events\Inventory\StockReservationChanged;
+use App\Models\Asset\AssetServiceConsumedItem;
 use App\Models\Core\FormatingSeries;
 use App\Models\Core\ModelConnection;
 use App\Models\Core\Preference;
@@ -19,6 +20,8 @@ use App\Models\Purchase\PurchaseOrderItem;
 use App\Models\Purchase\PurchaseReceipt;
 use App\Models\Purchase\PurchaseReceiptItem;
 use App\Models\Purchase\Supplier;
+use App\Models\Sales\InternalOrderItem;
+use App\Models\Sales\SalesOrderItem;
 use App\Services\Finances\DocumentDiscountCalculator;
 use App\Traits\HasDefaultDelete;
 use App\Utils;
@@ -112,6 +115,7 @@ class PurchaseOrderService implements SubmitableService {
             // basic_amount generated column (quantity * rate) -- belum terisi di object
             // sampai di-refresh dari DB.
             $itemModel->refresh();
+            $this->recordItemRequestCoverage($itemModel);
             $items->push($itemModel);
         }
 
@@ -129,6 +133,26 @@ class PurchaseOrderService implements SubmitableService {
         }
 
         return $purchaseOrder;
+    }
+
+    /**
+     * Kalau baris PO ini di-prefill dari halaman Item Request (referenceable
+     * mengarah ke SalesOrderItem/InternalOrderItem/AssetServiceConsumedItem —
+     * lihat ItemRequestService::buildPrefillItem()), catat coverage-nya supaya
+     * baris shortage terkait berkurang/hilang dari daftar Item Request
+     * (spec item-request-auto-detect, Requirement 4.1).
+     */
+    private function recordItemRequestCoverage(PurchaseOrderItem $itemModel): void {
+        if (! \in_array($itemModel->referenceable_type, [SalesOrderItem::class, InternalOrderItem::class, AssetServiceConsumedItem::class], true)) {
+            return;
+        }
+
+        app(ItemRequestService::class)->recordCoverage(
+            $itemModel,
+            $itemModel->referenceable_type,
+            $itemModel->referenceable_id,
+            (float) $itemModel->quantity,
+        );
     }
 
     public function update(Model $purchaseOrder, array $data): Model {

@@ -111,4 +111,22 @@ class PermissionCheckerTest extends TestCase {
         $this->assertSame($c->canAction('Invoice', Permission::Write->value), $c->can('Invoice', Permission::Write));
         $this->assertTrue($c->can('Invoice', Permission::Write));
     }
+
+    /**
+     * String mentah (bukan instance Permission) di posisi actionNode -- kasus
+     * nyata: kolom DB JSON (MenuItem.visibility_permission) di-json_decode()
+     * jadi string biasa ('select'), backed enum TIDAK otomatis re-hydrate
+     * jadi instance Permission. satisfies()/satisfiesAction() harus tetap
+     * menerima ini (delegasi ke canAction()), bukan selalu false.
+     */
+    public function test_satisfies_accepts_raw_string_action_from_json_decode(): void {
+        $node = ['any' => [['Invoice', 'write'], ['Order', 'write']]];
+        $this->assertTrue($this->checker(['Order' => ['write']])->satisfies($node));
+        $this->assertFalse($this->checker(['Other' => ['write']])->satisfies($node));
+    }
+
+    public function test_satisfies_leaf_with_raw_string_action(): void {
+        $this->assertTrue($this->checker(['Invoice' => ['select']])->satisfies([['Invoice', 'select']]));
+        $this->assertFalse($this->checker(['Invoice' => ['write']])->satisfies([['Invoice', 'select']]));
+    }
 }

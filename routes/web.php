@@ -58,6 +58,7 @@ use App\Http\Controllers\Inventory\StockLedgerController;
 use App\Http\Controllers\Inventory\UnitController;
 use App\Http\Controllers\Inventory\WarehouseController;
 use App\Http\Controllers\ModelController;
+use App\Http\Controllers\Purchase\ItemRequestController;
 use App\Http\Controllers\Purchase\PurchaseOrderController;
 use App\Http\Controllers\Purchase\PurchaseReceiptController;
 use App\Http\Controllers\Purchase\PurchaseRequestController;
@@ -349,6 +350,9 @@ Route::middleware(['auth', 'lang', 'onboarded', 'app', 'desk'])->group(function 
     // / Purchase Group
     // Supplier
     Route::resourceDetail('supplier', SupplierController::class);
+    // Item Request
+    Route::get('itemRequests', [ItemRequestController::class, 'index'])->name('itemRequests.index');
+    Route::post('itemRequests/stage-batch', [ItemRequestController::class, 'stageBatch'])->name('itemRequests.stageBatch');
     // Purchase Request
     Route::resourceDetail('purchaseRequest', PurchaseRequestController::class, isSubmmitable: true);
     // Purchase Order

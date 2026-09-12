@@ -4,6 +4,7 @@ namespace Database\Seeders;
 
 use App\Enums\DeskType;
 use App\Enums\Domain;
+use App\Enums\Permission;
 use App\Models\Asset\Asset;
 use App\Models\Asset\AssetCategory;
 use App\Models\Asset\AssetDepreciationSchedule;
@@ -122,8 +123,14 @@ class DeskSeeder extends Seeder {
      *                                    sepenuhnya. Divalidasi format dasar saat seeding (harus
      *                                    absolute path diawali "/") — bukan divalidasi lewat route()
      *                                    karena memang bukan nama route.
+     * @param  array|null  $visibilityPermission  Override kolom `model` sepenuhnya untuk
+     *                                            visibility menu — node tree format
+     *                                            PermissionChecker::satisfies() (any/all lintas
+     *                                            model), untuk menu yang tidak direpresentasikan
+     *                                            sebagai "1 model, permission select" tunggal
+     *                                            (mis. Item Request, union beberapa dokumen sumber).
      */
-    private function menuItem(string $label, string $icon, string $routeName, ?string $model, array $desks, int $order = 0, ?string $urlOverride = null, ?string $group = null): void {
+    private function menuItem(string $label, string $icon, string $routeName, ?string $model, array $desks, int $order = 0, ?string $urlOverride = null, ?string $group = null, ?array $visibilityPermission = null): void {
         $primary = $this->desk($desks[0]);
 
         if ($urlOverride !== null && ! \str_starts_with($urlOverride, '/')) {
@@ -141,12 +148,13 @@ class DeskSeeder extends Seeder {
                 // desk itu, jadi icon TIDAK BISA di-skip saat seed (statis,
                 // global), harus selalu icon asli item ini supaya tetap benar
                 // saat kebetulan ke-unwrap flat di sebagian desk.
-                'icon'            => $icon,
-                'model'           => $model,
-                'order'           => $order,
-                'primary_desk_id' => $primary->id,
-                'url_override'    => $urlOverride,
-                'parent_id'       => $group ? $this->menuGroups[$group]->id : null,
+                'icon'                  => $icon,
+                'model'                 => $model,
+                'visibility_permission' => $visibilityPermission,
+                'order'                 => $order,
+                'primary_desk_id'       => $primary->id,
+                'url_override'          => $urlOverride,
+                'parent_id'             => $group ? $this->menuGroups[$group]->id : null,
             ],
         );
 
@@ -272,6 +280,24 @@ class DeskSeeder extends Seeder {
         $this->menuItem('Suppliers', 'Handshake', 'suppliers.*', Supplier::class, [Domain::Purchase, Domain::Finances], 1);
         $this->menuItem('Purchase Requests', 'ShoppingBagIcon', 'purchaseRequests.*', PurchaseRequest::class, [Domain::Purchase], 2, group: 'Purchases');
         $this->menuItem('Purchase Orders', 'ShoppingBagIcon', 'purchaseOrders.*', PurchaseOrder::class, [Domain::Purchase], 3, group: 'Purchases');
+
+        // Item Request (spec item-request-auto-detect, Requirement 5.2) — bukan
+        // 1 Eloquent model fisik (union SalesOrderItem/InternalOrderItem/
+        // AssetServiceConsumedItem), jadi tidak direpresentasikan sebagai "1
+        // model, permission select" tunggal. `model` dibiarkan null (murni
+        // metadata), visibility menu SEPENUHNYA ditimpa `visibility_permission`
+        // -- OR (any) lintas 2 model: tampil kalau user punya select
+        // PurchaseRequest ATAU PurchaseOrder, konsisten dgn
+        // ItemRequestController::requirePermissionToViewList() (backend). Izin
+        // granular per-aksi tetap ditegakkan backend terpisah (stageBatch butuh
+        // create sesuai document_type, lihat requirePermissionForDocumentType())
+        // -- kolom ini cuma soal visibility menu, bukan pelonggaran izin.
+        $this->menuItem('Item Requests', 'PackageSearch', 'itemRequests.*', null, [Domain::Purchase, Domain::Inventory, Domain::Sales, Domain::Service, Domain::Asset], 0, visibilityPermission: [
+            'any' => [
+                [PurchaseRequest::class, Permission::Select],
+                [PurchaseOrder::class, Permission::Select],
+            ],
+        ]);
 
         // Sales — Orders+Internal Orders tetap 1 grup kecil. Customers
         // feedback user: keluarkan dari grup (relasi pelanggan beda konsep
