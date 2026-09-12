@@ -7,6 +7,8 @@ import { useLaravelReactI18n } from "laravel-react-i18n";
  * stok ready per gudang, hanya consumedItem is_stock_item=true. Komponen
  * BARU simple -- bukan reuse resources/js/Pages/Inventory/StockLedgers/
  * (daftar transaksi mentah, bukan ringkasan balance).
+ * @param root0
+ * @param root0.assetService
  */
 export default function StockAvailabilityCard({ assetService }) {
   const { t } = useLaravelReactI18n();

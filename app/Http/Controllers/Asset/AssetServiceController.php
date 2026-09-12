@@ -138,8 +138,8 @@ class AssetServiceController extends Controller {
         return match ($method) {
             'complete', 'storeActivity', 'updateActivity', 'billToRenter',
             'addActivityFile', 'removeActivityFile', 'startWork' => 'write',
-            'stockAvailability' => 'read',
-            default             => parent::enforcePermission($method),
+            'stockAvailability'                                  => 'read',
+            default                                              => parent::enforcePermission($method),
         };
     }
 
