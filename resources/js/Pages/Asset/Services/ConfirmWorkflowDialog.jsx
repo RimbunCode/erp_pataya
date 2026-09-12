@@ -77,6 +77,10 @@ function ConfirmOption({
  * Requirement 2/3/4/5 (spec asset-service-progress-workflow): dialog yang
  * dibuka dari tombol primary "Confirm" (Show.jsx) selama status AssetService
  * mengandung NEED_CONFIRMATION. 4 opsi + tombol lihat stok.
+ * @param root0
+ * @param root0.assetService
+ * @param root0.open
+ * @param root0.onOpenChange
  */
 export default function ConfirmWorkflowDialog({
   assetService,
