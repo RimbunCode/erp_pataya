@@ -1,11 +1,4 @@
 import { FormPageContent, useFormPage } from "@/Pages/Core/FormPage";
-import {
-  Select,
-  SelectContent,
-  SelectItem,
-  SelectTrigger,
-  SelectValue,
-} from "@/Components/ui/select";
 
 import AssetLinkModel from "@/Pages/Asset/Assets/AssetLinkModel";
 import { FormCheckbox } from "@/Components/ui/checkbox";
@@ -16,6 +9,7 @@ import ItemVariantLinkModel from "@/Pages/Inventory/Items/ItemVariantLinkModel";
 import ItemUnitLinkModel from "@/Pages/Inventory/Items/ItemUnitLinkModel";
 import DatetimePicker from "@/Components/DatetimePicker";
 import NumberInput from "@/Components/NumberInput";
+import Select from "@/Components/Select";
 import { Textarea } from "@/Components/ui/textarea";
 import React from "react";
 import { cn, generateRandom } from "@/lib/utils";
@@ -111,18 +105,9 @@ export default function Form() {
             value={data?.type}
             onValueChange={(val) => setData("type", val)}
             disabled={disabled}
-          >
-            <SelectTrigger>
-              <SelectValue />
-            </SelectTrigger>
-            <SelectContent>
-              {TYPES.map((type) => (
-                <SelectItem key={type} value={type}>
-                  {t(`asset.service.type.${type}`)}
-                </SelectItem>
-              ))}
-            </SelectContent>
-          </Select>
+            optionTrans="asset.service.type"
+            options={TYPES}
+          />
         </FormInput>
 
         {isRepair && (
