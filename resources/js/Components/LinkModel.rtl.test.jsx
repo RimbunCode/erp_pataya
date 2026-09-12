@@ -226,4 +226,76 @@ describe("LinkModel", () => {
     // Input tetap menampilkan label walau relasi sudah dihapus.
     expect(screen.getByRole("textbox")).toHaveValue("Widget");
   });
+
+  describe("Tab -- autocomplete label yg di-highlight keyboard, TIDAK langsung pilih", () => {
+    it("popover baru dibuka (opsi pertama ter-highlight default, belum ngetik apa²/tidak dirty), Tab -> label ditulis, blur otomatis pilih", async () => {
+      const user = userEvent.setup({ delay: null });
+      const onValueChange = vi.fn();
+      await render(
+        <div>
+          <LinkModel model="AppModelsItem" onValueChange={onValueChange} />
+          <button type="button">Outside</button>
+        </div>,
+      );
+
+      const input = screen.getByRole("textbox");
+      await act(async () => {
+        await user.click(input);
+      });
+
+      await screen.findByRole("option", { name: "Alpha" });
+
+      await act(async () => {
+        await user.tab();
+      });
+
+      expect(onValueChange).toHaveBeenCalledWith(
+        expect.objectContaining({ id: 1, name: "Alpha" }),
+      );
+      expect(input).toHaveValue("Alpha");
+    });
+
+    it("sedang dirty (lagi ngetik) -> Tab CUMA nulis label lengkap ke input, TIDAK langsung pilih; blur baru commit", async () => {
+      const user = userEvent.setup({ delay: null });
+      const onValueChange = vi.fn();
+      await render(
+        <div>
+          <LinkModel model="AppModelsItem" onValueChange={onValueChange} />
+          <button type="button">Outside</button>
+        </div>,
+      );
+
+      const input = screen.getByRole("textbox");
+      await act(async () => {
+        await user.type(input, "Al");
+      });
+
+      await waitFor(
+        () => {
+          expect(axiosPost).toHaveBeenCalledWith(
+            "model",
+            expect.objectContaining({ search: "Al" }),
+          );
+        },
+        { timeout: 3000 },
+      );
+      await screen.findByRole("option", { name: "Alpha" });
+
+      await act(async () => {
+        await user.tab();
+      });
+
+      // Requirement: Tab jangan langsung pilih -- tunggu blur.
+      expect(onValueChange).not.toHaveBeenCalled();
+      expect(input).toHaveValue("Alpha");
+
+      await act(async () => {
+        await user.click(screen.getByText("Outside"));
+      });
+
+      expect(onValueChange).toHaveBeenCalledWith(
+        expect.objectContaining({ id: 1, name: "Alpha" }),
+      );
+    });
+  });
 });

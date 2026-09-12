@@ -4,12 +4,15 @@ namespace App\Services\Purchase;
 
 use App\Contracts\SubmitableService;
 use App\Enums\FormStatus;
+use App\Models\Asset\AssetServiceConsumedItem;
 use App\Models\Core\FormatingSeries;
 use App\Models\Core\ModelConnection;
 use App\Models\Inventory\ItemUnit;
 use App\Models\Model;
 use App\Models\Purchase\PurchaseRequest;
 use App\Models\Purchase\PurchaseRequestItem;
+use App\Models\Sales\InternalOrderItem;
+use App\Models\Sales\SalesOrderItem;
 use App\Traits\HasDefaultDelete;
 use Illuminate\Support\Facades\DB;
 use Symfony\Component\Uid\Ulid;
@@ -44,11 +47,32 @@ class PurchaseRequestService implements SubmitableService {
 
         $units = $this->batchLoadUnits($data);
         foreach ($data['items'] as $item) {
-            $item = $this->fillItemRelations($item, $units);
-            $pr->items()->create($item);
+            $item      = $this->fillItemRelations($item, $units);
+            $itemModel = $pr->items()->create($item);
+            $this->recordItemRequestCoverage($itemModel);
         }
 
         return $pr;
+    }
+
+    /**
+     * Kalau baris PR ini di-prefill dari halaman Item Request (referenceable
+     * mengarah ke SalesOrderItem/InternalOrderItem/AssetServiceConsumedItem —
+     * lihat ItemRequestService::buildPrefillItem()), catat coverage-nya supaya
+     * baris shortage terkait berkurang/hilang dari daftar Item Request
+     * (spec item-request-auto-detect, Requirement 4.1).
+     */
+    private function recordItemRequestCoverage(PurchaseRequestItem $itemModel): void {
+        if (! \in_array($itemModel->referenceable_type, [SalesOrderItem::class, InternalOrderItem::class, AssetServiceConsumedItem::class], true)) {
+            return;
+        }
+
+        app(ItemRequestService::class)->recordCoverage(
+            $itemModel,
+            $itemModel->referenceable_type,
+            $itemModel->referenceable_id,
+            (float) $itemModel->quantity,
+        );
     }
 
     public function update(Model $purchaseRequest, array $data): Model {

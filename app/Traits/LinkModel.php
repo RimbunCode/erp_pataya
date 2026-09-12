@@ -825,15 +825,17 @@ trait LinkModel {
      *                               ignore ter-skip).
      * @param  array[]  $excepts
      */
-    private static array $columnsCache = [];
-
     public static function getColumns(int $maxDepth = 0, bool $includeIgnore = false, ...$excepts): array {
-        $cacheKey = static::class . ':' . $maxDepth . ':' . (int) $includeIgnore . ':' . implode(',', $excepts);
-
-        if (isset(self::$columnsCache[$cacheKey])) {
-            return self::$columnsCache[$cacheKey];
-        }
-
+        // Tidak ada memoization statis di layer ini (beda dari sebelumnya) — array
+        // PHP statis polos bertahan sepanjang proses TANPA invalidasi apapun, jadi
+        // sekali kena hasil korup (mis. race/reentrancy langka yg bikin
+        // DataTableConfigCache::flat()/computeColumnsFlat() sesaat return parsial),
+        // korupnya ikut permanen sepanjang sisa proses — kelas bug yg lolos dari
+        // RefreshDatabase (tak ke-reset antar test) dan hanya kena di runner
+        // paralel (paratest, banyak test class per proses worker). assembleNested()
+        // murah (bukan query DB) & $flat sendiri SUDAH di-cache proper (schema-hash
+        // aware, ter-reset per test lewat container) via DataTableConfigCache::flat()
+        // di bawah — jadi aman dihitung ulang tiap panggilan.
         try {
             $flat = DataTableConfigCache::flat(static::class);
         } catch (\Throwable) {
@@ -844,7 +846,7 @@ trait LinkModel {
             $flat = \array_values(\array_filter($flat, fn ($col) => ! ($col['ignore'] ?? false) || ($col['forceSelect'] ?? false)));
         }
 
-        return self::$columnsCache[$cacheKey] = static::assembleNested($flat, $maxDepth, $includeIgnore, static::class, ...$excepts);
+        return static::assembleNested($flat, $maxDepth, $includeIgnore, static::class, ...$excepts);
     }
 
     /**

@@ -136,6 +136,23 @@ const Select = memo(
       return oriOptions;
     }, [oriOptions, search, isDirty]);
 
+    // cmdk dikontrol via `value`/`onValueChange` sendiri (bukan diserahkan ke
+    // auto-highlight bawaan cmdk) -- auto-highlight cmdk cuma jalan SEKALI
+    // saat mount/registrasi item pertama, TIDAK otomatis pindah ke item lain
+    // kalau item yg lagi ke-highlight hilang dari DOM krn filtering `options`
+    // di atas (lihat [[reference_cmdk_autohighlight_mount_only_needs_controlled_value]]
+    // -- gotcha yg sama ditemukan & difix di MultiSelect.jsx).
+    const [highlightedValue, setHighlightedValue] = useState();
+    const visibleValues = useMemo(
+      () => (options ?? []).map((opt) => opt.value),
+      [options],
+    );
+    useEffect(() => {
+      if (!visibleValues.includes(highlightedValue)) {
+        setHighlightedValue(visibleValues[0]);
+      }
+    }, [visibleValues]);
+
     useEffect(() => {
       if (open) return;
 
@@ -220,6 +237,24 @@ const Select = memo(
               className="relative h-full overflow-visible bg-transparent"
               ref={commandRef}
               loop
+              value={highlightedValue}
+              onValueChange={setHighlightedValue}
+              onKeyDown={(e) => {
+                // Tab CUMA nulis label opsi yg lagi di-highlight keyboard ke
+                // search (autocomplete) -- TIDAK langsung memilihnya. Commit
+                // beneran tetap lewat mekanisme exact-match on-close yg SUDAH
+                // ada (efek `[open, isDirty]` di atas), sama kayak kalau user
+                // ngetik label itu manual lalu blur. isDirty (SEBELUM Tab ini)
+                // nentuin fokus terkunci di input atau boleh pindah keluar --
+                // kalau pindah keluar, itu trigger blur asli yg otomatis
+                // commit teks yg baru ditulis.
+                if (e.key !== "Tab") return;
+                const opt = getOption(highlightedValue);
+                if (!opt) return;
+                if (isDirty) e.preventDefault();
+                setSearch(opt.label);
+                setIsDirty(true);
+              }}
             >
               <Tooltip>
                 <TooltipTrigger asChild>
@@ -253,6 +288,16 @@ const Select = memo(
                           const newSearch = e.target.value;
                           setSearch(newSearch);
                           onSearchChange?.(newSearch);
+                        }}
+                        onBlur={() => {
+                          // Diperlukan spesifik utk Tab-autocomplete: Tab
+                          // TANPA klik gak lewat ClickAwayListener (itu cuma
+                          // dengar mousedown/click), jadi tanpa onBlur ini
+                          // popover gak pernah nutup+commit teks yg ditulis
+                          // Tab abis fokus pindah keluar. Efek `[open,
+                          // isDirty]` di atas yang commit -- satu sumber
+                          // kebenaran, sama kayak jalur ngetik manual.
+                          setOpen(false);
                         }}
                         className={cn(
                           "focus:border-0! bg-inherit! disabled:opacity-100! h-8 w-full rounded-none! pr-2! border-0!  focus-visible:ring-0! focus-visible:ring-offset-0!  ",
@@ -304,7 +349,19 @@ const Select = memo(
                   forceMount
                   asChild
                 >
-                  <CommandList className="p-1 space-y-2">
+                  <CommandList
+                    className="p-1 space-y-2"
+                    // Cegah browser memindah/menghapus fokus dari Input saat
+                    // area ini di-mousedown (klik opsi) -- sekarang Input
+                    // punya `onBlur` (utk Tab-autocomplete di atas), jadi
+                    // tanpa guard ini klik opsi bisa nge-trigger blur DULUAN
+                    // (browser default: mousedown geser fokus) sebelum
+                    // onSelect klik itu sendiri sempat jalan -- rawan bikin
+                    // efek exact-match on-close nyoba commit teks lama yg
+                    // BELUM final. mousedown preventDefault TIDAK mencegah
+                    // event click/onSelect itu sendiri.
+                    onMouseDown={(e) => e.preventDefault()}
+                  >
                     <CommandEmpty>{t("core.form.not_found")}</CommandEmpty>
                     {options &&
                       options?.map((option) => {

@@ -215,7 +215,16 @@ class ResolveActiveDesk {
     private function buildMenuItem(DeskMenuItem $pivot, PermissionChecker $checker): ?array {
         $menuItem = $pivot->menuItem;
 
-        if ($menuItem?->model && ! $checker->can($menuItem->model, Permission::Select)) {
+        if ($menuItem?->visibility_permission) {
+            // Kolom override eksplisit (any/all lintas model, format
+            // PermissionChecker::satisfies()) -- MENIMPA cek `model` di bawah
+            // sepenuhnya. Dipakai untuk menu yang tidak bisa direpresentasikan
+            // sebagai "1 model, permission select" tunggal (mis. Item Request,
+            // union beberapa dokumen sumber).
+            if (! $checker->satisfies($menuItem->visibility_permission)) {
+                return null;
+            }
+        } elseif ($menuItem?->model && ! $checker->can($menuItem->model, Permission::Select)) {
             return null;
         }
 
