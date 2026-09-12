@@ -169,6 +169,14 @@ class PermissionChecker {
             return $this->can($model, $action);
         }
 
+        // String mentah (mis. hasil json_decode kolom DB -- backed enum
+        // serialize ke ->value saat di-encode, tidak otomatis re-hydrate jadi
+        // instance Permission saat di-decode) -- delegasi ke canAction() yang
+        // memang menerima nama aksi mentah.
+        if (is_string($action)) {
+            return $this->canAction($model, $action);
+        }
+
         if (is_array($action)) {
             if (\array_key_exists('any', $action)) {
                 foreach ((array) $action['any'] as $a) {

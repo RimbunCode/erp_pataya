@@ -40,6 +40,9 @@ class DashboardWidgetWidthMigrationTest extends TestCase {
         // col_span_to_dashboard_widgets_table.php (BUKAN yang 160904_rename
         // -- itu migration KEDUA dari 2 migration width yang dimaksud,
         // hitung dari situ hasilnya kurang 1 dan nilai half/full ketuker).
+        // Update 2026-09-11 (spec item-request-auto-detect): 2 migration lagi
+        // nambah (create_item_request_coverages_table,
+        // add_visibility_permission_to_menu_items_table) — 15 + 2 = 17.
         // --step yang salah TIDAK bikin test ini sendiri gagal (SQLite
         // lenient soal kolom insert), tapi migrate:rollback+migrate di
         // koneksi :memory: PERSISTEN sepanjang run PHPUnit ini efeknya BOCOR

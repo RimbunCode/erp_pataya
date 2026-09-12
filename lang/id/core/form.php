@@ -28,6 +28,7 @@ return [
     ],
     'select'               => 'Pilih',
     'select.placeholder'   => 'Pilih salah satu',
+    'all'                  => 'Semua',
     'select_model'         => 'Pilih Model',
     'from'                 => 'Dari',
     'commented'            => 'mengomentari',

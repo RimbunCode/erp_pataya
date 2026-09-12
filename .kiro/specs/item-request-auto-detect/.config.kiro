@@ -1,0 +1,6 @@
+{
+  "specId": "c81baa3c-d7bc-49f2-b7c4-f1e72c1419a2",
+  "workflowType": "requirements-first",
+  "specType": "feature",
+  "description": "Deteksi otomatis kebutuhan Item yang tidak tersedia di Stock namun dibutuhkan pada SalesOrder/InternalOrder/AssetService, dengan selection multi-item, prefill create PurchaseRequest/PurchaseOrder, dan tracking partial coverage."
+}
