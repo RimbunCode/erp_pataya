@@ -33,6 +33,13 @@ class DashboardWidgetWidthMigrationTest extends TestCase {
         // Update 2026-09-09 (spec asset-category-simplification): 2 migration
         // lagi nambah (rentable/allow_bulk_quantity pindah AssetCategory ->
         // Asset) — 13 + 2 = 15.
+        // Update 2026-09-10 (spec asset-service-progress-workflow): 2
+        // migration lagi nambah (start_date di asset_services, status
+        // replace is_done di asset_service_activities) — 15 + 2 = 17.
+        // Catatan: "migration width pertama" itu 2026_08_25_160734_add_
+        // col_span_to_dashboard_widgets_table.php (BUKAN yang 160904_rename
+        // -- itu migration KEDUA dari 2 migration width yang dimaksud,
+        // hitung dari situ hasilnya kurang 1 dan nilai half/full ketuker).
         // Update 2026-09-11 (spec item-request-auto-detect): 2 migration lagi
         // nambah (create_item_request_coverages_table,
         // add_visibility_permission_to_menu_items_table) — 15 + 2 = 17.
@@ -42,10 +49,10 @@ class DashboardWidgetWidthMigrationTest extends TestCase {
         // ke SEMUA test lain yang jalan setelahnya dalam proses yang sama --
         // step yang salah membuat re-migrate berhenti di tengah tanpa
         // exception (Artisan::call tidak throw), meninggalkan skema rusak
-        // (mis. tabel `logs` hilang) utk sisa suite. WAJIB dihitung ulang via
-        // `ls database/migrations | sort | grep -A 999 "<migration width
-        // pertama>" | wc -l` tiap kali ada migration baru, BUKAN ditambah
-        // manual berdasar ingatan.
+        // (mis. tabel `logs` hilang) utk sisa suite. WAJIB dihitung ulang
+        // via `ls database/migrations | sort | grep -A 999 "2026_08_25_
+        // 160734_add_col_span_to_dashboard_widgets_table.php" | wc -l` tiap
+        // kali ada migration baru, BUKAN ditambah manual berdasar ingatan.
         Artisan::call('migrate:rollback', ['--step' => 17]);
 
         $dashboardId = (string) Str::ulid();

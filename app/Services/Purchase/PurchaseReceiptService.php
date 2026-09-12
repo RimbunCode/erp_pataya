@@ -8,6 +8,7 @@ use App\Events\Asset\FixedAssetItemApproved;
 use App\Events\Core\DocumentSubmitted;
 use App\Events\Purchase\Order\PurchaseOrderReceiveStatusRecalculationRequested;
 use App\Events\Purchase\PurchaseReceiptGeneralLedgerPostingRequested;
+use App\Events\Purchase\Request\PurchaseRequestReceiveStatusRecalculationRequested;
 use App\Models\Core\FormatingSeries;
 use App\Models\Core\GlPostingStatus;
 use App\Models\Core\ModelConnection;
@@ -402,6 +403,7 @@ class PurchaseReceiptService implements SubmitableService {
 
         // === UPDATE STATUS PO ===
         event(new PurchaseOrderReceiveStatusRecalculationRequested($purchaseOrder));
+        event(new PurchaseRequestReceiveStatusRecalculationRequested($purchaseOrder));
 
         // === GL Stock/SRNB: dipindah ke queued Job ===
         if ($returnAgainst || $totalRatesForGL > 0) {

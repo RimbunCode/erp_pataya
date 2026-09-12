@@ -121,6 +121,7 @@ class AssetServiceActivityAttachmentTest extends TestCase {
             ->post(route('assetServices.activities.store', $service), [
                 'action_date' => now()->toDateTimeString(),
                 'description' => 'test',
+                'status'      => FormStatus::IN_PROGRESS->value,
                 'filesId'     => [$file->id],
             ])
             ->assertRedirect();
@@ -148,6 +149,7 @@ class AssetServiceActivityAttachmentTest extends TestCase {
             ->post(route('assetServices.activities.store', $service), [
                 'action_date' => now()->toDateTimeString(),
                 'description' => 'no attachment',
+                'status'      => FormStatus::IN_PROGRESS->value,
             ])
             ->assertRedirect();
 

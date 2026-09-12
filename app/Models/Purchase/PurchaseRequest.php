@@ -52,7 +52,7 @@ class PurchaseRequest extends Model {
         'status' => [
             'show'      => true,
             'order'     => 3,
-            'dependsOn' => ['status', 'items.quantity', 'items.ordered_quantity'],
+            'dependsOn' => ['status', 'items.quantity', 'items.ordered_quantity', 'items.received_quantity'],
         ],
         'items' => [
             'show'  => true,
@@ -69,18 +69,24 @@ class PurchaseRequest extends Model {
     }
 
     protected function replaceStatus() {
-        $items           = $this->items;
-        $quantity        = $items->sum('quantity');
-        $orderedQuantity = $items->sum('ordered_quantity');
+        $items            = $this->items;
+        $quantity         = $items->sum('quantity');
+        $orderedQuantity  = $items->sum('ordered_quantity');
+        $receivedQuantity = $items->sum('received_quantity');
 
-        if ($orderedQuantity < 0) {
+        if ($orderedQuantity <= 0) {
             return [];
-        } else {
+        }
+
+        if ($orderedQuantity < $quantity) {
             return [
-                FormStatus::TO_ORDER->value => [$orderedQuantity >= $quantity ? FormStatus::ORDERED : FormStatus::PARTIALLY_ORDERED],
+                FormStatus::TO_ORDER->value => [FormStatus::PARTIALLY_ORDERED],
             ];
         }
 
+        return [
+            FormStatus::TO_ORDER->value => [$receivedQuantity >= $quantity ? FormStatus::COMPLETED : FormStatus::ORDERED],
+        ];
     }
 
     public function items() {

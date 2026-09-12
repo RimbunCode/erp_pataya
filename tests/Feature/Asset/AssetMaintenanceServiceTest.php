@@ -52,7 +52,9 @@ class AssetMaintenanceServiceTest extends TestCase {
         $service = $task->services()->first();
         $this->assertNotNull($service);
         $this->assertSame(AssetServiceType::MAINTENANCE_TASK, $service->type);
-        $this->assertTrue(\in_array(FormStatus::APPROVED, $service->status, true));
+        // NEED_CONFIRMATION -- spec asset-service-progress-workflow Req 1 AC2,
+        // APPROVED tidak lagi persisten pasca-onApproved().
+        $this->assertTrue(\in_array(FormStatus::NEED_CONFIRMATION, $service->status, true));
 
         $asset->refresh();
         $this->assertTrue(\in_array(FormStatus::IN_MAINTENANCE, $asset->status, true));

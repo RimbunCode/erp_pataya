@@ -9,6 +9,8 @@ use App\Models\Core\FormatingSeries;
 use App\Models\Core\ModelConnection;
 use App\Models\Inventory\ItemUnit;
 use App\Models\Model;
+use App\Models\Purchase\PurchaseOrder;
+use App\Models\Purchase\PurchaseOrderItem;
 use App\Models\Purchase\PurchaseRequest;
 use App\Models\Purchase\PurchaseRequestItem;
 use App\Models\Sales\InternalOrderItem;
@@ -203,6 +205,30 @@ class PurchaseRequestService implements SubmitableService {
         DB::commit();
 
         return $purchaseRequest;
+    }
+
+    /**
+     * Sinkron ulang `received_quantity` PurchaseRequestItem dari seluruh
+     * PurchaseOrderItem yang menunjuk ke item PR tersebut (satu PR item bisa
+     * dipecah ke banyak PO, jadi di-sum lintas PO). Status PR ("Selesai")
+     * dihitung otomatis via PurchaseRequest::replaceStatus() begitu kolom ini
+     * ter-update -- tidak perlu ditulis manual di sini.
+     */
+    public function updatePurchaseRequestReceiveStatus(PurchaseOrder $purchaseOrder): void {
+        $prItemIds = $purchaseOrder->items()
+            ->where('referenceable_type', PurchaseRequestItem::class)
+            ->pluck('referenceable_id')
+            ->unique();
+
+        foreach ($prItemIds as $prItemId) {
+            $receivedQuantity = PurchaseOrderItem::where('referenceable_type', PurchaseRequestItem::class)
+                ->where('referenceable_id', $prItemId)
+                ->sum('received_quantity');
+
+            PurchaseRequestItem::where('id', $prItemId)->update([
+                'received_quantity' => $receivedQuantity,
+            ]);
+        }
     }
 
     public function onRejected(Model $purchaseRequest): mixed {

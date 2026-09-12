@@ -342,6 +342,8 @@ Route::middleware(['auth', 'lang', 'onboarded', 'app', 'desk'])->group(function 
     Route::put('/assetServices/activities/{activity}', [AssetServiceController::class, 'updateActivity'])->name('assetServices.activities.update');
     Route::post('/assetServices/activities/{activity}/file', [AssetServiceController::class, 'addActivityFile'])->name('assetServices.activities.addFile');
     Route::delete('/assetServices/activities/{activity}/file/{file}', [AssetServiceController::class, 'removeActivityFile'])->name('assetServices.activities.removeFile');
+    Route::post('/assetServices/{assetService}/startWork', [AssetServiceController::class, 'startWork'])->name('assetServices.startWork');
+    Route::get('/assetServices/{assetService}/stockAvailability', [AssetServiceController::class, 'stockAvailability'])->name('assetServices.stockAvailability');
     Route::resourceDetail('assetService', AssetServiceController::class, isSubmmitable: true);
     // / Asset Group End
 

@@ -9,26 +9,113 @@ import {
 import { FileTextIcon, Paperclip, Plus, X } from "lucide-react";
 import React, { useEffect, useState } from "react";
 import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/Components/ui/select";
+import {
   Tooltip,
   TooltipContent,
   TooltipTrigger,
 } from "@/Components/ui/tooltip";
 
+import BadgeStatus from "@/Components/BadgeStatus";
 import { Button } from "@/Components/ui/button";
-import { Checkbox } from "@/Components/ui/checkbox";
 import DatetimePicker from "@/Components/DatetimePicker";
+import { FormPageContent } from "@/Pages/Core/FormPage";
 import Link from "@/Components/Link";
 import { Textarea } from "@/Components/ui/textarea";
+import { TZDate } from "@date-fns/tz";
 import UploadDialog from "@/Pages/Core/Components/UploadDialog";
 import UserLinkModel from "@/Pages/Users/ManageUsers/UserLinkModel";
-import { router } from "@inertiajs/react";
+import { format } from "date-fns";
+import { getLocaleDate } from "@/lib/utils";
+import { router, usePage } from "@inertiajs/react";
 import { useLaravelReactI18n } from "laravel-react-i18n";
 
-function ActivityFormDialog({ assetService, activity, open, onOpenChange }) {
-  const { t } = useLaravelReactI18n();
-  const [form, setForm] = useState(
-    activity ?? { action_date: null, pic: null, description: "", files: [] },
+/**
+ * Format `action_date` (string UTC dari backend) jadi tanggal+jam lokal
+ * terbaca -- pola sama Comments.jsx/ApprovalActedByDetail (FormPage.jsx):
+ * `format(new TZDate(value, "UTC"), "PPPp", { locale })`.
+ * @param {string|null} value
+ * @param {string} [lang]
+ * @returns {string}
+ */
+function formatActionDate(value, lang) {
+  if (!value) return "";
+  return format(new TZDate(value, "UTC"), "PPPp", {
+    locale: getLocaleDate(lang),
+  });
+}
+
+// Requirement 6 AC2 (spec asset-service-progress-workflow): 5 status
+// ticket-like -- NEW dihapus, CLOSED dikecualikan, DONE->COMPLETED.
+const ACTIVITY_STATUSES = [
+  "in_progress",
+  "resolved",
+  "waiting",
+  "on_hold",
+  "completed",
+];
+
+/**
+ * Label field kecil dengan tanda wajib -- BUKAN `@/Components/FormInput`:
+ * FormInput terikat ke FormPageMetaContext form UTAMA (AssetService) via
+ * `useFormPageMeta()` -- `useCanUpdate(name)`-nya cek permission field pada
+ * model AssetService, dan `errors` fallback-nya baca `form.errors` dari
+ * `useDraftForm(AssetService)`, BUKAN dari response `router.post/put` ke
+ * endpoint activity yang terpisah. Field activity di sini (action_date,
+ * status, dst) tidak ada pada AssetService sama sekali, jadi field-level
+ * permission & error mapping FormInput akan nyasar/tidak pernah terisi kalau
+ * dipaksakan dipakai di sini.
+ * @param root0
+ * @param root0.children
+ * @param root0.required
+ */
+function ActivityFieldLabel({ children, required }) {
+  return (
+    <p className="text-sm font-medium">
+      {children} {required && <span className="text-red-500">*</span>}
+    </p>
   );
+}
+
+/**
+ * Requirement 12 AC1 (tasks.md): named export -- dipakai ConfirmWorkflowDialog.jsx
+ * (Option Hold, Requirement 3) selain dipakai lokal di sini (Tambah Aktivitas
+ * biasa, tombol Complete).
+ * @param root0
+ * @param root0.assetService
+ * @param root0.activity
+ * @param root0.prefillStatus
+ * @param root0.onSavedCallback
+ * @param root0.open
+ * @param root0.onOpenChange
+ */
+export function ActivityFormDialog({
+  assetService,
+  activity,
+  prefillStatus,
+  onSavedCallback,
+  open,
+  onOpenChange,
+}) {
+  const { t } = useLaravelReactI18n();
+  // Requirement 6 AC6/AC8 (revisi): activities() relation (backend) sudah
+  // orderBy action_date ASC, id ASC -- .at(-1) = action_date TERBESAR, BUKAN
+  // "activity yang barusan disimpan". prefillStatus (Hold="on_hold",
+  // Complete="completed") override default ini kalau di-pass.
+  const lastActivityStatus = assetService?.activities?.at(-1)?.status ?? null;
+  const defaultForm = () => ({
+    action_date: new Date(), // Requirement 6 AC5: selalu now() saat create
+    pic: null,
+    description: "",
+    status: prefillStatus ?? lastActivityStatus,
+    files: [],
+  });
+  const [form, setForm] = useState(activity ?? defaultForm());
   // ActivityFormDialog selalu mounted (dialog cuma disembunyikan via prop
   // `open`, bukan di-unmount) -- useState initializer di atas cuma jalan
   // sekali saat mount pertama. Tanpa effect ini, ganti activity yang diedit
@@ -46,9 +133,7 @@ function ActivityFormDialog({ assetService, activity, open, onOpenChange }) {
   // BERGANTI (ganti id, atau pindah Add<->Edit), bukan tiap reload activity
   // yang sama.
   useEffect(() => {
-    setForm(
-      activity ?? { action_date: null, pic: null, description: "", files: [] },
-    );
+    setForm(activity ?? defaultForm());
   }, [activity?.id]);
   const [saving, setSaving] = useState(false);
   const [attachOpen, setAttachOpen] = useState(false);
@@ -83,7 +168,7 @@ function ActivityFormDialog({ assetService, activity, open, onOpenChange }) {
       action_date: form.action_date,
       pic_id: form.pic?.id ?? null,
       description: form.description,
-      is_done: form.is_done ?? false,
+      status: form.status,
       ...(!isEdit &&
         form.files?.length > 0 && {
           filesId: form.files.map((f) => f.id).filter(Boolean),
@@ -96,9 +181,15 @@ function ActivityFormDialog({ assetService, activity, open, onOpenChange }) {
     const method = isEdit ? "put" : "post";
 
     router[method](url, payload, {
+      // Dialog HANYA ditutup kalau request sukses -- kalau validasi backend
+      // menolak (mis. AC8/AC9/AC10), dialog tetap terbuka menampilkan error
+      // supaya user bisa perbaiki input, bukan hilang begitu saja.
+      onSuccess: () => {
+        onSavedCallback?.();
+        onOpenChange(false);
+      },
       onFinish: () => {
         setSaving(false);
-        onOpenChange(false);
       },
     });
   };
@@ -113,29 +204,63 @@ function ActivityFormDialog({ assetService, activity, open, onOpenChange }) {
               : t("asset.service.activity.add")}
           </DialogTitle>
         </DialogHeader>
-        <div className="flex flex-col gap-y-3">
-          <DatetimePicker
-            value={form.action_date}
-            onValueChange={(val) => setForm({ ...form, action_date: val })}
-          />
-          <UserLinkModel
-            value={form.pic}
-            onValueChange={(val) => setForm({ ...form, pic: val })}
-            placeholder={t("asset.service.activity.pic")}
-          />
-          <Textarea
-            rows={3}
-            value={form.description ?? ""}
-            placeholder={t("asset.service.activity.description")}
-            onChange={(e) => setForm({ ...form, description: e.target.value })}
-          />
-          <label className="flex items-center gap-x-2 text-sm">
-            <Checkbox
-              checked={form.is_done ?? false}
-              onCheckedChange={(val) => setForm({ ...form, is_done: val })}
+        <div className="flex flex-col gap-y-4">
+          <div className="grid grid-cols-2 gap-x-3">
+            <div className="flex flex-col gap-y-1.5">
+              <ActivityFieldLabel required>
+                {t("asset.service.activity.action_date")}
+              </ActivityFieldLabel>
+              <DatetimePicker
+                value={form.action_date}
+                onValueChange={(val) => setForm({ ...form, action_date: val })}
+              />
+            </div>
+            <div className="flex flex-col gap-y-1.5">
+              <ActivityFieldLabel required>
+                {t("asset.service.activity.status")}
+              </ActivityFieldLabel>
+              <Select
+                value={form.status ?? undefined}
+                onValueChange={(val) => setForm({ ...form, status: val })}
+              >
+                <SelectTrigger>
+                  <SelectValue
+                    placeholder={t("asset.service.activity.status")}
+                  />
+                </SelectTrigger>
+                <SelectContent>
+                  {ACTIVITY_STATUSES.map((status) => (
+                    <SelectItem key={status} value={status}>
+                      {t(`status.${status}`)}
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+            </div>
+          </div>
+          <div className="flex flex-col gap-y-1.5">
+            <ActivityFieldLabel>
+              {t("asset.service.activity.pic")}
+            </ActivityFieldLabel>
+            <UserLinkModel
+              value={form.pic}
+              onValueChange={(val) => setForm({ ...form, pic: val })}
+              placeholder={t("asset.service.activity.pic")}
             />
-            {t("asset.service.activity.is_done")}
-          </label>
+          </div>
+          <div className="flex flex-col gap-y-1.5">
+            <ActivityFieldLabel required>
+              {t("asset.service.activity.description")}
+            </ActivityFieldLabel>
+            <Textarea
+              rows={3}
+              value={form.description ?? ""}
+              placeholder={t("asset.service.activity.description")}
+              onChange={(e) =>
+                setForm({ ...form, description: e.target.value })
+              }
+            />
+          </div>
 
           <div className="flex flex-col gap-y-2 pt-2 border-t">
             <div className="flex items-center justify-between">
@@ -212,57 +337,29 @@ function ActivityFormDialog({ assetService, activity, open, onOpenChange }) {
   );
 }
 
-function CompleteConfirmDialog({ assetService, open, onOpenChange }) {
-  const { t } = useLaravelReactI18n();
-  const [loading, setLoading] = useState(false);
-
-  const confirm = () => {
-    setLoading(true);
-    router.post(
-      route("assetServices.complete", assetService.id),
-      {},
-      { onFinish: () => setLoading(false) },
-    );
-  };
-
-  return (
-    <Dialog open={open} onOpenChange={onOpenChange}>
-      <DialogContent>
-        <DialogHeader>
-          <DialogTitle>
-            {t("asset.service.activity.confirm_complete")}
-          </DialogTitle>
-        </DialogHeader>
-        <p className="text-sm text-muted-foreground">
-          {t("asset.service.activity.confirm_complete_description")}
-        </p>
-        <DialogFooter>
-          <Button disabled={loading} onClick={confirm}>
-            {t("asset.service.activity.confirm_complete_action")}
-          </Button>
-        </DialogFooter>
-      </DialogContent>
-    </Dialog>
-  );
-}
-
 export default function ServiceActivityLog({ assetService }) {
   const { t } = useLaravelReactI18n();
+  const lang = usePage().props?.lang;
   const [editingActivity, setEditingActivity] = useState(null);
   const [dialogOpen, setDialogOpen] = useState(false);
-  const [confirmOpen, setConfirmOpen] = useState(false);
+  const [completeOpen, setCompleteOpen] = useState(false);
 
   const activities = assetService.activities ?? [];
-  const allDone = activities.length > 0 && activities.every((a) => a.is_done);
-
-  const toggleDone = (activity) => {
-    router.put(route("assetServices.activities.update", activity.id), {
-      action_date: activity.action_date,
-      pic_id: activity.pic?.id ?? null,
-      description: activity.description,
-      is_done: !activity.is_done,
-    });
-  };
+  // Selama status masih NEED_CONFIRMATION, alur kerja belum dipilih lewat
+  // ConfirmWorkflowDialog (Hold/PR/PO/Mulai Pekerjaan) -- tambah aktivitas
+  // manual/Tandai Selesai belum relevan di titik ini.
+  const needsConfirmation = (assetService?.status ?? []).includes(
+    "need_confirmation",
+  );
+  // Requirement 6 AC8: urutan backend sudah action_date ASC, id ASC --
+  // .at(-1) = activity dengan action_date TERBESAR.
+  const lastActivity = activities.at(-1);
+  // Requirement 7 AC1 (revisi): tampil kecuali activity terakhir sudah
+  // completed, atau belum ada activity sama sekali (Requirement 9 AC3
+  // menjamin ini praktis tidak terjadi begitu status lewat NEED_CONFIRMATION
+  // -- guard tetap dipertahankan sebagai defensive check).
+  const showComplete =
+    !needsConfirmation && !!lastActivity && lastActivity.status !== "completed";
 
   const openEdit = (activity) => {
     setEditingActivity(activity);
@@ -274,55 +371,77 @@ export default function ServiceActivityLog({ assetService }) {
     setDialogOpen(true);
   };
 
-  return (
-    <div className="flex flex-col gap-y-3 p-4 border-t">
-      <div className="flex items-center justify-between">
-        <p className="text-base font-medium">
-          {t("asset.service.activity.title")}
-        </p>
-        <Button size="sm" variant="outline" onClick={openAdd}>
-          {t("asset.service.activity.add")}
-        </Button>
-      </div>
+  const openComplete = () => {
+    setEditingActivity(null);
+    setCompleteOpen(true);
+  };
 
-      <div className="flex flex-col gap-y-2">
-        {activities.map((activity) => (
-          <div
-            key={activity.id}
-            className="flex items-center gap-x-3 p-3 border rounded cursor-pointer"
-            onClick={() => openEdit(activity)}
-          >
-            <Checkbox
-              checked={activity.is_done ?? false}
-              onCheckedChange={() => toggleDone(activity)}
-              onClick={(e) => e.stopPropagation()}
-            />
-            <div className="flex-1">
-              <p className="text-sm font-medium">{activity.description}</p>
-              <p className="text-xs text-muted-foreground">
-                {activity.pic?.name} — {activity.action_date}
-              </p>
-            </div>
-            {activity.files?.length > 0 && (
-              <div className="flex items-center gap-x-1 text-xs text-muted-foreground shrink-0">
-                <Paperclip className="size-3.5" />
-                {activity.files.length}
-              </div>
+  const activeActivity = editingActivity
+    ? (activities.find((a) => a.id === editingActivity.id) ?? editingActivity)
+    : null;
+
+  return (
+    <FormPageContent
+      title={t("asset.service.activity.tab_title")}
+      value="activities"
+    >
+      <div className="flex flex-col gap-y-3">
+        <div className="flex items-center justify-between">
+          <p className="text-base font-medium">
+            {t("asset.service.activity.title")}
+          </p>
+          <div className="flex items-center gap-x-2">
+            {showComplete && (
+              <Button size="sm" onClick={openComplete}>
+                {t("asset.service.activity.mark_complete")}
+              </Button>
+            )}
+            {!needsConfirmation && (
+              <Button size="sm" variant="outline" onClick={openAdd}>
+                {t("asset.service.activity.add")}
+              </Button>
             )}
           </div>
-        ))}
-        {activities.length === 0 && (
-          <p className="text-sm text-muted-foreground">
-            {t("asset.service.activity.empty")}
-          </p>
-        )}
-      </div>
+        </div>
 
-      {allDone && (
-        <Button onClick={() => setConfirmOpen(true)}>
-          {t("asset.service.activity.mark_complete")}
-        </Button>
-      )}
+        <div className="flex flex-col gap-y-3">
+          {activities.map((activity) => (
+            <div
+              key={activity.id}
+              className="flex flex-col gap-y-2 p-4 border rounded-lg cursor-pointer transition-all hover:border-foreground/40 hover:shadow-sm"
+              onClick={() => openEdit(activity)}
+            >
+              <div className="flex items-center justify-between gap-x-3">
+                <p className="text-sm font-medium text-muted-foreground">
+                  {activity.pic?.name ?? t("asset.service.activity.no_pic")}
+                  {" — "}
+                  {formatActionDate(activity.action_date, lang)}
+                </p>
+                {activity.status && (
+                  <BadgeStatus
+                    status={activity.status}
+                    className="shrink-0 text-sm px-3 py-1"
+                  />
+                )}
+              </div>
+              <p className="text-sm">{activity.description}</p>
+              {activity.files?.length > 0 && (
+                <div className="flex items-center gap-x-1 text-xs text-muted-foreground">
+                  <Paperclip className="size-3.5" />
+                  {activity.files.length}
+                </div>
+              )}
+            </div>
+          ))}
+          {activities.length === 0 && (
+            <p className="text-sm text-muted-foreground">
+              {needsConfirmation
+                ? t("asset.service.activity.awaiting_confirmation")
+                : t("asset.service.activity.empty")}
+            </p>
+          )}
+        </div>
+      </div>
 
       <ActivityFormDialog
         // key berbasis id activity yang sedang di-edit -- ActivityFormDialog
@@ -337,20 +456,25 @@ export default function ServiceActivityLog({ assetService }) {
         // Ambil ulang dari activities (bukan snapshot editingActivity) supaya
         // attach/hapus lampiran mode edit (efek langsung, back() reload) ikut
         // ter-refresh di dialog yang masih terbuka.
-        activity={
-          editingActivity
-            ? (activities.find((a) => a.id === editingActivity.id) ??
-              editingActivity)
-            : null
-        }
+        activity={activeActivity}
         open={dialogOpen}
         onOpenChange={setDialogOpen}
       />
-      <CompleteConfirmDialog
+      {/* Requirement 7 AC2/AC3: tombol Complete reuse ActivityFormDialog yang
+          SAMA (prefillStatus="completed"), BUKAN dialog konfirmasi terpisah
+          seperti desain awal (CompleteConfirmDialog, dihapus) -- submit
+          sukses -> panggil endpoint complete() existing. */}
+      <ActivityFormDialog
+        key="complete"
         assetService={assetService}
-        open={confirmOpen}
-        onOpenChange={setConfirmOpen}
+        activity={null}
+        prefillStatus="completed"
+        onSavedCallback={() =>
+          router.post(route("assetServices.complete", assetService.id))
+        }
+        open={completeOpen}
+        onOpenChange={setCompleteOpen}
       />
-    </div>
+    </FormPageContent>
   );
 }

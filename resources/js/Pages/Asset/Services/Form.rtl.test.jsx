@@ -53,25 +53,24 @@ vi.mock("@/Components/FormInput", () => ({
   ),
 }));
 
-// Select (Radix native, dari @/Components/ui/select) di-stub jadi native
-// <select> sederhana -- fokus test ada di logic gating `type`/cascade,
-// bukan detail interaksi Radix Select.
-vi.mock("@/Components/ui/select", () => ({
-  Select: ({ value, onValueChange, disabled, children }) => (
+// Select (combobox custom, dari @/Components/Select -- field "Tipe") di-stub
+// jadi native <select> sederhana -- fokus test ada di logic gating
+// `type`/cascade, bukan detail interaksi popover/search Select.
+vi.mock("@/Components/Select", () => ({
+  default: ({ value, onValueChange, disabled, options, optionTrans }) => (
     <select
       data-testid="type-select"
       value={value ?? ""}
       disabled={disabled}
       onChange={(e) => onValueChange?.(e.target.value)}
     >
-      {children}
+      <option value="" />
+      {options?.map((opt) => (
+        <option key={opt} value={opt}>
+          {optionTrans ? `${optionTrans}.${opt}` : opt}
+        </option>
+      ))}
     </select>
-  ),
-  SelectTrigger: ({ children }) => children,
-  SelectValue: () => null,
-  SelectContent: ({ children }) => children,
-  SelectItem: ({ value, children }) => (
-    <option value={value}>{children}</option>
   ),
 }));
 

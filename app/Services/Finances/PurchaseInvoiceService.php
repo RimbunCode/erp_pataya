@@ -71,7 +71,7 @@ class PurchaseInvoiceService implements SubmitableService {
         $data['item_unit_id']           = $data['unit']['id'];
         $data['conversion_factor']      = $unit?->conversion_factor ?? 1;
         $data['exchange_rate']          = $purchaseInvoice->exchange_rate;
-        $data['tax_id']                 = $data['tax']['id'];
+        $data['tax_id']                 = $data['tax']['id'] ?? null;
         $data['tax_rate']               = $tax?->rate ?? 0;
 
         return $data;

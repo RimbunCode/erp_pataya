@@ -6,6 +6,8 @@ return [
     'submitted'                       => 'Diajukan',
     'canceled'                        => 'Dibatalkan',
     'approved'                        => 'Disetujui',
+    'need_confirmation'               => 'Perlu Konfirmasi',
+    'waiting_parts'                   => 'Menunggu Part',
     'rejected'                        => 'Ditolak',
     'delivered'                       => 'Terkirim (Delivered)',
     'pending'                         => 'Tertunda',

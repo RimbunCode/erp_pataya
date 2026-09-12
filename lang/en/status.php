@@ -6,6 +6,8 @@ return [
     'submitted'                       => 'Submitted',
     'canceled'                        => 'Canceled',
     'approved'                        => 'Approved',
+    'need_confirmation'               => 'Needs Confirmation',
+    'waiting_parts'                   => 'Waiting Parts',
     'rejected'                        => 'Rejected',
     'delivered'                       => 'Delivered',
     'pending'                         => 'Pending',

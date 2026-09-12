@@ -266,7 +266,7 @@ export const Cell = memo(
         });
       }
     }
-    if (isLink && can("read", { user_id: row?.created_by_id })) {
+    if (isLink && route && can("read", { user_id: row?.created_by_id })) {
       return (
         <Link
           className="text-blue-800 dark:text-blue-200 hover:underline"
