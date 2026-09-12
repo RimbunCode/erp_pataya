@@ -36,7 +36,7 @@ class ItemRequestController extends Controller {
     protected function exceptPermission(string $method): ?bool {
         return match ($method) {
             'index', 'stageBatch' => true,
-            default => null,
+            default               => null,
         };
     }
 
