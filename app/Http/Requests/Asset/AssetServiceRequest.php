@@ -2,15 +2,21 @@
 
 namespace App\Http\Requests\Asset;
 
-use Illuminate\Foundation\Http\FormRequest;
+use App\Http\Requests\BaseFormRequest;
 
-class AssetServiceRequest extends FormRequest {
+class AssetServiceRequest extends BaseFormRequest {
     public function rules(): array {
         $type = $this->input('type');
 
         return [
-            'type'        => ['required', 'string', 'in:maintenance_task,repair'],
-            'branch_id'   => ['nullable', 'string', 'exists:branches,id'],
+            'type' => ['required', 'string', 'in:maintenance_task,repair'],
+            // Requirement (bug fix): tidak ada field UI branch di Form.jsx
+            // (rule branch_id lama vestigial dari scaffolding awal, sudah
+            // dihapus) -- JANGAN deklarasi rule branch_id sendiri di sini,
+            // biar BaseFormRequest::validated() auto-inject branch aktif
+            // session (sama seperti WorkOrder/SalesOrder/PurchaseOrder).
+            // Deklarasi sendiri di sini bikin auto-inject di-skip (lihat
+            // komentar BaseFormRequest).
             'description' => ['nullable', 'string'],
             // 'nullable' wajib disertakan di samping required/prohibited kondisional --
             // Inertia useForm() selalu mengirim SELURUH key `data` (termasuk yang
