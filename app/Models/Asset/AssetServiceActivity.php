@@ -21,6 +21,9 @@ class AssetServiceActivity extends Model {
         'action_date' => 'datetime',
         'status'      => FormStatusCast::class,
     ];
+    protected array $configColumns = [
+        'assetService',
+    ];
 
     public static function templateLink() {
         return ':assetService.code - :action_date';

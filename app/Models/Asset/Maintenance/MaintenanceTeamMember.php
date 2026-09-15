@@ -12,8 +12,11 @@ use Illuminate\Database\Eloquent\SoftDeletes;
 class MaintenanceTeamMember extends Model {
     use HasFactory, HasUlids, SoftDeletes;
 
-    public static $parentRelation = 'maintenanceTeam';
-    protected $guarded            = ['id'];
+    public static $parentRelation  = 'maintenanceTeam';
+    protected $guarded             = ['id'];
+    protected array $configColumns = [
+        'user',
+    ];
 
     public static function templateLink() {
         return ':user.name';

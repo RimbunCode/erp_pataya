@@ -10,7 +10,11 @@ use Illuminate\Database\Eloquent\Relations\BelongsTo;
 class ChartAssignable extends Model {
     use HasUlids;
 
-    protected $guarded = ['id'];
+    protected $guarded             = ['id'];
+    protected array $configColumns = [
+        'chart',
+        'assignable',
+    ];
 
     public static function templateLink() {
         return ':chart.chart_name - :assignable';

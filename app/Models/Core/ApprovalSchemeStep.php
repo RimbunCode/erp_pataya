@@ -16,6 +16,9 @@ class ApprovalSchemeStep extends Model {
         'is_advanced' => 'boolean',
         'config'      => Json::class,
     ];
+    protected array $configColumns = [
+        'approvalScheme',
+    ];
     public string $translateKey = 'core.approvalScheme.steps';
 
     public static function templateLink() {

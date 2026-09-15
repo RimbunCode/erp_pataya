@@ -17,6 +17,9 @@ class AssetMovementItem extends Model {
     protected $casts   = [
         'quantity' => 'float',
     ];
+    protected array $configColumns = [
+        'asset',
+    ];
 
     public static function templateLink() {
         return ':asset';
