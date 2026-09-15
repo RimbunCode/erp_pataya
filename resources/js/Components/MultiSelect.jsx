@@ -217,6 +217,18 @@ const MultiSelect = memo(
       _setValues(resolveValue(value));
     }, [value, resolveValue]);
 
+    // Snapshot awal `search` (baris 208) dihitung sinkron pas mount -- kalau
+    // translasi (`t()`) belum kepasang di render pertama (chunk locale
+    // dimuat async terpisah), hasilnya raw key mentah, bukan label, dan
+    // ke-freeze permanen krn tidak ada efek lain yg nge-refresh selain
+    // toggle buka/tutup popover. Efek ini nyusul refresh begitu label opsi
+    // BERUBAH (oriOptions, termasuk saat translasi baru kepasang) -- guard
+    // `open` biar gak nimpa buffer ketikan yg lagi aktif diedit.
+    useEffect(() => {
+      if (open) return;
+      setSearch(labelOfValues(values));
+    }, [oriOptions]);
+
     // Update state lokal SAJA -- tidak notify parent. Dipakai toggle per-item
     // saat changeOnBlur aktif (checkbox tetap realtime visual, onValueChange
     // ditunda ke efek close-popover di bawah).
@@ -411,7 +423,7 @@ const MultiSelect = memo(
     // sama sekali, Tab-commit jadi no-op walau hasil filter cuma 1 opsi.
     const [highlightedValue, setHighlightedValue] = useState();
     const visibleValues = useMemo(() => {
-      const vals = options.map((opt) => opt.value);
+      const vals = options.map((opt) => `${opt.value}`);
       return showAllRow ? [ALL_OPTION_VALUE, ...vals] : vals;
     }, [options, showAllRow]);
     useEffect(() => {
@@ -532,7 +544,10 @@ const MultiSelect = memo(
                   if (val === ALL_OPTION_VALUE) {
                     toggleAll();
                   } else {
-                    toggleValue(val);
+                    const matched = oriOptions.find(
+                      (opt) => `${opt.value}` === val,
+                    );
+                    if (matched) toggleValue(matched.value);
                   }
                   setSearch("");
                   setIsDirty(false);
@@ -554,7 +569,7 @@ const MultiSelect = memo(
                   const label =
                     val === ALL_OPTION_VALUE
                       ? (allOptionLabel ?? t("core.form.all"))
-                      : oriOptions.find((opt) => opt.value === val)?.label;
+                      : oriOptions.find((opt) => `${opt.value}` === val)?.label;
                   if (label != null) {
                     setSearch(`${label}`);
                     setIsDirty(true);
@@ -772,7 +787,7 @@ const MultiSelect = memo(
                     {options?.map((opt) => (
                       <CommandItem
                         key={opt.value}
-                        value={opt.value}
+                        value={`${opt.value}`}
                         onSelect={() => toggleValue(opt.value)}
                         asChild
                       >
