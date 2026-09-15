@@ -67,6 +67,12 @@ git pull origin <nama-branch>
 
 Baru kemudian buat worktree. Melewati langkah ini menyebabkan worktree dibuat dari commit lama sehingga push akan ditolak (non-fast-forward) dan rebase menghasilkan banyak konflik.
 
+## CI/CD — Skip Deploy Otomatis saat Merge PR
+
+Workflow [`deploy-cpanel.yml`](.github/workflows/deploy-cpanel.yml) auto-deploy ke staging setiap PR yang di-merge ke branch `dev-1`. Untuk menunda deploy PR tertentu (mis. mau digabung deploy dengan PR lain), tambahkan label **`skip-deploy`** (persis, case-sensitive) ke PR tersebut sebelum di-merge — job `deploy` otomatis di-skip untuk merge itu (lihat kondisi `if` di job `deploy`).
+
+Label sudah dibuat di repo GitHub. Saat user minta buat/edit PR dengan skip deploy, pasang label ini: `gh pr create ... --label skip-deploy` atau `gh pr edit <PR> --add-label skip-deploy`.
+
 ## Struktur Folder `{Domain}/{Feature}` (lintas layer)
 
 Berlaku untuk SEMUA layer app — bukan cuma Event/Listener: `Services`, `Models`, `Jobs`, `Events`, `Listeners`, `Controllers`, dan layer baru lainnya ke depan. Prinsip ini sudah eksis organik di codebase (lihat `app/Jobs/Core/Notification/SendNotificationMailJob.php` vs job Core lain yang flat) — di sini dituliskan eksplisit sebagai aturan.
