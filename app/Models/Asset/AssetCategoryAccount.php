@@ -12,7 +12,10 @@ use Illuminate\Database\Eloquent\Relations\BelongsTo;
 class AssetCategoryAccount extends Model {
     use HasFactory, HasUlids;
 
-    protected $guarded = ['id'];
+    protected $guarded             = ['id'];
+    protected array $configColumns = [
+        'assetCategory',
+    ];
 
     public static function templateLink() {
         return ':assetCategory.category_name - :branch.name';

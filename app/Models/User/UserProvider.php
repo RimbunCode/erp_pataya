@@ -14,6 +14,9 @@ class UserProvider extends Model {
     protected $casts   = [
         'attributes' => Json::class,
     ];
+    protected array $configColumns = [
+        'user',
+    ];
 
     public static function templateLink() {
         return ':provider - :user.name';

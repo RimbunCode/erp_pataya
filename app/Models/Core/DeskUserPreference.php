@@ -10,7 +10,11 @@ use Illuminate\Database\Eloquent\Relations\BelongsTo;
 class DeskUserPreference extends Model {
     use HasUlids;
 
-    protected $guarded = ['id'];
+    protected $guarded             = ['id'];
+    protected array $configColumns = [
+        'desk',
+        'user',
+    ];
 
     public static function templateLink() {
         return ':desk.name - :user.name';

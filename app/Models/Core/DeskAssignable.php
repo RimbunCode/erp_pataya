@@ -10,7 +10,11 @@ use Illuminate\Database\Eloquent\Relations\BelongsTo;
 class DeskAssignable extends Model {
     use HasUlids;
 
-    protected $guarded = ['id'];
+    protected $guarded             = ['id'];
+    protected array $configColumns = [
+        'desk',
+        'assignable',
+    ];
 
     public static function templateLink() {
         return ':desk.name - :assignable';

@@ -17,6 +17,9 @@ class TodoReminder extends Model {
         'due_date_snapshot' => 'datetime',
         'sent_at'           => 'datetime',
     ];
+    protected array $configColumns = [
+        'todo',
+    ];
 
     public static function templateLink() {
         return ':todo.code - :due_date_snapshot';
