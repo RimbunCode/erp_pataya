@@ -22,11 +22,21 @@ class PaymentTermTemplateRequest extends BaseFormRequest {
      */
     public function rules(): array {
         return [
-            'name'                      => ['required', 'string', 'min:3', 'max:255'],
-            'description'               => ['nullable', 'string'],
-            'items'                     => ['required', 'array', 'min:1'],
-            'items.*.id'                => ['required', 'string'],
-            'items.*.due_date_based_on' => ['required', 'string', 'in:days_after_invoice_date,weeks_after_invoice_date,months_after_invoice_month'],
+            'name'        => ['required', 'string', 'min:3', 'max:255'],
+            'description' => ['nullable', 'string'],
+            'items'       => ['required', 'array', 'min:1'],
+            'items.*.id'  => ['required', 'string'],
+            // Nilai opsi WAJIB sama persis dengan yang dikirim form. Sumber
+            // kebenarannya adalah `weeks_after_invoice_week` -- dipakai di
+            // resources/js/Pages/Finances/PaymentTermTemplate/Form.jsx (daftar
+            // opsi Select + switch kalkulasi due_date), di
+            // resources/js/Pages/Finances/Components/PaymentSchedule.jsx, dan
+            // di 8 file lang (en/id x paymentTerm/salesInvoice/purchaseInvoice/
+            // salesOrder). Rule ini sebelumnya menulis `weeks_after_invoice_date`
+            // sehingga opsi "Minggu setelah minggu faktur" selalu ditolak
+            // validasi. Kolom DB-nya string biasa (tanpa enum), jadi konsistensi
+            // nilai murni dijaga di sini.
+            'items.*.due_date_based_on' => ['required', 'string', 'in:days_after_invoice_date,weeks_after_invoice_week,months_after_invoice_month'],
             'items.*.credit_period'     => ['required', 'numeric', 'min:0'],
             'items.*.invoice_portion'   => ['required', 'numeric', 'min:0', 'max:100'],
             'items.*.discount_type'     => ['nullable', 'string'],

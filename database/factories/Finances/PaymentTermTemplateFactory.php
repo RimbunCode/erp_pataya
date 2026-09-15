@@ -49,7 +49,7 @@ class PaymentTermTemplateFactory extends Factory {
                     'payment_term_template_id' => $paymentTermTemplate->id,
                     'due_date_based_on'        => fake()->randomElement([
                         'days_after_invoice_date',
-                        'weeks_after_invoice_date',
+                        'weeks_after_invoice_week',
                         'months_after_invoice_month',
                     ]),
                     'credit_period'     => (($index + 1) * 15) + fake()->numberBetween(0, 10),
