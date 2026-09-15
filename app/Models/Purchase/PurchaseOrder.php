@@ -74,7 +74,17 @@ class PurchaseOrder extends Model {
     }
 
     protected static function loadRelationsOnShow() {
-        return ['items', 'items.item', 'supplier', 'items.unit', 'items.tax', 'items.targetWarehouse', 'currency'];
+        return [
+            'items',
+            'items.item',
+            'supplier',
+            'items.unit',
+            'items.tax',
+            'items.targetWarehouse',
+            'currency',
+            'paymentSchedules',
+            'paymentSchedules.paymentMethod',
+        ];
     }
 
     public function currency() {

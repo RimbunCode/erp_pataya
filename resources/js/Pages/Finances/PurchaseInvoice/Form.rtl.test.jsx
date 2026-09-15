@@ -15,9 +15,16 @@ import userEvent from "@testing-library/user-event";
 //   - defaultValue() -- resolve expense_head_account (stock_received_but_not_
 //     billed) & credit_account (payable) dari getDataModel, filter is_contra
 //     false diterapkan di FE (bukan bagian query filter langsung, cek shape).
-//   - Memo kalkulasi net_amount (basic_amount - discount_amount per item,
-//     BUKAN calculateArray seperti dpp/tax/amount) / dpp_amount / tax_amount
-//     (calculateArray) / amount (calculateArray).
+//   - Memo kalkulasi net_amount/dpp_amount/tax_amount/amount dihitung dari
+//     quantity*rate + tax.rate MENTAH per baris (rawLines) lalu dialokasikan
+//     ulang via allocateDiscount dgn DPP_FACTOR 11/12 (allocatedLines) --
+//     BUKAN dibaca dari kolom basic_amount/dpp_amount/tax_amount milik
+//     data.items (yang hanya di-refresh oleh mapItem FormTable saat referensi
+//     array items berubah, bukan saat discount_on/discount_rate/discount_amount
+//     berubah sendirian -- ini akar bug "total tidak reaktif saat diskon
+//     diubah" yang diperbaiki). rawNetAmount/rawTaxAmount (basis sebelum
+//     diskon) diteruskan ke AdditionalDiscount terpisah dari netAmount/
+//     taxAmount (basis setelah diskon).
 //   - Transform data saat memilih purchase_order (checkout PO -> item invoice,
 //     quantity dari unbilled_quantity, amount = basic_amount+tax_amount).
 //   - Transform reset saat toggle is_return checkbox (SEMUA field terkait dan
@@ -280,78 +287,174 @@ describe("PurchaseInvoice Form", () => {
   });
 
   describe("kalkulasi total (net_amount/dpp_amount/tax_amount/amount)", () => {
-    it("net_amount menjumlahkan basic_amount dikurangi discount_amount tiap item", () => {
-      formPageState = makeFormPageState({
-        data: {
-          items: [
-            { basic_amount: 1000, discount_amount: 100 },
-            { basic_amount: 500, discount_amount: 0 },
-          ],
-        },
-      });
-      render(<Form />);
+    // Item acuan dipakai berulang: quantity 12 x rate 100 = basic_amount 1200
+    // (kelipatan 12 supaya basic_amount * DPP_FACTOR (11/12) hasilnya bilangan
+    // bulat bersih -- 1100, bukan desimal berulang -- jadi assertion display
+    // value bisa exact-match tanpa masalah presisi floating point).
+    // Tanpa diskon: net_amount=1200, dpp_amount=1200*11/12=1100,
+    // tax_amount=1100*11/100=121, amount=1200+121=1321 (diverifikasi via
+    // allocateDiscount asli, bukan angka karangan).
+    const referenceItem = {
+      purchase_order_item: { id: 1 },
+      quantity: 12,
+      rate: 100,
+      tax: { rate: 11 },
+    };
 
-      // net_amount = (1000-100) + (500-0) = 1400 -- muncul di label readOnly
-      // "Jumlah Dasar (IDR)" (currency dokumen sama dgn default, hanya 1 baris).
-      expect(screen.getAllByDisplayValue("1400").length).toBeGreaterThan(0);
-    });
-
-    it("item tanpa discount_amount (carry-over dari PurchaseOrder, belum dihitung backend) default ke 0", () => {
-      formPageState = makeFormPageState({
-        data: {
-          items: [{ basic_amount: 750 }], // discount_amount undefined
-        },
-      });
-      render(<Form />);
-
-      expect(screen.getAllByDisplayValue("750").length).toBeGreaterThan(0);
-    });
-
-    it("dpp_amount & tax_amount dijumlahkan dari kolom dpp_amount/tax_amount tiap item (calculateArray)", () => {
+    it("dihitung dari quantity x rate + tax.rate per baris, BUKAN dari kolom basic_amount/dpp_amount/tax_amount milik item", () => {
       formPageState = makeFormPageState({
         data: {
           items: [
             {
-              basic_amount: 1000,
-              discount_amount: 0,
-              dpp_amount: 916.67,
-              tax_amount: 110,
-            },
-            {
-              basic_amount: 500,
-              discount_amount: 0,
-              dpp_amount: 458.33,
-              tax_amount: 55,
+              ...referenceItem,
+              // Kolom-kolom ini SENGAJA diisi angka ngaco -- kalau memo masih
+              // membaca kolom per-item (perilaku lama), hasil di bawah akan
+              // ikut 99999, bukan 1200/1100/121/1321 yang benar dari quantity*rate.
+              basic_amount: 99999,
+              dpp_amount: 99999,
+              tax_amount: 99999,
+              amount: 99999,
             },
           ],
         },
       });
       render(<Form />);
 
-      expect(screen.getAllByDisplayValue("1375").length).toBeGreaterThan(0); // dpp 916.67+458.33
-      expect(screen.getAllByDisplayValue("165").length).toBeGreaterThan(0); // tax 110+55
+      expect(screen.getAllByDisplayValue("1200").length).toBeGreaterThan(0); // Jumlah Dasar
+      expect(screen.getAllByDisplayValue("1100").length).toBeGreaterThan(0); // DPP
+      expect(screen.getAllByDisplayValue("121").length).toBeGreaterThan(0); // Pajak
+      expect(screen.getAllByDisplayValue("1321").length).toBeGreaterThan(0); // Total
     });
 
-    it("amount dijumlahkan dari kolom amount tiap item (calculateArray, diteruskan ke additionalData PaymentSchedule)", () => {
+    it("REAKTIVITAS: mengubah discount_rate header saja (referensi data.items TIDAK berubah) tetap memperbarui semua total -- bug utama yang diperbaiki", () => {
+      // items dipertahankan sebagai SATU referensi array yang sama di kedua
+      // render -- mensimulasikan persis skenario bug: user mengetik diskon
+      // tanpa menyentuh tabel item sama sekali, jadi mapItem (yang hanya
+      // jalan saat referensi items berubah) TIDAK akan pernah ter-trigger.
+      const items = [referenceItem];
+      formPageState = makeFormPageState({
+        data: { items, discount_on: "net_total" },
+      });
+      const { rerender } = render(<Form />);
+
+      expect(screen.getAllByDisplayValue("1200").length).toBeGreaterThan(0);
+      expect(screen.getAllByDisplayValue("1100").length).toBeGreaterThan(0);
+      expect(screen.getAllByDisplayValue("121").length).toBeGreaterThan(0);
+      expect(screen.getAllByDisplayValue("1321").length).toBeGreaterThan(0);
+
+      formPageState = makeFormPageState({
+        data: { items, discount_on: "net_total", discount_rate: 10 },
+      });
+      rerender(<Form />);
+
+      // Diskon 10% dari net_total (1200) = 120 -> basic_amount 1080, dpp
+      // 1080*11/12=990, tax dihitung ulang dari basis DPP baru = 108.9,
+      // total 1080+108.9=1188.9. SEMUA field ikut berubah walau `items`
+      // (referensi array) sama sekali tidak disentuh.
+      expect(screen.getAllByDisplayValue("1080").length).toBeGreaterThan(0);
+      expect(screen.getAllByDisplayValue("990").length).toBeGreaterThan(0);
+      expect(screen.getAllByDisplayValue("108.9").length).toBeGreaterThan(0);
+      expect(screen.getAllByDisplayValue("1188.9").length).toBeGreaterThan(0);
+      // Nilai lama (sebelum diskon) tidak boleh tersisa di layar -- inilah
+      // yang gagal sebelum perbaikan (baru berubah setelah dokumen disimpan).
+      expect(screen.queryAllByDisplayValue("1200").length).toBe(0);
+    });
+
+    it("baris kosong di akhir tabel (tanpa purchase_order_item) tidak ikut dihitung", () => {
       formPageState = makeFormPageState({
         data: {
-          items: [{ basic_amount: 1000, discount_amount: 0, amount: 1060 }],
+          items: [
+            referenceItem,
+            // Baris kosong yang selalu disisakan FormTable di akhir tabel --
+            // angka besar sengaja dipasang supaya kalau filter gagal, total
+            // akan meleset jauh dan test ini gagal dengan jelas.
+            { quantity: 999, rate: 999, tax: { rate: 999 } },
+          ],
         },
       });
       render(<Form />);
 
-      // additionalData adalah callback yang Form.jsx teruskan ke
-      // PaymentSchedule -- panggil dgn payment_schedules dummy utk verifikasi
-      // payment_amount dihitung dari `amount` (hasil calculateArray items).
-      const { additionalData } = paymentSchedulePropsSpy.mock.calls[0][0];
-      const result = additionalData([{ id: "row1", invoice_portion: 50 }]);
-      expect(result.row1.payment_amount).toBe(530); // 1060 * 50 / 100
-      expect(result.row1.outstanding_amount).toBe(530);
+      expect(screen.getAllByDisplayValue("1200").length).toBeGreaterThan(0);
+      expect(screen.getAllByDisplayValue("1100").length).toBeGreaterThan(0);
+      expect(screen.getAllByDisplayValue("121").length).toBeGreaterThan(0);
+      expect(screen.getAllByDisplayValue("1321").length).toBeGreaterThan(0);
     });
 
-    it("data.items undefined tidak crash -- net_amount/dpp_amount/tax_amount/amount default ke 0", () => {
+    it("data.items undefined tidak crash -- net_amount/dpp_amount/tax_amount/amount & rawNetAmount/rawTaxAmount default ke 0", () => {
       formPageState = makeFormPageState({ data: { items: undefined } });
       expect(() => render(<Form />)).not.toThrow();
+
+      const props = additionalDiscountPropsSpy.mock.calls[0][0];
+      expect(props.netAmount).toBe(0);
+      expect(props.taxAmount).toBe(0);
+      expect(props.rawNetAmount).toBe(0);
+      expect(props.rawTaxAmount).toBe(0);
+    });
+
+    it("meneruskan rawNetAmount/rawTaxAmount MENTAH (sebelum diskon) ke AdditionalDiscount, terpisah dari netAmount/taxAmount hasil alokasi", () => {
+      formPageState = makeFormPageState({
+        data: {
+          discount_on: "net_total",
+          discount_rate: 10,
+          latestDiscountKey: "discount_rate",
+          items: [referenceItem],
+        },
+      });
+      render(<Form />);
+
+      const props = additionalDiscountPropsSpy.mock.calls[0][0];
+      // rawNetAmount/rawTaxAmount tetap basis MENTAH (1200/121), tidak peduli
+      // discount_rate sudah 10% -- kalau basisnya ikut memakai angka yang
+      // sudah terpotong, discount_rate akan memotong basis yang terus
+      // menyusut tiap kali dihitung ulang.
+      expect(props.rawNetAmount).toBe(1200);
+      expect(props.rawTaxAmount).toBe(121);
+      // netAmount/taxAmount SUDAH hasil alokasi diskon 10% dari net_total.
+      expect(props.netAmount).toBeCloseTo(1080, 5);
+      expect(props.taxAmount).toBeCloseTo(108.9, 5);
+      expect(props.rawNetAmount).not.toBe(props.netAmount);
+      expect(props.rawTaxAmount).not.toBe(props.taxAmount);
+    });
+
+    it("rawTaxAmount memakai basis DPP Nilai Lain (basic_amount x 11/12 x tax_rate/100), BUKAN basic_amount x tax_rate/100 langsung", () => {
+      formPageState = makeFormPageState({
+        data: { items: [referenceItem] },
+      });
+      render(<Form />);
+
+      const props = additionalDiscountPropsSpy.mock.calls[0][0];
+      // Basis DPP: 1200 * 11/12 * 11/100 = 121.
+      expect(props.rawTaxAmount).toBe(121);
+      // BUKAN 1200 * 11/100 = 132 (basic_amount x tax_rate langsung tanpa DPP_FACTOR).
+      expect(props.rawTaxAmount).not.toBe(132);
+    });
+
+    it("additionalData PaymentSchedule dihitung dari total baru (amount hasil memo), bukan kolom amount milik item", () => {
+      formPageState = makeFormPageState({
+        data: {
+          items: [{ ...referenceItem, amount: 99999 }], // kolom lama, harus diabaikan
+        },
+      });
+      render(<Form />);
+
+      const { additionalData } = paymentSchedulePropsSpy.mock.calls[0][0];
+      const result = additionalData([{ id: "row1", invoice_portion: 50 }]);
+      // amount benar = 1321 (lihat test kalkulasi di atas) -> payment 50% = 660.5.
+      expect(result.row1.payment_amount).toBe(660.5);
+      expect(result.row1.outstanding_amount).toBe(660.5);
+    });
+  });
+
+  describe("kolom tax (item table)", () => {
+    it("kolom tax TIDAK required -- pajak boleh kosong (perbaikan 1)", () => {
+      formPageState = makeFormPageState({
+        data: { items: [{ id: 1 }] },
+      });
+      render(<Form />);
+
+      const itemColumns = formTablePropsSpy.mock.calls[0][0].columns;
+      const taxCol = itemColumns.find((c) => c.name === "tax");
+      expect(taxCol.required).not.toBe(true);
     });
   });
 
@@ -681,13 +784,20 @@ describe("PurchaseInvoice Form", () => {
   it("meneruskan netAmount & taxAmount ke AdditionalDiscount", () => {
     formPageState = makeFormPageState({
       data: {
-        items: [{ basic_amount: 1000, discount_amount: 0, tax_amount: 110 }],
+        items: [
+          {
+            purchase_order_item: { id: 1 },
+            quantity: 12,
+            rate: 100,
+            tax: { rate: 11 },
+          },
+        ],
       },
     });
     render(<Form />);
 
     const props = additionalDiscountPropsSpy.mock.calls[0][0];
-    expect(props.netAmount).toBe(1000);
-    expect(props.taxAmount).toBe(110);
+    expect(props.netAmount).toBe(1200);
+    expect(props.taxAmount).toBe(121);
   });
 });

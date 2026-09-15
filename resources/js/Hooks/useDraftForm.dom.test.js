@@ -516,6 +516,95 @@ describe("useDraftForm: getOptions lewat method http (post/patch/...)", () => {
   });
 });
 
+describe("useDraftForm: onSuccess merge key FE-only ke defaults (regresi badge 'Not Saved' nyangkut permanen)", () => {
+  // ==========================================================================
+  // Regresi nyata di halaman Purchase Order (update): user ubah supplier/
+  // gudang tujuan/tarif lalu tekan Save -- data BERHASIL tersimpan ke DB,
+  // tapi badge "Not Saved" tetap menempel selamanya dan tombol Submit tidak
+  // pernah muncul (FormPage.jsx mensyaratkan `!isDirty` untuk menampilkan
+  // tombol Submit pada dokumen bukan draft).
+  //
+  // Akar masalah: `form.setDefaults(object)` di Inertia v2.3.18 itu MERGE
+  // (`Object.assign(cloneDeep(defaults), fieldOrFields)`), BUKAN replace.
+  // Sebelum fix, onSuccess langsung `form.setDefaults(e.props[name])` --
+  // kalau dikasih data fresh dari server, key yang cuma hidup di `data` dan
+  // memang tidak pernah dikirim balik server (mis. `latestDiscountKey` yang
+  // ditulis Finances/Components/AdditionalDiscount.jsx, atau
+  // `target_warehouse`/`source_warehouse` level header di form PO/SO) tidak
+  // akan pernah ikut masuk ke `defaults`. Effect
+  // `form.reset(...Object.keys(initialData))` sesudahnya juga tidak menolong
+  // karena reset per-field cuma menimpa key yang ADA di `defaults`. Hasilnya
+  // `data` selalu punya key ekstra dibanding `defaults`, sehingga `isDirty`
+  // (deep compare data vs defaults) permanen `true` walau submit sukses.
+  //
+  // Test di bawah membuktikan fix: onSuccess membangun `defaults` baru dari
+  // snapshot data form saat submit (`dataRef.current`, sudah termasuk key
+  // FE-only) lalu ditimpa field fresh dari server, supaya key FE-only IKUT
+  // masuk `defaults` (isDirty bisa balik `false`) SEKALIGUS field milik
+  // server tetap yang terbaru (bukan versi sebelum submit).
+  // ==========================================================================
+
+  it("setDefaults dipanggil dengan object yang tetap memuat key FE-only (latestDiscountKey) beserta nilainya, dan field server pakai nilai TERBARU dari response", () => {
+    const { result } = renderHook(() =>
+      useDraftForm(
+        "purchaseOrder",
+        { id: 1, code: "PO-001", supplier_id: "SUP-OLD" },
+        { isCreate: false },
+      ),
+    );
+
+    // Simulasikan key FE-only ala AdditionalDiscount.jsx: tidak pernah ada
+    // di initialData maupun di props server, murni state UI form.
+    act(() => {
+      result.current.setData("latestDiscountKey", "discount-abc");
+    });
+
+    act(() => {
+      result.current.put("/purchase-orders/1");
+    });
+    const opts = putSpy.mock.calls[0][1];
+
+    // Response server TIDAK PERNAH membawa balik latestDiscountKey (sesuai
+    // komentar DocumentDiscountCalculator.php yang sengaja tidak
+    // mentransport key ini), tapi field lain memang berubah di server.
+    act(() => {
+      opts.onSuccess({
+        props: {
+          purchaseOrder: { id: 1, code: "PO-001", supplier_id: "SUP-NEW" },
+        },
+      });
+    });
+
+    expect(setDefaultsSpy).toHaveBeenCalledWith({
+      id: 1,
+      code: "PO-001",
+      supplier_id: "SUP-NEW", // field server menang, bukan "SUP-OLD"
+      latestDiscountKey: "discount-abc", // key FE-only tetap selamat
+    });
+  });
+
+  it("e.props[name] undefined -- setDefaults tetap dipanggil dengan undefined (jalur setDataAsDefaults bawaan Inertia), BUKAN di-skip total", () => {
+    const { result } = renderHook(() =>
+      useDraftForm("purchaseOrder", { id: 1 }, { isCreate: false }),
+    );
+
+    act(() => {
+      result.current.setData("target_warehouse", "WH-01");
+    });
+
+    act(() => {
+      result.current.put("/purchase-orders/1");
+    });
+    const opts = putSpy.mock.calls[0][1];
+
+    act(() => {
+      opts.onSuccess({ props: {} });
+    });
+
+    expect(setDefaultsSpy).toHaveBeenCalledWith(undefined);
+  });
+});
+
 describe("useDraftForm: delete() membungkus onSuccess tambahan", () => {
   it("delete() sukses -- draft dihapus & onSuccess user tetap dipanggil dengan event asli", () => {
     const userOnSuccess = vi.fn();
