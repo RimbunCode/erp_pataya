@@ -16,9 +16,14 @@ class AdditionalCost extends Model {
         [StockEntry::class, [Permission::Write, Permission::Create]],
     ];
 
-    protected $guarded             = ['id'];
-    protected $casts               = ['amount' => 'float'];
-    protected $with                = ['expenseAccount'];
+    protected $guarded = ['id'];
+    protected $casts   = ['amount' => 'float'];
+    protected $with    = ['expenseAccount'];
+
+    public static function templateLink() {
+        return ':purpose';
+    }
+
     protected array $configColumns = [
         'purpose' => [
             'show'  => true,

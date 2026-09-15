@@ -20,6 +20,10 @@ class TicketResponse extends Model {
         'content_json' => 'array',
     ];
 
+    public static function templateLink() {
+        return ':subject';
+    }
+
     public function ticket(): BelongsTo {
         return $this->belongsTo(Ticket::class);
     }

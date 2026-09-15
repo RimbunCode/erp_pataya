@@ -18,6 +18,10 @@ class ApprovalSchemeStep extends Model {
     ];
     public string $translateKey = 'core.approvalScheme.steps';
 
+    public static function templateLink() {
+        return ':approvalScheme.name';
+    }
+
     public function approvalScheme() {
         return $this->belongsTo(ApprovalScheme::class);
     }

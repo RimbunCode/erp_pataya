@@ -9,10 +9,15 @@ use Illuminate\Database\Eloquent\SoftDeletes;
 class PaymentTermTemplateItem extends Model {
     use HasUlids, SoftDeletes;
 
-    public static $parentRelation  = 'paymentTermTemplate';
-    protected $guarded             = ['id'];
-    protected $casts               = ['invoice_portion' => 'float', 'discount' => 'float'];
-    public string $translateKey    = 'finances.paymentTerm';
+    public static $parentRelation = 'paymentTermTemplate';
+    protected $guarded            = ['id'];
+    protected $casts              = ['invoice_portion' => 'float', 'discount' => 'float'];
+    public string $translateKey   = 'finances.paymentTerm';
+
+    public static function templateLink() {
+        return ':invoice_portion% / :credit_period hari';
+    }
+
     protected array $configColumns = [
         'due_date_based_on' => [
             'order'      => 1,

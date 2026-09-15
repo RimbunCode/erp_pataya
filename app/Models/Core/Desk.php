@@ -37,6 +37,10 @@ class Desk extends Model {
         ];
     }
 
+    public static function templateLink() {
+        return ':name';
+    }
+
     protected array $configColumns = [
         'name' => [
             'show'   => true,

@@ -25,6 +25,10 @@ class RolePermission extends Model {
         ],
     ];
 
+    public static function templateLink() {
+        return ':role.name - :permission.name';
+    }
+
     protected static function loadRelationsOnShow() {
         return [
             'permission',

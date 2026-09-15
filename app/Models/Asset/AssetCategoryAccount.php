@@ -14,6 +14,10 @@ class AssetCategoryAccount extends Model {
 
     protected $guarded = ['id'];
 
+    public static function templateLink() {
+        return ':assetCategory.category_name - :branch.name';
+    }
+
     public function assetCategory(): BelongsTo {
         return $this->belongsTo(AssetCategory::class);
     }

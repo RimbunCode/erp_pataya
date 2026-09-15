@@ -18,6 +18,10 @@ class AssetMovementItem extends Model {
         'quantity' => 'float',
     ];
 
+    public static function templateLink() {
+        return ':asset';
+    }
+
     public function assetMovement(): BelongsTo {
         return $this->belongsTo(AssetMovement::class);
     }

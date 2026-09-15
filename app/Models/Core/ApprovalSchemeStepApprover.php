@@ -15,6 +15,10 @@ class ApprovalSchemeStepApprover extends Model {
         'config' => Json::class,
     ];
 
+    public static function templateLink() {
+        return ':approvalSchemeStep.approvalScheme.name';
+    }
+
     public function approvalSchemeStep() {
         return $this->belongsTo(ApprovalSchemeStep::class);
     }

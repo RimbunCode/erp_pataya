@@ -15,6 +15,10 @@ class ChangelogRead extends Model {
         'read_at' => 'datetime',
     ];
 
+    public static function templateLink() {
+        return ':changelog.version - :user.name';
+    }
+
     public function changelog(): BelongsTo {
         return $this->belongsTo(Changelog::class);
     }

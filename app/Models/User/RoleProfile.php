@@ -10,6 +10,10 @@ class RoleProfile extends Model {
 
     protected $guarded = ['id'];
 
+    public static function templateLink() {
+        return ':name';
+    }
+
     public function roles() {
         return $this->belongsToMany(Role::class, 'role_profile_details', 'role_profile_id', 'role_id');
     }

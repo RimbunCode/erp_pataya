@@ -15,7 +15,12 @@ class ItemAttribute extends Model {
     protected $casts   = [
         'values' => Json::class,
     ];
-    public string $translateKey    = 'inventories.itemAttributes';
+    public string $translateKey = 'inventories.itemAttributes';
+
+    public static function templateLink() {
+        return ':item.code - :attribute.name';
+    }
+
     protected array $configColumns = [
         'item',
         'attribute',

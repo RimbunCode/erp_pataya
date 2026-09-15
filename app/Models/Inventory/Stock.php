@@ -61,7 +61,12 @@ class Stock extends Model {
         });
     }
 
-    public string $translateKey    = 'inventories.stock';
+    public string $translateKey = 'inventories.stock';
+
+    public static function templateLink() {
+        return ':itemVariant.code - :warehouse.name';
+    }
+
     protected array $configColumns = [
         'actual_quantity' => [
             'type'  => 'numeric',

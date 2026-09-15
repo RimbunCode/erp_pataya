@@ -90,7 +90,12 @@ class Log extends Model {
         return ['select', 'read'];
     }
 
-    public $translateKey           = 'core.log';
+    public $translateKey = 'core.log';
+
+    public static function templateLink() {
+        return ':code';
+    }
+
     protected array $configColumns = [
         'loggable' => [
             'show'   => true,

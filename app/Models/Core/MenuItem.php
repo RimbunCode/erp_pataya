@@ -15,6 +15,10 @@ class MenuItem extends Model {
         'visibility_permission' => 'array',
     ];
 
+    public static function templateLink() {
+        return ':label';
+    }
+
     public function parent() {
         return $this->belongsTo(MenuItem::class, 'parent_id');
     }

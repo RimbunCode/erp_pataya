@@ -12,6 +12,10 @@ class DeskUserPreference extends Model {
 
     protected $guarded = ['id'];
 
+    public static function templateLink() {
+        return ':desk.name - :user.name';
+    }
+
     protected function casts(): array {
         return [
             'is_hidden' => 'boolean',

@@ -18,6 +18,10 @@ class CommandRecent extends Model {
         'payload'      => Json::class,
     ];
 
+    public static function templateLink() {
+        return ':title';
+    }
+
     public function user(): BelongsTo {
         return $this->belongsTo(User::class, 'user_id');
     }

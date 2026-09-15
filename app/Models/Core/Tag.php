@@ -10,8 +10,13 @@ use Illuminate\Database\Eloquent\SoftDeletes;
 class Tag extends Model {
     use HasFactory, HasUlids, SoftDeletes;
 
-    protected $guarded             = ['id'];
-    public $translateKey           = 'core.tag';
+    protected $guarded   = ['id'];
+    public $translateKey = 'core.tag';
+
+    public static function templateLink() {
+        return ':name';
+    }
+
     protected array $configColumns = [
         'name' => [
             'show'  => true,

@@ -27,7 +27,12 @@ class StockEntryItem extends Model {
         'basic_amount'      => 'float',
         'amount'            => 'float',
     ];
-    public $translateKey           = 'inventory.stockEntry.item_columns';
+    public $translateKey = 'inventory.stockEntry.item_columns';
+
+    public static function templateLink() {
+        return ':item';
+    }
+
     protected array $configColumns = [
         'sourceWarehouse' => [
             'type'  => 'relation',

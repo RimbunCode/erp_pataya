@@ -21,6 +21,10 @@ class SalesInvoiceItemAsset extends Model {
         'processed_at' => 'datetime',
     ];
 
+    public static function templateLink() {
+        return ':asset';
+    }
+
     public function salesInvoiceItem(): BelongsTo {
         return $this->belongsTo(SalesInvoiceItem::class);
     }

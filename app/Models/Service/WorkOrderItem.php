@@ -23,7 +23,12 @@ class WorkOrderItem extends Model {
         'remaining_quantity'   => 'float',
         'conversion_factor'    => 'float',
     ];
-    public string $translateKey    = 'service.workOrder.workOrderItem';
+    public string $translateKey = 'service.workOrder.workOrderItem';
+
+    public static function templateLink() {
+        return ':item';
+    }
+
     protected array $configColumns = [
         'item' => [
             'type'  => 'relation',

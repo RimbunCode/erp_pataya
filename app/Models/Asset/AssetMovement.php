@@ -25,6 +25,11 @@ class AssetMovement extends Model {
         'purpose'          => AssetMovementPurpose::class,
         'transaction_date' => 'date',
     ];
+
+    public static function templateLink() {
+        return ':code';
+    }
+
     protected array $configColumns = [
         'code' => [
             'show'   => true,

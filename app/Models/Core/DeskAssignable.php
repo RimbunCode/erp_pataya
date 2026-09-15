@@ -12,6 +12,10 @@ class DeskAssignable extends Model {
 
     protected $guarded = ['id'];
 
+    public static function templateLink() {
+        return ':desk.name - :assignable';
+    }
+
     public function desk(): BelongsTo {
         return $this->belongsTo(Desk::class);
     }

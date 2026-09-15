@@ -21,6 +21,10 @@ class AssetDepreciationSchedule extends Model {
         'accumulated_depreciation_amount' => 'decimal:2',
     ];
 
+    public static function templateLink() {
+        return ':asset.asset_name - :schedule_date';
+    }
+
     public function asset(): BelongsTo {
         return $this->belongsTo(Asset::class);
     }

@@ -16,10 +16,15 @@ use Illuminate\Database\Eloquent\SoftDeletes;
 class AssetMaintenanceTeam extends Model {
     use DataTable, HasFactory, HasUlids, SoftDeletes;
 
-    protected static $service      = AssetMaintenanceTeamService::class;
-    public string $formComponent   = 'Asset/MaintenanceTeams/Form';
-    public string $translateKey    = 'asset.maintenance.team';
-    protected $guarded             = ['id'];
+    protected static $service    = AssetMaintenanceTeamService::class;
+    public string $formComponent = 'Asset/MaintenanceTeams/Form';
+    public string $translateKey  = 'asset.maintenance.team';
+    protected $guarded           = ['id'];
+
+    public static function templateLink() {
+        return ':team_name';
+    }
+
     protected array $configColumns = [
         'team_name' => [
             'show'   => true,

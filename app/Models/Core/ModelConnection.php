@@ -18,7 +18,12 @@ class ModelConnection extends Model {
     protected $guarded = [
         'id',
     ];
-    public $translateKey           = 'core.modelConnection';
+    public $translateKey = 'core.modelConnection';
+
+    public static function templateLink() {
+        return ':model_display - :reference_display';
+    }
+
     protected array $configColumns = [
         'model',
         'reference',

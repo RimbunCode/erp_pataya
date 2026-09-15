@@ -16,6 +16,10 @@ class ItemRequestCoverage extends Model {
         'quantity_covered' => 'float',
     ];
 
+    public static function templateLink() {
+        return ':quantity_covered';
+    }
+
     public function source(): MorphTo {
         return $this->morphTo();
     }
