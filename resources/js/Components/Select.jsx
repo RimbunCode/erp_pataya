@@ -144,7 +144,7 @@ const Select = memo(
     // -- gotcha yg sama ditemukan & difix di MultiSelect.jsx).
     const [highlightedValue, setHighlightedValue] = useState();
     const visibleValues = useMemo(
-      () => (options ?? []).map((opt) => opt.value),
+      () => (options ?? []).map((opt) => `${opt.value}`),
       [options],
     );
     useEffect(() => {
@@ -368,7 +368,7 @@ const Select = memo(
                         return (
                           <CommandItem
                             key={option.value}
-                            value={option.value}
+                            value={`${option.value}`}
                             onSelect={() => {
                               setOption(option);
                               setOpen(false);
