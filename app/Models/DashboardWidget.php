@@ -22,6 +22,10 @@ class DashboardWidget extends Model {
 
     public const TYPES_WITH_WIDGET = ['chart', 'card'];
 
+    public static function templateLink() {
+        return ':type - :dashboard.title';
+    }
+
     /**
      * Peta type -> daftar type parent yang valid untuk parent_id-nya
      * (desk-dashboard-builder Requirement 1.7-1.10). `null` di dalam array

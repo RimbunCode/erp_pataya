@@ -17,6 +17,10 @@ class Changelog extends Model {
         'deployed_at' => 'datetime',
     ];
 
+    public static function templateLink() {
+        return ':version';
+    }
+
     public function reads(): HasMany {
         return $this->hasMany(ChangelogRead::class);
     }

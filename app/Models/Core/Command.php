@@ -15,4 +15,8 @@ class Command extends Model {
         'route_params' => Json::class,
         'meta'         => Json::class,
     ];
+
+    public static function templateLink() {
+        return ':title';
+    }
 }

@@ -15,6 +15,10 @@ class MaintenanceTeamMember extends Model {
     public static $parentRelation = 'maintenanceTeam';
     protected $guarded            = ['id'];
 
+    public static function templateLink() {
+        return ':user.name';
+    }
+
     public function maintenanceTeam(): BelongsTo {
         return $this->belongsTo(AssetMaintenanceTeam::class, 'maintenance_team_id');
     }

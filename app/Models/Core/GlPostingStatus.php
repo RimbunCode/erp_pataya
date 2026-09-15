@@ -18,7 +18,12 @@ class GlPostingStatus extends Model {
         'status'    => FormStatusCast::class,
         'posted_at' => 'datetime',
     ];
-    public string $translateKey    = 'core.glPostingStatus';
+    public string $translateKey = 'core.glPostingStatus';
+
+    public static function templateLink() {
+        return ':referenceable_type - :status';
+    }
+
     protected array $configColumns = [
         'referenceable_type' => [
             'show'  => true,

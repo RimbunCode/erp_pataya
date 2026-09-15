@@ -22,6 +22,10 @@ class AssetServiceActivity extends Model {
         'status'      => FormStatusCast::class,
     ];
 
+    public static function templateLink() {
+        return ':assetService.code - :action_date';
+    }
+
     /**
      * Requirement 9 AC1 (revisi): status AssetService parent SELALU
      * mengikuti activity dengan action_date TERBESAR — bukan sekadar

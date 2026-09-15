@@ -20,7 +20,10 @@ on:
 
 jobs:
   deploy:
-    if: (github.event_name == 'pull_request' && github.event.pull_request.merged == true) || github.event_name == 'push' || github.event_name == 'workflow_dispatch'
+    if: |
+      (github.event_name == 'pull_request' && github.event.pull_request.merged == true && !contains(github.event.pull_request.labels.*.name, 'skip-deploy')) ||
+      github.event_name == 'push' ||
+      github.event_name == 'workflow_dispatch'
     runs-on: ubuntu-latest
     environment: ${{ github.event_name == 'push' && 'production' || (github.event_name == 'workflow_dispatch' && github.event.inputs.environment || 'staging') }}
 

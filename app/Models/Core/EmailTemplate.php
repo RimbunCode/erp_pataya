@@ -23,6 +23,10 @@ class EmailTemplate extends Model {
     public string $translateKey  = 'core.emailTemplate';
     public string $formComponent = 'Core/EmailTemplate/Form';
 
+    public static function templateLink() {
+        return ':name';
+    }
+
     public function title(): Attribute {
         return new Attribute(
             get: function () {

@@ -34,7 +34,12 @@ class Todo extends Model {
     protected static string $defaultFormatCode = 'TODO/@[yy]-@[mm]/@[iiii]';
     protected static $generateCodeSeries       = true;
     protected static bool $ignorePermission    = true;
-    protected array $configColumns             = [
+
+    public static function templateLink() {
+        return ':code';
+    }
+
+    protected array $configColumns = [
         'code' => [
             'isLink' => true,
             'show'   => true,

@@ -12,6 +12,10 @@ class ChartAssignable extends Model {
 
     protected $guarded = ['id'];
 
+    public static function templateLink() {
+        return ':chart.chart_name - :assignable';
+    }
+
     public function chart(): BelongsTo {
         return $this->belongsTo(Chart::class);
     }

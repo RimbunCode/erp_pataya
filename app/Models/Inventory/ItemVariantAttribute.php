@@ -9,8 +9,13 @@ use Illuminate\Database\Eloquent\SoftDeletes;
 class ItemVariantAttribute extends Model {
     use HasUlids, SoftDeletes;
 
-    protected $guarded             = ['id'];
-    public string $translateKey    = 'inventories.itemVariantAttributes';
+    protected $guarded          = ['id'];
+    public string $translateKey = 'inventories.itemVariantAttributes';
+
+    public static function templateLink() {
+        return ':attribute_name';
+    }
+
     protected array $configColumns = [
         'attribute_name' => [
             'show'    => true,

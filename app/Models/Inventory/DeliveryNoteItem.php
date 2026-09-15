@@ -58,6 +58,11 @@ class DeliveryNoteItem extends Model {
             'ignore' => true,
         ],
     ];
+
+    public static function templateLink() {
+        return ':item';
+    }
+
     protected $casts = [
         'quantity'            => 'float',
         'returned_quantity'   => 'float',

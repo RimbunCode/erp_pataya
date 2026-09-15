@@ -12,6 +12,10 @@ class NumberCardAssignable extends Model {
 
     protected $guarded = ['id'];
 
+    public static function templateLink() {
+        return ':numberCard.label - :assignable';
+    }
+
     public function numberCard(): BelongsTo {
         return $this->belongsTo(NumberCard::class);
     }

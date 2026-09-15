@@ -18,6 +18,10 @@ class TodoReminder extends Model {
         'sent_at'           => 'datetime',
     ];
 
+    public static function templateLink() {
+        return ':todo.code - :due_date_snapshot';
+    }
+
     public function todo(): BelongsTo {
         return $this->belongsTo(Todo::class);
     }

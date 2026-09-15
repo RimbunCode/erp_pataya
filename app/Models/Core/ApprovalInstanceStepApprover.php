@@ -20,6 +20,10 @@ class ApprovalInstanceStepApprover extends Model {
     ];
     protected $with = ['approver'];
 
+    public static function templateLink() {
+        return ':status';
+    }
+
     public function approvalInstanceStep() {
         return $this->belongsTo(ApprovalInstanceStep::class);
     }

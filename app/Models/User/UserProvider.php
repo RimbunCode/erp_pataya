@@ -15,6 +15,10 @@ class UserProvider extends Model {
         'attributes' => Json::class,
     ];
 
+    public static function templateLink() {
+        return ':provider - :user.name';
+    }
+
     public function user() {
         return $this->belongsTo(User::class);
     }

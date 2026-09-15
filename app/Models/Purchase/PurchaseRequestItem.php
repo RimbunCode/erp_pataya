@@ -11,9 +11,14 @@ use Illuminate\Database\Eloquent\SoftDeletes;
 class PurchaseRequestItem extends Model {
     use HasUlids, SoftDeletes;
 
-    public static $parentRelation  = 'purchaseRequest';
-    public string $translateKey    = 'purchase.purchaseRequest.item';
-    protected $guarded             = ['id'];
+    public static $parentRelation = 'purchaseRequest';
+    public string $translateKey   = 'purchase.purchaseRequest.item';
+    protected $guarded            = ['id'];
+
+    public static function templateLink() {
+        return ':item';
+    }
+
     protected array $configColumns = [
         'item' => [
             'type'  => 'relation',

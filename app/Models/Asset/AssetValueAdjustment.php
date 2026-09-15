@@ -28,6 +28,11 @@ class AssetValueAdjustment extends Model {
         'current_asset_value' => 'decimal:2',
         'new_asset_value'     => 'decimal:2',
     ];
+
+    public static function templateLink() {
+        return ':code';
+    }
+
     protected array $configColumns = [
         'code' => [
             'show'   => true,

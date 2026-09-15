@@ -22,6 +22,10 @@ class AssetMaintenanceTask extends Model {
         'certificate_required' => 'boolean',
     ];
 
+    public static function templateLink() {
+        return ':task_name';
+    }
+
     public function assetMaintenance(): BelongsTo {
         return $this->belongsTo(AssetMaintenance::class);
     }

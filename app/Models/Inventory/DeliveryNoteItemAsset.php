@@ -19,6 +19,10 @@ class DeliveryNoteItemAsset extends Model {
         'processed_at' => 'datetime',
     ];
 
+    public static function templateLink() {
+        return ':asset';
+    }
+
     public function deliveryNoteItem(): BelongsTo {
         return $this->belongsTo(DeliveryNoteItem::class);
     }
