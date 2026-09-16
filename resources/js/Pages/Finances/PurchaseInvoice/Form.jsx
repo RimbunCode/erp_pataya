@@ -163,7 +163,7 @@ export default function Form() {
         width: 2,
         cell({ dataRow, setData, attributes }) {
           return (
-            <div className="flex items-center">
+            <div className="flex items-center w-full">
               <PurchaseOrderItemLinkModel
                 placeholder={t(
                   "finances.purchaseInvoice.columns.item.placeholder",
