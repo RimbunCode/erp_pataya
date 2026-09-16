@@ -98,7 +98,10 @@ export default function useAdvanceSearchModel({
     return () => clearTimeout(timeout);
   }, [search]);
 
-  const baseFiltersKey = useMemo(() => stableStringify(baseFilters), [baseFilters]);
+  const baseFiltersKey = useMemo(
+    () => stableStringify(baseFilters),
+    [baseFilters],
+  );
   const additiveFiltersKey = useMemo(
     () => stableStringify(additiveFilters),
     [additiveFilters],
@@ -141,7 +144,11 @@ export default function useAdvanceSearchModel({
   const firstPage = query.data?.pages?.[0];
   const templateLinkColumnNames = firstPage?.templateLinkColumns ?? [];
   const columnMap = useMemo(
-    () => buildAdvanceSearchColumnMap(firstPage?.columns ?? [], templateLinkColumnNames),
+    () =>
+      buildAdvanceSearchColumnMap(
+        firstPage?.columns ?? [],
+        templateLinkColumnNames,
+      ),
     [firstPage, templateLinkColumnNames],
   );
   const rows = useMemo(
