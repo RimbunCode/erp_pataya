@@ -142,7 +142,9 @@ describe("UserLinkModel", () => {
       await vi.waitFor(() => expect(axiosPost).toHaveBeenCalled());
     });
 
-    expect(screen.getAllByRole("option")).toHaveLength(2);
+    // CommandItem "Advance Search" SELALU dirender terlepas dari disabledAdd,
+    // jadi jumlah option = jumlah data mock + 1.
+    expect(screen.getAllByRole("option")).toHaveLength(3);
   });
 
   it("memilih opsi dari daftar hasil memanggil onValueChange", async () => {

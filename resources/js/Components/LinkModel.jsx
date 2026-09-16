@@ -1,7 +1,6 @@
 import { ArrowRight, PlusIcon, SearchIcon, XIcon } from "lucide-react";
 import {
   Command,
-  CommandEmpty,
   CommandItem,
   CommandList,
   CommandSeparator,
@@ -682,7 +681,22 @@ export default memo(
                       </CommandPrimitive.Loading>
                     ) : (
                       <>
-                        <CommandEmpty>{t("core.form.not_found")}</CommandEmpty>
+                        {/* BUKAN <CommandEmpty> -- primitif cmdk itu
+                            self-hide berdasar JUMLAH GLOBAL CommandItem
+                            terdaftar (state.filtered.count), dan CommandItem
+                            "Advance Search" SEKARANG SELALU terdaftar (di
+                            luar ternary ini), jadi count tak pernah 0 lagi
+                            walau filteredOptions kosong -- pesan "tidak
+                            ditemukan" jadi tak pernah muncul. Kondisi manual
+                            di sini independen dari state internal cmdk. */}
+                        {(!filteredOptions || filteredOptions.length === 0) && (
+                          <div
+                            role="presentation"
+                            className="py-6 text-sm text-center"
+                          >
+                            {t("core.form.not_found")}
+                          </div>
+                        )}
                         {filteredOptions &&
                           filteredOptions?.map((opt, index) => {
                             return (

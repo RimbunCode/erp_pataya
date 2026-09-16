@@ -200,8 +200,9 @@ describe("CurrencyLinkModel", () => {
     // CurrencyLinkModel.jsx mengunci disabledAddButton secara tetap (tidak
     // ada prop `form`/`titleDialog` yang dikirim ke LinkModel sama sekali).
     // disabledAdd di LinkModel.jsx (`if (disabledAddButton) return true`)
-    // membuat CommandItem "+ tambah" tidak pernah dirender -- dikunci lewat
-    // jumlah option persis = jumlah data mock (tanpa baris tambahan).
+    // membuat CommandItem "+ tambah" tidak pernah dirender -- tapi CommandItem
+    // "Advance Search" SELALU dirender terlepas dari disabledAdd, jadi jumlah
+    // option = jumlah data mock + 1.
     const user = userEvent.setup({ delay: null });
     await render(<CurrencyLinkModel />);
 
@@ -214,7 +215,7 @@ describe("CurrencyLinkModel", () => {
     });
 
     const options = await screen.findAllByRole("option");
-    expect(options).toHaveLength(2);
+    expect(options).toHaveLength(3);
   });
 
   it("memilih opsi dari daftar hasil (filter client-side) memanggil onValueChange", async () => {

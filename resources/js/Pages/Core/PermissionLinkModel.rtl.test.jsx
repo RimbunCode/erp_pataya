@@ -214,9 +214,9 @@ describe("PermissionLinkModel", () => {
     // sekali) -- beda dari NumberCardLinkModel & AssetLocationLinkModel yang
     // menyediakan `form` + `titleDialog` sehingga tombol tambah muncul.
     // disabledAdd di LinkModel.jsx (`if (disabledAddButton) return true`)
-    // membuat CommandItem "+ tambah" tidak pernah dirender di sini --
-    // dikunci lewat jumlah option persis = jumlah data mock (tanpa baris
-    // tambahan).
+    // membuat CommandItem "+ tambah" tidak pernah dirender di sini -- tapi
+    // CommandItem "Advance Search" SELALU dirender terlepas dari disabledAdd,
+    // jadi jumlah option = jumlah data mock + 1.
     const user = userEvent.setup({ delay: null });
     await render(<PermissionLinkModel />);
 
@@ -229,7 +229,7 @@ describe("PermissionLinkModel", () => {
     });
 
     const options = await screen.findAllByRole("option");
-    expect(options).toHaveLength(2);
+    expect(options).toHaveLength(3);
   });
 
   it("memilih opsi dari daftar hasil memanggil onValueChange", async () => {

@@ -166,7 +166,9 @@ describe("AssignableLinkModel", () => {
       await vi.waitFor(() => expect(axiosPost).toHaveBeenCalled());
     });
 
-    expect(screen.getAllByRole("option")).toHaveLength(2);
+    // CommandItem "Advance Search" SELALU dirender terlepas dari disabledAdd,
+    // jadi jumlah option = jumlah data mock + 1.
+    expect(screen.getAllByRole("option")).toHaveLength(3);
   });
 
   it("memilih opsi dari daftar hasil memanggil onValueChange", async () => {
@@ -186,9 +188,17 @@ describe("AssignableLinkModel", () => {
       );
     });
 
-    const options = await screen.findAllByRole("option");
-    const target = options.find((el) => el.textContent.includes("Budi"));
-    expect(target).toBeTruthy();
+    // findAllByRole biasa resolve begitu ADA match apa pun -- CommandItem
+    // "Advance Search" sekarang SELALU ter-mount lebih dulu (sebelum hasil
+    // search debounce datang), jadi query itu bisa resolve prematur dgn cuma
+    // 1 item. waitFor menunggu kondisi SPESIFIK (opsi "Budi" benar-benar ada).
+    const target = await waitFor(() => {
+      const found = screen
+        .getAllByRole("option")
+        .find((el) => el.textContent.includes("Budi"));
+      expect(found).toBeTruthy();
+      return found;
+    });
     await act(async () => {
       await user.click(target);
     });
@@ -231,8 +241,17 @@ describe("AssignableLinkModel", () => {
       );
     });
 
-    const options = await screen.findAllByRole("option");
-    const target = options.find((el) => el.textContent.includes("Salah"));
+    // findAllByRole biasa resolve begitu ADA match apa pun -- CommandItem
+    // "Advance Search" sekarang SELALU ter-mount lebih dulu, jadi query itu
+    // bisa resolve prematur dgn cuma 1 item. waitFor menunggu kondisi
+    // SPESIFIK (opsi "Salah" benar-benar ada).
+    const target = await waitFor(() => {
+      const found = screen
+        .getAllByRole("option")
+        .find((el) => el.textContent.includes("Salah"));
+      expect(found).toBeTruthy();
+      return found;
+    });
     expect(target).toBeTruthy();
     await act(async () => {
       await user.click(target);

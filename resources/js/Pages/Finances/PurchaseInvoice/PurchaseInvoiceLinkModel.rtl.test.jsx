@@ -175,8 +175,9 @@ describe("PurchaseInvoiceLinkModel", () => {
     // TERLEPAS dari form/can("create") -- CommandItem "tambah" (PlusIcon +
     // titleDialog) dan FormPageDialog jadi tidak pernah dirender.
     // PurchaseInvoiceLinkModel mengunci disabledAddButton={true} secara
-    // permanen (bukan diteruskan dari props), jadi dropdown HANYA berisi
-    // hasil pencarian -- tidak ada option tambahan.
+    // permanen (bukan diteruskan dari props), jadi tombol "+ tambah" tidak
+    // pernah muncul -- tapi CommandItem "Advance Search" SELALU dirender
+    // terlepas dari disabledAdd, jadi dropdown berisi hasil pencarian + 1.
     const user = userEvent.setup({ delay: null });
     await render(<PurchaseInvoiceLinkModel />);
 
@@ -193,8 +194,13 @@ describe("PurchaseInvoiceLinkModel", () => {
       );
     });
 
-    const options = await screen.findAllByRole("option");
-    expect(options).toHaveLength(2);
+    // findAllByRole biasa resolve begitu ADA match apa pun -- CommandItem
+    // "Advance Search" SELALU ter-mount lebih dulu (sebelum hasil search
+    // debounce datang), jadi query itu bisa resolve prematur sebelum data
+    // asli tiba. waitFor menunggu count STABIL di angka yang benar.
+    await waitFor(() => {
+      expect(screen.getAllByRole("option")).toHaveLength(3);
+    });
   });
 
   it("memilih opsi dari daftar hasil memanggil onValueChange", async () => {
