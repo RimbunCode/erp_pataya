@@ -154,9 +154,10 @@ describe("PurchaseOrderItemLinkModel", () => {
       await vi.waitFor(() => expect(axiosPost).toHaveBeenCalled());
     });
 
-    // Tidak ada CommandItem "tambah" apapun -- hanya 2 opsi hasil pencarian,
-    // tanpa CommandItem tambahan.
-    expect(screen.getAllByRole("option")).toHaveLength(2);
+    // Tidak ada CommandItem "tambah" apapun -- tapi CommandItem
+    // "Advance Search" SELALU dirender terlepas dari disabledAdd, jadi 2
+    // opsi hasil pencarian + 1.
+    expect(screen.getAllByRole("option")).toHaveLength(3);
   });
 
   it("memilih opsi dari daftar hasil memanggil onValueChange", async () => {

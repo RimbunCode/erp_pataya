@@ -79,6 +79,31 @@ describe("Table2", () => {
     );
   });
 
+  // Task 6 (spec linkmodel-advanced-search) — onRowClick: mode single-select
+  // klik-langsung (dipakai Advance Search Dialog), independen dari `selectable`
+  // (checkbox multi-select, dipakai SelectModel). Prop opsional, default
+  // undefined -- tidak boleh mengubah perilaku existing (selectable tetap jalan).
+  it("onRowClick terisi -- klik baris memanggil callback dengan row yang benar, tanpa checkbox", async () => {
+    const user = userEvent.setup({ delay: null });
+    const onRowClick = vi.fn();
+    render(<Table2 columns={columns} data={data} onRowClick={onRowClick} />);
+
+    expect(screen.queryAllByRole("forminput")).toHaveLength(0);
+
+    await user.click(screen.getByText("Item B"));
+
+    expect(onRowClick).toHaveBeenCalledTimes(1);
+    expect(onRowClick).toHaveBeenCalledWith(data[1]);
+  });
+
+  it("onRowClick tidak diisi (default) -- klik baris tidak memicu apapun (regresi)", async () => {
+    const user = userEvent.setup({ delay: null });
+    render(<Table2 columns={columns} data={data} />);
+
+    // Tidak ada assertion callback (tak ada prop) -- cukup pastikan klik tidak throw.
+    await expect(user.click(screen.getByText("Item A"))).resolves.not.toThrow();
+  });
+
   // Kolom isLink tanpa `route` (mis. dari SelectModel/useSelectModel yang tak
   // menurunkan route seperti DataTable2) dulu crash: window.route(route ?? "", ...)
   // memanggil Ziggy dengan nama route kosong, lalu Link (Inertia mergeDataIntoQueryString)

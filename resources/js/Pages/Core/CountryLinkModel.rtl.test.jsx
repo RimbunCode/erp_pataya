@@ -223,9 +223,10 @@ describe("CountryLinkModel", () => {
     // membuat CommandItem "+ tambah" tidak pernah dirender. `showMore` juga
     // selalu false saat cache aktif (LinkModel.jsx baris 677-680:
     // `!cacheConfig.enabled && total > limit`), jadi tidak ada CommandItem
-    // "lainnya" juga -- dikunci lewat jumlah option persis = jumlah data
-    // mock, dan tidak ada axios.post tambahan saat dropdown dibuka (cache
-    // sudah termuat sejak mount).
+    // "lainnya" juga -- tapi CommandItem "Advance Search" SELALU dirender
+    // terlepas dari disabledAdd, jadi jumlah option = jumlah data mock + 1,
+    // dan tidak ada axios.post tambahan saat dropdown dibuka (cache sudah
+    // termuat sejak mount).
     const user = userEvent.setup({ delay: null });
     await render(<CountryLinkModel />);
 
@@ -238,7 +239,7 @@ describe("CountryLinkModel", () => {
     });
 
     const options = await screen.findAllByRole("option");
-    expect(options).toHaveLength(2);
+    expect(options).toHaveLength(3);
     expect(axiosPost).toHaveBeenCalledTimes(1);
   });
 
