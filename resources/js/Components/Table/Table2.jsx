@@ -320,6 +320,7 @@ const Table2 = forwardRef(function Table2(
     isDynamicData,
     isLoading,
     persistColumns = true,
+    onRowClick,
   },
   ref,
 ) {
@@ -696,7 +697,13 @@ const Table2 = forwardRef(function Table2(
                 ) : (
                   <>
                     {data.map((row, i) => (
-                      <tr key={i}>
+                      <tr
+                        key={i}
+                        onClick={onRowClick ? () => onRowClick(row) : undefined}
+                        className={cn(
+                          onRowClick && "cursor-pointer hover:bg-accent/50",
+                        )}
+                      >
                         {selectable && (
                           <td className="py-2! px-2! items-center">
                             <Checkbox

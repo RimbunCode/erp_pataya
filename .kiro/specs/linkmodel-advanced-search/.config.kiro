@@ -1,0 +1,6 @@
+{
+  "specId": "6212db62-9117-47c6-898d-e27e8f7a5479",
+  "workflowType": "requirements-first",
+  "specType": "feature",
+  "description": "Advance Search / see more dialog untuk LinkModel.jsx: tabel kolom aman (linkable-gated, bukan raw schema seperti SelectModel), fallback templateLink di mobile, InputGroup+FilterTable (nested-tree, additive terhadap props filters non-editable), search value carry-over dari input LinkModel."
+}

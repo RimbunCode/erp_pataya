@@ -120,4 +120,67 @@ describe("ColumnsFilter", () => {
     await user.click(screen.getByText("TR:core.datatable.columns.reset"));
     expect(onReset).toHaveBeenCalled();
   });
+
+  // Task 7 (spec linkmodel-advanced-search) — kolom locked: selalu tercentang,
+  // tidak bisa di-toggle. Dipakai Advance Search Dialog utk kolom sumber
+  // templateLink. Pola sama exclusion primaryKey yang sudah ada di file ini.
+  const lockedColumns = [
+    { name: "code", title: "Code", show: true, type: "string", locked: true },
+    { name: "name", title: "Name", show: false, type: "string" },
+  ];
+
+  it("kolom locked -- checkbox disabled dan selalu tercentang walau show=false", () => {
+    renderWithDialog(
+      <ColumnsFilter
+        columns={lockedColumns}
+        onApply={vi.fn()}
+        onReset={vi.fn()}
+        open
+      />,
+    );
+
+    const codeCheckbox = screen.getByLabelText("Code");
+    expect(codeCheckbox).toHaveAttribute("data-state", "checked");
+    expect(codeCheckbox).toBeDisabled();
+  });
+
+  it("kolom locked -- klik tidak mengubah apapun, onApply tetap kirim show:true", async () => {
+    const user = userEvent.setup({ delay: null });
+    const onApply = vi.fn();
+    renderWithDialog(
+      <ColumnsFilter
+        columns={lockedColumns}
+        onApply={onApply}
+        onReset={vi.fn()}
+        open
+      />,
+    );
+
+    // Guard `disabled` mencegah interaksi -- click tidak throw & tidak berefek.
+    await user.click(screen.getByLabelText("Code"));
+    await user.click(screen.getByText("TR:core.datatable.columns.apply"));
+
+    expect(onApply).toHaveBeenCalledWith(
+      expect.arrayContaining([
+        expect.objectContaining({ name: "code", show: true, locked: true }),
+      ]),
+    );
+  });
+
+  it("kolom non-locked di sebelahnya tetap togglable seperti biasa", async () => {
+    const user = userEvent.setup({ delay: null });
+    renderWithDialog(
+      <ColumnsFilter
+        columns={lockedColumns}
+        onApply={vi.fn()}
+        onReset={vi.fn()}
+        open
+      />,
+    );
+
+    const nameCheckbox = screen.getByLabelText("Name");
+    expect(nameCheckbox).not.toBeDisabled();
+    await user.click(nameCheckbox);
+    expect(nameCheckbox).toHaveAttribute("data-state", "checked");
+  });
 });

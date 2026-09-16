@@ -1,4 +1,4 @@
-import { ArrowRight, PlusIcon, XIcon } from "lucide-react";
+import { ArrowRight, PlusIcon, SearchIcon, XIcon } from "lucide-react";
 import {
   Command,
   CommandEmpty,
@@ -23,6 +23,7 @@ import useLinkModelOptions, {
   buildOptionsPayload,
 } from "@/Hooks/useLinkModelOptions";
 
+import AdvanceSearchDialog from "./LinkModel/AdvanceSearchDialog";
 import { Button } from "./ui/button";
 import ClickAwayListener from "react-click-away-listener";
 import { Command as CommandPrimitive } from "cmdk";
@@ -45,6 +46,7 @@ import { useRef } from "react";
 // ke-override balik ke opsi data pas user arrow-navigate ke baris ini.
 const MORE_VALUE = "__linkmodel_more__";
 const ADD_VALUE = "__linkmodel_add__";
+const ADVANCE_SEARCH_VALUE = "__linkmodel_advance_search__";
 
 /**
  *
@@ -129,6 +131,14 @@ export default memo(
     const [allowSearch, setAllowSearch] = useState(true);
     const [resolvingDefault, setResolvingDefault] = useState(false);
     const [openDialog, setOpenDialog] = useState(false);
+    const [openAdvanceSearch, setOpenAdvanceSearch] = useState(false);
+    // Snapshot terpisah dari `search` -- menutup dropdown (`setOpen(false)`)
+    // buat buka dialog ini memicu efek exact-match-on-close existing di bawah
+    // (baris "!option && search" -> setSearch("")) kalau teks yg diketik tak
+    // cocok opsi manapun. Reactive `initialSearch={search}` akan race dgn efek
+    // itu (search keburu di-reset SEBELUM AdvanceSearchDialog sempat baca).
+    // Snapshot di sini diambil SINKRON di handler klik, sebelum setOpen(false).
+    const [advanceSearchText, setAdvanceSearchText] = useState("");
     // Dipakai KHUSUS utk keputusan fokus-lock Tab-autocomplete di bawah --
     // LinkModel gak py flag "lagi ngetik" spt Select/MultiSelect (di sini
     // ketikan langsung `setOption(null)` di `onInputKeyDown`, gak ditunda).
@@ -434,19 +444,40 @@ export default memo(
       // Selalu di-stringify -- cmdk internal nge-treat `value` sbg string
       // (panggil `.trim()` dsb saat controlled via prop `value`/onValueChange
       // di <Command>), sedangkan `opt.id` di sini bisa numeric (PK integer,
-      // bukan cuma ULID string).
+      // bukan cuma ULID string). ADVANCE_SEARCH_VALUE/ADD_VALUE SELALU masuk
+      // (item itu SELALU dirender terlepas dari `loading`, lihat CommandList
+      // di bawah -- user bisa buka Advance Search/Add walau data masih fetching).
       const ids = (filteredOptions ?? []).map(
         (opt, index) => `${opt.id ?? index}`,
       );
       if (showMore) ids.push(MORE_VALUE);
+      ids.push(ADVANCE_SEARCH_VALUE);
       if (!disabledAdd) ids.push(ADD_VALUE);
       return ids;
     }, [filteredOptions, showMore, disabledAdd]);
+    // ADVANCE_SEARCH_VALUE/ADD_VALUE SELALU ada di visibleValues (poin di atas)
+    // -- termasuk SEBELUM data pertama kali datang (saat filteredOptions masih
+    // kosong). Tanpa guard ini, begitu opsi data ASLI datang, reset-effect di
+    // bawah TIDAK pernah fire lagi (sentinel yg lagi ke-highlight tetap valid
+    // di visibleValues baru), jadi default highlight nyangkut di sentinel
+    // selamanya alih-alih pindah ke opsi data pertama (kontrak existing yg
+    // divalidasi test Tab-autocomplete). Deteksi transisi KOSONG->ADA-DATA
+    // secara eksplisit & paksa default ke opsi data pertama SAAT ITU JUGA --
+    // TIDAK override navigasi manual user (ref cuma reset pas transisi itu,
+    // bukan tiap render/tiap filteredOptions berubah referensi).
+    const hadDataOptionsRef = useRef(false);
     useEffect(() => {
+      const hasDataOptions = (filteredOptions?.length ?? 0) > 0;
+      if (hasDataOptions && !hadDataOptionsRef.current) {
+        hadDataOptionsRef.current = true;
+        setHighlightedValue(`${filteredOptions[0].id ?? 0}`);
+        return;
+      }
+      hadDataOptionsRef.current = hasDataOptions;
       if (!visibleValues.includes(highlightedValue)) {
         setHighlightedValue(visibleValues[0]);
       }
-    }, [visibleValues]);
+    }, [visibleValues, filteredOptions]);
 
     const routeId = useMemo(
       () => get(option, keyRoute ?? "id"),
@@ -487,6 +518,7 @@ export default memo(
                 if (
                   highlightedValue == null ||
                   highlightedValue === MORE_VALUE ||
+                  highlightedValue === ADVANCE_SEARCH_VALUE ||
                   highlightedValue === ADD_VALUE
                 ) {
                   return;
@@ -674,38 +706,61 @@ export default memo(
                               </CommandItem>
                             );
                           })}
-                        {showMore && !disabledAdd && <CommandSeparator />}
                         {showMore && (
                           <CommandItem
                             value={MORE_VALUE}
                             className="text-blue-700 hover:text-blue-900! dark:text-blue-300 dark:hover:text-blue-200!"
                             onSelect={() => {
-                              // setOpenDialog(true);
+                              setAdvanceSearchText(search);
+                              setOpen(false);
+                              setOpenAdvanceSearch(true);
                             }}
                           >
                             {t("core.form.linkmodel.more")}
                           </CommandItem>
                         )}
-                        {!disabledAdd && (
-                          <CommandItem
-                            value={ADD_VALUE}
-                            onSelect={() => {
-                              if (form) {
-                                setOpenDialog(true);
-                                return;
-                              }
-
-                              if (!name) return;
-                              const pluralized = `${pluralize.plural(name ?? "")}.create`;
-                              window.open(route(pluralized), "_blank");
-                            }}
-                          >
-                            <PlusIcon className="size-4" />
-                            {titleDialog}
-                          </CommandItem>
-                        )}
                       </>
                     )}
+                    {/* Grouping aksi: Advance Search (selalu ada) + Add
+                        (kondisional) -- SELALU dirender terlepas dari `loading`
+                        (user bisa buka Advance Search/Add walau data masih
+                        fetching), Advance Search SELALU sebelum Add. Sticky
+                        BOTTOM -- CommandList di atas adalah scroll container
+                        sungguhan (max-h-[300px] overflow-y-auto, lihat
+                        ui/command.jsx), jadi grup aksi ini tetap kelihatan pas
+                        daftar opsi discroll, bukan ikut ter-scroll ke bawah. */}
+                    <div className="sticky bottom-0 z-10 bg-popover pt-1 -mx-1 px-1 -mb-1 pb-1">
+                      <CommandSeparator />
+                      <CommandItem
+                        value={ADVANCE_SEARCH_VALUE}
+                        onSelect={() => {
+                          setAdvanceSearchText(search);
+                          setOpen(false);
+                          setOpenAdvanceSearch(true);
+                        }}
+                      >
+                        <SearchIcon className="size-4" />
+                        {t("core.form.linkmodel.advance_search")}
+                      </CommandItem>
+                      {!disabledAdd && (
+                        <CommandItem
+                          value={ADD_VALUE}
+                          onSelect={() => {
+                            if (form) {
+                              setOpenDialog(true);
+                              return;
+                            }
+
+                            if (!name) return;
+                            const pluralized = `${pluralize.plural(name ?? "")}.create`;
+                            window.open(route(pluralized), "_blank");
+                          }}
+                        >
+                          <PlusIcon className="size-4" />
+                          {titleDialog}
+                        </CommandItem>
+                      )}
+                    </div>
                   </CommandList>
                 </PopoverContent>
               )}
@@ -725,6 +780,22 @@ export default memo(
               </FormPageDialog>
             )}
           </Popover>
+          <AdvanceSearchDialog
+            open={openAdvanceSearch}
+            onOpenChange={setOpenAdvanceSearch}
+            model={model}
+            filters={filters}
+            fields={fields}
+            joins={joins}
+            with={_with}
+            order={order}
+            translate={translate}
+            initialSearch={advanceSearchText}
+            onSelect={(row) => {
+              setOption(row);
+              setOpenAdvanceSearch(false);
+            }}
+          />
           {isDeleted && (
             <p className="text-sm text-yellow-600 dark:text-yellow-400 mt-1">
               {requireReselectIfDeleted

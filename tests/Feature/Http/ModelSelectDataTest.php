@@ -47,6 +47,9 @@ class ModelSelectDataTest extends TestCase {
         Schema::create('link_stub_parents', function ($table): void {
             $table->id();
             $table->string('code')->nullable();
+            // Kolom linkable (opt-in, non-templateLink) — dipakai menguji
+            // `includeAllLinkable` (task 1.1/1.3, spec linkmodel-advanced-search).
+            $table->string('extra')->nullable();
             $table->boolean('is_example')->default(false);
             $table->timestamps();
             $table->softDeletes();
@@ -72,6 +75,20 @@ class ModelSelectDataTest extends TestCase {
             $table->boolean('is_example')->default(false);
             $table->timestamps();
             $table->softDeletes();
+        });
+        // Model PK BUKAN 'id' (meniru Country produksi, PK-nya 'code') — menguji
+        // fix bug ditemukan verifikasi visual browser: safeLookupColumns() SELALU
+        // menambah literal 'id' ke $safe (fallback lama, aman selama cuma dipakai
+        // filterRowColumns() memfilter array PHP) -- tapi jadi PHANTOM entry kalau
+        // dipakai addSelect() (includeAllLinkable) pada model yang kolomnya
+        // benar-benar tak punya 'id'. Tanpa fix, addSelect("table.id") pecah
+        // SQLSTATE 42S22 "Unknown column".
+        Schema::create('pk_code_stubs', function ($table): void {
+            $table->string('code')->primary();
+            $table->string('name')->nullable();
+            $table->string('extra')->nullable();
+            $table->boolean('is_example')->default(false);
+            $table->timestamps();
         });
     }
 
@@ -439,6 +456,191 @@ class ModelSelectDataTest extends TestCase {
         $this->assertArrayHasKey('name_label', $grandchildRow, 'kolom templateLink grandchild harus otomatis ikut');
         $this->assertSame('GC-Label', $grandchildRow['name_label']);
     }
+
+    // --- includeAllLinkable + templateLinkColumns (spec linkmodel-advanced-search, task 1.3). ---
+
+    /**
+     * Property 1 (kolom aman independen dari fields) — `includeAllLinkable=true`
+     * meloloskan SEMUA kolom `linkable===true` ke row walau TIDAK diminta lewat
+     * `columns`/`fields`. Requirement 2.3.
+     */
+    public function test_include_all_linkable_true_includes_linkable_column_without_request(): void {
+        LinkStubParent::create(['code' => 'P-7', 'extra' => 'extra-value']);
+
+        $res = $this->submit([
+            'model'              => LinkStubParent::class,
+            'includeAllLinkable' => true,
+        ]);
+
+        $res->assertOk();
+        $this->assertSame('extra-value', $res->json('data.data.0.extra'));
+    }
+
+    /**
+     * Regresi — tanpa `includeAllLinkable` (absen, default false), perilaku SAMA
+     * seperti sebelum perubahan: kolom `linkable` yang tak diminta TIDAK ikut.
+     * Membuktikan `SelectModel`/`useSelectModel.js` (tak pernah kirim param ini)
+     * tak terpengaruh perubahan task 1.1.
+     */
+    public function test_include_all_linkable_absent_excludes_unrequested_linkable_column(): void {
+        LinkStubParent::create(['code' => 'P-8', 'extra' => 'extra-value']);
+
+        $res = $this->submit(['model' => LinkStubParent::class]);
+
+        $res->assertOk();
+        $this->assertArrayNotHasKey('extra', $res->json('data.data.0'));
+    }
+
+    /**
+     * `includeAllLinkable=false` eksplisit — sama seperti absen (default Laravel
+     * `Request::boolean()` utk string "false"/0/dsb).
+     */
+    public function test_include_all_linkable_false_excludes_unrequested_linkable_column(): void {
+        LinkStubParent::create(['code' => 'P-8b', 'extra' => 'extra-value']);
+
+        $res = $this->submit([
+            'model'              => LinkStubParent::class,
+            'includeAllLinkable' => false,
+        ]);
+
+        $res->assertOk();
+        $this->assertArrayNotHasKey('extra', $res->json('data.data.0'));
+    }
+
+    /**
+     * Requirement 2.6/7.2 — response `selectData()` menyertakan
+     * `templateLinkColumns` (nama kolom sumber templateLink), diambil dari method
+     * private `templateLinkColumns()` yang sudah ada (satu-satunya call-site lain:
+     * `safeLookupColumns()`, tidak diubah).
+     */
+    public function test_response_includes_template_link_columns(): void {
+        LinkStubParent::create(['code' => 'P-9x']);
+
+        $res = $this->submit(['model' => LinkStubParent::class]);
+
+        $res->assertOk();
+        $this->assertSame(['code'], $res->json('templateLinkColumns'));
+    }
+
+    /**
+     * Requirement 2.6/7.2 — model dgn templateLink `:label{:name}` (search+display
+     * beda kolom) → keduanya masuk `templateLinkColumns`.
+     */
+    public function test_response_template_link_columns_includes_search_and_display_segment(): void {
+        $parent = LinkStubParent::create(['code' => 'P-9y']);
+        LinkStubChildTemplated::create([
+            'link_stub_parent_id' => $parent->id,
+            'label'               => 'Label-C',
+        ]);
+
+        $res = $this->submitModel([
+            'model' => LinkStubParent::class,
+            'with'  => ['templatedChildren'],
+        ]);
+        $res->assertOk();
+
+        // Endpoint `model` (__invoke) tidak mengembalikan templateLinkColumns
+        // (task 1.2 hanya di selectData) — verifikasi lewat selectData select=templatedChildren.
+        $res2 = $this->submit([
+            'model'  => LinkStubParent::class,
+            'select' => 'templatedChildren',
+        ]);
+        $res2->assertOk();
+        $this->assertSame(['label'], $res2->json('templateLinkColumns'));
+    }
+
+    /**
+     * Regresi bug ditemukan verifikasi visual browser (bukan cuma dari test) —
+     * model dgn PK bukan 'id' (mis. Country produksi PK-nya 'code') TIDAK BOLEH
+     * crash saat includeAllLinkable=true. Sebelum fix: 500 SQLSTATE[42S22]
+     * "Unknown column 'pk_code_stubs.id'" krn addSelect() memperlakukan literal
+     * 'id' (selalu ada di $safe dari safeLookupColumns()) sbg nama kolom asli.
+     */
+    public function test_include_all_linkable_on_model_with_non_id_primary_key_does_not_crash(): void {
+        PkCodeStub::create(['code' => 'ID', 'name' => 'Indonesia', 'extra' => 'extra-value']);
+
+        $res = $this->submit([
+            'model'              => PkCodeStub::class,
+            'includeAllLinkable' => true,
+        ]);
+
+        $res->assertOk();
+        $this->assertSame('extra-value', $res->json('data.data.0.extra'));
+        $this->assertSame('Indonesia', $res->json('data.data.0.name'));
+    }
+
+    /**
+     * Regresi bug ditemukan verifikasi visual browser — `search` (dipakai
+     * Advance Search Dialog) sebelumnya TIDAK PERNAH dibaca sama sekali oleh
+     * selectData() (beda dari __invoke()/"model" yang punya search). Kotak
+     * pencarian Advance Search Dialog tampak jalan (tak error) tapi hasil
+     * TIDAK PERNAH tersaring oleh teks yang diketik.
+     */
+    public function test_search_filters_by_template_link_flat_columns(): void {
+        LinkStubParent::create(['code' => 'ALPHA-1']);
+        LinkStubParent::create(['code' => 'BETA-2']);
+
+        $res = $this->submit([
+            'model'  => LinkStubParent::class,
+            'search' => 'ALPHA',
+        ]);
+
+        $res->assertOk();
+        $this->assertSame(1, $res->json('data.total'));
+        $this->assertSame('ALPHA-1', $res->json('data.data.0.code'));
+    }
+
+    /**
+     * Multi-kata: tiap kata harus match (AND), bukan OR longgar.
+     */
+    public function test_search_with_multiple_words_requires_all_to_match(): void {
+        LinkStubParent::create(['code' => 'ALPHA-BETA']);
+        LinkStubParent::create(['code' => 'ALPHA-ONLY']);
+
+        $res = $this->submit([
+            'model'  => LinkStubParent::class,
+            'search' => 'ALPHA BETA',
+        ]);
+
+        $res->assertOk();
+        $this->assertSame(1, $res->json('data.total'));
+        $this->assertSame('ALPHA-BETA', $res->json('data.data.0.code'));
+    }
+
+    /**
+     * search kosong/whitespace -> tidak memfilter apapun (regresi, semua row tetap keluar).
+     */
+    public function test_empty_search_does_not_filter(): void {
+        LinkStubParent::create(['code' => 'ALPHA-1']);
+        LinkStubParent::create(['code' => 'BETA-2']);
+
+        $res = $this->submit(['model' => LinkStubParent::class, 'search' => '   ']);
+
+        $res->assertOk();
+        $this->assertSame(2, $res->json('data.total'));
+    }
+}
+
+/**
+ * Stub model dgn primary key BUKAN 'id' (meniru Country produksi) — Task 1.3
+ * regresi (spec linkmodel-advanced-search).
+ */
+class PkCodeStub extends Model {
+    use DataTable;
+
+    protected $table               = 'pk_code_stubs';
+    protected $primaryKey          = 'code';
+    public $incrementing           = false;
+    protected $keyType             = 'string';
+    public string $translateKey    = 'stub.pk_code';
+    protected $guarded             = [];
+    protected array $configColumns = [
+        'extra' => ['linkable' => true],
+    ];
+
+    public static function templateLink() {
+        return ':name';
+    }
 }
 
 /**
@@ -512,6 +714,7 @@ class LinkStubParent extends Model {
         'children',
         'childrenUnsafe',
         'templatedChildren',
+        'extra' => ['linkable' => true],
     ];
 
     public static function templateLink() {
