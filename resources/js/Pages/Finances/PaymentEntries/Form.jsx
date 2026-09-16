@@ -18,6 +18,7 @@ import PaymentMethodLinkModel from "../PaymentMethods/PaymentMethodLinkModel";
 import Select from "@/Components/Select";
 import SupplierLinkModel from "@/Pages/Purchase/Suppliers/SupplierLinkModel";
 import { Textarea } from "@/Components/ui/textarea";
+import { cn } from "@/lib/utils";
 import { gooeyToast as toast } from "@/lib/gooeyToast";
 import { useLaravelReactI18n } from "laravel-react-i18n";
 import { usePage } from "@inertiajs/react";
@@ -127,7 +128,6 @@ export default function Form() {
       cell({ data: discount, dataRow, attributes }) {
         return (
           <NumberInput
-            className="text-left"
             value={discount}
             currencyCode={
               dataRow.discount_type == "percentage"
@@ -139,6 +139,7 @@ export default function Form() {
             min={dataRow.discount_type == "percentage" && 0}
             max={dataRow.discount_type == "percentage" && 100}
             {...attributes}
+            className={cn(attributes.className, "text-left")}
           />
         );
       },

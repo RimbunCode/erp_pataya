@@ -106,32 +106,19 @@ class PurchaseInvoice extends Model {
         'paymentSchedules',
         'tax_invoice_transaction_code' => [
             'valueTrans' => 'finances.taxInvoice.transaction_code.options',
-            'show'       => true,
-            'order'      => 20,
         ],
-        'tax_invoice_serial_number' => [
-            'show'  => true,
-            'order' => 21,
-        ],
+        'tax_invoice_serial_number',
         'tax_invoice_date' => [
-            'type'  => 'date',
-            'show'  => true,
-            'order' => 22,
+            'type' => 'date',
         ],
         'tax_invoice_dpp_amount' => [
-            'type'  => 'currency',
-            'show'  => true,
-            'order' => 23,
+            'type' => 'currency',
         ],
         'tax_invoice_ppn_amount' => [
-            'type'  => 'currency',
-            'show'  => true,
-            'order' => 24,
+            'type' => 'currency',
         ],
         'tax_invoice_ppnbm_amount' => [
-            'type'  => 'currency',
-            'show'  => true,
-            'order' => 25,
+            'type' => 'currency',
         ],
     ];
 
