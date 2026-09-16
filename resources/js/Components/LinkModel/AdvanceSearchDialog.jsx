@@ -127,7 +127,9 @@ export default function AdvanceSearchDialog({
                     trigger={
                       <InputGroupButton
                         type="button"
-                        variant={activeAdditiveCount > 0 ? "secondary" : "ghost"}
+                        variant={
+                          activeAdditiveCount > 0 ? "secondary" : "ghost"
+                        }
                         className="relative"
                       >
                         <Filter />

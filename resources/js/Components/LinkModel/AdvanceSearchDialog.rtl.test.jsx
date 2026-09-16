@@ -36,7 +36,12 @@ window.route = (name) => name;
 
 import AdvanceSearchDialog from "./AdvanceSearchDialog";
 
-function selectDataResponse({ rows = [], total, lastPage = 1, currentPage = 1 } = {}) {
+function selectDataResponse({
+  rows = [],
+  total,
+  lastPage = 1,
+  currentPage = 1,
+} = {}) {
   return {
     data: {
       model: "App\\Models\\Inventory\\Item",

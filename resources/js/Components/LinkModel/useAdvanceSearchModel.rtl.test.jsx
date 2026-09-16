@@ -78,8 +78,12 @@ describe("useAdvanceSearchModel", () => {
 
   it("fetchNextPage() meminta page berikutnya & rows hasil append (bukan replace)", async () => {
     axiosPost
-      .mockResolvedValueOnce(page({ rows: [{ id: 1 }], currentPage: 1, lastPage: 2, total: 2 }))
-      .mockResolvedValueOnce(page({ rows: [{ id: 2 }], currentPage: 2, lastPage: 2, total: 2 }));
+      .mockResolvedValueOnce(
+        page({ rows: [{ id: 1 }], currentPage: 1, lastPage: 2, total: 2 }),
+      )
+      .mockResolvedValueOnce(
+        page({ rows: [{ id: 2 }], currentPage: 2, lastPage: 2, total: 2 }),
+      );
     const { Wrapper } = createWrapper();
 
     const { result } = renderHook(
@@ -134,7 +138,9 @@ describe("useAdvanceSearchModel", () => {
       { wrapper: Wrapper },
     );
 
-    await waitFor(() => expect(result.current.lockedColumnNames).toEqual(["code"]));
+    await waitFor(() =>
+      expect(result.current.lockedColumnNames).toEqual(["code"]),
+    );
     expect(result.current.columnMap.code.locked).toBe(true);
   });
 });
