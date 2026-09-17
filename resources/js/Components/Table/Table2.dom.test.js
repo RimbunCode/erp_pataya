@@ -22,10 +22,10 @@ describe("convertColWidth", () => {
     expect(convertColWidth("200px")).toBe("200px");
   });
 
-  it("default ke 'minmax(0px, 1fr)' untuk value kosong/falsy", () => {
-    expect(convertColWidth(null)).toBe("minmax(0px, 1fr)");
-    expect(convertColWidth(undefined)).toBe("minmax(0px, 1fr)");
-    expect(convertColWidth("")).toBe("minmax(0px, 1fr)");
+  it("default ke 'minmax(120px, 1fr)' untuk value kosong/falsy", () => {
+    expect(convertColWidth(null)).toBe("minmax(120px, 1fr)");
+    expect(convertColWidth(undefined)).toBe("minmax(120px, 1fr)");
+    expect(convertColWidth("")).toBe("minmax(120px, 1fr)");
   });
 });
 
