@@ -78,9 +78,9 @@ class UserShowSelfTest extends TestCase {
 
         $response->assertOk();
 
-        preg_match('/data-page="([^"]+)"/', $response->getContent(), $matches);
+        preg_match('#<script[^>]*type="application/json">(.*?)</script>#s', $response->getContent(), $matches);
 
-        return json_decode(html_entity_decode($matches[1]), true);
+        return json_decode($matches[1], true);
     }
 
     public function test_self_view_with_manage_roles_permission_gets_roles_data(): void {

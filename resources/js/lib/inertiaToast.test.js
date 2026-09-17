@@ -3,10 +3,10 @@ import { Loader2Icon } from "lucide-react";
 
 // --- @inertiajs/react mock ---------------------------------------------
 // setupInertiaToast() memanggil router.on() sekali per event
-// ('start'|'success'|'error'|'exception'|'finish'). Mock ini menangkap tiap
-// registrasi (event, handler, fungsi off yang dikembalikan) supaya test bisa
-// memicu event Inertia secara langsung lewat handler-nya, dan memverifikasi
-// teardown() melepas seluruh listener.
+// ('start'|'success'|'error'|'httpException'|'networkError'|'finish'). Mock
+// ini menangkap tiap registrasi (event, handler, fungsi off yang
+// dikembalikan) supaya test bisa memicu event Inertia secara langsung lewat
+// handler-nya, dan memverifikasi teardown() melepas seluruh listener.
 let routerOnRegistrations = [];
 const routerOnMock = vi.fn((event, handler) => {
   const off = vi.fn();
@@ -78,12 +78,13 @@ describe("setupInertiaToast", () => {
     vi.useRealTimers();
   });
 
-  it("mendaftarkan listener untuk start/success/error/exception/finish", () => {
+  it("mendaftarkan listener untuk start/success/error/httpException/networkError/finish", () => {
     expect(routerOnRegistrations.map((r) => r.event)).toEqual([
       "start",
       "success",
       "error",
-      "exception",
+      "httpException",
+      "networkError",
       "finish",
     ]);
   });
@@ -198,10 +199,10 @@ describe("setupInertiaToast", () => {
     });
   });
 
-  describe("exception (network/HTTP, event 'exception')", () => {
+  describe("httpException (response HTTP non-Inertia, event 'httpException')", () => {
     it("memetakan status HTTP yang dikenal (404) ke pesan fallback-nya", () => {
-      getHandler("exception")({
-        detail: { exception: { response: { status: 404 } } },
+      getHandler("httpException")({
+        detail: { response: { status: 404 } },
       });
 
       const [, options] = toastMock.error.mock.calls[0];
@@ -211,8 +212,8 @@ describe("setupInertiaToast", () => {
     });
 
     it("status HTTP yang tidak dipetakan memakai pesan default", () => {
-      getHandler("exception")({
-        detail: { exception: { response: { status: 418 } } },
+      getHandler("httpException")({
+        detail: { response: { status: 418 } },
       });
 
       const [, options] = toastMock.error.mock.calls[0];
@@ -221,8 +222,18 @@ describe("setupInertiaToast", () => {
       );
     });
 
-    it("tanpa status & tanpa errors dianggap kegagalan koneksi", () => {
-      getHandler("exception")({ detail: {} });
+    it("menyertakan tombol retry (berbeda dari event 'error' validasi)", () => {
+      getHandler("httpException")({ detail: { response: { status: 500 } } });
+
+      const [, options] = toastMock.error.mock.calls[0];
+      expect(options.action.label).toBe("Coba lagi");
+      expect(typeof options.action.onClick).toBe("function");
+    });
+  });
+
+  describe("networkError (koneksi/JS gagal total, event 'networkError')", () => {
+    it("payload tidak punya response.status -- selalu dianggap kegagalan koneksi", () => {
+      getHandler("networkError")({ detail: { error: new Error("offline") } });
 
       const [, options] = toastMock.error.mock.calls[0];
       expect(options.description).toBe(
@@ -230,8 +241,8 @@ describe("setupInertiaToast", () => {
       );
     });
 
-    it("menyertakan tombol retry (berbeda dari event 'error' validasi)", () => {
-      getHandler("exception")({ detail: { response: { status: 500 } } });
+    it("menyertakan tombol retry juga", () => {
+      getHandler("networkError")({ detail: { error: new Error("offline") } });
 
       const [, options] = toastMock.error.mock.calls[0];
       expect(options.action.label).toBe("Coba lagi");
@@ -244,7 +255,7 @@ describe("setupInertiaToast", () => {
       getHandler("start")({
         detail: { visit: { url: "/orders/1", method: "post" } },
       });
-      getHandler("exception")({ detail: { response: { status: 500 } } });
+      getHandler("httpException")({ detail: { response: { status: 500 } } });
 
       const [, options] = toastMock.error.mock.calls[0];
       options.action.onClick();
@@ -263,7 +274,7 @@ describe("setupInertiaToast", () => {
           },
         },
       });
-      getHandler("exception")({ detail: { response: { status: 500 } } });
+      getHandler("httpException")({ detail: { response: { status: 500 } } });
 
       const [, options] = toastMock.error.mock.calls[0];
       options.action.onClick();
@@ -274,7 +285,7 @@ describe("setupInertiaToast", () => {
     });
 
     it("tidak melakukan apa pun jika belum pernah ada visit ('start' belum pernah terjadi)", () => {
-      getHandler("exception")({ detail: { response: { status: 500 } } });
+      getHandler("httpException")({ detail: { response: { status: 500 } } });
 
       const [, options] = toastMock.error.mock.calls[0];
       options.action.onClick();
@@ -351,7 +362,7 @@ describe("setupInertiaToast", () => {
   describe("teardown", () => {
     it("melepas seluruh listener router.on yang didaftarkan saat setup", () => {
       const offs = routerOnRegistrations.map((r) => r.off);
-      expect(offs).toHaveLength(5);
+      expect(offs).toHaveLength(6);
 
       teardown();
       offs.forEach((off) => expect(off).toHaveBeenCalledTimes(1));

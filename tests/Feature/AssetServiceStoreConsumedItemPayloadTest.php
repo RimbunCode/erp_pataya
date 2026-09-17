@@ -216,11 +216,12 @@ class AssetServiceStoreConsumedItemPayloadTest extends TestCase {
         // assertInertia()/assertViewHas('page') tidak reliable di sini --
         // HandleInertiaRequests dinonaktifkan di setUp() (lihat komentar
         // withoutMiddleware di atas), sehingga $response->original bukan lagi
-        // instance View. Ekstrak langsung atribut data-page dari HTML mentah,
-        // sama seperti yang dibaca app.js/Inertia client di browser.
-        preg_match('/data-page="([^"]+)"/', $response->getContent(), $matches);
-        $this->assertNotEmpty($matches, 'data-page attribute tidak ditemukan di response HTML');
-        $page = json_decode(html_entity_decode($matches[1]), true);
+        // instance View. Ekstrak langsung dari <script type="application/json">
+        // di HTML mentah (Inertia v3 -- lihat @inertia Blade directive), sama
+        // seperti yang dibaca app.js/Inertia client di browser.
+        preg_match('#<script[^>]*type="application/json">(.*?)</script>#s', $response->getContent(), $matches);
+        $this->assertNotEmpty($matches, 'script data-page tidak ditemukan di response HTML');
+        $page = json_decode($matches[1], true);
 
         $consumedItem = $page['props']['assetService']['consumedItems'][0];
         $this->assertSame($itemVariant->id, $consumedItem['item']['id']);

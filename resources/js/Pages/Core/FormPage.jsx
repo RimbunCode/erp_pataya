@@ -1768,8 +1768,9 @@ const FormPageDialog = memo(
         handleOpenChange(false);
         setTimeout(() => handleOpenChange(true), 100);
       };
-      document.addEventListener("inertia:invalid", handler);
-      return () => document.removeEventListener("inertia:invalid", handler);
+      document.addEventListener("inertia:httpException", handler);
+      return () =>
+        document.removeEventListener("inertia:httpException", handler);
     }, [open]);
     const { loadDraft, ...form } = useDraftForm(name, defaultValue ?? {}, {
       // onContinueDraft: () => {

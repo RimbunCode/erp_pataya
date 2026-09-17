@@ -29,7 +29,7 @@
             background-color: oklch(0.145 0 0);
         }
     </style>
-    <title inertia>{{ config('app.name', 'Laravel') }}</title>
+    <title data-inertia>{{ config('app.name', 'Laravel') }}</title>
 
     <!-- Flag Icon -->
     <link rel="stylesheet" href="https://cdn.jsdelivr.net/gh/lipis/flag-icons@7.2.3/css/flag-icons.min.css" />

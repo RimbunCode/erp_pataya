@@ -62,8 +62,8 @@ class UserShowOtherUserTest extends TestCase {
 
         $response->assertOk();
 
-        preg_match('/data-page="([^"]+)"/', $response->getContent(), $matches);
-        $page = json_decode(html_entity_decode($matches[1]), true);
+        preg_match('#<script[^>]*type="application/json">(.*?)</script>#s', $response->getContent(), $matches);
+        $page = json_decode($matches[1], true);
 
         $this->assertSame($otherUser->id, $page['props']['user']['id']);
     }
