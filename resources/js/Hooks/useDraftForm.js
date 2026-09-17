@@ -263,7 +263,36 @@ export const useDraftForm = (
         onSuccess: (e) => {
           setShowAlert(false); // pastikan alert unfinished ditutup saat sukses submit
           if (!isDialog) {
-            form.setDefaults(e.props[name]);
+            // `form.setDefaults(object)` di Inertia v2.3.18 itu MERGE, bukan
+            // replace: `Object.assign(cloneDeep(defaults), fieldOrFields)`.
+            // Kalau langsung dikasih `e.props[name]` (data fresh dari server),
+            // key yang cuma hidup di `data` dan memang tidak pernah dikirim
+            // balik server (mis. `latestDiscountKey` yang ditulis
+            // AdditionalDiscount.jsx, atau `target_warehouse`/
+            // `source_warehouse` level header di form PO/SO yang cuma alat
+            // bulk-set gudang tiap baris item) tidak akan pernah ikut masuk
+            // ke `defaults`. Efek `form.reset(...Object.keys(initialData))`
+            // di bawah juga tidak menolong karena `reset(...fields)` di
+            // Inertia mulai dari `{ ...data }` lalu cuma menimpa key yang
+            // ADA di `defaults` — key FE-only itu selamat di `data` tapi
+            // tetap tidak pernah ada di `defaults`. Hasilnya `isDirty`
+            // (deep compare data vs defaults) permanen `true` walau submit
+            // sukses, sehingga badge "Not Saved" nyangkut selamanya dan
+            // tombol Submit tidak pernah muncul (FormPage.jsx mensyaratkan
+            // `!isDirty` untuk menampilkannya).
+            // Fix: pakai snapshot data form saat submit (`dataRef.current`,
+            // sudah termasuk key FE-only) sebagai basis, lalu timpa dengan
+            // field fresh dari server supaya field milik server (code,
+            // amount, status, updated_at, dst) tetap yang menang. Kalau
+            // server tidak mengirim apa-apa untuk key ini, tetap panggil
+            // `setDefaults(undefined)` (bukan skip) supaya lewat jalur
+            // `setDataAsDefaults` bawaan Inertia (defaults = data saat ini),
+            // karena Inertia melacak flag `setDefaultsCalledInOnSuccess` dan
+            // skip total akan mengubah perilaku itu.
+            const fresh = e.props[name];
+            form.setDefaults(
+              fresh ? { ...(dataRef.current ?? {}), ...fresh } : undefined,
+            );
           }
           setIsDirty(false);
           skipSaveRef.current = true; // jangan tulis ulang draft sesaat setelah sukses

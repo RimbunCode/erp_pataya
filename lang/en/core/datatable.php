@@ -41,6 +41,9 @@ return [
             'disabled_root_group'  => 'The root group cannot be deleted.',
             'disabled_single_item' => 'At least one filter is required.',
         ],
+        'locked' => [
+            'label' => 'Locked filters (always applied):',
+        ],
         'depth_warning' => [
             'banner' => 'Some groups are nested deeper than :max levels. Consider simplifying for readability.',
             'branch' => 'This will nest deeper than :max levels. Consider simplifying.',

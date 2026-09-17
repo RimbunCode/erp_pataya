@@ -904,19 +904,91 @@ class ModelController extends Controller {
         if ($filters = $request->filters) {
             (new FilterEvaluator($columns))->apply($query, $filters);
         }
+
+        // Kata kunci pencarian bebas (`search`) — DITEMUKAN SAAT VERIFIKASI VISUAL
+        // BROWSER (bukan asumsi requirements.md): endpoint ini (selectData, dipakai
+        // SelectModel & Advance Search Dialog LinkModel) TIDAK PERNAH punya mekanisme
+        // search teks bebas sama sekali — beda dari __invoke() (route "model", dropdown
+        // biasa) yang punya. SelectModel tak pernah kirim `search` (murni FilterBuilder),
+        // jadi gap ini baru kelihatan sekarang. Versi ringkas (bukan replikasi penuh
+        // __invoke() yang menangani whereHas relasi bertingkat) — cari di kolom FLAT
+        // (non-relasi) sumber templateLink saja, cukup utk kasus umum (mis. Country ':name').
+        // $columns (dari $target::getColumns(1)) adalah LIST numerik (bukan keyed
+        // by name) — lihat safeLookupColumns() yg juga membangun $byName sendiri
+        // dgn cara sama. Dibutuhkan di sini (search) DAN di blok addSelect di bawah.
+        $columnsByName = \array_column($columns, null, 'name');
+
+        if ($search = \trim((string) $request->search)) {
+            $flatAttributes = \array_values(\array_filter(
+                $this->templateLinkColumns($target),
+                fn ($name) => ! \in_array($columnsByName[$name]['type'] ?? null, ['relation', 'relations'], true),
+            ));
+            $words = \array_values(\array_filter(\explode(' ', $search), fn ($w) => \trim($w) !== ''));
+            if ($flatAttributes !== [] && $words !== []) {
+                $query->where(function (Builder $q) use ($words, $flatAttributes) {
+                    foreach ($words as $word) {
+                        $q->whereAny($flatAttributes, 'like', "%{$word}%");
+                    }
+                });
+            }
+        }
+
+        // Kolom aman dihitung SEBELUM dataTable() dipanggil (beda dari urutan lama):
+        // macro `dataTable` (DataTableScope::addDataTable) punya adaptive-select
+        // SENDIRI berbasis cookie/`show` (App\Services\Core\DataTableColumnSelector::
+        // safeColumnsFromVisible) — TIDAK tahu apa-apa soal `linkable`. Jadi kolom
+        // `linkable` yang tak kebetulan `show:true`/ada di cookie TIDAK PERNAH masuk
+        // SQL SELECT walau lolos `safeLookupColumns()` di bawah — filterRowColumns()
+        // (setelah macro) cuma bisa memangkas kolom yang SUDAH ter-fetch, tak bisa
+        // memunculkan kolom yang tak pernah di-SELECT. Maka saat `includeAllLinkable`,
+        // kolom aman non-relasi di-addSelect EKSPLISIT di sini SEBELUM macro jalan —
+        // additive (pola sama addSelect FK parentColumn di atas), macro tetap
+        // menambah select-nya sendiri di atasnya tanpa konflik.
+        $perm               = PermissionChecker::forUser($request);
+        $requested          = $parentColumn ? [...$showedColumns, $parentColumn] : $showedColumns;
+        $includeAllLinkable = $request->boolean('includeAllLinkable');
+        $safe               = $this->safeLookupColumns($target, $requested, $perm, [], $includeAllLinkable);
+        $relModels          = $this->relatedModelMap($target);
+        if ($parentColumn && isset($parentRel, $parent)) {
+            $safe[$parentColumn]      = true;
+            $relModels[$parentColumn] = $parent;
+        }
+
+        if ($includeAllLinkable) {
+            $targetTable = (new $target)->getTable();
+            $extraSelect = [];
+            foreach (\array_keys($safe) as $name) {
+                // Relasi bukan kolom DB (ditangani `with`), ATRIBUT selalu-aman
+                // (ALWAYS_ALLOWED_ATTRIBUTES) adalah computed/appended attribute
+                // Eloquent (bukan kolom tabel) — keduanya bukan kandidat addSelect.
+                if (\in_array($name, self::ALWAYS_ALLOWED_ATTRIBUTES, true)) {
+                    continue;
+                }
+                // safeLookupColumns() SELALU menambah literal 'id' ke $safe
+                // (fallback lama, dipakai filterRowColumns() memfilter array PHP
+                // — aman walau 'id' bukan kolom asli). Model dgn PK bukan 'id'
+                // (mis. Country PK-nya 'code') bikin 'id' jadi entri PHANTOM di
+                // $safe yang TIDAK ada di $columnsByName sama sekali. addSelect()
+                // cuma boleh pakai kolom yang BENAR ada di metadata skema.
+                if (! isset($columnsByName[$name])) {
+                    continue;
+                }
+                $colType = $columnsByName[$name]['type'] ?? null;
+                if (\in_array($colType, ['relation', 'relations'], true)) {
+                    continue;
+                }
+                $extraSelect[] = "{$targetTable}.{$name}";
+            }
+            if ($extraSelect !== []) {
+                $query->addSelect($extraSelect);
+            }
+        }
+
         $result = $query->dataTable($request, $showedColumns);
 
         // Batasi kolom tiap row paginate ke kolom aman (templateLink + columns∩linkable
         // − visibleFor gagal). `columns` (showedColumns) berperan sbg kolom diminta;
         // parentColumn (relasi balik per-item) selalu diizinkan agar tetap tampil.
-        $perm      = PermissionChecker::forUser($request);
-        $requested = $parentColumn ? [...$showedColumns, $parentColumn] : $showedColumns;
-        $safe      = $this->safeLookupColumns($target, $requested, $perm);
-        $relModels = $this->relatedModelMap($target);
-        if ($parentColumn && isset($parentRel, $parent)) {
-            $safe[$parentColumn]      = true;
-            $relModels[$parentColumn] = $parent;
-        }
         $passthrough = $parentColumn ? [$parentColumn => true] : [];
         $reqFields   = \array_values($requested);
         $paginated   = $result['data'];
@@ -932,12 +1004,13 @@ class ModelController extends Controller {
         }
 
         return response()->json([
-            'model'        => $target,
-            'route'        => Str::plural((new $target)->getNameClass()),
-            'translateKey' => (new $target)->translateKey ?? null,
-            'columns'      => $columns,
-            'parentColumn' => $parentColumn,
-            'data'         => $paginated,
+            'model'               => $target,
+            'route'               => Str::plural((new $target)->getNameClass()),
+            'translateKey'        => (new $target)->translateKey ?? null,
+            'columns'             => $columns,
+            'templateLinkColumns' => $this->templateLinkColumns($target),
+            'parentColumn'        => $parentColumn,
+            'data'                => $paginated,
         ]);
     }
 

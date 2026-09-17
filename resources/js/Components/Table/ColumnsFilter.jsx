@@ -39,6 +39,7 @@ function ColumnsFilter({ columns: initColumn, onApply, onReset, open }) {
             hidden,
             ignore,
             primaryKey,
+            locked,
           }) => {
             if (type == "relations" || type == "mixed" || type == "json")
               return;
@@ -46,17 +47,22 @@ function ColumnsFilter({ columns: initColumn, onApply, onReset, open }) {
             return (
               <FormCheckbox
                 key={name}
-                checked={show}
-                onCheckedChange={(val) => {
-                  setColumns((x) => {
-                    return x.map((y) => {
-                      if (y.name === name) {
-                        return { ...y, show: val };
+                checked={locked ? true : show}
+                disabled={locked}
+                onCheckedChange={
+                  locked
+                    ? undefined
+                    : (val) => {
+                        setColumns((x) => {
+                          return x.map((y) => {
+                            if (y.name === name) {
+                              return { ...y, show: val };
+                            }
+                            return y;
+                          });
+                        });
                       }
-                      return y;
-                    });
-                  });
-                }}
+                }
                 label={title ?? t(titleTrans)}
                 className="overflow-x-hidden [&_label]:truncate"
               />

@@ -211,11 +211,15 @@ describe("ItemUnitLinkModel", () => {
 
     // Mode non-cache TIDAK memfilter opsi di client -- yang dirender persis
     // apa yg dikembalikan axios (2 item dari beforeEach), terlepas dari teks
-    // yg diketik. Assert count PERSIS 2 (bukan cuma "ada Kilogram") supaya
-    // CommandItem tombol tambah (kalau suatu saat disabledAdd berubah jadi
-    // false) ikut terdeteksi sbg item ke-3 yg tidak seharusnya ada di sini.
-    const options = await screen.findAllByRole("option");
-    expect(options).toHaveLength(2);
+    // yg diketik. CommandItem "Advance Search" SELALU dirender di akhir
+    // (terlepas dari disabledAdd), jadi total = 2 data + 1 = 3. findAllByRole
+    // biasa resolve begitu ADA match apa pun -- Advance Search ter-mount
+    // lebih dulu sebelum data debounce tiba -- jadi waitFor count STABIL di 3.
+    const options = await waitFor(() => {
+      const opts = screen.getAllByRole("option");
+      expect(opts).toHaveLength(3);
+      return opts;
+    });
     expect(options[0]).toHaveTextContent("Kilogram (KG)");
     expect(options[1]).toHaveTextContent("Gram (GR)");
   });

@@ -61,31 +61,98 @@ export default function Form() {
   const { default_currency_id } = usePage().props.preferences;
   const fixedAssets = usePage().props.fixedAssets;
   const purchaseInvoiceId = usePage().props.purchaseInvoice?.id;
-  const amount = useMemo(() => {
-    return calculateArray(data.items, "amount", "+");
+  // Dihitung langsung dari quantity*rate mentah + alokasi diskon saat ini --
+  // BUKAN dari calculateArray(data.items, "basic_amount"/"dpp_amount"/
+  // "tax_amount", "+") seperti sebelumnya. Alasan: kolom basic_amount/
+  // dpp_amount/tax_amount di data.items hanya di-refresh oleh mapItem milik
+  // FormTable, dan mapItem itu cuma jalan ulang saat REFERENSI array `items`
+  // berubah (lihat FormTable.jsx useEffect di applyMapItem) -- bukan saat
+  // discount_on/discount_rate/discount_amount berubah sendirian di panel
+  // "Diskon Tambahan". Kalau header ikut bergantung ke kolom per-item itu,
+  // Jumlah Dasar/DPP/Pajak/Total jadi tidak reaktif saat user mengetik diskon
+  // tanpa menyentuh baris item -- baru berubah setelah dokumen disimpan (bug
+  // yang diperbaiki di sini). Menghitung ulang di sini membuat header selalu
+  // reaktif terlepas dari kapan mapItem terakhir jalan. Pola ini identik dgn
+  // PurchaseOrders/Form.jsx & SalesOrders/Form.jsx.
+  //
+  // .filter((item) => item?.purchase_order_item) membuang baris kosong yang
+  // selalu disisakan FormTable di akhir tabel -- purchase_order_item dipakai
+  // sebagai penanda baris terisi karena PurchaseInvoiceRequest mewajibkan
+  // items.*.purchase_order_item.id, jadi tiap baris PI yang sah pasti punya
+  // field itu (sejajar dgn filter `item?.item` di PurchaseOrders/Form.jsx).
+  const rawLines = useMemo(() => {
+    return (data.items ?? [])
+      .filter((item) => item?.purchase_order_item)
+      .map((item) => ({
+        basic_amount: (item.quantity ?? 0) * (item.rate ?? 0),
+        tax_rate: item.tax?.rate ?? 0,
+      }));
   }, [data.items]);
 
-  // basic_amount adalah generated column KOTOR (quantity * rate), belum dikurangi
-  // diskon dokumen -- net_amount (label "Jumlah Dasar") harus mengurangi
-  // discount_amount per item (ditulis backend saat create/update, lihat
-  // DocumentDiscountCalculator::applyDiscountColumnToItems()). Item hasil
-  // carry-over dari PurchaseOrder (mode create) belum punya discount_amount --
-  // default 0 sampai backend menghitung ulang saat disimpan.
-  const net_amount = useMemo(() => {
-    return (data.items ?? []).reduce(
-      (sum, item) =>
-        sum + ((item?.basic_amount ?? 0) - (item?.discount_amount ?? 0)),
+  const rawNetAmount = useMemo(() => {
+    return calculateArray(rawLines, "basic_amount", "+");
+  }, [rawLines]);
+
+  // Basis MENTAH (sebelum diskon) -- dipakai AdditionalDiscount untuk
+  // menghitung discount_amount dari discount_rate. Wajib terpisah dari
+  // tax_amount hasil alokasi di bawah karena kalau basis diskon ikut memakai
+  // angka yang sudah terpotong, basis akan menyusut terus tiap kali fungsi
+  // setDiscount di AdditionalDiscount terpanggil ulang.
+  //
+  // Beda dari PurchaseOrders/SalesOrders: pajak Purchase Invoice dihitung di
+  // atas basis DPP Nilai Lain (basic_amount * DPP_FACTOR), bukan basic_amount
+  // langsung -- replika App\Services\Finances\PurchaseInvoiceService::
+  // DPP_FACTOR.
+  const rawTaxAmount = useMemo(() => {
+    return rawLines.reduce(
+      (sum, line) =>
+        sum + (line.basic_amount * DPP_FACTOR * line.tax_rate) / 100,
       0,
     );
-  }, [data.items]);
+  }, [rawLines]);
+
+  const allocatedLines = useMemo(() => {
+    return allocateDiscount(
+      rawLines,
+      data.discount_on,
+      data.discount_rate ?? 0,
+      data.discount_amount ?? 0,
+      data.latestDiscountKey ?? "discount_rate",
+      DPP_FACTOR,
+    );
+  }, [
+    rawLines,
+    data.discount_on,
+    data.discount_rate,
+    data.discount_amount,
+    data.latestDiscountKey,
+  ]);
+
+  // net_amount ("Jumlah Dasar") = basic_amount hasil alokasi diskon per baris
+  // -- ekuivalen dengan formula lama (basic_amount - discount_amount), karena
+  // allocateDiscount sudah mengurangkan porsi diskon di dalamnya.
+  const net_amount = useMemo(() => {
+    return calculateArray(allocatedLines, "basic_amount", "+");
+  }, [allocatedLines]);
 
   const dpp_amount = useMemo(() => {
-    return calculateArray(data.items, "dpp_amount", "+");
-  }, [data.items]);
+    return allocatedLines.reduce(
+      (sum, line) => sum + (line.basic_amount ?? 0) * DPP_FACTOR,
+      0,
+    );
+  }, [allocatedLines]);
 
   const tax_amount = useMemo(() => {
-    return calculateArray(data.items, "tax_amount", "+");
-  }, [data.items]);
+    return calculateArray(allocatedLines, "tax_amount", "+");
+  }, [allocatedLines]);
+
+  // amount = net_amount + tax_amount, ekuivalen dengan formula mapItem
+  // (grossAmounts[index] - discountForLine + tax_amount) karena
+  // gross - discountForLine persis basic_amount hasil alokasi per baris.
+  const amount = useMemo(
+    () => net_amount + tax_amount,
+    [net_amount, tax_amount],
+  );
 
   const itemColumns = useMemo(() => {
     return [
@@ -96,7 +163,7 @@ export default function Form() {
         width: 2,
         cell({ dataRow, setData, attributes }) {
           return (
-            <div className="flex items-center">
+            <div className="flex items-center w-full">
               <PurchaseOrderItemLinkModel
                 placeholder={t(
                   "finances.purchaseInvoice.columns.item.placeholder",
@@ -209,7 +276,6 @@ export default function Form() {
       {
         name: "tax",
         titleTrans: "finances.purchaseInvoice.columns.tax",
-        required: true,
         width: 1,
         cell({ data, setData, attributes, dataRow }) {
           return (
@@ -701,6 +767,8 @@ export default function Form() {
         setData={setData}
         netAmount={net_amount}
         taxAmount={tax_amount}
+        rawNetAmount={rawNetAmount}
+        rawTaxAmount={rawTaxAmount}
       />
       <FormPageContent
         value="detail"

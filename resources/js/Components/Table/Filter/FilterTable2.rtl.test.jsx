@@ -1,6 +1,8 @@
 import { describe, expect, it, vi, beforeEach } from "vitest";
 import { render, screen } from "@testing-library/react";
+import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import userEvent from "@testing-library/user-event";
+import { TooltipProvider } from "@/Components/ui/tooltip";
 
 vi.mock("laravel-react-i18n", () => ({
   useLaravelReactI18n: () => ({
@@ -36,6 +38,10 @@ vi.mock("@/lib/gooeyToast", () => ({
 // dialog, saved-filter list, save/overwrite flow, isDirty detection.
 vi.mock("./FilterBuilder", () => ({
   FilterBuilderBody: () => <div data-testid="stub-filter-builder-body" />,
+}));
+
+vi.mock("@/Hooks/usePermission", () => ({
+  default: () => ({ can: () => true, canGlobal: () => true }),
 }));
 
 window.route = (name, params) =>
@@ -291,5 +297,146 @@ describe("FilterTable2", () => {
         name: /TR:core.datatable.filter.saved.save/,
       }),
     ).toBeInTheDocument();
+  });
+
+  // Task 8 (spec linkmodel-advanced-search) — prop `lockedFilters`: ringkasan
+  // read-only prop `filters` LinkModel (non-editable) di dalam FilterTable,
+  // terpisah dari badge/count additive.
+  describe("lockedFilters (Requirement 5.6-5.8)", () => {
+    const columnsWithRelation = {
+      status: { name: "status", type: "formStatus" },
+      customer: {
+        name: "customer",
+        type: "relation",
+        related: "App\\Models\\Sales\\Customer",
+      },
+    };
+
+    it("kondisi lockedFilters tampil, TIDAK ikut dihitung badge (additive tetap 0)", () => {
+      render(
+        <FilterTable2
+          columns={columnsWithRelation}
+          initialFilters={null}
+          lockedFilters={{ status: "submitted" }}
+          onApply={vi.fn()}
+        />,
+      );
+
+      // Badge cuma render kalau activeCount>0 -- tanpa additive, tidak ada badge angka.
+      const trigger = screen.getByRole("button", {
+        name: /TR:core.datatable.filter.filter/,
+      });
+      expect(trigger).not.toHaveTextContent(/^\d+$/);
+    });
+
+    it("badge HANYA hitung additive walau lockedFilters berisi kondisi lain", () => {
+      const initialFilters = {
+        root: {
+          k: "and",
+          c: { a: { k: "status", o: "=", v: "draft" } },
+        },
+      };
+      render(
+        <FilterTable2
+          columns={columnsWithRelation}
+          initialFilters={initialFilters}
+          lockedFilters={{ status: "submitted", customer: { id: 5 } }}
+          onApply={vi.fn()}
+        />,
+      );
+
+      // 1 kondisi additive -> badge "1", BUKAN 3 (additive+locked).
+      expect(screen.getByText("1")).toBeInTheDocument();
+      expect(screen.queryByText("3")).not.toBeInTheDocument();
+    });
+
+    it("kondisi relasi match-by-id di lockedFilters merender LinkModel disabled", async () => {
+      const user = userEvent.setup({ delay: null });
+      // LinkModel (dipakai LockedFiltersSummary utk kondisi relasi) butuh
+      // QueryClientProvider (useLinkModelOptions -> useQueryClient()).
+      const queryClient = new QueryClient({
+        defaultOptions: { queries: { retry: false } },
+      });
+      render(
+        <QueryClientProvider client={queryClient}>
+          <TooltipProvider>
+            <FilterTable2
+              columns={columnsWithRelation}
+              initialFilters={null}
+              lockedFilters={{ customer: { id: 5 } }}
+              onApply={vi.fn()}
+            />
+          </TooltipProvider>
+        </QueryClientProvider>,
+      );
+
+      await user.click(
+        screen.getByRole("button", { name: /TR:core.datatable.filter.filter/ }),
+      );
+
+      // Bagian ringkasan locked tampil.
+      expect(
+        await screen.findByText("TR:core.datatable.filter.locked.label"),
+      ).toBeInTheDocument();
+
+      // LinkModel disabled untuk kondisi relasi -- input disabled (bukan angka id mentah).
+      const inputs = screen.getAllByRole("textbox").filter((el) => el.disabled);
+      expect(inputs.length).toBeGreaterThan(0);
+      expect(screen.queryByText("5")).not.toBeInTheDocument();
+    });
+
+    it("tanpa lockedFilters prop -- tidak ada ringkasan locked dirender (regresi)", async () => {
+      const user = userEvent.setup({ delay: null });
+      render(
+        <FilterTable2
+          columns={columnsWithRelation}
+          initialFilters={null}
+          onApply={vi.fn()}
+        />,
+      );
+
+      await user.click(
+        screen.getByRole("button", { name: /TR:core.datatable.filter.filter/ }),
+      );
+
+      expect(
+        screen.queryByText("TR:core.datatable.filter.locked.label"),
+      ).not.toBeInTheDocument();
+    });
+  });
+
+  describe("trigger custom (opsional)", () => {
+    it("trigger diisi -- render custom trigger, BUKAN Button bawaan", () => {
+      render(
+        <FilterTable2
+          columns={columns}
+          initialFilters={null}
+          onApply={vi.fn()}
+          trigger={<button type="button">Custom Trigger</button>}
+        />,
+      );
+
+      expect(
+        screen.getByRole("button", { name: "Custom Trigger" }),
+      ).toBeInTheDocument();
+      expect(
+        screen.queryByRole("button", {
+          name: /TR:core.datatable.filter.filter/,
+        }),
+      ).not.toBeInTheDocument();
+    });
+
+    it("trigger tidak diisi -- tetap render Button bawaan (regresi)", () => {
+      render(
+        <FilterTable2
+          columns={columns}
+          initialFilters={null}
+          onApply={vi.fn()}
+        />,
+      );
+      expect(
+        screen.getByRole("button", { name: /TR:core.datatable.filter.filter/ }),
+      ).toBeInTheDocument();
+    });
   });
 });

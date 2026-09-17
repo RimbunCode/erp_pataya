@@ -298,4 +298,155 @@ describe("LinkModel", () => {
       );
     });
   });
+
+  // Task 11 (spec linkmodel-advanced-search) — dua entry point independen
+  // Advance Search Dialog: baris "See more" (kondisional, showMore only) dan
+  // tombol "Advance Search" (selalu tampil). Requirement 1, 6.
+  describe("Advance Search Dialog -- entry points (Requirement 1) & carry-over (Requirement 6)", () => {
+    // model.selectData butuh shape response BEDA dari model (dropdown) --
+    // axiosPost mock generik (beforeEach) balikin shape dropdown utk SEMUA
+    // call; branch di sini khusus utk request yang mounting AdvanceSearchDialog.
+    const mockSelectDataAware = () => {
+      axiosPost.mockImplementation((url) => {
+        if (url === "model.selectData") {
+          return Promise.resolve({
+            data: {
+              model: "AppModelsItem",
+              route: "items",
+              translateKey: null,
+              columns: [],
+              templateLinkColumns: ["name"],
+              parentColumn: null,
+              data: {
+                data: [],
+                current_page: 1,
+                last_page: 1,
+                per_page: 25,
+                total: 0,
+              },
+            },
+          });
+        }
+        return Promise.resolve({
+          data: {
+            data: [
+              {
+                id: 1,
+                templateLink: ":name",
+                name: "Alpha",
+                thisModel: "AppModelsItem",
+              },
+              {
+                id: 2,
+                templateLink: ":name",
+                name: "Beta",
+                thisModel: "AppModelsItem",
+              },
+            ],
+            total: 2,
+          },
+        });
+      });
+    };
+
+    it("total <= limit -- baris See more TIDAK tampil, CommandItem Advance Search TETAP tampil di dropdown", async () => {
+      const user = userEvent.setup({ delay: null });
+      mockSelectDataAware();
+      await render(<LinkModel model="AppModelsItem" limit={10} />);
+
+      const input = screen.getByRole("textbox");
+      await act(async () => {
+        await user.click(input);
+      });
+      await screen.findByRole("option", { name: "Alpha" });
+
+      expect(
+        screen.queryByText("TR:core.form.linkmodel.more"),
+      ).not.toBeInTheDocument();
+      expect(
+        screen.getByRole("option", {
+          name: "TR:core.form.linkmodel.advance_search",
+        }),
+      ).toBeInTheDocument();
+    });
+
+    it("total > limit -- baris See more tampil; klik membuka dialog yang sama dgn CommandItem Advance Search", async () => {
+      const user = userEvent.setup({ delay: null });
+      mockSelectDataAware();
+      await render(<LinkModel model="AppModelsItem" limit={1} />);
+
+      const input = screen.getByRole("textbox");
+      await act(async () => {
+        await user.click(input);
+      });
+      await screen.findByRole("option", { name: "Alpha" });
+
+      const moreRow = screen.getByText("TR:core.form.linkmodel.more");
+      expect(moreRow).toBeInTheDocument();
+      // CommandItem Advance Search tetap ada berdampingan (grouping dgn Add),
+      // independen dari showMore.
+      expect(
+        screen.getByRole("option", {
+          name: "TR:core.form.linkmodel.advance_search",
+        }),
+      ).toBeInTheDocument();
+
+      await act(async () => {
+        await user.click(moreRow);
+      });
+
+      expect(
+        await screen.findByText("TR:core.form.linkmodel.advance_search"),
+      ).toBeInTheDocument();
+    });
+
+    it("disabled -- dropdown (& CommandItem Advance Search di dalamnya) tidak pernah render", async () => {
+      mockSelectDataAware();
+      await render(<LinkModel model="AppModelsItem" disabled />);
+      expect(
+        screen.queryByText("TR:core.form.linkmodel.advance_search"),
+      ).not.toBeInTheDocument();
+    });
+
+    it("readOnly -- dropdown (& CommandItem Advance Search di dalamnya) tidak pernah render", async () => {
+      mockSelectDataAware();
+      await render(<LinkModel model="AppModelsItem" readOnly />);
+      expect(
+        screen.queryByText("TR:core.form.linkmodel.advance_search"),
+      ).not.toBeInTheDocument();
+    });
+
+    it("teks sudah diketik di input LinkModel -> terbawa jadi initial search di dialog (via CommandItem Advance Search)", async () => {
+      const user = userEvent.setup({ delay: null });
+      mockSelectDataAware();
+      await render(<LinkModel model="AppModelsItem" />);
+
+      const input = screen.getByRole("textbox");
+      await act(async () => {
+        await user.type(input, "Widget");
+      });
+      await waitFor(() =>
+        expect(axiosPost).toHaveBeenCalledWith(
+          "model",
+          expect.objectContaining({ search: "Widget" }),
+        ),
+      );
+      // CommandItem Advance Search cuma dirender di cabang !loading dropdown.
+      const advanceSearchItem = await screen.findByRole("option", {
+        name: "TR:core.form.linkmodel.advance_search",
+      });
+
+      await act(async () => {
+        await user.click(advanceSearchItem);
+      });
+
+      const dialogSearchInput = await screen.findByPlaceholderText(
+        "TR:core.form.search.placeholder",
+      );
+      // useEffect (sync search -> initialSearch saat open) flush di render
+      // BERIKUTNYA setelah dialog pertama muncul -- waitFor menunggu tanpa
+      // menebak jumlah tick.
+      await waitFor(() => expect(dialogSearchInput).toHaveValue("Widget"));
+    });
+  });
 });

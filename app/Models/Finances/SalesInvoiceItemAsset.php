@@ -20,6 +20,9 @@ class SalesInvoiceItemAsset extends Model {
         'quantity'     => 'float',
         'processed_at' => 'datetime',
     ];
+    protected array $configColumns = [
+        'asset',
+    ];
 
     public static function templateLink() {
         return ':asset';

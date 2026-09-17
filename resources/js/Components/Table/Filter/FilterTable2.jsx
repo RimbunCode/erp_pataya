@@ -13,6 +13,7 @@ import {
   BookmarkCheck,
   ChevronDown,
   Filter,
+  Lock,
   Trash2,
 } from "lucide-react";
 import {
@@ -32,12 +33,14 @@ import useNestedFilters, {
 import { Button } from "../../ui/button";
 import { FilterBuilderBody } from "./FilterBuilder";
 import { Input } from "../../ui/input";
+import LinkModel from "@/Components/LinkModel";
 import LoadingIcon from "@/Components/LoadingIcon";
 import axios from "axios";
 import { cn } from "@/lib/utils";
 import { gooeyToast as toast } from "@/lib/gooeyToast";
+import { linkModelToFilterTree } from "@/lib/linkModelToFilterTree";
+import { resolveColumn, validateTree } from "./filterValidation";
 import { useLaravelReactI18n } from "laravel-react-i18n";
-import { validateTree } from "./filterValidation";
 
 /**
  * FilterTable2 — pembungkus AlertDialog + saved-filter di sekitar FilterBuilder.
@@ -52,6 +55,14 @@ import { validateTree } from "./filterValidation";
  *   activeFid     : id saved filter aktif (utk promote "Simpan")
  *   onSaved       : (savedFilter) => void — callback setelah named tersimpan
  *   isMobile      : tampilan trigger mobile
+ *   trigger       : custom trigger element (opsional) — menggantikan tombol
+ *     bawaan (Button/div) via AlertDialogTrigger asChild. Dipakai konsumen yang
+ *     perlu trigger custom (mis. InputGroupButton di AdvanceSearchDialog LinkModel,
+ *     spec linkmodel-advanced-search) — badge count jadi tanggung jawab konsumen
+ *     sendiri saat trigger custom dipakai (activeCount internal tidak dirender).
+ *   lockedFilters : tree LinkModelFilterTree NON-EDITABLE (opsional) — ditampilkan
+ *     read-only di atas builder editable, TIDAK dihitung ke activeCount/badge
+ *     (spec linkmodel-advanced-search, Requirement 5.6-5.8).
  * @param {object} root0
  * @param {object} root0.columns
  * @param {object} root0.initialFilters
@@ -60,6 +71,8 @@ import { validateTree } from "./filterValidation";
  * @param {string|number} root0.activeFid
  * @param {(savedFilter: object|null) => void} root0.onSaved
  * @param {boolean} [root0.isMobile]
+ * @param {React.ReactNode} [root0.trigger]
+ * @param {object} [root0.lockedFilters]
  * @returns {React.JSX.Element}
  */
 function FilterTable({
@@ -70,11 +83,15 @@ function FilterTable({
   activeFid,
   onSaved,
   isMobile = false,
+  trigger,
+  lockedFilters,
 }) {
   const { t } = useLaravelReactI18n();
   const [open, setOpen] = useState(false);
 
   // Jumlah kondisi filter aktif (item lengkap) untuk badge di tombol Filter.
+  // HANYA dari `initialFilters` (additive) -- `lockedFilters` sengaja TIDAK
+  // pernah masuk hitungan ini (Requirement 4 AC4, Property 3 design.md).
   const activeCount = useMemo(() => {
     const root = initialFilters?.root;
     if (!root) return 0;
@@ -85,33 +102,34 @@ function FilterTable({
     <NestedFiltersProvider initialFilters={initialFilters} columns={columns}>
       <AlertDialog open={open} onOpenChange={setOpen}>
         <AlertDialogTrigger asChild>
-          {isMobile ? (
-            <div className="hover:bg-accent relative flex cursor-pointer select-none items-center gap-2 rounded-sm px-2 py-1.5 text-sm outline-none transition-colors focus:bg-accent focus:text-accent-foreground data-disabled:pointer-events-none data-disabled:opacity-50 [&_svg]:pointer-events-none [&_svg]:size-4 [&_svg]:shrink-0">
-              <Filter />
-              {t("core.datatable.filter.filter")}
-              {activeCount > 0 && (
-                <span className="ml-auto inline-flex min-w-5 items-center justify-center rounded-full bg-primary px-1.5 py-0.5 text-xs font-semibold text-primary-foreground">
-                  {activeCount}
-                </span>
-              )}
-            </div>
-          ) : (
-            <Button
-              className={cn(
-                "flex-1 relative py-0! h-8 px-2! border-muted-foreground/50",
-                activeCount > 0 && "border-primary/60 text-primary",
-              )}
-              variant="secondary"
-            >
-              <Filter />
-              {t("core.datatable.filter.filter")}
-              {activeCount > 0 && (
-                <span className="inline-flex min-w-4.5 items-center justify-center rounded-full bg-primary px-1.5 text-xs font-semibold text-primary-foreground">
-                  {activeCount}
-                </span>
-              )}
-            </Button>
-          )}
+          {trigger ??
+            (isMobile ? (
+              <div className="hover:bg-accent relative flex cursor-pointer select-none items-center gap-2 rounded-sm px-2 py-1.5 text-sm outline-none transition-colors focus:bg-accent focus:text-accent-foreground data-disabled:pointer-events-none data-disabled:opacity-50 [&_svg]:pointer-events-none [&_svg]:size-4 [&_svg]:shrink-0">
+                <Filter />
+                {t("core.datatable.filter.filter")}
+                {activeCount > 0 && (
+                  <span className="ml-auto inline-flex min-w-5 items-center justify-center rounded-full bg-primary px-1.5 py-0.5 text-xs font-semibold text-primary-foreground">
+                    {activeCount}
+                  </span>
+                )}
+              </div>
+            ) : (
+              <Button
+                className={cn(
+                  "flex-1 relative py-0! h-8 px-2! border-muted-foreground/50",
+                  activeCount > 0 && "border-primary/60 text-primary",
+                )}
+                variant="secondary"
+              >
+                <Filter />
+                {t("core.datatable.filter.filter")}
+                {activeCount > 0 && (
+                  <span className="inline-flex min-w-4.5 items-center justify-center rounded-full bg-primary px-1.5 text-xs font-semibold text-primary-foreground">
+                    {activeCount}
+                  </span>
+                )}
+              </Button>
+            ))}
         </AlertDialogTrigger>
         <AlertDialogContent
           forceAsDialog
@@ -127,6 +145,7 @@ function FilterTable({
             isMobile={isMobile}
             open={open}
             setOpen={setOpen}
+            lockedFilters={lockedFilters}
           />
         </AlertDialogContent>
       </AlertDialog>
@@ -145,6 +164,7 @@ function FilterTableContent({
   isMobile,
   open,
   setOpen,
+  lockedFilters,
 }) {
   const { t } = useLaravelReactI18n();
   const { columns, filters, setErrors, clearErrors, setFromInitial } =
@@ -342,6 +362,10 @@ function FilterTableContent({
             }}
             onRemove={removeSaved}
           />
+        )}
+
+        {lockedFilters && (
+          <LockedFiltersSummary tree={lockedFilters} columns={columns} />
         )}
 
         <div className={cn(!isMobile && "max-h-[92%]", "flex flex-1 min-h-0")}>
@@ -621,5 +645,120 @@ function SaveFilterControl({
         )}
       </DropdownMenuContent>
     </DropdownMenu>
+  );
+}
+
+/**
+ * LockedFiltersSummary — ringkasan READ-ONLY kondisi prop `filters` LinkModel
+ * (non-editable) di dalam FilterTable. Sengaja TERPISAH TOTAL dari tree
+ * additive/editable (`useNestedFilters`) -- BUKAN node `locked` disisipkan ke
+ * tree yang sama -- supaya:
+ *  (a) tidak perlu extend `removeNode`/`updateItem`/`wrapItemWithGroup` dgn
+ *      guard `locked` (state itu dipakai bersama DataTable2, blast radius lebih
+ *      besar kalau disentuh);
+ *  (b) badge count (`activeCount` di atas, dari `flattenFilters(initialFilters)`)
+ *      OTOMATIS tidak pernah menghitung kondisi locked -- konsekuensi gratis
+ *      dari pemisahan ini, bukan logic exclude tambahan (Property 3 design.md).
+ * Reuse penuh `linkModelToFilterTree()` (konversi grammar) -- kondisi relasi
+ * match-by-id (mis. `{ customer: { id: 5 } }`) otomatis jadi node `{k,o:"=",v}`
+ * yang direnderkan via `<LinkModel disabled>` di bawah (bukan reimplementasi
+ * parsing sendiri). Requirement 5.6-5.8.
+ * @param {object} root0
+ * @param {object} root0.tree LinkModelFilterTree (prop `filters` LinkModel, apa adanya)
+ * @param {object} root0.columns peta kolom (getColumns)
+ * @returns {React.JSX.Element|null}
+ */
+function LockedFiltersSummary({ tree, columns }) {
+  const { t } = useLaravelReactI18n();
+  const converted = useMemo(
+    () => linkModelToFilterTree(tree, columns ?? {}),
+    [tree, columns],
+  );
+  const rootChildren = converted?.root?.c ?? {};
+  if (Object.keys(rootChildren).length === 0) return null;
+
+  return (
+    <div className="flex flex-col gap-1.5 pb-3 mb-3 border-b border-muted-foreground/20">
+      <span className="text-muted-foreground text-sm flex items-center gap-1.5">
+        <Lock className="size-3.5" />
+        {t("core.datatable.filter.locked.label")}
+      </span>
+      <LockedFilterNodes nodes={rootChildren} columns={columns} t={t} />
+    </div>
+  );
+}
+
+/**
+ * @param {object} root0
+ * @param {{[id: string]: object}} root0.nodes
+ * @param {object} root0.columns
+ * @param {(key: string) => string} root0.t
+ * @returns {React.JSX.Element}
+ */
+function LockedFilterNodes({ nodes, columns, t }) {
+  return (
+    <div className="flex flex-col gap-1">
+      {Object.entries(nodes ?? {}).map(([id, node]) => (
+        <LockedFilterNode key={id} node={node} columns={columns} t={t} />
+      ))}
+    </div>
+  );
+}
+
+/**
+ * @param {object} root0
+ * @param {object} root0.node node tree FilterBuilder -- group {k,c} atau leaf {k,o,v}
+ * @param {object} root0.columns
+ * @param {(key: string) => string} root0.t
+ * @returns {React.JSX.Element|null}
+ */
+function LockedFilterNode({ node, columns, t }) {
+  if (!node) return null;
+
+  // Group (AND/OR).
+  if (node.c !== undefined && node.k) {
+    const groupLabel =
+      String(node.k).toLowerCase() === "or"
+        ? t("core.datatable.filter.operator.or")
+        : t("core.datatable.filter.operator.and");
+    return (
+      <div className="flex flex-col gap-1 pl-3 border-l-2 border-muted-foreground/20">
+        <span className="text-muted-foreground text-xs uppercase">
+          {groupLabel}
+        </span>
+        <LockedFilterNodes nodes={node.c} columns={columns} t={t} />
+      </div>
+    );
+  }
+
+  // Leaf {k: column, o: operator, v: value}.
+  const colNode = resolveColumn(columns, node.k);
+  const colLabel =
+    colNode?.title ?? (colNode?.titleTrans ? t(colNode.titleTrans) : node.k);
+  const opLabel = t(`core.datatable.filter.operator.${node.o}`);
+  const isRelationEquals =
+    colNode &&
+    ["relation", "relations"].includes(colNode.type) &&
+    node.o === "=";
+
+  return (
+    <div className="flex flex-wrap items-center gap-2 py-1 px-2 rounded-md bg-muted/40 text-sm">
+      <span className="font-medium">{colLabel}</span>
+      <span className="text-muted-foreground text-xs">{opLabel}</span>
+      {isRelationEquals ? (
+        <div className="pointer-events-none opacity-90">
+          <LinkModel
+            model={colNode.related}
+            value={node.v ?? null}
+            disabled
+            onValueChange={() => {}}
+          />
+        </div>
+      ) : (
+        <span className="text-muted-foreground">
+          {Array.isArray(node.v) ? node.v.join(", ") : String(node.v ?? "")}
+        </span>
+      )}
+    </div>
   );
 }

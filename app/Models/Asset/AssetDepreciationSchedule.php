@@ -20,6 +20,9 @@ class AssetDepreciationSchedule extends Model {
         'depreciation_amount'             => 'decimal:2',
         'accumulated_depreciation_amount' => 'decimal:2',
     ];
+    protected array $configColumns = [
+        'asset',
+    ];
 
     public static function templateLink() {
         return ':asset.asset_name - :schedule_date';

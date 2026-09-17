@@ -46,7 +46,6 @@ import NoDataImg from "./NoDataImg";
 import { TZDate } from "@date-fns/tz";
 import { formatNumber } from "@/Components/NumberInput/formatNumber";
 import { convertTemplateLink } from "@/lib/linkModelUtils";
-import { debounce } from "lodash";
 import { format } from "date-fns";
 import useDidMountEffect from "@/Hooks/useDidMountEffect";
 import useDynamicRefs from "@/Hooks/useDynamicRefs";
@@ -55,6 +54,9 @@ import usePermission from "@/Hooks/usePermission";
 
 export const DATATABLE_COLUMNS_KEY = "datatable_columns";
 const DATATABLE_COLUMNS_EXPIRED = 7; //days
+// Lebar minimum kolom fr-default agar tak menyusut ilegibel saat kolom banyak;
+// horizontal scroll (lihat table.css) menampung sisanya.
+const MIN_COLUMN_WIDTH = 120;
 
 // Nama cookie unik per-path agar tidak bentrok antar-halaman. Path-scoping cookie
 // (nama sama beda path) rapuh: `document.cookie` tak mengekspos path sehingga
@@ -83,7 +85,7 @@ export const convertColWidth = (colWidth) => {
         return colWidth;
     }
   } else {
-    return "minmax(0px, 1fr)";
+    return `minmax(${MIN_COLUMN_WIDTH}px, 1fr)`;
   }
 };
 export const createHeaders = (headers, ignoreCookie = false) => {
@@ -320,6 +322,7 @@ const Table2 = forwardRef(function Table2(
     isDynamicData,
     isLoading,
     persistColumns = true,
+    onRowClick,
   },
   ref,
 ) {
@@ -363,11 +366,19 @@ const Table2 = forwardRef(function Table2(
     [data],
   );
 
-  const minCellWidth = 120;
+  const minCellWidth = MIN_COLUMN_WIDTH;
 
   // const [tableHeight, setTableHeight] = useState("auto");
   const [activeIndex, setActiveIndex] = useState(null);
   const tableElement = useRef(null);
+  // Snapshot size terbaru selama resize drag (lihat mouseMove) -- di-commit
+  // ke state columns sekali saat mouseUp, bukan tiap gerak mouse (mahal).
+  const pendingResizeRef = useRef(null);
+  // Throttle mouseMove ke max 1x per animation frame: native mousemove bisa
+  // fire puluhan kali/detik, tiap event asli berat (baca offsetWidth semua
+  // kolom shown + tulis DOM) -- simpan event terbaru, proses sekali per rAF.
+  const latestMouseMoveEventRef = useRef(null);
+  const resizeRafIdRef = useRef(null);
   const [columns, setColumns] = useState(createHeaders(headers, skipCookie));
   const [openColumnsFilter, setOpenColumnsFilter] = useState(false);
   useDidMountEffect(() => {
@@ -400,17 +411,14 @@ const Table2 = forwardRef(function Table2(
   //   );
   // }, [columns]);
   const mergeColumns = useCallback((columns, showColumns) => {
+    // Map lookup O(1) per kolom -- sebelumnya nested loop O(n*m), dipanggil
+    // tiap handleDragOver fire (tiap px pointer lewat kolom lain saat drag).
+    const orderByName = new Map(
+      showColumns.map((col, index) => [col.name, index]),
+    );
     return columns.map((col) => {
-      for (const key in showColumns) {
-        const colShowed = showColumns[key];
-        if (col.name == colShowed.name) {
-          return {
-            ...col,
-            order: key,
-          };
-        }
-      }
-      return col;
+      const order = orderByName.get(col.name);
+      return order === undefined ? col : { ...col, order };
     });
   }, []);
   function handleDragOver(event) {
@@ -490,12 +498,8 @@ const Table2 = forwardRef(function Table2(
       },
     );
   }, [showedColumns]);
-  const mouseMove = useCallback(
+  const computeResizedColumns = useCallback(
     (e) => {
-      // const ori = tableElement.current.style.gridTemplateColumns
-      //   .split(" ")
-      //   .filter((x) => x.startsWith("minmax") || x.indexOf("px") >= 0);
-
       const newColumns = Object.fromEntries(columns.map((x) => [x.name, x]));
       const gridColumns = showedColumns.map((col, i) => {
         const ref = getRef(`col.${col.name}`);
@@ -513,7 +517,7 @@ const Table2 = forwardRef(function Table2(
           size = `${ref?.current?.offsetWidth}px`;
         } else {
           if (col.size?.startsWith("minmax")) {
-            size = "minmax(0px, 1fr)";
+            size = `minmax(${MIN_COLUMN_WIDTH}px, 1fr)`;
           } else if (col.size == "1fr" || col.size == "max-content") {
             size = col.size;
           } else {
@@ -525,25 +529,44 @@ const Table2 = forwardRef(function Table2(
         return size;
       });
 
+      pendingResizeRef.current = newColumns;
       tableElement.current.style.gridTemplateColumns = `${selectable ? "max-content" : ""} ${actions ? "max-content" : ""} ${gridColumns.join(
         " ",
       )}`;
     },
     [activeIndex, columns, minCellWidth],
   );
-  const resetSizeHeader = (index) => {
-    const newColumns = [];
-    const gridColumns = showedColumns.map((col, i) => {
-      if (i === index) {
-        const size = convertColWidth(col.width);
-        newColumns.push({ ...col, size });
-        return size;
+  // Native mousemove bisa fire lebih sering dari refresh rate layar --
+  // simpan event terbaru, jadwalkan proses berat (computeResizedColumns)
+  // max 1x per animation frame lewat rAF, bukan tiap event mentah.
+  const mouseMove = useCallback(
+    (e) => {
+      latestMouseMoveEventRef.current = e;
+      if (resizeRafIdRef.current == null) {
+        resizeRafIdRef.current = requestAnimationFrame(() => {
+          resizeRafIdRef.current = null;
+          if (latestMouseMoveEventRef.current) {
+            computeResizedColumns(latestMouseMoveEventRef.current);
+          }
+        });
       }
-      newColumns.push({ ...col, size: col.size });
-      return col.size;
+    },
+    [computeResizedColumns],
+  );
+  const resetSizeHeader = (index) => {
+    // Sebelumnya: debounce(fn, 500)() bikin instance debounce baru tiap
+    // panggilan (jadi percuma, tidak collapse apa pun) DAN setColumns(columns,
+    // newColumns) -- useState setter cuma terima 1 argumen, newColumns (hasil
+    // reset sebenarnya) diabaikan React, yang ke-commit cuma state lama.
+    // Reset jadi tak pernah tersimpan ke state, sama seperti bug resize.
+    const resized = {};
+    const gridColumns = showedColumns.map((col, i) => {
+      const size = i === index ? convertColWidth(col.width) : col.size;
+      resized[col.name] = { ...col, size };
+      return size;
     });
 
-    debounce(() => setColumns(columns, newColumns), 500)();
+    setColumns((items) => items.map((col) => resized[col.name] ?? col));
 
     tableElement.current.style.gridTemplateColumns = `${selectable ? "max-content" : ""} ${actions ? "max-content" : ""} ${gridColumns.join(
       " ",
@@ -553,12 +576,36 @@ const Table2 = forwardRef(function Table2(
   const removeListeners = useCallback(() => {
     window.removeEventListener("mousemove", mouseMove);
     window.removeEventListener("mouseup", removeListeners);
+    if (resizeRafIdRef.current != null) {
+      cancelAnimationFrame(resizeRafIdRef.current);
+      resizeRafIdRef.current = null;
+    }
   }, [mouseMove]);
 
   const mouseUp = useCallback(() => {
     setActiveIndex(null);
+    // Kalau masih ada rAF frame pending, proses posisi TERAKHIR secara
+    // sinkron dulu -- tanpa ini, commit bisa "ketinggalan" 1 frame dari
+    // posisi kursor saat mouseup (lihat computeResizedColumns/mouseMove).
+    if (resizeRafIdRef.current != null) {
+      cancelAnimationFrame(resizeRafIdRef.current);
+      resizeRafIdRef.current = null;
+      if (latestMouseMoveEventRef.current) {
+        computeResizedColumns(latestMouseMoveEventRef.current);
+      }
+    }
+    latestMouseMoveEventRef.current = null;
+    // Selama drag, mouseMove cuma menulis langsung ke DOM (gridTemplateColumns)
+    // demi performa -- tanpa commit ini, React tidak pernah tahu size barunya
+    // dan re-render berikutnya (mis. drag-reorder kolom lain) akan menghitung
+    // ulang gridTemplateColumns dari state lama, menimpa balik hasil resize.
+    if (pendingResizeRef.current) {
+      const resized = pendingResizeRef.current;
+      pendingResizeRef.current = null;
+      setColumns((items) => items.map((col) => resized[col.name] ?? col));
+    }
     removeListeners();
-  }, [setActiveIndex, removeListeners]);
+  }, [setActiveIndex, removeListeners, computeResizedColumns]);
 
   useEffect(() => {
     if (activeIndex !== null) {
@@ -610,9 +657,7 @@ const Table2 = forwardRef(function Table2(
                 gridTemplateColumns:
                   (selectable ? "max-content " : "") +
                   (actions ? "max-content " : "") +
-                  showedColumns
-                    .map((col) => convertColWidth(col.width))
-                    .join(" "),
+                  showedColumns.map((col) => col.size).join(" "),
               }}
             >
               <thead>
@@ -696,7 +741,13 @@ const Table2 = forwardRef(function Table2(
                 ) : (
                   <>
                     {data.map((row, i) => (
-                      <tr key={i}>
+                      <tr
+                        key={i}
+                        onClick={onRowClick ? () => onRowClick(row) : undefined}
+                        className={cn(
+                          onRowClick && "cursor-pointer hover:bg-accent/50",
+                        )}
+                      >
                         {selectable && (
                           <td className="py-2! px-2! items-center">
                             <Checkbox

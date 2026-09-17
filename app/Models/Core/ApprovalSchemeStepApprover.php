@@ -14,6 +14,9 @@ class ApprovalSchemeStepApprover extends Model {
     protected $casts   = [
         'config' => Json::class,
     ];
+    protected array $configColumns = [
+        'approvalSchemeStep',
+    ];
 
     public static function templateLink() {
         return ':approvalSchemeStep.approvalScheme.name';

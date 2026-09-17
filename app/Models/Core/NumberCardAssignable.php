@@ -10,7 +10,11 @@ use Illuminate\Database\Eloquent\Relations\BelongsTo;
 class NumberCardAssignable extends Model {
     use HasUlids;
 
-    protected $guarded = ['id'];
+    protected $guarded             = ['id'];
+    protected array $configColumns = [
+        'numberCard',
+        'assignable',
+    ];
 
     public static function templateLink() {
         return ':numberCard.label - :assignable';

@@ -46,10 +46,25 @@ export default memo(
     const hasPlainTitle =
       typeof headerTitle === "string" || typeof headerTitle === "number";
 
-    const { attributes, listeners, setNodeRef, transform, transition } =
-      useSortable({ id: id });
+    const {
+      attributes,
+      listeners,
+      setNodeRef,
+      transform,
+      transition,
+      isDragging,
+    } = useSortable({ id: id });
+    // dnd-kit hitung transform {x, y, scaleX, scaleY} dari rasio rect drag-
+    // start vs saat ini. scaleX/scaleY (transform SIZE) meregangkan/
+    // menyusutkan th secara visual -- di Table2, lebar kolom (grid track)
+    // sendiri sudah berubah instan tiap reorder (lihat handleDragOver di
+    // Table2.jsx), jadi scale dnd-kit di atas resize instan itu yang bikin
+    // kolom tampak tertarik/mengecil tidak proporsional. Netralkan scale ke
+    // 1, translate (posisi, x/y) tetap dipakai apa adanya.
     const style = {
-      transform: CSS.Transform.toString(transform),
+      transform: CSS.Transform.toString(
+        transform ? { ...transform, scaleX: 1, scaleY: 1 } : transform,
+      ),
       transition,
     };
 
@@ -144,7 +159,7 @@ export default memo(
             if (resizeable) doubleClick(e);
           }}
           className={cn(
-            style.transform ? "opacity-0" : "opacity-100",
+            isDragging ? "opacity-0" : "opacity-100",
             resizeable ? "cursor-col-resize" : "cursor-default",
             isEmpty ? "h-[40px]!" : "",
             `flex transition-opacity justify-center items-center absolute w-4 -right-2 top-0 z-1 group`,

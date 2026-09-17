@@ -13,7 +13,7 @@ import PaymentMethodLinkModel from "../PaymentMethods/PaymentMethodLinkModel";
 import React from "react";
 import Select from "@/Components/Select";
 import { Textarea } from "@/Components/ui/textarea";
-import { generateRandom } from "@/lib/utils";
+import { cn, generateRandom } from "@/lib/utils";
 import { useLaravelReactI18n } from "laravel-react-i18n";
 import { useMemo } from "react";
 import { usePage } from "@inertiajs/react";
@@ -34,7 +34,6 @@ export default function Form() {
       cell({ data, setData, attributes }) {
         return (
           <NumberInput
-            className="text-left"
             value={data}
             onValueChange={(value) => setData("invoice_portion", value)}
             decimalScale={2}
@@ -42,6 +41,7 @@ export default function Form() {
             min={0}
             max={100}
             {...attributes}
+            className={cn(attributes.className, "text-left")}
           />
         );
       },
@@ -102,7 +102,6 @@ export default function Form() {
       cell({ dataRow, data, setData, attributes }) {
         return (
           <NumberInput
-            className="text-left"
             decimalScale={0}
             placeholder="0"
             value={data}
@@ -110,6 +109,7 @@ export default function Form() {
               setData("credit_period", value);
             }}
             {...attributes}
+            className={cn(attributes.className, "text-left")}
             disabled={!dataRow.due_date_based_on || attributes.disabled}
           />
         );
@@ -157,7 +157,6 @@ export default function Form() {
       cell({ dataRow, data, setData, attributes }) {
         return (
           <NumberInput
-            className="text-left"
             value={data}
             onValueChange={(value) => setData("discount", value)}
             decimalScale={2}
@@ -165,6 +164,7 @@ export default function Form() {
             min={dataRow.discount_type == "percentage" && 0}
             max={dataRow.discount_type == "percentage" && 100}
             {...attributes}
+            className={cn(attributes.className, "text-left")}
             disabled={!dataRow.discount_type || attributes.disabled}
           />
         );
@@ -285,7 +285,6 @@ export default function Form() {
         cell({ data: discount, dataRow, attributes }) {
           return (
             <NumberInput
-              className="text-left"
               value={discount}
               currencyCode={
                 dataRow.discount_type == "percentage"
@@ -297,6 +296,7 @@ export default function Form() {
               min={dataRow.discount_type == "percentage" && 0}
               max={dataRow.discount_type == "percentage" && 100}
               {...attributes}
+              className={cn(attributes.className, "text-left")}
             />
           );
         },

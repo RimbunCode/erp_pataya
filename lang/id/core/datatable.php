@@ -41,6 +41,9 @@ return [
             'disabled_root_group'  => 'Grup utama tidak bisa dihapus.',
             'disabled_single_item' => 'Minimal satu filter harus ada.',
         ],
+        'locked' => [
+            'label' => 'Filter terkunci (selalu diterapkan):',
+        ],
         'depth_warning' => [
             'banner' => 'Beberapa grup tersarang lebih dalam dari :max level. Pertimbangkan untuk menyederhanakan agar mudah dibaca.',
             'branch' => 'Ini akan tersarang lebih dalam dari :max level. Pertimbangkan untuk menyederhanakan.',
