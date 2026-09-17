@@ -17,7 +17,7 @@
     "@babel/eslint-parser": "^7.28.6",
     "@eslint/js": "^9.39.3",
     "@headlessui/react": "^2.2.9",
-    "@inertiajs/react": "^2.3.18",
+    "@inertiajs/react": "^3.7.1",
     "@laravel/echo-react": "^2.4.0",
     "@tailwindcss/forms": "^0.5.11",
     "@tailwindcss/typography": "^0.5.20",

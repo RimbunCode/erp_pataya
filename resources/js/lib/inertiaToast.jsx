@@ -65,18 +65,22 @@ const httpErrorMessage = (status, tf) => {
 /**
  * Menyusun pesan error dari payload event Inertia.
  *
- * Menangani dua bentuk kegagalan:
- * - `exception`: request gagal di level network/HTTP — punya `response.status`
- *   atau tidak sama sekali (network down).
+ * Menangani tiga bentuk kegagalan:
+ * - `httpException`: response HTTP diterima tapi bukan response Inertia valid
+ *   (mencakup semua status HTTP, termasuk 4xx/5xx) — payload `{ response }`,
+ *   status di `response.status`.
+ * - `networkError`: request gagal total di level koneksi/JS (network down,
+ *   gagal resolve komponen halaman) — payload `{ error }`, TIDAK ada `response`
+ *   sama sekali, sehingga `status` selalu undefined dan jatuh ke pesan
+ *   fallback "tidak dapat menghubungi server" di bawah.
  * - `error`: Inertia mengembalikan validation errors (umumnya 422) — payload
  *   berupa objek `errors`.
- * @param {object} detail - event.detail dari router.on('error'|'exception')
+ * @param {object} detail - event.detail dari router.on('error'|'httpException'|'networkError')
  * @param {(key: string, fallback: string) => string} tf
  * @returns {string}
  */
 const extractError = (detail, tf) => {
-  const status =
-    detail?.exception?.response?.status ?? detail?.response?.status;
+  const status = detail?.response?.status;
 
   if (typeof status === "number" && status >= 400 && status < 600) {
     return httpErrorMessage(status, tf);
@@ -273,10 +277,16 @@ export function setupInertiaToast({ t }) {
     shownErrorSignature = signature;
     fail(event.detail, { withRetry: false });
   });
-  const offException = router.on("exception", (event) => fail(event.detail));
+  const offHttpException = router.on("httpException", (event) =>
+    fail(event.detail),
+  );
+  const offNetworkError = router.on("networkError", (event) =>
+    fail(event.detail),
+  );
 
-  // Jaring pengaman: jika visit berakhir tanpa success/error/exception
-  // (mis. dibatalkan), batalkan timer & tutup loading toast agar tidak nyangkut.
+  // Jaring pengaman: jika visit berakhir tanpa success/error/httpException/
+  // networkError (mis. dibatalkan), batalkan timer & tutup loading toast agar
+  // tidak nyangkut.
   const offFinish = router.on("finish", (event) => {
     clearTimer();
     const wasCancelled =
@@ -293,6 +303,7 @@ export function setupInertiaToast({ t }) {
     offFinish();
     offSuccess();
     offError();
-    offException();
+    offHttpException();
+    offNetworkError();
   };
 }

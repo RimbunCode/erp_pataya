@@ -54,8 +54,8 @@ class TodoVisibilityScopeTest extends TestCase {
     }
 
     private function todoIds($response): Collection {
-        preg_match('/data-page="([^"]*)"/', $response->getContent(), $m);
-        $page = json_decode(html_entity_decode($m[1] ?? '{}'), true);
+        preg_match('#<script[^>]*type="application/json">(.*?)</script>#s', $response->getContent(), $m);
+        $page = json_decode($m[1] ?? '{}', true);
         $rows = $page['props']['data']['data'] ?? [];
 
         return collect($rows)->pluck('id');
