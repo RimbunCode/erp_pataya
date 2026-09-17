@@ -52,7 +52,11 @@ function LinkCardItemRow({ item, canEdit, onUpdate, onDelete, allMenuItems }) {
   });
 
   const style = {
-    transform: CSS.Transform.toString(transform),
+    // scaleX/scaleY (transform SIZE) dinetralkan, translate (posisi) tetap
+    // -- konsisten dengan DashboardCanvas.jsx (block ecosystem yang sama).
+    transform: CSS.Transform.toString(
+      transform ? { ...transform, scaleX: 1, scaleY: 1 } : transform,
+    ),
     transition,
   };
 

@@ -481,7 +481,13 @@ function SortableBlock({
     block.type === "link_card" || block.type === "quick_list";
   const width = isSpacer ? MAX_WIDTH : (block.width ?? MAX_WIDTH);
   const style = {
-    transform: CSS.Transform.toString(transform),
+    // scaleX/scaleY (transform SIZE) dinetralkan -- dnd-kit menghitungnya
+    // dari rasio rect drag-start vs saat ini, dan span block berbeda-beda
+    // (1/3, 1/2, full) bikin efek meregang/menyusut saat drag. Translate
+    // (posisi) tetap dipakai apa adanya.
+    transform: CSS.Transform.toString(
+      transform ? { ...transform, scaleX: 1, scaleY: 1 } : transform,
+    ),
     transition,
     // Satu nilai lebar (satuan 12-kolom) diterjemahkan ke span per
     // breakpoint — mobile 3 kolom, tablet 6, desktop 12.
