@@ -66,6 +66,7 @@ class Account extends Model {
         ],
         'account_type' => [
             'valueTrans' => 'finances.account.columns.account_type.options',
+            'groupable'  => true,
         ],
         'root_type' => [
             'valueTrans' => 'finances.account.columns.root_type.options',

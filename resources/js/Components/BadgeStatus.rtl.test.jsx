@@ -25,14 +25,14 @@ describe("BadgeStatus", () => {
     expect(badge.className).toContain("secondary");
   });
 
-  it("menampilkan animasi svg khusus untuk status 'in_progress'", () => {
-    const { container } = render(<BadgeStatus status="in_progress" />);
-    expect(container.querySelector("svg")).toBeInTheDocument();
-  });
+  it("tidak menampilkan svg animasi utk status manapun, termasuk 'in_progress' (animasi dimatikan sengaja demi tampilan lebih bersih)", () => {
+    const { container: inProgress } = render(
+      <BadgeStatus status="in_progress" />,
+    );
+    expect(inProgress.querySelector("svg")).not.toBeInTheDocument();
 
-  it("tidak menampilkan svg animasi untuk status lain", () => {
-    const { container } = render(<BadgeStatus status="approved" />);
-    expect(container.querySelector("svg")).not.toBeInTheDocument();
+    const { container: approved } = render(<BadgeStatus status="approved" />);
+    expect(approved.querySelector("svg")).not.toBeInTheDocument();
   });
 
   it("meneruskan className tambahan", () => {

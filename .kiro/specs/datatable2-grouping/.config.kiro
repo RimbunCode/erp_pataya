@@ -1,0 +1,6 @@
+{
+  "specId": "21534fc1-dd52-46f4-8e89-4697a805e76c",
+  "workflowType": "design-first",
+  "specType": "feature",
+  "description": "Fitur grouping (group-by) pada DataTable2: kolom opt-in via flag groupable, backend hitung count per grup akurat lewat query GROUP BY terpisah, baris tetap flat-paginated (pagination existing dipertahankan, infinite scroll out of scope), sort dikunci ke kolom grup selama grouping aktif, render header grup collapsible di Table2.jsx."
+}

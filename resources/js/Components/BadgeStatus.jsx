@@ -48,7 +48,6 @@ const theme = {
 };
 export default function BadgeStatus({ status, className, ...props }) {
   const { t } = useLaravelReactI18n();
-  [status];
   return (
     <span
       className={cn(
@@ -59,7 +58,7 @@ export default function BadgeStatus({ status, className, ...props }) {
       )}
       {...props}
     >
-      {status == "in_progress" && (
+      {/* {status == "in_progress" && (
         <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24">
           <circle cx={18} cy={12} r={0} fill="currentColor">
             <animate
@@ -95,7 +94,7 @@ export default function BadgeStatus({ status, className, ...props }) {
             ></animate>
           </circle>
         </svg>
-      )}
+      )} */}
       {t(`status.${status}`)}
     </span>
   );

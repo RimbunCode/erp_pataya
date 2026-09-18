@@ -1,13 +1,26 @@
 <?php
 
 return [
-    'reload'   => 'Muat Ulang',
-    'show'     => 'Tampilkan',
-    'previous' => 'Sebelumnya',
-    'next'     => 'Selanjutnya',
-    'action'   => 'Aksi',
-    'no_data'  => 'Tidak ada data yang tersedia',
-    'filter'   => [
+    'reload'         => 'Muat Ulang',
+    'show'           => 'Tampilkan',
+    'previous'       => 'Sebelumnya',
+    'next'           => 'Selanjutnya',
+    'action'         => 'Aksi',
+    'no_data'        => 'Tidak ada data yang tersedia',
+    'group_by'       => 'Kelompokkan Berdasarkan',
+    'no_grouping'    => 'Tidak Dikelompokkan',
+    'no_group_value' => 'Tanpa Nilai',
+    'yes'            => 'Ya',
+    'no'             => 'Tidak',
+    'group_range'    => 'Rentang',
+    'granularity'    => [
+        'day'     => 'Hari',
+        'month'   => 'Bulan',
+        'quarter' => 'Kuartal',
+        'half'    => 'Semester',
+        'year'    => 'Tahun',
+    ],
+    'filter' => [
         'filter'        => 'Filter',
         'add_filter'    => 'Tambah Filter',
         'clear_filters' => 'Hapus Semua Filter',

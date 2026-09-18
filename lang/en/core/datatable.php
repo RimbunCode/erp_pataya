@@ -1,13 +1,26 @@
 <?php
 
 return [
-    'reload'   => 'Reload',
-    'show'     => 'Show',
-    'previous' => 'Previous',
-    'next'     => 'Next',
-    'action'   => 'Action',
-    'no_data'  => 'No data available',
-    'filter'   => [
+    'reload'         => 'Reload',
+    'show'           => 'Show',
+    'previous'       => 'Previous',
+    'next'           => 'Next',
+    'action'         => 'Action',
+    'no_data'        => 'No data available',
+    'group_by'       => 'Group By',
+    'no_grouping'    => 'No Grouping',
+    'no_group_value' => 'No Value',
+    'yes'            => 'Yes',
+    'no'             => 'No',
+    'group_range'    => 'Range',
+    'granularity'    => [
+        'day'     => 'Day',
+        'month'   => 'Month',
+        'quarter' => 'Quarter',
+        'half'    => 'Half-Year',
+        'year'    => 'Year',
+    ],
+    'filter' => [
         'filter'        => 'Filter',
         'add_filter'    => 'Add Filter',
         'clear_filters' => 'Clear Filters',

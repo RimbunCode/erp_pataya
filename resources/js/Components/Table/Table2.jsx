@@ -1,6 +1,7 @@
 import "@/../css/table.css";
 
 import { Avatar, AvatarFallback, AvatarImage } from "../ui/avatar";
+import { ChevronDown, ChevronRight } from "lucide-react";
 import {
   DndContext,
   MouseSensor,
@@ -57,6 +58,48 @@ const DATATABLE_COLUMNS_EXPIRED = 7; //days
 // Lebar minimum kolom fr-default agar tak menyusut ilegibel saat kolom banyak;
 // horizontal scroll (lihat table.css) menampung sisanya.
 const MIN_COLUMN_WIDTH = 120;
+
+export const DATE_GROUP_GRANULARITIES = [
+  "day",
+  "month",
+  "quarter",
+  "half",
+  "year",
+];
+export const DEFAULT_NUMBER_GROUP_RANGE_OPTIONS = [10, 100, 1000];
+
+// Kunci bucket kolom date/time/datetime per granularity -- HARUS cermin
+// persis ekspresi SQL backend (DataTableScope::dateGroupExpression) supaya
+// run-length grouping di client (bandingkan kunci antar baris berurutan)
+// match dgn batas grup hasil backend (GROUP BY + ORDER BY pakai ekspresi yg
+// sama). Semua format string hasil sengaja urut leksikografis = kronologis.
+export const dateGroupBucketKey = (value, granularity) => {
+  if (!value) return null;
+  const d = new TZDate(value, "UTC");
+  const y = d.getFullYear();
+  const m = d.getMonth() + 1; // 1-12
+  switch (granularity) {
+    case "day":
+      return format(d, "yyyy-MM-dd");
+    case "quarter":
+      return `${y}-Q${Math.floor((m - 1) / 3) + 1}`;
+    case "half":
+      return `${y}-H${m <= 6 ? 1 : 2}`;
+    case "year":
+      return `${y}`;
+    case "month":
+    default:
+      return format(d, "yyyy-MM");
+  }
+};
+
+// floor(value/rangeSize)*rangeSize -- HARUS cermin persis emulasi floor()
+// backend (DataTableScope::numberGroupBucketExpression).
+export const numberGroupBucketKey = (value, rangeSize) => {
+  if (value === null || value === undefined || value === "") return null;
+  const size = Number(rangeSize) || 1;
+  return Math.floor(Number(value) / size) * size;
+};
 
 // Nama cookie unik per-path agar tidak bentrok antar-halaman. Path-scoping cookie
 // (nama sama beda path) rapuh: `document.cookie` tak mengekspos path sehingga
@@ -306,6 +349,114 @@ export const Cell = memo(
   },
 );
 Cell.displayName = "TableCell";
+// Label header grup -- cermin dari switch(type) di Cell, tapi sumber value-nya
+// row[groupBy] (dipakai jg utk run-length grouping), BUKAN row penuh -- jadi
+// case yg butuh field LAIN dari row (mis. formStatus baca row.appendStatus,
+// bukan row[name]) direpresentasikan pakai raw value grup itu sendiri
+// (utk formStatus/formStatuses: value = kolom status mentah, cukup utk
+// <BadgeStatus status=.../> render 1 badge yg mewakili grup itu).
+// "Tanpa nilai" dicek eksplisit thd null/undefined/"" -- BUKAN falsy JS biasa,
+// supaya boolean `false` & number `0` (nilai sah) tidak ikut ke-treat sbg
+// kosong seperti bug lama.
+// `value` utk date/time/datetime & number/currency adalah KUNCI BUCKET
+// (dateGroupBucketKey/numberGroupBucketKey), BUKAN raw value per-baris --
+// granularity/rangeSize dibutuhkan utk decode kunci itu jadi label manusiawi
+// (mis. "2026-Q1" -> "Kuartal 1 2026", 100 -> "100 - 200").
+export const GroupLabel = memo(
+  ({ type, value, column, granularity, rangeSize }) => {
+    const { lang, preferences } = usePage().props;
+    const { t } = useLaravelReactI18n();
+    if (value === null || value === undefined || value === "") {
+      return t("core.datatable.no_group_value");
+    }
+    switch (type) {
+      case "relation":
+        return convertTemplateLink(value);
+      case "formStatus":
+      case "formStatuses":
+        // formStatuses (jamak): value ARRAY status (mis. ["approved","pending"])
+        // -- render satu BadgeStatus per elemen, cermin cara Cell.jsx render
+        // baris (row.appendStatus.map(...)). formStatus (tunggal): value
+        // scalar string, satu badge spt sebelumnya.
+        return Array.isArray(value) ? (
+          <div className="flex flex-wrap gap-x-1 gap-y-1">
+            {value.map((status, idx) => (
+              <BadgeStatus key={idx} status={status} />
+            ))}
+          </div>
+        ) : (
+          <BadgeStatus status={value} />
+        );
+      case "boolean": {
+        const key = String(value);
+        return (
+          column?.parse?.[key] ??
+          t(value ? "core.datatable.yes" : "core.datatable.no")
+        );
+      }
+      case "date":
+      case "time":
+      case "datetime":
+        switch (granularity) {
+          case "quarter": {
+            const [y, q] = String(value).split("-Q");
+            return `${t("core.datatable.granularity.quarter")} ${q} ${y}`;
+          }
+          case "half": {
+            const [y, h] = String(value).split("-H");
+            return `${t("core.datatable.granularity.half")} ${h} ${y}`;
+          }
+          case "year":
+            return String(value);
+          case "day":
+            return format(new TZDate(value, "UTC"), "PPP", {
+              locale: getLocaleDate(lang),
+            });
+          case "month":
+          default: {
+            const [y, m] = String(value).split("-").map(Number);
+            return format(new Date(y, m - 1, 1), "MMMM yyyy", {
+              locale: getLocaleDate(lang),
+            });
+          }
+        }
+      case "number":
+      case "currency": {
+        let prefix = "";
+        if (type === "currency") {
+          const symbol =
+            typeof column?.currencyCode === "object"
+              ? column.currencyCode?.symbol
+              : null;
+          prefix = symbol ? `${symbol} ` : "";
+        }
+        const fmtOpts = {
+          numberFormat:
+            column?.numberFormat ?? preferences?.default_number_format,
+          decimalScale: column?.decimalScale,
+          groupSeparator: column?.groupSeparator,
+          decimalSeparator: column?.decimalSeparator,
+          prefix,
+        };
+        const size = Number(rangeSize) || 0;
+        const lower = Number(value);
+        return size > 0
+          ? `${formatNumber(lower, fmtOpts)} - ${formatNumber(lower + size, fmtOpts)}`
+          : formatNumber(lower, fmtOpts);
+      }
+      case "html":
+        return <span dangerouslySetInnerHTML={{ __html: value ?? "" }} />;
+      case "string":
+      default:
+        return column?.valueTrans
+          ? t(`${column.valueTrans}.${value}`)
+          : column?.parse
+            ? (column.parse[value] ?? value)
+            : value;
+    }
+  },
+);
+GroupLabel.displayName = "TableGroupLabel";
 const Table2 = forwardRef(function Table2(
   {
     className,
@@ -323,6 +474,10 @@ const Table2 = forwardRef(function Table2(
     isLoading,
     persistColumns = true,
     onRowClick,
+    groupBy,
+    groupCounts,
+    groupGranularity,
+    groupRange,
   },
   ref,
 ) {
@@ -335,6 +490,106 @@ const Table2 = forwardRef(function Table2(
   useDidMountEffect(() => {
     setData(initialData);
   }, [initialData]);
+  // Collapse per NILAI grup (bukan index/posisi) -- tidak persist ke
+  // cookie/localStorage, reset tiap reload/navigasi (v1, YAGNI).
+  const [collapsedGroups, setCollapsedGroups] = useState(() => new Set());
+  const toggleGroup = useCallback((value) => {
+    setCollapsedGroups((prev) => {
+      const next = new Set(prev);
+      if (next.has(value)) {
+        next.delete(value);
+      } else {
+        next.add(value);
+      }
+      return next;
+    });
+  }, []);
+  // Kolom `type: relation`: row[groupBy] adalah OBJECT model relasi hasil
+  // eager-load, instance BARU per baris walau merujuk row yg sama (lepas
+  // dari JSON deserialize) -- perbandingan `!==` mentah SELALU beda
+  // (broken). Ekstrak primary key relasi (`groupColumnMeta.primaryKey`,
+  // sama dgn FK yg dipakai backend GROUP BY) sbg kunci banding stabil.
+  // Kolom date/time/datetime & number/currency: bucket via granularity/
+  // rangeSize (HARUS cermin ekspresi SQL backend, lihat komentar
+  // dateGroupBucketKey/numberGroupBucketKey) -- run-length di client
+  // membandingkan bucket, bukan raw value per-baris.
+  // Dipakai bersama oleh run-length grouping DAN cek collapsed-row.
+  const groupColumnMeta = headers?.[groupBy];
+  const isDateGroupType = ["date", "time", "datetime"].includes(
+    groupColumnMeta?.type,
+  );
+  const isNumberGroupType = ["number", "currency"].includes(
+    groupColumnMeta?.type,
+  );
+  const groupKeyOf = useCallback(
+    (row) => {
+      const raw = row[groupBy];
+      if (groupColumnMeta?.type === "relation") {
+        return raw?.[groupColumnMeta?.primaryKey ?? "id"] ?? null;
+      }
+      if (isDateGroupType) return dateGroupBucketKey(raw, groupGranularity);
+      if (isNumberGroupType) return numberGroupBucketKey(raw, groupRange);
+      // formStatuses (array status, mis. Submitable::status) & tipe array
+      // lain yg mungkin groupable -- array JS instance BARU tiap baris walau
+      // isinya identik (lepas dari JSON deserialize), `!==` mentah SELALU
+      // beda (bug sama persis dgn object relasi di atas). JSON.stringify
+      // sbg kunci banding stabil -- SEKALIGUS cocok dgn key groupCounts
+      // backend (GROUP BY pakai string JSON MENTAH kolom, lihat
+      // DataTableScope -- PHP json_encode array enum & JS JSON.stringify
+      // array string menghasilkan teks yg sama persis, tak perlu normalisasi
+      // beda dari kasus boolean).
+      if (Array.isArray(raw)) return JSON.stringify(raw);
+      return raw;
+    },
+    [
+      groupBy,
+      groupColumnMeta,
+      isDateGroupType,
+      isNumberGroupType,
+      groupGranularity,
+      groupRange,
+    ],
+  );
+  // Run-length grouping -- data SUDAH terurut per kolom grup (sort dikunci
+  // di DataTable2.jsx), deteksi batas grup dari perubahan value baris
+  // berjalan vs sebelumnya, TIDAK re-sort di client.
+  // groupCounts null berarti BE menolak grup ini (kolom sudah tak
+  // groupable lagi, mis. reload dgn `?group=` basi) -- jangan run-length
+  // grouping thd data yg TAK terjamin contiguous, jatuhkan ke flat list.
+  const groupedRows = useMemo(() => {
+    if (!groupBy || !groupCounts)
+      return data.map((row, index) => ({ isHeader: false, row, index }));
+    // Bucket type (date/number): label grup = kunci bucket itu sendiri
+    // (GroupLabel decode via granularity/rangeSize). Type lain (relasi/
+    // string/dst): label pakai raw value row[groupBy] spt sebelumnya
+    // (relasi butuh object utuh utk convertTemplateLink).
+    const isBucketType = isDateGroupType || isNumberGroupType;
+    let lastKey;
+    return data.flatMap((row, index) => {
+      const key = groupKeyOf(row);
+      const headerValue = isBucketType ? key : row[groupBy];
+      const isNewGroup = index === 0 || key !== lastKey;
+      lastKey = key;
+      return isNewGroup
+        ? [
+            {
+              isHeader: true,
+              groupHeader: headerValue,
+              groupKeyValue: key,
+              key: `group-${key}-${index}`,
+            },
+            { isHeader: false, row, index },
+          ]
+        : [{ isHeader: false, row, index }];
+    });
+  }, [
+    data,
+    groupBy,
+    groupCounts,
+    groupKeyOf,
+    isDateGroupType,
+    isNumberGroupType,
+  ]);
   const [getRef, setRef] = useDynamicRefs();
   const [_options, _setOptions] = useState({
     page: 1,
@@ -637,14 +892,14 @@ const Table2 = forwardRef(function Table2(
     });
   };
   return (
-    <div className={cn("grid grid-cols-1", className)}>
+    <div className={cn("flex flex-col min-h-0", className)}>
       <DndContext
         onDragOver={handleDragOver}
         sensors={sensors}
         collisionDetection={closestCenter}
       >
         <Dialog open={openColumnsFilter} onOpenChange={setOpenColumnsFilter}>
-          <div className="flex-1">
+          <div className="flex flex-col flex-1 min-h-0">
             <table
               className="resizeable-table"
               ref={tableElement}
@@ -675,23 +930,8 @@ const Table2 = forwardRef(function Table2(
                       </th>
                     )}
                     {actions && (
-                      <th className="py-2! px-2! pr-4! items-center">
+                      <th className="py-2! px-2! pr-4! items-center border-r border-muted-foreground/15">
                         <span>{t("core.datatable.action")}</span>
-                        <div
-                          style={{
-                            height: tableElement?.current?.offsetHeight,
-                          }}
-                          className={cn(
-                            !data || data.length === 0 ? "h-[40px]!" : "",
-                            `flex opacity-100 justify-center items-center absolute w-4 -right-2 top-0 z-1`,
-                          )}
-                        >
-                          <div
-                            className={cn(
-                              "h-full border-r border-muted-foreground/15 w-px",
-                            )}
-                          ></div>
-                        </div>
                       </th>
                     )}
                     {showedColumns.map(({ resizeable, ...props }, i) => (
@@ -740,45 +980,106 @@ const Table2 = forwardRef(function Table2(
                   </tr>
                 ) : (
                   <>
-                    {data.map((row, i) => (
-                      <tr
-                        key={i}
-                        onClick={onRowClick ? () => onRowClick(row) : undefined}
-                        className={cn(
-                          onRowClick && "cursor-pointer hover:bg-accent/50",
-                        )}
-                      >
-                        {selectable && (
-                          <td className="py-2! px-2! items-center">
-                            <Checkbox
-                              checked={row.isSelected ?? false}
-                              onCheckedChange={(check) => checklist(row, check)}
-                            />
-                          </td>
-                        )}
-                        {actions && (
-                          <td className="w-full flex flex-row! items-center gap-x-2">
-                            {actions({ dataRow: row })}
-                          </td>
-                        )}
-                        {showedColumns.map(
-                          ({ type, name, parse, valueTrans, ...colProps }) => {
-                            return (
-                              <td key={name}>
-                                <Cell
-                                  row={row}
-                                  type={type}
-                                  name={name}
-                                  parse={parse}
-                                  valueTrans={valueTrans}
-                                  {...colProps}
+                    {groupedRows.map((item) => {
+                      if (item.isHeader) {
+                        const groupValue = item.groupHeader;
+                        // groupKeyValue: null utk grup "tanpa nilai" (scalar
+                        // null ATAU relasi tanpa row tertaut) -- String(null)
+                        // === "null", cocok dgn key backend (mapWithKeys).
+                        const groupKey = String(item.groupKeyValue ?? "null");
+                        const isCollapsed = collapsedGroups.has(groupKey);
+                        return (
+                          <tr key={item.key}>
+                            <td
+                              className="flex-row! justify-start! items-center gap-x-2 bg-muted font-medium cursor-pointer select-none z-2 relative"
+                              style={{
+                                gridColumn: `span ${showedColumns.length + (selectable ? 1 : 0) + (actions ? 1 : 0)}`,
+                              }}
+                              onClick={() => toggleGroup(groupKey)}
+                            >
+                              {isCollapsed ? (
+                                <ChevronRight className="size-4 shrink-0" />
+                              ) : (
+                                <ChevronDown className="size-4 shrink-0" />
+                              )}
+                              <span>
+                                <GroupLabel
+                                  type={groupColumnMeta?.type}
+                                  value={groupValue}
+                                  column={groupColumnMeta}
+                                  granularity={groupGranularity}
+                                  rangeSize={groupRange}
                                 />
-                              </td>
-                            );
-                          },
-                        )}
-                      </tr>
-                    ))}
+                              </span>
+                              <span className="text-muted-foreground font-normal">
+                                ({groupCounts?.[groupKey] ?? 0})
+                              </span>
+                            </td>
+                          </tr>
+                        );
+                      }
+
+                      const { row, index } = item;
+                      if (
+                        groupBy &&
+                        collapsedGroups.has(String(groupKeyOf(row) ?? "null"))
+                      ) {
+                        return null;
+                      }
+
+                      return (
+                        <tr
+                          key={index}
+                          onClick={
+                            onRowClick ? () => onRowClick(row) : undefined
+                          }
+                          className={cn(
+                            onRowClick && "cursor-pointer hover:bg-accent/50",
+                          )}
+                        >
+                          {selectable && (
+                            <td className="py-2! px-2! items-center">
+                              <Checkbox
+                                checked={row.isSelected ?? false}
+                                onCheckedChange={(check) =>
+                                  checklist(row, check)
+                                }
+                              />
+                            </td>
+                          )}
+                          {actions && (
+                            <td className="w-full flex flex-row! items-center gap-x-2 border-r border-muted-foreground/15">
+                              {actions({ dataRow: row })}
+                            </td>
+                          )}
+                          {showedColumns.map(
+                            ({
+                              type,
+                              name,
+                              parse,
+                              valueTrans,
+                              ...colProps
+                            }) => {
+                              return (
+                                <td
+                                  key={name}
+                                  className="border-r border-muted-foreground/15"
+                                >
+                                  <Cell
+                                    row={row}
+                                    type={type}
+                                    name={name}
+                                    parse={parse}
+                                    valueTrans={valueTrans}
+                                    {...colProps}
+                                  />
+                                </td>
+                              );
+                            },
+                          )}
+                        </tr>
+                      );
+                    })}
 
                     <tr>
                       <td

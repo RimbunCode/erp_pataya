@@ -123,6 +123,8 @@ vi.mock("@/Components/Table/Table2", () => ({
       </div>
     );
   },
+  DATE_GROUP_GRANULARITIES: ["day", "month", "quarter", "half", "year"],
+  DEFAULT_NUMBER_GROUP_RANGE_OPTIONS: [10, 100, 1000],
 }));
 
 // FilterTable2 -- dialog filter builder sudah ditest sendiri
@@ -397,7 +399,7 @@ describe("DataTable2", () => {
     expect(url).toContain(window.location.pathname);
     expect(options).toEqual(
       expect.objectContaining({
-        reset: ["data", "ziggy"],
+        reset: ["data", "ziggy", "groupCounts"],
         preserveScroll: true,
         preserveState: true,
         replace: true,
@@ -782,6 +784,211 @@ describe("DataTable2", () => {
       // value-nya alih-alih menebak key persis.
       const items = Object.values(payload.filter.root.c);
       expect(items).toEqual([{ k: "name", o: "=", v: "Supplier A" }]);
+    });
+  });
+
+  describe("grouping (Group by control)", () => {
+    const groupableColumns = {
+      ...dataTableColumns,
+      code: { ...dataTableColumns.code, groupable: true },
+    };
+
+    it("tidak menampilkan dropdown Group by saat tidak ada kolom groupable", async () => {
+      await renderDataTable2(<DataTable2 />);
+      expect(
+        screen.queryByText("TR:core.datatable.no_grouping"),
+      ).not.toBeInTheDocument();
+    });
+
+    it("memilih kolom di dropdown Group by TIDAK mengunci sort (BE urutkan primer by grup, sort tetap sekunder), reset page, dan meneruskan groupBy/groupCounts ke Table2", async () => {
+      vi.useRealTimers();
+      const user = userEvent.setup({ delay: null, pointerEventsCheck: 0 });
+      usePageMock.mockReturnValue({
+        props: makePageProps({
+          dataTableColumns: groupableColumns,
+          groupCounts: { S1: 1, S2: 1 },
+          ziggy: { query: { page: "3" } },
+        }),
+      });
+      await renderDataTable2(<DataTable2 />);
+
+      // Belum ada grouping aktif -> trigger menampilkan label item terpilih
+      // ("Tidak ada"), BUKAN placeholder (Radix Select cuma tampilkan
+      // placeholder saat value benar2 kosong; value awal di sini sentinel
+      // NO_GROUP_VALUE yang match SelectItem "Tidak ada").
+      const groupTrigger = screen
+        .getByText("TR:core.datatable.no_grouping")
+        .closest("button");
+      groupTrigger.focus();
+      await user.keyboard("{Enter}");
+      const listbox = await screen.findByRole("listbox");
+      await user.click(within(listbox).getByText("TR:supplier.columns.code"));
+
+      await vi.waitFor(() => {
+        const props = table2Props.mock.calls.at(-1)[0];
+        expect(props.groupBy).toBe("code");
+      });
+      const props = table2Props.mock.calls.at(-1)[0];
+      // Sort TIDAK ikut berubah -- tetap defaultSort ("name"), bukan "code".
+      // BE selalu urutkan primer by kolom grup terlepas dari pilihan ini.
+      expect(props.options.sort).toBe("name");
+      expect(props.options.page).toBe(1);
+      expect(props.groupCounts).toEqual({ S1: 1, S2: 1 });
+    });
+
+    it("dropdown Sort By (pemilih kolom) TETAP aktif selama grouping aktif -- jadi sort sekunder/tie-breaker, tidak lagi dikunci", async () => {
+      usePageMock.mockReturnValue({
+        props: makePageProps({
+          dataTableColumns: groupableColumns,
+          ziggy: { query: { group: "code", sort: "code" } },
+        }),
+      });
+      await renderDataTable2(<DataTable2 />);
+
+      // Sort By dan Group by sama-sama menampilkan label "code" (keduanya
+      // di-set ke kolom yang sama) -- Sort By dirender lebih dulu di DOM.
+      const [sortTrigger] = screen.getAllByText("TR:supplier.columns.code");
+      expect(sortTrigger.closest("button")).not.toBeDisabled();
+    });
+
+    it('memilih "Tidak ada" di Group by mematikan grouping tanpa mereset sort', async () => {
+      vi.useRealTimers();
+      const user = userEvent.setup({ delay: null, pointerEventsCheck: 0 });
+      usePageMock.mockReturnValue({
+        props: makePageProps({
+          dataTableColumns: groupableColumns,
+          ziggy: { query: { group: "code", sort: "code" } },
+        }),
+      });
+      await renderDataTable2(<DataTable2 />);
+
+      // Sort By dirender lebih dulu di DOM -- Group by trigger adalah yang kedua.
+      const [, groupTriggerText] = screen.getAllByText(
+        "TR:supplier.columns.code",
+      );
+      const groupTrigger = groupTriggerText.closest("button");
+      groupTrigger.focus();
+      await user.keyboard("{Enter}");
+      const listbox = await screen.findByRole("listbox");
+      await user.click(
+        within(listbox).getByText("TR:core.datatable.no_grouping"),
+      );
+
+      await vi.waitFor(() => {
+        const props = table2Props.mock.calls.at(-1)[0];
+        expect(props.groupBy).toBeNull();
+      });
+      const props = table2Props.mock.calls.at(-1)[0];
+      // Sort TIDAK direset otomatis -- tetap "code" (posisi terakhir).
+      expect(props.options.sort).toBe("code");
+    });
+
+    const dateGroupableColumns = {
+      ...dataTableColumns,
+      due_date: {
+        name: "due_date",
+        titleTrans: "supplier.columns.due_date",
+        type: "date",
+        groupable: true,
+        show: true,
+      },
+    };
+    const numberGroupableColumns = {
+      ...dataTableColumns,
+      amount: {
+        name: "amount",
+        titleTrans: "supplier.columns.amount",
+        type: "number",
+        groupable: true,
+        groupRangeOptions: [10, 50],
+        show: true,
+      },
+    };
+
+    it("groupBy kolom date -- selector granularity muncul, default 'month', meneruskan groupGranularity ke Table2", async () => {
+      vi.useRealTimers();
+      const user = userEvent.setup({ delay: null, pointerEventsCheck: 0 });
+      usePageMock.mockReturnValue({
+        props: makePageProps({ dataTableColumns: dateGroupableColumns }),
+      });
+      await renderDataTable2(<DataTable2 />);
+
+      const groupTrigger = screen
+        .getByText("TR:core.datatable.no_grouping")
+        .closest("button");
+      groupTrigger.focus();
+      await user.keyboard("{Enter}");
+      const listbox = await screen.findByRole("listbox");
+      await user.click(
+        within(listbox).getByText("TR:supplier.columns.due_date"),
+      );
+
+      await vi.waitFor(() => {
+        const props = table2Props.mock.calls.at(-1)[0];
+        expect(props.groupBy).toBe("due_date");
+      });
+      const props = table2Props.mock.calls.at(-1)[0];
+      expect(props.groupGranularity).toBe("month");
+      expect(props.groupRange).toBeNull();
+      // Selector granularity kini terlihat di toolbar (nilai default "month").
+      expect(
+        screen.getByText("TR:core.datatable.granularity.month"),
+      ).toBeInTheDocument();
+    });
+
+    it("groupBy kolom number -- selector range muncul dgn opsi dari groupRangeOptions, default opsi pertama", async () => {
+      vi.useRealTimers();
+      const user = userEvent.setup({ delay: null, pointerEventsCheck: 0 });
+      usePageMock.mockReturnValue({
+        props: makePageProps({ dataTableColumns: numberGroupableColumns }),
+      });
+      await renderDataTable2(<DataTable2 />);
+
+      const groupTrigger = screen
+        .getByText("TR:core.datatable.no_grouping")
+        .closest("button");
+      groupTrigger.focus();
+      await user.keyboard("{Enter}");
+      const listbox = await screen.findByRole("listbox");
+      await user.click(within(listbox).getByText("TR:supplier.columns.amount"));
+
+      await vi.waitFor(() => {
+        const props = table2Props.mock.calls.at(-1)[0];
+        expect(props.groupBy).toBe("amount");
+      });
+      const props = table2Props.mock.calls.at(-1)[0];
+      // Default = opsi PERTAMA dari groupRangeOptions kolom ("amount": [10, 50]).
+      expect(props.groupRange).toBe(10);
+      expect(props.groupGranularity).toBeNull();
+    });
+
+    it("ganti granularity via selector memperbarui options.groupGranularity tanpa reset kolom grup", async () => {
+      vi.useRealTimers();
+      const user = userEvent.setup({ delay: null, pointerEventsCheck: 0 });
+      usePageMock.mockReturnValue({
+        props: makePageProps({
+          dataTableColumns: dateGroupableColumns,
+          ziggy: { query: { group: "due_date", groupGranularity: "month" } },
+        }),
+      });
+      await renderDataTable2(<DataTable2 />);
+
+      const granularityTrigger = screen
+        .getByText("TR:core.datatable.granularity.month")
+        .closest("button");
+      granularityTrigger.focus();
+      await user.keyboard("{Enter}");
+      const listbox = await screen.findByRole("listbox");
+      await user.click(
+        within(listbox).getByText("TR:core.datatable.granularity.quarter"),
+      );
+
+      await vi.waitFor(() => {
+        const props = table2Props.mock.calls.at(-1)[0];
+        expect(props.groupGranularity).toBe("quarter");
+      });
+      const props = table2Props.mock.calls.at(-1)[0];
+      expect(props.groupBy).toBe("due_date");
     });
   });
 });
