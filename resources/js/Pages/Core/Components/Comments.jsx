@@ -257,7 +257,7 @@ export default memo(function Comments() {
                             <span>{t("core.form.commented")}</span>
                             <span className="text-muted-foreground">●</span>
                             <span className="text-muted-foreground text-xs">
-                              {format(new TZDate(created_at, "UTC"), "PPPp", {
+                              {format(new TZDate(created_at), "PPPp", {
                                 locale: getLocaleDate(lang),
                               })}
                             </span>
@@ -303,7 +303,7 @@ export default memo(function Comments() {
                       <>
                         <time className="mb-1 text-xs font-normal leading-none text-muted-foreground">
                           <span>
-                            {format(new TZDate(created_at, "UTC"), "PPPp", {
+                            {format(new TZDate(created_at), "PPPp", {
                               locale: getLocaleDate(lang),
                             })}
                           </span>
