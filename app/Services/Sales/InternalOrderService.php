@@ -98,9 +98,10 @@ class InternalOrderService implements SubmitableService {
             'code' => FormatingSeries::generate(InternalOrder::class, $internalOrder),
         ]);
 
-        $items  = $internalOrder->items()->with(['item'])->get();
+        $items  = $internalOrder->items()->with(['item', 'unit'])->get();
         $stocks = Stock::whereIn('item_variant_id', $items->pluck('item_id'))
             ->whereIn('warehouse_id', $items->pluck('source_warehouse_id'))
+            ->with(['unit'])
             ->lockForUpdate()
             ->get()
             ->keyBy(fn ($stock) => "{$stock->item_variant_id}-{$stock->warehouse_id}");
@@ -108,11 +109,12 @@ class InternalOrderService implements SubmitableService {
         $validatedItems = [];
 
         foreach ($items as $item) {
-            $stockKey = "{$item->item_id}-{$item->source_warehouse_id}";
-            $stock    = $stocks->get($stockKey);
+            $stockKey  = "{$item->item_id}-{$item->source_warehouse_id}";
+            $stock     = $stocks->get($stockKey);
+            $itemLabel = "{$item->item->code} - {$item->item->item_name}";
 
             if (! $stock) {
-                $errorItems[] = "Item {$item->item->name} not found in source warehouse";
+                $errorItems[] = "Item {$itemLabel} not found in source warehouse";
 
                 continue;
             }
@@ -120,7 +122,9 @@ class InternalOrderService implements SubmitableService {
             $quantity = $item->quantity * $item->conversion_factor / $stock->conversion_factor;
 
             if ($stock->ready_quantity < $quantity) {
-                $errorItems[] = "Item {$item->item->name} stock {$stock->ready_quantity}, need {$quantity}";
+                $stockUnitName = $stock->unit?->name;
+                $orderUnitName = $item->unit?->name;
+                $errorItems[]  = "Item {$itemLabel} stock {$stock->ready_quantity} {$stockUnitName}, need {$quantity} {$stockUnitName} ({$item->quantity} {$orderUnitName})";
 
                 continue;
             }
