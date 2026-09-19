@@ -2,12 +2,21 @@ import {
   ArrowDownWideNarrow,
   ArrowUpNarrowWide,
   Ellipsis,
+  Layers,
   Plus,
   RefreshCw,
   Trash2Icon,
   X,
 } from "lucide-react";
 import { Button, buttonVariants } from "@/Components/ui/button";
+import { Command } from "@/Components/ui/command";
+import {
+  Dialog,
+  DialogContent,
+  DialogDescription,
+  DialogHeader,
+  DialogTitle,
+} from "@/Components/ui/dialog";
 import {
   DropdownMenu,
   DropdownMenuContent,
@@ -24,6 +33,11 @@ import {
   DropdownMenuTrigger,
 } from "@/Components/ui/dropdown-menu";
 import { Head, router, usePage } from "@inertiajs/react";
+import {
+  Popover,
+  PopoverContent,
+  PopoverTrigger,
+} from "@/Components/ui/popover";
 import {
   Select,
   SelectContent,
@@ -58,8 +72,15 @@ import Pagination from "@/Components/Table/Pagination";
 import QueryString from "qs";
 import React from "react";
 import { ScrollArea } from "@/Components/ui/scroll-area";
-import Table2 from "@/Components/Table/Table2";
+import SearchableOptionList, {
+  searchableOptionFilter,
+} from "@/Components/Table/SearchableOptionList";
+import Table2, {
+  DATE_GROUP_GRANULARITIES,
+  DEFAULT_NUMBER_GROUP_RANGE_OPTIONS,
+} from "@/Components/Table/Table2";
 import axios from "axios";
+import { compareLabels } from "@/lib/compareLabels";
 import { createFilterGroup, createFilterItem } from "@/Hooks/useNestedFilters";
 import pluralize from "pluralize";
 import { gooeyToast as toast } from "@/lib/gooeyToast";
@@ -68,6 +89,11 @@ import useDidMountEffect from "@/Hooks/useDidMountEffect";
 import { useIsMobile } from "@/Hooks/use-mobile";
 import { useLaravelReactI18n } from "laravel-react-i18n";
 import usePermission from "@/Hooks/usePermission";
+
+// Radix Select menolak SelectItem dengan value="" (dipakai internal utk
+// clear/reset) -- sentinel non-kosong ini dikonversi balik ke null di
+// onValueChange sebelum masuk options.group.
+const NO_GROUP_VALUE = "__no_group__";
 
 /**
  * @namespace DataTable
@@ -149,7 +175,10 @@ export default memo(
     ref,
   ) {
     const isMobile = useIsMobile();
-    const { t } = useLaravelReactI18n();
+    const { t, currentLocale } = useLaravelReactI18n();
+    // `?.` -- ratusan test page me-mock i18n cuma dgn `t` (tanpa currentLocale);
+    // di app nyata currentLocale selalu ada.
+    const locale = currentLocale?.();
     const query = usePage().props.ziggy.query;
     const { deleteItem } = useDeleteModal();
     const {
@@ -160,6 +189,8 @@ export default memo(
       translateKey,
       model,
       name,
+      groupCounts,
+      defaultGroup,
     } = usePage().props;
     const { can } = usePermission(model);
     const canCreate = forceCanCreate || can("create");
@@ -180,6 +211,14 @@ export default memo(
       fid: query?.fid ?? defaultFilterId ?? null,
       page: query?.page ?? 1,
       show: initialShow,
+      // `?group=` KOSONG ("") = user sengaja "Tidak ada" -> `??` sengaja tak
+      // menimpanya dgn defaultGroup (default model dari BE, lihat setGroup).
+      group: query?.group ?? defaultGroup ?? null,
+      // Bucket grup date/time/datetime (day/month/quarter/half/year) & number/
+      // currency (lebar range) -- lihat setGroup(). null kalau kolom grup
+      // aktif bukan tipe bucket (mis. string/relation/boolean).
+      groupGranularity: query?.groupGranularity ?? null,
+      groupRange: query?.groupRange ?? null,
     });
     const show = options.show;
     // Kalau `show` (mis. dari query param) tak ada di daftar preference, paksa
@@ -297,13 +336,76 @@ export default memo(
       const newColumns = getColumns(t, dataTableColumns);
       return [newColumns, Object.values(newColumns)];
     }, [dataTableColumns, t]);
+    const groupableColumns = useMemo(
+      () => columns.filter((x) => x.groupable),
+      [columns],
+    );
+    // Sort By & Group by: state buka/tutup Popover (desktop) & Dialog
+    // (mobile, dipicu dari DropdownMenuItem di menu Ellipsis) -- ditutup
+    // manual di onValueChange SearchableOptionList setelah pilih.
+    const [sortPopoverOpen, setSortPopoverOpen] = useState(false);
+    const [sortDialogOpen, setSortDialogOpen] = useState(false);
+    const [groupPopoverOpen, setGroupPopoverOpen] = useState(false);
+    const [groupDialogOpen, setGroupDialogOpen] = useState(false);
+    const sortableColumnOptions = useMemo(
+      () =>
+        columns
+          .filter(
+            (x) =>
+              x.sortable &&
+              x.type != "relations" &&
+              x.type != "mixed" &&
+              x.type != "json",
+          )
+          .map((x) => ({ value: x.name, label: x.title ?? t(x.titleTrans) }))
+          .sort((a, b) => compareLabels(a.label, b.label, locale)),
+      [columns, t, locale],
+    );
+    // "Tidak ada" tetap paling atas, kolom sisanya diurut abjad.
+    const groupOptions = useMemo(
+      () => [
+        { value: NO_GROUP_VALUE, label: t("core.datatable.no_grouping") },
+        ...groupableColumns
+          .map((x) => ({
+            value: x.name,
+            label: x.title ?? t(x.titleTrans),
+          }))
+          .sort((a, b) => compareLabels(a.label, b.label, locale)),
+      ],
+      [groupableColumns, t, locale],
+    );
+    const groupColumnLabel =
+      groupOptions.find((x) => x.value === (options.group || NO_GROUP_VALUE))
+        ?.label ?? t("core.datatable.no_grouping");
+    // Kolom grup aktif -- dipakai utk nampilkan selector granularity (date/
+    // time/datetime) atau range (number/currency) tambahan di sebelah
+    // "Group by", sama seperti Sort By dgn tombol arah asc/desc-nya.
+    const activeGroupColumn = options.group ? mapColumns[options.group] : null;
+    const isActiveGroupDate = ["date", "time", "datetime"].includes(
+      activeGroupColumn?.type,
+    );
+    const isActiveGroupNumber = ["number", "currency"].includes(
+      activeGroupColumn?.type,
+    );
+    const activeGroupRangeOptions =
+      activeGroupColumn?.groupRangeOptions ??
+      DEFAULT_NUMBER_GROUP_RANGE_OPTIONS;
 
     const loadData = useCallback(() => {
       router.get(
-        window.location.pathname + "?" + QueryString.stringify(options),
+        window.location.pathname +
+          "?" +
+          // skipNulls -- option null (group/fid/groupGranularity/dst saat
+          // tidak aktif) dihilangkan dari querystring, bukan tampil sbg
+          // `key=` kosong yang mengotori URL.
+          QueryString.stringify(options, { skipNulls: true }),
         {},
         {
-          reset: ["data", "ziggy"],
+          // reset: prop yang direset (bentuk "only" bagi Inertia -- partial
+          // reload cuma fetch ulang prop di daftar ini, lihat komentar loadData
+          // di bawah). groupCounts WAJIB ikut, kalau tidak partial reload
+          // (mis. ganti Group by) tidak pernah membawa count baru dari server.
+          reset: ["data", "ziggy", "groupCounts"],
           preserveScroll: true,
           preserveState: true,
           replace: true,
@@ -321,6 +423,9 @@ export default memo(
     const { key: optionsSortKey, order: optionsSortOrder } = parseSort(
       options.sort,
     );
+    const sortColumnLabel =
+      sortableColumnOptions.find((x) => x.value === optionsSortKey)?.label ??
+      optionsSortKey;
 
     const resetSorting = useCallback(() => {
       // Functional update agar tak menelan page/fid/show dari closure stale.
@@ -338,6 +443,40 @@ export default memo(
           page: 1,
         };
       });
+    }, []);
+    const setGroup = useCallback(
+      (name) => {
+        // Sort TIDAK lagi dikunci ke kolom grup -- backend SELALU urutkan
+        // primer by kolom grup (SQL mendukung multi-kolom ORDER BY), sort
+        // user/default di sini jadi sekunder (tie-breaker dalam tiap grup).
+        // Lihat DataTableScope::addDataTable().
+        const column = name ? mapColumns[name] : null;
+        const isDateType = ["date", "time", "datetime"].includes(column?.type);
+        const isNumberType = ["number", "currency"].includes(column?.type);
+        setOptions((prev) => ({
+          ...prev,
+          // "Tidak ada": bila model punya default group, kirim "" (URL bawa
+          // `group=` kosong) -- param yg HILANG (null, dibuang skipNulls) akan
+          // membuat BE memakai default lagi. Tanpa default, null cukup.
+          group: name || (defaultGroup ? "" : null),
+          // Default granularity/range kolom BARU -- selalu reset (bukan
+          // reuse dari kolom grup sebelumnya), krn lebar range yg masuk akal
+          // spesifik per kolom (quantity vs amount beda skala jauh).
+          groupGranularity: isDateType ? "month" : null,
+          groupRange: isNumberType
+            ? (column?.groupRangeOptions?.[0] ??
+              DEFAULT_NUMBER_GROUP_RANGE_OPTIONS[0])
+            : null,
+          page: 1,
+        }));
+      },
+      [mapColumns, defaultGroup],
+    );
+    const setGroupGranularity = useCallback((value) => {
+      setOptions((prev) => ({ ...prev, groupGranularity: value, page: 1 }));
+    }, []);
+    const setGroupRange = useCallback((value) => {
+      setOptions((prev) => ({ ...prev, groupRange: Number(value), page: 1 }));
     }, []);
     useDidMountEffect(() => {
       const reloadData = setTimeout(() => {
@@ -511,60 +650,158 @@ export default memo(
                           </DropdownMenuPortal>
                         </DropdownMenuSub>
                       )}
+                      {groupableColumns.length > 0 && (
+                        <Dialog
+                          open={groupDialogOpen}
+                          onOpenChange={setGroupDialogOpen}
+                        >
+                          {/* DialogTrigger asChild yg wrap DropdownMenuItem
+                              (spt Header.jsx) TERBUKTI gagal buka Dialog --
+                              DropdownMenu auto-close-on-select balapan dgn
+                              klik hasil Slot-clone, Dialog tak pernah kebuka
+                              (dicoba manual di browser). Kontrol state Dialog
+                              langsung via onClick, bukan komposisi trigger. */}
+                          <DropdownMenuItem
+                            onClick={() => setGroupDialogOpen(true)}
+                          >
+                            {t("core.datatable.group_by")}: {groupColumnLabel}
+                          </DropdownMenuItem>
+                          <DialogContent>
+                            <DialogHeader>
+                              <DialogTitle>
+                                {t("core.datatable.group_by")}
+                              </DialogTitle>
+                              <DialogDescription className="sr-only">
+                                {t("core.datatable.group_by")}
+                              </DialogDescription>
+                            </DialogHeader>
+                            <Command filter={searchableOptionFilter}>
+                              <SearchableOptionList
+                                options={groupOptions}
+                                value={options.group || NO_GROUP_VALUE}
+                                onValueChange={(val) => {
+                                  setGroup(val === NO_GROUP_VALUE ? null : val);
+                                  setGroupDialogOpen(false);
+                                }}
+                                searchPlaceholder={t(
+                                  "core.datatable.filter.column.search.placeholder",
+                                )}
+                                emptyMessage={t(
+                                  "core.datatable.filter.column.not_found",
+                                )}
+                              />
+                            </Command>
+                          </DialogContent>
+                        </Dialog>
+                      )}
+                      {isActiveGroupDate && (
+                        <DropdownMenuSub>
+                          <DropdownMenuSubTrigger>
+                            {t(
+                              `core.datatable.granularity.${options.groupGranularity ?? "month"}`,
+                            )}
+                          </DropdownMenuSubTrigger>
+                          <DropdownMenuPortal>
+                            <DropdownMenuSubContent>
+                              <DropdownMenuRadioGroup
+                                value={options.groupGranularity ?? "month"}
+                                onValueChange={setGroupGranularity}
+                              >
+                                {DATE_GROUP_GRANULARITIES.map((g) => (
+                                  <DropdownMenuRadioItem
+                                    key={g}
+                                    value={g}
+                                    className="cursor-pointer"
+                                    showDot={true}
+                                  >
+                                    {t(`core.datatable.granularity.${g}`)}
+                                  </DropdownMenuRadioItem>
+                                ))}
+                              </DropdownMenuRadioGroup>
+                            </DropdownMenuSubContent>
+                          </DropdownMenuPortal>
+                        </DropdownMenuSub>
+                      )}
+                      {isActiveGroupNumber && (
+                        <DropdownMenuSub>
+                          <DropdownMenuSubTrigger>
+                            {t("core.datatable.group_range")}
+                          </DropdownMenuSubTrigger>
+                          <DropdownMenuPortal>
+                            <DropdownMenuSubContent>
+                              <DropdownMenuRadioGroup
+                                value={`${options.groupRange ?? activeGroupRangeOptions[0]}`}
+                                onValueChange={setGroupRange}
+                              >
+                                {activeGroupRangeOptions.map((size) => (
+                                  <DropdownMenuRadioItem
+                                    key={size}
+                                    value={`${size}`}
+                                    className="cursor-pointer"
+                                    showDot={true}
+                                  >
+                                    {size}
+                                  </DropdownMenuRadioItem>
+                                ))}
+                              </DropdownMenuRadioGroup>
+                            </DropdownMenuSubContent>
+                          </DropdownMenuPortal>
+                        </DropdownMenuSub>
+                      )}
                       <DropdownMenuSeparator />
                       <DropdownMenuGroup>
-                        <DropdownMenuLabel>Sorting</DropdownMenuLabel>
-                        {columns.map(
-                          ({ name, title, titleTrans, type, sortable }) => {
-                            if (
-                              type == "relations" ||
-                              type == "mixed" ||
-                              type == "json" ||
-                              !sortable
-                            )
-                              return;
-
-                            return (
-                              <DropdownMenuSub key={name}>
-                                <DropdownMenuSubTrigger
-                                  className={cn(
-                                    optionsSortKey == name ? "bg-accent" : "",
-                                  )}
-                                >
-                                  {title ?? t(titleTrans)}
-                                </DropdownMenuSubTrigger>
-                                <DropdownMenuPortal>
-                                  <DropdownMenuSubContent>
-                                    <DropdownMenuRadioGroup
-                                      value={`${optionsSortKey}-${optionsSortOrder}`}
-                                      onValueChange={(val) =>
-                                        setSort(
-                                          name,
-                                          val.replace(`${name}-`, ""),
-                                        )
-                                      }
-                                    >
-                                      <DropdownMenuRadioItem
-                                        className="cursor-pointer"
-                                        showDot={true}
-                                        value={`${name}-asc`}
-                                      >
-                                        {t("core.datatable.sorting.ascending")}
-                                      </DropdownMenuRadioItem>
-                                      <DropdownMenuRadioItem
-                                        className="cursor-pointer"
-                                        showDot={true}
-                                        value={`${name}-desc`}
-                                      >
-                                        {t("core.datatable.sorting.descending")}
-                                      </DropdownMenuRadioItem>
-                                    </DropdownMenuRadioGroup>
-                                  </DropdownMenuSubContent>
-                                </DropdownMenuPortal>
-                              </DropdownMenuSub>
-                            );
-                          },
-                        )}
+                        <DropdownMenuLabel>
+                          {t("core.datatable.sorting.sorting")}
+                        </DropdownMenuLabel>
+                        <DropdownMenuItem
+                          onClick={() => setSort(optionsSortKey)}
+                        >
+                          {optionsSortOrder == "asc" ? (
+                            <ArrowUpNarrowWide />
+                          ) : (
+                            <ArrowDownWideNarrow />
+                          )}
+                          {optionsSortOrder == "asc"
+                            ? t("core.datatable.sorting.ascending")
+                            : t("core.datatable.sorting.descending")}
+                        </DropdownMenuItem>
+                        <Dialog
+                          open={sortDialogOpen}
+                          onOpenChange={setSortDialogOpen}
+                        >
+                          <DropdownMenuItem
+                            onClick={() => setSortDialogOpen(true)}
+                          >
+                            {t("core.datatable.sorting.sort_by")}:{" "}
+                            {sortColumnLabel}
+                          </DropdownMenuItem>
+                          <DialogContent>
+                            <DialogHeader>
+                              <DialogTitle>
+                                {t("core.datatable.sorting.sort_by")}
+                              </DialogTitle>
+                              <DialogDescription className="sr-only">
+                                {t("core.datatable.sorting.sort_by")}
+                              </DialogDescription>
+                            </DialogHeader>
+                            <Command filter={searchableOptionFilter}>
+                              <SearchableOptionList
+                                options={sortableColumnOptions}
+                                value={optionsSortKey}
+                                onValueChange={(val) => {
+                                  setSort(val, optionsSortOrder);
+                                  setSortDialogOpen(false);
+                                }}
+                                searchPlaceholder={t(
+                                  "core.datatable.filter.column.search.placeholder",
+                                )}
+                                emptyMessage={t(
+                                  "core.datatable.filter.column.not_found",
+                                )}
+                              />
+                            </Command>
+                          </DialogContent>
+                        </Dialog>
                       </DropdownMenuGroup>
                     </ScrollArea>
                   </DropdownMenuContent>
@@ -629,42 +866,124 @@ export default memo(
                         : t("core.datatable.sorting.descending")}
                     </TooltipContent>
                   </Tooltip>
-                  <Select
-                    value={optionsSortKey}
-                    onValueChange={(val) => setSort(val, optionsSortOrder)}
+                  <Popover
+                    open={sortPopoverOpen}
+                    onOpenChange={setSortPopoverOpen}
                   >
-                    <SelectTrigger
-                      className={cn(
-                        buttonVariants({
-                          variant: "secondary",
-                          size: "default",
-                        }),
-                        "flex-1 py-0! h-8 px-2! border-none! rounded-l-none ring-0!",
-                      )}
+                    <PopoverTrigger asChild>
+                      <Button
+                        className={cn(
+                          buttonVariants({
+                            variant: "secondary",
+                            size: "default",
+                          }),
+                          "flex-1 py-0! h-8 px-2! border-none! rounded-l-none ring-0! justify-start!",
+                        )}
+                      >
+                        {sortColumnLabel}
+                      </Button>
+                    </PopoverTrigger>
+                    <PopoverContent
+                      align="start"
+                      className="w-auto min-w-(--radix-popover-trigger-width) p-0"
                     >
-                      <SelectValue placeholder="Sort By" />
+                      <Command filter={searchableOptionFilter}>
+                        <SearchableOptionList
+                          options={sortableColumnOptions}
+                          value={optionsSortKey}
+                          onValueChange={(val) => {
+                            setSort(val, optionsSortOrder);
+                            setSortPopoverOpen(false);
+                          }}
+                          searchPlaceholder={t(
+                            "core.datatable.filter.column.search.placeholder",
+                          )}
+                          emptyMessage={t(
+                            "core.datatable.filter.column.not_found",
+                          )}
+                        />
+                      </Command>
+                    </PopoverContent>
+                  </Popover>
+                </div>
+                {groupableColumns.length > 0 && (
+                  <Popover
+                    open={groupPopoverOpen}
+                    onOpenChange={setGroupPopoverOpen}
+                  >
+                    <PopoverTrigger asChild>
+                      <Button
+                        className={cn(
+                          buttonVariants({
+                            variant: "secondary",
+                            size: "default",
+                          }),
+                          "w-fit! gap-x-2 py-0! h-8",
+                        )}
+                      >
+                        <Layers className="size-4" />
+                        {groupColumnLabel}
+                      </Button>
+                    </PopoverTrigger>
+                    <PopoverContent
+                      align="start"
+                      className="w-auto min-w-(--radix-popover-trigger-width) p-0"
+                    >
+                      <Command filter={searchableOptionFilter}>
+                        <SearchableOptionList
+                          options={groupOptions}
+                          value={options.group || NO_GROUP_VALUE}
+                          onValueChange={(val) => {
+                            setGroup(val === NO_GROUP_VALUE ? null : val);
+                            setGroupPopoverOpen(false);
+                          }}
+                          searchPlaceholder={t(
+                            "core.datatable.filter.column.search.placeholder",
+                          )}
+                          emptyMessage={t(
+                            "core.datatable.filter.column.not_found",
+                          )}
+                        />
+                      </Command>
+                    </PopoverContent>
+                  </Popover>
+                )}
+                {isActiveGroupDate && (
+                  <Select
+                    value={options.groupGranularity ?? "month"}
+                    onValueChange={setGroupGranularity}
+                  >
+                    <SelectTrigger className="w-fit! gap-x-2 py-0! h-8">
+                      <SelectValue />
                     </SelectTrigger>
                     <SelectContent>
-                      {columns
-                        .filter((x) => x.sortable)
-                        .map((column) => {
-                          if (
-                            column.type == "relations" ||
-                            column.type == "mixed" ||
-                            column.type == "json" ||
-                            !column.sortable
-                          )
-                            return;
-
-                          return (
-                            <SelectItem key={column.name} value={column.name}>
-                              {column.title ?? t(column.titleTrans)}
-                            </SelectItem>
-                          );
-                        })}
+                      {DATE_GROUP_GRANULARITIES.map((g) => (
+                        <SelectItem key={g} value={g}>
+                          {t(`core.datatable.granularity.${g}`)}
+                        </SelectItem>
+                      ))}
                     </SelectContent>
                   </Select>
-                </div>
+                )}
+                {isActiveGroupNumber && (
+                  <Select
+                    value={`${options.groupRange ?? activeGroupRangeOptions[0]}`}
+                    onValueChange={setGroupRange}
+                  >
+                    <SelectTrigger className="w-fit! gap-x-2 py-0! h-8">
+                      <SelectValue
+                        placeholder={t("core.datatable.group_range")}
+                      />
+                    </SelectTrigger>
+                    <SelectContent>
+                      {activeGroupRangeOptions.map((size) => (
+                        <SelectItem key={size} value={`${size}`}>
+                          {size}
+                        </SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
+                )}
               </div>
               {form && canCreate && (
                 <Button
@@ -677,9 +996,9 @@ export default memo(
               )}
             </div>
           </div>
-          <div className="flex flex-col flex-1 max-w-full mt-4 border rounded-lg border-muted-foreground/25">
+          <div className="flex flex-col flex-1 min-h-0 max-w-full mt-4 border rounded-lg border-muted-foreground/25 overflow-hidden">
             {isMobile ? (
-              <div className="flex flex-col flex-1">
+              <div className="flex flex-col flex-1 min-h-0 overflow-y-auto">
                 {data?.data && data.data.length > 0 ? (
                   data.data.map((x) => {
                     const item = templateItem?.({
@@ -706,7 +1025,7 @@ export default memo(
             ) : (
               <Table2
                 reload={loadData}
-                className="flex-1"
+                className="flex-1 min-h-0"
                 actions={actions}
                 columns={mapColumns}
                 data={data.data}
@@ -714,6 +1033,10 @@ export default memo(
                 setSort={setSort}
                 resetSorting={resetSorting}
                 onOptionsChanged={setOptions}
+                groupBy={options.group || null}
+                groupCounts={groupCounts}
+                groupGranularity={options.groupGranularity}
+                groupRange={options.groupRange}
               />
             )}
             <div

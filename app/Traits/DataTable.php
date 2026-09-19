@@ -45,6 +45,22 @@ trait DataTable {
         return static::$defaultSortColumn ?? 'created_at';
     }
 
+    /**
+     * Kolom grup default halaman List/DataTable (dibaca DataTableScope sebagai
+     * fallback saat request TIDAK mengirim param `group` sama sekali). Model
+     * mengaturnya dgn mendeklarasikan di kelas model-nya sendiri:
+     *
+     *     protected static ?string $defaultGroupColumn = 'account_type';
+     *
+     * Kolom itu harus `groupable: true` di $configColumns -- kalau tidak,
+     * diabaikan diam-diam. Sengaja TIDAK dideklarasikan sbg properti trait
+     * (beda dgn $defaultSortColumn): PHP fatal saat kelas yg `use` trait
+     * mendeklarasi ulang properti statis trait dgn nilai berbeda.
+     */
+    public static function getDefaultGroupColumn(): ?string {
+        return \property_exists(static::class, 'defaultGroupColumn') ? static::$defaultGroupColumn : null;
+    }
+
     public function initializeDataTable() {
         $this->mergeCasts([
             'have_transactions' => 'boolean',

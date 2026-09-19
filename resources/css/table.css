@@ -1,14 +1,17 @@
 @reference "./app.css";
 table.resizeable-table {
-  @apply w-full h-full max-w-full grid overflow-x-auto overflow-y-hidden grid-rows-none  border-collapse;
+  @apply w-full h-full max-w-full grid overflow-auto grid-rows-none  border-collapse;
 
   thead,
   tbody,
   tr {
     @apply contents;
   }
+  /* Header tetap terlihat saat body di-scroll -- sticky butuh scroll
+     container-nya sendiri (overflow-auto di atas), bukan ancestor lain,
+     agar top:0 dihitung relatif ke viewport tabel ini. */
   thead tr:first-child th {
-    @apply bg-muted;
+    @apply bg-muted sticky top-0 z-3;
   }
 
   th {

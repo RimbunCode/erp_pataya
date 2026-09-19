@@ -11,11 +11,13 @@ use App\Services\Core\FilterEvaluator;
 use App\Utils;
 use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Database\Eloquent\Model;
+use Illuminate\Database\Eloquent\Relations\BelongsTo;
 use Illuminate\Database\Eloquent\Relations\Relation;
 use Illuminate\Database\Eloquent\Scope;
 use Illuminate\Database\Eloquent\SoftDeletes;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Cookie;
+use Illuminate\Support\Facades\DB;
 use Inertia\Inertia;
 
 class DataTableScope implements Scope {
@@ -32,6 +34,149 @@ class DataTableScope implements Scope {
 
     private function isTableIncluded($columnReference) {
         return preg_match('/^\w+\.\w+$/', $columnReference);
+    }
+
+    /**
+     * Kolom SQL riil (GROUP BY / ORDER BY) utk kolom `type: relation`. Cuma
+     * didukung utk BelongsTo -- FK-nya 1 kolom scalar di tabel model INI
+     * sendiri, selalu merujuk 1 related class. HasOne/MorphOne (FK ada di
+     * tabel LAIN, butuh JOIN) & MorphTo (butuh kombinasi id+type, grouping
+     * lintas-tipe ambigu) sengaja TIDAK didukung -- null berarti "tidak bisa
+     * di-resolve ke 1 kolom", caller anggap kolom itu not-groupable.
+     */
+    private function resolveRelationGroupColumn(Model $model, array $columnConfig): ?string {
+        $method = $columnConfig['nameOfFunction'] ?? null;
+        if (! $method || ! \method_exists($model, $method)) {
+            return null;
+        }
+
+        $relation = $model->$method();
+
+        return $relation instanceof BelongsTo ? $relation->getForeignKeyName() : null;
+    }
+
+    /**
+     * Kolom yg TIDAK BOLEH jadi opsi "Group by" sama sekali, walau developer
+     * keliru set `groupable: true` di config model -- flag-nya dipaksa false
+     * di sini SEBELUM dataTableColumns dipakai (dropdown FE & validasi
+     * grouping baca dari sumber yg SAMA, satu sumber kebenaran). Alasan beda
+     * per grup:
+     * - `json`/`mixed`/`relations` (jamak): Cell.jsx (FE) render KOSONG utk
+     *   type ini -- grouping tak ada gunanya, label grup pun tak bisa dirender.
+     * - `html`: SECARA TEKNIS bisa dirender (Cell.jsx dangerouslySetInnerHTML),
+     *   tapi grouping by markup mentah nyaris tak pernah berguna (value-nya
+     *   nyaris selalu unik per baris), DAN contoh nyata satu2nya kolom html
+     *   di codebase ini (`Log.activity_text`) adalah PHP ACCESSOR terhitung
+     *   (dependsOn), BUKAN kolom DB asli -- `GROUP BY`/`ORDER BY` ke situ akan
+     *   error SQL ("no such column"), bukan cuma sekadar tak berguna.
+     * - relasi yg tak bisa di-resolve ke 1 kolom FK (HasOne/MorphOne/MorphTo,
+     *   lihat resolveRelationGroupColumn()).
+     */
+    private function sanitizeGroupableColumns(array $dataTableColumns, Model $model): array {
+        $excludedTypes = ['relations', 'json', 'mixed', 'html'];
+
+        return \array_map(function ($column) use ($excludedTypes, $model) {
+            if (! ($column['groupable'] ?? false)) {
+                return $column;
+            }
+
+            $type = $column['type'] ?? null;
+            if (\in_array($type, $excludedTypes, true)) {
+                $column['groupable'] = false;
+            } elseif ($type === 'relation' && $this->resolveRelationGroupColumn($model, $column) === null) {
+                $column['groupable'] = false;
+            }
+
+            return $column;
+        }, $dataTableColumns);
+    }
+
+    /**
+     * Ekspresi SQL raw (tanpa alias) utk bucket kolom date/time/datetime per
+     * granularity -- portable di 2 driver yg dipakai project ini (sqlite:
+     * test+lokal, mysql: produksi, lihat .env.example). Key hasil SEMUA
+     * granularity sengaja string yg urut leksikografis = urut kronologis
+     * (YYYY, YYYY-MM, YYYY-Qn, YYYY-Hn, YYYY-MM-DD) -- ORDER BY ekspresi ini
+     * langsung ASC tanpa perlu CAST tambahan.
+     */
+    private function dateGroupExpression(string $column, string $granularity): string {
+        if (DB::connection()->getDriverName() === 'sqlite') {
+            return match ($granularity) {
+                'day'     => "date($column)",
+                'quarter' => "strftime('%Y', $column) || '-Q' || ((cast(strftime('%m', $column) as integer) + 2) / 3)",
+                'half'    => "strftime('%Y', $column) || '-H' || ((cast(strftime('%m', $column) as integer) + 5) / 6)",
+                'year'    => "strftime('%Y', $column)",
+                default   => "strftime('%Y-%m', $column)", // month
+            };
+        }
+
+        // MySQL/MariaDB (produksi, lihat .env.example).
+        return match ($granularity) {
+            'day'     => "date($column)",
+            'quarter' => "concat(year($column), '-Q', quarter($column))",
+            'half'    => "concat(year($column), '-H', ceil(month($column) / 6))",
+            'year'    => "date_format($column, '%Y')",
+            default   => "date_format($column, '%Y-%m')", // month
+        };
+    }
+
+    /**
+     * Ekspresi SQL raw + bindings utk floor(kolom / range) * range -- lower
+     * bound tiap bucket number/currency. `?` di ekspresi diisi $rangeSize yg
+     * SAMA berkali-kali (jumlah beda per driver, lihat di bawah), TIDAK
+     * pernah diinterpolasi mentah.
+     *
+     * MySQL: FLOOR() native, portable. SQLite: FLOOR() TIDAK SELALU tersedia
+     * (build PHP/PDO SQLite di environment ini butuh flag kompilasi
+     * SQLITE_ENABLE_MATH_FUNCTIONS yg tak aktif -- ketauan dari error nyata
+     * "no such function: floor" saat test) -- emulasi floor(a/b) portable
+     * pakai CAST+koreksi tanda: truncation (CAST AS INTEGER) membulat ke
+     * arah 0, utk nilai negatif dgn sisa non-bulat hasil truncation LEBIH
+     * BESAR dari floor sebenarnya (mis. floor(-0.5)=-1, trunc(-0.5)=0) --
+     * dikoreksi -1 via CASE WHEN saat quotient asli < hasil truncation-nya.
+     *
+     * @return array{0: string, 1: array}
+     */
+    private function numberGroupBucketExpression(string $column, float $rangeSize): array {
+        if (DB::connection()->getDriverName() === 'sqlite') {
+            return [
+                "(cast($column / ? as integer) - (case when $column / ? < cast($column / ? as integer) then 1 else 0 end)) * ?",
+                [$rangeSize, $rangeSize, $rangeSize, $rangeSize],
+            ];
+        }
+
+        return ["floor($column / ?) * ?", [$rangeSize, $rangeSize]];
+    }
+
+    /**
+     * Validasi & resolusi ekspresi SQL bucket utk kolom groupable date/time/
+     * datetime (granularity, request `?groupGranularity=`) atau number/
+     * currency (lebar range, request `?groupRange=`). Kolom scalar/relation
+     * biasa TIDAK butuh bucket (return null -- caller pakai plain column).
+     *
+     * @return array{0: string, 1: array}|null [ekspresi SQL raw, bindings]
+     */
+    private function resolveGroupBucketExpression(array $groupConfig, string $columnQualified, Request $request): ?array {
+        $type = $groupConfig['type'] ?? null;
+        if (\in_array($type, ['date', 'time', 'datetime'], true)) {
+            $allowed     = ['day', 'month', 'quarter', 'half', 'year'];
+            $granularity = $request->input('groupGranularity');
+            $granularity = \in_array($granularity, $allowed, true) ? $granularity : 'month';
+
+            return [$this->dateGroupExpression($columnQualified, $granularity), []];
+        }
+        if (\in_array($type, ['number', 'currency'], true)) {
+            // rangeSize dari request TIDAK PERNAH diinterpolasi mentah ke SQL --
+            // selalu lewat binding (?) meski sudah divalidasi numeric > 0 di sini,
+            // konsisten dgn prinsip "jangan percaya input user di raw SQL".
+            $rangeSize = $request->input('groupRange');
+            $rangeSize = \is_numeric($rangeSize) && (float) $rangeSize > 0 ? (float) $rangeSize : null;
+            $rangeSize ??= (float) ($groupConfig['groupRangeOptions'][0] ?? 100);
+
+            return $this->numberGroupBucketExpression($columnQualified, $rangeSize);
+        }
+
+        return null;
     }
 
     /**
@@ -118,6 +263,49 @@ class DataTableScope implements Scope {
             $this->applyBranchFilter($query);
 
             $dataTableColumns = \get_class($query->getModel())::getColumns(1);
+            $dataTableColumns = $this->sanitizeGroupableColumns($dataTableColumns, $query->getModel());
+            // Dipindah ke awal (sebelumnya di dekat blok `show`) -- dibutuhkan
+            // blok validasi `?group=` tepat di bawah, utk kualifikasi kolom.
+            $nameOfTable = $query->toBase()->from;
+
+            // Validasi `?group=` di sini (awal, sebelum select-pruning) --
+            // bukan cuma di blok GROUP BY count query di bawah -- supaya nama
+            // AKSESOR kolom grup (bukan kolom SQL FK hasil resolve) bisa
+            // dipaksa masuk extraKeys (lihat di bawah). Tanpa ini, kolom
+            // relasi yg groupable tapi kebetulan disembunyikan user (cookie
+            // visible columns) tidak ikut ter-eager-load walau sort sudah
+            // dikunci ke FK-nya -- row[groupBy] di FE jadi undefined.
+            // Default group per-model (Model::getDefaultGroupColumn(), mirip
+            // default sort) -- HANYA utk request halaman/Inertia, bukan XHR
+            // biasa (dropdown LinkModel dst) yg tak boleh berubah urutannya,
+            // dan hanya kalau kolomnya memang groupable (salah config diabaikan
+            // diam-diam, bukan SQL error).
+            $defaultGroupColumn = $query->getModel()::getDefaultGroupColumn();
+            $defaultGroup       = $defaultGroupColumn
+                && Utils::isInertiaRequest($request)
+                && (collect($dataTableColumns)->firstWhere('name', $defaultGroupColumn)['groupable'] ?? false)
+                ? $defaultGroupColumn
+                : null;
+            // Prioritas: ?group=<kolom> > ?group= (ada tapi KOSONG = user
+            // sengaja "Tidak ada", jadi default TIDAK dipakai) > default model.
+            $groupColumn    = $request->has('group') ? $request->input('group') : $defaultGroup;
+            $groupConfig    = $groupColumn ? collect($dataTableColumns)->firstWhere('name', $groupColumn) : null;
+            $isGroupable    = $groupConfig && ($groupConfig['groupable'] ?? false);
+            $groupSqlColumn = $isGroupable && ($groupConfig['type'] ?? null) === 'relation'
+                ? $this->resolveRelationGroupColumn($query->getModel(), $groupConfig)
+                : $groupColumn;
+            $isGroupable = $isGroupable && $groupSqlColumn !== null;
+            // Bucket (granularity date / range number) -- null berarti kolom
+            // grup biasa (plain column), non-null berarti [ekspresi SQL raw,
+            // bindings] dipakai gantinya di select/groupBy/orderBy manapun
+            // kolom grup ini seharusnya dipakai (lihat penggunaan di bawah).
+            $groupBucket = $isGroupable
+                ? $this->resolveGroupBucketExpression(
+                    $groupConfig,
+                    $this->isTableIncluded($groupSqlColumn) ? $groupSqlColumn : "$nameOfTable.$groupSqlColumn",
+                    $request,
+                )
+                : null;
             // Kolom visible dari cookie (standar Laravel; plaintext krn dikecualikan
             // dari enkripsi di bootstrap/app.php). Nama cookie unik per-path (suffix
             // path ter-sanitize) agar tak bentrok antar-halaman di sebagian browser.
@@ -128,7 +316,6 @@ class DataTableScope implements Scope {
                 : null;
 
             $isSubmitable = $query->getModel()->isSubmitable();
-            $nameOfTable  = $query->toBase()->from;
             $defaultShow  = Preference::where('key', 'num_per_page')->first()?->value ?? 25;
             // Prioritas: query param `show` > cookie `datatable_show` > default preference.
             $showFromQuery = $request->input('show');
@@ -161,7 +348,41 @@ class DataTableScope implements Scope {
             // Prioritas: ?sort= eksplisit > sort bawaan filter default (Filter
             // Templates) > default kolom sort per-model (Model::$defaultSortColumn,
             // fallback 'created_at' kalau model tidak override).
-            $sort          = $request->input('sort') ?? $appliedFilter?->sort ?? '-' . $query->getModel()::getDefaultSortColumn();
+            // GATE sortable — sebelumnya $sort request masuk orderBy() tanpa
+            // validasi sama sekali. Cuma validasi sumber USER-FACING (?sort=
+            // eksplisit atau sort bawaan saved filter) -- default kolom sort
+            // model (fallback) dipercaya begitu saja (developer-controlled,
+            // bukan input luar). Kolom tak dikenal/sortable:false/dotted path
+            // relasi -> diam-diam pakai fallback, bukan error.
+            $requestedSort = $request->input('sort') ?? $appliedFilter?->sort;
+            $fallbackSort  = '-' . $query->getModel()::getDefaultSortColumn();
+
+            $sort = $fallbackSort;
+            if ($requestedSort) {
+                $reqDirection = \str_starts_with($requestedSort, '-') ? 'desc' : 'asc';
+                $reqKeyRaw    = $reqDirection === 'desc' ? \substr($requestedSort, 1) : $requestedSort;
+
+                $sortConfig = collect($dataTableColumns)->firstWhere('name', $reqKeyRaw);
+                $isSortable = $sortConfig && ($sortConfig['sortable'] ?? true) !== false;
+
+                if ($isSortable) {
+                    $sort = $requestedSort;
+                }
+            }
+            // Grouping aktif: kolom grup SELALU jadi sort PRIMER (SQL mendukung
+            // multi-kolom ORDER BY) -- pilihan sort user/default di bawah jadi
+            // sort SEKUNDER (tie-breaker DALAM tiap grup), bukan lagi "dikunci"
+            // ke kolom grup seperti sebelumnya. Baris se-grup tetap nempel
+            // bersebelahan di hasil paginate krn ini dipanggil DULUAN -- Eloquent
+            // orderBy() menambah klausa ORDER BY sesuai urutan pemanggilan.
+            if ($isGroupable) {
+                $query = $groupBucket
+                    ? $query->orderByRaw("{$groupBucket[0]} asc", $groupBucket[1])
+                    : $query->orderBy(
+                        $this->isTableIncluded($groupSqlColumn) ? $groupSqlColumn : "$nameOfTable.$groupSqlColumn",
+                        'asc',
+                    );
+            }
             $sortDirection = \str_starts_with($sort, '-') ? 'desc' : 'asc';
             $sortKeyRaw    = $sortDirection === 'desc' ? \substr($sort, 1) : $sort;
             $sortKey       = $this->isTableIncluded($sortKeyRaw) ? $sortKeyRaw : "$nameOfTable.$sortKeyRaw";
@@ -174,6 +395,14 @@ class DataTableScope implements Scope {
             // oleh resolveForSafe → kolom/relasi yang dirujuknya wajib ikut select/with.
             $extraKeys = array_merge(
                 $this->isTableIncluded($sortKeyRaw) ? [] : [$sortKeyRaw],
+                // Aksesor kolom grup AKTIF (mis. "account_type"/"customer") --
+                // WAJIB selalu di-select/di-with(), terlepas dari kolom visible
+                // user (cookie) & terlepas dari sort user (sort sekunder TIDAK
+                // lagi dikunci ke kolom grup, jadi tidak bisa lagi "menumpang"
+                // inklusi via $sortKeyRaw spt sebelumnya). Utk relasi ini nama
+                // AKSESOR (bukan kolom FK SQL yg dipakai GROUP BY/ORDER BY) --
+                // row butuh object relasi utuh, bukan cuma id-nya.
+                $isGroupable ? [$groupColumn] : [],
                 ['route', 'canDelete', 'keyModel', 'appendStatus', 'thisModel', 'templateLink', 'disabledOn'],
             );
             $modelClass   = \get_class($query->getModel());
@@ -258,6 +487,67 @@ class DataTableScope implements Scope {
                     $query->where('created_by_id', $request->user()->id);
                 }
             }
+            // Grouping (opt-in) — hitung count per grup lewat query TERPISAH, pakai
+            // WHERE/filter/branch-scope yang SAMA (clone $query di titik ini, setelah
+            // semua constraint di atas ter-apply). $isGroupable/$groupSqlColumn/
+            // $groupBucket sudah divalidasi di awal macro (lihat komentar di sana)
+            // -- dipakai ulang di sini, bukan re-derive, satu sumber kebenaran.
+            $groupCounts = null;
+            if ($isGroupable) {
+                $groupCol = $this->isTableIncluded($groupSqlColumn) ? $groupSqlColumn : "$nameOfTable.$groupSqlColumn";
+
+                $countQuery                      = clone $query;
+                $countQuery->getQuery()->orders  = [];
+                $countQuery->getQuery()->columns = null; // reset select -- selectRaw APPEND, bukan REPLACE spt select().
+                // `->orders = []` cuma bersihkan teks klausa ORDER BY, BUKAN
+                // bindings-nya (2 array terpisah di QueryBuilder) -- kalau
+                // sort primer grup barusan pakai orderByRaw() (bucket date/
+                // number, ada placeholder `?`), bindings 'order' yg nyangkut
+                // di clone ini bikin jumlah binding > jumlah `?` di SQL akhir
+                // (order clause sudah dibuang) -> PDO "column index out of range".
+                $countQuery->getQuery()->bindings['order'] = [];
+                $countQuery->setEagerLoads([]);
+
+                // Alias tetap "group_key" baik plain column maupun bucket
+                // (granularity date / range number) -- satu bentuk pembacaan
+                // hasil query, tak perlu tau lagi nama kolom asli/short-nya.
+                if ($groupBucket) {
+                    $countQuery->selectRaw("{$groupBucket[0]} as group_key", $groupBucket[1]);
+                } else {
+                    $countQuery->selectRaw("$groupCol as group_key");
+                }
+                $countQuery->selectRaw('COUNT(*) as aggregate_count');
+                // Bucket: GROUP BY alias, JANGAN ulangi ekspresinya. Ekspresi
+                // number berisi placeholder (`floor(x / ?) * ?`) -- di MySQL
+                // (prepared statement native + ONLY_FULL_GROUP_BY) salinan di
+                // SELECT dan di GROUP BY dianggap ekspresi BERBEDA krn tiap `?`
+                // berdiri sendiri -> error 1055. Alias juga menghapus binding
+                // ganda. Valid di sqlite & mysql.
+                $countQuery->groupBy($groupBucket ? 'group_key' : $groupCol);
+
+                // Key eksplisit 'null' (string) utk grup NULL -- array PHP
+                // otomatis cast key null jadi '' ("" != frontend String(null)
+                // === 'null'), pluck() polos jadi mismatch dgn lookup FE.
+                // Kolom boolean: $row->group_key di sini nilai MENTAH dari SQL
+                // (stdClass query builder, TIDAK lewat cast Eloquent) -- SQLite/
+                // MySQL simpan sbg 0/1, sedangkan row asli (data.data, model
+                // ter-hydrate) di-JSON-kan lewat cast 'boolean' jadi true/false
+                // literal, dibaca FE via String(rawBoolean) => "true"/"false".
+                // Tanpa normalisasi ini key "0"/"1" tidak pernah match "true"/
+                // "false", groupCounts lookup selalu 0 (ketauan lewat browser).
+                $isBooleanGroup = ($groupConfig['type'] ?? null) === 'boolean';
+                $groupCounts    = $countQuery
+                    ->get()
+                    ->mapWithKeys(function ($row) use ($isBooleanGroup) {
+                        $value = $row->group_key;
+                        if ($isBooleanGroup && $value !== null) {
+                            $value = ((bool) $value) ? 'true' : 'false';
+                        }
+
+                        return [(string) ($value ?? 'null') => (int) $row->aggregate_count];
+                    })
+                    ->all();
+            }
             $paginator = $query->paginate($show);
             DataTableColumnSelector::applyAppends($paginator, $dataTableColumns, $safeColumns);
             $data = [
@@ -276,6 +566,11 @@ class DataTableScope implements Scope {
                 'name'             => $query->getModel()->getNameClass(),
                 'translateKey'     => $query->getModel()->translateKey ?? null,
                 'dataTableColumns' => $dataTableColumns,
+                'groupCounts'      => $groupCounts,
+                // Default group model (sudah divalidasi groupable) -- FE pakai utk
+                // state awal Group by & tahu harus kirim `group=` KOSONG (bukan
+                // hilangkan param) saat user memilih "Tidak ada".
+                'defaultGroup' => $defaultGroup,
             ]);
         });
     }
