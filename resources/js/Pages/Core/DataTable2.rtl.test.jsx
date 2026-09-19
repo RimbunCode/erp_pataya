@@ -1231,5 +1231,110 @@ describe("DataTable2", () => {
         expect(optionLabels(listbox)).toEqual(["a", "z", "ä"]);
       });
     });
+
+    describe("default group dari model (prop defaultGroup dari BE)", () => {
+      it("dipakai sbg grup awal saat URL tak punya param group", async () => {
+        usePageMock.mockReturnValue({
+          props: makePageProps({
+            dataTableColumns: groupableColumns,
+            defaultGroup: "code",
+            groupCounts: { S1: 1, S2: 1 },
+          }),
+        });
+        await renderDataTable2(<DataTable2 />);
+
+        const props = table2Props.mock.calls.at(-1)[0];
+        expect(props.groupBy).toBe("code");
+        // Trigger Group by menampilkan label kolom default, bukan "Tidak ada".
+        expect(
+          screen.getByText("TR:supplier.columns.code"),
+        ).toBeInTheDocument();
+        expect(
+          screen.queryByText("TR:core.datatable.no_grouping"),
+        ).not.toBeInTheDocument();
+      });
+
+      it("`?group=` kosong di URL = tanpa grup eksplisit, default TIDAK dipakai", async () => {
+        usePageMock.mockReturnValue({
+          props: makePageProps({
+            dataTableColumns: groupableColumns,
+            defaultGroup: "code",
+            ziggy: { query: { group: "" } },
+          }),
+        });
+        await renderDataTable2(<DataTable2 />);
+
+        const props = table2Props.mock.calls.at(-1)[0];
+        expect(props.groupBy).toBeNull();
+        expect(
+          screen.getByText("TR:core.datatable.no_grouping"),
+        ).toBeInTheDocument();
+      });
+
+      it('memilih "Tidak ada" saat ada default -> URL tetap membawa `group=` KOSONG (bukan param hilang, krn BE akan pakai default lagi)', async () => {
+        vi.useRealTimers();
+        const user = userEvent.setup({ delay: null, pointerEventsCheck: 0 });
+        usePageMock.mockReturnValue({
+          props: makePageProps({
+            dataTableColumns: groupableColumns,
+            defaultGroup: "code",
+            groupCounts: { S1: 1, S2: 1 },
+          }),
+        });
+        await renderDataTable2(<DataTable2 />);
+
+        const groupTrigger = screen
+          .getByText("TR:supplier.columns.code")
+          .closest("button");
+        groupTrigger.focus();
+        await user.keyboard("{Enter}");
+        const listbox = await screen.findByRole("listbox");
+        await user.click(
+          within(listbox).getByText("TR:core.datatable.no_grouping"),
+        );
+
+        await vi.waitFor(
+          () => {
+            expect(routerGet).toHaveBeenCalledTimes(1);
+          },
+          { timeout: 2000 },
+        );
+        const [url] = routerGet.mock.calls[0];
+        expect(url).toMatch(/[?&]group=(&|$)/);
+        expect(url).not.toContain("group=code");
+      });
+
+      it('tanpa default, memilih "Tidak ada" -> param group hilang dari URL (tak mengotori URL)', async () => {
+        vi.useRealTimers();
+        const user = userEvent.setup({ delay: null, pointerEventsCheck: 0 });
+        usePageMock.mockReturnValue({
+          props: makePageProps({
+            dataTableColumns: groupableColumns,
+            groupCounts: { S1: 1, S2: 1 },
+            ziggy: { query: { group: "code" } },
+          }),
+        });
+        await renderDataTable2(<DataTable2 />);
+
+        const groupTrigger = screen
+          .getByText("TR:supplier.columns.code")
+          .closest("button");
+        groupTrigger.focus();
+        await user.keyboard("{Enter}");
+        const listbox = await screen.findByRole("listbox");
+        await user.click(
+          within(listbox).getByText("TR:core.datatable.no_grouping"),
+        );
+
+        await vi.waitFor(
+          () => {
+            expect(routerGet).toHaveBeenCalledTimes(1);
+          },
+          { timeout: 2000 },
+        );
+        const [url] = routerGet.mock.calls[0];
+        expect(url).not.toMatch(/[?&]group=/);
+      });
+    });
   });
 });

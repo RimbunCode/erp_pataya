@@ -71,6 +71,22 @@ class DtgRecord extends AppModel {
     }
 }
 
+/**
+ * Model dgn default group 'category' (kolom groupable). Sengaja subclass
+ * terpisah, bukan properti di DtgRecord -- kalau tidak, SEMUA test lain di file
+ * ini ikut ter-grup otomatis. Properti dideklarasikan di kelas model (bukan
+ * trait DataTable): PHP fatal kalau kelas yg `use` trait mendeklarasi ulang
+ * properti statis trait dgn nilai beda.
+ */
+class DtgDefaultGroupRecord extends DtgRecord {
+    protected static ?string $defaultGroupColumn = 'category';
+}
+
+/** Default group SALAH: 'name' tidak groupable -- harus diabaikan diam-diam. */
+class DtgBadDefaultGroupRecord extends DtgRecord {
+    protected static ?string $defaultGroupColumn = 'name';
+}
+
 class DataTableScopeGroupingTest extends TestCase {
     use RefreshDatabase;
 
@@ -606,6 +622,90 @@ class DataTableScopeGroupingTest extends TestCase {
             $this->assertNotNull($countSql, 'Query count grup tidak ditemukan untuk ' . json_encode($params));
             $this->assertMatchesRegularExpression('/group by [`"]group_key[`"]/i', $countSql, json_encode($params));
         }
+    }
+
+    // ---------------------------------------------------------------------
+    // Default group per-model (mirip $defaultSortColumn)
+    // ---------------------------------------------------------------------
+
+    public function test_default_group_applies_when_request_has_no_group_param(): void {
+        // Dibuat selang-seling: tanpa sort primer by grup, urutan default
+        // (created_at desc) akan menyelang-nyelingkan kategori.
+        DtgDefaultGroupRecord::create(['name' => 'A', 'category' => 'vegetable']);
+        DtgDefaultGroupRecord::create(['name' => 'B', 'category' => 'fruit']);
+        DtgDefaultGroupRecord::create(['name' => 'C', 'category' => 'vegetable']);
+        DtgDefaultGroupRecord::create(['name' => 'D', 'category' => 'fruit']);
+
+        DtgDefaultGroupRecord::dataTable($this->inertiaRequest());
+
+        $this->assertGroupCounts(['fruit' => 2, 'vegetable' => 2], Inertia::getShared('groupCounts'));
+        $this->assertSame('category', Inertia::getShared('defaultGroup'));
+        $this->assertSame(
+            ['fruit', 'fruit', 'vegetable', 'vegetable'],
+            collect(Inertia::getShared('data')->items())->pluck('category')->all(),
+            'Baris se-grup harus bersebelahan (sort primer by kolom default group).',
+        );
+    }
+
+    public function test_default_group_not_applied_to_plain_ajax_request(): void {
+        // Endpoint non-halaman (dropdown LinkModel dst, XHR tanpa header
+        // X-Inertia) tak boleh berubah urutan / kena query count grup krn
+        // default group model.
+        DtgDefaultGroupRecord::create(['name' => 'A', 'category' => 'vegetable']);
+        DtgDefaultGroupRecord::create(['name' => 'B', 'category' => 'fruit']);
+        DtgDefaultGroupRecord::create(['name' => 'C', 'category' => 'vegetable']);
+        DtgDefaultGroupRecord::create(['name' => 'D', 'category' => 'fruit']);
+
+        $result     = DtgDefaultGroupRecord::dataTable($this->ajax());
+        $categories = collect($result['data']->items())->pluck('category')->all();
+
+        // created_at keempat record bisa sama (detik yg sama) sehingga urutan
+        // tie tak deterministik -- yg dibuktikan: TIDAK ter-grup primer.
+        $this->assertCount(4, $categories);
+        $this->assertNotSame(
+            ['fruit', 'fruit', 'vegetable', 'vegetable'],
+            $categories,
+            'Request XHR biasa tidak boleh kena sort primer by default group.',
+        );
+    }
+
+    public function test_default_group_can_be_disabled_with_explicit_empty_group_param(): void {
+        DtgDefaultGroupRecord::create(['name' => 'A', 'category' => 'fruit']);
+
+        // `?group=` (ada tapi kosong) = user sengaja memilih "Tidak ada".
+        DtgDefaultGroupRecord::dataTable($this->inertiaRequest(['group' => '']));
+
+        $this->assertNull(Inertia::getShared('groupCounts'));
+        // Default tetap dibagikan supaya FE tahu harus kirim `group=` kosong
+        // (bukan menghilangkan param) saat user memilih "Tidak ada".
+        $this->assertSame('category', Inertia::getShared('defaultGroup'));
+    }
+
+    public function test_explicit_group_param_overrides_default_group(): void {
+        DtgDefaultGroupRecord::create(['name' => 'A', 'category' => 'fruit', 'is_active' => true]);
+        DtgDefaultGroupRecord::create(['name' => 'B', 'category' => 'fruit', 'is_active' => false]);
+
+        DtgDefaultGroupRecord::dataTable($this->inertiaRequest(['group' => 'is_active']));
+
+        $this->assertGroupCounts(['true' => 1, 'false' => 1], Inertia::getShared('groupCounts'));
+    }
+
+    public function test_default_group_on_non_groupable_column_is_ignored(): void {
+        DtgBadDefaultGroupRecord::create(['name' => 'A']);
+
+        DtgBadDefaultGroupRecord::dataTable($this->inertiaRequest());
+
+        $this->assertNull(Inertia::getShared('groupCounts'));
+        $this->assertNull(Inertia::getShared('defaultGroup'));
+    }
+
+    public function test_model_without_default_group_is_not_grouped_and_shares_null_default(): void {
+        DtgRecord::create(['name' => 'A', 'category' => 'fruit']);
+
+        DtgRecord::dataTable($this->inertiaRequest());
+
+        $this->assertNull(Inertia::getShared('groupCounts'));
+        $this->assertNull(Inertia::getShared('defaultGroup'));
     }
 
     public function test_group_counts_respect_active_filter(): void {

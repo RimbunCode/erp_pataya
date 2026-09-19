@@ -275,7 +275,20 @@ class DataTableScope implements Scope {
             // relasi yg groupable tapi kebetulan disembunyikan user (cookie
             // visible columns) tidak ikut ter-eager-load walau sort sudah
             // dikunci ke FK-nya -- row[groupBy] di FE jadi undefined.
-            $groupColumn    = $request->input('group');
+            // Default group per-model (Model::getDefaultGroupColumn(), mirip
+            // default sort) -- HANYA utk request halaman/Inertia, bukan XHR
+            // biasa (dropdown LinkModel dst) yg tak boleh berubah urutannya,
+            // dan hanya kalau kolomnya memang groupable (salah config diabaikan
+            // diam-diam, bukan SQL error).
+            $defaultGroupColumn = $query->getModel()::getDefaultGroupColumn();
+            $defaultGroup       = $defaultGroupColumn
+                && Utils::isInertiaRequest($request)
+                && (collect($dataTableColumns)->firstWhere('name', $defaultGroupColumn)['groupable'] ?? false)
+                ? $defaultGroupColumn
+                : null;
+            // Prioritas: ?group=<kolom> > ?group= (ada tapi KOSONG = user
+            // sengaja "Tidak ada", jadi default TIDAK dipakai) > default model.
+            $groupColumn    = $request->has('group') ? $request->input('group') : $defaultGroup;
             $groupConfig    = $groupColumn ? collect($dataTableColumns)->firstWhere('name', $groupColumn) : null;
             $isGroupable    = $groupConfig && ($groupConfig['groupable'] ?? false);
             $groupSqlColumn = $isGroupable && ($groupConfig['type'] ?? null) === 'relation'
@@ -554,6 +567,10 @@ class DataTableScope implements Scope {
                 'translateKey'     => $query->getModel()->translateKey ?? null,
                 'dataTableColumns' => $dataTableColumns,
                 'groupCounts'      => $groupCounts,
+                // Default group model (sudah divalidasi groupable) -- FE pakai utk
+                // state awal Group by & tahu harus kirim `group=` KOSONG (bukan
+                // hilangkan param) saat user memilih "Tidak ada".
+                'defaultGroup' => $defaultGroup,
             ]);
         });
     }

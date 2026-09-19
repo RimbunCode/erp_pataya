@@ -190,6 +190,7 @@ export default memo(
       model,
       name,
       groupCounts,
+      defaultGroup,
     } = usePage().props;
     const { can } = usePermission(model);
     const canCreate = forceCanCreate || can("create");
@@ -210,7 +211,9 @@ export default memo(
       fid: query?.fid ?? defaultFilterId ?? null,
       page: query?.page ?? 1,
       show: initialShow,
-      group: query?.group ?? null,
+      // `?group=` KOSONG ("") = user sengaja "Tidak ada" -> `??` sengaja tak
+      // menimpanya dgn defaultGroup (default model dari BE, lihat setGroup).
+      group: query?.group ?? defaultGroup ?? null,
       // Bucket grup date/time/datetime (day/month/quarter/half/year) & number/
       // currency (lebar range) -- lihat setGroup(). null kalau kolom grup
       // aktif bukan tipe bucket (mis. string/relation/boolean).
@@ -372,7 +375,7 @@ export default memo(
       [groupableColumns, t, locale],
     );
     const groupColumnLabel =
-      groupOptions.find((x) => x.value === (options.group ?? NO_GROUP_VALUE))
+      groupOptions.find((x) => x.value === (options.group || NO_GROUP_VALUE))
         ?.label ?? t("core.datatable.no_grouping");
     // Kolom grup aktif -- dipakai utk nampilkan selector granularity (date/
     // time/datetime) atau range (number/currency) tambahan di sebelah
@@ -452,7 +455,10 @@ export default memo(
         const isNumberType = ["number", "currency"].includes(column?.type);
         setOptions((prev) => ({
           ...prev,
-          group: name || null,
+          // "Tidak ada": bila model punya default group, kirim "" (URL bawa
+          // `group=` kosong) -- param yg HILANG (null, dibuang skipNulls) akan
+          // membuat BE memakai default lagi. Tanpa default, null cukup.
+          group: name || (defaultGroup ? "" : null),
           // Default granularity/range kolom BARU -- selalu reset (bukan
           // reuse dari kolom grup sebelumnya), krn lebar range yg masuk akal
           // spesifik per kolom (quantity vs amount beda skala jauh).
@@ -464,7 +470,7 @@ export default memo(
           page: 1,
         }));
       },
-      [mapColumns],
+      [mapColumns, defaultGroup],
     );
     const setGroupGranularity = useCallback((value) => {
       setOptions((prev) => ({ ...prev, groupGranularity: value, page: 1 }));
@@ -672,7 +678,7 @@ export default memo(
                             <Command filter={searchableOptionFilter}>
                               <SearchableOptionList
                                 options={groupOptions}
-                                value={options.group ?? NO_GROUP_VALUE}
+                                value={options.group || NO_GROUP_VALUE}
                                 onValueChange={(val) => {
                                   setGroup(val === NO_GROUP_VALUE ? null : val);
                                   setGroupDialogOpen(false);
@@ -926,7 +932,7 @@ export default memo(
                       <Command filter={searchableOptionFilter}>
                         <SearchableOptionList
                           options={groupOptions}
-                          value={options.group ?? NO_GROUP_VALUE}
+                          value={options.group || NO_GROUP_VALUE}
                           onValueChange={(val) => {
                             setGroup(val === NO_GROUP_VALUE ? null : val);
                             setGroupPopoverOpen(false);
@@ -1027,7 +1033,7 @@ export default memo(
                 setSort={setSort}
                 resetSorting={resetSorting}
                 onOptionsChanged={setOptions}
-                groupBy={options.group}
+                groupBy={options.group || null}
                 groupCounts={groupCounts}
                 groupGranularity={options.groupGranularity}
                 groupRange={options.groupRange}
