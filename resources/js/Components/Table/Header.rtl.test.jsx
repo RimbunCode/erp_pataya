@@ -4,7 +4,13 @@ import userEvent from "@testing-library/user-event";
 import { DndContext } from "@dnd-kit/core";
 import { SortableContext } from "@dnd-kit/sortable";
 import Header from "./Header";
-import { Dialog } from "../ui/dialog";
+import { useState } from "react";
+import {
+  Dialog,
+  DialogContent,
+  DialogDescription,
+  DialogTitle,
+} from "../ui/dialog";
 
 vi.mock("laravel-react-i18n", () => ({
   useLaravelReactI18n: () => ({ t: (key) => `TR:${key}` }),
@@ -35,6 +41,33 @@ const renderHeader = (props) =>
 // spesifik ini, bukan by index, agar tidak salah target antar test.
 const getMenuTrigger = () =>
   screen.getByRole("button", { name: "", expanded: false });
+
+// Meniru Table2.jsx: <Dialog open/onOpenChange> terkontrol di ANCESTOR Header,
+// DialogContent (ColumnsFilter di app asli) jadi saudara tabel di dalam Dialog
+// yang sama. renderHeader di atas pakai <Dialog> tanpa DialogContent sehingga
+// tak bisa membuktikan dialog benar2 terbuka.
+function HeaderWithColumnsDialog(props) {
+  const [open, setOpen] = useState(false);
+  return (
+    <Dialog open={open} onOpenChange={setOpen}>
+      <DndContext>
+        <SortableContext items={["col_a"]}>
+          <table>
+            <thead>
+              <tr>
+                <Header id="col_a" name="col_a" {...props} />
+              </tr>
+            </thead>
+          </table>
+        </SortableContext>
+      </DndContext>
+      <DialogContent>
+        <DialogTitle>Kolom</DialogTitle>
+        <DialogDescription className="sr-only">Kolom</DialogDescription>
+      </DialogContent>
+    </Dialog>
+  );
+}
 
 describe("Header", () => {
   it("render title langsung jika diberikan", () => {
@@ -124,5 +157,16 @@ describe("Header", () => {
     expect(
       screen.getByText("TR:core.datatable.columns.trigger"),
     ).toBeInTheDocument();
+  });
+
+  it("klik 'columns trigger' BENAR2 membuka dialog kolom", async () => {
+    const user = userEvent.setup({ delay: null });
+    render(<HeaderWithColumnsDialog title="Nama" sortable={false} />);
+    expect(screen.queryByRole("dialog")).not.toBeInTheDocument();
+
+    await user.click(getMenuTrigger());
+    await user.click(screen.getByText("TR:core.datatable.columns.trigger"));
+
+    expect(await screen.findByRole("dialog")).toBeInTheDocument();
   });
 });
