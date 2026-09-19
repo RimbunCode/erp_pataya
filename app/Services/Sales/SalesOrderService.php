@@ -503,7 +503,7 @@ class SalesOrderService implements SubmitableService {
 
     public function markDone(SalesOrder $salesOrder): array {
         return DB::transaction(function () use ($salesOrder) {
-            $salesOrder->items()->lockForUpdate()->get();
+            $items = $salesOrder->items()->with('item')->lockForUpdate()->get();
 
             $deliveryIds = ModelConnection::where('model_type', SalesOrder::class)
                 ->where('model_id', $salesOrder->id)
@@ -516,7 +516,7 @@ class SalesOrderService implements SubmitableService {
                 ->pluck('reference_id');
 
             $mismatches = [];
-            foreach ($salesOrder->items as $soItem) {
+            foreach ($items as $soItem) {
                 $deliveredQty = DeliveryNoteItem::whereIn('delivery_note_id', $deliveryIds)
                     ->where('referenceable_type', SalesOrderItem::class)
                     ->where('referenceable_id', $soItem->id)
@@ -527,8 +527,14 @@ class SalesOrderService implements SubmitableService {
                     ->sum('quantity');
 
                 if ((float) $deliveredQty !== (float) $billedQty) {
+                    // sales_order_items TIDAK punya kolom snapshot `item_name` (beda dgn
+                    // purchase_order_items->item_name) -- pakai pola $itemLabel spt
+                    // SalesOrderService::submit() di atas, bukan $soItem->item?->name yg
+                    // selalu null krn ItemVariant tidak punya kolom `name`.
+                    $itemLabel = "{$soItem->item->code} - {$soItem->item->item_name}";
+
                     $mismatches[] = [
-                        'item_name'     => $soItem->item?->name,
+                        'item_name'     => $itemLabel,
                         'delivered_qty' => $deliveredQty,
                         'billed_qty'    => $billedQty,
                     ];
