@@ -78,7 +78,7 @@ export default function AdvanceSearchDialog({
   // Reset search ke initialSearch tiap kali dialog DIBUKA (Requirement 6 AC3)
   useEffect(() => { if (open) setSearch(initialSearch ?? ""); }, [open]);
 
-  const { columnMap, lockedColumnNames, rows, isLoading, isFetchingNextPage,
+  const { columnMap, filterColumnMap, lockedColumnNames, rows, isLoading, isFetchingNextPage,
           hasNextPage, fetchNextPage, total } =
     useAdvanceSearchModel({ model, baseFilters: filters, additiveFilters, search, joins, with: withParam, order, translate, open });
 
@@ -101,7 +101,7 @@ export default function AdvanceSearchDialog({
           <InputGroup>
             <InputGroupAddon align="inline-start">
               <FilterTable
-                columns={columnMap}
+                columns={filterColumnMap}        // <- SEMUA kolom schema, BUKAN columnMap (lihat catatan filterColumnMap)
                 initialFilters={additiveFilters}
                 lockedFilters={filters}          // <- extension baru, read-only summary
                 onApply={setAdditiveFilters}
@@ -149,6 +149,7 @@ export default function AdvanceSearchDialog({
 Catatan implementasi:
 - `FilterTable` dipakai dengan prop baru `trigger={<InputGroupButton>...}` (Requirement 4 AC2: tombol filter DI DALAM `InputGroup`, di kiri). **Resolusi verifikasi** (sempat ditandai "perlu dicek" — sudah dikonfirmasi & diimplementasi task 8.1): `FilterTable` TERNYATA tidak menerima children/custom trigger sama sekali (hardcode Button/div sendiri, tidak ada slot). Ditambah prop opsional `trigger?: ReactNode` — saat diisi, `AlertDialogTrigger asChild` merender `trigger` alih-alih Button bawaan; badge count jadi tanggung jawab konsumen (dihitung sendiri dari `additiveFilters`, BUKAN dari `activeCount` internal `FilterTable` yang hanya dipakai jalur trigger bawaan).
 - `InfiniteScrollSentinel` — komponen kecil baru (bukan reuse `useInViewport` langsung, lihat §4) diletakkan di baris terakhir, memicu `fetchNextPage()`.
+- **`filterColumnMap` ≠ `columnMap`** (koreksi pasca-implementasi): `columnMap` (tabel) tetap linkable-gated — itu yang menentukan kolom yang di-SELECT & tampil. Tapi kolom FilterTable memakai `filterColumnMap` = SEMUA kolom schema mentah, karena backend mengevaluasi `filters` terhadap schema penuh (`$target::getColumns(1)` di `ModelController::selectData()`, `FilterEvaluator($columns)`) — gate `linkable` tak pernah membatasi kolom yang boleh difilter, jadi membatasinya di FE cuma memangkas UX. `FilterItem2` sendiri sudah menyaring `searchable===false`/`hidden`/`ignore`/`parentCol`. Preseden: `SelectModel` (`buildColumnMap`) juga tidak men-gate kolom filter dgn linkable. Catatan keamanan: efek samping (pre-existing di level API, sekarang terlihat di UI) — kolom bergate `visibleFor` bisa dipakai sbg kriteria filter walau nilainya tak ditampilkan (oracle), lihat task 15.
 
 ### 3. `resources/js/Components/LinkModel/useAdvanceSearchModel.js` (BARU)
 
@@ -185,11 +186,16 @@ export default function useAdvanceSearchModel({
     () => buildAdvanceSearchColumnMap(query.data?.pages?.[0]?.columns ?? [], templateLinkColumnNames),
     [query.data],
   );
+  // Kolom FILTER: semua kolom schema (bukan linkable-gated seperti columnMap tabel).
+  const filterColumnMap = useMemo(
+    () => buildAdvanceSearchFilterColumnMap(query.data?.pages?.[0]?.columns),
+    [query.data],
+  );
   const rows = useMemo(() => (query.data?.pages ?? []).flatMap((p) => p.data.data), [query.data]);
   const total = query.data?.pages?.[0]?.data.total ?? 0;
 
   return {
-    columnMap, lockedColumnNames: templateLinkColumnNames, rows, total,
+    columnMap, filterColumnMap, lockedColumnNames: templateLinkColumnNames, rows, total,
     isLoading: query.isPending,
     isFetchingNextPage: query.isFetchingNextPage,
     hasNextPage: query.hasNextPage,

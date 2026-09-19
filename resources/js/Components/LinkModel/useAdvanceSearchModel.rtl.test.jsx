@@ -28,13 +28,19 @@ function createWrapper() {
   return { Wrapper };
 }
 
-function page({ rows = [], currentPage = 1, lastPage = 1, total } = {}) {
+function page({
+  rows = [],
+  currentPage = 1,
+  lastPage = 1,
+  total,
+  columns = [{ name: "code", type: "string", linkable: false }],
+} = {}) {
   return {
     data: {
       model: "App\\Models\\Inventory\\Item",
       route: "items",
       translateKey: null,
-      columns: [{ name: "code", type: "string", linkable: false }],
+      columns,
       templateLinkColumns: ["code"],
       parentColumn: null,
       data: {
@@ -142,5 +148,40 @@ describe("useAdvanceSearchModel", () => {
       expect(result.current.lockedColumnNames).toEqual(["code"]),
     );
     expect(result.current.columnMap.code.locked).toBe(true);
+  });
+
+  it("filterColumnMap memuat SEMUA kolom schema, columnMap (tabel) tetap hanya linkable+templateLink", async () => {
+    axiosPost.mockResolvedValue(
+      page({
+        columns: [
+          { name: "code", type: "string", linkable: false }, // sumber templateLink
+          { name: "price", type: "currency", linkable: true },
+          { name: "phone", type: "string", linkable: false }, // non-linkable
+          { name: "valuation_rate", type: "currency", linkable: false },
+        ],
+      }),
+    );
+    const { Wrapper } = createWrapper();
+
+    const { result } = renderHook(
+      () =>
+        useAdvanceSearchModel({
+          model: "App\\Models\\Inventory\\Item",
+          search: "",
+          open: true,
+        }),
+      { wrapper: Wrapper },
+    );
+
+    await waitFor(() =>
+      expect(Object.keys(result.current.filterColumnMap)).toHaveLength(4),
+    );
+    expect(Object.keys(result.current.filterColumnMap)).toEqual([
+      "code",
+      "price",
+      "phone",
+      "valuation_rate",
+    ]);
+    expect(Object.keys(result.current.columnMap)).toEqual(["code", "price"]);
   });
 });
