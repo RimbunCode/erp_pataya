@@ -69,6 +69,7 @@ export default function AdvanceSearchDialog({
 
   const {
     columnMap,
+    filterColumnMap,
     lockedColumnNames,
     rows,
     isLoading,
@@ -119,7 +120,7 @@ export default function AdvanceSearchDialog({
               <InputGroup>
                 <InputGroupAddon align="inline-start">
                   <FilterTable
-                    columns={columnMap}
+                    columns={filterColumnMap}
                     initialFilters={additiveFilters}
                     lockedFilters={filters}
                     onApply={setAdditiveFilters}
