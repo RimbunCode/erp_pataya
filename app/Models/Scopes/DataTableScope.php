@@ -504,9 +504,13 @@ class DataTableScope implements Scope {
                     $countQuery->selectRaw("$groupCol as group_key");
                 }
                 $countQuery->selectRaw('COUNT(*) as aggregate_count');
-                $groupBucket
-                    ? $countQuery->groupByRaw($groupBucket[0], $groupBucket[1])
-                    : $countQuery->groupBy($groupCol);
+                // Bucket: GROUP BY alias, JANGAN ulangi ekspresinya. Ekspresi
+                // number berisi placeholder (`floor(x / ?) * ?`) -- di MySQL
+                // (prepared statement native + ONLY_FULL_GROUP_BY) salinan di
+                // SELECT dan di GROUP BY dianggap ekspresi BERBEDA krn tiap `?`
+                // berdiri sendiri -> error 1055. Alias juga menghapus binding
+                // ganda. Valid di sqlite & mysql.
+                $countQuery->groupBy($groupBucket ? 'group_key' : $groupCol);
 
                 // Key eksplisit 'null' (string) utk grup NULL -- array PHP
                 // otomatis cast key null jadi '' ("" != frontend String(null)

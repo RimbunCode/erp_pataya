@@ -586,6 +586,28 @@ class DataTableScopeGroupingTest extends TestCase {
         }
     }
 
+    /**
+     * Query count grup bucket (date/number) harus GROUP BY alias `group_key`,
+     * BUKAN mengulang ekspresi bucket. Di MySQL (prepared statement native,
+     * ONLY_FULL_GROUP_BY) ekspresi `floor(x / ?) * ?` di SELECT dan di GROUP BY
+     * dianggap BEDA krn tiap placeholder berdiri sendiri -> error 1055. Test
+     * ini jalan di SQLite yg tak mengalami itu, jadi yang dipin adalah BENTUK
+     * SQL-nya.
+     */
+    public function test_group_bucket_count_query_groups_by_alias_not_repeated_expression(): void {
+        DtgRecord::create(['name' => 'A', 'amount' => 5, 'due_date' => '2026-01-15']);
+
+        foreach ([['group' => 'amount', 'groupRange' => 10], ['group' => 'due_date', 'groupGranularity' => 'month']] as $params) {
+            DB::flushQueryLog();
+            DB::enableQueryLog();
+            DtgRecord::dataTable($this->inertiaRequest($params));
+            $countSql = collect(DB::getQueryLog())->pluck('query')->first(fn ($q) => str_contains($q, 'aggregate_count'));
+
+            $this->assertNotNull($countSql, 'Query count grup tidak ditemukan untuk ' . json_encode($params));
+            $this->assertMatchesRegularExpression('/group by [`"]group_key[`"]/i', $countSql, json_encode($params));
+        }
+    }
+
     public function test_group_counts_respect_active_filter(): void {
         $user = User::factory()->create();
 
