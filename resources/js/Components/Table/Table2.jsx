@@ -190,7 +190,7 @@ export const Cell = memo(
           valueCell = null;
         } else {
           valueCell = format(
-            new TZDate(value, "UTC"),
+            new TZDate(value),
             type == "date" ? "PPP" : type == "time" ? "pp" : "PPPpp",
             {
               locale: getLocaleDate(lang),
