@@ -58,9 +58,16 @@ class Item extends Model {
             'order' => 1,
         ],
         'category' => [
-            'type'  => 'relation',
-            'show'  => true,
-            'order' => 2,
+            'type'      => 'relation',
+            'show'      => true,
+            'order'     => 2,
+            'groupable' => true,
+        ],
+        'is_stock_item' => [
+            'groupable' => true,
+        ],
+        'is_fixed_asset' => [
+            'groupable' => true,
         ],
         'conversion_factor' => [
             'hidden'   => true,

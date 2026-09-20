@@ -45,8 +45,9 @@ class GeneralLedger extends Model {
             'isLink' => true,
         ],
         'account' => [
-            'order' => 1,
-            'show'  => true,
+            'order'     => 1,
+            'show'      => true,
+            'groupable' => true,
         ],
         'againstAccount' => [
             'order' => 2,

@@ -120,6 +120,7 @@ trait LinkModel {
             ],
             'createdBy' => [
                 'titleTrans' => 'core.form.created_by',
+                'groupable'  => true,
             ],
             'status' => [
                 'titleTrans' => 'core.form.status',
@@ -135,6 +136,12 @@ trait LinkModel {
             ],
             'branch' => [
                 'titleTrans' => 'core.branch.branch',
+                'groupable'  => true,
+            ],
+            // Flag aktif/nonaktif master data (Item, Customer, Supplier, Role, Branch,
+            // Account, Desk, dst) -- kardinalitas 2, selalu boolean.
+            'is_disabled' => [
+                'groupable' => true,
             ],
             'templateLink' => [
                 'ignore' => true,

@@ -90,16 +90,18 @@ class SalesOrder extends Model {
             'order'  => 0,
         ],
         'customer' => [
-            'show'  => true,
-            'order' => 1,
+            'show'      => true,
+            'order'     => 1,
+            'groupable' => true,
         ],
         'date' => [
             'show'  => true,
             'order' => 2,
         ],
         'is_rent' => [
-            'show'  => true,
-            'order' => 3,
+            'show'      => true,
+            'order'     => 3,
+            'groupable' => true,
         ],
         'status' => [
             'show'  => true,
@@ -108,7 +110,9 @@ class SalesOrder extends Model {
         'customerBranch' => [
             'disabledNavigation' => true,
         ],
-        'currency',
+        'currency' => [
+            'groupable' => true,
+        ],
         'branch',
         'customer_name' => [
             'ignore' => true,

@@ -70,14 +70,17 @@ class PurchaseInvoice extends Model {
             'order' => 2,
         ],
         'supplier' => [
-            'show'  => true,
-            'order' => 3,
+            'show'      => true,
+            'order'     => 3,
+            'groupable' => true,
         ],
         'status' => [
             'show'  => true,
             'order' => 4,
         ],
-        'currency',
+        'currency' => [
+            'groupable' => true,
+        ],
         'branch' => [
             'ignore' => true,
         ],
@@ -106,6 +109,7 @@ class PurchaseInvoice extends Model {
         'paymentSchedules',
         'tax_invoice_transaction_code' => [
             'valueTrans' => 'finances.taxInvoice.transaction_code.options',
+            'groupable'  => true,
         ],
         'tax_invoice_serial_number',
         'tax_invoice_date' => [

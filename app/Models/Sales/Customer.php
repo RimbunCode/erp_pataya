@@ -42,7 +42,9 @@ class Customer extends Model {
             'order'     => 3,
             'dependsOn' => ['street', 'city', 'province', 'zip_code', 'country.name'],
         ],
-        'country',
+        'country' => [
+            'groupable' => true,
+        ],
         'branches',
     ];
     protected $appends = [

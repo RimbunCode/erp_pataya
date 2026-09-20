@@ -82,9 +82,10 @@ class SalesInvoice extends Model {
             'order' => 2,
         ],
         'customer' => [
-            'type'  => 'relation',
-            'show'  => true,
-            'order' => 3,
+            'type'      => 'relation',
+            'show'      => true,
+            'order'     => 3,
+            'groupable' => true,
         ],
         'status' => [
             'show'  => true,
@@ -93,7 +94,9 @@ class SalesInvoice extends Model {
         'customerBranch' => [
             'disabledNavigation' => true,
         ],
-        'currency',
+        'currency' => [
+            'groupable' => true,
+        ],
         'branch' => [
             'ignore' => true,
         ],
@@ -125,6 +128,7 @@ class SalesInvoice extends Model {
         'paymentSchedules',
         'tax_invoice_transaction_code' => [
             'valueTrans' => 'finances.taxInvoice.transaction_code.options',
+            'groupable'  => true,
         ],
         'tax_invoice_serial_number' => [
         ],

@@ -42,6 +42,7 @@ class Ticket extends Model {
             'valueTrans' => 'helpdesk.ticket.type.options',
             'show'       => true,
             'order'      => 1,
+            'groupable'  => true,
         ],
         'subject' => [
             'show'  => true,
@@ -60,11 +61,13 @@ class Ticket extends Model {
             'valueTrans' => 'helpdesk.ticket.priority.options',
             'show'       => true,
             'order'      => 5,
+            'groupable'  => true,
         ],
         'assignTo' => [
             'show'               => true,
             'order'              => 6,
             'disabledNavigation' => true,
+            'groupable'          => true,
         ],
         'createdBy' => [
             'show'  => true,

@@ -70,14 +70,28 @@ class Asset extends Model {
             'order' => 1,
         ],
         'assetCategory' => [
-            'type'  => 'relation',
-            'show'  => true,
-            'order' => 2,
+            'type'      => 'relation',
+            'show'      => true,
+            'order'     => 2,
+            'groupable' => true,
         ],
         'assetLocation' => [
-            'type'  => 'relation',
-            'show'  => true,
-            'order' => 3,
+            'type'      => 'relation',
+            'show'      => true,
+            'order'     => 3,
+            'groupable' => true,
+        ],
+        'asset_type' => [
+            'groupable' => true,
+        ],
+        'ownership_type' => [
+            'groupable' => true,
+        ],
+        'is_depreciable' => [
+            'groupable' => true,
+        ],
+        'is_rentable' => [
+            'groupable' => true,
         ],
         'status' => [
             'show'       => true,

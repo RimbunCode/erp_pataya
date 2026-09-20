@@ -44,14 +44,18 @@ class Lead extends Model {
             'order' => 4,
         ],
         'leadSource' => [
-            'show'  => true,
-            'order' => 5,
+            'show'      => true,
+            'order'     => 5,
+            'groupable' => true,
         ],
         'assignedTo' => [
-            'show'  => true,
-            'order' => 6,
+            'show'      => true,
+            'order'     => 6,
+            'groupable' => true,
         ],
-        'country',
+        'country' => [
+            'groupable' => true,
+        ],
     ];
 
     protected static function loadRelationsOnShow() {

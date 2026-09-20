@@ -53,8 +53,12 @@ class Account extends Model {
             'dependsOn' => ['account_number', 'account_name'],
         ],
         'is_group' => [
-            'show'  => true,
-            'order' => 1,
+            'show'      => true,
+            'order'     => 1,
+            'groupable' => true,
+        ],
+        'is_contra' => [
+            'groupable' => true,
         ],
         'parentAccount' => [
             'show'  => true,
@@ -70,12 +74,15 @@ class Account extends Model {
         ],
         'root_type' => [
             'valueTrans' => 'finances.account.columns.root_type.options',
+            'groupable'  => true,
         ],
         'balance_type' => [
             'valueTrans' => 'finances.account.columns.balance_type.options',
+            'groupable'  => true,
         ],
         'report_type' => [
             'valueTrans' => 'finances.account.columns.report_type.options',
+            'groupable'  => true,
         ],
 
     ];

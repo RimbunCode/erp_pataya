@@ -3,9 +3,13 @@
 namespace Tests\Unit\Core;
 
 use App\Models\Scopes\DataTableScope;
+use App\Models\User\User;
 use App\Services\Core\DataTableConfigCache;
+use App\Traits\DataTable;
 use Illuminate\Foundation\Testing\RefreshDatabase;
+use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Schema;
+use Inertia\Inertia;
 use PHPUnit\Framework\Attributes\Test;
 use ReflectionMethod;
 use Tests\TestCase;
@@ -85,5 +89,50 @@ class AllModelsGroupableConfigTest extends TestCase {
 
         $this->assertGreaterThan(0, $checked, 'Tak ada satupun kolom groupable ditemukan -- test ini kemungkinan rusak.');
         $this->assertEmpty($failures, "Config groupable keliru:\n" . implode("\n", $failures));
+    }
+
+    #[Test]
+    public function every_groupable_column_executes_its_group_query(): void {
+        // Tabel kosong cukup: yg diuji adalah SQL-nya (SELECT/GROUP BY/ORDER BY
+        // + count query) -- kolom yg salah nama / bukan kolom SQL langsung
+        // meledak QueryException, bukan cuma "tak ada data".
+        $user = User::factory()->create();
+        $this->actingAs($user);
+
+        $failures = [];
+        $ran      = 0;
+
+        foreach (DataTableConfigCache::discoverLinkModels() as $modelClass) {
+            // Macro dataTable() hanya didukung model ber-trait DataTable (butuh
+            // getDefaultSortColumn(), dst) -- model LinkModel murni (child/pivot)
+            // tak pernah dipanggil lewat macro ini.
+            if (! \in_array(DataTable::class, class_uses_recursive($modelClass), true)) {
+                continue;
+            }
+
+            foreach ($modelClass::getColumns(1) as $column) {
+                if (! ($column['groupable'] ?? false)) {
+                    continue;
+                }
+
+                $request = Request::create('/x', 'GET', ['group' => $column['name']]);
+                $request->setUserResolver(fn () => $user);
+                Inertia::share('groupCounts', 'belum-diisi');
+
+                try {
+                    $modelClass::dataTable($request);
+                    $counts = Inertia::getShared('groupCounts');
+                    if (! \is_array($counts)) {
+                        $failures[] = "{$modelClass}.{$column['name']}: groupCounts bukan array (grup ditolak/tidak dihitung).";
+                    }
+                } catch (\Throwable $e) {
+                    $failures[] = "{$modelClass}.{$column['name']}: " . class_basename($e) . ': ' . \substr($e->getMessage(), 0, 200);
+                }
+                $ran++;
+            }
+        }
+
+        $this->assertGreaterThan(0, $ran, 'Tak ada satupun kolom groupable dijalankan -- test ini kemungkinan rusak.');
+        $this->assertEmpty($failures, "Query grup gagal utk kolom berikut:\n" . implode("\n", $failures));
     }
 }

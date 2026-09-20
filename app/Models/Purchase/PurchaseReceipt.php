@@ -54,8 +54,9 @@ class PurchaseReceipt extends Model {
             'order' => 2,
         ],
         'supplier' => [
-            'show'  => true,
-            'order' => 3,
+            'show'      => true,
+            'order'     => 3,
+            'groupable' => true,
         ],
         'status' => [
             'show'  => true,

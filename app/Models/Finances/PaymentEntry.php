@@ -53,8 +53,9 @@ class PaymentEntry extends Model {
             'show'  => true,
         ],
         'paymentMethod' => [
-            'order' => 2,
-            'show'  => true,
+            'order'     => 2,
+            'show'      => true,
+            'groupable' => true,
         ],
         'paymentable' => [
             'order' => 3,
