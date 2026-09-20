@@ -125,6 +125,13 @@ trait LinkModel {
                 'titleTrans' => 'core.form.status',
                 'width'      => 'minimum',
                 'valueTrans' => 'status',
+                // Kolom `status` (Submitable: array FormStatus; non-Submitable:
+                // FormStatus tunggal / string) selalu jadi opsi "Group by".
+                // Config ini hanya berlaku utk model yg tabelnya punya kolom
+                // `status`; tipe tak didukung (json/mixed) ditolak DataTableScope.
+                // Model bisa menonaktifkan via $configColumns
+                // (`'status' => ['groupable' => false]`).
+                'groupable' => true,
             ],
             'branch' => [
                 'titleTrans' => 'core.branch.branch',

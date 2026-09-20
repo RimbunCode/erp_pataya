@@ -535,18 +535,30 @@ class DataTableScope implements Scope {
                 // literal, dibaca FE via String(rawBoolean) => "true"/"false".
                 // Tanpa normalisasi ini key "0"/"1" tidak pernah match "true"/
                 // "false", groupCounts lookup selalu 0 (ketauan lewat browser).
-                $isBooleanGroup = ($groupConfig['type'] ?? null) === 'boolean';
-                $groupCounts    = $countQuery
-                    ->get()
-                    ->mapWithKeys(function ($row) use ($isBooleanGroup) {
-                        $value = $row->group_key;
-                        if ($isBooleanGroup && $value !== null) {
-                            $value = ((bool) $value) ? 'true' : 'false';
-                        }
+                // Kolom formStatuses (array status, mis. Submitable::status):
+                // MySQL menormalkan output kolom JSON jadi `["a", "b"]` (spasi
+                // setelah koma), FE cocokkan key dgn JSON.stringify (`["a","b"]`).
+                // Di-encode ulang supaya sama; 2 bentuk teks yg ternormalisasi ke
+                // key sama (MariaDB simpan teks verbatim) DIJUMLAHKAN, bukan
+                // saling timpa.
+                $isBooleanGroup  = ($groupConfig['type'] ?? null) === 'boolean';
+                $isStatusesGroup = ($groupConfig['type'] ?? null) === 'formStatuses';
+                $groupCounts     = [];
+                foreach ($countQuery->get() as $row) {
+                    $value = $row->group_key;
+                    if ($isBooleanGroup && $value !== null) {
+                        $value = ((bool) $value) ? 'true' : 'false';
+                    } elseif ($isStatusesGroup && \is_string($value)) {
+                        $decoded = \json_decode($value, true);
+                        $value   = \is_array($decoded)
+                            ? \json_encode($decoded, JSON_UNESCAPED_SLASHES | JSON_UNESCAPED_UNICODE)
+                            : $value;
+                    }
 
-                        return [(string) ($value ?? 'null') => (int) $row->aggregate_count];
-                    })
-                    ->all();
+                    $key = (string) ($value ?? 'null');
+
+                    $groupCounts[$key] = ($groupCounts[$key] ?? 0) + (int) $row->aggregate_count;
+                }
             }
             $paginator = $query->paginate($show);
             DataTableColumnSelector::applyAppends($paginator, $dataTableColumns, $safeColumns);

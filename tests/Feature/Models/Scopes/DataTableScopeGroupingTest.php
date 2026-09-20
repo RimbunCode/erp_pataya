@@ -2,6 +2,7 @@
 
 namespace Tests\Feature\Models\Scopes;
 
+use App\Casts\FormStatusCast;
 use App\Casts\FormStatusesCast;
 use App\Enums\FormStatus;
 use App\Models\Core\SavedFilter;
@@ -82,6 +83,13 @@ class DtgDefaultGroupRecord extends DtgRecord {
     protected static ?string $defaultGroupColumn = 'category';
 }
 
+/** Model NON-Submitable dgn `status` tunggal ber-cast FormStatusCast (spt Ticket/User). */
+class DtgSingleStatusRecord extends DtgRecord {
+    protected $casts = [
+        'status' => FormStatusCast::class,
+    ];
+}
+
 /** Default group SALAH: 'name' tidak groupable -- harus diabaikan diam-diam. */
 class DtgBadDefaultGroupRecord extends DtgRecord {
     protected static ?string $defaultGroupColumn = 'name';
@@ -121,6 +129,9 @@ class DataTableScopeGroupingTest extends TestCase {
                 $t->boolean('is_active')->nullable();
                 $t->text('notes')->nullable();
                 $t->text('statuses')->nullable();
+                // `status` tunggal: TIDAK ada di $configColumns stub manapun --
+                // groupable-nya harus datang dari defaultConfigColumns LinkModel.
+                $t->string('status')->nullable();
                 $t->boolean('is_example')->default(false);
                 $t->timestamps();
             });
@@ -410,6 +421,38 @@ class DataTableScopeGroupingTest extends TestCase {
         );
     }
 
+    public function test_group_single_form_status_groupable_by_default_on_non_submitable_model(): void {
+        // Model non-Submitable (spt Ticket/User) dgn `status` scalar ber-cast
+        // FormStatusCast: TANPA groupable di configColumns, cukup dari
+        // defaultConfigColumns LinkModel. Key = nilai mentah kolom ('draft'),
+        // sama dgn String(row.status) di FE (enum di-JSON-kan ke ->value).
+        DtgSingleStatusRecord::create(['name' => 'A', 'status' => FormStatus::DRAFT]);
+        DtgSingleStatusRecord::create(['name' => 'B', 'status' => FormStatus::DRAFT]);
+        DtgSingleStatusRecord::create(['name' => 'C', 'status' => FormStatus::APPROVED]);
+        DtgSingleStatusRecord::create(['name' => 'D']);
+
+        DtgSingleStatusRecord::dataTable($this->inertiaRequest(['group' => 'status']));
+
+        $this->assertGroupCounts(
+            ['draft' => 2, 'approved' => 1, 'null' => 1],
+            Inertia::getShared('groupCounts'),
+        );
+    }
+
+    public function test_group_plain_string_status_groupable_by_default(): void {
+        // `status` string biasa tanpa cast (spt Lead/Todo/PaymentSchedule).
+        DtgRecord::create(['name' => 'A', 'status' => 'new']);
+        DtgRecord::create(['name' => 'B', 'status' => 'new']);
+        DtgRecord::create(['name' => 'C', 'status' => 'won']);
+
+        DtgRecord::dataTable($this->inertiaRequest(['group' => 'status']));
+
+        $this->assertGroupCounts(
+            ['new' => 2, 'won' => 1],
+            Inertia::getShared('groupCounts'),
+        );
+    }
+
     public function test_group_form_statuses_array_grouped_by_exact_json_value(): void {
         // formStatuses (jamak, mis. Submitable::status): value-nya ARRAY status
         // (disimpan sbg JSON text di DB, mis. '["draft"]'). GROUP BY di sini
@@ -432,6 +475,28 @@ class DataTableScopeGroupingTest extends TestCase {
 
         $this->assertGroupCounts(
             ['["draft"]' => 2, '["approved","pending"]' => 1, 'null' => 1],
+            Inertia::getShared('groupCounts'),
+        );
+    }
+
+    public function test_group_form_statuses_key_normalized_when_db_returns_spaced_json(): void {
+        // MySQL menormalkan output kolom JSON jadi `["a", "b"]` (spasi setelah
+        // koma), sedangkan FE (JSON.stringify) & row hasil cast bikin
+        // `["a","b"]`. Tanpa normalisasi key groupCounts tak pernah match
+        // lookup FE utk status multi-elemen -> count grup selalu 0. Insert
+        // mentah dgn spasi meniru keluaran MySQL di SQLite. Dua bentuk teks
+        // beda (MariaDB simpan JSON sbg teks verbatim -> jadi 2 baris GROUP
+        // BY) harus DIJUMLAHKAN ke 1 key, bukan saling timpa.
+        DB::table('dtg_records')->insert([
+            ['name' => 'A', 'statuses' => '["approved", "pending"]'],
+            ['name' => 'B', 'statuses' => '["approved","pending"]'],
+            ['name' => 'C', 'statuses' => '["draft"]'],
+        ]);
+
+        DtgRecord::dataTable($this->inertiaRequest(['group' => 'statuses']));
+
+        $this->assertGroupCounts(
+            ['["approved","pending"]' => 2, '["draft"]' => 1],
             Inertia::getShared('groupCounts'),
         );
     }
