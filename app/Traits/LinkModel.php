@@ -687,6 +687,9 @@ trait LinkModel {
                 'titleTrans' => $translateKey ? ($translateKey . '.columns.' . $key) : null,
                 ...$config,
                 'primaryKey' => $pkName,
+                // forceAppend = kolom di luar tabel model (JOIN/accessor), bukan kolom
+                // SQL model ini -- tak bisa di-GROUP BY.
+                'derived' => true,
                 ...(($isIgnore || $isHidden) ? $ignoreFlags : []),
             ];
         }
@@ -747,6 +750,9 @@ trait LinkModel {
                 'titleTrans' => $translateKey ? $translateKey . '.columns.' . $value : null,
                 ...$baselineDepends,
                 ...array_diff_key($config, ['dependsOn' => true]),
+                // Nilai dihitung (accessor/$appends), bukan kolom SQL -- tak bisa
+                // di-GROUP BY (lihat DataTableScope::sanitizeGroupableColumns).
+                'derived' => true,
                 ...(($isIgnore || $isHidden) ? $ignoreFlags : []),
             ];
         }

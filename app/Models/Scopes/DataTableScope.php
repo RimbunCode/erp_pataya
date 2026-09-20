@@ -12,6 +12,7 @@ use App\Utils;
 use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
+use Illuminate\Database\Eloquent\Relations\MorphTo;
 use Illuminate\Database\Eloquent\Relations\Relation;
 use Illuminate\Database\Eloquent\Scope;
 use Illuminate\Database\Eloquent\SoftDeletes;
@@ -52,7 +53,11 @@ class DataTableScope implements Scope {
 
         $relation = $model->$method();
 
-        return $relation instanceof BelongsTo ? $relation->getForeignKeyName() : null;
+        // MorphTo extends BelongsTo (Laravel) -- dikecualikan eksplisit, kalau
+        // tidak lolos cek ini padahal FK-nya cuma separuh kunci (id tanpa type).
+        return $relation instanceof BelongsTo && ! $relation instanceof MorphTo
+            ? $relation->getForeignKeyName()
+            : null;
     }
 
     /**
@@ -71,6 +76,13 @@ class DataTableScope implements Scope {
      *   error SQL ("no such column"), bukan cuma sekadar tak berguna.
      * - relasi yg tak bisa di-resolve ke 1 kolom FK (HasOne/MorphOne/MorphTo,
      *   lihat resolveRelationGroupColumn()).
+     * - kolom TURUNAN (`derived`, ditandai LinkModel::computeColumnsFlat utk
+     *   accessor/`$appends` & forceAppend): nilainya dihitung / berasal dari luar
+     *   tabel, bukan kolom SQL model ini -- GROUP BY/ORDER BY ke situ error "no
+     *   such column". Penting krn `groupable` bisa datang dari
+     *   defaultConfigColumns berdasar NAMA kolom (mis. `status`) yg ternyata
+     *   accessor di model tertentu. Sengaja BUKAN dideteksi dari `dependsOn`:
+     *   kolom fisik pun bisa punya dependsOn (mis. PurchaseRequest::status).
      */
     private function sanitizeGroupableColumns(array $dataTableColumns, Model $model): array {
         $excludedTypes = ['relations', 'json', 'mixed', 'html'];
@@ -81,7 +93,7 @@ class DataTableScope implements Scope {
             }
 
             $type = $column['type'] ?? null;
-            if (\in_array($type, $excludedTypes, true)) {
+            if (($column['derived'] ?? false) || \in_array($type, $excludedTypes, true)) {
                 $column['groupable'] = false;
             } elseif ($type === 'relation' && $this->resolveRelationGroupColumn($model, $column) === null) {
                 $column['groupable'] = false;

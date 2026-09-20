@@ -54,6 +54,8 @@ class PaymentSchedule extends Model {
             'show'       => true,
             'valueTrans' => 'status',
             'dependsOn'  => ['outstanding_amount', 'paid_amount'],
+            // Accessor turunan (bukan kolom DB) -- default groupable `status` tak berlaku.
+            'groupable' => false,
         ],
         'paymentMethod',
     ];

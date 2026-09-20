@@ -9,8 +9,10 @@ use App\Models\Core\SavedFilter;
 use App\Models\Model as AppModel;
 use App\Models\User\User;
 use App\Traits\DataTable;
+use Illuminate\Database\Eloquent\Casts\Attribute;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
 use Illuminate\Database\Eloquent\Relations\HasOne;
+use Illuminate\Database\Eloquent\Relations\MorphTo;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
@@ -83,6 +85,50 @@ class DtgDefaultGroupRecord extends DtgRecord {
     protected static ?string $defaultGroupColumn = 'category';
 }
 
+/**
+ * Relasi MorphTo yg KELIRU diset groupable:true. Laravel: MorphTo extends
+ * BelongsTo, jadi lolos `instanceof BelongsTo` polos -- padahal FK-nya cuma
+ * separuh kunci (id tanpa owner_type).
+ */
+class DtgMorphRecord extends DtgRecord {
+    protected array $configColumns = [
+        'owner' => ['show' => true, 'order' => 0, 'groupable' => true],
+    ];
+
+    public function owner(): MorphTo {
+        return $this->morphTo('owner');
+    }
+}
+
+/**
+ * Kolom TURUNAN (accessor + $appends + dependsOn) yg KELIRU diset groupable:true
+ * -- persis pola ApprovalScheme::status / PaymentSchedule::status. Bukan kolom
+ * SQL, jadi GROUP BY/ORDER BY ke situ error "no such column". `type` sengaja
+ * di-override ke 'string' (bukan 'attribute') supaya HANYA `dependsOn` yg
+ * bisa membedakannya dari kolom fisik.
+ */
+class DtgDerivedRecord extends DtgRecord {
+    protected $appends             = ['name_upper'];
+    protected array $configColumns = [
+        'name_upper' => ['show' => true, 'order' => 0, 'type' => 'string', 'groupable' => true, 'dependsOn' => ['name']],
+    ];
+
+    protected function nameUpper(): Attribute {
+        return Attribute::make(get: fn () => \strtoupper((string) $this->name));
+    }
+}
+
+/**
+ * Kolom FISIK yg punya `dependsOn` (persis PurchaseRequest::status -- dependsOn
+ * memuat dirinya sendiri + kolom lain krn tampilannya dihitung dari item).
+ * TETAP kolom SQL, jadi TETAP boleh di-group: `dependsOn` BUKAN penanda turunan.
+ */
+class DtgPhysicalWithDependsOnRecord extends DtgRecord {
+    protected array $configColumns = [
+        'category' => ['show' => true, 'order' => 0, 'groupable' => true, 'dependsOn' => ['category', 'name']],
+    ];
+}
+
 /** Model NON-Submitable dgn `status` tunggal ber-cast FormStatusCast (spt Ticket/User). */
 class DtgSingleStatusRecord extends DtgRecord {
     protected $casts = [
@@ -123,6 +169,8 @@ class DataTableScopeGroupingTest extends TestCase {
                 $t->string('category')->nullable();
                 $t->string('locked_field')->nullable();
                 $t->unsignedBigInteger('customer_id')->nullable();
+                $t->unsignedBigInteger('owner_id')->nullable();
+                $t->string('owner_type')->nullable();
                 $t->text('tags')->nullable();
                 $t->date('due_date')->nullable();
                 $t->decimal('amount', 10, 2)->nullable();
@@ -450,6 +498,54 @@ class DataTableScopeGroupingTest extends TestCase {
         $this->assertGroupCounts(
             ['new' => 2, 'won' => 1],
             Inertia::getShared('groupCounts'),
+        );
+    }
+
+    public function test_group_derived_accessor_column_rejected_even_if_misconfigured_groupable(): void {
+        // Kolom turunan (dependsOn) bukan kolom SQL -- ditolak total, bukan
+        // dibiarkan lolos lalu 500 "no such column" saat ORDER BY/GROUP BY.
+        DtgDerivedRecord::create(['name' => 'a']);
+        DtgDerivedRecord::create(['name' => 'b']);
+
+        DtgDerivedRecord::dataTable($this->inertiaRequest(['group' => 'name_upper']));
+
+        $this->assertNull(
+            Inertia::getShared('groupCounts'),
+            'Kolom turunan (dependsOn) tak boleh jadi kolom grup walau groupable:true.',
+        );
+        $this->assertFalse(
+            collect(Inertia::getShared('dataTableColumns'))->firstWhere('name', 'name_upper')['groupable'] ?? null,
+            'Flag groupable kolom turunan harus dipaksa false supaya tak muncul di dropdown Group by.',
+        );
+    }
+
+    public function test_group_physical_column_with_depends_on_is_still_groupable(): void {
+        // Regresi: sempat mau mendeteksi "turunan" lewat dependsOn -- salah,
+        // PurchaseRequest::status (kolom JSON fisik) punya dependsOn juga.
+        DtgPhysicalWithDependsOnRecord::create(['name' => 'A', 'category' => 'x']);
+        DtgPhysicalWithDependsOnRecord::create(['name' => 'B', 'category' => 'x']);
+        DtgPhysicalWithDependsOnRecord::create(['name' => 'C', 'category' => 'y']);
+
+        DtgPhysicalWithDependsOnRecord::dataTable($this->inertiaRequest(['group' => 'category']));
+
+        $this->assertGroupCounts(['x' => 2, 'y' => 1], Inertia::getShared('groupCounts'));
+    }
+
+    public function test_group_morph_to_relation_rejected_even_if_misconfigured_groupable(): void {
+        // Grup by `owner_id` saja mencampur baris lintas-tipe (id 1 bertipe
+        // customer vs id 1 bertipe record jadi 1 grup) -- ditolak total.
+        DtgMorphRecord::create(['name' => 'A', 'owner_id' => 1, 'owner_type' => DtgCustomerStub::class]);
+        DtgMorphRecord::create(['name' => 'B', 'owner_id' => 1, 'owner_type' => DtgRecord::class]);
+
+        DtgMorphRecord::dataTable($this->inertiaRequest(['group' => 'owner']));
+
+        $this->assertNull(
+            Inertia::getShared('groupCounts'),
+            'MorphTo tak boleh jadi kolom grup walau groupable:true di config.',
+        );
+        $this->assertFalse(
+            collect(Inertia::getShared('dataTableColumns'))->firstWhere('name', 'owner')['groupable'] ?? null,
+            'Flag groupable MorphTo harus dipaksa false supaya tak muncul di dropdown Group by.',
         );
     }
 
