@@ -33,8 +33,9 @@ class AssetLocation extends Model {
             'order'  => 0,
         ],
         'is_group' => [
-            'show'  => true,
-            'order' => 1,
+            'show'      => true,
+            'order'     => 1,
+            'groupable' => true,
         ],
         'branch' => [
             'show'  => true,

@@ -2,14 +2,17 @@
 
 namespace Tests\Feature\Models\Scopes;
 
+use App\Casts\FormStatusCast;
 use App\Casts\FormStatusesCast;
 use App\Enums\FormStatus;
 use App\Models\Core\SavedFilter;
 use App\Models\Model as AppModel;
 use App\Models\User\User;
 use App\Traits\DataTable;
+use Illuminate\Database\Eloquent\Casts\Attribute;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
 use Illuminate\Database\Eloquent\Relations\HasOne;
+use Illuminate\Database\Eloquent\Relations\MorphTo;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
@@ -82,6 +85,57 @@ class DtgDefaultGroupRecord extends DtgRecord {
     protected static ?string $defaultGroupColumn = 'category';
 }
 
+/**
+ * Relasi MorphTo yg KELIRU diset groupable:true. Laravel: MorphTo extends
+ * BelongsTo, jadi lolos `instanceof BelongsTo` polos -- padahal FK-nya cuma
+ * separuh kunci (id tanpa owner_type).
+ */
+class DtgMorphRecord extends DtgRecord {
+    protected array $configColumns = [
+        'owner' => ['show' => true, 'order' => 0, 'groupable' => true],
+    ];
+
+    public function owner(): MorphTo {
+        return $this->morphTo('owner');
+    }
+}
+
+/**
+ * Kolom TURUNAN (accessor + $appends + dependsOn) yg KELIRU diset groupable:true
+ * -- persis pola ApprovalScheme::status / PaymentSchedule::status. Bukan kolom
+ * SQL, jadi GROUP BY/ORDER BY ke situ error "no such column". `type` sengaja
+ * di-override ke 'string' (bukan 'attribute') supaya HANYA `dependsOn` yg
+ * bisa membedakannya dari kolom fisik.
+ */
+class DtgDerivedRecord extends DtgRecord {
+    protected $appends             = ['name_upper'];
+    protected array $configColumns = [
+        'name_upper' => ['show' => true, 'order' => 0, 'type' => 'string', 'groupable' => true, 'dependsOn' => ['name']],
+    ];
+
+    protected function nameUpper(): Attribute {
+        return Attribute::make(get: fn () => \strtoupper((string) $this->name));
+    }
+}
+
+/**
+ * Kolom FISIK yg punya `dependsOn` (persis PurchaseRequest::status -- dependsOn
+ * memuat dirinya sendiri + kolom lain krn tampilannya dihitung dari item).
+ * TETAP kolom SQL, jadi TETAP boleh di-group: `dependsOn` BUKAN penanda turunan.
+ */
+class DtgPhysicalWithDependsOnRecord extends DtgRecord {
+    protected array $configColumns = [
+        'category' => ['show' => true, 'order' => 0, 'groupable' => true, 'dependsOn' => ['category', 'name']],
+    ];
+}
+
+/** Model NON-Submitable dgn `status` tunggal ber-cast FormStatusCast (spt Ticket/User). */
+class DtgSingleStatusRecord extends DtgRecord {
+    protected $casts = [
+        'status' => FormStatusCast::class,
+    ];
+}
+
 /** Default group SALAH: 'name' tidak groupable -- harus diabaikan diam-diam. */
 class DtgBadDefaultGroupRecord extends DtgRecord {
     protected static ?string $defaultGroupColumn = 'name';
@@ -115,12 +169,17 @@ class DataTableScopeGroupingTest extends TestCase {
                 $t->string('category')->nullable();
                 $t->string('locked_field')->nullable();
                 $t->unsignedBigInteger('customer_id')->nullable();
+                $t->unsignedBigInteger('owner_id')->nullable();
+                $t->string('owner_type')->nullable();
                 $t->text('tags')->nullable();
                 $t->date('due_date')->nullable();
                 $t->decimal('amount', 10, 2)->nullable();
                 $t->boolean('is_active')->nullable();
                 $t->text('notes')->nullable();
                 $t->text('statuses')->nullable();
+                // `status` tunggal: TIDAK ada di $configColumns stub manapun --
+                // groupable-nya harus datang dari defaultConfigColumns LinkModel.
+                $t->string('status')->nullable();
                 $t->boolean('is_example')->default(false);
                 $t->timestamps();
             });
@@ -410,6 +469,86 @@ class DataTableScopeGroupingTest extends TestCase {
         );
     }
 
+    public function test_group_single_form_status_groupable_by_default_on_non_submitable_model(): void {
+        // Model non-Submitable (spt Ticket/User) dgn `status` scalar ber-cast
+        // FormStatusCast: TANPA groupable di configColumns, cukup dari
+        // defaultConfigColumns LinkModel. Key = nilai mentah kolom ('draft'),
+        // sama dgn String(row.status) di FE (enum di-JSON-kan ke ->value).
+        DtgSingleStatusRecord::create(['name' => 'A', 'status' => FormStatus::DRAFT]);
+        DtgSingleStatusRecord::create(['name' => 'B', 'status' => FormStatus::DRAFT]);
+        DtgSingleStatusRecord::create(['name' => 'C', 'status' => FormStatus::APPROVED]);
+        DtgSingleStatusRecord::create(['name' => 'D']);
+
+        DtgSingleStatusRecord::dataTable($this->inertiaRequest(['group' => 'status']));
+
+        $this->assertGroupCounts(
+            ['draft' => 2, 'approved' => 1, 'null' => 1],
+            Inertia::getShared('groupCounts'),
+        );
+    }
+
+    public function test_group_plain_string_status_groupable_by_default(): void {
+        // `status` string biasa tanpa cast (spt Lead/Todo/PaymentSchedule).
+        DtgRecord::create(['name' => 'A', 'status' => 'new']);
+        DtgRecord::create(['name' => 'B', 'status' => 'new']);
+        DtgRecord::create(['name' => 'C', 'status' => 'won']);
+
+        DtgRecord::dataTable($this->inertiaRequest(['group' => 'status']));
+
+        $this->assertGroupCounts(
+            ['new' => 2, 'won' => 1],
+            Inertia::getShared('groupCounts'),
+        );
+    }
+
+    public function test_group_derived_accessor_column_rejected_even_if_misconfigured_groupable(): void {
+        // Kolom turunan (dependsOn) bukan kolom SQL -- ditolak total, bukan
+        // dibiarkan lolos lalu 500 "no such column" saat ORDER BY/GROUP BY.
+        DtgDerivedRecord::create(['name' => 'a']);
+        DtgDerivedRecord::create(['name' => 'b']);
+
+        DtgDerivedRecord::dataTable($this->inertiaRequest(['group' => 'name_upper']));
+
+        $this->assertNull(
+            Inertia::getShared('groupCounts'),
+            'Kolom turunan (dependsOn) tak boleh jadi kolom grup walau groupable:true.',
+        );
+        $this->assertFalse(
+            collect(Inertia::getShared('dataTableColumns'))->firstWhere('name', 'name_upper')['groupable'] ?? null,
+            'Flag groupable kolom turunan harus dipaksa false supaya tak muncul di dropdown Group by.',
+        );
+    }
+
+    public function test_group_physical_column_with_depends_on_is_still_groupable(): void {
+        // Regresi: sempat mau mendeteksi "turunan" lewat dependsOn -- salah,
+        // PurchaseRequest::status (kolom JSON fisik) punya dependsOn juga.
+        DtgPhysicalWithDependsOnRecord::create(['name' => 'A', 'category' => 'x']);
+        DtgPhysicalWithDependsOnRecord::create(['name' => 'B', 'category' => 'x']);
+        DtgPhysicalWithDependsOnRecord::create(['name' => 'C', 'category' => 'y']);
+
+        DtgPhysicalWithDependsOnRecord::dataTable($this->inertiaRequest(['group' => 'category']));
+
+        $this->assertGroupCounts(['x' => 2, 'y' => 1], Inertia::getShared('groupCounts'));
+    }
+
+    public function test_group_morph_to_relation_rejected_even_if_misconfigured_groupable(): void {
+        // Grup by `owner_id` saja mencampur baris lintas-tipe (id 1 bertipe
+        // customer vs id 1 bertipe record jadi 1 grup) -- ditolak total.
+        DtgMorphRecord::create(['name' => 'A', 'owner_id' => 1, 'owner_type' => DtgCustomerStub::class]);
+        DtgMorphRecord::create(['name' => 'B', 'owner_id' => 1, 'owner_type' => DtgRecord::class]);
+
+        DtgMorphRecord::dataTable($this->inertiaRequest(['group' => 'owner']));
+
+        $this->assertNull(
+            Inertia::getShared('groupCounts'),
+            'MorphTo tak boleh jadi kolom grup walau groupable:true di config.',
+        );
+        $this->assertFalse(
+            collect(Inertia::getShared('dataTableColumns'))->firstWhere('name', 'owner')['groupable'] ?? null,
+            'Flag groupable MorphTo harus dipaksa false supaya tak muncul di dropdown Group by.',
+        );
+    }
+
     public function test_group_form_statuses_array_grouped_by_exact_json_value(): void {
         // formStatuses (jamak, mis. Submitable::status): value-nya ARRAY status
         // (disimpan sbg JSON text di DB, mis. '["draft"]'). GROUP BY di sini
@@ -432,6 +571,28 @@ class DataTableScopeGroupingTest extends TestCase {
 
         $this->assertGroupCounts(
             ['["draft"]' => 2, '["approved","pending"]' => 1, 'null' => 1],
+            Inertia::getShared('groupCounts'),
+        );
+    }
+
+    public function test_group_form_statuses_key_normalized_when_db_returns_spaced_json(): void {
+        // MySQL menormalkan output kolom JSON jadi `["a", "b"]` (spasi setelah
+        // koma), sedangkan FE (JSON.stringify) & row hasil cast bikin
+        // `["a","b"]`. Tanpa normalisasi key groupCounts tak pernah match
+        // lookup FE utk status multi-elemen -> count grup selalu 0. Insert
+        // mentah dgn spasi meniru keluaran MySQL di SQLite. Dua bentuk teks
+        // beda (MariaDB simpan JSON sbg teks verbatim -> jadi 2 baris GROUP
+        // BY) harus DIJUMLAHKAN ke 1 key, bukan saling timpa.
+        DB::table('dtg_records')->insert([
+            ['name' => 'A', 'statuses' => '["approved", "pending"]'],
+            ['name' => 'B', 'statuses' => '["approved","pending"]'],
+            ['name' => 'C', 'statuses' => '["draft"]'],
+        ]);
+
+        DtgRecord::dataTable($this->inertiaRequest(['group' => 'statuses']));
+
+        $this->assertGroupCounts(
+            ['["approved","pending"]' => 2, '["draft"]' => 1],
             Inertia::getShared('groupCounts'),
         );
     }

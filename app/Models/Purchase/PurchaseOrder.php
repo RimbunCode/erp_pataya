@@ -51,9 +51,10 @@ class PurchaseOrder extends Model {
             'order' => 1,
         ],
         'supplier' => [
-            'type'  => 'relation',
-            'show'  => true,
-            'order' => 2,
+            'type'      => 'relation',
+            'show'      => true,
+            'order'     => 2,
+            'groupable' => true,
         ],
         'status' => [
             'show'  => true,

@@ -57,16 +57,19 @@ class Todo extends Model {
             'valueTrans' => 'core.todo.type.options',
             'show'       => true,
             'order'      => 3,
+            'groupable'  => true,
         ],
         'allocatedTo' => [
             'show'               => true,
             'order'              => 4,
             'disabledNavigation' => true,
+            'groupable'          => true,
         ],
         'priority' => [
             'valueTrans' => 'core.todo.priority.options',
             'show'       => true,
             'order'      => 5,
+            'groupable'  => true,
         ],
         'status' => [
             'show'  => true,
@@ -78,8 +81,9 @@ class Todo extends Model {
             'order' => 7,
         ],
         'assignedBy' => [
-            'show'  => true,
-            'order' => 8,
+            'show'      => true,
+            'order'     => 8,
+            'groupable' => true,
         ],
         'allocated_to_type' => [
             'ignore' => true,

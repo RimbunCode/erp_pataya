@@ -54,9 +54,10 @@ class DeliveryNote extends Model {
             'order' => 2,
         ],
         'customer' => [
-            'type'  => 'relation',
-            'show'  => true,
-            'order' => 3,
+            'type'      => 'relation',
+            'show'      => true,
+            'order'     => 3,
+            'groupable' => true,
         ],
         'customerBranch' => [
             'type'               => 'relation',

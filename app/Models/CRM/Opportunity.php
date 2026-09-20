@@ -32,12 +32,14 @@ class Opportunity extends Model {
             'order'  => 0,
         ],
         'customer' => [
-            'show'  => true,
-            'order' => 1,
+            'show'      => true,
+            'order'     => 1,
+            'groupable' => true,
         ],
         'stage' => [
-            'show'  => true,
-            'order' => 2,
+            'show'      => true,
+            'order'     => 2,
+            'groupable' => true,
         ],
         'expected_value' => [
             'show'  => true,
@@ -52,8 +54,9 @@ class Opportunity extends Model {
             'order' => 5,
         ],
         'assignedTo' => [
-            'show'  => true,
-            'order' => 6,
+            'show'      => true,
+            'order'     => 6,
+            'groupable' => true,
         ],
         'lead',
     ];

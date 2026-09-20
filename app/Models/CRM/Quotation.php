@@ -44,8 +44,9 @@ class Quotation extends Model {
             'order'  => 0,
         ],
         'customer' => [
-            'show'  => true,
-            'order' => 1,
+            'show'      => true,
+            'order'     => 1,
+            'groupable' => true,
         ],
         'date' => [
             'show'  => true,

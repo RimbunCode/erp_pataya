@@ -71,7 +71,9 @@ class StockLedgerEntry extends Model {
         ],
 
         'unit',
-        'warehouse',
+        'warehouse' => [
+            'groupable' => true,
+        ],
     ];
     protected $casts = [
         'stock_queue'                => 'array',

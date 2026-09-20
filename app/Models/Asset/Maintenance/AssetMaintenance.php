@@ -32,9 +32,10 @@ class AssetMaintenance extends Model {
             'isLink' => true,
         ],
         'maintenanceTeam' => [
-            'type'  => 'relation',
-            'show'  => true,
-            'order' => 1,
+            'type'      => 'relation',
+            'show'      => true,
+            'order'     => 1,
+            'groupable' => true,
         ],
     ];
 

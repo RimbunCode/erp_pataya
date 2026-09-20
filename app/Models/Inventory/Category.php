@@ -31,6 +31,7 @@ class Category extends Model {
             'valueTrans' => 'inventory.category.types',
             'options'    => ['inventory', 'vehicle', 'service'],
             'linkable'   => true,
+            'groupable'  => true,
         ],
         'defaultUnit' => [
             'show'       => true,
