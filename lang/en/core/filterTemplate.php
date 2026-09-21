@@ -28,8 +28,6 @@ return [
         'sort.descending'    => 'Descending',
         'group'              => 'Grouping',
         'group.none'         => 'Not set',
-        'group.granularity'  => 'Time Unit',
-        'group.range'        => 'Range',
         'preview'            => 'Preview',
         'preview.empty'      => 'No data to display yet.',
         'setDefault'         => 'Set as Default',

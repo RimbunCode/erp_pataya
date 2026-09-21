@@ -28,8 +28,6 @@ return [
         'sort.descending'    => 'Menurun',
         'group'              => 'Pengelompokan',
         'group.none'         => 'Tidak diatur',
-        'group.granularity'  => 'Satuan Waktu',
-        'group.range'        => 'Rentang',
         'preview'            => 'Preview',
         'preview.empty'      => 'Belum ada data untuk ditampilkan.',
         'setDefault'         => 'Jadikan Default',

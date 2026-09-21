@@ -184,12 +184,12 @@ Yang **tidak** berubah: jalur persist `persistFilterTree` / `SavedFilterControll
     - Sesuaikan test toolbar lama (Filter/Group pindah ke panel); tombol Filter/Group tidak lagi di toolbar; Search Bar & Sort satu baris; `onPickSaved` menerapkan sort + group; `getSearchColumns` fallback memakai kolom tampil tanpa memutasi `mapColumns`; klik sel `addFilter` muncul sebagai chip
     - **Validates: Requirements 1.1, 1.2, 1.6, 5.6, 11.7, 12.6, 16.2**
 
-- [ ] 11. Frontend — form Filter Templates
-  - [ ] 11.1 Field Group by di `resources/js/Pages/Core/FilterTemplate/Form.jsx`
+- [x] 11. Frontend — form Filter Templates
+  - [x] 11.1 Field Group by di `resources/js/Pages/Core/FilterTemplate/Form.jsx`
     - Select kolom groupable (+ "Tidak ada") di sebelah Sort; granularity (date/time/datetime) / range (number/currency) kondisional; kirim sebagai `group` `{column, granularity, range}` atau `null`
     - _Requirements: 13.1_
 
-  - [ ] 11.2 Write RTL test `resources/js/Pages/Core/FilterTemplate/Form.rtl.test.jsx`
+  - [x] 11.2 Write RTL test `resources/js/Pages/Core/FilterTemplate/Form.rtl.test.jsx`
     - **Field group template**
     - Pilih kolom date → granularity muncul; number → range muncul; "Tidak ada" → payload `group: null`; payload submit berisi `group`
     - **Validates: Requirements 13.1, 16.2**
