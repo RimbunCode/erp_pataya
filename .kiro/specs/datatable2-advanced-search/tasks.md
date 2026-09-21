@@ -167,19 +167,19 @@ Yang **tidak** berubah: jalur persist `persistFilterTree` / `SavedFilterControll
   - `npm run test -- resources/js/Components/Table`
   - Ensure all tests pass, ask the user if questions arise.
 
-- [-] 10. Frontend — integrasi `DataTable2`
-  - [-] 10.1 Tata letak toolbar
+- [x] 10. Frontend — integrasi `DataTable2`
+  - [x] 10.1 Tata letak toolbar
     - Hapus dari toolbar desktop: `FilterTable2` + tombol `X`, Popover Group by, Select granularity/range; baris judul = judul + Reload + Tambah
     - Baris baru `[SearchBar ▾] [Sort]` di antara header & kartu tabel (Sort = tombol arah + Popover kolom existing, dipindah); mobile: baris full-width, Sort ikon, menu ⋯ tinggal Reload + Tampilkan per halaman
     - `FilterTable2` dirender tanpa trigger, dikontrol state `builderOpen`
     - _Requirements: 1.1, 1.2, 1.6_
 
-  - [-] 10.2 Handler & state host
+  - [x] 10.2 Handler & state host
     - `onTreeChange` → `persistFilterTree`; `onPickSaved` → tree + fid + sort + group sekaligus tanpa POST (`null` = jangan override); `onGroupChange` membungkus `setGroup`/`setGroupGranularity`/`setGroupRange`; `getViewSnapshot`; `getSearchColumns` → `resolveSearchColumns({ searchScope, columns: mapColumns, visibleNames: createHeaders({ ...mapColumns }).filter(h => h.show).map(h => h.name) })`
     - State awal `options.group/groupGranularity/groupRange` dari `defaultGroup`/`defaultGroupGranularity`/`defaultGroupRange`
     - _Requirements: 5.6, 11.7, 12.6, 2.2_
 
-  - [-] 10.3 Update `resources/js/Pages/Core/DataTable2.rtl.test.jsx`
+  - [x] 10.3 Update `resources/js/Pages/Core/DataTable2.rtl.test.jsx`
     - **Toolbar baru & integrasi host**
     - Sesuaikan test toolbar lama (Filter/Group pindah ke panel); tombol Filter/Group tidak lagi di toolbar; Search Bar & Sort satu baris; `onPickSaved` menerapkan sort + group; `getSearchColumns` fallback memakai kolom tampil tanpa memutasi `mapColumns`; klik sel `addFilter` muncul sebagai chip
     - **Validates: Requirements 1.1, 1.2, 1.6, 5.6, 11.7, 12.6, 16.2**
