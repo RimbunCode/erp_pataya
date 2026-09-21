@@ -39,6 +39,14 @@ class PurchaseReceipt extends Model {
         return ['items', 'items.purchaseOrderItem', 'items.purchaseOrderItem.item', 'supplier', 'items.unit', 'items.targetWarehouse', 'purchaseOrder', 'returnAgainst'];
     }
 
+    /**
+     * Kolom yang dicari teks bebas Search Bar DataTable2 (chip "Cari") --
+     * lihat DataTable::getSearchScope().
+     *
+     * @var list<string>
+     */
+    protected static array $searchScope = ['code', 'external_note', 'supplier.name'];
+
     protected array $configColumns = [
         'code' => [
             'isLink' => true,

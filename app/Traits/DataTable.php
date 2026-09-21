@@ -61,6 +61,28 @@ trait DataTable {
         return \property_exists(static::class, 'defaultGroupColumn') ? static::$defaultGroupColumn : null;
     }
 
+    /**
+     * Kolom pencarian teks bebas (Search Bar) halaman List/DataTable -- dibaca
+     * DataTableScope::addDataTable() sebagai kolom yang dicari saat user
+     * mengetik teks bebas (chip "Cari"). Model mengaturnya dgn mendeklarasikan
+     * di kelas model-nya sendiri, mendukung dot-notation relasi:
+     *
+     *     protected static array $searchScope = ['code', 'customer.name'];
+     *
+     * Kosong (tidak dideklarasikan) berarti FE fallback ke Kolom tampil ∩
+     * searchable ∩ bertipe string level-atas. Backend hanya men-share entri
+     * yang lolos sanitasi (DataTableScope::sanitizeSearchScope() -- ter-resolve,
+     * searchable, tipe akhir string); entri lain dibuang diam-diam. Sengaja
+     * TIDAK dideklarasikan sbg properti trait (pola sama dgn
+     * $defaultGroupColumn): PHP fatal saat kelas yg `use` trait mendeklarasi
+     * ulang properti statis trait dgn nilai berbeda.
+     *
+     * @return list<string>
+     */
+    public static function getSearchScope(): array {
+        return \property_exists(static::class, 'searchScope') ? static::$searchScope : [];
+    }
+
     public function initializeDataTable() {
         $this->mergeCasts([
             'have_transactions' => 'boolean',

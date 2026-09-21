@@ -22,6 +22,8 @@ class UpdateSavedFilterRequest extends BaseFormRequest {
             // overwrite tree (timpa filter named existing) — minimal salah satu.
             'name'   => ['nullable', 'string', 'max:255'],
             'filter' => ['nullable', 'array'],
+            'sort'   => ['nullable', 'string', 'regex:/^-?[a-zA-Z0-9_.]+$/'],
+            ...SavedFilter::groupValidationRules(),
         ];
     }
 

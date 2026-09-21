@@ -21,6 +21,7 @@ class UpdateFilterTemplateRequest extends BaseFormRequest {
             'name'   => ['nullable', 'string', 'max:255'],
             'filter' => ['nullable', 'array'],
             'sort'   => ['nullable', 'string', 'regex:/^-?[a-zA-Z0-9_.]+$/'],
+            ...SavedFilter::groupValidationRules(),
         ];
     }
 

@@ -44,6 +44,14 @@ class Supplier extends Model {
 
     public string $formComponent   = 'Purchase/Suppliers/Form';
     public string $translateKey    = 'purchase.supplier';
+    /**
+     * Kolom yang dicari teks bebas Search Bar DataTable2 (chip "Cari") --
+     * lihat DataTable::getSearchScope().
+     *
+     * @var list<string>
+     */
+    protected static array $searchScope = ['name', 'email', 'phone', 'city'];
+
     protected array $configColumns = [
         'name' => [
             'isLink' => true,

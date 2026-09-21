@@ -8,67 +8,67 @@ Yang **tidak** berubah: jalur persist `persistFilterTree` / `SavedFilterControll
 
 ## Tasks
 
-- [-] 1. Backend — `searchScope`
-  - [-] 1.1 Tambah `getSearchScope()` di `app/Traits/DataTable.php`
+- [x] 1. Backend — `searchScope`
+  - [x] 1.1 Tambah `getSearchScope()` di `app/Traits/DataTable.php`
     - `public static function getSearchScope(): array` → `\property_exists(static::class, 'searchScope') ? static::$searchScope : []`
     - JANGAN deklarasi `$searchScope` di trait (PHP fatal saat model mendeklarasi ulang) — ikuti pola & PHPDoc `getDefaultGroupColumn()` (`DataTable.php:48-62`), sertakan contoh `protected static array $searchScope = ['code', 'customer.name'];`
     - _Requirements: 5.1_
 
-  - [-] 1.2 Share prop `searchScope` tersanitasi di `DataTableScope::addDataTable()`
+  - [x] 1.2 Share prop `searchScope` tersanitasi di `DataTableScope::addDataTable()`
     - Sanitasi tiap entri via `(new FilterColumnResolver($dataTableColumns))->resolve($name)`: buang bila `null`, `searchable === false`, atau `type !== 'string'` — diam-diam, tanpa exception
     - Tambah key `'searchScope'` ke `Inertia::share([...])` (`DataTableScope.php:583`)
     - _Requirements: 5.2, 5.3_
 
-  - [-] 1.3 Write feature tests `tests/Feature/Models/Scopes/DataTableScopeSearchScopeTest.php`
+  - [x] 1.3 Write feature tests `tests/Feature/Models/Scopes/DataTableScopeSearchScopeTest.php`
     - **Sanitasi searchScope: hanya kolom string searchable yang ter-resolve yang di-share**
     - Model tanpa `$searchScope` → prop `[]`; kolom valid tetap; kolom tak dikenal, `searchable:false`, non-string dibuang; path relasi bertitik valid (`rel.name`) tetap
     - Pakai model test/anonymous subclass atau model existing + `Inertia` assert (lihat pola `DataTableScopeGroupingTest`)
     - **Validates: Requirements 5.1, 5.2, 5.3, 16.4**
 
-- [-] 2. Backend — `saved_filters.group` + validasi
-  - [-] 2.1 Migration + model
+- [x] 2. Backend — `saved_filters.group` + validasi
+  - [x] 2.1 Migration + model
     - `php artisan make:migration add_group_to_saved_filters_table --no-interaction` → `$table->json('group')->nullable()->after('sort');` (+ `down()` drop)
     - `app/Models/Core/SavedFilter.php`: cast `'group' => 'array'`; configColumns `'group' => ['show' => false]` (pola `sort`)
     - _Requirements: 11.1_
 
-  - [-] 2.2 Konstanta granularity + aturan validasi bersama
+  - [x] 2.2 Konstanta granularity + aturan validasi bersama
     - `DataTableScope`: `public const GROUP_GRANULARITIES = ['day', 'month', 'quarter', 'half', 'year'];` (padanan FE `DATE_GROUP_GRANULARITIES`, `Table2.jsx:62`); `match` di `dateGroupExpression()` TIDAK diubah
     - `SavedFilter::groupValidationRules(): array` → `group` nullable array; `group.column` `required_with:group` string; `group.granularity` nullable `Rule::in(DataTableScope::GROUP_GRANULARITIES)`; `group.range` nullable numeric `gt:0` (validasi bentuk saja)
     - _Requirements: 11.2_
 
-  - [-] 2.3 `UpdateSavedFilterRequest` + `SavedFilterController`
+  - [x] 2.3 `UpdateSavedFilterRequest` + `SavedFilterController`
     - Request: tambah `sort` nullable string + `...SavedFilter::groupValidationRules()`
     - `update()`: simpan `sort`/`group` bila `$request->has()` (pola `filter`), tetap `abort_if` owner-only; response tambah `sort` & `group`
     - `index()`: tambah `'group'` ke `get([...])`; `store()` & `StoreSavedFilterRequest` TIDAK diubah
     - _Requirements: 11.2, 11.3, 11.4, 11.5_
 
-  - [-] 2.4 Filter Templates backend
+  - [x] 2.4 Filter Templates backend
     - `StoreFilterTemplateRequest` & `UpdateFilterTemplateRequest`: `...SavedFilter::groupValidationRules()`
     - `FilterTemplateController::store()`/`update()`: simpan `group` (pola `sort`, `:55` & `:84-86`)
     - _Requirements: 13.2_
 
-  - [-] 2.5 Write feature tests (perluas `tests/Feature/Core/SavedFilterTest.php` & `FilterTemplateControllerTest.php`)
+  - [x] 2.5 Write feature tests (perluas `tests/Feature/Core/SavedFilterTest.php` & `FilterTemplateControllerTest.php`)
     - **Persistensi group & sort pada saved filter dan template**
     - `update()` dgn `sort` + `group` valid → tersimpan & ada di response; `group` invalid (granularity asing, range ≤ 0, tanpa `column`) → 422; non-owner → 403; `index()` memuat `group`; `store()` mengabaikan perubahan (regresi); template store/update `group` valid & invalid
     - **Validates: Requirements 11.1–11.5, 13.2, 16.4**
 
-- [-] 3. Backend — `DataTableScope` menerapkan group dari filter aktif
-  - [-] 3.1 Refactor urutan resolusi group
+- [x] 3. Backend — `DataTableScope` menerapkan group dari filter aktif
+  - [x] 3.1 Refactor urutan resolusi group
     - Pindahkan blok resolusi `$appliedFilter` (`DataTableScope.php:347-356`) ke sebelum validasi group (`:295`)
     - Kolom grup: `$request->has('group') ? $request->input('group') : ($appliedFilter?->group['column'] ?? $defaultGroup)` — tetap lewat gate `groupable` + `resolveRelationGroupColumn` existing
     - Granularity/range: param request > `$appliedFilter->group` > default — sesuaikan `resolveGroupBucketExpression()` agar menerima fallback (mis. parameter tambahan), bukan hanya membaca `$request`
     - _Requirements: 12.1, 12.2, 12.3, 12.4, 12.5_
 
-  - [-] 3.2 Share group efektif
+  - [x] 3.2 Share group efektif
     - `defaultGroup` = group efektif tanpa param (filter aktif ?? model, sudah lolos gate); tambah `defaultGroupGranularity` & `defaultGroupRange`
     - _Requirements: 12.6_
 
-  - [-] 3.3 Write feature tests (perluas `tests/Feature/Models/Scopes/DataTableScopeGroupingTest.php`)
+  - [x] 3.3 Write feature tests (perluas `tests/Feature/Models/Scopes/DataTableScopeGroupingTest.php`)
     - **Prioritas group: param > filter aktif > default model**
     - Group dari `?fid=` saved filter; dari default shared filter tanpa `fid`; `?group=` kosong menang atas group filter; group filter tak groupable diabaikan; granularity/range fallback dari filter; `groupCounts` konsisten dengan group efektif; prop `defaultGroup*` benar
     - **Validates: Requirements 12.1–12.6, 16.4**
 
-- [ ] 4. Checkpoint - Ensure backend tests pass
+- [x] 4. Checkpoint - Ensure backend tests pass
   - `php artisan test --compact` untuk file test di 1.3, 2.5, 3.3 + `DataTableScopeDefaultSortTest`, `DataTableScopeSoftDeleteTest`, `AllModelsGroupableConfigTest` (regresi)
   - `php artisan migrate` di DB lokal (dibutuhkan verifikasi visual nanti)
   - Ensure all tests pass, ask the user if questions arise.
@@ -99,7 +99,7 @@ Yang **tidak** berubah: jalur persist `persistFilterTree` / `SavedFilterControll
     - Semua baris tabel design §5.1; `isSearchGroup` false untuk anak <2 / operator beda / `v` beda; collapse 1 kolom → chip `leaf` "mengandung"; merge `=`+`=` → `in`, `in`+`=` → `in`, dedup relasi by id; Chip Cari kedua = grup terpisah; frasa multi-kata tidak dipecah; update/remove tidak memutasi input
     - **Validates: Requirements 2.4–2.8, 4.1–4.6, 6.6, 16.1**
 
-  - [ ]\* 5.6 Write property test `searchChips.property.test.js` (fast-check)
+  - [x]\* 5.6 Write property test `searchChips.property.test.js` (fast-check)
     - **Round-trip add/remove leaf**: untuk leaf pada kolom yang belum ada di tree, `removeChip(addLeafChip(tree, x), idBaru)` ekuivalen (`isFilterTreeDirty` false) dengan `tree`
     - Precondition generator selaras persis dengan validasi source (aturan CLAUDE.md)
     - **Validates: Requirements 2.2, 6.6**
@@ -118,38 +118,38 @@ Yang **tidak** berubah: jalur persist `persistFilterTree` / `SavedFilterControll
   - `npm run test -- resources/js/Components/Table/Search resources/js/Components/Table/Filter`
   - Ensure all tests pass, ask the user if questions arise.
 
-- [ ] 7. Frontend — penyesuaian `FilterTable2`
-  - [ ] 7.1 Prop controlled `open`/`onOpenChange`
+- [-] 7. Frontend — penyesuaian `FilterTable2`
+  - [-] 7.1 Prop controlled `open`/`onOpenChange`
     - Bila `open` diberikan → pakai sebagai state AlertDialog; bila controlled tanpa `trigger` → trigger bawaan tidak dirender; tanpa prop → identik dengan sekarang
     - _Requirements: 14.3_
 
-  - [ ] 7.2 Ekspor `SaveFilterControl` + prop `getViewSnapshot`
+  - [-] 7.2 Ekspor `SaveFilterControl` + prop `getViewSnapshot`
     - `export function SaveFilterControl`; bila `getViewSnapshot` ada → PATCH "Simpan sebagai baru" (bersama `name`) dan "Timpa" (bersama `filter`) menyertakan `sort` & `group`; tanpa prop → payload sama seperti sekarang
     - _Requirements: 14.4, 11.6_
 
-  - [ ] 7.3 Update `FilterTable2.rtl.test.jsx`
+  - [-] 7.3 Update `FilterTable2.rtl.test.jsx`
     - **Controlled open & snapshot sort/group**
     - Kasus controlled buka/tutup tanpa trigger; `SaveFilterControl` dgn `getViewSnapshot` mengirim `sort`/`group`; semua kasus lama tetap hijau
     - **Validates: Requirements 14.3, 14.4, 11.6, 16.2**
 
-- [ ] 8. Frontend — komponen Search Bar (`resources/js/Components/Table/Search/`)
-  - [ ] 8.1 `ChipEditor.jsx`
+- [-] 8. Frontend — komponen Search Bar (`resources/js/Components/Table/Search/`)
+  - [-] 8.1 `ChipEditor.jsx`
     - Popover: leaf → label kolom + `Select` operator (`getOperators`) + `ValueField` + Terapkan/Enter; search → input teks + "Mencari di: …"; group → `SearchableOptionList` + granularity/range
     - _Requirements: 7.1, 7.2, 7.3_
 
-  - [ ] 8.2 `SearchPanel.jsx`
+  - [-] 8.2 `SearchPanel.jsx`
     - Kolom Filter Tersimpan (badge Shared, penanda sumber, hapus hanya non-shared, `SaveFilterControl` "Simpan sebagai baru"/"Timpa" (sumber dirty & bukan shared), Builder lanjutan, Hapus semua filter) + kolom Group by (`SearchableOptionList` "Tidak ada" teratas + granularity/range); desktop `Popover`, mobile `Dialog` bertumpuk
     - _Requirements: 9.1, 9.2, 9.3, 9.4, 9.5, 9.6_
 
-  - [ ] 8.3 `SearchBar.jsx` — chip, input, dropdown saran
+  - [-] 8.3 `SearchBar.jsx` — chip, input, dropdown saran
     - Render chip dari `treeToChips` (+ chip `group`); dropdown cmdk dikontrol `value`/`onValueChange` (item pertama selalu di-highlight, pola `Select.jsx:139-154`); label via `highlightMatch`; fetch `saved-filters.index` lazy saat fokus pertama / saat mount bila `activeFid`; pilih saran → `addSearchChip`/`onPickSaved`/`onGroupChange`/mode value; tanpa import `router`/`usePage`
     - _Requirements: 1.3, 1.4, 1.5, 2.1, 2.2, 2.3, 3.7, 3.8, 3.9, 3.10, 3.11, 4.4, 14.1, 14.2, 14.6_
 
-  - [ ] 8.4 `SearchBar.jsx` — mode value, edit chip, keyboard
+  - [-] 8.4 `SearchBar.jsx` — mode value, edit chip, keyboard
     - Prefix pill `[Kolom:]`; perilaku per tipe (opsi/boolean inline, string → `matches`, number → `=` + validasi inline, lainnya → `ChipEditor`); klik chip → `ChipEditor`/`onOpenBuilder`/panel; `×` → `removeChip`/`onGroupChange({column:null})`; `Esc`/Backspace kembali ke mode key; Backspace dua tahap hapus chip terakhir
     - _Requirements: 6.1, 6.2, 6.3, 6.4, 6.5, 6.7, 7.4, 7.5, 8.1, 8.2_
 
-  - [ ] 8.5 `SearchBar.jsx` — badge sumber, busy state, error
+  - [-] 8.5 `SearchBar.jsx` — badge sumber, busy state, error
     - `sourceSaved` + dirty (tree via `isFilterTreeDirty`, sort/group via `getViewSnapshot`, `null` di sumber tidak pernah dirty); nama dari daftar `index`; `×` badge → `onTreeChange(null)`; spinner + tolak commit saat Promise `onTreeChange` pending; gagal → input tidak dikosongkan; seksi teks bebas hilang bila kolom pencarian kosong
     - _Requirements: 10.1, 10.2, 10.3, 10.4, 15.1, 15.2, 15.3, 15.4_
 
@@ -157,7 +157,7 @@ Yang **tidak** berubah: jalur persist `persistFilterTree` / `SavedFilterControll
     - `lang/id/core/datatable.php` & `lang/en/core/datatable.php`: `core.datatable.search.*` (design §7); `lang/*/core/filterTemplate.php`: `form.group.*`; pakai ulang istilah existing, tanpa "Favorit"
     - _Requirements: 9.6_
 
-  - [ ] 8.7 Write RTL tests `SearchBar.rtl.test.jsx`, `SearchPanel.rtl.test.jsx`, `ChipEditor.rtl.test.jsx`
+  - [-] 8.7 Write RTL tests `SearchBar.rtl.test.jsx`, `SearchPanel.rtl.test.jsx`, `ChipEditor.rtl.test.jsx`
     - **Interaksi Search Bar end-to-end di level komponen**
     - Ketik + Enter → `onTreeChange` grup OR; pilih kolom → mode value → Enter; saran nilai → merge `in`; Backspace ×2 hapus chip; klik chip → editor → Terapkan; pilih saved → `onPickSaved`; badge sumber + titik dirty; Promise pending → spinner & commit ditolak; reject → input tetap; ketik `/` tidak di-`preventDefault`; `<mark>` pada label; panel: hapus hanya non-shared, Builder lanjutan, Hapus semua, Group + granularity; editor: ganti operator → `ValueField` menyesuaikan
     - Tanpa `vi.useFakeTimers()` (macet dgn Radix/cmdk); `waitFor` dari `@testing-library/react`
@@ -208,9 +208,9 @@ Yang **tidak** berubah: jalur persist `persistFilterTree` / `SavedFilterControll
   - Full suite BE + FE (paralel per batch); `graphify update .`
   - Ensure all tests pass, ask the user if questions arise.
 
-- [ ]\* 15. Deklarasikan `$searchScope` di model utama
+- [x]\* 15. Deklarasikan `$searchScope` di model utama
   - Tambah `protected static array $searchScope` pada model list yang paling sering dicari (mis. SalesOrder, PurchaseOrder, PurchaseRequest, Item, Customer, Supplier, DeliveryNote, SalesInvoice, PurchaseInvoice) — kolom kode/nama + nama relasi utama
-  - Bukan bagian requirement (fallback kolom tampil sudah memenuhi Requirement 5.5); daftar model & kolom dikonfirmasi user sebelum dikerjakan
+  - Bukan bagian requirement (fallback kolom tampil sudah memenuhi Requirement 5.5). Dikerjakan atas perintah `/goal` (semua task) — 11 model: SalesOrder, PurchaseOrder, PurchaseRequest, Item, Customer, Supplier, DeliveryNote, SalesInvoice, PurchaseInvoice, PurchaseReceipt, InternalOrder; semua path relasi diverifikasi resolver + test sapu `tests/Unit/Core/AllModelsSearchScopeConfigTest.php`
   - _Requirements: 5.1_
 
 ## Notes

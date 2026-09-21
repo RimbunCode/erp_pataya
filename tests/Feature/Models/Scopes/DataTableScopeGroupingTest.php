@@ -912,4 +912,171 @@ class DataTableScopeGroupingTest extends TestCase {
         );
         $this->assertNull(Inertia::getShared('groupCounts'));
     }
+
+    // ---------------------------------------------------------------------
+    // Group dari filter aktif (Requirement 12): prioritas param > filter
+    // aktif (?fid= / default shared filter) > default model.
+    // ---------------------------------------------------------------------
+
+    public function test_group_from_saved_filter_applied_via_fid(): void {
+        $user = User::factory()->create();
+        DtgRecord::create(['name' => 'A', 'category' => 'fruit']);
+        DtgRecord::create(['name' => 'B', 'category' => 'fruit']);
+        DtgRecord::create(['name' => 'C', 'category' => 'vegetable']);
+
+        $saved = SavedFilter::create([
+            'user_id'  => $user->id,
+            'model'    => DtgRecord::class,
+            'filter'   => ['root' => ['k' => 'and', 'c' => []]],
+            'is_saved' => true,
+            'group'    => ['column' => 'category', 'granularity' => null, 'range' => null],
+        ]);
+
+        DtgRecord::dataTable($this->inertiaRequest(['fid' => $saved->id]));
+
+        $this->assertGroupCounts(['fruit' => 2, 'vegetable' => 1], Inertia::getShared('groupCounts'));
+        $this->assertSame('category', Inertia::getShared('defaultGroup'));
+    }
+
+    /**
+     * Group milik filter aktif HANYA utk request halaman/Inertia (sama spt
+     * default grup model) -- konsumen XHR macro (mis. QuickListBlock dgn
+     * ?fid=) tak merender header grup, jadi urutan barisnya tak boleh
+     * dipaksa by kolom grup & tak ada query GROUP BY tambahan.
+     */
+    public function test_group_from_saved_filter_not_applied_on_xhr_request(): void {
+        $user = User::factory()->create();
+        DtgRecord::create(['name' => 'A', 'category' => 'vegetable']);
+        DtgRecord::create(['name' => 'B', 'category' => 'fruit']);
+
+        $saved = SavedFilter::create([
+            'user_id'  => $user->id,
+            'model'    => DtgRecord::class,
+            'filter'   => ['root' => ['k' => 'and', 'c' => []]],
+            'is_saved' => true,
+            'group'    => ['column' => 'category', 'granularity' => null, 'range' => null],
+        ]);
+
+        DB::enableQueryLog();
+        DtgRecord::dataTable($this->ajax(['fid' => $saved->id]));
+        $queries = collect(DB::getQueryLog())->pluck('query')->implode(' | ');
+        DB::disableQueryLog();
+
+        $this->assertStringNotContainsStringIgnoringCase('group by', $queries);
+        $this->assertStringNotContainsStringIgnoringCase('order by "dtg_records"."category"', $queries);
+    }
+
+    public function test_group_from_default_shared_filter_applied_without_fid(): void {
+        $user = User::factory()->create();
+        DtgRecord::create(['name' => 'A', 'category' => 'fruit']);
+        DtgRecord::create(['name' => 'B', 'category' => 'vegetable']);
+
+        SavedFilter::create([
+            'user_id'    => $user->id,
+            'model'      => DtgRecord::class,
+            'filter'     => ['root' => ['k' => 'and', 'c' => []]],
+            'name'       => 'Default',
+            'is_saved'   => true,
+            'is_shared'  => true,
+            'is_default' => true,
+            'group'      => ['column' => 'category', 'granularity' => null, 'range' => null],
+        ]);
+
+        DtgRecord::dataTable($this->inertiaRequest());
+
+        $this->assertGroupCounts(['fruit' => 1, 'vegetable' => 1], Inertia::getShared('groupCounts'));
+        $this->assertSame('category', Inertia::getShared('defaultGroup'));
+    }
+
+    public function test_explicit_empty_group_param_overrides_filter_group(): void {
+        $user = User::factory()->create();
+        DtgRecord::create(['name' => 'A', 'category' => 'fruit']);
+
+        $saved = SavedFilter::create([
+            'user_id' => $user->id, 'model' => DtgRecord::class,
+            'filter'  => ['root' => ['k' => 'and', 'c' => []]], 'is_saved' => true,
+            'group'   => ['column' => 'category'],
+        ]);
+
+        DtgRecord::dataTable($this->inertiaRequest(['fid' => $saved->id, 'group' => '']));
+
+        $this->assertNull(Inertia::getShared('groupCounts'), '?group= kosong eksplisit menang atas group filter aktif.');
+        // defaultGroup* tetap mencerminkan group EFEKTIF TANPA PARAM (filter
+        // aktif), agar FE tahu apa yg akan diterapkan lagi kalau user hapus
+        // override "Tidak ada"-nya (Requirement 12.6).
+        $this->assertSame('category', Inertia::getShared('defaultGroup'));
+    }
+
+    public function test_group_from_filter_not_groupable_is_ignored(): void {
+        $user = User::factory()->create();
+        DtgRecord::create(['name' => 'A', 'category' => 'fruit']);
+
+        $saved = SavedFilter::create([
+            'user_id' => $user->id, 'model' => DtgRecord::class,
+            'filter'  => ['root' => ['k' => 'and', 'c' => []]], 'is_saved' => true,
+            'group'   => ['column' => 'name'], // 'name' bukan kolom groupable
+        ]);
+
+        DtgRecord::dataTable($this->inertiaRequest(['fid' => $saved->id]));
+
+        $this->assertNull(
+            Inertia::getShared('groupCounts'),
+            'Kolom grup dari filter aktif tak lolos gate groupable -> diabaikan diam-diam (Requirement 12.4).',
+        );
+        $this->assertNull(Inertia::getShared('defaultGroup'));
+    }
+
+    public function test_group_granularity_fallback_from_filter(): void {
+        $user = User::factory()->create();
+        DtgRecord::create(['name' => 'A', 'due_date' => '2026-01-15']);
+        DtgRecord::create(['name' => 'B', 'due_date' => '2026-04-20']);
+
+        $saved = SavedFilter::create([
+            'user_id' => $user->id, 'model' => DtgRecord::class,
+            'filter'  => ['root' => ['k' => 'and', 'c' => []]], 'is_saved' => true,
+            'group'   => ['column' => 'due_date', 'granularity' => 'quarter'],
+        ]);
+
+        DtgRecord::dataTable($this->inertiaRequest(['fid' => $saved->id]));
+
+        $this->assertGroupCounts(['2026-Q1' => 1, '2026-Q2' => 1], Inertia::getShared('groupCounts'));
+        $this->assertSame('due_date', Inertia::getShared('defaultGroup'));
+        $this->assertSame('quarter', Inertia::getShared('defaultGroupGranularity'));
+    }
+
+    public function test_group_range_fallback_from_filter(): void {
+        $user = User::factory()->create();
+        DtgRecord::create(['name' => 'A', 'amount' => 150]);
+        DtgRecord::create(['name' => 'B', 'amount' => 250]);
+
+        $saved = SavedFilter::create([
+            'user_id' => $user->id, 'model' => DtgRecord::class,
+            'filter'  => ['root' => ['k' => 'and', 'c' => []]], 'is_saved' => true,
+            'group'   => ['column' => 'amount', 'range' => 100],
+        ]);
+
+        DtgRecord::dataTable($this->inertiaRequest(['fid' => $saved->id]));
+
+        // floor(150/100)*100=100, floor(250/100)*100=200.
+        $this->assertGroupCounts(['100' => 1, '200' => 1], Inertia::getShared('groupCounts'));
+        $this->assertSame(100, Inertia::getShared('defaultGroupRange'));
+    }
+
+    public function test_explicit_granularity_param_overrides_filter_granularity(): void {
+        $user = User::factory()->create();
+        DtgRecord::create(['name' => 'A', 'due_date' => '2026-01-15']);
+        DtgRecord::create(['name' => 'B', 'due_date' => '2026-07-05']);
+
+        $saved = SavedFilter::create([
+            'user_id' => $user->id, 'model' => DtgRecord::class,
+            'filter'  => ['root' => ['k' => 'and', 'c' => []]], 'is_saved' => true,
+            'group'   => ['column' => 'due_date', 'granularity' => 'quarter'],
+        ]);
+
+        // ?groupGranularity= eksplisit menang atas granularity filter aktif
+        // (Requirement 12.3).
+        DtgRecord::dataTable($this->inertiaRequest(['fid' => $saved->id, 'groupGranularity' => 'half']));
+
+        $this->assertGroupCounts(['2026-H1' => 1, '2026-H2' => 1], Inertia::getShared('groupCounts'));
+    }
 }
