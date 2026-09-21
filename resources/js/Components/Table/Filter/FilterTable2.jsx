@@ -38,6 +38,7 @@ import LoadingIcon from "@/Components/LoadingIcon";
 import axios from "axios";
 import { cn } from "@/lib/utils";
 import { gooeyToast as toast } from "@/lib/gooeyToast";
+import { isFilterTreeDirty } from "./filterTreeCompare";
 import { linkModelToFilterTree } from "@/lib/linkModelToFilterTree";
 import { resolveColumn, validateTree } from "./filterValidation";
 import { useLaravelReactI18n } from "laravel-react-i18n";
@@ -216,27 +217,7 @@ function FilterTableContent({
   // tambah item kosong) langsung terdeteksi.
   const isDirty = useMemo(() => {
     if (!loadedSaved?.is_saved || !loadedSaved.filter) return false;
-    const collectItems = (nodes, acc = []) => {
-      for (const node of Object.values(nodes ?? {})) {
-        if (!node || typeof node !== "object") continue;
-        const children = node.c ?? node.children;
-        if (children && typeof children === "object") {
-          collectItems(children, acc);
-        } else {
-          acc.push([node.k ?? "", node.o ?? "", node.v ?? ""]);
-        }
-      }
-      return acc;
-    };
-    const norm = (tree) => {
-      const root = tree?.root ?? tree;
-      return JSON.stringify(
-        collectItems(root?.c ?? root?.children ?? {})
-          .map((x) => JSON.stringify(x))
-          .sort(),
-      );
-    };
-    return norm(loadedSaved.filter) !== norm(filters);
+    return isFilterTreeDirty(loadedSaved.filter, filters);
   }, [loadedSaved, filters]);
 
   // Hapus sebuah named filter (per chip di SavedFilterBar).
