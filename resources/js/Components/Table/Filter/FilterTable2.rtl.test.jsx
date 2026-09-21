@@ -47,7 +47,7 @@ vi.mock("@/Hooks/usePermission", () => ({
 window.route = (name, params) =>
   params ? `${name}/${JSON.stringify(params)}` : name;
 
-import FilterTable2 from "./FilterTable2";
+import FilterTable2, { SaveFilterControl } from "./FilterTable2";
 
 const columns = { status: { name: "status", type: "formStatus" } };
 
@@ -438,5 +438,191 @@ describe("FilterTable2", () => {
         screen.getByRole("button", { name: /TR:core.datatable.filter.filter/ }),
       ).toBeInTheDocument();
     });
+  });
+
+  // Task 7.1 (spec datatable2-advanced-search) — prop opsional `open`/
+  // `onOpenChange`: controlled state, dipakai SearchPanel ("Builder lanjutan")
+  // yang mengontrol dialog tanpa trigger sendiri.
+  describe("controlled open/onOpenChange (Requirement 14.3)", () => {
+    it("controlled TANPA trigger -- trigger bawaan tidak dirender, dialog terbuka lewat prop open", () => {
+      render(
+        <FilterTable2
+          columns={columns}
+          initialFilters={null}
+          onApply={vi.fn()}
+          open={true}
+          onOpenChange={vi.fn()}
+        />,
+      );
+
+      // Trigger bawaan (Button "Filter") TIDAK dirender sama sekali.
+      expect(
+        screen.queryByRole("button", {
+          name: /TR:core.datatable.filter.filter/,
+        }),
+      ).not.toBeInTheDocument();
+      // Dialog sudah terbuka (isi builder ter-stub tampil).
+      expect(
+        screen.getByTestId("stub-filter-builder-body"),
+      ).toBeInTheDocument();
+    });
+
+    it("controlled open=false -- dialog tertutup", () => {
+      render(
+        <FilterTable2
+          columns={columns}
+          initialFilters={null}
+          onApply={vi.fn()}
+          open={false}
+          onOpenChange={vi.fn()}
+        />,
+      );
+      expect(
+        screen.queryByTestId("stub-filter-builder-body"),
+      ).not.toBeInTheDocument();
+    });
+
+    it("Batal memanggil onOpenChange(false) saat controlled", async () => {
+      const user = userEvent.setup({ delay: null });
+      const onOpenChange = vi.fn();
+      render(
+        <FilterTable2
+          columns={columns}
+          initialFilters={null}
+          onApply={vi.fn()}
+          open={true}
+          onOpenChange={onOpenChange}
+        />,
+      );
+
+      await user.click(
+        screen.getByRole("button", { name: "TR:core.datatable.filter.cancel" }),
+      );
+      expect(onOpenChange).toHaveBeenCalledWith(false);
+    });
+  });
+});
+
+// Task 7.2 (spec datatable2-advanced-search) — `SaveFilterControl` diekspor
+// terpisah + prop opsional `getViewSnapshot` (Requirement 11.6, 14.4).
+describe("SaveFilterControl (export standalone)", () => {
+  beforeEach(() => {
+    axiosPost.mockReset();
+    axiosPatch.mockReset();
+  });
+
+  it("tanpa getViewSnapshot -- payload PATCH sama seperti sebelumnya (regresi)", async () => {
+    const user = userEvent.setup({ delay: null });
+    axiosPost.mockResolvedValue({ data: { id: 99 } });
+    axiosPatch.mockResolvedValue({ data: { id: 99, name: "Filter Baru" } });
+    render(
+      <SaveFilterControl
+        model="AppModelsItem"
+        filter={{ root: { k: "and", c: {} } }}
+        savedItems={[]}
+        onSaved={vi.fn()}
+      />,
+    );
+
+    await user.click(
+      screen.getByRole("button", {
+        name: /TR:core.datatable.filter.saved.save/,
+      }),
+    );
+    await user.click(
+      screen.getByText("TR:core.datatable.filter.saved.save_new"),
+    );
+    await user.type(
+      screen.getByPlaceholderText(
+        "TR:core.datatable.filter.saved.name_placeholder",
+      ),
+      "Filter Baru",
+    );
+    await user.click(
+      screen.getByRole("button", {
+        name: "TR:core.datatable.filter.saved.save",
+      }),
+    );
+
+    expect(axiosPatch).toHaveBeenCalledWith(
+      'saved-filters.update/{"savedFilter":99}',
+      { name: "Filter Baru" },
+    );
+  });
+
+  it("Simpan sebagai baru dengan getViewSnapshot -- PATCH menyertakan sort & group", async () => {
+    const user = userEvent.setup({ delay: null });
+    axiosPost.mockResolvedValue({ data: { id: 99 } });
+    axiosPatch.mockResolvedValue({ data: { id: 99, name: "Filter Baru" } });
+    const getViewSnapshot = () => ({
+      sort: "-created_at",
+      group: { column: "status" },
+    });
+    render(
+      <SaveFilterControl
+        model="AppModelsItem"
+        filter={{ root: { k: "and", c: {} } }}
+        savedItems={[]}
+        onSaved={vi.fn()}
+        getViewSnapshot={getViewSnapshot}
+      />,
+    );
+
+    await user.click(
+      screen.getByRole("button", {
+        name: /TR:core.datatable.filter.saved.save/,
+      }),
+    );
+    await user.click(
+      screen.getByText("TR:core.datatable.filter.saved.save_new"),
+    );
+    await user.type(
+      screen.getByPlaceholderText(
+        "TR:core.datatable.filter.saved.name_placeholder",
+      ),
+      "Filter Baru",
+    );
+    await user.click(
+      screen.getByRole("button", {
+        name: "TR:core.datatable.filter.saved.save",
+      }),
+    );
+
+    expect(axiosPatch).toHaveBeenCalledWith(
+      'saved-filters.update/{"savedFilter":99}',
+      { name: "Filter Baru", sort: "-created_at", group: { column: "status" } },
+    );
+  });
+
+  it("Timpa dengan getViewSnapshot -- PATCH menyertakan filter, sort & group", async () => {
+    const user = userEvent.setup({ delay: null });
+    axiosPatch.mockResolvedValue({ data: { id: 1 } });
+    const filter = { root: { k: "and", c: {} } };
+    const getViewSnapshot = () => ({ sort: null, group: null });
+    render(
+      <SaveFilterControl
+        model="AppModelsItem"
+        filter={filter}
+        savedItems={[{ id: 1, name: "Filter A" }]}
+        onSaved={vi.fn()}
+        getViewSnapshot={getViewSnapshot}
+      />,
+    );
+
+    await user.click(
+      screen.getByRole("button", {
+        name: /TR:core.datatable.filter.saved.save/,
+      }),
+    );
+    await user.click(
+      screen.getByText(
+        'TR:core.datatable.filter.saved.overwrite:{"name":"Filter A"}',
+      ),
+    );
+
+    expect(axiosPatch).toHaveBeenCalledWith(
+      'saved-filters.update/{"savedFilter":1}',
+      { filter, sort: null, group: null },
+    );
   });
 });

@@ -118,38 +118,38 @@ Yang **tidak** berubah: jalur persist `persistFilterTree` / `SavedFilterControll
   - `npm run test -- resources/js/Components/Table/Search resources/js/Components/Table/Filter`
   - Ensure all tests pass, ask the user if questions arise.
 
-- [-] 7. Frontend — penyesuaian `FilterTable2`
-  - [-] 7.1 Prop controlled `open`/`onOpenChange`
+- [x] 7. Frontend — penyesuaian `FilterTable2`
+  - [x] 7.1 Prop controlled `open`/`onOpenChange`
     - Bila `open` diberikan → pakai sebagai state AlertDialog; bila controlled tanpa `trigger` → trigger bawaan tidak dirender; tanpa prop → identik dengan sekarang
     - _Requirements: 14.3_
 
-  - [-] 7.2 Ekspor `SaveFilterControl` + prop `getViewSnapshot`
+  - [x] 7.2 Ekspor `SaveFilterControl` + prop `getViewSnapshot`
     - `export function SaveFilterControl`; bila `getViewSnapshot` ada → PATCH "Simpan sebagai baru" (bersama `name`) dan "Timpa" (bersama `filter`) menyertakan `sort` & `group`; tanpa prop → payload sama seperti sekarang
     - _Requirements: 14.4, 11.6_
 
-  - [-] 7.3 Update `FilterTable2.rtl.test.jsx`
+  - [x] 7.3 Update `FilterTable2.rtl.test.jsx`
     - **Controlled open & snapshot sort/group**
     - Kasus controlled buka/tutup tanpa trigger; `SaveFilterControl` dgn `getViewSnapshot` mengirim `sort`/`group`; semua kasus lama tetap hijau
     - **Validates: Requirements 14.3, 14.4, 11.6, 16.2**
 
-- [-] 8. Frontend — komponen Search Bar (`resources/js/Components/Table/Search/`)
-  - [-] 8.1 `ChipEditor.jsx`
+- [x] 8. Frontend — komponen Search Bar (`resources/js/Components/Table/Search/`)
+  - [x] 8.1 `ChipEditor.jsx`
     - Popover: leaf → label kolom + `Select` operator (`getOperators`) + `ValueField` + Terapkan/Enter; search → input teks + "Mencari di: …"; group → `SearchableOptionList` + granularity/range
     - _Requirements: 7.1, 7.2, 7.3_
 
-  - [-] 8.2 `SearchPanel.jsx`
+  - [x] 8.2 `SearchPanel.jsx`
     - Kolom Filter Tersimpan (badge Shared, penanda sumber, hapus hanya non-shared, `SaveFilterControl` "Simpan sebagai baru"/"Timpa" (sumber dirty & bukan shared), Builder lanjutan, Hapus semua filter) + kolom Group by (`SearchableOptionList` "Tidak ada" teratas + granularity/range); desktop `Popover`, mobile `Dialog` bertumpuk
     - _Requirements: 9.1, 9.2, 9.3, 9.4, 9.5, 9.6_
 
-  - [-] 8.3 `SearchBar.jsx` — chip, input, dropdown saran
+  - [x] 8.3 `SearchBar.jsx` — chip, input, dropdown saran
     - Render chip dari `treeToChips` (+ chip `group`); dropdown cmdk dikontrol `value`/`onValueChange` (item pertama selalu di-highlight, pola `Select.jsx:139-154`); label via `highlightMatch`; fetch `saved-filters.index` lazy saat fokus pertama / saat mount bila `activeFid`; pilih saran → `addSearchChip`/`onPickSaved`/`onGroupChange`/mode value; tanpa import `router`/`usePage`
     - _Requirements: 1.3, 1.4, 1.5, 2.1, 2.2, 2.3, 3.7, 3.8, 3.9, 3.10, 3.11, 4.4, 14.1, 14.2, 14.6_
 
-  - [-] 8.4 `SearchBar.jsx` — mode value, edit chip, keyboard
+  - [x] 8.4 `SearchBar.jsx` — mode value, edit chip, keyboard
     - Prefix pill `[Kolom:]`; perilaku per tipe (opsi/boolean inline, string → `matches`, number → `=` + validasi inline, lainnya → `ChipEditor`); klik chip → `ChipEditor`/`onOpenBuilder`/panel; `×` → `removeChip`/`onGroupChange({column:null})`; `Esc`/Backspace kembali ke mode key; Backspace dua tahap hapus chip terakhir
     - _Requirements: 6.1, 6.2, 6.3, 6.4, 6.5, 6.7, 7.4, 7.5, 8.1, 8.2_
 
-  - [-] 8.5 `SearchBar.jsx` — badge sumber, busy state, error
+  - [x] 8.5 `SearchBar.jsx` — badge sumber, busy state, error
     - `sourceSaved` + dirty (tree via `isFilterTreeDirty`, sort/group via `getViewSnapshot`, `null` di sumber tidak pernah dirty); nama dari daftar `index`; `×` badge → `onTreeChange(null)`; spinner + tolak commit saat Promise `onTreeChange` pending; gagal → input tidak dikosongkan; seksi teks bebas hilang bila kolom pencarian kosong
     - _Requirements: 10.1, 10.2, 10.3, 10.4, 15.1, 15.2, 15.3, 15.4_
 
@@ -157,29 +157,29 @@ Yang **tidak** berubah: jalur persist `persistFilterTree` / `SavedFilterControll
     - `lang/id/core/datatable.php` & `lang/en/core/datatable.php`: `core.datatable.search.*` (design §7); `lang/*/core/filterTemplate.php`: `form.group.*`; pakai ulang istilah existing, tanpa "Favorit"
     - _Requirements: 9.6_
 
-  - [-] 8.7 Write RTL tests `SearchBar.rtl.test.jsx`, `SearchPanel.rtl.test.jsx`, `ChipEditor.rtl.test.jsx`
+  - [x] 8.7 Write RTL tests `SearchBar.rtl.test.jsx`, `SearchPanel.rtl.test.jsx`, `ChipEditor.rtl.test.jsx`
     - **Interaksi Search Bar end-to-end di level komponen**
     - Ketik + Enter → `onTreeChange` grup OR; pilih kolom → mode value → Enter; saran nilai → merge `in`; Backspace ×2 hapus chip; klik chip → editor → Terapkan; pilih saved → `onPickSaved`; badge sumber + titik dirty; Promise pending → spinner & commit ditolak; reject → input tetap; ketik `/` tidak di-`preventDefault`; `<mark>` pada label; panel: hapus hanya non-shared, Builder lanjutan, Hapus semua, Group + granularity; editor: ganti operator → `ValueField` menyesuaikan
     - Tanpa `vi.useFakeTimers()` (macet dgn Radix/cmdk); `waitFor` dari `@testing-library/react`
     - **Validates: Requirements 1.4, 1.5, 2–4, 6–10, 15, 16.2, 16.3**
 
-- [ ] 9. Checkpoint - Ensure component tests pass
+- [x] 9. Checkpoint - Ensure component tests pass
   - `npm run test -- resources/js/Components/Table`
   - Ensure all tests pass, ask the user if questions arise.
 
-- [ ] 10. Frontend — integrasi `DataTable2`
-  - [ ] 10.1 Tata letak toolbar
+- [-] 10. Frontend — integrasi `DataTable2`
+  - [-] 10.1 Tata letak toolbar
     - Hapus dari toolbar desktop: `FilterTable2` + tombol `X`, Popover Group by, Select granularity/range; baris judul = judul + Reload + Tambah
     - Baris baru `[SearchBar ▾] [Sort]` di antara header & kartu tabel (Sort = tombol arah + Popover kolom existing, dipindah); mobile: baris full-width, Sort ikon, menu ⋯ tinggal Reload + Tampilkan per halaman
     - `FilterTable2` dirender tanpa trigger, dikontrol state `builderOpen`
     - _Requirements: 1.1, 1.2, 1.6_
 
-  - [ ] 10.2 Handler & state host
+  - [-] 10.2 Handler & state host
     - `onTreeChange` → `persistFilterTree`; `onPickSaved` → tree + fid + sort + group sekaligus tanpa POST (`null` = jangan override); `onGroupChange` membungkus `setGroup`/`setGroupGranularity`/`setGroupRange`; `getViewSnapshot`; `getSearchColumns` → `resolveSearchColumns({ searchScope, columns: mapColumns, visibleNames: createHeaders({ ...mapColumns }).filter(h => h.show).map(h => h.name) })`
     - State awal `options.group/groupGranularity/groupRange` dari `defaultGroup`/`defaultGroupGranularity`/`defaultGroupRange`
     - _Requirements: 5.6, 11.7, 12.6, 2.2_
 
-  - [ ] 10.3 Update `resources/js/Pages/Core/DataTable2.rtl.test.jsx`
+  - [-] 10.3 Update `resources/js/Pages/Core/DataTable2.rtl.test.jsx`
     - **Toolbar baru & integrasi host**
     - Sesuaikan test toolbar lama (Filter/Group pindah ke panel); tombol Filter/Group tidak lagi di toolbar; Search Bar & Sort satu baris; `onPickSaved` menerapkan sort + group; `getSearchColumns` fallback memakai kolom tampil tanpa memutasi `mapColumns`; klik sel `addFilter` muncul sebagai chip
     - **Validates: Requirements 1.1, 1.2, 1.6, 5.6, 11.7, 12.6, 16.2**

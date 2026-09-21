@@ -64,6 +64,13 @@ import { useLaravelReactI18n } from "laravel-react-i18n";
  *   lockedFilters : tree LinkModelFilterTree NON-EDITABLE (opsional) — ditampilkan
  *     read-only di atas builder editable, TIDAK dihitung ke activeCount/badge
  *     (spec linkmodel-advanced-search, Requirement 5.6-5.8).
+ *   open/onOpenChange : state AlertDialog controlled (opsional, spec
+ *     datatable2-advanced-search Requirement 14.3) — dipakai SearchPanel
+ *     ("Builder lanjutan") yang mengontrol dialog tanpa trigger sendiri. Bila
+ *     TIDAK diberikan, perilaku identik dengan sebelumnya (uncontrolled,
+ *     `useState` internal). Bila controlled TANPA `trigger`, trigger bawaan
+ *     tidak dirender sama sekali -- pemanggil bertanggung jawab membuka dialog
+ *     sendiri lewat `open`.
  * @param {object} root0
  * @param {object} root0.columns
  * @param {object} root0.initialFilters
@@ -74,6 +81,8 @@ import { useLaravelReactI18n } from "laravel-react-i18n";
  * @param {boolean} [root0.isMobile]
  * @param {React.ReactNode} [root0.trigger]
  * @param {object} [root0.lockedFilters]
+ * @param {boolean} [root0.open]
+ * @param {(open: boolean) => void} [root0.onOpenChange]
  * @returns {React.JSX.Element}
  */
 function FilterTable({
@@ -86,9 +95,17 @@ function FilterTable({
   isMobile = false,
   trigger,
   lockedFilters,
+  open: openProp,
+  onOpenChange,
 }) {
   const { t } = useLaravelReactI18n();
-  const [open, setOpen] = useState(false);
+  const isControlled = openProp !== undefined;
+  const [openState, setOpenState] = useState(false);
+  const open = isControlled ? openProp : openState;
+  const setOpen = isControlled ? (onOpenChange ?? (() => {})) : setOpenState;
+  // Controlled TANPA trigger custom -> trigger bawaan tidak dirender (dialog
+  // dibuka sepenuhnya lewat prop `open` milik pemanggil).
+  const showTrigger = !isControlled || Boolean(trigger);
 
   // Jumlah kondisi filter aktif (item lengkap) untuk badge di tombol Filter.
   // HANYA dari `initialFilters` (additive) -- `lockedFilters` sengaja TIDAK
@@ -102,36 +119,38 @@ function FilterTable({
   return (
     <NestedFiltersProvider initialFilters={initialFilters} columns={columns}>
       <AlertDialog open={open} onOpenChange={setOpen}>
-        <AlertDialogTrigger asChild>
-          {trigger ??
-            (isMobile ? (
-              <div className="hover:bg-accent relative flex cursor-pointer select-none items-center gap-2 rounded-sm px-2 py-1.5 text-sm outline-none transition-colors focus:bg-accent focus:text-accent-foreground data-disabled:pointer-events-none data-disabled:opacity-50 [&_svg]:pointer-events-none [&_svg]:size-4 [&_svg]:shrink-0">
-                <Filter />
-                {t("core.datatable.filter.filter")}
-                {activeCount > 0 && (
-                  <span className="ml-auto inline-flex min-w-5 items-center justify-center rounded-full bg-primary px-1.5 py-0.5 text-xs font-semibold text-primary-foreground">
-                    {activeCount}
-                  </span>
-                )}
-              </div>
-            ) : (
-              <Button
-                className={cn(
-                  "flex-1 relative py-0! h-8 px-2! border-muted-foreground/50",
-                  activeCount > 0 && "border-primary/60 text-primary",
-                )}
-                variant="secondary"
-              >
-                <Filter />
-                {t("core.datatable.filter.filter")}
-                {activeCount > 0 && (
-                  <span className="inline-flex min-w-4.5 items-center justify-center rounded-full bg-primary px-1.5 text-xs font-semibold text-primary-foreground">
-                    {activeCount}
-                  </span>
-                )}
-              </Button>
-            ))}
-        </AlertDialogTrigger>
+        {showTrigger && (
+          <AlertDialogTrigger asChild>
+            {trigger ??
+              (isMobile ? (
+                <div className="hover:bg-accent relative flex cursor-pointer select-none items-center gap-2 rounded-sm px-2 py-1.5 text-sm outline-none transition-colors focus:bg-accent focus:text-accent-foreground data-disabled:pointer-events-none data-disabled:opacity-50 [&_svg]:pointer-events-none [&_svg]:size-4 [&_svg]:shrink-0">
+                  <Filter />
+                  {t("core.datatable.filter.filter")}
+                  {activeCount > 0 && (
+                    <span className="ml-auto inline-flex min-w-5 items-center justify-center rounded-full bg-primary px-1.5 py-0.5 text-xs font-semibold text-primary-foreground">
+                      {activeCount}
+                    </span>
+                  )}
+                </div>
+              ) : (
+                <Button
+                  className={cn(
+                    "flex-1 relative py-0! h-8 px-2! border-muted-foreground/50",
+                    activeCount > 0 && "border-primary/60 text-primary",
+                  )}
+                  variant="secondary"
+                >
+                  <Filter />
+                  {t("core.datatable.filter.filter")}
+                  {activeCount > 0 && (
+                    <span className="inline-flex min-w-4.5 items-center justify-center rounded-full bg-primary px-1.5 text-xs font-semibold text-primary-foreground">
+                      {activeCount}
+                    </span>
+                  )}
+                </Button>
+              ))}
+          </AlertDialogTrigger>
+        )}
         <AlertDialogContent
           forceAsDialog
           onInteractOutside={(e) => e.preventDefault()}
@@ -486,15 +505,21 @@ function SavedFilterBar({ items, loading, activeFid, onPick, onRemove }) {
  * @param {(saved: object) => void} root0.onSaved
  * @param {(saving: boolean) => void} root0.onSavingChange
  * @param {boolean} [root0.disabled]
+ * @param {() => {sort: string|null, group: object|null}} [root0.getViewSnapshot]
+ *   opsional (spec datatable2-advanced-search, Requirement 11.6) -- bila
+ *   diberikan, PATCH "Simpan sebagai baru" & "Timpa" ikut menyertakan
+ *   `sort`/`group` dari snapshot. Tanpa prop ini payload TIDAK berubah dari
+ *   sebelumnya (dipakai FilterTable2 sendiri).
  * @returns {React.JSX.Element}
  */
-function SaveFilterControl({
+export function SaveFilterControl({
   model,
   filter,
   savedItems,
   onSaved,
   onSavingChange,
   disabled = false,
+  getViewSnapshot,
 }) {
   const { t } = useLaravelReactI18n();
   // mode: null (idle) | "new" (input nama)
@@ -520,9 +545,12 @@ function SaveFilterControl({
       });
       const id = created.data?.id;
       if (!id) return;
+      const snapshot = getViewSnapshot?.();
       const res = await axios.patch(
         window.route("saved-filters.update", { savedFilter: id }),
-        { name: trimmed },
+        snapshot
+          ? { name: trimmed, sort: snapshot.sort, group: snapshot.group }
+          : { name: trimmed },
       );
       onSaved?.(res.data ?? { id, name: trimmed, filter });
       toast.success(t("core.datatable.filter.saved.saved_toast"));
@@ -540,9 +568,12 @@ function SaveFilterControl({
     if (saving) return;
     setSaving(true);
     try {
+      const snapshot = getViewSnapshot?.();
       const res = await axios.patch(
         window.route("saved-filters.update", { savedFilter: target.id }),
-        { filter },
+        snapshot
+          ? { filter, sort: snapshot.sort, group: snapshot.group }
+          : { filter },
       );
       onSaved?.(res.data ?? { ...target, filter });
       toast.success(t("core.datatable.filter.saved.updated_toast"));
