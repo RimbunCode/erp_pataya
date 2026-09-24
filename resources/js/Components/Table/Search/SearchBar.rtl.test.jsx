@@ -74,17 +74,40 @@ const columns = {
     name: "customer",
     title: "Customer",
     type: "relation",
+    related: "App\\Models\\Sales\\Customer",
     columns: {
       "customer.name": { name: "customer.name", type: "string", title: "Nama" },
     },
   },
-  // Konfigurasi rusak (titleTrans belum diterjemahkan, t() balikin key-nya
-  // sendiri) -- HARUS tersembunyi dari saran/Panel Kolom (columnSearch.js).
-  broken: {
-    name: "broken",
+  // Relasi BELUM ter-hydrate -- bentuk PERSIS yg dikirim backend
+  // (`getColumns()` selalu `columns: []` utk tipe relation, verified via
+  // tinker). Anak-anaknya di-fetch LAZY oleh SearchBar saat kolom ini
+  // benar-benar dipilih (`ensureRelationHydrated`, pola sama dgn
+  // FilterItem2.fetchRelationColumns).
+  category: {
+    name: "category",
+    title: "Kategori",
+    type: "relation",
+    related: "App\\Models\\Inventory\\Category",
+    columns: {},
+  },
+  // Relasi TANPA anak string yg bisa dicari sekalipun sudah di-fetch --
+  // simulasikan related model yg semua kolomnya non-string (id/angka).
+  emptyRelation: {
+    name: "emptyRelation",
+    title: "Kosongan",
+    type: "relation",
+    related: "App\\Models\\Core\\EmptyThing",
+    columns: {},
+  },
+  // Judul BELUM diterjemahkan (titleTrans tanpa entri lang) -- tetap HARUS
+  // muncul di saran/Panel Kolom, paritas dgn FilterItem2 (regresi nyata:
+  // asset_category_id/id/type pada Item hilang dari daftar Kolom Search Bar
+  // padahal tetap ada di Filter lanjutan; columnSearch.js).
+  untranslated: {
+    name: "untranslated",
     type: "string",
-    titleTrans: "inventory.item.columns.broken",
-    title: "inventory.item.columns.broken",
+    titleTrans: "inventory.item.columns.untranslated",
   },
   // Tipe tak didukung (time) -- tak boleh ditawarkan sbg pencarian kolom.
   meetingTime: { name: "meetingTime", title: "Jam", type: "time" },
@@ -521,7 +544,7 @@ describe("SearchBar — pilih kolom (saran & Panel) masuk mode value TANPA dialo
     });
   });
 
-  it("kolom judul belum diterjemahkan & tipe tak didukung tak pernah muncul di saran/Panel", async () => {
+  it("kolom judul belum diterjemahkan TETAP muncul (paritas Filter lanjutan); tipe tak didukung tetap tak pernah muncul", async () => {
     const user = userEvent.setup({ delay: null });
     const bar = renderBar();
     await user.click(bar.input); // Panel.
@@ -529,9 +552,146 @@ describe("SearchBar — pilih kolom (saran & Panel) masuk mode value TANPA dialo
       await screen.findByText("TR:core.datatable.search.section.column")
     ).closest("section");
     expect(
-      within(columnSection).queryByText(/broken/i),
-    ).not.toBeInTheDocument();
+      within(columnSection).getByText("TR:inventory.item.columns.untranslated"),
+    ).toBeInTheDocument();
     expect(within(columnSection).queryByText("Jam")).not.toBeInTheDocument();
+  });
+});
+
+describe("SearchBar — hidrasi lazy kolom relasi (feedback verifikasi visual: kolom relasi hilang dari daftar Kolom)", () => {
+  it("kolom relasi BELUM ter-hydrate tetap tampil di Panel & saran (bukan cuma yang anaknya sudah ter-populate)", async () => {
+    const user = userEvent.setup({ delay: null });
+    const bar = renderBar();
+    await user.click(bar.input); // Panel.
+    const columnSection = (
+      await screen.findByText("TR:core.datatable.search.section.column")
+    ).closest("section");
+
+    expect(within(columnSection).getByText("Kategori")).toBeInTheDocument();
+  });
+
+  it("memilih kolom relasi belum ter-hydrate -> fetch anak via model.columns, disable input saat memuat, lalu commit matches pada anak yang ditemukan", async () => {
+    let resolveFetch;
+    axiosGet.mockReturnValue(
+      new Promise((resolve) => {
+        resolveFetch = resolve;
+      }),
+    );
+    const user = userEvent.setup({ delay: null });
+    const { input, props } = renderBar();
+
+    await typeInto(user, input, "Kategori");
+    await pickColumnSuggestion(user, "Kategori");
+
+    expect(axiosGet).toHaveBeenCalledWith(
+      "model.columns/" +
+        JSON.stringify({ model: "App\\Models\\Inventory\\Category" }),
+    );
+    expect(screen.getByText("[Kategori:]")).toBeInTheDocument();
+    expect(input).toBeDisabled();
+    expect(input).toHaveAttribute(
+      "placeholder",
+      "TR:core.datatable.search.loading_relation",
+    );
+
+    await act(async () => {
+      resolveFetch({
+        data: { columns: [{ name: "name", type: "string", title: "Nama" }] },
+      });
+      await Promise.resolve();
+    });
+
+    expect(input).not.toBeDisabled();
+    await user.type(input, "Elektronik");
+    await user.keyboard("{Enter}");
+
+    await waitFor(() => expect(props.onTreeChange).toHaveBeenCalledTimes(1));
+    expect(
+      Object.values(props.onTreeChange.mock.calls[0][0].root.c)[0],
+    ).toEqual({ k: "category.name", o: "matches", v: "Elektronik" });
+  });
+
+  it("memilih kolom relasi yang sama dua kali hanya fetch sekali (di-cache per sesi)", async () => {
+    axiosGet.mockResolvedValue({
+      data: { columns: [{ name: "name", type: "string", title: "Nama" }] },
+    });
+    const user = userEvent.setup({ delay: null });
+    const { input } = renderBar();
+
+    await typeInto(user, input, "Kategori");
+    await pickColumnSuggestion(user, "Kategori");
+    await waitFor(() => expect(input).not.toBeDisabled());
+    await user.keyboard("{Escape}");
+
+    await typeInto(user, input, "Kategori");
+    await pickColumnSuggestion(user, "Kategori");
+    await waitFor(() => expect(input).not.toBeDisabled());
+
+    expect(axiosGet).toHaveBeenCalledTimes(1);
+  });
+
+  it("relasi tanpa anak string yang bisa dicari (walau sudah di-fetch) -> keluar dari mode value, bukan macet loading", async () => {
+    axiosGet.mockResolvedValue({
+      data: { columns: [{ name: "id", type: "number", title: "ID" }] },
+    });
+    const user = userEvent.setup({ delay: null });
+    const { input } = renderBar();
+
+    await typeInto(user, input, "Kosongan");
+    await pickColumnSuggestion(user, "Kosongan");
+
+    await waitFor(() =>
+      expect(screen.queryByText("[Kosongan:]")).not.toBeInTheDocument(),
+    );
+    expect(input).toHaveValue("");
+  });
+
+  it("edit chip leaf pada anak relasi dotted yang BELUM ter-hydrate sesi ini (mis. dari saved filter) -> tetap bisa diedit sbg teks tanpa fetch", async () => {
+    const dottedTree = {
+      root: {
+        k: "and",
+        c: { a: { k: "category.name", o: "matches", v: "Elektronik" } },
+      },
+    };
+    const user = userEvent.setup({ delay: null });
+    const bar = renderBar({ tree: dottedTree });
+
+    await user.click(
+      screen.getByText(
+        `Kategori › name ${mockT("core.datatable.filter.operator.matches")} Elektronik`,
+      ),
+    );
+
+    expect(bar.input).toHaveValue("Elektronik");
+    expect(axiosGet).not.toHaveBeenCalled();
+
+    await user.clear(bar.input);
+    await user.type(bar.input, "Furnitur");
+    await user.keyboard("{Enter}");
+
+    await waitFor(() =>
+      expect(bar.props.onTreeChange).toHaveBeenCalledTimes(1),
+    );
+    expect(
+      Object.values(bar.props.onTreeChange.mock.calls[0][0].root.c)[0],
+    ).toEqual({ k: "category.name", o: "matches", v: "Furnitur" });
+  });
+
+  it("chip leaf relasi BARE (k = nama relasi, v = record objek dari Builder lanjutan) -> fallback onOpenBuilder, bukan diedit sbg teks", async () => {
+    const bareRelationTree = {
+      root: {
+        k: "and",
+        c: { a: { k: "category", o: "=", v: { id: 3, name: "Elektronik" } } },
+      },
+    };
+    const user = userEvent.setup({ delay: null });
+    const onOpenBuilder = vi.fn();
+    renderBar({ tree: bareRelationTree, onOpenBuilder });
+
+    await user.click(screen.getByText(/Kategori/));
+
+    expect(onOpenBuilder).toHaveBeenCalledTimes(1);
+    expect(screen.queryByText("[Kategori:]")).not.toBeInTheDocument();
   });
 });
 

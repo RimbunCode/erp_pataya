@@ -46,6 +46,7 @@ import {
   buildLeafFromText,
   columnTitle,
   isColumnSearchable,
+  relationLabelColumn,
   resolveColumnPath,
   resolveValueMode,
 } from "./columnSearch";
@@ -152,6 +153,17 @@ export default function SearchBar({
   const [savedFilters, setSavedFilters] = useState([]);
   const [loadingSaved, setLoadingSaved] = useState(false);
   const fetchStartedRef = useRef(false);
+  // Anak kolom relasi (mis. "category" -> {"category.name": {...}}) yang
+  // sudah di-fetch lazy dalam sesi ini -- backend TIDAK PERNAH mengirim ini
+  // pre-populated (Model::getColumns() selalu 'columns: []' utk tipe
+  // relation, terverifikasi via tinker; bug nyata dari verifikasi visual:
+  // "category"/"default_unit" hilang dari daftar Kolom). Di-merge ke atas
+  // `columns` prop via `effectiveColumns` di bawah.
+  const [relationChildren, setRelationChildren] = useState({});
+  const relationFetchCacheRef = useRef({});
+  // Kolom relasi yang SEDANG di-fetch -- dipakai utk indikator loading kecil
+  // di input saat user baru memilih kolom relasi (Requirement revisi 2).
+  const [loadingRelation, setLoadingRelation] = useState(null);
 
   const closeDropdown = useCallback(() => {
     setOpen(false);
@@ -214,6 +226,71 @@ export default function SearchBar({
     [activeFid, onTreeChange],
   );
 
+  // Kolom + anak relasi yg sudah di-hydrate, digabung -- SATU-SATUNYA bentuk
+  // `columns` yg dipakai internal (resolusi, daftar, saran, label chip).
+  // Merge dangkal per relasi (bukan mutasi `columns` prop).
+  const effectiveColumns = useMemo(() => {
+    const names = Object.keys(relationChildren);
+    if (names.length === 0) return columns;
+    const merged = { ...columns };
+    for (const name of names) {
+      if (!merged[name]) continue;
+      merged[name] = {
+        ...merged[name],
+        columns: { ...merged[name].columns, ...relationChildren[name] },
+      };
+    }
+    return merged;
+  }, [columns, relationChildren]);
+
+  /**
+   * Pastikan kolom relasi punya anak (`.columns`) siap dipakai
+   * `relationLabelColumn`/`buildLeafFromText` -- fetch LAZY via endpoint yang
+   * SAMA dgn Builder lanjutan (`FilterItem2.fetchRelationColumns`), di-cache
+   * per nama kolom relasi (tak pernah fetch ulang dalam sesi yg sama).
+   * @param {object} column kolom relasi (dari `effectiveColumns`)
+   * @returns {Promise<object>} kolom yg sudah ter-hydrate (atau apa adanya
+   *   bila bukan relasi / sudah punya anak / tanpa `related`)
+   */
+  const ensureRelationHydrated = useCallback(
+    (column) => {
+      if (!column || column.type !== "relation" || !column.related) {
+        return Promise.resolve(column);
+      }
+      if (relationLabelColumn(column)) return Promise.resolve(column);
+      const key = column.name;
+      if (relationChildren[key]) {
+        return Promise.resolve({
+          ...column,
+          columns: { ...column.columns, ...relationChildren[key] },
+        });
+      }
+      if (!relationFetchCacheRef.current[key]) {
+        relationFetchCacheRef.current[key] = axios
+          .get(window.route("model.columns", { model: column.related }))
+          .then((res) => {
+            const kids = {};
+            for (const c of res.data?.columns ?? []) {
+              if (!c?.name) continue;
+              const dotted = `${key}.${c.name}`;
+              kids[dotted] = { ...c, name: dotted };
+            }
+            setRelationChildren((prev) => ({ ...prev, [key]: kids }));
+            return kids;
+          })
+          .catch(() => {
+            setRelationChildren((prev) => ({ ...prev, [key]: {} }));
+            return {};
+          });
+      }
+      return relationFetchCacheRef.current[key].then((kids) => ({
+        ...column,
+        columns: { ...column.columns, ...kids },
+      }));
+    },
+    [relationChildren],
+  );
+
   // --- Commit tree: busy state + tolak commit baru saat Promise pending
   // (Requirement 15.1-15.2). ------------------------------------------------
   const busyRef = useRef(false);
@@ -267,12 +344,12 @@ export default function SearchBar({
 
   // --- Chips (Requirement 2). -----------------------------------------------
   const baseChips = useMemo(
-    () => treeToChips(tree, columns, t),
-    [tree, columns, t],
+    () => treeToChips(tree, effectiveColumns, t),
+    [tree, effectiveColumns, t],
   );
   const groupChip = useMemo(() => {
     if (!group?.column) return null;
-    const col = columns?.[group.column];
+    const col = effectiveColumns?.[group.column];
     const colTitle = col ? columnTitle(col, t) : group.column;
     const isDate = ["date", "time", "datetime"].includes(col?.type);
     const sub = isDate
@@ -285,7 +362,7 @@ export default function SearchBar({
       kind: "group",
       label: sub ? `≡ ${colTitle} › ${sub}` : `≡ ${colTitle}`,
     };
-  }, [group, columns, t]);
+  }, [group, effectiveColumns, t]);
   const chips = useMemo(() => {
     const list = [...baseChips];
     if (groupChip) list.push(groupChip);
@@ -299,11 +376,11 @@ export default function SearchBar({
   // dipakai buildSuggestions seksi "Kolom" (Requirement 9, kolom ke-3 Panel).
   const columnList = useMemo(
     () =>
-      Object.values(columns ?? {})
+      Object.values(effectiveColumns ?? {})
         .filter((col) => isColumnSearchable(col, t))
         .map((col) => ({ name: col.name, label: columnTitle(col, t) }))
         .sort((a, b) => compareLabels(a.label, b.label)),
-    [columns, t],
+    [effectiveColumns, t],
   );
 
   // --- Saran (Requirement 3). ------------------------------------------------
@@ -313,7 +390,7 @@ export default function SearchBar({
   const sections = useMemo(() => {
     if (mode !== "key" || !inputValue.trim()) return [];
     return buildSuggestions(inputValue, {
-      columns,
+      columns: effectiveColumns,
       searchColumns: getSearchColumns?.() ?? [],
       savedFilters: model ? savedFilters : undefined,
       groupOptions: groupOptions?.length ? groupOptions : undefined,
@@ -322,7 +399,7 @@ export default function SearchBar({
   }, [
     mode,
     inputValue,
-    columns,
+    effectiveColumns,
     getSearchColumns,
     model,
     savedFilters,
@@ -446,12 +523,35 @@ export default function SearchBar({
     [onPickSaved, closeDropdown],
   );
 
+  /**
+   * Pilih kolom (saran "Kolom" / Panel) -> mode value. Kolom relasi di-hydrate
+   * dulu (anak string-nya, lihat `ensureRelationHydrated`) SEBELUM masuk mode
+   * value -- tanpa anak yg valid, `buildLeafFromText` tak bisa membentuk
+   * leaf. Selama fetch, prefix `[Kolom:]` sudah tampil (input non-aktif)
+   * supaya user tahu kolomnya terpilih, bukan diam tanpa umpan balik.
+   */
   const pickColumn = useCallback(
     (name) => {
-      const col = columns?.[name];
-      if (col) enterValueMode(col);
+      const col = effectiveColumns?.[name];
+      if (!col) return;
+      if (col.type === "relation" && !relationLabelColumn(col)) {
+        enterValueMode(col);
+        setLoadingRelation(col.name);
+        ensureRelationHydrated(col).then((hydrated) => {
+          setLoadingRelation(null);
+          if (relationLabelColumn(hydrated)) {
+            setValueColumn(hydrated);
+          } else {
+            // Model relasi ini tak punya kolom string yg bisa dicari sama
+            // sekali -- keluar dari mode value diam-diam (bukan error/dialog).
+            exitValueMode();
+          }
+        });
+        return;
+      }
+      enterValueMode(col);
     },
-    [columns, enterValueMode],
+    [effectiveColumns, ensureRelationHydrated, enterValueMode, exitValueMode],
   );
 
   const selectSuggestion = useCallback(
@@ -478,7 +578,7 @@ export default function SearchBar({
         return;
       }
       if (section === "group") {
-        const col = columns?.[item.payload.column];
+        const col = effectiveColumns?.[item.payload.column];
         onGroupChange?.(
           computeGroupDefaults(col ?? { name: item.payload.column }),
         );
@@ -491,7 +591,7 @@ export default function SearchBar({
       tree,
       pickSaved,
       pickColumn,
-      columns,
+      effectiveColumns,
       onGroupChange,
     ],
   );
@@ -514,7 +614,7 @@ export default function SearchBar({
       if (chip.kind === "search") {
         const value = Object.values(chip.node?.c ?? {})[0]?.v ?? "";
         const searchColumnTitles = (chip.columns ?? []).map((k) => {
-          const col = resolveColumnPath(columns, k);
+          const col = resolveColumnPath(effectiveColumns, k);
           return col ? columnTitle(col, t) : k;
         });
         setEditingChip({
@@ -525,22 +625,42 @@ export default function SearchBar({
         });
         return;
       }
-      const column = resolveColumnPath(columns, chip.node?.k);
-      const valueMode = column ? resolveValueMode(column) : null;
-      if (!valueMode) {
-        onOpenBuilder?.();
+      const column = resolveColumnPath(effectiveColumns, chip.node?.k);
+      // Kolom relasi BARE (`k` = nama relasi, mis. leaf `{k:"category",
+      // o:"=", v:<record>}` hasil Builder lanjutan / quick-filter klik sel)
+      // TIDAK kompatibel dgn alur value-mode sederhana ini -- alur ini HANYA
+      // menangani leaf `matches` pada kolom ANAK string
+      // (`buildLeafFromText`). Reka ulang sbg teks akan salah total (operator
+      // & target kolom berubah diam-diam). Edit leaf spt ini lewat Builder.
+      const valueMode =
+        column && column.type !== "relation" ? resolveValueMode(column) : null;
+      if (valueMode) {
+        const isTyped =
+          valueMode === "text" ||
+          valueMode === "number" ||
+          valueMode === "relation";
+        enterValueMode(column, {
+          editId: chip.id,
+          initialText: isTyped ? String(chip.node?.v ?? "") : "",
+        });
         return;
       }
-      const isTyped =
-        valueMode === "text" ||
-        valueMode === "number" ||
-        valueMode === "relation";
-      enterValueMode(column, {
-        editId: chip.id,
-        initialText: isTyped ? String(chip.node?.v ?? "") : "",
-      });
+      // Kolom anak relasi (dotted) yg BELUM ter-hydrate dalam sesi ini (mis.
+      // tree dari saved filter, relasinya tak pernah dipilih lewat UI ini) --
+      // satu2nya cara leaf dotted terbentuk adalah `matches` pada kolom anak
+      // string (`buildLeafFromText`), jadi aman diedit sbg teks polos tanpa
+      // fetch ulang (judul kolom fallback ke segmen terakhir key).
+      const key = String(chip.node?.k ?? "");
+      if (!column && key.includes(".")) {
+        enterValueMode(
+          { name: key, type: "string", title: key.split(".").pop() },
+          { editId: chip.id, initialText: String(chip.node?.v ?? "") },
+        );
+        return;
+      }
+      onOpenBuilder?.();
     },
-    [columns, t, onOpenBuilder, enterValueMode],
+    [effectiveColumns, t, onOpenBuilder, enterValueMode],
   );
 
   const removeChipByKind = useCallback(
@@ -762,7 +882,7 @@ export default function SearchBar({
                       }
                       searchColumnTitles={editingChip.searchColumnTitles}
                       groupOptions={groupOptions}
-                      columns={columns}
+                      columns={effectiveColumns}
                       onApply={applyEditingChip}
                     />
                   </PopoverContent>
@@ -796,14 +916,21 @@ export default function SearchBar({
                   <input
                     ref={inputRef}
                     value={inputValue}
-                    placeholder={placeholder}
+                    placeholder={
+                      loadingRelation && loadingRelation === valueColumn?.name
+                        ? t("core.datatable.search.loading_relation")
+                        : placeholder
+                    }
+                    disabled={Boolean(
+                      loadingRelation && loadingRelation === valueColumn?.name,
+                    )}
                     onChange={handleInputChange}
                     onFocus={() => {
                       setOpen(true);
                       ensureSavedFetched();
                     }}
                     onKeyDown={handleInputKeyDown}
-                    className="flex-1 min-w-0 h-6 bg-transparent text-sm outline-none placeholder:text-muted-foreground"
+                    className="flex-1 min-w-0 h-6 bg-transparent text-sm outline-none placeholder:text-muted-foreground disabled:opacity-60"
                   />
                 </div>
               </PopoverTrigger>
@@ -821,7 +948,7 @@ export default function SearchBar({
                   {showPanel ? (
                     <SearchPanel
                       model={model}
-                      columns={columns}
+                      columns={effectiveColumns}
                       savedFilters={savedFilters}
                       loadingSaved={loadingSaved}
                       sourceId={sourceSaved?.id}

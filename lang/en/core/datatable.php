@@ -172,6 +172,7 @@ return [
         'open_panel'       => 'Open search options',
         'remove_chip'      => 'Remove :label',
         'applying'         => 'Applying…',
+        'loading_relation' => 'Loading…',
     ],
     'sorting' => [
         'sort'            => 'Sort',

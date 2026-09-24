@@ -172,6 +172,7 @@ return [
         'open_panel'       => 'Buka opsi pencarian',
         'remove_chip'      => 'Hapus :label',
         'applying'         => 'Menerapkan…',
+        'loading_relation' => 'Memuat…',
     ],
     'sorting' => [
         'sort'            => 'Urutkan',

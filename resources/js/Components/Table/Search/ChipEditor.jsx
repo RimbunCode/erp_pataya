@@ -12,14 +12,11 @@ import {
   DATE_GROUP_GRANULARITIES,
   DEFAULT_NUMBER_GROUP_RANGE_OPTIONS,
 } from "@/Components/Table/Table2";
-import SearchableOptionList, {
-  searchableOptionFilter,
-} from "@/Components/Table/SearchableOptionList";
 import { useState } from "react";
 
 import { Button } from "@/Components/ui/button";
-import { Command } from "@/Components/ui/command";
 import { Input } from "@/Components/ui/input";
+import { cn } from "@/lib/utils";
 import { useLaravelReactI18n } from "laravel-react-i18n";
 
 // Sentinel "Tidak ada" -- sama seperti `NO_GROUP_VALUE` (DataTable2.jsx:96)
@@ -66,26 +63,38 @@ export function GroupPicker({ groupOptions, columns, value, onChange }) {
   const activeColumn = value?.column ? columns?.[value.column] : null;
   const rangeOptions =
     activeColumn?.groupRangeOptions ?? DEFAULT_NUMBER_GROUP_RANGE_OPTIONS;
+  const activeValue = value?.column || NO_GROUP_VALUE;
+
+  const pick = (val) => {
+    if (val === NO_GROUP_VALUE) {
+      onChange({ column: null, granularity: null, range: null });
+      return;
+    }
+    onChange(computeGroupDefaults(columns?.[val] ?? { name: val }));
+  };
 
   return (
     <div className="flex flex-col w-64">
-      <Command filter={searchableOptionFilter}>
-        <SearchableOptionList
-          options={groupOptions}
-          value={value?.column || NO_GROUP_VALUE}
-          onValueChange={(val) => {
-            if (val === NO_GROUP_VALUE) {
-              onChange({ column: null, granularity: null, range: null });
-              return;
-            }
-            onChange(computeGroupDefaults(columns?.[val] ?? { name: val }));
-          }}
-          searchPlaceholder={t(
-            "core.datatable.filter.column.search.placeholder",
-          )}
-          emptyMessage={t("core.datatable.filter.column.not_found")}
-        />
-      </Command>
+      {/* Daftar polos TANPA kotak cari sendiri -- kolom groupable per model
+          selalu sedikit (opt-in), & pencarian sudah jadi tanggung jawab
+          Search Bar utama; kotak cari kedua di sini cuma duplikat visual
+          (feedback verifikasi visual). */}
+      <ul className="flex flex-col gap-0.5 max-h-56 overflow-y-auto p-1">
+        {groupOptions.map((opt) => (
+          <li key={opt.value}>
+            <button
+              type="button"
+              className={cn(
+                "w-full text-left text-sm rounded-md px-2 py-1 hover:bg-accent truncate",
+                activeValue === opt.value && "bg-accent",
+              )}
+              onClick={() => pick(opt.value)}
+            >
+              {opt.label}
+            </button>
+          </li>
+        ))}
+      </ul>
       {isDateColumn(activeColumn) && (
         <div className="flex flex-wrap gap-1 p-2 border-t border-muted-foreground/20">
           {DATE_GROUP_GRANULARITIES.map((g) => (

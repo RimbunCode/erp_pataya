@@ -15,6 +15,7 @@ const t = (key) => key;
 const relationColumn = (children) => ({
   name: "category",
   type: "relation",
+  related: "App\Models\Inventory\Category",
   title: "Kategori",
   columns: Object.fromEntries(
     children.map((c) => [
@@ -81,10 +82,20 @@ describe("resolveValueMode", () => {
     expect(resolveValueMode({ type: "string", options: [] })).toBe("text");
   });
 
-  it("relasi hanya didukung bila punya anak string yang bisa dicari", () => {
+  it("relasi SELALU 'relation' asal punya `related` -- backend tak pernah kirim anak pre-populated (getColumns() selalu 'columns: []' utk tipe relation), anak di-hydrate lazy oleh caller", () => {
     expect(
       resolveValueMode(relationColumn([{ name: "name", type: "string" }])),
     ).toBe("relation");
+    // Belum ter-hydrate (columns kosong) -- TETAP "relation" (bukan null).
+    expect(resolveValueMode(relationColumn([]))).toBe("relation");
+    expect(
+      resolveValueMode({
+        type: "relation",
+        related: "App\Models\X",
+        columns: {},
+      }),
+    ).toBe("relation");
+    // Tanpa `related` (config rusak, tak ada model target utk di-fetch) -> null.
     expect(resolveValueMode({ type: "relation", columns: {} })).toBeNull();
   });
 
@@ -137,33 +148,43 @@ describe("isColumnSearchable", () => {
     );
   });
 
-  it("menolak kolom yang judulnya belum diterjemahkan (kasus asset_category_id)", () => {
+  it("menerima kolom yang judulnya BELUM diterjemahkan -- paritas dgn FilterItem2 (regresi: asset_category_id/id/type hilang dari daftar Kolom padahal tetap ada di Filter lanjutan)", () => {
+    // FilterItem2 (`resolveColumn`/label kolom di FilterItem2.jsx) tak pernah
+    // menggate pilihan kolom pada terjemahan -- t() yg mengembalikan key
+    // mentah cuma bikin labelnya jelek, bukan alasan menyembunyikan kolom.
+    // Akar masalah nyatanya: lang/id/inventory/item.php belum punya entri
+    // utk kolom2 itu (gap konten, bukan bug filter kolom).
     const untranslated = {
       name: "asset_category_id",
       type: "string",
       titleTrans: "inventory.item.columns.asset_category_id",
       title: "inventory.item.columns.asset_category_id",
     };
-    expect(isColumnSearchable(untranslated, t)).toBe(false);
-    // Tanpa `title` terisi: dinilai lewat t() (mengembalikan key = belum diterjemahkan).
+    expect(isColumnSearchable(untranslated, t)).toBe(true);
     expect(isColumnSearchable({ ...untranslated, title: undefined }, t)).toBe(
-      false,
+      true,
     );
-    // Terjemahan ada -> boleh.
-    expect(
-      isColumnSearchable({ ...untranslated, title: undefined }, (key) =>
-        key === untranslated.titleTrans ? "Kategori Aset" : key,
-      ),
-    ).toBe(true);
-    expect(
-      isColumnSearchable({ ...untranslated, title: "Kategori Aset" }, t),
-    ).toBe(true);
   });
 
-  it("menolak relasi tanpa anak string", () => {
+  it("menolak relasi tanpa `related` (config rusak, tak ada model target)", () => {
     expect(
       isColumnSearchable({ name: "r", type: "relation", columns: {} }, t),
     ).toBe(false);
+  });
+
+  it("menerima relasi walau anak BELUM ter-hydrate, asal punya `related` (regresi: category/default_unit hilang dari daftar Kolom)", () => {
+    expect(
+      isColumnSearchable(
+        {
+          name: "category",
+          type: "relation",
+          related: "App\\Models\\Inventory\\Category",
+          title: "Kategori",
+          columns: [],
+        },
+        t,
+      ),
+    ).toBe(true);
   });
 
   it("null/undefined -> false", () => {

@@ -225,4 +225,20 @@ describe("ChipEditor kind=group / GroupPicker", () => {
       screen.queryByRole("button", { name: "500" }),
     ).not.toBeInTheDocument();
   });
+
+  it("TIDAK ada kotak cari kedua di dalam daftar kolom grup (feedback verifikasi visual: duplikat dgn Search Bar utama)", () => {
+    render(
+      <GroupPicker
+        groupOptions={groupOptions}
+        columns={columns}
+        value={{ column: null, granularity: null, range: null }}
+        onChange={vi.fn()}
+      />,
+    );
+
+    expect(screen.queryByRole("textbox")).not.toBeInTheDocument();
+    expect(screen.queryByRole("searchbox")).not.toBeInTheDocument();
+    // Daftar tetap tampil sbg tombol polos.
+    expect(screen.getByRole("button", { name: "Dibuat" })).toBeInTheDocument();
+  });
 });

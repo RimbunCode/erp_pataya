@@ -228,6 +228,7 @@ describe("buildSuggestions — revisi 2 (kolom tanggal, relasi, judul rusak)", (
       name: "category",
       title: "Kategori",
       type: "relation",
+      related: "App\Models\Inventory\Category",
       columns: {
         "category.name": {
           name: "category.name",
@@ -236,9 +237,13 @@ describe("buildSuggestions — revisi 2 (kolom tanggal, relasi, judul rusak)", (
         },
       },
     },
-    orphanRelation: {
-      name: "orphan",
-      title: "Orphan",
+    // Relasi TANPA `related` (config rusak, tak ada model target utk
+    // di-fetch anaknya) -- satu2nya bentuk relasi yg TETAP disembunyikan.
+    // Relasi NORMAL tanpa anak ter-hydrate (spt `category` sebelum
+    // di-hydrate) justru HARUS tetap muncul -- lihat test di bawah.
+    brokenRelation: {
+      name: "brokenRelation",
+      title: "Broken Relation",
       type: "relation",
       columns: {},
     },
@@ -277,18 +282,28 @@ describe("buildSuggestions — revisi 2 (kolom tanggal, relasi, judul rusak)", (
     expect(value.items.every((i) => i.payload.k === "created_at")).toBe(true);
   });
 
-  it("kolom relasi (punya anak string) muncul di saran Kolom; tanpa anak string tidak", () => {
+  it("kolom relasi muncul di saran Kolom asal punya `related`, WALAU anak belum ter-hydrate (regresi: category/default_unit hilang)", () => {
     const column = buildSuggestions("k", ctx2).find(
       (s) => s.section === "column",
     );
     const names = column.items.map((i) => i.payload.column);
     expect(names).toContain("category");
-    expect(names).not.toContain("orphan");
   });
 
-  it("kolom dengan judul belum diterjemahkan disembunyikan (asset_category_id)", () => {
-    const all = buildSuggestions("inventory", ctx2);
-    expect(all.find((s) => s.section === "column")).toBeUndefined();
+  it("kolom relasi TANPA `related` (config rusak) tetap disembunyikan", () => {
+    const column = buildSuggestions("broken", ctx2).find(
+      (s) => s.section === "column",
+    );
+    expect(column).toBeUndefined();
+  });
+
+  it("kolom dengan judul belum diterjemahkan TETAP muncul -- paritas FilterItem2 (regresi: asset_category_id/id/type hilang dari daftar Kolom Item padahal tetap ada di Filter lanjutan)", () => {
+    const column = buildSuggestions("inventory", ctx2).find(
+      (s) => s.section === "column",
+    );
+    expect(
+      column.items.some((i) => i.payload.column === "asset_category_id"),
+    ).toBe(true);
   });
 
   it("kolom tipe tak didukung (json) tidak pernah ditawarkan", () => {

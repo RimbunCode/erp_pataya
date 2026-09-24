@@ -73,6 +73,15 @@ export const resolveColumnPath = (columns, key) => {
 
 /**
  * Mode nilai untuk sebuah kolom, atau `null` bila tipenya tak didukung.
+ *
+ * Kolom relasi SELALU `"relation"` (bukan digate oleh `relationLabelColumn`)
+ * -- backend TIDAK pernah mengirim anak kolom relasi pre-populated
+ * (`getColumns()` selalu balikin `columns: []` utk tipe relation, terverifikasi
+ * lewat tinker). Anak kolom (utk resolusi label/`buildLeafFromText`) di-fetch
+ * LAZY oleh pemanggil (SearchBar, pola sama dgn `FilterItem2.fetchRelationColumns`)
+ * saat kolom relasi ini benar-benar dipilih, BUKAN di sini -- modul ini murni,
+ * tanpa I/O. Caller wajib memastikan kolom sudah "ter-hydrate" (`.columns`
+ * terisi) sebelum memanggil `buildLeafFromText` utk kolom bertipe relation.
  * @param {object} column
  * @returns {"list"|"text"|"number"|"relation"|"date"|null}
  */
@@ -82,9 +91,7 @@ export const resolveValueMode = (column) => {
   if (column.type === "string") return "text";
   if (column.type === "number" || column.type === "currency") return "number";
   if (column.type === "date" || column.type === "datetime") return "date";
-  if (column.type === "relation") {
-    return relationLabelColumn(column) ? "relation" : null;
-  }
+  if (column.type === "relation") return column.related ? "relation" : null;
   return null;
 };
 
@@ -98,30 +105,22 @@ export const columnTitle = (column, t) =>
   column?.title ?? (column?.titleTrans ? t(column.titleTrans) : column?.name);
 
 /**
- * Judul yang BELUM diterjemahkan (`t()` mengembalikan key-nya sendiri, mis.
- * "inventory.item.columns.asset_category_id") = konfigurasi kolom rusak --
- * tidak masuk akal ditawarkan ke user sebagai pilihan.
- * @param {object} column
- * @param {(key: string) => string} [t]
- * @returns {boolean}
- */
-const hasUntranslatedTitle = (column, t) => {
-  if (!column?.titleTrans) return false;
-  if (column.title) return column.title === column.titleTrans;
-  return t ? t(column.titleTrans) === column.titleTrans : false;
-};
-
-/**
  * Apakah kolom boleh ditawarkan sebagai pencarian per-kolom di Search Bar
- * (saran "Kolom", daftar di Panel). Penyaringan dasar sama dgn FilterItem2
- * (searchable / hidden / ignore / meta append), ditambah: tipe harus punya
- * mode nilai (`resolveValueMode`), hanya kolom level-atas, dan judul harus
- * sudah diterjemahkan.
+ * (saran "Kolom", daftar di Panel). Penyaringan SAMA dgn FilterItem2
+ * (searchable / hidden / ignore / meta append) supaya daftar kolom yg bisa
+ * dicari di sini PARITAS dgn Builder lanjutan -- termasuk kolom yg judulnya
+ * belum diterjemahkan (FilterItem2 tetap menawarkannya, hanya labelnya jadi
+ * key mentah; bug nyata dari verifikasi visual: `asset_category_id`/`id`/
+ * `type` pada Item hilang dari daftar Kolom Search Bar padahal tetap muncul
+ * di Filter lanjutan -- root cause-nya di `lang/*\/inventory/item.php` yg
+ * belum punya entri utk kolom itu, BUKAN alasan utk menyembunyikannya di
+ * sini saja), ditambah: tipe harus punya mode nilai (`resolveValueMode`),
+ * hanya kolom level-atas.
  * @param {object} column
  * @param {(key: string) => string} [t]
  * @returns {boolean}
  */
-export const isColumnSearchable = (column, t) =>
+export const isColumnSearchable = (column) =>
   Boolean(
     column &&
     column.searchable !== false &&
@@ -129,8 +128,7 @@ export const isColumnSearchable = (column, t) =>
     !column.ignore &&
     !column.parentCol &&
     !isMetaAppendColumn(column) &&
-    resolveValueMode(column) !== null &&
-    !hasUntranslatedTitle(column, t),
+    resolveValueMode(column) !== null,
   );
 
 const pad2 = (n) => String(n).padStart(2, "0");
