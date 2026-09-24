@@ -1,9 +1,14 @@
 // searchSuggestions — fungsi murni: teks yang diketik user -> daftar saran
 // terbagi 5 seksi berurutan (design.md §5.2; Requirement 3).
 
+import {
+  buildDatePresets,
+  columnTitle,
+  isColumnSearchable,
+  resolveValueMode,
+} from "./columnSearch";
 import { buildOptionList } from "./searchChips";
 import { columnHasOptions } from "../Filter/operators";
-import { isMetaAppendColumn } from "@/lib/utils";
 
 // Sentinel "Tidak ada" pada `groupOptions` -- mirror `NO_GROUP_VALUE`
 // (DataTable2.jsx:96). Didefinisikan lokal (bukan import dari Pages/) agar
@@ -17,31 +22,22 @@ const toArray = (value) => {
   return Array.isArray(value) ? value : Object.values(value);
 };
 
-/** Pemecah kata -- selaras `highlightMatch` (split `/\s+/`, case-insensitive). */
+/**
+ * Pemecah kata -- selaras `highlightMatch` (split `/\s+/`, case-insensitive).
+ * @param text
+ */
 const wordsOf = (text) =>
-  `${text ?? ""}`
-    .trim()
-    .toLowerCase()
-    .split(/\s+/)
-    .filter(Boolean);
+  `${text ?? ""}`.trim().toLowerCase().split(/\s+/).filter(Boolean);
 
-/** Item cocok bila SETIAP kata query muncul di label (case-insensitive). */
+/**
+ * Item cocok bila SETIAP kata query muncul di label (case-insensitive).
+ * @param label
+ * @param words
+ */
 const matchesAllWords = (label, words) => {
   const lower = `${label ?? ""}`.toLowerCase();
   return words.every((w) => lower.includes(w));
 };
-
-/** Penyaringan kolom -- selaras `FilterItem2.jsx` (:55-70, :110-125). */
-const isSearchableColumn = (col) =>
-  Boolean(
-    col &&
-    col.searchable !== false &&
-    !col.hidden &&
-    !col.ignore &&
-    !isMetaAppendColumn(col),
-  );
-
-const columnLabel = (col, t) => col.title ?? (col.titleTrans ? t(col.titleTrans) : col.name);
 
 /**
  * Bangun saran dropdown Search Bar dari teks yang sedang diketik. Seksi
@@ -54,6 +50,8 @@ const columnLabel = (col, t) => col.title ?? (col.titleTrans ? t(col.titleTrans)
  * @param {Array<object>} [root0.savedFilters] hasil `saved-filters.index`
  * @param {Array<{value:string, label:string}>} [root0.groupOptions]
  * @param {(key: string, params?: object) => string} root0.t
+ * @param {Date} [root0.now] basis "sekarang" utk preset periode kolom
+ *   tanggal (default `new Date()`) -- parameter injeksi utk kemudahan test.
  * Item: `{ key, label, payload, prefix? }` -- needle highlight SELALU teks
  * ketikan (`highlightMatch(label.slice(prefix.length), text)`), bukan field
  * terpisah; `prefix` hanya ada di seksi `value`.
@@ -61,7 +59,7 @@ const columnLabel = (col, t) => col.title ?? (col.titleTrans ? t(col.titleTrans)
  */
 const buildSuggestions = (
   text,
-  { columns, searchColumns, savedFilters, groupOptions, t } = {},
+  { columns, searchColumns, savedFilters, groupOptions, t, now } = {},
 ) => {
   const trimmed = `${text ?? ""}`.trim();
   if (!trimmed) return [];
@@ -88,8 +86,7 @@ const buildSuggestions = (
   if (Array.isArray(savedFilters)) {
     const items = savedFilters
       .map((saved) => {
-        const label =
-          saved?.name || t("core.datatable.filter.saved.untitled");
+        const label = saved?.name || t("core.datatable.filter.saved.untitled");
         if (!matches(label)) return null;
         return {
           key: `saved-${saved.id}`,
@@ -103,10 +100,12 @@ const buildSuggestions = (
   }
 
   // 3. Kolom.
-  const columnList = toArray(columns).filter(isSearchableColumn);
+  const columnList = toArray(columns).filter((col) =>
+    isColumnSearchable(col, t),
+  );
   const columnItems = columnList
     .map((col) => {
-      const label = columnLabel(col, t);
+      const label = columnTitle(col, t);
       if (!matches(label)) return null;
       return {
         key: `column-${col.name}`,
@@ -116,15 +115,16 @@ const buildSuggestions = (
     })
     .filter(Boolean)
     .slice(0, SECTION_LIMITS.column);
-  if (columnItems.length > 0) sections.push({ section: "column", items: columnItems });
+  if (columnItems.length > 0)
+    sections.push({ section: "column", items: columnItems });
 
-  // 4. Nilai -- opsi kolom ber-opsi + boolean, cocok label opsi (BUKAN label
+  // 4. Nilai -- opsi kolom ber-opsi + boolean + preset periode kolom tanggal, cocok label (BUKAN label
   // gabungan "Kolom: Label"). `prefix` ("Kolom: ") dirender polos oleh
   // komponen; hanya sisa label (bagian opsi) yang di-highlight dgn teks
   // ketikan (design.md §5.2 baris terakhir).
   const valueItems = [];
   for (const col of columnList) {
-    const colLabel = columnLabel(col, t);
+    const colLabel = columnTitle(col, t);
     if (columnHasOptions(col)) {
       for (const opt of buildOptionList(col, t)) {
         if (!matches(opt.label)) continue;
@@ -148,10 +148,25 @@ const buildSuggestions = (
           payload: { k: col.name, o: "=", v: boolValue },
         });
       }
+    } else if (resolveValueMode(col) === "date") {
+      // Kolom tanggal: preset periode (Hari ini, Bulan ini, ...) -- nilai
+      // in_period absolut, tanpa dialog DateSelector.
+      for (const preset of buildDatePresets(now ?? new Date(), t)) {
+        if (!matches(preset.label)) continue;
+        valueItems.push({
+          key: `value-${col.name}-${preset.key}`,
+          label: `${colLabel}: ${preset.label}`,
+          prefix: `${colLabel}: `,
+          payload: { k: col.name, o: "in_period", v: preset.value },
+        });
+      }
     }
   }
   if (valueItems.length > 0) {
-    sections.push({ section: "value", items: valueItems.slice(0, SECTION_LIMITS.value) });
+    sections.push({
+      section: "value",
+      items: valueItems.slice(0, SECTION_LIMITS.value),
+    });
   }
 
   // 5. Kelompokkan -- hanya bila host memberi `groupOptions`.

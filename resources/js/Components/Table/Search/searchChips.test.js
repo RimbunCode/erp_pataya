@@ -298,7 +298,11 @@ describe("treeToChips", () => {
   });
 
   it("value relasi fallback ke name bila convertTemplateLink kosong", () => {
-    const record = { id: 2, name: "PT B", templateLink: "<title>:name</title>" };
+    const record = {
+      id: 2,
+      name: "PT B",
+      templateLink: "<title>:name</title>",
+    };
     // Sanity: templateLink HANYA berisi <title>, convertTemplateLink(v,'')
     // melucuti seluruh title tag -> hasil kosong -> fallback dipakai.
     expect(convertTemplateLink(record, "")).toBe("");
@@ -569,5 +573,126 @@ describe("removeChip", () => {
       },
     });
     expect(() => removeChip(tree, "a")).not.toThrow();
+  });
+});
+
+describe("addLeafChip — nilai kosong (regresi verifikasi visual)", () => {
+  const withSparepart = {
+    root: {
+      k: "and",
+      c: {
+        a: { k: "customer", o: "=", v: { id: "1", name: "PT A" } },
+      },
+    },
+  };
+
+  it.each([[null], [undefined], [""], ["   "], [[]]])(
+    "v=%j tidak menambah/menggabung apa pun, tree dikembalikan apa adanya",
+    (v) => {
+      const tree = deepFreeze(structuredClone(withSparepart));
+      expect(addLeafChip(tree, { k: "customer", o: "=", v })).toBe(tree);
+      expect(addLeafChip(null, { k: "name", o: "matches", v })).toBeNull();
+    },
+  );
+
+  it("mencegah `in [record, null]` saat picker relasi ter-reset (bug asli)", () => {
+    const tree = deepFreeze(structuredClone(withSparepart));
+    const next = addLeafChip(tree, { k: "customer", o: "=", v: null });
+    expect(JSON.stringify(next)).not.toContain("null");
+  });
+
+  it("boolean false dan angka 0 adalah nilai VALID", () => {
+    const a = addLeafChip(null, { k: "active", o: "=", v: false });
+    expect(Object.values(a.root.c)[0]).toMatchObject({ k: "active", v: false });
+    const b = addLeafChip(null, { k: "total", o: "=", v: 0 });
+    expect(Object.values(b.root.c)[0]).toMatchObject({ k: "total", v: 0 });
+  });
+});
+
+describe("treeToChips — judul kolom berpath & periode", () => {
+  const cols = {
+    category: {
+      name: "category",
+      title: "Kategori",
+      type: "relation",
+      columns: {
+        "category.name": {
+          name: "category.name",
+          title: "Nama",
+          type: "string",
+          parentCol: { name: "category" },
+        },
+      },
+    },
+    created_at: { name: "created_at", title: "Dibuat", type: "date" },
+  };
+
+  it("leaf pada kolom relasi berpath dilabeli 'Kategori › Nama'", () => {
+    const [chip] = treeToChips(
+      {
+        root: {
+          k: "and",
+          c: { a: { k: "category.name", o: "matches", v: "elek" } },
+        },
+      },
+      cols,
+      t,
+    );
+    expect(chip.kind).toBe("leaf");
+    expect(chip.label).toBe(
+      "Kategori › Nama core.datatable.filter.operator.matches elek",
+    );
+  });
+
+  it("segmen yang tak ter-resolve memakai segmen mentah", () => {
+    const [chip] = treeToChips(
+      { root: { k: "and", c: { a: { k: "ghost.field", o: "=", v: "x" } } } },
+      cols,
+      t,
+    );
+    expect(chip.label).toBe("ghost › field: x");
+  });
+
+  it("in_period 'is' dibaca sbg 'Kolom: nilai' (bukan [object Object])", () => {
+    const [chip] = treeToChips(
+      {
+        root: {
+          k: "and",
+          c: {
+            a: {
+              k: "created_at",
+              o: "in_period",
+              v: { period: "month", operator: "is", year: 2026, month: 8 },
+            },
+          },
+        },
+      },
+      cols,
+      t,
+    );
+    expect(chip.label).toBe("Dibuat: 2026-09");
+    expect(chip.label).not.toContain("object");
+  });
+
+  it("in_period selain 'is' tetap menyebut operatornya", () => {
+    const [chip] = treeToChips(
+      {
+        root: {
+          k: "and",
+          c: {
+            a: {
+              k: "created_at",
+              o: "in_period",
+              v: { period: "year", operator: "after", year: 2025 },
+            },
+          },
+        },
+      },
+      cols,
+      t,
+    );
+    expect(chip.label).toBe(
+      "Dibuat core.datatable.filter.operator.in_period 2025",
+    );
   });
 });

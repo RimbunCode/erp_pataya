@@ -1,4 +1,4 @@
-import { beforeEach, describe, expect, it, vi } from "vitest";
+import { describe, expect, it, vi } from "vitest";
 import { render, screen, within } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 
@@ -7,11 +7,6 @@ vi.mock("laravel-react-i18n", () => ({
     t: (key, params) =>
       params ? `TR:${key}:${JSON.stringify(params)}` : `TR:${key}`,
   }),
-}));
-
-const mobileState = vi.hoisted(() => ({ value: false }));
-vi.mock("@/Hooks/use-mobile", () => ({
-  useIsMobile: () => mobileState.value,
 }));
 
 vi.mock("@/Components/Table/Table2", () => ({
@@ -30,7 +25,10 @@ vi.mock("../Filter/FilterTable2", () => ({
       data-items={JSON.stringify(props.savedItems)}
       data-has-snapshot={String(typeof props.getViewSnapshot === "function")}
     >
-      <button type="button" onClick={() => props.onSaved({ id: 42, name: "Baru" })}>
+      <button
+        type="button"
+        onClick={() => props.onSaved({ id: 42, name: "Baru" })}
+      >
         stub-save
       </button>
     </div>
@@ -55,9 +53,6 @@ const savedFilters = [
 
 const renderPanel = (overrides = {}) => {
   const props = {
-    trigger: <button type="button">trigger</button>,
-    open: true,
-    onOpenChange: vi.fn(),
     model: "AppModelsItem",
     columns,
     savedFilters,
@@ -75,6 +70,11 @@ const renderPanel = (overrides = {}) => {
     groupOptions,
     group: { column: null, granularity: null, range: null },
     onGroupChange: vi.fn(),
+    columnList: [
+      { name: "created_at", label: "Dibuat" },
+      { name: "customer", label: "Customer" },
+    ],
+    onPickColumn: vi.fn(),
     ...overrides,
   };
   render(<SearchPanel {...props} />);
@@ -82,15 +82,11 @@ const renderPanel = (overrides = {}) => {
 };
 
 describe("SearchPanel — kolom Filter Tersimpan", () => {
-  beforeEach(() => {
-    mobileState.value = false;
-  });
-
   it("menampilkan daftar, badge Shared hanya utk is_shared, hapus hanya utk non-shared", () => {
     renderPanel();
 
     expect(
-      screen.getByText("TR:core.datatable.search.section.saved"),
+      screen.getByText("TR:core.datatable.filter.filter"),
     ).toBeInTheDocument();
     expect(screen.getByText("Draft saya")).toBeInTheDocument();
     expect(screen.getByText("PO Bulan Ini")).toBeInTheDocument();
@@ -107,7 +103,9 @@ describe("SearchPanel — kolom Filter Tersimpan", () => {
     const user = userEvent.setup({ delay: null });
     const props = renderPanel();
 
-    await user.click(screen.getByTitle("TR:core.datatable.filter.delete.label"));
+    await user.click(
+      screen.getByTitle("TR:core.datatable.filter.delete.label"),
+    );
 
     expect(props.onRemoveSaved).toHaveBeenCalledWith(1);
   });
@@ -150,19 +148,22 @@ describe("SearchPanel — kolom Filter Tersimpan", () => {
 
     const control = screen.getByTestId("save-control");
     expect(control).toHaveAttribute("data-model", "AppModelsItem");
-    expect(control).toHaveAttribute("data-items", JSON.stringify([savedFilters[0]]));
+    expect(control).toHaveAttribute(
+      "data-items",
+      JSON.stringify([savedFilters[0]]),
+    );
     expect(control).toHaveAttribute("data-has-snapshot", "true");
 
     await user.click(screen.getByText("stub-save"));
     expect(props.onSaved).toHaveBeenCalledWith({ id: 42, name: "Baru" });
   });
 
-  it("tanpa model: judul, daftar & SaveFilterControl tidak dirender, Builder tetap ada", () => {
+  it("tanpa model: daftar & SaveFilterControl tidak dirender, judul Filter & Builder tetap ada", () => {
     renderPanel({ model: undefined });
 
     expect(
-      screen.queryByText("TR:core.datatable.search.section.saved"),
-    ).not.toBeInTheDocument();
+      screen.getByText("TR:core.datatable.filter.filter"),
+    ).toBeInTheDocument();
     expect(screen.queryByText("Draft saya")).not.toBeInTheDocument();
     expect(screen.queryByTestId("save-control")).not.toBeInTheDocument();
     expect(
@@ -190,7 +191,9 @@ describe("SearchPanel — kolom Filter Tersimpan", () => {
     const props = renderPanel({ hasFilters: true });
 
     await user.click(
-      screen.getByRole("button", { name: "TR:core.datatable.search.clear_all" }),
+      screen.getByRole("button", {
+        name: "TR:core.datatable.search.clear_all",
+      }),
     );
     expect(props.onClearAll).toHaveBeenCalledTimes(1);
   });
@@ -198,25 +201,25 @@ describe("SearchPanel — kolom Filter Tersimpan", () => {
   it("tanpa hasFilters tombol Hapus semua filter tidak ada", () => {
     renderPanel({ hasFilters: false });
     expect(
-      screen.queryByRole("button", { name: "TR:core.datatable.search.clear_all" }),
+      screen.queryByRole("button", {
+        name: "TR:core.datatable.search.clear_all",
+      }),
     ).not.toBeInTheDocument();
   });
 });
 
 describe("SearchPanel — kolom Group by", () => {
-  beforeEach(() => {
-    mobileState.value = false;
-  });
-
   it("dirender bila groupOptions tidak kosong; pilih kolom -> onGroupChange default", async () => {
     const user = userEvent.setup({ delay: null });
     const props = renderPanel();
 
-    expect(
-      screen.getByText("TR:core.datatable.group_by"),
-    ).toBeInTheDocument();
+    expect(screen.getByText("TR:core.datatable.group_by")).toBeInTheDocument();
 
-    await user.click(screen.getByText("Dibuat"));
+    // "Dibuat" juga ada di daftar Kolom -- cari di dalam seksi Group saja.
+    const groupSection = screen
+      .getByText("TR:core.datatable.group_by")
+      .closest("section");
+    await user.click(within(groupSection).getByText("Dibuat"));
 
     expect(props.onGroupChange).toHaveBeenCalledWith({
       column: "created_at",
@@ -232,7 +235,9 @@ describe("SearchPanel — kolom Group by", () => {
     });
 
     await user.click(
-      screen.getByRole("button", { name: "TR:core.datatable.granularity.quarter" }),
+      screen.getByRole("button", {
+        name: "TR:core.datatable.granularity.quarter",
+      }),
     );
 
     expect(props.onGroupChange).toHaveBeenCalledWith({
@@ -265,45 +270,79 @@ describe("SearchPanel — kolom Group by", () => {
   });
 });
 
-describe("SearchPanel — chrome desktop vs mobile", () => {
-  it("desktop: konten ada di Popover (tanpa judul Dialog)", () => {
-    mobileState.value = false;
-    renderPanel();
-
-    // Radix Popover juga ber-role "dialog" -- pembeda: Dialog mobile punya
-    // DialogTitle, Popover desktop tidak.
-    expect(
-      screen.queryByText("TR:core.datatable.search.open_panel"),
-    ).not.toBeInTheDocument();
-    expect(screen.getByText("Draft saya")).toBeInTheDocument();
-  });
-
-  it("mobile: Dialog dengan kedua seksi bertumpuk", () => {
-    mobileState.value = true;
+describe("SearchPanel — kolom Kolom (pencarian per kolom)", () => {
+  it("menampilkan judul & daftar kolom yang bisa dicari", () => {
     renderPanel();
 
     expect(
-      screen.getByText("TR:core.datatable.search.open_panel", {
-        selector: "h2",
-      }),
+      screen.getByText("TR:core.datatable.search.section.column"),
     ).toBeInTheDocument();
-    const dialog = screen.getByRole("dialog");
-    expect(
-      within(dialog).getByText("TR:core.datatable.search.section.saved"),
-    ).toBeInTheDocument();
-    expect(
-      within(dialog).getByText("TR:core.datatable.group_by"),
-    ).toBeInTheDocument();
-    expect(within(dialog).getByText("Draft saya")).toBeInTheDocument();
+    // "Dibuat"/"Customer" juga ada di GroupPicker -- daftar Kolom dicari via
+    // tombolnya di dalam <section> Kolom.
+    const section = screen
+      .getByText("TR:core.datatable.search.section.column")
+      .closest("section");
+    expect(section.querySelectorAll("button")).toHaveLength(2);
   });
 
-  it("klik trigger meminta buka via onOpenChange", async () => {
-    mobileState.value = false;
+  it("klik kolom memanggil onPickColumn(name) -- tanpa dialog/operator", async () => {
     const user = userEvent.setup({ delay: null });
-    const props = renderPanel({ open: false });
+    const props = renderPanel();
+    const section = screen
+      .getByText("TR:core.datatable.search.section.column")
+      .closest("section");
 
-    await user.click(screen.getByRole("button", { name: "trigger" }));
+    await user.click(section.querySelectorAll("button")[1]);
 
-    expect(props.onOpenChange).toHaveBeenCalledWith(true);
+    expect(props.onPickColumn).toHaveBeenCalledWith("customer");
+    // Tidak ada pemilih operator / dialog apa pun yang muncul.
+    expect(
+      screen.queryByText("TR:core.datatable.filter.select_operator"),
+    ).not.toBeInTheDocument();
+    expect(screen.queryByRole("dialog")).not.toBeInTheDocument();
+    expect(props.onOpenBuilder).not.toHaveBeenCalled();
+  });
+
+  it("tanpa columnList (kosong/undefined) seksi Kolom tidak dirender", () => {
+    renderPanel({ columnList: [] });
+    expect(
+      screen.queryByText("TR:core.datatable.search.section.column"),
+    ).not.toBeInTheDocument();
+    renderPanel({ columnList: undefined });
+    expect(
+      screen.queryByText("TR:core.datatable.search.section.column"),
+    ).not.toBeInTheDocument();
+  });
+});
+
+describe("SearchPanel — tata letak kolom", () => {
+  const gridOf = () =>
+    screen.getByText("TR:core.datatable.filter.filter").closest("section")
+      .parentElement;
+
+  it("3 seksi (Filter, Group, Kolom) -> grid 3 kolom", () => {
+    renderPanel();
+    expect(gridOf().className).toContain("md:grid-cols-3");
+    const titles = [
+      ...gridOf().querySelectorAll("section > span:first-child"),
+    ].map((el) => el.textContent);
+    expect(titles).toEqual([
+      "TR:core.datatable.filter.filter",
+      "TR:core.datatable.group_by",
+      "TR:core.datatable.search.section.column",
+    ]);
+  });
+
+  it("tanpa Group -> 2 kolom; tanpa Group & Kolom -> 1 kolom", () => {
+    renderPanel({ groupOptions: undefined });
+    expect(gridOf().className).toContain("md:grid-cols-2");
+    document.body.innerHTML = "";
+    renderPanel({ groupOptions: undefined, columnList: [] });
+    expect(gridOf().className).toContain("md:grid-cols-1");
+  });
+
+  it("area panel bisa di-scroll (batas tinggi) agar tak menutupi layar", () => {
+    renderPanel();
+    expect(gridOf().className).toContain("overflow-y-auto");
   });
 });

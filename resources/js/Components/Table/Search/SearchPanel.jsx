@@ -1,36 +1,35 @@
-// SearchPanel — Panel ▾ di ujung Search Bar: kolom Filter Tersimpan (daftar +
-// simpan/timpa + Builder lanjutan + Hapus semua filter) dan kolom Group by
-// (design.md §5.8; Requirement 9). Host-agnostic: semua state (daftar saved
-// filter, dirty, dsb) dimiliki `SearchBar` -- komponen ini murni presentasi +
-// callback, mirror pola `SavedFilterBar`/`SaveFilterControl` di FilterTable2
-// (parent yang pegang state & axios, child cuma render + lapor lewat prop).
+// SearchPanel — isi dropdown Search Bar saat input kosong: TIGA kolom, Filter
+// (filter tersimpan + simpan/timpa + Builder lanjutan + Hapus semua), Group
+// (group by) dan Kolom (daftar kolom yang bisa dicari -> klik = mode value).
+// Spec datatable2-advanced-search revisi 2 (Requirement 9). Host-agnostic:
+// semua state (daftar saved filter, dirty, dsb) dimiliki `SearchBar` -- ini
+// murni presentasi + callback. Wadahnya (Popover anchor ke bar) juga milik
+// SearchBar, jadi komponen ini TIDAK punya Popover/Dialog sendiri.
 
 import { Bookmark, BookmarkCheck, Trash2 } from "lucide-react";
-import {
-  Dialog,
-  DialogContent,
-  DialogDescription,
-  DialogHeader,
-  DialogTitle,
-  DialogTrigger,
-} from "@/Components/ui/dialog";
-import {
-  Popover,
-  PopoverContent,
-  PopoverTrigger,
-} from "@/Components/ui/popover";
 
 import { Button } from "@/Components/ui/button";
 import { GroupPicker } from "./ChipEditor";
 import LoadingIcon from "@/Components/LoadingIcon";
 import { SaveFilterControl } from "../Filter/FilterTable2";
 import { cn } from "@/lib/utils";
-import { useIsMobile } from "@/Hooks/use-mobile";
 import { useLaravelReactI18n } from "laravel-react-i18n";
 
+// Jumlah kolom grid per jumlah seksi (kelas Tailwind harus statis).
+const GRID_COLS = {
+  1: "md:grid-cols-1",
+  2: "md:grid-cols-2",
+  3: "md:grid-cols-3",
+};
+
+const SectionTitle = ({ children }) => (
+  <span className="text-sm font-medium text-muted-foreground">{children}</span>
+);
+
 /**
- * Daftar Filter Tersimpan -- badge Shared, penanda sumber aktif, tombol
- * hapus HANYA untuk item bukan shared (Requirement 9.2).
+ * Daftar Filter Tersimpan -- badge Shared, penanda sumber aktif (emas, sama
+ * dgn chip sumber), tombol hapus HANYA untuk item bukan shared
+ * (Requirement 9.2).
  * @param {object} root0
  * @param {Array<object>} root0.items
  * @param {boolean} root0.loading
@@ -65,7 +64,7 @@ function SavedFilterList({ items, loading, activeId, onPick, onRemove, t }) {
             key={item.id}
             className={cn(
               "group flex items-center gap-1.5 rounded-md px-2 py-1",
-              isActive ? "bg-primary/10" : "hover:bg-accent",
+              isActive ? "bg-amber-500/15" : "hover:bg-accent",
             )}
           >
             <button
@@ -75,7 +74,7 @@ function SavedFilterList({ items, loading, activeId, onPick, onRemove, t }) {
               onClick={() => onPick(item)}
             >
               {isActive ? (
-                <BookmarkCheck className="size-3.5 shrink-0 text-primary" />
+                <BookmarkCheck className="size-3.5 shrink-0 text-amber-600 dark:text-amber-400" />
               ) : (
                 <Bookmark className="size-3.5 shrink-0 text-muted-foreground" />
               )}
@@ -106,13 +105,57 @@ function SavedFilterList({ items, loading, activeId, onPick, onRemove, t }) {
 }
 
 /**
- * Isi Panel -- dipakai baik di Popover (desktop) maupun Dialog (mobile).
+ * Daftar kolom yang bisa dicari (klik = SearchBar masuk mode value utk kolom
+ * itu, tanpa dialog operator).
  * @param {object} root0
- * @param {(key: string, params?: object) => string} root0.t
+ * @param {Array<{name: string, label: string}>} root0.items
+ * @param {(name: string) => void} root0.onPick
  * @returns {React.JSX.Element}
  */
-function SearchPanelBody({
-  t,
+function ColumnList({ items, onPick }) {
+  return (
+    <ul className="flex flex-col gap-0.5 max-h-56 overflow-y-auto">
+      {items.map((item) => (
+        <li key={item.name}>
+          <button
+            type="button"
+            className="w-full text-left text-sm rounded-md px-2 py-1 hover:bg-accent truncate"
+            onClick={() => onPick(item.name)}
+          >
+            {item.label}
+          </button>
+        </li>
+      ))}
+    </ul>
+  );
+}
+
+/**
+ * SearchPanel — isi panel 3 kolom.
+ * @param {object} root0
+ * @param {string} [root0.model] tanpa ini daftar & simpan/timpa tidak aktif
+ * @param {object} root0.columns peta kolom (utk GroupPicker)
+ * @param {Array<object>} [root0.savedFilters]
+ * @param {boolean} [root0.loadingSaved]
+ * @param {string|number} [root0.sourceId] saved filter sumber aktif
+ * @param {(item: object) => void} root0.onPickSaved
+ * @param {(id: string|number) => void} root0.onRemoveSaved
+ * @param {object} root0.filter tree aktif
+ * @param {Array<object>} [root0.saveItems]
+ * @param {() => {sort: string|null, group: object|null}} [root0.getViewSnapshot]
+ * @param {(saved: object) => void} root0.onSaved
+ * @param {() => void} root0.onOpenBuilder
+ * @param {() => void} root0.onClearAll
+ * @param {boolean} root0.hasFilters
+ * @param {Array<{value: string, label: string}>} [root0.groupOptions]
+ * @param {{column: string|null, granularity: string|null, range: number|null}} [root0.group]
+ * @param {(patch: object) => void} root0.onGroupChange
+ * @param {Array<{name: string, label: string}>} [root0.columnList] kolom yang
+ *   bisa dicari (sudah disaring & diurut host)
+ * @param {(name: string) => void} [root0.onPickColumn]
+ * @returns {React.JSX.Element}
+ */
+export default function SearchPanel({
   model,
   columns,
   savedFilters,
@@ -130,32 +173,36 @@ function SearchPanelBody({
   groupOptions,
   group,
   onGroupChange,
+  columnList,
+  onPickColumn,
 }) {
-  const hasGroupSection = Array.isArray(groupOptions) && groupOptions.length > 0;
+  const { t } = useLaravelReactI18n();
+  const hasGroupSection =
+    Array.isArray(groupOptions) && groupOptions.length > 0;
+  const hasColumnSection = Array.isArray(columnList) && columnList.length > 0;
+  const sectionCount = 1 + Number(hasGroupSection) + Number(hasColumnSection);
+
   return (
     <div
       className={cn(
-        "flex flex-col gap-4",
-        hasGroupSection && "md:flex-row md:divide-x md:divide-muted-foreground/20",
+        "grid grid-cols-1 gap-4 p-3 max-h-[min(70vh,26rem)] overflow-y-auto",
+        GRID_COLS[sectionCount],
+        "md:gap-0 md:divide-x md:divide-muted-foreground/20",
       )}
     >
-      <div className="flex-1 flex flex-col gap-2 md:pr-4 min-w-56">
-        {/* Tanpa `model`, Filter Tersimpan tidak aktif sama sekali (judul,
-            daftar & simpan/timpa); aksi Builder/Hapus semua tetap ada. */}
+      <section className="flex flex-col gap-2 md:px-3 md:first:pl-0 min-w-0">
+        <SectionTitle>{t("core.datatable.filter.filter")}</SectionTitle>
+        {/* Tanpa `model`, Filter Tersimpan tidak aktif sama sekali (daftar &
+            simpan/timpa); aksi Builder/Hapus semua tetap ada. */}
         {model && (
-          <>
-            <span className="text-sm font-medium text-muted-foreground">
-              {t("core.datatable.search.section.saved")}
-            </span>
-            <SavedFilterList
-              items={savedFilters}
-              loading={loadingSaved}
-              activeId={sourceId}
-              onPick={onPickSaved}
-              onRemove={onRemoveSaved}
-              t={t}
-            />
-          </>
+          <SavedFilterList
+            items={savedFilters}
+            loading={loadingSaved}
+            activeId={sourceId}
+            onPick={onPickSaved}
+            onRemove={onRemoveSaved}
+            t={t}
+          />
         )}
         <div
           className={cn(
@@ -191,76 +238,29 @@ function SearchPanelBody({
             </Button>
           )}
         </div>
-      </div>
+      </section>
       {hasGroupSection && (
-        <div className="flex-1 flex flex-col gap-2 md:pl-4 min-w-56">
-          <span className="text-sm font-medium text-muted-foreground">
-            {t("core.datatable.group_by")}
-          </span>
+        <section className="flex flex-col gap-2 md:px-3 min-w-0">
+          <SectionTitle>{t("core.datatable.group_by")}</SectionTitle>
           <GroupPicker
             groupOptions={groupOptions}
             columns={columns}
             value={group ?? { column: null, granularity: null, range: null }}
             onChange={onGroupChange}
           />
-        </div>
+        </section>
+      )}
+      {hasColumnSection && (
+        <section className="flex flex-col gap-2 md:px-3 md:last:pr-0 min-w-0">
+          <SectionTitle>
+            {t("core.datatable.search.section.column")}
+          </SectionTitle>
+          <ColumnList
+            items={columnList}
+            onPick={(name) => onPickColumn?.(name)}
+          />
+        </section>
       )}
     </div>
-  );
-}
-
-/**
- * SearchPanel — Panel ▾: desktop `Popover`, mobile `Dialog` (Requirement 9.5).
- * @param {object} root0
- * @param {React.ReactNode} root0.trigger tombol ▾ (dirender via Trigger asChild)
- * @param {boolean} root0.open
- * @param {(open: boolean) => void} root0.onOpenChange
- * @param {string} [root0.model]
- * @param {object} root0.columns
- * @param {Array<object>} [root0.savedFilters]
- * @param {boolean} [root0.loadingSaved]
- * @param {string|number} [root0.sourceId]
- * @param {(item: object) => void} root0.onPickSaved
- * @param {(id: string|number) => void} root0.onRemoveSaved
- * @param {object} root0.filter tree aktif
- * @param {Array<object>} [root0.saveItems]
- * @param {() => {sort: string|null, group: object|null}} [root0.getViewSnapshot]
- * @param {(saved: object) => void} root0.onSaved
- * @param {() => void} root0.onOpenBuilder
- * @param {() => void} root0.onClearAll
- * @param {boolean} root0.hasFilters
- * @param {Array<{value: string, label: string}>} [root0.groupOptions]
- * @param {{column: string|null, granularity: string|null, range: number|null}} [root0.group]
- * @param {(patch: object) => void} root0.onGroupChange
- * @returns {React.JSX.Element}
- */
-export default function SearchPanel({ trigger, open, onOpenChange, ...bodyProps }) {
-  const { t } = useLaravelReactI18n();
-  const isMobile = useIsMobile();
-
-  if (isMobile) {
-    return (
-      <Dialog open={open} onOpenChange={onOpenChange}>
-        <DialogTrigger asChild>{trigger}</DialogTrigger>
-        <DialogContent forceAsDialog>
-          <DialogHeader>
-            <DialogTitle>{t("core.datatable.search.open_panel")}</DialogTitle>
-            <DialogDescription className="sr-only">
-              {t("core.datatable.search.open_panel")}
-            </DialogDescription>
-          </DialogHeader>
-          <SearchPanelBody {...bodyProps} t={t} />
-        </DialogContent>
-      </Dialog>
-    );
-  }
-
-  return (
-    <Popover open={open} onOpenChange={onOpenChange}>
-      <PopoverTrigger asChild>{trigger}</PopoverTrigger>
-      <PopoverContent align="end" className="w-auto max-w-md p-4">
-        <SearchPanelBody {...bodyProps} t={t} />
-      </PopoverContent>
-    </Popover>
   );
 }

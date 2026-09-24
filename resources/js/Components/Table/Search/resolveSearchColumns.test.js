@@ -27,7 +27,13 @@ describe("resolveSearchColumns", () => {
     const result = resolveSearchColumns({
       searchScope: [],
       columns,
-      visibleNames: ["code", "description", "notSearchable", "total", "customer.name"],
+      visibleNames: [
+        "code",
+        "description",
+        "notSearchable",
+        "total",
+        "customer.name",
+      ],
     });
     expect(result).toEqual(["code", "description"]);
   });

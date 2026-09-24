@@ -1,11 +1,19 @@
 // SearchBar — kotak ketik hybrid Odoo (chip = filter tree) + GitHub
-// (autocomplete kolom) untuk DataTable2 (design.md §2-§8; Requirement 1-10,
-// 14-15). Host-agnostic: TIDAK mengimpor `router`/`usePage`, TIDAK menulis
-// `fid` -- transport tree via `onTreeChange` (boleh Promise), transport saved
-// filter via `onPickSaved`, transport group via `onGroupChange`. Satu-satunya
-// I/O mandiri: fetch `saved-filters.index` saat `model` diberikan (dan
-// `saved-filters.destroy` untuk hapus dari Panel, pola sama dgn
-// `FilterTable2.removeSaved`).
+// (autocomplete kolom) untuk DataTable2 (design.md §2-§8, revisi 2; Requirement
+// 1-10, 14-15). Host-agnostic: TIDAK mengimpor `router`/`usePage`, TIDAK
+// menulis `fid` -- transport tree via `onTreeChange` (boleh Promise),
+// transport saved filter via `onPickSaved`, transport group via
+// `onGroupChange`. Satu-satunya I/O mandiri: fetch `saved-filters.index` saat
+// `model` diberikan (dan `saved-filters.destroy` untuk hapus dari Panel, pola
+// sama dgn `FilterTable2.removeSaved`).
+//
+// Revisi 2 (feedback visual): SATU border membungkus ikon+chip+input+chevron
+// (bukan kotak terpisah-pisah); warna chip = peran (sumber emas, group biru,
+// lainnya secondary); dropdown yang SAMA menampilkan Panel (fokus/chevron,
+// input kosong) ATAU saran (mengetik) ATAU daftar nilai (mode value) -- tidak
+// pernah dialog/popover terpisah utk memilih operator. Operator SELALU
+// diturunkan dari tipe kolom (columnSearch.js); klik chip existing utk edit
+// memakai widget nilai yang SAMA (bukan editor operator terpisah).
 
 import {
   Command,
@@ -33,6 +41,14 @@ import {
   treeToChips,
   updateChip,
 } from "./searchChips";
+import {
+  buildDatePresets,
+  buildLeafFromText,
+  columnTitle,
+  isColumnSearchable,
+  resolveColumnPath,
+  resolveValueMode,
+} from "./columnSearch";
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 
 import { Button } from "@/Components/ui/button";
@@ -43,19 +59,20 @@ import SearchPanel from "./SearchPanel";
 import axios from "axios";
 import { buildSuggestions } from "./searchSuggestions";
 import { cn } from "@/lib/utils";
-import { columnHasOptions } from "../Filter/operators";
+import { compareLabels } from "@/lib/compareLabels";
 import { highlightMatch } from "@/lib/highlightMatch";
 import { isFilterTreeDirty } from "../Filter/filterTreeCompare";
-import { resolveColumn } from "../Filter/filterValidation";
 import { useLaravelReactI18n } from "laravel-react-i18n";
 
-/** Tipe kolom yang langsung membuka ChipEditor di mode value (design.md §5.3). */
-const resolveValueMode = (col) => {
-  if (columnHasOptions(col) || col?.type === "boolean") return "list";
-  if (col?.type === "string") return "text";
-  if (["number", "currency"].includes(col?.type)) return "number";
-  return "editor";
+// Warna chip berdasarkan PERAN, bukan urutan (feedback visual revisi 2):
+// sumber (saved filter aktif) = emas, group = biru, sisanya (leaf/search/
+// advanced) = secondary -- sama seperti Button variant="secondary".
+const CHIP_CLASS = {
+  source: "bg-amber-500/15 text-amber-700 dark:text-amber-400",
+  group: "bg-blue-500/15 text-blue-700 dark:text-blue-400",
+  default: "bg-secondary text-secondary-foreground",
 };
+const chipClass = (kind) => CHIP_CLASS[kind] ?? CHIP_CLASS.default;
 
 const sameGroup = (a, b) => {
   const an = a ?? null;
@@ -111,22 +128,35 @@ export default function SearchBar({
   placeholder,
 }) {
   const { t } = useLaravelReactI18n();
+  const inputRef = useRef(null);
 
   const [open, setOpen] = useState(false);
+  // Chevron / klik chip sumber MEMAKSA Panel tampil walau `inputValue` terisi
+  // (Requirement revisi 2: "panel tidak hanya muncul saat chevron ditekan" --
+  // fokus dgn input kosong SUDAH menampilkan Panel lewat formula `showPanel`
+  // di bawah tanpa flag ini; flag ini utk override eksplisit).
+  const [panelForced, setPanelForced] = useState(false);
   const [inputValue, setInputValue] = useState("");
   const [mode, setMode] = useState("key"); // "key" | "value"
   const [valueColumn, setValueColumn] = useState(null);
+  // Id chip leaf yang sedang DIEDIT (bukan dibuat baru) -- commit lewat
+  // `updateChip`, bukan `addLeafChip`. `null` = mode value sedang membuat
+  // chip baru.
+  const [editingLeafId, setEditingLeafId] = useState(null);
   const [valueError, setValueError] = useState(null);
-  const [draftEditor, setDraftEditor] = useState(null); // { column }
-  const [editingChip, setEditingChip] = useState(null);
+  const [editingChip, setEditingChip] = useState(null); // {kind:"search"|"group", ...}
   const [highlightedChipId, setHighlightedChipId] = useState(null);
   const [highlightedKey, setHighlightedKey] = useState();
-  const [panelOpen, setPanelOpen] = useState(false);
   const [busy, setBusy] = useState(false);
   const [sourceSaved, setSourceSaved] = useState(null);
   const [savedFilters, setSavedFilters] = useState([]);
   const [loadingSaved, setLoadingSaved] = useState(false);
   const fetchStartedRef = useRef(false);
+
+  const closeDropdown = useCallback(() => {
+    setOpen(false);
+    setPanelForced(false);
+  }, []);
 
   // --- Filter Tersimpan: fetch lazy (fokus pertama) / saat mount bila
   // `activeFid` ada (Requirement 3.11). ------------------------------------
@@ -156,16 +186,6 @@ export default function SearchBar({
   useEffect(() => {
     if (activeFid) ensureSavedFetched();
   }, [activeFid, ensureSavedFetched]);
-
-  // Membuka Panel juga butuh daftar (kolom Filter Tersimpan) -- user bisa
-  // membuka Panel TANPA pernah memfokus input.
-  const changePanelOpen = useCallback(
-    (nextOpen) => {
-      setPanelOpen(nextOpen);
-      if (nextOpen) ensureSavedFetched();
-    },
-    [ensureSavedFetched],
-  );
 
   // Deteksi sumber setelah reload `?fid=` -- nama dari `index` (bukan
   // `show`, yang menyembunyikan nama dari non-owner). Hanya MENGISI, tidak
@@ -214,6 +234,15 @@ export default function SearchBar({
     [onTreeChange],
   );
 
+  /** Tambah leaf baru, ATAU perbarui leaf `editId` bila diberikan. */
+  const commitOrUpdateLeaf = useCallback(
+    (patch, editId) =>
+      commitTree(
+        editId ? updateChip(tree, editId, patch) : addLeafChip(tree, patch),
+      ),
+    [commitTree, tree],
+  );
+
   // --- Dirty (Requirement 10.3). -------------------------------------------
   // Sengaja BUKAN useMemo: `getViewSnapshot` bisa stabil identitasnya tapi
   // membaca state host yang berubah (mis. lewat ref) -- dihitung ulang tiap
@@ -237,12 +266,14 @@ export default function SearchBar({
   const dirty = computeDirty();
 
   // --- Chips (Requirement 2). -----------------------------------------------
-  const baseChips = useMemo(() => treeToChips(tree, columns, t), [tree, columns, t]);
+  const baseChips = useMemo(
+    () => treeToChips(tree, columns, t),
+    [tree, columns, t],
+  );
   const groupChip = useMemo(() => {
     if (!group?.column) return null;
     const col = columns?.[group.column];
-    const colTitle =
-      col?.title ?? (col?.titleTrans ? t(col.titleTrans) : group.column);
+    const colTitle = col ? columnTitle(col, t) : group.column;
     const isDate = ["date", "time", "datetime"].includes(col?.type);
     const sub = isDate
       ? t(`core.datatable.granularity.${group.granularity ?? "month"}`)
@@ -264,12 +295,23 @@ export default function SearchBar({
     tree?.root?.c && Object.keys(tree.root.c).length > 0,
   );
 
+  // --- Kolom Panel "Kolom" -- daftar kolom yang bisa dicari, sama dgn yang
+  // dipakai buildSuggestions seksi "Kolom" (Requirement 9, kolom ke-3 Panel).
+  const columnList = useMemo(
+    () =>
+      Object.values(columns ?? {})
+        .filter((col) => isColumnSearchable(col, t))
+        .map((col) => ({ name: col.name, label: columnTitle(col, t) }))
+        .sort((a, b) => compareLabels(a.label, b.label)),
+    [columns, t],
+  );
+
   // --- Saran (Requirement 3). ------------------------------------------------
   // `getSearchColumns` dipanggil ULANG tiap kali saran dihitung (bukan
   // disimpan sbg state) -- cookie visibility kolom bisa berubah di Table2
   // tanpa me-render ulang host (design.md §6.2).
   const sections = useMemo(() => {
-    if (mode !== "key") return [];
+    if (mode !== "key" || !inputValue.trim()) return [];
     return buildSuggestions(inputValue, {
       columns,
       searchColumns: getSearchColumns?.() ?? [],
@@ -288,6 +330,11 @@ export default function SearchBar({
     t,
   ]);
 
+  // --- Panel vs saran vs daftar nilai -- SATU dropdown, kontennya berganti
+  // sesuai state (revisi 2: fokus/chevron dgn input kosong -> Panel; mengetik
+  // -> saran; mode value list/date -> daftar nilai; tanpa dialog terpisah). --
+  const showPanel = mode === "key" && (panelForced || inputValue.trim() === "");
+  const showSuggestions = mode === "key" && !showPanel && sections.length > 0;
   const vmode = valueColumn ? resolveValueMode(valueColumn) : null;
   const inlineValueOptions = useMemo(() => {
     if (vmode !== "list") return [];
@@ -302,21 +349,29 @@ export default function SearchBar({
     if (!needle) return opts;
     return opts.filter((o) => `${o.label}`.toLowerCase().includes(needle));
   }, [vmode, valueColumn, inputValue, t]);
-
+  const datePresets = useMemo(() => {
+    if (vmode !== "date") return [];
+    const all = buildDatePresets(new Date(), t);
+    const needle = inputValue.trim().toLowerCase();
+    if (!needle) return all;
+    return all.filter((p) => p.label.toLowerCase().includes(needle));
+  }, [vmode, inputValue, t]);
+  const showValueList =
+    mode === "value" && (vmode === "list" || vmode === "date");
   const dropdownVisible =
-    open &&
-    (Boolean(draftEditor) ||
-      (mode === "key" && sections.length > 0) ||
-      (mode === "value" && vmode === "list"));
+    open && (showPanel || showSuggestions || showValueList);
 
   // cmdk dikontrol via `value`/`onValueChange` sendiri -- auto-highlight
   // bawaan cmdk cuma jalan sekali saat mount (gotcha yg sama dgn
-  // Select.jsx:139-154 & MultiSelect.jsx).
+  // Select.jsx:139-154 & MultiSelect.jsx). Panel TIDAK ikut (native
+  // button/ul, bukan cmdk) -- highlight hanya relevan utk saran & daftar nilai.
   const visibleKeys = useMemo(() => {
-    if (mode === "key") return sections.flatMap((s) => s.items.map((i) => i.key));
+    if (showSuggestions)
+      return sections.flatMap((s) => s.items.map((i) => i.key));
     if (vmode === "list") return inlineValueOptions.map((o) => `${o.value}`);
+    if (vmode === "date") return datePresets.map((p) => p.key);
     return [];
-  }, [mode, sections, vmode, inlineValueOptions]);
+  }, [showSuggestions, sections, vmode, inlineValueOptions, datePresets]);
   useEffect(() => {
     if (!visibleKeys.includes(highlightedKey)) {
       setHighlightedKey(visibleKeys[0]);
@@ -327,73 +382,76 @@ export default function SearchBar({
   const exitValueMode = useCallback(() => {
     setMode("key");
     setValueColumn(null);
+    setEditingLeafId(null);
     setInputValue("");
     setValueError(null);
   }, []);
 
-  const enterValueMode = useCallback((col) => {
-    setInputValue("");
+  /**
+   * Masuk mode value utk kolom `col` -- dipakai baik saat MEMBUAT chip baru
+   * (saran/Panel "Kolom") maupun MENGEDIT chip existing (`opts.editId`).
+   * Tanpa dialog/menu operator: operator SELALU tetap (ditentukan
+   * `resolveValueMode`), user hanya mengisi/memilih nilai.
+   */
+  const enterValueMode = useCallback((col, opts = {}) => {
+    if (!col) return;
+    setInputValue(opts.initialText ?? "");
     setValueError(null);
-    if (resolveValueMode(col) === "editor") {
-      setDraftEditor({ column: col });
-      setOpen(true);
-      return;
-    }
+    setEditingLeafId(opts.editId ?? null);
     setMode("value");
     setValueColumn(col);
+    setPanelForced(false);
     setOpen(true);
   }, []);
 
-  const commitLeaf = useCallback(
-    (patch) => {
-      commitTree(addLeafChip(tree, patch))
-        .then(() => {
-          setInputValue("");
-          setValueError(null);
-          exitValueMode();
-        })
-        .catch(() => {});
-    },
-    [commitTree, tree, exitValueMode],
-  );
-
   const commitValueModeFreeText = useCallback(() => {
     if (!valueColumn) return;
-    const trimmed = inputValue.trim();
-    if (vmode === "number") {
-      if (trimmed === "" || Number.isNaN(Number(trimmed))) {
+    const leaf = buildLeafFromText(valueColumn, inputValue);
+    if (!leaf) {
+      if (vmode === "number")
         setValueError(t("core.datatable.search.number_invalid"));
-        return;
-      }
-      commitLeaf({ k: valueColumn.name, o: "=", v: Number(trimmed) });
       return;
     }
-    if (!trimmed) return;
-    commitLeaf({ k: valueColumn.name, o: "matches", v: trimmed });
-  }, [valueColumn, vmode, inputValue, commitLeaf, t]);
+    commitOrUpdateLeaf(leaf, editingLeafId)
+      .then(() => exitValueMode())
+      .catch(() => {});
+  }, [
+    valueColumn,
+    vmode,
+    inputValue,
+    editingLeafId,
+    commitOrUpdateLeaf,
+    exitValueMode,
+    t,
+  ]);
 
-  const applyDraftLeaf = useCallback(
+  const pickValueOption = useCallback(
     (patch) => {
-      commitTree(addLeafChip(tree, patch))
-        .then(() => {
-          setDraftEditor(null);
-          setOpen(false);
-        })
+      if (!valueColumn) return;
+      commitOrUpdateLeaf({ k: valueColumn.name, ...patch }, editingLeafId)
+        .then(() => exitValueMode())
         .catch(() => {});
     },
-    [commitTree, tree],
+    [valueColumn, editingLeafId, commitOrUpdateLeaf, exitValueMode],
   );
 
-  // --- Pilih saran. ----------------------------------------------------------
+  // --- Pilih saran / kolom Panel. ---------------------------------------------
   const pickSaved = useCallback(
     (saved) => {
       setSourceSaved(saved);
       onPickSaved?.(saved);
       setInputValue("");
-      setOpen(false);
-      setPanelOpen(false);
+      closeDropdown();
     },
-    [onPickSaved],
+    [onPickSaved, closeDropdown],
+  );
+
+  const pickColumn = useCallback(
+    (name) => {
+      const col = columns?.[name];
+      if (col) enterValueMode(col);
+    },
+    [columns, enterValueMode],
   );
 
   const selectSuggestion = useCallback(
@@ -410,8 +468,7 @@ export default function SearchBar({
         return;
       }
       if (section === "column") {
-        const col = columns?.[item.payload.column];
-        if (col) enterValueMode(col);
+        pickColumn(item.payload.column);
         return;
       }
       if (section === "value") {
@@ -422,14 +479,28 @@ export default function SearchBar({
       }
       if (section === "group") {
         const col = columns?.[item.payload.column];
-        onGroupChange?.(computeGroupDefaults(col ?? { name: item.payload.column }));
+        onGroupChange?.(
+          computeGroupDefaults(col ?? { name: item.payload.column }),
+        );
         setInputValue("");
       }
     },
-    [getSearchColumns, commitTree, tree, pickSaved, columns, enterValueMode, onGroupChange],
+    [
+      getSearchColumns,
+      commitTree,
+      tree,
+      pickSaved,
+      pickColumn,
+      columns,
+      onGroupChange,
+    ],
   );
 
   // --- Chip: klik badan / hapus / edit. --------------------------------------
+  // Klik chip `leaf` existing membuka widget nilai yang SAMA dgn membuat baru
+  // (bukan editor operator terpisah) -- kolom & operator TETAP, hanya nilai
+  // yang bisa diubah. Kolom yang tak lagi punya mode nilai yang didukung
+  // (mis. sudah dihapus / tipe json) -> fallback buka Builder lanjutan.
   const openEditorForChip = useCallback(
     (chip) => {
       if (chip.kind === "advanced") {
@@ -437,28 +508,39 @@ export default function SearchBar({
         return;
       }
       if (chip.kind === "group") {
-        setEditingChip({ kind: "group", chipId: "__group" });
+        setEditingChip({ kind: "group" });
         return;
       }
       if (chip.kind === "search") {
-        const text = Object.values(chip.node?.c ?? {})[0]?.v ?? "";
+        const value = Object.values(chip.node?.c ?? {})[0]?.v ?? "";
         const searchColumnTitles = (chip.columns ?? []).map((k) => {
-          const col = resolveColumn(columns, k);
-          return col?.title ?? (col?.titleTrans ? t(col.titleTrans) : k);
+          const col = resolveColumnPath(columns, k);
+          return col ? columnTitle(col, t) : k;
         });
-        setEditingChip({ kind: "search", chipId: chip.id, value: text, searchColumnTitles });
+        setEditingChip({
+          kind: "search",
+          chipId: chip.id,
+          value,
+          searchColumnTitles,
+        });
         return;
       }
-      const column = resolveColumn(columns, chip.node?.k);
-      setEditingChip({
-        kind: "leaf",
-        chipId: chip.id,
-        column,
-        operator: chip.node?.o,
-        value: chip.node?.v,
+      const column = resolveColumnPath(columns, chip.node?.k);
+      const valueMode = column ? resolveValueMode(column) : null;
+      if (!valueMode) {
+        onOpenBuilder?.();
+        return;
+      }
+      const isTyped =
+        valueMode === "text" ||
+        valueMode === "number" ||
+        valueMode === "relation";
+      enterValueMode(column, {
+        editId: chip.id,
+        initialText: isTyped ? String(chip.node?.v ?? "") : "",
       });
     },
-    [columns, t, onOpenBuilder],
+    [columns, t, onOpenBuilder, enterValueMode],
   );
 
   const removeChipByKind = useCallback(
@@ -496,10 +578,6 @@ export default function SearchBar({
   const handleInputKeyDown = useCallback(
     (e) => {
       if (e.key === "Backspace" && inputValue === "") {
-        if (draftEditor) {
-          setDraftEditor(null);
-          return;
-        }
         if (mode === "value") {
           exitValueMode();
           return;
@@ -518,26 +596,25 @@ export default function SearchBar({
       if (highlightedChipId) setHighlightedChipId(null);
 
       if (e.key === "Escape") {
-        if (draftEditor) {
-          setDraftEditor(null);
-          return;
-        }
         if (mode === "value") {
           exitValueMode();
           return;
         }
-        setOpen(false);
+        closeDropdown();
         return;
       }
 
-      if (mode === "value" && (vmode === "text" || vmode === "number") && e.key === "Enter") {
+      if (
+        mode === "value" &&
+        (vmode === "text" || vmode === "number" || vmode === "relation") &&
+        e.key === "Enter"
+      ) {
         e.preventDefault();
         commitValueModeFreeText();
       }
     },
     [
       inputValue,
-      draftEditor,
       mode,
       highlightedChipId,
       chips,
@@ -545,53 +622,52 @@ export default function SearchBar({
       exitValueMode,
       vmode,
       commitValueModeFreeText,
+      closeDropdown,
     ],
   );
 
   const handleInputChange = useCallback((e) => {
     setInputValue(e.target.value);
     setValueError(null);
-    // Mengetik lagi = user meninggalkan draft ChipEditor yang sedang terbuka.
-    setDraftEditor(null);
+    setPanelForced(false);
     setOpen(true);
   }, []);
 
-  const valueColumnTitle =
-    valueColumn?.title ??
-    (valueColumn?.titleTrans ? t(valueColumn.titleTrans) : valueColumn?.name);
+  const openChevron = useCallback(() => {
+    setPanelForced(true);
+    setOpen(true);
+    ensureSavedFetched();
+    inputRef.current?.focus();
+  }, [ensureSavedFetched]);
+
+  const valueColumnTitle = valueColumn ? columnTitle(valueColumn, t) : null;
 
   return (
-    <ClickAwayListener
-      onClickAway={() => {
-        setOpen(false);
-        setDraftEditor(null);
-      }}
-    >
+    <ClickAwayListener onClickAway={closeDropdown}>
       <div className="flex flex-col gap-1 flex-1 min-w-0">
-        <div
-          className={cn(
-            "flex flex-wrap items-center gap-1 rounded-lg border border-input bg-background px-1.5 min-h-8 py-1",
-          )}
-        >
+        <div className="flex flex-wrap items-center gap-1 rounded-lg border border-input bg-background px-1.5 min-h-8 py-1 focus-within:ring-1 focus-within:ring-ring">
           <Filter className="size-3.5 text-muted-foreground shrink-0" />
 
           {sourceSaved && (
             <span
               className={cn(
                 "inline-flex items-center gap-1 rounded-full px-2 py-0.5 text-xs shrink-0",
-                dirty
-                  ? "bg-amber-500/15 text-amber-700 dark:text-amber-400"
-                  : "bg-primary/10 text-primary",
+                chipClass("source"),
               )}
             >
               <button
                 type="button"
                 className="inline-flex items-center gap-1 cursor-pointer max-w-40"
-                onClick={() => changePanelOpen(true)}
+                onClick={() => {
+                  setPanelForced(true);
+                  setOpen(true);
+                  ensureSavedFetched();
+                }}
               >
                 <Bookmark className="size-3 shrink-0" />
                 <span className="truncate">
-                  {sourceSaved.name || t("core.datatable.filter.saved.untitled")}
+                  {sourceSaved.name ||
+                    t("core.datatable.filter.saved.untitled")}
                 </span>
                 {dirty && (
                   <Tooltip>
@@ -638,14 +714,20 @@ export default function SearchBar({
                 <PopoverTrigger asChild>
                   <span
                     className={cn(
-                      "inline-flex items-center gap-1 rounded-full bg-primary/10 px-2 py-0.5 text-xs text-primary shrink-0",
-                      highlightedChipId === chip.id && "ring-2 ring-destructive",
+                      "inline-flex items-center gap-1 rounded-full px-2 py-0.5 text-xs shrink-0",
+                      chipClass(chip.kind),
+                      highlightedChipId === chip.id &&
+                        "ring-2 ring-destructive",
                     )}
                   >
                     <button
                       type="button"
                       className="cursor-pointer max-w-48 truncate"
-                      title={chip.kind === "search" ? (chip.columns ?? []).join(", ") : undefined}
+                      title={
+                        chip.kind === "search"
+                          ? (chip.columns ?? []).join(", ")
+                          : undefined
+                      }
                       onClick={() => openEditorForChip(chip)}
                     >
                       {chip.label}
@@ -669,11 +751,13 @@ export default function SearchBar({
                   >
                     <ChipEditor
                       kind={editingChip.kind}
-                      column={editingChip.column}
-                      operator={editingChip.operator}
                       value={
                         editingChip.kind === "group"
-                          ? (group ?? { column: null, granularity: null, range: null })
+                          ? (group ?? {
+                              column: null,
+                              granularity: null,
+                              range: null,
+                            })
                           : editingChip.value
                       }
                       searchColumnTitles={editingChip.searchColumnTitles}
@@ -687,7 +771,20 @@ export default function SearchBar({
             );
           })}
 
-          <Command shouldFilter={false} value={highlightedKey} onValueChange={setHighlightedKey} className="contents">
+          {/* Command MEMBUNGKUS Popover UTUH (trigger + content), bukan cuma
+              CommandList -- cmdk mengaitkan Enter->pilih-item-highlighted
+              lewat keydown yg bubbling di DOM subtree Command sendiri; input
+              (di PopoverTrigger, TIDAK terportal) wajib jadi keturunan DOM
+              Command yg SAMA dgn CommandItem (yg terportal via
+              PopoverContent) supaya Enter di input benar-benar memicu
+              cmdk. Command nested di dalam SearchPanel (GroupPicker) aman --
+              tiap <Command> React punya context sendiri, tak bentrok. */}
+          <Command
+            shouldFilter={false}
+            value={highlightedKey}
+            onValueChange={setHighlightedKey}
+            className="contents"
+          >
             <Popover open={dropdownVisible} onOpenChange={() => {}}>
               <PopoverTrigger asChild>
                 <div className="flex flex-1 items-center gap-1 min-w-24">
@@ -697,6 +794,7 @@ export default function SearchBar({
                     </span>
                   )}
                   <input
+                    ref={inputRef}
                     value={inputValue}
                     placeholder={placeholder}
                     onChange={handleInputChange}
@@ -713,58 +811,123 @@ export default function SearchBar({
                 <PopoverContent
                   align="start"
                   onOpenAutoFocus={(e) => e.preventDefault()}
-                  className="w-(--radix-popover-trigger-width) p-0"
+                  className={cn(
+                    "p-0",
+                    showPanel
+                      ? "w-[min(90vw,42rem)]"
+                      : "w-(--radix-popover-trigger-width)",
+                  )}
                 >
-                  {draftEditor ? (
-                    <div className="p-2">
-                      <ChipEditor kind="leaf" column={draftEditor.column} onApply={applyDraftLeaf} />
-                    </div>
-                  ) : mode === "key" ? (
-                    <CommandList onMouseDown={(e) => e.preventDefault()}>
-                      <CommandEmpty>{t("core.form.not_found")}</CommandEmpty>
-                      {sections.map((sec) => (
-                        <CommandGroup
-                          key={sec.section}
-                          heading={
-                            sec.section !== "text"
-                              ? t(`core.datatable.search.section.${sec.section}`)
-                              : undefined
-                          }
-                        >
-                          {sec.items.map((item) => (
-                            <CommandItem
-                              key={item.key}
-                              value={item.key}
-                              onSelect={() => selectSuggestion(sec.section, item)}
-                            >
-                              {item.prefix}
-                              {highlightMatch(
-                                item.label.slice(item.prefix?.length ?? 0),
-                                inputValue,
-                              )}
-                            </CommandItem>
-                          ))}
-                        </CommandGroup>
-                      ))}
-                    </CommandList>
+                  {showPanel ? (
+                    <SearchPanel
+                      model={model}
+                      columns={columns}
+                      savedFilters={savedFilters}
+                      loadingSaved={loadingSaved}
+                      sourceId={sourceSaved?.id}
+                      onPickSaved={pickSaved}
+                      onRemoveSaved={removeSavedFilter}
+                      filter={tree}
+                      saveItems={
+                        sourceSaved && dirty && !sourceSaved.is_shared
+                          ? [sourceSaved]
+                          : []
+                      }
+                      getViewSnapshot={getViewSnapshot}
+                      onSaved={(saved) => {
+                        refreshSaved();
+                        if (saved) {
+                          setSourceSaved(saved);
+                          onPickSaved?.(saved);
+                        }
+                      }}
+                      onOpenBuilder={() => {
+                        closeDropdown();
+                        onOpenBuilder?.();
+                      }}
+                      onClearAll={() => {
+                        commitTree(null).catch(() => {});
+                        setSourceSaved(null);
+                        closeDropdown();
+                      }}
+                      hasFilters={hasTreeItems}
+                      groupOptions={groupOptions}
+                      group={group}
+                      onGroupChange={(patch) => onGroupChange?.(patch)}
+                      columnList={columnList}
+                      onPickColumn={pickColumn}
+                    />
                   ) : (
                     <CommandList onMouseDown={(e) => e.preventDefault()}>
                       <CommandEmpty>{t("core.form.not_found")}</CommandEmpty>
-                      {inlineValueOptions.map((opt) => (
-                        <CommandItem
-                          key={`${opt.value}`}
-                          value={`${opt.value}`}
-                          onSelect={() =>
-                            commitTree(
-                              addLeafChip(tree, { k: valueColumn.name, o: "=", v: opt.value }),
-                            )
-                              .then(() => exitValueMode())
-                              .catch(() => {})
-                          }
-                        >
-                          {highlightMatch(opt.label, inputValue)}
-                        </CommandItem>
-                      ))}
+                      {showSuggestions &&
+                        sections.map((sec) => (
+                          <CommandGroup
+                            key={sec.section}
+                            heading={
+                              sec.section !== "text"
+                                ? t(
+                                    `core.datatable.search.section.${sec.section}`,
+                                  )
+                                : undefined
+                            }
+                          >
+                            {sec.items.map((item) => (
+                              <CommandItem
+                                key={item.key}
+                                value={item.key}
+                                onSelect={() =>
+                                  selectSuggestion(sec.section, item)
+                                }
+                              >
+                                {/* Dibungkus 1 <span> -- CommandItem ber-`gap-2`
+                                    flex, hasil highlightMatch (array node)
+                                    kalau langsung jadi children akan dianggap
+                                    flex-item TERPISAH & dapat gap visual di
+                                    antara <mark> & teks sisanya (bug nyata,
+                                    lihat screenshot verifikasi visual). */}
+                                <span>
+                                  {item.prefix}
+                                  {highlightMatch(
+                                    item.label.slice(item.prefix?.length ?? 0),
+                                    inputValue,
+                                  )}
+                                </span>
+                              </CommandItem>
+                            ))}
+                          </CommandGroup>
+                        ))}
+                      {showValueList &&
+                        vmode === "list" &&
+                        inlineValueOptions.map((opt) => (
+                          <CommandItem
+                            key={`${opt.value}`}
+                            value={`${opt.value}`}
+                            onSelect={() =>
+                              pickValueOption({ o: "=", v: opt.value })
+                            }
+                          >
+                            <span>{highlightMatch(opt.label, inputValue)}</span>
+                          </CommandItem>
+                        ))}
+                      {showValueList &&
+                        vmode === "date" &&
+                        datePresets.map((preset) => (
+                          <CommandItem
+                            key={preset.key}
+                            value={preset.key}
+                            onSelect={() =>
+                              pickValueOption({
+                                o: "in_period",
+                                v: preset.value,
+                              })
+                            }
+                          >
+                            <span>
+                              {highlightMatch(preset.label, inputValue)}
+                            </span>
+                          </CommandItem>
+                        ))}
                     </CommandList>
                   )}
                 </PopoverContent>
@@ -780,51 +943,16 @@ export default function SearchBar({
             />
           )}
 
-          <SearchPanel
-            trigger={
-              <Button
-                type="button"
-                variant="ghost"
-                size="icon"
-                className="size-6 shrink-0"
-                aria-label={t("core.datatable.search.open_panel")}
-              >
-                <ChevronDown className="size-3.5" />
-              </Button>
-            }
-            open={panelOpen}
-            onOpenChange={changePanelOpen}
-            model={model}
-            columns={columns}
-            savedFilters={savedFilters}
-            loadingSaved={loadingSaved}
-            sourceId={sourceSaved?.id}
-            onPickSaved={pickSaved}
-            onRemoveSaved={removeSavedFilter}
-            filter={tree}
-            saveItems={sourceSaved && dirty && !sourceSaved.is_shared ? [sourceSaved] : []}
-            getViewSnapshot={getViewSnapshot}
-            onSaved={(saved) => {
-              refreshSaved();
-              if (saved) {
-                setSourceSaved(saved);
-                onPickSaved?.(saved);
-              }
-            }}
-            onOpenBuilder={() => {
-              setPanelOpen(false);
-              onOpenBuilder?.();
-            }}
-            onClearAll={() => {
-              commitTree(null).catch(() => {});
-              setSourceSaved(null);
-              setPanelOpen(false);
-            }}
-            hasFilters={hasTreeItems}
-            groupOptions={groupOptions}
-            group={group}
-            onGroupChange={(patch) => onGroupChange?.(patch)}
-          />
+          <Button
+            type="button"
+            variant="ghost"
+            size="icon"
+            className="size-6 shrink-0"
+            aria-label={t("core.datatable.search.open_panel")}
+            onClick={openChevron}
+          >
+            <ChevronDown className="size-3.5" />
+          </Button>
         </div>
         {valueError && (
           <span className="text-destructive text-xs px-1">{valueError}</span>

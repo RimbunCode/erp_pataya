@@ -120,8 +120,6 @@ describe("isFilterTreeDirty", () => {
 
   it("false untuk tree/subtree kosong di kedua sisi", () => {
     expect(isFilterTreeDirty(null, undefined)).toBe(false);
-    expect(isFilterTreeDirty({ root: { k: "and", c: {} } }, null)).toBe(
-      false,
-    );
+    expect(isFilterTreeDirty({ root: { k: "and", c: {} } }, null)).toBe(false);
   });
 });

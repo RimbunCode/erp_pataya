@@ -1,10 +1,12 @@
-// ChipEditor — popover body untuk mengedit satu chip Search Bar (leaf/
-// search/group), ATAU membuat DRAFT leaf baru saat user memilih kolom
-// bertipe date/datetime/time/relation/relations/lainnya di mode value
-// (design.md §5.3, §5.6; Requirement 6.5, 7.1-7.3). Komponen murni
-// presentasional -- tidak tahu tree/chip id, hanya melapor lewat
-// `onApply(patch)`; parent (SearchBar) yang memutuskan
-// `updateChip`/`addLeafChip`/`onGroupChange`.
+// ChipEditor — popover body untuk mengedit chip Search Bar `search` (ganti
+// teks) atau `group` (kolom grup + granularity/range). REVISI 2: chip `leaf`
+// TIDAK lagi lewat sini -- edit nilai leaf memakai widget yang SAMA dgn
+// membuat baru (mode value inline SearchBar, columnSearch.js), operator
+// SELALU tetap, tanpa dialog/menu pemilihan operator (design.md §5.6, §7.1;
+// Requirement 7.1-7.3, revisi "permudah pengguna, tanpa dialog operator").
+// Komponen murni presentasional -- tidak tahu tree/chip id, hanya melapor
+// lewat `onApply(patch)`; parent (SearchBar) yang memutuskan
+// `updateChip`/`onGroupChange`.
 
 import {
   DATE_GROUP_GRANULARITIES,
@@ -13,14 +15,11 @@ import {
 import SearchableOptionList, {
   searchableOptionFilter,
 } from "@/Components/Table/SearchableOptionList";
-import { columnHasOptions, getOperators } from "../Filter/operators";
-import { useMemo, useState } from "react";
+import { useState } from "react";
 
 import { Button } from "@/Components/ui/button";
 import { Command } from "@/Components/ui/command";
 import { Input } from "@/Components/ui/input";
-import Select from "@/Components/Select";
-import ValueField from "../Filter/ValueField";
 import { useLaravelReactI18n } from "laravel-react-i18n";
 
 // Sentinel "Tidak ada" -- sama seperti `NO_GROUP_VALUE` (DataTable2.jsx:96)
@@ -28,8 +27,7 @@ import { useLaravelReactI18n } from "laravel-react-i18n";
 // agar komponen ini tidak bergantung ke DataTable2.
 const NO_GROUP_VALUE = "__no_group__";
 
-const isDateColumn = (col) =>
-  ["date", "time", "datetime"].includes(col?.type);
+const isDateColumn = (col) => ["date", "time", "datetime"].includes(col?.type);
 const isNumberColumn = (col) => ["number", "currency"].includes(col?.type);
 
 /**
@@ -129,85 +127,6 @@ export function GroupPicker({ groupOptions, columns, value, onChange }) {
 }
 
 /**
- * Editor chip `leaf` (edit existing ATAU draft baru). Label kolom TETAP
- * (Requirement 7.1) -- tidak ada picker kolom di sini, hanya operator +
- * ValueField. Ganti operator mereset value bila `valueInput`-nya beda
- * (mirror `FilterItem2.onOperatorsChanged`).
- * @param {object} root0
- * @param {object} root0.column
- * @param {string} [root0.initialOperator]
- * @param {*} [root0.initialValue]
- * @param {(patch: {k: string, o: string, v: *}) => void} root0.onApply
- * @param {(key: string, params?: object) => string} root0.t
- * @returns {React.JSX.Element}
- */
-function LeafChipEditor({ column, initialOperator, initialValue, onApply, t }) {
-  const operators = useMemo(
-    () =>
-      getOperators(column?.type, {
-        typeRelation: column?.typeRelation,
-        hasOptions: columnHasOptions(column),
-      }),
-    [column],
-  );
-  const operatorOptions = useMemo(() => Object.keys(operators), [operators]);
-  const [operator, setOperator] = useState(
-    () => initialOperator || operatorOptions[0] || "",
-  );
-  const [value, setValue] = useState(initialValue ?? "");
-
-  const onOperatorChange = (val) => {
-    const oldInput = operators[operator]?.valueInput;
-    const newInput = operators[val]?.valueInput;
-    setOperator(val);
-    if (newInput !== oldInput) setValue("");
-  };
-
-  const apply = () => {
-    if (!column?.name || !operator) return;
-    onApply({ k: column.name, o: operator, v: value });
-  };
-
-  const title =
-    column?.title ??
-    (column?.titleTrans ? t(column.titleTrans) : column?.name);
-
-  return (
-    <div
-      className="flex flex-col gap-2 w-64"
-      onKeyDown={(e) => {
-        if (e.key !== "Enter") return;
-        e.preventDefault();
-        apply();
-      }}
-    >
-      <span className="text-sm font-medium">{title}</span>
-      <Select
-        value={operator}
-        onValueChange={onOperatorChange}
-        optionTrans="core.datatable.filter.operator"
-        options={operatorOptions}
-        placeholder={t("core.datatable.filter.select_operator")}
-      />
-      <ValueField
-        column={column}
-        operator={operator}
-        value={value}
-        onChange={setValue}
-      />
-      <Button
-        type="button"
-        size="sm"
-        className="self-end"
-        onClick={apply}
-      >
-        {t("core.datatable.search.apply")}
-      </Button>
-    </div>
-  );
-}
-
-/**
  * Editor chip `search` — ganti teks yang dicari (`v` semua anak grup, sesuai
  * `updateChip`/`isSearchGroup` di `searchChips.js`).
  * @param {object} root0
@@ -249,15 +168,11 @@ function SearchChipEditor({ initialValue, searchColumnTitles, onApply, t }) {
 }
 
 /**
- * ChipEditor — popover body untuk chip `leaf` (termasuk draft leaf baru),
- * `search`, atau `group`.
+ * ChipEditor — popover body untuk chip `search` atau `group`. Chip `leaf`
+ * TIDAK ditangani di sini lagi (lihat komentar file, revisi 2).
  * @param {object} root0
- * @param {"leaf"|"search"|"group"} root0.kind
- * @param {object} [root0.column] kolom node (kind "leaf") -- WAJIB
- *   `column.name`; label kolom TETAP (tidak bisa diganti di editor).
- * @param {string} [root0.operator] operator awal (kind "leaf"; kosong ->
- *   default ke operator pertama, dipakai saat membuat draft leaf baru).
- * @param {*} [root0.value] value awal (kind "leaf"/"search"/"group").
+ * @param {"search"|"group"} root0.kind
+ * @param {*} [root0.value] value awal (kind "search"/"group").
  * @param {string[]} [root0.searchColumnTitles] label kolom yang dicari (kind
  *   "search", untuk info "Mencari di: ...").
  * @param {Array<{value: string, label: string}>} [root0.groupOptions] (kind "group")
@@ -267,8 +182,6 @@ function SearchChipEditor({ initialValue, searchColumnTitles, onApply, t }) {
  */
 export default function ChipEditor({
   kind,
-  column,
-  operator,
   value,
   searchColumnTitles,
   groupOptions,
@@ -288,22 +201,10 @@ export default function ChipEditor({
     );
   }
 
-  if (kind === "search") {
-    return (
-      <SearchChipEditor
-        initialValue={value}
-        searchColumnTitles={searchColumnTitles ?? []}
-        onApply={onApply}
-        t={t}
-      />
-    );
-  }
-
   return (
-    <LeafChipEditor
-      column={column}
-      initialOperator={operator}
+    <SearchChipEditor
       initialValue={value}
+      searchColumnTitles={searchColumnTitles ?? []}
       onApply={onApply}
       t={t}
     />

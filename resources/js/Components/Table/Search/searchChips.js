@@ -6,10 +6,10 @@
 // Node = group { k, c } | leaf { k: <kolom>, o: <operator>, v: <value> }
 
 import { columnHasOptions } from "../Filter/operators";
+import { formatPeriodValue, resolveColumnPath } from "./columnSearch";
 import { convertTemplateLink } from "@/lib/linkModelUtils";
 import { createFilterItem } from "@/Hooks/useNestedFilters";
 import { generateRandom } from "@/lib/utils";
-import { resolveColumn } from "../Filter/filterValidation";
 
 // Id node baru dibuat lokal (bukan lewat React context useNestedFilters) --
 // pola sama dengan `createId` di useNestedFilters.jsx (`generateRandom(8)`).
@@ -120,12 +120,34 @@ const countLeaves = (node) => {
   return Object.values(children).reduce((sum, c) => sum + countLeaves(c), 0);
 };
 
+// Judul kolom berpath (`category.name` -> "Kategori › Nama") supaya chip
+// pencarian relasi tetap menyebut relasinya, bukan cuma "Nama". Segmen yang
+// tak ter-resolve memakai segmen mentahnya.
+const columnPathTitle = (columns, key, t) => {
+  const segments = String(key ?? "").split(".");
+  return segments
+    .map((segment, i) => {
+      const col = resolveColumnPath(
+        columns,
+        segments.slice(0, i + 1).join("."),
+      );
+      return col?.title ?? (col?.titleTrans ? t(col.titleTrans) : segment);
+    })
+    .join(" › ");
+};
+
 const leafToChip = (id, node, columns, t) => {
-  const column = resolveColumn(columns, node?.k);
-  const colTitle =
-    column?.title ?? (column?.titleTrans ? t(column.titleTrans) : node?.k);
-  const valueLabel = formatValueLabel(node?.v, column, t);
-  const isEqIn = node?.o === "=" || node?.o === "in";
+  const column = resolveColumnPath(columns, node?.k);
+  const colTitle = columnPathTitle(columns, node?.k, t);
+  const isPeriod = node?.o === "in_period";
+  const valueLabel = isPeriod
+    ? formatPeriodValue(node?.v)
+    : formatValueLabel(node?.v, column, t);
+  // in_period "is" (mis. preset "Bulan ini") dibaca sbg `Kolom: nilai`.
+  const isEqIn =
+    node?.o === "=" ||
+    node?.o === "in" ||
+    (isPeriod && node?.v?.operator === "is");
   const label = isEqIn
     ? `${colTitle}: ${valueLabel}`
     : `${colTitle} ${t(`core.datatable.filter.operator.${node?.o}`)} ${valueLabel}`;
@@ -194,10 +216,24 @@ const treeToChips = (tree, columns, t) => {
 // --- add / update / remove ------------------------------------------------
 
 const toValueArray = (v) => (Array.isArray(v) ? v : [v]);
+
+// Nilai "kosong" tak pernah boleh jadi kondisi: tanpa guard ini `addLeafChip`
+// dgn `v: null` (mis. picker relasi yg di-reset) ikut ter-merge ke leaf `in`
+// yang sudah ada -> `category in [Sparepart, null]` (ketemu saat verifikasi
+// visual). Boolean `false` dan angka `0` VALID -- hanya null/undefined/""/[].
+const isEmptyValue = (v) =>
+  v === null ||
+  v === undefined ||
+  (typeof v === "string" && v.trim() === "") ||
+  (Array.isArray(v) && v.length === 0);
 const valueDedupeKey = (v) =>
   v && typeof v === "object" ? `id:${v.id}` : `v:${v}`;
 
-/** Gabung 2 nilai (scalar atau array) jadi array unik (relasi dedup by id). */
+/**
+ * Gabung 2 nilai (scalar atau array) jadi array unik (relasi dedup by id).
+ * @param existingV
+ * @param newV
+ */
 const mergeValues = (existingV, newV) => {
   const seen = new Set();
   const result = [];
@@ -210,7 +246,12 @@ const mergeValues = (existingV, newV) => {
   return result;
 };
 
-/** Leaf langsung (bukan grup) anak `children` dgn `k` & `o` yang cocok. */
+/**
+ * Leaf langsung (bukan grup) anak `children` dgn `k` & `o` yang cocok.
+ * @param children
+ * @param key
+ * @param ops
+ */
 const findDirectLeafByKey = (children, key, ops) => {
   for (const [id, node] of Object.entries(children ?? {})) {
     if (!node || typeof node !== "object" || isGroupLike(node)) continue;
@@ -235,12 +276,14 @@ const wrapAsGroup = (root) => ({
  * Tambah leaf ke root AND (buat root bila belum ada). MERGE: leaf baru
  * `=`/`in` pada kolom yang sudah punya leaf `=`/`in` langsung anak root ->
  * digabung jadi satu leaf `in`, nilai unik (relasi dedup `.id`). Root `or`
- * beranak >1 -> di-wrap dulu (Requirement 6.6, design.md §5.4).
+ * beranak >1 -> di-wrap dulu (Requirement 6.6, design.md §5.4). Nilai kosong
+ * (null/undefined/""/[]) TIDAK ditambahkan -- tree dikembalikan apa adanya.
  * @param {object} tree
  * @param {{k: string, o: string, v: *}} leaf
  * @returns {object}
  */
 const addLeafChip = (tree, { k, o, v }) => {
+  if (isEmptyValue(v)) return tree;
   const root = tree?.root ?? tree ?? null;
   const rootKey = String(root?.k ?? "and").toLowerCase();
   const children = childrenOf(root);
@@ -294,7 +337,9 @@ const addLeafChip = (tree, { k, o, v }) => {
  */
 const addSearchChip = (tree, text, searchColumns) => {
   const trimmed = typeof text === "string" ? text.trim() : "";
-  const cols = Array.isArray(searchColumns) ? searchColumns.filter(Boolean) : [];
+  const cols = Array.isArray(searchColumns)
+    ? searchColumns.filter(Boolean)
+    : [];
   if (!trimmed || cols.length === 0) return tree;
 
   const root = tree?.root ?? tree ?? null;

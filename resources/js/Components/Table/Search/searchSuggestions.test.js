@@ -21,7 +21,12 @@ const columns = {
   },
   active: { name: "active", title: "Aktif", type: "boolean" },
   hidden: { name: "hidden", title: "Hidden Col", type: "string", hidden: true },
-  ignored: { name: "ignored", title: "Ignored Col", type: "string", ignore: true },
+  ignored: {
+    name: "ignored",
+    title: "Ignored Col",
+    type: "string",
+    ignore: true,
+  },
   notSearchable: {
     name: "notSearchable",
     title: "Not Searchable",
@@ -181,9 +186,9 @@ describe("buildSuggestions", () => {
   it("seksi group: cocok label, exclude sentinel __no_group__, dibatasi 3", () => {
     const result = buildSuggestions("t", ctx); // "Tidak Dikelompokkan"/"Tanggal Dibuat" cocok huruf t
     const groupSection = result.find((s) => s.section === "group");
-    expect(groupSection.items.every((i) => i.payload.column !== "__no_group__")).toBe(
-      true,
-    );
+    expect(
+      groupSection.items.every((i) => i.payload.column !== "__no_group__"),
+    ).toBe(true);
   });
 
   it("seksi group label pakai group_by_label", () => {
@@ -211,5 +216,94 @@ describe("buildSuggestions", () => {
       searchColumns: [],
     });
     expect(result).toEqual([]);
+  });
+});
+
+describe("buildSuggestions — revisi 2 (kolom tanggal, relasi, judul rusak)", () => {
+  const now = new Date(2026, 8, 21);
+  const extra = {
+    ...columns,
+    created_at: { name: "created_at", title: "Dibuat", type: "date" },
+    category: {
+      name: "category",
+      title: "Kategori",
+      type: "relation",
+      columns: {
+        "category.name": {
+          name: "category.name",
+          type: "string",
+          title: "Nama",
+        },
+      },
+    },
+    orphanRelation: {
+      name: "orphan",
+      title: "Orphan",
+      type: "relation",
+      columns: {},
+    },
+    broken: {
+      name: "asset_category_id",
+      type: "string",
+      titleTrans: "inventory.item.columns.asset_category_id",
+      title: "inventory.item.columns.asset_category_id",
+    },
+    meta: { name: "meta", title: "Meta", type: "json" },
+  };
+  const ctx2 = { ...ctx, columns: extra, now };
+
+  it("kolom tanggal menawarkan preset periode di seksi nilai (in_period absolut)", () => {
+    const value = buildSuggestions("this_month", ctx2).find(
+      (s) => s.section === "value",
+    );
+    expect(value.items).toHaveLength(1);
+    expect(value.items[0]).toMatchObject({
+      label: "Dibuat: core.datatable.search.period.this_month",
+      prefix: "Dibuat: ",
+      payload: {
+        k: "created_at",
+        o: "in_period",
+        v: { period: "month", operator: "is", year: 2026, month: 8 },
+      },
+    });
+  });
+
+  it("preset dicocokkan per kata pada labelnya (bukan pada nama kolom)", () => {
+    const value = buildSuggestions("period", ctx2).find(
+      (s) => s.section === "value",
+    );
+    // Semua 6 preset cocok "period", tapi seksi dibatasi 5.
+    expect(value.items).toHaveLength(5);
+    expect(value.items.every((i) => i.payload.k === "created_at")).toBe(true);
+  });
+
+  it("kolom relasi (punya anak string) muncul di saran Kolom; tanpa anak string tidak", () => {
+    const column = buildSuggestions("k", ctx2).find(
+      (s) => s.section === "column",
+    );
+    const names = column.items.map((i) => i.payload.column);
+    expect(names).toContain("category");
+    expect(names).not.toContain("orphan");
+  });
+
+  it("kolom dengan judul belum diterjemahkan disembunyikan (asset_category_id)", () => {
+    const all = buildSuggestions("inventory", ctx2);
+    expect(all.find((s) => s.section === "column")).toBeUndefined();
+  });
+
+  it("kolom tipe tak didukung (json) tidak pernah ditawarkan", () => {
+    const column = buildSuggestions("meta", ctx2).find(
+      (s) => s.section === "column",
+    );
+    expect(column).toBeUndefined();
+  });
+
+  it("tanpa `now`, memakai tanggal sekarang (tidak melempar)", () => {
+    const { now: _omit, ...noNow } = ctx2;
+    expect(() => buildSuggestions("today", noNow)).not.toThrow();
+    const value = buildSuggestions("today", noNow).find(
+      (s) => s.section === "value",
+    );
+    expect(value.items[0].payload.v.period).toBe("day");
   });
 });

@@ -35,10 +35,15 @@ const treeArb = fc.array(existingLeafArb, { maxLength: 5 }).map((leaves) => {
   return { root: { k: "and", c } };
 });
 
+// `v` HARUS non-kosong dgn definisi yang SAMA PERSIS seperti `isEmptyValue` di
+// searchChips.js (string ber-trim kosong ditolak -- `addLeafChip` mengembalikan
+// tree apa adanya, jadi tak ada leaf baru utk di-round-trip). Filter di sini
+// memakai `trim()` juga, bukan sekadar `!== ""`, krn whitespace-only lolos
+// filter yang lebih longgar tapi ditolak source (gotcha CLAUDE.md).
 const newLeafArb = fc.record({
   k: fc.constantFrom(...NEW_COLUMNS),
   o: fc.constantFrom("=", "in"),
-  v: fc.string(),
+  v: fc.string().filter((s) => s.trim() !== ""),
 });
 
 describe("addLeafChip + removeChip round-trip (property)", () => {
