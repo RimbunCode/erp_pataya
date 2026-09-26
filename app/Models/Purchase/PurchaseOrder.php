@@ -36,9 +36,10 @@ class PurchaseOrder extends Model {
         ];
     }
 
-    public $keyBreadcrumb          = 'code';
-    public string $formComponent   = 'Purchase/PurchaseOrders/Form';
-    public string $translateKey    = 'purchase.purchaseOrder';
+    public $keyBreadcrumb        = 'code';
+    public string $formComponent = 'Purchase/PurchaseOrders/Form';
+    public string $translateKey  = 'purchase.purchaseOrder';
+
     /**
      * Kolom yang dicari teks bebas Search Bar DataTable2 (chip "Cari") --
      * lihat DataTable::getSearchScope().

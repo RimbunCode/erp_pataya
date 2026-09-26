@@ -39,8 +39,9 @@ class Item extends Model {
         ];
     }
 
-    public string $formComponent   = 'Inventory/Items/Form';
-    public string $translateKey    = 'inventory.item';
+    public string $formComponent = 'Inventory/Items/Form';
+    public string $translateKey  = 'inventory.item';
+
     /**
      * Kolom yang dicari teks bebas Search Bar DataTable2 (chip "Cari") --
      * lihat DataTable::getSearchScope().

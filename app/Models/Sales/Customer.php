@@ -22,7 +22,8 @@ class Customer extends Model {
         return ':name';
     }
 
-    public $translateKey           = 'sales.customer';
+    public $translateKey = 'sales.customer';
+
     /**
      * Kolom yang dicari teks bebas Search Bar DataTable2 (chip "Cari") --
      * lihat DataTable::getSearchScope().

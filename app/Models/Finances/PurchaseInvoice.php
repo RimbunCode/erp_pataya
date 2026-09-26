@@ -52,7 +52,8 @@ class PurchaseInvoice extends Model {
         return ':code';
     }
 
-    public $translateKey           = 'finances.purchaseInvoice';
+    public $translateKey = 'finances.purchaseInvoice';
+
     /**
      * Kolom yang dicari teks bebas Search Bar DataTable2 (chip "Cari") --
      * lihat DataTable::getSearchScope().

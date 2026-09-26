@@ -32,9 +32,10 @@ class PurchaseRequest extends Model {
         return ':code';
     }
 
-    public $keyBreadcrumb          = 'code';
-    public string $formComponent   = 'Purchase/PurchaseRequests/Form';
-    public string $translateKey    = 'purchase.purchaseRequest';
+    public $keyBreadcrumb        = 'code';
+    public string $formComponent = 'Purchase/PurchaseRequests/Form';
+    public string $translateKey  = 'purchase.purchaseRequest';
+
     /**
      * Kolom yang dicari teks bebas Search Bar DataTable2 (chip "Cari") --
      * lihat DataTable::getSearchScope().
