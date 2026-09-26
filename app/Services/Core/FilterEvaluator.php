@@ -157,9 +157,9 @@ class FilterEvaluator {
             return;
         }
 
-        // Period (date/datetime)
+        // Period (date/datetime): objek tunggal, atau DAFTAR periode "Pada" (OR).
         if ($base === 'in_period') {
-            $this->applyPeriod($query, $this->qualifiedColumn($key), $type, $value, $negate, $boolean);
+            $this->applyPeriodValue($query, $this->qualifiedColumn($key), $type, $value, $negate, $boolean);
 
             return;
         }
@@ -200,7 +200,7 @@ class FilterEvaluator {
         // tabel relasi terdalam) — pakai boolean "and" di dalam scope relasi.
         $leaf = function (Builder $q) use ($columnName, $type, $base, $negate, $value): void {
             if ($base === 'in_period') {
-                $this->applyPeriod($q, $columnName, $type, $value, $negate, 'and');
+                $this->applyPeriodValue($q, $columnName, $type, $value, $negate, 'and');
 
                 return;
             }
@@ -514,15 +514,15 @@ class FilterEvaluator {
     private function isTypeCompatible(string $leftType, string $rightType): bool {
         $categorize = function (string $type): string {
             return match ($type) {
-                'number', 'currency'         => 'numeric',
-                'string'                     => 'string',
-                'date', 'datetime'           => 'date',
-                'time'                       => 'time',
-                'boolean'                    => 'boolean',
-                'relation', 'relations'      => 'relation',
+                'number', 'currency' => 'numeric',
+                'string' => 'string',
+                'date', 'datetime' => 'date',
+                'time'    => 'time',
+                'boolean' => 'boolean',
+                'relation', 'relations' => 'relation',
                 'formStatus', 'formStatuses' => 'status',
-                'enum'                       => 'enum',
-                default                      => $type,
+                'enum'  => 'enum',
+                default => $type,
             };
         };
 
@@ -762,6 +762,56 @@ class FilterEvaluator {
     }
 
     /**
+     * `in_period`/`!in_period`: `$value` objek periode tunggal -> `applyPeriod`;
+     * DAFTAR periode (Revisi 16, mis. banyak "Pada") -> `applyPeriodIn`.
+     */
+    private function applyPeriodValue(Builder $query, string $col, string $type, mixed $value, bool $negate, string $boolean): void {
+        if (is_array($value) && array_is_list($value)) {
+            $this->applyPeriodIn($query, $col, $type, $value, $negate, $boolean);
+
+            return;
+        }
+
+        $this->applyPeriod($query, $col, $type, $value, $negate, $boolean);
+    }
+
+    /**
+     * Daftar periode di bawah `in_period`/`!in_period`: value = DAFTAR objek
+     * periode "Pada" (`operator` `is`). OR dari batas tiap periode (logika
+     * `applyPeriod` yang sama, jadi presisi-menit datetime & tipe `date`
+     * konsisten dgn objek tunggal); `!in_period` = NOT(OR). Elemen tak valid /
+     * bukan `is` dilewati; daftar tanpa elemen valid tidak menambah kondisi.
+     * Baris NULL tak masuk `in_period` maupun `!in_period`.
+     *
+     * @param  mixed  $value  list<array<string,mixed>> (daftar objek periode)
+     */
+    private function applyPeriodIn(Builder $query, string $col, string $type, mixed $value, bool $negate, string $boolean): void {
+        if (! is_array($value) || ! array_is_list($value)) {
+            return;
+        }
+
+        $items = array_values(array_filter(
+            $value,
+            fn ($item) => is_array($item) && ($item['operator'] ?? null) === 'is',
+        ));
+        if ($items === []) {
+            return;
+        }
+
+        $apply = function (Builder $q) use ($col, $type, $items) {
+            foreach ($items as $item) {
+                $this->applyPeriod($q, $col, $type, $item, false, 'or');
+            }
+        };
+
+        if ($negate) {
+            $query->whereNot($apply, null, null, $boolean);
+        } else {
+            $query->where($apply, null, null, $boolean);
+        }
+    }
+
+    /**
      * Hitung [start, end] Carbon untuk batas periode. `$end=true` mengambil
      * batas akhir (rangeEnd / endDate); selain itu batas awal.
      *
@@ -922,9 +972,9 @@ class FilterEvaluator {
     private function normalizeScalar(string $type, mixed $value): mixed {
         if ($type === 'boolean') {
             return match ($value) {
-                'true', true, 1, '1'   => true,
+                'true', true, 1, '1' => true,
                 'false', false, 0, '0' => false,
-                default                => (bool) $value,
+                default => (bool) $value,
             };
         }
 

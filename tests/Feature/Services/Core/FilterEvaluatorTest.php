@@ -60,6 +60,7 @@ class FilterEvaluatorTest extends TestCase {
             $t->ulid('id')->primary();
             $t->string('type')->nullable();
             $t->integer('threshold')->nullable();
+            $t->date('valid_on')->nullable();
             $t->boolean('is_example')->default(false);
             $t->timestamps();
         });
@@ -110,6 +111,7 @@ class FilterEvaluatorTest extends TestCase {
                 'columns'        => [
                     ['name' => 'type', 'type' => 'string', 'searchable' => true],
                     ['name' => 'threshold', 'type' => 'number', 'searchable' => true],
+                    ['name' => 'valid_on', 'type' => 'date', 'searchable' => true],
                 ],
             ],
         ];
@@ -354,6 +356,149 @@ class FilterEvaluatorTest extends TestCase {
 
         // Tanpa time (midnight) → seluruh hari: is 2026-04-15 00:00 → r1 (sehari penuh).
         $this->assertEqualsCanonicalizing(['r1'], $this->applyAnd(['p' => ['k' => 'started_at', 'o' => 'in_period', 'v' => ['period' => 'day', 'operator' => 'is', 'startDate' => '2026-04-15T00:00:00']]])->pluck('id')->all());
+    }
+
+    // ---- in_period / !in_period dgn `v` DAFTAR: OR periode "Pada" (revisi 16) ----
+
+    /** @return array<string,mixed> */
+    private function monthIs(int $year, int $month): array {
+        return ['period' => 'month', 'operator' => 'is', 'year' => $year, 'month' => $month];
+    }
+
+    /** @return array<string,mixed> */
+    private function dayIs(string $date): array {
+        return ['period' => 'day', 'operator' => 'is', 'startDate' => $date];
+    }
+
+    /**
+     * @return list<string>
+     */
+    private function idsFor(string $column, string $op, mixed $value): array {
+        return $this->applyAnd(['p' => ['k' => $column, 'o' => $op, 'v' => $value]])->pluck('id')->all();
+    }
+
+    public function test_period_in_is_or_of_periods_across_granularities(): void {
+        $this->seedRecords();
+        // started_at: r1=2026-04-15 09:30, r2=2026-07-01 12:00, r4=2026-04-30 23:00, r3=NULL.
+
+        // Juli 2026 (idx 6) + hari 2026-04-15 -> r2 + r1.
+        $this->assertEqualsCanonicalizing(['r1', 'r2'], $this->idsFor('started_at', 'in_period', [$this->monthIs(2026, 6), $this->dayIs('2026-04-15T00:00:00')]));
+
+        // H2 2026 + tahun 2025 (tak ada baris) -> r2 saja.
+        $this->assertEqualsCanonicalizing(['r2'], $this->idsFor('started_at', 'in_period', [
+            ['period' => 'half-year', 'operator' => 'is', 'year' => 2026, 'halfYear' => 1],
+            ['period' => 'year', 'operator' => 'is', 'year' => 2025],
+        ]));
+
+        // Q2 2026 (quarter idx 1: Apr-Jun) + Juli -> r1, r4, r2 (r3 NULL tak masuk).
+        $this->assertEqualsCanonicalizing(['r1', 'r2', 'r4'], $this->idsFor('started_at', 'in_period', [
+            ['period' => 'quarter', 'operator' => 'is', 'year' => 2026, 'quarter' => 1],
+            $this->monthIs(2026, 6),
+        ]));
+    }
+
+    public function test_period_in_on_date_column_uses_date_bounds(): void {
+        $this->seedRecords();
+        // born_on (date): r1=2025-03-10, r2=2024-12-01, r4=2026-05-20, r3=NULL.
+        $this->assertEqualsCanonicalizing(['r1', 'r2'], $this->idsFor('born_on', 'in_period', [$this->dayIs('2025-03-10'), $this->monthIs(2024, 11)]));
+        $this->assertEqualsCanonicalizing(['r4'], $this->idsFor('born_on', 'in_period', [['period' => 'year', 'operator' => 'is', 'year' => 2026]]));
+    }
+
+    public function test_period_in_datetime_minute_precision(): void {
+        $this->seedRecords();
+        // Berjam -> jendela menit (sama dgn in_period).
+        $this->assertEqualsCanonicalizing(['r1'], $this->idsFor('started_at', 'in_period', [$this->dayIs('2026-04-15T09:30:00')]));
+        $this->assertEqualsCanonicalizing([], $this->idsFor('started_at', 'in_period', [$this->dayIs('2026-04-15T09:31:00')]));
+        // Campur: satu berjam (r1) + satu seluruh hari (2026-07-01 -> r2).
+        $this->assertEqualsCanonicalizing(['r1', 'r2'], $this->idsFor('started_at', 'in_period', [$this->dayIs('2026-04-15T09:30:00'), $this->dayIs('2026-07-01T00:00:00')]));
+    }
+
+    public function test_period_not_in_is_not_of_or_and_excludes_null(): void {
+        $this->seedRecords();
+        // !in [April 2026] -> di luar April: r2 saja; r3 (NULL) tak masuk negasi.
+        $this->assertEqualsCanonicalizing(['r2'], $this->idsFor('started_at', '!in_period', [$this->monthIs(2026, 3)]));
+        // !in [April, Juli] -> tak ada yg tersisa selain NULL (dikecualikan).
+        $this->assertEqualsCanonicalizing([], $this->idsFor('started_at', '!in_period', [$this->monthIs(2026, 3), $this->monthIs(2026, 6)]));
+    }
+
+    public function test_period_list_single_element_equals_single_object(): void {
+        $this->seedRecords();
+        $period = $this->monthIs(2026, 3);
+
+        $this->assertEqualsCanonicalizing(
+            $this->idsFor('started_at', 'in_period', $period),
+            $this->idsFor('started_at', 'in_period', [$period]),
+        );
+        $this->assertEqualsCanonicalizing(
+            $this->idsFor('started_at', '!in_period', $period),
+            $this->idsFor('started_at', '!in_period', [$period]),
+        );
+    }
+
+    public function test_period_in_invalid_values_add_no_condition(): void {
+        $this->seedRecords();
+        $noop = [
+            'kosong'          => [],
+            'skalar'          => ['2026-04-15'],
+            'string'          => '2026-04-15',
+            'bukan is'        => [['period' => 'month', 'operator' => 'after', 'year' => 2026, 'month' => 3]],
+            'hari tanpa awal' => [['period' => 'day', 'operator' => 'is']],
+        ];
+
+        foreach ($noop as $label => $value) {
+            $this->assertCount(4, $this->applyAnd(['p' => ['k' => 'started_at', 'o' => 'in_period', 'v' => $value]])->get(), $label);
+        }
+    }
+
+    public function test_legacy_in_on_date_column_is_skipped_silently(): void {
+        $this->seedRecords();
+        // Revisi 16: `in`/`!in` bukan operator date lagi (tanpa normalisasi) ->
+        // item dilewati diam-diam, semua 4 baris tampil.
+        $this->assertCount(4, $this->applyAnd(['p' => ['k' => 'started_at', 'o' => 'in', 'v' => [$this->monthIs(2026, 3)]]])->get());
+        $this->assertCount(4, $this->applyAnd(['p' => ['k' => 'born_on', 'o' => '!in', 'v' => [$this->monthIs(2026, 3)]]])->get());
+    }
+
+    public function test_period_in_skips_invalid_elements_but_applies_valid_ones(): void {
+        $this->seedRecords();
+        $this->assertEqualsCanonicalizing(['r1', 'r4'], $this->idsFor('started_at', 'in_period', [
+            ['period' => 'day', 'operator' => 'is'],
+            $this->monthIs(2026, 3),
+        ]));
+    }
+
+    public function test_period_in_on_relation_dot_notation_column(): void {
+        FilterTestCategory::insert([
+            ['id' => 'c1', 'type' => 'a', 'valid_on' => '2026-03-01', 'is_example' => false, 'created_at' => now(), 'updated_at' => now()],
+            ['id' => 'c2', 'type' => 'b', 'valid_on' => '2026-08-15', 'is_example' => false, 'created_at' => now(), 'updated_at' => now()],
+        ]);
+        FilterTestRecord::insert([
+            ['id' => 'n1', 'category_id' => 'c1', 'is_example' => false, 'created_at' => now(), 'updated_at' => now()],
+            ['id' => 'n2', 'category_id' => 'c2', 'is_example' => false, 'created_at' => now(), 'updated_at' => now()],
+            ['id' => 'n3', 'category_id' => null, 'is_example' => false, 'created_at' => now(), 'updated_at' => now()],
+        ]);
+
+        $this->assertEqualsCanonicalizing(['n1'], $this->idsFor('category.valid_on', 'in_period', [$this->monthIs(2026, 2)]));
+        $this->assertEqualsCanonicalizing(['n1', 'n2'], $this->idsFor('category.valid_on', 'in_period', [$this->monthIs(2026, 2), $this->monthIs(2026, 7)]));
+        // Negasi di dalam relasi: hanya baris yg PUNYA relasi & di luar periode.
+        $this->assertEqualsCanonicalizing(['n2'], $this->idsFor('category.valid_on', '!in_period', [$this->monthIs(2026, 2)]));
+    }
+
+    public function test_period_in_does_not_break_column_comparison_mode_for_dates(): void {
+        FilterTestRecord::insert([
+            ['id' => 'd1', 'born_on' => '2025-01-01', 'deadline_on' => '2025-06-01', 'is_example' => false, 'created_at' => now(), 'updated_at' => now()],
+            ['id' => 'd3', 'born_on' => '2025-06-01', 'deadline_on' => '2025-06-01', 'is_example' => false, 'created_at' => now(), 'updated_at' => now()],
+        ]);
+
+        // Mode kolom: born_on IN (deadline_on) -> sama dgn deadline_on -> d3.
+        $this->assertEqualsCanonicalizing(['d3'], $this->idsFor('born_on', 'in', ['kind' => 'column', 'ref' => ['deadline_on']]));
+    }
+
+    public function test_period_in_bindings_are_parameterized(): void {
+        $sql = $this->applyAnd(['p' => ['k' => 'started_at', 'o' => 'in_period', 'v' => [$this->monthIs(2026, 3), $this->monthIs(2026, 6)]]])->toSql();
+
+        $this->assertStringContainsString('between ? and ?', strtolower($sql));
+        $this->assertStringContainsString(' or ', strtolower($sql));
+        $this->assertStringNotContainsString('2026', $sql);
     }
 
     public function test_whitelist_skips_non_searchable_and_invalid_operator(): void {
