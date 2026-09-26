@@ -3,15 +3,18 @@
 namespace App\Models\Core;
 
 use App\Models\Model;
+use App\Models\Scopes\DataTableScope;
 use App\Models\User\Permission;
 use App\Models\User\User;
 use App\Traits\DataTable;
 use Database\Factories\SavedFilterFactory;
+use Illuminate\Contracts\Validation\ValidationRule;
 use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Database\Eloquent\Concerns\HasUlids;
 use Illuminate\Database\Eloquent\Factories\Factory;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
+use Illuminate\Validation\Rule;
 
 class SavedFilter extends Model {
     use DataTable, HasFactory, HasUlids;
@@ -59,6 +62,9 @@ class SavedFilter extends Model {
         'sort' => [
             'show' => false,
         ],
+        'group' => [
+            'show' => false,
+        ],
         'is_shared' => [
             'ignore' => true,
         ],
@@ -74,9 +80,30 @@ class SavedFilter extends Model {
     protected function casts(): array {
         return [
             'filter'     => 'array',
+            'group'      => 'array',
             'is_saved'   => 'boolean',
             'is_shared'  => 'boolean',
             'is_default' => 'boolean',
+        ];
+    }
+
+    /**
+     * Aturan validasi BENTUK `group` ({column, granularity, range}) -- satu
+     * sumber kebenaran dipakai bersama oleh UpdateSavedFilterRequest,
+     * StoreFilterTemplateRequest, UpdateFilterTemplateRequest (Requirement
+     * 11.2, 13.2). Validasi bentuk SAJA; gate `groupable` (kolom itu memang
+     * bisa di-group utk model target) tetap dilakukan runtime di
+     * DataTableScope (Requirement 12.4) -- FormRequest di sini tidak punya
+     * konteks kolom model target.
+     *
+     * @return array<string, ValidationRule|array<mixed>|string>
+     */
+    public static function groupValidationRules(): array {
+        return [
+            'group'             => ['nullable', 'array'],
+            'group.column'      => ['required_with:group', 'string'],
+            'group.granularity' => ['nullable', Rule::in(DataTableScope::GROUP_GRANULARITIES)],
+            'group.range'       => ['nullable', 'numeric', 'gt:0'],
         ];
     }
 

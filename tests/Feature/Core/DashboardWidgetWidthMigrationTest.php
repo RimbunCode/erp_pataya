@@ -40,6 +40,8 @@ class DashboardWidgetWidthMigrationTest extends TestCase {
         // Update 2026-09-11 (spec item-request-auto-detect, merge dev-1): 2
         // migration lagi nambah (create_item_request_coverages_table,
         // add_visibility_permission_to_menu_items_table) — 17 + 2 = 19.
+        // Update 2026-09-21 (spec datatable2-advanced-search): 1 migration
+        // lagi nambah (add_group_to_saved_filters_table) — 19 + 1 = 20.
         // Catatan: "migration width pertama" itu 2026_08_25_160734_add_
         // col_span_to_dashboard_widgets_table.php (BUKAN yang 160904_rename
         // -- itu migration KEDUA dari 2 migration width yang dimaksud,
@@ -58,7 +60,7 @@ class DashboardWidgetWidthMigrationTest extends TestCase {
         // dua sisi merge yang masing-masing menambah N migration dari base
         // yang sama TIDAK BISA dijumlah gitu saja, harus dihitung ulang dari
         // hasil gabungan sebenarnya.
-        Artisan::call('migrate:rollback', ['--step' => 19]);
+        Artisan::call('migrate:rollback', ['--step' => 20]);
 
         $dashboardId = (string) Str::ulid();
         DB::table('dashboards')->insert([

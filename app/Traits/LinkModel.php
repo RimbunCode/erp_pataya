@@ -564,6 +564,31 @@ trait LinkModel {
         ];
     }
 
+    /**
+     * Opsi kolom bertipe formStatus/formStatuses: `options` di $configColumns
+     * (daftar FormStatus atau string) MENDAFTARKAN/MEMBATASI status yg relevan
+     * utk dokumen itu; tanpa itu -> seluruh case enum FormStatus. `valueTrans`
+     * default `status` (label `status.<nilai>`, sama dgn FormStatus::label()).
+     *
+     * @param  array<string, mixed>  $column
+     * @return array<string, mixed>
+     */
+    protected static function withStatusOptions(array $column): array {
+        $configured = \collect($column['options'] ?? [])
+            ->map(fn ($status) => $status instanceof FormStatus ? $status->value : $status)
+            ->filter(fn ($status) => \is_string($status) && $status !== '')
+            ->unique()
+            ->values()
+            ->all();
+
+        $column['options'] = $configured !== []
+            ? $configured
+            : \array_map(fn (FormStatus $status) => $status->value, FormStatus::cases());
+        $column['valueTrans'] ??= 'status';
+
+        return $column;
+    }
+
     protected static function getColumnConfig(&$columns, $key): array {
         foreach ($columns as $keyCol => $column) {
             if (\is_numeric($keyCol) && $column == $key) {
@@ -659,7 +684,7 @@ trait LinkModel {
                 continue;
             }
             if ($col) {
-                $newColumns[$col['name']] = [
+                $entry = [
                     'sortable'   => true,
                     'searchable' => true,
                     ...$col,
@@ -669,6 +694,10 @@ trait LinkModel {
                     ...(($isIgnore || $isHidden) ? $ignoreFlags : []),
                     ...($isGuard ? ['ignore' => false] : []),
                 ];
+
+                $newColumns[$col['name']] = \in_array($entry['type'] ?? null, ['formStatus', 'formStatuses'], true)
+                    ? static::withStatusOptions($entry)
+                    : $entry;
             }
         }
 

@@ -20,7 +20,7 @@ class SavedFilterController extends Controller {
 
         $filters = SavedFilter::visibleTo($request->user()->id, $request->input('model'))
             ->latest()
-            ->get(['id', 'name', 'filter', 'sort', 'is_saved', 'is_shared', 'is_default', 'created_at']);
+            ->get(['id', 'name', 'filter', 'sort', 'group', 'is_saved', 'is_shared', 'is_default', 'created_at']);
 
         return response()->json($filters);
     }
@@ -118,6 +118,12 @@ class SavedFilterController extends Controller {
         if ($request->has('filter')) {
             $attributes['filter'] = $request->input('filter');
         }
+        if ($request->has('sort')) {
+            $attributes['sort'] = $request->input('sort');
+        }
+        if ($request->has('group')) {
+            $attributes['group'] = $request->input('group');
+        }
 
         if ($attributes !== []) {
             $savedFilter->update($attributes);
@@ -127,6 +133,8 @@ class SavedFilterController extends Controller {
             'id'     => $savedFilter->id,
             'name'   => $savedFilter->name,
             'filter' => $savedFilter->filter,
+            'sort'   => $savedFilter->sort,
+            'group'  => $savedFilter->group,
         ]);
     }
 

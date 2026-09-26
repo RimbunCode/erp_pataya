@@ -6,6 +6,7 @@ use App\Models\Core\ApprovalScheme;
 use App\Models\Core\Branch;
 use App\Models\Core\SavedFilter;
 use App\Models\Model as AppModel;
+use App\Models\Scopes\DataTableScope;
 use App\Models\User\Permission;
 use App\Models\User\User;
 use App\Traits\DataTable;
@@ -549,6 +550,121 @@ class SavedFilterTest extends TestCase {
         ]);
 
         $this->actingAs($other)->patchJson("/saved-filters/{$saved->id}", ['name' => 'Hijack'])->assertStatus(403);
+    }
+
+    // ---- sort & group (Requirement 11) ------------------------------------
+
+    public function test_update_persists_sort_and_group_and_returns_them_in_response(): void {
+        $owner = $this->makeUser();
+        $saved = SavedFilter::create([
+            'user_id' => $owner->id, 'model' => ApprovalScheme::class,
+            'filter'  => $this->sampleTree(), 'name' => 'Keep', 'is_saved' => true,
+        ]);
+
+        $granularity = DataTableScope::GROUP_GRANULARITIES[0];
+        $res         = $this->actingAs($owner)->patchJson("/saved-filters/{$saved->id}", [
+            'sort'  => '-name',
+            'group' => ['column' => 'category', 'granularity' => $granularity, 'range' => null],
+        ]);
+
+        $res->assertOk()
+            ->assertJsonPath('sort', '-name')
+            ->assertJsonPath('group.column', 'category')
+            ->assertJsonPath('group.granularity', $granularity);
+
+        $fresh = SavedFilter::find($saved->id);
+        $this->assertSame('-name', $fresh->sort);
+        $this->assertSame(['column' => 'category', 'granularity' => $granularity, 'range' => null], $fresh->group);
+    }
+
+    public function test_update_rejects_group_without_column(): void {
+        $owner = $this->makeUser();
+        $saved = SavedFilter::create([
+            'user_id' => $owner->id, 'model' => ApprovalScheme::class,
+            'filter'  => $this->sampleTree(), 'name' => 'Keep', 'is_saved' => true,
+        ]);
+
+        $this->actingAs($owner)->patchJson("/saved-filters/{$saved->id}", [
+            'group' => ['granularity' => 'month'],
+        ])->assertStatus(422)->assertJsonValidationErrors(['group.column']);
+    }
+
+    public function test_update_rejects_group_with_unknown_granularity(): void {
+        $owner = $this->makeUser();
+        $saved = SavedFilter::create([
+            'user_id' => $owner->id, 'model' => ApprovalScheme::class,
+            'filter'  => $this->sampleTree(), 'name' => 'Keep', 'is_saved' => true,
+        ]);
+
+        $this->actingAs($owner)->patchJson("/saved-filters/{$saved->id}", [
+            'group' => ['column' => 'category', 'granularity' => 'decade'],
+        ])->assertStatus(422)->assertJsonValidationErrors(['group.granularity']);
+    }
+
+    public function test_update_rejects_group_with_non_positive_range(): void {
+        $owner = $this->makeUser();
+        $saved = SavedFilter::create([
+            'user_id' => $owner->id, 'model' => ApprovalScheme::class,
+            'filter'  => $this->sampleTree(), 'name' => 'Keep', 'is_saved' => true,
+        ]);
+
+        foreach ([0, -5] as $badRange) {
+            $this->actingAs($owner)->patchJson("/saved-filters/{$saved->id}", [
+                'group' => ['column' => 'amount', 'range' => $badRange],
+            ])->assertStatus(422)->assertJsonValidationErrors(['group.range']);
+        }
+    }
+
+    public function test_update_sort_and_group_by_non_owner_forbidden(): void {
+        $owner = $this->makeUser();
+        $other = $this->makeUser();
+        $saved = SavedFilter::create([
+            'user_id' => $owner->id, 'model' => ApprovalScheme::class,
+            'filter'  => $this->sampleTree(), 'is_saved' => false,
+        ]);
+
+        $this->actingAs($other)->patchJson("/saved-filters/{$saved->id}", [
+            'sort'  => '-name',
+            'group' => ['column' => 'category'],
+        ])->assertStatus(403);
+
+        $fresh = SavedFilter::find($saved->id);
+        $this->assertNull($fresh->sort);
+        $this->assertNull($fresh->group);
+    }
+
+    public function test_index_includes_group_field(): void {
+        $owner = $this->makeUser();
+        SavedFilter::create([
+            'user_id' => $owner->id, 'model' => ApprovalScheme::class,
+            'filter'  => $this->sampleTree(), 'name' => 'A', 'is_saved' => true,
+            'group'   => ['column' => 'category', 'granularity' => null, 'range' => null],
+        ]);
+
+        $this->actingAs($owner)->getJson('/saved-filters?model=' . urlencode(ApprovalScheme::class))
+            ->assertOk()
+            ->assertJsonPath('0.group.column', 'category');
+    }
+
+    /**
+     * Requirement 11.5: jalur ephemeral (`store()`) TIDAK berubah -- `sort`/
+     * `group` yang dikirim diabaikan sepenuhnya (regresi), sort/group hidup
+     * di URL untuk filter ephemeral.
+     */
+    public function test_store_ignores_sort_and_group_payload_regression(): void {
+        $user = $this->makeUser();
+
+        $res = $this->actingAs($user)->postJson('/saved-filters', [
+            'model'  => ApprovalScheme::class,
+            'filter' => $this->sampleTree(),
+            'sort'   => '-name',
+            'group'  => ['column' => 'category'],
+        ]);
+
+        $res->assertOk();
+        $saved = SavedFilter::find($res->json('id'));
+        $this->assertNull($saved->sort);
+        $this->assertNull($saved->group);
     }
 
     public function test_index_listing_is_private(): void {

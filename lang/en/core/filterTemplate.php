@@ -26,6 +26,8 @@ return [
         'sort.none'          => 'Not set',
         'sort.ascending'     => 'Ascending',
         'sort.descending'    => 'Descending',
+        'group'              => 'Grouping',
+        'group.none'         => 'Not set',
         'preview'            => 'Preview',
         'preview.empty'      => 'No data to display yet.',
         'setDefault'         => 'Set as Default',

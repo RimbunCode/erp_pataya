@@ -136,6 +136,75 @@ class FilterTemplateControllerTest extends TestCase {
         ]);
     }
 
+    // ---- group (Requirement 13) --------------------------------------------
+
+    public function test_store_persists_group(): void {
+        $user = $this->makeUser();
+        $this->registerPermission(ApprovalScheme::class);
+
+        $res = $this->actingAs($user)
+            ->withSession($this->fullPermissions())
+            ->postJson(route('filterTemplates.store'), [
+                'model'  => ApprovalScheme::class,
+                'filter' => $this->sampleTree(),
+                'name'   => 'Shared A',
+                'group'  => ['column' => 'name', 'granularity' => null, 'range' => null],
+            ]);
+
+        $res->assertRedirect();
+        $saved = SavedFilter::where('name', 'Shared A')->first();
+        $this->assertSame(['column' => 'name', 'granularity' => null, 'range' => null], $saved->group);
+    }
+
+    public function test_store_rejects_group_without_column(): void {
+        $user = $this->makeUser();
+        $this->registerPermission(ApprovalScheme::class);
+
+        $this->actingAs($user)
+            ->withSession($this->fullPermissions())
+            ->postJson(route('filterTemplates.store'), [
+                'model'  => ApprovalScheme::class,
+                'filter' => $this->sampleTree(),
+                'name'   => 'Shared A',
+                'group'  => ['granularity' => 'month'],
+            ])
+            ->assertStatus(422)
+            ->assertJsonValidationErrors(['group.column']);
+    }
+
+    public function test_update_persists_group(): void {
+        $user   = $this->makeUser();
+        $shared = SavedFilter::create([
+            'user_id' => $user->id, 'model' => ApprovalScheme::class,
+            'filter'  => $this->sampleTree(), 'name' => 'A', 'is_saved' => true, 'is_shared' => true,
+        ]);
+
+        $this->actingAs($user)
+            ->withSession($this->fullPermissions())
+            ->putJson(route('filterTemplates.update', $shared), [
+                'group' => ['column' => 'name', 'granularity' => 'quarter'],
+            ])
+            ->assertRedirect();
+
+        $this->assertSame('quarter', SavedFilter::find($shared->id)->group['granularity']);
+    }
+
+    public function test_update_rejects_group_with_non_positive_range(): void {
+        $user   = $this->makeUser();
+        $shared = SavedFilter::create([
+            'user_id' => $user->id, 'model' => ApprovalScheme::class,
+            'filter'  => $this->sampleTree(), 'name' => 'A', 'is_saved' => true, 'is_shared' => true,
+        ]);
+
+        $this->actingAs($user)
+            ->withSession($this->fullPermissions())
+            ->putJson(route('filterTemplates.update', $shared), [
+                'group' => ['column' => 'amount', 'range' => -5],
+            ])
+            ->assertStatus(422)
+            ->assertJsonValidationErrors(['group.range']);
+    }
+
     public function test_destroy_forbidden_without_delete_permission(): void {
         $user   = $this->makeUser();
         $shared = SavedFilter::create([

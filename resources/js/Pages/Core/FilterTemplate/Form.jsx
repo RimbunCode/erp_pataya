@@ -1,6 +1,10 @@
 import { FormPageContent, useFormPage } from "@/Pages/Core/FormPage";
 import { useCallback, useEffect, useMemo, useState } from "react";
 
+import {
+  DATE_GROUP_GRANULARITIES,
+  DEFAULT_NUMBER_GROUP_RANGE_OPTIONS,
+} from "@/Components/Table/Table2";
 import { FilterBuilderBody } from "@/Components/Table/Filter/FilterBuilder";
 import FormInput from "@/Components/FormInput";
 import { Input } from "@/Components/ui/input";
@@ -203,6 +207,54 @@ function BuilderSection({
     [setData],
   );
 
+  // Group by -- hanya kolom `groupable` (opt-in per model, sama dgn dropdown
+  // Group by di DataTable2). Disimpan sbg `{ column, granularity, range }`
+  // (kolom JSON `saved_filters.group`); null = template tak mengatur group.
+  const groupableColumns = useMemo(
+    () =>
+      (columns ?? []).filter((col) => col.groupable === true && !col.parentCol),
+    [columns],
+  );
+  const groupColumnOptions = useMemo(
+    () => [
+      { value: "__none", label: t("core.filterTemplate.form.group.none") },
+      ...groupableColumns.map((col) => ({
+        value: col.name,
+        label: col.titleTrans ? t(col.titleTrans) : col.name,
+      })),
+    ],
+    [groupableColumns, t],
+  );
+  const groupColumn = groupableColumns.find(
+    (col) => col.name === data?.group?.column,
+  );
+  const isGroupDate = ["date", "time", "datetime"].includes(groupColumn?.type);
+  const isGroupNumber = ["number", "currency"].includes(groupColumn?.type);
+  const groupRangeOptions =
+    groupColumn?.groupRangeOptions ?? DEFAULT_NUMBER_GROUP_RANGE_OPTIONS;
+  const setGroupColumn = useCallback(
+    (name) => {
+      const column = groupableColumns.find((col) => col.name === name);
+      if (!column) {
+        setData("group", null);
+        return;
+      }
+      // Granularity/range SELALU direset utk kolom baru (skala range beda
+      // per kolom) -- default sama dgn DataTable2::setGroup().
+      setData("group", {
+        column: column.name,
+        granularity: ["date", "time", "datetime"].includes(column.type)
+          ? "month"
+          : null,
+        range: ["number", "currency"].includes(column.type)
+          ? (column.groupRangeOptions?.[0] ??
+            DEFAULT_NUMBER_GROUP_RANGE_OPTIONS[0])
+          : null,
+      });
+    },
+    [groupableColumns, setData],
+  );
+
   // Preview otomatis (debounced) — tak perlu tombol, mengikuti perubahan
   // filter/sort/model seperti halaman list biasa.
   useEffect(() => {
@@ -276,6 +328,45 @@ function BuilderSection({
             )}
           </div>
         </FormInput>
+
+        {groupableColumns.length > 0 && (
+          <FormInput name="group" label={t("core.filterTemplate.form.group")}>
+            <div className="flex gap-2">
+              <Select
+                className="flex-1"
+                value={groupColumn?.name ?? "__none"}
+                options={groupColumnOptions}
+                onValueChange={setGroupColumn}
+              />
+              {isGroupDate && (
+                <Select
+                  className="w-40"
+                  value={data.group.granularity ?? "month"}
+                  options={DATE_GROUP_GRANULARITIES.map((g) => ({
+                    value: g,
+                    label: t(`core.datatable.granularity.${g}`),
+                  }))}
+                  onValueChange={(val) =>
+                    setData("group", { ...data.group, granularity: val })
+                  }
+                />
+              )}
+              {isGroupNumber && (
+                <Select
+                  className="w-40"
+                  value={`${data.group.range ?? groupRangeOptions[0]}`}
+                  options={groupRangeOptions.map((size) => ({
+                    value: `${size}`,
+                    label: `${size}`,
+                  }))}
+                  onValueChange={(val) =>
+                    setData("group", { ...data.group, range: Number(val) })
+                  }
+                />
+              )}
+            </div>
+          </FormInput>
+        )}
 
         <div>
           <div className="flex items-center gap-2 mb-2">

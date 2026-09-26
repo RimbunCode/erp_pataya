@@ -61,7 +61,16 @@ class SalesInvoice extends Model {
         return $this->return_against_id != null;
     }
 
-    public $translateKey           = 'finances.salesInvoice';
+    public $translateKey = 'finances.salesInvoice';
+
+    /**
+     * Kolom yang dicari teks bebas Search Bar DataTable2 (chip "Cari") --
+     * lihat DataTable::getSearchScope().
+     *
+     * @var list<string>
+     */
+    protected static array $searchScope = ['code', 'external_note', 'tax_invoice_serial_number', 'customer.name'];
+
     protected array $configColumns = [
         'is_return' => [
             'dependsOn' => ['return_against_id'],
