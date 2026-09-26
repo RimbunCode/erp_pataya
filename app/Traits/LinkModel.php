@@ -502,12 +502,12 @@ trait LinkModel {
         // Mapping pakai match
         $phpType = match ($type) {
             'int', 'tinyint', 'smallint', 'mediumint', 'bigint', 'decimal', 'float', 'double', 'real', 'year' => 'number',
-            'varchar', 'char', 'text', 'tinytext', 'mediumtext', 'longtext', 'enum', 'set'                    => 'string',
-            'date'                                                                                            => 'date',
-            'datetime', 'timestamp'                                                                           => 'datetime',
-            'time'                                                                                            => 'time',
-            'blob', 'binary', 'varbinary'                                                                     => 'binary',
-            default                                                                                           => 'mixed',
+            'varchar', 'char', 'text', 'tinytext', 'mediumtext', 'longtext', 'enum', 'set' => 'string',
+            'date' => 'date',
+            'datetime', 'timestamp' => 'datetime',
+            'time' => 'time',
+            'blob', 'binary', 'varbinary' => 'binary',
+            default => 'mixed',
         };
 
         $cast = $casts[$dataColumn['name']] ?? null;
@@ -541,14 +541,14 @@ trait LinkModel {
                 ])
             ) {
                 $phpType = match ($cast) {
-                    Json::class                                             => 'json',
-                    FormStatusCast::class                                   => 'formStatus',
-                    FormStatusesCast::class                                 => 'formStatuses',
+                    Json::class             => 'json',
+                    FormStatusCast::class   => 'formStatus',
+                    FormStatusesCast::class => 'formStatuses',
                     'integer', 'decimal', 'float', 'double', 'real', 'year' => 'number',
-                    'immutable_date', 'date'                                => 'date',
-                    'immutable_datetime', 'datetime', 'timestamp'           => 'datetime',
-                    'time'                                                  => 'time',
-                    default                                                 => $cast,
+                    'immutable_date', 'date' => 'date',
+                    'immutable_datetime', 'datetime', 'timestamp' => 'datetime',
+                    'time'  => 'time',
+                    default => $cast,
                 };
             }
         }
@@ -562,6 +562,31 @@ trait LinkModel {
             'type'    => $phpType,
             'options' => $options,
         ];
+    }
+
+    /**
+     * Opsi kolom bertipe formStatus/formStatuses: `options` di $configColumns
+     * (daftar FormStatus atau string) MENDAFTARKAN/MEMBATASI status yg relevan
+     * utk dokumen itu; tanpa itu -> seluruh case enum FormStatus. `valueTrans`
+     * default `status` (label `status.<nilai>`, sama dgn FormStatus::label()).
+     *
+     * @param  array<string, mixed>  $column
+     * @return array<string, mixed>
+     */
+    protected static function withStatusOptions(array $column): array {
+        $configured = \collect($column['options'] ?? [])
+            ->map(fn ($status) => $status instanceof FormStatus ? $status->value : $status)
+            ->filter(fn ($status) => \is_string($status) && $status !== '')
+            ->unique()
+            ->values()
+            ->all();
+
+        $column['options'] = $configured !== []
+            ? $configured
+            : \array_map(fn (FormStatus $status) => $status->value, FormStatus::cases());
+        $column['valueTrans'] ??= 'status';
+
+        return $column;
     }
 
     protected static function getColumnConfig(&$columns, $key): array {
@@ -659,7 +684,7 @@ trait LinkModel {
                 continue;
             }
             if ($col) {
-                $newColumns[$col['name']] = [
+                $entry = [
                     'sortable'   => true,
                     'searchable' => true,
                     ...$col,
@@ -669,6 +694,10 @@ trait LinkModel {
                     ...(($isIgnore || $isHidden) ? $ignoreFlags : []),
                     ...($isGuard ? ['ignore' => false] : []),
                 ];
+
+                $newColumns[$col['name']] = \in_array($entry['type'] ?? null, ['formStatus', 'formStatuses'], true)
+                    ? static::withStatusOptions($entry)
+                    : $entry;
             }
         }
 

@@ -3,6 +3,7 @@
 namespace App\Models\Helpdesk;
 
 use App\Casts\FormStatusCast;
+use App\Enums\FormStatus;
 use App\Models\Core\Branch;
 use App\Models\Model;
 use App\Models\User\Assignable;
@@ -50,8 +51,17 @@ class Ticket extends Model {
         ],
         'status' => [
             'valueTrans' => 'helpdesk.ticket.status.options',
-            'show'       => true,
-            'order'      => 3,
+            // Batasi opsi filter ke status yg relevan utk Ticket (sama dgn
+            // `helpdesk.ticket.status.options`); tanpa ini = semua FormStatus.
+            'options' => [
+                FormStatus::NEW,
+                FormStatus::IN_PROGRESS,
+                FormStatus::ON_HOLD,
+                FormStatus::RESOLVED,
+                FormStatus::DONE,
+            ],
+            'show'  => true,
+            'order' => 3,
         ],
         'progress' => [
             'show'  => true,
