@@ -1,5 +1,5 @@
 import { describe, expect, it, vi, beforeEach } from "vitest";
-import { render, screen } from "@testing-library/react";
+import { render, screen, waitFor } from "@testing-library/react";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import userEvent from "@testing-library/user-event";
 import { TooltipProvider } from "@/Components/ui/tooltip";
@@ -249,7 +249,7 @@ describe("FilterTable2", () => {
     expect(deleteButtons).toHaveLength(1);
   });
 
-  it("Simpan sebagai baru: submit nama memanggil POST lalu PATCH nama", async () => {
+  it("Simpan Filter (tanpa dropdown): isian nama inline -> POST lalu PATCH nama", async () => {
     const user = userEvent.setup({ delay: null });
     axiosPost.mockResolvedValue({ data: { id: 99 } });
     axiosPatch.mockResolvedValue({ data: { id: 99, name: "Filter Baru" } });
@@ -270,19 +270,12 @@ describe("FilterTable2", () => {
         name: /TR:core.datatable.filter.saved.save/,
       }),
     );
-    await user.click(
-      screen.getByText("TR:core.datatable.filter.saved.save_new"),
-    );
 
     const input = screen.getByPlaceholderText(
       "TR:core.datatable.filter.saved.name_placeholder",
     );
     await user.type(input, "Filter Baru");
-    await user.click(
-      screen.getByRole("button", {
-        name: "TR:core.datatable.filter.saved.save",
-      }),
-    );
+    await user.click(screen.getByRole("button", { name: "TR:core.form.save" }));
 
     expect(axiosPost).toHaveBeenCalledWith(
       "saved-filters.store",
@@ -505,10 +498,47 @@ describe("FilterTable2", () => {
 
 // Task 7.2 (spec datatable2-advanced-search) — `SaveFilterControl` diekspor
 // terpisah + prop opsional `getViewSnapshot` (Requirement 11.6, 14.4).
+// Revisi 14: TANPA dropdown -- tombol membuka isian nama inline; nama yg sama
+// dgn `savedItems` = timpa; ada indikator progres saat menyimpan.
 describe("SaveFilterControl (export standalone)", () => {
   beforeEach(() => {
     axiosPost.mockReset();
     axiosPatch.mockReset();
+    toastSuccess.mockReset();
+    toastError.mockReset();
+  });
+
+  const openForm = (user) =>
+    user.click(
+      screen.getByRole("button", {
+        name: /TR:core.datatable.filter.saved.save/,
+      }),
+    );
+  const nameInput = () =>
+    screen.getByPlaceholderText(
+      "TR:core.datatable.filter.saved.name_placeholder",
+    );
+  const confirm = (label = "TR:core.form.save") =>
+    screen.getByRole("button", { name: label });
+  const emptyTree = { root: { k: "and", c: {} } };
+
+  it("tanpa dropdown: satu klik tombol membuka isian nama (tak ada menu)", async () => {
+    const user = userEvent.setup({ delay: null });
+    render(
+      <SaveFilterControl
+        model="AppModelsItem"
+        filter={emptyTree}
+        savedItems={[{ id: 1, name: "Filter A" }]}
+        onSaved={vi.fn()}
+      />,
+    );
+
+    await openForm(user);
+    expect(nameInput()).toBeInTheDocument();
+    expect(screen.queryByRole("menu")).not.toBeInTheDocument();
+    expect(
+      screen.queryByText("TR:core.datatable.filter.saved.save_new"),
+    ).not.toBeInTheDocument();
   });
 
   it("tanpa getViewSnapshot -- payload PATCH sama seperti sebelumnya (regresi)", async () => {
@@ -518,31 +548,15 @@ describe("SaveFilterControl (export standalone)", () => {
     render(
       <SaveFilterControl
         model="AppModelsItem"
-        filter={{ root: { k: "and", c: {} } }}
+        filter={emptyTree}
         savedItems={[]}
         onSaved={vi.fn()}
       />,
     );
 
-    await user.click(
-      screen.getByRole("button", {
-        name: /TR:core.datatable.filter.saved.save/,
-      }),
-    );
-    await user.click(
-      screen.getByText("TR:core.datatable.filter.saved.save_new"),
-    );
-    await user.type(
-      screen.getByPlaceholderText(
-        "TR:core.datatable.filter.saved.name_placeholder",
-      ),
-      "Filter Baru",
-    );
-    await user.click(
-      screen.getByRole("button", {
-        name: "TR:core.datatable.filter.saved.save",
-      }),
-    );
+    await openForm(user);
+    await user.type(nameInput(), "Filter Baru");
+    await user.click(confirm());
 
     expect(axiosPatch).toHaveBeenCalledWith(
       'saved-filters.update/{"savedFilter":99}',
@@ -550,7 +564,7 @@ describe("SaveFilterControl (export standalone)", () => {
     );
   });
 
-  it("Simpan sebagai baru dengan getViewSnapshot -- PATCH menyertakan sort & group", async () => {
+  it("Simpan baru dengan getViewSnapshot -- PATCH menyertakan sort & group", async () => {
     const user = userEvent.setup({ delay: null });
     axiosPost.mockResolvedValue({ data: { id: 99 } });
     axiosPatch.mockResolvedValue({ data: { id: 99, name: "Filter Baru" } });
@@ -561,32 +575,16 @@ describe("SaveFilterControl (export standalone)", () => {
     render(
       <SaveFilterControl
         model="AppModelsItem"
-        filter={{ root: { k: "and", c: {} } }}
+        filter={emptyTree}
         savedItems={[]}
         onSaved={vi.fn()}
         getViewSnapshot={getViewSnapshot}
       />,
     );
 
-    await user.click(
-      screen.getByRole("button", {
-        name: /TR:core.datatable.filter.saved.save/,
-      }),
-    );
-    await user.click(
-      screen.getByText("TR:core.datatable.filter.saved.save_new"),
-    );
-    await user.type(
-      screen.getByPlaceholderText(
-        "TR:core.datatable.filter.saved.name_placeholder",
-      ),
-      "Filter Baru",
-    );
-    await user.click(
-      screen.getByRole("button", {
-        name: "TR:core.datatable.filter.saved.save",
-      }),
-    );
+    await openForm(user);
+    await user.type(nameInput(), "Filter Baru");
+    await user.click(confirm());
 
     expect(axiosPatch).toHaveBeenCalledWith(
       'saved-filters.update/{"savedFilter":99}',
@@ -594,35 +592,194 @@ describe("SaveFilterControl (export standalone)", () => {
     );
   });
 
-  it("Timpa dengan getViewSnapshot -- PATCH menyertakan filter, sort & group", async () => {
+  it("nama SAMA (tanpa beda huruf) dgn filter tersimpan -> tombol jadi Timpa; PATCH filter+sort+group, tanpa POST", async () => {
     const user = userEvent.setup({ delay: null });
     axiosPatch.mockResolvedValue({ data: { id: 1 } });
     const filter = { root: { k: "and", c: {} } };
     const getViewSnapshot = () => ({ sort: null, group: null });
+    const onSaved = vi.fn();
     render(
       <SaveFilterControl
         model="AppModelsItem"
         filter={filter}
         savedItems={[{ id: 1, name: "Filter A" }]}
-        onSaved={vi.fn()}
+        onSaved={onSaved}
         getViewSnapshot={getViewSnapshot}
       />,
     );
 
+    await openForm(user);
+    await user.type(nameInput(), "  filter a ");
     await user.click(
-      screen.getByRole("button", {
-        name: /TR:core.datatable.filter.saved.save/,
-      }),
-    );
-    await user.click(
-      screen.getByText(
-        'TR:core.datatable.filter.saved.overwrite:{"name":"Filter A"}',
-      ),
+      confirm('TR:core.datatable.filter.saved.overwrite:{"name":"Filter A"}'),
     );
 
+    expect(axiosPost).not.toHaveBeenCalled();
     expect(axiosPatch).toHaveBeenCalledWith(
       'saved-filters.update/{"savedFilter":1}',
       { filter, sort: null, group: null },
     );
+    expect(onSaved).toHaveBeenCalledWith({ id: 1 });
+    expect(toastSuccess).toHaveBeenCalledWith(
+      "TR:core.datatable.filter.saved.updated_toast",
+    );
+    // Sukses -> isian menutup, tombol awal kembali.
+    expect(
+      await screen.findByRole("button", {
+        name: /TR:core.datatable.filter.saved.save/,
+      }),
+    ).toBeInTheDocument();
+    expect(
+      screen.queryByPlaceholderText(
+        "TR:core.datatable.filter.saved.name_placeholder",
+      ),
+    ).not.toBeInTheDocument();
+  });
+
+  it("defaultName mengisi isian saat dibuka -> Enter langsung menimpa filter itu", async () => {
+    const user = userEvent.setup({ delay: null });
+    axiosPatch.mockResolvedValue({ data: { id: 1 } });
+    render(
+      <SaveFilterControl
+        model="AppModelsItem"
+        filter={emptyTree}
+        savedItems={[{ id: 1, name: "Filter A" }]}
+        defaultName="Filter A"
+        onSaved={vi.fn()}
+      />,
+    );
+
+    await openForm(user);
+    expect(nameInput()).toHaveValue("Filter A");
+    await user.type(nameInput(), "{Enter}");
+
+    expect(axiosPatch).toHaveBeenCalledWith(
+      'saved-filters.update/{"savedFilter":1}',
+      { filter: emptyTree },
+    );
+  });
+
+  it("indikator progres: saat menyimpan tombol 'Menyimpan...' + spinner, isian & tombol lain terkunci; selesai -> menutup", async () => {
+    const user = userEvent.setup({ delay: null });
+    let resolvePost;
+    axiosPost.mockReturnValue(
+      new Promise((resolve) => {
+        resolvePost = resolve;
+      }),
+    );
+    axiosPatch.mockResolvedValue({ data: { id: 99, name: "Baru" } });
+    const onSavingChange = vi.fn();
+    render(
+      <SaveFilterControl
+        model="AppModelsItem"
+        filter={emptyTree}
+        savedItems={[]}
+        onSaved={vi.fn()}
+        onSavingChange={onSavingChange}
+      />,
+    );
+
+    await openForm(user);
+    await user.type(nameInput(), "Baru");
+    await user.click(confirm());
+
+    const busy = await screen.findByRole("button", {
+      name: "TR:core.form.saving",
+    });
+    expect(busy).toBeDisabled();
+    expect(busy.querySelector("svg")).not.toBeNull();
+    expect(nameInput()).toBeDisabled();
+    expect(
+      screen.getByRole("button", { name: "TR:core.datatable.filter.cancel" }),
+    ).toBeDisabled();
+    expect(onSavingChange).toHaveBeenLastCalledWith(true);
+
+    resolvePost({ data: { id: 99 } });
+    expect(
+      await screen.findByRole("button", {
+        name: /TR:core.datatable.filter.saved.save/,
+      }),
+    ).toBeInTheDocument();
+    expect(onSavingChange).toHaveBeenLastCalledWith(false);
+  });
+
+  it("gagal menyimpan -> toast error, isian tetap terbuka & bisa dicoba lagi", async () => {
+    const user = userEvent.setup({ delay: null });
+    axiosPost.mockRejectedValue(new Error("boom"));
+    render(
+      <SaveFilterControl
+        model="AppModelsItem"
+        filter={emptyTree}
+        savedItems={[]}
+        onSaved={vi.fn()}
+      />,
+    );
+
+    await openForm(user);
+    await user.type(nameInput(), "Baru");
+    await user.click(confirm());
+
+    await waitFor(() =>
+      expect(toastError).toHaveBeenCalledWith(
+        "TR:core.datatable.filter.saved.save_error",
+      ),
+    );
+    expect(nameInput()).toHaveValue("Baru");
+    expect(confirm()).not.toBeDisabled();
+  });
+
+  it("nama kosong -> tombol simpan nonaktif; Batal & Escape menutup isian (Escape tak sampai ke induk)", async () => {
+    const user = userEvent.setup({ delay: null });
+    const onParentKeyDown = vi.fn();
+    render(
+      <div onKeyDown={onParentKeyDown}>
+        <SaveFilterControl
+          model="AppModelsItem"
+          filter={emptyTree}
+          savedItems={[]}
+          onSaved={vi.fn()}
+        />
+      </div>,
+    );
+
+    await openForm(user);
+    expect(confirm()).toBeDisabled();
+
+    await user.type(nameInput(), "abc");
+    onParentKeyDown.mockClear(); // ketikan biasa memang naik ke induk.
+    await user.keyboard("{ArrowLeft}{Escape}");
+    expect(onParentKeyDown).not.toHaveBeenCalled();
+    expect(
+      screen.queryByPlaceholderText(
+        "TR:core.datatable.filter.saved.name_placeholder",
+      ),
+    ).not.toBeInTheDocument();
+
+    await openForm(user);
+    await user.click(
+      screen.getByRole("button", { name: "TR:core.datatable.filter.cancel" }),
+    );
+    expect(
+      screen.queryByPlaceholderText(
+        "TR:core.datatable.filter.saved.name_placeholder",
+      ),
+    ).not.toBeInTheDocument();
+  });
+
+  it("disabled -> tombol awal nonaktif; className diteruskan", () => {
+    render(
+      <SaveFilterControl
+        model="AppModelsItem"
+        filter={emptyTree}
+        onSaved={vi.fn()}
+        disabled
+        className="w-full"
+      />,
+    );
+    const button = screen.getByRole("button", {
+      name: /TR:core.datatable.filter.saved.save/,
+    });
+    expect(button).toBeDisabled();
+    expect(button.className).toContain("w-full");
   });
 });

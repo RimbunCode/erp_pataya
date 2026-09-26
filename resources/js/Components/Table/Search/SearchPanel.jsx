@@ -15,6 +15,21 @@ import { SaveFilterControl } from "../Filter/FilterTable2";
 import { cn } from "@/lib/utils";
 import { useLaravelReactI18n } from "laravel-react-i18n";
 
+// Requirement 33: navigasi keyboard roving-tabindex -- BUKAN via state
+// "highlighted key" virtual (pola cmdk yg dipakai saran/daftar nilai
+// SearchBar), krn konten 3 kolom Panel HETEROGEN & jumlah item per kolom tak
+// terprediksi (SavedFilterList jumlahnya dinamis, GroupPicker py beberapa
+// sub-kontrol sendiri, ColumnList jumlahnya ikut daftar kolom) -- fokus DOM
+// NATIF (`.focus()`) dipakai sbg gantinya: robust ke isi kolom apa pun tanpa
+// perlu tahu strukturnya, Enter/Space aktivasi tombol otomatis (bawaan
+// browser), tak perlu logic terpisah. Pindah-kolom (Left/Right) coba
+// pertahankan INDEX yg sama, di-clamp kalau kolom tujuan lebih pendek.
+const FOCUSABLE_SELECTOR =
+  'button:not([disabled]), [href], input:not([disabled]), [tabindex]:not([tabindex="-1"])';
+
+const focusableItemsIn = (section) =>
+  Array.from(section.querySelectorAll(FOCUSABLE_SELECTOR));
+
 // Jumlah kolom grid per jumlah seksi (kelas Tailwind harus statis).
 const GRID_COLS = {
   1: "md:grid-cols-1",
@@ -141,7 +156,8 @@ function ColumnList({ items, onPick }) {
  * @param {(item: object) => void} root0.onPickSaved
  * @param {(id: string|number) => void} root0.onRemoveSaved
  * @param {object} root0.filter tree aktif
- * @param {Array<object>} [root0.saveItems]
+ * @param {Array<object>} [root0.saveItems] filter sumber yg sedang diubah
+ *   (dirty, bukan shared) -- namanya jadi isi awal isian nama simpan
  * @param {() => {sort: string|null, group: object|null}} [root0.getViewSnapshot]
  * @param {(saved: object) => void} root0.onSaved
  * @param {() => void} root0.onOpenBuilder
@@ -153,6 +169,11 @@ function ColumnList({ items, onPick }) {
  * @param {Array<{name: string, label: string}>} [root0.columnList] kolom yang
  *   bisa dicari (sudah disaring & diurut host)
  * @param {(name: string) => void} [root0.onPickColumn]
+ * @param {() => void} [root0.onFocusInput] Revisi 12: panah ATAS di item
+ *   pertama kolom -> kembalikan fokus ke kotak search.
+ * @param {() => void} [root0.onClose] Requirement 33: Escape saat fokus SUDAH
+ *   pindah ke tombol di dalam Panel (bukan lagi di input) -- tanpa ini,
+ *   Escape cuma tertangkap `handleInputKeyDown` yg tak lagi ke-trigger.
  * @returns {React.JSX.Element}
  */
 export default function SearchPanel({
@@ -175,6 +196,8 @@ export default function SearchPanel({
   onGroupChange,
   columnList,
   onPickColumn,
+  onClose,
+  onFocusInput,
 }) {
   const { t } = useLaravelReactI18n();
   const hasGroupSection =
@@ -182,8 +205,69 @@ export default function SearchPanel({
   const hasColumnSection = Array.isArray(columnList) && columnList.length > 0;
   const sectionCount = 1 + Number(hasGroupSection) + Number(hasColumnSection);
 
+  /**
+   * Requirement 33: Up/Down pindah item DALAM kolom aktif (clamp, tak wrap);
+   * Left/Right pindah ANTAR kolom (wrap-around), coba pertahankan index yg
+   * sama (clamp ke kolom tujuan bila lebih pendek); Escape tutup Panel.
+   * @param {React.KeyboardEvent<HTMLDivElement>} e
+   */
+  const handlePanelKeyDown = (e) => {
+    if (e.key === "Escape") {
+      onClose?.();
+      return;
+    }
+    // Enter TIDAK boleh sampai ke `<Command>` cmdk milik SearchBar: Panel
+    // dirender di dalam portal Popover yg (lewat React tree) tetap turunan
+    // `<Command>` itu, dan `onKeyDown` root cmdk memanggil `preventDefault()`
+    // utk Enter (mau "pilih item ter-highlight") -- akibatnya klik native
+    // tombol yg sedang fokus di Panel dibatalkan & Enter tak berbuat apa pun
+    // (bug nyata dari feedback pemakaian). Panel bukan item cmdk, jadi cmdk
+    // tak punya urusan dgn Enter di sini.
+    if (e.key === "Enter") {
+      e.stopPropagation();
+      return;
+    }
+    if (!["ArrowUp", "ArrowDown", "ArrowLeft", "ArrowRight"].includes(e.key)) {
+      return;
+    }
+    const root = e.currentTarget;
+    const sections = Array.from(root.children).filter(
+      (el) => el.tagName === "SECTION",
+    );
+    const active = document.activeElement;
+    const sectionIdx = sections.findIndex((s) => s.contains(active));
+    if (sectionIdx === -1) return;
+
+    if (e.key === "ArrowUp" || e.key === "ArrowDown") {
+      const items = focusableItemsIn(sections[sectionIdx]);
+      const idx = items.indexOf(active);
+      const nextIdx = e.key === "ArrowDown" ? idx + 1 : idx - 1;
+      if (nextIdx >= 0 && nextIdx < items.length) {
+        e.preventDefault();
+        items[nextIdx].focus();
+      } else if (e.key === "ArrowUp" && idx === 0) {
+        // Revisi 12: panah ATAS di item pertama kolom = kembali ke kotak search.
+        e.preventDefault();
+        onFocusInput?.();
+      }
+      return;
+    }
+
+    const currentItems = focusableItemsIn(sections[sectionIdx]);
+    const idx = Math.max(0, currentItems.indexOf(active));
+    const delta = e.key === "ArrowRight" ? 1 : -1;
+    const nextSectionIdx =
+      (sectionIdx + delta + sections.length) % sections.length;
+    const nextItems = focusableItemsIn(sections[nextSectionIdx]);
+    if (nextItems.length > 0) {
+      e.preventDefault();
+      nextItems[Math.min(idx, nextItems.length - 1)].focus();
+    }
+  };
+
   return (
     <div
+      onKeyDown={handlePanelKeyDown}
       className={cn(
         "grid grid-cols-1 gap-4 p-3 max-h-[min(70vh,26rem)] overflow-y-auto",
         GRID_COLS[sectionCount],
@@ -211,10 +295,19 @@ export default function SearchPanel({
           )}
         >
           {model && (
+            // Tanpa filter satu pun backend menolak (422 empty_tree) -- nonaktif.
+            // Nama yg sama dgn filter tersimpan MILIK SENDIRI (bukan shared --
+            // dikelola lewat Filter Templates) = timpa, bukan duplikat. Nama
+            // sumber yg sedang diubah (`saveItems`) jadi isi awal: Enter = timpa.
             <SaveFilterControl
               model={model}
               filter={filter}
-              savedItems={saveItems ?? []}
+              savedItems={(savedFilters ?? []).filter(
+                (item) => !item.is_shared,
+              )}
+              defaultName={saveItems?.[0]?.name}
+              disabled={!hasFilters}
+              className="w-full justify-start"
               getViewSnapshot={getViewSnapshot}
               onSaved={onSaved}
             />
@@ -247,6 +340,7 @@ export default function SearchPanel({
             columns={columns}
             value={group ?? { column: null, granularity: null, range: null }}
             onChange={onGroupChange}
+            className="w-full"
           />
         </section>
       )}

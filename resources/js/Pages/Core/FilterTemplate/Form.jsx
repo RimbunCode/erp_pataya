@@ -247,7 +247,8 @@ function BuilderSection({
           ? "month"
           : null,
         range: ["number", "currency"].includes(column.type)
-          ? (column.groupRangeOptions?.[0] ?? DEFAULT_NUMBER_GROUP_RANGE_OPTIONS[0])
+          ? (column.groupRangeOptions?.[0] ??
+            DEFAULT_NUMBER_GROUP_RANGE_OPTIONS[0])
           : null,
       });
     },

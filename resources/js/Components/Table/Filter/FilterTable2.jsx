@@ -8,22 +8,7 @@ import {
   AlertDialogTitle,
   AlertDialogTrigger,
 } from "../../ui/alert-dialog";
-import {
-  Bookmark,
-  BookmarkCheck,
-  ChevronDown,
-  Filter,
-  Lock,
-  Trash2,
-} from "lucide-react";
-import {
-  DropdownMenu,
-  DropdownMenuContent,
-  DropdownMenuItem,
-  DropdownMenuLabel,
-  DropdownMenuSeparator,
-  DropdownMenuTrigger,
-} from "../../ui/dropdown-menu";
+import { Bookmark, BookmarkCheck, Filter, Lock, Trash2 } from "lucide-react";
 import { memo, useCallback, useEffect, useMemo, useState } from "react";
 import useNestedFilters, {
   flattenFilters,
@@ -378,6 +363,7 @@ function FilterTableContent({
               model={model}
               filter={filters}
               savedItems={savedItems}
+              defaultName={loadedName ?? ""}
               onSavingChange={setSaving}
               // Named filter yang dimuat & belum diubah tak punya yang perlu
               // disimpan → disable. Aktif lagi saat dirty / filter belum named.
@@ -493,37 +479,45 @@ function SavedFilterBar({ items, loading, activeFid, onPick, onRemove }) {
 }
 
 /**
- * SaveFilterControl — simpan filter aktif sebagai named. Dropdown:
- *  - "Simpan sebagai baru": input nama → SELALU buat record baru (POST tanpa
- *    fid) lalu promote menjadi named via PATCH name.
- *  - "Timpa <named>": overwrite TREE named existing via PATCH filter.
- * Setelah berhasil → toast + onSaved(refresh daftar).
+ * SaveFilterControl — simpan filter aktif sebagai named, TANPA dropdown:
+ * tombol "Simpan Filter" membuka isian nama inline. Nama yang BELUM ada ->
+ * record baru (POST tanpa fid lalu promote lewat PATCH name); nama yang SAMA
+ * (tanpa beda huruf) dgn salah satu `savedItems` -> TIMPA tree filter itu
+ * (PATCH filter) -- label tombol berganti "Timpa "<nama>"" supaya jelas.
+ * Selama menyimpan: tombol menampilkan spinner + "Menyimpan...", isian &
+ * tombol lain dikunci. Tata letak `flex-wrap` -- di kolom sempit (Panel Search
+ * Bar) isian & tombol turun baris, tidak saling menimpa.
+ * Setelah berhasil -> toast + onSaved(refresh daftar).
  * @param {object} root0
  * @param {string} root0.model
  * @param {object} root0.filter
- * @param {Array<object>} root0.savedItems
+ * @param {Array<object>} [root0.savedItems] filter tersimpan yg boleh ditimpa
  * @param {(saved: object) => void} root0.onSaved
- * @param {(saving: boolean) => void} root0.onSavingChange
+ * @param {(saving: boolean) => void} [root0.onSavingChange]
  * @param {boolean} [root0.disabled]
+ * @param {string} [root0.defaultName] isi awal isian nama saat dibuka (mis.
+ *   nama filter sumber yg sedang diubah -> Enter langsung menimpa)
+ * @param {string} [root0.className] kelas wadah (mis. `w-full` di Panel)
  * @param {() => {sort: string|null, group: object|null}} [root0.getViewSnapshot]
  *   opsional (spec datatable2-advanced-search, Requirement 11.6) -- bila
- *   diberikan, PATCH "Simpan sebagai baru" & "Timpa" ikut menyertakan
- *   `sort`/`group` dari snapshot. Tanpa prop ini payload TIDAK berubah dari
- *   sebelumnya (dipakai FilterTable2 sendiri).
+ *   diberikan, PATCH simpan-baru & timpa ikut menyertakan `sort`/`group` dari
+ *   snapshot. Tanpa prop ini payload TIDAK berubah dari sebelumnya (dipakai
+ *   FilterTable2 sendiri).
  * @returns {React.JSX.Element}
  */
 export function SaveFilterControl({
   model,
   filter,
-  savedItems,
+  savedItems = [],
   onSaved,
   onSavingChange,
   disabled = false,
+  defaultName = "",
+  className,
   getViewSnapshot,
 }) {
   const { t } = useLaravelReactI18n();
-  // mode: null (idle) | "new" (input nama)
-  const [mode, setMode] = useState(null);
+  const [editing, setEditing] = useState(false);
   const [name, setName] = useState("");
   const [saving, setSaving] = useState(false);
 
@@ -532,51 +526,66 @@ export function SaveFilterControl({
     onSavingChange?.(saving);
   }, [saving, onSavingChange]);
 
+  const trimmed = name.trim();
+  const overwriteTarget = trimmed
+    ? savedItems.find(
+        (item) =>
+          `${item.name ?? ""}`.trim().toLowerCase() === trimmed.toLowerCase(),
+      )
+    : undefined;
+
+  const openForm = () => {
+    setName(defaultName ?? "");
+    setEditing(true);
+  };
+  const closeForm = () => {
+    setEditing(false);
+    setName("");
+  };
+
   // Simpan sebagai named BARU: SELALU buat row baru (POST tanpa fid agar tidak
   // menimpa filter aktif), lalu promote dengan name.
   const saveAsNew = async () => {
-    const trimmed = name.trim();
-    if (!trimmed || saving) return;
-    setSaving(true);
-    try {
-      const created = await axios.post(window.route("saved-filters.store"), {
-        model,
-        filter,
-      });
-      const id = created.data?.id;
-      if (!id) return;
-      const snapshot = getViewSnapshot?.();
-      const res = await axios.patch(
-        window.route("saved-filters.update", { savedFilter: id }),
-        snapshot
-          ? { name: trimmed, sort: snapshot.sort, group: snapshot.group }
-          : { name: trimmed },
-      );
-      onSaved?.(res.data ?? { id, name: trimmed, filter });
-      toast.success(t("core.datatable.filter.saved.saved_toast"));
-      setMode(null);
-      setName("");
-    } catch {
-      toast.error(t("core.datatable.filter.saved.save_error"));
-    } finally {
-      setSaving(false);
-    }
+    const created = await axios.post(window.route("saved-filters.store"), {
+      model,
+      filter,
+    });
+    const id = created.data?.id;
+    if (!id) return false;
+    const snapshot = getViewSnapshot?.();
+    const res = await axios.patch(
+      window.route("saved-filters.update", { savedFilter: id }),
+      snapshot
+        ? { name: trimmed, sort: snapshot.sort, group: snapshot.group }
+        : { name: trimmed },
+    );
+    onSaved?.(res.data ?? { id, name: trimmed, filter });
+    toast.success(t("core.datatable.filter.saved.saved_toast"));
+    return true;
   };
 
   // Timpa TREE named existing (nama tak berubah).
   const overwrite = async (target) => {
-    if (saving) return;
+    const snapshot = getViewSnapshot?.();
+    const res = await axios.patch(
+      window.route("saved-filters.update", { savedFilter: target.id }),
+      snapshot
+        ? { filter, sort: snapshot.sort, group: snapshot.group }
+        : { filter },
+    );
+    onSaved?.(res.data ?? { ...target, filter });
+    toast.success(t("core.datatable.filter.saved.updated_toast"));
+    return true;
+  };
+
+  const submit = async () => {
+    if (!trimmed || saving) return;
     setSaving(true);
     try {
-      const snapshot = getViewSnapshot?.();
-      const res = await axios.patch(
-        window.route("saved-filters.update", { savedFilter: target.id }),
-        snapshot
-          ? { filter, sort: snapshot.sort, group: snapshot.group }
-          : { filter },
-      );
-      onSaved?.(res.data ?? { ...target, filter });
-      toast.success(t("core.datatable.filter.saved.updated_toast"));
+      const done = await (overwriteTarget
+        ? overwrite(overwriteTarget)
+        : saveAsNew());
+      if (done) closeForm();
     } catch {
       toast.error(t("core.datatable.filter.saved.save_error"));
     } finally {
@@ -584,79 +593,81 @@ export function SaveFilterControl({
     }
   };
 
-  // Mode input nama (Simpan sebagai baru).
-  if (mode === "new") {
+  if (!editing) {
     return (
-      <div className="flex items-center gap-2">
-        <Input
-          autoFocus
-          value={name}
-          onChange={(e) => setName(e.target.value)}
-          placeholder={t("core.datatable.filter.saved.name_placeholder")}
-          className="h-8 w-48"
-          onKeyDown={(e) => e.key === "Enter" && saveAsNew()}
-        />
-        <Button
-          className="h-8 px-2!"
-          type="button"
-          disabled={saving || !name.trim()}
-          onClick={saveAsNew}
-        >
-          <BookmarkCheck />
-          {t("core.datatable.filter.saved.save")}
-        </Button>
-        <Button
-          variant="ghost"
-          className="h-8 px-2!"
-          type="button"
-          onClick={() => {
-            setMode(null);
-            setName("");
-          }}
-        >
-          {t("core.datatable.filter.cancel")}
-        </Button>
-      </div>
+      <Button
+        variant="outline"
+        className={cn("h-8 px-2!", className)}
+        type="button"
+        disabled={disabled}
+        onClick={openForm}
+      >
+        <Bookmark />
+        {t("core.datatable.filter.saved.save")}
+      </Button>
     );
   }
 
+  const confirmLabel = saving
+    ? t("core.form.saving")
+    : overwriteTarget
+      ? t("core.datatable.filter.saved.overwrite", {
+          name:
+            overwriteTarget.name || t("core.datatable.filter.saved.untitled"),
+        })
+      : t("core.form.save");
+
   return (
-    <DropdownMenu>
-      <DropdownMenuTrigger asChild>
-        <Button
-          variant="outline"
-          className="h-8 px-2!"
-          type="button"
-          disabled={disabled}
-        >
+    <div
+      className={cn("flex flex-wrap items-center gap-2", className)}
+      aria-busy={saving}
+    >
+      <Input
+        autoFocus
+        value={name}
+        disabled={saving}
+        onChange={(e) => setName(e.target.value)}
+        placeholder={t("core.datatable.filter.saved.name_placeholder")}
+        className="h-8 min-w-0 flex-1 basis-40"
+        onKeyDown={(e) => {
+          if (e.key === "Enter") {
+            e.preventDefault();
+            submit();
+          } else if (e.key === "Escape") {
+            // Batalkan isian dulu -- Escape kedua baru menutup Panel/dialog.
+            e.stopPropagation();
+            if (!saving) closeForm();
+          } else if (e.key.startsWith("Arrow")) {
+            // Panah = gerak kursor di isian, bukan navigasi Panel/daftar.
+            e.stopPropagation();
+          }
+        }}
+      />
+      <Button
+        className="h-8 max-w-full shrink-0 px-2!"
+        type="button"
+        disabled={saving || !trimmed}
+        onClick={submit}
+      >
+        {saving ? (
+          <LoadingIcon className="size-4" />
+        ) : overwriteTarget ? (
+          <BookmarkCheck />
+        ) : (
           <Bookmark />
-          {t("core.datatable.filter.saved.save")}
-          <ChevronDown className="size-3.5" />
-        </Button>
-      </DropdownMenuTrigger>
-      <DropdownMenuContent align="start" className="w-56">
-        <DropdownMenuItem onSelect={() => setMode("new")}>
-          <Bookmark className="size-4" />
-          {t("core.datatable.filter.saved.save_new")}
-        </DropdownMenuItem>
-        {savedItems.length > 0 && (
-          <>
-            <DropdownMenuSeparator />
-            <DropdownMenuLabel className="text-muted-foreground text-xs">
-              {t("core.datatable.filter.saved.list")}
-            </DropdownMenuLabel>
-            {savedItems.map((item) => (
-              <DropdownMenuItem key={item.id} onSelect={() => overwrite(item)}>
-                <BookmarkCheck className="size-4" />
-                {t("core.datatable.filter.saved.overwrite", {
-                  name: item.name || t("core.datatable.filter.saved.untitled"),
-                })}
-              </DropdownMenuItem>
-            ))}
-          </>
         )}
-      </DropdownMenuContent>
-    </DropdownMenu>
+        <span className="truncate">{confirmLabel}</span>
+      </Button>
+      <Button
+        variant="ghost"
+        className="h-8 shrink-0 px-2!"
+        type="button"
+        disabled={saving}
+        onClick={closeForm}
+      >
+        {t("core.datatable.filter.cancel")}
+      </Button>
+    </div>
   );
 }
 

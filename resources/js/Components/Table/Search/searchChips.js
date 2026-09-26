@@ -6,6 +6,7 @@
 // Node = group { k, c } | leaf { k: <kolom>, o: <operator>, v: <value> }
 
 import { columnHasOptions } from "../Filter/operators";
+import { compareLabels } from "@/lib/compareLabels";
 import { formatPeriodValue, resolveColumnPath } from "./columnSearch";
 import { convertTemplateLink } from "@/lib/linkModelUtils";
 import { createFilterItem } from "@/Hooks/useNestedFilters";
@@ -57,7 +58,9 @@ const isSearchGroup = (node) => {
 /**
  * Bangun daftar opsi `{value,label}` dari `column.options` -- meniru
  * `ValueField.jsx` (:81-93) apa adanya supaya label chip konsisten dengan
- * label yang dirender di form filter.
+ * label yang dirender di form filter. Diurutkan abjad menurut label yang
+ * SUDAH diterjemahkan (Revisi 13) -- urutan `options` di config kolom tak
+ * dipakai (bukan urutan alur/prioritas yang bermakna bagi pencari).
  * @param {object} column
  * @param {(key: string) => string} t
  * @returns {Array<{value: *, label: string}>}
@@ -67,12 +70,18 @@ const buildOptionList = (column, t) => {
   const valueTrans = column?.valueTrans;
   const labelOf = (val) => (valueTrans ? t(`${valueTrans}.${val}`) : `${val}`);
   const list = Array.isArray(opts) ? opts : Object.values(opts);
-  return list.map((o) =>
-    typeof o === "string" || typeof o === "number"
-      ? { value: o, label: labelOf(o) }
-      : { ...o, label: o.label ?? labelOf(o.value) },
-  );
+  return list
+    .map((o) =>
+      typeof o === "string" || typeof o === "number"
+        ? { value: o, label: labelOf(o) }
+        : { ...o, label: o.label ?? labelOf(o.value) },
+    )
+    .sort((a, b) => compareLabels(a.label, b.label));
 };
+
+// Kolom status dokumen (opsinya dirender sbg `BadgeStatus`, sama dgn sel tabel).
+const isStatusColumn = (column) =>
+  column?.type === "formStatus" || column?.type === "formStatuses";
 
 const formatSingleValue = (value, column, t) => {
   if (value === null || value === undefined || value === "") return "";
@@ -98,6 +107,12 @@ const formatSingleValue = (value, column, t) => {
     );
     return found ? found.label : `${value}`;
   }
+
+  // Revisi 5 (Requirement 25): kolom string BEBAS (bukan boolean/ber-opsi/
+  // relasi -- yg diatas sudah py representasi sendiri) dibungkus kutip, biar
+  // user tau ini teks yg DIKETIK apa adanya (`matches`), bukan label/preset
+  // tetap. Number/currency TIDAK ikut -- itu bukan teks bebas.
+  if (column?.type === "string") return `"${value}"`;
 
   return `${value}`;
 };
@@ -136,26 +151,48 @@ const columnPathTitle = (columns, key, t) => {
     .join(" › ");
 };
 
-const leafToChip = (id, node, columns, t) => {
+// Nilai `in_period`/`!in_period` berupa DAFTAR objek periode (Revisi 16; bukan
+// objek tunggal, skalar, atau record relasi).
+const isPeriodListValue = (v) =>
+  Array.isArray(v) &&
+  v.length > 0 &&
+  v.every((x) => x && typeof x === "object" && x.period);
+
+const leafToChip = (id, node, columns, t, options) => {
   const column = resolveColumnPath(columns, node?.k);
   const colTitle = columnPathTitle(columns, node?.k, t);
-  const isPeriod = node?.o === "in_period";
-  const valueLabel = isPeriod
-    ? formatPeriodValue(node?.v)
-    : formatValueLabel(node?.v, column, t);
-  // in_period "is" (mis. preset "Bulan ini") dibaca sbg `Kolom: nilai`.
+  // Revisi 8 (Requirement 40.3): `set`/`!set` tanpa value -> `Kolom: Diisi`.
+  if (node?.o === "set" || node?.o === "!set") {
+    return {
+      id,
+      kind: "leaf",
+      label: `${colTitle}: ${t(`core.datatable.filter.operator.${node.o}`)}`,
+      node,
+    };
+  }
+  const isPeriod = node?.o === "in_period" || node?.o === "!in_period";
+  // Revisi 16: `in_period`/`!in_period` ber-`v` DAFTAR objek periode -- dibaca
+  // `a, b, c` (label penuh ada di tooltip chip, teks dipotong CSS).
+  const isPeriodList = isPeriod && isPeriodListValue(node?.v);
+  const valueLabel = isPeriodList
+    ? node.v.map((x) => formatPeriodValue(x, options?.monthsShort)).join(", ")
+    : isPeriod
+      ? formatPeriodValue(node?.v, options?.monthsShort)
+      : formatValueLabel(node?.v, column, t);
+  // in_period "is" (mis. preset "Bulan ini") / daftar "Pada" dibaca sbg
+  // `Kolom: nilai`. `!in_period` TIDAK ikut -- negasinya harus tetap terbaca.
   const isEqIn =
     node?.o === "=" ||
     node?.o === "in" ||
-    (isPeriod && node?.v?.operator === "is");
+    (node?.o === "in_period" && (isPeriodList || node?.v?.operator === "is"));
   const label = isEqIn
     ? `${colTitle}: ${valueLabel}`
     : `${colTitle} ${t(`core.datatable.filter.operator.${node?.o}`)} ${valueLabel}`;
   return { id, kind: "leaf", label, node };
 };
 
-const nodeToChip = (id, node, columns, t) => {
-  if (!isGroupLike(node)) return leafToChip(id, node, columns, t);
+const nodeToChip = (id, node, columns, t, options) => {
+  if (!isGroupLike(node)) return leafToChip(id, node, columns, t, options);
 
   if (isSearchGroup(node)) {
     const children = Object.values(childrenOf(node));
@@ -186,9 +223,11 @@ const nodeToChip = (id, node, columns, t) => {
  * @param {object} tree
  * @param {object} columns peta kolom (getColumns())
  * @param {(key: string, params?: object) => string} t
+ * @param {{monthsShort?: string[]}} [options] nama bulan singkat locale aktif
+ *   (label chip tanggal `25 Sep 2026`); default Inggris.
  * @returns {Array<object>}
  */
-const treeToChips = (tree, columns, t) => {
+const treeToChips = (tree, columns, t, options) => {
   const root = tree?.root ?? tree;
   if (!root) return [];
 
@@ -210,7 +249,7 @@ const treeToChips = (tree, columns, t) => {
     ];
   }
 
-  return entries.map(([id, node]) => nodeToChip(id, node, columns, t));
+  return entries.map(([id, node]) => nodeToChip(id, node, columns, t, options));
 };
 
 // --- add / update / remove ------------------------------------------------
@@ -283,7 +322,8 @@ const wrapAsGroup = (root) => ({
  * @returns {object}
  */
 const addLeafChip = (tree, { k, o, v }) => {
-  if (isEmptyValue(v)) return tree;
+  // `set`/`!set` memang TANPA value -- bukan "nilai kosong".
+  if (o !== "set" && o !== "!set" && isEmptyValue(v)) return tree;
   const root = tree?.root ?? tree ?? null;
   const rootKey = String(root?.k ?? "and").toLowerCase();
   const children = childrenOf(root);
@@ -301,6 +341,11 @@ const addLeafChip = (tree, { k, o, v }) => {
     };
   }
 
+  // Leaf date (`in_period`/`!in_period`, objek maupun DAFTAR periode) TIDAK
+  // pernah digabung -- hanya `=`/`in` yg lewat sini: `valueDedupeKey` hanya
+  // mengenal `.id` (semua periode dianggap sama -> daftar menciut jadi satu)
+  // dan gabungan bisa melampaui batas 20 nilai backend. Chip terpisah tetap
+  // eksplisit (AND).
   if (o === "=" || o === "in") {
     const mergeable = findDirectLeafByKey(children, k, ["=", "in"]);
     if (mergeable) {
@@ -466,6 +511,7 @@ export {
   addSearchChip,
   buildOptionList,
   isSearchGroup,
+  isStatusColumn,
   removeChip,
   treeToChips,
   updateChip,

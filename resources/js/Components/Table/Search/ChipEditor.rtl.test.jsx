@@ -241,4 +241,19 @@ describe("ChipEditor kind=group / GroupPicker", () => {
     // Daftar tetap tampil sbg tombol polos.
     expect(screen.getByRole("button", { name: "Dibuat" })).toBeInTheDocument();
   });
+
+  it("default lebar w-64 (popover mengambang ChipEditor) kalau `className` tak diisi -- SearchPanel yang override ke w-full", () => {
+    render(
+      <GroupPicker
+        groupOptions={groupOptions}
+        columns={columns}
+        value={{ column: null, granularity: null, range: null }}
+        onChange={vi.fn()}
+      />,
+    );
+
+    expect(
+      screen.getByRole("button", { name: "Dibuat" }).closest(".w-64"),
+    ).not.toBeNull();
+  });
 });

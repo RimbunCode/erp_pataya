@@ -208,7 +208,7 @@ export function buildOptionsPayload({
  * @param {boolean} [params.cacheMode]
  * @param {string} [params.cacheStorage]
  * @param {number} [params.staleTime]
- * @returns {{options: Array, total: number, loading: boolean}}
+ * @returns {{options: Array, total: number, loading: boolean, settled: boolean}}
  */
 export default function useLinkModelOptions({
   model,
@@ -379,5 +379,9 @@ export default function useLinkModelOptions({
     options: query.data?.data ?? [],
     total: query.data?.total ?? 0,
     loading: enabled && (!hydrated || query.isPending),
+    // `search` sudah lewat debounce -- `options` memang hasil untuk `search`
+    // sekarang. Sebelum itu `options` bisa milik ketikan/model sebelumnya
+    // (atau fetch awal tanpa kata kunci).
+    settled: cacheMode || !allowSearch || debouncedSearch === (search ?? ""),
   };
 }

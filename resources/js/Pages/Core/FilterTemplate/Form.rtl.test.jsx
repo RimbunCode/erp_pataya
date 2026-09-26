@@ -12,8 +12,20 @@ vi.mock("laravel-react-i18n", () => ({
 // Kolom model dari endpoint `model.columns` -- campuran groupable (date,
 // number, string) dan non-groupable, supaya penyaringan `groupable` teruji.
 const COLUMNS = [
-  { name: "created_at", titleTrans: "col.created_at", type: "date", groupable: true, sortable: true },
-  { name: "total", titleTrans: "col.total", type: "currency", groupable: true, groupRangeOptions: [500, 5000] },
+  {
+    name: "created_at",
+    titleTrans: "col.created_at",
+    type: "date",
+    groupable: true,
+    sortable: true,
+  },
+  {
+    name: "total",
+    titleTrans: "col.total",
+    type: "currency",
+    groupable: true,
+    groupRangeOptions: [500, 5000],
+  },
   { name: "status", titleTrans: "col.status", type: "string", groupable: true },
   { name: "name", titleTrans: "col.name", type: "string", groupable: false },
 ];
@@ -104,14 +116,19 @@ async function renderForm(initialData = {}) {
   await act(async () => {
     render(
       <Harness
-        initialData={{ model: "App\\Models\\Sales\\SalesOrder", ...initialData }}
+        initialData={{
+          model: "App\\Models\\Sales\\SalesOrder",
+          ...initialData,
+        }}
       />,
     );
   });
 }
 
 const groupSelects = () =>
-  within(document.querySelector('[data-field="group"]')).getAllByRole("combobox");
+  within(document.querySelector('[data-field="group"]')).getAllByRole(
+    "combobox",
+  );
 
 describe("FilterTemplate Form — field Group by", () => {
   beforeEach(() => {
@@ -169,7 +186,10 @@ describe("FilterTemplate Form — field Group by", () => {
       range: 500,
     });
     const selects = groupSelects();
-    expect([...selects[1].options].map((o) => o.value)).toEqual(["500", "5000"]);
+    expect([...selects[1].options].map((o) => o.value)).toEqual([
+      "500",
+      "5000",
+    ]);
 
     await user.selectOptions(selects[1], "5000");
     expect(latestData.group.range).toBe(5000);

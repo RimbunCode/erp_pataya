@@ -56,9 +56,21 @@ export const computeGroupDefaults = (column) => ({
  *   tipe kolom yang dipilih.
  * @param {{column: string|null, granularity: string|null, range: number|null}} root0.value
  * @param {(patch: {column: string|null, granularity: string|null, range: number|null}) => void} root0.onChange
+ * @param {string} [root0.className] lebar/layout wadah -- default `w-64`
+ *   (popover mengambang milik ChipEditor kind="group"). SearchPanel (kolom
+ *   Group dalam grid 3-kolom) WAJIB override ke `w-full`: `w-64` (256px)
+ *   FIXED memaksa kolom grid melebar melebihi jatah gridnya sendiri saat
+ *   popover Panel sempit (bug nyata verifikasi visual: "Group by melebihi
+ *   batasnya").
  * @returns {React.JSX.Element}
  */
-export function GroupPicker({ groupOptions, columns, value, onChange }) {
+export function GroupPicker({
+  groupOptions,
+  columns,
+  value,
+  onChange,
+  className,
+}) {
   const { t } = useLaravelReactI18n();
   const activeColumn = value?.column ? columns?.[value.column] : null;
   const rangeOptions =
@@ -74,7 +86,7 @@ export function GroupPicker({ groupOptions, columns, value, onChange }) {
   };
 
   return (
-    <div className="flex flex-col w-64">
+    <div className={cn("flex flex-col min-w-0", className ?? "w-64")}>
       {/* Daftar polos TANPA kotak cari sendiri -- kolom groupable per model
           selalu sedikit (opt-in), & pencarian sudah jadi tanggung jawab
           Search Bar utama; kotak cari kedua di sini cuma duplikat visual

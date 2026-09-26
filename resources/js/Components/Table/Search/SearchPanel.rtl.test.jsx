@@ -14,7 +14,7 @@ vi.mock("@/Components/Table/Table2", () => ({
   DEFAULT_NUMBER_GROUP_RANGE_OPTIONS: [10, 100, 1000],
 }));
 
-// SaveFilterControl asli (dropdown simpan/timpa + axios) sudah punya test
+// SaveFilterControl asli (isian nama inline + axios) sudah punya test
 // sendiri di FilterTable2.rtl.test.jsx -- di sini cukup stub yang
 // mengekspos props yang diteruskan SearchPanel.
 vi.mock("../Filter/FilterTable2", () => ({
@@ -24,6 +24,9 @@ vi.mock("../Filter/FilterTable2", () => ({
       data-model={props.model}
       data-items={JSON.stringify(props.savedItems)}
       data-has-snapshot={String(typeof props.getViewSnapshot === "function")}
+      data-default-name={props.defaultName ?? ""}
+      data-disabled={String(Boolean(props.disabled))}
+      data-class-name={props.className ?? ""}
     >
       <button
         type="button"
@@ -142,12 +145,13 @@ describe("SearchPanel — kolom Filter Tersimpan", () => {
     ).toBeInTheDocument();
   });
 
-  it("SaveFilterControl menerima model, saveItems & getViewSnapshot; onSaved diteruskan", async () => {
+  it("SaveFilterControl menerima model, filter tersimpan MILIK SENDIRI (bukan shared) & getViewSnapshot; onSaved diteruskan", async () => {
     const user = userEvent.setup({ delay: null });
     const props = renderPanel({ saveItems: [savedFilters[0]] });
 
     const control = screen.getByTestId("save-control");
     expect(control).toHaveAttribute("data-model", "AppModelsItem");
+    // savedFilters[1] is_shared -> tak ikut (tak boleh ditimpa dari sini).
     expect(control).toHaveAttribute(
       "data-items",
       JSON.stringify([savedFilters[0]]),
@@ -156,6 +160,22 @@ describe("SearchPanel — kolom Filter Tersimpan", () => {
 
     await user.click(screen.getByText("stub-save"));
     expect(props.onSaved).toHaveBeenCalledWith({ id: 42, name: "Baru" });
+  });
+
+  it("SaveFilterControl: nama sumber jadi isi awal (Enter = timpa), lebar penuh; nonaktif bila belum ada filter", () => {
+    renderPanel({ saveItems: [savedFilters[0]] });
+    const control = screen.getByTestId("save-control");
+    expect(control).toHaveAttribute("data-default-name", "Draft saya");
+    expect(control).toHaveAttribute("data-disabled", "false");
+    expect(control.getAttribute("data-class-name")).toContain("w-full");
+  });
+
+  it("SaveFilterControl nonaktif saat hasFilters=false (backend menolak tree kosong)", () => {
+    renderPanel({ hasFilters: false });
+    expect(screen.getByTestId("save-control")).toHaveAttribute(
+      "data-disabled",
+      "true",
+    );
   });
 
   it("tanpa model: daftar & SaveFilterControl tidak dirender, judul Filter & Builder tetap ada", () => {
@@ -268,6 +288,19 @@ describe("SearchPanel — kolom Group by", () => {
       screen.queryByText("TR:core.datatable.group_by"),
     ).not.toBeInTheDocument();
   });
+
+  it("GroupPicker memakai lebar penuh kolom grid (bukan w-64 tetap) -- regresi visual: 'Group by melebihi batasnya'", () => {
+    renderPanel();
+    const groupSection = screen
+      .getByText("TR:core.datatable.group_by")
+      .closest("section");
+    // Root GroupPicker = anak langsung <ul> daftar opsi di section ini.
+    const groupRoot = within(groupSection)
+      .getByText("Dibuat")
+      .closest("ul").parentElement;
+    expect(groupRoot.className).toContain("w-full");
+    expect(groupRoot.className).not.toContain("w-64");
+  });
 });
 
 describe("SearchPanel — kolom Kolom (pencarian per kolom)", () => {
@@ -344,5 +377,121 @@ describe("SearchPanel — tata letak kolom", () => {
   it("area panel bisa di-scroll (batas tinggi) agar tak menutupi layar", () => {
     renderPanel();
     expect(gridOf().className).toContain("overflow-y-auto");
+  });
+});
+
+describe("SearchPanel — navigasi keyboard roving-tabindex (Requirement 33)", () => {
+  const sectionOf = (heading) => screen.getByText(heading).closest("section");
+  const focusables = (section) =>
+    Array.from(
+      section.querySelectorAll(
+        'button:not([disabled]), [href], input:not([disabled]), [tabindex]:not([tabindex="-1"])',
+      ),
+    );
+
+  it("Down/Up pindah fokus antar item DALAM kolom Filter yang sama (tak wrap)", async () => {
+    const user = userEvent.setup({ delay: null });
+    renderPanel();
+    const filterSection = sectionOf("TR:core.datatable.filter.filter");
+    const items = focusables(filterSection);
+    expect(items.length).toBeGreaterThan(2);
+
+    items[0].focus();
+    await user.keyboard("{ArrowDown}");
+    expect(document.activeElement).toBe(items[1]);
+
+    await user.keyboard("{ArrowDown}");
+    expect(document.activeElement).toBe(items[2]);
+
+    await user.keyboard("{ArrowUp}");
+    expect(document.activeElement).toBe(items[1]);
+  });
+
+  it("ArrowUp pada item PERTAMA kolom -> tetap di situ (clamp, tak wrap)", async () => {
+    const user = userEvent.setup({ delay: null });
+    renderPanel();
+    const items = focusables(sectionOf("TR:core.datatable.filter.filter"));
+    items[0].focus();
+    await user.keyboard("{ArrowUp}");
+    expect(document.activeElement).toBe(items[0]);
+  });
+
+  it("Right pindah ANTAR kolom (Filter -> Group -> Kolom -> wrap ke Filter)", async () => {
+    const user = userEvent.setup({ delay: null });
+    renderPanel();
+    const filterItems = focusables(
+      sectionOf("TR:core.datatable.filter.filter"),
+    );
+    const groupItems = focusables(sectionOf("TR:core.datatable.group_by"));
+    const columnItems = focusables(
+      sectionOf("TR:core.datatable.search.section.column"),
+    );
+
+    filterItems[0].focus();
+    await user.keyboard("{ArrowRight}");
+    expect(document.activeElement).toBe(groupItems[0]);
+
+    await user.keyboard("{ArrowRight}");
+    expect(document.activeElement).toBe(columnItems[0]);
+
+    // Wrap-around: dari kolom TERAKHIR (Kolom) -> kolom PERTAMA (Filter).
+    await user.keyboard("{ArrowRight}");
+    expect(document.activeElement).toBe(filterItems[0]);
+  });
+
+  it("Left dari kolom Filter wrap ke kolom TERAKHIR (Kolom)", async () => {
+    const user = userEvent.setup({ delay: null });
+    renderPanel();
+    const filterItems = focusables(
+      sectionOf("TR:core.datatable.filter.filter"),
+    );
+    const columnItems = focusables(
+      sectionOf("TR:core.datatable.search.section.column"),
+    );
+
+    filterItems[0].focus();
+    await user.keyboard("{ArrowLeft}");
+    expect(document.activeElement).toBe(columnItems[0]);
+  });
+
+  it("pindah kolom ke kolom yg lebih PENDEK -> index di-clamp (tak error)", async () => {
+    const user = userEvent.setup({ delay: null });
+    renderPanel();
+    const filterSection = sectionOf("TR:core.datatable.filter.filter");
+    const groupSection = sectionOf("TR:core.datatable.group_by");
+    const filterItems = focusables(filterSection);
+    const groupItems = focusables(groupSection);
+    // Group section LEBIH PENDEK dari Filter -- skenario yg diuji: index
+    // sisi Filter (item TERAKHIR) tak boleh di luar jangkauan Group.
+    expect(groupItems.length).toBeLessThan(filterItems.length);
+
+    // Fokus item TERAKHIR Filter (index > jumlah item Group) -> harus
+    // di-clamp ke item TERAKHIR Group, TANPA error/undefined.
+    filterItems[filterItems.length - 1].focus();
+    await user.keyboard("{ArrowRight}");
+    expect(groupSection.contains(document.activeElement)).toBe(true);
+    expect(document.activeElement).toBe(groupItems[groupItems.length - 1]);
+  });
+
+  it("Escape memanggil onClose", async () => {
+    const user = userEvent.setup({ delay: null });
+    const onClose = vi.fn();
+    renderPanel({ onClose });
+    const items = focusables(sectionOf("TR:core.datatable.filter.filter"));
+    items[0].focus();
+    await user.keyboard("{Escape}");
+    expect(onClose).toHaveBeenCalledTimes(1);
+  });
+
+  it("Enter pada tombol kolom ter-fokus mengaktifkannya (perilaku native <button>)", async () => {
+    const user = userEvent.setup({ delay: null });
+    const onPickColumn = vi.fn();
+    renderPanel({ onPickColumn });
+    const columnItems = focusables(
+      sectionOf("TR:core.datatable.search.section.column"),
+    );
+    columnItems[0].focus();
+    await user.keyboard("{Enter}");
+    expect(onPickColumn).toHaveBeenCalledTimes(1);
   });
 });

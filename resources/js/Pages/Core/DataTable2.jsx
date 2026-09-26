@@ -373,6 +373,14 @@ export default memo(
     const [sortDialogOpen, setSortDialogOpen] = useState(false);
     // Builder lanjutan (FilterTable2 controlled, dibuka dari Search Bar).
     const [builderOpen, setBuilderOpen] = useState(false);
+    // Revisi 5 (Requirement 25): draftTree Search Bar SAAT dibuka -- tanpa
+    // ini, Builder lanjutan selalu tampilkan `filterTree` (state ter-apply),
+    // bukan chip yg lagi disusun tapi belum di-apply. Sentinel `undefined` =
+    // belum pernah dibuka dari Search Bar sesi ini (pakai `filterTree` biasa)
+    // -- BUKAN `null`, krn draft itu sendiri sah bernilai `null` (semua chip
+    // dihapus tapi belum di-apply; harus tampil kosong, bukan fallback ke
+    // `filterTree` lama).
+    const [builderDraftFilter, setBuilderDraftFilter] = useState(undefined);
     const sortableColumnOptions = useMemo(
       () =>
         columns
@@ -790,7 +798,10 @@ export default memo(
                 onGroupChange={
                   groupableColumns.length > 0 ? onGroupChange : undefined
                 }
-                onOpenBuilder={() => setBuilderOpen(true)}
+                onOpenBuilder={(draftTree) => {
+                  setBuilderDraftFilter(draftTree ?? null);
+                  setBuilderOpen(true);
+                }}
                 placeholder={t("core.datatable.search.placeholder", {
                   name: title,
                 })}
@@ -921,7 +932,9 @@ export default memo(
             columns={mapColumns}
             onApply={onApplyFilters}
             onSaved={onSavedFilter}
-            initialFilters={filterTree}
+            initialFilters={
+              builderDraftFilter !== undefined ? builderDraftFilter : filterTree
+            }
             model={model}
             activeFid={options.fid}
             isMobile={isMobile}

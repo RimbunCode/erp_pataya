@@ -2,7 +2,9 @@ import { describe, expect, it } from "vitest";
 import {
   addLeafChip,
   addSearchChip,
+  buildOptionList,
   isSearchGroup,
+  isStatusColumn,
   removeChip,
   treeToChips,
   updateChip,
@@ -194,7 +196,7 @@ describe("treeToChips", () => {
     const chips = treeToChips(tree, columns, t);
     expect(chips[0].kind).toBe("leaf");
     expect(chips[0].label).toBe(
-      `Nama ${t("core.datatable.filter.operator.matches")} PT A`,
+      `Nama ${t("core.datatable.filter.operator.matches")} "PT A"`,
     );
   });
 
@@ -640,7 +642,7 @@ describe("treeToChips — judul kolom berpath & periode", () => {
     );
     expect(chip.kind).toBe("leaf");
     expect(chip.label).toBe(
-      "Kategori › Nama core.datatable.filter.operator.matches elek",
+      'Kategori › Nama core.datatable.filter.operator.matches "elek"',
     );
   });
 
@@ -670,7 +672,7 @@ describe("treeToChips — judul kolom berpath & periode", () => {
       cols,
       t,
     );
-    expect(chip.label).toBe("Dibuat: 2026-09");
+    expect(chip.label).toBe("Dibuat: Sep 2026");
     expect(chip.label).not.toContain("object");
   });
 
@@ -691,8 +693,223 @@ describe("treeToChips — judul kolom berpath & periode", () => {
       cols,
       t,
     );
+    // Simbol perbandingan ikut tampil -- tanpa ">" chip ini sama persis dgn `=`.
     expect(chip.label).toBe(
-      "Dibuat core.datatable.filter.operator.in_period 2025",
+      "Dibuat core.datatable.filter.operator.in_period >2025",
     );
+  });
+
+  it("'!in_period' (negasi tanggal) -> label formatPeriodValue, BUKAN [object Object]; negasi tetap tampil", () => {
+    const [chip] = treeToChips(
+      {
+        root: {
+          k: "and",
+          c: {
+            a: {
+              k: "created_at",
+              o: "!in_period",
+              v: { period: "day", operator: "is", startDate: "2026-09-21" },
+            },
+          },
+        },
+      },
+      cols,
+      t,
+    );
+    expect(chip.label).toBe(
+      "Dibuat core.datatable.filter.operator.!in_period 21 Sep 2026",
+    );
+    expect(chip.label).not.toContain("object");
+  });
+
+  it("'in_period' dgn `v` DAFTAR (revisi 16) -> 'Kolom: a, b' (bukan [object Object]); '!in_period' menyebut negasinya", () => {
+    const list = [
+      { period: "month", operator: "is", year: 2026, month: 8 },
+      { period: "day", operator: "is", startDate: "2026-09-21" },
+      { period: "year", operator: "is", year: 2027 },
+    ];
+    const chipFor = (o) =>
+      treeToChips(
+        { root: { k: "and", c: { a: { k: "created_at", o, v: list } } } },
+        cols,
+        t,
+      )[0];
+    expect(chipFor("in_period").label).toBe(
+      "Dibuat: Sep 2026, 21 Sep 2026, 2027",
+    );
+    expect(chipFor("!in_period").label).toBe(
+      "Dibuat core.datatable.filter.operator.!in_period Sep 2026, 21 Sep 2026, 2027",
+    );
+    expect(chipFor("in_period").label).not.toContain("object");
+  });
+
+  it("addLeafChip: leaf date 'in_period' (daftar periode) TIDAK digabung dgn leaf kolom sama (periode bukan skalar; batas 20 backend)", () => {
+    const first = {
+      k: "created_at",
+      o: "in_period",
+      v: [
+        { period: "year", operator: "is", year: 2025 },
+        { period: "year", operator: "is", year: 2026 },
+      ],
+    };
+    const second = {
+      k: "created_at",
+      o: "in_period",
+      v: [
+        { period: "year", operator: "is", year: 2027 },
+        { period: "year", operator: "is", year: 2028 },
+      ],
+    };
+    const tree = addLeafChip(addLeafChip(null, first), second);
+    const leaves = Object.values(tree.root.c);
+    expect(leaves).toHaveLength(2);
+    expect(leaves.map((l) => l.v.length)).toEqual([2, 2]);
+  });
+
+  it("nama bulan singkat locale ikut dioper lewat options.monthsShort (revisi 9)", () => {
+    const monthsShort = [
+      "Jan",
+      "Feb",
+      "Mar",
+      "Apr",
+      "Mei",
+      "Jun",
+      "Jul",
+      "Agu",
+      "Sep",
+      "Okt",
+      "Nov",
+      "Des",
+    ];
+    const [chip] = treeToChips(
+      {
+        root: {
+          k: "and",
+          c: {
+            a: {
+              k: "created_at",
+              o: "in_period",
+              v: {
+                period: "day",
+                operator: "is",
+                startDate: "2026-08-17 09:05",
+              },
+            },
+          },
+        },
+      },
+      cols,
+      t,
+      { monthsShort },
+    );
+    expect(chip.label).toBe("Dibuat: 17 Agu 2026 09:05");
+  });
+});
+
+describe("leaf set / !set (revisi 8, Requirement 40)", () => {
+  it("addLeafChip menerima set/!set TANPA value (bukan 'nilai kosong')", () => {
+    const tree = addLeafChip(null, { k: "name", o: "set" });
+    const [leaf] = Object.values(tree.root.c);
+    expect(leaf.k).toBe("name");
+    expect(leaf.o).toBe("set");
+    const next = addLeafChip(tree, { k: "total", o: "!set" });
+    expect(Object.values(next.root.c).map((l) => l.o)).toEqual(["set", "!set"]);
+  });
+
+  it("set TIDAK ter-merge ke leaf '=' kolom yang sama (operator berbeda tetap terpisah)", () => {
+    let tree = addLeafChip(null, { k: "status", o: "=", v: "draft" });
+    tree = addLeafChip(tree, { k: "status", o: "set" });
+    expect(Object.values(tree.root.c)).toHaveLength(2);
+  });
+
+  it("nilai kosong utk operator lain tetap ditolak", () => {
+    expect(addLeafChip(null, { k: "name", o: "=", v: "" })).toBeNull();
+  });
+
+  it("updateChip ke set dgn v:undefined membuang value lama", () => {
+    let tree = addLeafChip(null, { k: "name", o: "matches", v: "abc" });
+    const [id] = Object.keys(tree.root.c);
+    tree = updateChip(tree, id, { k: "name", o: "set", v: undefined });
+    expect(JSON.parse(JSON.stringify(tree.root.c[id]))).toEqual({
+      k: "name",
+      o: "set",
+    });
+  });
+
+  it("chip label 'Kolom: Diisi' / 'Kolom: Tidak diisi' (bukan 'Kolom Set ')", () => {
+    const [a, b] = treeToChips(
+      {
+        root: {
+          k: "and",
+          c: {
+            x: { k: "name", o: "set" },
+            y: { k: "total", o: "!set" },
+          },
+        },
+      },
+      columns,
+      t,
+    );
+    expect(a.label).toBe("Nama: core.datatable.filter.operator.set");
+    expect(b.label).toBe("Total: core.datatable.filter.operator.!set");
+  });
+});
+
+describe("buildOptionList — urut abjad label terjemahan (revisi 13)", () => {
+  // `t` mock: `status.draft` -> "Konsep", dst. -- urutan abjad ikut LABEL
+  // terjemahan, bukan `value` maupun urutan `options` di config kolom.
+  const translations = {
+    "status.draft": "Konsep",
+    "status.approved": "Disetujui",
+    "status.canceled": "Dibatalkan",
+    "status.submitted": "Diajukan",
+  };
+  const tr = (key) => translations[key] ?? key;
+
+  it("opsi string + valueTrans diurut menurut label hasil t()", () => {
+    const column = {
+      name: "status",
+      type: "formStatus",
+      valueTrans: "status",
+      options: ["draft", "approved", "canceled", "submitted"],
+    };
+    expect(buildOptionList(column, tr).map((o) => o.label)).toEqual([
+      "Diajukan",
+      "Dibatalkan",
+      "Disetujui",
+      "Konsep",
+    ]);
+  });
+
+  it("opsi objek {value,label} juga diurut; value tetap terbawa", () => {
+    const column = {
+      name: "priority",
+      type: "enum",
+      options: [
+        { value: 3, label: "Tinggi" },
+        { value: 1, label: "Rendah" },
+        { value: 2, label: "Sedang" },
+      ],
+    };
+    expect(buildOptionList(column, tr)).toEqual([
+      { value: 1, label: "Rendah" },
+      { value: 2, label: "Sedang" },
+      { value: 3, label: "Tinggi" },
+    ]);
+  });
+
+  it("config `options` asli tak dimutasi", () => {
+    const options = ["draft", "approved"];
+    buildOptionList({ name: "s", valueTrans: "status", options }, tr);
+    expect(options).toEqual(["draft", "approved"]);
+  });
+});
+
+describe("isStatusColumn", () => {
+  it("formStatus/formStatuses = true; tipe lain/undefined = false", () => {
+    expect(isStatusColumn({ type: "formStatus" })).toBe(true);
+    expect(isStatusColumn({ type: "formStatuses" })).toBe(true);
+    expect(isStatusColumn({ type: "enum" })).toBe(false);
+    expect(isStatusColumn(undefined)).toBe(false);
   });
 });

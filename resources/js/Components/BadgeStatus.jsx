@@ -46,7 +46,9 @@ const theme = {
   resolved: "success",
   done: "success",
 };
-export default function BadgeStatus({ status, className, ...props }) {
+// `label` opsional: menimpa teks default `t("status.<status>")` (mis. label
+// dgn bagian yang di-highlight di daftar pencarian).
+export default function BadgeStatus({ status, label, className, ...props }) {
   const { t } = useLaravelReactI18n();
   return (
     <span
@@ -95,7 +97,7 @@ export default function BadgeStatus({ status, className, ...props }) {
           </circle>
         </svg>
       )} */}
-      {t(`status.${status}`)}
+      {label ?? t(`status.${status}`)}
     </span>
   );
 }
