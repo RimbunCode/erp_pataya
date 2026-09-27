@@ -141,9 +141,11 @@ Penandatangan final adalah `acted_by_id` pada **step berstatus `APPROVED` dengan
 Template memanggil helper untuk menempatkan slot TTD penandatangan final.
 
 ```handlebars
-{{approvalSignature}}
-{{approvalSignature showName=true showDate=true}}
+{{{approvalSignature}}}
+{{{approvalSignature showName=true showDate=true}}}
 ```
+
+**Triple-brace wajib.** Helper ini menghasilkan HTML, dan lightncandy di sisi server tidak punya padanan `SafeString` untuk helper biasa: pada double-brace, markup-nya selalu ter-escape dan muncul sebagai teks mentah di PDF. Sisi klien karena itu juga sengaja tidak mengembalikan `SafeString`, meskipun bisa, supaya kedua sisi menuntut hal yang sama dan gagal dengan cara yang sama.
 
 **Acceptance:**
 

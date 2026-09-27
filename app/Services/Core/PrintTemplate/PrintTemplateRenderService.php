@@ -5,6 +5,7 @@ namespace App\Services\Core\PrintTemplate;
 use App\Models\Core\Currency;
 use App\Models\Core\Preference;
 use App\Models\Core\PrintTemplate;
+use App\Services\Core\Approval\SignatureResolverService;
 use App\Services\Handlebar\ArithmeticHelperService;
 use App\Services\Handlebar\FormatHelperService;
 use App\Services\Handlebar\LabelHelperService;
@@ -169,7 +170,101 @@ class PrintTemplateRenderService {
             'subtract'       => fn ($a, $b) => $this->arithmeticHelper->subtract($a, $b),
             'add'            => fn ($a, $b) => $this->arithmeticHelper->add($a, $b),
             'divide'         => fn ($a, $b) => $this->arithmeticHelper->divide($a, $b),
+            // Sintaks `function (...)` WAJIB di sini, bukan `fn` -- lihat
+            // catatan panjang di awal method ini. Isinya sengaja setipis
+            // mungkin dan tidak menyebut nama kelas apa pun, karena source
+            // closure ini disalin apa adanya ke output ter-compile yang
+            // dijalankan lewat eval() di luar namespace kelas ini.
+            'approvalSignature' => function ($options) {
+                return $this->renderSignatureSlot($options);
+            },
         ];
+    }
+
+    /**
+     * Render slot tanda tangan penandatangan final (FR8, FR9).
+     *
+     * Menerima `$options` Handlebars apa adanya supaya closure helper-nya
+     * tetap satu baris. Helper ini TIDAK punya argumen posisional: yang
+     * tercetak selalu penandatangan final, sehingga step tidak dapat
+     * dipilih dari template (FR8a). Argumen posisional pada template lama
+     * diabaikan, bukan digagalkan.
+     *
+     * @param  mixed  $options
+     */
+    protected function renderSignatureSlot(mixed $options): string {
+        // lightncandy menggeser $options ke argumen berikutnya bila template
+        // sempat menuliskan argumen posisional. Ambil elemen terakhir yang
+        // berbentuk options, jadi `{{approvalSignature}}` dan
+        // `{{approvalSignature 2}}` sama-sama bekerja.
+        if (! \is_array($options) || ! isset($options['data'])) {
+            $options = \func_num_args() > 0 ? (\func_get_args()[\func_num_args() - 1] ?? []) : [];
+        }
+
+        if (! \is_array($options)) {
+            return '';
+        }
+
+        $document = $options['data']['root']['document'] ?? null;
+
+        if (! $document instanceof Model) {
+            return '';
+        }
+
+        $signature = app(SignatureResolverService::class)->resolveFinalSignature($document);
+
+        if ($signature === null) {
+            return '';
+        }
+
+        $showName = (bool) ($options['hash']['showName'] ?? false);
+        $showDate = (bool) ($options['hash']['showDate'] ?? false);
+
+        return $this->buildSignatureHtml($signature, $showName, $showDate);
+    }
+
+    /**
+     * Susun HTML slot tanda tangan. Dipakai bersama oleh helper dan
+     * pratinjau, sehingga tata letaknya tidak bercabang.
+     *
+     * @param  array{image: string|null, name: string|null, date: string|null, hasSignature: bool}  $signature
+     */
+    protected function buildSignatureHtml(array $signature, bool $showName, bool $showDate): string {
+        $parts = [];
+
+        if ($signature['hasSignature']) {
+            $parts[] = sprintf(
+                '<img src="%s" alt="%s" style="max-height:80px;display:block;" />',
+                e($signature['image']),
+                e(__('user.signature.preview_alt')),
+            );
+        } elseif ($signature['name'] !== null) {
+            // Fallback FR9: nama DAN tanggal dalam bentuk teks, bukan slot
+            // kosong menggantung. Keduanya ikut tanpa memandang showName /
+            // showDate, karena tanpa gambar tidak ada apa pun yang menandai
+            // siapa yang menyetujui dan kapan.
+            $parts[] = sprintf('<span style="display:block;">%s</span>', e($signature['name']));
+
+            if ($signature['date'] !== null) {
+                $parts[] = sprintf('<span style="display:block;">%s</span>', e($signature['date']));
+            }
+
+            return '<div class="approval-signature">' . implode('', $parts) . '</div>';
+        }
+
+        if ($showName && $signature['name'] !== null) {
+            $parts[] = sprintf('<span style="display:block;">%s</span>', e($signature['name']));
+        }
+
+        if ($showDate && $signature['date'] !== null) {
+            $parts[] = sprintf('<span style="display:block;">%s</span>', e($signature['date']));
+        }
+
+        if ($parts === []) {
+            return '';
+        }
+
+        return '<div class="approval-signature">' . implode('', $parts) . '</div>';
     }
 
     /**

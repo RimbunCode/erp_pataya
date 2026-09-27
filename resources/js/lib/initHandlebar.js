@@ -4,6 +4,7 @@ import { TZDate } from "@date-fns/tz";
 import { formatNumber as formatNumberValue } from "@/Components/NumberInput/formatNumber";
 import { convertTemplateLink } from "./linkModelUtils";
 import { resolveLabel } from "@/Pages/Core/PrintTemplate/utils/variableTokenUtils";
+import { buildSignatureHtml, EXAMPLE_SIGNATURE } from "./signatureSlot";
 
 // Format angka gaya Indonesia (locale "id"): pemisah ribuan "." dan desimal ",".
 const ID_GROUP_SEPARATOR = ".";
@@ -308,5 +309,41 @@ export function initHandlebar(trans) {
     if (numB == null || numB === 0 || isNaN(numB)) return 0;
 
     return numA / numB;
+  });
+
+  /**
+   * Slot tanda tangan penandatangan final.
+   *
+   * Usage: {{{approvalSignature}}} atau
+   *        {{{approvalSignature showName=true showDate=true}}}
+   *
+   * TRIPLE-brace wajib, dan helper ini sengaja TIDAK mengembalikan
+   * SafeString meskipun bisa. Alasannya paritas: lightncandy di sisi server
+   * tidak punya padanan SafeString untuk helper biasa, sehingga di sana
+   * double-brace selalu meng-escape markup-nya. Kalau klien memakai
+   * SafeString, template ber-double-brace akan tampil benar di pratinjau
+   * tetapi keluar sebagai teks `&lt;img ...&gt;` di PDF. Lebih baik kedua
+   * sisi menuntut triple-brace dan gagal dengan cara yang sama.
+   *
+   * TIDAK menerima argumen posisional: yang tercetak selalu penandatangan
+   * final, yaitu approver pada step approved dengan sequence terbesar, jadi
+   * step tidak bisa dipilih dari template. Argumen posisional pada template
+   * lama diabaikan alih-alih menggagalkan render, karena satu helper yang
+   * melempar akan mengosongkan SELURUH dokumen.
+   */
+  Handlebars.registerHelper("approvalSignature", function (...args) {
+    const options = args[args.length - 1];
+    const root = options?.data?.root ?? {};
+    const hash = options?.hash ?? {};
+
+    // Pratinjau dengan data contoh (editor template, belum terikat dokumen)
+    // memakai tanda tangan placeholder supaya tata letaknya terlihat.
+    const signature = root.approvalSignature ?? (root.isExample ? EXAMPLE_SIGNATURE : null);
+
+    return buildSignatureHtml(signature, {
+      showName: hash.showName,
+      showDate: hash.showDate,
+      previewAlt: trans?.("user.signature.preview_alt"),
+    });
   });
 }

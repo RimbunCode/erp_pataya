@@ -48,15 +48,15 @@
 
 ## T06: Resolver & Helper Handlebars
 
-- [ ] 25. `app/Services/Core/Approval/SignatureResolverService.php` — `resolveFinalStep()`: pilih step berstatus `APPROVED` dengan `sequence` terbesar **dan** `acted_by_id` tidak null. Saring **di memori** dari koleksi `steps` yang sudah ter-eager-load, bukan lewat query baru. Beri komentar kenapa bukan `max(sequence)` dari seluruh step
-- [ ] 26. `SignatureResolverService::resolveFinalSignature(Model $document): ?array`: kembalikan `image` (data URI base64), `name`, `date`, `hasSignature`; `null` bila tidak ada step approved. Approver diambil dari `acted_by_id`, **bukan** `approverable_id`
-- [ ] 27. `PrintTemplateRenderService::renderSignatureSlot()`: method biasa di dalam namespace, menghasilkan HTML slot, memakai fallback nama + tanggal bila `hasSignature` false. Abaikan argumen posisional bila diterima (template lama), jangan gagal
-- [ ] 28. `PrintTemplateRenderService::helpers()`: daftarkan `approvalSignature` **tanpa argumen posisional** — `$options` jadi parameter pertama. Closure **wajib** sintaks `function (...)` dan **dilarang** menyebut nama kelas apa pun; seluruh isi didelegasikan ke `$this->renderSignatureSlot()`. Lihat catatan panjang di berkas itu
-- [ ] 29. `resources/js/lib/initHandlebar.js`: daftarkan helper `approvalSignature` berperilaku identik; data contoh menghasilkan placeholder data URI SVG, bukan kosong
-- [ ] 30. `AttachGeneratedPdfJob::handle()`: `loadMissing('approvalable.steps.actedBy.signatureFile')` pada dokumen. Job memakai `SerializesModels` sehingga relasi dari request tidak terbawa
-- [ ] 31. `tests/Feature/Core/ApprovalSignatureRenderTest.php`: sepuluh skenario pada tabel design bagian 10. Prioritaskan kasus "step 3 WAITING, step 2 approved" dan "step terakhir approved tanpa acted_by_id" — keduanya yang membedakan implementasi benar dari `max(sequence)` naif
-- [ ] 32. `tests/Feature/Core/ApprovalSignatureHelperParityTest.php`: satu potongan template dirender lewat kedua jalur dengan data sama, hasilnya dibandingkan
-- [ ] 33. `tests/Feature/Core/PdfSignatureRenderTest.php`: kunci perilaku `isAllowedResourceUrl()` yang meloloskan `data:` URI, dan pastikan PNG transparan bertahan pada jalur dompdf
+- [x] 25. `app/Services/Core/Approval/SignatureResolverService.php` — `resolveFinalStep()`: pilih step berstatus `APPROVED` dengan `sequence` terbesar **dan** `acted_by_id` tidak null. Saring **di memori** dari koleksi `steps` yang sudah ter-eager-load, bukan lewat query baru. Beri komentar kenapa bukan `max(sequence)` dari seluruh step
+- [x] 26. `SignatureResolverService::resolveFinalSignature(Model $document): ?array`: kembalikan `image` (data URI base64), `name`, `date`, `hasSignature`; `null` bila tidak ada step approved. Approver diambil dari `acted_by_id`, **bukan** `approverable_id`
+- [x] 27. `PrintTemplateRenderService::renderSignatureSlot()`: method biasa di dalam namespace, menghasilkan HTML slot, memakai fallback nama + tanggal bila `hasSignature` false. Abaikan argumen posisional bila diterima (template lama), jangan gagal
+- [x] 28. `PrintTemplateRenderService::helpers()`: daftarkan `approvalSignature` **tanpa argumen posisional** — `$options` jadi parameter pertama. Closure **wajib** sintaks `function (...)` dan **dilarang** menyebut nama kelas apa pun; seluruh isi didelegasikan ke `$this->renderSignatureSlot()`. Lihat catatan panjang di berkas itu
+- [x] 29. `resources/js/lib/initHandlebar.js`: daftarkan helper `approvalSignature` berperilaku identik; data contoh menghasilkan placeholder data URI SVG, bukan kosong
+- [x] 30. `AttachGeneratedPdfJob::handle()`: `loadMissing('approvalable.steps.actedBy.signatureFile')` pada dokumen. Job memakai `SerializesModels` sehingga relasi dari request tidak terbawa
+- [x] 31. `tests/Feature/Core/ApprovalSignatureRenderTest.php`: sepuluh skenario pada tabel design bagian 10. Prioritaskan kasus "step 3 WAITING, step 2 approved" dan "step terakhir approved tanpa acted_by_id" — keduanya yang membedakan implementasi benar dari `max(sequence)` naif
+- [x] 32. `tests/Feature/Core/ApprovalSignatureHelperParityTest.php`: satu potongan template dirender lewat kedua jalur dengan data sama, hasilnya dibandingkan
+- [x] 33. `tests/Feature/Core/PdfSignatureRenderTest.php`: kunci perilaku `isAllowedResourceUrl()` yang meloloskan `data:` URI, dan pastikan PNG transparan bertahan pada jalur dompdf
 
 ## T07: Frontend — Profil
 
