@@ -60,11 +60,11 @@
 
 ## T07: Frontend — Profil
 
-- [ ] 34. `resources/js/Pages/Users/ManageUsers/SignatureField.jsx`: pratinjau di atas latar checkerboard CSS gradient, tombol Unggah, Gambar, dan Hapus. Hanya dirender bila `user.id === auth.user.id`
-- [ ] 35. `resources/js/Pages/Users/ManageUsers/SignatureCanvas.jsx`: event pointer terpadu, `touch-action: none`, konteks transparan, skala mengikuti `devicePixelRatio`, tombol simpan terkunci selama `hasStroke` false
-- [ ] 36. `Users/ManageUsers/Show.jsx`: pasang `SignatureField` di bawah bagian foto profil
-- [ ] 37. `SignatureCanvas.rtl.test.jsx`: tombol simpan nonaktif saat kosong, aktif setelah goresan, nonaktif lagi setelah dibersihkan
-- [ ] 38. `SignatureField.rtl.test.jsx`: pratinjau muncul saat TTD ada, tombol hapus tersembunyi saat tidak ada TTD
+- [x] 34. `resources/js/Pages/Users/ManageUsers/SignatureField.jsx`: pratinjau di atas latar checkerboard CSS gradient, tombol Unggah, Gambar, dan Hapus. Hanya dirender bila `user.id === auth.user.id`
+- [x] 35. `resources/js/Pages/Users/ManageUsers/SignatureCanvas.jsx`: event pointer terpadu, `touch-action: none`, konteks transparan, skala mengikuti `devicePixelRatio`, tombol simpan terkunci selama `hasStroke` false
+- [x] 36. `Users/ManageUsers/Show.jsx`: pasang `SignatureField` di bawah bagian foto profil
+- [x] 37. `SignatureCanvas.rtl.test.jsx`: tombol simpan nonaktif saat kosong, aktif setelah goresan, nonaktif lagi setelah dibersihkan
+- [x] 38. `SignatureField.rtl.test.jsx`: pratinjau muncul saat TTD ada, tombol hapus tersembunyi saat tidak ada TTD
 
 ## T08: Feature Test Endpoint
 

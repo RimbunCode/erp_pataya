@@ -6,6 +6,7 @@ return [
     'upload'         => 'Unggah',
     'draw'           => 'Gambar',
     'remove'         => 'Hapus',
+    'cancel'         => 'Batal',
     'clear'          => 'Bersihkan',
     'save'           => 'Simpan',
     'not_signed_yet' => 'Belum ada tanda tangan',

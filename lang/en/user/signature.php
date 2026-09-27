@@ -6,6 +6,7 @@ return [
     'upload'         => 'Upload',
     'draw'           => 'Draw',
     'remove'         => 'Remove',
+    'cancel'         => 'Cancel',
     'clear'          => 'Clear',
     'save'           => 'Save',
     'not_signed_yet' => 'No signature yet',

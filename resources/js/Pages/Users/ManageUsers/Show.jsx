@@ -12,6 +12,7 @@ import { Link2, Trash2, UploadIcon } from "lucide-react";
 import { Button } from "@/Components/ui/button";
 import Form from "./Form";
 import FormChangePassword from "./FormChangePassword";
+import SignatureField from "./SignatureField";
 import UploadDialog from "@/Pages/Core/Components/UploadDialog";
 import { cn, resolveImageSrc } from "@/lib/utils";
 import { useLaravelReactI18n } from "laravel-react-i18n";
@@ -114,6 +115,7 @@ export default function Show({ user }) {
                 }}
               />
             </Dialog>
+            <SignatureField user={user} canEdit={authUser.id === user.id} />
             {defaultComp}
           </>
         )}

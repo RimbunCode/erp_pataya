@@ -28,7 +28,7 @@ class User extends Authenticatable {
     public $translateKey         = 'user.user';
     public string $formComponent = 'Users/ManageUsers/Form';
     protected $guarded           = ['id'];
-    protected $appends           = ['picture'];
+    protected $appends           = ['picture', 'has_signature'];
 
     protected static function extraPermissions(): array {
         return ['manage_roles', 'manage_branches'];
@@ -121,6 +121,9 @@ class User extends Authenticatable {
         'signature_file_id' => [
             'ignore' => true,
         ],
+        'has_signature' => [
+            'ignore' => true,
+        ],
     ];
 
     protected function getPictureAttribute() {
@@ -162,7 +165,16 @@ class User extends Authenticatable {
         return $this->belongsTo(File::class, 'signature_file_id');
     }
 
-    public function hasSignature(): bool {
+    /**
+     * Keberadaan tanda tangan sebagai boolean, untuk frontend.
+     *
+     * `signature_file_id` sendiri ada di `$hidden` supaya tidak ikut
+     * ter-serialize di endpoint daftar user (NFR3). Halaman profil tetap
+     * perlu tahu apakah tanda tangan ada untuk memilih pratinjau atau
+     * placeholder, dan itu cukup dijawab boolean tanpa membocorkan id
+     * berkasnya.
+     */
+    protected function getHasSignatureAttribute(): bool {
         return $this->signature_file_id !== null;
     }
 }
