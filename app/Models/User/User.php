@@ -9,6 +9,7 @@ use App\Enums\FormStatus;
 use App\Models\Core\Branch;
 use App\Models\Core\Dashboard;
 use App\Models\Core\Desk;
+use App\Models\Core\File;
 use App\Notifications\UserInvitedNotification;
 use App\Services\Core\Notification\NotifyUser;
 use App\Traits\DataTable;
@@ -41,6 +42,7 @@ class User extends Authenticatable {
     protected $hidden = [
         'password',
         'remember_token',
+        'signature_file_id', // NFR3: tidak bocor di response API umum (mis. daftar user)
     ];
 
     /**
@@ -116,6 +118,9 @@ class User extends Authenticatable {
         'avatar_url' => [
             'ignore' => true,
         ],
+        'signature_file_id' => [
+            'ignore' => true,
+        ],
     ];
 
     protected function getPictureAttribute() {
@@ -151,5 +156,13 @@ class User extends Authenticatable {
 
     public function providers() {
         return $this->hasMany(UserProvider::class, 'user_id');
+    }
+
+    public function signatureFile() {
+        return $this->belongsTo(File::class, 'signature_file_id');
+    }
+
+    public function hasSignature(): bool {
+        return $this->signature_file_id !== null;
     }
 }

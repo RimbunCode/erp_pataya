@@ -19,14 +19,14 @@
 
 ## T03: Pipeline Pemrosesan Gambar
 
-- [-] 9. `app/Services/User/Signature/SignatureImageService.php` kerangka: `process(string $imageBytes): string` memanggil delapan langkah privat sesuai design bagian 3
-- [ ] 10. Langkah decode + downscale: `imagecreatefromstring()` dengan `false` dilempar sebagai `unreadableImage()`; `imagescale()` proporsional bila sisi mana pun melebihi 4000 px
-- [ ] 11. Langkah `hasAlphaChannel()`: sampling ber-step (bukan pemindaian penuh) pada truecolor, `imagecolortransparent()` pada palette. Gambar beralpha melewati threshold
-- [ ] 12. Langkah `removeBackground()`: peta kecerahan → `SignatureThresholdCalculator` → alpha bergradasi `127 * min(1, lum / threshold)` pada piksel tinta, transparan penuh pada sisanya. Warna tinta asli dipertahankan. **Patuhi tiga batasan performa di design bagian 3**: susun warna sebagai integer `($alpha << 24) | ($r << 16) | ($g << 8) | $b` (JANGAN `imagecolorallocatealpha()` di dalam loop), peta kecerahan pakai `SplFixedArray` datar (JANGAN array 2D), dan ambang dihitung per baris (JANGAN `thresholdAt()` per piksel)
-- [ ] 13. Langkah `assertMeaningful()`: dipanggil **SEBELUM** `trim()`. Rasio piksel opak dihitung pada frame penuh; nol piksel → `noSignatureDetected()`, di atas 0.9 → `imageTooDark()`. Urutan ini wajib: mengukur setelah trim menolak TTD bergaris tebal, karena bounding box memang rapat terhadap goresan. Beri komentar alasannya di kode
-- [ ] 14. Langkah `trim()`: buang baris dan kolom terluar yang sepenuhnya transparan, crop ke bounding box. Tidak perlu menangani gambar kosong, sudah dijamin task 13
-- [ ] 15. Langkah `normalizeHeight()` + `encodePng()`: perkecil ke tinggi maksimum 200 px tanpa pernah memperbesar; `imagesavealpha(true)` sebelum `imagepng()`
-- [ ] 16. `tests/Unit/User/Signature/SignatureImageServiceTest.php` dengan fixture dibangkitkan programatik lewat GD (bukan berkas biner di repo): sebelas kasus pada tabel design bagian 10
+- [~] 9. `app/Services/User/Signature/SignatureImageService.php` kerangka: `process(string $imageBytes): string` memanggil delapan langkah privat sesuai design bagian 3
+- [~] 10. Langkah decode + downscale: `imagecreatefromstring()` dengan `false` dilempar sebagai `unreadableImage()`; `imagescale()` proporsional bila sisi mana pun melebihi 4000 px
+- [~] 11. Langkah `hasAlphaChannel()`: sampling ber-step (bukan pemindaian penuh) pada truecolor, `imagecolortransparent()` pada palette. Gambar beralpha melewati threshold
+- [~] 12. Langkah `removeBackground()`: peta kecerahan → `SignatureThresholdCalculator` → alpha bergradasi `127 * min(1, lum / threshold)` pada piksel tinta, transparan penuh pada sisanya. Warna tinta asli dipertahankan. **Patuhi tiga batasan performa di design bagian 3**: susun warna sebagai integer `($alpha << 24) | ($r << 16) | ($g << 8) | $b` (JANGAN `imagecolorallocatealpha()` di dalam loop), peta kecerahan pakai `SplFixedArray` datar (JANGAN array 2D), dan ambang dihitung per baris (JANGAN `thresholdAt()` per piksel)
+- [~] 13. Langkah `assertMeaningful()`: dipanggil **SEBELUM** `trim()`. Rasio piksel opak dihitung pada frame penuh; nol piksel → `noSignatureDetected()`, di atas 0.9 → `imageTooDark()`. Urutan ini wajib: mengukur setelah trim menolak TTD bergaris tebal, karena bounding box memang rapat terhadap goresan. Beri komentar alasannya di kode
+- [~] 14. Langkah `trim()`: buang baris dan kolom terluar yang sepenuhnya transparan, crop ke bounding box. Tidak perlu menangani gambar kosong, sudah dijamin task 13
+- [~] 15. Langkah `normalizeHeight()` + `encodePng()`: perkecil ke tinggi maksimum 200 px tanpa pernah memperbesar; `imagesavealpha(true)` sebelum `imagepng()`
+- [~] 16. `tests/Unit/User/Signature/SignatureImageServiceTest.php` dengan fixture dibangkitkan programatik lewat GD (bukan berkas biner di repo): sebelas kasus pada tabel design bagian 10
 
 **Checkpoint 1** — jalankan `php artisan test --compact tests/Unit/User/Signature/`. Pipeline harus lulus sepenuhnya sebelum lanjut, karena seluruh task berikutnya bergantung padanya.
 
