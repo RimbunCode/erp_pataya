@@ -51,6 +51,7 @@ User memilih berkas gambar dari perangkatnya.
 - Format yang diterima: **JPEG, PNG, WebP, GIF, BMP**. Format lain ditolak dengan pesan kesalahan yang menyebut daftar format yang didukung.
 - Ukuran berkas maksimum **5 MB**. Melebihi itu ditolak sebelum diproses.
 - Dimensi masukan maksimum **4000 × 4000 piksel**. Melebihi itu gambar diperkecil proporsional lebih dulu, bukan ditolak, karena foto ponsel modern rutin melampaui batas ini.
+- Gambar diperkecil ke **dimensi kerja 400 piksel** sebelum diproses, apa pun ukuran masukannya. Ini bukan pembatasan yang dirasakan user: keluaran akhir dibatasi tinggi 200 piksel, sehingga memproses pada resolusi lebih tinggi hanya membuang waktu untuk detail yang dibuang di langkah terakhir. Lihat NFR2.
 - Validasi tipe berkas dilakukan berdasarkan **isi berkas** (`finfo`/`getimagesize`), bukan ekstensi nama berkas maupun header `Content-Type` dari klien.
 - Apa pun format masukannya, keluaran yang tersimpan **selalu PNG**.
 
@@ -85,6 +86,8 @@ Gambar hasil upload diproses server menjadi PNG transparan.
 - TTD bertinta biru atau warna gelap lain tetap terdeteksi sebagai tinta, tidak ikut terhapus.
 - Gambar yang **sudah** memiliki alpha channel (PNG transparan hasil aplikasi lain) dilewatkan tanpa threshold; alpha aslinya dipertahankan. Menerapkan threshold pada gambar semacam ini justru merusaknya.
 - Warna tinta asli dipertahankan, tidak dipaksa menjadi hitam.
+- Citra **palette** (GIF, PNG-8) dikonversi ke truecolor sebelum diproses. Pada citra palette, pembacaan piksel mengembalikan indeks palette alih-alih nilai warna, sehingga kertas putih dapat terbaca sebagai warna hampir hitam dan seluruh gambar ditolak sebagai terlalu gelap.
+- Kecerahan di bawah **ambang absolut** selalu dianggap tinta, terlepas dari ambang adaptif lokalnya. Ambang adaptif tidak terdefinisi dengan baik pada bidang seragam: simpangan baku nol membuat ambang persis sama dengan nilai piksel, sehingga tidak ada piksel yang lolos sebagai tinta. Untuk kertas polos hasil itu benar, tetapi untuk foto yang seluruhnya gelap keliru, dan pemeriksaan "terlalu gelap" pada FR5 tidak pernah kebagian piksel untuk dihitung.
 
 ### FR5: Normalisasi Gambar — Trim dan Ukuran
 
@@ -196,6 +199,8 @@ Pemrosesan gambar memakai ekstensi **GD** yang sudah tersedia. Tidak ada paket C
 ### NFR2: Waktu Proses
 
 Pemrosesan satu gambar 4000 × 4000 piksel selesai di bawah **3 detik**. Bila melewati itu, pemrosesan dipindahkan ke queue job dan user diberi indikator proses.
+
+**Cara target ini dicapai:** gambar diperkecil ke dimensi kerja 400 piksel sebelum lintasan piksel mana pun berjalan. Ini bukan pilihan gaya melainkan keharusan yang terukur. Satu lintasan piksel penuh atas citra 4000 × 4000 memakan sekitar 25 detik di PHP, dan pipeline membutuhkan empat lintasan; biaya itu melekat pada `imagecolorat()` yang dipanggil 16 juta kali dan tidak dapat ditutup optimasi mikro. Pengukuran pada mesin pengembangan: dimensi kerja 800 piksel menghasilkan sekitar 8 detik, 600 piksel sekitar 3 detik, 400 piksel sekitar 1,2 detik.
 
 ### NFR3: Privasi
 

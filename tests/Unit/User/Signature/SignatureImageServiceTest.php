@@ -55,23 +55,69 @@ class SignatureImageServiceTest extends TestCase {
 
         $this->assertNotFalse($image);
 
-        // Sudut gambar hasil (di luar bounding box goresan setelah trim
-        // proporsi tipis) tidak wajib ada, tapi keseluruhan bukan opak penuh:
-        // ambil sample piksel dan pastikan setidaknya sebagian transparan.
-        $width           = imagesx($image);
-        $height          = imagesy($image);
-        $transparentSeen = false;
-        for ($y = 0; $y < $height; $y++) {
-            for ($x = 0; $x < $width; $x++) {
-                $alpha = (imagecolorat($image, $x, $y) >> 24) & 0x7F;
-                if ($alpha >= 100) {
-                    $transparentSeen = true;
+        // Hasil di-trim ke bounding box goresan, jadi mencari piksel
+        // transparan DI DALAM hasil bukan ukuran yang tepat: goresan garis
+        // lurus tebal mengisi bounding box-nya sendiri secara padat. Yang
+        // membuktikan background hilang adalah dimensinya menyusut jauh dari
+        // kertas asli 200x100 ke sekitar tinggi goresan saja.
+        $this->assertLessThan(100, imagesy($image), 'Kertas kosong di atas/bawah goresan harus ikut terbuang.');
 
-                    break 2;
+        // Dan piksel tinta yang tersisa memang opak, bukan ikut terhapus.
+        $opaqueSeen = false;
+        for ($y = 0, $height = imagesy($image); $y < $height && ! $opaqueSeen; $y++) {
+            for ($x = 0, $width = imagesx($image); $x < $width; $x++) {
+                if (((imagecolorat($image, $x, $y) >> 24) & 0x7F) < 40) {
+                    $opaqueSeen = true;
+
+                    break;
                 }
             }
         }
-        $this->assertTrue($transparentSeen, 'Background kertas putih seharusnya menjadi transparan.');
+        $this->assertTrue($opaqueSeen, 'Goresan tinta harus tetap opak setelah background dihapus.');
+    }
+
+    /**
+     * Pemeriksaan transparansi yang sebenarnya, pada gambar yang goresannya
+     * TIDAK memenuhi bounding box-nya: tanda silang menyisakan empat sudut
+     * kosong yang harus transparan di hasil akhir.
+     */
+    #[Test]
+    public function paper_around_stroke_becomes_transparent(): void {
+        $service = new SignatureImageService;
+
+        $image = imagecreatetruecolor(200, 200);
+        imagefill($image, 0, 0, imagecolorallocate($image, 255, 255, 255));
+        $ink = imagecolorallocate($image, 0, 0, 0);
+        imagesetthickness($image, 6);
+        imageline($image, 40, 40, 160, 160, $ink);
+        imageline($image, 160, 40, 40, 160, $ink);
+
+        $result = $service->process($this->encode($image, 'png'));
+        $out    = imagecreatefromstring($result);
+
+        $this->assertNotFalse($out);
+
+        // Diukur sebagai rasio, bukan satu titik: koordinat tunggal rapuh
+        // terhadap pergeseran bounding box, sedangkan silang bergaris 6 px
+        // di kanvas 200x200 memang hanya menutupi sebagian kecil luasnya.
+        $width       = imagesx($out);
+        $height      = imagesy($out);
+        $transparent = 0;
+
+        for ($y = 0; $y < $height; $y++) {
+            for ($x = 0; $x < $width; $x++) {
+                if (((imagecolorat($out, $x, $y) >> 24) & 0x7F) >= 100) {
+                    $transparent++;
+                }
+            }
+        }
+
+        $ratio = $transparent / ($width * $height);
+        $this->assertGreaterThan(
+            0.5,
+            $ratio,
+            sprintf('Kertas di antara lengan silang harus transparan; transparan hanya %.1f%%.', $ratio * 100),
+        );
     }
 
     #[Test]
@@ -274,11 +320,18 @@ class SignatureImageServiceTest extends TestCase {
         $service = new SignatureImageService;
         $bytes   = $this->signatureOnPaper(width: 4000, height: 4000);
 
-        $start = microtime(true);
-        $result = $service->process($bytes);
+        $start   = microtime(true);
+        $result  = $service->process($bytes);
         $elapsed = microtime(true) - $start;
 
         $this->assertNotEmpty($result);
         $this->assertLessThan(3.0, $elapsed, "Pemrosesan gambar 4000x4000 harus selesai di bawah 3 detik, aktual: {$elapsed}s");
+
+        // Masukan sebesar ini DITERIMA (FR2), bukan ditolak: yang terjadi
+        // adalah downscale ke dimensi kerja sebelum lintasan piksel mana pun
+        // berjalan. Keluarannya tetap tanda tangan yang sah.
+        $decoded = imagecreatefromstring($result);
+        $this->assertNotFalse($decoded);
+        $this->assertLessThanOrEqual(200, imagesy($decoded));
     }
 }

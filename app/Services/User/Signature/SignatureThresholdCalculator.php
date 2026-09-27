@@ -20,6 +20,14 @@ final class SignatureThresholdCalculator {
     private const K = 0.6;
 
     /**
+     * Geometri horizontal hasil `horizontalGeometry()`, dikunci per
+     * (jumlah blok, lebar).
+     *
+     * @var array<string, array<int, array{int, int, float}>>
+     */
+    private array $geometryCache = [];
+
+    /**
      * Hitung peta ambang per blok dari peta kecerahan.
      *
      * Blok yang jatuh di tepi gambar (lebar/tinggi tidak habis dibagi
@@ -112,18 +120,11 @@ final class SignatureThresholdCalculator {
      * @param  array<int, array<int, float>>  $map
      * @return \SplFixedArray<float> indeks x => ambang
      */
-    public function thresholdRow(array $map, int $y, int $width): \SplFixedArray {
-        $row = new \SplFixedArray($width);
-
+    public function thresholdRow(array $map, int $y, int $width): array {
         $blockCountY = \count($map);
         if ($blockCountY === 0 || \count($map[0]) === 0) {
-            for ($x = 0; $x < $width; $x++) {
-                $row[$x] = 0.0;
-            }
-
-            return $row;
+            return array_fill(0, $width, 0.0);
         }
-        $blockCountX = \count($map[0]);
 
         $fy = ($y + 0.5) / self::BLOCK_SIZE - 0.5;
         $y0 = (int) floor($fy);
@@ -132,24 +133,57 @@ final class SignatureThresholdCalculator {
         $rowTop    = $map[max(0, min($y0, $blockCountY - 1))];
         $rowBottom = $map[max(0, min($y0 + 1, $blockCountY - 1))];
 
+        // Geometri horizontal (blok kiri/kanan dan bobot interpolasi tiap x)
+        // hanya bergantung pada x dan lebar gambar, jadi identik untuk SEMUA
+        // baris. Menghitungnya sekali lalu memakainya ulang menghapus
+        // floor(), pembagian, dan clamp dari jalur terpanas -- pada citra
+        // 800x800 itu 640 ribu pemanggilan floor() yang tidak perlu.
+        $geometry = $this->horizontalGeometry(\count($map[0]), $width);
+
+        $row = [];
+        foreach ($geometry as $x => [$left, $right, $tx]) {
+            $topLeft     = $rowTop[$left];
+            $bottomLeft  = $rowBottom[$left];
+            $top         = $topLeft + ($rowTop[$right] - $topLeft) * $tx;
+            $bottom      = $bottomLeft + ($rowBottom[$right] - $bottomLeft) * $tx;
+            $row[$x]     = $top + ($bottom - $top) * $ty;
+        }
+
+        return $row;
+    }
+
+    /**
+     * Cache geometri horizontal per (jumlah blok, lebar). Dibuat sekali per
+     * gambar, dipakai ulang oleh tiap baris.
+     *
+     * @return array<int, array{int, int, float}> x => [blokKiri, blokKanan, bobot]
+     */
+    private function horizontalGeometry(int $blockCountX, int $width): array {
+        $cacheKey = $blockCountX . ':' . $width;
+
+        if (isset($this->geometryCache[$cacheKey])) {
+            return $this->geometryCache[$cacheKey];
+        }
+
         $lastBlockX = $blockCountX - 1;
+        $geometry   = [];
 
         for ($x = 0; $x < $width; $x++) {
             $fx = ($x + 0.5) / self::BLOCK_SIZE - 0.5;
             $x0 = (int) floor($fx);
-            $tx = $fx - $x0;
 
-            $left  = $x0 < 0 ? 0 : ($x0 > $lastBlockX ? $lastBlockX : $x0);
-            $x1    = $x0 + 1;
-            $right = $x1 < 0 ? 0 : ($x1 > $lastBlockX ? $lastBlockX : $x1);
-
-            $top    = $rowTop[$left] + ($rowTop[$right] - $rowTop[$left]) * $tx;
-            $bottom = $rowBottom[$left] + ($rowBottom[$right] - $rowBottom[$left]) * $tx;
-
-            $row[$x] = $top + ($bottom - $top) * $ty;
+            $geometry[$x] = [
+                $x0 < 0 ? 0 : ($x0 > $lastBlockX ? $lastBlockX : $x0),
+                ($x0 + 1) < 0 ? 0 : (($x0 + 1) > $lastBlockX ? $lastBlockX : $x0 + 1),
+                $fx - $x0,
+            ];
         }
 
-        return $row;
+        // Satu entri saja: pemakaian nyata memproses satu gambar per
+        // instance, jadi cache tidak perlu tumbuh.
+        $this->geometryCache = [$cacheKey => $geometry];
+
+        return $geometry;
     }
 
     /**
