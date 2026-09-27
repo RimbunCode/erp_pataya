@@ -21,6 +21,7 @@ use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Route;
 use Illuminate\Support\Facades\Storage;
+use Illuminate\Support\Str;
 use Illuminate\Validation\ValidationException;
 use Inertia\Inertia;
 use Laravel\Socialite\Socialite;
@@ -152,9 +153,15 @@ class UserController extends Controller {
             // Berkas ASLI hasil unggahan tidak pernah disimpan (FR6): yang
             // masuk storage hanya PNG hasil proses, sehingga foto mentah
             // tanda tangan tidak tertinggal di server.
+            // Nama berkas dibuat sendiri, bukan mengandalkan nilai balik
+            // Storage::put(): fungsi itu menerima path LENGKAP dan
+            // mengembalikan bool, bukan path seperti putFile().
+            $path = 'files/' . Str::ulid() . '.png';
+            Storage::put($path, $bytes);
+
             $file = File::create([
                 'name'      => "signature-{$user->id}",
-                'path'      => Storage::put('files', $bytes),
+                'path'      => $path,
                 'extension' => 'png',
                 'mime_type' => 'image/png',
                 // Dipaksa di server, TIDAK diambil dari request: tanda tangan
@@ -197,8 +204,15 @@ class UserController extends Controller {
 
         abort_unless(Storage::exists($file->path), 404);
 
-        return Storage::response($file->path, 'signature.png', [
-            'Content-Type' => 'image/png',
+        // response()->make(), BUKAN Storage::response(): yang kedua
+        // menghasilkan StreamedResponse, dan middleware aplikasi ini
+        // memanggil withCookie() pada response yang keluar -- method yang
+        // tidak dimiliki StreamedResponse. Berkas tanda tangan kecil
+        // (maksimum setinggi 200 px), jadi memuatnya ke memori tidak jadi
+        // soal.
+        return response()->make(Storage::get($file->path), 200, [
+            'Content-Type'        => 'image/png',
+            'Content-Disposition' => 'inline; filename="signature.png"',
             // `private` mencegah proxy bersama menyimpan tanda tangan.
             'Cache-Control' => 'private, max-age=300',
         ]);

@@ -294,6 +294,19 @@ protected function exceptPermission(string $method) {
 
 Dan `enforcePermission()` **tidak** diberi entri untuk `signature`. Bila `exceptPermission()` mengembalikan false, permintaan jatuh ke pemeriksaan permission normal, dan tidak ada permission yang memberi hak mengubah TTD orang lain.
 
+### Catatan penyimpanan berkas
+
+Nama berkas dibuat sendiri, bukan mengandalkan nilai balik `Storage::put()`:
+
+```php
+$path = 'files/' . Str::ulid() . '.png';
+Storage::put($path, $bytes);
+```
+
+`Storage::put($path, $contents)` menerima path **lengkap** dan mengembalikan `bool`. Yang mengembalikan path hasil adalah `Storage::putFile()`. Memakai nilai baliknya sebagai path menyimpan `"1"` ke kolom `path`, dan gejalanya baru muncul jauh kemudian sebagai berkas yang tidak ditemukan.
+
+**Catatan di luar lingkup:** `PdfAttachmentService::attach()` memakai pola yang sama (`Storage::put('files', $pdfBytes)`), sehingga kolom `path` pada PDF hasil approval kemungkinan juga berisi `"1"`. Itu cacat yang sudah ada sebelum fitur ini dan tidak diperbaiki di sini, tetapi layak ditindaklanjuti terpisah.
+
 ### `showSignature` — penyajian berkas
 
 ```php

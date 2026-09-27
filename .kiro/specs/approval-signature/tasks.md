@@ -68,17 +68,17 @@
 
 ## T08: Feature Test Endpoint
 
-- [ ] 39. `tests/Feature/User/UserSignatureTest.php`: pemilik akun dapat unggah, ganti, dan hapus
-- [ ] 40. Test otorisasi: user **dengan** permission `write` pada `User` tetap ditolak 403 saat mengubah TTD orang lain. **Ini test terpenting di berkas ini** — titik tempat fitur sengaja menyimpang dari pola `image`
-- [ ] 41. Test: `is_public` tetap false meskipun request mengirim `isPublic=true`; berkas asli hasil upload tidak tersisa di storage
-- [ ] 42. Test: mengganti TTD menghapus berkas lama; `signature_file_id` tidak muncul di response daftar user; permintaan berkas tanpa sesi login ditolak
+- [x] 39. `tests/Feature/User/UserSignatureTest.php`: pemilik akun dapat unggah, ganti, dan hapus
+- [x] 40. Test otorisasi: user **dengan** permission `write` pada `User` tetap ditolak 403 saat mengubah TTD orang lain. **Ini test terpenting di berkas ini** — titik tempat fitur sengaja menyimpang dari pola `image`
+- [x] 41. Test: `is_public` tetap false meskipun request mengirim `isPublic=true`; berkas asli hasil upload tidak tersisa di storage
+- [x] 42. Test: mengganti TTD menghapus berkas lama; `signature_file_id` tidak muncul di response daftar user; permintaan berkas tanpa sesi login ditolak
 
 ## T09: Blok GrapesJS
 
-- [ ] 43. `resources/js/lib/gjsSignature.js`: component type `approval-signature` dengan trait `showName` dan `showDate` saja — **tanpa** trait `sequence` (FR8a); block berlabel Tanda Tangan pada kategori Approval
-- [ ] 44. `toHTML()` komponen menerjemahkan trait menjadi pemanggilan `{{approvalSignature}}` yang bertahan melewati serialisasi editor dan tetap dapat diedit di mode kode
-- [ ] 45. `Editor.jsx`: daftarkan plugin pada array `plugins`, bersebelahan dengan `gjsStaticHTML`
-- [ ] 46. `gjsSignature.test.js`: trait terserialisasi ke markup yang benar, dan markup terbaca kembali menjadi trait yang sama (round-trip)
+- [x] 43. `resources/js/lib/gjsSignature.js`: component type `approval-signature` dengan trait `showName` dan `showDate` saja — **tanpa** trait `sequence` (FR8a); block berlabel Tanda Tangan pada kategori Approval
+- [x] 44. `toHTML()` komponen menerjemahkan trait menjadi pemanggilan `{{approvalSignature}}` yang bertahan melewati serialisasi editor dan tetap dapat diedit di mode kode
+- [x] 45. `Editor.jsx`: daftarkan plugin pada array `plugins`, bersebelahan dengan `gjsStaticHTML`
+- [x] 46. `gjsSignature.test.js`: trait terserialisasi ke markup yang benar, dan markup terbaca kembali menjadi trait yang sama (round-trip)
 
 **Checkpoint 3** — jalankan seluruh suite: `php artisan test --compact` dan `npm run test`. Konfirmasi ke user sebelum masuk T10.
 
