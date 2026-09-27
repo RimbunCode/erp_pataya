@@ -1,0 +1,8 @@
+{
+  "specId": "9c2e4f7a-3b18-4d6e-a05c-7f21e8d94b63",
+  "workflowType": "requirements-first",
+  "specType": "feature",
+  "description": "Tanda tangan digital approver pada dokumen. User menyimpan TTD di profil lewat upload gambar (format apa pun, dikonversi server jadi PNG transparan via GD adaptive threshold) atau menggambar di canvas. Yang tercetak di dokumen HANYA SATU tanda tangan: penandatangan final, yaitu acted_by_id pada step APPROVED dengan sequence terbesar. Hierarki ditentukan urutan step, bukan atribut jabatan pada Role (tabel roles tidak diberi kolom level). Helper Handlebars {{approvalSignature}} tanpa argumen posisional, plus blok GrapesJS. Fallback teks nama + tanggal bila penandatangan final belum punya TTD.",
+  "createdAt": "2026-09-27T00:00:00.000Z",
+  "createdBy": "Claude"
+}
