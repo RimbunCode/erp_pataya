@@ -5,26 +5,26 @@
 
 ## T01: Migration & Model — Kolom TTD
 
-- [ ] 1. Migration `add_signature_to_users_table`: `foreignUlid('signature_file_id')` nullable, `after('image')`, `constrained('files')`, `nullOnDelete()`
-- [ ] 2. `app/Models/User/User.php`: relasi `signatureFile()` (`belongsTo(File::class, 'signature_file_id')`) dan `hasSignature(): bool`
-- [ ] 3. `User`: tambah `signature_file_id` ke `$hidden` (NFR3) dan ke `$configColumns` dengan `'ignore' => true` supaya tidak muncul sebagai kolom DataTable
-- [ ] 4. `UserFactory`: state `withSignature()` yang membuat `File` PNG dummy dan menautkannya, untuk dipakai test T07 dan T08
+- [x] 1. Migration `add_signature_to_users_table`: `foreignUlid('signature_file_id')` nullable, `after('image')`, `constrained('files')`, `nullOnDelete()`
+- [x] 2. `app/Models/User/User.php`: relasi `signatureFile()` (`belongsTo(File::class, 'signature_file_id')`) dan `hasSignature(): bool`
+- [x] 3. `User`: tambah `signature_file_id` ke `$hidden` (NFR3) dan ke `$configColumns` dengan `'ignore' => true` supaya tidak muncul sebagai kolom DataTable
+- [x] 4. `UserFactory`: state `withSignature()` yang membuat `File` PNG dummy dan menautkannya, untuk dipakai test T07 dan T08
 
 ## T02: Exception & Kalkulator Ambang
 
-- [ ] 5. `app/Exceptions/User/SignatureProcessingException.php`: named constructor `unreadableImage()`, `unsupportedFormat()`, `noSignatureDetected()`, `imageTooDark()`, masing-masing membawa kunci terjemahan sendiri
-- [ ] 6. `lang/en/user/signature.php` + `lang/id/user/signature.php`: pesan kesalahan T02.5, label bagian profil, label tombol, label blok GrapesJS
-- [ ] 7. `app/Services/User/Signature/SignatureThresholdCalculator.php`: `buildThresholdMap(array $luminance, int $w, int $h): array` dengan blok 32 px dan rumus `mean − 0.6 × stddev`; `thresholdAt(array $map, int $x, int $y): float` dengan interpolasi bilinear antar blok tetangga
-- [ ] 8. `tests/Unit/User/Signature/SignatureThresholdCalculatorTest.php`: peta ambang pada masukan seragam, interpolasi menghasilkan nilai antara dua ambang blok, perilaku di tepi gambar saat blok tetangga tidak lengkap
+- [x] 5. `app/Exceptions/User/SignatureProcessingException.php`: named constructor `unreadableImage()`, `unsupportedFormat()`, `noSignatureDetected()`, `imageTooDark()`, masing-masing membawa kunci terjemahan sendiri
+- [x] 6. `lang/en/user/signature.php` + `lang/id/user/signature.php`: pesan kesalahan T02.5, label bagian profil, label tombol, label blok GrapesJS
+- [x] 7. `app/Services/User/Signature/SignatureThresholdCalculator.php`: `buildThresholdMap(array $luminance, int $w, int $h): array` dengan blok 32 px dan rumus `mean − 0.6 × stddev`; `thresholdAt(array $map, int $x, int $y): float` dengan interpolasi bilinear antar blok tetangga
+- [x] 8. `tests/Unit/User/Signature/SignatureThresholdCalculatorTest.php`: peta ambang pada masukan seragam, interpolasi menghasilkan nilai antara dua ambang blok, perilaku di tepi gambar saat blok tetangga tidak lengkap
 
 ## T03: Pipeline Pemrosesan Gambar
 
-- [ ] 9. `app/Services/User/Signature/SignatureImageService.php` kerangka: `process(string $imageBytes): string` memanggil delapan langkah privat sesuai design bagian 3
+- [-] 9. `app/Services/User/Signature/SignatureImageService.php` kerangka: `process(string $imageBytes): string` memanggil delapan langkah privat sesuai design bagian 3
 - [ ] 10. Langkah decode + downscale: `imagecreatefromstring()` dengan `false` dilempar sebagai `unreadableImage()`; `imagescale()` proporsional bila sisi mana pun melebihi 4000 px
 - [ ] 11. Langkah `hasAlphaChannel()`: sampling ber-step (bukan pemindaian penuh) pada truecolor, `imagecolortransparent()` pada palette. Gambar beralpha melewati threshold
-- [ ] 12. Langkah `removeBackground()`: peta kecerahan → `SignatureThresholdCalculator` → alpha bergradasi `127 * min(1, lum / threshold)` pada piksel tinta, transparan penuh pada sisanya. Warna tinta asli dipertahankan
-- [ ] 13. Langkah `trim()`: buang baris dan kolom terluar yang sepenuhnya transparan, crop ke bounding box
-- [ ] 14. Langkah `assertMeaningful()`: rasio piksel opak dihitung **setelah** trim; nol piksel → `noSignatureDetected()`, di atas 0.9 → `imageTooDark()`
+- [ ] 12. Langkah `removeBackground()`: peta kecerahan → `SignatureThresholdCalculator` → alpha bergradasi `127 * min(1, lum / threshold)` pada piksel tinta, transparan penuh pada sisanya. Warna tinta asli dipertahankan. **Patuhi tiga batasan performa di design bagian 3**: susun warna sebagai integer `($alpha << 24) | ($r << 16) | ($g << 8) | $b` (JANGAN `imagecolorallocatealpha()` di dalam loop), peta kecerahan pakai `SplFixedArray` datar (JANGAN array 2D), dan ambang dihitung per baris (JANGAN `thresholdAt()` per piksel)
+- [ ] 13. Langkah `assertMeaningful()`: dipanggil **SEBELUM** `trim()`. Rasio piksel opak dihitung pada frame penuh; nol piksel → `noSignatureDetected()`, di atas 0.9 → `imageTooDark()`. Urutan ini wajib: mengukur setelah trim menolak TTD bergaris tebal, karena bounding box memang rapat terhadap goresan. Beri komentar alasannya di kode
+- [ ] 14. Langkah `trim()`: buang baris dan kolom terluar yang sepenuhnya transparan, crop ke bounding box. Tidak perlu menangani gambar kosong, sudah dijamin task 13
 - [ ] 15. Langkah `normalizeHeight()` + `encodePng()`: perkecil ke tinggi maksimum 200 px tanpa pernah memperbesar; `imagesavealpha(true)` sebelum `imagepng()`
 - [ ] 16. `tests/Unit/User/Signature/SignatureImageServiceTest.php` dengan fixture dibangkitkan programatik lewat GD (bukan berkas biner di repo): sebelas kasus pada tabel design bagian 10
 

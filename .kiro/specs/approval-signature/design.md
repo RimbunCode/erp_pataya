@@ -108,8 +108,8 @@ public function process(string $imageBytes): string {
         $image = $this->removeBackground($image); // 4
     }
 
-    $image = $this->trim($image);                 // 5
-    $this->assertMeaningful($image);              // 6
+    $this->assertMeaningful($image);              // 5  (SEBELUM trim)
+    $image = $this->trim($image);                 // 6
     $image = $this->normalizeHeight($image);      // 7
 
     return $this->encodePng($image);              // 8
@@ -195,11 +195,26 @@ $alpha = (int) round(127 * min(1.0, $lum / $threshold));
 
 Piksel jauh lebih gelap dari ambang menjadi opak penuh; piksel tepat di batas menjadi hampir transparan. Ini yang menghilangkan tepi bergerigi tanpa perlu anti-aliasing terpisah.
 
-#### Langkah 5 — Trim
+#### Batasan performa yang wajib dipatuhi
 
-Pindai baris dari atas dan bawah, kolom dari kiri dan kanan, berhenti pada garis pertama yang memuat piksel dengan alpha di bawah 127. Crop ke bounding box hasilnya.
+Loop piksel di langkah ini adalah bagian terpanas seluruh fitur. Tiga hal berikut menentukan apakah NFR2 tercapai atau meleset sepuluh kali lipat.
 
-#### Langkah 6 — Validasi hasil
+**Jangan panggil `imagecolorallocatealpha()` di dalam loop.** Pada citra truecolor, warna ber-alpha adalah bilangan bulat biasa dan dapat disusun langsung:
+
+```php
+$color = ($alpha << 24) | ($r << 16) | ($g << 8) | $b;
+imagesetpixel($output, $x, $y, $color);
+```
+
+`imagecolorallocatealpha()` menjalankan pencarian internal setiap kali dipanggil. Pada 16 juta piksel biayanya mendominasi segalanya, dan inilah penyebab tunggal terbesar bila pipeline berjalan dalam hitungan menit alih-alih detik.
+
+**Jangan menyimpan peta kecerahan sebagai array PHP dua dimensi.** `$luminance[$y][$x]` untuk citra 4000 × 4000 berarti 16 juta zval; konsumsi memorinya ratusan megabyte dan setiap akses melewati hashtable. Gunakan `SplFixedArray` berindeks datar (`$y * $width + $x`), atau hitung ulang kecerahan di loop kedua. Peta **ambang** tetap array biasa karena ukurannya hanya sebanyak blok, yaitu sekitar 125 × 125 untuk citra terbesar.
+
+**Hitung ambang per baris, bukan per piksel.** `thresholdAt()` melakukan interpolasi bilinear yang melibatkan beberapa perkalian. Dipanggil 16 juta kali, biayanya nyata. Karena ambang berubah mulus, cukup hitung ulang saat melintasi batas blok dan interpolasi ringan di antaranya.
+
+Bila setelah ketiganya waktu masih melewati 3 detik, turunkan `MAX_INPUT_DIMENSION` dan catat alasannya; **jangan** melonggarkan NFR2 diam-diam.
+
+#### Langkah 5 — Validasi hasil
 
 ```php
 $opaqueRatio = $opaquePixels / ($width * $height);
@@ -213,7 +228,19 @@ if ($opaqueRatio > 0.9) {
 }
 ```
 
-Rasio dihitung **setelah trim**, bukan sebelum. TTD tipis pada kertas lapang punya rasio sangat kecil sebelum trim dan bisa saja lolos pemeriksaan "terlalu gelap" yang keliru arah; setelah trim, rasio mencerminkan kepadatan goresan sebenarnya di dalam bounding box-nya.
+Rasio dihitung pada **frame penuh, sebelum trim**. Urutan ini penting dan mudah dibalik.
+
+Bounding box hasil trim menurut definisinya rapat terhadap goresan: tidak ada baris atau kolom terluar yang sepenuhnya kosong, karena itulah yang baru saja dibuang. TTD bergaris tebal, atau gambar uji sederhana berupa garis lurus, wajar mengisi jauh di atas 90% kotaknya sendiri. Mengukur di sana membuat pemeriksaan ini menolak gambar yang justru paling bersih.
+
+Yang hendak ditangkap adalah foto gelap dan gambar terbalik (tinta dan kertas tertukar), dan ciri keduanya adalah tinta memenuhi **seluruh frame asli**. Rasio pada frame penuh mengukur persis itu.
+
+Pemeriksaan `noSignatureDetected` tidak terpengaruh urutan, karena tidak adanya piksel tinta tidak berubah oleh trim. Ia diletakkan di sini agar kedua pemeriksaan tetap berdampingan.
+
+#### Langkah 6 — Trim
+
+Pindai baris dari atas dan bawah, kolom dari kiri dan kanan, berhenti pada garis pertama yang memuat piksel dengan alpha di bawah 127. Crop ke bounding box hasilnya.
+
+Karena langkah 5 sudah memastikan ada piksel tinta, trim di sini selalu menemukan bounding box yang sah dan tidak perlu menangani kasus gambar kosong.
 
 #### Langkah 7 — Normalisasi tinggi
 
@@ -494,6 +521,7 @@ Fixture gambar dibangkitkan secara programatik di dalam test dengan GD, bukan di
 | PNG yang sudah transparan | Alpha asli dipertahankan, threshold dilewati |
 | Kertas polos tanpa goresan | `SignatureProcessingException::noSignatureDetected` |
 | Gambar hampir seluruhnya gelap | `SignatureProcessingException::imageTooDark` |
+| Goresan tebal memenuhi bounding box-nya sendiri | **Lulus**, bukan `imageTooDark`. Kasus yang mengunci urutan validasi-sebelum-trim |
 | JPEG, WebP, GIF, BMP | Semua menghasilkan PNG |
 | Byte bukan gambar | `SignatureProcessingException::unreadableImage` |
 | Goresan di sudut kanvas lapang | Ter-trim ke bounding box |

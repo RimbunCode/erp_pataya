@@ -94,6 +94,8 @@ Gambar hasil upload diproses server menjadi PNG transparan.
 - Setelah trim, gambar diperkecil proporsional hingga tinggi maksimum **200 piksel**, tanpa pernah memperbesar gambar yang sudah lebih kecil dari itu.
 - Gambar yang setelah threshold ternyata **kosong** (tidak ada piksel tinta sama sekali, misalnya foto kertas polos) ditolak dengan pesan bahwa tidak ada tanda tangan terdeteksi.
 - Gambar yang setelah threshold **hampir seluruhnya tinta** (di atas 90% piksel opak, misalnya foto gelap atau gambar terbalik) ditolak dengan pesan bahwa gambar terlalu gelap.
+- Rasio "hampir seluruhnya tinta" dihitung pada **frame penuh sebelum trim**, bukan di dalam bounding box hasil trim. Bounding box menurut definisinya rapat terhadap goresan, sehingga TTD bergaris tebal wajar memenuhi sebagian besar kotaknya; mengukur di sana akan menolak justru gambar yang paling bersih. Yang hendak ditangkap pemeriksaan ini adalah foto gelap atau gambar terbalik, dan cirinya adalah tinta memenuhi seluruh frame asli.
+- Pemeriksaan "kosong" boleh dilakukan pada tahap mana pun, karena tidak adanya piksel tinta tidak berubah oleh trim.
 
 ### FR6: Penyimpanan Berkas TTD
 
