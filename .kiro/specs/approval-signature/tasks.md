@@ -32,17 +32,17 @@
 
 ## T04: Endpoint Simpan & Hapus TTD
 
-- [ ] 17. `app/Http/Requests/User/SignatureUploadRequest.php`: validasi berkas maksimum 5 MB, tipe MIME diperiksa dari isi berkas, dan penanda `source` bernilai `upload` atau `canvas`
-- [ ] 18. `UserController::signature()`: proses lewat `SignatureImageService` bila `source=upload`, lewati threshold bila `source=canvas`; simpan sebagai `File` dengan `is_public = false` **dipaksa server** (nilai dari request diabaikan); hapus `File` TTD lama beserta berkas fisiknya
-- [ ] 19. `UserController::removeSignature()`: null-kan kolom dan hapus `File` beserta berkas fisiknya
-- [ ] 20. `UserController::exceptPermission()`: cabang khusus `signature`/`removeSignature` yang mengembalikan `$user_id === Auth::id()`. **Sengaja tidak mengikuti pola `image`** — beri komentar alasannya di kode. `enforcePermission()` tidak diberi entri untuk method ini
-- [ ] 21. `routes/web.php`: `POST`, `DELETE`, dan `GET` pada `/users/{user}/signature`, ditempatkan bersebelahan dengan route `users.image`
+- [x] 17. `app/Http/Requests/User/SignatureUploadRequest.php`: validasi berkas maksimum 5 MB, tipe MIME diperiksa dari isi berkas, dan penanda `source` bernilai `upload` atau `canvas`
+- [x] 18. `UserController::signature()`: proses lewat `SignatureImageService` bila `source=upload`, lewati threshold bila `source=canvas`; simpan sebagai `File` dengan `is_public = false` **dipaksa server** (nilai dari request diabaikan); hapus `File` TTD lama beserta berkas fisiknya
+- [x] 19. `UserController::removeSignature()`: null-kan kolom dan hapus `File` beserta berkas fisiknya
+- [x] 20. `UserController::exceptPermission()`: cabang khusus `signature`/`removeSignature` yang mengembalikan `$user_id === Auth::id()`. **Sengaja tidak mengikuti pola `image`** — beri komentar alasannya di kode. `enforcePermission()` tidak diberi entri untuk method ini
+- [x] 21. `routes/web.php`: `POST`, `DELETE`, dan `GET` pada `/users/{user}/signature`, ditempatkan bersebelahan dengan route `users.image`
 
 ## T05: Akses Berkas TTD
 
-- [ ] 22. `app/Services/Core/Approval/ApprovalAccessService.php`: pindahkan logika `canAccessApprovalInstance()` dari `ApprovalInstanceController` ke service tanpa mengubah perilakunya
-- [ ] 23. `ApprovalInstanceController`: panggil service T05.22, hapus method privatnya
-- [ ] 24. `UserController::showSignature()`: 404 bila tidak ada TTD; 403 kecuali pemohon adalah pemilik akun atau berhak melihat suatu `ApprovalInstance` tempat pemilik TTD tercatat sebagai `acted_by_id`; sajikan dengan `Cache-Control: private`
+- [x] 22. `app/Services/Core/Approval/ApprovalAccessService.php`: pindahkan logika `canAccessApprovalInstance()` dari `ApprovalInstanceController` ke service tanpa mengubah perilakunya
+- [x] 23. `ApprovalInstanceController`: panggil service T05.22, hapus method privatnya
+- [x] 24. `UserController::showSignature()`: 404 bila tidak ada TTD; 403 kecuali pemohon adalah pemilik akun atau berhak melihat suatu `ApprovalInstance` tempat pemilik TTD tercatat sebagai `acted_by_id`; sajikan dengan `Cache-Control: private`
 
 **Checkpoint 2** — jalankan `php artisan test --compact --filter=ApprovalInstance` untuk memastikan ekstraksi T05.22 tidak mengubah perilaku approval yang sudah ada.
 
