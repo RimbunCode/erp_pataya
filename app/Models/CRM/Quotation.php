@@ -57,8 +57,9 @@ class Quotation extends Model {
             'order' => 3,
         ],
         'amount' => [
-            'show'  => true,
-            'order' => 4,
+            'show'           => true,
+            'order'          => 4,
+            'groupAggregate' => 'sum',
         ],
         'status' => [
             'show'  => true,

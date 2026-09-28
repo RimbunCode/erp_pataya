@@ -9,11 +9,6 @@ vi.mock("laravel-react-i18n", () => ({
   }),
 }));
 
-vi.mock("@/Components/Table/Table2", () => ({
-  DATE_GROUP_GRANULARITIES: ["day", "month", "quarter", "half", "year"],
-  DEFAULT_NUMBER_GROUP_RANGE_OPTIONS: [10, 100, 1000],
-}));
-
 // SaveFilterControl asli (isian nama inline + axios) sudah punya test
 // sendiri di FilterTable2.rtl.test.jsx -- di sini cukup stub yang
 // mengekspos props yang diteruskan SearchPanel.
@@ -45,7 +40,6 @@ const columns = {
   created_at: { name: "created_at", title: "Dibuat", type: "date" },
 };
 const groupOptions = [
-  { value: "__no_group__", label: "Tidak ada" },
   { value: "customer", label: "Customer" },
   { value: "created_at", label: "Dibuat" },
 ];
@@ -71,7 +65,7 @@ const renderPanel = (overrides = {}) => {
     onClearAll: vi.fn(),
     hasFilters: true,
     groupOptions,
-    group: { column: null, granularity: null, range: null },
+    group: [],
     onGroupChange: vi.fn(),
     columnList: [
       { name: "created_at", label: "Dibuat" },
@@ -228,58 +222,124 @@ describe("SearchPanel — kolom Filter Tersimpan", () => {
   });
 });
 
-describe("SearchPanel — kolom Group by", () => {
-  it("dirender bila groupOptions tidak kosong; pilih kolom -> onGroupChange default", async () => {
+describe("SearchPanel — kolom Group by (GroupLevelsEditor)", () => {
+  const groupSectionOf = () =>
+    screen.getByText("TR:core.datatable.group_by").closest("section");
+  const groupRows = () =>
+    within(groupSectionOf())
+      .getAllByRole("checkbox")
+      .map((row) => ({
+        label: row.getAttribute("aria-label"),
+        checked: row.getAttribute("aria-checked"),
+      }));
+
+  it("dirender bila groupOptions tidak kosong; centang kolom -> onGroupChange(Groups) dgn default kolom itu", async () => {
     const user = userEvent.setup({ delay: null });
     const props = renderPanel();
 
     expect(screen.getByText("TR:core.datatable.group_by")).toBeInTheDocument();
+    expect(groupRows()).toEqual([
+      { label: "Customer", checked: "false" },
+      { label: "Dibuat", checked: "false" },
+    ]);
 
     // "Dibuat" juga ada di daftar Kolom -- cari di dalam seksi Group saja.
-    const groupSection = screen
-      .getByText("TR:core.datatable.group_by")
-      .closest("section");
-    await user.click(within(groupSection).getByText("Dibuat"));
+    await user.click(
+      within(groupSectionOf()).getByRole("checkbox", { name: "Dibuat" }),
+    );
 
-    expect(props.onGroupChange).toHaveBeenCalledWith({
-      column: "created_at",
-      granularity: "month",
-      range: null,
-    });
+    expect(props.onGroupChange).toHaveBeenCalledWith([
+      { column: "created_at", granularity: "month", range: null },
+    ]);
   });
 
-  it("kolom date aktif menampilkan granularity; klik mengganti granularity", async () => {
+  it("mencentang kolom lain saat sudah ada level aktif menambahnya sbg level TERDALAM", async () => {
     const user = userEvent.setup({ delay: null });
     const props = renderPanel({
-      group: { column: "created_at", granularity: "month", range: null },
+      group: [{ column: "customer", granularity: null, range: null }],
     });
 
     await user.click(
-      screen.getByRole("button", {
+      within(groupSectionOf()).getByRole("checkbox", { name: "Dibuat" }),
+    );
+
+    expect(props.onGroupChange).toHaveBeenCalledWith([
+      { column: "customer", granularity: null, range: null },
+      { column: "created_at", granularity: "month", range: null },
+    ]);
+  });
+
+  it("level aktif tampil di ATAS (berurutan), dibatasi divider dari kolom non-aktif", () => {
+    renderPanel({
+      group: [{ column: "created_at", granularity: "year", range: null }],
+    });
+
+    expect(groupRows()).toEqual([
+      { label: "Dibuat", checked: "true" },
+      { label: "Customer", checked: "false" },
+    ]);
+    expect(within(groupSectionOf()).getByRole("separator")).toBeInTheDocument();
+  });
+
+  it("kolom date aktif menampilkan Select granularity; memilih opsi lain mengganti granularity saja", async () => {
+    const user = userEvent.setup({ delay: null });
+    const props = renderPanel({
+      group: [{ column: "created_at", granularity: "month", range: null }],
+    });
+
+    await user.click(
+      within(groupSectionOf()).getByRole("combobox", {
+        name: "TR:core.datatable.group_levels.granularity",
+      }),
+    );
+    await user.click(
+      await screen.findByRole("option", {
         name: "TR:core.datatable.granularity.quarter",
       }),
     );
 
-    expect(props.onGroupChange).toHaveBeenCalledWith({
-      column: "created_at",
-      granularity: "quarter",
-      range: null,
-    });
+    expect(props.onGroupChange).toHaveBeenCalledWith([
+      { column: "created_at", granularity: "quarter", range: null },
+    ]);
   });
 
-  it("'Tidak ada' mengosongkan group", async () => {
+  it("menghapus centang level aktif terakhir mengosongkan group ([])", async () => {
     const user = userEvent.setup({ delay: null });
     const props = renderPanel({
-      group: { column: "customer", granularity: null, range: null },
+      group: [{ column: "customer", granularity: null, range: null }],
     });
 
-    await user.click(screen.getByText("Tidak ada"));
+    await user.click(
+      within(groupSectionOf()).getByRole("checkbox", { name: "Customer" }),
+    );
 
-    expect(props.onGroupChange).toHaveBeenCalledWith({
-      column: null,
-      granularity: null,
-      range: null,
+    expect(props.onGroupChange).toHaveBeenCalledWith([]);
+  });
+
+  it("handle urutan yang SEDANG diangkat keyboard (aria-pressed) tidak dicuri panah panel: fokus tetap di handle", async () => {
+    const user = userEvent.setup({ delay: null });
+    renderPanel({
+      group: [
+        { column: "customer", granularity: null, range: null },
+        { column: "created_at", granularity: "month", range: null },
+      ],
     });
+    const handle = within(groupSectionOf()).getAllByRole("button", {
+      name: "TR:core.datatable.group_levels.drag_handle",
+    })[1];
+    // dnd-kit menandai handle yang sedang diangkat dgn aria-pressed="true"
+    // (aria-roledescription="sortable" sudah dipasang useSortable).
+    expect(handle).toHaveAttribute("aria-roledescription", "sortable");
+    handle.focus();
+    handle.setAttribute("aria-pressed", "true");
+
+    await user.keyboard("{ArrowUp}");
+    expect(document.activeElement).toBe(handle);
+
+    // Tanpa drag aktif, panah tetap berfungsi sbg navigasi antar item panel.
+    handle.removeAttribute("aria-pressed");
+    await user.keyboard("{ArrowUp}");
+    expect(document.activeElement).not.toBe(handle);
   });
 
   it("tanpa groupOptions (atau kosong) kolom Group by tidak dirender", () => {
@@ -289,14 +349,11 @@ describe("SearchPanel — kolom Group by", () => {
     ).not.toBeInTheDocument();
   });
 
-  it("GroupPicker memakai lebar penuh kolom grid (bukan w-64 tetap) -- regresi visual: 'Group by melebihi batasnya'", () => {
+  it("GroupLevelsEditor memakai lebar penuh kolom grid (bukan w-64 tetap) -- regresi visual: 'Group by melebihi batasnya'", () => {
     renderPanel();
-    const groupSection = screen
-      .getByText("TR:core.datatable.group_by")
-      .closest("section");
-    // Root GroupPicker = anak langsung <ul> daftar opsi di section ini.
-    const groupRoot = within(groupSection)
-      .getByText("Dibuat")
+    // Root editor = orang tua <ul> daftar kolom di section ini.
+    const groupRoot = within(groupSectionOf())
+      .getByRole("checkbox", { name: "Dibuat" })
       .closest("ul").parentElement;
     expect(groupRoot.className).toContain("w-full");
     expect(groupRoot.className).not.toContain("w-64");
@@ -385,7 +442,7 @@ describe("SearchPanel — navigasi keyboard roving-tabindex (Requirement 33)", (
   const focusables = (section) =>
     Array.from(
       section.querySelectorAll(
-        'button:not([disabled]), [href], input:not([disabled]), [tabindex]:not([tabindex="-1"])',
+        'button:not([disabled]):not([tabindex="-1"]), [href], input:not([disabled]):not([tabindex="-1"]), [tabindex]:not([tabindex="-1"])',
       ),
     );
 

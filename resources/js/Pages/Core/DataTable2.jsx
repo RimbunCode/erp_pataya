@@ -70,10 +70,21 @@ import React from "react";
 import SearchableOptionList, {
   searchableOptionFilter,
 } from "@/Components/Table/SearchableOptionList";
-import Table2, {
-  DEFAULT_NUMBER_GROUP_RANGE_OPTIONS,
-  createHeaders,
-} from "@/Components/Table/Table2";
+import GroupTree from "@/Components/Table/Group/GroupTree";
+import {
+  GroupHeaderCard,
+  GroupNodeStatusCard,
+} from "@/Components/Table/Group/GroupHeaderRow";
+import {
+  buildExpandParams,
+  groupsFromQuery,
+  groupsToQuery,
+  inheritFromDefaults,
+  normalizeGroupLevels,
+  sameGroups,
+  sameRootLevel,
+} from "@/Components/Table/Group/groupLevels";
+import Table2, { createHeaders } from "@/Components/Table/Table2";
 import axios from "axios";
 import { compareLabels } from "@/lib/compareLabels";
 import { createFilterGroup, createFilterItem } from "@/Hooks/useNestedFilters";
@@ -86,23 +97,56 @@ import { useIsMobile } from "@/Hooks/use-mobile";
 import { useLaravelReactI18n } from "laravel-react-i18n";
 import usePermission from "@/Hooks/usePermission";
 
-// Radix Select menolak SelectItem dengan value="" (dipakai internal utk
-// clear/reset) -- sentinel non-kosong ini dikonversi balik ke null di
-// onValueChange sebelum masuk options.group.
-const NO_GROUP_VALUE = "__no_group__";
+// Requirement 24 (permintaan user): sebagian perubahan `options` (mode grup
+// aktif) tak perlu reload Inertia -- level-0 (`data` grup, dari server) tetap
+// valid, cukup diperbarui via fetch TanStack node yang sudah ada (GroupTree).
+// Hanya berlaku bila TEPAT SATU field `options` berubah per aksi (selain
+// `page`, yang di-reset ke 1 oleh semua setter tapi tak relevan di 2 rule ini
+// krn level-0 sendiri tak tersentuh):
+//   - "group-sublevel": array `group` berubah, TAPI level 0 (kolom terluar)
+//     identik -- daftar grup level-0 tetap sama, cuma isi di bawahnya (level 1+)
+//     yang berbeda.
+//   - "sort-leaf-only": `sort` berubah ke kolom yang BUKAN kolom grup manapun
+//     & BUKAN kolom groupAggregate -- urutan baris GRUP (level manapun) tak
+//     terpengaruh (backend `GroupNodeQuery::applyGroupOrder` cuma reaksi ke
+//     `group_key`/aggregate), cuma urutan baris LEAF (dalam grup yang sudah
+//     dibuka) yang berubah.
+//   - Selain itu (termasuk `group` yang level-0-nya beda, atau tanpa grup
+//     aktif sama sekali): "full" -- reload Inertia spt sebelumnya.
+const optionsFieldChanged = (key, prev, next) =>
+  key === "group" ? !sameGroups(prev, next) : prev !== next;
 
-// Default granularity/range utk kolom grup BARU -- selalu reset (bukan reuse
-// dari kolom grup sebelumnya), krn lebar range yg masuk akal spesifik per
-// kolom (quantity vs amount beda skala jauh). Dipakai setGroup() DAN
-// onPickSaved() (saved filter yg tak menyimpan granularity/range).
-const groupDefaultsFor = (column) => ({
-  granularity: ["date", "time", "datetime"].includes(column?.type)
-    ? "month"
-    : null,
-  range: ["number", "currency"].includes(column?.type)
-    ? (column?.groupRangeOptions?.[0] ?? DEFAULT_NUMBER_GROUP_RANGE_OPTIONS[0])
-    : null,
-});
+export function classifyOptionsChange(
+  prev,
+  next,
+  { groupAggregateColumns, hasGroupTree },
+) {
+  // Tanpa pohon grup AKTIF di server (`groupMeta`, lihat groupTreeProps),
+  // tabel merender jalur DATAR (`data.data` server apa adanya) -- override
+  // lokal tak akan berefek di mana pun (tak ada GroupTree utk diperbarui),
+  // jadi sort/group manapun WAJIB tetap reload Inertia.
+  if (!hasGroupTree) return "full";
+  const changedKeys = Object.keys(next).filter(
+    (key) => key !== "page" && optionsFieldChanged(key, prev[key], next[key]),
+  );
+  if (changedKeys.length !== 1) return "full";
+  const [key] = changedKeys;
+
+  if (key === "group") {
+    if (next.group.length === 0 || prev.group.length === 0) return "full";
+    return sameRootLevel(prev.group, next.group) ? "group-sublevel" : "full";
+  }
+  if (key === "sort" && next.group.length > 0) {
+    const sortKey = next.sort?.startsWith("-")
+      ? next.sort.slice(1)
+      : (next.sort ?? "");
+    const groupColumns = next.group.map((level) => level.column);
+    if (groupColumns.includes(sortKey)) return "full";
+    if (groupAggregateColumns.includes(sortKey)) return "full";
+    return "sort-leaf-only";
+  }
+  return "full";
+}
 
 /**
  * @namespace DataTable
@@ -198,10 +242,8 @@ export default memo(
       translateKey,
       model,
       name,
-      groupCounts,
-      defaultGroup,
-      defaultGroupGranularity,
-      defaultGroupRange,
+      groupMeta,
+      defaultGroups,
       searchScope,
     } = usePage().props;
     const { can } = usePermission(model);
@@ -215,13 +257,17 @@ export default memo(
     // Disimpan di `options` agar ikut ke URL & memicu reload otomatis.
     const initialShow =
       query?.show ?? getCookieByName("datatable_show") ?? numPerPage;
-    // Group efektif tanpa param (filter aktif ?? default model, dari BE) hanya
-    // membawa granularity/range-nya bila kolom grup awal MEMANG kolom default
-    // itu -- `?group=<kolom lain>` di URL tak boleh mewarisi granularity kolom
-    // default.
-    const initialGroup = query?.group ?? defaultGroup ?? null;
-    const groupIsDefault =
-      initialGroup !== null && initialGroup === defaultGroup;
+    // Group awal (`Groups`, spec datatable2-group-tree): `?group=` di URL (skalar
+    // lama dipetakan ke level pertama) > group efektif tanpa param dari BE
+    // (`defaultGroups`: filter aktif ?? default model). `?group=` KOSONG = user
+    // sengaja "Tidak ada" -> `[]` (BUKAN default). Level dari URL yg tak menyebut
+    // granularity/range mewarisi dari level default dgn kolom SAMA -- cermin
+    // GroupLevelResolver di backend.
+    const fromUrl = groupsFromQuery(query);
+    const initialGroups =
+      fromUrl === null
+        ? normalizeGroupLevels(defaultGroups)
+        : inheritFromDefaults(fromUrl, defaultGroups);
     const [options, setOptions] = useState({
       sort: query?.sort ?? defaultSort,
       // Tanpa ?fid= eksplisit: pakai default shared filter (Filter Templates)
@@ -230,20 +276,13 @@ export default memo(
       fid: query?.fid ?? defaultFilterId ?? null,
       page: query?.page ?? 1,
       show: initialShow,
-      // `?group=` KOSONG ("") = user sengaja "Tidak ada" -> `??` sengaja tak
-      // menimpanya dgn defaultGroup (default model dari BE, lihat setGroup).
-      group: query?.group ?? defaultGroup ?? null,
-      // Bucket grup date/time/datetime (day/month/quarter/half/year) & number/
-      // currency (lebar range) -- lihat setGroup(). null kalau kolom grup
-      // aktif bukan tipe bucket (mis. string/relation/boolean).
-      groupGranularity:
-        query?.groupGranularity ??
-        (groupIsDefault ? defaultGroupGranularity : null) ??
-        null,
-      groupRange:
-        query?.groupRange ??
-        (groupIsDefault ? defaultGroupRange : null) ??
-        null,
+      // `Groups` kanonik (urutan = nesting, maks 4). Bentuk kawat URL
+      // (`group=a,b`, `groupGranularity[a]`, `groupRange[b]`) dibuat HANYA di
+      // loadData() lewat groupsToQuery().
+      group: initialGroups,
+      // Arah urutan baris grup menurut nilai grup (klik ikon chip group) --
+      // TERPISAH dari `sort` tabel. Hanya `desc` yang dikirim ke URL.
+      groupSort: query?.groupSort === "desc" ? "desc" : "asc",
     });
     const show = options.show;
     // Kalau `show` (mis. dari query param) tak ada di daftar preference, paksa
@@ -395,56 +434,72 @@ export default memo(
           .sort((a, b) => compareLabels(a.label, b.label, locale)),
       [columns, t, locale],
     );
-    // "Tidak ada" tetap paling atas, kolom sisanya diurut abjad.
+    // Semua kolom groupable, diurut abjad. TANPA sentinel "Tidak ada" -- "tidak
+    // ada" = `Groups` kosong. Dipakai GroupLevelsEditor di Search Bar.
     const groupOptions = useMemo(
-      () => [
-        { value: NO_GROUP_VALUE, label: t("core.datatable.no_grouping") },
-        ...groupableColumns
+      () =>
+        groupableColumns
           .map((x) => ({
             value: x.name,
             label: x.title ?? t(x.titleTrans),
           }))
           .sort((a, b) => compareLabels(a.label, b.label, locale)),
-      ],
       [groupableColumns, t, locale],
     );
-    // Group aktif utk Search Bar (chip `group`) & snapshot simpan. `range`
-    // dinormalkan ke Number (dari URL berupa string) supaya perbandingan
-    // dirty vs saved filter tak salah-deteksi.
-    const currentGroup = useMemo(
-      () =>
-        options.group
-          ? {
-              column: options.group,
-              granularity: options.groupGranularity ?? null,
-              range:
-                options.groupRange != null ? Number(options.groupRange) : null,
-            }
-          : null,
-      [options.group, options.groupGranularity, options.groupRange],
-    );
 
+    // `Groups` -> bentuk kawat (`group=a,b`, `groupGranularity[a]`, ...)
+    // dilebur ke param lain di sini, satu-satunya tempat -- dipakai loadData()
+    // (reload Inertia) MAUPUN jalur lokal Requirement 24 (replaceState, tanpa
+    // fetch) supaya URL bar selalu konsisten dgn cara yang sama.
+    const buildOptionsUrl = useCallback(
+      (opts) => {
+        const { group, groupSort, ...rest } = opts;
+        // `groupSort` (arah urutan grup menurut nilai) hanya dikirim bila `desc`
+        // DAN ada group aktif; `asc` = default backend, param dihilangkan.
+        const groupSortParam =
+          groupSort === "desc" && group.length > 0 ? { groupSort } : {};
+        // "Tidak ada" harus mengirim `group=` KOSONG bila ada group yang bisa
+        // jatuh kembali dipakai backend: default model, ATAU group milik filter
+        // tersimpan aktif (`fid`). `defaultGroups` saja tak cukup -- ia dimuat
+        // sebelum user memilih filter tersimpan (partial reload tak
+        // menyegarkannya), sehingga chip group dihapus setelah memilih filter yang
+        // ber-group malah tak berefek (param hilang -> backend memakai group filter).
+        const hasFallbackGroups =
+          normalizeGroupLevels(defaultGroups).length > 0 || rest.fid != null;
+        return (
+          window.location.pathname +
+          "?" +
+          // skipNulls -- option null (fid/dst saat tidak aktif) dihilangkan
+          // dari querystring, bukan tampil sbg `key=` kosong yang mengotori URL.
+          QueryString.stringify(
+            {
+              ...rest,
+              ...groupsToQuery(group, hasFallbackGroups),
+              ...groupSortParam,
+            },
+            { skipNulls: true },
+          )
+        );
+      },
+      [defaultGroups],
+    );
     const loadData = useCallback(() => {
       router.get(
-        window.location.pathname +
-          "?" +
-          // skipNulls -- option null (group/fid/groupGranularity/dst saat
-          // tidak aktif) dihilangkan dari querystring, bukan tampil sbg
-          // `key=` kosong yang mengotori URL.
-          QueryString.stringify(options, { skipNulls: true }),
+        buildOptionsUrl(options),
         {},
         {
           // reset: prop yang direset (bentuk "only" bagi Inertia -- partial
           // reload cuma fetch ulang prop di daftar ini, lihat komentar loadData
-          // di bawah). groupCounts WAJIB ikut, kalau tidak partial reload
-          // (mis. ganti Group by) tidak pernah membawa count baru dari server.
-          reset: ["data", "ziggy", "groupCounts"],
+          // di bawah). groupMeta WAJIB ikut, kalau tidak partial reload
+          // (mis. ganti Group by) tidak pernah membawa level/agregat baru dari
+          // server.
+          reset: ["data", "ziggy", "groupMeta"],
           preserveScroll: true,
           preserveState: true,
           replace: true,
         },
       );
-    }, [options]);
+    }, [options, buildOptionsUrl]);
     // Konvensi sort: prefix `-` = descending, tanpa prefix = ascending.
     // Parse via startsWith agar key ber-dash / nested (`rel.col`) tetap utuh.
     const parseSort = (sortStr) => {
@@ -477,51 +532,70 @@ export default memo(
         };
       });
     }, []);
-    const setGroup = useCallback(
-      (name) => {
-        // Sort TIDAK lagi dikunci ke kolom grup -- backend SELALU urutkan
-        // primer by kolom grup (SQL mendukung multi-kolom ORDER BY), sort
-        // user/default di sini jadi sekunder (tie-breaker dalam tiap grup).
-        // Lihat DataTableScope::addDataTable().
-        const column = name ? mapColumns[name] : null;
-        const defaults = groupDefaultsFor(column);
-        setOptions((prev) => ({
-          ...prev,
-          // "Tidak ada": bila model punya default group, kirim "" (URL bawa
-          // `group=` kosong) -- param yg HILANG (null, dibuang skipNulls) akan
-          // membuat BE memakai default lagi. Tanpa default, null cukup.
-          group: name || (defaultGroup ? "" : null),
-          groupGranularity: defaults.granularity,
-          groupRange: defaults.range,
-          page: 1,
-        }));
-      },
-      [mapColumns, defaultGroup],
-    );
-    // Dipanggil Search Bar (chip/saran/Panel ▾/ChipEditor) -- granularity &
-    // range SUDAH dihitung pemanggil (default kolom baru, atau nilai yg
-    // diedit user), jadi di sini diterapkan apa adanya. `column` kosong =
-    // "Tidak ada" -> lewat setGroup(null) supaya semantik `group=` KOSONG
-    // (menimpa default model/filter) tetap satu tempat.
-    const onGroupChange = useCallback(
-      ({ column, granularity, range }) => {
-        if (!column) {
-          setGroup(null);
-          return;
-        }
-        setOptions((prev) => ({
-          ...prev,
-          group: column,
-          groupGranularity: granularity ?? null,
-          groupRange: range ?? null,
-          page: 1,
-        }));
-      },
-      [setGroup],
+    // Dipanggil Search Bar (chip/saran/Panel ▾/ChipEditor) dgn `Groups` BARU --
+    // granularity/range SUDAH dihitung pemanggil (default kolom baru, atau nilai
+    // yg diedit user), jadi diterapkan apa adanya. `[]` = "Tidak ada": lewat
+    // groupsToQuery() jadi `group=` KOSONG bila model punya default (menimpa
+    // default/filter), selain itu param dihilangkan.
+    const onGroupChange = useCallback((groups) => {
+      setOptions((prev) => ({
+        ...prev,
+        group: normalizeGroupLevels(groups),
+        page: 1,
+      }));
+    }, []);
+    // Klik ikon chip group: balik arah urutan baris grup menurut nilai grup.
+    // Langsung berlaku (debounce reload yang sama), TIDAK menyentuh `sort` tabel.
+    const onGroupSortChange = useCallback((direction) => {
+      setOptions((prev) => ({
+        ...prev,
+        groupSort: direction === "desc" ? "desc" : "asc",
+        page: 1,
+      }));
+    }, []);
+    // Requirement 24 (permintaan user): override lokal hasil rule
+    // "group-sublevel"/"sort-leaf-only" (classifyOptionsChange) -- diterapkan
+    // ke tampilan TANPA reload Inertia. `null` = ikuti server (`groupMeta`/
+    // `query`) apa adanya. Direset begitu server kirim `groupMeta` BARU
+    // (reload sungguhan benar2 terjadi) supaya override yang basi tak pernah
+    // "menang" atas data server yang lebih baru.
+    const [localOverride, setLocalOverride] = useState(null); // { group?, sort? } | null
+    // Naik HANYA saat rule "group-sublevel" diterapkan -- lihat GroupTree.jsx
+    // (menutup paksa node terbuka di kedalaman >=1, identitasnya tak valid
+    // lagi setelah kolom sub-level berganti).
+    const [subLevelVersion, setSubLevelVersion] = useState(0);
+    const prevCommittedOptionsRef = useRef(options);
+    useEffect(() => {
+      setLocalOverride(null);
+    }, [groupMeta]);
+    const groupAggregateColumns = useMemo(
+      () => (groupMeta?.aggregates ?? []).map((a) => a.column),
+      [groupMeta],
     );
     useDidMountEffect(() => {
       const reloadData = setTimeout(() => {
-        loadData();
+        const prev = prevCommittedOptionsRef.current;
+        const decision = classifyOptionsChange(prev, options, {
+          groupAggregateColumns,
+          hasGroupTree: Boolean(groupMeta),
+        });
+        if (decision === "group-sublevel") {
+          setLocalOverride((prevOverride) => ({
+            ...prevOverride,
+            group: options.group,
+          }));
+          setSubLevelVersion((v) => v + 1);
+          window.history.replaceState(null, "", buildOptionsUrl(options));
+        } else if (decision === "sort-leaf-only") {
+          setLocalOverride((prevOverride) => ({
+            ...prevOverride,
+            sort: options.sort,
+          }));
+          window.history.replaceState(null, "", buildOptionsUrl(options));
+        } else {
+          loadData();
+        }
+        prevCommittedOptionsRef.current = options;
       }, 500);
 
       return () => clearTimeout(reloadData);
@@ -634,35 +708,32 @@ export default memo(
     // group sekaligus, tanpa POST baru (setara `useExisting` di
     // onApplyFilters). sort/group `null` di saved filter = tak mengatur, jadi
     // JANGAN override nilai aktif.
-    const onPickSaved = useCallback(
-      (saved) => {
-        if (!saved?.id) return;
-        if (saved.filter) setFilterTree(saved.filter);
-        setOptions((prev) => {
-          const next = {
-            ...prev,
-            fid: saved.id,
-            sort: saved.sort ?? prev.sort,
-            page: 1,
-          };
-          if (saved.group?.column) {
-            const defaults = groupDefaultsFor(mapColumns[saved.group.column]);
-            next.group = saved.group.column;
-            next.groupGranularity =
-              saved.group.granularity ?? defaults.granularity;
-            next.groupRange = saved.group.range ?? defaults.range;
-          }
-          return next;
-        });
-      },
-      [mapColumns],
-    );
+    const onPickSaved = useCallback((saved) => {
+      if (!saved?.id) return;
+      if (saved.filter) setFilterTree(saved.filter);
+      setOptions((prev) => {
+        const next = {
+          ...prev,
+          fid: saved.id,
+          sort: saved.sort ?? prev.sort,
+          page: 1,
+        };
+        // `group` saved filter = `Groups` (list) atau null (tak mengatur).
+        const savedGroups = normalizeGroupLevels(saved.group);
+        if (savedGroups.length > 0) next.group = savedGroups;
+        return next;
+      });
+    }, []);
 
     // Snapshot tampilan utk "Simpan sebagai baru"/"Timpa" & deteksi dirty
-    // saved filter sumber (sort + group aktif).
+    // saved filter sumber (sort + group aktif). `group` kosong -> null ("tak
+    // mengatur group", tak menimpa group aktif saat filter diterapkan).
     const getViewSnapshot = useCallback(
-      () => ({ sort: options.sort ?? null, group: currentGroup }),
-      [options.sort, currentGroup],
+      () => ({
+        sort: options.sort ?? null,
+        group: options.group.length > 0 ? options.group : null,
+      }),
+      [options.sort, options.group],
     );
 
     // Kolom yg dicari chip "Cari": searchScope model (sudah disanitasi BE),
@@ -695,6 +766,67 @@ export default memo(
         persistFilterTree(nextTree).catch(() => {});
       },
     }));
+    // Pohon grup (spec datatable2-group-tree). `resetKey` = URL yang dirender
+    // SERVER (ziggy.query), BUKAN `options` pending yang di-debounce 500 ms --
+    // kalau memakai options, tabel lama menutup sebelum data baru tiba.
+    // `version` naik tiap identitas `data` level-0 berganti (mis. setelah
+    // hapus/redirect ke URL yang sama, atau tombol Reload): node terbuka
+    // di-refetch, tapi state terbuka TIDAK direset (resetKey tak berubah).
+    // Requirement 24: `localOverride` (rule "group-sublevel"/"sort-leaf-only")
+    // menang atas `groupMeta.levels`/`query.sort` server SELAMA belum ada
+    // reload sungguhan (lihat efek yang membersihkannya di atas). Bentuk
+    // `localOverride.group` (`options.group`, {column,granularity,range}[])
+    // kompatibel dgn yang dibutuhkan GroupHeaderRow -- `type`/`title`/dst
+    // selalu di-lookup client-side dari `mapColumns[level.column]` (Table2.jsx
+    // `columnMeta={headers?.[args.level?.column]}`), bukan dari objek level
+    // itu sendiri, jadi tak perlu meniru bentuk lengkap balasan server.
+    const effectiveLevels = localOverride?.group ?? groupMeta?.levels;
+    const effectiveQuery = localOverride?.sort
+      ? { ...query, sort: localOverride.sort }
+      : query;
+    const groupTreeProps = useMemo(
+      () =>
+        groupMeta
+          ? {
+              levels: effectiveLevels,
+              aggregates: groupMeta.aggregates,
+              baseParams: buildExpandParams(effectiveQuery, effectiveLevels),
+              pathname: window.location.pathname,
+              resetKey: JSON.stringify(query ?? {}),
+              subLevelVersion,
+            }
+          : null,
+      [groupMeta, query, effectiveLevels, effectiveQuery, subLevelVersion],
+    );
+    const dataVersionRef = useRef({ data, version: 0 });
+    if (dataVersionRef.current.data !== data) {
+      dataVersionRef.current = {
+        data,
+        version: dataVersionRef.current.version + 1,
+      };
+    }
+    const treeVersion = dataVersionRef.current.version;
+    // "1–50 / 200": rentang item halaman ini dari paginator server (`from`/`to`/
+    // `total`); tak tampil bila kosong / paginator tanpa field itu.
+    const pageRangeText =
+      data?.total > 0 && data.from != null && data.to != null
+        ? t("core.datatable.page_range", {
+            start: data.from,
+            end: data.to,
+            total: data.total,
+          })
+        : null;
+    // Kartu mobile satu baris data (`templateItem` halaman).
+    const mobileItem = (row) =>
+      templateItem?.({
+        dataRow: row,
+        // Pass closure — JANGAN panggil deleteItem() saat render
+        // (memicu setState store DeleteDialog selama render).
+        deleteItem: () =>
+          deleteItem(`${pluralize.plural(name ?? "")}.destroy`, row.id, {
+            usePasswordConfirmation: usePasswordConfirmationForDelete,
+          }),
+      });
     const setShowNumber = useCallback((value) => {
       // Update `options.show` → ikut ke URL (?show=) → backend persist cookie
       // `datatable_show` pada path ini. Reset ke page 1 agar tak out-of-range.
@@ -791,12 +923,16 @@ export default memo(
                 activeFid={options.fid}
                 onPickSaved={onPickSaved}
                 getViewSnapshot={getViewSnapshot}
-                group={currentGroup}
+                group={options.group}
                 groupOptions={
                   groupableColumns.length > 0 ? groupOptions : undefined
                 }
                 onGroupChange={
                   groupableColumns.length > 0 ? onGroupChange : undefined
+                }
+                groupSort={options.groupSort}
+                onGroupSortChange={
+                  groupableColumns.length > 0 ? onGroupSortChange : undefined
                 }
                 onOpenBuilder={(draftTree) => {
                   setBuilderDraftFilter(draftTree ?? null);
@@ -945,24 +1081,46 @@ export default memo(
             {isMobile ? (
               <div className="flex flex-col flex-1 min-h-0 overflow-y-auto">
                 {data?.data && data.data.length > 0 ? (
-                  data.data.map((x) => {
-                    const item = templateItem?.({
-                      dataRow: x,
-                      // Pass closure — JANGAN panggil deleteItem() saat render
-                      // (memicu setState store DeleteDialog selama render).
-                      deleteItem: () =>
-                        deleteItem(
-                          `${pluralize.plural(name ?? "")}.destroy`,
-                          x.id,
-                          {
-                            usePasswordConfirmation:
-                              usePasswordConfirmationForDelete,
-                          },
-                        ),
-                    });
-                    if (!item) return null;
-                    return cloneElement(item, { key: x.id, ...item.props });
-                  })
+                  groupTreeProps ? (
+                    <GroupTree
+                      key={groupTreeProps.resetKey}
+                      rootItems={data.data}
+                      levels={groupTreeProps.levels}
+                      baseParams={groupTreeProps.baseParams}
+                      pathname={groupTreeProps.pathname}
+                      version={treeVersion}
+                      subLevelVersion={groupTreeProps.subLevelVersion}
+                      // Mobile: isi tiap grup dimuat lewat INFINITE SCROLL
+                      // (bukan pager); daftar grup level-0 tetap dipaginasi
+                      // Pagination di footer.
+                      infinite
+                      renderGroupHeader={(args) => (
+                        <GroupHeaderCard
+                          {...args}
+                          columnMeta={mapColumns[args.level?.column]}
+                          aggregates={groupTreeProps.aggregates}
+                          columns={mapColumns}
+                        />
+                      )}
+                      renderRow={(row) => mobileItem(row) ?? null}
+                      renderLoading={({ depth }) => (
+                        <GroupNodeStatusCard depth={depth} />
+                      )}
+                      renderError={({ depth, onRetry }) => (
+                        <GroupNodeStatusCard
+                          depth={depth}
+                          error
+                          onRetry={onRetry}
+                        />
+                      )}
+                    />
+                  ) : (
+                    data.data.map((x) => {
+                      const item = mobileItem(x);
+                      if (!item) return null;
+                      return cloneElement(item, { key: x.id, ...item.props });
+                    })
+                  )
                 ) : (
                   <NoDataImg className="self-center w-full max-w-sm" />
                 )}
@@ -978,10 +1136,11 @@ export default memo(
                 setSort={setSort}
                 resetSorting={resetSorting}
                 onOptionsChanged={setOptions}
-                groupBy={options.group || null}
-                groupCounts={groupCounts}
-                groupGranularity={options.groupGranularity}
-                groupRange={options.groupRange}
+                group={
+                  groupTreeProps
+                    ? { ...groupTreeProps, version: treeVersion }
+                    : undefined
+                }
               />
             )}
             <div
@@ -1010,12 +1169,25 @@ export default memo(
                   </Select>
                 </div>
               )}
-              <Pagination
-                currentPage={Number(options.page)}
-                totalPages={data.last_page ?? 1}
-                onPageChanged={(page) => setOptions({ ...options, page })}
-                className="justify-end"
-              />
+              {/* Info jumlah data (mis. "1–50 / 200") di sebelah kontrol
+                  halaman, format sama dgn pager row group. Saat grouping
+                  aktif, angkanya menghitung GRUP level-0 (yang dipaginasi). */}
+              <div className="flex items-center gap-x-3 ml-auto">
+                {pageRangeText && (
+                  <span
+                    data-testid="page-range"
+                    className="text-sm text-muted-foreground whitespace-nowrap"
+                  >
+                    {pageRangeText}
+                  </span>
+                )}
+                <Pagination
+                  currentPage={Number(options.page)}
+                  totalPages={data.last_page ?? 1}
+                  onPageChanged={(page) => setOptions({ ...options, page })}
+                  className="justify-end"
+                />
+              </div>
             </div>
           </div>
         </AppLayout>

@@ -1,5 +1,12 @@
 import { describe, expect, it, vi, beforeEach, afterEach } from "vitest";
-import { act, render, screen, waitFor, within } from "@testing-library/react";
+import {
+  act,
+  cleanup,
+  render,
+  screen,
+  waitFor,
+  within,
+} from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 
 // t harus stabil (konstanta module-level) -- DataTable2 punya beberapa
@@ -253,6 +260,38 @@ vi.mock("@/Components/Table/Pagination", () => ({
   },
 }));
 
+// GroupTree -- pohon grup lazy sudah ditest sendiri (GroupTree.rtl.test.jsx);
+// dipakai DataTable2 hanya di cabang MOBILE (desktop: lewat Table2 yang di-stub).
+// Stub capture props & memanggil render-prop persis seperti GroupTree asli:
+// header (GroupHeaderCard sungguhan) + satu baris isi per grup.
+const groupTreeProps = vi.fn();
+vi.mock("@/Components/Table/Group/GroupTree", () => ({
+  default: (props) => {
+    groupTreeProps(props);
+    return (
+      <div data-testid="stub-group-tree">
+        {props.rootItems.map((item) => (
+          <div key={item.key} data-testid={`group-${item.key}`}>
+            {props.renderGroupHeader({
+              item,
+              depth: 0,
+              level: props.levels[0],
+              isOpen: true,
+              onToggle: () => {},
+              pager: null,
+            })}
+            {props.renderRow(
+              { id: `row-${item.key}`, name: `Isi ${item.key}` },
+              { depth: 1, index: 0 },
+            )}
+            {props.renderLoading({ depth: 1 })}
+          </div>
+        ))}
+      </div>
+    );
+  },
+}));
+
 vi.mock("@/Components/Table/NoDataImg", () => ({
   default: (props) => <div data-testid="stub-no-data-img" {...props} />,
 }));
@@ -314,6 +353,19 @@ const reloadParams = (index = 0) =>
 
 const simpleTree = {
   root: { k: "and", c: { a: { k: "code", o: "=", v: "S1" } } },
+};
+
+// Deskriptor level-0 (`data.data` saat grup aktif di server) + `groupMeta`.
+const groupRootData = {
+  data: [
+    { key: "S1", raw: "S1", count: 3, aggregates: {} },
+    { key: "S2", raw: "S2", count: 1, aggregates: {} },
+  ],
+  last_page: 1,
+};
+const groupMetaCode = {
+  levels: [{ column: "code", granularity: null, range: null, type: "string" }],
+  aggregates: [],
 };
 
 const dataTableColumns = {
@@ -397,6 +449,7 @@ describe("DataTable2", () => {
     searchBarProps.mockReset();
     filterTableProps.mockReset();
     paginationProps.mockReset();
+    groupTreeProps.mockReset();
     axiosGet.mockResolvedValue({ data: {} });
     axiosPost.mockResolvedValue({ data: { id: 1 } });
     usePageMock.mockReturnValue({ props: makePageProps() });
@@ -507,7 +560,7 @@ describe("DataTable2", () => {
     expect(url).toContain(window.location.pathname);
     expect(options).toEqual(
       expect.objectContaining({
-        reset: ["data", "ziggy", "groupCounts"],
+        reset: ["data", "ziggy", "groupMeta"],
         preserveScroll: true,
         preserveState: true,
         replace: true,
@@ -591,6 +644,32 @@ describe("DataTable2", () => {
 
     const [url] = routerGet.mock.calls[0];
     expect(url).toContain("page=3");
+  });
+
+  it("info jumlah data (start–end / total) tampil di sebelah kontrol halaman dari from/to/total paginator; tak tampil bila paginator tak memuatnya atau kosong", async () => {
+    mockPage({
+      data: { ...baseData, from: 51, to: 100, total: 200, last_page: 4 },
+    });
+    const first = await renderDataTable2(<DataTable2 />);
+
+    const info = screen.getByTestId("page-range");
+    expect(info).toHaveTextContent(
+      'TR:core.datatable.page_range:{"start":51,"end":100,"total":200}',
+    );
+    // Sebelah kontrol halaman: satu wadah dgn Pagination.
+    expect(info.parentElement).toContainElement(
+      screen.getByTestId("stub-pagination"),
+    );
+
+    // Tanpa from/to/total (paginator minimal) atau total 0 -> tak ada info.
+    first.unmount();
+    mockPage({});
+    await renderDataTable2(<DataTable2 />);
+    expect(screen.queryByTestId("page-range")).toBeNull();
+    cleanup();
+    mockPage({ data: { ...baseData, from: null, to: null, total: 0 } });
+    await renderDataTable2(<DataTable2 />);
+    expect(screen.queryByTestId("page-range")).toBeNull();
   });
 
   it("tombol delete (actions bawaan) memanggil deleteItem dengan route plural & id yang benar", async () => {
@@ -721,6 +800,75 @@ describe("DataTable2", () => {
         expect.objectContaining({ usePasswordConfirmation: undefined }),
       );
     });
+
+    it("grup aktif (groupMeta): merender GroupTree (bukan daftar datar) dgn deskriptor level-0, level & param expand dari server", async () => {
+      usePageMock.mockReturnValue({
+        props: makePageProps({
+          data: groupRootData,
+          groupMeta: groupMetaCode,
+          ziggy: { query: { sort: "-name", page: "2" } },
+        }),
+      });
+      const templateItem = ({ dataRow }) => (
+        <div>Mobile Row {dataRow.name}</div>
+      );
+      await renderDataTable2(<DataTable2 templateItem={templateItem} />);
+
+      expect(screen.getByTestId("stub-group-tree")).toBeInTheDocument();
+      expect(screen.queryByTestId("stub-table2")).not.toBeInTheDocument();
+      const props = groupTreeProps.mock.calls.at(-1)[0];
+      expect(props.rootItems).toBe(groupRootData.data);
+      expect(props.levels).toBe(groupMetaCode.levels);
+      expect(props.pathname).toBe(window.location.pathname);
+      expect(props.version).toBe(0);
+      // Mobile: isi grup dimuat lewat infinite scroll (bukan pager).
+      expect(props.infinite).toBe(true);
+      expect(props.baseParams).toEqual({ sort: "-name", group: "code" });
+
+      // Header (kartu) tiap grup menampilkan count; isi grup = templateItem.
+      expect(
+        within(screen.getByTestId("group-S1")).getByText("(3)"),
+      ).toBeInTheDocument();
+      expect(
+        within(screen.getByTestId("group-S2")).getByText("(1)"),
+      ).toBeInTheDocument();
+      expect(screen.getByText("Mobile Row Isi S1")).toBeInTheDocument();
+      expect(screen.getByText("Mobile Row Isi S2")).toBeInTheDocument();
+      // Status loading per node ikut dirender lewat renderLoading.
+      expect(screen.getAllByRole("status")).toHaveLength(2);
+    });
+
+    it("grup aktif: baris isi grup menerima closure deleteItem yang memanggil deleteItem hook", async () => {
+      const user = userEvent.setup({ delay: null });
+      usePageMock.mockReturnValue({
+        props: makePageProps({ data: groupRootData, groupMeta: groupMetaCode }),
+      });
+      const templateItem = ({ dataRow, deleteItem }) => (
+        <button onClick={deleteItem}>Hapus {dataRow.name}</button>
+      );
+      await renderDataTable2(<DataTable2 templateItem={templateItem} />);
+
+      await user.click(screen.getByText("Hapus Isi S1"));
+
+      expect(deleteItemSpy).toHaveBeenCalledWith(
+        "suppliers.destroy",
+        "row-S1",
+        expect.objectContaining({ usePasswordConfirmation: undefined }),
+      );
+    });
+
+    it("grup aktif tapi data kosong -> NoDataImg (bukan GroupTree kosong)", async () => {
+      usePageMock.mockReturnValue({
+        props: makePageProps({
+          data: { data: [], last_page: 1 },
+          groupMeta: groupMetaCode,
+        }),
+      });
+      await renderDataTable2(<DataTable2 />);
+
+      expect(screen.getByTestId("stub-no-data-img")).toBeInTheDocument();
+      expect(screen.queryByTestId("stub-group-tree")).not.toBeInTheDocument();
+    });
   });
 
   // -----------------------------------------------------------------------
@@ -840,9 +988,6 @@ describe("DataTable2", () => {
         screen.queryByText("TR:core.datatable.filter.filter"),
       ).not.toBeInTheDocument();
       expect(
-        screen.queryByText("TR:core.datatable.no_grouping"),
-      ).not.toBeInTheDocument();
-      expect(
         screen.queryByText("TR:core.datatable.group_by"),
       ).not.toBeInTheDocument();
     });
@@ -861,7 +1006,7 @@ describe("DataTable2", () => {
       );
       expect(props.tree).toBeNull();
       expect(props.activeFid).toBeNull();
-      expect(props.group).toBeNull();
+      expect(props.group).toEqual([]);
       expect(props.onTreeChange).toEqual(expect.any(Function));
       expect(props.onPickSaved).toEqual(expect.any(Function));
       expect(props.getViewSnapshot).toEqual(expect.any(Function));
@@ -1050,7 +1195,12 @@ describe("DataTable2", () => {
   });
 
   describe("Search Bar -> onPickSaved (terapkan saved filter: tree + fid + sort + group, tanpa POST)", () => {
-    it("menerapkan tree, fid, sort, dan group sekaligus TANPA POST; page reset ke 1; reload (debounce) membawa semuanya", async () => {
+    const codeAndDate = [
+      { column: "code", granularity: null, range: null },
+      { column: "due_date", granularity: "year", range: null },
+    ];
+
+    it("menerapkan tree, fid, sort, dan group BERTINGKAT sekaligus TANPA POST; page reset ke 1; reload (debounce) membawa semuanya", async () => {
       mockPage({
         dataTableColumns: groupingColumns,
         ziggy: { query: { page: "3", sort: "name" } },
@@ -1061,21 +1211,21 @@ describe("DataTable2", () => {
         id: 42,
         filter: simpleTree,
         sort: "-code",
-        group: { column: "code", granularity: null, range: null },
+        group: codeAndDate,
       });
 
       expect(axiosPost).not.toHaveBeenCalled();
       expect(lastSearchBarProps().tree).toBe(simpleTree);
       expect(lastFilterTableProps().initialFilters).toBe(simpleTree);
       expect(lastSearchBarProps().activeFid).toBe(42);
-      expect(lastSearchBarProps().group).toEqual({
-        column: "code",
-        granularity: null,
-        range: null,
-      });
-      expect(lastTable2Props().groupBy).toBe("code");
+      expect(lastSearchBarProps().group).toEqual(codeAndDate);
       expect(lastTable2Props().options).toEqual(
-        expect.objectContaining({ fid: 42, sort: "-code", page: 1 }),
+        expect.objectContaining({
+          fid: 42,
+          sort: "-code",
+          page: 1,
+          group: codeAndDate,
+        }),
       );
 
       // Reload lewat debounce yang sama dgn perubahan options lain.
@@ -1085,71 +1235,45 @@ describe("DataTable2", () => {
       const params = reloadParams();
       expect(params.get("fid")).toBe("42");
       expect(params.get("sort")).toBe("-code");
-      expect(params.get("group")).toBe("code");
+      expect(params.get("group")).toBe("code,due_date");
+      expect(params.get("groupGranularity[due_date]")).toBe("year");
+      expect(params.has("groupRange[due_date]")).toBe(false);
       expect(params.get("page")).toBe("1");
       expect(axiosPost).not.toHaveBeenCalled();
     });
 
-    it.each([
-      ["date -> bucket 'month'", { column: "due_date" }, "month", null],
-      [
-        "number -> opsi range PERTAMA milik kolom",
-        { column: "amount" },
-        null,
-        25,
-      ],
-      [
-        "currency tanpa groupRangeOptions -> default global",
-        { column: "price" },
-        null,
-        10,
-      ],
-      ["string -> tanpa bucket", { column: "code" }, null, null],
-      [
-        "kolom tak dikenal FE (mis. sudah tak groupable) -> tanpa bucket, tak crash",
-        { column: "ghost" },
-        null,
-        null,
-      ],
-    ])(
-      "group saved filter tanpa granularity/range memakai default kolom: %s",
-      async (_label, group, granularity, range) => {
-        mockPage({ dataTableColumns: groupingColumns });
-        await renderDataTable2(<DataTable2 />);
+    it("objek lama {column, granularity, range} (satu level) tetap dibaca sbg list satu level", async () => {
+      mockPage({ dataTableColumns: groupingColumns });
+      await renderDataTable2(<DataTable2 />);
 
-        await callSearchBar("onPickSaved", {
-          id: 5,
-          filter: simpleTree,
-          sort: null,
-          group,
-        });
+      await callSearchBar("onPickSaved", {
+        id: 5,
+        filter: simpleTree,
+        sort: null,
+        group: { column: "due_date", granularity: "year", range: null },
+      });
 
-        expect(lastSearchBarProps().group).toEqual({
-          column: group.column,
-          granularity,
-          range,
-        });
-        expect(lastTable2Props().groupGranularity).toBe(granularity);
-        expect(lastTable2Props().groupRange).toBe(range);
-      },
-    );
+      expect(lastSearchBarProps().group).toEqual([
+        { column: "due_date", granularity: "year", range: null },
+      ]);
+    });
 
     it.each([
       [
         "granularity eksplisit",
-        { column: "due_date", granularity: "year", range: null },
+        [{ column: "due_date", granularity: "year", range: null }],
+        "groupGranularity[due_date]",
         "year",
-        null,
       ],
       [
         "range eksplisit",
-        { column: "amount", granularity: null, range: 50 },
-        null,
-        50,
+        [{ column: "amount", granularity: null, range: 50 }],
+        "groupRange[amount]",
+        "50",
       ],
     ])(
-      "%s di saved filter dipakai apa adanya (bukan default kolom)",
-      async (_label, group, granularity, range) => {
+      "%s di saved filter dipakai apa adanya",
+      async (_label, group, wireKey, wireValue) => {
         mockPage({ dataTableColumns: groupingColumns });
         await renderDataTable2(<DataTable2 />);
 
@@ -1160,46 +1284,68 @@ describe("DataTable2", () => {
           group,
         });
 
-        expect(lastSearchBarProps().group).toEqual({
-          column: group.column,
-          granularity,
-          range,
-        });
+        expect(lastSearchBarProps().group).toEqual(group);
         await flushReload();
-        const params = reloadParams();
-        expect(params.get("groupGranularity")).toBe(granularity);
-        expect(params.get("groupRange")).toBe(range === null ? null : "50");
+        expect(reloadParams().get(wireKey)).toBe(wireValue);
       },
     );
 
-    it("sort null di saved filter TIDAK menimpa sort aktif; group null TIDAK menimpa group aktif", async () => {
-      mockPage({
-        dataTableColumns: groupingColumns,
-        ziggy: {
-          query: { sort: "-code", group: "due_date", groupGranularity: "year" },
-        },
-      });
+    it("level tanpa granularity/range TIDAK diisi default oleh host (default efektif dihitung backend), tak crash utk kolom tak dikenal", async () => {
+      mockPage({ dataTableColumns: groupingColumns });
       await renderDataTable2(<DataTable2 />);
 
       await callSearchBar("onPickSaved", {
-        id: 7,
+        id: 5,
         filter: simpleTree,
         sort: null,
-        group: null,
+        group: [{ column: "due_date" }, { column: "ghost" }],
       });
 
-      expect(lastSearchBarProps().activeFid).toBe(7);
-      expect(lastTable2Props().options.sort).toBe("-code");
-      expect(lastTable2Props().groupBy).toBe("due_date");
-      expect(lastSearchBarProps().group).toEqual({
-        column: "due_date",
-        granularity: "year",
-        range: null,
-      });
+      expect(lastSearchBarProps().group).toEqual([
+        { column: "due_date", granularity: null, range: null },
+        { column: "ghost", granularity: null, range: null },
+      ]);
       await flushReload();
-      expect(reloadParams().get("sort")).toBe("-code");
-      expect(reloadParams().get("group")).toBe("due_date");
+      const params = reloadParams();
+      expect(params.get("group")).toBe("due_date,ghost");
+      expect(params.has("groupGranularity[due_date]")).toBe(false);
     });
+
+    it.each([
+      ["null", null],
+      ["list kosong", []],
+    ])(
+      "sort null di saved filter TIDAK menimpa sort aktif; group %s TIDAK menimpa group aktif",
+      async (_label, savedGroup) => {
+        mockPage({
+          dataTableColumns: groupingColumns,
+          ziggy: {
+            query: {
+              sort: "-code",
+              group: "due_date",
+              groupGranularity: { due_date: "year" },
+            },
+          },
+        });
+        await renderDataTable2(<DataTable2 />);
+
+        await callSearchBar("onPickSaved", {
+          id: 7,
+          filter: simpleTree,
+          sort: null,
+          group: savedGroup,
+        });
+
+        expect(lastSearchBarProps().activeFid).toBe(7);
+        expect(lastTable2Props().options.sort).toBe("-code");
+        expect(lastSearchBarProps().group).toEqual([
+          { column: "due_date", granularity: "year", range: null },
+        ]);
+        await flushReload();
+        expect(reloadParams().get("sort")).toBe("-code");
+        expect(reloadParams().get("group")).toBe("due_date");
+      },
+    );
 
     it("saved tanpa id diabaikan (tak ada perubahan state maupun reload)", async () => {
       await renderDataTable2(<DataTable2 />);
@@ -1225,11 +1371,15 @@ describe("DataTable2", () => {
       });
     });
 
-    it("dgn group dari URL: { column, granularity, range } -- range string dinormalkan ke Number", async () => {
+    it("dgn group dari URL: list `Groups` -- range string dinormalkan ke Number", async () => {
       mockPage({
         dataTableColumns: groupingColumns,
         ziggy: {
-          query: { sort: "-name", group: "amount", groupRange: "50" },
+          query: {
+            sort: "-name",
+            group: "code,amount",
+            groupRange: { amount: "50" },
+          },
         },
       });
       await renderDataTable2(<DataTable2 />);
@@ -1237,9 +1387,12 @@ describe("DataTable2", () => {
       const snapshot = lastSearchBarProps().getViewSnapshot();
       expect(snapshot).toEqual({
         sort: "-name",
-        group: { column: "amount", granularity: null, range: 50 },
+        group: [
+          { column: "code", granularity: null, range: null },
+          { column: "amount", granularity: null, range: 50 },
+        ],
       });
-      expect(snapshot.group.range).toBe(50);
+      expect(snapshot.group[1].range).toBe(50);
     });
 
     it("sort null (bukan undefined) bila tak ada sort sama sekali", async () => {
@@ -1252,7 +1405,7 @@ describe("DataTable2", () => {
       });
     });
 
-    it("mengikuti perubahan sort & group berikutnya (bukan snapshot basi)", async () => {
+    it("mengikuti perubahan sort & group berikutnya (bukan snapshot basi); group dikosongkan -> null lagi", async () => {
       mockPage({ dataTableColumns: groupingColumns });
       const user = userEvent.setup({
         delay: null,
@@ -1260,18 +1413,21 @@ describe("DataTable2", () => {
       });
       await renderDataTable2(<DataTable2 />);
 
-      await callSearchBar("onGroupChange", {
-        column: "due_date",
-        granularity: "quarter",
-        range: null,
-      });
+      const groups = [
+        { column: "code", granularity: null, range: null },
+        { column: "due_date", granularity: "quarter", range: null },
+      ];
+      await callSearchBar("onGroupChange", groups);
       // setSort tanpa arg dari Table2: toggle asc -> desc kolom yang sama.
       await user.click(screen.getByText("trigger-set-sort"));
 
       expect(lastSearchBarProps().getViewSnapshot()).toEqual({
         sort: "-name",
-        group: { column: "due_date", granularity: "quarter", range: null },
+        group: groups,
       });
+
+      await callSearchBar("onGroupChange", []);
+      expect(lastSearchBarProps().getViewSnapshot().group).toBeNull();
     });
   });
 
@@ -1653,12 +1809,11 @@ describe("DataTable2", () => {
         expect(lastSearchBarProps().onGroupChange).toBeUndefined();
       });
 
-      it("hanya kolom groupable yang masuk; 'Tidak ada' (sentinel __no_group__) paling atas", async () => {
+      it("hanya kolom groupable yang masuk, TANPA sentinel 'Tidak ada' (tidak ada = Groups kosong)", async () => {
         mockPage({ dataTableColumns: groupableColumns });
         await renderDataTable2(<DataTable2 />);
 
         expect(lastSearchBarProps().groupOptions).toEqual([
-          { value: "__no_group__", label: "TR:core.datatable.no_grouping" },
           { value: "code", label: "TR:supplier.columns.code" },
         ]);
         expect(lastSearchBarProps().onGroupChange).toEqual(
@@ -1666,9 +1821,7 @@ describe("DataTable2", () => {
         );
       });
 
-      it("'Tidak ada' tetap paling atas walau abjad label-nya lebih awal; kolom sisanya diurut abjad berdasar label terjemahan", async () => {
-        // "Aaa Kolom" secara abjad < "TR:core.datatable.no_grouping" -- kalau
-        // "Tidak ada" ikut diurut, ia tidak akan di posisi pertama.
+      it("diurut abjad berdasar label terjemahan, bukan urutan kolom dari BE", async () => {
         mockPage({
           dataTableColumns: {
             ...dataTableColumns,
@@ -1687,14 +1840,13 @@ describe("DataTable2", () => {
         expect(
           lastSearchBarProps().groupOptions.map((opt) => opt.label),
         ).toEqual([
-          "TR:core.datatable.no_grouping",
           "Aaa Kolom",
           "TR:supplier.columns.code",
           "TR:supplier.columns.name",
         ]);
         expect(
           lastSearchBarProps().groupOptions.map((opt) => opt.value),
-        ).toEqual(["__no_group__", "aaa", "code", "name"]);
+        ).toEqual(["aaa", "code", "name"]);
       });
 
       it("mengikuti locale bahasa aktif (currentLocale) -- 'ä' setelah 'z' di sv", async () => {
@@ -1710,137 +1862,137 @@ describe("DataTable2", () => {
         await renderDataTable2(<DataTable2 />);
 
         expect(
-          lastSearchBarProps()
-            .groupOptions.slice(1)
-            .map((opt) => opt.label),
+          lastSearchBarProps().groupOptions.map((opt) => opt.label),
         ).toEqual(["a", "z", "ä"]);
       });
     });
 
     describe("onGroupChange", () => {
-      it("kolom biasa: sort TIDAK dikunci (BE urutkan primer by grup, sort tetap sekunder), page reset, groupBy/groupCounts diteruskan ke Table2, reload membawa group", async () => {
+      it("beberapa level: urutan = nesting; sort TIDAK dikunci (grup tak mengubah sort), page reset, reload membawa group=a,b", async () => {
         mockPage({
           dataTableColumns: groupingColumns,
-          groupCounts: { S1: 1, S2: 1 },
           ziggy: { query: { page: "3" } },
         });
         await renderDataTable2(<DataTable2 />);
 
-        await callSearchBar("onGroupChange", {
-          column: "code",
-          granularity: null,
-          range: null,
-        });
+        const groups = [
+          { column: "code", granularity: null, range: null },
+          { column: "due_date", granularity: "quarter", range: null },
+        ];
+        await callSearchBar("onGroupChange", groups);
 
         const props = lastTable2Props();
-        expect(props.groupBy).toBe("code");
         // Sort TIDAK ikut berubah -- tetap defaultSort ("name"), bukan "code".
         expect(props.options.sort).toBe("name");
         expect(props.options.page).toBe(1);
-        expect(props.groupCounts).toEqual({ S1: 1, S2: 1 });
-        expect(lastSearchBarProps().group).toEqual({
-          column: "code",
-          granularity: null,
-          range: null,
-        });
+        expect(props.options.group).toEqual(groups);
+        expect(lastSearchBarProps().group).toEqual(groups);
 
         await flushReload();
         const params = reloadParams();
-        expect(params.get("group")).toBe("code");
+        expect(params.get("group")).toBe("code,due_date");
+        expect(params.get("groupGranularity[due_date]")).toBe("quarter");
+        expect(params.has("groupRange[due_date]")).toBe(false);
         expect(params.get("sort")).toBe("name");
         expect(params.get("page")).toBe("1");
       });
 
-      it.each([
-        [
-          "date (granularity diedit user)",
-          { column: "due_date", granularity: "quarter", range: null },
-          "quarter",
-          null,
-        ],
-        [
-          "number (range diedit user)",
-          { column: "amount", granularity: null, range: 50 },
-          null,
-          50,
-        ],
-        [
-          "tanpa granularity/range -> null, BUKAN default kolom (default dihitung Search Bar, bukan host)",
-          { column: "due_date" },
-          null,
-          null,
-        ],
-      ])(
-        "granularity/range diterapkan apa adanya: %s",
-        async (_label, patch, granularity, range) => {
-          mockPage({ dataTableColumns: groupingColumns });
-          await renderDataTable2(<DataTable2 />);
-
-          await callSearchBar("onGroupChange", patch);
-
-          const props = lastTable2Props();
-          expect(props.groupBy).toBe(patch.column);
-          expect(props.groupGranularity).toBe(granularity);
-          expect(props.groupRange).toBe(range);
-        },
-      );
-
-      it("ganti granularity kolom yang sama tidak mereset kolom grup", async () => {
+      it("mengubah URUTAN level mengubah nesting (group=b,a) dan me-reset page", async () => {
         mockPage({
           dataTableColumns: groupingColumns,
-          ziggy: { query: { group: "due_date", groupGranularity: "month" } },
+          ziggy: {
+            query: { group: "code,due_date", page: "2" },
+          },
         });
         await renderDataTable2(<DataTable2 />);
 
-        await callSearchBar("onGroupChange", {
-          column: "due_date",
-          granularity: "quarter",
-          range: null,
-        });
-
-        expect(lastTable2Props().groupGranularity).toBe("quarter");
-        expect(lastTable2Props().groupBy).toBe("due_date");
+        await callSearchBar("onGroupChange", [
+          { column: "due_date", granularity: "month", range: null },
+          { column: "code", granularity: null, range: null },
+        ]);
         await flushReload();
-        expect(reloadParams().get("groupGranularity")).toBe("quarter");
-        expect(reloadParams().has("groupRange")).toBe(false);
+
+        const params = reloadParams();
+        expect(params.get("group")).toBe("due_date,code");
+        expect(params.get("groupGranularity[due_date]")).toBe("month");
+        expect(params.get("page")).toBe("1");
       });
 
-      it("column kosong ('Tidak ada') mematikan grouping: groupBy/granularity/range null, sort TIDAK direset", async () => {
+      it("granularity/range diterapkan apa adanya (default kolom dihitung Search Bar/BE, bukan host)", async () => {
+        mockPage({ dataTableColumns: groupingColumns });
+        await renderDataTable2(<DataTable2 />);
+
+        await callSearchBar("onGroupChange", [
+          { column: "due_date" },
+          { column: "amount", granularity: null, range: 50 },
+        ]);
+
+        expect(lastSearchBarProps().group).toEqual([
+          { column: "due_date", granularity: null, range: null },
+          { column: "amount", granularity: null, range: 50 },
+        ]);
+        await flushReload();
+        const params = reloadParams();
+        expect(params.get("group")).toBe("due_date,amount");
+        expect(params.has("groupGranularity[due_date]")).toBe(false);
+        expect(params.get("groupRange[amount]")).toBe("50");
+      });
+
+      it("ganti granularity kolom yang sama tidak mereset kolom grup", async () => {
         mockPage({
           dataTableColumns: groupingColumns,
           ziggy: {
             query: {
               group: "due_date",
-              groupGranularity: "quarter",
+              groupGranularity: { due_date: "month" },
+            },
+          },
+        });
+        await renderDataTable2(<DataTable2 />);
+
+        await callSearchBar("onGroupChange", [
+          { column: "due_date", granularity: "quarter", range: null },
+        ]);
+
+        expect(lastSearchBarProps().group).toEqual([
+          { column: "due_date", granularity: "quarter", range: null },
+        ]);
+        await flushReload();
+        expect(reloadParams().get("group")).toBe("due_date");
+        expect(reloadParams().get("groupGranularity[due_date]")).toBe(
+          "quarter",
+        );
+        expect(reloadParams().has("groupRange[due_date]")).toBe(false);
+      });
+
+      it("Groups kosong ('Tidak ada') mematikan grouping, sort TIDAK direset", async () => {
+        mockPage({
+          dataTableColumns: groupingColumns,
+          ziggy: {
+            query: {
+              group: "due_date",
+              groupGranularity: { due_date: "quarter" },
               sort: "code",
             },
           },
         });
         await renderDataTable2(<DataTable2 />);
 
-        await callSearchBar("onGroupChange", {
-          column: null,
-          granularity: null,
-          range: null,
-        });
+        await callSearchBar("onGroupChange", []);
 
-        const props = lastTable2Props();
-        expect(props.groupBy).toBeNull();
-        expect(props.groupGranularity).toBeNull();
-        expect(props.groupRange).toBeNull();
-        expect(props.options.sort).toBe("code");
-        expect(lastSearchBarProps().group).toBeNull();
+        expect(lastTable2Props().options.group).toEqual([]);
+        expect(lastTable2Props().options.sort).toBe("code");
+        expect(lastSearchBarProps().group).toEqual([]);
       });
 
       it("'Tidak ada' saat model punya default group -> URL tetap membawa `group=` KOSONG (param hilang = BE pakai default lagi)", async () => {
         mockPage({
           dataTableColumns: groupableColumns,
-          defaultGroup: "code",
-          groupCounts: { S1: 1, S2: 1 },
+          defaultGroups: [{ column: "code", granularity: null, range: null }],
         });
         await renderDataTable2(<DataTable2 />);
 
-        await callSearchBar("onGroupChange", { column: null });
+        await callSearchBar("onGroupChange", []);
         await flushReload();
 
         expect(routerGet).toHaveBeenCalledTimes(1);
@@ -1852,89 +2004,221 @@ describe("DataTable2", () => {
       it("tanpa default group, 'Tidak ada' -> param group hilang dari URL (tak mengotori URL)", async () => {
         mockPage({
           dataTableColumns: groupableColumns,
-          groupCounts: { S1: 1, S2: 1 },
           ziggy: { query: { group: "code" } },
         });
         await renderDataTable2(<DataTable2 />);
 
-        await callSearchBar("onGroupChange", { column: null });
+        await callSearchBar("onGroupChange", []);
         await flushReload();
 
         expect(routerGet).toHaveBeenCalledTimes(1);
         expect(reloadParams().has("group")).toBe(false);
       });
-    });
 
-    describe("group awal (state options)", () => {
-      it("defaultGroup dari model dipakai sbg grup awal saat URL tak punya param group", async () => {
+      it("'Tidak ada' saat filter tersimpan aktif (fid) -> `group=` KOSONG walau defaultGroups kosong (filter bisa ber-group; defaultGroups dimuat sebelum filter dipilih)", async () => {
         mockPage({
           dataTableColumns: groupableColumns,
-          defaultGroup: "code",
-          groupCounts: { S1: 1, S2: 1 },
+          ziggy: { query: { group: "code" } },
         });
         await renderDataTable2(<DataTable2 />);
 
-        expect(lastTable2Props().groupBy).toBe("code");
-        expect(lastTable2Props().groupCounts).toEqual({ S1: 1, S2: 1 });
-        expect(lastSearchBarProps().group).toEqual({
-          column: "code",
-          granularity: null,
-          range: null,
+        // Pilih filter tersimpan (tanpa group sendiri -> group aktif tak berubah),
+        // lalu hapus chip group.
+        await callSearchBar("onPickSaved", {
+          id: 42,
+          filter: simpleTree,
+          sort: null,
+          group: null,
         });
+        await callSearchBar("onGroupChange", []);
+        await flushReload();
+
+        expect(routerGet).toHaveBeenCalledTimes(1);
+        const params = reloadParams();
+        expect(params.get("fid")).toBe("42");
+        expect(params.has("group")).toBe(true);
+        expect(params.get("group")).toBe("");
+      });
+
+      it("onGroupSortChange hanya diteruskan bila ada kolom groupable; klik `desc` -> reload membawa groupSort=desc, sort tabel & URL TIDAK berubah, page reset", async () => {
+        mockPage({
+          dataTableColumns: groupingColumns,
+          ziggy: { query: { group: "code", sort: "-name", page: "3" } },
+        });
+        await renderDataTable2(<DataTable2 />);
+        expect(lastSearchBarProps().groupSort).toBe("asc");
+
+        await callSearchBar("onGroupSortChange", "desc");
+        expect(lastSearchBarProps().groupSort).toBe("desc");
+        expect(lastTable2Props().options.sort).toBe("-name");
+        await flushReload();
+
+        const params = reloadParams();
+        expect(params.get("groupSort")).toBe("desc");
+        expect(params.get("sort")).toBe("-name");
+        expect(params.get("group")).toBe("code");
+        expect(params.get("page")).toBe("1");
+      });
+
+      it("groupSort asc (default) tak dikirim ke URL; nilai awal dibaca dari ?groupSort=desc", async () => {
+        mockPage({
+          dataTableColumns: groupingColumns,
+          ziggy: { query: { group: "code", groupSort: "desc" } },
+        });
+        await renderDataTable2(<DataTable2 />);
+        expect(lastSearchBarProps().groupSort).toBe("desc");
+
+        await callSearchBar("onGroupSortChange", "asc");
+        await flushReload();
+        expect(reloadParams().has("groupSort")).toBe(false);
+      });
+
+      it("groupSort tak dikirim bila tidak ada group aktif; tanpa kolom groupable tak ada onGroupSortChange", async () => {
+        mockPage({
+          dataTableColumns: groupingColumns,
+          ziggy: { query: { groupSort: "desc" } },
+        });
+        await renderDataTable2(<DataTable2 />);
+        await callSearchBar("onGroupSortChange", "desc");
+        await flushReload();
+        expect(reloadParams().has("groupSort")).toBe(false);
+
+        mockPage({});
+        await renderDataTable2(<DataTable2 />);
+        expect(lastSearchBarProps().onGroupSortChange).toBeUndefined();
+      });
+
+      it("input dinormalkan STRUKTURAL (bukan crash): kolom duplikat dibuang; pemotongan maks 4 level dilakukan backend setelah gating", async () => {
+        mockPage({ dataTableColumns: groupingColumns });
+        await renderDataTable2(<DataTable2 />);
+
+        await callSearchBar("onGroupChange", [
+          { column: "code" },
+          { column: "code", granularity: "year" },
+          { column: "due_date" },
+        ]);
+
+        expect(lastSearchBarProps().group).toEqual([
+          { column: "code", granularity: null, range: null },
+          { column: "due_date", granularity: null, range: null },
+        ]);
+      });
+    });
+
+    describe("group awal (state options)", () => {
+      const defaultCode = [{ column: "code", granularity: null, range: null }];
+
+      it("defaultGroups dari model dipakai sbg grup awal saat URL tak punya param group", async () => {
+        mockPage({
+          dataTableColumns: groupableColumns,
+          defaultGroups: defaultCode,
+        });
+        await renderDataTable2(<DataTable2 />);
+
+        expect(lastTable2Props().options.group).toEqual(defaultCode);
+        expect(lastSearchBarProps().group).toEqual(defaultCode);
+      });
+
+      it("defaultGroups BERTINGKAT dipakai apa adanya sbg grup awal", async () => {
+        const defaults = [
+          { column: "code", granularity: null, range: null },
+          { column: "due_date", granularity: "quarter", range: null },
+        ];
+        mockPage({
+          dataTableColumns: groupingColumns,
+          defaultGroups: defaults,
+        });
+        await renderDataTable2(<DataTable2 />);
+
+        expect(lastSearchBarProps().group).toEqual(defaults);
+      });
+
+      it("tanpa defaultGroups & tanpa param group -> Groups kosong", async () => {
+        mockPage({ dataTableColumns: groupableColumns });
+        await renderDataTable2(<DataTable2 />);
+
+        expect(lastSearchBarProps().group).toEqual([]);
       });
 
       it("`?group=` kosong di URL = tanpa grup eksplisit, default TIDAK dipakai", async () => {
         mockPage({
           dataTableColumns: groupableColumns,
-          defaultGroup: "code",
+          defaultGroups: defaultCode,
           ziggy: { query: { group: "" } },
         });
         await renderDataTable2(<DataTable2 />);
 
-        expect(lastTable2Props().groupBy).toBeNull();
-        expect(lastSearchBarProps().group).toBeNull();
+        expect(lastSearchBarProps().group).toEqual([]);
+        expect(lastTable2Props().options.group).toEqual([]);
       });
 
       it.each([
         [
-          "kolom grup awal = defaultGroup -> mewarisi granularity default",
-          { defaultGroup: "due_date", defaultGroupGranularity: "quarter" },
-          {},
-          { column: "due_date", granularity: "quarter", range: null },
-        ],
-        [
-          "kolom grup awal = defaultGroup -> mewarisi range default",
-          { defaultGroup: "amount", defaultGroupRange: 50 },
-          {},
-          { column: "amount", granularity: null, range: 50 },
-        ],
-        [
-          "?group=<kolom default> tanpa granularity mewarisi default (kolom grup awal MEMANG kolom default)",
-          { defaultGroup: "due_date", defaultGroupGranularity: "quarter" },
+          "?group=<kolom default> tanpa granularity mewarisi granularity default",
+          {
+            defaultGroups: [
+              { column: "due_date", granularity: "quarter", range: null },
+            ],
+          },
           { group: "due_date" },
-          { column: "due_date", granularity: "quarter", range: null },
+          [{ column: "due_date", granularity: "quarter", range: null }],
+        ],
+        [
+          "?group=<kolom default> tanpa range mewarisi range default",
+          {
+            defaultGroups: [{ column: "amount", granularity: null, range: 50 }],
+          },
+          { group: "amount" },
+          [{ column: "amount", granularity: null, range: 50 }],
         ],
         [
           "?group=<kolom LAIN> TIDAK mewarisi granularity/range default",
           {
-            defaultGroup: "due_date",
-            defaultGroupGranularity: "quarter",
-            defaultGroupRange: 50,
+            defaultGroups: [
+              { column: "due_date", granularity: "quarter", range: 50 },
+            ],
           },
           { group: "code" },
-          { column: "code", granularity: null, range: null },
+          [{ column: "code", granularity: null, range: null }],
         ],
         [
           "param URL granularity menang atas default",
-          { defaultGroup: "due_date", defaultGroupGranularity: "quarter" },
-          { group: "due_date", groupGranularity: "year" },
-          { column: "due_date", granularity: "year", range: null },
+          {
+            defaultGroups: [
+              { column: "due_date", granularity: "quarter", range: null },
+            ],
+          },
+          { group: "due_date", groupGranularity: { due_date: "year" } },
+          [{ column: "due_date", granularity: "year", range: null }],
         ],
         [
-          "param URL range (string) menang atas default & dinormalkan ke Number utk Search Bar",
-          { defaultGroup: "amount", defaultGroupRange: 25 },
-          { group: "amount", groupRange: "50" },
-          { column: "amount", granularity: null, range: 50 },
+          "param URL range (string) menang atas default & dinormalkan ke Number",
+          {
+            defaultGroups: [{ column: "amount", granularity: null, range: 25 }],
+          },
+          { group: "amount", groupRange: { amount: "50" } },
+          [{ column: "amount", granularity: null, range: 50 }],
+        ],
+        [
+          "beberapa level di URL: tiap level mewarisi dari level default dgn kolom SAMA saja",
+          {
+            defaultGroups: [
+              { column: "due_date", granularity: "quarter", range: null },
+              { column: "amount", granularity: null, range: 50 },
+            ],
+          },
+          { group: "amount,code,due_date" },
+          [
+            { column: "amount", granularity: null, range: 50 },
+            { column: "code", granularity: null, range: null },
+            { column: "due_date", granularity: "quarter", range: null },
+          ],
+        ],
+        [
+          "bentuk kawat skalar lama (group=x&groupGranularity=y) = level pertama",
+          {},
+          { group: "due_date", groupGranularity: "year" },
+          [{ column: "due_date", granularity: "year", range: null }],
         ],
       ])("%s", async (_label, pageProps, query, expectedGroup) => {
         mockPage({
@@ -1945,28 +2229,222 @@ describe("DataTable2", () => {
         await renderDataTable2(<DataTable2 />);
 
         expect(lastSearchBarProps().group).toEqual(expectedGroup);
-        expect(lastTable2Props().groupBy).toBe(expectedGroup.column);
-        expect(Number(lastTable2Props().groupRange)).toBe(
-          expectedGroup.range ?? 0,
-        );
-        expect(lastTable2Props().groupGranularity).toBe(
-          expectedGroup.granularity,
-        );
+        expect(lastTable2Props().options.group).toEqual(expectedGroup);
       });
 
       it("`?group=` kosong (Tidak ada) tak mewarisi granularity/range default apa pun", async () => {
         mockPage({
           dataTableColumns: groupingColumns,
-          defaultGroup: "due_date",
-          defaultGroupGranularity: "quarter",
-          defaultGroupRange: 50,
+          defaultGroups: [
+            { column: "due_date", granularity: "quarter", range: 50 },
+          ],
           ziggy: { query: { group: "" } },
         });
         await renderDataTable2(<DataTable2 />);
 
-        expect(lastSearchBarProps().group).toBeNull();
-        expect(lastTable2Props().groupGranularity).toBeNull();
-        expect(lastTable2Props().groupRange).toBeNull();
+        expect(lastSearchBarProps().group).toEqual([]);
+      });
+    });
+
+    describe("groupMeta -> prop `group` Table2 (pohon grup lazy)", () => {
+      const meta = {
+        levels: [
+          { column: "code", granularity: null, range: null, type: "string" },
+          {
+            column: "due_date",
+            granularity: "month",
+            range: null,
+            type: "date",
+          },
+        ],
+        aggregates: [{ column: "amount", fn: "sum" }],
+      };
+
+      it("tanpa groupMeta (grup tak aktif di server): Table2 tak menerima `group` -- tabel datar biasa", async () => {
+        await renderDataTable2(<DataTable2 />);
+
+        expect(lastTable2Props().group).toBeUndefined();
+      });
+
+      it("dgn groupMeta: levels/aggregates dari server + baseParams eksplisit dari level EFEKTIF tanpa page/group lama", async () => {
+        mockPage({
+          data: groupRootData,
+          groupMeta: meta,
+          ziggy: {
+            query: {
+              sort: "-name",
+              page: "4",
+              group: "code",
+              groupPath: '["x"]',
+            },
+          },
+        });
+        await renderDataTable2(<DataTable2 />);
+
+        const group = lastTable2Props().group;
+        expect(group.levels).toBe(meta.levels);
+        expect(group.aggregates).toBe(meta.aggregates);
+        expect(group.pathname).toBe(window.location.pathname);
+        expect(group.version).toBe(0);
+        // page/group/groupPath lama dibuang; group EKSPLISIT dari level efektif.
+        expect(group.baseParams).toEqual({
+          sort: "-name",
+          group: "code,due_date",
+          groupGranularity: { due_date: "month" },
+        });
+      });
+
+      it("resetKey = URL yang dirender SERVER (ziggy.query), TIDAK ikut berubah oleh options pending yang di-debounce", async () => {
+        mockPage({
+          data: groupRootData,
+          groupMeta: meta,
+          dataTableColumns: groupingColumns,
+          ziggy: { query: { group: "code" } },
+        });
+        await renderDataTable2(<DataTable2 />);
+        const before = lastTable2Props().group.resetKey;
+        expect(before).toBe(JSON.stringify({ group: "code" }));
+
+        await callSearchBar("onGroupChange", [
+          { column: "due_date", granularity: "month", range: null },
+        ]);
+
+        expect(lastTable2Props().group.resetKey).toBe(before);
+      });
+
+      it("version naik HANYA saat identitas `data` level-0 berganti (mis. setelah hapus/reload), bukan tiap render", async () => {
+        const props = makePageProps({ data: groupRootData, groupMeta: meta });
+        usePageMock.mockReturnValue({ props });
+        const { rerender } = await renderDataTable2(<DataTable2 />);
+        // DataTable2 dibungkus memo: props baru (`tick`) memaksa re-render, krn
+        // usePage() tiruan tak berlangganan context Inertia seperti aslinya.
+        let tick = 0;
+        const rerenderPage = async () => {
+          tick += 1;
+          await act(async () => {
+            rerender(
+              <TooltipProvider>
+                <DataTable2 tick={tick} />
+              </TooltipProvider>,
+            );
+          });
+        };
+        expect(lastTable2Props().group.version).toBe(0);
+
+        // `data` identik (objek props baru, data sama) -> version tetap.
+        usePageMock.mockReturnValue({ props: { ...props } });
+        await rerenderPage();
+        expect(lastTable2Props().group.version).toBe(0);
+
+        usePageMock.mockReturnValue({
+          props: { ...props, data: { ...groupRootData } },
+        });
+        await rerenderPage();
+        expect(lastTable2Props().group.version).toBe(1);
+      });
+    });
+
+    // Requirement 24 (permintaan user): ubah SUB-level grup (level 0 tak
+    // berubah) TAK memicu reload Inertia -- cukup diperbarui via TanStack
+    // (levels/baseParams baru + subLevelVersion naik, GroupTree menutup paksa
+    // node terbuka di kedalaman >=1 & memangkas halamannya sendiri, lihat
+    // GroupTree.jsx). Ganti LEVEL 0 tetap reload penuh spt semula.
+    describe("Requirement 24: skip reload Inertia (group-sublevel & sort-leaf-only)", () => {
+      const twoLevelMeta = {
+        levels: [
+          { column: "code", granularity: null, range: null, type: "string" },
+          {
+            column: "due_date",
+            granularity: "month",
+            range: null,
+            type: "date",
+          },
+        ],
+        aggregates: [{ column: "amount", fn: "sum" }],
+      };
+
+      it("ganti SUB-level (level 0 identik) -> TANPA router.get, levels/baseParams baru + subLevelVersion naik", async () => {
+        mockPage({
+          data: groupRootData,
+          groupMeta: twoLevelMeta,
+          dataTableColumns: groupingColumns,
+          ziggy: { query: { group: "code,due_date" } },
+        });
+        await renderDataTable2(<DataTable2 />);
+        const subLevelBefore = lastTable2Props().group.subLevelVersion ?? 0;
+
+        await callSearchBar("onGroupChange", [
+          { column: "code", granularity: null, range: null },
+          { column: "amount", granularity: null, range: 25 },
+        ]);
+        // `flushReload()` cuma maju timer -- state hasil setState di dalam
+        // callback debounce butuh `waitFor` (act-aware) utk terbaca stabil
+        // di `lastTable2Props()`, sama spt pola `waitForReload`.
+        await waitFor(() =>
+          expect(lastTable2Props().group.subLevelVersion).toBe(
+            subLevelBefore + 1,
+          ),
+        );
+
+        expect(routerGet).not.toHaveBeenCalled();
+        const group = lastTable2Props().group;
+        expect(group.levels.map((l) => l.column)).toEqual(["code", "amount"]);
+        expect(group.baseParams.group).toBe("code,amount");
+        // URL bar tetap sinkron (replaceState) walau tanpa fetch server.
+        expect(window.location.search).toContain("group=code%2Camount");
+      });
+
+      it("ganti LEVEL 0 (bukan sekadar sub-level) -> TETAP reload Inertia penuh", async () => {
+        mockPage({
+          data: groupRootData,
+          groupMeta: twoLevelMeta,
+          dataTableColumns: groupingColumns,
+          ziggy: { query: { group: "code,due_date" } },
+        });
+        await renderDataTable2(<DataTable2 />);
+
+        await callSearchBar("onGroupChange", [
+          { column: "due_date", granularity: "month", range: null },
+          { column: "code", granularity: null, range: null },
+        ]);
+        await waitForReload();
+
+        expect(reloadParams().get("group")).toBe("due_date,code");
+      });
+
+      it("hapus grup jadi 'Tidak ada' -> TETAP reload Inertia penuh (bukan sub-level)", async () => {
+        mockPage({
+          data: groupRootData,
+          groupMeta: twoLevelMeta,
+          dataTableColumns: groupingColumns,
+          ziggy: { query: { group: "code,due_date" } },
+        });
+        await renderDataTable2(<DataTable2 />);
+
+        await callSearchBar("onGroupChange", []);
+        await waitForReload();
+
+        // Tanpa `defaultGroups`/`fid` aktif di fixture ini, param `group`
+        // dihilangkan (bukan `group=` kosong eksplisit) -- lihat
+        // groupsToQuery() `hasFallback`. Yang jadi inti tes: reload PENUH
+        // sungguhan terjadi (router.get terpanggil), bukan jalur lokal.
+        expect(reloadParams().get("group")).toBeNull();
+      });
+
+      it("tanpa groupMeta aktif (grup tak dirender server): ganti group TETAP reload penuh", async () => {
+        mockPage({
+          dataTableColumns: groupingColumns,
+          ziggy: { query: { group: "code,due_date" } },
+        });
+        await renderDataTable2(<DataTable2 />);
+
+        await callSearchBar("onGroupChange", [
+          { column: "code", granularity: null, range: null },
+          { column: "amount", granularity: null, range: 25 },
+        ]);
+        await waitForReload();
+
+        expect(reloadParams().get("group")).toBe("code,amount");
       });
     });
   });
@@ -2135,6 +2613,67 @@ describe("DataTable2", () => {
       await waitForReload();
       expect(reloadParams().get("sort")).toBe("name");
       expect(reloadParams().get("group")).toBe("code");
+    });
+
+    // Requirement 24 (permintaan user): beda dgn test di atas -- di sini
+    // groupMeta BENAR2 aktif (GroupTree sungguhan merender), jadi sort ke
+    // kolom yg bukan kolom grup & bukan groupAggregate cukup diperbarui lewat
+    // TanStack (baseParams baru), TANPA reload Inertia.
+    it("groupMeta aktif + sort ke kolom BUKAN grup/aggregate -> TANPA router.get, baseParams.sort ikut berubah", async () => {
+      vi.useRealTimers();
+      const user = userEvent.setup({ delay: null, pointerEventsCheck: 0 });
+      mockPage({
+        data: groupRootData,
+        groupMeta: {
+          levels: [
+            { column: "code", granularity: null, range: null, type: "string" },
+          ],
+          aggregates: [{ column: "amount", fn: "sum" }],
+        },
+        dataTableColumns: groupingColumns,
+        ziggy: { query: { group: "code", sort: "code" } },
+      });
+      await renderDataTable2(<DataTable2 />);
+
+      const listbox = await openSortPopover(user, "TR:supplier.columns.code");
+      await user.click(
+        within(listbox).getByRole("option", {
+          name: "TR:supplier.columns.name",
+        }),
+      );
+      await waitFor(() =>
+        expect(lastTable2Props().group.baseParams.sort).toBe("name"),
+      );
+
+      expect(routerGet).not.toHaveBeenCalled();
+      expect(window.location.search).toContain("sort=name");
+    });
+
+    it("groupMeta aktif + sort ke kolom groupAggregate -> TETAP reload Inertia penuh", async () => {
+      vi.useRealTimers();
+      const user = userEvent.setup({ delay: null, pointerEventsCheck: 0 });
+      mockPage({
+        data: groupRootData,
+        groupMeta: {
+          levels: [
+            { column: "code", granularity: null, range: null, type: "string" },
+          ],
+          aggregates: [{ column: "amount", fn: "sum" }],
+        },
+        dataTableColumns: groupingColumns,
+        ziggy: { query: { group: "code", sort: "code" } },
+      });
+      await renderDataTable2(<DataTable2 />);
+
+      const listbox = await openSortPopover(user, "TR:supplier.columns.code");
+      await user.click(
+        within(listbox).getByRole("option", {
+          name: "TR:supplier.columns.amount",
+        }),
+      );
+
+      await waitForReload();
+      expect(reloadParams().get("sort")).toBe("amount");
     });
   });
 
