@@ -498,10 +498,11 @@ function SavedFilterBar({ items, loading, activeFid, onPick, onRemove }) {
  * @param {string} [root0.defaultName] isi awal isian nama saat dibuka (mis.
  *   nama filter sumber yg sedang diubah -> Enter langsung menimpa)
  * @param {string} [root0.className] kelas wadah (mis. `w-full` di Panel)
- * @param {() => {sort: string|null, group: object|null}} [root0.getViewSnapshot]
+ * @param {() => {sort: string|null, group: Array|null}} [root0.getViewSnapshot]
  *   opsional (spec datatable2-advanced-search, Requirement 11.6) -- bila
  *   diberikan, PATCH simpan-baru & timpa ikut menyertakan `sort`/`group` dari
- *   snapshot. Tanpa prop ini payload TIDAK berubah dari sebelumnya (dipakai
+ *   snapshot (`group` = list `Groups` bertingkat, atau null = tak mengatur;
+ *   spec datatable2-group-tree, Requirement 12.6). Tanpa prop ini payload TIDAK berubah dari sebelumnya (dipakai
  *   FilterTable2 sendiri).
  * @returns {React.JSX.Element}
  */

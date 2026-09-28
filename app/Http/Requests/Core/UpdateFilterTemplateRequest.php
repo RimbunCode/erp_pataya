@@ -9,6 +9,8 @@ use Illuminate\Contracts\Validation\ValidationRule;
 use Illuminate\Validation\ValidationException;
 
 class UpdateFilterTemplateRequest extends BaseFormRequest {
+    use NormalizesGroupInput;
+
     public function authorize(): bool {
         return true;
     }

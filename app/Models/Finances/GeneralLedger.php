@@ -54,12 +54,14 @@ class GeneralLedger extends Model {
             'show'  => true,
         ],
         'debit' => [
-            'order' => 3,
-            'show'  => true,
+            'order'          => 3,
+            'show'           => true,
+            'groupAggregate' => 'sum',
         ],
         'credit' => [
-            'order' => 4,
-            'show'  => true,
+            'order'          => 4,
+            'show'           => true,
+            'groupAggregate' => 'sum',
         ],
         'created_at' => [
             'order' => 5,

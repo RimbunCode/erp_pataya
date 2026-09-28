@@ -13,11 +13,6 @@ import {
 import { buildOptionList, isStatusColumn } from "./searchChips";
 import { columnHasOptions } from "../Filter/operators";
 
-// Sentinel "Tidak ada" pada `groupOptions` -- mirror `NO_GROUP_VALUE`
-// (DataTable2.jsx:96). Didefinisikan lokal (bukan import dari Pages/) agar
-// modul murni ini tidak bergantung ke komponen Page.
-const NO_GROUP_VALUE = "__no_group__";
-
 const SECTION_LIMITS = { text: 1, saved: 3, column: 5, value: 5, group: 3 };
 
 const toArray = (value) => {
@@ -158,6 +153,7 @@ const findRelationScope = (text, { columns, t } = {}) => {
  * @param {string[]} [root0.searchColumns] hasil `resolveSearchColumns()`
  * @param {Array<object>} [root0.savedFilters] hasil `saved-filters.index`
  * @param {Array<{value:string, label:string}>} [root0.groupOptions]
+ * @param root0.activeGroupColumns
  * @param {(key: string, params?: object) => string} root0.t
  * @param {Date} [root0.now] basis "sekarang" utk preset periode kolom
  *   tanggal (default `new Date()`) -- parameter injeksi utk kemudahan test.
@@ -182,6 +178,7 @@ const buildSuggestions = (
     searchColumns,
     savedFilters,
     groupOptions,
+    activeGroupColumns,
     t,
     now,
     recentColumns,
@@ -420,16 +417,22 @@ const buildSuggestions = (
 
   // 5. Kelompokkan -- hanya bila host memberi `groupOptions`.
   if (Array.isArray(groupOptions)) {
+    // Memilih saran group = TOGGLE (tambah sbg level terdalam / hapus bila sudah
+    // aktif), jadi kolom yang sudah aktif diberi label "Hapus pengelompokan: X".
+    const active = new Set(activeGroupColumns ?? []);
     const items = groupOptions
-      .filter((opt) => opt.value !== NO_GROUP_VALUE)
       .map((opt) => {
         if (!matches(opt.label)) return null;
+        const isActive = active.has(opt.value);
         return {
           key: `group-${opt.value}`,
-          label: t("core.datatable.search.group_by_label", {
-            column: opt.label,
-          }),
-          payload: { column: opt.value },
+          label: t(
+            isActive
+              ? "core.datatable.search.group_remove_label"
+              : "core.datatable.search.group_by_label",
+            { column: opt.label },
+          ),
+          payload: { column: opt.value, active: isActive },
           _matchLabel: opt.label,
         };
       })

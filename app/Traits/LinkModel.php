@@ -787,7 +787,7 @@ trait LinkModel {
                 ...$baselineDepends,
                 ...array_diff_key($config, ['dependsOn' => true]),
                 // Nilai dihitung (accessor/$appends), bukan kolom SQL -- tak bisa
-                // di-GROUP BY (lihat DataTableScope::sanitizeGroupableColumns).
+                // di-GROUP BY (lihat GroupColumnGate::sanitizeColumns).
                 'derived' => true,
                 ...(($isIgnore || $isHidden) ? $ignoreFlags : []),
             ];

@@ -1,5 +1,5 @@
 import { describe, expect, it, vi, beforeEach } from "vitest";
-import { act, render, within } from "@testing-library/react";
+import { act, render, screen, within } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import React, { useState } from "react";
 
@@ -125,118 +125,145 @@ async function renderForm(initialData = {}) {
   });
 }
 
-const groupSelects = () =>
-  within(document.querySelector('[data-field="group"]')).getAllByRole(
-    "combobox",
-  );
+const groupField = () => within(document.querySelector('[data-field="group"]'));
+// Baris editor = role="checkbox" ber-aria-label = label kolom (t = identitas).
+const groupRows = () =>
+  groupField()
+    .getAllByRole("checkbox")
+    .map((row) => ({
+      label: row.getAttribute("aria-label"),
+      checked: row.getAttribute("aria-checked"),
+    }));
 
-describe("FilterTemplate Form — field Group by", () => {
+describe("FilterTemplate Form — field Group by (GroupLevelsEditor)", () => {
   beforeEach(() => {
     latestData = undefined;
     axiosGetMock.mockReset();
     axiosGetMock.mockResolvedValue({ data: { columns: COLUMNS } });
   });
 
-  it("hanya menawarkan kolom groupable + opsi 'tidak diatur'", async () => {
+  it("hanya menawarkan kolom groupable sbg checkbox (tanpa opsi 'tidak diatur')", async () => {
     await renderForm();
-    const [columnSelect] = groupSelects();
-    const values = [...columnSelect.options].map((o) => o.value);
-    expect(values).toEqual(["__none", "created_at", "total", "status"]);
-    expect(values).not.toContain("name");
+
+    expect(
+      groupRows()
+        .map((row) => row.label)
+        .sort(),
+    ).toEqual(["col.created_at", "col.status", "col.total"]);
+    expect(groupRows().every((row) => row.checked === "false")).toBe(true);
   });
 
-  it("memilih kolom date memunculkan granularity dan menyimpan default 'month'", async () => {
+  it("mencentang kolom date menyimpan default granularity 'month' dan menampilkan Select granularity", async () => {
     const user = userEvent.setup();
     await renderForm();
 
-    await user.selectOptions(groupSelects()[0], "created_at");
+    await user.click(
+      groupField().getByRole("checkbox", { name: "col.created_at" }),
+    );
 
-    expect(latestData.group).toEqual({
-      column: "created_at",
-      granularity: "month",
-      range: null,
-    });
-    const selects = groupSelects();
-    expect(selects).toHaveLength(2);
-    expect([...selects[1].options].map((o) => o.value)).toEqual([
-      "day",
-      "month",
-      "quarter",
-      "half",
-      "year",
+    expect(latestData.group).toEqual([
+      { column: "created_at", granularity: "month", range: null },
     ]);
-
-    await user.selectOptions(selects[1], "quarter");
-    expect(latestData.group).toEqual({
-      column: "created_at",
-      granularity: "quarter",
-      range: null,
+    const trigger = groupField().getByRole("combobox", {
+      name: "core.datatable.group_levels.granularity",
     });
-  });
+    await user.click(trigger);
+    await user.click(
+      await screen.findByRole("option", {
+        name: "core.datatable.granularity.quarter",
+      }),
+    );
 
-  it("memilih kolom number memunculkan range dari groupRangeOptions kolom", async () => {
-    const user = userEvent.setup();
-    await renderForm();
-
-    await user.selectOptions(groupSelects()[0], "total");
-
-    expect(latestData.group).toEqual({
-      column: "total",
-      granularity: null,
-      range: 500,
-    });
-    const selects = groupSelects();
-    expect([...selects[1].options].map((o) => o.value)).toEqual([
-      "500",
-      "5000",
+    expect(latestData.group).toEqual([
+      { column: "created_at", granularity: "quarter", range: null },
     ]);
-
-    await user.selectOptions(selects[1], "5000");
-    expect(latestData.group.range).toBe(5000);
   });
 
-  it("kolom string tidak menampilkan select tambahan", async () => {
+  it("mencentang kolom number menyimpan opsi range PERTAMA dari groupRangeOptions kolom itu", async () => {
     const user = userEvent.setup();
     await renderForm();
 
-    await user.selectOptions(groupSelects()[0], "status");
+    await user.click(groupField().getByRole("checkbox", { name: "col.total" }));
 
-    expect(latestData.group).toEqual({
-      column: "status",
-      granularity: null,
-      range: null,
-    });
-    expect(groupSelects()).toHaveLength(1);
+    expect(latestData.group).toEqual([
+      { column: "total", granularity: null, range: 500 },
+    ]);
+    await user.click(
+      groupField().getByRole("combobox", {
+        name: "core.datatable.group_range",
+      }),
+    );
+    expect(await screen.findAllByRole("option")).toHaveLength(2);
+    await user.click(screen.getByRole("option", { name: "5000" }));
+
+    expect(latestData.group[0].range).toBe(5000);
   });
 
-  it("'tidak diatur' mengosongkan group jadi null", async () => {
+  it("beberapa kolom = grup BERTINGKAT: urutan centang = urutan nesting", async () => {
     const user = userEvent.setup();
+    await renderForm();
+
+    await user.click(
+      groupField().getByRole("checkbox", { name: "col.status" }),
+    );
+    await user.click(
+      groupField().getByRole("checkbox", { name: "col.created_at" }),
+    );
+
+    expect(latestData.group.map((level) => level.column)).toEqual([
+      "status",
+      "created_at",
+    ]);
+    // Aktif di atas (berurutan), non-aktif di bawah.
+    expect(groupRows().map((row) => row.label)).toEqual([
+      "col.status",
+      "col.created_at",
+      "col.total",
+    ]);
+  });
+
+  it("nilai awal dari server (list bertingkat) tampil aktif di atas dgn urutan yang sama", async () => {
+    await renderForm({
+      group: [
+        { column: "status", granularity: null, range: null },
+        { column: "created_at", granularity: "year", range: null },
+      ],
+    });
+
+    expect(groupRows()).toEqual([
+      { label: "col.status", checked: "true" },
+      { label: "col.created_at", checked: "true" },
+      { label: "col.total", checked: "false" },
+    ]);
+    expect(
+      groupField().getByRole("combobox", {
+        name: "core.datatable.group_levels.granularity",
+      }),
+    ).toHaveTextContent("core.datatable.granularity.year");
+  });
+
+  it("objek lama {column,...} (1 level) tetap dibaca sbg satu level aktif", async () => {
     await renderForm({
       group: { column: "created_at", granularity: "year", range: null },
     });
-    // Nilai awal dari server tampil apa adanya.
-    expect(groupSelects()[0].value).toBe("created_at");
-    expect(groupSelects()[1].value).toBe("year");
 
-    await user.selectOptions(groupSelects()[0], "__none");
+    expect(groupRows()[0]).toEqual({
+      label: "col.created_at",
+      checked: "true",
+    });
+  });
+
+  it("menghapus centang terakhir mengosongkan group jadi null (tak mengatur)", async () => {
+    const user = userEvent.setup();
+    await renderForm({
+      group: [{ column: "status", granularity: null, range: null }],
+    });
+
+    await user.click(
+      groupField().getByRole("checkbox", { name: "col.status" }),
+    );
 
     expect(latestData.group).toBeNull();
-    expect(groupSelects()).toHaveLength(1);
-  });
-
-  it("ganti kolom mereset granularity/range (tidak mewarisi kolom sebelumnya)", async () => {
-    const user = userEvent.setup();
-    await renderForm({
-      group: { column: "created_at", granularity: "year", range: null },
-    });
-
-    await user.selectOptions(groupSelects()[0], "total");
-
-    expect(latestData.group).toEqual({
-      column: "total",
-      granularity: null,
-      range: 500,
-    });
   });
 
   it("field Group by tidak dirender bila model tak punya kolom groupable", async () => {

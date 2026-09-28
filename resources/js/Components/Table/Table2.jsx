@@ -1,7 +1,6 @@
 import "@/../css/table.css";
 
 import { Avatar, AvatarFallback, AvatarImage } from "../ui/avatar";
-import { ChevronDown, ChevronRight } from "lucide-react";
 import {
   DndContext,
   MouseSensor,
@@ -39,6 +38,8 @@ import { router, usePage } from "@inertiajs/react";
 import BadgeStatus from "../BadgeStatus";
 import { Checkbox } from "../ui/checkbox";
 import ColumnsFilter from "./ColumnsFilter";
+import GroupTree from "./Group/GroupTree";
+import { GroupHeaderRow, GroupNodeStatusRow } from "./Group/GroupHeaderRow";
 import { Dialog } from "../ui/dialog";
 import Header from "./Header";
 import Link from "../Link";
@@ -59,47 +60,27 @@ const DATATABLE_COLUMNS_EXPIRED = 7; //days
 // horizontal scroll (lihat table.css) menampung sisanya.
 const MIN_COLUMN_WIDTH = 120;
 
-export const DATE_GROUP_GRANULARITIES = [
-  "day",
-  "month",
-  "quarter",
-  "half",
-  "year",
-];
-export const DEFAULT_NUMBER_GROUP_RANGE_OPTIONS = [10, 100, 1000];
+// Sel body wrap by default (table.css `td span`). Tipe di bawah ini TAK
+// di-wrap -- format angka/tanggal jadi ganjil kalau kepotong ke baris baru
+// di tengah token, jadi tetap sebaris + potong (`!important`, lihat komentar
+// table.css: selector gabungan lebih spesifik drpd utility polos).
+const NOWRAP_CELL_TYPES = ["number", "currency", "date", "time", "datetime"];
+const cellWrapClassName = (type) =>
+  NOWRAP_CELL_TYPES.includes(type)
+    ? "whitespace-nowrap! text-ellipsis!"
+    : undefined;
 
-// Kunci bucket kolom date/time/datetime per granularity -- HARUS cermin
-// persis ekspresi SQL backend (DataTableScope::dateGroupExpression) supaya
-// run-length grouping di client (bandingkan kunci antar baris berurutan)
-// match dgn batas grup hasil backend (GROUP BY + ORDER BY pakai ekspresi yg
-// sama). Semua format string hasil sengaja urut leksikografis = kronologis.
-export const dateGroupBucketKey = (value, granularity) => {
-  if (!value) return null;
-  const d = new TZDate(value, "UTC");
-  const y = d.getFullYear();
-  const m = d.getMonth() + 1; // 1-12
-  switch (granularity) {
-    case "day":
-      return format(d, "yyyy-MM-dd");
-    case "quarter":
-      return `${y}-Q${Math.floor((m - 1) / 3) + 1}`;
-    case "half":
-      return `${y}-H${m <= 6 ? 1 : 2}`;
-    case "year":
-      return `${y}`;
-    case "month":
-    default:
-      return format(d, "yyyy-MM");
-  }
-};
-
-// floor(value/rangeSize)*rangeSize -- HARUS cermin persis emulasi floor()
-// backend (DataTableScope::numberGroupBucketExpression).
-export const numberGroupBucketKey = (value, rangeSize) => {
-  if (value === null || value === undefined || value === "") return null;
-  const size = Number(rangeSize) || 1;
-  return Math.floor(Number(value) / size) * size;
-};
+// Konstanta grup pindah ke Group/groupLevels.js (spec datatable2-group-tree);
+// di-re-export di sini supaya pemakai lama (ChipEditor, DataTable2, FilterTemplate
+// Form) tak perlu berubah sekaligus. Helper bucket-key sisi client
+// (dateGroupBucketKey/numberGroupBucketKey) DIHAPUS: batas grup kini datang dari
+// server per node, jadi tak ada lagi "mirror manual" ekspresi SQL yg harus identik.
+export {
+  DATE_GROUP_GRANULARITIES,
+  DEFAULT_NUMBER_GROUP_RANGE_OPTIONS,
+} from "./Group/groupLevels";
+// GroupLabel pindah ke Group/GroupLabel.jsx (hindari impor melingkar dgn header grup).
+export { GroupLabel } from "./Group/GroupLabel";
 
 // Nama cookie unik per-path agar tidak bentrok antar-halaman. Path-scoping cookie
 // (nama sama beda path) rapuh: `document.cookie` tak mengekspos path sehingga
@@ -247,7 +228,7 @@ export const Cell = memo(
       case "html":
         return (
           <span
-            className="text-ellipsis truncate [&_p]:inline [&_p]:m-0"
+            className="[&_p]:inline [&_p]:m-0"
             dangerouslySetInnerHTML={{ __html: value ?? "" }}
           />
         );
@@ -307,14 +288,17 @@ export const Cell = memo(
       if (child) {
         return cloneElement(child, {
           ...child.props,
-          className: cn(child.props.className, "text-ellipsis truncate"),
+          className: cn(child.props.className, cellWrapClassName(type)),
         });
       }
     }
     if (isLink && route && can("read", { user_id: row?.created_by_id })) {
       return (
         <Link
-          className="text-blue-800 dark:text-blue-200 hover:underline"
+          className={cn(
+            "text-blue-800 dark:text-blue-200 hover:underline",
+            cellWrapClassName(type),
+          )}
           href={window.route(route ?? "", row[primaryKey] ?? "")}
         >
           {valueCell}
@@ -339,124 +323,65 @@ export const Cell = memo(
               value?.[primaryKey] ?? "",
             )
           }
-          className="text-blue-800 dark:text-blue-200 hover:underline"
+          className={cn(
+            "text-blue-800 dark:text-blue-200 hover:underline",
+            cellWrapClassName(type),
+          )}
         >
           {valueCell}
         </Link>
       );
     }
-    return <span>{valueCell}</span>;
+    return <span className={cellWrapClassName(type)}>{valueCell}</span>;
   },
 );
 Cell.displayName = "TableCell";
-// Label header grup -- cermin dari switch(type) di Cell, tapi sumber value-nya
-// row[groupBy] (dipakai jg utk run-length grouping), BUKAN row penuh -- jadi
-// case yg butuh field LAIN dari row (mis. formStatus baca row.appendStatus,
-// bukan row[name]) direpresentasikan pakai raw value grup itu sendiri
-// (utk formStatus/formStatuses: value = kolom status mentah, cukup utk
-// <BadgeStatus status=.../> render 1 badge yg mewakili grup itu).
-// "Tanpa nilai" dicek eksplisit thd null/undefined/"" -- BUKAN falsy JS biasa,
-// supaya boolean `false` & number `0` (nilai sah) tidak ikut ke-treat sbg
-// kosong seperti bug lama.
-// `value` utk date/time/datetime & number/currency adalah KUNCI BUCKET
-// (dateGroupBucketKey/numberGroupBucketKey), BUKAN raw value per-baris --
-// granularity/rangeSize dibutuhkan utk decode kunci itu jadi label manusiawi
-// (mis. "2026-Q1" -> "Kuartal 1 2026", 100 -> "100 - 200").
-export const GroupLabel = memo(
-  ({ type, value, column, granularity, rangeSize }) => {
-    const { lang, preferences } = usePage().props;
-    const { t } = useLaravelReactI18n();
-    if (value === null || value === undefined || value === "") {
-      return t("core.datatable.no_group_value");
-    }
-    switch (type) {
-      case "relation":
-        return convertTemplateLink(value);
-      case "formStatus":
-      case "formStatuses":
-        // formStatuses (jamak): value ARRAY status (mis. ["approved","pending"])
-        // -- render satu BadgeStatus per elemen, cermin cara Cell.jsx render
-        // baris (row.appendStatus.map(...)). formStatus (tunggal): value
-        // scalar string, satu badge spt sebelumnya.
-        return Array.isArray(value) ? (
-          <div className="flex flex-wrap gap-x-1 gap-y-1">
-            {value.map((status, idx) => (
-              <BadgeStatus key={idx} status={status} />
-            ))}
-          </div>
-        ) : (
-          <BadgeStatus status={value} />
-        );
-      case "boolean": {
-        const key = String(value);
+// Satu baris data tabel (`<tr>`): checkbox pilih, kolom aksi, lalu sel per kolom
+// tampil. Diekstrak dari Table2 supaya dipakai jalur flat DAN pohon grup
+// (spec datatable2-group-tree, task 7.1) dgn DOM yang identik.
+export const TableRow = memo(function TableRow({
+  row,
+  selectable,
+  actions,
+  showedColumns,
+  onRowClick,
+  onCheck,
+}) {
+  return (
+    <tr
+      onClick={onRowClick ? () => onRowClick(row) : undefined}
+      className={cn(onRowClick && "cursor-pointer hover:bg-accent/50")}
+    >
+      {selectable && (
+        <td className="py-2! px-2! items-center">
+          <Checkbox
+            checked={row.isSelected ?? false}
+            onCheckedChange={(check) => onCheck(row, check)}
+          />
+        </td>
+      )}
+      {actions && (
+        <td className="w-full flex flex-row! items-center gap-x-2 border-r border-muted-foreground/15">
+          {actions({ dataRow: row })}
+        </td>
+      )}
+      {showedColumns.map(({ type, name, parse, valueTrans, ...colProps }) => {
         return (
-          column?.parse?.[key] ??
-          t(value ? "core.datatable.yes" : "core.datatable.no")
+          <td key={name} className="border-r border-muted-foreground/15">
+            <Cell
+              row={row}
+              type={type}
+              name={name}
+              parse={parse}
+              valueTrans={valueTrans}
+              {...colProps}
+            />
+          </td>
         );
-      }
-      case "date":
-      case "time":
-      case "datetime":
-        switch (granularity) {
-          case "quarter": {
-            const [y, q] = String(value).split("-Q");
-            return `${t("core.datatable.granularity.quarter")} ${q} ${y}`;
-          }
-          case "half": {
-            const [y, h] = String(value).split("-H");
-            return `${t("core.datatable.granularity.half")} ${h} ${y}`;
-          }
-          case "year":
-            return String(value);
-          case "day":
-            return format(new TZDate(value, "UTC"), "PPP", {
-              locale: getLocaleDate(lang),
-            });
-          case "month":
-          default: {
-            const [y, m] = String(value).split("-").map(Number);
-            return format(new Date(y, m - 1, 1), "MMMM yyyy", {
-              locale: getLocaleDate(lang),
-            });
-          }
-        }
-      case "number":
-      case "currency": {
-        let prefix = "";
-        if (type === "currency") {
-          const symbol =
-            typeof column?.currencyCode === "object"
-              ? column.currencyCode?.symbol
-              : null;
-          prefix = symbol ? `${symbol} ` : "";
-        }
-        const fmtOpts = {
-          numberFormat:
-            column?.numberFormat ?? preferences?.default_number_format,
-          decimalScale: column?.decimalScale,
-          groupSeparator: column?.groupSeparator,
-          decimalSeparator: column?.decimalSeparator,
-          prefix,
-        };
-        const size = Number(rangeSize) || 0;
-        const lower = Number(value);
-        return size > 0
-          ? `${formatNumber(lower, fmtOpts)} - ${formatNumber(lower + size, fmtOpts)}`
-          : formatNumber(lower, fmtOpts);
-      }
-      case "html":
-        return <span dangerouslySetInnerHTML={{ __html: value ?? "" }} />;
-      case "string":
-      default:
-        return column?.valueTrans
-          ? t(`${column.valueTrans}.${value}`)
-          : column?.parse
-            ? (column.parse[value] ?? value)
-            : value;
-    }
-  },
-);
-GroupLabel.displayName = "TableGroupLabel";
+      })}
+    </tr>
+  );
+});
 const Table2 = forwardRef(function Table2(
   {
     className,
@@ -474,10 +399,10 @@ const Table2 = forwardRef(function Table2(
     isLoading,
     persistColumns = true,
     onRowClick,
-    groupBy,
-    groupCounts,
-    groupGranularity,
-    groupRange,
+    // Pohon grup (spec datatable2-group-tree): { levels, aggregates, baseParams,
+    // version, resetKey, pathname? } -- `data` = deskriptor grup level-0. Tanpa
+    // prop ini Table2 merender daftar baris flat (tak berubah).
+    group,
   },
   ref,
 ) {
@@ -490,106 +415,6 @@ const Table2 = forwardRef(function Table2(
   useDidMountEffect(() => {
     setData(initialData);
   }, [initialData]);
-  // Collapse per NILAI grup (bukan index/posisi) -- tidak persist ke
-  // cookie/localStorage, reset tiap reload/navigasi (v1, YAGNI).
-  const [collapsedGroups, setCollapsedGroups] = useState(() => new Set());
-  const toggleGroup = useCallback((value) => {
-    setCollapsedGroups((prev) => {
-      const next = new Set(prev);
-      if (next.has(value)) {
-        next.delete(value);
-      } else {
-        next.add(value);
-      }
-      return next;
-    });
-  }, []);
-  // Kolom `type: relation`: row[groupBy] adalah OBJECT model relasi hasil
-  // eager-load, instance BARU per baris walau merujuk row yg sama (lepas
-  // dari JSON deserialize) -- perbandingan `!==` mentah SELALU beda
-  // (broken). Ekstrak primary key relasi (`groupColumnMeta.primaryKey`,
-  // sama dgn FK yg dipakai backend GROUP BY) sbg kunci banding stabil.
-  // Kolom date/time/datetime & number/currency: bucket via granularity/
-  // rangeSize (HARUS cermin ekspresi SQL backend, lihat komentar
-  // dateGroupBucketKey/numberGroupBucketKey) -- run-length di client
-  // membandingkan bucket, bukan raw value per-baris.
-  // Dipakai bersama oleh run-length grouping DAN cek collapsed-row.
-  const groupColumnMeta = headers?.[groupBy];
-  const isDateGroupType = ["date", "time", "datetime"].includes(
-    groupColumnMeta?.type,
-  );
-  const isNumberGroupType = ["number", "currency"].includes(
-    groupColumnMeta?.type,
-  );
-  const groupKeyOf = useCallback(
-    (row) => {
-      const raw = row[groupBy];
-      if (groupColumnMeta?.type === "relation") {
-        return raw?.[groupColumnMeta?.primaryKey ?? "id"] ?? null;
-      }
-      if (isDateGroupType) return dateGroupBucketKey(raw, groupGranularity);
-      if (isNumberGroupType) return numberGroupBucketKey(raw, groupRange);
-      // formStatuses (array status, mis. Submitable::status) & tipe array
-      // lain yg mungkin groupable -- array JS instance BARU tiap baris walau
-      // isinya identik (lepas dari JSON deserialize), `!==` mentah SELALU
-      // beda (bug sama persis dgn object relasi di atas). JSON.stringify
-      // sbg kunci banding stabil -- SEKALIGUS cocok dgn key groupCounts
-      // backend (GROUP BY pakai string JSON MENTAH kolom, lihat
-      // DataTableScope -- PHP json_encode array enum & JS JSON.stringify
-      // array string menghasilkan teks yg sama persis, tak perlu normalisasi
-      // beda dari kasus boolean).
-      if (Array.isArray(raw)) return JSON.stringify(raw);
-      return raw;
-    },
-    [
-      groupBy,
-      groupColumnMeta,
-      isDateGroupType,
-      isNumberGroupType,
-      groupGranularity,
-      groupRange,
-    ],
-  );
-  // Run-length grouping -- data SUDAH terurut per kolom grup (sort dikunci
-  // di DataTable2.jsx), deteksi batas grup dari perubahan value baris
-  // berjalan vs sebelumnya, TIDAK re-sort di client.
-  // groupCounts null berarti BE menolak grup ini (kolom sudah tak
-  // groupable lagi, mis. reload dgn `?group=` basi) -- jangan run-length
-  // grouping thd data yg TAK terjamin contiguous, jatuhkan ke flat list.
-  const groupedRows = useMemo(() => {
-    if (!groupBy || !groupCounts)
-      return data.map((row, index) => ({ isHeader: false, row, index }));
-    // Bucket type (date/number): label grup = kunci bucket itu sendiri
-    // (GroupLabel decode via granularity/rangeSize). Type lain (relasi/
-    // string/dst): label pakai raw value row[groupBy] spt sebelumnya
-    // (relasi butuh object utuh utk convertTemplateLink).
-    const isBucketType = isDateGroupType || isNumberGroupType;
-    let lastKey;
-    return data.flatMap((row, index) => {
-      const key = groupKeyOf(row);
-      const headerValue = isBucketType ? key : row[groupBy];
-      const isNewGroup = index === 0 || key !== lastKey;
-      lastKey = key;
-      return isNewGroup
-        ? [
-            {
-              isHeader: true,
-              groupHeader: headerValue,
-              groupKeyValue: key,
-              key: `group-${key}-${index}`,
-            },
-            { isHeader: false, row, index },
-          ]
-        : [{ isHeader: false, row, index }];
-    });
-  }, [
-    data,
-    groupBy,
-    groupCounts,
-    groupKeyOf,
-    isDateGroupType,
-    isNumberGroupType,
-  ]);
   const [getRef, setRef] = useDynamicRefs();
   const [_options, _setOptions] = useState({
     page: 1,
@@ -753,6 +578,45 @@ const Table2 = forwardRef(function Table2(
       },
     );
   }, [showedColumns]);
+  // Tinggi baris header kolom TIDAK LAGI konstan sejak header boleh wrap
+  // (revisi wrap sel, gantikan running-text/truncate) -- header panjang di
+  // kolom sempit bisa jadi 2-4 baris. Header grup sticky (GroupHeaderRow)
+  // butuh nilai ini sbg `top` supaya nempel tepat di bawah header kolom --
+  // diekspos lewat CSS var (bukan prop drilling) krn GroupHeaderRow ada di
+  // subtree GroupTree yg terpisah dari <thead> ini. `thead`/`tr` sendiri =
+  // `display:contents` (table.css) -> tak punya box utk di-observe; observe
+  // SEMUA `th` (bukan cuma 1, grid stretch ternyata TAK selalu bisa
+  // diandalkan konsisten dari 1 sel) & ambil TINGGI TERBESAR.
+  //
+  // Deps `[selectable, actions, showedColumns]` (bukan `[]`/tiap render):
+  // versi awal pakai NO-DEPS (re-observe tiap render) & TERBUKTI cacat lewat
+  // verifikasi browser -- var macet di nilai lama (48px) walau tinggi
+  // sungguhan sudah 65px, krn observer lama ke-disconnect sebelum sempat
+  // deliver notifikasi awal saat render beruntun (mis. toggle grup + reload
+  // data). Effect ini hanya perlu re-attach saat SET th BENAR2 berubah
+  // (kolom show/reorder), observer sendiri yg mendeteksi resize (wrap
+  // berubah krn lebar kolom di-resize user, dst) tanpa perlu re-run effect.
+  useEffect(() => {
+    const table = tableElement.current;
+    const headerCells = table ? [...table.querySelectorAll("thead th")] : [];
+    if (
+      !table ||
+      headerCells.length === 0 ||
+      typeof ResizeObserver === "undefined"
+    ) {
+      return undefined;
+    }
+    const updateStickyTop = () => {
+      const tallest = Math.max(
+        ...headerCells.map((el) => el.getBoundingClientRect().height),
+      );
+      table.style.setProperty("--group-sticky-top", `${Math.round(tallest)}px`);
+    };
+    const observer = new ResizeObserver(updateStickyTop);
+    headerCells.forEach((el) => observer.observe(el));
+    updateStickyTop(); // nilai awal langsung -- jangan tunggu frame observer pertama
+    return () => observer.disconnect();
+  }, [selectable, actions, showedColumns]);
   const computeResizedColumns = useCallback(
     (e) => {
       const newColumns = Object.fromEntries(columns.map((x) => [x.name, x]));
@@ -880,6 +744,51 @@ const Table2 = forwardRef(function Table2(
     });
   };
 
+  // Pohon grup: render-prop utk GroupTree (desktop = <tr>/<td> di grid tabel).
+  const rowSpan =
+    showedColumns.length + (selectable ? 1 : 0) + (actions ? 1 : 0);
+  const renderGroupHeader = useCallback(
+    (args) => (
+      <GroupHeaderRow
+        {...args}
+        columnMeta={headers?.[args.level?.column]}
+        aggregates={group?.aggregates}
+        showedColumns={showedColumns}
+        selectable={selectable}
+        actions={Boolean(actions)}
+      />
+    ),
+    [headers, group?.aggregates, showedColumns, selectable, actions],
+  );
+  const renderGroupRow = useCallback(
+    (row) => (
+      <TableRow
+        row={row}
+        selectable={selectable}
+        actions={actions}
+        showedColumns={showedColumns}
+        onRowClick={onRowClick}
+        onCheck={() => {}}
+      />
+    ),
+    [selectable, actions, showedColumns, onRowClick],
+  );
+  const renderGroupLoading = useCallback(
+    ({ depth }) => <GroupNodeStatusRow depth={depth} colSpan={rowSpan} />,
+    [rowSpan],
+  );
+  const renderGroupError = useCallback(
+    ({ depth, onRetry }) => (
+      <GroupNodeStatusRow
+        depth={depth}
+        colSpan={rowSpan}
+        error
+        onRetry={onRetry}
+      />
+    ),
+    [rowSpan],
+  );
+
   const checklist = (row, check) => {
     setData((data) => {
       const newData = data.map((x) => {
@@ -904,11 +813,20 @@ const Table2 = forwardRef(function Table2(
               className="resizeable-table"
               ref={tableElement}
               style={{
-                gridTemplateRows: [
-                  "auto",
-                  ...data.map(() => "auto"),
-                  "1fr",
-                ].join(" "),
+                // Jalur flat: baris header, satu per baris data, lalu filler 1fr
+                // yg menempel ke dasar. Pohon grup: jumlah baris DINAMIS (anak
+                // node baru muncul saat dibuka) jadi tak bisa dihitung dari
+                // data.length -- semua baris implisit `auto`, dipadatkan ke atas
+                // (align-content: start; tanpa itu track auto melar mengisi tinggi).
+                ...(group
+                  ? { alignContent: "start" }
+                  : {
+                      gridTemplateRows: [
+                        "auto",
+                        ...data.map(() => "auto"),
+                        "1fr",
+                      ].join(" "),
+                    }),
                 gridTemplateColumns:
                   (selectable ? "max-content " : "") +
                   (actions ? "max-content " : "") +
@@ -980,115 +898,43 @@ const Table2 = forwardRef(function Table2(
                   </tr>
                 ) : (
                   <>
-                    {groupedRows.map((item) => {
-                      if (item.isHeader) {
-                        const groupValue = item.groupHeader;
-                        // groupKeyValue: null utk grup "tanpa nilai" (scalar
-                        // null ATAU relasi tanpa row tertaut) -- String(null)
-                        // === "null", cocok dgn key backend (mapWithKeys).
-                        const groupKey = String(item.groupKeyValue ?? "null");
-                        const isCollapsed = collapsedGroups.has(groupKey);
-                        return (
-                          <tr key={item.key}>
-                            <td
-                              className="flex-row! justify-start! items-center gap-x-2 bg-muted font-medium cursor-pointer select-none z-2 relative"
-                              style={{
-                                gridColumn: `span ${showedColumns.length + (selectable ? 1 : 0) + (actions ? 1 : 0)}`,
-                              }}
-                              onClick={() => toggleGroup(groupKey)}
-                            >
-                              {isCollapsed ? (
-                                <ChevronRight className="size-4 shrink-0" />
-                              ) : (
-                                <ChevronDown className="size-4 shrink-0" />
-                              )}
-                              <span>
-                                <GroupLabel
-                                  type={groupColumnMeta?.type}
-                                  value={groupValue}
-                                  column={groupColumnMeta}
-                                  granularity={groupGranularity}
-                                  rangeSize={groupRange}
-                                />
-                              </span>
-                              <span className="text-muted-foreground font-normal">
-                                ({groupCounts?.[groupKey] ?? 0})
-                              </span>
-                            </td>
-                          </tr>
-                        );
-                      }
-
-                      const { row, index } = item;
-                      if (
-                        groupBy &&
-                        collapsedGroups.has(String(groupKeyOf(row) ?? "null"))
-                      ) {
-                        return null;
-                      }
-
-                      return (
-                        <tr
-                          key={index}
-                          onClick={
-                            onRowClick ? () => onRowClick(row) : undefined
-                          }
-                          className={cn(
-                            onRowClick && "cursor-pointer hover:bg-accent/50",
-                          )}
-                        >
-                          {selectable && (
-                            <td className="py-2! px-2! items-center">
-                              <Checkbox
-                                checked={row.isSelected ?? false}
-                                onCheckedChange={(check) =>
-                                  checklist(row, check)
-                                }
-                              />
-                            </td>
-                          )}
-                          {actions && (
-                            <td className="w-full flex flex-row! items-center gap-x-2 border-r border-muted-foreground/15">
-                              {actions({ dataRow: row })}
-                            </td>
-                          )}
-                          {showedColumns.map(
-                            ({
-                              type,
-                              name,
-                              parse,
-                              valueTrans,
-                              ...colProps
-                            }) => {
-                              return (
-                                <td
-                                  key={name}
-                                  className="border-r border-muted-foreground/15"
-                                >
-                                  <Cell
-                                    row={row}
-                                    type={type}
-                                    name={name}
-                                    parse={parse}
-                                    valueTrans={valueTrans}
-                                    {...colProps}
-                                  />
-                                </td>
-                              );
-                            },
-                          )}
-                        </tr>
-                      );
-                    })}
-
-                    <tr>
-                      <td
-                        className="border-b-0! items-center justify-center row-auto h-full z-2 relative bg-background"
-                        style={{
-                          gridColumn: `span ${showedColumns.length + (selectable ? 1 : 0) + (actions ? 1 : 0)}`,
-                        }}
+                    {group ? (
+                      <GroupTree
+                        key={group.resetKey}
+                        rootItems={data}
+                        levels={group.levels}
+                        baseParams={group.baseParams}
+                        pathname={group.pathname}
+                        version={group.version}
+                        subLevelVersion={group.subLevelVersion}
+                        renderGroupHeader={renderGroupHeader}
+                        renderRow={renderGroupRow}
+                        renderLoading={renderGroupLoading}
+                        renderError={renderGroupError}
                       />
-                    </tr>
+                    ) : (
+                      data.map((row, index) => (
+                        <TableRow
+                          key={index}
+                          row={row}
+                          selectable={selectable}
+                          actions={actions}
+                          showedColumns={showedColumns}
+                          onRowClick={onRowClick}
+                          onCheck={checklist}
+                        />
+                      ))
+                    )}
+                    {!group && (
+                      <tr>
+                        <td
+                          className="border-b-0! items-center justify-center row-auto h-full z-2 relative bg-background"
+                          style={{
+                            gridColumn: `span ${showedColumns.length + (selectable ? 1 : 0) + (actions ? 1 : 0)}`,
+                          }}
+                        />
+                      </tr>
+                    )}
                   </>
                 )}
               </tbody>

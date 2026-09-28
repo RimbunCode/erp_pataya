@@ -5,6 +5,10 @@
 Semua terminal command harus Bash-compatible (`C:/Program Files/Git/usr/bin/bash.exe`). Jangan gunakan PowerShell/cmd.
 Gunakan: `ls`, `cp`, `mv`, `rm`, `export VAR=value`, forward slashes di path.
 
+## Uji Visual Browser — Kredensial Login
+
+Saat login ke app lokal (dev server) buat verifikasi browser, gunakan **admin/admin** (username/password). Akun ini (`test@example.com`, username `admin`) sudah di-set password `admin` secara permanen — **jangan pernah ganti password akun ini ke nilai lain**, walau lagi reset/seed data uji lain.
+
 ## Verifikasi Sebelum Klaim Teknis
 
 Jangan berasumsi atau menjawab pertanyaan arsitektur/desain ("kenapa X begini", "apakah Y akan konflik dengan Z") dari ingatan umum. Telusuri dulu implementasi konkret — baca kode terkait, cari precedent pola serupa di module lain di codebase ini — sebelum menyampaikan sesuatu sebagai fakta. Kalau setelah ditelusuri masih ambigu atau belum ketemu jawaban pasti, konfirmasi ke user secara eksplisit alih-alih menyimpulkan sendiri.
