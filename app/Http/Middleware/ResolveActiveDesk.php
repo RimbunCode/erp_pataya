@@ -75,12 +75,27 @@ class ResolveActiveDesk {
 
         Inertia::share([
             'activeDesk' => $desk->only(['id', 'name', 'icon', 'background_color', 'foreground_color']),
-            // 'type' (system|custom) diikutkan — feedback user: DeskSwitcher
-            // urutkan system dulu baru custom, dengan divider di antaranya.
-            'deskList' => $this->resolver->visibleDesksFor($user, $checker, $request)
+            // Closure (bukan nilai eager): PropsResolver Inertia (vendor)
+            // TIDAK PERNAH memanggil closure yang di-share kalau request ini
+            // (a) partial reload yang tak minta prop ini (mis. loadData()
+            // DataTable2.jsx, reset:["data","ziggy","groupMeta"] TIDAK
+            // menyebut deskList/menuItems), atau (b) non-Inertia sama sekali
+            // (XHR groupPath expand -- throw HttpResponseException SEBELUM
+            // Inertia::render() pernah dipanggil, jadi PropsResolver tidak
+            // pernah jalan sama sekali). Middleware ini eksekusi di SETIAP
+            // request terautentikasi (grup route 'app','desk') -- tanpa
+            // closure, query buildMenuTree() (~60+ query, lihat komentar
+            // method-nya) & visibleDesksFor() SUDAH TERLANJUR jalan begitu
+            // baris ini dieksekusi, walau hasilnya sama sekali tak dikirim ke
+            // frontend. Pola sama persis dgn HandleInertiaRequests.php
+            // (`ziggy`/`preferences`/`unread_*_count`) -- middleware INI
+            // sebelumnya tidak konsisten dgn pola itu.
+            'deskList' => fn () => $this->resolver->visibleDesksFor($user, $checker, $request)
+                // 'type' (system|custom) diikutkan — feedback user: DeskSwitcher
+                // urutkan system dulu baru custom, dengan divider di antaranya.
                 ->map->only(['id', 'name', 'icon', 'background_color', 'foreground_color', 'type'])
                 ->values(),
-            'menuItems' => $this->buildMenuTree($desk, $checker),
+            'menuItems' => fn () => $this->buildMenuTree($desk, $checker),
         ]);
 
         return $next($request)->withCookie(
