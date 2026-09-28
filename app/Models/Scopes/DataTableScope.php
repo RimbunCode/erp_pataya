@@ -27,6 +27,21 @@ use Inertia\Inertia;
 
 class DataTableScope implements Scope {
     /**
+     * Cache in-memory (statis, per proses PHP) status is_main_branch per id --
+     * applyBranchFilter() dipanggil ulang tiap macro dataTable() jalan (index
+     * utama + tiap LinkModel dropdown ber-HasBranch di halaman yang sama),
+     * padahal session('currentBranch') tidak berubah dalam satu request/proses.
+     * Direset di Tests\TestCase::setUp() (lihat SchemaColumnCache utk pola sama).
+     *
+     * @var array<string, Branch|null>
+     */
+    private static array $branchMainStatusCache = [];
+
+    public static function forgetBranchMainStatusCache(): void {
+        self::$branchMainStatusCache = [];
+    }
+
+    /**
      * Apply the scope to a given Eloquent query builder.
      */
     public function apply(Builder $builder, Model $model): void {
@@ -137,10 +152,16 @@ class DataTableScope implements Scope {
         // tambahan (billingCountry+shippingCountry via $with Branch) setiap
         // kali macro dataTable() jalan — N+1 nyata karena dipanggil berulang
         // per halaman (index utama + tiap LinkModel dropdown ber-HasBranch).
-        $branch = Branch::query()
-            ->withoutGlobalScope('country')
-            ->select(['id', 'is_main_branch'])
-            ->find(session('currentBranch'));
+        // Di-cache per id (statis, per proses) -- currentBranch tak berubah
+        // dalam satu request, jadi lookup ini juga tak perlu diulang.
+        $branchId = session('currentBranch');
+        if (! \array_key_exists($branchId, self::$branchMainStatusCache)) {
+            self::$branchMainStatusCache[$branchId] = Branch::query()
+                ->withoutGlobalScope('country')
+                ->select(['id', 'is_main_branch'])
+                ->find($branchId);
+        }
+        $branch = self::$branchMainStatusCache[$branchId];
         if (! $branch || $branch->is_main_branch) {
             return;
         }
@@ -234,11 +255,18 @@ class DataTableScope implements Scope {
                 : null;
 
             $isSubmitable = $query->getModel()->isSubmitable();
-            $defaultShow  = Preference::where('key', 'num_per_page')->first()?->value ?? 25;
             // Prioritas: query param `show` > cookie `datatable_show` > default preference.
+            // Query Preference LAZY (inline di rantai ??, bukan diresolusi duluan) --
+            // cookie datatable_show persist 7 hari, jadi setelah kunjungan pertama
+            // fallback preference ini nyaris tak pernah kepakai; eager sebelumnya
+            // berarti 1 query DB percuma di HAMPIR SETIAP request dataTable().
             $showFromQuery = $request->input('show');
-            $show          = (int) ($showFromQuery ?? $request->cookie('datatable_show') ?? $defaultShow);
-            $show          = $show <= 0 ? 25 : $show;
+            $show          = (int) (
+                $showFromQuery
+                ?? $request->cookie('datatable_show')
+                ?? (Preference::where('key', 'num_per_page')->first()?->value ?? 25)
+            );
+            $show = $show <= 0 ? 25 : $show;
             // Kalau `show` datang dari query param, persist ke cookie pada path yang
             // diakses agar konsisten di kunjungan berikutnya tanpa query param.
             if ($showFromQuery !== null) {

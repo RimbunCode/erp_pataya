@@ -2,6 +2,7 @@
 
 namespace Tests;
 
+use App\Models\Scopes\DataTableScope;
 use App\Services\Core\SchemaColumnCache;
 use Illuminate\Foundation\Testing\TestCase as BaseTestCase;
 
@@ -16,5 +17,11 @@ abstract class TestCase extends BaseTestCase {
         // kalau tidak, cache basi dari test method/class LAIN (skema tabel
         // sebelum kolom ditambah) bisa nyangkut & bikin hasil salah.
         SchemaColumnCache::forget();
+
+        // Sama alasannya dengan SchemaColumnCache di atas -- DataTableScope
+        // meng-cache status is_main_branch per id Branch statis per proses.
+        // RefreshDatabase reset DB tiap test, jadi id Branch dari test SEBELUMNYA
+        // bisa nyangkut & memberi hasil salah kalau tak direset.
+        DataTableScope::forgetBranchMainStatusCache();
     }
 }
