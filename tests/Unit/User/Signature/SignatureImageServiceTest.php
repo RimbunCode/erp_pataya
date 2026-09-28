@@ -34,11 +34,11 @@ class SignatureImageServiceTest extends TestCase {
     private function encode(\GdImage $image, string $format): string {
         ob_start();
         match ($format) {
-            'jpeg' => imagejpeg($image),
-            'png'  => imagepng($image),
-            'webp' => imagewebp($image),
-            'gif'  => imagegif($image),
-            'bmp'  => imagebmp($image),
+            'jpeg'  => imagejpeg($image),
+            'png'   => imagepng($image),
+            'webp'  => imagewebp($image),
+            'gif'   => imagegif($image),
+            'bmp'   => imagebmp($image),
             default => imagepng($image),
         };
 

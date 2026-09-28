@@ -5,6 +5,7 @@ namespace App\Services\Core\Approval;
 use App\Models\Core\ApprovalInstance;
 use App\Models\User\User;
 use Illuminate\Database\Eloquent\Builder;
+use Illuminate\Support\Collection;
 
 /**
  * Kelayakan akses terhadap approval instance, dipakai bersama oleh
@@ -75,7 +76,7 @@ class ApprovalAccessService {
      * step), sebagai approver anak pada step advanced, atau sebagai pelaku
      * keputusan yang tercatat.
      *
-     * @param  \Illuminate\Support\Collection<int, string>  $roleIds
+     * @param  Collection<int, string>  $roleIds
      */
     private function applyInvolvementFilter(Builder $query, User $user, $roleIds): void {
         $query->where(function (Builder $query) use ($user, $roleIds) {

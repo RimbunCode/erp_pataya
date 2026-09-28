@@ -142,11 +142,11 @@ final class SignatureThresholdCalculator {
 
         $row = [];
         foreach ($geometry as $x => [$left, $right, $tx]) {
-            $topLeft     = $rowTop[$left];
-            $bottomLeft  = $rowBottom[$left];
-            $top         = $topLeft + ($rowTop[$right] - $topLeft) * $tx;
-            $bottom      = $bottomLeft + ($rowBottom[$right] - $bottomLeft) * $tx;
-            $row[$x]     = $top + ($bottom - $top) * $ty;
+            $topLeft    = $rowTop[$left];
+            $bottomLeft = $rowBottom[$left];
+            $top        = $topLeft + ($rowTop[$right] - $topLeft) * $tx;
+            $bottom     = $bottomLeft + ($rowBottom[$right] - $bottomLeft) * $tx;
+            $row[$x]    = $top + ($bottom - $top) * $ty;
         }
 
         return $row;

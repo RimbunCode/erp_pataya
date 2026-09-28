@@ -3,6 +3,7 @@
 namespace Tests\Feature\Core;
 
 use App\Services\Core\PrintTemplate\PdfExportService;
+use App\Services\User\Signature\SignatureImageService;
 use PHPUnit\Framework\Attributes\Test;
 use Tests\TestCase;
 
@@ -88,7 +89,7 @@ class PdfSignatureRenderTest extends TestCase {
         imagepng($source);
         $bytes = (string) ob_get_clean();
 
-        $processed = app(\App\Services\User\Signature\SignatureImageService::class)->process($bytes);
+        $processed = app(SignatureImageService::class)->process($bytes);
         $decoded   = imagecreatefromstring($processed);
 
         $this->assertNotFalse($decoded);

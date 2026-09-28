@@ -180,10 +180,10 @@ class ApprovalSignatureRenderTest extends TestCase {
     private function makeInstance(SignatureRenderTestDocument $document): ApprovalInstance {
         return ApprovalInstance::create([
             'approval_scheme_id' => $this->schemeId,
-            'document_type'    => SignatureRenderTestDocument::class,
-            'document_id'      => $document->id,
-            'status'           => FormStatus::PENDING->value,
-            'current_sequence' => 0,
+            'document_type'      => SignatureRenderTestDocument::class,
+            'document_id'        => $document->id,
+            'status'             => FormStatus::PENDING->value,
+            'current_sequence'   => 0,
         ]);
     }
 

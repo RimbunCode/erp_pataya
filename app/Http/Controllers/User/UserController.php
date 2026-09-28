@@ -17,6 +17,7 @@ use App\Services\Core\PermissionChecker;
 use App\Services\User\Signature\SignatureImageService;
 use App\Utils;
 use Illuminate\Http\Request;
+use Illuminate\Http\UploadedFile;
 use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Route;
@@ -127,7 +128,7 @@ class UserController extends Controller {
     public function signature(SignatureUploadRequest $request, User $user) {
         $data = $request->validated();
 
-        /** @var \Illuminate\Http\UploadedFile $upload */
+        /** @var UploadedFile $upload */
         $upload = $request->file('signature');
         $bytes  = file_get_contents($upload->getRealPath());
 

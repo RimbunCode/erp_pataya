@@ -17,8 +17,8 @@ return [
         'image_too_dark'        => 'The image is too dark to be processed as a signature.',
     ],
     'block' => [
-        'label'      => 'Signature',
-        'show_name'  => 'Show name',
-        'show_date'  => 'Show date',
+        'label'     => 'Signature',
+        'show_name' => 'Show name',
+        'show_date' => 'Show date',
     ],
 ];

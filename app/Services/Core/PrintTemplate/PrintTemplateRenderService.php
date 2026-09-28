@@ -189,8 +189,6 @@ class PrintTemplateRenderService {
      * tercetak selalu penandatangan final, sehingga step tidak dapat
      * dipilih dari template (FR8a). Argumen posisional pada template lama
      * diabaikan, bukan digagalkan.
-     *
-     * @param  mixed  $options
      */
     protected function renderSignatureSlot(mixed $options): string {
         // lightncandy menggeser $options ke argumen berikutnya bila template
@@ -314,11 +312,11 @@ class PrintTemplateRenderService {
                     array_keys((array) $value),
                 )),
                 'date', 'time', 'datetime' => $this->formatDateTimeValue($value, $col['type'], $opts['lang'] ?? 'en'),
-                'boolean'                  => "<input type='checkbox' " . ($value ? 'checked' : '') . '>',
-                'formStatus'               => __("status.{$value}"),
-                'string'                   => $this->formatStringValue($value, $col),
-                'currency', 'number'       => $this->formatNumericValue($value, $col, $data, $opts),
-                default                    => $value,
+                'boolean'    => "<input type='checkbox' " . ($value ? 'checked' : '') . '>',
+                'formStatus' => __("status.{$value}"),
+                'string'     => $this->formatStringValue($value, $col),
+                'currency', 'number' => $this->formatNumericValue($value, $col, $data, $opts),
+                default => $value,
             };
         }
 

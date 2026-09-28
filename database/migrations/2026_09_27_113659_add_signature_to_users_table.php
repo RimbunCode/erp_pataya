@@ -14,8 +14,7 @@ return new class extends Migration
      * TABLE tidak melalui rename, tidak terpengaruh). Pola sama seperti
      * add_default_desk_id_to_users_table.
      */
-    public function up(): void
-    {
+    public function up(): void {
         $isSqlite = DB::getDriverName() === 'sqlite';
 
         if ($isSqlite) {
@@ -43,8 +42,7 @@ return new class extends Migration
     /**
      * Reverse the migrations.
      */
-    public function down(): void
-    {
+    public function down(): void {
         $isSqlite = DB::getDriverName() === 'sqlite';
 
         if ($isSqlite) {

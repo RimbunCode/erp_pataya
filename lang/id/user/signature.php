@@ -17,8 +17,8 @@ return [
         'image_too_dark'        => 'Gambar terlalu gelap untuk diproses sebagai tanda tangan.',
     ],
     'block' => [
-        'label'      => 'Tanda Tangan',
-        'show_name'  => 'Tampilkan nama',
-        'show_date'  => 'Tampilkan tanggal',
+        'label'     => 'Tanda Tangan',
+        'show_name' => 'Tampilkan nama',
+        'show_date' => 'Tampilkan tanggal',
     ],
 ];

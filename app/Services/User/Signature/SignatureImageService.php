@@ -99,8 +99,6 @@ class SignatureImageService {
      * Langkah 1 — decode. `imagecreatefromstring()` mendeteksi format dari
      * magic bytes (bukan ekstensi nama berkas maupun Content-Type klien),
      * inilah validasi berbasis-isi yang diminta FR2.
-     *
-     * @return \GdImage
      */
     private function decode(string $imageBytes): \GdImage {
         // @ karena imagecreatefromstring() memancarkan E_WARNING untuk byte
