@@ -14,6 +14,64 @@ import axios from "axios";
 
 export const GROUP_NODE_QUERY_KEY = "datatable-group-node";
 
+// Antrean FIFO concurrency-limited (permintaan user, revisi 2026-09-28):
+// ganti sort kolom non-group/non-aggregate saat grouping aktif memicu SEMUA
+// node terbuka (termasuk nested) refetch BARENGAN -- tanpa batas ini,
+// beberapa level nested terbuka = badai request paralel ke server. Modul-
+// level (BUKAN per-hook): semua panggilan `fetchGroupNode` proses ini
+// (query beneran MAUPUN prefetch, keduanya lewat fungsi yang sama) berbagi
+// SATU antrean, jadi limit-nya global per tab, bukan per node.
+const MAX_CONCURRENT_GROUP_NODE_FETCHES = 4;
+let activeGroupNodeFetches = 0;
+const groupNodeFetchQueue = [];
+
+function pumpGroupNodeFetchQueue() {
+  if (
+    activeGroupNodeFetches >= MAX_CONCURRENT_GROUP_NODE_FETCHES ||
+    groupNodeFetchQueue.length === 0
+  ) {
+    return;
+  }
+  const job = groupNodeFetchQueue.shift();
+  activeGroupNodeFetches += 1;
+  job
+    .run()
+    .then(job.resolve, job.reject)
+    .finally(() => {
+      activeGroupNodeFetches -= 1;
+      pumpGroupNodeFetchQueue();
+    });
+}
+
+// Antre `run` (async, tanpa argumen) hingga slot kosong. `signal` opsional --
+// job yang masih MENGANTRE (belum jalan) & di-abort langsung dibuang dari
+// antrean tanpa pernah menyentuh network (node ditutup lagi sebelum
+// kebagian giliran, umum saat toggle cepat/hover-intent batal di menit
+// terakhir); job yang SUDAH jalan biar axios sendiri yang tangani abort-nya
+// lewat signal yang diteruskan ke request.
+function enqueueGroupNodeFetch(run, signal) {
+  return new Promise((resolve, reject) => {
+    if (signal?.aborted) {
+      reject(signal.reason ?? new DOMException("Aborted", "AbortError"));
+      return;
+    }
+    const job = { run, resolve, reject };
+    groupNodeFetchQueue.push(job);
+    signal?.addEventListener(
+      "abort",
+      () => {
+        const index = groupNodeFetchQueue.indexOf(job);
+        if (index !== -1) {
+          groupNodeFetchQueue.splice(index, 1);
+          reject(signal.reason ?? new DOMException("Aborted", "AbortError"));
+        }
+      },
+      { once: true },
+    );
+    pumpGroupNodeFetchQueue();
+  });
+}
+
 // Revisi 2026-09-27 (permintaan user "tercache hasilnya, lebih optimal"): dulu
 // 30s -- terlalu pendek utk toggle tutup lalu buka lagi node yg baru saja
 // dieksplor (child query di-unmount saat parent ditutup, lihat GroupTree.jsx).
@@ -85,11 +143,19 @@ export const fetchGroupNode = async ({
   page,
   signal,
 }) => {
-  const { data } = await axios.get(pathname, {
-    params: { ...params, groupPath: JSON.stringify(rawPath), groupPage: page },
-    paramsSerializer: serializeParams,
+  const { data } = await enqueueGroupNodeFetch(
+    () =>
+      axios.get(pathname, {
+        params: {
+          ...params,
+          groupPath: JSON.stringify(rawPath),
+          groupPage: page,
+        },
+        paramsSerializer: serializeParams,
+        signal,
+      }),
     signal,
-  });
+  );
   return data;
 };
 

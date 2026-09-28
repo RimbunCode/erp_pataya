@@ -1,5 +1,5 @@
-import { describe, expect, it, vi } from "vitest";
-import { render, screen, within } from "@testing-library/react";
+import { afterEach, describe, expect, it, vi } from "vitest";
+import { fireEvent, render, screen, within } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 
 vi.mock("laravel-react-i18n", () => ({
@@ -368,8 +368,11 @@ describe("GroupHeaderRow — struktur, agregat, interaksi", () => {
     expect(screen.getByRole("button")).toHaveAttribute("aria-expanded", "true");
   });
 
-  it("hover/fokus header memanggil onPrefetch (permintaan user: instan saat dibuka)", async () => {
-    const user = userEvent.setup({ delay: null });
+  afterEach(() => {
+    vi.useRealTimers();
+  });
+
+  it("fokus header memanggil onPrefetch langsung (niat eksplisit, bukan hover-intent)", () => {
     const onPrefetch = vi.fn();
     renderRow({
       item: groupItem,
@@ -377,11 +380,43 @@ describe("GroupHeaderRow — struktur, agregat, interaksi", () => {
       onPrefetch,
     });
 
-    await user.hover(screen.getByRole("button"));
-    expect(onPrefetch).toHaveBeenCalledTimes(1);
-
     screen.getByRole("button").focus();
-    expect(onPrefetch).toHaveBeenCalledTimes(2);
+    expect(onPrefetch).toHaveBeenCalledTimes(1);
+  });
+
+  it("hover header memanggil onPrefetch SETELAH hover-intent delay (150ms), bukan instan -- cegah badai request saat mouse cuma lewat", () => {
+    vi.useFakeTimers();
+    const onPrefetch = vi.fn();
+    renderRow({
+      item: groupItem,
+      level: { type: "string" },
+      onPrefetch,
+    });
+    const button = screen.getByRole("button");
+
+    fireEvent.mouseEnter(button);
+    expect(onPrefetch).not.toHaveBeenCalled();
+
+    vi.advanceTimersByTime(150);
+    expect(onPrefetch).toHaveBeenCalledTimes(1);
+  });
+
+  it("mouseEnter lalu mouseLeave sebelum delay selesai -> onPrefetch TIDAK pernah dipanggil (mouse cuma lewat)", () => {
+    vi.useFakeTimers();
+    const onPrefetch = vi.fn();
+    renderRow({
+      item: groupItem,
+      level: { type: "string" },
+      onPrefetch,
+    });
+    const button = screen.getByRole("button");
+
+    fireEvent.mouseEnter(button);
+    vi.advanceTimersByTime(100);
+    fireEvent.mouseLeave(button);
+    vi.advanceTimersByTime(1000);
+
+    expect(onPrefetch).not.toHaveBeenCalled();
   });
 
   it("sticky (Requirement 21.9): sel label & sel agregat SATU BARIS menempel (position:sticky) dgn top/z-index SAMA", () => {

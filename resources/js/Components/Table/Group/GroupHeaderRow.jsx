@@ -10,6 +10,7 @@
 import { ChevronDown, ChevronRight, Loader2 } from "lucide-react";
 import { usePage } from "@inertiajs/react";
 import { useLaravelReactI18n } from "laravel-react-i18n";
+import { useCallback, useEffect, useRef } from "react";
 
 import { cn } from "@/lib/utils";
 import {
@@ -20,6 +21,34 @@ import {
 import GroupLabel from "./GroupLabel";
 
 const INDENT_PX = 16;
+const HOVER_INTENT_DELAY_MS = 150;
+
+// Header node TERTUTUP dipakai buat prefetch on-hover (Requirement 21.7).
+// Mouse yang cuma LEWAT (scroll cepat lintas beberapa row) sebelumnya
+// memicu prefetch tiap row yang disentuh -- badai request percuma
+// (permintaan user, revisi 2026-09-28). Prefetch baru jalan kalau pointer
+// BERTAHAN di row itu >= delay; `onMouseLeave` batalkan timer. `onFocus`
+// (Tab keyboard) SENGAJA tidak lewat sini -- fokus keyboard = niat
+// eksplisit, bukan "kebetulan lewat", jadi tetap prefetch langsung.
+export function useHoverIntent(callback, delay = HOVER_INTENT_DELAY_MS) {
+  const timeoutRef = useRef(null);
+  const callbackRef = useRef(callback);
+  callbackRef.current = callback;
+
+  const onMouseEnter = useCallback(() => {
+    if (!callbackRef.current) return;
+    clearTimeout(timeoutRef.current);
+    timeoutRef.current = setTimeout(() => callbackRef.current?.(), delay);
+  }, [delay]);
+
+  const onMouseLeave = useCallback(() => {
+    clearTimeout(timeoutRef.current);
+  }, []);
+
+  useEffect(() => () => clearTimeout(timeoutRef.current), []);
+
+  return { onMouseEnter, onMouseLeave };
+}
 // Sticky header grup desktop (Requirement 21.9, permintaan user): SATU header
 // grup yg sedang relevan menempel tepat di bawah baris header kolom saat
 // scroll, digantikan otomatis oleh header berikutnya begitu scroll mencapai
@@ -131,12 +160,14 @@ export function GroupHeaderRow({
   );
   const fnOf = new Map((aggregates ?? []).map((a) => [a.column, a.fn]));
   const sticky = stickyGroupHeaderStyle();
+  const hoverIntent = useHoverIntent(onPrefetch);
 
   return (
     <tr>
       <td
         {...toggleProps(onToggle, isOpen, undefined)}
-        onMouseEnter={onPrefetch}
+        onMouseEnter={hoverIntent.onMouseEnter}
+        onMouseLeave={hoverIntent.onMouseLeave}
         onFocus={onPrefetch}
         className="flex-row! justify-start! items-center gap-x-2 bg-muted font-medium cursor-pointer select-none"
         style={{
@@ -221,6 +252,7 @@ export function GroupHeaderCard({
           };
     })
     .filter(Boolean);
+  const hoverIntent = useHoverIntent(onPrefetch);
 
   return (
     <div
@@ -229,7 +261,8 @@ export function GroupHeaderCard({
     >
       <div
         {...toggleProps(onToggle, isOpen, undefined)}
-        onMouseEnter={onPrefetch}
+        onMouseEnter={hoverIntent.onMouseEnter}
+        onMouseLeave={hoverIntent.onMouseLeave}
         onFocus={onPrefetch}
         className="flex items-center gap-x-2 font-medium cursor-pointer select-none"
       >
