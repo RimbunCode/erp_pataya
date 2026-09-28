@@ -79,7 +79,18 @@ class GroupNodeQuery {
         $q = clone $this->query;
         $this->applyPath($q, $path);
 
-        return $q->paginate($this->show, ['*'], 'page', $page);
+        // Sama pola dgn groups(): fetch dulu, count(*) HANYA kalau perlu.
+        // Halaman 1 & hasil < show -> total = jumlah hasil (hemat 1 query) --
+        // umum utk node daun kecil yang muat 1 halaman. Halaman > 1 tetap
+        // query count sungguhan (hasil < show TAK cukup utk simpulkan total
+        // tanpa memverifikasi apakah halaman-halaman sebelumnya benar penuh).
+        $rows = (clone $q)->forPage($page, $this->show)->get();
+
+        $total = $page === 1 && $rows->count() < $this->show
+            ? $rows->count()
+            : $q->toBase()->getCountForPagination();
+
+        return new LengthAwarePaginator($rows, $total, $this->show, $page);
     }
 
     /**

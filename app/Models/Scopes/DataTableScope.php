@@ -22,6 +22,7 @@ use Illuminate\Database\Eloquent\Scope;
 use Illuminate\Database\Eloquent\SoftDeletes;
 use Illuminate\Http\Exceptions\HttpResponseException;
 use Illuminate\Http\Request;
+use Illuminate\Pagination\LengthAwarePaginator;
 use Illuminate\Support\Facades\Cookie;
 use Inertia\Inertia;
 
@@ -475,7 +476,16 @@ class DataTableScope implements Scope {
                     ),
                 ];
             } else {
-                $paginator = $query->paginate($show);
+                // Sama pola dgn GroupNodeQuery::groups()/rows(): fetch dulu, count(*)
+                // HANYA kalau perlu. Halaman 1 & hasil < show -> total = jumlah hasil
+                // (hemat 1 query COUNT(*) terpisah) -- umum utk tabel kecil/menengah
+                // yang muat 1 halaman. Halaman > 1 tetap query count sungguhan.
+                $flatPage  = \max(1, (int) $request->input('page', 1));
+                $flatRows  = (clone $query)->forPage($flatPage, $show)->get();
+                $flatTotal = $flatPage === 1 && $flatRows->count() < $show
+                    ? $flatRows->count()
+                    : $query->toBase()->getCountForPagination();
+                $paginator = new LengthAwarePaginator($flatRows, $flatTotal, $show, $flatPage);
                 DataTableColumnSelector::applyAppends($paginator, $dataTableColumns, $safeColumns);
             }
             $data = [
