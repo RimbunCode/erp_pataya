@@ -55,7 +55,19 @@ class SignatureResolverService {
      * sebenarnya ada justru terlewat.
      */
     public function resolveFinalStep(Model $document): ?ApprovalInstanceStep {
-        $instance = $document->approvalable;
+        if (! method_exists($document, 'approvalable')) {
+            return null;
+        }
+
+        try {
+            $instance = $document->approvalable;
+        } catch (\Throwable $e) {
+            // Dokumen yang tidak punya approval sama sekali tetap bisa
+            // dicetak. Slot tanda tangan yang kosong jauh lebih baik
+            // daripada halaman cetak yang gagal total, jadi kegagalan
+            // mengambil relasi di sini ditelan, bukan dirambatkan.
+            return null;
+        }
 
         if ($instance === null) {
             return null;

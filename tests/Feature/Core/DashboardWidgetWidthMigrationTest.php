@@ -60,7 +60,7 @@ class DashboardWidgetWidthMigrationTest extends TestCase {
         // dua sisi merge yang masing-masing menambah N migration dari base
         // yang sama TIDAK BISA dijumlah gitu saja, harus dihitung ulang dari
         // hasil gabungan sebenarnya.
-        Artisan::call('migrate:rollback', ['--step' => 20]);
+        Artisan::call('migrate:rollback', ['--step' => 21]);
 
         $dashboardId = (string) Str::ulid();
         DB::table('dashboards')->insert([

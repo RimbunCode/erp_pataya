@@ -167,7 +167,11 @@ class UserController extends Controller {
                 // Dipaksa di server, TIDAK diambil dari request: tanda tangan
                 // tidak boleh bisa dijadikan publik oleh klien (FR6, NFR3).
                 'is_public' => false,
-                'user_id'   => $user->id,
+                // `created_by_id`, kolom nyata pada migration files.
+                // `File::uploadFile()` memakai `user_id`, tetapi kolom itu
+                // ditambahkan dinamis di produksi dan tidak ada di skema
+                // dasar, sehingga memakainya di sini membuat insert gagal.
+                'created_by_id' => $user->id,
             ]);
 
             $user->update(['signature_file_id' => $file->id]);

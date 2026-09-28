@@ -384,9 +384,9 @@ abstract class Controller {
             // storage sebagai data URI. Mengirim hasil resolusi yang sama
             // dengan yang dipakai render PDF adalah yang membuat pratinjau
             // dan PDF tidak bisa menyimpang (FR8).
-            'approvalSignature' => method_exists($data, 'approvalable')
-                ? app(SignatureResolverService::class)->resolveFinalSignature($data)
-                : null,
+            // Resolver sendiri sudah mengembalikan null untuk dokumen tanpa
+            // approval, jadi tidak perlu dijaga lagi di sini.
+            'approvalSignature' => app(SignatureResolverService::class)->resolveFinalSignature($data),
             'printTemplate' => $printTemplate->toArray(),
         ]);
     }

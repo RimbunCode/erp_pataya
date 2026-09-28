@@ -123,6 +123,10 @@ class User extends Authenticatable {
         ],
         'has_signature' => [
             'ignore' => true,
+            // Append bertipe atribut wajib menyebut kolom DB sumbernya,
+            // supaya DataTable tahu kolom apa yang harus ikut di-select
+            // (lihat DataTableConfigValidator Rule 1).
+            'dependsOn' => ['signature_file_id'],
         ],
     ];
 

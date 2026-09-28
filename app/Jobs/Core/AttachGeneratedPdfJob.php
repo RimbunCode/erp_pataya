@@ -51,7 +51,13 @@ class AttachGeneratedPdfJob implements ShouldQueue {
             // penandatangan final menyaring di memori (lihat
             // SignatureResolverService::resolveFinalStep), dan jumlah step per
             // dokumen kecil.
-            $document->loadMissing('approvalable.steps.actedBy.signatureFile');
+            // Dijaga method_exists: loadMissing() MELEMPAR untuk relasi
+            // yang tidak ada, dan tidak semua model yang bisa dicetak punya
+            // approval. Kegagalan di sini akan tertelan catch di bawah dan
+            // membatalkan seluruh lampiran PDF, bukan sekadar tanda tangannya.
+            if (method_exists($document, 'approvalable')) {
+                $document->loadMissing('approvalable.steps.actedBy.signatureFile');
+            }
 
             $template = PrintTemplate::where('model', $document::class)
                 ->where('is_default', true)
