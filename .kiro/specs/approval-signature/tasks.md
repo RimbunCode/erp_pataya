@@ -84,7 +84,7 @@
 
 ## T10: Finalisasi
 
-- [ ] 47. Verifikasi manual PDF: dokumen dengan tiga step approval yang seluruhnya approved, pastikan **hanya** TTD step terakhir yang tercetak. Ulangi dengan penandatangan final tanpa TTD untuk memeriksa fallback, pada kedua jalur renderer
-- [ ] 48. Jalankan `vendor/bin/pint --dirty --format agent` dan `npm run lint`
-- [ ] 49. Jalankan `npm run build` — sesuai preferensi tersimpan, build frontend ditunda sampai seluruh rangkaian selesai, bukan per-task
-- [ ] 50. `graphify update .`
+- [x] 47. Verifikasi manual PDF: dokumen dengan tiga step approval yang seluruhnya approved, pastikan **hanya** TTD step terakhir yang tercetak. Ulangi dengan penandatangan final tanpa TTD untuk memeriksa fallback, pada kedua jalur renderer
+- [x] 48. Jalankan `vendor/bin/pint --dirty --format agent` dan `npm run lint`
+- [x] 49. Jalankan `npm run build` — sesuai preferensi tersimpan, build frontend ditunda sampai seluruh rangkaian selesai, bukan per-task
+- [~] 50. `graphify update .` — BELUM: perintah `graphify` tidak tersedia di PATH lingkungan ini, jalankan manual
