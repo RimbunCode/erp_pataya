@@ -6,9 +6,12 @@ use App\Enums\FormStatus;
 use App\Models\Core\ApprovalInstance;
 use App\Models\Core\ApprovalInstanceStep;
 use App\Models\Core\File;
+use App\Models\Core\PrintTemplate;
 use App\Models\Model as AppModel;
 use App\Models\User\User;
 use App\Services\Core\Approval\SignatureResolverService;
+use App\Services\Core\PrintTemplate\PdfExportService;
+use App\Services\Core\PrintTemplate\PrintTemplateRenderService;
 use App\Traits\Submitable;
 use Illuminate\Database\Eloquent\Concerns\HasUlids;
 use Illuminate\Foundation\Testing\RefreshDatabase;
@@ -355,5 +358,96 @@ class ApprovalSignatureRenderTest extends TestCase {
         $resolver->resolveFinalSignature($document);
 
         $this->assertSame([], DB::getQueryLog());
+    }
+
+    /**
+     * Verifikasi menyeluruh untuk skenario utama fitur ini: dokumen tiga
+     * step yang seluruhnya approved, dirender sampai menjadi byte PDF
+     * sungguhan lewat PdfExportService.
+     *
+     * Dibuat sebagai test, bukan pemeriksaan manual sekali jalan, supaya
+     * jaminannya bertahan. Yang dibuktikan: HANYA tanda tangan step
+     * terakhir yang masuk ke HTML hasil render, dan PDF-nya benar-benar
+     * terbentuk pada jalur renderer yang tersedia di lingkungan ini.
+     */
+    #[Test]
+    public function three_step_document_renders_only_the_last_signature_into_pdf(): void {
+        $officer = $this->makeUser('Officer Satu', withSignature: true);
+        $manager = $this->makeUser('Manager Dua', withSignature: true);
+        $finance = $this->makeUser('Finance Tiga', withSignature: true);
+
+        $document = $this->makeDocument();
+        $instance = $this->makeInstance($document);
+        $this->makeStep($instance, 0, FormStatus::APPROVED, $officer);
+        $this->makeStep($instance, 1, FormStatus::APPROVED, $manager);
+        $this->makeStep($instance, 2, FormStatus::APPROVED, $finance);
+
+        $document->refresh()->load('approvalable.steps.actedBy.signatureFile');
+
+        $template = new PrintTemplate([
+            'name'        => 'Signature E2E',
+            'name_model'  => 'SignatureRenderTestDocument',
+            'model'       => SignatureRenderTestDocument::class,
+            'orientation' => 'portrait',
+            'unit'        => 'cm',
+            'width'       => 21,
+            'height'      => 29.7,
+            'html'        => '<html><body><div>{{{approvalSignature showName=true showDate=true}}}</div></body></html>',
+        ]);
+
+        $html = app(PrintTemplateRenderService::class)->render($document, $template, []);
+
+        // Hanya penandatangan final yang muncul.
+        $this->assertStringContainsString('Finance Tiga', $html);
+        $this->assertStringNotContainsString('Officer Satu', $html);
+        $this->assertStringNotContainsString('Manager Dua', $html);
+
+        // Gambarnya disisipkan sebagai data URI, bukan URL: renderer PDF
+        // berjalan tanpa sesi login sehingga route terproteksi akan gagal.
+        $this->assertStringContainsString('data:image/png;base64,', $html);
+        $this->assertStringNotContainsString('users.showSignature', $html);
+
+        // Dan HTML itu benar-benar bisa menjadi PDF. generate() memilih
+        // wkhtmltopdf bila ada, dompdf bila tidak; keduanya harus
+        // menghasilkan berkas PDF yang sah.
+        $pdf = app(PdfExportService::class)->generate($html, $template);
+
+        $this->assertStringStartsWith('%PDF', $pdf);
+        $this->assertGreaterThan(1000, \strlen($pdf));
+    }
+
+    /**
+     * Sisi lain dari skenario yang sama: penandatangan final belum punya
+     * tanda tangan, jadi slot diisi nama dan tanggal (FR9), bukan
+     * dibiarkan kosong.
+     */
+    #[Test]
+    public function fallback_text_reaches_the_rendered_pdf(): void {
+        $manager = $this->makeUser('Manager Tanpa Tanda Tangan');
+
+        $document = $this->makeDocument();
+        $instance = $this->makeInstance($document);
+        $this->makeStep($instance, 0, FormStatus::APPROVED, $manager);
+
+        $document->refresh()->load('approvalable.steps.actedBy.signatureFile');
+
+        $template = new PrintTemplate([
+            'name'        => 'Signature Fallback E2E',
+            'name_model'  => 'SignatureRenderTestDocument',
+            'model'       => SignatureRenderTestDocument::class,
+            'orientation' => 'portrait',
+            'unit'        => 'cm',
+            'width'       => 21,
+            'height'      => 29.7,
+            'html'        => '<html><body><div>{{{approvalSignature}}}</div></body></html>',
+        ]);
+
+        $html = app(PrintTemplateRenderService::class)->render($document, $template, []);
+
+        $this->assertStringContainsString('Manager Tanpa Tanda Tangan', $html);
+        $this->assertStringNotContainsString('data:image/png;base64,', $html);
+
+        $pdf = app(PdfExportService::class)->generate($html, $template);
+        $this->assertStringStartsWith('%PDF', $pdf);
     }
 }

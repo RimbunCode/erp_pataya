@@ -19,6 +19,10 @@ import { useLaravelReactI18n } from "laravel-react-i18n";
  * (`UserController::exceptPermission`), yang mengunci mutasi tanda tangan ke
  * pemilik tanpa jalan keluar lewat permission; penyembunyian di sini semata
  * agar tombol yang pasti ditolak tidak ditampilkan.
+ * @param {object} props
+ * @param {{id: string, name: string, has_signature?: boolean}} props.user
+ * @param {boolean} props.canEdit Menampilkan tombol aksi hanya untuk pemilik akun.
+ * @returns {JSX.Element}
  */
 export default function SignatureField({ user, canEdit }) {
   const { t } = useLaravelReactI18n();

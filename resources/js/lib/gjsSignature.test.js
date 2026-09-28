@@ -19,9 +19,9 @@ describe("buildSignatureExpression", () => {
   });
 
   it("menyertakan kedua opsi dalam urutan tetap", () => {
-    expect(
-      buildSignatureExpression({ showName: true, showDate: true }),
-    ).toBe("{{{approvalSignature showName=true showDate=true}}}");
+    expect(buildSignatureExpression({ showName: true, showDate: true })).toBe(
+      "{{{approvalSignature showName=true showDate=true}}}",
+    );
   });
 
   it("memperlakukan string 'true' sama dengan boolean true", () => {

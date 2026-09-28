@@ -50,7 +50,6 @@ const EDITOR_ONLY_STYLES = `
  * server meng-escape keluaran helper pada double-brace (tidak ada padanan
  * SafeString di sana). Template ber-double-brace akan tampil benar di
  * pratinjau tetapi keluar sebagai teks mentah di PDF.
- *
  * @param {{showName?: boolean|string, showDate?: boolean|string}} options
  * @returns {string}
  */
@@ -68,6 +67,8 @@ export function buildSignatureExpression(options = {}) {
  * dari markup tersimpan berupa string ("true"/"false"/""). Keduanya harus
  * ditafsirkan sama, kalau tidak round-trip simpan-muat mengubah arti
  * template.
+ * @param {boolean|string|undefined} value
+ * @returns {boolean}
  */
 function isTruthy(value) {
   return value === true || value === "true" || value === "1";
@@ -76,7 +77,6 @@ function isTruthy(value) {
 /**
  * Baca ekspresi Handlebars kembali menjadi opsi. Kebalikan dari
  * `buildSignatureExpression`, dipakai saat template dimuat ulang.
- *
  * @param {string} expression
  * @returns {{showName: boolean, showDate: boolean}|null}
  */
@@ -96,6 +96,11 @@ export function parseSignatureExpression(expression) {
   };
 }
 
+/**
+ * Daftarkan tipe komponen dan blok tanda tangan pada editor.
+ * @param {object} editor Instance GrapesJS.
+ * @returns {void}
+ */
 export default function gjsSignature(editor) {
   const injectEditorStyles = () => {
     const frame = editor.Canvas.getFrameEl();
@@ -182,6 +187,7 @@ export default function gjsSignature(editor) {
        * Ekspor sebagai pemanggilan helper, bukan placeholder-nya. Atribut
        * trait ikut diserialisasi ke markup supaya template yang dimuat
        * ulang mengembalikan trait yang sama (round-trip).
+       * @returns {string}
        */
       toHTML() {
         const attributes = this.getAttributes() ?? {};

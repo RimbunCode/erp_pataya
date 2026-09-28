@@ -49,7 +49,6 @@ function line(value) {
 
 /**
  * Susun HTML slot tanda tangan.
- *
  * @param {{image: string|null, name: string|null, date: string|null, hasSignature: boolean}|null} signature
  * @param {{showName?: boolean, showDate?: boolean, previewAlt?: string}} options
  * @returns {string} HTML, atau string kosong bila tidak ada yang ditampilkan.

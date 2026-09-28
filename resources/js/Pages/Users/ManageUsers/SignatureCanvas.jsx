@@ -16,6 +16,11 @@ const STROKE_WIDTH = 2.5;
  * Tanpa pustaka luar. Event pointer dipakai, bukan mouse/touch terpisah,
  * karena satu jalur kode itu sudah menangani mouse, stylus, dan sentuh
  * sekaligus.
+ * @param {object} props
+ * @param {(blob: Blob) => void} [props.onSave] Dipanggil dengan PNG transparan hasil gambar.
+ * @param {() => void} [props.onCancel] Dipanggil saat user membatalkan.
+ * @param {boolean} [props.saving] Mengunci tombol simpan selagi unggahan berjalan.
+ * @returns {JSX.Element}
  */
 export default function SignatureCanvas({ onSave, onCancel, saving = false }) {
   const { t } = useLaravelReactI18n();
