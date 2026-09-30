@@ -65,16 +65,6 @@ php artisan test --compact --filter=testName
 php artisan test --compact tests/Feature/ExampleTest.php
 ```
 
-## Zod Schema Generation
-
-After modifying Laravel models or API resources:
-
-```bash
-npm run zodgen
-```
-
-Generates `resources/js/schema.js` from Laravel types. The postprocess script converts `.ts` to `.js`.
-
 ## Architecture Notes
 
 **Inertia Pages**: `resources/js/Pages/` organized by domain (Auth, Dashboard, Finances, Inventory, Purchase, Sales, Services, Settings, Users).
@@ -102,6 +92,101 @@ When implementing features from `.kiro/specs/<name>/`:
 4. **Checkpoints**: Stop and run full test suite when indicated
 5. **Lint/Pint**: Run only after all tasks complete, not per-task
 6. **Optional tasks**: Marked with `- [ ]* <id> ...` - ask user whether to include before starting
+
+## Verifikasi Sebelum Klaim Teknis
+
+Jangan berasumsi atau menjawab pertanyaan arsitektur/desain (misalnya "kenapa X begini" atau "apakah Y akan konflik dengan Z") dari ingatan umum. Telusuri implementasi konkret dan pola serupa di codebase sebelum menyampaikan fakta. Jika masih ambigu, jelaskan ketidakpastian dan konfirmasikan kepada user.
+
+# Spec-Driven Development Workflow
+
+## Evaluasi Request
+
+- Bug fix sederhana (1–3 file), perubahan kecil, refactor minor, dan pertanyaan kode dapat langsung dikerjakan tanpa spec.
+- Fitur baru, perubahan arsitektur, integrasi API baru, perubahan 4+ file, dan bug kompleks memerlukan spec; tanyakan sebelum memulai workflow spec.
+- Untuk kasus abu-abu, tawarkan pilihan langsung dikerjakan atau dibuatkan spec.
+
+## Struktur Spec
+
+Semua spec berada di `.kiro/specs/<nama-spec>/` dan dapat memuat `.config.kiro` (metadata JSON), `requirements.md`, `design.md`, dan `tasks.md`.
+
+```json
+{
+  "specId": "<uuid>",
+  "workflowType": "requirements-first | design-first",
+  "specType": "feature | bugfix",
+  "description": "..."
+}
+```
+
+## Workflow Spec
+
+Tentukan tipe (`feature`/`bugfix`), nama kebab-case, dan alur sebelum menulis spec.
+
+- Requirement-first: requirements → design → tasks
+- Design-first: design → requirements → tasks
+- Command yang tersedia: `/spec`, `/spec-read`, `/spec-req`, `/spec-design`, `/spec-task`, `/spec-list`, `/spec-status`
+- Command yang tersedia: `/spec`, `/spec-read`, `/spec-req`, `/spec-design`, `/spec-task`, `/spec-list`, `/spec-status`
+
+## Aturan Implementasi Spec
+
+- Baca `requirements.md`, `design.md`, dan `tasks.md` sebelum coding jika tersedia.
+- Kerjakan satu task pada satu waktu; tandai `[-]` saat mulai dan `[x]` hanya setelah implementasi serta validasi berhasil.
+- Jangan mengerjakan di luar task aktif. Catat file yang berubah saat task selesai.
+- Saat checkpoint, hentikan progres dan jalankan validasi yang diminta sebelum lanjut.
+- Lakukan lint/Pint setelah seluruh task selesai jika workflow spec project mensyaratkannya.
+- Task opsional bertanda `- [ ]*` perlu dikonfirmasi cakupannya sebelum dikerjakan.
+- Masukkan ide baru ke spec sebelum memperluas scope.
+
+## Git Worktree
+
+Saat menggunakan git worktree (via `EnterWorktree` atau manual), wajib pastikan branch sumber sudah up-to-date dari remote yang benar sebelum membuat worktree. Jangan melakukan fetch/pull tanpa memastikan branch dan remote yang dituju sesuai konteks task.
+
+```bash
+git fetch origin
+git pull origin <nama-branch>
+```
+
+Melewati langkah ini dapat membuat worktree berasal dari commit lama sehingga push ditolak (non-fast-forward) dan rebase menghasilkan konflik.
+
+## CI/CD — Skip Deploy Otomatis saat Merge PR
+
+Workflow [`deploy-cpanel.yml`](.github/workflows/deploy-cpanel.yml) auto-deploy ke staging setiap PR yang di-merge ke branch `dev-1`. Untuk menunda deploy PR tertentu, tambahkan label **`skip-deploy`** (case-sensitive) sebelum merge; periksa kondisi workflow sebelum mengandalkan perilaku ini.
+
+Saat user meminta membuat atau mengubah PR dengan skip deploy, gunakan `gh pr create ... --label skip-deploy` atau `gh pr edit <PR> --add-label skip-deploy`.
+
+## Struktur Folder `{Domain}/{Feature}` (lintas layer)
+
+Berlaku pada seluruh layer aplikasi, termasuk `Services`, `Models`, `Jobs`, `Events`, `Listeners`, dan `Controllers`. Gunakan folder `{Domain}/{Feature}` saat fitur terdiri dari beberapa file terkait atau diperkirakan akan berkembang menjadi beberapa file; file tunggal yang berdiri sendiri dapat tetap berada langsung di folder domain. File yang saling berhubungan tidak wajib berada di feature folder yang sama; nilai kebutuhan pengelompokan per file berdasarkan tanggung jawab dan kemungkinan pertumbuhannya.
+
+Domain yang umum: `Core`, `Sales`, `Purchase`, `Inventory`, `Finances`, `Service`, `Helpdesk`, `User`, dan `Migration`.
+
+Kapan folder `{Feature}` di-nested ditentukan oleh jumlah file terkait dan prediksi pertumbuhannya:
+
+- Fitur satu file dapat tetap flat di `{Domain}/NamaFile.php`.
+- Fitur dengan beberapa file terkait menggunakan `{Domain}/{Feature}/`.
+- Nested folder boleh dibuat sejak file pertama jika fitur diperkirakan segera membutuhkan file pendamping.
+- Event, listener, job, dan service yang berhubungan tidak wajib berada di feature folder yang sama; evaluasi tiap file berdasarkan tanggung jawabnya sendiri.
+
+## Testing Frontend (Vitest)
+
+Detail lengkap tersedia di [`docs/frontend.md#testing`](docs/frontend.md#testing). Aturan ringkas:
+
+- Letakkan test berdekatan dengan source, bukan di folder `__tests__`.
+- Utamakan unit test fungsi murni (`.test.js`, environment `node`).
+- Untuk interaksi UI, gunakan React Testing Library dengan suffix `.rtl.test.jsx` agar masuk project `jsdom` di `vitest.config.js`; render komponen sungguhan dan gunakan query berbasis role bila sesuai.
+- Hindari source-assertion test berbasis regex untuk komponen baru; gunakan hanya ketika perilaku sulit diuji dengan render.
+- Penamaan `.rtl.test.jsx` wajib untuk test yang me-render komponen karena `vitest.config.js` memakai `test.projects` untuk memilih environment `jsdom`.
+- Pada property-based test `fast-check`, pastikan precondition `fc.pre()`/`.filter()` sama persis dengan validasi source.
+- Workflow `.github/workflows/tests.yml` menjalankan backend dan frontend test; periksa workflow aktual jika detail CI berubah.
+
+## graphify
+
+Project ini memiliki knowledge graph di `graphify-out/`.
+
+- Untuk pertanyaan tentang codebase, gunakan `graphify query "<pertanyaan>"` jika `graphify-out/graph.json` tersedia; gunakan `graphify path` untuk relasi dan `graphify explain` untuk konsep tertentu.
+- Jika `graphify-out/wiki/index.md` tersedia, gunakan sebagai navigasi umum.
+- Baca `graphify-out/GRAPH_REPORT.md` untuk tinjauan arsitektur luas atau jika query/path/explain tidak cukup.
+- Setelah mengubah kode, jalankan `graphify update .` untuk memperbarui graph bila tool tersedia.
 
 ## Terminal Shell
 
