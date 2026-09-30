@@ -13,9 +13,12 @@ import { useLaravelReactI18n } from "laravel-react-i18n";
 
 export default function Form() {
   const { t } = useLaravelReactI18n();
-  const { data, setData, disabled } = useFormPage({
-    date: new Date(),
-  });
+  const { data, setData, disabled } = useFormPage(
+    {
+      date: new Date(),
+    },
+    { trackDefaultValue: false },
+  );
 
   const amount = useMemo(() => {
     return calculateArray(
