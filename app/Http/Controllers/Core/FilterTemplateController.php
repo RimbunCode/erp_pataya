@@ -53,6 +53,7 @@ class FilterTemplateController extends Controller {
             'filter'    => $data['filter'],
             'name'      => $data['name'],
             'sort'      => $data['sort'] ?? null,
+            'group'     => $data['group'] ?? null,
             'is_saved'  => true,
             'is_shared' => true,
         ]);
@@ -83,6 +84,9 @@ class FilterTemplateController extends Controller {
         }
         if (array_key_exists('sort', $data)) {
             $attributes['sort'] = $data['sort'];
+        }
+        if (array_key_exists('group', $data)) {
+            $attributes['group'] = $data['group'];
         }
 
         if ($attributes !== []) {

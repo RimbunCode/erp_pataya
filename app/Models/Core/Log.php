@@ -112,6 +112,7 @@ class Log extends Model {
             'valueTrans' => 'core.log.action.options',
             'show'       => true,
             'order'      => 2,
+            'groupable'  => true,
         ],
         'activity_text' => [
             'type'      => 'html',
@@ -131,8 +132,9 @@ class Log extends Model {
         ],
 
         'user' => [
-            'show'  => true,
-            'order' => 6,
+            'show'      => true,
+            'order'     => 6,
+            'groupable' => true,
         ],
         'created_at' => [
             'type'  => 'datetime',

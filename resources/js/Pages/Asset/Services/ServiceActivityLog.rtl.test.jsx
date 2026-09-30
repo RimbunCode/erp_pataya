@@ -1,4 +1,12 @@
-import { describe, expect, it, vi, beforeEach } from "vitest";
+import {
+  describe,
+  expect,
+  it,
+  vi,
+  beforeAll,
+  afterAll,
+  beforeEach,
+} from "vitest";
 import { act, render, screen, within } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 
@@ -151,6 +159,22 @@ const baseAssetService = (overrides = {}) => ({
 });
 
 describe("ServiceActivityLog", () => {
+  // formatActionDate() (lihat ServiceActivityLog.jsx) memanggil
+  // TZDate(value) tanpa argumen timezone eksplisit sejak perbaikan selisih
+  // 7 jam pada tampilan log -- hasilnya kini memakai timezone browser,
+  // bukan lagi dipaksa UTC. TZ di-stub SEKALI di sini (sebelum test manapun
+  // memanggil formatActionDate pertama kali) supaya rendernya deterministic
+  // lintas mesin/CI -- lihat catatan cache Intl.DateTimeFormat di
+  // Comments.rtl.test.jsx / FormPageDiff.rtl.test.jsx untuk alasan
+  // beforeAll (bukan beforeEach/di dalam test) wajib dipakai.
+  beforeAll(() => {
+    vi.stubEnv("TZ", "Asia/Jakarta");
+  });
+
+  afterAll(() => {
+    vi.unstubAllEnvs();
+  });
+
   beforeEach(() => {
     routerPut.mockReset();
     routerPost.mockReset();
@@ -191,9 +215,12 @@ describe("ServiceActivityLog", () => {
     expect(screen.getByText("Cek oli")).toBeInTheDocument();
     // Requirement (permintaan user): timestamp diformat via date-fns
     // (TZDate + format "PPPp", locale dari usePage().props.lang) --
-    // bukan lagi raw string action_date dari backend.
+    // bukan lagi raw string action_date dari backend. action_date
+    // "2026-09-01" (date-only) di-parse sebagai UTC midnight, dan TZDate
+    // tanpa argumen timezone menampilkannya di timezone browser (di-stub
+    // Asia/Jakarta/UTC+7 di atas) -- makanya "07.00", bukan "00.00" UTC.
     expect(
-      screen.getByText("Budi — 1 September 2026 pukul 00.00"),
+      screen.getByText("Budi — 1 September 2026 pukul 07.00"),
     ).toBeInTheDocument();
     expect(screen.getByTestId("badge-status")).toHaveTextContent("in_progress");
     expect(

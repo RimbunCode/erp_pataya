@@ -59,6 +59,7 @@ class AssetService extends Model {
             'show'       => true,
             'order'      => 1,
             'valueTrans' => 'service.type',
+            'groupable'  => true,
         ],
         /**
          * Requirement 7.1/7.2, spec asset-service-billing: relasi ini HARUS

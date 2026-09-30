@@ -49,13 +49,24 @@ describe("getOperators - mode value", () => {
     expect(ops.between.valueInput).toBe("currency2");
   });
 
-  it("date/datetime: hanya in_period/!in_period (tanpa komparasi biasa)", () => {
-    const ops = getOperators("date");
-    expect(Object.keys(ops)).toEqual(
-      expect.arrayContaining(["in_period", "!in_period", "set", "!set"]),
-    );
-    expect(ops["="]).toBeUndefined();
-    expect(ops.in_period.valueInput).toBe("dateselector");
+  it("date/datetime: HANYA in_period/!in_period (+ set/!set); banyak nilai = daftar di bawah operator yg sama (revisi 16)", () => {
+    for (const type of ["date", "datetime"]) {
+      const ops = getOperators(type);
+      expect(Object.keys(ops).sort()).toEqual(
+        ["!in_period", "!set", "in_period", "set"].sort(),
+      );
+      expect(ops.in_period.valueInput).toBe("dateselector");
+      expect(ops["!in_period"].valueInput).toBe("dateselector");
+      expect(ops["="]).toBeUndefined();
+      expect(ops.in).toBeUndefined();
+      expect(ops["!in"]).toBeUndefined();
+    }
+  });
+
+  it("date mode column: in/!in tetap columnrefMulti (bukan daftar periode)", () => {
+    const ops = getOperators("date", { mode: "column" });
+    expect(ops.in.valueInput).toBe("columnrefMulti");
+    expect(ops["!in"].valueInput).toBe("columnrefMulti");
   });
 
   it("boolean: '=' dan '!=' pakai checkbox", () => {

@@ -10,7 +10,6 @@ use Illuminate\Database\Eloquent\Relations\MorphTo;
 use Illuminate\Database\Eloquent\Relations\Relation;
 use Illuminate\Pagination\LengthAwarePaginator;
 use Illuminate\Support\Collection;
-use Illuminate\Support\Facades\Schema;
 use Illuminate\Support\Str;
 
 /**
@@ -433,7 +432,7 @@ class DataTableColumnSelector {
         // HasExampleData::bootHasExampleData). Cek di sini juga, supaya table yang
         // belum punya kolom (mis. belum diadopsi via migration) tidak ikut di-SELECT
         // dan bikin query "no such column".
-        if (Schema::hasColumn($model->getTable(), 'is_example')) {
+        if (SchemaColumnCache::hasColumn($model->getTable(), 'is_example')) {
             $cols[] = 'is_example';
         }
 
@@ -892,27 +891,18 @@ class DataTableColumnSelector {
     }
 
     /**
-     * Cache nama kolom DB per tabel (dalam satu request) — `Schema::getColumnListing`
-     * membaca skema sehingga mahal bila diulang.
-     *
-     * @var array<string, list<string>>
-     */
-    private static array $dbColumnsCache = [];
-
-    /**
      * Daftar nama kolom DB nyata milik tabel model. Dipakai untuk memastikan
      * hanya kolom DB asli yang masuk SELECT (bukan accessor yang type-nya
-     * di-override jadi skalar, mis. rent_date).
+     * di-override jadi skalar, mis. rent_date). Cache-nya sekarang lewat
+     * SchemaColumnCache (dulu private static di sini sendiri) -- di-share
+     * dgn HasExampleData & DataTableConfigCache biar tabel yang sama tak
+     * di-introspeksi berkali-kali dalam satu request (ditemukan user via
+     * Clockwork).
      *
      * @return list<string>
      */
     private function dbColumns(Model $model): array {
-        $table = $model->getTable();
-        if (! isset(self::$dbColumnsCache[$table])) {
-            self::$dbColumnsCache[$table] = Schema::getColumnListing($table);
-        }
-
-        return self::$dbColumnsCache[$table];
+        return SchemaColumnCache::columns($model->getTable());
     }
 
     /**

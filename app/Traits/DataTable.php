@@ -13,6 +13,7 @@ use App\Models\Core\Tag;
 use App\Models\Core\Todo;
 use App\Models\User\Permission;
 use App\Services\Core\BufferedAttachmentService;
+use App\Services\Core\DataTable\Group\GroupLevels;
 use Illuminate\Database\Eloquent\Relations\Relation;
 use Illuminate\Database\Eloquent\SoftDeletes;
 use Illuminate\Database\Schema\Blueprint;
@@ -43,6 +44,55 @@ trait DataTable {
 
     public static function getDefaultSortColumn(): string {
         return static::$defaultSortColumn ?? 'created_at';
+    }
+
+    /**
+     * Group default (bertingkat) halaman List/DataTable -- dibaca
+     * DataTableScope sebagai fallback saat request TIDAK mengirim param `group`
+     * sama sekali. Model mengaturnya dgn mendeklarasikan di kelas model-nya
+     * sendiri, salah satu dari tiga bentuk:
+     *
+     *     protected static array|string|null $defaultGroups = 'account_type';
+     *     protected static array|string|null $defaultGroups = ['category', 'status'];
+     *     protected static array|string|null $defaultGroups = [
+     *         ['column' => 'order_date', 'granularity' => 'month'],
+     *         'status',
+     *     ];
+     *
+     * Urutan = urutan nesting (level pertama = terluar), maks 4 level. Tiap
+     * kolom harus `groupable: true` di $configColumns -- kalau tidak, level itu
+     * diabaikan diam-diam. Sengaja TIDAK dideklarasikan sbg properti trait
+     * (beda dgn $defaultSortColumn): PHP fatal saat kelas yg `use` trait
+     * mendeklarasi ulang properti statis trait dgn nilai berbeda.
+     *
+     * @return list<array{column: string, granularity: mixed, range: mixed}>
+     */
+    public static function getDefaultGroups(): array {
+        return \property_exists(static::class, 'defaultGroups')
+            ? GroupLevels::normalize(static::$defaultGroups)
+            : [];
+    }
+
+    /**
+     * Kolom pencarian teks bebas (Search Bar) halaman List/DataTable -- dibaca
+     * DataTableScope::addDataTable() sebagai kolom yang dicari saat user
+     * mengetik teks bebas (chip "Cari"). Model mengaturnya dgn mendeklarasikan
+     * di kelas model-nya sendiri, mendukung dot-notation relasi:
+     *
+     *     protected static array $searchScope = ['code', 'customer.name'];
+     *
+     * Kosong (tidak dideklarasikan) berarti FE fallback ke Kolom tampil ∩
+     * searchable ∩ bertipe string level-atas. Backend hanya men-share entri
+     * yang lolos sanitasi (DataTableScope::sanitizeSearchScope() -- ter-resolve,
+     * searchable, tipe akhir string); entri lain dibuang diam-diam. Sengaja
+     * TIDAK dideklarasikan sbg properti trait (pola sama dgn
+     * $defaultGroups): PHP fatal saat kelas yg `use` trait mendeklarasi
+     * ulang properti statis trait dgn nilai berbeda.
+     *
+     * @return list<string>
+     */
+    public static function getSearchScope(): array {
+        return \property_exists(static::class, 'searchScope') ? static::$searchScope : [];
     }
 
     public function initializeDataTable() {

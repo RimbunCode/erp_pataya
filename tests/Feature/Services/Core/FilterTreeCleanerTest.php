@@ -26,13 +26,16 @@ class CleanerCategoryStub {
 class FilterTreeCleanerTest extends TestCase {
     /** @var array<string,array<string,mixed>> */
     private array $columns = [
-        'name'     => ['name' => 'name', 'type' => 'string', 'searchable' => true],
-        'qty'      => ['name' => 'qty', 'type' => 'number', 'searchable' => true],
-        'min_qty'  => ['name' => 'min_qty', 'type' => 'number', 'searchable' => true],
-        'price'    => ['name' => 'price', 'type' => 'currency', 'searchable' => true],
-        'tags'     => ['name' => 'tags', 'type' => 'formStatuses', 'searchable' => true, 'options' => ['draft', 'approved', 'closed']],
-        'secret'   => ['name' => 'secret', 'type' => 'string', 'searchable' => false],
-        'category' => [
+        'name'        => ['name' => 'name', 'type' => 'string', 'searchable' => true],
+        'qty'         => ['name' => 'qty', 'type' => 'number', 'searchable' => true],
+        'min_qty'     => ['name' => 'min_qty', 'type' => 'number', 'searchable' => true],
+        'price'       => ['name' => 'price', 'type' => 'currency', 'searchable' => true],
+        'tags'        => ['name' => 'tags', 'type' => 'formStatuses', 'searchable' => true, 'options' => ['draft', 'approved', 'closed']],
+        'secret'      => ['name' => 'secret', 'type' => 'string', 'searchable' => false],
+        'born_on'     => ['name' => 'born_on', 'type' => 'date', 'searchable' => true],
+        'deadline_on' => ['name' => 'deadline_on', 'type' => 'date', 'searchable' => true],
+        'started_at'  => ['name' => 'started_at', 'type' => 'datetime', 'searchable' => true],
+        'category'    => [
             'name'         => 'category',
             'type'         => 'relation',
             'typeRelation' => 'basic',
@@ -182,5 +185,90 @@ class FilterTreeCleanerTest extends TestCase {
         $node = reset($children);
         $this->assertArrayNotHasKey('c', $node);
         $this->assertSame('matches', $node['o']);
+    }
+
+    // ---- in_period / !in_period dgn `v` DAFTAR periode "Pada" (revisi 16) ----
+
+    /** @return array<string,mixed> */
+    private function monthPeriod(int $year = 2026, int $month = 3): array {
+        return ['period' => 'month', 'operator' => 'is', 'year' => $year, 'month' => $month];
+    }
+
+    public function test_keeps_period_list_in_period_for_date_and_datetime(): void {
+        $list = [$this->monthPeriod(2026, 0), ['period' => 'day', 'operator' => 'is', 'startDate' => '2026-04-15'], ['period' => 'year', 'operator' => 'is', 'year' => 2024]];
+
+        $out = $this->clean([
+            'a' => ['k' => 'born_on', 'o' => 'in_period', 'v' => $list],
+            'b' => ['k' => 'started_at', 'o' => 'in_period', 'v' => $list],
+        ]);
+
+        $this->assertCount(2, $out['root']['c']);
+        $this->assertSame($list, $out['root']['c']['a']['v']);
+    }
+
+    public function test_keeps_negated_period_list_and_single_element_list(): void {
+        $out = $this->clean([
+            'a' => ['k' => 'born_on', 'o' => '!in_period', 'v' => [$this->monthPeriod(), $this->monthPeriod(2027, 1)]],
+            'b' => ['k' => 'born_on', 'o' => 'in_period', 'v' => [$this->monthPeriod()]],
+        ]);
+
+        $this->assertCount(2, $out['root']['c']);
+    }
+
+    public function test_keeps_exactly_max_period_values_and_drops_more(): void {
+        $max  = FilterTreeCleaner::MAX_PERIOD_VALUES;
+        $make = fn (int $n) => array_map(fn ($i) => ['period' => 'year', 'operator' => 'is', 'year' => 2000 + $i], range(0, $n - 1));
+
+        $ok   = $this->clean(['a' => ['k' => 'born_on', 'o' => 'in_period', 'v' => $make($max)]]);
+        $over = $this->clean(['a' => ['k' => 'born_on', 'o' => 'in_period', 'v' => $make($max + 1)]]);
+
+        $this->assertSame(20, $max);
+        $this->assertCount(1, $ok['root']['c']);
+        $this->assertCount(0, $over['root']['c']);
+    }
+
+    public function test_drops_invalid_period_lists(): void {
+        $invalid = [
+            'kosong'             => [],
+            'skalar'             => ['2026-01-01', '2026-02-01'],
+            'string'             => '2026-01-01,2026-02-01',
+            'null'               => null,
+            'elemen bukan is'    => [$this->monthPeriod(), ['period' => 'month', 'operator' => 'after', 'year' => 2026, 'month' => 1]],
+            'elemen between'     => [['period' => 'day', 'operator' => 'between', 'startDate' => '2026-01-01', 'endDate' => '2026-01-31']],
+            'hari tanpa start'   => [['period' => 'day', 'operator' => 'is']],
+            'periode tanpa year' => [['period' => 'month', 'operator' => 'is', 'month' => 1]],
+            'elemen skalar'      => [$this->monthPeriod(), 'x'],
+            'kunci non-list'     => ['a' => $this->monthPeriod(), 'b' => $this->monthPeriod(2027)],
+        ];
+
+        foreach ($invalid as $label => $value) {
+            foreach (['born_on', 'started_at'] as $column) {
+                foreach (['in_period', '!in_period'] as $op) {
+                    $out = $this->clean(['a' => ['k' => $column, 'o' => $op, 'v' => $value]]);
+                    $this->assertCount(0, $out['root']['c'], "{$label} ({$column} {$op}) harus di-drop");
+                }
+            }
+        }
+    }
+
+    public function test_in_period_single_object_any_condition_still_valid(): void {
+        $out = $this->clean([
+            'a' => ['k' => 'born_on', 'o' => 'in_period', 'v' => $this->monthPeriod()],
+            'b' => ['k' => 'born_on', 'o' => '!in_period', 'v' => ['period' => 'day', 'operator' => 'after', 'startDate' => '2026-01-01']],
+        ]);
+
+        $this->assertCount(2, $out['root']['c']);
+    }
+
+    public function test_drops_legacy_in_on_date_but_column_ref_in_still_works(): void {
+        $out = $this->clean([
+            'a' => ['k' => 'born_on', 'o' => 'in', 'v' => [$this->monthPeriod()]],
+            'b' => ['k' => 'started_at', 'o' => '!in', 'v' => [$this->monthPeriod()]],
+            'c' => ['k' => 'born_on', 'o' => 'in', 'v' => ['kind' => 'column', 'ref' => ['deadline_on']]],
+        ]);
+
+        // `in`/`!in` daftar periode (Revisi 11) TIDAK dinormalisasi -> di-drop;
+        // `in` mode kolom (bandingkan dgn kolom lain) tak terpengaruh.
+        $this->assertSame(['c'], array_keys($out['root']['c']));
     }
 }

@@ -90,8 +90,9 @@ class WorkOrder extends Model {
             'order' => 10,
         ],
         'customer' => [
-            'show'  => true,
-            'order' => 4,
+            'show'      => true,
+            'order'     => 4,
+            'groupable' => true,
         ],
         'customerBranch' => [
             'disabledNavigation' => true,

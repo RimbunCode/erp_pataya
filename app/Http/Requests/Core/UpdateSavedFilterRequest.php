@@ -9,6 +9,8 @@ use Illuminate\Contracts\Validation\ValidationRule;
 use Illuminate\Validation\ValidationException;
 
 class UpdateSavedFilterRequest extends BaseFormRequest {
+    use NormalizesGroupInput;
+
     public function authorize(): bool {
         return true;
     }
@@ -22,6 +24,8 @@ class UpdateSavedFilterRequest extends BaseFormRequest {
             // overwrite tree (timpa filter named existing) — minimal salah satu.
             'name'   => ['nullable', 'string', 'max:255'],
             'filter' => ['nullable', 'array'],
+            'sort'   => ['nullable', 'string', 'regex:/^-?[a-zA-Z0-9_.]+$/'],
+            ...SavedFilter::groupValidationRules(),
         ];
     }
 

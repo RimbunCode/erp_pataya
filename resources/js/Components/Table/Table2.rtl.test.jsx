@@ -1,6 +1,7 @@
-import { describe, expect, it, vi } from "vitest";
+import { beforeEach, describe, expect, it, vi } from "vitest";
 import { render, screen } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
+import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 
 vi.mock("laravel-react-i18n", () => ({
   useLaravelReactI18n: () => ({ t: (key) => `TR:${key}` }),
@@ -10,6 +11,8 @@ vi.mock("@inertiajs/react", () => ({
   router: { get: vi.fn(), reload: vi.fn() },
   usePage: () => ({ props: {}, url: "/test" }),
 }));
+
+vi.mock("axios", () => ({ default: { get: vi.fn() } }));
 
 vi.mock("@/Hooks/usePermission", () => ({
   default: () => ({ can: () => true, canGlobal: () => true }),
@@ -22,6 +25,7 @@ vi.mock("./Header", () => ({
   default: ({ title, id }) => <th data-testid={`header-${id}`}>{title}</th>,
 }));
 
+import axios from "axios";
 import Table2 from "./Table2";
 
 const columns = {
@@ -160,5 +164,187 @@ describe("Table2", () => {
       "/purchase-requests/1",
     );
     expect(window.route).toHaveBeenCalledWith("purchaseRequests.show", 1);
+  });
+
+  // Pohon grup (spec datatable2-group-tree): `data` = deskriptor grup level-0,
+  // isi grup di-fetch lazy saat dibuka. Label per-tipe diuji di
+  // Group/GroupHeaderRow.rtl.test.jsx; perilaku pohon (nested, pager, error,
+  // version) di Group/GroupTree.rtl.test.jsx -- di sini integrasi dgn Table2.
+  describe("grouping (prop group -> GroupTree)", () => {
+    const groupColumns = {
+      name: { name: "name", title: "Name", type: "text" },
+      qty: { name: "qty", title: "Qty", type: "number", numberFormat: "#,###" },
+    };
+    const descriptors = [
+      { key: "fruit", raw: "fruit", count: 10, aggregates: { qty: 1500 } },
+      {
+        key: "vegetable",
+        raw: "vegetable",
+        count: 3,
+        aggregates: { qty: null },
+      },
+    ];
+    const group = {
+      levels: [
+        { column: "category", granularity: null, range: null, type: "string" },
+      ],
+      aggregates: [{ column: "qty", fn: "sum" }],
+      baseParams: { group: "category" },
+      version: 0,
+      resetKey: "k1",
+      pathname: "/orders",
+    };
+
+    const renderGrouped = (props = {}) => {
+      const client = new QueryClient({
+        defaultOptions: { queries: { retry: false } },
+      });
+      const wrap = (extra = {}) => (
+        <QueryClientProvider client={client}>
+          <Table2
+            columns={groupColumns}
+            data={descriptors}
+            group={group}
+            persistColumns={false}
+            {...props}
+            {...extra}
+          />
+        </QueryClientProvider>
+      );
+      const view = render(wrap());
+      return { ...view, update: (extra) => view.rerender(wrap(extra)) };
+    };
+
+    beforeEach(() => axios.get.mockReset());
+
+    it("merender header grup level-0 dari `data` (count dari deskriptor) TERTUTUP, tanpa fetch", () => {
+      renderGrouped();
+
+      expect(screen.getByText("fruit")).toBeInTheDocument();
+      expect(screen.getByText("(10)")).toBeInTheDocument();
+      expect(screen.getByText("vegetable")).toBeInTheDocument();
+      expect(screen.getByText("(3)")).toBeInTheDocument();
+      expect(screen.queryByText("Item A")).not.toBeInTheDocument();
+      expect(axios.get).not.toHaveBeenCalled();
+    });
+
+    it("klik header -> fetch node lalu baris dirender lewat TableRow (sel per kolom)", async () => {
+      const user = userEvent.setup({ delay: null });
+      axios.get.mockResolvedValue({
+        data: {
+          type: "rows",
+          data: [{ id: 1, name: "Item A", qty: 1200 }],
+          current_page: 1,
+          last_page: 1,
+          total: 1,
+          per_page: 100,
+        },
+      });
+      renderGrouped();
+
+      await user.click(screen.getByRole("button", { name: /fruit/ }));
+
+      expect(await screen.findByText("Item A")).toBeInTheDocument();
+      // Sel `qty` baris memakai Cell (format angka) -- BUKAN sel agregat header.
+      expect(screen.getByText("1,200")).toBeInTheDocument();
+      expect(axios.get).toHaveBeenCalledWith(
+        "/orders",
+        expect.objectContaining({
+          params: { group: "category", groupPath: '["fruit"]', groupPage: 1 },
+        }),
+      );
+    });
+
+    it("agregat tampil di sel kolomnya pada baris header grup; grup dgn agregat null -> sel kosong", () => {
+      renderGrouped();
+
+      const tds = (name) =>
+        Array.from(
+          screen
+            .getByRole("button", { name })
+            .closest("tr")
+            .querySelectorAll("td"),
+        );
+      const fruit = tds(/fruit/);
+      const vegetable = tds(/vegetable/);
+
+      // label (span kolom `name`) + sel `qty`
+      expect(fruit).toHaveLength(2);
+      expect(fruit[1]).toHaveTextContent("1,500");
+      expect(fruit[1]).toHaveAttribute(
+        "title",
+        "TR:core.datatable.aggregate.sum",
+      );
+      expect(vegetable[1]).toHaveTextContent("");
+    });
+
+    it("kolom pemilih menambah span label header grup", () => {
+      renderGrouped({ selectable: true });
+
+      const label = screen.getByRole("button", { name: /fruit/ });
+      expect(label.style.gridColumn).toBe("span 2");
+    });
+
+    it("mode grup: tanpa baris filler & tanpa gridTemplateRows berbasis data.length; jalur flat tetap punya filler 1fr", () => {
+      const { container, unmount } = renderGrouped();
+      const table = container.querySelector("table");
+
+      expect(table.style.alignContent).toBe("start");
+      expect(table.style.gridTemplateRows).toBe("");
+      expect(container.querySelectorAll("td.row-auto")).toHaveLength(0);
+      unmount();
+
+      const flat = render(
+        <Table2
+          columns={groupColumns}
+          data={[{ id: 1, name: "Item A" }]}
+          persistColumns={false}
+        />,
+      );
+      const flatTable = flat.container.querySelector("table");
+      expect(flatTable.style.gridTemplateRows).toContain("1fr");
+      expect(flat.container.querySelectorAll("td.row-auto")).toHaveLength(1);
+    });
+
+    it("`group.resetKey` berubah (halaman server berganti) -> semua grup kembali tertutup", async () => {
+      const user = userEvent.setup({ delay: null });
+      axios.get.mockResolvedValue({
+        data: {
+          type: "rows",
+          data: [{ id: 1, name: "Item A" }],
+          current_page: 1,
+          last_page: 1,
+          total: 1,
+          per_page: 100,
+        },
+      });
+      const { update } = renderGrouped();
+
+      await user.click(screen.getByRole("button", { name: /fruit/ }));
+      await screen.findByText("Item A");
+
+      update({ group: { ...group, resetKey: "k2" } });
+
+      expect(screen.queryByText("Item A")).not.toBeInTheDocument();
+      expect(screen.getByRole("button", { name: /fruit/ })).toHaveAttribute(
+        "aria-expanded",
+        "false",
+      );
+    });
+
+    it("data level-0 kosong -> tampil NoData (bukan pohon kosong)", () => {
+      renderGrouped({ data: [], isDynamicData: true });
+
+      expect(screen.getByText(/TR:core.datatable.no_data/)).toBeInTheDocument();
+    });
+
+    it("tanpa prop `group` -- tidak ada header grup sama sekali (regresi 100+ halaman existing)", () => {
+      render(<Table2 columns={columns} data={data} />);
+
+      expect(
+        screen.queryByRole("button", { name: /fruit/ }),
+      ).not.toBeInTheDocument();
+      expect(screen.getByText("Item A")).toBeInTheDocument();
+    });
   });
 });

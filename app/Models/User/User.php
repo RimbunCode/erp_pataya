@@ -107,7 +107,9 @@ class User extends Authenticatable {
             'show'  => true,
             'order' => 4,
         ],
-        'defaultBranch',
+        'defaultBranch' => [
+            'groupable' => true,
+        ],
         'image' => [
             'ignore' => true,
         ],

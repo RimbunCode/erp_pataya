@@ -72,10 +72,11 @@ class ItemVariant extends Model {
             'order' => 3,
         ],
         'is_stock_item' => [
-            'type'     => 'boolean',
-            'show'     => true,
-            'order'    => 4,
-            'linkable' => true,
+            'type'      => 'boolean',
+            'show'      => true,
+            'order'     => 4,
+            'linkable'  => true,
+            'groupable' => true,
         ],
         'item_id' => [
             'forceSelect' => true,
@@ -88,7 +89,9 @@ class ItemVariant extends Model {
         'stocks',
         'uoms',
         'defaultUnit',
-        'category',
+        'category' => [
+            'groupable' => true,
+        ],
         'defaultUom' => [
             'hidden'   => true,
             'linkable' => true,

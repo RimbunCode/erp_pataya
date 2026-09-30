@@ -38,14 +38,15 @@ import { useLaravelReactI18n } from "laravel-react-i18n";
 /**
  * Format `action_date` (string UTC dari backend) jadi tanggal+jam lokal
  * terbaca -- pola sama Comments.jsx/ApprovalActedByDetail (FormPage.jsx):
- * `format(new TZDate(value, "UTC"), "PPPp", { locale })`.
+ * `format(new TZDate(value), "PPPp", { locale })`. Tanpa argumen timezone,
+ * TZDate memakai timezone browser, sama seperti DatetimePicker.
  * @param {string|null} value
  * @param {string} [lang]
  * @returns {string}
  */
 function formatActionDate(value, lang) {
   if (!value) return "";
-  return format(new TZDate(value, "UTC"), "PPPp", {
+  return format(new TZDate(value), "PPPp", {
     locale: getLocaleDate(lang),
   });
 }

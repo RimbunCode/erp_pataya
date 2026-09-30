@@ -90,9 +90,10 @@ class Branch extends Model {
             'dependsOn' => ['name', 'is_main_branch'],
         ],
         'is_main_branch' => [
-            'show'     => true,
-            'order'    => 1,
-            'linkable' => true,
+            'show'      => true,
+            'order'     => 1,
+            'linkable'  => true,
+            'groupable' => true,
         ],
         'shippingAddress' => [
             'show'      => true,

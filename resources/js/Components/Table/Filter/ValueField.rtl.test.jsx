@@ -165,6 +165,37 @@ describe("ValueField - routing valueInput ke komponen yang benar", () => {
     expect(screen.getByTestId("stub-dateselector")).toBeInTheDocument();
   });
 
+  it("column date/datetime, operator 'in_period' & '!in_period' (nilai objek ATAU daftar) -> DateSelector", () => {
+    for (const [type, operator, value] of [
+      ["date", "in_period", null],
+      ["date", "!in_period", [{ period: "year", operator: "is", year: 2026 }]],
+      ["datetime", "in_period", []],
+    ]) {
+      const { unmount } = render(
+        <ValueField
+          column={{ type }}
+          operator={operator}
+          value={value}
+          onChange={vi.fn()}
+        />,
+      );
+      expect(screen.getByTestId("stub-dateselector")).toBeInTheDocument();
+      unmount();
+    }
+  });
+
+  it("column date, operator 'in' (bukan operator date lagi) -> tidak render apapun", () => {
+    const { container } = render(
+      <ValueField
+        column={{ type: "date" }}
+        operator="in"
+        value={[]}
+        onChange={vi.fn()}
+      />,
+    );
+    expect(container.firstChild).toBeNull();
+  });
+
   it("operator 'set' (valueInput=none) -> tidak render apapun", () => {
     const { container } = render(
       <ValueField

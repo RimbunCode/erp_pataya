@@ -18,7 +18,6 @@ import { Button } from "../ui/button";
 import { CSS } from "@dnd-kit/utilities";
 import { DialogTrigger } from "../ui/dialog";
 import { DropdownMenuTrigger } from "@radix-ui/react-dropdown-menu";
-import { RunningText, RunningTextContent } from "../ui/running-text";
 import { useLaravelReactI18n } from "laravel-react-i18n";
 import { useSortable } from "@dnd-kit/sortable";
 
@@ -78,7 +77,7 @@ export default memo(
       <th
         ref={mergeRefs(setNodeRef, ref)}
         style={!freezeColumn ? style : {}}
-        className="pr-3! group/header"
+        className="pr-3! group/header border-r border-muted-foreground/15"
       >
         <div
           className={cn(
@@ -86,35 +85,27 @@ export default memo(
             "flex min-w-0 justify-between gap-x-2 group",
           )}
         >
-          <div className="flex min-w-0 items-center">
+          <div className="flex min-w-0 items-start">
             {!freezeColumn && (
               <button className="cursor-move " {...listeners} {...attributes}>
                 <GripVertical className="transition-colors group-hover:text-foreground text-muted size-5" />
               </button>
             )}
-            <RunningText className="w-full">
+            <div className="w-full min-w-0">
               {sortable ? (
                 <button
                   type="button"
-                  className="flex items-center hover:underline gap-x-2 [&>svg]:size-5"
+                  className="flex items-start text-left hover:underline gap-x-2 [&>svg]:size-5 [&>svg]:mt-0.5 [&>svg]:shrink-0"
                   onClick={() => setSort(name)}
                 >
-                  {hasPlainTitle ? (
-                    <RunningTextContent text={headerTitle} />
-                  ) : (
-                    headerTitle
-                  )}
+                  {hasPlainTitle ? <span>{headerTitle}</span> : headerTitle}
                 </button>
+              ) : hasPlainTitle ? (
+                <span>{headerTitle}</span>
               ) : (
-                <>
-                  {hasPlainTitle ? (
-                    <RunningTextContent text={headerTitle} />
-                  ) : (
-                    headerTitle
-                  )}
-                </>
+                headerTitle
               )}
-            </RunningText>
+            </div>
           </div>
           <DropdownMenu>
             <DropdownMenuTrigger asChild>
@@ -165,12 +156,17 @@ export default memo(
             `flex transition-opacity justify-center items-center absolute w-4 -right-2 top-0 z-1 group`,
           )}
         >
+          {/* Garis permanen antar-kolom sekarang border-r asli di th/td (lihat
+              table.css) -- biar ikut alur dokumen & tak "nabrak" row group
+              (td row group cuma 1 sel yg span semua kolom, otomatis tanpa
+              border internal). Div ini transparan saat idle, cuma dipakai
+              utk feedback hover/drag resize handle. */}
           <div
             className={cn(
               resizeable
-                ? " group-hover:border-muted-foreground  group-active:border-foreground group-active:border-r-[3px]"
-                : "",
-              "h-full w-px border-r border-muted-foreground/15",
+                ? "border-transparent group-hover:border-muted-foreground group-active:border-foreground group-active:border-r-[3px]"
+                : "border-transparent",
+              "h-full w-px border-r",
             )}
           ></div>
         </div>

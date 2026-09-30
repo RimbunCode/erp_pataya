@@ -38,6 +38,8 @@ import { router, usePage } from "@inertiajs/react";
 import BadgeStatus from "../BadgeStatus";
 import { Checkbox } from "../ui/checkbox";
 import ColumnsFilter from "./ColumnsFilter";
+import GroupTree from "./Group/GroupTree";
+import { GroupHeaderRow, GroupNodeStatusRow } from "./Group/GroupHeaderRow";
 import { Dialog } from "../ui/dialog";
 import Header from "./Header";
 import Link from "../Link";
@@ -57,6 +59,28 @@ const DATATABLE_COLUMNS_EXPIRED = 7; //days
 // Lebar minimum kolom fr-default agar tak menyusut ilegibel saat kolom banyak;
 // horizontal scroll (lihat table.css) menampung sisanya.
 const MIN_COLUMN_WIDTH = 120;
+
+// Sel body wrap by default (table.css `td span`). Tipe di bawah ini TAK
+// di-wrap -- format angka/tanggal jadi ganjil kalau kepotong ke baris baru
+// di tengah token, jadi tetap sebaris + potong (`!important`, lihat komentar
+// table.css: selector gabungan lebih spesifik drpd utility polos).
+const NOWRAP_CELL_TYPES = ["number", "currency", "date", "time", "datetime"];
+const cellWrapClassName = (type) =>
+  NOWRAP_CELL_TYPES.includes(type)
+    ? "whitespace-nowrap! text-ellipsis!"
+    : undefined;
+
+// Konstanta grup pindah ke Group/groupLevels.js (spec datatable2-group-tree);
+// di-re-export di sini supaya pemakai lama (ChipEditor, DataTable2, FilterTemplate
+// Form) tak perlu berubah sekaligus. Helper bucket-key sisi client
+// (dateGroupBucketKey/numberGroupBucketKey) DIHAPUS: batas grup kini datang dari
+// server per node, jadi tak ada lagi "mirror manual" ekspresi SQL yg harus identik.
+export {
+  DATE_GROUP_GRANULARITIES,
+  DEFAULT_NUMBER_GROUP_RANGE_OPTIONS,
+} from "./Group/groupLevels";
+// GroupLabel pindah ke Group/GroupLabel.jsx (hindari impor melingkar dgn header grup).
+export { GroupLabel } from "./Group/GroupLabel";
 
 // Nama cookie unik per-path agar tidak bentrok antar-halaman. Path-scoping cookie
 // (nama sama beda path) rapuh: `document.cookie` tak mengekspos path sehingga
@@ -190,7 +214,7 @@ export const Cell = memo(
           valueCell = null;
         } else {
           valueCell = format(
-            new TZDate(value, "UTC"),
+            new TZDate(value),
             type == "date" ? "PPP" : type == "time" ? "pp" : "PPPpp",
             {
               locale: getLocaleDate(lang),
@@ -204,7 +228,7 @@ export const Cell = memo(
       case "html":
         return (
           <span
-            className="text-ellipsis truncate [&_p]:inline [&_p]:m-0"
+            className="[&_p]:inline [&_p]:m-0"
             dangerouslySetInnerHTML={{ __html: value ?? "" }}
           />
         );
@@ -264,14 +288,17 @@ export const Cell = memo(
       if (child) {
         return cloneElement(child, {
           ...child.props,
-          className: cn(child.props.className, "text-ellipsis truncate"),
+          className: cn(child.props.className, cellWrapClassName(type)),
         });
       }
     }
     if (isLink && route && can("read", { user_id: row?.created_by_id })) {
       return (
         <Link
-          className="text-blue-800 dark:text-blue-200 hover:underline"
+          className={cn(
+            "text-blue-800 dark:text-blue-200 hover:underline",
+            cellWrapClassName(type),
+          )}
           href={window.route(route ?? "", row[primaryKey] ?? "")}
         >
           {valueCell}
@@ -296,16 +323,65 @@ export const Cell = memo(
               value?.[primaryKey] ?? "",
             )
           }
-          className="text-blue-800 dark:text-blue-200 hover:underline"
+          className={cn(
+            "text-blue-800 dark:text-blue-200 hover:underline",
+            cellWrapClassName(type),
+          )}
         >
           {valueCell}
         </Link>
       );
     }
-    return <span>{valueCell}</span>;
+    return <span className={cellWrapClassName(type)}>{valueCell}</span>;
   },
 );
 Cell.displayName = "TableCell";
+// Satu baris data tabel (`<tr>`): checkbox pilih, kolom aksi, lalu sel per kolom
+// tampil. Diekstrak dari Table2 supaya dipakai jalur flat DAN pohon grup
+// (spec datatable2-group-tree, task 7.1) dgn DOM yang identik.
+export const TableRow = memo(function TableRow({
+  row,
+  selectable,
+  actions,
+  showedColumns,
+  onRowClick,
+  onCheck,
+}) {
+  return (
+    <tr
+      onClick={onRowClick ? () => onRowClick(row) : undefined}
+      className={cn(onRowClick && "cursor-pointer hover:bg-accent/50")}
+    >
+      {selectable && (
+        <td className="py-2! px-2! items-center">
+          <Checkbox
+            checked={row.isSelected ?? false}
+            onCheckedChange={(check) => onCheck(row, check)}
+          />
+        </td>
+      )}
+      {actions && (
+        <td className="w-full flex flex-row! items-center gap-x-2 border-r border-muted-foreground/15">
+          {actions({ dataRow: row })}
+        </td>
+      )}
+      {showedColumns.map(({ type, name, parse, valueTrans, ...colProps }) => {
+        return (
+          <td key={name} className="border-r border-muted-foreground/15">
+            <Cell
+              row={row}
+              type={type}
+              name={name}
+              parse={parse}
+              valueTrans={valueTrans}
+              {...colProps}
+            />
+          </td>
+        );
+      })}
+    </tr>
+  );
+});
 const Table2 = forwardRef(function Table2(
   {
     className,
@@ -323,6 +399,10 @@ const Table2 = forwardRef(function Table2(
     isLoading,
     persistColumns = true,
     onRowClick,
+    // Pohon grup (spec datatable2-group-tree): { levels, aggregates, baseParams,
+    // version, resetKey, pathname? } -- `data` = deskriptor grup level-0. Tanpa
+    // prop ini Table2 merender daftar baris flat (tak berubah).
+    group,
   },
   ref,
 ) {
@@ -498,6 +578,45 @@ const Table2 = forwardRef(function Table2(
       },
     );
   }, [showedColumns]);
+  // Tinggi baris header kolom TIDAK LAGI konstan sejak header boleh wrap
+  // (revisi wrap sel, gantikan running-text/truncate) -- header panjang di
+  // kolom sempit bisa jadi 2-4 baris. Header grup sticky (GroupHeaderRow)
+  // butuh nilai ini sbg `top` supaya nempel tepat di bawah header kolom --
+  // diekspos lewat CSS var (bukan prop drilling) krn GroupHeaderRow ada di
+  // subtree GroupTree yg terpisah dari <thead> ini. `thead`/`tr` sendiri =
+  // `display:contents` (table.css) -> tak punya box utk di-observe; observe
+  // SEMUA `th` (bukan cuma 1, grid stretch ternyata TAK selalu bisa
+  // diandalkan konsisten dari 1 sel) & ambil TINGGI TERBESAR.
+  //
+  // Deps `[selectable, actions, showedColumns]` (bukan `[]`/tiap render):
+  // versi awal pakai NO-DEPS (re-observe tiap render) & TERBUKTI cacat lewat
+  // verifikasi browser -- var macet di nilai lama (48px) walau tinggi
+  // sungguhan sudah 65px, krn observer lama ke-disconnect sebelum sempat
+  // deliver notifikasi awal saat render beruntun (mis. toggle grup + reload
+  // data). Effect ini hanya perlu re-attach saat SET th BENAR2 berubah
+  // (kolom show/reorder), observer sendiri yg mendeteksi resize (wrap
+  // berubah krn lebar kolom di-resize user, dst) tanpa perlu re-run effect.
+  useEffect(() => {
+    const table = tableElement.current;
+    const headerCells = table ? [...table.querySelectorAll("thead th")] : [];
+    if (
+      !table ||
+      headerCells.length === 0 ||
+      typeof ResizeObserver === "undefined"
+    ) {
+      return undefined;
+    }
+    const updateStickyTop = () => {
+      const tallest = Math.max(
+        ...headerCells.map((el) => el.getBoundingClientRect().height),
+      );
+      table.style.setProperty("--group-sticky-top", `${Math.round(tallest)}px`);
+    };
+    const observer = new ResizeObserver(updateStickyTop);
+    headerCells.forEach((el) => observer.observe(el));
+    updateStickyTop(); // nilai awal langsung -- jangan tunggu frame observer pertama
+    return () => observer.disconnect();
+  }, [selectable, actions, showedColumns]);
   const computeResizedColumns = useCallback(
     (e) => {
       const newColumns = Object.fromEntries(columns.map((x) => [x.name, x]));
@@ -625,6 +744,51 @@ const Table2 = forwardRef(function Table2(
     });
   };
 
+  // Pohon grup: render-prop utk GroupTree (desktop = <tr>/<td> di grid tabel).
+  const rowSpan =
+    showedColumns.length + (selectable ? 1 : 0) + (actions ? 1 : 0);
+  const renderGroupHeader = useCallback(
+    (args) => (
+      <GroupHeaderRow
+        {...args}
+        columnMeta={headers?.[args.level?.column]}
+        aggregates={group?.aggregates}
+        showedColumns={showedColumns}
+        selectable={selectable}
+        actions={Boolean(actions)}
+      />
+    ),
+    [headers, group?.aggregates, showedColumns, selectable, actions],
+  );
+  const renderGroupRow = useCallback(
+    (row) => (
+      <TableRow
+        row={row}
+        selectable={selectable}
+        actions={actions}
+        showedColumns={showedColumns}
+        onRowClick={onRowClick}
+        onCheck={() => {}}
+      />
+    ),
+    [selectable, actions, showedColumns, onRowClick],
+  );
+  const renderGroupLoading = useCallback(
+    ({ depth }) => <GroupNodeStatusRow depth={depth} colSpan={rowSpan} />,
+    [rowSpan],
+  );
+  const renderGroupError = useCallback(
+    ({ depth, onRetry }) => (
+      <GroupNodeStatusRow
+        depth={depth}
+        colSpan={rowSpan}
+        error
+        onRetry={onRetry}
+      />
+    ),
+    [rowSpan],
+  );
+
   const checklist = (row, check) => {
     setData((data) => {
       const newData = data.map((x) => {
@@ -637,23 +801,32 @@ const Table2 = forwardRef(function Table2(
     });
   };
   return (
-    <div className={cn("grid grid-cols-1", className)}>
+    <div className={cn("flex flex-col min-h-0", className)}>
       <DndContext
         onDragOver={handleDragOver}
         sensors={sensors}
         collisionDetection={closestCenter}
       >
         <Dialog open={openColumnsFilter} onOpenChange={setOpenColumnsFilter}>
-          <div className="flex-1">
+          <div className="flex flex-col flex-1 min-h-0">
             <table
               className="resizeable-table"
               ref={tableElement}
               style={{
-                gridTemplateRows: [
-                  "auto",
-                  ...data.map(() => "auto"),
-                  "1fr",
-                ].join(" "),
+                // Jalur flat: baris header, satu per baris data, lalu filler 1fr
+                // yg menempel ke dasar. Pohon grup: jumlah baris DINAMIS (anak
+                // node baru muncul saat dibuka) jadi tak bisa dihitung dari
+                // data.length -- semua baris implisit `auto`, dipadatkan ke atas
+                // (align-content: start; tanpa itu track auto melar mengisi tinggi).
+                ...(group
+                  ? { alignContent: "start" }
+                  : {
+                      gridTemplateRows: [
+                        "auto",
+                        ...data.map(() => "auto"),
+                        "1fr",
+                      ].join(" "),
+                    }),
                 gridTemplateColumns:
                   (selectable ? "max-content " : "") +
                   (actions ? "max-content " : "") +
@@ -675,23 +848,8 @@ const Table2 = forwardRef(function Table2(
                       </th>
                     )}
                     {actions && (
-                      <th className="py-2! px-2! pr-4! items-center">
+                      <th className="py-2! px-2! pr-4! items-center border-r border-muted-foreground/15">
                         <span>{t("core.datatable.action")}</span>
-                        <div
-                          style={{
-                            height: tableElement?.current?.offsetHeight,
-                          }}
-                          className={cn(
-                            !data || data.length === 0 ? "h-[40px]!" : "",
-                            `flex opacity-100 justify-center items-center absolute w-4 -right-2 top-0 z-1`,
-                          )}
-                        >
-                          <div
-                            className={cn(
-                              "h-full border-r border-muted-foreground/15 w-px",
-                            )}
-                          ></div>
-                        </div>
                       </th>
                     )}
                     {showedColumns.map(({ resizeable, ...props }, i) => (
@@ -740,54 +898,43 @@ const Table2 = forwardRef(function Table2(
                   </tr>
                 ) : (
                   <>
-                    {data.map((row, i) => (
-                      <tr
-                        key={i}
-                        onClick={onRowClick ? () => onRowClick(row) : undefined}
-                        className={cn(
-                          onRowClick && "cursor-pointer hover:bg-accent/50",
-                        )}
-                      >
-                        {selectable && (
-                          <td className="py-2! px-2! items-center">
-                            <Checkbox
-                              checked={row.isSelected ?? false}
-                              onCheckedChange={(check) => checklist(row, check)}
-                            />
-                          </td>
-                        )}
-                        {actions && (
-                          <td className="w-full flex flex-row! items-center gap-x-2">
-                            {actions({ dataRow: row })}
-                          </td>
-                        )}
-                        {showedColumns.map(
-                          ({ type, name, parse, valueTrans, ...colProps }) => {
-                            return (
-                              <td key={name}>
-                                <Cell
-                                  row={row}
-                                  type={type}
-                                  name={name}
-                                  parse={parse}
-                                  valueTrans={valueTrans}
-                                  {...colProps}
-                                />
-                              </td>
-                            );
-                          },
-                        )}
-                      </tr>
-                    ))}
-
-                    <tr>
-                      <td
-                        className="border-b-0! items-center justify-center row-auto h-full z-2 relative bg-background"
-                        style={{
-                          gridColumn: `span ${showedColumns.length + (selectable ? 1 : 0) + (actions ? 1 : 0)}`,
-                        }}
+                    {group ? (
+                      <GroupTree
+                        key={group.resetKey}
+                        rootItems={data}
+                        levels={group.levels}
+                        baseParams={group.baseParams}
+                        pathname={group.pathname}
+                        version={group.version}
+                        subLevelVersion={group.subLevelVersion}
+                        renderGroupHeader={renderGroupHeader}
+                        renderRow={renderGroupRow}
+                        renderLoading={renderGroupLoading}
+                        renderError={renderGroupError}
                       />
-                    </tr>
+                    ) : (
+                      data.map((row, index) => (
+                        <TableRow
+                          key={index}
+                          row={row}
+                          selectable={selectable}
+                          actions={actions}
+                          showedColumns={showedColumns}
+                          onRowClick={onRowClick}
+                          onCheck={checklist}
+                        />
+                      ))
+                    )}
+                    {!group && (
+                      <tr>
+                        <td
+                          className="border-b-0! items-center justify-center row-auto h-full z-2 relative bg-background"
+                          style={{
+                            gridColumn: `span ${showedColumns.length + (selectable ? 1 : 0) + (actions ? 1 : 0)}`,
+                          }}
+                        />
+                      </tr>
+                    )}
                   </>
                 )}
               </tbody>

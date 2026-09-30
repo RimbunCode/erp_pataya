@@ -67,6 +67,11 @@ class ApprovalScheme extends Model {
             'show'      => true,
             'order'     => 2,
             'dependsOn' => ['is_active'],
+            // Accessor turunan dari is_active (bukan kolom DB) -- default groupable `status` tak berlaku.
+            'groupable' => false,
+        ],
+        'is_active' => [
+            'groupable' => true,
         ],
         'permission_id' => [
             'ignore' => true,

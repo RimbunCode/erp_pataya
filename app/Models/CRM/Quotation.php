@@ -44,8 +44,9 @@ class Quotation extends Model {
             'order'  => 0,
         ],
         'customer' => [
-            'show'  => true,
-            'order' => 1,
+            'show'      => true,
+            'order'     => 1,
+            'groupable' => true,
         ],
         'date' => [
             'show'  => true,
@@ -56,8 +57,9 @@ class Quotation extends Model {
             'order' => 3,
         ],
         'amount' => [
-            'show'  => true,
-            'order' => 4,
+            'show'           => true,
+            'order'          => 4,
+            'groupAggregate' => 'sum',
         ],
         'status' => [
             'show'  => true,

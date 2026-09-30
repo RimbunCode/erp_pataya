@@ -39,8 +39,17 @@ class Item extends Model {
         ];
     }
 
-    public string $formComponent   = 'Inventory/Items/Form';
-    public string $translateKey    = 'inventory.item';
+    public string $formComponent = 'Inventory/Items/Form';
+    public string $translateKey  = 'inventory.item';
+
+    /**
+     * Kolom yang dicari teks bebas Search Bar DataTable2 (chip "Cari") --
+     * lihat DataTable::getSearchScope().
+     *
+     * @var list<string>
+     */
+    protected static array $searchScope = ['code', 'name', 'description', 'category.name'];
+
     protected array $configColumns = [
         'image' => [
             'show'  => true,
@@ -58,9 +67,16 @@ class Item extends Model {
             'order' => 1,
         ],
         'category' => [
-            'type'  => 'relation',
-            'show'  => true,
-            'order' => 2,
+            'type'      => 'relation',
+            'show'      => true,
+            'order'     => 2,
+            'groupable' => true,
+        ],
+        'is_stock_item' => [
+            'groupable' => true,
+        ],
+        'is_fixed_asset' => [
+            'groupable' => true,
         ],
         'conversion_factor' => [
             'hidden'   => true,

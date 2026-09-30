@@ -45,20 +45,23 @@ class GeneralLedger extends Model {
             'isLink' => true,
         ],
         'account' => [
-            'order' => 1,
-            'show'  => true,
+            'order'     => 1,
+            'show'      => true,
+            'groupable' => true,
         ],
         'againstAccount' => [
             'order' => 2,
             'show'  => true,
         ],
         'debit' => [
-            'order' => 3,
-            'show'  => true,
+            'order'          => 3,
+            'show'           => true,
+            'groupAggregate' => 'sum',
         ],
         'credit' => [
-            'order' => 4,
-            'show'  => true,
+            'order'          => 4,
+            'show'           => true,
+            'groupAggregate' => 'sum',
         ],
         'created_at' => [
             'order' => 5,

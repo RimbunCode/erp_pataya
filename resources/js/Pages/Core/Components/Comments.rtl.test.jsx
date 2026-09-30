@@ -1,4 +1,12 @@
-import { describe, expect, it, vi, beforeEach } from "vitest";
+import {
+  describe,
+  expect,
+  it,
+  vi,
+  beforeAll,
+  afterAll,
+  beforeEach,
+} from "vitest";
 import { render, screen } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 
@@ -115,6 +123,33 @@ beforeEach(() => {
 });
 
 describe("Comments", () => {
+  // Timezone di-stub SEKALI untuk seluruh file, sebelum test manapun sempat
+  // merender timestamp komentar (yang memanggil TZDate(created_at) tanpa
+  // argumen timezone eksplisit). @date-fns/tz meng-cache Intl.DateTimeFormat
+  // pertamanya per-timezone-key di module scope (offsetFormatCache) -- kalau
+  // TZ baru di-set SETELAH panggilan pertama itu terjadi, cache lama (terikat
+  // ke TZ mesin) tetap dipakai dan perubahan TZ belakangan tidak berpengaruh.
+  // beforeAll di sini menjamin urutannya (jalan sebelum semua beforeEach/it).
+  beforeAll(() => {
+    vi.stubEnv("TZ", "Asia/Jakarta");
+  });
+
+  afterAll(() => {
+    vi.unstubAllEnvs();
+  });
+
+  it("timestamp komentar dirender sebagai waktu lokal Asia/Jakarta, bukan UTC mentah", () => {
+    // 2026-09-16T07:31:00Z == 16 Sep 2026 14:31 di Asia/Jakarta (UTC+7).
+    // Kalau kode kembali memaksa TZDate(..., "UTC"), hasilnya "7:31 AM".
+    setPageProps({
+      logs: [{ ...baseLog, created_at: "2026-09-16T07:31:00.000000Z" }],
+    });
+    render(<Comments />);
+
+    expect(screen.getByText(/2:31\s*PM/i)).toBeInTheDocument();
+    expect(screen.queryByText(/7:31\s*AM/i)).not.toBeInTheDocument();
+  });
+
   it("menampilkan judul activity dan tombol tambah komentar", () => {
     render(<Comments />);
     expect(screen.getByText("TR:core.form.activity")).toBeInTheDocument();

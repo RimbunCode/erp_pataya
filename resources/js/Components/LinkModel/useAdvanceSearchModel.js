@@ -59,6 +59,24 @@ export function buildAdvanceSearchColumnMap(
   return map;
 }
 
+/**
+ * Peta kolom untuk FilterTable -- SEMUA kolom schema, BUKAN cuma yang linkable
+ * (beda dari `buildAdvanceSearchColumnMap`). Gate `linkable` mengatur kolom yang
+ * di-SELECT/tampil di tabel; backend mengevaluasi `filters` terhadap schema penuh
+ * (`$target::getColumns(1)` di `ModelController::selectData()`), jadi membatasi
+ * kolom filter ke yang linkable cuma memangkas UX tanpa manfaat keamanan.
+ * FilterItem2 sendiri sudah menyaring searchable===false/hidden/ignore.
+ * @param {Array<object>} rawColumns
+ * @returns {{[name: string]: object}}
+ */
+export function buildAdvanceSearchFilterColumnMap(rawColumns) {
+  const map = {};
+  (rawColumns ?? []).forEach((c) => {
+    if (c?.name) map[c.name] = c;
+  });
+  return map;
+}
+
 const PER_PAGE = 25;
 const SEARCH_DEBOUNCE_MS = 300;
 
@@ -151,6 +169,10 @@ export default function useAdvanceSearchModel({
       ),
     [firstPage, templateLinkColumnNames],
   );
+  const filterColumnMap = useMemo(
+    () => buildAdvanceSearchFilterColumnMap(firstPage?.columns),
+    [firstPage],
+  );
   const rows = useMemo(
     () => (query.data?.pages ?? []).flatMap((p) => p.data.data),
     [query.data],
@@ -159,6 +181,7 @@ export default function useAdvanceSearchModel({
 
   return {
     columnMap,
+    filterColumnMap,
     lockedColumnNames: templateLinkColumnNames,
     rows,
     total,

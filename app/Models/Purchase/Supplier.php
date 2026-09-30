@@ -42,8 +42,17 @@ class Supplier extends Model {
         return $this->hasMany(Supplier::class, 'parent_id');
     }
 
-    public string $formComponent   = 'Purchase/Suppliers/Form';
-    public string $translateKey    = 'purchase.supplier';
+    public string $formComponent = 'Purchase/Suppliers/Form';
+    public string $translateKey  = 'purchase.supplier';
+
+    /**
+     * Kolom yang dicari teks bebas Search Bar DataTable2 (chip "Cari") --
+     * lihat DataTable::getSearchScope().
+     *
+     * @var list<string>
+     */
+    protected static array $searchScope = ['name', 'email', 'phone', 'city'];
+
     protected array $configColumns = [
         'name' => [
             'isLink' => true,
@@ -63,7 +72,9 @@ class Supplier extends Model {
             'order'     => 3,
             'dependsOn' => ['street', 'city', 'province', 'zip_code', 'country.name'],
         ],
-        'country',
+        'country' => [
+            'groupable' => true,
+        ],
         'branchOf',
         'branches',
     ];

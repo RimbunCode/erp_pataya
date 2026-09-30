@@ -62,6 +62,7 @@ class StockEntry extends Model {
             'show'       => true,
             'order'      => 2,
             'valueTrans' => 'inventory.stockEntry.types',
+            'groupable'  => true,
         ],
         'status' => [
             'show'  => true,

@@ -146,6 +146,44 @@ describe("validateItem", () => {
     ).toBe("core.datatable.filter.validation.value_date");
   });
 
+  it("valueInput 'dateselector' dgn DAFTAR (in_period/!in_period, revisi 16): 1..20 periode 'is' yg lengkap", () => {
+    const column = { name: "created_at", type: "date" };
+    const month = { period: "month", operator: "is", year: 2026, month: 8 };
+    const day = { period: "day", operator: "is", startDate: "2026-09-21" };
+    const check = (o, v) => validateItem({ k: "created_at", o, v }, column);
+
+    expect(check("in_period", [month, day])).toBeNull();
+    expect(check("!in_period", [month])).toBeNull();
+    // daftar kosong; "" (reset operator) & null bukan daftar -> validasi objek
+    expect(check("in_period", [])).toBe(
+      "core.datatable.filter.validation.select_one",
+    );
+    expect(check("in_period", "")).toBe(
+      "core.datatable.filter.validation.period_incomplete",
+    );
+    // elemen tak lengkap / bukan 'is'
+    expect(
+      check("in_period", [month, { period: "year", operator: "is" }]),
+    ).toBe("core.datatable.filter.validation.period_incomplete");
+    expect(
+      check("in_period", [month, { ...day, startDate: "bukan-tanggal" }]),
+    ).toBe("core.datatable.filter.validation.value_date");
+    expect(check("in_period", [month, { ...month, operator: "after" }])).toBe(
+      "core.datatable.filter.validation.period_incomplete",
+    );
+    // batas 20
+    const many = (n) =>
+      Array.from({ length: n }, (_, i) => ({
+        period: "year",
+        operator: "is",
+        year: 2000 + i,
+      }));
+    expect(check("in_period", many(20))).toBeNull();
+    expect(check("!in_period", many(21))).toBe(
+      "core.datatable.filter.validation.period_incomplete",
+    );
+  });
+
   it("dateselector non-day (mis. year): butuh year terisi", () => {
     const column = { name: "created_at", type: "date" };
     expect(

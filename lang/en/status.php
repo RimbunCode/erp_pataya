@@ -58,4 +58,8 @@ return [
     'work_in_progress'                => 'Work In Progress',
     'partially_rented'                => 'Partially Rented',
     'partially_sold'                  => 'Partially Sold',
+    'over_received'                   => 'Over Received',
+    'over_billed'                     => 'Over Billed',
+    'posted'                          => 'Posted',
+    'failed'                          => 'Failed',
 ];

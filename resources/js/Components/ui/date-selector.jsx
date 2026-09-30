@@ -14,10 +14,12 @@ import {
   addMonths,
   format,
   isBefore,
+  isSameDay,
   setHours,
   setMinutes,
   setMonth as setMonthFns,
   setYear as setYearFns,
+  startOfDay,
   subMonths,
 } from "date-fns";
 import { ChevronLeftIcon, ChevronRightIcon, Clock } from "lucide-react";
@@ -199,6 +201,43 @@ export function formatDateValue(
   return "";
 }
 
+// --- Multi-select ("Pada") ---------------------------------------------------
+// Pilihan = objek periode `is` lengkap: {period:"day", operator:"is", startDate}
+// atau {period, operator:"is", year, month|quarter|halfYear}. Aktif hanya bila
+// prop `allowMultiple` DAN Kondisi = "is" (lihat `multiActive` di hook).
+const SELECTION_UNIT_FIELD = {
+  month: "month",
+  quarter: "quarter",
+  "half-year": "halfYear",
+};
+
+const daySelection = (day) => ({
+  period: "day",
+  operator: "is",
+  startDate: startOfDay(day),
+});
+
+const unitSelection = (period, year, value) => {
+  const field = SELECTION_UNIT_FIELD[period];
+  return field
+    ? { period, operator: "is", year, [field]: value }
+    : { period, operator: "is", year };
+};
+
+// Dua pilihan sama bila periode & unit sama (hari: hari kalender yg sama,
+// jam diabaikan supaya klik sel me-toggle pilihan berjam hasil ketikan).
+const sameSelection = (a, b) => {
+  if (a.period !== b.period) return false;
+  if (a.period === "day") {
+    return Boolean(
+      a.startDate && b.startDate && isSameDay(a.startDate, b.startDate),
+    );
+  }
+  if (a.year !== b.year) return false;
+  const field = SELECTION_UNIT_FIELD[a.period];
+  return field ? a[field] === b[field] : true;
+};
+
 export function useDateSelector({
   value,
   onChange,
@@ -211,6 +250,9 @@ export function useDateSelector({
   minYear,
   maxYear,
   periodTypes,
+  allowMultiple = false,
+  maxSelections = 20,
+  onSelectionLimit,
 }) {
   const currentYear = baseYear ?? new Date().getFullYear();
 
@@ -238,9 +280,12 @@ export function useDateSelector({
   const [selectedHalfYear, setSelectedHalfYear] = useState(value?.halfYear);
   const [rangeStart, setRangeStart] = useState(value?.rangeStart);
   const [rangeEnd, setRangeEnd] = useState(value?.rangeEnd);
+  const [selections, setSelections] = useState(value?.selections ?? []);
   const [hoverDate, setHoverDate] = useState(undefined);
   // Hover untuk grid periode (month/quarter/half/year) saat memilih akhir range.
   const [hoverPeriod, setHoverPeriod] = useState(undefined);
+  // Multi-select aktif hanya utk Kondisi "Pada" (`is`), tanpa simbol/range.
+  const multiActive = allowMultiple && filterType === "is";
 
   const years = useMemo(() => {
     const hasMin = minYear !== undefined;
@@ -282,6 +327,7 @@ export function useDateSelector({
       halfYear: selectedHalfYear,
       rangeStart,
       rangeEnd,
+      ...(allowMultiple ? { selections } : {}),
     }),
     [
       periodType,
@@ -295,6 +341,8 @@ export function useDateSelector({
       selectedHalfYear,
       rangeStart,
       rangeEnd,
+      allowMultiple,
+      selections,
     ],
   );
 
@@ -307,10 +355,34 @@ export function useDateSelector({
     setSelectedHalfYear(undefined);
     setRangeStart(undefined);
     setRangeEnd(undefined);
+    setSelections([]);
   }, []);
 
+  // Toggle satu pilihan (multi). `additive` (pintasan "hari ini" dst) hanya
+  // MENAMBAH -- tak melepas pilihan yg sudah ada. Melebihi `maxSelections`
+  // diabaikan & dilaporkan lewat `onSelectionLimit`.
+  const toggleSelection = useCallback(
+    (item, additive = false) => {
+      const i = selections.findIndex((sel) => sameSelection(sel, item));
+      if (i >= 0) {
+        if (!additive) setSelections(selections.filter((_, j) => j !== i));
+        return;
+      }
+      if (selections.length >= maxSelections) {
+        onSelectionLimit?.();
+        return;
+      }
+      setSelections([...selections, item]);
+    },
+    [selections, maxSelections, onSelectionLimit],
+  );
+
   const handleDayClick = useCallback(
-    (day) => {
+    (day, opts) => {
+      if (multiActive) {
+        toggleSelection(daySelection(day), opts?.additive);
+        return;
+      }
       if (isRangeFilterType(filterType) && allowRange) {
         if (!selectedDate || (selectedDate && selectedEndDate)) {
           setSelectedDate(day);
@@ -326,11 +398,22 @@ export function useDateSelector({
         setSelectedEndDate(undefined);
       }
     },
-    [filterType, allowRange, selectedDate, selectedEndDate],
+    [
+      filterType,
+      allowRange,
+      selectedDate,
+      selectedEndDate,
+      multiActive,
+      toggleSelection,
+    ],
   );
 
   const handlePeriodSelect = useCallback(
-    (year, value) => {
+    (year, value, opts) => {
+      if (multiActive) {
+        toggleSelection(unitSelection(periodType, year, value), opts?.additive);
+        return;
+      }
       if (isRangeFilterType(filterType) && allowRange) {
         if (!rangeStart || (rangeStart && rangeEnd)) {
           setRangeStart({ year, value });
@@ -358,11 +441,23 @@ export function useDateSelector({
         setRangeEnd(undefined);
       }
     },
-    [filterType, allowRange, rangeStart, rangeEnd, periodType],
+    [
+      filterType,
+      allowRange,
+      rangeStart,
+      rangeEnd,
+      periodType,
+      multiActive,
+      toggleSelection,
+    ],
   );
 
   const handleYearSelect = useCallback(
-    (year) => {
+    (year, opts) => {
+      if (multiActive) {
+        toggleSelection(unitSelection("year", year), opts?.additive);
+        return;
+      }
       if (isRangeFilterType(filterType) && allowRange) {
         if (!rangeStart || (rangeStart && rangeEnd)) {
           setRangeStart({ year, value: 0 });
@@ -380,15 +475,24 @@ export function useDateSelector({
         setRangeEnd(undefined);
       }
     },
-    [filterType, allowRange, rangeStart, rangeEnd],
+    [
+      filterType,
+      allowRange,
+      rangeStart,
+      rangeEnd,
+      multiActive,
+      toggleSelection,
+    ],
   );
 
+  // Mode multi: ganti Periode TIDAK membersihkan pilihan (daftar boleh campuran
+  // granularitas); selain itu (perilaku lama) pilihan dibersihkan.
   const handlePeriodTypeChange = useCallback(
     (type) => {
       setPeriodType(type);
-      clearSelection();
+      if (!multiActive) clearSelection();
     },
-    [clearSelection],
+    [clearSelection, multiActive],
   );
 
   const handleFilterTypeChange = useCallback(
@@ -432,6 +536,7 @@ export function useDateSelector({
       setSelectedHalfYear(value.halfYear);
       setRangeStart(value.rangeStart);
       setRangeEnd(value.rangeEnd);
+      setSelections(value.selections ?? []);
     }
   }, [value, validDefaultPeriodType, defaultFilterType, presetMode]);
 
@@ -473,6 +578,8 @@ export function useDateSelector({
     years,
     currentValue,
     allowRange,
+    selections,
+    multiActive,
     setPeriodType: handlePeriodTypeChange,
     setFilterType: handleFilterTypeChange,
     setSelectedDate,
@@ -514,7 +621,7 @@ function PlainSelect({ value, onValueChange, options, disabled, className }) {
       </SelectTrigger>
       <SelectContent>
         {options.map((opt) => (
-          <SelectItem key={opt.value} value={opt.value}>
+          <SelectItem key={opt.value} value={opt.value} disabled={opt.disabled}>
             {opt.label}
           </SelectItem>
         ))}
@@ -529,6 +636,7 @@ const DateSelectorFilterToggle = memo(function DateSelectorFilterToggle({
   showBetween = true,
   showIs = true,
   presetMode,
+  disabledOptions,
   className,
 }) {
   const { i18n } = useDateSelectorContext();
@@ -538,7 +646,11 @@ const DateSelectorFilterToggle = memo(function DateSelectorFilterToggle({
     if (opt.value === "is" && !showIs) return false;
     if (opt.range && !showBetween) return false;
     return true;
-  }).map((opt) => ({ value: opt.value, label: i18n.filterTypes[opt.value] }));
+  }).map((opt) => ({
+    value: opt.value,
+    label: i18n.filterTypes[opt.value],
+    disabled: disabledOptions?.includes(opt.value),
+  }));
 
   return (
     <LabeledField label={i18n.labels.operator} className={className}>
@@ -610,6 +722,7 @@ export const DateSelectorDayPicker = memo(
       maxDate,
       scrollTick,
       className,
+      emitTriggerDate = false,
     },
     ref,
   ) {
@@ -761,7 +874,8 @@ export const DateSelectorDayPicker = memo(
             // (klik mentah, fire tiap klik). Untuk multiple: onSelect dipakai normal.
             onSelect={
               effectiveMode === "multiple"
-                ? (days) => onDayClick(days)
+                ? (days, triggerDate) =>
+                    onDayClick(emitTriggerDate ? triggerDate : days)
                 : () => {}
             }
             onDayClick={
@@ -918,6 +1032,7 @@ const DateSelectorPeriodGrid = memo(function DateSelectorPeriodGrid({
   rangeEnd,
   hoverPeriod,
   isInRange,
+  isItemSelected,
   onSelect,
   onHover,
   isRange,
@@ -976,6 +1091,7 @@ const DateSelectorPeriodGrid = memo(function DateSelectorPeriodGrid({
               // Selected, range start/end/middle, & preview hover → putih.
               const white =
                 isSelected ||
+                isItemSelected?.(year, index) ||
                 isRangeStart ||
                 isRangeEnd ||
                 isHoverEnd ||
@@ -1011,6 +1127,7 @@ const DateSelectorYearList = memo(function DateSelectorYearList({
   rangeEnd,
   hoverPeriod,
   isYearInRange,
+  isYearSelected,
   onSelect,
   onHover,
   isRange,
@@ -1047,6 +1164,7 @@ const DateSelectorYearList = memo(function DateSelectorYearList({
         // Selected, range start/end/middle, & preview hover → putih.
         const white =
           isSelected ||
+          isYearSelected?.(year) ||
           isRangeStart ||
           isRangeEnd ||
           isHoverEnd ||
@@ -1230,6 +1348,14 @@ export function DaySelectorTimePicker({
  *   (label operator/periode, nama bulan/kuartal/semester, dll).
  * @param {0|1|2|3|4|5|6} [props.weekStartsOn] Hari awal pekan (0=Minggu).
  * @param {boolean} [props.withTime] Aktifkan time picker (lihat aturan di atas).
+ * @param {boolean} [props.allowMultiple] Multi-select: WHEN Kondisi = "is" klik sel
+ *   (hari/bulan/kuartal/semester/tahun) men-toggle anggota `selections` (array objek
+ *   periode `is`, ikut di-emit & di-hidrasi lewat `value.selections`). Ganti Periode
+ *   tak membersihkan; opsi Kondisi selain "is" dinonaktifkan selama >= 2 pilihan;
+ *   pemilih jam tak dipakai. Default `false` = perilaku lama.
+ * @param {number} [props.maxSelections] Batas jumlah pilihan mode multi (default 20).
+ * @param {() => void} [props.onSelectionLimit] Dipanggil saat klik sel baru ditolak
+ *   karena `maxSelections` tercapai.
  * @returns {React.JSX.Element}
  */
 export function DateSelector({
@@ -1250,6 +1376,9 @@ export function DateSelector({
   i18n: i18nOverride,
   weekStartsOn,
   withTime = false,
+  allowMultiple = false,
+  maxSelections = 20,
+  onSelectionLimit,
 }) {
   const mergedI18n = useMemo(
     () => ({ ...DEFAULT_DATE_SELECTOR_I18N, ...i18nOverride }),
@@ -1275,6 +1404,9 @@ export function DateSelector({
     minYear,
     maxYear,
     periodTypes,
+    allowMultiple,
+    maxSelections,
+    onSelectionLimit,
   });
 
   const {
@@ -1303,12 +1435,46 @@ export function DateSelector({
     handleYearSelect,
     isInRange,
     isYearInRange,
+    selections,
+    multiActive,
   } = selector;
 
   const isRange = isRangeFilterType(filterType) && allowRange;
 
   // Time picker hanya untuk datetime + period=day + operator non-range.
-  const showTimePicker = withTime && periodType === "day" && !isRange;
+  // Mode multi: klik sel = seluruh hari -> pemilih jam tak dipakai.
+  const showTimePicker =
+    withTime && periodType === "day" && !isRange && !multiActive;
+
+  // Mode multi: hari terpilih (DayPicker) & penanda grid; Kondisi selain Pada
+  // dinonaktifkan selama sudah >= 2 pilihan (tak ada pilihan yg hilang diam-diam).
+  const selectedDays = useMemo(
+    () =>
+      selections
+        .filter((sel) => sel.period === "day")
+        .map((sel) => sel.startDate),
+    [selections],
+  );
+  const unitField = SELECTION_UNIT_FIELD[periodType];
+  const isItemSelected = multiActive
+    ? (year, index) =>
+        selections.some(
+          (sel) =>
+            sel.period === periodType &&
+            sel.year === year &&
+            sel[unitField] === index,
+        )
+    : undefined;
+  const isYearSelected = multiActive
+    ? (year) =>
+        selections.some((sel) => sel.period === "year" && sel.year === year)
+    : undefined;
+  const lockedFilterOptions =
+    multiActive && selections.length >= 2
+      ? FILTER_OPTIONS.filter((opt) => opt.value !== "is").map(
+          (opt) => opt.value,
+        )
+      : undefined;
 
   // Penanda paksa-scroll. Klik "Today" pada nilai yang sama tak mengubah
   // selectedYear/value, sehingga effect scroll (deps berbasis nilai) tak fire.
@@ -1331,6 +1497,7 @@ export function DateSelector({
             onChange={setFilterType}
             showBetween={allowRange}
             presetMode={presetMode}
+            disabledOptions={lockedFilterOptions}
           />
           <DateSelectorPeriodTabs
             value={periodType}
@@ -1353,19 +1520,23 @@ export function DateSelector({
               switch (periodType) {
                 case "day":
                   setCalendarMonth(now);
-                  handleDayClick(now);
+                  handleDayClick(now, { additive: true });
                   break;
                 case "month":
-                  handlePeriodSelect(y, now.getMonth());
+                  handlePeriodSelect(y, now.getMonth(), { additive: true });
                   break;
                 case "quarter":
-                  handlePeriodSelect(y, Math.floor(now.getMonth() / 3));
+                  handlePeriodSelect(y, Math.floor(now.getMonth() / 3), {
+                    additive: true,
+                  });
                   break;
                 case "half-year":
-                  handlePeriodSelect(y, now.getMonth() < 6 ? 0 : 1);
+                  handlePeriodSelect(y, now.getMonth() < 6 ? 0 : 1, {
+                    additive: true,
+                  });
                   break;
                 case "year":
-                  handleYearSelect(y);
+                  handleYearSelect(y, { additive: true });
                   break;
                 default:
                   break;
@@ -1384,6 +1555,9 @@ export function DateSelector({
               selectedDate={selectedDate}
               selectedEndDate={selectedEndDate}
               onDayClick={handleDayClick}
+              mode={multiActive ? "multiple" : undefined}
+              selectedDates={multiActive ? selectedDays : undefined}
+              emitTriggerDate={multiActive}
               isRange={isRangeFilterType(filterType) && allowRange}
               onDayHover={setHoverDate}
               hoverDate={hoverDate}
@@ -1414,6 +1588,7 @@ export function DateSelector({
                   onHover={setHoverPeriod}
                   isRange={isRange}
                   isInRange={isInRange}
+                  isItemSelected={isItemSelected}
                   onSelect={handlePeriodSelect}
                   columns={3}
                   scrollTick={scrollTick}
@@ -1431,6 +1606,7 @@ export function DateSelector({
                   onHover={setHoverPeriod}
                   isRange={isRange}
                   isInRange={isInRange}
+                  isItemSelected={isItemSelected}
                   onSelect={handlePeriodSelect}
                   columns={4}
                   scrollTick={scrollTick}
@@ -1448,6 +1624,7 @@ export function DateSelector({
                   onHover={setHoverPeriod}
                   isRange={isRange}
                   isInRange={isInRange}
+                  isItemSelected={isItemSelected}
                   onSelect={handlePeriodSelect}
                   columns={2}
                   scrollTick={scrollTick}
@@ -1463,6 +1640,7 @@ export function DateSelector({
                   onHover={setHoverPeriod}
                   isRange={isRange}
                   isYearInRange={isYearInRange}
+                  isYearSelected={isYearSelected}
                   onSelect={handleYearSelect}
                   scrollTick={scrollTick}
                 />

@@ -22,7 +22,16 @@ class Customer extends Model {
         return ':name';
     }
 
-    public $translateKey           = 'sales.customer';
+    public $translateKey = 'sales.customer';
+
+    /**
+     * Kolom yang dicari teks bebas Search Bar DataTable2 (chip "Cari") --
+     * lihat DataTable::getSearchScope().
+     *
+     * @var list<string>
+     */
+    protected static array $searchScope = ['name', 'email', 'phone', 'city'];
+
     protected array $configColumns = [
         'name' => [
             'isLink' => true,
@@ -42,7 +51,9 @@ class Customer extends Model {
             'order'     => 3,
             'dependsOn' => ['street', 'city', 'province', 'zip_code', 'country.name'],
         ],
-        'country',
+        'country' => [
+            'groupable' => true,
+        ],
         'branches',
     ];
     protected $appends = [

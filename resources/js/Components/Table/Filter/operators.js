@@ -15,7 +15,8 @@
 //   - "morph"       : PermissionLinkModel + LinkModel (relation morph)
 //   - "morphMulti"
 //   - "time" / "time2"
-//   - "dateselector": DateSelector (in_period)
+//   - "dateselector": DateSelector (in_period / !in_period; nilai = SATU objek
+//                     periode ATAU daftar periode "Pada", Revisi 16)
 
 const UNIVERSAL = {
   set: { operator: "set", valueInput: "none" },
@@ -127,7 +128,8 @@ const getOperators = (type, { typeRelation, hasOptions, mode } = {}) => {
 
     case "date":
     case "datetime":
-      // Semua komparasi & granularitas dipindahkan ke DateSelector.
+      // Semua komparasi, granularitas & banyak nilai ("Pada" >= 2 -> `v` daftar
+      // periode) dipindahkan ke DateSelector (Revisi 16).
       operators = {
         in_period: op("in_period", "dateselector"),
         "!in_period": op("!in_period", "dateselector"),

@@ -93,6 +93,10 @@ When implementing features from `.kiro/specs/<name>/`:
 5. **Lint/Pint**: Run only after all tasks complete, not per-task
 6. **Optional tasks**: Marked with `- [ ]* <id> ...` - ask user whether to include before starting
 
+## Uji Visual Browser — Kredensial Login
+
+Saat login ke app lokal (dev server) buat verifikasi browser, gunakan **admin/admin** (username/password). Akun ini (`test@example.com`, username `admin`) sudah di-set password `admin` secara permanen — **jangan pernah ganti password akun ini ke nilai lain**, walau lagi reset/seed data uji lain.
+
 ## Verifikasi Sebelum Klaim Teknis
 
 Jangan berasumsi atau menjawab pertanyaan arsitektur/desain (misalnya "kenapa X begini" atau "apakah Y akan konflik dengan Z") dari ingatan umum. Telusuri implementasi konkret dan pola serupa di codebase sebelum menyampaikan fakta. Jika masih ambigu, jelaskan ketidakpastian dan konfirmasikan kepada user.

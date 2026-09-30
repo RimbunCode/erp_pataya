@@ -37,7 +37,16 @@ class DeliveryNote extends Model {
         return ':code';
     }
 
-    public $translateKey           = 'inventory.deliveryNote';
+    public $translateKey = 'inventory.deliveryNote';
+
+    /**
+     * Kolom yang dicari teks bebas Search Bar DataTable2 (chip "Cari") --
+     * lihat DataTable::getSearchScope().
+     *
+     * @var list<string>
+     */
+    protected static array $searchScope = ['code', 'external_note', 'customer.name'];
+
     protected array $configColumns = [
         'code' => [
             'isLink' => true,
@@ -54,9 +63,10 @@ class DeliveryNote extends Model {
             'order' => 2,
         ],
         'customer' => [
-            'type'  => 'relation',
-            'show'  => true,
-            'order' => 3,
+            'type'      => 'relation',
+            'show'      => true,
+            'order'     => 3,
+            'groupable' => true,
         ],
         'customerBranch' => [
             'type'               => 'relation',

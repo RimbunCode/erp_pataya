@@ -51,7 +51,16 @@ class InternalOrder extends Model {
         return $this->hasMany(InternalOrderItem::class);
     }
 
-    public string $translateKey    = 'sales.internalOrder';
+    public string $translateKey = 'sales.internalOrder';
+
+    /**
+     * Kolom yang dicari teks bebas Search Bar DataTable2 (chip "Cari") --
+     * lihat DataTable::getSearchScope().
+     *
+     * @var list<string>
+     */
+    protected static array $searchScope = ['code', 'branch.name', 'created_by.name'];
+
     protected array $configColumns = [
         'code' => [
             'isLink' => true,

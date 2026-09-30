@@ -52,7 +52,16 @@ class PurchaseInvoice extends Model {
         return ':code';
     }
 
-    public $translateKey           = 'finances.purchaseInvoice';
+    public $translateKey = 'finances.purchaseInvoice';
+
+    /**
+     * Kolom yang dicari teks bebas Search Bar DataTable2 (chip "Cari") --
+     * lihat DataTable::getSearchScope().
+     *
+     * @var list<string>
+     */
+    protected static array $searchScope = ['code', 'external_note', 'tax_invoice_serial_number', 'supplier.name'];
+
     protected array $configColumns = [
         'code' => [
             'isLink' => true,
@@ -70,14 +79,17 @@ class PurchaseInvoice extends Model {
             'order' => 2,
         ],
         'supplier' => [
-            'show'  => true,
-            'order' => 3,
+            'show'      => true,
+            'order'     => 3,
+            'groupable' => true,
         ],
         'status' => [
             'show'  => true,
             'order' => 4,
         ],
-        'currency',
+        'currency' => [
+            'groupable' => true,
+        ],
         'branch' => [
             'ignore' => true,
         ],
@@ -106,6 +118,7 @@ class PurchaseInvoice extends Model {
         'paymentSchedules',
         'tax_invoice_transaction_code' => [
             'valueTrans' => 'finances.taxInvoice.transaction_code.options',
+            'groupable'  => true,
         ],
         'tax_invoice_serial_number',
         'tax_invoice_date' => [

@@ -18,7 +18,25 @@ import { DateSelector as ReuiDateSelector } from "@/Components/ui/date-selector"
 import { Input } from "@/Components/ui/input";
 import { CalendarIcon, XIcon } from "lucide-react";
 import { cn, getLocaleDate, mergeRefs } from "@/lib/utils";
-import { format, parse } from "date-fns";
+import { format } from "date-fns";
+import {
+  OPERATOR_SYMBOLS,
+  buildBetweenPeriodValue,
+  buildPeriodI18nLabels,
+  buildReuiDateI18n,
+  hasPeriodSelection,
+  parseLocalDate,
+  parsePeriodToken,
+  toLocalDateValue,
+} from "./periodParsing";
+import {
+  MAX_DATE_VALUES,
+  cleanPeriodValue,
+  mergeDatePeriods,
+  parseDatePeriod,
+  parseMultiValueText,
+  periodValueToText,
+} from "../Search/columnSearch";
 import { useLaravelReactI18n } from "laravel-react-i18n";
 import { usePage } from "@inertiajs/react";
 
@@ -35,6 +53,11 @@ import { usePage } from "@inertiajs/react";
  *   operator: is | after | on-or-after | before | on-or-before | between
  *   period  : day | month | quarter | half-year | year
  *   Date diserialisasi ke ISO string (filter tree disimpan JSON).
+ *
+ * Revisi 16 -- BANYAK nilai "Pada" (maks 20): `value` boleh berupa DAFTAR objek
+ * periode `is` (widget `allowMultiple`, atau ketik `a | b` / `a; b` gaya
+ * Search Bar). Satu pilihan tetap dikirim sbg objek tunggal; daftar hanya utk
+ * >= 2 pilihan. Nilai daftar/`is` disimpan sbg string tanggal LOKAL.
  *
  * Props rentang tahun diteruskan ke panel reui:
  *   yearRange — jumlah/span tahun (lihat ui/date-selector)
@@ -54,14 +77,12 @@ const toDate = (v) => {
 // Date → ISO string.
 const toISO = (v) => (v instanceof Date ? v.toISOString() : (v ?? undefined));
 
-// Simbol prefix operator untuk parse input cepat.
-const OPERATOR_SYMBOLS = [
-  { sym: ">=", op: "on-or-after" },
-  { sym: "<=", op: "on-or-before" },
-  { sym: ">", op: "after" },
-  { sym: "<", op: "before" },
-  { sym: "=", op: "is" },
-];
+// Value → daftar periode "Pada" utk pilihan multi widget: daftar apa adanya;
+// objek `is` yg lengkap = satu pilihan; selain itu (Kondisi lain / kosong) null.
+const asSelections = (v) => {
+  if (Array.isArray(v)) return v;
+  return v?.operator === "is" && hasPeriodSelection(v) ? [v] : null;
+};
 
 export default memo(
   forwardRef(function DateSelector(
@@ -86,60 +107,17 @@ export default memo(
     const inputRef = useRef(null);
     const _commandRef = useRef(null);
 
-    // i18n labels untuk panel reui + display/parse ringkasan.
+    // i18n labels untuk panel reui + display/parse ringkasan (revisi 6:
+    // diekstrak ke `periodParsing.js`, dipakai bersama SearchBar).
     const i18nLabels = useMemo(
-      () => ({
-        operators: {
-          is: t("core.datatable.filter.dateselector.subop.is"),
-          after: t("core.datatable.filter.dateselector.subop.after"),
-          "on-or-after": t(
-            "core.datatable.filter.dateselector.subop.on-or-after",
-          ),
-          before: t("core.datatable.filter.dateselector.subop.before"),
-          "on-or-before": t(
-            "core.datatable.filter.dateselector.subop.on-or-before",
-          ),
-          between: t("core.datatable.filter.dateselector.subop.between"),
-        },
-        months: Array.from({ length: 12 }, (_, i) =>
-          format(new Date(2000, i, 1), "MMMM", { locale: dateLocale }),
-        ),
-        monthsShort: Array.from({ length: 12 }, (_, i) =>
-          format(new Date(2000, i, 1), "MMM", { locale: dateLocale }),
-        ),
-        quarters: ["Q1", "Q2", "Q3", "Q4"],
-        halfYears: ["H1", "H2"],
-      }),
+      () => buildPeriodI18nLabels({ t, dateLocale }),
       [t, dateLocale],
     );
 
+    // Revisi 6: diekstrak ke `buildReuiDateI18n` (periodParsing.js), dipakai
+    // bersama SearchBar (embed widget yg sama) supaya label i18n konsisten.
     const reuiI18n = useMemo(
-      () => ({
-        today: t("core.datatable.filter.dateselector.today.day"),
-        labels: {
-          operator: t("core.datatable.filter.dateselector.label.operator"),
-          period: t("core.datatable.filter.dateselector.label.period"),
-        },
-        todayLabels: {
-          day: t("core.datatable.filter.dateselector.today.day"),
-          month: t("core.datatable.filter.dateselector.today.month"),
-          quarter: t("core.datatable.filter.dateselector.today.quarter"),
-          "half-year": t("core.datatable.filter.dateselector.today.half-year"),
-          year: t("core.datatable.filter.dateselector.today.year"),
-        },
-        filterTypes: i18nLabels.operators,
-        periodTypes: {
-          day: t("core.datatable.filter.period.unit.day"),
-          month: t("core.datatable.filter.period.unit.month"),
-          quarter: t("core.datatable.filter.period.unit.quarter"),
-          halfYear: t("core.datatable.filter.period.unit.half-year"),
-          year: t("core.datatable.filter.period.unit.year"),
-        },
-        months: i18nLabels.months,
-        monthsShort: i18nLabels.monthsShort,
-        quarters: i18nLabels.quarters,
-        halfYears: i18nLabels.halfYears,
-      }),
+      () => buildReuiDateI18n({ t, i18nLabels }),
       [t, i18nLabels],
     );
 
@@ -193,6 +171,12 @@ export default memo(
 
     const formatSummary = useCallback(
       (v) => {
+        // Daftar "Pada": `a | b | c` (round-trip dgn ketikan gaya Search Bar).
+        if (Array.isArray(v)) {
+          return v
+            .map((p) => periodValueToText(p, i18nLabels.monthsShort))
+            .join(" | ");
+        }
         if (!v || !v.period || !v.operator) return "";
         if (v.operator === "between") {
           // Range belum lengkap (end belum dipilih) → tampilkan start - start
@@ -210,65 +194,11 @@ export default memo(
     );
 
     // -- Parsing input -----------------------------------------------------
-    const parsePeriodToken = useCallback(
-      (raw) => {
-        const text = raw.trim();
-        if (!text) return null;
-
-        // year: 2026
-        const yearMatch = text.match(/^(\d{4})$/);
-        if (yearMatch) {
-          return { period: "year", year: parseInt(yearMatch[1], 10) };
-        }
-        // quarter: Q2 2025
-        const qMatch = text.match(/^Q([1-4])\s+(\d{4})$/i);
-        if (qMatch) {
-          return {
-            period: "quarter",
-            year: parseInt(qMatch[2], 10),
-            quarter: parseInt(qMatch[1], 10) - 1,
-          };
-        }
-        // half-year: H1 2026
-        const hMatch = text.match(/^H([1-2])\s+(\d{4})$/i);
-        if (hMatch) {
-          return {
-            period: "half-year",
-            year: parseInt(hMatch[2], 10),
-            halfYear: parseInt(hMatch[1], 10) - 1,
-          };
-        }
-        // month name (i18n full/short) + year: "Januari 2025" / "Jan 2025"
-        const monthYear = text.match(/^(.+?)\s+(\d{4})$/);
-        if (monthYear) {
-          const name = monthYear[1].toLowerCase();
-          const year = parseInt(monthYear[2], 10);
-          const idx = i18nLabels.months.findIndex(
-            (m) => m.toLowerCase() === name,
-          );
-          const idxShort = i18nLabels.monthsShort.findIndex(
-            (m) => m.toLowerCase() === name,
-          );
-          const m = idx >= 0 ? idx : idxShort;
-          if (m >= 0) return { period: "month", year, month: m };
-        }
-        // tanggal (day): coba beberapa format.
-        const dayFormats = isDatetime
-          ? [
-              "dd MMMM yyyy HH:mm",
-              "dd MMMM yyyy",
-              "yyyy-MM-dd HH:mm",
-              "yyyy-MM-dd",
-            ]
-          : ["dd MMMM yyyy", "yyyy-MM-dd", "dd/MM/yyyy", "dd-MM-yyyy"];
-        for (const fmt of dayFormats) {
-          const parsed = parse(text, fmt, new Date(), { locale: dateLocale });
-          if (!isNaN(parsed.getTime())) {
-            return { period: "day", startDate: parsed };
-          }
-        }
-        return null;
-      },
+    // Revisi 6: `parsePeriodToken` diekstrak ke `periodParsing.js` (dipakai
+    // bersama SearchBar) -- panggil versi imported dgn param eksplisit,
+    // bungkus jadi callback stabil-referensi via `useCallback` seperti semula.
+    const parseToken = useCallback(
+      (raw) => parsePeriodToken(raw, { isDatetime, dateLocale, i18nLabels }),
       [isDatetime, dateLocale, i18nLabels],
     );
 
@@ -294,40 +224,27 @@ export default memo(
           }
         }
 
-        // Range "a - b" → between.
+        // Range "a - b" → between (revisi 6: gabung token diekstrak ke
+        // `buildBetweenPeriodValue`, dipakai bersama sintaks ketik SearchBar).
         const rangeParts = rest.split(/\s+-\s+/);
         if (rangeParts.length === 2) {
-          const a = parsePeriodToken(rangeParts[0]);
-          const b = parsePeriodToken(rangeParts[1]);
-          if (a && b && a.period === b.period && a.period !== "day") {
-            return {
-              period: a.period,
-              operator: "between",
-              year: a.year,
-              rangeStart: { year: a.year, value: subValue(a) },
-              rangeEnd: { year: b.year, value: subValue(b) },
-            };
-          }
-          if (a && b && a.period === "day") {
-            return {
-              period: "day",
-              operator: "between",
-              startDate: a.startDate,
-              endDate: b.startDate,
-            };
-          }
+          const a = parseToken(rangeParts[0]);
+          const b = parseToken(rangeParts[1]);
+          const value = buildBetweenPeriodValue(a, b);
+          if (value) return value;
         }
 
-        const token = parsePeriodToken(rest);
+        const token = parseToken(rest);
         if (!token) return null;
         return { ...token, operator };
       },
-      [i18nLabels, parsePeriodToken],
+      [i18nLabels, parseToken],
     );
 
     // -- Serialisasi & loop-guard -----------------------------------------
     const [initialValue] = useState(() => {
       if (!value) return undefined;
+      if (Array.isArray(value)) return value;
       return {
         ...value,
         startDate: toDate(value.startDate),
@@ -357,14 +274,59 @@ export default memo(
     // tiap dibuka & hydrate ulang dari prop value. Memberi localValue (bukan
     // initialValue mount-once) memastikan pilihan terakhir tetap muncul saat
     // popover dibuka lagi. reui punya loop-guard JSON sendiri → aman.
+    // Kondisi "Pada" (`is`) -> widget mode multi membaca `selections` (objek
+    // `is` tunggal = satu pilihan); Kondisi lain -> nilai tunggal seperti semula.
     const reuiValue = useMemo(() => {
       if (!localValue) return undefined;
+      const picked = asSelections(localValue);
+      if (picked) {
+        return {
+          period: picked.at(-1)?.period ?? "day",
+          operator: "is",
+          selections: picked.map((p) => ({
+            ...p,
+            startDate: parseLocalDate(p.startDate),
+          })),
+        };
+      }
       return {
         ...localValue,
         startDate: toDate(localValue.startDate),
         endDate: toDate(localValue.endDate),
       };
     }, [localValue]);
+
+    // Periode -> nilai leaf: string tanggal LOKAL (kolom date membuang jam),
+    // kunci periode saja (tanpa `selections`).
+    const normalizePeriod = useCallback(
+      (p) =>
+        cleanPeriodValue({
+          ...p,
+          startDate: p.startDate
+            ? toLocalDateValue(p.startDate, { isDatetime })
+            : undefined,
+          endDate: p.endDate
+            ? toLocalDateValue(p.endDate, { isDatetime })
+            : undefined,
+        }),
+      [isDatetime],
+    );
+
+    // Satu pilihan -> objek tunggal; >= 2 -> daftar (Revisi 16).
+    const emitPeriods = useCallback(
+      (periods) => {
+        const payload =
+          periods.length === 1
+            ? normalizePeriod(periods[0])
+            : periods.map(normalizePeriod);
+        setLocalValue(payload);
+        const serialized = JSON.stringify(payload);
+        if (serialized === lastEmitted.current) return;
+        lastEmitted.current = serialized;
+        onValueChange?.(payload);
+      },
+      [normalizePeriod, onValueChange],
+    );
 
     const emit = useCallback(
       (next) => {
@@ -374,6 +336,15 @@ export default memo(
             lastEmitted.current = null;
             onValueChange?.(null);
           }
+          return;
+        }
+        // Kondisi "Pada" dgn pilihan multi widget -> nilai dari `selections`.
+        if (
+          next.operator === "is" &&
+          Array.isArray(next.selections) &&
+          next.selections.length > 0
+        ) {
+          emitPeriods(next.selections);
           return;
         }
         const payload = {
@@ -396,7 +367,7 @@ export default memo(
         lastEmitted.current = serialized;
         onValueChange?.(payload);
       },
-      [onValueChange],
+      [onValueChange, emitPeriods],
     );
 
     // -- Input ringkasan ----------------------------------------------------
@@ -412,9 +383,32 @@ export default memo(
     const [editing, setEditing] = useState(false);
     const displayText = editing ? draft : summary;
 
+    // Ketikan gaya Search Bar (`a | b`, `a; b`) -> daftar periode; null bila
+    // ada segmen tak terparse / melanggar aturan daftar (N "Pada" ATAU satu
+    // nilai lain) / melebihi batas. Negasi lewat operator `!in_period`.
+    const parseList = (raw) => {
+      const { exclude, committed, pending } = parseMultiValueText(raw, {
+        separators: "|;",
+      });
+      const texts = [...committed, pending]
+        .map((part) => part.trim())
+        .filter(Boolean);
+      if (exclude || texts.length === 0) return null;
+      const ctx = { isDatetime, dateLocale, i18nLabels };
+      const periods = texts.map((part) => parseDatePeriod(part, ctx));
+      if (periods.some((p) => !p)) return null;
+      const merged = mergeDatePeriods([], periods, { max: MAX_DATE_VALUES });
+      return merged.error ? null : merged.chips;
+    };
+
     const commitDraft = (raw) => {
-      const parsed = parseSummary(raw);
-      if (parsed) emit(parsed);
+      if (/[|;]/.test(raw)) {
+        const periods = parseList(raw);
+        if (periods) emitPeriods(periods);
+      } else {
+        const parsed = parseSummary(raw);
+        if (parsed) emit(parsed);
+      }
       setEditing(false);
     };
 
@@ -478,6 +472,7 @@ export default memo(
                 variant="ghost"
                 size="icon"
                 className="size-6 mr-1"
+                aria-label={t("core.datatable.filter.dateselector.clear")}
                 onClick={(e) => {
                   e.stopPropagation();
                   emit(null);
@@ -507,6 +502,8 @@ export default memo(
             baseYear={baseYear}
             minYear={minYear}
             maxYear={maxYear}
+            allowMultiple
+            maxSelections={MAX_DATE_VALUES}
           />
         </PopoverContent>
       </Popover>

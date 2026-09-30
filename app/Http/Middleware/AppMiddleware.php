@@ -24,15 +24,6 @@ class AppMiddleware extends Middleware {
                 $currentBranch = $user->default_branch_id;
                 $request->session()->put('currentBranch', $currentBranch);
             }
-            // without()+withoutGlobalScope('country'): dropdown branch selector
-            // cuma butuh id/name/is_main_branch, tapi Branch::$with (property
-            // model, beda dari global scope) selalu eager-load 2 relasi Country
-            // — N+1 nyata karena middleware ini eksekusi di SETIAP request
-            // (Inertia::share jalan di semua halaman).
-            $branches = $user->branches()
-                ->withoutGlobalScope('country')
-                ->without(['billingCountry', 'shippingCountry'])
-                ->get();
             $permissions              = $request->session()->get('permissions');
             $permissionsVersion       = $request->session()->get('permissions_version');
             $latestPermissionsVersion = $this->resolvePermissionsVersion($user->id);
@@ -42,16 +33,39 @@ class AppMiddleware extends Middleware {
                 $request->session()->put('permissions_version', $latestPermissionsVersion);
             }
 
-            $activeBranch = $branches->firstWhere('id', $currentBranch)
-                ?? $branches->firstWhere('id', $user->default_branch_id);
-
+            // `ignorePermissionModels`/`branchSettings` dibungkus closure (bukan
+            // nilai eager) -- middleware ini eksekusi di SETIAP request
+            // terautentikasi, termasuk XHR groupPath expand & partial reload
+            // DataTable2 yang tak pernah minta 2 prop ini. Tanpa closure, query
+            // `Permission::where(...)` & `$user->branches()->get()` di bawah
+            // SUDAH TERLANJUR jalan begitu baris ini dieksekusi walau hasilnya
+            // tak terkirim -- PropsResolver Inertia (vendor) baru memanggil
+            // closure kalau prop ini BENAR2 dibutuhkan respons (lihat komentar
+            // lebih lengkap di ResolveActiveDesk.php, pola yang sama). `permissions`
+            // TETAP eager -- variabelnya sudah wajib dihitung di atas utk ditulis
+            // ke session (dipakai PermissionChecker::forUser() di request yang
+            // SAMA, di luar Inertia::share() ini sama sekali), jadi membungkusnya
+            // closure di sini tak menghemat apa pun.
             Inertia::share([
                 'permissions'            => $permissions,
-                'ignorePermissionModels' => Permission::where('ignore_permission', true)->pluck('model'),
-                'branchSettings'         => [
-                    'branches'      => $branches,
-                    'currentBranch' => $activeBranch,
-                ],
+                'ignorePermissionModels' => fn () => Permission::where('ignore_permission', true)->pluck('model'),
+                'branchSettings'         => function () use ($user, $currentBranch) {
+                    // without()+withoutGlobalScope('country'): dropdown branch
+                    // selector cuma butuh id/name/is_main_branch, tapi
+                    // Branch::$with (property model, beda dari global scope)
+                    // selalu eager-load 2 relasi Country -- N+1 kalau tak
+                    // dihindari eksplisit di sini.
+                    $branches = $user->branches()
+                        ->withoutGlobalScope('country')
+                        ->without(['billingCountry', 'shippingCountry'])
+                        ->get();
+
+                    return [
+                        'branches'      => $branches,
+                        'currentBranch' => $branches->firstWhere('id', $currentBranch)
+                            ?? $branches->firstWhere('id', $user->default_branch_id),
+                    ];
+                },
             ]);
         }
 

@@ -58,4 +58,8 @@ return [
     'work_in_progress'                => 'Dalam Pengerjaan',
     'partially_rented'                => 'Sebagian Disewa',
     'partially_sold'                  => 'Sebagian Terjual',
+    'over_received'                   => 'Kelebihan Diterima',
+    'over_billed'                     => 'Kelebihan Ditagih',
+    'posted'                          => 'Terposting',
+    'failed'                          => 'Gagal',
 ];

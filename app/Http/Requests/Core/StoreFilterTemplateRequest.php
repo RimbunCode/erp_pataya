@@ -3,12 +3,15 @@
 namespace App\Http\Requests\Core;
 
 use App\Http\Requests\BaseFormRequest;
+use App\Models\Core\SavedFilter;
 use App\Models\User\Permission;
 use App\Services\Core\FilterTreeCleaner;
 use Illuminate\Contracts\Validation\ValidationRule;
 use Illuminate\Validation\ValidationException;
 
 class StoreFilterTemplateRequest extends BaseFormRequest {
+    use NormalizesGroupInput;
+
     public function authorize(): bool {
         return true;
     }
@@ -22,6 +25,7 @@ class StoreFilterTemplateRequest extends BaseFormRequest {
             'filter' => ['required', 'array'],
             'name'   => ['required', 'string', 'max:255'],
             'sort'   => ['nullable', 'string', 'regex:/^-?[a-zA-Z0-9_.]+$/'],
+            ...SavedFilter::groupValidationRules(),
         ];
     }
 

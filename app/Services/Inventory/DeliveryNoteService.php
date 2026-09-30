@@ -201,6 +201,7 @@ class DeliveryNoteService implements SubmitableService {
                 'referenceable',
                 'returnAgainstItem',
                 'sourceWarehouse',
+                'unit',
             ])
             ->get();
 
@@ -208,6 +209,7 @@ class DeliveryNoteService implements SubmitableService {
         /** @var Collection<string, Stock> $stocks */
         $stocks = Stock::whereIn('item_variant_id', $items->pluck('item_id'))
             ->whereIn('warehouse_id', $items->pluck('source_warehouse_id'))
+            ->with(['unit'])
             ->lockForUpdate()
             ->get()
             ->keyBy(fn ($stock) => "{$stock->item_variant_id}-{$stock->warehouse_id}");
@@ -263,15 +265,19 @@ class DeliveryNoteService implements SubmitableService {
             // update stock
             $stockKey = "{$item->item_id}-{$item->source_warehouse_id}";
             /** @var Stock|null $stock */
-            $stock = $stocks->get($stockKey);
+            $stock     = $stocks->get($stockKey);
+            $itemLabel = "{$item->item->code} - {$item->item->item_name}";
+
             if (! $stock) {
-                $errorItems[] = "Item {$item->item->name} is not in {$item->sourceWarehouse->name} stock";
+                $errorItems[] = "Item {$itemLabel} is not in {$item->sourceWarehouse->name} stock";
 
                 continue;
             }
             $quantity = $item->quantity * $item->conversion_factor / $stock->conversion_factor;
             if ($stock->actual_quantity < $quantity) {
-                $errorItems[] = "Item {$item->item->name} in {$item->sourceWarehouse->name} stock is {$stock->actual_quantity} but you need {$quantity}";
+                $stockUnitName = $stock->unit?->name;
+                $orderUnitName = $item->unit?->name;
+                $errorItems[]  = "Item {$itemLabel} in {$item->sourceWarehouse->name} stock is {$stock->actual_quantity} {$stockUnitName} but you need {$quantity} {$stockUnitName} ({$item->quantity} {$orderUnitName})";
 
                 continue;
             }

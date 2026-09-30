@@ -102,11 +102,21 @@ class SalesOrderControllerAssetServiceRefTest extends TestCase {
         $user              = User::factory()->create();
         $assetService      = AssetService::factory()->create();
         [$item, $itemUnit] = $this->makeItemWithUnit();
-        $consumedItem      = AssetServiceConsumedItem::factory()->create([
+        // valuation_rate DIPATOK (bukan dibiarkan acak dari factory) karena
+        // assertInertia()->where() membandingkan secara STRICT. Model meng-cast
+        // valuation_rate ke float, tapi json_encode(92582.0) menghasilkan
+        // "92582" tanpa titik desimal — terbaca int saat di-assert, sehingga
+        // 92582 !== 92582.0 dan test gagal. AssetServiceConsumedItemFactory
+        // memakai fake()->randomFloat(2, 1000, 100000) yang sesekali memang
+        // menghasilkan bilangan bulat, jadi test ini flaky tergantung seed.
+        // Nilai berdesimal nyata membuatnya deterministik tanpa melemahkan
+        // assertion-nya.
+        $consumedItem = AssetServiceConsumedItem::factory()->create([
             'asset_service_id' => $assetService->id,
             'item_id'          => $item->id,
             'item_unit_id'     => $itemUnit->id,
             'quantity'         => 3,
+            'valuation_rate'   => 1234.56,
         ]);
 
         $response = $this->actingAs($user)

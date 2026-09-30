@@ -1393,7 +1393,7 @@ const ApprovalActedByDetail = memo(function ApprovalActedByDetail({
         <span>{acted_by?.name}</span>
         <span>●</span>
         <span>
-          {format(new TZDate(acted_at, "UTC"), "PPPp", {
+          {format(new TZDate(acted_at), "PPPp", {
             locale: getLocaleDate(lang),
           })}
         </span>
@@ -2186,7 +2186,7 @@ const FormPageDiff = memo(
                     <div className="grid grid-cols-subgrid col-span-full">
                       <p>{t("core.form.timestamp")}</p>
                       <p>
-                        {format(new TZDate(log.created_at, "UTC"), "PPPp", {
+                        {format(new TZDate(log.created_at), "PPPp", {
                           locale: getLocaleDate(lang),
                         })}
                       </p>

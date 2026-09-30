@@ -208,23 +208,15 @@ const validateItem = (item, column) => {
         : MSG.relation;
 
     case "dateselector": {
-      if (!value || !value.period || !value.operator) return MSG.period;
-      const subop = value.operator;
-      const isRange = subop === "between" || subop === "not-between";
-      if (value.period === "day") {
-        if (!value.startDate || !isDateParseable(value.startDate)) {
-          return MSG.date;
-        }
-        if (isRange && (!value.endDate || !isDateParseable(value.endDate))) {
-          return MSG.date;
-        }
-        return null;
-      }
-      // Non-day: butuh year (single atau rangeStart/rangeEnd).
-      const startYear = value.rangeStart?.year ?? value.year;
-      if (startYear == null) return MSG.period;
-      if (isRange && (value.rangeEnd?.year ?? value.year) == null) {
-        return MSG.period;
+      // Satu objek periode (Kondisi apa pun) ATAU daftar periode "Pada"
+      // (Revisi 16): 1..MAX, tiap elemen `is` & lengkap.
+      if (!Array.isArray(value)) return validatePeriodValue(value);
+      if (value.length < 1) return MSG.selectOne;
+      if (value.length > MAX_PERIOD_VALUES) return MSG.period;
+      for (const item of value) {
+        if (item?.operator !== "is") return MSG.period;
+        const message = validatePeriodValue(item);
+        if (message) return message;
       }
       return null;
     }
@@ -235,6 +227,36 @@ const validateItem = (item, column) => {
 };
 
 const isDateParseable = (v) => !Number.isNaN(Date.parse(`${v}`));
+
+// Batas daftar periode `in_period` date/datetime -- selaras FilterTreeCleaner::MAX_PERIOD_VALUES.
+const MAX_PERIOD_VALUES = 20;
+
+/**
+ * Validasi SATU nilai periode (objek `in_period` / elemen daftarnya).
+ * @param {object|null|undefined} value
+ * @returns {string|null} messageKey bila invalid
+ */
+function validatePeriodValue(value) {
+  if (!value || !value.period || !value.operator) return MSG.period;
+  const subop = value.operator;
+  const isRange = subop === "between" || subop === "not-between";
+  if (value.period === "day") {
+    if (!value.startDate || !isDateParseable(value.startDate)) {
+      return MSG.date;
+    }
+    if (isRange && (!value.endDate || !isDateParseable(value.endDate))) {
+      return MSG.date;
+    }
+    return null;
+  }
+  // Non-day: butuh year (single atau rangeStart/rangeEnd).
+  const startYear = value.rangeStart?.year ?? value.year;
+  if (startYear == null) return MSG.period;
+  if (isRange && (value.rangeEnd?.year ?? value.year) == null) {
+    return MSG.period;
+  }
+  return null;
+}
 
 /**
  * Apakah item benar-benar kosong (belum disentuh) — key & operator & value

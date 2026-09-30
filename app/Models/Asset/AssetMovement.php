@@ -40,6 +40,7 @@ class AssetMovement extends Model {
             'show'       => true,
             'order'      => 1,
             'valueTrans' => 'movement.purpose',
+            'groupable'  => true,
         ],
         'transaction_date' => [
             'show'  => true,

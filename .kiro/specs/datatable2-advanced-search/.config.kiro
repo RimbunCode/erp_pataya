@@ -1,0 +1,6 @@
+{
+  "specId": "f08be212-b75e-41fd-926e-bfd0dae5dcbc",
+  "workflowType": "design-first",
+  "specType": "feature",
+  "description": "Search bar advance (hybrid ala Odoo + GitHub) pada DataTable2: kondisi filter tampil sebagai chip yang = filter tree yang sama dengan FilterTable2 (satu sumber state), saran saat mengetik mencakup teks bebas, kolom, nilai opsi, filter tersimpan, dan group; panel dropdown berisi Filter Tersimpan + Group by (tombol Filter & Group pindah dari toolbar, Sort tetap). Teks bebas = grup OR `matches` atas searchScope model (fallback kolom tampil searchable bertipe string). Saved filter ikut menyimpan sort + group (kolom JSON baru)."
+}

@@ -663,7 +663,7 @@ export default memo(
                   asChild
                 >
                   <CommandList
-                    className="p-1 space-y-2"
+                    className="p-1 pb-0 space-y-2"
                     // Cegah browser memindah/menghapus fokus dari Input saat
                     // area ini di-mousedown (klik opsi/more/add) -- Input
                     // sekarang punya `onBlur` (utk Tab-autocomplete di atas),
@@ -742,8 +742,13 @@ export default memo(
                         BOTTOM -- CommandList di atas adalah scroll container
                         sungguhan (max-h-[300px] overflow-y-auto, lihat
                         ui/command.jsx), jadi grup aksi ini tetap kelihatan pas
-                        daftar opsi discroll, bukan ikut ter-scroll ke bawah. */}
-                    <div className="sticky bottom-0 z-10 bg-popover pt-1 -mx-1 px-1 -mb-1 pb-1">
+                        daftar opsi discroll, bukan ikut ter-scroll ke bawah.
+                        `sticky bottom-0` MENGHORMATI padding-bottom scroll
+                        container (terukur di browser: dasar grup berhenti
+                        setinggi padding di atas dasar scrollport, jalur itu
+                        membocorkan item yg discroll) -- makanya CommandList
+                        di atas `pb-0` dan grup ini pegang `pb-1` sendiri. */}
+                    <div className="sticky bottom-0 z-10 bg-popover pt-1 -mx-1 px-1 pb-1">
                       <CommandSeparator />
                       <CommandItem
                         value={ADVANCE_SEARCH_VALUE}

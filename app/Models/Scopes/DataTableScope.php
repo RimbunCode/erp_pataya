@@ -5,6 +5,12 @@ namespace App\Models\Scopes;
 use App\Models\Core\Branch;
 use App\Models\Core\Preference;
 use App\Models\Core\SavedFilter;
+use App\Services\Core\DataTable\Group\GroupColumnGate;
+use App\Services\Core\DataTable\Group\GroupLevelResolver;
+use App\Services\Core\DataTable\Group\GroupLevels;
+use App\Services\Core\DataTable\Group\GroupNodeQuery;
+use App\Services\Core\DataTable\Group\GroupPath;
+use App\Services\Core\DataTable\Group\ResolvedGroupLevel;
 use App\Services\Core\DataTableColumnSelector;
 use App\Services\Core\FilterColumnResolver;
 use App\Services\Core\FilterEvaluator;
@@ -14,11 +20,28 @@ use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\Relation;
 use Illuminate\Database\Eloquent\Scope;
 use Illuminate\Database\Eloquent\SoftDeletes;
+use Illuminate\Http\Exceptions\HttpResponseException;
 use Illuminate\Http\Request;
+use Illuminate\Pagination\LengthAwarePaginator;
 use Illuminate\Support\Facades\Cookie;
 use Inertia\Inertia;
 
 class DataTableScope implements Scope {
+    /**
+     * Cache in-memory (statis, per proses PHP) status is_main_branch per id --
+     * applyBranchFilter() dipanggil ulang tiap macro dataTable() jalan (index
+     * utama + tiap LinkModel dropdown ber-HasBranch di halaman yang sama),
+     * padahal session('currentBranch') tidak berubah dalam satu request/proses.
+     * Direset di Tests\TestCase::setUp() (lihat SchemaColumnCache utk pola sama).
+     *
+     * @var array<string, Branch|null>
+     */
+    private static array $branchMainStatusCache = [];
+
+    public static function forgetBranchMainStatusCache(): void {
+        self::$branchMainStatusCache = [];
+    }
+
     /**
      * Apply the scope to a given Eloquent query builder.
      */
@@ -32,6 +55,34 @@ class DataTableScope implements Scope {
 
     private function isTableIncluded($columnReference) {
         return preg_match('/^\w+\.\w+$/', $columnReference);
+    }
+
+    /**
+     * Sanitasi `searchScope` model (App\Traits\DataTable::getSearchScope())
+     * sebelum di-share ke FE -- entri yang tidak ter-resolve
+     * (FilterColumnResolver, dukung dot-notation relasi), `searchable === false`,
+     * atau tipe akhir BUKAN 'string' dibuang diam-diam (Requirement 5.2, 5.3).
+     * Resolver yang SAMA dipakai FilterTreeCleaner/FilterEvaluator -- satu
+     * sumber kebenaran resolusi kolom.
+     *
+     * @param  list<string>  $searchScope
+     * @param  array<string,mixed>|list<array<string,mixed>>  $dataTableColumns
+     * @return list<string>
+     */
+    private function sanitizeSearchScope(array $searchScope, array $dataTableColumns): array {
+        $resolver = new FilterColumnResolver($dataTableColumns);
+
+        return \array_values(\array_filter($searchScope, function ($key) use ($resolver) {
+            if (! \is_string($key) || $key === '') {
+                return false;
+            }
+            $column = $resolver->resolve($key);
+            if ($column === null || ($column['searchable'] ?? true) === false) {
+                return false;
+            }
+
+            return ($column['type'] ?? null) === 'string';
+        }));
     }
 
     /**
@@ -102,10 +153,16 @@ class DataTableScope implements Scope {
         // tambahan (billingCountry+shippingCountry via $with Branch) setiap
         // kali macro dataTable() jalan — N+1 nyata karena dipanggil berulang
         // per halaman (index utama + tiap LinkModel dropdown ber-HasBranch).
-        $branch = Branch::query()
-            ->withoutGlobalScope('country')
-            ->select(['id', 'is_main_branch'])
-            ->find(session('currentBranch'));
+        // Di-cache per id (statis, per proses) -- currentBranch tak berubah
+        // dalam satu request, jadi lookup ini juga tak perlu diulang.
+        $branchId = session('currentBranch');
+        if (! \array_key_exists($branchId, self::$branchMainStatusCache)) {
+            self::$branchMainStatusCache[$branchId] = Branch::query()
+                ->withoutGlobalScope('country')
+                ->select(['id', 'is_main_branch'])
+                ->find($branchId);
+        }
+        $branch = self::$branchMainStatusCache[$branchId];
         if (! $branch || $branch->is_main_branch) {
             return;
         }
@@ -118,33 +175,16 @@ class DataTableScope implements Scope {
             $this->applyBranchFilter($query);
 
             $dataTableColumns = \get_class($query->getModel())::getColumns(1);
-            // Kolom visible dari cookie (standar Laravel; plaintext krn dikecualikan
-            // dari enkripsi di bootstrap/app.php). Nama cookie unik per-path (suffix
-            // path ter-sanitize) agar tak bentrok antar-halaman di sebagian browser.
-            // Hanya himpunan nama kolom yang dipakai — width & order diabaikan (frontend).
-            $cookieRaw   = $request->cookie($this->datatableColumnsCookieKey($request->path()));
-            $visibleKeys = \is_string($cookieRaw)
-                ? \array_keys(\json_decode($cookieRaw, true) ?: [])
-                : null;
+            $dataTableColumns = GroupColumnGate::sanitizeColumns($dataTableColumns, $query->getModel());
+            // Dipindah ke awal (sebelumnya di dekat blok `show`) -- dibutuhkan
+            // blok validasi `?group=` tepat di bawah, utk kualifikasi kolom.
+            $nameOfTable = $query->toBase()->from;
 
-            $isSubmitable = $query->getModel()->isSubmitable();
-            $nameOfTable  = $query->toBase()->from;
-            $defaultShow  = Preference::where('key', 'num_per_page')->first()?->value ?? 25;
-            // Prioritas: query param `show` > cookie `datatable_show` > default preference.
-            $showFromQuery = $request->input('show');
-            $show          = (int) ($showFromQuery ?? $request->cookie('datatable_show') ?? $defaultShow);
-            $show          = $show <= 0 ? 25 : $show;
-            // Kalau `show` datang dari query param, persist ke cookie pada path yang
-            // diakses agar konsisten di kunjungan berikutnya tanpa query param.
-            if ($showFromQuery !== null) {
-                Cookie::queue(
-                    Cookie::make('datatable_show', (string) $show, 60 * 24 * 7, '/' . ltrim($request->path(), '/')),
-                );
-            }
-            // Default shared filter (Filter Templates): resolusi lebih dulu (sebelum
-            // sort di-parse) agar sort BAWAAN filter default bisa ikut jadi default
-            // sort halaman. `fid` eksplisit SELALU menang — default hanya dipakai
-            // saat request benar-benar tanpa fid.
+            // Default shared filter (Filter Templates): resolusi PALING AWAL --
+            // dibutuhkan blok validasi `?group=` DAN sort di bawah (grup/sort
+            // BAWAAN filter default ikut jadi fallback halaman). `fid` eksplisit
+            // SELALU menang — default hanya dipakai saat request benar-benar
+            // tanpa fid.
             $modelClassForFilter = \get_class($query->getModel());
             $appliedFilter       = null;
             if ($request->filled('fid')) {
@@ -155,13 +195,117 @@ class DataTableScope implements Scope {
             } else {
                 $appliedFilter = SavedFilter::defaultFor($modelClassForFilter)->first();
             }
+            // Group EFEKTIF request ini (GroupLevelResolver): prioritas `?group=`
+            // (ada; KOSONG = "Tidak ada") > group milik filter aktif > default
+            // model, gate `groupable` per level, maks GroupLevels::MAX_LEVELS.
+            // Group filter aktif & default model HANYA utk request halaman/
+            // Inertia: grouping memaksa kolom grup jadi sort PRIMER + query GROUP
+            // BY tambahan, padahal konsumen XHR macro ini (mis. QuickListBlock
+            // dashboard dgn ?fid=, dropdown LinkModel) tidak merender header grup
+            // -- urutan barisnya jangan berubah diam-diam. `?group=` eksplisit
+            // tetap berlaku di XHR. Divalidasi di sini (awal, sebelum select-
+            // pruning) supaya nama AKSESOR kolom grup (bukan kolom SQL FK hasil
+            // resolve) bisa dipaksa masuk extraKeys di bawah: tanpa itu kolom
+            // relasi yg groupable tapi disembunyikan user (cookie visible
+            // columns) tak ikut ter-eager-load -- row[groupBy] di FE undefined.
+            $isInertia     = Utils::isInertiaRequest($request);
+            $appliedGroups = $isInertia ? GroupLevels::normalize($appliedFilter?->group) : [];
+            $modelDefaults = $isInertia ? $query->getModel()::getDefaultGroups() : [];
+            $groupLevels   = GroupLevelResolver::resolve(
+                $request,
+                $appliedGroups,
+                $modelDefaults,
+                $dataTableColumns,
+                $query->getModel(),
+                $nameOfTable,
+            );
+            // Grup EFEKTIF TANPA PARAM (filter aktif ?? default model), gate
+            // groupable sendiri -- BISA beda dari $groupLevels kalau request
+            // mengirim `?group=`/`?groupGranularity=`/`?groupRange=` eksplisit.
+            // Di-share ke FE sbg `defaultGroups` supaya state awal `options`
+            // cocok dgn yg dieksekusi backend saat halaman dimuat tanpa param
+            // apa pun.
+            $defaultGroups = \array_map(
+                fn (ResolvedGroupLevel $level) => $level->toGroup(),
+                GroupLevelResolver::resolveDefaults(
+                    $appliedGroups,
+                    $modelDefaults,
+                    $dataTableColumns,
+                    $query->getModel(),
+                    $nameOfTable,
+                ),
+            );
+            // Engine pohon grup aktif untuk request halaman (level-0) ATAU
+            // request expand (`groupPath`) -- deteksi expand berdasarkan
+            // kehadiran param, BUKAN ajax()/header Inertia. XHR lain (LinkModel,
+            // dashboard) tanpa `groupPath` mengabaikan `group` (tetap flat).
+            $isExpand    = $request->has('groupPath');
+            $isGroupTree = $groupLevels !== [] && ($isInertia || $isExpand);
+            if ($isExpand && $groupLevels === []) {
+                throw new HttpResponseException(response()->json([
+                    'message' => 'Tidak ada level grup yang valid untuk groupPath ini.',
+                ], 422));
+            }
+            // Kolom visible dari cookie (standar Laravel; plaintext krn dikecualikan
+            // dari enkripsi di bootstrap/app.php). Nama cookie unik per-path (suffix
+            // path ter-sanitize) agar tak bentrok antar-halaman di sebagian browser.
+            // Hanya himpunan nama kolom yang dipakai — width & order diabaikan (frontend).
+            $cookieRaw   = $request->cookie($this->datatableColumnsCookieKey($request->path()));
+            $visibleKeys = \is_string($cookieRaw)
+                ? \array_keys(\json_decode($cookieRaw, true) ?: [])
+                : null;
+
+            $isSubmitable = $query->getModel()->isSubmitable();
+            // Prioritas: query param `show` > cookie `datatable_show` > default preference.
+            // Query Preference LAZY (inline di rantai ??, bukan diresolusi duluan) --
+            // cookie datatable_show persist 7 hari, jadi setelah kunjungan pertama
+            // fallback preference ini nyaris tak pernah kepakai; eager sebelumnya
+            // berarti 1 query DB percuma di HAMPIR SETIAP request dataTable().
+            $showFromQuery = $request->input('show');
+            $show          = (int) (
+                $showFromQuery
+                ?? $request->cookie('datatable_show')
+                ?? (Preference::where('key', 'num_per_page')->first()?->value ?? 25)
+            );
+            $show = $show <= 0 ? 25 : $show;
+            // Kalau `show` datang dari query param, persist ke cookie pada path yang
+            // diakses agar konsisten di kunjungan berikutnya tanpa query param.
+            if ($showFromQuery !== null) {
+                Cookie::queue(
+                    Cookie::make('datatable_show', (string) $show, 60 * 24 * 7, '/' . ltrim($request->path(), '/')),
+                );
+            }
 
             // Sort — konvensi: prefix `-` = descending, tanpa prefix = ascending.
             // Parse via str_starts_with agar key ber-dash / nested tetap utuh.
             // Prioritas: ?sort= eksplisit > sort bawaan filter default (Filter
             // Templates) > default kolom sort per-model (Model::$defaultSortColumn,
             // fallback 'created_at' kalau model tidak override).
-            $sort          = $request->input('sort') ?? $appliedFilter?->sort ?? '-' . $query->getModel()::getDefaultSortColumn();
+            // GATE sortable — sebelumnya $sort request masuk orderBy() tanpa
+            // validasi sama sekali. Cuma validasi sumber USER-FACING (?sort=
+            // eksplisit atau sort bawaan saved filter) -- default kolom sort
+            // model (fallback) dipercaya begitu saja (developer-controlled,
+            // bukan input luar). Kolom tak dikenal/sortable:false/dotted path
+            // relasi -> diam-diam pakai fallback, bukan error.
+            $requestedSort = $request->input('sort') ?? $appliedFilter?->sort;
+            $fallbackSort  = '-' . $query->getModel()::getDefaultSortColumn();
+
+            $sort = $fallbackSort;
+            if ($requestedSort) {
+                $reqDirection = \str_starts_with($requestedSort, '-') ? 'desc' : 'asc';
+                $reqKeyRaw    = $reqDirection === 'desc' ? \substr($requestedSort, 1) : $requestedSort;
+
+                $sortConfig = collect($dataTableColumns)->firstWhere('name', $reqKeyRaw);
+                $isSortable = $sortConfig && ($sortConfig['sortable'] ?? true) !== false;
+
+                if ($isSortable) {
+                    $sort = $requestedSort;
+                }
+            }
+            // Sort user = SATU-SATUNYA ORDER BY baris. Saat grouping aktif, baris
+            // hanya di-query per node daun (semua baris di node itu sudah satu
+            // grup penuh), jadi tak ada lagi sort primer by kolom grup; daftar
+            // grup diurut `key ASC` oleh GroupNodeQuery sendiri.
             $sortDirection = \str_starts_with($sort, '-') ? 'desc' : 'asc';
             $sortKeyRaw    = $sortDirection === 'desc' ? \substr($sort, 1) : $sort;
             $sortKey       = $this->isTableIncluded($sortKeyRaw) ? $sortKeyRaw : "$nameOfTable.$sortKeyRaw";
@@ -174,6 +318,19 @@ class DataTableScope implements Scope {
             // oleh resolveForSafe → kolom/relasi yang dirujuknya wajib ikut select/with.
             $extraKeys = array_merge(
                 $this->isTableIncluded($sortKeyRaw) ? [] : [$sortKeyRaw],
+                // Aksesor kolom grup bertipe RELASI (mis. "customer") -- WAJIB
+                // selalu di-select/di-with(), terlepas dari kolom visible user
+                // (cookie): label grup relasi diambil dari baris sampel
+                // (GroupNodeQuery) yang butuh object relasi utuh + FK-nya ikut
+                // SELECT. Nama AKSESOR, bukan kolom FK SQL yg dipakai GROUP BY.
+                // Kolom grup scalar tak butuh apa-apa: nilainya datang dari
+                // GROUP BY, bukan dari atribut baris.
+                $isGroupTree
+                    ? \array_map(
+                        fn (ResolvedGroupLevel $level) => $level->column,
+                        \array_filter($groupLevels, fn (ResolvedGroupLevel $level) => $level->isRelation()),
+                    )
+                    : [],
                 ['route', 'canDelete', 'keyModel', 'appendStatus', 'thisModel', 'templateLink', 'disabledOn'],
             );
             $modelClass   = \get_class($query->getModel());
@@ -258,12 +415,83 @@ class DataTableScope implements Scope {
                     $query->where('created_by_id', $request->user()->id);
                 }
             }
-            $paginator = $query->paginate($show);
-            DataTableColumnSelector::applyAppends($paginator, $dataTableColumns, $safeColumns);
+            // Pohon grup (spec datatable2-group-tree, Requirement 4-8): level-0 =
+            // daftar nilai grup + count (+ agregat) TANPA memuat baris; isi tiap
+            // grup baru di-query saat FE membukanya (request expand `groupPath`).
+            // Dieksekusi di titik yang SAMA dgn jalur flat -- SETELAH semua
+            // constraint macro ter-apply -- jadi memakai constraint yang IDENTIK
+            // (filter, saved filter, searchScope, branch scope, submitable, scope
+            // kustom controller). Tanpa level grup: jalur flat, tak berubah.
+            $groupMeta = null;
+            if ($isGroupTree) {
+                // Kolom agregat baris grup (config `groupAggregate`, hanya lewat
+                // kode) -- dihitung di SETIAP level oleh GroupNodeQuery.
+                $aggregates = GroupColumnGate::aggregates($dataTableColumns);
+                $sampleBase = clone $query;
+                $node       = new GroupNodeQuery(
+                    $query,
+                    $groupLevels,
+                    $show,
+                    aggregates: $aggregates,
+                    // Sort tabel ke kolom agregat -> baris grup ikut urut menurut
+                    // agregat itu; `groupSort` = arah urutan menurut nilai grup
+                    // (chip group), TERPISAH dari `sort` tabel/URL.
+                    sortAggregate: \collect($aggregates)->contains('column', $sortKeyRaw) ? $sortKeyRaw : null,
+                    sortDirection: $sortDirection,
+                    keyDirection: $request->input('groupSort') === 'desc' ? 'desc' : 'asc',
+                    loadSamples: function (array $ids) use ($sampleBase, $nameOfTable, $dataTableColumns, $safeColumns) {
+                        $sampleQuery = clone $sampleBase;
+                        $models      = $sampleQuery
+                            ->whereIn($nameOfTable . '.' . $sampleQuery->getModel()->getKeyName(), $ids)
+                            ->get();
+                        DataTableColumnSelector::applyAppends($models, $dataTableColumns, $safeColumns);
+
+                        return $models->keyBy(fn (Model $model) => $model->getKey());
+                    },
+                );
+                $path   = GroupPath::parse($request->input('groupPath'), $groupLevels);
+                $page   = \max(1, (int) $request->input($isExpand ? 'groupPage' : 'page', 1));
+                $isLeaf = \count($path) === \count($groupLevels);
+
+                $paginator = $isLeaf ? $node->rows($path, $page) : $node->groups($path, $page);
+                if ($isLeaf) {
+                    DataTableColumnSelector::applyAppends($paginator, $dataTableColumns, $safeColumns);
+                }
+                if ($isExpand) {
+                    throw new HttpResponseException(response()->json([
+                        'type' => $isLeaf ? 'rows' : 'groups',
+                        ...$paginator->toArray(),
+                    ]));
+                }
+                $groupMeta = [
+                    // Nilai EFEKTIF yang dipakai SQL -- satu-satunya sumber utk
+                    // dekode label grup di FE (granularity/range sudah berdefault).
+                    'levels' => \array_map(
+                        fn (ResolvedGroupLevel $level) => [...$level->toGroup(), 'type' => $level->type],
+                        $groupLevels,
+                    ),
+                    'aggregates' => \array_map(
+                        fn (array $aggregate) => ['column' => $aggregate['column'], 'fn' => $aggregate['fn']],
+                        $aggregates,
+                    ),
+                ];
+            } else {
+                // Sama pola dgn GroupNodeQuery::groups()/rows(): fetch dulu, count(*)
+                // HANYA kalau perlu. Halaman 1 & hasil < show -> total = jumlah hasil
+                // (hemat 1 query COUNT(*) terpisah) -- umum utk tabel kecil/menengah
+                // yang muat 1 halaman. Halaman > 1 tetap query count sungguhan.
+                $flatPage  = \max(1, (int) $request->input('page', 1));
+                $flatRows  = (clone $query)->forPage($flatPage, $show)->get();
+                $flatTotal = $flatPage === 1 && $flatRows->count() < $show
+                    ? $flatRows->count()
+                    : $query->toBase()->getCountForPagination();
+                $paginator = new LengthAwarePaginator($flatRows, $flatTotal, $show, $flatPage);
+                DataTableColumnSelector::applyAppends($paginator, $dataTableColumns, $safeColumns);
+            }
             $data = [
                 'data' => $paginator,
             ];
-            if (! Utils::isInertiaRequest($request)) {
+            if (! $isInertia) {
                 return $data;
             }
             Inertia::share([
@@ -276,6 +504,17 @@ class DataTableScope implements Scope {
                 'name'             => $query->getModel()->getNameClass(),
                 'translateKey'     => $query->getModel()->translateKey ?? null,
                 'dataTableColumns' => $dataTableColumns,
+                // null bila grouping tak aktif (tanpa level valid) -- FE merender tabel flat.
+                'groupMeta' => $groupMeta,
+                // Grup EFEKTIF TANPA PARAM (filter aktif ?? default model, sudah
+                // divalidasi groupable) -- FE pakai utk state awal Group by (agar
+                // cocok dgn yg dieksekusi backend saat halaman dimuat tanpa param)
+                // & tahu harus kirim `group=` KOSONG (bukan hilangkan param) saat
+                // user memilih "Tidak ada". Nilai granularity/range EFEKTIF.
+                'defaultGroups' => $defaultGroups,
+                // Kolom pencarian teks bebas (Search Bar) -- sudah tersanitasi
+                // (App\Traits\DataTable::getSearchScope(), Requirement 5.2-5.3).
+                'searchScope' => $this->sanitizeSearchScope($query->getModel()::getSearchScope(), $dataTableColumns),
             ]);
         });
     }

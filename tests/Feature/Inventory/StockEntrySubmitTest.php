@@ -5,6 +5,7 @@ namespace Tests\Feature\Inventory;
 use App\Enums\FormStatus;
 use App\Models\Core\Branch;
 use App\Models\Core\FormatingSeries;
+use App\Models\Finances\Account;
 use App\Models\Finances\GeneralLedger;
 use App\Models\Inventory\Item;
 use App\Models\Inventory\ItemUnit;
@@ -33,7 +34,7 @@ class StockEntrySubmitTest extends TestCase {
         // initPermissions() menambah kolom runtime (is_example, status, code, dst)
         // yang di produksi dibuat oleh PermissionSeeder, bukan migration.
         // Juga otomatis membuat row formating_series untuk StockEntry.
-        foreach ([User::class, FormatingSeries::class, Branch::class, Unit::class, Warehouse::class, Item::class, ItemVariant::class, StockEntry::class, StockLedgerEntry::class, GeneralLedger::class] as $model) {
+        foreach ([User::class, FormatingSeries::class, Branch::class, Unit::class, Warehouse::class, Item::class, ItemVariant::class, StockEntry::class, StockLedgerEntry::class, GeneralLedger::class, Account::class] as $model) {
             $model::initPermissions();
         }
 

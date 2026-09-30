@@ -26,6 +26,7 @@ return [
         'sort.none'          => 'Tidak diatur',
         'sort.ascending'     => 'Menaik',
         'sort.descending'    => 'Menurun',
+        'group'              => 'Pengelompokan',
         'preview'            => 'Preview',
         'preview.empty'      => 'Belum ada data untuk ditampilkan.',
         'setDefault'         => 'Jadikan Default',

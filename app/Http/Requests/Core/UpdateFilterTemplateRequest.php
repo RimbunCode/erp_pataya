@@ -9,6 +9,8 @@ use Illuminate\Contracts\Validation\ValidationRule;
 use Illuminate\Validation\ValidationException;
 
 class UpdateFilterTemplateRequest extends BaseFormRequest {
+    use NormalizesGroupInput;
+
     public function authorize(): bool {
         return true;
     }
@@ -21,6 +23,7 @@ class UpdateFilterTemplateRequest extends BaseFormRequest {
             'name'   => ['nullable', 'string', 'max:255'],
             'filter' => ['nullable', 'array'],
             'sort'   => ['nullable', 'string', 'regex:/^-?[a-zA-Z0-9_.]+$/'],
+            ...SavedFilter::groupValidationRules(),
         ];
     }
 

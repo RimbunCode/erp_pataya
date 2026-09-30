@@ -24,6 +24,11 @@ use Carbon\Carbon;
  */
 class FilterTreeCleaner {
     /**
+     * Batas jumlah periode dalam satu filter `in`/`!in` date/datetime.
+     */
+    public const MAX_PERIOD_VALUES = 20;
+
+    /**
      * Operator valid per type kolom (mirror FilterEvaluator::$operatorsByType
      * dan operators.js). set/!set universal ditambahkan di isOperatorValid().
      *
@@ -220,9 +225,12 @@ class FilterTreeCleaner {
             return count($this->idList($value)) >= 1;
         }
 
-        // Period (date/datetime)
+        // Period (date/datetime): SATU objek periode (Kondisi apa pun) ATAU
+        // DAFTAR periode "Pada" -- bentuk `v` yang membedakan (Revisi 16).
         if ($base === 'in_period') {
-            return $this->isPeriodValid($value);
+            return is_array($value) && array_is_list($value)
+                ? $this->isPeriodListValid($value)
+                : $this->isPeriodValid($value);
         }
 
         // Between (number/currency/time)
@@ -354,6 +362,30 @@ class FilterTreeCleaner {
         }
         if ($isRange && ($value['rangeEnd']['year'] ?? $value['year'] ?? null) === null) {
             return false;
+        }
+
+        return true;
+    }
+
+    /**
+     * Daftar periode untuk `in_period`/`!in_period`: list 1..MAX_PERIOD_VALUES,
+     * tiap elemen periode valid dengan sub-operator SELALU `is` (multi-select
+     * hanya untuk kondisi "Pada").
+     */
+    private function isPeriodListValid(mixed $value): bool {
+        if (! is_array($value) || ! array_is_list($value)) {
+            return false;
+        }
+
+        $count = count($value);
+        if ($count < 1 || $count > self::MAX_PERIOD_VALUES) {
+            return false;
+        }
+
+        foreach ($value as $item) {
+            if (! is_array($item) || ($item['operator'] ?? null) !== 'is' || ! $this->isPeriodValid($item)) {
+                return false;
+            }
         }
 
         return true;

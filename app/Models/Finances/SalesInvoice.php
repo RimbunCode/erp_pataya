@@ -61,7 +61,16 @@ class SalesInvoice extends Model {
         return $this->return_against_id != null;
     }
 
-    public $translateKey           = 'finances.salesInvoice';
+    public $translateKey = 'finances.salesInvoice';
+
+    /**
+     * Kolom yang dicari teks bebas Search Bar DataTable2 (chip "Cari") --
+     * lihat DataTable::getSearchScope().
+     *
+     * @var list<string>
+     */
+    protected static array $searchScope = ['code', 'external_note', 'tax_invoice_serial_number', 'customer.name'];
+
     protected array $configColumns = [
         'is_return' => [
             'dependsOn' => ['return_against_id'],
@@ -82,9 +91,10 @@ class SalesInvoice extends Model {
             'order' => 2,
         ],
         'customer' => [
-            'type'  => 'relation',
-            'show'  => true,
-            'order' => 3,
+            'type'      => 'relation',
+            'show'      => true,
+            'order'     => 3,
+            'groupable' => true,
         ],
         'status' => [
             'show'  => true,
@@ -93,7 +103,9 @@ class SalesInvoice extends Model {
         'customerBranch' => [
             'disabledNavigation' => true,
         ],
-        'currency',
+        'currency' => [
+            'groupable' => true,
+        ],
         'branch' => [
             'ignore' => true,
         ],
@@ -125,6 +137,7 @@ class SalesInvoice extends Model {
         'paymentSchedules',
         'tax_invoice_transaction_code' => [
             'valueTrans' => 'finances.taxInvoice.transaction_code.options',
+            'groupable'  => true,
         ],
         'tax_invoice_serial_number' => [
         ],

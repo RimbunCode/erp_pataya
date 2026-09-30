@@ -11,7 +11,10 @@
  */
 
 import { describe, it, expect } from "vitest";
-import { buildAdvanceSearchColumnMap } from "./useAdvanceSearchModel";
+import {
+  buildAdvanceSearchColumnMap,
+  buildAdvanceSearchFilterColumnMap,
+} from "./useAdvanceSearchModel";
 
 const rawColumns = [
   { name: "id", type: "number", linkable: false },
@@ -66,5 +69,44 @@ describe("buildAdvanceSearchColumnMap", () => {
   it("rawColumns kosong/undefined -- return peta kosong, tidak error", () => {
     expect(buildAdvanceSearchColumnMap([], [])).toEqual({});
     expect(buildAdvanceSearchColumnMap(undefined, [])).toEqual({});
+  });
+});
+
+describe("buildAdvanceSearchFilterColumnMap", () => {
+  // Backend mengevaluasi `filters` terhadap schema penuh -- kolom filter TIDAK
+  // dibatasi linkable (beda dari peta kolom tabel di atas).
+  const map = buildAdvanceSearchFilterColumnMap(rawColumns);
+
+  it("SEMUA kolom bernama masuk -- termasuk non-linkable, non-templateLink, relasi", () => {
+    expect(Object.keys(map)).toEqual([
+      "id",
+      "code",
+      "name",
+      "valuation_rate",
+      "items",
+      "meta",
+      "hiddenCol",
+      "ignoredCol",
+    ]);
+  });
+
+  it("nilai kolom diteruskan apa adanya (tanpa flag locked/show dari peta tabel)", () => {
+    expect(map.valuation_rate).toBe(rawColumns[3]);
+    expect(map.valuation_rate).not.toHaveProperty("locked");
+  });
+
+  it("peta tabel tetap terbatas -- kolom filter lebih luas dari kolom tampil", () => {
+    const tableMap = buildAdvanceSearchColumnMap(rawColumns, ["code"]);
+    expect(Object.keys(map).length).toBeGreaterThan(
+      Object.keys(tableMap).length,
+    );
+    expect(tableMap).not.toHaveProperty("valuation_rate");
+    expect(map).toHaveProperty("valuation_rate");
+  });
+
+  it("entri tanpa name diabaikan; rawColumns kosong/undefined -- peta kosong", () => {
+    expect(buildAdvanceSearchFilterColumnMap([{ type: "string" }])).toEqual({});
+    expect(buildAdvanceSearchFilterColumnMap([])).toEqual({});
+    expect(buildAdvanceSearchFilterColumnMap(undefined)).toEqual({});
   });
 });

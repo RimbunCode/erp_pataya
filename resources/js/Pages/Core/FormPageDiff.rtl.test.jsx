@@ -1,4 +1,12 @@
-import { describe, expect, it, vi, beforeEach } from "vitest";
+import {
+  describe,
+  expect,
+  it,
+  vi,
+  beforeAll,
+  afterAll,
+  beforeEach,
+} from "vitest";
 import { render, screen } from "@testing-library/react";
 
 const stableT = (key) => key;
@@ -53,9 +61,55 @@ function basePageProps(overrides = {}) {
 }
 
 describe("FormPageDiff", () => {
+  // Timezone di-stub SEKALI untuk seluruh file, sebelum test manapun
+  // sempat merender bottombar log (yang memanggil TZDate(log.created_at)
+  // tanpa argumen timezone eksplisit -- lihat FormPage.jsx). @date-fns/tz
+  // meng-cache Intl.DateTimeFormat pertamanya per-timezone-key di module
+  // scope (offsetFormatCache) -- kalau TZ baru di-set SETELAH panggilan
+  // pertama itu terjadi (mis. di beforeEach test lain yang jalan duluan),
+  // cache lama (terikat ke TZ mesin) akan tetap dipakai dan perubahan TZ
+  // belakangan tidak berpengaruh. beforeAll di sini menjamin urutannya.
+  beforeAll(() => {
+    vi.stubEnv("TZ", "Asia/Jakarta");
+  });
+
+  afterAll(() => {
+    vi.unstubAllEnvs();
+  });
+
   beforeEach(() => {
     usePageMock.mockReset();
     usePageMock.mockReturnValue({ props: basePageProps() });
+  });
+
+  it("timestamp log (bottombar) dirender sebagai waktu lokal Asia/Jakarta, bukan UTC mentah", () => {
+    // 2026-09-16T07:31:00Z == 16 Sep 2026 14:31 di Asia/Jakarta (UTC+7).
+    // Kalau kode kembali memaksa TZDate(..., "UTC"), hasilnya akan
+    // "7:31 AM" (jam UTC mentah) -- assert negatif di bawah menangkap itu.
+    usePageMock.mockReturnValue({
+      props: basePageProps({
+        log: {
+          created_at: "2026-09-16T07:31:00.000000Z",
+          user: {
+            name: "Budi Santoso",
+            picture: null,
+            username: "budi",
+            email: "budi@example.com",
+          },
+        },
+      }),
+    });
+
+    render(
+      <FormPageDiff title="Diff">
+        <FormPageContent value="detail" title="Detail">
+          <p>Konten</p>
+        </FormPageContent>
+      </FormPageDiff>,
+    );
+
+    expect(screen.getByText(/2:31\s*PM/i)).toBeInTheDocument();
+    expect(screen.queryByText(/7:31\s*AM/i)).not.toBeInTheDocument();
   });
 
   it("merender title dan badge di header", () => {

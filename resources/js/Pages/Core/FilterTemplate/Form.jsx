@@ -1,6 +1,8 @@
 import { FormPageContent, useFormPage } from "@/Pages/Core/FormPage";
 import { useCallback, useEffect, useMemo, useState } from "react";
 
+import GroupLevelsEditor from "@/Components/Table/Group/GroupLevelsEditor";
+import { normalizeGroupLevels } from "@/Components/Table/Group/groupLevels";
 import { FilterBuilderBody } from "@/Components/Table/Filter/FilterBuilder";
 import FormInput from "@/Components/FormInput";
 import { Input } from "@/Components/ui/input";
@@ -203,6 +205,33 @@ function BuilderSection({
     [setData],
   );
 
+  // Group by bertingkat (spec datatable2-group-tree) -- hanya kolom `groupable`
+  // (opt-in per model), memakai GroupLevelsEditor yang SAMA dgn panel Search Bar
+  // supaya kontrak `Groups` tak bercabang. Disimpan sbg list `{column,
+  // granularity, range}` (kolom JSON `saved_filters.group`, urutan = nesting);
+  // null = template tak mengatur group.
+  const groupableColumns = useMemo(
+    () =>
+      (columns ?? []).filter((col) => col.groupable === true && !col.parentCol),
+    [columns],
+  );
+  const groupOptions = useMemo(
+    () =>
+      groupableColumns.map((col) => ({
+        value: col.name,
+        label: col.titleTrans ? t(col.titleTrans) : col.name,
+      })),
+    [groupableColumns, t],
+  );
+  const groupColumnsByName = useMemo(
+    () => Object.fromEntries(groupableColumns.map((col) => [col.name, col])),
+    [groupableColumns],
+  );
+  const setGroups = useCallback(
+    (groups) => setData("group", groups.length > 0 ? groups : null),
+    [setData],
+  );
+
   // Preview otomatis (debounced) — tak perlu tombol, mengikuti perubahan
   // filter/sort/model seperti halaman list biasa.
   useEffect(() => {
@@ -276,6 +305,20 @@ function BuilderSection({
             )}
           </div>
         </FormInput>
+
+        {groupableColumns.length > 0 && (
+          <FormInput name="group" label={t("core.filterTemplate.form.group")}>
+            <div className="border rounded-lg">
+              <GroupLevelsEditor
+                columns={groupColumnsByName}
+                options={groupOptions}
+                value={normalizeGroupLevels(data?.group)}
+                onChange={setGroups}
+                className="w-full"
+              />
+            </div>
+          </FormInput>
+        )}
 
         <div>
           <div className="flex items-center gap-2 mb-2">
