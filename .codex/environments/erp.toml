@@ -1,0 +1,15 @@
+version = 1
+name = "ERP"
+
+[setup]
+script = "bash .codex/setup-local.sh"
+
+[[actions]]
+name = "Build"
+icon = "build"
+command = "npm run build"
+
+[[actions]]
+name = "Test"
+icon = "test"
+command = "php artisan test --compact"

@@ -1,27 +1,113 @@
 # Project Instructions
 
+Laravel 12 + Inertia.js v2 + React 19 ERP application. See `CLAUDE.md` for full Laravel Boost guidelines.
+
 ## Terminal Shell
 
 Semua terminal command harus Bash-compatible (`C:/Program Files/Git/usr/bin/bash.exe`). Jangan gunakan PowerShell/cmd.
 Gunakan: `ls`, `cp`, `mv`, `rm`, `export VAR=value`, forward slashes di path.
 
+## Development Commands
+
+**Start dev environment** (recommended):
+
+```bash
+composer run dev
+```
+
+Runs: PHP server (port 8000) + queue worker + logs + Vite dev server concurrently.
+
+**Simple dev** (server + Vite only):
+
+```bash
+composer run dev:simple
+```
+
+**Debug mode** (with Xdebug):
+
+```bash
+composer run dev:debug
+```
+
+**Frontend only**:
+
+```bash
+npm run dev
+```
+
+**Production build** (client + SSR):
+
+```bash
+npm run build
+```
+
+Runs both `vite build` and `vite build --ssr`.
+
+## Code Quality
+
+**Run before finalizing PHP changes**:
+
+```bash
+vendor/bin/pint --dirty --format agent
+```
+
+**Lint JavaScript/React**:
+
+```bash
+npm run lint          # Check only
+npm run lint:fix      # Auto-fix
+```
+
+**Run tests** (focused):
+
+```bash
+php artisan test --compact --filter=testName
+php artisan test --compact tests/Feature/ExampleTest.php
+```
+
+## Architecture Notes
+
+**Inertia Pages**: `resources/js/Pages/` organized by domain (Auth, Dashboard, Finances, Inventory, Purchase, Sales, Services, Settings, Users).
+
+**SSR**: Enabled. Entry points: `resources/js/app.jsx` (client), `resources/js/ssr.jsx` (server).
+
+**Custom ESLint Rules**:
+
+- `local/case-sensitive-import-paths` - Enforces exact file casing in imports (critical on case-sensitive systems)
+- `local/no-unused-vars-fixer` - Auto-removes unused imports, prefixes unused vars with `_`
+
+**Laravel 12 Structure**:
+
+- Middleware: `bootstrap/app.php` (not `app/Http/Kernel.php`)
+- Console: Commands auto-discovered in `app/Console/Commands/`
+- Service Providers: `bootstrap/providers.php`
+
+## Kiro Spec Workflow
+
+When implementing features from `.kiro/specs/<name>/`:
+
+1. **Read first**: `requirements.md` (behavior), `design.md` (architecture), `tasks.md` (checklist)
+2. **Task states**: `[ ]` todo, `[~]` queued, `[-]` in progress, `[x]` done
+3. **Work one task at a time**: Mark `[-]` when starting, implement, validate, mark `[x]` only if tests pass
+4. **Checkpoints**: Stop and run full test suite when indicated
+5. **Lint/Pint**: Run only after all tasks complete, not per-task
+6. **Optional tasks**: Marked with `- [ ]* <id> ...` - ask user whether to include before starting
+
 ## Verifikasi Sebelum Klaim Teknis
 
-Jangan berasumsi atau menjawab pertanyaan arsitektur/desain ("kenapa X begini", "apakah Y akan konflik dengan Z") dari ingatan umum. Telusuri dulu implementasi konkret — baca kode terkait, cari precedent pola serupa di module lain di codebase ini — sebelum menyampaikan sesuatu sebagai fakta. Kalau setelah ditelusuri masih ambigu atau belum ketemu jawaban pasti, konfirmasi ke user secara eksplisit alih-alih menyimpulkan sendiri.
+Jangan berasumsi atau menjawab pertanyaan arsitektur/desain (misalnya "kenapa X begini" atau "apakah Y akan konflik dengan Z") dari ingatan umum. Telusuri implementasi konkret dan pola serupa di codebase sebelum menyampaikan fakta. Jika masih ambigu, jelaskan ketidakpastian dan konfirmasikan kepada user.
 
 # Spec-Driven Development Workflow
 
 ## Evaluasi Request
 
-**Langsung kerjakan** (tidak perlu spec): bug fix sederhana (1–3 file), perubahan kecil, refactor minor, pertanyaan kode.
-
-**Perlu spec** (wajib tanya dulu): fitur baru, perubahan arsitektur, integrasi API baru, perubahan 4+ file, bug kompleks.
-
-**Grey area** — selalu tawarkan pilihan: _"Langsung dikerjakan sekarang"_ vs _"Buat spec dulu"_.
+- Bug fix sederhana (1–3 file), perubahan kecil, refactor minor, dan pertanyaan kode dapat langsung dikerjakan tanpa spec.
+- Fitur baru, perubahan arsitektur, integrasi API baru, perubahan 4+ file, dan bug kompleks memerlukan spec; tanyakan sebelum memulai workflow spec.
+- Untuk kasus abu-abu, tawarkan pilihan langsung dikerjakan atau dibuatkan spec.
 
 ## Struktur Spec
 
-Semua spec di `.kiro/specs/<nama-spec>/`: `.config.kiro` (metadata JSON) · `requirements.md` · `design.md` · `tasks.md`.
+Semua spec berada di `.kiro/specs/<nama-spec>/` dan dapat memuat `.config.kiro` (metadata JSON), `requirements.md`, `design.md`, dan `tasks.md`.
 
 ```json
 {
@@ -34,71 +120,89 @@ Semua spec di `.kiro/specs/<nama-spec>/`: `.config.kiro` (metadata JSON) · `req
 
 ## Workflow Spec
 
-Tanyakan tipe (`feature`/`bugfix`), nama kebab-case, dan alur sebelum menulis apapun.
+Tentukan tipe (`feature`/`bugfix`), nama kebab-case, dan alur sebelum menulis spec.
 
-- **Requirement-first**: requirements → design → tasks
-- **Design-first**: design → requirements → tasks
+- Requirement-first: requirements → design → tasks
+- Design-first: design → requirements → tasks
+- Command yang tersedia: `/spec`, `/spec-read`, `/spec-req`, `/spec-design`, `/spec-task`, `/spec-list`, `/spec-status`
+- Command yang tersedia: `/spec`, `/spec-read`, `/spec-req`, `/spec-design`, `/spec-task`, `/spec-list`, `/spec-status`
 
-Gunakan slash commands: `/spec` · `/spec-read` · `/spec-req` · `/spec-design` · `/spec-task` · `/spec-list` · `/spec-status`
+## Aturan Implementasi Spec
 
-## Aturan Implementasi
-
-Saat mengerjakan spec (termasuk spec dari Kiro di `.kiro/specs/`):
-
-- **Baca dulu** `requirements.md` (behavior & acceptance criteria), `design.md` (arsitektur), `tasks.md` (checklist) sebelum coding
-- Status task: `[ ]` todo · `[~]` queued · `[-]` in progress · `[x]` done
-- Satu task sekaligus — tandai `[-]` saat mulai, kerjakan, validasi
-- Jangan implementasi di luar task aktif
-- Tandai `[x]` hanya jika implementasi dan test/build pass
-- Sebutkan file yang berubah di setiap task selesai
-- **Checkpoint = stop** — jalankan full test suite, konfirmasi ke user
-- **Lint/Pint hanya dijalankan setelah semua task selesai** — jangan jalankan per task
-- **Optional task** ditandai dengan `- [ ]\* <id> ...` — saat user minta mulai implementasi, tanyakan dulu: _"Jalankan required task saja, atau termasuk optional task?"_
-- Ide baru → tambah ke spec dulu (jangan scope creep)
+- Baca `requirements.md`, `design.md`, dan `tasks.md` sebelum coding jika tersedia.
+- Kerjakan satu task pada satu waktu; tandai `[-]` saat mulai dan `[x]` hanya setelah implementasi serta validasi berhasil.
+- Jangan mengerjakan di luar task aktif. Catat file yang berubah saat task selesai.
+- Saat checkpoint, hentikan progres dan jalankan validasi yang diminta sebelum lanjut.
+- Lakukan lint/Pint setelah seluruh task selesai jika workflow spec project mensyaratkannya.
+- Task opsional bertanda `- [ ]*` perlu dikonfirmasi cakupannya sebelum dikerjakan.
+- Masukkan ide baru ke spec sebelum memperluas scope.
 
 ## Git Worktree
 
-Saat menggunakan git worktree (via `EnterWorktree` atau manual), **wajib** pastikan branch aktif sudah up-to-date sebelum membuat worktree:
+Saat menggunakan git worktree (via `EnterWorktree` atau manual), wajib pastikan branch sumber sudah up-to-date dari remote yang benar sebelum membuat worktree. Jangan melakukan fetch/pull tanpa memastikan branch dan remote yang dituju sesuai konteks task.
 
 ```bash
 git fetch origin
 git pull origin <nama-branch>
 ```
 
-Baru kemudian buat worktree. Melewati langkah ini menyebabkan worktree dibuat dari commit lama sehingga push akan ditolak (non-fast-forward) dan rebase menghasilkan banyak konflik.
+Melewati langkah ini dapat membuat worktree berasal dari commit lama sehingga push ditolak (non-fast-forward) dan rebase menghasilkan konflik.
 
 ## CI/CD — Skip Deploy Otomatis saat Merge PR
 
-Workflow [`deploy-cpanel.yml`](.github/workflows/deploy-cpanel.yml) auto-deploy ke staging setiap PR yang di-merge ke branch `dev-1`. Untuk menunda deploy PR tertentu (mis. mau digabung deploy dengan PR lain), tambahkan label **`skip-deploy`** (persis, case-sensitive) ke PR tersebut sebelum di-merge — job `deploy` otomatis di-skip untuk merge itu (lihat kondisi `if` di job `deploy`).
+Workflow [`deploy-cpanel.yml`](.github/workflows/deploy-cpanel.yml) auto-deploy ke staging setiap PR yang di-merge ke branch `dev-1`. Untuk menunda deploy PR tertentu, tambahkan label **`skip-deploy`** (case-sensitive) sebelum merge; periksa kondisi workflow sebelum mengandalkan perilaku ini.
 
-Label sudah dibuat di repo GitHub. Saat user minta buat/edit PR dengan skip deploy, pasang label ini: `gh pr create ... --label skip-deploy` atau `gh pr edit <PR> --add-label skip-deploy`.
+Saat user meminta membuat atau mengubah PR dengan skip deploy, gunakan `gh pr create ... --label skip-deploy` atau `gh pr edit <PR> --add-label skip-deploy`.
 
 ## Struktur Folder `{Domain}/{Feature}` (lintas layer)
 
-Berlaku untuk SEMUA layer app — bukan cuma Event/Listener: `Services`, `Models`, `Jobs`, `Events`, `Listeners`, `Controllers`, dan layer baru lainnya ke depan. Prinsip ini sudah eksis organik di codebase (lihat `app/Jobs/Core/Notification/SendNotificationMailJob.php` vs job Core lain yang flat) — di sini dituliskan eksplisit sebagai aturan.
+Berlaku pada seluruh layer aplikasi, termasuk `Services`, `Models`, `Jobs`, `Events`, `Listeners`, dan `Controllers`. Gunakan folder `{Domain}/{Feature}` saat fitur terdiri dari beberapa file terkait atau diperkirakan akan berkembang menjadi beberapa file; file tunggal yang berdiri sendiri dapat tetap berada langsung di folder domain. File yang saling berhubungan tidak wajib berada di feature folder yang sama; nilai kebutuhan pengelompokan per file berdasarkan tanggung jawab dan kemungkinan pertumbuhannya.
 
-**Domain** mengikuti konvensi yang sudah ada: `Core`, `Sales`, `Purchase`, `Inventory`, `Finances`, `Service`, `Helpdesk`, `User`, `Migration`.
+Domain yang umum: `Core`, `Sales`, `Purchase`, `Inventory`, `Finances`, `Service`, `Helpdesk`, `User`, dan `Migration`.
 
-**Kapan folder `{Feature}` di-nested — pemicunya JUMLAH FILE terkait, bukan sekadar "spesifik vs generik":**
-- Fitur hanya butuh **1 file** (mis. satu Controller atau satu Service per model) → `{Domain}/NamaFile.php`, **tanpa** nested Feature. Ini kenapa `Controllers`/`Services`/`Models` per-model saat ini semuanya flat — satu model = satu file per layer, tidak ada alasan untuk nested.
-- Fitur butuh **>1 file saling terkait** untuk berfungsi (mis. parser + sanitizer + renderer terpisah) → `{Domain}/{Feature}/`, **dengan** nested Feature. Contoh nyata: `app/Services/Core/PrintTemplate/` (9 file: `PdfExportService`, `TemplateParserService`, `HTMLSanitizerService`, dst).
-- **Boleh preemptif**: nested tidak wajib menunggu sampai file ke-2 baru dibuat lalu dipindah — kalau developer bisa menilai fitur itu KEMUNGKINAN BESAR akan tumbuh butuh file pendamping ke depan, nested boleh dibuat sejak file pertama. Contoh: `app/Jobs/Core/Notification/SendNotificationMailJob.php` — saat ini cuma 1 file, tapi domain notifikasi jelas akan tumbuh (job notifikasi lain), jadi nested dari awal masuk akal. Ini penilaian kontekstual, bukan hitungan mekanis "sudah 2 file baru nested".
+Kapan folder `{Feature}` di-nested ditentukan oleh jumlah file terkait dan prediksi pertumbuhannya:
 
-File-file yang berhubungan (mis. Event dan Listener pasangannya, atau Job dan Service yang men-trigger-nya) **tidak harus** berada di path `{Feature}` yang sama — evaluasi tiap file terpisah berdasar prediksi pertumbuhannya SENDIRI, karena bisa beda satu sama lain. Contoh dari spec `cancel-workflow-improvements`: `App\Events\Core\DocumentCanceled` (event generik untuk semua dokumen submitable yang dibatalkan, hanya 1 file dan tidak diprediksi butuh pendamping — berpotensi dikonsumsi banyak listener BEDA fitur, tapi event-nya sendiri tetap satu) TIDAK di-nest Feature, sedangkan listener-nya `App\Listeners\Core\Approval\CancelPendingApprovalSteps` (domain approval punya banyak aksi terkait — approve/reject/pending/cancel — diprediksi akan didampingi listener approval lain ke depan) DI-nest folder `Approval/`.
-
-`Services`, `Models`, dan `Controllers` per-model saat ini semuanya flat — BUKAN berarti prinsipnya tidak berlaku di situ, tapi karena satu model secara alami hanya butuh satu Controller/Service/Model, tidak ada dorongan untuk pecah jadi banyak file. Kalau ada model/fitur yang Controller atau Service-nya diprediksi perlu dipecah (mis. logic terlalu besar, butuh helper class terpisah), nested Feature berlaku sama.
+- Fitur satu file dapat tetap flat di `{Domain}/NamaFile.php`.
+- Fitur dengan beberapa file terkait menggunakan `{Domain}/{Feature}/`.
+- Nested folder boleh dibuat sejak file pertama jika fitur diperkirakan segera membutuhkan file pendamping.
+- Event, listener, job, dan service yang berhubungan tidak wajib berada di feature folder yang sama; evaluasi tiap file berdasarkan tanggung jawabnya sendiri.
 
 ## Testing Frontend (Vitest)
 
-Detail lengkap: [`docs/frontend.md#testing`](docs/frontend.md#testing). Ringkasan aturan wajib saat menulis test FE baru:
+Detail lengkap tersedia di [`docs/frontend.md#testing`](docs/frontend.md#testing). Aturan ringkas:
 
-- **Co-located** dengan source, bukan folder `__tests__`. Tiga jenis test, urutan prioritas:
-  1. **Unit test fungsi murni** (`.test.js`, environment `node`) — **paling diutamakan**, pakai kalau logic bisa diuji tanpa render.
-  2. **Component test React Testing Library** (`.rtl.test.jsx`, environment `jsdom`) — **rekomendasi default untuk komponen UI baru** dengan interaksi user (form, input, tombol). Render sungguhan + `@testing-library/user-event` + `screen.getByRole()`.
-  3. **Source-assertion test** (`readFileSync` + regex `toMatch`) — **hindari untuk komponen baru**, hanya kalau behavior genuinely sulit di-render (mis. GrapesJS canvas). Rapuh terhadap refactor (rename variabel/reorder — regex ketinggalan zaman tanpa behavior berubah).
-- **Naming `.rtl.test.jsx` wajib** untuk test yang me-render komponen — `vitest.config.js` pakai `test.projects` (bukan `environmentMatchGlobs`, sudah dihapus di Vitest v4) untuk assign `jsdom` berdasar suffix ini. Lupa suffix → jalan di project `unit` (`node`) → gagal `document is not defined`.
-- **Property-based test (`fast-check`)**: precondition `fc.pre(...)`/`.filter()` pada generator **harus selaras persis** dengan validasi source (bukan sekadar mirip) — contoh nyata: source pakai `Boolean(value.trim())`, precondition `fc.pre(Boolean(value))` saja meloloskan string whitespace-only yang seharusnya ditolak, dan random seed fast-check membuat bug ini nyaris tidak pernah ketahuan.
-- CI (`.github/workflows/tests.yml`) menjalankan `npm run test` tanpa `continue-on-error` — test FE gagal = CI merah.
+- Letakkan test berdekatan dengan source, bukan di folder `__tests__`.
+- Utamakan unit test fungsi murni (`.test.js`, environment `node`).
+- Untuk interaksi UI, gunakan React Testing Library dengan suffix `.rtl.test.jsx` agar masuk project `jsdom` di `vitest.config.js`; render komponen sungguhan dan gunakan query berbasis role bila sesuai.
+- Hindari source-assertion test berbasis regex untuk komponen baru; gunakan hanya ketika perilaku sulit diuji dengan render.
+- Penamaan `.rtl.test.jsx` wajib untuk test yang me-render komponen karena `vitest.config.js` memakai `test.projects` untuk memilih environment `jsdom`.
+- Pada property-based test `fast-check`, pastikan precondition `fc.pre()`/`.filter()` sama persis dengan validasi source.
+- Workflow `.github/workflows/tests.yml` menjalankan backend dan frontend test; periksa workflow aktual jika detail CI berubah.
+
+## graphify
+
+Project ini memiliki knowledge graph di `graphify-out/`.
+
+- Untuk pertanyaan tentang codebase, gunakan `graphify query "<pertanyaan>"` jika `graphify-out/graph.json` tersedia; gunakan `graphify path` untuk relasi dan `graphify explain` untuk konsep tertentu.
+- Jika `graphify-out/wiki/index.md` tersedia, gunakan sebagai navigasi umum.
+- Baca `graphify-out/GRAPH_REPORT.md` untuk tinjauan arsitektur luas atau jika query/path/explain tidak cukup.
+- Setelah mengubah kode, jalankan `graphify update .` untuk memperbarui graph bila tool tersedia.
+
+## Terminal Shell
+
+Git Bash on Windows: `C:/Program Files/Git/usr/bin/bash.exe`
+
+Use Bash commands: `ls`, `cp`, `mv`, `rm`, `export VAR=value`
+NOT PowerShell: `dir`, `Copy-Item`, `Move-Item`, `Remove-Item`, `$env:VAR="value"`
+
+## Terminal Shell
+
+Git Bash on Windows: `C:/Program Files/Git/usr/bin/bash.exe`
+
+Use Bash commands: `ls`, `cp`, `mv`, `rm`, `export VAR=value`
+NOT PowerShell: `dir`, `Copy-Item`, `Move-Item`, `Remove-Item`, `$env:VAR="value"`
+
+===
 
 <laravel-boost-guidelines>
 === foundation rules ===
@@ -342,13 +446,3 @@ This project has domain-specific skills available. You MUST activate the relevan
 - IMPORTANT: Activate `inertia-react-development` when working with Inertia React client-side patterns.
 
 </laravel-boost-guidelines>
-
-## graphify
-
-This project has a knowledge graph at graphify-out/ with god nodes, community structure, and cross-file relationships.
-
-Rules:
-- For codebase questions, first run `graphify query "<question>"` when graphify-out/graph.json exists. Use `graphify path "<A>" "<B>"` for relationships and `graphify explain "<concept>"` for focused concepts. These return a scoped subgraph, usually much smaller than GRAPH_REPORT.md or raw grep output.
-- If graphify-out/wiki/index.md exists, use it for broad navigation instead of raw source browsing.
-- Read graphify-out/GRAPH_REPORT.md only for broad architecture review or when query/path/explain do not surface enough context.
-- After modifying code, run `graphify update .` to keep the graph current (AST-only, no API cost).
