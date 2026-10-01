@@ -18,7 +18,6 @@ use Illuminate\Database\Seeder;
  * template Quotation sebelumnya lewat `letter_head_id` (AC8.11).
  */
 class QuotationPrintTemplateSeeder extends Seeder {
-
     /** Nama template sebelum spec ini; diubah menjadi varian spare part. */
     public const LEGACY_NAME = 'Default - Quotation';
 
@@ -79,15 +78,15 @@ class QuotationPrintTemplateSeeder extends Seeder {
             $template ??= new PrintTemplate;
 
             $template->fill([
-                'name'                 => $variant['name'],
-                'model'                => Quotation::class,
-                'name_model'           => $permission?->name ?? 'Quotations',
-                'permission_id'        => $permission?->id ?? $existing?->permission_id,
-                'is_letter_head'       => false,
-                'letter_head_id'       => $letterHeadId,
-                'default_language'     => $variant['default_language'],
-                'html'                 => $variant['html'],
-                'css'                  => $this->css(),
+                'name'             => $variant['name'],
+                'model'            => Quotation::class,
+                'name_model'       => $permission?->name ?? 'Quotations',
+                'permission_id'    => $permission?->id ?? $existing?->permission_id,
+                'is_letter_head'   => false,
+                'letter_head_id'   => $letterHeadId,
+                'default_language' => $variant['default_language'],
+                'html'             => $variant['html'],
+                'css'              => $this->css(),
                 // Proyek GrapesJS lama tidak lagi sesuai dengan html baru; editor
                 // membangunnya ulang dari html.
                 'template'             => null,

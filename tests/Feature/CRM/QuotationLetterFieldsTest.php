@@ -2,6 +2,7 @@
 
 namespace Tests\Feature\CRM;
 
+use App\Models\Core\Preference;
 use App\Models\CRM\Quotation;
 use Inertia\Testing\AssertableInertia;
 use PHPUnit\Framework\Attributes\DataProvider;
@@ -182,7 +183,7 @@ class QuotationLetterFieldsTest extends QuotationTestCase {
     }
 
     public function test_form_baru_membawa_kota_terbit_dari_preference_city(): void {
-        \App\Models\Core\Preference::create(['key' => 'city', 'value' => 'Surabaya']);
+        Preference::create(['key' => 'city', 'value' => 'Surabaya']);
 
         $this->actingAs($this->user)
             ->withSession($this->permissionSession())

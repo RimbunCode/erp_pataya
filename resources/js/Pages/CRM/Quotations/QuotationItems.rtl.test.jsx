@@ -158,7 +158,9 @@ describe("CRM QuotationItems", () => {
     });
 
     it("judul kolom remark: Remark untuk spare_part, Lead Time untuk new_unit", () => {
-      const { unmount } = render(<QuotationItems type="spare_part" value={[]} />);
+      const { unmount } = render(
+        <QuotationItems type="spare_part" value={[]} />,
+      );
       expect(screen.getByTestId("column-remark")).toHaveTextContent(
         "crm.quotation.columns.remark.by_type.spare_part",
       );

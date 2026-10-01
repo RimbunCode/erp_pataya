@@ -12,7 +12,6 @@ import { usePage } from "@inertiajs/react";
 /**
  * Template blok yang berlaku untuk suatu jenis Quotation. Template tanpa
  * `quotation_type` berlaku untuk semua jenis. Urutan mengikuti kolom `order`.
- *
  * @param {object[]} templates
  * @param {string} type
  * @returns {object[]}
@@ -28,7 +27,6 @@ export function templatesForType(templates, type) {
  * direferensikan: setelah ini blok menjadi milik dokumen dan boleh diedit tanpa
  * mengubah master. Template yang judulnya sudah ada di dokumen dilewati supaya
  * menekan tombol dua kali tidak menggandakan blok.
- *
  * @param {object[]} sections blok dokumen saat ini
  * @param {object[]} templates template yang akan disalin
  * @returns {object[]} daftar blok baru dengan `order` berurutan
@@ -145,7 +143,9 @@ export default function QuotationSections({
             >
               <Input
                 value={section.title ?? ""}
-                onChange={(e) => updateSection(index, { title: e.target.value })}
+                onChange={(e) =>
+                  updateSection(index, { title: e.target.value })
+                }
                 readOnly={readOnly}
               />
             </FormInput>

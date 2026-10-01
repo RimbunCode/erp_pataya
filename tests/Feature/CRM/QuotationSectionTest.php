@@ -6,6 +6,7 @@ use App\Models\CRM\Quotation;
 use App\Models\CRM\QuotationSection;
 use App\Models\CRM\QuotationSectionTemplate;
 use Database\Seeders\QuotationSectionTemplateSeeder;
+use Illuminate\Support\Facades\Schema;
 use Inertia\Testing\AssertableInertia;
 
 /**
@@ -275,7 +276,7 @@ class QuotationSectionTest extends QuotationTestCase {
 
     public function test_blok_dokumen_tidak_menyimpan_referensi_ke_template(): void {
         $this->assertFalse(
-            \Illuminate\Support\Facades\Schema::hasColumn('quotation_sections', 'quotation_section_template_id'),
+            Schema::hasColumn('quotation_sections', 'quotation_section_template_id'),
             'isi disalin (pola P3), bukan direferensikan',
         );
     }

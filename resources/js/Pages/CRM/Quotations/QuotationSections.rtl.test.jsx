@@ -105,9 +105,9 @@ describe("templatesForType / copyTemplatesToSections", () => {
 
   it("templatesForType tanpa template mengembalikan array kosong", () => {
     expect(templatesForType(undefined, "rental")).toEqual([]);
-    expect(templatesForType(templates, "spare_part").map((t) => t.title)).toEqual(
-      ["Penutup"],
-    );
+    expect(
+      templatesForType(templates, "spare_part").map((t) => t.title),
+    ).toEqual(["Penutup"]);
   });
 
   it("copyTemplatesToSections menyalin judul dan isi tanpa membawa id template", () => {

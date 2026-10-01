@@ -32,7 +32,7 @@ class Quotation extends Model {
     public string $formComponent  = 'CRM/Quotations/Form';
     protected $appends            = ['issued_date'];
     protected $casts              = [
-        'date'        => 'datetime',
+        'date'         => 'datetime',
         'valid_until'  => 'date',
         'basic_amount' => 'float',
         'tax_amount'   => 'float',

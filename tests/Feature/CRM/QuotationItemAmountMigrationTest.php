@@ -13,8 +13,8 @@ use Illuminate\Support\Str;
  * tidak boleh hilang (design 1.3, daftar risiko).
  */
 class QuotationItemAmountMigrationTest extends QuotationTestCase {
-    private const ADD_FIELDS  = '2026_10_01_024302_add_letter_fields_to_quotation_items_table';
-    private const CONVERT     = '2026_10_01_024306_convert_quotation_item_amount_to_stored_column';
+    private const ADD_FIELDS = '2026_10_01_024302_add_letter_fields_to_quotation_items_table';
+    private const CONVERT    = '2026_10_01_024306_convert_quotation_item_amount_to_stored_column';
 
     private function runMigration(string $name): void {
         Artisan::call('migrate', ['--path' => "database/migrations/{$name}.php", '--force' => true]);

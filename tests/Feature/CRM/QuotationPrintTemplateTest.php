@@ -204,8 +204,8 @@ class QuotationPrintTemplateTest extends QuotationTestCase {
     public function test_cetak_spare_part_memuat_tabel_dan_ringkasan(): void {
         $this->seedTemplates();
         $quotation = $this->quotationOfType('spare_part', [
-            'attn'     => 'Ibu Desy',
-            'items'    => [[
+            'attn'  => 'Ibu Desy',
+            'items' => [[
                 'id'          => 'a',
                 'item'        => ['id' => $this->variant->id],
                 'item_unit'   => ['id' => $this->makeItemUnit()->id],
