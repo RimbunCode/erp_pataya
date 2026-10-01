@@ -122,18 +122,58 @@ class PrintTemplateRenderService {
     }
 
     /**
+     * Helper Handlebars untuk render sisi server.
+     *
+     * PENTING: lightncandy tidak memanggil closure ini secara langsung,
+     * melainkan menyalin KODE SUMBER-nya ke dalam PHP yang ia hasilkan, lalu
+     * kode gabungan itu di-eval. Dua akibatnya, dan keduanya pernah menggagalkan
+     * seluruh render sisi server:
+     *
+     * 1. Setiap helper WAJIB ditulis sebagai `function () { ... }`, tidak boleh
+     *    `fn () => ...`. Pembaca lightncandy tidak mengenali sintaks arrow
+     *    function sehingga menyisakan `=>` menggantung, dan eval gagal dengan
+     *    "ParseError: syntax error, unexpected token \"=>\"".
+     *
+     * 2. Setiap helper harus BERDIRI SENDIRI: tidak boleh memakai `$this`
+     *    maupun variabel `use`, karena konteks asalnya tidak ikut tersalin.
+     *    Memakai `use` menghasilkan "ErrorException: Undefined variable".
+     *    Kebergantungan diambil lewat `app()` di dalam closure.
+     *
+     * 3. Nama kelas pada `app()` ditulis sebagai STRING LITERAL, bukan
+     *    `NamaKelas::class`. Konteks `use` berkas ini tidak ikut tersalin, jadi
+     *    nama pendek gagal diresolusi ("Target class [X] does not exist") — dan
+     *    lightncandy menelan kegagalan itu menjadi string kosong alih-alih
+     *    melempar, sehingga tidak terlihat. Nama lengkap dengan `::class` pun
+     *    tidak bertahan: fixer `fully_qualified_strict_types` milik Pint
+     *    memendekkannya kembali pada format berikutnya. String literal tidak
+     *    disentuh Pint.
+     *
+     * Semua bentuk di atas sama-sama callable yang sah bagi PHP, jadi tidak ada
+     * analisis statis yang dapat menangkap perbedaannya. Penjaganya adalah
+     * PrintTemplateRenderServiceHelpersTest.
+     *
      * @return array<string, callable>
      */
     protected function helpers(): array {
         return [
-            'relation' => fn ($payload) => Utils::convertTemplateLink($payload),
-            'label'    => fn ($path, $options) => $this->labelHelper->getLabel(
-                (string) $path,
-                $options['data']['root']['columns'] ?? [],
-                $options['data']['root']['lang'] ?? 'en',
-            ),
-            'trans'         => fn ($payload) => is_string($payload) ? __($payload) : ($payload['title'] ?? __($payload['titleTrans'] ?? '') ?? $payload['name'] ?? ''),
-            'companyDetail' => fn ($key, $options) => $options['data']['root']['company'][$key] ?? '',
+            'relation' => function ($payload) {
+                return Utils::convertTemplateLink($payload);
+            },
+            'label' => function ($path, $options) {
+                return app('App\Services\Handlebar\LabelHelperService')->getLabel(
+                    (string) $path,
+                    $options['data']['root']['columns'] ?? [],
+                    $options['data']['root']['lang'] ?? 'en',
+                );
+            },
+            'trans' => function ($payload) {
+                return is_string($payload)
+                    ? __($payload)
+                    : ($payload['title'] ?? __($payload['titleTrans'] ?? '') ?? $payload['name'] ?? '');
+            },
+            'companyDetail' => function ($key, $options) {
+                return $options['data']['root']['company'][$key] ?? '';
+            },
             // No custom `each` override here (unlike initHandlebar.js, which
             // overrides {{#each}} solely to inject a 1-based `idx` onto each
             // item). lightncandy compiles {{#each}} as a builtin block
@@ -155,20 +195,39 @@ class PrintTemplateRenderService {
                     $data = collect($data ?? [])->firstWhere('name', $key)['columns'] ?? null;
                 }
 
-                $reduced = collect($data ?? [])->mapWithKeys(fn ($col) => [
-                    $col['name'] => ($options['hash']['extract'] ?? null) ? ($col[$options['hash']['extract']] ?? null) : $col,
-                ])->all();
+                $extract = $options['hash']['extract'] ?? null;
+                $reduced = collect($data ?? [])->mapWithKeys(function ($col) use ($extract) {
+                    return [
+                        $col['name'] => $extract ? ($col[$extract] ?? null) : $col,
+                    ];
+                })->all();
 
                 return $options['fn']($reduced);
             },
-            'formatDate'     => fn ($value, $format) => $this->formatHelper->formatDate($value, $format),
-            'formatCurrency' => fn ($value, $currency) => $this->formatHelper->formatCurrency($value, $currency),
-            'formatNumber'   => fn ($value, $decimals) => $this->formatHelper->formatNumber($value, (int) $decimals),
-            'uppercase'      => fn ($value) => is_string($value) ? mb_strtoupper($value) : '',
-            'multiply'       => fn ($a, $b) => $this->arithmeticHelper->multiply($a, $b),
-            'subtract'       => fn ($a, $b) => $this->arithmeticHelper->subtract($a, $b),
-            'add'            => fn ($a, $b) => $this->arithmeticHelper->add($a, $b),
-            'divide'         => fn ($a, $b) => $this->arithmeticHelper->divide($a, $b),
+            'formatDate' => function ($value, $format) {
+                return app('App\Services\Handlebar\FormatHelperService')->formatDate($value, $format);
+            },
+            'formatCurrency' => function ($value, $currency) {
+                return app('App\Services\Handlebar\FormatHelperService')->formatCurrency($value, $currency);
+            },
+            'formatNumber' => function ($value, $decimals) {
+                return app('App\Services\Handlebar\FormatHelperService')->formatNumber($value, (int) $decimals);
+            },
+            'uppercase' => function ($value) {
+                return is_string($value) ? mb_strtoupper($value) : '';
+            },
+            'multiply' => function ($a, $b) {
+                return app('App\Services\Handlebar\ArithmeticHelperService')->multiply($a, $b);
+            },
+            'subtract' => function ($a, $b) {
+                return app('App\Services\Handlebar\ArithmeticHelperService')->subtract($a, $b);
+            },
+            'add' => function ($a, $b) {
+                return app('App\Services\Handlebar\ArithmeticHelperService')->add($a, $b);
+            },
+            'divide' => function ($a, $b) {
+                return app('App\Services\Handlebar\ArithmeticHelperService')->divide($a, $b);
+            },
         ];
     }
 
@@ -219,11 +278,11 @@ class PrintTemplateRenderService {
                     array_keys((array) $value),
                 )),
                 'date', 'time', 'datetime' => $this->formatDateTimeValue($value, $col['type'], $opts['lang'] ?? 'en'),
-                'boolean'                  => "<input type='checkbox' " . ($value ? 'checked' : '') . '>',
-                'formStatus'               => __("status.{$value}"),
-                'string'                   => $this->formatStringValue($value, $col),
-                'currency', 'number'       => $this->formatNumericValue($value, $col, $data, $opts),
-                default                    => $value,
+                'boolean'    => "<input type='checkbox' " . ($value ? 'checked' : '') . '>',
+                'formStatus' => __("status.{$value}"),
+                'string'     => $this->formatStringValue($value, $col),
+                'currency', 'number' => $this->formatNumericValue($value, $col, $data, $opts),
+                default => $value,
             };
         }
 
