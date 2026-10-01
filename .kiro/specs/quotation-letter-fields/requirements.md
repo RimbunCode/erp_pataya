@@ -389,6 +389,44 @@ Pemisahan ini berlaku untuk urutan task, bukan untuk skema database: kolom
 pajak pada R6 tetap dibuat sejak migration tahap 1 agar tidak ada migration
 susulan yang mengubah tabel yang sama dua kali.
 
+## Ketergantungan Antar-Branch
+
+**`{{approvalSignature}}` belum tersedia di branch ini.** Helper itu ada di
+branch `feat/approval-signature` (tiga berkas: `Controller.php`,
+`AttachGeneratedPdfJob.php`, `PrintTemplateRenderService.php`) dan belum
+di-merge ke `dev-1`.
+
+Ketiga template cetak Quotation tetap memanggilnya sesuai AC8.9, tetapi selama
+helper belum ada, lightncandy memperlakukannya sebagai variabel biasa sehingga
+slot tanda tangan tercetak kosong. Blok tanda tangan baru berfungsi setelah
+`feat/approval-signature` masuk ke `dev-1`. Tidak ada perubahan yang perlu
+dilakukan pada template saat itu terjadi.
+
+## Cacat yang Ditemukan di Luar Lingkup
+
+Dua hal ditemukan saat mengerjakan spec ini. Keduanya sudah ada sebelumnya dan
+tidak disebabkan pekerjaan ini.
+
+**C1 — Quotation tidak dapat disimpan lewat HTTP (sudah diperbaiki).**
+`QuotationRequest` memakai `FormRequest` biasa, sehingga `branch` aktif tidak
+ikut di data tervalidasi. Format kode `@[branch_code]/QTN-@[iiii]/@[yy]` lalu
+melempar "Relation 'branch.code' could not be resolved". Diperbaiki dengan
+`extends BaseFormRequest`, sama seperti `SalesOrderRequest`. Perbaikan ini di
+luar daftar task tetapi tanpanya seluruh fitur tidak dapat dipakai.
+
+**C2 — Render PDF sisi server gagal untuk helper berbentuk arrow function
+(BELUM diperbaiki).** `PrintTemplateRenderService::helpers()` mendefinisikan
+helper dengan `fn () =>`, dan lightncandy gagal meng-eval kodenya:
+`ParseError: syntax error, unexpected token "=>"`.
+
+Terbukti pada PurchaseOrder, modul yang tidak disentuh spec ini, dan berkasnya
+tidak berubah sejak commit lint di `dev-1`. Yang terdampak adalah `render()`
+sisi server (lampiran PDF otomatis) untuk template yang memakai `companyDetail`,
+termasuk kop surat. Pencetakan manual dari browser tidak terpengaruh.
+
+Di luar lingkup spec ini. Perlu spec atau perbaikan tersendiri, dan dampaknya
+lintas modul.
+
 ## Open Questions
 
 - **OQ1** Tambahan pajak 2% untuk jasa: apakah benar PPh Pasal 23? Dipotong oleh

@@ -2,11 +2,15 @@
 
 namespace App\Http\Requests\CRM;
 
+use App\Http\Requests\BaseFormRequest;
 use Illuminate\Contracts\Validation\ValidationRule;
-use Illuminate\Foundation\Http\FormRequest;
 use Illuminate\Validation\Rule;
 
-class QuotationRequest extends FormRequest {
+/**
+ * Memakai BaseFormRequest supaya `branch` aktif ikut di data tervalidasi:
+ * format kode Quotation (`@[branch_code]/QTN-@[iiii]/@[yy]`) membutuhkannya.
+ */
+class QuotationRequest extends BaseFormRequest {
     /**
      * Determine if the user is authorized to make this request.
      */

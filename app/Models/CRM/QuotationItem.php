@@ -42,6 +42,20 @@ class QuotationItem extends Model {
             'show'  => true,
             'order' => 2,
         ],
+        'remark' => [
+            'show'  => false,
+            'order' => 2,
+        ],
+        'itemUnit' => [
+            'type'  => 'relation',
+            'show'  => false,
+            'order' => 2,
+        ],
+        'tax' => [
+            'type'  => 'relation',
+            'show'  => false,
+            'order' => 5,
+        ],
         'price' => [
             'show'       => true,
             'order'      => 3,

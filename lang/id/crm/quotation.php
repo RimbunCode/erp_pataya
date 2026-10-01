@@ -8,6 +8,12 @@ return [
     'quotations' => 'Quotation',
     'new'        => 'Quotation Baru',
     'add_item'   => 'Tambah Item',
+    'sections'                => 'Blok Teks',
+    'add_section'             => 'Tambah Blok',
+    'load_section_templates'  => 'Ambil dari Template',
+    'move_section_up'         => 'Naikkan blok',
+    'move_section_down'       => 'Turunkan blok',
+    'remove_section'          => 'Hapus blok',
     'columns'    => [
         'code'                    => 'Kode',
         'customer'                => 'Customer',
@@ -43,6 +49,18 @@ return [
         'tax.placeholder'         => 'Pilih pajak',
         'basic_amount'            => 'Sub Total',
         'tax_amount'              => 'Jumlah Pajak',
+        'price.by_type'           => [
+            'spare_part' => 'Unit Price',
+            'new_unit'   => 'Harga / unit',
+            'rental'     => 'Harga / bulan',
+        ],
+        'remark.by_type' => [
+            'spare_part' => 'Remark',
+            'new_unit'   => 'Lead Time',
+            'rental'     => 'Keterangan',
+        ],
+        'section_title'   => 'Judul Blok',
+        'section_content' => 'Isi Blok',
         'created_at'              => 'Dibuat pada',
     ],
     'actions' => [

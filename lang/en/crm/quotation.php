@@ -8,6 +8,12 @@ return [
     'quotations' => 'Quotations',
     'new'        => 'New Quotation',
     'add_item'   => 'Add Item',
+    'sections'                => 'Text Sections',
+    'add_section'             => 'Add Section',
+    'load_section_templates'  => 'Load from Template',
+    'move_section_up'         => 'Move section up',
+    'move_section_down'       => 'Move section down',
+    'remove_section'          => 'Remove section',
     'columns'    => [
         'code'                    => 'Code',
         'customer'                => 'Customer',
@@ -43,6 +49,18 @@ return [
         'tax.placeholder'         => 'Select tax',
         'basic_amount'            => 'Sub Total',
         'tax_amount'              => 'Tax Amount',
+        'price.by_type'           => [
+            'spare_part' => 'Unit Price',
+            'new_unit'   => 'Price / unit',
+            'rental'     => 'Price / month',
+        ],
+        'remark.by_type' => [
+            'spare_part' => 'Remark',
+            'new_unit'   => 'Lead Time',
+            'rental'     => 'Remark',
+        ],
+        'section_title'   => 'Section Title',
+        'section_content' => 'Section Content',
         'created_at'              => 'Created at',
     ],
     'actions' => [

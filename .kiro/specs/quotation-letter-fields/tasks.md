@@ -52,37 +52,37 @@ Perbaikan sudah diterapkan di working tree, tersisa verifikasi dan test.
 
 ## T06: Form Header & Blok Teks (FE)
 
-- [ ] 22. `Form.jsx`: field `type` memakai komponen `Select` dengan `options={["spare_part","new_unit","rental"]}` dan `optionTrans="crm.quotation.columns.type.options"`, mengikuti `AdditionalDiscount.jsx:130-137`; plus `attn`, `subject`, `issued_city` (Input), `introduction` (Textarea). Field khusus jenis dirender kondisional mengikuti `Asset/Assets/Form.jsx:264`
-- [ ] 23. `resources/js/Pages/CRM/Quotations/QuotationSections.jsx`: daftar blok (tambah/hapus/urutkan), tiap blok berisi judul + `Textarea` isi
-- [ ] 24. `QuotationSections.jsx`: tombol "Ambil dari template" yang memuat blok sesuai `type` terpilih dan **menyalin** isinya ke dokumen (AC5.4)
-- [ ] 25. `QuotationSections.rtl.test.jsx`: tambah/hapus/urutkan blok; memuat dari template menyalin isi dan dapat diedit tanpa mengubah master
+- [x] 22. `Form.jsx`: field `type` memakai komponen `Select` dengan `options={["spare_part","new_unit","rental"]}` dan `optionTrans="crm.quotation.columns.type.options"`, mengikuti `AdditionalDiscount.jsx:130-137`; plus `attn`, `subject`, `issued_city` (Input), `introduction` (Textarea). Field khusus jenis dirender kondisional mengikuti `Asset/Assets/Form.jsx:264`
+- [x] 23. `resources/js/Pages/CRM/Quotations/QuotationSections.jsx`: daftar blok (tambah/hapus/urutkan), tiap blok berisi judul + `Textarea` isi
+- [x] 24. `QuotationSections.jsx`: tombol "Ambil dari template" yang memuat blok sesuai `type` terpilih dan **menyalin** isinya ke dokumen (AC5.4)
+- [x] 25. `QuotationSections.rtl.test.jsx`: tambah/hapus/urutkan blok; memuat dari template menyalin isi dan dapat diedit tanpa mengubah master
 
 ## T07: Tabel Item → FormTable (FE)
 
-- [ ] 26. `QuotationItems.jsx`: ganti penyusunan baris manual (`items.map()`) dengan `FormTable`, mengikuti pola `SalesOrders/Form.jsx` (design 3.2)
-- [ ] 27. `QuotationItems.jsx`: definisi kolom kondisional sesuai tabel AC9.4 — `item_code` hanya `spare_part`; `unit` bukan untuk `new_unit`; `remark` dan `amount` bukan untuk `rental`. Kolom falsy dibuang otomatis oleh `FormTable.jsx:571`
-- [ ] 28. `QuotationItems.jsx`: judul kolom dinamis via `title`/`titleTrans` — harga menjadi "Unit Price"/"Harga / unit"/"Harga / bulan", remark menjadi "Remark"/"Lead Time" (AC9.3)
-- [ ] 29. `QuotationItems.jsx`: `key` FormTable menyertakan jenis (`quotation-items-${type}`) supaya preferensi kolom tidak bocor antar jenis (AC9.6, daftar risiko)
-- [ ] 30. `QuotationItems.jsx`: kolom `description` memakai `Textarea` dan nilainya disalin dari item terpilih mengikuti `SalesOrders/Form.jsx:165` (AC4.4, AC4.5)
-- [ ] 31. `QuotationItems.rtl.test.jsx`: kolom yang tampil sesuai AC9.4 untuk ketiga jenis; judul kolom harga berubah mengikuti jenis
-- [ ] 32. `Form.rtl.test.jsx`: field kondisional muncul/hilang saat `type` diganti
+- [x] 26. `QuotationItems.jsx`: ganti penyusunan baris manual (`items.map()`) dengan `FormTable`, mengikuti pola `SalesOrders/Form.jsx` (design 3.2)
+- [x] 27. `QuotationItems.jsx`: definisi kolom kondisional sesuai tabel AC9.4 — `item_code` hanya `spare_part`; `unit` bukan untuk `new_unit`; `remark` dan `amount` bukan untuk `rental`. Kolom falsy dibuang otomatis oleh `FormTable.jsx:571`
+- [x] 28. `QuotationItems.jsx`: judul kolom dinamis via `title`/`titleTrans` — harga menjadi "Unit Price"/"Harga / unit"/"Harga / bulan", remark menjadi "Remark"/"Lead Time" (AC9.3)
+- [x] 29. `QuotationItems.jsx`: `key` FormTable menyertakan jenis (`quotation-items-${type}`) supaya preferensi kolom tidak bocor antar jenis (AC9.6, daftar risiko)
+- [x] 30. `QuotationItems.jsx`: kolom `description` memakai `Textarea` dan nilainya disalin dari item terpilih mengikuti `SalesOrders/Form.jsx:165` (AC4.4, AC4.5)
+- [x] 31. `QuotationItems.rtl.test.jsx`: kolom yang tampil sesuai AC9.4 untuk ketiga jenis; judul kolom harga berubah mengikuti jenis
+- [x] 32. `Form.rtl.test.jsx`: field kondisional muncul/hilang saat `type` diganti
 
 ## T08: Template Cetak
 
-- [ ] 33. Sesuaikan template "Default - Quotation" yang sudah ada menjadi varian `spare_part`: kota + tanggal, tujuan, Attn, nomor, pengantar, tabel (No, Part No, Description, Quantity, Unit, Unit Price, Amount, Remark), Sub Total / pajak / Total, blok `sections`, penutup, `{{approvalSignature}}` (AC8.3, AC8.4)
-- [ ] 34. Template `Default - Quotation New Unit` (`default_language: en`): tabel Equipment Type / Model / QTY / harga / Lead Time, **tanpa** baris ringkasan; judul kolom harga dapat memuat lokasi penyerahan dan tidak ditulis mati (AC8.5)
-- [ ] 35. Template `Default - Quotation Rental` (`default_language: en`): daftar label-nilai **tanpa tabel**, sesuai bentuk surat asli (AC8.6)
-- [ ] 36. Ketiga template: elemen `description` dan `sections.*.content` memakai `white-space: pre-line` agar blok spesifikasi dan daftar bernomor tidak melebur (AC4.5, AC5.6)
-- [ ] 37. `QuotationController::print()`: override yang meresolusi `PrintTemplate` berdasar `type`, lalu memanggil `parent::print()`. Fallback ke `is_default` bila template jenis tidak ditemukan (design 2.5, AC8.2)
-- [ ] 38. Seeder/migration data untuk ketiga template, idempoten berdasar `name`
+- [x] 33. Sesuaikan template "Default - Quotation" yang sudah ada menjadi varian `spare_part`: kota + tanggal, tujuan, Attn, nomor, pengantar, tabel (No, Part No, Description, Quantity, Unit, Unit Price, Amount, Remark), Sub Total / pajak / Total, blok `sections`, penutup, `{{approvalSignature}}` (AC8.3, AC8.4)
+- [x] 34. Template `Default - Quotation New Unit` (`default_language: en`): tabel Equipment Type / Model / QTY / harga / Lead Time, **tanpa** baris ringkasan; judul kolom harga dapat memuat lokasi penyerahan dan tidak ditulis mati (AC8.5) **Catatan:** lokasi penyerahan belum punya sumber data di skema, jadi judul kolom harga generik ("Unit Price (IDR) Before PPN").
+- [x] 35. Template `Default - Quotation Rental` (`default_language: en`): daftar label-nilai **tanpa tabel**, sesuai bentuk surat asli (AC8.6) **Catatan:** label "Rent price" generik, tanpa nama kota (belum ada sumber data).
+- [x] 36. Ketiga template: elemen `description` dan `sections.*.content` memakai `white-space: pre-line` agar blok spesifikasi dan daftar bernomor tidak melebur (AC4.5, AC5.6)
+- [x] 37. `QuotationController::print()`: override yang meresolusi `PrintTemplate` berdasar `type`, lalu memanggil `parent::print()`. Fallback ke `is_default` bila template jenis tidak ditemukan (design 2.5, AC8.2)
+- [x] 38. Seeder/migration data untuk ketiga template, idempoten berdasar `name`
 
 ## T09: Test Backend Tahap 1
 
-- [ ] 39. `tests/Feature/CRM/QuotationLetterFieldsTest.php`: simpan & muat field header; `subject` dan `valid_until` wajib untuk `new_unit`/`rental` tetapi opsional untuk `spare_part` (AC3.2, AC3.5)
-- [ ] 40. `tests/Feature/CRM/QuotationSectionTest.php`: tambah/urutkan/hapus blok; penyalinan dari template tidak mengubah master (AC5.4)
-- [ ] 41. `tests/Feature/CRM/QuotationPrintTemplateTest.php`: template terpilih sesuai `type`; fallback ke `is_default` saat template jenis tidak ada (AC8.2)
-- [ ] 42. `tests/Feature/CRM/QuotationItemPriceVisibilityTest.php`: `basic_amount` dan `tax_amount` tidak terlihat bagi peran tanpa izin harga (design 2.4)
-- [ ] 43. Test migration: Quotation dengan item yang dibuat sebelum migration T02.6 tetap memiliki nilai `amount` yang sama sesudahnya (daftar risiko)
+- [x] 39. `tests/Feature/CRM/QuotationLetterFieldsTest.php`: simpan & muat field header; `subject` dan `valid_until` wajib untuk `new_unit`/`rental` tetapi opsional untuk `spare_part` (AC3.2, AC3.5)
+- [x] 40. `tests/Feature/CRM/QuotationSectionTest.php`: tambah/urutkan/hapus blok; penyalinan dari template tidak mengubah master (AC5.4)
+- [x] 41. `tests/Feature/CRM/QuotationPrintTemplateTest.php`: template terpilih sesuai `type`; fallback ke `is_default` saat template jenis tidak ada (AC8.2)
+- [x] 42. `tests/Feature/CRM/QuotationItemPriceVisibilityTest.php`: `basic_amount` dan `tax_amount` tidak terlihat bagi peran tanpa izin harga (design 2.4)
+- [x] 43. Test migration: Quotation dengan item yang dibuat sebelum migration T02.6 tetap memiliki nilai `amount` yang sama sesudahnya (daftar risiko)
 
 > **CHECKPOINT TAHAP 1 — STOP.** Jalankan `php artisan test --compact` dan
 > `npm run test`. Ketiga surat sudah dapat dibuat dan dicetak dari sistem.
