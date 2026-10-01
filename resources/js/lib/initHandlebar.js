@@ -338,7 +338,8 @@ export function initHandlebar(trans) {
 
     // Pratinjau dengan data contoh (editor template, belum terikat dokumen)
     // memakai tanda tangan placeholder supaya tata letaknya terlihat.
-    const signature = root.approvalSignature ?? (root.isExample ? EXAMPLE_SIGNATURE : null);
+    const signature =
+      root.approvalSignature ?? (root.isExample ? EXAMPLE_SIGNATURE : null);
 
     return buildSignatureHtml(signature, {
       showName: hash.showName,
