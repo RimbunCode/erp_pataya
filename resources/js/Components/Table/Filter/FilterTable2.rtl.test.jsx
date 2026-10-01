@@ -568,10 +568,12 @@ describe("SaveFilterControl (export standalone)", () => {
     const user = userEvent.setup({ delay: null });
     axiosPost.mockResolvedValue({ data: { id: 99 } });
     axiosPatch.mockResolvedValue({ data: { id: 99, name: "Filter Baru" } });
-    const getViewSnapshot = () => ({
-      sort: "-created_at",
-      group: { column: "status" },
-    });
+    // group = list `Groups` bertingkat (urutan = nesting), diteruskan apa adanya.
+    const groups = [
+      { column: "status", granularity: null, range: null },
+      { column: "created_at", granularity: "month", range: null },
+    ];
+    const getViewSnapshot = () => ({ sort: "-created_at", group: groups });
     render(
       <SaveFilterControl
         model="AppModelsItem"
@@ -588,7 +590,7 @@ describe("SaveFilterControl (export standalone)", () => {
 
     expect(axiosPatch).toHaveBeenCalledWith(
       'saved-filters.update/{"savedFilter":99}',
-      { name: "Filter Baru", sort: "-created_at", group: { column: "status" } },
+      { name: "Filter Baru", sort: "-created_at", group: groups },
     );
   });
 

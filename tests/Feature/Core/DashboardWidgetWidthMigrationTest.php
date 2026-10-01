@@ -42,6 +42,9 @@ class DashboardWidgetWidthMigrationTest extends TestCase {
         // add_visibility_permission_to_menu_items_table) — 17 + 2 = 19.
         // Update 2026-09-21 (spec datatable2-advanced-search): 1 migration
         // lagi nambah (add_group_to_saved_filters_table) — 19 + 1 = 20.
+        // Update 2026-09-26 (spec datatable2-group-tree): 1 migration lagi
+        // nambah (convert_saved_filters_group_to_list) — 20 + 1 = 21,
+        // DIHITUNG ULANG lewat perintah di bawah, bukan cuma ditambah.
         // Catatan: "migration width pertama" itu 2026_08_25_160734_add_
         // col_span_to_dashboard_widgets_table.php (BUKAN yang 160904_rename
         // -- itu migration KEDUA dari 2 migration width yang dimaksud,

@@ -13,6 +13,7 @@ use App\Models\Core\Tag;
 use App\Models\Core\Todo;
 use App\Models\User\Permission;
 use App\Services\Core\BufferedAttachmentService;
+use App\Services\Core\DataTable\Group\GroupLevels;
 use Illuminate\Database\Eloquent\Relations\Relation;
 use Illuminate\Database\Eloquent\SoftDeletes;
 use Illuminate\Database\Schema\Blueprint;
@@ -46,19 +47,30 @@ trait DataTable {
     }
 
     /**
-     * Kolom grup default halaman List/DataTable (dibaca DataTableScope sebagai
-     * fallback saat request TIDAK mengirim param `group` sama sekali). Model
-     * mengaturnya dgn mendeklarasikan di kelas model-nya sendiri:
+     * Group default (bertingkat) halaman List/DataTable -- dibaca
+     * DataTableScope sebagai fallback saat request TIDAK mengirim param `group`
+     * sama sekali. Model mengaturnya dgn mendeklarasikan di kelas model-nya
+     * sendiri, salah satu dari tiga bentuk:
      *
-     *     protected static ?string $defaultGroupColumn = 'account_type';
+     *     protected static array|string|null $defaultGroups = 'account_type';
+     *     protected static array|string|null $defaultGroups = ['category', 'status'];
+     *     protected static array|string|null $defaultGroups = [
+     *         ['column' => 'order_date', 'granularity' => 'month'],
+     *         'status',
+     *     ];
      *
-     * Kolom itu harus `groupable: true` di $configColumns -- kalau tidak,
+     * Urutan = urutan nesting (level pertama = terluar), maks 4 level. Tiap
+     * kolom harus `groupable: true` di $configColumns -- kalau tidak, level itu
      * diabaikan diam-diam. Sengaja TIDAK dideklarasikan sbg properti trait
      * (beda dgn $defaultSortColumn): PHP fatal saat kelas yg `use` trait
      * mendeklarasi ulang properti statis trait dgn nilai berbeda.
+     *
+     * @return list<array{column: string, granularity: mixed, range: mixed}>
      */
-    public static function getDefaultGroupColumn(): ?string {
-        return \property_exists(static::class, 'defaultGroupColumn') ? static::$defaultGroupColumn : null;
+    public static function getDefaultGroups(): array {
+        return \property_exists(static::class, 'defaultGroups')
+            ? GroupLevels::normalize(static::$defaultGroups)
+            : [];
     }
 
     /**
@@ -74,7 +86,7 @@ trait DataTable {
      * yang lolos sanitasi (DataTableScope::sanitizeSearchScope() -- ter-resolve,
      * searchable, tipe akhir string); entri lain dibuang diam-diam. Sengaja
      * TIDAK dideklarasikan sbg properti trait (pola sama dgn
-     * $defaultGroupColumn): PHP fatal saat kelas yg `use` trait mendeklarasi
+     * $defaultGroups): PHP fatal saat kelas yg `use` trait mendeklarasi
      * ulang properti statis trait dgn nilai berbeda.
      *
      * @return list<string>

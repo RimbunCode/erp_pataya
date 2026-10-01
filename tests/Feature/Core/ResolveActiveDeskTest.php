@@ -14,6 +14,7 @@ use App\Models\User\RolePermission;
 use App\Models\User\User;
 use BeyondCode\QueryDetector\QueryDetectorMiddleware;
 use Illuminate\Foundation\Testing\RefreshDatabase;
+use Illuminate\Support\Facades\DB;
 use Tests\TestCase;
 
 class ResolveActiveDeskTest extends TestCase {
@@ -93,6 +94,92 @@ class ResolveActiveDeskTest extends TestCase {
             'only_creator'  => false,
             'permissions'   => [PermissionEnum::Select->value => true],
         ]);
+    }
+
+    /**
+     * Perbaikan performa (ditemukan user via Clockwork, request Opportunities
+     * ikut men-query Desk/MenuItem/DeskMenuItem/Branch/Permission yang gak
+     * terkait): `deskList`/`menuItems` (ResolveActiveDesk) & `branchSettings`/
+     * `ignorePermissionModels` (AppMiddleware) SEKARANG closure, bukan nilai
+     * eager -- middleware ini eksekusi di SETIAP request terautentikasi (grup
+     * route 'app','desk'), termasuk XHR groupPath expand & partial reload
+     * DataTable2 yang tak pernah butuh prop ini. Dibuktikan lewat partial
+     * reload Inertia SUNGGUHAN (header X-Inertia-Partial-Data TIDAK menyebut
+     * menuItems/deskList/branchSettings/ignorePermissionModels) -- Inertia
+     * (vendor, PropsResolver::shouldIncludeInPartialResponse()) skip manggil
+     * closure prop yang tak diminta, jadi query di baliknya TERBUKTI tak
+     * pernah jalan.
+     */
+    public function test_menu_tree_desk_list_and_branch_settings_not_queried_on_partial_reload_excluding_them(): void {
+        $user = User::factory()->create();
+        $desk = Desk::factory()->create(['type' => DeskType::Custom, 'owner_id' => $user->id]);
+        $user->update(['default_desk_id' => $desk->id]);
+        $menuItem = MenuItem::factory()->create(['primary_desk_id' => $desk->id, 'route_name' => 'todos.index']);
+        $desk->menuItems()->attach($menuItem->id, ['order' => 0]);
+
+        // `users.show` (bukan 'dashboard') -- DeskController::home() sendiri
+        // query `menu_items` LAGI utk prop `allMenuItems` (tujuan lain, tak
+        // terkait fix ini), jadi bukan target bersih utk buktikan "prop
+        // TERTENTU tak diminta -> query di baliknya tak jalan".
+        $response = $this->actingAs($user)
+            ->withCookie('lang', 'en')
+            ->withHeaders([
+                'X-Inertia' => 'true',
+                // Header versi WAJIB cocok, kalau tidak Inertia (vendor) balas
+                // 409 (force full reload) SEBELUM request sempat jadi partial
+                // sungguhan. Dihitung PERSIS spt Inertia\Middleware::version()
+                // (vendor) -- Inertia::getVersion() sendiri tak andal dipanggil
+                // SEBELUM request jalan (closure-nya baru di-resolve pertama
+                // kali DALAM Middleware::handle()).
+                'X-Inertia-Version' => file_exists(public_path('build/manifest.json'))
+                    ? hash_file('xxh128', public_path('build/manifest.json'))
+                    : '',
+                'X-Inertia-Partial-Component' => 'Users/ManageUsers/Show',
+                // Cuma minta prop 'user' -- BUKAN menuItems/deskList/
+                // branchSettings/ignorePermissionModels.
+                'X-Inertia-Partial-Data' => 'user',
+            ]);
+
+        DB::enableQueryLog();
+        $response = $response->get(route('users.show', $user));
+        $queries  = collect(DB::getQueryLog())->pluck('query')->implode(' | ');
+        DB::disableQueryLog();
+
+        $response->assertOk();
+        // `desk_menu_items` HANYA di-query buildMenuTree() (menuItems) -- sinyal
+        // presisi, beda dari `menu_items` (kolom generik, dipakai banyak fitur
+        // lain di luar sidebar).
+        $this->assertStringNotContainsStringIgnoringCase('desk_menu_items', $queries);
+        $this->assertStringNotContainsStringIgnoringCase('"branches"', $queries);
+        $this->assertStringNotContainsStringIgnoringCase('ignore_permission', $queries);
+    }
+
+    /**
+     * Sisi lain fix yang sama: reload PENUH (bukan partial) TETAP dapat
+     * menuItems/deskList/branchSettings seperti sebelumnya -- closure
+     * cuma menunda eksekusi, bukan menghilangkan prop-nya utk kasus yang
+     * genuinely butuh.
+     */
+    public function test_menu_tree_and_desk_list_still_present_on_full_reload(): void {
+        $user = User::factory()->create();
+        $desk = Desk::factory()->create(['type' => DeskType::Custom, 'owner_id' => $user->id, 'name' => 'My Desk']);
+        $user->update(['default_desk_id' => $desk->id]);
+        $menuItem = MenuItem::factory()->create(['primary_desk_id' => $desk->id, 'route_name' => 'todos.index']);
+        $desk->menuItems()->attach($menuItem->id, ['order' => 0]);
+
+        $response = $this->actingAs($user)
+            ->withCookie('lang', 'en')
+            ->get(route('dashboard'));
+
+        $response->assertOk();
+        $response->assertInertia(
+            fn ($page) => $page
+                ->where('activeDesk.id', $desk->id)
+                ->has('deskList')
+                ->has('menuItems', 5)
+                ->has('branchSettings')
+                ->has('ignorePermissionModels'),
+        );
     }
 
     public function test_active_desk_switches_when_route_not_registered_on_cookie_desk(): void {

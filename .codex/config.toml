@@ -1,0 +1,46 @@
+sandbox_mode = "workspace-write"
+web_search = "cached"
+[mcp_servers.herd]
+command = "C:/Users/RHD/.config/herd/bin/php.bat"
+args = [
+    "-r",
+    '''$home=getenv('USERPROFILE')?:getenv('HOME'); if(!$home){fwrite(STDERR,'Unable to resolve USERPROFILE or HOME'.PHP_EOL); exit(1);} require rtrim(str_replace('\\','/',$home),'/').'/.config/herd/bin/herd-mcp.phar';''',
+]
+
+[mcp_servers.herd.env]
+SITE_PATH = "G:/Project App/erp"
+
+[mcp_servers.laravel-boost]
+command = "C:/Users/RHD/.config/herd/bin/php.bat"
+args = [
+    "artisan",
+    "boost:mcp",
+]
+
+[mcp_servers.shadcn]
+enabled = false
+command = "npx"
+args = [
+    "shadcn@latest",
+    "mcp",
+]
+
+[sandbox_workspace_write]
+network_access = true
+
+[features.network_proxy]
+enabled = true
+
+[features.network_proxy.domains]
+"localhost" = "allow"
+"127.0.0.1" = "allow"
+"api.openai.com" = "allow"
+"**.github.com" = "allow"
+"**.githubusercontent.com" = "allow"
+"**.npmjs.org" = "allow"
+"registry.yarnpkg.com" = "allow"
+"packagist.org" = "allow"
+"repo.packagist.org" = "allow"
+"getcomposer.org" = "allow"
+"**.pypi.org" = "allow"
+"**.pythonhosted.org" = "allow"

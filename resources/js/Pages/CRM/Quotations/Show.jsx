@@ -12,7 +12,7 @@ export default function Show({ quotation, defaultData }) {
   return (
     <FormPage
       isCreate={!quotation}
-      ignoreDraft={defaultData}
+      ignoreDraft={!!defaultData?.referenceable}
       name="quotation"
       fieldNameTrans="crm.quotation.columns"
       disabled={quotation?.submitted_at}

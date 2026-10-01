@@ -8,16 +8,21 @@ use App\Enums\FormStatus;
 use App\Models\Core\SavedFilter;
 use App\Models\Model as AppModel;
 use App\Models\User\User;
+use App\Services\Core\DataTable\Group\GroupColumnGate;
+use App\Services\Core\DataTable\Group\GroupLevelResolver;
+use App\Services\Core\DataTable\Group\ResolvedGroupLevel;
 use App\Traits\DataTable;
 use Illuminate\Database\Eloquent\Casts\Attribute;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
 use Illuminate\Database\Eloquent\Relations\HasOne;
 use Illuminate\Database\Eloquent\Relations\MorphTo;
 use Illuminate\Foundation\Testing\RefreshDatabase;
+use Illuminate\Http\Exceptions\HttpResponseException;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Schema;
 use Inertia\Inertia;
+use PHPUnit\Framework\Attributes\DataProvider;
 use Tests\TestCase;
 
 class DtgCustomerStub extends AppModel {
@@ -82,7 +87,7 @@ class DtgRecord extends AppModel {
  * properti statis trait dgn nilai beda.
  */
 class DtgDefaultGroupRecord extends DtgRecord {
-    protected static ?string $defaultGroupColumn = 'category';
+    protected static array|string|null $defaultGroups = 'category';
 }
 
 /**
@@ -138,7 +143,43 @@ class DtgSingleStatusRecord extends DtgRecord {
 
 /** Default group SALAH: 'name' tidak groupable -- harus diabaikan diam-diam. */
 class DtgBadDefaultGroupRecord extends DtgRecord {
-    protected static ?string $defaultGroupColumn = 'name';
+    protected static array|string|null $defaultGroups = 'name';
+}
+
+/**
+ * Agregat baris grup (`groupAggregate`): 4 kolom valid (sum/avg/min/max) +
+ * 5 config KELIRU yg harus diabaikan diam-diam -- fungsi di luar whitelist,
+ * tipe string, kolom TURUNAN (accessor + $appends), relasi, dan `null`.
+ */
+class DtgAggregateRecord extends DtgRecord {
+    protected $appends             = ['double_amount'];
+    protected array $configColumns = [
+        'name'          => ['show' => true, 'order' => 0, 'groupAggregate' => 'sum'], // string -> ditolak
+        'category'      => ['show' => true, 'order' => 1, 'groupable' => true],
+        'due_date'      => ['show' => true, 'order' => 2, 'type' => 'date', 'groupable' => true],
+        'is_active'     => ['show' => true, 'order' => 3, 'type' => 'boolean', 'groupable' => true],
+        'customer'      => ['show' => true, 'order' => 4, 'groupable' => true, 'groupAggregate' => 'sum'], // relasi -> ditolak
+        'statuses'      => ['show' => true, 'order' => 5, 'groupable' => true],
+        'amount'        => ['show' => true, 'order' => 6, 'type' => 'number', 'groupable' => true, 'groupRangeOptions' => [10, 100], 'groupAggregate' => 'sum'],
+        'qty'           => ['show' => true, 'order' => 7, 'type' => 'number', 'groupAggregate' => 'avg'],
+        'price'         => ['show' => true, 'order' => 8, 'type' => 'currency', 'groupAggregate' => 'min'],
+        'weight'        => ['show' => true, 'order' => 9, 'type' => 'number', 'groupAggregate' => 'max'],
+        'locked_field'  => ['show' => true, 'order' => 10, 'type' => 'number', 'groupAggregate' => 'median'], // fungsi tak dikenal
+        'double_amount' => ['show' => true, 'order' => 11, 'type' => 'number', 'groupAggregate' => 'sum', 'dependsOn' => ['amount']], // turunan
+    ];
+
+    protected function doubleAmount(): Attribute {
+        return Attribute::make(get: fn () => (float) $this->amount * 2);
+    }
+}
+
+/** Default group BERTINGKAT campuran string & objek (spec datatable2-group-tree, Requirement 2.2). */
+class DtgMultiDefaultGroupRecord extends DtgRecord {
+    protected static array|string|null $defaultGroups = [
+        'category',
+        ['column' => 'due_date', 'granularity' => 'year'],
+        'name', // tidak groupable -> dibuang diam-diam, level lain tetap
+    ];
 }
 
 class DataTableScopeGroupingTest extends TestCase {
@@ -174,6 +215,10 @@ class DataTableScopeGroupingTest extends TestCase {
                 $t->text('tags')->nullable();
                 $t->date('due_date')->nullable();
                 $t->decimal('amount', 10, 2)->nullable();
+                // Kolom numerik tambahan utk agregat baris grup (groupAggregate).
+                $t->integer('qty')->nullable();
+                $t->decimal('price', 10, 2)->nullable();
+                $t->decimal('weight', 10, 2)->nullable();
                 $t->boolean('is_active')->nullable();
                 $t->text('notes')->nullable();
                 $t->text('statuses')->nullable();
@@ -207,6 +252,28 @@ class DataTableScopeGroupingTest extends TestCase {
         ksort($expected);
         ksort($actual);
         $this->assertSame($expected, $actual, $message);
+    }
+
+    // Request expand (`groupPath`): macro menyelesaikan node lalu MELEMPAR
+    // HttpResponseException berisi JSON -- helper ini menangkapnya & mengembalikan
+    // [status, payload]. Sengaja XHR (ajax) TANPA header X-Inertia, spt panggilan
+    // axios GroupTree.
+    private function expand(array $query, array $cookies = [], string $model = DtgRecord::class): array {
+        try {
+            $model::dataTable($this->ajax($query, $cookies));
+        } catch (HttpResponseException $e) {
+            return [$e->getResponse()->getStatusCode(), $e->getResponse()->getData(true)];
+        }
+
+        $this->fail('Request expand harus menghentikan request dgn HttpResponseException.');
+    }
+
+    // Level-0 pohon grup (spec datatable2-group-tree): `data` = paginator DESKRIPTOR
+    // grup {key, raw, count, aggregates, label?}, bukan baris. Peta key => count ini
+    // menggantikan prop `groupCounts` lama; KEY-nya tetap esensial (harus match
+    // String(groupKey) di FE) -- baca dgn assertGroupCounts() (strict, ksort).
+    private function levelZeroCounts(): array {
+        return collect(Inertia::getShared('data')->items())->pluck('count', 'key')->all();
     }
 
     // Ajax TANPA header X-Inertia -> isInertiaRequest() false -> macro return
@@ -273,7 +340,7 @@ class DataTableScopeGroupingTest extends TestCase {
     // Grouping backend (Requirement 3, Property 1-4)
     // ---------------------------------------------------------------------
 
-    public function test_group_counts_accurate_across_pages(): void {
+    public function test_group_counts_accurate_regardless_of_show_and_paginate_the_group_list(): void {
         foreach (range(1, 3) as $i) {
             DtgRecord::create(['name' => "Fruit $i", 'category' => 'fruit']);
         }
@@ -281,18 +348,18 @@ class DataTableScopeGroupingTest extends TestCase {
             DtgRecord::create(['name' => "Veg $i", 'category' => 'vegetable']);
         }
 
-        // show=2 -> 1 halaman cuma sebagian data, tapi groupCounts tetap total.
-        // Jalur Inertia (isInertiaRequest=true) return null dari closure macro --
-        // paginator dibaca dari Inertia::getShared('data'), bukan return value.
-        DtgRecord::dataTable($this->inertiaRequest(['group' => 'category', 'show' => 2]));
-        $paginator = Inertia::getShared('data');
+        // show=1 -> `show` membatasi jumlah GRUP per halaman level-0 (bukan baris),
+        // tapi count tiap grup tetap total penuh (Property 1).
+        DtgRecord::dataTable($this->inertiaRequest(['group' => 'category', 'show' => 1]));
+        $page1 = Inertia::getShared('data');
 
-        $this->assertSame(2, $paginator->count(), 'Baris tetap flat-paginated, tidak berubah.');
-        $this->assertGroupCounts(
-            ['fruit' => 3, 'vegetable' => 2],
-            Inertia::getShared('groupCounts'),
-            'groupCounts akurat lintas SEMUA data, bukan cuma baris di halaman aktif (Property 1).',
-        );
+        $this->assertSame(1, $page1->count());
+        $this->assertSame(2, $page1->total(), 'Total = jumlah grup, bukan jumlah baris.');
+        $this->assertSame(2, $page1->lastPage());
+        $this->assertGroupCounts(['fruit' => 3], $this->levelZeroCounts());
+
+        DtgRecord::dataTable($this->inertiaRequest(['group' => 'category', 'show' => 1, 'page' => 2]));
+        $this->assertGroupCounts(['vegetable' => 2], $this->levelZeroCounts());
     }
 
     public function test_group_counts_null_value_group_keyed_as_string_null(): void {
@@ -307,7 +374,7 @@ class DataTableScopeGroupingTest extends TestCase {
 
         DtgRecord::dataTable($this->inertiaRequest(['group' => 'category']));
 
-        $groupCounts = Inertia::getShared('groupCounts');
+        $groupCounts = $this->levelZeroCounts();
         $this->assertArrayHasKey(
             'null',
             $groupCounts,
@@ -334,7 +401,7 @@ class DataTableScopeGroupingTest extends TestCase {
 
         $this->assertGroupCounts(
             ['true' => 2, 'false' => 1, 'null' => 1],
-            Inertia::getShared('groupCounts'),
+            $this->levelZeroCounts(),
         );
     }
 
@@ -346,7 +413,7 @@ class DataTableScopeGroupingTest extends TestCase {
         $queries = collect(DB::getQueryLog())->pluck('query')->implode(' | ');
         DB::disableQueryLog();
 
-        $this->assertNull(Inertia::getShared('groupCounts'), 'Kolom "name" tidak groupable -> null (Property 2).');
+        $this->assertNull(Inertia::getShared('groupMeta'), 'Kolom "name" tidak groupable -> null (Property 2).');
         $this->assertStringNotContainsStringIgnoringCase('group by', $queries);
     }
 
@@ -364,13 +431,17 @@ class DataTableScopeGroupingTest extends TestCase {
 
         $this->assertGroupCounts(
             [(string) $c1->id => 2, (string) $c2->id => 1, 'null' => 1],
-            Inertia::getShared('groupCounts'),
+            $this->levelZeroCounts(),
             'GROUP BY pakai kolom FK riil (customer_id), di-key sbg string id (match row.customer.id di FE).',
         );
-        // Row penuh (bukan cuma FK id) tetap ter-eager-load -- FE butuh object
-        // relasi utuh utk convertTemplateLink() label grup + ekstrak primaryKey.
-        $items = Inertia::getShared('data')->items();
-        $this->assertTrue($items[0]->relationLoaded('customer'));
+        // Label grup relasi = objek relasi UTUH (dari baris sampel MIN(pk) lewat
+        // pipeline with() macro) -- FE butuh utk convertTemplateLink().
+        $labels = collect(Inertia::getShared('data')->items())
+            ->keyBy('key')
+            ->map(fn ($group) => $group['label']['name'] ?? null)
+            ->all();
+        // Urutan `key ASC`: grup NULL tampil lebih dulu (SQLite & MySQL konsisten).
+        $this->assertSame(['null' => null, (string) $c1->id => 'Acme', (string) $c2->id => 'Globex'], $labels);
     }
 
     // ---------------------------------------------------------------------
@@ -388,39 +459,33 @@ class DataTableScopeGroupingTest extends TestCase {
     // butuh cookie yg EKSPLISIT TIDAK menyertakan kolom grup utk mereproduksi.
     // ---------------------------------------------------------------------
 
-    public function test_group_scalar_column_value_present_even_when_excluded_from_visible_columns_cookie(): void {
+    public function test_group_level_zero_does_not_depend_on_visible_columns_cookie_for_scalar_column(): void {
         DtgRecord::create(['name' => 'A', 'category' => 'fruit']);
+        DtgRecord::create(['name' => 'B', 'category' => 'fruit']);
 
         // Cookie HANYA menampilkan "name" -- "category" (kolom grup) sengaja
-        // tidak disertakan, simulasi account_type yg bukan kolom tampil sendiri.
+        // tidak disertakan. Nilai grup datang dari GROUP BY, bukan dari atribut
+        // baris, jadi tak terpengaruh kolom visible (beda dgn mekanisme lama
+        // yg butuh kolom grup ikut ter-SELECT).
         $cookie = $this->dtCookie(['name' => ['order' => 0]]);
 
-        $result = DtgRecord::dataTable($this->ajax(['group' => 'category'], $cookie));
-        $row    = $result['data']->items()[0];
+        DtgRecord::dataTable(Request::create('/dtg-records', 'GET', ['group' => 'category'], $cookie));
 
-        $this->assertArrayHasKey(
-            'category',
-            $row->getAttributes(),
-            'Kolom grup harus tetap ter-SELECT walau tak ada di cookie kolom visible.',
-        );
-        $this->assertSame('fruit', $row->category);
+        $this->assertGroupCounts(['fruit' => 2], $this->levelZeroCounts());
     }
 
-    public function test_group_relation_column_eager_loaded_even_when_excluded_from_visible_columns_cookie(): void {
+    public function test_group_relation_label_loaded_even_when_excluded_from_visible_columns_cookie(): void {
         $c1 = DtgCustomerStub::create(['name' => 'Acme']);
         DtgRecord::create(['name' => 'A', 'customer_id' => $c1->id]);
 
-        // Cookie HANYA "name" -- "customer" (kolom grup relasi) sengaja
-        // tidak disertakan.
+        // Cookie HANYA "name" -- "customer" (kolom grup relasi) sengaja tidak
+        // disertakan. Relasi tetap harus ter-eager-load utk baris sampel: tanpa
+        // itu label grup di FE kosong.
         $cookie = $this->dtCookie(['name' => ['order' => 0]]);
 
-        $result = DtgRecord::dataTable($this->ajax(['group' => 'customer'], $cookie));
-        $row    = $result['data']->items()[0];
+        DtgRecord::dataTable(Request::create('/dtg-records', 'GET', ['group' => 'customer'], $cookie));
 
-        $this->assertTrue(
-            $row->relationLoaded('customer'),
-            'Relasi kolom grup harus tetap ter-eager-load walau tak ada di cookie kolom visible.',
-        );
+        $this->assertSame('Acme', Inertia::getShared('data')->items()[0]['label']['name'] ?? null);
     }
 
     public function test_group_relation_has_one_rejected_fk_not_on_this_table(): void {
@@ -435,7 +500,7 @@ class DataTableScopeGroupingTest extends TestCase {
         DtgRecord::dataTable($this->inertiaRequest(['group' => 'primary_contact']));
 
         $this->assertNull(
-            Inertia::getShared('groupCounts'),
+            Inertia::getShared('groupMeta'),
             'Relasi HasOne ditolak walau type-nya "relation" & groupable:true di config.',
         );
     }
@@ -448,7 +513,7 @@ class DataTableScopeGroupingTest extends TestCase {
         DtgRecord::dataTable($this->inertiaRequest(['group' => 'tags']));
 
         $this->assertNull(
-            Inertia::getShared('groupCounts'),
+            Inertia::getShared('groupMeta'),
             'Type "json" (render blank di Cell.jsx) ditolak walau groupable:true di config.',
         );
     }
@@ -464,7 +529,7 @@ class DataTableScopeGroupingTest extends TestCase {
         DtgRecord::dataTable($this->inertiaRequest(['group' => 'notes']));
 
         $this->assertNull(
-            Inertia::getShared('groupCounts'),
+            Inertia::getShared('groupMeta'),
             'Type "html" ditolak walau groupable:true di config.',
         );
     }
@@ -483,7 +548,7 @@ class DataTableScopeGroupingTest extends TestCase {
 
         $this->assertGroupCounts(
             ['draft' => 2, 'approved' => 1, 'null' => 1],
-            Inertia::getShared('groupCounts'),
+            $this->levelZeroCounts(),
         );
     }
 
@@ -497,7 +562,7 @@ class DataTableScopeGroupingTest extends TestCase {
 
         $this->assertGroupCounts(
             ['new' => 2, 'won' => 1],
-            Inertia::getShared('groupCounts'),
+            $this->levelZeroCounts(),
         );
     }
 
@@ -510,7 +575,7 @@ class DataTableScopeGroupingTest extends TestCase {
         DtgDerivedRecord::dataTable($this->inertiaRequest(['group' => 'name_upper']));
 
         $this->assertNull(
-            Inertia::getShared('groupCounts'),
+            Inertia::getShared('groupMeta'),
             'Kolom turunan (dependsOn) tak boleh jadi kolom grup walau groupable:true.',
         );
         $this->assertFalse(
@@ -528,7 +593,7 @@ class DataTableScopeGroupingTest extends TestCase {
 
         DtgPhysicalWithDependsOnRecord::dataTable($this->inertiaRequest(['group' => 'category']));
 
-        $this->assertGroupCounts(['x' => 2, 'y' => 1], Inertia::getShared('groupCounts'));
+        $this->assertGroupCounts(['x' => 2, 'y' => 1], $this->levelZeroCounts());
     }
 
     public function test_group_morph_to_relation_rejected_even_if_misconfigured_groupable(): void {
@@ -540,7 +605,7 @@ class DataTableScopeGroupingTest extends TestCase {
         DtgMorphRecord::dataTable($this->inertiaRequest(['group' => 'owner']));
 
         $this->assertNull(
-            Inertia::getShared('groupCounts'),
+            Inertia::getShared('groupMeta'),
             'MorphTo tak boleh jadi kolom grup walau groupable:true di config.',
         );
         $this->assertFalse(
@@ -571,7 +636,7 @@ class DataTableScopeGroupingTest extends TestCase {
 
         $this->assertGroupCounts(
             ['["draft"]' => 2, '["approved","pending"]' => 1, 'null' => 1],
-            Inertia::getShared('groupCounts'),
+            $this->levelZeroCounts(),
         );
     }
 
@@ -593,7 +658,7 @@ class DataTableScopeGroupingTest extends TestCase {
 
         $this->assertGroupCounts(
             ['["approved","pending"]' => 2, '["draft"]' => 1],
-            Inertia::getShared('groupCounts'),
+            $this->levelZeroCounts(),
         );
     }
 
@@ -618,10 +683,9 @@ class DataTableScopeGroupingTest extends TestCase {
     // ganti mekanisme lama single-column-locked).
     // ---------------------------------------------------------------------
 
-    public function test_group_relation_sql_orders_by_foreign_key_even_without_explicit_sort_param(): void {
-        // Beda dari mekanisme lama (sort HARUS eksplisit dikunci ke kolom grup
-        // dari FE) -- sekarang grup SELALU jadi ORDER BY primer di backend,
-        // independen dari `?sort=` yg dikirim (atau tidak dikirim sama sekali).
+    public function test_group_list_is_ordered_by_key_asc_regardless_of_user_sort(): void {
+        // Urutan daftar grup SELALU `key ASC` (relasi: menurut nilai FK) --
+        // independen dari `?sort=` (sort user hanya utk baris di node daun).
         $c1 = DtgCustomerStub::create(['name' => 'Acme']);
         $c2 = DtgCustomerStub::create(['name' => 'Globex']);
         DtgRecord::create(['name' => 'A', 'customer_id' => $c2->id]);
@@ -629,27 +693,34 @@ class DataTableScopeGroupingTest extends TestCase {
         DtgRecord::create(['name' => 'C', 'customer_id' => $c2->id]);
         DtgRecord::create(['name' => 'D', 'customer_id' => $c1->id]);
 
-        // TANPA ?sort= sama sekali -- fallback sort (created_at desc) cuma jadi
-        // tie-breaker SEKUNDER, bukan mengacak urutan grup.
-        $result = DtgRecord::dataTable($this->ajax(['group' => 'customer']));
-        $ids    = collect($result['data']->items())->pluck('customer_id')->all();
+        foreach ([[], ['sort' => '-name'], ['sort' => 'name']] as $extra) {
+            DtgRecord::dataTable($this->inertiaRequest(['group' => 'customer', ...$extra]));
 
-        $this->assertSame([$c1->id, $c1->id, $c2->id, $c2->id], $ids);
+            $this->assertSame(
+                [(string) $c1->id, (string) $c2->id],
+                array_column(Inertia::getShared('data')->items(), 'key'),
+            );
+        }
     }
 
-    public function test_group_sort_secondary_tie_breaks_within_group(): void {
-        // Sort pilihan user ("name" asc) jadi tie-breaker DALAM tiap grup
-        // (category) -- grup primer tetap nempel bersebelahan, TAPI urutan
-        // baris di dalam grup ikut sort user, bukan default (created_at).
+    public function test_leaf_node_rows_follow_user_sort(): void {
+        // Sort pilihan user ("name" asc) = SATU-SATUNYA ORDER BY baris di node
+        // daun (tak ada lagi sort primer by kolom grup -- semua baris di node itu
+        // sudah satu grup penuh).
         DtgRecord::create(['name' => 'Zeta', 'category' => 'fruit']);
         DtgRecord::create(['name' => 'Alpha', 'category' => 'fruit']);
         DtgRecord::create(['name' => 'Yankee', 'category' => 'vegetable']);
         DtgRecord::create(['name' => 'Bravo', 'category' => 'vegetable']);
 
-        $result = DtgRecord::dataTable($this->ajax(['group' => 'category', 'sort' => 'name']));
-        $names  = collect($result['data']->items())->pluck('name')->all();
+        [$status, $payload] = $this->expand([
+            'group'     => 'category',
+            'groupPath' => json_encode(['fruit']),
+            'sort'      => 'name',
+        ]);
 
-        $this->assertSame(['Alpha', 'Zeta', 'Bravo', 'Yankee'], $names);
+        $this->assertSame(200, $status);
+        $this->assertSame('rows', $payload['type']);
+        $this->assertSame(['Alpha', 'Zeta'], array_column($payload['data'], 'name'));
     }
 
     // ---------------------------------------------------------------------
@@ -666,7 +737,7 @@ class DataTableScopeGroupingTest extends TestCase {
 
         $this->assertGroupCounts(
             ['2026-01' => 2, '2026-02' => 1],
-            Inertia::getShared('groupCounts'),
+            $this->levelZeroCounts(),
         );
     }
 
@@ -679,25 +750,25 @@ class DataTableScopeGroupingTest extends TestCase {
         DtgRecord::dataTable($this->inertiaRequest(['group' => 'due_date', 'groupGranularity' => 'day']));
         $this->assertGroupCounts(
             ['2026-01-15' => 1, '2026-04-20' => 1, '2026-07-05' => 1, '2026-12-31' => 1],
-            Inertia::getShared('groupCounts'),
+            $this->levelZeroCounts(),
         );
 
         DtgRecord::dataTable($this->inertiaRequest(['group' => 'due_date', 'groupGranularity' => 'quarter']));
         $this->assertGroupCounts(
             ['2026-Q1' => 1, '2026-Q2' => 1, '2026-Q3' => 1, '2026-Q4' => 1],
-            Inertia::getShared('groupCounts'),
+            $this->levelZeroCounts(),
         );
 
         DtgRecord::dataTable($this->inertiaRequest(['group' => 'due_date', 'groupGranularity' => 'half']));
         $this->assertGroupCounts(
             ['2026-H1' => 2, '2026-H2' => 2],
-            Inertia::getShared('groupCounts'),
+            $this->levelZeroCounts(),
         );
 
         DtgRecord::dataTable($this->inertiaRequest(['group' => 'due_date', 'groupGranularity' => 'year']));
         $this->assertGroupCounts(
             ['2026' => 4],
-            Inertia::getShared('groupCounts'),
+            $this->levelZeroCounts(),
         );
     }
 
@@ -706,23 +777,22 @@ class DataTableScopeGroupingTest extends TestCase {
 
         DtgRecord::dataTable($this->inertiaRequest(['group' => 'due_date', 'groupGranularity' => 'decade']));
 
-        $this->assertGroupCounts(['2026-01' => 1], Inertia::getShared('groupCounts'));
+        $this->assertGroupCounts(['2026-01' => 1], $this->levelZeroCounts());
     }
 
-    public function test_group_date_bucket_rows_stay_contiguous_in_paginated_result(): void {
-        // Baris SEBENARNYA punya due_date berbeda dalam bulan yg sama --
-        // ORDER BY primer harus pakai ekspresi bucket YANG SAMA (bukan raw
-        // due_date), kalau tidak baris "sebulan" bisa tersebar/tak nempel.
+    public function test_group_date_bucket_list_is_ordered_chronologically_by_bucket_key(): void {
+        // Baris SEBENARNYA punya due_date berbeda dalam bulan yg sama -- daftar
+        // grup dibentuk dari ekspresi bucket & diurut by key bucket (string yg
+        // urut leksikografis = urut kronologis).
         DtgRecord::create(['name' => 'A', 'due_date' => '2026-02-01']);
         DtgRecord::create(['name' => 'B', 'due_date' => '2026-01-28']);
         DtgRecord::create(['name' => 'C', 'due_date' => '2026-01-01']);
 
-        $result = DtgRecord::dataTable($this->ajax(['group' => 'due_date']));
-        $months = collect($result['data']->items())
-            ->map(fn ($r) => substr($r->due_date, 0, 7))
-            ->all();
+        DtgRecord::dataTable($this->inertiaRequest(['group' => 'due_date']));
 
-        $this->assertSame(['2026-01', '2026-01', '2026-02'], $months);
+        $items = Inertia::getShared('data')->items();
+        $this->assertSame(['2026-01', '2026-02'], array_column($items, 'key'));
+        $this->assertSame([2, 1], array_column($items, 'count'));
     }
 
     public function test_group_number_default_range_uses_first_configured_option(): void {
@@ -735,7 +805,7 @@ class DataTableScopeGroupingTest extends TestCase {
         DtgRecord::dataTable($this->inertiaRequest(['group' => 'amount']));
 
         // floor(5/10)*10=0, floor(12/10)*10=10, floor(19/10)*10=10.
-        $this->assertGroupCounts(['0' => 1, '10' => 2], Inertia::getShared('groupCounts'));
+        $this->assertGroupCounts(['0' => 1, '10' => 2], $this->levelZeroCounts());
     }
 
     public function test_group_number_explicit_range(): void {
@@ -746,7 +816,7 @@ class DataTableScopeGroupingTest extends TestCase {
         DtgRecord::dataTable($this->inertiaRequest(['group' => 'amount', 'groupRange' => 100]));
 
         // floor(150/100)*100=100, floor(180/100)*100=100, floor(250/100)*100=200.
-        $this->assertGroupCounts(['100' => 2, '200' => 1], Inertia::getShared('groupCounts'));
+        $this->assertGroupCounts(['100' => 2, '200' => 1], $this->levelZeroCounts());
     }
 
     public function test_group_number_invalid_range_falls_back_to_default(): void {
@@ -757,7 +827,7 @@ class DataTableScopeGroupingTest extends TestCase {
             // Fallback ke opsi pertama (10): floor(5/10)*10=0.
             $this->assertGroupCounts(
                 ['0' => 1],
-                Inertia::getShared('groupCounts'),
+                $this->levelZeroCounts(),
                 "groupRange=$badRange harus fallback ke default, bukan dipakai mentah.",
             );
         }
@@ -799,12 +869,12 @@ class DataTableScopeGroupingTest extends TestCase {
 
         DtgDefaultGroupRecord::dataTable($this->inertiaRequest());
 
-        $this->assertGroupCounts(['fruit' => 2, 'vegetable' => 2], Inertia::getShared('groupCounts'));
-        $this->assertSame('category', Inertia::getShared('defaultGroup'));
+        $this->assertGroupCounts(['fruit' => 2, 'vegetable' => 2], $this->levelZeroCounts());
+        $this->assertSame(['category'], array_column(Inertia::getShared('defaultGroups'), 'column'));
         $this->assertSame(
-            ['fruit', 'fruit', 'vegetable', 'vegetable'],
-            collect(Inertia::getShared('data')->items())->pluck('category')->all(),
-            'Baris se-grup harus bersebelahan (sort primer by kolom default group).',
+            ['fruit', 'vegetable'],
+            array_column(Inertia::getShared('data')->items(), 'key'),
+            'Level-0 berisi daftar grup (bukan baris) berurut key ASC.',
         );
     }
 
@@ -836,10 +906,10 @@ class DataTableScopeGroupingTest extends TestCase {
         // `?group=` (ada tapi kosong) = user sengaja memilih "Tidak ada".
         DtgDefaultGroupRecord::dataTable($this->inertiaRequest(['group' => '']));
 
-        $this->assertNull(Inertia::getShared('groupCounts'));
+        $this->assertNull(Inertia::getShared('groupMeta'));
         // Default tetap dibagikan supaya FE tahu harus kirim `group=` kosong
         // (bukan menghilangkan param) saat user memilih "Tidak ada".
-        $this->assertSame('category', Inertia::getShared('defaultGroup'));
+        $this->assertSame(['category'], array_column(Inertia::getShared('defaultGroups'), 'column'));
     }
 
     public function test_explicit_group_param_overrides_default_group(): void {
@@ -848,7 +918,7 @@ class DataTableScopeGroupingTest extends TestCase {
 
         DtgDefaultGroupRecord::dataTable($this->inertiaRequest(['group' => 'is_active']));
 
-        $this->assertGroupCounts(['true' => 1, 'false' => 1], Inertia::getShared('groupCounts'));
+        $this->assertGroupCounts(['true' => 1, 'false' => 1], $this->levelZeroCounts());
     }
 
     public function test_default_group_on_non_groupable_column_is_ignored(): void {
@@ -856,8 +926,8 @@ class DataTableScopeGroupingTest extends TestCase {
 
         DtgBadDefaultGroupRecord::dataTable($this->inertiaRequest());
 
-        $this->assertNull(Inertia::getShared('groupCounts'));
-        $this->assertNull(Inertia::getShared('defaultGroup'));
+        $this->assertNull(Inertia::getShared('groupMeta'));
+        $this->assertSame([], Inertia::getShared('defaultGroups'));
     }
 
     public function test_model_without_default_group_is_not_grouped_and_shares_null_default(): void {
@@ -865,8 +935,8 @@ class DataTableScopeGroupingTest extends TestCase {
 
         DtgRecord::dataTable($this->inertiaRequest());
 
-        $this->assertNull(Inertia::getShared('groupCounts'));
-        $this->assertNull(Inertia::getShared('defaultGroup'));
+        $this->assertNull(Inertia::getShared('groupMeta'));
+        $this->assertSame([], Inertia::getShared('defaultGroups'));
     }
 
     public function test_group_counts_respect_active_filter(): void {
@@ -891,10 +961,11 @@ class DataTableScopeGroupingTest extends TestCase {
 
         $this->assertGroupCounts(
             ['fruit' => 1, 'vegetable' => 2],
-            Inertia::getShared('groupCounts'),
+            $this->levelZeroCounts(),
             'groupCounts dihitung dari row-set yang SAMA dengan data.data -- ikut filter aktif (Property 3).',
         );
-        $this->assertSame(3, Inertia::getShared('data')->count());
+        $this->assertSame(3, array_sum($this->levelZeroCounts()), 'Total baris = jumlah count semua grup.');
+        $this->assertSame(2, Inertia::getShared('data')->total());
     }
 
     public function test_no_group_param_runs_zero_group_by_queries(): void {
@@ -910,7 +981,7 @@ class DataTableScopeGroupingTest extends TestCase {
             $queries,
             'Tanpa ?group=, tidak ada query GROUP BY tambahan sama sekali (Property 4, zero overhead).',
         );
-        $this->assertNull(Inertia::getShared('groupCounts'));
+        $this->assertNull(Inertia::getShared('groupMeta'));
     }
 
     // ---------------------------------------------------------------------
@@ -934,8 +1005,8 @@ class DataTableScopeGroupingTest extends TestCase {
 
         DtgRecord::dataTable($this->inertiaRequest(['fid' => $saved->id]));
 
-        $this->assertGroupCounts(['fruit' => 2, 'vegetable' => 1], Inertia::getShared('groupCounts'));
-        $this->assertSame('category', Inertia::getShared('defaultGroup'));
+        $this->assertGroupCounts(['fruit' => 2, 'vegetable' => 1], $this->levelZeroCounts());
+        $this->assertSame(['category'], array_column(Inertia::getShared('defaultGroups'), 'column'));
     }
 
     /**
@@ -984,8 +1055,8 @@ class DataTableScopeGroupingTest extends TestCase {
 
         DtgRecord::dataTable($this->inertiaRequest());
 
-        $this->assertGroupCounts(['fruit' => 1, 'vegetable' => 1], Inertia::getShared('groupCounts'));
-        $this->assertSame('category', Inertia::getShared('defaultGroup'));
+        $this->assertGroupCounts(['fruit' => 1, 'vegetable' => 1], $this->levelZeroCounts());
+        $this->assertSame(['category'], array_column(Inertia::getShared('defaultGroups'), 'column'));
     }
 
     public function test_explicit_empty_group_param_overrides_filter_group(): void {
@@ -1000,11 +1071,11 @@ class DataTableScopeGroupingTest extends TestCase {
 
         DtgRecord::dataTable($this->inertiaRequest(['fid' => $saved->id, 'group' => '']));
 
-        $this->assertNull(Inertia::getShared('groupCounts'), '?group= kosong eksplisit menang atas group filter aktif.');
+        $this->assertNull(Inertia::getShared('groupMeta'), '?group= kosong eksplisit menang atas group filter aktif.');
         // defaultGroup* tetap mencerminkan group EFEKTIF TANPA PARAM (filter
         // aktif), agar FE tahu apa yg akan diterapkan lagi kalau user hapus
         // override "Tidak ada"-nya (Requirement 12.6).
-        $this->assertSame('category', Inertia::getShared('defaultGroup'));
+        $this->assertSame(['category'], array_column(Inertia::getShared('defaultGroups'), 'column'));
     }
 
     public function test_group_from_filter_not_groupable_is_ignored(): void {
@@ -1020,10 +1091,10 @@ class DataTableScopeGroupingTest extends TestCase {
         DtgRecord::dataTable($this->inertiaRequest(['fid' => $saved->id]));
 
         $this->assertNull(
-            Inertia::getShared('groupCounts'),
+            Inertia::getShared('groupMeta'),
             'Kolom grup dari filter aktif tak lolos gate groupable -> diabaikan diam-diam (Requirement 12.4).',
         );
-        $this->assertNull(Inertia::getShared('defaultGroup'));
+        $this->assertSame([], Inertia::getShared('defaultGroups'));
     }
 
     public function test_group_granularity_fallback_from_filter(): void {
@@ -1039,9 +1110,9 @@ class DataTableScopeGroupingTest extends TestCase {
 
         DtgRecord::dataTable($this->inertiaRequest(['fid' => $saved->id]));
 
-        $this->assertGroupCounts(['2026-Q1' => 1, '2026-Q2' => 1], Inertia::getShared('groupCounts'));
-        $this->assertSame('due_date', Inertia::getShared('defaultGroup'));
-        $this->assertSame('quarter', Inertia::getShared('defaultGroupGranularity'));
+        $this->assertGroupCounts(['2026-Q1' => 1, '2026-Q2' => 1], $this->levelZeroCounts());
+        $this->assertSame(['due_date'], array_column(Inertia::getShared('defaultGroups'), 'column'));
+        $this->assertSame('quarter', Inertia::getShared('defaultGroups')[0]['granularity']);
     }
 
     public function test_group_range_fallback_from_filter(): void {
@@ -1058,8 +1129,8 @@ class DataTableScopeGroupingTest extends TestCase {
         DtgRecord::dataTable($this->inertiaRequest(['fid' => $saved->id]));
 
         // floor(150/100)*100=100, floor(250/100)*100=200.
-        $this->assertGroupCounts(['100' => 1, '200' => 1], Inertia::getShared('groupCounts'));
-        $this->assertSame(100, Inertia::getShared('defaultGroupRange'));
+        $this->assertGroupCounts(['100' => 1, '200' => 1], $this->levelZeroCounts());
+        $this->assertSame(100, Inertia::getShared('defaultGroups')[0]['range']);
     }
 
     public function test_explicit_granularity_param_overrides_filter_granularity(): void {
@@ -1077,6 +1148,897 @@ class DataTableScopeGroupingTest extends TestCase {
         // (Requirement 12.3).
         DtgRecord::dataTable($this->inertiaRequest(['fid' => $saved->id, 'groupGranularity' => 'half']));
 
-        $this->assertGroupCounts(['2026-H1' => 1, '2026-H2' => 1], Inertia::getShared('groupCounts'));
+        $this->assertGroupCounts(['2026-H1' => 1, '2026-H2' => 1], $this->levelZeroCounts());
+    }
+
+    // ---------------------------------------------------------------------
+    // GroupLevelResolver multi-level (spec datatable2-group-tree, Requirement 4)
+    // ---------------------------------------------------------------------
+
+    /**
+     * Panggil resolver langsung dgn stub model -- macro belum mengekspos
+     * multi-level lewat prop share sebelum node query (task 3.4+).
+     *
+     * @param  array<mixed>  $applied  Groups milik filter aktif
+     * @param  array<mixed>  $defaults  Groups default model
+     * @return list<ResolvedGroupLevel>
+     */
+    private function resolveLevels(array $query = [], array $applied = [], array $defaults = []): array {
+        $record  = new DtgRecord;
+        $columns = GroupColumnGate::sanitizeColumns(DtgRecord::getColumns(1), $record);
+
+        return GroupLevelResolver::resolve(
+            $this->inertiaRequest($query),
+            $applied,
+            $defaults,
+            $columns,
+            $record,
+            $record->getTable(),
+        );
+    }
+
+    /**
+     * @param  list<ResolvedGroupLevel>  $levels
+     * @return list<string>
+     */
+    private function columnsOf(array $levels): array {
+        return array_map(fn (ResolvedGroupLevel $l) => $l->column, $levels);
+    }
+
+    public function test_resolver_reads_multi_level_group_in_url_order(): void {
+        $levels = $this->resolveLevels(['group' => 'category,due_date,amount']);
+
+        $this->assertSame(['category', 'due_date', 'amount'], $this->columnsOf($levels));
+        // Nilai EFEKTIF: date default 'month', number default = opsi pertama config (10).
+        $this->assertNull($levels[0]->granularity);
+        $this->assertSame('month', $levels[1]->granularity);
+        $this->assertSame(10, $levels[2]->range);
+        $this->assertNull($levels[0]->bucket);
+        $this->assertNotNull($levels[1]->bucket, 'Level date butuh ekspresi bucket.');
+        $this->assertNotNull($levels[2]->bucket, 'Level number butuh ekspresi bucket.');
+    }
+
+    public function test_resolver_url_group_overrides_filter_and_model_default(): void {
+        $levels = $this->resolveLevels(
+            ['group' => 'is_active'],
+            applied: [['column' => 'category']],
+            defaults: [['column' => 'due_date']],
+        );
+
+        $this->assertSame(['is_active'], $this->columnsOf($levels));
+    }
+
+    public function test_resolver_empty_group_param_means_none_even_with_filter_and_default(): void {
+        $levels = $this->resolveLevels(
+            ['group' => ''],
+            applied: [['column' => 'category']],
+            defaults: [['column' => 'due_date']],
+        );
+
+        $this->assertSame([], $levels);
+    }
+
+    public function test_resolver_without_group_param_prefers_filter_group_over_model_default(): void {
+        $withFilter  = $this->resolveLevels([], applied: [['column' => 'category']], defaults: [['column' => 'due_date']]);
+        $onlyDefault = $this->resolveLevels([], applied: [], defaults: [['column' => 'due_date'], ['column' => 'category']]);
+
+        $this->assertSame(['category'], $this->columnsOf($withFilter));
+        $this->assertSame(['due_date', 'category'], $this->columnsOf($onlyDefault));
+    }
+
+    public function test_resolver_drops_non_groupable_levels_but_keeps_the_rest_in_order(): void {
+        // 'name' tidak groupable, 'tags' (json) & 'notes' (html) ditolak sanitizer,
+        // 'primary_contact' HasOne ditolak -- sisanya tetap berurutan.
+        $levels = $this->resolveLevels(['group' => 'name,category,tags,due_date,notes,primary_contact,unknown_col']);
+
+        $this->assertSame(['category', 'due_date'], $this->columnsOf($levels));
+    }
+
+    public function test_resolver_truncates_to_four_levels_after_gating(): void {
+        // 1 tak-groupable + 5 groupable: gate dulu (buang 'name'), baru potong ke 4.
+        $levels = $this->resolveLevels(['group' => 'name,category,customer,due_date,amount,is_active']);
+
+        $this->assertSame(['category', 'customer', 'due_date', 'amount'], $this->columnsOf($levels));
+    }
+
+    public function test_resolver_dedupes_repeated_column_keeping_the_first(): void {
+        $levels = $this->resolveLevels(['group' => 'category,due_date,category']);
+
+        $this->assertSame(['category', 'due_date'], $this->columnsOf($levels));
+    }
+
+    public function test_resolver_reads_granularity_and_range_per_column(): void {
+        $levels = $this->resolveLevels([
+            'group'            => 'due_date,amount',
+            'groupGranularity' => ['due_date' => 'quarter'],
+            'groupRange'       => ['amount' => '100'],
+        ]);
+
+        $this->assertSame('quarter', $levels[0]->granularity);
+        $this->assertSame(100, $levels[1]->range);
+    }
+
+    public function test_resolver_maps_legacy_scalar_granularity_and_range_to_first_level_only(): void {
+        $date = $this->resolveLevels(['group' => 'due_date,category', 'groupGranularity' => 'year']);
+        $num  = $this->resolveLevels(['group' => 'amount,category', 'groupRange' => '100']);
+
+        $this->assertSame('year', $date[0]->granularity);
+        $this->assertNull($date[1]->granularity);
+        $this->assertSame(100, $num[0]->range);
+        $this->assertNull($num[1]->range);
+    }
+
+    public function test_resolver_falls_back_to_effective_defaults_for_invalid_granularity_and_range(): void {
+        $levels = $this->resolveLevels([
+            'group'            => 'due_date,amount',
+            'groupGranularity' => ['due_date' => 'decade'],
+            'groupRange'       => ['amount' => '-50'],
+        ]);
+
+        $this->assertSame('month', $levels[0]->granularity);
+        $this->assertSame(10, $levels[1]->range, 'Range invalid -> opsi pertama groupRangeOptions ([10, 100]).');
+    }
+
+    public function test_resolver_inherits_granularity_from_fallback_level_of_the_same_column_only(): void {
+        $applied = [['column' => 'due_date', 'granularity' => 'year']];
+
+        $sameColumn = $this->resolveLevels(['group' => 'category,due_date'], applied: $applied);
+        $otherOnly  = $this->resolveLevels(['group' => 'amount'], applied: [['column' => 'amount', 'range' => 100], ['column' => 'due_date', 'granularity' => 'year']]);
+        $differing  = $this->resolveLevels(['group' => 'amount'], applied: $applied);
+
+        $this->assertSame('year', $sameColumn[1]->granularity, 'Kolom SAMA mewarisi granularity level filter.');
+        $this->assertSame(100, $otherOnly[0]->range);
+        $this->assertSame(10, $differing[0]->range, '?group=<kolom lain> tak boleh mewarisi setelan kolom default.');
+    }
+
+    public function test_resolver_group_options_without_group_param_override_fallback_levels(): void {
+        $levels = $this->resolveLevels(
+            ['groupGranularity' => 'half'],
+            applied: [['column' => 'due_date', 'granularity' => 'quarter'], ['column' => 'category']],
+        );
+
+        $this->assertSame(['due_date', 'category'], $this->columnsOf($levels));
+        $this->assertSame('half', $levels[0]->granularity, '?groupGranularity= eksplisit menang atas granularity filter.');
+    }
+
+    public function test_resolver_resolves_relation_level_to_foreign_key_column(): void {
+        $levels = $this->resolveLevels(['group' => 'customer']);
+
+        $this->assertTrue($levels[0]->isRelation());
+        $this->assertSame('customer', $levels[0]->column);
+        $this->assertSame('customer_id', $levels[0]->sqlColumn);
+        $this->assertSame('dtg_records.customer_id', $levels[0]->qualified);
+    }
+
+    public function test_resolve_defaults_shares_effective_multi_level_group_without_param(): void {
+        DtgMultiDefaultGroupRecord::create(['name' => 'A']);
+
+        DtgMultiDefaultGroupRecord::dataTable($this->inertiaRequest());
+
+        // 'name' (tidak groupable) dibuang; level lain tetap berurutan dgn nilai EFEKTIF.
+        $this->assertSame(
+            [
+                ['column' => 'category', 'granularity' => null, 'range' => null],
+                ['column' => 'due_date', 'granularity' => 'year', 'range' => null],
+            ],
+            Inertia::getShared('defaultGroups'),
+        );
+    }
+
+    public function test_resolve_defaults_ignores_explicit_group_param(): void {
+        DtgMultiDefaultGroupRecord::create(['name' => 'A']);
+
+        // `?group=` eksplisit mengubah grup AKTIF, tapi `defaultGroups` tetap
+        // "efektif tanpa param" (agar FE tahu apa yg kembali bila override dicabut).
+        DtgMultiDefaultGroupRecord::dataTable($this->inertiaRequest(['group' => 'is_active']));
+
+        $this->assertSame(['category', 'due_date'], array_column(Inertia::getShared('defaultGroups'), 'column'));
+    }
+
+    // ---------------------------------------------------------------------
+    // Node grup: nested, predikat path per tipe, total, paging (spec
+    // datatable2-group-tree, Requirement 5-6, 8; Property 1, 2, 7)
+    // ---------------------------------------------------------------------
+
+    /**
+     * 6 baris: fruit(3) / vegetable(2) / tanpa kategori(1), campur boolean,
+     * tanggal & angka -- cukup utk nested 3 level.
+     */
+    private function seedNestedRecords(): void {
+        DtgRecord::create(['name' => 'F1', 'category' => 'fruit', 'is_active' => true, 'due_date' => '2026-01-10', 'amount' => 5]);
+        DtgRecord::create(['name' => 'F2', 'category' => 'fruit', 'is_active' => true, 'due_date' => '2026-01-20', 'amount' => 15]);
+        DtgRecord::create(['name' => 'F3', 'category' => 'fruit', 'is_active' => false, 'due_date' => '2026-02-01', 'amount' => 12]);
+        DtgRecord::create(['name' => 'V1', 'category' => 'vegetable', 'is_active' => true, 'due_date' => '2026-01-05', 'amount' => 25]);
+        DtgRecord::create(['name' => 'V2', 'category' => 'vegetable', 'due_date' => '2026-03-01']);
+        DtgRecord::create(['name' => 'N1', 'is_active' => false, 'amount' => 5]);
+    }
+
+    /** @return array<string, int> key => count */
+    private function countsOf(array $payload): array {
+        return collect($payload['data'])->pluck('count', 'key')->all();
+    }
+
+    public function test_nested_expand_returns_child_groups_under_parent_path(): void {
+        $this->seedNestedRecords();
+
+        [$status, $payload] = $this->expand(['group' => 'category,is_active', 'groupPath' => json_encode(['fruit'])]);
+
+        $this->assertSame(200, $status);
+        $this->assertSame('groups', $payload['type']);
+        // Boolean: key 'true'/'false' (bukan 0/1 mentah), urut key ASC (false=0 dulu).
+        $this->assertSame(['false', 'true'], array_column($payload['data'], 'key'));
+        $this->assertSame(['false' => 1, 'true' => 2], $this->countsOf($payload));
+        // raw = nilai SQL MENTAH yg dikirim balik FE sbg elemen groupPath (di-bind).
+        $this->assertEquals([0, 1], array_column($payload['data'], 'raw'));
+        $this->assertSame(1, $payload['current_page']);
+        $this->assertSame(1, $payload['last_page']);
+        $this->assertSame(2, $payload['total']);
+    }
+
+    public function test_children_counts_sum_to_parent_count_at_every_level(): void {
+        $this->seedNestedRecords();
+
+        $wire = ['group' => 'category,due_date,amount', 'groupRange' => ['amount' => 10]];
+
+        // Level-0 (Inertia) -> level-1 -> level-2 -> baris daun: tiap induk harus
+        // = jumlah anak-anaknya (Property 1), sampai baris riil di node daun.
+        DtgRecord::dataTable($this->inertiaRequest($wire));
+        $rowsSeen = 0;
+        foreach (Inertia::getShared('data')->items() as $l0) {
+            [, $level1] = $this->expand([...$wire, 'groupPath' => json_encode([$l0['raw']])]);
+            $this->assertSame($l0['count'], array_sum(array_column($level1['data'], 'count')), "count anak level-1 di bawah {$l0['key']}");
+
+            foreach ($level1['data'] as $l1) {
+                [, $level2] = $this->expand([...$wire, 'groupPath' => json_encode([$l0['raw'], $l1['raw']])]);
+                $this->assertSame($l1['count'], array_sum(array_column($level2['data'], 'count')));
+
+                foreach ($level2['data'] as $l2) {
+                    [, $leaf] = $this->expand([...$wire, 'groupPath' => json_encode([$l0['raw'], $l1['raw'], $l2['raw']])]);
+                    $this->assertSame('rows', $leaf['type']);
+                    $this->assertSame($l2['count'], $leaf['total']);
+                    $rowsSeen += $leaf['total'];
+                }
+            }
+        }
+
+        $this->assertSame(6, $rowsSeen, 'Setiap baris muncul di TEPAT satu node daun (Property 2).');
+    }
+
+    public function test_leaf_rows_match_path_for_every_column_type(): void {
+        $c1 = DtgCustomerStub::create(['name' => 'Acme']);
+        $c2 = DtgCustomerStub::create(['name' => 'Globex']);
+        DtgRecord::create(['name' => 'A', 'category' => 'fruit', 'customer_id' => $c1->id, 'is_active' => true, 'due_date' => '2026-01-10', 'amount' => 5]);
+        DtgRecord::create(['name' => 'B', 'category' => 'veg', 'customer_id' => $c2->id, 'is_active' => false, 'due_date' => '2026-02-10', 'amount' => 15]);
+        DtgRecord::create(['name' => 'C', 'category' => 'veg', 'customer_id' => $c2->id, 'is_active' => false, 'due_date' => '2026-02-20', 'amount' => 18]);
+
+        $names = fn (string $group, array $path, array $extra = []) => collect(
+            $this->expand(['group' => $group, 'groupPath' => json_encode($path), ...$extra])[1]['data'],
+        )->pluck('name')->sort()->values()->all();
+
+        $this->assertSame(['B', 'C'], $names('category', ['veg']), 'scalar');
+        $this->assertSame(['B', 'C'], $names('customer', [$c2->id]), 'relasi -> FK');
+        $this->assertSame(['A'], $names('is_active', [1]), 'boolean 1');
+        $this->assertSame(['A'], $names('is_active', [true]), 'boolean true');
+        $this->assertSame(['B', 'C'], $names('is_active', [0]), 'boolean 0');
+        $this->assertSame(['B', 'C'], $names('due_date', ['2026-02']), 'date bucket (month)');
+        $this->assertSame(['A', 'B', 'C'], $names('due_date', ['2026'], ['groupGranularity' => ['due_date' => 'year']]), 'date bucket (year)');
+        $this->assertSame(['B', 'C'], $names('amount', [10], ['groupRange' => ['amount' => 10]]), 'number bucket [10,20)');
+        $this->assertSame(['A'], $names('amount', [0], ['groupRange' => ['amount' => 10]]), 'number bucket [0,10)');
+    }
+
+    public function test_null_group_path_returns_rows_with_null_value(): void {
+        DtgRecord::create(['name' => 'Has', 'category' => 'fruit']);
+        DtgRecord::create(['name' => 'None1']);
+        DtgRecord::create(['name' => 'None2']);
+
+        [, $payload] = $this->expand(['group' => 'category', 'groupPath' => json_encode([null])]);
+
+        $this->assertSame(['None1', 'None2'], collect($payload['data'])->pluck('name')->sort()->values()->all());
+        $this->assertSame(2, $payload['total']);
+    }
+
+    public function test_number_bucket_path_supports_fractional_range_and_negative_values(): void {
+        DtgRecord::create(['name' => 'Low', 'amount' => 0.3]);
+        DtgRecord::create(['name' => 'Mid', 'amount' => 0.7]);
+        DtgRecord::create(['name' => 'High', 'amount' => 1.2]);
+        DtgRecord::create(['name' => 'Neg', 'amount' => -5]);
+
+        // Fractional: [0.5, 1.0) hanya 'Mid' -- predikat rentang aman utk float.
+        $frac = $this->expand(['group' => 'amount', 'groupRange' => ['amount' => 0.5], 'groupPath' => json_encode([0.5])])[1];
+        $this->assertSame(['Mid'], array_column($frac['data'], 'name'));
+
+        // Negatif: bucket -10 = [-10, 0) berisi 'Neg' saja (floor(-0.5) = -1).
+        $neg = $this->expand(['group' => 'amount', 'groupRange' => ['amount' => 10], 'groupPath' => json_encode([-10])])[1];
+        $this->assertSame(['Neg'], array_column($neg['data'], 'name'));
+    }
+
+    public function test_form_statuses_variants_merge_and_leaf_returns_rows_of_every_variant(): void {
+        DB::table('dtg_records')->insert([
+            ['name' => 'A', 'statuses' => '["approved", "pending"]'],
+            ['name' => 'B', 'statuses' => '["approved","pending"]'],
+            ['name' => 'C', 'statuses' => '["draft"]'],
+        ]);
+
+        DtgRecord::dataTable($this->inertiaRequest(['group' => 'statuses']));
+        $merged = collect(Inertia::getShared('data')->items())->firstWhere('key', '["approved","pending"]');
+
+        $this->assertSame(2, $merged['count']);
+        // raw = daftar SEMUA varian teks mentah yg menormalisasi ke key yang sama.
+        $this->assertCount(2, $merged['raw']);
+
+        [, $leaf] = $this->expand(['group' => 'statuses', 'groupPath' => json_encode([$merged['raw']])]);
+        $this->assertSame(['A', 'B'], collect($leaf['data'])->pluck('name')->sort()->values()->all());
+    }
+
+    public function test_relation_level_below_level_zero_returns_label_object(): void {
+        $c1 = DtgCustomerStub::create(['name' => 'Acme']);
+        DtgRecord::create(['name' => 'A', 'category' => 'fruit', 'customer_id' => $c1->id]);
+        DtgRecord::create(['name' => 'B', 'category' => 'fruit']);
+
+        [, $payload] = $this->expand(['group' => 'category,customer', 'groupPath' => json_encode(['fruit'])]);
+
+        $labels = collect($payload['data'])->keyBy('key')->map(fn ($g) => $g['label']['name'] ?? null)->all();
+        $this->assertSame(['null' => null, (string) $c1->id => 'Acme'], $labels);
+    }
+
+    public function test_group_meta_shares_effective_levels_and_types(): void {
+        DtgRecord::create(['name' => 'A', 'category' => 'fruit']);
+
+        DtgRecord::dataTable($this->inertiaRequest(['group' => 'category,due_date,amount']));
+        $meta = Inertia::getShared('groupMeta');
+
+        $this->assertSame(['category', 'due_date', 'amount'], array_column($meta['levels'], 'column'));
+        $this->assertSame([null, 'month', null], array_column($meta['levels'], 'granularity'));
+        $this->assertSame([null, null, 10], array_column($meta['levels'], 'range'));
+        $this->assertSame(['date', 'number'], [$meta['levels'][1]['type'], $meta['levels'][2]['type']]);
+        $this->assertSame([], $meta['aggregates']);
+    }
+
+    public function test_total_group_count_query_is_skipped_when_first_page_is_not_full(): void {
+        DtgRecord::create(['name' => 'A', 'category' => 'a']);
+        DtgRecord::create(['name' => 'B', 'category' => 'b']);
+
+        $countSubqueries = function (array $params): int {
+            DB::flushQueryLog();
+            DB::enableQueryLog();
+            DtgRecord::dataTable($this->inertiaRequest($params));
+            $queries = collect(DB::getQueryLog())->pluck('query');
+            DB::disableQueryLog();
+
+            return $queries->filter(fn ($q) => preg_match('/from \(select .*group_key/is', $q))->count();
+        };
+
+        // show=10, 2 grup -> halaman 1 tak penuh: total = jumlah hasil, TANPA query total.
+        $this->assertSame(0, $countSubqueries(['group' => 'category', 'show' => 10]));
+        // show=1, 2 grup -> halaman penuh: total dihitung lewat subquery.
+        $this->assertSame(1, $countSubqueries(['group' => 'category', 'show' => 1]));
+    }
+
+    public function test_show_limits_each_child_list_and_group_page_paginates_independently(): void {
+        $this->seedNestedRecords();
+        // fruit punya 2 anak (is_active true/false), vegetable 2 anak (true/null).
+        $base = ['group' => 'category,is_active', 'show' => 1];
+
+        [, $p1]    = $this->expand([...$base, 'groupPath' => json_encode(['fruit']), 'groupPage' => 1]);
+        [, $p2]    = $this->expand([...$base, 'groupPath' => json_encode(['fruit']), 'groupPage' => 2]);
+        [, $other] = $this->expand([...$base, 'groupPath' => json_encode(['vegetable']), 'groupPage' => 1]);
+
+        $this->assertCount(1, $p1['data'], '`show` membatasi list sub-grup.');
+        $this->assertSame(2, $p1['last_page']);
+        $this->assertSame(2, $p1['total']);
+        $this->assertSame(['false'], array_column($p1['data'], 'key'));
+        $this->assertSame(['true'], array_column($p2['data'], 'key'));
+        // Halaman node fruit tak mempengaruhi node vegetable (Property 7).
+        $this->assertSame(['null'], array_column($other['data'], 'key'));
+
+        // Leaf: paginate($show) per node juga.
+        [, $leaf] = $this->expand([...$base, 'groupPath' => json_encode(['fruit', 1]), 'groupPage' => 1]);
+        $this->assertSame('rows', $leaf['type']);
+        $this->assertSame(2, $leaf['total']);
+        $this->assertCount(1, $leaf['data']);
+        $this->assertSame(2, $leaf['last_page']);
+    }
+
+    // ---------------------------------------------------------------------
+    // Protokol expand, paritas constraint, keamanan (Requirement 7, 10;
+    // Property 3, 4, 5, 7)
+    // ---------------------------------------------------------------------
+
+    /**
+     * @return array<string, array{0: mixed}>
+     */
+    public static function invalidGroupPaths(): array {
+        return [
+            'bukan JSON'                   => ['ini-bukan-json'],
+            'objek, bukan list'            => ['{"a":1}'],
+            'lebih panjang dari level'     => [json_encode(['fruit', 'x'])],
+            'elemen array di level skalar' => [json_encode([['fruit']])],
+            'elemen objek di level skalar' => [json_encode([['a' => 1]])],
+        ];
+    }
+
+    #[DataProvider('invalidGroupPaths')]
+    public function test_expand_with_invalid_group_path_returns_422_not_500(string $groupPath): void {
+        DtgRecord::create(['name' => 'A', 'category' => 'fruit']);
+
+        [$status, $payload] = $this->expand(['group' => 'category', 'groupPath' => $groupPath]);
+
+        $this->assertSame(422, $status);
+        $this->assertArrayHasKey('groupPath', $payload['errors']);
+    }
+
+    public function test_expand_rejects_non_numeric_value_on_number_bucket_and_non_list_on_form_statuses(): void {
+        DtgRecord::create(['name' => 'A', 'amount' => 5]);
+
+        $this->assertSame(422, $this->expand(['group' => 'amount', 'groupPath' => json_encode(['abc'])])[0]);
+        $this->assertSame(422, $this->expand(['group' => 'statuses', 'groupPath' => json_encode(['["draft"]'])])[0]);
+        $this->assertSame(422, $this->expand(['group' => 'statuses', 'groupPath' => json_encode([[1]])])[0]);
+        // Tetap sah: numerik (string/angka) & null.
+        $this->assertSame(200, $this->expand(['group' => 'amount', 'groupPath' => json_encode(['10'])])[0]);
+        $this->assertSame(200, $this->expand(['group' => 'amount', 'groupPath' => json_encode([null])])[0]);
+    }
+
+    public function test_expand_without_valid_group_levels_returns_422(): void {
+        DtgDefaultGroupRecord::create(['name' => 'A', 'category' => 'fruit']);
+
+        // `name` tidak groupable & XHR tidak memakai default model -> tak ada level.
+        $this->assertSame(422, $this->expand(['group' => 'name', 'groupPath' => '[]'], model: DtgDefaultGroupRecord::class)[0]);
+        $this->assertSame(422, $this->expand(['groupPath' => '[]'], model: DtgDefaultGroupRecord::class)[0]);
+    }
+
+    public function test_expand_with_empty_path_returns_level_zero_groups_as_json(): void {
+        DtgRecord::create(['name' => 'A', 'category' => 'fruit']);
+
+        [$status, $payload] = $this->expand(['group' => 'category', 'groupPath' => '[]']);
+
+        $this->assertSame(200, $status);
+        $this->assertSame('groups', $payload['type']);
+        $this->assertSame(['fruit'], array_column($payload['data'], 'key'));
+    }
+
+    public function test_group_page_invalid_is_treated_as_first_page_and_out_of_range_returns_empty_data(): void {
+        DtgRecord::create(['name' => 'A', 'category' => 'a']);
+        DtgRecord::create(['name' => 'B', 'category' => 'b']);
+        $base = ['group' => 'category', 'groupPath' => '[]', 'show' => 1];
+
+        foreach (['abc', '0', '-3'] as $bad) {
+            $payload = $this->expand([...$base, 'groupPage' => $bad])[1];
+            $this->assertSame(1, $payload['current_page'], "groupPage=$bad -> halaman 1");
+        }
+
+        $far = $this->expand([...$base, 'groupPage' => 99])[1];
+        $this->assertSame([], $far['data']);
+        $this->assertSame(2, $far['total'], 'total tetap benar walau halaman di luar rentang.');
+    }
+
+    public function test_xhr_without_group_path_ignores_group_and_returns_flat_rows(): void {
+        DtgRecord::create(['name' => 'A', 'category' => 'fruit']);
+        DtgRecord::create(['name' => 'B', 'category' => 'veg']);
+
+        DB::enableQueryLog();
+        $result  = DtgRecord::dataTable($this->ajax(['group' => 'category']));
+        $queries = collect(DB::getQueryLog())->pluck('query')->implode(' | ');
+        DB::disableQueryLog();
+
+        $this->assertCount(2, $result['data']->items());
+        $this->assertInstanceOf(DtgRecord::class, $result['data']->items()[0], 'XHR biasa tetap menerima BARIS, bukan deskriptor grup.');
+        $this->assertStringNotContainsStringIgnoringCase('group by', $queries);
+    }
+
+    public function test_no_group_returns_flat_row_paginator_and_null_group_meta(): void {
+        DtgRecord::create(['name' => 'A', 'category' => 'fruit']);
+
+        DtgRecord::dataTable($this->inertiaRequest());
+
+        $this->assertInstanceOf(DtgRecord::class, Inertia::getShared('data')->items()[0], 'Tanpa grouping: paginator BARIS (Property 4).');
+        $this->assertNull(Inertia::getShared('groupMeta'));
+    }
+
+    public function test_group_nodes_use_the_same_constraints_as_the_flat_path_saved_filter(): void {
+        $user = User::factory()->create();
+        DtgRecord::create(['name' => 'Fruit 1', 'category' => 'fruit']);
+        DtgRecord::create(['name' => 'Fruit 2', 'category' => 'fruit']);
+        DtgRecord::create(['name' => 'Veg 1', 'category' => 'vegetable']);
+
+        $saved = SavedFilter::create([
+            'user_id' => $user->id, 'model' => DtgRecord::class, 'is_saved' => true,
+            'filter'  => ['root' => ['k' => 'and', 'c' => ['i1' => ['k' => 'name', 'o' => '!=', 'v' => 'Fruit 1']]]],
+        ]);
+        $wire = ['group' => 'category', 'fid' => $saved->id];
+
+        DtgRecord::dataTable($this->inertiaRequest($wire));
+        $this->assertGroupCounts(['fruit' => 1, 'vegetable' => 1], $this->levelZeroCounts());
+
+        [, $leaf] = $this->expand([...$wire, 'groupPath' => json_encode(['fruit'])]);
+        $this->assertSame(['Fruit 2'], array_column($leaf['data'], 'name'), 'Node daun ikut filter aktif.');
+    }
+
+    public function test_group_nodes_use_the_same_constraints_as_the_flat_path_default_shared_filter(): void {
+        $user = User::factory()->create();
+        DtgRecord::create(['name' => 'Fruit 1', 'category' => 'fruit']);
+        DtgRecord::create(['name' => 'Fruit 2', 'category' => 'fruit']);
+
+        SavedFilter::create([
+            'user_id'   => $user->id, 'model' => DtgRecord::class, 'name' => 'Default', 'is_saved' => true,
+            'is_shared' => true, 'is_default' => true,
+            'filter'    => ['root' => ['k' => 'and', 'c' => ['i1' => ['k' => 'name', 'o' => '!=', 'v' => 'Fruit 1']]]],
+        ]);
+
+        // Request expand TANPA `fid`: default shared filter tetap terapkan (sama spt level-0).
+        [, $leaf] = $this->expand(['group' => 'category', 'groupPath' => json_encode(['fruit'])]);
+        $this->assertSame(['Fruit 2'], array_column($leaf['data'], 'name'));
+    }
+
+    public function test_group_nodes_use_the_same_constraints_as_the_flat_path_controller_scope(): void {
+        DtgRecord::create(['name' => 'Keep 1', 'category' => 'fruit']);
+        DtgRecord::create(['name' => 'Keep 2', 'category' => 'fruit']);
+        DtgRecord::create(['name' => 'Hidden', 'category' => 'fruit']);
+
+        // Meniru controller yg mem-scope query SEBELUM macro (scopeVisible,
+        // sharedListing, Unit::orderBy, ...): node level-0 & daun harus ikut.
+        $scoped = fn () => DtgRecord::where('name', '!=', 'Hidden');
+
+        $scoped()->dataTable($this->inertiaRequest(['group' => 'category']));
+        $this->assertGroupCounts(['fruit' => 2], $this->levelZeroCounts());
+
+        try {
+            $scoped()->dataTable($this->ajax(['group' => 'category', 'groupPath' => json_encode(['fruit'])]));
+            $this->fail('expand harus menghentikan request');
+        } catch (HttpResponseException $e) {
+            $names = collect($e->getResponse()->getData(true)['data'])->pluck('name')->sort()->values()->all();
+        }
+
+        $this->assertSame(['Keep 1', 'Keep 2'], $names);
+    }
+
+    public function test_group_path_values_are_bound_never_interpolated(): void {
+        $evil = "O'Brien\"; DROP TABLE dtg_records; --";
+        DtgRecord::create(['name' => 'Evil', 'category' => $evil]);
+        DtgRecord::create(['name' => 'Other', 'category' => 'fruit']);
+
+        [$status, $payload] = $this->expand(['group' => 'category', 'groupPath' => json_encode([$evil])]);
+
+        $this->assertSame(200, $status);
+        $this->assertSame(['Evil'], array_column($payload['data'], 'name'));
+        $this->assertSame(2, DtgRecord::count(), 'Tabel utuh -- nilai path tak pernah masuk SQL mentah.');
+    }
+
+    public function test_leaf_node_respects_visible_columns_cookie(): void {
+        DtgRecord::create(['name' => 'A', 'category' => 'fruit', 'locked_field' => 'secret']);
+
+        $cookie      = $this->dtCookie(['name' => ['order' => 0]]);
+        [, $payload] = $this->expand(['group' => 'category', 'groupPath' => json_encode(['fruit'])], $cookie);
+
+        $row = $payload['data'][0];
+        $this->assertSame('A', $row['name']);
+        $this->assertArrayNotHasKey('locked_field', $row, 'Adaptive select existing berlaku utk node daun.');
+    }
+
+    // ---------------------------------------------------------------------
+    // Agregat baris grup (`groupAggregate`, spec datatable2-group-tree,
+    // Requirement 9; Property 8)
+    // ---------------------------------------------------------------------
+
+    private function seedAggregateRecords(): void {
+        DtgAggregateRecord::create(['name' => 'F1', 'category' => 'fruit', 'is_active' => true, 'amount' => 10.50, 'qty' => 1, 'price' => 3.25, 'weight' => 1.5]);
+        DtgAggregateRecord::create(['name' => 'F2', 'category' => 'fruit', 'is_active' => true, 'amount' => 20.25, 'qty' => 2, 'price' => 1.75, 'weight' => 4.0]);
+        DtgAggregateRecord::create(['name' => 'F3', 'category' => 'fruit', 'is_active' => false, 'amount' => 5, 'qty' => 6, 'price' => 9.00, 'weight' => 2.5]);
+        // vegetable: semua kolom agregat NULL -> agregat harus null (bukan 0).
+        DtgAggregateRecord::create(['name' => 'V1', 'category' => 'vegetable', 'is_active' => true]);
+        DtgAggregateRecord::create(['name' => 'V2', 'category' => 'vegetable', 'is_active' => true]);
+    }
+
+    /** @return array{0: int, 1: array<string, mixed>} */
+    private function expandAggregate(array $query): array {
+        return $this->expand($query, model: DtgAggregateRecord::class);
+    }
+
+    public function test_aggregates_at_level_zero_match_manual_sum_avg_min_max(): void {
+        $this->seedAggregateRecords();
+
+        DtgAggregateRecord::dataTable($this->inertiaRequest(['group' => 'category']));
+        $groups = collect(Inertia::getShared('data')->items())->keyBy('key');
+
+        $fruit = $groups['fruit']['aggregates'];
+        $this->assertEqualsWithDelta(35.75, $fruit['amount'], 0.0001, 'sum');
+        $this->assertEqualsWithDelta(3.0, $fruit['qty'], 0.0001, 'avg = (1+2+6)/3');
+        $this->assertEqualsWithDelta(1.75, $fruit['price'], 0.0001, 'min');
+        $this->assertEqualsWithDelta(4.0, $fruit['weight'], 0.0001, 'max');
+        // Bandingkan dgn agregat manual atas baris yg sama (Property 8).
+        $rows = DtgAggregateRecord::where('category', 'fruit');
+        $this->assertEqualsWithDelta((float) $rows->sum('amount'), $fruit['amount'], 0.0001);
+        $this->assertEqualsWithDelta((float) $rows->avg('qty'), $fruit['qty'], 0.0001);
+    }
+
+    public function test_aggregates_are_null_when_every_value_is_null(): void {
+        $this->seedAggregateRecords();
+
+        DtgAggregateRecord::dataTable($this->inertiaRequest(['group' => 'category']));
+        $veg = collect(Inertia::getShared('data')->items())->firstWhere('key', 'vegetable')['aggregates'];
+
+        // assertEquals: urutan key agregat mengikuti urutan kolom getColumns(), tak bermakna.
+        $this->assertEquals(['amount' => null, 'qty' => null, 'price' => null, 'weight' => null], $veg);
+    }
+
+    public function test_aggregates_are_computed_at_every_level_of_nested_groups(): void {
+        $this->seedAggregateRecords();
+        $wire = ['group' => 'category,is_active'];
+
+        [, $level1] = $this->expandAggregate([...$wire, 'groupPath' => json_encode(['fruit'])]);
+        $byKey      = collect($level1['data'])->keyBy('key');
+
+        // fruit > is_active=true : F1 + F2
+        $this->assertEqualsWithDelta(30.75, $byKey['true']['aggregates']['amount'], 0.0001);
+        $this->assertEqualsWithDelta(1.5, $byKey['true']['aggregates']['qty'], 0.0001);
+        $this->assertEqualsWithDelta(1.75, $byKey['true']['aggregates']['price'], 0.0001);
+        $this->assertEqualsWithDelta(4.0, $byKey['true']['aggregates']['weight'], 0.0001);
+        // fruit > is_active=false : F3
+        $this->assertEqualsWithDelta(5.0, $byKey['false']['aggregates']['amount'], 0.0001);
+        $this->assertEqualsWithDelta(6.0, $byKey['false']['aggregates']['qty'], 0.0001);
+    }
+
+    public function test_group_meta_lists_only_valid_aggregates_and_invalid_config_is_ignored_silently(): void {
+        $this->seedAggregateRecords();
+
+        DtgAggregateRecord::dataTable($this->inertiaRequest(['group' => 'category']));
+        $meta = Inertia::getShared('groupMeta');
+
+        // Valid: amount(sum) qty(avg) price(min) weight(max). DITOLAK: name (string),
+        // customer (relasi), locked_field (fungsi 'median'), double_amount (turunan).
+        $aggregates = collect($meta['aggregates'])->sortBy('column')->values()->all();
+        $this->assertEquals(
+            [
+                ['column' => 'amount', 'fn' => 'sum'],
+                ['column' => 'price', 'fn' => 'min'],
+                ['column' => 'qty', 'fn' => 'avg'],
+                ['column' => 'weight', 'fn' => 'max'],
+            ],
+            $aggregates,
+        );
+
+        foreach (Inertia::getShared('data')->items() as $group) {
+            $keys = array_keys($group['aggregates']);
+            sort($keys);
+            $this->assertSame(['amount', 'price', 'qty', 'weight'], $keys);
+        }
+    }
+
+    public function test_leaf_rows_and_models_without_aggregate_config_carry_no_aggregates(): void {
+        $this->seedAggregateRecords();
+
+        [, $leaf] = $this->expandAggregate(['group' => 'category', 'groupPath' => json_encode(['fruit'])]);
+        $this->assertSame('rows', $leaf['type']);
+        $this->assertArrayNotHasKey('aggregates', $leaf['data'][0]);
+
+        DtgRecord::create(['name' => 'X', 'category' => 'fruit', 'amount' => 5]);
+        DtgRecord::dataTable($this->inertiaRequest(['group' => 'category']));
+        $this->assertSame([], Inertia::getShared('groupMeta')['aggregates']);
+        $this->assertSame([], Inertia::getShared('data')->items()[0]['aggregates']);
+    }
+
+    public function test_avg_and_sum_stay_correct_when_form_status_variants_are_merged_into_one_group(): void {
+        DB::table('dtg_records')->insert([
+            ['name' => 'A', 'statuses' => '["approved", "pending"]', 'qty' => 2, 'amount' => 10],
+            ['name' => 'B', 'statuses' => '["approved","pending"]', 'qty' => 4, 'amount' => 20],
+            ['name' => 'C', 'statuses' => '["approved","pending"]', 'qty' => null, 'amount' => 30],
+        ]);
+
+        DtgAggregateRecord::dataTable($this->inertiaRequest(['group' => 'statuses']));
+        $group = collect(Inertia::getShared('data')->items())->firstWhere('key', '["approved","pending"]');
+
+        $this->assertSame(3, $group['count']);
+        $this->assertEqualsWithDelta(60.0, $group['aggregates']['amount'], 0.0001, 'sum lintas 2 baris SQL yg digabung');
+        // AVG mengabaikan NULL: (2+4)/2 = 3, BUKAN rata-rata per baris SQL lalu dirata-ratakan lagi.
+        $this->assertEqualsWithDelta(3.0, $group['aggregates']['qty'], 0.0001);
+    }
+
+    // ---------------------------------------------------------------------
+    // Urutan baris grup: agregat sort-tabel & `groupSort` (arah nilai grup)
+    // ---------------------------------------------------------------------
+
+    private function seedOrderingRecords(): void {
+        // amount(sum): a=30 b=10 c=20 | qty(avg): a=1.5 b=1 c=2 | price(min): a=5 b=9 c=1 | weight(max): a=7 b=3 c=5
+        DtgAggregateRecord::create(['name' => 'a1', 'category' => 'a', 'is_active' => true, 'amount' => 10, 'qty' => 1, 'price' => 5, 'weight' => 7]);
+        DtgAggregateRecord::create(['name' => 'a2', 'category' => 'a', 'is_active' => false, 'amount' => 20, 'qty' => 2, 'price' => 8, 'weight' => 2]);
+        DtgAggregateRecord::create(['name' => 'b1', 'category' => 'b', 'is_active' => true, 'amount' => 4, 'qty' => 1, 'price' => 9, 'weight' => 3]);
+        DtgAggregateRecord::create(['name' => 'b2', 'category' => 'b', 'is_active' => true, 'amount' => 6, 'qty' => 1, 'price' => 9, 'weight' => 1]);
+        DtgAggregateRecord::create(['name' => 'c1', 'category' => 'c', 'is_active' => true, 'amount' => 20, 'qty' => 2, 'price' => 1, 'weight' => 5]);
+        DtgAggregateRecord::create(['name' => 'n1', 'category' => null, 'is_active' => true, 'amount' => 1, 'qty' => 9, 'price' => 7, 'weight' => 9]);
+    }
+
+    /** @return list<string> kunci grup level-0 berurutan */
+    private function levelZeroKeys(array $query): array {
+        DtgAggregateRecord::dataTable($this->inertiaRequest(['group' => 'category', ...$query]));
+
+        return array_column(Inertia::getShared('data')->items(), 'key');
+    }
+
+    public function test_group_rows_default_to_key_ascending_with_null_first_and_ignore_non_aggregate_sort(): void {
+        $this->seedOrderingRecords();
+
+        $this->assertSame(['null', 'a', 'b', 'c'], $this->levelZeroKeys([]));
+        // Sort tabel ke kolom BUKAN agregat (name/created_at) tak memengaruhi urutan grup.
+        $this->assertSame(['null', 'a', 'b', 'c'], $this->levelZeroKeys(['sort' => '-name']));
+        $this->assertSame(['null', 'a', 'b', 'c'], $this->levelZeroKeys(['sort' => 'name']));
+    }
+
+    public function test_group_rows_follow_table_sort_when_it_targets_an_aggregate_column(): void {
+        $this->seedOrderingRecords();
+
+        // sum(amount): null=1 b=10 c=20 a=30
+        $this->assertSame(['null', 'b', 'c', 'a'], $this->levelZeroKeys(['sort' => 'amount']));
+        $this->assertSame(['a', 'c', 'b', 'null'], $this->levelZeroKeys(['sort' => '-amount']));
+        // avg(qty): b=1 a=1.5 c=2 null=9 -- a=1.5 harus di antara b & c (bukan dibulatkan jadi 1).
+        $this->assertSame(['b', 'a', 'c', 'null'], $this->levelZeroKeys(['sort' => 'qty']));
+        $this->assertSame(['null', 'c', 'a', 'b'], $this->levelZeroKeys(['sort' => '-qty']));
+        // min(price): c=1 a=5 null=7 b=9
+        $this->assertSame(['c', 'a', 'null', 'b'], $this->levelZeroKeys(['sort' => 'price']));
+        // max(weight): b=3 c=5 a=7 null=9
+        $this->assertSame(['b', 'c', 'a', 'null'], $this->levelZeroKeys(['sort' => 'weight']));
+    }
+
+    public function test_group_sort_param_reverses_key_order_and_breaks_aggregate_ties(): void {
+        $this->seedOrderingRecords();
+
+        $this->assertSame(['c', 'b', 'a', 'null'], $this->levelZeroKeys(['groupSort' => 'desc']));
+        // Nilai tak valid -> asc (tak error).
+        $this->assertSame(['null', 'a', 'b', 'c'], $this->levelZeroKeys(['groupSort' => 'sideways']));
+        // Agregat sudah membedakan semua grup (sum amount: null=1 b=10 c=20 a=30) ->
+        // groupSort hanya pemutus seri dan tak mengubah urutan ini.
+        $this->assertSame(['null', 'b', 'c', 'a'], $this->levelZeroKeys(['sort' => 'amount', 'groupSort' => 'desc']));
+    }
+
+    public function test_group_sort_breaks_ties_between_equal_aggregates_by_key_direction(): void {
+        DtgAggregateRecord::create(['name' => 'x', 'category' => 'x', 'amount' => 10]);
+        DtgAggregateRecord::create(['name' => 'y', 'category' => 'y', 'amount' => 10]);
+        DtgAggregateRecord::create(['name' => 'z', 'category' => 'z', 'amount' => 3]);
+
+        $this->assertSame(['z', 'x', 'y'], $this->levelZeroKeys(['sort' => 'amount']));
+        $this->assertSame(['z', 'y', 'x'], $this->levelZeroKeys(['sort' => 'amount', 'groupSort' => 'desc']));
+    }
+
+    public function test_sub_group_lists_and_paging_use_the_same_ordering_and_group_sort_leaves_leaf_rows_alone(): void {
+        $this->seedOrderingRecords();
+        $wire = ['group' => 'category,is_active'];
+
+        // a > is_active: false(amount 20) , true(amount 10)
+        [, $asc]  = $this->expandAggregate([...$wire, 'groupPath' => json_encode(['a']), 'sort' => 'amount']);
+        [, $desc] = $this->expandAggregate([...$wire, 'groupPath' => json_encode(['a']), 'sort' => '-amount']);
+        $this->assertSame(['true', 'false'], array_column($asc['data'], 'key'));
+        $this->assertSame(['false', 'true'], array_column($desc['data'], 'key'));
+
+        [, $byKeyDesc] = $this->expandAggregate([...$wire, 'groupPath' => json_encode(['a']), 'groupSort' => 'desc']);
+        $this->assertSame(['true', 'false'], array_column($byKeyDesc['data'], 'key'));
+
+        // Halaman berurutan tetap utuh & tanpa duplikat saat diurut agregat (show=1).
+        $seen = [];
+        for ($page = 1; $page <= 4; $page++) {
+            DtgAggregateRecord::dataTable($this->inertiaRequest(['group' => 'category', 'sort' => '-amount', 'show' => 1, 'page' => $page]));
+            $seen[] = Inertia::getShared('data')->items()[0]['key'];
+        }
+        $this->assertSame(['a', 'c', 'b', 'null'], $seen);
+
+        // Leaf: urutan baris = sort tabel; groupSort tak menyentuhnya.
+        [, $leaf] = $this->expandAggregate(['group' => 'category', 'groupPath' => json_encode(['a']), 'sort' => 'name', 'groupSort' => 'desc']);
+        $this->assertSame(['a1', 'a2'], array_column($leaf['data'], 'name'));
+    }
+
+    // ---------------------------------------------------------------------
+    // Data besar (600 baris): invarian pohon grup bertingkat vs query langsung
+    // ---------------------------------------------------------------------
+
+    /**
+     * @return array{customerIds: list<int>, bigLeaf: int} bigLeaf = jumlah baris leaf terbesar
+     */
+    private function seedLargeDataset(): array {
+        mt_srand(42);
+        $categories  = ['a', 'b', 'c', 'd', 'e'];
+        $customerIds = [];
+        for ($i = 1; $i <= 12; $i++) {
+            $customerIds[] = DtgCustomerStub::create(['name' => "C{$i}"])->id;
+        }
+
+        $rows = [];
+        // Leaf besar (>show): category a > customer 1 > is_active true = 130 baris.
+        for ($i = 0; $i < 130; $i++) {
+            $rows[] = ['category' => 'a', 'customer_id' => $customerIds[0], 'is_active' => true];
+        }
+        // Sisanya tersebar acak; ~1 dari 9 baris tanpa customer (grup NULL).
+        for ($i = 0; $i < 470; $i++) {
+            $rows[] = [
+                'category'    => $categories[mt_rand(0, 4)],
+                'customer_id' => mt_rand(0, 8) === 8 ? null : $customerIds[mt_rand(0, 11)],
+                'is_active'   => (bool) mt_rand(0, 1),
+            ];
+        }
+        foreach ($rows as $index => &$row) {
+            $row += ['name' => "R{$index}", 'amount' => mt_rand(1, 500), 'qty' => mt_rand(0, 40), 'price' => mt_rand(1, 90), 'weight' => mt_rand(1, 70)];
+        }
+        unset($row);
+        foreach (array_chunk($rows, 100) as $chunk) {
+            DB::table('dtg_records')->insert($chunk);
+        }
+
+        return ['customerIds' => $customerIds, 'bigLeaf' => 130];
+    }
+
+    public function test_large_dataset_level_zero_pages_cover_every_group_once_with_correct_counts_and_aggregates(): void {
+        $this->seedLargeDataset();
+        $this->assertSame(600, DB::table('dtg_records')->count());
+
+        $truth = DB::table('dtg_records')
+            ->selectRaw('category, count(*) c, sum(amount) s, avg(qty) a, min(price) mn, max(weight) mx')
+            ->groupBy('category')->get()->keyBy('category');
+
+        $seen = [];
+        $sum  = 0;
+        // show=2 -> 5 kategori = 3 halaman luar (2,2,1).
+        for ($page = 1; $page <= 3; $page++) {
+            DtgAggregateRecord::dataTable($this->inertiaRequest(['group' => 'category,customer,is_active', 'show' => 2, 'page' => $page]));
+            $paginator = Inertia::getShared('data');
+            $this->assertSame(5, $paginator->total());
+            $this->assertLessThanOrEqual(2, count($paginator->items()));
+
+            foreach ($paginator->items() as $group) {
+                $expected = $truth[$group['key']];
+                $this->assertSame((int) $expected->c, $group['count'], "count {$group['key']}");
+                $this->assertEqualsWithDelta((float) $expected->s, $group['aggregates']['amount'], 0.001, "sum {$group['key']}");
+                $this->assertEqualsWithDelta((float) $expected->a, $group['aggregates']['qty'], 0.001, "avg {$group['key']}");
+                $this->assertEqualsWithDelta((float) $expected->mn, $group['aggregates']['price'], 0.001, "min {$group['key']}");
+                $this->assertEqualsWithDelta((float) $expected->mx, $group['aggregates']['weight'], 0.001, "max {$group['key']}");
+                $seen[$group['key']] = ($seen[$group['key']] ?? 0) + 1;
+                $sum += $group['count'];
+            }
+        }
+
+        $this->assertSame(['a' => 1, 'b' => 1, 'c' => 1, 'd' => 1, 'e' => 1], $seen, 'tiap grup tepat sekali lintas halaman');
+        $this->assertSame(600, $sum, 'jumlah count semua grup = total baris');
+    }
+
+    public function test_large_dataset_sub_group_lists_sum_to_parent_and_put_null_first(): void {
+        $this->seedLargeDataset();
+
+        [$status, $payload] = $this->expandAggregate(['group' => 'category,customer,is_active', 'groupPath' => json_encode(['a']), 'show' => 100]);
+        $this->assertSame(200, $status);
+        $this->assertSame('groups', $payload['type']);
+
+        $parent = DB::table('dtg_records')->where('category', 'a')->count();
+        $this->assertSame($parent, array_sum(array_column($payload['data'], 'count')), 'jumlah anak = count induk');
+        $this->assertArrayHasKey('raw', $payload['data'][0]);
+        $this->assertNull($payload['data'][0]['raw'], 'grup NULL (customer kosong) tampil paling awal');
+        $this->assertSame(
+            DB::table('dtg_records')->where('category', 'a')->distinct()->count('customer_id') + (DB::table('dtg_records')->where('category', 'a')->whereNull('customer_id')->exists() ? 1 : 0),
+            $payload['total'],
+        );
+    }
+
+    public function test_large_dataset_leaf_pagination_is_independent_disjoint_and_complete(): void {
+        ['customerIds' => $customerIds, 'bigLeaf' => $bigLeaf] = $this->seedLargeDataset();
+        $path                                                  = json_encode(['a', $customerIds[0], true]);
+        $truth                                                 = DB::table('dtg_records')->where('category', 'a')->where('customer_id', $customerIds[0])->where('is_active', true)->pluck('id')->all();
+        $this->assertGreaterThanOrEqual($bigLeaf, count($truth));
+
+        foreach ([25, 100] as $show) {
+            $pages     = (int) ceil(count($truth) / $show);
+            $collected = [];
+            for ($page = 1; $page <= $pages; $page++) {
+                [$status, $payload] = $this->expandAggregate(['group' => 'category,customer,is_active', 'groupPath' => $path, 'show' => $show, 'groupPage' => $page]);
+                $this->assertSame(200, $status);
+                $this->assertSame('rows', $payload['type']);
+                $this->assertSame(count($truth), $payload['total']);
+                $this->assertSame($show, $payload['per_page']);
+                $this->assertLessThanOrEqual($show, count($payload['data']));
+                array_push($collected, ...array_column($payload['data'], 'id'));
+            }
+
+            $this->assertCount(count($truth), $collected, "show={$show}: jumlah baris lintas halaman");
+            $this->assertCount(count($truth), array_unique($collected), "show={$show}: halaman tak boleh tumpang tindih");
+            $this->assertEqualsCanonicalizing($truth, $collected, "show={$show}: himpunan baris = query langsung");
+
+            // Halaman di luar jangkauan -> kosong, bukan error.
+            [$status, $payload] = $this->expandAggregate(['group' => 'category,customer,is_active', 'groupPath' => $path, 'show' => $show, 'groupPage' => $pages + 5]);
+            $this->assertSame(200, $status);
+            $this->assertSame([], $payload['data']);
+        }
     }
 }

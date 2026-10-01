@@ -21,7 +21,11 @@ class DataTableConfigCache {
         $modelFile     = $reflection->getFileName();
         $linkModelFile = (new \ReflectionClass(LinkModel::class))->getFileName();
 
-        $schemaHash = md5(json_encode(Schema::getColumnListing((new $modelClass)->getTable())));
+        // SchemaColumnCache (bukan Schema::getColumnListing() langsung) --
+        // signatureFor() dipanggil tiap request; tanpa cache bersama,
+        // Clockwork nunjukin tabel yang sama di-introspeksi ulang dari sini
+        // DAN dari HasExampleData/DataTableColumnSelector di request yang sama.
+        $schemaHash = md5(json_encode(SchemaColumnCache::columns((new $modelClass)->getTable())));
 
         return self::$signatureCache[$modelClass] = md5(json_encode([
             $schemaHash,

@@ -10,6 +10,8 @@ use Illuminate\Contracts\Validation\ValidationRule;
 use Illuminate\Validation\ValidationException;
 
 class StoreFilterTemplateRequest extends BaseFormRequest {
+    use NormalizesGroupInput;
+
     public function authorize(): bool {
         return true;
     }

@@ -42,12 +42,14 @@ class Opportunity extends Model {
             'groupable' => true,
         ],
         'expected_value' => [
-            'show'  => true,
-            'order' => 3,
+            'show'           => true,
+            'order'          => 3,
+            'groupAggregate' => 'sum',
         ],
         'probability' => [
-            'show'  => true,
-            'order' => 4,
+            'show'           => true,
+            'order'          => 4,
+            'groupAggregate' => 'avg',
         ],
         'expected_close_date' => [
             'show'  => true,

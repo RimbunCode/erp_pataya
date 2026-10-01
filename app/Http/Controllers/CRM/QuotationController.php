@@ -4,9 +4,13 @@ namespace App\Http\Controllers\CRM;
 
 use App\Http\Controllers\Controller;
 use App\Http\Requests\CRM\QuotationRequest;
+use App\Models\Core\Preference;
+use App\Models\Core\PrintTemplate;
 use App\Models\CRM\Opportunity;
 use App\Models\CRM\Quotation;
+use App\Models\CRM\QuotationSectionTemplate;
 use App\Services\CRM\QuotationService;
+use Illuminate\Database\Eloquent\Collection;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
 use Inertia\Inertia;
@@ -28,6 +32,13 @@ class QuotationController extends Controller {
      * Show the form for creating a new resource.
      */
     public function create(Request $request, ?string $ref = null) {
+        // Nilai awal dari preference: kota terbit surat (dapat diubah per dokumen) dan
+        // id pajak aktif untuk baris item baru. Kosong bila preference belum diatur.
+        $preferenceDefaults = [
+            'issued_city'   => Preference::find('city')?->value,
+            'active_tax_id' => Preference::find('active_tax_id')?->value,
+        ];
+
         if ($ref) {
             $split    = \explode('/', $ref);
             $modelOri = $split[0] ?? null;
@@ -45,6 +56,7 @@ class QuotationController extends Controller {
                                 return redirect()->route('quotations.show', $existingDraft);
                             }
                             $defaultData = [
+                                ...$preferenceDefaults,
                                 'date'               => now(),
                                 'customer'           => $opportunity->customer,
                                 'opportunity'        => $opportunity,
@@ -61,8 +73,20 @@ class QuotationController extends Controller {
         $this->setBreadcrumbs('crm.quotation.new');
 
         return Inertia::render('CRM/Quotations/Show', [
-            'defaultData' => $defaultData ?? null,
+            'defaultData'      => $defaultData ?? $preferenceDefaults,
+            'sectionTemplates' => $this->sectionTemplates(),
         ]);
+    }
+
+    /**
+     * Template blok teks untuk tombol "Ambil dari template" dan usulan otomatis
+     * saat jenis Quotation dipilih. Tabelnya kecil, jadi dikirim utuh sebagai prop.
+     *
+     * @return Collection<int, QuotationSectionTemplate>
+     */
+    private function sectionTemplates(): Collection {
+        return QuotationSectionTemplate::orderBy('order')
+            ->get(['id', 'name', 'quotation_type', 'title', 'content', 'order']);
     }
 
     /**
@@ -89,6 +113,7 @@ class QuotationController extends Controller {
 
                 return $quotation;
             },
+            'sectionTemplates' => $this->sectionTemplates(),
         ]);
     }
 
@@ -102,6 +127,26 @@ class QuotationController extends Controller {
         DB::commit();
 
         return redirect()->back();
+    }
+
+    /**
+     * Cetak Quotation dengan template sesuai jenisnya (AC8.2). Template yang dipilih
+     * eksplisit lewat URL tetap dihormati. Bila template jenis itu belum ada,
+     * Controller::print() jatuh ke template `is_default` supaya pencetakan tidak gagal.
+     */
+    public function print(Request $request, mixed $id, ?PrintTemplate $printTemplate = null) {
+        if (! $printTemplate) {
+            $type         = Quotation::find($id)?->type;
+            $templateName = Quotation::PRINT_TEMPLATE_BY_TYPE[$type] ?? null;
+
+            if ($templateName) {
+                $printTemplate = PrintTemplate::where('model', Quotation::class)
+                    ->where('name', $templateName)
+                    ->first();
+            }
+        }
+
+        return parent::print($request, $id, $printTemplate);
     }
 
     /**

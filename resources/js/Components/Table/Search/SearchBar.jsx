@@ -30,6 +30,8 @@ import {
   PopoverTrigger,
 } from "@/Components/ui/popover";
 import {
+  ArrowDown,
+  ArrowUp,
   Ban,
   ChevronDown,
   Filter,
@@ -89,7 +91,14 @@ import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 
 import BadgeStatus from "@/Components/BadgeStatus";
 import { Button } from "@/Components/ui/button";
-import ChipEditor, { computeGroupDefaults } from "./ChipEditor";
+import ChipEditor from "./ChipEditor";
+import {
+  isDateGroupType,
+  isNumberGroupType,
+  normalizeGroupLevels,
+  sameGroups,
+  toggleGroupLevel,
+} from "@/Components/Table/Group/groupLevels";
 import { DateSelector as ReuiDateSelector } from "@/Components/ui/date-selector";
 import LoadingIcon from "@/Components/LoadingIcon";
 import SearchLegend from "./SearchLegend";
@@ -205,17 +214,24 @@ const dateNoticeText = (kind, t) =>
     ? t("core.datatable.search.date_limit", { max: MAX_DATE_VALUES })
     : t("core.datatable.search.date_multi_only_is");
 
-const sameGroup = (a, b) => {
-  const an = a ?? null;
-  const bn = b ?? null;
-  if (!an && !bn) return true;
-  if (!an || !bn) return false;
-  return (
-    (an.column ?? null) === (bn.column ?? null) &&
-    (an.granularity ?? null) === (bn.granularity ?? null) &&
-    (an.range ?? null) === (bn.range ?? null)
-  );
-};
+// Label chip group bertingkat (spec datatable2-group-tree, Requirement 12.1):
+// level di-join " > " (mis. "Kategori > Status"); level date/number membawa
+// pilihannya dgn titik dua (`Tgl Order: Bulan`, `Jumlah: 100`) supaya ">"
+// hanya berarti NESTING.
+const groupChipLabel = (groups, columns, t) =>
+  groups
+    .map((level) => {
+      const col = columns?.[level.column];
+      const title = col ? columnTitle(col, t) : level.column;
+      if (isDateGroupType(col?.type)) {
+        return `${title}: ${t(`core.datatable.granularity.${level.granularity ?? "month"}`)}`;
+      }
+      if (isNumberGroupType(col?.type) && level.range != null) {
+        return `${title}: ${level.range}`;
+      }
+      return title;
+    })
+    .join(" > ");
 
 // Revisi 3: kolom yg baru dipakai per model, dipakai boost ranking saran
 // (Requirement 20.4-20.5). localStorage per-viewer, bukan state yg wajib
@@ -266,9 +282,13 @@ const writeRecentColumns = (model, names) => {
  *   terapkan saved filter (tree + fid + sort + group).
  * @param {() => {sort: string|null, group: object|null}} [root0.getViewSnapshot]
  *   opsional -> dipakai "Simpan sebagai baru"/"Timpa".
- * @param {{column: string|null, granularity: string|null, range: number|null}} [root0.group]
- * @param {Array<{value: string, label: string}>} [root0.groupOptions]
- * @param {(patch: {column: string|null, granularity: string|null, range: number|null}) => void} [root0.onGroupChange]
+ * @param {Array<{column: string, granularity: unknown, range: unknown}>} [root0.group] `Groups` aktif (urutan = nesting, maks 4)
+ * @param {Array<{value: string, label: string}>} [root0.groupOptions] semua kolom groupable (tanpa sentinel "Tidak ada")
+ * @param {(groups: Array) => void} [root0.onGroupChange]
+ * @param {"asc"|"desc"} [root0.groupSort] arah urutan baris grup menurut nilai
+ *   grup (param `groupSort`); TERPISAH dari sort tabel/`sort` URL
+ * @param {(direction: "asc"|"desc") => void} [root0.onGroupSortChange] klik ikon
+ *   chip group -> ubah arah urutan grup (langsung berlaku, tanpa draft)
  * @param {(draftTree: object|null) => void} [root0.onOpenBuilder] buka
  *   FilterTable2 -- dipanggil dgn `draftTree` TERKINI (Requirement 25: tanpa
  *   ini, Builder lanjutan selalu tampilkan `tree` prop lama, bukan draft yg
@@ -288,6 +308,8 @@ export default function SearchBar({
   group,
   groupOptions,
   onGroupChange,
+  groupSort = "asc",
+  onGroupSortChange,
   onOpenBuilder,
   placeholder,
 }) {
@@ -412,7 +434,9 @@ export default function SearchBar({
   // sebelumnya. `applyDraft()` di bawah adalah SATU-SATUNYA jalur yang
   // benar2 memanggil onTreeChange/onGroupChange/onPickSaved ke host.
   const [draftTree, setDraftTree] = useState(tree);
-  const [draftGroup, setDraftGroup] = useState(group ?? null);
+  const [draftGroup, setDraftGroup] = useState(() =>
+    normalizeGroupLevels(group),
+  );
   // Saved filter yang DIPILIH tapi belum di-apply -- `onPickSaved` (host)
   // baru dipanggil saat applyDraft(), bukan saat dipilih.
   const [pendingSaved, setPendingSaved] = useState(null);
@@ -420,7 +444,7 @@ export default function SearchBar({
     setDraftTree(tree);
   }, [tree]);
   useEffect(() => {
-    setDraftGroup(group ?? null);
+    setDraftGroup(normalizeGroupLevels(group));
   }, [group]);
 
   const closeDropdown = useCallback(() => {
@@ -533,7 +557,7 @@ export default function SearchBar({
       }
       const nextTree = treeOverride !== undefined ? treeOverride : draftTree;
       const treeChanged = isFilterTreeDirty(tree, nextTree);
-      const groupChanged = !sameGroup(group, draftGroup);
+      const groupChanged = !sameGroups(group, draftGroup);
       if (!treeChanged && !groupChanged) return;
       if (treeChanged) commitTree(nextTree).catch(() => {});
       if (groupChanged) onGroupChange?.(draftGroup);
@@ -577,7 +601,7 @@ export default function SearchBar({
     }
     if (
       sourceSaved.group != null &&
-      !sameGroup(sourceSaved.group, draftGroup)
+      !sameGroups(sourceSaved.group, draftGroup)
     ) {
       return true;
     }
@@ -604,22 +628,18 @@ export default function SearchBar({
       }),
     [draftTree, effectiveColumns, t, dateParseI18nLabels],
   );
-  const groupChip = useMemo(() => {
-    if (!draftGroup?.column) return null;
-    const col = effectiveColumns?.[draftGroup.column];
-    const colTitle = col ? columnTitle(col, t) : draftGroup.column;
-    const isDate = ["date", "time", "datetime"].includes(col?.type);
-    const sub = isDate
-      ? t(`core.datatable.granularity.${draftGroup.granularity ?? "month"}`)
-      : draftGroup.range != null
-        ? `${draftGroup.range}`
-        : null;
-    return {
-      id: "__group",
-      kind: "group",
-      label: sub ? `${colTitle} › ${sub}` : colTitle,
-    };
-  }, [draftGroup, effectiveColumns, t]);
+  // SATU chip `__group` utk seluruh level (label "A > B"); tanpa level -> tak ada chip.
+  const groupChip = useMemo(
+    () =>
+      draftGroup.length > 0
+        ? {
+            id: "__group",
+            kind: "group",
+            label: groupChipLabel(draftGroup, effectiveColumns, t),
+          }
+        : null,
+    [draftGroup, effectiveColumns, t],
+  );
   const chips = useMemo(() => {
     const list = [...baseChips];
     if (groupChip) list.push(groupChip);
@@ -641,7 +661,7 @@ export default function SearchBar({
   const isDraftDirty =
     Boolean(pendingSaved) ||
     isFilterTreeDirty(tree, draftTree) ||
-    !sameGroup(group, draftGroup);
+    !sameGroups(group, draftGroup);
 
   // --- Kolom Panel "Kolom" -- daftar kolom yang bisa dicari, sama dgn yang
   // dipakai buildSuggestions seksi "Kolom" (Requirement 9, kolom ke-3 Panel).
@@ -701,6 +721,7 @@ export default function SearchBar({
       searchColumns: getSearchColumns?.() ?? [],
       savedFilters: model ? savedFilters : undefined,
       groupOptions: groupOptions?.length ? groupOptions : undefined,
+      activeGroupColumns: draftGroup.map((level) => level.column),
       t,
       recentColumns: lastUsedColumns,
       dateContext: { i18nLabels: dateParseI18nLabels, dateLocale },
@@ -714,6 +735,7 @@ export default function SearchBar({
     model,
     savedFilters,
     groupOptions,
+    draftGroup,
     t,
     lastUsedColumns,
     dateParseI18nLabels,
@@ -2048,7 +2070,8 @@ export default function SearchBar({
     (saved) => {
       setSourceSaved(saved);
       setDraftTree(saved?.filter ?? null);
-      if (saved?.group != null) setDraftGroup(saved.group);
+      if (saved?.group != null)
+        setDraftGroup(normalizeGroupLevels(saved.group));
       setPendingSaved(saved);
       setInputValue("");
       closeDropdown();
@@ -2108,9 +2131,9 @@ export default function SearchBar({
         return;
       }
       if (section === "group") {
-        const col = effectiveColumns?.[item.payload.column];
-        setDraftGroup(
-          computeGroupDefaults(col ?? { name: item.payload.column }),
+        const column = item.payload.column;
+        setDraftGroup((prev) =>
+          toggleGroupLevel(prev, column, effectiveColumns?.[column]),
         );
         setInputValue("");
       }
@@ -2247,7 +2270,7 @@ export default function SearchBar({
 
   const removeChipByKind = useCallback((chip) => {
     if (chip.kind === "group") {
-      setDraftGroup({ column: null, granularity: null, range: null });
+      setDraftGroup([]);
       return;
     }
     setDraftTree((prev) => removeChip(prev, chip.id));
@@ -2257,8 +2280,10 @@ export default function SearchBar({
     (patch) => {
       if (!editingChip) return;
       if (editingChip.kind === "group") {
-        setDraftGroup(patch);
-        setEditingChip(null);
+        // Popover TETAP terbuka: user bisa mencentang/mengurutkan beberapa level
+        // berturut-turut; ditutup lewat klik-luar/Escape (draft di-apply host
+        // lewat applyDraft).
+        setDraftGroup(normalizeGroupLevels(patch));
         return;
       }
       setDraftTree((prev) => updateChip(prev, editingChip.chipId, patch));
@@ -2931,9 +2956,48 @@ export default function SearchBar({
                           "ring-2 ring-destructive",
                       )}
                     >
-                      {chip.kind === "group" && (
-                        <Layers className="size-3 shrink-0" />
-                      )}
+                      {chip.kind === "group" &&
+                        (onGroupSortChange ? (
+                          // Ikon chip group = tombol urutan grup (nilai grup
+                          // naik/turun). TIDAK mengubah sort tabel/`sort` URL;
+                          // stopPropagation supaya klik tak ikut membuka editor
+                          // level (chip = PopoverTrigger).
+                          <Tooltip>
+                            <TooltipTrigger asChild>
+                              <button
+                                type="button"
+                                aria-label={t(
+                                  groupSort === "desc"
+                                    ? "core.datatable.search.group_sort_desc"
+                                    : "core.datatable.search.group_sort_asc",
+                                )}
+                                className="inline-flex items-center shrink-0 cursor-pointer rounded-sm opacity-80 hover:opacity-100 hover:bg-emerald-500/20"
+                                onClick={(event) => {
+                                  event.stopPropagation();
+                                  onGroupSortChange(
+                                    groupSort === "desc" ? "asc" : "desc",
+                                  );
+                                }}
+                              >
+                                <Layers className="size-3" />
+                                {groupSort === "desc" ? (
+                                  <ArrowDown className="size-3" />
+                                ) : (
+                                  <ArrowUp className="size-3" />
+                                )}
+                              </button>
+                            </TooltipTrigger>
+                            <TooltipContent>
+                              {t(
+                                groupSort === "desc"
+                                  ? "core.datatable.search.group_sort_desc"
+                                  : "core.datatable.search.group_sort_asc",
+                              )}
+                            </TooltipContent>
+                          </Tooltip>
+                        ) : (
+                          <Layers className="size-3 shrink-0" />
+                        ))}
                       {/* Requirement 34: chip yg truncate (max-w-48) bisa
                       menyembunyikan sebagian teks -- tooltip isi label
                       LENGKAP (chip.kind !== "search": search chip SUDAH
@@ -2983,11 +3047,7 @@ export default function SearchBar({
                         kind={editingChip.kind}
                         value={
                           editingChip.kind === "group"
-                            ? (draftGroup ?? {
-                                column: null,
-                                granularity: null,
-                                range: null,
-                              })
+                            ? draftGroup
                             : editingChip.value
                         }
                         searchColumnTitles={editingChip.searchColumnTitles}
