@@ -20,8 +20,10 @@ class Quotation extends Model {
     public string $formComponent  = 'CRM/Quotations/Form';
     protected $casts              = [
         'date'        => 'datetime',
-        'valid_until' => 'date',
-        'amount'      => 'float',
+        'valid_until'  => 'date',
+        'basic_amount' => 'float',
+        'tax_amount'   => 'float',
+        'amount'       => 'float',
     ];
 
     public static function templateLink() {
@@ -65,6 +67,10 @@ class Quotation extends Model {
             'show'  => true,
             'order' => 5,
         ],
+        'type' => [
+            'show'  => false,
+            'order' => 6,
+        ],
         'opportunity',
         'branch',
         'referenceable',
@@ -79,6 +85,7 @@ class Quotation extends Model {
             'referenceable',
             'items',
             'items.item',
+            'sections',
             'customer',
             'opportunity',
             'branch',
@@ -99,5 +106,9 @@ class Quotation extends Model {
 
     public function items() {
         return $this->hasMany(QuotationItem::class);
+    }
+
+    public function sections() {
+        return $this->hasMany(QuotationSection::class)->orderBy('order');
     }
 }

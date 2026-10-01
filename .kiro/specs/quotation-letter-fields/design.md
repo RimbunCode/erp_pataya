@@ -143,24 +143,46 @@ Record `Tax` bernama "PPN 11%" **sudah ada** di database
 
 ## 2. Perubahan Backend
 
-### 2.1 Enum `QuotationType`
+### 2.1 Nilai `type` — string biasa, tanpa Enum PHP
 
-Berkas baru `app/Enums/QuotationType.php`, mengikuti bentuk
-`App\Enums\AssetServiceType` (AC2.3):
+`type` disimpan sebagai **kolom string biasa**. Tidak dibuat Enum PHP, tidak ada
+cast pada model, dan tidak ada aturan `Rule::enum` pada Request.
 
-```php
-enum QuotationType: string {
-    case SparePart = 'spare_part';
-    case NewUnit   = 'new_unit';
-    case Rental    = 'rental';
+Mengikuti pola `discount_on` pada SalesOrder yang sudah dipakai di produksi:
 
-    public function label() {
-        return __("crm/quotation.type.{$this->value}");
-    }
-}
+| Lapis | Perlakuan |
+|---|---|
+| Database | kolom `string` |
+| Model | tanpa cast |
+| Request | `Rule::in(['spare_part', 'new_unit', 'rental'])` |
+| Frontend | komponen `Select` dengan `options` berupa array string |
+| Label | berkas bahasa, sebagai array bersarang di bawah `type.options` |
+
+Daftar nilai ditulis di komponen frontend:
+
+```jsx
+<Select
+  value={data.type}
+  onValueChange={(val) => setData("type", val)}
+  placeholder={t("crm.quotation.columns.type.placeholder")}
+  optionTrans="crm.quotation.columns.type.options"
+  options={["spare_part", "new_unit", "rental"]}
+/>
 ```
 
-Kunci Enum memakai TitleCase sesuai konvensi PHP di CLAUDE.md.
+Komponen `Select` mengambil label tiap opsi dari `<optionTrans>.<nilai>`, jadi
+berkas bahasa cukup memuat:
+
+```php
+'type.options' => [
+    'spare_part' => 'Spare Part & Jasa',
+    'new_unit'   => 'Unit Baru',
+    'rental'     => 'Kontrak Sewa',
+],
+```
+
+Rujukan lengkap: `resources/js/Pages/Finances/Components/AdditionalDiscount.jsx:130-137`
+dan `lang/id/sales/salesOrder.php:69-72`.
 
 ### 2.2 `QuotationService`
 
@@ -198,7 +220,7 @@ tetap dapat mengubahnya per baris (AC6.6).
 Aturan baru:
 
 ```php
-'type'                 => ['required', Rule::enum(QuotationType::class)],
+'type'                 => ['required', Rule::in(['spare_part', 'new_unit', 'rental'])],
 'attn'                 => ['required', 'string', 'max:255'],
 'subject'              => [
     Rule::requiredIf(fn () => in_array($this->input('type'), ['new_unit', 'rental'])),
@@ -220,13 +242,14 @@ Aturan baru:
 ```
 
 `valid_until` yang sudah ada diubah menjadi conditional required (AC3.5).
-`Rule::requiredIf` dipilih daripada `required_if` string agar tetap aman bila
-nilai enum berubah.
+`Rule::requiredIf` dipilih daripada `required_if` string agar kondisinya terbaca
+jelas dan tidak bergantung pada penulisan nilai di dalam string.
 
 ### 2.4 Model
 
 **`Quotation`**: tambah relasi `sections()` (`hasMany`, `orderBy('order')`),
-cast `type` ke `QuotationType::class`, `basic_amount`/`tax_amount` ke `float`.
+cast `basic_amount`/`tax_amount` ke `float`. `type` **tidak** di-cast, karena
+disimpan sebagai string biasa (lihat 2.1).
 Tambahkan `type` ke `configColumns` agar dapat difilter di daftar, dan
 `'sections'` ke `loadRelationsOnShow()`.
 

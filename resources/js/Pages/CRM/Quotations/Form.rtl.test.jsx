@@ -1,4 +1,5 @@
 import { describe, expect, it, vi, beforeEach } from "vitest";
+import React from "react";
 import { render, screen } from "@testing-library/react";
 
 import { TooltipProvider } from "@/Components/ui/tooltip";
@@ -17,10 +18,12 @@ window.route = (name, params) =>
   params !== undefined ? `${name}/${JSON.stringify(params)}` : name;
 
 let formPageSeed = {};
+const useFormPageCalls = [];
 vi.mock("@/Pages/Core/FormPage", async () => {
   const React = await import("react");
   return {
-    useFormPage: (defaultValue) => {
+    useFormPage: (defaultValue, options) => {
+      useFormPageCalls.push({ defaultValue, options });
       const [data, setDataState] = React.useState({
         ...defaultValue,
         ...formPageSeed,
@@ -97,6 +100,7 @@ import Form from "./Form";
 describe("CRM Quotations Form", () => {
   beforeEach(() => {
     formPageSeed = {};
+    useFormPageCalls.length = 0;
     usePageMock.mockReturnValue({ props: { preferences: {} } });
   });
 
@@ -186,5 +190,75 @@ describe("CRM Quotations Form", () => {
     expect(screen.getByTestId("customer-link-model")).toHaveTextContent(
       "customer:PT ABC",
     );
+  });
+
+  // Regresi React error #185 (AC1.1-AC1.3): `new Date()` menghasilkan ISO string
+  // berbeda tiap render, sehingga guard lastResolvedSerializedRef di useFormPage
+  // tidak pernah cocok kalau defaultValue dilacak.
+  describe("regresi React error #185", () => {
+    it("useFormPage dipanggil dengan { trackDefaultValue: false } (AC1.3)", () => {
+      renderForm(<Form />);
+
+      expect(useFormPageCalls.length).toBeGreaterThan(0);
+      for (const call of useFormPageCalls) {
+        expect(call.options).toEqual({ trackDefaultValue: false });
+      }
+    });
+
+    it("field date terisi otomatis dengan tanggal saat ini (AC1.2)", () => {
+      renderForm(<Form />);
+
+      const { defaultValue } = useFormPageCalls[0];
+      expect(defaultValue.date).toBeInstanceOf(Date);
+      expect(Math.abs(Date.now() - defaultValue.date.getTime())).toBeLessThan(
+        5000,
+      );
+    });
+
+    it("hook asli tidak render berulang dengan default berisi new Date() (AC1.1)", async () => {
+      const { FormPageContext, useFormPage: realUseFormPage } =
+        await vi.importActual("@/Pages/Core/FormPage");
+      const setDefaults = vi.fn();
+      // Simulasi new Date() yang berbeda milidetik di tiap render.
+      let tick = 0;
+      let renderCount = 0;
+
+      function Consumer() {
+        renderCount += 1;
+        realUseFormPage(
+          { date: new Date(1_700_000_000_000 + tick++) },
+          { trackDefaultValue: false },
+        );
+        return null;
+      }
+
+      // Host merender ulang Consumer setiap form.setData dipanggil, seperti
+      // FormPageProvider yang asli ketika data form berubah.
+      function Host() {
+        const [, setVersion] = React.useState(0);
+        const contextValue = React.useMemo(
+          () => ({
+            isCreate: true,
+            defaultData: null,
+            form: {
+              setDefaults,
+              setData: () => setVersion((version) => version + 1),
+            },
+          }),
+          [],
+        );
+        return (
+          <FormPageContext.Provider value={contextValue}>
+            <Consumer />
+          </FormPageContext.Provider>
+        );
+      }
+
+      render(<Host />);
+
+      expect(renderCount).toBeLessThan(10);
+      expect(setDefaults).toHaveBeenCalledTimes(1);
+      expect(setDefaults.mock.calls[0][0].date).toBeInstanceOf(Date);
+    });
   });
 });

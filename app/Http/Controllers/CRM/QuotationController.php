@@ -4,6 +4,7 @@ namespace App\Http\Controllers\CRM;
 
 use App\Http\Controllers\Controller;
 use App\Http\Requests\CRM\QuotationRequest;
+use App\Models\Core\Preference;
 use App\Models\CRM\Opportunity;
 use App\Models\CRM\Quotation;
 use App\Services\CRM\QuotationService;
@@ -28,6 +29,13 @@ class QuotationController extends Controller {
      * Show the form for creating a new resource.
      */
     public function create(Request $request, ?string $ref = null) {
+        // Nilai awal dari preference: kota terbit surat (dapat diubah per dokumen) dan
+        // id pajak aktif untuk baris item baru. Kosong bila preference belum diatur.
+        $preferenceDefaults = [
+            'issued_city'   => Preference::find('city')?->value,
+            'active_tax_id' => Preference::find('active_tax_id')?->value,
+        ];
+
         if ($ref) {
             $split    = \explode('/', $ref);
             $modelOri = $split[0] ?? null;
@@ -45,6 +53,7 @@ class QuotationController extends Controller {
                                 return redirect()->route('quotations.show', $existingDraft);
                             }
                             $defaultData = [
+                                ...$preferenceDefaults,
                                 'date'               => now(),
                                 'customer'           => $opportunity->customer,
                                 'opportunity'        => $opportunity,
@@ -61,7 +70,7 @@ class QuotationController extends Controller {
         $this->setBreadcrumbs('crm.quotation.new');
 
         return Inertia::render('CRM/Quotations/Show', [
-            'defaultData' => $defaultData ?? null,
+            'defaultData' => $defaultData ?? $preferenceDefaults,
         ]);
     }
 

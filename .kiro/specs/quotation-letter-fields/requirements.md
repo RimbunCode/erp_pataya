@@ -135,8 +135,10 @@ render (berbeda milidetik), sehingga guard tidak pernah cocok dan
 - **AC2.1** Tersedia kolom `type` pada `quotations` dengan tiga nilai:
   `spare_part`, `new_unit`, `rental`.
 - **AC2.2** Jenis dipilih user saat membuat Quotation dan bersifat required.
-- **AC2.3** Nilai dan label mengikuti pola `App\Enums\AssetServiceType`: enum
-  PHP bertipe string dengan label ter-translate.
+- **AC2.3** Nilai disimpan sebagai **string biasa**, tanpa Enum PHP dan tanpa
+  cast pada model. Daftar pilihan ditulis di komponen frontend dan labelnya di
+  berkas bahasa, mengikuti pola `discount_on` pada SalesOrder
+  (`AdditionalDiscount.jsx:130-137`, `lang/id/sales/salesOrder.php:69-72`).
 - **AC2.4** Field yang hanya relevan untuk jenis tertentu dirender kondisional,
   mengikuti pola `Asset/Assets/Form.jsx:264` (`data?.ownership_type === ...`).
 - **AC2.5** Quotation yang sudah tersimpan dapat diubah jenisnya. Data yang

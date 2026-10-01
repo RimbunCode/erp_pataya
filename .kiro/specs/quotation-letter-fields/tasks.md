@@ -17,42 +17,42 @@ Checkpoint di akhir tiap tahap: jalankan test suite, konfirmasi ke user.
 Perbaikan sudah diterapkan di working tree, tersisa verifikasi dan test.
 
 - [x] 1. `resources/js/Pages/CRM/Quotations/Form.jsx`: `useFormPage` dipanggil dengan opsi kedua `{ trackDefaultValue: false }`, konsisten dengan PurchaseOrder/PurchaseReceipt/DeliveryNote (AC1.3)
-- [ ] 2. `Form.rtl.test.jsx`: test yang me-render form tambah (tanpa `defaultData`) dan memastikan tidak terjadi render berulang — assert komponen ter-render dan field `date` terisi (AC1.1, AC1.2)
+- [x] 2. `Form.rtl.test.jsx`: test yang me-render form tambah (tanpa `defaultData`) dan memastikan tidak terjadi render berulang — assert komponen ter-render dan field `date` terisi (AC1.1, AC1.2)
 
-## T02: Enum, Migration Dokumen & Item
+## T02: Migration Dokumen & Item
 
-- [ ] 3. `app/Enums/QuotationType.php`: enum string `SparePart`/`NewUnit`/`Rental` dengan `label()` memanggil `__("crm/quotation.type.{$this->value}")`, mengikuti bentuk `AssetServiceType`
-- [ ] 4. Migration `add_letter_fields_to_quotations_table`: `type` (string, default `spare_part`, NOT NULL), `attn`, `subject`, `issued_city` (string nullable), `introduction` (text nullable), `basic_amount` + `tax_amount` (double default 0)
-- [ ] 5. Migration `add_letter_fields_to_quotation_items_table`: `item_unit_id` (foreignUlid → `item_units`, nullOnDelete), `remark` (string nullable), `tax_id` (foreignUlid → `taxes`, nullOnDelete), `tax_rate` + `basic_amount` + `tax_amount` (double default 0)
-- [ ] 6. Migration `convert_quotation_item_amount_to_stored_column`: baca nilai `amount` lama ke memori → drop `amount` (generated) → buat ulang `amount` sebagai kolom biasa → tulis balik nilai lama ke `amount` **dan** `basic_amount`. Tiap `dropColumn` di `Schema::table()` terpisah (catatan SQLite pada `convert_sales_order_items_amounts_to_stored_columns`). Lihat design 1.3
-- [ ] 7. `lang/id/crm/quotation.php` + `lang/en/crm/quotation.php`: kunci `type.spare_part`/`type.new_unit`/`type.rental`, label field header (`attn`, `subject`, `issued_city`, `introduction`), label kolom item (`remark`, `unit`, `part_no`, `tax`), label ringkasan (`basic_amount`, `tax_amount`)
+- [x] 3. **TIDAK membuat Enum PHP.** `type` disimpan sebagai string biasa, mengikuti pola `discount_on` pada SalesOrder. Daftar nilai (`spare_part`/`new_unit`/`rental`) ditulis di komponen FE (T06.22) dan labelnya di berkas bahasa (T02.7). Lihat design 2.1
+- [x] 4. Migration `add_letter_fields_to_quotations_table`: `type` (string, default `spare_part`, NOT NULL), `attn`, `subject`, `issued_city` (string nullable), `introduction` (text nullable), `basic_amount` + `tax_amount` (double default 0)
+- [x] 5. Migration `add_letter_fields_to_quotation_items_table`: `item_unit_id` (foreignUlid → `item_units`, nullOnDelete), `remark` (string nullable), `tax_id` (foreignUlid → `taxes`, nullOnDelete), `tax_rate` + `basic_amount` + `tax_amount` (double default 0)
+- [x] 6. Migration `convert_quotation_item_amount_to_stored_column`: baca nilai `amount` lama ke memori → drop `amount` (generated) → buat ulang `amount` sebagai kolom biasa → tulis balik nilai lama ke `amount` **dan** `basic_amount`. Tiap `dropColumn` di `Schema::table()` terpisah (catatan SQLite pada `convert_sales_order_items_amounts_to_stored_columns`). Lihat design 1.3
+- [x] 7. `lang/id/crm/quotation.php` + `lang/en/crm/quotation.php`: kunci `type.spare_part`/`type.new_unit`/`type.rental`, label field header (`attn`, `subject`, `issued_city`, `introduction`), label kolom item (`remark`, `unit`, `part_no`, `tax`), label ringkasan (`basic_amount`, `tax_amount`)
 
 ## T03: Migration Blok Teks & Seeder
 
-- [ ] 8. Migration `create_quotation_sections_table`: `quotation_id` (cascadeOnDelete), `title` (string), `content` (text), `order` (unsignedSmallInteger default 0), `timestamps`, `softDeletes`
-- [ ] 9. Migration `create_quotation_section_templates_table`: `name`, `quotation_type` (string nullable), `title`, `content` (text), `order`, `timestamps`, `softDeletes`
-- [ ] 10. `app/Models/CRM/QuotationSection.php`: `$parentRelation = 'quotation'`, relasi `quotation()`, `$translateKey`, mengikuti bentuk `QuotationItem`
-- [ ] 11. `app/Models/CRM/QuotationSectionTemplate.php`: trait `DataTable`, `$configColumns` (name, quotation_type, title), `$translateKey`, `templateLink()` mengembalikan `:name`
-- [ ] 12. `database/seeders/QuotationSectionTemplateSeeder.php`: 5 template dengan isi **persis** dari `referensi-surat.md` — Terms & Conditions (`new_unit`); Note, Term of Payment, Owner Obligation, Tenant Obligation (`rental`). Idempoten via `updateOrCreate` berdasar `name` (AC5.7)
-- [ ] 13. `QuotationSectionTemplateSeeder` didaftarkan di `DatabaseSeeder`
+- [x] 8. Migration `create_quotation_sections_table`: `quotation_id` (cascadeOnDelete), `title` (string), `content` (text), `order` (unsignedSmallInteger default 0), `timestamps`, `softDeletes`
+- [x] 9. Migration `create_quotation_section_templates_table`: `name`, `quotation_type` (string nullable), `title`, `content` (text), `order`, `timestamps`, `softDeletes`
+- [x] 10. `app/Models/CRM/QuotationSection.php`: `$parentRelation = 'quotation'`, relasi `quotation()`, `$translateKey`, mengikuti bentuk `QuotationItem`
+- [x] 11. `app/Models/CRM/QuotationSectionTemplate.php`: trait `DataTable`, `$configColumns` (name, quotation_type, title), `$translateKey`, `templateLink()` mengembalikan `:name`
+- [x] 12. `database/seeders/QuotationSectionTemplateSeeder.php`: 5 template dengan isi **persis** dari `referensi-surat.md` — Terms & Conditions (`new_unit`); Note, Term of Payment, Owner Obligation, Tenant Obligation (`rental`). Idempoten via `updateOrCreate` berdasar `name` (AC5.7)
+- [x] 13. `QuotationSectionTemplateSeeder` didaftarkan di `DatabaseSeeder`
 
 ## T04: Model & Relasi
 
-- [ ] 14. `app/Models/CRM/Quotation.php`: relasi `sections()` (`hasMany` + `orderBy('order')`); cast `type` → `QuotationType::class`, `basic_amount`/`tax_amount` → `float`; tambah `type` ke `$configColumns`; tambah `'sections'` ke `loadRelationsOnShow()`
-- [ ] 15. `app/Models/CRM/QuotationItem.php`: relasi `itemUnit()` (`belongsTo(ItemUnit::class, 'item_unit_id')`) dan `tax()` (`belongsTo(Tax::class)`); cast `tax_rate`/`basic_amount`/`tax_amount` → `float`
-- [ ] 16. `QuotationItem`: `$configColumns` untuk `basic_amount` dan `tax_amount` **wajib** memakai `'visibleFor' => self::PRICE_VISIBILITY` — keduanya dapat dipakai menghitung balik harga satuan (design 2.4, daftar risiko)
+- [x] 14. `app/Models/CRM/Quotation.php`: relasi `sections()` (`hasMany` + `orderBy('order')`); cast `basic_amount`/`tax_amount` → `float` (**`type` tidak di-cast**, string biasa); tambah `type` ke `$configColumns`; tambah `'sections'` ke `loadRelationsOnShow()`
+- [x] 15. `app/Models/CRM/QuotationItem.php`: relasi `itemUnit()` (`belongsTo(ItemUnit::class, 'item_unit_id')`) dan `tax()` (`belongsTo(Tax::class)`); cast `tax_rate`/`basic_amount`/`tax_amount` → `float`
+- [x] 16. `QuotationItem`: `$configColumns` untuk `basic_amount` dan `tax_amount` **wajib** memakai `'visibleFor' => self::PRICE_VISIBILITY` — keduanya dapat dipakai menghitung balik harga satuan (design 2.4, daftar risiko)
 
 ## T05: Service & Validasi
 
-- [ ] 17. `app/Services/CRM/QuotationService.php` — `fillRelations()`: tambah ekstraksi `tax_id` dan `item_unit_id` dari payload LinkModel, mengikuti pola `customer_id`/`opportunity_id`
-- [ ] 18. `QuotationService` — perhitungan amount di `create()` dan `update()`: hitung eksplisit per baris (`basic_amount = quantity * price`; `tax_amount = basic_amount * tax_rate / 100`; `amount = basic_amount + tax_amount`), akumulasi ke `quotations.basic_amount`/`tax_amount`/`amount`. Hapus `$itemModel->refresh()` yang tidak lagi diperlukan karena `amount` bukan generated column (design 2.2)
-- [ ] 19. `QuotationService`: sinkronisasi `sections` dengan pola sama seperti `items` — hapus yang tidak ada di payload, update yang ULID-nya valid, buat sisanya
-- [ ] 20. `app/Http/Requests/CRM/QuotationRequest.php`: aturan `type` (`Rule::enum`), `attn` (required), `introduction` (required), `subject` + `valid_until` (`Rule::requiredIf` untuk `new_unit`/`rental`), `items.*.item_unit.id`, `items.*.remark`, `items.*.tax.id`, `sections.*` (design 2.3)
-- [ ] 21. `app/Http/Controllers/CRM/QuotationController.php` — `create()`: tambahkan `issued_city` dari `Preference::find('city')` dan `active_tax_id` ke `defaultData`
+- [x] 17. `app/Services/CRM/QuotationService.php` — `fillRelations()`: tambah ekstraksi `tax_id` dan `item_unit_id` dari payload LinkModel, mengikuti pola `customer_id`/`opportunity_id`
+- [x] 18. `QuotationService` — perhitungan amount di `create()` dan `update()`: hitung eksplisit per baris (`basic_amount = quantity * price`; `tax_amount = basic_amount * tax_rate / 100`; `amount = basic_amount + tax_amount`), akumulasi ke `quotations.basic_amount`/`tax_amount`/`amount`. Hapus `$itemModel->refresh()` yang tidak lagi diperlukan karena `amount` bukan generated column (design 2.2)
+- [x] 19. `QuotationService`: sinkronisasi `sections` dengan pola sama seperti `items` — hapus yang tidak ada di payload, update yang ULID-nya valid, buat sisanya
+- [x] 20. `app/Http/Requests/CRM/QuotationRequest.php`: aturan `type` (`Rule::in(['spare_part','new_unit','rental'])`, bukan `Rule::enum`), `attn` (required), `introduction` (required), `subject` + `valid_until` (`Rule::requiredIf` untuk `new_unit`/`rental`), `items.*.item_unit.id`, `items.*.remark`, `items.*.tax.id`, `sections.*` (design 2.3)
+- [x] 21. `app/Http/Controllers/CRM/QuotationController.php` — `create()`: tambahkan `issued_city` dari `Preference::find('city')` dan `active_tax_id` ke `defaultData`
 
 ## T06: Form Header & Blok Teks (FE)
 
-- [ ] 22. `Form.jsx`: field `type` (Select dari enum), `attn`, `subject`, `issued_city` (Input), `introduction` (Textarea). Field khusus jenis dirender kondisional mengikuti `Asset/Assets/Form.jsx:264`
+- [ ] 22. `Form.jsx`: field `type` memakai komponen `Select` dengan `options={["spare_part","new_unit","rental"]}` dan `optionTrans="crm.quotation.columns.type.options"`, mengikuti `AdditionalDiscount.jsx:130-137`; plus `attn`, `subject`, `issued_city` (Input), `introduction` (Textarea). Field khusus jenis dirender kondisional mengikuti `Asset/Assets/Form.jsx:264`
 - [ ] 23. `resources/js/Pages/CRM/Quotations/QuotationSections.jsx`: daftar blok (tambah/hapus/urutkan), tiap blok berisi judul + `Textarea` isi
 - [ ] 24. `QuotationSections.jsx`: tombol "Ambil dari template" yang memuat blok sesuai `type` terpilih dan **menyalin** isinya ke dokumen (AC5.4)
 - [ ] 25. `QuotationSections.rtl.test.jsx`: tambah/hapus/urutkan blok; memuat dari template menyalin isi dan dapat diedit tanpa mengubah master
