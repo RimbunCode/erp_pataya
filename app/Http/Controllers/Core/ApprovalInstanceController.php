@@ -126,7 +126,8 @@ class ApprovalInstanceController extends Controller {
                 continue;
             }
 
-            if ($step->status !== FormStatus::APPROVED) {
+            // SKIPPED (auto-approve partial) tidak menghalangi final approval.
+            if (! \in_array($step->status, [FormStatus::APPROVED, FormStatus::SKIPPED], true)) {
                 $isApproved = false;
             }
         }

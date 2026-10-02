@@ -626,6 +626,36 @@ class ApprovalAutoApproveTest extends TestCase {
         $this->assertEquals(FormStatus::PENDING->value, $steps[1]->fresh()->status->value);
     }
 
+    /**
+     * Regresi: step SKIPPED (auto-approve partial) pernah membuat instance macet PENDING
+     * setelah approver terakhir approve.
+     */
+    public function test_partial_auto_approve_reaches_approved_after_last_approver(): void {
+        $roleA     = $this->makeRole('PartialRoleA');
+        $roleB     = $this->makeRole('PartialRoleB');
+        $roleC     = $this->makeRole('PartialRoleC');
+        $requester = $this->makeUser('PartialRequester');
+        $approverC = $this->makeUser('PartialApproverC');
+        $this->assignRole($requester, $roleB);
+        $this->assignRole($approverC, $roleC);
+
+        $this->makeScheme('scheme-partial', array_map(
+            fn (Role $r) => ['approver_type' => 'role', 'approverable_type' => Role::class, 'approverable_id' => $r->id],
+            [$roleA, $roleB, $roleC],
+        ));
+
+        $instance = ApprovalInstance::makeInstance($this->makeDocument($requester));
+        $steps    = ApprovalInstanceStep::where('approval_instance_id', $instance->id)->orderBy('sequence')->get();
+        $this->assertEquals(FormStatus::SKIPPED->value, $steps[0]->status->value);
+        $this->assertEquals(FormStatus::PENDING->value, $steps[2]->status->value);
+
+        $this->actingAs($approverC)
+            ->withoutMiddleware([AppMiddleware::class, EnsureUserIsOnboarded::class, LanguageMiddleware::class])
+            ->postJson(route('approvalInstances.decision', $steps[2]->id), ['decision' => 'approve']);
+
+        $this->assertEquals(FormStatus::APPROVED->value, $instance->fresh()->status->value);
+    }
+
     public function test_decision_on_advanced_step_only_allows_pending_child_approver(): void {
         $userA    = $this->makeUser('GuardAdvA');
         $userB    = $this->makeUser('GuardAdvB');
