@@ -14,6 +14,7 @@ export default forwardRef(function ItemLinkModel(
       value={value}
       onValueChange={onValueChange}
       model="App\Models\Inventory\Item"
+      group="category"
       titleDialog={t("inventory.item.new")}
       classNameDialog="max-w-6xl"
       form={<Form />}

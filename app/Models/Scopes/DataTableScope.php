@@ -208,10 +208,15 @@ class DataTableScope implements Scope {
             // resolve) bisa dipaksa masuk extraKeys di bawah: tanpa itu kolom
             // relasi yg groupable tapi disembunyikan user (cookie visible
             // columns) tak ikut ter-eager-load -- row[groupBy] di FE undefined.
-            $isInertia     = Utils::isInertiaRequest($request);
-            $appliedGroups = $isInertia ? GroupLevels::normalize($appliedFilter?->group) : [];
-            $modelDefaults = $isInertia ? $query->getModel()::getDefaultGroups() : [];
-            $groupLevels   = GroupLevelResolver::resolve(
+            $isInertia = Utils::isInertiaRequest($request);
+            // Opt-in eksplisit konsumen XHR (LinkModel `selectData`): `groupTree=1`
+            // membuka pohon grup level-0 + default model utk request non-Inertia.
+            // Konsumen lain tak mengirim flag ini -> perilaku tak berubah
+            // (linkmodel-grouping-search Req 4.7, 9.1).
+            $groupTreeOptIn = $request->boolean('groupTree');
+            $appliedGroups  = $isInertia ? GroupLevels::normalize($appliedFilter?->group) : [];
+            $modelDefaults  = $isInertia || $groupTreeOptIn ? $query->getModel()::getDefaultGroups() : [];
+            $groupLevels    = GroupLevelResolver::resolve(
                 $request,
                 $appliedGroups,
                 $modelDefaults,
@@ -240,7 +245,7 @@ class DataTableScope implements Scope {
             // kehadiran param, BUKAN ajax()/header Inertia. XHR lain (LinkModel,
             // dashboard) tanpa `groupPath` mengabaikan `group` (tetap flat).
             $isExpand    = $request->has('groupPath');
-            $isGroupTree = $groupLevels !== [] && ($isInertia || $isExpand);
+            $isGroupTree = $groupLevels !== [] && ($isInertia || $isExpand || $groupTreeOptIn);
             if ($isExpand && $groupLevels === []) {
                 throw new HttpResponseException(response()->json([
                     'message' => 'Tidak ada level grup yang valid untuk groupPath ini.',
@@ -492,7 +497,11 @@ class DataTableScope implements Scope {
                 'data' => $paginator,
             ];
             if (! $isInertia) {
-                return $data;
+                // Konsumen opt-in (`groupTree`) butuh meta pohon + default model
+                // utk render header; konsumen lain tetap menerima `data` saja.
+                return $groupTreeOptIn
+                    ? [...$data, 'groupMeta' => $groupMeta, 'defaultGroups' => $defaultGroups]
+                    : $data;
             }
             Inertia::share([
                 ...$data,

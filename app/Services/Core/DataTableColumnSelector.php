@@ -363,6 +363,11 @@ class DataTableColumnSelector {
                 if (in_array($fk, $childDbColumns, true)) {
                     $cols[] = $fk;
                 }
+                // MorphTo extends BelongsTo: kolom `*_type` juga wajib agar morph
+                // child (mis. Asset::ownership) ter-resolve saat jadi relasi nested.
+                if ($childRel instanceof MorphTo && in_array($childRel->getMorphType(), $childDbColumns, true)) {
+                    $cols[] = $childRel->getMorphType();
+                }
             }
         }
 

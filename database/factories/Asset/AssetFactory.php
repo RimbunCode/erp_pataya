@@ -51,15 +51,15 @@ class AssetFactory extends Factory {
 
     public function supplierOwned(): static {
         return $this->state(fn (array $attributes) => [
-            'ownership_type'        => AssetOwnershipType::SUPPLIER,
-            'ownership_supplier_id' => (string) Str::ulid(),
+            'ownership_type' => AssetOwnershipType::SUPPLIER,
+            'ownership_id'   => (string) Str::ulid(),
         ]);
     }
 
     public function customerOwned(): static {
         return $this->state(fn (array $attributes) => [
-            'ownership_type'        => AssetOwnershipType::CUSTOMER,
-            'ownership_customer_id' => (string) Str::ulid(),
+            'ownership_type' => AssetOwnershipType::CUSTOMER,
+            'ownership_id'   => (string) Str::ulid(),
         ]);
     }
 

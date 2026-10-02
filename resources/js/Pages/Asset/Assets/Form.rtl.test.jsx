@@ -9,9 +9,9 @@ import userEvent from "@testing-library/user-event";
 // - Computed value: total_asset_cost (Input disabled) = gross_purchase_amount
 //   + additional_asset_cost, dihitung ulang tiap render (bukan tersimpan di
 //   data).
-// - Conditional visibility: ownership_supplier hanya muncul saat
-//   ownership_type === "supplier"; ownership_customer hanya saat
-//   ownership_type === "customer"; keduanya required=true saat tampil.
+// - Conditional visibility: field morph `ownership` (required) muncul saat
+//   ownership_type === "supplier" (SupplierLinkModel) atau "customer"
+//   (CustomerLinkModel); company -> tak dirender.
 // - Conditional visibility: 4 field depresiasi (depreciation_method,
 //   frequency_of_depreciation, total_number_of_depreciations,
 //   expected_value_after_useful_life) hanya muncul saat
@@ -181,6 +181,12 @@ vi.mock("@/Pages/Inventory/Items/ItemLinkModel", () =>
 );
 vi.mock("@/Pages/Purchase/Suppliers/SupplierLinkModel", () =>
   makeLinkModelStub("supplier-link", "name", { id: 5, name: "CV Pemasok" }),
+);
+vi.mock("@inertiajs/react", () => ({
+  usePage: () => ({ props: { companyName: "PT Contoh Sejahtera" } }),
+}));
+vi.mock("@/Pages/Settings/Branches/BranchLinkModel", () =>
+  makeLinkModelStub("branch-link", "name", { id: 9, name: "Cabang Utama" }),
 );
 vi.mock("@/Pages/Users/ManageUsers/UserLinkModel", () =>
   makeLinkModelStub("user-link", "name", { id: 6, name: "Budi" }),
@@ -434,41 +440,51 @@ describe("Form (Asset/Assets)", () => {
       expect(select).toHaveValue("company");
     });
 
-    it("ownership_type='company': ownership_supplier dan ownership_customer TIDAK dirender", () => {
+    it("ownership_type='company': tanpa pemilih, tampil nama perusahaan read-only", () => {
       renderForm({ initialData: { ownership_type: "company" } });
 
       expect(
-        screen.queryByTestId("forminput-ownership_supplier"),
+        screen.queryByTestId("forminput-ownership"),
       ).not.toBeInTheDocument();
+      const wrapper = screen.getByTestId("forminput-ownership_company_name");
+      expect(within(wrapper).getByDisplayValue("PT Contoh Sejahtera")).toBeDisabled();
+    });
+
+    it("cabang pelanggan hanya tampil untuk tipe customer", () => {
+      const { unmount } = renderForm({
+        initialData: { ownership_type: "customer" },
+      });
       expect(
-        screen.queryByTestId("forminput-ownership_customer"),
+        screen.getByTestId("forminput-ownership_customer_branch"),
+      ).toBeInTheDocument();
+      unmount();
+
+      renderForm({ initialData: { ownership_type: "supplier" } });
+      expect(
+        screen.queryByTestId("forminput-ownership_customer_branch"),
       ).not.toBeInTheDocument();
     });
 
-    it("ownership_type='supplier': ownership_supplier dirender (required), ownership_customer tidak", () => {
+    it("ownership_type='supplier': satu field ownership (required) berisi SupplierLinkModel", () => {
       renderForm({ initialData: { ownership_type: "supplier" } });
 
-      const supplierWrapper = screen.getByTestId(
-        "forminput-ownership_supplier",
+      expect(screen.getByTestId("forminput-ownership")).toHaveAttribute(
+        "data-required",
+        "true",
       );
-      expect(supplierWrapper).toHaveAttribute("data-required", "true");
       expect(screen.getByTestId("supplier-link")).toBeInTheDocument();
-      expect(
-        screen.queryByTestId("forminput-ownership_customer"),
-      ).not.toBeInTheDocument();
+      expect(screen.queryByTestId("customer-link")).not.toBeInTheDocument();
     });
 
-    it("ownership_type='customer': ownership_customer dirender (required), ownership_supplier tidak", () => {
+    it("ownership_type='customer': satu field ownership (required) berisi CustomerLinkModel", () => {
       renderForm({ initialData: { ownership_type: "customer" } });
 
-      const customerWrapper = screen.getByTestId(
-        "forminput-ownership_customer",
+      expect(screen.getByTestId("forminput-ownership")).toHaveAttribute(
+        "data-required",
+        "true",
       );
-      expect(customerWrapper).toHaveAttribute("data-required", "true");
       expect(screen.getByTestId("customer-link")).toBeInTheDocument();
-      expect(
-        screen.queryByTestId("forminput-ownership_supplier"),
-      ).not.toBeInTheDocument();
+      expect(screen.queryByTestId("supplier-link")).not.toBeInTheDocument();
     });
 
     it("mengubah ownership_type dari 'supplier' ke 'customer' menukar field yang dirender", async () => {

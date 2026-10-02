@@ -20,6 +20,18 @@ describe("groupLabelValue", () => {
     }
   });
 
+  it("grup NULL relasi dengan label bawaan backend (groupNullLabel, mis. nama perusahaan) -> label itu", () => {
+    const label = { name: "PT Contoh", templateLink: ":name" };
+
+    expect(
+      groupLabelValue({ key: "null", raw: null, label }, { type: "relation" }),
+    ).toBe(label);
+    // tipe lain tetap null walau ada label
+    expect(
+      groupLabelValue({ key: "null", raw: null, label }, { type: "string" }),
+    ).toBeNull();
+  });
+
   it("relation -> objek relasi utuh dari label deskriptor", () => {
     const label = { id: 10, name: "Acme" };
     expect(

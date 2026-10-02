@@ -1,4 +1,12 @@
-import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
+import {
+  afterEach,
+  beforeEach,
+  describe,
+  expect,
+  it,
+  onTestFinished,
+  vi,
+} from "vitest";
 import { act, render, screen, waitFor, within } from "@testing-library/react";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { TooltipProvider } from "@/Components/ui/tooltip";
@@ -129,7 +137,7 @@ const statusDraftTree = {
 // bocor lintas test (dua `it()` yang mount kolom relasi sama akan punya
 // queryKey sama; kalau clientnya sama, test kedua bisa diam-diam serve dari
 // cache test pertama alih-alih benar-benar fetch).
-const renderBar = (overrides = {}) => {
+const renderBar = ({ inDialog = false, ...overrides } = {}) => {
   const props = {
     columns,
     tree: null,
@@ -144,7 +152,13 @@ const renderBar = (overrides = {}) => {
   const ui = (p) => (
     <QueryClientProvider client={queryClient}>
       <TooltipProvider>
-        <SearchBar {...p} />
+        {inDialog ? (
+          <div role="dialog" data-testid="host-dialog">
+            <SearchBar {...p} />
+          </div>
+        ) : (
+          <SearchBar {...p} />
+        )}
       </TooltipProvider>
     </QueryClientProvider>
   );
@@ -465,6 +479,25 @@ describe("SearchBar — Panel muncul saat fokus & chevron (Requirement revisi 2)
     ).toBeInTheDocument();
 
     await user.click(document.body);
+
+    await waitFor(() =>
+      expect(
+        screen.queryByText("TR:core.datatable.filter.filter"),
+      ).not.toBeInTheDocument(),
+    );
+  });
+});
+
+describe("SearchBar — klik-luar di dalam dialog host", () => {
+  it("klik di area dialog yang MEMUAT SearchBar (di luar wrapper) tetap menutup panel", async () => {
+    const user = userEvent.setup({ delay: null });
+    const { input } = renderBar({ inDialog: true });
+    await user.click(input);
+    expect(
+      await screen.findByText("TR:core.datatable.filter.filter"),
+    ).toBeInTheDocument();
+
+    await user.click(screen.getByTestId("host-dialog"));
 
     await waitFor(() =>
       expect(
@@ -4022,6 +4055,14 @@ describe("SearchBar — revisi 9: pilih tanggal di widget mengisi nilai; saran m
   });
 
   it("membuka chip tanggal utk diedit TIDAK auto-komit (emisi widget yg sama dgn prefill diabaikan)", async () => {
+    // Tes ini memakai kalender bulan September 2026: kunci HANYA `Date` (bukan
+    // timer -- fake timers macet dgn Radix/cmdk) supaya tak bergantung pada
+    // tanggal hari tes dijalankan.
+    vi.useFakeTimers({ toFake: ["Date"] });
+    vi.setSystemTime(new Date(2026, 8, 20, 10, 0, 0));
+    onTestFinished(() => {
+      vi.useRealTimers();
+    });
     const user = userEvent.setup({ delay: null });
     const bar = renderBar({
       tree: {
@@ -4479,6 +4520,14 @@ describe("SearchBar — revisi 10: dropdown date 2 kolom & sinkron simbol/nilai 
   });
 
   it("teks tak terparse mengosongkan pilihan widget (operator tetap); teks valid mengisinya lagi", async () => {
+    // Tes ini memakai kalender bulan September 2026: kunci HANYA `Date` (bukan
+    // timer -- fake timers macet dgn Radix/cmdk) supaya tak bergantung pada
+    // tanggal hari tes dijalankan.
+    vi.useFakeTimers({ toFake: ["Date"] });
+    vi.setSystemTime(new Date(2026, 8, 20, 10, 0, 0));
+    onTestFinished(() => {
+      vi.useRealTimers();
+    });
     const user = userEvent.setup({ delay: null });
     const bar = renderBar();
     await open(user, bar, "Dibuat");

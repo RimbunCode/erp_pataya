@@ -135,6 +135,11 @@ export const groupNodeQueryKey = ({
  * @param {Array} root0.rawPath
  * @param {number} root0.page
  * @param {AbortSignal} [root0.signal]
+ * @param {(args: {pathname: string, params: object, rawPath: Array, page: number, signal?: AbortSignal}) => Promise<object>} [root0.fetcher]
+ *   transport KUSTOM host lain (mis. LinkModel: POST route `model`, atau sumber
+ *   in-memory utk cache mode) -- mengembalikan respons node
+ *   `{type, data, current_page, last_page, total, per_page}`. Default = GET
+ *   index (DataTable2). Tetap lewat antrean concurrency yang sama.
  */
 export const fetchGroupNode = async ({
   pathname,
@@ -142,7 +147,14 @@ export const fetchGroupNode = async ({
   rawPath,
   page,
   signal,
+  fetcher,
 }) => {
+  if (fetcher) {
+    return enqueueGroupNodeFetch(
+      () => fetcher({ pathname, params, rawPath, page, signal }),
+      signal,
+    );
+  }
   const { data } = await enqueueGroupNodeFetch(
     () =>
       axios.get(pathname, {
@@ -193,11 +205,12 @@ export function useGroupNode({
   page,
   enabled,
   version,
+  fetcher,
 }) {
   return useQuery({
     queryKey: groupNodeQueryKey({ pathname, params, rawPath, page, version }),
     queryFn: ({ signal }) =>
-      fetchGroupNode({ pathname, params, rawPath, page, signal }),
+      fetchGroupNode({ pathname, params, rawPath, page, signal, fetcher }),
     enabled,
     // OVERRIDE WAJIB: default QueryClient app = 120_000 ms (dibuat utk block
     // dashboard). Data transaksi tak boleh basi 2 menit -- dokumen bisa berubah
@@ -229,6 +242,8 @@ export function useGroupNodeInfinite({
   rawPath,
   enabled,
   version,
+  fetcher,
+  initialNode,
 }) {
   return useInfiniteQuery({
     queryKey: [
@@ -240,7 +255,14 @@ export function useGroupNodeInfinite({
       version,
     ],
     queryFn: ({ pageParam, signal }) =>
-      fetchGroupNode({ pathname, params, rawPath, page: pageParam, signal }),
+      fetchGroupNode({
+        pathname,
+        params,
+        rawPath,
+        page: pageParam,
+        signal,
+        fetcher,
+      }),
     initialPageParam: 1,
     // Ada halaman berikutnya selama yang sudah dimuat < total.
     getNextPageParam: (lastPage, allPages) =>
@@ -248,7 +270,15 @@ export function useGroupNodeInfinite({
         ? allPages.length + 1
         : undefined,
     enabled,
-    staleTime: 0,
+    // `initialNode`: halaman 1 yang sudah dibawa respons induk (prefill hasil
+    // pencarian) -- tampil instan tanpa fetch lazy; `staleTime` longgar agar
+    // tak langsung refetch, node tetap revalidate saat dibuka ulang kemudian.
+    ...(initialNode
+      ? {
+          initialData: { pages: [initialNode], pageParams: [1] },
+          staleTime: PREFETCH_STALE_TIME,
+        }
+      : { staleTime: 0 }),
     gcTime: GROUP_NODE_GC_TIME,
   });
 }

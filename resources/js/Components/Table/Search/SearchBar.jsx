@@ -2049,7 +2049,10 @@ export default function SearchBar({
     const handlePointerDown = (e) => {
       const target = e.target;
       if (wrapperRef.current?.contains(target)) return;
-      if (target?.closest?.(OVERLAY_SELECTOR)) return;
+      // Overlay yang MEMUAT wrapper (mis. dialog Advance Search tempat SearchBar
+      // ini hidup) bukan overlay anak -- klik di dalamnya tetap "di luar".
+      const overlay = target?.closest?.(OVERLAY_SELECTOR);
+      if (overlay && !overlay.contains(wrapperRef.current)) return;
       // Requirement 27.3, jalur exit "klik-luar": commit checkbox-multi dulu
       // (no-op aman bila tak ada yg tercentang) LEWAT versi sync-nya --
       // `applyDraft` yg menyusul di tick yg SAMA butuh nilai tree TERBARU,
@@ -3218,8 +3221,9 @@ export default function SearchBar({
                   <PopoverContent
                     align="start"
                     onOpenAutoFocus={(e) => e.preventDefault()}
+                    collisionPadding={8}
                     className={cn(
-                      "p-0",
+                      "p-0 max-w-[calc(100vw-1rem)]",
                       showPanel || dateTwoColumn
                         ? "w-[min(90vw,42rem)]"
                         : "w-(--radix-popover-trigger-width)",
@@ -3279,7 +3283,9 @@ export default function SearchBar({
                           onClose={closeDropdown}
                           onFocusInput={() => inputRef.current?.focus()}
                         />
-                        <SearchLegend ctx={legendCtx} />
+                        {/* Tips = pintasan keyboard: hanya di layar >= md (desktop);
+                        disembunyikan di mobile/layar sentuh supaya daftar tak terdesak. */}
+                        <SearchLegend ctx={legendCtx} className="hidden md:block" />
                       </div>
                     ) : (
                       <>

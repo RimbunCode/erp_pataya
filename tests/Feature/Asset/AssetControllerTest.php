@@ -26,6 +26,7 @@ use Database\Factories\Inventory\ItemVariantFactory;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Str;
+use Illuminate\Testing\TestResponse;
 use Tests\TestCase;
 
 class AssetControllerTest extends TestCase {
@@ -131,7 +132,6 @@ class AssetControllerTest extends TestCase {
                 'item_id'               => $item->id,
                 'asset_quantity'        => 1,
                 'ownership_type'        => 'company',
-                'ownership_company_id'  => (string) Str::ulid(),
                 'gross_purchase_amount' => 250_000_000,
             ])
             ->assertRedirect();
@@ -205,7 +205,7 @@ class AssetControllerTest extends TestCase {
     /**
      * [FIXED] AssetRequest sekarang memvalidasi ownership exclusivity
      * (Requirement 4.3-4.5) via withValidator() — ownership_type=supplier tanpa
-     * ownership_supplier_id sekarang ditolak HTTP 422, bukan lolos ke model.
+     * ownership sekarang ditolak HTTP 422, bukan lolos ke model.
      */
     public function test_ownership_exclusivity_rejected_at_request_level(): void {
         $user  = User::factory()->create();
@@ -220,19 +220,18 @@ class AssetControllerTest extends TestCase {
                 'asset_location' => ['id' => $asset->asset_location_id],
                 'item_id'        => $item->id,
                 'ownership_type' => 'supplier',
-                // ownership_supplier_id sengaja TIDAK diisi
+                // ownership sengaja TIDAK diisi
             ])
             ->assertUnprocessable()
-            ->assertJsonValidationErrors(['ownership_supplier_id']);
+            ->assertJsonValidationErrors(['ownership']);
     }
 
     /**
-     * [FIXED] ownership_type=company tidak boleh mewajibkan ownership_company_id
-     * — tidak ada model Company (app single-tenant) dan Form.jsx tidak pernah
-     * mengirim field ini untuk tipe company, beda dengan supplier/customer yang
+     * [FIXED] ownership_type=company tidak mewajibkan ownership — tidak ada
+     * model Company (app single-tenant); beda dengan supplier/customer yang
      * memang punya entitas untuk dipilih.
      */
-    public function test_ownership_type_company_does_not_require_company_id(): void {
+    public function test_ownership_type_company_does_not_require_ownership(): void {
         $user  = User::factory()->create();
         $item  = ItemFactory::new()->create(['is_fixed_asset' => true]);
         $asset = Asset::factory()->create(['item_id' => $item->id]);
@@ -245,9 +244,81 @@ class AssetControllerTest extends TestCase {
                 'asset_location' => ['id' => $asset->asset_location_id],
                 'item_id'        => $item->id,
                 'ownership_type' => 'company',
-                // ownership_company_id sengaja TIDAK diisi — tidak wajib
+                // ownership sengaja TIDAK diisi — tidak wajib
             ])
             ->assertRedirect();
+    }
+
+    /**
+     * Payload update minimal valid + override ownership (spec asset-ownership-morph
+     * Requirement 4). Asset di-create lewat factory (tanpa memicu validasi request).
+     */
+    private function putOwnership(array $ownership): TestResponse {
+        $user  = User::factory()->create();
+        $item  = ItemFactory::new()->create(['is_fixed_asset' => true]);
+        $asset = Asset::factory()->create(['item_id' => $item->id]);
+
+        return $this->actingAs($user)
+            ->withSession($this->permissions())
+            ->putJson(route('assets.update', $asset), [
+                'asset_name'     => $asset->asset_name,
+                'asset_category' => ['id' => $asset->asset_category_id],
+                'asset_location' => ['id' => $asset->asset_location_id],
+                'item_id'        => $item->id,
+                ...$ownership,
+            ]);
+    }
+
+    private function makeSupplier(): Supplier {
+        // withoutEvents: hook audit memanggil toArray() dan Supplier::getAddressAttribute()
+        // crash bila country null (bug lama, lihat CreateAssetFromPurchaseListenerTest).
+        return BaseModel::withoutEvents(
+            fn () => Supplier::query()->create(['name' => 'Pemasok', 'is_disabled' => false]),
+        );
+    }
+
+    public function test_supplier_ownership_with_matching_model_is_accepted_and_stored(): void {
+        $supplier = $this->makeSupplier();
+
+        $this->putOwnership([
+            'ownership_type' => 'supplier',
+            'ownership'      => ['id' => $supplier->id, 'thisModel' => Supplier::class],
+        ])->assertRedirect();
+
+        $this->assertSame(
+            $supplier->id,
+            Asset::query()->latest('created_at')->first()->ownership_id,
+        );
+    }
+
+    public function test_ownership_model_must_match_type(): void {
+        $supplier = $this->makeSupplier();
+
+        $this->putOwnership([
+            'ownership_type' => 'customer',
+            'ownership'      => ['id' => $supplier->id, 'thisModel' => Supplier::class],
+        ])->assertUnprocessable()->assertJsonValidationErrors(['ownership']);
+    }
+
+    public function test_ownership_must_exist_for_supplier_and_customer(): void {
+        $this->putOwnership([
+            'ownership_type' => 'supplier',
+            'ownership'      => ['id' => (string) Str::ulid()],
+        ])->assertUnprocessable()->assertJsonValidationErrors(['ownership']);
+    }
+
+    public function test_company_ownership_must_not_carry_an_owner(): void {
+        $this->putOwnership([
+            'ownership_type' => 'company',
+            'ownership'      => ['id' => (string) Str::ulid()],
+        ])->assertUnprocessable()->assertJsonValidationErrors(['ownership']);
+    }
+
+    public function test_customer_branch_only_allowed_for_customer_ownership(): void {
+        $this->putOwnership([
+            'ownership_type'               => 'company',
+            'ownership_customer_branch_id' => (string) Str::ulid(),
+        ])->assertUnprocessable()->assertJsonValidationErrors(['ownership_customer_branch_id']);
     }
 
     /**

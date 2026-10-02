@@ -2,6 +2,13 @@
 
 namespace App\Http\Controllers;
 
+use App\Models\Asset\AssetOwnershipMorphTo;
+use App\Services\Core\DataTable\Group\GroupColumnGate;
+use App\Services\Core\DataTable\Group\GroupLevelResolver;
+use App\Services\Core\DataTable\Group\GroupNodeQuery;
+use App\Services\Core\DataTable\Group\GroupPath;
+use App\Services\Core\DataTable\Group\LinkModelGroupGate;
+use App\Services\Core\DataTable\Group\ResolvedGroupLevel;
 use App\Services\Core\DataTableColumnSelector;
 use App\Services\Core\FilterColumnResolver;
 use App\Services\Core\FilterEvaluator;
@@ -15,6 +22,7 @@ use Illuminate\Database\Eloquent\Relations\BelongsTo;
 use Illuminate\Database\Eloquent\Relations\Relation;
 use Illuminate\Database\Eloquent\SoftDeletes;
 use Illuminate\Database\Query\JoinClause;
+use Illuminate\Http\Exceptions\HttpResponseException;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Schema;
 use Illuminate\Support\Str;
@@ -369,6 +377,12 @@ class ModelController extends Controller {
         $class = $row[$key . '_type'] ?? null;
         if (\is_string($class) && $class !== '' && \class_exists($class)) {
             return $class;
+        }
+        // Morph ber-tipe enum string (bukan FQCN): Asset::ownership
+        // (`supplier|customer`) -- diterjemahkan lewat peta lokal relasinya,
+        // supaya kolom anak TETAP disaring (bukan lolos tanpa filter).
+        if ($key === 'ownership' && \is_string($class) && isset(AssetOwnershipMorphTo::MODELS[$class])) {
+            return AssetOwnershipMorphTo::MODELS[$class];
         }
 
         return null;
@@ -734,16 +748,31 @@ class ModelController extends Controller {
         }
 
         $queryForCount = $query->clone();
-        if (! $isCache && $request->has('limit')) {
+        // Paginasi (infinite scroll dropdown): `page` menggantikan `limit`. Tanpa
+        // `page`, perilaku `limit` lama tetap (konsumen lain, mis. SearchBar).
+        $paginate = ! $isCache && $request->has('page');
+        if (! $isCache && ! $paginate && $request->has('limit')) {
             $query->limit($request->limit);
         }
 
         // Kolom aman dihitung lebih dulu agar dipakai BOTH untuk SELECT-level (DB
         // hanya baca kolom aman) DAN filterRowColumns (lapis kedua, response).
-        $perm     = PermissionChecker::forUser($request);
-        $fields   = \is_array($request->fields ?? null) ? \array_values($request->fields) : [];
+        $perm   = PermissionChecker::forUser($request);
+        $fields = \is_array($request->fields ?? null) ? \array_values($request->fields) : [];
+        // Jalur grup dropdown (linkmodel-grouping-search Req 5): kolom level
+        // diminta eksplisit supaya lolos safeLookupColumns (skalar tetap wajib
+        // linkable/templateLink), lalu level disaring ke kolom aman. `joins` +
+        // `group` = grup diabaikan (Req 5.3); cache mode tak memakai grup server.
+        $groupActive = ! $isCache && ! $request->has('joins') && LinkModelGroupGate::isActive($request);
+        $groupLevels = $groupActive ? LinkModelGroupGate::candidateLevels($request, $model) : [];
+        if ($groupLevels !== []) {
+            $fields = [...$fields, ...\array_column($groupLevels, 'column')];
+        }
         $safe     = $this->safeLookupColumns($model, $fields, $perm, $withRelations, $isCache);
         $relModes = $this->relatedModelMap($model);
+        if ($groupActive) {
+            $groupLevels = LinkModelGroupGate::apply($request, $groupLevels, $safe);
+        }
 
         // SELECT-level pruning: hanya bila TIDAK ada join (jalur join pakai addSelect
         // manual + SELECT *, konflik dgn select presisi). Cache mode tetap aman.
@@ -791,6 +820,38 @@ class ModelController extends Controller {
             $orders = explode(':', $request->order);
             $query->orderBy($orders[0], $orders[1] ?? 'asc');
         }
+        $filterRow = fn ($value) => $this->filterRowColumns(
+            \is_array($value) ? $value : $value->toArray(),
+            $safe,
+            $relModes,
+            $perm,
+            $fields,
+            withRelationPaths: $withRelationPaths,
+        );
+
+        if ($groupActive && ($groupLevels !== [] || $request->has('groupPath')) && isset($columns)) {
+            return $this->groupedLookupResponse($request, $query, $model, $groupLevels, $columns, $safe, $relModes, $perm, $filterRow);
+        }
+
+        if ($paginate) {
+            $show      = \max(1, \min(100, (int) $request->input('show', 25)));
+            $page      = \max(1, (int) $request->input('page', 1));
+            $pageRows  = (clone $query)->forPage($page, $show)->get();
+            $total     = $page === 1 && $pageRows->count() < $show ? $pageRows->count() : $queryForCount->count();
+            $collected = $pageRows;
+            if (! $request->has('joins') && isset($columns)) {
+                DataTableColumnSelector::applyAppends($collected, $columns, $safe);
+            }
+
+            return response()->json([
+                'total'        => $total,
+                'current_page' => $page,
+                'last_page'    => \max(1, (int) \ceil($total / $show)),
+                'per_page'     => $show,
+                'data'         => \array_map($filterRow, $collected->toArray() ?? []),
+            ]);
+        }
+
         $collection = $query->get();
         if (! $request->has('joins') && isset($columns)) {
             DataTableColumnSelector::applyAppends($collection, $columns, $safe);
@@ -799,15 +860,199 @@ class ModelController extends Controller {
 
         // Lapis kedua (defense-in-depth): saring tiap row ke kolom aman, termasuk
         // relasi morph child yang tak bisa di-prune di SELECT.
-        $results = array_map(
-            fn ($value) => $this->filterRowColumns($value, $safe, $relModes, $perm, $fields, withRelationPaths: $withRelationPaths),
-            $data,
-        );
+        $results = array_map($filterRow, $data);
 
         return response()->json([
             'total' => $queryForCount->count(),
             'data'  => $results,
         ]);
+    }
+
+    /**
+     * Jawaban node grup untuk route `model` (dropdown LinkModel): level-0 bila
+     * `groupPath` kosong/tak ada, sub-grup atau baris daun sesuai panjang
+     * `groupPath`. `groupPath` invalid -> 422 (GroupPath::parse). Baris & label
+     * relasi disaring kolom aman (Requirement 3.2-3.3, 5).
+     *
+     * @param  list<array{column: string, granularity: mixed, range: mixed}>  $requestedLevels  level lolos gerbang kolom aman
+     * @param  list<array<string,mixed>>  $columns
+     * @param  array<string,bool>  $safe
+     * @param  array<string,string>  $relModes
+     */
+    private function groupedLookupResponse(Request $request, Builder $query, string $model, array $requestedLevels, array $columns, array $safe, array $relModes, PermissionChecker $perm, \Closure $filterRow) {
+        $modelInstance    = new $model;
+        $table            = $modelInstance->getTable();
+        $dataTableColumns = GroupColumnGate::sanitizeColumns($columns, $modelInstance);
+        $levels           = GroupLevelResolver::resolve($request, [], [], $dataTableColumns, $modelInstance, $table);
+        if ($levels === []) {
+            return response()->json(['message' => 'Tidak ada level grup yang valid untuk groupPath ini.'], 422);
+        }
+
+        $show       = \max(1, \min(100, (int) $request->input('show', 25)));
+        $sampleBase = clone $query;
+        $node       = new GroupNodeQuery(
+            $query,
+            $levels,
+            $show,
+            loadSamples: function (array $ids) use ($sampleBase, $table, $modelInstance, $columns, $safe) {
+                $models = (clone $sampleBase)
+                    ->whereIn($table . '.' . $modelInstance->getKeyName(), $ids)
+                    ->get();
+                DataTableColumnSelector::applyAppends($models, $columns, $safe);
+
+                return $models->keyBy(fn (Model $m) => $m->getKey());
+            },
+        );
+
+        // Satu node (sub-grup atau baris daun) pada `$path` halaman `$page`,
+        // sudah tersaring kolom aman. `$depth` = panjang path (label level itu).
+        $nodePayload = function (array $path, int $page) use ($node, $levels, $columns, $safe, $filterRow, $request, $relModes, $perm): array {
+            $isLeaf    = \count($path) === \count($levels);
+            $paginator = $isLeaf ? $node->rows($path, $page) : $node->groups($path, $page);
+            if ($isLeaf) {
+                DataTableColumnSelector::applyAppends($paginator, $columns, $safe);
+            }
+            $depthFilter = $this->groupLabelFilter(
+                $request->duplicate(['groupPath' => \json_encode($path)]),
+                \array_map(fn (ResolvedGroupLevel $level) => ['column' => $level->column], $levels),
+                $relModes,
+                $perm,
+            );
+
+            return $this->filterGroupNodePayload(
+                ['type' => $isLeaf ? 'rows' : 'groups', ...$paginator->toArray()],
+                $filterRow,
+                $depthFilter,
+            );
+        };
+
+        $path    = GroupPath::parse($request->input('groupPath'), $levels);
+        $page    = \max(1, (int) $request->input('groupPage', 1));
+        $payload = $nodePayload($path, $page);
+
+        // Pencarian: sertakan isi grup yang otomatis terbuka (aturan sama dgn
+        // `computeAutoExpand` FE) langsung di respons level-0 sebagai `children`,
+        // supaya hasil pertama tampil tanpa fetch lazy per grup. Hanya halaman 1
+        // level-0; grup yang dibuka manual / halaman berikutnya tetap lazy.
+        $prefill = (int) $request->input('prefill', 0);
+        if ($prefill > 0 && $path === [] && $page === 1 && ($payload['type'] ?? null) === 'groups') {
+            $attach = function (array &$descriptors, array $parentPath) use (&$attach, $nodePayload, $prefill): void {
+                $used   = 0;
+                $picked = 0;
+                foreach ($descriptors as &$descriptor) {
+                    $count = (int) ($descriptor['count'] ?? 0);
+                    if ($picked >= 3 || ($picked > 0 && $used + $count > $prefill)) {
+                        break;
+                    }
+                    $picked++;
+                    $used += $count;
+                    $childPath = [...$parentPath, $descriptor['raw'] ?? null];
+                    $child     = $nodePayload($childPath, 1);
+                    if (($child['type'] ?? null) === 'groups') {
+                        $attach($child['data'], $childPath);
+                    }
+                    $descriptor['children'] = $child;
+                }
+            };
+            $attach($payload['data'], []);
+        }
+
+        if ($request->boolean('groupTree') && ! $request->has('groupPath')) {
+            $payload['groupMeta'] = [
+                // `valueTrans`/`parse`: dekode label nilai grup di dropdown (LinkModel
+                // tak punya metadata kolom) -- cermin `columnMeta` header DataTable2.
+                'levels' => \array_map(function (ResolvedGroupLevel $level) use ($dataTableColumns) {
+                    $meta = \collect($dataTableColumns)->firstWhere('name', $level->column) ?? [];
+
+                    return [
+                        ...$level->toGroup(),
+                        'type' => $level->type,
+                        ...\array_filter(
+                            ['valueTrans' => $meta['valueTrans'] ?? null, 'parse' => $meta['parse'] ?? null],
+                            fn ($value) => $value !== null,
+                        ),
+                    ];
+                }, $levels),
+                'aggregates' => [],
+            ];
+            $payload['defaultGroups'] = \array_values(\array_filter(
+                \array_map(
+                    fn (ResolvedGroupLevel $level) => $level->toGroup(),
+                    GroupLevelResolver::resolveDefaults([], $model::getDefaultGroups(), $dataTableColumns, $modelInstance, $table),
+                ),
+                fn (array $group) => isset($safe[$group['column']]),
+            ));
+        }
+
+        return response()->json($payload);
+    }
+
+    /**
+     * Penyaring objek `label` relasi pada deskriptor grup untuk level ke-depth
+     * (kolom anak relasi dibatasi aturan kolom aman model relasinya).
+     *
+     * @param  list<array{column: string}>  $levels  level yang sudah lolos gerbang
+     * @param  array<string,string>  $relModels
+     */
+    private function groupLabelFilter(Request $request, array $levels, array $relModels, PermissionChecker $perm): \Closure {
+        $path  = \json_decode((string) $request->input('groupPath', '[]'), true);
+        $depth = \is_array($path) ? \count($path) : 0;
+
+        return function (?array $label) use ($levels, $depth, $relModels, $perm): ?array {
+            $column = $levels[$depth]['column'] ?? null;
+            $model  = $column !== null ? ($relModels[$column] ?? null) : null;
+            // Relasi morph (`groupMorph`): model target dibawa label itu sendiri
+            // (`thisModel`, dari GroupLabelResolver) -- hanya diterima bila model
+            // Eloquent nyata, lalu tetap disaring kolom aman model tsb.
+            if ($model === null && \is_string($label['thisModel'] ?? null)) {
+                $candidate = $label['thisModel'];
+                if (\class_exists($candidate) && \is_subclass_of($candidate, Model::class) && \method_exists($candidate, 'getColumns')) {
+                    $model = $candidate;
+                }
+            }
+            if ($label === null || $model === null) {
+                // Tak ada model relasi yang bisa dipakai menyaring: fail-closed.
+                return null;
+            }
+
+            return $this->filterRowColumns(
+                $label,
+                $this->safeLookupColumns($model, [], $perm),
+                $this->relatedModelMap($model),
+                $perm,
+            );
+        };
+    }
+
+    /**
+     * @param  array<string,mixed>  $descriptor
+     * @return array<string,mixed>
+     */
+    private function filterGroupDescriptor(array $descriptor, \Closure $labelFilter): array {
+        // Grup NULL: label hanya bisa berasal dari config developer (`groupNullLabel`,
+        // mis. nama perusahaan) -- bukan data model target, tak perlu disaring.
+        if (\array_key_exists('label', $descriptor) && ($descriptor['key'] ?? null) !== 'null') {
+            $descriptor['label'] = $labelFilter(\is_array($descriptor['label']) ? $descriptor['label'] : null);
+        }
+
+        return $descriptor;
+    }
+
+    /**
+     * Saring payload respons expand grup (`type` rows|groups).
+     *
+     * @param  array<string,mixed>  $payload
+     * @return array<string,mixed>
+     */
+    private function filterGroupNodePayload(array $payload, \Closure $filterRow, \Closure $labelFilter): array {
+        if (! isset($payload['data']) || ! \is_array($payload['data'])) {
+            return $payload;
+        }
+        $payload['data'] = ($payload['type'] ?? null) === 'rows'
+            ? \array_map($filterRow, $payload['data'])
+            : \array_map(fn (array $descriptor) => $this->filterGroupDescriptor($descriptor, $labelFilter), $payload['data']);
+
+        return $payload;
     }
 
     public function selectData(Request $request) {
@@ -944,11 +1189,24 @@ class ModelController extends Controller {
         // kolom aman non-relasi di-addSelect EKSPLISIT di sini SEBELUM macro jalan —
         // additive (pola sama addSelect FK parentColumn di atas), macro tetap
         // menambah select-nya sendiri di atasnya tanpa konflik.
-        $perm               = PermissionChecker::forUser($request);
-        $requested          = $parentColumn ? [...$showedColumns, $parentColumn] : $showedColumns;
+        $perm      = PermissionChecker::forUser($request);
+        $requested = $parentColumn ? [...$showedColumns, $parentColumn] : $showedColumns;
+        // Jalur grup (linkmodel-grouping-search): level kandidat dari request/
+        // default model. Kolom level masuk `requested` (diminta eksplisit) --
+        // kolom skalar tetap wajib linkable/templateLink/forceSelect, relasi lolos
+        // selama lolos visibleFor; semua level lalu disaring ke kolom aman
+        // SEBELUM macro dijalankan (Requirement 3.1).
+        $groupActive = LinkModelGroupGate::isActive($request);
+        $groupLevels = $groupActive ? LinkModelGroupGate::candidateLevels($request, $target) : [];
+        if ($groupLevels !== []) {
+            $requested = [...$requested, ...\array_column($groupLevels, 'column')];
+        }
         $includeAllLinkable = $request->boolean('includeAllLinkable');
         $safe               = $this->safeLookupColumns($target, $requested, $perm, [], $includeAllLinkable);
         $relModels          = $this->relatedModelMap($target);
+        if ($groupActive) {
+            $groupLevels = LinkModelGroupGate::apply($request, $groupLevels, $safe);
+        }
         if ($parentColumn && isset($parentRel, $parent)) {
             $safe[$parentColumn]      = true;
             $relModels[$parentColumn] = $parent;
@@ -984,26 +1242,49 @@ class ModelController extends Controller {
             }
         }
 
-        $result = $query->dataTable($request, $showedColumns);
-
         // Batasi kolom tiap row paginate ke kolom aman (templateLink + columns∩linkable
         // − visibleFor gagal). `columns` (showedColumns) berperan sbg kolom diminta;
         // parentColumn (relasi balik per-item) selalu diizinkan agar tetap tampil.
         $passthrough = $parentColumn ? [$parentColumn => true] : [];
         $reqFields   = \array_values($requested);
-        $paginated   = $result['data'];
-        if (\is_object($paginated) && \method_exists($paginated, 'through')) {
-            $paginated->through(fn ($row) => $this->filterRowColumns(
-                \is_array($row) ? $row : $row->toArray(),
-                $safe,
-                $relModels,
-                $perm,
-                $reqFields,
-                $passthrough,
-            ));
+        $filterRow   = fn ($row) => $this->filterRowColumns(
+            \is_array($row) ? $row : $row->toArray(),
+            $safe,
+            $relModels,
+            $perm,
+            $reqFields,
+            $passthrough,
+        );
+        $labelFilter = $this->groupLabelFilter($request, $groupLevels, $relModels, $perm);
+
+        try {
+            $result = $query->dataTable($request, $showedColumns);
+        } catch (HttpResponseException $e) {
+            // Request expand grup (`groupPath`): macro menjawab JSON langsung dan
+            // MELEWATI penyaring kolom aman di bawah -- saring di sini (Requirement 3.2-3.3).
+            if (! $groupActive || ! $request->has('groupPath')) {
+                throw $e;
+            }
+
+            return response()->json(
+                $this->filterGroupNodePayload(
+                    \json_decode($e->getResponse()->getContent(), true) ?? [],
+                    $filterRow,
+                    $labelFilter,
+                ),
+                $e->getResponse()->getStatusCode(),
+            );
         }
 
-        return response()->json([
+        $paginated = $result['data'];
+        $groupMeta = $result['groupMeta'] ?? null;
+        if (\is_object($paginated) && \method_exists($paginated, 'through')) {
+            $paginated->through($groupMeta !== null
+                ? fn (array $descriptor) => $this->filterGroupDescriptor($descriptor, $labelFilter)
+                : $filterRow);
+        }
+
+        $payload = [
             'model'               => $target,
             'route'               => Str::plural((new $target)->getNameClass()),
             'translateKey'        => (new $target)->translateKey ?? null,
@@ -1011,7 +1292,17 @@ class ModelController extends Controller {
             'templateLinkColumns' => $this->templateLinkColumns($target),
             'parentColumn'        => $parentColumn,
             'data'                => $paginated,
-        ]);
+        ];
+        if ($request->boolean('groupTree')) {
+            // Hanya default yang lolos gate kolom aman (nama kolom terlarang tak bocor).
+            $payload['groupMeta']     = $groupMeta;
+            $payload['defaultGroups'] = \array_values(\array_filter(
+                $result['defaultGroups'] ?? [],
+                fn (array $group) => isset($safe[$group['column']]),
+            ));
+        }
+
+        return response()->json($payload);
     }
 
     public function columns(Request $request, string $model) {

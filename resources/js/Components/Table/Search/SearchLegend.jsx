@@ -7,6 +7,7 @@
 // jadikan chip / pilih opsi / edit chip / selesai / terapkan), jadi hanya
 // petunjuk yg berlaku SEKARANG yang ditampilkan, dgn kalimat sesuai fungsinya.
 
+import { cn } from "@/lib/utils";
 import { useLaravelReactI18n } from "laravel-react-i18n";
 
 // id -> tombol yg ditampilkan (`[]` = hanya teks). Label i18n:
@@ -189,13 +190,16 @@ const chipKeyTips = () => ["chip_nav", "chip_edit", "chip_remove", "escape"];
  * @param {object} [props.ctx] kondisi saat ini (lihat `legendTipsFor`)
  * @returns {import("react").JSX.Element|null}
  */
-export default function SearchLegend({ ctx }) {
+export default function SearchLegend({ ctx, className }) {
   const { t } = useLaravelReactI18n();
   const ids = legendTipsFor(ctx);
   if (ids.length === 0) return null;
 
   return (
-    <div className="border-t bg-muted/40 px-3 py-2" data-testid="search-legend">
+    <div
+      className={cn("border-t bg-muted/40 px-3 py-2", className)}
+      data-testid="search-legend"
+    >
       <p className="mb-1 text-[11px] font-semibold uppercase tracking-wide text-foreground/80">
         {t("core.datatable.search.legend.title")}
       </p>
