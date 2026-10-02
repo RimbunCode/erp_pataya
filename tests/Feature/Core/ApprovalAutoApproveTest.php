@@ -5,6 +5,7 @@ namespace Tests\Feature\Core;
 use App\Contracts\SubmitableService;
 use App\Enums\FormStatus;
 use App\Http\Controllers\Controller;
+use App\Http\Controllers\Core\ApprovalSchemeController;
 use App\Http\Middleware\AppMiddleware;
 use App\Http\Middleware\EnsureUserIsOnboarded;
 use App\Http\Middleware\LanguageMiddleware;
@@ -588,6 +589,63 @@ class ApprovalAutoApproveTest extends TestCase {
 
         $this->assertEquals(FormStatus::APPROVED->value, $steps[2]->fresh()->status->value);
         $this->assertEquals(FormStatus::APPROVED->value, $instance->fresh()->status->value);
+    }
+
+    /**
+     * Hanya kandidat approver dari step yang masih PENDING yang boleh memutuskan.
+     */
+    public function test_decision_is_rejected_for_non_candidate_and_non_pending_step(): void {
+        $roleA     = $this->makeRole('GuardRoleA');
+        $roleB     = $this->makeRole('GuardRoleB');
+        $approverA = $this->makeUser('GuardApproverA');
+        $approverB = $this->makeUser('GuardApproverB');
+        $outsider  = $this->makeUser('GuardOutsider');
+        $this->assignRole($approverA, $roleA);
+        $this->assignRole($approverB, $roleB);
+
+        $this->makeScheme('scheme-guard', [
+            ['approver_type' => 'role', 'approverable_type' => Role::class, 'approverable_id' => $roleA->id],
+            ['approver_type' => 'role', 'approverable_type' => Role::class, 'approverable_id' => $roleB->id],
+        ]);
+
+        $instance = ApprovalInstance::makeInstance($this->makeDocument($this->makeUser('GuardCreator')));
+        $steps    = ApprovalInstanceStep::where('approval_instance_id', $instance->id)->orderBy('sequence')->get();
+        $decide   = fn (User $u, ApprovalInstanceStep $s, string $d = 'approve') => $this->actingAs($u)
+            ->withoutMiddleware([AppMiddleware::class, EnsureUserIsOnboarded::class, LanguageMiddleware::class])
+            ->postJson(route('approvalInstances.decision', $s->id), ['decision' => $d])
+            ->getStatusCode();
+
+        $this->assertSame(403, $decide($outsider, $steps[0]), 'bukan kandidat');
+        $this->assertSame(403, $decide($approverB, $steps[1]), 'step masih waiting');
+        $this->assertEquals(FormStatus::PENDING->value, $steps[0]->fresh()->status->value);
+        $this->assertEquals(FormStatus::WAITING->value, $steps[1]->fresh()->status->value);
+
+        $this->assertNotSame(403, $decide($approverA, $steps[0]));
+        $this->assertSame(403, $decide($approverA, $steps[0]), 'step sudah approved');
+        $this->assertSame(403, $decide($approverA, $steps[0], 'reject'), 'step sudah approved');
+        $this->assertEquals(FormStatus::PENDING->value, $steps[1]->fresh()->status->value);
+    }
+
+    public function test_decision_on_advanced_step_only_allows_pending_child_approver(): void {
+        $userA    = $this->makeUser('GuardAdvA');
+        $userB    = $this->makeUser('GuardAdvB');
+        $outsider = $this->makeUser('GuardAdvOutsider');
+
+        $child = fn (User $u) => ['approver_type' => 'user', 'approverable_type' => User::class, 'approverable_id' => $u->id];
+        $this->makeScheme('scheme-guard-adv', [
+            [...$child($userA), 'is_advanced' => true, 'approvers' => [$child($userA), $child($userB)]],
+        ]);
+
+        $instance = ApprovalInstance::makeInstance($this->makeDocument($this->makeUser('GuardAdvCreator')));
+        $step     = ApprovalInstanceStep::where('approval_instance_id', $instance->id)->first();
+        $decide   = fn (User $u) => $this->actingAs($u)
+            ->withoutMiddleware([AppMiddleware::class, EnsureUserIsOnboarded::class, LanguageMiddleware::class])
+            ->postJson(route('approvalInstances.decision', $step->id), ['decision' => 'approve'])
+            ->getStatusCode();
+
+        $this->assertSame(403, $decide($outsider));
+        $this->assertNotSame(403, $decide($userA));
+        $this->assertSame(403, $decide($userB), 'kalah race: step sudah approved');
     }
 
     /**

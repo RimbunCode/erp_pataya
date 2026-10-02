@@ -240,6 +240,8 @@ class ApprovalInstanceController extends Controller {
         $data     = $request->validated();
         $decision = $data['decision'];
 
+        abort_unless($approvalInstanceStep->canBeDecidedBy($request->user()), 403);
+
         return $this->$decision($approvalInstanceStep, $data['notes'] ?? null);
     }
 }
