@@ -14,6 +14,7 @@ use Database\Factories\Purchase\PurchaseOrderFactory;
 use Database\Factories\Purchase\SupplierFactory;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Illuminate\Support\Facades\DB;
+use Illuminate\Support\Facades\Event;
 use Illuminate\Support\Facades\Schema;
 use Mockery;
 use Tests\TestCase;
@@ -147,6 +148,29 @@ class PurchaseOrderPermissionTest extends TestCase {
         $response->assertStatus(302);
         $this->assertSame($codeBeforeSubmit, $amended->code);
         $this->assertNotContains(FormStatus::DRAFT, $amended->status);
+    }
+
+    /**
+     * Regresi: amend() memanggil push() pada replika yang relasinya ikut tersalin, sehingga
+     * seluruh graf relasi dokumen asli (user, item, approval instance, role, permission, ...)
+     * ikut di-save ulang dan memicu hook reindex command-search berantai (menggantung berjam-jam
+     * pada dokumen yang sudah punya approval). Hanya dokumen baru dan item barunya yang boleh di-save.
+     */
+    public function test_amend_only_saves_new_document_and_its_items(): void {
+        $this->actingAs($this->user);
+        $country       = CountryFactory::new()->create();
+        $supplier      = SupplierFactory::new()->create(['country_id' => $country->code]);
+        $purchaseOrder = PurchaseOrderFactory::new()->create(['supplier_id' => $supplier->id]);
+
+        $saved = [];
+        Event::listen('eloquent.saved: *', function ($name, $data) use (&$saved) {
+            $saved[] = class_basename($data[0]);
+        });
+
+        $purchaseOrder->amend();
+
+        $unexpected = array_diff(array_unique($saved), ['PurchaseOrder', 'PurchaseOrderItem', 'Command', 'Log']);
+        $this->assertSame([], array_values($unexpected), 'Model relasi yang ikut di-save ulang: ' . implode(', ', $unexpected));
     }
 
     public function test_mark_done_still_blocked_when_permission_missing(): void {
