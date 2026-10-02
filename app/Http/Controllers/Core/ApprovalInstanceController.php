@@ -14,6 +14,7 @@ use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\DB;
+use Illuminate\Support\Facades\Route;
 use Illuminate\Support\Facades\URL;
 use Illuminate\Support\Str;
 use Inertia\Inertia;
@@ -126,7 +127,8 @@ class ApprovalInstanceController extends Controller {
                 continue;
             }
 
-            if ($step->status !== FormStatus::APPROVED) {
+            // SKIPPED (auto-approve partial) tidak menghalangi final approval.
+            if (! \in_array($step->status, [FormStatus::APPROVED, FormStatus::SKIPPED], true)) {
                 $isApproved = false;
             }
         }
@@ -239,6 +241,8 @@ class ApprovalInstanceController extends Controller {
     public function decision(ApprovalDecisionRequest $request, ApprovalInstanceStep $approvalInstanceStep) {
         $data     = $request->validated();
         $decision = $data['decision'];
+
+        abort_unless($approvalInstanceStep->canBeDecidedBy($request->user()), 403);
 
         return $this->$decision($approvalInstanceStep, $data['notes'] ?? null);
     }

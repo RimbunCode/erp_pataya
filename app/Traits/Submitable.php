@@ -266,7 +266,11 @@ trait Submitable {
 
         try {
             if ($withRelations) {
-                $newData->push();
+                // save(), BUKAN push(): replicate() menyalin relasi yang sudah ter-load, dan
+                // push() akan men-save ulang seluruh graf relasi dokumen asli (user, item,
+                // approval instance, role, permission, ...) sambil memicu hook saved() tiap model
+                // (reindex command-search berantai). Item direplikasi manual di bawah.
+                $newData->save();
                 foreach ($this->getRelations() as $key => $value) {
                     if ($value instanceof Collection) {
                         $foreignKey = $newData->$key()->getForeignKeyName();

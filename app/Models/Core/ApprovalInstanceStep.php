@@ -4,6 +4,7 @@ namespace App\Models\Core;
 
 use App\Casts\FormStatusCast;
 use App\Casts\Json;
+use App\Enums\FormStatus;
 use App\Models\Model;
 use App\Models\User\Role;
 use App\Models\User\User;
@@ -118,6 +119,25 @@ class ApprovalInstanceStep extends Model {
             'approver_type'   => $this->approver_type,
             'approverable_id' => $this->approverable_id,
         ]]);
+    }
+
+    /**
+     * Apakah $user boleh memutuskan step ini: step harus masih `pending`, dan
+     * user cocok dengan salah satu kandidat (langsung atau lewat role). Pada
+     * step advanced hanya approver anak yang masih `pending` yang dihitung.
+     */
+    public function canBeDecidedBy(?User $user): bool {
+        if (! $user || $this->status?->value !== FormStatus::PENDING->value) {
+            return false;
+        }
+
+        $roleIds    = $user->roles->pluck('id');
+        $candidates = $this->is_advanced
+            ? $this->approvers->filter(fn ($a) => $a->status?->value === FormStatus::PENDING->value)
+            : collect([$this]);
+
+        return $candidates->contains(fn ($c) => ($c->approver_type === 'user' && $c->approverable_id === $user->id)
+            || ($c->approver_type === 'role' && $roleIds->contains($c->approverable_id)));
     }
 
     /**

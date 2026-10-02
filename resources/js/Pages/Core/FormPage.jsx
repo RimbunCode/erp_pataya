@@ -1425,13 +1425,18 @@ const ApprovalItem = memo(function ApprovalItem({
   approvers,
 }) {
   const { t } = useLaravelReactI18n();
-  const [open, setOpen] = useState(false);
+  // Step multi-approver menampilkan daftar approver anak sejak masih pending,
+  // supaya terlihat siapa saja kandidatnya; step biasa baru bisa dibuka
+  // setelah diputuskan.
+  const hasChildren = Boolean(is_advanced && approvers?.length > 0);
+  const [open, setOpen] = useState(hasChildren);
 
   const hasDetail = !(
     status == "waiting" ||
     status == "pending" ||
     status == "skipped"
   );
+  const expandable = hasDetail || hasChildren;
 
   return (
     <li key={id} className="mb-3 first:mt-2 ms-6">
@@ -1447,15 +1452,15 @@ const ApprovalItem = memo(function ApprovalItem({
           )}
         />
       </div>
-      <Collapsible open={hasDetail && open} onOpenChange={setOpen}>
+      <Collapsible open={expandable && open} onOpenChange={setOpen}>
         <CollapsibleTrigger
           className={cn(
             "[&[data-state=open]_svg]:rotate-180 text-foreground grid grid-cols-[auto_1fr] gap-x-2 items-center",
             !hasDetail && "text-muted-foreground",
-            hasDetail && "cursor-pointer",
+            expandable && "cursor-pointer",
           )}
         >
-          {hasDetail && (
+          {expandable && (
             <ChevronDownIcon className="w-4 h-4 transition-transform duration-200 shrink-0" />
           )}
           <p className="text-sm font-normal leading-none">
@@ -2244,6 +2249,7 @@ export {
   FormPageDialog,
   FormPageDiff,
   FormPageContext,
+  Approvals,
   useFormPage,
   useFormPageMeta,
   // useFormPageContent,
