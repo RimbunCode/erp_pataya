@@ -7,6 +7,7 @@ use App\Http\Controllers\Controller;
 use App\Http\Requests\Asset\AssetRequest;
 use App\Http\Requests\Asset\CompleteAssetDataRequest;
 use App\Models\Asset\Asset;
+use App\Models\Core\Preference;
 use App\Services\Asset\AssetService;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
@@ -39,7 +40,9 @@ class AssetController extends Controller {
     public function create() {
         $this->setBreadcrumbs();
 
-        return Inertia::render('Asset/Assets/Show');
+        return Inertia::render('Asset/Assets/Show', [
+            'companyName' => Preference::find('company_name')?->value,
+        ]);
     }
 
     public function store(AssetRequest $request) {
@@ -54,7 +57,8 @@ class AssetController extends Controller {
         $asset->showDetail();
 
         return Inertia::render('Asset/Assets/Show', [
-            'asset' => function () use ($asset) {
+            'companyName' => Preference::find('company_name')?->value,
+            'asset'       => function () use ($asset) {
                 $asset->loadRelations();
 
                 return $asset;

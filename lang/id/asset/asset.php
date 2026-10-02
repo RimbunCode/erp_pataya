@@ -37,6 +37,7 @@ return [
     'needs_completion'                       => 'Perlu Dilengkapi',
     'complete_now'                           => 'Lengkapi Sekarang',
     'ownership_field_must_be_empty'          => 'Field :field harus kosong untuk jenis kepemilikan yang dipilih.',
+    'ownership_model_mismatch'               => 'Pemilik yang dipilih tidak sesuai dengan jenis kepemilikan :type.',
     'rentable_must_be_single_unit'           => 'Aset ini tidak mengizinkan kuantitas lebih dari 1 — aset harus berkuantitas 1.',
     'cannot_transition_status'               => 'Aset tidak dapat bertransisi ke status :to dari status saat ini.',
     'total_number_of_depreciations_required' => 'Total jumlah penyusutan wajib diisi untuk menghitung jadwal penyusutan.',
@@ -83,9 +84,8 @@ return [
             'supplier' => 'Pemasok',
             'customer' => 'Pelanggan',
         ],
-        'ownership_company_id'  => 'Perusahaan',
-        'ownership_supplier_id' => 'Pemasok',
-        'ownership_customer_id' => 'Pelanggan',
+        'ownership'                 => 'Pemilik',
+        'ownership_customer_branch' => 'Cabang Pelanggan',
 
         'custodian_id' => 'Penanggung Jawab',
 

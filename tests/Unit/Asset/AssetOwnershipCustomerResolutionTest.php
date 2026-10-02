@@ -20,11 +20,11 @@ class AssetOwnershipCustomerResolutionTest extends TestCase {
 
         $asset = Asset::factory()->create([
             'ownership_type'               => AssetOwnershipType::CUSTOMER,
-            'ownership_customer_id'        => $customer->id,
+            'ownership_id'                 => $customer->id,
             'ownership_customer_branch_id' => $branch->id,
         ]);
 
-        $this->assertTrue($asset->ownershipCustomer->is($customer));
+        $this->assertTrue($asset->ownership->is($customer));
         $this->assertTrue($asset->ownershipCustomerBranch->is($branch));
     }
 
@@ -32,7 +32,7 @@ class AssetOwnershipCustomerResolutionTest extends TestCase {
     public function ownership_customer_branch_is_null_when_asset_owned_by_company(): void {
         $asset = Asset::factory()->create(['ownership_type' => AssetOwnershipType::COMPANY]);
 
-        $this->assertNull($asset->ownershipCustomer);
+        $this->assertNull($asset->ownership);
         $this->assertNull($asset->ownershipCustomerBranch);
     }
 }

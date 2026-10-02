@@ -18,6 +18,7 @@ return [
         'stage.options'        => [
             'identified'  => 'Teridentifikasi',
             'qualified'   => 'Qualified',
+            'proposal'    => 'Proposal',
             'negotiation' => 'Negosiasi',
             'won'         => 'Menang',
             'lost'        => 'Kalah',

@@ -108,25 +108,29 @@ class AssetServiceLinkModelSearchTest extends TestCase {
     #[Test]
     public function asset_service_with_resolves_ownership_customer_via_repair_asset(): void {
         // Requirement 7.2
-        $customer = Customer::query()->create(['name' => 'Owner', 'is_disabled' => false]);
+        // `phone` = kolom non-templateLink non-linkable: TIDAK boleh bocor lewat morph.
+        $customer = Customer::query()->create(['name' => 'Owner', 'phone' => '0812-RAHASIA', 'is_disabled' => false]);
         $item     = Item::factory()->create(['is_fixed_asset' => true]);
         $category = AssetCategory::factory()->create();
         $asset    = Asset::factory()->create([
-            'asset_category_id'     => $category->id,
-            'item_id'               => $item->id,
-            'ownership_type'        => AssetOwnershipType::CUSTOMER,
-            'ownership_customer_id' => $customer->id,
-            'status'                => [FormStatus::ACTIVE],
+            'asset_category_id' => $category->id,
+            'item_id'           => $item->id,
+            'ownership_type'    => AssetOwnershipType::CUSTOMER,
+            'ownership_id'      => $customer->id,
+            'status'            => [FormStatus::ACTIVE],
         ]);
         $assetService = AssetService::factory()->create([
             'asset_id'       => $asset->id,
             'bill_to_renter' => false,
         ]);
 
-        $data = $this->search(AssetService::class, ['asset.ownershipCustomer', 'asset.ownershipCustomerBranch']);
+        $data = $this->search(AssetService::class, ['asset.ownership', 'asset.ownershipCustomerBranch']);
 
         $found = collect($data)->firstWhere('id', $assetService->id);
-        $this->assertSame($customer->id, $found['asset']['ownership_customer']['id']);
+        $this->assertSame($customer->id, $found['asset']['ownership']['id']);
+        // Morph ber-tipe enum string tetap disaring kolom aman model targetnya.
+        $this->assertSame('Owner', $found['asset']['ownership']['name']);
+        $this->assertArrayNotHasKey('phone', $found['asset']['ownership']);
     }
 
     #[Test]

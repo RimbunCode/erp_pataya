@@ -129,7 +129,7 @@ const statusDraftTree = {
 // bocor lintas test (dua `it()` yang mount kolom relasi sama akan punya
 // queryKey sama; kalau clientnya sama, test kedua bisa diam-diam serve dari
 // cache test pertama alih-alih benar-benar fetch).
-const renderBar = (overrides = {}) => {
+const renderBar = ({ inDialog = false, ...overrides } = {}) => {
   const props = {
     columns,
     tree: null,
@@ -144,7 +144,13 @@ const renderBar = (overrides = {}) => {
   const ui = (p) => (
     <QueryClientProvider client={queryClient}>
       <TooltipProvider>
-        <SearchBar {...p} />
+        {inDialog ? (
+          <div role="dialog" data-testid="host-dialog">
+            <SearchBar {...p} />
+          </div>
+        ) : (
+          <SearchBar {...p} />
+        )}
       </TooltipProvider>
     </QueryClientProvider>
   );
@@ -492,6 +498,25 @@ describe("SearchBar — Panel muncul saat fokus & chevron (Requirement revisi 2)
     ).toBeInTheDocument();
 
     await user.click(document.body);
+
+    await waitFor(() =>
+      expect(
+        screen.queryByText("TR:core.datatable.filter.filter"),
+      ).not.toBeInTheDocument(),
+    );
+  });
+});
+
+describe("SearchBar — klik-luar di dalam dialog host", () => {
+  it("klik di area dialog yang MEMUAT SearchBar (di luar wrapper) tetap menutup panel", async () => {
+    const user = userEvent.setup({ delay: null });
+    const { input } = renderBar({ inDialog: true });
+    await user.click(input);
+    expect(
+      await screen.findByText("TR:core.datatable.filter.filter"),
+    ).toBeInTheDocument();
+
+    await user.click(screen.getByTestId("host-dialog"));
 
     await waitFor(() =>
       expect(

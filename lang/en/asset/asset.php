@@ -37,6 +37,7 @@ return [
     'needs_completion'                       => 'Needs Completion',
     'complete_now'                           => 'Complete Now',
     'ownership_field_must_be_empty'          => 'The :field field must be empty for the selected ownership type.',
+    'ownership_model_mismatch'               => 'The selected owner does not match the ownership type :type.',
     'rentable_must_be_single_unit'           => 'This asset does not allow bulk quantity — quantity must be 1.',
     'cannot_transition_status'               => 'Asset cannot transition to :to from its current status.',
     'total_number_of_depreciations_required' => 'Total number of depreciations is required to generate the depreciation schedule.',
@@ -83,9 +84,8 @@ return [
             'supplier' => 'Supplier',
             'customer' => 'Customer',
         ],
-        'ownership_company_id'  => 'Company',
-        'ownership_supplier_id' => 'Supplier',
-        'ownership_customer_id' => 'Customer',
+        'ownership'                 => 'Owner',
+        'ownership_customer_branch' => 'Customer Branch',
 
         'custodian_id' => 'Custodian',
 

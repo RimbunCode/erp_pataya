@@ -9,12 +9,11 @@ use App\Enums\FormStatus;
 use App\Events\Asset\AssetScrapped;
 use App\Models\Core\Branch;
 use App\Models\Core\GlPostingStatus;
+use App\Models\Core\Preference;
 use App\Models\Finances\PurchaseInvoiceItem;
 use App\Models\Inventory\Item;
 use App\Models\Model;
 use App\Models\Purchase\PurchaseReceiptItem;
-use App\Models\Purchase\Supplier;
-use App\Models\Sales\Customer;
 use App\Models\User\User;
 use App\Services\Asset\AssetService;
 use App\Traits\DataTable;
@@ -24,12 +23,16 @@ use Illuminate\Database\Eloquent\Concerns\HasUlids;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
 use Illuminate\Database\Eloquent\Relations\HasMany;
+use Illuminate\Database\Eloquent\Relations\MorphTo;
 use Illuminate\Database\Eloquent\SoftDeletes;
 use Illuminate\Support\Facades\DB;
 use LogicException;
 
 class Asset extends Model {
     use DataTable, HasFactory, HasUlids, SoftDeletes, Submitable;
+
+    /** Grup bawaan index: pemilik (nama Customer/Supplier/perusahaan) lalu jenis aset. */
+    protected static array|string|null $defaultGroups = ['ownership', 'asset_type'];
 
     protected static $service    = AssetService::class;
     public string $formComponent = 'Asset/Assets/Form';
@@ -81,11 +84,17 @@ class Asset extends Model {
             'order'     => 3,
             'groupable' => true,
         ],
+        // `linkable`: kolom grup AssetLinkModel (ownership_type > asset_type) harus
+        // lolos gerbang kolom aman endpoint lookup.
         'asset_type' => [
-            'groupable' => true,
+            'valueTrans' => 'asset.asset.columns.asset_type.options',
+            'linkable'   => true,
+            'groupable'  => true,
         ],
         'ownership_type' => [
-            'groupable' => true,
+            'valueTrans' => 'asset.asset.columns.ownership_type.options',
+            'linkable'   => true,
+            'groupable'  => true,
         ],
         'is_depreciable' => [
             'groupable' => true,
@@ -103,13 +112,19 @@ class Asset extends Model {
             'order' => 5,
         ],
         /**
-         * Requirement 7.1/7.2, spec asset-service-billing: dibutuhkan lewat
-         * prop `with` LinkModel (AssetServiceLinkModel) saat resolve customer
-         * billing dari Asset.ownership_type=customer.
+         * Pemilik (Supplier/Customer; company = ownership_id NULL). Dipakai (a)
+         * sbg level grup `ownership` (nama pemilik langsung; grup company =
+         * nama perusahaan dari Preference, urutan teratas) dan (b) lewat prop
+         * `with` LinkModel (AssetServiceLinkModel) saat resolve customer
+         * billing dari Asset.ownership_type=customer (spec asset-service-billing
+         * Requirement 7.1/7.2). Spec asset-ownership-morph Requirement 7-9.
          */
-        'ownershipCustomer' => [
-            'type'   => 'relation',
-            'hidden' => true,
+        'ownership' => [
+            'type'           => 'relation',
+            'typeRelation'   => 'morph',
+            'groupable'      => true,
+            'groupMorph'     => true,
+            'groupNullLabel' => ['preference' => 'company_name'],
         ],
         'ownershipCustomerBranch' => [
             'type'   => 'relation',
@@ -123,8 +138,7 @@ class Asset extends Model {
             'assetLocation',
             'item',
             'custodian',
-            'ownershipSupplier',
-            'ownershipCustomer',
+            'ownership',
             // Nested sesuai `with` yang diminta FE (PurchaseReceiptItemLinkModel/
             // PurchaseInvoiceItemLinkModel di Form.jsx) -- tanpa ini, relasi
             // tersimpan tapi FE tidak pernah melihatnya utuh setelah reload.
@@ -151,12 +165,24 @@ class Asset extends Model {
         return $this->belongsTo(User::class, 'custodian_id');
     }
 
-    public function ownershipSupplier(): BelongsTo {
-        return $this->belongsTo(Supplier::class, 'ownership_supplier_id');
-    }
+    /**
+     * Pemilik Asset (Supplier/Customer) lewat morph `ownership_type` +
+     * `ownership_id`. `company` (dan tipe tak terpetakan) -> `null` tanpa query.
+     * Subclass MorphTo khusus (peta lokal, tanpa morphMap global) -- lihat
+     * AssetOwnershipMorphTo.
+     */
+    public function ownership(): MorphTo {
+        $type  = $this->getAttributes()['ownership_type'] ?? null;
+        $class = AssetOwnershipMorphTo::MODELS[$type] ?? null;
 
-    public function ownershipCustomer(): BelongsTo {
-        return $this->belongsTo(Customer::class, 'ownership_customer_id');
+        if ($class === null) {
+            // Eager-load (belum ada tipe), company, atau tipe tak dikenal.
+            return new AssetOwnershipMorphTo($this->newQuery()->setEagerLoads([]), $this, 'ownership_id', null, 'ownership_type', 'ownership');
+        }
+
+        $instance = $this->newRelatedInstance($class);
+
+        return new AssetOwnershipMorphTo($instance->newQuery(), $this, 'ownership_id', $instance->getKeyName(), 'ownership_type', 'ownership');
     }
 
     public function ownershipCustomerBranch(): BelongsTo {
@@ -206,15 +232,17 @@ class Asset extends Model {
     }
 
     /**
-     * Resolve the ownership relationship based on ownership_type.
-     * NOT a morphTo — manual dispatch because Laravel morph stores FQCN, not enum string.
+     * Nama pemilik untuk tampilan: Supplier/Customer (`name`), atau nama
+     * perusahaan dari Preference `company_name` untuk ownership company.
      */
-    public function ownershipEntity(): ?BelongsTo {
-        return match ($this->ownership_type) {
-            AssetOwnershipType::SUPPLIER => $this->ownershipSupplier(),
-            AssetOwnershipType::CUSTOMER => $this->ownershipCustomer(),
-            default                      => null,
-        };
+    protected function ownershipName(): Attribute {
+        return Attribute::get(function (): ?string {
+            if ($this->ownership_type === AssetOwnershipType::COMPANY) {
+                return Preference::find('company_name')?->value;
+            }
+
+            return $this->ownership?->name;
+        });
     }
 
     /**
@@ -370,6 +398,15 @@ class Asset extends Model {
                 && ! $asset->isDirty('is_depreciable')
             ) {
                 $asset->is_depreciable = false;
+            }
+
+            // Cabang customer hanya bermakna utk pemilik customer: kosongkan saat
+            // tipe berganti ke non-customer (spec asset-ownership-morph Req 3.2).
+            if (
+                $asset->isDirty('ownership_type')
+                && $asset->ownership_type !== AssetOwnershipType::CUSTOMER
+            ) {
+                $asset->ownership_customer_branch_id = null;
             }
 
             // Default is_depreciable from AssetCategory on create

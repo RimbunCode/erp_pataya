@@ -15,6 +15,12 @@ use Inertia\Inertia;
 class ItemVariant extends Model {
     use DataTable, HasFactory, HasUlids, SoftDeletes;
 
+    /**
+     * Grup bawaan bertingkat: tipe lalu kategori (DataTable2 index dan opsi
+     * LinkModel/Advance Search; prop `group` LinkModel menimpa).
+     */
+    protected static array|string|null $defaultGroups = ['type', 'category'];
+
     public $keyBreadcrumb       = 'code';
     public $aliasBreadcrumb     = 'Variant';
     public string $translateKey = 'inventory.item';
@@ -77,6 +83,11 @@ class ItemVariant extends Model {
             'order'     => 4,
             'linkable'  => true,
             'groupable' => true,
+        ],
+        'type' => [
+            'valueTrans' => 'inventory.category.types',
+            'linkable'   => true,
+            'groupable'  => true,
         ],
         'item_id' => [
             'forceSelect' => true,

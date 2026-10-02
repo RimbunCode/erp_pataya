@@ -18,12 +18,16 @@ const safeParse = (text) => {
  * - boolean -> boolean asli (`key` 'true'/'false'; SQL mentah 0/1 tak dipakai)
  * - formStatuses -> array status (`key` = JSON ringkas)
  * - lainnya -> `raw` (string / kunci bucket date / batas bawah bucket number)
- * Grup NULL (`key` 'null') -> null (GroupLabel menampilkan "Tanpa Nilai").
+ * Grup NULL (`key` 'null') -> null (GroupLabel menampilkan "Tanpa Nilai"),
+ * KECUALI level relasi yang membawa `label` bawaan dari backend (config kolom
+ * `groupNullLabel`, mis. nama perusahaan utk ownership Asset).
  * @param {{key: string, raw: *, label?: *}} item
  * @param {{type?: string}} level
  */
 export const groupLabelValue = (item, level) => {
-  if (item.key === "null") return null;
+  if (item.key === "null" && !(level?.type === "relation" && item.label)) {
+    return null;
+  }
   switch (level?.type) {
     case "relation":
       return item.label ?? null;

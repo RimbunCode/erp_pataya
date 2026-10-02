@@ -286,6 +286,8 @@ export default function SearchPanel({
         "grid grid-cols-1 gap-4 p-3 max-h-[min(70vh,26rem)] overflow-y-auto",
         GRID_COLS[sectionCount],
         "md:gap-0 md:divide-x md:divide-muted-foreground/20",
+        // Mobile (kolom bertumpuk): tiap seksi dipisah garis supaya tak menyatu.
+        "[&>section:not(:first-child)]:border-t [&>section:not(:first-child)]:border-muted-foreground/20 [&>section:not(:first-child)]:pt-3 md:[&>section:not(:first-child)]:border-t-0 md:[&>section:not(:first-child)]:pt-0",
       )}
     >
       <section className="flex flex-col gap-2 md:px-3 md:first:pl-0 min-w-0">
