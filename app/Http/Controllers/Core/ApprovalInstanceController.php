@@ -9,6 +9,7 @@ use App\Http\Requests\Core\ApprovalDecisionRequest;
 use App\Models\Core\ApprovalInstance;
 use App\Models\Core\ApprovalInstanceStep;
 use App\Models\Model;
+use App\Services\Core\Approval\ApprovalAccessService;
 use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Auth;
@@ -73,7 +74,7 @@ class ApprovalInstanceController extends Controller {
     }
 
     public function show(Request $request, ApprovalInstance $approvalInstance) {
-        abort_unless($this->canAccessApprovalInstance($request, $approvalInstance), 403);
+        abort_unless(app(ApprovalAccessService::class)->canAccessInstance($request->user(), $approvalInstance), 403);
 
         $document = $approvalInstance->document;
         abort_if(! $document, 404);
@@ -92,45 +93,6 @@ class ApprovalInstanceController extends Controller {
         $route = Route::getRoutes()->getByName($routeName);
 
         return $route?->parameterNames()[0] ?? Str::camel(class_basename($document));
-    }
-
-    private function canAccessApprovalInstance(Request $request, ApprovalInstance $approvalInstance): bool {
-        $user = $request->user();
-        if (! $user) {
-            return false;
-        }
-
-        $roleIds = $user->roles->pluck('id');
-
-        return $approvalInstance->steps()
-            ->where(function (Builder $query) use ($user, $roleIds) {
-                // single-approver
-                $query->where(function (Builder $query) use ($user, $roleIds) {
-                    $query->where('is_advanced', false)
-                        ->where(function (Builder $query) use ($user, $roleIds) {
-                            $query->where(function (Builder $query) use ($roleIds) {
-                                $query->where('approver_type', 'role')
-                                    ->whereIn('approverable_id', $roleIds);
-                            })->orWhere(function (Builder $query) use ($user) {
-                                $query->where('approver_type', 'user')
-                                    ->where('approverable_id', $user->id);
-                            });
-                        });
-                })
-                    // multi-approver: ada sebagai approver anak
-                    ->orWhere(function (Builder $query) use ($user, $roleIds) {
-                        $query->where('is_advanced', true)
-                            ->whereHas('approvers', function (Builder $q) use ($user, $roleIds) {
-                                $q->where(function ($q) use ($user) {
-                                    $q->where('approver_type', 'user')->where('approverable_id', $user->id);
-                                })->orWhere(function ($q) use ($roleIds) {
-                                    $q->where('approver_type', 'role')->whereIn('approverable_id', $roleIds);
-                                });
-                            });
-                    })
-                    ->orWhere('acted_by_id', $user->id);
-            })
-            ->exists();
     }
 
     private function approve(ApprovalInstanceStep $approvalInstanceStep, ?string $notes = null) {

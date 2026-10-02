@@ -146,6 +146,56 @@ class PrintTemplateRenderServiceHelpersTest extends TestCase {
     }
 
     /**
+     * Dengan FLAG_ERROR_LOG (yang dipakai renderTemplate), lightncandy MENELAN
+     * kegagalan di dalam helper — kelas tak ditemukan, variabel tak
+     * terdefinisi — menjadi string kosong dan hanya mencatatnya ke error_log.
+     * Pemeriksaan hasil saja karena itu tidak cukup: helper yang rusak tetap
+     * "mengembalikan string".
+     *
+     * Di sini dipakai FLAG_ERROR_EXCEPTION supaya kegagalan yang sama MELEMPAR,
+     * sehingga terlihat sebagai test merah. Tanpa test ini, sebuah merge yang
+     * menimpa nama kelas lengkap dengan nama pendek lolos tanpa satu pun test
+     * memerah — persis yang terjadi saat branch approval-signature
+     * digabungkan: `\App\Utils` kembali menjadi `Utils`.
+     *
+     * @dataProvider helperNameProvider
+     */
+    public function test_helper_does_not_fail_at_runtime(string $name): void {
+        $helpers = $this->helpers();
+
+        $template = $name === 'infoColumns'
+            ? '{{#infoColumns value}}x{{/infoColumns}}'
+            : '{{' . $name . ' "x" "y"}}';
+
+        $phpCode = LightnCandy::compile($template, [
+            'flags'   => LightnCandy::FLAG_HANDLEBARSJS,
+            'helpers' => [$name => $helpers[$name]],
+        ]);
+
+        $this->assertNotFalse($phpCode, "lightncandy gagal mengompilasi helper '{$name}'.");
+
+        $renderer = eval($phpCode);
+
+        try {
+            // Mode debug dibaca dari argumen kedua saat render, bukan dari flag
+            // kompilasi: kode ter-compile menuliskannya sebagai
+            // `isset($options['debug']) ? $options['debug'] : 1`. Nilai 2
+            // (Runtime::DEBUG_ERROR_EXCEPTION) membuat kegagalan helper
+            // dilempar alih-alih ditelan menjadi string kosong.
+            $renderer(['value' => []], ['debug' => 2]);
+        } catch (\Throwable $e) {
+            $this->fail(
+                "Helper '{$name}' gagal saat dijalankan: {$e->getMessage()}\n"
+                . 'Penyebab lazimnya nama kelas pendek (harus string literal lengkap, '
+                . "mis. app('App\\Services\\Handlebar\\FormatHelperService')) "
+                . 'atau variabel yang ditangkap lewat `use`.',
+            );
+        }
+
+        $this->addToAssertionCount(1);
+    }
+
+    /**
      * companyDetail dipakai kop surat, sehingga kegagalannya berdampak pada
      * hampir seluruh template cetak. Diuji dengan data sungguhan, bukan hanya
      * kompilasinya.
