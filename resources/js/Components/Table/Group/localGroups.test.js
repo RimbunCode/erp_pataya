@@ -8,9 +8,27 @@ import {
 } from "./localGroups";
 
 const rows = [
-  { id: 1, code: "A1", category: "alpha", active: true, cat: { id: 10, name: "Cat A" } },
-  { id: 2, code: "A2", category: "alpha", active: false, cat: { id: 10, name: "Cat A" } },
-  { id: 3, code: "B1", category: "beta", active: true, cat: { id: 20, name: "Cat B" } },
+  {
+    id: 1,
+    code: "A1",
+    category: "alpha",
+    active: true,
+    cat: { id: 10, name: "Cat A" },
+  },
+  {
+    id: 2,
+    code: "A2",
+    category: "alpha",
+    active: false,
+    cat: { id: 10, name: "Cat A" },
+  },
+  {
+    id: 3,
+    code: "B1",
+    category: "beta",
+    active: true,
+    cat: { id: 20, name: "Cat B" },
+  },
   { id: 4, code: "N1", category: null, active: true, cat: null },
 ];
 
@@ -31,7 +49,12 @@ describe("describeValue", () => {
 describe("inferLevels", () => {
   it("menebak tipe dari nilai pertama yang terisi dan membuang tipe array", () => {
     const levels = inferLevels(
-      [{ column: "category" }, { column: "active" }, { column: "cat" }, { column: "tags" }],
+      [
+        { column: "category" },
+        { column: "active" },
+        { column: "cat" },
+        { column: "tags" },
+      ],
       [...rows.map((r) => ({ ...r, tags: ["x"] }))],
     );
 
@@ -44,7 +67,10 @@ describe("inferLevels", () => {
 });
 
 describe("groupNodeFromRows", () => {
-  const levels = inferLevels([{ column: "category" }, { column: "active" }], rows);
+  const levels = inferLevels(
+    [{ column: "category" }, { column: "active" }],
+    rows,
+  );
 
   it("level-0: distinct + count, NULL paling awal", () => {
     const node = groupNodeFromRows(rows, levels);

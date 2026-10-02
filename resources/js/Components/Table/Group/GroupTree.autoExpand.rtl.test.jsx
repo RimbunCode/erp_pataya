@@ -107,12 +107,20 @@ describe("GroupTree — autoExpand", () => {
     render(tree({ fetcher: makeFetcher(), autoExpand: { budget: 25 } }));
 
     await waitFor(() =>
-      expect(screen.getByText("a(10)").getAttribute("aria-expanded")).toBe("true"),
+      expect(screen.getByText("a(10)").getAttribute("aria-expanded")).toBe(
+        "true",
+      ),
     );
-    expect(screen.getByText("b(10)").getAttribute("aria-expanded")).toBe("true");
+    expect(screen.getByText("b(10)").getAttribute("aria-expanded")).toBe(
+      "true",
+    );
     // a+b = 20, +c = 30 > 25 -> c tidak dibuka.
-    expect(screen.getByText("c(10)").getAttribute("aria-expanded")).toBe("false");
-    expect(screen.getByText("d(1)").getAttribute("aria-expanded")).toBe("false");
+    expect(screen.getByText("c(10)").getAttribute("aria-expanded")).toBe(
+      "false",
+    );
+    expect(screen.getByText("d(1)").getAttribute("aria-expanded")).toBe(
+      "false",
+    );
   });
 
   it("rekursif: node yang dibuka otomatis membuka sub-grup pertamanya", async () => {
@@ -134,11 +142,15 @@ describe("GroupTree — autoExpand", () => {
       tree({ fetcher, autoExpand: { budget: 25, maxGroups: 1 } }),
     );
     await waitFor(() =>
-      expect(screen.getByText("a(10)").getAttribute("aria-expanded")).toBe("true"),
+      expect(screen.getByText("a(10)").getAttribute("aria-expanded")).toBe(
+        "true",
+      ),
     );
 
     await userEvent.click(screen.getByText("a(10)"));
-    expect(screen.getByText("a(10)").getAttribute("aria-expanded")).toBe("false");
+    expect(screen.getByText("a(10)").getAttribute("aria-expanded")).toBe(
+      "false",
+    );
 
     // render ulang dgn rootItems baru (referensi beda, tanda tangan sama)
     rerender(
@@ -154,7 +166,9 @@ describe("GroupTree — autoExpand", () => {
         />
       </QueryClientProvider>,
     );
-    expect(screen.getByText("a(10)").getAttribute("aria-expanded")).toBe("false");
+    expect(screen.getByText("a(10)").getAttribute("aria-expanded")).toBe(
+      "false",
+    );
   });
 
   it("tanpa autoExpand semua grup tertutup", () => {
@@ -168,10 +182,16 @@ describe("GroupTree — autoExpand", () => {
   it("autoExpandKey berubah -> dijalankan ulang", async () => {
     const fetcher = makeFetcher();
     const { rerender } = render(
-      tree({ fetcher, autoExpand: { budget: 25, maxGroups: 1 }, autoExpandKey: "x" }),
+      tree({
+        fetcher,
+        autoExpand: { budget: 25, maxGroups: 1 },
+        autoExpandKey: "x",
+      }),
     );
     await waitFor(() =>
-      expect(screen.getByText("a(10)").getAttribute("aria-expanded")).toBe("true"),
+      expect(screen.getByText("a(10)").getAttribute("aria-expanded")).toBe(
+        "true",
+      ),
     );
     await userEvent.click(screen.getByText("a(10)"));
 
@@ -191,7 +211,9 @@ describe("GroupTree — autoExpand", () => {
     );
 
     await waitFor(() =>
-      expect(screen.getByText("a(10)").getAttribute("aria-expanded")).toBe("true"),
+      expect(screen.getByText("a(10)").getAttribute("aria-expanded")).toBe(
+        "true",
+      ),
     );
   });
 });

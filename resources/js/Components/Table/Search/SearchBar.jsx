@@ -3285,7 +3285,10 @@ export default function SearchBar({
                         />
                         {/* Tips = pintasan keyboard: hanya di layar >= md (desktop);
                         disembunyikan di mobile/layar sentuh supaya daftar tak terdesak. */}
-                        <SearchLegend ctx={legendCtx} className="hidden md:block" />
+                        <SearchLegend
+                          ctx={legendCtx}
+                          className="hidden md:block"
+                        />
                       </div>
                     ) : (
                       <>

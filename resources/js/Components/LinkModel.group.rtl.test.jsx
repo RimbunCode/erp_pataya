@@ -142,7 +142,9 @@ describe("LinkModel -- grup dropdown (server, mode search)", () => {
     // semua grup tertutup default, isi belum dimuat
     expect(screen.queryByText("Alpha 1")).not.toBeInTheDocument();
 
-    const first = axiosPost.mock.calls.find(([, p]) => p.groupPath === undefined);
+    const first = axiosPost.mock.calls.find(
+      ([, p]) => p.groupPath === undefined,
+    );
     expect(first[1]).toMatchObject({
       groupTree: true,
       group: [{ column: "category", granularity: null, range: null }],
@@ -154,7 +156,9 @@ describe("LinkModel -- grup dropdown (server, mode search)", () => {
       await user.click(header);
     });
     expect(await screen.findByText("Alpha 1")).toBeInTheDocument();
-    const expand = axiosPost.mock.calls.find(([, p]) => p.groupPath !== undefined);
+    const expand = axiosPost.mock.calls.find(
+      ([, p]) => p.groupPath !== undefined,
+    );
     expect(expand[1]).toMatchObject({
       groupPath: '["alpha"]',
       groupPage: 1,
@@ -187,7 +191,9 @@ describe("LinkModel -- grup dropdown (server, mode search)", () => {
 
     await openDropdown(user);
 
-    expect(await screen.findByText("TR:x.category.types.alpha")).toBeInTheDocument();
+    expect(
+      await screen.findByText("TR:x.category.types.alpha"),
+    ).toBeInTheDocument();
   });
 
   it("tanpa prop group: tidak mengirim `group` (server memakai default model); respons flat -> tanpa header", async () => {
@@ -203,7 +209,9 @@ describe("LinkModel -- grup dropdown (server, mode search)", () => {
     const payload = axiosPost.mock.calls[0][1];
     expect(payload.groupTree).toBe(true);
     expect("group" in payload).toBe(false);
-    expect(screen.queryByTestId("linkmodel-group-header")).not.toBeInTheDocument();
+    expect(
+      screen.queryByTestId("linkmodel-group-header"),
+    ).not.toBeInTheDocument();
   });
 
   it("group={[]} -> kirim group kosong eksplisit (menimpa default model)", async () => {
@@ -222,7 +230,9 @@ describe("LinkModel -- grup dropdown (server, mode search)", () => {
     mockGrouped({
       level0: () =>
         groupsPage([descriptor("alpha", 1)], {
-          defaultGroups: [{ column: "category", granularity: null, range: null }],
+          defaultGroups: [
+            { column: "category", granularity: null, range: null },
+          ],
         }),
       byPath: () => rowsPage([row(1, "Alpha 1")]),
     });
@@ -230,7 +240,9 @@ describe("LinkModel -- grup dropdown (server, mode search)", () => {
 
     await openDropdown(user);
 
-    expect(await screen.findByTestId("linkmodel-group-header")).toBeInTheDocument();
+    expect(
+      await screen.findByTestId("linkmodel-group-header"),
+    ).toBeInTheDocument();
   });
 
   it("search terisi -> grup diisi otomatis (auto-expand) dan search ikut dikirim ke node", async () => {
@@ -238,7 +250,9 @@ describe("LinkModel -- grup dropdown (server, mode search)", () => {
     mockGrouped({
       level0: (payload) =>
         groupsPage(
-          payload.search ? [descriptor("alpha", 1)] : [descriptor("alpha", 2), descriptor("beta", 1)],
+          payload.search
+            ? [descriptor("alpha", 1)]
+            : [descriptor("alpha", 2), descriptor("beta", 1)],
         ),
       byPath: (_path, payload) =>
         rowsPage(payload.search ? [row(1, "Alpha cocok")] : []),
@@ -250,9 +264,16 @@ describe("LinkModel -- grup dropdown (server, mode search)", () => {
     });
 
     // tanpa klik: node pertama terbuka otomatis
-    expect(await screen.findByText(/cocok/, {}, { timeout: 4000 })).toBeInTheDocument();
-    const expand = axiosPost.mock.calls.filter(([, p]) => p.groupPath !== undefined);
-    expect(expand.at(-1)[1]).toMatchObject({ search: "Alp", groupPath: '["alpha"]' });
+    expect(
+      await screen.findByText(/cocok/, {}, { timeout: 4000 }),
+    ).toBeInTheDocument();
+    const expand = axiosPost.mock.calls.filter(
+      ([, p]) => p.groupPath !== undefined,
+    );
+    expect(expand.at(-1)[1]).toMatchObject({
+      search: "Alp",
+      groupPath: '["alpha"]',
+    });
   });
 
   it("search terisi + deskriptor membawa `children` (prefill) -> baris tampil tanpa request node, prefill dikirim", async () => {
@@ -275,7 +296,9 @@ describe("LinkModel -- grup dropdown (server, mode search)", () => {
       await user.type(screen.getByRole("textbox"), "Alp");
     });
 
-    expect(await screen.findByText(/cocok/, {}, { timeout: 4000 })).toBeInTheDocument();
+    expect(
+      await screen.findByText(/cocok/, {}, { timeout: 4000 }),
+    ).toBeInTheDocument();
     const level0 = axiosPost.mock.calls.filter(
       ([, p]) => p.groupPath === undefined && p.search === "Alp",
     );
@@ -283,7 +306,9 @@ describe("LinkModel -- grup dropdown (server, mode search)", () => {
     // tanpa pencarian tak ada prefill
     expect(axiosPost.mock.calls[0][1].prefill).toBeUndefined();
     // isi grup datang bersama level-0: tak ada fetch lazy per grup
-    expect(axiosPost.mock.calls.some(([, p]) => p.groupPath !== undefined)).toBe(false);
+    expect(
+      axiosPost.mock.calls.some(([, p]) => p.groupPath !== undefined),
+    ).toBe(false);
   });
 
   it("panah kanan/kiri pada header yang di-highlight membuka/menutup grup", async () => {
@@ -367,11 +392,15 @@ describe("LinkModel -- grup dropdown (server, mode search)", () => {
 describe("LinkModel -- infinite scroll flat (tanpa limit)", () => {
   it("sentinel terlihat -> halaman berikutnya ditambahkan di bawah; tanpa baris 'more'", async () => {
     const user = userEvent.setup({ delay: null });
-    axiosPost.mockImplementation((url, payload) =>
+    axiosPost.mockImplementation((_url, payload) =>
       Promise.resolve({
         data:
           payload.page === 2
-            ? rowsPage([row(3, "Gamma")], { current_page: 2, last_page: 2, total: 3 })
+            ? rowsPage([row(3, "Gamma")], {
+                current_page: 2,
+                last_page: 2,
+                total: 3,
+              })
             : rowsPage([row(1, "Alpha"), row(2, "Beta")], {
                 current_page: 1,
                 last_page: 2,
@@ -383,14 +412,20 @@ describe("LinkModel -- infinite scroll flat (tanpa limit)", () => {
 
     await openDropdown(user);
     await screen.findByRole("option", { name: "Alpha" });
-    expect(screen.queryByRole("option", { name: "Gamma" })).not.toBeInTheDocument();
-    expect(screen.queryByText("TR:core.form.linkmodel.more")).not.toBeInTheDocument();
+    expect(
+      screen.queryByRole("option", { name: "Gamma" }),
+    ).not.toBeInTheDocument();
+    expect(
+      screen.queryByText("TR:core.form.linkmodel.more"),
+    ).not.toBeInTheDocument();
 
     await act(async () => {
       observers.at(-1).callback([{ isIntersecting: true }]);
     });
 
-    expect(await screen.findByRole("option", { name: "Gamma" })).toBeInTheDocument();
+    expect(
+      await screen.findByRole("option", { name: "Gamma" }),
+    ).toBeInTheDocument();
     expect(screen.getByRole("option", { name: "Alpha" })).toBeInTheDocument();
     expect(axiosPost.mock.calls.map(([, p]) => p.page)).toEqual([1, 2]);
   });
@@ -417,8 +452,12 @@ describe("LinkModel -- mode cache + grup (dikelompokkan di client)", () => {
     });
     expect(await screen.findByText("Alpha 2")).toBeInTheDocument();
     // hanya request cache awal; tidak ada groupPath/groupTree ke server
-    expect(axiosPost.mock.calls.every(([, p]) => p.groupPath === undefined)).toBe(true);
-    expect(axiosPost.mock.calls.every(([, p]) => p.groupTree === undefined)).toBe(true);
+    expect(
+      axiosPost.mock.calls.every(([, p]) => p.groupPath === undefined),
+    ).toBe(true);
+    expect(
+      axiosPost.mock.calls.every(([, p]) => p.groupTree === undefined),
+    ).toBe(true);
   });
 
   it("filter search cache menyempitkan grup & hitungnya", async () => {
@@ -430,7 +469,9 @@ describe("LinkModel -- mode cache + grup (dikelompokkan di client)", () => {
       await user.type(screen.getByRole("textbox"), "Beta");
     });
 
-    await waitFor(() => expect(screen.queryByText("alpha")).not.toBeInTheDocument());
+    await waitFor(() =>
+      expect(screen.queryByText("alpha")).not.toBeInTheDocument(),
+    );
     expect(screen.getByText("beta")).toBeInTheDocument();
   });
 });
@@ -449,6 +490,8 @@ describe("LinkModel -- zero overhead tanpa grup", () => {
       await user.click(await screen.findByRole("option", { name: "Alpha" }));
     });
 
-    expect(onValueChange).toHaveBeenCalledWith(expect.objectContaining({ id: 1 }));
+    expect(onValueChange).toHaveBeenCalledWith(
+      expect.objectContaining({ id: 1 }),
+    );
   });
 });

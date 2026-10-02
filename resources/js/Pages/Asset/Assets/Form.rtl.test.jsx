@@ -447,7 +447,9 @@ describe("Form (Asset/Assets)", () => {
         screen.queryByTestId("forminput-ownership"),
       ).not.toBeInTheDocument();
       const wrapper = screen.getByTestId("forminput-ownership_company_name");
-      expect(within(wrapper).getByDisplayValue("PT Contoh Sejahtera")).toBeDisabled();
+      expect(
+        within(wrapper).getByDisplayValue("PT Contoh Sejahtera"),
+      ).toBeDisabled();
     });
 
     it("cabang pelanggan hanya tampil untuk tipe customer", () => {

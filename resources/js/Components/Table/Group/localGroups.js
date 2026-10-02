@@ -119,7 +119,8 @@ export const groupNodeFromRows = (
     const descriptor = describeValue(row?.[level.column]);
     const existing = groups.get(descriptor.key);
     if (existing) existing.count += 1;
-    else groups.set(descriptor.key, { ...descriptor, count: 1, aggregates: {} });
+    else
+      groups.set(descriptor.key, { ...descriptor, count: 1, aggregates: {} });
   }
   const items = [...groups.values()].sort(compareKeys);
 

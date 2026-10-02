@@ -41,7 +41,9 @@ const flat = (rows, over = {}) => ({
     ...over,
   },
 });
-const levels = [{ column: "category", granularity: null, range: null, type: "string" }];
+const levels = [
+  { column: "category", granularity: null, range: null, type: "string" },
+];
 
 describe("buildLinkModelGroupPayload", () => {
   it("opt-in groupTree, tanpa limit; group hanya bila diberikan", () => {
@@ -52,7 +54,9 @@ describe("buildLinkModelGroupPayload", () => {
     expect(base.filters).toEqual({ a: 1 });
     expect("group" in base).toBe(false);
 
-    expect(buildLinkModelGroupPayload({ model: "M", group: [] }).group).toEqual([]);
+    expect(buildLinkModelGroupPayload({ model: "M", group: [] }).group).toEqual(
+      [],
+    );
   });
 });
 
@@ -76,7 +80,13 @@ describe("fetchLinkModelGroupNode", () => {
     expect(data.type).toBe("rows");
     expect(axiosPost).toHaveBeenCalledWith(
       "model",
-      { model: "M", group: [], groupPath: '["a",null]', groupPage: 2, show: LINKMODEL_PAGE_SIZE },
+      {
+        model: "M",
+        group: [],
+        groupPath: '["a",null]',
+        groupPage: 2,
+        show: LINKMODEL_PAGE_SIZE,
+      },
       { signal: undefined },
     );
   });
@@ -103,7 +113,11 @@ describe("useLinkModelInfiniteOptions", () => {
       Promise.resolve(
         payload.page === 2
           ? flat([{ id: 3 }], { current_page: 2, last_page: 2, total: 3 })
-          : flat([{ id: 1 }, { id: 2 }], { current_page: 1, last_page: 2, total: 3 }),
+          : flat([{ id: 1 }, { id: 2 }], {
+              current_page: 1,
+              last_page: 2,
+              total: 3,
+            }),
       ),
     );
     const { result } = renderHook(
@@ -114,14 +128,20 @@ describe("useLinkModelInfiniteOptions", () => {
     await waitFor(() => expect(result.current.options).toHaveLength(2));
     expect(result.current.isGrouped).toBe(false);
     expect(result.current.hasNextPage).toBe(true);
-    expect(axiosPost.mock.calls[0][1]).toMatchObject({ page: 1, show: LINKMODEL_PAGE_SIZE, groupTree: true });
+    expect(axiosPost.mock.calls[0][1]).toMatchObject({
+      page: 1,
+      show: LINKMODEL_PAGE_SIZE,
+      groupTree: true,
+    });
     expect(axiosPost.mock.calls[0][1].limit).toBeUndefined();
 
     await act(async () => {
       await result.current.fetchNextPage();
     });
 
-    await waitFor(() => expect(result.current.options.map((o) => o.id)).toEqual([1, 2, 3]));
+    await waitFor(() =>
+      expect(result.current.options.map((o) => o.id)).toEqual([1, 2, 3]),
+    );
     expect(result.current.hasNextPage).toBe(false);
   });
 
@@ -139,7 +159,13 @@ describe("useLinkModelInfiniteOptions", () => {
       },
     });
     const { result } = renderHook(
-      () => useLinkModelInfiniteOptions({ model: "M", open: true, search: "", filters: { f: 1 } }),
+      () =>
+        useLinkModelInfiniteOptions({
+          model: "M",
+          open: true,
+          search: "",
+          filters: { f: 1 },
+        }),
       { wrapper: wrapper() },
     );
 
@@ -157,7 +183,8 @@ describe("useLinkModelInfiniteOptions", () => {
   it("group eksplisit dikirim; ganti group -> request baru dari halaman 1", async () => {
     axiosPost.mockResolvedValue(flat([{ id: 1 }]));
     const { result, rerender } = renderHook(
-      ({ group }) => useLinkModelInfiniteOptions({ model: "M", open: true, group }),
+      ({ group }) =>
+        useLinkModelInfiniteOptions({ model: "M", open: true, group }),
       { wrapper: wrapper(), initialProps: { group: [] } },
     );
     await waitFor(() => expect(result.current.options).toHaveLength(1));
@@ -165,7 +192,10 @@ describe("useLinkModelInfiniteOptions", () => {
 
     rerender({ group: levels });
     await waitFor(() => expect(axiosPost).toHaveBeenCalledTimes(2));
-    expect(axiosPost.mock.calls[1][1]).toMatchObject({ group: levels, page: 1 });
+    expect(axiosPost.mock.calls[1][1]).toMatchObject({
+      group: levels,
+      page: 1,
+    });
   });
 
   it("gagal fetch -> daftar kosong tanpa melempar", async () => {

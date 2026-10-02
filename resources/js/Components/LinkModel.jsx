@@ -503,7 +503,9 @@ export default memo(
       [cache, localLevels, filteredOptions],
     );
     const rootItems = cache ? localRootItems : searched.rootItems;
-    const groupLevels = cache ? localLevels : (searched.groupMeta?.levels ?? []);
+    const groupLevels = cache
+      ? localLevels
+      : (searched.groupMeta?.levels ?? []);
 
     // Infinite scroll mode cache: render bertahap (jendela bertambah saat
     // sentinel terlihat) supaya DOM tak membengkak utk dataset besar.
@@ -528,7 +530,8 @@ export default memo(
     // Auto-expand hanya utk hasil yang cocok dgn ketikan SEKARANG: selama
     // debounce, grup lama (dari pencarian sebelumnya) masih tampil -- membukanya
     // memicu fetch lazy sia-sia utk hasil yang segera diganti.
-    const searchSettled = cache || (searched.settledSearch ?? "") === (search ?? "");
+    const searchSettled =
+      cache || (searched.settledSearch ?? "") === (search ?? "");
     const autoExpand = useMemo(
       () =>
         allowSearch && search?.trim() && searchSettled
@@ -664,7 +667,8 @@ export default memo(
                     '[data-testid="linkmodel-group-header"][data-selected="true"]',
                   );
                   if (!header) return;
-                  const isOpen = header.getAttribute("aria-expanded") === "true";
+                  const isOpen =
+                    header.getAttribute("aria-expanded") === "true";
                   if ((e.key === "ArrowRight") === isOpen) return;
                   e.preventDefault();
                   header.click();
@@ -867,7 +871,9 @@ export default memo(
                             fetcher={
                               cache ? localFetcher : fetchLinkModelGroupNode
                             }
-                            pathname={cache ? `linkmodel-local:${model}` : "linkmodel"}
+                            pathname={
+                              cache ? `linkmodel-local:${model}` : "linkmodel"
+                            }
                             resetKey={
                               cache
                                 ? `${model}|${search ?? ""}`

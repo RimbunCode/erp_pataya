@@ -326,8 +326,12 @@ export default function AdvanceSearchDialog({
                 onPickSaved={onPickSaved}
                 getViewSnapshot={getViewSnapshot}
                 group={barGroups}
-                groupOptions={groupOptions.length > 0 ? groupOptions : undefined}
-                onGroupChange={groupOptions.length > 0 ? onGroupChange : undefined}
+                groupOptions={
+                  groupOptions.length > 0 ? groupOptions : undefined
+                }
+                onGroupChange={
+                  groupOptions.length > 0 ? onGroupChange : undefined
+                }
                 groupSort={groupSort}
                 onGroupSortChange={
                   groupOptions.length > 0
@@ -345,7 +349,9 @@ export default function AdvanceSearchDialog({
                   `lockedFilters` = prop `filters` LinkModel, read-only. */}
               <FilterTable
                 columns={filterColumnMap}
-                initialFilters={builderDraft !== undefined ? builderDraft : tree}
+                initialFilters={
+                  builderDraft !== undefined ? builderDraft : tree
+                }
                 lockedFilters={filters}
                 onApply={(next) => setTree(hasItems(next) ? next : null)}
                 model={model}
@@ -394,7 +400,11 @@ export default function AdvanceSearchDialog({
                     <GroupNodeStatusCard depth={depth} />
                   )}
                   renderError={({ depth, onRetry }) => (
-                    <GroupNodeStatusCard depth={depth} error onRetry={onRetry} />
+                    <GroupNodeStatusCard
+                      depth={depth}
+                      error
+                      onRetry={onRetry}
+                    />
                   )}
                 />
               ) : (

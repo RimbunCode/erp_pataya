@@ -2,7 +2,8 @@ import { describe, expect, it } from "vitest";
 
 import { AUTO_EXPAND_MAX_GROUPS, computeAutoExpand } from "./groupAutoExpand";
 
-const items = (...counts) => counts.map((count, i) => ({ key: `g${i}`, count }));
+const items = (...counts) =>
+  counts.map((count, i) => ({ key: `g${i}`, count }));
 
 describe("computeAutoExpand", () => {
   it("membuka berurutan selama kumulatif count muat di anggaran", () => {

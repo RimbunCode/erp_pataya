@@ -25,7 +25,6 @@ const indentStyle = (depth) => ({ paddingLeft: `${depth * 12 + 8}px` });
  * non-seleksi (Enter/klik membuka-menutup), anak `rows` = `CommandItem` opsi
  * biasa. Isi tiap grup di-fetch lewat `fetcher` saat dibuka (mode infinite:
  * halaman ditambahkan saat sentinel terlihat, tanpa pager).
- *
  * @param {object} props
  * @param {Array} props.rootItems deskriptor grup level-0 (halaman-halaman yang sudah dimuat)
  * @param {Array} props.levels `groupMeta.levels` atau level lokal
@@ -152,11 +151,7 @@ export default function GroupedOptions({
             style={indentStyle(depth)}
           >
             {t("core.datatable.group_error")}
-            <button
-              type="button"
-              className="underline"
-              onClick={onRetry}
-            >
+            <button type="button" className="underline" onClick={onRetry}>
               {t("core.datatable.group_retry")}
             </button>
           </div>

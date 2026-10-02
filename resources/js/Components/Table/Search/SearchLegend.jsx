@@ -188,6 +188,7 @@ const chipKeyTips = () => ["chip_nav", "chip_edit", "chip_remove", "escape"];
  * terbaca jelas di tema gelap.
  * @param {object} props
  * @param {object} [props.ctx] kondisi saat ini (lihat `legendTipsFor`)
+ * @param props.className
  * @returns {import("react").JSX.Element|null}
  */
 export default function SearchLegend({ ctx, className }) {

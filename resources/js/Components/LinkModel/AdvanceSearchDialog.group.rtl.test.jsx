@@ -38,8 +38,20 @@ import AdvanceSearchDialog, {
 const MODEL = "App\\Models\\Inventory\\Item";
 const columns = [
   { name: "code", type: "string", linkable: false, title: "Kode" },
-  { name: "category", type: "string", linkable: true, groupable: true, title: "Kategori" },
-  { name: "secret", type: "string", linkable: false, groupable: true, title: "Rahasia" },
+  {
+    name: "category",
+    type: "string",
+    linkable: true,
+    groupable: true,
+    title: "Kategori",
+  },
+  {
+    name: "secret",
+    type: "string",
+    linkable: false,
+    groupable: true,
+    title: "Rahasia",
+  },
 ];
 const levels = [
   { column: "category", granularity: null, range: null, type: "string" },
@@ -131,7 +143,9 @@ describe("AdvanceSearchDialog -- SearchBar", () => {
       expect(withFilters).toBeTruthy();
       const group = Object.values(withFilters[1].filters.root.c)[0];
       const leaves = Object.values(group.c ?? { only: group });
-      expect(leaves.every((leaf) => leaf.o === "matches" && leaf.v === "abc")).toBe(true);
+      expect(
+        leaves.every((leaf) => leaf.o === "matches" && leaf.v === "abc"),
+      ).toBe(true);
     });
   });
 });
@@ -266,12 +280,30 @@ describe("helper dialog", () => {
   it("buildGroupOptions: groupable ∩ aman (relasi, linkable, atau sumber templateLink)", () => {
     const options = buildGroupOptions(
       {
-        a: { name: "a", title: "A", groupable: true, type: "string", linkable: true },
+        a: {
+          name: "a",
+          title: "A",
+          groupable: true,
+          type: "string",
+          linkable: true,
+        },
         b: { name: "b", title: "B", groupable: true, type: "string" },
         c: { name: "c", title: "C", groupable: true, type: "relation" },
         d: { name: "d", title: "D", groupable: true, type: "string" },
-        e: { name: "e", title: "E", groupable: false, type: "string", linkable: true },
-        f: { name: "f", title: "F", groupable: true, type: "json", linkable: true },
+        e: {
+          name: "e",
+          title: "E",
+          groupable: false,
+          type: "string",
+          linkable: true,
+        },
+        f: {
+          name: "f",
+          title: "F",
+          groupable: true,
+          type: "json",
+          linkable: true,
+        },
       },
       ["d"],
     );

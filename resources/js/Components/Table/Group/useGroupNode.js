@@ -197,6 +197,7 @@ export const prefetchGroupNode = (queryClient, args) =>
  * @param {boolean} root0.enabled fetch hanya saat node terbuka
  * @param {number|string} root0.version naik saat data level-0 berganti / Reload
  *   -> kunci baru -> node terbuka di-refetch
+ * @param root0.fetcher
  */
 export function useGroupNode({
   pathname,
@@ -235,6 +236,8 @@ export function useGroupNode({
  * @param {Array} root0.rawPath
  * @param {boolean} root0.enabled
  * @param {number|string} root0.version
+ * @param root0.fetcher
+ * @param root0.initialNode
  */
 export function useGroupNodeInfinite({
   pathname,
