@@ -677,6 +677,34 @@ class ApprovalAutoApproveTest extends TestCase {
         $this->assertTrue($second->fresh()->is_active);
     }
 
+    /**
+     * Regresi: step advanced yang diubah balik jadi single meninggalkan baris approver anak yatim.
+     */
+    public function test_switching_step_from_advanced_to_single_removes_child_approvers(): void {
+        $user = $this->makeUser('SchemeChildUser');
+        $role = $this->makeRole('SchemeChildRole');
+
+        $schemeId = $this->makeScheme('scheme-switch', [[
+            'approver_type'     => 'user',
+            'approverable_type' => User::class,
+            'approverable_id'   => $user->id,
+            'is_advanced'       => true,
+            'approvers'         => [
+                ['approver_type' => 'user', 'approverable_type' => User::class, 'approverable_id' => $user->id],
+                ['approver_type' => 'role', 'approverable_type' => Role::class, 'approverable_id' => $role->id],
+            ],
+        ]]);
+        $scheme = ApprovalScheme::find($schemeId);
+        $step   = $scheme->steps()->first();
+        $this->assertSame(2, $step->approvers()->count());
+
+        $controller = (new \ReflectionClass(ApprovalSchemeController::class))->newInstanceWithoutConstructor();
+        $sync       = new \ReflectionMethod($controller, 'syncStepApprovers');
+        $sync->invoke($controller, $scheme, [['id' => $step->id, 'is_advanced' => false, 'approver_type' => 'role']]);
+
+        $this->assertSame(0, $step->approvers()->count());
+    }
+
     public function test_decision_on_advanced_step_only_allows_pending_child_approver(): void {
         $userA    = $this->makeUser('GuardAdvA');
         $userB    = $this->makeUser('GuardAdvB');

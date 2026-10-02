@@ -59,7 +59,16 @@ class ApprovalSchemeController extends Controller {
 
     private function syncStepApprovers(ApprovalScheme $scheme, array $stepsData): void {
         foreach ($stepsData as $index => $stepData) {
-            if (empty($stepData['is_advanced']) || empty($stepData['approvers'])) {
+            if (empty($stepData['is_advanced'])) {
+                // Step dikembalikan ke single approver: buang baris anak yatim.
+                if (Ulid::isValid((string) ($stepData['id'] ?? ''))) {
+                    $scheme->steps()->where('id', $stepData['id'])->first()?->approvers()->delete();
+                }
+
+                continue;
+            }
+
+            if (empty($stepData['approvers'])) {
                 continue;
             }
 
