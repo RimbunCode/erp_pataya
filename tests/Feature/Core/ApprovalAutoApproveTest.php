@@ -11,6 +11,7 @@ use App\Http\Middleware\EnsureUserIsOnboarded;
 use App\Http\Middleware\LanguageMiddleware;
 use App\Models\Core\ApprovalInstance;
 use App\Models\Core\ApprovalInstanceStep;
+use App\Models\Core\ApprovalScheme;
 use App\Models\Model as AppModel;
 use App\Models\User\Role;
 use App\Models\User\User;
@@ -654,6 +655,26 @@ class ApprovalAutoApproveTest extends TestCase {
             ->postJson(route('approvalInstances.decision', $steps[2]->id), ['decision' => 'approve']);
 
         $this->assertEquals(FormStatus::APPROVED->value, $instance->fresh()->status->value);
+    }
+
+    /**
+     * Regresi: hook saved() memakai trigger_on yang masih null pada create, sehingga scheme
+     * lama tidak dinonaktifkan dan dua scheme aktif bisa hidup bersamaan.
+     */
+    public function test_creating_active_scheme_deactivates_previous_one_for_same_permission(): void {
+        $make = fn (string $name) => ApprovalScheme::create([
+            'name'          => $name,
+            'permission_id' => $this->permissionId,
+            'name_model'    => 'ApprovalTestDocument',
+            'model'         => ApprovalTestDocument::class,
+            'is_active'     => true,
+        ]);
+
+        $first  = $make('exclusive-1');
+        $second = $make('exclusive-2');
+
+        $this->assertFalse($first->fresh()->is_active);
+        $this->assertTrue($second->fresh()->is_active);
     }
 
     public function test_decision_on_advanced_step_only_allows_pending_child_approver(): void {
