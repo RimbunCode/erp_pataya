@@ -9,6 +9,7 @@ use App\Enums\FormStatus;
 use App\Models\Core\Branch;
 use App\Models\Core\Dashboard;
 use App\Models\Core\Desk;
+use App\Models\Core\File;
 use App\Notifications\UserInvitedNotification;
 use App\Services\Core\Notification\NotifyUser;
 use App\Traits\DataTable;
@@ -27,7 +28,7 @@ class User extends Authenticatable {
     public $translateKey         = 'user.user';
     public string $formComponent = 'Users/ManageUsers/Form';
     protected $guarded           = ['id'];
-    protected $appends           = ['picture'];
+    protected $appends           = ['picture', 'has_signature'];
 
     protected static function extraPermissions(): array {
         return ['manage_roles', 'manage_branches'];
@@ -41,6 +42,7 @@ class User extends Authenticatable {
     protected $hidden = [
         'password',
         'remember_token',
+        'signature_file_id', // NFR3: tidak bocor di response API umum (mis. daftar user)
     ];
 
     /**
@@ -116,6 +118,16 @@ class User extends Authenticatable {
         'avatar_url' => [
             'ignore' => true,
         ],
+        'signature_file_id' => [
+            'ignore' => true,
+        ],
+        'has_signature' => [
+            'ignore' => true,
+            // Append bertipe atribut wajib menyebut kolom DB sumbernya,
+            // supaya DataTable tahu kolom apa yang harus ikut di-select
+            // (lihat DataTableConfigValidator Rule 1).
+            'dependsOn' => ['signature_file_id'],
+        ],
     ];
 
     protected function getPictureAttribute() {
@@ -151,5 +163,22 @@ class User extends Authenticatable {
 
     public function providers() {
         return $this->hasMany(UserProvider::class, 'user_id');
+    }
+
+    public function signatureFile() {
+        return $this->belongsTo(File::class, 'signature_file_id');
+    }
+
+    /**
+     * Keberadaan tanda tangan sebagai boolean, untuk frontend.
+     *
+     * `signature_file_id` sendiri ada di `$hidden` supaya tidak ikut
+     * ter-serialize di endpoint daftar user (NFR3). Halaman profil tetap
+     * perlu tahu apakah tanda tangan ada untuk memilih pratinjau atau
+     * placeholder, dan itu cukup dijawab boolean tanpa membocorkan id
+     * berkasnya.
+     */
+    protected function getHasSignatureAttribute(): bool {
+        return $this->signature_file_id !== null;
     }
 }

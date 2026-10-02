@@ -2,6 +2,7 @@
 
 namespace Database\Factories\User;
 
+use App\Models\Core\File;
 use App\Models\User\User;
 use Illuminate\Database\Eloquent\Factories\Factory;
 use Illuminate\Support\Facades\Hash;
@@ -39,5 +40,25 @@ class UserFactory extends Factory {
         return $this->state(fn (array $attributes) => [
             'email_verified_at' => null,
         ]);
+    }
+
+    /**
+     * Tautkan user ke sebuah File TTD dummy (PNG kosong 1x1). Dipakai test
+     * yang butuh user dengan `hasSignature()` true tanpa menjalankan
+     * SignatureImageService yang sesungguhnya.
+     */
+    public function withSignature(): static {
+        return $this->afterCreating(function (User $user) {
+            $file = File::create([
+                'name'          => 'signature',
+                'path'          => 'signatures/' . Str::uuid() . '.png',
+                'extension'     => 'png',
+                'mime_type'     => 'image/png',
+                'is_public'     => false,
+                'created_by_id' => $user->id,
+            ]);
+
+            $user->update(['signature_file_id' => $file->id]);
+        });
     }
 }
