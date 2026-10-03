@@ -1,5 +1,5 @@
 import { describe, expect, it, vi, beforeEach } from "vitest";
-import { render, screen } from "@testing-library/react";
+import { act, render, screen } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 
 vi.mock("laravel-react-i18n", () => ({
@@ -40,6 +40,9 @@ vi.mock("@/Components/Select", () => ({
   ),
 }));
 
+const toastMock = vi.hoisted(() => ({ warning: vi.fn() }));
+vi.mock("@/lib/gooeyToast", () => ({ gooeyToast: toastMock }));
+
 window.route = (name, id) => (id ? `${name}/${id}` : name);
 
 import ApproverDecision from "./ApproverDecision";
@@ -55,6 +58,7 @@ describe("ApproverDecision", () => {
     useFormReturn.post.mockReset();
     useFormReturn.reset.mockReset();
     useFormReturn.processing = false;
+    toastMock.warning.mockClear();
     usePageMock.mockReturnValue({ props: { auth: { user: { id: 1 } } } });
   });
 
@@ -202,6 +206,47 @@ describe("ApproverDecision", () => {
         replace: true,
       }),
     );
+  });
+
+  async function submitAndGetOptions() {
+    const user = userEvent.setup({ delay: null });
+    const approval = makeApproval({
+      steps: [{ id: 77, is_advanced: false, approver: { id: 1 } }],
+    });
+    render(<ApproverDecision name="logs" approval={approval} />);
+    await user.click(
+      screen.getByRole("button", {
+        name: "TR:core.form.approvalDecision.trigger",
+      }),
+    );
+    await user.click(
+      screen.getByRole("button", { name: "TR:core.form.submit" }),
+    );
+    return useFormReturn.post.mock.calls[0][1];
+  }
+
+  it("menampilkan toast peringatan saat respons membawa flash.alert (klik ulang/halaman basi)", async () => {
+    const options = await submitAndGetOptions();
+
+    act(() => {
+      options.onSuccess({
+        props: { flash: { alert: { message: "Langkah sudah diputuskan" } } },
+      });
+    });
+
+    expect(toastMock.warning).toHaveBeenCalledWith("Langkah sudah diputuskan");
+    expect(useFormReturn.reset).toHaveBeenCalled();
+  });
+
+  it("tidak menampilkan toast bila respons tanpa flash.alert", async () => {
+    const options = await submitAndGetOptions();
+
+    act(() => {
+      options.onSuccess({ props: { flash: {} } });
+    });
+
+    expect(toastMock.warning).not.toHaveBeenCalled();
+    expect(useFormReturn.reset).toHaveBeenCalled();
   });
 
   it("klik cancel menutup dialog tanpa memanggil post", async () => {
