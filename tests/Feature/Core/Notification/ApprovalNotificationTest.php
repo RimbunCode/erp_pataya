@@ -279,6 +279,31 @@ class ApprovalNotificationTest extends TestCase {
         Notification::assertSentTo($approverB2, ApprovalPendingNotification::class);
     }
 
+    /**
+     * Regresi: pada auto-approve partial step awal SKIPPED/APPROVED, jadi approver step pending
+     * berikutnya harus tetap dinotifikasi (dulu hanya step sequence 0 yang dinotifikasi).
+     */
+    public function test_partial_auto_approve_notifies_next_pending_step_candidates(): void {
+        Notification::fake();
+
+        $roleA     = $this->makeRole('PartialARole');
+        $roleB     = $this->makeRole('PartialBRole');
+        $roleC     = $this->makeRole('PartialCRole');
+        $approverA = $this->makeUser('PartialAApprover');
+        $approverC = $this->makeUser('PartialCApprover');
+        $creator   = $this->makeUser('PartialCreator');
+        $this->assignRole($approverA, $roleA);
+        $this->assignRole($approverC, $roleC);
+        $this->assignRole($creator, $roleB);
+
+        $this->makeScheme('scheme-partial-notify', [$roleA, $roleB, $roleC]);
+
+        ApprovalInstance::makeInstance($this->makeDocument($creator));
+
+        Notification::assertSentTo($approverC, ApprovalPendingNotification::class);
+        Notification::assertNotSentTo($approverA, ApprovalPendingNotification::class);
+    }
+
     public function test_auto_approved_first_step_does_not_send_pending_notification(): void {
         Notification::fake();
 

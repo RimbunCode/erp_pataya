@@ -617,13 +617,16 @@ class ApprovalAutoApproveTest extends TestCase {
             ->getStatusCode();
 
         $this->assertSame(403, $decide($outsider, $steps[0]), 'bukan kandidat');
-        $this->assertSame(403, $decide($approverB, $steps[1]), 'step masih waiting');
+        // Kandidat yang belum gilirannya tidak mendapat 403, hanya redirect + alert, status tak berubah.
+        $this->assertSame(302, $decide($approverB, $steps[1]), 'step masih waiting');
         $this->assertEquals(FormStatus::PENDING->value, $steps[0]->fresh()->status->value);
         $this->assertEquals(FormStatus::WAITING->value, $steps[1]->fresh()->status->value);
 
         $this->assertNotSame(403, $decide($approverA, $steps[0]));
-        $this->assertSame(403, $decide($approverA, $steps[0]), 'step sudah approved');
-        $this->assertSame(403, $decide($approverA, $steps[0], 'reject'), 'step sudah approved');
+        $this->assertSame(302, $decide($approverA, $steps[0]), 'klik ulang: step sudah approved');
+        $this->assertSame(__('core/form.approvalDecision.unavailable'), session('alert.message'));
+        $this->assertSame(302, $decide($approverA, $steps[0], 'reject'), 'klik ulang: step sudah approved');
+        $this->assertEquals(FormStatus::APPROVED->value, $steps[0]->fresh()->status->value);
         $this->assertEquals(FormStatus::PENDING->value, $steps[1]->fresh()->status->value);
     }
 
@@ -705,6 +708,41 @@ class ApprovalAutoApproveTest extends TestCase {
         $this->assertSame(0, $step->approvers()->count());
     }
 
+    /**
+     * Regresi: Service onApproved()/onRejected() mengembalikan model/null, dan keputusan final
+     * pernah dijawab JSON/kosong sehingga klien Inertia menampilkan modal error walau
+     * keputusan tersimpan. Hasil non-response harus menjadi redirect.
+     */
+    public function test_final_decision_returns_redirect_when_service_returns_model(): void {
+        $this->app->bind(ApprovalTestDocumentService::class, fn () => new class extends ApprovalTestDocumentService
+        {
+            public function onApproved(AppModel $model): mixed {
+                return $model;
+            }
+
+            public function onRejected(AppModel $model): mixed {
+                return null;
+            }
+        });
+
+        $role = $this->makeRole('RedirectRole');
+        $user = $this->makeUser('RedirectApprover');
+        $this->assignRole($user, $role);
+        $this->makeScheme('scheme-redirect', [
+            ['approver_type' => 'role', 'approverable_type' => Role::class, 'approverable_id' => $role->id],
+        ]);
+
+        foreach (['approve', 'reject'] as $decision) {
+            $instance = ApprovalInstance::makeInstance($this->makeDocument($this->makeUser("RedirectCreator-$decision")));
+            $step     = ApprovalInstanceStep::where('approval_instance_id', $instance->id)->first();
+
+            $this->actingAs($user)
+                ->withoutMiddleware([AppMiddleware::class, EnsureUserIsOnboarded::class, LanguageMiddleware::class])
+                ->postJson(route('approvalInstances.decision', $step->id), ['decision' => $decision])
+                ->assertRedirect();
+        }
+    }
+
     public function test_decision_on_advanced_step_only_allows_pending_child_approver(): void {
         $userA    = $this->makeUser('GuardAdvA');
         $userB    = $this->makeUser('GuardAdvB');
@@ -724,7 +762,7 @@ class ApprovalAutoApproveTest extends TestCase {
 
         $this->assertSame(403, $decide($outsider));
         $this->assertNotSame(403, $decide($userA));
-        $this->assertSame(403, $decide($userB), 'kalah race: step sudah approved');
+        $this->assertSame(302, $decide($userB), 'kalah race: step sudah approved');
     }
 
     /**
