@@ -131,10 +131,24 @@ class ApprovalInstanceStep extends Model {
             return false;
         }
 
-        $roleIds    = $user->roles->pluck('id');
         $candidates = $this->is_advanced
             ? $this->approvers->filter(fn ($a) => $a->status?->value === FormStatus::PENDING->value)
             : collect([$this]);
+
+        return $this->matchesUser($candidates, $user);
+    }
+
+    /**
+     * Apakah $user termasuk kandidat approver step ini, terlepas dari status step/anak
+     * (dipakai untuk membedakan klik ulang/halaman basi dari user yang memang bukan approver).
+     */
+    public function isCandidate(?User $user): bool {
+        return $user !== null && $this->matchesUser($this->is_advanced ? $this->approvers : collect([$this]), $user);
+    }
+
+    /** @param Collection<int, object> $candidates */
+    private function matchesUser(Collection $candidates, User $user): bool {
+        $roleIds = $user->roles->pluck('id');
 
         return $candidates->contains(fn ($c) => ($c->approver_type === 'user' && $c->approverable_id === $user->id)
             || ($c->approver_type === 'role' && $roleIds->contains($c->approverable_id)));

@@ -18,6 +18,7 @@ use Illuminate\Support\Facades\Route;
 use Illuminate\Support\Facades\URL;
 use Illuminate\Support\Str;
 use Inertia\Inertia;
+use Symfony\Component\HttpFoundation\Response as SymfonyResponse;
 
 class ApprovalInstanceController extends Controller {
     public function __construct(Request $request) {
@@ -146,7 +147,7 @@ class ApprovalInstanceController extends Controller {
             event(new ApprovalDecided($approval, 'approved'));
 
             if ($serviceClass) {
-                return app($serviceClass)->onApproved($document);
+                return $this->asInertiaResponse(app($serviceClass)->onApproved($document));
             }
 
             return back();
@@ -157,6 +158,15 @@ class ApprovalInstanceController extends Controller {
         event(new ApprovalDecided($approval, 'approved', $nextPending));
 
         return back();
+    }
+
+    /**
+     * onApproved()/onRejected() Service mengembalikan model/null, bukan response. Permintaan
+     * Inertia wajib dijawab redirect/response valid, kalau tidak klien menampilkan modal error
+     * walau keputusan sudah tersimpan (dan klik ulang berakhir 403).
+     */
+    private function asInertiaResponse(mixed $result): mixed {
+        return $result instanceof SymfonyResponse ? $result : back();
     }
 
     private function recordApproverChildDecision(ApprovalInstanceStep $step, FormStatus $status): void {
@@ -227,7 +237,7 @@ class ApprovalInstanceController extends Controller {
             event(new ApprovalDecided($approval, 'rejected', notes: $notes));
 
             if ($serviceClass) {
-                return app($serviceClass)->onRejected($document);
+                return $this->asInertiaResponse(app($serviceClass)->onRejected($document));
             }
 
             return back();
@@ -242,7 +252,15 @@ class ApprovalInstanceController extends Controller {
         $data     = $request->validated();
         $decision = $data['decision'];
 
-        abort_unless($approvalInstanceStep->canBeDecidedBy($request->user()), 403);
+        if (! $approvalInstanceStep->canBeDecidedBy($request->user())) {
+            // Bukan kandidat sama sekali: tolak. Kandidat yang mengklik ulang / membuka halaman
+            // basi (step sudah diputuskan, dibatalkan, atau belum gilirannya) cukup diberi tahu.
+            abort_unless($approvalInstanceStep->isCandidate($request->user()), 403);
+
+            return back()->with('alert', [
+                'message' => __('core/form.approvalDecision.unavailable'),
+            ]);
+        }
 
         return $this->$decision($approvalInstanceStep, $data['notes'] ?? null);
     }
