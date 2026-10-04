@@ -61,6 +61,7 @@ import { cn, getCookieByName, isMetaAppendColumn } from "@/lib/utils";
 import AppLayout from "@/Layouts/AppLayout";
 import FilterTable2 from "@/Components/Table/Filter/FilterTable2";
 import SearchBar from "@/Components/Table/Search/SearchBar";
+import useSearchDraft from "@/Components/Table/Search/useSearchDraft";
 import { FormPageDialog } from "./FormPage";
 import { Label } from "@/Components/ui/label";
 import NoDataImg from "@/Components/Table/NoDataImg";
@@ -752,6 +753,32 @@ export default memo(
       [searchScope, mapColumns],
     );
 
+    // Draft Search Bar (staged-apply) dimiliki di sini supaya dipakai BERSAMA
+    // Search Bar atas dan Baris Filter Kolom di Table2 (spec
+    // datatable2-column-search-row, Requirement 7.3-7.5): chip atas dan badge
+    // sel selalu turunan dari draft yang SAMA. Perubahan `filterTree` dari
+    // sumber luar (Builder, saved filter, `addFilter`, `?fid=`) mereset draft.
+    const searchDraft = useSearchDraft({
+      tree: filterTree,
+      group: options.group,
+      onTreeChange,
+      onGroupChange,
+      onPickSaved,
+    });
+
+    // Baris Filter Kolom di Table2 (hanya DataTable2 yang mengisinya -- opt-in).
+    const columnFilter = useMemo(
+      () => ({
+        columns: mapColumns,
+        draft: searchDraft,
+        onOpenBuilder: (draftTree) => {
+          setBuilderDraftFilter(draftTree ?? null);
+          setBuilderOpen(true);
+        },
+      }),
+      [mapColumns, searchDraft],
+    );
+
     useImperativeHandle(ref, () => ({
       addFilter(key, operator, value) {
         // Filter cepat (mis. klik cell): bangun item baru, gabung ke tree aktif.
@@ -915,6 +942,7 @@ export default memo(
           <div className="flex items-start gap-x-2 mt-3">
             <div className="flex-1 min-w-0">
               <SearchBar
+                draft={searchDraft}
                 columns={mapColumns}
                 tree={filterTree}
                 onTreeChange={onTreeChange}
@@ -1128,6 +1156,7 @@ export default memo(
             ) : (
               <Table2
                 reload={loadData}
+                columnFilter={columnFilter}
                 className="flex-1 min-h-0"
                 actions={actions}
                 columns={mapColumns}
