@@ -7,6 +7,7 @@ import {
 } from "@/Components/ui/dialog";
 import { useCallback, useEffect, useMemo, useState } from "react";
 
+import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/Components/ui/tabs";
 import FilterTable from "@/Components/Table/Filter/FilterTable2";
 import {
   GroupHeaderCard,
@@ -104,7 +105,7 @@ export function buildGroupOptions(barColumns, lockedColumnNames, locale) {
 }
 
 /**
- * AdvanceSearchDialog — dialog Advance Search / See More LinkModel. Tabel
+ * AdvanceSearchBody — isi satu model dialog Advance Search / See More LinkModel. Tabel
  * (desktop) / list (mobile) hasil browse model target, kolom dibatasi ke
  * "kolom aman" (linkable-gated). Pencarian & filter lewat `SearchBar`
  * DataTable2 (chip, saran, Filter Tersimpan, Group by) -- chip = tree filter
@@ -128,7 +129,7 @@ export function buildGroupOptions(barColumns, lockedColumnNames, locale) {
  * @param {(row: object) => void} props.onSelect dipanggil dengan row yang SUDAH terpangkas (Requirement 7)
  * @returns {React.JSX.Element}
  */
-export default function AdvanceSearchDialog({
+function AdvanceSearchBody({
   open,
   onOpenChange,
   model,
@@ -304,120 +305,101 @@ export default function AdvanceSearchDialog({
   );
 
   return (
-    <Dialog open={open} onOpenChange={onOpenChange}>
-      <DialogContent className="max-w-(--breakpoint-2xl)! w-auto! p-0">
-        <TooltipProvider>
-          <DialogHeader className="px-6 pt-6 mb-2 border-b border-muted-foreground/30">
-            <DialogTitle>{t("core.form.linkmodel.advance_search")}</DialogTitle>
-            <DialogDescription className="sr-only" />
-          </DialogHeader>
-
-          <div className="flex flex-col px-6 overflow-y-auto max-h-[80svh] gap-3">
-            {/* Sticky -- search+filter tetap kelihatan pas hasil discroll
+    <>
+      <div className="flex flex-col px-6 overflow-y-auto max-h-[80svh] gap-3">
+        {/* Sticky -- search+filter tetap kelihatan pas hasil discroll
                 (list bisa panjang, infinite scroll). bg-background solid
                 supaya baris di bawahnya tidak transparan-tembus pas overlap. */}
-            <div className="sticky top-0 z-10 bg-background pb-1 -mx-6 px-6 pt-1">
-              <SearchBar
-                columns={barColumns}
-                tree={tree}
-                onTreeChange={onTreeChange}
-                getSearchColumns={getSearchColumns}
-                model={model}
-                onPickSaved={onPickSaved}
-                getViewSnapshot={getViewSnapshot}
-                group={barGroups}
-                groupOptions={
-                  groupOptions.length > 0 ? groupOptions : undefined
-                }
-                onGroupChange={
-                  groupOptions.length > 0 ? onGroupChange : undefined
-                }
-                groupSort={groupSort}
-                onGroupSortChange={
-                  groupOptions.length > 0
-                    ? (direction) =>
-                        setGroupSort(direction === "desc" ? "desc" : "asc")
-                    : undefined
-                }
-                onOpenBuilder={(draftTree) => {
-                  setBuilderDraft(draftTree ?? null);
-                  setBuilderOpen(true);
-                }}
-                placeholder={t("core.form.search.placeholder")}
-              />
-              {/* Builder lanjutan (FilterTable2 controlled, tanpa trigger):
+        <div className="sticky top-0 z-10 bg-background pb-1 -mx-6 px-6 pt-1">
+          <SearchBar
+            columns={barColumns}
+            tree={tree}
+            onTreeChange={onTreeChange}
+            getSearchColumns={getSearchColumns}
+            model={model}
+            onPickSaved={onPickSaved}
+            getViewSnapshot={getViewSnapshot}
+            group={barGroups}
+            groupOptions={groupOptions.length > 0 ? groupOptions : undefined}
+            onGroupChange={groupOptions.length > 0 ? onGroupChange : undefined}
+            groupSort={groupSort}
+            onGroupSortChange={
+              groupOptions.length > 0
+                ? (direction) =>
+                    setGroupSort(direction === "desc" ? "desc" : "asc")
+                : undefined
+            }
+            onOpenBuilder={(draftTree) => {
+              setBuilderDraft(draftTree ?? null);
+              setBuilderOpen(true);
+            }}
+            placeholder={t("core.form.search.placeholder")}
+          />
+          {/* Builder lanjutan (FilterTable2 controlled, tanpa trigger):
                   `lockedFilters` = prop `filters` LinkModel, read-only. */}
-              <FilterTable
-                columns={filterColumnMap}
-                initialFilters={
-                  builderDraft !== undefined ? builderDraft : tree
-                }
-                lockedFilters={filters}
-                onApply={(next) => setTree(hasItems(next) ? next : null)}
-                model={model}
-                open={builderOpen}
-                onOpenChange={setBuilderOpen}
-              />
-            </div>
+          <FilterTable
+            columns={filterColumnMap}
+            initialFilters={builderDraft !== undefined ? builderDraft : tree}
+            lockedFilters={filters}
+            onApply={(next) => setTree(hasItems(next) ? next : null)}
+            model={model}
+            open={builderOpen}
+            onOpenChange={setBuilderOpen}
+          />
+        </div>
 
-            {/* Desktop: tabel kolom aman (grup -> GroupTree di dalam Table2). */}
-            <div className="hidden lg:block">
-              <Table2
-                columns={columnMap}
-                data={isGrouped ? rootItems : rows}
-                isLoading={isLoading}
-                isDynamicData
-                persistColumns={false}
-                onRowClick={handlePick}
-                group={groupTreeProps ?? undefined}
-              />
-              {levelZeroSentinel}
-            </div>
+        {/* Desktop: tabel kolom aman (grup -> GroupTree di dalam Table2). */}
+        <div className="hidden lg:block">
+          <Table2
+            columns={columnMap}
+            data={isGrouped ? rootItems : rows}
+            isLoading={isLoading}
+            isDynamicData
+            persistColumns={false}
+            onRowClick={handlePick}
+            group={groupTreeProps ?? undefined}
+          />
+          {levelZeroSentinel}
+        </div>
 
-            {/* Mobile: list templateLink, sumber data sama (CSS-toggle, bukan query beda). */}
-            <div className="lg:hidden flex flex-col divide-y divide-muted-foreground/20">
-              {groupTreeProps ? (
-                <GroupTree
-                  key={groupTreeProps.resetKey}
-                  rootItems={rootItems}
-                  levels={groupTreeProps.levels}
-                  baseParams={groupTreeProps.baseParams}
-                  pathname={groupTreeProps.pathname}
-                  fetcher={groupTreeProps.fetcher}
-                  infinite
-                  renderGroupHeader={(args) => (
-                    <GroupHeaderCard
-                      {...args}
-                      columnMeta={columnMap[args.level?.column]}
-                      aggregates={groupTreeProps.aggregates}
-                      columns={columnMap}
-                    />
-                  )}
-                  renderRow={(row) => (
-                    <MobileRow key={row.id} row={row} onPick={handlePick} />
-                  )}
-                  renderLoading={({ depth }) => (
-                    <GroupNodeStatusCard depth={depth} />
-                  )}
-                  renderError={({ depth, onRetry }) => (
-                    <GroupNodeStatusCard
-                      depth={depth}
-                      error
-                      onRetry={onRetry}
-                    />
-                  )}
+        {/* Mobile: list templateLink, sumber data sama (CSS-toggle, bukan query beda). */}
+        <div className="lg:hidden flex flex-col divide-y divide-muted-foreground/20">
+          {groupTreeProps ? (
+            <GroupTree
+              key={groupTreeProps.resetKey}
+              rootItems={rootItems}
+              levels={groupTreeProps.levels}
+              baseParams={groupTreeProps.baseParams}
+              pathname={groupTreeProps.pathname}
+              fetcher={groupTreeProps.fetcher}
+              infinite
+              renderGroupHeader={(args) => (
+                <GroupHeaderCard
+                  {...args}
+                  columnMeta={columnMap[args.level?.column]}
+                  aggregates={groupTreeProps.aggregates}
+                  columns={columnMap}
                 />
-              ) : (
-                rows.map((row, i) => (
-                  <MobileRow key={row.id ?? i} row={row} onPick={handlePick} />
-                ))
               )}
-              {levelZeroSentinel}
-            </div>
-          </div>
-        </TooltipProvider>
-      </DialogContent>
-    </Dialog>
+              renderRow={(row) => (
+                <MobileRow key={row.id} row={row} onPick={handlePick} />
+              )}
+              renderLoading={({ depth }) => (
+                <GroupNodeStatusCard depth={depth} />
+              )}
+              renderError={({ depth, onRetry }) => (
+                <GroupNodeStatusCard depth={depth} error onRetry={onRetry} />
+              )}
+            />
+          ) : (
+            rows.map((row, i) => (
+              <MobileRow key={row.id ?? i} row={row} onPick={handlePick} />
+            ))
+          )}
+          {levelZeroSentinel}
+        </div>
+      </div>
+    </>
   );
 }
 
@@ -439,5 +421,66 @@ function MobileRow({ row, onPick }) {
         }}
       />
     </button>
+  );
+}
+
+/**
+ * AdvanceSearchDialog — dialog Advance Search / See More LinkModel. Satu model
+ * (default, props `model`/`filters`/... seperti sebelumnya) atau BANYAK model
+ * lewat `sources` (LinkModel multi-model, spec linkmodel-multi-model): dialog
+ * menampilkan tab per model, isi tiap tab = `AdvanceSearchBody` dgn config
+ * sumbernya. Tab awal = sumber pertama (main); `initialSearch` terbawa ke tab aktif.
+ * @param {object} props
+ * @param {boolean} props.open
+ * @param {(open: boolean) => void} props.onOpenChange
+ * @param {Array<{model: string, label?: string, filters?: object, fields?: string[], joins?: object|Array, with?: object|Array, order?: string, translate?: string, group?: Array}>} [props.sources]
+ *   >1 elemen -> tab per model; selain itu diabaikan dan props tunggal di bawah dipakai
+ * @param {string} [props.model] mode satu model
+ * @param {(row: object) => void} props.onSelect
+ * @returns {React.JSX.Element}
+ */
+export default function AdvanceSearchDialog({ sources, ...props }) {
+  const { t } = useLaravelReactI18n();
+  const { open, onOpenChange } = props;
+  const isMulti = (sources?.length ?? 0) > 1;
+  const [activeModel, setActiveModel] = useState(sources?.[0]?.model);
+  // Dialog dibuka ulang -> kembali ke tab pertama (main).
+  useEffect(() => {
+    if (open) setActiveModel(sources?.[0]?.model);
+  }, [open]);
+
+  return (
+    <Dialog open={open} onOpenChange={onOpenChange}>
+      <DialogContent className="max-w-(--breakpoint-2xl)! w-auto! p-0">
+        <TooltipProvider>
+          <DialogHeader className="px-6 pt-6 mb-2 border-b border-muted-foreground/30">
+            <DialogTitle>{t("core.form.linkmodel.advance_search")}</DialogTitle>
+            <DialogDescription className="sr-only" />
+          </DialogHeader>
+          {isMulti ? (
+            <Tabs value={activeModel} onValueChange={setActiveModel}>
+              <TabsList className="mx-6 mb-2">
+                {sources.map((source) => (
+                  <TabsTrigger key={source.model} value={source.model}>
+                    {source.label ?? source.model.split("\\").pop()}
+                  </TabsTrigger>
+                ))}
+              </TabsList>
+              {sources.map((source) => (
+                <TabsContent key={source.model} value={source.model}>
+                  <AdvanceSearchBody
+                    {...props}
+                    {...source}
+                    onSelect={props.onSelect}
+                  />
+                </TabsContent>
+              ))}
+            </Tabs>
+          ) : (
+            <AdvanceSearchBody {...props} />
+          )}
+        </TooltipProvider>
+      </DialogContent>
+    </Dialog>
   );
 }

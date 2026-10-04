@@ -1,5 +1,115 @@
-import { describe, it, expect } from "vitest";
-import { validate, convertTemplateLink } from "./linkModelUtils";
+import { describe, it, expect, vi } from "vitest";
+import {
+  validate,
+  convertTemplateLink,
+  sourceValue,
+  parseSourceValue,
+  buildSources,
+} from "./linkModelUtils";
+
+describe("validate -- banyak model", () => {
+  it("true jika thisModel termasuk salah satu dari array model", () => {
+    expect(validate({ thisModel: "B" }, ["A", "B"])).toBe(true);
+  });
+
+  it("false jika thisModel di luar array model", () => {
+    expect(validate({ thisModel: "C" }, ["A", "B"])).toBe(false);
+  });
+
+  it("array kosong = skip validasi", () => {
+    expect(validate({ thisModel: "C" }, [])).toBe(true);
+  });
+});
+
+describe("sourceValue / parseSourceValue", () => {
+  it("sourceValue selalu string berprefiks indeks sumber", () => {
+    expect(sourceValue(1, 7)).toBe("1:7");
+    expect(sourceValue(0, "abc")).toBe("0:abc");
+  });
+
+  it("id sama di sumber berbeda menghasilkan nilai berbeda", () => {
+    expect(sourceValue(0, 5)).not.toBe(sourceValue(1, 5));
+  });
+
+  it("parseSourceValue memulihkan indeks dan id (id bisa mengandung ':')", () => {
+    expect(parseSourceValue("2:abc:def")).toEqual({ index: 2, id: "abc:def" });
+  });
+
+  it("parseSourceValue null untuk nilai non-sumber", () => {
+    expect(parseSourceValue("__linkmodel_add__")).toBeNull();
+    expect(parseSourceValue(undefined)).toBeNull();
+    expect(parseSourceValue("x:1")).toBeNull();
+  });
+});
+
+describe("buildSources", () => {
+  const MAIN = "App\\Main";
+  const SUB = "App\\Sub";
+
+  it("tanpa subModels: satu sumber main, tak dibungkus", () => {
+    const sources = buildSources({ model: MAIN });
+    expect(sources).toHaveLength(1);
+    expect(sources[0]).toMatchObject({
+      index: 0,
+      model: MAIN,
+      isMain: true,
+      wrapped: false,
+    });
+  });
+
+  it("mainLabel -> main dibungkus", () => {
+    const [main] = buildSources({ model: MAIN, mainLabel: "Main Label" });
+    expect(main).toMatchObject({ wrapped: true, label: "Main Label" });
+  });
+
+  it("sub selalu dibungkus dan membawa config-nya", () => {
+    const sub = { model: SUB, label: "Lainnya", filters: { a: 1 } };
+    const sources = buildSources({ model: MAIN, subModels: [sub] });
+    expect(sources).toHaveLength(2);
+    expect(sources[1]).toMatchObject({
+      index: 1,
+      model: SUB,
+      isMain: false,
+      wrapped: true,
+      label: "Lainnya",
+    });
+    expect(sources[1].config).toBe(sub);
+  });
+
+  it("sub tanpa model atau tanpa label diabaikan dengan peringatan", () => {
+    const warn = vi.fn();
+    const sources = buildSources(
+      {
+        model: MAIN,
+        subModels: [
+          { label: "x" },
+          { model: SUB },
+          { model: SUB, label: "ok" },
+        ],
+      },
+      warn,
+    );
+    expect(sources.map((s) => s.model)).toEqual([MAIN, SUB]);
+    expect(warn).toHaveBeenCalledTimes(2);
+  });
+
+  it("model duplikat (sama dgn main / antar sub) diabaikan dengan peringatan", () => {
+    const warn = vi.fn();
+    const sources = buildSources(
+      {
+        model: MAIN,
+        subModels: [
+          { model: MAIN, label: "dup main" },
+          { model: SUB, label: "a" },
+          { model: SUB, label: "dup sub" },
+        ],
+      },
+      warn,
+    );
+    expect(sources.map((s) => s.label)).toEqual([undefined, "a"]);
+    expect(warn).toHaveBeenCalledTimes(2);
+  });
+});
 
 describe("validate", () => {
   it("true jika thisModel cocok dengan model", () => {

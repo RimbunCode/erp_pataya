@@ -6,7 +6,7 @@ import LoadingIcon from "@/Components/LoadingIcon";
 import GroupLabel from "@/Components/Table/Group/GroupLabel";
 import GroupTree from "@/Components/Table/Group/GroupTree";
 import { groupLabelValue } from "@/Components/Table/Group/groupDisplay";
-import { convertTemplateLink } from "@/lib/linkModelUtils";
+import { convertTemplateLink, sourceValue } from "@/lib/linkModelUtils";
 import { cn } from "@/lib/utils";
 import InfiniteScrollSentinel from "./InfiniteScrollSentinel";
 
@@ -40,6 +40,10 @@ const indentStyle = (depth) => ({ paddingLeft: `${depth * 12 + 8}px` });
  * @param {(row: object) => void} props.onPick
  * @param {{current: Map<string, object>}} [props.knownRef] registri baris yg pernah dirender (Tab-autocomplete / exact-match)
  * @param {number|string} [props.version]
+ * @param {number} [props.sourceIndex] indeks sumber (LinkModel multi-model, sub model):
+ *   nilai cmdk baris diberi prefiks `<indeks>:` agar id yang sama di model lain tak bentrok
+ * @param {number} [props.depthOffset] tambahan tingkat indentasi (baris/grup di dalam bagian sub)
+ * @returns {React.JSX.Element}
  */
 export default function GroupedOptions({
   rootItems,
@@ -56,6 +60,8 @@ export default function GroupedOptions({
   onPick,
   knownRef,
   version = 0,
+  sourceIndex,
+  depthOffset = 0,
 }) {
   const { t } = useLaravelReactI18n();
 
@@ -87,7 +93,7 @@ export default function GroupedOptions({
             aria-expanded={isOpen}
             data-testid="linkmodel-group-header"
             className="font-medium"
-            style={indentStyle(depth)}
+            style={indentStyle(depth + depthOffset)}
           >
             <ChevronRight
               className={cn(
@@ -113,7 +119,9 @@ export default function GroupedOptions({
           </CommandItem>
         )}
         renderRow={(row, { depth, index }) => {
-          const value = `${row.id ?? `${depth}-${index}`}`;
+          const rawValue = `${row.id ?? `${depth}-${index}`}`;
+          const value =
+            sourceIndex == null ? rawValue : sourceValue(sourceIndex, rawValue);
           knownRef?.current?.set(value, row);
 
           return (
@@ -121,7 +129,7 @@ export default function GroupedOptions({
               key={value}
               value={value}
               onSelect={() => onPick(row)}
-              style={indentStyle(depth)}
+              style={indentStyle(depth + depthOffset)}
             >
               <p
                 dangerouslySetInnerHTML={{
@@ -138,7 +146,7 @@ export default function GroupedOptions({
           <div
             role="status"
             className="flex items-center gap-2 py-2 text-xs text-muted-foreground"
-            style={indentStyle(depth)}
+            style={indentStyle(depth + depthOffset)}
           >
             <LoadingIcon className="size-3" />
             {t("core.datatable.group_loading")}
@@ -148,7 +156,7 @@ export default function GroupedOptions({
           <div
             role="alert"
             className="flex items-center gap-2 py-2 text-xs text-destructive"
-            style={indentStyle(depth)}
+            style={indentStyle(depth + depthOffset)}
           >
             {t("core.datatable.group_error")}
             <button type="button" className="underline" onClick={onRetry}>
