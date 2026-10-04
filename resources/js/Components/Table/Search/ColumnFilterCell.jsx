@@ -145,8 +145,11 @@ function SearchableCell({
   // ikut ganda.
   const live = useLiveDraftState(draft);
   const { baseFor, markCommitted, liveLeafId } = live;
-  const onCommit = useCallback(
-    (patch, { editId }) => {
+  // Pilihan langsung (boolean, Diisi/Tidak diisi, enter) saat host SIBUK tak
+  // boleh hilang: ditahan lalu dikomit begitu host selesai.
+  const pendingCommitRef = useRef(null);
+  const runCommit = useCallback(
+    ({ patch, editId }) => {
       markCommitted();
       commitTreeChange((d) => {
         const base = baseFor(d);
@@ -154,10 +157,26 @@ function SearchableCell({
           ? updateChip(base, editId, patch)
           : addLeafChip(base, patch);
       }).catch(() => {});
-      return undefined;
     },
     [commitTreeChange, baseFor, markCommitted],
   );
+  const onCommit = useCallback(
+    (patch, { editId }) => {
+      if (draft.busy) {
+        pendingCommitRef.current = { patch, editId };
+        return undefined;
+      }
+      runCommit({ patch, editId });
+      return undefined;
+    },
+    [draft.busy, runCommit],
+  );
+  useEffect(() => {
+    if (draft.busy || !pendingCommitRef.current) return;
+    const pending = pendingCommitRef.current;
+    pendingCommitRef.current = null;
+    runCommit(pending);
+  }, [draft.busy, runCommit]);
   const onRequestOpen = useCallback(() => setOpen(true), []);
   const onRequestClose = useCallback(() => setOpen(false), []);
   const value = useColumnValueInput({

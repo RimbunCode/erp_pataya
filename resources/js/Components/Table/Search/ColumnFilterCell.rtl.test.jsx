@@ -573,3 +573,63 @@ describe("draft langsung (Requirement 14)", () => {
     );
   });
 });
+
+describe("ketahanan draft langsung (review PR)", () => {
+  const draftLeaves = (expose) => leaves(expose.current.draftTree);
+
+  it("tree diganti dari luar saat sesi live: sesi dibatalkan, ketikan lama tak disuntik ke tree pengganti", async () => {
+    const user = userEvent.setup();
+    const { expose } = setup();
+    await user.type(inputOf("Nama"), "abc");
+    await waitFor(() => expect(draftLeaves(expose)).toHaveLength(1));
+    const replacement = tree({ z: { k: "qty", o: ">", v: 9 } });
+    await act(async () => {
+      await expose.current.commitTreeChange(() => replacement);
+    });
+    await waitFor(() => expect(inputOf("Nama").value).toBe(""));
+    // tunggu lewat debounce: draft tetap = tree pengganti
+    await new Promise((r) => setTimeout(r, 400));
+    expect(draftLeaves(expose)).toEqual(["qty>9"]);
+  });
+
+  it("sel di-unmount (kolom disembunyikan) saat ada leaf sementara: draft di-rollback", async () => {
+    const user = userEvent.setup();
+    const expose = { current: null };
+    const { rerender } = render(<Host expose={expose} />);
+    await user.type(inputOf("Nama"), "abc");
+    await waitFor(() => expect(draftLeaves(expose)).toHaveLength(1));
+    rerender(<Host expose={expose} showedColumns={[{ name: "qty" }]} />);
+    await waitFor(() => expect(draftLeaves(expose)).toEqual([]));
+  });
+
+  it("pilihan langsung saat host sibuk ditahan lalu dikomit setelah selesai", async () => {
+    const user = userEvent.setup();
+    let resolve;
+    const pending = new Promise((r) => {
+      resolve = r;
+    });
+    const onTreeChange = vi
+      .fn()
+      .mockImplementationOnce(() => pending)
+      .mockImplementation(() => Promise.resolve());
+    setup({ onTreeChange });
+    await user.type(inputOf("Jumlah"), ">=5{Enter}"); // membuat host sibuk
+    await waitFor(() => expect(onTreeChange).toHaveBeenCalledTimes(1));
+    await waitFor(() =>
+      expect(
+        screen
+          .getAllByTestId("column-filter-cell")[0]
+          .getAttribute("aria-busy"),
+      ).toBe("true"),
+    );
+    await user.click(inputOf("Aktif"));
+    await user.click(await screen.findByText("TR:core.datatable.yes"));
+    // belum dikomit (host sibuk), pilihan tidak hilang
+    expect(onTreeChange).toHaveBeenCalledTimes(1);
+    await act(async () => {
+      resolve();
+    });
+    await waitFor(() => expect(onTreeChange).toHaveBeenCalledTimes(2));
+    expect(leaves(lastTree(onTreeChange))).toEqual(["active=true", "qty>=5"]);
+  });
+});

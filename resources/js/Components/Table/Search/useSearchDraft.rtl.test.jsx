@@ -3,7 +3,7 @@
 // `commitTreeChange` tidak kehilangan perubahan/draft yang belum di-apply
 // (spec datatable2-column-search-row, Requirement 6.7, 7.4, 7.5).
 
-import { act, render, screen } from "@testing-library/react";
+import { act, render, screen, waitFor } from "@testing-library/react";
 import { describe, expect, it, vi } from "vitest";
 
 import { addLeafChip } from "./searchChips";
@@ -239,5 +239,82 @@ describe("useSearchDraft", () => {
       expose.current.setDraftTree(addLeafChip(null, { k: "a", o: "=", v: 1 }));
     });
     expect(expose.current.isDraftDirty).toBe(true);
+  });
+
+  it("apply gagal (host menolak): draft dikembalikan ke tree terapan, chip gagal tak tersisa", async () => {
+    const onTreeChange = vi.fn(() => Promise.reject(new Error("422")));
+    const { expose } = setup({ onTreeChange });
+    await act(async () => {
+      await expose.current.commitTreeChange(
+        withLeaf({ k: "name", o: "matches", v: "abc" }),
+      );
+    });
+    await waitFor(() => expect(expose.current.draftTree).toBeNull());
+    expect(onTreeChange).toHaveBeenCalledTimes(1);
+  });
+
+  it("apply gagal dari sel hanya membatalkan perubahan sel; draft atas yang belum di-apply tetap utuh", async () => {
+    const onTreeChange = vi.fn(() => Promise.reject(new Error("422")));
+    const { expose } = setup({ onTreeChange });
+    act(() => {
+      expose.current.setDraftTree(
+        addLeafChip(null, { k: "status", o: "=", v: "Draft" }),
+      );
+    });
+    await act(async () => {
+      await expose.current.commitTreeChange(
+        withLeaf({ k: "name", o: "matches", v: "abc" }),
+      );
+    });
+    await waitFor(() =>
+      expect(leafKeys(expose.current.draftTree)).toEqual(["status:="]),
+    );
+  });
+
+  it("applyDraft biasa (Search Bar atas) yang gagal membiarkan draft utk dicoba lagi", async () => {
+    const onTreeChange = vi.fn(() => Promise.reject(new Error("422")));
+    const { expose } = setup({ onTreeChange });
+    act(() => {
+      expose.current.setDraftTree(
+        addLeafChip(null, { k: "status", o: "=", v: "Draft" }),
+      );
+    });
+    await act(async () => {
+      expose.current.applyDraft();
+    });
+    expect(onTreeChange).toHaveBeenCalledTimes(1);
+    expect(leafKeys(expose.current.draftTree)).toEqual(["status:="]);
+  });
+
+  it("penolakan karena host SIBUK bukan kegagalan: draft tidak direset", async () => {
+    let resolve;
+    const onTreeChange = vi.fn(
+      () =>
+        new Promise((r) => {
+          resolve = r;
+        }),
+    );
+    const { expose } = setup({ onTreeChange });
+    await act(async () => {
+      await expose.current.commitTreeChange(
+        withLeaf({ k: "name", o: "matches", v: "a" }),
+      );
+    });
+    act(() => {
+      expose.current.setDraftTree(
+        addLeafChip(expose.current.draftTree, { k: "qty", o: ">", v: 5 }),
+      );
+    });
+    // commitTree ditolak "busy" -> catch TIDAK me-reset draft
+    act(() => {
+      expose.current.applyDraft();
+    });
+    expect(leafKeys(expose.current.draftTree)).toEqual([
+      "name:matches",
+      "qty:>",
+    ]);
+    await act(async () => {
+      resolve();
+    });
   });
 });

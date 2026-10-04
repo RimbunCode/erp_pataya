@@ -94,7 +94,7 @@ export default function useSearchDraft({
   // langsung di sini masih dapat versi LAMA. `ignorePending` hanya dipakai
   // `commitTreeChange` (lihat di sana).
   const applyDraft = useCallback(
-    (treeOverride, { ignorePending = false } = {}) => {
+    (treeOverride, { ignorePending = false, rollback = null } = {}) => {
       if (busyRef.current) return;
       if (pendingSaved && !ignorePending) {
         onPickSaved?.(pendingSaved);
@@ -105,7 +105,18 @@ export default function useSearchDraft({
       const treeChanged = isFilterTreeDirty(tree, nextTree);
       const groupChanged = !sameGroups(group, draftGroup);
       if (!treeChanged && !groupChanged) return;
-      if (treeChanged) commitTree(nextTree).catch(() => {});
+      if (treeChanged) {
+        commitTree(nextTree).catch((error) => {
+          // Search Bar atas: apply gagal membiarkan draft utk dicoba lagi
+          // (perilaku lama, ada tesnya). Commit dari Sel Filter memberi
+          // `rollback`: batalkan HANYA perubahan sel itu supaya badge yang
+          // gagal tak tampil padahal tabel masih memakai filter lama (draft
+          // lain, mis. chip atas yang belum di-apply, tetap utuh). Penolakan
+          // karena host SIBUK bukan kegagalan.
+          if (!rollback || error?.message === "busy") return;
+          if (draftTreeRef.current === rollback.from) setDraftTree(rollback.to);
+        });
+      }
       if (groupChanged) onGroupChange?.(draftGroup);
     },
     [
@@ -117,6 +128,7 @@ export default function useSearchDraft({
       draftGroup,
       commitTree,
       onGroupChange,
+      setDraftTree,
     ],
   );
 
@@ -136,11 +148,15 @@ export default function useSearchDraft({
   const commitTreeChange = useCallback(
     (updater) => {
       if (busyRef.current) return Promise.reject(new Error("busy"));
-      const next = updater(draftTreeRef.current);
+      const previous = draftTreeRef.current;
+      const next = updater(previous);
       setDraftTree(next);
       const hadPending = Boolean(pendingSaved);
       if (hadPending) setPendingSaved(null);
-      applyDraft(next, { ignorePending: hadPending });
+      applyDraft(next, {
+        ignorePending: hadPending,
+        rollback: { from: next, to: previous },
+      });
       return Promise.resolve();
     },
     [applyDraft, pendingSaved, setDraftTree],

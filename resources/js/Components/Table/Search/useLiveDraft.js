@@ -96,7 +96,8 @@ export function useLiveDraftSync({
   debounceMs = LIVE_DEBOUNCE_MS,
 }) {
   const { draft, stateRef, setLiveLeafId } = live;
-  const { valueColumn, editingLeafId, computeCheckedLeafPatch } = value;
+  const { valueColumn, editingLeafId, computeCheckedLeafPatch, exitValueMode } =
+    value;
   const { draftTree, draftTreeRef, setDraftTree } = draft;
 
   useEffect(() => {
@@ -129,6 +130,15 @@ export function useLiveDraftSync({
       const st = stateRef.current;
       const sig = JSON.stringify([patch, editingLeafId]);
       const present = hasLeaf(cur, st.leafId);
+      // Leaf sementara HILANG dari draft = draft diganti dari luar (Builder,
+      // saved filter, addFilter, apply host): sesi ini basi -- batalkan, jangan
+      // menyuntikkan ketikan lama ke tree pengganti.
+      if (st.leafId && !present) {
+        stateRef.current = IDLE;
+        setLiveLeafId(null);
+        exitValueMode();
+        return;
+      }
       if (present && sig === st.sig) return;
 
       // Ketikan belum valid: batalkan tulisan sementara sebelumnya.
@@ -193,5 +203,30 @@ export function useLiveDraftSync({
     setDraftTree,
     setLiveLeafId,
     stateRef,
+    exitValueMode,
   ]);
+
+  // Sel/Search Bar di-unmount (kolom disembunyikan, pindah ke tampilan mobile)
+  // saat masih ada leaf sementara: rollback seperti sesi berakhir tanpa commit,
+  // supaya kondisi yang tak punya input lagi tidak ter-apply dari draft.
+  const latest = useRef({ enabled, draft, stateRef, setLiveLeafId });
+  latest.current = { enabled, draft, stateRef, setLiveLeafId };
+  useEffect(
+    () => () => {
+      const { enabled: on, draft: d, stateRef: ref } = latest.current;
+      if (!on) return;
+      const s = ref.current;
+      if (!s.leafId || s.committed) return;
+      const cur = d.draftTreeRef.current;
+      if (hasLeaf(cur, s.leafId)) {
+        d.setDraftTree(
+          s.edit
+            ? updateChip(cur, s.leafId, s.original)
+            : removeChip(cur, s.leafId),
+        );
+      }
+      ref.current = IDLE;
+    },
+    [],
+  );
 }
