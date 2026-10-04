@@ -3,6 +3,7 @@
 namespace App\Traits;
 
 use App\Models\Core\Branch;
+use App\Services\Core\BranchScopeCache;
 use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Support\Facades\Auth;
@@ -16,29 +17,45 @@ trait HasBranch {
     public static function bootHasBranch() {
         static::addGlobalScope('branch', function (Builder $builder) {
             $user = Auth::user();
-            if ($user && $user->branches()->where('is_main_branch', true)->exists()) {
-                return;
+            if ($user) {
+                // BranchScopeCache (statis per proses, bukan static property
+                // trait ini) -- scope jalan ULANG di SETIAP query model
+                // ber-HasBranch (route-model-binding halaman Show, tiap
+                // relasi ber-HasBranch yang di-eager-load, tiap partial
+                // reload Inertia::defer dari DataTable::showDetail()). Tanpa
+                // cache, `user->branches()->exists()` ikut terulang puluhan
+                // kali per request Show (ditemukan user via Clockwork).
+                $isMainBranchUser = BranchScopeCache::userIsMainBranch(
+                    $user->getKey(),
+                    fn () => $user->branches()->where('is_main_branch', true)->exists(),
+                );
+                if ($isMainBranchUser) {
+                    return;
+                }
             }
 
             if (! session()->has('currentBranch')) {
                 return;
             }
 
-            // select+withoutGlobalScope('country'): global scope ini cuma
-            // butuh id, tapi Branch::find() biasa memicu 2 query Country
-            // tambahan (billingCountry+shippingCountry via $with Branch)
-            // SETIAP query model ber-HasBranch (Asset listing eager-load
-            // assetLocation nested berkali-kali) — N+1 nyata.
-            $branch = Branch::query()
-                ->withoutGlobalScope('country')
-                ->select(['id'])
-                ->find(session('currentBranch'));
-            if (! $branch) {
+            $sessionBranchId = session('currentBranch');
+            $branchId        = BranchScopeCache::branchId($sessionBranchId, function () use ($sessionBranchId) {
+                // select+withoutGlobalScope('country'): global scope ini cuma
+                // butuh id, tapi Branch::find() biasa memicu 2 query Country
+                // tambahan (billingCountry+shippingCountry via $with Branch)
+                // SETIAP query model ber-HasBranch (Asset listing eager-load
+                // assetLocation nested berkali-kali) — N+1 nyata.
+                return Branch::query()
+                    ->withoutGlobalScope('country')
+                    ->select(['id'])
+                    ->find($sessionBranchId)?->id;
+            });
+            if (! $branchId) {
                 return;
             }
 
             $column = $builder->getModel()->getTable() . '.' . static::getBranchColumn();
-            $builder->where($column, $branch->id);
+            $builder->where($column, $branchId);
         });
     }
 

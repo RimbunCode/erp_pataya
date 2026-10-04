@@ -75,27 +75,30 @@ class ResolveActiveDesk {
 
         Inertia::share([
             'activeDesk' => $desk->only(['id', 'name', 'icon', 'background_color', 'foreground_color']),
-            // Closure (bukan nilai eager): PropsResolver Inertia (vendor)
-            // TIDAK PERNAH memanggil closure yang di-share kalau request ini
-            // (a) partial reload yang tak minta prop ini (mis. loadData()
-            // DataTable2.jsx, reset:["data","ziggy","groupMeta"] TIDAK
-            // menyebut deskList/menuItems), atau (b) non-Inertia sama sekali
-            // (XHR groupPath expand -- throw HttpResponseException SEBELUM
-            // Inertia::render() pernah dipanggil, jadi PropsResolver tidak
-            // pernah jalan sama sekali). Middleware ini eksekusi di SETIAP
-            // request terautentikasi (grup route 'app','desk') -- tanpa
-            // closure, query buildMenuTree() (~60+ query, lihat komentar
-            // method-nya) & visibleDesksFor() SUDAH TERLANJUR jalan begitu
-            // baris ini dieksekusi, walau hasilnya sama sekali tak dikirim ke
-            // frontend. Pola sama persis dgn HandleInertiaRequests.php
-            // (`ziggy`/`preferences`/`unread_*_count`) -- middleware INI
-            // sebelumnya tidak konsisten dgn pola itu.
-            'deskList' => fn () => $this->resolver->visibleDesksFor($user, $checker, $request)
+            // Inertia::defer (BUKAN closure polos fn () => ...): closure
+            // polos cuma di-skip PropsResolver Inertia (vendor) di PARTIAL
+            // RELOAD yang tak minta prop ini -- di FULL/INITIAL page load,
+            // closure polos TETAP dieksekusi & hasilnya TETAP dikirim (cuma
+            // DeferProp/OptionalProp yang implement IgnoreFirstLoad, prop
+            // type yang dihasilkan Inertia::defer(), yang dikecualikan dari
+            // initial response). Ditemukan lewat inspeksi payload nyata
+            // (bukan asumsi dari komentar lama di sini): `menuItems`/
+            // `deskList` SELALU keisi array penuh di initial load manapun
+            // (Index, Show, dst) -- bukan deferred sama sekali. Middleware
+            // ini eksekusi di SETIAP request terautentikasi (grup route
+            // 'app','desk'), jadi buildMenuTree() (rekursif resolve URL +
+            // cek permission per item) & visibleDesksFor() (query Desk
+            // dgn whereHas berlapis) ikut jalan LENGKAP di SETIAP halaman
+            // -- bukan cuma Show, TERMASUK Index kosong tanpa data sama
+            // sekali. Satu grup defer ('desk') supaya deskList+menuItems
+            // ke-load dalam SATU partial request (dipakai bareng oleh
+            // Sidebar/DeskSwitcher), bukan dua request terpisah.
+            'deskList' => Inertia::defer(fn () => $this->resolver->visibleDesksFor($user, $checker, $request)
                 // 'type' (system|custom) diikutkan — feedback user: DeskSwitcher
                 // urutkan system dulu baru custom, dengan divider di antaranya.
                 ->map->only(['id', 'name', 'icon', 'background_color', 'foreground_color', 'type'])
-                ->values(),
-            'menuItems' => fn () => $this->buildMenuTree($desk, $checker),
+                ->values(), 'desk'),
+            'menuItems' => Inertia::defer(fn () => $this->buildMenuTree($desk, $checker), 'desk'),
         ]);
 
         return $next($request)->withCookie(
