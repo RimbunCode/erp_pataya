@@ -4,11 +4,14 @@ namespace Tests\Feature\Core;
 
 use App\Contracts\SubmitableService;
 use App\Enums\FormStatus;
+use App\Events\Core\ApprovalDecided;
 use App\Http\Controllers\Controller;
+use App\Http\Controllers\Core\ApprovalInstanceController;
 use App\Http\Controllers\Core\ApprovalSchemeController;
 use App\Http\Middleware\AppMiddleware;
 use App\Http\Middleware\EnsureUserIsOnboarded;
 use App\Http\Middleware\LanguageMiddleware;
+use App\Http\Requests\Core\ApprovalDecisionRequest;
 use App\Models\Core\ApprovalInstance;
 use App\Models\Core\ApprovalInstanceStep;
 use App\Models\Core\ApprovalScheme;
@@ -19,7 +22,9 @@ use App\Traits\HasDefaultDelete;
 use Illuminate\Database\Eloquent\Concerns\HasUlids;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Illuminate\Http\Request;
+use Illuminate\Routing\Redirector;
 use Illuminate\Support\Facades\DB;
+use Illuminate\Support\Facades\Event;
 use Illuminate\Support\Facades\Schema;
 use Tests\TestCase;
 
@@ -741,6 +746,101 @@ class ApprovalAutoApproveTest extends TestCase {
                 ->postJson(route('approvalInstances.decision', $step->id), ['decision' => $decision])
                 ->assertRedirect();
         }
+    }
+
+    /**
+     * Panggil ApprovalInstanceController::decision() langsung dengan model step yang SENGAJA
+     * basi: status di memori masih pending padahal di DB sudah diputuskan request lain. Itu
+     * keadaan request yang kalah balapan -- guard canBeDecidedBy() di awal decision() lolos,
+     * jadi yang mencegah keputusan ganda hanyalah re-check pada baris yang terkunci.
+     */
+    private function decideWithStaleStep(User $user, ApprovalInstanceStep $staleStep, string $decision): mixed {
+        $this->actingAs($user);
+
+        $request = ApprovalDecisionRequest::createFrom(Request::create('/', 'POST', ['decision' => $decision]));
+        $request->setContainer($this->app)->setRedirector($this->app->make(Redirector::class));
+        $request->setUserResolver(fn () => $user);
+        $request->validateResolved();
+
+        return (new ApprovalInstanceController($request))->decision($request, $staleStep);
+    }
+
+    public function test_concurrent_decision_on_same_step_is_applied_only_once(): void {
+        Event::fake([ApprovalDecided::class]);
+        $calls = (object) ['approved' => 0, 'rejected' => 0];
+        $this->app->bind(ApprovalTestDocumentService::class, fn () => new class($calls) extends ApprovalTestDocumentService
+        {
+            public function __construct(private object $calls) {}
+
+            public function onApproved(AppModel $model): mixed {
+                $this->calls->approved++;
+
+                return back();
+            }
+
+            public function onRejected(AppModel $model): mixed {
+                $this->calls->rejected++;
+
+                return back();
+            }
+        });
+
+        $role  = $this->makeRole('RaceRole');
+        $userA = $this->makeUser('RaceApproverA');
+        $userB = $this->makeUser('RaceApproverB');
+        $this->assignRole($userA, $role);
+        $this->assignRole($userB, $role);
+        $this->makeScheme('scheme-race', [
+            ['approver_type' => 'role', 'approverable_type' => Role::class, 'approverable_id' => $role->id],
+        ]);
+
+        $instance  = ApprovalInstance::makeInstance($this->makeDocument($this->makeUser('RaceCreator')));
+        $step      = ApprovalInstanceStep::where('approval_instance_id', $instance->id)->first();
+        $staleForB = ApprovalInstanceStep::find($step->id);
+        $this->assertSame(FormStatus::PENDING->value, $staleForB->status->value);
+
+        // A menang: approve final.
+        $this->decideWithStaleStep($userA, ApprovalInstanceStep::find($step->id), 'approve');
+        $this->assertSame(1, $calls->approved);
+
+        // B (basi) menolak pada step yang sama: tidak boleh menimpa, tidak boleh menjalankan onRejected.
+        $response = $this->decideWithStaleStep($userB, $staleForB, 'reject');
+
+        $this->assertTrue($response->isRedirection());
+        $this->assertSame(FormStatus::APPROVED->value, $step->fresh()->status->value);
+        $this->assertSame($userA->id, $step->fresh()->acted_by_id);
+        $this->assertSame(FormStatus::APPROVED->value, $instance->fresh()->status->value);
+        $this->assertSame(0, $calls->rejected);
+        $this->assertSame(1, $calls->approved);
+        Event::assertDispatchedTimes(ApprovalDecided::class, 1);
+    }
+
+    public function test_concurrent_approve_on_advanced_step_does_not_overwrite_winner(): void {
+        Event::fake([ApprovalDecided::class]);
+
+        $userA = $this->makeUser('RaceAdvA');
+        $userB = $this->makeUser('RaceAdvB');
+        $child = fn (User $u) => ['approver_type' => 'user', 'approverable_type' => User::class, 'approverable_id' => $u->id];
+        $this->makeScheme('scheme-race-adv', [
+            [...$child($userA), 'is_advanced' => true, 'approvers' => [$child($userA), $child($userB)]],
+            ['approver_type' => 'user', 'approverable_type' => User::class, 'approverable_id' => $userA->id],
+        ]);
+
+        $instance  = ApprovalInstance::makeInstance($this->makeDocument($this->makeUser('RaceAdvCreator')));
+        $step      = ApprovalInstanceStep::where('approval_instance_id', $instance->id)->where('sequence', 0)->first();
+        $staleForB = ApprovalInstanceStep::find($step->id);
+
+        $this->decideWithStaleStep($userA, ApprovalInstanceStep::find($step->id), 'approve');
+        $this->decideWithStaleStep($userB, $staleForB, 'approve');
+
+        $this->assertSame($userA->id, $step->fresh()->acted_by_id);
+        // current_sequence maju tepat satu kali (bukan dua) dan hanya satu event keputusan.
+        $this->assertSame(1, (int) $instance->fresh()->current_sequence);
+        $this->assertSame(
+            [FormStatus::APPROVED->value, FormStatus::SKIPPED->value],
+            $step->approvers()->orderBy('created_at')->get()->map(fn ($a) => $a->status->value)->all(),
+        );
+        Event::assertDispatchedTimes(ApprovalDecided::class, 1);
     }
 
     public function test_decision_on_advanced_step_only_allows_pending_child_approver(): void {
