@@ -97,8 +97,40 @@ class ApprovalInstanceController extends Controller {
         return $route?->parameterNames()[0] ?? Str::camel(class_basename($document));
     }
 
+    /**
+     * Kunci baris instance lalu step di dalam transaksi yang sedang berjalan, kemudian validasi
+     * ulang hak memutuskan pada state TERKUNCI.
+     *
+     * Guard di decision() memakai model hasil route-binding sebelum transaksi, jadi dua keputusan
+     * bersamaan pada step yang sama sama-sama lolos. Tanpa re-check ini yang kalah menimpa
+     * acted_by, mengirim ApprovalDecided dua kali, dan pada step final dapat menjalankan
+     * onApproved()/onRejected() dua kali. Instance dikunci lebih dulu agar urutan kunci selalu
+     * sama (instance -> step) dan keputusan pada instance yang sama diserialkan.
+     *
+     * @return ApprovalInstanceStep|null step segar yang terkunci, atau null bila sudah tak bisa diputuskan
+     */
+    private function lockDecidableStep(ApprovalInstanceStep $step): ?ApprovalInstanceStep {
+        DB::table('approval_instances')->where('id', $step->approval_instance_id)->lockForUpdate()->value('id');
+
+        $locked = ApprovalInstanceStep::query()->whereKey($step->getKey())->lockForUpdate()->first();
+
+        return $locked?->canBeDecidedBy(Auth::user()) ? $locked : null;
+    }
+
+    private function unavailableResponse() {
+        return back()->with('alert', [
+            'message' => __('core/form.approvalDecision.unavailable'),
+        ]);
+    }
+
     private function approve(ApprovalInstanceStep $approvalInstanceStep, ?string $notes = null) {
         DB::beginTransaction();
+        $approvalInstanceStep = $this->lockDecidableStep($approvalInstanceStep);
+        if ($approvalInstanceStep === null) {
+            DB::rollBack();
+
+            return $this->unavailableResponse();
+        }
         $approval = $approvalInstanceStep->approvalInstance;
 
         if ($approvalInstanceStep->is_advanced) {
@@ -197,6 +229,12 @@ class ApprovalInstanceController extends Controller {
 
     private function reject(ApprovalInstanceStep $approvalInstanceStep, ?string $notes = null) {
         DB::beginTransaction();
+        $approvalInstanceStep = $this->lockDecidableStep($approvalInstanceStep);
+        if ($approvalInstanceStep === null) {
+            DB::rollBack();
+
+            return $this->unavailableResponse();
+        }
         $approval = $approvalInstanceStep->approvalInstance;
 
         if ($approvalInstanceStep->is_advanced) {
@@ -257,9 +295,7 @@ class ApprovalInstanceController extends Controller {
             // basi (step sudah diputuskan, dibatalkan, atau belum gilirannya) cukup diberi tahu.
             abort_unless($approvalInstanceStep->isCandidate($request->user()), 403);
 
-            return back()->with('alert', [
-                'message' => __('core/form.approvalDecision.unavailable'),
-            ]);
+            return $this->unavailableResponse();
         }
 
         return $this->$decision($approvalInstanceStep, $data['notes'] ?? null);
