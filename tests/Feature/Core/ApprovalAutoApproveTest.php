@@ -303,6 +303,10 @@ class ApprovalAutoApproveTest extends TestCase {
         $this->assertEquals(FormStatus::SKIPPED->value, $steps[0]->status->value);
         $this->assertEquals(FormStatus::APPROVED->value, $steps[1]->status->value);
         $this->assertEquals($requester->id, $steps[1]->acted_by_id);
+
+        // current_sequence ikut maju sampai satu langkah setelah step terakhir, sama dengan
+        // approval final normal (sebelumnya tertinggal di 0 dan menunjuk step yang di-skip).
+        $this->assertSame(2, (int) $instance->fresh()->current_sequence);
     }
 
     /**
@@ -595,6 +599,8 @@ class ApprovalAutoApproveTest extends TestCase {
 
         $this->assertEquals(FormStatus::APPROVED->value, $steps[2]->fresh()->status->value);
         $this->assertEquals(FormStatus::APPROVED->value, $instance->fresh()->status->value);
+        // Acuan konsistensi untuk auto-approve penuh: berakhir satu langkah setelah step terakhir.
+        $this->assertSame(3, (int) $instance->fresh()->current_sequence);
     }
 
     /**
