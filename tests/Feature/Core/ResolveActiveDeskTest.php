@@ -28,6 +28,28 @@ class ResolveActiveDeskTest extends TestCase {
         ]);
     }
 
+    /** @return array<string, mixed> */
+    private function loadDeferredDeskProps(User $user): array {
+        $initial = $this->actingAs($user)
+            ->withCookie('lang', 'en')
+            ->get(route('dashboard'));
+
+        preg_match('#<script[^>]*type="application/json">(.*?)</script>#s', $initial->getContent(), $matches);
+        $page = json_decode($matches[1], true, flags: JSON_THROW_ON_ERROR);
+
+        return $this->actingAs($user)
+            ->withCookie('lang', 'en')
+            ->withHeaders([
+                'X-Inertia'                   => 'true',
+                'X-Inertia-Version'           => $page['version'] ?? '',
+                'X-Inertia-Partial-Component' => 'Dashboard/Dashboard',
+                'X-Inertia-Partial-Data'      => 'deskList,menuItems',
+            ])
+            ->get(route('dashboard'))
+            ->assertOk()
+            ->json('props');
+    }
+
     public function test_middleware_sets_active_desk_cookie_on_response(): void {
         $user = User::factory()->create();
         $desk = Desk::factory()->create(['type' => DeskType::Custom, 'owner_id' => $user->id]);
@@ -59,18 +81,13 @@ class ResolveActiveDeskTest extends TestCase {
             ->get(route('dashboard'));
 
         $response->assertOk();
-        $response->assertInertia(
-            fn ($page) => $page
-                ->where('activeDesk.id', $desk->id)
-                ->where('activeDesk.name', 'My Desk')
-                ->has('deskList')
-                ->has('menuItems', 5)
-                ->where('menuItems.0.title', 'Dashboard')
-                ->where('menuItems.1.title', $menuItem->label)
-                ->where('menuItems.2.title', 'Approvals')
-                ->where('menuItems.3.title', 'ToDo')
-                ->where('menuItems.4.title', 'Manual Book'),
-        );
+        $response->assertInertia(fn ($page) => $page
+            ->where('activeDesk.id', $desk->id)
+            ->where('activeDesk.name', 'My Desk'));
+
+        $props = $this->loadDeferredDeskProps($user);
+        $this->assertCount(5, $props['menuItems']);
+        $this->assertSame($menuItem->label, $props['menuItems'][1]['title']);
     }
 
     private function grantSelectPermission(User $user, string $model): void {
@@ -172,14 +189,14 @@ class ResolveActiveDeskTest extends TestCase {
             ->get(route('dashboard'));
 
         $response->assertOk();
-        $response->assertInertia(
-            fn ($page) => $page
-                ->where('activeDesk.id', $desk->id)
-                ->has('deskList')
-                ->has('menuItems', 5)
-                ->has('branchSettings')
-                ->has('ignorePermissionModels'),
-        );
+        $response->assertInertia(fn ($page) => $page
+            ->where('activeDesk.id', $desk->id)
+            ->has('branchSettings')
+            ->has('ignorePermissionModels'));
+
+        $props = $this->loadDeferredDeskProps($user);
+        $this->assertCount(5, $props['menuItems']);
+        $this->assertCount(1, $props['deskList']);
     }
 
     public function test_active_desk_switches_when_route_not_registered_on_cookie_desk(): void {
@@ -226,7 +243,8 @@ class ResolveActiveDeskTest extends TestCase {
         $response->assertOk();
         // 4 item wajib (Dashboard/Approvals/ToDo/Manual Book) tetap tampil
         // walau satu-satunya menu custom desk ini broken & ke-drop.
-        $response->assertInertia(fn ($page) => $page->has('menuItems', 4));
+        $props = $this->loadDeferredDeskProps($user);
+        $this->assertCount(4, $props['menuItems']);
     }
 
     /**
@@ -250,12 +268,10 @@ class ResolveActiveDeskTest extends TestCase {
             ->get(route('dashboard'));
 
         $response->assertOk();
-        $response->assertInertia(
-            fn ($page) => $page
-                ->has('menuItems', 5)
-                ->where('menuItems.1.title', 'Only Child')
-                ->where('menuItems.1.items', null),
-        );
+        $props = $this->loadDeferredDeskProps($user);
+        $this->assertCount(5, $props['menuItems']);
+        $this->assertSame('Only Child', $props['menuItems'][1]['title']);
+        $this->assertNull($props['menuItems'][1]['items']);
     }
 
     /**
@@ -338,7 +354,8 @@ class ResolveActiveDeskTest extends TestCase {
             ->get(route('dashboard'));
 
         $response->assertOk();
-        $response->assertInertia(fn ($page) => $page->where('menuItems.1.title', $menuItem->label));
+        $props = $this->loadDeferredDeskProps($user);
+        $this->assertSame($menuItem->label, $props['menuItems'][1]['title']);
     }
 
     public function test_visibility_permission_shows_menu_with_only_purchase_request_select(): void {
@@ -355,7 +372,8 @@ class ResolveActiveDeskTest extends TestCase {
             ->get(route('dashboard'));
 
         $response->assertOk();
-        $response->assertInertia(fn ($page) => $page->where('menuItems.1.title', $menuItem->label));
+        $props = $this->loadDeferredDeskProps($user);
+        $this->assertSame($menuItem->label, $props['menuItems'][1]['title']);
     }
 
     public function test_visibility_permission_hides_menu_without_either_permission(): void {
@@ -373,6 +391,7 @@ class ResolveActiveDeskTest extends TestCase {
         $response->assertOk();
         // 4 item wajib (Dashboard/Approvals/ToDo/Manual Book) saja -- menu
         // Item Request ke-drop karena visibility_permission tidak terpenuhi.
-        $response->assertInertia(fn ($page) => $page->has('menuItems', 4));
+        $props = $this->loadDeferredDeskProps($user);
+        $this->assertCount(4, $props['menuItems']);
     }
 }
