@@ -23,6 +23,7 @@ import {
 import { useQueryClient } from "@tanstack/react-query";
 
 import GroupPager from "./GroupPager";
+import { computeAutoExpand } from "./groupAutoExpand";
 import {
   prefetchGroupNode,
   useGroupNode,
@@ -97,6 +98,7 @@ function GroupNode({ item, depth, path, ctx }) {
     page,
     enabled: isOpen && !ctx.infinite,
     version: ctx.version,
+    fetcher: ctx.fetcher,
   });
   const infinite = useGroupNodeInfinite({
     pathname: ctx.pathname,
@@ -104,6 +106,8 @@ function GroupNode({ item, depth, path, ctx }) {
     rawPath: path,
     enabled: isOpen && ctx.infinite,
     version: ctx.version,
+    fetcher: ctx.fetcher,
+    initialNode: item.children,
   });
   const query = ctx.infinite ? infinite : paged;
   // Mode infinite: gabungkan semua halaman yang sudah dimuat jadi satu daftar.
@@ -128,6 +132,7 @@ function GroupNode({ item, depth, path, ctx }) {
             rawPath: path,
             page: 1,
             version: ctx.version,
+            fetcher: ctx.fetcher,
           })
       : undefined;
 
@@ -154,6 +159,7 @@ function GroupNode({ item, depth, path, ctx }) {
       rawPath: path,
       page: page + 1,
       version: ctx.version,
+      fetcher: ctx.fetcher,
     });
 
     return undefined;
@@ -163,12 +169,29 @@ function GroupNode({ item, depth, path, ctx }) {
     ctx.pathname,
     ctx.baseParams,
     ctx.version,
+    ctx.fetcher,
     isOpen,
     paged.isPlaceholderData,
     node,
     page,
     path,
   ]);
+
+  // Auto-expand bersarang (linkmodel-grouping-search Req 8.11): node yang DIBUKA
+  // OTOMATIS (tercatat di `autoPendingRef`) dan berisi sub-grup membuka sub-grup
+  // pertamanya memakai aturan anggaran yang sama -- sekali saja per node, tak
+  // menyentuh node yang dibuka/ditutup manual oleh user.
+  useEffect(() => {
+    if (!ctx.autoExpand || !isOpen || node?.type !== "groups") return;
+    if (!ctx.autoPendingRef.current.has(pathKey)) return;
+    ctx.autoPendingRef.current.delete(pathKey);
+    const keys = computeAutoExpand(node.data, ctx.autoExpand).map((child) =>
+      JSON.stringify([...path, child.raw]),
+    );
+    if (keys.length === 0) return;
+    keys.forEach((key) => ctx.autoPendingRef.current.add(key));
+    ctx.openMany(keys);
+  }, [ctx, isOpen, node, path, pathKey]);
 
   // Pager mengatur halaman ANAK node ini; tampil (di header) hanya bila perlu.
   // Mode infinite: info "dimuat / total" saja (tanpa tombol halaman).
@@ -250,6 +273,7 @@ function GroupNode({ item, depth, path, ctx }) {
         onToggle: () => ctx.toggle(pathKey),
         pager,
         onPrefetch,
+        pathKey,
       })}
       {body}
     </>
@@ -266,10 +290,19 @@ function GroupNode({ item, depth, path, ctx }) {
  * @param {number|string} [root0.subLevelVersion] naik -> node TERBUKA di
  *   kedalaman >=1 dipaksa tertutup (Requirement 24, ganti sub-level grup:
  *   identitas node di bawah level 0 tak valid lagi)
+ * @param {(args: object) => Promise<object>} [root0.fetcher] transport kustom
+ *   (lihat `fetchGroupNode`); default GET index DataTable2
+ * @param {{budget: number, maxGroups?: number}} [root0.autoExpand] buka grup
+ *   otomatis berdasar `count` (lihat `computeAutoExpand`); dijalankan saat
+ *   `autoExpandKey` atau 3 grup level-0 pertama berubah, tak menimpa toggle
+ *   manual pada data yang sama
+ * @param {string|number} [root0.autoExpandKey] ganti -> auto-expand dijalankan ulang
  * @param {boolean} [root0.infinite] mode INFINITE SCROLL (mobile): isi node
  *   dimuat halaman demi halaman saat sentinel di dasar daftar terlihat, tanpa
  *   pager; header menampilkan "dimuat / total"
- * @param {(args: {item: object, depth: number, level: object, isOpen: boolean, onToggle: () => void, pager: *, onPrefetch: (() => void)|undefined}) => *} root0.renderGroupHeader
+ * @param {(args: {item: object, depth: number, level: object, isOpen: boolean, onToggle: () => void, pager: *, onPrefetch: (() => void)|undefined, pathKey: string}) => *} root0.renderGroupHeader
+ *   `pathKey` = JSON path `raw` leluhur s/d node ini (identitas unik node --
+ *   mis. dipakai sbg `value` cmdk)
  *   `onPrefetch` (hanya ada saat node TERTUTUP & mode paged) -- pasang di
  *   `onMouseEnter`/`onFocus` elemen header supaya isinya mulai dimuat sebelum
  *   diklik (Requirement 21.7)
@@ -285,6 +318,9 @@ export default function GroupTree({
   version = 0,
   subLevelVersion = 0,
   infinite = false,
+  fetcher,
+  autoExpand,
+  autoExpandKey = 0,
   renderGroupHeader,
   renderRow,
   renderLoading,
@@ -330,6 +366,38 @@ export default function GroupTree({
   const setPage = useCallback((pathKey, page) => {
     setPages((prev) => ({ ...prev, [pathKey]: page }));
   }, []);
+  const openMany = useCallback((keys) => {
+    setOpenKeys((prev) => {
+      if (keys.every((key) => prev.has(key))) return prev;
+
+      return new Set([...prev, ...keys]);
+    });
+  }, []);
+
+  // Auto-expand level-0: dijalankan saat `autoExpandKey` atau TIGA grup pertama
+  // berubah (tanda kunci/count) -- BUKAN tiap `rootItems` berganti referensi,
+  // supaya halaman level-0 berikutnya (infinite) tak mereset toggle manual user.
+  const autoPendingRef = useRef(new Set());
+  const autoBudget = autoExpand?.budget;
+  const autoMax = autoExpand?.maxGroups;
+  const rootSignature = autoExpand
+    ? (rootItems ?? [])
+        .slice(0, autoMax ?? 3)
+        .map((item) => `${item.key}:${item.count}`)
+        .join("|")
+    : "";
+  useEffect(() => {
+    if (autoBudget === undefined) return;
+    const picked = computeAutoExpand(rootItems, {
+      budget: autoBudget,
+      maxGroups: autoMax,
+    });
+    const keys = picked.map((item) => JSON.stringify([item.raw]));
+    autoPendingRef.current = new Set(keys);
+    setOpenKeys(new Set(keys));
+    setPages({});
+    // rootItems sengaja tak di deps -- lihat rootSignature.
+  }, [autoBudget, autoMax, rootSignature, autoExpandKey]);
 
   const ctx = useMemo(
     () => ({
@@ -343,6 +411,10 @@ export default function GroupTree({
       version,
       infinite,
       queryClient,
+      fetcher,
+      autoExpand,
+      autoPendingRef,
+      openMany,
       renderGroupHeader,
       renderRow,
       renderLoading,
@@ -359,6 +431,9 @@ export default function GroupTree({
       version,
       infinite,
       queryClient,
+      fetcher,
+      autoExpand,
+      openMany,
       renderGroupHeader,
       renderRow,
       renderLoading,

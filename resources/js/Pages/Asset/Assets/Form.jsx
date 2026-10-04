@@ -1,6 +1,7 @@
 import { FormPageContent, useFormPage } from "@/Pages/Core/FormPage";
 
 import AssetCategoryLinkModel from "@/Pages/Asset/Categories/AssetCategoryLinkModel";
+import BranchLinkModel from "@/Pages/Settings/Branches/BranchLinkModel";
 import AssetLocationLinkModel from "@/Pages/Asset/Locations/AssetLocationLinkModel";
 import CustomerLinkModel from "@/Pages/Sales/Customers/CustomerLinkModel";
 import DatetimePicker from "@/Components/DatetimePicker";
@@ -8,6 +9,7 @@ import { FormCheckbox } from "@/Components/ui/checkbox";
 import FormInput from "@/Components/FormInput";
 import ItemLinkModel from "@/Pages/Inventory/Items/ItemLinkModel";
 import { Input } from "@/Components/ui/input";
+import { usePage } from "@inertiajs/react";
 import NumberInput from "@/Components/NumberInput";
 import PurchaseInvoiceItemLinkModel from "@/Pages/Finances/PurchaseInvoice/PurchaseInvoiceItemLinkModel";
 import PurchaseReceiptItemLinkModel from "@/Pages/Purchase/PurchaseReceipts/PurchaseReceiptItemLinkModel";
@@ -20,6 +22,7 @@ import { useLaravelReactI18n } from "laravel-react-i18n";
 export default function Form() {
   const { data, setData, _disabled } = useFormPage();
   const { t } = useLaravelReactI18n();
+  const companyName = usePage().props?.companyName;
 
   // Requirement 2.6/2.8, spec asset-management-purchase-integration-v2:
   // ubah item_id -> reset link Purchase yang sudah tidak match Item baru.
@@ -255,7 +258,14 @@ export default function Form() {
           >
             <Select
               value={data?.ownership_type ?? "company"}
-              onValueChange={(val) => setData("ownership_type", val)}
+              onValueChange={(val) =>
+                setData((prev) => ({
+                  ...prev,
+                  ownership_type: val,
+                  ownership: null,
+                  ownership_customer_branch: null,
+                }))
+              }
               optionTrans="asset.asset.columns.ownership_type.options"
               options={["company", "supplier", "customer"]}
             />
@@ -263,27 +273,49 @@ export default function Form() {
 
           {data?.ownership_type === "supplier" && (
             <FormInput
-              name="ownership_supplier"
+              name="ownership"
               required={true}
-              label={t("asset.asset.columns.ownership_supplier_id")}
+              label={t("asset.asset.columns.ownership")}
             >
               <SupplierLinkModel
-                value={data?.ownership_supplier}
-                onValueChange={(val) => setData("ownership_supplier", val)}
+                value={data?.ownership}
+                onValueChange={(val) => setData("ownership", val)}
               />
             </FormInput>
           )}
 
           {data?.ownership_type === "customer" && (
+            <>
+              <FormInput
+                name="ownership"
+                required={true}
+                label={t("asset.asset.columns.ownership")}
+              >
+                <CustomerLinkModel
+                  value={data?.ownership}
+                  onValueChange={(val) => setData("ownership", val)}
+                />
+              </FormInput>
+              <FormInput
+                name="ownership_customer_branch"
+                label={t("asset.asset.columns.ownership_customer_branch")}
+              >
+                <BranchLinkModel
+                  value={data?.ownership_customer_branch}
+                  onValueChange={(val) =>
+                    setData("ownership_customer_branch", val)
+                  }
+                />
+              </FormInput>
+            </>
+          )}
+
+          {(data?.ownership_type ?? "company") === "company" && (
             <FormInput
-              name="ownership_customer"
-              required={true}
-              label={t("asset.asset.columns.ownership_customer_id")}
+              name="ownership_company_name"
+              label={t("asset.asset.columns.ownership")}
             >
-              <CustomerLinkModel
-                value={data?.ownership_customer}
-                onValueChange={(val) => setData("ownership_customer", val)}
-              />
+              <Input value={companyName ?? ""} disabled />
             </FormInput>
           )}
         </div>

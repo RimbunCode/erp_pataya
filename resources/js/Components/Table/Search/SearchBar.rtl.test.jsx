@@ -129,7 +129,7 @@ const statusDraftTree = {
 // bocor lintas test (dua `it()` yang mount kolom relasi sama akan punya
 // queryKey sama; kalau clientnya sama, test kedua bisa diam-diam serve dari
 // cache test pertama alih-alih benar-benar fetch).
-const renderBar = (overrides = {}) => {
+const renderBar = ({ inDialog = false, ...overrides } = {}) => {
   const props = {
     columns,
     tree: null,
@@ -144,7 +144,13 @@ const renderBar = (overrides = {}) => {
   const ui = (p) => (
     <QueryClientProvider client={queryClient}>
       <TooltipProvider>
-        <SearchBar {...p} />
+        {inDialog ? (
+          <div role="dialog" data-testid="host-dialog">
+            <SearchBar {...p} />
+          </div>
+        ) : (
+          <SearchBar {...p} />
+        )}
       </TooltipProvider>
     </QueryClientProvider>
   );
@@ -279,6 +285,33 @@ const valueChip = (label) =>
       name: `TR:core.datatable.search.remove_chip:${JSON.stringify({ label })}`,
     })[0]
     ?.closest("span");
+
+/**
+ * Nilai `aria-selected` sel kalender untuk satu tanggal (format `YYYY-MM-DD`).
+ *
+ * Sel dicari lewat atribut `data-day`, bukan lewat nama aksesibel tombolnya.
+ * Nama itu dihasilkan react-day-picker dalam bahasa Inggris berformat panjang
+ * ("September 15th, 2026") dan berubah antar versi: pada 9.14 sel tanggal
+ * dirender sebagai `<td role="gridcell">` bernama angka saja, sehingga
+ * pencarian lama berhenti menemukan apa pun. `data-day` adalah data, bukan
+ * teks tampilan, jadi tidak ikut berubah oleh pelokalan maupun pembaruan
+ * pustaka.
+ * @param isoDate
+ */
+const selectedStateOfDay = (isoDate) =>
+  screen
+    .getByRole("grid")
+    .querySelector(`[data-day="${isoDate}"]`)
+    ?.closest("td")
+    ?.getAttribute("aria-selected");
+
+// Sebagian test membekukan waktu karena memakai tanggal tetap sementara widget
+// kalender membuka bulan berjalan. Pemulihan dilakukan di sini, bukan di
+// masing-masing test, supaya timer palsu tidak pernah bocor ke test berikutnya
+// bila sebuah test gagal di tengah jalan.
+afterEach(() => {
+  vi.useRealTimers();
+});
 
 const savedA = {
   id: 1,
@@ -465,6 +498,25 @@ describe("SearchBar — Panel muncul saat fokus & chevron (Requirement revisi 2)
     ).toBeInTheDocument();
 
     await user.click(document.body);
+
+    await waitFor(() =>
+      expect(
+        screen.queryByText("TR:core.datatable.filter.filter"),
+      ).not.toBeInTheDocument(),
+    );
+  });
+});
+
+describe("SearchBar — klik-luar di dalam dialog host", () => {
+  it("klik di area dialog yang MEMUAT SearchBar (di luar wrapper) tetap menutup panel", async () => {
+    const user = userEvent.setup({ delay: null });
+    const { input } = renderBar({ inDialog: true });
+    await user.click(input);
+    expect(
+      await screen.findByText("TR:core.datatable.filter.filter"),
+    ).toBeInTheDocument();
+
+    await user.click(screen.getByTestId("host-dialog"));
 
     await waitFor(() =>
       expect(
@@ -4021,7 +4073,22 @@ describe("SearchBar — revisi 9: pilih tanggal di widget mengisi nilai; saran m
     expect(applied(bar).v.startDate).toMatch(/^\d{4}-\d{2}-\d{2}$/);
   });
 
+  // Kedua test di bawah memakai tanggal tetap 15 September 2026, sedangkan
+  // widget kalender membuka BULAN BERJALAN. Keduanya hijau sepanjang September
+  // 2026 lalu merah serentak pada 1 Oktober, di lokal maupun CI, tanpa satu
+  // baris kode pun berubah. Waktu dibekukan agar hasilnya tidak bergantung
+  // kapan suite dijalankan.
+  //
+  // Catatan: bahwa kalender tidak membuka bulan dari nilai yang sedang diedit
+  // juga terasa di aplikasi — membuka chip tanggal lama menampilkan bulan ini,
+  // bukan bulan tanggal tersebut. Memperbaikinya menyentuh komponen yang
+  // dipakai banyak halaman, jadi digarap terpisah.
   it("membuka chip tanggal utk diedit TIDAK auto-komit (emisi widget yg sama dgn prefill diabaikan)", async () => {
+    // shouldAdvanceTime: userEvent memakai timer internal; tanpa ini
+    // interaksi menggantung. Dipulihkan di akhir test agar tidak bocor ke
+    // test lain dalam berkas yang sama.
+    vi.useFakeTimers({ shouldAdvanceTime: true });
+    vi.setSystemTime(new Date("2026-09-15T08:00:00"));
     const user = userEvent.setup({ delay: null });
     const bar = renderBar({
       tree: {
@@ -4046,12 +4113,7 @@ describe("SearchBar — revisi 9: pilih tanggal di widget mengisi nilai; saran m
     // chip), widget menandai hari yg sama.
     expect(bar.input).toHaveValue("15 Sep 2026");
     expect(valueChip("15 Sep 2026")).toBeUndefined();
-    expect(
-      within(screen.getByRole("grid"))
-        .getByRole("button", { name: /September 15th, 2026/ })
-        .closest("td")
-        .getAttribute("aria-selected"),
-    ).toBe("true");
+    expect(selectedStateOfDay("2026-09-15")).toBe("true");
   });
 
   it("datetime: pintasan 'Hari ini' (mode multi) = seluruh hari tanpa jam -> chip; selesai via Enter, apply via Enter", async () => {
@@ -4478,16 +4540,18 @@ describe("SearchBar — revisi 10: dropdown date 2 kolom & sinkron simbol/nilai 
     });
   });
 
+  // Lihat catatan pembekuan waktu di atas test chip tanggal.
   it("teks tak terparse mengosongkan pilihan widget (operator tetap); teks valid mengisinya lagi", async () => {
+    // shouldAdvanceTime: userEvent memakai timer internal; tanpa ini
+    // interaksi menggantung. Dipulihkan di akhir test agar tidak bocor ke
+    // test lain dalam berkas yang sama.
+    vi.useFakeTimers({ shouldAdvanceTime: true });
+    vi.setSystemTime(new Date("2026-09-15T08:00:00"));
     const user = userEvent.setup({ delay: null });
     const bar = renderBar();
     await open(user, bar, "Dibuat");
 
-    const day15Selected = () =>
-      within(screen.getByRole("grid"))
-        .getByRole("button", { name: /September 15th, 2026/ })
-        .closest("td")
-        .getAttribute("aria-selected") === "true";
+    const day15Selected = () => selectedStateOfDay("2026-09-15") === "true";
 
     await user.type(bar.input, "<15/09/2026");
     await waitFor(async () =>

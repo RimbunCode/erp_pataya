@@ -21,8 +21,23 @@ import {
 import useLinkModelOptions, {
   buildOptionsPayload,
 } from "@/Hooks/useLinkModelOptions";
+import useLinkModelInfiniteOptions, {
+  LINKMODEL_PAGE_SIZE,
+  fetchLinkModelGroupNode,
+} from "@/Hooks/useLinkModelInfiniteOptions";
+import { normalizeGroupLevels } from "@/Components/Table/Group/groupLevels";
+import {
+  createLocalGroupFetcher,
+  groupNodeFromRows,
+  inferLevels,
+} from "@/Components/Table/Group/localGroups";
 
 import AdvanceSearchDialog from "./LinkModel/AdvanceSearchDialog";
+import GroupedOptions, {
+  groupHeaderValue,
+  isGroupHeaderValue,
+} from "./LinkModel/GroupedOptions";
+import InfiniteScrollSentinel from "./LinkModel/InfiniteScrollSentinel";
 import { Button } from "./ui/button";
 import ClickAwayListener from "react-click-away-listener";
 import { Command as CommandPrimitive } from "cmdk";
@@ -38,12 +53,11 @@ import { useLaravelReactI18n } from "laravel-react-i18n";
 import usePermission from "@/Hooks/usePermission";
 import { useRef } from "react";
 
-// Sentinel value utk baris "more"/"add" di CommandList -- BUKAN opsi data
-// asli, jadi dikasih value string eksplisit (bukan diserahkan ke inferensi
+// Sentinel value utk baris "add"/"advance search" di CommandList -- BUKAN opsi
+// data asli, jadi dikasih value string eksplisit (bukan diserahkan ke inferensi
 // otomatis cmdk dari textContent, yg rapuh & beda tiap locale) supaya bisa
 // dilacak di `visibleValues` (lihat Tab-autocomplete di bawah) tanpa ikut
 // ke-override balik ke opsi data pas user arrow-navigate ke baris ini.
-const MORE_VALUE = "__linkmodel_more__";
 const ADD_VALUE = "__linkmodel_add__";
 const ADVANCE_SEARCH_VALUE = "__linkmodel_advance_search__";
 
@@ -56,7 +70,11 @@ const ADVANCE_SEARCH_VALUE = "__linkmodel_advance_search__";
  * @param props.className
  * @param props.disabled
  * @param props.model
- * @param props.limit
+ * @param props.group grup bertingkat untuk opsi dropdown DAN grup awal Advance Search
+ *   (spec linkmodel-grouping-search): string kolom, list string, atau list
+ *   `{column, granularity?, range?}`. Tidak diberikan -> default `$defaultGroups`
+ *   model; `[]` -> tanpa grup (menimpa default model). Mode `cache`: hanya kolom
+ *   string/relasi/boolean, dikelompokkan di client.
  * @param props.filters
  * @param props.joins
  * @param props.fields kolom non-templateLink yang form butuh (di luar tampilan dropdown).
@@ -98,7 +116,7 @@ export default memo(
       readOnly,
       required,
       model,
-      limit = 10,
+      group,
       filters,
       joins,
       keywords,
@@ -145,13 +163,27 @@ export default memo(
     useEffect(() => {
       if (open) setIsDirty(false);
     }, [open]);
+    // Dropdown tak boleh tetap/ter-buka kembali selagi dialog Advance Search
+    // terbuka (event dari dialog yang di-portal ikut bubbling di pohon React).
+    useEffect(() => {
+      if (openAdvanceSearch && open) setOpen(false);
+    }, [openAdvanceSearch, open]);
     const { can, canGlobal } = usePermission(model);
 
-    const {
-      options,
-      total,
-      loading: fetchLoading,
-    } = useLinkModelOptions({
+    // Grup efektif dari prop (`undefined` = pakai default model di server).
+    const groupKey = JSON.stringify(group ?? null);
+    const groupProp = useMemo(
+      () =>
+        group === undefined || group === null
+          ? undefined
+          : normalizeGroupLevels(group),
+      [groupKey],
+    );
+
+    // Mode cache: seluruh dataset dimuat sekali (hook lama). Mode search:
+    // infinite scroll + pohon grup lazy (hook baru) -- keduanya di-gate agar
+    // hanya satu yang fetch.
+    const cached = useLinkModelOptions({
       model,
       filters,
       joins,
@@ -160,15 +192,34 @@ export default memo(
       keywords,
       order,
       translate,
-      limit,
       search,
-      open,
+      open: !!cache && open,
       allowSearch,
       cacheMode: !!cache,
       cacheStorage,
       staleTime,
     });
+    const searched = useLinkModelInfiniteOptions({
+      model,
+      filters,
+      joins,
+      with: _with,
+      fields,
+      keywords,
+      order,
+      translate,
+      search,
+      open: !cache && open,
+      allowSearch,
+      group: groupProp,
+      staleTime,
+    });
+    const options = cache ? cached.options : searched.options;
+    const fetchLoading = cache ? cached.loading : searched.loading;
     const loading = fetchLoading || resolvingDefault;
+    // Registri baris yang pernah dirender di pohon grup -- Tab-autocomplete &
+    // exact-match-on-close butuh mencari opsi yg tidak ada di daftar flat.
+    const knownRowsRef = useRef(new Map());
 
     const { name, keyRoute } = useMemo(() => {
       if (as) {
@@ -254,7 +305,7 @@ export default memo(
         return;
       }
       if (!option && search) {
-        const findOption = options.find(
+        const findOption = [...options, ...knownRowsRef.current.values()].find(
           (x) => convertTemplateLink(x).toLowerCase() == search.toLowerCase(),
         );
         if (findOption) {
@@ -314,7 +365,6 @@ export default memo(
           model,
           cacheMode: !!cache,
           joins,
-          limit,
           search,
           with: _with,
           fields,
@@ -418,10 +468,79 @@ export default memo(
       );
     }, [cache, options, search, filters, order, model]);
 
-    const showMore = useMemo(
-      () => !cache && total > limit,
-      [cache, limit, total],
+    // Mode cache + grup: pengelompokan di client (string/relasi/boolean). Level
+    // diturunkan dari SELURUH dataset (bukan hasil filter search) supaya tipe
+    // tak berubah saat ketikan menyempit.
+    const localLevels = useMemo(
+      () =>
+        cache && groupProp?.length
+          ? inferLevels(groupProp, cached.options)
+          : [],
+      [cache, groupProp, cached.options],
     );
+    const isGrouped = cache ? localLevels.length > 0 : searched.isGrouped;
+    const filteredRef = useRef(filteredOptions);
+    filteredRef.current = filteredOptions;
+    const localFetcher = useMemo(
+      () =>
+        createLocalGroupFetcher({
+          getRows: () => filteredRef.current,
+          levels: localLevels,
+        }),
+      [localLevels],
+    );
+    const localRootItems = useMemo(
+      () =>
+        cache && localLevels.length
+          ? groupNodeFromRows(
+              filteredOptions,
+              localLevels,
+              [],
+              1,
+              Math.max(1, filteredOptions.length),
+            ).data
+          : [],
+      [cache, localLevels, filteredOptions],
+    );
+    const rootItems = cache ? localRootItems : searched.rootItems;
+    const groupLevels = cache
+      ? localLevels
+      : (searched.groupMeta?.levels ?? []);
+
+    // Infinite scroll mode cache: render bertahap (jendela bertambah saat
+    // sentinel terlihat) supaya DOM tak membengkak utk dataset besar.
+    const [cacheWindow, setCacheWindow] = useState(LINKMODEL_PAGE_SIZE);
+    useEffect(() => {
+      setCacheWindow(LINKMODEL_PAGE_SIZE);
+    }, [search, open]);
+    const flatOptions = useMemo(
+      () => (cache ? filteredOptions.slice(0, cacheWindow) : filteredOptions),
+      [cache, filteredOptions, cacheWindow],
+    );
+    const hasMoreFlat = cache
+      ? cacheWindow < filteredOptions.length
+      : searched.hasNextPage;
+    const fetchMoreFlat = useCallback(
+      () =>
+        cache
+          ? setCacheWindow((n) => n + LINKMODEL_PAGE_SIZE)
+          : searched.fetchNextPage(),
+      [cache, searched.fetchNextPage],
+    );
+    // Auto-expand hanya utk hasil yang cocok dgn ketikan SEKARANG: selama
+    // debounce, grup lama (dari pencarian sebelumnya) masih tampil -- membukanya
+    // memicu fetch lazy sia-sia utk hasil yang segera diganti.
+    const searchSettled =
+      cache || (searched.settledSearch ?? "") === (search ?? "");
+    const autoExpand = useMemo(
+      () =>
+        allowSearch && search?.trim() && searchSettled
+          ? { budget: LINKMODEL_PAGE_SIZE }
+          : undefined,
+      [allowSearch, search, searchSettled],
+    );
+    const groupedEmpty = isGrouped && rootItems.length === 0;
+    const flatEmpty = !isGrouped && (!flatOptions || flatOptions.length === 0);
 
     const disabledAdd = useMemo(() => {
       if (disabledAddButton) return true;
@@ -446,14 +565,19 @@ export default memo(
       // bukan cuma ULID string). ADVANCE_SEARCH_VALUE/ADD_VALUE SELALU masuk
       // (item itu SELALU dirender terlepas dari `loading`, lihat CommandList
       // di bawah -- user bisa buka Advance Search/Add walau data masih fetching).
-      const ids = (filteredOptions ?? []).map(
-        (opt, index) => `${opt.id ?? index}`,
-      );
-      if (showMore) ids.push(MORE_VALUE);
+      const ids = isGrouped
+        ? []
+        : (flatOptions ?? []).map((opt, index) => `${opt.id ?? index}`);
       ids.push(ADVANCE_SEARCH_VALUE);
       if (!disabledAdd) ids.push(ADD_VALUE);
       return ids;
-    }, [filteredOptions, showMore, disabledAdd]);
+    }, [flatOptions, isGrouped, disabledAdd]);
+    // Mode grup: sorotan awal = header grup pertama (nilai cmdk header dibuat
+    // dari path JSON); baris/header lain dilacak cmdk sendiri, bukan visibleValues.
+    const firstGroupValue =
+      isGrouped && rootItems[0]
+        ? groupHeaderValue(JSON.stringify([rootItems[0].raw]))
+        : undefined;
     // ADVANCE_SEARCH_VALUE/ADD_VALUE SELALU ada di visibleValues (poin di atas)
     // -- termasuk SEBELUM data pertama kali datang (saat filteredOptions masih
     // kosong). Tanpa guard ini, begitu opsi data ASLI datang, reset-effect di
@@ -465,18 +589,37 @@ export default memo(
     // TIDAK override navigasi manual user (ref cuma reset pas transisi itu,
     // bukan tiap render/tiap filteredOptions berubah referensi).
     const hadDataOptionsRef = useRef(false);
+    const hadGroupsRef = useRef(false);
     useEffect(() => {
-      const hasDataOptions = (filteredOptions?.length ?? 0) > 0;
+      if (isGrouped) {
+        // Transisi KOSONG -> ADA grup: sorotan awal = header pertama, walau
+        // cmdk sudah memilih sentinel "Advance Search" (item pertama yang
+        // sempat terdaftar saat data belum tiba) -- sama alasan dgn mode flat.
+        const hasGroups = !!firstGroupValue;
+        if (hasGroups && !hadGroupsRef.current) {
+          hadGroupsRef.current = true;
+          setHighlightedValue(firstGroupValue);
+          return;
+        }
+        hadGroupsRef.current = hasGroups;
+        const tracked =
+          isGroupHeaderValue(highlightedValue) ||
+          knownRowsRef.current.has(highlightedValue) ||
+          visibleValues.includes(highlightedValue);
+        if (!tracked) setHighlightedValue(firstGroupValue ?? visibleValues[0]);
+        return;
+      }
+      const hasDataOptions = (flatOptions?.length ?? 0) > 0;
       if (hasDataOptions && !hadDataOptionsRef.current) {
         hadDataOptionsRef.current = true;
-        setHighlightedValue(`${filteredOptions[0].id ?? 0}`);
+        setHighlightedValue(`${flatOptions[0].id ?? 0}`);
         return;
       }
       hadDataOptionsRef.current = hasDataOptions;
       if (!visibleValues.includes(highlightedValue)) {
         setHighlightedValue(visibleValues[0]);
       }
-    }, [visibleValues, filteredOptions]);
+    }, [visibleValues, flatOptions, isGrouped, firstGroupValue]);
 
     const routeId = useMemo(
       () => get(option, keyRoute ?? "id"),
@@ -513,18 +656,37 @@ export default memo(
                 // ngetik label itu manual lalu blur. Baris "more"/"add"
                 // sengaja DIABAIKAN -- itu bukan opsi data, gak ada teks yg
                 // masuk akal buat di-autocomplete-kan.
+                // Panah kanan/kiri pada header grup yang di-highlight: buka/
+                // tutup grup (pola tree-view). Hanya bila aksinya berlaku
+                // (kanan = grup tertutup, kiri = grup terbuka); selain itu
+                // biarkan default (geser caret input).
+                if (e.key === "ArrowRight" || e.key === "ArrowLeft") {
+                  if (!isGroupHeaderValue(highlightedValue)) return;
+                  // Popover dirender di portal -> bukan turunan DOM commandRef.
+                  const header = document.querySelector(
+                    '[data-testid="linkmodel-group-header"][data-selected="true"]',
+                  );
+                  if (!header) return;
+                  const isOpen =
+                    header.getAttribute("aria-expanded") === "true";
+                  if ((e.key === "ArrowRight") === isOpen) return;
+                  e.preventDefault();
+                  header.click();
+                  return;
+                }
                 if (e.key !== "Tab") return;
                 if (
                   highlightedValue == null ||
-                  highlightedValue === MORE_VALUE ||
+                  isGroupHeaderValue(highlightedValue) ||
                   highlightedValue === ADVANCE_SEARCH_VALUE ||
                   highlightedValue === ADD_VALUE
                 ) {
                   return;
                 }
-                const opt = filteredOptions.find(
-                  (o, i) => `${o.id ?? i}` === highlightedValue,
-                );
+                const opt =
+                  flatOptions.find(
+                    (o, i) => `${o.id ?? i}` === highlightedValue,
+                  ) ?? knownRowsRef.current.get(highlightedValue);
                 if (!opt) return;
                 if (isDirty) e.preventDefault();
                 setAllowSearch(true);
@@ -689,7 +851,7 @@ export default memo(
                             walau filteredOptions kosong -- pesan "tidak
                             ditemukan" jadi tak pernah muncul. Kondisi manual
                             di sini independen dari state internal cmdk. */}
-                        {(!filteredOptions || filteredOptions.length === 0) && (
+                        {(flatEmpty || groupedEmpty) && (
                           <div
                             role="presentation"
                             className="py-6 text-sm text-center"
@@ -697,8 +859,39 @@ export default memo(
                             {t("core.form.not_found")}
                           </div>
                         )}
-                        {filteredOptions &&
-                          filteredOptions?.map((opt, index) => {
+                        {isGrouped ? (
+                          <GroupedOptions
+                            rootItems={rootItems}
+                            levels={groupLevels}
+                            baseParams={
+                              cache
+                                ? { model, search: search ?? "" }
+                                : (searched.baseParams ?? {})
+                            }
+                            fetcher={
+                              cache ? localFetcher : fetchLinkModelGroupNode
+                            }
+                            pathname={
+                              cache ? `linkmodel-local:${model}` : "linkmodel"
+                            }
+                            resetKey={
+                              cache
+                                ? `${model}|${search ?? ""}`
+                                : JSON.stringify(searched.baseParams)
+                            }
+                            search={allowSearch ? search : ""}
+                            autoExpand={autoExpand}
+                            hasNextRoot={!cache && searched.hasNextPage}
+                            fetchNextRoot={searched.fetchNextPage}
+                            fetchingRoot={!cache && searched.isFetchingNextPage}
+                            knownRef={knownRowsRef}
+                            onPick={(row) => {
+                              setOption(row);
+                              setOpen(false);
+                            }}
+                          />
+                        ) : (
+                          flatOptions?.map((opt, index) => {
                             return (
                               <CommandItem
                                 key={opt.id ?? index}
@@ -719,19 +912,14 @@ export default memo(
                                 />
                               </CommandItem>
                             );
-                          })}
-                        {showMore && (
-                          <CommandItem
-                            value={MORE_VALUE}
-                            className="text-blue-700 hover:text-blue-900! dark:text-blue-300 dark:hover:text-blue-200!"
-                            onSelect={() => {
-                              setAdvanceSearchText(search);
-                              setOpen(false);
-                              setOpenAdvanceSearch(true);
-                            }}
-                          >
-                            {t("core.form.linkmodel.more")}
-                          </CommandItem>
+                          })
+                        )}
+                        {!isGrouped && (
+                          <InfiniteScrollSentinel
+                            onIntersect={fetchMoreFlat}
+                            enabled={!!hasMoreFlat}
+                            loading={!cache && searched.isFetchingNextPage}
+                          />
                         )}
                       </>
                     )}
@@ -809,6 +997,7 @@ export default memo(
             with={_with}
             order={order}
             translate={translate}
+            group={groupProp}
             initialSearch={advanceSearchText}
             onSelect={(row) => {
               setOption(row);

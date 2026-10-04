@@ -15,6 +15,7 @@ import FormInput from "@/Components/FormInput";
 import LoadingIcon from "@/Components/LoadingIcon";
 import Select from "@/Components/Select";
 import { Textarea } from "@/Components/ui/textarea";
+import { gooeyToast as toast } from "@/lib/gooeyToast";
 import { memo } from "react";
 import { useLaravelReactI18n } from "laravel-react-i18n";
 
@@ -24,7 +25,14 @@ function ApproverDecision({ name, approval }) {
   const { t } = useLaravelReactI18n();
   const { data, setData, post, reset, processing } = useForm({});
   const [open, setOpen] = useState(false);
-  const currentStep = approval?.steps[approval.current_sequence] ?? null;
+  // Yang bisa diputuskan hanyalah step berstatus pending pada instance yang masih pending.
+  // Bukan steps[current_sequence]: pada auto-approve penuh current_sequence tetap 0 (menunjuk
+  // step yang di-skip) dan setelah approval selesai instance tak punya step pending lagi,
+  // tetapi tombol keputusan tetap tampil bagi user yang cocok dengan step lama itu.
+  const currentStep =
+    approval?.status === "pending"
+      ? (approval.steps?.find((step) => step.status === "pending") ?? null)
+      : null;
 
   const onSubmit = useCallback(
     (e) => {
@@ -36,7 +44,13 @@ function ApproverDecision({ name, approval }) {
         preserveState: true,
         preverseScroll: true,
         replace: true,
-        onSuccess() {
+        onSuccess(page) {
+          // Backend menjawab redirect + flash.alert bila step sudah tak bisa diputuskan
+          // (klik ulang / halaman basi); tanpa ini user tak mendapat umpan balik apa pun.
+          const message = page?.props?.flash?.alert?.message;
+          if (message) {
+            toast.warning(message);
+          }
           setOpen(false);
           reset();
         },

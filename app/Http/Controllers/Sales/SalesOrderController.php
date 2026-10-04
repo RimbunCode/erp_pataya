@@ -116,12 +116,12 @@ class SalesOrderController extends Controller {
                             // Requirement 7.1-7.4, spec asset-service-billing-reference-flow:
                             // di controller (native Eloquent::load()), batasan kedalaman
                             // `with` 2-segmen milik endpoint /model TIDAK berlaku — jadi
-                            // path ownership_customer bisa dimuat penuh walau lewat chain
-                            // assetMaintenanceTask.assetMaintenance.asset.
+                            // path ownership (morph Supplier/Customer) bisa dimuat penuh
+                            // walau lewat chain assetMaintenanceTask.assetMaintenance.asset.
                             $svc->load([
-                                'asset.ownershipCustomer',
+                                'asset.ownership',
                                 'asset.ownershipCustomerBranch',
-                                'assetMaintenanceTask.assetMaintenance.asset.ownershipCustomer',
+                                'assetMaintenanceTask.assetMaintenance.asset.ownership',
                                 'assetMaintenanceTask.assetMaintenance.asset.ownershipCustomerBranch',
                             ]);
                             $resolvedAsset   = $svc->resolvedAsset();
@@ -129,7 +129,7 @@ class SalesOrderController extends Controller {
                             if ($svc->bill_to_renter) {
                                 $billingCustomer = [$svc->customer, $svc->customerBranch];
                             } elseif ($resolvedAsset?->ownership_type === AssetOwnershipType::CUSTOMER) {
-                                $billingCustomer = [$resolvedAsset->ownershipCustomer, $resolvedAsset->ownershipCustomerBranch];
+                                $billingCustomer = [$resolvedAsset->ownership, $resolvedAsset->ownershipCustomerBranch];
                             }
                             $defaultData = [
                                 'date'               => now(),

@@ -55,9 +55,10 @@ class GroupColumnGate {
      * Kolom SQL riil (GROUP BY / ORDER BY) utk kolom `type: relation`. Cuma
      * didukung utk BelongsTo -- FK-nya 1 kolom scalar di tabel model INI
      * sendiri, selalu merujuk 1 related class. HasOne/MorphOne (FK ada di
-     * tabel LAIN, butuh JOIN) & MorphTo (butuh kombinasi id+type, grouping
-     * lintas-tipe ambigu) sengaja TIDAK didukung -- null berarti "tidak bisa
-     * di-resolve ke 1 kolom", caller anggap kolom itu not-groupable.
+     * tabel LAIN, butuh JOIN) sengaja TIDAK didukung; MorphTo (butuh kombinasi
+     * id+type, grouping lintas-tipe ambigu) HANYA bila config kolom `groupMorph:
+     * true` -- null berarti "tidak bisa di-resolve ke 1 kolom", caller anggap
+     * kolom itu not-groupable.
      */
     public static function relationSqlColumn(Model $model, array $columnConfig): ?string {
         $method = $columnConfig['nameOfFunction'] ?? null;
@@ -67,11 +68,21 @@ class GroupColumnGate {
 
         $relation = $model->$method();
 
-        // MorphTo extends BelongsTo (Laravel) -- dikecualikan eksplisit, kalau
-        // tidak lolos cek ini padahal FK-nya cuma separuh kunci (id tanpa type).
-        return $relation instanceof BelongsTo && ! $relation instanceof MorphTo
-            ? $relation->getForeignKeyName()
-            : null;
+        if (! $relation instanceof BelongsTo) {
+            return null;
+        }
+
+        // MorphTo extends BelongsTo (Laravel) -- dikecualikan kecuali kolom opt-in
+        // `groupMorph: true`: FK-nya cuma separuh kunci (id tanpa type), jadi hanya
+        // aman bila id unik lintas tabel (ULID) -- keputusan sadar developer model
+        // (spec asset-ownership-morph Requirement 7). Kunci grup = `{nama}_id`.
+        if ($relation instanceof MorphTo) {
+            return ($columnConfig['groupMorph'] ?? false) === true
+                ? $relation->getForeignKeyName()
+                : null;
+        }
+
+        return $relation->getForeignKeyName();
     }
 
     /**

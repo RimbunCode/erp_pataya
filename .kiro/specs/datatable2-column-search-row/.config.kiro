@@ -1,0 +1,6 @@
+{
+  "specId": "5c30aeaa-986b-4302-99c1-9201582eca07",
+  "workflowType": "requirements-first",
+  "specType": "feature",
+  "description": "Baris input pencarian per kolom di bawah header kolom DataTable2 (selalu tampil di desktop, semua tipe kolom yang searchable): tiap sel adalah input + badge nilai dengan sintaks operator yang sama seperti Search Bar atas (! > >= < <= a..b a|b, picker list/boolean/date/relation, Diisi/Tidak diisi). Sumber state tunggal = filterTree; badge sel = leaf kolom itu, sehingga sinkron dua arah dengan chip Search Bar atas."
+}

@@ -1,5 +1,5 @@
 import { describe, expect, it, vi, beforeEach } from "vitest";
-import { render, screen } from "@testing-library/react";
+import { act, render, screen } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 
 vi.mock("laravel-react-i18n", () => ({
@@ -40,12 +40,19 @@ vi.mock("@/Components/Select", () => ({
   ),
 }));
 
+const toastMock = vi.hoisted(() => ({ warning: vi.fn() }));
+vi.mock("@/lib/gooeyToast", () => ({ gooeyToast: toastMock }));
+
 window.route = (name, id) => (id ? `${name}/${id}` : name);
 
 import ApproverDecision from "./ApproverDecision";
 
-function makeApproval({ steps, current_sequence = 0 }) {
-  return { steps, current_sequence };
+function makeApproval({ steps, current_sequence = 0, status = "pending" }) {
+  return {
+    status,
+    current_sequence,
+    steps: steps.map((step) => ({ status: "pending", ...step })),
+  };
 }
 
 describe("ApproverDecision", () => {
@@ -55,6 +62,7 @@ describe("ApproverDecision", () => {
     useFormReturn.post.mockReset();
     useFormReturn.reset.mockReset();
     useFormReturn.processing = false;
+    toastMock.warning.mockClear();
     usePageMock.mockReturnValue({ props: { auth: { user: { id: 1 } } } });
   });
 
@@ -83,6 +91,79 @@ describe("ApproverDecision", () => {
       <ApproverDecision name="logs" approval={approval} />,
     );
     expect(container).toBeEmptyDOMElement();
+  });
+
+  it("tidak merender tombol setelah approval selesai walau user cocok dengan step lama yang di-skip (auto-approve penuh, current_sequence tetap 0)", () => {
+    const approval = makeApproval({
+      status: "approved",
+      current_sequence: 0,
+      steps: [
+        { id: 1, status: "skipped", is_advanced: false, approver: { id: 42 } },
+        { id: 2, status: "approved", is_advanced: false, approver: { id: 1 } },
+      ],
+    });
+    usePageMock.mockReturnValue({
+      props: { auth: { user: { id: 1, id_roles: [42] } } },
+    });
+
+    const { container } = render(
+      <ApproverDecision name="logs" approval={approval} />,
+    );
+    expect(container).toBeEmptyDOMElement();
+  });
+
+  it("tidak merender tombol bila instance sudah rejected", () => {
+    const approval = makeApproval({
+      status: "rejected",
+      steps: [
+        { id: 1, status: "rejected", is_advanced: false, approver: { id: 1 } },
+      ],
+    });
+
+    const { container } = render(
+      <ApproverDecision name="logs" approval={approval} />,
+    );
+    expect(container).toBeEmptyDOMElement();
+  });
+
+  it("tidak merender tombol bila tak ada step pending meski instance masih pending", () => {
+    const approval = makeApproval({
+      steps: [
+        { id: 1, status: "approved", is_advanced: false, approver: { id: 1 } },
+        { id: 2, status: "waiting", is_advanced: false, approver: { id: 1 } },
+      ],
+    });
+
+    const { container } = render(
+      <ApproverDecision name="logs" approval={approval} />,
+    );
+    expect(container).toBeEmptyDOMElement();
+  });
+
+  it("menilai step pending sebenarnya, bukan steps[current_sequence] yang sudah diputuskan", async () => {
+    const user = userEvent.setup({ delay: null });
+    const approval = makeApproval({
+      current_sequence: 0,
+      steps: [
+        { id: 10, status: "approved", is_advanced: false, approver: { id: 1 } },
+        { id: 20, status: "pending", is_advanced: false, approver: { id: 1 } },
+      ],
+    });
+
+    render(<ApproverDecision name="logs" approval={approval} />);
+    await user.click(
+      screen.getByRole("button", {
+        name: "TR:core.form.approvalDecision.trigger",
+      }),
+    );
+    await user.click(
+      screen.getByRole("button", { name: "TR:core.form.submit" }),
+    );
+
+    expect(useFormReturn.post).toHaveBeenCalledWith(
+      "approvalInstances.decision/20",
+      expect.anything(),
+    );
   });
 
   it("merender tombol trigger bila user cocok sebagai approver simple (by id)", () => {
@@ -202,6 +283,47 @@ describe("ApproverDecision", () => {
         replace: true,
       }),
     );
+  });
+
+  async function submitAndGetOptions() {
+    const user = userEvent.setup({ delay: null });
+    const approval = makeApproval({
+      steps: [{ id: 77, is_advanced: false, approver: { id: 1 } }],
+    });
+    render(<ApproverDecision name="logs" approval={approval} />);
+    await user.click(
+      screen.getByRole("button", {
+        name: "TR:core.form.approvalDecision.trigger",
+      }),
+    );
+    await user.click(
+      screen.getByRole("button", { name: "TR:core.form.submit" }),
+    );
+    return useFormReturn.post.mock.calls[0][1];
+  }
+
+  it("menampilkan toast peringatan saat respons membawa flash.alert (klik ulang/halaman basi)", async () => {
+    const options = await submitAndGetOptions();
+
+    act(() => {
+      options.onSuccess({
+        props: { flash: { alert: { message: "Langkah sudah diputuskan" } } },
+      });
+    });
+
+    expect(toastMock.warning).toHaveBeenCalledWith("Langkah sudah diputuskan");
+    expect(useFormReturn.reset).toHaveBeenCalled();
+  });
+
+  it("tidak menampilkan toast bila respons tanpa flash.alert", async () => {
+    const options = await submitAndGetOptions();
+
+    act(() => {
+      options.onSuccess({ props: { flash: {} } });
+    });
+
+    expect(toastMock.warning).not.toHaveBeenCalled();
+    expect(useFormReturn.reset).toHaveBeenCalled();
   });
 
   it("klik cancel menutup dialog tanpa memanggil post", async () => {

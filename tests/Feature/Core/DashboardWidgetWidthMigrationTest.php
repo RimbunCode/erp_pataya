@@ -16,54 +16,44 @@ use Tests\TestCase;
 class DashboardWidgetWidthMigrationTest extends TestCase {
     use RefreshDatabase;
 
+    /**
+     * Migration pertama dari dua migration width yang diuji di sini. Rollback
+     * harus mundur sampai SEBELUM berkas ini.
+     */
+    private const FIRST_WIDTH_MIGRATION = '2026_08_25_160734_add_col_span_to_dashboard_widgets_table.php';
+
+    /**
+     * Berapa langkah rollback untuk kembali ke sebelum kedua migration width.
+     *
+     * Dihitung dari isi direktori migration, bukan ditulis sebagai angka tetap.
+     * Nilai tetap sebelumnya harus diperbarui manual setiap ada migration baru
+     * dari branch mana pun, dan berkali-kali tertinggal — terakhir saat lima
+     * migration spec quotation-letter-fields masuk, membuat test ini merah di
+     * CI.
+     *
+     * Salah hitung berakibat lebih luas daripada test ini sendiri: rollback
+     * yang kurang jauh membuat re-migrate berhenti di tengah tanpa melempar
+     * (Artisan::call tidak throw), meninggalkan skema rusak pada koneksi
+     * :memory: yang persisten untuk sisa suite.
+     */
+    private function stepsBackToWidthMigration(): int {
+        $files = glob(database_path('migrations/*.php')) ?: [];
+        $names = array_map('basename', $files);
+        sort($names);
+
+        $index = array_search(self::FIRST_WIDTH_MIGRATION, $names, true);
+
+        $this->assertNotFalse(
+            $index,
+            'Migration ' . self::FIRST_WIDTH_MIGRATION . ' tidak ditemukan. '
+            . 'Kalau berkasnya memang diganti nama, perbarui FIRST_WIDTH_MIGRATION.',
+        );
+
+        return \count($names) - $index;
+    }
+
     public function test_half_and_full_width_values_are_converted_to_integer_col_span(): void {
-        // --step tidak lagi 2: number-card-chart-redesign menambah 6 migration
-        // BARU setelah 2 migration width ini (create_number_cards/charts/
-        // assignables + alter/drop dashboard_widgets/widgets) — --step harus
-        // mundur SAMPAI SEBELUM kedua migration width, bukan cuma 2 langkah
-        // terakhir (yang sekarang migration lain). Lihat `php artisan
-        // migrate:status` utk hitungan pasti kalau ada migration baru lagi.
-        //
-        // Update 2026-08-31 (merge dev-rahmad-5): 4 migration lagi nambah
-        // setelah ke-8 migration di atas (asset_service_consumed_items FK
-        // change, show_full_number, icon+description NumberCard & Chart) —
-        // 8 + 4 = 12.
-        // Update 2026-09-04: 1 migration lagi nambah (Filter Templates,
-        // add_shared_columns_to_saved_filters_table) — 12 + 1 = 13.
-        // Update 2026-09-09 (spec asset-category-simplification): 2 migration
-        // lagi nambah (rentable/allow_bulk_quantity pindah AssetCategory ->
-        // Asset) — 13 + 2 = 15.
-        // Update 2026-09-10 (spec asset-service-progress-workflow, merge
-        // dev-rahmad-5): 2 migration lagi nambah (start_date di
-        // asset_services, status replace is_done di
-        // asset_service_activities) — 15 + 2 = 17.
-        // Update 2026-09-11 (spec item-request-auto-detect, merge dev-1): 2
-        // migration lagi nambah (create_item_request_coverages_table,
-        // add_visibility_permission_to_menu_items_table) — 17 + 2 = 19.
-        // Update 2026-09-21 (spec datatable2-advanced-search): 1 migration
-        // lagi nambah (add_group_to_saved_filters_table) — 19 + 1 = 20.
-        // Update 2026-09-26 (spec datatable2-group-tree): 1 migration lagi
-        // nambah (convert_saved_filters_group_to_list) — 20 + 1 = 21,
-        // DIHITUNG ULANG lewat perintah di bawah, bukan cuma ditambah.
-        // Catatan: "migration width pertama" itu 2026_08_25_160734_add_
-        // col_span_to_dashboard_widgets_table.php (BUKAN yang 160904_rename
-        // -- itu migration KEDUA dari 2 migration width yang dimaksud,
-        // hitung dari situ hasilnya kurang 1 dan nilai half/full ketuker).
-        // --step yang salah TIDAK bikin test ini sendiri gagal (SQLite
-        // lenient soal kolom insert), tapi migrate:rollback+migrate di
-        // koneksi :memory: PERSISTEN sepanjang run PHPUnit ini efeknya BOCOR
-        // ke SEMUA test lain yang jalan setelahnya dalam proses yang sama --
-        // step yang salah membuat re-migrate berhenti di tengah tanpa
-        // exception (Artisan::call tidak throw), meninggalkan skema rusak
-        // (mis. tabel `logs` hilang) utk sisa suite. WAJIB dihitung ulang
-        // via `ls database/migrations | sort | grep -A 999 "2026_08_25_
-        // 160734_add_col_span_to_dashboard_widgets_table.php" | wc -l` tiap
-        // kali ada migration baru DARI BRANCH MANAPUN (termasuk hasil merge
-        // branch lain), BUKAN ditambah/dijumlah manual berdasar ingatan --
-        // dua sisi merge yang masing-masing menambah N migration dari base
-        // yang sama TIDAK BISA dijumlah gitu saja, harus dihitung ulang dari
-        // hasil gabungan sebenarnya.
-        Artisan::call('migrate:rollback', ['--step' => 21]);
+        Artisan::call('migrate:rollback', ['--step' => $this->stepsBackToWidthMigration()]);
 
         $dashboardId = (string) Str::ulid();
         DB::table('dashboards')->insert([

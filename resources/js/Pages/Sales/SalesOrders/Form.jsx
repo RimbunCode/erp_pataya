@@ -39,7 +39,7 @@ const ASSET_SERVICE_CONSUMED_ITEM_CLASS =
  * memory reference_linkmodel_search_endpoint_constraints: batasan kedalaman
  * `with` 2-segmen itu cuma berlaku di endpoint /model, bukan di
  * Eloquent::load() yang dipakai controller create() untuk mengisi
- * `data.referenceable`) — jadi path ownership_customer sekarang berlaku utk
+ * `data.referenceable`) — jadi path ownership (morph) sekarang berlaku utk
  * baris jasa MAUPUN baris part.
  * @param {object|null} assetService
  * @returns {{customer: object, customer_branch: object}|null}
@@ -54,7 +54,7 @@ function resolveAssetServiceBillingCustomer(assetService) {
   }
   if (assetService.asset?.ownership_type === "customer") {
     return {
-      customer: assetService.asset.ownership_customer,
+      customer: assetService.asset.ownership,
       customer_branch: assetService.asset.ownership_customer_branch,
     };
   }

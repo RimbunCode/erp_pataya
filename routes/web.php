@@ -270,6 +270,12 @@ Route::middleware(['auth', 'lang', 'onboarded', 'app', 'desk'])->group(function 
     Route::get('/users/{user}/connect/{driver}/redirect', [UserController::class, 'connectToProvider'])->name('users.connect-provider');
     Route::post('/users/{user}/image', [UserController::class, 'image'])->name('users.image');
     Route::delete('/users/{user}/image', [UserController::class, 'removeImage'])->name('users.removeImage');
+    // Tanda tangan: mutasi dikunci ke pemilik akun (lihat
+    // UserController::exceptPermission), penyajian berkasnya lewat route
+    // terautentikasi sendiri karena berkasnya tidak pernah publik.
+    Route::post('/users/{user}/signature', [UserController::class, 'signature'])->name('users.signature');
+    Route::delete('/users/{user}/signature', [UserController::class, 'removeSignature'])->name('users.removeSignature');
+    Route::get('/users/{user}/signature', [UserController::class, 'showSignature'])->name('users.showSignature');
     Route::resourceDetail('user', UserController::class);
     // Roles
     Route::get('/roles/permissions', [RoleController::class, 'permissions'])->name('roles.permissions');

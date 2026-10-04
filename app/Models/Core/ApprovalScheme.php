@@ -22,6 +22,10 @@ class ApprovalScheme extends Model {
     ];
     protected $appends = ['status'];
 
+    // Samakan dengan default kolom DB: hook saved() memfilter lawan eksklusivitas
+    // lewat trigger_on, dan pada create atribut ini masih null di memori.
+    protected $attributes = ['trigger_on' => 'submit'];
+
     public function status(): Attribute {
         return new Attribute(
             get: fn () => $this->is_active ? FormStatus::ACTIVE : FormStatus::INACTIVE,

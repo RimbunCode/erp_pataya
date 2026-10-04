@@ -1,0 +1,6 @@
+{
+  "specId": "e03f8650-f863-4d8d-9d75-5c82d245e7bc",
+  "workflowType": "design-first",
+  "specType": "feature",
+  "description": "Grouping bertingkat (GroupTree lazy) + SearchBar DataTable2 pada LinkModel: Advance Search Dialog dan options dropdown, dengan prop group (fallback $defaultGroups model)."
+}

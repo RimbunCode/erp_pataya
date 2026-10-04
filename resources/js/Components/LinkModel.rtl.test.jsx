@@ -24,7 +24,11 @@ vi.mock("@/Pages/Core/FormPage", () => ({
 
 const axiosPost = vi.fn();
 vi.mock("axios", () => ({
-  default: { post: (...args) => axiosPost(...args) },
+  default: {
+    post: (...args) => axiosPost(...args),
+    // SearchBar (Dialog Advance Search) memuat daftar Filter Tersimpan.
+    get: () => Promise.resolve({ data: { data: [] } }),
+  },
 }));
 
 window.route = (name) => name;
@@ -299,9 +303,10 @@ describe("LinkModel", () => {
     });
   });
 
-  // Task 11 (spec linkmodel-advanced-search) — dua entry point independen
-  // Advance Search Dialog: baris "See more" (kondisional, showMore only) dan
-  // tombol "Advance Search" (selalu tampil). Requirement 1, 6.
+  // Task 11 (spec linkmodel-advanced-search) — entry point Advance Search
+  // Dialog: CommandItem "Advance Search" (selalu tampil). Baris "See more"
+  // dihapus (spec linkmodel-grouping-search Req 8b: infinite scroll).
+  // Requirement 1, 6.
   describe("Advance Search Dialog -- entry points (Requirement 1) & carry-over (Requirement 6)", () => {
     // model.selectData butuh shape response BEDA dari model (dropdown) --
     // axiosPost mock generik (beforeEach) balikin shape dropdown utk SEMUA
@@ -349,10 +354,10 @@ describe("LinkModel", () => {
       });
     };
 
-    it("total <= limit -- baris See more TIDAK tampil, CommandItem Advance Search TETAP tampil di dropdown", async () => {
+    it("tanpa `limit` -- baris See more sudah dihapus (infinite scroll), CommandItem Advance Search TETAP tampil di dropdown", async () => {
       const user = userEvent.setup({ delay: null });
       mockSelectDataAware();
-      await render(<LinkModel model="AppModelsItem" limit={10} />);
+      await render(<LinkModel model="AppModelsItem" />);
 
       const input = screen.getByRole("textbox");
       await act(async () => {
@@ -367,36 +372,6 @@ describe("LinkModel", () => {
         screen.getByRole("option", {
           name: "TR:core.form.linkmodel.advance_search",
         }),
-      ).toBeInTheDocument();
-    });
-
-    it("total > limit -- baris See more tampil; klik membuka dialog yang sama dgn CommandItem Advance Search", async () => {
-      const user = userEvent.setup({ delay: null });
-      mockSelectDataAware();
-      await render(<LinkModel model="AppModelsItem" limit={1} />);
-
-      const input = screen.getByRole("textbox");
-      await act(async () => {
-        await user.click(input);
-      });
-      await screen.findByRole("option", { name: "Alpha" });
-
-      const moreRow = screen.getByText("TR:core.form.linkmodel.more");
-      expect(moreRow).toBeInTheDocument();
-      // CommandItem Advance Search tetap ada berdampingan (grouping dgn Add),
-      // independen dari showMore.
-      expect(
-        screen.getByRole("option", {
-          name: "TR:core.form.linkmodel.advance_search",
-        }),
-      ).toBeInTheDocument();
-
-      await act(async () => {
-        await user.click(moreRow);
-      });
-
-      expect(
-        await screen.findByText("TR:core.form.linkmodel.advance_search"),
       ).toBeInTheDocument();
     });
 
@@ -416,7 +391,7 @@ describe("LinkModel", () => {
       ).not.toBeInTheDocument();
     });
 
-    it("teks sudah diketik di input LinkModel -> terbawa jadi initial search di dialog (via CommandItem Advance Search)", async () => {
+    it("teks sudah diketik di input LinkModel -> terbawa ke dialog (dikirim sbg search awal, lalu jadi chip Cari)", async () => {
       const user = userEvent.setup({ delay: null });
       mockSelectDataAware();
       await render(<LinkModel model="AppModelsItem" />);
@@ -440,13 +415,14 @@ describe("LinkModel", () => {
         await user.click(advanceSearchItem);
       });
 
-      const dialogSearchInput = await screen.findByPlaceholderText(
-        "TR:core.form.search.placeholder",
+      // Dialog memakai SearchBar (bukan kotak teks): carry-over dikirim sbg
+      // `search` pada request pertama selectData.
+      await waitFor(() =>
+        expect(axiosPost).toHaveBeenCalledWith(
+          "model.selectData",
+          expect.objectContaining({ search: "Widget", groupTree: true }),
+        ),
       );
-      // useEffect (sync search -> initialSearch saat open) flush di render
-      // BERIKUTNYA setelah dialog pertama muncul -- waitFor menunggu tanpa
-      // menebak jumlah tick.
-      await waitFor(() => expect(dialogSearchInput).toHaveValue("Widget"));
     });
   });
 });

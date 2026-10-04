@@ -14,6 +14,7 @@ export default forwardRef(function AccountLinkModel(
       value={value}
       onValueChange={onValueChange}
       model="App\Models\Finances\Account"
+      group={["root_type", "account_type"]}
       form={<Form />}
       filters={{
         is_disabled: false,

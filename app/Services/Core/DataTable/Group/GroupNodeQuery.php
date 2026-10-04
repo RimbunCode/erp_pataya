@@ -295,8 +295,20 @@ class GroupNodeQuery {
                 'aggregates' => $this->finalizeAggregates($group['acc']),
             ];
             if ($level->isRelation()) {
-                $sample              = $group['sample'] !== null ? $samples->get($group['sample']) : null;
-                $descriptor['label'] = $sample ? ($sample->toArray()[$level->column] ?? null) : null;
+                $sample = $group['sample'] !== null ? $samples->get($group['sample']) : null;
+                // Relasi morph (`groupMorph`): label MINIMAL pemilik, bukan seluruh
+                // baris model target (kolom sensitif) -- dan TANPA `toArray()` induk
+                // (menyerialisasi model target penuh beserta `$appends`-nya).
+                $label = match (true) {
+                    $sample === null                      => null,
+                    $level->config['groupMorph'] ?? false => GroupLabelResolver::morphLabel($sample->getRelationValue($level->column)),
+                    default                               => $sample->toArray()[$level->column] ?? null,
+                };
+                // Grup NULL: label bawaan dari config kolom (mis. nama perusahaan).
+                if ($group['key'] === 'null') {
+                    $label = GroupLabelResolver::nullLabel($level->config) ?? $label;
+                }
+                $descriptor['label'] = $label;
             }
 
             return $descriptor;

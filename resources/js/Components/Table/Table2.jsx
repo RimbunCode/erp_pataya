@@ -41,6 +41,7 @@ import ColumnsFilter from "./ColumnsFilter";
 import GroupTree from "./Group/GroupTree";
 import { GroupHeaderRow, GroupNodeStatusRow } from "./Group/GroupHeaderRow";
 import { Dialog } from "../ui/dialog";
+import ColumnFilterRow from "./Search/ColumnFilterRow";
 import Header from "./Header";
 import Link from "../Link";
 import LoadingIcon from "../LoadingIcon";
@@ -403,6 +404,10 @@ const Table2 = forwardRef(function Table2(
     // version, resetKey, pathname? } -- `data` = deskriptor grup level-0. Tanpa
     // prop ini Table2 merender daftar baris flat (tak berubah).
     group,
+    // Baris Filter Kolom (spec datatable2-column-search-row): opt-in, hanya
+    // diberikan `DataTable2` -- `{columns, draft, onOpenBuilder}`. Tanpa prop
+    // ini `<thead>` tetap satu baris (AdvanceSearchDialog/SelectModel utuh).
+    columnFilter,
   },
   ref,
 ) {
@@ -596,9 +601,20 @@ const Table2 = forwardRef(function Table2(
   // data). Effect ini hanya perlu re-attach saat SET th BENAR2 berubah
   // (kolom show/reorder), observer sendiri yg mendeteksi resize (wrap
   // berubah krn lebar kolom di-resize user, dst) tanpa perlu re-run effect.
+  // Baris Filter Kolom (opt-in) menambah baris kedua di <thead>: tinggi baris
+  // judul dipublikasikan sbg `--column-header-height` (top sticky baris
+  // filter), dan `--group-sticky-top` = tinggi GABUNGAN kedua baris supaya
+  // header grup tetap menempel tepat di bawah baris filter. Tiap baris diukur
+  // dari tinggi TERBESAR sel-selnya (bukan satu sel, lihat catatan di atas).
+  const hasColumnFilter = Boolean(columnFilter);
   useEffect(() => {
     const table = tableElement.current;
-    const headerCells = table ? [...table.querySelectorAll("thead th")] : [];
+    const rowCells = table
+      ? [...table.querySelectorAll("thead tr")].map((tr) => [
+          ...tr.querySelectorAll("th"),
+        ])
+      : [];
+    const headerCells = rowCells.flat();
     if (
       !table ||
       headerCells.length === 0 ||
@@ -606,17 +622,27 @@ const Table2 = forwardRef(function Table2(
     ) {
       return undefined;
     }
+    const tallest = (cells) =>
+      cells.length === 0
+        ? 0
+        : Math.max(...cells.map((el) => el.getBoundingClientRect().height));
     const updateStickyTop = () => {
-      const tallest = Math.max(
-        ...headerCells.map((el) => el.getBoundingClientRect().height),
+      const first = tallest(rowCells[0] ?? []);
+      const second = tallest(rowCells[1] ?? []);
+      table.style.setProperty(
+        "--column-header-height",
+        `${Math.round(first)}px`,
       );
-      table.style.setProperty("--group-sticky-top", `${Math.round(tallest)}px`);
+      table.style.setProperty(
+        "--group-sticky-top",
+        `${Math.round(first + second)}px`,
+      );
     };
     const observer = new ResizeObserver(updateStickyTop);
     headerCells.forEach((el) => observer.observe(el));
     updateStickyTop(); // nilai awal langsung -- jangan tunggu frame observer pertama
     return () => observer.disconnect();
-  }, [selectable, actions, showedColumns]);
+  }, [selectable, actions, showedColumns, hasColumnFilter]);
   const computeResizedColumns = useCallback(
     (e) => {
       const newColumns = Object.fromEntries(columns.map((x) => [x.name, x]));
@@ -813,7 +839,8 @@ const Table2 = forwardRef(function Table2(
               className="resizeable-table"
               ref={tableElement}
               style={{
-                // Jalur flat: baris header, satu per baris data, lalu filler 1fr
+                // Jalur flat: baris header (+ baris filter kolom bila ada), satu per
+                // baris data, lalu filler 1fr
                 // yg menempel ke dasar. Pohon grup: jumlah baris DINAMIS (anak
                 // node baru muncul saat dibuka) jadi tak bisa dihitung dari
                 // data.length -- semua baris implisit `auto`, dipadatkan ke atas
@@ -823,6 +850,8 @@ const Table2 = forwardRef(function Table2(
                   : {
                       gridTemplateRows: [
                         "auto",
+                        // Baris Filter Kolom = baris header kedua (opt-in).
+                        ...(columnFilter ? ["auto"] : []),
                         ...data.map(() => "auto"),
                         "1fr",
                       ].join(" "),
@@ -872,6 +901,14 @@ const Table2 = forwardRef(function Table2(
                     ))}
                   </SortableContext>
                 </tr>
+                {columnFilter && (
+                  <ColumnFilterRow
+                    showedColumns={showedColumns}
+                    selectable={Boolean(selectable)}
+                    actions={Boolean(actions)}
+                    columnFilter={columnFilter}
+                  />
+                )}
               </thead>
               <tbody>
                 {isLoading || !data || data.length === 0 ? (
@@ -907,6 +944,8 @@ const Table2 = forwardRef(function Table2(
                         pathname={group.pathname}
                         version={group.version}
                         subLevelVersion={group.subLevelVersion}
+                        fetcher={group.fetcher}
+                        infinite={group.infinite}
                         renderGroupHeader={renderGroupHeader}
                         renderRow={renderGroupRow}
                         renderLoading={renderGroupLoading}
