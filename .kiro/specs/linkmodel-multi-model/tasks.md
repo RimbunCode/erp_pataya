@@ -1,4 +1,4 @@
-﻿# Implementation Plan: LinkModel Multi-Model
+# Implementation Plan: LinkModel Multi-Model
 
 ## Overview
 
@@ -45,5 +45,5 @@ Frontend-only. Urutan: (1) util murni, (2) komponen `SourceSection` + integrasi 
     - _Requirements: 3.6_
   - [x] 5.2 Update JSDoc props `LinkModel.jsx` (`mainLabel`, `subModels`) dan halaman uji `Pages/Test/LinkModelTest.jsx` dengan contoh multi-model
   - [x] 5.3 Checkpoint: Vitest (LinkModel + AdvanceSearchDialog + util) hijau; regresi PHPUnit `ModelController`; `npm run lint`
-  - [x] 5.4 Verifikasi browser sungguhan (`npm run build`, login admin/admin): contoh PurchaseOrderItem + ItemVariant â€” lazy sub, search lintas sumber, keyboard panah/Enter/Tab, dedupe `notIn`, tab Advance Search
+  - [x] 5.4 Verifikasi browser sungguhan (`npm run build`, login admin/admin): contoh PurchaseOrderItem + ItemVariant — lazy sub, search lintas sumber, keyboard panah/Enter/Tab, dedupe `notIn`, tab Advance Search
     - _Requirements: 3, 4, 8, 11_
