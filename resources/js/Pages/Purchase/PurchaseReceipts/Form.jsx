@@ -20,6 +20,19 @@ import { useMemo } from "react";
 import { usePage } from "@inertiajs/react";
 import WarehouseLinkModel from "@/Pages/Inventory/Warehouses/WarehouseLinkModel";
 
+const ITEM_VARIANT_MODEL = "App\\Models\\Inventory\\ItemVariant";
+
+// Baris di luar PO tak punya PO Item; kolom "menggantikan" dikosongkan tiap
+// kali item baris diganti (spec purchase-receipt-off-po-items).
+const OFF_PO_RESET = {
+  replaces_purchase_order_item: null,
+  replaces_purchase_order_item_id: null,
+  replaced_quantity: null,
+};
+
+// Baris sudah punya item: PO Item (normal) atau ItemVariant (di luar PO).
+const hasItem = (row) => !!(row?.purchase_order_item_id || row?.item?.id);
+
 function Form() {
   const { t } = useLaravelReactI18n();
   const fixedAssets = usePage().props.fixedAssets;
@@ -33,6 +46,13 @@ function Form() {
       notUseWhenCreate: true,
     },
   );
+
+  // Id ItemVariant semua PO Item: menyaring sub model "Item Lainnya" supaya item
+  // yang sudah ada di PO tidak muncul dobel di dropdown (dedupe di sisi form).
+  const poVariantIds = (data.purchase_order?.items ?? [])
+    .map((poItem) => poItem.item?.id ?? poItem.item_id)
+    .filter(Boolean);
+  const poVariantIdsKey = poVariantIds.join(",");
 
   const itemColumns = useMemo(() => {
     return [
@@ -48,10 +68,28 @@ function Form() {
                 placeholder={t(
                   "purchase.purchaseReceipt.columns.item.placeholder",
                 )}
-                value={dataRow.purchase_order_item ?? null}
+                value={dataRow.purchase_order_item ?? dataRow.item ?? null}
                 disabled={!data.purchase_order}
                 onValueChange={(val) => {
+                  // Opsi dari sub model (ItemVariant) = baris di luar PO
+                  // (spec purchase-receipt-off-po-items); opsi PO Item = baris normal.
+                  if (val?.thisModel === ITEM_VARIANT_MODEL) {
+                    setData({
+                      ...OFF_PO_RESET,
+                      purchase_order_item: null,
+                      purchase_order_item_id: null,
+                      item: val,
+                      unit: val.default_uom ?? null,
+                      conversion_factor: val.default_uom?.conversion_factor,
+                      quantity: 1,
+                      description: undefined,
+                      target_warehouse: null,
+                    });
+                    return;
+                  }
                   setData({
+                    ...OFF_PO_RESET,
+                    item: null,
                     purchase_order_item: val,
                     purchase_order_item_id: val?.id,
                     unit: val?.unit,
@@ -80,6 +118,24 @@ function Form() {
                   "conversion_factor",
                   "target_warehouse",
                 ]}
+                mainLabel={t("purchase.purchaseReceipt.columns.item.group_po")}
+                subModels={[
+                  {
+                    model: ITEM_VARIANT_MODEL,
+                    label: t(
+                      "purchase.purchaseReceipt.columns.item.group_other",
+                    ),
+                    // Item yang sudah ada di PO dipilih lewat PO Item, bukan di sini.
+                    filters: poVariantIds.length
+                      ? { id: { notIn: poVariantIds } }
+                      : undefined,
+                    with: ["defaultUom"],
+                    fields: ["default_uom"],
+                    as: "item:item_id",
+                    canNavigation: "App\\Models\\Inventory\\Item",
+                    disabledAddButton: true,
+                  },
+                ]}
               />
               <AssetCompletionRowBadge
                 fixedAssets={fixedAssets}
@@ -101,7 +157,7 @@ function Form() {
         cell({ dataRow, data, setData, attributes }) {
           return (
             <WarehouseLinkModel
-              disabled={!dataRow?.purchase_order_item_id}
+              disabled={!hasItem(dataRow)}
               value={data}
               onValueChange={(e) => setData("target_warehouse", e)}
               {...attributes}
@@ -120,7 +176,7 @@ function Form() {
           return (
             <NumberInput
               {...attributes}
-              disabled={!dataRow?.purchase_order_item_id}
+              disabled={!hasItem(dataRow)}
               readOnly={
                 attributes.readOnly || (dataRow.readOnly && !dataRow.isCustom)
               }
@@ -139,7 +195,7 @@ function Form() {
         cell({ data, setData, attributes, dataRow }) {
           return (
             <ItemUnitLinkModel
-              disabled={!dataRow?.purchase_order_item_id}
+              disabled={!hasItem(dataRow)}
               placeholder={t(
                 "purchase.purchaseReceipt.columns.unit.placeholder",
               )}
@@ -152,7 +208,69 @@ function Form() {
               }
               {...attributes}
               filters={{
-                item_id: dataRow?.purchase_order_item?.item?.item_id,
+                item_id:
+                  dataRow?.purchase_order_item?.item?.item_id ??
+                  dataRow?.item?.item_id,
+              }}
+            />
+          );
+        },
+      },
+      {
+        // Hanya baris di luar PO yang dapat menggantikan PO Item tertentu
+        // (nilai stok diambil dari invoice PO Item itu); kosong = berdiri sendiri.
+        name: "replaces_purchase_order_item",
+        titleTrans: "purchase.purchaseReceipt.columns.replaces",
+        width: 3,
+        cell({ dataRow, setData, attributes }) {
+          const isOffPo =
+            !dataRow?.purchase_order_item_id && !!dataRow?.item?.id;
+
+          return (
+            <PurchaseOrderItemLinkModel
+              placeholder={t(
+                "purchase.purchaseReceipt.columns.replaces.placeholder",
+              )}
+              value={dataRow.replaces_purchase_order_item ?? null}
+              disabled={!isOffPo || !data.purchase_order}
+              onValueChange={(val) => {
+                setData({
+                  replaces_purchase_order_item: val,
+                  replaces_purchase_order_item_id: val?.id ?? null,
+                  replaced_quantity: val
+                    ? Math.min(
+                        Number(dataRow?.quantity ?? 0),
+                        Number(val.unreceived_quantity ?? 0),
+                      )
+                    : null,
+                });
+              }}
+              {...attributes}
+              as="item:item.item_id"
+              canNavigation="App\Models\Inventory\Item"
+              filters={{
+                purchase_order_id: data.purchase_order?.id ?? null,
+                unreceived_quantity: { ">": 0 },
+              }}
+              with={["item"]}
+              fields={["unreceived_quantity"]}
+            />
+          );
+        },
+      },
+      {
+        name: "replaced_quantity",
+        titleTrans: "purchase.purchaseReceipt.columns.replaced_quantity",
+        type: "number",
+        width: 1,
+        cell({ dataRow, data, setData, attributes }) {
+          return (
+            <NumberInput
+              {...attributes}
+              disabled={!dataRow?.replaces_purchase_order_item_id}
+              value={data}
+              onValueChange={(value) => {
+                setData("replaced_quantity", value);
               }}
             />
           );
@@ -164,7 +282,7 @@ function Form() {
         cell({ data, setData, attributes, dataRow }) {
           return (
             <Textarea
-              disabled={!dataRow?.purchase_order_item_id}
+              disabled={!hasItem(dataRow)}
               value={data}
               onValueChange={(val) => setData("description", val)}
               {...attributes}
@@ -173,7 +291,7 @@ function Form() {
         },
       },
     ];
-  }, []);
+  }, [data.purchase_order, poVariantIdsKey]);
   return (
     <>
       <FormPageContent
@@ -303,6 +421,8 @@ function Form() {
                         id: generateRandom(8),
                         return_against_item_id: item.id,
                         purchase_order_item_id: item.purchase_order_item_id,
+                        // Baris asal di luar PO: bawa itemnya agar retur lolos validasi.
+                        item: item.purchase_order_item_id ? null : item.item,
                         quantity: item.unreturned_quantity ?? 0,
                         required_quantity: item.unreturned_quantity,
                         unit: item.unit,

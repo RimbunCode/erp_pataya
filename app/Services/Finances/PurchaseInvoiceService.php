@@ -24,6 +24,7 @@ use App\Models\Model;
 use App\Models\Purchase\PurchaseOrder;
 use App\Models\Purchase\PurchaseOrderItem;
 use App\Models\Purchase\PurchaseReceipt;
+use App\Models\Purchase\PurchaseReceiptItem;
 use App\Models\Purchase\Supplier;
 use App\Traits\HasDefaultDelete;
 use App\Utils;
@@ -381,16 +382,32 @@ class PurchaseInvoiceService implements SubmitableService {
             ->where('reference_type', PurchaseReceipt::class)
             ->pluck('reference_id');
 
-        // Cari SLE pending yang berasal dari Receipt items untuk PO item ini
+        // Cari SLE pending yang berasal dari baris Receipt untuk PO item ini: baris
+        // normal (`purchase_order_item_id`) ATAU baris pengganti di luar PO
+        // (`replaces_purchase_order_item_id`, spec purchase-receipt-off-po-items).
+        // SLE dicocokkan ke baris lewat item_id supaya baris lain di receipt yang
+        // sama (mis. barang berdiri sendiri) tidak ikut dinilai invoice ini.
         $pendingSLEs = StockLedgerEntry::where('is_valuated', false)
             ->where('referenceable_type', PurchaseReceipt::class)
             ->whereIn('referenceable_id', $receiptIds)
-            ->whereHasMorph('referenceable', [PurchaseReceipt::class], function ($q) use ($poItem) {
-                $q->whereHas('items', fn ($q2) => $q2->where('purchase_order_item_id', $poItem->id));
+            ->whereExists(function ($sub) use ($poItem) {
+                $sub->select(DB::raw(1))
+                    ->from('purchase_receipt_items as pri')
+                    ->whereColumn('pri.purchase_receipt_id', 'stock_ledger_entries.referenceable_id')
+                    ->whereColumn('pri.item_id', 'stock_ledger_entries.item_id')
+                    ->whereNull('pri.deleted_at')
+                    ->where(function ($match) use ($poItem) {
+                        $match->where('pri.purchase_order_item_id', $poItem->id)
+                            ->orWhere('pri.replaces_purchase_order_item_id', $poItem->id);
+                    });
             })
             ->orderBy('transaction_date') // FIFO
             ->lockForUpdate()
             ->get();
+
+        // Sisa porsi yang boleh dinilai per (receipt, item): null = tanpa batas (baris
+        // normal); baris pengganti dibatasi `replaced_quantity` (selebihnya tetap pending).
+        $eligibleLeft = [];
 
         $remainingQty = $qty;
         $totalValue   = 0;
@@ -407,8 +424,17 @@ class PurchaseInvoiceService implements SubmitableService {
                 break;
             }
 
+            $eligibleKey = "{$sle->referenceable_id}|{$sle->item_id}";
+            if (! \array_key_exists($eligibleKey, $eligibleLeft)) {
+                $eligibleLeft[$eligibleKey] = $this->eligibleQuantityForPoItem($sle, $poItem);
+            }
+            $eligible = $eligibleLeft[$eligibleKey];
+            if ($eligible !== null && $eligible <= 0) {
+                continue;
+            }
+
             $sleQty      = $sle->quantity_change;
-            $allocateQty = min($sleQty, $remainingQty);
+            $allocateQty = min($sleQty, $remainingQty, $eligible ?? $sleQty);
 
             if ($allocateQty < $sleQty) {
                 // SLE perlu dipecah: buat SLE baru untuk porsi yang tervaluasi
@@ -459,6 +485,9 @@ class PurchaseInvoiceService implements SubmitableService {
 
             $totalValue += $rate * $allocateQty;
             $remainingQty -= $allocateQty;
+            if ($eligible !== null) {
+                $eligibleLeft[$eligibleKey] = $eligible - $allocateQty;
+            }
         }
 
         // Sisa qty over-bill: SLE baru tanpa valuasi (pending)
@@ -482,6 +511,27 @@ class PurchaseInvoiceService implements SubmitableService {
         }
 
         return $totalValue;
+    }
+
+    /**
+     * Porsi SLE pending yang boleh dinilai invoice PO Item ini: null bila SLE
+     * berasal dari baris normal PO Item itu (seluruhnya); selain itu jumlah
+     * `replaced_quantity` baris pengganti yang menunjuk PO Item ini.
+     */
+    private function eligibleQuantityForPoItem(StockLedgerEntry $sle, $poItem): ?float {
+        $rows = PurchaseReceiptItem::where('purchase_receipt_id', $sle->referenceable_id)
+            ->where('item_id', $sle->item_id)
+            ->where(function ($q) use ($poItem) {
+                $q->where('purchase_order_item_id', $poItem->id)
+                    ->orWhere('replaces_purchase_order_item_id', $poItem->id);
+            })
+            ->get();
+
+        if ($rows->contains(fn ($row) => $row->purchase_order_item_id === $poItem->id)) {
+            return null;
+        }
+
+        return (float) $rows->sum('replaced_quantity');
     }
 
     /**

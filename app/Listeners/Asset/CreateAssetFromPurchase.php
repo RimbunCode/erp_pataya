@@ -91,7 +91,11 @@ class CreateAssetFromPurchase implements ShouldQueue {
         }
 
         return Asset::whereNull('purchase_invoice_id')
-            ->whereHas('purchaseReceiptItem', fn ($q) => $q->where('purchase_order_item_id', $poItem->id))
+            ->whereHas('purchaseReceiptItem', fn ($q) => $q->where(function ($match) use ($poItem) {
+                // baris normal ATAU baris pengganti di luar PO (purchase-receipt-off-po-items)
+                $match->where('purchase_order_item_id', $poItem->id)
+                    ->orWhere('replaces_purchase_order_item_id', $poItem->id);
+            }))
             ->first();
     }
 
