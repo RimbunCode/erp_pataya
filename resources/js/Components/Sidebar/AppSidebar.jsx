@@ -3,7 +3,11 @@ import * as React from "react";
 import {
   Sidebar,
   SidebarContent,
+  SidebarGroup,
   SidebarHeader,
+  SidebarMenu,
+  SidebarMenuItem,
+  SidebarMenuSkeleton,
   SidebarRail,
 } from "@/Components/ui/sidebar";
 
@@ -26,6 +30,24 @@ function resolveMenuItems(items, isTopLevel = true) {
   }));
 }
 
+const SKELETON_ROWS = 6;
+
+// menuItems adalah deferred prop (ResolveActiveDesk): `undefined` selama
+// request lanjutan belum selesai, beda dari `[]` (sudah dimuat, memang kosong).
+function MenuSkeleton() {
+  return (
+    <SidebarGroup data-testid="menu-skeleton">
+      <SidebarMenu>
+        {Array.from({ length: SKELETON_ROWS }, (_, index) => (
+          <SidebarMenuItem key={index}>
+            <SidebarMenuSkeleton showIcon />
+          </SidebarMenuItem>
+        ))}
+      </SidebarMenu>
+    </SidebarGroup>
+  );
+}
+
 export default React.memo(function AppSidebar({ ...props }) {
   const { menuItems } = usePage().props;
   const resolvedItems = React.useMemo(
@@ -39,7 +61,11 @@ export default React.memo(function AppSidebar({ ...props }) {
         <BranchSwitcher />
       </SidebarHeader>
       <SidebarContent>
-        <NavMain items={resolvedItems} />
+        {menuItems === undefined ? (
+          <MenuSkeleton />
+        ) : (
+          <NavMain items={resolvedItems} />
+        )}
       </SidebarContent>
       <SidebarRail />
     </Sidebar>

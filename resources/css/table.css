@@ -13,6 +13,13 @@ table.resizeable-table {
   thead tr:first-child th {
     @apply bg-muted sticky top-0 z-3;
   }
+  /* Baris Filter Kolom (opsional, baris ke-2 thead): ikut sticky tepat di bawah
+     baris judul -- `top` = tinggi baris judul, dipublikasikan Table2 lewat
+     `--column-header-height` (tinggi header boleh >1 baris krn wrap). */
+  thead tr:nth-child(2) th {
+    @apply bg-muted sticky z-3;
+    top: var(--column-header-height, 0px);
+  }
 
   th {
     @apply relative;

@@ -171,6 +171,18 @@ return [
             'error'   => 'Gagal menyimpan filter.',
         ],
     ],
+    // Baris Filter Kolom (input pencarian per kolom di bawah header tabel).
+    'column_search' => [
+        'placeholder' => [
+            'text'     => 'Cari…',
+            'number'   => '5, >5, 1..9',
+            'list'     => 'Pilih…',
+            'date'     => 'Periode…',
+            'relation' => 'Cari data…',
+        ],
+        'advanced_used'    => 'Kolom ini juga dipakai di filter lanjutan',
+        'readonly_builder' => 'Klik untuk membuka Builder lanjutan',
+    ],
     'search' => [
         'placeholder'  => 'Cari :name…',
         'search_all'   => 'Cari ":text" di semua kolom',

@@ -7,7 +7,11 @@
 
 import { columnHasOptions } from "../Filter/operators";
 import { compareLabels } from "@/lib/compareLabels";
-import { formatPeriodValue, resolveColumnPath } from "./columnSearch";
+import {
+  dateSignature,
+  formatPeriodValue,
+  resolveColumnPath,
+} from "./columnSearch";
 import { convertTemplateLink } from "@/lib/linkModelUtils";
 import { createFilterItem } from "@/Hooks/useNestedFilters";
 import { generateRandom } from "@/lib/utils";
@@ -319,9 +323,11 @@ const wrapAsGroup = (root) => ({
  * (null/undefined/""/[]) TIDAK ditambahkan -- tree dikembalikan apa adanya.
  * @param {object} tree
  * @param {{k: string, o: string, v: *}} leaf
+ * @param {{merge?: boolean}} [options] `merge: false` -- selalu leaf BARU (dipakai
+ *   draft langsung Sel Filter agar leaf sementara tak melebur ke leaf lain)
  * @returns {object}
  */
-const addLeafChip = (tree, { k, o, v }) => {
+const addLeafChip = (tree, { k, o, v }, { merge = true } = {}) => {
   // `set`/`!set` memang TANPA value -- bukan "nilai kosong".
   if (o !== "set" && o !== "!set" && isEmptyValue(v)) return tree;
   const root = tree?.root ?? tree ?? null;
@@ -346,7 +352,7 @@ const addLeafChip = (tree, { k, o, v }) => {
   // mengenal `.id` (semua periode dianggap sama -> daftar menciut jadi satu)
   // dan gabungan bisa melampaui batas 20 nilai backend. Chip terpisah tetap
   // eksplisit (AND).
-  if (o === "=" || o === "in") {
+  if (merge && (o === "=" || o === "in")) {
     const mergeable = findDirectLeafByKey(children, k, ["=", "in"]);
     if (mergeable) {
       const [mergeId, mergeNode] = mergeable;
@@ -506,13 +512,153 @@ const removeChip = (tree, id) => {
   return { root: { ...root, c: nextChildren } };
 };
 
+// --- badge nilai per kolom (Sel Filter, spec datatable2-column-search-row) ---
+
+const BADGE_NEGATED = new Set([
+  "!=",
+  "!in",
+  "!matches",
+  "!in_period",
+  "!has",
+  "!between",
+  "!set",
+]);
+const COMPARE_SYMBOL = { ">": ">", ">=": "≥", "<": "<", "<=": "≤" };
+const LIST_OPERATORS = new Set(["in", "!in", "has", "!has"]);
+const PERIOD_OPERATORS = new Set(["in_period", "!in_period"]);
+
+/**
+ * Kunci SATU nilai di dalam leaf -- SAMA dgn kunci chip nilai di
+ * `useColumnValueInput`: periode = `dateSignature`, record relasi = `${id}`,
+ * selain itu `${nilai}`.
+ * @param {unknown} value
+ * @returns {string}
+ */
+const badgeValueKey = (value) => {
+  if (value && typeof value === "object") {
+    return value.period ? dateSignature(value) : `${value.id}`;
+  }
+  return `${value}`;
+};
+
+/**
+ * Badge nilai utk SATU leaf pada SATU kolom -- label berisi NILAI saja (judul
+ * kolom tidak diulang karena badge hidup di dalam sel kolomnya). Leaf `in`
+ * multi-nilai menghasilkan satu badge per nilai. Operator selain `=`/`in`/
+ * `matches` diberi awalan (`≥ 100`, `≠ Draft`, `a..b`, `Diisi`).
+ * @param {{o?: string, v?: unknown}} node leaf
+ * @param {object|null} column kolom ter-resolve (utk label opsi/boolean/relasi)
+ * @param {(key: string, params?: object) => string} t
+ * @param {{monthsShort?: string[]}} [options]
+ * @returns {Array<{valueKey: string, label: string, negated: boolean, op: string}>}
+ */
+const leafValueBadges = (node, column, t, options) => {
+  const o = node?.o;
+  const v = node?.v;
+  const negated = BADGE_NEGATED.has(o);
+  const prefix = negated && o !== "!set" ? "≠ " : "";
+  const make = (valueKey, label) => ({
+    valueKey,
+    label: `${prefix}${label}`,
+    negated,
+    op: o,
+  });
+  const operatorLabel = () => t(`core.datatable.filter.operator.${o}`);
+
+  if (o === "set" || o === "!set") {
+    return [{ valueKey: "__set__", label: operatorLabel(), negated, op: o }];
+  }
+  // Leaf mode kolom (bandingkan dgn kolom lain) -- hanya bisa diedit di Builder.
+  if (v && typeof v === "object" && v.mode === "column") {
+    return [
+      {
+        valueKey: "0",
+        label: `${operatorLabel()} ${v.ref ?? ""}`.trim(),
+        negated,
+        op: o,
+      },
+    ];
+  }
+  if (PERIOD_OPERATORS.has(o)) {
+    return (Array.isArray(v) ? v : [v])
+      .filter((p) => p && typeof p === "object" && p.period)
+      .map((p) =>
+        make(dateSignature(p), formatPeriodValue(p, options?.monthsShort)),
+      );
+  }
+  if (o === "between" || o === "!between") {
+    const [a, b] = Array.isArray(v) ? v : [v];
+    return [make("0", `${a ?? ""}..${b ?? ""}`)];
+  }
+  if (COMPARE_SYMBOL[o]) {
+    return [
+      make(`${v}`, `${COMPARE_SYMBOL[o]} ${formatSingleValue(v, column, t)}`),
+    ];
+  }
+  if (
+    o === "=" ||
+    o === "!=" ||
+    o === "matches" ||
+    o === "!matches" ||
+    LIST_OPERATORS.has(o)
+  ) {
+    return (Array.isArray(v) ? v : [v])
+      .filter((x) => x !== "" && x !== null && x !== undefined)
+      .map((x) => make(badgeValueKey(x), formatSingleValue(x, column, t)));
+  }
+  // Operator lain (starts_with, ends_with, ...): label operator penuh.
+  return [
+    {
+      valueKey: "0",
+      label: `${operatorLabel()} ${formatValueLabel(v, column, t)}`.trim(),
+      negated,
+      op: o,
+    },
+  ];
+};
+
+/**
+ * Hapus SATU nilai dari leaf daftar (`in`/`!in`/`has`/`!has`/periode
+ * berdaftar) langsung anak root. Sisa 0 nilai -> leaf dihapus; sisa 1 -> turun
+ * ke bentuk tunggal (`in` -> `=`, `!in` -> `!=`, periode -> objek). Leaf
+ * bernilai tunggal -> seluruh leaf dihapus. `id`/kunci tak ditemukan -> tree
+ * apa adanya. Immutable.
+ * @param {object} tree
+ * @param {string} leafId
+ * @param {string} valueKey kunci dari `leafValueBadges`
+ * @returns {object|null}
+ */
+const removeLeafValue = (tree, leafId, valueKey) => {
+  const root = tree?.root ?? tree;
+  const node = childrenOf(root)[leafId];
+  if (!node || isGroupLike(node)) return tree;
+  const { o, v } = node;
+  const isList =
+    Array.isArray(v) && (LIST_OPERATORS.has(o) || PERIOD_OPERATORS.has(o));
+  if (!isList) return removeChip(tree, leafId);
+
+  const rest = v.filter((x) => badgeValueKey(x) !== valueKey);
+  if (rest.length === v.length) return tree;
+  if (rest.length === 0) return removeChip(tree, leafId);
+  if (rest.length === 1) {
+    if (o === "in") return updateChip(tree, leafId, { o: "=", v: rest[0] });
+    if (o === "!in") return updateChip(tree, leafId, { o: "!=", v: rest[0] });
+    if (PERIOD_OPERATORS.has(o)) {
+      return updateChip(tree, leafId, { v: rest[0] });
+    }
+  }
+  return updateChip(tree, leafId, { v: rest });
+};
+
 export {
   addLeafChip,
   addSearchChip,
   buildOptionList,
   isSearchGroup,
   isStatusColumn,
+  leafValueBadges,
   removeChip,
+  removeLeafValue,
   treeToChips,
   updateChip,
 };

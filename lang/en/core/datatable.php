@@ -171,6 +171,18 @@ return [
             'error'   => 'Failed to save filter.',
         ],
     ],
+    // Column filter row (per-column search inputs under the table header).
+    'column_search' => [
+        'placeholder' => [
+            'text'     => 'Search…',
+            'number'   => '5, >5, 1..9',
+            'list'     => 'Select…',
+            'date'     => 'Period…',
+            'relation' => 'Search records…',
+        ],
+        'advanced_used'    => 'This column is also used in an advanced filter',
+        'readonly_builder' => 'Click to open the advanced Builder',
+    ],
     'search' => [
         'placeholder'  => 'Search :name…',
         'search_all'   => 'Search ":text" in all columns',

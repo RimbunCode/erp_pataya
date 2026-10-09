@@ -25,7 +25,14 @@ function ApproverDecision({ name, approval }) {
   const { t } = useLaravelReactI18n();
   const { data, setData, post, reset, processing } = useForm({});
   const [open, setOpen] = useState(false);
-  const currentStep = approval?.steps[approval.current_sequence] ?? null;
+  // Yang bisa diputuskan hanyalah step berstatus pending pada instance yang masih pending.
+  // Bukan steps[current_sequence]: pada auto-approve penuh current_sequence tetap 0 (menunjuk
+  // step yang di-skip) dan setelah approval selesai instance tak punya step pending lagi,
+  // tetapi tombol keputusan tetap tampil bagi user yang cocok dengan step lama itu.
+  const currentStep =
+    approval?.status === "pending"
+      ? (approval.steps?.find((step) => step.status === "pending") ?? null)
+      : null;
 
   const onSubmit = useCallback(
     (e) => {

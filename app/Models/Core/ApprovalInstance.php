@@ -200,7 +200,9 @@ class ApprovalInstance extends Model {
             $nextPending->update(['status' => FormStatus::PENDING]);
             $instance->update(['current_sequence' => $nextPending->sequence, 'status' => FormStatus::PENDING]);
         } else {
-            $instance->update(['status' => FormStatus::APPROVED]);
+            // Sama seperti approval final normal di ApprovalInstanceController::approve():
+            // current_sequence berakhir satu langkah setelah step terakhir.
+            $instance->update(['current_sequence' => $matchedSeq + 1, 'status' => FormStatus::APPROVED]);
         }
     }
 }

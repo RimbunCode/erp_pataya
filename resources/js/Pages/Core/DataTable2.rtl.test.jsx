@@ -1548,6 +1548,102 @@ describe("DataTable2", () => {
     });
   });
 
+  describe("Baris Filter Kolom -- prop columnFilter ke Table2 (spec datatable2-column-search-row)", () => {
+    it("Table2 menerima columnFilter {columns, draft, onOpenBuilder}; draft SAMA dgn yang diberikan ke Search Bar atas", async () => {
+      await renderDataTable2(<DataTable2 />);
+
+      const { columnFilter } = lastTable2Props();
+      expect(columnFilter).toBeDefined();
+      expect(columnFilter.columns).toBe(lastTable2Props().columns);
+      expect(typeof columnFilter.onOpenBuilder).toBe("function");
+      // draft terkontrol dibagi dgn Search Bar atas (Requirement 7.3)
+      expect(lastSearchBarProps().draft).toBeDefined();
+      expect(typeof columnFilter.draft.commitTreeChange).toBe("function");
+      expect(columnFilter.draft.draftTree).toBe(
+        lastSearchBarProps().draft.draftTree,
+      );
+    });
+
+    it("commit dari sel (commitTreeChange): POST saved-filters.store dgn tree baru tanpa toast sukses, tree sampai ke Search Bar", async () => {
+      axiosPost.mockResolvedValue({ data: { id: 5 } });
+      await renderDataTable2(<DataTable2 />);
+
+      await act(async () => {
+        await lastTable2Props().columnFilter.draft.commitTreeChange(
+          () => simpleTree,
+        );
+      });
+
+      expect(axiosPost).toHaveBeenCalledTimes(1);
+      expect(axiosPost).toHaveBeenCalledWith("saved-filters.store", {
+        model: "App\\Models\\Purchase\\Supplier",
+        filter: simpleTree,
+        fid: null,
+      });
+      expect(toastSuccess).not.toHaveBeenCalled();
+      expect(lastSearchBarProps().tree).toBe(simpleTree);
+      expect(lastSearchBarProps().activeFid).toBe(5);
+      // badge sel & chip atas membaca draft yang sama -> sudah ter-apply
+      expect(lastTable2Props().columnFilter.draft.draftTree).toBe(simpleTree);
+    });
+
+    it("draft Search Bar atas yang belum di-apply ikut ter-apply saat commit sel (tak hilang)", async () => {
+      axiosPost.mockResolvedValue({ data: { id: 6 } });
+      await renderDataTable2(<DataTable2 />);
+
+      await act(async () => {
+        lastSearchBarProps().draft.setDraftTree(simpleTree);
+      });
+      expect(axiosPost).not.toHaveBeenCalled();
+
+      await act(async () => {
+        await lastTable2Props().columnFilter.draft.commitTreeChange(
+          (draft) => ({
+            root: {
+              k: "and",
+              c: { ...draft.root.c, b: { k: "name", o: "matches", v: "x" } },
+            },
+          }),
+        );
+      });
+
+      expect(axiosPost).toHaveBeenCalledTimes(1);
+      const sent = axiosPost.mock.calls[0][1].filter;
+      expect(
+        Object.values(sent.root.c)
+          .map((n) => n.k)
+          .sort(),
+      ).toEqual(["code", "name"]);
+    });
+
+    it("onOpenBuilder (badge read-only di sel) membuka Builder dgn draft tree TERKINI", async () => {
+      await renderDataTable2(<DataTable2 />);
+      expect(screen.getByTestId("stub-filter-table2")).toHaveAttribute(
+        "data-open",
+        "false",
+      );
+
+      await act(async () => {
+        lastTable2Props().columnFilter.onOpenBuilder(simpleTree);
+      });
+
+      expect(screen.getByTestId("stub-filter-table2")).toHaveAttribute(
+        "data-open",
+        "true",
+      );
+      expect(lastFilterTableProps().initialFilters).toBe(simpleTree);
+    });
+
+    it("mobile (kartu): Table2 tidak dirender, jadi baris filter tak ada", async () => {
+      isMobileMock.mockReturnValue(true);
+      table2Props.mockClear();
+      await renderDataTable2(<DataTable2 />);
+
+      expect(screen.queryByTestId("stub-table2")).toBeNull();
+      expect(table2Props).not.toHaveBeenCalled();
+    });
+  });
+
   describe("filter builder (FilterTable2 controlled) & saved filter", () => {
     it("meneruskan mapColumns, model, activeFid, isMobile & mode controlled (open/onOpenChange, tanpa trigger) ke FilterTable2", async () => {
       mockPage({ ziggy: { query: { fid: "12" } } });

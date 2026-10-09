@@ -3,6 +3,7 @@
 namespace Tests;
 
 use App\Models\Scopes\DataTableScope;
+use App\Services\Core\BranchScopeCache;
 use App\Services\Core\SchemaColumnCache;
 use Illuminate\Foundation\Testing\TestCase as BaseTestCase;
 
@@ -23,5 +24,10 @@ abstract class TestCase extends BaseTestCase {
         // RefreshDatabase reset DB tiap test, jadi id Branch dari test SEBELUMNYA
         // bisa nyangkut & memberi hasil salah kalau tak direset.
         DataTableScope::forgetBranchMainStatusCache();
+
+        // Sama alasan lagi -- HasBranch::bootHasBranch() (scope 'branch') cache
+        // afiliasi main-branch per user id + id Branch per session('currentBranch')
+        // lewat BranchScopeCache, statis per proses.
+        BranchScopeCache::forget();
     }
 }
