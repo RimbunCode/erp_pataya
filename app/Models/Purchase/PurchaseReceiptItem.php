@@ -23,6 +23,7 @@ class PurchaseReceiptItem extends Model {
         'replaced_quantity'   => 'float',
         'conversion_factor'   => 'float',
         'returned_quantity'   => 'float',
+        'billed_quantity'     => 'float',
         'unreturned_quantity' => 'float',
     ];
     protected array $configColumns = [
@@ -71,6 +72,12 @@ class PurchaseReceiptItem extends Model {
         'replaced_quantity' => [
             'show'  => false,
             'order' => 5,
+        ],
+        'billed_quantity' => [
+            'ignore' => true,
+        ],
+        'purchase_order_id' => [
+            'hidden' => true,
         ],
         'returnAgainstItem' => [
             'ignore' => true,

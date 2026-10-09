@@ -75,7 +75,8 @@ class PurchaseReceiptService implements SubmitableService {
         $units              = $this->batchLoadUnits($data);
         $purchaseOrderItems = $this->batchLoadPurchaseOrderItems($data);
         foreach ($data['items'] as $item) {
-            $item = $this->fillItemRelations($item, $units, $purchaseOrderItems);
+            $item                      = $this->fillItemRelations($item, $units, $purchaseOrderItems);
+            $item['purchase_order_id'] = $purchaseReceipt->purchase_order_id;
             $purchaseReceipt->items()->create($item);
         }
 
@@ -100,7 +101,8 @@ class PurchaseReceiptService implements SubmitableService {
         $units              = $this->batchLoadUnits($data);
         $purchaseOrderItems = $this->batchLoadPurchaseOrderItems($data);
         foreach ($data['items'] as $item) {
-            $item = $this->fillItemRelations($item, $units, $purchaseOrderItems);
+            $item                      = $this->fillItemRelations($item, $units, $purchaseOrderItems);
+            $item['purchase_order_id'] = $purchaseReceipt->purchase_order_id;
 
             if (Ulid::isValid($item['id'])) {
                 $existingItems->get($item['id'])?->update($item);
@@ -326,11 +328,19 @@ class PurchaseReceiptService implements SubmitableService {
             }
             $replacedItem    = $poItem ? null : $valuationItem;
             $poItem          = $poItem ? $valuationItem : null;
+            $isStandalone    = ! $valuationItem;
             $isAlreadyBilled = $valuationItem && $valuationItem->billed_quantity > 0;
+
+            // Baris berdiri sendiri: invoice item bebas (spec purchase-invoice-off-po-items)
+            // yang sudah di-approve duluan = ALUR-2 tanpa PO Item.
+            $freeInvoiceItems = $isStandalone ? $this->findFreeInvoiceItems($item, $purchaseOrder) : collect();
+            if ($isStandalone) {
+                $isAlreadyBilled = $freeInvoiceItems->isNotEmpty();
+            }
 
             if ($isAlreadyBilled) {
                 // === ALUR-2: Invoice approve duluan → Receipt kemudian ===
-                $invoiceItems = $this->findInvoiceItemsForPoItem($valuationItem, $purchaseOrder);
+                $invoiceItems = $isStandalone ? $freeInvoiceItems : $this->findInvoiceItemsForPoItem($valuationItem, $purchaseOrder);
                 $remainingQty = $quantity;
                 // Substitusi: yang dinilai dari invoice hanya porsi yang menggantikan
                 // PO Item (replaced_quantity); kelebihannya masuk SLE pending di bawah.
@@ -386,6 +396,10 @@ class PurchaseReceiptService implements SubmitableService {
                     $stock->update(['stock_queue' => $queue]);
 
                     $invoiceItem->increment('allocated_qty', $allocateQty);
+                    if ($isStandalone) {
+                        // porsi baris receipt yang sudah ditagih invoice item bebas
+                        $item->increment('billed_quantity', $allocateQty);
+                    }
                     $totalRatesForGL += $rate * $allocateQty;
                     $remainingQty -= $allocateQty;
                     $budget -= $allocateQty;
@@ -569,6 +583,25 @@ class PurchaseReceiptService implements SubmitableService {
 
         $base = $quantity * ($poItem->conversion_factor ?: 1) / ($stock->conversion_factor ?: 1);
         $stock->updateDetails($operator, 'incomings', $purchaseOrder->code, $base);
+    }
+
+    /**
+     * Invoice item bebas (tanpa PO Item & tanpa baris receipt) yang sudah di-approve pada
+     * PO yang sama untuk item baris receipt berdiri sendiri ini, urut tanggal invoice,
+     * dengan sisa `quantity − allocated_qty` > 0.
+     */
+    private function findFreeInvoiceItems(PurchaseReceiptItem $item, PurchaseOrder $purchaseOrder): Collection {
+        return PurchaseInvoiceItem::whereNull('purchase_order_item_id')
+            ->whereNull('purchase_receipt_item_id')
+            ->where('item_id', $item->item_id)
+            ->whereColumn('quantity', '>', 'allocated_qty')
+            ->whereHas('purchaseInvoice', fn ($q) => $q->where('purchase_order_id', $purchaseOrder->id)
+                ->whereNotNull('submitted_at')
+                ->whereNull('return_against_id'))
+            ->with('purchaseInvoice')
+            ->lockForUpdate()
+            ->get()
+            ->sortBy('purchaseInvoice.date');
     }
 
     private function findInvoiceItemsForPoItem($poItem, PurchaseOrder $purchaseOrder): Collection {
