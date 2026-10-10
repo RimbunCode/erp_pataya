@@ -189,6 +189,9 @@ class DeskController extends Controller {
      * store()/update() untuk assignable (bukan diff/upsert).
      */
     private function saveMenuItems(Desk $desk, array $rows): void {
+        // updated_at ikut kunci cache sidebar (ResolveActiveDesk); edit yang hanya
+        // mengganti menu tak mengubah atribut Desk, jadi di-touch eksplisit.
+        $desk->touch();
         $desk->menuItemPivots()->delete();
 
         foreach ($rows as $order => $row) {

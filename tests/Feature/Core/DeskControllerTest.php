@@ -14,6 +14,7 @@ use App\Models\User\RolePermission;
 use App\Models\User\User;
 use BeyondCode\QueryDetector\QueryDetectorMiddleware;
 use Illuminate\Foundation\Testing\RefreshDatabase;
+use Illuminate\Support\Carbon;
 use Tests\TestCase;
 
 class DeskControllerTest extends TestCase {
@@ -596,6 +597,43 @@ class DeskControllerTest extends TestCase {
         $pivots = DeskMenuItem::where('desk_id', $desk->id)->get();
         $this->assertCount(1, $pivots);
         $this->assertSame($menuItemB->id, $pivots->first()->menu_item_id);
+    }
+
+    /**
+     * Key cache sidebar (ResolveActiveDesk, once prop) memuat Desk::updated_at.
+     * Edit yang HANYA mengganti menu_items tak mengubah atribut Desk, jadi
+     * updated_at harus di-touch eksplisit supaya sidebar tak basi.
+     */
+    public function test_update_touches_desk_when_only_menu_items_change(): void {
+        $user = User::factory()->create();
+        // Atribut disamakan persis dgn yang ditulis update() (owner tanpa
+        // permission => personal) supaya $desk->update() tak mengubah apa pun
+        // dan updated_at hanya bisa bergerak lewat touch() eksplisit.
+        $desk = Desk::factory()->create([
+            'type'             => DeskType::Custom,
+            'owner_id'         => $user->id,
+            'is_personal_only' => true,
+            'is_shared_all'    => false,
+            'is_disabled'      => false,
+            'background_color' => null,
+            'foreground_color' => null,
+        ]);
+        $menuItemA = MenuItem::factory()->create();
+        $menuItemB = MenuItem::factory()->create();
+        $desk->menuItemPivots()->create(['menu_item_id' => $menuItemA->id, 'order' => 0]);
+        $updatedBefore = $desk->fresh()->updated_at;
+
+        Carbon::setTestNow($updatedBefore->copy()->addHour());
+
+        $this->actingAs($user)
+            ->withCookie('lang', 'en')
+            ->put(route('desks.update', $desk), [
+                'name'       => $desk->name,
+                'icon'       => $desk->icon,
+                'menu_items' => [['menu_item_id' => $menuItemB->id]],
+            ]);
+
+        $this->assertTrue($desk->fresh()->updated_at->gt($updatedBefore));
     }
 
     public function test_update_rejects_child_as_virtual_group(): void {
