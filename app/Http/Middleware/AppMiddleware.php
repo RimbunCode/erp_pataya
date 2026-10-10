@@ -11,6 +11,9 @@ use Inertia\Middleware;
 use Symfony\Component\HttpFoundation\Response;
 
 class AppMiddleware extends Middleware {
+    /** Detik. Batas basi prop bersama yang tak ikut versi permission (once prop). */
+    private const SHARED_PROPS_TTL = 300;
+
     /**
      * Handle an incoming request.
      *
@@ -33,23 +36,24 @@ class AppMiddleware extends Middleware {
                 $request->session()->put('permissions_version', $latestPermissionsVersion);
             }
 
-            // `ignorePermissionModels`/`branchSettings` dibungkus closure (bukan
-            // nilai eager) -- middleware ini eksekusi di SETIAP request
-            // terautentikasi, termasuk XHR groupPath expand & partial reload
-            // DataTable2 yang tak pernah minta 2 prop ini. Tanpa closure, query
-            // `Permission::where(...)` & `$user->branches()->get()` di bawah
-            // SUDAH TERLANJUR jalan begitu baris ini dieksekusi walau hasilnya
-            // tak terkirim -- PropsResolver Inertia (vendor) baru memanggil
-            // closure kalau prop ini BENAR2 dibutuhkan respons (lihat komentar
-            // lebih lengkap di ResolveActiveDesk.php, pola yang sama). `permissions`
-            // TETAP eager -- variabelnya sudah wajib dihitung di atas utk ditulis
-            // ke session (dipakai PermissionChecker::forUser() di request yang
-            // SAMA, di luar Inertia::share() ini sama sekali), jadi membungkusnya
-            // closure di sini tak menghemat apa pun.
+            // Ketiganya once prop: dikirim sekali lalu dipakai ulang browser selama
+            // kuncinya sama, jadi pindah halaman tak mengirim ulang (permissions ~18 KB)
+            // maupun menjalankan query-nya. Closure juga hanya dipanggil kalau prop
+            // diproses respons (reload parsial/XHR tak menyentuhnya). Kunci:
+            //  - permissions: user + versi permission (versi dicek tiap request di atas,
+            //    jadi perubahan hak akses langsung mengganti kunci => tak perlu TTL).
+            //  - ignorePermissionModels: sama + TTL (hampir statis).
+            //  - branchSettings: user + cabang aktif (ganti cabang => kirim ulang) + TTL
+            //    utk perubahan penugasan cabang/nama cabang oleh admin.
+            $onceKey = fn (string $prop, string ...$parts): string => $prop . ':' . md5(implode('|', [$user->id, ...$parts]));
+
             Inertia::share([
-                'permissions'            => $permissions,
-                'ignorePermissionModels' => fn () => Permission::where('ignore_permission', true)->pluck('model'),
-                'branchSettings'         => function () use ($user, $currentBranch) {
+                'permissions' => Inertia::once(fn () => $permissions)
+                    ->as($onceKey('permissions', $latestPermissionsVersion)),
+                'ignorePermissionModels' => Inertia::once(fn () => Permission::where('ignore_permission', true)->pluck('model'))
+                    ->as($onceKey('ignorePermissionModels', $latestPermissionsVersion))
+                    ->until(self::SHARED_PROPS_TTL),
+                'branchSettings' => Inertia::once(function () use ($user, $currentBranch) {
                     // without()+withoutGlobalScope('country'): dropdown branch
                     // selector cuma butuh id/name/is_main_branch, tapi
                     // Branch::$with (property model, beda dari global scope)
@@ -60,12 +64,23 @@ class AppMiddleware extends Middleware {
                         ->without(['billingCountry', 'shippingCountry'])
                         ->get();
 
+                    // Serialisasi Branch memuat relasi negara LAGI per cabang walau
+                    // without() di atas: aksesor getBillingAddressAttribute()
+                    // (juga yang ada di $appends) membaca billingCountry, dan Eloquent
+                    // menerapkan aksesor ke KOLOM `billing_address` yang namanya sama.
+                    // Frontend hanya memakai id/name/is_main_branch. makeHidden (bukan
+                    // setAppends): LinkModel::getArrayableAppends() menimpa $appends
+                    // tiap serialisasi, sedangkan filter hidden tetap berlaku.
+                    $branches->makeHidden(['billing_address', 'billingAddress', 'shippingAddress']);
+
                     return [
                         'branches'      => $branches,
                         'currentBranch' => $branches->firstWhere('id', $currentBranch)
                             ?? $branches->firstWhere('id', $user->default_branch_id),
                     ];
-                },
+                })
+                    ->as($onceKey('branchSettings', (string) $currentBranch))
+                    ->until(self::SHARED_PROPS_TTL),
             ]);
         }
 
