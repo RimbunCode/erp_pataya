@@ -457,9 +457,11 @@ class ResolveActiveDeskTest extends TestCase {
         $first = $this->inertiaVisit($user);
         $this->assertDeskPropsInline($first);
         $this->assertArrayHasKey('onceProps', $first);
-        $this->assertCount(2, $first['onceProps']);
-        foreach ($first['onceProps'] as $meta) {
-            $this->assertNotNull($meta['expiresAt'], 'once prop harus punya TTL (batas basi).');
+        // AppMiddleware juga membagikan once prop (permissions, dst); di sini hanya prop desk.
+        foreach (['deskList', 'menuItems'] as $prop) {
+            $keys = $this->keysOf($first, $prop);
+            $this->assertCount(1, $keys, "metadata once untuk {$prop}");
+            $this->assertNotNull($first['onceProps'][$keys[0]]['expiresAt'], 'once prop harus punya TTL (batas basi).');
         }
 
         $second = $this->inertiaVisit($user, array_keys($first['onceProps']));
@@ -588,6 +590,45 @@ class ResolveActiveDeskTest extends TestCase {
         $response = $this->actingAs($user)->withCookie('lang', 'en')->get(route('dashboard'));
 
         $response->assertOk()->assertCookie('active_desk', $desk->id);
+    }
+
+    /**
+     * updated_at hanya presisi detik: dua simpan menu dalam detik yang sama tak boleh
+     * menghasilkan kunci yang sama (sidebar basi sampai TTL habis). Waktu dibekukan
+     * dan atribut desk tak berubah, jadi yang membedakan hanya baris pivot menu.
+     */
+    public function test_menu_only_edits_in_the_same_second_each_change_the_sidebar_key(): void {
+        Carbon::setTestNow(Carbon::parse('2026-10-10 10:00:00'));
+        [$user, $desk] = $this->userWithDesk();
+        $itemA         = MenuItem::factory()->create();
+        $itemB         = MenuItem::factory()->create();
+        $desk->menuItemPivots()->create(['menu_item_id' => $itemA->id, 'order' => 0]);
+
+        $previous = $this->inertiaVisit($user);
+
+        foreach ([$itemB, $itemA] as $item) {
+            $this->actingAs($user)->withCookie('lang', 'en')->put(route('desks.update', $desk), [
+                'name'       => $desk->name,
+                'icon'       => $desk->icon,
+                'menu_items' => [['menu_item_id' => $item->id]],
+            ]);
+
+            $next = $this->inertiaVisit($user, array_keys($previous['onceProps']));
+
+            // Hanya menu yang berubah: menuItems ikut inline di respons yang sama.
+            $this->assertArrayHasKey('menuItems', $next['props'], 'menu hasil edit harus langsung terkirim');
+            $this->assertArrayNotHasKey('desk', $next['deferredProps'] ?? []);
+            $this->assertNotSame($this->keysOf($previous, 'menuItems'), $this->keysOf($next, 'menuItems'));
+            $previous = $next;
+        }
+    }
+
+    /** @return list<string> kunci once milik satu prop */
+    private function keysOf(array $page, string $prop): array {
+        return array_values(array_filter(
+            array_keys($page['onceProps'] ?? []),
+            fn (string $key) => str_starts_with($key, $prop . ':'),
+        ));
     }
 
     public function test_desk_props_reload_when_permissions_change(): void {

@@ -600,40 +600,35 @@ class DeskControllerTest extends TestCase {
     }
 
     /**
-     * Key cache sidebar (ResolveActiveDesk, once prop) memuat Desk::updated_at.
-     * Edit yang HANYA mengganti menu_items tak mengubah atribut Desk, jadi
-     * updated_at harus di-touch eksplisit supaya sidebar tak basi.
+     * Kunci cache sidebar (ResolveActiveDesk, once prop) memuat ULID terbesar baris
+     * pivot desk_menu_item. Token itu hanya bisa diandalkan kalau tiap simpan menu
+     * membuat ulang baris (ULID baru yang lebih besar) -- walau isinya identik dan
+     * walau dua simpan terjadi pada detik yang sama.
      */
-    public function test_update_touches_desk_when_only_menu_items_change(): void {
+    public function test_each_menu_save_recreates_pivot_rows_with_a_larger_ulid(): void {
+        Carbon::setTestNow(Carbon::parse('2026-10-10 10:00:00'));
         $user = User::factory()->create();
-        // Atribut disamakan persis dgn yang ditulis update() (owner tanpa
-        // permission => personal) supaya $desk->update() tak mengubah apa pun
-        // dan updated_at hanya bisa bergerak lewat touch() eksplisit.
-        $desk = Desk::factory()->create([
-            'type'             => DeskType::Custom,
-            'owner_id'         => $user->id,
-            'is_personal_only' => true,
-            'is_shared_all'    => false,
-            'is_disabled'      => false,
-            'background_color' => null,
-            'foreground_color' => null,
-        ]);
-        $menuItemA = MenuItem::factory()->create();
-        $menuItemB = MenuItem::factory()->create();
-        $desk->menuItemPivots()->create(['menu_item_id' => $menuItemA->id, 'order' => 0]);
-        $updatedBefore = $desk->fresh()->updated_at;
+        $desk = Desk::factory()->create(['type' => DeskType::Custom, 'owner_id' => $user->id]);
+        $item = MenuItem::factory()->create();
 
-        Carbon::setTestNow($updatedBefore->copy()->addHour());
+        $previousMax = null;
+        foreach (range(1, 3) as $_) {
+            $this->actingAs($user)
+                ->withCookie('lang', 'en')
+                ->put(route('desks.update', $desk), [
+                    'name'       => $desk->name,
+                    'icon'       => $desk->icon,
+                    'menu_items' => [['menu_item_id' => $item->id]],
+                ])
+                ->assertRedirect();
 
-        $this->actingAs($user)
-            ->withCookie('lang', 'en')
-            ->put(route('desks.update', $desk), [
-                'name'       => $desk->name,
-                'icon'       => $desk->icon,
-                'menu_items' => [['menu_item_id' => $menuItemB->id]],
-            ]);
-
-        $this->assertTrue($desk->fresh()->updated_at->gt($updatedBefore));
+            $max = DeskMenuItem::where('desk_id', $desk->id)->max('id');
+            $this->assertNotNull($max);
+            if ($previousMax !== null) {
+                $this->assertGreaterThan($previousMax, $max, 'simpan ulang harus menghasilkan ULID pivot yang lebih besar');
+            }
+            $previousMax = $max;
+        }
     }
 
     public function test_update_rejects_child_as_virtual_group(): void {

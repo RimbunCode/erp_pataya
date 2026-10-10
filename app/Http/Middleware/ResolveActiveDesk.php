@@ -97,18 +97,33 @@ class ResolveActiveDesk {
         }
 
         // Kunci once prop: berubah (=> client memuat ulang) kalau user, desk aktif,
-        // desk di-edit, permission, atau role berubah. Selama sama, client
-        // menyimpan nilai lama lintas halaman dan server tak membangun ulang.
-        $onceKey = fn (string $prop): Closure => function () use ($prop, $resolveDesk, $user, $request): ?string {
+        // desk di-edit, menu desk diedit, permission, atau role berubah. Selama sama,
+        // client menyimpan nilai lama lintas halaman dan server tak membangun ulang.
+        //
+        // Revisi menu = ULID terbesar baris pivot desk. updated_at hanya presisi detik
+        // dan edit yang cuma mengganti menu tak mengubah atribut desk, jadi dua simpan
+        // dalam detik yang sama akan menghasilkan kunci yang sama. saveMenuItems()
+        // selalu membuat ulang baris pivot (ULID baru, makin besar), jadi token ini
+        // pasti berubah di setiap simpan. Tanpa kolom baru: tak butuh migrasi.
+        $menuRevision = null;
+        $onceKey      = fn (string $prop, bool $withMenuRevision = false): Closure => function () use ($prop, $withMenuRevision, $resolveDesk, $user, $request, &$menuRevision): ?string {
             $activeDesk = $resolveDesk();
+            if (! $activeDesk) {
+                return null;
+            }
 
-            return $activeDesk ? $prop . ':' . md5(implode('|', [
+            if ($withMenuRevision) {
+                $menuRevision ??= (string) DeskMenuItem::query()->where('desk_id', $activeDesk->id)->max('id');
+            }
+
+            return $prop . ':' . md5(implode('|', [
                 $user->id,
                 $activeDesk->id,
                 $activeDesk->updated_at?->getTimestamp(),
+                $withMenuRevision ? $menuRevision : '',
                 $request->session()->get('permissions_version'),
                 $request->session()->get('shared_user_role_ids_version'),
-            ])) : null;
+            ]));
         };
 
         Inertia::share([
@@ -120,16 +135,20 @@ class ResolveActiveDesk {
             // lama, jadi pindah halaman di desk yang sama tak membangun ulang
             // sidebar. TTL = batas basi utk perubahan yang tak mengubah kunci
             // (mis. admin mengedit desk bersama milik user lain).
+            // Keduanya lewat $resolveDesk(): kalau desk gagal di-resolve (user tanpa
+            // desk, atau skema belum lengkap) tak ada query desk lain yang dijalankan.
             'deskList' => (new DeskOnceProp(
-                fn () => $this->resolver->visibleDesksFor($user, $checker, $request)
-                    // 'type' (system|custom) dipakai DeskSwitcher: system dulu, lalu custom.
-                    ->map->only(['id', 'name', 'icon', 'background_color', 'foreground_color', 'type'])
-                    ->values(),
+                fn () => $resolveDesk()
+                    ? $this->resolver->visibleDesksFor($user, $checker, $request)
+                        // 'type' (system|custom) dipakai DeskSwitcher: system dulu, lalu custom.
+                        ->map->only(['id', 'name', 'icon', 'background_color', 'foreground_color', 'type'])
+                        ->values()
+                    : [],
                 $onceKey('deskList'),
             ))->until(self::SIDEBAR_CACHE_TTL),
             'menuItems' => (new DeskOnceProp(
                 fn () => ($activeDesk = $resolveDesk()) ? $this->buildMenuTree($activeDesk, $checker) : [],
-                $onceKey('menuItems'),
+                $onceKey('menuItems', withMenuRevision: true),
             ))->until(self::SIDEBAR_CACHE_TTL),
         ]);
 
