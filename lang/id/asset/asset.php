@@ -45,6 +45,9 @@ return [
     'asset_not_rentable'                     => 'Aset ini tidak dapat disewakan/ditransaksikan.',
     'item_mismatch'                          => 'Aset yang dipilih tidak sesuai dengan item baris ini.',
     'quantity_mismatch'                      => 'Total kuantitas aset yang dipilih tidak sesuai dengan kuantitas baris.',
+    'item_must_be_regular'                   => 'Item aset tetap tidak boleh berada di tabel Items. Gunakan section Asset Items.',
+    'item_must_be_fixed_asset'               => 'Hanya item aset tetap yang boleh berada di tabel Asset Items. Gunakan tabel Items untuk barang biasa.',
+    'asset_lines_moved'                      => 'Daftar aset (asset_lines) harus dikirim lewat asset_items, bukan items.',
     'location'                               => [
         'cannot_delete_has_assets' => 'Lokasi tidak dapat dihapus karena masih memiliki aset di dalamnya atau di sub-lokasinya.',
     ],

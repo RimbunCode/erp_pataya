@@ -2,9 +2,11 @@
 
 namespace App\Models\Inventory;
 
+use App\Models\Asset\Asset;
 use App\Models\Model;
 use Illuminate\Database\Eloquent\Concerns\HasUlids;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
+use Illuminate\Database\Eloquent\Relations\BelongsTo;
 use Illuminate\Database\Eloquent\SoftDeletes;
 
 class DeliveryNoteItem extends Model {
@@ -18,6 +20,14 @@ class DeliveryNoteItem extends Model {
             'type'  => 'relation',
             'show'  => true,
             'order' => 0,
+        ],
+        'asset' => [
+            'type' => 'relation',
+            'show' => false,
+        ],
+        'asset_id' => [
+            'hidden'   => true,
+            'linkable' => true,
         ],
         'quantity' => [
             'type'  => 'numeric',
@@ -83,6 +93,10 @@ class DeliveryNoteItem extends Model {
         return $this->belongsTo(ItemVariant::class, 'item_id');
     }
 
+    public function asset(): BelongsTo {
+        return $this->belongsTo(Asset::class);
+    }
+
     public function deliveryNote() {
         return $this->belongsTo(DeliveryNote::class);
     }
@@ -93,9 +107,5 @@ class DeliveryNoteItem extends Model {
 
     public function returnAgainstItem() {
         return $this->belongsTo(DeliveryNoteItem::class, 'return_against_item_id');
-    }
-
-    public function assetLines() {
-        return $this->hasMany(DeliveryNoteItemAsset::class);
     }
 }

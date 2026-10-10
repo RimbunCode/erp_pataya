@@ -1,5 +1,5 @@
 import { describe, expect, it, vi, beforeEach } from "vitest";
-import { render, screen } from "@testing-library/react";
+import { act, render, screen, waitFor } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 
 // ============================================================================
@@ -27,8 +27,8 @@ import userEvent from "@testing-library/user-event";
 // - itemColumns.cell "item": onValueChange mengisi quantity/required_quantity
 //   dari undelivered_quantity referenceable item, filters berbeda antara
 //   SalesOrder (sales_order_id) vs InternalOrder (internal_order_id).
-// - itemColumns.cell "asset_lines": mismatch total quantity asset vs quantity
-//   baris, hanya tampil untuk item is_fixed_asset.
+// - kolom Asset Items memilih baris SalesOrderItem dengan asset_id terisi dan
+//   tidak menampilkan gudang sumber.
 // - Visibilitas kondisional: reference_to (disembunyikan saat is_return tanpa
 //   return_against), return_against (hanya saat is_return), customer (hanya
 //   utk referenceable_type SalesOrder), customer_branch (hanya saat ada
@@ -65,12 +65,21 @@ vi.mock("@/Pages/Core/FormPage", async () => {
   const React = await import("react");
   const ctx = React.createContext();
   return {
-    FormPageContent: ({ title, children }) => (
-      <section>
-        {title && <h3>{title}</h3>}
-        {children}
-      </section>
-    ),
+    // Spec asset-items-section: props tiap section ditangkap per title supaya test
+    // bisa memeriksa collapsible/defaultOpen section Asset Items.
+    FormPageContent: (props) => {
+      const { title, children } = props;
+      if (title) {
+        captured.contentProps = { ...captured.contentProps, [title]: props };
+      }
+      return (
+        <section>
+          {title && <h3>{title}</h3>}
+          {children}
+        </section>
+      );
+    },
+    FormPageContentDescription: ({ children }) => <p>{children}</p>,
     useFormPage: (...a) => useFormPageMock(...a),
     useFormPageMeta: () => undefined,
     FormPageContext: ctx,
@@ -82,15 +91,15 @@ vi.mock("@/Pages/Core/FormPage", async () => {
 // DeliveryNotes yang diuji hanya bertanggung jawab meneruskan
 // columns/value/onValueChange dengan benar, bukan mekanisme rendering tabel
 // FormTable itu sendiri. Ditangkap via captured.formTableProps (tabel utama
-// item) -- FormTable juga dipakai NESTED di dalam kolom asset_lines, jadi
-// mock harus tetap bisa dipanggil rekursif; disambung via data-testid+name.
+// item) -- kedua tabel menyimpan daftar baris secara langsung.
 const captured = {};
 vi.mock("@/Components/FormTable", () => ({
   default: (props) => {
     if (props.name === "DeliveryNoteItems") {
       captured.formTableProps = props;
-    } else if (props.name === "DeliveryNoteItemAssetLines") {
-      captured.assetLinesFormTableProps = props;
+    } else if (props.name === "DeliveryNoteAssetItems") {
+      // Spec asset-items-section: tabel Asset Items terpisah dari Items.
+      captured.assetFormTableProps = props;
     }
     return (
       <div data-testid={`stub-form-table-${props.name}`}>
@@ -161,13 +170,16 @@ vi.mock("@/Components/LinkModel", () => ({
       disabled={disabled}
       data-filters={JSON.stringify(filters)}
       onClick={() =>
-        onValueChange({
-          id: 5,
-          undelivered_quantity: 12,
-          conversion_factor: 2,
-          unit: { id: 3, name: "Pcs" },
-          source_warehouse: { id: 20, name: "Gudang A" },
-        })
+        onValueChange(
+          // Payload bisa di-override per test (mis. referenceable dengan items[]).
+          globalThis.__linkModelPayload ?? {
+            id: 5,
+            undelivered_quantity: 12,
+            conversion_factor: 2,
+            unit: { id: 3, name: "Pcs" },
+            source_warehouse: { id: 20, name: "Gudang A" },
+          },
+        )
       }
     >
       link-model:{model}:{value?.id ?? "none"}
@@ -210,23 +222,25 @@ vi.mock("./DeliveryNoteLinkModel", () => ({
     <button
       type="button"
       onClick={() =>
-        onValueChange({
-          id: 900,
-          reference_to: {
-            model: "App\\Models\\Sales\\SalesOrder",
-            name: "sales.salesOrder.detail",
-          },
-          referenceable: { id: 5 },
-          customer: { id: 1, name: "PT Pelanggan" },
-          customer_branch: { id: 10, name: "Cabang Utama" },
-          items: [
-            {
-              id: 77,
-              item: { id: 1, name: "Item Retur" },
-              unreturned_quantity: 4,
+        onValueChange(
+          globalThis.__returnAgainstPayload ?? {
+            id: 900,
+            reference_to: {
+              model: "App\\Models\\Sales\\SalesOrder",
+              name: "sales.salesOrder.detail",
             },
-          ],
-        })
+            referenceable: { id: 5 },
+            customer: { id: 1, name: "PT Pelanggan" },
+            customer_branch: { id: 10, name: "Cabang Utama" },
+            items: [
+              {
+                id: 77,
+                item: { id: 1, name: "Item Retur" },
+                unreturned_quantity: 4,
+              },
+            ],
+          },
+        )
       }
     >
       return-against:{value?.id ?? "none"}
@@ -253,6 +267,7 @@ vi.mock("@/Components/NumberInput", () => ({
 }));
 
 import { useState } from "react";
+import SalesOrderItemLinkModel from "@/Pages/Sales/SalesOrders/SalesOrderItemLinkModel";
 import Form from "./Form";
 
 function TestFormPageState({ initial, stateRef, children }) {
@@ -301,6 +316,8 @@ describe("Inventory DeliveryNotes Form.jsx", () => {
   beforeEach(() => {
     vi.clearAllMocks();
     Object.keys(captured).forEach((k) => delete captured[k]);
+    globalThis.__linkModelPayload = undefined;
+    globalThis.__returnAgainstPayload = undefined;
   });
 
   // --------------------------------------------------------------------
@@ -344,6 +361,7 @@ describe("Inventory DeliveryNotes Form.jsx", () => {
           customer: { id: 1 },
           customer_branch: { id: 10 },
           items: [{ id: 1, item: { id: 1 } }],
+          asset_items: [{ id: 2, item: { id: 2 } }],
         },
       });
 
@@ -356,6 +374,26 @@ describe("Inventory DeliveryNotes Form.jsx", () => {
       expect(stateRef.data.customer).toBeNull();
       expect(stateRef.data.customer_branch).toBeNull();
       expect(stateRef.data.items).toBeNull();
+      // Spec asset-items-section: reset header juga mengosongkan Asset Items.
+      expect(stateRef.data.asset_items).toBeNull();
+    });
+
+    it("memilih reference_to (val ada) mempertahankan items dan asset_items lama", async () => {
+      const user = userEvent.setup({ delay: null });
+      const { stateRef } = renderForm({
+        data: {
+          delivery_date: new Date("2026-01-01"),
+          items: [{ id: 1 }],
+          asset_items: [{ id: 2 }],
+        },
+      });
+
+      await user.click(
+        screen.getByRole("button", { name: /^reference-to:sales-order:/ }),
+      );
+
+      expect(stateRef.data.items).toEqual([{ id: 1 }]);
+      expect(stateRef.data.asset_items).toEqual([{ id: 2 }]);
     });
 
     it("reference_to TIDAK dirender ketika is_return true tanpa return_against", () => {
@@ -418,9 +456,9 @@ describe("Inventory DeliveryNotes Form.jsx", () => {
         "App\\Models\\Sales\\SalesOrder",
       );
       expect(stateRef.data.referenceable_id).toBe(5);
-      // Stub LinkModel tidak mengirim `items` di payload val -> val?.items
-      // adalah undefined, jadi items jadi undefined (map di atas undefined).
-      expect(stateRef.data.items).toBeUndefined();
+      // Payload tanpa source rows menghasilkan kedua bucket kosong.
+      expect(stateRef.data.items).toEqual([]);
+      expect(stateRef.data.asset_items).toEqual([]);
     });
 
     it("val.items dipetakan: quantity & required_quantity dari undelivered_quantity, referenceable_id dari item.id", async () => {
@@ -781,10 +819,9 @@ describe("Inventory DeliveryNotes Form.jsx", () => {
           conversion_factor: 2,
         }),
       );
-      // item TIDAK disimpan (komentar source: item_id diambil backend dari
-      // referenceable) -- pastikan key `item` tidak ada di payload setData.
+      // item_id diisi backend dari referenceable; field UI item tidak dipakai.
       const callArg = setDataRow.mock.calls[0][0];
-      expect(callArg).not.toHaveProperty("item");
+      expect(callArg.item).toBeNull();
     });
 
     it("filters kolom item pakai sales_order_id dari data.referenceable.id (header, BUKAN dataRow) untuk reference_to SalesOrder", () => {
@@ -842,94 +879,352 @@ describe("Inventory DeliveryNotes Form.jsx", () => {
     });
   });
 
-  // --------------------------------------------------------------------
-  // itemColumns "asset_lines" cell: mismatch quantity asset vs baris item
-  // --------------------------------------------------------------------
-  describe("itemColumns - kolom asset_lines", () => {
-    function getAssetLinesColumn() {
-      return captured.formTableProps.columns.find(
-        (c) => c.name === "asset_lines",
-      );
-    }
-
-    it("menampilkan '-' ketika item baris bukan fixed asset", () => {
+  describe("source asset row", () => {
+    it("memakai SalesOrderItemLinkModel dengan template Asset dan tanpa kolom warehouse", () => {
       renderForm({
         data: {
-          delivery_date: new Date("2026-01-01"),
+          delivery_date: new Date(),
+          items: [],
+          asset_items: [],
+          reference_to: { model: "App\\Models\\Sales\\SalesOrder" },
+          referenceable: { id: 7 },
+        },
+      });
+
+      const assetColumns = captured.assetFormTableProps.columns;
+      const sourceColumn = assetColumns.find(
+        (column) => column.name === "item",
+      );
+      const cell = sourceColumn.cell({
+        dataRow: {},
+        setData: vi.fn(),
+        attributes: {},
+      });
+
+      expect(sourceColumn.titleTrans).toBe("asset.assetItems.asset");
+      expect(cell.type).toBe(SalesOrderItemLinkModel);
+      expect(cell.props.as).toBe("asset:asset_id");
+      expect(assetColumns.map((column) => column.name)).toEqual([
+        "item",
+        "description",
+        "quantity",
+      ]);
+    });
+
+    it("memilih source row mempertahankan referenceable dan mengisi asset_id langsung", () => {
+      renderForm({
+        data: {
+          delivery_date: new Date(),
+          items: [],
+          asset_items: [],
+          reference_to: { model: "App\\Models\\Sales\\SalesOrder" },
+          referenceable: { id: 7 },
+        },
+      });
+
+      const setRow = vi.fn();
+      const cell = captured.assetFormTableProps.columns
+        .find((column) => column.name === "item")
+        .cell({ dataRow: {}, setData: setRow, attributes: {} });
+      const sourceRow = {
+        id: "source-asset-1",
+        asset_id: "asset-1",
+        asset: { id: "asset-1" },
+        undelivered_quantity: 2,
+        unit: { id: "unit-1" },
+      };
+      cell.props.onValueChange(sourceRow);
+
+      expect(setRow).toHaveBeenCalledWith(
+        expect.objectContaining({
+          referenceable: sourceRow,
+          referenceable_id: "source-asset-1",
+          asset_id: "asset-1",
+          asset: { id: "asset-1" },
+          source_warehouse: null,
+        }),
+      );
+    });
+  });
+
+  // --------------------------------------------------------------------
+  // Spec asset-items-section: section Asset Items terpisah dari Items
+  // --------------------------------------------------------------------
+  describe("section Asset Items (spec asset-items-section)", () => {
+    const ASSET_ITEMS_TITLE = "asset.assetItems.title";
+    const SALES_ORDER = "App\\Models\\Sales\\SalesOrder";
+    const INTERNAL_ORDER = "App\\Models\\Sales\\InternalOrder";
+
+    it("merender section Asset Items untuk Sales Order di atas Items", () => {
+      renderForm({
+        data: {
+          delivery_date: new Date(),
+          items: [],
+          asset_items: [],
+          reference_to: { model: SALES_ORDER },
+        },
+      });
+
+      expect(screen.getByText(ASSET_ITEMS_TITLE)).toBeInTheDocument();
+      expect(
+        screen.getByText("asset.assetItems.description"),
+      ).toBeInTheDocument();
+      expect(captured.contentProps[ASSET_ITEMS_TITLE].collapsible).toBe(true);
+
+      const headings = screen
+        .getAllByRole("heading", { level: 3 })
+        .map((heading) => heading.textContent);
+      expect(headings.indexOf(ASSET_ITEMS_TITLE)).toBe(
+        headings.indexOf("inventory.deliveryNote.items") - 1,
+      );
+    });
+
+    it("tertutup default saat belum ada baris aset, terbuka saat defaultData punya asset_items", () => {
+      const { unmount } = renderForm({
+        data: {
+          delivery_date: new Date(),
+          items: [],
+          asset_items: [],
+          reference_to: { model: SALES_ORDER },
+        },
+      });
+      expect(captured.contentProps[ASSET_ITEMS_TITLE].defaultOpen).toBe(false);
+      unmount();
+
+      const assetRow = { id: "a1", referenceable: { item_id: "I2" } };
+      renderForm({
+        data: {
+          delivery_date: new Date(),
+          items: [],
+          asset_items: [assetRow],
+          reference_to: { model: SALES_ORDER },
+        },
+        defaultData: { asset_items: [assetRow] },
+      });
+      expect(captured.contentProps[ASSET_ITEMS_TITLE].defaultOpen).toBe(true);
+    });
+
+    it("dua FormTable dengan name berbeda; value dan onValueChange terpisah", () => {
+      const itemRow = { id: "r1" };
+      const assetRow = { id: "a1" };
+      const { stateRef } = renderForm({
+        data: {
+          delivery_date: new Date(),
+          items: [itemRow],
+          asset_items: [assetRow],
+          reference_to: { model: SALES_ORDER },
+        },
+      });
+
+      expect(captured.formTableProps.name).toBe("DeliveryNoteItems");
+      expect(captured.assetFormTableProps.name).toBe("DeliveryNoteAssetItems");
+      expect(captured.formTableProps.value).toEqual([itemRow]);
+      expect(captured.assetFormTableProps.value).toEqual([assetRow]);
+
+      act(() => {
+        captured.assetFormTableProps.onValueChange([{ id: "a9" }]);
+      });
+
+      expect(stateRef.data.asset_items).toEqual([{ id: "a9" }]);
+      expect(stateRef.data.items).toEqual([itemRow]);
+    });
+
+    it("kolom Asset Items menghilangkan Source Warehouse dari Items", () => {
+      renderForm({
+        data: {
+          delivery_date: new Date(),
+          items: [],
+          asset_items: [],
+          reference_to: { model: SALES_ORDER },
+        },
+      });
+
+      const names = (props) => props.columns.map((column) => column.name);
+
+      expect(names(captured.assetFormTableProps)).toEqual(
+        names(captured.formTableProps).filter(
+          (name) => !["source_warehouse", "unit"].includes(name),
+        ),
+      );
+    });
+
+    it("filter dan template link SalesOrderItem mengikuti asset_id per section", () => {
+      renderForm({
+        data: {
+          delivery_date: new Date(),
+          items: [],
+          asset_items: [],
+          reference_to: { model: SALES_ORDER },
+          referenceable: { id: 7 },
+        },
+      });
+
+      const itemCell = captured.formTableProps.columns
+        .find((c) => c.name === "item")
+        .cell({ dataRow: {}, setData: vi.fn(), attributes: {} });
+      const assetCell = captured.assetFormTableProps.columns
+        .find((c) => c.name === "item")
+        .cell({ dataRow: {}, setData: vi.fn(), attributes: {} });
+
+      expect(itemCell.props.filters).toEqual({
+        sales_order_id: 7,
+        undelivered_quantity: { ">": 0 },
+        asset_id: null,
+      });
+      expect(assetCell.type).toBe(SalesOrderItemLinkModel);
+      expect(assetCell.props.as).toBe("asset:asset_id");
+      expect(assetCell.props.filters).toEqual({
+        sales_order_id: 7,
+        undelivered_quantity: { ">": 0 },
+        asset_id: { "!=": null },
+      });
+    });
+
+    it("Asset Items disembunyikan untuk InternalOrder dan picker barang tetap memakai model asal", () => {
+      renderForm({
+        data: {
+          delivery_date: new Date(),
+          items: [],
+          asset_items: [],
+          reference_to: { model: INTERNAL_ORDER },
+          referenceable: { id: 8 },
+        },
+      });
+
+      const cell = captured.formTableProps.columns
+        .find((c) => c.name === "item")
+        .cell({ dataRow: {}, setData: vi.fn(), attributes: {} });
+
+      expect(captured.assetFormTableProps).toBeUndefined();
+      expect(screen.queryByText(ASSET_ITEMS_TITLE)).not.toBeInTheDocument();
+      expect(cell.type).not.toBe(SalesOrderItemLinkModel);
+      expect(cell.props.filters).toEqual({
+        internal_order_id: 8,
+        undelivered_quantity: { ">": 0 },
+      });
+    });
+
+    it("toggle is_return mereset asset_items bersama items", async () => {
+      const user = userEvent.setup({ delay: null });
+      const { stateRef } = renderForm({
+        data: {
+          delivery_date: new Date(),
+          items: [{ id: 1 }],
+          asset_items: [{ id: 2 }],
+        },
+      });
+
+      await user.click(
+        document.querySelector('[role="forminput"][aria-checked]'),
+      );
+
+      expect(stateRef.data.items).toEqual([]);
+      expect(stateRef.data.asset_items).toEqual([]);
+    });
+
+    describe("baris hasil pilih referenceable/retur dipisah berdasarkan asset_id", () => {
+      const referenceablePayload = () => ({
+        id: 5,
+        items: [
+          { id: 100, item_id: "V1", asset_id: null, undelivered_quantity: 3 },
+          {
+            id: 101,
+            item_id: null,
+            asset_id: "A1",
+            asset: { id: "A1" },
+            undelivered_quantity: 1,
+          },
+        ],
+      });
+      const soData = () => ({
+        delivery_date: new Date("2026-01-01"),
+        reference_to: { model: SALES_ORDER, name: "sales.salesOrder.detail" },
+        items: [],
+      });
+      const clickReferenceable = (user) =>
+        user.click(
+          screen.getByRole("button", {
+            name: /^link-model:App\\Models\\Sales\\SalesOrder:/,
+          }),
+        );
+
+      it("mempartisi Sales Order rows tanpa lookup ItemVariant", async () => {
+        const user = userEvent.setup({ delay: null });
+        globalThis.__linkModelPayload = referenceablePayload();
+        const { stateRef } = renderForm({ data: soData() });
+
+        await clickReferenceable(user);
+
+        await waitFor(() => expect(stateRef.data.asset_items).toHaveLength(1));
+        expect(stateRef.data.items.map((row) => row.referenceable_id)).toEqual([
+          100,
+        ]);
+        expect(
+          stateRef.data.asset_items.map((row) => row.referenceable_id),
+        ).toEqual([101]);
+        expect(stateRef.data.asset_items[0].asset_id).toBe("A1");
+      });
+
+      it("tanpa asset_id: semua baris tetap di items dan asset_items kosong", async () => {
+        const user = userEvent.setup({ delay: null });
+        const payload = referenceablePayload();
+        payload.items[1].asset_id = null;
+        payload.items[1].item_id = "V2";
+        payload.items[1].asset = null;
+        globalThis.__linkModelPayload = payload;
+        const { stateRef } = renderForm({ data: soData() });
+
+        await clickReferenceable(user);
+        await waitFor(() => expect(stateRef.data.items).toHaveLength(2));
+
+        expect(stateRef.data.asset_items).toEqual([]);
+      });
+
+      it("referenceable tanpa items menghasilkan kedua bucket kosong", async () => {
+        const user = userEvent.setup({ delay: null });
+        globalThis.__linkModelPayload = { id: 5 };
+        const { stateRef } = renderForm({ data: soData() });
+
+        await clickReferenceable(user);
+
+        expect(stateRef.data.items).toEqual([]);
+        expect(stateRef.data.asset_items).toEqual([]);
+      });
+
+      it("retur: baris sumber ber-asset_id dipindah ke asset_items", async () => {
+        const user = userEvent.setup({ delay: null });
+        globalThis.__returnAgainstPayload = {
+          id: 900,
+          reference_to: { model: SALES_ORDER },
+          referenceable: { id: 5 },
           items: [
-            { id: 1, referenceable: { item: { is_fixed_asset: false } } },
+            {
+              id: 77,
+              item_id: null,
+              asset_id: "A1",
+              asset: { id: "A1" },
+              unreturned_quantity: 4,
+            },
           ],
-        },
-      });
+        };
+        const { stateRef } = renderForm({
+          data: {
+            delivery_date: new Date("2026-01-01"),
+            items: [],
+            is_return: true,
+          },
+        });
 
-      const col = getAssetLinesColumn();
-      const cellEl = col.cell({
-        dataRow: { referenceable: { item: { is_fixed_asset: false } } },
-        data: [],
-        setData: vi.fn(),
-        attributes: {},
-      });
-      expect(cellEl.props.children).toBe("-");
-    });
+        await user.click(
+          screen.getByRole("button", { name: /^return-against:/ }),
+        );
 
-    it("tidak ada pesan mismatch ketika total quantity asset_lines sama dengan quantity baris", () => {
-      renderForm({
-        data: { delivery_date: new Date("2026-01-01"), items: [] },
+        await waitFor(() => expect(stateRef.data.asset_items).toHaveLength(1));
+        expect(stateRef.data.items).toEqual([]);
+        expect(stateRef.data.asset_items[0].return_against_item).toEqual(
+          expect.objectContaining({ id: 77 }),
+        );
       });
-
-      const col = getAssetLinesColumn();
-      const cellEl = col.cell({
-        dataRow: {
-          referenceable: { item: { is_fixed_asset: true } },
-          quantity: 5,
-        },
-        data: [{ quantity: 2 }, { quantity: 3 }],
-        setData: vi.fn(),
-        attributes: {},
-      });
-      // children: [FormTable, mismatch && <p>] -- mismatch false -> falsy,
-      // React tidak merender node kedua sebagai <p>.
-      const childrenArray = cellEl.props.children;
-      expect(childrenArray[1]).toBeFalsy();
-    });
-
-    it("menampilkan pesan mismatch ketika total quantity asset_lines beda dari quantity baris", () => {
-      renderForm({
-        data: { delivery_date: new Date("2026-01-01"), items: [] },
-      });
-
-      const col = getAssetLinesColumn();
-      const cellEl = col.cell({
-        dataRow: {
-          referenceable: { item: { is_fixed_asset: true } },
-          quantity: 5,
-        },
-        data: [{ quantity: 2 }, { quantity: 1 }],
-        setData: vi.fn(),
-        attributes: {},
-      });
-      const childrenArray = cellEl.props.children;
-      expect(childrenArray[1]).toBeTruthy();
-    });
-
-    it("total quantity asset mengabaikan nilai non-numerik (Number(...)||0)", () => {
-      renderForm({
-        data: { delivery_date: new Date("2026-01-01"), items: [] },
-      });
-
-      const col = getAssetLinesColumn();
-      const cellEl = col.cell({
-        dataRow: {
-          referenceable: { item: { is_fixed_asset: true } },
-          quantity: 2,
-        },
-        data: [{ quantity: "abc" }, { quantity: 2 }],
-        setData: vi.fn(),
-        attributes: {},
-      });
-      // total = 0 (abc) + 2 = 2, sama dengan quantity baris (2) -> no mismatch.
-      const childrenArray = cellEl.props.children;
-      expect(childrenArray[1]).toBeFalsy();
     });
   });
 

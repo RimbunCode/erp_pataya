@@ -10,7 +10,6 @@ use App\Models\Asset\AssetCategoryAccount;
 use App\Models\Core\GlPostingStatus;
 use App\Models\Finances\GeneralLedger;
 use App\Models\Finances\SalesInvoiceItem;
-use App\Models\Finances\SalesInvoiceItemAsset;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Schema;
@@ -86,16 +85,12 @@ class PostAssetDisposalGainLossTest extends TestCase {
         return $asset->refresh();
     }
 
-    private function makeLine(Asset $asset, float $quantity, float $price, float $itemQuantity = 1): SalesInvoiceItemAsset {
-        $item = SalesInvoiceItem::factory()->create([
-            'quantity' => $itemQuantity,
+    private function makeLine(Asset $asset, float $quantity, float $price): SalesInvoiceItem {
+        return SalesInvoiceItem::factory()->create([
+            'item_id'  => null,
+            'asset_id' => $asset->id,
+            'quantity' => $quantity,
             'price'    => $price,
-        ]);
-
-        return SalesInvoiceItemAsset::factory()->create([
-            'sales_invoice_item_id' => $item->id,
-            'asset_id'              => $asset->id,
-            'quantity'              => $quantity,
         ]);
     }
 
@@ -113,7 +108,9 @@ class PostAssetDisposalGainLossTest extends TestCase {
         $line->refresh();
         $this->assertNotNull($line->processed_at);
 
-        $glStatus = GlPostingStatus::where('referenceable_id', $line->id)->first();
+        $glStatus = GlPostingStatus::where('referenceable_type', SalesInvoiceItem::class)
+            ->where('referenceable_id', $line->id)
+            ->first();
         $this->assertEquals(FormStatus::POSTED, $glStatus->status);
     }
 
@@ -147,7 +144,9 @@ class PostAssetDisposalGainLossTest extends TestCase {
 
         (new PostAssetDisposalGainLoss)->failed(new AssetSoldViaInvoice($line), new RuntimeException('Account not found'));
 
-        $glStatus = GlPostingStatus::where('referenceable_id', $line->id)->first();
+        $glStatus = GlPostingStatus::where('referenceable_type', SalesInvoiceItem::class)
+            ->where('referenceable_id', $line->id)
+            ->first();
         $this->assertEquals(FormStatus::FAILED, $glStatus->status);
         $this->assertEquals('Account not found', $glStatus->last_error);
     }
