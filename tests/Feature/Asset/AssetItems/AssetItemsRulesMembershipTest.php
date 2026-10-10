@@ -25,7 +25,7 @@ class AssetItemsRulesMembershipTest extends TestCase {
 
         AssetItemsRules::validateMembership(
             $validator,
-            ['items'         => $items, 'asset_items' => $assetItems],
+            ['items' => $items, 'asset_items' => $assetItems],
             fn (array $rows) => $this->assetIdsFromAssetKey($rows),
             'asset',
         );
@@ -84,7 +84,7 @@ class AssetItemsRulesMembershipTest extends TestCase {
 
         AssetItemsRules::validateMembership(
             $validator,
-            ['items'         => [['v' => 'asset-a']], 'asset_items' => []],
+            ['items' => [['v' => 'asset-a']], 'asset_items' => []],
             fn (array $rows) => array_map(fn ($row) => $row['v'], $rows),
             'sales_order_item',
         );

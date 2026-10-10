@@ -1317,12 +1317,16 @@ describe("Sales Order Form.jsx", () => {
         names(captured.formTableProps)
           .filter(
             (name) =>
-              !["source_warehouse", "available_quantity", "unit"].includes(name),
+              !["source_warehouse", "available_quantity", "unit"].includes(
+                name,
+              ),
           )
           .map((name) => (name === "item" ? "asset" : name)),
       );
       expect(
-        captured.assetFormTableProps.columns.find((column) => column.name === "tax").required,
+        captured.assetFormTableProps.columns.find(
+          (column) => column.name === "tax",
+        ).required,
       ).toBe(true);
     });
 
