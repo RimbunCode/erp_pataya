@@ -4,6 +4,7 @@ namespace Tests;
 
 use App\Models\Scopes\DataTableScope;
 use App\Services\Core\BranchScopeCache;
+use App\Services\Core\DataTableConfigCache;
 use App\Services\Core\SchemaColumnCache;
 use Illuminate\Foundation\Testing\TestCase as BaseTestCase;
 
@@ -29,5 +30,9 @@ abstract class TestCase extends BaseTestCase {
         // afiliasi main-branch per user id + id Branch per session('currentBranch')
         // lewat BranchScopeCache, statis per proses.
         BranchScopeCache::forget();
+
+        // Memo flat() DataTableConfigCache, statis per proses: tanpa reset, konfigurasi
+        // kolom dari test lain (skema/konfigurasi model berbeda) bisa nyangkut.
+        DataTableConfigCache::forgetMemo();
     }
 }

@@ -7,6 +7,7 @@ use App\Models\Core\Desk;
 use App\Models\Core\DeskMenuItem;
 use App\Models\Core\MenuItem;
 use App\Models\User\User;
+use App\Services\Core\Desk\DeskOnceProp;
 use App\Services\Core\Desk\DeskResolverService;
 use App\Services\Core\Desk\MenuItemUrlResolver;
 use App\Services\Core\PermissionChecker;
@@ -16,6 +17,12 @@ use Inertia\Inertia;
 use Symfony\Component\HttpFoundation\Response;
 
 class ResolveActiveDesk {
+    /** Detik. Batas basi sidebar/desk list di client (once prop). */
+    private const SIDEBAR_CACHE_TTL = 300;
+
+    /** @var list<string> Route yang membaca atribut 'resolvedDesk' di awal action. */
+    private const EAGER_DESK_ROUTES = ['dashboard', 'dashboard.widgets.update'];
+
     public function __construct(
         private DeskResolverService $resolver,
         private MenuItemUrlResolver $urlResolver,
@@ -60,50 +67,95 @@ class ResolveActiveDesk {
         $viewingOwnProfile = $routeName === 'users.show'
             && (string) $this->routeUserId($request) === (string) $user->id;
 
-        try {
-            $desk = $this->resolver->resolve($request, $user, $checker, ignoreRouteRelevance: $viewingOwnProfile);
-        } catch (\RuntimeException $e) {
-            // User benar-benar tidak punya Desk visible sama sekali (mis.
-            // data seeder Desk belum ada). Bukan kondisi fatal — biarkan
-            // request lanjut tanpa konteks Desk, bukan block seluruh akses.
-            return $next($request);
+        // Desk aktif di-resolve MALAS, baru saat Inertia benar-benar memproses prop
+        // yang membutuhkannya (activeDesk/deskList/menuItems). Reload parsial yang
+        // tak memintanya, XHR JSON, dan aksi POST yang tak merender halaman jadi
+        // tak menjalankan query desk sama sekali -- keputusan "prop dibutuhkan atau
+        // tidak" tetap di Inertia (termasuk respons penuh setelah redirect).
+        $desk        = null;
+        $resolved    = false;
+        $resolveDesk = function () use ($request, $user, $checker, $viewingOwnProfile, &$desk, &$resolved): ?Desk {
+            if (! $resolved) {
+                $resolved = true;
+                try {
+                    $desk = $this->resolver->resolve($request, $user, $checker, ignoreRouteRelevance: $viewingOwnProfile);
+                    $request->attributes->set('resolvedDesk', $desk);
+                } catch (\RuntimeException) {
+                    // User benar-benar tidak punya Desk visible sama sekali (mis.
+                    // data seeder Desk belum ada). Bukan kondisi fatal — request
+                    // lanjut tanpa konteks Desk, bukan block seluruh akses.
+                }
+            }
+
+            return $desk;
+        };
+
+        // desk-dashboard-builder: controller ini membaca atribut 'resolvedDesk'
+        // di awal action (sebelum Inertia memproses prop), jadi harus eager.
+        if (\in_array($routeName, self::EAGER_DESK_ROUTES, true)) {
+            $resolveDesk();
         }
 
-        // desk-dashboard-builder: expose Desk aktif ke controller lain
-        // (DeskController::home()/updateDashboardWidgets()) tanpa re-resolve.
-        $request->attributes->set('resolvedDesk', $desk);
+        // Kunci once prop: berubah (=> client memuat ulang) kalau user, desk aktif,
+        // desk di-edit, menu desk diedit, permission, atau role berubah. Selama sama,
+        // client menyimpan nilai lama lintas halaman dan server tak membangun ulang.
+        //
+        // Revisi menu = ULID terbesar baris pivot desk. updated_at hanya presisi detik
+        // dan edit yang cuma mengganti menu tak mengubah atribut desk, jadi dua simpan
+        // dalam detik yang sama akan menghasilkan kunci yang sama. saveMenuItems()
+        // selalu membuat ulang baris pivot (ULID baru, makin besar), jadi token ini
+        // pasti berubah di setiap simpan. Tanpa kolom baru: tak butuh migrasi.
+        $menuRevision = null;
+        $onceKey      = fn (string $prop, bool $withMenuRevision = false): Closure => function () use ($prop, $withMenuRevision, $resolveDesk, $user, $request, &$menuRevision): ?string {
+            $activeDesk = $resolveDesk();
+            if (! $activeDesk) {
+                return null;
+            }
+
+            if ($withMenuRevision) {
+                $menuRevision ??= (string) DeskMenuItem::query()->where('desk_id', $activeDesk->id)->max('id');
+            }
+
+            return $prop . ':' . md5(implode('|', [
+                $user->id,
+                $activeDesk->id,
+                $activeDesk->updated_at?->getTimestamp(),
+                $withMenuRevision ? $menuRevision : '',
+                $request->session()->get('permissions_version'),
+                $request->session()->get('shared_user_role_ids_version'),
+            ]));
+        };
 
         Inertia::share([
-            'activeDesk' => $desk->only(['id', 'name', 'icon', 'background_color', 'foreground_color']),
-            // Inertia::defer (BUKAN closure polos fn () => ...): closure
-            // polos cuma di-skip PropsResolver Inertia (vendor) di PARTIAL
-            // RELOAD yang tak minta prop ini -- di FULL/INITIAL page load,
-            // closure polos TETAP dieksekusi & hasilnya TETAP dikirim (cuma
-            // DeferProp/OptionalProp yang implement IgnoreFirstLoad, prop
-            // type yang dihasilkan Inertia::defer(), yang dikecualikan dari
-            // initial response). Ditemukan lewat inspeksi payload nyata
-            // (bukan asumsi dari komentar lama di sini): `menuItems`/
-            // `deskList` SELALU keisi array penuh di initial load manapun
-            // (Index, Show, dst) -- bukan deferred sama sekali. Middleware
-            // ini eksekusi di SETIAP request terautentikasi (grup route
-            // 'app','desk'), jadi buildMenuTree() (rekursif resolve URL +
-            // cek permission per item) & visibleDesksFor() (query Desk
-            // dgn whereHas berlapis) ikut jalan LENGKAP di SETIAP halaman
-            // -- bukan cuma Show, TERMASUK Index kosong tanpa data sama
-            // sekali. Satu grup defer ('desk') supaya deskList+menuItems
-            // ke-load dalam SATU partial request (dipakai bareng oleh
-            // Sidebar/DeskSwitcher), bukan dua request terpisah.
-            'deskList' => Inertia::defer(fn () => $this->resolver->visibleDesksFor($user, $checker, $request)
-                // 'type' (system|custom) diikutkan — feedback user: DeskSwitcher
-                // urutkan system dulu baru custom, dengan divider di antaranya.
-                ->map->only(['id', 'name', 'icon', 'background_color', 'foreground_color', 'type'])
-                ->values(), 'desk'),
-            'menuItems' => Inertia::defer(fn () => $this->buildMenuTree($desk, $checker), 'desk'),
+            'activeDesk' => fn () => $resolveDesk()?->only(['id', 'name', 'icon', 'background_color', 'foreground_color']),
+            // once (bukan defer): kalau client belum punya prop dgn kunci ini
+            // (kunjungan pertama, ganti desk, permission berubah) isinya
+            // langsung ikut di respons yang sama -- tanpa skeleton/kedip.
+            // Kalau sudah punya, server melewatinya dan client memakai nilai
+            // lama, jadi pindah halaman di desk yang sama tak membangun ulang
+            // sidebar. TTL = batas basi utk perubahan yang tak mengubah kunci
+            // (mis. admin mengedit desk bersama milik user lain).
+            // Keduanya lewat $resolveDesk(): kalau desk gagal di-resolve (user tanpa
+            // desk, atau skema belum lengkap) tak ada query desk lain yang dijalankan.
+            'deskList' => (new DeskOnceProp(
+                fn () => $resolveDesk()
+                    ? $this->resolver->visibleDesksFor($user, $checker, $request)
+                        // 'type' (system|custom) dipakai DeskSwitcher: system dulu, lalu custom.
+                        ->map->only(['id', 'name', 'icon', 'background_color', 'foreground_color', 'type'])
+                        ->values()
+                    : [],
+                $onceKey('deskList'),
+            ))->until(self::SIDEBAR_CACHE_TTL),
+            'menuItems' => (new DeskOnceProp(
+                fn () => ($activeDesk = $resolveDesk()) ? $this->buildMenuTree($activeDesk, $checker) : [],
+                $onceKey('menuItems', withMenuRevision: true),
+            ))->until(self::SIDEBAR_CACHE_TTL),
         ]);
 
-        return $next($request)->withCookie(
-            cookie('active_desk', $desk->id, 60 * 24 * 30),
-        );
+        $response = $next($request);
+
+        // Cookie hanya diperbarui kalau desk memang di-resolve di request ini.
+        return $desk ? $response->withCookie(cookie('active_desk', $desk->id, 60 * 24 * 30)) : $response;
     }
 
     /**
