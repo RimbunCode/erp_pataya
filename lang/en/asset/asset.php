@@ -44,6 +44,9 @@ return [
     'asset_not_rentable'                     => 'This asset is not rentable/transactable.',
     'item_mismatch'                          => 'The selected asset does not belong to this item.',
     'quantity_mismatch'                      => 'The total quantity of selected assets does not match the line quantity.',
+    'item_must_be_regular'                   => 'Fixed asset items cannot be in the Items table. Use the Asset Items section.',
+    'item_must_be_fixed_asset'               => 'Only fixed asset items are allowed in the Asset Items table. Use the Items table for regular goods.',
+    'asset_lines_moved'                      => 'Asset lines (asset_lines) must be sent through asset_items, not items.',
     'location'                               => [
         'cannot_delete_has_assets' => 'This location cannot be deleted because it still contains assets or has sub-locations with assets.',
     ],

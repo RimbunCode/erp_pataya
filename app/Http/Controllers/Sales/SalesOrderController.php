@@ -11,6 +11,7 @@ use App\Models\Core\Branch;
 use App\Models\CRM\Quotation;
 use App\Models\Sales\SalesOrder;
 use App\Models\Service\WorkOrder;
+use App\Services\Asset\AssetItems\AssetItemPartitioner;
 use App\Services\Sales\SalesOrderService;
 use App\Utils;
 use Illuminate\Http\Request;
@@ -26,7 +27,7 @@ class SalesOrderController extends Controller {
     protected function enforcePermission(string $method): ?string {
         return match ($method) {
             'markDone', 'syncItems' => 'write',
-            default                 => null,
+            default => null,
         };
     }
 
@@ -156,11 +157,33 @@ class SalesOrderController extends Controller {
             }
         }
 
+        // Spec asset-items-section: hasil prefill dari WorkOrder/Quotation/AssetService
+        // dipisah ke `items` (barang biasa) dan `asset_items` (aset tetap) di satu tempat.
+        if (isset($defaultData['items'])) {
+            $defaultData = $this->partitionDefaultItems($defaultData);
+        }
+
         $this->setBreadcrumbs('sales.salesOrder.new');
 
         return Inertia::render('Sales/SalesOrders/Show', [
             'defaultData' => $defaultData ?? null,
         ]);
+    }
+
+    /**
+     * @param  array<string,mixed>  $defaultData
+     * @return array<string,mixed>
+     */
+    private function partitionDefaultItems(array $defaultData): array {
+        $parts = app(AssetItemPartitioner::class)->partitionArrays(
+            $defaultData['items'],
+            fn ($row) => data_get($row, 'asset.id') ?? data_get($row, 'asset_id'),
+        );
+
+        $defaultData['items']       = $parts['items'];
+        $defaultData['asset_items'] = $parts['asset_items'];
+
+        return $defaultData;
     }
 
     /**
@@ -193,7 +216,8 @@ class SalesOrderController extends Controller {
             'salesOrder' => function () use ($salesOrder) {
                 $salesOrder->loadRelations();
 
-                return $salesOrder;
+                // Spec asset-items-section: `items` = barang biasa, `asset_items` = aset tetap.
+                return app(AssetItemPartitioner::class)->apply($salesOrder);
             },
         ]);
     }

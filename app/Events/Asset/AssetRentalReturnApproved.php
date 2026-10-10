@@ -2,13 +2,13 @@
 
 namespace App\Events\Asset;
 
-use App\Models\Inventory\DeliveryNoteItemAsset;
+use App\Models\Inventory\DeliveryNoteItem;
 use Illuminate\Foundation\Events\Dispatchable;
 
 class AssetRentalReturnApproved {
     use Dispatchable;
 
     public function __construct(
-        public readonly DeliveryNoteItemAsset $line,
+        public readonly DeliveryNoteItem $line,
     ) {}
 }

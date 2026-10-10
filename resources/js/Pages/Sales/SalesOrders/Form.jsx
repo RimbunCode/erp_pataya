@@ -5,6 +5,9 @@ import { calculateArray, generateRandom } from "@/lib/utils";
 import { allocateDiscount } from "@/lib/discountAllocation";
 
 import AdditionalDiscount from "@/Pages/Finances/Components/AdditionalDiscount";
+import AssetItemsSection from "@/Pages/Asset/Components/AssetItemsSection";
+import AssetLinkModel from "@/Pages/Asset/Assets/AssetLinkModel";
+import { allocationContext, getAllItems } from "@/lib/assetItems";
 import BranchLinkModel from "@/Pages/Settings/Branches/BranchLinkModel";
 import NumberInput from "@/Components/NumberInput";
 import CurrencyLinkModel from "@/Pages/Core/CurrencyLinkModel";
@@ -93,14 +96,16 @@ export default memo(function Form() {
   // di bawah (yang sudah hasil alokasi) karena kalau basis diskon ikut memakai
   // angka yang sudah terpotong, discount_rate 10% akan memotong basis yang sudah
   // menyusut di setiap render -- basis "menyusut" terus tiap kali user mengetik.
+  // Spec asset-items-section: total dan alokasi diskon dihitung dari GABUNGAN tabel
+  // Items dan Asset Items (keduanya disimpan ke sales_order_items yang sama).
   const rawLines = useMemo(() => {
-    return (data.items ?? [])
-      .filter((item) => item?.item)
+    return getAllItems({ items: data.items, asset_items: data.asset_items })
+      .filter((item) => item?.item || item?.asset)
       .map((item) => ({
         basic_amount: (item.quantity ?? 0) * (item.price ?? 0),
         tax_rate: item.tax?.rate ?? 0,
       }));
-  }, [data.items]);
+  }, [data.items, data.asset_items]);
 
   const rawNetAmount = useMemo(() => {
     return calculateArray(rawLines, "basic_amount", "+");
@@ -248,240 +253,342 @@ export default memo(function Form() {
           .filter(Boolean)
       : [];
 
-  const itemColumns = [
-    {
-      name: "item",
-      titleTrans: "sales.salesOrder.columns.item",
-      required: true,
-      width: 3,
-      cell({ dataRow, setData: setRowData, attributes }) {
-        return (
-          <ItemVariantLinkModel
-            placeholder={t("sales.salesOrder.columns.item.placeholder")}
-            fields={["is_stock_item"]}
-            disabled={dataRow?.assetServiceLocked}
-            value={dataRow.item}
-            filters={
-              data.referenceable_type === ASSET_SERVICE_CLASS
-                ? {
-                    or: {
-                      "item.category.type": "service",
-                      id: { in: consumedItemVariantIds },
-                    },
-                  }
-                : undefined
-            }
-            onValueChange={(val) => {
-              const defaultUnit = val?.default_uom;
-              const rowPatch = {
-                item: val,
-                unit: defaultUnit,
-                conversion_factor: defaultUnit?.conversion_factor,
-                source_warehouse: data.source_warehouse,
-              };
-              // Requirement 6, spec asset-service-billing-reference-flow:
-              // auto-link baris ke AssetServiceConsumedItem (match persis via
-              // item_id) atau ke AssetService langsung (item kategori Jasa),
-              // lock Item+Quantity utk baris part (Requirement 5).
-              if (data.referenceable_type === ASSET_SERVICE_CLASS) {
-                const matched = (data.referenceable?.consumed_items ?? []).find(
-                  (ci) => ci.item?.id === val?.id,
-                );
-                if (matched) {
-                  rowPatch.referenceable = {
-                    type: ASSET_SERVICE_CONSUMED_ITEM_CLASS,
-                    id: matched.id,
-                  };
-                  rowPatch.quantity = matched.quantity;
-                  rowPatch.price = matched.valuation_rate;
-                  rowPatch.unit = matched.item_unit;
-                  rowPatch.conversion_factor =
-                    matched.item_unit?.conversion_factor;
-                  rowPatch.assetServiceLocked = true;
-                } else {
-                  rowPatch.assetServiceLocked = false;
-                  if (val?.item?.category?.type === "service") {
+  // Spec asset-items-section: filter field `item` per tabel. Items meng-exclude item
+  // aset tetap, Asset Items hanya menawarkan item aset tetap. Filter `or` untuk
+  // referensi AssetService (item jasa / consumed item) hanya berlaku di tabel Items.
+  // Path relasi `item.is_fixed_asset` (ItemVariant -> Item) sudah dipakai
+  // InternalOrders/Form.jsx dan Asset/Services/Form.jsx.
+  const buildItemFilters = (kind) => ({
+    ...(kind === "item" && data.referenceable_type === ASSET_SERVICE_CLASS
+      ? {
+          or: {
+            "item.category.type": "service",
+            id: { in: consumedItemVariantIds },
+          },
+        }
+      : {}),
+    "item.is_fixed_asset": kind === "asset",
+  });
+
+  // Satu definisi kolom untuk kedua tabel -- bedanya hanya filter field `item`.
+  const buildItemColumns = (kind) => {
+    const columns = [
+      {
+        name: kind === "asset" ? "asset" : "item",
+        titleTrans:
+          kind === "asset"
+            ? "asset.assetItems.asset"
+            : "sales.salesOrder.columns.item",
+        required: true,
+        width: 3,
+        cell({ dataRow, setData: setRowData, attributes }) {
+          if (kind === "asset") {
+            return (
+              <AssetLinkModel
+                value={dataRow.asset}
+                fields={["item_id"]}
+                onValueChange={(asset) =>
+                  setRowData({
+                    asset,
+                    item: null,
+                    unit: null,
+                    conversion_factor: 1,
+                    source_warehouse: null,
+                  })
+                }
+                {...attributes}
+              />
+            );
+          }
+          return (
+            <ItemVariantLinkModel
+              placeholder={t("sales.salesOrder.columns.item.placeholder")}
+              fields={["is_stock_item"]}
+              disabled={dataRow?.assetServiceLocked}
+              value={dataRow.item}
+              filters={buildItemFilters(kind)}
+              onValueChange={(val) => {
+                const defaultUnit = val?.default_uom;
+                const rowPatch = {
+                  item: val,
+                  unit: defaultUnit,
+                  conversion_factor: defaultUnit?.conversion_factor,
+                  source_warehouse: data.source_warehouse,
+                };
+                // Requirement 6, spec asset-service-billing-reference-flow:
+                // auto-link baris ke AssetServiceConsumedItem (match persis via
+                // item_id) atau ke AssetService langsung (item kategori Jasa),
+                // lock Item+Quantity utk baris part (Requirement 5).
+                if (data.referenceable_type === ASSET_SERVICE_CLASS) {
+                  const matched = (
+                    data.referenceable?.consumed_items ?? []
+                  ).find((ci) => ci.item?.id === val?.id);
+                  if (matched) {
                     rowPatch.referenceable = {
-                      type: ASSET_SERVICE_CLASS,
-                      id: data.referenceable_id,
+                      type: ASSET_SERVICE_CONSUMED_ITEM_CLASS,
+                      id: matched.id,
                     };
+                    rowPatch.quantity = matched.quantity;
+                    rowPatch.price = matched.valuation_rate;
+                    rowPatch.unit = matched.item_unit;
+                    rowPatch.conversion_factor =
+                      matched.item_unit?.conversion_factor;
+                    rowPatch.assetServiceLocked = true;
+                  } else {
+                    rowPatch.assetServiceLocked = false;
+                    if (val?.item?.category?.type === "service") {
+                      rowPatch.referenceable = {
+                        type: ASSET_SERVICE_CLASS,
+                        id: data.referenceable_id,
+                      };
+                    }
+                  }
+                  // setData di sini SENGAJA pakai versi form-level (closure
+                  // luar), BUKAN setRowData -- customer/customer_branch adalah
+                  // field header dokumen, bukan field per-baris. WAJIB pakai
+                  // bentuk fungsi (updater) -- Inertia useForm().setData(obj)
+                  // dengan argumen objek MENGGANTI SELURUH data form (bukan
+                  // merge), yang akan menghapus date/referenceable/items dkk.
+                  const billing = resolveAssetServiceBillingCustomer(
+                    data.referenceable,
+                  );
+                  if (billing?.customer) {
+                    setData((prev) => ({
+                      ...prev,
+                      customer: billing.customer,
+                      customer_branch: billing.customer_branch,
+                    }));
                   }
                 }
-                // setData di sini SENGAJA pakai versi form-level (closure
-                // luar), BUKAN setRowData -- customer/customer_branch adalah
-                // field header dokumen, bukan field per-baris. WAJIB pakai
-                // bentuk fungsi (updater) -- Inertia useForm().setData(obj)
-                // dengan argumen objek MENGGANTI SELURUH data form (bukan
-                // merge), yang akan menghapus date/referenceable/items dkk.
-                const billing = resolveAssetServiceBillingCustomer(
-                  data.referenceable,
-                );
-                if (billing?.customer) {
-                  setData((prev) => ({
-                    ...prev,
-                    customer: billing.customer,
-                    customer_branch: billing.customer_branch,
-                  }));
-                }
+                setRowData(rowPatch);
+              }}
+              {...attributes}
+              with={["defaultUom", "item", "item.category"]}
+            />
+          );
+        },
+      },
+      {
+        name: "description",
+        titleTrans: "sales.salesOrder.columns.description",
+        show: false,
+        type: "text",
+        width: 2,
+        cell({ dataRow, data: value, setData, attributes }) {
+          return (
+            <Textarea
+              disabled={!dataRow?.item && !dataRow?.asset}
+              rows={1}
+              value={value ?? ""}
+              onChange={(e) => setData("description", e.target.value)}
+              {...attributes}
+              readOnly={true}
+            />
+          );
+        },
+      },
+      {
+        name: "source_warehouse",
+        titleTrans: "sales.salesOrder.columns.source_warehouse",
+        show: true,
+        type: "text",
+        width: 3,
+        required: true,
+        cell({ dataRow, data: value, setData, attributes }) {
+          return (
+            <WarehouseLinkModel
+              disabled={!dataRow?.item || !dataRow?.item?.is_stock_item}
+              placeholder={t(
+                "sales.salesOrder.columns.source_warehouse.placeholder",
+              )}
+              value={value}
+              onValueChange={(val) => setData("source_warehouse", val)}
+              {...attributes}
+            />
+          );
+        },
+      },
+      {
+        name: "available_quantity",
+        titleTrans: "sales.salesOrder.columns.available_quantity",
+        required: true,
+        type: "number",
+        width: 1,
+        cell({ additionalData, dataRow, attributes }) {
+          return (
+            <NumberInput
+              {...attributes}
+              disabled={!dataRow?.item || !dataRow?.item?.is_stock_item}
+              readOnly={true}
+              value={
+                dataRow?.item?.is_stock_item
+                  ? (additionalData?.available_stock ?? 0)
+                  : "∞"
               }
-              setRowData(rowPatch);
-            }}
-            {...attributes}
-            with={["defaultUom", "item", "item.category"]}
-          />
-        );
+            />
+          );
+        },
       },
-    },
-    {
-      name: "description",
-      titleTrans: "sales.salesOrder.columns.description",
-      show: false,
-      type: "text",
-      width: 2,
-      cell({ dataRow, data: value, setData, attributes }) {
-        return (
-          <Textarea
-            disabled={!dataRow?.item}
-            rows={1}
-            value={value ?? ""}
-            onChange={(e) => setData("description", e.target.value)}
-            {...attributes}
-            readOnly={true}
-          />
-        );
+      {
+        name: "quantity",
+        titleTrans: "sales.salesOrder.columns.quantity",
+        required: true,
+        type: "number",
+        width: 1,
+        cell({ dataRow, data, setData, attributes }) {
+          return (
+            <NumberInput
+              {...attributes}
+              disabled={
+                (!dataRow?.item && !dataRow?.asset) ||
+                dataRow?.assetServiceLocked
+              }
+              readOnly={
+                attributes.readOnly || (dataRow.readOnly && !dataRow.isCustom)
+              }
+              value={data}
+              onValueChange={(value) => {
+                setData("quantity", value);
+              }}
+            />
+          );
+        },
       },
-    },
-    {
-      name: "source_warehouse",
-      titleTrans: "sales.salesOrder.columns.source_warehouse",
-      show: true,
-      type: "text",
-      width: 3,
-      required: true,
-      cell({ dataRow, data: value, setData, attributes }) {
-        return (
-          <WarehouseLinkModel
-            disabled={!dataRow?.item || !dataRow?.item?.is_stock_item}
-            placeholder={t(
-              "sales.salesOrder.columns.source_warehouse.placeholder",
-            )}
-            value={value}
-            onValueChange={(val) => setData("source_warehouse", val)}
-            {...attributes}
-          />
-        );
+      {
+        name: "unit",
+        titleTrans: "sales.salesOrder.columns.unit",
+        width: 2,
+        cell({ data, setData, attributes, dataRow }) {
+          return (
+            <ItemUnitLinkModel
+              disabled={!dataRow?.item && !dataRow?.asset}
+              placeholder={t("sales.salesOrder.columns.unit.placeholder")}
+              value={data}
+              onValueChange={(val) =>
+                setData({
+                  unit: val,
+                  conversion_factor: val?.conversion_factor,
+                })
+              }
+              {...attributes}
+              filters={
+                (
+                  kind === "asset"
+                    ? dataRow?.asset?.item_id
+                    : dataRow?.item?.item_id
+                )
+                  ? {
+                      item_id:
+                        kind === "asset"
+                          ? dataRow.asset.item_id
+                          : dataRow.item.item_id,
+                    }
+                  : undefined
+              }
+            />
+          );
+        },
       },
-    },
-    {
-      name: "available_quantity",
-      titleTrans: "sales.salesOrder.columns.available_quantity",
-      required: true,
-      type: "number",
-      width: 1,
-      cell({ additionalData, dataRow, attributes }) {
-        return (
-          <NumberInput
-            {...attributes}
-            disabled={!dataRow?.item || !dataRow?.item?.is_stock_item}
-            readOnly={true}
-            value={
-              dataRow?.item?.is_stock_item
-                ? (additionalData?.available_stock ?? 0)
-                : "∞"
-            }
-          />
-        );
+      {
+        name: "tax",
+        titleTrans: "sales.salesOrder.columns.tax",
+        required: true,
+        width: 2,
+        cell({ data: value, setData, attributes, dataRow }) {
+          return (
+            <TaxLinkModel
+              disabled={!dataRow?.item && !dataRow?.asset}
+              placeholder={t("sales.salesOrder.columns.tax.placeholder")}
+              value={value}
+              onValueChange={(val) => {
+                setData("tax", val);
+              }}
+              {...attributes}
+              readOnly={
+                attributes.readOnly || (dataRow.readOnly && !dataRow.isCustom)
+              }
+            />
+          );
+        },
       },
-    },
-    {
-      name: "quantity",
-      titleTrans: "sales.salesOrder.columns.quantity",
-      required: true,
-      type: "number",
-      width: 1,
-      cell({ dataRow, data, setData, attributes }) {
-        return (
-          <NumberInput
-            {...attributes}
-            disabled={!dataRow?.item || dataRow?.assetServiceLocked}
-            readOnly={
-              attributes.readOnly || (dataRow.readOnly && !dataRow.isCustom)
-            }
-            value={data}
-            onValueChange={(value) => {
-              setData("quantity", value);
-            }}
-          />
-        );
+      {
+        name: "price",
+        titleTrans: "sales.salesOrder.columns.price",
+        required: true,
+        width: 2,
+        cell({ data: price, setData, attributes, dataRow }) {
+          return (
+            <NumberInput
+              decimalScale={2}
+              currencyCode={data?.currency?.code}
+              disabled={!dataRow?.item && !dataRow?.asset}
+              value={price}
+              onValueChange={(val) => {
+                setData("price", val);
+              }}
+              {...attributes}
+              readOnly={attributes.readOnly || !!data.submitted_at}
+            />
+          );
+        },
       },
-    },
-    {
-      name: "unit",
-      titleTrans: "sales.salesOrder.columns.unit",
-      width: 2,
-      cell({ data, setData, attributes, dataRow }) {
-        return (
-          <ItemUnitLinkModel
-            disabled={!dataRow?.item}
-            placeholder={t("sales.salesOrder.columns.unit.placeholder")}
-            value={data}
-            onValueChange={(val) =>
-              setData({
-                unit: val,
-                conversion_factor: val?.conversion_factor,
-              })
-            }
-            {...attributes}
-            filters={{
-              item_id: dataRow?.item?.item_id,
-            }}
-          />
-        );
-      },
-    },
-    {
-      name: "tax",
-      titleTrans: "sales.salesOrder.columns.tax",
-      width: 2,
-      cell({ data: value, setData, attributes, dataRow }) {
-        return (
-          <TaxLinkModel
-            disabled={!dataRow?.item}
-            placeholder={t("sales.salesOrder.columns.tax.placeholder")}
-            value={value}
-            onValueChange={(val) => {
-              setData("tax", val);
-            }}
-            {...attributes}
-            readOnly={
-              attributes.readOnly || (dataRow.readOnly && !dataRow.isCustom)
-            }
-          />
-        );
-      },
-    },
-    {
-      name: "price",
-      titleTrans: "sales.salesOrder.columns.price",
-      required: true,
-      width: 2,
-      cell({ data: price, setData, attributes, dataRow }) {
-        return (
-          <NumberInput
-            decimalScale={2}
-            currencyCode={data?.currency?.code}
-            disabled={!dataRow?.item}
-            value={price}
-            onValueChange={(val) => {
-              setData("price", val);
-            }}
-            {...attributes}
-            readOnly={attributes.readOnly || !!data.submitted_at}
-          />
-        );
-      },
-    },
-  ];
+    ];
+    return kind === "asset"
+      ? columns.filter(
+          ({ name }) =>
+            name !== "source_warehouse" &&
+            name !== "available_quantity" &&
+            name !== "unit",
+        )
+      : columns;
+  };
+
+  const itemColumns = buildItemColumns("item");
+  const assetItemColumns = buildItemColumns("asset");
+
+  // Diskon Tambahan (dokumen) mengubah discount_amount/tax_amount SETIAP baris secara
+  // pro-rata, bukan cuma baris yang sedang di-edit -- jadi alokasi dihitung ulang dari
+  // seluruh baris lalu diambil hasil untuk baris ke-`index` ini saja. Spec
+  // asset-items-section: "seluruh baris" = gabungan tabel Items + Asset Items
+  // (allocationContext), bukan hanya `dataTable` tabel yang sedang dipetakan.
+  // basic_amount TIDAK ditimpa di sini -- kolom itu generated (quantity*price) di server,
+  // konsisten dgn App\Services\Finances\DocumentDiscountCalculator::applyToItems() yang
+  // menulis discount_amount terpisah, bukan overwrite basic_amount.
+  const makeMapItem =
+    (kind) =>
+    ({ item, dataTable, index }) => {
+      const { rows, index: rowIndex } = allocationContext({
+        kind,
+        dataTable,
+        index,
+        data,
+      });
+      const grossAmounts = rows.map((row, i) =>
+        i === rowIndex
+          ? (item.quantity ?? 0) * (item.price ?? 0)
+          : (row.quantity ?? 0) * (row.price ?? 0),
+      );
+      const lines = rows.map((row, i) => ({
+        basic_amount: grossAmounts[i],
+        tax_rate: i === rowIndex ? (item.tax?.rate ?? 0) : (row.tax?.rate ?? 0),
+      }));
+      const allocated = allocateDiscount(
+        lines,
+        data.discount_on,
+        data.discount_rate ?? 0,
+        data.discount_amount ?? 0,
+        data.latestDiscountKey ?? "discount_rate",
+      );
+      const result = allocated[rowIndex] ?? allocated[0];
+      return {
+        ...item,
+        discount_amount:
+          Math.round(
+            (grossAmounts[rowIndex] - (result?.basic_amount ?? 0)) * 100,
+          ) / 100,
+        tax_amount: result?.tax_amount ?? 0,
+      };
+    };
 
   return (
     <>
@@ -626,6 +733,26 @@ export default memo(function Form() {
           </FormInput>
         </div>
       </FormPageContent>
+      {/* Spec asset-items-section: transaksi aset dipisah dari barang biasa. Section
+          tertutup kecuali dokumen sudah punya baris aset saat dimuat. */}
+      <AssetItemsSection hasRows={(defaultData?.asset_items?.length ?? 0) > 0}>
+        <div className="grid grid-cols-2 gap-x-4 gap-y-4">
+          <FormTable
+            name="SalesOrderAssetItems"
+            form={<ItemForm />}
+            className="col-start-1 col-span-full"
+            classNameDialog="max-w-(--breakpoint-lg)! w-full!"
+            readOnly={disabled}
+            columns={assetItemColumns}
+            value={data?.asset_items ?? []}
+            onValueChange={(v) => {
+              setData("asset_items", v);
+            }}
+            asyncAdditionalData={asyncAdditionalData}
+            mapItem={makeMapItem("asset")}
+          />
+        </div>
+      </AssetItemsSection>
       <FormPageContent
         value="detail"
         title={t("sales.salesOrder.items")}
@@ -716,42 +843,7 @@ export default memo(function Form() {
               setData("items", v);
             }}
             asyncAdditionalData={asyncAdditionalData}
-            mapItem={({ item, dataTable, index }) => {
-              // Diskon dokumen (Diskon Tambahan) mengubah discount_amount/tax_amount
-              // SETIAP baris secara pro-rata, bukan cuma baris yang sedang di-edit --
-              // jadi alokasi dihitung ulang dari seluruh dataTable tiap kali salah
-              // satu baris berubah, lalu diambil hasil untuk baris ke-`index` ini saja.
-              // basic_amount TIDAK ditimpa di sini -- kolom itu generated (quantity*price)
-              // di server, konsisten dgn App\Services\Finances\DocumentDiscountCalculator::
-              // applyToItems() yang menulis discount_amount terpisah, bukan overwrite basic_amount.
-              const rows = dataTable ?? [];
-              const grossAmounts = rows.map((row, i) =>
-                i === index
-                  ? (item.quantity ?? 0) * (item.price ?? 0)
-                  : (row.quantity ?? 0) * (row.price ?? 0),
-              );
-              const lines = rows.map((row, i) => ({
-                basic_amount: grossAmounts[i],
-                tax_rate:
-                  i === index ? (item.tax?.rate ?? 0) : (row.tax?.rate ?? 0),
-              }));
-              const allocated = allocateDiscount(
-                lines,
-                data.discount_on,
-                data.discount_rate ?? 0,
-                data.discount_amount ?? 0,
-                data.latestDiscountKey ?? "discount_rate",
-              );
-              const result = allocated[index] ?? allocated[0];
-              return {
-                ...item,
-                discount_amount:
-                  Math.round(
-                    (grossAmounts[index] - (result?.basic_amount ?? 0)) * 100,
-                  ) / 100,
-                tax_amount: result?.tax_amount ?? 0,
-              };
-            }}
+            mapItem={makeMapItem("item")}
           />
           {data?.currency?.code &&
             data?.currency?.code !== default_currency_id && (

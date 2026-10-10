@@ -1,0 +1,6 @@
+{
+  "specId": "027a5ab6-248d-44c4-9d00-38b77cd6a745",
+  "workflowType": "requirements-first",
+  "specType": "feature",
+  "description": "REVISI: ganti mekanisme nested asset_lines (child table SalesInvoiceItemAsset/DeliveryNoteItemAsset) dengan kolom asset_id langsung per baris (sejajar item_id, mutually exclusive) di sales_order_items/sales_invoice_items/delivery_note_items. Termasuk migrasi 4 event/listener domain aset dari child-line ke parent-row, dan token ternary templateLink baru (:cond ? :whenTrue | :whenFalse) untuk tampilan dropdown."
+}

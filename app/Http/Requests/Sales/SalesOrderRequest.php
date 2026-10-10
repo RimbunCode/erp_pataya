@@ -2,6 +2,7 @@
 
 namespace App\Http\Requests\Sales;
 
+use App\Http\Requests\Asset\AssetItems\AssetItemsRules;
 use App\Http\Requests\BaseFormRequest;
 use App\Http\Requests\Finances\Rules\AdditionalDiscountRules;
 use App\Http\Requests\Finances\Rules\PaymentSchedulesRules;
@@ -28,6 +29,9 @@ class SalesOrderRequest extends BaseFormRequest {
      * @return array<string, ValidationRule|array<mixed>|string>
      */
     public function rules(): array {
+        // Spec asset-items-section: rule `items.*` dicerminkan ke `asset_items.*`.
+        // `items` sendiri opsional karena gabungan items + asset_items yang wajib
+        // minimal 1 (dicek di withValidator).
         return [
             'date'           => ['required', 'date'],
             'rent_date.from' => [Rule::requiredIf($this->is_rent ?? false), 'date', 'nullable'],
@@ -37,30 +41,46 @@ class SalesOrderRequest extends BaseFormRequest {
                 'date',
                 'nullable',
             ],
-            'is_rent'                     => ['nullable', 'boolean'],
-            'customer.id'                 => [Rule::requiredIf(! ($this->is_rent ?? false)), new ExistsExcludingTrashed('customers')],
-            'customer.*'                  => ['nullable'],
-            'customer_branch.id'          => ['required', new ExistsExcludingTrashed('branches')],
-            'customer_branch.*'           => ['nullable'],
-            'reference_so.id'             => ['nullable', new ExistsExcludingTrashed('sales_orders')],
-            'reference_so.*'              => ['nullable'],
-            'items'                       => ['required', 'array', 'min:1'],
-            'items.*.id'                  => ['required', 'string'],
-            'items.*.item.id'             => ['required', new ExistsExcludingTrashed('item_variants')],
-            'items.*.item.*'              => ['nullable'],
-            'items.*.description'         => ['nullable', 'string'],
-            'items.*.quantity'            => ['required', 'numeric', 'min:1'],
-            'items.*.unit.id'             => ['required', new ExistsExcludingTrashed('item_units')],
-            'items.*.unit.*'              => ['nullable'],
-            'items.*.tax.id'              => ['required', new ExistsExcludingTrashed('taxes')],
-            'items.*.tax.*'               => ['nullable'],
-            'items.*.price'               => ['nullable', 'numeric'],
-            'items.*.source_warehouse.id' => ['nullable', new ExistsExcludingTrashed('warehouses')],
-            'items.*.referenceable.type'  => ['nullable', 'string', Rule::in([AssetService::class, AssetServiceConsumedItem::class])],
-            'items.*.referenceable.id'    => ['nullable', 'string', 'required_with:items.*.referenceable.type'],
-            'currency.code'               => ['nullable', 'exists:currencies,code'],
-            'exchange_rate'               => ['nullable', 'numeric'],
-            'external_note'               => ['nullable', 'string'],
+            'is_rent'                           => ['nullable', 'boolean'],
+            'customer.id'                       => [Rule::requiredIf(! ($this->is_rent ?? false)), new ExistsExcludingTrashed('customers')],
+            'customer.*'                        => ['nullable'],
+            'customer_branch.id'                => ['required', new ExistsExcludingTrashed('branches')],
+            'customer_branch.*'                 => ['nullable'],
+            'reference_so.id'                   => ['nullable', new ExistsExcludingTrashed('sales_orders')],
+            'reference_so.*'                    => ['nullable'],
+            'items'                             => ['nullable', 'array'],
+            'items.*.id'                        => ['required', 'string'],
+            'items.*.item.id'                   => ['required', new ExistsExcludingTrashed('item_variants')],
+            'items.*.item.*'                    => ['nullable'],
+            'items.*.description'               => ['nullable', 'string'],
+            'items.*.quantity'                  => ['required', 'numeric', 'min:1'],
+            'items.*.unit.id'                   => ['required', new ExistsExcludingTrashed('item_units')],
+            'items.*.unit.*'                    => ['nullable'],
+            'items.*.tax.id'                    => ['required', new ExistsExcludingTrashed('taxes')],
+            'items.*.tax.*'                     => ['nullable'],
+            'items.*.price'                     => ['nullable', 'numeric'],
+            'items.*.source_warehouse.id'       => ['nullable', new ExistsExcludingTrashed('warehouses')],
+            'items.*.referenceable.type'        => ['nullable', 'string', Rule::in([AssetService::class, AssetServiceConsumedItem::class])],
+            'items.*.referenceable.id'          => ['nullable', 'string', 'required_with:items.*.referenceable.type'],
+            'items.*.asset.id'                  => ['prohibited'],
+            'asset_items'                       => ['nullable', 'array'],
+            'asset_items.*.id'                  => ['required', 'string'],
+            'asset_items.*.item.id'             => ['prohibited'],
+            'asset_items.*.item.*'              => ['nullable'],
+            'asset_items.*.asset.id'            => ['required', new ExistsExcludingTrashed('assets')],
+            'asset_items.*.asset.*'             => ['nullable'],
+            'asset_items.*.description'         => ['nullable', 'string'],
+            'asset_items.*.quantity'            => ['required', 'numeric', 'min:1'],
+            'asset_items.*.tax.id'              => ['required', new ExistsExcludingTrashed('taxes')],
+            'asset_items.*.tax.*'               => ['nullable'],
+            'asset_items.*.price'               => ['nullable', 'numeric'],
+            'asset_items.*.unit'                => ['prohibited'],
+            'asset_items.*.source_warehouse.id' => ['prohibited'],
+            'asset_items.*.referenceable.type'  => ['nullable', 'string', Rule::in([AssetService::class, AssetServiceConsumedItem::class])],
+            'asset_items.*.referenceable.id'    => ['nullable', 'string', 'required_with:asset_items.*.referenceable.type'],
+            'currency.code'                     => ['nullable', 'exists:currencies,code'],
+            'exchange_rate'                     => ['nullable', 'numeric'],
+            'external_note'                     => ['nullable', 'string'],
             ...AdditionalDiscountRules::make($this),
             ...PaymentSchedulesRules::make($this),
         ];
@@ -72,9 +92,30 @@ class SalesOrderRequest extends BaseFormRequest {
                 return;
             }
 
+            $buckets = $this->itemBuckets();
+
+            AssetItemsRules::validateCombinedMinimum($validator, $buckets);
+            AssetItemsRules::rejectLegacyAssetLines($validator, $buckets);
+            AssetItemsRules::validateMembership(
+                $validator,
+                $buckets,
+                fn (array $rows) => array_map(fn ($row) => $row['asset']['id'] ?? null, $rows),
+                'asset',
+            );
+
             $this->validateAssetServiceReferenceables($validator);
             $this->validateSourceWarehouseRequired($validator);
         });
+    }
+
+    /**
+     * @return array{items: array<int|string,mixed>, asset_items: array<int|string,mixed>}
+     */
+    private function itemBuckets(): array {
+        return [
+            'items'       => (array) $this->input('items', []),
+            'asset_items' => (array) $this->input('asset_items', []),
+        ];
     }
 
     /**
@@ -83,22 +124,24 @@ class SalesOrderRequest extends BaseFormRequest {
      * di FE, jadi TIDAK boleh diwajibkan di sini juga.
      */
     private function validateSourceWarehouseRequired(Validator $validator): void {
-        foreach ((array) $this->input('items', []) as $index => $item) {
-            $itemVariantId = $item['item']['id'] ?? null;
-            if (! $itemVariantId) {
-                continue;
-            }
+        foreach ($this->itemBuckets() as $bucket => $rows) {
+            foreach ($rows as $index => $item) {
+                $itemVariantId = $item['item']['id'] ?? null;
+                if (! $itemVariantId) {
+                    continue;
+                }
 
-            $itemVariant = ItemVariant::find($itemVariantId);
-            if (! $itemVariant?->is_stock_item) {
-                continue;
-            }
+                $itemVariant = ItemVariant::find($itemVariantId);
+                if (! $itemVariant?->is_stock_item) {
+                    continue;
+                }
 
-            if (empty($item['source_warehouse']['id'] ?? null)) {
-                $validator->errors()->add(
-                    "items.{$index}.source_warehouse.id",
-                    __('sales/salesOrder.source_warehouse_required'),
-                );
+                if (empty($item['source_warehouse']['id'] ?? null)) {
+                    $validator->errors()->add(
+                        "{$bucket}.{$index}.source_warehouse.id",
+                        __('sales/salesOrder.source_warehouse_required'),
+                    );
+                }
             }
         }
     }
@@ -110,52 +153,54 @@ class SalesOrderRequest extends BaseFormRequest {
      * hanya boleh dipakai SATU baris SalesOrderItem (1:1, tidak boleh dobel).
      */
     private function validateAssetServiceReferenceables(Validator $validator): void {
-        foreach ((array) $this->input('items', []) as $index => $item) {
-            $type = $item['referenceable']['type'] ?? null;
-            $id   = $item['referenceable']['id'] ?? null;
+        foreach ($this->itemBuckets() as $bucket => $rows) {
+            foreach ($rows as $index => $item) {
+                $type = $item['referenceable']['type'] ?? null;
+                $id   = $item['referenceable']['id'] ?? null;
 
-            if (! $type || ! $id) {
-                continue;
-            }
-
-            if ($type === AssetService::class) {
-                $assetService = AssetService::find($id);
-                if (! $assetService || ! $assetService->hasPassedApproval()) {
-                    $validator->errors()->add(
-                        "items.{$index}.referenceable.id",
-                        __('sales/salesOrder.referenceable_not_approved'),
-                    );
+                if (! $type || ! $id) {
+                    continue;
                 }
 
-                continue;
-            }
-
-            if ($type === AssetServiceConsumedItem::class) {
-                $consumedItem = AssetServiceConsumedItem::with('assetService')->find($id);
-                if (! $consumedItem || ! $consumedItem->assetService?->hasPassedApproval()) {
-                    $validator->errors()->add(
-                        "items.{$index}.referenceable.id",
-                        __('sales/salesOrder.referenceable_not_approved'),
-                    );
+                if ($type === AssetService::class) {
+                    $assetService = AssetService::find($id);
+                    if (! $assetService || ! $assetService->hasPassedApproval()) {
+                        $validator->errors()->add(
+                            "{$bucket}.{$index}.referenceable.id",
+                            __('sales/salesOrder.referenceable_not_approved'),
+                        );
+                    }
 
                     continue;
                 }
 
-                // Requirement 2.3, spec asset-service-internal-order: 1:1 harus
-                // dicek LINTAS SalesOrderItem DAN InternalOrderItem sekaligus.
-                $alreadyUsed = SalesOrderItem::where('referenceable_type', AssetServiceConsumedItem::class)
-                    ->where('referenceable_id', $id)
-                    ->where('id', '!=', $item['id'] ?? null)
-                    ->exists()
-                    || InternalOrderItem::where('referenceable_type', AssetServiceConsumedItem::class)
-                        ->where('referenceable_id', $id)
-                        ->exists();
+                if ($type === AssetServiceConsumedItem::class) {
+                    $consumedItem = AssetServiceConsumedItem::with('assetService')->find($id);
+                    if (! $consumedItem || ! $consumedItem->assetService?->hasPassedApproval()) {
+                        $validator->errors()->add(
+                            "{$bucket}.{$index}.referenceable.id",
+                            __('sales/salesOrder.referenceable_not_approved'),
+                        );
 
-                if ($alreadyUsed) {
-                    $validator->errors()->add(
-                        "items.{$index}.referenceable.id",
-                        __('sales/salesOrder.referenceable_already_used'),
-                    );
+                        continue;
+                    }
+
+                    // Requirement 2.3, spec asset-service-internal-order: 1:1 harus
+                    // dicek LINTAS SalesOrderItem DAN InternalOrderItem sekaligus.
+                    $alreadyUsed = SalesOrderItem::where('referenceable_type', AssetServiceConsumedItem::class)
+                        ->where('referenceable_id', $id)
+                        ->where('id', '!=', $item['id'] ?? null)
+                        ->exists()
+                        || InternalOrderItem::where('referenceable_type', AssetServiceConsumedItem::class)
+                            ->where('referenceable_id', $id)
+                            ->exists();
+
+                    if ($alreadyUsed) {
+                        $validator->errors()->add(
+                            "{$bucket}.{$index}.referenceable.id",
+                            __('sales/salesOrder.referenceable_already_used'),
+                        );
+                    }
                 }
             }
         }

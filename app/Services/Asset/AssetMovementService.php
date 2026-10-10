@@ -9,7 +9,7 @@ use App\Events\Asset\AssetMovementApproved;
 use App\Models\Asset\AssetMovement;
 use App\Models\Core\FormatingSeries;
 use App\Models\Inventory\DeliveryNote;
-use App\Models\Inventory\DeliveryNoteItemAsset;
+use App\Models\Inventory\DeliveryNoteItem;
 use App\Models\Model;
 use Illuminate\Support\Arr;
 use Illuminate\Support\Facades\DB;
@@ -149,8 +149,8 @@ class AssetMovementService implements SubmitableService {
      * yang mengandung baris rental/sale di-approve — DeliveryNote adalah gate-nya,
      * bukan AssetMovement ini. Dipanggil dari listener Spec 6 (SetAssetInRent dst).
      */
-    public function createFromRentalSale(DeliveryNoteItemAsset $line, AssetMovementPurpose $purpose): AssetMovement {
-        $deliveryNote = $line->deliveryNoteItem->deliveryNote;
+    public function createFromRentalSale(DeliveryNoteItem $line, AssetMovementPurpose $purpose): AssetMovement {
+        $deliveryNote = $line->deliveryNote;
 
         $movement = AssetMovement::create([
             'code'             => FormatingSeries::generate(AssetMovement::class, [], true),

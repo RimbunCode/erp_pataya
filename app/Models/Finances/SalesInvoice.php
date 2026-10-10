@@ -167,6 +167,8 @@ class SalesInvoice extends Model {
             'items.unit',
             'items.salesOrderItem',
             'items.salesOrderItem.item',
+            'items.salesOrderItem.asset',
+            'items.asset',
             'paymentSchedules',
             'paymentSchedules.paymentMethod',
             'incomeAccount',

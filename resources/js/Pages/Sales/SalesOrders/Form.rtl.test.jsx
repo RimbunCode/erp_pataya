@@ -67,13 +67,21 @@ vi.mock("@/Pages/Core/FormPage", async () => {
   const React = await import("react");
   const ctx = React.createContext();
   return {
-    FormPageContent: ({ title, actions, children }) => (
-      <section>
-        {title && <h3>{title}</h3>}
-        {actions}
-        {children}
-      </section>
-    ),
+    // Spec asset-items-section: props tiap section ditangkap per title supaya test
+    // bisa memeriksa collapsible/defaultOpen section Asset Items.
+    FormPageContent: (props) => {
+      const { title, actions, children } = props;
+      if (title)
+        captured.contentProps = { ...captured.contentProps, [title]: props };
+      return (
+        <section>
+          {title && <h3>{title}</h3>}
+          {actions}
+          {children}
+        </section>
+      );
+    },
+    FormPageContentDescription: ({ children }) => <p>{children}</p>,
     useFormPage: (...a) => useFormPageMock(...a),
     useFormPageMeta: () => undefined,
     FormPageContext: ctx,
@@ -89,9 +97,15 @@ vi.mock("@/Pages/Core/FormPage", async () => {
 const captured = {};
 vi.mock("@/Components/FormTable", () => ({
   default: (props) => {
-    captured.formTableProps = props;
+    // Spec asset-items-section: dua FormTable -- tabel Items tetap di
+    // `formTableProps`, tabel Asset Items di `assetFormTableProps`.
+    if (props.name === "SalesOrderAssetItems") {
+      captured.assetFormTableProps = props;
+    } else {
+      captured.formTableProps = props;
+    }
     return (
-      <div data-testid="stub-form-table">
+      <div data-testid={`stub-form-table-${props.name}`}>
         {(props.value ?? []).map((row, i) => (
           <div key={row.id ?? i}>{row.item?.name ?? row.item?.id ?? ""}</div>
         ))}
@@ -237,6 +251,7 @@ vi.mock("@/Pages/Finances/Taxes/TaxLinkModel", () => ({
 
 import { useState } from "react";
 import Form from "./Form";
+import AssetLinkModel from "@/Pages/Asset/Assets/AssetLinkModel";
 
 // useFormPage asli mengembalikan context React (state hidup, re-render saat
 // setData dipanggil). Supaya interaksi user (klik checkbox/tombol) benar-benar
@@ -991,7 +1006,7 @@ describe("Sales Order Form.jsx", () => {
       ).toBeUndefined();
     });
 
-    it("tanpa referenceable_type AssetService: filters kosong, perilaku item.cell normal (regresi)", () => {
+    it("tanpa referenceable_type AssetService: filters hanya exclude aset tetap, perilaku item.cell normal (regresi)", () => {
       renderForm({ data: { date: new Date(), items: [] } });
 
       const setDataRow = vi.fn();
@@ -1008,7 +1023,8 @@ describe("Sales Order Form.jsx", () => {
         attributes: {},
       });
 
-      expect(element.props.filters).toBeUndefined();
+      // Spec asset-items-section: tabel Items selalu meng-exclude item aset tetap.
+      expect(element.props.filters).toEqual({ "item.is_fixed_asset": false });
 
       element.props.onValueChange(selectedVal);
 
@@ -1040,11 +1056,13 @@ describe("Sales Order Form.jsx", () => {
         attributes: {},
       });
 
+      // Filter `or` AssetService dipertahankan, ditambah exclude aset tetap.
       expect(element.props.filters).toEqual({
         or: {
           "item.category.type": "service",
           id: { in: [501] },
         },
+        "item.is_fixed_asset": false,
       });
     });
 
@@ -1216,6 +1234,296 @@ describe("Sales Order Form.jsx", () => {
 
       expect(itemEl.props.disabled).toBeFalsy();
       expect(quantityEl.props.disabled).toBeFalsy();
+    });
+  });
+
+  // --------------------------------------------------------------------
+  // Spec asset-items-section: section Asset Items terpisah dari Items
+  // --------------------------------------------------------------------
+  describe("section Asset Items (spec asset-items-section)", () => {
+    const ASSET_ITEMS_TITLE = "asset.assetItems.title";
+
+    it("merender section Asset Items collapsible dengan title dan description", () => {
+      renderForm({ data: { date: new Date(), items: [], asset_items: [] } });
+
+      expect(screen.getByText(ASSET_ITEMS_TITLE)).toBeInTheDocument();
+      expect(
+        screen.getByText("asset.assetItems.description"),
+      ).toBeInTheDocument();
+      expect(captured.contentProps[ASSET_ITEMS_TITLE].collapsible).toBe(true);
+    });
+
+    it("dirender tepat di atas section Items", () => {
+      renderForm({ data: { date: new Date(), items: [], asset_items: [] } });
+
+      const headings = screen
+        .getAllByRole("heading", { level: 3 })
+        .map((heading) => heading.textContent);
+
+      expect(headings).toContain("sales.salesOrder.items");
+      expect(headings.indexOf(ASSET_ITEMS_TITLE)).toBe(
+        headings.indexOf("sales.salesOrder.items") - 1,
+      );
+    });
+
+    it("tertutup secara default saat dokumen belum punya baris aset", () => {
+      renderForm({ data: { date: new Date(), items: [], asset_items: [] } });
+
+      expect(captured.contentProps[ASSET_ITEMS_TITLE].defaultOpen).toBe(false);
+    });
+
+    it("tertutup juga saat defaultData tidak punya key asset_items sama sekali", () => {
+      renderForm({ data: { date: new Date(), items: [] }, defaultData: {} });
+
+      expect(captured.contentProps[ASSET_ITEMS_TITLE].defaultOpen).toBe(false);
+    });
+
+    it("terbuka otomatis saat dokumen yang dimuat sudah punya baris aset", () => {
+      const assetRow = { id: "a1", asset: { id: 2 }, quantity: 1 };
+      renderForm({
+        data: { date: new Date(), items: [], asset_items: [assetRow] },
+        defaultData: { asset_items: [assetRow] },
+      });
+
+      expect(captured.contentProps[ASSET_ITEMS_TITLE].defaultOpen).toBe(true);
+    });
+
+    it("dua FormTable dengan name berbeda dan value/onValueChange terpisah", () => {
+      const itemRow = { id: "r1", item: { id: 1 }, quantity: 1 };
+      const assetRow = { id: "a1", asset: { id: 2 }, quantity: 1 };
+      const { stateRef } = renderForm({
+        data: { date: new Date(), items: [itemRow], asset_items: [assetRow] },
+      });
+
+      expect(captured.formTableProps.name).toBe("SalesOrderItems");
+      expect(captured.assetFormTableProps.name).toBe("SalesOrderAssetItems");
+      expect(captured.formTableProps.value).toEqual([itemRow]);
+      expect(captured.assetFormTableProps.value).toEqual([assetRow]);
+
+      act(() => {
+        captured.assetFormTableProps.onValueChange([{ id: "a9" }]);
+      });
+
+      expect(stateRef.data.asset_items).toEqual([{ id: "a9" }]);
+      expect(stateRef.data.items).toEqual([itemRow]);
+    });
+
+    it("Asset Items mengganti Item dengan Asset dan menghilangkan kolom warehouse", () => {
+      renderForm({ data: { date: new Date(), items: [], asset_items: [] } });
+
+      const names = (props) => props.columns.map((column) => column.name);
+
+      expect(names(captured.assetFormTableProps)).toEqual(
+        names(captured.formTableProps)
+          .filter(
+            (name) =>
+              !["source_warehouse", "available_quantity", "unit"].includes(name),
+          )
+          .map((name) => (name === "item" ? "asset" : name)),
+      );
+      expect(
+        captured.assetFormTableProps.columns.find((column) => column.name === "tax").required,
+      ).toBe(true);
+    });
+
+    it("field Asset memakai AssetLinkModel dan mengisi asset langsung", () => {
+      renderForm({ data: { date: new Date(), items: [], asset_items: [] } });
+
+      const assetColumn = captured.assetFormTableProps.columns.find(
+        (c) => c.name === "asset",
+      );
+      const setRow = vi.fn();
+      const element = assetColumn.cell({
+        dataRow: {},
+        setData: setRow,
+        attributes: {},
+      });
+
+      expect(assetColumn.titleTrans).toBe("asset.assetItems.asset");
+      expect(element.type).toBe(AssetLinkModel);
+      expect(
+        captured.assetFormTableProps.columns.some(
+          (column) => column.name === "source_warehouse",
+        ),
+      ).toBe(false);
+      element.props.onValueChange({ id: "asset-1" });
+      expect(setRow).toHaveBeenCalledWith({
+        asset: { id: "asset-1" },
+        item: null,
+        unit: null,
+        conversion_factor: 1,
+        source_warehouse: null,
+      });
+    });
+
+    it("filter `or` referensi AssetService hanya berlaku di Items, tidak di Asset Items", () => {
+      renderForm({
+        data: {
+          date: new Date(),
+          items: [],
+          asset_items: [],
+          referenceable_type: "App\\Models\\Asset\\AssetService",
+          referenceable_id: 10,
+          referenceable: { consumed_items: [{ item: { id: 501 } }] },
+        },
+      });
+
+      const itemCell = captured.formTableProps.columns
+        .find((c) => c.name === "item")
+        .cell({ dataRow: {}, setData: vi.fn(), attributes: {} });
+      const assetCell = captured.assetFormTableProps.columns
+        .find((c) => c.name === "asset")
+        .cell({ dataRow: {}, setData: vi.fn(), attributes: {} });
+
+      expect(itemCell.props.filters).toEqual({
+        or: { "item.category.type": "service", id: { in: [501] } },
+        "item.is_fixed_asset": false,
+      });
+      expect(assetCell.type).toBe(AssetLinkModel);
+      expect(assetCell.props.filters).toBeUndefined();
+    });
+
+    it("total dokumen menjumlah baris Items dan Asset Items", () => {
+      renderForm({
+        data: {
+          date: new Date(),
+          items: [
+            { item: { id: 1 }, quantity: 2, price: 100000, tax: { rate: 10 } },
+          ],
+          asset_items: [
+            { asset: { id: 2 }, quantity: 1, price: 50000, tax: { rate: 0 } },
+          ],
+        },
+      });
+
+      // basic: 200000 + 50000 = 250000; tax: 200000*10% = 20000
+      expect(captured.additionalDiscountProps.netAmount).toBe(250000);
+      expect(captured.additionalDiscountProps.taxAmount).toBe(20000);
+      expect(captured.additionalDiscountProps.rawNetAmount).toBe(250000);
+      expect(captured.additionalDiscountProps.rawTaxAmount).toBe(20000);
+    });
+
+    it("dokumen yang hanya berisi baris aset tetap dihitung totalnya", () => {
+      renderForm({
+        data: {
+          date: new Date(),
+          items: [],
+          asset_items: [
+            { asset: { id: 2 }, quantity: 3, price: 10000, tax: { rate: 10 } },
+          ],
+        },
+      });
+
+      expect(captured.additionalDiscountProps.netAmount).toBe(30000);
+      expect(captured.additionalDiscountProps.taxAmount).toBe(3000);
+    });
+
+    it("Asset Items tanpa Asset diabaikan dari kalkulasi seperti baris Items tanpa Item", () => {
+      renderForm({
+        data: {
+          date: new Date(),
+          items: [],
+          asset_items: [
+            { asset: { id: 2 }, quantity: 1, price: 10000, tax: { rate: 0 } },
+            { asset: null, quantity: 9, price: 999999, tax: { rate: 50 } },
+          ],
+        },
+      });
+
+      expect(captured.additionalDiscountProps.netAmount).toBe(10000);
+    });
+
+    it("diskon net_total dialokasikan pro-rata ke kedua tabel (baris aset ikut memikul diskon)", () => {
+      // `item` wajib ada: baris tanpa item dibuang dari kalkulasi header (rawLines)
+      const itemRow = {
+        item: { id: 1 },
+        quantity: 1,
+        price: 100000,
+        tax: { rate: 0 },
+      };
+      const assetRow = {
+        asset: { id: 2 },
+        quantity: 1,
+        price: 300000,
+        tax: { rate: 0 },
+      };
+      renderForm({
+        data: {
+          date: new Date(),
+          items: [itemRow],
+          asset_items: [assetRow],
+          discount_on: "net_total",
+          discount_rate: 10,
+          latestDiscountKey: "discount_rate",
+        },
+      });
+
+      // basis gabungan 400000, diskon 10% = 40000: Items 25% -> 10000, Asset 75% -> 30000
+      const viaItems = captured.formTableProps.mapItem({
+        item: itemRow,
+        dataTable: [itemRow],
+        index: 0,
+      });
+      const viaAsset = captured.assetFormTableProps.mapItem({
+        item: assetRow,
+        dataTable: [assetRow],
+        index: 0,
+      });
+
+      expect(viaItems.discount_amount).toBe(10000);
+      expect(viaAsset.discount_amount).toBe(30000);
+      expect(captured.additionalDiscountProps.netAmount).toBe(360000);
+    });
+
+    it("mapItem Asset Items memakai posisi baris di daftar gabungan (offset sebanyak baris Items)", () => {
+      const items = [
+        { quantity: 1, price: 100000, tax: { rate: 0 } },
+        { quantity: 1, price: 100000, tax: { rate: 0 } },
+      ];
+      const assets = [
+        { quantity: 1, price: 200000, tax: { rate: 0 } },
+        { quantity: 1, price: 600000, tax: { rate: 0 } },
+      ];
+      renderForm({
+        data: {
+          date: new Date(),
+          items,
+          asset_items: assets,
+          discount_on: "net_total",
+          discount_rate: 10,
+          latestDiscountKey: "discount_rate",
+        },
+      });
+
+      // basis 1.000.000, diskon 100.000: baris aset ke-2 (600000) memikul 60000
+      const result = captured.assetFormTableProps.mapItem({
+        item: assets[1],
+        dataTable: assets,
+        index: 1,
+      });
+
+      expect(result.discount_amount).toBe(60000);
+    });
+
+    it("dokumen tanpa asset_items: mapItem Items identik dengan perilaku sebelum fitur ini", () => {
+      const row = { quantity: 1, price: 100000, tax: { rate: 0 } };
+      renderForm({
+        data: {
+          date: new Date(),
+          items: [row],
+          discount_on: "net_total",
+          discount_rate: 10,
+          latestDiscountKey: "discount_rate",
+        },
+      });
+
+      const result = captured.formTableProps.mapItem({
+        item: row,
+        dataTable: [row],
+        index: 0,
+      });
+
+      expect(result.discount_amount).toBe(10000);
     });
   });
 });
