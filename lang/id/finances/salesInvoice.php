@@ -42,6 +42,7 @@ return [
         'unit'                         => 'Unit',
         'unit.placeholder'             => 'Pilih unit',
         'price'                        => 'Harga',
+        'gross_amount'                 => 'Total Harga',
         'tax'                          => 'Pajak',
         'tax.placeholder'              => 'Pilih Pajak',
         'created_at'                   => 'Dibuat pada',

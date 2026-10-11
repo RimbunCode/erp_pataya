@@ -42,6 +42,7 @@ return [
         'unit'                         => 'Unit',
         'unit.placeholder'             => 'Select a unit',
         'price'                        => 'Price',
+        'gross_amount'                 => 'Total Price',
         'tax'                          => 'Tax',
         'tax.placeholder'              => 'Select a Tax',
         'created_at'                   => 'Created at',

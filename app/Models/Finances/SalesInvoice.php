@@ -55,10 +55,19 @@ class SalesInvoice extends Model {
 
     protected $appends = [
         'is_return',
+        'dpp_amount',
     ];
 
     protected function getIsReturnAttribute() {
         return $this->return_against_id != null;
+    }
+
+    public function getDppAmountAttribute(): ?float {
+        if (! $this->relationLoaded('items')) {
+            return null;
+        }
+
+        return (float) $this->items->sum('dpp_amount');
     }
 
     public $translateKey = 'finances.salesInvoice';
@@ -133,6 +142,11 @@ class SalesInvoice extends Model {
         'items' => [
             'show'  => true,
             'order' => 10,
+        ],
+        'dpp_amount' => [
+            'type'      => 'currency',
+            'show'      => false,
+            'dependsOn' => ['items'],
         ],
         'paymentSchedules',
         'tax_invoice_transaction_code' => [

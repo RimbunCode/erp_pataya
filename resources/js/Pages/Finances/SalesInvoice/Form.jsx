@@ -293,6 +293,42 @@ export default function Form() {
         },
       },
       {
+        name: "gross_amount",
+        titleTrans: "finances.salesInvoice.columns.gross_amount",
+        readOnly: true,
+        show: true,
+        width: 1,
+        cell({ dataRow, attributes }) {
+          return (
+            <NumberInput
+              {...attributes}
+              readOnly
+              decimalScale={2}
+              currencyCode={data?.currency?.code ?? "default"}
+              value={(dataRow?.quantity ?? 0) * (dataRow?.price ?? 0)}
+            />
+          );
+        },
+      },
+      {
+        name: "dpp_amount",
+        titleTrans: "finances.salesInvoice.columns.dpp_amount",
+        readOnly: true,
+        show: true,
+        width: 1,
+        cell({ data: dppAmount, attributes }) {
+          return (
+            <NumberInput
+              {...attributes}
+              readOnly
+              decimalScale={2}
+              currencyCode={data?.currency?.code ?? "default"}
+              value={dppAmount ?? 0}
+            />
+          );
+        },
+      },
+      {
         name: "asset_lines",
         titleTrans: "finances.salesInvoice.columns.asset_lines",
         show: false,

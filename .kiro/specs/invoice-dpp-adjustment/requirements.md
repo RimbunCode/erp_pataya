@@ -7,6 +7,7 @@ Sumber: Minutes of Meeting (MoM) Demo Aplikasi PTPSN 2.0 — 10.07.2026, bagian 
 Saat ini, `SalesInvoiceItem` dan `PurchaseInvoiceItem` tidak memiliki konsep DPP sama sekali. Struktur yang ada hanya `basic_amount` (quantity × price), `tax_rate`, dan `tax_amount` (basic_amount × tax_rate / 100) — PPN dihitung langsung dari basic amount penuh, tanpa langkah DPP di antaranya.
 
 **Keputusan (dikonfirmasi pengguna):**
+
 - DPP berlaku untuk **semua dokumen invoice** — Sales Invoice **dan** Purchase Invoice, tanpa pengecualian per jenis transaksi.
 - Skema yang dipakai adalah **DPP Nilai Lain** secara seragam: `DPP = basic_amount × 11/12` (≈ 91,67%), sesuai skema PPN 12% agar tarif efektif tetap 11% dari nilai transaksi. Tidak ada campuran skema (bukan DPP biasa untuk sebagian transaksi dan Nilai Lain untuk sebagian lain) — satu formula konstan berlaku ke semua item invoice.
 
@@ -60,5 +61,12 @@ Spec ini menambahkan kolom/derivasi DPP pada invoice (Sales & Purchase), dan men
 #### Acceptance Criteria
 
 1. WHEN migration dijalankan pada data existing, THE system SHALL mem-backfill nilai DPP setiap invoice item lama (Sales & Purchase) dengan formula yang sama: `dpp_amount = basic_amount × 11/12`.
+
+## Follow-up Scope: Sales Invoice DPP Entry and Customer Print
+
+- Form Sales Invoice SHALL menampilkan `Total Harga` bruto (`quantity × price`) dan DPP per item sebagai kolom read-only. DPP tetap nilai setelah alokasi diskon aktif (`net_total` atau `grand_total`), konsisten dengan `sales_invoice_items.dpp_amount`.
+- Template cetak customer Sales Invoice SHALL memberi label `Total Harga` untuk nilai item bruto, serta menampilkan total DPP invoice. DPP per item tidak dicetak.
+- Total DPP print dihitung read-only dari item yang telah dimuat; tidak ada kolom, perubahan, maupun migration pada `sales_invoices` atau `sales_invoice_items`.
+
 2. THE migration SHALL bersifat idempotent (aman dijalankan ulang tanpa merusak data yang sudah di-backfill).
 3. THE system SHALL mempertahankan `tax_amount` sebagai generated/stored column dengan formula baru berbasis DPP (`dpp_amount * tax_rate / 100`), dan formula baru ini berlaku seragam untuk **seluruh baris**, termasuk invoice yang sudah ada sebelum migration. **Keputusan (dikonfirmasi pengguna, merevisi keputusan sebelumnya):** nilai `tax_amount` pada invoice historis boleh ikut bergeser mengikuti formula baru — pergeseran ini dianggap dapat diterima karena murni penyesuaian basis perhitungan (dari `basic_amount` ke `dpp_amount`), bukan perubahan substantif pada kebijakan pajak.
