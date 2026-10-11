@@ -34,6 +34,7 @@ use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Log as LogFacade;
 use Illuminate\Support\Facades\Route;
 use Illuminate\Support\Str;
+use Illuminate\Validation\ValidationException;
 use Inertia\Inertia;
 
 abstract class Controller {
@@ -124,6 +125,7 @@ abstract class Controller {
         Inertia::share([
             'model'        => $model,
             'translateKey' => (new $model)->translateKey ?? null,
+            'bulkDestroy'  => fn (): bool => $this->supportsBulkDestroy(),
         ]);
 
         $ignorePermission = $this->ignorePermission
@@ -142,12 +144,12 @@ abstract class Controller {
                         abort(403);
                     }
                     $keyPermission = match ($method) {
-                        'index'        => 'select',
-                        'create'       => 'create',
-                        'store'        => 'create',
-                        'show'         => 'read',
-                        'update'       => 'write',
-                        'destroy'      => 'delete',
+                        'index'  => 'select',
+                        'create' => 'create',
+                        'store'  => 'create',
+                        'show'   => 'read',
+                        'update' => 'write',
+                        'destroy', 'destroyMany' => 'delete',
                         'import'       => 'import',
                         'export'       => 'export',
                         'share'        => 'share',
@@ -545,21 +547,103 @@ abstract class Controller {
         return Str::before(Route::getCurrentRoute()->getAction()['as'], '.') . '.index';
     }
 
-    public function destroy(mixed $id) {
-        $data = $this->model::findOrFail($id);
+    /**
+     * Apakah penghapusan memerlukan konfirmasi password user.
+     * Controller meng-override bila hapus harus dikonfirmasi password.
+     */
+    protected function destroyRequiresPassword(): bool {
+        return false;
+    }
+
+    /**
+     * Validasi password user saat penghapusan memerlukannya.
+     */
+    protected function validateDestroyPassword(): void {
+        if ($this->destroyRequiresPassword()) {
+            request()->validate(['password' => ['required', 'current_password']]);
+        }
+    }
+
+    /**
+     * Menghapus satu record beserta hook guard dan audit log.
+     * Dipakai bersama oleh destroy() dan destroyMany(); wajib dipanggil
+     * di dalam transaksi oleh pemanggil.
+     */
+    protected function destroyRecord(Model $data): void {
         $this->beforeDestroy($data);
+        $data->delete();
+        event(new AuditableModelSaved($data, 'deleted'));
+    }
 
-        DB::beginTransaction();
-        try {
-            $data->delete();
-            event(new AuditableModelSaved($data, 'deleted'));
-            DB::commit();
-        } catch (\Throwable $e) {
-            DB::rollBack();
+    /**
+     * Apakah controller ini mendukung hapus massal (route destroyMany ada
+     * dan penghapusan tidak dinonaktifkan/dikustomisasi tanpa destroyRecord).
+     */
+    protected function supportsBulkDestroy(): bool {
+        $routeName = Str::before(Route::currentRouteName() ?? '', '.') . '.destroyMany';
+        if (! Route::has($routeName)) {
+            return false;
+        }
+        $destroyOwner = (new \ReflectionMethod($this, 'destroy'))->getDeclaringClass()->getName();
+        $recordOwner  = (new \ReflectionMethod($this, 'destroyRecord'))->getDeclaringClass()->getName();
 
-            throw $e;
+        return $destroyOwner === self::class || $recordOwner !== self::class;
+    }
+
+    /**
+     * Label record untuk pesan error hapus massal.
+     */
+    protected function recordLabel(Model $record): string {
+        if (method_exists($record, 'templateLink') && $record::templateLink()) {
+            $label = Utils::convertTemplateLink($record);
+            if (\is_string($label) && trim($label) !== '') {
+                return $label;
+            }
         }
 
+        return (string) ($record->code ?? $record->name ?? $record->getKey());
+    }
+
+    public function destroy(mixed $id) {
+        $data = $this->model::findOrFail($id);
+        $this->validateDestroyPassword();
+        DB::transaction(fn () => $this->destroyRecord($data));
+
         return redirect()->route($this->indexRouteName());
+    }
+
+    /**
+     * Hapus massal dalam satu transaksi; gagal satu record = rollback semua.
+     */
+    public function destroyMany(Request $request) {
+        abort_unless($this->supportsBulkDestroy(), 405);
+        $validated = $request->validate([
+            'ids'   => ['required', 'array', 'min:1', 'max:500'],
+            'ids.*' => ['required', 'distinct'],
+        ]);
+        $this->validateDestroyPassword();
+
+        $records = $this->model::whereKey($validated['ids'])->get();
+        abort_if($records->count() !== \count($validated['ids']), 404);
+
+        if ($this->onlyCreator) {
+            $userId = $request->user()->id;
+            abort_if($records->contains(fn (Model $record) => $record->created_by_id != $userId), 403);
+        }
+
+        DB::transaction(function () use ($records): void {
+            foreach ($records as $record) {
+                try {
+                    $this->destroyRecord($record);
+                } catch (ValidationException $e) {
+                    throw ValidationException::withMessages([
+                        'delete' => $this->recordLabel($record) . ': ' . collect($e->errors())->flatten()->first(),
+                    ]);
+                }
+            }
+        });
+
+        return redirect()->route($this->indexRouteName())
+            ->with('success', __('core.datatable.deleted_count', ['count' => $records->count()]));
     }
 }

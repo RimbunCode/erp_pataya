@@ -6,6 +6,7 @@ return [
     'previous'       => 'Previous',
     'next'           => 'Next',
     'action'         => 'Action',
+    'deleted_count'  => ':count records deleted',
     'no_data'        => 'No data available',
     'group_by'       => 'Group By',
     'no_group_value' => 'No Value',

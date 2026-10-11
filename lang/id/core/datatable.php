@@ -6,6 +6,7 @@ return [
     'previous'       => 'Sebelumnya',
     'next'           => 'Selanjutnya',
     'action'         => 'Aksi',
+    'deleted_count'  => ':count data dihapus',
     'no_data'        => 'Tidak ada data yang tersedia',
     'group_by'       => 'Kelompokkan Berdasarkan',
     'no_group_value' => 'Tanpa Nilai',
