@@ -2,6 +2,7 @@
 
 namespace Tests\Feature\Core;
 
+use App\Http\Controllers\Core\TagController;
 use App\Http\Middleware\AppMiddleware;
 use App\Http\Middleware\EnsureUserIsOnboarded;
 use App\Http\Middleware\HandleInertiaRequests;
@@ -96,7 +97,7 @@ class DestroyManyTest extends TestCase {
             ->withSession($this->permissions())
             ->delete(route('suppliers.destroyMany'), ['ids' => $this->ids($suppliers)])
             ->assertRedirect(route('suppliers.index'))
-            ->assertSessionHas('success');
+            ->assertSessionHas('success', __('core.datatable.deleted_count', ['count' => 3]));
 
         foreach ($suppliers as $supplier) {
             $this->assertSoftDeleted($supplier);
@@ -193,6 +194,48 @@ class DestroyManyTest extends TestCase {
         }
 
         Event::forget('eloquent.deleting: ' . Supplier::class);
+    }
+
+    public function test_bulk_delete_names_the_record_when_a_guard_aborts_with_http_exception(): void {
+        Supplier::deleting(function (Supplier $supplier): void {
+            if ($supplier->name === 'LOCKED') {
+                abort(403);
+            }
+        });
+
+        $user   = User::factory()->create();
+        $normal = SupplierFactory::new()->create();
+        $locked = SupplierFactory::new()->create(['name' => 'LOCKED']);
+
+        $response = $this->actingAs($user)
+            ->withSession($this->permissions())
+            ->deleteJson(route('suppliers.destroyMany'), ['ids' => [$normal->id, $locked->id]])
+            ->assertUnprocessable();
+
+        $this->assertStringContainsString('LOCKED', $response->json('errors.delete.0'));
+        $this->assertStringContainsString(__('core.datatable.delete_not_allowed'), $response->json('errors.delete.0'));
+        $this->assertNotSoftDeleted($normal);
+        $this->assertNotSoftDeleted($locked);
+
+        Event::forget('eloquent.deleting: ' . Supplier::class);
+    }
+
+    public function test_bulk_destroy_prop_is_shared_only_for_controllers_that_support_it(): void {
+        $user = User::factory()->create();
+        $this->actingAs($user)->withSession($this->permissions());
+
+        $this->getJson(route('suppliers.index'), ['X-Inertia' => 'true'])
+            ->assertOk()
+            ->assertJsonPath('props.bulkDestroy', true);
+
+        // TagController::index bukan halaman Inertia; setelah request, router masih
+        // menunjuk ke route tags.index sehingga supportsBulkDestroy() dapat diperiksa.
+        $this->getJson(route('tags.index'))->assertOk();
+
+        $controller = (new \ReflectionClass(TagController::class))->newInstanceWithoutConstructor();
+        $method     = new \ReflectionMethod($controller, 'supportsBulkDestroy');
+
+        $this->assertFalse($method->invoke($controller));
     }
 
     public function test_bulk_delete_forbidden_when_only_creator_and_a_record_belongs_to_another_user(): void {

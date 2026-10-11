@@ -1,19 +1,20 @@
 <?php
 
 return [
-    'reload'         => 'Reload',
-    'show'           => 'Show',
-    'previous'       => 'Previous',
-    'next'           => 'Next',
-    'action'         => 'Action',
-    'deleted_count'  => ':count records deleted',
-    'no_data'        => 'No data available',
-    'group_by'       => 'Group By',
-    'no_group_value' => 'No Value',
-    'yes'            => 'Yes',
-    'no'             => 'No',
-    'group_range'    => 'Range',
-    'group_levels'   => [
+    'reload'             => 'Reload',
+    'show'               => 'Show',
+    'previous'           => 'Previous',
+    'next'               => 'Next',
+    'action'             => 'Action',
+    'deleted_count'      => ':count records deleted',
+    'delete_not_allowed' => 'This record cannot be deleted',
+    'no_data'            => 'No data available',
+    'group_by'           => 'Group By',
+    'no_group_value'     => 'No Value',
+    'yes'                => 'Yes',
+    'no'                 => 'No',
+    'group_range'        => 'Range',
+    'group_levels'       => [
         'max'         => 'Maximum :max levels',
         'drag_handle' => 'Drag to reorder',
         'granularity' => 'Granularity',

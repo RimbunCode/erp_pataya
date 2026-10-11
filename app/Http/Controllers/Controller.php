@@ -36,6 +36,7 @@ use Illuminate\Support\Facades\Route;
 use Illuminate\Support\Str;
 use Illuminate\Validation\ValidationException;
 use Inertia\Inertia;
+use Symfony\Component\HttpKernel\Exception\HttpExceptionInterface;
 
 abstract class Controller {
     protected string $model;
@@ -604,6 +605,17 @@ abstract class Controller {
         return (string) ($record->code ?? $record->name ?? $record->getKey());
     }
 
+    /**
+     * Pesan kegagalan hapus dari ValidationException atau abort() (HttpException).
+     */
+    protected function destroyFailureMessage(\Throwable $e): string {
+        $message = $e instanceof ValidationException
+            ? collect($e->errors())->flatten()->first()
+            : $e->getMessage();
+
+        return (string) (filled($message) ? $message : __('core.datatable.delete_not_allowed'));
+    }
+
     public function destroy(mixed $id) {
         $data = $this->model::findOrFail($id);
         $this->validateDestroyPassword();
@@ -635,9 +647,9 @@ abstract class Controller {
             foreach ($records as $record) {
                 try {
                     $this->destroyRecord($record);
-                } catch (ValidationException $e) {
+                } catch (ValidationException|HttpExceptionInterface $e) {
                     throw ValidationException::withMessages([
-                        'delete' => $this->recordLabel($record) . ': ' . collect($e->errors())->flatten()->first(),
+                        'delete' => $this->recordLabel($record) . ': ' . $this->destroyFailureMessage($e),
                     ]);
                 }
             }

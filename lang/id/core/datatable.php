@@ -1,19 +1,20 @@
 <?php
 
 return [
-    'reload'         => 'Muat Ulang',
-    'show'           => 'Tampilkan',
-    'previous'       => 'Sebelumnya',
-    'next'           => 'Selanjutnya',
-    'action'         => 'Aksi',
-    'deleted_count'  => ':count data dihapus',
-    'no_data'        => 'Tidak ada data yang tersedia',
-    'group_by'       => 'Kelompokkan Berdasarkan',
-    'no_group_value' => 'Tanpa Nilai',
-    'yes'            => 'Ya',
-    'no'             => 'Tidak',
-    'group_range'    => 'Rentang',
-    'group_levels'   => [
+    'reload'             => 'Muat Ulang',
+    'show'               => 'Tampilkan',
+    'previous'           => 'Sebelumnya',
+    'next'               => 'Selanjutnya',
+    'action'             => 'Aksi',
+    'deleted_count'      => ':count data dihapus',
+    'delete_not_allowed' => 'Data ini tidak boleh dihapus',
+    'no_data'            => 'Tidak ada data yang tersedia',
+    'group_by'           => 'Kelompokkan Berdasarkan',
+    'no_group_value'     => 'Tanpa Nilai',
+    'yes'                => 'Ya',
+    'no'                 => 'Tidak',
+    'group_range'        => 'Rentang',
+    'group_levels'       => [
         'max'         => 'Maksimal :max level',
         'drag_handle' => 'Geser untuk mengubah urutan',
         'granularity' => 'Granularitas',
