@@ -671,6 +671,46 @@ describe("SalesInvoice Form", () => {
   });
 
   describe("kolom item: SalesOrderItemLinkModel filter & carry-over field", () => {
+    it("menampilkan Total Harga bruto dan DPP sebagai kolom read-only", () => {
+      formPageState = makeFormPageState({
+        data: { currency: { code: "idr" }, items: [{ id: 1 }] },
+      });
+      render(<Form />);
+
+      const itemColumns = formTablePropsSpy.mock.calls[0][0].columns;
+      const grossAmountColumn = itemColumns.find(
+        (column) => column.name === "gross_amount",
+      );
+      const dppAmountColumn = itemColumns.find(
+        (column) => column.name === "dpp_amount",
+      );
+
+      expect(grossAmountColumn).toMatchObject({
+        titleTrans: "finances.salesInvoice.columns.gross_amount",
+        readOnly: true,
+        show: true,
+      });
+      expect(dppAmountColumn).toMatchObject({
+        titleTrans: "finances.salesInvoice.columns.dpp_amount",
+        readOnly: true,
+        show: true,
+      });
+
+      const grossAmountInput = grossAmountColumn.cell({
+        dataRow: { quantity: 2, price: 500 },
+        attributes: {},
+      });
+      const dppAmountInput = dppAmountColumn.cell({
+        data: 825,
+        attributes: {},
+      });
+
+      expect(grossAmountInput.props.value).toBe(1000);
+      expect(grossAmountInput.props.readOnly).toBe(true);
+      expect(dppAmountInput.props.value).toBe(825);
+      expect(dppAmountInput.props.readOnly).toBe(true);
+    });
+
     it("memilih sales_order_item pada baris item mengisi unit/conversion_factor/quantity/price/tax/description", () => {
       formPageState = makeFormPageState({
         data: { items: [{ id: 1 }], sales_order: { id: 9 } },
