@@ -853,10 +853,19 @@ export default memo(
       processing: false,
       errors: {},
     });
+    // `can` dari usePermission berupa closure baru tiap render -- dibaca lewat
+    // ref agar `deleteAction`/`allActions`/`rowActionsRenderer` (dan prop
+    // `actions` Table2 yang memoize baris) tetap stabil.
+    const canRef = useRef(can);
+    canRef.current = can;
+    const stableCan = useCallback(
+      (action, opts) => canRef.current(action, opts),
+      [],
+    );
     const deleteAction = useMemo(
       () =>
         buildDeleteAction({
-          can,
+          can: stableCan,
           label: t("core.datatable.delete"),
           bulkDestroy,
           onSingle: (row) =>
@@ -872,7 +881,7 @@ export default memo(
             }),
         }),
       [
-        can,
+        stableCan,
         t,
         bulkDestroy,
         deleteItem,
@@ -901,11 +910,12 @@ export default memo(
           });
         } catch (e) {
           console.error(e);
+          toast.error(t("core.errors.http.default"));
         } finally {
           setPendingKey(null);
         }
       },
-      [selection.clear, loadData],
+      [selection.clear, loadData, t],
     );
     const runAction = useCallback(
       (action, rows, source) => {

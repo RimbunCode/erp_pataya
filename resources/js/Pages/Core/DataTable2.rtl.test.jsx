@@ -63,8 +63,11 @@ vi.mock("@/lib/gooeyToast", () => ({
 // perlu merender DeleteDialog sungguhan (concern-nya sendiri, sudah di luar
 // scope orkestrasi DataTable2).
 const deleteItemSpy = vi.fn();
+// deleteItem stabil (seperti aksi store zustand asli) -- identitasnya ikut
+// dependency memo `allActions`.
+const stableDeleteItem = (...a) => deleteItemSpy(...a);
 vi.mock("@/Hooks/useDeleteModal", () => ({
-  default: () => ({ deleteItem: (...a) => deleteItemSpy(...a) }),
+  default: () => ({ deleteItem: stableDeleteItem }),
 }));
 
 // usePermission -- default izinkan semua aksi agar behavior default (create,
@@ -1110,6 +1113,76 @@ describe("DataTable2", () => {
       );
 
       expect(screen.queryByText(selectedText(1))).not.toBeInTheDocument();
+    });
+
+    it("prop actions Table2 stabil walau identitas `can` berganti tiap render; warnMissingRequires hanya sekali", async () => {
+      const user = userEvent.setup({ delay: null });
+      const warn = vi.spyOn(console, "warn").mockImplementation(() => {});
+      const rowActions = [
+        {
+          key: "x",
+          label: "X",
+          requires: ["field_tak_ada"],
+          onAction: vi.fn(),
+        },
+      ];
+      await renderDataTable2(<DataTable2 rowActions={rowActions} />);
+      const warnCount = warn.mock.calls.length;
+      expect(warnCount).toBe(1);
+
+      const rendersBefore = table2Props.mock.calls.length;
+      // Centang baris = render ulang DataTable2 (usePermission mock memberi
+      // `can` baru tiap render).
+      await checkRows(user, 1);
+      expect(table2Props.mock.calls.length).toBeGreaterThan(rendersBefore);
+      const [first, second] = table2Props.mock.calls.slice(-2);
+      expect(second[0].actions).toBe(first[0].actions);
+      expect(warn).toHaveBeenCalledTimes(warnCount);
+      warn.mockRestore();
+    });
+
+    it("data baru dari server (reload Inertia) mengosongkan seleksi", async () => {
+      const user = userEvent.setup({ delay: null });
+      const { rerender } = await renderDataTable2(
+        <DataTable2 forceCanCreate={false} />,
+      );
+      await checkRows(user, 1, 2);
+      expect(screen.getByText(selectedText(2))).toBeInTheDocument();
+
+      setPage({ data: { ...baseData, data: [...baseData.data] } });
+      await act(async () => {
+        rerender(
+          <TooltipProvider>
+            <DataTable2 forceCanCreate={undefined} />
+          </TooltipProvider>,
+        );
+      });
+
+      expect(screen.queryByText(selectedText(2))).not.toBeInTheDocument();
+    });
+
+    it("onAction yang gagal: console.error + toast.error, pendingKey direset", async () => {
+      const user = userEvent.setup({ delay: null });
+      const consoleError = vi
+        .spyOn(console, "error")
+        .mockImplementation(() => {});
+      const onAction = vi.fn().mockRejectedValue(new Error("boom"));
+      await renderDataTable2(
+        <DataTable2
+          rowActions={[{ key: "x", label: "X", bulk: true, onAction }]}
+        />,
+      );
+      await checkRows(user, 1);
+      const bulkName = `TR:core.datatable.bulk_count:${JSON.stringify({ label: "X", count: 1 })}`;
+
+      await user.click(screen.getByRole("button", { name: bulkName }));
+
+      await waitFor(() =>
+        expect(toastError).toHaveBeenCalledWith("TR:core.errors.http.default"),
+      );
+      expect(consoleError).toHaveBeenCalled();
+      expect(screen.getByRole("button", { name: bulkName })).toBeEnabled();
+      consoleError.mockRestore();
     });
 
     it("selectable={false}: tanpa checkbox & tanpa bulk bar", async () => {
