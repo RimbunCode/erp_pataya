@@ -29,10 +29,14 @@ vi.mock("laravel-react-i18n", () => ({
 }));
 
 const routerGet = vi.fn();
+const routerDelete = vi.fn();
 const usePageMock = vi.fn();
 vi.mock("@inertiajs/react", () => ({
   usePage: () => usePageMock(),
-  router: { get: (...a) => routerGet(...a) },
+  router: {
+    get: (...a) => routerGet(...a),
+    delete: (...a) => routerDelete(...a),
+  },
   Head: ({ title }) => <title>{title}</title>,
 }));
 
@@ -98,6 +102,11 @@ vi.mock("@/Layouts/AppLayout", () => ({
 // (meniru dialogRef.current.open() asli) dan merender children (form) saat
 // terbuka.
 vi.mock("./FormPage", () => ({
+  // FormInput (dipakai ActionConfirmDialog utk input password) membaca konteks
+  // meta form & useCanUpdate membaca FormPageContext; di luar FormPage
+  // keduanya undefined.
+  useFormPageMeta: () => undefined,
+  FormPageContext: React.createContext(),
   FormPageDialog: React.forwardRef(function StubFormPageDialog(
     { children, title, name },
     ref,
@@ -150,6 +159,16 @@ vi.mock("@/Components/Table/Table2", async () => {
           </button>
           {props.data?.map((row) => (
             <div key={row.id} data-testid={`row-${row.id}`}>
+              {props.selectable && (
+                <input
+                  type="checkbox"
+                  aria-label={`check-${row.id}`}
+                  checked={props.selection?.isSelected(row) ?? false}
+                  onChange={(e) =>
+                    props.selection?.toggle(row, e.target.checked)
+                  }
+                />
+              )}
               {props.actions?.({ dataRow: row })}
             </div>
           ))}
@@ -441,6 +460,7 @@ describe("DataTable2", () => {
     toastSuccess.mockReset();
     toastError.mockReset();
     deleteItemSpy.mockReset();
+    routerDelete.mockReset();
     canMock.mockReset();
     canMock.mockReturnValue(true);
     isMobileMock.mockReset();
@@ -672,56 +692,434 @@ describe("DataTable2", () => {
     expect(screen.queryByTestId("page-range")).toBeNull();
   });
 
-  it("tombol delete (actions bawaan) memanggil deleteItem dengan route plural & id yang benar", async () => {
-    const user = userEvent.setup({ delay: null });
-    await renderDataTable2(<DataTable2 />);
+  describe("aksi baris (menu ⋯), seleksi & bulk", () => {
+    const rowActionsLabel = "TR:core.datatable.row_actions";
+    const deleteLabel = "TR:core.datatable.delete";
+    const setPage = (overrides) =>
+      usePageMock.mockReturnValue({ props: makePageProps(overrides) });
+    const rowMenuButton = (rowId) =>
+      within(screen.getByTestId(`row-${rowId}`)).queryByRole("button", {
+        name: rowActionsLabel,
+      });
+    const openRowMenu = async (user, rowId) => {
+      await user.click(rowMenuButton(rowId));
+    };
+    const checkRows = async (user, ...ids) => {
+      for (const id of ids) {
+        await user.click(screen.getByRole("checkbox", { name: `check-${id}` }));
+      }
+    };
+    const bulkDeleteName = (count) =>
+      `TR:core.datatable.bulk_count:${JSON.stringify({ label: deleteLabel, count })}`;
+    const selectedText = (count) =>
+      `TR:core.datatable.selected:${JSON.stringify({ count })}`;
+    const confirmButton = () =>
+      screen.getByRole("button", { name: "TR:core.datatable.confirm" });
 
-    const row1 = screen.getByTestId("row-1");
-    const deleteButton = within(row1).getByRole("button");
-    await user.click(deleteButton);
+    it("item delete di menu ⋯ memanggil deleteItem dengan route plural & id yang benar", async () => {
+      const user = userEvent.setup({ delay: null });
+      await renderDataTable2(<DataTable2 />);
 
-    expect(deleteItemSpy).toHaveBeenCalledWith(
-      "suppliers.destroy",
-      1,
-      expect.objectContaining({ usePasswordConfirmation: undefined }),
-    );
-  });
+      await openRowMenu(user, 1);
+      await user.click(
+        await screen.findByRole("menuitem", { name: deleteLabel }),
+      );
 
-  it("tombol delete tidak muncul saat dataRow.canDelete === false", async () => {
-    usePageMock.mockReturnValue({
-      props: makePageProps({
+      expect(deleteItemSpy).toHaveBeenCalledWith("suppliers.destroy", 1, {
+        usePasswordConfirmation: undefined,
+      });
+    });
+
+    it("menu ⋯ tidak muncul saat dataRow.canDelete === false", async () => {
+      setPage({
         data: {
           data: [{ id: 3, name: "No Delete", code: "S3", canDelete: false }],
           last_page: 1,
         },
-      }),
+      });
+      await renderDataTable2(<DataTable2 />);
+
+      expect(rowMenuButton(3)).toBeNull();
     });
-    await renderDataTable2(<DataTable2 />);
 
-    const row = screen.getByTestId("row-3");
-    expect(within(row).queryByRole("button")).not.toBeInTheDocument();
-  });
+    it("menu ⋯ tidak muncul saat can('delete') false", async () => {
+      canMock.mockImplementation((action) => action !== "delete");
+      await renderDataTable2(<DataTable2 />);
 
-  it("tombol delete tidak muncul saat can('delete') false", async () => {
-    canMock.mockImplementation((action) => action !== "delete");
-    await renderDataTable2(<DataTable2 />);
+      expect(rowMenuButton(1)).toBeNull();
+    });
 
-    const row1 = screen.getByTestId("row-1");
-    expect(within(row1).queryByRole("button")).not.toBeInTheDocument();
-  });
+    it("usePasswordConfirmationForDelete diteruskan ke deleteItem", async () => {
+      const user = userEvent.setup({ delay: null });
+      await renderDataTable2(<DataTable2 usePasswordConfirmationForDelete />);
 
-  it("usePasswordConfirmationForDelete diteruskan ke deleteItem", async () => {
-    const user = userEvent.setup({ delay: null });
-    await renderDataTable2(<DataTable2 usePasswordConfirmationForDelete />);
+      await openRowMenu(user, 1);
+      await user.click(
+        await screen.findByRole("menuitem", { name: deleteLabel }),
+      );
 
-    const row1 = screen.getByTestId("row-1");
-    await user.click(within(row1).getByRole("button"));
+      expect(deleteItemSpy).toHaveBeenCalledWith("suppliers.destroy", 1, {
+        usePasswordConfirmation: true,
+      });
+    });
 
-    expect(deleteItemSpy).toHaveBeenCalledWith(
-      "suppliers.destroy",
-      1,
-      expect.objectContaining({ usePasswordConfirmation: true }),
-    );
+    it("hideDeleteAction: menu baris tanpa item delete", async () => {
+      const user = userEvent.setup({ delay: null });
+      await renderDataTable2(
+        <DataTable2
+          hideDeleteAction
+          rowActions={[{ key: "x", label: "X", onAction: vi.fn() }]}
+        />,
+      );
+
+      await openRowMenu(user, 1);
+      await screen.findByRole("menuitem", { name: "X" });
+      expect(
+        screen.queryByRole("menuitem", { name: deleteLabel }),
+      ).not.toBeInTheDocument();
+    });
+
+    it("hideDeleteAction tanpa rowActions: tidak ada menu ⋯ sama sekali", async () => {
+      await renderDataTable2(<DataTable2 hideDeleteAction />);
+
+      expect(rowMenuButton(1)).toBeNull();
+    });
+
+    it("Table2 menerima selectable=true & objek selection; selectable={false} mematikannya", async () => {
+      await renderDataTable2(<DataTable2 />);
+      expect(lastTable2Props().selectable).toBe(true);
+      expect(lastTable2Props().selection).toEqual(
+        expect.objectContaining({
+          isSelected: expect.any(Function),
+          toggle: expect.any(Function),
+          setMany: expect.any(Function),
+        }),
+      );
+
+      cleanup();
+      table2Props.mockReset();
+      await renderDataTable2(<DataTable2 selectable={false} />);
+      expect(lastTable2Props().selectable).toBe(false);
+      expect(lastTable2Props().selection).toBeUndefined();
+    });
+
+    it("mencentang baris menampilkan bulk bar dengan jumlah terpilih", async () => {
+      const user = userEvent.setup({ delay: null });
+      await renderDataTable2(<DataTable2 />);
+      expect(screen.queryByText(selectedText(2))).not.toBeInTheDocument();
+
+      await checkRows(user, 1, 2);
+
+      expect(screen.getByText(selectedText(2))).toBeInTheDocument();
+    });
+
+    it("bulkDestroy: hapus massal -> dialog -> router.delete(destroyMany) lalu seleksi dibersihkan saat sukses", async () => {
+      const user = userEvent.setup({ delay: null });
+      setPage({ bulkDestroy: true });
+      await renderDataTable2(<DataTable2 />);
+      await checkRows(user, 1, 2);
+
+      await user.click(screen.getByRole("button", { name: bulkDeleteName(2) }));
+      expect(
+        await screen.findByText("TR:core.datatable.delete_selected"),
+      ).toBeInTheDocument();
+      expect(
+        screen.getByText(
+          `TR:core.datatable.delete_selected_description:${JSON.stringify({ count: 2 })}`,
+        ),
+      ).toBeInTheDocument();
+
+      await user.click(confirmButton());
+
+      expect(routerDelete).toHaveBeenCalledTimes(1);
+      const [url, options] = routerDelete.mock.calls[0];
+      expect(url).toBe("suppliers.destroyMany");
+      expect(options).toEqual(
+        expect.objectContaining({
+          data: { ids: [1, 2] },
+          preserveScroll: true,
+        }),
+      );
+
+      await act(async () => {
+        options.onSuccess();
+      });
+      expect(screen.queryByText(selectedText(2))).not.toBeInTheDocument();
+      await waitFor(() =>
+        expect(
+          screen.queryByText("TR:core.datatable.delete_selected"),
+        ).not.toBeInTheDocument(),
+      );
+    });
+
+    it("hapus massal dengan usePasswordConfirmationForDelete mengirim password", async () => {
+      const user = userEvent.setup({ delay: null });
+      setPage({ bulkDestroy: true });
+      await renderDataTable2(<DataTable2 usePasswordConfirmationForDelete />);
+      await checkRows(user, 1);
+
+      await user.click(screen.getByRole("button", { name: bulkDeleteName(1) }));
+      await screen.findByText("TR:core.datatable.delete_selected");
+      await user.type(screen.getByLabelText(/auth\.your_password/), "secret");
+      await user.click(confirmButton());
+
+      expect(routerDelete).toHaveBeenCalledWith(
+        "suppliers.destroyMany",
+        expect.objectContaining({ data: { ids: [1], password: "secret" } }),
+      );
+    });
+
+    it("hapus massal gagal: dialog tetap terbuka menampilkan error & seleksi dipertahankan", async () => {
+      const user = userEvent.setup({ delay: null });
+      setPage({ bulkDestroy: true });
+      await renderDataTable2(<DataTable2 />);
+      await checkRows(user, 1, 2);
+
+      await user.click(screen.getByRole("button", { name: bulkDeleteName(2) }));
+      await screen.findByText("TR:core.datatable.delete_selected");
+      await user.click(confirmButton());
+      const options = routerDelete.mock.calls[0][1];
+      await act(async () => {
+        options.onStart();
+      });
+      await act(async () => {
+        options.onError({ delete: "Tidak dapat dihapus" });
+        options.onFinish();
+      });
+
+      expect(await screen.findByRole("alert")).toHaveTextContent(
+        "Tidak dapat dihapus",
+      );
+      expect(
+        screen.getByText("TR:core.datatable.delete_selected"),
+      ).toBeInTheDocument();
+      expect(screen.getByText(selectedText(2))).toBeInTheDocument();
+    });
+
+    it("dialog hapus massal tidak bisa ditutup (Escape) saat request berjalan", async () => {
+      const user = userEvent.setup({ delay: null });
+      setPage({ bulkDestroy: true });
+      await renderDataTable2(<DataTable2 />);
+      await checkRows(user, 1);
+
+      await user.click(screen.getByRole("button", { name: bulkDeleteName(1) }));
+      await screen.findByText("TR:core.datatable.delete_selected");
+      await user.click(confirmButton());
+      await act(async () => {
+        routerDelete.mock.calls[0][1].onStart();
+      });
+
+      await user.keyboard("{Escape}");
+
+      expect(
+        screen.getByText("TR:core.datatable.delete_selected"),
+      ).toBeInTheDocument();
+
+      // Setelah request selesai, dialog boleh ditutup lagi.
+      await act(async () => {
+        routerDelete.mock.calls[0][1].onFinish();
+      });
+      await user.keyboard("{Escape}");
+      await waitFor(() =>
+        expect(
+          screen.queryByText("TR:core.datatable.delete_selected"),
+        ).not.toBeInTheDocument(),
+      );
+    });
+
+    it("bulkDestroy false: tombol hapus tidak ada di bulk bar", async () => {
+      const user = userEvent.setup({ delay: null });
+      setPage({ bulkDestroy: false });
+      await renderDataTable2(<DataTable2 />);
+      await checkRows(user, 1, 2);
+
+      expect(screen.getByText(selectedText(2))).toBeInTheDocument();
+      expect(
+        screen.queryByRole("button", { name: bulkDeleteName(2) }),
+      ).not.toBeInTheDocument();
+    });
+
+    it("aksi custom bulk: hanya baris enabled diproses & helpers berisi source 'bulk'", async () => {
+      const user = userEvent.setup({ delay: null });
+      const onAction = vi.fn();
+      await renderDataTable2(
+        <DataTable2
+          rowActions={[
+            {
+              key: "x",
+              label: "X",
+              bulk: true,
+              enabled: (r) => r.id === 1,
+              onAction,
+            },
+          ]}
+        />,
+      );
+      await checkRows(user, 1, 2);
+
+      await user.click(
+        screen.getByRole("button", {
+          name: `TR:core.datatable.bulk_count_partial:${JSON.stringify({ label: "X", count: 1, total: 2 })}`,
+        }),
+      );
+
+      await waitFor(() => expect(onAction).toHaveBeenCalledTimes(1));
+      expect(onAction).toHaveBeenCalledWith(
+        [baseData.data[0]],
+        expect.objectContaining({
+          clearSelection: expect.any(Function),
+          reload: expect.any(Function),
+          source: "bulk",
+        }),
+      );
+    });
+
+    it("aksi custom single dari menu ⋯: source 'single' & helpers.clearSelection mengosongkan seleksi", async () => {
+      const user = userEvent.setup({ delay: null });
+      const onAction = vi.fn();
+      await renderDataTable2(
+        <DataTable2 rowActions={[{ key: "x", label: "X", onAction }]} />,
+      );
+      await checkRows(user, 1);
+      expect(screen.getByText(selectedText(1))).toBeInTheDocument();
+
+      await openRowMenu(user, 2);
+      await user.click(await screen.findByRole("menuitem", { name: "X" }));
+
+      await waitFor(() => expect(onAction).toHaveBeenCalledTimes(1));
+      const [rows, helpers] = onAction.mock.calls[0];
+      expect(rows).toEqual([baseData.data[1]]);
+      expect(helpers).toEqual({
+        clearSelection: expect.any(Function),
+        reload: expect.any(Function),
+        source: "single",
+      });
+
+      await act(async () => {
+        helpers.clearSelection();
+      });
+      expect(screen.queryByText(selectedText(1))).not.toBeInTheDocument();
+    });
+
+    it("pendingKey: tombol bulk dinonaktifkan selama onAction async berjalan", async () => {
+      const user = userEvent.setup({ delay: null });
+      let resolveAction;
+      const onAction = vi.fn(
+        () => new Promise((resolve) => (resolveAction = resolve)),
+      );
+      await renderDataTable2(
+        <DataTable2
+          rowActions={[{ key: "x", label: "X", bulk: true, onAction }]}
+        />,
+      );
+      await checkRows(user, 1);
+      const bulkName = `TR:core.datatable.bulk_count:${JSON.stringify({ label: "X", count: 1 })}`;
+
+      await user.click(screen.getByRole("button", { name: bulkName }));
+      expect(screen.getByRole("button", { name: bulkName })).toBeDisabled();
+
+      await act(async () => {
+        resolveAction();
+      });
+      expect(screen.getByRole("button", { name: bulkName })).toBeEnabled();
+    });
+
+    it("aksi dengan confirm: dialog terbuka setelah memilih item menu, onAction jalan setelah dikonfirmasi", async () => {
+      const user = userEvent.setup({ delay: null });
+      const onAction = vi.fn();
+      await renderDataTable2(
+        <DataTable2
+          rowActions={[
+            {
+              key: "x",
+              label: "X",
+              confirm: (rows) => ({
+                title: `Yakin ${rows.length}?`,
+                description: "Desk",
+                confirmLabel: "Ya",
+              }),
+              onAction,
+            },
+          ]}
+        />,
+      );
+
+      await openRowMenu(user, 1);
+      await user.click(await screen.findByRole("menuitem", { name: "X" }));
+
+      expect(await screen.findByText("Yakin 1?")).toBeInTheDocument();
+      expect(onAction).not.toHaveBeenCalled();
+
+      await user.click(screen.getByRole("button", { name: "Ya" }));
+
+      await waitFor(() => expect(onAction).toHaveBeenCalledTimes(1));
+      expect(onAction).toHaveBeenCalledWith(
+        [baseData.data[0]],
+        expect.objectContaining({ source: "single" }),
+      );
+      await waitFor(() =>
+        expect(screen.queryByText("Yakin 1?")).not.toBeInTheDocument(),
+      );
+    });
+
+    it("dialog confirm aksi custom: batal tidak memanggil onAction", async () => {
+      const user = userEvent.setup({ delay: null });
+      const onAction = vi.fn();
+      await renderDataTable2(
+        <DataTable2
+          rowActions={[
+            { key: "x", label: "X", confirm: { title: "Yakin?" }, onAction },
+          ]}
+        />,
+      );
+
+      await openRowMenu(user, 1);
+      await user.click(await screen.findByRole("menuitem", { name: "X" }));
+      await screen.findByText("Yakin?");
+      await user.click(
+        screen.getByRole("button", { name: "TR:core.datatable.cancel" }),
+      );
+
+      await waitFor(() =>
+        expect(screen.queryByText("Yakin?")).not.toBeInTheDocument(),
+      );
+      expect(onAction).not.toHaveBeenCalled();
+      expect(document.body.style.pointerEvents).not.toBe("none");
+    });
+
+    it("ganti halaman (options berubah) mengosongkan seleksi", async () => {
+      const user = userEvent.setup({ delay: null });
+      await renderDataTable2(<DataTable2 />);
+      await checkRows(user, 1, 2);
+      expect(screen.getByText(selectedText(2))).toBeInTheDocument();
+
+      await user.click(screen.getByText("trigger-options-changed"));
+
+      expect(screen.queryByText(selectedText(2))).not.toBeInTheDocument();
+    });
+
+    it("tombol batal pilih di bulk bar mengosongkan seleksi", async () => {
+      const user = userEvent.setup({ delay: null });
+      await renderDataTable2(<DataTable2 />);
+      await checkRows(user, 1);
+
+      await user.click(
+        screen.getByRole("button", {
+          name: "TR:core.datatable.clear_selection",
+        }),
+      );
+
+      expect(screen.queryByText(selectedText(1))).not.toBeInTheDocument();
+    });
+
+    it("selectable={false}: tanpa checkbox & tanpa bulk bar", async () => {
+      await renderDataTable2(<DataTable2 selectable={false} />);
+
+      expect(screen.queryByRole("checkbox")).not.toBeInTheDocument();
+      expect(
+        screen.queryByText(/TR:core\.datatable\.selected/),
+      ).not.toBeInTheDocument();
+    });
   });
 
   describe("tombol tambah (create) & FormPageDialog", () => {

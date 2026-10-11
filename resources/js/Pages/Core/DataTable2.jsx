@@ -4,7 +4,6 @@ import {
   Ellipsis,
   Plus,
   RefreshCw,
-  Trash2Icon,
 } from "lucide-react";
 import { Button, buttonVariants } from "@/Components/ui/button";
 import { Command } from "@/Components/ui/command";
@@ -71,6 +70,15 @@ import React from "react";
 import SearchableOptionList, {
   searchableOptionFilter,
 } from "@/Components/Table/SearchableOptionList";
+import ActionConfirmDialog from "@/Components/Table/RowActions/ActionConfirmDialog";
+import BulkActionBar from "@/Components/Table/RowActions/BulkActionBar";
+import RowActionsMenu from "@/Components/Table/RowActions/RowActionsMenu";
+import {
+  buildDeleteAction,
+  normalizeAction,
+  warnMissingRequires,
+} from "@/Components/Table/RowActions/rowActions";
+import useRowSelection from "@/Components/Table/RowActions/useRowSelection";
 import GroupTree from "@/Components/Table/Group/GroupTree";
 import {
   GroupHeaderCard,
@@ -116,6 +124,9 @@ import usePermission from "@/Hooks/usePermission";
 //     aktif sama sekali): "full" -- reload Inertia spt sebelumnya.
 const optionsFieldChanged = (key, prev, next) =>
   key === "group" ? !sameGroups(prev, next) : prev !== next;
+
+// Referensi stabil agar default `rowActions` tidak membuat `allActions` berubah tiap render.
+const EMPTY_ROW_ACTIONS = [];
 
 export function classifyOptionsChange(
   prev,
@@ -168,6 +179,23 @@ export function classifyOptionsChange(
  * @returns {React.JSX.Element}
  */
 /**
+ * @typedef {object} RowAction
+ * @property {string} key                 unik per tabel
+ * @property {string} label               sudah diterjemahkan
+ * @property {React.ComponentType} [icon] ikon lucide
+ * @property {"default"|"destructive"} [variant="default"]
+ * @property {boolean} [single=true]      tampil di menu ⋯ per baris
+ * @property {boolean} [bulk=false]       tampil di bulk bar
+ * @property {(row: object) => boolean} [enabled]  default selalu true.
+ *   HANYA boleh membaca: `id`, accessor bawaan extraKeys (`canDelete`, `route`,
+ *   `appendStatus`, ...), atau atribut model di `$rowActionAttributes`.
+ * @property {string[]} [requires]        dev-only: field yg wajib ada di row
+ * @property {{title: string, description?: string, confirmLabel?: string}
+ *   | ((rows: object[]) => {title: string, description?: string, confirmLabel?: string})} [confirm]
+ * @property {(rows: object[], helpers: {clearSelection: () => void, reload: () => void, source: "single"|"bulk"})
+ *   => void | Promise<void>} onAction   kirim `id` ke server; server memuat data lengkap.
+ */
+/**
  * @typedef {object} TemplateItemProps
  * @property {object} dataRow
  * @callback TemplateItemCallback
@@ -206,7 +234,10 @@ export function classifyOptionsChange(
 /**
  * @typedef {object} props
  * @property {ColumnProps[]} columns
- * @property {ActionCallback} actions
+ * @property {RowAction[]} rowActions aksi tambahan di menu ⋯ per baris / bulk bar
+ * (aksi hapus bawaan selalu ditambahkan di akhir kecuali `hideDeleteAction`)
+ * @property {boolean} selectable default true; false = tanpa checkbox & bulk bar
+ * @property {boolean} hideDeleteAction default false; true = tanpa aksi hapus bawaan
  * @property {TemplateItemCallback} templateItem akan ditampilkan saat mode mobile
  * @property {string} title
  * @property {AddButtonProps} addButton
@@ -221,7 +252,9 @@ export default memo(
       form,
       defaultValueForm,
       classNameDialog,
-      actions: _actions,
+      rowActions = EMPTY_ROW_ACTIONS,
+      selectable = true,
+      hideDeleteAction = false,
       templateItem,
       usePasswordConfirmationForDelete,
       forceCanCreate,
@@ -246,7 +279,9 @@ export default memo(
       groupMeta,
       defaultGroups,
       searchScope,
+      bulkDestroy = false,
     } = usePage().props;
+    const plural = pluralize.plural(name ?? "");
     const { can } = usePermission(model);
     const canCreate = forceCanCreate || can("create");
     const { num_per_page: numPerPage, per_page_options: perPageOptions } =
@@ -298,40 +333,8 @@ export default memo(
     }, [perPageOptions, show]);
     // Tree filter aktif (untuk seed builder). TIDAK ikut ke URL — hanya `fid`.
     const [filterTree, setFilterTree] = useState(null);
-    const { user } = usePage().props.auth;
     const dialogRef = useRef();
 
-    const actions = useCallback(
-      (props) => {
-        if (
-          props.dataRow.canDelete === false ||
-          !can("delete", { user_id: props.dataRow?.created_by_id })
-        )
-          return _actions?.(props);
-        return (
-          <>
-            <Button
-              variant="destructive"
-              size="icon"
-              className="size-8"
-              onClick={() =>
-                deleteItem(
-                  `${pluralize.plural(name ?? "")}.destroy`,
-                  props.dataRow.id,
-                  {
-                    usePasswordConfirmation: usePasswordConfirmationForDelete,
-                  },
-                )
-              }
-            >
-              <Trash2Icon />
-            </Button>
-            {_actions?.(props)}
-          </>
-        );
-      },
-      [_actions, name, model, user],
-    );
     // const [columns] = useState(
     //   _columns.findIndex((x) => x.name === "created_at") > -1
     //     ? _columns
@@ -833,6 +836,130 @@ export default memo(
       };
     }
     const treeVersion = dataVersionRef.current.version;
+
+    // --- Seleksi baris, aksi baris (menu ⋯) & aksi massal ----------------
+    // Seleksi dikosongkan saat halaman/filter/sort/group berubah (`options`)
+    // atau data server dimuat ulang (`treeVersion`, mis. setelah hapus).
+    const selectionResetKey = `${treeVersion}|${JSON.stringify(options)}`;
+    const selection = useRowSelection({ resetKey: selectionResetKey });
+    // Aksi yang sedang berjalan (menonaktifkan tombol bulk).
+    const [pendingKey, setPendingKey] = useState(null);
+    // { action, rows, source } | null -- konfirmasi aksi kustom (`action.confirm`).
+    const [confirmState, setConfirmState] = useState(null);
+    // Hapus massal: dialog konfirmasi sendiri (request via router.delete).
+    const [bulkDeleteState, setBulkDeleteState] = useState({
+      open: false,
+      rows: [],
+      processing: false,
+      errors: {},
+    });
+    const deleteAction = useMemo(
+      () =>
+        buildDeleteAction({
+          can,
+          label: t("core.datatable.delete"),
+          bulkDestroy,
+          onSingle: (row) =>
+            deleteItem(`${plural}.destroy`, row.id, {
+              usePasswordConfirmation: usePasswordConfirmationForDelete,
+            }),
+          onBulk: (rows) =>
+            setBulkDeleteState({
+              open: true,
+              rows,
+              processing: false,
+              errors: {},
+            }),
+        }),
+      [
+        can,
+        t,
+        bulkDestroy,
+        deleteItem,
+        plural,
+        usePasswordConfirmationForDelete,
+      ],
+    );
+    const allActions = useMemo(
+      () => [
+        ...rowActions.map(normalizeAction),
+        ...(hideDeleteAction ? [] : [deleteAction]),
+      ],
+      [rowActions, hideDeleteAction, deleteAction],
+    );
+    useEffect(() => {
+      warnMissingRequires(allActions, data?.data ?? []);
+    }, [allActions, data]);
+    const executeAction = useCallback(
+      async (action, rows, source) => {
+        setPendingKey(action.key);
+        try {
+          await action.onAction(rows, {
+            clearSelection: selection.clear,
+            reload: loadData,
+            source,
+          });
+        } catch (e) {
+          console.error(e);
+        } finally {
+          setPendingKey(null);
+        }
+      },
+      [selection.clear, loadData],
+    );
+    const runAction = useCallback(
+      (action, rows, source) => {
+        if (action.confirm) {
+          // Tunda satu tick: item menu ⋯ (Radix DropdownMenu) masih menutup saat
+          // `onSelect` -- membuka AlertDialog serentak dapat meninggalkan
+          // `pointer-events: none` di body / merebut fokus.
+          setTimeout(() => setConfirmState({ action, rows, source }), 0);
+          return;
+        }
+        executeAction(action, rows, source);
+      },
+      [executeAction],
+    );
+    const rowActionsRenderer = useCallback(
+      ({ dataRow }) => (
+        <RowActionsMenu
+          row={dataRow}
+          actions={allActions}
+          onRun={(action, rows) => runAction(action, rows, "single")}
+        />
+      ),
+      [allActions, runAction],
+    );
+    const confirmConfig = confirmState
+      ? typeof confirmState.action.confirm === "function"
+        ? confirmState.action.confirm(confirmState.rows)
+        : confirmState.action.confirm
+      : null;
+    const closeBulkDelete = () =>
+      setBulkDeleteState((prev) => ({ ...prev, open: false }));
+    const submitBulkDelete = (password) => {
+      router.delete(window.route(`${plural}.destroyMany`), {
+        data: {
+          ids: bulkDeleteState.rows.map((row) => row.id),
+          ...(usePasswordConfirmationForDelete ? { password } : {}),
+        },
+        preserveScroll: true,
+        onStart: () =>
+          setBulkDeleteState((prev) => ({
+            ...prev,
+            processing: true,
+            errors: {},
+          })),
+        onError: (errors) =>
+          setBulkDeleteState((prev) => ({ ...prev, errors })),
+        onSuccess: () => {
+          closeBulkDelete();
+          selection.clear();
+        },
+        onFinish: () =>
+          setBulkDeleteState((prev) => ({ ...prev, processing: false })),
+      });
+    };
     // "1–50 / 200": rentang item halaman ini dari paginator server (`from`/`to`/
     // `total`); tak tampil bila kosong / paginator tanpa field itu.
     const pageRangeText =
@@ -850,7 +977,7 @@ export default memo(
         // Pass closure — JANGAN panggil deleteItem() saat render
         // (memicu setState store DeleteDialog selama render).
         deleteItem: () =>
-          deleteItem(`${pluralize.plural(name ?? "")}.destroy`, row.id, {
+          deleteItem(`${plural}.destroy`, row.id, {
             usePasswordConfirmation: usePasswordConfirmationForDelete,
           }),
       });
@@ -1154,23 +1281,36 @@ export default memo(
                 )}
               </div>
             ) : (
-              <Table2
-                reload={loadData}
-                columnFilter={columnFilter}
-                className="flex-1 min-h-0"
-                actions={actions}
-                columns={mapColumns}
-                data={data.data}
-                options={options}
-                setSort={setSort}
-                resetSorting={resetSorting}
-                onOptionsChanged={setOptions}
-                group={
-                  groupTreeProps
-                    ? { ...groupTreeProps, version: treeVersion }
-                    : undefined
-                }
-              />
+              <>
+                {selectable && selection.count > 0 && (
+                  <BulkActionBar
+                    rows={selection.rows}
+                    actions={allActions}
+                    pendingKey={pendingKey}
+                    onRun={(action, rows) => runAction(action, rows, "bulk")}
+                    onClear={selection.clear}
+                  />
+                )}
+                <Table2
+                  selectable={selectable}
+                  selection={selectable ? selection : undefined}
+                  reload={loadData}
+                  columnFilter={columnFilter}
+                  className="flex-1 min-h-0"
+                  actions={rowActionsRenderer}
+                  columns={mapColumns}
+                  data={data.data}
+                  options={options}
+                  setSort={setSort}
+                  resetSorting={resetSorting}
+                  onOptionsChanged={setOptions}
+                  group={
+                    groupTreeProps
+                      ? { ...groupTreeProps, version: treeVersion }
+                      : undefined
+                  }
+                />
+              </>
             )}
             <div
               className={cn(
@@ -1220,6 +1360,41 @@ export default memo(
             </div>
           </div>
         </AppLayout>
+        <ActionConfirmDialog
+          open={bulkDeleteState.open}
+          destructive
+          requirePassword={Boolean(usePasswordConfirmationForDelete)}
+          title={t("core.datatable.delete_selected")}
+          description={t("core.datatable.delete_selected_description", {
+            count: bulkDeleteState.rows.length,
+          })}
+          errors={bulkDeleteState.errors}
+          processing={bulkDeleteState.processing}
+          onConfirm={submitBulkDelete}
+          onOpenChange={(open) => {
+            if (!open && !bulkDeleteState.processing) closeBulkDelete();
+          }}
+        />
+        {confirmState && confirmConfig && (
+          <ActionConfirmDialog
+            open
+            destructive={confirmState.action.variant === "destructive"}
+            title={confirmConfig.title}
+            description={confirmConfig.description}
+            confirmLabel={confirmConfig.confirmLabel}
+            processing={pendingKey === confirmState.action.key}
+            onConfirm={async () => {
+              const { action, rows, source } = confirmState;
+              await executeAction(action, rows, source);
+              setConfirmState(null);
+            }}
+            onOpenChange={(open) => {
+              if (!open && pendingKey !== confirmState.action.key) {
+                setConfirmState(null);
+              }
+            }}
+          />
+        )}
         {form && canCreate && (
           <FormPageDialog
             ref={dialogRef}
