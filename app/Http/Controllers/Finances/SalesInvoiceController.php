@@ -7,6 +7,7 @@ use App\Http\Requests\Finances\SalesInvoiceRequest;
 use App\Models\Finances\Account;
 use App\Models\Finances\SalesInvoice;
 use App\Models\Sales\SalesOrder;
+use App\Services\Asset\AssetItems\AssetItemPartitioner;
 use App\Services\Finances\SalesInvoiceService;
 use App\Services\Sales\RentalDurationService;
 use App\Utils;
@@ -152,11 +153,34 @@ class SalesInvoiceController extends Controller {
             }
         }
 
+        // Spec asset-items-section: hasil prefill (dari SO maupun retur SI) dipisah ke
+        // `items` (barang biasa) dan `asset_items` (aset tetap) SETELAH mapping harga
+        // rental, sehingga prefill rental tetap berjalan untuk kedua bucket.
+        if (isset($defaultData['items'])) {
+            $defaultData = $this->partitionDefaultItems($defaultData);
+        }
+
         $this->setBreadcrumbs('finances.salesInvoice.new');
 
         return Inertia::render('Finances/SalesInvoice/Show', [
             'defaultData' => $defaultData ?? [],
         ]);
+    }
+
+    /**
+     * @param  array<string,mixed>  $defaultData
+     * @return array<string,mixed>
+     */
+    private function partitionDefaultItems(array $defaultData): array {
+        $parts = app(AssetItemPartitioner::class)->partitionArrays(
+            $defaultData['items'],
+            fn ($row) => data_get($row, 'asset_id'),
+        );
+
+        $defaultData['items']       = $parts['items'];
+        $defaultData['asset_items'] = $parts['asset_items'];
+
+        return $defaultData;
     }
 
     /**
@@ -190,7 +214,8 @@ class SalesInvoiceController extends Controller {
             'salesInvoice' => function () use ($salesInvoice) {
                 $salesInvoice->loadRelations();
 
-                return $salesInvoice;
+                // Spec asset-items-section: `items` = barang biasa, `asset_items` = aset tetap.
+                return app(AssetItemPartitioner::class)->apply($salesInvoice);
             },
         ]);
     }

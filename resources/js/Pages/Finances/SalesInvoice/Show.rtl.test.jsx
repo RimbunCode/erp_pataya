@@ -278,6 +278,31 @@ describe("Show (SalesInvoice)", () => {
       );
     });
 
+    // Spec asset-items-section: `items` hanya barang biasa, baris aset ada di `asset_items`.
+    it("hanya baris aset yang masih punya unreturned_quantity: opsi Create Credit Note tetap muncul", async () => {
+      const user = userEvent.setup({ delay: null });
+      const salesInvoice = baseSalesInvoice({
+        id: 56,
+        status: "paid",
+        is_return: false,
+        items: [{ id: 1, unreturned_quantity: 0 }],
+        asset_items: [{ id: 2, unreturned_quantity: 3 }],
+      });
+      render(<Show salesInvoice={salesInvoice} defaultData={{}} />);
+
+      await user.click(
+        screen.getByRole("button", { name: /core.form.actions/ }),
+      );
+
+      const link = await screen.findByText(
+        "finances.salesInvoice.actions.create_credit_note",
+      );
+      expect(link.closest("a")).toHaveAttribute(
+        "href",
+        `salesInvoices.create/${JSON.stringify({ ref: "salesInvoice/56" })}`,
+      );
+    });
+
     it("is_return=true: opsi Create Credit Note tidak muncul meski unreturned_quantity > 0", async () => {
       const user = userEvent.setup({ delay: null });
       const salesInvoice = baseSalesInvoice({

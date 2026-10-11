@@ -7,6 +7,7 @@ import {
 import { inArray, isValidStatus } from "@/lib/utils";
 
 import { Button } from "@/Components/ui/button";
+import { getAllItems } from "@/lib/assetItems";
 import {
   Dialog,
   DialogContent,
@@ -154,7 +155,12 @@ export default function Show({ salesOrder, defaultData, flash }) {
   const [loading, setLoading] = useState(false);
   const [mismatchErrors, setMismatchErrors] = useState([]);
 
-  const hasMismatch = salesOrder?.items?.some((item) => {
+  // Spec asset-items-section: `items` hanya barang biasa, baris aset ada di
+  // `asset_items` -- tabel tracking, durasi rental, dan Sync Items harus memakai
+  // gabungan keduanya.
+  const allItems = getAllItems(salesOrder);
+
+  const hasMismatch = allItems.some((item) => {
     const deltaDeliver = (item.delivered_quantity ?? 0) - item.quantity;
     const deltaBill = (item.billed_quantity ?? 0) - item.quantity;
     return deltaDeliver !== 0 || deltaBill !== 0;
@@ -316,12 +322,12 @@ export default function Show({ salesOrder, defaultData, flash }) {
         <Form />
 
         {/* Tabel tracking qty per item */}
-        {salesOrder?.submitted_at && <ItemsQtyTable items={salesOrder.items} />}
+        {salesOrder?.submitted_at && <ItemsQtyTable items={allItems} />}
 
         {/* Tabel durasi & status sewa rental */}
         {salesOrder?.is_rent && salesOrder?.submitted_at && (
           <RentalDurationTable
-            items={salesOrder.items}
+            items={allItems}
             durations={salesOrder.rental_durations}
           />
         )}
@@ -339,7 +345,7 @@ export default function Show({ salesOrder, defaultData, flash }) {
             </DialogDescription>
           </DialogHeader>
 
-          <ItemsQtyTable items={salesOrder?.items} />
+          <ItemsQtyTable items={allItems} />
 
           <DialogFooter>
             <Button

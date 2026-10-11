@@ -12,10 +12,15 @@ import {
   getDataModel,
 } from "@/lib/utils";
 import { allocateDiscount } from "@/lib/discountAllocation";
+import {
+  allocationContext,
+  getAllItems,
+  partitionRowsByAssetId,
+} from "@/lib/assetItems";
 
 import AccountLinkModel from "../Accounts/AccountLinkModel";
 import AdditionalDiscount from "../Components/AdditionalDiscount";
-import AssetLinkModel from "@/Pages/Asset/Assets/AssetLinkModel";
+import AssetItemsSection from "@/Pages/Asset/Components/AssetItemsSection";
 import BranchLinkModel from "@/Pages/Settings/Branches/BranchLinkModel";
 import NumberInput from "@/Components/NumberInput";
 import CurrencyLinkModel from "@/Pages/Core/CurrencyLinkModel";
@@ -63,9 +68,12 @@ export default function Form() {
       debit_account: debitAccount,
     };
   }, []);
-  const { data, setData, disabled, dataBefore } = useFormPage(defaultValue, {
-    notUseWhenCreate: true,
-  });
+  const { data, setData, disabled, dataBefore, defaultData } = useFormPage(
+    defaultValue,
+    {
+      notUseWhenCreate: true,
+    },
+  );
   const { default_currency_id } = usePage().props.preferences;
   const getContraIncomeAccount = (isContra) => {
     getDataModel(
@@ -90,21 +98,28 @@ export default function Form() {
   // DocumentDiscountCalculator::applyDiscountColumnToItems()). Item hasil
   // carry-over dari SalesOrder (mode create) belum punya discount_amount --
   // default 0 sampai backend menghitung ulang saat disimpan.
+  // Spec asset-items-section: total dihitung dari GABUNGAN tabel Items dan Asset
+  // Items (keduanya disimpan ke sales_invoice_items yang sama).
+  const allItems = useMemo(
+    () => getAllItems({ items: data.items, asset_items: data.asset_items }),
+    [data.items, data.asset_items],
+  );
+
   const net_amount = useMemo(() => {
-    return (data.items ?? []).reduce(
+    return allItems.reduce(
       (sum, item) =>
         sum + ((item?.basic_amount ?? 0) - (item?.discount_amount ?? 0)),
       0,
     );
-  }, [data.items]);
+  }, [allItems]);
 
   const dpp_amount = useMemo(() => {
-    return calculateArray(data.items, "dpp_amount", "+");
-  }, [data.items]);
+    return calculateArray(allItems, "dpp_amount", "+");
+  }, [allItems]);
 
   const tax_amount = useMemo(() => {
-    return calculateArray(data.items, "tax_amount", "+");
-  }, [data.items]);
+    return calculateArray(allItems, "tax_amount", "+");
+  }, [allItems]);
 
   const amount = useMemo(() => {
     return net_amount + tax_amount - (data?.discount_amount ?? 0);
@@ -116,9 +131,10 @@ export default function Form() {
   useEffect(() => {
     if (!data.sales_order?.is_rent || !data.rental_cutoff_date) return;
 
-    setData((prev) => ({
-      ...prev,
-      items: prev.items.map((item) => {
+    // Spec asset-items-section: SO rent berisi aset, jadi baris di tabel Asset Items
+    // ikut dihitung ulang, bukan hanya tabel Items.
+    const recalculateRentalRows = (rows) =>
+      rows.map((item) => {
         if (
           item.rental_status !== "running" ||
           !item.rental_shipped_date ||
@@ -137,15 +153,27 @@ export default function Form() {
           price: calculateRentalAmount(item.rental_monthly_rate, durationDays),
           rental_duration_days: durationDays,
         };
-      }),
+      });
+
+    setData((prev) => ({
+      ...prev,
+      items: recalculateRentalRows(prev.items ?? []),
+      ...(prev.asset_items
+        ? { asset_items: recalculateRentalRows(prev.asset_items) }
+        : {}),
     }));
   }, [data.rental_cutoff_date]);
 
-  const itemColumns = useMemo(() => {
-    return [
+  // Kedua section memilih baris sumber yang sama; template link dan filter
+  // menyesuaikan asset_id pada Asset Items.
+  const [itemColumns, assetItemColumns] = useMemo(() => {
+    const buildItemColumns = (kind) => [
       {
         name: "item",
-        titleTrans: "finances.salesInvoice.columns.item",
+        titleTrans:
+          kind === "asset"
+            ? "asset.assetItems.asset"
+            : "finances.salesInvoice.columns.item",
         required: true,
         width: 2,
         cell({ dataRow, setData, attributes }) {
@@ -162,8 +190,12 @@ export default function Form() {
               onValueChange={(val) => {
                 setData({
                   sales_order_item: val,
-                  unit: val?.unit,
-                  conversion_factor: val?.conversion_factor,
+                  item: val?.item ?? null,
+                  asset: val?.asset ?? null,
+                  asset_id: val?.asset_id ?? null,
+                  unit: kind === "asset" ? null : val?.unit,
+                  conversion_factor:
+                    kind === "asset" ? 1 : val?.conversion_factor,
                   quantity: val?.unbilled_quantity,
                   price: val?.price,
                   tax: val?.tax,
@@ -171,13 +203,19 @@ export default function Form() {
                 });
               }}
               {...attributes}
-              as="item:item.item_id"
-              canNavigation="App\Models\Inventory\Item"
+              as={kind === "asset" ? "asset:asset_id" : "item:item.item_id"}
+              canNavigation={
+                kind === "asset"
+                  ? "App\Models\Asset\Asset"
+                  : "App\Models\Inventory\Item"
+              }
               filters={{
                 sales_order_id: data.sales_order?.id ?? null,
+                asset_id: kind === "asset" ? { "!=": null } : null,
               }}
-              with={["item", "unit", "tax"]}
+              with={["item", "asset", "unit", "tax"]}
               fields={[
+                "asset_id",
                 "unbilled_quantity",
                 "price",
                 "description",
@@ -196,7 +234,9 @@ export default function Form() {
         cell({ dataRow, data, setData, attributes }) {
           return (
             <Textarea
-              disabled={!dataRow?.item}
+              disabled={
+                !dataRow?.sales_order_item && !dataRow?.item && !dataRow?.asset
+              }
               rows={1}
               value={data ?? ""}
               onChange={(e) => setData("description", e.target.value)}
@@ -215,7 +255,9 @@ export default function Form() {
           return (
             <NumberInput
               {...attributes}
-              disabled={!dataRow?.item}
+              disabled={
+                !dataRow?.sales_order_item && !dataRow?.item && !dataRow?.asset
+              }
               readOnly={
                 attributes.readOnly || (dataRow.readOnly && !dataRow.isCustom)
               }
@@ -234,7 +276,9 @@ export default function Form() {
         cell({ data, setData, attributes, dataRow }) {
           return (
             <ItemUnitLinkModel
-              disabled={!dataRow?.item}
+              disabled={
+                !dataRow?.sales_order_item && !dataRow?.item && !dataRow?.asset
+              }
               placeholder={t("finances.salesInvoice.columns.unit.placeholder")}
               value={data}
               onValueChange={(val) =>
@@ -246,9 +290,11 @@ export default function Form() {
               {...attributes}
               filters={{
                 item_id:
-                  dataRow?.sales_order_item?.item?.id ??
-                  dataRow?.sales_order_item?.item_id ??
-                  dataRow?.item?.id,
+                  kind === "asset"
+                    ? (dataRow?.sales_order_item?.asset?.item_id ??
+                      dataRow?.asset?.item_id)
+                    : (dataRow?.sales_order_item?.item?.item_id ??
+                      dataRow?.item?.item_id),
               }}
             />
           );
@@ -257,11 +303,14 @@ export default function Form() {
       {
         name: "tax",
         titleTrans: "finances.salesInvoice.columns.tax",
+        required: true,
         width: 1,
         cell({ data, setData, attributes, dataRow }) {
           return (
             <TaxLinkModel
-              disabled={!dataRow?.item}
+              disabled={
+                !dataRow?.sales_order_item && !dataRow?.item && !dataRow?.asset
+              }
               placeholder={t("finances.salesInvoice.columns.tax.placeholder")}
               value={data}
               onValueChange={(val) => {
@@ -282,7 +331,9 @@ export default function Form() {
             <NumberInput
               decimalScale={2}
               currencyCode={data?.currency?.code}
-              disabled={!dataRow?.item}
+              disabled={
+                !dataRow?.sales_order_item && !dataRow?.item && !dataRow?.asset
+              }
               value={price}
               onValueChange={(val) => {
                 setData("price", val);
@@ -292,81 +343,58 @@ export default function Form() {
           );
         },
       },
-      {
-        name: "asset_lines",
-        titleTrans: "finances.salesInvoice.columns.asset_lines",
-        show: false,
-        width: 2,
-        cell({ dataRow, data, setData }) {
-          const itemId =
-            dataRow?.sales_order_item?.item?.item_id ??
-            dataRow?.sales_order_item?.item?.item?.id;
-          const isFixedAsset =
-            !!dataRow?.sales_order_item?.item?.is_fixed_asset;
-          if (!isFixedAsset) {
-            return <span className="text-muted-foreground">-</span>;
-          }
-          return (
-            <FormTable
-              name="SalesInvoiceItemAssetLines"
-              ignoreDisabled
-              columns={[
-                {
-                  name: "asset",
-                  titleTrans: "finances.salesInvoice.columns.asset_lines.asset",
-                  required: true,
-                  width: 2,
-                  cell({
-                    data: assetData,
-                    setData: setAssetData,
-                    attributes: assetAttrs,
-                  }) {
-                    return (
-                      <AssetLinkModel
-                        placeholder={t(
-                          "finances.salesInvoice.columns.asset_lines.asset.placeholder",
-                        )}
-                        value={assetData}
-                        onValueChange={(val) => setAssetData("asset", val)}
-                        {...assetAttrs}
-                        filters={{
-                          item_id: itemId,
-                          available_quantity: { ">": 0 },
-                        }}
-                      />
-                    );
-                  },
-                },
-                {
-                  name: "quantity",
-                  titleTrans:
-                    "finances.salesInvoice.columns.asset_lines.quantity",
-                  required: true,
-                  type: "number",
-                  width: 1,
-                  cell({
-                    data: qty,
-                    setData: setAssetData,
-                    attributes: assetAttrs,
-                  }) {
-                    return (
-                      <NumberInput
-                        {...assetAttrs}
-                        value={qty}
-                        onValueChange={(val) => setAssetData("quantity", val)}
-                      />
-                    );
-                  },
-                },
-              ]}
-              value={data ?? []}
-              onValueChange={(v) => setData("asset_lines", v)}
-            />
-          );
-        },
-      },
+    ];
+
+    return [
+      buildItemColumns("item"),
+      buildItemColumns("asset").filter((column) => column.name !== "unit"),
     ];
   }, [data, t]);
+
+  // basic_amount TIDAK ditimpa di sini -- generated (quantity*price) di server.
+  // tax_amount dihitung dari basis DPP Nilai Lain SETELAH dikurangi discount_amount,
+  // konsisten dgn DocumentDiscountCalculator::applyDiscountColumnToItems().
+  // SalesInvoiceItem tidak punya kolom amount (beda dari PurchaseInvoiceItem), jadi
+  // tidak diisi di sini. Spec asset-items-section: alokasi diskon memakai GABUNGAN
+  // baris kedua tabel (allocationContext), bukan hanya `dataTable` tabel aktif.
+  const makeMapItem =
+    (kind) =>
+    ({ item, dataTable, index }) => {
+      const { rows, index: rowIndex } = allocationContext({
+        kind,
+        dataTable,
+        index,
+        data,
+      });
+      const grossAmounts = rows.map((row, i) =>
+        i === rowIndex
+          ? (item.quantity ?? 0) * (item.price ?? 0)
+          : (row.quantity ?? 0) * (row.price ?? 0),
+      );
+      const lines = rows.map((row, i) => ({
+        basic_amount: grossAmounts[i],
+        tax_rate: i === rowIndex ? (item.tax?.rate ?? 0) : (row.tax?.rate ?? 0),
+      }));
+      const allocated = allocateDiscount(
+        lines,
+        data.discount_on,
+        data.discount_rate ?? 0,
+        data.discount_amount ?? 0,
+        data.latestDiscountKey ?? "discount_rate",
+        DPP_FACTOR,
+      );
+      const result = allocated[rowIndex] ?? allocated[0];
+      return {
+        ...item,
+        discount_amount:
+          Math.round(
+            (grossAmounts[rowIndex] - (result?.basic_amount ?? 0)) * 100,
+          ) / 100,
+        dpp_amount: (result?.basic_amount ?? 0) * DPP_FACTOR,
+        tax_amount: result?.tax_amount ?? 0,
+      };
+    };
+
   return (
     <>
       <FormPageContent value="detail" title={t("finances.salesInvoice.detail")}>
@@ -409,8 +437,10 @@ export default function Form() {
                   "customerBranch",
                   "currency",
                   "items.item",
+                  "items.asset",
                   "items.tax",
                   "items.unit",
+                  "items.asset_id",
                   "paymentSchedules",
                   "paymentSchedules.paymentMethod",
                 ]}
@@ -435,6 +465,19 @@ export default function Form() {
                 ]}
                 value={data.sales_order}
                 onValueChange={(val) => {
+                  // Spec asset-items-section: baris dihitung sekali di luar updater supaya
+                  // bisa dipakai lookup flag aset tetap di bawah (LinkModel /model tidak
+                  // membawa flag itu -- `with` dibatasi 2 segmen).
+                  const salesOrderRows = val?.items?.map((item) => {
+                    return {
+                      ...item,
+                      id: generateRandom(8),
+                      sales_order_item: { id: item.id, ...item },
+                      quantity: item.unbilled_quantity ?? item.quantity,
+                      amount: item.basic_amount + item.tax_amount,
+                    };
+                  });
+                  const parts = partitionRowsByAssetId(salesOrderRows);
                   setData((prev) => {
                     return {
                       ...prev,
@@ -443,15 +486,8 @@ export default function Form() {
                       customer: val?.customer,
                       customer_branch: val?.customer_branch,
                       currency: val?.currency,
-                      items: val?.items?.map((item) => {
-                        return {
-                          ...item,
-                          id: generateRandom(8),
-                          sales_order_item: { id: item.id, ...item },
-                          quantity: item.unbilled_quantity ?? item.quantity,
-                          amount: item.basic_amount + item.tax_amount,
-                        };
-                      }),
+                      items: parts.items,
+                      asset_items: parts.asset_items,
                       payment_schedules:
                         val?.payment_schedules?.map((paymentSchedule) => {
                           return {
@@ -534,6 +570,7 @@ export default function Form() {
                   customer_branch: undefined,
                   currency: undefined,
                   items: [],
+                  asset_items: [],
                   payment_schedules: [],
                   amount: 0,
                   discount_on: undefined,
@@ -568,10 +605,12 @@ export default function Form() {
                     "currency",
                     "items",
                     "items.item",
+                    "items.asset",
                     "items.tax",
                     "items.unit",
                   ]}
                   fields={[
+                    "items.asset_id",
                     "items.price",
                     "items.basic_amount",
                     "items.tax_rate",
@@ -579,6 +618,14 @@ export default function Form() {
                   ]}
                   value={data.return_against}
                   onValueChange={(val) => {
+                    const returnRows = val?.items?.map((item) => {
+                      return {
+                        ...item,
+                        id: generateRandom(8),
+                        return_against_item_id: item.id,
+                      };
+                    });
+                    const parts = partitionRowsByAssetId(returnRows);
                     setData((prev) => ({
                       ...prev,
                       return_against: val,
@@ -591,13 +638,8 @@ export default function Form() {
                       discount_on: val?.discount_on,
                       discount_rate: val?.discount_rate,
                       discount_amount: val?.discount_amount,
-                      items: val?.items?.map((item) => {
-                        return {
-                          ...item,
-                          id: generateRandom(8),
-                          return_against_item_id: item.id,
-                        };
-                      }),
+                      items: parts.items,
+                      asset_items: parts.asset_items,
                     }));
                   }}
                 />
@@ -691,6 +733,22 @@ export default function Form() {
           </FormInput>
         </div>
       </FormPageContent>
+      {/* Spec asset-items-section: transaksi aset dipisah dari barang biasa. Section
+          tertutup kecuali dokumen sudah punya baris aset saat dimuat. */}
+      <AssetItemsSection hasRows={(defaultData?.asset_items?.length ?? 0) > 0}>
+        <div className="grid grid-cols-2 gap-x-4 gap-y-4">
+          <FormTable
+            name="SalesInvoiceAssetItems"
+            className="col-start-1 col-span-2"
+            form={<ItemForm />}
+            columns={assetItemColumns}
+            value={data?.asset_items ?? []}
+            valueBefore={dataBefore?.asset_items}
+            onValueChange={(v) => setData("asset_items", v)}
+            mapItem={makeMapItem("asset")}
+          />
+        </div>
+      </AssetItemsSection>
       <FormPageContent value="detail" title={t("finances.salesInvoice.items")}>
         <FormPageContentTitle className="flex items-center justify-between gap-x-4">
           {t("finances.salesInvoice.items")}
@@ -704,42 +762,7 @@ export default function Form() {
             value={data?.items ?? []}
             valueBefore={dataBefore?.items}
             onValueChange={(v) => setData("items", v)}
-            mapItem={({ item, dataTable, index }) => {
-              // basic_amount TIDAK ditimpa di sini -- generated (quantity*price) di
-              // server. tax_amount dihitung dari basis DPP Nilai Lain SETELAH dikurangi
-              // discount_amount, konsisten dgn DocumentDiscountCalculator::
-              // applyDiscountColumnToItems(). SalesInvoiceItem tidak punya kolom amount
-              // (beda dari PurchaseInvoiceItem), jadi tidak diisi di sini.
-              const rows = dataTable ?? [];
-              const grossAmounts = rows.map((row, i) =>
-                i === index
-                  ? (item.quantity ?? 0) * (item.price ?? 0)
-                  : (row.quantity ?? 0) * (row.price ?? 0),
-              );
-              const lines = rows.map((row, i) => ({
-                basic_amount: grossAmounts[i],
-                tax_rate:
-                  i === index ? (item.tax?.rate ?? 0) : (row.tax?.rate ?? 0),
-              }));
-              const allocated = allocateDiscount(
-                lines,
-                data.discount_on,
-                data.discount_rate ?? 0,
-                data.discount_amount ?? 0,
-                data.latestDiscountKey ?? "discount_rate",
-                DPP_FACTOR,
-              );
-              const result = allocated[index] ?? allocated[0];
-              return {
-                ...item,
-                discount_amount:
-                  Math.round(
-                    (grossAmounts[index] - (result?.basic_amount ?? 0)) * 100,
-                  ) / 100,
-                dpp_amount: (result?.basic_amount ?? 0) * DPP_FACTOR,
-                tax_amount: result?.tax_amount ?? 0,
-              };
-            }}
+            mapItem={makeMapItem("item")}
           />
           {data?.currency?.code &&
             data?.currency?.code !== default_currency_id && (

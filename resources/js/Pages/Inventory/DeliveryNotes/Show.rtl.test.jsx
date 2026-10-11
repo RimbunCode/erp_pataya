@@ -269,5 +269,38 @@ describe("Show (DeliveryNotes)", () => {
         `deliveryNotes.create/${JSON.stringify({ ref: "deliveryNote/9" })}`,
       );
     });
+
+    // Spec asset-items-section: `items` hanya barang biasa, baris aset (rental) ada di
+    // `asset_items` dan juga harus dihitung untuk kelayakan retur.
+    it("hanya baris aset yang masih punya unreturned_quantity: tombol retur tetap muncul", () => {
+      const deliveryNote = baseDeliveryNote({
+        id: 11,
+        items: [{ id: 1, unreturned_quantity: 0 }],
+        asset_items: [{ id: 2, unreturned_quantity: 2 }],
+      });
+      renderShow({ deliveryNote });
+
+      const link = screen.getByText(
+        "inventory.deliveryNote.actions.create_sales_return",
+      );
+      expect(link.closest("a")).toHaveAttribute(
+        "href",
+        `deliveryNotes.create/${JSON.stringify({ ref: "deliveryNote/11" })}`,
+      );
+    });
+
+    it("unreturned_quantity dijumlah dari items DAN asset_items (0 + 0 = tombol tidak muncul)", () => {
+      const deliveryNote = baseDeliveryNote({
+        items: [{ id: 1, unreturned_quantity: 0 }],
+        asset_items: [{ id: 2, unreturned_quantity: 0 }],
+      });
+      renderShow({ deliveryNote });
+
+      expect(
+        screen.queryByText(
+          "inventory.deliveryNote.actions.create_sales_return",
+        ),
+      ).not.toBeInTheDocument();
+    });
   });
 });

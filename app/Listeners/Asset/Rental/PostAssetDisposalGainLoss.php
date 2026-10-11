@@ -28,7 +28,7 @@ class PostAssetDisposalGainLoss implements ShouldQueue {
             }
 
             $asset      = $line->asset;
-            $parentItem = $line->salesInvoiceItem;
+            $parentItem = $line;
 
             $proportionPrice = $parentItem->quantity > 0
                 ? ($parentItem->price / $parentItem->quantity) * $line->quantity

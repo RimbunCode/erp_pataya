@@ -63,6 +63,10 @@ class Asset extends Model {
     }
 
     protected array $configColumns = [
+        'item_id' => [
+            'hidden'   => true,
+            'linkable' => true,
+        ],
         'code' => [
             'show'   => true,
             'order'  => 0,

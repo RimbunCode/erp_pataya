@@ -21,6 +21,7 @@ use App\Models\Inventory\StockLedgerEntry;
 use App\Models\Model;
 use App\Models\Sales\InternalOrderItem;
 use App\Models\Sales\SalesOrderItem;
+use App\Services\Asset\AssetItems\AssetItemPartitioner;
 use App\Traits\HasDefaultDelete;
 use Illuminate\Support\Collection;
 use Illuminate\Support\Facades\Auth;
@@ -44,12 +45,14 @@ class DeliveryNoteService implements SubmitableService {
     }
 
     private function fillItemRelations(array $item, array $units = [], array $referenceableItems = []) {
-        // item_id diambil dari referenceable (SalesOrderItem/InternalOrderItem) — tidak trust FE
-        $item['item_id'] = $referenceableItems[$item['referenceable_id']]->item_id;
+        // Identitas item/aset diambil dari baris sumber, bukan dari payload FE.
+        $source           = $referenceableItems[$item['referenceable_id']];
+        $item['item_id']  = $source->item_id;
+        $item['asset_id'] = $source->asset_id ?? null;
 
-        $item['item_unit_id']        = $item['unit']['id'];
+        $item['item_unit_id']        = $item['asset_id'] ? null : ($item['unit']['id'] ?? null);
         $item['source_warehouse_id'] = $item['source_warehouse']['id'] ?? null;
-        $unit                        = $units[$item['unit']['id']] ?? null;
+        $unit                        = $units[$item['item_unit_id']] ?? null;
         $item['conversion_factor']   = $unit?->conversion_factor ?? 1;
         $item['quantity'] ??= 0;
         $item['valuation_rates']        = [];
@@ -84,41 +87,22 @@ class DeliveryNoteService implements SubmitableService {
     }
 
     public function create(array $data): Model {
+        // Spec asset-items-section: `items` + `asset_items` digabung di satu titik.
+        $data         = AssetItemPartitioner::mergePayload($data);
         $data['code'] = FormatingSeries::generate(DeliveryNote::class, $data, true);
         $deliveryNote = DeliveryNote::create($this->fillRelations($data));
 
         $units              = $this->batchLoadUnits($data);
         $referenceableItems = $this->batchLoadReferenceableItems($data);
         foreach ($data['items'] as $item) {
-            $item       = $this->fillItemRelations($item, $units, $referenceableItems);
-            $assetLines = $item['asset_lines'] ?? [];
-            unset($item['asset_lines']);
-            $deliveryNoteItem = $deliveryNote->items()->create($item);
-            $this->syncAssetLines($deliveryNoteItem, $assetLines);
+            $deliveryNote->items()->create($this->fillItemRelations($item, $units, $referenceableItems));
         }
 
         return $deliveryNote;
     }
 
-    /**
-     * Requirement 1.1, spec asset-rental-migration: persist child
-     * DeliveryNoteItemAsset dari payload FE (dulu tidak pernah tersimpan sama
-     * sekali — asset_lines terbuang di FormRequest::validated() karena tidak
-     * dideklarasikan di rules()). Delete-and-recreate karena baris ini hanya
-     * editable saat draft (sebelum submit/approve), tidak ada histori per-line
-     * yang perlu dipertahankan.
-     */
-    private function syncAssetLines(DeliveryNoteItem $item, array $lines): void {
-        $item->assetLines()->delete();
-        foreach ($lines as $line) {
-            $item->assetLines()->create([
-                'asset_id' => data_get($line, 'asset.id'),
-                'quantity' => data_get($line, 'quantity'),
-            ]);
-        }
-    }
-
     public function update(Model $deliveryNote, array $data): Model {
+        $data = AssetItemPartitioner::mergePayload($data);
         $deliveryNote->fillForUpdate($this->fillRelations($data));
 
         $deliveryNote->items()
@@ -137,22 +121,16 @@ class DeliveryNoteService implements SubmitableService {
         $units              = $this->batchLoadUnits($data);
         $referenceableItems = $this->batchLoadReferenceableItems($data);
         foreach ($data['items'] as $item) {
-            $item       = $this->fillItemRelations($item, $units, $referenceableItems);
-            $assetLines = $item['asset_lines'] ?? [];
-            unset($item['asset_lines']);
+            $item = $this->fillItemRelations($item, $units, $referenceableItems);
 
             if (Ulid::isValid($item['id'])) {
                 $existingItem = $existingItems->get($item['id']);
                 $existingItem?->update($item);
-                if ($existingItem) {
-                    $this->syncAssetLines($existingItem, $assetLines);
-                }
 
                 continue;
             }
 
-            $deliveryNoteItem = $deliveryNote->items()->create($item);
-            $this->syncAssetLines($deliveryNoteItem, $assetLines);
+            $deliveryNote->items()->create($item);
         }
 
         return $deliveryNote;
@@ -196,6 +174,7 @@ class DeliveryNoteService implements SubmitableService {
         $items       = $deliveryNote->items()
             ->with([
                 'item',
+                'asset',
                 'item.item',
                 'item.item.category',
                 'referenceable',
@@ -224,7 +203,7 @@ class DeliveryNoteService implements SubmitableService {
 
             // Asset rental/jual-putus (Requirement 1, spec asset-rental-migration) — TIDAK PERNAH
             // menyentuh logic Stock/StockLedgerEntry apapun, di-skip total dari loop lama.
-            if ($item->item?->item?->is_fixed_asset) {
+            if ($item->asset_id) {
                 $item->referenceable->increment('delivered_quantity', $item->quantity);
 
                 try {
@@ -417,37 +396,22 @@ class DeliveryNoteService implements SubmitableService {
         return $deliveryNote;
     }
 
-    /**
-     * Requirement 1-3, spec asset-rental-migration: dispatch event per baris
-     * DeliveryNoteItemAsset (rental/retur/jual-putus) — TIDAK menyentuh Stock.
-     */
+    /** Dispatch the asset transition once for this document row. */
     private function handleAssetDeliveryItem(DeliveryNoteItem $item, DeliveryNote $deliveryNote, bool $returnAgainst): void {
-        $lines = $item->assetLines()->with('asset.assetCategory')->get();
-
-        if (abs((float) $lines->sum('quantity') - (float) $item->quantity) > 0.0001) {
-            throw new LogicException(__('asset/asset.quantity_mismatch'));
-        }
-
         $isRentSo = $item->referenceable instanceof SalesOrderItem
             ? (bool) ($item->referenceable->salesOrder?->is_rent ?? false)
             : false;
 
-        foreach ($lines as $line) {
-            $asset = $line->asset;
-            if (! $asset->is_rentable) {
-                throw new LogicException(__('asset/asset.asset_not_rentable'));
-            }
-            if ($asset->item_id !== $item->item?->item_id) {
-                throw new LogicException(__('asset/asset.item_mismatch'));
-            }
+        if (! $item->asset?->is_rentable) {
+            throw new LogicException(__('asset/asset.asset_not_rentable'));
+        }
 
-            if ($returnAgainst) {
-                event(new AssetRentalReturnApproved($line));
-            } elseif ($isRentSo) {
-                event(new AssetRentalDeliveryApproved($line));
-            } else {
-                event(new AssetSoldViaDelivery($line));
-            }
+        if ($returnAgainst) {
+            event(new AssetRentalReturnApproved($item));
+        } elseif ($isRentSo) {
+            event(new AssetRentalDeliveryApproved($item));
+        } else {
+            event(new AssetSoldViaDelivery($item));
         }
     }
 
