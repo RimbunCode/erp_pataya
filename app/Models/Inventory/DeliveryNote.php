@@ -102,6 +102,7 @@ class DeliveryNote extends Model {
                     InternalOrderItem::class => ['item'],
                 ]);
             },
+            'items.item',
             'items.unit',
             'items.sourceWarehouse',
             'items.asset',

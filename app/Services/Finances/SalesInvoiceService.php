@@ -20,7 +20,6 @@ use App\Models\Inventory\ItemUnit;
 use App\Models\Model;
 use App\Models\Sales\Customer;
 use App\Models\Sales\SalesOrderItem;
-use App\Services\Asset\AssetItems\AssetItemPartitioner;
 use App\Traits\HasDefaultDelete;
 use App\Utils;
 use Illuminate\Support\Facades\DB;
@@ -63,9 +62,13 @@ class SalesInvoiceService implements SubmitableService {
     }
 
     private function fillItemRelations(array $data, SalesInvoice $salesInvoice, array $units = [], array $taxes = [], array $salesOrderItems = []) {
-        $data['sales_order_item_id'] = $data['sales_order_item']['id'];
-        $data['item_id']             = $salesOrderItems[$data['sales_order_item_id']]->item_id;
-        $data['asset_id']            = $salesOrderItems[$data['sales_order_item_id']]->asset_id;
+        // Baris SO mengambil identitas dari baris sumber; baris bebas (spec
+        // delivery-note-sales-invoice-off-source-items) dari `item.id` (ItemVariant)
+        // atau `asset.id` -- prioritas sumber > item > asset.
+        $source                      = filled($data['sales_order_item']['id'] ?? null) ? $salesOrderItems[$data['sales_order_item']['id']] : null;
+        $data['sales_order_item_id'] = $source?->id;
+        $data['item_id']             = $source ? $source->item_id : ($data['item']['id'] ?? null);
+        $data['asset_id']            = $source ? $source->asset_id : (($data['item']['id'] ?? null) ? null : ($data['asset']['id'] ?? null));
 
         $unitId                     = $data['asset_id'] ? null : ($data['unit']['id'] ?? null);
         $unit                       = $units[$unitId] ?? null;
@@ -113,8 +116,6 @@ class SalesInvoiceService implements SubmitableService {
     }
 
     public function create(array $data): Model {
-        // Spec asset-items-section: `items` + `asset_items` digabung di satu titik.
-        $data         = AssetItemPartitioner::mergePayload($data);
         $data['code'] = FormatingSeries::generate(SalesInvoice::class, $data, true);
         $salesInvoice = SalesInvoice::create($this->fillRelations($data));
 
@@ -147,7 +148,6 @@ class SalesInvoiceService implements SubmitableService {
     }
 
     public function update(Model $salesInvoice, array $data): Model {
-        $data = AssetItemPartitioner::mergePayload($data);
         $salesInvoice->fillForUpdate($this->fillRelations($data), true);
         $salesInvoice->items()
             ->whereNotIn('id', array_column($data['items'], 'id'))
@@ -284,12 +284,15 @@ class SalesInvoiceService implements SubmitableService {
             foreach ($items as $item) {
                 $basicAmount += $item->basic_amount - $item->discount_amount;
                 $taxAmount += $item->tax_amount;
-                event(new SalesOrderItemBillingChanged(
-                    $item->salesOrderItem,
-                    $item->quantity,
-                    $returnAgainst ? 'decrement' : 'increment',
-                    $returnAgainst ? $item->returnAgainstItem : null,
-                ));
+                // Baris bebas (tanpa baris SO) tidak mengubah tagihan SO mana pun.
+                if ($item->salesOrderItem) {
+                    event(new SalesOrderItemBillingChanged(
+                        $item->salesOrderItem,
+                        $item->quantity,
+                        $returnAgainst ? 'decrement' : 'increment',
+                        $returnAgainst ? $item->returnAgainstItem : null,
+                    ));
+                }
 
                 if ($item->asset_id) {
                     event(new AssetSoldViaInvoice($item));

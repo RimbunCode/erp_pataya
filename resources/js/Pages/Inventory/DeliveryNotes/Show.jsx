@@ -4,16 +4,14 @@ import { Button } from "@/Components/ui/button";
 import Form from "./Form";
 import { FormPage } from "@/Pages/Core/FormPage";
 import Link from "@/Components/Link";
-import { getAllItems } from "@/lib/assetItems";
 import { useLaravelReactI18n } from "laravel-react-i18n";
 
 export default function Show({ deliveryNote, defaultData, flash }) {
   const { t } = useLaravelReactI18n();
   const route = window.route;
-  // Spec asset-items-section: `items` hanya barang biasa, baris aset (rental) ada di
-  // `asset_items` -- tombol retur harus muncul juga bila hanya baris aset yang
-  // masih punya unreturned_quantity.
-  const allItems = getAllItems(deliveryNote);
+  // `items` berisi baris SO, ItemVariant bebas, dan Asset -- tombol retur muncul
+  // selama ada baris yang masih punya unreturned_quantity.
+  const allItems = deliveryNote?.items ?? [];
 
   return (
     <FormPage

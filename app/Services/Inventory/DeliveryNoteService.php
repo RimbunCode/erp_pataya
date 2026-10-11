@@ -21,7 +21,6 @@ use App\Models\Inventory\StockLedgerEntry;
 use App\Models\Model;
 use App\Models\Sales\InternalOrderItem;
 use App\Models\Sales\SalesOrderItem;
-use App\Services\Asset\AssetItems\AssetItemPartitioner;
 use App\Traits\HasDefaultDelete;
 use Illuminate\Support\Collection;
 use Illuminate\Support\Facades\Auth;
@@ -45,10 +44,19 @@ class DeliveryNoteService implements SubmitableService {
     }
 
     private function fillItemRelations(array $item, array $units = [], array $referenceableItems = []) {
-        // Identitas item/aset diambil dari baris sumber, bukan dari payload FE.
-        $source           = $referenceableItems[$item['referenceable_id']];
-        $item['item_id']  = $source->item_id;
-        $item['asset_id'] = $source->asset_id ?? null;
+        // Identitas item/aset: baris SO/IO mengambil dari baris sumber (bukan dari
+        // payload FE); baris bebas (spec delivery-note-sales-invoice-off-source-items)
+        // dari `item.id` (ItemVariant) atau `asset.id` -- prioritas sumber > item > asset.
+        $source = filled($item['referenceable_id'] ?? null) ? $referenceableItems[$item['referenceable_id']] : null;
+        if ($source) {
+            $item['item_id']  = $source->item_id;
+            $item['asset_id'] = $source->asset_id ?? null;
+        } else {
+            $item['referenceable_type'] = null;
+            $item['referenceable_id']   = null;
+            $item['item_id']            = $item['item']['id'] ?? null;
+            $item['asset_id']           = $item['item_id'] ? null : ($item['asset']['id'] ?? null);
+        }
 
         $item['item_unit_id']        = $item['asset_id'] ? null : ($item['unit']['id'] ?? null);
         $item['source_warehouse_id'] = $item['source_warehouse']['id'] ?? null;
@@ -63,6 +71,7 @@ class DeliveryNoteService implements SubmitableService {
 
     private function batchLoadReferenceableItems(array $data): array {
         $grouped = collect($data['items'])
+            ->filter(fn ($item) => filled($item['referenceable_id'] ?? null))
             ->groupBy('referenceable_type')
             ->map(fn ($items, $type) => [
                 'type' => $type,
@@ -87,8 +96,6 @@ class DeliveryNoteService implements SubmitableService {
     }
 
     public function create(array $data): Model {
-        // Spec asset-items-section: `items` + `asset_items` digabung di satu titik.
-        $data         = AssetItemPartitioner::mergePayload($data);
         $data['code'] = FormatingSeries::generate(DeliveryNote::class, $data, true);
         $deliveryNote = DeliveryNote::create($this->fillRelations($data));
 
@@ -102,7 +109,6 @@ class DeliveryNoteService implements SubmitableService {
     }
 
     public function update(Model $deliveryNote, array $data): Model {
-        $data = AssetItemPartitioner::mergePayload($data);
         $deliveryNote->fillForUpdate($this->fillRelations($data));
 
         $deliveryNote->items()
@@ -196,15 +202,21 @@ class DeliveryNoteService implements SubmitableService {
         $errorItems  = [];
         $totalPicked = 0;
         foreach ($items as $item) {
+            // Baris bebas (spec delivery-note-sales-invoice-off-source-items): tanpa
+            // sumber SO/IO -> tidak menyentuh delivered_quantity maupun reservasi stok.
+            $isFree = blank($item->referenceable_id);
+
             // update delivered quantity dari Sales Order Item
-            if (! $item->referenceable) {
+            if (! $isFree && ! $item->referenceable) {
                 throw new \RuntimeException("DeliveryNoteItem {$item->id} has no referenceable (type: {$item->referenceable_type}, id: {$item->referenceable_id})");
             }
 
             // Asset rental/jual-putus (Requirement 1, spec asset-rental-migration) — TIDAK PERNAH
             // menyentuh logic Stock/StockLedgerEntry apapun, di-skip total dari loop lama.
             if ($item->asset_id) {
-                $item->referenceable->increment('delivered_quantity', $item->quantity);
+                if (! $isFree) {
+                    $item->referenceable->increment('delivered_quantity', $item->quantity);
+                }
 
                 try {
                     $this->handleAssetDeliveryItem($item, $deliveryNote, (bool) $returnAgainst);
@@ -232,10 +244,12 @@ class DeliveryNoteService implements SubmitableService {
             // Requirement 1.4, spec asset-rental-migration: gate rental lama
             // ($item->item->type == 'vehicle') dihapus total — kelayakan rental
             // sekarang murni ditentukan Item.is_fixed_asset (branch di atas).
-            if ($returnAgainst) {
-                $item->referenceable->decrement('delivered_quantity', $item->quantity);
-            } else {
-                $item->referenceable->increment('delivered_quantity', $item->quantity);
+            if (! $isFree) {
+                if ($returnAgainst) {
+                    $item->referenceable->decrement('delivered_quantity', $item->quantity);
+                } else {
+                    $item->referenceable->increment('delivered_quantity', $item->quantity);
+                }
             }
             if (! $item->item->is_stock_item) {
                 continue;
@@ -287,7 +301,12 @@ class DeliveryNoteService implements SubmitableService {
                     'quantity'    => $stock->quantity + $quantity,
                     'stock_queue' => $remainingQueue,
                 ]);
-                $stock->updateDetails('increment', 'reservations', $toReference->code, $quantity);
+                if ($isFree) {
+                    // updateDetails() juga menyimpan fill() di atas; baris bebas tidak punya reservasi SO.
+                    $stock->save();
+                } else {
+                    $stock->updateDetails('increment', 'reservations', $toReference->code, $quantity);
+                }
                 $stock->refresh();
                 StockLedgerEntry::create([
                     'item_id'                    => $item->item_id,
@@ -355,7 +374,12 @@ class DeliveryNoteService implements SubmitableService {
                     'quantity'    => $stock->quantity - $quantity,
                     'stock_queue' => $remainingQueue,
                 ]);
-                $stock->updateDetails('decrement', 'reservations', $toReference->code, $quantity);
+                if ($isFree) {
+                    // updateDetails() juga menyimpan fill() di atas; baris bebas tidak punya reservasi SO.
+                    $stock->save();
+                } else {
+                    $stock->updateDetails('decrement', 'reservations', $toReference->code, $quantity);
+                }
                 $stock->refresh();
                 StockLedgerEntry::create([
                     'item_id'                    => $item->item_id,
@@ -401,6 +425,17 @@ class DeliveryNoteService implements SubmitableService {
         $isRentSo = $item->referenceable instanceof SalesOrderItem
             ? (bool) ($item->referenceable->salesOrder?->is_rent ?? false)
             : false;
+
+        // Baris Asset bebas (tanpa sumber SO) dijual: tidak perlu rentable, tidak dapat diretur.
+        if (blank($item->referenceable_id)) {
+            if ($returnAgainst) {
+                throw new LogicException(__('inventory/deliveryNote.free_asset_cannot_be_returned'));
+            }
+
+            event(new AssetSoldViaDelivery($item));
+
+            return;
+        }
 
         if (! $item->asset?->is_rentable) {
             throw new LogicException(__('asset/asset.asset_not_rentable'));

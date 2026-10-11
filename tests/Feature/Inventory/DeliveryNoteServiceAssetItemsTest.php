@@ -3,6 +3,9 @@
 namespace Tests\Feature\Inventory;
 
 use App\Events\Asset\AssetRentalDeliveryApproved;
+use App\Events\Asset\AssetSoldViaDelivery;
+use App\Events\Inventory\DeliveryNoteGeneralLedgerPostingRequested;
+use App\Events\Sales\Order\DocumentDeliveryStatusRecalculationRequested;
 use App\Models\Asset\Asset;
 use App\Models\Asset\AssetCategory;
 use App\Models\Core\Branch;
@@ -11,6 +14,8 @@ use App\Models\Inventory\DeliveryNote;
 use App\Models\Inventory\DeliveryNoteItem;
 use App\Models\Inventory\Item;
 use App\Models\Inventory\ItemVariant;
+use App\Models\Inventory\Stock;
+use App\Models\Inventory\StockLedgerEntry;
 use App\Models\Sales\Customer;
 use App\Models\Sales\SalesOrder;
 use App\Models\Sales\SalesOrderItem;
@@ -27,8 +32,8 @@ use PHPUnit\Framework\Attributes\Test;
 use Tests\TestCase;
 
 /**
- * DeliveryNoteService menggabungkan bucket ke delivery_note_items dan
- * menyimpan asset_id langsung sambil mempertahankan referenceable source row.
+ * DeliveryNoteService menyimpan satu `items[]` berisi baris SO (referenceable) dan baris
+ * bebas (ItemVariant/Asset tanpa sumber SO) ke delivery_note_items, dan memprosesnya saat approve.
  */
 class DeliveryNoteServiceAssetItemsTest extends TestCase {
     use RefreshDatabase;
@@ -42,7 +47,7 @@ class DeliveryNoteServiceAssetItemsTest extends TestCase {
     protected function setUp(): void {
         parent::setUp();
 
-        foreach ([User::class, FormatingSeries::class, DeliveryNote::class, Asset::class, SalesOrder::class] as $model) {
+        foreach ([User::class, FormatingSeries::class, DeliveryNote::class, Asset::class, SalesOrder::class, StockLedgerEntry::class] as $model) {
             $model::initPermissions();
         }
 
@@ -113,13 +118,17 @@ class DeliveryNoteServiceAssetItemsTest extends TestCase {
         return $itemUnitId;
     }
 
-    private function makeAsset(Item $item): Asset {
+    private function makeAsset(Item $item, bool $rentable = true): Asset {
         $category = AssetCategory::factory()->create();
 
-        return Asset::factory()->rentable()->create(['asset_category_id' => $category->id, 'item_id' => $item->id]);
+        return $rentable
+            ? Asset::factory()->rentable()->create(['asset_category_id' => $category->id, 'item_id' => $item->id])
+            : Asset::factory()->create(['asset_category_id' => $category->id, 'item_id' => $item->id, 'is_rentable' => false]);
     }
 
     /**
+     * Baris dari SO (referenceable).
+     *
      * @return array<string,mixed>
      */
     private function row(SalesOrderItem $soItem, Item $item, array $extra = [], ?string $id = null): array {
@@ -133,6 +142,49 @@ class DeliveryNoteServiceAssetItemsTest extends TestCase {
             ...($soItem->asset_id ? ['asset' => ['id' => $soItem->asset_id]] : []),
             ...$extra,
         ];
+    }
+
+    /**
+     * Baris bebas ItemVariant (tanpa sumber SO).
+     *
+     * @return array<string,mixed>
+     */
+    private function freeItemRow(ItemVariant $variant, string $itemUnitId, float $quantity = 2): array {
+        return [
+            'id'               => (string) Str::ulid(),
+            'item'             => ['id' => $variant->id],
+            'quantity'         => $quantity,
+            'unit'             => ['id' => $itemUnitId],
+            'source_warehouse' => ['id' => $this->warehouseId],
+        ];
+    }
+
+    /**
+     * Baris bebas Asset (tanpa sumber SO).
+     *
+     * @return array<string,mixed>
+     */
+    private function freeAssetRow(Asset $asset): array {
+        return ['id' => (string) Str::ulid(), 'asset' => ['id' => $asset->id], 'quantity' => 1];
+    }
+
+    /**
+     * @return array{0: ItemVariant, 1: string} [variant, itemUnitId]
+     */
+    private function makeStockedVariant(float $stockQuantity = 10): array {
+        $item     = Item::factory()->create(['is_fixed_asset' => false, 'is_stock_item' => true]);
+        $variant  = ItemVariant::factory()->create(['item_id' => $item->id, 'is_stock_item' => true]);
+        $itemUnit = $this->makeItemUnit($item->id);
+        Stock::create([
+            'item_variant_id'   => $variant->id,
+            'warehouse_id'      => $this->warehouseId,
+            'item_unit_id'      => $itemUnit,
+            'quantity'          => $stockQuantity,
+            'conversion_factor' => 1,
+            'stock_queue'       => [['quantity' => $stockQuantity, 'rate' => 1000]],
+        ]);
+
+        return [$variant, $itemUnit];
     }
 
     /**
@@ -165,8 +217,7 @@ class DeliveryNoteServiceAssetItemsTest extends TestCase {
         $assetSo     = $this->makeSalesOrderItem($assetItem, $asset);
 
         $deliveryNote = app(DeliveryNoteService::class)->create($this->payload([
-            'items'       => [$this->row($regularSo, $regularItem)],
-            'asset_items' => [$this->row($assetSo, $assetItem)],
+            'items' => [$this->row($regularSo, $regularItem), $this->row($assetSo, $assetItem)],
         ]))->fresh(['items.asset']);
 
         $this->assertCount(2, $deliveryNote->items, 'relasi items() mengembalikan semua baris');
@@ -193,12 +244,12 @@ class DeliveryNoteServiceAssetItemsTest extends TestCase {
         $service   = app(DeliveryNoteService::class);
 
         $deliveryNote = $service->create($this->payload([
-            'asset_items' => [$this->row($assetSoA, $assetItem)],
+            'items' => [$this->row($assetSoA, $assetItem)],
         ]));
         $existing = $deliveryNote->items()->first();
 
         $service->update($deliveryNote->fresh(), $this->payload([
-            'asset_items' => [$this->row($assetSoB, $assetItem, [], $existing->id)],
+            'items' => [$this->row($assetSoB, $assetItem, [], $existing->id)],
         ]));
 
         $updated = $deliveryNote->items()->first()->fresh();
@@ -209,7 +260,7 @@ class DeliveryNoteServiceAssetItemsTest extends TestCase {
     }
 
     #[Test]
-    public function create_without_asset_items_behaves_as_before(): void {
+    public function create_with_only_regular_rows_behaves_as_before(): void {
         $regularItem = Item::factory()->create(['is_fixed_asset' => false]);
         $regularSo   = $this->makeSalesOrderItem($regularItem);
 
@@ -232,7 +283,7 @@ class DeliveryNoteServiceAssetItemsTest extends TestCase {
         $sourceB      = $this->makeSalesOrderItem($assetItem, $assetB);
         $service      = app(DeliveryNoteService::class);
         $deliveryNote = $service->create($this->payload([
-            'asset_items' => [
+            'items' => [
                 $this->row($sourceA, $assetItem),
                 $this->row($sourceB, $assetItem),
             ],
@@ -251,5 +302,128 @@ class DeliveryNoteServiceAssetItemsTest extends TestCase {
                     && $event->line->asset_id === $assetId,
             );
         }
+    }
+
+    // --- baris bebas (spec delivery-note-sales-invoice-off-source-items) ----
+
+    #[Test]
+    public function create_saves_free_rows_without_referenceable(): void {
+        [$variant, $itemUnit] = $this->makeStockedVariant();
+        $asset                = $this->makeAsset(Item::factory()->create(['is_fixed_asset' => true, 'is_stock_item' => false]));
+
+        $deliveryNote = app(DeliveryNoteService::class)->create($this->payload([
+            'items' => [$this->freeItemRow($variant, $itemUnit), $this->freeAssetRow($asset)],
+        ]))->fresh(['items']);
+
+        $itemRow  = $deliveryNote->items->firstWhere('item_id', $variant->id);
+        $assetRow = $deliveryNote->items->firstWhere('asset_id', $asset->id);
+
+        $this->assertNull($itemRow->referenceable_id);
+        $this->assertNull($itemRow->referenceable_type);
+        $this->assertNull($itemRow->asset_id);
+        $this->assertSame($itemUnit, $itemRow->item_unit_id);
+        $this->assertSame($this->warehouseId, $itemRow->source_warehouse_id);
+        $this->assertNull($assetRow->referenceable_id);
+        $this->assertNull($assetRow->item_id);
+        $this->assertNull($assetRow->item_unit_id);
+        $this->assertSame(1.0, $assetRow->conversion_factor);
+    }
+
+    #[Test]
+    public function approving_a_free_item_row_deducts_stock_without_touching_the_sales_order(): void {
+        [$variant, $itemUnit] = $this->makeStockedVariant(10);
+        $regularItem          = Item::factory()->create(['is_fixed_asset' => false]);
+        $regularSo            = $this->makeSalesOrderItem($regularItem);
+
+        $deliveryNote = app(DeliveryNoteService::class)->create($this->payload([
+            'items' => [$this->freeItemRow($variant, $itemUnit, 3)],
+        ]));
+
+        Event::fake([DeliveryNoteGeneralLedgerPostingRequested::class, DocumentDeliveryStatusRecalculationRequested::class]);
+        app(DeliveryNoteService::class)->onApproved($deliveryNote->fresh());
+
+        $stock = Stock::where('item_variant_id', $variant->id)->first();
+        $this->assertEqualsWithDelta(7.0, $stock->quantity, 0.0001);
+        $entry = StockLedgerEntry::where('referenceable_type', DeliveryNote::class)
+            ->where('referenceable_id', $deliveryNote->id)->first();
+        $this->assertEqualsWithDelta(-3.0, (float) $entry->quantity_change, 0.0001);
+        $this->assertEqualsWithDelta(0.0, (float) $regularSo->fresh()->delivered_quantity, 0.0001, 'baris SO lain tidak tersentuh');
+    }
+
+    #[Test]
+    public function returning_a_free_item_row_restores_stock_using_the_original_valuation(): void {
+        [$variant, $itemUnit] = $this->makeStockedVariant(10);
+        $service              = app(DeliveryNoteService::class);
+
+        Event::fake([DeliveryNoteGeneralLedgerPostingRequested::class, DocumentDeliveryStatusRecalculationRequested::class]);
+        $original = $service->create($this->payload([
+            'items' => [$this->freeItemRow($variant, $itemUnit, 3)],
+        ]));
+        $service->onApproved($original->fresh());
+        $originalRow = $original->items()->first();
+
+        $return = $service->create($this->payload([
+            'return_against' => ['id' => $original->id],
+            'items'          => [[
+                ...$this->freeItemRow($variant, $itemUnit, 3),
+                'return_against_item' => ['id' => $originalRow->id],
+            ]],
+        ]));
+        $service->onApproved($return->fresh());
+
+        $this->assertEqualsWithDelta(10.0, Stock::where('item_variant_id', $variant->id)->first()->quantity, 0.0001);
+        $this->assertEqualsWithDelta(3.0, (float) $originalRow->fresh()->returned_quantity, 0.0001);
+    }
+
+    #[Test]
+    public function approving_a_free_item_row_with_insufficient_stock_does_not_deduct_stock(): void {
+        [$variant, $itemUnit] = $this->makeStockedVariant(1);
+
+        $deliveryNote = app(DeliveryNoteService::class)->create($this->payload([
+            'items' => [$this->freeItemRow($variant, $itemUnit, 3)],
+        ]));
+
+        Event::fake([DeliveryNoteGeneralLedgerPostingRequested::class, DocumentDeliveryStatusRecalculationRequested::class]);
+        try {
+            app(DeliveryNoteService::class)->onApproved($deliveryNote->fresh());
+        } catch (\Throwable) {
+            // stok tidak cukup -> dokumen tidak boleh memotong stok
+        }
+
+        $this->assertEqualsWithDelta(1.0, Stock::where('item_variant_id', $variant->id)->first()->quantity, 0.0001);
+    }
+
+    #[Test]
+    public function approving_a_free_asset_row_dispatches_asset_sold_even_for_a_non_rentable_asset(): void {
+        $item  = Item::factory()->create(['is_fixed_asset' => true, 'is_stock_item' => false]);
+        $asset = $this->makeAsset($item, false);
+
+        $service      = app(DeliveryNoteService::class);
+        $deliveryNote = $service->create($this->payload(['items' => [$this->freeAssetRow($asset)]]));
+
+        Event::fake();
+        $service->onApproved($deliveryNote->fresh());
+
+        Event::assertDispatchedTimes(AssetSoldViaDelivery::class, 1);
+        Event::assertNotDispatched(AssetRentalDeliveryApproved::class);
+    }
+
+    #[Test]
+    public function approving_so_rows_and_free_rows_together_only_counts_so_rows_as_delivered(): void {
+        $assetItem = Item::factory()->create(['is_fixed_asset' => true, 'is_stock_item' => false]);
+        $assetA    = $this->makeAsset($assetItem);
+        $soAsset   = $this->makeSalesOrderItem($assetItem, $assetA);
+        $assetB    = $this->makeAsset($assetItem);
+
+        $service      = app(DeliveryNoteService::class);
+        $deliveryNote = $service->create($this->payload([
+            'items' => [$this->row($soAsset, $assetItem), $this->freeAssetRow($assetB)],
+        ]));
+
+        Event::fake();
+        $service->onApproved($deliveryNote->fresh());
+
+        $this->assertEqualsWithDelta(1.0, (float) $soAsset->fresh()->delivered_quantity, 0.0001);
+        Event::assertDispatchedTimes(AssetSoldViaDelivery::class, 2);
     }
 }

@@ -1,5 +1,5 @@
 import { describe, expect, it, vi, beforeEach } from "vitest";
-import { act, render, screen, waitFor } from "@testing-library/react";
+import { render, screen, waitFor } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 
 // ============================================================================
@@ -97,9 +97,6 @@ vi.mock("@/Components/FormTable", () => ({
   default: (props) => {
     if (props.name === "DeliveryNoteItems") {
       captured.formTableProps = props;
-    } else if (props.name === "DeliveryNoteAssetItems") {
-      // Spec asset-items-section: tabel Asset Items terpisah dari Items.
-      captured.assetFormTableProps = props;
     }
     return (
       <div data-testid={`stub-form-table-${props.name}`}>
@@ -361,7 +358,6 @@ describe("Inventory DeliveryNotes Form.jsx", () => {
           customer: { id: 1 },
           customer_branch: { id: 10 },
           items: [{ id: 1, item: { id: 1 } }],
-          asset_items: [{ id: 2, item: { id: 2 } }],
         },
       });
 
@@ -374,17 +370,14 @@ describe("Inventory DeliveryNotes Form.jsx", () => {
       expect(stateRef.data.customer).toBeNull();
       expect(stateRef.data.customer_branch).toBeNull();
       expect(stateRef.data.items).toBeNull();
-      // Spec asset-items-section: reset header juga mengosongkan Asset Items.
-      expect(stateRef.data.asset_items).toBeNull();
     });
 
-    it("memilih reference_to (val ada) mempertahankan items dan asset_items lama", async () => {
+    it("memilih reference_to (val ada) mempertahankan items lama", async () => {
       const user = userEvent.setup({ delay: null });
       const { stateRef } = renderForm({
         data: {
           delivery_date: new Date("2026-01-01"),
           items: [{ id: 1 }],
-          asset_items: [{ id: 2 }],
         },
       });
 
@@ -393,7 +386,6 @@ describe("Inventory DeliveryNotes Form.jsx", () => {
       );
 
       expect(stateRef.data.items).toEqual([{ id: 1 }]);
-      expect(stateRef.data.asset_items).toEqual([{ id: 2 }]);
     });
 
     it("reference_to TIDAK dirender ketika is_return true tanpa return_against", () => {
@@ -456,9 +448,8 @@ describe("Inventory DeliveryNotes Form.jsx", () => {
         "App\\Models\\Sales\\SalesOrder",
       );
       expect(stateRef.data.referenceable_id).toBe(5);
-      // Payload tanpa source rows menghasilkan kedua bucket kosong.
+      // Payload tanpa source rows menghasilkan items kosong.
       expect(stateRef.data.items).toEqual([]);
-      expect(stateRef.data.asset_items).toEqual([]);
     });
 
     it("val.items dipetakan: quantity & required_quantity dari undelivered_quantity, referenceable_id dari item.id", async () => {
@@ -879,61 +870,98 @@ describe("Inventory DeliveryNotes Form.jsx", () => {
     });
   });
 
-  describe("source asset row", () => {
-    it("memakai SalesOrderItemLinkModel dengan template Asset dan tanpa kolom warehouse", () => {
-      renderForm({
-        data: {
-          delivery_date: new Date(),
-          items: [],
-          asset_items: [],
-          reference_to: { model: "App\\Models\\Sales\\SalesOrder" },
-          referenceable: { id: 7 },
-        },
-      });
+  // --------------------------------------------------------------------
+  // Spec delivery-note-sales-invoice-off-source-items: satu tabel Items, kolom
+  // item multi-model (baris SO/IO utama + sub model ItemVariant dan Asset bebas)
+  // --------------------------------------------------------------------
+  describe("kolom item multi-model (spec delivery-note-sales-invoice-off-source-items)", () => {
+    const SALES_ORDER = "App\\Models\\Sales\\SalesOrder";
+    const INTERNAL_ORDER = "App\\Models\\Sales\\InternalOrder";
+    const ASSET_MODEL = "App\\Models\\Asset\\Asset";
+    const VARIANT_MODEL = "App\\Models\\Inventory\\ItemVariant";
 
-      const assetColumns = captured.assetFormTableProps.columns;
-      const sourceColumn = assetColumns.find(
-        (column) => column.name === "item",
-      );
-      const cell = sourceColumn.cell({
-        dataRow: {},
-        setData: vi.fn(),
-        attributes: {},
-      });
+    const soData = (extra = {}) => ({
+      delivery_date: new Date(),
+      items: [],
+      reference_to: { model: SALES_ORDER },
+      referenceable: { id: 7 },
+      ...extra,
+    });
+    const cellOf = (name, dataRow = {}, setRow = vi.fn()) =>
+      captured.formTableProps.columns
+        .find((c) => c.name === name)
+        .cell({
+          dataRow,
+          data: undefined,
+          setData: setRow,
+          attributes: {},
+        });
 
-      expect(sourceColumn.titleTrans).toBe("asset.assetItems.asset");
-      expect(cell.type).toBe(SalesOrderItemLinkModel);
-      expect(cell.props.as).toBe("asset:asset_id");
-      expect(assetColumns.map((column) => column.name)).toEqual([
-        "item",
-        "description",
-        "quantity",
-      ]);
+    it("hanya satu FormTable (tidak ada section/tabel Asset Items)", () => {
+      renderForm({ data: soData() });
+
+      expect(captured.formTableProps.name).toBe("DeliveryNoteItems");
+      expect(captured.assetFormTableProps).toBeUndefined();
+      expect(screen.queryByText("asset.assetItems.title")).toBeNull();
     });
 
-    it("memilih source row mempertahankan referenceable dan mengisi asset_id langsung", () => {
+    it("kolom item: utama baris SO (SalesOrderItemLinkModel) + sub model ItemVariant dan Asset", () => {
+      renderForm({ data: soData() });
+
+      const cell = cellOf("item");
+
+      expect(cell.type).toBe(SalesOrderItemLinkModel);
+      expect(cell.props.mainLabel).toBe(
+        "inventory.deliveryNote.columns.item.group_source",
+      );
+      expect(cell.props.subModels).toEqual([
+        expect.objectContaining({
+          model: VARIANT_MODEL,
+          filters: { "item.is_fixed_asset": false },
+        }),
+        expect.objectContaining({
+          model: ASSET_MODEL,
+          filters: { status: { jsonContains: ["active"] } },
+        }),
+      ]);
+      // filter model utama tidak lagi membedakan asset_id
+      expect(cell.props.filters).toEqual({
+        sales_order_id: 7,
+        undelivered_quantity: { ">": 0 },
+      });
+    });
+
+    it("Internal Order: picker baris sumber memakai model asal dan tetap punya sub model", () => {
       renderForm({
-        data: {
-          delivery_date: new Date(),
-          items: [],
-          asset_items: [],
-          reference_to: { model: "App\\Models\\Sales\\SalesOrder" },
-          referenceable: { id: 7 },
-        },
+        data: soData({
+          reference_to: { model: INTERNAL_ORDER },
+          referenceable: { id: 8 },
+        }),
       });
 
+      const cell = cellOf("item");
+
+      expect(cell.type).not.toBe(SalesOrderItemLinkModel);
+      expect(cell.props.filters).toEqual({
+        internal_order_id: 8,
+        undelivered_quantity: { ">": 0 },
+      });
+      expect(cell.props.subModels).toHaveLength(2);
+    });
+
+    it("memilih opsi baris SO ber-asset_id mempertahankan referenceable dan mengisi asset_id", () => {
+      renderForm({ data: soData() });
       const setRow = vi.fn();
-      const cell = captured.assetFormTableProps.columns
-        .find((column) => column.name === "item")
-        .cell({ dataRow: {}, setData: setRow, attributes: {} });
       const sourceRow = {
         id: "source-asset-1",
+        thisModel: "App\\Models\\Sales\\SalesOrderItem",
         asset_id: "asset-1",
         asset: { id: "asset-1" },
         undelivered_quantity: 2,
         unit: { id: "unit-1" },
       };
-      cell.props.onValueChange(sourceRow);
+
+      cellOf("item", {}, setRow).props.onValueChange(sourceRow);
 
       expect(setRow).toHaveBeenCalledWith(
         expect.objectContaining({
@@ -941,177 +969,109 @@ describe("Inventory DeliveryNotes Form.jsx", () => {
           referenceable_id: "source-asset-1",
           asset_id: "asset-1",
           asset: { id: "asset-1" },
+          unit: null,
           source_warehouse: null,
+          quantity: 2,
+          required_quantity: 2,
         }),
       );
     });
-  });
 
-  // --------------------------------------------------------------------
-  // Spec asset-items-section: section Asset Items terpisah dari Items
-  // --------------------------------------------------------------------
-  describe("section Asset Items (spec asset-items-section)", () => {
-    const ASSET_ITEMS_TITLE = "asset.assetItems.title";
-    const SALES_ORDER = "App\\Models\\Sales\\SalesOrder";
-    const INTERNAL_ORDER = "App\\Models\\Sales\\InternalOrder";
+    it("memilih opsi Asset bebas: sumber SO dikosongkan, tanpa unit/gudang, qty 1", () => {
+      renderForm({ data: soData() });
+      const setRow = vi.fn();
+      const asset = { id: "asset-9", thisModel: ASSET_MODEL };
 
-    it("merender section Asset Items untuk Sales Order di atas Items", () => {
-      renderForm({
-        data: {
-          delivery_date: new Date(),
-          items: [],
-          asset_items: [],
-          reference_to: { model: SALES_ORDER },
-        },
+      cellOf("item", {}, setRow).props.onValueChange(asset);
+
+      expect(setRow).toHaveBeenCalledWith({
+        referenceable: null,
+        referenceable_id: null,
+        referenceable_type: null,
+        item: null,
+        asset,
+        asset_id: "asset-9",
+        unit: null,
+        source_warehouse: null,
+        conversion_factor: 1,
+        quantity: 1,
+        required_quantity: undefined,
       });
-
-      expect(screen.getByText(ASSET_ITEMS_TITLE)).toBeInTheDocument();
-      expect(
-        screen.getByText("asset.assetItems.description"),
-      ).toBeInTheDocument();
-      expect(captured.contentProps[ASSET_ITEMS_TITLE].collapsible).toBe(true);
-
-      const headings = screen
-        .getAllByRole("heading", { level: 3 })
-        .map((heading) => heading.textContent);
-      expect(headings.indexOf(ASSET_ITEMS_TITLE)).toBe(
-        headings.indexOf("inventory.deliveryNote.items") - 1,
-      );
     });
 
-    it("tertutup default saat belum ada baris aset, terbuka saat defaultData punya asset_items", () => {
-      const { unmount } = renderForm({
-        data: {
-          delivery_date: new Date(),
-          items: [],
-          asset_items: [],
-          reference_to: { model: SALES_ORDER },
-        },
-      });
-      expect(captured.contentProps[ASSET_ITEMS_TITLE].defaultOpen).toBe(false);
-      unmount();
+    it("memilih opsi ItemVariant bebas: sumber SO dikosongkan, unit default varian, qty 1", () => {
+      renderForm({ data: soData() });
+      const setRow = vi.fn();
+      const variant = {
+        id: "v1",
+        thisModel: VARIANT_MODEL,
+        default_uom: { id: "u1", conversion_factor: 2 },
+      };
 
-      const assetRow = { id: "a1", referenceable: { item_id: "I2" } };
-      renderForm({
-        data: {
-          delivery_date: new Date(),
-          items: [],
-          asset_items: [assetRow],
-          reference_to: { model: SALES_ORDER },
-        },
-        defaultData: { asset_items: [assetRow] },
-      });
-      expect(captured.contentProps[ASSET_ITEMS_TITLE].defaultOpen).toBe(true);
-    });
+      cellOf("item", {}, setRow).props.onValueChange(variant);
 
-    it("dua FormTable dengan name berbeda; value dan onValueChange terpisah", () => {
-      const itemRow = { id: "r1" };
-      const assetRow = { id: "a1" };
-      const { stateRef } = renderForm({
-        data: {
-          delivery_date: new Date(),
-          items: [itemRow],
-          asset_items: [assetRow],
-          reference_to: { model: SALES_ORDER },
-        },
-      });
-
-      expect(captured.formTableProps.name).toBe("DeliveryNoteItems");
-      expect(captured.assetFormTableProps.name).toBe("DeliveryNoteAssetItems");
-      expect(captured.formTableProps.value).toEqual([itemRow]);
-      expect(captured.assetFormTableProps.value).toEqual([assetRow]);
-
-      act(() => {
-        captured.assetFormTableProps.onValueChange([{ id: "a9" }]);
-      });
-
-      expect(stateRef.data.asset_items).toEqual([{ id: "a9" }]);
-      expect(stateRef.data.items).toEqual([itemRow]);
-    });
-
-    it("kolom Asset Items menghilangkan Source Warehouse dari Items", () => {
-      renderForm({
-        data: {
-          delivery_date: new Date(),
-          items: [],
-          asset_items: [],
-          reference_to: { model: SALES_ORDER },
-        },
-      });
-
-      const names = (props) => props.columns.map((column) => column.name);
-
-      expect(names(captured.assetFormTableProps)).toEqual(
-        names(captured.formTableProps).filter(
-          (name) => !["source_warehouse", "unit"].includes(name),
-        ),
-      );
-    });
-
-    it("filter dan template link SalesOrderItem mengikuti asset_id per section", () => {
-      renderForm({
-        data: {
-          delivery_date: new Date(),
-          items: [],
-          asset_items: [],
-          reference_to: { model: SALES_ORDER },
-          referenceable: { id: 7 },
-        },
-      });
-
-      const itemCell = captured.formTableProps.columns
-        .find((c) => c.name === "item")
-        .cell({ dataRow: {}, setData: vi.fn(), attributes: {} });
-      const assetCell = captured.assetFormTableProps.columns
-        .find((c) => c.name === "item")
-        .cell({ dataRow: {}, setData: vi.fn(), attributes: {} });
-
-      expect(itemCell.props.filters).toEqual({
-        sales_order_id: 7,
-        undelivered_quantity: { ">": 0 },
+      expect(setRow).toHaveBeenCalledWith({
+        referenceable: null,
+        referenceable_id: null,
+        referenceable_type: null,
+        item: variant,
+        asset: null,
         asset_id: null,
-      });
-      expect(assetCell.type).toBe(SalesOrderItemLinkModel);
-      expect(assetCell.props.as).toBe("asset:asset_id");
-      expect(assetCell.props.filters).toEqual({
-        sales_order_id: 7,
-        undelivered_quantity: { ">": 0 },
-        asset_id: { "!=": null },
+        unit: variant.default_uom,
+        source_warehouse: null,
+        conversion_factor: 2,
+        quantity: 1,
+        required_quantity: undefined,
       });
     });
 
-    it("Asset Items disembunyikan untuk InternalOrder dan picker barang tetap memakai model asal", () => {
-      renderForm({
-        data: {
-          delivery_date: new Date(),
-          items: [],
-          asset_items: [],
-          reference_to: { model: INTERNAL_ORDER },
-          referenceable: { id: 8 },
-        },
-      });
+    it("nilai kolom: baris bebas menampilkan asset/item, baris SO menampilkan referenceable", () => {
+      renderForm({ data: soData() });
 
-      const cell = captured.formTableProps.columns
-        .find((c) => c.name === "item")
-        .cell({ dataRow: {}, setData: vi.fn(), attributes: {} });
-
-      expect(captured.assetFormTableProps).toBeUndefined();
-      expect(screen.queryByText(ASSET_ITEMS_TITLE)).not.toBeInTheDocument();
-      expect(cell.type).not.toBe(SalesOrderItemLinkModel);
-      expect(cell.props.filters).toEqual({
-        internal_order_id: 8,
-        undelivered_quantity: { ">": 0 },
+      expect(cellOf("item", { asset: { id: "a1" } }).props.value).toEqual({
+        id: "a1",
       });
+      expect(cellOf("item", { item: { id: "v1" } }).props.value).toEqual({
+        id: "v1",
+      });
+      expect(
+        cellOf("item", { referenceable: { id: 3 }, referenceable_id: 3 }).props
+          .value,
+      ).toEqual({ id: 3 });
     });
 
-    it("toggle is_return mereset asset_items bersama items", async () => {
+    it("navigasi: baris asset menuju Asset, baris biasa menuju Item", () => {
+      renderForm({ data: soData() });
+
+      expect(cellOf("item", { asset: { id: "a1" } }).props.as).toBe(
+        "asset:asset_id",
+      );
+      expect(cellOf("item", { item: { id: "v1" } }).props.as).toBe(
+        "item:item.item_id",
+      );
+    });
+
+    it("sel unit/gudang nonaktif untuk baris asset; quantity aktif untuk ketiga sumber", () => {
+      renderForm({ data: soData() });
+      const assetRow = { asset: { id: "a1" }, asset_id: "a1" };
+      const itemRow = { item: { id: "v1", item_id: "I1" } };
+
+      expect(cellOf("unit", assetRow).props.disabled).toBe(true);
+      expect(cellOf("source_warehouse", assetRow).props.disabled).toBe(true);
+      expect(cellOf("unit", itemRow).props.disabled).toBe(false);
+      expect(cellOf("source_warehouse", itemRow).props.disabled).toBe(false);
+      expect(cellOf("quantity", {}).props.disabled).toBe(true);
+      expect(cellOf("quantity", assetRow).props.disabled).toBe(false);
+      expect(cellOf("quantity", itemRow).props.disabled).toBe(false);
+      expect(
+        cellOf("quantity", { referenceable: { id: 1 } }).props.disabled,
+      ).toBe(false);
+    });
+
+    it("toggle is_return mereset items", async () => {
       const user = userEvent.setup({ delay: null });
       const { stateRef } = renderForm({
-        data: {
-          delivery_date: new Date(),
-          items: [{ id: 1 }],
-          asset_items: [{ id: 2 }],
-        },
+        data: { delivery_date: new Date(), items: [{ id: 1 }] },
       });
 
       await user.click(
@@ -1119,10 +1079,9 @@ describe("Inventory DeliveryNotes Form.jsx", () => {
       );
 
       expect(stateRef.data.items).toEqual([]);
-      expect(stateRef.data.asset_items).toEqual([]);
     });
 
-    describe("baris hasil pilih referenceable/retur dipisah berdasarkan asset_id", () => {
+    describe("baris hasil pilih referenceable/retur tidak dipartisi", () => {
       const referenceablePayload = () => ({
         id: 5,
         items: [
@@ -1136,11 +1095,6 @@ describe("Inventory DeliveryNotes Form.jsx", () => {
           },
         ],
       });
-      const soData = () => ({
-        delivery_date: new Date("2026-01-01"),
-        reference_to: { model: SALES_ORDER, name: "sales.salesOrder.detail" },
-        items: [],
-      });
       const clickReferenceable = (user) =>
         user.click(
           screen.getByRole("button", {
@@ -1148,50 +1102,28 @@ describe("Inventory DeliveryNotes Form.jsx", () => {
           }),
         );
 
-      it("mempartisi Sales Order rows tanpa lookup ItemVariant", async () => {
+      it("baris SO biasa dan ber-asset_id masuk satu items", async () => {
         const user = userEvent.setup({ delay: null });
         globalThis.__linkModelPayload = referenceablePayload();
-        const { stateRef } = renderForm({ data: soData() });
+        const { stateRef } = renderForm({
+          data: {
+            delivery_date: new Date("2026-01-01"),
+            reference_to: { model: SALES_ORDER, name: "x" },
+            items: [],
+          },
+        });
 
         await clickReferenceable(user);
 
-        await waitFor(() => expect(stateRef.data.asset_items).toHaveLength(1));
-        expect(stateRef.data.items.map((row) => row.referenceable_id)).toEqual([
-          100,
-        ]);
-        expect(
-          stateRef.data.asset_items.map((row) => row.referenceable_id),
-        ).toEqual([101]);
-        expect(stateRef.data.asset_items[0].asset_id).toBe("A1");
-      });
-
-      it("tanpa asset_id: semua baris tetap di items dan asset_items kosong", async () => {
-        const user = userEvent.setup({ delay: null });
-        const payload = referenceablePayload();
-        payload.items[1].asset_id = null;
-        payload.items[1].item_id = "V2";
-        payload.items[1].asset = null;
-        globalThis.__linkModelPayload = payload;
-        const { stateRef } = renderForm({ data: soData() });
-
-        await clickReferenceable(user);
         await waitFor(() => expect(stateRef.data.items).toHaveLength(2));
-
-        expect(stateRef.data.asset_items).toEqual([]);
+        expect(stateRef.data.items.map((row) => row.referenceable_id)).toEqual([
+          100, 101,
+        ]);
+        expect(stateRef.data.items[1].asset_id).toBe("A1");
+        expect(stateRef.data).not.toHaveProperty("asset_items");
       });
 
-      it("referenceable tanpa items menghasilkan kedua bucket kosong", async () => {
-        const user = userEvent.setup({ delay: null });
-        globalThis.__linkModelPayload = { id: 5 };
-        const { stateRef } = renderForm({ data: soData() });
-
-        await clickReferenceable(user);
-
-        expect(stateRef.data.items).toEqual([]);
-        expect(stateRef.data.asset_items).toEqual([]);
-      });
-
-      it("retur: baris sumber ber-asset_id dipindah ke asset_items", async () => {
+      it("retur: semua baris sumber masuk satu items", async () => {
         const user = userEvent.setup({ delay: null });
         globalThis.__returnAgainstPayload = {
           id: 900,
@@ -1219,11 +1151,11 @@ describe("Inventory DeliveryNotes Form.jsx", () => {
           screen.getByRole("button", { name: /^return-against:/ }),
         );
 
-        await waitFor(() => expect(stateRef.data.asset_items).toHaveLength(1));
-        expect(stateRef.data.items).toEqual([]);
-        expect(stateRef.data.asset_items[0].return_against_item).toEqual(
+        await waitFor(() => expect(stateRef.data.items).toHaveLength(1));
+        expect(stateRef.data.items[0].return_against_item).toEqual(
           expect.objectContaining({ id: 77 }),
         );
+        expect(stateRef.data).not.toHaveProperty("asset_items");
       });
     });
   });

@@ -11,7 +11,6 @@ use App\Models\Sales\InternalOrderItem;
 use App\Models\Sales\SalesOrder;
 use App\Models\Sales\SalesOrderItem;
 use App\Models\User\Permission;
-use App\Services\Asset\AssetItems\AssetItemPartitioner;
 use App\Services\Inventory\DeliveryNoteService;
 use App\Utils;
 use Illuminate\Http\Request;
@@ -68,10 +67,6 @@ class DeliveryNoteController extends Controller {
                                 'referenceable_id'   => $item->id,
                             ];
 
-                            // Baris SO dengan asset_id ikut prefill ke Asset Items;
-                            // relasi Asset ikut dibawa agar source LinkModel menampilkan aset.
-                            $parts = app(AssetItemPartitioner::class)->partition($so->items);
-
                             $defaultData = [
                                 'delivery_date'      => now(),
                                 'customer'           => $so->customer,
@@ -81,11 +76,12 @@ class DeliveryNoteController extends Controller {
                                 'referenceable'      => $so,
                                 'external_note'      => $so->external_note,
                                 'reference_to'       => Permission::where('model', SalesOrder::class)->first(),
-                                'items'              => $parts['items']
-                                    ->filter(fn ($item) => $item->item->is_stock_item)
+                                // Baris SO dengan asset_id ikut prefill (relasi Asset ikut dibawa
+                                // agar source LinkModel menampilkan aset); item non-stok dilewati.
+                                'items' => $so->items
+                                    ->filter(fn ($item) => $item->asset_id || $item->item->is_stock_item)
                                     ->map($mapSalesOrderItem)
                                     ->values(),
-                                'asset_items' => $parts['asset_items']->map($mapSalesOrderItem)->values(),
                             ];
                         }
                         break;
@@ -155,9 +151,6 @@ class DeliveryNoteController extends Controller {
                                 'return_against_item' => $item,
                             ];
 
-                            // Baris retur dipartisi berdasarkan asset_id ke dua section.
-                            $parts = app(AssetItemPartitioner::class)->partition($doTarget->items);
-
                             $defaultData = [
                                 'is_return'          => true,
                                 'return_against'     => $doTarget,
@@ -169,8 +162,7 @@ class DeliveryNoteController extends Controller {
                                 'referenceable_id'   => $doTarget->referenceable_id,
                                 'referenceable'      => $doTarget->referenceable,
                                 'external_note'      => $doTarget->external_note,
-                                'items'              => $parts['items']->map($mapReturnItem)->values(),
-                                'asset_items'        => $parts['asset_items']->map($mapReturnItem)->values(),
+                                'items'              => $doTarget->items->map($mapReturnItem)->values(),
                             ];
                         }
                         break;
@@ -222,8 +214,7 @@ class DeliveryNoteController extends Controller {
             'deliveryNote' => function () use ($deliveryNote) {
                 $deliveryNote->loadRelations();
 
-                // Spec asset-items-section: `items` = barang biasa, `asset_items` = aset tetap.
-                return app(AssetItemPartitioner::class)->apply($deliveryNote);
+                return $deliveryNote;
             },
         ]);
     }

@@ -11,16 +11,14 @@ import { ChevronsUpDown } from "lucide-react";
 import Form from "./Form";
 import { FormPage } from "@/Pages/Core/FormPage";
 import Link from "@/Components/Link";
-import { getAllItems } from "@/lib/assetItems";
 import { useLaravelReactI18n } from "laravel-react-i18n";
 
 export default function Show({ salesInvoice, defaultData }) {
   const route = window.route;
   const { t } = useLaravelReactI18n();
-  // Spec asset-items-section: `items` hanya barang biasa, baris aset ada di
-  // `asset_items` -- kelayakan nota kredit (unreturned_quantity) harus menghitung
-  // keduanya.
-  const allItems = getAllItems(salesInvoice);
+  // `items` berisi baris SO, ItemVariant bebas, dan Asset -- kelayakan nota kredit
+  // (unreturned_quantity) menghitung semuanya.
+  const allItems = salesInvoice?.items ?? [];
 
   return (
     <FormPage

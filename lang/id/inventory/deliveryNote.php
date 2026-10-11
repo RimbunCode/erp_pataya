@@ -1,14 +1,16 @@
 <?php
 
 return [
-    'title'   => 'Delivery Notes',
-    'add'     => 'Delivery Note Baru',
-    'new'     => 'Delivery Note Baru',
-    'items'   => 'Item',
-    'detail'  => 'Detail',
-    'status'  => 'Status',
-    'source'  => 'Gudang Asal',
-    'columns' => [
+    'title'                         => 'Delivery Notes',
+    'add'                           => 'Delivery Note Baru',
+    'new'                           => 'Delivery Note Baru',
+    'items'                         => 'Item',
+    'detail'                        => 'Detail',
+    'status'                        => 'Status',
+    'source'                        => 'Gudang Asal',
+    'asset_row_no_unit_warehouse'   => 'Baris Asset tidak boleh memiliki Unit atau Gudang Asal.',
+    'free_asset_cannot_be_returned' => 'Asset di luar Sales Order tidak dapat diretur.',
+    'columns'                       => [
         'code'                          => 'Kode',
         'reference_to'                  => 'Referensi Ke',
         'customer'                      => 'Pelanggan',
@@ -16,6 +18,9 @@ return [
         'internal_branch'               => 'Cabang Internal',
         'item'                          => 'Item',
         'item.placeholder'              => 'Pilih item',
+        'item.group_source'             => 'Dari Dokumen Sumber',
+        'item.group_item'               => 'Item Lainnya',
+        'item.group_asset'              => 'Asset',
         'delivery_date'                 => 'Tanggal Pengiriman',
         'description'                   => 'Deskripsi',
         'source_warehouse'              => 'Gudang Asal',

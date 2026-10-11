@@ -2,7 +2,6 @@
 
 namespace App\Http\Requests\Inventory;
 
-use App\Http\Requests\Asset\AssetItems\AssetItemsRules;
 use App\Http\Requests\BaseFormRequest;
 use App\Models\Asset\AssetServiceConsumedItem;
 use App\Models\Sales\InternalOrder;
@@ -26,44 +25,37 @@ class DeliveryNoteRequest extends BaseFormRequest {
     /**
      * Get the validation rules that apply to the request.
      *
+     * Spec delivery-note-sales-invoice-off-source-items: satu `items[]`, tiap baris
+     * punya salah satu dari tiga sumber -- baris SO/IO (`referenceable_id`), `item.id`
+     * (ItemVariant bebas), atau `asset.id` (Asset bebas). Bila lebih dari satu,
+     * prioritas baris SO > item > asset (sama dengan DeliveryNoteService).
+     *
      * @return array<string, ValidationRule|array<mixed>|string>
      */
     public function rules(): array {
-        // Spec asset-items-section: rule `items.*` dicerminkan ke `asset_items.*`;
-        // kedua bucket tetap memilih source item melalui referenceable.
         return [
-            'return_against.id'                    => ['nullable', new ExistsExcludingTrashed('delivery_notes')],
-            'customer.id'                          => [Rule::requiredIf($this->input('reference_to.model') === SalesOrder::class), new ExistsExcludingTrashed('customers')],
-            'customer_branch.id'                   => ['required', new ExistsExcludingTrashed('branches')],
-            'reference_to.id'                      => ['required', 'string', new ExistsExcludingTrashed('permissions')],
-            'reference_to.*'                       => ['nullable'],
-            'referenceable_id'                     => ['required', 'string'],
-            'referenceable_type'                   => ['required', Rule::in([SalesOrder::class, InternalOrder::class])],
-            'delivery_date'                        => ['required', 'date'],
-            'items.*'                              => ['required', 'array', 'min:1'],
-            'items.*.id'                           => ['required', 'string'],
-            'items.*.source_warehouse.id'          => ['required', new ExistsExcludingTrashed('warehouses')],
-            'items.*.referenceable_id'             => ['required', 'string'],
-            'items.*.referenceable_type'           => ['required', Rule::in([SalesOrderItem::class, InternalOrderItem::class])],
-            'items.*.description'                  => ['nullable', 'string'],
-            'items.*.quantity'                     => ['required', 'numeric', 'min:1'],
-            'items.*.unit.id'                      => ['required', new ExistsExcludingTrashed('item_units')],
-            'items.*.unit.*'                       => ['nullable'],
-            'items.*.return_against_item.id'       => ['nullable', new ExistsExcludingTrashed('delivery_note_items')],
-            'items.*.asset.id'                     => ['prohibited'],
-            'asset_items'                          => ['nullable', 'array'],
-            'asset_items.*'                        => ['required', 'array', 'min:1'],
-            'asset_items.*.id'                     => ['required', 'string'],
-            'asset_items.*.source_warehouse.id'    => ['prohibited'],
-            'asset_items.*.referenceable_id'       => ['required', 'string'],
-            'asset_items.*.referenceable_type'     => ['required', Rule::in([SalesOrderItem::class])],
-            'asset_items.*.description'            => ['nullable', 'string'],
-            'asset_items.*.quantity'               => ['required', 'numeric', 'min:1'],
-            'asset_items.*.return_against_item.id' => ['nullable', new ExistsExcludingTrashed('delivery_note_items')],
-            'asset_items.*.item.id'                => ['prohibited'],
-            'asset_items.*.asset.id'               => ['required', new ExistsExcludingTrashed('assets')],
-            'asset_items.*.asset.*'                => ['nullable'],
-            'asset_items.*.unit'                   => ['prohibited'],
+            'return_against.id'              => ['nullable', new ExistsExcludingTrashed('delivery_notes')],
+            'customer.id'                    => [Rule::requiredIf($this->input('reference_to.model') === SalesOrder::class), new ExistsExcludingTrashed('customers')],
+            'customer_branch.id'             => ['required', new ExistsExcludingTrashed('branches')],
+            'reference_to.id'                => ['required', 'string', new ExistsExcludingTrashed('permissions')],
+            'reference_to.*'                 => ['nullable'],
+            'referenceable_id'               => ['required', 'string'],
+            'referenceable_type'             => ['required', Rule::in([SalesOrder::class, InternalOrder::class])],
+            'delivery_date'                  => ['required', 'date'],
+            'items.*'                        => ['required', 'array', 'min:1'],
+            'items.*.id'                     => ['required', 'string'],
+            'items.*.source_warehouse.id'    => ['nullable', new ExistsExcludingTrashed('warehouses')],
+            'items.*.referenceable_id'       => ['nullable', 'string', 'required_without_all:items.*.item.id,items.*.asset.id'],
+            'items.*.referenceable_type'     => ['nullable', 'required_with:items.*.referenceable_id', Rule::in([SalesOrderItem::class, InternalOrderItem::class])],
+            'items.*.item.id'                => ['nullable', new ExistsExcludingTrashed('item_variants')],
+            'items.*.item.*'                 => ['nullable'],
+            'items.*.asset.id'               => ['nullable', new ExistsExcludingTrashed('assets')],
+            'items.*.asset.*'                => ['nullable'],
+            'items.*.description'            => ['nullable', 'string'],
+            'items.*.quantity'               => ['required', 'numeric', 'min:1'],
+            'items.*.unit.id'                => ['nullable', new ExistsExcludingTrashed('item_units')],
+            'items.*.unit.*'                 => ['nullable'],
+            'items.*.return_against_item.id' => ['nullable', new ExistsExcludingTrashed('delivery_note_items')],
         ];
     }
 
@@ -73,46 +65,80 @@ class DeliveryNoteRequest extends BaseFormRequest {
                 return;
             }
 
-            $buckets = $this->itemBuckets();
+            $rows      = (array) $this->input('items', []);
+            $assetIds  = $this->sourceAssetIdsOf($rows);
+            $isReturn  = filled($this->input('return_against.id'));
+            $rentables = $this->nonRentableAssetIds($rows, $assetIds);
 
-            // Tanpa validateCombinedMinimum: DN tidak punya aturan minimal-1 di level
-            // list `items` sebelum fitur ini, dan tidak diperketat di sini (keputusan D5).
-            AssetItemsRules::rejectLegacyAssetLines($validator, $buckets);
-            AssetItemsRules::validateMembership(
-                $validator,
-                $buckets,
-                fn (array $rows) => $this->assetIdsOf($rows),
-                'referenceable_id',
-            );
+            foreach ($rows as $index => $row) {
+                $hasSource = filled($row['referenceable_id'] ?? null);
+                $assetId   = $hasSource ? ($assetIds[$index] ?? null) : ($row['asset']['id'] ?? null);
+                $isAsset   = filled($assetId) && ($hasSource || blank($row['item']['id'] ?? null));
 
-            $this->validateAssetServiceConsumedItemQuantity($validator);
-            $this->validateAssetItemsAreRentable($validator);
-            $assetIds = $this->assetIdsOf($buckets['asset_items']);
-            foreach ($buckets['asset_items'] as $index => $row) {
-                if (($row['asset']['id'] ?? null) !== ($assetIds[$index] ?? null)) {
-                    $validator->errors()->add("asset_items.{$index}.asset.id", __('asset/asset.item_mismatch'));
+                if ($isAsset) {
+                    $this->validateAssetRow($validator, $index, $row, $hasSource, $assetId, $isReturn, $rentables);
+                } else {
+                    $this->validateItemRow($validator, $index, $row);
                 }
             }
+
+            $this->validateAssetServiceConsumedItemQuantity($validator);
         });
     }
 
     /**
-     * @return array{items: array<int|string,mixed>, asset_items: array<int|string,mixed>}
+     * Baris ItemVariant (dari SO/IO maupun bebas): gudang asal dan unit wajib.
+     *
+     * @param  array<string,mixed>  $row
      */
-    private function itemBuckets(): array {
-        return [
-            'items'       => (array) $this->input('items', []),
-            'asset_items' => (array) $this->input('asset_items', []),
-        ];
+    private function validateItemRow(Validator $validator, int|string $index, array $row): void {
+        if (blank($row['source_warehouse']['id'] ?? null)) {
+            $validator->errors()->add("items.{$index}.source_warehouse.id", __('validation.required', ['attribute' => 'source warehouse']));
+        }
+        if (blank($row['unit']['id'] ?? null)) {
+            $validator->errors()->add("items.{$index}.unit.id", __('validation.required', ['attribute' => 'unit']));
+        }
     }
 
     /**
-     * asset_id per baris, lewat SalesOrderItem yang dirujuk.
+     * Baris Asset: tanpa unit/gudang. Baris Asset dari SO harus cocok dengan asset
+     * baris SO dan rentable (alur sewa); baris Asset bebas dijual -- tidak wajib
+     * rentable dan tidak boleh diretur.
+     *
+     * @param  array<string,mixed>  $row
+     * @param  array<string,bool>  $nonRentable
+     */
+    private function validateAssetRow(Validator $validator, int|string $index, array $row, bool $hasSource, string $assetId, bool $isReturn, array $nonRentable): void {
+        foreach (['unit.id' => $row['unit']['id'] ?? null, 'source_warehouse.id' => $row['source_warehouse']['id'] ?? null] as $field => $value) {
+            if (filled($value)) {
+                $validator->errors()->add("items.{$index}.{$field}", __('inventory/deliveryNote.asset_row_no_unit_warehouse'));
+            }
+        }
+
+        if (! $hasSource) {
+            if ($isReturn) {
+                $validator->errors()->add("items.{$index}.asset.id", __('inventory/deliveryNote.free_asset_cannot_be_returned'));
+            }
+
+            return;
+        }
+
+        if (($row['asset']['id'] ?? null) !== null && $row['asset']['id'] !== $assetId) {
+            $validator->errors()->add("items.{$index}.asset.id", __('asset/asset.item_mismatch'));
+        }
+        if (isset($nonRentable[$assetId])) {
+            $validator->errors()->add("items.{$index}.asset.id", __('asset/asset.asset_not_rentable'));
+        }
+    }
+
+    /**
+     * asset_id per baris SO, lewat SalesOrderItem yang dirujuk (baris tanpa
+     * sumber SO tidak diisi).
      *
      * @param  array<int|string,mixed>  $rows
      * @return array<int|string,?string>
      */
-    private function assetIdsOf(array $rows): array {
+    private function sourceAssetIdsOf(array $rows): array {
         $ids = array_values(array_filter(array_map(
             fn ($row) => ($row['referenceable_type'] ?? null) === SalesOrderItem::class
                 ? ($row['referenceable_id'] ?? null)
@@ -121,34 +147,29 @@ class DeliveryNoteRequest extends BaseFormRequest {
         )));
         $assetBySource = $ids === [] ? collect() : DB::table('sales_order_items')->whereIn('id', $ids)->pluck('asset_id', 'id');
 
-        return array_map(fn ($row) => $assetBySource[$row['referenceable_id'] ?? ''] ?? null, $rows);
+        return array_map(
+            fn ($row) => ($row['referenceable_type'] ?? null) === SalesOrderItem::class
+                ? ($assetBySource[$row['referenceable_id'] ?? ''] ?? null)
+                : null,
+            $rows,
+        );
     }
 
-    private function validateAssetItemsAreRentable(Validator $validator): void {
-        $rows     = $this->itemBuckets()['asset_items'];
-        $assetIds = array_values(array_unique(array_filter(array_map(
-            fn (array $row) => $row['asset']['id'] ?? null,
-            $rows,
-        ))));
-        if ($assetIds === []) {
-            return;
+    /**
+     * Id Asset (dari baris SO) yang tidak rentable, untuk validasi alur sewa.
+     *
+     * @param  array<int|string,mixed>  $rows
+     * @param  array<int|string,?string>  $assetIds
+     * @return array<string,bool>
+     */
+    private function nonRentableAssetIds(array $rows, array $assetIds): array {
+        $ids = array_values(array_unique(array_filter($assetIds)));
+        if ($ids === []) {
+            return [];
         }
 
-        $nonRentableIds = DB::table('assets')
-            ->whereIn('id', $assetIds)
-            ->where('is_rentable', false)
-            ->pluck('id')
-            ->flip();
-
-        foreach ($rows as $index => $row) {
-            $assetId = $row['asset']['id'] ?? null;
-            if ($assetId !== null && $nonRentableIds->has($assetId)) {
-                $validator->errors()->add(
-                    "asset_items.{$index}.asset.id",
-                    __('asset/asset.asset_not_rentable'),
-                );
-            }
-        }
+        return DB::table('assets')->whereIn('id', $ids)->where('is_rentable', false)
+            ->pluck('id')->flip()->map(fn () => true)->all();
     }
 
     /**
@@ -158,31 +179,29 @@ class DeliveryNoteRequest extends BaseFormRequest {
      * tidak boleh mengambil quantity melebihi part yang sebenarnya dipakai.
      */
     private function validateAssetServiceConsumedItemQuantity(Validator $validator): void {
-        foreach ($this->itemBuckets() as $bucket => $rows) {
-            foreach ($rows as $index => $item) {
-                $referenceableType = $item['referenceable_type'] ?? null;
-                if (! in_array($referenceableType, [SalesOrderItem::class, InternalOrderItem::class], true)) {
-                    continue;
-                }
+        foreach ((array) $this->input('items', []) as $index => $item) {
+            $referenceableType = $item['referenceable_type'] ?? null;
+            if (! in_array($referenceableType, [SalesOrderItem::class, InternalOrderItem::class], true)) {
+                continue;
+            }
 
-                $sourceItem = $referenceableType === SalesOrderItem::class
-                    ? SalesOrderItem::find($item['referenceable_id'] ?? null)
-                    : InternalOrderItem::find($item['referenceable_id'] ?? null);
-                if (! $sourceItem || $sourceItem->referenceable_type !== AssetServiceConsumedItem::class) {
-                    continue;
-                }
+            $sourceItem = $referenceableType === SalesOrderItem::class
+                ? SalesOrderItem::find($item['referenceable_id'] ?? null)
+                : InternalOrderItem::find($item['referenceable_id'] ?? null);
+            if (! $sourceItem || $sourceItem->referenceable_type !== AssetServiceConsumedItem::class) {
+                continue;
+            }
 
-                $consumedItem = $sourceItem->referenceable;
-                if (! $consumedItem) {
-                    continue;
-                }
+            $consumedItem = $sourceItem->referenceable;
+            if (! $consumedItem) {
+                continue;
+            }
 
-                if ((float) ($item['quantity'] ?? 0) > (float) $consumedItem->quantity) {
-                    $validator->errors()->add(
-                        "{$bucket}.{$index}.quantity",
-                        __('asset/service.consumed_item_quantity_exceeded'),
-                    );
-                }
+            if ((float) ($item['quantity'] ?? 0) > (float) $consumedItem->quantity) {
+                $validator->errors()->add(
+                    "items.{$index}.quantity",
+                    __('asset/service.consumed_item_quantity_exceeded'),
+                );
             }
         }
     }

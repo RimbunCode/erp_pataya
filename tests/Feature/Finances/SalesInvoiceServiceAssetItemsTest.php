@@ -3,6 +3,8 @@
 namespace Tests\Feature\Finances;
 
 use App\Events\Asset\AssetSoldViaInvoice;
+use App\Events\Finances\SalesInvoiceGeneralLedgerPostingRequested;
+use App\Events\Sales\Invoice\SalesOrderItemBillingChanged;
 use App\Models\Asset\Asset;
 use App\Models\Asset\AssetCategory;
 use App\Models\Core\Branch;
@@ -30,8 +32,8 @@ use PHPUnit\Framework\Attributes\Test;
 use Tests\TestCase;
 
 /**
- * SalesInvoiceService menggabungkan bucket dan menyimpan asset_id langsung
- * pada SalesInvoiceItem tanpa child table.
+ * SalesInvoiceService menyimpan satu `items[]` berisi baris SO dan baris bebas
+ * (ItemVariant/Asset tanpa baris SO), dengan asset_id langsung pada SalesInvoiceItem.
  */
 class SalesInvoiceServiceAssetItemsTest extends TestCase {
     use RefreshDatabase;
@@ -171,8 +173,7 @@ class SalesInvoiceServiceAssetItemsTest extends TestCase {
         $assetSoItem   = $this->makeSalesOrderItem(true);
 
         $invoice = app(SalesInvoiceService::class)->create($this->payload([
-            'items'       => [$this->row($regularSoItem, 2)],
-            'asset_items' => [$this->row($assetSoItem, 1)],
+            'items' => [$this->row($regularSoItem, 2), $this->row($assetSoItem, 1)],
         ]))->fresh(['items.asset']);
 
         $this->assertCount(2, $invoice->items, 'relasi items() mengembalikan semua baris');
@@ -192,7 +193,7 @@ class SalesInvoiceServiceAssetItemsTest extends TestCase {
         $assetSoItem = $this->makeSalesOrderItem(true);
 
         $invoice = app(SalesInvoiceService::class)->create($this->payload([
-            'asset_items' => [$this->row($assetSoItem, 1)],
+            'items' => [$this->row($assetSoItem, 1)],
         ]))->fresh(['items.asset']);
 
         $this->assertCount(1, $invoice->items);
@@ -206,7 +207,7 @@ class SalesInvoiceServiceAssetItemsTest extends TestCase {
     }
 
     #[Test]
-    public function create_without_asset_items_behaves_as_before(): void {
+    public function create_with_only_regular_rows_behaves_as_before(): void {
         $regularSoItem = $this->makeSalesOrderItem(false);
 
         $invoice = app(SalesInvoiceService::class)->create($this->payload([
@@ -225,12 +226,12 @@ class SalesInvoiceServiceAssetItemsTest extends TestCase {
         $service          = app(SalesInvoiceService::class);
 
         $invoice = $service->create($this->payload([
-            'asset_items' => [$this->row($assetSource, 1)],
+            'items' => [$this->row($assetSource, 1)],
         ]));
         $rowId = $invoice->items()->first()->id;
 
         $service->update($invoice->fresh(), $this->payload([
-            'asset_items'       => [$this->row($otherAssetSource, 1, ['id' => $rowId])],
+            'items'             => [$this->row($otherAssetSource, 1, ['id' => $rowId])],
             'payment_schedules' => [],
         ]));
         $assetRow = $invoice->items()->first()->fresh();
@@ -243,7 +244,6 @@ class SalesInvoiceServiceAssetItemsTest extends TestCase {
 
         $service->update($invoice->fresh(), $this->payload([
             'items'             => [$this->row($regularSource, 1, ['id' => $rowId])],
-            'asset_items'       => [],
             'payment_schedules' => [],
         ]));
         $regularRow = $invoice->items()->first()->fresh();
@@ -252,7 +252,7 @@ class SalesInvoiceServiceAssetItemsTest extends TestCase {
     }
 
     #[Test]
-    public function on_approved_dispatches_once_for_each_asset_item_row(): void {
+    public function on_approved_dispatches_once_for_each_asset_row(): void {
         $sourceA  = $this->makeSalesOrderItem(true);
         $sourceB  = $this->makeSalesOrderItem(true);
         $assetIdA = DB::table('sales_order_items')->where('id', $sourceA)->value('asset_id');
@@ -260,7 +260,7 @@ class SalesInvoiceServiceAssetItemsTest extends TestCase {
         $service  = app(SalesInvoiceService::class);
 
         $invoice = $service->create($this->payload([
-            'asset_items'       => [$this->row($sourceA, 1), $this->row($sourceB, 1)],
+            'items'             => [$this->row($sourceA, 1), $this->row($sourceB, 1)],
             'payment_schedules' => [],
         ]));
         $expectedItemIds = $invoice->items()->pluck('id')->all();
@@ -277,5 +277,113 @@ class SalesInvoiceServiceAssetItemsTest extends TestCase {
                     && $event->line->asset_id === $assetId,
             );
         }
+    }
+
+    // --- baris bebas (spec delivery-note-sales-invoice-off-source-items) ----
+
+    /**
+     * @return array<string,mixed>
+     */
+    private function freeItemRow(float $quantity, float $price): array {
+        $item     = Item::factory()->create(['is_fixed_asset' => false, 'is_stock_item' => true]);
+        $variant  = ItemVariantFactory::new()->create(['item_id' => $item->id, 'is_stock_item' => true]);
+        $unitId   = (string) Str::ulid();
+        $itemUnit = (string) Str::ulid();
+        DB::table('units')->insert([
+            'id'                => $unitId,
+            'code'              => 'PCS-' . $unitId,
+            'name'              => 'PCS',
+            'conversion_factor' => 1,
+            'is_default'        => true,
+            'created_at'        => now(),
+            'updated_at'        => now(),
+        ]);
+        DB::table('item_units')->insert([
+            'id'                => $itemUnit,
+            'item_id'           => $item->id,
+            'unit_id'           => $unitId,
+            'conversion_factor' => 1,
+            'is_default'        => true,
+            'order'             => 0,
+            'created_at'        => now(),
+            'updated_at'        => now(),
+        ]);
+
+        return [
+            'id'       => (string) Str::ulid(),
+            'item'     => ['id' => $variant->id],
+            'unit'     => ['id' => $itemUnit],
+            'tax'      => ['id' => $this->taxId],
+            'quantity' => $quantity,
+            'price'    => $price,
+        ];
+    }
+
+    /**
+     * @return array<string,mixed>
+     */
+    private function freeAssetRow(Asset $asset, float $price): array {
+        return [
+            'id'       => (string) Str::ulid(),
+            'asset'    => ['id' => $asset->id],
+            'tax'      => ['id' => $this->taxId],
+            'quantity' => 1,
+            'price'    => $price,
+        ];
+    }
+
+    #[Test]
+    public function create_saves_free_rows_without_a_sales_order_item(): void {
+        $asset = $this->makeAsset();
+
+        $invoice = app(SalesInvoiceService::class)->create($this->payload([
+            'items' => [$this->freeItemRow(2, 1500), $this->freeAssetRow($asset, 9000)],
+        ]))->fresh(['items']);
+
+        $itemRow  = $invoice->items->firstWhere('asset_id', null);
+        $assetRow = $invoice->items->firstWhere('asset_id', $asset->id);
+
+        $this->assertNull($itemRow->sales_order_item_id);
+        $this->assertNotNull($itemRow->item_id);
+        $this->assertNotNull($itemRow->item_unit_id);
+        $this->assertNull($assetRow->sales_order_item_id);
+        $this->assertNull($assetRow->item_id);
+        $this->assertNull($assetRow->item_unit_id);
+        $this->assertSame(1.0, $assetRow->conversion_factor);
+        $this->assertEqualsWithDelta(2 * 1500 + 9000, (float) $invoice->amount, 0.01);
+    }
+
+    #[Test]
+    public function on_approved_free_rows_do_not_change_sales_order_billing_and_a_free_asset_is_sold(): void {
+        $asset   = $this->makeAsset();
+        $service = app(SalesInvoiceService::class);
+
+        $invoice = $service->create($this->payload([
+            'items'             => [$this->freeItemRow(2, 1500), $this->freeAssetRow($asset, 9000)],
+            'payment_schedules' => [],
+        ]));
+
+        Event::fake();
+        $service->onApproved($invoice->fresh());
+
+        Event::assertNotDispatched(SalesOrderItemBillingChanged::class);
+        Event::assertDispatchedTimes(AssetSoldViaInvoice::class, 1);
+        Event::assertDispatched(SalesInvoiceGeneralLedgerPostingRequested::class, fn ($e) => $e->totalAmount === 12000.0);
+    }
+
+    #[Test]
+    public function on_approved_so_rows_still_change_sales_order_billing_next_to_free_rows(): void {
+        $regularSoItem = $this->makeSalesOrderItem(false);
+        $service       = app(SalesInvoiceService::class);
+
+        $invoice = $service->create($this->payload([
+            'items'             => [$this->row($regularSoItem, 2), $this->freeItemRow(1, 500)],
+            'payment_schedules' => [],
+        ]));
+
+        Event::fake();
+        $service->onApproved($invoice->fresh());
+
+        Event::assertDispatchedTimes(SalesOrderItemBillingChanged::class, 1);
     }
 }

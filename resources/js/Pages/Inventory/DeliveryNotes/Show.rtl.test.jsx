@@ -270,13 +270,14 @@ describe("Show (DeliveryNotes)", () => {
       );
     });
 
-    // Spec asset-items-section: `items` hanya barang biasa, baris aset (rental) ada di
-    // `asset_items` dan juga harus dihitung untuk kelayakan retur.
+    // `items` berisi baris biasa dan baris aset; keduanya dihitung untuk kelayakan retur.
     it("hanya baris aset yang masih punya unreturned_quantity: tombol retur tetap muncul", () => {
       const deliveryNote = baseDeliveryNote({
         id: 11,
-        items: [{ id: 1, unreturned_quantity: 0 }],
-        asset_items: [{ id: 2, unreturned_quantity: 2 }],
+        items: [
+          { id: 1, unreturned_quantity: 0 },
+          { id: 2, unreturned_quantity: 2 },
+        ],
       });
       renderShow({ deliveryNote });
 
@@ -289,10 +290,12 @@ describe("Show (DeliveryNotes)", () => {
       );
     });
 
-    it("unreturned_quantity dijumlah dari items DAN asset_items (0 + 0 = tombol tidak muncul)", () => {
+    it("unreturned_quantity dijumlah dari semua baris items (0 + 0 = tombol tidak muncul)", () => {
       const deliveryNote = baseDeliveryNote({
-        items: [{ id: 1, unreturned_quantity: 0 }],
-        asset_items: [{ id: 2, unreturned_quantity: 0 }],
+        items: [
+          { id: 1, unreturned_quantity: 0 },
+          { id: 2, unreturned_quantity: 0 },
+        ],
       });
       renderShow({ deliveryNote });
 

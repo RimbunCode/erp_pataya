@@ -88,6 +88,8 @@ class DeliveryNoteRequestInternalOrderConsumedItemTest extends TestCase {
             'referenceable_type' => InternalOrderItem::class,
             'referenceable_id'   => $ioItem->id,
             'quantity'           => 5,
+            'source_warehouse'   => ['id' => 'w1'],
+            'unit'               => ['id' => 'u1'],
         ]);
 
         $this->assertFalse($validator->fails());

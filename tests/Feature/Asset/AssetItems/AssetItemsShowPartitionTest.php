@@ -172,7 +172,7 @@ class AssetItemsShowPartitionTest extends TestCase {
     }
 
     #[Test]
-    public function sales_invoice_show_returns_two_lists_and_loads_the_direct_asset_relation(): void {
+    public function sales_invoice_show_returns_regular_and_asset_rows_together_and_loads_the_direct_asset_relation(): void {
         $salesOrder            = $this->makeSalesOrder();
         [$regularSo, $assetSo] = $this->makeSalesOrderItems($salesOrder);
         $salesInvoice          = SalesInvoice::factory()->create([
@@ -194,17 +194,17 @@ class AssetItemsShowPartitionTest extends TestCase {
         $this->visit(route('salesInvoices.show', $salesInvoice))
             ->assertOk()
             ->assertInertia(fn (AssertableInertia $page) => $page
-                ->has('salesInvoice.items', 1)
+                ->has('salesInvoice.items', 2)
+                ->missing('salesInvoice.asset_items')
                 ->where('salesInvoice.items.0.item_id', $this->regularVariant->id)
-                ->has('salesInvoice.asset_items', 1)
-                ->where('salesInvoice.asset_items.0.item_id', null)
-                ->where('salesInvoice.asset_items.0.asset_id', $this->asset->id)
-                ->where('salesInvoice.asset_items.0.asset.id', $this->asset->id)
-                ->where('salesInvoice.asset_items.0.sales_order_item.asset.id', $this->asset->id));
+                ->where('salesInvoice.items.1.item_id', null)
+                ->where('salesInvoice.items.1.asset_id', $this->asset->id)
+                ->where('salesInvoice.items.1.asset.id', $this->asset->id)
+                ->where('salesInvoice.items.1.sales_order_item.asset.id', $this->asset->id));
     }
 
     #[Test]
-    public function delivery_note_show_returns_two_lists_and_loads_the_direct_asset_relation(): void {
+    public function delivery_note_show_returns_regular_and_asset_rows_together_and_loads_the_direct_asset_relation(): void {
         $deliveryNote          = DeliveryNote::factory()->create(['created_by_id' => $this->user->id]);
         [$regularSo, $assetSo] = $this->makeSalesOrderItems(SalesOrder::find($deliveryNote->referenceable_id));
 
@@ -224,18 +224,18 @@ class AssetItemsShowPartitionTest extends TestCase {
         $this->visit(route('deliveryNotes.show', $deliveryNote))
             ->assertOk()
             ->assertInertia(fn (AssertableInertia $page) => $page
-                ->has('deliveryNote.items', 1)
+                ->has('deliveryNote.items', 2)
+                ->missing('deliveryNote.asset_items')
                 ->where('deliveryNote.items.0.item_id', $this->regularVariant->id)
-                ->has('deliveryNote.asset_items', 1)
-                ->where('deliveryNote.asset_items.0.item_id', null)
-                ->where('deliveryNote.asset_items.0.asset_id', $this->asset->id)
-                ->where('deliveryNote.asset_items.0.referenceable_id', $assetSo->id)
-                ->where('deliveryNote.asset_items.0.referenceable_type', SalesOrderItem::class)
-                ->where('deliveryNote.asset_items.0.referenceable.asset.id', $this->asset->id));
+                ->where('deliveryNote.items.1.item_id', null)
+                ->where('deliveryNote.items.1.asset_id', $this->asset->id)
+                ->where('deliveryNote.items.1.referenceable_id', $assetSo->id)
+                ->where('deliveryNote.items.1.referenceable_type', SalesOrderItem::class)
+                ->where('deliveryNote.items.1.referenceable.asset.id', $this->asset->id));
     }
 
     #[Test]
-    public function delivery_note_created_from_a_sales_order_now_prefills_asset_rows_into_asset_items(): void {
+    public function delivery_note_created_from_a_sales_order_prefills_regular_and_asset_rows_into_items(): void {
         $salesOrder            = $this->makeSalesOrder();
         [$regularSo, $assetSo] = $this->makeSalesOrderItems($salesOrder);
         // baris jasa (bukan stok, bukan aset) tetap tidak ikut prefill DN
@@ -246,15 +246,15 @@ class AssetItemsShowPartitionTest extends TestCase {
         $this->visit(route('deliveryNotes.create', ['ref' => "salesOrder/{$salesOrder->id}"]))
             ->assertOk()
             ->assertInertia(fn (AssertableInertia $page) => $page
-                ->has('defaultData.items', 1)
+                ->has('defaultData.items', 2)
+                ->missing('defaultData.asset_items')
                 ->where('defaultData.items.0.referenceable_id', $regularSo->id)
-                ->has('defaultData.asset_items', 1)
-                ->where('defaultData.asset_items.0.referenceable_id', $assetSo->id)
-                ->where('defaultData.asset_items.0.asset.id', $this->asset->id));
+                ->where('defaultData.items.1.referenceable_id', $assetSo->id)
+                ->where('defaultData.items.1.asset.id', $this->asset->id));
     }
 
     #[Test]
-    public function delivery_note_return_prefills_the_direct_asset_relation_into_asset_items(): void {
+    public function delivery_note_return_prefills_the_direct_asset_relation_into_items(): void {
         $sourceNote  = DeliveryNote::factory()->create(['created_by_id' => $this->user->id]);
         $salesOrder  = SalesOrder::findOrFail($sourceNote->referenceable_id);
         [, $assetSo] = $this->makeSalesOrderItems($salesOrder);
@@ -271,23 +271,23 @@ class AssetItemsShowPartitionTest extends TestCase {
         $this->visit(route('deliveryNotes.create', ['ref' => "deliveryNote/{$sourceNote->id}"]))
             ->assertOk()
             ->assertInertia(fn (AssertableInertia $page) => $page
-                ->has('defaultData.items', 0)
-                ->has('defaultData.asset_items', 1)
-                ->where('defaultData.asset_items.0.asset.id', $this->asset->id)
-                ->where('defaultData.asset_items.0.referenceable_id', $assetSo->id));
+                ->has('defaultData.items', 1)
+                ->missing('defaultData.asset_items')
+                ->where('defaultData.items.0.asset.id', $this->asset->id)
+                ->where('defaultData.items.0.referenceable_id', $assetSo->id));
     }
 
     #[Test]
-    public function sales_invoice_created_from_a_sales_order_partitions_the_prefilled_rows(): void {
+    public function sales_invoice_created_from_a_sales_order_prefills_regular_and_asset_rows_into_items(): void {
         $salesOrder            = $this->makeSalesOrder();
         [$regularSo, $assetSo] = $this->makeSalesOrderItems($salesOrder);
 
         $this->visit(route('salesInvoices.create', ['ref' => "salesOrder/{$salesOrder->id}"]))
             ->assertOk()
             ->assertInertia(fn (AssertableInertia $page) => $page
-                ->has('defaultData.items', 1)
+                ->has('defaultData.items', 2)
+                ->missing('defaultData.asset_items')
                 ->where('defaultData.items.0.sales_order_item.id', $regularSo->id)
-                ->has('defaultData.asset_items', 1)
-                ->where('defaultData.asset_items.0.sales_order_item.id', $assetSo->id));
+                ->where('defaultData.items.1.sales_order_item.id', $assetSo->id));
     }
 }
