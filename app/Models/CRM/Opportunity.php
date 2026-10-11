@@ -37,17 +37,21 @@ class Opportunity extends Model {
             'groupable' => true,
         ],
         'stage' => [
-            'show'      => true,
-            'order'     => 2,
-            'groupable' => true,
+            'show'       => true,
+            'order'      => 2,
+            'valueTrans' => 'crm.opportunity.columns.stage.options',
+            'linkable'   => true,
+            'groupable'  => true,
         ],
         'expected_value' => [
-            'show'  => true,
-            'order' => 3,
+            'show'           => true,
+            'order'          => 3,
+            'groupAggregate' => 'sum',
         ],
         'probability' => [
-            'show'  => true,
-            'order' => 4,
+            'show'           => true,
+            'order'          => 4,
+            'groupAggregate' => 'avg',
         ],
         'expected_close_date' => [
             'show'  => true,

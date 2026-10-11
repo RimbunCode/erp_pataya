@@ -111,6 +111,7 @@ return [
         ],
         'decision.placeholder' => 'Select a decision',
         'notes'                => 'Notes',
+        'unavailable'          => 'This approval step can no longer be decided (already decided, canceled, or not your turn yet). Please refresh the page.',
     ],
     'status'                   => 'Status',
     'connections'              => 'Connections',

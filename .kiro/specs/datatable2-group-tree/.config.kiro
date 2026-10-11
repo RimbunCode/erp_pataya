@@ -1,0 +1,6 @@
+{
+  "specId": "ffca814f-eebb-45d8-b495-f198dc4aeec9",
+  "workflowType": "design-first",
+  "specType": "feature",
+  "description": "Group by bertingkat (nested, gaya Odoo) pada DataTable2: kontrak group berubah dari 1 kolom jadi daftar level berurutan (maks 4) di semua lapisan (default model, saved filter, Filter Templates, Search Bar, URL). Data grup tidak lagi di-fetch sekaligus: level-0 = daftar nilai distinct + count (+ agregat sum/avg/min/max via config `groupAggregate`), isi tiap grup di-fetch lazy saat dibuka lewat route index yang sama (macro dataTable() menjawab JSON), dengan pagination independen per grup (`show` berlaku global). Panel Group by di Search Bar jadi checkbox + urutan nesting, chip tampil `A > B`. Desktop dan mobile berbagi satu GroupTree (render-prop). Menggantikan spec datatable2-grouping (v1) dan bagian group di datatable2-advanced-search."
+}

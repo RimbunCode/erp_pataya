@@ -6,9 +6,9 @@ use App\Models\Core\ApprovalScheme;
 use App\Models\Core\Branch;
 use App\Models\Core\SavedFilter;
 use App\Models\Model as AppModel;
-use App\Models\Scopes\DataTableScope;
 use App\Models\User\Permission;
 use App\Models\User\User;
+use App\Services\Core\DataTable\Group\GroupLevels;
 use App\Traits\DataTable;
 use Illuminate\Database\Eloquent\Concerns\HasUlids;
 use Illuminate\Foundation\Testing\RefreshDatabase;
@@ -16,6 +16,7 @@ use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Cookie;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Schema;
+use PHPUnit\Framework\Attributes\DataProvider;
 use Tests\TestCase;
 
 /**
@@ -561,23 +562,64 @@ class SavedFilterTest extends TestCase {
             'filter'  => $this->sampleTree(), 'name' => 'Keep', 'is_saved' => true,
         ]);
 
-        $granularity = DataTableScope::GROUP_GRANULARITIES[0];
-        $res         = $this->actingAs($owner)->patchJson("/saved-filters/{$saved->id}", [
+        $granularity = GroupLevels::GRANULARITIES[0];
+        $groups      = [
+            ['column' => 'category', 'granularity' => null, 'range' => null],
+            ['column' => 'order_date', 'granularity' => $granularity, 'range' => null],
+            ['column' => 'amount', 'granularity' => null, 'range' => 100],
+        ];
+        $res = $this->actingAs($owner)->patchJson("/saved-filters/{$saved->id}", [
             'sort'  => '-name',
-            'group' => ['column' => 'category', 'granularity' => $granularity, 'range' => null],
+            'group' => $groups,
         ]);
 
         $res->assertOk()
             ->assertJsonPath('sort', '-name')
-            ->assertJsonPath('group.column', 'category')
-            ->assertJsonPath('group.granularity', $granularity);
+            ->assertJsonPath('group.0.column', 'category')
+            ->assertJsonPath('group.1.column', 'order_date')
+            ->assertJsonPath('group.1.granularity', $granularity)
+            ->assertJsonPath('group.2.range', 100);
 
         $fresh = SavedFilter::find($saved->id);
         $this->assertSame('-name', $fresh->sort);
-        $this->assertSame(['column' => 'category', 'granularity' => $granularity, 'range' => null], $fresh->group);
+        // Urutan level = urutan nesting, harus utuh.
+        $this->assertSame($groups, $fresh->group);
     }
 
-    public function test_update_rejects_group_without_column(): void {
+    /**
+     * Klien basi pasca-deploy masih mengirim SATU objek `{column, ...}`
+     * (Requirement 3.4, 18.3) -- diterima & disimpan sbg list 1 level, bukan 422.
+     */
+    public function test_update_accepts_legacy_object_group_and_stores_it_as_single_level_list(): void {
+        $owner = $this->makeUser();
+        $saved = SavedFilter::create([
+            'user_id' => $owner->id, 'model' => ApprovalScheme::class,
+            'filter'  => $this->sampleTree(), 'name' => 'Keep', 'is_saved' => true,
+        ]);
+
+        $res = $this->actingAs($owner)->patchJson("/saved-filters/{$saved->id}", [
+            'group' => ['column' => 'category', 'granularity' => null, 'range' => null],
+        ]);
+
+        $res->assertOk()->assertJsonPath('group.0.column', 'category')->assertJsonCount(1, 'group');
+        $this->assertSame(
+            [['column' => 'category', 'granularity' => null, 'range' => null]],
+            SavedFilter::find($saved->id)->group,
+        );
+    }
+
+    /**
+     * @return array<string, array{0: mixed}>
+     */
+    public static function groupWithoutColumnPayloads(): array {
+        return [
+            'list, level tanpa column' => [[['granularity' => 'month']]],
+            'objek lama tanpa column'  => [['granularity' => 'month']],
+        ];
+    }
+
+    #[DataProvider('groupWithoutColumnPayloads')]
+    public function test_update_rejects_group_without_column(mixed $group): void {
         $owner = $this->makeUser();
         $saved = SavedFilter::create([
             'user_id' => $owner->id, 'model' => ApprovalScheme::class,
@@ -585,8 +627,8 @@ class SavedFilterTest extends TestCase {
         ]);
 
         $this->actingAs($owner)->patchJson("/saved-filters/{$saved->id}", [
-            'group' => ['granularity' => 'month'],
-        ])->assertStatus(422)->assertJsonValidationErrors(['group.column']);
+            'group' => $group,
+        ])->assertStatus(422)->assertJsonValidationErrors(['group.0.column']);
     }
 
     public function test_update_rejects_group_with_unknown_granularity(): void {
@@ -597,8 +639,8 @@ class SavedFilterTest extends TestCase {
         ]);
 
         $this->actingAs($owner)->patchJson("/saved-filters/{$saved->id}", [
-            'group' => ['column' => 'category', 'granularity' => 'decade'],
-        ])->assertStatus(422)->assertJsonValidationErrors(['group.granularity']);
+            'group' => [['column' => 'category'], ['column' => 'order_date', 'granularity' => 'decade']],
+        ])->assertStatus(422)->assertJsonValidationErrors(['group.1.granularity']);
     }
 
     public function test_update_rejects_group_with_non_positive_range(): void {
@@ -610,8 +652,62 @@ class SavedFilterTest extends TestCase {
 
         foreach ([0, -5] as $badRange) {
             $this->actingAs($owner)->patchJson("/saved-filters/{$saved->id}", [
-                'group' => ['column' => 'amount', 'range' => $badRange],
-            ])->assertStatus(422)->assertJsonValidationErrors(['group.range']);
+                'group' => [['column' => 'amount', 'range' => $badRange]],
+            ])->assertStatus(422)->assertJsonValidationErrors(['group.0.range']);
+        }
+    }
+
+    public function test_update_rejects_group_with_more_than_max_levels(): void {
+        $owner = $this->makeUser();
+        $saved = SavedFilter::create([
+            'user_id' => $owner->id, 'model' => ApprovalScheme::class,
+            'filter'  => $this->sampleTree(), 'name' => 'Keep', 'is_saved' => true,
+        ]);
+
+        $tooMany = \array_map(fn (string $c) => ['column' => $c], ['a', 'b', 'c', 'd', 'e']);
+
+        $this->actingAs($owner)->patchJson("/saved-filters/{$saved->id}", ['group' => $tooMany])
+            ->assertStatus(422)->assertJsonValidationErrors(['group']);
+
+        // Tepat di batas (4) diterima.
+        $this->actingAs($owner)->patchJson("/saved-filters/{$saved->id}", ['group' => \array_slice($tooMany, 0, 4)])
+            ->assertOk();
+    }
+
+    public function test_update_dedupes_duplicate_group_columns_keeping_the_first(): void {
+        $owner = $this->makeUser();
+        $saved = SavedFilter::create([
+            'user_id' => $owner->id, 'model' => ApprovalScheme::class,
+            'filter'  => $this->sampleTree(), 'name' => 'Keep', 'is_saved' => true,
+        ]);
+
+        $this->actingAs($owner)->patchJson("/saved-filters/{$saved->id}", [
+            'group' => [
+                ['column' => 'order_date', 'granularity' => 'day'],
+                ['column' => 'category'],
+                ['column' => 'order_date', 'granularity' => 'year'],
+            ],
+        ])->assertOk()->assertJsonCount(2, 'group')->assertJsonPath('group.0.granularity', 'day');
+    }
+
+    public function test_update_with_null_or_empty_group_clears_it_to_null(): void {
+        $owner = $this->makeUser();
+        $saved = SavedFilter::create([
+            'user_id' => $owner->id, 'model' => ApprovalScheme::class,
+            'filter'  => $this->sampleTree(), 'name' => 'Keep', 'is_saved' => true,
+            'group'   => [['column' => 'category']],
+        ]);
+
+        foreach ([null, []] as $empty) {
+            SavedFilter::whereKey($saved->id)->first()->update(['group' => [['column' => 'category']]]);
+
+            $this->actingAs($owner)->patchJson("/saved-filters/{$saved->id}", ['group' => $empty])
+                ->assertOk()->assertJsonPath('group', null);
+
+            // `null` = "saved filter tak mengatur group" (semantik existing);
+            // di DB tersimpan NULL (bukan '[]').
+            $this->assertNull(DB::table('saved_filters')->where('id', $saved->id)->value('group'));
+            $this->assertNull(SavedFilter::find($saved->id)->group);
         }
     }
 
@@ -638,12 +734,79 @@ class SavedFilterTest extends TestCase {
         SavedFilter::create([
             'user_id' => $owner->id, 'model' => ApprovalScheme::class,
             'filter'  => $this->sampleTree(), 'name' => 'A', 'is_saved' => true,
-            'group'   => ['column' => 'category', 'granularity' => null, 'range' => null],
+            'group'   => [
+                ['column' => 'category', 'granularity' => null, 'range' => null],
+                ['column' => 'status', 'granularity' => null, 'range' => null],
+            ],
         ]);
 
         $this->actingAs($owner)->getJson('/saved-filters?model=' . urlencode(ApprovalScheme::class))
             ->assertOk()
-            ->assertJsonPath('0.group.column', 'category');
+            ->assertJsonPath('0.group.0.column', 'category')
+            ->assertJsonPath('0.group.1.column', 'status');
+    }
+
+    /**
+     * Property 9 (kompat data lama): baris yang MASIH berbentuk objek di DB
+     * (belum sempat termigrasi) dibaca accessor sbg list 1 level -- lewat
+     * model maupun lewat `index()`.
+     */
+    public function test_legacy_object_group_row_is_read_as_single_level_list(): void {
+        $owner = $this->makeUser();
+        $saved = SavedFilter::create([
+            'user_id' => $owner->id, 'model' => ApprovalScheme::class,
+            'filter'  => $this->sampleTree(), 'name' => 'Lama', 'is_saved' => true,
+        ]);
+        DB::table('saved_filters')->where('id', $saved->id)->update([
+            'group' => \json_encode(['column' => 'category', 'granularity' => 'month', 'range' => null]),
+        ]);
+
+        $expected = [['column' => 'category', 'granularity' => 'month', 'range' => null]];
+        $this->assertSame($expected, SavedFilter::find($saved->id)->group);
+
+        $this->actingAs($owner)->getJson('/saved-filters?model=' . urlencode(ApprovalScheme::class))
+            ->assertOk()
+            ->assertJsonPath('0.group.0.column', 'category')
+            ->assertJsonPath('0.group.0.granularity', 'month');
+    }
+
+    /**
+     * Migration data `convert_saved_filters_group_to_list` (Requirement 3.6,
+     * 18.1): objek lama -> list 1 level; objek tanpa kolom valid -> NULL; list
+     * yang sudah baru & NULL dibiarkan; down() mengembalikan level pertama.
+     */
+    public function test_group_conversion_migration_converts_legacy_objects_and_is_rerunnable(): void {
+        $owner = $this->makeUser();
+        $make  = function (string $name, ?string $rawGroup) use ($owner): string {
+            $saved = SavedFilter::create([
+                'user_id' => $owner->id, 'model' => ApprovalScheme::class,
+                'filter'  => $this->sampleTree(), 'name' => $name, 'is_saved' => true,
+            ]);
+            DB::table('saved_filters')->where('id', $saved->id)->update(['group' => $rawGroup]);
+
+            return $saved->id;
+        };
+
+        $legacy   = $make('legacy', \json_encode(['column' => 'category', 'granularity' => 'month', 'range' => null]));
+        $noColumn = $make('no-column', \json_encode(['column' => null, 'granularity' => null, 'range' => null]));
+        $already  = $make('already', \json_encode([['column' => 'a'], ['column' => 'b']]));
+        $none     = $make('none', null);
+
+        $migration = require \database_path('migrations/2026_09_26_105044_convert_saved_filters_group_to_list.php');
+        $raw       = fn (string $id) => \json_decode((string) DB::table('saved_filters')->where('id', $id)->value('group'), true);
+
+        $migration->up();
+        $migration->up(); // rerunnable: tidak membungkus dua kali
+
+        $this->assertSame([['column' => 'category', 'granularity' => 'month', 'range' => null]], $raw($legacy));
+        $this->assertNull(DB::table('saved_filters')->where('id', $noColumn)->value('group'));
+        $this->assertSame([['column' => 'a'], ['column' => 'b']], $raw($already));
+        $this->assertNull(DB::table('saved_filters')->where('id', $none)->value('group'));
+
+        $migration->down(); // lossy: hanya level pertama yang kembali jadi objek
+
+        $this->assertSame(['column' => 'category', 'granularity' => 'month', 'range' => null], $raw($legacy));
+        $this->assertSame(['column' => 'a'], $raw($already));
     }
 
     /**

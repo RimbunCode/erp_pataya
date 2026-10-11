@@ -21,14 +21,12 @@ class AssetTest extends TestCase {
     // 8.7 ── Property 1: Ownership exclusivity ──────────────────────────────
 
     #[Test]
-    public function company_owned_asset_has_no_supplier_or_customer_fk(): void {
-        $asset = Asset::factory()->companyOwned()->create([
-            'ownership_company_id' => null,
-        ]);
+    public function company_owned_asset_has_no_ownership_id(): void {
+        $asset = Asset::factory()->companyOwned()->create();
 
         $this->assertEquals(AssetOwnershipType::COMPANY, $asset->ownership_type);
-        $this->assertNull($asset->ownership_supplier_id);
-        $this->assertNull($asset->ownership_customer_id);
+        $this->assertNull($asset->ownership_id);
+        $this->assertNull($asset->ownership);
     }
 
     #[Test]
@@ -36,13 +34,12 @@ class AssetTest extends TestCase {
         $supplierId = (string) Str::ulid();
 
         $asset = Asset::factory()->create([
-            'ownership_type'        => AssetOwnershipType::SUPPLIER,
-            'ownership_supplier_id' => $supplierId,
+            'ownership_type' => AssetOwnershipType::SUPPLIER,
+            'ownership_id'   => $supplierId,
         ]);
 
         $this->assertEquals(AssetOwnershipType::SUPPLIER, $asset->ownership_type);
-        $this->assertEquals($supplierId, $asset->ownership_supplier_id);
-        $this->assertNull($asset->ownership_customer_id);
+        $this->assertEquals($supplierId, $asset->ownership_id);
     }
 
     #[Test]
@@ -50,20 +47,19 @@ class AssetTest extends TestCase {
         $customerId = (string) Str::ulid();
 
         $asset = Asset::factory()->create([
-            'ownership_type'        => AssetOwnershipType::CUSTOMER,
-            'ownership_customer_id' => $customerId,
+            'ownership_type' => AssetOwnershipType::CUSTOMER,
+            'ownership_id'   => $customerId,
         ]);
 
         $this->assertEquals(AssetOwnershipType::CUSTOMER, $asset->ownership_type);
-        $this->assertEquals($customerId, $asset->ownership_customer_id);
-        $this->assertNull($asset->ownership_supplier_id);
+        $this->assertEquals($customerId, $asset->ownership_id);
     }
 
     #[Test]
-    public function ownership_entity_returns_null_for_company(): void {
+    public function ownership_relation_returns_null_for_company(): void {
         $asset = Asset::factory()->companyOwned()->create();
 
-        $this->assertNull($asset->ownershipEntity());
+        $this->assertNull($asset->ownership);
     }
 
     // 8.8 ── Property 3: Depreciability monotonic default ───────────────────
@@ -71,8 +67,8 @@ class AssetTest extends TestCase {
     #[Test]
     public function non_company_ownership_sets_is_depreciable_false_by_default(): void {
         $asset = Asset::factory()->create([
-            'ownership_type'        => AssetOwnershipType::SUPPLIER,
-            'ownership_supplier_id' => (string) Str::ulid(),
+            'ownership_type' => AssetOwnershipType::SUPPLIER,
+            'ownership_id'   => (string) Str::ulid(),
         ]);
 
         $this->assertFalse($asset->is_depreciable);
@@ -81,9 +77,9 @@ class AssetTest extends TestCase {
     #[Test]
     public function is_depreciable_can_be_overridden_explicitly(): void {
         $asset = Asset::factory()->create([
-            'ownership_type'        => AssetOwnershipType::SUPPLIER,
-            'ownership_supplier_id' => (string) Str::ulid(),
-            'is_depreciable'        => true,
+            'ownership_type' => AssetOwnershipType::SUPPLIER,
+            'ownership_id'   => (string) Str::ulid(),
+            'is_depreciable' => true,
         ]);
 
         $this->assertTrue($asset->is_depreciable);

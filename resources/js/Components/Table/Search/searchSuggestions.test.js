@@ -43,7 +43,6 @@ const savedFilters = [
   { id: 3, name: null },
 ];
 const groupOptions = [
-  { value: "__no_group__", label: "Tidak Dikelompokkan" },
   { value: "status", label: "Status" },
   { value: "created_at", label: "Tanggal Dibuat" },
 ];
@@ -296,12 +295,53 @@ describe("buildSuggestions", () => {
     );
   });
 
-  it("seksi group: cocok label, exclude sentinel __no_group__, dibatasi 3", () => {
-    const result = buildSuggestions("t", ctx); // "Tidak Dikelompokkan"/"Tanggal Dibuat" cocok huruf t
+  it("seksi group: cocok label (bukan sentinel -- 'Tidak ada' = Groups kosong), payload {column, active:false}", () => {
+    const result = buildSuggestions("t", ctx); // "Status"/"Tanggal Dibuat" cocok huruf t
     const groupSection = result.find((s) => s.section === "group");
-    expect(
-      groupSection.items.every((i) => i.payload.column !== "__no_group__"),
-    ).toBe(true);
+    // Urutan mengikuti peringkat kecocokan ("Tanggal…" berawalan t lebih dulu),
+    // jadi bandingkan tanpa urutan.
+    expect(groupSection.items.map((i) => i.payload)).toHaveLength(2);
+    expect(groupSection.items.map((i) => i.payload)).toEqual(
+      expect.arrayContaining([
+        { column: "status", active: false },
+        { column: "created_at", active: false },
+      ]),
+    );
+  });
+
+  it("seksi group: kolom yang SUDAH aktif (activeGroupColumns) berlabel 'Hapus pengelompokan' & payload active:true (memilih = toggle)", () => {
+    const result = buildSuggestions("status", {
+      ...ctx,
+      activeGroupColumns: ["status"],
+    });
+    const groupSection = result.find((s) => s.section === "group");
+    expect(groupSection.items[0].label).toBe(
+      t("core.datatable.search.group_remove_label", { column: "Status" }),
+    );
+    expect(groupSection.items[0].payload).toEqual({
+      column: "status",
+      active: true,
+    });
+  });
+
+  it("seksi group: hanya kolom di activeGroupColumns yang berlabel hapus, kolom lain tetap 'Kelompokkan'", () => {
+    const result = buildSuggestions("t", {
+      ...ctx,
+      activeGroupColumns: ["created_at"],
+    });
+    const byColumn = Object.fromEntries(
+      result
+        .find((s) => s.section === "group")
+        .items.map((i) => [i.payload.column, i.label]),
+    );
+    expect(byColumn.status).toBe(
+      t("core.datatable.search.group_by_label", { column: "Status" }),
+    );
+    expect(byColumn.created_at).toBe(
+      t("core.datatable.search.group_remove_label", {
+        column: "Tanggal Dibuat",
+      }),
+    );
   });
 
   it("seksi group label pakai group_by_label", () => {

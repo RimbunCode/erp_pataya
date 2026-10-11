@@ -40,8 +40,8 @@ class AssetService implements SubmitableService {
                 'asset_name', 'asset_category_id', 'asset_location_id',
                 'asset_type', 'item_id', 'asset_quantity',
                 'is_rentable', 'allow_bulk_quantity',
-                'ownership_type', 'ownership_company_id',
-                'ownership_supplier_id', 'ownership_customer_id',
+                'ownership_type', 'ownership_id',
+                'ownership_customer_branch_id',
                 'custodian_id',
                 'purchase_date', 'available_for_use_date',
                 'net_purchase_amount', 'gross_purchase_amount',
@@ -70,8 +70,8 @@ class AssetService implements SubmitableService {
                 'asset_name', 'asset_category_id', 'asset_location_id',
                 'item_id', 'asset_quantity',
                 'is_rentable', 'allow_bulk_quantity',
-                'ownership_type', 'ownership_company_id',
-                'ownership_supplier_id', 'ownership_customer_id',
+                'ownership_type', 'ownership_id',
+                'ownership_customer_branch_id',
                 'custodian_id',
                 'purchase_date', 'available_for_use_date',
                 'net_purchase_amount', 'gross_purchase_amount',
@@ -154,20 +154,20 @@ class AssetService implements SubmitableService {
         if (isset($data['asset_location']['id'])) {
             $data['asset_location_id'] = $data['asset_location']['id'];
         }
-        // item/custodian/ownership_supplier/ownership_customer nullable (bisa
-        // dikosongkan user) -- array_key_exists, bukan isset(...['id']), supaya
-        // pengiriman null ikut mengosongkan kolom _id, bukan diabaikan Arr::only().
+        // item/custodian/ownership nullable (bisa dikosongkan user) --
+        // array_key_exists, bukan isset(...['id']), supaya pengiriman null ikut
+        // mengosongkan kolom _id, bukan diabaikan Arr::only().
         if (array_key_exists('item', $data)) {
             $data['item_id'] = $data['item']['id'] ?? null;
         }
         if (array_key_exists('custodian', $data)) {
             $data['custodian_id'] = $data['custodian']['id'] ?? null;
         }
-        if (array_key_exists('ownership_supplier', $data)) {
-            $data['ownership_supplier_id'] = $data['ownership_supplier']['id'] ?? null;
+        if (array_key_exists('ownership', $data)) {
+            $data['ownership_id'] = $data['ownership']['id'] ?? null;
         }
-        if (array_key_exists('ownership_customer', $data)) {
-            $data['ownership_customer_id'] = $data['ownership_customer']['id'] ?? null;
+        if (array_key_exists('ownership_customer_branch', $data)) {
+            $data['ownership_customer_branch_id'] = $data['ownership_customer_branch']['id'] ?? null;
         }
 
         return $data;
@@ -295,9 +295,8 @@ class AssetService implements SubmitableService {
                     'is_rentable'                      => $asset->is_rentable,
                     'allow_bulk_quantity'              => $asset->allow_bulk_quantity,
                     'ownership_type'                   => $asset->ownership_type,
-                    'ownership_company_id'             => $asset->ownership_company_id,
-                    'ownership_supplier_id'            => $asset->ownership_supplier_id,
-                    'ownership_customer_id'            => $asset->ownership_customer_id,
+                    'ownership_id'                     => $asset->ownership_id,
+                    'ownership_customer_branch_id'     => $asset->ownership_customer_branch_id,
                     'custodian_id'                     => $asset->custodian_id,
                     'purchase_date'                    => $asset->purchase_date,
                     'available_for_use_date'           => $asset->available_for_use_date,

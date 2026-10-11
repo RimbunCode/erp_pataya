@@ -18,6 +18,7 @@ use App\Models\Core\Taggable;
 use App\Models\Core\Todo;
 use App\Models\User\Permission;
 use App\Models\User\User;
+use App\Services\Core\Approval\SignatureResolverService;
 use App\Services\Core\EmailTemplate\EmailTemplateRenderService;
 use App\Services\Core\PrintTemplate\HTMLSanitizerService;
 use App\Services\Core\PrintTemplate\PdfAttachmentService;
@@ -375,10 +376,18 @@ abstract class Controller {
         ];
 
         return Inertia::render('Core/Print', [
-            'doc'           => $data,
-            'docInfo'       => $docInfo,
-            'columns'       => $columns,
-            'printTemplate' => $printTemplate->toArray(),
+            'doc'     => $data,
+            'docInfo' => $docInfo,
+            'columns' => $columns,
+            // Tanda tangan diresolusi di SERVER, bukan di helper Handlebars
+            // sisi klien: berkasnya tidak publik dan harus dibaca dari
+            // storage sebagai data URI. Mengirim hasil resolusi yang sama
+            // dengan yang dipakai render PDF adalah yang membuat pratinjau
+            // dan PDF tidak bisa menyimpang (FR8).
+            // Resolver sendiri sudah mengembalikan null untuk dokumen tanpa
+            // approval, jadi tidak perlu dijaga lagi di sini.
+            'approvalSignature' => app(SignatureResolverService::class)->resolveFinalSignature($data),
+            'printTemplate'     => $printTemplate->toArray(),
         ]);
     }
 

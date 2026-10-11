@@ -45,14 +45,6 @@ vi.mock("@inertiajs/react", () => ({
   },
 }));
 
-// GroupPicker (ChipEditor.jsx, dipakai per-chip editor "group" & Panel kolom
-// Group) hanya butuh 2 konstanta ini -- Table2.jsx menarik graf modul berat
-// (dnd-kit, inertia, css) yang tidak relevan di sini.
-vi.mock("@/Components/Table/Table2", () => ({
-  DATE_GROUP_GRANULARITIES: ["day", "month", "quarter", "half", "year"],
-  DEFAULT_NUMBER_GROUP_RANGE_OPTIONS: [10, 100, 1000],
-}));
-
 // SaveFilterControl asli (dropdown simpan/timpa + axios) sudah punya test
 // sendiri di FilterTable2.rtl.test.jsx.
 vi.mock("../Filter/FilterTable2", () => ({
@@ -120,7 +112,6 @@ const columns = {
 };
 
 const groupOptions = [
-  { value: "__no_group__", label: "Tidak ada" },
   { value: "created_at", label: "Dibuat" },
   { value: "total", label: "Total" },
 ];
@@ -138,7 +129,7 @@ const statusDraftTree = {
 // bocor lintas test (dua `it()` yang mount kolom relasi sama akan punya
 // queryKey sama; kalau clientnya sama, test kedua bisa diam-diam serve dari
 // cache test pertama alih-alih benar-benar fetch).
-const renderBar = (overrides = {}) => {
+const renderBar = ({ inDialog = false, ...overrides } = {}) => {
   const props = {
     columns,
     tree: null,
@@ -153,7 +144,13 @@ const renderBar = (overrides = {}) => {
   const ui = (p) => (
     <QueryClientProvider client={queryClient}>
       <TooltipProvider>
-        <SearchBar {...p} />
+        {inDialog ? (
+          <div role="dialog" data-testid="host-dialog">
+            <SearchBar {...p} />
+          </div>
+        ) : (
+          <SearchBar {...p} />
+        )}
       </TooltipProvider>
     </QueryClientProvider>
   );
@@ -289,6 +286,33 @@ const valueChip = (label) =>
     })[0]
     ?.closest("span");
 
+/**
+ * Nilai `aria-selected` sel kalender untuk satu tanggal (format `YYYY-MM-DD`).
+ *
+ * Sel dicari lewat atribut `data-day`, bukan lewat nama aksesibel tombolnya.
+ * Nama itu dihasilkan react-day-picker dalam bahasa Inggris berformat panjang
+ * ("September 15th, 2026") dan berubah antar versi: pada 9.14 sel tanggal
+ * dirender sebagai `<td role="gridcell">` bernama angka saja, sehingga
+ * pencarian lama berhenti menemukan apa pun. `data-day` adalah data, bukan
+ * teks tampilan, jadi tidak ikut berubah oleh pelokalan maupun pembaruan
+ * pustaka.
+ * @param isoDate
+ */
+const selectedStateOfDay = (isoDate) =>
+  screen
+    .getByRole("grid")
+    .querySelector(`[data-day="${isoDate}"]`)
+    ?.closest("td")
+    ?.getAttribute("aria-selected");
+
+// Sebagian test membekukan waktu karena memakai tanggal tetap sementara widget
+// kalender membuka bulan berjalan. Pemulihan dilakukan di sini, bukan di
+// masing-masing test, supaya timer palsu tidak pernah bocor ke test berikutnya
+// bila sebuah test gagal di tengah jalan.
+afterEach(() => {
+  vi.useRealTimers();
+});
+
 const savedA = {
   id: 1,
   name: "PO Bulan Ini",
@@ -370,7 +394,7 @@ describe("SearchBar — warna chip berdasarkan peran (revisi 9)", () => {
 
   it("chip group berwarna hijau + ikon tumpukan (Layers), label tanpa awalan '≡'", () => {
     renderBar({
-      group: { column: "created_at", granularity: "month", range: null },
+      group: [{ column: "created_at", granularity: "month", range: null }],
     });
     const chip = screen.getByText(/Dibuat/).closest("span");
     expect(chip.className).toContain("bg-emerald-500/15");
@@ -474,6 +498,25 @@ describe("SearchBar — Panel muncul saat fokus & chevron (Requirement revisi 2)
     ).toBeInTheDocument();
 
     await user.click(document.body);
+
+    await waitFor(() =>
+      expect(
+        screen.queryByText("TR:core.datatable.filter.filter"),
+      ).not.toBeInTheDocument(),
+    );
+  });
+});
+
+describe("SearchBar — klik-luar di dalam dialog host", () => {
+  it("klik di area dialog yang MEMUAT SearchBar (di luar wrapper) tetap menutup panel", async () => {
+    const user = userEvent.setup({ delay: null });
+    const { input } = renderBar({ inDialog: true });
+    await user.click(input);
+    expect(
+      await screen.findByText("TR:core.datatable.filter.filter"),
+    ).toBeInTheDocument();
+
+    await user.click(screen.getByTestId("host-dialog"));
 
     await waitFor(() =>
       expect(
@@ -1319,7 +1362,16 @@ describe("SearchBar — revisi 3: model staged-apply (Requirement 17)", () => {
 });
 
 describe("SearchBar — Group by (chip & saran)", () => {
-  it("saran seksi Kelompokkan memanggil onGroupChange dgn default kolom", async () => {
+  const CHIP_MONTH_LABEL = "Dibuat: TR:core.datatable.granularity.month";
+  const removeLabel = (label) =>
+    `TR:core.datatable.search.remove_chip:${JSON.stringify({ label })}`;
+  const createdMonth = {
+    column: "created_at",
+    granularity: "month",
+    range: null,
+  };
+
+  it("saran seksi Kelompokkan memanggil onGroupChange(Groups) dgn default kolom -- baru saat Apply", async () => {
     const user = userEvent.setup({ delay: null });
     const onGroupChange = vi.fn();
     const { input } = renderBar({ groupOptions, onGroupChange });
@@ -1333,61 +1385,220 @@ describe("SearchBar — Group by (chip & saran)", () => {
     expect(onGroupChange).not.toHaveBeenCalled();
     await clickApply(user);
 
-    expect(onGroupChange).toHaveBeenCalledWith({
-      column: "created_at",
-      granularity: "month",
-      range: null,
-    });
+    expect(onGroupChange).toHaveBeenCalledWith([createdMonth]);
   });
 
-  it("chip group menampilkan kolom + granularity; klik membuka editor granularity (GroupPicker)", async () => {
+  it("dua saran group berturut-turut = NESTING: kolom kedua jadi level terdalam", async () => {
+    const user = userEvent.setup({ delay: null });
+    const onGroupChange = vi.fn();
+    const { input } = renderBar({ groupOptions, onGroupChange });
+
+    await typeInto(user, input, "Dibuat");
+    await user.click(
+      await findByFullText(
+        mockT("core.datatable.search.group_by_label", { column: "Dibuat" }),
+      ),
+    );
+    await typeInto(user, input, "Total");
+    await user.click(
+      await findByFullText(
+        mockT("core.datatable.search.group_by_label", { column: "Total" }),
+      ),
+    );
+    await clickApply(user);
+
+    expect(onGroupChange).toHaveBeenCalledTimes(1);
+    expect(onGroupChange).toHaveBeenCalledWith([
+      createdMonth,
+      { column: "total", granularity: null, range: 10 },
+    ]);
+  });
+
+  it("saran kolom yang SUDAH aktif berlabel 'hapus pengelompokan'; memilihnya membuang level itu (toggle)", async () => {
+    const user = userEvent.setup({ delay: null });
+    const onGroupChange = vi.fn();
+    const { input } = renderBar({
+      groupOptions,
+      onGroupChange,
+      group: [createdMonth],
+    });
+
+    await typeInto(user, input, "Dibuat");
+    expect(
+      screen.queryByText(
+        mockT("core.datatable.search.group_by_label", { column: "Dibuat" }),
+      ),
+    ).not.toBeInTheDocument();
+    await user.click(
+      await findByFullText(
+        mockT("core.datatable.search.group_remove_label", {
+          column: "Dibuat",
+        }),
+      ),
+    );
+    await clickApply(user);
+
+    expect(onGroupChange).toHaveBeenCalledWith([]);
+  });
+
+  it("chip group bertingkat = SATU chip berlabel 'A > B'; level date/number membawa pilihannya", () => {
+    renderBar({
+      groupOptions,
+      group: [
+        createdMonth,
+        { column: "total", granularity: null, range: 100 },
+        { column: "code", granularity: null, range: null },
+      ],
+    });
+
+    const label =
+      "Dibuat: TR:core.datatable.granularity.month > Total: 100 > Kode";
+    expect(screen.getByText(label)).toBeInTheDocument();
+    expect(
+      screen.getAllByRole("button", {
+        name: /search\.remove_chip.*granularity/,
+      }),
+    ).toHaveLength(1);
+    expect(
+      screen.getByRole("button", { name: removeLabel(label) }),
+    ).toBeInTheDocument();
+  });
+
+  it("chip group satu level kolom biasa: label = judul kolom tanpa pemisah", () => {
+    renderBar({
+      groupOptions,
+      group: [{ column: "status", granularity: null, range: null }],
+    });
+
+    expect(screen.getByText("Status")).toBeInTheDocument();
+  });
+
+  it("klik chip group membuka editor level; mengganti granularity TIDAK menutup popover & baru diterapkan saat Apply", async () => {
     const user = userEvent.setup({ delay: null });
     const onGroupChange = vi.fn();
     renderBar({
       groupOptions,
       onGroupChange,
-      group: { column: "created_at", granularity: "month", range: null },
+      group: [createdMonth],
     });
 
-    expect(screen.getByText(/Dibuat/)).toBeInTheDocument();
-    await user.click(screen.getByText(/Dibuat.*month|Dibuat/));
+    await user.click(screen.getByText(CHIP_MONTH_LABEL));
     await user.click(
-      await screen.findByRole("button", {
+      await screen.findByRole("combobox", {
+        name: "TR:core.datatable.group_levels.granularity",
+      }),
+    );
+    await user.click(
+      await screen.findByRole("option", {
         name: "TR:core.datatable.granularity.year",
       }),
     );
     expect(onGroupChange).not.toHaveBeenCalled();
+    // Chip ikut menampilkan pilihan baru (draft), editor masih terbuka.
+    expect(
+      screen.getByText("Dibuat: TR:core.datatable.granularity.year"),
+    ).toBeInTheDocument();
+    expect(
+      screen.getByRole("checkbox", { name: "Dibuat" }),
+    ).toBeInTheDocument();
     await clickApply(user);
 
-    expect(onGroupChange).toHaveBeenCalledWith({
-      column: "created_at",
-      granularity: "year",
-      range: null,
-    });
+    expect(onGroupChange).toHaveBeenCalledWith([
+      { column: "created_at", granularity: "year", range: null },
+    ]);
   });
 
-  it("klik × pada chip group -> onGroupChange({column:null,...})", async () => {
+  it("mencentang kolom lain di editor chip menambah level ke chip yang sama ('A > B')", async () => {
+    const user = userEvent.setup({ delay: null });
+    const onGroupChange = vi.fn();
+    renderBar({ groupOptions, onGroupChange, group: [createdMonth] });
+
+    await user.click(screen.getByText(CHIP_MONTH_LABEL));
+    await user.click(await screen.findByRole("checkbox", { name: "Total" }));
+
+    expect(
+      screen.getByText(
+        "Dibuat: TR:core.datatable.granularity.month > Total: 10",
+      ),
+    ).toBeInTheDocument();
+    await clickApply(user);
+    expect(onGroupChange).toHaveBeenCalledWith([
+      createdMonth,
+      { column: "total", granularity: null, range: 10 },
+    ]);
+  });
+
+  it("klik × pada chip group membuang SEMUA level -> onGroupChange([]) saat Apply", async () => {
     const user = userEvent.setup({ delay: null });
     const onGroupChange = vi.fn();
     renderBar({
       groupOptions,
       onGroupChange,
-      group: { column: "created_at", granularity: "month", range: null },
+      group: [createdMonth, { column: "code", granularity: null, range: null }],
     });
 
     await user.click(
       screen.getByRole("button", {
-        name: 'TR:core.datatable.search.remove_chip:{"label":"Dibuat › TR:core.datatable.granularity.month"}',
+        name: removeLabel(`${CHIP_MONTH_LABEL} > Kode`),
       }),
     );
     expect(onGroupChange).not.toHaveBeenCalled();
     await clickApply(user);
 
-    expect(onGroupChange).toHaveBeenCalledWith({
-      column: null,
-      granularity: null,
-      range: null,
+    expect(onGroupChange).toHaveBeenCalledWith([]);
+  });
+
+  it("ikon chip group = tombol urutan grup: klik memanggil onGroupSortChange (asc<->desc) TANPA membuka editor level & tanpa menyentuh onGroupChange", async () => {
+    const user = userEvent.setup({ delay: null });
+    const onGroupChange = vi.fn();
+    const onGroupSortChange = vi.fn();
+    renderBar({
+      groupOptions,
+      onGroupChange,
+      onGroupSortChange,
+      groupSort: "asc",
+      group: [createdMonth],
     });
+
+    const icon = screen.getByRole("button", {
+      name: "TR:core.datatable.search.group_sort_asc",
+    });
+    expect(icon.querySelector("svg.lucide-layers")).toBeTruthy();
+    expect(icon.querySelector("svg.lucide-arrow-up")).toBeTruthy();
+
+    await user.click(icon);
+    expect(onGroupSortChange).toHaveBeenCalledWith("desc");
+    expect(onGroupChange).not.toHaveBeenCalled();
+    // Editor level (popover chip) TIDAK ikut terbuka.
+    expect(screen.queryByRole("checkbox", { name: "Dibuat" })).toBeNull();
+  });
+
+  it("groupSort desc: ikon berlabel 'Z–A' dgn panah bawah; klik membalik ke asc", async () => {
+    const user = userEvent.setup({ delay: null });
+    const onGroupSortChange = vi.fn();
+    renderBar({
+      groupOptions,
+      onGroupSortChange,
+      groupSort: "desc",
+      group: [createdMonth],
+    });
+
+    const icon = screen.getByRole("button", {
+      name: "TR:core.datatable.search.group_sort_desc",
+    });
+    expect(icon.querySelector("svg.lucide-arrow-down")).toBeTruthy();
+    await user.click(icon);
+    expect(onGroupSortChange).toHaveBeenCalledWith("asc");
+  });
+
+  it("tanpa onGroupSortChange ikon chip group hanya hiasan (bukan tombol)", () => {
+    renderBar({ groupOptions, group: [createdMonth] });
+
+    expect(
+      screen.queryByRole("button", {
+        name: /core\.datatable\.search\.group_sort_/,
+      }),
+    ).toBeNull();
   });
 
   it("tanpa groupOptions, seksi Kelompokkan & kolom Group Panel tidak ada", async () => {
@@ -1476,12 +1687,64 @@ describe("SearchBar — Filter Tersimpan", () => {
       model: "App\\Models\\Inventory\\Item",
       activeFid: 1,
       tree: statusDraftTree,
-      getViewSnapshot: () => ({ sort: "-created_at", group: { column: "x" } }),
+      getViewSnapshot: () => ({
+        sort: "-created_at",
+        group: [{ column: "x", granularity: null, range: null }],
+      }),
     });
     await screen.findByText("PO Bulan Ini");
     expect(
       screen.queryByLabelText("TR:core.datatable.filter.saved.dirty"),
     ).not.toBeInTheDocument();
+  });
+
+  describe("group bertingkat vs saved filter sumber", () => {
+    const a = { column: "created_at", granularity: "month", range: null };
+    const b = { column: "code", granularity: null, range: null };
+    const savedWithGroup = { ...savedA, group: [a, b] };
+    const dirtyLabel = "TR:core.datatable.filter.saved.dirty";
+
+    it("group aktif = group saved filter (urutan sama) -> TIDAK dirty", async () => {
+      axiosGet.mockResolvedValue({ data: { data: [savedWithGroup] } });
+      renderBar({
+        model: "App\\Models\\Inventory\\Item",
+        activeFid: 1,
+        tree: statusDraftTree,
+        groupOptions,
+        group: [a, b],
+      });
+      await screen.findByText("PO Bulan Ini");
+
+      expect(screen.queryByLabelText(dirtyLabel)).not.toBeInTheDocument();
+    });
+
+    it("URUTAN level berbeda dari saved filter (nesting berubah) -> dirty", async () => {
+      axiosGet.mockResolvedValue({ data: { data: [savedWithGroup] } });
+      renderBar({
+        model: "App\\Models\\Inventory\\Item",
+        activeFid: 1,
+        tree: statusDraftTree,
+        groupOptions,
+        group: [b, a],
+      });
+      await screen.findByText("PO Bulan Ini");
+
+      expect(await screen.findByLabelText(dirtyLabel)).toBeInTheDocument();
+    });
+
+    it("granularity level berbeda dari saved filter -> dirty", async () => {
+      axiosGet.mockResolvedValue({ data: { data: [savedWithGroup] } });
+      renderBar({
+        model: "App\\Models\\Inventory\\Item",
+        activeFid: 1,
+        tree: statusDraftTree,
+        groupOptions,
+        group: [{ ...a, granularity: "year" }, b],
+      });
+      await screen.findByText("PO Bulan Ini");
+
+      expect(await screen.findByLabelText(dirtyLabel)).toBeInTheDocument();
+    });
   });
 
   it("klik × pada chip sumber -> onTreeChange(null) & chip hilang", async () => {
@@ -3674,19 +3937,21 @@ describe("SearchBar — revisi 9: Enter chip dulu, klik menutup, edit chip via k
     const user = userEvent.setup({ delay: null });
     const bar = renderBar({
       groupOptions,
-      group: { column: "created_at", granularity: "month", range: null },
+      group: [{ column: "created_at", granularity: "month", range: null }],
     });
     await user.click(bar.input);
 
-    // Panel (kolom Group) juga punya tombol granularity yg sama -- yg diuji
-    // di sini: editor chip (popover) MENAMBAH satu set tombol lagi.
-    const yearButtons = () =>
-      screen.queryAllByRole("button", {
-        name: "TR:core.datatable.granularity.year",
+    // Panel (kolom Group) juga punya Select granularity yg sama -- yg diuji
+    // di sini: editor chip (popover) MENAMBAH satu editor lagi.
+    const granularitySelects = () =>
+      screen.queryAllByRole("combobox", {
+        name: "TR:core.datatable.group_levels.granularity",
       });
-    const before = yearButtons().length;
+    const before = granularitySelects().length;
     await user.keyboard("{ArrowLeft} ");
-    await waitFor(() => expect(yearButtons().length).toBeGreaterThan(before));
+    await waitFor(() =>
+      expect(granularitySelects().length).toBeGreaterThan(before),
+    );
   });
 
   it("chip nilai text tersorot + Space/Enter -> masuk edit (teks dimuat ke input, chip bertanda)", async () => {
@@ -3808,7 +4073,22 @@ describe("SearchBar — revisi 9: pilih tanggal di widget mengisi nilai; saran m
     expect(applied(bar).v.startDate).toMatch(/^\d{4}-\d{2}-\d{2}$/);
   });
 
+  // Kedua test di bawah memakai tanggal tetap 15 September 2026, sedangkan
+  // widget kalender membuka BULAN BERJALAN. Keduanya hijau sepanjang September
+  // 2026 lalu merah serentak pada 1 Oktober, di lokal maupun CI, tanpa satu
+  // baris kode pun berubah. Waktu dibekukan agar hasilnya tidak bergantung
+  // kapan suite dijalankan.
+  //
+  // Catatan: bahwa kalender tidak membuka bulan dari nilai yang sedang diedit
+  // juga terasa di aplikasi — membuka chip tanggal lama menampilkan bulan ini,
+  // bukan bulan tanggal tersebut. Memperbaikinya menyentuh komponen yang
+  // dipakai banyak halaman, jadi digarap terpisah.
   it("membuka chip tanggal utk diedit TIDAK auto-komit (emisi widget yg sama dgn prefill diabaikan)", async () => {
+    // shouldAdvanceTime: userEvent memakai timer internal; tanpa ini
+    // interaksi menggantung. Dipulihkan di akhir test agar tidak bocor ke
+    // test lain dalam berkas yang sama.
+    vi.useFakeTimers({ shouldAdvanceTime: true });
+    vi.setSystemTime(new Date("2026-09-15T08:00:00"));
     const user = userEvent.setup({ delay: null });
     const bar = renderBar({
       tree: {
@@ -3833,12 +4113,7 @@ describe("SearchBar — revisi 9: pilih tanggal di widget mengisi nilai; saran m
     // chip), widget menandai hari yg sama.
     expect(bar.input).toHaveValue("15 Sep 2026");
     expect(valueChip("15 Sep 2026")).toBeUndefined();
-    expect(
-      within(screen.getByRole("grid"))
-        .getByRole("button", { name: /September 15th, 2026/ })
-        .closest("td")
-        .getAttribute("aria-selected"),
-    ).toBe("true");
+    expect(selectedStateOfDay("2026-09-15")).toBe("true");
   });
 
   it("datetime: pintasan 'Hari ini' (mode multi) = seluruh hari tanpa jam -> chip; selesai via Enter, apply via Enter", async () => {
@@ -4265,16 +4540,18 @@ describe("SearchBar — revisi 10: dropdown date 2 kolom & sinkron simbol/nilai 
     });
   });
 
+  // Lihat catatan pembekuan waktu di atas test chip tanggal.
   it("teks tak terparse mengosongkan pilihan widget (operator tetap); teks valid mengisinya lagi", async () => {
+    // shouldAdvanceTime: userEvent memakai timer internal; tanpa ini
+    // interaksi menggantung. Dipulihkan di akhir test agar tidak bocor ke
+    // test lain dalam berkas yang sama.
+    vi.useFakeTimers({ shouldAdvanceTime: true });
+    vi.setSystemTime(new Date("2026-09-15T08:00:00"));
     const user = userEvent.setup({ delay: null });
     const bar = renderBar();
     await open(user, bar, "Dibuat");
 
-    const day15Selected = () =>
-      within(screen.getByRole("grid"))
-        .getByRole("button", { name: /September 15th, 2026/ })
-        .closest("td")
-        .getAttribute("aria-selected") === "true";
+    const day15Selected = () => selectedStateOfDay("2026-09-15") === "true";
 
     await user.type(bar.input, "<15/09/2026");
     await waitFor(async () =>

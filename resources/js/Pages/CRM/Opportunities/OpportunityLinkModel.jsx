@@ -14,6 +14,7 @@ export default forwardRef(function OpportunityLinkModel(
       value={value}
       onValueChange={onValueChange}
       model="App\Models\CRM\Opportunity"
+      group="stage"
       titleDialog={t("crm.opportunity.new")}
       classNameDialog="max-w-xl"
       form={<Form />}

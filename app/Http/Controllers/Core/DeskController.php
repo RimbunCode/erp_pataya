@@ -189,6 +189,9 @@ class DeskController extends Controller {
      * store()/update() untuk assignable (bukan diff/upsert).
      */
     private function saveMenuItems(Desk $desk, array $rows): void {
+        // Kunci cache sidebar (ResolveActiveDesk) memuat ULID terbesar baris pivot
+        // ini: baris SELALU dibuat ulang di sini (ULID baru), jadi tiap simpan
+        // mengganti kunci. Jangan ganti ke diff/upsert tanpa mengubah token itu.
         $desk->menuItemPivots()->delete();
 
         foreach ($rows as $order => $row) {

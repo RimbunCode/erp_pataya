@@ -1,7 +1,7 @@
 import { useEffect, useMemo, useState } from "react";
 
 import axios from "axios";
-import { useInfiniteQuery } from "@tanstack/react-query";
+import { keepPreviousData, useInfiniteQuery } from "@tanstack/react-query";
 
 function stableStringify(val) {
   try {
@@ -81,6 +81,37 @@ const PER_PAGE = 25;
 const SEARCH_DEBOUNCE_MS = 300;
 
 /**
+ * Fetcher `GroupTree` utk isi sebuah node Advance Search (POST `model.selectData`
+ * dgn `groupPath`/`groupPage`). `params` = payload dasar dgn `group` EFEKTIF
+ * eksplisit (spec linkmodel-grouping-search Requirement 4). Respons sudah
+ * tersaring kolom aman di server.
+ * @param {object} root0
+ * @param {object} root0.params
+ * @param {Array} root0.rawPath
+ * @param {number} root0.page
+ * @param {AbortSignal} [root0.signal]
+ */
+export const fetchAdvanceGroupNode = async ({
+  params,
+  rawPath,
+  page,
+  signal,
+}) => {
+  const { data } = await axios.post(
+    window.route("model.selectData"),
+    {
+      ...params,
+      groupPath: JSON.stringify(rawPath),
+      groupPage: page,
+      show: PER_PAGE,
+    },
+    { signal },
+  );
+
+  return data;
+};
+
+/**
  * Hook fetch Advance Search Dialog -- infinite scroll via `useInfiniteQuery`
  * (TanStack Query, sudah dependency existing) ke `model.selectData` dengan
  * `includeAllLinkable: true` (SEMUA kolom linkable ikut, terlepas dari prop
@@ -94,6 +125,9 @@ const SEARCH_DEBOUNCE_MS = 300;
  * @param {object|Array} [params.with]
  * @param {string} [params.order]
  * @param {string} [params.translate]
+ * @param {Array<{column: string, granularity: *, range: *}>} [params.group]
+ *   grup EFEKTIF (`undefined` = default model di server, `[]` = tanpa grup)
+ * @param {string} [params.groupSort] 'asc' | 'desc' -- urutan nilai grup
  * @param {boolean} params.open dialog terbuka -- gate fetch
  * @returns {object}
  */
@@ -106,6 +140,8 @@ export default function useAdvanceSearchModel({
   with: withParam,
   order,
   translate,
+  group,
+  groupSort,
   open,
 }) {
   const [debouncedSearch, setDebouncedSearch] = useState(search ?? "");
@@ -125,6 +161,8 @@ export default function useAdvanceSearchModel({
     [additiveFilters],
   );
 
+  const groupKey = useMemo(() => stableStringify(group), [group]);
+
   const query = useInfiniteQuery({
     queryKey: [
       "linkModel",
@@ -134,6 +172,8 @@ export default function useAdvanceSearchModel({
       additiveFiltersKey,
       debouncedSearch,
       order,
+      groupKey,
+      groupSort,
     ],
     queryFn: async ({ pageParam = 1 }) => {
       const res = await axios.post(window.route("model.selectData"), {
@@ -148,6 +188,11 @@ export default function useAdvanceSearchModel({
         translate,
         page: pageParam,
         show: PER_PAGE,
+        // Opt-in pohon grup (server menerapkan default model bila `group`
+        // tak dikirim); tanpa level grup valid respons tetap flat.
+        groupTree: true,
+        ...(group !== undefined && { group }),
+        ...(groupSort === "desc" && { groupSort }),
       });
       return res.data;
     },
@@ -157,6 +202,8 @@ export default function useAdvanceSearchModel({
         : undefined,
     initialPageParam: 1,
     enabled: open && !!model,
+    // Ganti filter/grup tak mengosongkan daftar sampai hasil baru tiba.
+    placeholderData: keepPreviousData,
   });
 
   const firstPage = query.data?.pages?.[0];
@@ -173,17 +220,59 @@ export default function useAdvanceSearchModel({
     () => buildAdvanceSearchFilterColumnMap(firstPage?.columns),
     [firstPage],
   );
-  const rows = useMemo(
+  const items = useMemo(
     () => (query.data?.pages ?? []).flatMap((p) => p.data.data),
     [query.data],
   );
+  const groupMeta = firstPage?.groupMeta ?? null;
+  const isGrouped = groupMeta !== null;
   const total = firstPage?.data.total ?? 0;
+
+  // Param dasar expand node: payload dasar + grup EFEKTIF eksplisit (expand
+  // mengabaikan default model) -- `groupTree` hanya utk level-0.
+  const groupBaseParams = useMemo(() => {
+    if (!groupMeta) return null;
+
+    return {
+      model,
+      includeAllLinkable: true,
+      baseFilters: baseFilters ?? undefined,
+      filters: additiveFilters ?? undefined,
+      search: debouncedSearch,
+      joins,
+      with: withParam,
+      order,
+      translate,
+      group: groupMeta.levels.map(({ column, granularity, range }) => ({
+        column,
+        granularity,
+        range,
+      })),
+      ...(groupSort === "desc" && { groupSort }),
+    };
+  }, [
+    groupMeta,
+    model,
+    baseFiltersKey,
+    additiveFiltersKey,
+    debouncedSearch,
+    groupKey,
+    groupSort,
+    order,
+    translate,
+  ]);
 
   return {
     columnMap,
     filterColumnMap,
     lockedColumnNames: templateLinkColumnNames,
-    rows,
+    // Flat: baris model. Grup aktif: `rows` kosong, `rootItems` = deskriptor level-0.
+    rows: isGrouped ? [] : items,
+    rootItems: isGrouped ? items : [],
+    isGrouped,
+    groupMeta,
+    groupBaseParams,
+    defaultGroups: firstPage?.defaultGroups ?? [],
     total,
     isLoading: query.isPending,
     isFetchingNextPage: query.isFetchingNextPage,

@@ -21,7 +21,9 @@ use Illuminate\Support\Str;
  */
 class PdfAttachmentService {
     public function attach(string $pdfBytes, Model $document, ?string $userId = null): File {
-        $path = Storage::put('files', $pdfBytes);
+        // Storage::put() menerima path LENGKAP dan mengembalikan bool, bukan path.
+        $path = 'files/' . Str::ulid() . '.pdf';
+        Storage::put($path, $pdfBytes);
 
         $file = File::create([
             'name'          => $this->buildFileName($document),

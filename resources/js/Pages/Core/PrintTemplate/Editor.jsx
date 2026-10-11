@@ -24,6 +24,7 @@ import { generateRandom, getSafePrintFontFamily } from "@/lib/utils";
 import * as gjsBlockBasicModule from "grapesjs-blocks-basic";
 import gjsDocHeader from "@/lib/gjsDocHeader";
 import gjsRelationsTable from "@/lib/gjsRelationsTable";
+import gjsSignature from "@/lib/gjsSignature";
 import gjsStaticHTML from "@/lib/gjsStaticHTML";
 import gjsTable from "@/lib/gjsTable";
 import grapesjs from "grapesjs";
@@ -684,6 +685,7 @@ function PrintTemplate({
             }),
           (editor) => gjsRelationsTable(editor),
           gjsStaticHTML,
+          gjsSignature,
           flattenMediaPlugin,
         ]}
         onEditor={onEditor}

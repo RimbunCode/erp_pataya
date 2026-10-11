@@ -9,14 +9,7 @@ vi.mock("laravel-react-i18n", () => ({
   }),
 }));
 
-// Table2.jsx menarik graf modul berat (dnd-kit, inertia, css) yang tidak
-// relevan di sini -- ChipEditor hanya butuh 2 konstanta ekspor darinya.
-vi.mock("@/Components/Table/Table2", () => ({
-  DATE_GROUP_GRANULARITIES: ["day", "month", "quarter", "half", "year"],
-  DEFAULT_NUMBER_GROUP_RANGE_OPTIONS: [10, 100, 1000],
-}));
-
-import ChipEditor, { GroupPicker, computeGroupDefaults } from "./ChipEditor";
+import ChipEditor from "./ChipEditor";
 
 describe("ChipEditor kind=search", () => {
   it("menampilkan teks awal + info 'Mencari di' dan Terapkan mengirim {v} ter-trim", async () => {
@@ -69,7 +62,7 @@ describe("ChipEditor kind=search", () => {
   });
 });
 
-describe("ChipEditor kind=group / GroupPicker", () => {
+describe("ChipEditor kind=group (GroupLevelsEditor)", () => {
   const columns = {
     customer: { name: "customer", title: "Customer", type: "string" },
     created_at: { name: "created_at", title: "Dibuat", type: "date" },
@@ -81,179 +74,148 @@ describe("ChipEditor kind=group / GroupPicker", () => {
     },
   };
   const groupOptions = [
-    { value: "__no_group__", label: "Tidak ada" },
     { value: "customer", label: "Customer" },
     { value: "created_at", label: "Dibuat" },
     { value: "total", label: "Total" },
   ];
 
-  it("computeGroupDefaults: date -> month, number -> range pertama, lainnya -> null", () => {
-    expect(computeGroupDefaults(columns.created_at)).toEqual({
-      column: "created_at",
-      granularity: "month",
-      range: null,
-    });
-    expect(computeGroupDefaults(columns.total)).toEqual({
-      column: "total",
-      granularity: null,
-      range: 50,
-    });
-    expect(computeGroupDefaults(columns.customer)).toEqual({
-      column: "customer",
-      granularity: null,
-      range: null,
-    });
-    expect(computeGroupDefaults(null)).toEqual({
-      column: null,
-      granularity: null,
-      range: null,
-    });
-  });
-
-  it("memilih kolom baru memanggil onApply dengan default granularity/range kolom itu", async () => {
-    const user = userEvent.setup({ delay: null });
-    const onApply = vi.fn();
+  const renderGroup = (value, onApply = vi.fn()) => {
     render(
       <ChipEditor
         kind="group"
         groupOptions={groupOptions}
         columns={columns}
-        value={{ column: null, granularity: null, range: null }}
+        value={value}
         onApply={onApply}
       />,
     );
+    return onApply;
+  };
 
-    await user.click(screen.getByText("Dibuat"));
-    expect(onApply).toHaveBeenLastCalledWith({
-      column: "created_at",
-      granularity: "month",
-      range: null,
-    });
+  it("mencentang kolom baru memanggil onApply(Groups) dgn default granularity/range kolom itu", async () => {
+    const user = userEvent.setup({ delay: null });
+    const onApply = renderGroup([]);
 
-    await user.click(screen.getByText("Total"));
-    expect(onApply).toHaveBeenLastCalledWith({
-      column: "total",
-      granularity: null,
-      range: 50,
-    });
+    await user.click(screen.getByRole("checkbox", { name: "Dibuat" }));
+    expect(onApply).toHaveBeenLastCalledWith([
+      { column: "created_at", granularity: "month", range: null },
+    ]);
+
+    await user.click(screen.getByRole("checkbox", { name: "Total" }));
+    expect(onApply).toHaveBeenLastCalledWith([
+      { column: "total", granularity: null, range: 50 },
+    ]);
   });
 
-  it("memilih 'Tidak ada' mengosongkan group", async () => {
+  it("value = Groups bertingkat: level aktif di atas berurutan, menghapus centang membuang level itu saja", async () => {
     const user = userEvent.setup({ delay: null });
-    const onApply = vi.fn();
-    render(
-      <GroupPicker
-        groupOptions={groupOptions}
-        columns={columns}
-        value={{ column: "customer", granularity: null, range: null }}
-        onChange={onApply}
-      />,
-    );
+    const onApply = renderGroup([
+      { column: "total", granularity: null, range: 500 },
+      { column: "customer", granularity: null, range: null },
+    ]);
 
-    await user.click(screen.getByText("Tidak ada"));
-    expect(onApply).toHaveBeenCalledWith({
-      column: null,
-      granularity: null,
-      range: null,
-    });
+    expect(
+      screen
+        .getAllByRole("checkbox")
+        .map((row) => [
+          row.getAttribute("aria-label"),
+          row.getAttribute("aria-checked"),
+        ]),
+    ).toEqual([
+      ["Total", "true"],
+      ["Customer", "true"],
+      ["Dibuat", "false"],
+    ]);
+
+    await user.click(screen.getByRole("checkbox", { name: "Total" }));
+    expect(onApply).toHaveBeenCalledWith([
+      { column: "customer", granularity: null, range: null },
+    ]);
   });
 
-  it("kolom date aktif menampilkan pilihan granularity; klik mengganti granularity saja", async () => {
+  it("menghapus centang level terakhir mengirim list kosong (tak mengelompokkan)", async () => {
     const user = userEvent.setup({ delay: null });
-    const onChange = vi.fn();
-    render(
-      <GroupPicker
-        groupOptions={groupOptions}
-        columns={columns}
-        value={{ column: "created_at", granularity: "month", range: null }}
-        onChange={onChange}
-      />,
-    );
+    const onApply = renderGroup([
+      { column: "customer", granularity: null, range: null },
+    ]);
+
+    await user.click(screen.getByRole("checkbox", { name: "Customer" }));
+    expect(onApply).toHaveBeenCalledWith([]);
+  });
+
+  it("value kosong/undefined dibaca sbg tanpa level (tak crash)", () => {
+    renderGroup(undefined);
+
+    expect(
+      screen
+        .getAllByRole("checkbox")
+        .every((row) => row.getAttribute("aria-checked") === "false"),
+    ).toBe(true);
+  });
+
+  it("kolom date aktif menampilkan Select granularity; memilih opsi lain mengganti granularity saja", async () => {
+    const user = userEvent.setup({ delay: null });
+    const onApply = renderGroup([
+      { column: "created_at", granularity: "month", range: null },
+    ]);
 
     await user.click(
-      screen.getByRole("button", {
+      screen.getByRole("combobox", {
+        name: "TR:core.datatable.group_levels.granularity",
+      }),
+    );
+    await user.click(
+      await screen.findByRole("option", {
         name: "TR:core.datatable.granularity.year",
       }),
     );
-    expect(onChange).toHaveBeenCalledWith({
-      column: "created_at",
-      granularity: "year",
-      range: null,
-    });
+
+    expect(onApply).toHaveBeenCalledWith([
+      { column: "created_at", granularity: "year", range: null },
+    ]);
   });
 
-  it("kolom number aktif menampilkan range dari groupRangeOptions kolom", async () => {
+  it("kolom number aktif menampilkan range dari groupRangeOptions kolom (bukan default global)", async () => {
     const user = userEvent.setup({ delay: null });
-    const onChange = vi.fn();
-    render(
-      <GroupPicker
-        groupOptions={groupOptions}
-        columns={columns}
-        value={{ column: "total", granularity: null, range: 50 }}
-        onChange={onChange}
-      />,
+    const onApply = renderGroup([
+      { column: "total", granularity: null, range: 50 },
+    ]);
+
+    await user.click(
+      screen.getByRole("combobox", { name: "TR:core.datatable.group_range" }),
     );
-
-    expect(screen.getByRole("button", { name: "500" })).toBeInTheDocument();
+    const options = await screen.findAllByRole("option");
     // range default global (10/100/1000) TIDAK dipakai -- kolom punya sendiri.
-    expect(
-      screen.queryByRole("button", { name: "1000" }),
-    ).not.toBeInTheDocument();
+    expect(options.map((option) => option.textContent)).toEqual(["50", "500"]);
 
-    await user.click(screen.getByRole("button", { name: "500" }));
-    expect(onChange).toHaveBeenCalledWith({
-      column: "total",
-      granularity: null,
-      range: 500,
-    });
+    await user.click(screen.getByRole("option", { name: "500" }));
+    expect(onApply).toHaveBeenCalledWith([
+      { column: "total", granularity: null, range: 500 },
+    ]);
   });
 
   it("kolom string aktif tidak menampilkan granularity maupun range", () => {
-    render(
-      <GroupPicker
-        groupOptions={groupOptions}
-        columns={columns}
-        value={{ column: "customer", granularity: null, range: null }}
-        onChange={vi.fn()}
-      />,
-    );
+    renderGroup([{ column: "customer", granularity: null, range: null }]);
 
-    expect(
-      screen.queryByRole("button", { name: /granularity/ }),
-    ).not.toBeInTheDocument();
-    expect(
-      screen.queryByRole("button", { name: "500" }),
-    ).not.toBeInTheDocument();
+    expect(screen.queryByRole("combobox")).not.toBeInTheDocument();
   });
 
   it("TIDAK ada kotak cari kedua di dalam daftar kolom grup (feedback verifikasi visual: duplikat dgn Search Bar utama)", () => {
-    render(
-      <GroupPicker
-        groupOptions={groupOptions}
-        columns={columns}
-        value={{ column: null, granularity: null, range: null }}
-        onChange={vi.fn()}
-      />,
-    );
+    renderGroup([]);
 
     expect(screen.queryByRole("textbox")).not.toBeInTheDocument();
     expect(screen.queryByRole("searchbox")).not.toBeInTheDocument();
-    // Daftar tetap tampil sbg tombol polos.
-    expect(screen.getByRole("button", { name: "Dibuat" })).toBeInTheDocument();
+    // Daftar tetap tampil sbg baris centang polos.
+    expect(
+      screen.getByRole("checkbox", { name: "Dibuat" }),
+    ).toBeInTheDocument();
   });
 
-  it("default lebar w-64 (popover mengambang ChipEditor) kalau `className` tak diisi -- SearchPanel yang override ke w-full", () => {
-    render(
-      <GroupPicker
-        groupOptions={groupOptions}
-        columns={columns}
-        value={{ column: null, granularity: null, range: null }}
-        onChange={vi.fn()}
-      />,
-    );
+  it("default lebar w-64 (popover mengambang ChipEditor) -- SearchPanel yang override ke w-full", () => {
+    renderGroup([]);
 
     expect(
-      screen.getByRole("button", { name: "Dibuat" }).closest(".w-64"),
+      screen.getByRole("checkbox", { name: "Dibuat" }).closest(".w-64"),
     ).not.toBeNull();
   });
 });

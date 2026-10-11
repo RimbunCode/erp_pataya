@@ -24,6 +24,7 @@ use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Event;
 use Illuminate\Support\Facades\Schema;
+use Illuminate\Support\Facades\Storage;
 use Illuminate\Support\Str;
 use Tests\TestCase;
 
@@ -285,6 +286,7 @@ class ApprovalPdfAutoAttachTest extends TestCase {
     }
 
     public function test_approval_completion_attaches_generated_pdf_to_document(): void {
+        Storage::fake();
         $role     = $this->makeRole('AttachRoleA');
         $approver = $this->makeUser('AttachApprover');
         $this->assignRole($approver, $role);
@@ -324,6 +326,12 @@ class ApprovalPdfAutoAttachTest extends TestCase {
         $this->assertNotNull($fileable, 'Expected a Fileable record to be created for the approved document');
         $this->assertSame('application/pdf', $fileable->file->mime_type);
         $this->assertTrue($fileable->is_generated_pdf);
+
+        // Regresi: path pernah tersimpan bool (Storage::put('files', ...)) dan berkas tak pernah ada.
+        $path = $fileable->file->path;
+        $this->assertStringStartsWith('files/', (string) $path);
+        Storage::assertExists($path);
+        $this->assertStringStartsWith('%PDF', Storage::get($path));
     }
 
     public function test_approval_stays_approved_even_when_pdf_generation_throws(): void {

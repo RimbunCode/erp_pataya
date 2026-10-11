@@ -6,22 +6,24 @@ use App\Models\Asset\Asset;
 use App\Models\Finances\PurchaseInvoiceItem;
 use App\Models\Inventory\Item;
 use App\Models\Purchase\PurchaseReceiptItem;
+use App\Models\Purchase\Supplier;
+use App\Models\Sales\Customer;
 use Illuminate\Foundation\Http\FormRequest;
 use Illuminate\Validation\Rule;
 use Illuminate\Validation\Validator;
 
 class AssetRequest extends FormRequest {
     /**
-     * FE (Form.jsx) mengirim item/custodian/ownership_supplier/ownership_customer
-     * sebagai objek relasi utuh ({id, ...}), bukan `_id` flat -- normalisasi ke
-     * `_id` di sini SEBELUM validasi jalan, supaya rule `item_id` (required) dan
-     * validator custom (validateItemIsFixedAsset/validatePurchaseLinkConsistency,
-     * keduanya baca $this->input('item_id')) melihat nilai yang sebenarnya
-     * dikirim FE. Sama pola dengan AssetService::flattenRelationFields(), hanya
-     * dijalankan lebih awal (pre-validation, bukan pre-save).
+     * FE (Form.jsx) mengirim item/custodian/ownership sebagai objek relasi utuh
+     * ({id, ...}), bukan `_id` flat -- normalisasi ke `_id` di sini SEBELUM
+     * validasi jalan, supaya rule `item_id` (required) dan validator custom
+     * (validateItemIsFixedAsset/validatePurchaseLinkConsistency, keduanya baca
+     * $this->input('item_id')) melihat nilai yang sebenarnya dikirim FE. Sama
+     * pola dengan AssetService::flattenRelationFields(), hanya dijalankan lebih
+     * awal (pre-validation, bukan pre-save). `ownership` (morph) -> `ownership_id`.
      */
     protected function prepareForValidation(): void {
-        foreach (['item', 'custodian', 'ownership_supplier', 'ownership_customer'] as $field) {
+        foreach (['item', 'custodian', 'ownership', 'ownership_customer_branch'] as $field) {
             $idKey = "{$field}_id";
             if (! $this->filled($idKey) && $this->filled("{$field}.id")) {
                 $this->merge([$idKey => $this->input("{$field}.id")]);
@@ -46,9 +48,8 @@ class AssetRequest extends FormRequest {
             'is_rentable'                      => ['boolean'],
             'allow_bulk_quantity'              => ['boolean'],
             'ownership_type'                   => ['string', Rule::in(['company', 'supplier', 'customer'])],
-            'ownership_company_id'             => ['nullable', 'string'],
-            'ownership_supplier_id'            => ['nullable', 'string'],
-            'ownership_customer_id'            => ['nullable', 'string'],
+            'ownership_id'                     => ['nullable', 'string'],
+            'ownership_customer_branch_id'     => ['nullable', 'string'],
             'custodian_id'                     => ['nullable', 'string', 'exists:users,id'],
             'purchase_date'                    => ['nullable', 'date'],
             'available_for_use_date'           => ['nullable', 'date'],
@@ -156,25 +157,37 @@ class AssetRequest extends FormRequest {
 
         $ownershipType = $this->input('ownership_type');
 
-        $fieldByType = [
-            'company'  => 'ownership_company_id',
-            'supplier' => 'ownership_supplier_id',
-            'customer' => 'ownership_customer_id',
+        // Model pemilik per tipe (company bukan model). Spec asset-ownership-morph Req 4.
+        $modelByType = [
+            'supplier' => Supplier::class,
+            'customer' => Customer::class,
         ];
 
-        if (! isset($fieldByType[$ownershipType])) {
+        if (! \in_array($ownershipType, ['company', ...\array_keys($modelByType)], true)) {
             return;
         }
 
-        $requiredField = $fieldByType[$ownershipType];
-        if ($ownershipType !== 'company' && ! $this->filled($requiredField)) {
-            $validator->errors()->add($requiredField, __('validation.required', ['attribute' => $requiredField]));
+        if ($ownershipType === 'company') {
+            if ($this->filled('ownership_id')) {
+                $validator->errors()->add('ownership', __('asset/asset.ownership_field_must_be_empty', ['field' => 'ownership']));
+            }
+        } else {
+            $model = $modelByType[$ownershipType];
+            if (! $this->filled('ownership_id')) {
+                $validator->errors()->add('ownership', __('validation.required', ['attribute' => 'ownership']));
+            } else {
+                $thisModel = $this->input('ownership.thisModel');
+                if ($thisModel !== null && $thisModel !== $model) {
+                    $validator->errors()->add('ownership', __('asset/asset.ownership_model_mismatch', ['type' => $ownershipType]));
+                } elseif (! $model::query()->whereKey($this->input('ownership_id'))->exists()) {
+                    $validator->errors()->add('ownership', __('validation.exists', ['attribute' => 'ownership']));
+                }
+            }
         }
 
-        foreach ($fieldByType as $type => $field) {
-            if ($type !== $ownershipType && $this->filled($field)) {
-                $validator->errors()->add($field, __('asset/asset.ownership_field_must_be_empty', ['field' => $field]));
-            }
+        // Cabang customer hanya relevan utk pemilik customer.
+        if ($ownershipType !== 'customer' && $this->filled('ownership_customer_branch_id')) {
+            $validator->errors()->add('ownership_customer_branch_id', __('asset/asset.ownership_field_must_be_empty', ['field' => 'ownership_customer_branch_id']));
         }
     }
 

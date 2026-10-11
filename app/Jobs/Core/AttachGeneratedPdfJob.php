@@ -42,6 +42,23 @@ class AttachGeneratedPdfJob implements ShouldQueue {
                 return;
             }
 
+            // Job ini memakai SerializesModels, jadi $this->approval di-refetch
+            // dari database saat worker menjalankannya dan relasi yang sudah
+            // termuat di request TIDAK ikut terbawa. Tanpa loadMissing, helper
+            // {{{approvalSignature}}} memicu query terpisah untuk tiap step.
+            //
+            // Seluruh steps dimuat, bukan hanya yang approved: penentuan
+            // penandatangan final menyaring di memori (lihat
+            // SignatureResolverService::resolveFinalStep), dan jumlah step per
+            // dokumen kecil.
+            // Dijaga method_exists: loadMissing() MELEMPAR untuk relasi
+            // yang tidak ada, dan tidak semua model yang bisa dicetak punya
+            // approval. Kegagalan di sini akan tertelan catch di bawah dan
+            // membatalkan seluruh lampiran PDF, bukan sekadar tanda tangannya.
+            if (method_exists($document, 'approvalable')) {
+                $document->loadMissing('approvalable.steps.actedBy.signatureFile');
+            }
+
             $template = PrintTemplate::where('model', $document::class)
                 ->where('is_default', true)
                 ->first();

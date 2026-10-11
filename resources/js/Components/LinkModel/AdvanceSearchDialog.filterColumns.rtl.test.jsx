@@ -29,11 +29,16 @@ vi.mock("@/Components/Table/Filter/FilterTable2", () => ({
     filterTableProps.current = props;
     return props.trigger ?? null;
   },
+  // dipakai SearchPanel (Panel ▾ SearchBar)
+  SaveFilterControl: () => null,
 }));
 
 const axiosPost = vi.fn();
 vi.mock("axios", () => ({
-  default: { post: (...args) => axiosPost(...args) },
+  default: {
+    post: (...args) => axiosPost(...args),
+    get: () => Promise.resolve({ data: { data: [] } }),
+  },
 }));
 
 window.route = (name) => name;

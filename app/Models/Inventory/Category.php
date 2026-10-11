@@ -17,6 +17,12 @@ class Category extends Model {
         return ':name';
     }
 
+    /**
+     * Grup bawaan: DataTable2 index dan opsi LinkModel/Advance Search
+     * (prop `group` LinkModel menimpa).
+     */
+    protected static array|string|null $defaultGroups = 'type';
+
     public string $formComponent   = 'Inventory/Categories/Form';
     public string $translateKey    = 'inventory.category';
     protected array $configColumns = [

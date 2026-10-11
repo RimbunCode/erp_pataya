@@ -1,0 +1,8 @@
+{
+  "specId": "b7e3c1d4-9a52-4f38-8c61-2d5f0e7a4b93",
+  "workflowType": "requirements-first",
+  "specType": "feature",
+  "description": "Modul CRM/Quotation mendukung tiga jenis surat penawaran PT Pataya Sarana Niaga: spare part & jasa, unit baru, dan kontrak sewa. Menambah kolom type, field header (Attn/Up, Subject, kota terbit, pengantar), Remark/Lead Time dan satuan per baris item, serta tabel quotation_sections untuk blok teks bebas (Terms & Conditions, Note, Term of Payment, Owner/Tenant Obligation) beserta master template-nya. Spesifikasi teknis unit memakai kolom description yang sudah ada, tanpa kolom atau tabel atribut baru. Perbedaan tata letak ketiga surat ditangani tiga template cetak untuk model yang sama, bukan tiga struktur data. Pajak memakai pola tax_id + tax_rate per baris seperti SalesOrder, dengan default dari preference baru active_tax_id yang diatur di Company Details. Termasuk perbaikan React error #185 pada form Quotation.",
+  "createdAt": "2026-09-30T00:00:00.000Z",
+  "createdBy": "Claude"
+}

@@ -148,12 +148,60 @@ class FilterTemplateControllerTest extends TestCase {
                 'model'  => ApprovalScheme::class,
                 'filter' => $this->sampleTree(),
                 'name'   => 'Shared A',
-                'group'  => ['column' => 'name', 'granularity' => null, 'range' => null],
+                'group'  => [
+                    ['column' => 'name', 'granularity' => null, 'range' => null],
+                    ['column' => 'created_at', 'granularity' => 'month', 'range' => null],
+                ],
             ]);
 
         $res->assertRedirect();
         $saved = SavedFilter::where('name', 'Shared A')->first();
-        $this->assertSame(['column' => 'name', 'granularity' => null, 'range' => null], $saved->group);
+        // List bertingkat tersimpan utuh & berurutan (urutan = nesting).
+        $this->assertSame([
+            ['column' => 'name', 'granularity' => null, 'range' => null],
+            ['column' => 'created_at', 'granularity' => 'month', 'range' => null],
+        ], $saved->group);
+    }
+
+    /**
+     * Klien basi (tab belum reload pasca-deploy) mengirim SATU objek -- diterima
+     * dan disimpan sbg list 1 level (Requirement 3.4, 18.3).
+     */
+    public function test_store_accepts_legacy_object_group_as_single_level_list(): void {
+        $user = $this->makeUser();
+        $this->registerPermission(ApprovalScheme::class);
+
+        $this->actingAs($user)
+            ->withSession($this->fullPermissions())
+            ->postJson(route('filterTemplates.store'), [
+                'model'  => ApprovalScheme::class,
+                'filter' => $this->sampleTree(),
+                'name'   => 'Shared A',
+                'group'  => ['column' => 'name', 'granularity' => null, 'range' => null],
+            ])
+            ->assertRedirect();
+
+        $this->assertSame(
+            [['column' => 'name', 'granularity' => null, 'range' => null]],
+            SavedFilter::where('name', 'Shared A')->first()->group,
+        );
+    }
+
+    public function test_store_without_group_stores_null(): void {
+        $user = $this->makeUser();
+        $this->registerPermission(ApprovalScheme::class);
+
+        $this->actingAs($user)
+            ->withSession($this->fullPermissions())
+            ->postJson(route('filterTemplates.store'), [
+                'model'  => ApprovalScheme::class,
+                'filter' => $this->sampleTree(),
+                'name'   => 'Shared A',
+                'group'  => [],
+            ])
+            ->assertRedirect();
+
+        $this->assertNull(SavedFilter::where('name', 'Shared A')->first()->group);
     }
 
     public function test_store_rejects_group_without_column(): void {
@@ -166,10 +214,26 @@ class FilterTemplateControllerTest extends TestCase {
                 'model'  => ApprovalScheme::class,
                 'filter' => $this->sampleTree(),
                 'name'   => 'Shared A',
-                'group'  => ['granularity' => 'month'],
+                'group'  => [['granularity' => 'month']],
             ])
             ->assertStatus(422)
-            ->assertJsonValidationErrors(['group.column']);
+            ->assertJsonValidationErrors(['group.0.column']);
+    }
+
+    public function test_store_rejects_group_with_more_than_four_levels(): void {
+        $user = $this->makeUser();
+        $this->registerPermission(ApprovalScheme::class);
+
+        $this->actingAs($user)
+            ->withSession($this->fullPermissions())
+            ->postJson(route('filterTemplates.store'), [
+                'model'  => ApprovalScheme::class,
+                'filter' => $this->sampleTree(),
+                'name'   => 'Shared A',
+                'group'  => \array_map(fn (string $c) => ['column' => $c], ['a', 'b', 'c', 'd', 'e']),
+            ])
+            ->assertStatus(422)
+            ->assertJsonValidationErrors(['group']);
     }
 
     public function test_update_persists_group(): void {
@@ -182,11 +246,29 @@ class FilterTemplateControllerTest extends TestCase {
         $this->actingAs($user)
             ->withSession($this->fullPermissions())
             ->putJson(route('filterTemplates.update', $shared), [
-                'group' => ['column' => 'name', 'granularity' => 'quarter'],
+                'group' => [['column' => 'name'], ['column' => 'created_at', 'granularity' => 'quarter']],
             ])
             ->assertRedirect();
 
-        $this->assertSame('quarter', SavedFilter::find($shared->id)->group['granularity']);
+        $group = SavedFilter::find($shared->id)->group;
+        $this->assertSame(['name', 'created_at'], \array_column($group, 'column'));
+        $this->assertSame('quarter', $group[1]['granularity']);
+    }
+
+    public function test_update_with_null_group_clears_it(): void {
+        $user   = $this->makeUser();
+        $shared = SavedFilter::create([
+            'user_id' => $user->id, 'model' => ApprovalScheme::class,
+            'filter'  => $this->sampleTree(), 'name' => 'A', 'is_saved' => true, 'is_shared' => true,
+            'group'   => [['column' => 'name']],
+        ]);
+
+        $this->actingAs($user)
+            ->withSession($this->fullPermissions())
+            ->putJson(route('filterTemplates.update', $shared), ['group' => null])
+            ->assertRedirect();
+
+        $this->assertNull(SavedFilter::find($shared->id)->group);
     }
 
     public function test_update_rejects_group_with_non_positive_range(): void {
@@ -199,10 +281,10 @@ class FilterTemplateControllerTest extends TestCase {
         $this->actingAs($user)
             ->withSession($this->fullPermissions())
             ->putJson(route('filterTemplates.update', $shared), [
-                'group' => ['column' => 'amount', 'range' => -5],
+                'group' => [['column' => 'amount', 'range' => -5]],
             ])
             ->assertStatus(422)
-            ->assertJsonValidationErrors(['group.range']);
+            ->assertJsonValidationErrors(['group.0.range']);
     }
 
     public function test_destroy_forbidden_without_delete_permission(): void {

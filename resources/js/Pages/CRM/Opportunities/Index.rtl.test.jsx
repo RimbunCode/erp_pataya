@@ -1,5 +1,5 @@
 import { describe, expect, it, vi } from "vitest";
-import { render } from "@testing-library/react";
+import { render, screen } from "@testing-library/react";
 import { isValidElement } from "react";
 
 let capturedProps = null;
@@ -24,9 +24,39 @@ describe("CRM/Opportunities Index", () => {
     expect(capturedProps.form.type).toBe(Form);
   });
 
-  it("tidak meneruskan templateItem -- DataTable2 pakai default tampilan mobile-nya sendiri", () => {
+  // Tanpa `templateItem`, `mobileItem()` (DataTable2.jsx) SELALU `null` --
+  // kartu mobile grup MAUPUN flat kosong sama sekali (bukan "default tampilan
+  // mobile", itu asumsi salah di versi lama test ini -- lihat komentar
+  // Requirement 24 di project memory, ketahuan lewat verifikasi browser data
+  // 1163 baris: pagination "1-100/1163" tampil tapi kartu di bawahnya kosong).
+  it("meneruskan templateItem -- kartu mobile render templateLink penuh, customer, tahap, & tombol hapus", () => {
     render(<Index />);
 
-    expect(capturedProps.templateItem).toBeUndefined();
+    const deleteItem = vi.fn();
+    // `templateLink` di sini persis field yg dikirim backend per baris
+    // (lihat Opportunity::templateLink() = `:title`) -- convertTemplateLink()
+    // butuh field ini di objek row itu sendiri, BUKAN nama model statis.
+    const card = capturedProps.templateItem({
+      dataRow: {
+        id: "opp-1",
+        title: "Kontrak ZZ",
+        templateLink: ":title",
+        customer: { name: "Pelanggan ZZ" },
+        stage: "identified",
+      },
+      deleteItem,
+    });
+    render(card);
+
+    expect(screen.getByText("Kontrak ZZ")).toBeInTheDocument();
+    expect(screen.getByText("Pelanggan ZZ")).toBeInTheDocument();
+    expect(screen.getByText("identified")).toBeInTheDocument();
+
+    // Link (dari @/Components/Link) `as="button"` -- 2 tombol: judul (visit)
+    // & hapus. Tombol hapus TERAKHIR (urutan render), pemicu `deleteItem`.
+    const buttons = screen.getAllByRole("button");
+    expect(buttons).toHaveLength(2);
+    buttons.at(-1).click();
+    expect(deleteItem).toHaveBeenCalledTimes(1);
   });
 });

@@ -1,0 +1,6 @@
+{
+  "specId": "7b2f8a3e-4c1d-4e6a-9f05-2d8c61a7b3e9",
+  "workflowType": "design-first",
+  "specType": "feature",
+  "description": "Ownership Asset jadi morph (ownership_type + ownership_id), hapus ownership_company_id/supplier_id/customer_id, dan grup LinkModel/DataTable2 berdasarkan ownership menampilkan nama Customer/Supplier (company = nama perusahaan di urutan teratas)."
+}

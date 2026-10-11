@@ -3,13 +3,14 @@
 namespace App\Models\Core;
 
 use App\Models\Model;
-use App\Models\Scopes\DataTableScope;
 use App\Models\User\Permission;
 use App\Models\User\User;
+use App\Services\Core\DataTable\Group\GroupLevels;
 use App\Traits\DataTable;
 use Database\Factories\SavedFilterFactory;
 use Illuminate\Contracts\Validation\ValidationRule;
 use Illuminate\Database\Eloquent\Builder;
+use Illuminate\Database\Eloquent\Casts\Attribute;
 use Illuminate\Database\Eloquent\Concerns\HasUlids;
 use Illuminate\Database\Eloquent\Factories\Factory;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
@@ -80,7 +81,6 @@ class SavedFilter extends Model {
     protected function casts(): array {
         return [
             'filter'     => 'array',
-            'group'      => 'array',
             'is_saved'   => 'boolean',
             'is_shared'  => 'boolean',
             'is_default' => 'boolean',
@@ -88,22 +88,42 @@ class SavedFilter extends Model {
     }
 
     /**
-     * Aturan validasi BENTUK `group` ({column, granularity, range}) -- satu
-     * sumber kebenaran dipakai bersama oleh UpdateSavedFilterRequest,
-     * StoreFilterTemplateRequest, UpdateFilterTemplateRequest (Requirement
-     * 11.2, 13.2). Validasi bentuk SAJA; gate `groupable` (kolom itu memang
-     * bisa di-group utk model target) tetap dilakukan runtime di
-     * DataTableScope (Requirement 12.4) -- FormRequest di sini tidak punya
+     * `group` = `Groups` (list level bertingkat, spec datatable2-group-tree).
+     * Bukan cast `array` biasa: baris lama berbentuk objek `{column, ...}`
+     * (1 level) dibaca sbg list 1 level, `Groups` kosong dibaca `null`
+     * ("saved filter tak mengatur group" -- tak menimpa group aktif saat
+     * diterapkan). Penulisan selalu menyimpan list (kosong -> NULL).
+     *
+     * @return Attribute<list<array{column: string, granularity: mixed, range: mixed}>|null, mixed>
+     */
+    protected function group(): Attribute {
+        return Attribute::make(
+            get: fn (mixed $value): ?array => GroupLevels::normalize(
+                \is_string($value) ? \json_decode($value, true) : $value,
+            ) ?: null,
+            set: fn (mixed $value): ?string => ($levels = GroupLevels::normalize($value)) === []
+                ? null
+                : \json_encode($levels),
+        );
+    }
+
+    /**
+     * Aturan validasi BENTUK `group` (list `{column, granularity, range}`, maks
+     * GroupLevels::MAX_LEVELS) -- satu sumber kebenaran dipakai bersama oleh
+     * UpdateSavedFilterRequest, StoreFilterTemplateRequest,
+     * UpdateFilterTemplateRequest (Requirement 3.3). Validasi bentuk SAJA; gate
+     * `groupable` (kolom itu memang bisa di-group utk model target) tetap
+     * dilakukan runtime di DataTableScope -- FormRequest di sini tidak punya
      * konteks kolom model target.
      *
      * @return array<string, ValidationRule|array<mixed>|string>
      */
     public static function groupValidationRules(): array {
         return [
-            'group'             => ['nullable', 'array'],
-            'group.column'      => ['required_with:group', 'string'],
-            'group.granularity' => ['nullable', Rule::in(DataTableScope::GROUP_GRANULARITIES)],
-            'group.range'       => ['nullable', 'numeric', 'gt:0'],
+            'group'               => ['nullable', 'array', 'max:' . GroupLevels::MAX_LEVELS],
+            'group.*.column'      => ['required', 'string'],
+            'group.*.granularity' => ['nullable', Rule::in(GroupLevels::GRANULARITIES)],
+            'group.*.range'       => ['nullable', 'numeric', 'gt:0'],
         ];
     }
 

@@ -11,6 +11,7 @@ export default forwardRef(function AssetLinkModel(
       value={value}
       onValueChange={onValueChange}
       model="App\Models\Asset\Asset"
+      group={["ownership"]}
       {...props}
       ref={ref}
     />

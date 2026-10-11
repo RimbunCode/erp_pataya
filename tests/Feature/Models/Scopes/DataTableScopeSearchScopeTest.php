@@ -44,7 +44,7 @@ class SsRecord extends AppModel {
 /**
  * `$searchScope` HARUS dideklarasikan di kelas model sendiri (subclass
  * terpisah, bukan properti di SsRecord) -- pola sama dgn
- * $defaultGroupColumn/DtgDefaultGroupRecord (DataTableScopeGroupingTest):
+ * $defaultGroups/DtgDefaultGroupRecord (DataTableScopeGroupingTest):
  * PHP fatal kalau kelas yg `use` trait mendeklarasi ulang properti statis
  * trait dgn nilai beda, dan properti ini sengaja TIDAK dideklarasikan di
  * trait DataTable itu sendiri.

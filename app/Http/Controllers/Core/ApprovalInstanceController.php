@@ -9,13 +9,16 @@ use App\Http\Requests\Core\ApprovalDecisionRequest;
 use App\Models\Core\ApprovalInstance;
 use App\Models\Core\ApprovalInstanceStep;
 use App\Models\Model;
+use App\Services\Core\Approval\ApprovalAccessService;
 use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\DB;
+use Illuminate\Support\Facades\Route;
 use Illuminate\Support\Facades\URL;
 use Illuminate\Support\Str;
 use Inertia\Inertia;
+use Symfony\Component\HttpFoundation\Response as SymfonyResponse;
 
 class ApprovalInstanceController extends Controller {
     public function __construct(Request $request) {
@@ -73,7 +76,7 @@ class ApprovalInstanceController extends Controller {
     }
 
     public function show(Request $request, ApprovalInstance $approvalInstance) {
-        abort_unless($this->canAccessApprovalInstance($request, $approvalInstance), 403);
+        abort_unless(app(ApprovalAccessService::class)->canAccessInstance($request->user(), $approvalInstance), 403);
 
         $document = $approvalInstance->document;
         abort_if(! $document, 404);
@@ -94,47 +97,40 @@ class ApprovalInstanceController extends Controller {
         return $route?->parameterNames()[0] ?? Str::camel(class_basename($document));
     }
 
-    private function canAccessApprovalInstance(Request $request, ApprovalInstance $approvalInstance): bool {
-        $user = $request->user();
-        if (! $user) {
-            return false;
-        }
+    /**
+     * Kunci baris instance lalu step di dalam transaksi yang sedang berjalan, kemudian validasi
+     * ulang hak memutuskan pada state TERKUNCI.
+     *
+     * Guard di decision() memakai model hasil route-binding sebelum transaksi, jadi dua keputusan
+     * bersamaan pada step yang sama sama-sama lolos. Tanpa re-check ini yang kalah menimpa
+     * acted_by, mengirim ApprovalDecided dua kali, dan pada step final dapat menjalankan
+     * onApproved()/onRejected() dua kali. Instance dikunci lebih dulu agar urutan kunci selalu
+     * sama (instance -> step) dan keputusan pada instance yang sama diserialkan.
+     *
+     * @return ApprovalInstanceStep|null step segar yang terkunci, atau null bila sudah tak bisa diputuskan
+     */
+    private function lockDecidableStep(ApprovalInstanceStep $step): ?ApprovalInstanceStep {
+        DB::table('approval_instances')->where('id', $step->approval_instance_id)->lockForUpdate()->value('id');
 
-        $roleIds = $user->roles->pluck('id');
+        $locked = ApprovalInstanceStep::query()->whereKey($step->getKey())->lockForUpdate()->first();
 
-        return $approvalInstance->steps()
-            ->where(function (Builder $query) use ($user, $roleIds) {
-                // single-approver
-                $query->where(function (Builder $query) use ($user, $roleIds) {
-                    $query->where('is_advanced', false)
-                        ->where(function (Builder $query) use ($user, $roleIds) {
-                            $query->where(function (Builder $query) use ($roleIds) {
-                                $query->where('approver_type', 'role')
-                                    ->whereIn('approverable_id', $roleIds);
-                            })->orWhere(function (Builder $query) use ($user) {
-                                $query->where('approver_type', 'user')
-                                    ->where('approverable_id', $user->id);
-                            });
-                        });
-                })
-                    // multi-approver: ada sebagai approver anak
-                    ->orWhere(function (Builder $query) use ($user, $roleIds) {
-                        $query->where('is_advanced', true)
-                            ->whereHas('approvers', function (Builder $q) use ($user, $roleIds) {
-                                $q->where(function ($q) use ($user) {
-                                    $q->where('approver_type', 'user')->where('approverable_id', $user->id);
-                                })->orWhere(function ($q) use ($roleIds) {
-                                    $q->where('approver_type', 'role')->whereIn('approverable_id', $roleIds);
-                                });
-                            });
-                    })
-                    ->orWhere('acted_by_id', $user->id);
-            })
-            ->exists();
+        return $locked?->canBeDecidedBy(Auth::user()) ? $locked : null;
+    }
+
+    private function unavailableResponse() {
+        return back()->with('alert', [
+            'message' => __('core/form.approvalDecision.unavailable'),
+        ]);
     }
 
     private function approve(ApprovalInstanceStep $approvalInstanceStep, ?string $notes = null) {
         DB::beginTransaction();
+        $approvalInstanceStep = $this->lockDecidableStep($approvalInstanceStep);
+        if ($approvalInstanceStep === null) {
+            DB::rollBack();
+
+            return $this->unavailableResponse();
+        }
         $approval = $approvalInstanceStep->approvalInstance;
 
         if ($approvalInstanceStep->is_advanced) {
@@ -164,7 +160,8 @@ class ApprovalInstanceController extends Controller {
                 continue;
             }
 
-            if ($step->status !== FormStatus::APPROVED) {
+            // SKIPPED (auto-approve partial) tidak menghalangi final approval.
+            if (! \in_array($step->status, [FormStatus::APPROVED, FormStatus::SKIPPED], true)) {
                 $isApproved = false;
             }
         }
@@ -182,7 +179,7 @@ class ApprovalInstanceController extends Controller {
             event(new ApprovalDecided($approval, 'approved'));
 
             if ($serviceClass) {
-                return app($serviceClass)->onApproved($document);
+                return $this->asInertiaResponse(app($serviceClass)->onApproved($document));
             }
 
             return back();
@@ -193,6 +190,15 @@ class ApprovalInstanceController extends Controller {
         event(new ApprovalDecided($approval, 'approved', $nextPending));
 
         return back();
+    }
+
+    /**
+     * onApproved()/onRejected() Service mengembalikan model/null, bukan response. Permintaan
+     * Inertia wajib dijawab redirect/response valid, kalau tidak klien menampilkan modal error
+     * walau keputusan sudah tersimpan (dan klik ulang berakhir 403).
+     */
+    private function asInertiaResponse(mixed $result): mixed {
+        return $result instanceof SymfonyResponse ? $result : back();
     }
 
     private function recordApproverChildDecision(ApprovalInstanceStep $step, FormStatus $status): void {
@@ -223,6 +229,12 @@ class ApprovalInstanceController extends Controller {
 
     private function reject(ApprovalInstanceStep $approvalInstanceStep, ?string $notes = null) {
         DB::beginTransaction();
+        $approvalInstanceStep = $this->lockDecidableStep($approvalInstanceStep);
+        if ($approvalInstanceStep === null) {
+            DB::rollBack();
+
+            return $this->unavailableResponse();
+        }
         $approval = $approvalInstanceStep->approvalInstance;
 
         if ($approvalInstanceStep->is_advanced) {
@@ -263,7 +275,7 @@ class ApprovalInstanceController extends Controller {
             event(new ApprovalDecided($approval, 'rejected', notes: $notes));
 
             if ($serviceClass) {
-                return app($serviceClass)->onRejected($document);
+                return $this->asInertiaResponse(app($serviceClass)->onRejected($document));
             }
 
             return back();
@@ -277,6 +289,14 @@ class ApprovalInstanceController extends Controller {
     public function decision(ApprovalDecisionRequest $request, ApprovalInstanceStep $approvalInstanceStep) {
         $data     = $request->validated();
         $decision = $data['decision'];
+
+        if (! $approvalInstanceStep->canBeDecidedBy($request->user())) {
+            // Bukan kandidat sama sekali: tolak. Kandidat yang mengklik ulang / membuka halaman
+            // basi (step sudah diputuskan, dibatalkan, atau belum gilirannya) cukup diberi tahu.
+            abort_unless($approvalInstanceStep->isCandidate($request->user()), 403);
+
+            return $this->unavailableResponse();
+        }
 
         return $this->$decision($approvalInstanceStep, $data['notes'] ?? null);
     }

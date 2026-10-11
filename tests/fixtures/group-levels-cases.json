@@ -1,0 +1,121 @@
+{
+  "_comment": "Fixture BERSAMA BE<->FE utk kontrak `Groups` (spec datatable2-group-tree, Property 6). Dibaca PHPUnit (tests/Unit/Core/DataTable/Group/GroupLevelsTest.php) DAN Vitest (resources/js/Components/Table/Group/groupLevels.test.js): input yang sama HARUS menghasilkan Groups yang sama di PHP & JS. Hindari kasus yang beda tipe int/float antar bahasa (mis. \"1e3\").",
+  "normalize": [
+    { "name": "null", "input": null, "expected": [] },
+    { "name": "string kosong", "input": "", "expected": [] },
+    { "name": "array kosong", "input": [], "expected": [] },
+    { "name": "objek kosong", "input": {}, "expected": [] },
+    { "name": "angka", "input": 123, "expected": [] },
+    { "name": "string satu kolom", "input": "status", "expected": [{ "column": "status", "granularity": null, "range": null }] },
+    { "name": "string di-trim", "input": "  status ", "expected": [{ "column": "status", "granularity": null, "range": null }] },
+    {
+      "name": "CSV",
+      "input": "category,status",
+      "expected": [
+        { "column": "category", "granularity": null, "range": null },
+        { "column": "status", "granularity": null, "range": null }
+      ]
+    },
+    {
+      "name": "CSV dengan spasi dan elemen kosong",
+      "input": " category , ,status,",
+      "expected": [
+        { "column": "category", "granularity": null, "range": null },
+        { "column": "status", "granularity": null, "range": null }
+      ]
+    },
+    {
+      "name": "objek lama 1 level",
+      "input": { "column": "order_date", "granularity": "month", "range": null },
+      "expected": [{ "column": "order_date", "granularity": "month", "range": null }]
+    },
+    { "name": "objek lama kolom null", "input": { "column": null, "granularity": null, "range": null }, "expected": [] },
+    { "name": "objek asosiatif tanpa column bukan list", "input": { "granularity": "month" }, "expected": [] },
+    {
+      "name": "list string",
+      "input": ["category", "status"],
+      "expected": [
+        { "column": "category", "granularity": null, "range": null },
+        { "column": "status", "granularity": null, "range": null }
+      ]
+    },
+    {
+      "name": "list objek",
+      "input": [
+        { "column": "order_date", "granularity": "year" },
+        { "column": "amount", "range": 100 }
+      ],
+      "expected": [
+        { "column": "order_date", "granularity": "year", "range": null },
+        { "column": "amount", "granularity": null, "range": 100 }
+      ]
+    },
+    {
+      "name": "campuran string dan objek",
+      "input": ["category", { "column": "order_date", "granularity": "day" }],
+      "expected": [
+        { "column": "category", "granularity": null, "range": null },
+        { "column": "order_date", "granularity": "day", "range": null }
+      ]
+    },
+    {
+      "name": "dedupe: yang pertama menang",
+      "input": [{ "column": "a", "granularity": "day" }, "b", { "column": "a", "granularity": "year" }],
+      "expected": [
+        { "column": "a", "granularity": "day", "range": null },
+        { "column": "b", "granularity": null, "range": null }
+      ]
+    },
+    {
+      "name": "elemen tak valid dilewati",
+      "input": ["a", 5, null, { "column": "" }, { "nama": "x" }, "b"],
+      "expected": [
+        { "column": "a", "granularity": null, "range": null },
+        { "column": "b", "granularity": null, "range": null }
+      ]
+    },
+    { "name": "range string numerik jadi angka", "input": [{ "column": "amount", "range": "100" }], "expected": [{ "column": "amount", "granularity": null, "range": 100 }] },
+    { "name": "range string pecahan jadi float", "input": [{ "column": "amount", "range": "0.5" }], "expected": [{ "column": "amount", "granularity": null, "range": 0.5 }] },
+    { "name": "range string titik di depan", "input": [{ "column": "amount", "range": ".5" }], "expected": [{ "column": "amount", "granularity": null, "range": 0.5 }] },
+    { "name": "range string negatif", "input": [{ "column": "amount", "range": "-5" }], "expected": [{ "column": "amount", "granularity": null, "range": -5 }] },
+    { "name": "range string dengan spasi", "input": [{ "column": "amount", "range": "  5  " }], "expected": [{ "column": "amount", "granularity": null, "range": 5 }] },
+    { "name": "range heksadesimal BUKAN numerik (PHP is_numeric)", "input": [{ "column": "amount", "range": "0x1A" }], "expected": [{ "column": "amount", "granularity": null, "range": "0x1A" }] },
+    { "name": "range non-numerik dibiarkan (tidak dikoreksi)", "input": [{ "column": "amount", "range": "abc" }], "expected": [{ "column": "amount", "granularity": null, "range": "abc" }] },
+    { "name": "range string kosong jadi null", "input": [{ "column": "amount", "range": "" }], "expected": [{ "column": "amount", "granularity": null, "range": null }] },
+    { "name": "granularity kosong jadi null", "input": [{ "column": "order_date", "granularity": "" }], "expected": [{ "column": "order_date", "granularity": null, "range": null }] },
+    { "name": "granularity salah dibiarkan (tidak dikoreksi)", "input": [{ "column": "order_date", "granularity": "decade" }], "expected": [{ "column": "order_date", "granularity": "decade", "range": null }] }
+  ],
+  "wire": [
+    { "name": "param group tidak ada", "query": { "fid": "1" }, "expected": null },
+    { "name": "group kosong eksplisit", "query": { "group": "" }, "expected": [] },
+    {
+      "name": "CSV dengan granularity dan range per kolom",
+      "query": {
+        "group": "category,order_date,amount",
+        "groupGranularity": { "order_date": "quarter" },
+        "groupRange": { "amount": "100" }
+      },
+      "expected": [
+        { "column": "category", "granularity": null, "range": null },
+        { "column": "order_date", "granularity": "quarter", "range": null },
+        { "column": "amount", "granularity": null, "range": 100 }
+      ]
+    },
+    {
+      "name": "skalar lama granularity hanya level pertama",
+      "query": { "group": "order_date,category", "groupGranularity": "year" },
+      "expected": [
+        { "column": "order_date", "granularity": "year", "range": null },
+        { "column": "category", "granularity": null, "range": null }
+      ]
+    },
+    {
+      "name": "skalar lama range hanya level pertama",
+      "query": { "group": "amount,category", "groupRange": "1000" },
+      "expected": [
+        { "column": "amount", "granularity": null, "range": 1000 },
+        { "column": "category", "granularity": null, "range": null }
+      ]
+    }
+  ]
+}

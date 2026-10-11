@@ -4,12 +4,17 @@ namespace Tests\Feature\Core;
 
 use App\Contracts\SubmitableService;
 use App\Enums\FormStatus;
+use App\Events\Core\ApprovalDecided;
 use App\Http\Controllers\Controller;
+use App\Http\Controllers\Core\ApprovalInstanceController;
+use App\Http\Controllers\Core\ApprovalSchemeController;
 use App\Http\Middleware\AppMiddleware;
 use App\Http\Middleware\EnsureUserIsOnboarded;
 use App\Http\Middleware\LanguageMiddleware;
+use App\Http\Requests\Core\ApprovalDecisionRequest;
 use App\Models\Core\ApprovalInstance;
 use App\Models\Core\ApprovalInstanceStep;
+use App\Models\Core\ApprovalScheme;
 use App\Models\Model as AppModel;
 use App\Models\User\Role;
 use App\Models\User\User;
@@ -17,7 +22,9 @@ use App\Traits\HasDefaultDelete;
 use Illuminate\Database\Eloquent\Concerns\HasUlids;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Illuminate\Http\Request;
+use Illuminate\Routing\Redirector;
 use Illuminate\Support\Facades\DB;
+use Illuminate\Support\Facades\Event;
 use Illuminate\Support\Facades\Schema;
 use Tests\TestCase;
 
@@ -296,6 +303,10 @@ class ApprovalAutoApproveTest extends TestCase {
         $this->assertEquals(FormStatus::SKIPPED->value, $steps[0]->status->value);
         $this->assertEquals(FormStatus::APPROVED->value, $steps[1]->status->value);
         $this->assertEquals($requester->id, $steps[1]->acted_by_id);
+
+        // current_sequence ikut maju sampai satu langkah setelah step terakhir, sama dengan
+        // approval final normal (sebelumnya tertinggal di 0 dan menunjuk step yang di-skip).
+        $this->assertSame(2, (int) $instance->fresh()->current_sequence);
     }
 
     /**
@@ -588,6 +599,276 @@ class ApprovalAutoApproveTest extends TestCase {
 
         $this->assertEquals(FormStatus::APPROVED->value, $steps[2]->fresh()->status->value);
         $this->assertEquals(FormStatus::APPROVED->value, $instance->fresh()->status->value);
+        // Acuan konsistensi untuk auto-approve penuh: berakhir satu langkah setelah step terakhir.
+        $this->assertSame(3, (int) $instance->fresh()->current_sequence);
+    }
+
+    /**
+     * Hanya kandidat approver dari step yang masih PENDING yang boleh memutuskan.
+     */
+    public function test_decision_is_rejected_for_non_candidate_and_non_pending_step(): void {
+        $roleA     = $this->makeRole('GuardRoleA');
+        $roleB     = $this->makeRole('GuardRoleB');
+        $approverA = $this->makeUser('GuardApproverA');
+        $approverB = $this->makeUser('GuardApproverB');
+        $outsider  = $this->makeUser('GuardOutsider');
+        $this->assignRole($approverA, $roleA);
+        $this->assignRole($approverB, $roleB);
+
+        $this->makeScheme('scheme-guard', [
+            ['approver_type' => 'role', 'approverable_type' => Role::class, 'approverable_id' => $roleA->id],
+            ['approver_type' => 'role', 'approverable_type' => Role::class, 'approverable_id' => $roleB->id],
+        ]);
+
+        $instance = ApprovalInstance::makeInstance($this->makeDocument($this->makeUser('GuardCreator')));
+        $steps    = ApprovalInstanceStep::where('approval_instance_id', $instance->id)->orderBy('sequence')->get();
+        $decide   = fn (User $u, ApprovalInstanceStep $s, string $d = 'approve') => $this->actingAs($u)
+            ->withoutMiddleware([AppMiddleware::class, EnsureUserIsOnboarded::class, LanguageMiddleware::class])
+            ->postJson(route('approvalInstances.decision', $s->id), ['decision' => $d])
+            ->getStatusCode();
+
+        $this->assertSame(403, $decide($outsider, $steps[0]), 'bukan kandidat');
+        // Kandidat yang belum gilirannya tidak mendapat 403, hanya redirect + alert, status tak berubah.
+        $this->assertSame(302, $decide($approverB, $steps[1]), 'step masih waiting');
+        $this->assertEquals(FormStatus::PENDING->value, $steps[0]->fresh()->status->value);
+        $this->assertEquals(FormStatus::WAITING->value, $steps[1]->fresh()->status->value);
+
+        $this->assertNotSame(403, $decide($approverA, $steps[0]));
+        $this->assertSame(302, $decide($approverA, $steps[0]), 'klik ulang: step sudah approved');
+        $this->assertSame(__('core/form.approvalDecision.unavailable'), session('alert.message'));
+        $this->assertSame(302, $decide($approverA, $steps[0], 'reject'), 'klik ulang: step sudah approved');
+        $this->assertEquals(FormStatus::APPROVED->value, $steps[0]->fresh()->status->value);
+        $this->assertEquals(FormStatus::PENDING->value, $steps[1]->fresh()->status->value);
+    }
+
+    /**
+     * Regresi: step SKIPPED (auto-approve partial) pernah membuat instance macet PENDING
+     * setelah approver terakhir approve.
+     */
+    public function test_partial_auto_approve_reaches_approved_after_last_approver(): void {
+        $roleA     = $this->makeRole('PartialRoleA');
+        $roleB     = $this->makeRole('PartialRoleB');
+        $roleC     = $this->makeRole('PartialRoleC');
+        $requester = $this->makeUser('PartialRequester');
+        $approverC = $this->makeUser('PartialApproverC');
+        $this->assignRole($requester, $roleB);
+        $this->assignRole($approverC, $roleC);
+
+        $this->makeScheme('scheme-partial', array_map(
+            fn (Role $r) => ['approver_type' => 'role', 'approverable_type' => Role::class, 'approverable_id' => $r->id],
+            [$roleA, $roleB, $roleC],
+        ));
+
+        $instance = ApprovalInstance::makeInstance($this->makeDocument($requester));
+        $steps    = ApprovalInstanceStep::where('approval_instance_id', $instance->id)->orderBy('sequence')->get();
+        $this->assertEquals(FormStatus::SKIPPED->value, $steps[0]->status->value);
+        $this->assertEquals(FormStatus::PENDING->value, $steps[2]->status->value);
+
+        $this->actingAs($approverC)
+            ->withoutMiddleware([AppMiddleware::class, EnsureUserIsOnboarded::class, LanguageMiddleware::class])
+            ->postJson(route('approvalInstances.decision', $steps[2]->id), ['decision' => 'approve']);
+
+        $this->assertEquals(FormStatus::APPROVED->value, $instance->fresh()->status->value);
+    }
+
+    /**
+     * Regresi: hook saved() memakai trigger_on yang masih null pada create, sehingga scheme
+     * lama tidak dinonaktifkan dan dua scheme aktif bisa hidup bersamaan.
+     */
+    public function test_creating_active_scheme_deactivates_previous_one_for_same_permission(): void {
+        $make = fn (string $name) => ApprovalScheme::create([
+            'name'          => $name,
+            'permission_id' => $this->permissionId,
+            'name_model'    => 'ApprovalTestDocument',
+            'model'         => ApprovalTestDocument::class,
+            'is_active'     => true,
+        ]);
+
+        $first  = $make('exclusive-1');
+        $second = $make('exclusive-2');
+
+        $this->assertFalse($first->fresh()->is_active);
+        $this->assertTrue($second->fresh()->is_active);
+    }
+
+    /**
+     * Regresi: step advanced yang diubah balik jadi single meninggalkan baris approver anak yatim.
+     */
+    public function test_switching_step_from_advanced_to_single_removes_child_approvers(): void {
+        $user = $this->makeUser('SchemeChildUser');
+        $role = $this->makeRole('SchemeChildRole');
+
+        $schemeId = $this->makeScheme('scheme-switch', [[
+            'approver_type'     => 'user',
+            'approverable_type' => User::class,
+            'approverable_id'   => $user->id,
+            'is_advanced'       => true,
+            'approvers'         => [
+                ['approver_type' => 'user', 'approverable_type' => User::class, 'approverable_id' => $user->id],
+                ['approver_type' => 'role', 'approverable_type' => Role::class, 'approverable_id' => $role->id],
+            ],
+        ]]);
+        $scheme = ApprovalScheme::find($schemeId);
+        $step   = $scheme->steps()->first();
+        $this->assertSame(2, $step->approvers()->count());
+
+        $controller = (new \ReflectionClass(ApprovalSchemeController::class))->newInstanceWithoutConstructor();
+        $sync       = new \ReflectionMethod($controller, 'syncStepApprovers');
+        $sync->invoke($controller, $scheme, [['id' => $step->id, 'is_advanced' => false, 'approver_type' => 'role']]);
+
+        $this->assertSame(0, $step->approvers()->count());
+    }
+
+    /**
+     * Regresi: Service onApproved()/onRejected() mengembalikan model/null, dan keputusan final
+     * pernah dijawab JSON/kosong sehingga klien Inertia menampilkan modal error walau
+     * keputusan tersimpan. Hasil non-response harus menjadi redirect.
+     */
+    public function test_final_decision_returns_redirect_when_service_returns_model(): void {
+        $this->app->bind(ApprovalTestDocumentService::class, fn () => new class extends ApprovalTestDocumentService
+        {
+            public function onApproved(AppModel $model): mixed {
+                return $model;
+            }
+
+            public function onRejected(AppModel $model): mixed {
+                return null;
+            }
+        });
+
+        $role = $this->makeRole('RedirectRole');
+        $user = $this->makeUser('RedirectApprover');
+        $this->assignRole($user, $role);
+        $this->makeScheme('scheme-redirect', [
+            ['approver_type' => 'role', 'approverable_type' => Role::class, 'approverable_id' => $role->id],
+        ]);
+
+        foreach (['approve', 'reject'] as $decision) {
+            $instance = ApprovalInstance::makeInstance($this->makeDocument($this->makeUser("RedirectCreator-$decision")));
+            $step     = ApprovalInstanceStep::where('approval_instance_id', $instance->id)->first();
+
+            $this->actingAs($user)
+                ->withoutMiddleware([AppMiddleware::class, EnsureUserIsOnboarded::class, LanguageMiddleware::class])
+                ->postJson(route('approvalInstances.decision', $step->id), ['decision' => $decision])
+                ->assertRedirect();
+        }
+    }
+
+    /**
+     * Panggil ApprovalInstanceController::decision() langsung dengan model step yang SENGAJA
+     * basi: status di memori masih pending padahal di DB sudah diputuskan request lain. Itu
+     * keadaan request yang kalah balapan -- guard canBeDecidedBy() di awal decision() lolos,
+     * jadi yang mencegah keputusan ganda hanyalah re-check pada baris yang terkunci.
+     */
+    private function decideWithStaleStep(User $user, ApprovalInstanceStep $staleStep, string $decision): mixed {
+        $this->actingAs($user);
+
+        $request = ApprovalDecisionRequest::createFrom(Request::create('/', 'POST', ['decision' => $decision]));
+        $request->setContainer($this->app)->setRedirector($this->app->make(Redirector::class));
+        $request->setUserResolver(fn () => $user);
+        $request->validateResolved();
+
+        return (new ApprovalInstanceController($request))->decision($request, $staleStep);
+    }
+
+    public function test_concurrent_decision_on_same_step_is_applied_only_once(): void {
+        Event::fake([ApprovalDecided::class]);
+        $calls = (object) ['approved' => 0, 'rejected' => 0];
+        $this->app->bind(ApprovalTestDocumentService::class, fn () => new class($calls) extends ApprovalTestDocumentService
+        {
+            public function __construct(private object $calls) {}
+
+            public function onApproved(AppModel $model): mixed {
+                $this->calls->approved++;
+
+                return back();
+            }
+
+            public function onRejected(AppModel $model): mixed {
+                $this->calls->rejected++;
+
+                return back();
+            }
+        });
+
+        $role  = $this->makeRole('RaceRole');
+        $userA = $this->makeUser('RaceApproverA');
+        $userB = $this->makeUser('RaceApproverB');
+        $this->assignRole($userA, $role);
+        $this->assignRole($userB, $role);
+        $this->makeScheme('scheme-race', [
+            ['approver_type' => 'role', 'approverable_type' => Role::class, 'approverable_id' => $role->id],
+        ]);
+
+        $instance  = ApprovalInstance::makeInstance($this->makeDocument($this->makeUser('RaceCreator')));
+        $step      = ApprovalInstanceStep::where('approval_instance_id', $instance->id)->first();
+        $staleForB = ApprovalInstanceStep::find($step->id);
+        $this->assertSame(FormStatus::PENDING->value, $staleForB->status->value);
+
+        // A menang: approve final.
+        $this->decideWithStaleStep($userA, ApprovalInstanceStep::find($step->id), 'approve');
+        $this->assertSame(1, $calls->approved);
+
+        // B (basi) menolak pada step yang sama: tidak boleh menimpa, tidak boleh menjalankan onRejected.
+        $response = $this->decideWithStaleStep($userB, $staleForB, 'reject');
+
+        $this->assertTrue($response->isRedirection());
+        $this->assertSame(FormStatus::APPROVED->value, $step->fresh()->status->value);
+        $this->assertSame($userA->id, $step->fresh()->acted_by_id);
+        $this->assertSame(FormStatus::APPROVED->value, $instance->fresh()->status->value);
+        $this->assertSame(0, $calls->rejected);
+        $this->assertSame(1, $calls->approved);
+        Event::assertDispatchedTimes(ApprovalDecided::class, 1);
+    }
+
+    public function test_concurrent_approve_on_advanced_step_does_not_overwrite_winner(): void {
+        Event::fake([ApprovalDecided::class]);
+
+        $userA = $this->makeUser('RaceAdvA');
+        $userB = $this->makeUser('RaceAdvB');
+        $child = fn (User $u) => ['approver_type' => 'user', 'approverable_type' => User::class, 'approverable_id' => $u->id];
+        $this->makeScheme('scheme-race-adv', [
+            [...$child($userA), 'is_advanced' => true, 'approvers' => [$child($userA), $child($userB)]],
+            ['approver_type' => 'user', 'approverable_type' => User::class, 'approverable_id' => $userA->id],
+        ]);
+
+        $instance  = ApprovalInstance::makeInstance($this->makeDocument($this->makeUser('RaceAdvCreator')));
+        $step      = ApprovalInstanceStep::where('approval_instance_id', $instance->id)->where('sequence', 0)->first();
+        $staleForB = ApprovalInstanceStep::find($step->id);
+
+        $this->decideWithStaleStep($userA, ApprovalInstanceStep::find($step->id), 'approve');
+        $this->decideWithStaleStep($userB, $staleForB, 'approve');
+
+        $this->assertSame($userA->id, $step->fresh()->acted_by_id);
+        // current_sequence maju tepat satu kali (bukan dua) dan hanya satu event keputusan.
+        $this->assertSame(1, (int) $instance->fresh()->current_sequence);
+        $this->assertSame(
+            [FormStatus::APPROVED->value, FormStatus::SKIPPED->value],
+            $step->approvers()->orderBy('created_at')->get()->map(fn ($a) => $a->status->value)->all(),
+        );
+        Event::assertDispatchedTimes(ApprovalDecided::class, 1);
+    }
+
+    public function test_decision_on_advanced_step_only_allows_pending_child_approver(): void {
+        $userA    = $this->makeUser('GuardAdvA');
+        $userB    = $this->makeUser('GuardAdvB');
+        $outsider = $this->makeUser('GuardAdvOutsider');
+
+        $child = fn (User $u) => ['approver_type' => 'user', 'approverable_type' => User::class, 'approverable_id' => $u->id];
+        $this->makeScheme('scheme-guard-adv', [
+            [...$child($userA), 'is_advanced' => true, 'approvers' => [$child($userA), $child($userB)]],
+        ]);
+
+        $instance = ApprovalInstance::makeInstance($this->makeDocument($this->makeUser('GuardAdvCreator')));
+        $step     = ApprovalInstanceStep::where('approval_instance_id', $instance->id)->first();
+        $decide   = fn (User $u) => $this->actingAs($u)
+            ->withoutMiddleware([AppMiddleware::class, EnsureUserIsOnboarded::class, LanguageMiddleware::class])
+            ->postJson(route('approvalInstances.decision', $step->id), ['decision' => 'approve'])
+            ->getStatusCode();
+
+        $this->assertSame(403, $decide($outsider));
+        $this->assertNotSame(403, $decide($userA));
+        $this->assertSame(302, $decide($userB), 'kalah race: step sudah approved');
     }
 
     /**

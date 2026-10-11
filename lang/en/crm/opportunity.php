@@ -18,6 +18,7 @@ return [
         'stage.options'        => [
             'identified'  => 'Identified',
             'qualified'   => 'Qualified',
+            'proposal'    => 'Proposal',
             'negotiation' => 'Negotiation',
             'won'         => 'Won',
             'lost'        => 'Lost',

@@ -123,11 +123,16 @@ class ApprovalInstance extends Model {
         DB::commit();
 
         if ($instance->wasRecentlyCreated) {
-            $firstStep = $instance->steps()->where('sequence', 0)->first();
-            if ($firstStep && $firstStep->status == FormStatus::PENDING) {
-                $candidates = $firstStep->resolveCandidateUsers();
+            // Step pending pertama, bukan selalu sequence 0: pada auto-approve partial step awal
+            // sudah SKIPPED/APPROVED dan yang menunggu keputusan adalah step berikutnya.
+            $pendingStep = $instance->steps()
+                ->where('status', FormStatus::PENDING->value)
+                ->orderBy('sequence')
+                ->first();
+            if ($pendingStep) {
+                $candidates = $pendingStep->resolveCandidateUsers();
                 if ($candidates->isNotEmpty()) {
-                    app(NotifyUser::class)->send($candidates, new ApprovalPendingNotification($firstStep));
+                    app(NotifyUser::class)->send($candidates, new ApprovalPendingNotification($pendingStep));
                 }
             }
         }
@@ -195,7 +200,9 @@ class ApprovalInstance extends Model {
             $nextPending->update(['status' => FormStatus::PENDING]);
             $instance->update(['current_sequence' => $nextPending->sequence, 'status' => FormStatus::PENDING]);
         } else {
-            $instance->update(['status' => FormStatus::APPROVED]);
+            // Sama seperti approval final normal di ApprovalInstanceController::approve():
+            // current_sequence berakhir satu langkah setelah step terakhir.
+            $instance->update(['current_sequence' => $matchedSeq + 1, 'status' => FormStatus::APPROVED]);
         }
     }
 }

@@ -7,6 +7,8 @@ use App\Enums\FormStatus;
 use App\Models\Core\FormatingSeries;
 use App\Models\Core\ModelConnection;
 use App\Models\CRM\Quotation;
+use App\Models\CRM\QuotationSection;
+use App\Models\Finances\Tax;
 use App\Models\Model;
 use App\Traits\HasDefaultDelete;
 use Symfony\Component\Uid\Ulid;
@@ -21,18 +23,101 @@ class QuotationService implements SubmitableService {
         return $data;
     }
 
+    /**
+     * Mengisi relasi baris item (item, satuan, pajak) dari payload LinkModel dan
+     * menghitung basic_amount, tax_amount, amount secara eksplisit. Setelah
+     * migration convert_quotation_item_amount_to_stored_column, amount bukan lagi
+     * generated column.
+     *
+     * @param  array<string, mixed>  $item
+     * @param  array<string, Tax>  $taxes
+     * @return array<string, mixed>
+     */
+    private function fillItemRelations(array $item, array $taxes, ?float $keepTaxRate = null): array {
+        $tax = $taxes[$item['tax']['id'] ?? ''] ?? null;
+
+        $item['item_id']      = $item['item']['id'];
+        $item['item_unit_id'] = $item['item_unit']['id'] ?? null;
+        $item['tax_id']       = $tax?->id;
+        $item['tax_rate']     = $keepTaxRate ?? $tax?->rate ?? 0;
+        $item['price']        = $item['price'] ?? 0;
+
+        $basicAmount          = (float) $item['quantity'] * (float) $item['price'];
+        $taxAmount            = $basicAmount * $item['tax_rate'] / 100;
+        $item['basic_amount'] = $basicAmount;
+        $item['tax_amount']   = $taxAmount;
+        $item['amount']       = $basicAmount + $taxAmount;
+
+        return $item;
+    }
+
+    /**
+     * @param  array<int, array<string, mixed>>  $items
+     * @return array<string, Tax>
+     */
+    private function loadTaxes(array $items): array {
+        $taxIds = collect($items)->pluck('tax.id')->filter()->unique()->values();
+
+        return Tax::whereIn('id', $taxIds)->get()->keyBy('id')->all();
+    }
+
+    /**
+     * @param  array<int, array<string, mixed>>  $sections
+     */
+    private function syncSections(Quotation $quotation, array $sections): void {
+        $sectionIds = collect($sections)
+            ->pluck('id')
+            ->filter(fn ($id) => Ulid::isValid((string) $id))
+            ->values()
+            ->all();
+
+        QuotationSection::where('quotation_id', $quotation->id)
+            ->whereNotIn('id', $sectionIds)
+            ->delete();
+
+        $existingSections = QuotationSection::where('quotation_id', $quotation->id)
+            ->whereIn('id', $sectionIds)
+            ->get()
+            ->keyBy('id');
+
+        foreach (array_values($sections) as $index => $section) {
+            $attributes = [
+                'title'   => $section['title'],
+                'content' => $section['content'],
+                'order'   => $section['order'] ?? $index,
+            ];
+
+            $sectionModel = $existingSections->get($section['id'] ?? '');
+            if ($sectionModel) {
+                $sectionModel->fill($attributes);
+                $sectionModel->save();
+            } else {
+                $quotation->sections()->create($attributes);
+            }
+        }
+    }
+
     public function create(array $data): Model {
         $data['code'] = FormatingSeries::generate(Quotation::class, $data, true);
         $quotation    = Quotation::create($this->fillRelations($data));
 
-        $amount = 0;
+        $taxes       = $this->loadTaxes($data['items']);
+        $basicAmount = 0;
+        $taxAmount   = 0;
+        $amount      = 0;
         foreach ($data['items'] as $item) {
-            $item['item_id'] = $item['item']['id'];
-            $itemModel       = $quotation->items()->create($item);
-            $itemModel->refresh();
+            $itemModel = $quotation->items()->create($this->fillItemRelations($item, $taxes));
+            $basicAmount += $itemModel->basic_amount;
+            $taxAmount += $itemModel->tax_amount;
             $amount += $itemModel->amount;
         }
-        $quotation->update(['amount' => $amount]);
+        $quotation->update([
+            'basic_amount' => $basicAmount,
+            'tax_amount'   => $taxAmount,
+            'amount'       => $amount,
+        ]);
+
+        $this->syncSections($quotation, $data['sections'] ?? []);
 
         return $quotation;
     }
@@ -53,27 +138,39 @@ class QuotationService implements SubmitableService {
             ->get()
             ->keyBy('id');
 
-        $amount = 0;
+        $taxes       = $this->loadTaxes($data['items']);
+        $basicAmount = 0;
+        $taxAmount   = 0;
+        $amount      = 0;
         foreach ($data['items'] as $item) {
-            $item['item_id'] = $item['item']['id'];
+            $itemModel = Ulid::isValid($item['id']) ? $existingItems->get($item['id']) : null;
 
-            if (Ulid::isValid($item['id'])) {
-                $itemModel = $existingItems->get($item['id']);
-                if ($itemModel) {
-                    $itemModel->fill($item);
-                    $itemModel->save();
-                } else {
-                    $itemModel = $quotation->items()->create($item);
-                }
+            if ($itemModel) {
+                // Pajak yang tidak diganti mempertahankan tax_rate saat dokumen dibuat,
+                // supaya perubahan master pajak tidak mengubah Quotation tersimpan.
+                $keepTaxRate = $itemModel->tax_id && $itemModel->tax_id === ($item['tax']['id'] ?? null)
+                    ? $itemModel->tax_rate
+                    : null;
+                $itemModel->fill($this->fillItemRelations($item, $taxes, $keepTaxRate));
+                $itemModel->save();
             } else {
-                $itemModel = $quotation->items()->create($item);
+                $itemModel = $quotation->items()->create($this->fillItemRelations($item, $taxes));
             }
 
-            $itemModel->refresh();
+            $basicAmount += $itemModel->basic_amount;
+            $taxAmount += $itemModel->tax_amount;
             $amount += $itemModel->amount;
         }
-        $quotation->fill(['amount' => $amount]);
+        $quotation->fill([
+            'basic_amount' => $basicAmount,
+            'tax_amount'   => $taxAmount,
+            'amount'       => $amount,
+        ]);
         $quotation->save();
+
+        if (array_key_exists('sections', $data)) {
+            $this->syncSections($quotation, $data['sections'] ?? []);
+        }
 
         return $quotation;
     }

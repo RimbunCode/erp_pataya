@@ -111,6 +111,7 @@ return [
         ],
         'decision.placeholder' => 'Pilih keputusan',
         'notes'                => 'Catatan',
+        'unavailable'          => 'Langkah approval ini tidak dapat diputuskan lagi (sudah diputuskan, dibatalkan, atau belum giliran Anda). Silakan muat ulang halaman.',
     ],
     'status'                   => 'Status',
     'connections'              => 'Koneksi',

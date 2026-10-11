@@ -2,8 +2,8 @@
 
 namespace App\Traits;
 
+use App\Services\Core\SchemaColumnCache;
 use Illuminate\Database\Eloquent\Builder;
-use Illuminate\Support\Facades\Schema;
 
 /**
  * Trait HasExampleData
@@ -28,7 +28,11 @@ trait HasExampleData {
             // ponytail: skip scope if column doesn't exist — avoids test-environment errors
             // on tables created before is_example was adopted. Add column via migration
             // when the table's module is actively worked on.
-            if (! Schema::hasColumn(
+            // SchemaColumnCache (bukan Schema::hasColumn() langsung): scope ini
+            // jalan di SETIAP query model manapun yang pakai trait ini --
+            // tanpa cache, Clockwork nunjukin tabel yang sama di-introspeksi
+            // berkali-kali dalam satu request (ditemukan user).
+            if (! SchemaColumnCache::hasColumn(
                 $builder->getModel()->getTable(),
                 'is_example',
             )) {

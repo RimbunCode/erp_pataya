@@ -68,12 +68,16 @@ class Account extends Model {
             'show'  => true,
             'order' => 3,
         ],
+        // `linkable`: kolom grup LinkModel (AccountLinkModel group root_type > account_type)
+        // harus lolos gerbang kolom aman endpoint lookup.
         'account_type' => [
             'valueTrans' => 'finances.account.columns.account_type.options',
+            'linkable'   => true,
             'groupable'  => true,
         ],
         'root_type' => [
             'valueTrans' => 'finances.account.columns.root_type.options',
+            'linkable'   => true,
             'groupable'  => true,
         ],
         'balance_type' => [

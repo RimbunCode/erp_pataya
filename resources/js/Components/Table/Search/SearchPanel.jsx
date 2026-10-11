@@ -9,7 +9,7 @@
 import { Bookmark, BookmarkCheck, Trash2 } from "lucide-react";
 
 import { Button } from "@/Components/ui/button";
-import { GroupPicker } from "./ChipEditor";
+import GroupLevelsEditor from "@/Components/Table/Group/GroupLevelsEditor";
 import LoadingIcon from "@/Components/LoadingIcon";
 import { SaveFilterControl } from "../Filter/FilterTable2";
 import { cn } from "@/lib/utils";
@@ -18,14 +18,17 @@ import { useLaravelReactI18n } from "laravel-react-i18n";
 // Requirement 33: navigasi keyboard roving-tabindex -- BUKAN via state
 // "highlighted key" virtual (pola cmdk yg dipakai saran/daftar nilai
 // SearchBar), krn konten 3 kolom Panel HETEROGEN & jumlah item per kolom tak
-// terprediksi (SavedFilterList jumlahnya dinamis, GroupPicker py beberapa
+// terprediksi (SavedFilterList jumlahnya dinamis, GroupLevelsEditor py beberapa
 // sub-kontrol sendiri, ColumnList jumlahnya ikut daftar kolom) -- fokus DOM
 // NATIF (`.focus()`) dipakai sbg gantinya: robust ke isi kolom apa pun tanpa
 // perlu tahu strukturnya, Enter/Space aktivasi tombol otomatis (bawaan
 // browser), tak perlu logic terpisah. Pindah-kolom (Left/Right) coba
 // pertahankan INDEX yg sama, di-clamp kalau kolom tujuan lebih pendek.
+// `tabindex="-1"` dikecualikan JUGA utk button/input: Checkbox visual di baris
+// GroupLevelsEditor (aria-hidden, tabIndex -1, hanya hiasan -- targetnya baris
+// role="checkbox") tak boleh jadi tujuan fokus panah.
 const FOCUSABLE_SELECTOR =
-  'button:not([disabled]), [href], input:not([disabled]), [tabindex]:not([tabindex="-1"])';
+  'button:not([disabled]):not([tabindex="-1"]), [href], input:not([disabled]):not([tabindex="-1"]), [tabindex]:not([tabindex="-1"])';
 
 const focusableItemsIn = (section) =>
   Array.from(section.querySelectorAll(FOCUSABLE_SELECTOR));
@@ -149,7 +152,7 @@ function ColumnList({ items, onPick }) {
  * SearchPanel — isi panel 3 kolom.
  * @param {object} root0
  * @param {string} [root0.model] tanpa ini daftar & simpan/timpa tidak aktif
- * @param {object} root0.columns peta kolom (utk GroupPicker)
+ * @param {object} root0.columns peta kolom (utk GroupLevelsEditor)
  * @param {Array<object>} [root0.savedFilters]
  * @param {boolean} [root0.loadingSaved]
  * @param {string|number} [root0.sourceId] saved filter sumber aktif
@@ -164,8 +167,8 @@ function ColumnList({ items, onPick }) {
  * @param {() => void} root0.onClearAll
  * @param {boolean} root0.hasFilters
  * @param {Array<{value: string, label: string}>} [root0.groupOptions]
- * @param {{column: string|null, granularity: string|null, range: number|null}} [root0.group]
- * @param {(patch: object) => void} root0.onGroupChange
+ * @param {Array<{column: string, granularity: *, range: *}>} [root0.group] `Groups` aktif (urutan = nesting)
+ * @param {(groups: Array) => void} root0.onGroupChange
  * @param {Array<{name: string, label: string}>} [root0.columnList] kolom yang
  *   bisa dicari (sudah disaring & diurut host)
  * @param {(name: string) => void} [root0.onPickColumn]
@@ -212,6 +215,17 @@ export default function SearchPanel({
    * @param {React.KeyboardEvent<HTMLDivElement>} e
    */
   const handlePanelKeyDown = (e) => {
+    // Handle urutan level Group (dnd-kit) yang SEDANG diangkat via keyboard
+    // (`aria-pressed="true"`): Spasi/panah/Enter/Escape milik dnd-kit -- tanpa
+    // pengecualian ini panah memindah fokus ke baris lain & Spasi berikutnya
+    // menoggle baris itu (bug nyata, ketahuan di browser; jsdom tak menjalankan
+    // sensor keyboard dnd-kit).
+    if (
+      e.target instanceof Element &&
+      e.target.closest('[aria-roledescription="sortable"][aria-pressed="true"]')
+    ) {
+      return;
+    }
     if (e.key === "Escape") {
       onClose?.();
       return;
@@ -272,6 +286,8 @@ export default function SearchPanel({
         "grid grid-cols-1 gap-4 p-3 max-h-[min(70vh,26rem)] overflow-y-auto",
         GRID_COLS[sectionCount],
         "md:gap-0 md:divide-x md:divide-muted-foreground/20",
+        // Mobile (kolom bertumpuk): tiap seksi dipisah garis supaya tak menyatu.
+        "[&>section:not(:first-child)]:border-t [&>section:not(:first-child)]:border-muted-foreground/20 [&>section:not(:first-child)]:pt-3 md:[&>section:not(:first-child)]:border-t-0 md:[&>section:not(:first-child)]:pt-0",
       )}
     >
       <section className="flex flex-col gap-2 md:px-3 md:first:pl-0 min-w-0">
@@ -335,10 +351,10 @@ export default function SearchPanel({
       {hasGroupSection && (
         <section className="flex flex-col gap-2 md:px-3 min-w-0">
           <SectionTitle>{t("core.datatable.group_by")}</SectionTitle>
-          <GroupPicker
-            groupOptions={groupOptions}
+          <GroupLevelsEditor
+            options={groupOptions}
             columns={columns}
-            value={group ?? { column: null, granularity: null, range: null }}
+            value={group ?? []}
             onChange={onGroupChange}
             className="w-full"
           />
