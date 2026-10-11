@@ -233,8 +233,8 @@ describe("Show (SalesOrders)", () => {
       expect(screen.getAllByText("-3 Under")).toHaveLength(2);
     });
 
-    // Spec asset-items-section: `items` hanya barang biasa, baris aset ada di `asset_items`.
-    it("ItemsQtyTable menampilkan baris Items DAN Asset Items", () => {
+    // Spec sales-order-asset-in-items-column: `items` berisi baris biasa dan baris asset.
+    it("ItemsQtyTable menampilkan baris item biasa DAN baris asset", () => {
       const salesOrder = baseSalesOrder({
         items: [
           {
@@ -244,8 +244,6 @@ describe("Show (SalesOrders)", () => {
             delivered_quantity: 10,
             billed_quantity: 10,
           },
-        ],
-        asset_items: [
           {
             id: 2,
             item_name: "Unit Aset",
@@ -264,8 +262,7 @@ describe("Show (SalesOrders)", () => {
 
     it("dokumen yang hanya punya baris aset tetap menampilkan ItemsQtyTable", () => {
       const salesOrder = baseSalesOrder({
-        items: [],
-        asset_items: [
+        items: [
           {
             id: 2,
             item_name: "Unit Aset Saja",
@@ -290,8 +287,6 @@ describe("Show (SalesOrders)", () => {
             delivered_quantity: 5,
             billed_quantity: 5,
           },
-        ],
-        asset_items: [
           {
             id: 2,
             quantity: 1,
@@ -342,10 +337,9 @@ describe("Show (SalesOrders)", () => {
       return screen.getByText("Durasi (hari)").closest("table");
     }
 
-    it("baris aset di asset_items ikut tampil di RentalDurationTable (SO rent berisi aset)", () => {
+    it("baris asset di items tampil di RentalDurationTable (SO rent berisi aset)", () => {
       const salesOrder = rentSalesOrder({
-        items: [],
-        asset_items: [{ id: 9, item_name: "Unit Sewa Aset" }],
+        items: [{ id: 9, item_name: "Unit Sewa Aset" }],
         rental_durations: {
           9: {
             status: "running",

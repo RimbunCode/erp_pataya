@@ -142,18 +142,17 @@ class AssetItemsShowPartitionTest extends TestCase {
     }
 
     #[Test]
-    public function sales_order_show_returns_regular_rows_in_items_and_asset_rows_in_asset_items(): void {
+    public function sales_order_show_returns_regular_and_asset_rows_together_in_items(): void {
         $salesOrder = $this->makeSalesOrder();
         $this->makeSalesOrderItems($salesOrder);
 
         $this->visit(route('salesOrders.show', $salesOrder))
             ->assertOk()
             ->assertInertia(fn (AssertableInertia $page) => $page
-                ->has('salesOrder.items', 1)
-                ->where('salesOrder.items.0.item_id', $this->regularVariant->id)
-                ->has('salesOrder.asset_items', 1)
-                ->where('salesOrder.asset_items.0.item_id', null)
-                ->where('salesOrder.asset_items.0.asset_id', $this->asset->id));
+                ->has('salesOrder.items', 2)
+                ->missing('salesOrder.asset_items')
+                ->where('salesOrder.items', fn ($items) => collect($items)->pluck('asset_id')->filter()->values()->all() === [$this->asset->id]
+                    && collect($items)->pluck('item_id')->filter()->values()->all() === [$this->regularVariant->id]));
     }
 
     #[Test]
@@ -162,12 +161,12 @@ class AssetItemsShowPartitionTest extends TestCase {
         $salesOrder->update(['is_rent' => true, 'start_date' => now(), 'end_date' => now()->addMonth()]);
         [$regularSo, $assetSo] = $this->makeSalesOrderItems($salesOrder);
 
-        // Baris aset SO rent ada di `asset_items`, tetapi accessor rental_durations
+        // Baris aset SO rent kini ada di `items`; accessor rental_durations
         // (dihitung saat serialisasi) harus tetap memuat durasinya.
         $this->visit(route('salesOrders.show', $salesOrder))
             ->assertOk()
             ->assertInertia(fn (AssertableInertia $page) => $page
-                ->has('salesOrder.asset_items', 1)
+                ->has('salesOrder.items', 2)
                 ->has("salesOrder.rental_durations.{$assetSo->id}")
                 ->has("salesOrder.rental_durations.{$regularSo->id}"));
     }

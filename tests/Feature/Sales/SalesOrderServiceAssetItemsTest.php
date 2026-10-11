@@ -29,9 +29,9 @@ use PHPUnit\Framework\Attributes\Test;
 use Tests\TestCase;
 
 /**
- * Requirement 7.1, 7.2, 7.6, 9.1, spec asset-items-section: SalesOrderService menggabungkan
- * `items` + `asset_items` di awal create/update, lalu memakai logic lama (tabel
- * `sales_order_items` yang sama, total dokumen dari kedua daftar).
+ * Spec sales-order-asset-in-items-column: SalesOrderService menyimpan satu `items[]`
+ * berisi baris ItemVariant dan baris Asset ke tabel `sales_order_items` yang sama,
+ * total dokumen dari semua baris.
  */
 class SalesOrderServiceAssetItemsTest extends TestCase {
     use RefreshDatabase;
@@ -116,7 +116,7 @@ class SalesOrderServiceAssetItemsTest extends TestCase {
     }
 
     /**
-     * @param  array<string,mixed>  $lists  ['items' => [...], 'asset_items' => [...]]
+     * @param  array<string,mixed>  $lists  ['items' => [...]]
      * @return array<string,mixed>
      */
     private function payload(array $lists): array {
@@ -138,13 +138,12 @@ class SalesOrderServiceAssetItemsTest extends TestCase {
     }
 
     #[Test]
-    public function create_saves_items_and_asset_items_in_the_same_table_and_totals_both(): void {
+    public function create_saves_item_and_asset_rows_in_the_same_table_and_totals_both(): void {
         $regular = $this->createItemWithUnit(false);
         $asset   = $this->createItemWithUnit(true);
 
         $salesOrder = app(SalesOrderService::class)->create($this->payload([
-            'items'       => [$this->row($regular, 2, 100000)],
-            'asset_items' => [$this->row($asset, 1, 500000)],
+            'items' => [$this->row($regular, 2, 100000), $this->row($asset, 1, 500000)],
         ]));
 
         $salesOrder = $salesOrder->fresh(['items']);
@@ -156,11 +155,11 @@ class SalesOrderServiceAssetItemsTest extends TestCase {
     }
 
     #[Test]
-    public function create_with_only_asset_items_works(): void {
+    public function create_with_only_asset_rows_works(): void {
         $asset = $this->createItemWithUnit(true);
 
         $salesOrder = app(SalesOrderService::class)->create($this->payload([
-            'asset_items' => [$this->row($asset, 2, 250000)],
+            'items' => [$this->row($asset, 2, 250000)],
         ]))->fresh(['items']);
 
         $this->assertCount(1, $salesOrder->items);
@@ -175,9 +174,9 @@ class SalesOrderServiceAssetItemsTest extends TestCase {
         Asset::query()->findOrFail($asset['asset_id'])->update(['is_rentable' => true]);
 
         $salesOrder = app(SalesOrderService::class)->create($this->payload([
-            'is_rent'     => true,
-            'rent_date'   => ['from' => now()->toDateString(), 'to' => now()->addDay()->toDateString()],
-            'asset_items' => [$this->row($asset, 1, 250000)],
+            'is_rent'   => true,
+            'rent_date' => ['from' => now()->toDateString(), 'to' => now()->addDay()->toDateString()],
+            'items'     => [$this->row($asset, 1, 250000)],
         ]));
         $branch = Branch::create(['name' => 'Submit Branch', 'code' => 'SB']);
         $salesOrder->update(['branch_id' => $branch->id]);
@@ -193,7 +192,7 @@ class SalesOrderServiceAssetItemsTest extends TestCase {
     }
 
     #[Test]
-    public function create_without_asset_items_behaves_exactly_as_before(): void {
+    public function create_without_asset_rows_behaves_exactly_as_before(): void {
         $regular = $this->createItemWithUnit(false);
 
         $salesOrder = app(SalesOrderService::class)->create($this->payload([
@@ -205,23 +204,21 @@ class SalesOrderServiceAssetItemsTest extends TestCase {
     }
 
     #[Test]
-    public function update_merges_both_lists_and_removes_rows_missing_from_the_payload(): void {
+    public function update_replaces_rows_and_removes_rows_missing_from_the_payload(): void {
         $regular = $this->createItemWithUnit(false);
         $assetA  = $this->createItemWithUnit(true);
         $assetB  = $this->createItemWithUnit(true);
         $service = app(SalesOrderService::class);
 
         $created = $service->create($this->payload([
-            'items'       => [$this->row($regular, 1, 100000)],
-            'asset_items' => [$this->row($assetA, 1, 400000)],
+            'items' => [$this->row($regular, 1, 100000), $this->row($assetA, 1, 400000)],
         ]))->fresh(['items']);
 
         $regularRow = $created->items->firstWhere('item_id', $regular['item_id']);
 
         $service->update($created, $this->payload([
             // baris reguler lama dipertahankan (id sama), baris aset A dibuang, aset B baru
-            'items'       => [$this->row($regular, 1, 100000, $regularRow->id)],
-            'asset_items' => [$this->row($assetB, 1, 300000)],
+            'items' => [$this->row($regular, 1, 100000, $regularRow->id), $this->row($assetB, 1, 300000)],
         ]));
 
         $rows = SalesOrderItem::where('sales_order_id', $created->id)->get();
@@ -234,12 +231,11 @@ class SalesOrderServiceAssetItemsTest extends TestCase {
     }
 
     /**
-     * Property 5: untuk payload acak tanpa baris aset, hasil create identik apa pun
-     * bentuk key `asset_items` (tidak ada / kosong) dan sama dengan oracle
+     * Property 5: untuk payload acak tanpa baris aset, total dokumen sama dengan oracle
      * Σ(quantity × price) × (1 + PPN).
      */
     #[Test]
-    public function property_5_documents_without_asset_rows_are_unaffected_by_the_asset_items_key(): void {
+    public function property_5_documents_without_asset_rows_match_the_total_oracle(): void {
         mt_srand(5005);
         $service = app(SalesOrderService::class);
 
@@ -253,9 +249,7 @@ class SalesOrderServiceAssetItemsTest extends TestCase {
                 $expected += $quantity * $price * 1.11;
             }
 
-            $lists = $iteration % 2 === 0 ? ['items' => $rows] : ['items' => $rows, 'asset_items' => []];
-
-            $salesOrder = $service->create($this->payload($lists))->fresh(['items']);
+            $salesOrder = $service->create($this->payload(['items' => $rows]))->fresh(['items']);
 
             $this->assertCount(\count($rows), $salesOrder->items, "iterasi {$iteration}: jumlah baris");
             $this->assertEqualsWithDelta($expected, (float) $salesOrder->amount, 0.05, "iterasi {$iteration}: total dokumen");

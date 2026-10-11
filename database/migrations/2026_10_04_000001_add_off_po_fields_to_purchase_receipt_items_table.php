@@ -2,6 +2,7 @@
 
 use Illuminate\Database\Migrations\Migration;
 use Illuminate\Database\Schema\Blueprint;
+use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Schema;
 
 return new class extends Migration
@@ -24,8 +25,11 @@ return new class extends Migration
     }
 
     public function down(): void {
-        Schema::table('purchase_receipt_items', function (Blueprint $table) {
-            $table->dropForeign('pri_replaces_po_item_index');
+        // SQLite tidak mendukung drop foreign key by name -> pakai bentuk kolom.
+        $isSqlite = DB::getDriverName() === 'sqlite';
+
+        Schema::table('purchase_receipt_items', function (Blueprint $table) use ($isSqlite) {
+            $table->dropForeign($isSqlite ? ['replaces_purchase_order_item_id'] : 'pri_replaces_po_item_index');
             $table->dropColumn(['replaces_purchase_order_item_id', 'replaced_quantity']);
         });
     }

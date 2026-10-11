@@ -35,12 +35,16 @@ return new class extends Migration
     }
 
     public function down(): void {
-        Schema::table('purchase_receipt_items', function (Blueprint $table) {
-            $table->dropForeign('pri_purchase_order_index');
+        // SQLite tidak mendukung drop foreign key by name -> pakai bentuk kolom
+        // (tabel dibangun ulang); driver lain tetap memakai nama constraint.
+        $isSqlite = DB::getDriverName() === 'sqlite';
+
+        Schema::table('purchase_receipt_items', function (Blueprint $table) use ($isSqlite) {
+            $table->dropForeign($isSqlite ? ['purchase_order_id'] : 'pri_purchase_order_index');
             $table->dropColumn(['billed_quantity', 'purchase_order_id']);
         });
-        Schema::table('purchase_invoice_items', function (Blueprint $table) {
-            $table->dropForeign('pii_receipt_item_index');
+        Schema::table('purchase_invoice_items', function (Blueprint $table) use ($isSqlite) {
+            $table->dropForeign($isSqlite ? ['purchase_receipt_item_id'] : 'pii_receipt_item_index');
             $table->dropColumn('purchase_receipt_item_id');
         });
     }

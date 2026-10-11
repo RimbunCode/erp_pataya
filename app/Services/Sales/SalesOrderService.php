@@ -21,7 +21,6 @@ use App\Models\Model;
 use App\Models\Sales\Customer;
 use App\Models\Sales\SalesOrder;
 use App\Models\Sales\SalesOrderItem;
-use App\Services\Asset\AssetItems\AssetItemPartitioner;
 use App\Services\Finances\DocumentDiscountCalculator;
 use App\Traits\HasDefaultDelete;
 use App\Utils;
@@ -106,8 +105,6 @@ class SalesOrderService implements SubmitableService {
     }
 
     public function create(array $data): Model {
-        // Spec asset-items-section: `items` + `asset_items` digabung di satu titik.
-        $data         = AssetItemPartitioner::mergePayload($data);
         $data['code'] = FormatingSeries::generate(SalesOrder::class, $data, true);
         $salesOrder   = SalesOrder::create($this->fillRelations($data));
 
@@ -141,7 +138,6 @@ class SalesOrderService implements SubmitableService {
     }
 
     public function update(Model $salesOrder, array $data): Model {
-        $data = AssetItemPartitioner::mergePayload($data);
         $salesOrder->fillForUpdate($this->fillRelations($data), true);
 
         $salesOrder->items()

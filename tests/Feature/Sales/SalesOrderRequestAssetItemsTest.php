@@ -8,19 +8,20 @@ use App\Models\Asset\AssetCategory;
 use App\Models\Asset\AssetService;
 use App\Models\Inventory\Item;
 use App\Models\Inventory\ItemVariant;
+use App\Models\Inventory\Unit;
 use Database\Factories\Finances\TaxFactory;
 use Database\Factories\Inventory\WarehouseFactory;
 use Illuminate\Contracts\Validation\Validator;
 use Illuminate\Foundation\Testing\RefreshDatabase;
+use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Validator as ValidatorFacade;
 use Illuminate\Support\Str;
 use PHPUnit\Framework\Attributes\Test;
 use Tests\TestCase;
 
 /**
- * Requirement 6.1-6.5, 8.1, 9.1, spec asset-items-section: SalesOrderRequest menerima
- * `asset_items` dengan rule yang dicerminkan dari `items`, memvalidasi keanggotaan tiap
- * baris, dan menuntut minimal 1 baris untuk gabungan keduanya.
+ * Spec sales-order-asset-in-items-column: SalesOrderRequest menerima satu `items[]`
+ * dengan tiap baris berisi `item.id` (ItemVariant) XOR `asset.id` (Asset).
  */
 class SalesOrderRequestAssetItemsTest extends TestCase {
     use RefreshDatabase;
@@ -29,6 +30,7 @@ class SalesOrderRequestAssetItemsTest extends TestCase {
     private Asset $asset;
     private string $warehouseId;
     private string $taxId;
+    private string $unitId;
 
     protected function setUp(): void {
         parent::setUp();
@@ -45,6 +47,18 @@ class SalesOrderRequestAssetItemsTest extends TestCase {
         ]);
         $this->warehouseId = WarehouseFactory::new()->create()->id;
         $this->taxId       = TaxFactory::new()->create()->id;
+
+        $unit         = Unit::create(['code' => 'UNIT-' . Str::random(6), 'name' => 'Unit ' . Str::random(6)]);
+        $this->unitId = (string) Str::ulid();
+        DB::table('item_units')->insert([
+            'id'         => $this->unitId,
+            'item_id'    => $regular->id,
+            'unit_id'    => $unit->id,
+            'is_default' => true,
+            'order'      => 0,
+            'created_at' => now(),
+            'updated_at' => now(),
+        ]);
     }
 
     /**
@@ -53,7 +67,7 @@ class SalesOrderRequestAssetItemsTest extends TestCase {
      * @return array<string,mixed>
      */
     private function itemRules(SalesOrderRequest $request): array {
-        $pattern = '/^(asset_)?items(\.\*)?(\.(id|quantity|item\.id|item\.\*|asset\.id|asset\.\*|tax\.id|tax\.\*|source_warehouse\.id|referenceable\.type|referenceable\.id|unit))?$/';
+        $pattern = '/^items(\.\*)?(\.(id|quantity|item\.id|item\.\*|asset\.id|asset\.\*|unit\.id|tax\.id|tax\.\*|source_warehouse\.id|referenceable\.type|referenceable\.id))?$/';
 
         return collect($request->rules())
             ->filter(fn ($rule, $key) => preg_match($pattern, $key) === 1)
@@ -75,6 +89,7 @@ class SalesOrderRequestAssetItemsTest extends TestCase {
             'id'               => $id,
             'item'             => ['id' => $this->regularVariant->id],
             'quantity'         => 1,
+            'unit'             => ['id' => $this->unitId],
             'tax'              => ['id' => $this->taxId],
             'source_warehouse' => ['id' => $this->warehouseId],
         ];
@@ -85,48 +100,28 @@ class SalesOrderRequestAssetItemsTest extends TestCase {
     }
 
     #[Test]
-    public function rules_mirror_the_item_rules_to_asset_items_and_make_the_list_rules_optional(): void {
+    public function rules_use_a_single_required_items_list_and_no_asset_items_key(): void {
         $request = SalesOrderRequest::create('/', 'POST', []);
         $request->setContainer(app());
         $rules = $request->rules();
 
-        $this->assertSame(['nullable', 'array'], $rules['items']);
-        $this->assertSame(['nullable', 'array'], $rules['asset_items']);
-        foreach (['id', 'item.id', 'quantity', 'tax.id', 'price', 'source_warehouse.id'] as $field) {
-            $this->assertArrayHasKey("asset_items.*.{$field}", $rules, "rule asset_items.*.{$field} harus ada");
-        }
-        $this->assertArrayNotHasKey('asset_items.*.unit.id', $rules);
-        $this->assertSame(['prohibited'], $rules['asset_items.*.unit']);
-        $this->assertContains('required', $rules['asset_items.*.tax.id']);
-        $this->assertArrayHasKey('asset_items.*.asset.id', $rules);
-        $this->assertSame(['prohibited'], $rules['asset_items.*.item.id']);
-        $this->assertSame(['prohibited'], $rules['items.*.asset.id']);
-        $this->assertSame(
-            ['nullable', 'string', 'required_with:asset_items.*.referenceable.type'],
-            $rules['asset_items.*.referenceable.id'],
-        );
+        $this->assertSame(['required', 'array', 'min:1'], $rules['items']);
+        $this->assertArrayNotHasKey('asset_items', $rules);
+        $this->assertContains('required_without:items.*.asset.id', $rules['items.*.item.id']);
+        $this->assertContains('required_without:items.*.item.id', $rules['items.*.asset.id']);
+        $this->assertContains('required', $rules['items.*.tax.id']);
     }
 
     #[Test]
-    public function accepts_regular_rows_in_items_and_asset_rows_in_asset_items(): void {
-        $validator = $this->validate([
-            'items'       => [$this->regularRow()],
-            'asset_items' => [$this->assetRow()],
-        ]);
+    public function accepts_regular_and_asset_rows_in_the_same_items_list(): void {
+        $validator = $this->validate(['items' => [$this->regularRow(), $this->assetRow()]]);
 
         $this->assertFalse($validator->fails(), json_encode($validator->errors()->toArray()));
     }
 
     #[Test]
-    public function document_without_asset_items_behaves_as_before(): void {
-        $validator = $this->validate(['items' => [$this->regularRow('r1'), $this->regularRow('r2')]]);
-
-        $this->assertFalse($validator->fails(), json_encode($validator->errors()->toArray()));
-    }
-
-    #[Test]
-    public function accepts_a_document_that_only_has_asset_items(): void {
-        $validator = $this->validate(['asset_items' => [$this->assetRow()]]);
+    public function accepts_a_document_that_only_has_asset_rows(): void {
+        $validator = $this->validate(['items' => [$this->assetRow()]]);
 
         $this->assertFalse($validator->fails(), json_encode($validator->errors()->toArray()));
     }
@@ -136,52 +131,60 @@ class SalesOrderRequestAssetItemsTest extends TestCase {
         $row = $this->assetRow();
         unset($row['tax']);
 
-        $validator = $this->validate(['asset_items' => [$row]]);
+        $validator = $this->validate(['items' => [$row]]);
 
-        $this->assertSame(['asset_items.0.tax.id'], array_keys($validator->errors()->toArray()));
+        $this->assertSame(['items.0.tax.id'], array_keys($validator->errors()->toArray()));
     }
 
     #[Test]
-    public function rejects_a_unit_on_asset_rows(): void {
-        $row         = $this->assetRow();
-        $row['unit'] = ['id' => 'unit-1'];
+    public function requires_a_unit_for_regular_rows(): void {
+        $row = $this->regularRow();
+        unset($row['unit']);
 
-        $validator = $this->validate(['asset_items' => [$row]]);
+        $validator = $this->validate(['items' => [$row]]);
 
-        $this->assertSame(['asset_items.0.unit'], array_keys($validator->errors()->toArray()));
+        $this->assertSame(['items.0.unit.id'], array_keys($validator->errors()->toArray()));
     }
 
     #[Test]
-    public function rejects_a_fixed_asset_row_in_items(): void {
-        $validator = $this->validate(['items' => [$this->regularRow(), [
-            'id'       => 'x',
-            'item'     => ['id' => $this->regularVariant->id],
-            'asset'    => ['id' => $this->asset->id],
-            'quantity' => 1,
-            'tax'      => ['id' => $this->taxId],
-        ]]]);
+    public function rejects_a_unit_or_warehouse_on_asset_rows(): void {
+        $row                     = $this->assetRow();
+        $row['unit']             = ['id' => $this->unitId];
+        $row['source_warehouse'] = ['id' => $this->warehouseId];
+
+        $validator = $this->validate(['items' => [$row]]);
+
+        $this->assertEqualsCanonicalizing(
+            ['items.0.unit.id', 'items.0.source_warehouse.id'],
+            array_keys($validator->errors()->toArray()),
+        );
+    }
+
+    #[Test]
+    public function rejects_a_row_with_both_item_and_asset(): void {
+        $row          = $this->regularRow();
+        $row['asset'] = ['id' => $this->asset->id];
+
+        $validator = $this->validate(['items' => [$row]]);
 
         $this->assertTrue($validator->fails());
-        $this->assertSame(['items.1.asset.id'], array_keys($validator->errors()->toArray()));
+        $this->assertSame(['items.0.asset'], array_keys($validator->errors()->toArray()));
     }
 
     #[Test]
-    public function rejects_a_regular_row_in_asset_items(): void {
-        $validator = $this->validate(['asset_items' => [[
-            'id'       => 'r1',
-            'item'     => ['id' => $this->regularVariant->id],
-            'asset'    => ['id' => $this->asset->id],
-            'quantity' => 1,
-            'tax'      => ['id' => $this->taxId],
-        ]]]);
+    public function rejects_a_row_with_neither_item_nor_asset(): void {
+        $validator = $this->validate(['items' => [['id' => 'x', 'quantity' => 1, 'tax' => ['id' => $this->taxId]]]]);
 
         $this->assertTrue($validator->fails());
-        $this->assertSame(['asset_items.0.item.id'], array_keys($validator->errors()->toArray()));
+        $this->assertEqualsCanonicalizing(
+            ['items.0.item.id', 'items.0.asset.id', 'items.0.unit.id'],
+            array_keys($validator->errors()->toArray()),
+        );
     }
 
     #[Test]
-    public function rejects_when_both_lists_are_empty(): void {
-        foreach ([['items' => [], 'asset_items' => []], []] as $data) {
+    public function rejects_when_the_list_is_empty_or_missing(): void {
+        foreach ([['items' => []], []] as $data) {
             $validator = $this->validate($data);
 
             $this->assertTrue($validator->fails());
@@ -190,38 +193,24 @@ class SalesOrderRequestAssetItemsTest extends TestCase {
     }
 
     #[Test]
-    public function rejects_legacy_asset_lines_inside_items(): void {
-        $row                = $this->regularRow();
-        $row['asset_lines'] = [['asset' => ['id' => (string) Str::ulid()], 'quantity' => 1]];
-
-        $validator = $this->validate(['items' => [$row]]);
-
-        $this->assertTrue($validator->fails());
-        $this->assertArrayHasKey('items.0.asset_lines', $validator->errors()->toArray());
-    }
-
-    #[Test]
-    public function source_warehouse_is_not_required_for_asset_rows_but_is_checked_in_both_buckets(): void {
+    public function source_warehouse_is_required_for_stock_item_rows_but_not_asset_rows(): void {
         $noWarehouseRegular = $this->regularRow();
         unset($noWarehouseRegular['source_warehouse']);
 
-        $validator = $this->validate([
-            'items'       => [$noWarehouseRegular],
-            'asset_items' => [$this->assetRow()],
-        ]);
+        $validator = $this->validate(['items' => [$noWarehouseRegular, $this->assetRow()]]);
 
         $this->assertTrue($validator->fails());
         $this->assertSame(['items.0.source_warehouse.id'], array_keys($validator->errors()->toArray()));
     }
 
     #[Test]
-    public function asset_service_referenceable_check_runs_on_the_asset_items_bucket(): void {
+    public function asset_service_referenceable_check_runs_on_asset_rows(): void {
         $row                  = $this->assetRow();
         $row['referenceable'] = ['type' => AssetService::class, 'id' => (string) Str::ulid()];
 
-        $validator = $this->validate(['asset_items' => [$row]]);
+        $validator = $this->validate(['items' => [$row]]);
 
         $this->assertTrue($validator->fails());
-        $this->assertSame(['asset_items.0.referenceable.id'], array_keys($validator->errors()->toArray()));
+        $this->assertSame(['items.0.referenceable.id'], array_keys($validator->errors()->toArray()));
     }
 }

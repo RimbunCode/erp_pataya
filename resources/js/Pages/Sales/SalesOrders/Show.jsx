@@ -7,7 +7,6 @@ import {
 import { inArray, isValidStatus } from "@/lib/utils";
 
 import { Button } from "@/Components/ui/button";
-import { getAllItems } from "@/lib/assetItems";
 import {
   Dialog,
   DialogContent,
@@ -155,10 +154,8 @@ export default function Show({ salesOrder, defaultData, flash }) {
   const [loading, setLoading] = useState(false);
   const [mismatchErrors, setMismatchErrors] = useState([]);
 
-  // Spec asset-items-section: `items` hanya barang biasa, baris aset ada di
-  // `asset_items` -- tabel tracking, durasi rental, dan Sync Items harus memakai
-  // gabungan keduanya.
-  const allItems = getAllItems(salesOrder);
+  // `items` berisi baris ItemVariant dan baris Asset sekaligus.
+  const allItems = salesOrder?.items ?? [];
 
   const hasMismatch = allItems.some((item) => {
     const deltaDeliver = (item.delivered_quantity ?? 0) - item.quantity;

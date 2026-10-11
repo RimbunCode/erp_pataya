@@ -67,14 +67,7 @@ class SalesOrder extends Model {
 
                 $service = app(RentalDurationService::class);
 
-                // Spec asset-items-section: saat disajikan ke FE relasi `items` hanya berisi
-                // barang biasa dan baris aset ada di relasi `assetItems` (AssetItemPartitioner::
-                // apply). SO rent justru berisi aset, jadi durasi dihitung dari keduanya.
-                $rows = $this->relationLoaded('assetItems')
-                    ? $this->items->concat($this->assetItems)
-                    : $this->items;
-
-                return $rows->mapWithKeys(fn ($item) => [
+                return $this->items->mapWithKeys(fn ($item) => [
                     $item->id => $service->calculateDuration($item),
                 ]);
             },
