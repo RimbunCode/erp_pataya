@@ -17,6 +17,7 @@ use App\Services\Core\PermissionChecker;
 use App\Services\User\Signature\SignatureImageService;
 use App\Utils;
 use Illuminate\Database\Eloquent\Model;
+use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
 use Illuminate\Http\UploadedFile;
 use Illuminate\Support\Facades\Auth;
@@ -340,12 +341,55 @@ class UserController extends Controller {
             ->redirect();
     }
 
+    /**
+     * Penghapusan user wajib konfirmasi password user yang sedang login.
+     */
     protected function destroyRequiresPassword(): bool {
         return true;
     }
 
+    /**
+     * Menghapus satu user beserta audit log hapus. Dipakai destroy() dan
+     * destroyMany() lewat Controller, sehingga keduanya tetap mendukung hapus massal.
+     */
     protected function destroyRecord(Model $data): void {
         $data->delete();
         $data->logForDeleted();
+    }
+
+    /**
+     * Hapus satu user. Bila user yang login ikut terhapus, session diakhiri.
+     */
+    public function destroy(mixed $id) {
+        $response = parent::destroy($id);
+
+        return $this->logoutIfSelfDeleted([$id]) ?? $response;
+    }
+
+    /**
+     * Hapus massal user. Bila user yang login termasuk daftar, session diakhiri.
+     */
+    public function destroyMany(Request $request) {
+        $response = parent::destroyMany($request);
+
+        return $this->logoutIfSelfDeleted((array) $request->input('ids', [])) ?? $response;
+    }
+
+    /**
+     * Bila user yang sedang login ikut terhapus: logout, invalidasi session,
+     * dan arahkan ke '/' (perilaku lama destroy tunggal).
+     *
+     * @param  array<int, mixed>  $deletedIds
+     */
+    private function logoutIfSelfDeleted(array $deletedIds): ?RedirectResponse {
+        if (! \in_array((string) request()->user()?->id, array_map('strval', $deletedIds), true)) {
+            return null;
+        }
+
+        Auth::logout();
+        request()->session()->invalidate();
+        request()->session()->regenerateToken();
+
+        return redirect()->to('/');
     }
 }

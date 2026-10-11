@@ -113,4 +113,63 @@ class UserBulkDestroyTest extends TestCase {
         $this->assertSoftDeleted($a);
         $this->assertSoftDeleted($b);
     }
+
+    public function test_single_destroy_with_wrong_password_deletes_nothing(): void {
+        $actor  = User::factory()->create();
+        $target = User::factory()->create();
+
+        $this->actingAs($actor)
+            ->withSession($this->permissions())
+            ->deleteJson(route('users.destroy', $target->id), ['password' => 'wrong'])
+            ->assertUnprocessable()
+            ->assertJsonValidationErrors(['password']);
+
+        $this->assertNotSoftDeleted($target);
+        $this->assertAuthenticatedAs($actor);
+    }
+
+    public function test_single_self_delete_logs_out_and_redirects_home(): void {
+        $actor = User::factory()->create();
+
+        $this->actingAs($actor)
+            ->withSession($this->permissions())
+            ->deleteJson(route('users.destroy', $actor->id), ['password' => 'password'])
+            ->assertRedirect('/');
+
+        $this->assertGuest();
+        $this->assertSoftDeleted($actor);
+    }
+
+    public function test_bulk_delete_including_self_logs_out_and_redirects_home(): void {
+        $actor = User::factory()->create();
+        $other = User::factory()->create();
+
+        $this->actingAs($actor)
+            ->withSession($this->permissions())
+            ->deleteJson(route('users.destroyMany'), [
+                'ids'      => [$actor->id, $other->id],
+                'password' => 'password',
+            ])
+            ->assertRedirect('/');
+
+        $this->assertGuest();
+        $this->assertSoftDeleted($actor);
+        $this->assertSoftDeleted($other);
+    }
+
+    public function test_bulk_delete_excluding_self_keeps_session(): void {
+        $actor = User::factory()->create();
+        $a     = User::factory()->create();
+
+        $this->actingAs($actor)
+            ->withSession($this->permissions())
+            ->deleteJson(route('users.destroyMany'), [
+                'ids'      => [$a->id],
+                'password' => 'password',
+            ])
+            ->assertRedirect(route('users.index'));
+
+        $this->assertAuthenticatedAs($actor);
+        $this->assertSoftDeleted($a);
+    }
 }
