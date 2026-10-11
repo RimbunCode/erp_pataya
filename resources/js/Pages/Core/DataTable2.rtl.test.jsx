@@ -2,6 +2,7 @@ import { describe, expect, it, vi, beforeEach, afterEach } from "vitest";
 import {
   act,
   cleanup,
+  fireEvent,
   render,
   screen,
   waitFor,
@@ -1307,6 +1308,131 @@ describe("DataTable2", () => {
       expect(screen.getByText("Mobile Row Isi S2")).toBeInTheDocument();
       // Status loading per node ikut dirender lewat renderLoading.
       expect(screen.getAllByRole("status")).toHaveLength(2);
+    });
+
+    describe("mode pilih (seleksi) mobile", () => {
+      const rowActionsLabel = "TR:core.datatable.row_actions";
+      const selectRowLabel = "TR:core.datatable.select_row";
+      const selectModeLabel = "TR:core.datatable.select_mode";
+      const clearLabel = "TR:core.datatable.clear_selection";
+      const selectedText = (count) =>
+        `TR:core.datatable.selected:${JSON.stringify({ count })}`;
+      const mobileTemplate = ({ dataRow }) => (
+        <div>Mobile Row {dataRow.name}</div>
+      );
+      const openHeaderMenu = async (user) => {
+        await user.click(
+          document
+            .querySelector("button svg.lucide-ellipsis")
+            .closest("button"),
+        );
+        return screen.findByRole("menu");
+      };
+      const enterSelectMode = async (user) => {
+        const menu = await openHeaderMenu(user);
+        await user.click(
+          within(menu).getByRole("menuitem", { name: selectModeLabel }),
+        );
+      };
+      const longPress = async (el) => {
+        fireEvent.pointerDown(el, {
+          clientX: 0,
+          clientY: 0,
+          button: 0,
+          pointerType: "touch",
+        });
+        await act(() => vi.advanceTimersByTimeAsync(500));
+        fireEvent.pointerUp(el);
+      };
+
+      it("kartu dibungkus: tiap kartu punya tombol menu aksi baris, tanpa checkbox", async () => {
+        await renderDataTable2(<DataTable2 templateItem={mobileTemplate} />);
+
+        expect(
+          screen.getAllByRole("button", { name: rowActionsLabel }),
+        ).toHaveLength(2);
+        expect(screen.queryAllByLabelText(selectRowLabel)).toHaveLength(0);
+      });
+
+      it("item header 'Pilih' -> checkbox muncul di tiap kartu; centang -> bulk bar mobile; 'Batal pilih' menutup mode pilih", async () => {
+        const user = userEvent.setup({ delay: null, pointerEventsCheck: 0 });
+        await renderDataTable2(<DataTable2 templateItem={mobileTemplate} />);
+
+        await enterSelectMode(user);
+        expect(screen.getAllByLabelText(selectRowLabel)).toHaveLength(2);
+        // Mode pilih tanpa centang: bar hanya berisi tombol batal.
+        expect(
+          screen.getByRole("button", { name: clearLabel }),
+        ).toBeInTheDocument();
+
+        await user.click(screen.getAllByLabelText(selectRowLabel)[0]);
+        const selected = screen.getByText(selectedText(1));
+        expect(selected.parentElement.className).toContain("fixed");
+
+        await user.click(screen.getByRole("button", { name: clearLabel }));
+        expect(screen.queryAllByLabelText(selectRowLabel)).toHaveLength(0);
+        expect(screen.queryByText(selectedText(1))).not.toBeInTheDocument();
+      });
+
+      it("batal centang baris terakhir mengakhiri mode pilih; masuk via menu tanpa centang tetap aktif", async () => {
+        const user = userEvent.setup({ delay: null, pointerEventsCheck: 0 });
+        await renderDataTable2(<DataTable2 templateItem={mobileTemplate} />);
+
+        await enterSelectMode(user);
+        // Belum ada yang dicentang -> mode tetap aktif.
+        expect(screen.getAllByLabelText(selectRowLabel)).toHaveLength(2);
+
+        await user.click(screen.getAllByLabelText(selectRowLabel)[0]);
+        await user.click(screen.getAllByLabelText(selectRowLabel)[0]);
+
+        expect(screen.queryAllByLabelText(selectRowLabel)).toHaveLength(0);
+      });
+
+      it("long-press kartu -> mode pilih dengan kartu itu tercentang", async () => {
+        await renderDataTable2(<DataTable2 templateItem={mobileTemplate} />);
+
+        await longPress(screen.getByText("Mobile Row Supplier B"));
+
+        const boxes = screen.getAllByLabelText(selectRowLabel);
+        expect(boxes).toHaveLength(2);
+        expect(boxes[0]).toHaveAttribute("aria-checked", "false");
+        expect(boxes[1]).toHaveAttribute("aria-checked", "true");
+        expect(screen.getByText(selectedText(1))).toBeInTheDocument();
+      });
+
+      it("jalur GroupTree juga dibungkus (menu aksi per kartu)", async () => {
+        usePageMock.mockReturnValue({
+          props: makePageProps({
+            data: groupRootData,
+            groupMeta: groupMetaCode,
+          }),
+        });
+        await renderDataTable2(<DataTable2 templateItem={mobileTemplate} />);
+
+        expect(
+          within(screen.getByTestId("group-S1")).getByRole("button", {
+            name: rowActionsLabel,
+          }),
+        ).toBeInTheDocument();
+      });
+
+      it("selectable=false: kartu tetap punya menu, tanpa item 'Pilih' dan long-press tidak masuk mode pilih", async () => {
+        const user = userEvent.setup({ delay: null, pointerEventsCheck: 0 });
+        await renderDataTable2(
+          <DataTable2 templateItem={mobileTemplate} selectable={false} />,
+        );
+
+        expect(
+          screen.getAllByRole("button", { name: rowActionsLabel }),
+        ).toHaveLength(2);
+        await longPress(screen.getByText("Mobile Row Supplier A"));
+        expect(screen.queryAllByLabelText(selectRowLabel)).toHaveLength(0);
+
+        const menu = await openHeaderMenu(user);
+        expect(
+          within(menu).queryByRole("menuitem", { name: selectModeLabel }),
+        ).not.toBeInTheDocument();
+      });
     });
 
     it("grup aktif: baris isi grup menerima closure deleteItem yang memanggil deleteItem hook", async () => {
@@ -3402,7 +3528,11 @@ describe("DataTable2", () => {
         within(menu)
           .getAllByRole("menuitem")
           .map((el) => el.textContent),
-      ).toEqual(["TR:core.datatable.reload", "TR:core.datatable.show"]);
+      ).toEqual([
+        "TR:core.datatable.reload",
+        "TR:core.datatable.select_mode",
+        "TR:core.datatable.show",
+      ]);
       expect(
         within(menu).queryByText("TR:core.datatable.filter.filter"),
       ).not.toBeInTheDocument();

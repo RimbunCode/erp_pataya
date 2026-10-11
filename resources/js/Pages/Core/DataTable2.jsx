@@ -2,6 +2,7 @@ import {
   ArrowDownWideNarrow,
   ArrowUpNarrowWide,
   Ellipsis,
+  ListChecks,
   Plus,
   RefreshCw,
 } from "lucide-react";
@@ -45,7 +46,6 @@ import {
   TooltipTrigger,
 } from "@/Components/ui/tooltip";
 import {
-  cloneElement,
   forwardRef,
   memo,
   useCallback,
@@ -72,6 +72,7 @@ import SearchableOptionList, {
 } from "@/Components/Table/SearchableOptionList";
 import ActionConfirmDialog from "@/Components/Table/RowActions/ActionConfirmDialog";
 import BulkActionBar from "@/Components/Table/RowActions/BulkActionBar";
+import MobileRowShell from "@/Components/Table/RowActions/MobileRowShell";
 import RowActionsMenu from "@/Components/Table/RowActions/RowActionsMenu";
 import {
   buildDeleteAction,
@@ -127,6 +128,7 @@ const optionsFieldChanged = (key, prev, next) =>
 
 // Referensi stabil agar default `rowActions` tidak membuat `allActions` berubah tiap render.
 const EMPTY_ROW_ACTIONS = [];
+const noop = () => {};
 
 export function classifyOptionsChange(
   prev,
@@ -198,6 +200,9 @@ export function classifyOptionsChange(
 /**
  * @typedef {object} TemplateItemProps
  * @property {object} dataRow
+ * @property {() => void} deleteItem closure hapus baris.
+ * @deprecated `deleteItem` dipertahankan demi kompatibilitas; hapus kini lewat
+ * menu ⋯ per kartu (MobileRowShell) / bulk bar -- jangan dipakai di template baru.
  * @callback TemplateItemCallback
  * @param {ActionProps} props
  * @returns {React.JSX.Element}
@@ -842,6 +847,17 @@ export default memo(
     // atau data server dimuat ulang (`treeVersion`, mis. setelah hapus).
     const selectionResetKey = `${treeVersion}|${JSON.stringify(options)}`;
     const selection = useRowSelection({ resetKey: selectionResetKey });
+    // Mode pilih mobile: aktif via long-press kartu / item "Pilih" di menu header;
+    // berakhir saat seleksi turun dari >0 ke 0 (masuk via menu tanpa centang
+    // tetap aktif) atau saat "Batal pilih".
+    const [selectionMode, setSelectionMode] = useState(false);
+    const prevSelectionCount = useRef(0);
+    useEffect(() => {
+      if (prevSelectionCount.current > 0 && selection.count === 0) {
+        setSelectionMode(false);
+      }
+      prevSelectionCount.current = selection.count;
+    }, [selection.count]);
     // Aksi yang sedang berjalan (menonaktifkan tombol bulk).
     const [pendingKey, setPendingKey] = useState(null);
     // { action, rows, source } | null -- konfirmasi aksi kustom (`action.confirm`).
@@ -986,11 +1002,45 @@ export default memo(
         dataRow: row,
         // Pass closure — JANGAN panggil deleteItem() saat render
         // (memicu setState store DeleteDialog selama render).
+        // @deprecated: hapus kini lewat menu ⋯ kartu / bulk bar.
         deleteItem: () =>
           deleteItem(`${plural}.destroy`, row.id, {
             usePasswordConfirmation: usePasswordConfirmationForDelete,
           }),
       });
+    // Kartu mobile + shell (checkbox mode pilih, long-press, menu ⋯). Tanpa
+    // `selectable`: shell tetap dipasang demi menu ⋯, tapi long-press no-op.
+    const wrapMobile = (row) => {
+      const item = mobileItem(row);
+      if (!item) return null;
+      return (
+        <MobileRowShell
+          key={row.id}
+          selectionMode={selectable && selectionMode}
+          checked={selection.isSelected(row)}
+          onToggle={(checked) => selection.toggle(row, checked)}
+          onLongPress={
+            selectable
+              ? () => {
+                  setSelectionMode(true);
+                  selection.toggle(row, true);
+                }
+              : noop
+          }
+          label={t("core.datatable.select_row")}
+          menu={
+            <RowActionsMenu
+              row={row}
+              actions={allActions}
+              onRun={(action, rows) => runAction(action, rows, "single")}
+            />
+          }
+        >
+          {item}
+        </MobileRowShell>
+      );
+    };
+    const showMobileBar = isMobile && selectable && selectionMode;
     const setShowNumber = useCallback((value) => {
       // Update `options.show` → ikut ke URL (?show=) → backend persist cookie
       // `datatable_show` pada path ini. Reset ke page 1 agar tak out-of-range.
@@ -1016,6 +1066,12 @@ export default memo(
                       <RefreshCw />
                       <span>{t("core.datatable.reload")}</span>
                     </DropdownMenuItem>
+                    {isMobile && selectable && (
+                      <DropdownMenuItem onClick={() => setSelectionMode(true)}>
+                        <ListChecks />
+                        <span>{t("core.datatable.select_mode")}</span>
+                      </DropdownMenuItem>
+                    )}
                     {isMobile && (
                       <DropdownMenuSub>
                         <DropdownMenuSubTrigger>
@@ -1244,7 +1300,12 @@ export default memo(
           />
           <div className="flex flex-col flex-1 min-h-0 max-w-full mt-3 border rounded-lg border-muted-foreground/25 overflow-hidden">
             {isMobile ? (
-              <div className="flex flex-col flex-1 min-h-0 overflow-y-auto">
+              <div
+                className={cn(
+                  "flex flex-col flex-1 min-h-0 overflow-y-auto",
+                  showMobileBar && "pb-20",
+                )}
+              >
                 {data?.data && data.data.length > 0 ? (
                   groupTreeProps ? (
                     <GroupTree
@@ -1267,7 +1328,7 @@ export default memo(
                           columns={mapColumns}
                         />
                       )}
-                      renderRow={(row) => mobileItem(row) ?? null}
+                      renderRow={(row) => wrapMobile(row)}
                       renderLoading={({ depth }) => (
                         <GroupNodeStatusCard depth={depth} />
                       )}
@@ -1280,15 +1341,34 @@ export default memo(
                       )}
                     />
                   ) : (
-                    data.data.map((x) => {
-                      const item = mobileItem(x);
-                      if (!item) return null;
-                      return cloneElement(item, { key: x.id, ...item.props });
-                    })
+                    data.data.map((x) => wrapMobile(x))
                   )
                 ) : (
                   <NoDataImg className="self-center w-full max-w-sm" />
                 )}
+                {showMobileBar &&
+                  (selection.count > 0 ? (
+                    <BulkActionBar
+                      variant="mobile"
+                      rows={selection.rows}
+                      actions={allActions}
+                      pendingKey={pendingKey}
+                      onRun={(action, rows) => runAction(action, rows, "bulk")}
+                      onClear={() => {
+                        selection.clear();
+                        setSelectionMode(false);
+                      }}
+                    />
+                  ) : (
+                    <div className="fixed inset-x-0 bottom-0 z-40 flex items-center justify-end border-t bg-background p-3">
+                      <Button
+                        variant="secondary"
+                        onClick={() => setSelectionMode(false)}
+                      >
+                        {t("core.datatable.clear_selection")}
+                      </Button>
+                    </div>
+                  ))}
               </div>
             ) : (
               <>
