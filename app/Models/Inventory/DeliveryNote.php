@@ -5,12 +5,15 @@ namespace App\Models\Inventory;
 use App\Models\Core\Branch;
 use App\Models\Model;
 use App\Models\Sales\Customer;
+use App\Models\Sales\InternalOrderItem;
+use App\Models\Sales\SalesOrderItem;
 use App\Models\User\Permission;
 use App\Services\Inventory\DeliveryNoteService;
 use App\Traits\DataTable;
 use App\Traits\Submitable;
 use Illuminate\Database\Eloquent\Concerns\HasUlids;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
+use Illuminate\Database\Eloquent\Relations\MorphTo;
 use Illuminate\Database\Eloquent\SoftDeletes;
 
 class DeliveryNote extends Model {
@@ -93,10 +96,15 @@ class DeliveryNote extends Model {
             'customer',
             'customerBranch',
             'items',
-            'items.referenceable',
-            'items.referenceable.item',
+            'items.referenceable' => function (MorphTo $morphTo): void {
+                $morphTo->morphWith([
+                    SalesOrderItem::class    => ['item', 'asset'],
+                    InternalOrderItem::class => ['item'],
+                ]);
+            },
             'items.unit',
             'items.sourceWarehouse',
+            'items.asset',
             'returnAgainst',
         ];
     }

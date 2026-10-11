@@ -9,7 +9,7 @@ use App\Listeners\Asset\Rental\ReturnAssetFromRent;
 use App\Models\Asset\Asset;
 use App\Models\Asset\AssetMovement;
 use App\Models\Core\FormatingSeries;
-use App\Models\Inventory\DeliveryNoteItemAsset;
+use App\Models\Inventory\DeliveryNoteItem;
 use App\Services\Asset\AssetMovementService;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Illuminate\Support\Facades\DB;
@@ -42,7 +42,7 @@ class ReturnAssetFromRentTest extends TestCase {
             'status'          => [FormStatus::IN_RENT],
             'rental_quantity' => 1,
         ]);
-        $line = DeliveryNoteItemAsset::factory()->create(['asset_id' => $asset->id, 'quantity' => 1]);
+        $line = DeliveryNoteItem::factory()->create(['item_id' => null, 'asset_id' => $asset->id, 'quantity' => 1]);
 
         (new ReturnAssetFromRent(app(AssetMovementService::class)))->handle(new AssetRentalReturnApproved($line));
 
@@ -59,7 +59,7 @@ class ReturnAssetFromRentTest extends TestCase {
             'status'          => [FormStatus::IN_RENT],
             'rental_quantity' => 1,
         ]);
-        $line = DeliveryNoteItemAsset::factory()->create(['asset_id' => $asset->id, 'quantity' => 1]);
+        $line = DeliveryNoteItem::factory()->create(['item_id' => null, 'asset_id' => $asset->id, 'quantity' => 1]);
 
         (new ReturnAssetFromRent(app(AssetMovementService::class)))->handle(new AssetRentalReturnApproved($line));
 

@@ -13,7 +13,6 @@ export default function ItemForm({ getColumn }) {
             {getColumn("price")}
           </div>
           {getColumn("description", { rows: 3 })}
-          {getColumn("asset_lines")}
         </div>
       </FormPageContent>
     </>

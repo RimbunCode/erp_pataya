@@ -1,7 +1,7 @@
 import { FormPageContent, useFormPage } from "@/Pages/Core/FormPage";
 import React, { useMemo } from "react";
 
-import AssetLinkModel from "@/Pages/Asset/Assets/AssetLinkModel";
+import AssetItemsSection from "@/Pages/Asset/Components/AssetItemsSection";
 import BranchLinkModel from "@/Pages/Settings/Branches/BranchLinkModel";
 import NumberInput from "@/Components/NumberInput";
 import CustomerLinkModel from "@/Pages/Sales/Customers/CustomerLinkModel";
@@ -13,9 +13,11 @@ import FormTable from "@/Components/FormTable";
 import ItemUnitLinkModel from "@/Pages/Inventory/Items/ItemUnitLinkModel";
 import LinkModel from "@/Components/LinkModel";
 import PermissionLinkModel from "@/Pages/Core/PermissionLinkModel";
+import SalesOrderItemLinkModel from "@/Pages/Sales/SalesOrders/SalesOrderItemLinkModel";
 import { Textarea } from "@/Components/ui/textarea";
 import WarehouseLinkModel from "@/Pages/Inventory/Warehouses/WarehouseLinkModel";
 import { generateRandom } from "@/lib/utils";
+import { partitionRowsByAssetId } from "@/lib/assetItems";
 import { useLaravelReactI18n } from "laravel-react-i18n";
 
 export default function Form() {
@@ -28,244 +30,201 @@ export default function Form() {
       trackDefaultValue: false,
     },
   );
-  const itemColumns = useMemo(() => {
-    return [
-      {
-        name: "item",
-        titleTrans: "inventory.deliveryNote.columns.item",
-        required: true,
-        width: 2,
-        cell({ dataRow, setData, attributes }) {
-          const referenceItemModel = (data.reference_to?.model ?? "") + "Item";
-          return (
-            <LinkModel
-              model={referenceItemModel}
-              disabledAddButton
-              placeholder={t("inventory.deliveryNote.columns.item.placeholder")}
-              value={
-                dataRow.referenceable ??
-                (dataRow.referenceable_id
-                  ? { id: dataRow.referenceable_id }
-                  : null)
-              }
-              disabled={!data.referenceable}
-              onValueChange={(val) => {
-                setData({
-                  referenceable: val,
-                  referenceable_id: val?.id,
-                  referenceable_type: referenceItemModel,
-                  // item TIDAK disimpan — item_id diambil backend dari referenceable
-                  unit: val?.unit,
-                  source_warehouse: val?.source_warehouse,
-                  conversion_factor: val?.conversion_factor,
-                  quantity: val?.undelivered_quantity,
-                  required_quantity: val?.undelivered_quantity,
-                });
-              }}
-              {...attributes}
-              as="item:item.item_id"
-              canNavigation="App\Models\Inventory\Item"
-              filters={{
-                ...(data.reference_to?.model ===
-                "App\\Models\\Sales\\SalesOrder"
-                  ? { sales_order_id: data?.referenceable?.id }
-                  : { internal_order_id: data?.referenceable?.id }),
-                undelivered_quantity: { ">": 0 },
-              }}
-              with={[
-                "item",
-                "unit",
-                "sourceWarehouse",
-                "sourceWarehouse.branch",
-              ]}
-              fields={[
-                "undelivered_quantity",
-                "conversion_factor",
-                "source_warehouse",
-              ]}
-            />
-          );
-        },
-      },
-      {
-        name: "description",
-        titleTrans: "inventory.deliveryNote.columns.description",
-        show: false,
-        type: "text",
-        width: 2,
-        cell({ dataRow, data, setData, attributes }) {
-          return (
-            <Textarea
-              disabled={!dataRow?.referenceable}
-              rows={1}
-              value={data ?? ""}
-              onChange={(e) => setData("description", e.target.value)}
-              {...attributes}
-            />
-          );
-        },
-      },
-      {
-        name: "source_warehouse",
-        titleTrans: "inventory.deliveryNote.columns.source_warehouse",
-        show: true,
-        type: "text",
-        width: 2,
-        required: true,
-        cell({ dataRow, data, setData, attributes }) {
-          return (
-            <WarehouseLinkModel
-              disabled={!dataRow?.referenceable}
-              placeholder={t(
-                "inventory.deliveryNote.columns.source_warehouse.placeholder",
-              )}
-              value={data}
-              onValueChange={(val) => setData("source_warehouse", val)}
-              {...attributes}
-            />
-          );
-        },
-      },
-      {
-        name: "quantity",
-        titleTrans: "inventory.deliveryNote.columns.quantity",
-        required: true,
-        type: "number",
-        width: 1,
-        cell({ dataRow, data, setData, attributes }) {
-          return (
-            <NumberInput
-              {...attributes}
-              disabled={!dataRow?.referenceable}
-              readOnly={false}
-              value={data}
-              onValueChange={(value) => {
-                setData("quantity", value);
-              }}
-              max={dataRow.required_quantity}
-            />
-          );
-        },
-      },
-      {
-        name: "unit",
-        titleTrans: "inventory.deliveryNote.columns.unit",
-        required: true,
-        cell({ data, setData, attributes, dataRow }) {
-          return (
-            <ItemUnitLinkModel
-              disabled={!dataRow?.referenceable}
-              placeholder={t("inventory.deliveryNote.columns.unit.placeholder")}
-              value={data}
-              onValueChange={(val) =>
-                setData({
-                  unit: val,
-                  conversion_factor: val?.conversion_factor,
-                })
-              }
-              {...attributes}
-              filters={{
-                item_id:
-                  dataRow?.referenceable?.item?.id ??
-                  dataRow?.referenceable?.item_id ??
-                  dataRow?.item?.id,
-              }}
-            />
-          );
-        },
-      },
-      {
-        name: "asset_lines",
-        titleTrans: "inventory.deliveryNote.columns.asset_lines",
-        show: false,
-        width: 3,
-        cell({ dataRow, data, setData, attributes }) {
-          const itemId =
-            dataRow?.referenceable?.item?.item_id ??
-            dataRow?.referenceable?.item_id;
-          const isFixedAsset = !!dataRow?.referenceable?.item?.is_fixed_asset;
-          if (!isFixedAsset) {
-            return <span className="text-muted-foreground">-</span>;
-          }
-          const totalAssetQuantity = (data ?? []).reduce(
-            (sum, line) => sum + (Number(line.quantity) || 0),
-            0,
-          );
-          const mismatch = totalAssetQuantity !== (dataRow.quantity ?? 0);
-          return (
-            <div className="flex w-full flex-col gap-y-1">
-              <FormTable
-                name="DeliveryNoteItemAssetLines"
-                ignoreDisabled
-                readOnly={attributes.readOnly}
-                columns={[
-                  {
-                    name: "asset",
-                    titleTrans:
-                      "inventory.deliveryNote.columns.asset_lines.asset",
-                    required: true,
-                    width: 2,
-                    cell({
-                      dataRow: _assetRow,
-                      data: assetData,
-                      setData: setAssetData,
-                      attributes: assetAttrs,
-                    }) {
-                      return (
-                        <AssetLinkModel
-                          placeholder={t(
-                            "inventory.deliveryNote.columns.asset_lines.asset.placeholder",
-                          )}
-                          value={assetData}
-                          onValueChange={(val) => setAssetData("asset", val)}
-                          {...assetAttrs}
-                          filters={{
-                            item_id: itemId,
-                            available_quantity: { ">": 0 },
-                          }}
-                        />
-                      );
-                    },
-                  },
-                  {
-                    name: "quantity",
-                    titleTrans:
-                      "inventory.deliveryNote.columns.asset_lines.quantity",
-                    required: true,
-                    type: "number",
-                    width: 1,
-                    cell({
-                      data: qty,
-                      setData: setAssetData,
-                      attributes: assetAttrs,
-                    }) {
-                      return (
-                        <NumberInput
-                          {...assetAttrs}
-                          value={qty}
-                          onValueChange={(val) => setAssetData("quantity", val)}
-                        />
-                      );
-                    },
-                  },
+  // Sumber baris dipilih lewat link model dokumen; untuk Sales Order, wrapper
+  // SalesOrderItemLinkModel mendukung template link yang menampilkan Asset.
+  const [itemColumns, assetItemColumns] = useMemo(() => {
+    const buildItemColumns = (kind) => {
+      const columns = [
+        {
+          name: "item",
+          titleTrans:
+            kind === "asset"
+              ? "asset.assetItems.asset"
+              : "inventory.deliveryNote.columns.item",
+          required: true,
+          width: 2,
+          cell({ dataRow, setData, attributes }) {
+            const referenceItemModel =
+              (data.reference_to?.model ?? "") + "Item";
+            const SourceItemLinkModel =
+              data.reference_to?.model === "App\\Models\\Sales\\SalesOrder"
+                ? SalesOrderItemLinkModel
+                : LinkModel;
+            return (
+              <SourceItemLinkModel
+                model={referenceItemModel}
+                disabledAddButton
+                placeholder={t(
+                  "inventory.deliveryNote.columns.item.placeholder",
+                )}
+                value={
+                  dataRow.referenceable ??
+                  (dataRow.referenceable_id
+                    ? { id: dataRow.referenceable_id }
+                    : null)
+                }
+                disabled={!data.referenceable}
+                onValueChange={(val) => {
+                  setData({
+                    referenceable: val,
+                    referenceable_id: val?.id,
+                    referenceable_type: referenceItemModel,
+                    item: val?.item ?? null,
+                    asset: val?.asset ?? null,
+                    asset_id: val?.asset_id ?? null,
+                    unit: kind === "asset" ? null : val?.unit,
+                    source_warehouse:
+                      kind === "asset" ? null : val?.source_warehouse,
+                    conversion_factor:
+                      kind === "asset" ? 1 : val?.conversion_factor,
+                    quantity: val?.undelivered_quantity,
+                    required_quantity: val?.undelivered_quantity,
+                  });
+                }}
+                {...attributes}
+                as={kind === "asset" ? "asset:asset_id" : "item:item.item_id"}
+                canNavigation={
+                  kind === "asset"
+                    ? "App\Models\Asset\Asset"
+                    : "App\Models\Inventory\Item"
+                }
+                filters={{
+                  ...(data.reference_to?.model ===
+                  "App\\Models\\Sales\\SalesOrder"
+                    ? { sales_order_id: data?.referenceable?.id }
+                    : { internal_order_id: data?.referenceable?.id }),
+                  undelivered_quantity: { ">": 0 },
+                  ...(data.reference_to?.model ===
+                  "App\\Models\\Sales\\SalesOrder"
+                    ? { asset_id: kind === "asset" ? { "!=": null } : null }
+                    : {}),
+                }}
+                with={[
+                  "item",
+                  "unit",
+                  ...(data.reference_to?.model ===
+                  "App\\Models\\Sales\\SalesOrder"
+                    ? ["asset"]
+                    : []),
+                  ...(kind === "item"
+                    ? ["sourceWarehouse", "sourceWarehouse.branch"]
+                    : []),
                 ]}
-                value={data ?? []}
-                onValueChange={(v) => setData("asset_lines", v)}
+                fields={[
+                  "undelivered_quantity",
+                  "conversion_factor",
+                  ...(data.reference_to?.model ===
+                  "App\\Models\\Sales\\SalesOrder"
+                    ? ["asset_id"]
+                    : []),
+                  ...(kind === "item" ? ["source_warehouse"] : []),
+                ]}
               />
-              {mismatch && (
-                <p className="text-xs text-destructive">
-                  {t(
-                    "inventory.deliveryNote.columns.asset_lines.quantity_mismatch",
-                    { quantity: dataRow.quantity ?? 0 },
-                  )}
-                </p>
-              )}
-            </div>
-          );
+            );
+          },
         },
-      },
-    ];
+        {
+          name: "description",
+          titleTrans: "inventory.deliveryNote.columns.description",
+          show: false,
+          type: "text",
+          width: 2,
+          cell({ dataRow, data, setData, attributes }) {
+            return (
+              <Textarea
+                disabled={!dataRow?.referenceable}
+                rows={1}
+                value={data ?? ""}
+                onChange={(e) => setData("description", e.target.value)}
+                {...attributes}
+              />
+            );
+          },
+        },
+        {
+          name: "source_warehouse",
+          titleTrans: "inventory.deliveryNote.columns.source_warehouse",
+          show: true,
+          type: "text",
+          width: 2,
+          required: true,
+          cell({ dataRow, data, setData, attributes }) {
+            return (
+              <WarehouseLinkModel
+                disabled={!dataRow?.referenceable}
+                placeholder={t(
+                  "inventory.deliveryNote.columns.source_warehouse.placeholder",
+                )}
+                value={data}
+                onValueChange={(val) => setData("source_warehouse", val)}
+                {...attributes}
+              />
+            );
+          },
+        },
+        {
+          name: "quantity",
+          titleTrans: "inventory.deliveryNote.columns.quantity",
+          required: true,
+          type: "number",
+          width: 1,
+          cell({ dataRow, data, setData, attributes }) {
+            return (
+              <NumberInput
+                {...attributes}
+                disabled={!dataRow?.referenceable}
+                readOnly={false}
+                value={data}
+                onValueChange={(value) => {
+                  setData("quantity", value);
+                }}
+                max={dataRow.required_quantity}
+              />
+            );
+          },
+        },
+        {
+          name: "unit",
+          titleTrans: "inventory.deliveryNote.columns.unit",
+          required: true,
+          cell({ data, setData, attributes, dataRow }) {
+            return (
+              <ItemUnitLinkModel
+                disabled={!dataRow?.referenceable}
+                placeholder={t(
+                  "inventory.deliveryNote.columns.unit.placeholder",
+                )}
+                value={data}
+                onValueChange={(val) =>
+                  setData({
+                    unit: val,
+                    conversion_factor: val?.conversion_factor,
+                  })
+                }
+                {...attributes}
+                filters={{
+                  item_id:
+                    kind === "asset"
+                      ? (dataRow?.referenceable?.asset?.item_id ??
+                        dataRow?.asset?.item_id)
+                      : (dataRow?.referenceable?.item?.item_id ??
+                        dataRow?.item?.item_id),
+                }}
+              />
+            );
+          },
+        },
+      ];
+      return kind === "asset"
+        ? columns.filter(
+            ({ name }) => name !== "source_warehouse" && name !== "unit",
+          )
+        : columns;
+    };
+
+    return [buildItemColumns("item"), buildItemColumns("asset")];
   }, [data, t]);
+
   return (
     <>
       <FormPageContent
@@ -316,6 +275,7 @@ export default function Form() {
                       customer: val ? prev.customer : null,
                       customer_branch: val ? prev.customer_branch : null,
                       items: val ? prev.items : null,
+                      asset_items: val ? prev.asset_items : null,
                     }));
                   }}
                 />
@@ -349,12 +309,20 @@ export default function Form() {
                       ? ["customer", "customerBranch"]
                       : ["branch"]),
                     "items.item",
+                    ...(data.reference_to?.model ===
+                    "App\\Models\\Sales\\SalesOrder"
+                      ? ["items.asset"]
+                      : []),
                     "items.unit",
                     "items.sourceWarehouse",
                     "items.sourceWarehouse.branch",
                   ]}
                   fields={[
                     "items.item",
+                    ...(data.reference_to?.model ===
+                    "App\\Models\\Sales\\SalesOrder"
+                      ? ["items.asset_id"]
+                      : []),
                     "items.unit",
                     "items.source_warehouse",
                     "items.quantity",
@@ -364,6 +332,23 @@ export default function Form() {
                   ]}
                   value={data.referenceable}
                   onValueChange={(val) => {
+                    // Spec asset-items-section: baris dihitung sekali di luar updater
+                    // supaya bisa dipakai lookup flag aset tetap di bawah.
+                    const referenceableRows = val?.items?.map((item) => {
+                      return {
+                        ...item,
+                        id: generateRandom(8),
+                        referenceable: item,
+                        referenceable_type: data.reference_to?.model + "Item",
+                        referenceable_id: item.id,
+                        source_warehouse: item.asset_id
+                          ? null
+                          : item.source_warehouse,
+                        quantity: item.undelivered_quantity ?? 0,
+                        required_quantity: item.undelivered_quantity ?? 0,
+                      };
+                    });
+                    const parts = partitionRowsByAssetId(referenceableRows);
                     setData((prev) => {
                       return {
                         ...prev,
@@ -372,19 +357,8 @@ export default function Form() {
                         referenceable_id: val?.id,
                         customer: val?.customer,
                         customer_branch: val?.customer_branch ?? val?.branch,
-                        items: val?.items?.map((item) => {
-                          return {
-                            ...item,
-                            id: generateRandom(8),
-                            referenceable: item,
-                            referenceable_type:
-                              data.reference_to?.model + "Item",
-                            referenceable_id: item.id,
-                            source_warehouse: item.source_warehouse,
-                            quantity: item.undelivered_quantity ?? 0,
-                            required_quantity: item.undelivered_quantity ?? 0,
-                          };
-                        }),
+                        items: parts.items,
+                        asset_items: parts.asset_items,
                         external_note: val?.external_note,
                       };
                     });
@@ -415,6 +389,7 @@ export default function Form() {
                   customer: undefined,
                   customer_branch: undefined,
                   items: [],
+                  asset_items: [],
                 }))
               }
             />
@@ -442,11 +417,21 @@ export default function Form() {
                     "customerBranch",
                     "items",
                     "items.referenceable",
+                    "items.asset",
                     "items.unit",
                     "items.sourceWarehouse",
                   ]}
+                  fields={["items.asset_id"]}
                   value={data.return_against}
                   onValueChange={(val) => {
+                    const returnRows = val?.items?.map((item) => ({
+                      ...item,
+                      id: generateRandom(8),
+                      return_against_item: item,
+                      quantity: item.unreturned_quantity,
+                      required_quantity: item.unreturned_quantity,
+                    }));
+                    const parts = partitionRowsByAssetId(returnRows);
                     setData((prev) => ({
                       ...prev,
                       return_against: val,
@@ -454,13 +439,8 @@ export default function Form() {
                       referenceable: val?.referenceable,
                       customer: val?.customer,
                       customer_branch: val?.customer_branch,
-                      items: val?.items?.map((item) => ({
-                        ...item,
-                        id: generateRandom(8),
-                        return_against_item: item,
-                        quantity: item.unreturned_quantity,
-                        required_quantity: item.unreturned_quantity,
-                      })),
+                      items: parts.items,
+                      asset_items: parts.asset_items,
                     }));
                   }}
                 />
@@ -528,6 +508,23 @@ export default function Form() {
           </div>
         </div>
       </FormPageContent>
+      {/* Spec asset-items-section: transaksi aset dipisah dari barang biasa. Section
+          tertutup kecuali dokumen sudah punya baris aset saat dimuat. */}
+      {data.reference_to?.model === "App\\Models\\Sales\\SalesOrder" && (
+        <AssetItemsSection
+          hasRows={(defaultData?.asset_items?.length ?? 0) > 0}
+        >
+          <div className="grid grid-cols-2 gap-x-4 gap-y-4">
+            <FormTable
+              name="DeliveryNoteAssetItems"
+              className="col-start-1 col-span-2"
+              columns={assetItemColumns}
+              value={data?.asset_items ?? []}
+              onValueChange={(v) => setData("asset_items", v)}
+            />
+          </div>
+        </AssetItemsSection>
+      )}
       <FormPageContent value="detail" title={t("inventory.deliveryNote.items")}>
         <div className="grid grid-cols-2 gap-x-4 gap-y-4">
           <FormTable

@@ -14,6 +14,7 @@ use App\Models\User\RolePermission;
 use App\Models\User\User;
 use BeyondCode\QueryDetector\QueryDetectorMiddleware;
 use Illuminate\Foundation\Testing\RefreshDatabase;
+use Illuminate\Support\Carbon;
 use Tests\TestCase;
 
 class DeskControllerTest extends TestCase {
@@ -596,6 +597,38 @@ class DeskControllerTest extends TestCase {
         $pivots = DeskMenuItem::where('desk_id', $desk->id)->get();
         $this->assertCount(1, $pivots);
         $this->assertSame($menuItemB->id, $pivots->first()->menu_item_id);
+    }
+
+    /**
+     * Kunci cache sidebar (ResolveActiveDesk, once prop) memuat ULID terbesar baris
+     * pivot desk_menu_item. Token itu hanya bisa diandalkan kalau tiap simpan menu
+     * membuat ulang baris (ULID baru yang lebih besar) -- walau isinya identik dan
+     * walau dua simpan terjadi pada detik yang sama.
+     */
+    public function test_each_menu_save_recreates_pivot_rows_with_a_larger_ulid(): void {
+        Carbon::setTestNow(Carbon::parse('2026-10-10 10:00:00'));
+        $user = User::factory()->create();
+        $desk = Desk::factory()->create(['type' => DeskType::Custom, 'owner_id' => $user->id]);
+        $item = MenuItem::factory()->create();
+
+        $previousMax = null;
+        foreach (range(1, 3) as $_) {
+            $this->actingAs($user)
+                ->withCookie('lang', 'en')
+                ->put(route('desks.update', $desk), [
+                    'name'       => $desk->name,
+                    'icon'       => $desk->icon,
+                    'menu_items' => [['menu_item_id' => $item->id]],
+                ])
+                ->assertRedirect();
+
+            $max = DeskMenuItem::where('desk_id', $desk->id)->max('id');
+            $this->assertNotNull($max);
+            if ($previousMax !== null) {
+                $this->assertGreaterThan($previousMax, $max, 'simpan ulang harus menghasilkan ULID pivot yang lebih besar');
+            }
+            $previousMax = $max;
+        }
     }
 
     public function test_update_rejects_child_as_virtual_group(): void {

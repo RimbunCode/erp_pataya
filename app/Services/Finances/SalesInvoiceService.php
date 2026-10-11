@@ -20,6 +20,7 @@ use App\Models\Inventory\ItemUnit;
 use App\Models\Model;
 use App\Models\Sales\Customer;
 use App\Models\Sales\SalesOrderItem;
+use App\Services\Asset\AssetItems\AssetItemPartitioner;
 use App\Traits\HasDefaultDelete;
 use App\Utils;
 use Illuminate\Support\Facades\DB;
@@ -64,10 +65,12 @@ class SalesInvoiceService implements SubmitableService {
     private function fillItemRelations(array $data, SalesInvoice $salesInvoice, array $units = [], array $taxes = [], array $salesOrderItems = []) {
         $data['sales_order_item_id'] = $data['sales_order_item']['id'];
         $data['item_id']             = $salesOrderItems[$data['sales_order_item_id']]->item_id;
+        $data['asset_id']            = $salesOrderItems[$data['sales_order_item_id']]->asset_id;
 
-        $unit                       = $units[$data['unit']['id']] ?? null;
+        $unitId                     = $data['asset_id'] ? null : ($data['unit']['id'] ?? null);
+        $unit                       = $units[$unitId] ?? null;
         $tax                        = $taxes[$data['tax']['id'] ?? ''] ?? null;
-        $data['item_unit_id']       = $data['unit']['id'];
+        $data['item_unit_id']       = $unitId;
         $data['conversion_factor']  = $unit?->conversion_factor ?? 1;
         $data['tax_id']             = $data['tax']['id'] ?? null;
         $data['tax_rate']           = $tax?->rate ?? 0;
@@ -110,6 +113,8 @@ class SalesInvoiceService implements SubmitableService {
     }
 
     public function create(array $data): Model {
+        // Spec asset-items-section: `items` + `asset_items` digabung di satu titik.
+        $data         = AssetItemPartitioner::mergePayload($data);
         $data['code'] = FormatingSeries::generate(SalesInvoice::class, $data, true);
         $salesInvoice = SalesInvoice::create($this->fillRelations($data));
 
@@ -142,6 +147,7 @@ class SalesInvoiceService implements SubmitableService {
     }
 
     public function update(Model $salesInvoice, array $data): Model {
+        $data = AssetItemPartitioner::mergePayload($data);
         $salesInvoice->fillForUpdate($this->fillRelations($data), true);
         $salesInvoice->items()
             ->whereNotIn('id', array_column($data['items'], 'id'))
@@ -266,7 +272,7 @@ class SalesInvoiceService implements SubmitableService {
                 'returnAgainst',
                 'items.returnAgainstItem',
                 'items.salesOrderItem',
-                'items.assetLines',
+                'items.asset',
             ]);
 
             $returnAgainst = $salesInvoice->returnAgainst;
@@ -285,10 +291,8 @@ class SalesInvoiceService implements SubmitableService {
                     $returnAgainst ? $item->returnAgainstItem : null,
                 ));
 
-                // Requirement 3.4, spec asset-rental-migration: baris jual-putus Asset
-                // yang sudah py assetLines saat approve — dispatch gain/loss langsung.
-                foreach ($item->assetLines as $line) {
-                    event(new AssetSoldViaInvoice($line));
+                if ($item->asset_id) {
+                    event(new AssetSoldViaInvoice($item));
                 }
             }
             // basic_amount/tax_amount item sudah net (dikurangi discount_amount) sejak

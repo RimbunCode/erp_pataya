@@ -3,6 +3,7 @@
 namespace App\Models\Finances;
 
 use App\Enums\Permission;
+use App\Models\Asset\Asset;
 use App\Models\Inventory\ItemUnit;
 use App\Models\Inventory\ItemVariant;
 use App\Models\Model;
@@ -10,6 +11,7 @@ use App\Models\Sales\SalesOrder;
 use App\Models\Sales\SalesOrderItem;
 use Illuminate\Database\Eloquent\Concerns\HasUlids;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
+use Illuminate\Database\Eloquent\Relations\BelongsTo;
 use Illuminate\Database\Eloquent\SoftDeletes;
 
 class SalesInvoiceItem extends Model {
@@ -43,6 +45,14 @@ class SalesInvoiceItem extends Model {
             'type'  => 'relation',
             'show'  => true,
             'order' => 0,
+        ],
+        'asset' => [
+            'type' => 'relation',
+            'show' => false,
+        ],
+        'asset_id' => [
+            'hidden'   => true,
+            'linkable' => true,
         ],
         'quantity' => [
             'type'  => 'numeric',
@@ -171,7 +181,7 @@ class SalesInvoiceItem extends Model {
         return $this->belongsTo(ItemVariant::class, 'item_id');
     }
 
-    public function assetLines() {
-        return $this->hasMany(SalesInvoiceItemAsset::class);
+    public function asset(): BelongsTo {
+        return $this->belongsTo(Asset::class);
     }
 }

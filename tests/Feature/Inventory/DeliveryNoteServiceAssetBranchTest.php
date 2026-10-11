@@ -9,9 +9,7 @@ use App\Models\Asset\AssetMovement;
 use App\Models\Core\FormatingSeries;
 use App\Models\Inventory\DeliveryNote;
 use App\Models\Inventory\DeliveryNoteItem;
-use App\Models\Inventory\DeliveryNoteItemAsset;
 use App\Models\Inventory\Item;
-use App\Models\Inventory\ItemVariant;
 use App\Models\Inventory\StockLedgerEntry;
 use App\Models\Sales\Customer;
 use App\Models\Sales\SalesOrder;
@@ -61,18 +59,14 @@ class DeliveryNoteServiceAssetBranchTest extends TestCase {
         ]);
     }
 
-    private function makeFixedAssetItemVariant(string $itemId): ItemVariant {
-        return ItemVariant::factory()->create(['item_id' => $itemId]);
-    }
-
-    private function makeDeliveryNoteWithAssetLine(bool $isRent, Asset $asset, ?DeliveryNote $returnAgainst = null): DeliveryNote {
+    private function makeDeliveryNoteWithAssetRow(bool $isRent, Asset $asset, ?DeliveryNote $returnAgainst = null): DeliveryNote {
         DeliveryNote::initPermissions();
-        $salesOrder  = $this->makeSalesOrder($isRent);
-        $itemVariant = $this->makeFixedAssetItemVariant($asset->item_id);
+        $salesOrder = $this->makeSalesOrder($isRent);
 
         $soItem = SalesOrderItem::create([
             'sales_order_id' => $salesOrder->id,
-            'item_id'        => $itemVariant->id,
+            'item_id'        => null,
+            'asset_id'       => $asset->id,
             'quantity'       => 1,
             'price'          => 0,
         ]);
@@ -93,17 +87,12 @@ class DeliveryNoteServiceAssetBranchTest extends TestCase {
 
         $dnItem = DeliveryNoteItem::create([
             'delivery_note_id'   => $deliveryNote->id,
-            'item_id'            => $itemVariant->id,
+            'item_id'            => null,
+            'asset_id'           => $asset->id,
             'referenceable_type' => SalesOrderItem::class,
             'referenceable_id'   => $soItem->id,
             'quantity'           => 1,
             'valuation_rates'    => [],
-        ]);
-
-        DeliveryNoteItemAsset::factory()->create([
-            'delivery_note_item_id' => $dnItem->id,
-            'asset_id'              => $asset->id,
-            'quantity'              => 1,
         ]);
 
         return $deliveryNote;
@@ -115,7 +104,7 @@ class DeliveryNoteServiceAssetBranchTest extends TestCase {
         $category = AssetCategory::factory()->create();
         $asset    = Asset::factory()->rentable()->create(['asset_category_id' => $category->id, 'item_id' => $item->id, 'status' => [FormStatus::ACTIVE]]);
 
-        $deliveryNote = $this->makeDeliveryNoteWithAssetLine(true, $asset);
+        $deliveryNote = $this->makeDeliveryNoteWithAssetRow(true, $asset);
 
         (new DeliveryNoteService)->onApproved($deliveryNote->fresh());
 
@@ -133,7 +122,7 @@ class DeliveryNoteServiceAssetBranchTest extends TestCase {
         $category = AssetCategory::factory()->create();
         $asset    = Asset::factory()->rentable()->create(['asset_category_id' => $category->id, 'item_id' => $item->id, 'status' => [FormStatus::ACTIVE]]);
 
-        $deliveryNote = $this->makeDeliveryNoteWithAssetLine(false, $asset);
+        $deliveryNote = $this->makeDeliveryNoteWithAssetRow(false, $asset);
 
         (new DeliveryNoteService)->onApproved($deliveryNote->fresh());
 
@@ -148,7 +137,7 @@ class DeliveryNoteServiceAssetBranchTest extends TestCase {
         $category = AssetCategory::factory()->create();
         $asset    = Asset::factory()->create(['asset_category_id' => $category->id, 'item_id' => $item->id, 'status' => [FormStatus::ACTIVE], 'is_rentable' => false]);
 
-        $deliveryNote = $this->makeDeliveryNoteWithAssetLine(true, $asset);
+        $deliveryNote = $this->makeDeliveryNoteWithAssetRow(true, $asset);
 
         $this->expectException(\LogicException::class);
         (new DeliveryNoteService)->onApproved($deliveryNote->fresh());

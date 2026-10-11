@@ -12,6 +12,20 @@ use Illuminate\Support\Facades\Schema;
 class DataTableConfigCache {
     private static array $signatureCache = [];
 
+    /**
+     * Memo per-request hasil flat() per model. Satu request bisa meminta model yang
+     * sama berkali-kali (mis. Branch/User dari beberapa kolom relasi); tanpa memo tiap
+     * panggilan membaca store cache lagi (1 SELECT ke tabel `cache` pada driver database).
+     *
+     * @var array<string, array>
+     */
+    private static array $flatCache = [];
+
+    /** Dipanggil test: static hidup selama seluruh proses PHPUnit. */
+    public static function forgetMemo(): void {
+        self::$flatCache = [];
+    }
+
     public static function signatureFor(string $modelClass): string {
         if (isset(self::$signatureCache[$modelClass])) {
             return self::$signatureCache[$modelClass];
@@ -47,12 +61,16 @@ class DataTableConfigCache {
             return $modelClass::computeColumnsFlat(true);
         }
 
+        if (isset(self::$flatCache[$modelClass])) {
+            return self::$flatCache[$modelClass];
+        }
+
         $signature = static::signatureFor($modelClass);
         $key       = static::cacheKey($modelClass, $signature);
         $ttl       = now()->addSeconds((int) config('datatable.config_cache_ttl_seconds', 86400));
 
         try {
-            return Cache::remember($key, $ttl, function () use ($modelClass) {
+            return self::$flatCache[$modelClass] = Cache::remember($key, $ttl, function () use ($modelClass) {
                 return $modelClass::computeColumnsFlat(true);
             });
         } catch (\Throwable) {
@@ -63,7 +81,7 @@ class DataTableConfigCache {
     public static function forget(string $modelClass): void {
         $signature = static::signatureFor($modelClass);
         Cache::forget(static::cacheKey($modelClass, $signature));
-        unset(self::$signatureCache[$modelClass]);
+        unset(self::$signatureCache[$modelClass], self::$flatCache[$modelClass]);
     }
 
     public static function warm(string $modelClass): array {
@@ -73,6 +91,7 @@ class DataTableConfigCache {
         $ttl       = now()->addSeconds((int) config('datatable.config_cache_ttl_seconds', 86400));
 
         Cache::put($key, $flat, $ttl);
+        self::$flatCache[$modelClass] = $flat;
 
         return $flat;
     }

@@ -9,7 +9,7 @@ use App\Listeners\Asset\Rental\MarkAssetSoldFromDelivery;
 use App\Models\Asset\Asset;
 use App\Models\Asset\AssetMovement;
 use App\Models\Core\FormatingSeries;
-use App\Models\Inventory\DeliveryNoteItemAsset;
+use App\Models\Inventory\DeliveryNoteItem;
 use App\Services\Asset\AssetMovementService;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Illuminate\Support\Facades\DB;
@@ -38,7 +38,7 @@ class MarkAssetSoldFromDeliveryTest extends TestCase {
     #[Test]
     public function handle_adds_sold_quantity_without_gain_loss(): void {
         $asset = Asset::factory()->create(['asset_quantity' => 1, 'status' => [FormStatus::ACTIVE]]);
-        $line  = DeliveryNoteItemAsset::factory()->create(['asset_id' => $asset->id, 'quantity' => 1]);
+        $line  = DeliveryNoteItem::factory()->create(['item_id' => null, 'asset_id' => $asset->id, 'quantity' => 1]);
 
         (new MarkAssetSoldFromDelivery(app(AssetMovementService::class)))->handle(new AssetSoldViaDelivery($line));
 
@@ -52,7 +52,7 @@ class MarkAssetSoldFromDeliveryTest extends TestCase {
     #[Test]
     public function handle_creates_asset_movement_sell(): void {
         $asset = Asset::factory()->create(['asset_quantity' => 1, 'status' => [FormStatus::ACTIVE]]);
-        $line  = DeliveryNoteItemAsset::factory()->create(['asset_id' => $asset->id, 'quantity' => 1]);
+        $line  = DeliveryNoteItem::factory()->create(['item_id' => null, 'asset_id' => $asset->id, 'quantity' => 1]);
 
         (new MarkAssetSoldFromDelivery(app(AssetMovementService::class)))->handle(new AssetSoldViaDelivery($line));
 

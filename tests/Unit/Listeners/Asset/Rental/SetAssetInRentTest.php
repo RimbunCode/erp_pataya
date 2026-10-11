@@ -9,7 +9,7 @@ use App\Listeners\Asset\Rental\SetAssetInRent;
 use App\Models\Asset\Asset;
 use App\Models\Asset\AssetMovement;
 use App\Models\Core\FormatingSeries;
-use App\Models\Inventory\DeliveryNoteItemAsset;
+use App\Models\Inventory\DeliveryNoteItem;
 use App\Services\Asset\AssetMovementService;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Illuminate\Support\Facades\DB;
@@ -38,7 +38,7 @@ class SetAssetInRentTest extends TestCase {
     #[Test]
     public function handle_adds_rented_quantity_and_marks_processed(): void {
         $asset = Asset::factory()->create(['asset_quantity' => 1, 'status' => [FormStatus::ACTIVE]]);
-        $line  = DeliveryNoteItemAsset::factory()->create(['asset_id' => $asset->id, 'quantity' => 1]);
+        $line  = DeliveryNoteItem::factory()->create(['item_id' => null, 'asset_id' => $asset->id, 'quantity' => 1]);
 
         (new SetAssetInRent(app(AssetMovementService::class)))->handle(new AssetRentalDeliveryApproved($line));
 
@@ -51,7 +51,8 @@ class SetAssetInRentTest extends TestCase {
     #[Test]
     public function handle_is_idempotent_when_already_processed(): void {
         $asset = Asset::factory()->create(['asset_quantity' => 1, 'status' => [FormStatus::ACTIVE]]);
-        $line  = DeliveryNoteItemAsset::factory()->create([
+        $line  = DeliveryNoteItem::factory()->create([
+            'item_id'      => null,
             'asset_id'     => $asset->id,
             'quantity'     => 1,
             'processed_at' => now(),
@@ -67,7 +68,7 @@ class SetAssetInRentTest extends TestCase {
     #[Test]
     public function handle_creates_asset_movement_rent_out(): void {
         $asset = Asset::factory()->create(['asset_quantity' => 1, 'status' => [FormStatus::ACTIVE]]);
-        $line  = DeliveryNoteItemAsset::factory()->create(['asset_id' => $asset->id, 'quantity' => 1]);
+        $line  = DeliveryNoteItem::factory()->create(['item_id' => null, 'asset_id' => $asset->id, 'quantity' => 1]);
 
         (new SetAssetInRent(app(AssetMovementService::class)))->handle(new AssetRentalDeliveryApproved($line));
 

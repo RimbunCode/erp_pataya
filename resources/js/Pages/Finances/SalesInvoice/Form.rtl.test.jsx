@@ -1,5 +1,5 @@
 import { describe, expect, it, vi, beforeEach } from "vitest";
-import { render, screen } from "@testing-library/react";
+import { render, screen, waitFor } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 
 // ============================================================================
@@ -65,12 +65,24 @@ let formPageState;
 vi.mock("@/Pages/Core/FormPage", async () => {
   const React = await import("react");
   return {
-    FormPageContent: ({ title, children }) => (
-      <div>
-        {title && <h3>{title}</h3>}
-        {children}
-      </div>
-    ),
+    // Spec asset-items-section: props tiap section ditangkap per title supaya test
+    // bisa memeriksa collapsible/defaultOpen section Asset Items.
+    FormPageContent: (props) => {
+      const { title, children } = props;
+      if (title) {
+        globalThis.__contentProps = {
+          ...globalThis.__contentProps,
+          [title]: props,
+        };
+      }
+      return (
+        <div>
+          {title && <h3>{title}</h3>}
+          {children}
+        </div>
+      );
+    },
+    FormPageContentDescription: ({ children }) => <p>{children}</p>,
     FormPageContentTitle: ({ children, ...props }) => (
       <div {...props}>{children}</div>
     ),
@@ -234,14 +246,25 @@ function makeFormPageState(overrides = {}) {
     setData: overrides.setData ?? vi.fn(),
     disabled: overrides.disabled ?? false,
     dataBefore: overrides.dataBefore,
+    defaultData: overrides.defaultData,
   };
   return state;
+}
+
+// Spec asset-items-section: Form merender DUA FormTable (Asset Items lebih dulu, lalu
+// Items). Props diambil per `name`, dari render TERAKHIR tabel tersebut.
+function tableProps(name) {
+  const calls = formTablePropsSpy.mock.calls
+    .map(([props]) => props)
+    .filter((props) => props.name === name);
+  return calls[calls.length - 1];
 }
 
 describe("SalesInvoice Form", () => {
   beforeEach(() => {
     vi.clearAllMocks();
     globalThis.__linkModelPayloads = {};
+    globalThis.__contentProps = {};
     usePageMock.mockReturnValue({
       props: { preferences: { default_currency_id: "idr" } },
     });
@@ -465,6 +488,8 @@ describe("SalesInvoice Form", () => {
       expect(result.discount_rate).toBe(10);
       expect(result.exchange_rate).toBe(15000);
       expect(result.external_note).toBe("Catatan SO");
+      // Spec asset-items-section: pilihan SO baru mengosongkan Asset Items.
+      expect(result.asset_items).toEqual([]);
     });
   });
 
@@ -517,6 +542,8 @@ describe("SalesInvoice Form", () => {
       expect(resetCall.sales_order).toBeUndefined();
       expect(resetCall.customer).toBeUndefined();
       expect(resetCall.items).toEqual([]);
+      // Spec asset-items-section: toggle is_return juga mereset tabel Asset Items.
+      expect(resetCall.asset_items).toEqual([]);
     });
   });
 
@@ -553,6 +580,7 @@ describe("SalesInvoice Form", () => {
       expect(result.items[0]).toEqual(
         expect.objectContaining({ return_against_item_id: 300 }),
       );
+      expect(result.asset_items).toEqual([]);
     });
 
     it("debit_account fallback ke prev.debit_account saat return_against tidak membawa debit_account", async () => {
@@ -587,7 +615,7 @@ describe("SalesInvoice Form", () => {
       });
       render(<Form />);
 
-      const { mapItem } = formTablePropsSpy.mock.calls[0][0];
+      const { mapItem } = tableProps("SalesInvoiceItems");
       const item = { id: 1, quantity: 2, price: 500, tax: { rate: 11 } };
       const result = mapItem({ item, dataTable: [item], index: 0 });
 
@@ -614,7 +642,7 @@ describe("SalesInvoice Form", () => {
       });
       render(<Form />);
 
-      const { mapItem } = formTablePropsSpy.mock.calls[0][0];
+      const { mapItem } = tableProps("SalesInvoiceItems");
       const rows = [
         { id: 1, quantity: 1, price: 1000, tax: { rate: 11 } },
         { id: 2, quantity: 1, price: 1000, tax: { rate: 11 } },
@@ -632,7 +660,7 @@ describe("SalesInvoice Form", () => {
       formPageState = makeFormPageState({ data: { items }, dataBefore });
       render(<Form />);
 
-      const props = formTablePropsSpy.mock.calls[0][0];
+      const props = tableProps("SalesInvoiceItems");
       expect(props.value).toBe(items);
       expect(props.valueBefore).toBe(dataBefore.items);
       expect(props.name).toBe("SalesInvoiceItems");
@@ -646,7 +674,7 @@ describe("SalesInvoice Form", () => {
       });
       render(<Form />);
 
-      const itemColumns = formTablePropsSpy.mock.calls[0][0].columns;
+      const itemColumns = tableProps("SalesInvoiceItems").columns;
       const itemCol = itemColumns.find((c) => c.name === "item");
       const setDataRow = vi.fn();
       const cellUi = itemCol.cell({
@@ -683,7 +711,7 @@ describe("SalesInvoice Form", () => {
       });
       render(<Form />);
 
-      const itemColumns = formTablePropsSpy.mock.calls[0][0].columns;
+      const itemColumns = tableProps("SalesInvoiceItems").columns;
       const itemCol = itemColumns.find((c) => c.name === "item");
       const cellUi = itemCol.cell({
         dataRow: { id: 1 },
@@ -705,5 +733,435 @@ describe("SalesInvoice Form", () => {
 
     const props = paymentSchedulePropsSpy.mock.calls[0][0];
     expect(props.readOnly).toBe(true);
+  });
+
+  // --------------------------------------------------------------------
+  // Spec asset-items-section: section Asset Items terpisah dari Items
+  // --------------------------------------------------------------------
+  describe("section Asset Items (spec asset-items-section)", () => {
+    const ASSET_ITEMS_TITLE = "asset.assetItems.title";
+    const ASSET_TABLE = "SalesInvoiceAssetItems";
+    const ITEMS_TABLE = "SalesInvoiceItems";
+
+    const itemColumnOf = (table) =>
+      tableProps(table).columns.find((c) => c.name === "item");
+
+    it("merender section Asset Items collapsible dengan title dan description tepat di atas Items", () => {
+      formPageState = makeFormPageState({
+        data: { items: [], asset_items: [] },
+      });
+      render(<Form />);
+
+      expect(screen.getByText(ASSET_ITEMS_TITLE)).toBeInTheDocument();
+      expect(
+        screen.getByText("asset.assetItems.description"),
+      ).toBeInTheDocument();
+      expect(globalThis.__contentProps[ASSET_ITEMS_TITLE].collapsible).toBe(
+        true,
+      );
+
+      const headings = screen
+        .getAllByRole("heading", { level: 3 })
+        .map((heading) => heading.textContent);
+      expect(headings.indexOf(ASSET_ITEMS_TITLE)).toBe(
+        headings.indexOf("finances.salesInvoice.items") - 1,
+      );
+    });
+
+    it("tertutup default saat belum ada baris aset, terbuka saat defaultData punya asset_items", () => {
+      formPageState = makeFormPageState({
+        data: { items: [], asset_items: [] },
+      });
+      const { unmount } = render(<Form />);
+      expect(globalThis.__contentProps[ASSET_ITEMS_TITLE].defaultOpen).toBe(
+        false,
+      );
+      unmount();
+
+      const assetRow = { id: "a1", item: { id: "V2" } };
+      formPageState = makeFormPageState({
+        data: { items: [], asset_items: [assetRow] },
+        defaultData: { asset_items: [assetRow] },
+      });
+      render(<Form />);
+      expect(globalThis.__contentProps[ASSET_ITEMS_TITLE].defaultOpen).toBe(
+        true,
+      );
+    });
+
+    it("dua FormTable dengan name berbeda; value dan valueBefore terpisah", () => {
+      const items = [{ id: "r1" }];
+      const assetItems = [{ id: "a1" }];
+      const dataBefore = {
+        items: [{ id: "r1", quantity: 1 }],
+        asset_items: [{ id: "a1", quantity: 2 }],
+      };
+      formPageState = makeFormPageState({
+        data: { items, asset_items: assetItems },
+        dataBefore,
+      });
+      render(<Form />);
+
+      expect(tableProps(ITEMS_TABLE).value).toBe(items);
+      expect(tableProps(ITEMS_TABLE).valueBefore).toBe(dataBefore.items);
+      expect(tableProps(ASSET_TABLE).value).toBe(assetItems);
+      expect(tableProps(ASSET_TABLE).valueBefore).toBe(dataBefore.asset_items);
+    });
+
+    it("onValueChange Asset Items menulis ke data.asset_items, bukan items", () => {
+      const setData = vi.fn();
+      formPageState = makeFormPageState({
+        setData,
+        data: { items: [], asset_items: [] },
+      });
+      render(<Form />);
+
+      tableProps(ASSET_TABLE).onValueChange([{ id: "a9" }]);
+
+      expect(setData).toHaveBeenCalledWith("asset_items", [{ id: "a9" }]);
+    });
+
+    it("filter dan template link mengikuti asset_id pada section masing-masing", () => {
+      formPageState = makeFormPageState({
+        data: { items: [], asset_items: [], sales_order: { id: 9 } },
+      });
+      render(<Form />);
+
+      const itemCell = itemColumnOf(ITEMS_TABLE).cell({
+        dataRow: { id: 1 },
+        setData: vi.fn(),
+        attributes: {},
+      });
+      const assetCell = itemColumnOf(ASSET_TABLE).cell({
+        dataRow: { id: 1 },
+        setData: vi.fn(),
+        attributes: {},
+      });
+
+      expect(itemColumnOf(ASSET_TABLE).titleTrans).toBe(
+        "asset.assetItems.asset",
+      );
+      expect(itemCell.props.as).toBe("item:item.item_id");
+      expect(itemCell.props.filters).toEqual({
+        sales_order_id: 9,
+        asset_id: null,
+      });
+      expect(assetCell.props.as).toBe("asset:asset_id");
+      expect(assetCell.props.filters).toEqual({
+        sales_order_id: 9,
+        asset_id: { "!=": null },
+      });
+    });
+
+    it("kedua section memakai satu pemilih SalesOrderItem tanpa nested asset table", () => {
+      formPageState = makeFormPageState({
+        data: { items: [], asset_items: [] },
+      });
+      render(<Form />);
+
+      expect(itemColumnOf(ITEMS_TABLE).name).toBe("item");
+      expect(itemColumnOf(ASSET_TABLE).name).toBe("item");
+      expect(
+        tableProps(ITEMS_TABLE).columns.some((c) => c.name === "asset_lines"),
+      ).toBe(false);
+      expect(
+        tableProps(ASSET_TABLE).columns.some((c) => c.name === "asset_lines"),
+      ).toBe(false);
+      expect(
+        tableProps(ASSET_TABLE).columns.some((c) => c.name === "unit"),
+      ).toBe(false);
+      expect(
+        tableProps(ASSET_TABLE).columns.find((c) => c.name === "tax").required,
+      ).toBe(true);
+    });
+
+    it("pemilihan sumber Asset mengisi asset_id dan relasi Asset ke baris invoice", () => {
+      formPageState = makeFormPageState({
+        data: { items: [], asset_items: [], sales_order: { id: 9 } },
+      });
+      render(<Form />);
+
+      const setRow = vi.fn();
+      itemColumnOf(ASSET_TABLE)
+        .cell({ dataRow: { id: 1 }, setData: setRow, attributes: {} })
+        .props.onValueChange({
+          id: "so-item-1",
+          asset_id: "asset-1",
+          asset: { id: "asset-1", name: "Asset A" },
+        });
+
+      expect(setRow).toHaveBeenCalledWith(
+        expect.objectContaining({
+          sales_order_item: expect.objectContaining({ id: "so-item-1" }),
+          asset_id: "asset-1",
+          asset: { id: "asset-1", name: "Asset A" },
+          item: null,
+        }),
+      );
+    });
+
+    it("net_amount, dpp_amount, dan tax_amount menjumlah baris Items dan Asset Items", () => {
+      formPageState = makeFormPageState({
+        data: {
+          items: [
+            {
+              basic_amount: 1000,
+              discount_amount: 100,
+              dpp_amount: 825,
+              tax_amount: 99,
+            },
+          ],
+          asset_items: [
+            {
+              basic_amount: 500,
+              discount_amount: 0,
+              dpp_amount: 458.33,
+              tax_amount: 55,
+            },
+          ],
+        },
+      });
+      render(<Form />);
+
+      // net = (1000-100) + 500 = 1400; dpp = 825 + 458.33 = 1283.33; tax = 99 + 55 = 154
+      expect(screen.getAllByDisplayValue("1400").length).toBeGreaterThan(0);
+      expect(screen.getAllByDisplayValue("1283.33").length).toBeGreaterThan(0);
+      expect(screen.getAllByDisplayValue("154").length).toBeGreaterThan(0);
+    });
+
+    it("dokumen yang hanya berisi baris aset tetap dihitung totalnya", () => {
+      formPageState = makeFormPageState({
+        data: {
+          items: [],
+          asset_items: [{ basic_amount: 750, tax_amount: 0 }],
+        },
+      });
+      render(<Form />);
+
+      expect(screen.getAllByDisplayValue("750").length).toBeGreaterThan(0);
+    });
+
+    it("data.asset_items undefined tidak crash", () => {
+      formPageState = makeFormPageState({
+        data: { items: [], asset_items: undefined },
+      });
+
+      expect(() => render(<Form />)).not.toThrow();
+    });
+
+    it("mapItem Asset Items memakai daftar gabungan dengan offset baris Items", () => {
+      const items = [
+        { id: 1, quantity: 1, price: 1000, tax: { rate: 11 } },
+        { id: 2, quantity: 1, price: 1000, tax: { rate: 11 } },
+      ];
+      const assets = [
+        { id: 3, quantity: 1, price: 2000, tax: { rate: 11 } },
+        { id: 4, quantity: 1, price: 6000, tax: { rate: 11 } },
+      ];
+      formPageState = makeFormPageState({
+        data: {
+          items,
+          asset_items: assets,
+          discount_on: "net_total",
+          discount_rate: 10,
+          latestDiscountKey: "discount_rate",
+        },
+      });
+      render(<Form />);
+
+      // basis 10.000, diskon 1.000: baris aset ke-2 (6000) memikul 600
+      const result = tableProps(ASSET_TABLE).mapItem({
+        item: assets[1],
+        dataTable: assets,
+        index: 1,
+      });
+
+      expect(result.discount_amount).toBeCloseTo(600, 2);
+      expect(result.dpp_amount).toBeCloseTo(5400 * (11 / 12), 2);
+    });
+
+    it("mapItem Items ikut menghitung baris Asset Items dalam alokasi diskon", () => {
+      const items = [{ id: 1, quantity: 1, price: 1000, tax: { rate: 0 } }];
+      const assets = [{ id: 2, quantity: 1, price: 3000, tax: { rate: 0 } }];
+      formPageState = makeFormPageState({
+        data: {
+          items,
+          asset_items: assets,
+          discount_on: "net_total",
+          discount_rate: 10,
+          latestDiscountKey: "discount_rate",
+        },
+      });
+      render(<Form />);
+
+      // basis gabungan 4.000, diskon 400: baris Items (25%) memikul 100
+      const result = tableProps(ITEMS_TABLE).mapItem({
+        item: items[0],
+        dataTable: items,
+        index: 0,
+      });
+
+      expect(result.discount_amount).toBeCloseTo(100, 2);
+    });
+
+    it("rekalkulasi rental juga berlaku untuk baris di Asset Items (SO rent berisi aset)", () => {
+      const setData = vi.fn();
+      formPageState = makeFormPageState({
+        setData,
+        data: {
+          sales_order: { is_rent: true },
+          rental_cutoff_date: "2026-01-31T00:00:00.000Z",
+          items: [],
+          asset_items: [
+            {
+              id: 1,
+              rental_status: "running",
+              rental_shipped_date: "2026-01-01T00:00:00.000Z",
+              rental_monthly_rate: 3000000,
+              price: 0,
+            },
+          ],
+        },
+      });
+      render(<Form />);
+
+      const updater = setData.mock.calls[setData.mock.calls.length - 1][0];
+      const result = updater(formPageState.data);
+
+      expect(result.asset_items[0].rental_duration_days).toBe(31);
+      expect(result.asset_items[0].price).toBeCloseTo(3100000, 5);
+    });
+
+    it("rekalkulasi rental tidak menambah key asset_items bila dokumen tidak punya", () => {
+      const setData = vi.fn();
+      formPageState = makeFormPageState({
+        setData,
+        data: {
+          sales_order: { is_rent: true },
+          rental_cutoff_date: "2026-01-31T00:00:00.000Z",
+          items: [{ id: 1, rental_status: "completed" }],
+        },
+      });
+      render(<Form />);
+
+      const updater = setData.mock.calls[setData.mock.calls.length - 1][0];
+      const result = updater(formPageState.data);
+
+      expect("asset_items" in result).toBe(false);
+    });
+
+    describe("baris SO/retur dipisah berdasarkan asset_id", () => {
+      const soPayload = () => ({
+        id: 9,
+        customer: { id: 1 },
+        items: [
+          {
+            id: 100,
+            item_id: "V1",
+            asset_id: null,
+            item: { id: "V1" },
+            unbilled_quantity: 1,
+            basic_amount: 10,
+            tax_amount: 0,
+          },
+          {
+            id: 101,
+            item_id: null,
+            asset_id: "A1",
+            asset: { id: "A1", name: "Asset A" },
+            unbilled_quantity: 1,
+            basic_amount: 20,
+            tax_amount: 0,
+          },
+        ],
+        payment_schedules: [],
+      });
+
+      it("memilih SO langsung mempartisi row asset_id tanpa lookup ItemVariant", async () => {
+        const user = userEvent.setup({ delay: null });
+        const setData = vi.fn();
+        formPageState = makeFormPageState({ setData, data: { items: [] } });
+        globalThis.__linkModelPayloads["sales-order-link"] = soPayload();
+
+        render(<Form />);
+        getDataModelMock.mockClear();
+        await user.click(screen.getByTestId("sales-order-link"));
+
+        await waitFor(() => expect(setData).toHaveBeenCalledTimes(1));
+        expect(getDataModelMock).not.toHaveBeenCalled();
+
+        const selected = setData.mock.calls[0][0]({ items: [] });
+        expect(selected.items.map((row) => row.sales_order_item.id)).toEqual([
+          100,
+        ]);
+        expect(
+          selected.asset_items.map((row) => row.sales_order_item.id),
+        ).toEqual([101]);
+        expect(selected.asset_items[0].asset_id).toBe("A1");
+      });
+
+      it("tanpa asset_id, semua row SO tetap di Items", async () => {
+        const user = userEvent.setup({ delay: null });
+        const setData = vi.fn();
+        formPageState = makeFormPageState({ setData, data: { items: [] } });
+        const payload = soPayload();
+        payload.items[1].asset_id = null;
+        payload.items[1].item_id = "V2";
+        payload.items[1].asset = null;
+        globalThis.__linkModelPayloads["sales-order-link"] = payload;
+
+        render(<Form />);
+        await user.click(screen.getByTestId("sales-order-link"));
+        await waitFor(() => expect(setData).toHaveBeenCalledTimes(1));
+
+        const selected = setData.mock.calls[0][0]({ items: [] });
+        expect(selected.items).toHaveLength(2);
+        expect(selected.asset_items).toEqual([]);
+      });
+
+      it("retur invoice juga dipartisi dari asset_id yang tersimpan", async () => {
+        const user = userEvent.setup({ delay: null });
+        const setData = vi.fn();
+        formPageState = makeFormPageState({
+          setData,
+          data: { items: [], is_return: true },
+        });
+        globalThis.__linkModelPayloads["sales-invoice-link"] = {
+          id: 200,
+          sales_order: { id: 9 },
+          items: [
+            {
+              id: 300,
+              item_id: "V1",
+              asset_id: null,
+              item: { id: "V1" },
+              price: 1,
+            },
+            {
+              id: 301,
+              item_id: null,
+              asset_id: "A1",
+              asset: { id: "A1" },
+              price: 2,
+            },
+          ],
+        };
+
+        render(<Form />);
+        getDataModelMock.mockClear();
+        await user.click(screen.getByTestId("sales-invoice-link"));
+        await waitFor(() => expect(setData).toHaveBeenCalledTimes(1));
+        expect(getDataModelMock).not.toHaveBeenCalled();
+
+        const moved = setData.mock.calls[0][0]({ items: [] });
+
+        expect(moved.items.map((row) => row.return_against_item_id)).toEqual([
+          300,
+        ]);
+        expect(
+          moved.asset_items.map((row) => row.return_against_item_id),
+        ).toEqual([301]);
+      });
+    });
   });
 });
