@@ -16,6 +16,7 @@ use App\Services\Core\Approval\ApprovalAccessService;
 use App\Services\Core\PermissionChecker;
 use App\Services\User\Signature\SignatureImageService;
 use App\Utils;
+use Illuminate\Database\Eloquent\Model;
 use Illuminate\Http\Request;
 use Illuminate\Http\UploadedFile;
 use Illuminate\Support\Facades\Auth;
@@ -339,34 +340,12 @@ class UserController extends Controller {
             ->redirect();
     }
 
-    /**
-     * Remove the specified resource from storage.
-     */
-    public function destroy(mixed $id) {
-        $user = User::findOrFail($id);
-        request()->validate([
-            'password' => ['required', 'current_password'],
-        ]);
-        DB::beginTransaction();
-        try {
-            $user->delete();
-            $user->logForDeleted();
-            DB::commit();
-        } catch (\Throwable $e) {
-            DB::rollBack();
+    protected function destroyRequiresPassword(): bool {
+        return true;
+    }
 
-            throw $e;
-        }
-
-        if (request()->user()->id == $user->id) {
-            Auth::logout();
-
-            request()->session()->invalidate();
-            request()->session()->regenerateToken();
-
-            return redirect()->to('/');
-        } else {
-            return redirect()->route('users.index');
-        }
+    protected function destroyRecord(Model $data): void {
+        $data->delete();
+        $data->logForDeleted();
     }
 }
