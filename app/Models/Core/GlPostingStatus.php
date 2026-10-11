@@ -18,7 +18,15 @@ class GlPostingStatus extends Model {
         'status'    => FormStatusCast::class,
         'posted_at' => 'datetime',
     ];
+    protected $appends          = ['canRetry'];
     public string $translateKey = 'core.glPostingStatus';
+
+    /**
+     * Atribut accessor yang selalu di-SELECT DataTable (dipakai `enabled` row action retry).
+     *
+     * @var list<string>
+     */
+    protected static array $rowActionAttributes = ['canRetry'];
 
     public static function templateLink() {
         return ':referenceable_type - :status';
@@ -56,7 +64,16 @@ class GlPostingStatus extends Model {
             'show'  => true,
             'order' => 6,
         ],
+        // Atribut untuk `enabled` row action retry; bukan kolom tabel (hidden).
+        'canRetry' => [
+            'hidden'    => true,
+            'dependsOn' => ['status'],
+        ],
     ];
+
+    protected function getCanRetryAttribute(): bool {
+        return $this->status === FormStatus::FAILED;
+    }
 
     protected static function permissions(): array {
         return ['select', 'read', 'write'];
