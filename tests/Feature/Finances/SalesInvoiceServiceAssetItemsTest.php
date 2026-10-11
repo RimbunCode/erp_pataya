@@ -2,6 +2,7 @@
 
 namespace Tests\Feature\Finances;
 
+use App\Enums\FormStatus;
 use App\Events\Asset\AssetSoldViaInvoice;
 use App\Events\Finances\SalesInvoiceGeneralLedgerPostingRequested;
 use App\Events\Sales\Invoice\SalesOrderItemBillingChanged;
@@ -126,7 +127,10 @@ class SalesInvoiceServiceAssetItemsTest extends TestCase {
     private function makeAsset(): Asset {
         $category = AssetCategory::factory()->create();
 
-        return Asset::factory()->rentable()->create(['asset_category_id' => $category->id, 'item_id' => $this->assetItem->id]);
+        $asset = Asset::factory()->rentable()->create(['asset_category_id' => $category->id, 'item_id' => $this->assetItem->id]);
+        $asset->forceFill(['status' => [FormStatus::ACTIVE]])->save();
+
+        return $asset;
     }
 
     /**
@@ -369,6 +373,32 @@ class SalesInvoiceServiceAssetItemsTest extends TestCase {
         Event::assertNotDispatched(SalesOrderItemBillingChanged::class);
         Event::assertDispatchedTimes(AssetSoldViaInvoice::class, 1);
         Event::assertDispatched(SalesInvoiceGeneralLedgerPostingRequested::class, fn ($e) => $e->totalAmount === 12000.0);
+    }
+
+    #[Test]
+    public function create_allows_an_invoice_with_only_free_rows_and_no_sales_order_header(): void {
+        $payload = $this->payload(['items' => [$this->freeItemRow(1, 700)]]);
+        unset($payload['sales_order']);
+
+        $invoice = app(SalesInvoiceService::class)->create($payload)->fresh();
+
+        $this->assertNull($invoice->sales_order_id);
+        $this->assertCount(1, $invoice->items);
+    }
+
+    #[Test]
+    public function on_approved_rejects_a_free_asset_that_is_no_longer_active(): void {
+        $asset   = $this->makeAsset();
+        $service = app(SalesInvoiceService::class);
+
+        $invoice = $service->create($this->payload([
+            'items'             => [$this->freeAssetRow($asset, 9000)],
+            'payment_schedules' => [],
+        ]));
+        $asset->forceFill(['status' => [FormStatus::INACTIVE]])->save();
+
+        $this->expectException(\LogicException::class);
+        $service->onApproved($invoice->fresh());
     }
 
     #[Test]

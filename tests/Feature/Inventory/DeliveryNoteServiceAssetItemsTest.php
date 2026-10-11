@@ -2,6 +2,7 @@
 
 namespace Tests\Feature\Inventory;
 
+use App\Enums\FormStatus;
 use App\Events\Asset\AssetRentalDeliveryApproved;
 use App\Events\Asset\AssetSoldViaDelivery;
 use App\Events\Inventory\DeliveryNoteGeneralLedgerPostingRequested;
@@ -121,9 +122,12 @@ class DeliveryNoteServiceAssetItemsTest extends TestCase {
     private function makeAsset(Item $item, bool $rentable = true): Asset {
         $category = AssetCategory::factory()->create();
 
-        return $rentable
+        $asset = $rentable
             ? Asset::factory()->rentable()->create(['asset_category_id' => $category->id, 'item_id' => $item->id])
             : Asset::factory()->create(['asset_category_id' => $category->id, 'item_id' => $item->id, 'is_rentable' => false]);
+        $asset->forceFill(['status' => [FormStatus::ACTIVE]])->save();
+
+        return $asset;
     }
 
     /**

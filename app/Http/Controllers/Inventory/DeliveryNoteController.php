@@ -134,14 +134,16 @@ class DeliveryNoteController extends Controller {
                             }
 
                             $doTarget->loadRelations();
-                            $doTarget->load('items.asset');
+                            $doTarget->load('items.asset', 'items.item');
 
                             // Baris retur membawa asset_id dan relasi Asset langsung
                             // dari DN asal; quantity tetap dapat dikurangi untuk retur sebagian.
                             $mapReturnItem = fn ($item) => [
-                                'id'                  => Utils::generateRandom(5),
-                                'source_warehouse'    => $item->asset_id ? null : $item->sourceWarehouse,
-                                'asset'               => $item->asset,
+                                'id'               => Utils::generateRandom(5),
+                                'source_warehouse' => $item->asset_id ? null : $item->sourceWarehouse,
+                                'asset'            => $item->asset,
+                                // Baris ItemVariant bebas (tanpa sumber SO) dikenali form lewat `item`.
+                                'item'                => blank($item->referenceable_id) && ! $item->asset_id ? $item->item : null,
                                 'quantity'            => $item->unreturned_quantity,
                                 'required_quantity'   => $item->unreturned_quantity,
                                 'unit'                => $item->unit,

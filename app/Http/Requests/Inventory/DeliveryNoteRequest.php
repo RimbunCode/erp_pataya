@@ -71,6 +71,7 @@ class DeliveryNoteRequest extends BaseFormRequest {
             $assetIds  = $this->sourceAssetIdsOf($rows);
             $isReturn  = filled($this->input('return_against.id'));
             $rentables = $this->nonRentableAssetIds($rows, $assetIds);
+            $rentRows  = $this->rentSourceRows($rows);
             $freeRows  = [];
             $freeAsset = [];
 
@@ -87,7 +88,7 @@ class DeliveryNoteRequest extends BaseFormRequest {
                 }
 
                 if ($isAsset) {
-                    $this->validateAssetRow($validator, $index, $row, $hasSource, $assetId, $isReturn, $rentables);
+                    $this->validateAssetRow($validator, $index, $row, $hasSource, $assetId, $isReturn, $rentables, $isReturn || isset($rentRows[$index]));
                 } else {
                     $this->validateItemRow($validator, $index, $row);
                 }
@@ -124,8 +125,9 @@ class DeliveryNoteRequest extends BaseFormRequest {
      *
      * @param  array<string,mixed>  $row
      * @param  array<string,bool>  $nonRentable
+     * @param  bool  $mustBeRentable  alur sewa (SO rental atau retur); SO penjualan biasa tidak wajib
      */
-    private function validateAssetRow(Validator $validator, int|string $index, array $row, bool $hasSource, string $assetId, bool $isReturn, array $nonRentable): void {
+    private function validateAssetRow(Validator $validator, int|string $index, array $row, bool $hasSource, string $assetId, bool $isReturn, array $nonRentable, bool $mustBeRentable): void {
         foreach (['unit.id' => $row['unit']['id'] ?? null, 'source_warehouse.id' => $row['source_warehouse']['id'] ?? null] as $field => $value) {
             if (filled($value)) {
                 $validator->errors()->add("items.{$index}.{$field}", __('inventory/deliveryNote.asset_row_no_unit_warehouse'));
@@ -143,7 +145,7 @@ class DeliveryNoteRequest extends BaseFormRequest {
         if (($row['asset']['id'] ?? null) !== null && $row['asset']['id'] !== $assetId) {
             $validator->errors()->add("items.{$index}.asset.id", __('asset/asset.item_mismatch'));
         }
-        if (isset($nonRentable[$assetId])) {
+        if ($mustBeRentable && isset($nonRentable[$assetId])) {
             $validator->errors()->add("items.{$index}.asset.id", __('asset/asset.asset_not_rentable'));
         }
     }
@@ -203,6 +205,36 @@ class DeliveryNoteRequest extends BaseFormRequest {
         }
 
         return $owners;
+    }
+
+    /**
+     * Index baris yang bersumber SalesOrderItem milik SO rental (`is_rent`).
+     *
+     * @param  array<int|string,mixed>  $rows
+     * @return array<int|string,true>
+     */
+    private function rentSourceRows(array $rows): array {
+        $ids = array_values(array_filter(array_map(
+            fn ($row) => ($row['referenceable_type'] ?? null) === SalesOrderItem::class ? ($row['referenceable_id'] ?? null) : null,
+            $rows,
+        )));
+        if ($ids === []) {
+            return [];
+        }
+        $rentItemIds = DB::table('sales_order_items as soi')
+            ->join('sales_orders as so', 'so.id', '=', 'soi.sales_order_id')
+            ->whereIn('soi.id', $ids)
+            ->where('so.is_rent', true)
+            ->pluck('soi.id')->flip();
+
+        $result = [];
+        foreach ($rows as $index => $row) {
+            if (($row['referenceable_type'] ?? null) === SalesOrderItem::class && $rentItemIds->has($row['referenceable_id'] ?? '')) {
+                $result[$index] = true;
+            }
+        }
+
+        return $result;
     }
 
     /**

@@ -238,13 +238,29 @@ class DeliveryNoteRequestAssetItemsTest extends TestCase {
     }
 
     #[Test]
-    public function so_asset_row_must_be_rentable_but_free_asset_row_need_not_be(): void {
+    public function rental_so_asset_row_must_be_rentable_but_free_asset_row_need_not_be(): void {
+        $rentSo = SalesOrder::create([
+            'code'          => fake()->unique()->bothify('SO-####'),
+            'date'          => now(),
+            'customer_id'   => Customer::query()->create(['name' => 'R', 'is_disabled' => false])->id,
+            'created_by_id' => User::factory()->create()->id,
+            'is_rent'       => true,
+        ]);
+        $rentItem = $this->makeSalesOrderItem($rentSo, null, $this->nonRentableAsset);
+
         $validator = $this->validate(['items' => [
-            $this->soRow($this->nonRentableSoItem, 'a1'),
+            $this->soRow($rentItem, 'a1'),
             $this->freeAssetRow($this->nonRentableAsset),
         ]]);
 
         $this->assertSame(['items.0.asset.id'], array_keys($validator->errors()->toArray()));
+    }
+
+    #[Test]
+    public function sale_so_asset_row_does_not_need_to_be_rentable(): void {
+        $validator = $this->validate(['items' => [$this->soRow($this->nonRentableSoItem, 'a1')]]);
+
+        $this->assertFalse($validator->fails(), json_encode($validator->errors()->toArray()));
     }
 
     #[Test]

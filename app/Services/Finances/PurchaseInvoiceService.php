@@ -309,6 +309,9 @@ class PurchaseInvoiceService implements SubmitableService {
                         $returnAgainst ? 'decrement' : 'increment',
                         $returnAgainst ? $item->returnAgainstItem : null,
                     ));
+                } elseif ($returnAgainst && $item->returnAgainstItem) {
+                    // Retur baris off-PO: tak ada PO Item, tapi jumlah retur baris asal tetap dicatat.
+                    $item->returnAgainstItem->increment('returned_quantity', $qty);
                 }
 
                 if (! $returnAgainst) {
@@ -322,7 +325,7 @@ class PurchaseInvoiceService implements SubmitableService {
                         }
                         // ALUR-2: Receipt belum ada → tidak ada SLE pending, skip
                     } elseif ($item->purchase_receipt_item_id) {
-                        $totalStockGL += $this->billReceiptRow($item->purchaseReceiptItem, $qty, $rate, $purchaseInvoice);
+                        $totalStockGL += $this->billReceiptRow($item->purchaseReceiptItem, $qty, $rate, $purchaseInvoice, (float) ($item->conversion_factor ?: 1));
                     } else {
                         $totalStockGL += $this->billFreeItem($item, $purchaseOrder, $purchaseInvoice);
                     }
@@ -445,7 +448,7 @@ class PurchaseInvoiceService implements SubmitableService {
             $rate,
             $purchaseInvoice,
             fn (StockLedgerEntry $sle) => $this->eligibleQuantityForPoItem($sle, $poItem),
-            ['item_id' => $poItem->item_id, 'warehouse_id' => $poItem->target_warehouse_id, 'item_unit_id' => $poItem->item_unit_id],
+            ['item_id'                 => $poItem->item_id, 'warehouse_id' => $poItem->target_warehouse_id, 'item_unit_id' => $poItem->item_unit_id],
         );
     }
 
@@ -571,7 +574,7 @@ class PurchaseInvoiceService implements SubmitableService {
      * `$qty` dengan `$rate`; porsi maksimal = sisa baris (`quantity − billed_quantity`).
      * `$withOverBill` true (baris receipt eksplisit): sisa qty jadi SLE pending baru.
      */
-    private function valueReceiptRow(PurchaseReceiptItem $row, float $qty, float $rate, PurchaseInvoice $purchaseInvoice, bool $withOverBill): float {
+    private function valueReceiptRow(PurchaseReceiptItem $row, float $qty, float $rate, PurchaseInvoice $purchaseInvoice, bool $withOverBill, float $invoiceFactor = 1): float {
         $pendingSLEs = StockLedgerEntry::where('is_valuated', false)
             ->where('referenceable_type', PurchaseReceipt::class)
             ->where('referenceable_id', $row->purchase_receipt_id)
@@ -580,12 +583,16 @@ class PurchaseInvoiceService implements SubmitableService {
             ->lockForUpdate()
             ->get();
 
-        $capacity = max(0.0, (float) $row->quantity - (float) $row->billed_quantity);
+        // `$qty`/`$rate` dalam satuan invoice; SLE dalam satuan stok, kapasitas baris dalam satuan receipt.
+        $rowFactor   = (float) ($row->conversion_factor ?: 1);
+        $stockFactor = (float) ($pendingSLEs->first()?->conversion_factor ?: $rowFactor);
+        $toStock     = $invoiceFactor / $stockFactor;
+        $capacity    = max(0.0, ((float) $row->quantity - (float) $row->billed_quantity) * $rowFactor / $stockFactor);
 
         return $this->valuePendingSLEs(
             $pendingSLEs,
-            $qty,
-            $rate,
+            $qty * $toStock,
+            $rate / $toStock,
             $purchaseInvoice,
             fn () => $capacity,
             $withOverBill
@@ -598,10 +605,10 @@ class PurchaseInvoiceService implements SubmitableService {
      * Baris invoice yang menagih baris receipt di luar PO: nilai SLE pending baris itu,
      * over-bill diizinkan (sisa -> SLE pending), `billed_quantity` naik sebesar qty invoice.
      */
-    private function billReceiptRow(PurchaseReceiptItem $row, float $qty, float $rate, PurchaseInvoice $purchaseInvoice): float {
+    private function billReceiptRow(PurchaseReceiptItem $row, float $qty, float $rate, PurchaseInvoice $purchaseInvoice, float $invoiceFactor = 1): float {
         $row   = PurchaseReceiptItem::where('id', $row->id)->lockForUpdate()->first();
-        $value = $this->valueReceiptRow($row, $qty, $rate, $purchaseInvoice, withOverBill: true);
-        $row->increment('billed_quantity', $qty);
+        $value = $this->valueReceiptRow($row, $qty, $rate, $purchaseInvoice, true, $invoiceFactor);
+        $row->increment('billed_quantity', $qty * $invoiceFactor / ((float) ($row->conversion_factor ?: 1)));
 
         return $value;
     }
@@ -633,21 +640,24 @@ class PurchaseInvoiceService implements SubmitableService {
             ->get()
             ->sortBy(fn ($row) => $row->purchaseReceipt->date);
 
-        $remaining = (float) $item->quantity;
-        $allocated = 0.0;
-        $total     = 0.0;
+        $invoiceFactor = (float) ($item->conversion_factor ?: 1);
+        $remaining     = (float) $item->quantity;
+        $allocated     = 0.0;
+        $total         = 0.0;
         foreach ($rows as $row) {
             if ($remaining <= 0) {
                 break;
             }
-            $capacity = (float) $row->quantity - (float) $row->billed_quantity;
+            $rowFactor = (float) ($row->conversion_factor ?: 1);
+            // kapasitas baris (satuan receipt) -> satuan invoice
+            $capacity = ((float) $row->quantity - (float) $row->billed_quantity) * $rowFactor / $invoiceFactor;
             $allocate = min($remaining, $capacity);
             if ($allocate <= 0) {
                 continue;
             }
 
-            $total += $this->valueReceiptRow($row, $allocate, (float) $item->rate, $purchaseInvoice, withOverBill: false);
-            $row->increment('billed_quantity', $allocate);
+            $total += $this->valueReceiptRow($row, $allocate, (float) $item->rate, $purchaseInvoice, false, $invoiceFactor);
+            $row->increment('billed_quantity', $allocate * $invoiceFactor / $rowFactor);
             $remaining -= $allocate;
             $allocated += $allocate;
         }
@@ -691,7 +701,15 @@ class PurchaseInvoiceService implements SubmitableService {
             return null;
         }
 
-        return (float) $rows->sum('replaced_quantity');
+        // Porsi yang sudah dinilai invoice sebelumnya (SLE is_valuated) mengurangi anggaran,
+        // supaya tagihan berikutnya tak menilai ulang melebihi `replaced_quantity`.
+        $alreadyValued = (float) StockLedgerEntry::where('is_valuated', true)
+            ->where('referenceable_type', PurchaseReceipt::class)
+            ->where('referenceable_id', $sle->referenceable_id)
+            ->where('item_id', $sle->item_id)
+            ->sum('quantity_change');
+
+        return max(0.0, (float) $rows->sum('replaced_quantity') - $alreadyValued);
     }
 
     /**

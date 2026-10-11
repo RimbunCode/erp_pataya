@@ -85,6 +85,9 @@ return new class extends Migration
             return;
         }
 
+        // Baris asset tak punya gudang asal; DN menyimpannya di `source_warehouse_id`.
+        $clearWarehouse = Schema::hasColumn($target, 'source_warehouse_id') ? ['source_warehouse_id' => null] : [];
+
         foreach (DB::table($source)->whereNull('deleted_at')->orderBy('id')->cursor() as $line) {
             DB::table($target)->where('id', $line->{$parentKey})->update([
                 'item_id'           => null,
@@ -92,7 +95,7 @@ return new class extends Migration
                 'item_unit_id'      => null,
                 'conversion_factor' => 1,
                 'processed_at'      => $line->processed_at,
-            ]);
+            ] + $clearWarehouse);
         }
 
         if (Schema::hasTable('gl_posting_statuses')) {
@@ -113,6 +116,7 @@ return new class extends Migration
             foreach (DB::table('sales_invoice_item_assets as lines')
                 ->join('sales_invoice_items as items', 'items.id', '=', 'lines.sales_invoice_item_id')
                 ->whereNull('lines.deleted_at')
+                ->whereNull('items.deleted_at')
                 ->whereNotNull('items.sales_order_item_id')
                 ->select('items.sales_order_item_id as source_id', 'lines.asset_id')
                 ->cursor() as $row) {
@@ -124,6 +128,7 @@ return new class extends Migration
             foreach (DB::table('delivery_note_item_assets as lines')
                 ->join('delivery_note_items as items', 'items.id', '=', 'lines.delivery_note_item_id')
                 ->whereNull('lines.deleted_at')
+                ->whereNull('items.deleted_at')
                 ->where('items.referenceable_type', SalesOrderItem::class)
                 ->select('items.referenceable_id as source_id', 'lines.asset_id')
                 ->cursor() as $row) {
@@ -145,10 +150,11 @@ return new class extends Migration
     private function migrateSourceSalesOrderItems(array $assetsBySource): void {
         foreach ($assetsBySource as $sourceId => $assetId) {
             DB::table('sales_order_items')->where('id', $sourceId)->update([
-                'item_id'           => null,
-                'asset_id'          => $assetId,
-                'item_unit_id'      => null,
-                'conversion_factor' => 1,
+                'item_id'             => null,
+                'asset_id'            => $assetId,
+                'item_unit_id'        => null,
+                'conversion_factor'   => 1,
+                'source_warehouse_id' => null,
             ]);
         }
     }

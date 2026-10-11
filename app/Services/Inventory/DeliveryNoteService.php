@@ -10,6 +10,7 @@ use App\Events\Asset\AssetSoldViaDelivery;
 use App\Events\Core\DocumentSubmitted;
 use App\Events\Inventory\DeliveryNoteGeneralLedgerPostingRequested;
 use App\Events\Sales\Order\DocumentDeliveryStatusRecalculationRequested;
+use App\Models\Asset\Asset;
 use App\Models\Asset\AssetService;
 use App\Models\Core\FormatingSeries;
 use App\Models\Core\GlPostingStatus;
@@ -420,6 +421,14 @@ class DeliveryNoteService implements SubmitableService {
         return $deliveryNote;
     }
 
+    /** Cek ulang di bawah lock: Asset bebas harus masih `active` saat approve (bisa berubah sejak validasi). */
+    private function assertFreeAssetStillActive(string $assetId): void {
+        $active = Asset::where('id', $assetId)->whereJsonContains('status', FormStatus::ACTIVE->value)->lockForUpdate()->exists();
+        if (! $active) {
+            throw new LogicException(__('sales/offSource.asset_not_active'));
+        }
+    }
+
     /** Dispatch the asset transition once for this document row. */
     private function handleAssetDeliveryItem(DeliveryNoteItem $item, DeliveryNote $deliveryNote, bool $returnAgainst): void {
         $isRentSo = $item->referenceable instanceof SalesOrderItem
@@ -432,12 +441,14 @@ class DeliveryNoteService implements SubmitableService {
                 throw new LogicException(__('inventory/deliveryNote.free_asset_cannot_be_returned'));
             }
 
+            $this->assertFreeAssetStillActive($item->asset_id);
             event(new AssetSoldViaDelivery($item));
 
             return;
         }
 
-        if (! $item->asset?->is_rentable) {
+        // Hanya alur sewa (SO rental / retur) yang mewajibkan rentable; SO penjualan menjual Asset.
+        if (($isRentSo || $returnAgainst) && ! $item->asset?->is_rentable) {
             throw new LogicException(__('asset/asset.asset_not_rentable'));
         }
 

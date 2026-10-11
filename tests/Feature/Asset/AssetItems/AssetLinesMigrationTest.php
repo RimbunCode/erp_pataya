@@ -58,11 +58,12 @@ class AssetLinesMigrationTest extends TestCase {
             ['id' => $ignoredAssetId],
         ]);
         DB::table('sales_order_items')->insert([
-            'id'                => $sourceId,
-            'item_id'           => $itemVariantId,
-            'item_unit_id'      => 'legacy-so-unit',
-            'conversion_factor' => 12,
-            'quantity'          => 2,
+            'id'                  => $sourceId,
+            'item_id'             => $itemVariantId,
+            'item_unit_id'        => 'legacy-so-unit',
+            'source_warehouse_id' => 'legacy-so-warehouse',
+            'conversion_factor'   => 12,
+            'quantity'            => 2,
         ]);
         DB::table('sales_invoice_items')->insert([
             'id'                  => $invoiceId,
@@ -73,13 +74,14 @@ class AssetLinesMigrationTest extends TestCase {
             'quantity'            => 2,
         ]);
         DB::table('delivery_note_items')->insert([
-            'id'                 => $deliveryId,
-            'referenceable_type' => SalesOrderItem::class,
-            'referenceable_id'   => $sourceId,
-            'item_id'            => $itemVariantId,
-            'item_unit_id'       => 'legacy-dn-unit',
-            'conversion_factor'  => 12,
-            'quantity'           => 2,
+            'id'                  => $deliveryId,
+            'referenceable_type'  => SalesOrderItem::class,
+            'referenceable_id'    => $sourceId,
+            'item_id'             => $itemVariantId,
+            'item_unit_id'        => 'legacy-dn-unit',
+            'source_warehouse_id' => 'legacy-dn-warehouse',
+            'conversion_factor'   => 12,
+            'quantity'            => 2,
         ]);
         DB::table('sales_invoice_item_assets')->insert([
             [
@@ -115,11 +117,12 @@ class AssetLinesMigrationTest extends TestCase {
         $this->migration()->up();
 
         $this->assertDatabaseHas('sales_order_items', [
-            'id'                => $sourceId,
-            'item_id'           => null,
-            'asset_id'          => $assetId,
-            'item_unit_id'      => null,
-            'conversion_factor' => 1,
+            'id'                  => $sourceId,
+            'item_id'             => null,
+            'asset_id'            => $assetId,
+            'source_warehouse_id' => null,
+            'item_unit_id'        => null,
+            'conversion_factor'   => 1,
         ], 'asset_lines_migration_test');
         $this->assertDatabaseHas('sales_invoice_items', [
             'id'                => $invoiceId,
@@ -130,11 +133,12 @@ class AssetLinesMigrationTest extends TestCase {
             'conversion_factor' => 1,
         ], 'asset_lines_migration_test');
         $this->assertDatabaseHas('delivery_note_items', [
-            'id'                => $deliveryId,
-            'item_id'           => null,
-            'asset_id'          => $assetId,
-            'item_unit_id'      => null,
-            'conversion_factor' => 1,
+            'id'                  => $deliveryId,
+            'item_id'             => null,
+            'asset_id'            => $assetId,
+            'source_warehouse_id' => null,
+            'item_unit_id'        => null,
+            'conversion_factor'   => 1,
         ], 'asset_lines_migration_test');
         $this->assertDatabaseHas('gl_posting_statuses', [
             'id'                 => 'active-status',
@@ -225,6 +229,7 @@ class AssetLinesMigrationTest extends TestCase {
             $table->ulid('id')->primary();
             $table->ulid('item_id');
             $table->ulid('item_unit_id')->nullable();
+            $table->ulid('source_warehouse_id')->nullable();
             $table->double('conversion_factor')->default(1);
             $table->double('quantity');
         });
@@ -235,6 +240,7 @@ class AssetLinesMigrationTest extends TestCase {
             $table->ulid('item_unit_id')->nullable();
             $table->double('conversion_factor')->default(1);
             $table->double('quantity');
+            $table->timestamp('deleted_at')->nullable();
         });
         Schema::create('delivery_note_items', function (Blueprint $table): void {
             $table->ulid('id')->primary();
@@ -242,8 +248,10 @@ class AssetLinesMigrationTest extends TestCase {
             $table->ulid('referenceable_id')->nullable();
             $table->ulid('item_id');
             $table->ulid('item_unit_id')->nullable();
+            $table->ulid('source_warehouse_id')->nullable();
             $table->double('conversion_factor')->default(1);
             $table->double('quantity');
+            $table->timestamp('deleted_at')->nullable();
         });
         Schema::create('sales_invoice_item_assets', function (Blueprint $table): void {
             $table->ulid('id')->primary();

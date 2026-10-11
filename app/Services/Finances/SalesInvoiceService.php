@@ -10,6 +10,7 @@ use App\Events\Finances\SalesInvoiceGeneralLedgerPostingRequested;
 use App\Events\Sales\Invoice\SalesInvoiceReturnStatusChanged;
 use App\Events\Sales\Invoice\SalesOrderItemBillingChanged;
 use App\Events\Sales\Order\DocumentDeliveryStatusRecalculationRequested;
+use App\Models\Asset\Asset;
 use App\Models\Core\Branch;
 use App\Models\Core\FormatingSeries;
 use App\Models\Core\GlPostingStatus;
@@ -36,7 +37,7 @@ class SalesInvoiceService implements SubmitableService {
     private const float DPP_FACTOR = 11 / 12;
 
     private function fillRelations(array $data) {
-        $data['sales_order_id']    = $data['sales_order']['id'];
+        $data['sales_order_id']    = $data['sales_order']['id'] ?? null;
         $data['customer_id']       = $data['customer']['id'];
         $data['customer_name']     = Customer::find($data['customer']['id'])?->name;
         $data['income_account_id'] = $data['income_account']['id'];
@@ -292,9 +293,17 @@ class SalesInvoiceService implements SubmitableService {
                         $returnAgainst ? 'decrement' : 'increment',
                         $returnAgainst ? $item->returnAgainstItem : null,
                     ));
+                } elseif ($returnAgainst && $item->returnAgainstItem) {
+                    // Retur baris bebas: tak ada SO Item, tapi jumlah retur baris asal tetap dicatat.
+                    $item->returnAgainstItem->increment('returned_quantity', $item->quantity);
                 }
 
                 if ($item->asset_id) {
+                    // Asset bebas: cek ulang di bawah lock bahwa masih `active` (bisa berubah sejak validasi).
+                    if (! $returnAgainst && ! $item->salesOrderItem
+                        && ! Asset::where('id', $item->asset_id)->whereJsonContains('status', FormStatus::ACTIVE->value)->lockForUpdate()->exists()) {
+                        throw new \LogicException(__('sales/offSource.asset_not_active'));
+                    }
                     event(new AssetSoldViaInvoice($item));
                 }
             }
