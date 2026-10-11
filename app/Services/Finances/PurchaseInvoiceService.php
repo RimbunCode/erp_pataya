@@ -448,7 +448,7 @@ class PurchaseInvoiceService implements SubmitableService {
             $rate,
             $purchaseInvoice,
             fn (StockLedgerEntry $sle) => $this->eligibleQuantityForPoItem($sle, $poItem),
-            ['item_id'                 => $poItem->item_id, 'warehouse_id' => $poItem->target_warehouse_id, 'item_unit_id' => $poItem->item_unit_id],
+            ['item_id' => $poItem->item_id, 'warehouse_id' => $poItem->target_warehouse_id, 'item_unit_id' => $poItem->item_unit_id],
         );
     }
 
