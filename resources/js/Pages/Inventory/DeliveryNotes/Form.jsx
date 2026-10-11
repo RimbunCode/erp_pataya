@@ -16,6 +16,7 @@ import SalesOrderItemLinkModel from "@/Pages/Sales/SalesOrders/SalesOrderItemLin
 import { Textarea } from "@/Components/ui/textarea";
 import WarehouseLinkModel from "@/Pages/Inventory/Warehouses/WarehouseLinkModel";
 import { generateRandom } from "@/lib/utils";
+import usePermission from "@/Hooks/usePermission";
 import { useLaravelReactI18n } from "laravel-react-i18n";
 
 const ASSET_CLASS = "App\\Models\\Asset\\Asset";
@@ -23,6 +24,10 @@ const ITEM_VARIANT_CLASS = "App\\Models\\Inventory\\ItemVariant";
 
 export default function Form() {
   const { t } = useLaravelReactI18n();
+  // Baris di luar dokumen sumber (sub model ItemVariant/Asset) butuh izin khusus.
+  const canOffSource = usePermission(
+    "App\\Models\\Inventory\\DeliveryNote",
+  ).can("manage_off_source_items");
   const { data, setData, defaultData, dataBefore } = useFormPage(
     {
       delivery_date: new Date(),
@@ -79,23 +84,31 @@ export default function Form() {
               }
               disabled={!data.referenceable}
               mainLabel={t("inventory.deliveryNote.columns.item.group_source")}
-              subModels={[
-                {
-                  model: ITEM_VARIANT_CLASS,
-                  label: t("inventory.deliveryNote.columns.item.group_item"),
-                  filters: { "item.is_fixed_asset": false },
-                  with: ["defaultUom", "item"],
-                  fields: ["is_stock_item"],
-                  disabledAddButton: true,
-                },
-                {
-                  model: ASSET_CLASS,
-                  label: t("inventory.deliveryNote.columns.item.group_asset"),
-                  group: ["ownership"],
-                  filters: { status: { jsonContains: ["active"] } },
-                  disabledAddButton: true,
-                },
-              ]}
+              subModels={
+                !canOffSource
+                  ? undefined
+                  : [
+                      {
+                        model: ITEM_VARIANT_CLASS,
+                        label: t(
+                          "inventory.deliveryNote.columns.item.group_item",
+                        ),
+                        filters: { "item.is_fixed_asset": false },
+                        with: ["defaultUom", "item"],
+                        fields: ["is_stock_item"],
+                        disabledAddButton: true,
+                      },
+                      {
+                        model: ASSET_CLASS,
+                        label: t(
+                          "inventory.deliveryNote.columns.item.group_asset",
+                        ),
+                        group: ["ownership"],
+                        filters: { status: { jsonContains: ["active"] } },
+                        disabledAddButton: true,
+                      },
+                    ]
+              }
               onValueChange={(val) => {
                 // Opsi Asset bebas: dijual, tanpa unit/gudang.
                 if (val?.thisModel === ASSET_CLASS) {
@@ -263,7 +276,7 @@ export default function Form() {
         },
       },
     ];
-  }, [data, t]);
+  }, [data, t, canOffSource]);
 
   return (
     <>

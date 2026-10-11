@@ -5,6 +5,8 @@ namespace App\Http\Requests\Finances;
 use App\Http\Requests\BaseFormRequest;
 use App\Http\Requests\Finances\Rules\AdditionalDiscountRules;
 use App\Http\Requests\Finances\Rules\PaymentSchedulesRules;
+use App\Http\Requests\Sales\Rules\OffSourceItemRules;
+use App\Models\Finances\SalesInvoice;
 use App\Rules\ExistsExcludingTrashed;
 use Illuminate\Contracts\Validation\ValidationRule;
 use Illuminate\Contracts\Validation\Validator;
@@ -70,14 +72,23 @@ class SalesInvoiceRequest extends BaseFormRequest {
                 return;
             }
 
-            $rows     = (array) $this->input('items', []);
-            $assetIds = $this->sourceAssetIdsOf($rows);
-            $isReturn = filled($this->input('return_against.id'));
+            $rows      = (array) $this->input('items', []);
+            $assetIds  = $this->sourceAssetIdsOf($rows);
+            $isReturn  = filled($this->input('return_against.id'));
+            $freeRows  = [];
+            $freeAsset = [];
 
             foreach ($rows as $index => $row) {
                 $hasSource = filled($row['sales_order_item']['id'] ?? null);
                 $assetId   = $hasSource ? ($assetIds[$index] ?? null) : ($row['asset']['id'] ?? null);
                 $isAsset   = filled($assetId) && ($hasSource || blank($row['item']['id'] ?? null));
+
+                if (! $hasSource) {
+                    $freeRows[] = $index;
+                    if ($isAsset) {
+                        $freeAsset[$index] = $assetId;
+                    }
+                }
 
                 if ($isAsset) {
                     $this->validateAssetRow($validator, $index, $row, $hasSource, $assetId, $isReturn);
@@ -85,6 +96,12 @@ class SalesInvoiceRequest extends BaseFormRequest {
                     $validator->errors()->add("items.{$index}.unit.id", __('validation.required', ['attribute' => 'unit']));
                 }
             }
+
+            // Baris di luar SO: izin khusus, Asset aktif dan belum ada di SI submitted lain;
+            // baris SO harus milik SO header.
+            OffSourceItemRules::validatePermission($validator, $this, SalesInvoice::class, $freeRows);
+            OffSourceItemRules::validateFreeAssets($validator, $freeAsset, 'sales_invoice_items', 'sales_invoices', 'sales_invoice_id');
+            OffSourceItemRules::validateSourceBelongsToHeader($validator, $this->sourceOrderOf($rows), $this->input('sales_order.id'), 'sales_order_item.id');
         });
     }
 
@@ -110,6 +127,27 @@ class SalesInvoiceRequest extends BaseFormRequest {
         if (filled($row['asset']['id'] ?? null) && $row['asset']['id'] !== $assetId) {
             $validator->errors()->add("items.{$index}.asset.id", __('asset/asset.item_mismatch'));
         }
+    }
+
+    /**
+     * Id SO pemilik tiap baris SO (dari DB).
+     *
+     * @param  array<int|string,mixed>  $rows
+     * @return array<int|string,?string>
+     */
+    private function sourceOrderOf(array $rows): array {
+        $ids = array_values(array_filter(array_map(fn ($row) => $row['sales_order_item']['id'] ?? null, $rows)));
+        $map = $ids === [] ? collect() : DB::table('sales_order_items')->whereIn('id', $ids)->pluck('sales_order_id', 'id');
+
+        $owners = [];
+        foreach ($rows as $index => $row) {
+            $id = $row['sales_order_item']['id'] ?? null;
+            if (filled($id)) {
+                $owners[$index] = $map[$id] ?? null;
+            }
+        }
+
+        return $owners;
     }
 
     /**

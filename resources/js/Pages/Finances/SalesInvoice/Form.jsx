@@ -31,6 +31,7 @@ import SalesInvoiceLinkModel from "./SalesInvoiceLinkModel";
 import SalesOrderLinkModel from "@/Pages/Sales/SalesOrders/SalesOrderLinkModel";
 import TaxLinkModel from "@/Pages/Finances/Taxes/TaxLinkModel";
 import { Textarea } from "@/Components/ui/textarea";
+import usePermission from "@/Hooks/usePermission";
 import { useLaravelReactI18n } from "laravel-react-i18n";
 import { usePage } from "@inertiajs/react";
 
@@ -42,6 +43,10 @@ const ITEM_VARIANT_CLASS = "App\\Models\\Inventory\\ItemVariant";
 
 export default function Form() {
   const { t } = useLaravelReactI18n();
+  // Baris di luar dokumen sumber (sub model ItemVariant/Asset) butuh izin khusus.
+  const canOffSource = usePermission("App\\Models\\Finances\\SalesInvoice").can(
+    "manage_off_source_items",
+  );
   const defaultValue = useCallback(async () => {
     const accounts = await getDataModel("App\\Models\\Finances\\Account", {
       root_type: {
@@ -183,22 +188,30 @@ export default function Form() {
               }
               disabled={!data.sales_order}
               mainLabel={t("finances.salesInvoice.columns.item.group_source")}
-              subModels={[
-                {
-                  model: ITEM_VARIANT_CLASS,
-                  label: t("finances.salesInvoice.columns.item.group_item"),
-                  filters: { "item.is_fixed_asset": false },
-                  with: ["defaultUom", "item"],
-                  disabledAddButton: true,
-                },
-                {
-                  model: ASSET_CLASS,
-                  label: t("finances.salesInvoice.columns.item.group_asset"),
-                  group: ["ownership"],
-                  filters: { status: { jsonContains: ["active"] } },
-                  disabledAddButton: true,
-                },
-              ]}
+              subModels={
+                !canOffSource
+                  ? undefined
+                  : [
+                      {
+                        model: ITEM_VARIANT_CLASS,
+                        label: t(
+                          "finances.salesInvoice.columns.item.group_item",
+                        ),
+                        filters: { "item.is_fixed_asset": false },
+                        with: ["defaultUom", "item"],
+                        disabledAddButton: true,
+                      },
+                      {
+                        model: ASSET_CLASS,
+                        label: t(
+                          "finances.salesInvoice.columns.item.group_asset",
+                        ),
+                        group: ["ownership"],
+                        filters: { status: { jsonContains: ["active"] } },
+                        disabledAddButton: true,
+                      },
+                    ]
+              }
               onValueChange={(val) => {
                 // Opsi Asset bebas: dijual, tanpa unit.
                 if (val?.thisModel === ASSET_CLASS) {
@@ -374,7 +387,7 @@ export default function Form() {
         },
       },
     ];
-  }, [data, t]);
+  }, [data, t, canOffSource]);
 
   // basic_amount TIDAK ditimpa di sini -- generated (quantity*price) di server.
   // tax_amount dihitung dari basis DPP Nilai Lain SETELAH dikurangi discount_amount,

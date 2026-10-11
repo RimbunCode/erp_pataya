@@ -89,6 +89,14 @@ class DeliveryNote extends Model {
         ],
     ];
 
+    /**
+     * Izin tambahan: menambah baris di luar dokumen sumber (ItemVariant/Asset bebas) --
+     * harga/pajak baris itu berasal dari input (spec delivery-note-sales-invoice-off-source-items).
+     */
+    protected static function extraPermissions(): array {
+        return ['manage_off_source_items'];
+    }
+
     protected static function loadRelationsOnShow() {
         return [
             'referenceable',

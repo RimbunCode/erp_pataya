@@ -48,6 +48,15 @@ vi.mock("laravel-react-i18n", () => ({
   useLaravelReactI18n: () => ({ t: stableT }),
 }));
 
+// Izin `manage_off_source_items` (baris di luar dokumen sumber): default diizinkan,
+// test tertentu mematikan lewat globalThis.__canOffSource = false.
+vi.mock("@/Hooks/usePermission", () => ({
+  default: () => ({
+    can: () => globalThis.__canOffSource !== false,
+    canGlobal: () => globalThis.__canOffSource !== false,
+  }),
+}));
+
 window.route = (name, params) =>
   params ? `${name}/${JSON.stringify(params)}` : name;
 
@@ -896,6 +905,17 @@ describe("Inventory DeliveryNotes Form.jsx", () => {
           setData: setRow,
           attributes: {},
         });
+
+    it("tanpa izin manage_off_source_items: sub model ItemVariant/Asset tidak ditawarkan", () => {
+      globalThis.__canOffSource = false;
+      try {
+        renderForm({ data: soData() });
+
+        expect(cellOf("item").props.subModels).toBeUndefined();
+      } finally {
+        globalThis.__canOffSource = undefined;
+      }
+    });
 
     it("hanya satu FormTable (tidak ada section/tabel Asset Items)", () => {
       renderForm({ data: soData() });

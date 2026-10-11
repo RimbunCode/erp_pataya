@@ -59,6 +59,13 @@ Satu spec untuk DN dan SI; urutan pengerjaan DN dulu, lalu SI.
 - Sel nonaktif memakai "punya salah satu dari tiga sumber".
 - Prefill create-from-SO dan retur tidak lagi dipartisi.
 
+## Pengamanan baris di luar dokumen sumber
+
+Harga dan pajak baris bebas berasal dari input (tidak ada master harga jual), jadi:
+- Izin tambahan `manage_off_source_items` (`extraPermissions()` pada `DeliveryNote` dan `SalesInvoice`, label di `lang/*/user/role.php`); `OffSourceItemRules::validatePermission` menolak baris bebas tanpa izin, dan form menyembunyikan sub model (`usePermission`). Role yang sudah ada tidak otomatis memilikinya: perlu diberikan.
+- `OffSourceItemRules::validateFreeAssets`: Asset bebas berstatus `active` dan belum ada di DN (atau SI) submitted lain.
+- `OffSourceItemRules::validateSourceBelongsToHeader`: baris SO/IO harus milik dokumen header.
+
 ## Strategi pengujian
 
 - **PHPUnit:** validasi tiga sumber dan prioritas (DN dan SI); `onApproved` DN: baris ItemVariant bebas (stok turun, `delivered_quantity` SO tetap), baris Asset bebas (`AssetSoldViaDelivery`), baris SO tak berubah; SI: baris bebas tanpa `SalesOrderItemBillingChanged`, GL, `AssetSoldViaInvoice`; retur ItemVariant bebas diterima, retur Asset bebas ditolak; regresi test DN/SI/Asset yang ada (sesuaikan bentuk payload).

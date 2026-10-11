@@ -52,3 +52,9 @@ Diturunkan dari [design.md](design.md) (`design-first`). Menyatukan section Asse
 
 1. Baris SO (create-from-SO, retur, event rental/jual dari SO, status SO) SHALL berperilaku identik.
 2. Test DN, SI, dan Asset yang ada SHALL tetap lulus setelah disesuaikan ke bentuk payload baru.
+
+### Requirement 7: Pengamanan baris di luar dokumen sumber
+
+1. WHEN payload memuat baris bebas, THE request SHALL menolaknya kecuali user memiliki izin `manage_off_source_items` pada model dokumen (DN atau SI); form SHALL tidak menawarkan sub model ItemVariant/Asset tanpa izin itu.
+2. Asset bebas SHALL berstatus `active` dan SHALL belum ada di dokumen submitted sejenis lain (bukan retur, belum dibatalkan).
+3. Setiap baris sumber SHALL milik dokumen header (SO/IO pada DN, SO pada SI).

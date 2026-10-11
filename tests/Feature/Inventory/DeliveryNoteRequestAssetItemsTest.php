@@ -2,9 +2,13 @@
 
 namespace Tests\Feature\Inventory;
 
+use App\Enums\FormStatus;
 use App\Http\Requests\Inventory\DeliveryNoteRequest;
+use App\Http\Requests\Sales\Rules\OffSourceItemRules;
 use App\Models\Asset\Asset;
 use App\Models\Asset\AssetCategory;
+use App\Models\Inventory\DeliveryNote;
+use App\Models\Inventory\DeliveryNoteItem;
 use App\Models\Inventory\Item;
 use App\Models\Inventory\ItemVariant;
 use App\Models\Inventory\Unit;
@@ -12,6 +16,7 @@ use App\Models\Sales\Customer;
 use App\Models\Sales\SalesOrder;
 use App\Models\Sales\SalesOrderItem;
 use App\Models\User\User;
+use App\Services\Core\PermissionChecker;
 use Database\Factories\Inventory\WarehouseFactory;
 use Illuminate\Contracts\Validation\Validator;
 use Illuminate\Foundation\Testing\RefreshDatabase;
@@ -39,6 +44,7 @@ class DeliveryNoteRequestAssetItemsTest extends TestCase {
 
     protected function setUp(): void {
         parent::setUp();
+        $this->grantOffSourcePermission(true);
 
         $regularItem = Item::factory()->create(['is_fixed_asset' => false]);
         $assetItem   = Item::factory()->create(['is_fixed_asset' => true, 'is_stock_item' => false]);
@@ -61,6 +67,7 @@ class DeliveryNoteRequestAssetItemsTest extends TestCase {
         ]);
 
         SalesOrder::initPermissions();
+        DeliveryNote::initPermissions();
         $salesOrder = SalesOrder::create([
             'code'          => fake()->unique()->bothify('SO-####'),
             'date'          => now(),
@@ -85,10 +92,18 @@ class DeliveryNoteRequestAssetItemsTest extends TestCase {
 
     private function makeAsset(Item $item, bool $rentable = true): Asset {
         $category = AssetCategory::factory()->create();
-
-        return $rentable
+        $asset    = $rentable
             ? Asset::factory()->rentable()->create(['asset_category_id' => $category->id, 'item_id' => $item->id])
             : Asset::factory()->create(['asset_category_id' => $category->id, 'item_id' => $item->id, 'is_rentable' => false]);
+        $asset->forceFill(['status' => [FormStatus::ACTIVE]])->save();
+
+        return $asset;
+    }
+
+    private function grantOffSourcePermission(bool $granted): void {
+        app()->instance(PermissionChecker::class, new PermissionChecker(
+            $granted ? [DeliveryNote::class => [0 => [['permissions' => [OffSourceItemRules::PERMISSION => true]]]]] : [],
+        ));
     }
 
     /**
@@ -261,5 +276,58 @@ class DeliveryNoteRequestAssetItemsTest extends TestCase {
         $request->withValidator($validator);
 
         $this->assertSame(['items.0.asset.id'], array_keys($validator->errors()->toArray()));
+    }
+
+    // --- aturan baris di luar dokumen sumber (izin, Asset aktif, milik header) ----
+
+    #[Test]
+    public function free_rows_require_the_off_source_permission(): void {
+        $this->grantOffSourcePermission(false);
+
+        $validator = $this->validate(['items' => [
+            $this->soRow($this->regularSoItem, 'r1'),
+            $this->freeItemRow(),
+            $this->freeAssetRow($this->asset),
+        ]]);
+
+        $this->assertEqualsCanonicalizing(['items.1.asset', 'items.2.asset'], array_keys($validator->errors()->toArray()));
+    }
+
+    #[Test]
+    public function a_free_asset_must_be_active(): void {
+        $this->asset->forceFill(['status' => [FormStatus::SOLD]])->save();
+
+        $validator = $this->validate(['items' => [$this->freeAssetRow($this->asset)]]);
+
+        $this->assertSame(['items.0.asset.id'], array_keys($validator->errors()->toArray()));
+    }
+
+    #[Test]
+    public function a_free_asset_already_on_a_submitted_delivery_note_is_rejected(): void {
+        $submitted = DeliveryNote::factory()->create(['submitted_at' => now()]);
+        DeliveryNoteItem::factory()->create(['delivery_note_id' => $submitted->id, 'item_id' => null, 'asset_id' => $this->asset->id]);
+
+        $validator = $this->validate(['items' => [$this->freeAssetRow($this->asset)]]);
+
+        $this->assertSame(['items.0.asset.id'], array_keys($validator->errors()->toArray()));
+    }
+
+    #[Test]
+    public function a_source_row_must_belong_to_the_header_order(): void {
+        $other = SalesOrder::create([
+            'code'          => fake()->unique()->bothify('SO-####'),
+            'date'          => now(),
+            'customer_id'   => Customer::query()->create(['name' => 'Y', 'is_disabled' => false])->id,
+            'created_by_id' => User::factory()->create()->id,
+        ]);
+        $foreign = $this->makeSalesOrderItem($other, null, $this->makeAsset(Item::factory()->create(['is_fixed_asset' => true, 'is_stock_item' => false])));
+
+        $validator = $this->validate([
+            'referenceable_type' => SalesOrder::class,
+            'referenceable_id'   => $this->regularSoItem->sales_order_id,
+            'items'              => [$this->soRow($this->regularSoItem, 'r1'), $this->soRow($foreign, 'a1')],
+        ]);
+
+        $this->assertSame(['items.1.referenceable_id'], array_keys($validator->errors()->toArray()));
     }
 }

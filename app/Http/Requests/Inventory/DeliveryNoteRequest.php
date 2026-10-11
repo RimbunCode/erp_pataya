@@ -3,7 +3,9 @@
 namespace App\Http\Requests\Inventory;
 
 use App\Http\Requests\BaseFormRequest;
+use App\Http\Requests\Sales\Rules\OffSourceItemRules;
 use App\Models\Asset\AssetServiceConsumedItem;
+use App\Models\Inventory\DeliveryNote;
 use App\Models\Sales\InternalOrder;
 use App\Models\Sales\InternalOrderItem;
 use App\Models\Sales\SalesOrder;
@@ -69,11 +71,20 @@ class DeliveryNoteRequest extends BaseFormRequest {
             $assetIds  = $this->sourceAssetIdsOf($rows);
             $isReturn  = filled($this->input('return_against.id'));
             $rentables = $this->nonRentableAssetIds($rows, $assetIds);
+            $freeRows  = [];
+            $freeAsset = [];
 
             foreach ($rows as $index => $row) {
                 $hasSource = filled($row['referenceable_id'] ?? null);
                 $assetId   = $hasSource ? ($assetIds[$index] ?? null) : ($row['asset']['id'] ?? null);
                 $isAsset   = filled($assetId) && ($hasSource || blank($row['item']['id'] ?? null));
+
+                if (! $hasSource) {
+                    $freeRows[] = $index;
+                    if ($isAsset) {
+                        $freeAsset[$index] = $assetId;
+                    }
+                }
 
                 if ($isAsset) {
                     $this->validateAssetRow($validator, $index, $row, $hasSource, $assetId, $isReturn, $rentables);
@@ -83,6 +94,12 @@ class DeliveryNoteRequest extends BaseFormRequest {
             }
 
             $this->validateAssetServiceConsumedItemQuantity($validator);
+
+            // Baris di luar SO/IO: izin khusus, Asset aktif dan belum ada di DN submitted lain;
+            // baris sumber harus milik header.
+            OffSourceItemRules::validatePermission($validator, $this, DeliveryNote::class, $freeRows);
+            OffSourceItemRules::validateFreeAssets($validator, $freeAsset, 'delivery_note_items', 'delivery_notes', 'delivery_note_id');
+            OffSourceItemRules::validateSourceBelongsToHeader($validator, $this->sourceOwnersOf($rows), $this->input('referenceable_id'), 'referenceable_id');
         });
     }
 
@@ -153,6 +170,39 @@ class DeliveryNoteRequest extends BaseFormRequest {
                 : null,
             $rows,
         );
+    }
+
+    /**
+     * Id dokumen pemilik tiap baris sumber (SO/IO) dari DB; baris yang tipenya tidak cocok
+     * dengan tipe header diberi penanda agar ditolak.
+     *
+     * @param  array<int|string,mixed>  $rows
+     * @return array<int|string,?string>
+     */
+    private function sourceOwnersOf(array $rows): array {
+        $expected = [
+            SalesOrder::class    => SalesOrderItem::class,
+            InternalOrder::class => InternalOrderItem::class,
+        ][$this->input('referenceable_type')] ?? null;
+
+        $owners = [];
+        foreach ($rows as $index => $row) {
+            $type = $row['referenceable_type'] ?? null;
+            $id   = $row['referenceable_id'] ?? null;
+            if (blank($id)) {
+                continue;
+            }
+            if ($type !== $expected) {
+                $owners[$index] = '__type_mismatch__';
+
+                continue;
+            }
+            $owners[$index] = $type === SalesOrderItem::class
+                ? DB::table('sales_order_items')->where('id', $id)->value('sales_order_id')
+                : DB::table('internal_order_items')->where('id', $id)->value('internal_order_id');
+        }
+
+        return $owners;
     }
 
     /**
