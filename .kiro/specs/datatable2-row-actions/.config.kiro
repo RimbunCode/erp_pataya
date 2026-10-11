@@ -1,0 +1,1 @@
+{"specId": "datatable2-row-actions", "workflowType": "requirements-first", "specType": "feature", "description": "DataTable2: checkbox seleksi default, kolom aksi jadi menu ⋯ (Hapus bawaan + aksi custom per halaman), aksi bulk untuk baris tercentang, endpoint bulk delete, dan mode pilih long-press di mobile"}
