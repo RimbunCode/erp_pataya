@@ -33,6 +33,9 @@ return [
         'supplier'                     => 'Pemasok',
         'item'                         => 'Item',
         'item.placeholder'             => 'Pilih item',
+        'item.group_po'                => 'Item PO',
+        'item.group_receipt'           => 'Diterima di Luar PO',
+        'item.group_other'             => 'Item Lainnya',
         'date'                         => 'Tanggal',
         'description'                  => 'Deskripsi',
         'source_warehouse'             => 'Gudang Asal',
@@ -88,5 +91,10 @@ return [
         'tax_invoice_dpp_amount'       => 'DPP Faktur Pajak',
         'tax_invoice_ppn_amount'       => 'PPN Faktur Pajak',
         'tax_invoice_ppnbm_amount'     => 'PPnBM Faktur Pajak',
+    ],
+    'validation' => [
+        'purchase_order_required'   => 'Purchase Order wajib untuk menagih item di luar PO.',
+        'item_already_in_po'        => 'Item ini sudah ada di Purchase Order; pilih dari daftar item PO.',
+        'receipt_item_not_billable' => 'Baris Purchase Receipt harus baris receipt di luar PO yang sudah di-approve, dari receipt Purchase Order ini.',
     ],
 ];

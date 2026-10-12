@@ -85,13 +85,24 @@ class CreateAssetFromPurchase implements ShouldQueue {
     }
 
     private function findAssetFromRelatedReceipt(PurchaseInvoiceItem $invoiceItem): ?Asset {
+        // Baris invoice yang menagih baris receipt tertentu: pakai Asset baris itu lebih dulu.
+        if ($invoiceItem->purchase_receipt_item_id) {
+            return Asset::whereNull('purchase_invoice_id')
+                ->where('purchase_receipt_item_id', $invoiceItem->purchase_receipt_item_id)
+                ->first();
+        }
+
         $poItem = $invoiceItem->purchaseOrderItem;
         if (! $poItem) {
             return null;
         }
 
         return Asset::whereNull('purchase_invoice_id')
-            ->whereHas('purchaseReceiptItem', fn ($q) => $q->where('purchase_order_item_id', $poItem->id))
+            ->whereHas('purchaseReceiptItem', fn ($q) => $q->where(function ($match) use ($poItem) {
+                // baris normal ATAU baris pengganti di luar PO (purchase-receipt-off-po-items)
+                $match->where('purchase_order_item_id', $poItem->id)
+                    ->orWhere('replaces_purchase_order_item_id', $poItem->id);
+            }))
             ->first();
     }
 

@@ -32,6 +32,19 @@ return [
         'external_note'                => 'External Note',
         'return_against'               => 'Return Against Purchase Receipt',
         'is_return'                    => 'Is Return (Purchase Return)',
+        'item.group_po'                => 'PO Items',
+        'item.group_other'             => 'Other Items',
+        'replaces'                     => 'Replaces PO Item',
+        'replaces.placeholder'         => 'Select the PO Item replaced',
+        'replaced_quantity'            => 'Replaced Quantity',
+    ],
+    'validation' => [
+        'item_already_in_po'                    => 'This item is already in the Purchase Order; choose it from the PO items instead.',
+        'replaces_requires_item'                => 'A replacing row must use an item outside the Purchase Order.',
+        'replaced_quantity_required'            => 'Replaced quantity is required when replacing a PO Item.',
+        'replaces_other_po'                     => 'The replaced PO Item does not belong to the selected Purchase Order.',
+        'replaced_exceeds_remaining'            => 'Replaced quantity (:quantity) exceeds the remaining quantity of the PO Item (:remaining).',
+        'replaced_exceeds_remaining_on_approve' => 'The PO Item :item has only :remaining left to receive; replaced quantity :quantity cannot be approved.',
     ],
 
 ];

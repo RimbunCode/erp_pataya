@@ -128,10 +128,34 @@ vi.mock("@/Pages/Core/CurrencyLinkModel", () => ({
   default: makeLinkModelStub("currency-link"),
 }));
 vi.mock("@/Pages/Inventory/Items/ItemUnitLinkModel", () => ({
-  default: makeLinkModelStub("item-unit-link"),
+  default: ({ filters }) => (
+    <div
+      data-testid="item-unit-link"
+      data-filters={JSON.stringify(filters ?? {})}
+    />
+  ),
 }));
+// Stub kolom item menangkap props (mainLabel/subModels/filters) dan meneruskan
+// payload tetap ke onValueChange -- untuk menguji LinkModel multi-model tiga sumber.
+const itemLinkPropsSpy = vi.fn();
 vi.mock("@/Pages/Purchase/PurchaseOrders/PurchaseOrderItemLinkModel", () => ({
-  default: makeLinkModelStub("purchase-order-item-link"),
+  default: (props) => {
+    itemLinkPropsSpy(props);
+    return (
+      <button
+        type="button"
+        data-testid="purchase-order-item-link"
+        disabled={props.disabled}
+        onClick={() =>
+          props.onValueChange?.(
+            globalThis.__linkModelPayloads?.["purchase-order-item-link"],
+          )
+        }
+      >
+        purchase-order-item-link:{props.value?.id ?? "none"}
+      </button>
+    );
+  },
 }));
 vi.mock("../PurchaseInvoice/PurchaseInvoiceLinkModel", () => ({
   default: makeLinkModelStub("purchase-invoice-link"),
@@ -799,5 +823,262 @@ describe("PurchaseInvoice Form", () => {
     const props = additionalDiscountPropsSpy.mock.calls[0][0];
     expect(props.netAmount).toBe(1200);
     expect(props.taxAmount).toBe(121);
+  });
+});
+
+describe("item di luar PO (spec purchase-invoice-off-po-items)", () => {
+  const RECEIPT_MODEL = "App\\Models\\Purchase\\PurchaseReceiptOffPoItem";
+  const VARIANT_MODEL = "App\\Models\\Inventory\\ItemVariant";
+  const PO_ITEM_MODEL = "App\\Models\\Purchase\\PurchaseOrderItem";
+
+  const itemColumns = () => {
+    const call = formTablePropsSpy.mock.calls
+      .map(([props]) => props)
+      .filter((props) =>
+        props.columns?.some((c) => c.name === "purchase_order_item"),
+      )
+      .at(-1);
+
+    return call.columns;
+  };
+  const cell = (name, args) =>
+    render(
+      <div>
+        {itemColumns()
+          .find((c) => c.name === name)
+          .cell({ attributes: {}, setData: vi.fn(), ...args })}
+      </div>,
+    );
+
+  beforeEach(() => {
+    vi.clearAllMocks();
+    globalThis.__linkModelPayloads = {};
+    usePageMock.mockReturnValue({
+      props: { preferences: { default_currency_id: "idr" } },
+    });
+    getDataModelMock.mockResolvedValue([]);
+    lastDefaultValueArg = undefined;
+  });
+
+  it("baris receipt & item bebas ikut kalkulasi total (bukan hanya baris ber-PO Item)", () => {
+    formPageState = makeFormPageState({
+      data: {
+        items: [
+          {
+            purchase_receipt_item: { id: "r1" },
+            quantity: 12,
+            rate: 100,
+            tax: { rate: 11 },
+          },
+          { item: { id: "v1" }, quantity: 12, rate: 100, tax: { rate: 11 } },
+        ],
+      },
+    });
+    render(<Form />);
+
+    // 2 baris x (12 x 100) = 2400 dasar, DPP 2200, pajak 242, total 2642
+    expect(screen.getAllByDisplayValue("2400").length).toBeGreaterThan(0);
+    expect(screen.getAllByDisplayValue("2200").length).toBeGreaterThan(0);
+    expect(screen.getAllByDisplayValue("242").length).toBeGreaterThan(0);
+    expect(screen.getAllByDisplayValue("2642").length).toBeGreaterThan(0);
+  });
+
+  it("kolom item multi-model: main 'Item PO' + sub baris receipt (filter PO) + sub ItemVariant (notIn id varian PO)", () => {
+    formPageState = makeFormPageState({
+      data: {
+        purchase_order: {
+          id: 10,
+          items: [
+            { id: 1, item: { id: "var-po-1" } },
+            { id: 2, item: { id: "var-po-2" } },
+          ],
+        },
+        items: [{ id: "r1" }],
+      },
+    });
+    render(<Form />);
+    cell("purchase_order_item", { dataRow: { id: "r1" } });
+
+    const props = itemLinkPropsSpy.mock.calls.at(-1)[0];
+    expect(props.mainLabel).toBe(
+      "finances.purchaseInvoice.columns.item.group_po",
+    );
+    expect(props.subModels).toHaveLength(2);
+    expect(props.subModels[0]).toMatchObject({
+      model: RECEIPT_MODEL,
+      filters: { purchase_order_id: 10 },
+      disabledNavigation: true,
+    });
+    expect(props.subModels[1]).toMatchObject({
+      model: VARIANT_MODEL,
+      filters: { id: { notIn: ["var-po-1", "var-po-2"] } },
+    });
+  });
+
+  it("memilih opsi baris receipt -> baris receipt: tanpa PO Item, rate dikosongkan", async () => {
+    const setData = vi.fn();
+    formPageState = makeFormPageState({
+      data: { purchase_order: { id: 10 }, items: [{ id: "r1" }] },
+    });
+    render(<Form />);
+    const option = {
+      id: "ri-1",
+      thisModel: RECEIPT_MODEL,
+      item: { id: "v9" },
+      unit: { id: "u1" },
+      conversion_factor: 1,
+      quantity: 6,
+    };
+
+    render(
+      <div>
+        {itemColumns()
+          .find((c) => c.name === "purchase_order_item")
+          .cell({ dataRow: { id: "r1" }, setData, attributes: {} })}
+      </div>,
+    );
+    globalThis.__linkModelPayloads["purchase-order-item-link"] = option;
+    await userEvent.click(
+      screen.getAllByTestId("purchase-order-item-link").at(-1),
+    );
+
+    expect(setData).toHaveBeenCalledWith(
+      expect.objectContaining({
+        purchase_order_item: null,
+        purchase_order_item_id: null,
+        purchase_receipt_item: option,
+        item: option.item,
+        quantity: 6,
+        rate: undefined,
+      }),
+    );
+  });
+
+  it("memilih opsi ItemVariant -> item bebas: satuan default varian, qty 1", async () => {
+    const setData = vi.fn();
+    formPageState = makeFormPageState({
+      data: { purchase_order: { id: 10 }, items: [{ id: "r1" }] },
+    });
+    render(<Form />);
+    const option = {
+      id: "v1",
+      thisModel: VARIANT_MODEL,
+      default_uom: { id: "iu", conversion_factor: 2 },
+    };
+
+    render(
+      <div>
+        {itemColumns()
+          .find((c) => c.name === "purchase_order_item")
+          .cell({ dataRow: { id: "r1" }, setData, attributes: {} })}
+      </div>,
+    );
+    globalThis.__linkModelPayloads["purchase-order-item-link"] = option;
+    await userEvent.click(
+      screen.getAllByTestId("purchase-order-item-link").at(-1),
+    );
+
+    expect(setData).toHaveBeenCalledWith(
+      expect.objectContaining({
+        purchase_receipt_item: null,
+        item: option,
+        unit: option.default_uom,
+        conversion_factor: 2,
+        quantity: 1,
+        rate: undefined,
+      }),
+    );
+  });
+
+  it("memilih opsi PO Item -> baris normal: sumber lain dikosongkan", async () => {
+    const setData = vi.fn();
+    formPageState = makeFormPageState({
+      data: { purchase_order: { id: 10 }, items: [{ id: "r1" }] },
+    });
+    render(<Form />);
+    const option = {
+      id: 5,
+      thisModel: PO_ITEM_MODEL,
+      unbilled_quantity: 4,
+      rate: 900,
+      unit: { id: "u" },
+    };
+
+    render(
+      <div>
+        {itemColumns()
+          .find((c) => c.name === "purchase_order_item")
+          .cell({
+            dataRow: { id: "r1", item: { id: "stray" } },
+            setData,
+            attributes: {},
+          })}
+      </div>,
+    );
+    globalThis.__linkModelPayloads["purchase-order-item-link"] = option;
+    await userEvent.click(
+      screen.getAllByTestId("purchase-order-item-link").at(-1),
+    );
+
+    expect(setData).toHaveBeenCalledWith(
+      expect.objectContaining({
+        purchase_order_item: option,
+        purchase_receipt_item: null,
+        item: null,
+        quantity: 4,
+        rate: 900,
+      }),
+    );
+  });
+
+  it("sel quantity/rate/unit aktif untuk baris receipt & item bebas, nonaktif untuk baris kosong", () => {
+    formPageState = makeFormPageState({
+      data: { purchase_order: { id: 10 }, items: [] },
+    });
+    render(<Form />);
+
+    const disabledOf = (rowData) => {
+      const { container, unmount } = cell("quantity", {
+        dataRow: rowData,
+        data: 1,
+      });
+      const disabled = container.querySelector("input").disabled;
+      unmount();
+
+      return disabled;
+    };
+
+    expect(disabledOf({})).toBe(true);
+    expect(disabledOf({ purchase_receipt_item: { id: "r" } })).toBe(false);
+    expect(disabledOf({ item: { id: "v" } })).toBe(false);
+    expect(disabledOf({ purchase_order_item: { id: 1 } })).toBe(false);
+  });
+
+  it("filter satuan: item_id dari PO Item > baris receipt > item bebas", () => {
+    formPageState = makeFormPageState({ data: { items: [] } });
+    render(<Form />);
+    const unitFilter = (dataRow) => {
+      const { container, unmount } = cell("unit", { dataRow, data: null });
+      const filters = container
+        .querySelector('[data-testid="item-unit-link"]')
+        .getAttribute("data-filters");
+      unmount();
+
+      return JSON.parse(filters);
+    };
+
+    expect(unitFilter({ item: { item_id: 3 } })).toEqual({ item_id: 3 });
+    expect(
+      unitFilter({
+        purchase_receipt_item: { item: { item_id: 2 } },
+        item: { item_id: 3 },
+      }),
+    ).toEqual({ item_id: 2 });
+    expect(
+      unitFilter({
+        purchase_order_item: { item: { item_id: 1 } },
+        purchase_receipt_item: { item: { item_id: 2 } },
+      }),
+    ).toEqual({ item_id: 1 });
   });
 });

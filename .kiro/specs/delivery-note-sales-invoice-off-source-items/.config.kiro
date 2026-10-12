@@ -1,0 +1,6 @@
+{
+  "specId": "b2d4f6a8-1c3e-4a5b-8d7f-9e0a1b2c3d4e",
+  "workflowType": "design-first",
+  "specType": "feature",
+  "description": "Delivery Note dan Sales Invoice: section Asset Items dihapus, satu tabel Items dengan LinkModel multi-model (utama = baris SO, sub model ItemVariant dan Asset) sehingga baris di luar Sales Order dapat disimpan. Baris Asset bebas dianggap dijual; SI tidak menyentuh stok."
+}

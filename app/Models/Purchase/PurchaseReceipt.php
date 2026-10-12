@@ -36,7 +36,7 @@ class PurchaseReceipt extends Model {
     public $translateKey = 'purchase.purchaseReceipt';
 
     protected static function loadRelationsOnShow() {
-        return ['items', 'items.purchaseOrderItem', 'items.purchaseOrderItem.item', 'supplier', 'items.unit', 'items.targetWarehouse', 'purchaseOrder', 'returnAgainst'];
+        return ['items', 'items.purchaseOrderItem', 'items.purchaseOrderItem.item', 'items.item', 'items.replacesPurchaseOrderItem', 'items.replacesPurchaseOrderItem.item', 'supplier', 'items.unit', 'items.targetWarehouse', 'purchaseOrder', 'returnAgainst'];
     }
 
     /**

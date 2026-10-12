@@ -10,6 +10,7 @@ use App\Models\Inventory\Warehouse;
 use App\Models\Model;
 use App\Models\Purchase\PurchaseOrder;
 use App\Models\Purchase\PurchaseOrderItem;
+use App\Models\Purchase\PurchaseReceiptOffPoItem;
 use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Database\Eloquent\Concerns\HasUlids;
 use Illuminate\Database\Eloquent\Relations\HasOne;
@@ -144,6 +145,12 @@ class PurchaseInvoiceItem extends Model {
         'purchase_order_item_id' => [
             'ignore' => true,
         ],
+        'purchaseReceiptItem' => [
+            'ignore' => true,
+        ],
+        'purchase_receipt_item_id' => [
+            'ignore' => true,
+        ],
         'returnAgainstItem' => [
             'ignore' => true,
         ],
@@ -161,6 +168,17 @@ class PurchaseInvoiceItem extends Model {
 
     public function purchaseOrderItem() {
         return $this->belongsTo(PurchaseOrderItem::class);
+    }
+
+    /**
+     * Baris receipt di luar PO yang ditagih baris invoice ini (spec
+     * purchase-invoice-off-po-items).
+     */
+    public function purchaseReceiptItem() {
+        // Model turunan yang sama dgn sub model dropdown LinkModel invoice: `thisModel`
+        // nilai tersimpan harus cocok daftar model LinkModel, kalau tidak LinkModel
+        // menganggapnya tak valid dan mengosongkan baris saat form dimuat.
+        return $this->belongsTo(PurchaseReceiptOffPoItem::class, 'purchase_receipt_item_id');
     }
 
     public function returnAgainstItem() {

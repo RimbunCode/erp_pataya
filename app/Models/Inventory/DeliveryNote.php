@@ -5,12 +5,15 @@ namespace App\Models\Inventory;
 use App\Models\Core\Branch;
 use App\Models\Model;
 use App\Models\Sales\Customer;
+use App\Models\Sales\InternalOrderItem;
+use App\Models\Sales\SalesOrderItem;
 use App\Models\User\Permission;
 use App\Services\Inventory\DeliveryNoteService;
 use App\Traits\DataTable;
 use App\Traits\Submitable;
 use Illuminate\Database\Eloquent\Concerns\HasUlids;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
+use Illuminate\Database\Eloquent\Relations\MorphTo;
 use Illuminate\Database\Eloquent\SoftDeletes;
 
 class DeliveryNote extends Model {
@@ -86,6 +89,14 @@ class DeliveryNote extends Model {
         ],
     ];
 
+    /**
+     * Izin tambahan: menambah baris di luar dokumen sumber (ItemVariant/Asset bebas) --
+     * harga/pajak baris itu berasal dari input (spec delivery-note-sales-invoice-off-source-items).
+     */
+    protected static function extraPermissions(): array {
+        return ['manage_off_source_items'];
+    }
+
     protected static function loadRelationsOnShow() {
         return [
             'referenceable',
@@ -93,10 +104,16 @@ class DeliveryNote extends Model {
             'customer',
             'customerBranch',
             'items',
-            'items.referenceable',
-            'items.referenceable.item',
+            'items.referenceable' => function (MorphTo $morphTo): void {
+                $morphTo->morphWith([
+                    SalesOrderItem::class    => ['item', 'asset'],
+                    InternalOrderItem::class => ['item'],
+                ]);
+            },
+            'items.item',
             'items.unit',
             'items.sourceWarehouse',
+            'items.asset',
             'returnAgainst',
         ];
     }

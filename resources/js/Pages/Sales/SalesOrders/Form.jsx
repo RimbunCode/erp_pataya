@@ -30,6 +30,7 @@ import { usePage } from "@inertiajs/react";
 const ASSET_SERVICE_CLASS = "App\\Models\\Asset\\AssetService";
 const ASSET_SERVICE_CONSUMED_ITEM_CLASS =
   "App\\Models\\Asset\\AssetServiceConsumedItem";
+const ASSET_CLASS = "App\\Models\\Asset\\Asset";
 
 /**
  * Requirement 7.1-7.4, spec asset-service-billing-reference-flow: customer
@@ -93,9 +94,11 @@ export default memo(function Form() {
   // di bawah (yang sudah hasil alokasi) karena kalau basis diskon ikut memakai
   // angka yang sudah terpotong, discount_rate 10% akan memotong basis yang sudah
   // menyusut di setiap render -- basis "menyusut" terus tiap kali user mengetik.
+  // Spec sales-order-asset-in-items-column: satu tabel Items berisi baris ItemVariant
+  // (`item`) dan baris Asset (`asset`).
   const rawLines = useMemo(() => {
     return (data.items ?? [])
-      .filter((item) => item?.item)
+      .filter((item) => item?.item || item?.asset)
       .map((item) => ({
         basic_amount: (item.quantity ?? 0) * (item.price ?? 0),
         tax_rate: item.tax?.rate ?? 0,
@@ -248,6 +251,23 @@ export default memo(function Form() {
           .filter(Boolean)
       : [];
 
+  // Model utama (ItemVariant) meng-exclude item aset tetap -- aset tetap hanya
+  // dipilih lewat sub model Asset. Filter `or` untuk referensi AssetService
+  // (item jasa / consumed item) hanya berlaku untuk ItemVariant.
+  // Path relasi `item.is_fixed_asset` (ItemVariant -> Item) sudah dipakai
+  // InternalOrders/Form.jsx dan Asset/Services/Form.jsx.
+  const itemFilters = {
+    ...(data.referenceable_type === ASSET_SERVICE_CLASS
+      ? {
+          or: {
+            "item.category.type": "service",
+            id: { in: consumedItemVariantIds },
+          },
+        }
+      : {}),
+    "item.is_fixed_asset": false,
+  };
+
   const itemColumns = [
     {
       name: "item",
@@ -260,20 +280,38 @@ export default memo(function Form() {
             placeholder={t("sales.salesOrder.columns.item.placeholder")}
             fields={["is_stock_item"]}
             disabled={dataRow?.assetServiceLocked}
-            value={dataRow.item}
-            filters={
-              data.referenceable_type === ASSET_SERVICE_CLASS
-                ? {
-                    or: {
-                      "item.category.type": "service",
-                      id: { in: consumedItemVariantIds },
-                    },
-                  }
-                : undefined
-            }
+            value={dataRow.asset ?? dataRow.item}
+            filters={itemFilters}
+            mainLabel={t("sales.salesOrder.columns.item.group_item")}
+            subModels={[
+              {
+                model: ASSET_CLASS,
+                label: t("sales.salesOrder.columns.item.group_asset"),
+                group: ["ownership"],
+                disabledAddButton: true,
+                // Hanya Asset aktif; SO rental hanya menawarkan Asset rentable.
+                filters: {
+                  status: { jsonContains: ["active"] },
+                  ...(data.is_rent ? { is_rentable: true } : {}),
+                },
+              },
+            ]}
             onValueChange={(val) => {
+              // Opsi dari sub model Asset: baris asset (tanpa unit & gudang).
+              if (val?.thisModel === ASSET_CLASS) {
+                setRowData({
+                  asset: val,
+                  item: null,
+                  unit: null,
+                  conversion_factor: 1,
+                  source_warehouse: null,
+                  quantity: 1,
+                });
+                return;
+              }
               const defaultUnit = val?.default_uom;
               const rowPatch = {
+                asset: null,
                 item: val,
                 unit: defaultUnit,
                 conversion_factor: defaultUnit?.conversion_factor,
@@ -341,7 +379,7 @@ export default memo(function Form() {
       cell({ dataRow, data: value, setData, attributes }) {
         return (
           <Textarea
-            disabled={!dataRow?.item}
+            disabled={!dataRow?.item && !dataRow?.asset}
             rows={1}
             value={value ?? ""}
             onChange={(e) => setData("description", e.target.value)}
@@ -403,7 +441,9 @@ export default memo(function Form() {
         return (
           <NumberInput
             {...attributes}
-            disabled={!dataRow?.item || dataRow?.assetServiceLocked}
+            disabled={
+              (!dataRow?.item && !dataRow?.asset) || dataRow?.assetServiceLocked
+            }
             readOnly={
               attributes.readOnly || (dataRow.readOnly && !dataRow.isCustom)
             }
@@ -432,9 +472,11 @@ export default memo(function Form() {
               })
             }
             {...attributes}
-            filters={{
-              item_id: dataRow?.item?.item_id,
-            }}
+            filters={
+              dataRow?.item?.item_id
+                ? { item_id: dataRow.item.item_id }
+                : undefined
+            }
           />
         );
       },
@@ -442,11 +484,12 @@ export default memo(function Form() {
     {
       name: "tax",
       titleTrans: "sales.salesOrder.columns.tax",
+      required: true,
       width: 2,
       cell({ data: value, setData, attributes, dataRow }) {
         return (
           <TaxLinkModel
-            disabled={!dataRow?.item}
+            disabled={!dataRow?.item && !dataRow?.asset}
             placeholder={t("sales.salesOrder.columns.tax.placeholder")}
             value={value}
             onValueChange={(val) => {
@@ -470,7 +513,7 @@ export default memo(function Form() {
           <NumberInput
             decimalScale={2}
             currencyCode={data?.currency?.code}
-            disabled={!dataRow?.item}
+            disabled={!dataRow?.item && !dataRow?.asset}
             value={price}
             onValueChange={(val) => {
               setData("price", val);
@@ -482,6 +525,40 @@ export default memo(function Form() {
       },
     },
   ];
+
+  // Diskon Tambahan (dokumen) mengubah discount_amount/tax_amount SETIAP baris secara
+  // pro-rata, bukan cuma baris yang sedang di-edit -- jadi alokasi dihitung ulang dari
+  // seluruh baris lalu diambil hasil untuk baris ke-`index` ini saja.
+  // basic_amount TIDAK ditimpa di sini -- kolom itu generated (quantity*price) di server,
+  // konsisten dgn App\Services\Finances\DocumentDiscountCalculator::applyToItems() yang
+  // menulis discount_amount terpisah, bukan overwrite basic_amount.
+  const mapItem = ({ item, dataTable, index }) => {
+    const rows = dataTable ?? [];
+    const grossAmounts = rows.map((row, i) =>
+      i === index
+        ? (item.quantity ?? 0) * (item.price ?? 0)
+        : (row.quantity ?? 0) * (row.price ?? 0),
+    );
+    const lines = rows.map((row, i) => ({
+      basic_amount: grossAmounts[i],
+      tax_rate: i === index ? (item.tax?.rate ?? 0) : (row.tax?.rate ?? 0),
+    }));
+    const allocated = allocateDiscount(
+      lines,
+      data.discount_on,
+      data.discount_rate ?? 0,
+      data.discount_amount ?? 0,
+      data.latestDiscountKey ?? "discount_rate",
+    );
+    const result = allocated[index] ?? allocated[0];
+    return {
+      ...item,
+      discount_amount:
+        Math.round((grossAmounts[index] - (result?.basic_amount ?? 0)) * 100) /
+        100,
+      tax_amount: result?.tax_amount ?? 0,
+    };
+  };
 
   return (
     <>
@@ -716,42 +793,7 @@ export default memo(function Form() {
               setData("items", v);
             }}
             asyncAdditionalData={asyncAdditionalData}
-            mapItem={({ item, dataTable, index }) => {
-              // Diskon dokumen (Diskon Tambahan) mengubah discount_amount/tax_amount
-              // SETIAP baris secara pro-rata, bukan cuma baris yang sedang di-edit --
-              // jadi alokasi dihitung ulang dari seluruh dataTable tiap kali salah
-              // satu baris berubah, lalu diambil hasil untuk baris ke-`index` ini saja.
-              // basic_amount TIDAK ditimpa di sini -- kolom itu generated (quantity*price)
-              // di server, konsisten dgn App\Services\Finances\DocumentDiscountCalculator::
-              // applyToItems() yang menulis discount_amount terpisah, bukan overwrite basic_amount.
-              const rows = dataTable ?? [];
-              const grossAmounts = rows.map((row, i) =>
-                i === index
-                  ? (item.quantity ?? 0) * (item.price ?? 0)
-                  : (row.quantity ?? 0) * (row.price ?? 0),
-              );
-              const lines = rows.map((row, i) => ({
-                basic_amount: grossAmounts[i],
-                tax_rate:
-                  i === index ? (item.tax?.rate ?? 0) : (row.tax?.rate ?? 0),
-              }));
-              const allocated = allocateDiscount(
-                lines,
-                data.discount_on,
-                data.discount_rate ?? 0,
-                data.discount_amount ?? 0,
-                data.latestDiscountKey ?? "discount_rate",
-              );
-              const result = allocated[index] ?? allocated[0];
-              return {
-                ...item,
-                discount_amount:
-                  Math.round(
-                    (grossAmounts[index] - (result?.basic_amount ?? 0)) * 100,
-                  ) / 100,
-                tax_amount: result?.tax_amount ?? 0,
-              };
-            }}
+            mapItem={mapItem}
           />
           {data?.currency?.code &&
             data?.currency?.code !== default_currency_id && (

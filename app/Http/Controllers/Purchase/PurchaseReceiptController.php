@@ -94,6 +94,7 @@ class PurchaseReceiptController extends Controller {
                                         'return_against_item_id' => $item->id,
                                         'purchase_order_item'    => $item->purchaseOrderItem,
                                         'purchase_order_item_id' => $item->purchase_order_item_id,
+                                        'item'                   => $item->purchase_order_item_id ? null : $item->item,
                                         'description'            => $item->description,
                                         'quantity'               => $item->quantity,
                                         'unit'                   => $item->unit,

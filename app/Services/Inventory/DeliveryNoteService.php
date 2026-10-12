@@ -10,6 +10,7 @@ use App\Events\Asset\AssetSoldViaDelivery;
 use App\Events\Core\DocumentSubmitted;
 use App\Events\Inventory\DeliveryNoteGeneralLedgerPostingRequested;
 use App\Events\Sales\Order\DocumentDeliveryStatusRecalculationRequested;
+use App\Models\Asset\Asset;
 use App\Models\Asset\AssetService;
 use App\Models\Core\FormatingSeries;
 use App\Models\Core\GlPostingStatus;
@@ -44,12 +45,23 @@ class DeliveryNoteService implements SubmitableService {
     }
 
     private function fillItemRelations(array $item, array $units = [], array $referenceableItems = []) {
-        // item_id diambil dari referenceable (SalesOrderItem/InternalOrderItem) — tidak trust FE
-        $item['item_id'] = $referenceableItems[$item['referenceable_id']]->item_id;
+        // Identitas item/aset: baris SO/IO mengambil dari baris sumber (bukan dari
+        // payload FE); baris bebas (spec delivery-note-sales-invoice-off-source-items)
+        // dari `item.id` (ItemVariant) atau `asset.id` -- prioritas sumber > item > asset.
+        $source = filled($item['referenceable_id'] ?? null) ? $referenceableItems[$item['referenceable_id']] : null;
+        if ($source) {
+            $item['item_id']  = $source->item_id;
+            $item['asset_id'] = $source->asset_id ?? null;
+        } else {
+            $item['referenceable_type'] = null;
+            $item['referenceable_id']   = null;
+            $item['item_id']            = $item['item']['id'] ?? null;
+            $item['asset_id']           = $item['item_id'] ? null : ($item['asset']['id'] ?? null);
+        }
 
-        $item['item_unit_id']        = $item['unit']['id'];
+        $item['item_unit_id']        = $item['asset_id'] ? null : ($item['unit']['id'] ?? null);
         $item['source_warehouse_id'] = $item['source_warehouse']['id'] ?? null;
-        $unit                        = $units[$item['unit']['id']] ?? null;
+        $unit                        = $units[$item['item_unit_id']] ?? null;
         $item['conversion_factor']   = $unit?->conversion_factor ?? 1;
         $item['quantity'] ??= 0;
         $item['valuation_rates']        = [];
@@ -60,6 +72,7 @@ class DeliveryNoteService implements SubmitableService {
 
     private function batchLoadReferenceableItems(array $data): array {
         $grouped = collect($data['items'])
+            ->filter(fn ($item) => filled($item['referenceable_id'] ?? null))
             ->groupBy('referenceable_type')
             ->map(fn ($items, $type) => [
                 'type' => $type,
@@ -90,32 +103,10 @@ class DeliveryNoteService implements SubmitableService {
         $units              = $this->batchLoadUnits($data);
         $referenceableItems = $this->batchLoadReferenceableItems($data);
         foreach ($data['items'] as $item) {
-            $item       = $this->fillItemRelations($item, $units, $referenceableItems);
-            $assetLines = $item['asset_lines'] ?? [];
-            unset($item['asset_lines']);
-            $deliveryNoteItem = $deliveryNote->items()->create($item);
-            $this->syncAssetLines($deliveryNoteItem, $assetLines);
+            $deliveryNote->items()->create($this->fillItemRelations($item, $units, $referenceableItems));
         }
 
         return $deliveryNote;
-    }
-
-    /**
-     * Requirement 1.1, spec asset-rental-migration: persist child
-     * DeliveryNoteItemAsset dari payload FE (dulu tidak pernah tersimpan sama
-     * sekali — asset_lines terbuang di FormRequest::validated() karena tidak
-     * dideklarasikan di rules()). Delete-and-recreate karena baris ini hanya
-     * editable saat draft (sebelum submit/approve), tidak ada histori per-line
-     * yang perlu dipertahankan.
-     */
-    private function syncAssetLines(DeliveryNoteItem $item, array $lines): void {
-        $item->assetLines()->delete();
-        foreach ($lines as $line) {
-            $item->assetLines()->create([
-                'asset_id' => data_get($line, 'asset.id'),
-                'quantity' => data_get($line, 'quantity'),
-            ]);
-        }
     }
 
     public function update(Model $deliveryNote, array $data): Model {
@@ -137,22 +128,16 @@ class DeliveryNoteService implements SubmitableService {
         $units              = $this->batchLoadUnits($data);
         $referenceableItems = $this->batchLoadReferenceableItems($data);
         foreach ($data['items'] as $item) {
-            $item       = $this->fillItemRelations($item, $units, $referenceableItems);
-            $assetLines = $item['asset_lines'] ?? [];
-            unset($item['asset_lines']);
+            $item = $this->fillItemRelations($item, $units, $referenceableItems);
 
             if (Ulid::isValid($item['id'])) {
                 $existingItem = $existingItems->get($item['id']);
                 $existingItem?->update($item);
-                if ($existingItem) {
-                    $this->syncAssetLines($existingItem, $assetLines);
-                }
 
                 continue;
             }
 
-            $deliveryNoteItem = $deliveryNote->items()->create($item);
-            $this->syncAssetLines($deliveryNoteItem, $assetLines);
+            $deliveryNote->items()->create($item);
         }
 
         return $deliveryNote;
@@ -196,6 +181,7 @@ class DeliveryNoteService implements SubmitableService {
         $items       = $deliveryNote->items()
             ->with([
                 'item',
+                'asset',
                 'item.item',
                 'item.item.category',
                 'referenceable',
@@ -217,15 +203,21 @@ class DeliveryNoteService implements SubmitableService {
         $errorItems  = [];
         $totalPicked = 0;
         foreach ($items as $item) {
+            // Baris bebas (spec delivery-note-sales-invoice-off-source-items): tanpa
+            // sumber SO/IO -> tidak menyentuh delivered_quantity maupun reservasi stok.
+            $isFree = blank($item->referenceable_id);
+
             // update delivered quantity dari Sales Order Item
-            if (! $item->referenceable) {
+            if (! $isFree && ! $item->referenceable) {
                 throw new \RuntimeException("DeliveryNoteItem {$item->id} has no referenceable (type: {$item->referenceable_type}, id: {$item->referenceable_id})");
             }
 
             // Asset rental/jual-putus (Requirement 1, spec asset-rental-migration) — TIDAK PERNAH
             // menyentuh logic Stock/StockLedgerEntry apapun, di-skip total dari loop lama.
-            if ($item->item?->item?->is_fixed_asset) {
-                $item->referenceable->increment('delivered_quantity', $item->quantity);
+            if ($item->asset_id) {
+                if (! $isFree) {
+                    $item->referenceable->increment('delivered_quantity', $item->quantity);
+                }
 
                 try {
                     $this->handleAssetDeliveryItem($item, $deliveryNote, (bool) $returnAgainst);
@@ -253,10 +245,12 @@ class DeliveryNoteService implements SubmitableService {
             // Requirement 1.4, spec asset-rental-migration: gate rental lama
             // ($item->item->type == 'vehicle') dihapus total — kelayakan rental
             // sekarang murni ditentukan Item.is_fixed_asset (branch di atas).
-            if ($returnAgainst) {
-                $item->referenceable->decrement('delivered_quantity', $item->quantity);
-            } else {
-                $item->referenceable->increment('delivered_quantity', $item->quantity);
+            if (! $isFree) {
+                if ($returnAgainst) {
+                    $item->referenceable->decrement('delivered_quantity', $item->quantity);
+                } else {
+                    $item->referenceable->increment('delivered_quantity', $item->quantity);
+                }
             }
             if (! $item->item->is_stock_item) {
                 continue;
@@ -308,7 +302,12 @@ class DeliveryNoteService implements SubmitableService {
                     'quantity'    => $stock->quantity + $quantity,
                     'stock_queue' => $remainingQueue,
                 ]);
-                $stock->updateDetails('increment', 'reservations', $toReference->code, $quantity);
+                if ($isFree) {
+                    // updateDetails() juga menyimpan fill() di atas; baris bebas tidak punya reservasi SO.
+                    $stock->save();
+                } else {
+                    $stock->updateDetails('increment', 'reservations', $toReference->code, $quantity);
+                }
                 $stock->refresh();
                 StockLedgerEntry::create([
                     'item_id'                    => $item->item_id,
@@ -376,7 +375,12 @@ class DeliveryNoteService implements SubmitableService {
                     'quantity'    => $stock->quantity - $quantity,
                     'stock_queue' => $remainingQueue,
                 ]);
-                $stock->updateDetails('decrement', 'reservations', $toReference->code, $quantity);
+                if ($isFree) {
+                    // updateDetails() juga menyimpan fill() di atas; baris bebas tidak punya reservasi SO.
+                    $stock->save();
+                } else {
+                    $stock->updateDetails('decrement', 'reservations', $toReference->code, $quantity);
+                }
                 $stock->refresh();
                 StockLedgerEntry::create([
                     'item_id'                    => $item->item_id,
@@ -417,37 +421,43 @@ class DeliveryNoteService implements SubmitableService {
         return $deliveryNote;
     }
 
-    /**
-     * Requirement 1-3, spec asset-rental-migration: dispatch event per baris
-     * DeliveryNoteItemAsset (rental/retur/jual-putus) — TIDAK menyentuh Stock.
-     */
-    private function handleAssetDeliveryItem(DeliveryNoteItem $item, DeliveryNote $deliveryNote, bool $returnAgainst): void {
-        $lines = $item->assetLines()->with('asset.assetCategory')->get();
-
-        if (abs((float) $lines->sum('quantity') - (float) $item->quantity) > 0.0001) {
-            throw new LogicException(__('asset/asset.quantity_mismatch'));
+    /** Cek ulang di bawah lock: Asset bebas harus masih `active` saat approve (bisa berubah sejak validasi). */
+    private function assertFreeAssetStillActive(string $assetId): void {
+        $active = Asset::where('id', $assetId)->whereJsonContains('status', FormStatus::ACTIVE->value)->lockForUpdate()->exists();
+        if (! $active) {
+            throw new LogicException(__('sales/offSource.asset_not_active'));
         }
+    }
 
+    /** Dispatch the asset transition once for this document row. */
+    private function handleAssetDeliveryItem(DeliveryNoteItem $item, DeliveryNote $deliveryNote, bool $returnAgainst): void {
         $isRentSo = $item->referenceable instanceof SalesOrderItem
             ? (bool) ($item->referenceable->salesOrder?->is_rent ?? false)
             : false;
 
-        foreach ($lines as $line) {
-            $asset = $line->asset;
-            if (! $asset->is_rentable) {
-                throw new LogicException(__('asset/asset.asset_not_rentable'));
-            }
-            if ($asset->item_id !== $item->item?->item_id) {
-                throw new LogicException(__('asset/asset.item_mismatch'));
+        // Baris Asset bebas (tanpa sumber SO) dijual: tidak perlu rentable, tidak dapat diretur.
+        if (blank($item->referenceable_id)) {
+            if ($returnAgainst) {
+                throw new LogicException(__('inventory/deliveryNote.free_asset_cannot_be_returned'));
             }
 
-            if ($returnAgainst) {
-                event(new AssetRentalReturnApproved($line));
-            } elseif ($isRentSo) {
-                event(new AssetRentalDeliveryApproved($line));
-            } else {
-                event(new AssetSoldViaDelivery($line));
-            }
+            $this->assertFreeAssetStillActive($item->asset_id);
+            event(new AssetSoldViaDelivery($item));
+
+            return;
+        }
+
+        // Hanya alur sewa (SO rental / retur) yang mewajibkan rentable; SO penjualan menjual Asset.
+        if (($isRentSo || $returnAgainst) && ! $item->asset?->is_rentable) {
+            throw new LogicException(__('asset/asset.asset_not_rentable'));
+        }
+
+        if ($returnAgainst) {
+            event(new AssetRentalReturnApproved($item));
+        } elseif ($isRentSo) {
+            event(new AssetRentalDeliveryApproved($item));
+        } else {
+            event(new AssetSoldViaDelivery($item));
         }
     }
 

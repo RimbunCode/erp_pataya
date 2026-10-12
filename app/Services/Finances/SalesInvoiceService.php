@@ -10,6 +10,7 @@ use App\Events\Finances\SalesInvoiceGeneralLedgerPostingRequested;
 use App\Events\Sales\Invoice\SalesInvoiceReturnStatusChanged;
 use App\Events\Sales\Invoice\SalesOrderItemBillingChanged;
 use App\Events\Sales\Order\DocumentDeliveryStatusRecalculationRequested;
+use App\Models\Asset\Asset;
 use App\Models\Core\Branch;
 use App\Models\Core\FormatingSeries;
 use App\Models\Core\GlPostingStatus;
@@ -36,7 +37,7 @@ class SalesInvoiceService implements SubmitableService {
     private const float DPP_FACTOR = 11 / 12;
 
     private function fillRelations(array $data) {
-        $data['sales_order_id']    = $data['sales_order']['id'];
+        $data['sales_order_id']    = $data['sales_order']['id'] ?? null;
         $data['customer_id']       = $data['customer']['id'];
         $data['customer_name']     = Customer::find($data['customer']['id'])?->name;
         $data['income_account_id'] = $data['income_account']['id'];
@@ -62,12 +63,18 @@ class SalesInvoiceService implements SubmitableService {
     }
 
     private function fillItemRelations(array $data, SalesInvoice $salesInvoice, array $units = [], array $taxes = [], array $salesOrderItems = []) {
-        $data['sales_order_item_id'] = $data['sales_order_item']['id'];
-        $data['item_id']             = $salesOrderItems[$data['sales_order_item_id']]->item_id;
+        // Baris SO mengambil identitas dari baris sumber; baris bebas (spec
+        // delivery-note-sales-invoice-off-source-items) dari `item.id` (ItemVariant)
+        // atau `asset.id` -- prioritas sumber > item > asset.
+        $source                      = filled($data['sales_order_item']['id'] ?? null) ? $salesOrderItems[$data['sales_order_item']['id']] : null;
+        $data['sales_order_item_id'] = $source?->id;
+        $data['item_id']             = $source ? $source->item_id : ($data['item']['id'] ?? null);
+        $data['asset_id']            = $source ? $source->asset_id : (($data['item']['id'] ?? null) ? null : ($data['asset']['id'] ?? null));
 
-        $unit                       = $units[$data['unit']['id']] ?? null;
+        $unitId                     = $data['asset_id'] ? null : ($data['unit']['id'] ?? null);
+        $unit                       = $units[$unitId] ?? null;
         $tax                        = $taxes[$data['tax']['id'] ?? ''] ?? null;
-        $data['item_unit_id']       = $data['unit']['id'];
+        $data['item_unit_id']       = $unitId;
         $data['conversion_factor']  = $unit?->conversion_factor ?? 1;
         $data['tax_id']             = $data['tax']['id'] ?? null;
         $data['tax_rate']           = $tax?->rate ?? 0;
@@ -266,7 +273,7 @@ class SalesInvoiceService implements SubmitableService {
                 'returnAgainst',
                 'items.returnAgainstItem',
                 'items.salesOrderItem',
-                'items.assetLines',
+                'items.asset',
             ]);
 
             $returnAgainst = $salesInvoice->returnAgainst;
@@ -278,17 +285,26 @@ class SalesInvoiceService implements SubmitableService {
             foreach ($items as $item) {
                 $basicAmount += $item->basic_amount - $item->discount_amount;
                 $taxAmount += $item->tax_amount;
-                event(new SalesOrderItemBillingChanged(
-                    $item->salesOrderItem,
-                    $item->quantity,
-                    $returnAgainst ? 'decrement' : 'increment',
-                    $returnAgainst ? $item->returnAgainstItem : null,
-                ));
+                // Baris bebas (tanpa baris SO) tidak mengubah tagihan SO mana pun.
+                if ($item->salesOrderItem) {
+                    event(new SalesOrderItemBillingChanged(
+                        $item->salesOrderItem,
+                        $item->quantity,
+                        $returnAgainst ? 'decrement' : 'increment',
+                        $returnAgainst ? $item->returnAgainstItem : null,
+                    ));
+                } elseif ($returnAgainst && $item->returnAgainstItem) {
+                    // Retur baris bebas: tak ada SO Item, tapi jumlah retur baris asal tetap dicatat.
+                    $item->returnAgainstItem->increment('returned_quantity', $item->quantity);
+                }
 
-                // Requirement 3.4, spec asset-rental-migration: baris jual-putus Asset
-                // yang sudah py assetLines saat approve — dispatch gain/loss langsung.
-                foreach ($item->assetLines as $line) {
-                    event(new AssetSoldViaInvoice($line));
+                if ($item->asset_id) {
+                    // Asset bebas: cek ulang di bawah lock bahwa masih `active` (bisa berubah sejak validasi).
+                    if (! $returnAgainst && ! $item->salesOrderItem
+                        && ! Asset::where('id', $item->asset_id)->whereJsonContains('status', FormStatus::ACTIVE->value)->lockForUpdate()->exists()) {
+                        throw new \LogicException(__('sales/offSource.asset_not_active'));
+                    }
+                    event(new AssetSoldViaInvoice($item));
                 }
             }
             // basic_amount/tax_amount item sudah net (dikurangi discount_amount) sejak

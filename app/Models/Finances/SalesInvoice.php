@@ -155,6 +155,14 @@ class SalesInvoice extends Model {
         ],
     ];
 
+    /**
+     * Izin tambahan: menambah baris di luar dokumen sumber (ItemVariant/Asset bebas) --
+     * harga/pajak baris itu berasal dari input (spec delivery-note-sales-invoice-off-source-items).
+     */
+    protected static function extraPermissions(): array {
+        return ['manage_off_source_items'];
+    }
+
     protected static function loadRelationsOnShow() {
         return [
             'salesOrder',
@@ -163,10 +171,13 @@ class SalesInvoice extends Model {
             'branch',
             'currency',
             'items',
+            'items.item',
             'items.tax',
             'items.unit',
             'items.salesOrderItem',
             'items.salesOrderItem.item',
+            'items.salesOrderItem.asset',
+            'items.asset',
             'paymentSchedules',
             'paymentSchedules.paymentMethod',
             'incomeAccount',

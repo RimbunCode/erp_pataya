@@ -1,0 +1,6 @@
+{
+  "specId": "8ee0e9fc-d6d1-458f-a567-153664bb5bf4",
+  "workflowType": "design-first",
+  "specType": "feature",
+  "description": "LinkModel multi-model: satu dropdown dapat memuat opsi dari model utama (main) dan satu/lebih sub model (dibungkus header bagian, lazy), lengkap dengan grup, add, navigate, dan tab Advance Search per model. Contoh: item Purchase Receipt dari PurchaseOrderItem + ItemVariant."
+}

@@ -54,10 +54,12 @@ class SalesOrderService implements SubmitableService {
     }
 
     private function fillItemRelations(array $data, SalesOrder $salesOrder, array $units = [], array $taxes = []) {
-        $unit                        = $units[$data['unit']['id']] ?? null;
+        $data['item_id']             = $data['item']['id'] ?? null;
+        $data['asset_id']            = $data['asset']['id'] ?? null;
+        $unitId                      = $data['asset_id'] ? null : ($data['unit']['id'] ?? null);
+        $unit                        = $units[$unitId] ?? null;
         $tax                         = $taxes[$data['tax']['id'] ?? ''] ?? null;
-        $data['item_id']             = $data['item']['id'];
-        $data['item_unit_id']        = $data['unit']['id'];
+        $data['item_unit_id']        = $unitId;
         $data['conversion_factor']   = $unit?->conversion_factor ?? 1;
         $data['tax_id']              = $data['tax']['id'] ?? null;
         $data['tax_rate']            = $tax?->rate ?? 0;
@@ -234,7 +236,7 @@ class SalesOrderService implements SubmitableService {
                 ]);
         }
         $items = $salesOrder->items()
-            ->with(['item', 'sourceWarehouse', 'unit'])
+            ->with(['item', 'asset', 'sourceWarehouse', 'unit'])
             ->get();
 
         // Ambil semua stok yang dibutuhkan sekaligus untuk menghindari N+1
@@ -249,7 +251,15 @@ class SalesOrderService implements SubmitableService {
         $errorItems     = [];
         $validatedItems = [];
         foreach ($items as $item) {
-            if (! $item->item->is_stock_item) {
+            if ($item->asset_id) {
+                if ($salesOrder->is_rent && $item->asset?->is_rentable) {
+                    $isValid = true;
+                }
+
+                continue;
+            }
+
+            if (! $item->item?->is_stock_item) {
                 continue;
             }
             $stockKey = "{$item->item_id}-{$item->source_warehouse_id}";

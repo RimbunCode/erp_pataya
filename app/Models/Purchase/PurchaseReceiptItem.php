@@ -20,8 +20,10 @@ class PurchaseReceiptItem extends Model {
     protected $guarded            = ['id'];
     protected $casts              = [
         'quantity'            => 'float',
+        'replaced_quantity'   => 'float',
         'conversion_factor'   => 'float',
         'returned_quantity'   => 'float',
+        'billed_quantity'     => 'float',
         'unreturned_quantity' => 'float',
     ];
     protected array $configColumns = [
@@ -61,6 +63,22 @@ class PurchaseReceiptItem extends Model {
         'purchase_order_item_id' => [
             'ignore' => true,
         ],
+        'replacesPurchaseOrderItem' => [
+            'ignore' => true,
+        ],
+        'replaces_purchase_order_item_id' => [
+            'ignore' => true,
+        ],
+        'replaced_quantity' => [
+            'show'  => false,
+            'order' => 5,
+        ],
+        'billed_quantity' => [
+            'ignore' => true,
+        ],
+        'purchase_order_id' => [
+            'hidden' => true,
+        ],
         'returnAgainstItem' => [
             'ignore' => true,
         ],
@@ -75,6 +93,13 @@ class PurchaseReceiptItem extends Model {
 
     public function purchaseOrderItem() {
         return $this->belongsTo(PurchaseOrderItem::class, 'purchase_order_item_id');
+    }
+
+    /**
+     * PO Item yang digantikan baris ini (baris substitusi di luar PO).
+     */
+    public function replacesPurchaseOrderItem() {
+        return $this->belongsTo(PurchaseOrderItem::class, 'replaces_purchase_order_item_id');
     }
 
     public function item() {

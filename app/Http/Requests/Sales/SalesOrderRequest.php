@@ -28,6 +28,9 @@ class SalesOrderRequest extends BaseFormRequest {
      * @return array<string, ValidationRule|array<mixed>|string>
      */
     public function rules(): array {
+        // Spec sales-order-asset-in-items-column: satu `items[]`, tiap baris punya
+        // `item.id` (ItemVariant) XOR `asset.id` (Asset); aturan khusus baris
+        // asset (tanpa unit/gudang) dicek di withValidator.
         return [
             'date'           => ['required', 'date'],
             'rent_date.from' => [Rule::requiredIf($this->is_rent ?? false), 'date', 'nullable'],
@@ -46,11 +49,13 @@ class SalesOrderRequest extends BaseFormRequest {
             'reference_so.*'              => ['nullable'],
             'items'                       => ['required', 'array', 'min:1'],
             'items.*.id'                  => ['required', 'string'],
-            'items.*.item.id'             => ['required', new ExistsExcludingTrashed('item_variants')],
+            'items.*.item.id'             => ['required_without:items.*.asset.id', 'nullable', new ExistsExcludingTrashed('item_variants')],
             'items.*.item.*'              => ['nullable'],
+            'items.*.asset.id'            => ['required_without:items.*.item.id', 'nullable', new ExistsExcludingTrashed('assets')],
+            'items.*.asset.*'             => ['nullable'],
             'items.*.description'         => ['nullable', 'string'],
             'items.*.quantity'            => ['required', 'numeric', 'min:1'],
-            'items.*.unit.id'             => ['required', new ExistsExcludingTrashed('item_units')],
+            'items.*.unit.id'             => ['required_without:items.*.asset.id', 'nullable', new ExistsExcludingTrashed('item_units')],
             'items.*.unit.*'              => ['nullable'],
             'items.*.tax.id'              => ['required', new ExistsExcludingTrashed('taxes')],
             'items.*.tax.*'               => ['nullable'],
@@ -72,9 +77,35 @@ class SalesOrderRequest extends BaseFormRequest {
                 return;
             }
 
+            $this->validateItemOrAsset($validator);
             $this->validateAssetServiceReferenceables($validator);
             $this->validateSourceWarehouseRequired($validator);
         });
+    }
+
+    /**
+     * Tiap baris wajib tepat satu dari `item.id` atau `asset.id`; baris asset
+     * tidak boleh membawa unit maupun gudang asal.
+     */
+    private function validateItemOrAsset(Validator $validator): void {
+        foreach ((array) $this->input('items', []) as $index => $row) {
+            $hasItem  = filled($row['item']['id'] ?? null);
+            $hasAsset = filled($row['asset']['id'] ?? null);
+
+            if ($hasItem && $hasAsset) {
+                $validator->errors()->add("items.{$index}.asset", __('sales/salesOrder.item_and_asset_exclusive'));
+
+                continue;
+            }
+
+            if ($hasAsset) {
+                foreach (['unit.id' => $row['unit']['id'] ?? null, 'source_warehouse.id' => $row['source_warehouse']['id'] ?? null] as $field => $value) {
+                    if (filled($value)) {
+                        $validator->errors()->add("items.{$index}.{$field}", __('sales/salesOrder.asset_row_no_unit_warehouse'));
+                    }
+                }
+            }
+        }
     }
 
     /**
@@ -83,22 +114,24 @@ class SalesOrderRequest extends BaseFormRequest {
      * di FE, jadi TIDAK boleh diwajibkan di sini juga.
      */
     private function validateSourceWarehouseRequired(Validator $validator): void {
-        foreach ((array) $this->input('items', []) as $index => $item) {
-            $itemVariantId = $item['item']['id'] ?? null;
-            if (! $itemVariantId) {
-                continue;
-            }
+        foreach ([(array) $this->input('items', [])] as $rows) {
+            foreach ($rows as $index => $item) {
+                $itemVariantId = $item['item']['id'] ?? null;
+                if (! $itemVariantId) {
+                    continue;
+                }
 
-            $itemVariant = ItemVariant::find($itemVariantId);
-            if (! $itemVariant?->is_stock_item) {
-                continue;
-            }
+                $itemVariant = ItemVariant::find($itemVariantId);
+                if (! $itemVariant?->is_stock_item) {
+                    continue;
+                }
 
-            if (empty($item['source_warehouse']['id'] ?? null)) {
-                $validator->errors()->add(
-                    "items.{$index}.source_warehouse.id",
-                    __('sales/salesOrder.source_warehouse_required'),
-                );
+                if (empty($item['source_warehouse']['id'] ?? null)) {
+                    $validator->errors()->add(
+                        "items.{$index}.source_warehouse.id",
+                        __('sales/salesOrder.source_warehouse_required'),
+                    );
+                }
             }
         }
     }
@@ -110,52 +143,54 @@ class SalesOrderRequest extends BaseFormRequest {
      * hanya boleh dipakai SATU baris SalesOrderItem (1:1, tidak boleh dobel).
      */
     private function validateAssetServiceReferenceables(Validator $validator): void {
-        foreach ((array) $this->input('items', []) as $index => $item) {
-            $type = $item['referenceable']['type'] ?? null;
-            $id   = $item['referenceable']['id'] ?? null;
+        foreach ([(array) $this->input('items', [])] as $rows) {
+            foreach ($rows as $index => $item) {
+                $type = $item['referenceable']['type'] ?? null;
+                $id   = $item['referenceable']['id'] ?? null;
 
-            if (! $type || ! $id) {
-                continue;
-            }
-
-            if ($type === AssetService::class) {
-                $assetService = AssetService::find($id);
-                if (! $assetService || ! $assetService->hasPassedApproval()) {
-                    $validator->errors()->add(
-                        "items.{$index}.referenceable.id",
-                        __('sales/salesOrder.referenceable_not_approved'),
-                    );
+                if (! $type || ! $id) {
+                    continue;
                 }
 
-                continue;
-            }
-
-            if ($type === AssetServiceConsumedItem::class) {
-                $consumedItem = AssetServiceConsumedItem::with('assetService')->find($id);
-                if (! $consumedItem || ! $consumedItem->assetService?->hasPassedApproval()) {
-                    $validator->errors()->add(
-                        "items.{$index}.referenceable.id",
-                        __('sales/salesOrder.referenceable_not_approved'),
-                    );
+                if ($type === AssetService::class) {
+                    $assetService = AssetService::find($id);
+                    if (! $assetService || ! $assetService->hasPassedApproval()) {
+                        $validator->errors()->add(
+                            "items.{$index}.referenceable.id",
+                            __('sales/salesOrder.referenceable_not_approved'),
+                        );
+                    }
 
                     continue;
                 }
 
-                // Requirement 2.3, spec asset-service-internal-order: 1:1 harus
-                // dicek LINTAS SalesOrderItem DAN InternalOrderItem sekaligus.
-                $alreadyUsed = SalesOrderItem::where('referenceable_type', AssetServiceConsumedItem::class)
-                    ->where('referenceable_id', $id)
-                    ->where('id', '!=', $item['id'] ?? null)
-                    ->exists()
-                    || InternalOrderItem::where('referenceable_type', AssetServiceConsumedItem::class)
-                        ->where('referenceable_id', $id)
-                        ->exists();
+                if ($type === AssetServiceConsumedItem::class) {
+                    $consumedItem = AssetServiceConsumedItem::with('assetService')->find($id);
+                    if (! $consumedItem || ! $consumedItem->assetService?->hasPassedApproval()) {
+                        $validator->errors()->add(
+                            "items.{$index}.referenceable.id",
+                            __('sales/salesOrder.referenceable_not_approved'),
+                        );
 
-                if ($alreadyUsed) {
-                    $validator->errors()->add(
-                        "items.{$index}.referenceable.id",
-                        __('sales/salesOrder.referenceable_already_used'),
-                    );
+                        continue;
+                    }
+
+                    // Requirement 2.3, spec asset-service-internal-order: 1:1 harus
+                    // dicek LINTAS SalesOrderItem DAN InternalOrderItem sekaligus.
+                    $alreadyUsed = SalesOrderItem::where('referenceable_type', AssetServiceConsumedItem::class)
+                        ->where('referenceable_id', $id)
+                        ->where('id', '!=', $item['id'] ?? null)
+                        ->exists()
+                        || InternalOrderItem::where('referenceable_type', AssetServiceConsumedItem::class)
+                            ->where('referenceable_id', $id)
+                            ->exists();
+
+                    if ($alreadyUsed) {
+                        $validator->errors()->add(
+                            "items.{$index}.referenceable.id",
+                            __('sales/salesOrder.referenceable_already_used'),
+                        );
+                    }
                 }
             }
         }

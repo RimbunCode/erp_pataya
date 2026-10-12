@@ -86,6 +86,8 @@ class DeliveryNoteRequestAssetServiceConsumedItemTest extends TestCase {
             'referenceable_type' => SalesOrderItem::class,
             'referenceable_id'   => $soItem->id,
             'quantity'           => 5,
+            'source_warehouse'   => ['id' => 'w1'],
+            'unit'               => ['id' => 'u1'],
         ]);
 
         $this->assertFalse($validator->fails());

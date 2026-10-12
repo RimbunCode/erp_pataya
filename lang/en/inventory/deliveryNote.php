@@ -1,14 +1,16 @@
 <?php
 
 return [
-    'title'   => 'Delivery Notes',
-    'add'     => 'New Delivery Note',
-    'new'     => 'New Delivery Note',
-    'items'   => 'Items',
-    'detail'  => 'Detail',
-    'status'  => 'Status',
-    'source'  => 'Source Warehouse',
-    'columns' => [
+    'title'                         => 'Delivery Notes',
+    'add'                           => 'New Delivery Note',
+    'new'                           => 'New Delivery Note',
+    'items'                         => 'Items',
+    'detail'                        => 'Detail',
+    'status'                        => 'Status',
+    'source'                        => 'Source Warehouse',
+    'asset_row_no_unit_warehouse'   => 'An Asset line cannot have a Unit or Source Warehouse.',
+    'free_asset_cannot_be_returned' => 'An Asset outside the Sales Order cannot be returned.',
+    'columns'                       => [
         'code'                          => 'Code',
         'reference_to'                  => 'Reference To',
         'customer'                      => 'Customer',
@@ -16,6 +18,9 @@ return [
         'internal_branch'               => 'Internal Branch',
         'item'                          => 'Item',
         'item.placeholder'              => 'Select an item',
+        'item.group_source'             => 'From Source Document',
+        'item.group_item'               => 'Other Items',
+        'item.group_asset'              => 'Assets',
         'delivery_date'                 => 'Delivery Date',
         'description'                   => 'Description',
         'source_warehouse'              => 'Source Warehouse',

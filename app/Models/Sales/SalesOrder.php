@@ -170,6 +170,7 @@ class SalesOrder extends Model {
             'customerBranch',
             'currency',
             'items.item',
+            'items.asset',
             'items.tax',
             'items.unit',
             'items.sourceWarehouse',
