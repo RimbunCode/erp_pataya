@@ -529,4 +529,68 @@ class PurchaseReceiptOffPoApprovalTest extends TestCase {
         $this->assertNotNull($asset, 'Asset tetap terbuat untuk baris di luar PO (tanpa crash).');
         $this->assertEquals(0, $asset->net_purchase_amount);
     }
+
+    #[Test]
+    public function free_invoice_item_in_a_larger_unit_is_converted_to_stock_units_on_receipt(): void {
+        $credit  = Account::create(['account_name' => 'Accounts Payable', 'account_number' => '2000', 'root_type' => 'liability', 'report_type' => 'balance_sheet']);
+        $expense = Account::create(['account_name' => 'Expense Head', 'account_number' => '5000', 'root_type' => 'expense', 'report_type' => 'profit_and_loss']);
+        $invoice = BaseModel::withoutEvents(fn () => PurchaseInvoice::create([
+            'code'                    => 'PI-' . fake()->unique()->randomNumber(8),
+            'date'                    => now(),
+            'purchase_order_id'       => $this->po->id,
+            'credit_account_id'       => $credit->id,
+            'expanse_head_account_id' => $expense->id,
+            'created_by_id'           => $this->user->id,
+        ]));
+        $invoice->forceFill(['submitted_at' => now(), 'status' => [FormStatus::UNPAID]])->save();
+
+        // 2 box @ 12000 (1 box = 12 satuan stok) => 1000 per satuan stok
+        $invoiceItem = PurchaseInvoiceItem::create([
+            'purchase_invoice_id' => $invoice->id,
+            'item_id'             => $this->yVariant->id,
+            'quantity'            => 2,
+            'rate'                => 12000,
+            'conversion_factor'   => 12,
+        ]);
+
+        $receipt = $this->makeReceipt();
+        $this->makeRow($receipt, ['quantity' => 24, 'conversion_factor' => 1]);
+
+        $this->service->onApproved($receipt);
+
+        $queue = $this->yStock()->stock_queue;
+        $this->assertEquals(1000, $queue[0]['rate']);
+        $this->assertEquals(24, $queue[0]['quantity']);
+        $this->assertTrue($queue[0]['is_valuated']);
+        $this->assertEquals(2, $invoiceItem->fresh()->allocated_qty);
+    }
+
+    #[Test]
+    public function free_invoice_item_still_waiting_for_approval_is_not_allocated_by_a_receipt(): void {
+        $credit  = Account::create(['account_name' => 'Accounts Payable', 'account_number' => '2000', 'root_type' => 'liability', 'report_type' => 'balance_sheet']);
+        $expense = Account::create(['account_name' => 'Expense Head', 'account_number' => '5000', 'root_type' => 'expense', 'report_type' => 'profit_and_loss']);
+        $invoice = BaseModel::withoutEvents(fn () => PurchaseInvoice::create([
+            'code'                    => 'PI-' . fake()->unique()->randomNumber(8),
+            'date'                    => now(),
+            'purchase_order_id'       => $this->po->id,
+            'credit_account_id'       => $credit->id,
+            'expanse_head_account_id' => $expense->id,
+            'created_by_id'           => $this->user->id,
+        ]));
+        $invoice->forceFill(['submitted_at' => now(), 'status' => [FormStatus::PENDING]])->save();
+        $invoiceItem = PurchaseInvoiceItem::create([
+            'purchase_invoice_id' => $invoice->id,
+            'item_id'             => $this->yVariant->id,
+            'quantity'            => 5,
+            'rate'                => 1000,
+        ]);
+
+        $receipt = $this->makeReceipt();
+        $this->makeRow($receipt, ['quantity' => 5]);
+
+        $this->service->onApproved($receipt);
+
+        $this->assertEquals(0, $invoiceItem->fresh()->allocated_qty);
+        $this->assertFalse($this->yStock()->stock_queue[0]['is_valuated']);
+    }
 }

@@ -5,6 +5,7 @@ namespace App\Http\Requests\Finances;
 use App\Http\Requests\BaseFormRequest;
 use App\Http\Requests\Finances\Rules\AdditionalDiscountRules;
 use App\Http\Requests\Finances\Rules\PaymentSchedulesRules;
+use App\Http\Requests\Finances\Rules\ReturnAgainstItemRules;
 use App\Http\Requests\Sales\Rules\OffSourceItemRules;
 use App\Models\Finances\SalesInvoice;
 use App\Rules\ExistsExcludingTrashed;
@@ -72,9 +73,10 @@ class SalesInvoiceRequest extends BaseFormRequest {
                 return;
             }
 
-            $rows      = (array) $this->input('items', []);
-            $assetIds  = $this->sourceAssetIdsOf($rows);
-            $isReturn  = filled($this->input('return_against.id'));
+            $rows     = (array) $this->input('items', []);
+            $assetIds = $this->sourceAssetIdsOf($rows);
+            $isReturn = filled($this->input('return_against.id'));
+            ReturnAgainstItemRules::validate($validator, $rows, $this->input('return_against.id'), 'sales_invoice_items', 'sales_invoice_id');
             $freeRows  = [];
             $freeAsset = [];
 
