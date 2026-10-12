@@ -38,43 +38,18 @@ describe("Inventory Units Index", () => {
     expect(container).toHaveTextContent("Kilogram (KG)");
   });
 
-  it("menyembunyikan tombol hapus saat dataRow.is_default true", () => {
-    render(<Index />);
-    const dataRow = {
-      id: 2,
-      group: "Weight",
-      name: "Gram",
-      code: "G",
-      is_default: true,
-    };
-    const { container } = render(
-      capturedProps.templateItem({ dataRow, deleteItem: vi.fn() }),
-    );
-    expect(container.querySelector("button:not([type])")).toBeFalsy();
-    // Tidak ada tombol hapus (destructive) sama sekali dirender.
-    expect(container.querySelectorAll("button").length).toBe(1); // hanya Link as="button"
-  });
 
-  it("menampilkan tombol hapus saat dataRow.is_default false, klik memanggil deleteItem()", async () => {
-    const user = userEvent.setup();
+  it("templateItem tidak merender tombol hapus manual (hapus lewat ⋯ menu DataTable2)", () => {
     render(<Index />);
-    const dataRow = {
-      id: 3,
-      group: "Length",
-      name: "Meter",
-      code: "M",
-      is_default: false,
-    };
-    const deleteItem = vi.fn();
-    const { container } = render(
-      capturedProps.templateItem({ dataRow, deleteItem }),
-    );
-    const buttons = container.querySelectorAll("button");
-    expect(buttons.length).toBe(2); // Link as="button" + tombol hapus destructive
-    const deleteButton = buttons[1];
-    await user.click(deleteButton);
-    expect(deleteItem).toHaveBeenCalledTimes(1);
-    expect(deleteItem).toHaveBeenCalledWith();
+    for (const is_default of [false, true]) {
+      const { container } = render(
+        capturedProps.templateItem({
+          dataRow: { id: 3, group: "Length", name: "Meter", code: "M", is_default },
+        }),
+      );
+      // Hanya Link as="button" yang tersisa, baik unit default maupun bukan.
+      expect(container.querySelectorAll("button")).toHaveLength(1);
+    }
   });
 
   it('Link (as="button") memicu router.visit ke route units.show dengan id dataRow', async () => {

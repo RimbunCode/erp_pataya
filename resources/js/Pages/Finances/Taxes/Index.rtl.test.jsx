@@ -2,7 +2,6 @@ import { readFileSync } from "node:fs";
 import { resolve } from "node:path";
 import { describe, expect, it, vi, beforeEach } from "vitest";
 import { render, screen } from "@testing-library/react";
-import userEvent from "@testing-library/user-event";
 
 // DataTable2 punya orkestrasi berat (loadData, filter, pagination, dst) --
 // concern-nya sendiri, sudah ditest di DataTable2.rtl.test.jsx. Stub di sini
@@ -39,19 +38,12 @@ describe("Finances/Taxes/Index", () => {
     expect(screen.getByText("11%")).toBeInTheDocument();
   });
 
-  it("tombol hapus memanggil deleteItem() dari DataTable2 (bukan setIdDelete yang tak terdefinisi)", async () => {
-    const user = userEvent.setup();
+  it("templateItem tidak merender tombol hapus manual (hapus lewat ⋯ menu DataTable2)", () => {
     render(<Index />);
     const { templateItem } = dataTable2Props.mock.calls.at(-1)[0];
-    const deleteItem = vi.fn();
-    render(
-      templateItem({ dataRow: { id: 1, name: "PPN", rate: 11 }, deleteItem }),
-    );
-
-    const buttons = screen.getAllByRole("button");
-    await user.click(buttons[buttons.length - 1]);
-
-    expect(deleteItem).toHaveBeenCalledTimes(1);
+    render(templateItem({ dataRow: { id: 1, name: "PPN", rate: 11 } }));
+    // Hanya Link as="button" yang tersisa; hapus dikelola menu ⋯ DataTable2.
+    expect(screen.getAllByRole("button")).toHaveLength(1);
   });
 
   it("source tidak lagi punya templateItem di-comment atau setIdDelete", () => {

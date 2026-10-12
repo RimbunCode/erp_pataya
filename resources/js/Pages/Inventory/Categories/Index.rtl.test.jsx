@@ -1,6 +1,5 @@
 import { describe, expect, it, vi } from "vitest";
 import { render, screen } from "@testing-library/react";
-import userEvent from "@testing-library/user-event";
 
 vi.mock("laravel-react-i18n", () => ({
   useLaravelReactI18n: () => ({ t: (key) => `TR:${key}` }),
@@ -55,20 +54,12 @@ describe("Inventory/Categories Index", () => {
     ).toBeInTheDocument();
   });
 
-  it("tombol hapus memanggil deleteItem tanpa argumen saat diklik", async () => {
-    const user = userEvent.setup();
+  it("templateItem tidak merender tombol hapus manual (hapus lewat ⋯ menu DataTable2)", () => {
     render(<Index />);
-    const dataRow = { id: 5, type: "raw_material", name: "Kain Katun" };
-    const deleteItem = vi.fn();
-    render(capturedProps.templateItem({ dataRow, deleteItem }));
-
-    // Ada 2 <button>: tombol nama kategori (Link as="button") dan tombol
-    // hapus (icon-only, tanpa accessible name) -- ambil yg terakhir.
-    const buttons = screen.getAllByRole("button");
-    const deleteButton = buttons[buttons.length - 1];
-    await user.click(deleteButton);
-
-    expect(deleteItem).toHaveBeenCalledTimes(1);
-    expect(deleteItem).toHaveBeenCalledWith();
+    const { container } = render(
+      capturedProps.templateItem({ dataRow: { id: 5, type: "raw_material", name: "Kain Katun" } }),
+    );
+    // Hanya Link as="button" yang tersisa; hapus dikelola menu ⋯ DataTable2.
+    expect(container.querySelectorAll("button")).toHaveLength(1);
   });
 });

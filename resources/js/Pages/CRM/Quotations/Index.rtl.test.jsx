@@ -27,10 +27,9 @@ describe("CRM/Quotations Index", () => {
   // Tanpa `templateItem`, `mobileItem()` (DataTable2.jsx) SELALU `null` --
   // kartu mobile kosong sama sekali (bukan "default tampilan mobile"), lihat
   // komentar identik di CRM/Opportunities/Index.rtl.test.jsx.
-  it("meneruskan templateItem -- kartu mobile render templateLink penuh, customer, status, & tombol hapus", () => {
+  it("meneruskan templateItem -- kartu mobile render templateLink penuh, customer, status, tanpa tombol hapus manual", () => {
     render(<Index />);
 
-    const deleteItem = vi.fn();
     const card = capturedProps.templateItem({
       dataRow: {
         id: "q-1",
@@ -39,7 +38,6 @@ describe("CRM/Quotations Index", () => {
         customer: { name: "Pelanggan ZZ" },
         status: "draft",
       },
-      deleteItem,
     });
     render(card);
 
@@ -48,8 +46,6 @@ describe("CRM/Quotations Index", () => {
     expect(screen.getByText("draft")).toBeInTheDocument();
 
     const buttons = screen.getAllByRole("button");
-    expect(buttons).toHaveLength(2);
-    buttons.at(-1).click();
-    expect(deleteItem).toHaveBeenCalledTimes(1);
+    expect(buttons).toHaveLength(1);
   });
 });

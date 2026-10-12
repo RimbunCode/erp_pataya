@@ -29,10 +29,9 @@ describe("CRM/Opportunities Index", () => {
   // mobile", itu asumsi salah di versi lama test ini -- lihat komentar
   // Requirement 24 di project memory, ketahuan lewat verifikasi browser data
   // 1163 baris: pagination "1-100/1163" tampil tapi kartu di bawahnya kosong).
-  it("meneruskan templateItem -- kartu mobile render templateLink penuh, customer, tahap, & tombol hapus", () => {
+  it("meneruskan templateItem -- kartu mobile render templateLink penuh, customer, tahap, tanpa tombol hapus manual", () => {
     render(<Index />);
 
-    const deleteItem = vi.fn();
     // `templateLink` di sini persis field yg dikirim backend per baris
     // (lihat Opportunity::templateLink() = `:title`) -- convertTemplateLink()
     // butuh field ini di objek row itu sendiri, BUKAN nama model statis.
@@ -44,19 +43,14 @@ describe("CRM/Opportunities Index", () => {
         customer: { name: "Pelanggan ZZ" },
         stage: "identified",
       },
-      deleteItem,
     });
     render(card);
 
     expect(screen.getByText("Kontrak ZZ")).toBeInTheDocument();
     expect(screen.getByText("Pelanggan ZZ")).toBeInTheDocument();
     expect(screen.getByText("identified")).toBeInTheDocument();
-
-    // Link (dari @/Components/Link) `as="button"` -- 2 tombol: judul (visit)
-    // & hapus. Tombol hapus TERAKHIR (urutan render), pemicu `deleteItem`.
+    // Link (dari @/Components/Link) as="button" -- hanya 1 tombol; hapus manual sudah dihapus.
     const buttons = screen.getAllByRole("button");
-    expect(buttons).toHaveLength(2);
-    buttons.at(-1).click();
-    expect(deleteItem).toHaveBeenCalledTimes(1);
+    expect(buttons).toHaveLength(1);
   });
 });

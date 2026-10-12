@@ -91,8 +91,8 @@ describe("Item Alternatives Index", () => {
       capturedProps.templateItem({ dataRow, deleteItem: vi.fn() }),
     );
     const buttons = container.querySelectorAll("button");
-    // Tombol pertama adalah Link (item), tombol kedua adalah tombol hapus.
-    expect(buttons).toHaveLength(2);
+    // Hanya Link (item); tombol hapus manual sudah dihapus dari templateItem.
+    expect(buttons).toHaveLength(1);
     await user.click(buttons[0]);
     expect(visitSpy).toHaveBeenCalledWith(
       "itemAlternatives.show/7",
@@ -101,25 +101,12 @@ describe("Item Alternatives Index", () => {
     visitSpy.mockRestore();
   });
 
-  it("tombol hapus memanggil deleteItem() tanpa argumen saat diklik", async () => {
-    const user = userEvent.setup();
-    const { router } = await import("@inertiajs/core");
-    const visitSpy = vi.spyOn(router, "visit").mockImplementation(() => {});
+  it("templateItem tidak merender tombol hapus manual (hapus lewat ⋯ menu DataTable2)", () => {
     render(<Index />);
-    const dataRow = {
-      id: 9,
-      item_code: "ITEM-009",
-      alternative_code: "ITEM-010",
-      two_way: false,
-    };
-    const deleteItem = vi.fn();
     const { container } = render(
-      capturedProps.templateItem({ dataRow, deleteItem }),
+      capturedProps.templateItem({ dataRow: { id: 9, item_code: "ITEM-009", alternative_code: "ITEM-010", two_way: false } }),
     );
-    const buttons = container.querySelectorAll("button");
-    await user.click(buttons[1]);
-    expect(deleteItem).toHaveBeenCalledTimes(1);
-    expect(deleteItem).toHaveBeenCalledWith();
-    visitSpy.mockRestore();
+    // Hanya Link as="button" yang tersisa; hapus dikelola menu ⋯ DataTable2.
+    expect(container.querySelectorAll("button")).toHaveLength(1);
   });
 });

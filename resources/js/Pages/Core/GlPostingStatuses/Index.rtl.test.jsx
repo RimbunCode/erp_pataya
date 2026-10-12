@@ -1,6 +1,5 @@
 import { describe, expect, it, vi, beforeEach } from "vitest";
-import { render, screen } from "@testing-library/react";
-import userEvent from "@testing-library/user-event";
+import { render } from "@testing-library/react";
 
 vi.mock("laravel-react-i18n", () => ({
   useLaravelReactI18n: () => ({ t: (key) => `TR:${key}` }),
@@ -41,55 +40,44 @@ describe("Core/GlPostingStatuses Index", () => {
     canMock.mockReset();
     canMock.mockReturnValue(true);
     usePageMock.mockClear();
+    render(<Index />);
   });
 
-  it("meneruskan actions ke DataTable2", () => {
-    render(<Index />);
-    expect(typeof capturedProps.actions).toBe("function");
+  it("meneruskan rowActions ke DataTable2 dan tidak lagi memakai actions", () => {
+    expect(Array.isArray(capturedProps.rowActions)).toBe(true);
+    expect(capturedProps.rowActions).toHaveLength(1);
+    expect(capturedProps.actions).toBeUndefined();
   });
 
-  it("actions mengembalikan falsy saat dataRow.status bukan 'failed', walau can('write') true", () => {
-    render(<Index />);
-    const dataRow = { id: 1, status: "posted" };
-    const result = capturedProps.actions({ dataRow });
+  it("aksi retry memakai key 'retry' dan mensyaratkan kolom canRetry", () => {
+    const [retry] = capturedProps.rowActions;
 
-    expect(result).toBeFalsy();
+    expect(retry.key).toBe("retry");
+    expect(retry.label).toBe("TR:core.glPostingStatus.retry");
+    expect(retry.requires).toEqual(["canRetry"]);
   });
 
-  it("actions mengembalikan falsy saat status 'failed' tapi can('write') false", () => {
-    canMock.mockReturnValue(false);
-    render(<Index />);
-    const dataRow = { id: 2, status: "failed" };
-    const result = capturedProps.actions({ dataRow });
+  it("enabled bernilai true hanya saat canRetry true dan can('write') true", () => {
+    const [retry] = capturedProps.rowActions;
 
-    expect(result).toBeFalsy();
+    expect(retry.enabled({ id: 1, canRetry: true })).toBe(true);
+    expect(retry.enabled({ id: 2, canRetry: false })).toBe(false);
     expect(canMock).toHaveBeenCalledWith("core.gl_posting_status", "write");
   });
 
-  it("actions merender tombol retry saat status 'failed' dan can('write') true", () => {
-    render(<Index />);
-    const dataRow = { id: 3, status: "failed" };
-    render(capturedProps.actions({ dataRow }));
+  it("enabled bernilai false saat can('write') false walau canRetry true", () => {
+    canMock.mockReturnValue(false);
+    const [retry] = capturedProps.rowActions;
 
-    const button = screen.getByRole("button", {
-      name: "TR:core.glPostingStatus.retry",
-    });
-    expect(button).toBeInTheDocument();
-    expect(button).toHaveAttribute("type", "button");
+    expect(retry.enabled({ id: 3, canRetry: true })).toBe(false);
   });
 
-  it("klik tombol retry memanggil router.post ke route gl-posting-statuses.retry dgn id dataRow", async () => {
-    const user = userEvent.setup();
-    render(<Index />);
-    const dataRow = { id: 42, status: "failed" };
-    render(capturedProps.actions({ dataRow }));
+  it("onAction memanggil router.post ke route gl-posting-statuses.retry dengan id baris", () => {
+    const [retry] = capturedProps.rowActions;
 
-    const button = screen.getByRole("button", {
-      name: "TR:core.glPostingStatus.retry",
-    });
-    await user.click(button);
+    retry.onAction([{ id: 5 }]);
 
     expect(routerPost).toHaveBeenCalledTimes(1);
-    expect(routerPost).toHaveBeenCalledWith("gl-posting-statuses.retry/42");
+    expect(routerPost).toHaveBeenCalledWith("gl-posting-statuses.retry/5");
   });
 });

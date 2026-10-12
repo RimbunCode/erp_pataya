@@ -66,23 +66,12 @@ describe("Inventory Warehouses Index", () => {
     visitSpy.mockRestore();
   });
 
-  it("mengklik tombol hapus memanggil deleteItem tanpa argumen", async () => {
-    const user = userEvent.setup();
+  it("templateItem tidak merender tombol hapus manual (hapus lewat ⋯ menu DataTable2)", () => {
     render(<Index />);
-    const dataRow = {
-      id: 3,
-      branch_name: "Cabang Bandung",
-      code: "WH-0003",
-      name: "Gudang Kecil",
-    };
-    const deleteItem = vi.fn();
     const { container } = render(
-      capturedProps.templateItem({ dataRow, deleteItem }),
+      capturedProps.templateItem({ dataRow: { id: 3, branch_name: "Cabang Bandung", code: "WH-0003", name: "Gudang Kecil" } }),
     );
-    const buttons = container.querySelectorAll("button");
-    const deleteButton = buttons[buttons.length - 1];
-    await user.click(deleteButton);
-    expect(deleteItem).toHaveBeenCalledTimes(1);
-    expect(deleteItem).toHaveBeenCalledWith();
+    // Hanya Link as="button" yang tersisa; hapus dikelola menu ⋯ DataTable2.
+    expect(container.querySelectorAll("button")).toHaveLength(1);
   });
 });

@@ -1,6 +1,5 @@
 import { describe, expect, it, vi } from "vitest";
 import { render, screen } from "@testing-library/react";
-import userEvent from "@testing-library/user-event";
 
 let capturedProps = null;
 vi.mock("@/Pages/Core/DataTable2", () => ({
@@ -37,20 +36,12 @@ describe("Inventory/Attributes Index", () => {
     expect(link).not.toHaveAttribute("href");
   });
 
-  it("tombol hapus memanggil deleteItem tanpa argumen saat diklik", async () => {
-    const user = userEvent.setup();
+  it("templateItem tidak merender tombol hapus manual (hapus lewat ⋯ menu DataTable2)", () => {
     render(<Index />);
-    const dataRow = { id: 4, name: "Ukuran" };
-    const deleteItem = vi.fn();
-    render(capturedProps.templateItem({ dataRow, deleteItem }));
-
-    // Ada 2 <button>: tombol nama atribut (Link as="button") dan tombol
-    // hapus (icon-only, tanpa accessible name) -- ambil yg terakhir.
-    const buttons = screen.getAllByRole("button");
-    const deleteButton = buttons[buttons.length - 1];
-    await user.click(deleteButton);
-
-    expect(deleteItem).toHaveBeenCalledTimes(1);
-    expect(deleteItem).toHaveBeenCalledWith();
+    const { container } = render(
+      capturedProps.templateItem({ dataRow: { id: 4, name: "Ukuran" } }),
+    );
+    // Hanya Link as="button" yang tersisa; hapus dikelola menu ⋯ DataTable2.
+    expect(container.querySelectorAll("button")).toHaveLength(1);
   });
 });
