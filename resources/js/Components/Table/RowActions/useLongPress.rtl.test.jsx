@@ -1,4 +1,10 @@
-import { act, fireEvent, render, renderHook, screen } from "@testing-library/react";
+import {
+  act,
+  fireEvent,
+  render,
+  renderHook,
+  screen,
+} from "@testing-library/react";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import useLongPress from "./useLongPress";
 
@@ -130,7 +136,9 @@ describe("useLongPress", () => {
       ({ cb }) => useLongPress({ onLongPress: cb }),
       { initialProps: { cb: first } },
     );
-    act(() => result.current.handlers.onPointerDown({ clientX: 0, clientY: 0 }));
+    act(() =>
+      result.current.handlers.onPointerDown({ clientX: 0, clientY: 0 }),
+    );
     rerender({ cb: second });
     act(() => vi.advanceTimersByTime(500));
     expect(first).not.toHaveBeenCalled();
@@ -140,7 +148,9 @@ describe("useLongPress", () => {
   it("timer dibersihkan saat unmount", () => {
     const onLongPress = vi.fn();
     const { result, unmount } = renderHook(() => useLongPress({ onLongPress }));
-    act(() => result.current.handlers.onPointerDown({ clientX: 0, clientY: 0 }));
+    act(() =>
+      result.current.handlers.onPointerDown({ clientX: 0, clientY: 0 }),
+    );
     unmount();
     act(() => vi.advanceTimersByTime(1000));
     expect(onLongPress).not.toHaveBeenCalled();

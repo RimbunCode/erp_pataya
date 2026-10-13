@@ -57,7 +57,9 @@ describe("Inventory/Categories Index", () => {
   it("templateItem tidak merender tombol hapus manual (hapus lewat ⋯ menu DataTable2)", () => {
     render(<Index />);
     const { container } = render(
-      capturedProps.templateItem({ dataRow: { id: 5, type: "raw_material", name: "Kain Katun" } }),
+      capturedProps.templateItem({
+        dataRow: { id: 5, type: "raw_material", name: "Kain Katun" },
+      }),
     );
     // Hanya Link as="button" yang tersisa; hapus dikelola menu ⋯ DataTable2.
     expect(container.querySelectorAll("button")).toHaveLength(1);

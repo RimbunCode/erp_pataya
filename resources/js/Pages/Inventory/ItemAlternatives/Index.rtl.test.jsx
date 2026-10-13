@@ -104,7 +104,14 @@ describe("Item Alternatives Index", () => {
   it("templateItem tidak merender tombol hapus manual (hapus lewat ⋯ menu DataTable2)", () => {
     render(<Index />);
     const { container } = render(
-      capturedProps.templateItem({ dataRow: { id: 9, item_code: "ITEM-009", alternative_code: "ITEM-010", two_way: false } }),
+      capturedProps.templateItem({
+        dataRow: {
+          id: 9,
+          item_code: "ITEM-009",
+          alternative_code: "ITEM-010",
+          two_way: false,
+        },
+      }),
     );
     // Hanya Link as="button" yang tersisa; hapus dikelola menu ⋯ DataTable2.
     expect(container.querySelectorAll("button")).toHaveLength(1);

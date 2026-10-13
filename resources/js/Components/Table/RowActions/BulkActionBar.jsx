@@ -15,7 +15,6 @@ import { normalizeAction, partitionBulk } from "./rowActions";
  * Hanya aksi `bulk` yang tampil; baris yang tidak memenuhi `enabled` dilewati
  * dan jumlahnya ditunjukkan lewat label + tooltip. Render null bila tidak ada
  * baris terpilih.
- *
  * @param {{
  *   rows: object[],
  *   actions: object[],
@@ -71,7 +70,9 @@ export default function BulkActionBar({
           <Button
             type="button"
             size="md"
-            variant={action.variant === "destructive" ? "destructive" : "outline"}
+            variant={
+              action.variant === "destructive" ? "destructive" : "outline"
+            }
             disabled={eligible.length === 0 || pendingKey !== null}
             onClick={() => onRun(action, eligible)}
           >

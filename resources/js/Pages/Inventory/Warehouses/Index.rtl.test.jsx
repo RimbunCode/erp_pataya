@@ -69,7 +69,14 @@ describe("Inventory Warehouses Index", () => {
   it("templateItem tidak merender tombol hapus manual (hapus lewat ⋯ menu DataTable2)", () => {
     render(<Index />);
     const { container } = render(
-      capturedProps.templateItem({ dataRow: { id: 3, branch_name: "Cabang Bandung", code: "WH-0003", name: "Gudang Kecil" } }),
+      capturedProps.templateItem({
+        dataRow: {
+          id: 3,
+          branch_name: "Cabang Bandung",
+          code: "WH-0003",
+          name: "Gudang Kecil",
+        },
+      }),
     );
     // Hanya Link as="button" yang tersisa; hapus dikelola menu ⋯ DataTable2.
     expect(container.querySelectorAll("button")).toHaveLength(1);

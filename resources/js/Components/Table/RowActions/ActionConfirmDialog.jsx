@@ -18,7 +18,6 @@ import PasswordInput from "@/Components/PasswordInput";
  * Dialog konfirmasi untuk aksi baris/bulk.
  * Tombol konfirmasi adalah `Button` biasa (bukan `AlertDialogAction`) agar dialog
  * tidak menutup otomatis; parent yang mengatur `open` setelah request selesai.
- *
  * @param {{
  *   open: boolean,
  *   title: string,

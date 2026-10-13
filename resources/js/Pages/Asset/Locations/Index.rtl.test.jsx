@@ -39,7 +39,9 @@ describe("Asset/Locations Index", () => {
   it("templateItem tidak merender tombol hapus manual (hapus lewat ⋯ menu DataTable2)", () => {
     render(<Index />);
     const { container } = render(
-      capturedProps.templateItem({ dataRow: { id: 10, location_name: "Gudang Cabang" } }),
+      capturedProps.templateItem({
+        dataRow: { id: 10, location_name: "Gudang Cabang" },
+      }),
     );
     // Hanya Link as="button" yang tersisa; hapus dikelola menu ⋯ DataTable2.
     expect(container.querySelectorAll("button")).toHaveLength(1);

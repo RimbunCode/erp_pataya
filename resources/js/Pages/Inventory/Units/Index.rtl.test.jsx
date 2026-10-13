@@ -38,13 +38,18 @@ describe("Inventory Units Index", () => {
     expect(container).toHaveTextContent("Kilogram (KG)");
   });
 
-
   it("templateItem tidak merender tombol hapus manual (hapus lewat ⋯ menu DataTable2)", () => {
     render(<Index />);
     for (const is_default of [false, true]) {
       const { container } = render(
         capturedProps.templateItem({
-          dataRow: { id: 3, group: "Length", name: "Meter", code: "M", is_default },
+          dataRow: {
+            id: 3,
+            group: "Length",
+            name: "Meter",
+            code: "M",
+            is_default,
+          },
         }),
       );
       // Hanya Link as="button" yang tersisa, baik unit default maupun bukan.

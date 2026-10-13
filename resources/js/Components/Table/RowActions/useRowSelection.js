@@ -10,6 +10,8 @@ import { useCallback, useEffect, useMemo, useRef, useState } from "react";
  * `toggle`, `setMany`, dan `clear` stabil antar render (functional setState).
  * `isSelected` berubah identitas hanya saat isi seleksi berubah.
  * Seleksi dikosongkan saat `resetKey` berubah (selain render pertama).
+ * @param root0
+ * @param root0.resetKey
  */
 export default function useRowSelection({ resetKey } = {}) {
   const [selected, setSelected] = useState(() => new Map());

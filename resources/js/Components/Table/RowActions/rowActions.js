@@ -9,7 +9,6 @@ export const DELETE_ACTION_KEY = "__delete";
 /**
  * Melengkapi definisi aksi dengan nilai default.
  * Field yang sudah diisi tidak ditimpa, dan objek input tidak dimutasi.
- *
  * @param {{
  *   key: string,
  *   label: string,
@@ -36,53 +35,51 @@ export const DELETE_ACTION_KEY = "__delete";
  * }} Aksi yang sudah ter-normalisasi.
  */
 export function normalizeAction(def) {
-    return {
-        ...def,
-        key: def.key,
-        label: def.label,
-        icon: def.icon,
-        onAction: def.onAction,
-        variant: def.variant ?? "default",
-        single: def.single ?? true,
-        bulk: def.bulk ?? false,
-        enabled: def.enabled ?? (() => true),
-        requires: def.requires ?? [],
-        confirm: def.confirm ?? null,
-    };
+  return {
+    ...def,
+    key: def.key,
+    label: def.label,
+    icon: def.icon,
+    onAction: def.onAction,
+    variant: def.variant ?? "default",
+    single: def.single ?? true,
+    bulk: def.bulk ?? false,
+    enabled: def.enabled ?? (() => true),
+    requires: def.requires ?? [],
+    confirm: def.confirm ?? null,
+  };
 }
 
 /**
  * Mengambil aksi yang tampil di menu satu baris.
  * Aksi dengan `single: false` atau `enabled(row)` bernilai false dibuang.
  * Urutan aksi dipertahankan.
- *
  * @param {object[]} actions Daftar aksi (mentah atau sudah ter-normalisasi).
  * @param {object} row Baris data yang sedang dirender.
  * @returns {ReturnType<typeof normalizeAction>[]} Aksi yang berlaku untuk baris ini.
  */
 export function resolveRowActions(actions, row) {
-    return actions
-        .map(normalizeAction)
-        .filter((action) => action.single && action.enabled(row));
+  return actions
+    .map(normalizeAction)
+    .filter((action) => action.single && action.enabled(row));
 }
 
 /**
  * Membagi baris terpilih menjadi yang memenuhi `enabled` dan yang akan dilewati.
- *
  * @param {object} action Aksi bulk.
  * @param {object[]} rows Baris yang dipilih.
  * @returns {{ eligible: object[], skipped: object[] }} Baris yang diproses dan dilewati.
  */
 export function partitionBulk(action, rows) {
-    const { enabled } = normalizeAction(action);
-    const eligible = [];
-    const skipped = [];
+  const { enabled } = normalizeAction(action);
+  const eligible = [];
+  const skipped = [];
 
-    for (const row of rows) {
-        (enabled(row) ? eligible : skipped).push(row);
-    }
+  for (const row of rows) {
+    (enabled(row) ? eligible : skipped).push(row);
+  }
 
-    return { eligible, skipped };
+  return { eligible, skipped };
 }
 
 /**
@@ -92,7 +89,6 @@ export function partitionBulk(action, rows) {
  *
  * Saat dipanggil dari bulk bar, aksi selalu lewat `onBulk` meskipun hanya satu baris,
  * agar dialog konfirmasi bulk tetap dipakai.
- *
  * @param {{
  *   can: (action: string, context: object) => boolean,
  *   label: string,
@@ -102,17 +98,26 @@ export function partitionBulk(action, rows) {
  * }} options Dependensi dari DataTable2.
  * @returns {ReturnType<typeof normalizeAction>} Aksi hapus yang sudah ter-normalisasi.
  */
-export function buildDeleteAction({ can, label, bulkDestroy, onSingle, onBulk }) {
-    return normalizeAction({
-        key: DELETE_ACTION_KEY,
-        label,
-        icon: Trash2Icon,
-        variant: "destructive",
-        single: true,
-        bulk: Boolean(bulkDestroy),
-        enabled: (row) => row?.canDelete !== false && can("delete", { user_id: row?.created_by_id }),
-        onAction: (rows, helpers) => (helpers?.source === "bulk" ? onBulk(rows) : onSingle(rows[0])),
-    });
+export function buildDeleteAction({
+  can,
+  label,
+  bulkDestroy,
+  onSingle,
+  onBulk,
+}) {
+  return normalizeAction({
+    key: DELETE_ACTION_KEY,
+    label,
+    icon: Trash2Icon,
+    variant: "destructive",
+    single: true,
+    bulk: Boolean(bulkDestroy),
+    enabled: (row) =>
+      row?.canDelete !== false &&
+      can("delete", { user_id: row?.created_by_id }),
+    onAction: (rows, helpers) =>
+      helpers?.source === "bulk" ? onBulk(rows) : onSingle(rows[0]),
+  });
 }
 
 /**
@@ -120,37 +125,36 @@ export function buildDeleteAction({ can, label, bulkDestroy, onSingle, onBulk })
  * field yang dibutuhkan aksi (`requires`). Tidak melakukan apa pun di build produksi.
  *
  * Peringatan dikeluarkan sekali per aksi per pemanggilan.
- *
  * @param {object[]} actions Daftar aksi.
  * @param {object[]} rows Baris data yang akan dirender.
  * @returns {void}
  */
 export function warnMissingRequires(actions, rows) {
-    if (import.meta.env.PROD) {
-        return;
+  if (import.meta.env.PROD) {
+    return;
+  }
+
+  for (const action of actions) {
+    const requires = action.requires ?? [];
+
+    if (requires.length === 0) {
+      continue;
     }
 
-    for (const action of actions) {
-        const requires = action.requires ?? [];
+    const missing = new Set();
 
-        if (requires.length === 0) {
-            continue;
+    for (const row of rows) {
+      for (const field of requires) {
+        if (!row || !(field in row)) {
+          missing.add(field);
         }
-
-        const missing = new Set();
-
-        for (const row of rows) {
-            for (const field of requires) {
-                if (!row || !(field in row)) {
-                    missing.add(field);
-                }
-            }
-        }
-
-        if (missing.size > 0) {
-            console.warn(
-                `[rowActions] aksi "${action.key}" membutuhkan field ${[...missing].join(", ")} yang tidak ada pada sebagian baris.`,
-            );
-        }
+      }
     }
+
+    if (missing.size > 0) {
+      console.warn(
+        `[rowActions] aksi "${action.key}" membutuhkan field ${[...missing].join(", ")} yang tidak ada pada sebagian baris.`,
+      );
+    }
+  }
 }

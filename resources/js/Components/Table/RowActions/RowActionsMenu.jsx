@@ -18,7 +18,6 @@ import { resolveRowActions } from "./rowActions";
  * Item mengikuti urutan `actions`; pemisah hanya muncul sebelum item destruktif
  * pertama dan hanya bila ada item lain sebelumnya. Render null bila tidak ada
  * aksi yang berlaku untuk baris ini.
- *
  * @param {{
  *   row: object,
  *   actions: object[],

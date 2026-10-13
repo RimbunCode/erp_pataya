@@ -48,7 +48,9 @@ describe("Inventory/StockEntries/Index", () => {
   it("templateItem tidak merender tombol hapus manual (hapus lewat ⋯ menu DataTable2)", () => {
     render(<Index />);
     const { templateItem } = dataTable2Props.mock.calls.at(-1)[0];
-    render(templateItem({ dataRow: { id: 3, code: "SE-0004", type: "item_issue" } }));
+    render(
+      templateItem({ dataRow: { id: 3, code: "SE-0004", type: "item_issue" } }),
+    );
     // Hanya Link as="button" yang tersisa; hapus dikelola menu ⋯ DataTable2.
     expect(screen.getAllByRole("button")).toHaveLength(1);
   });

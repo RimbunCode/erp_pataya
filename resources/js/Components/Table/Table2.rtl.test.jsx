@@ -118,7 +118,12 @@ describe("Table2", () => {
     it("checkbox baris mengikuti selection.isSelected(row)", () => {
       const selection = makeSelection([2]);
       render(
-        <Table2 columns={columns} data={data} selectable selection={selection} />,
+        <Table2
+          columns={columns}
+          data={data}
+          selectable
+          selection={selection}
+        />,
       );
 
       const [first, second] = rowChecks();
@@ -144,7 +149,12 @@ describe("Table2", () => {
       const user = userEvent.setup({ delay: null });
       const selection = makeSelection();
       render(
-        <Table2 columns={columns} data={data} selectable selection={selection} />,
+        <Table2
+          columns={columns}
+          data={data}
+          selectable
+          selection={selection}
+        />,
       );
 
       await user.click(rowChecks()[1]);
@@ -156,7 +166,12 @@ describe("Table2", () => {
       const user = userEvent.setup({ delay: null });
       const selection = makeSelection();
       render(
-        <Table2 columns={columns} data={data} selectable selection={selection} />,
+        <Table2
+          columns={columns}
+          data={data}
+          selectable
+          selection={selection}
+        />,
       );
 
       await user.click(headerCheck());
@@ -168,7 +183,12 @@ describe("Table2", () => {
       const user = userEvent.setup({ delay: null });
       const selection = makeSelection([1, 2]);
       render(
-        <Table2 columns={columns} data={data} selectable selection={selection} />,
+        <Table2
+          columns={columns}
+          data={data}
+          selectable
+          selection={selection}
+        />,
       );
 
       expect(headerCheck()).toHaveAttribute("data-state", "checked");

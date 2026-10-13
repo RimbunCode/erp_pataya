@@ -51,7 +51,12 @@ describe("RowActionsMenu", () => {
     const user = await openMenu();
 
     rerender(
-      <RowActionsMenu row={row} actions={actions} onRun={onRun} pendingKey="edit" />,
+      <RowActionsMenu
+        row={row}
+        actions={actions}
+        onRun={onRun}
+        pendingKey="edit"
+      />,
     );
 
     expect(trigger).toBeDisabled();

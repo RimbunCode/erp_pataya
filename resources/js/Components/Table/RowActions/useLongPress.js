@@ -10,6 +10,10 @@ import { useCallback, useEffect, useMemo, useRef } from "react";
  *   mengembalikan true sekali (lalu reset) agar handler click yang menyusul
  *   dapat diabaikan.
  * - `onContextMenu` di-preventDefault supaya menu konteks native tidak muncul.
+ * @param root0
+ * @param root0.onLongPress
+ * @param root0.delay
+ * @param root0.moveThreshold
  */
 export default function useLongPress({
   onLongPress,

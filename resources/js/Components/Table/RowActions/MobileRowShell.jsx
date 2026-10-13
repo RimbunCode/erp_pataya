@@ -9,7 +9,6 @@ import useLongPress from "./useLongPress";
  *
  * Saat mode seleksi, klik pada konten (termasuk link) dialihkan menjadi toggle.
  * Klik yang menyusul long-press ditelan agar tidak memicu navigasi/toggle ganda.
- *
  * @param {{
  *   selectionMode: boolean,
  *   checked: boolean,

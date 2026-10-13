@@ -771,7 +771,8 @@ const Table2 = forwardRef(function Table2(
   }, [activeIndex, mouseMove, mouseUp, removeListeners]);
 
   const isRowSelected = useCallback(
-    (row) => (selection ? selection.isSelected(row) : (row.isSelected ?? false)),
+    (row) =>
+      selection ? selection.isSelected(row) : (row.isSelected ?? false),
     [selection],
   );
   const allChecked = data.length > 0 && data.every(isRowSelected);

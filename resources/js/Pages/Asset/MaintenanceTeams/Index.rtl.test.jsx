@@ -41,7 +41,9 @@ describe("<MaintenanceTeams> Index", () => {
   it("templateItem tidak merender tombol hapus manual (hapus lewat ⋯ menu DataTable2)", () => {
     render(<Index />);
     const { container } = render(
-      capturedProps.templateItem({ dataRow: { id: 3, team_name: "Tim Maintenance B" } }),
+      capturedProps.templateItem({
+        dataRow: { id: 3, team_name: "Tim Maintenance B" },
+      }),
     );
     // Hanya Link as="button" yang tersisa; hapus dikelola menu ⋯ DataTable2.
     expect(container.querySelectorAll("button")).toHaveLength(1);
