@@ -10,6 +10,7 @@ use App\Events\Finances\PurchaseInvoiceGeneralLedgerPostingRequested;
 use App\Events\Purchase\Invoice\PurchaseInvoiceReturnStatusChanged;
 use App\Events\Purchase\Invoice\PurchaseOrderItemBillingChanged;
 use App\Events\Purchase\Order\PurchaseOrderBillStatusRecalculationRequested;
+use App\Http\Requests\Finances\Rules\ReturnAgainstItemRules;
 use App\Models\Core\FormatingSeries;
 use App\Models\Core\GlPostingStatus;
 use App\Models\Core\ModelConnection;
@@ -293,6 +294,9 @@ class PurchaseInvoiceService implements SubmitableService {
             $totalStockGL = 0; // Untuk GL Stock/SRNB (ALUR-1)
 
             foreach ($items as $item) {
+                if ($returnAgainst && $item->return_against_item_id) {
+                    ReturnAgainstItemRules::assertRemainingOnApprove('purchase_invoice_items', $item->return_against_item_id, (float) $item->quantity);
+                }
                 $basicAmount += $item->basic_amount - $item->discount_amount;
                 $taxAmount += $item->tax_amount;
 

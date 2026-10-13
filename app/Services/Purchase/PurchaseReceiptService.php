@@ -351,8 +351,14 @@ class PurchaseReceiptService implements SubmitableService {
                         break;
                     }
 
-                    $rate         = $invoiceItem->rate;
-                    $availableQty = $invoiceItem->quantity - $invoiceItem->allocated_qty;
+                    // Kuantitas/rate invoice dalam satuan invoice; `$quantity` receipt dalam satuan stok.
+                    // Hanya invoice item bebas (jalur baru) yang dikonversi; jalur PO-Item lama tetap
+                    // memakai kuantitas apa adanya agar `allocated_qty` yang sudah tersimpan tidak berubah arti.
+                    $toStock = $isStandalone
+                        ? (float) ($invoiceItem->conversion_factor ?: 1) / (float) ($stock->conversion_factor ?: 1)
+                        : 1.0;
+                    $rate         = $invoiceItem->rate / $toStock;
+                    $availableQty = ($invoiceItem->quantity - $invoiceItem->allocated_qty) * $toStock;
                     if ($availableQty <= 0) {
                         continue;
                     }
@@ -395,10 +401,10 @@ class PurchaseReceiptService implements SubmitableService {
                     $queue[array_key_last($queue)]['sle_id'] = $sle->id;
                     $stock->update(['stock_queue' => $queue]);
 
-                    $invoiceItem->increment('allocated_qty', $allocateQty);
+                    $invoiceItem->increment('allocated_qty', $allocateQty / $toStock);
                     if ($isStandalone) {
-                        // porsi baris receipt yang sudah ditagih invoice item bebas
-                        $item->increment('billed_quantity', $allocateQty);
+                        // porsi baris receipt yang sudah ditagih invoice item bebas (satuan baris receipt)
+                        $item->increment('billed_quantity', $allocateQty * (float) ($stock->conversion_factor ?: 1) / (float) ($item->conversion_factor ?: 1));
                     }
                     $totalRatesForGL += $rate * $allocateQty;
                     $remainingQty -= $allocateQty;
