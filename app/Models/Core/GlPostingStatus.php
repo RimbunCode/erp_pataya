@@ -39,7 +39,7 @@ class GlPostingStatus extends Model {
         ],
         'referenceable' => [
             'show'   => true,
-            'isLink' => true,
+            'isLink' => false,
             'order'  => 1,
         ],
         'status' => [

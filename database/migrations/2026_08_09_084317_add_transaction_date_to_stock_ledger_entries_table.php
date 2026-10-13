@@ -12,7 +12,7 @@ return new class extends Migration
      */
     public function up(): void {
         Schema::table('stock_ledger_entries', function (Blueprint $table) {
-            $table->dateTime('transaction_date')->nullable()->after('is_valuated');
+            $table->dateTime('transaction_date')->nullable();
         });
 
         DB::table('stock_ledger_entries')

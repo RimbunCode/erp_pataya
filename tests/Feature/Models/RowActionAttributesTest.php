@@ -74,6 +74,12 @@ class RowActionAttributesTest extends TestCase {
         $this->assertSame([], Tag::getRowActionAttributes());
     }
 
+    public function test_document_column_does_not_link_to_a_nonexistent_gl_status_show_route(): void {
+        $column = collect(GlPostingStatus::getColumns(1))->firstWhere('name', 'referenceable');
+
+        $this->assertFalse($column['isLink']);
+    }
+
     public function test_row_action_attribute_is_selected_even_when_its_dependency_column_is_not_visible(): void {
         $failed  = $this->makeStatus(FormStatus::FAILED);
         $pending = $this->makeStatus(FormStatus::PENDING);

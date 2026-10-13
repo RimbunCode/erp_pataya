@@ -23,9 +23,10 @@ import { resolveRowActions } from "./rowActions";
  *   row: object,
  *   actions: object[],
  *   onRun: (action: object, rows: object[]) => void,
+ *   pendingKey?: string | null,
  * }} props
  */
-function RowActionsMenu({ row, actions, onRun }) {
+function RowActionsMenu({ row, actions, onRun, pendingKey = null }) {
   const { t } = useLaravelReactI18n();
   const visible = resolveRowActions(actions, row);
 
@@ -45,6 +46,8 @@ function RowActionsMenu({ row, actions, onRun }) {
           size="icon"
           className="size-8"
           aria-label={t("core.datatable.row_actions")}
+          disabled={pendingKey !== null}
+          aria-busy={pendingKey !== null}
           onClick={(e) => e.stopPropagation()}
         >
           <Ellipsis />
@@ -60,6 +63,7 @@ function RowActionsMenu({ row, actions, onRun }) {
                 <DropdownMenuSeparator />
               )}
               <DropdownMenuItem
+                disabled={pendingKey !== null}
                 className={cn(
                   action.variant === "destructive" &&
                     "text-destructive focus:text-destructive",

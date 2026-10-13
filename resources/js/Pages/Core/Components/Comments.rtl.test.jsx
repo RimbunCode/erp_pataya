@@ -51,7 +51,10 @@ vi.mock("@/lib/gooeyToast", () => ({
 // di jsdom -- stub dengan textarea sederhana yang expose ref imperative API
 // minimal (getHTML/isEmpty) yang dipakai Comments.jsx.
 vi.mock("@/Components/TiptapEditor", () => ({
-  default: React.forwardRef(({ value, onValueChange, placeholder }, ref) => {
+  default: React.forwardRef(function TiptapEditorStub(
+    { value, onValueChange, placeholder },
+    ref,
+  ) {
     // getHTML() harus mencerminkan draft TERAKHIR yang diketik user di sesi
     // dialog ini, bukan `value` prop awal (yang untuk mode edit berisi
     // comment_json existing dan tidak berubah walau user mengetik ulang).

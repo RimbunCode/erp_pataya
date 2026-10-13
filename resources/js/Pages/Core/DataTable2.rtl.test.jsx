@@ -697,6 +697,61 @@ describe("DataTable2", () => {
   });
 
   describe("aksi baris (menu ⋯), seleksi & bulk", () => {
+    it.each([false, true])(
+      "async single-row custom action disables menu triggers until promise settles (mobile=%s)",
+      async (mobile) => {
+        isMobileMock.mockReturnValue(mobile);
+        const user = userEvent.setup({ delay: null });
+        let resolveAction;
+        const actionPromise = new Promise((resolve) => {
+          resolveAction = resolve;
+        });
+        const onAction = vi.fn(() => actionPromise);
+        await renderDataTable2(
+          <DataTable2
+            hideDeleteAction
+            rowActions={[{ key: "async", label: "Process", onAction }]}
+            templateItem={({ dataRow }) => <div>{dataRow.name}</div>}
+          />,
+        );
+
+        const triggers = () =>
+          screen.getAllByRole("button", {
+            name: "TR:core.datatable.row_actions",
+          });
+        await user.click(triggers()[0]);
+        await user.click(screen.getByRole("menuitem", { name: "Process" }));
+        expect(onAction).toHaveBeenCalledWith(
+          [baseData.data[0]],
+          expect.objectContaining({ source: "single" }),
+        );
+        for (const trigger of triggers()) {
+          expect(trigger).toBeDisabled();
+          expect(trigger).toHaveAttribute("aria-busy", "true");
+        }
+        await user.click(triggers()[0]);
+        const pendingItem = screen.queryByRole("menuitem", { name: "Process" });
+        if (pendingItem) {
+          expect(pendingItem).toHaveAttribute("aria-disabled", "true");
+          await user.click(pendingItem);
+        }
+        expect(onAction).toHaveBeenCalledTimes(1);
+        await user.keyboard("{Escape}");
+
+        await act(async () => {
+          resolveAction();
+          await actionPromise;
+        });
+        for (const trigger of triggers()) {
+          expect(trigger).toBeEnabled();
+          expect(trigger).toHaveAttribute("aria-busy", "false");
+        }
+        await user.click(triggers()[0]);
+        await user.click(screen.getByRole("menuitem", { name: "Process" }));
+        expect(onAction).toHaveBeenCalledTimes(2);
+      },
+    );
+
     const rowActionsLabel = "TR:core.datatable.row_actions";
     const deleteLabel = "TR:core.datatable.delete";
     const setPage = (overrides) =>

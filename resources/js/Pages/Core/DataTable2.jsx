@@ -951,10 +951,11 @@ export default memo(
         <RowActionsMenu
           row={dataRow}
           actions={allActions}
+          pendingKey={pendingKey}
           onRun={(action, rows) => runAction(action, rows, "single")}
         />
       ),
-      [allActions, runAction],
+      [allActions, runAction, pendingKey],
     );
     const confirmConfig = confirmState
       ? typeof confirmState.action.confirm === "function"
@@ -1032,6 +1033,7 @@ export default memo(
             <RowActionsMenu
               row={row}
               actions={allActions}
+              pendingKey={pendingKey}
               onRun={(action, rows) => runAction(action, rows, "single")}
             />
           }

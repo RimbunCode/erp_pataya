@@ -40,6 +40,35 @@ async function openMenu() {
 }
 
 describe("RowActionsMenu", () => {
+  it("disables the trigger and open menu items while an action is pending", async () => {
+    const onRun = vi.fn();
+    const { rerender } = render(
+      <RowActionsMenu row={row} actions={actions} onRun={onRun} />,
+    );
+    const trigger = screen.getByRole("button", {
+      name: "TR:core.datatable.row_actions",
+    });
+    const user = await openMenu();
+
+    rerender(
+      <RowActionsMenu row={row} actions={actions} onRun={onRun} pendingKey="edit" />,
+    );
+
+    expect(trigger).toBeDisabled();
+    expect(trigger).toHaveAttribute("aria-busy", "true");
+    for (const item of screen.getAllByRole("menuitem")) {
+      expect(item).toHaveAttribute("aria-disabled", "true");
+    }
+    await user.click(screen.getByRole("menuitem", { name: "Approve" }));
+    expect(onRun).not.toHaveBeenCalled();
+
+    rerender(<RowActionsMenu row={row} actions={actions} onRun={onRun} />);
+    expect(trigger).toBeEnabled();
+    expect(trigger).toHaveAttribute("aria-busy", "false");
+    await user.click(screen.getByRole("menuitem", { name: "Approve" }));
+    expect(onRun).toHaveBeenCalledTimes(1);
+  });
+
   it("menampilkan item sesuai resolveRowActions dengan urutan terjaga", async () => {
     render(<RowActionsMenu row={row} actions={actions} onRun={vi.fn()} />);
     await openMenu();
