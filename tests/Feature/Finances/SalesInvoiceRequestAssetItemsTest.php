@@ -284,15 +284,20 @@ class SalesInvoiceRequestAssetItemsTest extends TestCase {
 
     #[Test]
     public function return_invoice_accepts_free_item_rows_but_rejects_free_asset_rows(): void {
+        $original = SalesInvoice::factory()->create();
+        $original->forceFill(['status' => [FormStatus::UNPAID]])->save();
+        $itemSource  = SalesInvoiceItem::create(['sales_invoice_id' => $original->id, 'item_id' => $this->freeVariant->id, 'item_unit_id' => $this->unitId, 'quantity' => 5, 'price' => 1500]);
+        $assetSource = SalesInvoiceItem::create(['sales_invoice_id' => $original->id, 'asset_id' => $this->asset->id, 'quantity' => 1, 'price' => 9000]);
+
         $data = fn (array $row) => [
-            'return_against' => ['id' => (string) Str::ulid()],
+            'return_against' => ['id' => $original->id],
             'items'          => [$row],
         ];
 
-        $item = $this->validate($data($this->freeItemRow()));
+        $item = $this->validate($data($this->freeItemRow('f1', ['return_against_item_id' => $itemSource->id])));
         $this->assertFalse($item->fails(), json_encode($item->errors()->toArray()));
 
-        $asset = $this->validate($data($this->freeAssetRow($this->asset)));
+        $asset = $this->validate($data($this->freeAssetRow($this->asset, 'fa1', ['return_against_item_id' => $assetSource->id])));
         $this->assertSame(['items.0.asset.id'], array_keys($asset->errors()->toArray()));
     }
 

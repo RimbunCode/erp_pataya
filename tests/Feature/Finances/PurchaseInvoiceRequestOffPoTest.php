@@ -302,10 +302,18 @@ class PurchaseInvoiceRequestOffPoTest extends TestCase {
             'expanse_head_account_id' => $this->expense->id,
             'created_by_id'           => $this->user->id,
         ]));
+        $original->forceFill(['status' => [FormStatus::UNPAID]])->save();
+        $source = PurchaseInvoiceItem::create([
+            'purchase_invoice_id' => $original->id,
+            'item_id'             => $this->poVariant->id,
+            'item_unit_id'        => $this->itemUnit->id,
+            'quantity'            => 10,
+            'rate'                => 1500,
+        ]);
 
         // Item sudah ada di PO: tetap lolos karena ini retur.
         $validator = $this->validate(
-            [$this->row(['item' => ['id' => $this->poVariant->id]])],
+            [$this->row(['item' => ['id' => $this->poVariant->id], 'return_against_item_id' => $source->id])],
             ['return_against' => ['id' => $original->id]],
         );
 

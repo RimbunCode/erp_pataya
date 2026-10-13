@@ -352,7 +352,11 @@ class PurchaseReceiptService implements SubmitableService {
                     }
 
                     // Kuantitas/rate invoice dalam satuan invoice; `$quantity` receipt dalam satuan stok.
-                    $toStock      = (float) ($invoiceItem->conversion_factor ?: 1) / (float) ($stock->conversion_factor ?: 1);
+                    // Hanya invoice item bebas (jalur baru) yang dikonversi; jalur PO-Item lama tetap
+                    // memakai kuantitas apa adanya agar `allocated_qty` yang sudah tersimpan tidak berubah arti.
+                    $toStock = $isStandalone
+                        ? (float) ($invoiceItem->conversion_factor ?: 1) / (float) ($stock->conversion_factor ?: 1)
+                        : 1.0;
                     $rate         = $invoiceItem->rate / $toStock;
                     $availableQty = ($invoiceItem->quantity - $invoiceItem->allocated_qty) * $toStock;
                     if ($availableQty <= 0) {

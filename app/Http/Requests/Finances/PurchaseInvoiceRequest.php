@@ -73,7 +73,12 @@ class PurchaseInvoiceRequest extends BaseFormRequest {
             if (! $this->input('return_against.id')) {
                 $this->validateOffPoRows($validator);
             }
-            ReturnAgainstItemRules::validate($validator, (array) $this->input('items', []), $this->input('return_against.id'), 'purchase_invoice_items', 'purchase_invoice_id');
+            ReturnAgainstItemRules::validate($validator, (array) $this->input('items', []), $this->input('return_against.id'), 'purchase_invoice_items', 'purchase_invoice_id', 'purchase_invoices', [
+                'purchase_order_item.id'   => 'purchase_order_item_id',
+                'purchase_receipt_item.id' => 'purchase_receipt_item_id',
+                'item.id'                  => 'item_id',
+                'unit.id'                  => 'item_unit_id',
+            ]);
         });
     }
 

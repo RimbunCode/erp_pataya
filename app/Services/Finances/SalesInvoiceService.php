@@ -10,6 +10,7 @@ use App\Events\Finances\SalesInvoiceGeneralLedgerPostingRequested;
 use App\Events\Sales\Invoice\SalesInvoiceReturnStatusChanged;
 use App\Events\Sales\Invoice\SalesOrderItemBillingChanged;
 use App\Events\Sales\Order\DocumentDeliveryStatusRecalculationRequested;
+use App\Http\Requests\Finances\Rules\ReturnAgainstItemRules;
 use App\Models\Asset\Asset;
 use App\Models\Core\Branch;
 use App\Models\Core\FormatingSeries;
@@ -283,6 +284,9 @@ class SalesInvoiceService implements SubmitableService {
             $taxAmount   = 0;
 
             foreach ($items as $item) {
+                if ($returnAgainst && $item->return_against_item_id) {
+                    ReturnAgainstItemRules::assertRemainingOnApprove('sales_invoice_items', $item->return_against_item_id, (float) $item->quantity);
+                }
                 $basicAmount += $item->basic_amount - $item->discount_amount;
                 $taxAmount += $item->tax_amount;
                 // Baris bebas (tanpa baris SO) tidak mengubah tagihan SO mana pun.

@@ -76,7 +76,12 @@ class SalesInvoiceRequest extends BaseFormRequest {
             $rows     = (array) $this->input('items', []);
             $assetIds = $this->sourceAssetIdsOf($rows);
             $isReturn = filled($this->input('return_against.id'));
-            ReturnAgainstItemRules::validate($validator, $rows, $this->input('return_against.id'), 'sales_invoice_items', 'sales_invoice_id');
+            ReturnAgainstItemRules::validate($validator, $rows, $this->input('return_against.id'), 'sales_invoice_items', 'sales_invoice_id', 'sales_invoices', [
+                'sales_order_item.id' => 'sales_order_item_id',
+                'item.id'             => 'item_id',
+                'asset.id'            => 'asset_id',
+                'unit.id'             => 'item_unit_id',
+            ]);
             $freeRows  = [];
             $freeAsset = [];
 
