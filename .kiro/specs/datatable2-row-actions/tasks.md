@@ -127,11 +127,11 @@ Key i18n baru (`core.datatable.*`): `row_actions`, `select_row`, `select_all`, `
 
 ## Tasks
 
-- [ ] 1. Backend: `destroyRecord` + `destroyMany` + route **(model: sonnet)**
+- [x] 1. Backend: `destroyRecord` + `destroyMany` + route **(model: sonnet)**
 
   **Files:** Modify `app/Http/Controllers/Controller.php`, `routes/web.php`; Create `tests/Feature/Core/DestroyManyTest.php`.
 
-  - [ ] 1.1 Tulis `tests/Feature/Core/DestroyManyTest.php` (pola BranchControllerTest; model `Supplier`, route `suppliers.destroyMany`, `suppliers.destroy`, `tags.destroyMany`). setUp tambahan: `if (! Schema::hasColumn('suppliers', 'created_by_id')) { Schema::table('suppliers', fn ($t) => $t->string('created_by_id')->nullable()); }`. Helper `permissions(bool $onlyCreator = false)` untuk `Supplier::class` dan `Tag::class` (`App\Models\Core\Tag`). Test:
+  - [x] 1.1 Tulis `tests/Feature/Core/DestroyManyTest.php` (pola BranchControllerTest; model `Supplier`, route `suppliers.destroyMany`, `suppliers.destroy`, `tags.destroyMany`). setUp tambahan: `if (! Schema::hasColumn('suppliers', 'created_by_id')) { Schema::table('suppliers', fn ($t) => $t->string('created_by_id')->nullable()); }`. Helper `permissions(bool $onlyCreator = false)` untuk `Supplier::class` dan `Tag::class` (`App\Models\Core\Tag`). Test:
     - `test_bulk_delete_removes_all_records_in_one_request` — 3 supplier, `deleteJson`/`delete(route('suppliers.destroyMany'), ['ids' => [...]])` → `assertRedirect(route('suppliers.index'))`, `assertSessionHas('success')`, ketiganya `assertSoftDeleted`.
     - `test_bulk_delete_accepts_ulid_string_ids` (id dari factory adalah ULID string; pastikan terhapus).
     - `test_bulk_delete_validates_ids` — `[]` → 422 `ids`; duplikat → 422 `ids.1`; 501 id → 422 `ids` (pakai `postJson`-style `deleteJson`).
@@ -140,9 +140,9 @@ Key i18n baru (`core.datatable.*`): `row_actions`, `select_row`, `select_all`, `
     - `test_bulk_delete_forbidden_when_only_creator_and_a_record_belongs_to_another_user` — permission `only_creator => true`, satu record `created_by_id = $other->id` → 403; tidak ada yang terhapus. Dan kasus semua milik user → sukses.
     - `test_bulk_delete_returns_405_for_controller_with_custom_destroy` — `deleteJson(route('tags.destroyMany'), ['ids' => [$tag->id]])` → 405 (pakai `Tag::factory()`).
     - `test_single_destroy_still_works` — `delete(route('suppliers.destroy', $s->id))` → redirect index, soft deleted.
-  - [ ] 1.2 Jalankan: `php artisan test --compact tests/Feature/Core/DestroyManyTest.php` → FAIL (route tidak ada).
-  - [ ] 1.3 Route di macro `resourceDetail` tepat setelah `store`: `Route::delete('/', 'destroyMany')->name("$uri.destroyMany");`
-  - [ ] 1.4 `Controller.php`:
+  - [x] 1.2 Jalankan: `php artisan test --compact tests/Feature/Core/DestroyManyTest.php` → FAIL (route tidak ada).
+  - [x] 1.3 Route di macro `resourceDetail` tepat setelah `store`: `Route::delete('/', 'destroyMany')->name("$uri.destroyMany");`
+  - [x] 1.4 `Controller.php`:
     - Mapping constructor: ganti `'destroy' => 'delete',` menjadi `'destroy', 'destroyMany' => 'delete',`.
     - Di constructor setelah `Inertia::share([... 'model', 'translateKey'])` tambahkan `'bulkDestroy' => fn (): bool => $this->supportsBulkDestroy(),` ke array share yang sama.
     - Tambahkan (dengan PHPDoc Bahasa Indonesia):
@@ -226,17 +226,17 @@ Key i18n baru (`core.datatable.*`): `row_actions`, `select_row`, `select_all`, `
     }
     ```
     Pastikan import `Utils` (cek `use App\...\Utils` yang sudah dipakai di file ini untuk `convertTemplateLink`), `ValidationException`, `Route`, `Str`, `DB` ada. Bila `beforeDestroy`/abort menghasilkan `HttpException`, biarkan lolos (rollback otomatis oleh `DB::transaction`).
-  - [ ] 1.5 Tambahkan key `deleted_count` ke `lang/en/core/datatable.php` (`':count records deleted'`) dan `lang/id/core/datatable.php` (`':count data dihapus'`).
-  - [ ] 1.6 Jalankan test file → PASS. Jalankan juga `php artisan test --compact tests/Feature/Core/BranchControllerTest.php tests/Feature/LocaleKeysTest.php` → PASS.
-  - [ ] 1.7 Commit `feat(datatable): add bulk destroyMany endpoint with per-record guards`.
+  - [x] 1.5 Tambahkan key `deleted_count` ke `lang/en/core/datatable.php` (`':count records deleted'`) dan `lang/id/core/datatable.php` (`':count data dihapus'`).
+  - [x] 1.6 Jalankan test file → PASS. Jalankan juga `php artisan test --compact tests/Feature/Core/BranchControllerTest.php tests/Feature/LocaleKeysTest.php` → PASS.
+  - [x] 1.7 Commit `feat(datatable): add bulk destroyMany endpoint with per-record guards`.
 
-- [ ] 2. Backend: migrasi `UserController` ke `destroyRecord` **(model: haiku)**
+- [x] 2. Backend: migrasi `UserController` ke `destroyRecord` **(model: haiku)**
 
   **Files:** Modify `app/Http/Controllers/User/UserController.php`; Create `tests/Feature/User/UserBulkDestroyTest.php`.
 
-  - [ ] 2.1 Test (pola Task 1, permission untuk `App\Models\User\User`): (a) `delete(route('users.destroy', $u->id))` tanpa password → 422 `password`, dengan `password => 'password'` (password default factory — cek `UserFactory`) → user terhapus; (b) `deleteJson(route('users.destroyMany'), ['ids' => [$a->id, $b->id]])` tanpa password → 422 `password`, dengan password → keduanya terhapus.
-  - [ ] 2.2 Jalankan → FAIL pada (b).
-  - [ ] 2.3 Di `UserController`: hapus method `destroy` override; tambahkan
+  - [x] 2.1 Test (pola Task 1, permission untuk `App\Models\User\User`): (a) `delete(route('users.destroy', $u->id))` tanpa password → 422 `password`, dengan `password => 'password'` (password default factory — cek `UserFactory`) → user terhapus; (b) `deleteJson(route('users.destroyMany'), ['ids' => [$a->id, $b->id]])` tanpa password → 422 `password`, dengan password → keduanya terhapus.
+  - [x] 2.2 Jalankan → FAIL pada (b).
+  - [x] 2.3 Di `UserController`: hapus method `destroy` override; tambahkan
     ```php
     protected function destroyRequiresPassword(): bool {
         return true;
@@ -248,16 +248,16 @@ Key i18n baru (`core.datatable.*`): `row_actions`, `select_row`, `select_all`, `
     }
     ```
     (import `Illuminate\Database\Eloquent\Model` bila belum; hapus import yang jadi tidak terpakai).
-  - [ ] 2.4 Jalankan test → PASS; jalankan juga test user lain yang ada: `php artisan test --compact tests/Feature/User` → PASS.
-  - [ ] 2.5 Commit `refactor(user): route user deletion through destroyRecord`.
+  - [x] 2.4 Jalankan test → PASS; jalankan juga test user lain yang ada: `php artisan test --compact tests/Feature/User` → PASS.
+  - [x] 2.5 Commit `refactor(user): route user deletion through destroyRecord`.
 
-- [ ] 3. Backend: `$rowActionAttributes` + `GlPostingStatus::canRetry` **(model: sonnet)**
+- [x] 3. Backend: `$rowActionAttributes` + `GlPostingStatus::canRetry` **(model: sonnet)**
 
   **Files:** Modify `app/Traits/LinkModel.php` (atau trait tempat `getColumns`), `app/Models/Scopes/DataTableScope.php`, `app/Models/Core/GlPostingStatus.php`; Create `tests/Feature/Models/RowActionAttributesTest.php`.
 
-  - [ ] 3.1 Test: buat `GlPostingStatus` (lihat `GlPostingStatusControllerTest` untuk cara membuat record & permission) satu `FAILED`, satu `PENDING`; set cookie visible columns hanya `retry_count` (nama cookie: lihat `DataTableScope::datatableColumnsCookieKey($request->path())` — panggil lewat reflection atau tiru logikanya) lalu GET `route('gl-posting-statuses.index')` dengan header Inertia (`X-Inertia: true`, `X-Inertia-Version` dari `app(HandleInertiaRequests::class)->version(request())` — atau jangan withoutMiddleware HandleInertiaRequests di test ini dan pakai `assertInertia`). Assert `data.data.*.canRetry` ada: `true` untuk FAILED, `false` untuk PENDING. Tambah test unit: `GlPostingStatus::getRowActionAttributes()` === `['canRetry']` dan model tanpa deklarasi → `[]`.
-  - [ ] 3.2 Jalankan → FAIL.
-  - [ ] 3.3 Trait (tempat `getCanDeleteAttribute`, `app/Traits/LinkModel.php`): 
+  - [x] 3.1 Test: buat `GlPostingStatus` (lihat `GlPostingStatusControllerTest` untuk cara membuat record & permission) satu `FAILED`, satu `PENDING`; set cookie visible columns hanya `retry_count` (nama cookie: lihat `DataTableScope::datatableColumnsCookieKey($request->path())` — panggil lewat reflection atau tiru logikanya) lalu GET `route('gl-posting-statuses.index')` dengan header Inertia (`X-Inertia: true`, `X-Inertia-Version` dari `app(HandleInertiaRequests::class)->version(request())` — atau jangan withoutMiddleware HandleInertiaRequests di test ini dan pakai `assertInertia`). Assert `data.data.*.canRetry` ada: `true` untuk FAILED, `false` untuk PENDING. Tambah test unit: `GlPostingStatus::getRowActionAttributes()` === `['canRetry']` dan model tanpa deklarasi → `[]`.
+  - [x] 3.2 Jalankan → FAIL.
+  - [x] 3.3 Trait (tempat `getCanDeleteAttribute`, `app/Traits/LinkModel.php`):
     ```php
     /**
      * Atribut accessor yang WAJIB selalu ikut ter-SELECT di DataTable (dipakai
@@ -269,76 +269,76 @@ Key i18n baru (`core.datatable.*`): `row_actions`, `select_row`, `select_all`, `
         return property_exists(static::class, 'rowActionAttributes') ? static::$rowActionAttributes : [];
     }
     ```
-  - [ ] 3.4 `DataTableScope`: gabungkan `\get_class($query->getModel())::getRowActionAttributes()` (guard `method_exists`) ke `$extraKeys` setelah array meta (`['route', 'canDelete', ...]`).
-  - [ ] 3.5 `GlPostingStatus`: `protected static array $rowActionAttributes = ['canRetry'];`, `protected $appends = ['canRetry'];` (gabungkan bila sudah ada), `configColumns['canRetry'] = ['hidden' => true, 'dependsOn' => ['status']]`, accessor `protected function getCanRetryAttribute(): bool { return $this->status === FormStatus::FAILED; }`.
-  - [ ] 3.6 Jalankan test baru + `tests/Feature/Core/GlPostingStatusControllerTest.php` + `tests/Feature/Models` → PASS.
-  - [ ] 3.7 Commit `feat(datatable): always select model rowActionAttributes; add GlPostingStatus canRetry`.
+  - [x] 3.4 `DataTableScope`: gabungkan `\get_class($query->getModel())::getRowActionAttributes()` (guard `method_exists`) ke `$extraKeys` setelah array meta (`['route', 'canDelete', ...]`).
+  - [x] 3.5 `GlPostingStatus`: `protected static array $rowActionAttributes = ['canRetry'];`, `protected $appends = ['canRetry'];` (gabungkan bila sudah ada), `configColumns['canRetry'] = ['hidden' => true, 'dependsOn' => ['status']]`, accessor `protected function getCanRetryAttribute(): bool { return $this->status === FormStatus::FAILED; }`.
+  - [x] 3.6 Jalankan test baru + `tests/Feature/Core/GlPostingStatusControllerTest.php` + `tests/Feature/Models` → PASS.
+  - [x] 3.7 Commit `feat(datatable): always select model rowActionAttributes; add GlPostingStatus canRetry`.
 
-- [ ] 4. Frontend: `rowActions.js` (fungsi murni) **(model: haiku)**
+- [x] 4. Frontend: `rowActions.js` (fungsi murni) **(model: haiku)**
 
   **Files:** Create `resources/js/Components/Table/RowActions/rowActions.js`, `resources/js/Components/Table/RowActions/rowActions.test.js`.
 
-  - [ ] 4.1 Test (vitest node) untuk setiap fungsi di Kontrak:
+  - [x] 4.1 Test (vitest node) untuk setiap fungsi di Kontrak:
     - `normalizeAction({ key:"a", label:"A", onAction })` → `single:true, bulk:false, variant:"default", requires:[], confirm:null`, `enabled({})===true`.
     - `resolveRowActions` membuang aksi `single:false` dan yang `enabled(row)` false; urutan dipertahankan.
     - `partitionBulk` membagi eligible/skipped sesuai `enabled`.
     - `buildDeleteAction`: `enabled` false bila `row.canDelete === false`; false bila `can("delete", { user_id: row.created_by_id })` false (assert `can` dipanggil dengan argumen itu); `bulk === bulkDestroy`; `variant==="destructive"`; `key===DELETE_ACTION_KEY`; `onAction([row], { source: "single" })` memanggil `onSingle(row)`; `onAction([r1], { source: "bulk" })` dan `onAction([r1,r2], { source: "bulk" })` memanggil `onBulk(rows)` (bulk dengan 1 baris tetap lewat dialog bulk).
     - `warnMissingRequires`: dengan `vi.spyOn(console, "warn")`, aksi `requires:["canRetry"]` dan baris tanpa `canRetry` → warn sekali per key aksi; baris lengkap → tidak warn.
-  - [ ] 4.2 Run `npx vitest run resources/js/Components/Table/RowActions/rowActions.test.js` → FAIL.
-  - [ ] 4.3 Implementasi sesuai Kontrak. `buildDeleteAction` mengembalikan `normalizeAction({ key: DELETE_ACTION_KEY, label, icon: Trash2Icon, variant: "destructive", single: true, bulk: Boolean(bulkDestroy), enabled: (row) => row?.canDelete !== false && can("delete", { user_id: row?.created_by_id }), onAction: (rows, helpers) => (helpers?.source === "bulk" ? onBulk(rows) : onSingle(rows[0])) })`. Kontrak: `DataTable2` selalu memanggil `onAction(rows, { clearSelection, reload, source })` dengan `source` = `"single"` (menu baris) atau `"bulk"` (bulk bar).
-  - [ ] 4.4 Run test → PASS. Commit `feat(datatable): add pure row action helpers`.
+  - [x] 4.2 Run `npx vitest run resources/js/Components/Table/RowActions/rowActions.test.js` → FAIL.
+  - [x] 4.3 Implementasi sesuai Kontrak. `buildDeleteAction` mengembalikan `normalizeAction({ key: DELETE_ACTION_KEY, label, icon: Trash2Icon, variant: "destructive", single: true, bulk: Boolean(bulkDestroy), enabled: (row) => row?.canDelete !== false && can("delete", { user_id: row?.created_by_id }), onAction: (rows, helpers) => (helpers?.source === "bulk" ? onBulk(rows) : onSingle(rows[0])) })`. Kontrak: `DataTable2` selalu memanggil `onAction(rows, { clearSelection, reload, source })` dengan `source` = `"single"` (menu baris) atau `"bulk"` (bulk bar).
+  - [x] 4.4 Run test → PASS. Commit `feat(datatable): add pure row action helpers`.
 
-- [ ] 5. Frontend: `useRowSelection` + `useLongPress` **(model: sonnet)**
+- [x] 5. Frontend: `useRowSelection` + `useLongPress` **(model: sonnet)**
 
   **Files:** Create `resources/js/Components/Table/RowActions/useRowSelection.js`, `useRowSelection.rtl.test.jsx`, `useLongPress.js`, `useLongPress.rtl.test.jsx`.
 
-  - [ ] 5.1 Test `useRowSelection` (pakai `renderHook` dari `@testing-library/react`): toggle add/remove; `setMany(rows,true/false)`; `isSelected` dengan id string ULID & number; `rows` mempertahankan objek terbaru; `clear()`; ganti `resetKey` (rerender) → kosong; `toggle`/`setMany`/`clear`/`isSelected` referensi stabil antar render (useCallback).
-  - [ ] 5.2 Test `useLongPress` (fake timers, `fireEvent.pointerDown/Move/Up` pada elemen dengan `{...handlers}`): tahan 500ms → `onLongPress` sekali; up sebelum 500ms → tidak; move > 10px → batal; `consumeLongPress()` true sekali setelah long-press lalu false; `contextMenu` di-`preventDefault`.
-  - [ ] 5.3 Run → FAIL. Implementasi: `useRowSelection` memakai `useState(() => new Map())`, efek `useEffect(() => clear(), [resetKey])` yang melewati render pertama (pakai ref), setiap update membuat `new Map(prev)`. `useLongPress` memakai `useRef` untuk timer, posisi awal, flag `fired`.
-  - [ ] 5.4 Run → PASS. Commit `feat(datatable): add row selection and long-press hooks`.
+  - [x] 5.1 Test `useRowSelection` (pakai `renderHook` dari `@testing-library/react`): toggle add/remove; `setMany(rows,true/false)`; `isSelected` dengan id string ULID & number; `rows` mempertahankan objek terbaru; `clear()`; ganti `resetKey` (rerender) → kosong; `toggle`/`setMany`/`clear`/`isSelected` referensi stabil antar render (useCallback).
+  - [x] 5.2 Test `useLongPress` (fake timers, `fireEvent.pointerDown/Move/Up` pada elemen dengan `{...handlers}`): tahan 500ms → `onLongPress` sekali; up sebelum 500ms → tidak; move > 10px → batal; `consumeLongPress()` true sekali setelah long-press lalu false; `contextMenu` di-`preventDefault`.
+  - [x] 5.3 Run → FAIL. Implementasi: `useRowSelection` memakai `useState(() => new Map())`, efek `useEffect(() => clear(), [resetKey])` yang melewati render pertama (pakai ref), setiap update membuat `new Map(prev)`. `useLongPress` memakai `useRef` untuk timer, posisi awal, flag `fired`.
+  - [x] 5.4 Run → PASS. Commit `feat(datatable): add row selection and long-press hooks`.
 
-- [ ] 6. Frontend: `RowActionsMenu`, `ActionConfirmDialog`, `BulkActionBar`, `MobileRowShell` **(model: sonnet)**
+- [x] 6. Frontend: `RowActionsMenu`, `ActionConfirmDialog`, `BulkActionBar`, `MobileRowShell` **(model: sonnet)**
 
   **Files:** Create di `resources/js/Components/Table/RowActions/`: `RowActionsMenu.jsx`, `ActionConfirmDialog.jsx`, `BulkActionBar.jsx`, `MobileRowShell.jsx` + masing-masing `*.rtl.test.jsx`.
 
-  - [ ] 6.1 Tests (mock `laravel-react-i18n` dengan `t = (k, p) => p ? \`TR:${k}:${JSON.stringify(p)}\` : \`TR:${k}\``; bungkus dengan `TooltipProvider` dari `@/Components/ui/tooltip` bila komponen memakai Tooltip):
+  - [x] 6.1 Tests (mock `laravel-react-i18n` dengan `t = (k, p) => p ? \`TR:${k}:${JSON.stringify(p)}\` : \`TR:${k}\``; bungkus dengan `TooltipProvider` dari `@/Components/ui/tooltip` bila komponen memakai Tooltip):
     - RowActionsMenu: tombol `aria-label="TR:core.datatable.row_actions"`; klik → item tampil sesuai `resolveRowActions` (urutan); separator (`role="separator"`) sebelum item `destructive` pertama; klik item → `onRun(action, [row])`; render `null` bila tidak ada aksi lolos.
     - ActionConfirmDialog: render title/description; `requirePassword` menampilkan input password; klik konfirmasi → `onConfirm(password)`; `errors.password` / `errors.delete` tampil; tombol disabled saat `processing`.
     - BulkActionBar: teks `TR:core.datatable.selected:{"count":5}`; hanya aksi `bulk`; label `bulk_count` bila semua eligible, `bulk_count_partial` bila sebagian; disabled bila 0 eligible atau `pendingKey` tidak null; klik → `onRun(action, eligibleRows)`; tombol `clear_selection` → `onClear`; `variant="mobile"` punya kelas `fixed`.
     - MobileRowShell: `menu` dirender; checkbox hanya saat `selectionMode`; long-press (fake timers 500ms) → `onLongPress`; saat `selectionMode`, klik pada children (mis. `<a href="/x">`) → `onToggle(!checked)` dan event default dicegah (`fireEvent.click` mengembalikan `false`); klik pertama setelah long-press ditelan (tidak memanggil `onToggle` dua kali).
-  - [ ] 6.2 Run → FAIL.
-  - [ ] 6.3 Implementasi:
+  - [x] 6.2 Run → FAIL.
+  - [x] 6.3 Implementasi:
     - RowActionsMenu: `DropdownMenu` + trigger `<Button variant="ghost" size="icon" className="size-8" aria-label={t("core.datatable.row_actions")}><Ellipsis /></Button>`; item `onSelect={() => onRun(action, [row])}`, kelas destruktif `text-destructive focus:text-destructive`; `memo`.
     - ActionConfirmDialog: `AlertDialog` (pola `Layouts/AlertDialogs/DeleteDialog.jsx`, termasuk `PasswordInput`), tombol konfirmasi `variant={destructive ? "destructive" : "default"}`; jangan auto-close saat konfirmasi (parent mengatur `open`) — gunakan `Button` biasa, bukan `AlertDialogAction`.
     - BulkActionBar: memakai `partitionBulk`; tooltip `bulk_skipped` bila `skipped.length > 0`; desktop: `flex items-center gap-2 px-3 py-2 border-b bg-accent/40`; mobile: `fixed inset-x-0 bottom-0 z-40 border-t bg-background p-3 flex items-center gap-2 overflow-x-auto`.
     - MobileRowShell: wrapper `div` `flex items-stretch` dengan `onClickCapture` & `{...longPress.handlers}` pada area konten (bukan menu), checkbox `aria-label={label}`; area menu `div` terpisah di kanan.
-  - [ ] 6.4 Run → PASS. Commit `feat(datatable): add row actions menu, bulk bar, confirm dialog, mobile row shell`.
+  - [x] 6.4 Run → PASS. Commit `feat(datatable): add row actions menu, bulk bar, confirm dialog, mobile row shell`.
 
-- [ ] 7. Frontend: `Table2` seleksi controlled **(model: sonnet)**
+- [x] 7. Frontend: `Table2` seleksi controlled **(model: sonnet)**
 
   **Files:** Modify `resources/js/Components/Table/Table2.jsx`, `resources/js/Components/Table/Table2.rtl.test.jsx`.
 
-  - [ ] 7.1 Test baru di `Table2.rtl.test.jsx`:
+  - [x] 7.1 Test baru di `Table2.rtl.test.jsx`:
     - `selection` controlled: checkbox baris `checked` mengikuti `selection.isSelected(row)`; klik baris → `selection.toggle(row, true)`; header klik → `selection.setMany(data, true)`; header `data-state="indeterminate"` bila sebagian; data kosong → header TIDAK `checked` (juga untuk mode uncontrolled).
     - Mode grup tidak diuji di sini (GroupTree butuh fetch); cukup pastikan `renderGroupRow` memakai handler controlled lewat unit kecil bila memungkinkan, jika tidak skip.
     - Test uncontrolled lama (select-all, `getSelectedItem`) tetap lulus tanpa diubah.
     - Checkbox baris memiliki `aria-label` `TR:core.datatable.select_row` dan header `TR:core.datatable.select_all`.
-  - [ ] 7.2 Run → FAIL.
-  - [ ] 7.3 Implementasi:
+  - [x] 7.2 Run → FAIL.
+  - [x] 7.3 Implementasi:
     - Prop `selection` di `Table2`; `TableRow` mendapat prop `selected` (boolean) & `onCheck`; `checked={selected ?? row.isSelected ?? false}`.
     - Flat: `selected={selection ? selection.isSelected(row) : undefined}`, `onCheck={selection ? selection.toggle : checklist}`, `key={row.id ?? index}`.
     - Header: `const allChecked = data.length > 0 && data.every(isRowSelected); const someChecked = data.some(isRowSelected); checked={allChecked ? true : someChecked ? "indeterminate" : false}`; `onCheckedChange={(c) => selection ? selection.setMany(data, c === true) : checkAll(c === true)}`. Saat `group` aktif & `selection` ada: render `<th>` kosong (tanpa checkbox).
     - `renderGroupRow`: `selected={selection?.isSelected(row)}`, `onCheck={selection?.toggle ?? (() => {})}`; tambahkan `selection` ke dependency.
     - Header kolom aksi: ganti teks dengan `<span className="sr-only">{t("core.datatable.action")}</span>`; sel aksi di `TableRow` → `className="flex items-center justify-center px-1! border-r border-muted-foreground/15"`.
     - Tambahkan key i18n `select_row`, `select_all`, `row_actions` ke kedua file lang.
-  - [ ] 7.4 Run `npx vitest run resources/js/Components/Table` → PASS (termasuk SelectModel/AdvanceSearchDialog bila ada test-nya: `npx vitest run resources/js/Components/SelectModel resources/js/Components/LinkModel`).
-  - [ ] 7.5 Commit `feat(table2): support controlled row selection`.
+  - [x] 7.4 Run `npx vitest run resources/js/Components/Table` → PASS (termasuk SelectModel/AdvanceSearchDialog bila ada test-nya: `npx vitest run resources/js/Components/SelectModel resources/js/Components/LinkModel`).
+  - [x] 7.5 Commit `feat(table2): support controlled row selection`.
 
-- [ ] 8. Frontend: integrasi `DataTable2` desktop **(model: sonnet)**
+- [x] 8. Frontend: integrasi `DataTable2` desktop **(model: sonnet)**
 
   **Files:** Modify `resources/js/Pages/Core/DataTable2.jsx`, `resources/js/Pages/Core/DataTable2.rtl.test.jsx`, `lang/en/core/datatable.php`, `lang/id/core/datatable.php`.
 
-  - [ ] 8.1 Update/ tambah test di `DataTable2.rtl.test.jsx` (tambahkan `router.delete` ke mock `@inertiajs/react`: `const routerDelete = vi.fn(); router: { get: ..., delete: (...a) => routerDelete(...a) }`; set `window.route = (name, p) => p != null ? \`${name}/${p}\` : name` di `beforeEach`; perbarui stub Table2 agar juga merender checkbox stub: `<input type="checkbox" aria-label={\`check-${row.id}\`} checked={props.selection?.isSelected(row) ?? false} onChange={(e) => props.selection?.toggle(row, e.target.checked)} />`):
+  - [x] 8.1 Update/ tambah test di `DataTable2.rtl.test.jsx` (tambahkan `router.delete` ke mock `@inertiajs/react`: `const routerDelete = vi.fn(); router: { get: ..., delete: (...a) => routerDelete(...a) }`; set `window.route = (name, p) => p != null ? \`${name}/${p}\` : name` di `beforeEach`; perbarui stub Table2 agar juga merender checkbox stub: `<input type="checkbox" aria-label={\`check-${row.id}\`} checked={props.selection?.isSelected(row) ?? false} onChange={(e) => props.selection?.toggle(row, e.target.checked)} />`):
     - Ganti test "tombol delete ..." lama: klik `⋯` (`getByRole("button", { name: "TR:core.datatable.row_actions" })` di dalam `row-1`) → klik item `TR:core.datatable.delete` → `deleteItemSpy("suppliers.destroy", 1, { usePasswordConfirmation: undefined })`. Pertahankan varian canDelete false / can false (tombol `⋯` tidak ada) dan usePasswordConfirmationForDelete.
     - `table2Props` terakhir memiliki `selectable === true` & `selection` object; `selectable={false}` → `selection` undefined & `selectable` false.
     - Centang row 1 & 2 → bulk bar tampil `TR:core.datatable.selected:{"count":2}`; dengan `bulkDestroy: true` di page props, klik tombol hapus bulk → dialog → konfirmasi → `routerDelete("suppliers.destroyMany", expect.objectContaining({ data: { ids: [1, 2] } }))`; panggil `onSuccess` dari argumen → bulk bar hilang.
@@ -346,8 +346,8 @@ Key i18n baru (`core.datatable.*`): `row_actions`, `select_row`, `select_all`, `
     - Aksi custom: `rowActions=[{ key:"x", label:"X", bulk:true, enabled:(r)=>r.id===1, onAction }]`, centang 1 & 2 → tombol `TR:core.datatable.bulk_count_partial:{"label":"X","count":1,"total":2}` → klik → `onAction([row1], expect.objectContaining({ clearSelection: expect.any(Function), reload: expect.any(Function), source: "bulk" }))`.
     - Ganti page (klik stub trigger-options-changed) → seleksi kosong (bulk bar hilang).
     - `hideDeleteAction` → menu baris tanpa item delete.
-  - [ ] 8.2 Run → FAIL.
-  - [ ] 8.3 Implementasi di `DataTable2.jsx`:
+  - [x] 8.2 Run → FAIL.
+  - [x] 8.3 Implementasi di `DataTable2.jsx`:
     - Props: hapus `actions: _actions`; tambah `rowActions = []`, `selectable = true`, `hideDeleteAction = false`. Update JSDoc (`RowAction` typedef dari design.md §1.2).
     - `const { bulkDestroy = false } = usePage().props;`, `const plural = pluralize.plural(name ?? "");`.
     - `const selectionResetKey = \`${treeVersion}|${JSON.stringify(options)}\`` (hitung SETELAH `treeVersion`; pindahkan deklarasi `useRowSelection` ke bawah `treeVersion`), `const selection = useRowSelection({ resetKey: selectionResetKey });`.
@@ -362,22 +362,22 @@ Key i18n baru (`core.datatable.*`): `row_actions`, `select_row`, `select_all`, `
     - Dev: `useEffect(() => { warnMissingRequires(allActions, data?.data ?? []); }, [allActions, data])`.
     - Hapus import `Trash2Icon` bila tak terpakai lagi.
     - Tambah key i18n sisa: `selected`, `bulk_count`, `bulk_count_partial`, `bulk_skipped`, `clear_selection`, `select_mode`, `delete`, `delete_selected`, `delete_selected_description`, `confirm`, `cancel` (en + id).
-  - [ ] 8.4 Run `npx vitest run resources/js/Pages/Core/DataTable2.rtl.test.jsx resources/js/Pages/Core/DataTable2.test.js` → PASS. Commit `feat(datatable2): default row selection, ⋯ actions menu, bulk actions`.
+  - [x] 8.4 Run `npx vitest run resources/js/Pages/Core/DataTable2.rtl.test.jsx resources/js/Pages/Core/DataTable2.test.js` → PASS. Commit `feat(datatable2): default row selection, ⋯ actions menu, bulk actions`.
 
-- [ ] 9. Frontend: `DataTable2` mobile (mode pilih) **(model: sonnet)**
+- [x] 9. Frontend: `DataTable2` mobile (mode pilih) **(model: sonnet)**
 
   **Files:** Modify `resources/js/Pages/Core/DataTable2.jsx`, `resources/js/Pages/Core/DataTable2.rtl.test.jsx`.
 
-  - [ ] 9.1 Test di describe "mode mobile": kartu dibungkus (tombol `TR:core.datatable.row_actions` per kartu); item header menu `TR:core.datatable.select_mode` → checkbox muncul di tiap kartu (`getAllByRole("forminput")` atau label `select_row`); centang → bulk bar mobile (kelas `fixed`) dengan `selected` count; `clear_selection` → checkbox hilang (mode pilih selesai); long-press kartu (fake timers + `fireEvent.pointerDown`/advance 500ms/`pointerUp`) → mode pilih dengan kartu itu tercentang. Test lama "templateItem menerima closure deleteItem" tetap lulus (deleteItem dipertahankan, deprecated).
-  - [ ] 9.2 Run → FAIL.
-  - [ ] 9.3 Implementasi: state `selectionMode`; `useEffect(() => { if (selection.count === 0) setSelectionMode(false); }, [selection.count])` (jangan matikan saat baru masuk mode via menu tanpa centang — gunakan flag: matikan hanya saat count turun dari >0 ke 0, simpan prev count di ref); `wrapMobile(row)` → `const item = mobileItem(row); if (!item) return null; return <MobileRowShell key={row.id} selectionMode={selectionMode} checked={selection.isSelected(row)} onToggle={(c) => selection.toggle(row, c)} onLongPress={() => { setSelectionMode(true); selection.toggle(row, true); }} label={t("core.datatable.select_row")} menu={<RowActionsMenu row={row} actions={allActions} onRun={(a, rows) => runAction(a, rows, "single")} />}>{item}</MobileRowShell>`. Ganti kedua jalur render mobile (flat & GroupTree `renderRow`). Tambah `DropdownMenuItem` "Pilih" di header mobile (`isMobile && selectable`). Render `<BulkActionBar variant="mobile" ... />` saat `isMobile && selectionMode`; `onClear={() => { selection.clear(); setSelectionMode(false); }}`. Tambahkan padding bawah container mobile (`pb-20`) saat bar tampil.
-  - [ ] 9.4 Run → PASS. Commit `feat(datatable2): mobile long-press selection mode`.
+  - [x] 9.1 Test di describe "mode mobile": kartu dibungkus (tombol `TR:core.datatable.row_actions` per kartu); item header menu `TR:core.datatable.select_mode` → checkbox muncul di tiap kartu (`getAllByRole("forminput")` atau label `select_row`); centang → bulk bar mobile (kelas `fixed`) dengan `selected` count; `clear_selection` → checkbox hilang (mode pilih selesai); long-press kartu (fake timers + `fireEvent.pointerDown`/advance 500ms/`pointerUp`) → mode pilih dengan kartu itu tercentang. Test lama "templateItem menerima closure deleteItem" tetap lulus (deleteItem dipertahankan, deprecated).
+  - [x] 9.2 Run → FAIL.
+  - [x] 9.3 Implementasi: state `selectionMode`; `useEffect(() => { if (selection.count === 0) setSelectionMode(false); }, [selection.count])` (jangan matikan saat baru masuk mode via menu tanpa centang — gunakan flag: matikan hanya saat count turun dari >0 ke 0, simpan prev count di ref); `wrapMobile(row)` → `const item = mobileItem(row); if (!item) return null; return <MobileRowShell key={row.id} selectionMode={selectionMode} checked={selection.isSelected(row)} onToggle={(c) => selection.toggle(row, c)} onLongPress={() => { setSelectionMode(true); selection.toggle(row, true); }} label={t("core.datatable.select_row")} menu={<RowActionsMenu row={row} actions={allActions} onRun={(a, rows) => runAction(a, rows, "single")} />}>{item}</MobileRowShell>`. Ganti kedua jalur render mobile (flat & GroupTree `renderRow`). Tambah `DropdownMenuItem` "Pilih" di header mobile (`isMobile && selectable`). Render `<BulkActionBar variant="mobile" ... />` saat `isMobile && selectionMode`; `onClear={() => { selection.clear(); setSelectionMode(false); }}`. Tambahkan padding bawah container mobile (`pb-20`) saat bar tampil.
+  - [x] 9.4 Run → PASS. Commit `feat(datatable2): mobile long-press selection mode`.
 
-- [ ] 10. Migrasi halaman **(model: haiku)**
+- [x] 10. Migrasi halaman **(model: haiku)**
 
   **Files:** Modify `resources/js/Pages/Core/GlPostingStatuses/Index.jsx` (+ `.rtl.test.jsx`), dan setiap `resources/js/Pages/**/Index.jsx` yang `templateItem`-nya memakai `deleteItem` (cari dengan Grep pattern `deleteItem` glob `resources/js/Pages/**/Index.jsx`) beserta `Index.rtl.test.jsx`-nya.
 
-  - [ ] 10.1 GlPostingStatuses: ganti `actions={...}` dengan
+  - [x] 10.1 GlPostingStatuses: ganti `actions={...}` dengan
     ```jsx
     rowActions={[
       {
@@ -391,23 +391,56 @@ Key i18n baru (`core.datatable.*`): `row_actions`, `select_row`, `select_all`, `
     ]}
     ```
     Hapus import `Button` bila tak terpakai. Update test-nya: assert `capturedProps.rowActions[0]` (key, `enabled({canRetry:true})` true, `enabled({canRetry:false})` false, `onAction([{id:5}])` → `router.post("gl-posting-statuses.retry/5")` sesuai mock route di test).
-  - [ ] 10.2 Untuk tiap halaman lain: hapus `<Button variant="destructive" ...><Trash2Icon /></Button>` (dan pembungkus yang jadi tak perlu) dari `templateItem`, hapus `deleteItem` dari destructuring parameter, hapus import `Trash2Icon`/`Button` yang tak terpakai. Jangan ubah markup lain. Update test-nya: hapus test "tombol hapus memanggil deleteItem" dan ganti dengan assert bahwa templateItem tidak lagi merender tombol hapus (mis. jumlah button = jumlah tombol non-hapus).
-  - [ ] 10.3 Grep: tidak ada lagi `actions={` yang diteruskan ke `<DataTable2` di `resources/js/Pages` (abaikan `actions=` milik komponen lain seperti FormPage/FormTable).
-  - [ ] 10.4 Run `npx vitest run resources/js/Pages` → PASS. Commit `refactor(pages): use DataTable2 row actions instead of manual delete buttons`.
+  - [x] 10.2 Untuk tiap halaman lain: hapus `<Button variant="destructive" ...><Trash2Icon /></Button>` (dan pembungkus yang jadi tak perlu) dari `templateItem`, hapus `deleteItem` dari destructuring parameter, hapus import `Trash2Icon`/`Button` yang tak terpakai. Jangan ubah markup lain. Update test-nya: hapus test "tombol hapus memanggil deleteItem" dan ganti dengan assert bahwa templateItem tidak lagi merender tombol hapus (mis. jumlah button = jumlah tombol non-hapus).
+  - [x] 10.3 Grep: tidak ada lagi `actions={` yang diteruskan ke `<DataTable2` di `resources/js/Pages` (abaikan `actions=` milik komponen lain seperti FormPage/FormTable).
+  - [x] 10.4 Run `npx vitest run resources/js/Pages` → PASS. Commit `refactor(pages): use DataTable2 row actions instead of manual delete buttons`.
 
-- [ ] 11. Checkpoint: suite penuh, lint, Pint **(model: sonnet)**
+- [x] 11. Checkpoint: suite penuh, lint, Pint **(model: sonnet)**
 
-  - [ ] 11.1 `npx vitest run` → semua PASS (catat jumlah test).
-  - [ ] 11.2 `php artisan test --compact tests/Feature/Core tests/Feature/User tests/Feature/Models tests/Feature/LocaleKeysTest.php tests/Feature/Traits` → PASS. Bila ada kegagalan di file yang TIDAK disentuh spec ini, jangan diperbaiki — laporkan nama test + pesan error + analisis apakah terkait perubahan ini (`git diff 2525ba12 --stat` untuk daftar file yang berubah).
-  - [ ] 11.3 `npm run lint` → 0 error (gunakan `npm run lint:fix` bila perlu, lalu ulangi test terdampak).
-  - [ ] 11.4 `vendor/bin/pint --dirty --format agent` (dengan PATH php).
-  - [ ] 11.5 `npm run build` → sukses.
-  - [ ] 11.6 Commit perubahan lint/format bila ada: `chore: lint and format`.
+  - [x] 11.1 Suite penuh dijalankan: 6.587 lulus, satu test pending baru gagal saat perubahan berlangsung (total 6.588). Pada kode final, file yang gagal lulus 8/8, regresi fitur lulus 274/274, dan dua test lint yang diperbarui lulus 35/35. Tidak ada kegagalan yang masih terbuka; suite penuh tidak diulang setelah perbaikan terarah.
+  - [x] 11.2 `php artisan test --compact tests/Feature/Core tests/Feature/User tests/Feature/Models tests/Feature/LocaleKeysTest.php tests/Feature/Traits` → PASS. Bila ada kegagalan di file yang TIDAK disentuh spec ini, jangan diperbaiki — laporkan nama test + pesan error + analisis apakah terkait perubahan ini (`git diff 2525ba12 --stat` untuk daftar file yang berubah).
+  - [x] 11.3 `npm run lint` → 0 error, 556 warning. Dua error test lama diperbaiki dengan izin user dan test terdampak lulus.
+  - [x] 11.4 `vendor/bin/pint --dirty --format agent` (dengan PATH php).
+  - [x] 11.5 `npm run build` → sukses.
+  - [x] 11.6 Perubahan penutup disimpan pada commit `ddb15686` (`fix(datatable): complete row action validation and browser setup`).
+  - [x] 11.7 Tambahan user (13 Oktober 2026): sediakan seeder idempotent permission `select/read/write` GlPostingStatus untuk System Manager, panggil dari DatabaseSeeder, dan verifikasi password admin tidak berubah. Jalankan seeder khusus ini pada development; permission dipertahankan setelah pengujian sesuai instruksi user.
+  - [x] 11.8 Pemblokir environment yang dilaporkan user: hilangkan dependency posisi `is_valuated` pada migrasi stock ledger transaction_date, buktikan SQL MySQL melalui regression test, lalu lanjutkan migrasi development yang telah diizinkan.
+  - [x] 11.9 Pemblokir browser GL: metadata kolom dokumen memakai navigasi relasi, bukan link ke route `glPostingStatuses.show` yang tidak tersedia. Regression test metadata lulus.
 
-- [ ] 12. Verifikasi browser (dikerjakan controller, bukan subagent)
+- [x] 12. Verifikasi browser (dikerjakan controller, bukan subagent)
 
-  - [ ] 12.1 Jalankan dev server (`.claude/launch.json`), login admin/admin, buka index Supplier: checkbox + `⋯` tampil; menu berisi Hapus; centang 2 baris → bulk bar; batal pilih.
-  - [ ] 12.2 Bulk delete pada data uji yang aman dihapus; seleksi kosong dan data dimuat ulang; pesan sukses.
-  - [ ] 12.3 GL Posting Statuses: menu `⋯` berisi Retry hanya untuk status failed.
-  - [ ] 12.4 Viewport mobile: long-press kartu → mode pilih → bulk bar bawah; tap kartu tidak bernavigasi; "Pilih" di menu header.
-  - [ ] 12.5 Screenshot bukti.
+  - [x] 12.1 Jalankan dev server (`.claude/launch.json`), login admin/admin, buka index Supplier: checkbox + `⋯` tampil; menu berisi Hapus; centang 2 baris → bulk bar; batal pilih.
+  - [x] 12.2 Bulk delete pada data uji yang aman dihapus; seleksi kosong dan data dimuat ulang; pesan sukses.
+  - [x] 12.3 GL Posting Statuses: menu `⋯` berisi Retry hanya untuk status failed.
+  - [x] 12.4 Viewport mobile: long-press kartu → mode pilih → bulk bar bawah; tap kartu tidak bernavigasi; "Pilih" di menu header.
+  - [x] 12.5 Screenshot bukti.
+
+## Hasil validasi akhir — 13 Oktober 2026
+
+| Pemeriksaan | Bukti |
+|---|---|
+| Backend checkpoint | 837 test, 2.477 assertion, exit 0; 10 deprecation PHPUnit, tanpa kegagalan test. Log: `.superpowers/sdd/tasks/codex-backend-direct.log`. |
+| Backend perubahan terakhir | 13 test / 35 assertion lulus, termasuk controller GL, atribut aksi, seeder permission, dan migrasi MySQL. Log: `codex-last-backend-tests.log`. |
+| FE suite penuh | 468 file lulus, satu file gagal (6.587 test lulus / satu gagal) saat komponen dan test pending baru sedang diubah. Log: `codex-frontend-checkpoint.log`. |
+| FE kode final | File yang gagal diulang pada kode final: 8/8 lulus. Regresi fitur: 274/274 lulus. Dua test lint yang diubah: 35/35 lulus. Tidak ada kegagalan yang belum ditangani; tidak ada klaim run penuh baru setelah perubahan terarah. |
+| Lint | `npm run lint`: exit 0, 0 error, 556 warning. Log: `codex-final-lint.log`. |
+| Pint | `vendor/bin/pint --dirty --format agent`: pass. Log: `codex-final-pint.log`. |
+| Build | `npm run build`: client + SSR sukses. Build verifikasi memakai konfigurasi Pusher development sementara melalui environment proses; `.env` dan kredensial DB tidak diubah. Log: `codex-final-build.log`. |
+| Migrasi development | Migrasi yang tertunda selesai, termasuk pemblokir stock ledger yang dilaporkan user. Tidak menjalankan AdministratorSeeder pada database development. |
+
+### Browser
+
+- Login menggunakan `admin/admin`; aturan development disimpan di `AGENTS.md`. Aturan pemilihan model dan pewarisan konteks subagent disimpan di `C:/Users/Rahmad Maulana/.codex/AGENTS.md`.
+- Supplier desktop: checkbox default, menu Hapus, seleksi dua baris, dan Batal pilih bekerja.
+- Kategori dalam grup: checkbox header tidak tampil; checkbox per baris bekerja. Memilih tiga baris dengan dua tidak eligible menampilkan `Hapus (1 dari 3)`; nol eligible membuat tombol disabled.
+- Dua fixture kategori yang dibuat dengan izin user berhasil dihapus dalam satu `DELETE /categories`, dengan guard normal aktif. Setelah sukses pilihan kosong dan grup dimuat ulang (jumlah 5 menjadi 3). Fixture tersebut sudah soft-deleted.
+- Mobile 390×844: long-press masuk mode pilih, tap kartu lain menambah seleksi tanpa navigasi, bulk bar menempel di bawah, dan item Pilih di menu header bekerja. Viewport dikembalikan setelah pengujian.
+- GL: permission System Manager disediakan oleh seeder dan dipertahankan sesuai instruksi user. Fixture failed menampilkan menu Coba Lagi; pending tidak menampilkan tombol aksi. Retry tidak dijalankan. Kedua log uji sudah dihapus, diverifikasi count 0.
+- Dua kategori awal yang dibuat melalui UI (`DT2 Browser Test A/B 20261013`) masih tersimpan karena runtime menandainya `have_transactions=true`. Guard tidak dinonaktifkan untuk membersihkannya.
+
+Screenshot lokal (tidak di-commit):
+- `.superpowers/sdd/tasks/browser-bulk-delete-success.jpg`
+- `.superpowers/sdd/tasks/browser-mobile-selection.jpg`
+- `.superpowers/sdd/tasks/browser-gl-retry-menu.jpg`
+
+Perubahan tambahan pada checkpoint: pending menu desktop/mobile, metadata link dokumen GL, seeder permission GL + regression test, migrasi stock ledger + regression test, dua test lint lama yang disetujui user, format PHP/i18n, dan aturan login development. Tidak ada kredensial user yang diperbarui.

@@ -125,6 +125,7 @@ selection?: {
   2. set `pendingKey`;
   3. `await action.onAction(rows, { clearSelection: selection.clear, reload: loadData })`;
   4. reset `pendingKey` di `finally`.
+- `pendingKey` diteruskan ke menu desktop dan mobile; trigger dan item menu disabled selama Promise aksi berjalan.
 - Hapus per baris: `deleteItem(...)` (alur `DeleteDialog` lama, tidak berubah).
 - Hapus bulk: `ActionConfirmDialog` (judul `core.datatable.delete_selected`, deskripsi dengan jumlah, input password bila `usePasswordConfirmationForDelete`) →
   `router.delete(route(\`${plural}.destroyMany\`), { data: { ids, password? }, preserveScroll: true, onSuccess: () => selection.clear() })`.
@@ -168,7 +169,7 @@ selection?: {
 
 ### 1.8 Migrasi halaman
 
-- `Core/GlPostingStatuses/Index.jsx`: `actions` → `rowActions=[{ key: "retry", label, icon: RefreshCw, enabled: (row) => row.canRetry && can("write"), onAction: ([row]) => router.post(route("gl-posting-statuses.retry", row.id)) }]` (single saja; bulk retry di luar cakupan). Model `GlPostingStatus` mendapat accessor `canRetry` (`dependsOn: ['status']`) dan `$rowActionAttributes = ['canRetry']`.
+- `Core/GlPostingStatuses/Index.jsx`: `actions` → `rowActions=[{ key: "retry", label, icon: RefreshCw, enabled: (row) => row.canRetry && can("write"), onAction: ([row]) => router.post(route("gl-posting-statuses.retry", row.id)) }]` (single saja; bulk retry di luar cakupan). Model `GlPostingStatus` mendapat accessor `canRetry` (`dependsOn: ['status']`) dan `$rowActionAttributes = ['canRetry']`. Kolom `referenceable` menggunakan navigasi relasi (`isLink: false`), karena halaman monitoring tidak memiliki route show milik GlPostingStatus.
 - 16 halaman `Index.jsx` yang menaruh tombol hapus di `templateItem` (`grep -l deleteItem resources/js/Pages/**/Index.jsx`): hapus tombol hapus manual & import yang tidak terpakai.
 - `Users/ManageUsers/Index.jsx`: tidak berubah (`usePasswordConfirmationForDelete` tetap).
 
@@ -276,7 +277,7 @@ Catatan:
 
 | Controller | Tindakan |
 |---|---|
-| `User/UserController` | Hapus override `destroy`; `destroyRequiresPassword()` → `true`; `destroyRecord()` → `$data->delete(); $data->logForDeleted();` |
+| `User/UserController` | `destroyRequiresPassword()` → `true`; `destroyRecord()` → `$data->delete(); $data->logForDeleted();`. Wrapper tipis `destroy`/`destroyMany` memanggil parent, lalu logout dan invalidasi session bila akun sendiri ikut terhapus. |
 | `Core/TagController`, `Core/SettingController`, `Core/BackupController` | Tidak diubah → `supportsBulkDestroy()` otomatis `false` (destroy no-op). |
 | `Core/SavedFilterController` | Tidak memakai `resourceDetail` → tidak terdampak. |
 
@@ -286,6 +287,10 @@ Catatan:
 - `DataTableScope` (`extraKeys`, baris dengan `['route', 'canDelete', ...]`): digabung `...$modelClass::getRowActionAttributes()`.
 - Tiap atribut wajib terdaftar di `$appends` dan punya `dependsOn` di `configColumns`; pelanggaran tertangkap oleh `collectAppendStrict` (throw).
 - Tidak menyentuh gate LinkModel (`ModelController`) — beda dari `forceSelect`.
+
+### 2.5 Provisioning permission GL (tambahan user saat validasi)
+
+`GlPostingStatusPermissionSeeder` mendaftarkan permission `select/read/write` dan memberi grant level 0 kepada role System Manager secara idempotent. DatabaseSeeder memanggilnya sesudah AdministratorSeeder. Seeder khusus ini tidak membuat atau memperbarui user/password dan dapat dijalankan sendiri pada development. Permission tetap dipertahankan setelah browser verification sesuai instruksi user.
 
 ---
 
