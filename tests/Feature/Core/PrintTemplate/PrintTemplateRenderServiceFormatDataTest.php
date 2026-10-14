@@ -55,7 +55,7 @@ class PrintTemplateRenderServiceFormatDataTest extends TestCase {
         $result = $this->formatData(
             ['due_date' => '2026-01-15T00:00:00Z'],
             ['SalesOrder' => ['due_date' => ['type' => 'date']]],
-            ['model' => 'SalesOrder', 'lang' => 'en'],
+            ['model'      => 'SalesOrder', 'lang' => 'en'],
         );
 
         $this->assertSame('15 January 2026', $result['due_date']);
@@ -65,7 +65,7 @@ class PrintTemplateRenderServiceFormatDataTest extends TestCase {
         $result = $this->formatData(
             ['is_paid' => true],
             ['SalesOrder' => ['is_paid' => ['type' => 'boolean']]],
-            ['model' => 'SalesOrder'],
+            ['model'      => 'SalesOrder'],
         );
 
         $this->assertSame("<input type='checkbox' checked>", $result['is_paid']);
@@ -84,11 +84,25 @@ class PrintTemplateRenderServiceFormatDataTest extends TestCase {
         $this->assertSame('Rp 50.000', $result['amount']);
     }
 
+    public function test_formats_currency_column_with_row_currency_code(): void {
+        $result = $this->formatData(
+            ['amount' => 50000, 'currency_code' => 'IDR'],
+            ['SalesOrder' => [
+                'amount'        => ['type' => 'currency', 'decimalScale' => 0],
+                'currency_code' => ['hidden' => true],
+            ]],
+            ['model' => 'SalesOrder', 'currencySymbols' => ['IDR' => 'Rp']],
+        );
+
+        $this->assertSame('Rp 50.000', $result['amount']);
+        $this->assertSame('IDR', $result['currency_code']);
+    }
+
     public function test_formats_number_column_without_symbol(): void {
         $result = $this->formatData(
             ['quantity' => 1234.5],
             ['SalesOrder' => ['quantity' => ['type' => 'number', 'decimalScale' => 1]]],
-            ['model' => 'SalesOrder'],
+            ['model'      => 'SalesOrder'],
         );
 
         $this->assertSame('1.234,5', $result['quantity']);
@@ -98,7 +112,7 @@ class PrintTemplateRenderServiceFormatDataTest extends TestCase {
         $result = $this->formatData(
             ['amount' => -500],
             ['SalesOrder' => ['amount' => ['type' => 'number', 'decimalScale' => 0]]],
-            ['model' => 'SalesOrder', 'absoluteNumber' => true],
+            ['model'      => 'SalesOrder', 'absoluteNumber' => true],
         );
 
         $this->assertSame('500', $result['amount']);
@@ -108,7 +122,7 @@ class PrintTemplateRenderServiceFormatDataTest extends TestCase {
         $result = $this->formatData(
             ['status' => 'a'],
             ['SalesOrder' => ['status' => ['type' => 'string', 'parse' => ['a' => 'Active', 'b' => 'Blocked']]]],
-            ['model' => 'SalesOrder'],
+            ['model'      => 'SalesOrder'],
         );
 
         $this->assertSame('Active', $result['status']);

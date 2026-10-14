@@ -81,6 +81,11 @@ class AssetService extends Model {
             'type'   => 'relation',
             'hidden' => true,
         ],
+        // Barang yang dikonsumsi; relasi hasMany harus terdaftar agar tercetak di
+        // print template. Tersembunyi dari tabel.
+        'consumedItems' => [
+            'hidden' => true,
+        ],
         'status' => [
             'show'       => true,
             'order'      => 2,

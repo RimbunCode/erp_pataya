@@ -60,6 +60,7 @@ class PrintTemplateRequest extends BaseFormRequest {
             'margin_left'          => ['nullable', Rule::requiredIf(! ($this->is_letter_head ?? false)), 'numeric'],
             'margin_right'         => ['nullable', Rule::requiredIf(! ($this->is_letter_head ?? false)), 'numeric'],
             'page_number'          => ['nullable', Rule::requiredIf(! ($this->is_letter_head ?? false)), 'string'],
+            'page_number_format'   => ['nullable', 'string', 'max:255'],
             'show_absolute_values' => ['nullable', 'boolean'],
             'unit'                 => ['nullable', Rule::requiredIf(! ($this->is_letter_head ?? false)), 'string'],
             'font_family'          => ['nullable', Rule::requiredIf(! ($this->is_letter_head ?? false)), 'string'],

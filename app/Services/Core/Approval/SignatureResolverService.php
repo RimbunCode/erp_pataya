@@ -45,6 +45,49 @@ class SignatureResolverService {
     }
 
     /**
+     * Resolusi tanda tangan pembuat dokumen (slot "Dibuat oleh").
+     *
+     * Bentuk kembaliannya sama persis dengan `resolveFinalSignature()`
+     * supaya `buildSignatureHtml()` dipakai tanpa cabang baru. `date`
+     * SELALU null: slot ini hanya menampilkan TTD dan nama, jadi fallback
+     * FR9 (nama saja bila tanggal null) berlaku apa adanya.
+     *
+     * @return array{
+     *     image: string|null,
+     *     name: string|null,
+     *     date: string|null,
+     *     hasSignature: bool
+     * }|null null bila dokumen tidak punya relasi pembuat atau pembuatnya tidak ada
+     */
+    public function resolveCreatorSignature(Model $document): ?array {
+        if (! method_exists($document, 'createdBy')) {
+            return null;
+        }
+
+        try {
+            $creator = $document->createdBy;
+        } catch (\Throwable $e) {
+            // Sama alasannya dengan resolveFinalStep(): slot kosong jauh
+            // lebih baik daripada halaman cetak yang gagal total, jadi
+            // kegagalan mengambil relasi di sini ditelan, bukan dirambatkan.
+            return null;
+        }
+
+        if ($creator === null) {
+            return null;
+        }
+
+        $image = $this->readSignatureDataUri($creator);
+
+        return [
+            'image'        => $image,
+            'name'         => $creator->name,
+            'date'         => null,
+            'hasSignature' => $image !== null,
+        ];
+    }
+
+    /**
      * Step yang tanda tangannya dipakai: step berstatus APPROVED dengan
      * `sequence` TERBESAR.
      *

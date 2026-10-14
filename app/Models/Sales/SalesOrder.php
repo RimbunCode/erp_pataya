@@ -132,7 +132,7 @@ class SalesOrder extends Model {
             'hidden' => true,
         ],
         'amount' => [
-            'ignore' => true,
+            'hidden' => true,
         ],
         'amount_base_currency' => [
             'hidden' => true,

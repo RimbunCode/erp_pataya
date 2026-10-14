@@ -217,19 +217,30 @@ function resolveColumnDisplayLabel(col, t, fallbackPath) {
 
   const hasTitleTrans =
     typeof col?.titleTrans === "string" && col.titleTrans.trim();
-  if (hasTitleTrans) {
-    if (typeof t === "function") {
-      const translated = t(col.titleTrans);
-      if (translated != null && translated !== "") {
-        return translated;
-      }
+  if (hasTitleTrans && typeof t === "function") {
+    const translated = t(col.titleTrans);
+    // laravel-react-i18n mengembalikan KUNCI-nya sendiri saat terjemahan tidak
+    // ketemu (bukan null/string kosong), jadi hasil yang sama persis dengan
+    // titleTrans berarti gagal diterjemahkan dan harus jatuh ke `name`, supaya
+    // kunci mentah tidak tercetak sebagai label. Pola sama dengan getColumnLabel()
+    // di lib/gjsRelationsTable.js.
+    if (
+      translated != null &&
+      translated !== "" &&
+      translated !== col.titleTrans
+    ) {
+      return translated;
     }
-    return col.titleTrans;
   }
 
   const hasName = typeof col?.name === "string" && col.name.trim();
   if (hasName) {
     return col.name;
+  }
+
+  // Tanpa `name` sama sekali, kunci terjemahan tetap lebih informatif daripada path.
+  if (hasTitleTrans) {
+    return col.titleTrans;
   }
 
   return fallbackPath;

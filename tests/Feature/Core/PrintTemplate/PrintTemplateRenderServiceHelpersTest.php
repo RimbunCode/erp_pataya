@@ -2,7 +2,9 @@
 
 namespace Tests\Feature\Core\PrintTemplate;
 
+use App\Models\Core\PrintTemplate;
 use App\Services\Core\PrintTemplate\PrintTemplateRenderService;
+use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Schema\Blueprint;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Schema;
@@ -71,6 +73,38 @@ class PrintTemplateRenderServiceHelpersTest extends TestCase {
         $method = new \ReflectionMethod($this->service, 'helpers');
 
         return $method->invoke($this->service);
+    }
+
+    public function test_render_includes_scoped_styles_and_preserves_table_body(): void {
+        $template = new PrintTemplate([
+            'model'              => 'TestDocument',
+            'html'               => '<body><table class="items"><tbody><tr><td>body</td></tr></tbody></table></body>',
+            'css'                => 'body .items { border: 1px solid #000; }',
+            'unit'               => 'cm',
+            'font_family'        => 'Arial',
+            'width'              => 21,
+            'height'             => 29.7,
+            'margin_top'         => 1,
+            'margin_right'       => 1,
+            'margin_bottom'      => 1,
+            'margin_left'        => 1,
+            'page_number'        => 'bottom_center',
+            'page_number_format' => ':page / :total',
+        ]);
+        $document = new class extends Model
+        {
+            protected $guarded = [];
+        };
+        $document->id = 1;
+
+        $html = $this->service->render($document, $template, []);
+
+        $this->assertStringContainsString('<style>', $html);
+        $this->assertStringContainsString('.pt-scope--template .items', $html);
+        $this->assertStringContainsString('<tbody>', $html);
+        $this->assertStringContainsString('<td>body</td>', $html);
+        $this->assertStringContainsString("font-family: 'Arial', sans-serif", $html);
+        $this->assertStringContainsString('@bottom-center', $html);
     }
 
     /**

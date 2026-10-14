@@ -46,4 +46,19 @@ class FormatHelperServiceTest extends TestCase {
         $this->assertSame('', $this->service->formatDate('', 'DD/MM/YYYY'));
         $this->assertSame('', $this->service->formatDate(null, 'DD/MM/YYYY'));
     }
+
+    public function test_format_number_and_currency_accept_preformatted_indonesian_strings(): void {
+        $this->assertSame('5.000', $this->service->formatNumber('5.000', 0));
+        $this->assertSame('777.190', $this->service->formatNumber('777.190', 0));
+        $this->assertSame('1.234,50', $this->service->formatNumber('1.234,5', 2));
+        $this->assertSame('Rp 172.000.000,00', $this->service->formatCurrency('172.000.000', 'IDR'));
+        $this->assertSame('Rp 50.000,00', $this->service->formatCurrency('Rp 50.000', 'IDR'));
+    }
+
+    public function test_format_date_supports_month_name_tokens_and_preformatted_indonesian_dates(): void {
+        $this->assertSame('22 September 2026', $this->service->formatDate('2026-09-22', 'DD MMMM YYYY'));
+        $this->assertSame('31 Agustus 2026', $this->service->formatDate('2026-08-31', 'DD MMMM YYYY', 'id'));
+        $this->assertSame('31 Agustus 2026', $this->service->formatDate('31 Agustus 2026', 'DD MMMM YYYY'));
+        $this->assertSame('31-08-2026', $this->service->formatDate('31 Agustus 2026', 'DD-MM-YYYY'));
+    }
 }

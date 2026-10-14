@@ -309,7 +309,11 @@ class QuotationPrintTemplateTest extends QuotationTestCase {
 
         $html = $this->render($quotation, $this->template('spare_part'));
 
-        $this->assertStringNotContainsString('letter-section-title', $html);
+        // render() kini menyertakan <style>; nama kelas di stylesheet tidak
+        // berarti judul blok tercetak, jadi yang diperiksa hanya markup-nya.
+        $markup = (string) preg_replace('#<style\b[^>]*>.*?</style>#s', '', $html);
+
+        $this->assertStringNotContainsString('letter-section-title', $markup);
     }
 
     public function test_pemisah_baris_dijaga_lewat_css_pre_line(): void {
@@ -345,6 +349,61 @@ class QuotationPrintTemplateTest extends QuotationTestCase {
                 $this->assertContains($needed, $relations, "{$type}: {$needed}");
             }
         }
+    }
+
+    public function test_nominal_dan_tanggal_terformat_di_ketiga_varian_quotation(): void {
+        $this->seedTemplates();
+
+        $sparePart = $this->quotationOfType('spare_part', [
+            'date'        => '2026-08-31',
+            'issued_city' => 'Surabaya',
+            'items'       => [[
+                'id'        => 'a',
+                'item'      => ['id' => $this->variant->id],
+                'item_unit' => ['id' => $this->makeItemUnit()->id],
+                'quantity'  => 2,
+                'price'     => 777190,
+            ]],
+        ]);
+        $sparePartHtml = $this->render($sparePart, $this->template('spare_part'));
+        $this->assertStringContainsString('Surabaya, 31 Agustus 2026', $sparePartHtml);
+        $this->assertStringContainsString('777.190', $sparePartHtml);
+        $this->assertStringContainsString('1.554.380', $sparePartHtml);
+
+        $newUnit = $this->quotationOfType('new_unit', [
+            'date'        => '2026-09-22',
+            'valid_until' => '2026-10-22',
+            'issued_city' => 'Surabaya',
+            'items'       => [[
+                'id'       => 'a',
+                'item'     => ['id' => $this->variant->id],
+                'quantity' => 1,
+                'price'    => 5000000,
+            ]],
+        ]);
+        $newUnitHtml = $this->render($newUnit, $this->template('new_unit'));
+        $this->assertStringContainsString('Surabaya, 22 September 2026', $newUnitHtml);
+        $this->assertStringContainsString('22 October 2026', $newUnitHtml);
+        $this->assertStringContainsString('Rp 5.000.000,00', $newUnitHtml);
+
+        $rental = $this->quotationOfType('rental', [
+            'date'        => '2026-09-22',
+            'valid_until' => '2026-10-22',
+            'issued_city' => 'Surabaya',
+            'items'       => [[
+                'id'        => 'a',
+                'item'      => ['id' => $this->variant->id],
+                'item_unit' => ['id' => $this->makeItemUnit()->id],
+                'quantity'  => 1,
+                'price'     => 172000000,
+            ]],
+        ]);
+        $rentalHtml = $this->render($rental, $this->template('rental'));
+        $this->assertStringContainsString('Surabaya, 22 September 2026', $rentalHtml);
+        $this->assertStringContainsString('22 October 2026', $rentalHtml);
+        $this->assertStringContainsString('Rp 172.000.000,00 / month / unit', $rentalHtml);
+        $this->assertStringNotContainsString('Rp. ', $rentalHtml);
+        $this->assertStringNotContainsString(',- / month / unit', $rentalHtml);
     }
 
     public function test_merender_html_richtext_pada_isi_blok_tanpa_escape(): void {

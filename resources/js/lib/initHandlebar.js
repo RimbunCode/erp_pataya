@@ -1,10 +1,15 @@
 import Handlebars from "handlebars";
 import { format as dateFnsFormat } from "date-fns";
+import { enUS, id as idLocale } from "date-fns/locale";
 import { TZDate } from "@date-fns/tz";
 import { formatNumber as formatNumberValue } from "@/Components/NumberInput/formatNumber";
 import { convertTemplateLink } from "./linkModelUtils";
 import { resolveLabel } from "@/Pages/Core/PrintTemplate/utils/variableTokenUtils";
-import { buildSignatureHtml, EXAMPLE_SIGNATURE } from "./signatureSlot";
+import {
+  buildSignatureHtml,
+  EXAMPLE_CREATOR_SIGNATURE,
+  EXAMPLE_SIGNATURE,
+} from "./signatureSlot";
 
 // Format angka gaya Indonesia (locale "id"): pemisah ribuan "." dan desimal ",".
 const ID_GROUP_SEPARATOR = ".";
@@ -21,6 +26,74 @@ const CURRENCY_SYMBOLS = {
   SGD: "S$",
   MYR: "RM",
 };
+
+const ID_MONTH_MAP = {
+  Januari: "January",
+  Februari: "February",
+  Maret: "March",
+  April: "April",
+  Mei: "May",
+  Juni: "June",
+  Juli: "July",
+  Agustus: "August",
+  September: "September",
+  Oktober: "October",
+  November: "November",
+  Desember: "December",
+  Agu: "Aug",
+  Okt: "Oct",
+  Des: "Dec",
+};
+
+function normalizeNumericInput(value) {
+  if (typeof value === "number") {
+    return Number.isNaN(value) ? NaN : value;
+  }
+  if (typeof value !== "string") {
+    return NaN;
+  }
+  let cleaned = value.trim();
+  if (cleaned === "") {
+    return NaN;
+  }
+  cleaned = cleaned.replace(/^[A-Za-z$€£¥]+\s+/u, "");
+  if (
+    /^-?\d{1,3}(?:\.\d{3})*,\d+$/.test(cleaned) ||
+    /^-?\d+,\d+$/.test(cleaned)
+  ) {
+    cleaned = cleaned.replace(/\./g, "").replace(",", ".");
+    return Number(cleaned);
+  }
+  if (/^-?\d{1,3}(?:\.\d{3})+$/.test(cleaned)) {
+    cleaned = cleaned.replace(/\./g, "");
+    return Number(cleaned);
+  }
+  if (/^-?\d{1,3}(?:,\d{3})+(?:\.\d+)?$/.test(cleaned)) {
+    cleaned = cleaned.replace(/,/g, "");
+    return Number(cleaned);
+  }
+  return parseFloat(cleaned);
+}
+
+function normalizeDateInput(value) {
+  if (typeof value !== "string") {
+    return { normalized: value, detectedLocale: null };
+  }
+  let detectedLocale = null;
+  let normalized = value
+    .replace(/\b(\d{1,2})(?:st|nd|rd|th)\b/gi, "$1")
+    .replace(/\b(?:pukul|at)\s+/gi, "");
+
+  for (const [idMonth, enMonth] of Object.entries(ID_MONTH_MAP)) {
+    const regex = new RegExp(`\\b${idMonth}\\b`, "gi");
+    if (regex.test(normalized)) {
+      normalized = normalized.replace(regex, enMonth);
+      detectedLocale = "id";
+    }
+  }
+
+  return { normalized, detectedLocale };
+}
 
 /**
  * Resolve a dot-notation field path within a DataTableColumns configuration array.
@@ -99,8 +172,14 @@ export function initHandlebar(trans) {
     }
   });
   Handlebars.registerHelper("companyDetail", function (key, options) {
-    const data = options?.data?.root?.preferences;
-    return data[key];
+    // Dua pemanggil memakai nama kunci yang berbeda untuk data preference
+    // yang sama: PrintPreview.jsx mengirim `company` (sama seperti konteks
+    // sisi server), PreviewModal.jsx mengirim `preferences` (dan `company`).
+    // Keduanya diterima, kalau tidak halaman cetak melempar sementara
+    // pratinjau editor tetap tampil benar.
+    const root = options?.data?.root ?? {};
+    const data = root.company ?? root.preferences ?? {};
+    return data[key] ?? "";
   });
   Handlebars.registerHelper("each", function (context, options) {
     if (!context) return options.fn(context);
@@ -144,9 +223,9 @@ export function initHandlebar(trans) {
    * Usage: {{formatDate date "DD/MM/YYYY"}}
    *
    * Supported format tokens (mapped to date-fns):
-   *   DD -> dd, MM -> MM, YYYY -> yyyy, HH -> HH, mm -> mm, ss -> ss
+   *   DD -> dd, MM -> MM, MMM -> MMM, MMMM -> MMMM, YYYY -> yyyy, HH -> HH, mm -> mm, ss -> ss
    */
-  Handlebars.registerHelper("formatDate", function (value, formatStr) {
+  Handlebars.registerHelper("formatDate", function (value, formatStr, options) {
     if (value == null || value === "") {
       return "";
     }
@@ -161,10 +240,17 @@ export function initHandlebar(trans) {
         .replace(/DD/g, "dd")
         .replace(/\bss\b/g, "ss");
 
+      const { normalized, detectedLocale } = normalizeDateInput(value);
       const dateValue =
-        value instanceof Date ? value : new TZDate(value, "UTC");
+        normalized instanceof Date ? normalized : new TZDate(normalized, "UTC");
 
-      return dateFnsFormat(dateValue, dateFnsFormatStr);
+      const rootLang = options?.data?.root?.lang ?? detectedLocale;
+      const localeObj =
+        typeof rootLang === "string" && rootLang.toLowerCase().startsWith("id")
+          ? idLocale
+          : enUS;
+
+      return dateFnsFormat(dateValue, dateFnsFormatStr, { locale: localeObj });
     } catch (e) {
       return `[formatDate error: ${e.message}]`;
     }
@@ -189,9 +275,13 @@ export function initHandlebar(trans) {
     }
 
     try {
+      const numericValue = normalizeNumericInput(value);
+      if (Number.isNaN(numericValue)) {
+        return "[formatCurrency: value must be a number or numeric string]";
+      }
       const code = currency.trim().toUpperCase();
       const symbol = CURRENCY_SYMBOLS[code] ?? code;
-      return formatNumberValue(value, {
+      return formatNumberValue(numericValue, {
         groupSeparator: ID_GROUP_SEPARATOR,
         decimalSeparator: ID_DECIMAL_SEPARATOR,
         decimalScale: 2,
@@ -218,8 +308,7 @@ export function initHandlebar(trans) {
     }
 
     try {
-      const numericValue =
-        typeof value === "string" ? parseFloat(value) : value;
+      const numericValue = normalizeNumericInput(value);
 
       if (isNaN(numericValue)) {
         return "[formatNumber: value is not a valid number]";
@@ -316,6 +405,7 @@ export function initHandlebar(trans) {
    *
    * Usage: {{{approvalSignature}}} atau
    *        {{{approvalSignature showName=true showDate=true}}}
+   *        {{{approvalSignature role="creator" showName=true}}}
    *
    * TRIPLE-brace wajib, dan helper ini sengaja TIDAK mengembalikan
    * SafeString meskipun bisa. Alasannya paritas: lightncandy di sisi server
@@ -336,10 +426,16 @@ export function initHandlebar(trans) {
     const root = options?.data?.root ?? {};
     const hash = options?.hash ?? {};
 
+    // role="creator" memilih pembuat dokumen (slot "Dibuat oleh"); nilai
+    // lain, termasuk tidak diisi, tetap penandatangan final.
     // Pratinjau dengan data contoh (editor template, belum terikat dokumen)
     // memakai tanda tangan placeholder supaya tata letaknya terlihat.
     const signature =
-      root.approvalSignature ?? (root.isExample ? EXAMPLE_SIGNATURE : null);
+      hash.role === "creator"
+        ? (root.creatorSignature ??
+          (root.isExample ? EXAMPLE_CREATOR_SIGNATURE : null))
+        : (root.approvalSignature ??
+          (root.isExample ? EXAMPLE_SIGNATURE : null));
 
     return buildSignatureHtml(signature, {
       showName: hash.showName,

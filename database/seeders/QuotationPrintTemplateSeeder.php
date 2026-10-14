@@ -5,6 +5,7 @@ namespace Database\Seeders;
 use App\Models\Core\PrintTemplate;
 use App\Models\CRM\Quotation;
 use App\Models\User\Permission;
+use App\Services\Core\PrintTemplate\PrintTemplateProjectBuilder;
 use Illuminate\Database\Seeder;
 
 /**
@@ -28,6 +29,7 @@ class QuotationPrintTemplateSeeder extends Seeder {
      * @var array<int, string>
      */
     private const USED_RELATIONS = [
+        'currency',
         'customer',
         'items',
         'items.item',
@@ -40,7 +42,9 @@ class QuotationPrintTemplateSeeder extends Seeder {
      * Run the database seeds.
      */
     public function run(): void {
-        $existing = PrintTemplate::where('model', Quotation::class)
+        $projectBuilder = app(PrintTemplateProjectBuilder::class);
+        $css            = $this->css();
+        $existing       = PrintTemplate::where('model', Quotation::class)
             ->whereIn('name', [self::LEGACY_NAME, Quotation::PRINT_TEMPLATE_BY_TYPE['spare_part']])
             ->orderByRaw('name = ? desc', [Quotation::PRINT_TEMPLATE_BY_TYPE['spare_part']])
             ->first();
@@ -78,18 +82,16 @@ class QuotationPrintTemplateSeeder extends Seeder {
             $template ??= new PrintTemplate;
 
             $template->fill([
-                'name'             => $variant['name'],
-                'model'            => Quotation::class,
-                'name_model'       => $permission?->name ?? 'Quotations',
-                'permission_id'    => $permission?->id ?? $existing?->permission_id,
-                'is_letter_head'   => false,
-                'letter_head_id'   => $letterHeadId,
-                'default_language' => $variant['default_language'],
-                'html'             => $variant['html'],
-                'css'              => $this->css(),
-                // Proyek GrapesJS lama tidak lagi sesuai dengan html baru; editor
-                // membangunnya ulang dari html.
-                'template'             => null,
+                'name'                 => $variant['name'],
+                'model'                => Quotation::class,
+                'name_model'           => $permission?->name ?? 'Quotations',
+                'permission_id'        => $permission?->id ?? $existing?->permission_id,
+                'is_letter_head'       => false,
+                'letter_head_id'       => $letterHeadId,
+                'default_language'     => $variant['default_language'],
+                'html'                 => $variant['html'],
+                'css'                  => $css,
+                'template'             => $projectBuilder->build($variant['html'], $css),
                 'used_relations'       => self::USED_RELATIONS,
                 'paper'                => $template->paper ?? 'A4',
                 'orientation'          => $template->orientation ?? 'portrait',
@@ -310,13 +312,13 @@ CSS;
      */
     private function header(array $labels): string {
         return <<<HTML
-  <div class="letter-date">{{#if doc.issued_city}}{{doc.issued_city}}, {{/if}}{{doc.issued_date}}</div>
+  <div class="letter-date">{{#if doc.issued_city}}{{doc.issued_city}}, {{/if}}{{formatDate doc.issued_date "DD MMMM YYYY"}}</div>
 
   <div class="letter-meta">
     <div class="kv"><span>{$labels['to']}</span><span>:</span><span class="kv-value"><b>{{doc.customer.name}}</b><br>{{doc.customer.street}}<br>{{doc.customer.city}} {{doc.customer.province}} {{doc.customer.zip_code}}</span></div>
     <div class="kv"><span>{$labels['attn']}</span><span>:</span><span class="kv-value">{{doc.attn}}</span></div>
     {{#if doc.subject}}<div class="kv"><span>{$labels['subject']}</span><span>:</span><span class="kv-value">{{doc.subject}}</span></div>{{/if}}
-    {{#if doc.valid_until}}<div class="kv"><span>{$labels['validBy']}</span><span>:</span><span class="kv-value">{{doc.valid_until}}</span></div>{{/if}}
+    {{#if doc.valid_until}}<div class="kv"><span>{$labels['validBy']}</span><span>:</span><span class="kv-value">{{formatDate doc.valid_until "DD MMMM YYYY"}}</span></div>{{/if}}
     <div class="kv"><span>{$labels['no']}</span><span>:</span><span class="kv-value">{{doc.code}}</span></div>
   </div>
 HTML;
@@ -358,6 +360,10 @@ HTML;
         $sections = $this->sections();
         $closing  = $this->closing('Hormat kami,');
 
+        // Label baris pajak pada ringkasan diambil dari item pertama lewat @first
+        // karena Handlebars tidak menyediakan pengindeksan langsung doc.items[0].
+        // Siasat ini mengasumsikan seluruh baris item dalam satu Quotation memakai
+        // tarif pajak yang seragam (mis. mengikuti pajak aktif perusahaan).
         return <<<HTML
 <body>
 {$header}
@@ -384,10 +390,10 @@ HTML;
         <td class="col-no">{{this.idx}}</td>
         <td>{{this.item.item_code}}</td>
         <td>{{this.item.item_name}}<div class="pre-line">{{this.description}}</div></td>
-        <td class="col-qty">{{this.quantity}}</td>
+        <td class="col-qty">{{formatNumber this.quantity 0}}</td>
         <td>{{this.item_unit.code}}</td>
-        <td class="col-number">{{this.price}}</td>
-        <td class="col-number">{{this.basic_amount}}</td>
+        <td class="col-number">{{formatNumber this.price 0}}</td>
+        <td class="col-number">{{formatNumber this.basic_amount 0}}</td>
         <td>{{this.remark}}</td>
       </tr>
       {{/each}}
@@ -398,15 +404,15 @@ HTML;
     <table class="totals-table">
       <tr>
         <td class="totals-label">Sub Total</td>
-        <td class="totals-value">{{doc.basic_amount}}</td>
+        <td class="totals-value">{{formatNumber doc.basic_amount 0}}</td>
       </tr>
       <tr>
         <td class="totals-label">{{#each doc.items}}{{#if @first}}{{#if this.tax.name}}{{this.tax.name}}{{else}}PPN{{/if}}{{/if}}{{/each}}</td>
-        <td class="totals-value">{{doc.tax_amount}}</td>
+        <td class="totals-value">{{formatNumber doc.tax_amount 0}}</td>
       </tr>
       <tr class="grand-total">
         <td class="totals-label">Total</td>
-        <td class="totals-value">{{doc.amount}}</td>
+        <td class="totals-value">{{formatNumber doc.amount 0}}</td>
       </tr>
     </table>
   </div>
@@ -451,8 +457,8 @@ HTML;
       <tr>
         <td>{{this.item.item_name}}</td>
         <td class="pre-line">{{this.description}}</td>
-        <td class="col-qty">{{this.quantity}}</td>
-        <td class="col-number">{{this.price}}</td>
+        <td class="col-qty">{{formatNumber this.quantity 0}}</td>
+        <td class="col-number">{{formatCurrency this.price "IDR"}}</td>
         <td>{{this.remark}}</td>
       </tr>
       {{/each}}
@@ -488,8 +494,8 @@ HTML;
   <div class="item-block">
     <div class="kv"><span>Name of product</span><span>:</span><span class="kv-value">{{this.item.item_name}}</span></div>
     <div class="kv"><span>Description</span><span>:</span><span class="kv-value pre-line">{{this.description}}</span></div>
-    <div class="kv"><span>Quantity</span><span>:</span><span class="kv-value">{{this.quantity}} {{this.item_unit.code}}</span></div>
-    <div class="kv"><span>Rent price</span><span>:</span><span class="kv-value">Rp. {{this.price}},- / month / unit</span></div>
+    <div class="kv"><span>Quantity</span><span>:</span><span class="kv-value">{{formatNumber this.quantity 0}} {{this.item_unit.code}}</span></div>
+    <div class="kv"><span>Rent price</span><span>:</span><span class="kv-value">{{formatCurrency this.price "IDR"}} / month / unit</span></div>
   </div>
   {{/each}}
 

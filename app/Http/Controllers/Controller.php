@@ -390,7 +390,10 @@ abstract class Controller {
             // Resolver sendiri sudah mengembalikan null untuk dokumen tanpa
             // approval, jadi tidak perlu dijaga lagi di sini.
             'approvalSignature' => app(SignatureResolverService::class)->resolveFinalSignature($data),
-            'printTemplate'     => $printTemplate->toArray(),
+            // Slot "Dibuat oleh" (role="creator"): resolver yang sama dengan
+            // render PDF server, supaya pratinjau dan PDF tidak menyimpang.
+            'creatorSignature' => app(SignatureResolverService::class)->resolveCreatorSignature($data),
+            'printTemplate'    => $printTemplate->toArray(),
         ]);
     }
 

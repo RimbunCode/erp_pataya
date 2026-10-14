@@ -111,4 +111,58 @@ class ApprovalSignatureHelperParityTest extends TestCase {
     public function server_helper_output_is_plain_html_string(): void {
         $this->assertIsString($this->build($this->withImage()));
     }
+
+    /**
+     * Data hasil `resolveCreatorSignature()` (role="creator"): bentuk sama,
+     * tetapi `date` selalu null. Kasus-kasus di bawah digandakan persis di
+     * `signatureSlot.test.js`.
+     */
+    private function creatorWithImage(): array {
+        return [
+            'image'        => 'data:image/png;base64,AAA',
+            'name'         => 'Pembuat',
+            'date'         => null,
+            'hasSignature' => true,
+        ];
+    }
+
+    private function creatorWithoutImage(): array {
+        return [
+            'image'        => null,
+            'name'         => 'Pembuat',
+            'date'         => null,
+            'hasSignature' => false,
+        ];
+    }
+
+    #[Test]
+    public function creator_role_prints_image_and_name_without_date(): void {
+        $this->assertSame(
+            '<div class="approval-signature">'
+                . '<img src="data:image/png;base64,AAA" alt="' . e(__('user.signature.preview_alt')) . '" style="max-height:80px;display:block;" />'
+                . '<span style="display:block;">Pembuat</span>'
+                . '</div>',
+            $this->build($this->creatorWithImage(), showName: true, showDate: true),
+        );
+    }
+
+    #[Test]
+    public function creator_role_without_signature_falls_back_to_name_only(): void {
+        $this->assertSame(
+            '<div class="approval-signature">'
+                . '<span style="display:block;">Pembuat</span>'
+                . '</div>',
+            $this->build($this->creatorWithoutImage(), showName: true, showDate: true),
+        );
+    }
+
+    #[Test]
+    public function creator_role_image_only_without_options(): void {
+        $this->assertSame(
+            '<div class="approval-signature">'
+                . '<img src="data:image/png;base64,AAA" alt="' . e(__('user.signature.preview_alt')) . '" style="max-height:80px;display:block;" />'
+                . '</div>',
+            $this->build($this->creatorWithImage()),
+        );
+    }
 }

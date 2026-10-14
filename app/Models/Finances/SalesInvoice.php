@@ -115,14 +115,31 @@ class SalesInvoice extends Model {
         'currency' => [
             'groupable' => true,
         ],
+        'currency_code' => [
+            'hidden' => true,
+        ],
         'branch' => [
-            'ignore' => true,
+            'hidden'     => true,
+            'groupable'  => false,
+            'searchable' => false,
         ],
         'base_currency_code' => [
             'hidden' => true,
         ],
         'amount_base_currency' => [
             'hidden' => true,
+        ],
+        'amount' => [
+            'type' => 'currency',
+        ],
+        'paid_amount' => [
+            'type' => 'currency',
+        ],
+        'outstanding_amount' => [
+            'type' => 'currency',
+        ],
+        'discount_amount' => [
+            'type' => 'currency',
         ],
         'outstanding_amount_base_currency' => [
             'hidden' => true,

@@ -34,6 +34,17 @@ export const EXAMPLE_SIGNATURE = {
   hasSignature: true,
 };
 
+/**
+ * Data tanda tangan contoh untuk `role="creator"` (slot "Dibuat oleh").
+ * `date` null: slot pembuat tidak menampilkan tanggal.
+ */
+export const EXAMPLE_CREATOR_SIGNATURE = {
+  image: PLACEHOLDER_IMAGE,
+  name: "Contoh Pembuat",
+  date: null,
+  hasSignature: true,
+};
+
 function escapeHtml(value) {
   return String(value ?? "")
     .replace(/&/g, "&amp;")
@@ -64,7 +75,7 @@ export function buildSignatureHtml(signature, options = {}) {
 
   if (signature.hasSignature) {
     parts.push(
-      `<img src="${escapeHtml(signature.image)}" alt="${escapeHtml(previewAlt)}" style="max-height:80px;display:block;" />`,
+      `<img src="${escapeHtml(signature.image)}" alt="${escapeHtml(previewAlt)}" style="max-height:58px;display:block;margin:0 auto;" />`,
     );
   } else if (signature.name != null) {
     // Fallback: nama DAN tanggal, tanpa memandang showName/showDate. Tanpa

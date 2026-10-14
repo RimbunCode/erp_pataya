@@ -61,9 +61,19 @@ function setPageProps({
   docInfo = {},
   preferences = { default_currency_id: "IDR" },
   document = { id: 1 },
+  approvalSignature = null,
+  creatorSignature = null,
 } = {}) {
   usePageMock.mockReturnValue({
-    props: { doc, columns, docInfo, preferences, document },
+    props: {
+      doc,
+      columns,
+      docInfo,
+      preferences,
+      document,
+      approvalSignature,
+      creatorSignature,
+    },
   });
 }
 
@@ -112,6 +122,24 @@ describe("PrintPreview", () => {
     await vi.waitFor(() => {
       const body = ref.current.contentDocument.body;
       expect(body.innerHTML).toContain("SO-001");
+    });
+  });
+
+  it("meneruskan approvalSignature dan creatorSignature dari page props ke konteks template", async () => {
+    setPageProps({
+      approvalSignature: { name: "Penyetuju" },
+      creatorSignature: { name: "Pembuat" },
+    });
+
+    const { ref } = await renderPrintPreview({
+      ...baseTemplate,
+      html: "<body>{{approvalSignature.name}}|{{creatorSignature.name}}</body>",
+    });
+
+    await vi.waitFor(() => {
+      expect(ref.current.contentDocument.body.innerHTML).toContain(
+        "Penyetuju|Pembuat",
+      );
     });
   });
 
@@ -180,6 +208,95 @@ describe("PrintPreview", () => {
       const body = ref.current.contentDocument.body;
       // format "PPP" -> contoh "January 15th, 2026" (locale default en, tanpa getLocaleDate khusus)
       expect(body.innerHTML).toMatch(/2026/);
+    });
+  });
+
+  it("mempertahankan field tanpa konfigurasi kolom agar template tetap dapat merendernya", async () => {
+    setPageProps({
+      doc: {
+        amount: 1000,
+        currency_code: "IDR",
+      },
+      columns: {
+        "App\\Models\\Sales\\SalesOrder": {
+          amount: { type: "currency" },
+        },
+      },
+    });
+    const { ref } = await renderPrintPreview({
+      ...baseTemplate,
+      html: "<div>{{doc.amount}}|{{doc.currency_code}}</div>",
+    });
+
+    await vi.waitFor(() => {
+      expect(ref.current.contentDocument.body.innerHTML).toContain(
+        "Rp 1,000|IDR",
+      );
+    });
+  });
+
+  it("memakai currency_code dokumen untuk nominal currency", async () => {
+    setPageProps({
+      doc: { amount: 1000, currency_code: "usd" },
+      columns: {
+        "App\\Models\\Sales\\SalesOrder": {
+          amount: { type: "currency" },
+        },
+      },
+    });
+    getCurrencyConfigMock.mockImplementation((code) =>
+      Promise.resolve({ symbol: code === "USD" ? "$" : "Rp" }),
+    );
+    const { ref } = await renderPrintPreview({
+      ...baseTemplate,
+      html: "<div>{{doc.amount}}</div>",
+    });
+
+    await vi.waitFor(() => {
+      expect(getCurrencyConfigMock).toHaveBeenCalledWith("USD", "IDR");
+      expect(ref.current.contentDocument.body.innerHTML).toContain("$ 1,000");
+    });
+  });
+
+  it("mengganti seluruh selector body template menjadi scope dokumen", async () => {
+    const { ref } = await renderPrintPreview({
+      ...baseTemplate,
+      css: "/* body */ body .content{color:red;}",
+    });
+
+    await vi.waitFor(() => {
+      const style = ref.current.contentDocument.head.querySelector(
+        "style#print-preview-style",
+      );
+      expect(style.innerHTML).toContain(
+        ".pt-scope--template .content{color:red;}",
+      );
+      expect(style.innerHTML).not.toContain("body .content{color:red;}");
+    });
+  });
+
+  it("mempertahankan nilai tanggal kosong atau tidak valid tanpa menggagalkan preview", async () => {
+    setPageProps({
+      doc: {
+        delivery_date: null,
+        due_date: "bukan-tanggal",
+      },
+      columns: {
+        "App\\Models\\Sales\\SalesOrder": {
+          delivery_date: { type: "date" },
+          due_date: { type: "datetime" },
+        },
+      },
+    });
+    const { ref } = await renderPrintPreview({
+      ...baseTemplate,
+      html: "<div>{{doc.delivery_date}}|{{doc.due_date}}</div>",
+    });
+
+    await vi.waitFor(() => {
+      expect(ref.current.contentDocument.body.innerHTML).toContain(
+        "|bukan-tanggal",
+      );
     });
   });
 
