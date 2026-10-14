@@ -1,5 +1,15 @@
 import React, { useRef, useState } from "react";
 
+import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+} from "@/Components/ui/alert-dialog";
 import { Button } from "@/Components/ui/button";
 import {
   Dialog,
@@ -29,6 +39,8 @@ export default function SignatureField({ user, canEdit }) {
   const fileInputRef = useRef(null);
   const [drawOpen, setDrawOpen] = useState(false);
   const [saving, setSaving] = useState(false);
+  // Tanda tangan baru yang menunggu persetujuan untuk menimpa yang lama.
+  const [pendingOverwrite, setPendingOverwrite] = useState(null);
 
   // `has_signature`, bukan `signature_file_id`: id berkasnya sengaja
   // disembunyikan dari serialisasi (NFR3), dan keberadaan tanda tangan sudah
@@ -54,11 +66,31 @@ export default function SignatureField({ user, canEdit }) {
     );
   };
 
+  // Menyimpan tanda tangan baru menimpa yang lama tanpa jalan kembali, jadi
+  // user diminta setuju dulu. Tanpa tanda tangan lama tidak ada yang ditimpa
+  // dan langsung disimpan.
+  const requestSubmit = (blob, source, filename) => {
+    if (signatureUrl) {
+      setPendingOverwrite({ blob, source, filename });
+      return;
+    }
+
+    submit(blob, source, filename);
+  };
+
+  const confirmOverwrite = () => {
+    if (!pendingOverwrite) return;
+
+    const { blob, source, filename } = pendingOverwrite;
+    setPendingOverwrite(null);
+    submit(blob, source, filename);
+  };
+
   const handleUpload = (event) => {
     const file = event.target.files?.[0];
     if (!file) return;
 
-    submit(file, "upload", file.name);
+    requestSubmit(file, "upload", file.name);
     // Reset supaya memilih berkas yang sama dua kali tetap memicu change.
     event.target.value = "";
   };
@@ -67,27 +99,15 @@ export default function SignatureField({ user, canEdit }) {
     <div className="flex flex-col gap-2">
       <span className="text-sm font-medium">{t("user.signature.title")}</span>
 
-      <div
-        // Latar kotak-kotak: tanpa ini, tanda tangan hitam transparan di atas
-        // kartu putih terlihat sama persis dengan tanda tangan hitam di atas
-        // kertas putih, dan user tidak punya cara tahu apakah penghapusan
-        // background berhasil.
-        className="flex items-center justify-center w-full h-32 border rounded-md"
-        style={{
-          backgroundImage:
-            "linear-gradient(45deg, #cbd5e1 25%, transparent 25%)," +
-            "linear-gradient(-45deg, #cbd5e1 25%, transparent 25%)," +
-            "linear-gradient(45deg, transparent 75%, #cbd5e1 75%)," +
-            "linear-gradient(-45deg, transparent 75%, #cbd5e1 75%)",
-          backgroundSize: "16px 16px",
-          backgroundPosition: "0 0, 0 8px, 8px -8px, -8px 0px",
-        }}
-      >
+      <div className="flex items-center justify-center w-full h-32 border rounded-md">
         {signatureUrl ? (
           <img
             src={signatureUrl}
             alt={t("user.signature.preview_alt")}
-            className="object-contain max-h-full"
+            // Berkasnya tinta gelap transparan. Dibalik hanya di tema gelap
+            // supaya terbaca di atas kartu gelap; berkas dan hasil cetaknya
+            // tidak berubah.
+            className="object-contain max-h-full dark:invert"
           />
         ) : (
           <span className="text-sm text-muted-foreground">
@@ -154,10 +174,39 @@ export default function SignatureField({ user, canEdit }) {
           <SignatureCanvas
             saving={saving}
             onCancel={() => setDrawOpen(false)}
-            onSave={(blob) => submit(blob, "canvas", "signature.png")}
+            onSave={(blob) => requestSubmit(blob, "canvas", "signature.png")}
           />
         </DialogContent>
       </Dialog>
+
+      <AlertDialog
+        open={pendingOverwrite !== null}
+        onOpenChange={(open) => {
+          // Menutup tanpa konfirmasi (Batal, Esc, klik di luar) membatalkan
+          // penimpaan. Dialog gambar sengaja dibiarkan terbuka supaya
+          // gambarnya tidak hilang.
+          if (!open) setPendingOverwrite(null);
+        }}
+      >
+        <AlertDialogContent forceAsDialog align="center">
+          <AlertDialogHeader>
+            <AlertDialogTitle>
+              {t("user.signature.overwrite_title")}
+            </AlertDialogTitle>
+            <AlertDialogDescription>
+              {t("user.signature.overwrite_description")}
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel>
+              {t("user.signature.overwrite_cancel")}
+            </AlertDialogCancel>
+            <AlertDialogAction onClick={confirmOverwrite}>
+              {t("user.signature.overwrite_confirm")}
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
     </div>
   );
 }

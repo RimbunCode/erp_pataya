@@ -117,6 +117,136 @@ describe("SignatureField", () => {
     expect(routerPost.mock.calls[0][1].source).toBe("canvas");
   });
 
+  it("tidak memakai latar kotak-kotak pada pratinjau", () => {
+    render(<SignatureField user={signedUser} canEdit />);
+
+    const preview = screen.getByRole("img", {
+      name: "user.signature.preview_alt",
+    });
+    expect(preview.parentElement.style.backgroundImage).toBe("");
+  });
+
+  it("membalik warna pratinjau hanya lewat varian dark", () => {
+    render(<SignatureField user={signedUser} canEdit />);
+
+    const preview = screen.getByRole("img", {
+      name: "user.signature.preview_alt",
+    });
+    expect(preview).toHaveClass("dark:invert");
+    expect(preview).not.toHaveClass("invert");
+  });
+
+  describe("saat tanda tangan sudah ada", () => {
+    const pickFile = async (user) => {
+      const file = new File(["bytes"], "ttd.png", { type: "image/png" });
+      await user.upload(screen.getByTestId("signature-upload-input"), file);
+    };
+
+    it("meminta konfirmasi sebelum menimpa lewat unggah, tanpa langsung menyimpan", async () => {
+      const user = userEvent.setup();
+      render(<SignatureField user={signedUser} canEdit />);
+
+      await pickFile(user);
+
+      expect(
+        await screen.findByText("user.signature.overwrite_title"),
+      ).toBeVisible();
+      expect(routerPost).not.toHaveBeenCalled();
+    });
+
+    it("menimpa dengan berkas baru setelah dikonfirmasi", async () => {
+      const user = userEvent.setup();
+      render(<SignatureField user={signedUser} canEdit />);
+
+      await pickFile(user);
+      await user.click(
+        await screen.findByRole("button", {
+          name: "user.signature.overwrite_confirm",
+        }),
+      );
+
+      expect(routerPost).toHaveBeenCalledTimes(1);
+      const [, payload] = routerPost.mock.calls[0];
+      expect(payload.source).toBe("upload");
+      expect(payload.signature).toBeInstanceOf(File);
+    });
+
+    it("membatalkan penimpaan unggahan saat user menolak", async () => {
+      const user = userEvent.setup();
+      render(<SignatureField user={signedUser} canEdit />);
+
+      await pickFile(user);
+      await user.click(
+        await screen.findByRole("button", {
+          name: "user.signature.overwrite_cancel",
+        }),
+      );
+
+      expect(routerPost).not.toHaveBeenCalled();
+      expect(
+        screen.queryByText("user.signature.overwrite_title"),
+      ).not.toBeInTheDocument();
+    });
+
+    it("meminta konfirmasi juga untuk hasil gambar tangan", async () => {
+      const user = userEvent.setup();
+      render(<SignatureField user={signedUser} canEdit />);
+
+      await user.click(
+        screen.getByRole("button", { name: /user\.signature\.draw/ }),
+      );
+      await user.click(screen.getByRole("button", { name: "stub-save" }));
+
+      expect(
+        await screen.findByText("user.signature.overwrite_title"),
+      ).toBeVisible();
+      expect(routerPost).not.toHaveBeenCalled();
+
+      await user.click(
+        screen.getByRole("button", {
+          name: "user.signature.overwrite_confirm",
+        }),
+      );
+
+      expect(routerPost).toHaveBeenCalledTimes(1);
+      expect(routerPost.mock.calls[0][1].source).toBe("canvas");
+    });
+
+    it("mempertahankan dialog gambar saat penimpaan hasil gambar ditolak", async () => {
+      const user = userEvent.setup();
+      render(<SignatureField user={signedUser} canEdit />);
+
+      await user.click(
+        screen.getByRole("button", { name: /user\.signature\.draw/ }),
+      );
+      await user.click(screen.getByRole("button", { name: "stub-save" }));
+      await user.click(
+        await screen.findByRole("button", {
+          name: "user.signature.overwrite_cancel",
+        }),
+      );
+
+      expect(routerPost).not.toHaveBeenCalled();
+      // Gambarnya tidak boleh hilang hanya karena user menolak menimpa.
+      expect(screen.getByTestId("signature-canvas-stub")).toBeInTheDocument();
+    });
+  });
+
+  it("tidak menampilkan konfirmasi saat belum ada tanda tangan", async () => {
+    const user = userEvent.setup();
+    render(<SignatureField user={unsignedUser} canEdit />);
+
+    await user.upload(
+      screen.getByTestId("signature-upload-input"),
+      new File(["bytes"], "ttd.png", { type: "image/png" }),
+    );
+
+    expect(
+      screen.queryByText("user.signature.overwrite_title"),
+    ).not.toBeInTheDocument();
+    expect(routerPost).toHaveBeenCalledTimes(1);
+  });
+
   it("memanggil router.delete saat menghapus tanda tangan", async () => {
     const user = userEvent.setup();
     render(<SignatureField user={signedUser} canEdit />);

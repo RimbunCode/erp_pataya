@@ -3,8 +3,17 @@ import React, { useCallback, useEffect, useRef, useState } from "react";
 import { Button } from "@/Components/ui/button";
 import { useLaravelReactI18n } from "laravel-react-i18n";
 
+// Warna tinta pada berkas yang disimpan dan dicetak. Tanda tangan selalu jatuh
+// di atas kertas putih, apa pun tema aplikasinya.
 const STROKE_COLOR = "#0f172a";
+// Warna goresan di layar saat tema gelap: tinta gelap di atas kanvas gelap
+// tidak terlihat, jadi hanya tampilannya yang dibalik.
+const DARK_THEME_STROKE_COLOR = "#ffffff";
 const STROKE_WIDTH = 2.5;
+
+const isDarkTheme = () =>
+  typeof document !== "undefined" &&
+  document.documentElement.classList.contains("dark");
 
 /**
  * Kanvas gambar tanda tangan.
@@ -12,6 +21,10 @@ const STROKE_WIDTH = 2.5;
  * Hasilnya sudah transparan sejak lahir (konteks tidak pernah diisi warna
  * latar), sehingga jalur simpannya melewati pipeline threshold di server:
  * menerapkan threshold pada gambar beralpha justru merusaknya.
+ *
+ * Warna goresan di layar mengikuti tema (putih saat gelap) supaya kontras,
+ * tetapi PNG yang dikirim ke `onSave` selalu berwarna tinta gelap, jadi
+ * tercetak hitam di kertas.
  *
  * Tanpa pustaka luar. Event pointer dipakai, bukan mouse/touch terpisah,
  * karena satu jalur kode itu sudah menangani mouse, stylus, dan sentuh
@@ -70,6 +83,9 @@ export default function SignatureCanvas({ onSave, onCancel, saving = false }) {
 
     const { x, y } = pointFromEvent(event);
     const ctx = canvas.getContext("2d");
+    // Dibaca per goresan, bukan sekali saat kanvas dibuat, supaya pergantian
+    // tema saat dialog terbuka langsung berlaku pada goresan berikutnya.
+    ctx.strokeStyle = isDarkTheme() ? DARK_THEME_STROKE_COLOR : STROKE_COLOR;
     ctx.beginPath();
     ctx.moveTo(x, y);
 
@@ -108,7 +124,19 @@ export default function SignatureCanvas({ onSave, onCancel, saving = false }) {
     const canvas = canvasRef.current;
     if (!canvas || !hasStroke) return;
 
-    canvas.toBlob((blob) => {
+    // Goresan di layar bisa putih (tema gelap), tetapi berkasnya harus tinta
+    // gelap. `source-in` mempertahankan hanya alpha piksel yang ada lalu
+    // mengganti warnanya, sehingga tepi antialias tetap halus.
+    const output = document.createElement("canvas");
+    output.width = canvas.width;
+    output.height = canvas.height;
+    const outputCtx = output.getContext("2d");
+    outputCtx.drawImage(canvas, 0, 0);
+    outputCtx.globalCompositeOperation = "source-in";
+    outputCtx.fillStyle = STROKE_COLOR;
+    outputCtx.fillRect(0, 0, output.width, output.height);
+
+    output.toBlob((blob) => {
       if (blob) onSave?.(blob);
     }, "image/png");
   };
