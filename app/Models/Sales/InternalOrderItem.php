@@ -14,9 +14,17 @@ class InternalOrderItem extends Model {
     use HasUlids, SoftDeletes;
 
     public static $parentRelation = 'internalOrder';
-    public string $translateKey   = 'sales.internalOrder.item';
-    protected $guarded            = ['id'];
-    protected $casts              = [
+
+    /**
+     * Sengaja memakai namespace lang dokumen induk (tanpa sufiks .item): model
+     * baris item tidak punya berkas lang sendiri, kolomnya didefinisikan di
+     * array columns milik induk. Jangan diubah balik ke .item, label kolom akan
+     * tercetak sebagai kunci mentah.
+     */
+    public string $translateKey = 'sales.internalOrder';
+
+    protected $guarded = ['id'];
+    protected $casts   = [
         'quantity'             => 'float',
         'conversion_factor'    => 'float',
         'delivered_quantity'   => 'float',

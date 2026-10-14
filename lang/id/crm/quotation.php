@@ -58,6 +58,7 @@ return [
         'part_no'          => 'Part No',
         'tax'              => 'Pajak',
         'tax.placeholder'  => 'Pilih pajak',
+        'tax_rate'         => 'Tarif Pajak',
         'basic_amount'     => 'Sub Total',
         'tax_amount'       => 'Jumlah Pajak',
         'price.by_type'    => [

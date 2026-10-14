@@ -58,6 +58,7 @@ return [
         'part_no'          => 'Part No',
         'tax'              => 'Tax',
         'tax.placeholder'  => 'Select tax',
+        'tax_rate'         => 'Tax Rate',
         'basic_amount'     => 'Sub Total',
         'tax_amount'       => 'Tax Amount',
         'price.by_type'    => [
