@@ -1,5 +1,5 @@
 import { describe, expect, it, vi, beforeEach } from "vitest";
-import { render, screen } from "@testing-library/react";
+import { act, render, screen } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import React from "react";
 
@@ -229,6 +229,50 @@ describe("SignatureField", () => {
       expect(routerPost).not.toHaveBeenCalled();
       // Gambarnya tidak boleh hilang hanya karena user menolak menimpa.
       expect(screen.getByTestId("signature-canvas-stub")).toBeInTheDocument();
+    });
+  });
+
+  describe("pratinjau setelah tanda tangan ditimpa", () => {
+    const overwrite = async (user) => {
+      await user.upload(
+        screen.getByTestId("signature-upload-input"),
+        new File(["bytes"], "ttd.png", { type: "image/png" }),
+      );
+      await user.click(
+        await screen.findByRole("button", {
+          name: "user.signature.overwrite_confirm",
+        }),
+      );
+    };
+
+    it("memuat ulang gambar dengan URL baru setelah berhasil, tanpa refresh halaman", async () => {
+      const user = userEvent.setup();
+      render(<SignatureField user={signedUser} canEdit />);
+      const preview = () =>
+        screen.getByRole("img", { name: "user.signature.preview_alt" });
+      expect(preview()).toHaveAttribute("src", "/users.showSignature/u1");
+
+      await overwrite(user);
+      // URL berkasnya sama sebelum dan sesudah ditimpa, jadi tanpa penanda
+      // versi <img> tidak pernah meminta ulang.
+      await act(async () => routerPost.mock.calls[0][2].onSuccess());
+
+      expect(preview().getAttribute("src")).toMatch(
+        /^\/users\.showSignature\/u1\?v=\d+$/,
+      );
+    });
+
+    it("mempertahankan URL gambar bila penyimpanan gagal", async () => {
+      const user = userEvent.setup();
+      render(<SignatureField user={signedUser} canEdit />);
+
+      await overwrite(user);
+      // Gagal validasi: Inertia memanggil onError, bukan onSuccess.
+      await act(async () => routerPost.mock.calls[0][2].onFinish());
+
+      expect(
+        screen.getByRole("img", { name: "user.signature.preview_alt" }),
+      ).toHaveAttribute("src", "/users.showSignature/u1");
     });
   });
 

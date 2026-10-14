@@ -275,6 +275,59 @@ class UserSignatureTest extends TestCase {
             ->assertHeader('Content-Type', 'image/png');
     }
 
+    /**
+     * URL pratinjau tidak berubah saat tanda tangan ditimpa, jadi cache
+     * max-age membuat browser terus menampilkan gambar lama. Berkas wajib
+     * divalidasi ulang di setiap permintaan.
+     */
+    #[Test]
+    public function signature_response_must_be_revalidated_not_cached_blindly(): void {
+        $this->acting()->post(route('users.signature', $this->authUser), [
+            'signature' => $this->signatureUpload(),
+            'source'    => 'upload',
+        ]);
+
+        $response = $this->acting()->get(route('users.showSignature', $this->authUser));
+
+        $cacheControl = (string) $response->headers->get('Cache-Control');
+        $this->assertStringContainsString('private', $cacheControl);
+        $this->assertStringContainsString('no-cache', $cacheControl);
+        $this->assertStringNotContainsString('max-age', $cacheControl);
+        $this->assertNotEmpty($response->headers->get('ETag'));
+    }
+
+    #[Test]
+    public function signature_etag_changes_after_it_is_overwritten(): void {
+        $this->acting()->post(route('users.signature', $this->authUser), [
+            'signature' => $this->signatureUpload(),
+            'source'    => 'upload',
+        ]);
+        $before = $this->acting()->get(route('users.showSignature', $this->authUser))->headers->get('ETag');
+
+        $this->acting()->post(route('users.signature', $this->authUser), [
+            'signature' => $this->signatureUpload(),
+            'source'    => 'upload',
+        ]);
+        $after = $this->acting()->get(route('users.showSignature', $this->authUser))->headers->get('ETag');
+
+        $this->assertNotEmpty($before);
+        $this->assertNotSame($before, $after);
+    }
+
+    #[Test]
+    public function unchanged_signature_is_answered_with_not_modified(): void {
+        $this->acting()->post(route('users.signature', $this->authUser), [
+            'signature' => $this->signatureUpload(),
+            'source'    => 'upload',
+        ]);
+        $etag = $this->acting()->get(route('users.showSignature', $this->authUser))->headers->get('ETag');
+
+        $this->acting()
+            ->withHeader('If-None-Match', $etag)
+            ->get(route('users.showSignature', $this->authUser))
+            ->assertStatus(304);
+    }
+
     #[Test]
     public function unrelated_user_cannot_fetch_another_users_signature(): void {
         $otherUser = User::factory()->create();

@@ -217,12 +217,27 @@ class UserController extends Controller {
         // tidak dimiliki StreamedResponse. Berkas tanda tangan kecil
         // (maksimum setinggi 200 px), jadi memuatnya ke memori tidak jadi
         // soal.
-        return response()->make(Storage::get($file->path), 200, [
+        $response = response()->make('', 200, [
             'Content-Type'        => 'image/png',
             'Content-Disposition' => 'inline; filename="signature.png"',
             // `private` mencegah proxy bersama menyimpan tanda tangan.
-            'Cache-Control' => 'private, max-age=300',
+            // `no-cache` (bukan max-age): URL-nya sama sebelum dan sesudah
+            // tanda tangan ditimpa, jadi browser harus memvalidasi ulang ke
+            // server alih-alih memakai salinan lama. Validasinya murah lewat
+            // ETag di bawah.
+            'Cache-Control' => 'private, no-cache',
         ]);
+
+        // ETag dari id berkas, bukan dari isinya: setiap unggahan membuat
+        // baris File baru (lihat signature()), jadi id berubah tepat saat
+        // tanda tangan ditimpa dan 304 bisa dijawab tanpa membaca berkas.
+        $response->setEtag(md5((string) $file->id));
+
+        if ($response->isNotModified($request)) {
+            return $response;
+        }
+
+        return $response->setContent(Storage::get($file->path));
     }
 
     /**

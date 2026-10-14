@@ -41,6 +41,10 @@ export default function SignatureField({ user, canEdit }) {
   const [saving, setSaving] = useState(false);
   // Tanda tangan baru yang menunggu persetujuan untuk menimpa yang lama.
   const [pendingOverwrite, setPendingOverwrite] = useState(null);
+  // Naik setiap tanda tangan berubah. URL berkasnya sama sebelum dan sesudah
+  // ditimpa, jadi tanpa penanda ini <img> tidak pernah meminta ulang dan
+  // gambar lama tetap tampil sampai halaman dimuat ulang.
+  const [signatureVersion, setSignatureVersion] = useState(0);
 
   // `has_signature`, bukan `signature_file_id`: id berkasnya sengaja
   // disembunyikan dari serialisasi (NFR3), dan keberadaan tanda tangan sudah
@@ -48,6 +52,10 @@ export default function SignatureField({ user, canEdit }) {
   const signatureUrl = user.has_signature
     ? route("users.showSignature", user.id)
     : null;
+  const previewUrl =
+    signatureUrl && signatureVersion
+      ? `${signatureUrl}?v=${signatureVersion}`
+      : signatureUrl;
 
   const submit = (blob, source, filename) => {
     setSaving(true);
@@ -58,6 +66,7 @@ export default function SignatureField({ user, canEdit }) {
         forceFormData: true,
         preserveScroll: true,
         reset: ["user", "auth"],
+        onSuccess: () => setSignatureVersion(Date.now()),
         onFinish: () => {
           setSaving(false);
           setDrawOpen(false);
@@ -102,7 +111,7 @@ export default function SignatureField({ user, canEdit }) {
       <div className="flex items-center justify-center w-full h-32 border rounded-md">
         {signatureUrl ? (
           <img
-            src={signatureUrl}
+            src={previewUrl}
             alt={t("user.signature.preview_alt")}
             // Berkasnya tinta gelap transparan. Dibalik hanya di tema gelap
             // supaya terbaca di atas kartu gelap; berkas dan hasil cetaknya
@@ -156,6 +165,7 @@ export default function SignatureField({ user, canEdit }) {
                 router.delete(route("users.removeSignature", user.id), {
                   preserveScroll: true,
                   reset: ["user", "auth"],
+                  onSuccess: () => setSignatureVersion(Date.now()),
                 })
               }
             >
