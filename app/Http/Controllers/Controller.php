@@ -581,6 +581,9 @@ abstract class Controller {
      * dan penghapusan tidak dinonaktifkan/dikustomisasi tanpa destroyRecord).
      */
     protected function supportsBulkDestroy(): bool {
+        if (! isset($this->model) || ! is_subclass_of($this->model, Model::class)) {
+            return false;
+        }
         $routeName = Str::before(Route::currentRouteName() ?? '', '.') . '.destroyMany';
         if (! Route::has($routeName)) {
             return false;
@@ -631,31 +634,33 @@ abstract class Controller {
         abort_unless($this->supportsBulkDestroy(), 405);
         $validated = $request->validate([
             'ids'   => ['required', 'array', 'min:1', 'max:500'],
-            'ids.*' => ['required', 'distinct'],
+            'ids.*' => ['required', 'string', 'distinct'],
         ]);
         $this->validateDestroyPassword();
 
-        $records = $this->model::whereKey($validated['ids'])->get();
-        abort_if($records->count() !== \count($validated['ids']), 404);
+        $deletedCount = DB::transaction(function () use ($validated, $request): int {
+            $records = $this->model::whereKey($validated['ids'])->orderBy((new $this->model)->getKeyName())->lockForUpdate()->get();
+            abort_if($records->count() !== \count($validated['ids']), 404);
 
-        if ($this->onlyCreator) {
-            $userId = $request->user()->id;
-            abort_if($records->contains(fn (Model $record) => $record->created_by_id != $userId), 403);
-        }
+            if ($this->onlyCreator) {
+                $userId = $request->user()->id;
+                abort_if($records->contains(fn (Model $record) => $record->created_by_id != $userId), 403);
+            }
 
-        DB::transaction(function () use ($records): void {
             foreach ($records as $record) {
                 try {
                     $this->destroyRecord($record);
-                } catch (ValidationException|HttpExceptionInterface $e) {
+                } catch (ValidationException|HttpExceptionInterface|\LogicException $e) {
                     throw ValidationException::withMessages([
                         'delete' => $this->recordLabel($record) . ': ' . $this->destroyFailureMessage($e),
                     ]);
                 }
             }
+
+            return $records->count();
         });
 
         return redirect()->route($this->indexRouteName())
-            ->with('success', __('core.datatable.deleted_count', ['count' => $records->count()]));
+            ->with('success', __('core.datatable.deleted_count', ['count' => $deletedCount]));
     }
 }

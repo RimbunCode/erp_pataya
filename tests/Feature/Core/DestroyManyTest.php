@@ -2,6 +2,7 @@
 
 namespace Tests\Feature\Core;
 
+use App\Http\Controllers\Core\FileController;
 use App\Http\Controllers\Core\TagController;
 use App\Http\Middleware\AppMiddleware;
 use App\Http\Middleware\EnsureUserIsOnboarded;
@@ -13,6 +14,7 @@ use App\Models\Purchase\Supplier;
 use App\Models\User\User;
 use Database\Factories\Purchase\SupplierFactory;
 use Illuminate\Foundation\Testing\RefreshDatabase;
+use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Event;
 use Illuminate\Support\Facades\Schema;
 use Illuminate\Validation\ValidationException;
@@ -132,6 +134,12 @@ class DestroyManyTest extends TestCase {
         $this->deleteJson(route('suppliers.destroyMany'), ['ids' => [$supplier->id, $supplier->id]])
             ->assertUnprocessable()
             ->assertJsonValidationErrors(['ids.1']);
+
+        foreach ([[['foo']], [123], [true]] as $invalidIds) {
+            $this->deleteJson(route('suppliers.destroyMany'), ['ids' => $invalidIds])
+                ->assertUnprocessable()
+                ->assertJsonValidationErrors(['ids.0']);
+        }
 
         $tooMany = array_map(fn (int $i): string => (string) $i, range(1, 501));
         $this->deleteJson(route('suppliers.destroyMany'), ['ids' => $tooMany])
@@ -286,5 +294,60 @@ class DestroyManyTest extends TestCase {
             ->assertRedirect(route('suppliers.index'));
 
         $this->assertSoftDeleted($supplier);
+    }
+
+    public function test_model_less_controller_rejects_bulk_delete(): void {
+        $this->actingAs(User::factory()->create())
+            ->deleteJson(route('files.destroyMany'), ['ids' => ['some-file']])
+            ->assertStatus(405);
+
+        $controller = (new \ReflectionClass(FileController::class))->newInstanceWithoutConstructor();
+        $method     = new \ReflectionMethod($controller, 'supportsBulkDestroy');
+        $this->assertFalse($method->invoke($controller));
+    }
+
+    public function test_bulk_delete_labels_domain_guard_errors_and_rolls_back(): void {
+        Supplier::deleting(function (Supplier $supplier): void {
+            if ($supplier->name === 'DOMAIN BLOCKED') {
+                throw new \LogicException('Subtree contains assets');
+            }
+        });
+
+        try {
+            $normal   = SupplierFactory::new()->create();
+            $blocked  = SupplierFactory::new()->create(['name' => 'DOMAIN BLOCKED']);
+            $response = $this->actingAs(User::factory()->create())
+                ->withSession($this->permissions())
+                ->deleteJson(route('suppliers.destroyMany'), ['ids' => [$normal->id, $blocked->id]])
+                ->assertUnprocessable();
+
+            $this->assertStringContainsString('DOMAIN BLOCKED', $response->json('errors.delete.0'));
+            $this->assertStringContainsString('Subtree contains assets', $response->json('errors.delete.0'));
+            $this->assertNotSoftDeleted($normal);
+            $this->assertNotSoftDeleted($blocked);
+        } finally {
+            Event::forget('eloquent.deleting: ' . Supplier::class);
+        }
+    }
+
+    public function test_bulk_delete_loads_records_inside_its_transaction(): void {
+        $supplier                = SupplierFactory::new()->create();
+        $initialTransactionLevel = DB::transactionLevel();
+        $selectTransactionLevels = [];
+        DB::listen(function ($query) use (&$selectTransactionLevels): void {
+            if (str_starts_with($query->sql, 'select') && str_contains($query->sql, '"suppliers"') && str_contains($query->sql, ' in ')) {
+                $selectTransactionLevels[] = $query->connection->transactionLevel();
+            }
+        });
+
+        $this->actingAs(User::factory()->create())
+            ->withSession($this->permissions())
+            ->deleteJson(route('suppliers.destroyMany'), ['ids' => [$supplier->id]])
+            ->assertRedirect(route('suppliers.index'));
+
+        $this->assertNotEmpty($selectTransactionLevels);
+        foreach ($selectTransactionLevels as $transactionLevel) {
+            $this->assertGreaterThan($initialTransactionLevel, $transactionLevel);
+        }
     }
 }
