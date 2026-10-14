@@ -1,10 +1,17 @@
-import { describe, expect, it, vi, beforeEach } from "vitest";
-import { render, screen, within } from "@testing-library/react";
+import { describe, expect, it, vi, beforeEach, afterEach } from "vitest";
+import {
+  fireEvent,
+  render,
+  screen,
+  waitFor,
+  within,
+} from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
-import { useState } from "react";
+import React, { useState } from "react";
 
-// Blok teks Quotation (AC5.2, AC5.4): tambah, hapus, urutkan, dan salin dari
-// template. Template dikirim controller sebagai prop Inertia `sectionTemplates`.
+// Blok teks Quotation (AC5.2, AC5.4) + Rich Text TipTap & Simpan sebagai Template Baru:
+// tambah, hapus, urutkan, salin dari template, pilih template per blok, edit inline,
+// dan simpan hasil editan sebagai template baru.
 
 const stableT = (key) => key;
 vi.mock("laravel-react-i18n", () => ({
@@ -12,8 +19,40 @@ vi.mock("laravel-react-i18n", () => ({
 }));
 
 const usePageMock = vi.fn();
+const inertiaFormMocks = vi.hoisted(() => ({
+  clearErrors: vi.fn(),
+  post: vi.fn(),
+}));
 vi.mock("@inertiajs/react", () => ({
   usePage: () => usePageMock(),
+  useForm: (initialData) => {
+    const [data, setData] = React.useState(initialData);
+    return {
+      data,
+      setData: (key, value) => {
+        if (typeof key === "string") {
+          setData((previous) => ({ ...previous, [key]: value }));
+          return;
+        }
+
+        setData(key);
+      },
+      post: (url, options) => inertiaFormMocks.post(url, options, data),
+      processing: false,
+      errors: {},
+      clearErrors: inertiaFormMocks.clearErrors,
+      reset: () => setData(initialData),
+    };
+  },
+}));
+
+const toastSuccessMock = vi.fn();
+const toastErrorMock = vi.fn();
+vi.mock("@/lib/gooeyToast", () => ({
+  gooeyToast: {
+    success: (...args) => toastSuccessMock(...args),
+    error: (...args) => toastErrorMock(...args),
+  },
 }));
 
 vi.mock("@/Pages/Core/FormPage", () => ({
@@ -31,6 +70,50 @@ vi.mock("@/Components/FormInput", () => ({
   ),
 }));
 
+function extractTextFromValue(val) {
+  if (!val) return "";
+  if (typeof val === "string") return val;
+  if (typeof val === "object" && Array.isArray(val.content)) {
+    return val.content
+      .map((node) => extractTextFromValue(node))
+      .filter(Boolean)
+      .join("\n");
+  }
+  if (typeof val === "object" && typeof val.text === "string") {
+    return val.text;
+  }
+  return "";
+}
+
+vi.mock("@/Components/TiptapEditor", () => ({
+  default: ({ value, onValueChange, onBlur, readOnly, disabled }) => {
+    const textValue = extractTextFromValue(value);
+    return (
+      <textarea
+        data-testid="tiptap-editor"
+        value={textValue}
+        readOnly={Boolean(readOnly || disabled)}
+        onBlur={(e) => onBlur?.(e)}
+        onChange={(e) => {
+          const nextText = e.target.value;
+          const nextJson = {
+            type: "doc",
+            content: nextText
+              ? [
+                  {
+                    type: "paragraph",
+                    content: [{ type: "text", text: nextText }],
+                  },
+                ]
+              : [{ type: "paragraph" }],
+          };
+          onValueChange?.(nextJson, nextText);
+        }}
+      />
+    );
+  },
+}));
+
 import QuotationSections, {
   copyTemplatesToSections,
   templatesForType,
@@ -43,6 +126,15 @@ const templates = [
     quotation_type: "rental",
     title: "Term of Payment",
     content: "1. Regularly monthly payment.",
+    content_json: {
+      type: "doc",
+      content: [
+        {
+          type: "paragraph",
+          content: [{ type: "text", text: "1. Regularly monthly payment." }],
+        },
+      ],
+    },
     order: 2,
   },
   {
@@ -110,14 +202,20 @@ describe("templatesForType / copyTemplatesToSections", () => {
     ).toEqual(["Penutup"]);
   });
 
-  it("copyTemplatesToSections menyalin judul dan isi tanpa membawa id template", () => {
-    const result = copyTemplatesToSections([], [templates[1]]);
+  it("copyTemplatesToSections menyalin judul, isi, dan content_json tanpa membawa id template", () => {
+    const result = copyTemplatesToSections([], [templates[1], templates[0]]);
 
-    expect(result).toHaveLength(1);
+    expect(result).toHaveLength(2);
     expect(result[0]).toMatchObject({
       title: "Note",
       content: "- Rental time minimum for 1 (one) month",
       order: 0,
+    });
+    expect(result[1]).toMatchObject({
+      title: "Term of Payment",
+      content: "1. Regularly monthly payment.",
+      content_json: templates[0].content_json,
+      order: 1,
     });
     expect(result[0].id).toBeTruthy();
     expect(result[0].id).not.toBe("t-rental-note");
@@ -142,6 +240,16 @@ describe("templatesForType / copyTemplatesToSections", () => {
 describe("CRM QuotationSections", () => {
   beforeEach(() => {
     usePageMock.mockReturnValue({ props: { sectionTemplates: templates } });
+    toastSuccessMock.mockReset();
+    toastErrorMock.mockReset();
+    inertiaFormMocks.clearErrors.mockReset();
+    inertiaFormMocks.post.mockReset();
+    window.route = (name) => name;
+  });
+
+  afterEach(() => {
+    vi.restoreAllMocks();
+    delete window.route;
   });
 
   it("menampilkan blok yang ada dengan judul dan isi", () => {
@@ -178,7 +286,7 @@ describe("CRM QuotationSections", () => {
     expect(next[1]).toMatchObject({ title: "", content: "" });
   });
 
-  it("mengedit judul dan isi memperbarui blok yang bersangkutan saja", async () => {
+  it("mengedit judul dan isi memperbarui blok yang bersangkutan beserta content_json", async () => {
     const spy = vi.fn();
     render(
       <Harness
@@ -190,12 +298,21 @@ describe("CRM QuotationSections", () => {
       />,
     );
 
-    const textarea = screen.getByDisplayValue("isi b");
-    await userEvent.type(textarea, "!");
+    const editor = screen.getByDisplayValue("isi b");
+    await userEvent.type(editor, "!");
 
     const next = spy.mock.calls.at(-1)[0];
     expect(next[0].content).toBe("isi a");
     expect(next[1].content).toBe("isi b!");
+    expect(next[1].content_json).toEqual({
+      type: "doc",
+      content: [
+        {
+          type: "paragraph",
+          content: [{ type: "text", text: "isi b!" }],
+        },
+      ],
+    });
   });
 
   it("isi multi-baris dipertahankan apa adanya", () => {
@@ -207,10 +324,10 @@ describe("CRM QuotationSections", () => {
       />,
     );
 
-    const textarea = screen.getByDisplayValue((value) =>
+    const editor = screen.getByDisplayValue((value) =>
       value.includes("1. satu"),
     );
-    expect(textarea.value).toBe("1. satu\n2. dua");
+    expect(editor.value).toBe("1. satu\n2. dua");
   });
 
   it("menghapus blok membuang blok itu dan menomori ulang order", async () => {
@@ -292,7 +409,7 @@ describe("CRM QuotationSections", () => {
     ).toBeDisabled();
   });
 
-  describe("Ambil dari template (AC5.4)", () => {
+  describe("Ambil dari template & pilih template per blok (AC4.1–AC4.3)", () => {
     it("menyalin template sesuai jenis terpilih, urut `order`", async () => {
       render(<Harness type="rental" />);
 
@@ -329,8 +446,8 @@ describe("CRM QuotationSections", () => {
           name: /crm\.quotation\.load_section_templates/,
         }),
       );
-      const textarea = screen.getByDisplayValue("1. Terms of payment");
-      await userEvent.type(textarea, " DIUBAH");
+      const editor = screen.getByDisplayValue("1. Terms of payment");
+      await userEvent.type(editor, " DIUBAH");
 
       expect(
         screen.getByDisplayValue("1. Terms of payment DIUBAH"),
@@ -360,6 +477,145 @@ describe("CRM QuotationSections", () => {
         }),
       ).toBeDisabled();
     });
+
+    it("memilih template dari dropdown pada blok menyalin title, content, dan content_json", async () => {
+      const spy = vi.fn();
+      render(
+        <Harness
+          type="rental"
+          spy={spy}
+          initial={[{ id: "sec-1", title: "", content: "", order: 0 }]}
+        />,
+      );
+
+      const sectionEl = screen.getByTestId("quotation-section");
+      const selector = within(sectionEl).getByRole("combobox", {
+        name: "crm.quotation.select_section_template",
+      });
+
+      await userEvent.selectOptions(selector, "t-rental-top");
+
+      const next = spy.mock.calls.at(-1)[0];
+      expect(next[0]).toMatchObject({
+        id: "sec-1",
+        title: "Term of Payment",
+        content: "1. Regularly monthly payment.",
+        content_json: templates[0].content_json,
+      });
+    });
+  });
+
+  describe("Simpan editan inline sebagai template baru (AC3.1–AC3.6)", () => {
+    it("menampilkan pilihan simpan sebagai template baru setelah selesai mengedit (blur) dan dapat diabaikan", async () => {
+      render(
+        <Harness
+          type="rental"
+          initial={[
+            {
+              id: "sec-1",
+              title: "Owner Obligation",
+              content: "1. Klausul awal",
+              order: 0,
+            },
+          ]}
+        />,
+      );
+
+      expect(
+        screen.queryByTestId("save-template-prompt"),
+      ).not.toBeInTheDocument();
+
+      const editor = screen.getByDisplayValue("1. Klausul awal");
+      await userEvent.type(editor, " ditambah");
+      fireEvent.blur(editor);
+
+      const prompt = screen.getByTestId("save-template-prompt");
+      expect(prompt).toBeInTheDocument();
+      expect(
+        within(prompt).getByText("crm.quotation.save_section_template_prompt"),
+      ).toBeInTheDocument();
+
+      // Pilih "Tidak" (dismiss)
+      await userEvent.click(
+        within(prompt).getByRole("button", {
+          name: "crm.quotation.dismiss_save_template",
+        }),
+      );
+
+      expect(
+        screen.queryByTestId("save-template-prompt"),
+      ).not.toBeInTheDocument();
+      expect(
+        screen.getByDisplayValue("1. Klausul awal ditambah"),
+      ).toBeInTheDocument();
+    });
+
+    it("menyimpan blok editan sebagai template baru lewat useForm Inertia", async () => {
+      inertiaFormMocks.post.mockImplementation((_url, options) => {
+        options.onSuccess();
+      });
+
+      render(
+        <Harness
+          type="rental"
+          initial={[
+            {
+              id: "sec-tenant",
+              title: "Tenant Obligation",
+              content: "1. Menjaga keamanan",
+              order: 0,
+            },
+          ]}
+        />,
+      );
+
+      const editor = screen.getByDisplayValue("1. Menjaga keamanan");
+      await userEvent.type(editor, " alat");
+      fireEvent.blur(editor);
+
+      const prompt = screen.getByTestId("save-template-prompt");
+      await userEvent.click(
+        within(prompt).getByRole("button", {
+          name: "crm.quotation.save_as_template",
+        }),
+      );
+
+      const dialog = screen.getByRole("dialog");
+      const nameInput = within(dialog).getByLabelText(
+        /crm\.quotation\.template_name/,
+      );
+      await userEvent.clear(nameInput);
+      await userEvent.type(nameInput, "Tenant Obligation - Khusus Depo");
+
+      await userEvent.click(
+        within(dialog).getByRole("button", {
+          name: "crm.quotation.save_as_template",
+        }),
+      );
+
+      await waitFor(() => {
+        expect(inertiaFormMocks.post).toHaveBeenCalledTimes(1);
+      });
+
+      expect(inertiaFormMocks.post).toHaveBeenCalledWith(
+        "quotation-section-templates.store",
+        expect.objectContaining({
+          preserveScroll: true,
+          onSuccess: expect.any(Function),
+        }),
+        expect.objectContaining({
+          name: "Tenant Obligation - Khusus Depo",
+          title: "Tenant Obligation",
+          quotation_type: "rental",
+          content: "1. Menjaga keamanan alat",
+        }),
+      );
+      expect(inertiaFormMocks.clearErrors).toHaveBeenCalled();
+      expect(screen.queryByRole("dialog")).not.toBeInTheDocument();
+      expect(toastSuccessMock).toHaveBeenCalledWith(
+        "crm.quotation.section_template_saved",
+      );
+    });
   });
 
   describe("readOnly", () => {
@@ -382,6 +638,9 @@ describe("CRM QuotationSections", () => {
       ).not.toBeInTheDocument();
       expect(
         screen.queryByRole("button", { name: /move_section/ }),
+      ).not.toBeInTheDocument();
+      expect(
+        screen.queryByRole("button", { name: /save_as_template/ }),
       ).not.toBeInTheDocument();
     });
 

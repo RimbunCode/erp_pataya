@@ -82,9 +82,10 @@ class QuotationService implements SubmitableService {
 
         foreach (array_values($sections) as $index => $section) {
             $attributes = [
-                'title'   => $section['title'],
-                'content' => $section['content'],
-                'order'   => $section['order'] ?? $index,
+                'title'        => $section['title'],
+                'content'      => $section['content'],
+                'content_json' => $section['content_json'] ?? null,
+                'order'        => $section['order'] ?? $index,
             ];
 
             $sectionModel = $existingSections->get($section['id'] ?? '');

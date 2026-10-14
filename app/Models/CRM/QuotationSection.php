@@ -18,7 +18,8 @@ class QuotationSection extends Model {
     public string $translateKey   = 'crm.quotation.section';
     protected $guarded            = ['id'];
     protected $casts              = [
-        'order' => 'integer',
+        'order'        => 'integer',
+        'content_json' => 'array',
     ];
     protected array $configColumns = [
         'title' => [
