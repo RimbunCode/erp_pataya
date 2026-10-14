@@ -23,11 +23,14 @@ class QuotationRequest extends BaseFormRequest {
 
         $sections = $this->input('sections');
         if (\is_array($sections)) {
+            $sanitizer = QuotationSectionContent::sanitizer();
+
             foreach ($sections as $index => $section) {
                 if (\is_array($section) && isset($section['content']) && \is_string($section['content'])) {
-                    if (trim(strip_tags($section['content'])) === '') {
-                        $sections[$index]['content'] = '';
-                    }
+                    $sections[$index]['content'] = QuotationSectionContent::clean(
+                        $section['content'],
+                        $sanitizer,
+                    );
                 }
             }
             $this->merge(['sections' => $sections]);

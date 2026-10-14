@@ -18,8 +18,8 @@ class QuotationSectionTemplateRequest extends FormRequest {
         parent::prepareForValidation();
 
         $content = $this->input('content');
-        if (\is_string($content) && trim(strip_tags($content)) === '') {
-            $this->merge(['content' => '']);
+        if (\is_string($content)) {
+            $this->merge(['content' => QuotationSectionContent::clean($content)]);
         }
     }
 

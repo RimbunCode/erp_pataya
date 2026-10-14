@@ -387,4 +387,60 @@ class QuotationSectionTest extends QuotationTestCase {
             ->assertStatus(422)
             ->assertJsonValidationErrors(['name', 'title', 'content']);
     }
+
+    /**
+     * Isi blok dicetak lewat `{{{this.content}}}` (tanpa escape) lalu masuk
+     * `innerHTML` iframe pratinjau, jadi HTML yang tersimpan harus sudah
+     * bersih di sisi server. Validasi `string` saja tidak cukup.
+     */
+    public function test_membersihkan_html_berbahaya_pada_isi_blok(): void {
+        $quotation = $this->storeQuotation(['sections' => [[
+            'id'      => 'a',
+            'title'   => 'Owner Obligation',
+            'content' => '<p>Aman</p><img src="x" onerror="alert(1)"><script>alert(2)</script>',
+        ]]]);
+
+        $content = $quotation->sections()->firstOrFail()->content;
+
+        $this->assertStringContainsString('Aman', $content);
+        $this->assertStringNotContainsString('onerror', $content);
+        $this->assertStringNotContainsString('<script', $content);
+        $this->assertStringNotContainsString('<img', $content);
+    }
+
+    public function test_membersihkan_html_berbahaya_pada_template_blok_baru(): void {
+        $this->seed(QuotationSectionTemplateSeeder::class);
+
+        $this->actingAs($this->user)
+            ->withSession($this->permissionSession())
+            ->post(route('quotation-section-templates.store'), [
+                'name'    => 'Tenant Obligation - XSS',
+                'title'   => 'Tenant Obligation',
+                'content' => '<p>Aman</p><img src="x" onerror="alert(1)"><script>alert(2)</script>',
+            ])
+            ->assertRedirect();
+
+        $content = QuotationSectionTemplate::latest('order')->firstOrFail()->content;
+
+        $this->assertStringContainsString('Aman', $content);
+        $this->assertStringNotContainsString('onerror', $content);
+        $this->assertStringNotContainsString('<script', $content);
+        $this->assertStringNotContainsString('<img', $content);
+    }
+
+    /**
+     * Daftar bernomor dan penekanan teks adalah alasan utama blok memakai
+     * rich text, jadi sanitasi tidak boleh ikut membuangnya.
+     */
+    public function test_mempertahankan_tag_rich_text_yang_sah(): void {
+        $safeHtml = '<ol><li><p><strong>Perawatan</strong> rutin</p></li><li><p><u>Teknisi</u> siaga</p></li></ol>';
+
+        $quotation = $this->storeQuotation(['sections' => [[
+            'id'      => 'a',
+            'title'   => 'Owner Obligation',
+            'content' => $safeHtml,
+        ]]]);
+
+        $this->assertSame($safeHtml, $quotation->sections()->firstOrFail()->content);
+    }
 }
