@@ -346,4 +346,19 @@ class QuotationPrintTemplateTest extends QuotationTestCase {
             }
         }
     }
+
+    public function test_merender_html_richtext_pada_isi_blok_tanpa_escape(): void {
+        $this->seedTemplates();
+        $quotation = $this->quotationOfType('rental', ['sections' => [[
+            'id'      => 'a',
+            'title'   => 'Owner Obligation',
+            'content' => '<ol><li><p><strong>Regular maintenance</strong> provided</p></li><li><p><u>Technician</u> support</p></li></ol>',
+            'order'   => 0,
+        ]]]);
+
+        $html = $this->render($quotation, $this->template('rental'));
+
+        $this->assertStringContainsString('<ol><li><p><strong>Regular maintenance</strong> provided</p></li><li><p><u>Technician</u> support</p></li></ol>', $html);
+        $this->assertStringNotContainsString('&lt;ol&gt;', $html);
+    }
 }

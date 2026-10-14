@@ -270,6 +270,18 @@ body .letter-section-content {
   white-space: pre-line;
 }
 
+body .letter-section-content p,
+body .letter-section-content ol,
+body .letter-section-content ul {
+  white-space: normal;
+  margin: 0 0 4px 0;
+}
+
+body .letter-section-content ol,
+body .letter-section-content ul {
+  padding-left: 18px;
+}
+
 body .closing {
   margin-top: 24px;
   page-break-inside: avoid;
@@ -319,7 +331,7 @@ HTML;
   {{#each doc.sections}}
   <div class="letter-section">
     <div class="letter-section-title">{{this.title}}</div>
-    <div class="letter-section-content">{{this.content}}</div>
+    <div class="letter-section-content">{{{this.content}}}</div>
   </div>
   {{/each}}
 HTML;

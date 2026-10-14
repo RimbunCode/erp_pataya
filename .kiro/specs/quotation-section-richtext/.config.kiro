@@ -1,0 +1,6 @@
+{
+  "specId": "d4f8a2e1-7b93-4c5d-ae60-3f1c9d8b2a47",
+  "workflowType": "requirements-first",
+  "specType": "feature",
+  "description": "Mengubah input blok teks (sections) pada Quotation dari Textarea biasa menjadi TipTap rich text editor dengan dual storage (JSON + HTML). Menambahkan kemampuan menyimpan section yang sudah diedit sebagai template baru langsung dari form Quotation, sehingga terms, obligations, dan tenant obligations dapat digunakan kembali tanpa harus ke halaman master template. Termasuk migrasi kolom content ke json di kedua tabel dan penyesuaian print template agar merender HTML."
+}

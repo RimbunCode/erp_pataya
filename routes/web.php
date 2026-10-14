@@ -378,6 +378,7 @@ Route::middleware(['auth', 'lang', 'onboarded', 'app', 'desk'])->group(function 
     Route::put('/leads/{lead}/convert', [LeadController::class, 'convert'])->name('leads.convert');
     Route::resourceDetail('opportunity', OpportunityController::class);
     Route::resourceDetail('quotation', QuotationController::class, isSubmmitable: true);
+    Route::post('/quotation-section-templates', [QuotationController::class, 'storeSectionTemplate'])->name('quotation-section-templates.store');
     // / CRM Group End
 
     // / Service Group
