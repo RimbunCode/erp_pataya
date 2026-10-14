@@ -71,18 +71,12 @@ describe("Inventory Items Index", () => {
     visitSpy.mockRestore();
   });
 
-  it("mengklik tombol hapus memanggil deleteItem tanpa argumen", async () => {
-    const user = userEvent.setup();
+  it("templateItem tidak merender tombol hapus manual (hapus lewat ⋯ menu DataTable2)", () => {
     render(<Index />);
-    const dataRow = { id: 3, name: "Gunting Kecil" };
-    const deleteItem = vi.fn();
     const { container } = render(
-      capturedProps.templateItem({ dataRow, deleteItem }),
+      capturedProps.templateItem({ dataRow: { id: 3, name: "Gunting Kecil" } }),
     );
-    const buttons = container.querySelectorAll("button");
-    const deleteButton = buttons[buttons.length - 1];
-    await user.click(deleteButton);
-    expect(deleteItem).toHaveBeenCalledTimes(1);
-    expect(deleteItem).toHaveBeenCalledWith();
+    // Hanya Link as="button" yang tersisa; hapus dikelola menu ⋯ DataTable2.
+    expect(container.querySelectorAll("button")).toHaveLength(1);
   });
 });

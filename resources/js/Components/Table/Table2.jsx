@@ -343,11 +343,13 @@ Cell.displayName = "TableCell";
 export const TableRow = memo(function TableRow({
   row,
   selectable,
+  selected,
   actions,
   showedColumns,
   onRowClick,
   onCheck,
 }) {
+  const { t } = useLaravelReactI18n();
   return (
     <tr
       onClick={onRowClick ? () => onRowClick(row) : undefined}
@@ -356,13 +358,14 @@ export const TableRow = memo(function TableRow({
       {selectable && (
         <td className="py-2! px-2! items-center">
           <Checkbox
-            checked={row.isSelected ?? false}
-            onCheckedChange={(check) => onCheck(row, check)}
+            aria-label={t("core.datatable.select_row")}
+            checked={selected ?? row.isSelected ?? false}
+            onCheckedChange={(check) => onCheck(row, check === true)}
           />
         </td>
       )}
       {actions && (
-        <td className="w-full flex flex-row! items-center gap-x-2 border-r border-muted-foreground/15">
+        <td className="flex items-center justify-center px-1! border-r border-muted-foreground/15">
           {actions({ dataRow: row })}
         </td>
       )}
@@ -408,6 +411,10 @@ const Table2 = forwardRef(function Table2(
     // diberikan `DataTable2` -- `{columns, draft, onOpenBuilder}`. Tanpa prop
     // ini `<thead>` tetap satu baris (AdvanceSearchDialog/SelectModel utuh).
     columnFilter,
+    // Seleksi controlled (opsional): { isSelected(row), toggle(row, checked),
+    // setMany(rows, checked) }. Tanpa prop ini Table2 memakai seleksi internal
+    // (`isSelected` di state data) -- SelectModel/AdvanceSearchDialog tak berubah.
+    selection,
   },
   ref,
 ) {
@@ -763,6 +770,14 @@ const Table2 = forwardRef(function Table2(
     };
   }, [activeIndex, mouseMove, mouseUp, removeListeners]);
 
+  const isRowSelected = useCallback(
+    (row) =>
+      selection ? selection.isSelected(row) : (row.isSelected ?? false),
+    [selection],
+  );
+  const allChecked = data.length > 0 && data.every(isRowSelected);
+  const someChecked = data.some(isRowSelected);
+
   const checkAll = (check) => {
     setData((data) => {
       const newData = data.map((x) => ({ ...x, isSelected: check }));
@@ -791,13 +806,14 @@ const Table2 = forwardRef(function Table2(
       <TableRow
         row={row}
         selectable={selectable}
+        selected={selection?.isSelected(row)}
         actions={actions}
         showedColumns={showedColumns}
         onRowClick={onRowClick}
-        onCheck={() => {}}
+        onCheck={selection?.toggle ?? (() => {})}
       />
     ),
-    [selectable, actions, showedColumns, onRowClick],
+    [selectable, selection, actions, showedColumns, onRowClick],
   );
   const renderGroupLoading = useCallback(
     ({ depth }) => <GroupNodeStatusRow depth={depth} colSpan={rowSpan} />,
@@ -870,15 +886,32 @@ const Table2 = forwardRef(function Table2(
                   >
                     {selectable && (
                       <th className="py-2! px-2! items-center">
-                        <Checkbox
-                          checked={data.every((x) => x.isSelected ?? false)}
-                          onCheckedChange={checkAll}
-                        />
+                        {/* Mode grup + controlled: select-all tak bermakna (baris
+                            grup di-fetch lazy), sel dibiarkan kosong. */}
+                        {!(group && selection) && (
+                          <Checkbox
+                            aria-label={t("core.datatable.select_all")}
+                            checked={
+                              allChecked
+                                ? true
+                                : someChecked
+                                  ? "indeterminate"
+                                  : false
+                            }
+                            onCheckedChange={(check) =>
+                              selection
+                                ? selection.setMany(data, check === true)
+                                : checkAll(check === true)
+                            }
+                          />
+                        )}
                       </th>
                     )}
                     {actions && (
                       <th className="py-2! px-2! pr-4! items-center border-r border-muted-foreground/15">
-                        <span>{t("core.datatable.action")}</span>
+                        <span className="sr-only">
+                          {t("core.datatable.action")}
+                        </span>
                       </th>
                     )}
                     {showedColumns.map(({ resizeable, ...props }, i) => (
@@ -954,13 +987,16 @@ const Table2 = forwardRef(function Table2(
                     ) : (
                       data.map((row, index) => (
                         <TableRow
-                          key={index}
+                          key={row.id ?? index}
                           row={row}
                           selectable={selectable}
+                          selected={
+                            selection ? selection.isSelected(row) : undefined
+                          }
                           actions={actions}
                           showedColumns={showedColumns}
                           onRowClick={onRowClick}
-                          onCheck={checklist}
+                          onCheck={selection ? selection.toggle : checklist}
                         />
                       ))
                     )}

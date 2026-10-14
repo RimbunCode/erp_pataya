@@ -1,6 +1,6 @@
 import { router, usePage } from "@inertiajs/react";
+import { RefreshCw } from "lucide-react";
 
-import { Button } from "@/Components/ui/button";
 import DataTable2 from "@/Pages/Core/DataTable2";
 import usePermission from "@/Hooks/usePermission";
 import { useLaravelReactI18n } from "laravel-react-i18n";
@@ -17,19 +17,16 @@ export default function Index() {
 
   return (
     <DataTable2
-      actions={({ dataRow }) =>
-        dataRow.status === "failed" &&
-        can("write") && (
-          <Button
-            type="button"
-            size="sm"
-            variant="outline"
-            onClick={() => handleRetry(dataRow.id)}
-          >
-            {t("core.glPostingStatus.retry")}
-          </Button>
-        )
-      }
+      rowActions={[
+        {
+          key: "retry",
+          label: t("core.glPostingStatus.retry"),
+          icon: RefreshCw,
+          requires: ["canRetry"],
+          enabled: (row) => row.canRetry === true && can("write"),
+          onAction: ([row]) => handleRetry(row.id),
+        },
+      ]}
     />
   );
 }

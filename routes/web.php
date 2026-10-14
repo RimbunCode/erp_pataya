@@ -86,6 +86,7 @@ Route::macro('resourceDetail', function ($name, $controller, bool $isSubmmitable
     Route::prefix("/{$uri}")->controller($controller)->group(function () use ($uri, $name, $nestedShow, $isSubmmitable) {
         Route::get('/', 'index')->name("$uri.index");
         Route::post('/', 'store')->name("$uri.store");
+        Route::delete('/', 'destroyMany')->name("$uri.destroyMany");
         Route::get('/create/{ref?}', 'create')->name("$uri.create")->where('ref', '.*');
 
         if ($isSubmmitable) {

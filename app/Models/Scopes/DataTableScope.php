@@ -337,6 +337,12 @@ class DataTableScope implements Scope {
                     )
                     : [],
                 ['route', 'canDelete', 'keyModel', 'appendStatus', 'thisModel', 'templateLink', 'disabledOn'],
+                // Atribut accessor yang dideklarasikan model ($rowActionAttributes) --
+                // dipakai `enabled(row)` row action di frontend, jadi WAJIB selalu
+                // di-select (beserta dependsOn-nya) terlepas dari kolom visible.
+                \method_exists($query->getModel(), 'getRowActionAttributes')
+                    ? \get_class($query->getModel())::getRowActionAttributes()
+                    : [],
             );
             $modelClass   = \get_class($query->getModel());
             $templateLink = \method_exists($modelClass, 'templateLink') ? $modelClass::templateLink() : null;

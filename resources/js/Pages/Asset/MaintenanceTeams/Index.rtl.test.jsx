@@ -1,6 +1,5 @@
 import { describe, expect, it, vi } from "vitest";
 import { render, screen } from "@testing-library/react";
-import userEvent from "@testing-library/user-event";
 
 let capturedProps = null;
 vi.mock("@/Pages/Core/DataTable2", () => ({
@@ -39,17 +38,14 @@ describe("<MaintenanceTeams> Index", () => {
     expect(link).not.toHaveAttribute("href");
   });
 
-  it("tombol hapus memanggil closure deleteItem (tanpa argumen) saat diklik", async () => {
+  it("templateItem tidak merender tombol hapus manual (hapus lewat ⋯ menu DataTable2)", () => {
     render(<Index />);
-    const dataRow = { id: 3, team_name: "Tim Maintenance B" };
-    const deleteItem = vi.fn();
-    render(capturedProps.templateItem({ dataRow, deleteItem }));
-
-    const user = userEvent.setup();
-    const deleteButton = screen.getByRole("button", { name: "" });
-    await user.click(deleteButton);
-
-    expect(deleteItem).toHaveBeenCalledTimes(1);
-    expect(deleteItem).toHaveBeenCalledWith();
+    const { container } = render(
+      capturedProps.templateItem({
+        dataRow: { id: 3, team_name: "Tim Maintenance B" },
+      }),
+    );
+    // Hanya Link as="button" yang tersisa; hapus dikelola menu ⋯ DataTable2.
+    expect(container.querySelectorAll("button")).toHaveLength(1);
   });
 });

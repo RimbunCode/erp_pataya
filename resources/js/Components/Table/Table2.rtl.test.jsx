@@ -83,6 +83,201 @@ describe("Table2", () => {
     );
   });
 
+  it("checkbox baris & header punya aria-label i18n", () => {
+    render(<Table2 columns={columns} data={data} selectable />);
+    expect(
+      screen.getByRole("forminput", { name: "TR:core.datatable.select_all" }),
+    ).toBeInTheDocument();
+    expect(
+      screen.getAllByRole("forminput", {
+        name: "TR:core.datatable.select_row",
+      }),
+    ).toHaveLength(2);
+  });
+
+  it("uncontrolled: data kosong -> header select-all TIDAK tercentang", () => {
+    render(<Table2 columns={columns} data={[]} selectable />);
+    expect(
+      screen.getByRole("forminput", { name: "TR:core.datatable.select_all" }),
+    ).toHaveAttribute("data-state", "unchecked");
+  });
+
+  describe("selection controlled", () => {
+    const makeSelection = (selectedIds = []) => ({
+      isSelected: vi.fn((row) => selectedIds.includes(row.id)),
+      toggle: vi.fn(),
+      setMany: vi.fn(),
+    });
+    const rowChecks = () =>
+      screen.getAllByRole("forminput", {
+        name: "TR:core.datatable.select_row",
+      });
+    const headerCheck = () =>
+      screen.getByRole("forminput", { name: "TR:core.datatable.select_all" });
+
+    it("checkbox baris mengikuti selection.isSelected(row)", () => {
+      const selection = makeSelection([2]);
+      render(
+        <Table2
+          columns={columns}
+          data={data}
+          selectable
+          selection={selection}
+        />,
+      );
+
+      const [first, second] = rowChecks();
+      expect(first).toHaveAttribute("data-state", "unchecked");
+      expect(second).toHaveAttribute("data-state", "checked");
+    });
+
+    it("selection.isSelected menang atas row.isSelected", () => {
+      const selection = makeSelection([]);
+      render(
+        <Table2
+          columns={columns}
+          data={[{ id: 1, name: "Item A", isSelected: true }]}
+          selectable
+          selection={selection}
+        />,
+      );
+
+      expect(rowChecks()[0]).toHaveAttribute("data-state", "unchecked");
+    });
+
+    it("klik checkbox baris memanggil selection.toggle(row, true)", async () => {
+      const user = userEvent.setup({ delay: null });
+      const selection = makeSelection();
+      render(
+        <Table2
+          columns={columns}
+          data={data}
+          selectable
+          selection={selection}
+        />,
+      );
+
+      await user.click(rowChecks()[1]);
+
+      expect(selection.toggle).toHaveBeenCalledWith(data[1], true);
+    });
+
+    it("klik header memanggil selection.setMany(data, true)", async () => {
+      const user = userEvent.setup({ delay: null });
+      const selection = makeSelection();
+      render(
+        <Table2
+          columns={columns}
+          data={data}
+          selectable
+          selection={selection}
+        />,
+      );
+
+      await user.click(headerCheck());
+
+      expect(selection.setMany).toHaveBeenCalledWith(data, true);
+    });
+
+    it("klik header saat semua terpilih memanggil setMany(data, false)", async () => {
+      const user = userEvent.setup({ delay: null });
+      const selection = makeSelection([1, 2]);
+      render(
+        <Table2
+          columns={columns}
+          data={data}
+          selectable
+          selection={selection}
+        />,
+      );
+
+      expect(headerCheck()).toHaveAttribute("data-state", "checked");
+      await user.click(headerCheck());
+
+      expect(selection.setMany).toHaveBeenCalledWith(data, false);
+    });
+
+    it("sebagian terpilih -> header indeterminate", () => {
+      render(
+        <Table2
+          columns={columns}
+          data={data}
+          selectable
+          selection={makeSelection([1])}
+        />,
+      );
+
+      expect(headerCheck()).toHaveAttribute("data-state", "indeterminate");
+    });
+
+    it("data kosong -> header tidak tercentang", () => {
+      render(
+        <Table2
+          columns={columns}
+          data={[]}
+          selectable
+          selection={makeSelection()}
+        />,
+      );
+
+      expect(headerCheck()).toHaveAttribute("data-state", "unchecked");
+    });
+
+    it("tidak mengubah isSelected di state data internal (getSelectedItem kosong)", async () => {
+      const user = userEvent.setup({ delay: null });
+      const ref = { current: null };
+      render(
+        <Table2
+          ref={ref}
+          columns={columns}
+          data={data}
+          selectable
+          selection={makeSelection()}
+        />,
+      );
+
+      await user.click(rowChecks()[0]);
+
+      expect(ref.current.getSelectedItem()).toEqual([]);
+    });
+
+    it("mode grup + selection: header tanpa checkbox select-all", () => {
+      const client = new QueryClient();
+      render(
+        <QueryClientProvider client={client}>
+          <Table2
+            columns={columns}
+            data={[{ key: "a", raw: "a", count: 1, aggregates: {} }]}
+            selectable
+            selection={makeSelection()}
+            persistColumns={false}
+            group={{
+              levels: [
+                {
+                  column: "name",
+                  granularity: null,
+                  range: null,
+                  type: "string",
+                },
+              ],
+              aggregates: [],
+              baseParams: { group: "name" },
+              version: 0,
+              resetKey: "k1",
+              pathname: "/orders",
+            }}
+          />
+        </QueryClientProvider>,
+      );
+
+      expect(
+        screen.queryByRole("forminput", {
+          name: "TR:core.datatable.select_all",
+        }),
+      ).not.toBeInTheDocument();
+    });
+  });
+
   // Task 6 (spec linkmodel-advanced-search) — onRowClick: mode single-select
   // klik-langsung (dipakai Advance Search Dialog), independen dari `selectable`
   // (checkbox multi-select, dipakai SelectModel). Prop opsional, default

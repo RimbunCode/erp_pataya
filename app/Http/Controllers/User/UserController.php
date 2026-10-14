@@ -16,6 +16,8 @@ use App\Services\Core\Approval\ApprovalAccessService;
 use App\Services\Core\PermissionChecker;
 use App\Services\User\Signature\SignatureImageService;
 use App\Utils;
+use Illuminate\Database\Eloquent\Model;
+use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
 use Illuminate\Http\UploadedFile;
 use Illuminate\Support\Facades\Auth;
@@ -340,33 +342,54 @@ class UserController extends Controller {
     }
 
     /**
-     * Remove the specified resource from storage.
+     * Penghapusan user wajib konfirmasi password user yang sedang login.
+     */
+    protected function destroyRequiresPassword(): bool {
+        return true;
+    }
+
+    /**
+     * Menghapus satu user beserta audit log hapus. Dipakai destroy() dan
+     * destroyMany() lewat Controller, sehingga keduanya tetap mendukung hapus massal.
+     */
+    protected function destroyRecord(Model $data): void {
+        $data->delete();
+        $data->logForDeleted();
+    }
+
+    /**
+     * Hapus satu user. Bila user yang login ikut terhapus, session diakhiri.
      */
     public function destroy(mixed $id) {
-        $user = User::findOrFail($id);
-        request()->validate([
-            'password' => ['required', 'current_password'],
-        ]);
-        DB::beginTransaction();
-        try {
-            $user->delete();
-            $user->logForDeleted();
-            DB::commit();
-        } catch (\Throwable $e) {
-            DB::rollBack();
+        $response = parent::destroy($id);
 
-            throw $e;
+        return $this->logoutIfSelfDeleted([$id]) ?? $response;
+    }
+
+    /**
+     * Hapus massal user. Bila user yang login termasuk daftar, session diakhiri.
+     */
+    public function destroyMany(Request $request) {
+        $response = parent::destroyMany($request);
+
+        return $this->logoutIfSelfDeleted((array) $request->input('ids', [])) ?? $response;
+    }
+
+    /**
+     * Bila user yang sedang login ikut terhapus: logout, invalidasi session,
+     * dan arahkan ke '/' (perilaku lama destroy tunggal).
+     *
+     * @param  array<int, mixed>  $deletedIds
+     */
+    private function logoutIfSelfDeleted(array $deletedIds): ?RedirectResponse {
+        if (! \in_array((string) request()->user()?->id, array_map('strval', $deletedIds), true)) {
+            return null;
         }
 
-        if (request()->user()->id == $user->id) {
-            Auth::logout();
+        Auth::logout();
+        request()->session()->invalidate();
+        request()->session()->regenerateToken();
 
-            request()->session()->invalidate();
-            request()->session()->regenerateToken();
-
-            return redirect()->to('/');
-        } else {
-            return redirect()->route('users.index');
-        }
+        return redirect()->to('/');
     }
 }

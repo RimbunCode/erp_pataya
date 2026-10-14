@@ -316,6 +316,16 @@ trait LinkModel {
 
     }
 
+    /**
+     * Atribut accessor yang WAJIB selalu ikut ter-SELECT di DataTable (dipakai
+     * kondisi `enabled` row action di frontend), terlepas dari kolom visible.
+     *
+     * @return list<string>
+     */
+    public static function getRowActionAttributes(): array {
+        return property_exists(static::class, 'rowActionAttributes') ? static::$rowActionAttributes : [];
+    }
+
     protected function getKeyModelAttribute() {
         return \get_class($this) . '-' . $this->id;
     }

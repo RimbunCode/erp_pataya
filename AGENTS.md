@@ -2,6 +2,12 @@
 
 Laravel 12 + Inertia.js v2 + React 19 ERP application. See `CLAUDE.md` for full Laravel Boost guidelines.
 
+## Development Login
+
+- Khusus environment development, selalu gunakan username `admin` dan password `admin` saat login untuk verifikasi aplikasi.
+- Jangan mengubah kredensial pada database untuk keperluan login atau verifikasi. Jika login gagal, periksa konfigurasi dan laporkan kendalanya tanpa mereset password.
+- Aturan ini tidak berlaku untuk staging atau production.
+
 ## Terminal Shell
 
 Semua terminal command harus Bash-compatible (`C:/Program Files/Git/usr/bin/bash.exe`). Jangan gunakan PowerShell/cmd.

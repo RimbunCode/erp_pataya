@@ -22,11 +22,11 @@ const usePageMock = vi.fn();
 vi.mock("@inertiajs/react", () => ({
   Head: ({ title }) => <title>{title}</title>,
   usePage: () => usePageMock(),
-  useForm: () => {
+  useForm: vi.fn(() => {
     throw new Error(
       "useForm harus di-override per-test via mockUseForm agar state bisa diobservasi",
     );
-  },
+  }),
 }));
 
 const toastError = vi.fn();
@@ -148,7 +148,7 @@ async function render(ui) {
  * bila useForm dipakai tanpa override ini.
  */
 function mockUseForm() {
-  InertiaReact.useForm = (initial) => {
+  InertiaReact.useForm.mockImplementation((initial) => {
     const [data, setDataState] = React.useState(initial);
     const setData = (keyOrFn, maybeValue) => {
       if (typeof keyOrFn === "function") {
@@ -158,7 +158,7 @@ function mockUseForm() {
       setDataState((prev) => ({ ...prev, [keyOrFn]: maybeValue }));
     };
     return { data, setData };
-  };
+  });
 }
 
 function setPageProps({ doc = { id: 1, code: "PO-001" }, lang = "en" } = {}) {
