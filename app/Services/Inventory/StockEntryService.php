@@ -4,6 +4,7 @@ namespace App\Services\Inventory;
 
 use App\Contracts\SubmitableService;
 use App\Enums\FormStatus;
+use App\Events\Core\DocumentSubmitted;
 use App\Models\Core\FormatingSeries;
 use App\Models\Finances\Account;
 use App\Models\Finances\GeneralLedger;
@@ -258,6 +259,9 @@ class StockEntryService implements SubmitableService {
         $stockEntry->update([
             'code' => FormatingSeries::generate(StockEntry::class, $stockEntry),
         ]);
+        if ($stockEntry->referenceable_type && $stockEntry->referenceable_id) {
+            event(new DocumentSubmitted($stockEntry, $stockEntry->referenceable));
+        }
         if (\in_array($stockEntry->type, ['item_issue', 'item_transfer', 'item_consumption'])) {
 
             $items = $stockEntry->items()

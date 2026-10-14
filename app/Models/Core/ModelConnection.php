@@ -41,6 +41,13 @@ class ModelConnection extends Model {
     }
 
     public static function getDisplayFromTemplateLink(Model|string $model_type, ?string $model_id = null): ?string {
+        if (\is_string($model_type) && ! is_subclass_of($model_type, Model::class)) {
+            // reference_type/model_type tidak selalu nama kelas model: baris audit
+            // (mis. 'sync', 'mark_done') memakai penanda bebas. Tanpa guard ini
+            // $model_type::find() melempar Error "Class not found" saat saving().
+            return null;
+        }
+
         $data = \is_string($model_type) ? $model_type::find($model_id) : $model_type;
 
         if (! $data instanceof Model) {
@@ -128,6 +135,23 @@ class ModelConnection extends Model {
 
     public function reference(): MorphTo {
         return $this->morphTo(__FUNCTION__, 'reference_type', 'reference_id');
+    }
+
+    /**
+     * Baris audit (mis. yang ditulis syncItems/markDone) menyimpan penanda bebas
+     * seperti 'sync' atau 'mark_done' di kolom tipe, bukan nama kelas model.
+     *
+     * morphTo() menyelesaikan relasi dengan `new $type`, sehingga eager load
+     * `with('reference')` melempar Error "Class not found" begitu salah satu
+     * baris memakai penanda tersebut. Mengembalikan null di sini membuat
+     * Eloquent melewati baris itu, sama seperti baris dengan tipe kosong.
+     */
+    public function getModelTypeAttribute(?string $value): ?string {
+        return is_subclass_of($value, Model::class) ? $value : null;
+    }
+
+    public function getReferenceTypeAttribute(?string $value): ?string {
+        return is_subclass_of($value, Model::class) ? $value : null;
     }
 
     public static function createConnection(array $attributes = []) {
