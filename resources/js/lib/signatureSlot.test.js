@@ -34,7 +34,7 @@ describe("buildSignatureHtml", () => {
   it("merender gambar saja saat tanpa opsi", () => {
     expect(buildSignatureHtml(withImage, { previewAlt: "Pratinjau" })).toBe(
       '<div class="approval-signature">' +
-        '<img src="data:image/png;base64,AAA" alt="Pratinjau" style="max-height:80px;display:block;" />' +
+        '<img src="data:image/png;base64,AAA" alt="Pratinjau" style="max-height:58px;display:block;margin:0 auto;" />' +
         "</div>",
     );
   });
@@ -48,7 +48,7 @@ describe("buildSignatureHtml", () => {
       }),
     ).toBe(
       '<div class="approval-signature">' +
-        '<img src="data:image/png;base64,AAA" alt="Pratinjau" style="max-height:80px;display:block;" />' +
+        '<img src="data:image/png;base64,AAA" alt="Pratinjau" style="max-height:58px;display:block;margin:0 auto;" />' +
         '<span style="display:block;">Budi</span>' +
         '<span style="display:block;">1 Januari 2026</span>' +
         "</div>",
@@ -127,7 +127,7 @@ describe("buildSignatureHtml untuk data pembuat (role creator)", () => {
       }),
     ).toBe(
       '<div class="approval-signature">' +
-        '<img src="data:image/png;base64,AAA" alt="Pratinjau" style="max-height:80px;display:block;" />' +
+        '<img src="data:image/png;base64,AAA" alt="Pratinjau" style="max-height:58px;display:block;margin:0 auto;" />' +
         '<span style="display:block;">Pembuat</span>' +
         "</div>",
     );
@@ -151,7 +151,7 @@ describe("buildSignatureHtml untuk data pembuat (role creator)", () => {
       buildSignatureHtml(creatorWithImage, { previewAlt: "Pratinjau" }),
     ).toBe(
       '<div class="approval-signature">' +
-        '<img src="data:image/png;base64,AAA" alt="Pratinjau" style="max-height:80px;display:block;" />' +
+        '<img src="data:image/png;base64,AAA" alt="Pratinjau" style="max-height:58px;display:block;margin:0 auto;" />' +
         "</div>",
     );
   });
