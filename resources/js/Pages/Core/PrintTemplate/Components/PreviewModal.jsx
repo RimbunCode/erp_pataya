@@ -34,27 +34,19 @@ import {
   AlertTitle,
 } from "@/Components/ui/alert";
 import { Button } from "@/Components/ui/button";
-import { getSafePrintFontFamily } from "@/lib/utils";
+import { getCurrencyConfig } from "@/Components/NumberInput/getCurrencyConfig";
 import { initHandlebar } from "@/lib/initHandlebar";
+import {
+  buildPrintLayoutCss,
+  collectCurrencyCodes,
+  formatData,
+  PRINT_TEMPLATE_SCOPES,
+  scopeTemplateCss,
+  scopeTemplateHtml,
+} from "@/Pages/Core/Components/printTemplateRender";
 
 const BOOTSTRAP_CSS_CDN =
   "https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/css/bootstrap.min.css";
-
-/**
- * CSS overrides to hide editor-only styles on the static HTML wrapper
- * in print preview mode (Requirements: 24.1, 24.2).
- */
-const PRINT_PREVIEW_OVERRIDES = `
-.gjs-static-html-wrapper {
-  border: none !important;
-  border-radius: 0 !important;
-  padding: 0 !important;
-}
-.gjs-static-html-wrapper::before {
-  content: none !important;
-  display: none !important;
-}
-`;
 
 function normalizePreviewWarnings(warnings) {
   if (!Array.isArray(warnings)) {
@@ -89,7 +81,7 @@ function buildPrintableDocument({ title, html, css }) {
     <meta charset="utf-8" />
     <title>${title || "Preview Template"}</title>
     <link rel="stylesheet" href="${BOOTSTRAP_CSS_CDN}" />
-    <style>${PRINT_PREVIEW_OVERRIDES}\n${css || ""}</style>
+    <style>${css || ""}</style>
   </head>
   <body>
     ${html || ""}
@@ -138,7 +130,6 @@ function PreviewModal({
   onOpenChange,
   printTemplate,
   template,
-  dataTableColumns = [],
   preferences = {},
   docInfo = {},
 }) {
@@ -247,7 +238,6 @@ function PreviewModal({
   // the effect when object references change on parent re-renders.
   const cancelledRef = useRef(false);
   const templateRef = useRef(template);
-  const dataTableColumnsRef = useRef(dataTableColumns);
   const preferencesRef = useRef(preferences);
   const docInfoRef = useRef(docInfo);
   const tRef = useRef(t);
@@ -255,9 +245,6 @@ function PreviewModal({
   useEffect(() => {
     templateRef.current = template;
   }, [template]);
-  useEffect(() => {
-    dataTableColumnsRef.current = dataTableColumns;
-  }, [dataTableColumns]);
   useEffect(() => {
     preferencesRef.current = preferences;
   }, [preferences]);
@@ -339,25 +326,65 @@ function PreviewModal({
         const responseWarnings = normalizePreviewWarnings(
           responseData.warnings,
         );
-        const mergedColumns =
-          responseData.dataTableColumns || dataTableColumnsRef.current || [];
+        const columns = responseData.columns || {};
+        const defaultCurrencyCode = preferencesRef.current?.default_currency_id;
+        const codes = collectCurrencyCodes(columns, normalizedExampleData);
+        if (defaultCurrencyCode) codes.push(defaultCurrencyCode.toUpperCase());
+        const currencyEntries = await Promise.all(
+          [...new Set(codes)].map((code) =>
+            getCurrencyConfig(code, defaultCurrencyCode)
+              .then((config) => [code, config?.symbol ?? null])
+              .catch(() => [code, null]),
+          ),
+        );
+        const currencySymbols = Object.fromEntries(
+          currencyEntries.filter(([, symbol]) => symbol),
+        );
+        const formattedDoc = formatData(normalizedExampleData, columns, {
+          t: tRef.current,
+          model: printTemplate.model,
+          lang: printTemplate.default_language ?? "en",
+          defaultCurrencyCode,
+          currencySymbols,
+          absoluteNumber: printTemplate.show_absolute_values ?? false,
+        });
 
         initHandlebar(tRef.current);
 
-        const compiledTemplate = Handlebars.compile(responseHTML, {
-          noEscape: true,
-        });
-
         const context = {
-          ...normalizedExampleData,
-          doc: normalizedExampleData || {},
-          preferences: preferencesRef.current || {},
+          lang: printTemplate.default_language ?? "en",
+          modelDoc: printTemplate.model,
+          columns,
           company: preferencesRef.current || {},
           docInfo: docInfoRef.current || {},
-          dataTableColumns: mergedColumns,
+          document: normalizedExampleData || {},
+          doc: formattedDoc || {},
+          approvalSignature: responseData.approvalSignature ?? null,
+          creatorSignature: responseData.creatorSignature ?? null,
         };
-
-        const renderedHTML = compiledTemplate(context);
+        const letterHead = !printTemplate.is_letter_head
+          ? (printTemplate.letter_head ?? sourceTemplate.letter_head)
+          : null;
+        const letterHeadHtml = letterHead
+          ? Handlebars.compile(
+              scopeTemplateHtml(
+                letterHead.html,
+                PRINT_TEMPLATE_SCOPES.letterHead,
+              ),
+              { noEscape: true },
+            )(context)
+          : "";
+        const renderedHTML =
+          letterHeadHtml +
+          Handlebars.compile(
+            scopeTemplateHtml(responseHTML, PRINT_TEMPLATE_SCOPES.template),
+            { noEscape: true },
+          )(context);
+        const scopedCss =
+          (letterHead
+            ? scopeTemplateCss(letterHead.css, PRINT_TEMPLATE_SCOPES.letterHead)
+            : "") +
+          scopeTemplateCss(responseCSS, PRINT_TEMPLATE_SCOPES.template);
 
         const hasNoExampleData = isEmptyExampleData(normalizedExampleData);
         const relationSummary =
@@ -374,7 +401,7 @@ function PreviewModal({
         );
 
         setPreviewHTML(renderedHTML);
-        setPreviewCSS(responseCSS);
+        setPreviewCSS(scopedCss + buildPrintLayoutCss(printTemplate));
         setWarnings(responseWarnings);
         setRelationRowSummary(relationSummary);
         setMissingDataMessage(
@@ -437,33 +464,9 @@ function PreviewModal({
       doc.head.appendChild(bootstrapLink);
     }
 
-    // Template styles + page layout (same as PrintPreview)
-    const fontFamily = getSafePrintFontFamily(printTemplate?.font_family);
-    const marginTop = printTemplate?.margin_top ?? 0;
-    const marginRight = printTemplate?.margin_right ?? 0;
-    const marginBottom = printTemplate?.margin_bottom ?? 0;
-    const marginLeft = printTemplate?.margin_left ?? 0;
-
     const style = doc.createElement("style");
     style.id = "print-preview-style";
-    style.innerHTML =
-      PRINT_PREVIEW_OVERRIDES +
-      (previewCSS || "") +
-      `
-      body {
-        font-family: ${fontFamily};
-        margin: ${marginTop}${unitCode} ${marginRight}${unitCode} ${marginBottom}${unitCode} ${marginLeft}${unitCode};
-        background: #fff;
-        color: #111827;
-      }
-      @media print {
-        @page {
-          size: ${paperWidth}${unitCode} ${paperHeight}${unitCode};
-          margin: ${marginTop}${unitCode} ${marginRight}${unitCode} ${marginBottom}${unitCode} ${marginLeft}${unitCode};
-        }
-        body { margin: 0; }
-      }
-    `;
+    style.innerHTML = previewCSS || "";
     doc.head.appendChild(style);
 
     doc.body.innerHTML = previewHTML;

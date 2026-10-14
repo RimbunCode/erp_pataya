@@ -51,6 +51,11 @@ class AssetMovement extends Model {
             'order'      => 3,
             'valueTrans' => 'status',
         ],
+        // Relasi hasMany hanya ikut daftar kolom (dan karenanya tercetak di print
+        // template) bila terdaftar di sini. Tersembunyi dari tabel.
+        'items' => [
+            'hidden' => true,
+        ],
     ];
 
     protected static function loadRelationsOnShow() {

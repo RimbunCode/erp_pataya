@@ -41,6 +41,11 @@ class AssetServiceConsumedItem extends Model {
             'type'   => 'relation',
             'hidden' => true,
         ],
+        // Satuan baris; terdaftar (tersembunyi) agar dapat dicetak di print
+        // template Asset Service.
+        'itemUnit' => [
+            'hidden' => true,
+        ],
     ];
 
     /**

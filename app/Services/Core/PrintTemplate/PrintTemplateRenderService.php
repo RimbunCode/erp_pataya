@@ -30,6 +30,7 @@ class PrintTemplateRenderService {
         protected LabelHelperService $labelHelper,
         protected FormatHelperService $formatHelper,
         protected ArithmeticHelperService $arithmeticHelper,
+        protected PrintTemplateSourceScoper $sourceScoper,
     ) {}
 
     /**
@@ -48,7 +49,7 @@ class PrintTemplateRenderService {
             'lang'                => $template->default_language ?? 'en',
             'absoluteNumber'      => (bool) $template->show_absolute_values,
             'defaultCurrencyCode' => $defaultCurrencyCode,
-            'currencySymbols'     => $this->resolveCurrencySymbols($columns, $defaultCurrencyCode),
+            'currencySymbols'     => $this->resolveCurrencySymbols($columns, $defaultCurrencyCode, $doc->toArray()),
         ]);
 
         $context = [
@@ -62,21 +63,24 @@ class PrintTemplateRenderService {
         ];
 
         $html = '';
+        $css  = '';
 
         if (! $template->is_letter_head && $template->letterHead) {
             $letterHead = $template->letterHead;
             $html .= $this->compileHandlebars(
-                str_replace('body', 'div', $letterHead->html ?? ''),
+                $this->sourceScoper->scopeHtml($letterHead->html, PrintTemplateSourceScoper::LETTER_HEAD_SCOPE),
                 $context,
             );
+            $css .= $this->sourceScoper->scopeCss($letterHead->css, PrintTemplateSourceScoper::LETTER_HEAD_SCOPE);
         }
 
         $html .= $this->compileHandlebars(
-            str_replace('body', 'main', $template->html ?? ''),
+            $this->sourceScoper->scopeHtml($template->html, PrintTemplateSourceScoper::TEMPLATE_SCOPE),
             $context,
         );
+        $css .= $this->sourceScoper->scopeCss($template->css, PrintTemplateSourceScoper::TEMPLATE_SCOPE);
 
-        return $html;
+        return '<style>' . $css . $this->sourceScoper->layoutCss($template) . '</style>' . $html;
     }
 
     /**
@@ -210,8 +214,10 @@ class PrintTemplateRenderService {
 
                 return $options['fn']($reduced);
             },
-            'formatDate' => function ($value, $format) {
-                return app('App\Services\Handlebar\FormatHelperService')->formatDate($value, $format);
+            'formatDate' => function ($value, $format, $options = null) {
+                $lang = is_array($options) ? ($options['data']['root']['lang'] ?? null) : null;
+
+                return app('App\Services\Handlebar\FormatHelperService')->formatDate($value, $format, $lang);
             },
             'formatCurrency' => function ($value, $currency) {
                 return app('App\Services\Handlebar\FormatHelperService')->formatCurrency($value, $currency);
@@ -280,7 +286,12 @@ class PrintTemplateRenderService {
             return '';
         }
 
-        $signature = app(SignatureResolverService::class)->resolveFinalSignature($document);
+        // role="creator" memilih pembuat dokumen; nilai lain, termasuk tidak
+        // diisi, tetap memakai penandatangan final seperti sebelumnya.
+        $resolver  = app(SignatureResolverService::class);
+        $signature = ($options['hash']['role'] ?? null) === 'creator'
+            ? $resolver->resolveCreatorSignature($document)
+            : $resolver->resolveFinalSignature($document);
 
         if ($signature === null) {
             return '';
@@ -303,7 +314,7 @@ class PrintTemplateRenderService {
 
         if ($signature['hasSignature']) {
             $parts[] = sprintf(
-                '<img src="%s" alt="%s" style="max-height:80px;display:block;" />',
+                '<img src="%s" alt="%s" style="max-height:58px;display:block;margin:0 auto;" />',
                 e($signature['image']),
                 e(__('user.signature.preview_alt')),
             );
@@ -369,6 +380,8 @@ class PrintTemplateRenderService {
 
             $col = $cols[$key] ?? null;
             if ($col === null) {
+                $newData[$key] = $value;
+
                 continue;
             }
 
@@ -383,11 +396,11 @@ class PrintTemplateRenderService {
                     array_keys((array) $value),
                 )),
                 'date', 'time', 'datetime' => $this->formatDateTimeValue($value, $col['type'], $opts['lang'] ?? 'en'),
-                'boolean'                  => "<input type='checkbox' " . ($value ? 'checked' : '') . '>',
-                'formStatus'               => __("status.{$value}"),
-                'string'                   => $this->formatStringValue($value, $col),
-                'currency', 'number'       => $this->formatNumericValue($value, $col, $data, $opts),
-                default                    => $value,
+                'boolean'    => "<input type='checkbox' " . ($value ? 'checked' : '') . '>',
+                'formStatus' => __("status.{$value}"),
+                'string'     => $this->formatStringValue($value, $col),
+                'currency', 'number' => $this->formatNumericValue($value, $col, $data, $opts),
+                default => $value,
             };
         }
 
@@ -451,7 +464,7 @@ class PrintTemplateRenderService {
     /**
      * PHP port of resolveCurrencySymbol() in PrintPreview.jsx — resolution
      * precedence: column's own currencyCode → row's `currency` field →
-     * the document's default currency.
+     * row's `currency_code` field → the document's default currency.
      *
      * @param  array<string, mixed>  $col
      * @param  array<string, mixed>  $data
@@ -474,6 +487,11 @@ class PrintTemplateRenderService {
                 : ($symbols[$rowCurrency] ?? '');
         }
 
+        $rowCurrencyCode = $data['currency_code'] ?? null;
+        if (is_string($rowCurrencyCode) && $rowCurrencyCode !== '') {
+            return $symbols[strtoupper($rowCurrencyCode)] ?? '';
+        }
+
         return $symbols[$opts['defaultCurrencyCode'] ?? ''] ?? '';
     }
 
@@ -486,7 +504,7 @@ class PrintTemplateRenderService {
      * @param  array<string, mixed>  $columns
      * @return array<string, string>
      */
-    protected function resolveCurrencySymbols(array $columns, mixed $defaultCurrencyCode): array {
+    protected function resolveCurrencySymbols(array $columns, mixed $defaultCurrencyCode, array $data = []): array {
         $codes = [];
 
         foreach ($columns as $modelColumns) {
@@ -510,11 +528,24 @@ class PrintTemplateRenderService {
             $codes[] = $defaultCurrencyCode;
         }
 
+        $collectDataCodes = function (array $values) use (&$collectDataCodes, &$codes): void {
+            if (isset($values['currency_code']) && is_string($values['currency_code']) && $values['currency_code'] !== '') {
+                $codes[] = strtoupper($values['currency_code']);
+            }
+
+            foreach ($values as $value) {
+                if (is_array($value)) {
+                    $collectDataCodes($value);
+                }
+            }
+        };
+        $collectDataCodes($data);
+
         if (empty($codes)) {
             return [];
         }
 
-        return Currency::query()->whereIn('code', array_unique($codes))->pluck('symbol', 'code')->all();
+        return Currency::query()->whereIn('code', array_unique(array_map('strtoupper', $codes)))->pluck('symbol', 'code')->all();
     }
 
     /**

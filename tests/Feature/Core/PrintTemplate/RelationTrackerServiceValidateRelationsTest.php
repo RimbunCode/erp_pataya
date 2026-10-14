@@ -50,6 +50,24 @@ class RelationTrackerServiceValidateRelationsTest extends TestCase {
         $this->assertSame([], $service->validateRelations('App\\Models\\UnknownModel', ['customer']));
     }
 
+    public function test_validate_relations_maps_serialized_snake_case_to_eloquent_camel_case(): void {
+        $service = new RelationTrackerService;
+
+        $validated = $service->validateRelations(
+            RelationTrackerValidateRelationsSalesInvoiceModel::class,
+            ['customer_branch', 'sales_order', 'external_note'],
+        );
+
+        $this->assertSame([
+            'customerBranch',
+            'salesOrder',
+            'customerBranch.shippingCountry',
+            'customerBranch.billingCountry',
+            'salesOrder.shippingCountry',
+            'salesOrder.billingCountry',
+        ], $validated);
+    }
+
     public function test_validate_relations_expands_default_with_and_caches_related_model_columns(): void {
         $service = new RelationTrackerService;
 
@@ -108,5 +126,15 @@ class RelationTrackerValidateRelationsCountryModel extends Model {
             ['name' => 'code'],
             ['name' => 'name'],
         ];
+    }
+}
+
+class RelationTrackerValidateRelationsSalesInvoiceModel extends Model {
+    public function customerBranch(): BelongsTo {
+        return $this->belongsTo(RelationTrackerValidateRelationsBranchModel::class, 'customer_branch_id');
+    }
+
+    public function salesOrder(): BelongsTo {
+        return $this->belongsTo(RelationTrackerValidateRelationsBranchModel::class, 'sales_order_id');
     }
 }

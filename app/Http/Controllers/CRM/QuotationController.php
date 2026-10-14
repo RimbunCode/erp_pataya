@@ -4,6 +4,7 @@ namespace App\Http\Controllers\CRM;
 
 use App\Http\Controllers\Controller;
 use App\Http\Requests\CRM\QuotationRequest;
+use App\Http\Requests\CRM\QuotationSectionTemplateRequest;
 use App\Models\Core\Preference;
 use App\Models\Core\PrintTemplate;
 use App\Models\CRM\Opportunity;
@@ -19,6 +20,12 @@ class QuotationController extends Controller {
     public function __construct(Request $request, QuotationService $service) {
         $this->service = $service;
         parent::__construct($request, Quotation::class);
+    }
+
+    protected function enforcePermission(string $method) {
+        if ($method === 'storeSectionTemplate') {
+            return ['create', 'write'];
+        }
     }
 
     public function index(Request $request) {
@@ -86,7 +93,26 @@ class QuotationController extends Controller {
      */
     private function sectionTemplates(): Collection {
         return QuotationSectionTemplate::orderBy('order')
-            ->get(['id', 'name', 'quotation_type', 'title', 'content', 'order']);
+            ->get(['id', 'name', 'quotation_type', 'title', 'content', 'content_json', 'order']);
+    }
+
+    /**
+     * Simpan blok teks yang sudah diedit di form Quotation sebagai template baru.
+     */
+    public function storeSectionTemplate(QuotationSectionTemplateRequest $request) {
+        $data = $request->validated();
+
+        $nextOrder = ((int) QuotationSectionTemplate::max('order')) + 1;
+        QuotationSectionTemplate::create([
+            'name'           => $data['name'],
+            'title'          => $data['title'],
+            'quotation_type' => $data['quotation_type'] ?? null,
+            'content'        => $data['content'],
+            'content_json'   => $data['content_json'] ?? null,
+            'order'          => $nextOrder,
+        ]);
+
+        return back();
     }
 
     /**

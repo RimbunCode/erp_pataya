@@ -93,6 +93,12 @@ Menambahkan kolom `dpp_amount` (generated, `basic_amount * 11/12`) pada `sales_i
   - **Full test suite (`php artisan test --compact`, seluruh project)**: 352 passed, 237 failed (944 assertions). **Diverifikasi lewat A/B test (stash perubahan → jalankan full suite → 234 gagal dengan error sama persis → pop stash)**: 234 dari 237 kegagalan sudah ada **sebelum** spec ini disentuh sama sekali — root cause `PDOException: cannot start a transaction within a transaction` (188 kejadian), bug infrastruktur `RefreshDatabase`+SQLite in-memory pre-existing saat menjalankan volume besar test dalam satu proses, sepenuhnya di luar scope spec `invoice-dpp-adjustment`. Tidak diperbaiki di sini, dilaporkan ke user.
   - **Test DPP + regresi Sales dijalankan terisolasi** (tidak terpengaruh bug infrastruktur di atas): `tests/Feature/InvoiceDppMigrationTest.php` + `tests/Unit/InvoiceDppModelConfigTest.php` + `tests/Feature/Sales` + `tests/Unit/Sales` + `tests/Unit/SalesOrderItemCastsTest.php` — **39 passed (79 assertions), 0 failed**. Ini pembuktian valid bahwa seluruh kode spec ini benar.
 
+- [x] 12. Follow-up — Sales Invoice DPP entry dan customer print
+  - Tambah kolom read-only `Total Harga` bruto dan `DPP` per item pada Form Sales Invoice.
+  - Tambah total DPP, tanpa DPP per item, pada standard customer print Sales Invoice.
+  - Jangan ubah migration existing atau membuat kolom database baru; total print dihitung dari `items.dpp_amount` yang sudah tersimpan.
+  - Validasi: Sales Invoice RTL 21 tests pass; Invoice DPP model config 6 tests pass; Standard Print Template Seeder 15 tests pass; Pint pass.
+
 ## Notes
 
 - Tidak ada task untuk service layer (`SalesInvoiceService`/`PurchaseInvoiceService`) karena `dpp_amount` dan `tax_amount` sepenuhnya generated column — desain sengaja meniadakan sentuhan PHP di layer ini (lihat `design.md` bagian "Yang TIDAK berubah").

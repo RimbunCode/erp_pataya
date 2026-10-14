@@ -3,7 +3,9 @@
 namespace Tests\Unit;
 
 use App\Models\Finances\PurchaseInvoiceItem;
+use App\Models\Finances\SalesInvoice;
 use App\Models\Finances\SalesInvoiceItem;
+use Illuminate\Support\Collection;
 use PHPUnit\Framework\TestCase;
 use ReflectionProperty;
 
@@ -40,6 +42,22 @@ class InvoiceDppModelConfigTest extends TestCase {
         $this->assertTrue($configColumns['dpp_amount']['show']);
         $this->assertArrayHasKey('visibleFor', $configColumns['dpp_amount']);
         $this->assertSame($configColumns['basic_amount']['visibleFor'], $configColumns['dpp_amount']['visibleFor']);
+    }
+
+    public function test_sales_invoice_dpp_amount_is_the_sum_of_loaded_item_dpp_amounts(): void {
+        $invoice = new SalesInvoice;
+        $invoice->setRelation('items', new Collection([
+            tap(new SalesInvoiceItem)->setRawAttributes(['dpp_amount' => 916.67]),
+            tap(new SalesInvoiceItem)->setRawAttributes(['dpp_amount' => 458.33]),
+        ]));
+
+        $this->assertEqualsWithDelta(1375, $invoice->dpp_amount, 0.01);
+    }
+
+    public function test_sales_invoice_dpp_amount_does_not_lazy_load_items(): void {
+        $invoice = new SalesInvoice;
+
+        $this->assertNull($invoice->dpp_amount);
     }
 
     /**

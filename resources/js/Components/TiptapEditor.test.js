@@ -1,6 +1,7 @@
 import { describe, expect, it } from "vitest";
 import {
   dotPathToMergeTagToken,
+  normalizeTiptapContent,
   sanitizeProseMirrorJSON,
 } from "./TiptapEditor";
 
@@ -67,5 +68,38 @@ describe("sanitizeProseMirrorJSON", () => {
     };
     const result = sanitizeProseMirrorJSON(node);
     expect(result.content).toHaveLength(1);
+  });
+});
+
+describe("normalizeTiptapContent", () => {
+  it("mengembalikan string kosong untuk null/undefined/string kosong", () => {
+    expect(normalizeTiptapContent(null)).toBe("");
+    expect(normalizeTiptapContent(undefined)).toBe("");
+    expect(normalizeTiptapContent("")).toBe("");
+  });
+
+  it("mengembalikan HTML string apa adanya bila sudah diawali tag HTML", () => {
+    const html = "<ol><li><p>Regular maintenance</p></li></ol>";
+    expect(normalizeTiptapContent(html)).toBe(html);
+  });
+
+  it("mengonversi plain text multiline menjadi paragraf per baris dengan escape HTML", () => {
+    expect(normalizeTiptapContent("1. Satu\n2. Dua & Tiga")).toBe(
+      "<p>1. Satu</p><p>2. Dua &amp; Tiga</p>",
+    );
+  });
+
+  it("menjalankan sanitizeProseMirrorJSON bila input berupa objek JSON", () => {
+    const doc = {
+      type: "doc",
+      content: [
+        { type: "text", text: "Valid" },
+        { type: "text", text: null },
+      ],
+    };
+    expect(normalizeTiptapContent(doc)).toEqual({
+      type: "doc",
+      content: [{ type: "text", text: "Valid" }],
+    });
   });
 });

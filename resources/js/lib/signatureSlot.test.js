@@ -1,5 +1,9 @@
 import { describe, it, expect } from "vitest";
-import { buildSignatureHtml, EXAMPLE_SIGNATURE } from "./signatureSlot";
+import {
+  buildSignatureHtml,
+  EXAMPLE_CREATOR_SIGNATURE,
+  EXAMPLE_SIGNATURE,
+} from "./signatureSlot";
 
 /**
  * Markup yang dihasilkan di sini harus identik dengan
@@ -30,7 +34,7 @@ describe("buildSignatureHtml", () => {
   it("merender gambar saja saat tanpa opsi", () => {
     expect(buildSignatureHtml(withImage, { previewAlt: "Pratinjau" })).toBe(
       '<div class="approval-signature">' +
-        '<img src="data:image/png;base64,AAA" alt="Pratinjau" style="max-height:80px;display:block;" />' +
+        '<img src="data:image/png;base64,AAA" alt="Pratinjau" style="max-height:58px;display:block;margin:0 auto;" />' +
         "</div>",
     );
   });
@@ -44,7 +48,7 @@ describe("buildSignatureHtml", () => {
       }),
     ).toBe(
       '<div class="approval-signature">' +
-        '<img src="data:image/png;base64,AAA" alt="Pratinjau" style="max-height:80px;display:block;" />' +
+        '<img src="data:image/png;base64,AAA" alt="Pratinjau" style="max-height:58px;display:block;margin:0 auto;" />' +
         '<span style="display:block;">Budi</span>' +
         '<span style="display:block;">1 Januari 2026</span>' +
         "</div>",
@@ -86,5 +90,69 @@ describe("buildSignatureHtml", () => {
   it("menyediakan data contoh untuk pratinjau template", () => {
     expect(EXAMPLE_SIGNATURE.hasSignature).toBe(true);
     expect(EXAMPLE_SIGNATURE.image).toMatch(/^data:image\/svg\+xml;base64,/);
+  });
+
+  it("menyediakan data contoh pembuat tanpa tanggal", () => {
+    expect(EXAMPLE_CREATOR_SIGNATURE.hasSignature).toBe(true);
+    expect(EXAMPLE_CREATOR_SIGNATURE.date).toBeNull();
+    expect(EXAMPLE_CREATOR_SIGNATURE.name).toBe("Contoh Pembuat");
+  });
+});
+
+/**
+ * Padanan test `creator_role_*` di ApprovalSignatureHelperParityTest.php:
+ * data hasil resolveCreatorSignature() (date selalu null), markup identik.
+ */
+describe("buildSignatureHtml untuk data pembuat (role creator)", () => {
+  const creatorWithImage = {
+    image: "data:image/png;base64,AAA",
+    name: "Pembuat",
+    date: null,
+    hasSignature: true,
+  };
+
+  const creatorWithoutImage = {
+    image: null,
+    name: "Pembuat",
+    date: null,
+    hasSignature: false,
+  };
+
+  it("gambar dan nama tanpa tanggal walau showDate diminta", () => {
+    expect(
+      buildSignatureHtml(creatorWithImage, {
+        showName: true,
+        showDate: true,
+        previewAlt: "Pratinjau",
+      }),
+    ).toBe(
+      '<div class="approval-signature">' +
+        '<img src="data:image/png;base64,AAA" alt="Pratinjau" style="max-height:58px;display:block;margin:0 auto;" />' +
+        '<span style="display:block;">Pembuat</span>' +
+        "</div>",
+    );
+  });
+
+  it("tanpa TTD jatuh ke nama saja", () => {
+    expect(
+      buildSignatureHtml(creatorWithoutImage, {
+        showName: true,
+        showDate: true,
+      }),
+    ).toBe(
+      '<div class="approval-signature">' +
+        '<span style="display:block;">Pembuat</span>' +
+        "</div>",
+    );
+  });
+
+  it("gambar saja tanpa opsi", () => {
+    expect(
+      buildSignatureHtml(creatorWithImage, { previewAlt: "Pratinjau" }),
+    ).toBe(
+      '<div class="approval-signature">' +
+        '<img src="data:image/png;base64,AAA" alt="Pratinjau" style="max-height:58px;display:block;margin:0 auto;" />' +
+        "</div>",
+    );
   });
 });

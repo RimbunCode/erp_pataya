@@ -131,6 +131,7 @@ return [
     'logs'                     => 'Log',
     'files'                    => 'Berkas',
     'amended_from'             => 'Direvisi Dari',
+    'approved_by'              => 'Disetujui oleh,',
 
     'link_model_deleted'                   => 'Data ini sudah dihapus.',
     'link_model_deleted_reselect_required' => 'Data ini sudah dihapus. Silakan pilih ulang.',

@@ -369,6 +369,41 @@ export function sanitizeProseMirrorJSON(node) {
   return node;
 }
 
+function escapeHtml(str) {
+  return str
+    .replace(/&/g, "&amp;")
+    .replace(/</g, "&lt;")
+    .replace(/>/g, "&gt;")
+    .replace(/"/g, "&quot;")
+    .replace(/'/g, "&#39;");
+}
+
+/**
+ * Menormalisasi input content untuk TiptapEditor:
+ * - Objek ProseMirror JSON disanitasi dengan `sanitizeProseMirrorJSON`.
+ * - String HTML (diawali tag `<...>`) dikembalikan apa adanya.
+ * - String plain text (termasuk multiline `\n`) dikonversi menjadi `<p>...</p>`
+ *   per baris agar baris baru tidak melebur saat diparse ProseMirror.
+ * @param {object | string | null | undefined} value
+ * @returns {object | string}
+ */
+export function normalizeTiptapContent(value) {
+  if (value == null || value === "") return "";
+  if (typeof value === "object") {
+    return sanitizeProseMirrorJSON(value);
+  }
+  if (typeof value === "string") {
+    if (/^\s*<[a-z][\s\S]*>/i.test(value)) {
+      return value;
+    }
+    return value
+      .split(/\r?\n/)
+      .map((line) => `<p>${escapeHtml(line)}</p>`)
+      .join("");
+  }
+  return "";
+}
+
 function buildMentionSuggestion(mentionSourceRef) {
   return {
     char: "@",
@@ -433,12 +468,15 @@ const TiptapEditor = forwardRef(function TiptapEditor(
   {
     value,
     onValueChange,
+    onBlur,
     placeholder,
     className,
     mentionSource,
     mentionRenderMode = "label",
     scrollable,
     imageUploadUrl,
+    readOnly = false,
+    disabled = false,
     // desk-dashboard-builder: variant minimal (mark-level saja: Bold/
     // Italic/Underline/Strike, TANPA Heading/List/Blockquote/Image/
     // TextAlign/Link/Mention) untuk konteks label satu-baris seperti
@@ -450,6 +488,7 @@ const TiptapEditor = forwardRef(function TiptapEditor(
   ref,
 ) {
   const minimal = variant === "minimal";
+  const isReadOnly = Boolean(readOnly || disabled);
   const { t } = useLaravelReactI18n();
   const isUpdatingRef = useRef(false);
   const fileInputRef = useRef(null);
@@ -461,6 +500,7 @@ const TiptapEditor = forwardRef(function TiptapEditor(
   }, [mentionSource]);
 
   const editor = useEditor({
+    editable: !isReadOnly,
     extensions: minimal
       ? [
           // Mark-level saja — StarterKit dilewati (bawa node Heading/List/
@@ -527,7 +567,7 @@ const TiptapEditor = forwardRef(function TiptapEditor(
               ]
             : []),
         ],
-    content: sanitizeProseMirrorJSON(value) ?? "",
+    content: normalizeTiptapContent(value),
     editorProps: {
       attributes: {
         class: "outline-none min-h-[100px] p-3",
@@ -538,10 +578,15 @@ const TiptapEditor = forwardRef(function TiptapEditor(
       if (isUpdatingRef.current) return;
       onValueChange?.(
         sanitizeProseMirrorJSON(editor.getJSON()),
-        editor.getHTML(),
+        editor.isEmpty ? "" : editor.getHTML(),
       );
     },
   });
+
+  useEffect(() => {
+    if (!editor || editor.isDestroyed) return;
+    editor.setEditable(!isReadOnly);
+  }, [isReadOnly, editor]);
 
   const handleImageUpload = async (file) => {
     if (!imageUploadUrl || !file) return;
@@ -571,12 +616,18 @@ const TiptapEditor = forwardRef(function TiptapEditor(
   // Sync controlled value → editor content
   useEffect(() => {
     if (!editor || editor.isDestroyed) return;
-    const currentJson = JSON.stringify(editor.getJSON());
-    const incomingJson = JSON.stringify(value ?? {});
-    if (currentJson === incomingJson) return;
+    if (typeof value === "object" && value !== null) {
+      const currentJson = JSON.stringify(editor.getJSON());
+      const incomingJson = JSON.stringify(value);
+      if (currentJson === incomingJson) return;
+    } else {
+      const normalized = normalizeTiptapContent(value);
+      if (normalized === "" && editor.isEmpty) return;
+      if (normalized === editor.getHTML()) return;
+    }
     isUpdatingRef.current = true;
     try {
-      editor.commands.setContent(sanitizeProseMirrorJSON(value) ?? "", false);
+      editor.commands.setContent(normalizeTiptapContent(value), false);
     } catch (e) {
       console.error(
         "TiptapEditor: gagal memuat content, kemungkinan data tersimpan tidak valid",
@@ -597,24 +648,32 @@ const TiptapEditor = forwardRef(function TiptapEditor(
 
   return (
     <div
+      data-testid="tiptap-editor"
+      onBlur={(e) => {
+        if (!e.currentTarget.contains(e.relatedTarget)) {
+          onBlur?.(e);
+        }
+      }}
       className={cn(
         "border border-input rounded-lg bg-background overflow-hidden",
         scrollable && "flex flex-col",
         className,
       )}
     >
-      <MenuBar
-        editor={editor}
-        imageUploadUrl={minimal ? undefined : imageUploadUrl}
-        handleImageUpload={handleImageUpload}
-        fileInputRef={fileInputRef}
-        minimal={minimal}
-      />
+      {!isReadOnly && (
+        <MenuBar
+          editor={editor}
+          imageUploadUrl={minimal ? undefined : imageUploadUrl}
+          handleImageUpload={handleImageUpload}
+          fileInputRef={fileInputRef}
+          minimal={minimal}
+        />
+      )}
       <EditorContent
         editor={editor}
         className={scrollable ? "flex-1 min-h-0 overflow-y-auto" : undefined}
       />
-      {editor && !minimal && (
+      {editor && !minimal && !isReadOnly && (
         <BubbleMenu
           editor={editor}
           tippyOptions={{ duration: 100 }}

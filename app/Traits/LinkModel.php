@@ -463,13 +463,23 @@ trait LinkModel {
         return with(new static)->getTable();
     }
 
+    /**
+     * Relasi ke dokumen induk, berdasarkan static $parentRelation.
+     *
+     * Model yang tidak mendefinisikan $parentRelation (umumnya model header,
+     * bukan model item) mengembalikan BelongsTo yang tidak pernah cocok.
+     * Mengembalikan null di sini membuat akses sebagai atribut
+     * ($model->parentRelation) melempar LogicException, karena Eloquent
+     * mewajibkan method relasi mengembalikan instance Relation.
+     */
     public function parentRelation() {
         $relation = static::$parentRelation ?? false;
         if ($relation) {
             return $this->$relation();
         }
 
-        return null;
+        return $this->belongsTo(static::class, $this->getKeyName())
+            ->whereRaw('1 = 0');
     }
 
     public function connections() {
@@ -512,12 +522,12 @@ trait LinkModel {
         // Mapping pakai match
         $phpType = match ($type) {
             'int', 'tinyint', 'smallint', 'mediumint', 'bigint', 'decimal', 'float', 'double', 'real', 'year' => 'number',
-            'varchar', 'char', 'text', 'tinytext', 'mediumtext', 'longtext', 'enum', 'set'                    => 'string',
-            'date'                                                                                            => 'date',
-            'datetime', 'timestamp'                                                                           => 'datetime',
-            'time'                                                                                            => 'time',
-            'blob', 'binary', 'varbinary'                                                                     => 'binary',
-            default                                                                                           => 'mixed',
+            'varchar', 'char', 'text', 'tinytext', 'mediumtext', 'longtext', 'enum', 'set' => 'string',
+            'date' => 'date',
+            'datetime', 'timestamp' => 'datetime',
+            'time' => 'time',
+            'blob', 'binary', 'varbinary' => 'binary',
+            default => 'mixed',
         };
 
         $cast = $casts[$dataColumn['name']] ?? null;
@@ -551,14 +561,14 @@ trait LinkModel {
                 ])
             ) {
                 $phpType = match ($cast) {
-                    Json::class                                             => 'json',
-                    FormStatusCast::class                                   => 'formStatus',
-                    FormStatusesCast::class                                 => 'formStatuses',
+                    Json::class             => 'json',
+                    FormStatusCast::class   => 'formStatus',
+                    FormStatusesCast::class => 'formStatuses',
                     'integer', 'decimal', 'float', 'double', 'real', 'year' => 'number',
-                    'immutable_date', 'date'                                => 'date',
-                    'immutable_datetime', 'datetime', 'timestamp'           => 'datetime',
-                    'time'                                                  => 'time',
-                    default                                                 => $cast,
+                    'immutable_date', 'date' => 'date',
+                    'immutable_datetime', 'datetime', 'timestamp' => 'datetime',
+                    'time'  => 'time',
+                    default => $cast,
                 };
             }
         }

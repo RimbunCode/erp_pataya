@@ -91,7 +91,9 @@ class PurchaseInvoice extends Model {
             'groupable' => true,
         ],
         'branch' => [
-            'ignore' => true,
+            'hidden'     => true,
+            'groupable'  => false,
+            'searchable' => false,
         ],
         'base_currency_code' => [
             'hidden' => true,

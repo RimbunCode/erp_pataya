@@ -14,6 +14,9 @@ return [
         'zip_code'            => 'Zip Code',
         'country'             => 'Country',
         'country.placeholder' => 'Select a country',
+        'bank_name'           => 'Bank Name',
+        'bank_account_name'   => 'Bank Account Name',
+        'bank_account_number' => 'Bank Account Number',
         'logo'                => 'Company Logo',
     ],
     'preferences' => [

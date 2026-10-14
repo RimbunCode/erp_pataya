@@ -172,10 +172,11 @@ class RelationTrackerService {
             }
         }
 
-        // Pattern: {{prefix.X.Y...}} (2+ segments after prefix, NO relation keyword)
+        // Pattern: {{... prefix.X.Y...}} (2+ segments after prefix, NO relation keyword)
         // All segments except the LAST are relations → build incremental paths excluding last
-        $pattern = '/\{\{\s*' . $prefixPattern . '\.([a-zA-Z_][a-zA-Z0-9_]*(?:\.[a-zA-Z_][a-zA-Z0-9_]*)+)\s*\}\}/';
-        preg_match_all($pattern, $topLevelContent, $matches);
+        $nonRelationTopContent = (string) preg_replace('/\{\{\s*(?:relation|#each)\s+[^}]*\}\}/', '', $topLevelContent);
+        $pattern               = '/\{\{[^{}]*\b' . $prefixPattern . '\.([a-zA-Z_][a-zA-Z0-9_]*(?:\.[a-zA-Z_][a-zA-Z0-9_]*)+)[^{}]*\}\}/';
+        preg_match_all($pattern, $nonRelationTopContent, $matches);
         if (! empty($matches[1])) {
             foreach ($matches[1] as $match) {
                 $relations = array_merge($relations, $this->buildIncrementalPaths($match, true));
@@ -251,12 +252,21 @@ class RelationTrackerService {
                 }
             }
 
-            // {{this.X.Y...}} (1+ segments, NO relation keyword) inside this block
+            // {{... this.X.Y...}} (1+ segments, NO relation keyword) inside this block
             // All segments except LAST are relations → build incremental prefixed with fullEachPath
-            preg_match_all('/\{\{\s*this\.([a-zA-Z_][a-zA-Z0-9_]*(?:\.[a-zA-Z_][a-zA-Z0-9_]*)*)\s*\}\}/', $innerContent, $matches);
+            $nonRelationInner = (string) preg_replace('/\{\{\s*relation\s+[^}]*\}\}/', '', $innerContent);
+            preg_match_all('/\{\{[^{}]*\bthis\.([a-zA-Z_][a-zA-Z0-9_]*(?:\.[a-zA-Z_][a-zA-Z0-9_]*)*)[^{}]*\}\}/', $nonRelationInner, $matches);
             if (! empty($matches[1])) {
                 foreach ($matches[1] as $match) {
                     $relations = array_merge($relations, $this->buildIncrementalPaths($match, true, $fullEachPath));
+                }
+            }
+
+            // Also capture root-prefixed relation paths referenced inside #each (e.g. {{formatCurrency this.amount doc.currency.code}})
+            preg_match_all('/\{\{[^{}]*\b' . $prefixPattern . '\.([a-zA-Z_][a-zA-Z0-9_]*(?:\.[a-zA-Z_][a-zA-Z0-9_]*)+)[^{}]*\}\}/', $nonRelationInner, $rootMatches);
+            if (! empty($rootMatches[1])) {
+                foreach ($rootMatches[1] as $match) {
+                    $relations = array_merge($relations, $this->buildIncrementalPaths($match, true));
                 }
             }
 
@@ -634,7 +644,7 @@ class RelationTrackerService {
             return;
         }
 
-        $modelColumns[$modelClass] = collect($model::getColumns(1))
+        $modelColumns[$modelClass] = collect($model::getColumns(1, true))
             ->mapWithKeys(fn ($column) => [$column['name'] => $column]);
     }
 

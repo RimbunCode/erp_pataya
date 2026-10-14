@@ -26,8 +26,16 @@ class SalesOrderItem extends Model {
     ];
 
     public static $parentRelation = 'salesOrder';
-    public string $translateKey   = 'sales.salesOrder.item';
-    protected $guarded            = [
+
+    /**
+     * Sengaja memakai namespace lang dokumen induk (tanpa sufiks .item): model
+     * baris item tidak punya berkas lang sendiri, kolomnya didefinisikan di
+     * array columns milik induk. Jangan diubah balik ke .item, label kolom akan
+     * tercetak sebagai kunci mentah.
+     */
+    public string $translateKey = 'sales.salesOrder';
+
+    protected $guarded = [
         'id',
         'remaining_quantity',
     ];

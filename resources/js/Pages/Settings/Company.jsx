@@ -144,6 +144,33 @@ function Form() {
               onValueChange={(val) => setData("country_id", val)}
             />
           </FormInput>
+          <FormInput
+            name="bank_name"
+            label={t("core.company.company_details.bank_name")}
+          >
+            <Input
+              value={data.bank_name ?? ""}
+              onChange={(e) => setData("bank_name", e.target.value)}
+            />
+          </FormInput>
+          <FormInput
+            name="bank_account_name"
+            label={t("core.company.company_details.bank_account_name")}
+          >
+            <Input
+              value={data.bank_account_name ?? ""}
+              onChange={(e) => setData("bank_account_name", e.target.value)}
+            />
+          </FormInput>
+          <FormInput
+            name="bank_account_number"
+            label={t("core.company.company_details.bank_account_number")}
+          >
+            <Input
+              value={data.bank_account_number ?? ""}
+              onChange={(e) => setData("bank_account_number", e.target.value)}
+            />
+          </FormInput>
         </div>
       </FormPageContent>
       <FormPageContent

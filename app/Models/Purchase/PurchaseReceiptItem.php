@@ -16,9 +16,17 @@ class PurchaseReceiptItem extends Model {
     use HasUlids, SoftDeletes;
 
     public static $parentRelation = 'purchaseReceipt';
-    public string $translateKey   = 'purchase.purchaseReceipt.item';
-    protected $guarded            = ['id'];
-    protected $casts              = [
+
+    /**
+     * Sengaja memakai namespace lang dokumen induk (tanpa sufiks .item): model
+     * baris item tidak punya berkas lang sendiri, kolomnya didefinisikan di
+     * array columns milik induk. Jangan diubah balik ke .item, label kolom akan
+     * tercetak sebagai kunci mentah.
+     */
+    public string $translateKey = 'purchase.purchaseReceipt';
+
+    protected $guarded = ['id'];
+    protected $casts   = [
         'quantity'            => 'float',
         'replaced_quantity'   => 'float',
         'conversion_factor'   => 'float',

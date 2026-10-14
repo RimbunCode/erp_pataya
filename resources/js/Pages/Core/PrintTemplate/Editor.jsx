@@ -19,7 +19,7 @@ import DropModeDialog from "./Components/DropModeDialog";
 import Sidebar from "./Components/Sidebar";
 import StaticHTMLComponent from "./Components/StaticHTMLComponent";
 import TopBar from "./Components/TopBar";
-import flattenMediaPlugin from "@/lib/flattenMediaPlugin";
+import { editorFlattenMediaPlugin } from "@/lib/flattenMediaPlugin";
 import { generateRandom, getSafePrintFontFamily } from "@/lib/utils";
 import * as gjsBlockBasicModule from "grapesjs-blocks-basic";
 import gjsDocHeader from "@/lib/gjsDocHeader";
@@ -686,7 +686,7 @@ function PrintTemplate({
           (editor) => gjsRelationsTable(editor),
           gjsStaticHTML,
           gjsSignature,
-          flattenMediaPlugin,
+          editorFlattenMediaPlugin,
         ]}
         onEditor={onEditor}
       >

@@ -18,7 +18,8 @@ class QuotationSectionTemplate extends Model {
     public string $translateKey = 'crm.quotation_section_template';
     protected $guarded          = ['id'];
     protected $casts            = [
-        'order' => 'integer',
+        'order'        => 'integer',
+        'content_json' => 'array',
     ];
 
     public static function templateLink() {

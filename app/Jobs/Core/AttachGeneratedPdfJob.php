@@ -59,6 +59,12 @@ class AttachGeneratedPdfJob implements ShouldQueue {
                 $document->loadMissing('approvalable.steps.actedBy.signatureFile');
             }
 
+            // Slot role="creator" membaca pembuat dokumen; dijaga method_exists
+            // dengan alasan yang sama seperti di atas.
+            if (method_exists($document, 'createdBy')) {
+                $document->loadMissing('createdBy.signatureFile');
+            }
+
             $template = PrintTemplate::where('model', $document::class)
                 ->where('is_default', true)
                 ->first();

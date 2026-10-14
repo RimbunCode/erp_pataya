@@ -27,6 +27,7 @@ import TaxLinkModel from "@/Pages/Finances/Taxes/TaxLinkModel";
 import { Textarea } from "@/Components/ui/textarea";
 import { useLaravelReactI18n } from "laravel-react-i18n";
 import { usePage } from "@inertiajs/react";
+import { Input } from "@/Components/ui/input";
 
 // Replika App\Services\Finances\PurchaseInvoiceService::DPP_FACTOR (PPN Nilai
 // Lain: DPP = 11/12 x basic_amount, tarif efektif 11% dari PPN 12%).
@@ -429,6 +430,7 @@ export default function Form() {
                 }}
               />
             </FormInput>
+
             <FormInput
               label={t("finances.purchaseInvoice.columns.purchase_order")}
               required
@@ -506,6 +508,18 @@ export default function Form() {
                       external_note: val?.external_note,
                     };
                   });
+                }}
+              />
+            </FormInput>
+            <FormInput
+              name="supplier_invoice"
+              label={t("finances.purchaseInvoice.columns.supplier_invoice")}
+              required
+            >
+              <Input
+                value={data?.supplier_invoice}
+                onValueChange={(val) => {
+                  setData("supplier_invoice", val);
                 }}
               />
             </FormInput>

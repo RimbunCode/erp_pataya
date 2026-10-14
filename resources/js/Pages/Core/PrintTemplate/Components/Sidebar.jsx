@@ -122,6 +122,17 @@ function Sidebar() {
     return null;
   }, [selectedComponent]);
 
+  const isStyleTabActive = activeTab === "style" && !isStaticHtmlSelected;
+
+  // Jaring pengaman: saat tab Style dibuka, minta Style Manager menembakkan
+  // ulang event `style:custom` agar `sectors` provider selalu sinkron dengan
+  // komponen yang sedang terpilih (mis. seleksi terjadi saat tab lain aktif).
+  useEffect(() => {
+    if (isStyleTabActive) {
+      editor.Styles?.__trgCustom?.();
+    }
+  }, [editor, isStyleTabActive]);
+
   const sidebarTabs = useMemo(
     () =>
       sidebarTabDefs.map((tab) => ({
@@ -167,13 +178,26 @@ function Sidebar() {
           </TabsTrigger>
         ))}
       </TabsList>
-      {!isStaticHtmlSelected && (
-        <TabsContent value="style" className="mt-0 h-full overflow-auto">
-          <StylesProvider>
-            {(props) => <CustomStyleManager {...props} />}
-          </StylesProvider>
-        </TabsContent>
-      )}
+      {/*
+        StylesProvider WAJIB tetap ter-mount selama Sidebar hidup (forceMount +
+        tidak dibungkus kondisi). Provider hanya mengisi `sectors` lewat event
+        `style:custom` dari Style Manager GrapesJS dan mulai dari array kosong;
+        kalau ia baru ter-mount saat tab Style diklik, event untuk komponen yang
+        sudah terpilih sudah terlewat dan panel kosong sampai ada event baru
+        (mis. inject CSS manual atau refresh). Panel hanya dirender saat tab
+        Style aktif supaya tidak ada kerja tersembunyi.
+      */}
+      <TabsContent
+        value="style"
+        forceMount
+        className="mt-0 h-full overflow-auto data-[state=inactive]:hidden"
+      >
+        <StylesProvider>
+          {(props) =>
+            isStyleTabActive ? <CustomStyleManager {...props} /> : <></>
+          }
+        </StylesProvider>
+      </TabsContent>
       <TabsContent value="layer" className="mt-0 h-full overflow-hidden">
         <LayersProvider>
           {(props) => <CustomLayerManager {...props} />}
