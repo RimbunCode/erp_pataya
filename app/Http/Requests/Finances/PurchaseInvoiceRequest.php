@@ -57,6 +57,7 @@ class PurchaseInvoiceRequest extends BaseFormRequest {
             'currency.code'                    => ['nullable', 'exists:currencies,code'],
             'exchange_rate'                    => ['nullable', 'numeric'],
             'external_note'                    => ['nullable', 'string'],
+            'supplier_invoice'                 => ['nullable', 'string'],
             ...AdditionalDiscountRules::make($this),
             ...PaymentSchedulesRules::make($this),
         ];
