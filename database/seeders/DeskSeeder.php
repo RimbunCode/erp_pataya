@@ -213,6 +213,7 @@ class DeskSeeder extends Seeder {
         $this->menuGroup('Workflow', 'Workflow', Domain::Core);
         $this->menuGroup('Templates', 'LayoutTemplate', Domain::Core);
         $this->menuGroup('Dashboard Widgets', 'Gauge', Domain::Core);
+        $this->menuGroup('Laporan', 'Gauge', Domain::Core);
 
         // Dashboard/Approvals/ToDo/Manual Book — TIDAK di-seed di sini lagi.
         // Feedback user: 4 menu ini wajib ada di SEMUA desk (termasuk custom
@@ -323,6 +324,37 @@ class DeskSeeder extends Seeder {
         // Users — 2 item terkait erat
         $this->menuItem('Manage Users', 'Users2', 'users.*', User::class, [Domain::User], 1, group: 'Users');
         $this->menuItem('Roles', 'Users2', 'roles.*', Role::class, [Domain::User], 2, group: 'Users');
+
+        // Laporan (spec modul-laporan, Req 17): grup "Laporan" berisi sembilan laporan. Visibilitas
+        // mengikuti izin modul sumber masing-masing (Req 6.3), jadi grup tidak tampil bila pengguna
+        // tidak berizin atas satu pun laporan di dalamnya.
+        $this->menuItem('Stok Persediaan', 'Gauge', 'reports.stockBalance', null, [Domain::Core], 1, group: 'Laporan', visibilityPermission: [
+            'any' => [[StockLedgerEntry::class, Permission::Select]],
+        ]);
+        $this->menuItem('Mutasi Stock', 'Gauge', 'reports.stockMutation', null, [Domain::Core], 2, group: 'Laporan', visibilityPermission: [
+            'any' => [[StockLedgerEntry::class, Permission::Select]],
+        ]);
+        $this->menuItem('Laporan Penjualan', 'Gauge', 'reports.sales', null, [Domain::Core], 3, group: 'Laporan', visibilityPermission: [
+            'any' => [[SalesOrder::class, Permission::Select]],
+        ]);
+        $this->menuItem('Laporan Pembelian', 'Gauge', 'reports.purchase', null, [Domain::Core], 4, group: 'Laporan', visibilityPermission: [
+            'any' => [[PurchaseOrder::class, Permission::Select]],
+        ]);
+        $this->menuItem('Laporan Invoice Penjualan', 'Gauge', 'reports.salesInvoice', null, [Domain::Core], 5, group: 'Laporan', visibilityPermission: [
+            'any' => [[SalesInvoice::class, Permission::Select]],
+        ]);
+        $this->menuItem('Laporan Invoice Pembelian', 'Gauge', 'reports.purchaseInvoice', null, [Domain::Core], 6, group: 'Laporan', visibilityPermission: [
+            'any' => [[PurchaseInvoice::class, Permission::Select]],
+        ]);
+        $this->menuItem('Monitoring Work Order', 'Gauge', 'reports.workOrder', null, [Domain::Core], 7, group: 'Laporan', visibilityPermission: [
+            'any' => [[AssetService::class, Permission::Select]],
+        ]);
+        $this->menuItem('Laporan Pemakaian Sparepart', 'Gauge', 'reports.sparepartUsage', null, [Domain::Core], 8, group: 'Laporan', visibilityPermission: [
+            'any' => [[AssetService::class, Permission::Select]],
+        ]);
+        $this->menuItem('Laporan Anggota Tim', 'Gauge', 'reports.teamActivity', null, [Domain::Core], 9, group: 'Laporan', visibilityPermission: [
+            'any' => [[AssetService::class, Permission::Select]],
+        ]);
 
         // Tickets — primary Helpdesk (section tunggal, tidak butuh folder)
         $this->menuItem('Tickets', 'TicketsIcon', 'tickets.*', null, [Domain::Helpdesk], 1);
