@@ -10,21 +10,27 @@ export default function Purchase() {
     usePage().props;
 
   return (
-    <ReportLayout
-      kpi={kpi}
-      consistency={consistency}
-      filters={<ReportFilterBar fields={filterFields} values={filterValues} />}
-      chart={
-        chart ? (
-          <ReportLineChart
-            title={chart.title}
-            valueLabel={chart.valueLabel}
-            series={chart.series}
-          />
-        ) : null
+    <DataTable2
+      selectable={false}
+      hideDeleteAction
+      beforeTable={
+        <ReportLayout
+          kpi={kpi}
+          consistency={consistency}
+          filters={
+            <ReportFilterBar fields={filterFields} values={filterValues} />
+          }
+          chart={
+            chart ? (
+              <ReportLineChart
+                title={chart.title}
+                valueLabel={chart.valueLabel}
+                series={chart.series}
+              />
+            ) : null
+          }
+        />
       }
-    >
-      <DataTable2 selectable={false} hideDeleteAction />
-    </ReportLayout>
+    />
   );
 }

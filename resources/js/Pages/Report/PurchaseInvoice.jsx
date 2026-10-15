@@ -8,12 +8,18 @@ export default function PurchaseInvoice() {
   const { kpi, consistency, filterFields, filterValues } = usePage().props;
 
   return (
-    <ReportLayout
-      kpi={kpi}
-      consistency={consistency}
-      filters={<ReportFilterBar fields={filterFields} values={filterValues} />}
-    >
-      <DataTable2 selectable={false} hideDeleteAction />
-    </ReportLayout>
+    <DataTable2
+      selectable={false}
+      hideDeleteAction
+      beforeTable={
+        <ReportLayout
+          kpi={kpi}
+          consistency={consistency}
+          filters={
+            <ReportFilterBar fields={filterFields} values={filterValues} />
+          }
+        />
+      }
+    />
   );
 }

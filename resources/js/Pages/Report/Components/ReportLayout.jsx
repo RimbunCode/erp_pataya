@@ -5,17 +5,17 @@ import { useState } from "react";
 import ConsistencyWarning from "./ConsistencyWarning";
 import KpiStrip from "./KpiStrip";
 
-// Kerangka seragam semua laporan: peringatan konsistensi, bar filter, tombol unduh, strip KPI,
-// grafik (opsional), lalu tabel data (Req 1.1 dan 1.2).
+// Blok konten seragam semua laporan: peringatan konsistensi, bar filter, tombol unduh, strip KPI,
+// dan grafik (opsional). Blok ini dirender lewat prop `beforeTable` milik DataTable2, jadi judul
+// laporan (h1 dari translateKey) tampil di atasnya dan tabel data di bawahnya (Req 1.1 dan 1.2).
 //
 // Kunci laporan dan izin hitung ulang dibaca dari props halaman, jadi halaman laporan cukup
-// meneruskan filter, KPI, konsistensi, grafik, dan tabel.
+// meneruskan filter, KPI, konsistensi, dan grafik.
 export default function ReportLayout({
   kpi = [],
   consistency = null,
   filters = null,
   chart = null,
-  children,
 }) {
   const { report, canRecount = false } = usePage().props;
   const [recounted, setRecounted] = useState(null);
@@ -73,7 +73,6 @@ export default function ReportLayout({
       </div>
       <KpiStrip items={kpiItems} />
       {chart}
-      {children}
     </div>
   );
 }

@@ -263,6 +263,8 @@ export default memo(
       templateItem,
       usePasswordConfirmationForDelete,
       forceCanCreate,
+      // Konten tambahan (mis. filter, KPI, grafik laporan) yang tampil di antara judul dan Search Bar.
+      beforeTable = null,
     },
     ref,
   ) {
@@ -1130,6 +1132,7 @@ export default memo(
               )}
             </div>
           </div>
+          {beforeTable}
           {/* Search Bar (chip = Filter Tree) + Sort dalam satu baris, di antara
               judul dan kartu tabel -- BUKAN di toolbar judul (tak ramai) dan
               bukan search global navbar (Ctrl+K / "/"). Filter & Group by
