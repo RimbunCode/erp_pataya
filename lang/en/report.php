@@ -13,15 +13,15 @@ return [
     ],
 
     'filter' => [
-        'item'      => 'Item',
-        'warehouse' => 'Warehouse',
-        'category'  => 'Category',
-        'date_from' => 'Date from',
-        'date_to'   => 'Date to',
-        'supplier'  => 'Supplier',
-        'customer'  => 'Customer',
-        'status'    => 'Status',
-        'pic'       => 'PIC',
+        'item'         => 'Item',
+        'warehouse'    => 'Warehouse',
+        'category'     => 'Category',
+        'date_from'    => 'Date from',
+        'date_to'      => 'Date to',
+        'supplier'     => 'Supplier',
+        'customer'     => 'Customer',
+        'status'       => 'Status',
+        'pic'          => 'PIC',
         'asset'        => 'Asset',
         'service_type' => 'Service type',
     ],
@@ -76,13 +76,13 @@ return [
     ],
 
     'sales_invoice' => [
-        'title'   => 'Sales Invoice Report',
-        'kpi'     => [
-            'total_transaction'   => 'Transactions',
-            'total_item'          => 'Items',
-            'total_amount'        => 'Total Invoice',
-            'tax_value'           => 'VAT Value',
-            'outstanding_amount'  => 'Outstanding Receivable',
+        'title' => 'Sales Invoice Report',
+        'kpi'   => [
+            'total_transaction'  => 'Transactions',
+            'total_item'         => 'Items',
+            'total_amount'       => 'Total Invoice',
+            'tax_value'          => 'VAT Value',
+            'outstanding_amount' => 'Outstanding Receivable',
         ],
         'payment' => [
             'lunas'    => 'Paid',
