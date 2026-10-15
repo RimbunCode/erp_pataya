@@ -23,6 +23,10 @@ return [
         'title'   => 'New Document',
         'message' => 'New :document from :creator needs your attention.',
     ],
+    'mention' => [
+        'title'   => 'You Were Mentioned',
+        'message' => ':commenter mentioned you in a comment on :document.',
+    ],
     'todo_assigned' => [
         'title'   => 'New ToDo Assigned',
         'message' => ':assigner assigned you a ToDo: :document',
