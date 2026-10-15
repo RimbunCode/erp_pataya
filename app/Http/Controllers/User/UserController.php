@@ -105,15 +105,30 @@ class UserController extends Controller {
             ]);
         }
 
+        // Pemanggil harus bisa membaca modul dokumen itu. Tanpa cek ini, endpoint membocorkan
+        // siapa saja yang bisa membaca dokumen (IDOR).
+        $checker = PermissionChecker::forUser($request);
+        if (! $checker->can($modelClass, Permission::Select)) {
+            abort(403);
+        }
+
         $documentId = $request->input('document_id');
-        $creatorId  = null;
+        $document   = null;
         if (\is_string($documentId) && $documentId !== '') {
-            $creatorId = $modelClass::find($documentId)?->getAttribute('created_by_id');
+            $document = $modelClass::find($documentId);
+
+            // Pemanggil only_creator hanya boleh memakai dokumen miliknya sendiri.
+            if (
+                $checker->isOnlyCreator($modelClass, Permission::Select)
+                && ($document === null || (string) $document->getAttribute('created_by_id') !== (string) $request->user()->id)
+            ) {
+                abort(403);
+            }
         }
 
         $allowed = $audience->readableBy(
             $modelClass,
-            $creatorId === null ? null : (string) $creatorId,
+            $document,
             (clone $users)->pluck('id')->map(fn ($id) => (string) $id)->all(),
         );
 

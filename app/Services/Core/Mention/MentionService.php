@@ -71,12 +71,7 @@ class MentionService {
             return;
         }
 
-        $creatorId = $document->getAttribute('created_by_id');
-        $allowed   = $this->audience->readableBy(
-            $document::class,
-            $creatorId === null ? null : (string) $creatorId,
-            $userIds,
-        );
+        $allowed = $this->audience->readableBy($document::class, $document, $userIds);
         if ($allowed === []) {
             return;
         }
