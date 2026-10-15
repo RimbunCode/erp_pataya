@@ -49,9 +49,27 @@ class CommentMentionNotification extends Notification {
         return (new MailMessage)
             ->subject(__('notification.mention.title'))
             ->line(__('notification.mention.message', [
-                'commenter' => $this->commenter->name ?? '',
-                'document'  => $this->documentLabel(),
+                'commenter' => $this->escapeMarkdown($this->commenter->name ?? ''),
+                'document'  => $this->escapeMarkdown($this->documentLabel()),
             ]));
+    }
+
+    /**
+     * Nilai dari pengguna (nama komentator, kode dokumen) disisipkan ke teks email Markdown.
+     * Tanpa escape, `[teks](url)` atau HTML di sana menjadi tautan atau markup di email.
+     */
+    private function escapeMarkdown(string $value): string {
+        return strtr(e($value), [
+            '\\' => '\\\\',
+            '*'  => '\\*',
+            '_'  => '\\_',
+            '`'  => '\\`',
+            '['  => '\\[',
+            ']'  => '\\]',
+            '#'  => '\\#',
+            '|'  => '\\|',
+            '~'  => '\\~',
+        ]);
     }
 
     public function toBroadcast(object $notifiable): BroadcastMessage {
