@@ -2,12 +2,12 @@
 
 namespace App\Http\Controllers\Report;
 
-use App\Enums\Permission;
 use App\Http\Controllers\Controller;
 use App\Models\Finances\SalesInvoice;
 use App\Models\Report\SalesInvoiceReportRow;
 use App\Models\User\User;
 use App\Services\Core\PermissionChecker;
+use App\Services\Report\ReportAccess;
 use App\Services\Report\ReportConsistencyChecker;
 use App\Services\Report\ReportFilterOptions;
 use App\Services\Report\ReportFilterStore;
@@ -38,7 +38,7 @@ class SalesInvoiceReportController extends Controller {
         SalesInvoiceKpiBuilder $kpiBuilder,
         ReportConsistencyChecker $consistencyChecker,
     ): Response {
-        if (! PermissionChecker::forUser($request)->can(SalesInvoice::class, Permission::Select)) {
+        if (! ReportAccess::canRead($request, SalesInvoice::class)) {
             abort(403);
         }
 

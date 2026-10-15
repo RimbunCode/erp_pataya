@@ -2,10 +2,9 @@
 
 namespace App\Http\Controllers\Report;
 
-use App\Enums\Permission;
 use App\Http\Controllers\Controller;
 use App\Models\Report\StockBalanceRow;
-use App\Services\Core\PermissionChecker;
+use App\Services\Report\ReportAccess;
 use App\Services\Report\ReportCatalog;
 use App\Services\Report\ReportExporter;
 use App\Services\Report\ReportFilterStore;
@@ -38,7 +37,7 @@ class ReportExportController extends Controller {
             abort(404);
         }
 
-        if (! PermissionChecker::forUser($request)->can($definition->permissionModel, Permission::Select)) {
+        if (! ReportAccess::canRead($request, $definition->permissionModel)) {
             abort(403);
         }
 

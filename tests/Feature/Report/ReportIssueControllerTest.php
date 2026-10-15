@@ -71,6 +71,50 @@ class ReportIssueControllerTest extends TestCase {
         $this->assertDatabaseCount('tickets', 0);
     }
 
+    public function test_validasi_menolak_nama_laporan_karangan(): void {
+        $user = User::factory()->create();
+
+        $response = $this->actingAs($user)->post(route('reports.issues.store'), [
+            'report'     => 'Laporan Karangan Sendiri',
+            'kpi_rows'   => 7,
+            'table_rows' => 5,
+            'url'        => 'https://erp.test/reports/stock-balance',
+        ]);
+
+        $response->assertSessionHasErrors(['report']);
+        $this->assertDatabaseCount('tickets', 0);
+    }
+
+    public function test_validasi_menolak_label_filter_di_luar_daftar(): void {
+        $user = User::factory()->create();
+
+        $response = $this->actingAs($user)->post(route('reports.issues.store'), [
+            'report'     => 'Stok Persediaan',
+            'kpi_rows'   => 7,
+            'table_rows' => 5,
+            'filter'     => ['Disetujui oleh' => 'Direktur'],
+            'url'        => 'https://erp.test/reports/stock-balance',
+        ]);
+
+        $response->assertSessionHasErrors(['filter']);
+        $this->assertDatabaseCount('tickets', 0);
+    }
+
+    public function test_label_filter_bawaan_yang_mengandung_spasi_tetap_diterima(): void {
+        $user = User::factory()->create();
+
+        $response = $this->actingAs($user)->post(route('reports.issues.store'), [
+            'report'     => 'Stok Persediaan',
+            'kpi_rows'   => 7,
+            'table_rows' => 5,
+            'filter'     => ['Tanggal dari' => '2026-01-01', 'Gudang' => 'Gudang A'],
+            'url'        => 'https://erp.test/reports/stock-balance',
+        ]);
+
+        $response->assertSessionHasNoErrors();
+        $this->assertDatabaseCount('tickets', 1);
+    }
+
     public function test_validasi_menolak_url_bukan_http(): void {
         $user = User::factory()->create();
 

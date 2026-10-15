@@ -2,11 +2,11 @@
 
 namespace App\Http\Controllers\Report;
 
-use App\Enums\Permission;
 use App\Http\Controllers\Controller;
 use App\Models\Report\StockBalanceRow;
 use App\Models\User\User;
 use App\Services\Core\PermissionChecker;
+use App\Services\Report\ReportAccess;
 use App\Services\Report\ReportCatalog;
 use App\Services\Report\ReportFilterStore;
 use Illuminate\Http\JsonResponse;
@@ -40,7 +40,7 @@ class ReportRecountController extends Controller {
             abort(403);
         }
 
-        if (! $checker->can($definition->permissionModel, Permission::Select)) {
+        if (! ReportAccess::canRead($request, $definition->permissionModel)) {
             abort(403);
         }
 

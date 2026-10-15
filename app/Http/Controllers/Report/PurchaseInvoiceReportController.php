@@ -2,7 +2,6 @@
 
 namespace App\Http\Controllers\Report;
 
-use App\Enums\Permission;
 use App\Http\Controllers\Controller;
 use App\Models\Finances\PurchaseInvoice;
 use App\Models\Report\PurchaseInvoiceReportRow;
@@ -10,6 +9,7 @@ use App\Models\User\User;
 use App\Services\Core\PermissionChecker;
 use App\Services\Report\PurchaseInvoice\PurchaseInvoiceFilter;
 use App\Services\Report\PurchaseInvoice\PurchaseInvoiceKpiBuilder;
+use App\Services\Report\ReportAccess;
 use App\Services\Report\ReportConsistencyChecker;
 use App\Services\Report\ReportFilterOptions;
 use App\Services\Report\ReportFilterStore;
@@ -38,7 +38,7 @@ class PurchaseInvoiceReportController extends Controller {
         PurchaseInvoiceKpiBuilder $kpiBuilder,
         ReportConsistencyChecker $consistencyChecker,
     ): Response {
-        if (! PermissionChecker::forUser($request)->can(PurchaseInvoice::class, Permission::Select)) {
+        if (! ReportAccess::canRead($request, PurchaseInvoice::class)) {
             abort(403);
         }
 

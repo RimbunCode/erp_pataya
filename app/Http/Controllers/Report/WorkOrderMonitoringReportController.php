@@ -2,12 +2,12 @@
 
 namespace App\Http\Controllers\Report;
 
-use App\Enums\Permission;
 use App\Http\Controllers\Controller;
 use App\Models\Asset\AssetService;
 use App\Models\Report\WorkOrderMonitoringRow;
 use App\Models\User\User;
 use App\Services\Core\PermissionChecker;
+use App\Services\Report\ReportAccess;
 use App\Services\Report\ReportConsistencyChecker;
 use App\Services\Report\ReportFilterOptions;
 use App\Services\Report\ReportFilterStore;
@@ -39,7 +39,7 @@ class WorkOrderMonitoringReportController extends Controller {
         WorkOrderMonitoringKpiBuilder $kpiBuilder,
         ReportConsistencyChecker $consistencyChecker,
     ): Response {
-        if (! PermissionChecker::forUser($request)->can(AssetService::class, Permission::Select)) {
+        if (! ReportAccess::canRead($request, AssetService::class)) {
             abort(403);
         }
 

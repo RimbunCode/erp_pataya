@@ -2,12 +2,12 @@
 
 namespace App\Http\Controllers\Report;
 
-use App\Enums\Permission;
 use App\Http\Controllers\Controller;
 use App\Models\Inventory\StockLedgerEntry;
 use App\Models\Report\StockBalanceRow;
 use App\Models\User\User;
 use App\Services\Core\PermissionChecker;
+use App\Services\Report\ReportAccess;
 use App\Services\Report\ReportConsistencyChecker;
 use App\Services\Report\ReportFilterOptions;
 use App\Services\Report\ReportFilterStore;
@@ -41,7 +41,7 @@ class StockBalanceReportController extends Controller {
         StockBalanceKpiBuilder $kpiBuilder,
         ReportConsistencyChecker $consistencyChecker,
     ): Response {
-        if (! PermissionChecker::forUser($request)->can(StockLedgerEntry::class, Permission::Select)) {
+        if (! ReportAccess::canRead($request, StockLedgerEntry::class)) {
             abort(403);
         }
 

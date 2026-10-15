@@ -32,8 +32,8 @@ class ReportIssueNotification extends Notification {
      */
     public function toArray(object $notifiable): array {
         return [
-            'title'        => __('report.notification.title'),
-            'message'      => __('report.notification.message', [
+            'title'   => __('report.notification.title'),
+            'message' => __('report.notification.message', [
                 'ticket' => $this->ticket->code,
                 'report' => $this->reportName,
             ]),
