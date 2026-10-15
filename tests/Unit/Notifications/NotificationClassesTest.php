@@ -9,9 +9,11 @@ use App\Models\User\User;
 use App\Notifications\ApprovalCanceledNotification;
 use App\Notifications\ApprovalDecidedNotification;
 use App\Notifications\ApprovalPendingNotification;
+use App\Notifications\CommentMentionNotification;
 use App\Notifications\DocumentSubmittedNotification;
 use App\Notifications\UserInvitedNotification;
 use Illuminate\Broadcasting\PrivateChannel;
+use Illuminate\Contracts\Queue\ShouldQueue;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Illuminate\Notifications\Events\BroadcastNotificationCreated;
 use Illuminate\Notifications\Messages\BroadcastMessage;
@@ -117,6 +119,31 @@ class NotificationClassesTest extends TestCase {
         $data = $notification->toArray($creator);
         $this->assertStringContainsString('Budi Santoso', $data['message']);
         $this->assertStringContainsString('DOC-001', $data['message']);
+    }
+
+    public function test_comment_mention_notification_via_and_array(): void {
+        $commenter = User::factory()->create(['name' => 'Budi Santoso']);
+        $mentioned = User::factory()->create();
+        $document  = $this->makeDocument($commenter);
+
+        $notification = new CommentMentionNotification($document, $commenter);
+
+        $this->assertSame(['database', 'broadcast', 'mail'], $notification->via($mentioned));
+        $this->assertNotInstanceOf(ShouldQueue::class, $notification);
+
+        $data = $notification->toArray($mentioned);
+        $this->assertArrayHasKey('title', $data);
+        $this->assertStringContainsString('Budi Santoso', $data['message']);
+        $this->assertStringContainsString('DOC-001', $data['message']);
+        // Selalu dokumen induk (bukan Log) supaya klik notifikasi membuka dokumennya.
+        $this->assertSame(NotificationClassesTestDocument::class, $data['documentType']);
+        $this->assertSame($document->getKey(), $data['documentId']);
+
+        $this->assertInstanceOf(MailMessage::class, $notification->toMail($mentioned));
+
+        $broadcast = $notification->toBroadcast($mentioned);
+        $this->assertInstanceOf(BroadcastMessage::class, $broadcast);
+        $this->assertSame($data, $broadcast->data);
     }
 
     public function test_user_invited_notification_is_mail_only(): void {

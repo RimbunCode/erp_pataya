@@ -23,6 +23,10 @@ return [
         'title'   => 'Dokumen Baru',
         'message' => ':document baru dari :creator perlu diproses.',
     ],
+    'mention' => [
+        'title'   => 'Anda Disebut dalam Komentar',
+        'message' => ':commenter menyebut Anda dalam komentar di :document.',
+    ],
     'todo_assigned' => [
         'title'   => 'ToDo Baru Ditugaskan',
         'message' => ':assigner menugaskan Anda sebuah ToDo: :document',

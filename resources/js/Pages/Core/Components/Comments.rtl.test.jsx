@@ -47,14 +47,21 @@ vi.mock("@/lib/gooeyToast", () => ({
   gooeyToast: { error: (...a) => toastError(...a) },
 }));
 
+// Stub TiptapEditor menyerahkan prop `mentionSource` ke spy ini supaya test bisa
+// memanggil fungsi autocomplete persis seperti yang dilakukan editor asli.
+const { captureMentionSource } = vi.hoisted(() => ({
+  captureMentionSource: vi.fn(),
+}));
+
 // TiptapEditor adalah dependency berat (ProseMirror) yang tidak reliable
 // di jsdom -- stub dengan textarea sederhana yang expose ref imperative API
 // minimal (getHTML/isEmpty) yang dipakai Comments.jsx.
 vi.mock("@/Components/TiptapEditor", () => ({
   default: React.forwardRef(function TiptapEditorStub(
-    { value, onValueChange, placeholder },
+    { value, onValueChange, placeholder, mentionSource },
     ref,
   ) {
+    captureMentionSource(mentionSource);
     // getHTML() harus mencerminkan draft TERAKHIR yang diketik user di sesi
     // dialog ini, bukan `value` prop awal (yang untuk mode edit berisi
     // comment_json existing dan tidak berubah walau user mengetik ulang).
@@ -104,10 +111,15 @@ const logActivity = {
   data_after: { field: "value" },
 };
 
-function setPageProps({ logs = [baseLog], currentUserId = 1 } = {}) {
+function setPageProps({
+  logs = [baseLog],
+  currentUserId = 1,
+  mentionContext,
+} = {}) {
   usePageMock.mockReturnValue({
     props: {
       logs,
+      mentionContext,
       lang: "en",
       auth: { user: { id: currentUserId } },
     },
@@ -120,6 +132,7 @@ beforeEach(() => {
   routerPut.mockReset();
   routerDelete.mockReset();
   toastError.mockReset();
+  captureMentionSource.mockReset();
   delete window.location;
   window.location = new URL("https://example.test/todos/5?tab=activity");
   setPageProps();
@@ -296,5 +309,49 @@ describe("Comments", () => {
     );
 
     expect(routerPost).not.toHaveBeenCalled();
+  });
+
+  describe("autocomplete mention", () => {
+    async function openEditorAndGetMentionSource(user) {
+      render(<Comments />);
+      await user.click(
+        screen.getByRole("button", { name: /TR:core.form.add_comment/ }),
+      );
+      await screen.findByTestId("tiptap-stub");
+      return captureMentionSource.mock.calls.at(-1)[0];
+    }
+
+    it("mengirim konteks dokumen (model + id) ke endpoint autocomplete bila tersedia", async () => {
+      const user = userEvent.setup({ delay: null });
+      setPageProps({
+        mentionContext: { model: "App\Models\Core\Todo", id: "01TODO" },
+      });
+      axiosGet.mockResolvedValue({ data: [{ id: "u1", name: "Budi" }] });
+
+      const mentionSource = await openEditorAndGetMentionSource(user);
+      const result = await mentionSource("bu");
+
+      expect(axiosGet).toHaveBeenCalledWith("users.index", {
+        params: {
+          search: "bu",
+          limit: 10,
+          document_model: "App\Models\Core\Todo",
+          document_id: "01TODO",
+        },
+      });
+      expect(result).toEqual([{ id: "u1", label: "Budi" }]);
+    });
+
+    it("tanpa konteks dokumen, parameter lama tetap persis sama", async () => {
+      const user = userEvent.setup({ delay: null });
+      axiosGet.mockResolvedValue({ data: [] });
+
+      const mentionSource = await openEditorAndGetMentionSource(user);
+      await mentionSource("bu");
+
+      expect(axiosGet).toHaveBeenCalledWith("users.index", {
+        params: { search: "bu", limit: 10 },
+      });
+    });
   });
 });
