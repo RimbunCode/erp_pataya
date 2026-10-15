@@ -823,6 +823,12 @@ trait DataTable {
                     ->get(),
                 'logs',
             ),
+            // Konteks dokumen utk autocomplete mention di Comments: dikirim balik ke
+            // users.index supaya kandidat dibatasi ke user yang boleh membaca dokumen ini.
+            'mentionContext' => [
+                'model' => static::class,
+                'id'    => $this->id,
+            ],
             'tags' => Inertia::defer(
                 fn () => $this->tags()->get(['id', 'name']),
                 'tags',
