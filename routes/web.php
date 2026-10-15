@@ -58,6 +58,18 @@ use App\Http\Controllers\Inventory\StockLedgerController;
 use App\Http\Controllers\Inventory\UnitController;
 use App\Http\Controllers\Inventory\WarehouseController;
 use App\Http\Controllers\ModelController;
+use App\Http\Controllers\Report\ReportIssueController;
+use App\Http\Controllers\Report\StockBalanceReportController;
+use App\Http\Controllers\Report\PurchaseInvoiceReportController;
+use App\Http\Controllers\Report\PurchaseReportController;
+use App\Http\Controllers\Report\ReportExportController;
+use App\Http\Controllers\Report\ReportRecountController;
+use App\Http\Controllers\Report\SalesInvoiceReportController;
+use App\Http\Controllers\Report\SparepartUsageReportController;
+use App\Http\Controllers\Report\TeamActivityReportController;
+use App\Http\Controllers\Report\WorkOrderMonitoringReportController;
+use App\Http\Controllers\Report\SalesReportController;
+use App\Http\Controllers\Report\StockMutationReportController;
 use App\Http\Controllers\Purchase\ItemRequestController;
 use App\Http\Controllers\Purchase\PurchaseOrderController;
 use App\Http\Controllers\Purchase\PurchaseReceiptController;
@@ -391,6 +403,21 @@ Route::middleware(['auth', 'lang', 'onboarded', 'app', 'desk'])->group(function 
     Route::resourceDetail('ticket', TicketController::class);
     Route::put('/tickets/{ticket}/markDone', [TicketController::class, 'markDone'])->name('tickets.markDone');
     Route::put('/tickets/{ticket}/updateTicket', [TicketController::class, 'updateTicket'])->name('tickets.updateTicket');
+
+    // / Report Group
+    // Laporan masalah dari banner ketidakcocokan KPI (bukan Ticket di menu Helpdesk)
+    Route::post('/reports/issues', [ReportIssueController::class, 'store'])->name('reports.issues.store');
+    Route::get('/reports/stock-balance', [StockBalanceReportController::class, 'index'])->name('reports.stockBalance');
+    Route::get('/reports/stock-mutation', [StockMutationReportController::class, 'index'])->name('reports.stockMutation');
+    Route::get('/reports/sales', [SalesReportController::class, 'index'])->name('reports.sales');
+    Route::get('/reports/purchase', [PurchaseReportController::class, 'index'])->name('reports.purchase');
+    Route::get('/reports/sales-invoice', [SalesInvoiceReportController::class, 'index'])->name('reports.salesInvoice');
+    Route::get('/reports/purchase-invoice', [PurchaseInvoiceReportController::class, 'index'])->name('reports.purchaseInvoice');
+    Route::get('/reports/work-order', [WorkOrderMonitoringReportController::class, 'index'])->name('reports.workOrder');
+    Route::get('/reports/sparepart-usage', [SparepartUsageReportController::class, 'index'])->name('reports.sparepartUsage');
+    Route::get('/reports/team-activity', [TeamActivityReportController::class, 'index'])->name('reports.teamActivity');
+    Route::get('/reports/export/{report}/{format}', [ReportExportController::class, 'export'])->name('reports.export')->whereIn('format', ['pdf', 'csv']);
+    Route::get('/reports/recount/{report}', [ReportRecountController::class, 'recount'])->name('reports.recount');
     // Changelog
     Route::get('/changelogs', [ChangelogController::class, 'index'])->name('changelogs.index');
     // / Helpdesk Group End
