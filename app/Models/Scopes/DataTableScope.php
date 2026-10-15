@@ -132,8 +132,11 @@ class DataTableScope implements Scope {
      * (aturan non-listing berbasis afiliasi user) karena macro ini dipakai baik
      * oleh index resource maupun endpoint generic ModelController::datatable()/
      * selectData() — keduanya sama-sama listing meski nama route-nya berbeda.
+     *
+     * Publik supaya jalur KPI laporan (spec modul-laporan, Req 4.1 dan 6.4) memakai
+     * aturan cabang yang sama persis dengan macro dataTable().
      */
-    private function applyBranchFilter(Builder $query): void {
+    public static function applyBranchFilter(Builder $query): void {
         $model = $query->getModel();
         if (! \method_exists($model, 'getBranchColumn')) {
             return;

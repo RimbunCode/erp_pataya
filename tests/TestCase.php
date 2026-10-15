@@ -7,6 +7,7 @@ use App\Services\Core\BranchScopeCache;
 use App\Services\Core\DataTableConfigCache;
 use App\Services\Core\SchemaColumnCache;
 use Illuminate\Foundation\Testing\TestCase as BaseTestCase;
+use Illuminate\Support\Facades\DB;
 
 abstract class TestCase extends BaseTestCase {
     protected function setUp(): void {
@@ -34,5 +35,13 @@ abstract class TestCase extends BaseTestCase {
         // Memo flat() DataTableConfigCache, statis per proses: tanpa reset, konfigurasi
         // kolom dari test lain (skema/konfigurasi model berbeda) bisa nyangkut.
         DataTableConfigCache::forgetMemo();
+
+        // View laporan (modul-laporan) membaca tabel sumber. Di SQLite, ALTER TABLE yang
+        // dipakai initPermissions() untuk menambah kolom runtime gagal bila view memakai
+        // tabel itu ("no such table: main.sales_orders" saat rename). Mode legacy menonaktifkan
+        // pemeriksaan view tersebut. Hanya berlaku untuk koneksi SQLite (tes).
+        if (DB::getDriverName() === 'sqlite') {
+            DB::statement('PRAGMA legacy_alter_table = ON');
+        }
     }
 }
