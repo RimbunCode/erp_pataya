@@ -173,11 +173,11 @@ class DeskSeeder extends Seeder {
      * ini bukan pilihan langsung di picker MenuItem — hanya jadi parent_id
      * target bagi child-nya lewat parameter $group pada menuItem()).
      */
-    private function menuGroup(string $label, string $icon, Domain $domain): void {
+    private function menuGroup(string $label, string $icon, Domain $domain, ?string $displayLabel = null): void {
         $this->menuGroups[$label] = MenuItem::updateOrCreate(
             ['route_name' => '_group.' . \str($label)->slug()],
             [
-                'label'           => $label,
+                'label'           => $displayLabel ?? $label,
                 'icon'            => $icon,
                 'model'           => null,
                 'order'           => 0,
@@ -213,7 +213,7 @@ class DeskSeeder extends Seeder {
         $this->menuGroup('Workflow', 'Workflow', Domain::Core);
         $this->menuGroup('Templates', 'LayoutTemplate', Domain::Core);
         $this->menuGroup('Dashboard Widgets', 'Gauge', Domain::Core);
-        $this->menuGroup('Laporan', 'Gauge', Domain::Core);
+        $this->menuGroup('Laporan', 'Gauge', Domain::Core, 'Reports');
 
         // Dashboard/Approvals/ToDo/Manual Book — TIDAK di-seed di sini lagi.
         // Feedback user: 4 menu ini wajib ada di SEMUA desk (termasuk custom
@@ -328,31 +328,31 @@ class DeskSeeder extends Seeder {
         // Laporan (spec modul-laporan, Req 17): grup "Laporan" berisi sembilan laporan. Visibilitas
         // mengikuti izin modul sumber masing-masing (Req 6.3), jadi grup tidak tampil bila pengguna
         // tidak berizin atas satu pun laporan di dalamnya.
-        $this->menuItem('Stok Persediaan', 'Gauge', 'reports.stockBalance', null, [Domain::Core], 1, group: 'Laporan', visibilityPermission: [
+        $this->menuItem('Stock Balance', 'Gauge', 'reports.stockBalance', null, [Domain::Core], 1, group: 'Laporan', visibilityPermission: [
             'any' => [[StockLedgerEntry::class, Permission::Select]],
         ]);
-        $this->menuItem('Mutasi Stock', 'Gauge', 'reports.stockMutation', null, [Domain::Core], 2, group: 'Laporan', visibilityPermission: [
+        $this->menuItem('Stock Mutation', 'Gauge', 'reports.stockMutation', null, [Domain::Core], 2, group: 'Laporan', visibilityPermission: [
             'any' => [[StockLedgerEntry::class, Permission::Select]],
         ]);
-        $this->menuItem('Laporan Penjualan', 'Gauge', 'reports.sales', null, [Domain::Core], 3, group: 'Laporan', visibilityPermission: [
+        $this->menuItem('Sales Report', 'Gauge', 'reports.sales', null, [Domain::Core], 3, group: 'Laporan', visibilityPermission: [
             'any' => [[SalesOrder::class, Permission::Select]],
         ]);
-        $this->menuItem('Laporan Pembelian', 'Gauge', 'reports.purchase', null, [Domain::Core], 4, group: 'Laporan', visibilityPermission: [
+        $this->menuItem('Purchase Report', 'Gauge', 'reports.purchase', null, [Domain::Core], 4, group: 'Laporan', visibilityPermission: [
             'any' => [[PurchaseOrder::class, Permission::Select]],
         ]);
-        $this->menuItem('Laporan Invoice Penjualan', 'Gauge', 'reports.salesInvoice', null, [Domain::Core], 5, group: 'Laporan', visibilityPermission: [
+        $this->menuItem('Sales Invoice Report', 'Gauge', 'reports.salesInvoice', null, [Domain::Core], 5, group: 'Laporan', visibilityPermission: [
             'any' => [[SalesInvoice::class, Permission::Select]],
         ]);
-        $this->menuItem('Laporan Invoice Pembelian', 'Gauge', 'reports.purchaseInvoice', null, [Domain::Core], 6, group: 'Laporan', visibilityPermission: [
+        $this->menuItem('Purchase Invoice Report', 'Gauge', 'reports.purchaseInvoice', null, [Domain::Core], 6, group: 'Laporan', visibilityPermission: [
             'any' => [[PurchaseInvoice::class, Permission::Select]],
         ]);
-        $this->menuItem('Monitoring Work Order', 'Gauge', 'reports.workOrder', null, [Domain::Core], 7, group: 'Laporan', visibilityPermission: [
+        $this->menuItem('Work Order Monitoring', 'Gauge', 'reports.workOrder', null, [Domain::Core], 7, group: 'Laporan', visibilityPermission: [
             'any' => [[AssetService::class, Permission::Select]],
         ]);
-        $this->menuItem('Laporan Pemakaian Sparepart', 'Gauge', 'reports.sparepartUsage', null, [Domain::Core], 8, group: 'Laporan', visibilityPermission: [
+        $this->menuItem('Sparepart Usage Report', 'Gauge', 'reports.sparepartUsage', null, [Domain::Core], 8, group: 'Laporan', visibilityPermission: [
             'any' => [[AssetService::class, Permission::Select]],
         ]);
-        $this->menuItem('Laporan Anggota Tim', 'Gauge', 'reports.teamActivity', null, [Domain::Core], 9, group: 'Laporan', visibilityPermission: [
+        $this->menuItem('Team Member Report', 'Gauge', 'reports.teamActivity', null, [Domain::Core], 9, group: 'Laporan', visibilityPermission: [
             'any' => [[AssetService::class, Permission::Select]],
         ]);
 
