@@ -6,6 +6,7 @@ use App\Enums\Permission as PermissionAction;
 use App\Models\User\Permission;
 use App\Models\User\RolePermission;
 use Illuminate\Database\Eloquent\Model;
+use Illuminate\Support\Facades\DB;
 
 /**
  * Menentukan siapa saja (dari daftar kandidat) yang boleh membaca satu dokumen,
@@ -50,13 +51,21 @@ class MentionAudienceResolver {
      * Saring `$candidateIds` ke user yang punya akses `read` atas dokumen.
      * SATU query bulk untuk semua kandidat, bukan satu query per kandidat.
      *
+     * `$document` boleh null bila dokumennya tidak diketahui (mis. id tidak dikirim);
+     * aturan only_creator dan cabang lalu tidak bisa dievaluasi, jadi hanya kandidat
+     * yang punya entry `read` non-only_creator yang lolos.
+     *
      * @param  class-string<Model>  $modelClass  harus sudah lolos resolveModelClass()
-     * @param  string|null  $documentCreatorId  `created_by_id` dokumen; null bila dokumen belum ada / tak punya kolom itu
      * @param  array<int, string>  $candidateIds
      * @return array<int, string> subset `$candidateIds`, urutan asli dipertahankan
      */
-    public function readableBy(string $modelClass, ?string $documentCreatorId, array $candidateIds): array {
+    public function readableBy(string $modelClass, ?Model $document, array $candidateIds): array {
         $candidateIds = array_values(array_unique($candidateIds));
+        if ($candidateIds === []) {
+            return [];
+        }
+
+        $candidateIds = $this->affiliatedWithDocumentBranch($modelClass, $document, $candidateIds);
         if ($candidateIds === []) {
             return [];
         }
@@ -66,6 +75,9 @@ class MentionAudienceResolver {
         if (method_exists($modelClass, 'ignoresPermission') && $modelClass::ignoresPermission()) {
             return $candidateIds;
         }
+
+        $creatorId = $document?->getAttribute('created_by_id');
+        $creatorId = $creatorId === null ? null : (string) $creatorId;
 
         $rows = RolePermission::query()
             ->join('user_role', 'user_role.role_id', '=', 'role_permissions.role_id')
@@ -91,14 +103,61 @@ class MentionAudienceResolver {
 
         return array_values(array_filter(
             $candidateIds,
-            function (string $userId) use ($access, $documentCreatorId): bool {
+            function (string $userId) use ($access, $creatorId): bool {
                 $entry = $access[$userId] ?? null;
                 if ($entry === null) {
                     return false;
                 }
 
-                return $entry['all'] || ($entry['own'] && $documentCreatorId !== null && $documentCreatorId === $userId);
+                return $entry['all'] || ($entry['own'] && $creatorId !== null && $creatorId === $userId);
             },
+        ));
+    }
+
+    /**
+     * Saring kandidat ke yang berafiliasi dengan cabang dokumen, untuk model ber-HasBranch.
+     *
+     * HasBranch::bootHasBranch() tidak bisa dipakai langsung di sini: global scope itu
+     * menjawab "baris mana yang boleh dilihat user yang SEDANG login" lewat Auth::user()
+     * dan session `currentBranch`, sedangkan di sini yang dinilai adalah banyak kandidat
+     * sekaligus yang tidak punya session. Aturan setaranya dievaluasi lewat pivot
+     * `user_branch`: kandidat lolos bila terafiliasi ke cabang dokumen, atau terafiliasi
+     * ke main branch (bootHasBranch() juga membebaskan user main-branch dari filter).
+     *
+     * Model tanpa HasBranch tidak tersaring, dan dokumen tanpa nilai branch juga tidak:
+     * tidak ada cabang untuk dibandingkan.
+     *
+     * @param  class-string<Model>  $modelClass
+     * @param  array<int, string>  $candidateIds
+     * @return array<int, string>
+     */
+    private function affiliatedWithDocumentBranch(string $modelClass, ?Model $document, array $candidateIds): array {
+        if ($document === null || ! method_exists($modelClass, 'getBranchColumn')) {
+            return $candidateIds;
+        }
+
+        $branchId = $document->getAttribute($modelClass::getBranchColumn());
+        if ($branchId === null) {
+            return $candidateIds;
+        }
+
+        // whereNull('branches.deleted_at'): query builder mentah melewati global scope
+        // SoftDeletes milik Branch, jadi cabang terhapus harus disaring di sini sendiri.
+        $affiliated = DB::table('user_branch')
+            ->join('branches', 'branches.id', '=', 'user_branch.branch_id')
+            ->whereIn('user_branch.user_id', $candidateIds)
+            ->whereNull('branches.deleted_at')
+            ->where(function ($query) use ($branchId): void {
+                $query->where('user_branch.branch_id', $branchId)
+                    ->orWhere('branches.is_main_branch', true);
+            })
+            ->pluck('user_branch.user_id')
+            ->map(fn ($id) => (string) $id)
+            ->all();
+
+        return array_values(array_filter(
+            $candidateIds,
+            fn (string $userId) => \in_array($userId, $affiliated, true),
         ));
     }
 }
