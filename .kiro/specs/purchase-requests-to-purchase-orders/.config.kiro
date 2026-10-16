@@ -1,0 +1,1 @@
+{"specId":"purchase-requests-to-purchase-orders","workflowType":"requirements-first","specType":"feature","description":"Pilih beberapa Purchase Request dari DataTable2, alokasikan item per supplier, lengkapi satu atau beberapa Purchase Order, lalu simpan semua sebagai draft secara atomik"}

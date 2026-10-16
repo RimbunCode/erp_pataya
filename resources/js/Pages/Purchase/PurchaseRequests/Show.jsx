@@ -1,5 +1,3 @@
-import { calculateArray, isValidStatus } from "@/lib/utils";
-
 import { Button } from "@/Components/ui/button";
 import Form from "./Form";
 import { FormPage } from "@/Pages/Core/FormPage";
@@ -19,11 +17,7 @@ export default function Show({ purchaseRequest, defaultData }) {
       disabled={purchaseRequest?.submitted_at}
       submitable
       controls={() => {
-        if (
-          purchaseRequest?.submitted_at &&
-          isValidStatus(purchaseRequest?.status) &&
-          calculateArray(purchaseRequest.items, "unordered_quantity", "+") > 0
-        ) {
+        if (purchaseRequest?.canCreatePo) {
           return (
             <Button
               type="button"

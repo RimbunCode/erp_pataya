@@ -462,15 +462,16 @@ const FormTableItem = memo(function FormTableItem({
   className,
   defaultRowFieldCount,
   forceCanDelete,
+  fixedRows,
   rowAdditionalData,
   keyItem = "id",
   actions,
 }) {
   const rowKey = item?.[keyItem];
   const { attributes, listeners, setNodeRef, transform, transition } =
-    useSortable({ id: rowKey });
+    useSortable({ id: rowKey, disabled: fixedRows });
   const rowFieldCount = getRowFieldCount(item);
-  const isEmptyRow = rowFieldCount <= defaultRowFieldCount;
+  const isEmptyRow = !fixedRows && rowFieldCount <= defaultRowFieldCount;
   const style = {
     transform: CSS.Transform.toString(transform),
     transition,
@@ -495,24 +496,27 @@ const FormTableItem = memo(function FormTableItem({
       <div className="px-1 justify-center! text-left ">
         <span
           className={cn(
-            !(isEmptyRow && isLast) &&
+            !fixedRows &&
+              !(isEmptyRow && isLast) &&
               !(readOnly || disabled) &&
               "group-hover:hidden",
           )}
         >
           {index + 1}
         </span>
-        <button
-          className={cn(
-            "hidden cursor-move group-hover:inline ",
-            ((isEmptyRow && isLast) || readOnly || disabled) && "hidden!",
-          )}
-          type="button"
-          {...listeners}
-          {...attributes}
-        >
-          <GripVerticalIcon className="size-5" />
-        </button>
+        {!fixedRows && (
+          <button
+            className={cn(
+              "hidden cursor-move group-hover:inline ",
+              ((isEmptyRow && isLast) || readOnly || disabled) && "hidden!",
+            )}
+            type="button"
+            {...listeners}
+            {...attributes}
+          >
+            <GripVerticalIcon className="size-5" />
+          </button>
+        )}
       </div>
       {columns &&
         columns.map((col) => {
@@ -540,16 +544,18 @@ const FormTableItem = memo(function FormTableItem({
         })}
       <div className="flex items-center px-1 gap-x-1">
         {actions && actions({ row: item, index, toggleDialog })}
-        <Button
-          type="button"
-          variant="ghost"
-          size="icon"
-          className="size-6 pointer-events-auto!"
-          onClick={toggleDialog}
-        >
-          <PencilIcon className="size-3" />
-        </Button>
-        {(!(readOnly || disabled) || forceCanDelete) && (
+        {!fixedRows && (
+          <Button
+            type="button"
+            variant="ghost"
+            size="icon"
+            className="size-6 pointer-events-auto!"
+            onClick={toggleDialog}
+          >
+            <PencilIcon className="size-3" />
+          </Button>
+        )}
+        {!fixedRows && (!(readOnly || disabled) || forceCanDelete) && (
           <Button
             type="button"
             variant="ghost"
@@ -664,6 +670,7 @@ export default memo(
       submitable = false,
       mapItem,
       forceCanDelete = false,
+      fixedRows = false,
       additionalData: _additionalData,
       asyncAdditionalData,
       actions,
@@ -770,7 +777,7 @@ export default memo(
       [defaultValueRow],
     );
     const [_data, _setData] = useState(() => {
-      return effectiveReadOnly || (disabled && value.length > 0)
+      return fixedRows || effectiveReadOnly || (disabled && value.length > 0)
         ? value.map((x) => withItemKey(x))
         : [
             ...value.map((x) =>
@@ -897,7 +904,7 @@ export default memo(
       ) {
         prevValueRef.current = value;
         idChanges.current = new Set(value.map((x) => getItemKey(x)));
-        if (effectiveReadOnly || (disabled && value.length > 0)) {
+        if (fixedRows || effectiveReadOnly || (disabled && value.length > 0)) {
           _setData(value.map((x) => withItemKey(x)));
           return;
         }
@@ -917,6 +924,7 @@ export default memo(
     }, [
       value,
       effectiveReadOnly,
+      fixedRows,
       disabled,
       applyMapItem,
       defaultValueRow,
@@ -933,7 +941,7 @@ export default memo(
           return;
         }
         const filteredData =
-          effectiveReadOnly || disabled ? data : data.slice(0, -1);
+          effectiveReadOnly || disabled || fixedRows ? data : data.slice(0, -1);
         const previousData = prevValueRef.current ?? [];
         if (isSameArrayReferences(filteredData, previousData)) {
           return;
@@ -944,7 +952,13 @@ export default memo(
         }
         scheduleParentUpdate(filteredData, key, immediate);
       },
-      [disabled, onValueChange, effectiveReadOnly, scheduleParentUpdate],
+      [
+        disabled,
+        onValueChange,
+        effectiveReadOnly,
+        fixedRows,
+        scheduleParentUpdate,
+      ],
     );
 
     // Memperbarui data current
@@ -968,10 +982,13 @@ export default memo(
     const updateData = useCallback(
       (index, key, newValue) => {
         const update = (prevData) => {
-          const isLastRow = index === prevData.length - 1;
+          const isLastRow = !fixedRows && index === prevData.length - 1;
           if (
             (disabled && prevData.length > 0) ||
-            (!effectiveReadOnly && index === prevData.length - 1 && key == null)
+            (!fixedRows &&
+              !effectiveReadOnly &&
+              index === prevData.length - 1 &&
+              key == null)
           )
             return prevData;
           let newData = [...prevData];
@@ -1086,6 +1103,7 @@ export default memo(
         disabled,
         keyItem,
         effectiveReadOnly,
+        fixedRows,
         updateParent,
         withItemKey,
       ],
@@ -1233,6 +1251,7 @@ export default memo(
     );
     const handleDragOver = useCallback(
       (event) => {
+        if (fixedRows) return;
         const { active, over } = event;
         if (!over || active.id === over.id) {
           return;
@@ -1251,7 +1270,7 @@ export default memo(
           return result;
         });
       },
-      [_setData, keyItem, updateParent],
+      [_setData, fixedRows, keyItem, updateParent],
     );
     const sortableItems = useMemo(
       () => _data.map((row) => row?.[keyItem]),
@@ -1266,7 +1285,8 @@ export default memo(
     }, [effectiveReadOnly, dataBeforeItems, _data, keyItem]);
     const currentRow = _data[currentIndex];
     const currentRowFieldCount = getRowFieldCount(currentRow);
-    const isCurrentRowEmpty = currentRowFieldCount <= defaultRowFieldCount;
+    const isCurrentRowEmpty =
+      !fixedRows && currentRowFieldCount <= defaultRowFieldCount;
     const currentAdditionalData = currentRow?.[keyItem]
       ? additionalData?.[currentRow[keyItem]]
       : undefined;
@@ -1347,7 +1367,11 @@ export default memo(
             className="rounded-md grid grid-cols-[auto_1fr_auto] text-sm  max-w-full w-full overflow-x-auto   *:border-b *:border-muted-foreground/25"
             style={{
               gridTemplateColumns: `auto ${filteredColumns
-                .map((x) => `${x.width ?? 1}fr`)
+                .map((column) =>
+                  fixedRows
+                    ? `minmax(${column.minWidth ?? 110}px, ${column.width ?? 1}fr)`
+                    : `${column.width ?? 1}fr`,
+                )
                 .join(" ")} auto`,
             }}
           >
@@ -1446,6 +1470,7 @@ export default memo(
                             index == _data.length - 1 ? "rounded-b-md" : ""
                           }
                           forceCanDelete={!disabled && forceCanDelete}
+                          fixedRows={fixedRows}
                           actions={actions}
                         />
                       );
@@ -1490,14 +1515,14 @@ export default memo(
                     <div className="flex flex-row items-center justify-end gap-2">
                       {actions &&
                         actions({
-                          row: currentData,
+                          row: fixedRows ? currentRow : currentData,
                           index: currentIndex,
                           toggleDialog: () => {
                             setCurrentIndex(-1);
                             setCurrentData(null);
                           },
                         })}
-                      {!submitable && (
+                      {!fixedRows && !submitable && (
                         <>
                           {!isCurrentRowEmpty &&
                             !(effectiveReadOnly || disabled) &&
@@ -1578,7 +1603,8 @@ export default memo(
                             ))}
                         </>
                       )}
-                      {!isCurrentRowEmpty &&
+                      {!fixedRows &&
+                        !isCurrentRowEmpty &&
                         !(
                           effectiveReadOnly ||
                           disabled ||
@@ -1631,8 +1657,9 @@ export default memo(
                           )}
                         </>
                       )}
-                      {(!isCurrentRowEmpty ||
-                        currentIndex < _data.length - 1) &&
+                      {!fixedRows &&
+                        (!isCurrentRowEmpty ||
+                          currentIndex < _data.length - 1) &&
                         (!(
                           effectiveReadOnly ||
                           disabled ||

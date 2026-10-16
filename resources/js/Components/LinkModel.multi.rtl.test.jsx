@@ -275,7 +275,9 @@ describe("LinkModel multi-model -- pencarian lintas sumber", () => {
         ).not.toBeInTheDocument(),
       { timeout: 3000 },
     );
-    expect(screen.getByRole("option", { name: /Beta/ })).toBeInTheDocument();
+    expect(
+      await screen.findByRole("option", { name: /Beta/ }),
+    ).toBeInTheDocument();
   });
 
   it("semua sumber kosong saat mencari -> 'tidak ditemukan'", async () => {

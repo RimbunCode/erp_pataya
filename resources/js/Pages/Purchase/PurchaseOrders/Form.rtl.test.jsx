@@ -88,7 +88,7 @@ vi.mock("@/Pages/Core/FormPage", async () => {
 // milik Form.jsx yang diuji, bukan mekanisme drag-drop/tabel FormTable itu
 // sendiri. Pola identik dgn PaymentSchedule.rtl.test.jsx.
 vi.mock("@/Components/FormTable", () => ({
-  default: ({ columns, value, onValueChange }) => {
+  default: ({ columns, value, onValueChange, fixedRows }) => {
     const rows = value ?? [];
     const updateRow = (index, keyOrObj, val) => {
       const next = [...rows];
@@ -102,7 +102,7 @@ vi.mock("@/Components/FormTable", () => ({
       onValueChange?.(next);
     };
     return (
-      <div data-testid="stub-form-table">
+      <div data-testid="stub-form-table" data-fixed-rows={String(!!fixedRows)}>
         {rows.map((row, index) => (
           <div key={row.id ?? index} data-testid={`row-${index}`}>
             {columns.map((col) => (
@@ -185,10 +185,11 @@ vi.mock("@/Pages/Finances/Taxes/TaxLinkModel", () => ({
 }));
 
 vi.mock("@/Pages/Inventory/Items/ItemUnitLinkModel", () => ({
-  default: ({ value, onValueChange }) => (
+  default: ({ value, onValueChange, fields }) => (
     <button
       type="button"
       data-testid="unit-link-model"
+      data-fields={JSON.stringify(fields)}
       onClick={() =>
         onValueChange?.({ id: 2, name: "BOX", conversion_factor: 12 })
       }
@@ -284,7 +285,7 @@ vi.mock("@/Pages/Finances/Components/PaymentSchedule", () => ({
   ),
 }));
 
-import Form from "./Form";
+import Form, { PurchaseOrderFields } from "./Form";
 import { TooltipProvider } from "@/Components/ui/tooltip";
 
 // NumberInput (dipakai kolom total readOnly) membungkus diri dengan
@@ -308,6 +309,42 @@ describe("PurchaseOrders Form", () => {
   beforeEach(() => {
     formPageSeed = {};
     setPageProps();
+  });
+
+  it("uses fixed FormTable rows and locked source identity for PR drafts", () => {
+    const data = {
+      date: "2026-10-14",
+      items: [
+        {
+          id: "allocation-1",
+          source_item_id: "pr-item-1",
+          purchase_request_code: "PR-001",
+          item: { id: "variant-1", name: "Part A", item_id: "product-1" },
+          unit: { id: "pcs", conversion_factor: 1 },
+          quantity: 2,
+          rate: 100,
+        },
+      ],
+    };
+    render(
+      <PurchaseOrderFields
+        data={data}
+        setData={vi.fn()}
+        sourceLocked
+        sourceItemActions={vi.fn()}
+      />,
+    );
+    expect(screen.getByTestId("stub-form-table")).toHaveAttribute(
+      "data-fixed-rows",
+      "true",
+    );
+    expect(screen.getByText("PR-001")).toBeInTheDocument();
+    expect(screen.getByText("Part A")).toBeInTheDocument();
+    expect(screen.getByTestId("unit-link-model")).toHaveAttribute(
+      "data-fields",
+      JSON.stringify(["conversion_factor"]),
+    );
+    expect(screen.queryByTestId("select-model-import")).not.toBeInTheDocument();
   });
 
   describe("kalkulasi total", () => {

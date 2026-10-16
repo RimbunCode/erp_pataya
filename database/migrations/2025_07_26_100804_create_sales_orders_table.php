@@ -12,6 +12,7 @@ return new class extends Migration
     public function up(): void {
         Schema::create('sales_orders', function (Blueprint $table) {
             $table->ulid('id')->primary();
+            $table->string('code')->nullable()->unique();
             $table->nullableUlidMorphs('referenceable');
             $table->foreignUlid('customer_id')->nullable()->references('id')->on('customers')->nullOnDelete();
             $table->string('customer_name')->nullable();

@@ -206,6 +206,7 @@ class ResolveActiveDeskTest extends TestCase {
         // request masuk ke route yang MenuItem-nya cuma terdaftar di desk lain
         // ("Purchase") — resolusi harus pindah, bukan bertahan di desk cookie.
         $user = User::factory()->create();
+        PurchaseRequest::initPermissions();
         $this->grantSelectPermission($user, PurchaseRequest::class);
 
         $serviceDesk  = Desk::factory()->create(['type' => DeskType::Custom, 'owner_id' => $user->id]);

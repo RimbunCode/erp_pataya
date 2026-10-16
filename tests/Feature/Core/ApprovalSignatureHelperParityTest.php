@@ -51,7 +51,7 @@ class ApprovalSignatureHelperParityTest extends TestCase {
     public function renders_image_only_without_options(): void {
         $this->assertSame(
             '<div class="approval-signature">'
-                . '<img src="data:image/png;base64,AAA" alt="' . e(__('user.signature.preview_alt')) . '" style="max-height:80px;display:block;" />'
+                . '<img src="data:image/png;base64,AAA" alt="' . e(__('user.signature.preview_alt')) . '" style="max-height:58px;display:block;margin:0 auto;" />'
                 . '</div>',
             $this->build($this->withImage()),
         );
@@ -61,7 +61,7 @@ class ApprovalSignatureHelperParityTest extends TestCase {
     public function adds_name_and_date_when_requested(): void {
         $this->assertSame(
             '<div class="approval-signature">'
-                . '<img src="data:image/png;base64,AAA" alt="' . e(__('user.signature.preview_alt')) . '" style="max-height:80px;display:block;" />'
+                . '<img src="data:image/png;base64,AAA" alt="' . e(__('user.signature.preview_alt')) . '" style="max-height:58px;display:block;margin:0 auto;" />'
                 . '<span style="display:block;">Budi</span>'
                 . '<span style="display:block;">1 Januari 2026</span>'
                 . '</div>',
@@ -139,7 +139,7 @@ class ApprovalSignatureHelperParityTest extends TestCase {
     public function creator_role_prints_image_and_name_without_date(): void {
         $this->assertSame(
             '<div class="approval-signature">'
-                . '<img src="data:image/png;base64,AAA" alt="' . e(__('user.signature.preview_alt')) . '" style="max-height:80px;display:block;" />'
+                . '<img src="data:image/png;base64,AAA" alt="' . e(__('user.signature.preview_alt')) . '" style="max-height:58px;display:block;margin:0 auto;" />'
                 . '<span style="display:block;">Pembuat</span>'
                 . '</div>',
             $this->build($this->creatorWithImage(), showName: true, showDate: true),
@@ -160,7 +160,7 @@ class ApprovalSignatureHelperParityTest extends TestCase {
     public function creator_role_image_only_without_options(): void {
         $this->assertSame(
             '<div class="approval-signature">'
-                . '<img src="data:image/png;base64,AAA" alt="' . e(__('user.signature.preview_alt')) . '" style="max-height:80px;display:block;" />'
+                . '<img src="data:image/png;base64,AAA" alt="' . e(__('user.signature.preview_alt')) . '" style="max-height:58px;display:block;margin:0 auto;" />'
                 . '</div>',
             $this->build($this->creatorWithImage()),
         );

@@ -12,6 +12,7 @@ return new class extends Migration
     public function up(): void {
         Schema::create('sales_invoices', function (Blueprint $table) {
             $table->ulid('id')->primary();
+            $table->string('code')->nullable()->unique();
             $table->timestamp('date');
             $table->foreignUlid('return_against_id')->nullable()->references('id')->on('sales_invoices')->nullOnDelete();
             $table->foreignUlid('debit_account_id')->nullable()->references('id')->on('accounts')->nullOnDelete();

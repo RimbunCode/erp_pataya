@@ -1,8 +1,9 @@
 import { FormPageContent, useFormPage } from "@/Pages/Core/FormPage";
 import React, { useCallback, useEffect } from "react";
 import SelectModel, { loadFromModel } from "@/Components/SelectModel";
-import { calculateArray, generateRandom } from "@/lib/utils";
+import { generateRandom } from "@/lib/utils";
 import { allocateDiscount } from "@/lib/discountAllocation";
+import { calculatePurchaseOrderAmounts } from "./purchaseOrderAmounts";
 
 import AdditionalDiscount from "@/Pages/Finances/Components/AdditionalDiscount";
 import NumberInput from "@/Components/NumberInput";
@@ -23,14 +24,17 @@ import { useLaravelReactI18n } from "laravel-react-i18n";
 import { useMemo } from "react";
 import { usePage } from "@inertiajs/react";
 
-function Form() {
+export function PurchaseOrderFields({
+  data,
+  setData,
+  defaultData,
+  disabled,
+  dataBefore,
+  sourceLocked = false,
+  sourceItemActions,
+  renderSourceWarning,
+}) {
   const { t } = useLaravelReactI18n();
-  const { data, setData, defaultData, disabled, dataBefore } = useFormPage(
-    {
-      date: new Date(),
-    },
-    { trackDefaultValue: false },
-  );
   const loadFrom = usePage().props.loadFrom;
   const { default_currency_id } = usePage().props.preferences;
 
@@ -48,53 +52,17 @@ function Form() {
   // di bawah (yang sudah hasil alokasi) karena kalau basis diskon ikut memakai
   // angka yang sudah terpotong, discount_rate 10% akan memotong basis yang sudah
   // menyusut di setiap render -- basis "menyusut" terus tiap kali user mengetik.
-  const rawLines = useMemo(() => {
-    return (data.items ?? [])
-      .filter((item) => item?.item)
-      .map((item) => ({
-        basic_amount: (item.quantity ?? 0) * (item.rate ?? 0),
-        tax_rate: item.tax?.rate ?? 0,
-      }));
-  }, [data.items]);
-
-  const rawNetAmount = useMemo(() => {
-    return calculateArray(rawLines, "basic_amount", "+");
-  }, [rawLines]);
-
-  const rawTaxAmount = useMemo(() => {
-    return rawLines.reduce(
-      (sum, line) => sum + (line.basic_amount * line.tax_rate) / 100,
-      0,
+  const { rawNetAmount, rawTaxAmount, net_amount, tax_amount, amount } =
+    useMemo(
+      () => calculatePurchaseOrderAmounts(data),
+      [
+        data.items,
+        data.discount_on,
+        data.discount_rate,
+        data.discount_amount,
+        data.latestDiscountKey,
+      ],
     );
-  }, [rawLines]);
-
-  const allocatedLines = useMemo(() => {
-    return allocateDiscount(
-      rawLines,
-      data.discount_on,
-      data.discount_rate ?? 0,
-      data.discount_amount ?? 0,
-      data.latestDiscountKey ?? "discount_rate",
-    );
-  }, [
-    rawLines,
-    data.discount_on,
-    data.discount_rate,
-    data.discount_amount,
-    data.latestDiscountKey,
-  ]);
-
-  const net_amount = useMemo(() => {
-    return calculateArray(allocatedLines, "basic_amount", "+");
-  }, [allocatedLines]);
-
-  const tax_amount = useMemo(() => {
-    return calculateArray(allocatedLines, "tax_amount", "+");
-  }, [allocatedLines]);
-
-  const amount = useMemo(() => {
-    return net_amount + tax_amount;
-  }, [net_amount, tax_amount]);
 
   const mergeItems = useCallback(
     ({ items, model }) => {
@@ -147,7 +115,7 @@ function Form() {
     [setData],
   );
   useEffect(() => {
-    if (!loadFrom) return;
+    if (sourceLocked || !loadFrom) return;
     const fetchData = async () => {
       const result = await loadFromModel(
         loadFrom?.model,
@@ -158,7 +126,7 @@ function Form() {
       if (result) mergeItems(result);
     };
     fetchData().catch(console.error);
-  }, [loadFrom, mergeItems, t]);
+  }, [loadFrom, mergeItems, sourceLocked, t]);
 
   const handleBarcodeSelect = useCallback(
     (selected) => {
@@ -302,6 +270,7 @@ function Form() {
           return (
             <ItemUnitLinkModel
               disabled={!dataRow?.item}
+              fields={sourceLocked ? ["conversion_factor"] : undefined}
               placeholder={t("purchase.purchaseOrder.columns.unit.placeholder")}
               value={data}
               onValueChange={(val) =>
@@ -364,7 +333,32 @@ function Form() {
         },
       },
     ];
-  }, [data, t]);
+  }, [data, sourceLocked, t]);
+  const sourceColumns = sourceLocked
+    ? itemColumns.map((column) => {
+        if (column.name === "item") {
+          return {
+            ...column,
+            locked: true,
+            minWidth: 220,
+            cell: ({ dataRow }) => (
+              <div className="min-w-0 px-2 py-1 text-left">
+                <span className="block text-xs text-muted-foreground">
+                  {dataRow.purchase_request_code}
+                </span>
+                <span className="block break-words font-medium">
+                  {dataRow.item?.name ?? dataRow.item?.code ?? dataRow.item?.id}
+                </span>
+                {renderSourceWarning?.(dataRow.source_item_id)}
+              </div>
+            ),
+          };
+        }
+        return column.name === "unit"
+          ? { ...column, required: true, locked: true, minWidth: 140 }
+          : column;
+      })
+    : itemColumns;
   return (
     <>
       <FormPageContent
@@ -475,6 +469,7 @@ function Form() {
         value="detail"
         title={t("purchase.purchaseOrder.items")}
         actions={
+          !sourceLocked &&
           !data.submitted_at && (
             <SelectModel
               from={{
@@ -532,12 +527,17 @@ function Form() {
         }
       >
         <div className="grid grid-cols-2 gap-x-4 gap-y-4">
-          <FormInput name="barcode" label={t("core.form.input_barcode.label")}>
-            <ItemBarcode
-              with={["item", "unit"]}
-              onSelect={handleBarcodeSelect}
-            />
-          </FormInput>
+          {!sourceLocked && (
+            <FormInput
+              name="barcode"
+              label={t("core.form.input_barcode.label")}
+            >
+              <ItemBarcode
+                with={["item", "unit"]}
+                onSelect={handleBarcodeSelect}
+              />
+            </FormInput>
+          )}
           <FormInput
             label={t("purchase.purchaseOrder.columns.target_warehouse")}
             name="target_warehouse"
@@ -572,12 +572,32 @@ function Form() {
           <div className="col-span-full">
             <FormTable
               name="PurchaseOrderItems"
+              fixedRows={sourceLocked}
               readOnly={disabled}
-              columns={itemColumns}
+              columns={sourceColumns}
               value={data?.items}
               valueBefore={dataBefore?.items}
               onValueChange={(v) => setData("items", v)}
-              form={<ItemForm />}
+              form={
+                sourceLocked ? (
+                  ({ getColumn }) => (
+                    <div className="grid gap-3 md:grid-cols-2">
+                      {[
+                        "quantity",
+                        "unit",
+                        "rate",
+                        "tax",
+                        "target_warehouse",
+                        "required_date",
+                        "description",
+                      ].map((name) => getColumn(name))}
+                    </div>
+                  )
+                ) : (
+                  <ItemForm />
+                )
+              }
+              actions={sourceLocked ? sourceItemActions : undefined}
               mapItem={({ item, dataTable, index }) => {
                 // Diskon dokumen (Diskon Tambahan) mengubah discount_amount/tax_amount
                 // SETIAP baris secara pro-rata, bukan cuma baris yang sedang di-edit --
@@ -743,6 +763,12 @@ function Form() {
       />
     </>
   );
+}
+
+function Form() {
+  const form = useFormPage({ date: new Date() }, { trackDefaultValue: false });
+
+  return <PurchaseOrderFields {...form} />;
 }
 
 export default Form;

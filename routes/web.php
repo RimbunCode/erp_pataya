@@ -60,6 +60,7 @@ use App\Http\Controllers\Inventory\WarehouseController;
 use App\Http\Controllers\ModelController;
 use App\Http\Controllers\Purchase\ItemRequestController;
 use App\Http\Controllers\Purchase\PurchaseOrderController;
+use App\Http\Controllers\Purchase\PurchaseOrderFromRequestsController;
 use App\Http\Controllers\Purchase\PurchaseReceiptController;
 use App\Http\Controllers\Purchase\PurchaseRequestController;
 use App\Http\Controllers\Purchase\SupplierController;
@@ -375,6 +376,10 @@ Route::middleware(['auth', 'lang', 'onboarded', 'app', 'desk'])->group(function 
     // Purchase Request
     Route::resourceDetail('purchaseRequest', PurchaseRequestController::class, isSubmmitable: true);
     // Purchase Order
+    Route::post('purchaseOrders/from-requests/stage', [PurchaseOrderFromRequestsController::class, 'stage'])->name('purchaseOrders.fromRequests.stage');
+    Route::post('purchaseOrders/from-requests', [PurchaseOrderFromRequestsController::class, 'store'])->name('purchaseOrders.fromRequests.store');
+    Route::get('purchaseOrders/from-requests/result/{idempotencyKey}', [PurchaseOrderFromRequestsController::class, 'result'])->whereUuid('idempotencyKey')->name('purchaseOrders.fromRequests.result');
+    Route::get('purchaseOrders/from-requests/{token}', [PurchaseOrderFromRequestsController::class, 'workspace'])->whereUlid('token')->name('purchaseOrders.fromRequests.show');
     Route::resourceDetail('purchaseOrder', PurchaseOrderController::class, isSubmmitable: true);
     Route::post('purchaseOrders/{purchaseOrder}/sync-items', [PurchaseOrderController::class, 'syncItems'])->name('purchaseOrders.syncItems');
     Route::post('purchaseOrders/{purchaseOrder}/mark-done', [PurchaseOrderController::class, 'markDone'])->name('purchaseOrders.markDone');

@@ -740,8 +740,24 @@ class DataTableColumnSelector {
             $select[] = "{$parentTable}." . $relation->getForeignKeyName();
         }
 
-        $existingClosure = $this->childSelectClosure($model, $first, $safeRelationColumns[$firstSafe] ?? null);
-        $targetColumn    = $path['columnName'] ?? null;
+        $targetColumn = $path['columnName'] ?? null;
+        $childKeys    = [];
+        if ($relation instanceof HasOneOrMany) {
+            $childKeys[] = $relation->getForeignKeyName();
+            if ($relation instanceof MorphOneOrMany) {
+                $childKeys[] = $relation->getMorphType();
+            }
+        }
+
+        if (array_key_exists($first, $with) && $with[$first] === null) {
+            return;
+        }
+
+        $childSafe = $safeRelationColumns[$firstSafe] ?? [];
+        if (is_string($targetColumn) && $targetColumn !== '') {
+            $childSafe[$targetColumn] = true;
+        }
+        $existingClosure = $with[$first] ?? $this->childSelectClosure($model, $first, $childSafe, $childKeys);
 
         if ($targetColumn && $existingClosure) {
             $relatedClass = get_class($relation->getRelated());

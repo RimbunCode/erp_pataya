@@ -17,6 +17,7 @@ export default memo(
       hideBranchSwitcher = false,
       hideDeskSwitcher = false,
       hideHomeBreadcrumb = false,
+      viewportShell = false,
       ...props
     },
     ref,
@@ -33,10 +34,15 @@ export default memo(
 
     return (
       <MasterLayout>
-        <div className="relative mx-auto max-w-full print:invisible print:bg-white!">
+        <div
+          className={cn(
+            "relative mx-auto max-w-full print:invisible print:bg-white!",
+            viewportShell && "h-dvh overflow-hidden",
+          )}
+        >
           <SidebarProvider>
             {!hideSidebar && <AppSidebar className="print:hidden " />}
-            <SidebarInset>
+            <SidebarInset className={cn(viewportShell && "h-dvh min-h-0")}>
               <Navbar
                 actions={actions}
                 onOpenSearch={handleOpenSearch}
@@ -53,6 +59,7 @@ export default memo(
                 {...props}
                 className={cn(
                   "relative flex flex-col flex-1 max-h-full px-8 py-4 overflow-y-auto ",
+                  viewportShell && "min-h-0 overflow-hidden",
                   className,
                 )}
               >

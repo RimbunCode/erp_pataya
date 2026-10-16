@@ -13,7 +13,8 @@ return [
     'items'              => 'Item',
     'connections'        => 'Koneksi',
     'actions'            => [
-        'create_po' => 'Buat Purchase Order',
+        'create_po'        => 'Buat Purchase Order',
+        'create_po_failed' => 'Tidak dapat membuka pembuatan Purchase Order. Silakan coba lagi.',
     ],
     'import_items' => 'Impor Item',
     'columns'      => [

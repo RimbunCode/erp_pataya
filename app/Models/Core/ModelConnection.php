@@ -105,7 +105,7 @@ class ModelConnection extends Model {
         }
         $query
             ->selectRaw(
-                'id, IF(`model_type` = ?, `reference_type`, `model_type`) as reference_type, IF(`model_type` = ?, `reference_id`, `model_id`) as reference_id, IF(`model_type` = ?, `reference_display`, `model_display`) as reference_display, IF(`model_type` = ?, `model_type`, `reference_type`) as model_type, IF(`model_type` = ?, `model_id`, `reference_id`) as model_id, IF(`model_type` = ?, `model_display`, `reference_display`) as model_display, `data`, `is_manual`',
+                'id, CASE WHEN `model_type` = ? THEN `reference_type` ELSE `model_type` END as reference_type, CASE WHEN `model_type` = ? THEN `reference_id` ELSE `model_id` END as reference_id, CASE WHEN `model_type` = ? THEN `reference_display` ELSE `model_display` END as reference_display, CASE WHEN `model_type` = ? THEN `model_type` ELSE `reference_type` END as model_type, CASE WHEN `model_type` = ? THEN `model_id` ELSE `reference_id` END as model_id, CASE WHEN `model_type` = ? THEN `model_display` ELSE `reference_display` END as model_display, `data`, `is_manual`',
                 [$type, $type, $type, $type, $type, $type],
             );
 
@@ -207,7 +207,10 @@ class ModelConnection extends Model {
             }
 
             $referenceGrouped = ModelConnection::search($type, $referenceIds)
-                ->having('reference_type', $model)
+                ->where(function (Builder $query) use ($type, $model): void {
+                    $query->where(fn (Builder $direction) => $direction->where('model_type', $type)->where('reference_type', $model))
+                        ->orWhere(fn (Builder $direction) => $direction->where('reference_type', $type)->where('model_type', $model));
+                })
                 ->get()
                 ->groupBy('model_id');
 

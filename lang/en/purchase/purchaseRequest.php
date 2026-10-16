@@ -13,7 +13,8 @@ return [
     'items'              => 'Items',
     'connections'        => 'Connections',
     'actions'            => [
-        'create_po' => 'Create Purchase Order',
+        'create_po'        => 'Create Purchase Order',
+        'create_po_failed' => 'Unable to open Purchase Order creation. Please try again.',
     ],
     'import_items' => 'Import Items',
     'columns'      => [
