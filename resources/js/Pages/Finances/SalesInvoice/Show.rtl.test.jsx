@@ -278,6 +278,33 @@ describe("Show (SalesInvoice)", () => {
       );
     });
 
+    // `items` berisi baris biasa dan baris aset; keduanya dihitung untuk kelayakan nota kredit.
+    it("hanya baris aset yang masih punya unreturned_quantity: opsi Create Credit Note tetap muncul", async () => {
+      const user = userEvent.setup({ delay: null });
+      const salesInvoice = baseSalesInvoice({
+        id: 56,
+        status: "paid",
+        is_return: false,
+        items: [
+          { id: 1, unreturned_quantity: 0 },
+          { id: 2, unreturned_quantity: 3 },
+        ],
+      });
+      render(<Show salesInvoice={salesInvoice} defaultData={{}} />);
+
+      await user.click(
+        screen.getByRole("button", { name: /core.form.actions/ }),
+      );
+
+      const link = await screen.findByText(
+        "finances.salesInvoice.actions.create_credit_note",
+      );
+      expect(link.closest("a")).toHaveAttribute(
+        "href",
+        `salesInvoices.create/${JSON.stringify({ ref: "salesInvoice/56" })}`,
+      );
+    });
+
     it("is_return=true: opsi Create Credit Note tidak muncul meski unreturned_quantity > 0", async () => {
       const user = userEvent.setup({ delay: null });
       const salesInvoice = baseSalesInvoice({

@@ -82,6 +82,13 @@ const units = {
 function Print({ data: _data, printTemplate, lang }) {
   const route = window.route;
   const { t } = useLaravelReactI18n();
+  /**
+   * Nilai awal form dari template di DB. Hanya geometri halaman (paper, unit,
+   * orientation, width, height) yang diberi jaring pengaman untuk data lama;
+   * nilainya sama dengan default StandardPrintTemplateSeeder (A4, cm, portrait,
+   * 21 x 29.7). font_family dan page_number SENGAJA tidak diberi default di
+   * sini: DB (lewat seeder) yang mengisi, supaya semua jalur render konsisten.
+   */
   const initialTemplate = useMemo(() => {
     const normalizedOrientation =
       printTemplate?.orientation === "landscape" ? "landscape" : "portrait";
@@ -98,8 +105,6 @@ function Print({ data: _data, printTemplate, lang }) {
       unit,
       orientation: normalizedOrientation,
       default_language: printTemplate?.default_language || lang || "en",
-      page_number: printTemplate?.page_number ?? "bottom_right",
-      font_family: printTemplate?.font_family ?? "Times New Roman",
       width:
         printTemplate?.width ??
         (normalizedOrientation === "portrait" ? portraitWidth : portraitHeight),

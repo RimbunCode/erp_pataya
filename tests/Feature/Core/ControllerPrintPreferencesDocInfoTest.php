@@ -303,6 +303,47 @@ class ControllerPrintPreferencesDocInfoTest extends TestCase {
         );
     }
 
+    /**
+     * Slot "Dibuat oleh" (role="creator") di pratinjau klien dibaca dari prop
+     * `creatorSignature`: hasil resolver yang sama dengan render PDF server,
+     * dengan `date` selalu null.
+     */
+    public function test_print_response_contains_creator_signature_prop(): void {
+        $user          = User::factory()->create(['name' => 'Pembuat Dokumen']);
+        $printTemplate = $this->createPrintTemplate();
+        $salesOrder    = $this->createSalesOrder(['created_by_id' => $user->id]);
+
+        $response = $this->actingAs($user)
+            ->withSession(['permissions' => $this->makePermissions()])
+            ->get(route('salesOrders.print', ['salesOrder' => $salesOrder->id, 'printTemplate' => $printTemplate->id]));
+
+        $response->assertOk();
+        $response->assertInertia(
+            fn (Assert $page) => $page
+                ->component('Core/Print')
+                ->where('creatorSignature.name', 'Pembuat Dokumen')
+                ->where('creatorSignature.date', null)
+                ->where('creatorSignature.hasSignature', false),
+        );
+    }
+
+    public function test_print_response_creator_signature_is_null_without_creator(): void {
+        $user          = User::factory()->create();
+        $printTemplate = $this->createPrintTemplate();
+        $salesOrder    = $this->createSalesOrder();
+
+        $response = $this->actingAs($user)
+            ->withSession(['permissions' => $this->makePermissions()])
+            ->get(route('salesOrders.print', ['salesOrder' => $salesOrder->id, 'printTemplate' => $printTemplate->id]));
+
+        $response->assertOk();
+        $response->assertInertia(
+            fn (Assert $page) => $page
+                ->component('Core/Print')
+                ->where('creatorSignature', null),
+        );
+    }
+
     private function createPrintTemplate(array $overrides = []): PrintTemplate {
         return PrintTemplate::create(array_merge([
             'name'           => 'Test Print Template',

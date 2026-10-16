@@ -11,6 +11,7 @@ use App\Models\Core\ModelConnection;
 use App\Models\Core\PrintTemplate;
 use App\Models\Core\Tag;
 use App\Models\Core\Todo;
+use App\Models\Model;
 use App\Models\User\Permission;
 use App\Services\Core\BufferedAttachmentService;
 use App\Services\Core\DataTable\Group\GroupLevels;
@@ -772,6 +773,10 @@ trait DataTable {
                             ->get()
                             ->toArray(),
                     )
+                        // Baris audit memakai reference_type penanda bebas
+                        // (mis. 'sync', 'mark_done'), bukan nama kelas model.
+                        // Tanpa filter ini `new $reference_type` di bawah melempar Error.
+                        ->filter(fn ($connection) => is_subclass_of($connection['reference_type'] ?? '', Model::class))
                         ->groupBy('reference_type')
                         ->map(function ($connections) {
                             $reference_type = $connections[0]['reference_type'];
@@ -818,6 +823,12 @@ trait DataTable {
                     ->get(),
                 'logs',
             ),
+            // Konteks dokumen utk autocomplete mention di Comments: dikirim balik ke
+            // users.index supaya kandidat dibatasi ke user yang boleh membaca dokumen ini.
+            'mentionContext' => [
+                'model' => static::class,
+                'id'    => $this->id,
+            ],
             'tags' => Inertia::defer(
                 fn () => $this->tags()->get(['id', 'name']),
                 'tags',

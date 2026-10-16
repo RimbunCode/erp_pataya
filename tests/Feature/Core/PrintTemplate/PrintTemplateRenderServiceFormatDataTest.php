@@ -84,6 +84,20 @@ class PrintTemplateRenderServiceFormatDataTest extends TestCase {
         $this->assertSame('Rp 50.000', $result['amount']);
     }
 
+    public function test_formats_currency_column_with_row_currency_code(): void {
+        $result = $this->formatData(
+            ['amount' => 50000, 'currency_code' => 'IDR'],
+            ['SalesOrder' => [
+                'amount'        => ['type' => 'currency', 'decimalScale' => 0],
+                'currency_code' => ['hidden' => true],
+            ]],
+            ['model' => 'SalesOrder', 'currencySymbols' => ['IDR' => 'Rp']],
+        );
+
+        $this->assertSame('Rp 50.000', $result['amount']);
+        $this->assertSame('IDR', $result['currency_code']);
+    }
+
     public function test_formats_number_column_without_symbol(): void {
         $result = $this->formatData(
             ['quantity' => 1234.5],

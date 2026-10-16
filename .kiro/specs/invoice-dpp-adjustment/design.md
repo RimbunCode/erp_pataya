@@ -7,6 +7,7 @@ Menambahkan kolom `dpp_amount` (Dasar Pengenaan Pajak) pada `sales_invoice_items
 **Pattern utama:** mengikuti pola yang sudah dipakai `basic_amount`/`tax_amount` di kedua tabel secara penuh — baik `dpp_amount` maupun `tax_amount` tetap kolom **generated/stored** di level database (`storedAs()`), bukan dihitung/diisi di PHP. Ini konsisten 100% dengan konvensi existing, tidak menyimpang ke pola baru, dan tidak butuh perubahan apapun di service layer.
 
 **Yang berubah:**
+
 - Migration: tambah kolom `dpp_amount` (stored generated, formula `basic_amount * 11 / 12`), lalu ubah formula `tax_amount` (tetap generated) dari `basic_amount * tax_rate / 100` menjadi `dpp_amount * tax_rate / 100`.
 - Model `SalesInvoiceItem`, `PurchaseInvoiceItem`: cast + `configColumns` entry baru untuk `dpp_amount` (pakai `PRICE_VISIBILITY` yang sudah ada, konsisten dengan `basic_amount`/`tax_amount`).
 - FE `Form.jsx` (Sales & Purchase Invoice): tambah `useMemo` untuk agregasi `dpp_amount`, sisipkan baris DPP di summary antara Basic Amount dan Tax Amount.
@@ -20,10 +21,12 @@ Menambahkan kolom `dpp_amount` (Dasar Pengenaan Pajak) pada `sales_invoice_items
 Resolusi final: `tax_amount` **tetap generated**, formula diganti ke basis DPP, dan **seluruh baris (lama & baru) ikut memakai formula baru**. Nilai `tax_amount` pada invoice historis boleh bergeser — pergeseran ini murni penyesuaian basis perhitungan (`basic_amount` → `dpp_amount`, faktor `11/12`), bukan perubahan kebijakan pajak. Ini juga sudah direfleksikan sebagai revisi eksplisit di Requirement 4.3.
 
 **Konsekuensi:**
+
 - Desain jauh lebih sederhana dari draf sebelumnya — tidak ada perubahan service layer sama sekali, tidak ada kolom `tax_amount_legacy` sementara, tidak ada 3-titik-wajib-diisi-manual.
 - Satu-satunya downside: nominal `tax_amount` pada invoice/laporan lama yang sudah dicetak/dikirim ke pihak eksternal (customer, supplier, atau dilaporkan ke otoritas pajak) akan **berbeda** setelah migration dibanding sebelum migration. Ini adalah trade-off yang sudah disetujui secara sadar oleh pengguna — bukan efek samping yang tidak terduga.
 
 **Yang TIDAK berubah:**
+
 - `basic_amount` tetap `quantity * price` (Sales) / `quantity * rate` (Purchase) — tidak disentuh.
 - Service layer (`SalesInvoiceService`, `PurchaseInvoiceService`, `SalesOrderService`, `PurchaseOrderService`) — tidak disentuh sama sekali. `fillItemRelations` dan alur `create()`/`update()` tetap seperti sekarang.
 - Struktur `PrintTemplate` model/service — karena field template diambil otomatis dari `configColumns` model target (dikonfirmasi di `PrintTemplate::title()` yang membaca `translateKey` dinamis dari `$this->model`), menambah entry `dpp_amount` ke `configColumns` sudah cukup agar field itu muncul sebagai variabel yang bisa dipakai di editor print template — tidak perlu migrasi/kode tambahan di modul PrintTemplate itu sendiri.
@@ -58,6 +61,7 @@ flowchart LR
 ```
 
 **Data flow:**
+
 1. Saat item invoice dibuat/diperbarui lewat service layer yang **tidak berubah** (`SalesInvoiceService::fillItemRelations` dkk.), `basic_amount` dihitung DB sebagai generated column seperti sekarang.
 2. `dpp_amount` dihitung DB, generated dari `basic_amount` — murni migration-level, tidak ada sentuhan PHP.
 3. `tax_amount` generated dari `dpp_amount` (bukan `basic_amount` lagi) — hanya formulanya yang diganti, mekanismenya (generated column) tetap sama persis seperti sebelumnya.
@@ -96,11 +100,13 @@ Diverifikasi lewat `tests/Feature/InvoiceDppMigrationTest.php::test_purchase_inv
 ### 2. Model — `app/Models/Finances/SalesInvoiceItem.php`
 
 Tambah ke `$casts`:
+
 ```php
 'dpp_amount' => 'float',
 ```
 
 Tambah ke `$configColumns`, disisipkan antara `basic_amount` (order 4) dan `tax` (order 5) — geser order field setelahnya:
+
 ```php
 'dpp_amount' => [
     'type'       => 'currency',
@@ -117,6 +123,7 @@ Perubahan identik untuk `app/Models/Finances/PurchaseInvoiceItem.php` (disisipka
 ### 3. FE — `resources/js/Pages/Finances/SalesInvoice/Form.jsx`
 
 Tambah `useMemo` baru setelah `net_amount` (baris ~75-77 saat ini):
+
 ```jsx
 const dpp_amount = useMemo(() => {
   return calculateArray(data.items, "dpp_amount", "+");
@@ -134,34 +141,43 @@ Perubahan identik diterapkan ke `resources/js/Pages/Finances/PurchaseInvoice/For
 ### 4. Lang files
 
 `lang/en/finances/salesInvoice.php` dan `lang/id/finances/salesInvoice.php`, di array `columns`, sisipkan setelah `basic_amount`:
+
 ```php
 'dpp_amount' => 'DPP (Dasar Pengenaan Pajak)', // en
 'dpp_amount' => 'DPP (Dasar Pengenaan Pajak)', // id — sudah dalam Bahasa Indonesia
 ```
+
 Perubahan identik di `purchaseInvoice.php` (en & id).
 
 ### 5. Migrasi data existing
 
 `dpp_amount` dan `tax_amount` (formula baru) **keduanya** ter-backfill **otomatis** oleh DB — `dpp_amount` saat kolom generated ditambahkan, `tax_amount` saat kolom generated di-drop+re-add dengan formula baru. Tidak ada script backfill manual sama sekali; seluruh proses murni migration-level, konsisten dengan cara `basic_amount`/`tax_amount` sudah bekerja sejak awal di kedua tabel ini.
 
+### Follow-up: Sales Invoice Form and Customer Print
+
+- Tambah kolom `gross_amount` virtual di tabel Form Sales Invoice. Nilainya dihitung langsung dari `quantity × price`, read-only, dan tidak dikirim/disimpan ke database.
+- Tambah kolom `dpp_amount` read-only di tabel Form. Nilainya berasal dari `mapItem()` setelah diskon dialokasikan, sehingga sama dengan nilai item yang akan dipersist.
+- Tambah accessor `SalesInvoice::dpp_amount`, hanya saat relasi `items` telah termuat, untuk menjumlahkan `items.dpp_amount`. Atribut ini dipakai template cetak customer sebagai `doc.dpp_amount`; tidak ada kolom header maupun migration baru.
+- Standard Sales Invoice print mengganti label item `Jumlah` menjadi `Total Harga` (`this.basic_amount`) dan menambah baris ringkasan `DPP` (`doc.dpp_amount`). Tidak ada `this.dpp_amount` pada template cetak.
+
 ## Data Models
 
 **`sales_invoice_items` (setelah migration):**
 
-| Kolom | Tipe | Formula | Keterangan |
-|---|---|---|---|
-| `basic_amount` | double, stored (generated) | `quantity * price` | Tidak berubah |
-| `dpp_amount` | double, stored (generated) | `basic_amount * 11 / 12` | **Baru** |
-| `tax_amount` | double, stored (generated) | `dpp_amount * tax_rate / 100` | Formula berubah (basis `dpp_amount`, bukan `basic_amount`); tetap generated seperti sebelumnya |
+| Kolom          | Tipe                       | Formula                       | Keterangan                                                                                     |
+| -------------- | -------------------------- | ----------------------------- | ---------------------------------------------------------------------------------------------- |
+| `basic_amount` | double, stored (generated) | `quantity * price`            | Tidak berubah                                                                                  |
+| `dpp_amount`   | double, stored (generated) | `basic_amount * 11 / 12`      | **Baru**                                                                                       |
+| `tax_amount`   | double, stored (generated) | `dpp_amount * tax_rate / 100` | Formula berubah (basis `dpp_amount`, bukan `basic_amount`); tetap generated seperti sebelumnya |
 
 **`purchase_invoice_items` (setelah migration):**
 
-| Kolom | Tipe | Formula | Keterangan |
-|---|---|---|---|
-| `basic_amount` | double, stored (generated) | `quantity * rate` | Tidak berubah |
-| `dpp_amount` | double, stored (generated) | `basic_amount * 11 / 12` | **Baru** |
-| `tax_amount` | double, stored (generated) | `dpp_amount * tax_rate / 100` | Formula berubah; tetap generated |
-| `amount` | double, stored (generated) | `basic_amount + tax_amount` | Formula tidak berubah, tapi nilainya ikut bergeser mengikuti `tax_amount` baru |
+| Kolom          | Tipe                       | Formula                       | Keterangan                                                                     |
+| -------------- | -------------------------- | ----------------------------- | ------------------------------------------------------------------------------ |
+| `basic_amount` | double, stored (generated) | `quantity * rate`             | Tidak berubah                                                                  |
+| `dpp_amount`   | double, stored (generated) | `basic_amount * 11 / 12`      | **Baru**                                                                       |
+| `tax_amount`   | double, stored (generated) | `dpp_amount * tax_rate / 100` | Formula berubah; tetap generated                                               |
+| `amount`       | double, stored (generated) | `basic_amount + tax_amount`   | Formula tidak berubah, tapi nilainya ikut bergeser mengikuti `tax_amount` baru |
 
 ## Correctness Properties
 
@@ -169,16 +185,16 @@ Perubahan identik di `purchaseInvoice.php` (en & id).
 2. **Konsistensi tax:** untuk setiap item invoice (baru maupun lama, setelah migration), `tax_amount == dpp_amount * tax_rate / 100` selalu benar — dijamin DB generated column.
 3. **Non-negatif:** `dpp_amount >= 0` bila `basic_amount >= 0` (properti aritmetik trivial, perkalian dengan konstanta positif `11/12`).
 4. **Idempotensi migrasi:** menjalankan migration dua kali (`up()` lalu rollback lalu `up()` lagi) tidak menghasilkan data berbeda untuk baris yang sama.
-5. **Perubahan data historis by design (Requirement 4.3, direvisi):** `tax_amount` invoice yang dibuat **sebelum** migration **boleh berbeda** sebelum & sesudah migration, dan nilainya harus **konsisten mengikuti formula baru** (`dpp_amount * tax_rate / 100`) setelah migration — bukan lagi "harus byte-identik" seperti draf sebelumnya. Test yang memverifikasi properti ini harus assert bahwa nilai *berubah sesuai formula baru*, bukan assert bahwa nilai *tidak berubah*.
+5. **Perubahan data historis by design (Requirement 4.3, direvisi):** `tax_amount` invoice yang dibuat **sebelum** migration **boleh berbeda** sebelum & sesudah migration, dan nilainya harus **konsisten mengikuti formula baru** (`dpp_amount * tax_rate / 100`) setelah migration — bukan lagi "harus byte-identik" seperti draf sebelumnya. Test yang memverifikasi properti ini harus assert bahwa nilai _berubah sesuai formula baru_, bukan assert bahwa nilai _tidak berubah_.
 
 ## Error Handling
 
-| Scenario | Behavior |
-|---|---|
-| Migration dijalankan di DB yang berbeda presisi floating point (`11/12` bisa berbeda sedikit antar MySQL/SQLite) | Test harus toleran (`assertEqualsWithDelta`) dan idealnya diverifikasi juga di driver produksi aktual, bukan hanya SQLite test. |
-| `basic_amount` null/0 (item tanpa quantity/price) | `dpp_amount` otomatis 0 (perkalian dengan 0), `tax_amount` otomatis 0 — konsisten dengan perilaku `tax_amount` existing saat `basic_amount` 0. |
-| Rollback migration setelah data production sudah berjalan lama | `down()` harus drop+re-add `tax_amount` kembali ke formula lama (`basic_amount * tax_rate / 100`, ikut menghitung ulang seluruh baris lagi — simetris dengan `up()`), lalu drop `dpp_amount`. |
-| `amount` (Purchase) generated mereferensikan `tax_amount` yang juga generated | Sudah terkonfirmasi berjalan di produksi (pola existing sejak migration awal `purchase_invoice_items`) — tidak perlu penanganan khusus, `amount` otomatis ikut terhitung ulang tanpa drop+re-add terpisah. |
+| Scenario                                                                                                         | Behavior                                                                                                                                                                                                   |
+| ---------------------------------------------------------------------------------------------------------------- | ---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| Migration dijalankan di DB yang berbeda presisi floating point (`11/12` bisa berbeda sedikit antar MySQL/SQLite) | Test harus toleran (`assertEqualsWithDelta`) dan idealnya diverifikasi juga di driver produksi aktual, bukan hanya SQLite test.                                                                            |
+| `basic_amount` null/0 (item tanpa quantity/price)                                                                | `dpp_amount` otomatis 0 (perkalian dengan 0), `tax_amount` otomatis 0 — konsisten dengan perilaku `tax_amount` existing saat `basic_amount` 0.                                                             |
+| Rollback migration setelah data production sudah berjalan lama                                                   | `down()` harus drop+re-add `tax_amount` kembali ke formula lama (`basic_amount * tax_rate / 100`, ikut menghitung ulang seluruh baris lagi — simetris dengan `up()`), lalu drop `dpp_amount`.              |
+| `amount` (Purchase) generated mereferensikan `tax_amount` yang juga generated                                    | Sudah terkonfirmasi berjalan di produksi (pola existing sejak migration awal `purchase_invoice_items`) — tidak perlu penanganan khusus, `amount` otomatis ikut terhitung ulang tanpa drop+re-add terpisah. |
 
 ## Testing Strategy
 

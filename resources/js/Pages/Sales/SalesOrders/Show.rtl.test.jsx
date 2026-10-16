@@ -233,6 +233,75 @@ describe("Show (SalesOrders)", () => {
       expect(screen.getAllByText("-3 Under")).toHaveLength(2);
     });
 
+    // Spec sales-order-asset-in-items-column: `items` berisi baris biasa dan baris asset.
+    it("ItemsQtyTable menampilkan baris item biasa DAN baris asset", () => {
+      const salesOrder = baseSalesOrder({
+        items: [
+          {
+            id: 1,
+            item_name: "Barang Biasa",
+            quantity: 10,
+            delivered_quantity: 10,
+            billed_quantity: 10,
+          },
+          {
+            id: 2,
+            item_name: "Unit Aset",
+            quantity: 2,
+            delivered_quantity: 1,
+            billed_quantity: 2,
+          },
+        ],
+      });
+      render(<Show salesOrder={salesOrder} defaultData={{}} flash={{}} />);
+
+      expect(screen.getByText("Barang Biasa")).toBeInTheDocument();
+      expect(screen.getByText("Unit Aset")).toBeInTheDocument();
+      expect(screen.getByText("-1 Under")).toBeInTheDocument();
+    });
+
+    it("dokumen yang hanya punya baris aset tetap menampilkan ItemsQtyTable", () => {
+      const salesOrder = baseSalesOrder({
+        items: [
+          {
+            id: 2,
+            item_name: "Unit Aset Saja",
+            quantity: 2,
+            delivered_quantity: 2,
+            billed_quantity: 2,
+          },
+        ],
+      });
+      render(<Show salesOrder={salesOrder} defaultData={{}} flash={{}} />);
+
+      expect(screen.getByText("Unit Aset Saja")).toBeInTheDocument();
+    });
+
+    it("mismatch qty pada baris aset memunculkan tombol Sync Items", () => {
+      const salesOrder = baseSalesOrder({
+        status: "draft",
+        items: [
+          {
+            id: 1,
+            quantity: 5,
+            delivered_quantity: 5,
+            billed_quantity: 5,
+          },
+          {
+            id: 2,
+            quantity: 1,
+            delivered_quantity: 3,
+            billed_quantity: 1,
+          },
+        ],
+      });
+      render(<Show salesOrder={salesOrder} defaultData={{}} flash={{}} />);
+
+      expect(
+        screen.getByRole("button", { name: "Sync Items" }),
+      ).toBeInTheDocument();
+    });
+
     it("tidak submitted_at: ItemsQtyTable tidak dirender sama sekali", () => {
       const salesOrder = {
         id: 1,
@@ -250,11 +319,12 @@ describe("Show (SalesOrders)", () => {
 
   // --- RentalStatusBadge + RentalDurationTable ----------------------------
   describe("RentalDurationTable & RentalStatusBadge", () => {
-    function rentSalesOrder({ items, rental_durations }) {
+    function rentSalesOrder({ items, rental_durations, ...rest }) {
       return baseSalesOrder({
         is_rent: true,
         items,
         rental_durations,
+        ...rest,
       });
     }
 
@@ -266,6 +336,23 @@ describe("Show (SalesOrders)", () => {
     function getRentalTable() {
       return screen.getByText("Durasi (hari)").closest("table");
     }
+
+    it("baris asset di items tampil di RentalDurationTable (SO rent berisi aset)", () => {
+      const salesOrder = rentSalesOrder({
+        items: [{ id: 9, item_name: "Unit Sewa Aset" }],
+        rental_durations: {
+          9: {
+            status: "running",
+            segments: [{ duration_days: 12 }],
+          },
+        },
+      });
+      render(<Show salesOrder={salesOrder} defaultData={{}} flash={{}} />);
+
+      const rentalTable = within(getRentalTable());
+      expect(rentalTable.getByText("Unit Sewa Aset")).toBeInTheDocument();
+      expect(rentalTable.getByText("Berjalan")).toBeInTheDocument();
+    });
 
     it("tidak is_rent: RentalDurationTable tidak dirender", () => {
       const salesOrder = baseSalesOrder({

@@ -91,7 +91,9 @@ class PurchaseInvoice extends Model {
             'groupable' => true,
         ],
         'branch' => [
-            'ignore' => true,
+            'hidden'     => true,
+            'groupable'  => false,
+            'searchable' => false,
         ],
         'base_currency_code' => [
             'hidden' => true,
@@ -140,6 +142,9 @@ class PurchaseInvoice extends Model {
             'items',
             'items.purchaseOrderItem',
             'items.purchaseOrderItem.item',
+            'items.purchaseReceiptItem',
+            'items.purchaseReceiptItem.item',
+            'items.item',
             'items.unit',
             'items.targetWarehouse',
             'items.tax',

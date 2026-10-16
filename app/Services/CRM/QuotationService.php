@@ -4,8 +4,8 @@ namespace App\Services\CRM;
 
 use App\Contracts\SubmitableService;
 use App\Enums\FormStatus;
+use App\Events\Core\DocumentSubmitted;
 use App\Models\Core\FormatingSeries;
-use App\Models\Core\ModelConnection;
 use App\Models\CRM\Quotation;
 use App\Models\CRM\QuotationSection;
 use App\Models\Finances\Tax;
@@ -82,9 +82,10 @@ class QuotationService implements SubmitableService {
 
         foreach (array_values($sections) as $index => $section) {
             $attributes = [
-                'title'   => $section['title'],
-                'content' => $section['content'],
-                'order'   => $section['order'] ?? $index,
+                'title'        => $section['title'],
+                'content'      => $section['content'],
+                'content_json' => $section['content_json'] ?? null,
+                'order'        => $section['order'] ?? $index,
             ];
 
             $sectionModel = $existingSections->get($section['id'] ?? '');
@@ -181,12 +182,7 @@ class QuotationService implements SubmitableService {
         ]);
 
         if ($quotation->referenceable_type && $quotation->referenceable_id) {
-            ModelConnection::create([
-                'model_type'     => $quotation->referenceable_type,
-                'model_id'       => $quotation->referenceable_id,
-                'reference_type' => Quotation::class,
-                'reference_id'   => $quotation->id,
-            ]);
+            event(new DocumentSubmitted($quotation, $quotation->referenceable));
         }
 
         $quotation->checkApproval();
@@ -207,10 +203,18 @@ class QuotationService implements SubmitableService {
     }
 
     public function onApproved(Model $model): mixed {
+        $model->update([
+            'status' => FormStatus::SUBMITTED,
+        ]);
+
         return $model;
     }
 
     public function onRejected(Model $model): mixed {
+        $model->update([
+            'status' => FormStatus::REJECTED,
+        ]);
+
         return $model;
     }
 }

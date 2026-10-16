@@ -1,0 +1,6 @@
+{
+  "specId": "393282b2-f15f-4518-80d3-d1e2ac8bf83f",
+  "workflowType": "design-first",
+  "specType": "feature",
+  "description": "Purchase Invoice menagih item di luar PO: baris receipt berdiri sendiri (purchase_receipt_item) dan item bebas yang belum diterima (ItemVariant). Pencocokan otomatis FIFO per PO + item antara invoice item bebas dan baris receipt, over-bill diizinkan. Form memakai LinkModel multi-model dengan tiga sumber."
+}

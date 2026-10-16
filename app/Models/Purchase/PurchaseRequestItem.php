@@ -12,8 +12,16 @@ class PurchaseRequestItem extends Model {
     use HasUlids, SoftDeletes;
 
     public static $parentRelation = 'purchaseRequest';
-    public string $translateKey   = 'purchase.purchaseRequest.item';
-    protected $guarded            = ['id'];
+
+    /**
+     * Sengaja memakai namespace lang dokumen induk (tanpa sufiks .item): model
+     * baris item tidak punya berkas lang sendiri, kolomnya didefinisikan di
+     * array columns milik induk. Jangan diubah balik ke .item, label kolom akan
+     * tercetak sebagai kunci mentah.
+     */
+    public string $translateKey = 'purchase.purchaseRequest';
+
+    protected $guarded = ['id'];
 
     public static function templateLink() {
         return ':item';

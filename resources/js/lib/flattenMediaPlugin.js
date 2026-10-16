@@ -1,7 +1,20 @@
 // flattenMediaPlugin.js
+/**
+ * Meratakan blok `@media` pada CSS editor GrapesJS.
+ *
+ * Opsi:
+ * - `stripOnStore` (default true): bungkus `storageManager.onStore`.
+ * - `scrubRuntime` (default true): sunting langsung `<style>` di iframe kanvas
+ *   lewat MutationObserver. Menyunting node `<style>` milik GrapesJS/Tailwind
+ *   membuat CSS kanvas menyimpang dari model GrapesJS (yang dipakai Preview),
+ *   jadi Editor print template memakai `editorFlattenMediaPlugin` yang
+ *   mematikannya.
+ * @param {object} editor Instance editor GrapesJS.
+ * @param {{stripOnStore?: boolean, scrubRuntime?: boolean}} [options] Opsi plugin.
+ */
 export default function flattenMediaPlugin(
   editor,
-  { stripOnStore = true } = {},
+  { stripOnStore = true, scrubRuntime = true } = {},
 ) {
   const MEDIA_RE = /@media[^{]+\{([\s\S]*?)\}\s*/g;
 
@@ -56,11 +69,13 @@ export default function flattenMediaPlugin(
     };
   };
 
-  editor.on("load", () => {
-    // Pasang runtime scrubber
-    const unbind = bindRuntimeScrubber();
-    editor.once("destroy", () => unbind && unbind());
-  });
+  if (scrubRuntime) {
+    editor.on("load", () => {
+      // Pasang runtime scrubber
+      const unbind = bindRuntimeScrubber();
+      editor.once("destroy", () => unbind && unbind());
+    });
+  }
 
   if (stripOnStore) {
     // Safety-net saat menyimpan via StorageManager
@@ -84,4 +99,14 @@ export default function flattenMediaPlugin(
       };
     }
   }
+}
+
+/**
+ * Varian untuk Editor print template: tanpa scrubber runtime, sehingga
+ * `<style>` di kanvas tetap persis seperti yang ditulis GrapesJS dan perubahan
+ * dari Style Manager langsung terlihat (sama dengan yang dirender Preview).
+ * @param {object} editor Instance editor GrapesJS.
+ */
+export function editorFlattenMediaPlugin(editor) {
+  flattenMediaPlugin(editor, { scrubRuntime: false });
 }

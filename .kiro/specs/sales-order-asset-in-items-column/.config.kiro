@@ -1,0 +1,6 @@
+{
+  "specId": "5f0c7a52-3b1e-4c8e-9a47-6d2b8e1f4a90",
+  "workflowType": "design-first",
+  "specType": "feature",
+  "description": "Sales Order: section Asset Items dihapus; kolom item tabel Items memakai LinkModel multi-model (ItemVariant utama + sub model Asset). Payload jadi satu items[] dengan item.id XOR asset.id."
+}

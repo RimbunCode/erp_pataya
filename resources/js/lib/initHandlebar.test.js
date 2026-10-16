@@ -19,6 +19,46 @@ describe("helper: relation", () => {
   });
 });
 
+describe("helper: companyDetail", () => {
+  // PrintPreview.jsx (halaman cetak) mengirim konteks ber-kunci `company`,
+  // PreviewModal.jsx (editor) mengirim `preferences`. Helper harus menerima
+  // keduanya: pernah terjadi halaman cetak melempar TypeError sementara
+  // pratinjau editor tampil benar.
+  it("membaca kunci company (konteks halaman cetak)", () => {
+    const result = render('{{companyDetail "company_name"}}', {
+      company: { company_name: "PT Contoh" },
+    });
+    expect(result).toBe("PT Contoh");
+  });
+
+  it("membaca kunci preferences (konteks editor)", () => {
+    const result = render('{{companyDetail "company_name"}}', {
+      preferences: { company_name: "PT Contoh" },
+    });
+    expect(result).toBe("PT Contoh");
+  });
+
+  it("mendahulukan company saat keduanya terkirim", () => {
+    const result = render('{{companyDetail "company_name"}}', {
+      company: { company_name: "Dari company" },
+      preferences: { company_name: "Dari preferences" },
+    });
+    expect(result).toBe("Dari company");
+  });
+
+  it("menghasilkan string kosong, bukan melempar, tanpa data preference", () => {
+    expect(() => render('{{companyDetail "company_name"}}', {})).not.toThrow();
+    expect(render('{{companyDetail "company_name"}}', {})).toBe("");
+  });
+
+  it("menghasilkan string kosong untuk kunci yang tidak ada", () => {
+    const result = render('{{companyDetail "tidak_ada"}}', {
+      company: { company_name: "PT Contoh" },
+    });
+    expect(result).toBe("");
+  });
+});
+
 describe("helper: trans (legacy)", () => {
   it("menerjemahkan payload string via t()", () => {
     expect(render("{{trans key}}", { key: "core.hello" })).toBe(
@@ -169,5 +209,65 @@ describe("helper: label (unified)", () => {
   it("return null jika path bukan string", () => {
     const result = render("{{label path}}", { path: 123 });
     expect(result).toBe("");
+  });
+});
+
+describe("helper: approvalSignature", () => {
+  const approver = {
+    image: "data:image/png;base64,APP",
+    name: "Penyetuju",
+    date: "1 Januari 2026",
+    hasSignature: true,
+  };
+  const creator = {
+    image: "data:image/png;base64,CRE",
+    name: "Pembuat",
+    date: null,
+    hasSignature: true,
+  };
+
+  it("tanpa role memakai penandatangan final (regresi)", () => {
+    const html = render("{{{approvalSignature showName=true}}}", {
+      approvalSignature: approver,
+      creatorSignature: creator,
+    });
+    expect(html).toContain("APP");
+    expect(html).toContain("Penyetuju");
+    expect(html).not.toContain("Pembuat");
+  });
+
+  it('role="approver" sama dengan tanpa role', () => {
+    const data = { approvalSignature: approver, creatorSignature: creator };
+    expect(
+      render('{{{approvalSignature role="approver" showName=true}}}', data),
+    ).toBe(render("{{{approvalSignature showName=true}}}", data));
+  });
+
+  it('role="creator" memakai pembuat dokumen tanpa tanggal', () => {
+    const html = render(
+      '{{{approvalSignature role="creator" showName=true showDate=true}}}',
+      { approvalSignature: approver, creatorSignature: creator },
+    );
+    expect(html).toContain("CRE");
+    expect(html).toContain("Pembuat");
+    expect(html).not.toContain("Penyetuju");
+    expect(html).not.toContain("Januari");
+  });
+
+  it('role="creator" kosong bila dokumen tidak punya pembuat', () => {
+    expect(
+      render('{{{approvalSignature role="creator" showName=true}}}', {
+        approvalSignature: approver,
+      }),
+    ).toBe("");
+  });
+
+  it('role="creator" pada data contoh memakai placeholder pembuat', () => {
+    const html = render(
+      '{{{approvalSignature role="creator" showName=true showDate=true}}}',
+      { isExample: true },
+    );
+    expect(html).toContain("Contoh Pembuat");
+    expect(html).not.toContain("Januari");
   });
 });

@@ -198,7 +198,7 @@ beforeEach(() => {
 });
 
 describe("Print - initialTemplate (useMemo)", () => {
-  it("fallback lengkap saat printTemplate kosong: paper A4, unit cm, orientation portrait, width/height dari A4/cm", async () => {
+  it("fallback geometri saat printTemplate kosong: paper A4, unit cm, orientation portrait, width/height dari A4/cm; font dan nomor halaman TIDAK dipalsukan", async () => {
     await render(<Print printTemplate={{}} lang="en" />);
 
     const template = getTemplateFromPreview();
@@ -206,8 +206,8 @@ describe("Print - initialTemplate (useMemo)", () => {
     expect(template.unit).toBe("cm");
     expect(template.orientation).toBe("portrait");
     expect(template.default_language).toBe("en");
-    expect(template.page_number).toBe("bottom_right");
-    expect(template.font_family).toBe("Times New Roman");
+    expect(template.page_number).toBeUndefined();
+    expect(template.font_family).toBeUndefined();
     // A4 portrait: width 210mm/10 = 21cm, height 297mm/10 = 29.7cm
     expect(template.width).toBeCloseTo(21);
     expect(template.height).toBeCloseTo(29.7);
@@ -585,5 +585,21 @@ describe("Print - kontrol paper/orientation/unit", () => {
     await user.click(screen.getByTestId("link-model-stub"));
 
     expect(getTemplateFromPreview().letter_head).toBe(99);
+  });
+});
+
+describe("Print - tanpa default font/nomor halaman palsu", () => {
+  it("font_family dan page_number null dari DB tidak disuntik Times New Roman / bottom_right", async () => {
+    await render(
+      <Print
+        printTemplate={{ font_family: null, page_number: null }}
+        lang="en"
+      />,
+    );
+
+    const template = getTemplateFromPreview();
+    expect(template.font_family).toBeNull();
+    expect(template.page_number).toBeNull();
+    expect(JSON.stringify(template)).not.toContain("Times New Roman");
   });
 });

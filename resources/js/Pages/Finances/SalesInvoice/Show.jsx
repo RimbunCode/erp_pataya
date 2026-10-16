@@ -16,6 +16,9 @@ import { useLaravelReactI18n } from "laravel-react-i18n";
 export default function Show({ salesInvoice, defaultData }) {
   const route = window.route;
   const { t } = useLaravelReactI18n();
+  // `items` berisi baris SO, ItemVariant bebas, dan Asset -- kelayakan nota kredit
+  // (unreturned_quantity) menghitung semuanya.
+  const allItems = salesInvoice?.items ?? [];
 
   return (
     <FormPage
@@ -30,8 +33,7 @@ export default function Show({ salesInvoice, defaultData }) {
           salesInvoice?.submitted_at &&
           isValidStatus(salesInvoice?.status) &&
           ((!salesInvoice?.is_return &&
-            calculateArray(salesInvoice?.items, "unreturned_quantity", "+") >
-              0) ||
+            calculateArray(allItems, "unreturned_quantity", "+") > 0) ||
             inArray(salesInvoice?.status, [
               "unpaid",
               "partially_paid",
@@ -70,11 +72,8 @@ export default function Show({ salesInvoice, defaultData }) {
                     </DropdownMenuItem>
                   )}
                   {!salesInvoice?.is_return &&
-                    calculateArray(
-                      salesInvoice?.items,
-                      "unreturned_quantity",
-                      "+",
-                    ) > 0 && (
+                    calculateArray(allItems, "unreturned_quantity", "+") >
+                      0 && (
                       <DropdownMenuItem asChild>
                         <Link
                           href={route("salesInvoices.create", {

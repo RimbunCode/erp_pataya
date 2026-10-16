@@ -3,6 +3,7 @@
 namespace App\Models\Sales;
 
 use App\Enums\Permission;
+use App\Models\Asset\Asset;
 use App\Models\Finances\SalesInvoice;
 use App\Models\Finances\Tax;
 use App\Models\Inventory\DeliveryNoteItem;
@@ -11,6 +12,7 @@ use App\Models\Inventory\ItemVariant;
 use App\Models\Inventory\Warehouse;
 use App\Models\Model;
 use Illuminate\Database\Eloquent\Concerns\HasUlids;
+use Illuminate\Database\Eloquent\Relations\BelongsTo;
 use Illuminate\Database\Eloquent\Relations\MorphTo;
 use Illuminate\Database\Eloquent\SoftDeletes;
 
@@ -24,8 +26,16 @@ class SalesOrderItem extends Model {
     ];
 
     public static $parentRelation = 'salesOrder';
-    public string $translateKey   = 'sales.salesOrder.item';
-    protected $guarded            = [
+
+    /**
+     * Sengaja memakai namespace lang dokumen induk (tanpa sufiks .item): model
+     * baris item tidak punya berkas lang sendiri, kolomnya didefinisikan di
+     * array columns milik induk. Jangan diubah balik ke .item, label kolom akan
+     * tercetak sebagai kunci mentah.
+     */
+    public string $translateKey = 'sales.salesOrder';
+
+    protected $guarded = [
         'id',
         'remaining_quantity',
     ];
@@ -63,6 +73,14 @@ class SalesOrderItem extends Model {
         'item' => [
             'show'  => true,
             'order' => 0,
+        ],
+        'asset' => [
+            'type' => 'relation',
+            'show' => false,
+        ],
+        'asset_id' => [
+            'hidden'   => true,
+            'linkable' => true,
         ],
         'quantity' => [
             'type'     => 'numeric',
@@ -189,7 +207,7 @@ class SalesOrderItem extends Model {
     ];
 
     public static function templateLink() {
-        return ':item';
+        return ':asset_id ? :asset | :item';
     }
 
     public function salesOrder() {
@@ -218,6 +236,10 @@ class SalesOrderItem extends Model {
 
     public function item() {
         return $this->belongsTo(ItemVariant::class, 'item_id');
+    }
+
+    public function asset(): BelongsTo {
+        return $this->belongsTo(Asset::class);
     }
 
     public function deliveryNoteItems() {

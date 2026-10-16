@@ -304,6 +304,21 @@ class Utils {
                 'title' => trans('core/company.company_details.country'),
                 'type'  => 'string',
             ],
+            [
+                'name'  => 'bank_name',
+                'title' => trans('core/company.company_details.bank_name'),
+                'type'  => 'string',
+            ],
+            [
+                'name'  => 'bank_account_name',
+                'title' => trans('core/company.company_details.bank_account_name'),
+                'type'  => 'string',
+            ],
+            [
+                'name'  => 'bank_account_number',
+                'title' => trans('core/company.company_details.bank_account_number'),
+                'type'  => 'string',
+            ],
         ];
     }
 

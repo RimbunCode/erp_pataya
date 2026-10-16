@@ -8,7 +8,11 @@ import {
 import { Popover, PopoverContent, PopoverTrigger } from "./ui/popover";
 import { Tooltip, TooltipContent, TooltipTrigger } from "./ui/tooltip";
 import { camelize, cn } from "@/lib/utils";
-import { convertTemplateLink, validate } from "@/lib/linkModelUtils";
+import {
+  buildSources,
+  convertTemplateLink,
+  validate,
+} from "@/lib/linkModelUtils";
 import { DIFF_HIGHLIGHT, isChanged } from "@/lib/diffUtils";
 import {
   forwardRef,
@@ -38,6 +42,10 @@ import GroupedOptions, {
   isGroupHeaderValue,
 } from "./LinkModel/GroupedOptions";
 import InfiniteScrollSentinel from "./LinkModel/InfiniteScrollSentinel";
+import SourceSection, {
+  SourceHeader,
+  isSourceHeaderValue,
+} from "./LinkModel/SourceSection";
 import { Button } from "./ui/button";
 import ClickAwayListener from "react-click-away-listener";
 import { Command as CommandPrimitive } from "cmdk";
@@ -61,6 +69,35 @@ import { useRef } from "react";
 const ADD_VALUE = "__linkmodel_add__";
 const ADVANCE_SEARCH_VALUE = "__linkmodel_advance_search__";
 
+// Nama resource (untuk route `<plural>.show/create`) & key route dari prop `as`
+// ("name:keyRoute") atau, bila tak ada, dari nama class model.
+const navFor = (as, model) => {
+  if (as) {
+    const [name, keyRoute] = as.split(":");
+
+    return { name: camelize(name), keyRoute };
+  }
+
+  return {
+    name: camelize((model ?? "").split("\\").pop()),
+    keyRoute: "id",
+  };
+};
+
+// Value cmdk baris Add: main tetap ADD_VALUE (kompatibel), sub berprefiks indeks.
+const addValueFor = (index) =>
+  index === 0 ? ADD_VALUE : `${ADD_VALUE}:${index}`;
+const isAddValue = (value) =>
+  typeof value === "string" && value.startsWith(ADD_VALUE);
+
+// Peringatan konfigurasi `subModels` cukup sekali per pesan (komponen render ulang).
+const warnedMessages = new Set();
+const warnOnce = (message) => {
+  if (warnedMessages.has(message)) return;
+  warnedMessages.add(message);
+  console.warn(message);
+};
+
 /**
  *
  * @param props
@@ -69,7 +106,16 @@ const ADVANCE_SEARCH_VALUE = "__linkmodel_advance_search__";
  * @param props.placeholder
  * @param props.className
  * @param props.disabled
- * @param props.model
+ * @param props.model model utama (main).
+ * @param props.mainLabel label header bagian main (spec linkmodel-multi-model). Diisi ->
+ *   main dibungkus header buka-tutup (terbuka default); tidak diisi -> main tampil sbg
+ *   daftar biasa. Hanya bermakna bila `subModels` ada.
+ * @param props.subModels daftar sub model (spec linkmodel-multi-model): tiap elemen
+ *   `{model, label, filters, with, fields, order, keywords, translate, group}` (+ opsi
+ *   add/navigate). `model` & `label` wajib; sub SELALU dibungkus header, tertutup &
+ *   di-fetch lazy (saat dibuka / saat user mengetik). Dedupe terhadap main dilakukan
+ *   konsumen lewat `filters` sub (mis. `{ id: { notIn: [...] } }`). Tanpa prop ini
+ *   perilaku identik dengan satu model.
  * @param props.group grup bertingkat untuk opsi dropdown DAN grup awal Advance Search
  *   (spec linkmodel-grouping-search): string kolom, list string, atau list
  *   `{column, granularity?, range?}`. Tidak diberikan -> default `$defaultGroups`
@@ -116,6 +162,8 @@ export default memo(
       readOnly,
       required,
       model,
+      mainLabel,
+      subModels,
       group,
       filters,
       joins,
@@ -170,6 +218,34 @@ export default memo(
     }, [openAdvanceSearch, open]);
     const { can, canGlobal } = usePermission(model);
 
+    // Sumber dropdown: [main, ...subModels valid]. `isMulti` = ada sub model;
+    // tanpa itu seluruh jalur lama (satu model) dipakai apa adanya.
+    const sources = buildSources({ model, mainLabel, subModels }, warnOnce);
+    const isMulti = sources.length > 1;
+    const modelsKey = sources.map((s) => s.model).join("|");
+    // Daftar model yang diizinkan utk validasi opsi (`thisModel`).
+    const allModels = useMemo(
+      () => (isMulti ? modelsKey.split("|") : model),
+      [isMulti, modelsKey, model],
+    );
+    const mainSource = sources[0];
+    const subSources = sources.slice(1);
+    const [mainExpanded, setMainExpanded] = useState(true);
+    useEffect(() => {
+      if (!open) setMainExpanded(true);
+    }, [open]);
+    // Status hasil tiap bagian sub (dilaporkan SourceSection) -- dasar pesan
+    // "tidak ditemukan" lintas sumber saat mencari.
+    const [subStatus, setSubStatus] = useState({});
+    const onSubStatus = useCallback((index, status) => {
+      setSubStatus((prev) =>
+        prev[index]?.hasResults === status.hasResults &&
+        prev[index]?.settled === status.settled
+          ? prev
+          : { ...prev, [index]: status },
+      );
+    }, []);
+
     // Grup efektif dari prop (`undefined` = pakai default model di server).
     const groupKey = JSON.stringify(group ?? null);
     const groupProp = useMemo(
@@ -221,17 +297,6 @@ export default memo(
     // exact-match-on-close butuh mencari opsi yg tidak ada di daftar flat.
     const knownRowsRef = useRef(new Map());
 
-    const { name, keyRoute } = useMemo(() => {
-      if (as) {
-        const [name, keyRoute] = as.split(":");
-        return { name: camelize(name), keyRoute };
-      }
-      return {
-        name: camelize((model ?? "").split("\\").pop()),
-        keyRoute: "id",
-      };
-    }, [as, model]);
-
     const route = window.route;
     const isControlled = value !== undefined;
     const commandRef = useRef(null);
@@ -239,6 +304,36 @@ export default memo(
     const option = useMemo(() => {
       return isControlled ? value : _option;
     }, [isControlled, value, _option]);
+
+    // Konfigurasi navigasi/add per sumber (main = props LinkModel, sub = config
+    // elemen `subModels`). Sumber aktif = sumber dari `option.thisModel`.
+    const sourceProps = sources.map((src) =>
+      src.isMain
+        ? {
+            as,
+            canNavigation,
+            disabledNavigation,
+            customNavigation,
+            form,
+            titleDialog,
+            disabledAddButton,
+            defaultValueForm,
+            postOption,
+            classNameDialog,
+            with: _with,
+          }
+        : src.config,
+    );
+    const activeIndex = Math.max(
+      0,
+      sources.findIndex((src) => src.model === option?.thisModel),
+    );
+    const activeSource = sources[activeIndex];
+    const activeProps = sourceProps[activeIndex];
+    const { name, keyRoute } = useMemo(
+      () => navFor(activeProps.as, activeSource.model),
+      [activeProps.as, activeSource.model],
+    );
 
     const isDeleted = !!option?.deleted_at;
 
@@ -255,7 +350,7 @@ export default memo(
       (val) => {
         if (disabled || readOnly) return;
         if (val) {
-          const isValid = validate(val, model);
+          const isValid = validate(val, allModels);
           if (!isValid) return;
         }
         if (isControlled) {
@@ -278,6 +373,7 @@ export default memo(
         filters,
         isControlled,
         value,
+        allModels,
       ],
     );
 
@@ -333,12 +429,12 @@ export default memo(
         return;
       }
       if (!(option || value)) return;
-      const isValid = validate(option || value, model);
+      const isValid = validate(option || value, allModels);
 
       if (!isValid) {
         setOption(null);
       }
-    }, [filters, option, value, model]);
+    }, [filters, option, value, allModels]);
 
     // Resolve `defaultValue` -- fetch TERPISAH dari daftar opsi dropdown
     // (query semantiknya beda: mengisi `option`, bukan menampilkan list).
@@ -415,12 +511,12 @@ export default memo(
       }
     };
 
-    const onSuccessFormPageDialog = (e) => {
+    const onSuccessFormPageDialog = (e, index = 0) => {
       setOpen(false);
       axios
         .post(route("model"), {
-          model,
-          with: _with,
+          model: sources[index].model,
+          with: sourceProps[index].with,
           id: e.props.flash.id ?? null,
         })
         .then((res) => {
@@ -549,6 +645,17 @@ export default memo(
       return false;
     }, [disabledAddButton, form, can]);
 
+    // Baris Add sub model: hanya sub ber-`form`, tak `disabledAddButton`, dan
+    // lolos izin `create` model-nya sendiri.
+    const enabledSubAdds = subSources.filter(
+      (src) =>
+        !src.config.disabledAddButton &&
+        !!src.config.form &&
+        canGlobal(src.model, "create"),
+    );
+    const subAddKey = enabledSubAdds.map((src) => src.index).join(",");
+    const [subDialogIndex, setSubDialogIndex] = useState(null);
+
     // cmdk dikontrol via `value`/`onValueChange` sendiri (bukan diserahkan ke
     // auto-highlight bawaan cmdk) -- auto-highlight cmdk cuma jalan SEKALI
     // saat mount/registrasi item pertama, TIDAK otomatis pindah ke item lain
@@ -570,8 +677,12 @@ export default memo(
         : (flatOptions ?? []).map((opt, index) => `${opt.id ?? index}`);
       ids.push(ADVANCE_SEARCH_VALUE);
       if (!disabledAdd) ids.push(ADD_VALUE);
+      subAddKey
+        .split(",")
+        .filter(Boolean)
+        .forEach((index) => ids.push(addValueFor(Number(index))));
       return ids;
-    }, [flatOptions, isGrouped, disabledAdd]);
+    }, [flatOptions, isGrouped, disabledAdd, subAddKey]);
     // Mode grup: sorotan awal = header grup pertama (nilai cmdk header dibuat
     // dari path JSON); baris/header lain dilacak cmdk sendiri, bukan visibleValues.
     const firstGroupValue =
@@ -604,6 +715,7 @@ export default memo(
         hadGroupsRef.current = hasGroups;
         const tracked =
           isGroupHeaderValue(highlightedValue) ||
+          isSourceHeaderValue(highlightedValue) ||
           knownRowsRef.current.has(highlightedValue) ||
           visibleValues.includes(highlightedValue);
         if (!tracked) setHighlightedValue(firstGroupValue ?? visibleValues[0]);
@@ -616,7 +728,13 @@ export default memo(
         return;
       }
       hadDataOptionsRef.current = hasDataOptions;
-      if (!visibleValues.includes(highlightedValue)) {
+      // Multi-model: header bagian & baris sub (dirender SourceSection, tak ada
+      // di `visibleValues`) dilacak sendiri -- jangan di-reset ke opsi pertama.
+      const trackedBySource =
+        isMulti &&
+        (isSourceHeaderValue(highlightedValue) ||
+          knownRowsRef.current.has(highlightedValue));
+      if (!trackedBySource && !visibleValues.includes(highlightedValue)) {
         setHighlightedValue(visibleValues[0]);
       }
     }, [visibleValues, flatOptions, isGrouped, firstGroupValue]);
@@ -628,16 +746,207 @@ export default memo(
 
     const navAllowed = useMemo(() => {
       if (!option) return false;
-      if (canNavigation) {
+      if (activeProps.canNavigation) {
         const navOwnerScope = keyRoute?.includes(".")
           ? get(option, keyRoute.split(".").slice(0, -1).join("."))
           : option;
-        return canGlobal(canNavigation, "read", {
+        return canGlobal(activeProps.canNavigation, "read", {
           user_id: navOwnerScope?.created_by_id,
         });
       }
+      if (!activeSource.isMain) {
+        return canGlobal(activeSource.model, "read", {
+          user_id: option?.created_by_id,
+        });
+      }
       return can("read", { user_id: option?.created_by_id });
-    }, [option, keyRoute, canNavigation, can, canGlobal]);
+    }, [
+      option,
+      keyRoute,
+      activeProps.canNavigation,
+      activeSource.model,
+      activeSource.isMain,
+      can,
+      canGlobal,
+    ]);
+    // Sumber tab Advance Search (multi-model): main + sub yang tak `advanceSearch: false`.
+    const advanceSources = sources
+      .filter((src) => src.isMain || src.config.advanceSearch !== false)
+      .map((src) =>
+        src.isMain
+          ? {
+              model,
+              label: mainLabel ?? (model ?? "").split("\\").pop(),
+              filters,
+              fields,
+              joins,
+              with: _with,
+              order,
+              translate,
+              group: groupProp,
+            }
+          : {
+              model: src.model,
+              label: src.label,
+              filters: src.config.filters,
+              fields: src.config.fields,
+              joins: src.config.joins,
+              with: src.config.with,
+              order: src.config.order,
+              translate: src.config.translate,
+              group:
+                src.config.group === undefined || src.config.group === null
+                  ? undefined
+                  : normalizeGroupLevels(src.config.group),
+            },
+      );
+
+    // Isi bagian main (flat / grup / loading) -- jalur lama apa adanya.
+    const mainContent = (
+      <>
+        {loading ? (
+          <CommandPrimitive.Loading>
+            <div className="flex justify-center py-6 text-sm font-normal text-center text-foreground gap-x-4">
+              <LoadingIcon className="size-4" />
+              <span>{t("core.form.loading")} ...</span>
+            </div>
+          </CommandPrimitive.Loading>
+        ) : (
+          <>
+            {/* BUKAN <CommandEmpty> -- primitif cmdk itu
+                            self-hide berdasar JUMLAH GLOBAL CommandItem
+                            terdaftar (state.filtered.count), dan CommandItem
+                            "Advance Search" SEKARANG SELALU terdaftar (di
+                            luar ternary ini), jadi count tak pernah 0 lagi
+                            walau filteredOptions kosong -- pesan "tidak
+                            ditemukan" jadi tak pernah muncul. Kondisi manual
+                            di sini independen dari state internal cmdk. */}
+            {!isMulti && (flatEmpty || groupedEmpty) && (
+              <div role="presentation" className="py-6 text-sm text-center">
+                {t("core.form.not_found")}
+              </div>
+            )}
+            {isGrouped ? (
+              <GroupedOptions
+                rootItems={rootItems}
+                levels={groupLevels}
+                baseParams={
+                  cache
+                    ? { model, search: search ?? "" }
+                    : (searched.baseParams ?? {})
+                }
+                fetcher={cache ? localFetcher : fetchLinkModelGroupNode}
+                pathname={cache ? `linkmodel-local:${model}` : "linkmodel"}
+                resetKey={
+                  cache
+                    ? `${model}|${search ?? ""}`
+                    : JSON.stringify(searched.baseParams)
+                }
+                search={allowSearch ? search : ""}
+                autoExpand={autoExpand}
+                hasNextRoot={!cache && searched.hasNextPage}
+                fetchNextRoot={searched.fetchNextPage}
+                fetchingRoot={!cache && searched.isFetchingNextPage}
+                knownRef={knownRowsRef}
+                onPick={(row) => {
+                  setOption(row);
+                  setOpen(false);
+                }}
+              />
+            ) : (
+              flatOptions?.map((opt, index) => {
+                return (
+                  <CommandItem
+                    key={opt.id ?? index}
+                    value={`${opt.id ?? index}`}
+                    onSelect={() => {
+                      setOption(opt);
+
+                      setOpen(false);
+                    }}
+                  >
+                    <p
+                      dangerouslySetInnerHTML={{
+                        __html: convertTemplateLink(opt, search ?? ""),
+                      }}
+                    />
+                  </CommandItem>
+                );
+              })
+            )}
+            {!isGrouped && (
+              <InfiniteScrollSentinel
+                onIntersect={fetchMoreFlat}
+                enabled={!!hasMoreFlat}
+                loading={!cache && searched.isFetchingNextPage}
+              />
+            )}
+          </>
+        )}
+      </>
+    );
+
+    const searching = allowSearch && !!search?.trim();
+    const mainEmptyFinal = !loading && (flatEmpty || groupedEmpty);
+    const notFoundNode = (
+      <div role="presentation" className="py-6 text-sm text-center">
+        {t("core.form.not_found")}
+      </div>
+    );
+    // "Tidak ditemukan" lintas sumber: saat mencari = semua bagian kosong FINAL;
+    // tanpa ketikan = hanya main tak dibungkus yang kosong (sub tertutup tetap
+    // bisa dibuka user).
+    const multiNotFound =
+      isMulti &&
+      mainEmptyFinal &&
+      (searching
+        ? subSources.every(
+            (src) =>
+              subStatus[src.index]?.settled &&
+              !subStatus[src.index]?.hasResults,
+          )
+        : !mainSource.wrapped);
+    const multiBody = (
+      <>
+        {multiNotFound && notFoundNode}
+        {mainSource.wrapped
+          ? !(searching && mainEmptyFinal) && (
+              <>
+                <SourceHeader
+                  index={0}
+                  label={mainSource.label}
+                  isOpen={mainExpanded}
+                  loading={loading}
+                  onToggle={() => setMainExpanded((v) => !v)}
+                />
+                {mainExpanded && (
+                  <div className="pl-3">
+                    {!searching && mainEmptyFinal && notFoundNode}
+                    {mainContent}
+                  </div>
+                )}
+              </>
+            )
+          : mainContent}
+        {subSources.map((src) => (
+          <SourceSection
+            key={src.index}
+            source={src}
+            open={open}
+            search={search}
+            allowSearch={allowSearch}
+            staleTime={staleTime}
+            onStatus={onSubStatus}
+            onPick={(row) => {
+              setOption(row);
+              setOpen(false);
+            }}
+            knownRef={knownRowsRef}
+          />
+        ))}
+      </>
+    );
+
     return (
       <ClickAwayListener onClickAway={() => setOpen(false)}>
         <div className={cn("w-full", className)}>
@@ -661,10 +970,12 @@ export default memo(
                 // (kanan = grup tertutup, kiri = grup terbuka); selain itu
                 // biarkan default (geser caret input).
                 if (e.key === "ArrowRight" || e.key === "ArrowLeft") {
-                  if (!isGroupHeaderValue(highlightedValue)) return;
+                  const isSourceHeader = isSourceHeaderValue(highlightedValue);
+                  if (!isSourceHeader && !isGroupHeaderValue(highlightedValue))
+                    return;
                   // Popover dirender di portal -> bukan turunan DOM commandRef.
                   const header = document.querySelector(
-                    '[data-testid="linkmodel-group-header"][data-selected="true"]',
+                    `[data-testid="${isSourceHeader ? "linkmodel-source-header" : "linkmodel-group-header"}"][data-selected="true"]`,
                   );
                   if (!header) return;
                   const isOpen =
@@ -678,8 +989,9 @@ export default memo(
                 if (
                   highlightedValue == null ||
                   isGroupHeaderValue(highlightedValue) ||
+                  isSourceHeaderValue(highlightedValue) ||
                   highlightedValue === ADVANCE_SEARCH_VALUE ||
-                  highlightedValue === ADD_VALUE
+                  isAddValue(highlightedValue)
                 ) {
                   return;
                 }
@@ -747,7 +1059,7 @@ export default memo(
                           <LoadingIcon className="size-4" />
                         ) : (
                           <>
-                            {!disabledNavigation &&
+                            {!activeProps.disabledNavigation &&
                               name &&
                               option &&
                               search &&
@@ -766,10 +1078,11 @@ export default memo(
                                   onClick={() => {
                                     if (!name || !option || !search) return;
                                     if (
-                                      customNavigation &&
-                                      typeof customNavigation === "function"
+                                      activeProps.customNavigation &&
+                                      typeof activeProps.customNavigation ===
+                                        "function"
                                     ) {
-                                      customNavigation(value);
+                                      activeProps.customNavigation(value);
                                     }
                                     const pluralized = `${pluralize.plural(name ?? "")}.show`;
                                     window.open(
@@ -834,95 +1147,7 @@ export default memo(
                     // onSelect klik itu sendiri sempat jalan.
                     onMouseDown={(e) => e.preventDefault()}
                   >
-                    {loading ? (
-                      <CommandPrimitive.Loading>
-                        <div className="flex justify-center py-6 text-sm font-normal text-center text-foreground gap-x-4">
-                          <LoadingIcon className="size-4" />
-                          <span>{t("core.form.loading")} ...</span>
-                        </div>
-                      </CommandPrimitive.Loading>
-                    ) : (
-                      <>
-                        {/* BUKAN <CommandEmpty> -- primitif cmdk itu
-                            self-hide berdasar JUMLAH GLOBAL CommandItem
-                            terdaftar (state.filtered.count), dan CommandItem
-                            "Advance Search" SEKARANG SELALU terdaftar (di
-                            luar ternary ini), jadi count tak pernah 0 lagi
-                            walau filteredOptions kosong -- pesan "tidak
-                            ditemukan" jadi tak pernah muncul. Kondisi manual
-                            di sini independen dari state internal cmdk. */}
-                        {(flatEmpty || groupedEmpty) && (
-                          <div
-                            role="presentation"
-                            className="py-6 text-sm text-center"
-                          >
-                            {t("core.form.not_found")}
-                          </div>
-                        )}
-                        {isGrouped ? (
-                          <GroupedOptions
-                            rootItems={rootItems}
-                            levels={groupLevels}
-                            baseParams={
-                              cache
-                                ? { model, search: search ?? "" }
-                                : (searched.baseParams ?? {})
-                            }
-                            fetcher={
-                              cache ? localFetcher : fetchLinkModelGroupNode
-                            }
-                            pathname={
-                              cache ? `linkmodel-local:${model}` : "linkmodel"
-                            }
-                            resetKey={
-                              cache
-                                ? `${model}|${search ?? ""}`
-                                : JSON.stringify(searched.baseParams)
-                            }
-                            search={allowSearch ? search : ""}
-                            autoExpand={autoExpand}
-                            hasNextRoot={!cache && searched.hasNextPage}
-                            fetchNextRoot={searched.fetchNextPage}
-                            fetchingRoot={!cache && searched.isFetchingNextPage}
-                            knownRef={knownRowsRef}
-                            onPick={(row) => {
-                              setOption(row);
-                              setOpen(false);
-                            }}
-                          />
-                        ) : (
-                          flatOptions?.map((opt, index) => {
-                            return (
-                              <CommandItem
-                                key={opt.id ?? index}
-                                value={`${opt.id ?? index}`}
-                                onSelect={() => {
-                                  setOption(opt);
-
-                                  setOpen(false);
-                                }}
-                              >
-                                <p
-                                  dangerouslySetInnerHTML={{
-                                    __html: convertTemplateLink(
-                                      opt,
-                                      search ?? "",
-                                    ),
-                                  }}
-                                />
-                              </CommandItem>
-                            );
-                          })
-                        )}
-                        {!isGrouped && (
-                          <InfiniteScrollSentinel
-                            onIntersect={fetchMoreFlat}
-                            enabled={!!hasMoreFlat}
-                            loading={!cache && searched.isFetchingNextPage}
-                          />
-                        )}
-                      </>
-                    )}
+                    {isMulti ? multiBody : mainContent}
                     {/* Grouping aksi: Advance Search (selalu ada) + Add
                         (kondisional) -- SELALU dirender terlepas dari `loading`
                         (user bisa buka Advance Search/Add walau data masih
@@ -958,8 +1183,9 @@ export default memo(
                               return;
                             }
 
-                            if (!name) return;
-                            const pluralized = `${pluralize.plural(name ?? "")}.create`;
+                            const mainName = navFor(as, model).name;
+                            if (!mainName) return;
+                            const pluralized = `${pluralize.plural(mainName)}.create`;
                             window.open(route(pluralized), "_blank");
                           }}
                         >
@@ -967,6 +1193,16 @@ export default memo(
                           {titleDialog}
                         </CommandItem>
                       )}
+                      {enabledSubAdds.map((src) => (
+                        <CommandItem
+                          key={src.index}
+                          value={addValueFor(src.index)}
+                          onSelect={() => setSubDialogIndex(src.index)}
+                        >
+                          <PlusIcon className="size-4" />
+                          {src.config.titleDialog}
+                        </CommandItem>
+                      ))}
                     </div>
                   </CommandList>
                 </PopoverContent>
@@ -975,7 +1211,7 @@ export default memo(
             {!disabledAdd && (
               <FormPageDialog
                 title={titleDialog}
-                name={name}
+                name={navFor(as, model).name}
                 open={openDialog}
                 onOpenChange={setOpenDialog}
                 className={cn("max-w-4xl", classNameDialog)}
@@ -986,10 +1222,28 @@ export default memo(
                 {form}
               </FormPageDialog>
             )}
+            {enabledSubAdds.map((src) => (
+              <FormPageDialog
+                key={src.index}
+                title={src.config.titleDialog}
+                name={navFor(src.config.as, src.model).name}
+                open={subDialogIndex === src.index}
+                onOpenChange={(next) =>
+                  setSubDialogIndex(next ? src.index : null)
+                }
+                className={cn("max-w-4xl", src.config.classNameDialog)}
+                defaultValue={src.config.defaultValueForm}
+                onSuccess={(e) => onSuccessFormPageDialog(e, src.index)}
+                postOption={src.config.postOption}
+              >
+                {src.config.form}
+              </FormPageDialog>
+            ))}
           </Popover>
           <AdvanceSearchDialog
             open={openAdvanceSearch}
             onOpenChange={setOpenAdvanceSearch}
+            sources={advanceSources.length > 1 ? advanceSources : undefined}
             model={model}
             filters={filters}
             fields={fields}

@@ -1,7 +1,6 @@
 import { FormPageContent, useFormPage } from "@/Pages/Core/FormPage";
 import React, { useMemo } from "react";
 
-import AssetLinkModel from "@/Pages/Asset/Assets/AssetLinkModel";
 import BranchLinkModel from "@/Pages/Settings/Branches/BranchLinkModel";
 import NumberInput from "@/Components/NumberInput";
 import CustomerLinkModel from "@/Pages/Sales/Customers/CustomerLinkModel";
@@ -13,13 +12,22 @@ import FormTable from "@/Components/FormTable";
 import ItemUnitLinkModel from "@/Pages/Inventory/Items/ItemUnitLinkModel";
 import LinkModel from "@/Components/LinkModel";
 import PermissionLinkModel from "@/Pages/Core/PermissionLinkModel";
+import SalesOrderItemLinkModel from "@/Pages/Sales/SalesOrders/SalesOrderItemLinkModel";
 import { Textarea } from "@/Components/ui/textarea";
 import WarehouseLinkModel from "@/Pages/Inventory/Warehouses/WarehouseLinkModel";
 import { generateRandom } from "@/lib/utils";
+import usePermission from "@/Hooks/usePermission";
 import { useLaravelReactI18n } from "laravel-react-i18n";
+
+const ASSET_CLASS = "App\\Models\\Asset\\Asset";
+const ITEM_VARIANT_CLASS = "App\\Models\\Inventory\\ItemVariant";
 
 export default function Form() {
   const { t } = useLaravelReactI18n();
+  // Baris di luar dokumen sumber (sub model ItemVariant/Asset) butuh izin khusus.
+  const canOffSource = usePermission(
+    "App\\Models\\Inventory\\DeliveryNote",
+  ).can("manage_off_source_items");
   const { data, setData, defaultData, dataBefore } = useFormPage(
     {
       delivery_date: new Date(),
@@ -28,7 +36,26 @@ export default function Form() {
       trackDefaultValue: false,
     },
   );
+  // Sumber baris dipilih lewat LinkModel multi-model (spec
+  // delivery-note-sales-invoice-off-source-items): model utama = baris dokumen
+  // sumber (SalesOrderItem/InternalOrderItem), sub model = ItemVariant dan Asset
+  // bebas (di luar dokumen sumber). Untuk Sales Order, wrapper
+  // SalesOrderItemLinkModel mendukung template link yang menampilkan Asset.
   const itemColumns = useMemo(() => {
+    // Baris punya sumber SO/IO, atau ItemVariant/Asset bebas.
+    const hasSource = (dataRow) =>
+      !!(dataRow?.referenceable || dataRow?.item || dataRow?.asset);
+    // Baris Asset: dari baris SO ber-asset_id, atau Asset bebas.
+    const isAssetRow = (dataRow) =>
+      !!(
+        dataRow?.asset ??
+        dataRow?.asset_id ??
+        dataRow?.referenceable?.asset ??
+        dataRow?.referenceable?.asset_id
+      );
+    const isSalesOrder =
+      data.reference_to?.model === "App\\Models\\Sales\\SalesOrder";
+
     return [
       {
         name: "item",
@@ -37,37 +64,112 @@ export default function Form() {
         width: 2,
         cell({ dataRow, setData, attributes }) {
           const referenceItemModel = (data.reference_to?.model ?? "") + "Item";
+          const SourceItemLinkModel = isSalesOrder
+            ? SalesOrderItemLinkModel
+            : LinkModel;
+          const assetRow = isAssetRow(dataRow);
+          const freeRow = !dataRow.referenceable && !dataRow.referenceable_id;
           return (
-            <LinkModel
+            <SourceItemLinkModel
               model={referenceItemModel}
               disabledAddButton
               placeholder={t("inventory.deliveryNote.columns.item.placeholder")}
               value={
-                dataRow.referenceable ??
-                (dataRow.referenceable_id
-                  ? { id: dataRow.referenceable_id }
-                  : null)
+                freeRow
+                  ? (dataRow.asset ?? dataRow.item ?? null)
+                  : (dataRow.referenceable ??
+                    (dataRow.referenceable_id
+                      ? { id: dataRow.referenceable_id }
+                      : null))
               }
               disabled={!data.referenceable}
+              mainLabel={t("inventory.deliveryNote.columns.item.group_source")}
+              subModels={
+                !canOffSource
+                  ? undefined
+                  : [
+                      {
+                        model: ITEM_VARIANT_CLASS,
+                        label: t(
+                          "inventory.deliveryNote.columns.item.group_item",
+                        ),
+                        filters: { "item.is_fixed_asset": false },
+                        with: ["defaultUom", "item"],
+                        fields: ["is_stock_item"],
+                        disabledAddButton: true,
+                      },
+                      {
+                        model: ASSET_CLASS,
+                        label: t(
+                          "inventory.deliveryNote.columns.item.group_asset",
+                        ),
+                        group: ["ownership"],
+                        filters: { status: { jsonContains: ["active"] } },
+                        disabledAddButton: true,
+                      },
+                    ]
+              }
               onValueChange={(val) => {
+                // Opsi Asset bebas: dijual, tanpa unit/gudang.
+                if (val?.thisModel === ASSET_CLASS) {
+                  setData({
+                    referenceable: null,
+                    referenceable_id: null,
+                    referenceable_type: null,
+                    item: null,
+                    asset: val,
+                    asset_id: val.id,
+                    unit: null,
+                    source_warehouse: null,
+                    conversion_factor: 1,
+                    quantity: 1,
+                    required_quantity: undefined,
+                  });
+                  return;
+                }
+                // Opsi ItemVariant bebas.
+                if (val?.thisModel === ITEM_VARIANT_CLASS) {
+                  setData({
+                    referenceable: null,
+                    referenceable_id: null,
+                    referenceable_type: null,
+                    item: val,
+                    asset: null,
+                    asset_id: null,
+                    unit: val.default_uom,
+                    source_warehouse: null,
+                    conversion_factor: val.default_uom?.conversion_factor ?? 1,
+                    quantity: 1,
+                    required_quantity: undefined,
+                  });
+                  return;
+                }
+                // Opsi baris SO/IO.
                 setData({
                   referenceable: val,
                   referenceable_id: val?.id,
                   referenceable_type: referenceItemModel,
-                  // item TIDAK disimpan — item_id diambil backend dari referenceable
-                  unit: val?.unit,
-                  source_warehouse: val?.source_warehouse,
-                  conversion_factor: val?.conversion_factor,
+                  item: val?.item ?? null,
+                  asset: val?.asset ?? null,
+                  asset_id: val?.asset_id ?? null,
+                  unit: val?.asset_id ? null : val?.unit,
+                  source_warehouse: val?.asset_id
+                    ? null
+                    : val?.source_warehouse,
+                  conversion_factor: val?.asset_id ? 1 : val?.conversion_factor,
                   quantity: val?.undelivered_quantity,
                   required_quantity: val?.undelivered_quantity,
                 });
               }}
               {...attributes}
-              as="item:item.item_id"
-              canNavigation="App\Models\Inventory\Item"
+              as={assetRow ? "asset:asset_id" : "item:item.item_id"}
+              canNavigation={
+                assetRow
+                  ? "App\\Models\\Asset\\Asset"
+                  : "App\\Models\\Inventory\\Item"
+              }
               filters={{
-                ...(data.reference_to?.model ===
-                "App\\Models\\Sales\\SalesOrder"
+                ...(isSalesOrder
                   ? { sales_order_id: data?.referenceable?.id }
                   : { internal_order_id: data?.referenceable?.id }),
                 undelivered_quantity: { ">": 0 },
@@ -75,12 +177,14 @@ export default function Form() {
               with={[
                 "item",
                 "unit",
+                ...(isSalesOrder ? ["asset"] : []),
                 "sourceWarehouse",
                 "sourceWarehouse.branch",
               ]}
               fields={[
                 "undelivered_quantity",
                 "conversion_factor",
+                ...(isSalesOrder ? ["asset_id"] : []),
                 "source_warehouse",
               ]}
             />
@@ -96,7 +200,7 @@ export default function Form() {
         cell({ dataRow, data, setData, attributes }) {
           return (
             <Textarea
-              disabled={!dataRow?.referenceable}
+              disabled={!hasSource(dataRow)}
               rows={1}
               value={data ?? ""}
               onChange={(e) => setData("description", e.target.value)}
@@ -115,7 +219,7 @@ export default function Form() {
         cell({ dataRow, data, setData, attributes }) {
           return (
             <WarehouseLinkModel
-              disabled={!dataRow?.referenceable}
+              disabled={!hasSource(dataRow) || isAssetRow(dataRow)}
               placeholder={t(
                 "inventory.deliveryNote.columns.source_warehouse.placeholder",
               )}
@@ -136,7 +240,7 @@ export default function Form() {
           return (
             <NumberInput
               {...attributes}
-              disabled={!dataRow?.referenceable}
+              disabled={!hasSource(dataRow)}
               readOnly={false}
               value={data}
               onValueChange={(value) => {
@@ -152,9 +256,11 @@ export default function Form() {
         titleTrans: "inventory.deliveryNote.columns.unit",
         required: true,
         cell({ data, setData, attributes, dataRow }) {
+          const itemId =
+            dataRow?.referenceable?.item?.item_id ?? dataRow?.item?.item_id;
           return (
             <ItemUnitLinkModel
-              disabled={!dataRow?.referenceable}
+              disabled={!hasSource(dataRow) || isAssetRow(dataRow)}
               placeholder={t("inventory.deliveryNote.columns.unit.placeholder")}
               value={data}
               onValueChange={(val) =>
@@ -164,108 +270,14 @@ export default function Form() {
                 })
               }
               {...attributes}
-              filters={{
-                item_id:
-                  dataRow?.referenceable?.item?.id ??
-                  dataRow?.referenceable?.item_id ??
-                  dataRow?.item?.id,
-              }}
+              filters={{ item_id: itemId }}
             />
           );
         },
       },
-      {
-        name: "asset_lines",
-        titleTrans: "inventory.deliveryNote.columns.asset_lines",
-        show: false,
-        width: 3,
-        cell({ dataRow, data, setData, attributes }) {
-          const itemId =
-            dataRow?.referenceable?.item?.item_id ??
-            dataRow?.referenceable?.item_id;
-          const isFixedAsset = !!dataRow?.referenceable?.item?.is_fixed_asset;
-          if (!isFixedAsset) {
-            return <span className="text-muted-foreground">-</span>;
-          }
-          const totalAssetQuantity = (data ?? []).reduce(
-            (sum, line) => sum + (Number(line.quantity) || 0),
-            0,
-          );
-          const mismatch = totalAssetQuantity !== (dataRow.quantity ?? 0);
-          return (
-            <div className="flex w-full flex-col gap-y-1">
-              <FormTable
-                name="DeliveryNoteItemAssetLines"
-                ignoreDisabled
-                readOnly={attributes.readOnly}
-                columns={[
-                  {
-                    name: "asset",
-                    titleTrans:
-                      "inventory.deliveryNote.columns.asset_lines.asset",
-                    required: true,
-                    width: 2,
-                    cell({
-                      dataRow: _assetRow,
-                      data: assetData,
-                      setData: setAssetData,
-                      attributes: assetAttrs,
-                    }) {
-                      return (
-                        <AssetLinkModel
-                          placeholder={t(
-                            "inventory.deliveryNote.columns.asset_lines.asset.placeholder",
-                          )}
-                          value={assetData}
-                          onValueChange={(val) => setAssetData("asset", val)}
-                          {...assetAttrs}
-                          filters={{
-                            item_id: itemId,
-                            available_quantity: { ">": 0 },
-                          }}
-                        />
-                      );
-                    },
-                  },
-                  {
-                    name: "quantity",
-                    titleTrans:
-                      "inventory.deliveryNote.columns.asset_lines.quantity",
-                    required: true,
-                    type: "number",
-                    width: 1,
-                    cell({
-                      data: qty,
-                      setData: setAssetData,
-                      attributes: assetAttrs,
-                    }) {
-                      return (
-                        <NumberInput
-                          {...assetAttrs}
-                          value={qty}
-                          onValueChange={(val) => setAssetData("quantity", val)}
-                        />
-                      );
-                    },
-                  },
-                ]}
-                value={data ?? []}
-                onValueChange={(v) => setData("asset_lines", v)}
-              />
-              {mismatch && (
-                <p className="text-xs text-destructive">
-                  {t(
-                    "inventory.deliveryNote.columns.asset_lines.quantity_mismatch",
-                    { quantity: dataRow.quantity ?? 0 },
-                  )}
-                </p>
-              )}
-            </div>
-          );
-        },
-      },
     ];
-  }, [data, t]);
+  }, [data, t, canOffSource]);
+
   return (
     <>
       <FormPageContent
@@ -349,12 +361,20 @@ export default function Form() {
                       ? ["customer", "customerBranch"]
                       : ["branch"]),
                     "items.item",
+                    ...(data.reference_to?.model ===
+                    "App\\Models\\Sales\\SalesOrder"
+                      ? ["items.asset"]
+                      : []),
                     "items.unit",
                     "items.sourceWarehouse",
                     "items.sourceWarehouse.branch",
                   ]}
                   fields={[
                     "items.item",
+                    ...(data.reference_to?.model ===
+                    "App\\Models\\Sales\\SalesOrder"
+                      ? ["items.asset_id"]
+                      : []),
                     "items.unit",
                     "items.source_warehouse",
                     "items.quantity",
@@ -364,6 +384,20 @@ export default function Form() {
                   ]}
                   value={data.referenceable}
                   onValueChange={(val) => {
+                    const referenceableRows = val?.items?.map((item) => {
+                      return {
+                        ...item,
+                        id: generateRandom(8),
+                        referenceable: item,
+                        referenceable_type: data.reference_to?.model + "Item",
+                        referenceable_id: item.id,
+                        source_warehouse: item.asset_id
+                          ? null
+                          : item.source_warehouse,
+                        quantity: item.undelivered_quantity ?? 0,
+                        required_quantity: item.undelivered_quantity ?? 0,
+                      };
+                    });
                     setData((prev) => {
                       return {
                         ...prev,
@@ -372,19 +406,7 @@ export default function Form() {
                         referenceable_id: val?.id,
                         customer: val?.customer,
                         customer_branch: val?.customer_branch ?? val?.branch,
-                        items: val?.items?.map((item) => {
-                          return {
-                            ...item,
-                            id: generateRandom(8),
-                            referenceable: item,
-                            referenceable_type:
-                              data.reference_to?.model + "Item",
-                            referenceable_id: item.id,
-                            source_warehouse: item.source_warehouse,
-                            quantity: item.undelivered_quantity ?? 0,
-                            required_quantity: item.undelivered_quantity ?? 0,
-                          };
-                        }),
+                        items: referenceableRows ?? [],
                         external_note: val?.external_note,
                       };
                     });
@@ -442,11 +464,20 @@ export default function Form() {
                     "customerBranch",
                     "items",
                     "items.referenceable",
+                    "items.asset",
                     "items.unit",
                     "items.sourceWarehouse",
                   ]}
+                  fields={["items.asset_id"]}
                   value={data.return_against}
                   onValueChange={(val) => {
+                    const returnRows = val?.items?.map((item) => ({
+                      ...item,
+                      id: generateRandom(8),
+                      return_against_item: item,
+                      quantity: item.unreturned_quantity,
+                      required_quantity: item.unreturned_quantity,
+                    }));
                     setData((prev) => ({
                       ...prev,
                       return_against: val,
@@ -454,13 +485,7 @@ export default function Form() {
                       referenceable: val?.referenceable,
                       customer: val?.customer,
                       customer_branch: val?.customer_branch,
-                      items: val?.items?.map((item) => ({
-                        ...item,
-                        id: generateRandom(8),
-                        return_against_item: item,
-                        quantity: item.unreturned_quantity,
-                        required_quantity: item.unreturned_quantity,
-                      })),
+                      items: returnRows ?? [],
                     }));
                   }}
                 />

@@ -10,12 +10,14 @@ use App\Events\Finances\PurchaseInvoiceGeneralLedgerPostingRequested;
 use App\Events\Purchase\Invoice\PurchaseInvoiceReturnStatusChanged;
 use App\Events\Purchase\Invoice\PurchaseOrderItemBillingChanged;
 use App\Events\Purchase\Order\PurchaseOrderBillStatusRecalculationRequested;
+use App\Http\Requests\Finances\Rules\ReturnAgainstItemRules;
 use App\Models\Core\FormatingSeries;
 use App\Models\Core\GlPostingStatus;
 use App\Models\Core\ModelConnection;
 use App\Models\Core\Preference;
 use App\Models\Finances\Account;
 use App\Models\Finances\PurchaseInvoice;
+use App\Models\Finances\PurchaseInvoiceItem;
 use App\Models\Finances\Tax;
 use App\Models\Inventory\ItemUnit;
 use App\Models\Inventory\Stock;
@@ -24,9 +26,11 @@ use App\Models\Model;
 use App\Models\Purchase\PurchaseOrder;
 use App\Models\Purchase\PurchaseOrderItem;
 use App\Models\Purchase\PurchaseReceipt;
+use App\Models\Purchase\PurchaseReceiptItem;
 use App\Models\Purchase\Supplier;
 use App\Traits\HasDefaultDelete;
 use App\Utils;
+use Illuminate\Support\Collection;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Validation\ValidationException;
 use Symfony\Component\Uid\Ulid;
@@ -63,16 +67,24 @@ class PurchaseInvoiceService implements SubmitableService {
         return $data;
     }
 
-    private function fillItemRelations(array $data, PurchaseInvoice $purchaseInvoice, array $units = [], array $taxes = [], array $purchaseOrderItems = []) {
-        $unit                           = $units[$data['unit']['id']] ?? null;
-        $tax                            = $taxes[$data['tax']['id'] ?? ''] ?? null;
-        $data['purchase_order_item_id'] = $data['purchase_order_item']['id'];
-        $data['item_id']                = $purchaseOrderItems[$data['purchase_order_item_id']]->item_id;
-        $data['item_unit_id']           = $data['unit']['id'];
-        $data['conversion_factor']      = $unit?->conversion_factor ?? 1;
-        $data['exchange_rate']          = $purchaseInvoice->exchange_rate;
-        $data['tax_id']                 = $data['tax']['id'] ?? null;
-        $data['tax_rate']               = $tax?->rate ?? 0;
+    private function fillItemRelations(array $data, PurchaseInvoice $purchaseInvoice, array $units = [], array $taxes = [], array $purchaseOrderItems = [], array $receiptItems = []) {
+        $unit          = $units[$data['unit']['id']] ?? null;
+        $tax           = $taxes[$data['tax']['id'] ?? ''] ?? null;
+        $poItemId      = $data['purchase_order_item']['id'] ?? null;
+        $receiptItemId = $data['purchase_receipt_item']['id'] ?? null;
+
+        // Tiga sumber baris (spec purchase-invoice-off-po-items): PO Item (normal),
+        // baris receipt di luar PO, atau item bebas (`item.id`).
+        $data['purchase_order_item_id']   = $poItemId;
+        $data['purchase_receipt_item_id'] = $receiptItemId;
+        $data['item_id']                  = $poItemId
+            ? $purchaseOrderItems[$poItemId]->item_id
+            : ($receiptItemId ? $receiptItems[$receiptItemId]->item_id : $data['item']['id']);
+        $data['item_unit_id']      = $data['unit']['id'];
+        $data['conversion_factor'] = $unit?->conversion_factor ?? 1;
+        $data['exchange_rate']     = $purchaseInvoice->exchange_rate;
+        $data['tax_id']            = $data['tax']['id'] ?? null;
+        $data['tax_rate']          = $tax?->rate ?? 0;
 
         return $data;
     }
@@ -81,6 +93,12 @@ class PurchaseInvoiceService implements SubmitableService {
         $ids = collect($data['items'])->pluck('purchase_order_item.id')->filter()->unique()->values();
 
         return PurchaseOrderItem::whereIn('id', $ids)->get()->keyBy('id')->all();
+    }
+
+    private function batchLoadReceiptItems(array $data): array {
+        $ids = collect($data['items'])->pluck('purchase_receipt_item.id')->filter()->unique()->values();
+
+        return PurchaseReceiptItem::whereIn('id', $ids)->get()->keyBy('id')->all();
     }
 
     private function batchLoadUnits(array $data): array {
@@ -113,10 +131,11 @@ class PurchaseInvoiceService implements SubmitableService {
         $units              = $this->batchLoadUnits($data);
         $taxes              = $this->batchLoadTaxes($data);
         $purchaseOrderItems = $this->batchLoadPurchaseOrderItems($data);
+        $receiptItems       = $this->batchLoadReceiptItems($data);
 
         $items = collect();
         foreach ($data['items'] as $item) {
-            $item      = $this->fillItemRelations($item, $purchaseInvoice, $units, $taxes, $purchaseOrderItems);
+            $item      = $this->fillItemRelations($item, $purchaseInvoice, $units, $taxes, $purchaseOrderItems, $receiptItems);
             $itemModel = $purchaseInvoice->items()->create($item);
             // basic_amount generated column (quantity * rate) -- belum terisi di object
             // sampai di-refresh dari DB.
@@ -156,10 +175,11 @@ class PurchaseInvoiceService implements SubmitableService {
         $units              = $this->batchLoadUnits($data);
         $taxes              = $this->batchLoadTaxes($data);
         $purchaseOrderItems = $this->batchLoadPurchaseOrderItems($data);
+        $receiptItems       = $this->batchLoadReceiptItems($data);
 
         $items = collect();
         foreach ($data['items'] as $item) {
-            $item = $this->fillItemRelations($item, $purchaseInvoice, $units, $taxes, $purchaseOrderItems);
+            $item = $this->fillItemRelations($item, $purchaseInvoice, $units, $taxes, $purchaseOrderItems, $receiptItems);
 
             if (Ulid::isValid($item['id'])) {
                 $itemModel = $existingItems->get($item['id']);
@@ -259,6 +279,8 @@ class PurchaseInvoiceService implements SubmitableService {
                 'returnAgainst',
                 'items.returnAgainstItem',
                 'items.purchaseOrderItem',
+                'items.purchaseReceiptItem',
+                'items.returnAgainstItem.purchaseReceiptItem',
                 'items.item',
                 'items.item.item',
             ]);
@@ -272,6 +294,9 @@ class PurchaseInvoiceService implements SubmitableService {
             $totalStockGL = 0; // Untuk GL Stock/SRNB (ALUR-1)
 
             foreach ($items as $item) {
+                if ($returnAgainst && $item->return_against_item_id) {
+                    ReturnAgainstItemRules::assertRemainingOnApprove('purchase_invoice_items', $item->return_against_item_id, (float) $item->quantity);
+                }
                 $basicAmount += $item->basic_amount - $item->discount_amount;
                 $taxAmount += $item->tax_amount;
 
@@ -279,22 +304,37 @@ class PurchaseInvoiceService implements SubmitableService {
                 $qty    = $item->quantity;
                 $rate   = $item->rate;
 
-                event(new PurchaseOrderItemBillingChanged(
-                    $poItem,
-                    $qty,
-                    $returnAgainst ? 'decrement' : 'increment',
-                    $returnAgainst ? $item->returnAgainstItem : null,
-                ));
+                // Baris di luar PO (baris receipt / item bebas) tak punya PO Item:
+                // status tagihan PO hanya menghitung PO Item (spec purchase-invoice-off-po-items).
+                if ($poItem) {
+                    event(new PurchaseOrderItemBillingChanged(
+                        $poItem,
+                        $qty,
+                        $returnAgainst ? 'decrement' : 'increment',
+                        $returnAgainst ? $item->returnAgainstItem : null,
+                    ));
+                } elseif ($returnAgainst && $item->returnAgainstItem) {
+                    // Retur baris off-PO: tak ada PO Item, tapi jumlah retur baris asal tetap dicatat.
+                    $item->returnAgainstItem->increment('returned_quantity', $qty);
+                }
 
                 if (! $returnAgainst) {
-                    // === ALUR-1: Receipt sudah ada duluan → update SLE pending ===
-                    $isAlreadyReceived = $poItem->received_quantity > 0;
+                    if ($poItem) {
+                        // === ALUR-1: Receipt sudah ada duluan → update SLE pending ===
+                        $isAlreadyReceived = $poItem->received_quantity > 0;
 
-                    if ($isAlreadyReceived) {
-                        $stockGLForItem = $this->updatePendingSLEs($poItem, $purchaseOrder, $qty, $rate, $purchaseInvoice);
-                        $totalStockGL += $stockGLForItem;
+                        if ($isAlreadyReceived) {
+                            $stockGLForItem = $this->updatePendingSLEs($poItem, $purchaseOrder, $qty, $rate, $purchaseInvoice);
+                            $totalStockGL += $stockGLForItem;
+                        }
+                        // ALUR-2: Receipt belum ada → tidak ada SLE pending, skip
+                    } elseif ($item->purchase_receipt_item_id) {
+                        $totalStockGL += $this->billReceiptRow($item->purchaseReceiptItem, $qty, $rate, $purchaseInvoice, (float) ($item->conversion_factor ?: 1));
+                    } else {
+                        $totalStockGL += $this->billFreeItem($item, $purchaseOrder, $purchaseInvoice);
                     }
-                    // ALUR-2: Receipt belum ada → tidak ada SLE pending, skip
+                } elseif (! $poItem) {
+                    $this->reverseReceiptBilling($item, $qty);
                 }
             }
 
@@ -381,16 +421,53 @@ class PurchaseInvoiceService implements SubmitableService {
             ->where('reference_type', PurchaseReceipt::class)
             ->pluck('reference_id');
 
-        // Cari SLE pending yang berasal dari Receipt items untuk PO item ini
+        // Cari SLE pending yang berasal dari baris Receipt untuk PO item ini: baris
+        // normal (`purchase_order_item_id`) ATAU baris pengganti di luar PO
+        // (`replaces_purchase_order_item_id`, spec purchase-receipt-off-po-items).
+        // SLE dicocokkan ke baris lewat item_id supaya baris lain di receipt yang
+        // sama (mis. barang berdiri sendiri) tidak ikut dinilai invoice ini.
         $pendingSLEs = StockLedgerEntry::where('is_valuated', false)
             ->where('referenceable_type', PurchaseReceipt::class)
             ->whereIn('referenceable_id', $receiptIds)
-            ->whereHasMorph('referenceable', [PurchaseReceipt::class], function ($q) use ($poItem) {
-                $q->whereHas('items', fn ($q2) => $q2->where('purchase_order_item_id', $poItem->id));
+            ->whereExists(function ($sub) use ($poItem) {
+                $sub->select(DB::raw(1))
+                    ->from('purchase_receipt_items as pri')
+                    ->whereColumn('pri.purchase_receipt_id', 'stock_ledger_entries.referenceable_id')
+                    ->whereColumn('pri.item_id', 'stock_ledger_entries.item_id')
+                    ->whereNull('pri.deleted_at')
+                    ->where(function ($match) use ($poItem) {
+                        $match->where('pri.purchase_order_item_id', $poItem->id)
+                            ->orWhere('pri.replaces_purchase_order_item_id', $poItem->id);
+                    });
             })
             ->orderBy('transaction_date') // FIFO
             ->lockForUpdate()
             ->get();
+
+        // Sisa porsi yang boleh dinilai per (receipt, item): null = tanpa batas (baris
+        // normal); baris pengganti dibatasi `replaced_quantity` (selebihnya tetap pending).
+        return $this->valuePendingSLEs(
+            $pendingSLEs,
+            $qty,
+            $rate,
+            $purchaseInvoice,
+            fn (StockLedgerEntry $sle) => $this->eligibleQuantityForPoItem($sle, $poItem),
+            ['item_id' => $poItem->item_id, 'warehouse_id' => $poItem->target_warehouse_id, 'item_unit_id' => $poItem->item_unit_id],
+        );
+    }
+
+    /**
+     * Inti penilaian SLE pending (dipakai jalur PO Item, baris receipt, item bebas):
+     * alokasi FIFO `$qty` ke `$pendingSLEs` dengan `$rate`, memecah SLE bila perlu dan
+     * mengoreksi stock_queue. `$eligibleFor($sle)` = batas porsi yang boleh dinilai per
+     * (receipt, item) (null = tanpa batas). `$overBill` (item/gudang/satuan fallback)
+     * non-null -> sisa qty over-bill menjadi SLE pending baru yang menunjuk invoice.
+     *
+     * @param  Collection<int, StockLedgerEntry>  $pendingSLEs
+     * @param  array{item_id: string, warehouse_id: string|null, item_unit_id: string|null}|null  $overBill
+     */
+    private function valuePendingSLEs(Collection $pendingSLEs, float $qty, float $rate, PurchaseInvoice $purchaseInvoice, callable $eligibleFor, ?array $overBill): float {
+        $eligibleLeft = [];
 
         $remainingQty = $qty;
         $totalValue   = 0;
@@ -407,8 +484,17 @@ class PurchaseInvoiceService implements SubmitableService {
                 break;
             }
 
+            $eligibleKey = "{$sle->referenceable_id}|{$sle->item_id}";
+            if (! \array_key_exists($eligibleKey, $eligibleLeft)) {
+                $eligibleLeft[$eligibleKey] = $eligibleFor($sle);
+            }
+            $eligible = $eligibleLeft[$eligibleKey];
+            if ($eligible !== null && $eligible <= 0) {
+                continue;
+            }
+
             $sleQty      = $sle->quantity_change;
-            $allocateQty = min($sleQty, $remainingQty);
+            $allocateQty = min($sleQty, $remainingQty, $eligible ?? $sleQty);
 
             if ($allocateQty < $sleQty) {
                 // SLE perlu dipecah: buat SLE baru untuk porsi yang tervaluasi
@@ -459,14 +545,17 @@ class PurchaseInvoiceService implements SubmitableService {
 
             $totalValue += $rate * $allocateQty;
             $remainingQty -= $allocateQty;
+            if ($eligible !== null) {
+                $eligibleLeft[$eligibleKey] = $eligible - $allocateQty;
+            }
         }
 
         // Sisa qty over-bill: SLE baru tanpa valuasi (pending)
-        if ($remainingQty > 0) {
+        if ($remainingQty > 0 && $overBill !== null) {
             StockLedgerEntry::create([
-                'item_id'                    => $pendingSLEs->first()?->item_id ?? $poItem->item_id,
-                'warehouse_id'               => $pendingSLEs->first()?->warehouse_id ?? $poItem->target_warehouse_id,
-                'item_unit_id'               => $pendingSLEs->first()?->item_unit_id ?? $poItem->item_unit_id,
+                'item_id'                    => $pendingSLEs->first()?->item_id ?? $overBill['item_id'],
+                'warehouse_id'               => $pendingSLEs->first()?->warehouse_id ?? $overBill['warehouse_id'],
+                'item_unit_id'               => $pendingSLEs->first()?->item_unit_id ?? $overBill['item_unit_id'],
                 'conversion_factor'          => $pendingSLEs->first()?->conversion_factor ?? 1,
                 'quantity_change'            => $remainingQty,
                 'quantity_after_transaction' => 0,
@@ -482,6 +571,149 @@ class PurchaseInvoiceService implements SubmitableService {
         }
 
         return $totalValue;
+    }
+
+    /**
+     * Nilai SLE pending milik SATU baris receipt di luar PO (receipt + item_id) sebanyak
+     * `$qty` dengan `$rate`; porsi maksimal = sisa baris (`quantity − billed_quantity`).
+     * `$withOverBill` true (baris receipt eksplisit): sisa qty jadi SLE pending baru.
+     */
+    private function valueReceiptRow(PurchaseReceiptItem $row, float $qty, float $rate, PurchaseInvoice $purchaseInvoice, bool $withOverBill, float $invoiceFactor = 1): float {
+        $pendingSLEs = StockLedgerEntry::where('is_valuated', false)
+            ->where('referenceable_type', PurchaseReceipt::class)
+            ->where('referenceable_id', $row->purchase_receipt_id)
+            ->where('item_id', $row->item_id)
+            ->orderBy('transaction_date') // FIFO
+            ->lockForUpdate()
+            ->get();
+
+        // `$qty`/`$rate` dalam satuan invoice; SLE dalam satuan stok, kapasitas baris dalam satuan receipt.
+        $rowFactor   = (float) ($row->conversion_factor ?: 1);
+        $stockFactor = (float) ($pendingSLEs->first()?->conversion_factor ?: $rowFactor);
+        $toStock     = $invoiceFactor / $stockFactor;
+        $capacity    = max(0.0, ((float) $row->quantity - (float) $row->billed_quantity) * $rowFactor / $stockFactor);
+
+        return $this->valuePendingSLEs(
+            $pendingSLEs,
+            $qty * $toStock,
+            $rate / $toStock,
+            $purchaseInvoice,
+            fn () => $capacity,
+            $withOverBill
+                ? ['item_id' => $row->item_id, 'warehouse_id' => $row->target_warehouse_id, 'item_unit_id' => $row->item_unit_id]
+                : null,
+        );
+    }
+
+    /**
+     * Baris invoice yang menagih baris receipt di luar PO: nilai SLE pending baris itu,
+     * over-bill diizinkan (sisa -> SLE pending), `billed_quantity` naik sebesar qty invoice.
+     */
+    private function billReceiptRow(PurchaseReceiptItem $row, float $qty, float $rate, PurchaseInvoice $purchaseInvoice, float $invoiceFactor = 1): float {
+        $row   = PurchaseReceiptItem::where('id', $row->id)->lockForUpdate()->first();
+        $value = $this->valueReceiptRow($row, $qty, $rate, $purchaseInvoice, true, $invoiceFactor);
+        $row->increment('billed_quantity', $qty * $invoiceFactor / ((float) ($row->conversion_factor ?: 1)));
+
+        return $value;
+    }
+
+    /**
+     * Baris invoice item bebas: cocokkan baris receipt berdiri sendiri pada PO yang sama
+     * dengan `item_id` sama (FIFO urut tanggal receipt, sisa `quantity − billed_quantity`)
+     * dan nilai seperti baris receipt. Yang belum punya receipt menunggu; `allocated_qty`
+     * mencatat porsi yang sudah dialokasikan (dipakai receipt yang datang kemudian).
+     */
+    private function billFreeItem(PurchaseInvoiceItem $item, ?PurchaseOrder $purchaseOrder, PurchaseInvoice $purchaseInvoice): float {
+        if (! $purchaseOrder) {
+            return 0;
+        }
+
+        $rows = PurchaseReceiptItem::query()
+            ->whereNull('purchase_order_item_id')
+            ->whereNull('replaces_purchase_order_item_id')
+            ->where('item_id', $item->item_id)
+            ->whereColumn('quantity', '>', 'billed_quantity')
+            ->whereHas('purchaseReceipt', function ($q) use ($purchaseOrder) {
+                $q->where('purchase_order_id', $purchaseOrder->id)
+                    ->whereNull('return_against_id')
+                    ->whereNotNull('submitted_at')
+                    ->whereJsonContains('status', 'received');
+            })
+            ->with('purchaseReceipt')
+            ->lockForUpdate()
+            ->get()
+            ->sortBy(fn ($row) => $row->purchaseReceipt->date);
+
+        $invoiceFactor = (float) ($item->conversion_factor ?: 1);
+        $remaining     = (float) $item->quantity;
+        $allocated     = 0.0;
+        $total         = 0.0;
+        foreach ($rows as $row) {
+            if ($remaining <= 0) {
+                break;
+            }
+            $rowFactor = (float) ($row->conversion_factor ?: 1);
+            // kapasitas baris (satuan receipt) -> satuan invoice
+            $capacity = ((float) $row->quantity - (float) $row->billed_quantity) * $rowFactor / $invoiceFactor;
+            $allocate = min($remaining, $capacity);
+            if ($allocate <= 0) {
+                continue;
+            }
+
+            $total += $this->valueReceiptRow($row, $allocate, (float) $item->rate, $purchaseInvoice, false, $invoiceFactor);
+            $row->increment('billed_quantity', $allocate * $invoiceFactor / $rowFactor);
+            $remaining -= $allocate;
+            $allocated += $allocate;
+        }
+
+        if ($allocated > 0) {
+            $item->increment('allocated_qty', $allocated);
+        }
+
+        return $total;
+    }
+
+    /**
+     * Retur invoice: baris receipt yang ditagih membalik `billed_quantity` (minimal 0).
+     * Retur item bebas hanya membalik GL (SLE tidak dibalik, perilaku retur yang ada).
+     */
+    private function reverseReceiptBilling(PurchaseInvoiceItem $item, float $qty): void {
+        $row = $item->returnAgainstItem?->purchaseReceiptItem ?? $item->purchaseReceiptItem;
+        if (! $row) {
+            return;
+        }
+
+        $row = PurchaseReceiptItem::where('id', $row->id)->lockForUpdate()->first();
+        $row?->update(['billed_quantity' => max(0, (float) $row->billed_quantity - $qty)]);
+    }
+
+    /**
+     * Porsi SLE pending yang boleh dinilai invoice PO Item ini: null bila SLE
+     * berasal dari baris normal PO Item itu (seluruhnya); selain itu jumlah
+     * `replaced_quantity` baris pengganti yang menunjuk PO Item ini.
+     */
+    private function eligibleQuantityForPoItem(StockLedgerEntry $sle, $poItem): ?float {
+        $rows = PurchaseReceiptItem::where('purchase_receipt_id', $sle->referenceable_id)
+            ->where('item_id', $sle->item_id)
+            ->where(function ($q) use ($poItem) {
+                $q->where('purchase_order_item_id', $poItem->id)
+                    ->orWhere('replaces_purchase_order_item_id', $poItem->id);
+            })
+            ->get();
+
+        if ($rows->contains(fn ($row) => $row->purchase_order_item_id === $poItem->id)) {
+            return null;
+        }
+
+        // Porsi yang sudah dinilai invoice sebelumnya (SLE is_valuated) mengurangi anggaran,
+        // supaya tagihan berikutnya tak menilai ulang melebihi `replaced_quantity`.
+        $alreadyValued = (float) StockLedgerEntry::where('is_valuated', true)
+            ->where('referenceable_type', PurchaseReceipt::class)
+            ->where('referenceable_id', $sle->referenceable_id)
+            ->where('item_id', $sle->item_id)
+            ->sum('quantity_change');
+
+        return max(0.0, (float) $rows->sum('replaced_quantity') - $alreadyValued);
     }
 
     /**

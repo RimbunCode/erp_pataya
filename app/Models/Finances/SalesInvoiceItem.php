@@ -3,6 +3,7 @@
 namespace App\Models\Finances;
 
 use App\Enums\Permission;
+use App\Models\Asset\Asset;
 use App\Models\Inventory\ItemUnit;
 use App\Models\Inventory\ItemVariant;
 use App\Models\Model;
@@ -10,6 +11,7 @@ use App\Models\Sales\SalesOrder;
 use App\Models\Sales\SalesOrderItem;
 use Illuminate\Database\Eloquent\Concerns\HasUlids;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
+use Illuminate\Database\Eloquent\Relations\BelongsTo;
 use Illuminate\Database\Eloquent\SoftDeletes;
 
 class SalesInvoiceItem extends Model {
@@ -22,9 +24,17 @@ class SalesInvoiceItem extends Model {
     ];
 
     public static $parentRelation = 'salesInvoice';
-    public string $translateKey   = 'finances.salesInvoice.item';
-    protected $guarded            = ['id'];
-    protected $casts              = [
+
+    /**
+     * Sengaja memakai namespace lang dokumen induk (tanpa sufiks .item): model
+     * baris item tidak punya berkas lang sendiri, kolomnya didefinisikan di
+     * array columns milik induk. Jangan diubah balik ke .item, label kolom akan
+     * tercetak sebagai kunci mentah.
+     */
+    public string $translateKey = 'finances.salesInvoice';
+
+    protected $guarded = ['id'];
+    protected $casts   = [
         'quantity'            => 'float',
         'returned_quantity'   => 'float',
         'unreturned_quantity' => 'float',
@@ -43,6 +53,14 @@ class SalesInvoiceItem extends Model {
             'type'  => 'relation',
             'show'  => true,
             'order' => 0,
+        ],
+        'asset' => [
+            'type' => 'relation',
+            'show' => false,
+        ],
+        'asset_id' => [
+            'hidden'   => true,
+            'linkable' => true,
         ],
         'quantity' => [
             'type'  => 'numeric',
@@ -171,7 +189,7 @@ class SalesInvoiceItem extends Model {
         return $this->belongsTo(ItemVariant::class, 'item_id');
     }
 
-    public function assetLines() {
-        return $this->hasMany(SalesInvoiceItemAsset::class);
+    public function asset(): BelongsTo {
+        return $this->belongsTo(Asset::class);
     }
 }

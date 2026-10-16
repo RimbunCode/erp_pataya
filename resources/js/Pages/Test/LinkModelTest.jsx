@@ -6,6 +6,7 @@ import { useState } from "react";
 export default function LinkModelTest() {
   const [permission, setPermission] = useState(null);
   const [selectedItem, setSelectedItem] = useState(null);
+  const [multiItem, setMultiItem] = useState(null);
   const [withInput, setWithInput] = useState("*");
   const [fieldsInput, setFieldsInput] = useState("*");
 
@@ -103,6 +104,36 @@ export default function LinkModelTest() {
             fields={fieldsArray}
             limit={15}
           />
+        </section>
+
+        {/* Field 5: LinkModel multi-model (spec linkmodel-multi-model) */}
+        <section className="space-y-2">
+          <label className="text-sm font-semibold">
+            5. LinkModel multi-model (Item = main, Varian Item & Unit = sub)
+          </label>
+          <LinkModel
+            model="App\Models\Inventory\Item"
+            mainLabel="Item"
+            value={multiItem}
+            onValueChange={setMultiItem}
+            placeholder="Cari item / varian / unit..."
+            subModels={[
+              {
+                model: "App\\Models\\Inventory\\ItemVariant",
+                label: "Varian Item",
+              },
+              {
+                model: "App\\Models\\Inventory\\Unit",
+                label: "Unit",
+                advanceSearch: false,
+              },
+            ]}
+          />
+          {multiItem && (
+            <pre className="rounded bg-muted p-3 text-xs">
+              {multiItem.thisModel}
+            </pre>
+          )}
         </section>
 
         {/* Display detail item terpilih */}

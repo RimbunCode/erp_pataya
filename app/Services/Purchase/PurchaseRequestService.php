@@ -185,6 +185,12 @@ class PurchaseRequestService implements SubmitableService {
             ->get();
 
         foreach ($itemConnections->groupBy('reference_type') as $type => $connections) {
+            // Baris audit (reference_type penanda bebas seperti 'sync') tidak
+            // menunjuk model apa pun, sehingga relasi morph-nya null.
+            if (! $type) {
+                continue;
+            }
+
             $uniqueReference = $connections->unique('reference_id');
             $ids             = $uniqueReference->pluck('reference_id')->toArray();
 
@@ -194,10 +200,13 @@ class PurchaseRequestService implements SubmitableService {
                 ->map(fn ($group) => $group->sum('data.requested_quantity'));
 
             foreach ($uniqueReference as $reference) {
-                $qty  = $sums->get($reference->id, 0);
                 $item = $reference->reference;
+                if ($item === null) {
+                    continue;
+                }
+
                 $item->update([
-                    'requested_quantity' => $qty,
+                    'requested_quantity' => $sums->get($reference->id, 0),
                 ]);
             }
         }

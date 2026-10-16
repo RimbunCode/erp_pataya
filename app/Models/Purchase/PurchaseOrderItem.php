@@ -22,9 +22,17 @@ class PurchaseOrderItem extends Model {
     ];
 
     public static $parentRelation = 'purchaseOrder';
-    public string $translateKey   = 'purchase.purchaseOrder.item';
-    protected $guarded            = ['id'];
-    protected $casts              = [
+
+    /**
+     * Sengaja memakai namespace lang dokumen induk (tanpa sufiks .item): model
+     * baris item tidak punya berkas lang sendiri, kolomnya didefinisikan di
+     * array columns milik induk. Jangan diubah balik ke .item, label kolom akan
+     * tercetak sebagai kunci mentah.
+     */
+    public string $translateKey = 'purchase.purchaseOrder';
+
+    protected $guarded = ['id'];
+    protected $casts   = [
         'required_date'       => 'datetime',
         'quantity'            => 'float',
         'received_quantity'   => 'float',

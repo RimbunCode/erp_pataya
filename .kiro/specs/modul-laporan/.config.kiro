@@ -1,0 +1,6 @@
+{
+  "specId": "0bb4a2f1-7c3e-4d95-9a18-6e2f5c84b703",
+  "workflowType": "requirements-first",
+  "specType": "feature",
+  "description": "Modul Laporan: 9 laporan (6 lengkap + 3 WO-related dengan data seadanya) mengacu pada modul laporan app lama Pataya Sarana Niaga, memakai DataTableScope untuk tabel dan query agregat terpisah untuk KPI, dengan proteksi konsistensi antara keduanya."
+}

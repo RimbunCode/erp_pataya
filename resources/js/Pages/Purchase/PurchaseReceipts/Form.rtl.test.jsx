@@ -177,13 +177,29 @@ vi.mock("@/Pages/Inventory/Items/ItemUnitLinkModel", () => ({
   ),
 }));
 
+// Dua instance per baris: kolom item (punya `subModels`) dan kolom "Menggantikan"
+// (tanpa `subModels`). Klik memanggil onValueChange dengan `nextOption` (diatur test).
+let nextOption = null;
 vi.mock("../PurchaseOrders/PurchaseOrderItemLinkModel", () => ({
-  default: ({ disabled, filters }) => (
+  default: ({
+    disabled,
+    filters,
+    subModels,
+    mainLabel,
+    onValueChange,
+    value,
+  }) => (
     <button
       type="button"
-      data-testid="purchase-order-item-link-model"
+      data-testid={
+        subModels ? "purchase-order-item-link-model" : "replaces-link-model"
+      }
       data-disabled={disabled ? "true" : "false"}
       data-filters={JSON.stringify(filters ?? {})}
+      data-main-label={mainLabel ?? ""}
+      data-sub-models={JSON.stringify(subModels ?? null)}
+      data-value-id={value?.id ?? ""}
+      onClick={() => onValueChange?.(nextOption)}
     />
   ),
 }));
@@ -205,6 +221,7 @@ import Form from "./Form";
 describe("PurchaseReceipts Form", () => {
   beforeEach(() => {
     formPageSeed = {};
+    nextOption = null;
   });
 
   it("memilih purchase_order mengisi supplier dan items (full-replace, tanpa mergeItems)", async () => {
@@ -341,5 +358,159 @@ describe("PurchaseReceipts Form", () => {
     await user.type(textarea, "Halo");
 
     expect(textarea).toHaveValue("Halo");
+  });
+
+  describe("item di luar PO (spec purchase-receipt-off-po-items)", () => {
+    const VARIANT = "App\\Models\\Inventory\\ItemVariant";
+    const seedWithPo = (items = [{ id: "r1" }]) => {
+      formPageSeed = {
+        purchase_order: {
+          id: 10,
+          items: [
+            { id: 100, item: { id: "var-po-1" } },
+            { id: 101, item: { id: "var-po-2" } },
+          ],
+        },
+        items,
+      };
+    };
+    const offPoOption = {
+      id: "var-new",
+      thisModel: VARIANT,
+      item_id: 77,
+      default_uom: { id: "iu-1", conversion_factor: 1 },
+    };
+
+    it("kolom item memakai LinkModel multi-model: main 'Item PO' + sub ItemVariant dengan notIn id varian PO", () => {
+      seedWithPo();
+      renderForm(<Form />);
+
+      const cell = screen.getByTestId("purchase-order-item-link-model");
+      expect(cell).toHaveAttribute(
+        "data-main-label",
+        "purchase.purchaseReceipt.columns.item.group_po",
+      );
+      const [sub] = JSON.parse(cell.getAttribute("data-sub-models"));
+      expect(sub).toMatchObject({
+        model: VARIANT,
+        label: "purchase.purchaseReceipt.columns.item.group_other",
+        filters: { id: { notIn: ["var-po-1", "var-po-2"] } },
+      });
+    });
+
+    it("memilih opsi ItemVariant -> baris di luar PO: item terisi, tanpa PO Item, sel lain aktif", async () => {
+      const user = userEvent.setup({ delay: null });
+      seedWithPo();
+      renderForm(<Form />);
+      nextOption = offPoOption;
+
+      await user.click(screen.getByTestId("purchase-order-item-link-model"));
+
+      expect(screen.getByTestId("warehouse-link-model")).toHaveAttribute(
+        "data-disabled",
+        "false",
+      );
+      expect(screen.getByTestId("item-unit-link-model")).toHaveAttribute(
+        "data-disabled",
+        "false",
+      );
+      // filter satuan memakai item_id varian saat tak ada PO Item
+      expect(screen.getByTestId("item-unit-link-model")).toHaveAttribute(
+        "data-filters",
+        JSON.stringify({ item_id: 77 }),
+      );
+      const qty = screen.getByTestId("cell-quantity-0").querySelector("input");
+      expect(qty).not.toBeDisabled();
+      expect(qty).toHaveValue("1.00");
+      // kolom Menggantikan aktif untuk baris di luar PO
+      expect(screen.getByTestId("replaces-link-model")).toHaveAttribute(
+        "data-disabled",
+        "false",
+      );
+    });
+
+    it("memilih opsi PO Item -> baris normal: kolom Menggantikan nonaktif & dikosongkan", async () => {
+      const user = userEvent.setup({ delay: null });
+      seedWithPo([
+        {
+          id: "r1",
+          item: { id: "var-x" },
+          replaces_purchase_order_item: { id: 100 },
+          replaces_purchase_order_item_id: 100,
+          replaced_quantity: 3,
+        },
+      ]);
+      renderForm(<Form />);
+      nextOption = {
+        id: 100,
+        thisModel: "App\\Models\\Purchase\\PurchaseOrderItem",
+        unreceived_quantity: 4,
+      };
+
+      await user.click(screen.getByTestId("purchase-order-item-link-model"));
+
+      expect(screen.getByTestId("replaces-link-model")).toHaveAttribute(
+        "data-disabled",
+        "true",
+      );
+      expect(screen.getByTestId("replaces-link-model")).toHaveAttribute(
+        "data-value-id",
+        "",
+      );
+      expect(
+        screen.getByTestId("cell-replaced_quantity-0").querySelector("input"),
+      ).toBeDisabled();
+    });
+
+    it("kolom Menggantikan nonaktif untuk baris normal dan saat purchase_order belum dipilih", () => {
+      formPageSeed = {
+        items: [{ id: "r1", purchase_order_item_id: 100 }],
+      };
+      renderForm(<Form />);
+
+      expect(screen.getByTestId("replaces-link-model")).toHaveAttribute(
+        "data-disabled",
+        "true",
+      );
+    });
+
+    it("memilih PO Item yang digantikan mengisi replaced_quantity = min(qty baris, sisa PO Item)", async () => {
+      const user = userEvent.setup({ delay: null });
+      seedWithPo([
+        {
+          id: "r1",
+          item: { id: "var-x", item_id: 5 },
+          quantity: 8,
+        },
+      ]);
+      renderForm(<Form />);
+      nextOption = { id: 100, unreceived_quantity: 5 };
+
+      const replacedInput = () =>
+        screen.getByTestId("cell-replaced_quantity-0").querySelector("input");
+      expect(replacedInput()).toBeDisabled();
+
+      await user.click(screen.getByTestId("replaces-link-model"));
+
+      expect(replacedInput()).not.toBeDisabled();
+      expect(replacedInput()).toHaveValue("5.00");
+      expect(screen.getByTestId("replaces-link-model")).toHaveAttribute(
+        "data-value-id",
+        "100",
+      );
+    });
+
+    it("kolom Menggantikan memfilter PO Item berdasar purchase_order.id & sisa > 0", () => {
+      seedWithPo([{ id: "r1", item: { id: "var-x" } }]);
+      renderForm(<Form />);
+
+      expect(screen.getByTestId("replaces-link-model")).toHaveAttribute(
+        "data-filters",
+        JSON.stringify({
+          purchase_order_id: 10,
+          unreceived_quantity: { ">": 0 },
+        }),
+      );
+    });
   });
 });

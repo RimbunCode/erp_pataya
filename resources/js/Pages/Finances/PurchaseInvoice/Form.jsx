@@ -27,10 +27,27 @@ import TaxLinkModel from "@/Pages/Finances/Taxes/TaxLinkModel";
 import { Textarea } from "@/Components/ui/textarea";
 import { useLaravelReactI18n } from "laravel-react-i18n";
 import { usePage } from "@inertiajs/react";
+import { Input } from "@/Components/ui/input";
 
 // Replika App\Services\Finances\PurchaseInvoiceService::DPP_FACTOR (PPN Nilai
 // Lain: DPP = 11/12 x basic_amount, tarif efektif 11% dari PPN 12%).
 const DPP_FACTOR = 11 / 12;
+
+const ITEM_VARIANT_MODEL = "App\\Models\\Inventory\\ItemVariant";
+const RECEIPT_ITEM_MODEL = "App\\Models\\Purchase\\PurchaseReceiptOffPoItem";
+
+// Baris invoice punya salah satu dari tiga sumber (spec purchase-invoice-off-po-items):
+// PO Item (normal), baris receipt di luar PO, atau item bebas (ItemVariant).
+const hasSource = (row) =>
+  !!(row?.purchase_order_item || row?.purchase_receipt_item || row?.item);
+
+// Sumber lain dikosongkan tiap kali item baris diganti.
+const SOURCE_RESET = {
+  purchase_order_item: null,
+  purchase_order_item_id: null,
+  purchase_receipt_item: null,
+  item: null,
+};
 
 export default function Form() {
   const defaultValue = useCallback(async () => {
@@ -82,7 +99,7 @@ export default function Form() {
   // field itu (sejajar dgn filter `item?.item` di PurchaseOrders/Form.jsx).
   const rawLines = useMemo(() => {
     return (data.items ?? [])
-      .filter((item) => item?.purchase_order_item)
+      .filter((item) => hasSource(item))
       .map((item) => ({
         basic_amount: (item.quantity ?? 0) * (item.rate ?? 0),
         tax_rate: item.tax?.rate ?? 0,
@@ -154,6 +171,13 @@ export default function Form() {
     [net_amount, tax_amount],
   );
 
+  // Id ItemVariant semua PO Item: menyaring sub model "Item Lainnya" supaya item
+  // yang sudah ada di PO tak muncul dobel di dropdown (dedupe di sisi form).
+  const poVariantIds = (data.purchase_order?.items ?? [])
+    .map((poItem) => poItem.item?.id ?? poItem.item_id)
+    .filter(Boolean);
+  const poVariantIdsKey = poVariantIds.join(",");
+
   const itemColumns = useMemo(() => {
     return [
       {
@@ -168,10 +192,45 @@ export default function Form() {
                 placeholder={t(
                   "finances.purchaseInvoice.columns.item.placeholder",
                 )}
-                value={dataRow.purchase_order_item ?? null}
+                value={
+                  dataRow.purchase_order_item ??
+                  dataRow.purchase_receipt_item ??
+                  dataRow.item ??
+                  null
+                }
                 disabled={!data.purchase_order}
                 onValueChange={(val) => {
+                  if (val?.thisModel === RECEIPT_ITEM_MODEL) {
+                    // Baris receipt di luar PO: rate wajib diisi user (tak ada harga PO).
+                    setData({
+                      ...SOURCE_RESET,
+                      purchase_receipt_item: val,
+                      item: val.item ?? null,
+                      unit: val.unit,
+                      conversion_factor: val.conversion_factor,
+                      quantity: val.quantity,
+                      rate: undefined,
+                      tax: undefined,
+                      description: val.description,
+                    });
+                    return;
+                  }
+                  if (val?.thisModel === ITEM_VARIANT_MODEL) {
+                    // Item bebas (belum diterima): satuan default varian.
+                    setData({
+                      ...SOURCE_RESET,
+                      item: val,
+                      unit: val.default_uom ?? null,
+                      conversion_factor: val.default_uom?.conversion_factor,
+                      quantity: 1,
+                      rate: undefined,
+                      tax: undefined,
+                      description: undefined,
+                    });
+                    return;
+                  }
                   setData({
+                    ...SOURCE_RESET,
                     purchase_order_item: val,
                     unit: val?.unit,
                     conversion_factor: val?.conversion_factor,
@@ -195,6 +254,37 @@ export default function Form() {
                   "description",
                   "conversion_factor",
                 ]}
+                mainLabel={t("finances.purchaseInvoice.columns.item.group_po")}
+                subModels={[
+                  {
+                    model: RECEIPT_ITEM_MODEL,
+                    label: t(
+                      "finances.purchaseInvoice.columns.item.group_receipt",
+                    ),
+                    filters: {
+                      purchase_order_id: data.purchase_order?.id ?? null,
+                    },
+                    with: ["item", "unit"],
+                    fields: ["description", "conversion_factor"],
+                    disabledNavigation: true,
+                    disabledAddButton: true,
+                  },
+                  {
+                    model: ITEM_VARIANT_MODEL,
+                    label: t(
+                      "finances.purchaseInvoice.columns.item.group_other",
+                    ),
+                    // Item yang sudah ada di PO ditagih lewat PO Item, bukan di sini.
+                    filters: poVariantIds.length
+                      ? { id: { notIn: poVariantIds } }
+                      : undefined,
+                    with: ["defaultUom"],
+                    fields: ["default_uom"],
+                    as: "item:item_id",
+                    canNavigation: "App\\Models\\Inventory\\Item",
+                    disabledAddButton: true,
+                  },
+                ]}
               />
               <AssetCompletionRowBadge
                 fixedAssets={fixedAssets}
@@ -216,7 +306,7 @@ export default function Form() {
         cell({ dataRow, data, setData, attributes }) {
           return (
             <Textarea
-              disabled={!dataRow?.purchase_order_item}
+              disabled={!hasSource(dataRow)}
               rows={1}
               value={data ?? ""}
               onChange={(e) => setData("description", e.target.value)}
@@ -235,7 +325,7 @@ export default function Form() {
           return (
             <NumberInput
               {...attributes}
-              disabled={!dataRow?.purchase_order_item}
+              disabled={!hasSource(dataRow)}
               readOnly={
                 attributes.readOnly || (dataRow.readOnly && !dataRow.isCustom)
               }
@@ -254,7 +344,7 @@ export default function Form() {
         cell({ data, setData, attributes, dataRow }) {
           return (
             <ItemUnitLinkModel
-              disabled={!dataRow?.purchase_order_item}
+              disabled={!hasSource(dataRow)}
               placeholder={t(
                 "finances.purchaseInvoice.columns.unit.placeholder",
               )}
@@ -267,7 +357,10 @@ export default function Form() {
               }
               {...attributes}
               filters={{
-                item_id: dataRow?.purchase_order_item?.item?.item_id,
+                item_id:
+                  dataRow?.purchase_order_item?.item?.item_id ??
+                  dataRow?.purchase_receipt_item?.item?.item_id ??
+                  dataRow?.item?.item_id,
               }}
             />
           );
@@ -280,7 +373,7 @@ export default function Form() {
         cell({ data, setData, attributes, dataRow }) {
           return (
             <TaxLinkModel
-              disabled={!dataRow?.purchase_order_item}
+              disabled={!hasSource(dataRow)}
               placeholder={t(
                 "finances.purchaseInvoice.columns.tax.placeholder",
               )}
@@ -303,7 +396,7 @@ export default function Form() {
             <NumberInput
               decimalScale={2}
               currencyCode={data?.currency?.code}
-              disabled={!dataRow?.purchase_order_item}
+              disabled={!hasSource(dataRow)}
               value={rate}
               onValueChange={(val) => {
                 setData("rate", val);
@@ -314,7 +407,7 @@ export default function Form() {
         },
       },
     ];
-  }, [data]);
+  }, [data, poVariantIdsKey]);
 
   return (
     <>
@@ -337,6 +430,7 @@ export default function Form() {
                 }}
               />
             </FormInput>
+
             <FormInput
               label={t("finances.purchaseInvoice.columns.purchase_order")}
               required
@@ -414,6 +508,18 @@ export default function Form() {
                       external_note: val?.external_note,
                     };
                   });
+                }}
+              />
+            </FormInput>
+            <FormInput
+              name="supplier_invoice"
+              label={t("finances.purchaseInvoice.columns.supplier_invoice")}
+              required
+            >
+              <Input
+                value={data?.supplier_invoice}
+                onValueChange={(val) => {
+                  setData("supplier_invoice", val);
                 }}
               />
             </FormInput>

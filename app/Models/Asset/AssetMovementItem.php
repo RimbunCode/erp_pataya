@@ -19,6 +19,20 @@ class AssetMovementItem extends Model {
     ];
     protected array $configColumns = [
         'asset',
+        // Terdaftar (tersembunyi) agar lokasi dan penanggung jawab ikut daftar
+        // kolom dan dapat dicetak di print template Asset Movement.
+        'sourceLocation' => [
+            'hidden' => true,
+        ],
+        'targetLocation' => [
+            'hidden' => true,
+        ],
+        'fromCustodian' => [
+            'hidden' => true,
+        ],
+        'toCustodian' => [
+            'hidden' => true,
+        ],
     ];
 
     public static function templateLink() {

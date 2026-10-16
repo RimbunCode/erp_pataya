@@ -13,9 +13,11 @@ use App\Models\Core\File;
 use App\Models\User\Role;
 use App\Models\User\User;
 use App\Services\Core\Approval\ApprovalAccessService;
+use App\Services\Core\Mention\MentionAudienceResolver;
 use App\Services\Core\PermissionChecker;
 use App\Services\User\Signature\SignatureImageService;
 use App\Utils;
+use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
@@ -86,13 +88,67 @@ class UserController extends Controller {
     }
 
     /**
+     * Saring kandidat user ke yang punya akses `read` atas dokumen (`document_model` +
+     * `document_id`). Class model datang dari klien, jadi divalidasi dulu (class Eloquent
+     * yang terdaftar di tabel `permissions`) dan TIDAK PERNAH di-instansiasi dari input mentah;
+     * dokumen dicari lewat `$modelClass::find()` setelah lolos validasi. Class tak sah = 422.
+     *
+     * @param  Builder<User>  $users
+     * @return Builder<User>
+     */
+    private function restrictToDocumentReaders($users, Request $request, MentionAudienceResolver $audience) {
+        $requestedModel = $request->input('document_model');
+        $modelClass     = $audience->resolveModelClass(\is_string($requestedModel) ? $requestedModel : null);
+        if ($modelClass === null) {
+            throw ValidationException::withMessages([
+                'document_model' => __('validation.exists', ['attribute' => 'document_model']),
+            ]);
+        }
+
+        // Pemanggil harus bisa membaca modul dokumen itu. Tanpa cek ini, endpoint membocorkan
+        // siapa saja yang bisa membaca dokumen (IDOR).
+        $checker = PermissionChecker::forUser($request);
+        if (! $checker->can($modelClass, Permission::Select)) {
+            abort(403);
+        }
+
+        $documentId = $request->input('document_id');
+        $document   = null;
+        if (\is_string($documentId) && $documentId !== '') {
+            $document = $modelClass::find($documentId);
+
+            // Pemanggil only_creator hanya boleh memakai dokumen miliknya sendiri.
+            if (
+                $checker->isOnlyCreator($modelClass, Permission::Select)
+                && ($document === null || (string) $document->getAttribute('created_by_id') !== (string) $request->user()->id)
+            ) {
+                abort(403);
+            }
+        }
+
+        $allowed = $audience->readableBy(
+            $modelClass,
+            $document,
+            (clone $users)->pluck('id')->map(fn ($id) => (string) $id)->all(),
+        );
+
+        return $users->whereIn('id', $allowed);
+    }
+
+    /**
      * Display a listing of the resource.
      */
-    public function index(Request $request) {
+    public function index(Request $request, MentionAudienceResolver $audience) {
         if (! Utils::isInertiaRequest($request)) {
             $users = User::query();
             if ($request->has('search')) {
                 $users->whereAny(['name', 'email', 'username'], 'like', "%{$request->search}%");
+            }
+
+            // Opsional, dipakai autocomplete mention di Comments: batasi kandidat ke user yang
+            // boleh membaca dokumen tsb. Tanpa `document_model`, perilaku endpoint ini tidak berubah.
+            if ($request->filled('document_model')) {
+                $users = $this->restrictToDocumentReaders($users, $request, $audience);
             }
 
             return response()->json($users->get());
@@ -217,12 +273,27 @@ class UserController extends Controller {
         // tidak dimiliki StreamedResponse. Berkas tanda tangan kecil
         // (maksimum setinggi 200 px), jadi memuatnya ke memori tidak jadi
         // soal.
-        return response()->make(Storage::get($file->path), 200, [
+        $response = response()->make('', 200, [
             'Content-Type'        => 'image/png',
             'Content-Disposition' => 'inline; filename="signature.png"',
             // `private` mencegah proxy bersama menyimpan tanda tangan.
-            'Cache-Control' => 'private, max-age=300',
+            // `no-cache` (bukan max-age): URL-nya sama sebelum dan sesudah
+            // tanda tangan ditimpa, jadi browser harus memvalidasi ulang ke
+            // server alih-alih memakai salinan lama. Validasinya murah lewat
+            // ETag di bawah.
+            'Cache-Control' => 'private, no-cache',
         ]);
+
+        // ETag dari id berkas, bukan dari isinya: setiap unggahan membuat
+        // baris File baru (lihat signature()), jadi id berubah tepat saat
+        // tanda tangan ditimpa dan 304 bisa dijawab tanpa membaca berkas.
+        $response->setEtag(md5((string) $file->id));
+
+        if ($response->isNotModified($request)) {
+            return $response;
+        }
+
+        return $response->setContent(Storage::get($file->path));
     }
 
     /**

@@ -463,13 +463,23 @@ trait LinkModel {
         return with(new static)->getTable();
     }
 
+    /**
+     * Relasi ke dokumen induk, berdasarkan static $parentRelation.
+     *
+     * Model yang tidak mendefinisikan $parentRelation (umumnya model header,
+     * bukan model item) mengembalikan BelongsTo yang tidak pernah cocok.
+     * Mengembalikan null di sini membuat akses sebagai atribut
+     * ($model->parentRelation) melempar LogicException, karena Eloquent
+     * mewajibkan method relasi mengembalikan instance Relation.
+     */
     public function parentRelation() {
         $relation = static::$parentRelation ?? false;
         if ($relation) {
             return $this->$relation();
         }
 
-        return null;
+        return $this->belongsTo(static::class, $this->getKeyName())
+            ->whereRaw('1 = 0');
     }
 
     public function connections() {

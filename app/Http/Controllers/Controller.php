@@ -20,6 +20,7 @@ use App\Models\User\Permission;
 use App\Models\User\User;
 use App\Services\Core\Approval\SignatureResolverService;
 use App\Services\Core\EmailTemplate\EmailTemplateRenderService;
+use App\Services\Core\Mention\MentionService;
 use App\Services\Core\PrintTemplate\HTMLSanitizerService;
 use App\Services\Core\PrintTemplate\PdfAttachmentService;
 use App\Services\Core\PrintTemplate\PdfExportService;
@@ -210,15 +211,10 @@ abstract class Controller {
         return $request->header('X-Inertia') == 'true' || $request->header('X-Inertia-Partial') == 'true';
     }
 
-    public function addComment(CommentRequest $request, $param, HTMLSanitizerService $sanitizer) {
+    public function addComment(CommentRequest $request, $param, HTMLSanitizerService $sanitizer, MentionService $mentions) {
         $request->validated();
 
-        preg_match_all('/data-id="([^"]+)"/', $request->comment, $matches);
-
-        $usersMentioned = collect($matches[1])->unique();
-        if ($usersMentioned->count() > 0) {
-            $users = User::whereIn('id', $usersMentioned)->get();
-        }
+        $mentionedIds = $mentions->mentionedUserIds($request->comment_json, $request->comment);
 
         Log::create([
             'user_id'       => $request->user()->id,
@@ -229,20 +225,32 @@ abstract class Controller {
             'comment_json'  => $request->comment_json,
         ]);
 
+        $mentions->notify($this->model::find($param), $request->user(), $mentionedIds);
+
         return back();
     }
 
-    public function editComment(CommentRequest $request, $param, Log $id, HTMLSanitizerService $sanitizer) {
+    public function editComment(CommentRequest $request, $param, Log $id, HTMLSanitizerService $sanitizer, MentionService $mentions) {
         if ($id->user_id != $request->user()->id || $id->type != 'comment') {
             return back()->with('alert', [
                 'message' => 'Failed to edit comment',
             ]);
         }
 
+        // Mention lama dibaca SEBELUM update() menimpa comment_json; yang dinotifikasi
+        // hanya selisihnya supaya mengedit tidak mengirim ulang ke yang sudah disebut.
+        $previousIds = $mentions->mentionedUserIds($id->comment_json);
+        $newIds      = array_values(array_diff(
+            $mentions->mentionedUserIds($request->comment_json, $request->comment),
+            $previousIds,
+        ));
+
         $id->update([
             'activity'     => $sanitizer->sanitize($request->comment)->sanitizedHTML,
             'comment_json' => $request->comment_json,
         ]);
+
+        $mentions->notify($this->model::find($param), $request->user(), $newIds);
 
         return back();
     }
@@ -390,7 +398,10 @@ abstract class Controller {
             // Resolver sendiri sudah mengembalikan null untuk dokumen tanpa
             // approval, jadi tidak perlu dijaga lagi di sini.
             'approvalSignature' => app(SignatureResolverService::class)->resolveFinalSignature($data),
-            'printTemplate'     => $printTemplate->toArray(),
+            // Slot "Dibuat oleh" (role="creator"): resolver yang sama dengan
+            // render PDF server, supaya pratinjau dan PDF tidak menyimpang.
+            'creatorSignature' => app(SignatureResolverService::class)->resolveCreatorSignature($data),
+            'printTemplate'    => $printTemplate->toArray(),
         ]);
     }
 

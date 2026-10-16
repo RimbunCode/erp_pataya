@@ -14,14 +14,22 @@ const ctxStub = {
   lineTo: vi.fn(),
   stroke: vi.fn(),
   clearRect: vi.fn(),
+  drawImage: vi.fn(),
+  fillRect: vi.fn(),
   lineCap: "",
   lineJoin: "",
   lineWidth: 0,
   strokeStyle: "",
+  fillStyle: "",
+  globalCompositeOperation: "source-over",
 };
 
 beforeEach(() => {
   vi.clearAllMocks();
+  document.documentElement.classList.remove("dark");
+  ctxStub.strokeStyle = "";
+  ctxStub.fillStyle = "";
+  ctxStub.globalCompositeOperation = "source-over";
 
   HTMLCanvasElement.prototype.getContext = vi.fn(() => ctxStub);
   HTMLCanvasElement.prototype.toBlob = vi.fn((callback) => {
@@ -115,6 +123,42 @@ describe("SignatureCanvas", () => {
       expect.any(Function),
       "image/png",
     );
+  });
+
+  it("menggambar dengan tinta gelap saat tema terang", () => {
+    render(<SignatureCanvas />);
+
+    drawOn(screen.getByRole("img", { name: "user.signature.draw" }));
+
+    expect(ctxStub.strokeStyle).toBe("#0f172a");
+  });
+
+  it("menggambar dengan goresan putih saat tema gelap", () => {
+    document.documentElement.classList.add("dark");
+    render(<SignatureCanvas />);
+
+    drawOn(screen.getByRole("img", { name: "user.signature.draw" }));
+
+    expect(ctxStub.strokeStyle).toBe("#ffffff");
+  });
+
+  it("mewarnai ulang hasil simpan ke tinta gelap meski digambar putih", async () => {
+    const user = userEvent.setup();
+    document.documentElement.classList.add("dark");
+    render(<SignatureCanvas onSave={vi.fn()} />);
+
+    drawOn(screen.getByRole("img", { name: "user.signature.draw" }));
+    await user.click(
+      screen.getByRole("button", { name: "user.signature.save" }),
+    );
+
+    // Berkas dibangun dari salinan kanvas yang dicat ulang dengan source-in:
+    // alpha goresan dipertahankan, warnanya diganti tinta gelap. Itu yang
+    // membuat tanda tangan tetap hitam saat dicetak.
+    expect(ctxStub.drawImage).toHaveBeenCalledTimes(1);
+    expect(ctxStub.globalCompositeOperation).toBe("source-in");
+    expect(ctxStub.fillStyle).toBe("#0f172a");
+    expect(ctxStub.fillRect).toHaveBeenCalledTimes(1);
   });
 
   it("tidak memanggil onSave saat kanvas kosong", async () => {

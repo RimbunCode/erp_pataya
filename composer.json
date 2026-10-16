@@ -77,8 +77,9 @@
       "./vendor/bin/pint -p --dirty"
     ],
     "test": [
+      "Composer\\Config::disableProcessTimeout",
       "@php artisan config:clear --ansi",
-      "@php artisan test"
+      "npx cross-env XDEBUG_MODE=off php -d memory_limit=2G vendor/bin/phpunit"
     ],
     "post-autoload-dump": [
       "Illuminate\\Foundation\\ComposerScripts::postAutoloadDump",

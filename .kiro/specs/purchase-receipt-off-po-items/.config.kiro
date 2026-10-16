@@ -1,0 +1,6 @@
+{
+  "specId": "d65ee8dc-e41d-4ae3-92bd-e0e4877158c8",
+  "workflowType": "design-first",
+  "specType": "feature",
+  "description": "Purchase Receipt menerima baris item di luar PO: menggantikan PO Item tertentu (nilai stok dari invoice item yang digantikan, received_quantity PO Item ikut terpenuhi) atau berdiri sendiri (belum bernilai). Form memakai LinkModel multi-model (PurchaseOrderItem + ItemVariant)."
+}

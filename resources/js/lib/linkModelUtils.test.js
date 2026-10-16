@@ -1,5 +1,115 @@
-import { describe, it, expect } from "vitest";
-import { validate, convertTemplateLink } from "./linkModelUtils";
+import { describe, it, expect, vi } from "vitest";
+import {
+  validate,
+  convertTemplateLink,
+  sourceValue,
+  parseSourceValue,
+  buildSources,
+} from "./linkModelUtils";
+
+describe("validate -- banyak model", () => {
+  it("true jika thisModel termasuk salah satu dari array model", () => {
+    expect(validate({ thisModel: "B" }, ["A", "B"])).toBe(true);
+  });
+
+  it("false jika thisModel di luar array model", () => {
+    expect(validate({ thisModel: "C" }, ["A", "B"])).toBe(false);
+  });
+
+  it("array kosong = skip validasi", () => {
+    expect(validate({ thisModel: "C" }, [])).toBe(true);
+  });
+});
+
+describe("sourceValue / parseSourceValue", () => {
+  it("sourceValue selalu string berprefiks indeks sumber", () => {
+    expect(sourceValue(1, 7)).toBe("1:7");
+    expect(sourceValue(0, "abc")).toBe("0:abc");
+  });
+
+  it("id sama di sumber berbeda menghasilkan nilai berbeda", () => {
+    expect(sourceValue(0, 5)).not.toBe(sourceValue(1, 5));
+  });
+
+  it("parseSourceValue memulihkan indeks dan id (id bisa mengandung ':')", () => {
+    expect(parseSourceValue("2:abc:def")).toEqual({ index: 2, id: "abc:def" });
+  });
+
+  it("parseSourceValue null untuk nilai non-sumber", () => {
+    expect(parseSourceValue("__linkmodel_add__")).toBeNull();
+    expect(parseSourceValue(undefined)).toBeNull();
+    expect(parseSourceValue("x:1")).toBeNull();
+  });
+});
+
+describe("buildSources", () => {
+  const MAIN = "App\\Main";
+  const SUB = "App\\Sub";
+
+  it("tanpa subModels: satu sumber main, tak dibungkus", () => {
+    const sources = buildSources({ model: MAIN });
+    expect(sources).toHaveLength(1);
+    expect(sources[0]).toMatchObject({
+      index: 0,
+      model: MAIN,
+      isMain: true,
+      wrapped: false,
+    });
+  });
+
+  it("mainLabel -> main dibungkus", () => {
+    const [main] = buildSources({ model: MAIN, mainLabel: "Main Label" });
+    expect(main).toMatchObject({ wrapped: true, label: "Main Label" });
+  });
+
+  it("sub selalu dibungkus dan membawa config-nya", () => {
+    const sub = { model: SUB, label: "Lainnya", filters: { a: 1 } };
+    const sources = buildSources({ model: MAIN, subModels: [sub] });
+    expect(sources).toHaveLength(2);
+    expect(sources[1]).toMatchObject({
+      index: 1,
+      model: SUB,
+      isMain: false,
+      wrapped: true,
+      label: "Lainnya",
+    });
+    expect(sources[1].config).toBe(sub);
+  });
+
+  it("sub tanpa model atau tanpa label diabaikan dengan peringatan", () => {
+    const warn = vi.fn();
+    const sources = buildSources(
+      {
+        model: MAIN,
+        subModels: [
+          { label: "x" },
+          { model: SUB },
+          { model: SUB, label: "ok" },
+        ],
+      },
+      warn,
+    );
+    expect(sources.map((s) => s.model)).toEqual([MAIN, SUB]);
+    expect(warn).toHaveBeenCalledTimes(2);
+  });
+
+  it("model duplikat (sama dgn main / antar sub) diabaikan dengan peringatan", () => {
+    const warn = vi.fn();
+    const sources = buildSources(
+      {
+        model: MAIN,
+        subModels: [
+          { model: MAIN, label: "dup main" },
+          { model: SUB, label: "a" },
+          { model: SUB, label: "dup sub" },
+        ],
+      },
+      warn,
+    );
+    expect(sources.map((s) => s.label)).toEqual([undefined, "a"]);
+    expect(warn).toHaveBeenCalledTimes(2);
+  });
+});
 
 describe("validate", () => {
   it("true jika thisModel cocok dengan model", () => {
@@ -103,5 +213,103 @@ describe("convertTemplateLink", () => {
     const result = convertTemplateLink(value, "", true);
     expect(result).not.toContain("<title>");
     expect(result).toContain("Body");
+  });
+
+  describe("token kondisional :cond ? :whenTrue | :whenFalse", () => {
+    // SalesOrderItem/InternalOrderItem butuh render Asset atau ItemVariant
+    // tergantung baris itu isi asset_id atau item_id (mutually exclusive).
+    // `|` pemisah whenTrue/whenFalse -- tanpanya ":asset:item" berdempet.
+    it("render token whenTrue jika cond truthy", () => {
+      const value = {
+        templateLink: ":asset_id ? :asset | :item",
+        asset_id: "01ASSET",
+        asset: "Forklift #1",
+        item: "Should not appear",
+      };
+      expect(convertTemplateLink(value)).toBe("Forklift #1");
+    });
+
+    it("render token whenFalse jika cond null/falsy", () => {
+      const value = {
+        templateLink: ":asset_id ? :asset | :item",
+        asset_id: null,
+        asset: null,
+        item: "Kertas A4",
+      };
+      expect(convertTemplateLink(value)).toBe("Kertas A4");
+    });
+
+    it("rekursi ke templateLink nested milik cabang yang menang", () => {
+      // Membuktikan resolusi ternary murni textual (":asset_id ? :asset | :item" ->
+      // ":asset") lalu tetap lewat jalur rekursi templateLink biasa yang sudah ada --
+      // tak perlu logic baru utk nested object.
+      const value = {
+        templateLink: ":asset_id ? :asset | :item",
+        asset_id: "01ASSET",
+        asset: {
+          templateLink: ":code - :asset_name",
+          code: "AST-01",
+          asset_name: "Forklift",
+        },
+      };
+      expect(convertTemplateLink(value)).toBe("AST-01 - Forklift");
+    });
+
+    it("template tanpa token kondisional tidak terpengaruh (regresi)", () => {
+      const value = { templateLink: ":name", name: "Tetap normal" };
+      expect(convertTemplateLink(value)).toBe("Tetap normal");
+    });
+
+    it("nested via kurung -- pilih cabang whenFalse yang mengandung ternary lagi", () => {
+      // Nama field 2+ karakter -- field 1 karakter tak match regex substitusi
+      // token biasa (`\w[\w.]+` butuh min 2 char), quirk lama tak terkait nesting.
+      const value = {
+        templateLink: ":c1 ? :aa | (:c2 ? :bb | :cc)",
+        c1: null,
+        c2: "truthy",
+        aa: "A",
+        bb: "B",
+        cc: "C",
+      };
+      expect(convertTemplateLink(value)).toBe("B");
+    });
+
+    it("nested via kurung -- cabang whenFalse dalam gugur ke fallback-nya sendiri", () => {
+      const value = {
+        templateLink: ":c1 ? :aa | (:c2 ? :bb | :cc)",
+        c1: null,
+        c2: null,
+        aa: "A",
+        bb: "B",
+        cc: "C",
+      };
+      expect(convertTemplateLink(value)).toBe("C");
+    });
+
+    it("nested via kurung -- cabang whenTrue luar menang, nested tak dievaluasi", () => {
+      const value = {
+        templateLink: ":c1 ? :aa | (:c2 ? :bb | :cc)",
+        c1: "truthy",
+        aa: "A",
+        // c2/bb/cc sengaja tak diisi -- tak boleh dievaluasi sama sekali
+      };
+      expect(convertTemplateLink(value)).toBe("A");
+    });
+
+    it("tanpa kurung, ternary rangkap tidak didukung (fallback tampil apa adanya)", () => {
+      // Dibuktikan di diskusi: satu regex/parser datar salah baca ":c2" sbg value
+      // literal, bukan kondisi ternary lain. Tanpa "()" eksplisit, ini BUKAN
+      // dianggap ternary valid di posisi luar -- balik jadi teks mentah.
+      const value = {
+        templateLink: ":c1 ? :aa | :c2 ? :bb | :cc",
+        c1: null,
+        c2: "truthy",
+        aa: "A",
+        bb: "B",
+        cc: "C",
+      };
+      const result = convertTemplateLink(value);
+      expect(result).not.toBe("B");
+    });
   });
 });

@@ -132,7 +132,7 @@ class SalesOrder extends Model {
             'hidden' => true,
         ],
         'amount' => [
-            'ignore' => true,
+            'hidden' => true,
         ],
         'amount_base_currency' => [
             'hidden' => true,
@@ -170,6 +170,7 @@ class SalesOrder extends Model {
             'customerBranch',
             'currency',
             'items.item',
+            'items.asset',
             'items.tax',
             'items.unit',
             'items.sourceWarehouse',

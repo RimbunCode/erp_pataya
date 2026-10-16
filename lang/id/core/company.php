@@ -14,6 +14,9 @@ return [
         'zip_code'            => 'Kode Pos',
         'country'             => 'Negara',
         'country.placeholder' => 'Pilih negara',
+        'bank_name'           => 'Nama Bank',
+        'bank_account_name'   => 'Nama Pemilik Rekening',
+        'bank_account_number' => 'Nomor Rekening',
         'logo'                => 'Logo Perusahaan',
     ],
     'preferences' => [

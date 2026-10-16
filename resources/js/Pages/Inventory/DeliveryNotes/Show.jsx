@@ -9,6 +9,9 @@ import { useLaravelReactI18n } from "laravel-react-i18n";
 export default function Show({ deliveryNote, defaultData, flash }) {
   const { t } = useLaravelReactI18n();
   const route = window.route;
+  // `items` berisi baris SO, ItemVariant bebas, dan Asset -- tombol retur muncul
+  // selama ada baris yang masih punya unreturned_quantity.
+  const allItems = deliveryNote?.items ?? [];
 
   return (
     <FormPage
@@ -39,7 +42,7 @@ export default function Show({ deliveryNote, defaultData, flash }) {
           deliveryNote?.submitted_at &&
           isValidStatus(deliveryNote?.status) &&
           inArray(deliveryNote?.status, "delivered") &&
-          calculateArray(deliveryNote?.items, "unreturned_quantity", "+") > 0
+          calculateArray(allItems, "unreturned_quantity", "+") > 0
         ) {
           return (
             <Button

@@ -40,6 +40,10 @@ class SignatureRenderTestDocument extends AppModel {
     public function approvalable() {
         return $this->morphOne(ApprovalInstance::class, 'document', 'document_type', 'document_id');
     }
+
+    public function createdBy() {
+        return $this->belongsTo(User::class, 'created_by_id');
+    }
 }
 
 /**
@@ -449,5 +453,128 @@ class ApprovalSignatureRenderTest extends TestCase {
 
         $pdf = app(PdfExportService::class)->generate($html, $template);
         $this->assertStringStartsWith('%PDF', $pdf);
+    }
+
+    // ---- role="creator" (slot "Dibuat oleh") ----
+
+    private function makeDocumentBy(?User $creator): SignatureRenderTestDocument {
+        return SignatureRenderTestDocument::create([
+            'id'            => (string) Str::ulid(),
+            'created_by_id' => $creator?->id,
+            'code'          => 'DOC-' . Str::random(4),
+            'status'        => 'need_approval',
+        ]);
+    }
+
+    private function renderSlot(SignatureRenderTestDocument $document, string $expression): string {
+        $document->refresh()->load('approvalable.steps.actedBy.signatureFile', 'createdBy.signatureFile');
+
+        $template = new PrintTemplate([
+            'name'        => 'Signature Creator',
+            'name_model'  => 'SignatureRenderTestDocument',
+            'model'       => SignatureRenderTestDocument::class,
+            'orientation' => 'portrait',
+            'unit'        => 'cm',
+            'width'       => 21,
+            'height'      => 29.7,
+            'html'        => '<html><body><div class="slot">' . $expression . '</div></body></html>',
+        ]);
+
+        return app(PrintTemplateRenderService::class)->render($document, $template, []);
+    }
+
+    #[Test]
+    public function creator_role_prints_creator_signature_without_date(): void {
+        $creator  = $this->makeUser('Pembuat Dokumen', withSignature: true);
+        $approver = $this->makeUser('Penyetuju Akhir', withSignature: true);
+
+        $document = $this->makeDocumentBy($creator);
+        $instance = $this->makeInstance($document);
+        $this->makeStep($instance, 0, FormStatus::APPROVED, $approver);
+
+        $html = $this->renderSlot($document, '{{{approvalSignature role="creator" showName=true showDate=true}}}');
+
+        $this->assertStringContainsString('data:image/png;base64,', $html);
+        $this->assertStringContainsString('Pembuat Dokumen', $html);
+        $this->assertStringNotContainsString('Penyetuju Akhir', $html);
+        // date selalu null: showDate=true tidak mencetak tanggal apa pun.
+        $this->assertStringNotContainsString(now()->translatedFormat('d F Y'), $html);
+    }
+
+    #[Test]
+    public function creator_without_signature_falls_back_to_name_only_without_date(): void {
+        $creator = $this->makeUser('Pembuat Tanpa TTD');
+
+        $document = $this->makeDocumentBy($creator);
+
+        $signature = app(SignatureResolverService::class)
+            ->resolveCreatorSignature($document->load('createdBy.signatureFile'));
+
+        $this->assertNotNull($signature);
+        $this->assertFalse($signature['hasSignature']);
+        $this->assertNull($signature['image']);
+        $this->assertNull($signature['date']);
+        $this->assertSame('Pembuat Tanpa TTD', $signature['name']);
+
+        $html = $this->renderSlot($document, '{{{approvalSignature role="creator" showName=true}}}');
+
+        $this->assertStringContainsString(
+            '<div class="approval-signature"><span style="display:block;">Pembuat Tanpa TTD</span></div>',
+            $html,
+        );
+        $this->assertStringNotContainsString('data:image/png;base64,', $html);
+    }
+
+    #[Test]
+    public function document_without_creator_renders_nothing_for_creator_role(): void {
+        $document = $this->makeDocumentBy(null);
+
+        $this->assertNull(app(SignatureResolverService::class)->resolveCreatorSignature($document));
+
+        $html = $this->renderSlot($document, '{{{approvalSignature role="creator" showName=true}}}');
+
+        $this->assertStringNotContainsString('approval-signature', $html);
+        $this->assertStringContainsString('<div class="slot"></div>', $html);
+    }
+
+    #[Test]
+    public function model_without_created_by_relation_yields_null_for_creator(): void {
+        $this->assertNull(app(SignatureResolverService::class)->resolveCreatorSignature(new User));
+    }
+
+    #[Test]
+    public function missing_role_still_uses_final_signer(): void {
+        $creator  = $this->makeUser('Pembuat Dokumen', withSignature: true);
+        $approver = $this->makeUser('Penyetuju Akhir', withSignature: true);
+
+        $document = $this->makeDocumentBy($creator);
+        $instance = $this->makeInstance($document);
+        $this->makeStep($instance, 0, FormStatus::APPROVED, $approver);
+
+        $html = $this->renderSlot($document, '{{{approvalSignature showName=true}}}');
+
+        $this->assertStringContainsString('Penyetuju Akhir', $html);
+        $this->assertStringNotContainsString('Pembuat Dokumen', $html);
+
+        $explicit = $this->renderSlot($document, '{{{approvalSignature role="approver" showName=true}}}');
+        $this->assertSame($html, $explicit);
+    }
+
+    #[Test]
+    public function two_slots_side_by_side_print_both_people(): void {
+        $creator  = $this->makeUser('Pembuat Dokumen', withSignature: true);
+        $approver = $this->makeUser('Penyetuju Akhir', withSignature: true);
+
+        $document = $this->makeDocumentBy($creator);
+        $instance = $this->makeInstance($document);
+        $this->makeStep($instance, 0, FormStatus::APPROVED, $approver);
+
+        $html = $this->renderSlot(
+            $document,
+            '{{{approvalSignature role="approver" showName=true}}}|{{{approvalSignature role="creator" showName=true}}}',
+        );
+
+        $this->assertStringContainsString('Penyetuju Akhir', $html);
+        $this->assertStringContainsString('Pembuat Dokumen', $html);
     }
 }

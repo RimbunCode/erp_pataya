@@ -1,0 +1,6 @@
+{
+  "specId": "b3c630c0-1f77-414f-b2fb-a3b1f3057069",
+  "workflowType": "requirements-first",
+  "specType": "bugfix",
+  "description": "Samakan render print template pada halaman dokumen, modal editor, dan PDF server-side tanpa merusak tbody atau data Handlebars."
+}

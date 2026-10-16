@@ -280,4 +280,167 @@ class QuotationSectionTest extends QuotationTestCase {
             'isi disalin (pola P3), bukan direferensikan',
         );
     }
+
+    // ---- Rich text dual storage & simpan sebagai template baru ----------------
+
+    public function test_menyimpan_dan_memperbarui_content_json_beserta_content_html(): void {
+        $initialJson = [
+            'type'    => 'doc',
+            'content' => [[
+                'type'    => 'orderedList',
+                'content' => [[
+                    'type'    => 'listItem',
+                    'content' => [[
+                        'type'    => 'paragraph',
+                        'content' => [['type' => 'text', 'text' => 'Regular maintenance']],
+                    ]],
+                ]],
+            ]],
+        ];
+
+        $quotation = $this->storeQuotation(['sections' => [[
+            'id'           => 'a',
+            'title'        => 'Owner Obligation',
+            'content'      => '<ol><li><p>Regular maintenance</p></li></ol>',
+            'content_json' => $initialJson,
+        ]]]);
+
+        $section = $quotation->sections()->firstOrFail();
+        $this->assertSame('<ol><li><p>Regular maintenance</p></li></ol>', $section->content);
+        $this->assertSame($initialJson, $section->content_json);
+
+        $updatedJson = [
+            'type'    => 'doc',
+            'content' => [[
+                'type'    => 'paragraph',
+                'content' => [['type' => 'text', 'text' => 'Updated obligation']],
+            ]],
+        ];
+
+        $this->update($quotation, ['sections' => [[
+            'id'           => $section->id,
+            'title'        => 'Owner Obligation',
+            'content'      => '<p>Updated obligation</p>',
+            'content_json' => $updatedJson,
+            'order'        => 0,
+        ]]])->assertRedirect();
+
+        $this->assertSame('<p>Updated obligation</p>', $section->fresh()->content);
+        $this->assertSame($updatedJson, $section->fresh()->content_json);
+    }
+
+    public function test_menolak_isi_blok_yang_hanya_berisi_tag_html_kosong(): void {
+        $this->actingAs($this->user)
+            ->withSession($this->permissionSession())
+            ->postJson(route('quotations.store'), $this->payload(['sections' => [[
+                'id'           => 'a',
+                'title'        => 'Owner Obligation',
+                'content'      => '<p>   </p>',
+                'content_json' => ['type' => 'doc', 'content' => [['type' => 'paragraph']]],
+            ]]]))
+            ->assertStatus(422)
+            ->assertJsonValidationErrors(['sections.0.content']);
+    }
+
+    public function test_menyimpan_blok_editan_sebagai_template_baru_lewat_endpoint(): void {
+        $this->seed(QuotationSectionTemplateSeeder::class);
+
+        $docJson = [
+            'type'    => 'doc',
+            'content' => [[
+                'type'    => 'paragraph',
+                'content' => [['type' => 'text', 'text' => 'Custom tenant obligation']],
+            ]],
+        ];
+
+        $response = $this->actingAs($this->user)
+            ->withSession($this->permissionSession())
+            ->post(route('quotation-section-templates.store'), [
+                'name'           => 'Tenant Obligation - Khusus Pelabuhan',
+                'title'          => 'Tenant Obligation',
+                'quotation_type' => 'rental',
+                'content'        => '<p>Custom tenant obligation</p>',
+                'content_json'   => $docJson,
+            ]);
+
+        $response->assertRedirect();
+        $template = QuotationSectionTemplate::latest('order')->firstOrFail();
+
+        $this->assertSame('Tenant Obligation - Khusus Pelabuhan', $template->name);
+        $this->assertSame('Tenant Obligation', $template->title);
+        $this->assertSame('rental', $template->quotation_type);
+        $this->assertSame('<p>Custom tenant obligation</p>', $template->content);
+        $this->assertSame($docJson, $template->content_json);
+        $this->assertSame(5, $template->order);
+
+        $this->assertSame(6, QuotationSectionTemplate::count());
+    }
+
+    public function test_simpan_template_baru_menolak_input_kosong(): void {
+        $this->actingAs($this->user)
+            ->withSession($this->permissionSession())
+            ->postJson(route('quotation-section-templates.store'), [
+                'name'    => '',
+                'title'   => '',
+                'content' => '<p></p>',
+            ])
+            ->assertStatus(422)
+            ->assertJsonValidationErrors(['name', 'title', 'content']);
+    }
+
+    /**
+     * Isi blok dicetak lewat `{{{this.content}}}` (tanpa escape) lalu masuk
+     * `innerHTML` iframe pratinjau, jadi HTML yang tersimpan harus sudah
+     * bersih di sisi server. Validasi `string` saja tidak cukup.
+     */
+    public function test_membersihkan_html_berbahaya_pada_isi_blok(): void {
+        $quotation = $this->storeQuotation(['sections' => [[
+            'id'      => 'a',
+            'title'   => 'Owner Obligation',
+            'content' => '<p>Aman</p><img src="x" onerror="alert(1)"><script>alert(2)</script>',
+        ]]]);
+
+        $content = $quotation->sections()->firstOrFail()->content;
+
+        $this->assertStringContainsString('Aman', $content);
+        $this->assertStringNotContainsString('onerror', $content);
+        $this->assertStringNotContainsString('<script', $content);
+        $this->assertStringNotContainsString('<img', $content);
+    }
+
+    public function test_membersihkan_html_berbahaya_pada_template_blok_baru(): void {
+        $this->seed(QuotationSectionTemplateSeeder::class);
+
+        $this->actingAs($this->user)
+            ->withSession($this->permissionSession())
+            ->post(route('quotation-section-templates.store'), [
+                'name'    => 'Tenant Obligation - XSS',
+                'title'   => 'Tenant Obligation',
+                'content' => '<p>Aman</p><img src="x" onerror="alert(1)"><script>alert(2)</script>',
+            ])
+            ->assertRedirect();
+
+        $content = QuotationSectionTemplate::latest('order')->firstOrFail()->content;
+
+        $this->assertStringContainsString('Aman', $content);
+        $this->assertStringNotContainsString('onerror', $content);
+        $this->assertStringNotContainsString('<script', $content);
+        $this->assertStringNotContainsString('<img', $content);
+    }
+
+    /**
+     * Daftar bernomor dan penekanan teks adalah alasan utama blok memakai
+     * rich text, jadi sanitasi tidak boleh ikut membuangnya.
+     */
+    public function test_mempertahankan_tag_rich_text_yang_sah(): void {
+        $safeHtml = '<ol><li><p><strong>Perawatan</strong> rutin</p></li><li><p><u>Teknisi</u> siaga</p></li></ol>';
+
+        $quotation = $this->storeQuotation(['sections' => [[
+            'id'      => 'a',
+            'title'   => 'Owner Obligation',
+            'content' => $safeHtml,
+        ]]]);
+
+        $this->assertSame($safeHtml, $quotation->sections()->firstOrFail()->content);
+    }
 }

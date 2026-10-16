@@ -8,7 +8,7 @@ use App\Models\Asset\Asset;
 use App\Models\Asset\AssetMovement;
 use App\Models\Core\FormatingSeries;
 use App\Models\Inventory\DeliveryNote;
-use App\Models\Inventory\DeliveryNoteItemAsset;
+use App\Models\Inventory\DeliveryNoteItem;
 use App\Models\Sales\Customer;
 use App\Services\Asset\AssetMovementService;
 use Illuminate\Foundation\Testing\RefreshDatabase;
@@ -35,14 +35,17 @@ class AssetMovementServiceRentalSaleTest extends TestCase {
         ]);
     }
 
-    private function makeLine(): DeliveryNoteItemAsset {
+    private function makeLine(): DeliveryNoteItem {
         $customer = Customer::query()->create([
             'name'        => fake()->unique()->company(),
             'is_disabled' => false,
         ]);
 
-        $line = DeliveryNoteItemAsset::factory()->create();
-        $line->deliveryNoteItem->deliveryNote->update([
+        $line = DeliveryNoteItem::factory()->create([
+            'item_id'  => null,
+            'asset_id' => Asset::factory()->create()->id,
+        ]);
+        $line->deliveryNote->update([
             'customer_id'        => $customer->id,
             'customer_branch_id' => null,
         ]);
@@ -66,7 +69,7 @@ class AssetMovementServiceRentalSaleTest extends TestCase {
 
         $movement = (new AssetMovementService)->createFromRentalSale($line, AssetMovementPurpose::SELL);
 
-        $this->assertSame($line->deliveryNoteItem->deliveryNote->id, $movement->reference_id);
+        $this->assertSame($line->deliveryNote->id, $movement->reference_id);
         $this->assertSame(DeliveryNote::class, $movement->reference_type);
     }
 
@@ -79,6 +82,6 @@ class AssetMovementServiceRentalSaleTest extends TestCase {
         $item = $movement->items()->first();
         $this->assertSame($line->asset_id, $item->asset_id);
         $this->assertEqualsWithDelta((float) $line->quantity, (float) $item->quantity, 0.0001);
-        $this->assertSame($line->deliveryNoteItem->deliveryNote->customer_id, $item->customer_id);
+        $this->assertSame($line->deliveryNote->customer_id, $item->customer_id);
     }
 }

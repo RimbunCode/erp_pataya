@@ -75,7 +75,7 @@ function userAlias(name) {
 }
 
 export default memo(function Comments() {
-  const { logs, lang } = usePage().props;
+  const { logs, lang, mentionContext } = usePage().props;
   const { t } = useLaravelReactI18n();
   const route = window.route;
   const currentPath = window.location.pathname.replace(/\/$/, "");
@@ -94,6 +94,10 @@ export default memo(function Comments() {
   // Returns a Promise that resolves with user list.
   // Uses a cancel-aware debounce: each call cancels the previous pending resolve
   // so only the latest query fires the API request.
+  // Konteks dokumen (model + id) ikut dikirim supaya backend hanya mengembalikan
+  // user yang boleh membaca dokumen ini. Tanpa konteks, endpoint berperilaku lama.
+  const mentionModel = mentionContext?.model;
+  const mentionDocumentId = mentionContext?.id;
   const fetchMentionUsers = useMemo(() => {
     let pendingResolve = null;
     let timer = null;
@@ -105,7 +109,16 @@ export default memo(function Comments() {
           if (pendingResolve !== resolve) return;
           try {
             const res = await axios.get(route("users.index"), {
-              params: { search: query, limit: 10 },
+              params: {
+                search: query,
+                limit: 10,
+                ...(mentionModel
+                  ? {
+                      document_model: mentionModel,
+                      document_id: mentionDocumentId,
+                    }
+                  : {}),
+              },
             });
             resolve(res.data.map((x) => ({ id: x.id, label: x.name })));
           } catch {
@@ -114,7 +127,7 @@ export default memo(function Comments() {
           }
         }, 300);
       });
-  }, []);
+  }, [mentionModel, mentionDocumentId]);
 
   const handleOpenAdd = useCallback(() => {
     setEditingLog(null);

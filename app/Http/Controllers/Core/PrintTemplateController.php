@@ -6,6 +6,7 @@ use App\Http\Controllers\Controller;
 use App\Http\Requests\Core\PrintTemplateRequest;
 use App\Models\Core\PrintTemplate;
 use App\Services\Core\PrintTemplate\ExampleDataService;
+use App\Services\Core\PrintTemplate\PrintTemplateProjectBuilder;
 use App\Services\Core\PrintTemplate\RelationTrackerService;
 use App\Services\Core\PrintTemplate\TemplateParserService;
 use Illuminate\Http\Request;
@@ -18,6 +19,7 @@ class PrintTemplateController extends Controller {
         protected TemplateParserService $templateParser,
         protected RelationTrackerService $relationTracker,
         protected ExampleDataService $exampleDataService,
+        protected PrintTemplateProjectBuilder $projectBuilder,
     ) {
         parent::__construct($request, PrintTemplate::class);
     }
@@ -96,7 +98,12 @@ class PrintTemplateController extends Controller {
      */
     public function show(Request $request, PrintTemplate $printTemplate) {
         if (! $this->isInertiaRequest($request)) {
-            return response()->json($printTemplate->template);
+            $project = $printTemplate->template;
+            if (empty($project) && filled($printTemplate->html)) {
+                $project = $this->projectBuilder->build($printTemplate->html, $printTemplate->css);
+            }
+
+            return response()->json($project);
         }
         $this->setBreadcrumbs($printTemplate);
         $printTemplate->showDetail();
@@ -175,12 +182,14 @@ class PrintTemplateController extends Controller {
         $css  = $template['css'] ?? $printTemplate->css ?? '';
 
         return response()->json([
-            'html'          => $html,
-            'css'           => $css,
-            'exampleData'   => $exampleData,
-            'usedRelations' => $validRelations ?? [],
-            'columns'       => $columns ?? [],
-            'warnings'      => $warnings,
+            'html'              => $html,
+            'css'               => $css,
+            'exampleData'       => $exampleData,
+            'usedRelations'     => $validRelations ?? [],
+            'columns'           => $columns ?? [],
+            'approvalSignature' => null,
+            'creatorSignature'  => null,
+            'warnings'          => $warnings,
         ]);
     }
 

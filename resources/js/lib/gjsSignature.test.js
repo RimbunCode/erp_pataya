@@ -1,7 +1,8 @@
 import { describe, expect, it } from "vitest";
-import {
+import gjsSignature, {
   buildSignatureExpression,
   parseSignatureExpression,
+  SIGNATURE_ROLES,
 } from "./gjsSignature";
 
 describe("buildSignatureExpression", () => {
@@ -53,6 +54,7 @@ describe("parseSignatureExpression", () => {
     expect(parseSignatureExpression("{{{approvalSignature}}}")).toEqual({
       showName: false,
       showDate: false,
+      role: "approver",
     });
   });
 
@@ -61,25 +63,125 @@ describe("parseSignatureExpression", () => {
       parseSignatureExpression(
         "{{{approvalSignature showName=true showDate=true}}}",
       ),
-    ).toEqual({ showName: true, showDate: true });
+    ).toEqual({ showName: true, showDate: true, role: "approver" });
   });
 
   it("tetap membaca ekspresi double-brace dari template lama", () => {
     expect(
       parseSignatureExpression("{{approvalSignature showName=true}}"),
-    ).toEqual({ showName: true, showDate: false });
+    ).toEqual({ showName: true, showDate: false, role: "approver" });
   });
 });
 
 describe("round-trip", () => {
   it.each([
-    { showName: false, showDate: false },
-    { showName: true, showDate: false },
-    { showName: false, showDate: true },
-    { showName: true, showDate: true },
+    { showName: false, showDate: false, role: "approver" },
+    { showName: true, showDate: false, role: "approver" },
+    { showName: false, showDate: true, role: "approver" },
+    { showName: true, showDate: true, role: "approver" },
+    { showName: false, showDate: false, role: "creator" },
+    { showName: true, showDate: false, role: "creator" },
+    { showName: true, showDate: true, role: "creator" },
   ])("mempertahankan opsi %o melewati serialisasi", (options) => {
     expect(parseSignatureExpression(buildSignatureExpression(options))).toEqual(
       options,
     );
+  });
+});
+
+describe("trait role", () => {
+  it("memancarkan role hanya untuk creator", () => {
+    expect(buildSignatureExpression({ role: "creator", showName: true })).toBe(
+      '{{{approvalSignature role="creator" showName=true}}}',
+    );
+    // approver tidak memancarkan apa pun: markup template lama tidak berubah.
+    expect(buildSignatureExpression({ role: "approver", showName: true })).toBe(
+      "{{{approvalSignature showName=true}}}",
+    );
+    expect(buildSignatureExpression({ showName: true })).toBe(
+      "{{{approvalSignature showName=true}}}",
+    );
+  });
+
+  it("markup tanpa role terbaca sebagai approver", () => {
+    expect(
+      parseSignatureExpression("{{{approvalSignature showName=true}}}").role,
+    ).toBe("approver");
+  });
+
+  it("role tidak dikenal terbaca sebagai approver", () => {
+    expect(
+      parseSignatureExpression('{{{approvalSignature role="checker"}}}').role,
+    ).toBe("approver");
+  });
+
+  it("hanya menawarkan dua pilihan, tanpa 'Approver' sebagai role", () => {
+    expect(SIGNATURE_ROLES).toEqual([
+      { value: "approver", name: "Disetujui oleh" },
+      { value: "creator", name: "Dibuat oleh" },
+    ]);
+  });
+});
+
+describe("plugin gjsSignature", () => {
+  const registerPlugin = () => {
+    let type;
+    const editor = {
+      on: () => {},
+      Canvas: { getFrameEl: () => null },
+      Components: { addType: (name, def) => (type = { name, def }) },
+      Blocks: { add: () => {} },
+    };
+    gjsSignature(editor);
+    return type.def;
+  };
+
+  const modelWith = (def, attributes) => ({
+    getAttributes: () => attributes,
+    set: () => {},
+    ...def.model,
+  });
+
+  it("punya trait role bertipe select dengan default approver", () => {
+    const def = registerPlugin();
+    const trait = def.model.defaults.traits.find((t) => t.name === "role");
+
+    expect(trait.type).toBe("select");
+    expect(trait.default).toBe("approver");
+    expect(trait.options.map((o) => o.value)).toEqual(["approver", "creator"]);
+    // Tetap tanpa trait sequence (FR8a).
+    expect(def.model.defaults.traits.map((t) => t.name)).not.toContain(
+      "sequence",
+    );
+  });
+
+  it("toHTML untuk creator memancarkan role di ekspresi", () => {
+    const def = registerPlugin();
+    const html = def.model.toHTML.call(
+      modelWith(def, { role: "creator", showName: true }),
+    );
+
+    expect(html).toContain(
+      '{{{approvalSignature role="creator" showName=true}}}',
+    );
+    expect(html).toContain('data-role="creator"');
+  });
+
+  it("toHTML untuk approver tidak mengubah markup lama", () => {
+    const def = registerPlugin();
+    const html = def.model.toHTML.call(
+      modelWith(def, { role: "approver", showName: true }),
+    );
+
+    expect(html).toContain("{{{approvalSignature showName=true}}}");
+    expect(html).not.toContain("role=");
+    expect(html).not.toContain("data-role");
+  });
+
+  it("toHTML tanpa role sama dengan approver", () => {
+    const def = registerPlugin();
+    const html = def.model.toHTML.call(modelWith(def, { showName: true }));
+
+    expect(html).toContain("{{{approvalSignature showName=true}}}");
   });
 });
