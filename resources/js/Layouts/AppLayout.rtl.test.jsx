@@ -49,8 +49,8 @@ vi.mock("@/Components/ui/sidebar", () => ({
   SidebarProvider: ({ children }) => (
     <div data-testid="stub-sidebar-provider">{children}</div>
   ),
-  SidebarInset: ({ children }) => (
-    <div data-testid="stub-sidebar-inset">{children}</div>
+  SidebarInset: ({ children, className }) => (
+    <div data-testid="stub-sidebar-inset" className={className}>{children}</div>
   ),
 }));
 
@@ -76,6 +76,13 @@ beforeEach(() => {
 });
 
 describe("AppLayout — render dasar & struktur", () => {
+  it("isolates the fixed viewport shell to pages that opt in", () => {
+    const { rerender } = render(<AppLayout viewportShell>Workspace</AppLayout>);
+    expect(screen.getByTestId("stub-sidebar-inset")).toHaveClass("h-dvh");
+    expect(screen.getByText("Workspace")).toHaveClass("overflow-hidden");
+    rerender(<AppLayout>Ordinary page</AppLayout>);
+    expect(screen.getByTestId("stub-sidebar-inset")).not.toHaveClass("h-dvh");
+  });
   it("merender MasterLayout > SidebarProvider > SidebarInset membungkus Navbar, GlobalCommandPalette, dan konten", () => {
     render(
       <AppLayout>

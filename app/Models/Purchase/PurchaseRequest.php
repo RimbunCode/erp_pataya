@@ -4,6 +4,7 @@ namespace App\Models\Purchase;
 
 use App\Enums\FormStatus;
 use App\Models\Model;
+use App\Services\Purchase\FromRequests\PurchaseRequestPoEligibility;
 use App\Services\Purchase\PurchaseRequestService;
 use App\Traits\DataTable;
 use App\Traits\Submitable;
@@ -19,7 +20,9 @@ class PurchaseRequest extends Model {
         'date'          => 'datetime',
         'required_date' => 'datetime',
     ];
-    protected static string $defaultFormatCode = '@[branch_code]/PR-@[iiii]/@[yy]';
+    protected $appends                          = ['canCreatePo'];
+    protected static array $rowActionAttributes = ['canCreatePo'];
+    protected static string $defaultFormatCode  = '@[branch_code]/PR-@[iiii]/@[yy]';
 
     public function codeRelations() {
         return [
@@ -67,7 +70,15 @@ class PurchaseRequest extends Model {
             'show'  => true,
             'order' => 10,
         ],
+        'canCreatePo' => [
+            'hidden'    => true,
+            'dependsOn' => ['submitted_at', 'status', 'items.unordered_quantity'],
+        ],
     ];
+
+    protected function getCanCreatePoAttribute(): bool {
+        return PurchaseRequestPoEligibility::isEligible($this);
+    }
 
     protected static function loadRelationsOnShow() {
         return [

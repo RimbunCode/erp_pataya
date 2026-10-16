@@ -183,7 +183,10 @@ class ModelConnection extends Model {
             }
 
             $referenceGrouped = ModelConnection::search($type, $referenceIds)
-                ->having('reference_type', $model)
+                ->where(function (Builder $query) use ($type, $model): void {
+                    $query->where(fn (Builder $direction) => $direction->where('model_type', $type)->where('reference_type', $model))
+                        ->orWhere(fn (Builder $direction) => $direction->where('reference_type', $type)->where('model_type', $model));
+                })
                 ->get()
                 ->groupBy('model_id');
 

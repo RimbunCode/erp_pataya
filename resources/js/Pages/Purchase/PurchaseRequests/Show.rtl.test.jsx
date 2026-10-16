@@ -1,47 +1,6 @@
 import { describe, expect, it, vi, beforeEach } from "vitest";
 import { render, screen } from "@testing-library/react";
 
-// ============================================================================
-// Show.jsx (49 baris) adalah halaman detail Purchase Request -- paling
-// sederhana di antara Show.jsx modul Purchase/Inventory yang sudah punya
-// test (tidak ada banner/flash, tidak ada dialog konfirmasi, tidak ada
-// router.post, tidak ada sub-komponen display seperti QtyBadge/
-// ItemsQtyTable). Ia MENG-COMPOSE <FormPage><Form/></FormPage> (keduanya
-// sudah py test sendiri) PLUS logic UI unik miliknya sendiri:
-// - disabled={purchaseRequest?.submitted_at} diteruskan ke FormPage
-//   (BUKAN hasil boolean eksplisit -- nilai submitted_at string/undefined
-//   diteruskan apa adanya, cocok dgn pola isCreate/disabled Show.jsx lain).
-// - isCreate={!purchaseRequest} diteruskan ke FormPage.
-// - submitable diteruskan sebagai prop statis (selalu true) ke FormPage.
-// - controls(): tombol "Create PO" (Link ke purchaseOrders.create dengan
-//   ref) HANYA muncul kalau SEMUA syarat terpenuhi:
-//   1. purchaseRequest?.submitted_at ada (truthy)
-//   2. isValidStatus(purchaseRequest?.status) true (status bukan salah
-//      satu dari draft/canceled/rejected/deleted/closed/need_approval/
-//      inactive)
-//   3. calculateArray(purchaseRequest.items, "unordered_quantity", "+") > 0
-//      (total unordered_quantity dari semua item harus positif)
-//   Beda dari DeliveryNotes: TIDAK ada syarat inArray(status, ...) untuk
-//   status spesifik tertentu -- cukup isValidStatus umum.
-//   Beda dari PurchaseOrders: hanya 1 tombol Link biasa (bukan dropdown
-//   actions), tidak ada tombol Mark Done, tidak ada dialog sama sekali.
-// - calculateArray dipanggil dengan purchaseRequest.items (BUKAN optional
-//   chaining purchaseRequest?.items) -- kalau purchaseRequest null maka
-//   akses .items akan throw; namun controls() tidak pernah sampai baris
-//   itu saat purchaseRequest null karena short-circuit dari syarat 1
-//   (purchaseRequest?.submitted_at falsy duluan).
-//
-// calculateArray/isValidStatus dari @/lib/utils TIDAK di-mock -- fungsi
-// murni, dipakai apa adanya supaya logic gating controls() teruji
-// end-to-end (bukan sekadar terverifikasi dipanggil).
-//
-// FormPage & Form DISTUB sebagai black-box -- test ini TIDAK meretest
-// logic internal keduanya (Form.jsx PurchaseRequests sudah py test
-// sendiri), hanya memverifikasi Show.jsx merender & menyambungkan props
-// dengan benar, dan bahwa logic UNIK (controls gating) di Show.jsx
-// sendiri berperilaku benar.
-// ============================================================================
-
 const stableT = (key) => key;
 vi.mock("laravel-react-i18n", () => ({
   useLaravelReactI18n: () => ({ t: stableT }),
@@ -98,6 +57,7 @@ function basePurchaseRequest(overrides = {}) {
     submitted_at: "2026-08-01T00:00:00Z",
     status: "pending",
     items: [{ id: 1, unordered_quantity: 3 }],
+    canCreatePo: true,
     ...overrides,
   };
 }
@@ -127,6 +87,7 @@ describe("Show (PurchaseRequests)", () => {
         submitted_at: null,
         status: "draft",
         items: [],
+        canCreatePo: false,
       };
       render(<Show purchaseRequest={purchaseRequest} defaultData={{}} />);
 
@@ -156,9 +117,9 @@ describe("Show (PurchaseRequests)", () => {
     });
   });
 
-  // --- controls(): tombol Create PO (gating 3 syarat) -----------------------
+  // --- controls(): tombol Create PO ------------------------------------------
   describe("controls() -- tombol Create PO", () => {
-    it("semua syarat terpenuhi: tombol muncul dengan href route + ref yang benar", () => {
+    it("flag server mengizinkan: tombol muncul dengan href route + ref yang benar", () => {
       const purchaseRequest = basePurchaseRequest({ id: 42 });
       render(<Show purchaseRequest={purchaseRequest} defaultData={{}} />);
 
@@ -173,7 +134,7 @@ describe("Show (PurchaseRequests)", () => {
     });
 
     it("submitted_at kosong: tombol tidak muncul meski status/items memenuhi syarat lain", () => {
-      const purchaseRequest = basePurchaseRequest({ submitted_at: null });
+      const purchaseRequest = basePurchaseRequest({ submitted_at: null, canCreatePo: false });
       render(<Show purchaseRequest={purchaseRequest} defaultData={{}} />);
 
       expect(
@@ -182,7 +143,7 @@ describe("Show (PurchaseRequests)", () => {
     });
 
     it("status tidak valid (mis. draft): tombol tidak muncul", () => {
-      const purchaseRequest = basePurchaseRequest({ status: "draft" });
+      const purchaseRequest = basePurchaseRequest({ status: "draft", canCreatePo: false });
       render(<Show purchaseRequest={purchaseRequest} defaultData={{}} />);
 
       expect(
@@ -191,7 +152,7 @@ describe("Show (PurchaseRequests)", () => {
     });
 
     it("status tidak valid (mis. canceled): tombol tidak muncul", () => {
-      const purchaseRequest = basePurchaseRequest({ status: "canceled" });
+      const purchaseRequest = basePurchaseRequest({ status: "canceled", canCreatePo: false });
       render(<Show purchaseRequest={purchaseRequest} defaultData={{}} />);
 
       expect(
@@ -199,7 +160,7 @@ describe("Show (PurchaseRequests)", () => {
       ).not.toBeInTheDocument();
     });
 
-    it("status valid apa pun selain daftar invalid (mis. 'to_order'): tombol tetap muncul (tidak ada syarat inArray status spesifik)", () => {
+    it("flag server mengizinkan status to_order", () => {
       const purchaseRequest = basePurchaseRequest({ status: "to_order" });
       render(<Show purchaseRequest={purchaseRequest} defaultData={{}} />);
 
@@ -210,6 +171,7 @@ describe("Show (PurchaseRequests)", () => {
 
     it("total unordered_quantity === 0: tombol tidak muncul", () => {
       const purchaseRequest = basePurchaseRequest({
+        canCreatePo: false,
         items: [
           { id: 1, unordered_quantity: 0 },
           { id: 2, unordered_quantity: 0 },
@@ -224,6 +186,7 @@ describe("Show (PurchaseRequests)", () => {
 
     it("total unordered_quantity negatif: tombol tidak muncul", () => {
       const purchaseRequest = basePurchaseRequest({
+        canCreatePo: false,
         items: [{ id: 1, unordered_quantity: -2 }],
       });
       render(<Show purchaseRequest={purchaseRequest} defaultData={{}} />);
@@ -234,7 +197,7 @@ describe("Show (PurchaseRequests)", () => {
     });
 
     it("items kosong (calculateArray -> 0): tombol tidak muncul", () => {
-      const purchaseRequest = basePurchaseRequest({ items: [] });
+      const purchaseRequest = basePurchaseRequest({ items: [], canCreatePo: false });
       render(<Show purchaseRequest={purchaseRequest} defaultData={{}} />);
 
       expect(
@@ -259,6 +222,18 @@ describe("Show (PurchaseRequests)", () => {
         "href",
         `purchaseOrders.create/${JSON.stringify({ ref: "purchaseRequest/9" })}`,
       );
+    });
+
+    it("mengikuti flag server walau detail item tidak tersedia di props", () => {
+      render(<Show purchaseRequest={basePurchaseRequest({ items: undefined })} defaultData={{}} />);
+
+      expect(screen.getByText("purchase.purchaseRequest.actions.create_po")).toBeInTheDocument();
+    });
+
+    it("flag server menolak meskipun field lokal tampak layak", () => {
+      render(<Show purchaseRequest={basePurchaseRequest({ canCreatePo: false })} defaultData={{}} />);
+
+      expect(screen.queryByText("purchase.purchaseRequest.actions.create_po")).not.toBeInTheDocument();
     });
   });
 });

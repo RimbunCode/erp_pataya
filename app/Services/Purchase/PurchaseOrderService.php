@@ -19,6 +19,7 @@ use App\Models\Purchase\PurchaseOrder;
 use App\Models\Purchase\PurchaseOrderItem;
 use App\Models\Purchase\PurchaseReceipt;
 use App\Models\Purchase\PurchaseReceiptItem;
+use App\Models\Purchase\PurchaseRequestItem;
 use App\Models\Purchase\Supplier;
 use App\Models\Sales\InternalOrderItem;
 use App\Models\Sales\SalesOrderItem;
@@ -295,38 +296,48 @@ class PurchaseOrderService implements SubmitableService {
     }
 
     public function onApproved(Model $purchaseOrder): mixed {
-        DB::beginTransaction();
-        $purchaseOrder->update([
-            'status' => [FormStatus::TO_RECEIVE, FormStatus::TO_BILL],
-        ]);
-
-        $items = $purchaseOrder->items()
-            ->whereNotNull('referenceable_type')
-            ->whereNotNull('referenceable_id')
-            ->with([
-                'referenceable',
-                'referenceable.parentRelation',
-                'referenceable.referenceable',
-                'referenceable.referenceable.parentRelation',
-            ])
-            ->get();
-
-        foreach ($items as $item) {
-            $purchaseOrder->attachConnections($item, [
-                'ordered_quantity' => $item->quantity,
+        return DB::transaction(function () use ($purchaseOrder): Model {
+            $purchaseOrder->update([
+                'status' => [FormStatus::TO_RECEIVE, FormStatus::TO_BILL],
             ]);
-        }
 
-        ModelConnection::getReferenceAttributes(PurchaseOrderItem::class, $items->pluck('id')->toArray(), function ($connections, $reference) {
-            $sumOrderedQty = $connections->sum('data.ordered_quantity');
-            $reference->update([
-                'ordered_quantity' => $sumOrderedQty,
-            ]);
+            $items = $purchaseOrder->items()
+                ->whereNotNull('referenceable_type')
+                ->whereNotNull('referenceable_id')
+                ->with([
+                    'referenceable',
+                    'referenceable.parentRelation',
+                    'referenceable.referenceable',
+                    'referenceable.referenceable.parentRelation',
+                ])
+                ->get();
+
+            foreach ($items as $item) {
+                $mapData = $item->referenceable instanceof PurchaseRequestItem
+                    ? static function (?array $data, Model $reference, Model $source): array {
+                        $referenceFactor = (float) ($reference->conversion_factor ?? 1);
+                        $sourceFactor    = (float) ($source->conversion_factor ?? 1);
+                        if ($referenceFactor <= 0 || $sourceFactor <= 0) {
+                            throw ValidationException::withMessages(['items' => __('The item conversion factor must be greater than zero.')]);
+                        }
+
+                        return ['ordered_quantity' => $data['ordered_quantity'] * $referenceFactor / $sourceFactor];
+                    }
+                : null;
+                $purchaseOrder->attachConnections($item, [
+                    'ordered_quantity' => $item->quantity,
+                ], null, $mapData);
+            }
+
+            ModelConnection::getReferenceAttributes(PurchaseOrderItem::class, $items->pluck('id')->toArray(), function ($connections, $reference) {
+                $sumOrderedQty = $connections->sum('data.ordered_quantity');
+                $reference->update([
+                    'ordered_quantity' => $sumOrderedQty,
+                ]);
+            });
+
+            return $purchaseOrder;
         });
-
-        DB::commit();
-
-        return $purchaseOrder;
     }
 
     private function rollbackItems(PurchaseOrder $purchaseOrder) {

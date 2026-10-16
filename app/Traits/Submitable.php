@@ -346,7 +346,7 @@ trait Submitable {
         return $newData;
     }
 
-    public function attachConnections(Model $item, ?array $data, ?int $depth = null) {
+    public function attachConnections(Model $item, ?array $data, ?int $depth = null, ?callable $mapData = null) {
         if ($depth !== null && $depth < 0) {
             return;
         }
@@ -355,6 +355,9 @@ trait Submitable {
         }
 
         $sourceItem = $item->referenceable;
+        if ($mapData !== null) {
+            $data = $mapData($data, $item, $sourceItem);
+        }
 
         ModelConnection::createConnection([
             'model'     => $sourceItem,
@@ -370,6 +373,6 @@ trait Submitable {
             ]);
         }
         $nextDepth = $depth === null ? null : $depth - 1;
-        $this->attachConnections($sourceItem, $data, $nextDepth);
+        $this->attachConnections($sourceItem, $data, $nextDepth, $mapData);
     }
 }
