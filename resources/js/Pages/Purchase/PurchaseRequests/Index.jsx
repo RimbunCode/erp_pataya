@@ -58,14 +58,20 @@ function Index() {
       rowActions={rowActions}
       templateItem={({ dataRow }) => (
         <div className="flex items-center justify-between gap-4 border-b border-muted-foreground/25 p-4">
-          <Link as="button" href={window.route("purchaseRequests.show", dataRow.id)}>
+          <Link
+            as="button"
+            href={window.route("purchaseRequests.show", dataRow.id)}
+          >
             <span className="block text-left font-medium">
               {dataRow.code ?? dataRow.id}
             </span>
           </Link>
           <div className="flex flex-wrap justify-end gap-1">
             {(dataRow.status ?? []).map((status) => (
-              <span key={status} className="rounded bg-muted px-2 py-1 text-xs text-muted-foreground">
+              <span
+                key={status}
+                className="rounded bg-muted px-2 py-1 text-xs text-muted-foreground"
+              >
                 {t(`status.${status}`)}
               </span>
             ))}

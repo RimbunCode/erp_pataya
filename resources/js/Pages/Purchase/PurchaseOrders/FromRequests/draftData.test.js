@@ -102,14 +102,18 @@ describe("draft data shared with the PO form", () => {
     const data = buildDraftData(state, "draft-1", "2026-10-14");
     const next = applyDraftData(state, "draft-1", {
       ...data,
-      items: [{
-        ...data.items[0],
-        quantity: 2,
-        rate: 125,
-        unit: { id: "unit-box", conversion_factor: 12 },
-      }],
+      items: [
+        {
+          ...data.items[0],
+          quantity: 2,
+          rate: 125,
+          unit: { id: "unit-box", conversion_factor: 12 },
+        },
+      ],
     });
-    expect(buildDraftData(next, "draft-1", "2026-10-14").items[0]).toMatchObject({
+    expect(
+      buildDraftData(next, "draft-1", "2026-10-14").items[0],
+    ).toMatchObject({
       unit: { id: "unit-box" },
       quantity: 2,
       rate: 125,
@@ -128,6 +132,8 @@ describe("draft data shared with the PO form", () => {
       ...data,
       items: [{ ...data.items[0], quantity: null }],
     });
-    expect(buildDraftData(next, "draft-1", "2026-10-14").items[0].quantity).toBeNull();
+    expect(
+      buildDraftData(next, "draft-1", "2026-10-14").items[0].quantity,
+    ).toBeNull();
   });
 });

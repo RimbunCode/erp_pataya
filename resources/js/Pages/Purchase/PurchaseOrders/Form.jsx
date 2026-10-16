@@ -571,62 +571,70 @@ export function PurchaseOrderFields({
           </FormInput>
           <div className="col-span-full">
             <FormTable
-                name="PurchaseOrderItems"
-                fixedRows={sourceLocked}
-                readOnly={disabled}
-                columns={sourceColumns}
-                value={data?.items}
-                valueBefore={dataBefore?.items}
-                onValueChange={(v) => setData("items", v)}
-                form={sourceLocked
-                  ? ({ getColumn }) => (
+              name="PurchaseOrderItems"
+              fixedRows={sourceLocked}
+              readOnly={disabled}
+              columns={sourceColumns}
+              value={data?.items}
+              valueBefore={dataBefore?.items}
+              onValueChange={(v) => setData("items", v)}
+              form={
+                sourceLocked ? (
+                  ({ getColumn }) => (
                     <div className="grid gap-3 md:grid-cols-2">
-                      {["quantity", "unit", "rate", "tax", "target_warehouse", "required_date", "description"]
-                        .map((name) => getColumn(name))}
+                      {[
+                        "quantity",
+                        "unit",
+                        "rate",
+                        "tax",
+                        "target_warehouse",
+                        "required_date",
+                        "description",
+                      ].map((name) => getColumn(name))}
                     </div>
                   )
-                  : <ItemForm />}
-                actions={sourceLocked ? sourceItemActions : undefined}
-                mapItem={({ item, dataTable, index }) => {
-                  // Diskon dokumen (Diskon Tambahan) mengubah discount_amount/tax_amount
-                  // SETIAP baris secara pro-rata, bukan cuma baris yang sedang di-edit --
-                  // jadi alokasi dihitung ulang dari seluruh dataTable tiap kali salah
-                  // satu baris berubah, lalu diambil hasil untuk baris ke-`index` ini saja.
-                  // basic_amount TIDAK ditimpa di sini -- kolom itu generated (quantity*rate)
-                  // di server, konsisten dgn App\Services\Finances\DocumentDiscountCalculator::
-                  // applyToItems() yang menulis discount_amount terpisah, bukan overwrite basic_amount.
-                  const rows = dataTable ?? [];
-                  const grossAmounts = rows.map((row, i) =>
-                    i === index
-                      ? (item.quantity ?? 0) * (item.rate ?? 0)
-                      : (row.quantity ?? 0) * (row.rate ?? 0),
-                  );
-                  const lines = rows.map((row, i) => ({
-                    basic_amount: grossAmounts[i],
-                    tax_rate:
-                      i === index
-                        ? (item.tax?.rate ?? 0)
-                        : (row.tax?.rate ?? 0),
-                  }));
-                  const allocated = allocateDiscount(
-                    lines,
-                    data.discount_on,
-                    data.discount_rate ?? 0,
-                    data.discount_amount ?? 0,
-                    data.latestDiscountKey ?? "discount_rate",
-                  );
-                  const result = allocated[index] ?? allocated[0];
-                  return {
-                    ...item,
-                    discount_amount:
-                      Math.round(
-                        (grossAmounts[index] - (result?.basic_amount ?? 0)) *
-                          100,
-                      ) / 100,
-                    tax_amount: result?.tax_amount ?? 0,
-                  };
-                }}
-              />
+                ) : (
+                  <ItemForm />
+                )
+              }
+              actions={sourceLocked ? sourceItemActions : undefined}
+              mapItem={({ item, dataTable, index }) => {
+                // Diskon dokumen (Diskon Tambahan) mengubah discount_amount/tax_amount
+                // SETIAP baris secara pro-rata, bukan cuma baris yang sedang di-edit --
+                // jadi alokasi dihitung ulang dari seluruh dataTable tiap kali salah
+                // satu baris berubah, lalu diambil hasil untuk baris ke-`index` ini saja.
+                // basic_amount TIDAK ditimpa di sini -- kolom itu generated (quantity*rate)
+                // di server, konsisten dgn App\Services\Finances\DocumentDiscountCalculator::
+                // applyToItems() yang menulis discount_amount terpisah, bukan overwrite basic_amount.
+                const rows = dataTable ?? [];
+                const grossAmounts = rows.map((row, i) =>
+                  i === index
+                    ? (item.quantity ?? 0) * (item.rate ?? 0)
+                    : (row.quantity ?? 0) * (row.rate ?? 0),
+                );
+                const lines = rows.map((row, i) => ({
+                  basic_amount: grossAmounts[i],
+                  tax_rate:
+                    i === index ? (item.tax?.rate ?? 0) : (row.tax?.rate ?? 0),
+                }));
+                const allocated = allocateDiscount(
+                  lines,
+                  data.discount_on,
+                  data.discount_rate ?? 0,
+                  data.discount_amount ?? 0,
+                  data.latestDiscountKey ?? "discount_rate",
+                );
+                const result = allocated[index] ?? allocated[0];
+                return {
+                  ...item,
+                  discount_amount:
+                    Math.round(
+                      (grossAmounts[index] - (result?.basic_amount ?? 0)) * 100,
+                    ) / 100,
+                  tax_amount: result?.tax_amount ?? 0,
+                };
+              }}
+            />
           </div>
           {data?.currency?.code &&
             data?.currency?.code !== default_currency_id && (

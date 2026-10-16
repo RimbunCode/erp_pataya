@@ -17,7 +17,9 @@ vi.mock("@/Layouts/AppLayout", () => ({
 vi.mock("./AllocationStep", () => ({
   default: ({ setState, onContinue, sourceErrors }) => (
     <div>
-      {sourceErrors?.missing_items && <p role="alert">{sourceErrors.missing_items}</p>}
+      {sourceErrors?.missing_items && (
+        <p role="alert">{sourceErrors.missing_items}</p>
+      )}
       <button
         type="button"
         onClick={() =>
@@ -37,7 +39,11 @@ vi.mock("./AllocationStep", () => ({
       >
         Assign supplier
       </button>
-      <button type="button" onClick={onContinue} disabled={Object.keys(sourceErrors ?? {}).length > 0}>
+      <button
+        type="button"
+        onClick={onContinue}
+        disabled={Object.keys(sourceErrors ?? {}).length > 0}
+      >
         Continue allocation
       </button>
     </div>
@@ -101,7 +107,10 @@ describe("PO from PR workspace navigation", () => {
     render(<Workspace token="token-1" sources={sources} />);
     const scrollRegion = screen.getByTestId("workspace-scroll-region");
     const footer = screen.getByTestId("workspace-footer");
-    expect(screen.getByRole("main")).toHaveAttribute("data-viewport-shell", "true");
+    expect(screen.getByRole("main")).toHaveAttribute(
+      "data-viewport-shell",
+      "true",
+    );
     expect(scrollRegion).toHaveClass("min-h-0");
     expect(scrollRegion).toHaveClass("overflow-y-auto");
     expect(scrollRegion).not.toContainElement(footer);
@@ -155,11 +164,15 @@ describe("PO from PR workspace navigation", () => {
   });
 
   it("blocks continuation when a refreshed PR item disappears", async () => {
-    const { rerender } = render(<Workspace token="token-1" sources={sources} />);
+    const { rerender } = render(
+      <Workspace token="token-1" sources={sources} />,
+    );
 
     rerender(<Workspace token="token-1" sources={[]} />);
 
     expect(screen.getByRole("alert")).toHaveTextContent("missing_source_items");
-    expect(screen.getByRole("button", { name: "Continue allocation" })).toBeDisabled();
+    expect(
+      screen.getByRole("button", { name: "Continue allocation" }),
+    ).toBeDisabled();
   });
 });

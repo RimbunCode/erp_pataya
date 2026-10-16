@@ -45,7 +45,11 @@ describe("batch PO result", () => {
       "/purchaseOrders/po-2",
     );
     expect(screen.getByText("Supplier A")).toBeInTheDocument();
-    expect(screen.getByText("purchase.purchaseOrder.from_requests.item_count: 2")).toBeInTheDocument();
-    expect(screen.getByText("purchase.purchaseOrder.from_requests.item_count: 1")).toBeInTheDocument();
+    expect(
+      screen.getByText("purchase.purchaseOrder.from_requests.item_count: 2"),
+    ).toBeInTheDocument();
+    expect(
+      screen.getByText("purchase.purchaseOrder.from_requests.item_count: 1"),
+    ).toBeInTheDocument();
   });
 });

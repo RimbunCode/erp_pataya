@@ -34,7 +34,12 @@ export default memo(
 
     return (
       <MasterLayout>
-        <div className={cn("relative mx-auto max-w-full print:invisible print:bg-white!", viewportShell && "h-dvh overflow-hidden")}>
+        <div
+          className={cn(
+            "relative mx-auto max-w-full print:invisible print:bg-white!",
+            viewportShell && "h-dvh overflow-hidden",
+          )}
+        >
           <SidebarProvider>
             {!hideSidebar && <AppSidebar className="print:hidden " />}
             <SidebarInset className={cn(viewportShell && "h-dvh min-h-0")}>

@@ -75,15 +75,17 @@ export function applyDraftData(state, draftId, nextData) {
         line[field] = row[field];
       }
     }
-    const quantity = row.quantity === null || row.quantity === ""
-      ? row.quantity
-      : Number(row.quantity);
+    const quantity =
+      row.quantity === null || row.quantity === ""
+        ? row.quantity
+        : Number(row.quantity);
     allocationsById[allocation.id] = {
       ...allocation,
       unit: Object.hasOwn(row, "unit") ? row.unit : allocation.unit,
-      quantity: quantity === null || quantity === "" || Number.isFinite(quantity)
-        ? quantity
-        : allocation.quantity,
+      quantity:
+        quantity === null || quantity === "" || Number.isFinite(quantity)
+          ? quantity
+          : allocation.quantity,
       data: line,
     };
   }

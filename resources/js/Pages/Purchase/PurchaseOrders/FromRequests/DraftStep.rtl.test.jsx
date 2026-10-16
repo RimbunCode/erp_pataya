@@ -10,11 +10,12 @@ const editItemSpy = vi.hoisted(() => vi.fn());
 
 vi.mock("laravel-react-i18n", () => ({
   useLaravelReactI18n: () => ({
-    t: (key, values) => values?.number
-      ? `${key} ${values.number}`
-      : values?.required != null
-        ? `${key} ${Object.values(values).join(" ")}`
-        : key,
+    t: (key, values) =>
+      values?.number
+        ? `${key} ${values.number}`
+        : values?.required != null
+          ? `${key} ${Object.values(values).join(" ")}`
+          : key,
   }),
 }));
 vi.mock("@inertiajs/react", () => ({
@@ -25,7 +26,12 @@ vi.mock("@/Pages/Core/FormPage", () => ({
   FormChildren: ({ children }) => <div>{children}</div>,
 }));
 vi.mock("../Form", () => ({
-  PurchaseOrderFields: ({ data, setData, sourceItemActions, renderSourceWarning }) => (
+  PurchaseOrderFields: ({
+    data,
+    setData,
+    sourceItemActions,
+    renderSourceWarning,
+  }) => (
     <div>
       <input
         aria-label="PO date"
@@ -58,26 +64,40 @@ vi.mock("../Form", () => ({
           <span>{item.purchase_request_code}</span>
           <span>{item.item?.name}</span>
           <input
-            aria-label={"purchase.purchaseOrder.columns.rate " + item.item?.name}
+            aria-label={
+              "purchase.purchaseOrder.columns.rate " + item.item?.name
+            }
             value={item.rate ?? ""}
-            onChange={(event) => setData((current) => ({
-              ...current,
-              items: current.items.map((row) => row.id === item.id
-                ? { ...row, rate: Number(event.target.value) }
-                : row),
-            }))}
+            onChange={(event) =>
+              setData((current) => ({
+                ...current,
+                items: current.items.map((row) =>
+                  row.id === item.id
+                    ? { ...row, rate: Number(event.target.value) }
+                    : row,
+                ),
+              }))
+            }
           />
           <select
             aria-label={"PO unit " + item.item?.name}
             value={item.unit?.id ?? ""}
-            onChange={(event) => setData((current) => ({
-              ...current,
-              items: current.items.map((row) => row.id === item.id
-                ? { ...row, unit: event.target.value === "box"
-                  ? { id: "box", conversion_factor: 12 }
-                  : { id: "u-1", conversion_factor: 1 } }
-                : row),
-            }))}
+            onChange={(event) =>
+              setData((current) => ({
+                ...current,
+                items: current.items.map((row) =>
+                  row.id === item.id
+                    ? {
+                        ...row,
+                        unit:
+                          event.target.value === "box"
+                            ? { id: "box", conversion_factor: 12 }
+                            : { id: "u-1", conversion_factor: 1 },
+                      }
+                    : row,
+                ),
+              }))
+            }
           >
             <option value="u-1">PCS</option>
             <option value="box">Box</option>
@@ -174,13 +194,19 @@ describe("draft workspace", () => {
   it("keeps quantity and rate while changing PO unit and updates the source warning", async () => {
     const user = userEvent.setup();
     render(<Fixture />);
-    await user.selectOptions(screen.getByRole("combobox", { name: "PO unit Part A" }), "box");
-    const allocation = JSON.parse(screen.getByTestId("state").textContent).allocationsById["allocation-1"];
+    await user.selectOptions(
+      screen.getByRole("combobox", { name: "PO unit Part A" }),
+      "box",
+    );
+    const allocation = JSON.parse(screen.getByTestId("state").textContent)
+      .allocationsById["allocation-1"];
     expect(allocation.unit.id).toBe("box");
     expect(allocation.quantity).toBe(10);
-    expect(screen.getByRole("alert", {
-      name: "purchase.purchaseOrder.from_requests.quantity_warning_title",
-    })).toHaveTextContent("10 120 110");
+    expect(
+      screen.getByRole("alert", {
+        name: "purchase.purchaseOrder.from_requests.quantity_warning_title",
+      }),
+    ).toHaveTextContent("10 120 110");
   });
   it("preserves each draft's date, currency, note, and source PR identity", async () => {
     const user = userEvent.setup();
@@ -213,8 +239,11 @@ describe("draft workspace", () => {
   it("splits the same supplier into another PO and moves a source line", async () => {
     const user = userEvent.setup();
     render(<Fixture />);
-    const partBActions = () => screen.getByRole("button", { name: /row_actions.*Part B/i });
-    expect(screen.queryByRole("menuitem", { name: /split_to_po/ })).not.toBeInTheDocument();
+    const partBActions = () =>
+      screen.getByRole("button", { name: /row_actions.*Part B/i });
+    expect(
+      screen.queryByRole("menuitem", { name: /split_to_po/ }),
+    ).not.toBeInTheDocument();
     await user.click(partBActions());
     await user.click(screen.getByRole("menuitem", { name: /split_to_po/ }));
     expect(
@@ -224,7 +253,9 @@ describe("draft workspace", () => {
     await user.click(partBActions());
     screen.getByRole("menuitem", { name: /move_item/ }).focus();
     await user.keyboard("{ArrowRight}");
-    await user.click(await screen.findByRole("menuitem", { name: /draft_number 1/ }));
+    await user.click(
+      await screen.findByRole("menuitem", { name: /draft_number 1/ }),
+    );
     const state = JSON.parse(screen.getByTestId("state").textContent);
     expect(state.allocationsById["allocation-2"].draft_id).toBe("draft-1");
     expect(state.allocationsById["allocation-2"].purchase_request_item_id).toBe(
@@ -258,13 +289,25 @@ describe("draft workspace", () => {
   it("ignores a temporary empty supplier while searching before a valid selection", async () => {
     const user = userEvent.setup();
     render(<Fixture />);
-    await user.click(screen.getByRole("button", { name: "Clear supplier while searching" }));
+    await user.click(
+      screen.getByRole("button", { name: "Clear supplier while searching" }),
+    );
     expect(screen.queryByRole("dialog")).not.toBeInTheDocument();
-    expect(JSON.parse(screen.getByTestId("state").textContent).draftsById["draft-1"].supplier_id).toBe("supplier-1");
+    expect(
+      JSON.parse(screen.getByTestId("state").textContent).draftsById["draft-1"]
+        .supplier_id,
+    ).toBe("supplier-1");
     await user.click(screen.getByRole("button", { name: "Change supplier" }));
     expect(screen.getByRole("dialog")).toBeInTheDocument();
-    await user.click(within(screen.getByRole("dialog")).getByRole("button", { name: /confirm|Terapkan/i }));
-    expect(JSON.parse(screen.getByTestId("state").textContent).draftsById["draft-1"].supplier_id).toBe("supplier-3");
+    await user.click(
+      within(screen.getByRole("dialog")).getByRole("button", {
+        name: /confirm|Terapkan/i,
+      }),
+    );
+    expect(
+      JSON.parse(screen.getByTestId("state").textContent).draftsById["draft-1"]
+        .supplier_id,
+    ).toBe("supplier-3");
   });
 
   it("keeps draft selector and quantity split available on mobile layout", async () => {
@@ -273,7 +316,9 @@ describe("draft workspace", () => {
     expect(
       screen.getByRole("combobox", { name: /draft_list/ }),
     ).toBeInTheDocument();
-    await user.click(screen.getByRole("button", { name: /row_actions.*Part A/i }));
+    await user.click(
+      screen.getByRole("button", { name: /row_actions.*Part A/i }),
+    );
     await user.click(screen.getByRole("menuitem", { name: /split_quantity/ }));
     await user.clear(
       within(screen.getByRole("dialog")).getByRole("spinbutton"),
@@ -301,17 +346,29 @@ describe("draft workspace", () => {
     const user = userEvent.setup();
     editItemSpy.mockClear();
     render(<Fixture />);
-    const trigger = screen.getByRole("button", { name: /row_actions.*Part A/i });
-    expect(screen.queryByRole("menuitem", { name: /editing_row/ })).not.toBeInTheDocument();
+    const trigger = screen.getByRole("button", {
+      name: /row_actions.*Part A/i,
+    });
+    expect(
+      screen.queryByRole("menuitem", { name: /editing_row/ }),
+    ).not.toBeInTheDocument();
     trigger.focus();
     await user.keyboard("{Enter}");
-    expect(screen.getByRole("menuitem", { name: /editing_row/ })).toBeInTheDocument();
-    expect(screen.getByRole("menuitem", { name: /split_quantity/ })).toBeInTheDocument();
-    expect(screen.getByRole("menuitem", { name: /split_to_po/ })).toBeInTheDocument();
+    expect(
+      screen.getByRole("menuitem", { name: /editing_row/ }),
+    ).toBeInTheDocument();
+    expect(
+      screen.getByRole("menuitem", { name: /split_quantity/ }),
+    ).toBeInTheDocument();
+    expect(
+      screen.getByRole("menuitem", { name: /split_to_po/ }),
+    ).toBeInTheDocument();
     await user.click(screen.getByRole("menuitem", { name: /editing_row/ }));
     expect(editItemSpy).toHaveBeenCalledOnce();
     await user.click(trigger);
     await user.keyboard("{Escape}");
-    expect(screen.queryByRole("menuitem", { name: /editing_row/ })).not.toBeInTheDocument();
+    expect(
+      screen.queryByRole("menuitem", { name: /editing_row/ }),
+    ).not.toBeInTheDocument();
   });
 });

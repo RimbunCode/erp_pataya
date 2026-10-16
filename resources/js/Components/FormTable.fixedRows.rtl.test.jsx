@@ -31,20 +31,28 @@ describe("FormTable fixed source rows", () => {
         columns={columns}
         value={[{ id: "source-1", quantity: "2" }]}
         onValueChange={onValueChange}
-        actions={({ row, toggleDialog }) => row && (
-          <button type="button" onClick={toggleDialog}>
-            Edit {row.id}
-          </button>
-        )}
+        actions={({ row, toggleDialog }) =>
+          row && (
+            <button type="button" onClick={toggleDialog}>
+              Edit {row.id}
+            </button>
+          )
+        }
       />,
     );
 
     expect(screen.getAllByRole("textbox")).toHaveLength(1);
     expect(screen.getAllByRole("button")).toHaveLength(2);
-    await userEvent.click(screen.getByRole("button", { name: "Edit source-1" }));
+    await userEvent.click(
+      screen.getByRole("button", { name: "Edit source-1" }),
+    );
     expect(await screen.findByRole("dialog")).toBeInTheDocument();
-    expect(screen.queryByRole("button", { name: "core.formtable.duplicate" })).not.toBeInTheDocument();
-    await userEvent.click(screen.getByRole("button", { name: "core.form.close_and_apply" }));
+    expect(
+      screen.queryByRole("button", { name: "core.formtable.duplicate" }),
+    ).not.toBeInTheDocument();
+    await userEvent.click(
+      screen.getByRole("button", { name: "core.form.close_and_apply" }),
+    );
     fireEvent.change(screen.getByRole("textbox"), { target: { value: "3" } });
     await waitFor(() => expect(onValueChange).toHaveBeenCalled());
     expect(onValueChange.mock.lastCall[0]).toEqual([
@@ -68,7 +76,15 @@ describe("FormTable fixed source rows", () => {
       <FormTable
         name="WideSourceItems"
         fixedRows
-        columns={[{ name: "item", title: "Item", width: 2, minWidth: 220, locked: true }]}
+        columns={[
+          {
+            name: "item",
+            title: "Item",
+            width: 2,
+            minWidth: 220,
+            locked: true,
+          },
+        ]}
         value={[{ id: "source-1", item: "Part A" }]}
       />,
     );

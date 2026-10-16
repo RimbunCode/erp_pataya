@@ -97,10 +97,16 @@ export function setAllocationQuantity(state, id, quantity) {
 export function setAllocationUnit(state, id, unit) {
   const allocation = allocationFor(state, id);
   if (!unit?.id || !(Number(unit.conversion_factor ?? 1) > 0)) {
-    throw new RangeError("Allocation unit must have a positive conversion factor");
+    throw new RangeError(
+      "Allocation unit must have a positive conversion factor",
+    );
   }
   const source = state.sourcesById[allocation.purchase_request_item_id];
-  if (unit.item_id && source.item?.item_id && String(unit.item_id) !== String(source.item.item_id)) {
+  if (
+    unit.item_id &&
+    source.item?.item_id &&
+    String(unit.item_id) !== String(source.item.item_id)
+  ) {
     throw new RangeError("Allocation unit must belong to the source item");
   }
   return {
@@ -397,10 +403,15 @@ export function getQuantityWarnings(state, sources) {
   for (const allocation of Object.values(state.allocationsById)) {
     const sourceId = allocation.purchase_request_item_id;
     const source = state.sourcesById[sourceId];
-    const sourceFactor = Number(source?.conversion_factor ?? source?.unit?.conversion_factor ?? 1);
-    const allocationFactor = Number(allocation.unit?.conversion_factor ?? sourceFactor);
-    totals[sourceId] = (totals[sourceId] ?? 0)
-      + Number(allocation.quantity) * allocationFactor / sourceFactor;
+    const sourceFactor = Number(
+      source?.conversion_factor ?? source?.unit?.conversion_factor ?? 1,
+    );
+    const allocationFactor = Number(
+      allocation.unit?.conversion_factor ?? sourceFactor,
+    );
+    totals[sourceId] =
+      (totals[sourceId] ?? 0) +
+      (Number(allocation.quantity) * allocationFactor) / sourceFactor;
   }
   const currentSources = sources
     ? sourceItems(sources)

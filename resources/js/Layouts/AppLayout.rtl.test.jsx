@@ -50,7 +50,9 @@ vi.mock("@/Components/ui/sidebar", () => ({
     <div data-testid="stub-sidebar-provider">{children}</div>
   ),
   SidebarInset: ({ children, className }) => (
-    <div data-testid="stub-sidebar-inset" className={className}>{children}</div>
+    <div data-testid="stub-sidebar-inset" className={className}>
+      {children}
+    </div>
   ),
 }));
 

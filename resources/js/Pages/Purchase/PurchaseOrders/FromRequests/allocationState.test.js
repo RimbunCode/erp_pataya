@@ -65,25 +65,47 @@ function assignedState() {
 
 describe("allocation state", () => {
   it("converts mixed allocation units into the PR unit and isolates warnings per item", () => {
-    const unitSources = [{
-      id: "pr-units",
-      code: "PR-UNITS",
-      items: [
-        { id: "first", item: { id: "variant-1", item_id: "product-1" }, unit: { id: "pcs", conversion_factor: 1 }, conversion_factor: 1, unordered_quantity: 10 },
-        { id: "second", item: { id: "variant-2", item_id: "product-2" }, unit: { id: "pcs-2", conversion_factor: 1 }, conversion_factor: 1, unordered_quantity: 4 },
-      ],
-    }];
+    const unitSources = [
+      {
+        id: "pr-units",
+        code: "PR-UNITS",
+        items: [
+          {
+            id: "first",
+            item: { id: "variant-1", item_id: "product-1" },
+            unit: { id: "pcs", conversion_factor: 1 },
+            conversion_factor: 1,
+            unordered_quantity: 10,
+          },
+          {
+            id: "second",
+            item: { id: "variant-2", item_id: "product-2" },
+            unit: { id: "pcs-2", conversion_factor: 1 },
+            conversion_factor: 1,
+            unordered_quantity: 4,
+          },
+        ],
+      },
+    ];
     let state = createInitialState(unitSources);
-    expect(state.allocationsById["allocation-1"].unit).toMatchObject({ id: "pcs" });
+    expect(state.allocationsById["allocation-1"].unit).toMatchObject({
+      id: "pcs",
+    });
     state = setAllocationQuantity(state, "allocation-1", 4);
     state = addAllocation(state, "first", { quantity: 1 });
-    state = setAllocationUnit(state, "allocation-3", { id: "box", item_id: "product-1", conversion_factor: 12 });
+    state = setAllocationUnit(state, "allocation-3", {
+      id: "box",
+      item_id: "product-1",
+      conversion_factor: 12,
+    });
     expect(state.allocationsById["allocation-3"].quantity).toBe(1);
-    expect(getQuantityWarnings(state)).toMatchObject([{
-      purchase_request_item_id: "first",
-      allocated_quantity: 16,
-      difference: 6,
-    }]);
+    expect(getQuantityWarnings(state)).toMatchObject([
+      {
+        purchase_request_item_id: "first",
+        allocated_quantity: 16,
+        difference: 6,
+      },
+    ]);
     expect(getQuantityWarnings(state)).toHaveLength(1);
     const split = splitAllocation(state, "allocation-3", 0.25);
     expect(split.allocationsById["allocation-4"].unit.id).toBe("box");

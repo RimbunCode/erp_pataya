@@ -205,8 +205,8 @@ export default function DraftStep({
         {t(`${translationPrefix}back`)}
       </Button>
       <Button type="button" onClick={onContinue}>
-        {t(`${translationPrefix}continue_review`)} (
-        {state.draftOrder.length} PO)
+        {t(`${translationPrefix}continue_review`)} ({state.draftOrder.length}{" "}
+        PO)
       </Button>
     </div>
   );
@@ -333,7 +333,11 @@ export default function DraftStep({
                   />
                 )}
                 renderSourceWarning={(sourceItemId) => (
-                  <QuantityWarnings state={state} sources={sources} sourceId={sourceItemId} />
+                  <QuantityWarnings
+                    state={state}
+                    sources={sources}
+                    sourceId={sourceItemId}
+                  />
                 )}
               />
             </FormChildren>

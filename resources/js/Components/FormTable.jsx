@@ -497,7 +497,7 @@ const FormTableItem = memo(function FormTableItem({
         <span
           className={cn(
             !fixedRows &&
-            !(isEmptyRow && isLast) &&
+              !(isEmptyRow && isLast) &&
               !(readOnly || disabled) &&
               "group-hover:hidden",
           )}
@@ -544,15 +544,17 @@ const FormTableItem = memo(function FormTableItem({
         })}
       <div className="flex items-center px-1 gap-x-1">
         {actions && actions({ row: item, index, toggleDialog })}
-        {!fixedRows && <Button
-          type="button"
-          variant="ghost"
-          size="icon"
-          className="size-6 pointer-events-auto!"
-          onClick={toggleDialog}
-        >
-          <PencilIcon className="size-3" />
-        </Button>}
+        {!fixedRows && (
+          <Button
+            type="button"
+            variant="ghost"
+            size="icon"
+            className="size-6 pointer-events-auto!"
+            onClick={toggleDialog}
+          >
+            <PencilIcon className="size-3" />
+          </Button>
+        )}
         {!fixedRows && (!(readOnly || disabled) || forceCanDelete) && (
           <Button
             type="button"
@@ -950,7 +952,13 @@ export default memo(
         }
         scheduleParentUpdate(filteredData, key, immediate);
       },
-      [disabled, onValueChange, effectiveReadOnly, fixedRows, scheduleParentUpdate],
+      [
+        disabled,
+        onValueChange,
+        effectiveReadOnly,
+        fixedRows,
+        scheduleParentUpdate,
+      ],
     );
 
     // Memperbarui data current
@@ -977,7 +985,10 @@ export default memo(
           const isLastRow = !fixedRows && index === prevData.length - 1;
           if (
             (disabled && prevData.length > 0) ||
-            (!fixedRows && !effectiveReadOnly && index === prevData.length - 1 && key == null)
+            (!fixedRows &&
+              !effectiveReadOnly &&
+              index === prevData.length - 1 &&
+              key == null)
           )
             return prevData;
           let newData = [...prevData];
@@ -1274,7 +1285,8 @@ export default memo(
     }, [effectiveReadOnly, dataBeforeItems, _data, keyItem]);
     const currentRow = _data[currentIndex];
     const currentRowFieldCount = getRowFieldCount(currentRow);
-    const isCurrentRowEmpty = !fixedRows && currentRowFieldCount <= defaultRowFieldCount;
+    const isCurrentRowEmpty =
+      !fixedRows && currentRowFieldCount <= defaultRowFieldCount;
     const currentAdditionalData = currentRow?.[keyItem]
       ? additionalData?.[currentRow[keyItem]]
       : undefined;
@@ -1591,7 +1603,8 @@ export default memo(
                             ))}
                         </>
                       )}
-                      {!fixedRows && !isCurrentRowEmpty &&
+                      {!fixedRows &&
+                        !isCurrentRowEmpty &&
                         !(
                           effectiveReadOnly ||
                           disabled ||
@@ -1644,8 +1657,9 @@ export default memo(
                           )}
                         </>
                       )}
-                      {!fixedRows && (!isCurrentRowEmpty ||
-                        currentIndex < _data.length - 1) &&
+                      {!fixedRows &&
+                        (!isCurrentRowEmpty ||
+                          currentIndex < _data.length - 1) &&
                         (!(
                           effectiveReadOnly ||
                           disabled ||

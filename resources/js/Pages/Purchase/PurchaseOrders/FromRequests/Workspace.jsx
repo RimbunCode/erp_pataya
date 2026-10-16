@@ -37,13 +37,23 @@ function WorkspaceContent({
   useEffect(() => {
     if (!sources.length || Object.keys(sourceErrors).length) return;
     const refreshed = createInitialState(sources);
-    setState((current) => ({ ...current, sourcesById: { ...current.sourcesById, ...refreshed.sourcesById } }));
+    setState((current) => ({
+      ...current,
+      sourcesById: { ...current.sourcesById, ...refreshed.sourcesById },
+    }));
     setValidationErrors({});
   }, [sources, sourceErrors]);
-  const availableItemIds = new Set(sources.flatMap((source) => source.items?.map((item) => item.id) ?? []));
-  const missingItems = Object.values(state.allocationsById).filter((allocation) => !availableItemIds.has(allocation.purchase_request_item_id));
+  const availableItemIds = new Set(
+    sources.flatMap((source) => source.items?.map((item) => item.id) ?? []),
+  );
+  const missingItems = Object.values(state.allocationsById).filter(
+    (allocation) => !availableItemIds.has(allocation.purchase_request_item_id),
+  );
   const currentSourceErrors = missingItems.length
-    ? { ...sourceErrors, missing_items: t(`${translationPrefix}missing_source_items`) }
+    ? {
+        ...sourceErrors,
+        missing_items: t(`${translationPrefix}missing_source_items`),
+      }
     : sourceErrors;
   const goToStep = (nextStep) => {
     setStep(nextStep);
@@ -103,9 +113,11 @@ function WorkspaceContent({
       </nav>
       <div
         data-testid="workspace-scroll-region"
-        className={step === "drafts"
-          ? "min-h-0 min-w-0 flex-1 overflow-hidden"
-          : "min-h-0 min-w-0 flex-1 overflow-y-auto"}
+        className={
+          step === "drafts"
+            ? "min-h-0 min-w-0 flex-1 overflow-hidden"
+            : "min-h-0 min-w-0 flex-1 overflow-y-auto"
+        }
       >
         {step === "allocation" && (
           <AllocationStep

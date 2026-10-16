@@ -199,12 +199,11 @@ export default function ReviewStep({
                   const unitLabel =
                     item.unit?.name ?? item.unit?.code ?? item.unit?.id;
                   const sourceUnitLabel =
-                    source?.unit?.name ?? source?.unit?.code ?? source?.unit?.id;
+                    source?.unit?.name ??
+                    source?.unit?.code ??
+                    source?.unit?.id;
                   return (
-                    <li
-                      key={item.id}
-                      className="space-y-2"
-                    >
+                    <li key={item.id} className="space-y-2">
                       <div className="flex flex-wrap justify-between gap-2">
                         <span>
                           {source?.purchase_request_code} ·{" "}
@@ -221,17 +220,28 @@ export default function ReviewStep({
                       {warning && (
                         <Alert
                           role="alert"
-                          aria-label={t(`${translationPrefix}quantity_warning_title`)}
+                          aria-label={t(
+                            `${translationPrefix}quantity_warning_title`,
+                          )}
                           variant="warning"
                           appearance="light"
                         >
                           <AlertContent>
                             <AlertDescription>
-                              {t(`${translationPrefix}quantity_${warning.direction}`, {
-                                required: formatWarningQuantity(warning.unordered_quantity),
-                                allocated: formatWarningQuantity(warning.allocated_quantity),
-                                difference: formatWarningQuantity(Math.abs(warning.difference)),
-                              })}{" "}
+                              {t(
+                                `${translationPrefix}quantity_${warning.direction}`,
+                                {
+                                  required: formatWarningQuantity(
+                                    warning.unordered_quantity,
+                                  ),
+                                  allocated: formatWarningQuantity(
+                                    warning.allocated_quantity,
+                                  ),
+                                  difference: formatWarningQuantity(
+                                    Math.abs(warning.difference),
+                                  ),
+                                },
+                              )}{" "}
                               {sourceUnitLabel}
                             </AlertDescription>
                           </AlertContent>

@@ -113,8 +113,15 @@ describe("PurchaseRequests Index create PO action", () => {
   it("renders a navigable PR card in the mobile row shell", () => {
     render(<Index />);
     expect(typeof mocks.props.templateItem).toBe("function");
-    render(mocks.props.templateItem({ dataRow: { id: "pr-1", code: "PR-001", status: ["to_order"] } }));
-    expect(screen.getByRole("link", { name: /PR-001/ })).toHaveAttribute("href", "purchaseRequests.show");
+    render(
+      mocks.props.templateItem({
+        dataRow: { id: "pr-1", code: "PR-001", status: ["to_order"] },
+      }),
+    );
+    expect(screen.getByRole("link", { name: /PR-001/ })).toHaveAttribute(
+      "href",
+      "purchaseRequests.show",
+    );
     expect(screen.getByText("status.to_order")).toBeInTheDocument();
   });
 

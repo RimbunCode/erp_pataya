@@ -39,7 +39,8 @@ const translationPrefix = "purchase.purchaseOrder.from_requests.";
 export function QuantityWarnings({ state, sources, sourceId }) {
   const { t } = useLaravelReactI18n();
   const warnings = getQuantityWarnings(state, sources).filter(
-    (warning) => sourceId == null || warning.purchase_request_item_id === sourceId,
+    (warning) =>
+      sourceId == null || warning.purchase_request_item_id === sourceId,
   );
   if (!warnings.length) return null;
 
@@ -71,8 +72,12 @@ export function QuantityWarnings({ state, sources, sourceId }) {
                   {": "}
                   {t(`${translationPrefix}quantity_${warning.direction}`, {
                     required: formatWarningQuantity(warning.unordered_quantity),
-                    allocated: formatWarningQuantity(warning.allocated_quantity),
-                    difference: formatWarningQuantity(Math.abs(warning.difference)),
+                    allocated: formatWarningQuantity(
+                      warning.allocated_quantity,
+                    ),
+                    difference: formatWarningQuantity(
+                      Math.abs(warning.difference),
+                    ),
                   })}
                 </li>
               );
@@ -211,7 +216,11 @@ export default function AllocationStep({
         const unitName = source.unit_name ?? source.unit?.name ?? "—";
         const requiredDate = source.required_date ?? request?.required_date;
         return (
-          <Card key={source.id} data-testid={"source-item-" + source.id} className="min-w-0 overflow-hidden">
+          <Card
+            key={source.id}
+            data-testid={"source-item-" + source.id}
+            className="min-w-0 overflow-hidden"
+          >
             <div className="flex flex-wrap items-start justify-between gap-3 border-b bg-muted/30 p-4">
               <div className="min-w-0 space-y-1">
                 <div className="flex flex-wrap items-center gap-2">
@@ -241,7 +250,11 @@ export default function AllocationStep({
               </div>
             </div>
             <CardContent className="grid gap-3 p-4">
-              <QuantityWarnings state={state} sources={sources} sourceId={source.id} />
+              <QuantityWarnings
+                state={state}
+                sources={sources}
+                sourceId={source.id}
+              />
               {rows.length === 0 && (
                 <p className="text-sm text-muted-foreground">
                   {t(`${translationPrefix}item_not_allocated`)}
@@ -291,7 +304,9 @@ export default function AllocationStep({
                       filters={{ item_id: source.item?.item_id }}
                       onValueChange={(unit) => {
                         if (unit) {
-                          setState((current) => setAllocationUnit(current, allocation.id, unit));
+                          setState((current) =>
+                            setAllocationUnit(current, allocation.id, unit),
+                          );
                         }
                       }}
                     />

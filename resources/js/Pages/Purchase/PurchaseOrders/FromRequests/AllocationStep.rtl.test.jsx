@@ -53,9 +53,21 @@ vi.mock("@/Pages/Inventory/Items/ItemUnitLinkModel", () => ({
       value={value?.id ?? ""}
       disabled={disabled}
       onChange={(event) =>
-        onValueChange(event.target.value === "box"
-          ? { id: "box", item_id: "product-1", name: "Box", conversion_factor: 12 }
-          : { id: "pcs", item_id: "product-1", name: "pcs", conversion_factor: 1 })
+        onValueChange(
+          event.target.value === "box"
+            ? {
+                id: "box",
+                item_id: "product-1",
+                name: "Box",
+                conversion_factor: 12,
+              }
+            : {
+                id: "pcs",
+                item_id: "product-1",
+                name: "pcs",
+                conversion_factor: 1,
+              },
+        )
       }
     >
       <option value="pcs">pcs</option>
@@ -117,9 +129,16 @@ async function chooseSupplier(index = 0, supplier = "supplier-1") {
 
 describe("PR allocation", () => {
   it("requests conversion factors for selectable units", () => {
-    render(<AllocationStep state={createInitialState(sources)} setState={vi.fn()} sources={sources} />);
-    expect(screen.getAllByRole("combobox", { name: "PO unit" })[0])
-      .toHaveAttribute("data-fields", JSON.stringify(["conversion_factor"]));
+    render(
+      <AllocationStep
+        state={createInitialState(sources)}
+        setState={vi.fn()}
+        sources={sources}
+      />,
+    );
+    expect(
+      screen.getAllByRole("combobox", { name: "PO unit" })[0],
+    ).toHaveAttribute("data-fields", JSON.stringify(["conversion_factor"]));
   });
   it("mounts its action footer outside the scrolling content when a footer slot is supplied", () => {
     function PortalHarness() {
@@ -141,8 +160,12 @@ describe("PR allocation", () => {
       );
     }
     render(<PortalHarness />);
-    expect(screen.getByTestId("footer-slot")).toContainElement(continueButton());
-    expect(screen.getByTestId("scroll-region")).not.toContainElement(continueButton());
+    expect(screen.getByTestId("footer-slot")).toContainElement(
+      continueButton(),
+    );
+    expect(screen.getByTestId("scroll-region")).not.toContainElement(
+      continueButton(),
+    );
   });
   it("starts with the remaining quantity and requires a supplier", async () => {
     render(<Harness />);
@@ -168,9 +191,11 @@ describe("PR allocation", () => {
     expect(
       screen.queryByText(`${prefix}quantity_warning_title`),
     ).not.toBeInTheDocument();
-    expect(screen.getAllByRole("combobox", { name: /supplier/ }).map((input) => input.value)).toEqual(
-      ["supplier-1", "supplier-2"],
-    );
+    expect(
+      screen
+        .getAllByRole("combobox", { name: /supplier/ })
+        .map((input) => input.value),
+    ).toEqual(["supplier-1", "supplier-2"]);
   });
 
   it.each([5, 15])(
@@ -251,7 +276,9 @@ describe("PR allocation", () => {
       screen.getByRole("button", { name: "Back to allocation" }),
     );
     expect(Number(quantities()[0].value)).toBe(7);
-    expect(screen.getByRole("combobox", { name: /supplier/ })).toHaveValue("supplier-1");
+    expect(screen.getByRole("combobox", { name: /supplier/ })).toHaveValue(
+      "supplier-1",
+    );
   });
 
   it("shows the converted difference inside only the affected PR item", async () => {
@@ -262,12 +289,21 @@ describe("PR allocation", () => {
       items: [{ ...sources[0].items[0], id: "item-2" }],
     };
     render(<Harness initialState={createInitialState([...sources, second])} />);
-    await userEvent.selectOptions(screen.getAllByRole("combobox", { name: "PO unit" })[0], "box");
-    expect(within(screen.getByTestId("source-item-item-1")).getByRole("alert", {
-      name: prefix + "quantity_warning_title",
-    })).toHaveTextContent("10 120 110");
-    expect(within(screen.getByTestId("source-item-item-2")).queryByRole("alert")).not.toBeInTheDocument();
-    expect(screen.getAllByRole("combobox", { name: "PO unit" })[1]).toHaveValue("pcs");
+    await userEvent.selectOptions(
+      screen.getAllByRole("combobox", { name: "PO unit" })[0],
+      "box",
+    );
+    expect(
+      within(screen.getByTestId("source-item-item-1")).getByRole("alert", {
+        name: prefix + "quantity_warning_title",
+      }),
+    ).toHaveTextContent("10 120 110");
+    expect(
+      within(screen.getByTestId("source-item-item-2")).queryByRole("alert"),
+    ).not.toBeInTheDocument();
+    expect(screen.getAllByRole("combobox", { name: "PO unit" })[1]).toHaveValue(
+      "pcs",
+    );
   });
 
   it("blocks advance when the source resolver returns an error", async () => {

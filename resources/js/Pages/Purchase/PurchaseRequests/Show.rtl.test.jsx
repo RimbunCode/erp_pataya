@@ -134,7 +134,10 @@ describe("Show (PurchaseRequests)", () => {
     });
 
     it("submitted_at kosong: tombol tidak muncul meski status/items memenuhi syarat lain", () => {
-      const purchaseRequest = basePurchaseRequest({ submitted_at: null, canCreatePo: false });
+      const purchaseRequest = basePurchaseRequest({
+        submitted_at: null,
+        canCreatePo: false,
+      });
       render(<Show purchaseRequest={purchaseRequest} defaultData={{}} />);
 
       expect(
@@ -143,7 +146,10 @@ describe("Show (PurchaseRequests)", () => {
     });
 
     it("status tidak valid (mis. draft): tombol tidak muncul", () => {
-      const purchaseRequest = basePurchaseRequest({ status: "draft", canCreatePo: false });
+      const purchaseRequest = basePurchaseRequest({
+        status: "draft",
+        canCreatePo: false,
+      });
       render(<Show purchaseRequest={purchaseRequest} defaultData={{}} />);
 
       expect(
@@ -152,7 +158,10 @@ describe("Show (PurchaseRequests)", () => {
     });
 
     it("status tidak valid (mis. canceled): tombol tidak muncul", () => {
-      const purchaseRequest = basePurchaseRequest({ status: "canceled", canCreatePo: false });
+      const purchaseRequest = basePurchaseRequest({
+        status: "canceled",
+        canCreatePo: false,
+      });
       render(<Show purchaseRequest={purchaseRequest} defaultData={{}} />);
 
       expect(
@@ -197,7 +206,10 @@ describe("Show (PurchaseRequests)", () => {
     });
 
     it("items kosong (calculateArray -> 0): tombol tidak muncul", () => {
-      const purchaseRequest = basePurchaseRequest({ items: [], canCreatePo: false });
+      const purchaseRequest = basePurchaseRequest({
+        items: [],
+        canCreatePo: false,
+      });
       render(<Show purchaseRequest={purchaseRequest} defaultData={{}} />);
 
       expect(
@@ -225,15 +237,29 @@ describe("Show (PurchaseRequests)", () => {
     });
 
     it("mengikuti flag server walau detail item tidak tersedia di props", () => {
-      render(<Show purchaseRequest={basePurchaseRequest({ items: undefined })} defaultData={{}} />);
+      render(
+        <Show
+          purchaseRequest={basePurchaseRequest({ items: undefined })}
+          defaultData={{}}
+        />,
+      );
 
-      expect(screen.getByText("purchase.purchaseRequest.actions.create_po")).toBeInTheDocument();
+      expect(
+        screen.getByText("purchase.purchaseRequest.actions.create_po"),
+      ).toBeInTheDocument();
     });
 
     it("flag server menolak meskipun field lokal tampak layak", () => {
-      render(<Show purchaseRequest={basePurchaseRequest({ canCreatePo: false })} defaultData={{}} />);
+      render(
+        <Show
+          purchaseRequest={basePurchaseRequest({ canCreatePo: false })}
+          defaultData={{}}
+        />,
+      );
 
-      expect(screen.queryByText("purchase.purchaseRequest.actions.create_po")).not.toBeInTheDocument();
+      expect(
+        screen.queryByText("purchase.purchaseRequest.actions.create_po"),
+      ).not.toBeInTheDocument();
     });
   });
 });

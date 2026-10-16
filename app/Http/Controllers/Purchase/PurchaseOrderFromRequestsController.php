@@ -22,7 +22,7 @@ class PurchaseOrderFromRequestsController extends Controller {
     protected function enforcePermission(string $method): ?string {
         return match ($method) {
             'stage', 'workspace', 'store', 'result' => 'create',
-            default => null,
+            default                                 => null,
         };
     }
 

@@ -314,18 +314,30 @@ describe("PurchaseOrders Form", () => {
   it("uses fixed FormTable rows and locked source identity for PR drafts", () => {
     const data = {
       date: "2026-10-14",
-      items: [{
-        id: "allocation-1",
-        source_item_id: "pr-item-1",
-        purchase_request_code: "PR-001",
-        item: { id: "variant-1", name: "Part A", item_id: "product-1" },
-        unit: { id: "pcs", conversion_factor: 1 },
-        quantity: 2,
-        rate: 100,
-      }],
+      items: [
+        {
+          id: "allocation-1",
+          source_item_id: "pr-item-1",
+          purchase_request_code: "PR-001",
+          item: { id: "variant-1", name: "Part A", item_id: "product-1" },
+          unit: { id: "pcs", conversion_factor: 1 },
+          quantity: 2,
+          rate: 100,
+        },
+      ],
     };
-    render(<PurchaseOrderFields data={data} setData={vi.fn()} sourceLocked sourceItemActions={vi.fn()} />);
-    expect(screen.getByTestId("stub-form-table")).toHaveAttribute("data-fixed-rows", "true");
+    render(
+      <PurchaseOrderFields
+        data={data}
+        setData={vi.fn()}
+        sourceLocked
+        sourceItemActions={vi.fn()}
+      />,
+    );
+    expect(screen.getByTestId("stub-form-table")).toHaveAttribute(
+      "data-fixed-rows",
+      "true",
+    );
     expect(screen.getByText("PR-001")).toBeInTheDocument();
     expect(screen.getByText("Part A")).toBeInTheDocument();
     expect(screen.getByTestId("unit-link-model")).toHaveAttribute(
