@@ -12,6 +12,7 @@ return new class extends Migration
     public function up(): void {
         Schema::create('purchase_orders', function (Blueprint $table) {
             $table->ulid('id')->primary();
+            $table->string('code')->nullable()->unique();
             $table->timestamp('date');
             $table->timestamp('required_date')->nullable();
             $table->foreignUlid('supplier_id')->nullable()->references('id')->on('suppliers')->nullOnDelete();

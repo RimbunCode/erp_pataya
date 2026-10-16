@@ -10,6 +10,8 @@ use Illuminate\Foundation\Testing\TestCase as BaseTestCase;
 use Illuminate\Support\Facades\DB;
 
 abstract class TestCase extends BaseTestCase {
+    protected bool $dropViews = true;
+
     protected function setUp(): void {
         parent::setUp();
 

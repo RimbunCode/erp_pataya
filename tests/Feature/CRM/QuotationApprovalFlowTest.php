@@ -80,7 +80,7 @@ class QuotationApprovalFlowTest extends QuotationTestCase {
             ->post(route('approvalInstances.decision', $approval->steps()->firstOrFail()), [
                 'decision' => 'approve',
             ])
-            ->assertOk();
+            ->assertRedirect();
 
         $quotation->refresh();
 
@@ -115,7 +115,7 @@ class QuotationApprovalFlowTest extends QuotationTestCase {
             ->post(route('approvalInstances.decision', $approval->steps()->firstOrFail()), [
                 'decision' => 'reject',
             ])
-            ->assertOk();
+            ->assertRedirect();
 
         $quotation->refresh();
 
