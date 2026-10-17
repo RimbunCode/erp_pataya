@@ -368,9 +368,7 @@ describe("<nav-link> di luar konteks kolom (row.route) dan context option", () =
     items: [{ id: 1, thisModel: "I", templateLink: ":code", code: "I-1" }],
   };
   const noColumn = (template, extra = {}) =>
-    render(
-      <SemanticTemplate template={template} row={row} {...extra} />,
-    );
+    render(<SemanticTemplate template={template} row={row} {...extra} />);
 
   it("tanpa column: fallback ke row.route + '.show' dan id (kartu mobile)", () => {
     noColumn("<nav-link><b>SO-7</b></nav-link>", { context: "mobile" });

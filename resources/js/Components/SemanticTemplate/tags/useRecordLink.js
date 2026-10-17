@@ -48,7 +48,10 @@ export default function useRecordLink(
     }
     if (!requireColumnRoute && row?.route) {
       return {
-        href: window.route(`${row.route}.show`, row?.[primaryKey ?? "id"] ?? ""),
+        href: window.route(
+          `${row.route}.show`,
+          row?.[primaryKey ?? "id"] ?? "",
+        ),
       };
     }
 
