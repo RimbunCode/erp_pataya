@@ -81,7 +81,7 @@ function WorkspaceContent({
   };
 
   return (
-    <div className="mx-auto flex h-full min-h-0 w-full max-w-6xl min-w-0 flex-col gap-4">
+    <div className="flex h-full min-h-0 w-full min-w-0 flex-col gap-4">
       <header className="shrink-0 space-y-2">
         <h1 className="text-xl font-semibold">
           {t(`${translationPrefix}title`)}

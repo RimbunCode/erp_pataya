@@ -41,7 +41,7 @@ const AlertDialogContent = React.forwardRef(
         <AlertDialogOverlay />
         <div
           className={cn(
-            "fixed h-screen w-full z-50 flex items-center md:px-6",
+            "fixed inset-0 h-screen w-full z-50 flex items-center md:px-6",
             align == "top" && "flex-col",
             align == "bottom" && "flex-col-reverse",
           )}

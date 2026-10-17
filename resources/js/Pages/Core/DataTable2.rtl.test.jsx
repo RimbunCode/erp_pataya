@@ -163,7 +163,7 @@ vi.mock("@/Components/Table/Table2", async () => {
           </button>
           {props.data?.map((row) => (
             <div key={row.id} data-testid={`row-${row.id}`}>
-              {props.selectable && (
+              {props.selectable && props.isRowSelectable?.(row) !== false && (
                 <input
                   type="checkbox"
                   aria-label={`check-${row.id}`}
@@ -799,6 +799,9 @@ describe("DataTable2", () => {
       await renderDataTable2(<DataTable2 />);
 
       expect(rowMenuButton(3)).toBeNull();
+      expect(
+        within(screen.getByTestId("row-3")).queryByRole("checkbox"),
+      ).not.toBeInTheDocument();
     });
 
     it("menu ⋯ tidak muncul saat can('delete') false", async () => {
@@ -806,6 +809,40 @@ describe("DataTable2", () => {
       await renderDataTable2(<DataTable2 />);
 
       expect(rowMenuButton(1)).toBeNull();
+      expect(
+        within(screen.getByTestId("row-1")).queryByRole("checkbox"),
+      ).not.toBeInTheDocument();
+    });
+
+    it("checkbox tampil bila setidaknya satu aksi custom eligible, termasuk aksi bulk-only", async () => {
+      canMock.mockImplementation((action) => action !== "delete");
+      await renderDataTable2(
+        <DataTable2
+          rowActions={[
+            {
+              key: "unavailable",
+              label: "Unavailable",
+              enabled: () => false,
+              onAction: vi.fn(),
+            },
+            {
+              key: "bulk",
+              label: "Bulk",
+              single: false,
+              bulk: true,
+              enabled: (row) => row.id === 2,
+              onAction: vi.fn(),
+            },
+          ]}
+        />,
+      );
+
+      expect(
+        within(screen.getByTestId("row-1")).queryByRole("checkbox"),
+      ).not.toBeInTheDocument();
+      expect(
+        within(screen.getByTestId("row-2")).getByRole("checkbox"),
+      ).toBeInTheDocument();
     });
 
     it("usePasswordConfirmationForDelete diteruskan ke deleteItem", async () => {
@@ -1427,6 +1464,30 @@ describe("DataTable2", () => {
         await user.click(screen.getByRole("button", { name: clearLabel }));
         expect(screen.queryAllByLabelText(selectRowLabel)).toHaveLength(0);
         expect(screen.queryByText(selectedText(1))).not.toBeInTheDocument();
+      });
+
+      it("mode pilih mobile hanya menampilkan checkbox pada kartu dengan aksi eligible", async () => {
+        const user = userEvent.setup({ delay: null, pointerEventsCheck: 0 });
+        await renderDataTable2(
+          <DataTable2
+            templateItem={mobileTemplate}
+            hideDeleteAction
+            rowActions={[
+              {
+                key: "process",
+                label: "Process",
+                bulk: true,
+                enabled: (row) => row.id === 2,
+                onAction: vi.fn(),
+              },
+            ]}
+          />,
+        );
+
+        await enterSelectMode(user);
+        expect(screen.getAllByLabelText(selectRowLabel)).toHaveLength(1);
+        await user.click(screen.getByLabelText(selectRowLabel));
+        expect(screen.getByText(selectedText(1))).toBeInTheDocument();
       });
 
       it("batal centang baris terakhir mengakhiri mode pilih; masuk via menu tanpa centang tetap aktif", async () => {

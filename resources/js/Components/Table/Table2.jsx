@@ -343,6 +343,7 @@ Cell.displayName = "TableCell";
 export const TableRow = memo(function TableRow({
   row,
   selectable,
+  isRowSelectable,
   selected,
   actions,
   showedColumns,
@@ -357,11 +358,13 @@ export const TableRow = memo(function TableRow({
     >
       {selectable && (
         <td className="py-2! px-2! items-center">
-          <Checkbox
-            aria-label={t("core.datatable.select_row")}
-            checked={selected ?? row.isSelected ?? false}
-            onCheckedChange={(check) => onCheck(row, check === true)}
-          />
+          {(!isRowSelectable || isRowSelectable(row)) && (
+            <Checkbox
+              aria-label={t("core.datatable.select_row")}
+              checked={selected ?? row.isSelected ?? false}
+              onCheckedChange={(check) => onCheck(row, check === true)}
+            />
+          )}
         </td>
       )}
       {actions && (
@@ -390,6 +393,7 @@ const Table2 = forwardRef(function Table2(
   {
     className,
     selectable,
+    isRowSelectable,
     actions,
     columns: headers,
     freezeColumn = 0,
@@ -775,8 +779,10 @@ const Table2 = forwardRef(function Table2(
       selection ? selection.isSelected(row) : (row.isSelected ?? false),
     [selection],
   );
-  const allChecked = data.length > 0 && data.every(isRowSelected);
-  const someChecked = data.some(isRowSelected);
+  const selectableRows = isRowSelectable ? data.filter(isRowSelectable) : data;
+  const allChecked =
+    selectableRows.length > 0 && selectableRows.every(isRowSelected);
+  const someChecked = selectableRows.some(isRowSelected);
 
   const checkAll = (check) => {
     setData((data) => {
@@ -806,6 +812,7 @@ const Table2 = forwardRef(function Table2(
       <TableRow
         row={row}
         selectable={selectable}
+        isRowSelectable={isRowSelectable}
         selected={selection?.isSelected(row)}
         actions={actions}
         showedColumns={showedColumns}
@@ -813,7 +820,14 @@ const Table2 = forwardRef(function Table2(
         onCheck={selection?.toggle ?? (() => {})}
       />
     ),
-    [selectable, selection, actions, showedColumns, onRowClick],
+    [
+      selectable,
+      isRowSelectable,
+      selection,
+      actions,
+      showedColumns,
+      onRowClick,
+    ],
   );
   const renderGroupLoading = useCallback(
     ({ depth }) => <GroupNodeStatusRow depth={depth} colSpan={rowSpan} />,
@@ -888,23 +902,29 @@ const Table2 = forwardRef(function Table2(
                       <th className="py-2! px-2! items-center">
                         {/* Mode grup + controlled: select-all tak bermakna (baris
                             grup di-fetch lazy), sel dibiarkan kosong. */}
-                        {!(group && selection) && (
-                          <Checkbox
-                            aria-label={t("core.datatable.select_all")}
-                            checked={
-                              allChecked
-                                ? true
-                                : someChecked
-                                  ? "indeterminate"
-                                  : false
-                            }
-                            onCheckedChange={(check) =>
-                              selection
-                                ? selection.setMany(data, check === true)
-                                : checkAll(check === true)
-                            }
-                          />
-                        )}
+                        {!(group && selection) &&
+                          (!selection ||
+                            data.length === 0 ||
+                            selectableRows.length > 0) && (
+                            <Checkbox
+                              aria-label={t("core.datatable.select_all")}
+                              checked={
+                                allChecked
+                                  ? true
+                                  : someChecked
+                                    ? "indeterminate"
+                                    : false
+                              }
+                              onCheckedChange={(check) =>
+                                selection
+                                  ? selection.setMany(
+                                      selectableRows,
+                                      check === true,
+                                    )
+                                  : checkAll(check === true)
+                              }
+                            />
+                          )}
                       </th>
                     )}
                     {actions && (
@@ -990,6 +1010,7 @@ const Table2 = forwardRef(function Table2(
                           key={row.id ?? index}
                           row={row}
                           selectable={selectable}
+                          isRowSelectable={isRowSelectable}
                           selected={
                             selection ? selection.isSelected(row) : undefined
                           }

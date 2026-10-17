@@ -914,6 +914,13 @@ export default memo(
       ],
       [rowActions, hideDeleteAction, deleteAction],
     );
+    const isRowSelectable = useCallback(
+      (row) =>
+        allActions.some(
+          (action) => (action.single || action.bulk) && action.enabled(row),
+        ),
+      [allActions],
+    );
     useEffect(() => {
       warnMissingRequires(allActions, data?.data ?? []);
     }, [allActions, data]);
@@ -1019,11 +1026,11 @@ export default memo(
       return (
         <MobileRowShell
           key={row.id}
-          selectionMode={selectable && selectionMode}
+          selectionMode={selectable && selectionMode && isRowSelectable(row)}
           checked={selection.isSelected(row)}
           onToggle={(checked) => selection.toggle(row, checked)}
           onLongPress={
-            selectable
+            selectable && isRowSelectable(row)
               ? () => {
                   setSelectionMode(true);
                   selection.toggle(row, true);
@@ -1388,6 +1395,7 @@ export default memo(
                 )}
                 <Table2
                   selectable={selectable}
+                  isRowSelectable={isRowSelectable}
                   selection={selectable ? selection : undefined}
                   reload={loadData}
                   columnFilter={columnFilter}

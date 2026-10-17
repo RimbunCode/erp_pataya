@@ -27,7 +27,7 @@ export function buildDraftData(state, draftId, defaultDate) {
         purchase_request_id: source.purchase_request_id,
         purchase_request_code: source.purchase_request_code,
         item: source.item,
-        unit: allocation.unit ?? source.unit,
+        unit: Object.hasOwn(allocation, "unit") ? allocation.unit : source.unit,
         quantity: allocation.quantity,
         description: line.description ?? source.description ?? "",
         required_date:
