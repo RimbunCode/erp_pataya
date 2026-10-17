@@ -10,6 +10,7 @@
 @source '../**/*.blade.php';
 @source '../**/*.js';
 @source '../**/*.jsx';
+@source '../../app/Models/**/*.php';
 
 @custom-variant dark (&:where(.dark, .dark *));
 @layer base {

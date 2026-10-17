@@ -104,6 +104,7 @@ import { gooeyToast as toast } from "@/lib/gooeyToast";
 import useDeleteModal from "@/Hooks/useDeleteModal";
 import useDidMountEffect from "@/Hooks/useDidMountEffect";
 import { useIsMobile } from "@/Hooks/use-mobile";
+import SemanticTemplate from "@/Components/SemanticTemplate/SemanticTemplate";
 import { useLaravelReactI18n } from "laravel-react-i18n";
 import usePermission from "@/Hooks/usePermission";
 
@@ -286,6 +287,7 @@ export default memo(
       groupMeta,
       defaultGroups,
       searchScope,
+      mobileTemplate,
       bulkDestroy = false,
     } = usePage().props;
     const plural = pluralize.plural(name ?? "");
@@ -999,18 +1001,30 @@ export default memo(
             total: data.total,
           })
         : null;
-    // Kartu mobile satu baris data (`templateItem` halaman).
-    const mobileItem = (row) =>
-      templateItem?.({
-        dataRow: row,
-        // Pass closure — JANGAN panggil deleteItem() saat render
-        // (memicu setState store DeleteDialog selama render).
-        // @deprecated: hapus kini lewat menu ⋯ kartu / bulk bar.
-        deleteItem: () =>
-          deleteItem(`${plural}.destroy`, row.id, {
-            usePasswordConfirmation: usePasswordConfirmationForDelete,
-          }),
-      });
+    // Kartu mobile satu baris data: `templateItem` halaman didahulukan; tanpa
+    // itu, kartu dirender dari `mobileTemplate()` model (page prop). Tanpa
+    // keduanya: tidak ada kartu (perilaku lama).
+    const mobileItem = (row) => {
+      if (templateItem) {
+        return templateItem({
+          dataRow: row,
+          // Pass closure — JANGAN panggil deleteItem() saat render
+          // (memicu setState store DeleteDialog selama render).
+          // @deprecated: hapus kini lewat menu ⋯ kartu / bulk bar.
+          deleteItem: () =>
+            deleteItem(`${plural}.destroy`, row.id, {
+              usePasswordConfirmation: usePasswordConfirmationForDelete,
+            }),
+        });
+      }
+      return mobileTemplate ? (
+        <SemanticTemplate
+          template={mobileTemplate}
+          row={row}
+          context="mobile"
+        />
+      ) : null;
+    };
     // Kartu mobile + shell (checkbox mode pilih, long-press, menu ⋯). Tanpa
     // `selectable`: shell tetap dipasang demi menu ⋯, tapi long-press no-op.
     const wrapMobile = (row) => {

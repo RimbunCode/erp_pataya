@@ -193,7 +193,7 @@ function evalTernaryNode(node, value) {
   return evalTernaryNode(condValue ? node.whenTrue : node.whenFalse, value);
 }
 
-function resolveTernaryTokens(template, value) {
+export function resolveTernaryTokens(template, value) {
   let result = "";
   let i = 0;
   while (i < template.length) {

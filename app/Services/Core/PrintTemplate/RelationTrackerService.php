@@ -2,6 +2,7 @@
 
 namespace App\Services\Core\PrintTemplate;
 
+use App\Services\Core\DataTable\Template\DataTableColumnPresenter;
 use App\Utils;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\Relation;
@@ -644,7 +645,7 @@ class RelationTrackerService {
             return;
         }
 
-        $modelColumns[$modelClass] = collect($model::getColumns(1, true))
+        $modelColumns[$modelClass] = collect(DataTableColumnPresenter::forFrontend($model::getColumns(1, true)))
             ->mapWithKeys(fn ($column) => [$column['name'] => $column]);
     }
 

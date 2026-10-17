@@ -1,0 +1,6 @@
+{
+  "specId": "ed029429-d734-47f5-8b41-ebfa44aa71a5",
+  "workflowType": "requirements-first",
+  "specType": "feature",
+  "description": "Template tampilan per kolom DataTable (configColumns `template`) dengan tag semantik yang dirender jadi komponen UI bersama (juga dipakai LinkModel, SelectModel, kartu mobile, QuickListBlock), dependsOn diekstrak otomatis, kolom relasi banyak sebagai chip, type `progress` (donut/bar) + `expression` SQL untuk kolom hitungan, serta pencarian kolom Attribute lewat dependsOn. Semua ikut tercache oleh model:cache. Prasyarat fitur Report Templates."
+}

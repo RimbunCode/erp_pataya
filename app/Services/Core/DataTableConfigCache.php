@@ -2,6 +2,7 @@
 
 namespace App\Services\Core;
 
+use App\Services\Core\DataTable\Template\TemplateDependencyExtractor;
 use App\Traits\LinkModel;
 use Illuminate\Database\Eloquent\Model as EloquentModel;
 use Illuminate\Support\Facades\Cache;
@@ -21,9 +22,17 @@ class DataTableConfigCache {
      */
     private static array $flatCache = [];
 
+    /**
+     * Memo per-request hasil meta() per model (lihat $flatCache).
+     *
+     * @var array<string, array{mobileTemplate: ?string, mobileDependsOn: list<string>}>
+     */
+    private static array $metaCache = [];
+
     /** Dipanggil test: static hidup selama seluruh proses PHPUnit. */
     public static function forgetMemo(): void {
         self::$flatCache = [];
+        self::$metaCache = [];
     }
 
     public static function signatureFor(string $modelClass): string {
@@ -78,10 +87,70 @@ class DataTableConfigCache {
         }
     }
 
+    /**
+     * Metadata model di luar daftar kolom: template kartu mobile (`mobileTemplate()`
+     * statis di model, opsional) beserta dependensi hasil ekstraksinya. Disimpan di
+     * key terpisah `<cacheKey>:meta` supaya shape `flat()` tak berubah.
+     *
+     * @return array{mobileTemplate: ?string, mobileDependsOn: list<string>}
+     */
+    public static function meta(string $modelClass): array {
+        if (! config('datatable.config_cache_enabled', true)) {
+            return static::computeMeta($modelClass);
+        }
+
+        if (isset(self::$metaCache[$modelClass])) {
+            return self::$metaCache[$modelClass];
+        }
+
+        $key = static::metaKey($modelClass);
+        $ttl = now()->addSeconds((int) config('datatable.config_cache_ttl_seconds', 86400));
+
+        try {
+            return self::$metaCache[$modelClass] = Cache::remember($key, $ttl, function () use ($modelClass) {
+                return static::computeMeta($modelClass);
+            });
+        } catch (\Throwable) {
+            return static::computeMeta($modelClass);
+        }
+    }
+
+    /**
+     * Hitung meta tanpa cache: `mobileTemplate()` (bila didefinisikan, publik, statis,
+     * tanpa parameter wajib) dan `mobileDependsOn` hasil ekstraksinya.
+     *
+     * @return array{mobileTemplate: ?string, mobileDependsOn: list<string>}
+     */
+    public static function computeMeta(string $modelClass): array {
+        $template = null;
+
+        if (method_exists($modelClass, 'mobileTemplate')) {
+            try {
+                $method = new \ReflectionMethod($modelClass, 'mobileTemplate');
+                if ($method->isStatic() && $method->isPublic() && $method->getNumberOfRequiredParameters() === 0) {
+                    $result   = $modelClass::mobileTemplate();
+                    $template = is_string($result) && $result !== '' ? $result : null;
+                }
+            } catch (\Throwable) {
+                $template = null;
+            }
+        }
+
+        return [
+            'mobileTemplate'  => $template,
+            'mobileDependsOn' => TemplateDependencyExtractor::extract($template),
+        ];
+    }
+
+    private static function metaKey(string $modelClass): string {
+        return static::cacheKey($modelClass, static::signatureFor($modelClass)) . ':meta';
+    }
+
     public static function forget(string $modelClass): void {
         $signature = static::signatureFor($modelClass);
         Cache::forget(static::cacheKey($modelClass, $signature));
-        unset(self::$signatureCache[$modelClass], self::$flatCache[$modelClass]);
+        Cache::forget(static::cacheKey($modelClass, $signature) . ':meta');
+        unset(self::$signatureCache[$modelClass], self::$flatCache[$modelClass], self::$metaCache[$modelClass]);
     }
 
     public static function warm(string $modelClass): array {
@@ -90,8 +159,12 @@ class DataTableConfigCache {
         $key       = static::cacheKey($modelClass, $signature);
         $ttl       = now()->addSeconds((int) config('datatable.config_cache_ttl_seconds', 86400));
 
+        $meta = static::computeMeta($modelClass);
+
         Cache::put($key, $flat, $ttl);
+        Cache::put($key . ':meta', $meta, $ttl);
         self::$flatCache[$modelClass] = $flat;
+        self::$metaCache[$modelClass] = $meta;
 
         return $flat;
     }

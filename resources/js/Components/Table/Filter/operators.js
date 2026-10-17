@@ -57,15 +57,50 @@ const DATE_COLUMN_OPERATORS = [
   "!between",
 ];
 
-const getOperators = (type, { typeRelation, hasOptions, mode } = {}) => {
+// Opsi getOperators yang diturunkan dari metadata satu kolom (typeRelation,
+// options, searchVia, virtual) -- satu sumber untuk semua pemanggil.
+const columnOperatorOptions = (column) => ({
+  typeRelation: column?.typeRelation,
+  hasOptions: columnHasOptions(column),
+  searchVia: column?.searchVia ?? undefined,
+  virtual: column?.virtual ?? undefined,
+});
+
+// Kolom turunan (virtual / Attribute / progress) yang TIDAK punya `searchVia`
+// tidak memenuhi syarat pencarian (Req 9.1, 9.5): tak ditawarkan di FilterTable
+// maupun baris pencarian kolom.
+const isUnsearchableDerivedColumn = (column) =>
+  Boolean(column) &&
+  !column.searchVia &&
+  (column.virtual === true ||
+    column.type === "attribute" ||
+    column.type === "progress");
+
+// Kolom Attribute / virtual / expression (spec datatable-semantic-templates,
+// Req 9): operator ditentukan `searchVia` dari backend, BUKAN dari type.
+//   dependsOn            -> matches/!matches (+ set/!set); type apa pun
+//   expression | single  -> operator number (number/currency/progress)
+//   virtual tanpa searchVia -> tidak ada operator (tak dicari)
+const getOperators = (
+  type,
+  { typeRelation, hasOptions, mode, searchVia, virtual } = {},
+) => {
   // Mode column: bandingkan kolom kiri dgn kolom lain. Operator mengikuti
   // type (kecuali date/datetime → set penuh tanpa in_period); valueInput
   // di-override ke columnref*; set/!set & in_period dibuang.
   if (mode === "column") {
+    if (searchVia === "dependsOn") return {};
     const baseOps =
       type === "date" || type === "datetime"
         ? DATE_COLUMN_OPERATORS
-        : Object.keys(getOperators(type, { typeRelation, hasOptions }));
+        : Object.keys(
+            getOperators(type, {
+              typeRelation,
+              hasOptions,
+              searchVia,
+              virtual,
+            }),
+          );
 
     const result = {};
     for (const operator of baseOps) {
@@ -77,9 +112,22 @@ const getOperators = (type, { typeRelation, hasOptions, mode } = {}) => {
     return result;
   }
 
+  if (virtual && !searchVia) {
+    return {};
+  }
+  if (searchVia === "dependsOn") {
+    return {
+      matches: op("matches", "text"),
+      "!matches": op("!matches", "text"),
+      ...UNIVERSAL,
+    };
+  }
+  const effectiveType =
+    searchVia === "expression" || searchVia === "single" ? "number" : type;
+
   let operators = {};
 
-  switch (type) {
+  switch (effectiveType) {
     case "string":
       // String dengan daftar `options` (enum-like) memakai Select/MultiSelect
       // untuk =,!=,in,!in; matches/starts_with/ends_with tetap teks bebas.
@@ -172,6 +220,9 @@ const getOperators = (type, { typeRelation, hasOptions, mode } = {}) => {
         "!has": op("!has", multi),
         in: op("in", multi),
         "!in": op("!in", multi),
+        // matches = cocok ke kolom template anak (whereHas di backend).
+        matches: op("matches", "text"),
+        "!matches": op("!matches", "text"),
       };
       break;
     }
@@ -190,11 +241,18 @@ const getOperators = (type, { typeRelation, hasOptions, mode } = {}) => {
   }
 
   // Tipe non-filterable: tidak ada operator.
-  if (["binary", "json", "mixed", "attribute"].includes(type)) {
+  if (
+    ["binary", "json", "mixed", "attribute", "progress"].includes(effectiveType)
+  ) {
     return {};
   }
 
   return { ...operators, ...UNIVERSAL };
 };
 
-export { getOperators, columnHasOptions };
+export {
+  getOperators,
+  columnHasOptions,
+  columnOperatorOptions,
+  isUnsearchableDerivedColumn,
+};

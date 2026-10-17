@@ -14,6 +14,8 @@ import {
   validate,
 } from "@/lib/linkModelUtils";
 import { DIFF_HIGHLIGHT, isChanged } from "@/lib/diffUtils";
+import SemanticTemplate from "@/Components/SemanticTemplate/SemanticTemplate";
+import { templateToText } from "@/Components/SemanticTemplate/templateEngine";
 import {
   forwardRef,
   memo,
@@ -559,8 +561,9 @@ export default memo(
       }
       if (!search) return list;
       const keyword = (search ?? "")?.toLowerCase();
+      // Cocokkan TEKS TERLIHAT (tanpa <title>, tanpa nama tag), bukan string HTML.
       return list.filter((opt) =>
-        convertTemplateLink(opt, "", true).toLowerCase().includes(keyword),
+        templateToText(opt?.templateLink, opt).toLowerCase().includes(keyword),
       );
     }, [cache, options, search, filters, order, model]);
 
@@ -865,11 +868,14 @@ export default memo(
                       setOpen(false);
                     }}
                   >
-                    <p
-                      dangerouslySetInnerHTML={{
-                        __html: convertTemplateLink(opt, search ?? ""),
-                      }}
-                    />
+                    <div>
+                      <SemanticTemplate
+                        template={opt.templateLink}
+                        row={opt}
+                        context="option"
+                        search={search ?? ""}
+                      />
+                    </div>
                   </CommandItem>
                 );
               })

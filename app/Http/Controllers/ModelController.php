@@ -9,6 +9,7 @@ use App\Services\Core\DataTable\Group\GroupNodeQuery;
 use App\Services\Core\DataTable\Group\GroupPath;
 use App\Services\Core\DataTable\Group\LinkModelGroupGate;
 use App\Services\Core\DataTable\Group\ResolvedGroupLevel;
+use App\Services\Core\DataTable\Template\DataTableColumnPresenter;
 use App\Services\Core\DataTableColumnSelector;
 use App\Services\Core\FilterColumnResolver;
 use App\Services\Core\FilterEvaluator;
@@ -1288,7 +1289,7 @@ class ModelController extends Controller {
             'model'               => $target,
             'route'               => Str::plural((new $target)->getNameClass()),
             'translateKey'        => (new $target)->translateKey ?? null,
-            'columns'             => $columns,
+            'columns'             => DataTableColumnPresenter::forFrontend($columns),
             'templateLinkColumns' => $this->templateLinkColumns($target),
             'parentColumn'        => $parentColumn,
             'data'                => $paginated,
@@ -1344,7 +1345,7 @@ class ModelController extends Controller {
         return response()->json([
             'model'   => $model,
             'route'   => Str::plural((new $model)->getNameClass()),
-            'columns' => $columns,
+            'columns' => DataTableColumnPresenter::forFrontend($columns),
         ])->setCache(['private' => true, 'max_age' => 300]);
     }
 

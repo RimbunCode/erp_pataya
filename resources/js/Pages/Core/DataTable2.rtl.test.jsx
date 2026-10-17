@@ -1303,6 +1303,89 @@ describe("DataTable2", () => {
       expect(screen.queryByTestId("stub-table2")).not.toBeInTheDocument();
     });
 
+    describe("kartu dari mobileTemplate() model (page prop)", () => {
+      const mobileTemplate =
+        "<stack><strong>:name</strong><muted>:code</muted></stack>";
+      const withMobileTemplate = (extra = {}) =>
+        usePageMock.mockReturnValue({
+          props: makePageProps({ mobileTemplate, ...extra }),
+        });
+
+      it("tanpa templateItem: kartu dirender dari mobileTemplate per baris", async () => {
+        withMobileTemplate();
+        await renderDataTable2(<DataTable2 />);
+
+        const first = screen.getByText("Supplier A");
+        expect(first.tagName).toBe("STRONG");
+        expect(screen.getByText("S1")).toHaveClass("text-muted-foreground");
+        expect(screen.getByText("Supplier B")).toBeInTheDocument();
+        expect(screen.queryByTestId("stub-table2")).not.toBeInTheDocument();
+      });
+
+      it("<nav-link> di mobileTemplate menautkan ke record baris lewat row.route", async () => {
+        usePageMock.mockReturnValue({
+          props: makePageProps({
+            mobileTemplate: "<nav-link><strong>:name</strong></nav-link>",
+            data: {
+              data: [
+                {
+                  id: 5,
+                  name: "Supplier Z",
+                  route: "suppliers",
+                  created_by_id: 1,
+                },
+              ],
+              last_page: 1,
+            },
+          }),
+        });
+        await renderDataTable2(<DataTable2 />);
+
+        const link = screen.getByText("Supplier Z").closest("a");
+        expect(link).not.toBeNull();
+        expect(link).toHaveAttribute("href", "suppliers.show/5");
+      });
+
+      it("templateItem halaman didahulukan atas mobileTemplate", async () => {
+        withMobileTemplate();
+        await renderDataTable2(
+          <DataTable2
+            templateItem={({ dataRow }) => <div>Mobile Row {dataRow.name}</div>}
+          />,
+        );
+
+        expect(screen.getByText("Mobile Row Supplier A")).toBeInTheDocument();
+        expect(screen.queryByText("S1")).not.toBeInTheDocument();
+      });
+
+      it("tanpa templateItem dan tanpa mobileTemplate: tidak ada kartu (perilaku lama)", async () => {
+        usePageMock.mockReturnValue({
+          props: makePageProps({ mobileTemplate: null }),
+        });
+        await renderDataTable2(<DataTable2 />);
+
+        expect(screen.queryByText("Supplier A")).not.toBeInTheDocument();
+      });
+
+      it("kartu mobileTemplate memakai shell kartu (menu aksi) seperti templateItem", async () => {
+        withMobileTemplate();
+        await renderDataTable2(<DataTable2 />);
+
+        // Shell kartu (MobileRowShell) membungkus tiap kartu -- satu menu ⋯ per baris.
+        expect(screen.getAllByText("Supplier A")).toHaveLength(1);
+        expect(screen.getAllByText(/Supplier [AB]/)).toHaveLength(2);
+      });
+
+      it("desktop: mobileTemplate diabaikan, Table2 tetap dipakai", async () => {
+        isMobileMock.mockReturnValue(false);
+        withMobileTemplate();
+        await renderDataTable2(<DataTable2 />);
+
+        expect(screen.getByTestId("stub-table2")).toBeInTheDocument();
+        expect(screen.queryByText("S1")).not.toBeInTheDocument();
+      });
+    });
+
     it("menampilkan NoDataImg saat data kosong", async () => {
       usePageMock.mockReturnValue({
         props: makePageProps({ data: { data: [], last_page: 1 } }),
