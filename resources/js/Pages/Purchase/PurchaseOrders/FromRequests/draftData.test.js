@@ -43,7 +43,9 @@ describe("draft data shared with the PO form", () => {
     });
 
     expect(next.allocationsById["allocation-1"].unit).toBeNull();
-    expect(buildDraftData(next, "draft-1", "2026-10-14").items[0].unit).toBeNull();
+    expect(
+      buildDraftData(next, "draft-1", "2026-10-14").items[0].unit,
+    ).toBeNull();
   });
 
   it("builds locked source rows and does not copy PR notes to the PO", () => {
