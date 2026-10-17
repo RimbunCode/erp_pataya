@@ -22,7 +22,7 @@ import { TooltipProvider } from "@/Components/ui/tooltip";
 import { addSearchChip } from "@/Components/Table/Search/searchChips";
 import { compareLabels } from "@/lib/compareLabels";
 import { createFilterItem } from "@/Hooks/useNestedFilters";
-import { convertTemplateLink } from "@/lib/linkModelUtils";
+import SemanticTemplate from "@/Components/SemanticTemplate/SemanticTemplate";
 import { isMetaAppendColumn } from "@/lib/utils";
 import { resolveSearchColumns } from "@/Components/Table/Search/resolveSearchColumns";
 import { trimToLinkModelPayload } from "./trimToLinkModelPayload";
@@ -410,16 +410,13 @@ function MobileRow({ row, onPick }) {
       onClick={() => onPick(row)}
       className="text-left py-2.5 hover:bg-accent/50"
     >
-      <span
-        dangerouslySetInnerHTML={{
-          // search dipaksa "" (bukan diomit) -- convertTemplateLink
-          // hanya HTML-escape nilai kolom di jalur ini (search!=null);
-          // diomit balik ke plain-text unescaped (unescapeHtml), TIDAK
-          // aman utk dangerouslySetInnerHTML. Pola sama LinkModel.jsx
-          // dropdown (`convertTemplateLink(opt, search ?? "")`).
-          __html: convertTemplateLink(row, ""),
-        }}
-      />
+      <span>
+        <SemanticTemplate
+          template={row.templateLink}
+          row={row}
+          context="option"
+        />
+      </span>
     </button>
   );
 }

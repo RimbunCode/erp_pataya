@@ -11,7 +11,10 @@ use App\Services\Core\DataTable\Group\GroupLevels;
 use App\Services\Core\DataTable\Group\GroupNodeQuery;
 use App\Services\Core\DataTable\Group\GroupPath;
 use App\Services\Core\DataTable\Group\ResolvedGroupLevel;
+use App\Services\Core\DataTable\Template\DataTableColumnPresenter;
+use App\Services\Core\DataTable\Template\ExpressionSql;
 use App\Services\Core\DataTableColumnSelector;
+use App\Services\Core\DataTableConfigCache;
 use App\Services\Core\FilterColumnResolver;
 use App\Services\Core\FilterEvaluator;
 use App\Utils;
@@ -24,6 +27,7 @@ use Illuminate\Http\Exceptions\HttpResponseException;
 use Illuminate\Http\Request;
 use Illuminate\Pagination\LengthAwarePaginator;
 use Illuminate\Support\Facades\Cookie;
+use Illuminate\Support\Facades\DB;
 use Inertia\Inertia;
 
 class DataTableScope implements Scope {
@@ -317,7 +321,12 @@ class DataTableScope implements Scope {
             $sortDirection = \str_starts_with($sort, '-') ? 'desc' : 'asc';
             $sortKeyRaw    = $sortDirection === 'desc' ? \substr($sort, 1) : $sort;
             $sortKey       = $this->isTableIncluded($sortKeyRaw) ? $sortKeyRaw : "$nameOfTable.$sortKeyRaw";
-            $query         = $query->orderBy($sortKey, $sortDirection);
+            // Kolom expression: urut langsung pada SQL ekspresi (developer-owned; arah dari
+            // whitelist 'asc'|'desc' di atas). Kolom lain: orderBy biasa (perilaku lama).
+            $sortExpression = ExpressionSql::forColumn(collect($dataTableColumns)->firstWhere('name', $sortKeyRaw) ?? []);
+            $query          = $sortExpression !== null
+                ? $query->orderByRaw("{$sortExpression} {$sortDirection}")
+                : $query->orderBy($sortKey, $sortDirection);
 
             // Pruning adaptif (strict, tanpa fallbackAll): SELECT hanya kolom visible
             // (+PK+FK relasi+dependsOn append) dan with() hanya relasi visible. Kolom
@@ -353,8 +362,21 @@ class DataTableScope implements Scope {
             // Relasi child index dirender via templateLink child (convertTemplateLink) —
             // ditangani Arah A di resolveForSafe; tak perlu safeRelationColumns eksplisit.
             $safeColumns = $selector->safeColumnsFromVisible($dataTableColumns, $visibleKeys, $extraKeys);
-            $resolved    = $selector->resolveForSafe($dataTableColumns, $query->getModel(), $safeColumns, [], $templateLink);
+            // Template kartu mobile (`mobileTemplate()` model): halaman Inertia awal tak tahu
+            // viewport, jadi dependensinya SELALU ikut. Model tanpa mobileTemplate() -> tanpa
+            // akses cache sama sekali (perilaku lama).
+            $hasMobileTemplate = \method_exists($modelClass, 'mobileTemplate');
+            $mobileMeta        = $hasMobileTemplate ? DataTableConfigCache::meta($modelClass) : null;
+            $resolved          = $selector->resolveForSafe($dataTableColumns, $query->getModel(), $safeColumns, [], $templateLink, $mobileMeta['mobileDependsOn'] ?? []);
             $query->addSelect(\array_map(fn ($c) => \str_contains($c, '.') ? $c : "$nameOfTable.$c", $resolved['select']));
+            // Kolom expression visible: SELECT ber-alias nama kolom (nilainya ikut tiap baris).
+            foreach ($resolved['selectRaw'] as $alias => $expressionSql) {
+                $query->addSelect(DB::raw("{$expressionSql} as " . $query->getQuery()->getGrammar()->wrap($alias)));
+            }
+            // Accessor yang dibutuhkan template kolom/mobile ikut setAppends().
+            foreach ($resolved['appends'] as $accessor) {
+                $safeColumns[$accessor] = true;
+            }
 
             // with: map relasi => closure child-select (resolveForSafe) digabung relasi
             // manual dari ?with (tanpa closure). Key map menang bila duplikat.
@@ -405,7 +427,7 @@ class DataTableScope implements Scope {
 
                 return [
                     'data'             => $data,
-                    'dataTableColumns' => $dataTableColumns,
+                    'dataTableColumns' => DataTableColumnPresenter::forFrontend($dataTableColumns),
                 ];
             }
             // Filter — saved filter (nested tree) via ?fid=<id>, ATAU default
@@ -518,10 +540,13 @@ class DataTableScope implements Scope {
                 // fid yang otomatis diterapkan tanpa ?fid= eksplisit (shared filter
                 // default dari Filter Templates) — null bila request punya fid
                 // sendiri atau tidak ada default utk model ini.
-                'defaultFilterId'  => ! $request->filled('fid') ? $appliedFilter?->id : null,
-                'name'             => $query->getModel()->getNameClass(),
-                'translateKey'     => $query->getModel()->translateKey ?? null,
-                'dataTableColumns' => $dataTableColumns,
+                'defaultFilterId' => ! $request->filled('fid') ? $appliedFilter?->id : null,
+                'name'            => $query->getModel()->getNameClass(),
+                'translateKey'    => $query->getModel()->translateKey ?? null,
+                // `expression` (SQL developer) tak pernah dikirim ke frontend.
+                'dataTableColumns' => DataTableColumnPresenter::forFrontend($dataTableColumns),
+                // Template kartu mobile model (`mobileTemplate()`), null bila tak didefinisikan.
+                'mobileTemplate' => $mobileMeta['mobileTemplate'] ?? null,
                 // null bila grouping tak aktif (tanpa level valid) -- FE merender tabel flat.
                 'groupMeta' => $groupMeta,
                 // Grup EFEKTIF TANPA PARAM (filter aktif ?? default model, sudah

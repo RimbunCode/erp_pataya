@@ -5,6 +5,7 @@ namespace App\Models\Core;
 use App\Casts\Json;
 use App\Models\Model;
 use App\Models\User\Permission;
+use App\Services\Core\DataTable\Template\DataTableColumnPresenter;
 use App\Services\Core\PrintTemplate\RelationTrackerService;
 use App\Traits\DataTable;
 use App\Utils;
@@ -76,7 +77,7 @@ class PrintTemplate extends Model {
                         'name'       => Str::lower(Str::snake(Str::singular($this->name_model))),
                         'type'       => 'doc',
                         'titleTrans' => isset($instance) ? $instance->translateKey . '.title' : Str::singular($this->name_model),
-                        'columns'    => $this->model::getColumns(2),
+                        'columns'    => DataTableColumnPresenter::forFrontend($this->model::getColumns(2)),
                     ];
                 }
 

@@ -91,11 +91,19 @@ class SalesOrder extends Model {
      */
     protected static array $searchScope = ['code', 'external_note', 'customer.name'];
 
+    /*
+     * Kolom `billed_percent` / `delivered_percent` (type progress) memakai `expression`: subquery
+     * berkorelasi ke sales_order_items yang dihitung di database sehingga bisa ditampilkan,
+     * diurutkan, dan difilter tanpa memuat semua item. Item soft-delete diabaikan; pembagi nol
+     * -> NULL (sel menampilkan "-").
+     */
     protected array $configColumns = [
         'code' => [
             'isLink' => true,
             'show'   => true,
             'order'  => 0,
+            // Dua baris: kode tebal + nama customer redup. Sort/search tetap mengikuti kolom `code`.
+            'template' => '<stack><strong>:code</strong><muted>:customer.name</muted></stack>',
         ],
         'customer' => [
             'show'      => true,
@@ -114,6 +122,28 @@ class SalesOrder extends Model {
         'status' => [
             'show'  => true,
             'order' => 4,
+        ],
+        // % tertagih (donut, default) dan % terkirim (bar) -- kolom expression bertipe progress.
+        'billed_percent' => [
+            'type'       => 'progress',
+            'expression' => '(SELECT SUM(soi.billed_quantity) * 100.0 / NULLIF(SUM(soi.quantity), 0)'
+                . ' FROM sales_order_items soi WHERE soi.sales_order_id = sales_orders.id AND soi.deleted_at IS NULL)',
+            'show'  => true,
+            'order' => 5,
+        ],
+        'delivered_percent' => [
+            'type'       => 'progress',
+            'shape'      => 'bar',
+            'expression' => '(SELECT SUM(soi.delivered_quantity) * 100.0 / NULLIF(SUM(soi.quantity), 0)'
+                . ' FROM sales_order_items soi WHERE soi.sales_order_id = sales_orders.id AND soi.deleted_at IS NULL)',
+            'show'  => true,
+            'order' => 6,
+        ],
+        // Kolom virtual template, opt-in pencarian: dicari lewat nama customer & cabangnya.
+        'customer_summary' => [
+            'template'   => '<stack><strong>:customer.name</strong><muted>:customer_branch.name</muted></stack>',
+            'searchable' => true,
+            'show'       => false,
         ],
         'customerBranch' => [
             'disabledNavigation' => true,
@@ -155,11 +185,21 @@ class SalesOrder extends Model {
         'rental_durations' => [
             'dependsOn' => ['is_rent', 'items'],
         ],
+        // `max` = opt-in tampilan chip relasi banyak (default FE 3 chip; 0 = tanpa batas).
         'items' => [
             'show'  => true,
             'order' => 10,
+            'max'   => 3,
         ],
     ];
+
+    /**
+     * Template kartu mobile DataTable2 (dipakai bila halaman tidak memberi `templateItem`).
+     */
+    public static function mobileTemplate(): string {
+        return '<stack><nav-link><strong>:code</strong></nav-link><muted>:customer.name</muted>'
+            . '<inline><muted>:date|date</muted><progress value=":billed_percent" shape="bar"/></inline></stack>';
+    }
 
     protected static function loadRelationsOnShow() {
         return [

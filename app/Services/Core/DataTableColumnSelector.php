@@ -2,6 +2,8 @@
 
 namespace App\Services\Core;
 
+use App\Services\Core\DataTable\Template\ExpressionSql;
+use App\Services\Core\DataTable\Template\TemplateDependencyExtractor;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
 use Illuminate\Database\Eloquent\Relations\HasOneOrMany;
@@ -104,6 +106,15 @@ class DataTableColumnSelector {
         if ($col === null) {
             return false;
         }
+        // Kolom virtual (template/expression) dihitung di frontend/SQL, tak punya
+        // accessor -- setAppends() akan error bila dimasukkan.
+        if (($col['virtual'] ?? false) === true) {
+            return false;
+        }
+        // Kolom DB nyata yang `dependsOn`-nya hanya berasal dari `template` -- bukan accessor.
+        if (($col['physical'] ?? false) === true) {
+            return false;
+        }
         if (($col['type'] ?? null) === 'attribute') {
             return true;
         }
@@ -156,7 +167,9 @@ class DataTableColumnSelector {
      * @param  array<string, bool>  $safeColumns  Kolom aman model utama (key = nama).
      * @param  array<string, array<string, bool>>  $safeRelationColumns  Relasi => kolom aman child.
      * @param  string|null  $templateLink  templateLink model (placeholder wajib ikut select/with).
-     * @return array{select: list<string>, with: array<string, \Closure|null>}
+     * @param  list<string>  $extraDependsOn  dependensi tambahan yang selalu ikut (mis. `mobileTemplate()`
+     *                                        model), diperlakukan seperti `dependsOn` kolom ber-template.
+     * @return array{select: list<string>, with: array<string, \Closure|null>, selectRaw: array<string, string>, appends: list<string>}
      */
     public function resolveForSafe(
         array $dataTableColumns,
@@ -164,6 +177,7 @@ class DataTableColumnSelector {
         array $safeColumns,
         array $safeRelationColumns,
         ?string $templateLink,
+        array $extraDependsOn = [],
     ): array {
         $byName    = $this->indexByName($dataTableColumns);
         $dbColumns = $this->dbColumns($model);
@@ -172,6 +186,12 @@ class DataTableColumnSelector {
         $table  = $model->getTable();
         $select = ["{$table}.{$pk}"];
         $with   = [];
+
+        // Dependensi kolom ber-template/virtual: pohon path relasi (di-flush ke $with di akhir),
+        // SQL kolom expression, dan accessor yang dibutuhkan template.
+        $pathTree  = [];
+        $selectRaw = [];
+        $appends   = [];
 
         foreach (array_keys($safeColumns) as $name) {
             $col  = $byName[$name] ?? null;
@@ -194,7 +214,11 @@ class DataTableColumnSelector {
             // Bila tak ada child-safe (mis. index view yg suplai []), childSelectClosure
             // return null → eager-load apa adanya (SELECT * child), perilaku lama aman.
             if ($type === 'relation' || $type === 'relations') {
-                $this->collectSafeRelation($model, $col, $name, $safeRelationColumns, $select, $with);
+                $templated = $this->hasColumnTemplate($col);
+                $this->collectSafeRelation($model, $col, $name, $safeRelationColumns, $select, $with, $templated);
+                if ($templated) {
+                    $this->addChildTemplatePaths($pathTree, $model, $col);
+                }
 
                 continue;
             }
@@ -202,6 +226,27 @@ class DataTableColumnSelector {
             // Virtual scope join — disediakan scope, jangan select & jangan throw.
             if (($col['forceAppend'] ?? false) === true) {
                 continue;
+            }
+
+            // Kolom virtual (template/expression, bukan kolom DB/accessor): non-strict --
+            // dependensinya di-resolve, kolom expression dipilih lewat SELECT raw ber-alias.
+            if (($col['virtual'] ?? false) === true) {
+                $expression = ExpressionSql::forColumn($col);
+                if ($expression !== null) {
+                    $selectRaw[$name] = $expression;
+                }
+                $this->collectTemplateDepends($model, $col['dependsOn'] ?? [], $byName, $dbColumns, $safeRelationColumns, $select, $with, $pathTree, $appends, $selectRaw);
+
+                continue;
+            }
+
+            // Kolom DB/append ber-`template`: dependsOn (manual + hasil ekstraksi) ikut
+            // di-resolve non-strict; kolom DB-nya sendiri tetap di-SELECT di bawah.
+            if ($this->hasColumnTemplate($col)) {
+                $this->collectTemplateDepends($model, $col['dependsOn'] ?? [], $byName, $dbColumns, $safeRelationColumns, $select, $with, $pathTree, $appends, $selectRaw);
+                if (! in_array($col['name'] ?? $name, $dbColumns, true)) {
+                    continue; // append ber-template: dependsOn sudah ditangani, tanpa strict-check ganda.
+                }
             }
 
             // Kolom DB nyata (apa pun type render) → SELECT langsung.
@@ -219,10 +264,309 @@ class DataTableColumnSelector {
         $visited = [];
         $this->resolveTemplateLink($model, $templateLink, $safeRelationColumns, $select, $with, $visited, 0);
 
+        // Dependensi tambahan (mis. `mobileTemplate()`), lalu flush pohon path relasi ke $with.
+        if ($extraDependsOn !== []) {
+            $this->collectTemplateDepends($model, $extraDependsOn, $byName, $dbColumns, $safeRelationColumns, $select, $with, $pathTree, $appends, $selectRaw);
+        }
+        foreach ($pathTree as $segment => $node) {
+            $this->flushPathNode($model, (string) $segment, $node, $safeRelationColumns, $select, $with);
+        }
+
         return [
-            'select' => array_values(array_unique($select)),
-            'with'   => $with,
+            'select'    => array_values(array_unique($select)),
+            'with'      => $with,
+            'selectRaw' => $selectRaw,
+            'appends'   => array_values(array_unique($appends)),
         ];
+    }
+
+    /**
+     * Apakah kolom punya `template` kolom (string tak kosong).
+     *
+     * @param  array<string, mixed>  $col
+     */
+    private function hasColumnTemplate(array $col): bool {
+        return is_string($col['template'] ?? null) && $col['template'] !== '';
+    }
+
+    /**
+     * Resolusi `dependsOn` kolom ber-template/virtual (NON-strict, beda dari
+     * `collectAppendStrict`): kolom DB lokal -> SELECT; relasi (nama kolom snake
+     * atau method) -> `with`; accessor ber-`dependsOn` -> `appends` + dependensinya;
+     * path ber-dot -> pohon path relasi (`$pathTree`, di-flush `flushPathNode`).
+     * Entri tak dikenal diabaikan diam-diam (validator `model:cache` yang melaporkannya).
+     *
+     * @param  list<mixed>  $dependsOn
+     * @param  array<string, array<string, mixed>>  $byName
+     * @param  list<string>  $dbColumns
+     * @param  array<string, array<string, bool>>  $safeRelationColumns
+     * @param  list<string>  $select
+     * @param  array<string, \Closure|null>  $with
+     * @param  array<string, array<string, mixed>>  $pathTree
+     * @param  list<string>  $appends
+     * @param  array<string, string>  $selectRaw  alias => SQL kolom expression yang dirujuk template
+     * @param  array<string, bool>  $seenAccessors  guard siklus accessor/virtual
+     */
+    private function collectTemplateDepends(Model $model, array $dependsOn, array $byName, array $dbColumns, array $safeRelationColumns, array &$select, array &$with, array &$pathTree, array &$appends, array &$selectRaw, array &$seenAccessors = []): void {
+        $table = $model->getTable();
+
+        foreach ($dependsOn as $dep) {
+            if (! is_string($dep) || $dep === '') {
+                continue;
+            }
+            if (str_contains($dep, '.')) {
+                $this->addPathToTree($pathTree, $dep);
+
+                continue;
+            }
+            if (in_array($dep, $dbColumns, true)) {
+                $select[] = "{$table}.{$dep}";
+
+                continue;
+            }
+
+            $col  = $byName[$dep] ?? $byName[Str::snake($dep)] ?? null;
+            $type = $col['type'] ?? null;
+
+            if (in_array($type, ['relation', 'relations'], true)) {
+                $templated = $this->hasColumnTemplate($col);
+                $this->collectSafeRelation($model, $col, $col['name'], $safeRelationColumns, $select, $with, $templated);
+                if ($templated) {
+                    $this->addChildTemplatePaths($pathTree, $model, $col);
+                }
+
+                continue;
+            }
+            // Kolom virtual yang dirujuk template (mis. kolom expression di `mobileTemplate()`):
+            // SELECT raw ber-alias + dependensinya.
+            if ($col !== null && ($col['virtual'] ?? false) === true) {
+                if (isset($seenAccessors[$col['name']])) {
+                    continue;
+                }
+                $seenAccessors[$col['name']] = true;
+                $expression                  = ExpressionSql::forColumn($col);
+                if ($expression !== null) {
+                    $selectRaw[$col['name']] = $expression;
+                }
+                $this->collectTemplateDepends($model, $col['dependsOn'] ?? [], $byName, $dbColumns, $safeRelationColumns, $select, $with, $pathTree, $appends, $selectRaw, $seenAccessors);
+
+                continue;
+            }
+            if ($col !== null && ($col['virtual'] ?? false) !== true && is_array($col['dependsOn'] ?? null) && $col['dependsOn'] !== []) {
+                // Accessor yang dibutuhkan template: ikut setAppends + sumbernya di-SELECT.
+                $accessor = $col['name'];
+                if (isset($seenAccessors[$accessor])) {
+                    continue;
+                }
+                $seenAccessors[$accessor] = true;
+                $appends[]                = $accessor;
+                $this->collectTemplateDepends($model, $col['dependsOn'], $byName, $dbColumns, $safeRelationColumns, $select, $with, $pathTree, $appends, $selectRaw, $seenAccessors);
+
+                continue;
+            }
+            if ($col === null && $this->relationMethod($model, $dep) !== null) {
+                $this->addPathToTree($pathTree, $dep);
+            }
+        }
+    }
+
+    /**
+     * Nama method relasi `$segment` di model (apa adanya, atau camelCase dari
+     * nama snake kolom); `null` bila bukan relasi.
+     */
+    private function relationMethod(Model $model, string $segment): ?string {
+        foreach (array_unique([$segment, Str::camel($segment)]) as $candidate) {
+            if (! method_exists($model, $candidate)) {
+                continue;
+            }
+            try {
+                if ($model->{$candidate}() instanceof Relation) {
+                    return $candidate;
+                }
+            } catch (\Throwable) {
+                continue;
+            }
+        }
+
+        return null;
+    }
+
+    /**
+     * Tambah path `a.b.c` ke pohon: segmen sebelum terakhir = relasi, segmen terakhir
+     * = kolom (atau relasi bila ternyata method relasi; diputuskan saat flush).
+     * Path tanpa titik = relasi kepala tanpa kolom spesifik.
+     *
+     * @param  array<string, array<string, mixed>>  $tree
+     */
+    private function addPathToTree(array &$tree, string $path): void {
+        $segments = explode('.', $path);
+        $last     = array_pop($segments);
+        if ($segments === []) {
+            $tree[$last] ??= ['cols' => [], 'children' => []];
+
+            return;
+        }
+
+        $first = array_shift($segments);
+        $tree[$first] ??= ['cols' => [], 'children' => []];
+        $node = &$tree[$first];
+        foreach ($segments as $segment) {
+            $node['children'][$segment] ??= ['cols' => [], 'children' => []];
+            $node = &$node['children'][$segment];
+        }
+        $node['cols'][] = $last;
+        unset($node);
+    }
+
+    /**
+     * Masukkan dependensi `template` kolom relasi (path RELATIF terhadap model anak)
+     * ke pohon di bawah relasi tsb.
+     *
+     * @param  array<string, array<string, mixed>>  $tree
+     * @param  array<string, mixed>  $col
+     */
+    private function addChildTemplatePaths(array &$tree, Model $model, array $col): void {
+        $fn = $col['nameOfFunction'] ?? $col['name'] ?? null;
+        $fn = is_string($fn) ? $this->relationMethod($model, $fn) : null;
+        if ($fn === null) {
+            return;
+        }
+        $tree[$fn] ??= ['cols' => [], 'children' => []];
+        foreach ($col['dependsOn'] ?? [] as $dep) {
+            if (! is_string($dep) || $dep === '') {
+                continue;
+            }
+            $segments = explode('.', $dep);
+            $last     = array_pop($segments);
+            $node     = &$tree[$fn];
+            foreach ($segments as $segment) {
+                $node['children'][$segment] ??= ['cols' => [], 'children' => []];
+                $node = &$node['children'][$segment];
+            }
+            $node['cols'][] = $last;
+            unset($node);
+        }
+    }
+
+    /**
+     * Terapkan satu node pohon level-1 ke `$select`/`$with`: FK induk ke SELECT,
+     * lalu closure child-select digabung (kolom node + relasi bersarang).
+     *
+     * @param  array<string, mixed>  $node
+     * @param  array<string, array<string, bool>>  $safeRelationColumns
+     * @param  list<string>  $select
+     * @param  array<string, \Closure|null>  $with
+     */
+    private function flushPathNode(Model $model, string $segment, array $node, array $safeRelationColumns, array &$select, array &$with): void {
+        $fn = $this->relationMethod($model, $segment);
+        if ($fn === null) {
+            return;
+        }
+        $relation = $model->{$fn}();
+        $table    = $model->getTable();
+
+        if ($relation instanceof MorphTo) {
+            $select[] = "{$table}." . $relation->getForeignKeyName();
+            $select[] = "{$table}." . $relation->getMorphType();
+            $with[$fn] ??= null; // morph: tak bisa prune child.
+
+            return;
+        }
+        if ($relation instanceof BelongsTo) {
+            $select[] = "{$table}." . $relation->getForeignKeyName();
+        }
+
+        $childKeys = [];
+        if ($relation instanceof HasOneOrMany) {
+            $childKeys[] = $relation->getForeignKeyName();
+            if ($relation instanceof MorphOneOrMany) {
+                $childKeys[] = $relation->getMorphType();
+            }
+        }
+
+        $base = array_key_exists($fn, $with)
+            ? $with[$fn]
+            : $this->childSelectClosure($model, $fn, $safeRelationColumns[Str::snake($fn)] ?? null, $childKeys);
+
+        $with[$fn] = $this->buildNodeClosure($model, $fn, $node, $base);
+    }
+
+    /**
+     * Closure constraint relasi `$fn` pada `$parent`: jalankan `$base` (child-select
+     * dasar) lalu tambah kolom node (hanya kolom DB nyata) + FK relasi bersarang, dan
+     * eager-load relasi bersarang secara rekursif. `$base === null` (child `SELECT *`)
+     * -> tanpa addSelect (semua kolom sudah ada), hanya relasi bersarang.
+     *
+     * @param  array<string, mixed>  $node
+     */
+    private function buildNodeClosure(Model $parent, string $fn, array $node, ?\Closure $base): ?\Closure {
+        $related   = $parent->{$fn}()->getRelated();
+        $dbColumns = $this->dbColumns($related);
+        $table     = $related->getTable();
+
+        $extra  = [];
+        $nested = [];
+
+        foreach (array_unique($node['cols']) as $colName) {
+            if (in_array($colName, $dbColumns, true)) {
+                $extra[] = "{$table}.{$colName}";
+
+                continue;
+            }
+            // Segmen terakhir yang ternyata relasi -> relasi bersarang tanpa kolom khusus.
+            if ($this->relationMethod($related, $colName) !== null) {
+                $node['children'][$colName] ??= ['cols' => [], 'children' => []];
+            }
+        }
+
+        foreach ($node['children'] as $childSegment => $childNode) {
+            $childFn = $this->relationMethod($related, (string) $childSegment);
+            if ($childFn === null) {
+                continue;
+            }
+            $childRelation = $related->{$childFn}();
+            if ($childRelation instanceof MorphTo) {
+                $extra[]  = "{$table}." . $childRelation->getForeignKeyName();
+                $extra[]  = "{$table}." . $childRelation->getMorphType();
+                $nested[] = $childFn; // morph: eager-load apa adanya.
+
+                continue;
+            }
+            if ($childRelation instanceof BelongsTo) {
+                $extra[] = "{$table}." . $childRelation->getForeignKeyName();
+            }
+            $childKeys = [];
+            if ($childRelation instanceof HasOneOrMany) {
+                $childKeys[] = $childRelation->getForeignKeyName();
+                if ($childRelation instanceof MorphOneOrMany) {
+                    $childKeys[] = $childRelation->getMorphType();
+                }
+            }
+            $nested[$childFn] = $this->buildNodeClosure(
+                $related,
+                $childFn,
+                $childNode,
+                $this->childSelectClosure($related, $childFn, null, $childKeys),
+            ) ?? fn () => null;
+        }
+
+        if ($base === null && $nested === []) {
+            return null;
+        }
+
+        $extra = array_values(array_unique($extra));
+
+        return function ($q) use ($base, $extra, $nested): void {
+            if ($base instanceof \Closure) {
+                $base($q);
+                if ($extra !== []) {
+                    $q->addSelect($extra);
+                }
+            }
+            if ($nested !== []) {
+                $q->with($nested);
+            }
+        };
     }
 
     /**
@@ -242,7 +586,7 @@ class DataTableColumnSelector {
      * @param  list<string>  $select
      * @param  array<string, \Closure|null>  $with
      */
-    private function collectSafeRelation(Model $model, array $col, string $safeName, array $safeRelationColumns, array &$select, array &$with): void {
+    private function collectSafeRelation(Model $model, array $col, string $safeName, array $safeRelationColumns, array &$select, array &$with, bool $templated = false): void {
         $fn = $col['nameOfFunction'] ?? $col['name'] ?? null;
         if (! is_string($fn) || ! method_exists($model, $fn)) {
             return;
@@ -276,6 +620,19 @@ class DataTableColumnSelector {
         }
 
         $childSafe = $safeRelationColumns[$safeName] ?? null;
+        if ($templated) {
+            // Relasi ber-`template` (mis. chip): child-select HANYA kolom yang dibutuhkan
+            // template (dependsOn relatif ke model anak), bukan kolom label templateLink anak.
+            $localCols = [];
+            foreach ($col['dependsOn'] ?? [] as $dep) {
+                if (is_string($dep) && $dep !== '' && ! str_contains($dep, '.')) {
+                    $localCols[$dep] = true;
+                }
+            }
+            $with[$fn] = $this->childSelectClosure($model, $fn, [...($childSafe ?? []), ...$localCols], $childKeys, true);
+
+            return;
+        }
         $with[$fn] = $this->childSelectClosure($model, $fn, $childSafe, $childKeys);
     }
 
@@ -291,8 +648,10 @@ class DataTableColumnSelector {
      * @param  array<string, bool>|null  $childSafe
      * @param  list<string>  $childKeys  FK/morph-type di tabel child yang WAJIB
      *                                   di-select agar hidrasi has-many/morph jalan
+     * @param  bool  $skipTemplateLink  true = abaikan `templateLink()` model anak (relasi ber-`template`
+     *                                  kolom: hanya kolom yang dibutuhkan template)
      */
-    private function childSelectClosure(Model $model, string $fn, ?array $childSafe, array $childKeys = []): ?\Closure {
+    private function childSelectClosure(Model $model, string $fn, ?array $childSafe, array $childKeys = [], bool $skipTemplateLink = false): ?\Closure {
         $relation    = $model->{$fn}();
         $related     = $relation->getRelated();
         $relatedKey  = $related->getKeyName();
@@ -300,7 +659,7 @@ class DataTableColumnSelector {
 
         // Kolom DB lokal child yang dirujuk templateLink child (label display).
         $relatedClass = get_class($related);
-        $tpl          = method_exists($relatedClass, 'templateLink') ? $relatedClass::templateLink() : null;
+        $tpl          = ! $skipTemplateLink && method_exists($relatedClass, 'templateLink') ? $relatedClass::templateLink() : null;
         $tplColumns   = $this->templateLinkLocalColumns($tpl);
 
         // Accessor alias templateLink child (mis. Warehouse::title, Branch::title)
@@ -890,25 +1249,13 @@ class DataTableColumnSelector {
      * (kolom DB queryable yang di-SELECT/ditelusuri), BUKAN `alias` (nilai tampil
      * accessor yang tak bisa di-query). Render label pakai `alias` terpisah via
      * convertTemplateLink. Path utuh (dot-notation) dipertahankan untuk telusur relasi.
+     * Didelegasikan ke TemplateDependencyExtractor (satu sumber kebenaran; juga mengenali
+     * formatter `|fmt` dan atribut tag semantik).
      *
      * @return list<string>
      */
     public static function templateLinkPlaceholders(?string $templateLink): array {
-        if (! is_string($templateLink) || $templateLink === '') {
-            return [];
-        }
-
-        $out = [];
-        if (preg_match_all('/:((\w[\w]+\{:[\w.]+\})|(\w[\w.]+))/', $templateLink, $matches)) {
-            foreach ($matches[1] as $raw) {
-                $raw = preg_replace('/\{:.*?\}/', '', $raw);
-                if ($raw !== '') {
-                    $out[] = $raw;
-                }
-            }
-        }
-
-        return array_values(array_unique($out));
+        return TemplateDependencyExtractor::extract($templateLink);
     }
 
     /**

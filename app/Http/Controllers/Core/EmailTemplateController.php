@@ -8,6 +8,7 @@ use App\Jobs\SendEmailNotificationJob;
 use App\Models\Core\EmailTemplate;
 use App\Models\User\Permission;
 use App\Notifications\EmailTemplateTestNotification;
+use App\Services\Core\DataTable\Template\DataTableColumnPresenter;
 use App\Services\Core\EmailTemplate\EmailTemplateRenderService;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
@@ -113,7 +114,7 @@ class EmailTemplateController extends Controller {
         }
 
         $columns = array_values(array_filter(
-            $modelClass::getColumns(2),
+            DataTableColumnPresenter::forFrontend($modelClass::getColumns(2)),
             fn ($col) => ($col['name'] ?? null) !== ($col['primaryKey'] ?? null),
         ));
 

@@ -2,6 +2,8 @@
 
 namespace App\Services\Core;
 
+use App\Services\Core\DataTable\Template\ExpressionSql;
+use App\Services\Core\DataTable\Template\TemplateDependencyExtractor;
 use App\Traits\LinkModel;
 use Illuminate\Database\Eloquent\Model as EloquentModel;
 use Illuminate\Database\Eloquent\Relations\Relation;
@@ -10,6 +12,15 @@ use Illuminate\Support\Str;
 use ReflectionClass;
 
 class DataTableConfigValidator {
+    /** Formatter placeholder template yang dikenal (`:field|fmt`). */
+    public const KNOWN_FORMATTERS = ['date', 'datetime', 'relative', 'number', 'currency', 'percent', 'trans'];
+
+    /** Warna `badgeColors` yang valid (palet tetap + varian Badge existing). */
+    public const BADGE_COLORS = ['gray', 'blue', 'green', 'yellow', 'orange', 'red', 'purple', 'default', 'secondary', 'destructive', 'outline'];
+
+    /** Kedalaman maksimum penelusuran relasi bersarang pada path template. */
+    private const MAX_TEMPLATE_DEPTH = 5;
+
     /**
      * Validasi config model dan kumpulkan pelanggaran.
      *
@@ -105,8 +116,8 @@ class DataTableConfigValidator {
             }
 
             $computedCol = collect($columns)->firstWhere('name', $key);
-            if ($computedCol !== null && (($computedCol['forceAppend'] ?? false) || ($computedCol['isJoinResult'] ?? false))) {
-                continue; // Rule 4: forceAppend/isJoinResult — valid
+            if ($computedCol !== null && (($computedCol['forceAppend'] ?? false) || ($computedCol['isJoinResult'] ?? false) || ($computedCol['virtual'] ?? false))) {
+                continue; // Rule 4: forceAppend/isJoinResult/virtual (template/expression) — valid
             }
 
             if (! method_exists($instance, $key)) {
@@ -170,6 +181,273 @@ class DataTableConfigValidator {
                     }
                 }
             }
+        }
+
+        array_push($violations, ...static::validateTemplateColumns($modelClass, $instance, $columns, $dbColumns));
+
+        return $violations;
+    }
+
+    /**
+     * Rule 6-12 (spec datatable-semantic-templates): template kolom & `mobileTemplate()`
+     * resolvable, formatter dikenal, `isLink` + `<nav-link>`, `expression` (tipe & SQL valid),
+     * `progress` tanpa sumber nilai, `badgeColors` valid.
+     *
+     *  6  path template tidak resolvable / merujuk kolom `$hidden` atau `ignore`
+     *  7  formatter tidak dikenal
+     *  8  `isLink: true` dan template memuat `<nav-link>` (tautan bersarang)
+     *  9  `expression` pada type selain number/currency/progress
+     *  10 SQL `expression` gagal dijalankan (`select (<sql>) ... limit 0`)
+     *  11 `type: 'progress'` tanpa `expression` dan tanpa `dependsOn` tunggal
+     *  12 `badgeColors` bukan peta nilai => warna palet
+     *
+     * @param  array<int, array<string, mixed>>  $columns  hasil computeColumnsFlat(true)
+     * @param  list<string>  $dbColumns
+     * @return array<int, array{rule:int, column?:string, message:string}>
+     */
+    private static function validateTemplateColumns(string $modelClass, EloquentModel $instance, array $columns, array $dbColumns): array {
+        $violations = [];
+        $contexts   = [];
+
+        foreach ($columns as $col) {
+            $name     = (string) ($col['name'] ?? '(unknown)');
+            $template = is_string($col['template'] ?? null) ? $col['template'] : '';
+
+            if ($template !== '') {
+                // Template kolom relasi dievaluasi terhadap model ANAK, kolom lain terhadap model ini.
+                $owner = isset($col['nameOfFunction'], $col['related']) && is_string($col['related']) ? $col['related'] : $modelClass;
+                foreach (static::checkTemplate($template, $name, $owner, $contexts) as $v) {
+                    $violations[] = $v;
+                }
+
+                if (($col['isLink'] ?? false) && stripos($template, '<nav-link') !== false) {
+                    $violations[] = [
+                        'rule'    => 8,
+                        'column'  => $name,
+                        'message' => "Kolom '{$name}' isLink: true dan template-nya memuat <nav-link> (tautan bersarang tidak valid).",
+                    ];
+                }
+            }
+
+            if (array_key_exists('expression', $col)) {
+                foreach (static::checkExpression($col, $name, $instance) as $v) {
+                    $violations[] = $v;
+                }
+            }
+
+            if (($col['type'] ?? null) === 'progress') {
+                $hasExpression = is_string($col['expression'] ?? null) && trim($col['expression']) !== '';
+                $deps          = is_array($col['dependsOn'] ?? null) ? $col['dependsOn'] : [];
+                if (! $hasExpression && count($deps) !== 1) {
+                    $violations[] = [
+                        'rule'    => 11,
+                        'column'  => $name,
+                        'message' => "Kolom progress '{$name}' wajib punya 'expression' atau tepat satu 'dependsOn' sebagai sumber nilai.",
+                    ];
+                }
+            }
+
+            if (array_key_exists('badgeColors', $col)) {
+                $invalid = ! is_array($col['badgeColors']);
+                if (! $invalid) {
+                    foreach ($col['badgeColors'] as $color) {
+                        if (! is_string($color) || ! in_array($color, static::BADGE_COLORS, true)) {
+                            $invalid = true;
+
+                            break;
+                        }
+                    }
+                }
+                if ($invalid) {
+                    $violations[] = [
+                        'rule'    => 12,
+                        'column'  => $name,
+                        'message' => "badgeColors di '{$name}' harus berupa peta nilai => warna dari palet: " . implode(', ', static::BADGE_COLORS) . '.',
+                    ];
+                }
+            }
+        }
+
+        if (method_exists($modelClass, 'mobileTemplate')) {
+            try {
+                $mobile = $modelClass::mobileTemplate();
+            } catch (\Throwable $e) {
+                $mobile       = null;
+                $violations[] = [
+                    'rule'    => 6,
+                    'column'  => '(mobileTemplate)',
+                    'message' => "mobileTemplate() throws: {$e->getMessage()}",
+                ];
+            }
+            if (is_string($mobile) && $mobile !== '') {
+                foreach (static::checkTemplate($mobile, '(mobileTemplate)', $modelClass, $contexts) as $v) {
+                    $violations[] = $v;
+                }
+            }
+        }
+
+        return $violations;
+    }
+
+    /**
+     * Rule 6 (path resolvable, tidak hidden/ignore) dan 7 (formatter dikenal) untuk satu template.
+     *
+     * @param  array<string, array<string, mixed>>  $contexts  memo konteks model (kolom flat, kolom DB, hidden, config)
+     * @return array<int, array{rule:int, column?:string, message:string}>
+     */
+    private static function checkTemplate(string $template, string $colName, string $ownerClass, array &$contexts): array {
+        $violations = [];
+
+        foreach (TemplateDependencyExtractor::extract($template) as $path) {
+            $error = static::resolveTemplatePath($ownerClass, $path, 0, $contexts);
+            if ($error !== null) {
+                $violations[] = [
+                    'rule'    => 6,
+                    'column'  => $colName,
+                    'message' => "Template '{$colName}': path ':{$path}' {$error}.",
+                ];
+            }
+        }
+
+        foreach (TemplateDependencyExtractor::formatters($template) as $formatter) {
+            if (! in_array($formatter, static::KNOWN_FORMATTERS, true)) {
+                $violations[] = [
+                    'rule'    => 7,
+                    'column'  => $colName,
+                    'message' => "Template '{$colName}': formatter '|{$formatter}' tidak dikenal (" . implode(', ', static::KNOWN_FORMATTERS) . ').',
+                ];
+            }
+        }
+
+        return $violations;
+    }
+
+    /**
+     * Telusuri path template (dot-notation, rekursif per relasi). Mengembalikan pesan
+     * alasan bila gagal, `null` bila resolvable.
+     *
+     * @param  array<string, array<string, mixed>>  $contexts
+     */
+    private static function resolveTemplatePath(string $class, string $path, int $depth, array &$contexts): ?string {
+        $context = static::modelContext($class, $contexts);
+        if ($context === null) {
+            return null; // model tanpa LinkModel/skema: tak bisa dinilai, jangan false-positive.
+        }
+
+        $segments = explode('.', $path);
+        $head     = array_shift($segments);
+
+        if (in_array($head, $context['hidden'], true)) {
+            return "merujuk kolom '{$head}' yang disembunyikan model ({$class}::\$hidden)";
+        }
+        $config = $context['config'][$head] ?? $context['config'][Str::snake($head)] ?? null;
+        if (is_array($config) && ! empty($config['ignore'])) {
+            return "merujuk kolom '{$head}' yang di-ignore di configColumns ({$class})";
+        }
+
+        $found = null;
+        foreach ($context['columns'] as $c) {
+            $cName = $c['name'] ?? null;
+            if ($cName === $head || ($c['nameOfFunction'] ?? null) === $head || $cName === Str::snake($head) || (is_string($cName) && Str::camel($cName) === $head)) {
+                $found = $c;
+
+                break;
+            }
+        }
+
+        if ($segments === []) {
+            return $found !== null || in_array($head, $context['db'], true)
+                ? null
+                : "tidak dikenal di {$class} (bukan kolom DB, accessor, kolom virtual, maupun relasi)";
+        }
+
+        if ($found === null || ! isset($found['nameOfFunction'], $found['related']) || ! is_string($found['related'])) {
+            return "segmen '{$head}' bukan relasi di {$class}";
+        }
+        if ($depth + 1 >= self::MAX_TEMPLATE_DEPTH) {
+            return null;
+        }
+
+        return static::resolveTemplatePath($found['related'], implode('.', $segments), $depth + 1, $contexts);
+    }
+
+    /**
+     * Konteks validasi satu model: kolom flat, kolom DB, `$hidden`, dan configColumns
+     * (ter-merge). `null` bila kelas bukan LinkModel.
+     *
+     * @param  array<string, array<string, mixed>>  $contexts
+     * @return array{columns: array<int, array<string, mixed>>, db: list<string>, hidden: list<string>, config: array<string, mixed>}|null
+     */
+    private static function modelContext(string $class, array &$contexts): ?array {
+        if (array_key_exists($class, $contexts)) {
+            return $contexts[$class];
+        }
+
+        $contexts[$class] = null;
+        if (! class_exists($class) || ! is_subclass_of($class, EloquentModel::class) || ! method_exists($class, 'computeColumnsFlat')) {
+            return null;
+        }
+
+        try {
+            $instance = new $class;
+            $db       = Schema::getColumnListing($instance->getTable());
+            $config   = $class::mergeConfigColumns(
+                static::readProtectedProperty($instance, 'defaultConfigColumns') ?? [],
+                static::readProtectedProperty($instance, 'configColumns') ?? [],
+            );
+
+            return $contexts[$class] = [
+                'columns' => $class::computeColumnsFlat(true),
+                'db'      => $db,
+                'hidden'  => $instance->getHidden(),
+                'config'  => $config,
+            ];
+        } catch (\Throwable) {
+            return null;
+        }
+    }
+
+    /**
+     * Rule 9 (tipe didukung) dan 10 (SQL valid: dijalankan dengan LIMIT 0).
+     *
+     * @param  array<string, mixed>  $col
+     * @return array<int, array{rule:int, column?:string, message:string}>
+     */
+    private static function checkExpression(array $col, string $name, EloquentModel $instance): array {
+        $violations = [];
+        $expression = $col['expression'] ?? null;
+        $type       = $col['type'] ?? null;
+
+        if (! in_array($type, ExpressionSql::EXPRESSION_TYPES, true)) {
+            $violations[] = [
+                'rule'    => 9,
+                'column'  => $name,
+                'message' => "expression di '{$name}' hanya boleh untuk type " . implode('/', ExpressionSql::EXPRESSION_TYPES) . ' (type saat ini: ' . (is_string($type) ? $type : 'tidak ada') . ').',
+            ];
+        }
+
+        if (! is_string($expression) || trim($expression) === '') {
+            $violations[] = [
+                'rule'    => 10,
+                'column'  => $name,
+                'message' => "expression di '{$name}' harus berupa string SQL tak kosong.",
+            ];
+
+            return $violations;
+        }
+
+        $sql = ExpressionSql::forColumn($col) ?? "({$expression})";
+
+        try {
+            $connection = $instance->getConnection();
+            $table      = $connection->getQueryGrammar()->wrapTable($instance->getTable());
+            $connection->select("select {$sql} as v from {$table} limit 0");
+        } catch (\Throwable $e) {
+            $violations[] = [
+                'rule'    => 10,
+                'column'  => $name,
+                'message' => "expression di '{$name}' gagal dijalankan: {$e->getMessage()}",
+            ];
         }
 
         return $violations;

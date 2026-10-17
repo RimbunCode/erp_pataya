@@ -25,7 +25,9 @@ const resolveSearchColumns = ({ searchScope, columns, visibleNames } = {}) => {
       Boolean(col) &&
       col.searchable !== false &&
       col.type === "string" &&
-      !col.parentCol
+      !col.parentCol &&
+      // Kolom virtual (template/expression) bukan kolom DB: tak ikut pencarian teks bebas.
+      !col.virtual
     );
   });
 };

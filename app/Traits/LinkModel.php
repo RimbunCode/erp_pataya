@@ -9,6 +9,8 @@ use App\Enums\FormStatus;
 use App\Models\Core\ModelConnection;
 use App\Models\Scopes\DataTableScope;
 use App\Services\Core\CommandSearchIndexService;
+use App\Services\Core\DataTable\Template\ExpressionSql;
+use App\Services\Core\DataTable\Template\TemplateDependencyExtractor;
 use App\Services\Core\DataTableColumnSelector;
 use App\Services\Core\DataTableConfigCache;
 use App\Services\Core\HaveTransactionsSyncService;
@@ -522,12 +524,12 @@ trait LinkModel {
         // Mapping pakai match
         $phpType = match ($type) {
             'int', 'tinyint', 'smallint', 'mediumint', 'bigint', 'decimal', 'float', 'double', 'real', 'year' => 'number',
-            'varchar', 'char', 'text', 'tinytext', 'mediumtext', 'longtext', 'enum', 'set'                    => 'string',
-            'date'                                                                                            => 'date',
-            'datetime', 'timestamp'                                                                           => 'datetime',
-            'time'                                                                                            => 'time',
-            'blob', 'binary', 'varbinary'                                                                     => 'binary',
-            default                                                                                           => 'mixed',
+            'varchar', 'char', 'text', 'tinytext', 'mediumtext', 'longtext', 'enum', 'set' => 'string',
+            'date' => 'date',
+            'datetime', 'timestamp' => 'datetime',
+            'time' => 'time',
+            'blob', 'binary', 'varbinary' => 'binary',
+            default => 'mixed',
         };
 
         $cast = $casts[$dataColumn['name']] ?? null;
@@ -561,14 +563,14 @@ trait LinkModel {
                 ])
             ) {
                 $phpType = match ($cast) {
-                    Json::class                                             => 'json',
-                    FormStatusCast::class                                   => 'formStatus',
-                    FormStatusesCast::class                                 => 'formStatuses',
+                    Json::class             => 'json',
+                    FormStatusCast::class   => 'formStatus',
+                    FormStatusesCast::class => 'formStatuses',
                     'integer', 'decimal', 'float', 'double', 'real', 'year' => 'number',
-                    'immutable_date', 'date'                                => 'date',
-                    'immutable_datetime', 'datetime', 'timestamp'           => 'datetime',
-                    'time'                                                  => 'time',
-                    default                                                 => $cast,
+                    'immutable_date', 'date' => 'date',
+                    'immutable_datetime', 'datetime', 'timestamp' => 'datetime',
+                    'time'  => 'time',
+                    default => $cast,
                 };
             }
         }
@@ -650,6 +652,71 @@ trait LinkModel {
     }
 
     /**
+     * `dependsOn` gabungan (manual + hasil ekstraksi `template`) untuk entri yang
+     * punya `template`; array kosong bila tanpa template (entri tak berubah).
+     * `$physical` = entri adalah kolom DB nyata: ditandai `physical: true` supaya `dependsOn`
+     * hasil template tidak dianggap penanda accessor (lihat DataTableColumnSelector::isAppendColumn).
+     *
+     * @param  array<string, mixed>  $config
+     * @return array{dependsOn?: list<string>, physical?: bool}
+     */
+    protected static function templateDependsOnEntry(array $config, bool $physical = false): array {
+        $template = $config['template'] ?? null;
+        if (! \is_string($template) || $template === '') {
+            return [];
+        }
+
+        return [
+            'dependsOn' => array_values(array_unique([
+                ...($config['dependsOn'] ?? []),
+                ...TemplateDependencyExtractor::extract($template),
+            ])),
+            ...($physical ? ['physical' => true] : []),
+        ];
+    }
+
+    /**
+     * `searchable` + `searchVia` kolom Attribute/virtual (Keputusan D1).
+     *
+     * - Kolom ber-`expression` valid (number/currency/progress): searchable default,
+     *   dimatikan dengan `searchable: false`; `searchVia = 'expression'`.
+     * - Tanpa expression: opt-in `searchable: true` DAN `dependsOn` terisi; string/attribute
+     *   -> `dependsOn` (matches/set di semua kolom dependsOn), number/currency dengan tepat
+     *   satu dependsOn kolom lokal -> `single`. Tanpa mekanisme pencarian -> tak searchable.
+     * - `searchVia` hanya terisi bila searchable true.
+     *
+     * @param  array<string, mixed>  $config
+     * @param  list<string>  $deps
+     * @return array{searchable: bool, searchVia: ?string}
+     */
+    protected static function resolveColumnSearch(array $config, string $type, array $deps, bool $ignored = false): array {
+        $none = ['searchable' => false, 'searchVia' => null];
+        if ($ignored) {
+            return $none;
+        }
+
+        $effectiveType = \is_string($config['type'] ?? null) ? $config['type'] : $type;
+        if (ExpressionSql::forColumn([...$config, 'type' => $effectiveType]) !== null) {
+            return ($config['searchable'] ?? true) === false
+                ? $none
+                : ['searchable' => true, 'searchVia' => 'expression'];
+        }
+
+        if (($config['searchable'] ?? false) !== true || $deps === []) {
+            return $none;
+        }
+
+        $via = null;
+        if (\in_array($effectiveType, ['string', 'attribute'], true)) {
+            $via = 'dependsOn';
+        } elseif (\in_array($effectiveType, ['number', 'currency'], true) && \count($deps) === 1 && ! str_contains($deps[0], '.')) {
+            $via = 'single';
+        }
+
+        return $via === null ? $none : ['searchable' => true, 'searchVia' => $via];
+    }
+
+    /**
      * Hitung kolom flat 1 model (tanpa rekursi ke relasi anak).
      * Entri relasi disertakan dengan `columns: []`.
      * Selalu dipanggil dengan includeIgnore=true untuk menyimpan superset ke cache.
@@ -710,6 +777,7 @@ trait LinkModel {
                     ...$col,
                     'titleTrans' => $translateKey ? ($translateKey . '.columns.' . $col['name']) : null,
                     ...$config,
+                    ...static::templateDependsOnEntry($config, physical: true),
                     'primaryKey' => $pkName,
                     ...(($isIgnore || $isHidden) ? $ignoreFlags : []),
                     ...($isGuard ? ['ignore' => false] : []),
@@ -742,6 +810,7 @@ trait LinkModel {
                 'type'       => 'string',
                 'titleTrans' => $translateKey ? ($translateKey . '.columns.' . $key) : null,
                 ...$config,
+                ...static::templateDependsOnEntry($config),
                 'primaryKey' => $pkName,
                 // forceAppend = kolom di luar tabel model (JOIN/accessor), bukan kolom
                 // SQL model ini -- tak bisa di-GROUP BY.
@@ -789,11 +858,14 @@ trait LinkModel {
             // menimpa — mis. canDelete baseline butuh 'status', model bisa
             // menambah kolom lain yang dibaca method canDelete() override-nya
             // tanpa kehilangan dependency baseline.
+            // Template kolom (`template`) menambah dependsOn hasil ekstraksi placeholder.
+            $templateDeps    = TemplateDependencyExtractor::extract(\is_string($config['template'] ?? null) ? $config['template'] : null);
             $mergedDependsOn = array_values(array_unique([
                 ...($baselineDependsOn ?? []),
                 ...($config['dependsOn'] ?? []),
+                ...$templateDeps,
             ]));
-            $baselineDepends = $baselineDependsOn !== null || isset($config['dependsOn'])
+            $baselineDepends = $baselineDependsOn !== null || isset($config['dependsOn']) || $templateDeps !== []
                 ? ['dependsOn' => $mergedDependsOn]
                 : [];
 
@@ -809,6 +881,8 @@ trait LinkModel {
                 // Nilai dihitung (accessor/$appends), bukan kolom SQL -- tak bisa
                 // di-GROUP BY (lihat GroupColumnGate::sanitizeColumns).
                 'derived' => true,
+                // Pencarian Attribute opt-in (Keputusan D1); kolom expression default searchable.
+                ...static::resolveColumnSearch($config, 'attribute', $mergedDependsOn, $isIgnore || $isHidden),
                 ...(($isIgnore || $isHidden) ? $ignoreFlags : []),
             ];
         }
@@ -871,10 +945,65 @@ trait LinkModel {
                 'titleTrans'     => $translateKey ? "$translateKey.columns.$newKey" : null,
                 'columns'        => [],
                 ...$config,
+                ...static::templateDependsOnEntry($config),
                 ...($isIgnore ? $ignoreFlags : []),
             ];
 
             unset($route);
+        }
+
+        // Kolom virtual: key configColumns yang BUKAN kolom DB / $appends / relasi,
+        // tetapi punya `template` atau `expression`. Kolom $hidden & kolom DB tak
+        // pernah diekspos lewat jalur ini.
+        foreach ($configColumns as $key => $config) {
+            if (! \is_string($key) || ! \is_array($config)) {
+                continue;
+            }
+            $hasTemplate   = \is_string($config['template'] ?? null) && $config['template'] !== '';
+            $hasExpression = \is_string($config['expression'] ?? null) && trim($config['expression']) !== '';
+            if (! $hasTemplate && ! $hasExpression) {
+                continue;
+            }
+            if (\in_array($key, $hiddens, true) || \in_array($key, $columnNames, true) || isset($newColumns[$key])) {
+                continue;
+            }
+            if (method_exists($instance, $key)) {
+                try {
+                    $isRelation = $instance->$key() instanceof Relation;
+                } catch (\Throwable) {
+                    $isRelation = false;
+                }
+                if ($isRelation) {
+                    continue;
+                }
+            }
+
+            $isIgnore = isset($config['ignore']) && $config['ignore'];
+            if ($isIgnore && ! $includeIgnore) {
+                continue;
+            }
+
+            $type = \is_string($config['type'] ?? null) ? $config['type'] : 'string';
+            $deps = array_values(array_unique([
+                ...($config['dependsOn'] ?? []),
+                ...TemplateDependencyExtractor::extract($hasTemplate ? $config['template'] : null),
+            ]));
+            $isExpression = ExpressionSql::forColumn([...$config, 'type' => $type]) !== null;
+
+            $newColumns[$key] = [
+                'name'       => $key,
+                'type'       => $type,
+                'primaryKey' => $pkName,
+                'titleTrans' => $translateKey ? "$translateKey.columns.$key" : null,
+                ...array_diff_key($config, ['dependsOn' => true]),
+                'dependsOn' => $deps,
+                'virtual'   => true,
+                // Nilai dihitung dari kolom lain / ekspresi, bukan kolom SQL -- tak bisa di-GROUP BY.
+                'derived'  => true,
+                'sortable' => $isExpression && ($config['sortable'] ?? true) !== false,
+                ...static::resolveColumnSearch($config, $type, $deps, $isIgnore),
+                ...($isIgnore ? $ignoreFlags : []),
+            ];
         }
 
         \usort($newColumns, fn ($a, $b) => $a['name'] <=> $b['name']);

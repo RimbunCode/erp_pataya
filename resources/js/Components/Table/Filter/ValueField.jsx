@@ -10,7 +10,7 @@ import MultiSelect from "@/Components/MultiSelect";
 import NestedSelect from "@/Components/NestedSelect";
 import PermissionLinkModel from "@/Pages/Core/PermissionLinkModel";
 import Select from "@/Components/Select";
-import { columnHasOptions, getOperators } from "./operators";
+import { columnOperatorOptions, getOperators } from "./operators";
 import { columnTypeCategory } from "./columnRef";
 import { useLaravelReactI18n } from "laravel-react-i18n";
 import NumberInput from "@/Components/NumberInput";
@@ -52,12 +52,19 @@ export default function ValueField({
   const valueInput = useMemo(() => {
     if (!column?.type || !operator) return null;
     const ops = getOperators(column.type, {
-      typeRelation: column.typeRelation,
-      hasOptions: columnHasOptions(column),
+      ...columnOperatorOptions(column),
       mode,
     });
     return ops[operator]?.valueInput ?? null;
-  }, [column?.type, column?.typeRelation, column?.options, operator, mode]);
+  }, [
+    column?.type,
+    column?.typeRelation,
+    column?.options,
+    column?.searchVia,
+    column?.virtual,
+    operator,
+    mode,
+  ]);
 
   // Picker kolom kanan: hanya kolom type-compatible dgn kolom kiri; node
   // relasi tetap ditampilkan agar bisa drill-down ke kolom anaknya.

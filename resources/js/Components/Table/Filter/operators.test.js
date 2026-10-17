@@ -1,5 +1,10 @@
 import { describe, expect, it } from "vitest";
-import { columnHasOptions, getOperators } from "./operators";
+import {
+  columnHasOptions,
+  columnOperatorOptions,
+  getOperators,
+  isUnsearchableDerivedColumn,
+} from "./operators";
 
 describe("columnHasOptions", () => {
   it("false jika column.options tidak ada", () => {
@@ -149,5 +154,162 @@ describe("getOperators - mode column (column-ref)", () => {
     const ops = getOperators("date", { mode: "column" });
     expect(ops.in_period).toBeUndefined();
     expect(ops["!in_period"]).toBeUndefined();
+  });
+});
+
+describe("getOperators - kolom turunan (searchVia)", () => {
+  const NUMBER_KEYS = [
+    "!=",
+    "!between",
+    "!in",
+    "!set",
+    "<",
+    "<=",
+    "=",
+    ">",
+    ">=",
+    "between",
+    "in",
+    "set",
+  ];
+
+  it.each(["string", "attribute"])(
+    "searchVia 'dependsOn' (type %s): HANYA matches/!matches + set/!set",
+    (type) => {
+      const ops = getOperators(type, { searchVia: "dependsOn" });
+      expect(Object.keys(ops).sort()).toEqual(
+        ["!matches", "!set", "matches", "set"].sort(),
+      );
+      expect(ops.matches.valueInput).toBe("text");
+      expect(ops["!matches"].valueInput).toBe("text");
+      expect(ops["="]).toBeUndefined();
+      expect(ops.starts_with).toBeUndefined();
+    },
+  );
+
+  it.each(["expression", "single"])(
+    "searchVia '%s': operator number untuk number/currency/progress/attribute",
+    (searchVia) => {
+      for (const type of ["number", "currency", "progress", "attribute"]) {
+        const ops = getOperators(type, { searchVia });
+        expect(Object.keys(ops).sort()).toEqual(NUMBER_KEYS);
+        expect(ops["="].valueInput).toBe("currency");
+        expect(ops.between.valueInput).toBe("currency2");
+      }
+    },
+  );
+
+  it("searchVia 'dependsOn' di mode column: tidak ada operator", () => {
+    expect(
+      getOperators("string", { searchVia: "dependsOn", mode: "column" }),
+    ).toEqual({});
+  });
+
+  it("searchVia 'expression' di mode column: operator number -> columnref", () => {
+    const ops = getOperators("progress", {
+      searchVia: "expression",
+      mode: "column",
+    });
+    expect(ops["="].valueInput).toBe("columnref");
+    expect(ops.between.valueInput).toBe("columnref2");
+    expect(ops.set).toBeUndefined();
+  });
+
+  it("kolom attribute / progress / virtual TANPA searchVia: tidak ada operator", () => {
+    expect(getOperators("attribute", {})).toEqual({});
+    expect(getOperators("progress", {})).toEqual({});
+    expect(getOperators("string", { virtual: true })).toEqual({});
+    expect(getOperators("number", { virtual: true })).toEqual({});
+  });
+
+  it("virtual dengan searchVia tetap mengikuti searchVia", () => {
+    expect(
+      Object.keys(
+        getOperators("string", { virtual: true, searchVia: "dependsOn" }),
+      ),
+    ).toContain("matches");
+  });
+
+  it("kolom biasa tanpa searchVia tidak berubah (Property 10)", () => {
+    expect(Object.keys(getOperators("string", {})).sort()).toEqual(
+      [
+        "!=",
+        "!in",
+        "!matches",
+        "!set",
+        "=",
+        "ends_with",
+        "in",
+        "matches",
+        "set",
+        "starts_with",
+      ].sort(),
+    );
+  });
+
+  it("relations: has/!has/in/!in + matches/!matches (teks) + set/!set", () => {
+    const ops = getOperators("relations", { typeRelation: "basic" });
+    expect(Object.keys(ops).sort()).toEqual(
+      ["!has", "!in", "!matches", "!set", "has", "in", "matches", "set"].sort(),
+    );
+    expect(ops.matches.valueInput).toBe("text");
+    expect(ops["!matches"].valueInput).toBe("text");
+    expect(ops.has.valueInput).toBe("linkmodelMulti");
+  });
+});
+
+describe("columnOperatorOptions & isUnsearchableDerivedColumn", () => {
+  it("menurunkan opsi dari metadata kolom", () => {
+    expect(
+      columnOperatorOptions({
+        typeRelation: "morph",
+        options: ["a"],
+        searchVia: "dependsOn",
+        virtual: true,
+      }),
+    ).toEqual({
+      typeRelation: "morph",
+      hasOptions: true,
+      searchVia: "dependsOn",
+      virtual: true,
+    });
+    expect(columnOperatorOptions(null)).toEqual({
+      typeRelation: undefined,
+      hasOptions: false,
+      searchVia: undefined,
+      virtual: undefined,
+    });
+  });
+
+  it("searchVia null dianggap tidak ada", () => {
+    expect(
+      columnOperatorOptions({ searchVia: null }).searchVia,
+    ).toBeUndefined();
+  });
+
+  it("kolom turunan tanpa searchVia tidak memenuhi syarat pencarian", () => {
+    expect(isUnsearchableDerivedColumn({ virtual: true, type: "string" })).toBe(
+      true,
+    );
+    expect(isUnsearchableDerivedColumn({ type: "attribute" })).toBe(true);
+    expect(isUnsearchableDerivedColumn({ type: "progress" })).toBe(true);
+  });
+
+  it("kolom turunan dengan searchVia, dan kolom biasa, memenuhi syarat", () => {
+    expect(
+      isUnsearchableDerivedColumn({
+        virtual: true,
+        type: "string",
+        searchVia: "dependsOn",
+      }),
+    ).toBe(false);
+    expect(
+      isUnsearchableDerivedColumn({
+        type: "progress",
+        searchVia: "expression",
+      }),
+    ).toBe(false);
+    expect(isUnsearchableDerivedColumn({ type: "string" })).toBe(false);
+    expect(isUnsearchableDerivedColumn(null)).toBe(false);
   });
 });

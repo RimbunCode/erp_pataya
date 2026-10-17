@@ -9,7 +9,8 @@ import useLinkModelInfiniteOptions, {
   LINKMODEL_PAGE_SIZE,
   fetchLinkModelGroupNode,
 } from "@/Hooks/useLinkModelInfiniteOptions";
-import { convertTemplateLink, sourceValue } from "@/lib/linkModelUtils";
+import SemanticTemplate from "@/Components/SemanticTemplate/SemanticTemplate";
+import { sourceValue } from "@/lib/linkModelUtils";
 import { cn } from "@/lib/utils";
 import GroupedOptions from "./GroupedOptions";
 import InfiniteScrollSentinel from "./InfiniteScrollSentinel";
@@ -206,11 +207,14 @@ export default function SourceSection({
                     onSelect={() => onPick(row)}
                     style={indentStyle(SECTION_DEPTH)}
                   >
-                    <p
-                      dangerouslySetInnerHTML={{
-                        __html: convertTemplateLink(row, search ?? ""),
-                      }}
-                    />
+                    <div>
+                      <SemanticTemplate
+                        template={row.templateLink}
+                        row={row}
+                        context="option"
+                        search={search ?? ""}
+                      />
+                    </div>
                   </CommandItem>
                 );
               })}

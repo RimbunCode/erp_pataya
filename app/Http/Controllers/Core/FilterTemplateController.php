@@ -7,6 +7,7 @@ use App\Http\Requests\Core\PreviewFilterTemplateRequest;
 use App\Http\Requests\Core\StoreFilterTemplateRequest;
 use App\Http\Requests\Core\UpdateFilterTemplateRequest;
 use App\Models\Core\SavedFilter;
+use App\Services\Core\DataTable\Template\DataTableColumnPresenter;
 use App\Services\Core\FilterEvaluator;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
@@ -141,7 +142,7 @@ class FilterTemplateController extends Controller {
         $rows    = $query->limit(5)->get($visible->all());
 
         return response()->json([
-            'columns' => $columns,
+            'columns' => DataTableColumnPresenter::forFrontend($columns),
             'data'    => $rows,
         ]);
     }

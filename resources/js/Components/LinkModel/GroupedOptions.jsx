@@ -6,7 +6,8 @@ import LoadingIcon from "@/Components/LoadingIcon";
 import GroupLabel from "@/Components/Table/Group/GroupLabel";
 import GroupTree from "@/Components/Table/Group/GroupTree";
 import { groupLabelValue } from "@/Components/Table/Group/groupDisplay";
-import { convertTemplateLink, sourceValue } from "@/lib/linkModelUtils";
+import SemanticTemplate from "@/Components/SemanticTemplate/SemanticTemplate";
+import { sourceValue } from "@/lib/linkModelUtils";
 import { cn } from "@/lib/utils";
 import InfiniteScrollSentinel from "./InfiniteScrollSentinel";
 
@@ -131,14 +132,14 @@ export default function GroupedOptions({
               onSelect={() => onPick(row)}
               style={indentStyle(depth + depthOffset)}
             >
-              <p
-                dangerouslySetInnerHTML={{
-                  // search dipaksa "" bila kosong -- convertTemplateLink hanya
-                  // meng-escape HTML di jalur search!=null (lihat komentar
-                  // LinkModel.jsx dropdown flat).
-                  __html: convertTemplateLink(row, search ?? ""),
-                }}
-              />
+              <div>
+                <SemanticTemplate
+                  template={row.templateLink}
+                  row={row}
+                  context="option"
+                  search={search ?? ""}
+                />
+              </div>
             </CommandItem>
           );
         }}

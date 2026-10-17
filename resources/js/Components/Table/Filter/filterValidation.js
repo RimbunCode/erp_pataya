@@ -8,7 +8,7 @@
 //   { valid: boolean, errors: { [itemId]: messageKey } }
 // messageKey memetakan ke lang "core.datatable.filter.validation.*".
 
-import { columnHasOptions, getOperators } from "./operators";
+import { columnOperatorOptions, getOperators } from "./operators";
 import { isColumnRef } from "./columnRef";
 
 import { isNullOrWhitespace } from "@/lib/utils";
@@ -100,8 +100,7 @@ const resolveColumn = (columns, key) => {
 const valueInputFor = (column, operator, mode) => {
   if (!column?.type || !operator) return null;
   const ops = getOperators(column.type, {
-    typeRelation: column.typeRelation,
-    hasOptions: columnHasOptions(column),
+    ...columnOperatorOptions(column),
     mode,
   });
   return ops[operator]?.valueInput ?? null;

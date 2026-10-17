@@ -53,7 +53,11 @@ import { format } from "date-fns";
 import useDidMountEffect from "@/Hooks/useDidMountEffect";
 import useDynamicRefs from "@/Hooks/useDynamicRefs";
 import { useLaravelReactI18n } from "laravel-react-i18n";
-import usePermission from "@/Hooks/usePermission";
+import SemanticTemplate from "@/Components/SemanticTemplate/SemanticTemplate";
+import TemplateChips from "@/Components/SemanticTemplate/tags/TemplateChips";
+import TemplateProgress from "@/Components/SemanticTemplate/tags/TemplateProgress";
+import { InsideLinkContext } from "@/Components/SemanticTemplate/tags/linkContext";
+import useRecordLink from "@/Components/SemanticTemplate/tags/useRecordLink";
 
 export const DATATABLE_COLUMNS_KEY = "datatable_columns";
 const DATATABLE_COLUMNS_EXPIRED = 7; //days
@@ -66,6 +70,15 @@ const MIN_COLUMN_WIDTH = 120;
 // di tengah token, jadi tetap sebaris + potong (`!important`, lihat komentar
 // table.css: selector gabungan lebih spesifik drpd utility polos).
 const NOWRAP_CELL_TYPES = ["number", "currency", "date", "time", "datetime"];
+/**
+ * Kolom `relations` ditampilkan sebagai chip hanya bila developer opt-in lewat
+ * `max` (angka, termasuk 0 = semua) atau `template`.
+ * @param {object} col
+ * @returns {boolean}
+ */
+export const isRelationsChipColumn = (col) =>
+  (col?.max !== undefined && col.max !== null) || Boolean(col?.template);
+
 const cellWrapClassName = (type) =>
   NOWRAP_CELL_TYPES.includes(type)
     ? "whitespace-nowrap! text-ellipsis!"
@@ -154,9 +167,67 @@ export const Cell = memo(
     const { lang, preferences } = usePage().props;
     const { t } = useLaravelReactI18n();
     const value = row[name];
-    const { can, canGlobal } = usePermission(row?.thisModel);
+    // Tautan baris (`isLink`) dan tautan relasi (`type: 'relation'`) -- logika
+    // dibagi dengan tag <nav-link> template (SemanticTemplate/tags/useRecordLink).
+    const linkColumn = { route, primaryKey, ...colProps };
+    // Kolom ber-`template` dirender renderer bersama (menggantikan render
+    // per-`type`); kolom tanpa template tidak berubah (Req 1.4, 1.5, 14.1).
+    const template = colProps.template;
+    const rowRecordLink = useRecordLink(row, {
+      column: linkColumn,
+      requireColumnRoute: true,
+      enabled: !!isLink,
+    });
+    const relationRecordLink = useRecordLink(row, {
+      to: name,
+      column: linkColumn,
+      requireColumnRoute: true,
+      enabled: type == "relation" && !template,
+    });
+    // Sel template tidak memakai kelas nowrap tipe asli (isi bisa multi-baris).
+    const wrapClassName = template ? undefined : cellWrapClassName(type);
     let valueCell = "";
-    switch (type) {
+    // `relations` selalu chip: `template` kolom dipakai PER ANAK oleh TemplateChips
+    // (Req 6.2), bukan terhadap baris induk.
+    switch (type === "relations" ? type : template ? "template" : type) {
+      case "template":
+        valueCell = (
+          <SemanticTemplate
+            template={template}
+            row={row}
+            column={{
+              type,
+              route,
+              name,
+              valueTrans,
+              parse,
+              primaryKey,
+              isLink,
+              ...colProps,
+            }}
+            context="cell"
+          />
+        );
+        break;
+      case "progress":
+        // Nilai 0-100 (2 desimal) atau null dari expression backend.
+        return <TemplateProgress value={value} shape={colProps.shape} />;
+      case "relations":
+        return (
+          <TemplateChips
+            row={row}
+            column={{
+              type,
+              route,
+              name,
+              valueTrans,
+              parse,
+              primaryKey,
+              isLink,
+              ...colProps,
+            }}
+          />
+        );
       case "image": {
         const name = convertTemplateLink(row);
         const alias = name
@@ -235,7 +306,6 @@ export const Cell = memo(
         );
       case "mixed":
       case "json":
-      case "relations":
         return;
       case "string":
         if (!value) {
@@ -289,51 +359,31 @@ export const Cell = memo(
       if (child) {
         return cloneElement(child, {
           ...child.props,
-          className: cn(child.props.className, cellWrapClassName(type)),
+          className: cn(child.props.className, wrapClassName),
         });
       }
     }
-    if (isLink && route && can("read", { user_id: row?.created_by_id })) {
+    const link = template
+      ? rowRecordLink
+      : (rowRecordLink ?? relationRecordLink);
+    if (link) {
       return (
         <Link
           className={cn(
             "text-blue-800 dark:text-blue-200 hover:underline",
-            cellWrapClassName(type),
+            wrapClassName,
           )}
-          href={window.route(route ?? "", row[primaryKey] ?? "")}
+          href={link.href}
         >
-          {valueCell}
-        </Link>
-      );
-    } else if (
-      type == "relation" &&
-      route &&
-      !colProps?.disabledNavigation &&
-      (colProps.signedRouteKey ||
-        colProps.forceNavigation ||
-        canGlobal(value?.thisModel, "read", {
-          user_id: value?.created_by_id,
-        }))
-    ) {
-      return (
-        <Link
-          href={
-            value[colProps.signedRouteKey] ??
-            window.route(
-              value?.["route"] ? value?.["route"] + ".show" : (route ?? ""),
-              value?.[primaryKey] ?? "",
-            )
-          }
-          className={cn(
-            "text-blue-800 dark:text-blue-200 hover:underline",
-            cellWrapClassName(type),
-          )}
-        >
-          {valueCell}
+          {/* isLink + template == template dibungkus <nav-link>: tautan
+              di dalam isi (<nav-link>/<chips>) dirender tanpa <a> bersarang. */}
+          <InsideLinkContext.Provider value={true}>
+            {valueCell}
+          </InsideLinkContext.Provider>
         </Link>
       );
     }
-    return <span className={cellWrapClassName(type)}>{valueCell}</span>;
+    return <span className={wrapClassName}>{valueCell}</span>;
   },
 );
 Cell.displayName = "TableCell";
@@ -553,8 +603,11 @@ const Table2 = forwardRef(function Table2(
     }
     columns.forEach((col) => {
       if (!col.show) return;
-      if (col.type == "relations" || col.type == "mixed" || col.type == "json")
-        return;
+      // mixed/json tak punya tampilan tabel. `relations` (chip, Req 6.1) hanya
+      // tampil bila config developer eksplisit opt-in: punya `max` (termasuk 0)
+      // atau `template` -- tanpa itu tetap disembunyikan seperti dulu (Req 14.1).
+      if (col.type == "mixed" || col.type == "json") return;
+      if (col.type == "relations" && !isRelationsChipColumn(col)) return;
       if (col.type == "relation" && col.columns) {
         newCols.push(...getShowedColumns(col.columns));
       }

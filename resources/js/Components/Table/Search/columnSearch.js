@@ -20,7 +20,10 @@ import {
   parsePeriodToken,
   toLocalDayString,
 } from "../Filter/periodParsing";
-import { columnHasOptions } from "../Filter/operators";
+import {
+  columnHasOptions,
+  isUnsearchableDerivedColumn,
+} from "../Filter/operators";
 import { isMetaAppendColumn } from "@/lib/utils";
 import { resolveColumn } from "../Filter/filterValidation";
 
@@ -95,6 +98,12 @@ export const resolveColumnPath = (columns, key) => {
  */
 export const resolveValueMode = (column) => {
   if (!column) return null;
+  // Kolom turunan: mode ditentukan `searchVia` dari backend (Req 9.2-9.4).
+  if (isUnsearchableDerivedColumn(column)) return null;
+  if (column.searchVia === "dependsOn") return "text";
+  if (column.searchVia === "expression" || column.searchVia === "single") {
+    return "number";
+  }
   if (column.type === "boolean" || columnHasOptions(column)) return "list";
   if (column.type === "string") return "text";
   if (column.type === "number" || column.type === "currency") return "number";

@@ -2,8 +2,11 @@
 
 namespace App\Services\Core;
 
+use App\Services\Core\DataTable\Template\ExpressionSql;
+use App\Services\Core\DataTable\Template\TemplateDependencyExtractor;
 use Carbon\Carbon;
 use Illuminate\Database\Eloquent\Builder;
+use Illuminate\Support\Str;
 
 /**
  * Mengkonsumsi filter tree (mini-DSL produksi FilterBuilder frontend) menjadi
@@ -27,19 +30,27 @@ class FilterEvaluator {
      * @var array<string,list<string>>
      */
     private array $operatorsByType = [
-        'string'       => ['=', '!=', 'matches', '!matches', 'starts_with', 'ends_with', 'in', '!in'],
-        'number'       => ['=', '!=', '>', '>=', '<', '<=', 'in', '!in', 'between', '!between'],
-        'currency'     => ['=', '!=', '>', '>=', '<', '<=', 'in', '!in', 'between', '!between'],
-        'time'         => ['=', '!=', '>', '>=', '<', '<=', 'in', '!in', 'between', '!between'],
-        'date'         => ['in_period', '!in_period'],
-        'datetime'     => ['in_period', '!in_period'],
-        'boolean'      => ['=', '!='],
-        'relation'     => ['=', '!=', 'in', '!in'],
-        'formStatus'   => ['=', '!=', 'in', '!in'],
-        'enum'         => ['=', '!=', 'in', '!in'],
-        'relations'    => ['has', '!has', 'in', '!in'],
+        'string'     => ['=', '!=', 'matches', '!matches', 'starts_with', 'ends_with', 'in', '!in'],
+        'number'     => ['=', '!=', '>', '>=', '<', '<=', 'in', '!in', 'between', '!between'],
+        'currency'   => ['=', '!=', '>', '>=', '<', '<=', 'in', '!in', 'between', '!between'],
+        'time'       => ['=', '!=', '>', '>=', '<', '<=', 'in', '!in', 'between', '!between'],
+        'date'       => ['in_period', '!in_period'],
+        'datetime'   => ['in_period', '!in_period'],
+        'boolean'    => ['=', '!='],
+        'relation'   => ['=', '!=', 'in', '!in'],
+        'formStatus' => ['=', '!=', 'in', '!in'],
+        'enum'       => ['=', '!=', 'in', '!in'],
+        // `matches`/`!matches` pada relasi banyak = cocok ke kolom template anak (whereHas).
+        'relations'    => ['has', '!has', 'in', '!in', 'matches', '!matches'],
         'formStatuses' => ['has', '!has', 'in', '!in'],
+        // Kolom expression bertipe progress dibandingkan seperti number.
+        'progress' => ['=', '!=', '>', '>=', '<', '<=', 'in', '!in', 'between', '!between'],
+        // Attribute (append) opt-in: hanya matches/!matches (+ set/!set universal), via kolom `dependsOn`.
+        'attribute' => ['matches', '!matches'],
     ];
+
+    /** Operator pembanding skalar yang boleh masuk SQL ekspresi (whitelist; nilai tetap binding). */
+    private const RAW_COMPARISONS = ['=', '!=', '>', '>=', '<', '<='];
 
     private FilterColumnResolver $resolver;
     private bool $allowNonSearchable;
@@ -121,8 +132,17 @@ class FilterEvaluator {
             return; // whitelist operator
         }
 
+        // Kolom hitungan (virtual / Attribute) tanpa mekanisme pencarian tak punya kolom SQL
+        // untuk dibandingkan -- abaikan diam-diam (mis. `allowNonSearchable` jalur LinkModel).
+        if ($this->isComputedColumn($column) && ($column['searchVia'] ?? null) === null) {
+            return;
+        }
+
         // Column comparison mode: value is { kind: "column", ref: ... }
         if (is_array($value) && ($value['kind'] ?? null) === 'column') {
+            if ($this->isComputedColumn($column)) {
+                return; // kolom hitungan tak bisa dibandingkan antar-kolom (whereColumn).
+            }
             $this->applyColumnComparison($query, $path, $op, $value, $boolean);
 
             return;
@@ -140,6 +160,20 @@ class FilterEvaluator {
         $type   = $column['type'] ?? 'string';
         $negate = $op !== '!=' && str_starts_with($op, '!');
         $base   = $negate ? substr($op, 1) : $op;
+
+        // Kolom Attribute/virtual dengan `searchVia` (expression / dependsOn / single).
+        if (($column['searchVia'] ?? null) !== null) {
+            $this->applySearchVia($query, $column, $type, $base, $negate, $value, $boolean, $this->resolver);
+
+            return;
+        }
+
+        // Relasi banyak + matches: cocok ke kolom template anak.
+        if ($type === 'relations' && $base === 'matches') {
+            $this->applyRelationsMatches($query, $column, $negate, $value, $boolean);
+
+            return;
+        }
 
         // Relasi (basic / morph / plural) — filter PADA relasi itu sendiri (by id).
         if (in_array($type, ['relation', 'relations'], true)) {
@@ -198,7 +232,15 @@ class FilterEvaluator {
 
         // Closure terdalam: kondisi pada kolom akhir (nama relatif terhadap
         // tabel relasi terdalam) — pakai boolean "and" di dalam scope relasi.
-        $leaf = function (Builder $q) use ($columnName, $type, $base, $negate, $value): void {
+        $leafColumn = $path['column'];
+        $leaf       = function (Builder $q) use ($columnName, $type, $base, $negate, $value, $leafColumn): void {
+            if (($leafColumn['searchVia'] ?? null) !== null) {
+                // Di dalam relasi: expression/single berlaku (SQL tanpa kualifikasi tabel);
+                // `dependsOn` butuh resolver model anak sehingga tak didukung (diabaikan).
+                $this->applySearchVia($q, $leafColumn, $type, $base, $negate, $value, 'and', null);
+
+                return;
+            }
             if ($base === 'in_period') {
                 $this->applyPeriodValue($q, $columnName, $type, $value, $negate, 'and');
 
@@ -262,7 +304,7 @@ class FilterEvaluator {
             if ($refPath === null) {
                 continue;
             }
-            if (($refPath['column']['searchable'] ?? true) === false) {
+            if (($refPath['column']['searchable'] ?? true) === false || $this->isComputedColumn($refPath['column'])) {
                 continue;
             }
             $refType = $refPath['column']['type'] ?? 'string';
@@ -514,15 +556,15 @@ class FilterEvaluator {
     private function isTypeCompatible(string $leftType, string $rightType): bool {
         $categorize = function (string $type): string {
             return match ($type) {
-                'number', 'currency'         => 'numeric',
-                'string'                     => 'string',
-                'date', 'datetime'           => 'date',
-                'time'                       => 'time',
-                'boolean'                    => 'boolean',
-                'relation', 'relations'      => 'relation',
+                'number', 'currency' => 'numeric',
+                'string' => 'string',
+                'date', 'datetime' => 'date',
+                'time'    => 'time',
+                'boolean' => 'boolean',
+                'relation', 'relations' => 'relation',
                 'formStatus', 'formStatuses' => 'status',
-                'enum'                       => 'enum',
-                default                      => $type,
+                'enum'  => 'enum',
+                default => $type,
             };
         };
 
@@ -629,6 +671,238 @@ class FilterEvaluator {
 
     private function applyLike(Builder $query, string $col, string $pattern, bool $negate, string $boolean): void {
         $query->where($col, $negate ? 'not like' : 'like', $pattern, $boolean);
+    }
+
+    // ---- Kolom hitungan (expression / dependsOn / single) ---------------
+
+    /**
+     * Kolom yang nilainya dihitung (bukan kolom SQL fisik): virtual, atau Attribute (append).
+     *
+     * @param  array<string,mixed>  $column
+     */
+    private function isComputedColumn(array $column): bool {
+        return ($column['virtual'] ?? false) === true || ($column['type'] ?? null) === 'attribute';
+    }
+
+    /**
+     * Terapkan kondisi pada kolom ber-`searchVia`. `$resolver` null (di dalam relasi)
+     * berarti `dependsOn` tak bisa di-resolve -> diabaikan.
+     *
+     * @param  array<string,mixed>  $column
+     */
+    private function applySearchVia(Builder $query, array $column, string $type, string $base, bool $negate, mixed $value, string $boolean, ?FilterColumnResolver $resolver): void {
+        switch ($column['searchVia']) {
+            case 'expression':
+                $sql = ExpressionSql::forColumn($column);
+                if ($sql !== null) {
+                    $this->applyScalarRaw($query, $sql, $base, $negate, $value, $boolean);
+                }
+
+                return;
+            case 'single':
+                $dep = $column['dependsOn'][0] ?? null;
+                if (is_string($dep) && $dep !== '' && count($column['dependsOn']) === 1) {
+                    $this->applyScalar($query, $dep, $type, $base, $negate, $value, $boolean);
+                }
+
+                return;
+            case 'dependsOn':
+                if ($resolver !== null) {
+                    $this->applyDependsOnSearch($query, $column, $base, $negate, $value, $boolean, $resolver);
+                }
+
+                return;
+        }
+    }
+
+    /**
+     * Perbandingan skalar terhadap potongan SQL ekspresi. Ekspresi berasal dari kode
+     * developer (`configColumns`); nilai pembanding SELALU binding (tak pernah
+     * digabung ke string SQL) dan harus numerik.
+     */
+    private function applyScalarRaw(Builder $query, string $sql, string $base, bool $negate, mixed $value, string $boolean): void {
+        switch ($base) {
+            case 'set':
+                $query->whereRaw("({$sql} IS " . ($negate ? '' : 'NOT ') . 'NULL)', [], $boolean);
+
+                return;
+            case 'in':
+                $values = $this->numericList($value);
+                if ($values === null) {
+                    return;
+                }
+                if ($values === []) {
+                    $negate ? $query->whereRaw('1 = 1', [], $boolean) : $query->whereRaw('0 = 1', [], $boolean);
+
+                    return;
+                }
+                $marks = implode(', ', array_fill(0, count($values), '?'));
+                $query->whereRaw("({$sql} " . ($negate ? 'NOT ' : '') . "IN ({$marks}))", $values, $boolean);
+
+                return;
+            case 'between':
+                $range = $this->numericList($value);
+                if ($range === null || count($range) !== 2) {
+                    return;
+                }
+                $query->whereRaw("({$sql} " . ($negate ? 'NOT ' : '') . 'BETWEEN ? AND ?)', $range, $boolean);
+
+                return;
+            default:
+                if (! in_array($base, self::RAW_COMPARISONS, true) || ! is_numeric($value) || is_bool($value)) {
+                    return;
+                }
+                $query->whereRaw("({$sql} {$base} ?)", [$value + 0], $boolean);
+        }
+    }
+
+    /**
+     * Daftar nilai numerik (angka murni) untuk binding ekspresi; `null` bila ada
+     * nilai non-numerik (item filter diabaikan).
+     *
+     * @return list<int|float>|null
+     */
+    private function numericList(mixed $value): ?array {
+        $out = [];
+        foreach ($this->toList($value) as $item) {
+            if (! is_numeric($item) || is_bool($item)) {
+                return null;
+            }
+            $out[] = $item + 0;
+        }
+
+        return $out;
+    }
+
+    /**
+     * Pencarian kolom Attribute string lewat kolom `dependsOn`-nya.
+     *  - matches  : minimal satu kolom dependsOn mengandung teks (OR LIKE; relasi via whereHas).
+     *  - set      : minimal satu kolom dependsOn terisi.
+     *  - !matches / !set : negasi seluruh kelompok (kolom NULL dianggap tak cocok / kosong).
+     *
+     * @param  array<string,mixed>  $column
+     */
+    private function applyDependsOnSearch(Builder $query, array $column, string $base, bool $negate, mixed $value, string $boolean, FilterColumnResolver $resolver): void {
+        $deps = array_values(array_filter($column['dependsOn'] ?? [], fn ($dep) => is_string($dep) && $dep !== ''));
+        if ($deps === []) {
+            return;
+        }
+
+        $pattern = null;
+        if ($base === 'matches') {
+            if (! is_scalar($value) || is_bool($value) || trim((string) $value) === '') {
+                return;
+            }
+            $pattern = "%{$value}%";
+        } elseif ($base !== 'set') {
+            return; // hanya matches/set (+ negasinya) yang valid untuk Attribute.
+        }
+
+        $group = function (Builder $q) use ($deps, $base, $pattern, $resolver): void {
+            foreach ($deps as $dep) {
+                $this->applyDependsOnCondition($q, $dep, $base, $pattern, $resolver);
+            }
+        };
+
+        if ($negate) {
+            $query->whereNot($group, null, null, $boolean);
+        } else {
+            $query->where($group, null, null, $boolean);
+        }
+    }
+
+    /**
+     * Satu kondisi (OR) untuk satu entri dependsOn: kolom lokal -> where; path relasi
+     * -> nested whereHas dari rantai relasi. Entri yang tak ter-resolve diabaikan.
+     */
+    private function applyDependsOnCondition(Builder $query, string $dep, string $base, ?string $pattern, FilterColumnResolver $resolver): void {
+        $path = $resolver->resolvePath($dep) ?? $resolver->resolvePath($this->snakePath($dep));
+        if ($path === null) {
+            return;
+        }
+        $column = $path['column'];
+        $type   = $column['type'] ?? 'string';
+
+        // Entri dependsOn yang sendiri relasi (tanpa kolom akhir): "terisi" = punya record.
+        if (in_array($type, ['relation', 'relations'], true) && $path['relations'] === []) {
+            $relation = $column['nameOfFunction'] ?? $column['name'] ?? null;
+            if ($base === 'set' && is_string($relation)) {
+                $query->orWhereHas($relation);
+            }
+
+            return;
+        }
+        if (in_array($type, ['relation', 'relations'], true)) {
+            return;
+        }
+
+        $columnName = $path['columnName'];
+        $leaf       = function (Builder $q) use ($columnName, $type, $base, $pattern): void {
+            if ($base === 'matches') {
+                $q->whereNotNull($columnName)->where($columnName, 'like', $pattern);
+
+                return;
+            }
+            $q->whereNotNull($columnName);
+            if ($type === 'string') {
+                $q->where($columnName, '!=', '');
+            }
+        };
+
+        if ($path['relations'] === []) {
+            $query->orWhere($leaf);
+
+            return;
+        }
+        foreach ($path['relations'] as $relation) {
+            if ($relation['isMorph']) {
+                return; // relasi morph tak bisa di-whereHas tanpa tipe konkret.
+            }
+        }
+
+        $callback = $leaf;
+        for ($i = count($path['relations']) - 1; $i >= 1; $i--) {
+            $rel      = $path['relations'][$i]['function'];
+            $inner    = $callback;
+            $callback = function (Builder $q) use ($rel, $inner): void {
+                $q->whereHas($rel, $inner);
+            };
+        }
+        $query->orWhereHas($path['relations'][0]['function'], $callback);
+    }
+
+    /** `exportedBy.email` -> `exported_by.email` (nama kolom relasi di getColumns berkunci snake_case). */
+    private function snakePath(string $path): string {
+        return implode('.', array_map(fn (string $segment) => Str::snake($segment), explode('.', $path)));
+    }
+
+    /**
+     * Relasi banyak + `matches`/`!matches`: ada (`!matches`: tidak ada) record anak yang
+     * cocok di salah satu kolom template anak (`dependsOn` kolom, relatif ke model anak;
+     * tanpa template -> placeholder `templateLink()` model anak).
+     *
+     * @param  array<string,mixed>  $column
+     */
+    private function applyRelationsMatches(Builder $query, array $column, bool $negate, mixed $value, string $boolean): void {
+        $relation = $column['nameOfFunction'] ?? $column['name'] ?? null;
+        $related  = $column['related'] ?? null;
+        if (! is_string($relation) || ! is_string($related) || ! class_exists($related) || ! method_exists($related, 'getColumns')) {
+            return;
+        }
+
+        $deps = array_values(array_filter($column['dependsOn'] ?? [], fn ($dep) => is_string($dep) && $dep !== ''));
+        if ($deps === [] && method_exists($related, 'templateLink')) {
+            $deps = TemplateDependencyExtractor::extract($related::templateLink());
+        }
+        if ($deps === []) {
+            return;
+        }
+
+        $child  = new self($related::getColumns(1, true), true);
+        $method = $this->method($boolean, $negate ? 'whereDoesntHave' : 'whereHas');
+        $query->{$method}($relation, function (Builder $q) use ($child, $deps, $value): void {
+            $child->applyDependsOnSearch($q, ['dependsOn' => $deps], 'matches', false, $value, 'and', $child->resolver);
+        });
     }
 
     // ---- Relation handlers ----------------------------------------------
@@ -972,9 +1246,9 @@ class FilterEvaluator {
     private function normalizeScalar(string $type, mixed $value): mixed {
         if ($type === 'boolean') {
             return match ($value) {
-                'true', true, 1, '1'   => true,
+                'true', true, 1, '1' => true,
                 'false', false, 0, '0' => false,
-                default                => (bool) $value,
+                default => (bool) $value,
             };
         }
 

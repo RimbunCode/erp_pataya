@@ -19,7 +19,11 @@ import Select from "@/Components/Select";
 import ValueField from "./ValueField";
 import axios from "axios";
 import { cn, isMetaAppendColumn } from "@/lib/utils";
-import { columnHasOptions, getOperators } from "./operators";
+import {
+  columnOperatorOptions,
+  getOperators,
+  isUnsearchableDerivedColumn,
+} from "./operators";
 import { isColumnRef } from "./columnRef";
 import { Switch } from "@/Components/ui/switch";
 import { useLaravelReactI18n } from "laravel-react-i18n";
@@ -62,7 +66,8 @@ function FilterItem2({ id, depth = 0 }) {
         col.searchable === false ||
         col.hidden ||
         col.ignore ||
-        isMetaAppendColumn(col)
+        isMetaAppendColumn(col) ||
+        isUnsearchableDerivedColumn(col)
       )
         return null;
       // `col.name` bisa berupa nama segmen ("type") ATAU sudah berkualifikasi
@@ -117,7 +122,8 @@ function FilterItem2({ id, depth = 0 }) {
           !col.parentCol &&
           col.searchable !== false &&
           !col.hidden &&
-          !col.ignore,
+          !col.ignore &&
+          !isUnsearchableDerivedColumn(col),
       )
       .map((col) => buildColumnNode(col));
   }, [columns, buildColumnNode, toArrayColumns, cacheVersion]);
@@ -135,14 +141,15 @@ function FilterItem2({ id, depth = 0 }) {
   const mode = isColumnRef(filter?.value) ? "column" : "value";
   const operators = useMemo(() => {
     return getOperators(selectedColumn?.type, {
-      typeRelation: selectedColumn?.typeRelation,
-      hasOptions: columnHasOptions(selectedColumn),
+      ...columnOperatorOptions(selectedColumn),
       mode,
     });
   }, [
     selectedColumn?.type,
     selectedColumn?.typeRelation,
     selectedColumn?.options,
+    selectedColumn?.searchVia,
+    selectedColumn?.virtual,
     mode,
   ]);
 
@@ -187,8 +194,7 @@ function FilterItem2({ id, depth = 0 }) {
     const nextMode = toColumn ? "column" : "value";
     const nextValue = toColumn ? { kind: "column", ref: "" } : "";
     const nextOps = getOperators(selectedColumn.type, {
-      typeRelation: selectedColumn.typeRelation,
-      hasOptions: columnHasOptions(selectedColumn),
+      ...columnOperatorOptions(selectedColumn),
       mode: nextMode,
     });
     const keepOperator = filter.operator && nextOps[filter.operator];

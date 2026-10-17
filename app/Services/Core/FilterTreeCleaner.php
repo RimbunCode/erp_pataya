@@ -45,8 +45,10 @@ class FilterTreeCleaner {
         'relation'     => ['=', '!=', 'in', '!in'],
         'formStatus'   => ['=', '!=', 'in', '!in'],
         'enum'         => ['=', '!=', 'in', '!in'],
-        'relations'    => ['has', '!has', 'in', '!in'],
+        'relations'    => ['has', '!has', 'in', '!in', 'matches', '!matches'],
         'formStatuses' => ['has', '!has', 'in', '!in'],
+        'progress'     => ['=', '!=', '>', '>=', '<', '<=', 'in', '!in', 'between', '!between'],
+        'attribute'    => ['matches', '!matches'],
     ];
 
     private FilterColumnResolver $resolver;
@@ -222,7 +224,10 @@ class FilterTreeCleaner {
                 : $this->hasId($value);
         }
         if ($type === 'relations') {
-            return count($this->idList($value)) >= 1;
+            // matches/!matches = teks bebas (cocok ke kolom template anak), bukan daftar id.
+            return $base === 'matches'
+                ? $this->isFilled($value)
+                : count($this->idList($value)) >= 1;
         }
 
         // Period (date/datetime): SATU objek periode (Kondisi apa pun) ATAU
@@ -264,9 +269,9 @@ class FilterTreeCleaner {
         }
 
         return match ($type) {
-            'number', 'currency' => $this->isNumeric($value),
-            'time'               => $this->isTime($value),
-            default              => $this->isFilled($value),
+            'number', 'currency', 'progress' => $this->isNumeric($value),
+            'time'  => $this->isTime($value),
+            default => $this->isFilled($value),
         };
     }
 
@@ -485,15 +490,15 @@ class FilterTreeCleaner {
     private function isTypeCompatible(string $leftType, string $rightType): bool {
         $categorize = function (string $type): string {
             return match ($type) {
-                'number', 'currency'         => 'numeric',
-                'string'                     => 'string',
-                'date', 'datetime'           => 'date',
-                'time'                       => 'time',
-                'boolean'                    => 'boolean',
-                'relation', 'relations'      => 'relation',
+                'number', 'currency' => 'numeric',
+                'string' => 'string',
+                'date', 'datetime' => 'date',
+                'time'    => 'time',
+                'boolean' => 'boolean',
+                'relation', 'relations' => 'relation',
                 'formStatus', 'formStatuses' => 'status',
-                'enum'                       => 'enum',
-                default                      => $type,
+                'enum'  => 'enum',
+                default => $type,
             };
         };
 
