@@ -115,6 +115,13 @@ describe("AlertDialogContent", () => {
     useIsMobileMock.mockReturnValue(false);
   });
 
+  it("pins the alert dialog layer to the viewport instead of its page position", () => {
+    renderOpenDialog();
+    expect(
+      screen.getByRole("alertdialog").parentElement.parentElement,
+    ).toHaveClass("inset-0");
+  });
+
   it("meneruskan ref ke elemen Radix Content asli", () => {
     const ref = { current: null };
     render(

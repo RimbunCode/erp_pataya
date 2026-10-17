@@ -34,6 +34,20 @@ function twoDrafts() {
 }
 
 describe("draft data shared with the PO form", () => {
+  it("keeps a cleared unit empty until the user selects another one", () => {
+    const state = twoDrafts();
+    const data = buildDraftData(state, "draft-1", "2026-10-14");
+    const next = applyDraftData(state, "draft-1", {
+      ...data,
+      items: [{ ...data.items[0], unit: null }],
+    });
+
+    expect(next.allocationsById["allocation-1"].unit).toBeNull();
+    expect(
+      buildDraftData(next, "draft-1", "2026-10-14").items[0].unit,
+    ).toBeNull();
+  });
+
   it("builds locked source rows and does not copy PR notes to the PO", () => {
     const state = twoDrafts();
     const draft = buildDraftData(state, "draft-1", "2026-10-14");

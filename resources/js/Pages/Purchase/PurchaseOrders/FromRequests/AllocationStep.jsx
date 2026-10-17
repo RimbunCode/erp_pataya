@@ -140,6 +140,7 @@ export default function AllocationStep({
     allocations.every(
       (allocation) =>
         allocation.supplier_id != null &&
+        allocation.unit?.id &&
         Number.isFinite(allocation.quantity) &&
         allocation.quantity >= 1,
     );
@@ -273,9 +274,10 @@ export default function AllocationStep({
                   >
                     <SupplierLinkModel
                       value={
-                        allocation.data?.supplier ??
-                        state.draftsById[allocation.draft_id]?.data?.supplier ??
-                        null
+                        allocation.data?.supplier === undefined
+                          ? (state.draftsById[allocation.draft_id]?.data
+                              ?.supplier ?? null)
+                          : allocation.data.supplier
                       }
                       placeholder={t(`${translationPrefix}select_supplier`)}
                       disabled={disabled}
@@ -298,17 +300,15 @@ export default function AllocationStep({
                     className="min-w-0"
                   >
                     <ItemUnitLinkModel
-                      value={allocation.unit ?? source.unit}
+                      value={allocation.unit ?? null}
                       disabled={disabled}
                       fields={["conversion_factor"]}
                       filters={{ item_id: source.item?.item_id }}
-                      onValueChange={(unit) => {
-                        if (unit) {
-                          setState((current) =>
-                            setAllocationUnit(current, allocation.id, unit),
-                          );
-                        }
-                      }}
+                      onValueChange={(unit) =>
+                        setState((current) =>
+                          setAllocationUnit(current, allocation.id, unit),
+                        )
+                      }
                     />
                   </FormInput>
                   <FormInput

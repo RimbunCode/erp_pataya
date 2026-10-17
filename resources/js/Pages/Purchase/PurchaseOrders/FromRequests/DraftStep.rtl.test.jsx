@@ -174,7 +174,7 @@ function seededState() {
   return reconcileDrafts(state);
 }
 
-function Fixture({ initial = seededState() }) {
+function Fixture({ initial = seededState(), onContinue = vi.fn() }) {
   const [state, setState] = useState(initial);
   return (
     <>
@@ -183,7 +183,7 @@ function Fixture({ initial = seededState() }) {
         setState={setState}
         sources={sources}
         onBack={vi.fn()}
-        onContinue={vi.fn()}
+        onContinue={onContinue}
       />
       <output data-testid="state">{JSON.stringify(state)}</output>
     </>
@@ -191,6 +191,70 @@ function Fixture({ initial = seededState() }) {
 }
 
 describe("draft workspace", () => {
+  it("marks incomplete drafts in the sidebar and highlights the draft shown in the form", async () => {
+    const user = userEvent.setup();
+    const initial = seededState();
+    for (const allocation of Object.values(initial.allocationsById)) {
+      if (allocation.draft_id === initial.draftOrder[0]) {
+        allocation.data = { target_warehouse: { id: "warehouse-1" } };
+      }
+    }
+    render(<Fixture initial={initial} />);
+
+    const first = screen.getByRole("button", { name: "draft-1" });
+    const second = screen.getByRole("button", { name: "draft-2" });
+    expect(first).toHaveAttribute("aria-current", "true");
+    expect(first).toHaveClass("bg-secondary");
+    expect(within(first).queryByText(/draft_incomplete/)).toBeNull();
+    expect(within(second).getByText(/draft_incomplete/)).toBeInTheDocument();
+
+    await user.click(second);
+    expect(first).not.toHaveAttribute("aria-current");
+    expect(second).toHaveAttribute("aria-current", "true");
+    expect(second).toHaveClass("bg-secondary");
+    expect(
+      screen.getByRole("heading", { name: /draft_number 2/ }),
+    ).toBeInTheDocument();
+  });
+
+  it("keeps incomplete forms on Lengkapi PO, opens the first invalid draft, and shows FormPage-style errors", async () => {
+    const user = userEvent.setup();
+    const onContinue = vi.fn();
+    const initial = seededState();
+    for (const allocation of Object.values(initial.allocationsById)) {
+      if (allocation.draft_id === initial.draftOrder[0]) {
+        allocation.data = { target_warehouse: { id: "warehouse-1" } };
+      }
+    }
+    render(<Fixture initial={initial} onContinue={onContinue} />);
+
+    await user.click(screen.getByRole("button", { name: /continue_review/ }));
+
+    expect(onContinue).not.toHaveBeenCalled();
+    expect(
+      screen.getByRole("heading", { name: /draft_number 2/ }),
+    ).toBeInTheDocument();
+    expect(screen.getByRole("alert")).toHaveTextContent(
+      "core.form.errors.title",
+    );
+    expect(screen.getByRole("alert")).toHaveTextContent("target_warehouse");
+  });
+
+  it("continues to review when every draft passes the shared submission validation", async () => {
+    const user = userEvent.setup();
+    const onContinue = vi.fn();
+    const initial = seededState();
+    for (const allocation of Object.values(initial.allocationsById)) {
+      allocation.data = { target_warehouse: { id: "warehouse-1" } };
+    }
+    render(<Fixture initial={initial} onContinue={onContinue} />);
+
+    await user.click(screen.getByRole("button", { name: /continue_review/ }));
+
+    expect(onContinue).toHaveBeenCalledOnce();
+    expect(screen.queryByRole("alert")).not.toBeInTheDocument();
+  });
+
   it("keeps quantity and rate while changing PO unit and updates the source warning", async () => {
     const user = userEvent.setup();
     render(<Fixture />);
@@ -202,11 +266,11 @@ describe("draft workspace", () => {
       .allocationsById["allocation-1"];
     expect(allocation.unit.id).toBe("box");
     expect(allocation.quantity).toBe(10);
-    expect(
-      screen.getByRole("alert", {
-        name: "purchase.purchaseOrder.from_requests.quantity_warning_title",
-      }),
-    ).toHaveTextContent("10 120 110");
+    const warning = screen.getByRole("alert", {
+      name: "purchase.purchaseOrder.from_requests.quantity_warning_title",
+    });
+    expect(warning).toHaveTextContent("10 120 110");
+    expect(warning.closest("section")).toBeNull();
   });
   it("preserves each draft's date, currency, note, and source PR identity", async () => {
     const user = userEvent.setup();

@@ -58,6 +58,7 @@ return [
         'edit_draft'                   => 'Ubah rancangan',
         'item_count'                   => 'Jumlah item',
         'draft_error'                  => 'Periksa field rancangan ini:',
+        'draft_incomplete'             => 'Belum lengkap',
         'save_drafts'                  => 'Simpan semua draft PO',
         'saving'                       => 'Menyimpan rancangan PO…',
         'save_failed'                  => 'Rancangan belum tersimpan',

@@ -96,14 +96,17 @@ export function setAllocationQuantity(state, id, quantity) {
 
 export function setAllocationUnit(state, id, unit) {
   const allocation = allocationFor(state, id);
-  if (!unit?.id || !(Number(unit.conversion_factor ?? 1) > 0)) {
+  if (
+    unit !== null &&
+    (!unit?.id || !(Number(unit.conversion_factor ?? 1) > 0))
+  ) {
     throw new RangeError(
       "Allocation unit must have a positive conversion factor",
     );
   }
   const source = state.sourcesById[allocation.purchase_request_item_id];
   if (
-    unit.item_id &&
+    unit?.item_id &&
     source.item?.item_id &&
     String(unit.item_id) !== String(source.item.item_id)
   ) {
@@ -332,7 +335,12 @@ export function reconcileDrafts(state, { confirmed = false } = {}) {
     if (current && sameSupplier(current.supplier_id, allocation.supplier_id)) {
       continue;
     }
-    if (current) {
+    if (
+      current &&
+      Object.entries(current.data ?? {}).some(
+        ([key, value]) => key !== "supplier" && value != null && value !== "",
+      )
+    ) {
       affectedDraftIds.add(current.id);
     }
     if (allocation.supplier_id == null) {

@@ -54,22 +54,25 @@ vi.mock("@/Pages/Inventory/Items/ItemUnitLinkModel", () => ({
       disabled={disabled}
       onChange={(event) =>
         onValueChange(
-          event.target.value === "box"
-            ? {
-                id: "box",
-                item_id: "product-1",
-                name: "Box",
-                conversion_factor: 12,
-              }
-            : {
-                id: "pcs",
-                item_id: "product-1",
-                name: "pcs",
-                conversion_factor: 1,
-              },
+          event.target.value === ""
+            ? null
+            : event.target.value === "box"
+              ? {
+                  id: "box",
+                  item_id: "product-1",
+                  name: "Box",
+                  conversion_factor: 12,
+                }
+              : {
+                  id: "pcs",
+                  item_id: "product-1",
+                  name: "pcs",
+                  conversion_factor: 1,
+                },
         )
       }
     >
+      <option value="">Pilih unit</option>
       <option value="pcs">pcs</option>
       <option value="box">Box</option>
     </select>
@@ -128,6 +131,50 @@ async function chooseSupplier(index = 0, supplier = "supplier-1") {
 }
 
 describe("PR allocation", () => {
+  it("keeps a cleared supplier empty and allows selecting it again", async () => {
+    render(<Harness />);
+    await chooseSupplier();
+    const supplier = screen.getByRole("combobox", { name: /supplier/ });
+
+    await userEvent.selectOptions(supplier, "");
+    expect(supplier).toHaveValue("");
+    expect(continueButton()).toBeDisabled();
+
+    await userEvent.selectOptions(supplier, "supplier-1");
+    expect(supplier).toHaveValue("supplier-1");
+    expect(continueButton()).toBeEnabled();
+  });
+
+  it("does not restore a cleared supplier from another allocation's draft", async () => {
+    render(<Harness />);
+    await chooseSupplier();
+    await userEvent.click(
+      screen.getByRole("button", { name: /add_allocation/ }),
+    );
+    await chooseSupplier(1);
+
+    const suppliers = screen.getAllByRole("combobox", { name: /supplier/ });
+    await userEvent.selectOptions(suppliers[0], "");
+
+    expect(suppliers[0]).toHaveValue("");
+    expect(suppliers[1]).toHaveValue("supplier-1");
+    expect(continueButton()).toBeDisabled();
+  });
+
+  it("keeps a cleared unit empty and allows choosing the previous unit again", async () => {
+    render(<Harness />);
+    await chooseSupplier();
+    const unit = screen.getByRole("combobox", { name: "PO unit" });
+
+    await userEvent.selectOptions(unit, "");
+    expect(unit).toHaveValue("");
+    expect(continueButton()).toBeDisabled();
+
+    await userEvent.selectOptions(unit, "pcs");
+    expect(unit).toHaveValue("pcs");
+    expect(continueButton()).toBeEnabled();
+  });
+
   it("requests conversion factors for selectable units", () => {
     render(
       <AllocationStep

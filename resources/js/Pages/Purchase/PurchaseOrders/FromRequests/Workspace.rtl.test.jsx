@@ -103,6 +103,15 @@ const sources = [
 ];
 
 describe("PO from PR workspace navigation", () => {
+  it("uses the full available width for every wizard step", () => {
+    render(<Workspace token="token-1" sources={sources} />);
+    const workspace = screen.getByTestId(
+      "workspace-scroll-region",
+    ).parentElement;
+    expect(workspace).toHaveClass("w-full");
+    expect(workspace).not.toHaveClass("max-w-6xl");
+  });
+
   it("keeps the shell header and footer outside the content scroll region", () => {
     render(<Workspace token="token-1" sources={sources} />);
     const scrollRegion = screen.getByTestId("workspace-scroll-region");
