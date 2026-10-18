@@ -37,8 +37,11 @@ table.resizeable-table {
      `whitespace-nowrap!` + `text-ellipsis!` (harus `!important`: selector
      gabungan di sini (0,1,3) lebih spesifik drpd utility class polos di span
      itu sendiri (0,1,0), lihat Table2.jsx NOWRAP_CELL_TYPES). */
-  th span,
-  td span {
+  /* Isi tag semantik (SemanticTemplate/TemplateProgress/TemplateChips, dibungkus
+     `[data-semantic]` oleh Cell) dikecualikan: layout flex/inline-flex-nya harus
+     bisa menang atas `display: block` di bawah ini. */
+  th span:not([data-semantic] *),
+  td span:not([data-semantic] *) {
     @apply overflow-hidden block whitespace-normal break-words;
   }
   thead tr th {

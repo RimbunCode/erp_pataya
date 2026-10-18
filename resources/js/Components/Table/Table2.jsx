@@ -191,42 +191,51 @@ export const Cell = memo(
     // (Req 6.2), bukan terhadap baris induk.
     switch (type === "relations" ? type : template ? "template" : type) {
       case "template":
+        // `data-semantic`: pengecualian aturan `td span` di table.css (lihat di sana).
         valueCell = (
-          <SemanticTemplate
-            template={template}
-            row={row}
-            column={{
-              type,
-              route,
-              name,
-              valueTrans,
-              parse,
-              primaryKey,
-              isLink,
-              ...colProps,
-            }}
-            context="cell"
-          />
+          <div data-semantic="">
+            <SemanticTemplate
+              template={template}
+              row={row}
+              column={{
+                type,
+                route,
+                name,
+                valueTrans,
+                parse,
+                primaryKey,
+                isLink,
+                ...colProps,
+              }}
+              context="cell"
+            />
+          </div>
         );
         break;
       case "progress":
         // Nilai 0-100 (2 desimal) atau null dari expression backend.
-        return <TemplateProgress value={value} shape={colProps.shape} />;
+        return (
+          <div data-semantic="">
+            <TemplateProgress value={value} shape={colProps.shape} />
+          </div>
+        );
       case "relations":
         return (
-          <TemplateChips
-            row={row}
-            column={{
-              type,
-              route,
-              name,
-              valueTrans,
-              parse,
-              primaryKey,
-              isLink,
-              ...colProps,
-            }}
-          />
+          <div data-semantic="">
+            <TemplateChips
+              row={row}
+              column={{
+                type,
+                route,
+                name,
+                valueTrans,
+                parse,
+                primaryKey,
+                isLink,
+                ...colProps,
+              }}
+            />
+          </div>
         );
       case "image": {
         const name = convertTemplateLink(row);

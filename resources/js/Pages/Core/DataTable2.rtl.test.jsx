@@ -1810,6 +1810,49 @@ describe("DataTable2", () => {
       expect(props.onOpenBuilder).toEqual(expect.any(Function));
     });
 
+    describe("kolom type progress", () => {
+      const progressColumns = (extra = {}) => ({
+        name: { name: "name", title: "Nama", type: "string", show: true },
+        done: {
+          name: "done",
+          title: "Selesai",
+          type: "progress",
+          show: true,
+          ...extra,
+        },
+      });
+
+      it("default: lebar fit dengan minimum dan tidak resizeable", async () => {
+        usePageMock.mockReturnValue({
+          props: makePageProps({ dataTableColumns: progressColumns() }),
+        });
+        await renderDataTable2(<DataTable2 />);
+
+        const { columns } = lastTable2Props();
+        expect(columns.done.width).toBe("minmax(150px, max-content)");
+        expect(columns.done.resizeable).toBe(false);
+        // Kolom lain tidak berubah.
+        expect(columns.name.width).toBeUndefined();
+        expect(columns.name.resizeable).toBe(true);
+      });
+
+      it("developer dapat menimpa width dan resizeable", async () => {
+        usePageMock.mockReturnValue({
+          props: makePageProps({
+            dataTableColumns: progressColumns({
+              width: "240px",
+              resizeable: true,
+            }),
+          }),
+        });
+        await renderDataTable2(<DataTable2 />);
+
+        const { columns } = lastTable2Props();
+        expect(columns.done.width).toBe("240px");
+        expect(columns.done.resizeable).toBe(true);
+      });
+    });
+
     it.each([
       ["?fid= di URL", { ziggy: { query: { fid: "12" } } }, "12"],
       [

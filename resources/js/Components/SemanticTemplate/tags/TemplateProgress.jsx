@@ -52,15 +52,17 @@ export default function TemplateProgress({ value, shape, className }) {
     "aria-valuetext": label,
   };
 
+  // Nilai persen selalu di SAMPING bentuk (bar maupun donut). Bar mengisi sisa
+  // lebar sel/kolom (flex-1) dengan lebar minimum agar tidak mengecil jadi garis.
   if (shape === "bar") {
     return (
       <span
-        className={cn("inline-flex items-center gap-2", className)}
+        className={cn("flex w-full items-center gap-2", className)}
         data-shape="bar"
       >
         <span
           {...aria}
-          className="block h-2 w-24 overflow-hidden rounded-full bg-muted"
+          className="block h-2 min-w-16 flex-1 overflow-hidden rounded-full bg-muted"
         >
           <span
             data-slot="fill"
@@ -71,48 +73,44 @@ export default function TemplateProgress({ value, shape, className }) {
             style={{ width: `${progress}%` }}
           />
         </span>
-        <span className="text-xs tabular-nums">{label}</span>
+        <span className="shrink-0 text-xs tabular-nums">{label}</span>
       </span>
     );
   }
 
   return (
     <span
-      {...aria}
+      className={cn("inline-flex items-center gap-2", className)}
       data-shape="donut"
-      className={cn(
-        "relative inline-flex size-10 items-center justify-center",
-        className,
-      )}
     >
-      <svg
-        viewBox="0 0 36 36"
-        className="size-full -rotate-90"
-        aria-hidden="true"
-      >
-        <circle
-          cx="18"
-          cy="18"
-          r={RADIUS}
-          fill="none"
-          strokeWidth="4"
-          className="stroke-muted"
-        />
-        <circle
-          data-slot="arc"
-          cx="18"
-          cy="18"
-          r={RADIUS}
-          fill="none"
-          strokeWidth="4"
-          strokeLinecap="round"
-          className={complete ? "stroke-green-500" : "stroke-blue-500"}
-          strokeDasharray={`${(progress / 100) * CIRCUMFERENCE} ${CIRCUMFERENCE}`}
-        />
-      </svg>
-      <span className="absolute text-[9px] font-medium tabular-nums">
-        {label}
+      <span {...aria} className="inline-flex size-8 shrink-0">
+        <svg
+          viewBox="0 0 36 36"
+          className="size-full -rotate-90"
+          aria-hidden="true"
+        >
+          <circle
+            cx="18"
+            cy="18"
+            r={RADIUS}
+            fill="none"
+            strokeWidth="4"
+            className="stroke-muted"
+          />
+          <circle
+            data-slot="arc"
+            cx="18"
+            cy="18"
+            r={RADIUS}
+            fill="none"
+            strokeWidth="4"
+            strokeLinecap="round"
+            className={complete ? "stroke-green-500" : "stroke-blue-500"}
+            strokeDasharray={`${(progress / 100) * CIRCUMFERENCE} ${CIRCUMFERENCE}`}
+          />
+        </svg>
       </span>
+      <span className="shrink-0 text-xs tabular-nums">{label}</span>
     </span>
   );
 }
