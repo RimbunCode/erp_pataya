@@ -107,6 +107,13 @@ describe("DialogContent", () => {
     useIsMobileMock.mockReturnValue(false);
   });
 
+  it("pins the dialog layer to the viewport instead of its static page position", () => {
+    renderOpenDialog();
+    expect(screen.getByRole("dialog").parentElement.parentElement).toHaveClass(
+      "inset-0",
+    );
+  });
+
   it("meneruskan ref ke elemen Radix Content asli", () => {
     const ref = { current: null };
     render(

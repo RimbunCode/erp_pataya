@@ -179,6 +179,38 @@ describe("Table2", () => {
       expect(selection.setMany).toHaveBeenCalledWith(data, true);
     });
 
+    it("menyembunyikan checkbox baris tanpa aksi eligible dan select-all hanya memilih baris eligible", async () => {
+      const user = userEvent.setup({ delay: null });
+      const selection = makeSelection();
+      render(
+        <Table2
+          columns={columns}
+          data={data}
+          selectable
+          selection={selection}
+          isRowSelectable={(row) => row.id === 2}
+        />,
+      );
+
+      expect(rowChecks()).toHaveLength(1);
+      await user.click(headerCheck());
+      expect(selection.setMany).toHaveBeenCalledWith([data[1]], true);
+    });
+
+    it("tidak menampilkan select-all bila tidak ada baris eligible", () => {
+      render(
+        <Table2
+          columns={columns}
+          data={data}
+          selectable
+          selection={makeSelection()}
+          isRowSelectable={() => false}
+        />,
+      );
+
+      expect(screen.queryAllByRole("forminput")).toHaveLength(0);
+    });
+
     it("klik header saat semua terpilih memanggil setMany(data, false)", async () => {
       const user = userEvent.setup({ delay: null });
       const selection = makeSelection([1, 2]);

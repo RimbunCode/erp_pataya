@@ -58,6 +58,7 @@ return [
         'edit_draft'                   => 'Edit draft',
         'item_count'                   => 'Items',
         'draft_error'                  => 'Check these draft fields:',
+        'draft_incomplete'             => 'Incomplete',
         'save_drafts'                  => 'Save all PO drafts',
         'saving'                       => 'Saving PO drafts…',
         'save_failed'                  => 'PO drafts were not saved',

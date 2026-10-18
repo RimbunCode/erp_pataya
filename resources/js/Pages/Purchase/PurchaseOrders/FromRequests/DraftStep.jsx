@@ -31,6 +31,7 @@ import {
   splitDraft,
 } from "./allocationState";
 import { applyDraftData, buildDraftData } from "./draftData";
+import { buildSubmissionDrafts, validateSubmissionDrafts } from "./reviewData";
 import { QuantityWarnings } from "./AllocationStep";
 import PurchaseRequestNotes from "./PurchaseRequestNotes";
 
@@ -107,13 +108,20 @@ export default function DraftStep({
   const { t } = useLaravelReactI18n();
   const [pending, setPending] = useState(null);
   const [splitQuantityValue, setSplitQuantityValue] = useState(1);
+  const [showValidationErrors, setShowValidationErrors] = useState(false);
   const draftId = state.activeDraftId ?? state.draftOrder[0];
   const data = draftId ? buildDraftData(state, draftId, defaultDate) : null;
+  const clientErrors = validateSubmissionDrafts(
+    buildSubmissionDrafts(state, defaultDate),
+  );
+  const visibleErrors = showValidationErrors
+    ? { ...clientErrors, ...errors }
+    : errors;
   const activeSources = sources.filter((source) =>
     data?.items.some((item) => item.purchase_request_id === source.id),
   );
   const draftErrors = Object.fromEntries(
-    Object.entries(errors)
+    Object.entries(visibleErrors)
       .filter(([path]) =>
         path.startsWith(`drafts.${state.draftOrder.indexOf(draftId)}.`),
       )
@@ -198,13 +206,33 @@ export default function DraftStep({
     setPending(null);
   };
 
+  const continueToReview = () => {
+    const firstInvalidIndex = state.draftOrder.findIndex((_, index) =>
+      Object.keys(clientErrors).some((path) =>
+        path.startsWith(`drafts.${index}.`),
+      ),
+    );
+    if (Object.keys(clientErrors).length > 0) {
+      setShowValidationErrors(true);
+      if (firstInvalidIndex >= 0) {
+        setState((current) => ({
+          ...current,
+          activeDraftId: current.draftOrder[firstInvalidIndex],
+        }));
+      }
+      return;
+    }
+    setShowValidationErrors(false);
+    onContinue();
+  };
+
   if (!data) return null;
   const footer = (
     <div className="flex flex-wrap justify-between gap-3">
       <Button type="button" variant="outline" onClick={onBack}>
         {t(`${translationPrefix}back`)}
       </Button>
-      <Button type="button" onClick={onContinue}>
+      <Button type="button" onClick={continueToReview}>
         {t(`${translationPrefix}continue_review`)} ({state.draftOrder.length}{" "}
         PO)
       </Button>
@@ -224,6 +252,9 @@ export default function DraftStep({
         </p>
         {state.draftOrder.map((id, index) => {
           const draft = state.draftsById[id];
+          const incomplete = Object.keys(clientErrors).some((path) =>
+            path.startsWith(`drafts.${index}.`),
+          );
           const count = Object.values(state.allocationsById).filter(
             (allocation) => allocation.draft_id === id,
           ).length;
@@ -231,8 +262,9 @@ export default function DraftStep({
             <Button
               key={id}
               type="button"
-              variant={id === draftId ? "default" : "outline"}
+              variant={id === draftId ? "secondary" : "outline"}
               aria-label={`draft-${index + 1}`}
+              aria-current={id === draftId ? "true" : undefined}
               className="h-auto w-full justify-start whitespace-normal text-left"
               onClick={() =>
                 setState((current) => ({ ...current, activeDraftId: id }))
@@ -244,6 +276,11 @@ export default function DraftStep({
                   {draft.data?.supplier?.name ?? draft.supplier_id} · {count}{" "}
                   item
                 </small>
+                {incomplete && (
+                  <small className="mt-1 block font-medium text-destructive">
+                    {t(`${translationPrefix}draft_incomplete`)}
+                  </small>
+                )}
               </span>
             </Button>
           );
@@ -269,10 +306,16 @@ export default function DraftStep({
             {state.draftOrder.map((id, index) => (
               <option key={id} value={id}>
                 {t(`${translationPrefix}draft_number`, { number: index + 1 })}
+                {Object.keys(clientErrors).some((path) =>
+                  path.startsWith(`drafts.${index}.`),
+                )
+                  ? ` — ${t(`${translationPrefix}draft_incomplete`)}`
+                  : ""}
               </option>
             ))}
           </select>
         </label>
+        <QuantityWarnings state={state} sources={sources} />
         <Card>
           <CardContent className="min-w-0 space-y-4 p-4 md:p-6">
             <header>
@@ -286,13 +329,8 @@ export default function DraftStep({
               </p>
             </header>
             {Object.keys(draftErrors).length > 0 && (
-              <div
-                role="alert"
-                className="rounded-md border border-destructive p-3 text-sm text-destructive"
-              >
-                <p className="font-medium">
-                  {t(`${translationPrefix}draft_error`)}
-                </p>
+              <div role="alert" className="flex-col w-full mt-4 alert error">
+                <p className="font-medium">{t("core.form.errors.title")}</p>
                 <ul>
                   {Object.entries(draftErrors).map(([path, message]) => (
                     <li key={path}>
@@ -330,13 +368,6 @@ export default function DraftStep({
                       setSplitQuantityValue(1);
                       setPending({ type: "splitQuantity", allocationId });
                     }}
-                  />
-                )}
-                renderSourceWarning={(sourceItemId) => (
-                  <QuantityWarnings
-                    state={state}
-                    sources={sources}
-                    sourceId={sourceItemId}
                   />
                 )}
               />
