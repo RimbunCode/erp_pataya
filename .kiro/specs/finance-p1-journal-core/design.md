@@ -9,7 +9,7 @@ Fase 1 menambahkan **header jurnal** di atas tabel `general_ledgers` yang sudah 
 - **Adapter `postPair()`** menggantikan 10 titik `generalLedgerEntries()->create` agar hasil akuntansi identik; characterization test Fase 0 menjaga hal itu.
 - **Immutability** di level model + test arsitektur yang melarang penulisan GL di luar service.
 - **Reversal** sebagai satu-satunya cara koreksi.
-- **Periode fiskal** dasar dengan penegakan di balik preferensi (`finance_enforce_fiscal_period`, default mati) agar tidak memblokir data historis.
+- **Periode fiskal** dasar dengan penegakan di balik setting (`finance_enforce_fiscal_period`, default mati) agar tidak memblokir data historis.
 - **Backfill** idempoten data lama menjadi jurnal legacy.
 
 Keputusan D-1 (queue vs sinkron) **tidak disentuh**: listener tetap queued dengan `GlPostingStatus`. Invarian "seimbang" ditegakkan di `JournalService`, sehingga berlaku apa pun mode pemanggilnya.
@@ -155,7 +155,7 @@ final class JournalService {
 Langkah `post()` (urutan penting):
 
 1. **Validasi struktur** (tanpa DB): jumlah baris, nilai non-negatif, satu sisi per baris.
-2. **Pembulatan & keseimbangan** (tanpa DB): `MinorUnit::toMinor($v, $mu)` per baris; bandingkan Σ debit vs Σ kredit sebagai integer. `$mu` = `minor_unit` mata uang dasar (preferensi `default_currency_id`).
+2. **Pembulatan & keseimbangan** (tanpa DB): `MinorUnit::toMinor($v, $mu)` per baris; bandingkan Σ debit vs Σ kredit sebagai integer. `$mu` = `minor_unit` mata uang dasar (setting umum `default_currency_id`).
 3. **Transaksi**: `DB::transaction(...)`. Bila sudah di dalam transaksi pemanggil (listener/service), Laravel memakai savepoint — kegagalan menggulung kembali sampai savepoint dan exception diteruskan ke pemanggil.
 4. **Lock & validasi akun**: `Account::withTrashed()->whereIn('id', $ids)->orderBy('id')->lockForUpdate()->get()`; tolak jika hilang/terhapus/`is_group`/`is_disabled`.
 5. **Periode**: `FiscalPeriodService::resolve($date)`; jika `finance_enforce_fiscal_period` aktif → `assertOpen`.
@@ -303,9 +303,9 @@ Ubah (gated, Task 8): `against_account_id` → nullable; `debit`/`credit` → `d
 
 Tambah `minor_unit` (smallInteger default 2) dan `numeric_code` (string(3) nullable). Migration data mengisi mata uang umum (IDR=360, USD=840, EUR=978, SGD=702, MYR=458, JPY=392 minor unit 0, dst.) secara idempoten dan hanya untuk kode yang sudah ada.
 
-### Preferensi
+### Setting
 
-`finance_enforce_fiscal_period` = `false` ditambahkan di `PreferenceSeeder` dan (agar produksi yang sudah ada tidak perlu seeder penuh) dibuat idempoten lewat migration data atau `firstOrCreate` di bootstrap perintah. Pembacaan: `Preference::find('finance_enforce_fiscal_period')?->value ?? false` (pola yang sama dengan `default_currency_id` pada `PaymentEntryService`).
+`finance_enforce_fiscal_period` (default `false`) disimpan sebagai setting modul Finances pada tabel setting hasil spec `module-settings-foundation` (PRD D-25), **bukan** di tabel `preferences`. Nilai awal dan migrasi data ditentukan spec tersebut; di sini cukup dibaca lewat service setting Finances (mis. `FinanceSettings::enforceFiscalPeriod()`), bukan `Preference::find(...)`. Mata uang dasar (`default_currency_id`) dibaca dari setting umum yang sama.
 
 ## Correctness Properties
 
@@ -367,7 +367,7 @@ Pesan exception berlokalisasi lewat kunci `lang/{id,en}/finances/journal.php` (b
 
 ## Konfirmasi yang Masih Diperlukan
 
-1. **D-4** — `company_id` di `journals` sekarang atau tidak.
+1. **D-4** — diputuskan satu perusahaan (2026-10-18): tidak ada `company_id` di `journals`.
 2. **D-14** — jurnal manual di fase ini atau tidak.
 3. Awalan nomor jurnal legacy dan tahun fiskal kalender vs non-kalender (akuntan).
 4. Mekanisme audit aplikasi yang dipakai (`Log` vs lainnya).

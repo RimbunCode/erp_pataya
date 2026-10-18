@@ -18,7 +18,7 @@ Fakta kode yang mendasari desain:
 | `UpdatePaymentableStatus` (listener sinkron) mengubah `paid_amount` dan status invoice | Tetap dipakai; dipanggil per alokasi |
 | Invoice: `outstanding_amount` & `*_base_currency` adalah kolom generated berbasis kurs invoice | Tidak diubah; nilai dasar kas aktual disimpan pada alokasi |
 | `payment_entries.exchange_rate` default 0 dan `PaymentEntryService::fillRelations` memaksa 1 bila mata uang = dasar | Jejak kurs baru menambah tipe/tanggal/sumber; default 0 ditangani |
-| Mata uang dasar = `Preference default_currency_id` | `FxEngine` membaca preferensi yang sama |
+| Mata uang dasar = setting umum `default_currency_id` | `FxEngine` membaca setting yang sama |
 | Retur = invoice dengan `return_against_id` | Alokasi `credit_note` menggunakan hubungan ini |
 
 ## Architecture
@@ -95,7 +95,7 @@ final readonly class FxConversion {
 
 final class FxEngine {
     public function convert(float|string $amount, string $from, string $to, CarbonInterface $date, RateType $type): FxConversion;
-    public function baseCurrency(): string;   // Preference default_currency_id
+    public function baseCurrency(): string;   // setting umum default_currency_id
 }
 ```
 
@@ -147,7 +147,7 @@ Uang muka dialokasikan kemudian: jurnal reklasifikasi `purpose = advance_applica
 
 ### `PartyLedgerService`
 
-Sumber: `general_ledgers` (aktif, jurnal `posted`/`reversed`) pada akun kontrol (peran `receivable`/`payable` ter-resolve, termasuk akun override dokumen) dengan `partyable_*`. `openItems(party, asOf)` = invoice dengan `amount − Σ alokasi aktif ≤ asOf > 0`, digabung dengan uang muka tak teralokasi dan kredit terbuka. `balance` = Σ debit − Σ kredit baris kontrol pihak. `statement(party, from, to)` = baris jurnal berurutan + saldo berjalan. Query memakai indeks `(partyable_type, partyable_id, account_id, transaction_date)` (ditambah di Fase 4).
+Sumber: `general_ledgers` (aktif, jurnal `posted`/`reversed`) pada akun kontrol (peran `receivable`/`payable` ter-resolve, dari konfigurasi; dokumen sebelum cutover Fase 2 memakai akun yang tercatat pada dokumennya) dengan `partyable_*`. `openItems(party, asOf)` = invoice dengan `amount − Σ alokasi aktif ≤ asOf > 0`, digabung dengan uang muka tak teralokasi dan kredit terbuka. `balance` = Σ debit − Σ kredit baris kontrol pihak. `statement(party, from, to)` = baris jurnal berurutan + saldo berjalan. Query memakai indeks `(partyable_type, partyable_id, account_id, transaction_date)` (ditambah di Fase 4).
 
 ### Penyimpanan jejak kurs
 
@@ -180,7 +180,7 @@ Indeks `(allocatable_type, allocatable_id, status)` dan `(payment_entry_id)`.
 
 ### Kolom tambahan
 
-`sales_invoices`, `purchase_invoices`, `payment_entries`: `exchange_rate_type` string(16) nullable, `exchange_rate_date` date nullable, `exchange_rate_source` string(16) nullable. `general_ledgers`: indeks `(partyable_type, partyable_id, account_id, transaction_date)`. Preferensi: `finance_fx_max_age_days` (7), `finance_fx_allow_inverse` (true), `finance_payment_tolerance` (0), `finance_payment_allocation_enabled` (false). Peran baru di `AccountRole`: `customer_advance`, `supplier_advance`, `payment_difference` (`fx_gain`/`fx_loss` sudah ada sejak Fase 2).
+`sales_invoices`, `purchase_invoices`, `payment_entries`: `exchange_rate_type` string(16) nullable, `exchange_rate_date` date nullable, `exchange_rate_source` string(16) nullable. `general_ledgers`: indeks `(partyable_type, partyable_id, account_id, transaction_date)`. Setting: `finance_fx_max_age_days` (7), `finance_fx_allow_inverse` (true), `finance_payment_tolerance` (0), `finance_payment_allocation_enabled` (false). Peran baru di `AccountRole`: `customer_advance`, `supplier_advance`, `payment_difference` (`fx_gain`/`fx_loss` sudah ada sejak Fase 2).
 
 ## Correctness Properties
 

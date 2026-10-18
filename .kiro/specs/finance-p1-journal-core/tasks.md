@@ -4,7 +4,7 @@
 
 Urutan kerja: verifikasi asumsi dulu (Task 1), lalu migration + model aditif (2), service inti dengan test (4), adapter 10 titik posting yang dijaga characterization test Fase 0 (6), backfill + rekonsiliasi (7), perubahan tipe kolom yang **dikunci gate** (8–9), UI (10), dan jurnal manual opsional (11). Setiap checkpoint menjalankan test yang relevan. Lint/Pint dijalankan sekali di akhir (aturan project).
 
-**Prasyarat (wajib)**: Fase 0 selesai dan disetujui — characterization test hijau, laporan audit tersedia, D-4 dan Q1 terjawab. Jangan mulai Task 6 sebelum Task 4 selesai dan characterization test Fase 0 hijau di branch ini. Branch harus terbaru dari remote (aturan git worktree project).
+**Prasyarat (wajib)**: Fase 0 selesai dan disetujui — characterization test hijau, laporan audit tersedia, Q1 terjawab (D-4 sudah diputuskan), dan service setting Finances dari spec `module-settings-foundation` tersedia (D-25). Jangan mulai Task 6 sebelum Task 4 selesai dan characterization test Fase 0 hijau di branch ini. Branch harus terbaru dari remote (aturan git worktree project).
 
 **Aturan eksekusi**:
 - Task 8 dan 9 bersifat *gated*: tidak dijalankan otomatis; membutuhkan hasil pra-pemeriksaan dan persetujuan jendela pemeliharaan.
@@ -25,7 +25,7 @@ Urutan kerja: verifikasi asumsi dulu (Task 1), lalu migration + model aditif (2)
     - _Requirements: 14.2_
   - [ ] 1.5 Verifikasi mekanisme `FormatingSeries::generate()` (pendaftaran baris series untuk model baru, keamanan terhadap balapan); tentukan strategi kunci untuk `Journal.code`; hapus `[TODO]` di design
     - _Requirements: 1.6_
-  - [ ] 1.6 Verifikasi cara menambah `Preference` baru pada lingkungan yang sudah berjalan (seeder vs migration data)
+  - [ ] 1.6 Verifikasi kontrak service setting Finances dari spec `module-settings-foundation` (cara menambah setting baru pada lingkungan berjalan, cara membacanya dari service/listener) dan pakai untuk `finance_enforce_fiscal_period`
     - _Requirements: 6.4_
 
 - [ ] 2. Migration, model, dan exception (aditif)

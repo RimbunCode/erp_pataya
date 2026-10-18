@@ -109,7 +109,7 @@ tests/Feature/Finances/Characterization/
 tests/Support/BuildsFinanceFixtures.php
 ```
 
-`BuildsFinanceFixtures` (trait): membuat user, branch, akun standar (kas, piutang, pendapatan, utang, beban, stok, SRNB, akun aset/depresiasi), preferensi (`default_currency_id`, `timezone`), dan memanggil `initPermissions()` untuk model terkait — mengikuti pola `setUp()` di `tests/Feature/Finances/GeneralLedgerControllerTest.php` (termasuk penambahan kolom `is_example` yang dilakukan test existing). Faktor di `database/factories/Finances` dipakai bila tersedia; sisanya dibuat langsung lewat model.
+`BuildsFinanceFixtures` (trait): membuat user, branch, akun standar (kas, piutang, pendapatan, utang, beban, stok, SRNB, akun aset/depresiasi), setting umum (`default_currency_id`, `timezone`), dan memanggil `initPermissions()` untuk model terkait — mengikuti pola `setUp()` di `tests/Feature/Finances/GeneralLedgerControllerTest.php` (termasuk penambahan kolom `is_example` yang dilakukan test existing). Faktor di `database/factories/Finances` dipakai bila tersedia; sisanya dibuat langsung lewat model.
 
 Listener queue dieksekusi sinkron di test dengan `config(['queue.default' => 'sync'])`; assert pada `GeneralLedger::withTrashed()->where('referenceable_id', ...)`.
 

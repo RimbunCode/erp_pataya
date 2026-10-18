@@ -107,10 +107,10 @@ Alasan fase ini ada: PRD memuat temuan audit kode (F-01…F-15) yang sebagian ma
 #### Acceptance Criteria
 
 1. THE sistem SHALL menghasilkan `docs/prd/finance-audit-report.md` yang merangkum hasil `finance:audit-gl` (dijalankan di staging, dan di produksi bila akses disetujui pemilik), hasil known-issue test, dan hasil audit skema.
-2. THE sistem SHALL menghasilkan `docs/prd/finance-decision-log.md` berisi D-1, D-4, D-11, D-12 dan pertanyaan Q1–Q7 PRD, masing-masing dengan opsi, rekomendasi, pemilik keputusan, status, dan tanggal.
+2. THE sistem SHALL menghasilkan `docs/prd/finance-decision-log.md` berisi D-1, D-4 (sudah diputuskan 2026-10-18: satu perusahaan), D-11, D-12 dan pertanyaan Q1–Q7 PRD, masing-masing dengan opsi, rekomendasi, pemilik keputusan, status, dan tanggal.
 3. FOR setiap bug terkonfirmasi, THE laporan SHALL mencantumkan dampak, usulan penanganan (hotfix terpisah, Fase 1, atau Fase 2), dan meminta keputusan pemilik produk.
 4. THE laporan SHALL menyajikan estimasi beban backfill Fase 1 berdasarkan jumlah baris, jumlah kelompok, dan persentase kelompok tak seimbang.
-5. THE spec Fase 1 SHALL TIDAK dimulai sebelum pemilik produk menyetujui laporan ini dan menjawab minimal D-4 dan Q1.
+5. THE spec Fase 1 SHALL TIDAK dimulai sebelum pemilik produk menyetujui laporan ini dan menjawab minimal Q1 (D-4 sudah diputuskan).
 
 ### Requirement 8: Batasan non-fungsional fase
 
@@ -127,5 +127,5 @@ Alasan fase ini ada: PRD memuat temuan audit kode (F-01…F-15) yang sebagian ma
 |---|---|---|
 | Q1 | Apakah audit boleh dijalankan pada DB **produksi** (read-only)? Menentukan apakah estimasi beban backfill berbasis data nyata | Requirement 1, 3, 7.4 |
 | Q-P0-1 | Siapa yang menjalankan perintah di staging/produksi dan mengirim hasilnya? | Task 6.5 |
-| D-4 | Satu perusahaan atau multi-company? Harus terjawab sebelum Fase 1 (Requirement 7.5) | Requirement 7.5 |
+| D-4 | Satu perusahaan — DECIDED 2026-10-18 (PRD); dicatat di decision log | Requirement 7.5 |
 | D-11 | Standar akuntansi acuan (SAK/PSAK vs IFRS) — hanya dicatat di decision log pada fase ini | Requirement 7.2 |

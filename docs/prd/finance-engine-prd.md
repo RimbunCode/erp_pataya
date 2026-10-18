@@ -2,10 +2,12 @@
 
 | | |
 |---|---|
-| **Status** | Draft v1 — menunggu konfirmasi keputusan bertanda **PENDING** (Bagian 7) |
+| **Status** | Draft v1.1 — menunggu konfirmasi keputusan bertanda **PENDING** (Bagian 7) |
+| **Revisi v1.1** | 2026-10-18 — keputusan pemilik produk: satu perusahaan, akun hanya dari konfigurasi, aturan akun bersyarat, setting keuangan dipindah dari `preferences` (D-4, D-25, D-26, D-27) |
 | **Tanggal** | 2026-10-18 |
 | **Cakupan** | Fondasi keuangan seluruh ERP: Journal/GL, Posting, Pajak, Mata Uang/FX, AR/AP, Pelaporan, Penutupan Periode |
 | **Spec turunan** | `finance-p0-foundation-audit` … `finance-p6-closing-revaluation` (lihat Bagian 10) |
+| **Dokumen terkait** | [`module-settings-prd.md`](module-settings-prd.md) — program Konfigurasi Modul; fondasinya (spec S) menjadi prasyarat Fase 1 dan menampung setting keuangan |
 | **Sumber gagasan** | Dokumen rancangan "Financial Engine" (pasted) + audit kode pada branch `claude/financial-engine-erp-06535d` |
 
 > **Cara membaca dokumen ini.** Bagian 1–5 menjelaskan *mengapa* dan *apa*. Bagian 6–9 menjelaskan *bentuk* sistem target. Bagian 10–12 adalah *rencana kerja*. Lampiran A memuat temuan audit kode yang mendasari seluruh keputusan; setiap temuan diberi ID (`F-xx`) yang dirujuk oleh spec fase.
@@ -36,7 +38,7 @@ Ringkasan hasil audit (rincian dan rujukan file di Lampiran A):
 | Pajak | `taxes` hanya `name` + `rate`; GL menerima satu `totalAmount` | PPN Masukan/Keluaran tidak terpisah di GL; laporan pajak tidak dapat diturunkan dari ledger (F-03, F-14) |
 | Pembatalan | Cancel dokumen men-soft-delete baris GL/SLE (bukan reversal); ada potensi balapan dengan posting asinkron | Riwayat ledger hilang dari laporan; periode lampau dapat berubah diam-diam; GL aktif bisa muncul untuk dokumen canceled (F-04, F-16) |
 | Posting | Campuran: queue (invoice, receipt, DN, aset), sinkron inline (Payment), langsung ubah saldo (Stock Entry) | Perilaku dan pemulihan kegagalan tidak seragam (F-05, F-09) |
-| Pemilihan akun | `where('account_type','stock')->latest()->first()` di beberapa listener | "Posting profile" tersirat dan rapuh; tidak per cabang/kategori (F-06) |
+| Pemilihan akun | `where('account_type','stock')->latest()->first()` di beberapa listener | "Posting profile" tersirat dan rapuh; tidak dapat dikonfigurasi menurut jenis barang, kategori, atau retur (F-06) |
 | FX | `exchange_rate` per dokumen; tanpa tipe kurs, realized/unrealized FX | Selisih kurs tidak tercatat (F-11, F-13) |
 | Periode | Tidak ada fiscal year/period | Transaksi dapat diposting ke periode mana pun, tanpa penguncian (F-08) |
 | Aset | Skema depresiasi, disposal, akun per kategori & cabang sudah ada | Paling matang; menjadi acuan pola |
@@ -54,6 +56,7 @@ Ringkasan hasil audit (rincian dan rujukan file di Lampiran A):
 - **G4 — Modul bisnis tidak mengenal detail akuntansi:** modul menghasilkan *accounting event/context*; engine yang memutuskan akun dan jurnal.
 - **G5 — Dapat dijelaskan:** setiap angka pajak/FX/jurnal dapat ditelusuri ke aturan, versi aturan, dan dokumen sumbernya.
 - **G6 — Migrasi tanpa mengganggu operasi:** transisi bertahap per jenis dokumen, dengan feature flag, parity test, dan rekonsiliasi.
+- **G7 — Akun ditentukan konfigurasi:** user transaksi tidak memilih akun pada form dokumen; akun ditentukan oleh profil dan aturan bersyarat (jenis dokumen, retur, atribut barang), dan akun yang dipakai tetap tercatat pada dokumen untuk audit.
 
 ### 3.2 Non-Tujuan (di luar program ini)
 
@@ -128,7 +131,7 @@ app/Models/Finances/   Journal, GeneralLedger (= journal line), FiscalYear, Fisc
 | Baris jurnal | `general_ledgers` (berpasangan) | `general_ledgers` + `journal_id`, N baris, `decimal` | 1 |
 | Periode fiskal | — | `fiscal_years`, `fiscal_periods` | 1 (dasar), 6 (penutupan) |
 | Status posting | `gl_posting_statuses` | dipertahankan; ditautkan ke `journals` | 1–2 |
-| Pemetaan akun | hardcode `account_type` | `posting_profiles`, `posting_profile_lines`, `account_roles` | 2 |
+| Pemetaan akun | hardcode `account_type` | `posting_profiles` (global), `posting_profile_accounts`, `posting_profile_rules` (aturan bersyarat), enum `AccountRole` | 2 |
 | Pajak | `taxes` (name, rate) | `taxes` + `tax_rule_versions` + `tax_calculations` | 3 |
 | Mata uang | `currencies` (code, name, symbol) | + `minor_unit`, `numeric_code` | 1 |
 | Kurs | `exchange_rate` per dokumen | `exchange_rates` (tipe, tanggal, sumber) | 4 |
@@ -153,7 +156,7 @@ Status: **DECIDED** = sudah ditetapkan (mis. dari spec terdahulu); **PROPOSED** 
 | D-1 | Mode posting: antrian vs sinkron | **PENDING** | 2 |
 | D-2 | Perluas `general_ledgers` (tambah `journal_id`) alih-alih tabel jurnal baru | PROPOSED | 1 |
 | D-3 | `decimal(20,4)` untuk tabel jurnal; pembulatan di batas posting | PROPOSED | 1 |
-| D-4 | Satu perusahaan + dimensi cabang (multi-company di luar cakupan) | **PENDING** | 1 |
+| D-4 | Satu perusahaan + dimensi cabang (multi-company di luar cakupan); profil dan setting bersifat global | **DECIDED** (2026-10-18) | 1 |
 | D-5 | Hanya Indonesia; titik ekstensi `jurisdiction_code` | PROPOSED | 3 |
 | D-6 | Struktur kode `{Domain}/{Feature}` di domain `Finances` | DECIDED (konvensi project) | semua |
 | D-7 | Immutability di level aplikasi (guard model + service); trigger DB ditunda | PROPOSED | 1 |
@@ -174,6 +177,10 @@ Status: **DECIDED** = sudah ditetapkan (mis. dari spec terdahulu); **PROPOSED** 
 | D-22 | Kebijakan soft close vs hard close dan pemegang izin | **PENDING** | 6 |
 | D-23 | Penutupan/pembukaan periode wajib berurutan | **PENDING** | 6 |
 | D-24 | Akun laba ditahan untuk jurnal penutup tahun (akun "Laba" pada seeder) | **PENDING** (akuntan) | 6 |
+| D-25 | Setting keuangan (flag mode posting, tanggal cutover, toggle periode, dll.) dan setting umum yang dibaca engine disimpan di tabel setting modul bertipe dari spec `module-settings-foundation`, bukan tabel `preferences` | **DECIDED** (2026-10-18) | S, 1–6 |
+| D-26 | Akun transaksi ditentukan oleh konfigurasi saja; field akun dihapus dari form per jenis dokumen yang `on`; kolom DB dipertahankan sebagai catatan audit; kolom `accounts.is_contra` dihapus | **DECIDED** (2026-10-18) | 2 |
+| D-27 | Posting diskon ke akun terpisah, aktif lewat tanggal cutover per jenis dokumen; pembulatan di Fase 3, selisih kurs di Fase 4/6 | PROPOSED (perlakuan diskon pembelian stok menunggu akuntan, Q-P2-5) | 2 |
+| D-28 | `TaxEngine` tidak mengasumsikan satu pajak per baris (`TaxInput` per pasangan baris–pajak); multi-pajak per baris dokumen (pola Odoo) menjadi spec masa depan `multi-tax-per-line` | PROPOSED | 3 |
 
 ### D-1 — Mode posting (PENDING)
 
@@ -205,9 +212,21 @@ Akuntan umumnya membutuhkan jurnal manual untuk penyesuaian dan koreksi pasca-re
 
 **Opsi.** A: tetap tanggal approve (tanpa perubahan; tambahkan peringatan ketidaksesuaian pada checklist). B (umum pada praktik akuntansi): tanggal pembukuan = tanggal dokumen; dokumen bertanggal pada periode tertutup ditolak saat approve; data historis tidak dibukukan ulang. Fase 1–5 tidak menunggu keputusan ini; Fase 6 menyiapkan titik ekstensi `bookingDate()` dan menunda perubahan perilaku.
 
-### D-4 — Satu perusahaan (PENDING)
+### D-4 — Satu perusahaan (DECIDED)
 
-Bukti dari kode: pengaturan perusahaan disimpan sebagai `Preference` (mis. `default_currency_id`) dan cabang (`branches`) adalah dimensi, bukan entitas hukum. Rancangan ini mengasumsikan satu entitas hukum. Jika multi-company direncanakan dalam 12 bulan ke depan, `company_id` harus dimasukkan sejak Fase 1 (biaya jauh lebih murah dibanding menambahkannya kemudian).
+Diputuskan pemilik produk (2026-10-18): satu entitas hukum; cabang (`branches`) hanyalah dimensi, bukan perusahaan terpisah. Akibatnya, **Posting Profile, aturan akun, dan setting keuangan bersifat global** (tanpa varian per cabang). Cabang tetap menjadi dimensi pada jurnal (`journals.branch_id`) dan laporan. `AssetCategoryAccount` yang sudah per cabang tidak diubah. Pengecualian multi-company tetap di luar cakupan (Non-Tujuan 3.2).
+
+### D-25 — Penyimpanan setting (DECIDED)
+
+Tabel `preferences` (key/value JSON) tidak dipakai untuk setting baru karena tidak mendukung foreign key (akun, pajak, gudang) dan validasi bertipe. Setting keuangan dibaca lewat service setting Finances dari spec `module-settings-foundation`. Nama logis kunci (`finance_posting_mode.{type}`, `finance_enforce_fiscal_period`, `finance_tax_split_from.*`, `finance_discount_split_from.*`, dan seterusnya) pada spec fase dipertahankan; bentuk kolom/tabelnya ditetapkan spec fondasi. Spec tersebut harus tersedia sebelum Fase 1.
+
+### D-26 — Akun hanya dari konfigurasi (DECIDED)
+
+Pemilih akun pada form Sales Invoice, Purchase Invoice, Payment Entry, Stock Entry, Additional Cost, dan Asset Value Adjustment dihapus setelah jenis dokumen itu berada pada mode `on` (Fase 2 Requirement 13). Akun dicatat engine pada kolom dokumen yang sudah ada dan pada kolom baru per baris item. Retur memakai varian aturan sendiri dengan fallback ke aturan normal. Kolom `accounts.is_contra` (non-standar; ERPNext tidak memilikinya) **dihapus** setelah pemakaiannya dibersihkan (Fase 2 Task 14.2). Penyajian akun bersaldo berlawanan (Retur/Potongan Penjualan) pada Fase 5 memakai saldo bertanda menurut `balance_type`, sehingga spec Fase 5 sudah disesuaikan.
+
+### D-27 — Posting diskon (PROPOSED)
+
+Diskon belum diposting ke GL (hanya dipakai sebagai pengurang basis pajak). Fase 2 Requirement 14 menambah jurnal terpisah (`discount`) di balik tanggal cutover per jenis dokumen sehingga dokumen lama tidak berubah. Pembulatan pajak tetap di Fase 3 (Requirement 8); selisih kurs terealisasi di Fase 4 dan revaluasi di Fase 6.
 
 ### D-11 — Standar akuntansi (PENDING)
 
@@ -230,9 +249,11 @@ ID bersifat ringkas; kriteria penerimaan terperinci ada di `requirements.md` tia
 ### 8.2 Posting Engine (Fase 2)
 
 - **FR-P1** Setiap jenis dokumen memiliki *posting rule* yang menghasilkan baris jurnal dari `PostingContext`.
-- **FR-P2** Akun ditentukan oleh *account role* (mis. `receivable`, `revenue`, `tax_output`, `stock`) melalui rantai fallback: override dokumen → kategori item/aset → grup pihak → default cabang → default perusahaan.
+- **FR-P2** Akun ditentukan oleh *account role* (mis. `receivable`, `revenue`, `tax_output`, `stock`) melalui rantai tetap: akun master (metode pembayaran, kategori aset) → aturan akun bersyarat (jenis dokumen × varian retur × tipe/kategori/status stok barang) → akun default profil global → *legacy fallback* selama transisi.
 - **FR-P3** Pembatalan/amend dokumen yang sudah diposting memicu reversal otomatis, menggantikan soft-delete GL di hook `Submitable` (bergantung pada D-13), dan menangani balapan cancel vs posting asinkron (F-16): job posting yang menemukan dokumen `canceled` tidak memposting.
 - **FR-P4** Migrasi per jenis dokumen dilindungi feature flag dan *parity test* terhadap perilaku lama.
+- **FR-P5** Dokumen transaksi tidak menerima input akun; kolom akun di DB dipertahankan dan diisi engine sebagai catatan audit (per baris untuk peran peka-barang). Pengecualian: baris Jurnal Manual.
+- **FR-P6** Diskon penjualan/pembelian dapat diposting ke akun diskon tersendiri, aktif per jenis dokumen lewat tanggal cutover (GATED).
 
 ### 8.3 Tax Engine (Fase 3)
 
@@ -286,9 +307,10 @@ Estimasi dalam minggu-orang untuk **satu developer senior** yang paham codebase;
 
 | Fase | Spec | Tujuan | Bergantung pada | Estimasi |
 |---|---|---|---|---|
+| S | `module-settings-foundation` | Tabel setting modul bertipe (menggantikan `preferences`), halaman setting bertab, menu item multi-desk; menampung setting keuangan fase 1–6 (D-25) | — (paralel dengan Fase 0) | belum diestimasi (spec ditulis terpisah) |
 | 0 | `finance-p0-foundation-audit` | Audit, characterization test, decision log, baseline data | — | 2–3 |
-| 1 | `finance-p1-journal-core` | Journal header+lines, immutability, reversal, fiscal period dasar, backfill | 0 | 6–10 |
-| 2 | `finance-p2-posting-engine` | Posting profile, resolver akun, refactor listener bertahap, reversal saat cancel | 1, D-1 | 5–8 |
+| 1 | `finance-p1-journal-core` | Journal header+lines, immutability, reversal, fiscal period dasar, backfill | 0, S | 6–10 |
+| 2 | `finance-p2-posting-engine` | Posting profile global, aturan akun bersyarat + varian retur, resolver akun, akun tanpa input pengguna, refactor listener bertahap, reversal saat cancel, posting diskon (GATED) | 1, D-1 | 5–8 |
 | 3 | `finance-p3-tax-engine` | Aturan pajak berversi, baris pajak di jurnal, TaxResult. **Bagian A** (aman, tanpa mengubah angka dokumen) dan **Bagian B** (konversi kolom hitung, GATED D-15) | 2; menyerap Requirement 4 spec `dpp-discount-and-tax-compliance` (belum diimplementasi) | 4–6 (A) + 2–3 (B) |
 | 4 | `finance-p4-ar-ap-fx` | Sub-ledger, alokasi pembayaran, master kurs, realized FX | 2 (3 untuk pajak pada alokasi) | 6–9 |
 | 5 | `finance-p5-reporting` | Laporan keuangan dari ledger, `account_balances` | 1–4 | 4–6 |
@@ -302,6 +324,7 @@ Setiap spec berisi `requirements.md`, `design.md`, `tasks.md`, dan `.config.kiro
 
 | Fase | Folder spec | Status dokumen |
 |---|---|---|
+| S | [`module-settings-foundation`](../../.kiro/specs/module-settings-foundation/requirements.md) | Draft lengkap; spec lintas modul, prasyarat Fase 1. Program induknya: [`module-settings-prd.md`](module-settings-prd.md) |
 | 0 | [`finance-p0-foundation-audit`](../../.kiro/specs/finance-p0-foundation-audit/requirements.md) | Draft lengkap — siap dieksekusi |
 | 1 | [`finance-p1-journal-core`](../../.kiro/specs/finance-p1-journal-core/requirements.md) | Draft lengkap — dieksekusi setelah Fase 0 disetujui |
 | 2 | [`finance-p2-posting-engine`](../../.kiro/specs/finance-p2-posting-engine/requirements.md) | Draft; peta rule sebagian bertanda `[TODO]` sampai kode sumber dibaca penuh |
@@ -329,7 +352,7 @@ Setiap spec berisi `requirements.md`, `design.md`, `tasks.md`, dan `.config.kiro
 **Pola strangler, per jenis dokumen.**
 
 1. Fase 1 menambahkan struktur baru **tanpa** mengubah perilaku listener: listener existing memanggil `JournalService` (adapter) sehingga setiap pasangan debit/kredit lama menjadi jurnal 2-baris yang valid.
-2. Fase 2 memindahkan satu jenis dokumen sekali waktu ke `PostingService` di balik *feature flag* (`Preference`/config). Urutan yang disarankan, dari risiko terendah: Asset (depresiasi, scrap, penyesuaian) → Payment → Purchase Receipt → Delivery Note → Sales Invoice → Purchase Invoice → Stock Entry.
+2. Fase 2 memindahkan satu jenis dokumen sekali waktu ke `PostingService` di balik *feature flag* (setting Finances/config). Urutan yang disarankan, dari risiko terendah: Asset (depresiasi, scrap, penyesuaian) → Payment → Purchase Receipt → Delivery Note → Sales Invoice → Purchase Invoice → Stock Entry.
 3. Untuk tiap jenis dokumen: jalankan mode *shadow* (hitung jurnal engine, bandingkan dengan jurnal lama, jangan tulis), lalu *cutover* ketika parity 100% pada seluruh fixture dan sampel data staging.
 4. Struktur lama (`accounts.balance_amount` sebagai sumber, pencarian akun hardcode) dipensiunkan hanya setelah Fase 5 membuktikan rekonsiliasi.
 
@@ -386,7 +409,7 @@ Catatan lingkungan: test suite memakai SQLite `:memory:` sedangkan dev DB MySQL 
 | Q1 | Apakah GL sudah berisi data **produksi** nyata (hanya staging yang terlihat)? Ini menentukan beban backfill dan kehati-hatian migrasi | Fase 1 |
 | Q2 | Siapa penanggung jawab akuntansi yang menyetujui kebijakan (D-11, D-12)? | Fase 0 |
 | Q3 | Berapa developer yang tersedia, dan apakah ada tenggat bisnis (mis. audit/pajak tertentu)? | Fase 0 |
-| Q4 | Apakah multi-company direncanakan dalam 12 bulan (D-4)? | Fase 1 |
+| Q4 | ~~Apakah multi-company direncanakan dalam 12 bulan (D-4)?~~ Dijawab 2026-10-18: satu perusahaan | — |
 | Q5 | D-1: opsi A, B, atau C? | Fase 2 |
 | Q6 | Format laporan resmi yang dibutuhkan (SAK/PSAK, format e-Faktur/SPT)? | Fase 5 |
 | Q7 | Apakah ada laporan keuangan eksternal yang saat ini dibuat manual di luar ERP dan harus direplikasi? | Fase 5 |

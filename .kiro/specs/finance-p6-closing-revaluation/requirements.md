@@ -7,7 +7,7 @@ Fase 6 (terakhir) dari program **Finance Engine** (lihat `docs/prd/finance-engin
 Kondisi nyata yang membentuk fase ini (diverifikasi di kode):
 
 - **Tanggal pembukuan = waktu approve.** Posting invoice memakai `now()` sebagai `transaction_date` (`SalesInvoiceService` ~327, `PurchaseInvoiceService` ~351), bukan `sales_invoices.date` / tanggal invoice (F-19). Faktur tanggal 30 September yang disetujui 2 Oktober masuk ke periode Oktober di ledger. Penutupan periode hanya bermakna bila kebijakan tanggal pembukuan jelas (**D-21**, PENDING). Payment Entry memakai `date ?? now()`; depresiasi memakai tanggal yang dibawa event.
-- Fase 1 hanya menyediakan status periode `open`/`closed` dan penegakan di balik preferensi `finance_enforce_fiscal_period`; belum ada checklist, jurnal penutup, atau revaluasi.
+- Fase 1 hanya menyediakan status periode `open`/`closed` dan penegakan di balik setting `finance_enforce_fiscal_period`; belum ada checklist, jurnal penutup, atau revaluasi.
 - Posting GL asinkron (D-1): jurnal dapat tertinggal dari dokumen. D-1 opsi B mensyaratkan penutupan **diblokir** selama ada posting `pending`/`failed`.
 - `accounts.currency_code` ada (akun bermata uang asing), jurnal piutang/utang valas membawa `foreign_*` dan kurs (Fase 4), dan `FxEngine` menyediakan kurs bertipe `closing`.
 - Seeder COA memiliki akun ekuitas "Laba" (kandidat laba ditahan); peran `retained_earnings` belum ada.
@@ -44,7 +44,7 @@ Kondisi nyata yang membentuk fase ini (diverifikasi di kode):
 3. THE sistem SHALL menyimpan `soft_closed_at/by`, `hard_closed_at/by`, `reopened_at/by`, `reopen_reason` pada `fiscal_periods`, dan setiap transisi dicatat ke tabel riwayat `fiscal_period_transitions` (`from`, `to`, `user`, `reason`, `checklist_run_id`, waktu).
 4. THE `JournalService::post()` SHALL memanggil `FiscalPeriodService::assertCanPost(date, ?user, draft)`: periode `open` → diizinkan; `soft_closed` → diizinkan hanya bagi pengguna terautentikasi ber-izin `post_in_soft_closed` dan jurnal ditandai `posted_in_soft_closed = true`; `hard_closed` → selalu ditolak (`ClosedPeriodException`).
 5. THE posting tanpa pengguna terautentikasi (job/queue, perintah terjadwal) pada periode `soft_closed` atau `hard_closed` SHALL ditolak, kecuali draft menandai `allowSoftClosed` secara eksplisit (hanya dipakai oleh layanan penutupan dan revaluasi milik fase ini).
-6. THE penegakan SHALL aktif hanya bila `finance_enforce_fiscal_period` = true; aksi `soft_close`/`hard_close` pertama SHALL mensyaratkan preferensi itu aktif (atau mengaktifkannya dengan konfirmasi).
+6. THE penegakan SHALL aktif hanya bila `finance_enforce_fiscal_period` = true; aksi `soft_close`/`hard_close` pertama SHALL mensyaratkan setting itu aktif (atau mengaktifkannya dengan konfirmasi).
 7. THE transisi SHALL memerlukan izin `close_period` (soft/hard) dan `reopen_period` (pembukaan kembali); hard close dapat dibatasi ke peran lebih tinggi lewat izin terpisah `hard_close_period`.
 8. THE `reversal` jurnal (Fase 1) pada periode tertutup SHALL mengikuti Fase 1 Req. 5.5 (tanggal pembalik pada periode terbuka); aturan ini tidak diubah.
 
@@ -155,7 +155,7 @@ Kondisi nyata yang membentuk fase ini (diverifikasi di kode):
 1. THE checklist periode dengan ≥1 juta baris jurnal SHALL selesai ≤ 60 detik (komponen berat memakai proyeksi Fase 5).
 2. THE tabel/model baru SHALL mendeklarasikan kolom eksplisit di migration dan diuji terhadap `initPermissions()` (F-12); izin: `FiscalPeriod` (`close_period`, `hard_close_period`, `reopen_period`, `post_in_soft_closed`, `override_close_warning`), `FxRevaluation` (`select`, `read`, `post`), `YearEndClosing` (`close`, `reopen`).
 3. THE seluruh migration aditif dengan `down()`; migrasi status `closed → hard_closed` reversible.
-4. THE seluruh perubahan perilaku (penegakan) SHALL dapat dimatikan lewat preferensi tanpa deploy.
+4. THE seluruh perubahan perilaku (penegakan) SHALL dapat dimatikan lewat setting tanpa deploy.
 
 ## Pertanyaan yang Menunggu Konfirmasi
 

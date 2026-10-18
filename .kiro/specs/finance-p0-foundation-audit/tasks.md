@@ -6,7 +6,7 @@ Fase ini read-only: tidak ada migration dan tidak ada perubahan pada listener/se
 
 **Prasyarat**: branch ini terbaru dari remote (aturan git worktree project). Baca `docs/prd/finance-engine-prd.md` (terutama Lampiran A dan B) sebelum mulai.
 
-**Catatan eksekusi**: Task 6.5 bersifat manual (butuh akses staging/produksi). Task 7 membutuhkan input pemilik produk; jangan memutuskan D-1/D-4/D-11 sendiri.
+**Catatan eksekusi**: Task 6.5 bersifat manual (butuh akses staging/produksi). Task 7 membutuhkan input pemilik produk; jangan memutuskan D-1/D-11 sendiri (D-4 sudah diputuskan: satu perusahaan).
 
 ## Tasks
 
@@ -42,7 +42,7 @@ Fase ini read-only: tidak ada migration dan tidak ada perubahan pada listener/se
   - Ensure all tests pass, ask the user if questions arise.
 
 - [ ] 5. Helper fixture dan characterization test
-  - [ ] 5.1 Buat `tests/Support/BuildsFinanceFixtures.php` (user, branch, akun standar, preferensi, `initPermissions()` model terkait, `is_example` seperti pola `GeneralLedgerControllerTest`; `queue.default=sync`)
+  - [ ] 5.1 Buat `tests/Support/BuildsFinanceFixtures.php` (user, branch, akun standar, setting, `initPermissions()` model terkait, `is_example` seperti pola `GeneralLedgerControllerTest`; `queue.default=sync`)
     - _Requirements: 4.4, 4.5_
   - [ ] 5.2 Characterization: Sales Invoice (normal + retur)
     - _Requirements: 4.1–4.3_
@@ -79,7 +79,7 @@ Fase ini read-only: tidak ada migration dan tidak ada perubahan pada listener/se
 
 - [ ] 8. Checkpoint akhir Fase 0
   - Jalankan seluruh test yang disentuh (`php artisan test --compact tests/Feature/Finances`), lalu `vendor/bin/pint --dirty --format agent` dan `npm run lint` bila ada perubahan JS (tidak diharapkan)
-  - Exit criteria: laporan audit & decision log disetujui; D-4 dan Q1 terjawab; temuan F-04/F-10/F-11 berstatus terkonfirmasi/tidak
+  - Exit criteria: laporan audit & decision log disetujui; Q1 terjawab (D-4 sudah diputuskan); temuan F-04/F-10/F-11 berstatus terkonfirmasi/tidak
   - Ensure all tests pass, ask the user if questions arise.
 
 ## Catatan

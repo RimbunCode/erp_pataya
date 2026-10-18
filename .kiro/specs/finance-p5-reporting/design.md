@@ -103,13 +103,13 @@ final class BalanceReader {
 }
 ```
 
-Keputusan sumber: bila hasil `reconcile-balances` terakhir hijau (status disimpan di cache/preferensi) dan rentang jatuh pada batas periode fiskal → baca `account_balances` (jumlah per periode); untuk rentang yang memotong periode, mutasi sebagian periode dihitung dari view. Selain itu seluruhnya dari view. Hasil dari kedua jalur harus identik (P-3).
+Keputusan sumber: bila hasil `reconcile-balances` terakhir hijau (status disimpan di cache/setting) dan rentang jatuh pada batas periode fiskal → baca `account_balances` (jumlah per periode); untuk rentang yang memotong periode, mutasi sebagian periode dihitung dari view. Selain itu seluruhnya dari view. Hasil dari kedua jalur harus identik (P-3).
 
 ### `FinancialStatementBuilder`
 
-Masukan: saldo per akun (dari `BalanceReader`), pohon `accounts` (`parent_id`, `lft`, `rgt`, `depth`), `report_type`, `balance_type`, `is_contra`. Langkah:
+Masukan: saldo per akun (dari `BalanceReader`), pohon `accounts` (`parent_id`, `lft`, `rgt`, `depth`), `report_type`, `balance_type`. Langkah:
 
-1. Hitung saldo bertanda per akun daun: `debit − credit` untuk `balance_type=debit`, `credit − debit` untuk `credit`; akun kontra (`is_contra`) mengurangi induk.
+1. Hitung saldo bertanda per akun daun: `debit − credit` untuk `balance_type=debit`, `credit − debit` untuk `credit`. Akun yang bersaldo berlawanan (mis. Retur/Potongan Penjualan) otomatis bernilai negatif dan mengurangi induk lewat rollup Σ anak bertanda; tidak ada flag akun kontra (kolom `is_contra` dihapus pada Fase 2 Task 14.2). Catatan: `AccountSeeder` mewariskan `balance_type` anak dari induknya, sehingga akun Retur/Potongan di bawah Pendapatan bertipe `credit`.
 2. Bangun `StatementNode` rekursif dengan rollup (induk = Σ anak); filter akun nol bila opsi aktif.
 3. **Laba Rugi**: akun `profit_and_loss`; bagian pendapatan, HPP (`account_type=cost_of_goods_sold`), beban, lain-lain; laba kotor dan laba bersih; perbandingan satu rentang.
 4. **Neraca**: akun `balance_sheet` per as-of; tambahkan node virtual **Laba Berjalan** (Σ P&L sejak awal tahun fiskal tahun berjalan sampai as-of) dan **Laba Ditahan Belum Ditutup** (Σ P&L tahun sebelumnya yang belum memiliki jurnal penutup, Fase 6); cek `Aset − (Liabilitas + Ekuitas)`.
@@ -155,7 +155,7 @@ Akun neraca tanpa kategori masuk daftar peringatan; selisih rekonsiliasi ditampi
 
 ### Perubahan lain
 
-`accounts.cash_flow_category` string(24) nullable. Preferensi: `finance_aging_buckets` (default `[30,60,90]`), `finance_balance_projection` (`sync`). View `report_ledger_line_view`. Entri `ReportCatalog` untuk laporan datar (Buku Besar, Rekap Pajak, Aging) dan definisi ekspor untuk statement.
+`accounts.cash_flow_category` string(24) nullable. Setting: `finance_aging_buckets` (default `[30,60,90]`), `finance_balance_projection` (`sync`). View `report_ledger_line_view`. Entri `ReportCatalog` untuk laporan datar (Buku Besar, Rekap Pajak, Aging) dan definisi ekspor untuk statement.
 
 ## Correctness Properties
 

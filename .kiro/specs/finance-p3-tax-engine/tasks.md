@@ -32,7 +32,7 @@ Bagian A (Task 1–8) tidak mengubah angka di dokumen; Bagian B (Task 9) adalah 
     - _Requirements: 2.1, 13.3_
   - [ ] 2.3 Migration kolom snapshot: `tax_rule_version_id` pada `sales_invoice_items`, `purchase_invoice_items`, `general_ledgers`; `tax_breakdown` JSON pada `sales_invoices`, `purchase_invoices`
     - _Requirements: 5.1, 5.4_
-  - [ ] 2.4 Preferensi `finance_tax_split_from.*`, `finance_company_is_pkp`, `finance_tax_engine_calc_enabled`
+  - [ ] 2.4 Setting `finance_tax_split_from.*`, `finance_company_is_pkp`, `finance_tax_engine_calc_enabled`
     - _Requirements: 2.7, 7.5, 7.9_
   - [ ] 2.5 Test `initPermissions()` pada `TaxRuleVersion` dan perubahan `Tax` (F-12)
     - _Requirements: 13.2_

@@ -42,6 +42,8 @@ flowchart TD
 
 **Aturan ketergantungan:** `app/Services/Finances/Tax/**` tidak mengimpor model Sales/Purchase/Inventory; input berupa DTO (`TaxInput`). Rule posting tidak memanggil Tax Engine — ia hanya menerima `TaxComponent` yang sudah dihitung/dibaca oleh pabrik konteks milik dokumen.
 
+**Kait multi-pajak (D-28):** `TaxInput` mewakili satu pasangan (baris, pajak) dan `lineRef` boleh berulang, sehingga pajak ganda per baris (pola Odoo) kelak cukup menambah input untuk baris yang sama tanpa mengubah `TaxEngine`. Pengelompokan jurnal sudah per `(tax_id, tax_rule_version_id)`. Yang belum didukung dan menjadi cakupan spec masa depan `multi-tax-per-line`: relasi banyak-pajak pada baris dokumen, kolom hitung item invoice, dan `tax_rule_version_id` per komponen (saat ini satu per baris).
+
 ## Components and Interfaces
 
 ### Struktur file
@@ -156,13 +158,13 @@ Rule posting memisahkan hanya komponen `classified && (SI || isCreditable)` bila
 
 | Baris | Sisi | Peran | Jumlah |
 |---|---|---|---|
-| Beban/SRNB | Debit | `expense` (override `expanse_head_account_id`) | `total − Σ pajak terpisah` (sisa) |
+| Beban/SRNB | Debit | `expense` (per baris, peka-barang; Fase 2 Req. 12) | `total − Σ pajak terpisah` (sisa) |
 | PPN Masukan (per komponen) | Debit | `input_role` versi | `amount` komponen |
 | Utang | Kredit | `payable` (override `credit_account_id`) | `total` |
 
 Retur: sisi ditukar. Bila tidak ada komponen terpisah atau invoice < cutover → bentuk 2-baris lama. Baris pajak memberi `tax_rule_version_id` pada `RoleLine` agar diteruskan ke `general_ledgers`. Karena baris pendapatan/beban = sisa, jurnal seimbang tanpa baris pembulatan.
 
-**Cutover:** `PostingContext.flags['tax_split'] = true` bila `transaction_date >= Preference finance_tax_split_from.{type}`; rule tidak membaca preferensi sendiri (murni).
+**Cutover:** `PostingContext.flags['tax_split'] = true` bila `transaction_date >= finance_tax_split_from.{type}` (setting Finances); rule tidak membaca setting sendiri (murni).
 
 ### Hubungan dengan Faktur Pajak
 
@@ -208,7 +210,7 @@ Unik `(tax_id, version)`; indeks `(tax_id, status, effective_from)`.
 
 ### Kolom tambahan lain
 
-`sales_invoice_items.tax_rule_version_id`, `purchase_invoice_items.tax_rule_version_id` (FK nullable, `nullOnDelete` dibatasi menjadi `restrictOnDelete`), `sales_invoices.tax_breakdown` & `purchase_invoices.tax_breakdown` (json nullable), `general_ledgers.tax_rule_version_id` (FK nullable). Preferensi: `finance_tax_split_from.sales_invoice`, `finance_tax_split_from.purchase_invoice` (tanggal, default kosong), `finance_company_is_pkp` (default `true`), `finance_tax_engine_calc_enabled` (default `false`).
+`sales_invoice_items.tax_rule_version_id`, `purchase_invoice_items.tax_rule_version_id` (FK nullable, `nullOnDelete` dibatasi menjadi `restrictOnDelete`), `sales_invoices.tax_breakdown` & `purchase_invoices.tax_breakdown` (json nullable), `general_ledgers.tax_rule_version_id` (FK nullable). Setting: `finance_tax_split_from.sales_invoice`, `finance_tax_split_from.purchase_invoice` (tanggal, default kosong), `finance_company_is_pkp` (default `true`), `finance_tax_engine_calc_enabled` (default `false`).
 
 ## Correctness Properties
 

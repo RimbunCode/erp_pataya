@@ -1,0 +1,6 @@
+{
+  "specId": "0e72c4b4-9575-4729-913b-8b9fbc4b6bde",
+  "workflowType": "requirements-first",
+  "specType": "feature",
+  "description": "Fondasi konfigurasi per modul: tabel setting bertipe satu baris per modul (menggantikan preferences), SettingsService, LegacyPreferenceMap, migrasi data, halaman setting bertab, menu multi-desk (datar jika satu item, submenu jika lebih), izin, dan audit."
+}

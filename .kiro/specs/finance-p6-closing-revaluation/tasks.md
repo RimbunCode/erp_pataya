@@ -31,7 +31,7 @@ Urutan: verifikasi + keputusan kebijakan (1), skema aditif (2), penegakan status
     - _Requirements: 1.4, 6.3, 4.5, 7.5_
   - [ ] 2.3 Migration + model: `fiscal_period_transitions`, `period_close_runs`, `period_close_run_items`, `fx_revaluations`, `fx_revaluation_lines`; izin per model; test `initPermissions()`
     - _Requirements: 1.3, 2.1, 4.1, 10.2_
-  - [ ] 2.4 Tambah peran `unrealized_fx_gain`, `unrealized_fx_loss`, `retained_earnings` ke `AccountRole` + label; perluas `finance:init-posting-profile` (laporan peran belum terpetakan); preferensi `finance_close_sequential`, `finance_pending_doc_check_types`
+  - [ ] 2.4 Tambah peran `unrealized_fx_gain`, `unrealized_fx_loss`, `retained_earnings` ke `AccountRole` + label; perluas `finance:init-posting-profile` (laporan peran belum terpetakan); setting `finance_close_sequential`, `finance_pending_doc_check_types`
     - _Requirements: 4.10, 6.9_
 
 - [ ] 3. Penegakan status periode (butuh D-22/D-23)

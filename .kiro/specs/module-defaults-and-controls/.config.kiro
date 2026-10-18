@@ -1,0 +1,6 @@
+{
+  "specId": "5e633b93-cd8e-48a0-a32b-eff47a5ba582",
+  "workflowType": "requirements-first",
+  "specType": "feature",
+  "description": "Default transaksi per modul (pajak, gudang, termin pembayaran) yang mengisi baris/dokumen baru, kontrol rantai dokumen (wajib PO/Receipt/SO/DN) dan toleransi penerimaan/tagihan, dikonfigurasi lewat halaman Purchase, Sales, dan Inventory Settings."
+}

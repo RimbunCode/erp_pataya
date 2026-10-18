@@ -8,7 +8,7 @@ Kondisi nyata yang membentuk fase ini (diverifikasi di kode):
 
 - Infrastruktur laporan sudah ada dan matang (spec `modul-laporan`): setiap laporan = **Row model baca-saja di atas view DB** (`report_*_view`) + `ReportFilter` (`applyTo`, `toSummary`, `KEYS`) + `KpiBuilder` + controller (`ReportAccess::canRead`) + halaman Inertia + entri `ReportCatalog`/`ReportDefinition`, dengan `ReportExporter` (`csv`, `pdf`), `ReportFilterStore`, dan `ReportConsistencyChecker` (hitung ulang KPI dari baris). Rute di bawah `/reports/*`. Fase ini **mengikuti pola itu**, bukan membuat pola baru.
 - Laporan yang ada bersifat operasional (stok, penjualan, pembelian, invoice, work order, dll.); belum ada laporan keuangan dari GL. Halaman `Finances/GeneralLedger` hanya daftar baris.
-- COA memiliki `root_type` (`asset`, `liability`, `equity`, `income`, `expense`), `report_type` (`balance_sheet`/`profit_and_loss`), `balance_type` (`debit`/`credit`), `is_contra`, dan hierarki pohon (`parent_id`, `lft`, `rgt`, `depth`) — cukup untuk menyusun laporan. Seeder memuat akun ekuitas "Laba".
+- COA memiliki `root_type` (`asset`, `liability`, `equity`, `income`, `expense`), `report_type` (`balance_sheet`/`profit_and_loss`), `balance_type` (`debit`/`credit`), dan hierarki pohon (`parent_id`, `lft`, `rgt`, `depth`) — cukup untuk menyusun laporan. Seeder memuat akun ekuitas "Laba".
 - Pembatalan dokumen (perilaku sekarang) men-soft-delete baris GL lewat update massal yang tidak memicu event model (F-04); proyeksi saldo harus tahu soal ini (Requirement 3.5).
 - Posting GL bersifat asinkron (D-1): laporan dapat tertinggal dari dokumen; keputusan D-1 opsi B mensyaratkan **indikator posting lag** pada laporan.
 
@@ -37,7 +37,7 @@ Kondisi nyata yang membentuk fase ini (diverifikasi di kode):
 
 #### Acceptance Criteria
 
-1. THE sistem SHALL membuat view `report_ledger_line_view` yang memuat baris `general_ledgers` dengan `deleted_at IS NULL` dari `journals` berstatus `posted` atau `reversed` (tidak termasuk `voided`), dengan kolom: id baris, `journal_id`, kode jurnal, `transaction_date`, `fiscal_period_id`, `branch_id`, `account_id`, nomor/nama/`root_type`/`report_type`/`balance_type`/`is_contra` akun, `debit`, `credit`, `partyable_*`, `source_type`/`source_id`, `tax_rule_version_id`, kolom asing, dan `description`.
+1. THE sistem SHALL membuat view `report_ledger_line_view` yang memuat baris `general_ledgers` dengan `deleted_at IS NULL` dari `journals` berstatus `posted` atau `reversed` (tidak termasuk `voided`), dengan kolom: id baris, `journal_id`, kode jurnal, `transaction_date`, `fiscal_period_id`, `branch_id`, `account_id`, nomor/nama/`root_type`/`report_type`/`balance_type` akun, `debit`, `credit`, `partyable_*`, `source_type`/`source_id`, `tax_rule_version_id`, kolom asing, dan `description`.
 2. THE baris jurnal legacy yang `legacy_unbalanced = true` SHALL tetap muncul di view (tanda khusus), karena angkanya adalah apa yang tercatat.
 3. THE baris GL yang belum memiliki `journal_id` (pra-backfill) SHALL tetap muncul (jurnal null) selama backfill belum selesai, agar laporan tidak kehilangan data; fase ini tidak memerlukan backfill selesai untuk mulai dirilis tetapi melaporkan jumlah baris tanpa jurnal sebagai peringatan.
 4. THE setiap laporan keuangan SHALL didaftarkan di `ReportCatalog` (atau definisi setara bila bentuknya statement), memakai `ReportFilter`, `ReportAccess`, dan mengikuti rute `/reports/*`.
@@ -80,7 +80,7 @@ Kondisi nyata yang membentuk fase ini (diverifikasi di kode):
 #### Acceptance Criteria
 
 1. THE Laba Rugi SHALL menyusun akun `report_type = profit_and_loss` menurut pohon COA: pendapatan, harga pokok, beban, lain-lain, dengan subtotal, laba kotor (bila akun HPP dapat diidentifikasi lewat `account_type = cost_of_goods_sold`), dan laba bersih.
-2. THE tanda dan penyajian SHALL mengikuti `balance_type` dan `is_contra` (akun kontra, mis. retur/potongan penjualan, mengurangi induknya).
+2. THE tanda dan penyajian SHALL mengikuti `balance_type` sebagai saldo bertanda: akun yang bersaldo berlawanan dengan sisi normalnya (mis. Retur Penjualan dan Potongan Penjualan di bawah Pendapatan) tampil bernilai negatif dan otomatis mengurangi induknya pada rollup; tidak ada flag akun kontra (kolom `accounts.is_contra` dihapus, Fase 2 Task 14.2).
 3. THE laporan SHALL mendukung rentang tanggal dan perbandingan dengan satu rentang pembanding (selisih dan persen), per cabang atau gabungan.
 4. THE laba bersih Laba Rugi untuk rentang tahun fiskal berjalan SHALL sama dengan laba berjalan yang dipakai Neraca (Requirement 5).
 5. THE laporan SHALL dapat diekspor CSV/PDF.
@@ -94,7 +94,7 @@ Kondisi nyata yang membentuk fase ini (diverifikasi di kode):
 1. THE Neraca SHALL menyusun akun `report_type = balance_sheet` per tanggal (as-of) menjadi Aset, Liabilitas, Ekuitas menurut pohon COA.
 2. THE Ekuitas SHALL menyertakan baris virtual **Laba Berjalan** = Σ akun `profit_and_loss` dari awal tahun fiskal sampai tanggal as-of bagi tahun yang belum ditutup (Fase 6), dan saldo laba ditahan = Σ akun `profit_and_loss` tahun-tahun sebelumnya yang belum ditutup bila tidak ada jurnal penutup.
 3. THE Neraca SHALL menunjukkan indikator keseimbangan: Aset − (Liabilitas + Ekuitas) = 0 dalam satu minor unit; bila tidak, laporan menampilkan peringatan dengan selisih dan tautan ke audit (`finance:audit-gl`), tanpa menyembunyikan angka.
-4. THE penyajian akun kontra dan tanda saldo SHALL mengikuti `balance_type`/`is_contra`.
+4. THE penyajian akun bersaldo berlawanan dan tanda saldo SHALL mengikuti `balance_type` (saldo bertanda), tanpa flag akun kontra.
 5. THE laporan SHALL dapat dibandingkan dengan satu tanggal pembanding, per cabang atau gabungan, dan diekspor CSV/PDF.
 
 ### Requirement 6: Laporan Arus Kas (metode tidak langsung)
@@ -115,7 +115,7 @@ Kondisi nyata yang membentuk fase ini (diverifikasi di kode):
 
 #### Acceptance Criteria
 
-1. THE laporan Aging SHALL dibangun di atas `PartyLedgerService` (Fase 4) dengan tanggal as-of, mengelompokkan sisa tiap open item ke bucket berdasarkan jatuh tempo: `belum jatuh tempo`, `1–30`, `31–60`, `61–90`, `>90` (batas dapat dikonfigurasi lewat preferensi).
+1. THE laporan Aging SHALL dibangun di atas `PartyLedgerService` (Fase 4) dengan tanggal as-of, mengelompokkan sisa tiap open item ke bucket berdasarkan jatuh tempo: `belum jatuh tempo`, `1–30`, `31–60`, `61–90`, `>90` (batas dapat dikonfigurasi lewat setting).
 2. THE jatuh tempo SHALL berasal dari `payment_schedules.due_date` (sisa `outstanding_amount` per termin); invoice tanpa termin memakai tanggal invoice plus kondisi default [TODO: konfirmasi aturan default jatuh tempo].
 3. THE laporan SHALL menampilkan per pihak dan total, mata uang asing dengan jumlah asli dan nilai dasar, uang muka/kredit terbuka sebagai kolom terpisah, dan tautan ke buku besar pihak.
 4. THE total Aging SHALL sama dengan saldo akun kontrol GL pada as-of yang sama; ketidaksamaan ditampilkan sebagai peringatan (rekonsiliasi Fase 4).

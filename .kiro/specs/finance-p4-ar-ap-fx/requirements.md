@@ -10,7 +10,7 @@ Kondisi nyata yang membentuk fase ini (diverifikasi di kode):
 - Invoice menyimpan `exchange_rate` tunggal; kolom `paid_amount_base_currency` dan `outstanding_amount_base_currency` adalah *generated* `paid_amount × exchange_rate` — pelunasan selalu dinilai pada **kurs invoice**, sehingga selisih kurs tidak pernah muncul (F-11).
 - GL pembayaran tidak memperhitungkan `exchange_rate` dan memposting nilai dari `paid_amount` dokumen setelah `PaymentApplied` (dugaan F-10).
 - Listener posting invoice tidak mengisi `partyable_*` pada baris GL, jadi buku besar pembantu per pihak tidak dapat diturunkan dari ledger (F-18).
-- Mata uang dasar berasal dari preferensi `default_currency_id`; `Currency::convertMoney` hanya perkalian; tidak ada master kurs.
+- Mata uang dasar berasal dari setting umum `default_currency_id`; `Currency::convertMoney` hanya perkalian; tidak ada master kurs.
 - Retur diperlakukan sebagai invoice dengan `return_against_id`.
 
 **Prasyarat:** Fase 1 (JournalService, kolom `foreign_*`/`exchange_rate` pada baris jurnal, `minor_unit`) dan Fase 2 (Posting Engine untuk Payment Entry, Sales Invoice, Purchase Invoice dalam mode `on`) selesai. Fase 3 diutamakan selesai untuk pajak pada alokasi, tetapi tidak memblokir. Kebijakan kurs **D-16** dan pengakuan selisih kurs **D-17** harus disetujui akuntan sebelum Task 6.
@@ -54,7 +54,7 @@ Kondisi nyata yang membentuk fase ini (diverifikasi di kode):
 #### Acceptance Criteria
 
 1. THE sistem SHALL menyediakan `ExchangeRateService::get(from, to, date, type): ExchangeRate` yang mengambil kurs pada tanggal tepat; bila tidak ada, kurs dengan tanggal terdekat sebelumnya dalam batas `finance_fx_max_age_days` (default 7); bila tetap tidak ada → `NoExchangeRateException` yang menyebut pasangan, tipe, dan tanggal.
-2. THE sistem SHALL menyediakan kurs kebalikan (`to→from = 1/rate`) hanya bila preferensi `finance_fx_allow_inverse` aktif (default aktif), dan menandainya pada hasil.
+2. THE sistem SHALL menyediakan kurs kebalikan (`to→from = 1/rate`) hanya bila setting `finance_fx_allow_inverse` aktif (default aktif), dan menandainya pada hasil.
 3. THE sistem SHALL menyediakan `FxEngine::convert(amount, from, to, date, type): FxConversion` yang mengembalikan `amount`, `rate`, `rate_type`, `rate_date`, `source`, `inverse` (bool), dan pembulatan HALF_UP ke minor unit mata uang tujuan.
 4. WHEN `from = to`, THE konversi SHALL mengembalikan jumlah yang sama dengan `rate = 1` tanpa mencari kurs.
 5. THE `FxConversion` SHALL dapat diserialisasi dan dipakai sebagai penjelasan pada UI.

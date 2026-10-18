@@ -8,14 +8,14 @@ Fakta kode yang membentuk desain:
 
 | Fakta | Dampak |
 |---|---|
-| Invoice memposting dengan `transaction_date = now()` saat approve (F-19) | Makna "periode" bergantung D-21; fase ini membuat penegakan bergantung preferensi dan tidak mengubah tanggal tanpa keputusan |
+| Invoice memposting dengan `transaction_date = now()` saat approve (F-19) | Makna "periode" bergantung D-21; fase ini membuat penegakan bergantung setting dan tidak mengubah tanggal tanpa keputusan |
 | Posting asinkron (D-1) | Blocking check pertama = tidak ada `GlPostingStatus` pending/failed |
 | Fase 1: `fiscal_periods.status ∈ {open, closed}`, penegakan di `FiscalPeriodService::assertOpen` | Diperluas menjadi tiga status + `assertCanPost` |
 | `accounts.currency_code` ada; jurnal valas membawa `foreign_*` (Fase 4) | Sumber saldo asing untuk revaluasi |
 | `FxEngine` + tipe kurs `closing` (Fase 4) | Kurs revaluasi |
 | Aging/Neraca (Fase 5) sudah memuat Laba Berjalan virtual | Penutupan tahun harus menjaga Neraca benar |
 
-Prinsip: **(1)** penutupan tidak pernah mengubah jurnal terposting — semua koreksi adalah jurnal baru; **(2)** blocking check tidak dapat di-override; **(3)** semua operasi idempoten dan teraudit; **(4)** penegakan dapat dimatikan lewat preferensi.
+Prinsip: **(1)** penutupan tidak pernah mengubah jurnal terposting — semua koreksi adalah jurnal baru; **(2)** blocking check tidak dapat di-override; **(3)** semua operasi idempoten dan teraudit; **(4)** penegakan dapat dimatikan lewat setting.
 
 ## Architecture
 
@@ -188,7 +188,7 @@ Fase ini hanya menyiapkan *titik ekstensi*: pabrik konteks posting (Fase 2) mend
 | `fx_revaluations` | `fiscal_period_id`, `as_of_date`, `rate_type`, `scope`, `status` (`posted`/`reversed`), `journal_id`, `reversal_journal_id`, `reverse_on` date, `total_gain`, `total_loss`, `created_by_id` |
 | `fx_revaluation_lines` | `fx_revaluation_id`, `account_id`, `party_type/id` nullable, `document_type/id` nullable, `currency_code`, `foreign_amount`, `carrying_base`, `target_base`, `adjustment`, `rate`, `rate_date` |
 
-Peran baru di `AccountRole`: `unrealized_fx_gain`, `unrealized_fx_loss`, `retained_earnings`. Preferensi: `finance_close_sequential` (D-23), `finance_pending_doc_check_types` (daftar jenis dokumen), `finance_enforce_fiscal_period` (dari Fase 1).
+Peran baru di `AccountRole`: `unrealized_fx_gain`, `unrealized_fx_loss`, `retained_earnings`. Setting: `finance_close_sequential` (D-23), `finance_pending_doc_check_types` (daftar jenis dokumen), `finance_enforce_fiscal_period` (dari Fase 1).
 
 ## Correctness Properties
 

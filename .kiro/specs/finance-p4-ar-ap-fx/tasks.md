@@ -27,7 +27,7 @@ Urutan: baca kode pembayaran + audit data (1), FX Engine dan kurs (2–3, tanpa 
 - [ ] 2. Master kurs dan FX Engine
   - [ ] 2.1 Migration `create_exchange_rates_table`; model `ExchangeRate` (guard immutability bila dirujuk), enum `RateType`, izin; test `initPermissions()`
     - _Requirements: 1.1–1.3, 12.3_
-  - [ ] 2.2 `ExchangeRateService` (tepat → terdekat sebelum dalam batas umur → exception; inverse), preferensi `finance_fx_*`
+  - [ ] 2.2 `ExchangeRateService` (tepat → terdekat sebelum dalam batas umur → exception; inverse), setting `finance_fx_*`
     - _Requirements: 2.1–2.2_
   - [ ] 2.3 `FxConversion` + `FxEngine::convert()` (aritmetika skala bilangan bulat, HALF_UP minor unit, `from = to`) dan tandai `Currency::convertMoney` deprecated
     - _Requirements: 2.3–2.6_

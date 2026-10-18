@@ -62,7 +62,7 @@ Kondisi nyata yang membentuk fase ini (diverifikasi di kode):
 4. THE `output_role`/`input_role` SHALL merujuk kunci peran Posting Profile (Fase 2), bukan akun; Tax Engine tidak mengetahui akun.
 5. THE perubahan versi SHALL tercatat (siapa, kapan, sebelum/sesudah) dan memerlukan izin `manage_rule_versions`.
 6. THE `taxes.rate` SHALL tetap ada sebagai nilai tampilan/default; untuk perhitungan baru, sumber kebenaran adalah versi yang berlaku (Requirement 3).
-7. UNTIL Bagian B (Requirement 12) aktif, THE sistem SHALL menolak penyimpanan versi `active` yang faktor DPP-nya bukan `11/12`, dengan pesan yang menjelaskan bahwa kolom hitung dokumen masih memakai 11/12 tetap (F-17). Guard ini dikendalikan preferensi `finance_tax_engine_calc_enabled` (default `false`, diaktifkan oleh migrasi Bagian B). Ini mencegah data aturan menyimpang diam-diam dari angka yang benar-benar dihitung dokumen.
+7. UNTIL Bagian B (Requirement 12) aktif, THE sistem SHALL menolak penyimpanan versi `active` yang faktor DPP-nya bukan `11/12`, dengan pesan yang menjelaskan bahwa kolom hitung dokumen masih memakai 11/12 tetap (F-17). Guard ini dikendalikan setting `finance_tax_engine_calc_enabled` (default `false`, diaktifkan oleh migrasi Bagian B). Ini mencegah data aturan menyimpang diam-diam dari angka yang benar-benar dihitung dokumen.
 
 ### Requirement 3: Resolusi versi pada tanggal transaksi
 
@@ -123,9 +123,9 @@ Kondisi nyata yang membentuk fase ini (diverifikasi di kode):
 2. THE rule posting Purchase Invoice (jurnal `expense`) SHALL (untuk invoice bertanggal ≥ cutover) menghasilkan: Debit `expense` sebesar total dikurangi pajak yang dipisah; Debit peran `input_role` per komponen pajak `additive` terklasifikasi yang `is_creditable`; Kredit `payable` sebesar total. Jurnal `stock` (stok/SRNB) TIDAK berubah.
 3. THE komponen pajak `unclassified`, atau `is_creditable = false`, atau `withholding` (sebelum Bagian B), SHALL tetap tertanam di baris `revenue`/`expense` (perilaku lama) dan dilaporkan sebagai `unsplit_tax` pada log posting agar terlihat.
 4. THE jurnal SHALL tetap seimbang secara konstruksi (baris `revenue`/`expense` dihitung sebagai sisa, bukan dijumlahkan ulang) dan setiap baris pajak mengisi `general_ledgers.tax_rule_version_id`.
-5. THE cutover SHALL dikendalikan preferensi per jenis dokumen `finance_tax_split_from.{sales_invoice|purchase_invoice}` (tanggal; kosong = tidak aktif, default kosong). Invoice bertanggal sebelum cutover memakai bentuk lama.
+5. THE cutover SHALL dikendalikan setting per jenis dokumen `finance_tax_split_from.{sales_invoice|purchase_invoice}` (tanggal; kosong = tidak aktif, default kosong). Invoice bertanggal sebelum cutover memakai bentuk lama.
 6. THE invoice retur SHALL memakai rule yang sama dengan sisi ditukar; pembatalan (Fase 2 D-13) membalik jurnal asli apa adanya sehingga invoice lama berbentuk lama tetap dibalik dengan bentuk lamanya.
-7. THE peran `tax_output`/`tax_input` (dan peran kustom dari versi) SHALL ter-resolve lewat Posting Profile; profil tanpa pemetaan peran tersebut membuat posting gagal dengan `UnresolvedAccountRoleException` (bukan fallback ke total), kecuali preferensi cutover masih kosong.
+7. THE peran `tax_output`/`tax_input` (dan peran kustom dari versi) SHALL ter-resolve lewat Posting Profile; profil tanpa pemetaan peran tersebut membuat posting gagal dengan `UnresolvedAccountRoleException` (bukan fallback ke total), kecuali setting cutover masih kosong.
 8. THE `finance:init-posting-profile` (Fase 2) SHALL diperluas untuk melaporkan akun `tax` ambigu dan *tidak* menebak pemisahan PPN Masukan/Keluaran; COA harus dilengkapi akuntan (Q-P2-2).
 9. THE kebijakan PKP (`finance_company_is_pkp`, default true) SHALL menentukan apakah PPN Masukan dipisah (true) atau tertanam di biaya (false), menunggu D-12.
 
@@ -188,6 +188,7 @@ Kondisi nyata yang membentuk fase ini (diverifikasi di kode):
 3. THE izin baru: `TaxRuleVersion` (`select`, `read`, `write`, `manage_rule_versions`).
 4. THE semua migration aditif dengan `down()`; Bagian B terdokumentasi terpisah.
 5. THE characterization Fase 0, test Fase 1–2, dan test pajak existing (`TaxInvoiceAssignmentTest`, `PurchaseInvoiceMissingTaxItemTest`, `*DiscountPersistenceTest`, `InvoiceDppMigrationTest`) SHALL tetap hijau.
+6. THE antarmuka `TaxEngine` SHALL tidak mengasumsikan satu pajak per baris dokumen: `TaxInput` mewakili satu pasangan (baris, pajak) dan `lineRef` yang sama dapat muncul berulang; hal ini kait untuk spec masa depan `multi-tax-per-line` dan tidak mengubah perilaku saat ini.
 
 ## Pertanyaan yang Menunggu Konfirmasi
 

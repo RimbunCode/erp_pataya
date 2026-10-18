@@ -6,7 +6,7 @@ Fase 1 dari 7 fase program **Finance Engine** (lihat `docs/prd/finance-engine-pr
 
 Temuan audit yang menjadi dasar (PRD Lampiran A): F-01 (tanpa header, tak ada jaminan seimbang), F-02 (SoftDeletes + `cascadeOnDelete` pada GL), F-07 (`double`), F-08 (tanpa periode fiskal), F-13 (mata uang tanpa minor unit), F-15 (kode series per baris), dan F-04 (cancel men-soft-delete GL lewat update massal di `Submitable`, yang melewati event model).
 
-**Prasyarat:** Fase 0 selesai — laporan audit disetujui, D-4 (satu perusahaan vs multi-company) dan Q1 (ada/tidaknya data produksi) terjawab, characterization test untuk 10 titik posting hijau. Characterization test itu adalah jaring pengaman utama fase ini.
+**Prasyarat:** Fase 0 selesai — laporan audit disetujui, D-4 (satu perusahaan; sudah diputuskan, PRD) dan Q1 (ada/tidaknya data produksi) terjawab, characterization test untuk 10 titik posting hijau, dan spec `module-settings-foundation` (D-25) menyediakan service setting Finances untuk `finance_enforce_fiscal_period`. Characterization test itu adalah jaring pengaman utama fase ini.
 
 **Prinsip fase:** aditif dan reversibel. Struktur lama tetap hidup; yang berubah adalah jalur penulisan (semua lewat `JournalService`) dan jaminan yang diberikan.
 
@@ -111,9 +111,9 @@ Temuan audit yang menjadi dasar (PRD Lampiran A): F-01 (tanpa header, tak ada ja
 1. THE sistem SHALL membuat tabel `fiscal_years` (`name` unik, `start_date`, `end_date`, `status` `open`/`closed`) dan `fiscal_periods` (`fiscal_year_id`, `name`, `start_date`, `end_date`, `status` `open`/`closed`, `closed_at`, `closed_by_id`).
 2. THE sistem SHALL menolak tahun/periode yang tumpang-tindih tanggalnya, dan menolak periode di luar rentang tahun fiskalnya.
 3. THE sistem SHALL menyediakan perintah `finance:generate-fiscal-year {year}` yang membuat satu tahun fiskal berisi 12 periode bulanan (kalender), idempoten.
-4. THE sistem SHALL menambah preferensi `finance_enforce_fiscal_period` (default `false`).
-5. WHEN preferensi aktif dan `post()` dipanggil dengan `transaction_date` yang periodenya `closed` atau tidak ditemukan, THE sistem SHALL menolak (`ClosedPeriodException`).
-6. WHEN preferensi nonaktif, THE sistem SHALL tetap mengisi `fiscal_period_id` bila periode ditemukan, dan tidak menolak.
+4. THE sistem SHALL menambah setting `finance_enforce_fiscal_period` (default `false`).
+5. WHEN setting aktif dan `post()` dipanggil dengan `transaction_date` yang periodenya `closed` atau tidak ditemukan, THE sistem SHALL menolak (`ClosedPeriodException`).
+6. WHEN setting nonaktif, THE sistem SHALL tetap mengisi `fiscal_period_id` bila periode ditemukan, dan tidak menolak.
 7. THE sistem SHALL menyediakan aksi buka/tutup periode dengan izin `close_period`/`reopen_period`; penutupan penuh (checklist, jurnal penutup) adalah Fase 6.
 8. THE backfill SHALL membuat tahun/periode yang menutupi rentang `transaction_date` GL lama sampai akhir tahun berjalan, semua berstatus `open`, sehingga penegakan dapat diaktifkan tanpa memblokir data historis.
 
@@ -126,7 +126,7 @@ Temuan audit yang menjadi dasar (PRD Lampiran A): F-01 (tanpa header, tak ada ja
 1. THE sistem SHALL menambah kolom `currencies.minor_unit` (smallint, default 2) dan `currencies.numeric_code` (string(3) nullable).
 2. THE sistem SHALL mengisi `minor_unit`/`numeric_code` untuk mata uang yang sudah ada sesuai ISO 4217 lewat migration data yang idempoten; mata uang tak dikenal tetap default 2.
 3. THE sistem SHALL menyediakan helper pembulatan yang menerima nominal dan `minor_unit`, membulatkan HALF_UP, dan mengonversi ke bilangan bulat minor unit untuk perbandingan.
-4. THE `journals.currency_code` SHALL berisi mata uang dasar dari preferensi `default_currency_id` saat posting.
+4. THE `journals.currency_code` SHALL berisi mata uang dasar dari setting umum `default_currency_id` saat posting.
 5. THE kolom `foreign_*` dan `exchange_rate` SHALL tersedia tetapi tidak diisi oleh adapter Fase 1 (bernilai null).
 
 ### Requirement 8: Adapter — semua titik posting lewat `JournalService`
@@ -179,7 +179,7 @@ Temuan audit yang menjadi dasar (PRD Lampiran A): F-01 (tanpa header, tak ada ja
 1. THE sistem SHALL menyediakan halaman daftar Journal (DataTable: kode, tanggal, sumber, status, total debit/kredit, periode) dan halaman detail Journal (header, tabel baris dengan total dan indikator seimbang, tautan ke dokumen sumber, tautan ke jurnal asal/pembalik).
 2. THE halaman detail SHALL menampilkan tombol Balik (reverse) hanya untuk pengguna ber-izin `reverse` dan hanya untuk jurnal yang dapat dibalik; aksi meminta tanggal dan alasan.
 3. THE halaman General Ledger existing SHALL tetap berfungsi, menampilkan kolom `Journal` (tautan) dan menampilkan "Beberapa akun" bila `against_account_id` null.
-4. THE sistem SHALL menyediakan halaman pengaturan Periode Fiskal (daftar tahun/periode, generate tahun, buka/tutup periode) di balik izin.
+4. THE sistem SHALL menyediakan halaman pengaturan Periode Fiskal (daftar tahun/periode, generate tahun, buka/tutup periode) di balik izin, didaftarkan sebagai menu item grup setting (desk Finances dan Core) mengikuti spec `module-settings-foundation`.
 5. THE sistem SHALL menyediakan toggle penegakan periode (`finance_enforce_fiscal_period`) pada halaman pengaturan yang sama, dengan peringatan bila ada transaksi di periode tak terdefinisi.
 6. THE seluruh teks UI SHALL memakai kunci terjemahan di `lang/id` dan `lang/en` (dijaga `LocaleKeysTest`).
 7. THE komponen React baru SHALL memiliki test `.rtl.test.jsx`.
@@ -221,7 +221,7 @@ Temuan audit yang menjadi dasar (PRD Lampiran A): F-01 (tanpa header, tak ada ja
 
 | ID | Pertanyaan | Dampak |
 |---|---|---|
-| D-4 | Satu perusahaan atau multi-company? | Jika multi-company, `company_id` harus ditambahkan di `journals` sekarang |
+| D-4 | Satu perusahaan — DECIDED 2026-10-18 (PRD) | `company_id` tidak ditambahkan di `journals` |
 | D-3 | `decimal(20,4)` dan pembulatan HALF_UP di batas posting disetujui? | Requirement 2.5, 7, 13 |
 | D-14 | Jurnal manual masuk fase ini? | Requirement 12 |
 | Q-P1-1 | Boleh membuat jendela pemeliharaan untuk `ALTER TABLE general_ledgers` di MySQL produksi? | Requirement 13 |

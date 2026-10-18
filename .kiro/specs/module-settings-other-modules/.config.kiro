@@ -1,0 +1,6 @@
+{
+  "specId": "7b6ebc61-1fc3-4282-b429-09b038635dda",
+  "workflowType": "requirements-first",
+  "specType": "feature",
+  "description": "Setting modul lain di atas fondasi setting: default kategori Asset, masa berlaku Quotation (Sales/CRM), default tiket Helpdesk, dan kajian default Service. Draft yang divalidasi ulang pada Task 1 setelah module-settings-foundation selesai."
+}
