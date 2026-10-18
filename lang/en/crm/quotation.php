@@ -1,6 +1,11 @@
 <?php
 
 return [
+    'panel' => [
+        'title'  => 'Quotation Info',
+        'code'   => 'Quotation No',
+        'status' => 'Status',
+    ],
     'title'                            => 'Manage Quotations',
     'add'                              => 'Add Quotation',
     'detail'                           => 'Quotation Details',

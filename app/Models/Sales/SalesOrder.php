@@ -6,6 +6,8 @@ use App\Enums\FormStatus;
 use App\Models\Core\Branch;
 use App\Models\Core\Currency;
 use App\Models\Finances\PaymentSchedule;
+use App\Models\Finances\SalesInvoice;
+use App\Models\Inventory\DeliveryNote;
 use App\Models\Model;
 use App\Services\Sales\RentalDurationService;
 use App\Services\Sales\SalesOrderService;
@@ -40,6 +42,32 @@ class SalesOrder extends Model {
         'rent_date',
         'rental_durations',
     ];
+
+    /**
+     * Aksi sama dengan dropdown di Sales/SalesOrders/Show.jsx. Keduanya hanya
+     * muncul pada status tertentu di dropdown; panel menampilkan tombolnya
+     * selalu, dan izin create tetap diperiksa di backend.
+     */
+    public static function expectedRelationPanels(): array {
+        return [
+            SalesInvoice::class => [
+                'action' => [
+                    'route'      => 'salesInvoices.create',
+                    'params'     => ['ref' => 'salesOrder/{id}'],
+                    'label'      => 'sales.salesOrder.actions.create_sales_invoice',
+                    'permission' => 'create',
+                ],
+            ],
+            DeliveryNote::class => [
+                'action' => [
+                    'route'      => 'deliveryNotes.create',
+                    'params'     => ['ref' => 'salesOrder/{id}'],
+                    'label'      => 'sales.salesOrder.actions.create_delivery_note',
+                    'permission' => 'create',
+                ],
+            ],
+        ];
+    }
 
     public static function templateLink() {
         return ':code';
@@ -216,6 +244,25 @@ class SalesOrder extends Model {
             'items.sourceWarehouse',
             'paymentSchedules',
             'paymentSchedules.paymentMethod',
+        ];
+    }
+
+    public static function relationPanel(): array {
+        return [
+            'title'   => 'sales.salesOrder.panel.title',
+            'columns' => [
+                ['key' => 'code', 'label' => 'sales.salesOrder.panel.code', 'align' => 'left'],
+                ['key' => 'date', 'label' => 'sales.salesOrder.panel.date', 'align' => 'left', 'format' => 'date'],
+                ['key' => 'status', 'label' => 'sales.salesOrder.panel.status', 'align' => 'left', 'format' => 'status'],
+            ],
+        ];
+    }
+
+    public function relationPanelRow(): array {
+        return [
+            'code'   => $this->code,
+            'date'   => $this->date,
+            'status' => $this->status,
         ];
     }
 

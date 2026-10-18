@@ -1,6 +1,11 @@
 <?php
 
 return [
+    'panel' => [
+        'title'  => 'Internal Order Info',
+        'code'   => 'Internal Order No',
+        'status' => 'Status',
+    ],
     'title'   => 'Internal Orders',
     'add'     => 'New Internal Orders',
     'branch'  => 'Customer Branch',

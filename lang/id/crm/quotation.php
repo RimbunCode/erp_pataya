@@ -1,6 +1,11 @@
 <?php
 
 return [
+    'panel' => [
+        'title'  => 'Info Penawaran',
+        'code'   => 'No Penawaran',
+        'status' => 'Status',
+    ],
     'title'                            => 'Kelola Quotation',
     'add'                              => 'Tambah Quotation',
     'detail'                           => 'Detail Quotation',

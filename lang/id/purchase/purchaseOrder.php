@@ -1,6 +1,22 @@
 <?php
 
 return [
+    'panel' => [
+        'title'   => 'Info Purchase Order',
+        'code'    => 'No Purchase Order',
+        'status'  => 'Status',
+        'receipt' => [
+            'remainder' => 'Belum Diterima',
+        ],
+        'invoice' => [
+            'title'     => 'Info Tagihan',
+            'code'      => 'No Tagihan',
+            'date'      => 'Tanggal',
+            'total'     => 'Total',
+            'remainder' => 'Belum Ditagihkan',
+        ],
+        'remaining' => 'Sisa',
+    ],
     'title'              => 'Purchase Orders',
     'add'                => 'Tambah Purchase Order',
     'new'                => 'Purchase Order Baru',

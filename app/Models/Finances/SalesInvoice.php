@@ -49,6 +49,23 @@ class SalesInvoice extends Model {
 
     public $keyBreadcrumb = 'code';
 
+    /**
+     * Aksi sama dengan dropdown di Finances/SalesInvoice/Show.jsx. Tombol credit
+     * note di dropdown itu bukan panel relasi dan tidak dideklarasikan di sini.
+     */
+    public static function expectedRelationPanels(): array {
+        return [
+            PaymentEntry::class => [
+                'action' => [
+                    'route'      => 'paymentEntries.create',
+                    'params'     => ['ref' => 'salesInvoice/{id}'],
+                    'label'      => 'finances.salesInvoice.actions.create_payment_entry',
+                    'permission' => 'create',
+                ],
+            ],
+        ];
+    }
+
     public static function templateLink() {
         return ':code';
     }
@@ -214,6 +231,30 @@ class SalesInvoice extends Model {
             'incomeAccount',
             'debitAccount',
             'returnAgainst',
+        ];
+    }
+
+    public static function relationPanel(): array {
+        return [
+            'title'   => 'finances.salesInvoice.panel.title',
+            'columns' => [
+                ['key' => 'code', 'label' => 'finances.salesInvoice.panel.code', 'align' => 'left'],
+                ['key' => 'date', 'label' => 'finances.salesInvoice.panel.date', 'align' => 'left', 'format' => 'date'],
+                ['key' => 'total', 'label' => 'finances.salesInvoice.panel.total', 'align' => 'right', 'format' => 'currency', 'aggregate' => 'sum', 'aggregate_key' => 'total_base'],
+            ],
+        ];
+    }
+
+    /**
+     * `total` menampilkan mata uang transaksi, `total_base` yang dijumlahkan
+     * untuk baris total, sama seperti PurchaseInvoice.
+     */
+    public function relationPanelRow(): array {
+        return [
+            'code'       => $this->code,
+            'date'       => $this->date,
+            'total'      => $this->amount,
+            'total_base' => $this->amount_base_currency,
         ];
     }
 

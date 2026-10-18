@@ -31,6 +31,22 @@ class PurchaseRequest extends Model {
         ];
     }
 
+    /**
+     * Aksi sama dengan tombol di Purchase/PurchaseRequests/Show.jsx.
+     */
+    public static function expectedRelationPanels(): array {
+        return [
+            PurchaseOrder::class => [
+                'action' => [
+                    'route'      => 'purchaseOrders.create',
+                    'params'     => ['ref' => 'purchaseRequest/{id}'],
+                    'label'      => 'purchase.purchaseRequest.actions.create_po',
+                    'permission' => 'create',
+                ],
+            ],
+        ];
+    }
+
     public static function templateLink() {
         return ':code';
     }
@@ -106,6 +122,23 @@ class PurchaseRequest extends Model {
 
         return [
             FormStatus::TO_ORDER->value => [$receivedQuantity >= $quantity ? FormStatus::COMPLETED : FormStatus::ORDERED],
+        ];
+    }
+
+    public static function relationPanel(): array {
+        return [
+            'title'   => 'purchase.purchaseRequest.panel.title',
+            'columns' => [
+                ['key' => 'code', 'label' => 'purchase.purchaseRequest.panel.code', 'align' => 'left'],
+                ['key' => 'status', 'label' => 'purchase.purchaseRequest.panel.status', 'align' => 'left', 'format' => 'status'],
+            ],
+        ];
+    }
+
+    public function relationPanelRow(): array {
+        return [
+            'code'   => $this->code,
+            'status' => $this->status,
         ];
     }
 

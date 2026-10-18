@@ -10,6 +10,7 @@ import { ChevronsUpDown } from "lucide-react";
 import ConfirmWorkflowDialog from "./ConfirmWorkflowDialog";
 import Form from "./Form";
 import { FormPage } from "@/Pages/Core/FormPage";
+import RelationPanels from "@/Pages/Core/Components/RelationPanels";
 import Link from "@/Components/Link";
 import ServiceActivityLog from "./ServiceActivityLog";
 import { hasPassedApproval } from "./statusUtils";
@@ -155,6 +156,7 @@ export default function Show({ assetService, defaultData }) {
       {assetService && approved && (
         <ServiceActivityLog assetService={assetService} />
       )}
+      {assetService?.submitted_at && <RelationPanels />}
     </FormPage>
   );
 }

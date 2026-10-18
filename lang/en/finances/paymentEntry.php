@@ -1,6 +1,12 @@
 <?php
 
 return [
+    'panel' => [
+        'title'  => 'Payment Info',
+        'code'   => 'Payment No',
+        'method' => 'Method',
+        'total'  => 'Total',
+    ],
     'title'              => 'Payment Entries',
     'add'                => 'Add Payment Entry',
     'new'                => 'New Payment Entry',

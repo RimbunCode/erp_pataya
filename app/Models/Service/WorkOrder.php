@@ -6,6 +6,7 @@ use App\Enums\FormStatus;
 use App\Models\Core\Branch;
 use App\Models\Inventory\ItemVariant;
 use App\Models\Model;
+use App\Models\Purchase\PurchaseRequest;
 use App\Models\Sales\Customer;
 use App\Services\Service\WorkOrderService;
 use App\Traits\DataTable;
@@ -57,6 +58,23 @@ class WorkOrder extends Model {
             'customer',
             'customerBranch',
             'itemService',
+        ];
+    }
+
+    /**
+     * Aksi PR sama dengan dropdown di Services/WorkOrders/Show.jsx. Tombol SO/IO
+     * di dropdown itu tidak masuk panel, sesuai cakupan spec.
+     */
+    public static function expectedRelationPanels(): array {
+        return [
+            PurchaseRequest::class => [
+                'action' => [
+                    'route'      => 'purchaseRequests.create',
+                    'params'     => ['ref' => 'workOrder/{id}'],
+                    'label'      => 'service.workOrder.actions.create_pr',
+                    'permission' => 'create',
+                ],
+            ],
         ];
     }
 

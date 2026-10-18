@@ -5,6 +5,7 @@ namespace App\Models\CRM;
 use App\Models\Core\Preference;
 use App\Models\Model;
 use App\Models\Sales\Customer;
+use App\Models\Sales\SalesOrder;
 use App\Services\CRM\QuotationService;
 use App\Traits\DataTable;
 use App\Traits\Submitable;
@@ -38,6 +39,22 @@ class Quotation extends Model {
         'tax_amount'   => 'float',
         'amount'       => 'float',
     ];
+
+    /**
+     * Aksi sama dengan tombol di CRM/Quotations/Show.jsx.
+     */
+    public static function expectedRelationPanels(): array {
+        return [
+            SalesOrder::class => [
+                'action' => [
+                    'route'      => 'salesOrders.create',
+                    'params'     => ['ref' => 'quotation/{id}'],
+                    'label'      => 'crm.quotation.actions.create_sales_order',
+                    'permission' => 'create',
+                ],
+            ],
+        ];
+    }
 
     public static function templateLink() {
         return ':code';
@@ -130,6 +147,23 @@ class Quotation extends Model {
 
             return $this->date->copy()->timezone($timezone ?: config('app.timezone'))->toDateString();
         });
+    }
+
+    public static function relationPanel(): array {
+        return [
+            'title'   => 'crm.quotation.panel.title',
+            'columns' => [
+                ['key' => 'code', 'label' => 'crm.quotation.panel.code', 'align' => 'left'],
+                ['key' => 'status', 'label' => 'crm.quotation.panel.status', 'align' => 'left', 'format' => 'status'],
+            ],
+        ];
+    }
+
+    public function relationPanelRow(): array {
+        return [
+            'code'   => $this->code,
+            'status' => $this->status,
+        ];
     }
 
     public function referenceable() {

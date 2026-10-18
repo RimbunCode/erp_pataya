@@ -1,6 +1,13 @@
 <?php
 
 return [
+    'panel' => [
+        'return'   => ['title' => 'Goods Return Info'],
+        'title'    => 'Goods Receipt Info',
+        'code'     => 'Receipt No',
+        'date'     => 'Date',
+        'quantity' => 'Total Qty',
+    ],
     'title'                  => 'Purchase Receipts',
     'add'                    => 'New Purchase Receipt',
     'supplier'               => 'Supplier',

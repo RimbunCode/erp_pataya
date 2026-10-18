@@ -1,6 +1,12 @@
 <?php
 
 return [
+    'panel' => [
+        'title'  => 'Info Sales Order',
+        'code'   => 'No Sales Order',
+        'date'   => 'Tanggal',
+        'status' => 'Status',
+    ],
     'title'                       => 'Sales Orders',
     'add'                         => 'Sales Order Baru',
     'customer'                    => 'Pelanggan',

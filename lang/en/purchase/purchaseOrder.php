@@ -1,6 +1,22 @@
 <?php
 
 return [
+    'panel' => [
+        'title'   => 'Purchase Order Info',
+        'code'    => 'Purchase Order No',
+        'status'  => 'Status',
+        'receipt' => [
+            'remainder' => 'Not Yet Received',
+        ],
+        'invoice' => [
+            'title'     => 'Invoice Info',
+            'code'      => 'Invoice No',
+            'date'      => 'Date',
+            'total'     => 'Total',
+            'remainder' => 'Not Yet Invoiced',
+        ],
+        'remaining' => 'Remaining',
+    ],
     'title'              => 'Purchase Orders',
     'add'                => 'Add Purchase Order',
     'new'                => 'New Purchase Order',

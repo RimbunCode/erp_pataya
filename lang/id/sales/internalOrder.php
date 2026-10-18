@@ -1,6 +1,11 @@
 <?php
 
 return [
+    'panel' => [
+        'title'  => 'Info Internal Order',
+        'code'   => 'No Internal Order',
+        'status' => 'Status',
+    ],
     'title'   => 'Internal Orders',
     'add'     => 'Tambah Internal Order Baru',
     'branch'  => 'Cabang Pelanggan',

@@ -18,6 +18,7 @@ import {
 import { ChevronsUpDown } from "lucide-react";
 import Form from "./Form";
 import { FormPage } from "@/Pages/Core/FormPage";
+import RelationPanels from "@/Pages/Core/Components/RelationPanels";
 import Link from "@/Components/Link";
 import { useLaravelReactI18n } from "laravel-react-i18n";
 import { router } from "@inertiajs/react";
@@ -328,6 +329,7 @@ export default function Show({ salesOrder, defaultData, flash }) {
             durations={salesOrder.rental_durations}
           />
         )}
+        {salesOrder?.submitted_at && <RelationPanels />}
       </FormPage>
 
       {/* Dialog konfirmasi Sync Items */}
