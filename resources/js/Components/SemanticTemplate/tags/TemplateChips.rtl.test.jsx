@@ -45,6 +45,47 @@ const column = {
   primaryKey: "id",
 };
 
+describe("tampilan daftar chip", () => {
+  const items = [
+    {
+      id: 1,
+      code: "GDS-1",
+      name: "Hydraulic Hose 285 Basic Package",
+      thisModel: "Item",
+      templateLink:
+        "<title>GDS-1 - Hydraulic Hose</title><b>:code</b><br/><span>:name</span>",
+    },
+  ];
+
+  it("chip satu baris: <br> templateLink jadi spasi dan tooltip berisi teks penuh", () => {
+    const { container } = render(
+      <TemplateChips
+        row={{ id: 9, items }}
+        column={{ ...column, name: "items" }}
+      />,
+    );
+    const chip = container.querySelector('[data-slot="chip"]');
+
+    expect(chip.querySelector("br")).toBeNull();
+    expect(chip).toHaveClass("truncate");
+    expect(chip).toHaveAttribute(
+      "title",
+      "GDS-1 Hydraulic Hose 285 Basic Package",
+    );
+    expect(chip.textContent).toBe("GDS-1 Hydraulic Hose 285 Basic Package");
+  });
+
+  it("daftar vertikal: wadah chips berupa kolom, bukan baris yang membungkus", () => {
+    const { container } = render(
+      <TemplateChips row={makeRow(2)} column={column} />,
+    );
+    const list = container.querySelector('[data-slot="chips"]');
+
+    expect(list).toHaveClass("flex-col");
+    expect(list).not.toHaveClass("flex-wrap");
+  });
+});
+
 const chipCount = (container) =>
   container.querySelectorAll('[data-slot="chip"]').length;
 
