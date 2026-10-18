@@ -27,22 +27,36 @@ describe("normalizeProgress", () => {
 });
 
 describe("TemplateProgress", () => {
-  it("default donut dengan nilai di tengah", () => {
+  it("default donut dengan persen di samping", () => {
     const { container } = render(<TemplateProgress value={45.25} />);
 
     const bar = screen.getByRole("progressbar");
-    expect(bar).toHaveAttribute("data-shape", "donut");
+    const root = container.firstElementChild;
+    expect(root).toHaveAttribute("data-shape", "donut");
     expect(bar).toHaveAttribute("aria-valuenow", "45.25");
-    expect(bar).toHaveTextContent("45.25%");
+    // Persen tampil di samping donut (di luar elemen progressbar), bukan di tengah.
+    expect(root).toHaveTextContent("45.25%");
+    expect(bar).not.toHaveTextContent("45.25%");
+    expect(bar.nextElementSibling).toHaveTextContent("45.25%");
     expect(container.querySelector("svg")).not.toBeNull();
     expect(container.querySelectorAll("circle")).toHaveLength(2);
   });
 
+  it("bar mengisi lebar sel dan persen berada di sampingnya", () => {
+    const { container } = render(<TemplateProgress value={30} shape="bar" />);
+    const root = container.firstElementChild;
+    const bar = screen.getByRole("progressbar");
+
+    expect(root).toHaveClass("w-full");
+    expect(bar).toHaveClass("flex-1");
+    expect(bar.nextElementSibling).toHaveTextContent("30%");
+  });
+
   it("mengikuti default_number_format preferensi", () => {
     state.props = { preferences: { default_number_format: "#.###,##" } };
-    render(<TemplateProgress value={45.25} />);
+    const { container } = render(<TemplateProgress value={45.25} />);
 
-    expect(screen.getByRole("progressbar")).toHaveTextContent("45,25%");
+    expect(container).toHaveTextContent("45,25%");
   });
 
   it("donut biru selama < 100 dan hijau saat 100", () => {
@@ -56,7 +70,7 @@ describe("TemplateProgress", () => {
     expect(full.container.querySelector('[data-slot="arc"]')).toHaveClass(
       "stroke-green-500",
     );
-    expect(screen.getByRole("progressbar")).toHaveTextContent("100%");
+    expect(full.container).toHaveTextContent("100%");
   });
 
   it("panjang busur donut proporsional dengan nilai", () => {

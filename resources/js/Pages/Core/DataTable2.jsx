@@ -129,6 +129,9 @@ const optionsFieldChanged = (key, prev, next) =>
 
 // Referensi stabil agar default `rowActions` tidak membuat `allActions` berubah tiap render.
 const EMPTY_ROW_ACTIONS = [];
+
+// "Fit dengan minimum": selebar isi (max-content), tidak kurang dari 150px.
+const PROGRESS_COLUMN_WIDTH = "minmax(150px, max-content)";
 const noop = () => {};
 
 export function classifyOptionsChange(
@@ -389,7 +392,12 @@ export default memo(
             searchable: col.searchable ?? true,
             parentCol: parentColumn,
             sortable: !parentColumn ? (col.sortable ?? true) : false,
-            resizeable: col.resizeable ?? true,
+            // Kolom progress: lebar default "fit" dengan minimum (bar tidak jadi garis
+            // tipis) dan tidak bisa di-resize, kecuali developer menimpanya di configColumns.
+            width:
+              col.width ??
+              (col.type === "progress" ? PROGRESS_COLUMN_WIDTH : undefined),
+            resizeable: col.resizeable ?? col.type !== "progress",
             route:
               col.isLink && !parentColumn
                 ? `${pluralize.plural(name ?? "")}.show`
