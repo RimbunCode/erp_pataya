@@ -135,16 +135,27 @@ class StandardPrintTemplateSeederTest extends TestCase {
 
         $label    = StandardPrintTemplateSeeder::definitions()[0]['label'];
         $template = $this->standardTemplate($label);
-        $template->update([
+
+        // Gagal di sini berarti update-nya yang tidak tersimpan, bukan seeder.
+        $this->assertTrue($template->update([
             'font_family'        => 'Courier New',
             'page_number'        => 'top_left',
             'page_number_format' => 'Hal :page dari :total',
-        ]);
+        ]));
+
+        $fresh = $template->fresh();
+        $this->assertSame('Courier New', $fresh->font_family);
+        $this->assertSame('top_left', $fresh->page_number);
+        $this->assertSame('Hal :page dari :total', $fresh->page_number_format);
+
+        $templateId = $template->id;
 
         $this->seedStandard();
         $this->seedStandard();
 
-        $template = $this->standardTemplate($label);
+        // Baca ulang berdasar ID: `first()` berdasar nama tanpa order bisa
+        // kena baris duplikat sisa seed paralel sehingga tampak flaky.
+        $template = PrintTemplate::findOrFail($templateId);
         $this->assertSame('Courier New', $template->font_family);
         $this->assertSame('top_left', $template->page_number);
         $this->assertSame('Hal :page dari :total', $template->page_number_format);
