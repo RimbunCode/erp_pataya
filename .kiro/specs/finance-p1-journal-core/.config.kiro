@@ -1,0 +1,6 @@
+{
+  "specId": "2511e1cc-c1ff-424e-ace0-79d90d5514af",
+  "workflowType": "requirements-first",
+  "specType": "feature",
+  "description": "Fase 1 dari 7 Finance Engine: Journal header + lines (N-baris, seimbang), immutability + reversal, fiscal period dasar, JournalService atomik, migrasi/backfill GL lama, dan pembaruan UI General Ledger."
+}

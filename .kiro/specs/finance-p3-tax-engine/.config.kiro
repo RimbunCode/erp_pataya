@@ -1,0 +1,6 @@
+{
+  "specId": "10d8d138-08b7-4388-9259-4d51442a6f0e",
+  "workflowType": "requirements-first",
+  "specType": "feature",
+  "description": "Fase 3 dari 7 Finance Engine: Tax Engine dengan aturan pajak berversi (effective dating), pemisahan baris pajak (PPN Masukan/Keluaran, PPh) di jurnal, penjelasan perhitungan (explainable), bergantung pada spec dpp-discount-and-tax-compliance."
+}
