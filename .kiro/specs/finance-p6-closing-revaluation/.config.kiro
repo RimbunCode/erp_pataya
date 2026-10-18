@@ -1,0 +1,6 @@
+{
+  "specId": "d7791ca1-908b-4d7a-9fe1-fc41dec3b5fb",
+  "workflowType": "requirements-first",
+  "specType": "feature",
+  "description": "Fase 6 dari 7 Finance Engine: penutupan periode (soft/hard close), jurnal penutup tahun buku, revaluasi unrealized FX dengan auto-reversal, checklist cut-off, reopen terkontrol dengan audit."
+}

@@ -1,0 +1,6 @@
+{
+  "specId": "a6dd3ae8-832d-41c7-b68b-270a8fbcc941",
+  "workflowType": "requirements-first",
+  "specType": "feature",
+  "description": "Fase 0 dari 7 Finance Engine: audit kondisi GL/akun/posting existing, characterization test, keputusan kebijakan akuntansi (decision log), dan baseline data sebelum refactor. Output: laporan audit, test pengunci perilaku, keputusan D-1..D-n."
+}

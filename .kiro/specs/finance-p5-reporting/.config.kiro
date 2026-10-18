@@ -1,0 +1,6 @@
+{
+  "specId": "7dc1be7f-ec32-446a-8c81-dc7b287eb3a6",
+  "workflowType": "requirements-first",
+  "specType": "feature",
+  "description": "Fase 5 dari 7 Finance Engine: laporan keuangan dari Journal Lines (Trial Balance, GL detail, Laba Rugi, Neraca, Arus Kas, AR/AP Aging, rekap pajak), account_balances sebagai cache turunan, pensiun accounts.balance_amount."
+}

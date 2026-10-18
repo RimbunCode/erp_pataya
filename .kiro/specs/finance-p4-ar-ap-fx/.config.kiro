@@ -1,0 +1,6 @@
+{
+  "specId": "faaef66f-1a6d-4919-b01a-5fea8608b746",
+  "workflowType": "requirements-first",
+  "specType": "feature",
+  "description": "Fase 4 dari 7 Finance Engine: sub-ledger AR/AP, Payment Allocation (banyak-ke-banyak, advance, credit/debit note), master kurs + FX Engine (tipe kurs, realized FX gain/loss)."
+}

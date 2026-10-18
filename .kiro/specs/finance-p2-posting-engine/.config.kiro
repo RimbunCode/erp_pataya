@@ -1,0 +1,6 @@
+{
+  "specId": "d4b25f48-cde6-4504-b977-d421c3337dca",
+  "workflowType": "requirements-first",
+  "specType": "feature",
+  "description": "Fase 2 dari 7 Finance Engine: Posting Profile + Account Role Resolver + PostingService, refactor bertahap listener GL existing (parity test + feature flag), pembatalan dokumen memicu reversal."
+}
