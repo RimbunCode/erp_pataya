@@ -92,7 +92,7 @@ function toProps(attribs, row, column, ctx, semantic) {
  * @param {{ row: object, column?: object, ctx: object, search?: string }} state
  * @returns {import("html-react-parser").HTMLReactParserOptions}
  */
-function buildOptions({ row, column, ctx, search }) {
+function buildOptions({ row, column, ctx, search, singleLine = false }) {
   const options = {
     replace(node) {
       if (node.type === "text") {
@@ -140,7 +140,12 @@ function buildOptions({ row, column, ctx, search }) {
       if (BASIC_TAG_SET.has(name)) {
         const props = toProps(node.attribs, row, column, ctx, false);
         if (VOID_BASIC_TAGS.has(name)) {
-          return createElement(name, props);
+          // Chip satu baris: <br> (mis. templateLink "<b>kode</b><br/>nama") jadi spasi.
+          return singleLine ? (
+            <Fragment> </Fragment>
+          ) : (
+            createElement(name, props)
+          );
         }
 
         return createElement(name, props, domToReact(node.children, options));
@@ -189,9 +194,10 @@ function SemanticTemplate({ template, row, column, context = "cell", search }) {
         column,
         ctx: { t, lang, preferences },
         search,
+        singleLine: context === "chip",
       }),
     );
-  }, [safe, row, column, search, t, lang, preferences]);
+  }, [safe, row, column, search, t, lang, preferences, context]);
 
   // Opsi dropdown (LinkModel/SelectModel): klik opsi = MEMILIH, bukan navigasi,
   // jadi <nav-link>/<chips> di dalamnya dirender tanpa <a>.

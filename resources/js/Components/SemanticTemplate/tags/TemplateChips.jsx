@@ -7,13 +7,16 @@ import {
 } from "@/Components/ui/popover";
 import { cn, getValueObject } from "@/lib/utils";
 import SemanticTemplate from "../SemanticTemplate";
+import { templateToText } from "../templateEngine";
 import { InsideLinkContext } from "./linkContext";
 import useRecordLink from "./useRecordLink";
 
 export const DEFAULT_MAX_CHIPS = 3;
 
+// Satu baris per chip (dipotong "…", teks penuh di tooltip) -- daftar vertikal rapi
+// ketimbang kotak sempit yang membungkus teks jadi banyak baris.
 const CHIP_CLASS =
-  "inline-flex max-w-full items-center rounded-md border bg-muted/40 px-1.5 py-0.5 text-xs";
+  "block max-w-full truncate rounded-md border bg-muted/40 px-2 py-0.5 text-xs leading-5";
 
 /**
  * Batas chip dari atribut/kolom: angka >= 0; selain itu default 3. `0` = semua.
@@ -57,9 +60,16 @@ function Chip({ item, path, index, row, column, template }) {
     />
   );
 
+  // Tooltip = teks penuh (chip dipotong satu baris).
+  const fullText = templateToText(
+    template ?? item?.templateLink ?? "",
+    item,
+    template ? column : undefined,
+  ).trim();
+
   if (!link) {
     return (
-      <span data-slot="chip" className={CHIP_CLASS}>
+      <span data-slot="chip" title={fullText} className={CHIP_CLASS}>
         {content}
       </span>
     );
@@ -68,6 +78,7 @@ function Chip({ item, path, index, row, column, template }) {
   return (
     <Link
       data-slot="chip"
+      title={fullText}
       href={link.href}
       className={cn(
         CHIP_CLASS,
@@ -119,7 +130,10 @@ export default function TemplateChips({ of, max, row, column }) {
   );
 
   return (
-    <span className="flex flex-wrap items-center gap-1" data-slot="chips">
+    <span
+      className="flex w-full min-w-0 flex-col items-start gap-1"
+      data-slot="chips"
+    >
       {items
         .slice(0, visibleCount)
         .map((item, index) => renderChip(item, index))}
