@@ -4,9 +4,11 @@ namespace App\Models\Core;
 
 use App\Casts\Json;
 use App\Models\Model;
+use App\Services\Core\Setting\SettingsService;
 use App\Traits\DataTable;
 use Carbon\Carbon;
 use Illuminate\Database\Eloquent\Concerns\HasUlids;
+use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Session;
 use Illuminate\Support\Str;
 use Illuminate\Validation\ValidationException;
@@ -153,111 +155,115 @@ class FormatingSeries extends Model {
             return $data->code;
         }
 
-        $ref           = FormatingSeries::where('model', $model)->first();
-        $codeRelations = [];
-        $keyFormat     = $ref->getKeyLogs($codeRelations);
+        // Counter dibaca-diubah-ditulis: tanpa kunci baris, dua proses
+        // bersamaan membaca angka yang sama dan menghasilkan kode ganda.
+        return DB::transaction(function () use ($model, $data, $isDraft): string {
+            $ref           = FormatingSeries::where('model', $model)->lockForUpdate()->first();
+            $codeRelations = [];
+            $keyFormat     = $ref->getKeyLogs($codeRelations);
 
-        $refKey = (array) ((array) $ref->logs)[$keyFormat];
+            $refKey = (array) ((array) $ref->logs)[$keyFormat];
 
-        $timezone = Preference::where('key', 'timezone')->first()?->value ?? 'UTC';
+            $timezone = app(SettingsService::class)->get(CoreSetting::class)->timezone ?? 'UTC';
 
-        preg_match('/^(?=.*@\[(mm|mmm|mmmm)\])(?=.*@\[(yy|yyyy)\]).*$/', $ref->format, $monthYear);
-        preg_match('/^(?=.*@\[(yy|yyyy)\]).*$/', $ref->format, $year);
-        $now = Carbon::now()->timezone($timezone);
+            preg_match('/^(?=.*@\[(mm|mmm|mmmm)\])(?=.*@\[(yy|yyyy)\]).*$/', $ref->format, $monthYear);
+            preg_match('/^(?=.*@\[(yy|yyyy)\]).*$/', $ref->format, $year);
+            $now = Carbon::now()->timezone($timezone);
 
-        $selectTime = \count($monthYear) > 0 ? "{$now->month}/{$now->year}" : (\count($year) > 0 ? (string) $now->year : null);
-        $selectKey  = $isDraft ? 'draft' : $selectTime ?? 0;
+            $selectTime = \count($monthYear) > 0 ? "{$now->month}/{$now->year}" : (\count($year) > 0 ? (string) $now->year : null);
+            $selectKey  = $isDraft ? 'draft' : $selectTime ?? 0;
 
-        if (! isset($refKey[$selectKey])) {
+            if (! isset($refKey[$selectKey])) {
+                $refKey[$selectKey] = [
+                    'current'    => 0,
+                    'updated_at' => now()->addDays(-1),
+                ];
+            }
+
+            $refLatest   = $refKey[$selectKey];
+            $lastUpdated = Carbon::parse($refLatest['updated_at']);
+
+            if (\count($monthYear) > 0) {
+                if ($now->year > $lastUpdated->year || $now->year >= $lastUpdated->year && $now->month > $lastUpdated->month) {
+                    $refLatest['current'] = 1;
+                } else {
+                    $refLatest['current'] += 1;
+                }
+            } elseif (\count($year) > 0) {
+                if ($now->year > $lastUpdated->year) {
+                    $refLatest['current'] = 1;
+                } else {
+                    $refLatest['current'] += 1;
+                }
+            } else {
+                $refLatest['current'] += 1;
+            }
+
+            // Validate that all custom tokens in the format are defined in codeRelations
+            preg_match_all('/@\[(.*?)\]/', $ref->format, $tokenMatches);
+            $builtInPattern = '/^(i+|yyyy|yy|mmmm|mmm|mm)$/';
+            foreach ($tokenMatches[1] as $token) {
+                if (preg_match($builtInPattern, $token)) {
+                    continue;
+                }
+                if (! isset($codeRelations[$token])) {
+                    throw ValidationException::withMessages([
+                        'format' => ["Relation field '@[{$token}]' is not defined in codeRelations() for model {$model}."],
+                    ]);
+                }
+            }
+
+            if (! \is_array($data)) {
+                $relations = \array_unique(\array_values(\array_map(fn ($item) => $item['relation'], $codeRelations)));
+                $data->load($relations);
+                $data = $data->toArray();
+            }
+            $pattern = '/@\[(.*?)\]/';
+            $result  = preg_replace_callback($pattern, function ($matches) use ($isDraft, $codeRelations, $data, $now, $refLatest, $model) {
+                $format = $matches[1];
+                if ($format[0] == 'i') {
+                    $rslt = str_pad($refLatest['current'], \strlen($format), '0', STR_PAD_LEFT);
+
+                    return $isDraft ? "(DRAFT/$rslt)" : $rslt;
+                }
+
+                return match ($format) {
+                    'yyyy'  => $now->translatedFormat('Y'),
+                    'yy'    => $now->translatedFormat('y'),
+                    'mmmm'  => $now->translatedFormat('F'),
+                    'mmm'   => $now->translatedFormat('M'),
+                    'mm'    => $now->translatedFormat('m'),
+                    default => (function () use ($data, $codeRelations, $format, $model) {
+                        if (! isset($codeRelations[$format])) {
+                            throw new \Error("Relation field '@[{$format}]' is not defined in codeRelations() for model {$model}.");
+                        }
+                        $relation = $codeRelations[$format]['relation'];
+                        $key      = $codeRelations[$format]['key'];
+                        $value    = $data[$relation][$key] ?? null;
+                        if ($value === null) {
+                            throw new \Error("Relation '{$relation}.{$key}' could not be resolved for model {$model}. Ensure the relation is loaded and the field exists.");
+                        }
+
+                        return $value;
+                    })(),
+                };
+            }, $ref->format);
+
             $refKey[$selectKey] = [
-                'current'    => 0,
-                'updated_at' => now()->addDays(-1),
+                'current'    => $refLatest['current'],
+                'updated_at' => now(),
             ];
-        }
+            $logs = [
+                ...(array) $ref->logs,
+                $keyFormat => $refKey,
+            ];
 
-        $refLatest   = $refKey[$selectKey];
-        $lastUpdated = Carbon::parse($refLatest['updated_at']);
+            $ref->fill([
+                'logs' => $logs,
+            ]);
+            $ref->save();
 
-        if (\count($monthYear) > 0) {
-            if ($now->year > $lastUpdated->year || $now->year >= $lastUpdated->year && $now->month > $lastUpdated->month) {
-                $refLatest['current'] = 1;
-            } else {
-                $refLatest['current'] += 1;
-            }
-        } elseif (\count($year) > 0) {
-            if ($now->year > $lastUpdated->year) {
-                $refLatest['current'] = 1;
-            } else {
-                $refLatest['current'] += 1;
-            }
-        } else {
-            $refLatest['current'] += 1;
-        }
-
-        // Validate that all custom tokens in the format are defined in codeRelations
-        preg_match_all('/@\[(.*?)\]/', $ref->format, $tokenMatches);
-        $builtInPattern = '/^(i+|yyyy|yy|mmmm|mmm|mm)$/';
-        foreach ($tokenMatches[1] as $token) {
-            if (preg_match($builtInPattern, $token)) {
-                continue;
-            }
-            if (! isset($codeRelations[$token])) {
-                throw ValidationException::withMessages([
-                    'format' => ["Relation field '@[{$token}]' is not defined in codeRelations() for model {$model}."],
-                ]);
-            }
-        }
-
-        if (! \is_array($data)) {
-            $relations = \array_unique(\array_values(\array_map(fn ($item) => $item['relation'], $codeRelations)));
-            $data->load($relations);
-            $data = $data->toArray();
-        }
-        $pattern = '/@\[(.*?)\]/';
-        $result  = preg_replace_callback($pattern, function ($matches) use ($isDraft, $codeRelations, $data, $now, $refLatest, $model) {
-            $format = $matches[1];
-            if ($format[0] == 'i') {
-                $rslt = str_pad($refLatest['current'], \strlen($format), '0', STR_PAD_LEFT);
-
-                return $isDraft ? "(DRAFT/$rslt)" : $rslt;
-            }
-
-            return match ($format) {
-                'yyyy'  => $now->translatedFormat('Y'),
-                'yy'    => $now->translatedFormat('y'),
-                'mmmm'  => $now->translatedFormat('F'),
-                'mmm'   => $now->translatedFormat('M'),
-                'mm'    => $now->translatedFormat('m'),
-                default => (function () use ($data, $codeRelations, $format, $model) {
-                    if (! isset($codeRelations[$format])) {
-                        throw new \Error("Relation field '@[{$format}]' is not defined in codeRelations() for model {$model}.");
-                    }
-                    $relation = $codeRelations[$format]['relation'];
-                    $key      = $codeRelations[$format]['key'];
-                    $value    = $data[$relation][$key] ?? null;
-                    if ($value === null) {
-                        throw new \Error("Relation '{$relation}.{$key}' could not be resolved for model {$model}. Ensure the relation is loaded and the field exists.");
-                    }
-
-                    return $value;
-                })(),
-            };
-        }, $ref->format);
-
-        $refKey[$selectKey] = [
-            'current'    => $refLatest['current'],
-            'updated_at' => now(),
-        ];
-        $logs = [
-            ...(array) $ref->logs,
-            $keyFormat => $refKey,
-        ];
-
-        $ref->fill([
-            'logs' => $logs,
-        ]);
-        $ref->save();
-
-        return $result;
+            return $result;
+        });
     }
 }
