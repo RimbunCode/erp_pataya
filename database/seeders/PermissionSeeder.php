@@ -2,6 +2,9 @@
 
 namespace Database\Seeders;
 
+use App\Models\Core\CoreSetting;
+use App\Models\Finances\FinanceSetting;
+use App\Models\Sales\SalesSetting;
 use App\Traits\DataTable;
 use Illuminate\Database\Seeder;
 
@@ -140,5 +143,13 @@ class PermissionSeeder extends Seeder {
                 print_r($e);
             }
         }
+
+        // Model setting tidak memakai trait DataTable (sengaja, agar
+        // initPermissions() tidak mengubah skema tabel singleton), jadi
+        // didaftarkan eksplisit di sini — sebelum AdministratorSeeder
+        // membagikan izin per modul (spec module-settings-foundation 7.1).
+        CoreSetting::initPermissions();
+        FinanceSetting::initPermissions();
+        SalesSetting::initPermissions();
     }
 }

@@ -3,8 +3,9 @@
 namespace App\Http\Controllers\Core;
 
 use App\Http\Controllers\Controller;
+use App\Models\Core\CoreSetting;
 use App\Models\Core\File;
-use App\Models\Core\Preference;
+use App\Services\Core\Setting\SettingsService;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Storage;
 
@@ -13,7 +14,7 @@ class CompanyLogoController extends Controller {
      * Handle the incoming request.
      */
     public function __invoke(Request $request) {
-        $fileId = Preference::where('key', 'company_image')->first()?->value;
+        $fileId = app(SettingsService::class)->get(CoreSetting::class)->company_image_id;
         if (! $fileId) {
             abort(404);
         }

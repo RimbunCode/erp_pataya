@@ -3,7 +3,11 @@
 namespace Database\Seeders;
 
 use App\Models\Core\Branch;
-use App\Models\Core\Preference;
+use App\Models\Core\CoreSetting;
+use App\Models\Core\Country;
+use App\Models\Core\Currency;
+use App\Models\Finances\FinanceSetting;
+use App\Models\Sales\SalesSetting;
 use Illuminate\Database\Seeder;
 
 class PreferenceSeeder extends Seeder {
@@ -43,14 +47,43 @@ class PreferenceSeeder extends Seeder {
             'tax_invoice_serial_range_end'   => 0,
             'tax_invoice_serial_last_used'   => 0,
         ];
-        $preferences = collect($preferencesArr)->map(fn ($value, $key) => [
-            'key'   => $key,
-            'value' => $value,
-        ])->values();
+        // FK nyata: hanya tanam kode negara/mata uang bila baris acuannya
+        // sudah ada (CountrySeeder berjalan setelah seeder ini dan butuh API
+        // eksternal). Kalau belum ada, biarkan null daripada menggagalkan
+        // seluruh seed instalasi baru.
+        $countryId = Country::where('code', $preferencesArr['country_id'])->exists()
+            ? $preferencesArr['country_id']
+            : null;
+        $currencyId = Currency::where('code', $preferencesArr['default_currency_id'])->exists()
+            ? $preferencesArr['default_currency_id']
+            : null;
 
-        foreach ($preferences as $key => $value) {
-            Preference::firstOrCreate(['key' => $value['key']], ['value' => $value['value']]);
-        }
+        CoreSetting::updateOrCreate(['singleton' => true], [
+            'company_name'          => $preferencesArr['company_name'],
+            'short_name'            => $preferencesArr['short_name'],
+            'email'                 => $preferencesArr['email'],
+            'phone'                 => $preferencesArr['phone'],
+            'street'                => $preferencesArr['street'],
+            'city'                  => $preferencesArr['city'],
+            'state'                 => $preferencesArr['state'],
+            'zip_code'              => $preferencesArr['zip_code'],
+            'country_id'            => $countryId,
+            'bank_name'             => $preferencesArr['bank_name'],
+            'bank_account_name'     => $preferencesArr['bank_account_name'],
+            'bank_account_number'   => $preferencesArr['bank_account_number'],
+            'default_currency_id'   => $currencyId,
+            'default_number_format' => $preferencesArr['default_number_format'],
+            'timezone'              => $preferencesArr['timezone'],
+            'num_per_page'          => $preferencesArr['num_per_page'],
+            'per_page_options'      => $preferencesArr['per_page_options'],
+        ]);
+        FinanceSetting::updateOrCreate(['singleton' => true], [
+            'tax_invoice_serial_range_start' => $preferencesArr['tax_invoice_serial_range_start'],
+            'tax_invoice_serial_range_end'   => $preferencesArr['tax_invoice_serial_range_end'],
+            'tax_invoice_serial_last_used'   => $preferencesArr['tax_invoice_serial_last_used'],
+        ]);
+        SalesSetting::firstOrCreate(['singleton' => true]);
+
         Branch::firstOrCreate([
             'code' => $preferencesArr['short_name'],
         ], [

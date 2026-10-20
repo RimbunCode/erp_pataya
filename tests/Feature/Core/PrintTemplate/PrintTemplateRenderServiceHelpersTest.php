@@ -9,6 +9,7 @@ use Illuminate\Database\Schema\Blueprint;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Schema;
 use LightnCandy\LightnCandy;
+use Tests\Support\CreatesModuleSettingTables;
 use Tests\TestCase;
 
 /**
@@ -28,6 +29,8 @@ use Tests\TestCase;
  * formatData(), bukan jalur kompilasi.
  */
 class PrintTemplateRenderServiceHelpersTest extends TestCase {
+    use CreatesModuleSettingTables;
+
     protected PrintTemplateRenderService $service;
 
     protected function setUp(): void {
@@ -63,6 +66,7 @@ class PrintTemplateRenderServiceHelpersTest extends TestCase {
             ]);
         }
 
+        $this->createModuleSettingTables();
         $this->service = app(PrintTemplateRenderService::class);
     }
 

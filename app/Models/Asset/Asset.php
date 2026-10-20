@@ -8,6 +8,7 @@ use App\Enums\AssetType;
 use App\Enums\FormStatus;
 use App\Events\Asset\AssetScrapped;
 use App\Models\Core\Branch;
+use App\Models\Core\CoreSetting;
 use App\Models\Core\GlPostingStatus;
 use App\Models\Core\Preference;
 use App\Models\Finances\PurchaseInvoiceItem;
@@ -16,6 +17,7 @@ use App\Models\Model;
 use App\Models\Purchase\PurchaseReceiptItem;
 use App\Models\User\User;
 use App\Services\Asset\AssetService;
+use App\Services\Core\Setting\SettingsService;
 use App\Traits\DataTable;
 use App\Traits\Submitable;
 use Illuminate\Database\Eloquent\Casts\Attribute;
@@ -242,7 +244,7 @@ class Asset extends Model {
     protected function ownershipName(): Attribute {
         return Attribute::get(function (): ?string {
             if ($this->ownership_type === AssetOwnershipType::COMPANY) {
-                return Preference::find('company_name')?->value;
+                return app(SettingsService::class)->get(CoreSetting::class)->company_name;
             }
 
             return $this->ownership?->name;

@@ -13,17 +13,20 @@ Fondasi ini mengganti penyimpanan setting key/value (`preferences`) dengan **tab
 
 Fakta codebase yang dipakai desain (hasil audit, lihat PRD Lampiran A):
 
-| Fakta | Implikasi |
-|---|---|
-| `preferences` memakai PK string `key`, cast `Json`, global scope penyembunyi kunci sensitif | Kunci tak dikenal dibiarkan di tabel lama dan tetap disembunyikan lewat `LegacyPreferenceMap` |
-| Seluruh isi `preferences` menjadi prop `preferences` (cache sesi berversi `updated_at`) dan peta placeholder template | `LegacyPreferenceMap::snapshot()` menggantikan query itu satu-satu |
-| `CompanyController` menulis `preferences`, menurunkan `default_number_format` dari mata uang, dan memperbarui Branch utama | Logika dipindah ke `SettingsService`/`CoreSetting`; Branch tetap diperbarui di controller dalam transaksi yang sama |
-| `TaxInvoiceSerialAllocator` memakai `lockForUpdate` pada baris `preferences` | Dipindah ke `finance_settings` memakai `lockedCurrent()` |
-| `Preference` memakai `DataTable` (izin berbasis model) dan menu "Company" memakai model ini | Model setting memakai mekanisme izin yang sama; izin lama disalin |
-| `ResolveActiveDesk::groupByMenuItemParent()` sudah meng-unwrap grup berisi satu anak, per desk, setelah filter izin | Aturan menu pemilik produk terpenuhi tanpa kode menu baru; cukup mengisi parent yang sama |
-| `DeskSeeder::menuItem()` menerima daftar `Domain` dan memasang satu `MenuItem` ke banyak desk | Dipakai untuk penempatan multi-desk |
-| `Preference` tidak diaudit (PK string); model ulid dapat diaudit | Perubahan setting baru tercatat (Requirement 10) |
-| `initPermissions()` dapat menambah kolom runtime pada model `DataTable` (F-12 Finance Engine) | Kolom dideklarasikan eksplisit dan diuji (Task 2.4) |
+| Fakta                                                                                                                                                                                                                                                                                        | Implikasi                                                                                                                                                                                                                                |
+| -------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | ---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `preferences` memakai PK string `key`, cast `Json`, global scope penyembunyi kunci sensitif                                                                                                                                                                                                  | Kunci tak dikenal dibiarkan di tabel lama dan tetap disembunyikan lewat `LegacyPreferenceMap`                                                                                                                                            |
+| Seluruh isi `preferences` menjadi prop `preferences` (cache sesi berversi `updated_at`) dan peta placeholder template                                                                                                                                                                        | `LegacyPreferenceMap::snapshot()` menggantikan query itu satu-satu                                                                                                                                                                       |
+| `CompanyController` menulis `preferences`, menurunkan `default_number_format` dari mata uang, dan memperbarui Branch utama                                                                                                                                                                   | Logika dipindah ke `SettingsService`/`CoreSetting`; Branch tetap diperbarui di controller dalam transaksi yang sama                                                                                                                      |
+| `TaxInvoiceSerialAllocator` memakai `lockForUpdate` pada baris `preferences`                                                                                                                                                                                                                 | Dipindah ke `finance_settings` memakai `lockedCurrent()`                                                                                                                                                                                 |
+| `Preference` memakai `DataTable` (izin berbasis model) dan menu "Company" memakai model ini                                                                                                                                                                                                  | Model setting memakai mekanisme izin yang sama; izin lama disalin                                                                                                                                                                        |
+| `ResolveActiveDesk::groupByMenuItemParent()` sudah meng-unwrap grup berisi satu anak, per desk, setelah filter izin                                                                                                                                                                          | Aturan menu pemilik produk terpenuhi tanpa kode menu baru; cukup mengisi parent yang sama                                                                                                                                                |
+| `DeskSeeder::menuItem()` menerima daftar `Domain` dan memasang satu `MenuItem` ke banyak desk                                                                                                                                                                                                | Dipakai untuk penempatan multi-desk                                                                                                                                                                                                      |
+| `Preference` tidak diaudit (PK string); model ulid dapat diaudit                                                                                                                                                                                                                             | Perubahan setting baru tercatat (Requirement 10)                                                                                                                                                                                         |
+| `DataTable::initPermissions()` selalu menambah `is_example` jika kolom belum ada; flag `$ignorePermission` hanya disalin ke record izin (`ignore_permission`) dan tidak melewati perubahan skema. Trait juga menambah/menghapus kolom bersyarat untuk code series, Submitable, dan tree view | Setting memakai `DataTable` hanya bila izin berbasis model diperlukan; set semua flag trait eksplisit dan deklarasikan `is_example` dalam migrasi agar `initPermissions()` tak mengubah skema. Uji model singleton non-daftar (Task 2.4) |
+| `DataTable::getModule()` (helper private) mengembalikan namespace model tanpa nama kelas, mis. `App\\Models\\Core\\CoreSetting` → `Core`; `initPermissions()` memakai `$module` override bila tersedia, selain itu segmen namespace sebelum nama model                                       | Tempatkan model dalam domain yang benar (`Core`, `Finances`, `Sales`); `$ignorePermission` bukan jalan pintas untuk menghindari perubahan skema                                                                                          |
+| `countries.code` (`string(2)`, PK) dan `currencies.code` (`string(10)`, PK) bukan ULID; `App\\Casts\\Json` decode/encode JSON ke array                                                                                                                                                       | FK `country_id` dan `default_currency_id` harus string yang cocok dengan PK; jangan gunakan `foreignUlid` untuk keduanya. `per_page_options` dapat memakai cast JSON yang sudah ada                                                      |
+| Audit DataTable: event `created`/`updated` dispatch `AuditableModelSaved`; `RecordAuditLog` honor `public $auditable = false`; `Log.loggable_id` polymorphic menyimpan ID sebagai string tanpa FK                                                                                            | ULID singleton cocok dengan audit; `auditable` default tidak opt-out. `updated` audit dipicu `fillForUpdate()` karena itulah yang mengambil snapshot `dataBefore`; `save()` biasa tanpa snapshot tidak membuat update log                |
 
 ## Architecture
 
@@ -100,7 +103,7 @@ final class SettingsService {
 }
 ```
 
-`update()`: `Validator::make($attributes, $modelClass::rules())`; hanya kolom yang dideklarasikan; `DB::transaction`; hook model (`CoreSetting` menurunkan `default_number_format`); `ModuleSettingUpdated::dispatch`; reset memo. `lockedCurrent()` wajib dipanggil dalam transaksi pemanggil.
+`update()`: validasi hanya field yang dikirim beserta aturan anaknya (`per_page_options.*` tetap berlaku); atribut asing dan kolom baca-saja ditolak. Normalisasi LinkModel negara/mata uang (objek `code` atau string) dilakukan di service; string kosong menjadi `null`. Penyimpanan memakai `DB::transaction`; `CoreSetting` menurunkan `default_number_format`; `ModuleSettingUpdated::dispatch`; reset memo. `lockedCurrent()` wajib dipanggil dalam transaksi pemanggil.
 
 ### `LegacyPreferenceMap`
 
@@ -120,7 +123,7 @@ final class SettingsService {
 ],
 ```
 
-`build()`: gabungkan nilai kolom (kunci legacy) dengan baris `preferences` yang kuncinya tidak ada di peta (kecuali kunci sensitif bila `$includeHidden=false`). `snapshot()` = `['values' => build(), 'updated_at' => max(updated_at lintas tabel + preferences)]`. Nilai `null` pada kolom tidak ditulis ke peta, supaya konsumen yang memakai `?? default` berperilaku sama seperti ketika kunci belum ada di `preferences`.
+`snapshot()`: ambil model melalui memo `SettingsService`, sehingga pemanggilan `build()`/`snapshot()` berulang dalam satu request tetap membaca tiap tabel setting sekali. Peta berisi kolom dengan kunci legacy ditambah kunci `preferences` yang belum dipetakan (scope sensitif tetap berlaku). Timestamp versi dihitung dari model yang sudah dimuat dan satu query baris legacy, tanpa query `MAX` tambahan. `build()` mengambil bagian `values` dari snapshot. Nilai `null` dihilangkan agar fallback `??` tetap berlaku. Cache sesi middleware membandingkan versi **dan nilai**, sehingga penyimpanan dalam detik yang sama tidak mengembalikan payload lama.
 
 ### `PreferenceMigrator`
 
@@ -146,9 +149,13 @@ Route::get("modules/{$key}",  [$controller, 'show'])->name("moduleSettings.{$key
 Route::put("modules/{$key}",  [$controller, 'update'])->name("moduleSettings.{$key}.update");
 ```
 
-`ModuleSettingController::show()` merender `page` dengan `{ setting: model->toArray(), ... }` dan breadcrumb dari kunci terjemahan; `update()` memanggil `SettingsService::update()` lalu `back()`. Izin: model setting memakai `Controller::__construct($request, $model)` seperti controller lain; `show` = `read`, `update` = `write`.
+`ModuleSettingController::show()` mengirim kolom setting yang dideklarasikan saja (tanpa metadata DB); `canWrite` memakai probe non-aborting `hasPermission('write')`, bukan `guard()` yang mengembalikan flag `onlyCreator`. Request tanpa entri registry ditolak 404; penghitung serial ditandai `prohibited`. `update()` memanggil `SettingsService::update()` lalu `back()`. Constructor tetap menegakkan `read`/`write`. Sales juga mengirim `defaultTax` untuk tampilan LinkModel; payload penyimpanan tetap memakai ID.
 
-**Pembungkus React** `ModuleSettingsPage`: props `tabs[]`, `setting`, `canWrite`; memakai `FormPage`/`FormPageContent` seperti `Company.jsx`; menampilkan status belum tersimpan, toast sukses/gagal, dan field baca-saja bila `canWrite=false`. Halaman modul = file JSX berisi tab dan field (keputusan D-S5: bukan skema generik, karena widget field beragam).
+`CompanyController` menggunakan izin `CoreSetting` (`read` saat index, `write` saat update/logo). Payload hanya kolom Core dan alias logo `company_image`, tanpa snapshot legacy sensitif. Alias logo tidak ikut update umum; unggah/hapus memakai endpoint logo. Update Core dan Branch utama berada dalam satu transaksi, memakai kolom negara Branch `*_country_id`; field yang tidak dikirim dipertahankan dari Core. Tidak ada dual-write ke `preferences`.
+
+Tab email Company yang sudah ada tetap berfungsi: delapan field `mail_*` disimpan pada Core melalui migrasi aditif. `mail_password` memakai cast `encrypted`, hidden pada serialisasi, dan hanya dikirim ke form sebagai null. Input password kosong berarti pertahankan yang tersimpan. Semua kunci `mail*` pada peta publik tetap disembunyikan memakai pola sensitif yang sama, termasuk setelah menjadi kolom bertipe. Migrator memeriksa kolom tersedia sekali per model agar migrasi skema bertahap tidak mencoba menulis kolom email sebelum penambahannya. `ModuleSettingUpdated` memakai `ShouldDispatchAfterCommit` agar rollback transaksi luar tidak menerbitkan event.
+
+**Pembungkus React** `ModuleSettingsPage`: menggunakan `FormChildren`/`FormPageContent` dari komponen FormPage yang sudah ada agar context field dan tab konsisten. Props `tabs[]`, `setting`, `canWrite`, `readOnlyFields[]`; callback children menerima `tab`. Metadata dan kolom baca-saja dikeluarkan dari payload. Data server baru menyegarkan form bersih, tanpa menimpa edit belum tersimpan; respons simpan sukses memperbarui data/defaults dari server. Penghitung serial ditampilkan langsung dari prop setting dan selalu disabled. Status belum tersimpan serta toast diuji dengan `useForm` Inertia asli, hanya transport router yang di-spy.
 
 ### Menu
 
@@ -160,13 +167,13 @@ Route::put("modules/{$key}",  [$controller, 'update'])->name("moduleSettings.{$k
 
 **Pemetaan desk awal (usulan, Q-S3):**
 
-| Halaman | Desk |
-|---|---|
-| Finances Settings | Core, Finances |
-| Sales Settings | Core, Sales, Finances |
-| Purchase Settings *(spec defaults)* | Core, Purchase, Finances |
-| Inventory Settings *(spec defaults)* | Core, Inventory, Purchase, Sales |
-| Asset/Service/Helpdesk *(spec other-modules)* | Core + desk modulnya |
+| Halaman                                       | Desk                             |
+| --------------------------------------------- | -------------------------------- |
+| Finances Settings                             | Core, Finances                   |
+| Sales Settings                                | Core, Sales, Finances            |
+| Purchase Settings _(spec defaults)_           | Core, Purchase, Finances         |
+| Inventory Settings _(spec defaults)_          | Core, Inventory, Purchase, Sales |
+| Asset/Service/Helpdesk _(spec other-modules)_ | Core + desk modulnya             |
 
 Karena perhitungan datar/submenu bersifat per desk dan setelah filter izin, contoh hasil: desk Purchase memuat Purchase Settings dan Inventory Settings → submenu; desk Asset hanya satu → datar.
 
@@ -174,17 +181,17 @@ Karena perhitungan datar/submenu bersifat per desk dan setelah filter izin, cont
 
 ### `core_settings` (kolom dari `preferences`)
 
-| Kolom | Tipe | Asal kunci | Catatan |
-|---|---|---|---|
-| `company_name`, `short_name`, `email`, `phone`, `street`, `city`, `state`, `zip_code` | string nullable | sama | |
-| `country_id` | string FK nullable → `countries` | `country_id` | tipe mengikuti PK `countries` (verifikasi Task 1.2) |
-| `bank_name`, `bank_account_name`, `bank_account_number` | string nullable | sama | |
-| `default_currency_id` | string FK nullable → `currencies` | sama | huruf besar; `restrictOnDelete` |
-| `default_number_format` | string | sama | diturunkan dari mata uang saat simpan |
-| `timezone` | string | sama | validasi `timezone_identifiers_list()` |
-| `num_per_page` | unsignedInteger | sama | default 25 (nilai bawaan `DataTableScope`) |
-| `per_page_options` | json | sama | daftar integer terurut |
-| `company_image_id` | ulid FK nullable → `files` `nullOnDelete` | `company_image` | |
+| Kolom                                                                                 | Tipe                                      | Asal kunci      | Catatan                                             |
+| ------------------------------------------------------------------------------------- | ----------------------------------------- | --------------- | --------------------------------------------------- |
+| `company_name`, `short_name`, `email`, `phone`, `street`, `city`, `state`, `zip_code` | string nullable                           | sama            |                                                     |
+| `country_id`                                                                          | string FK nullable → `countries`          | `country_id`    | tipe mengikuti PK `countries` (verifikasi Task 1.2) |
+| `bank_name`, `bank_account_name`, `bank_account_number`                               | string nullable                           | sama            |                                                     |
+| `default_currency_id`                                                                 | string FK nullable → `currencies`         | sama            | huruf besar; `restrictOnDelete`                     |
+| `default_number_format`                                                               | string                                    | sama            | diturunkan dari mata uang saat simpan               |
+| `timezone`                                                                            | string                                    | sama            | validasi `timezone_identifiers_list()`              |
+| `num_per_page`                                                                        | unsignedInteger                           | sama            | default 25 (nilai bawaan `DataTableScope`)          |
+| `per_page_options`                                                                    | json                                      | sama            | daftar integer terurut                              |
+| `company_image_id`                                                                    | ulid FK nullable → `files` `nullOnDelete` | `company_image` |                                                     |
 
 ### `finance_settings`
 
@@ -227,13 +234,13 @@ Rollback Rilis A: kembalikan kode; `preferences` masih berisi data terakhir sebe
 
 ## Error Handling
 
-| Kondisi | Perilaku |
-|---|---|
-| Validasi gagal (`update`) | `ValidationException` berlokalisasi, tidak ada perubahan |
-| FK acuan tidak ada saat migrasi data | Kolom dibiarkan kosong, dilaporkan, `preferences` utuh |
-| Pembuatan singleton berlomba | Pelanggaran unik ditangkap, baris dibaca ulang |
-| Tanpa izin | 403 standar controller |
-| Kunci `preferences` sensitif | Tidak masuk peta kecuali `$includeHidden` |
+| Kondisi                              | Perilaku                                                 |
+| ------------------------------------ | -------------------------------------------------------- |
+| Validasi gagal (`update`)            | `ValidationException` berlokalisasi, tidak ada perubahan |
+| FK acuan tidak ada saat migrasi data | Kolom dibiarkan kosong, dilaporkan, `preferences` utuh   |
+| Pembuatan singleton berlomba         | Pelanggaran unik ditangkap, baris dibaca ulang           |
+| Tanpa izin                           | 403 standar controller                                   |
+| Kunci `preferences` sensitif         | Tidak masuk peta kecuali `$includeHidden`                |
 
 ## Testing Strategy
 
@@ -243,17 +250,18 @@ Rollback Rilis A: kembalikan kode; `preferences` masih berisi data terakhir sebe
 - **Arsitektur/statik:** **P-9**; `initPermissions()` tidak menambah kolom pada tabel setting.
 - **Frontend:** `ModuleSettingsPage` (tab, dirty state, baca-saja), halaman Finances/Sales Settings, `Company.jsx`; `.rtl.test.jsx`.
 - **Staging (manual):** jalankan `settings:migrate-preferences --report` pada salinan data; periksa kunci tak dikenal (Q-S5).
+- **Concurrency:** `SettingsConcurrencyTest` menjalankan dua proses PHP dengan barrier dan SQLite file terpisah: pembuatan singleton bersamaan serta 20 alokasi serial unik. Ini membuktikan konkurensi proses pada SQLite; validasi khusus penguncian MySQL tetap perlu di staging.
 
 ## Risiko Spesifik Spec
 
-| Risiko | Mitigasi |
-|---|---|
-| Pembaca `Preference` terlewat | Inventaris Task 1.3 + test arsitektur P-9 |
-| Template cetak/email kehilangan placeholder | `LegacyPreferenceMap` 1:1 + test parity P-2 + test render existing |
-| `num_per_page` bawaan berubah | Default tabel = nilai bawaan kode saat ini (25); `PreferenceSeeder` tetap menyemai 100 untuk instalasi baru |
-| Izin peran lama hilang | Penyalinan izin idempoten + test (Requirement 9.2) |
-| `initPermissions()` mengubah skema | Task 2.4 |
-| Rollback Rilis A kehilangan perubahan setelah cutover | Dicatat; `preferences` dibekukan, bukan dihapus, sampai Requirement 12 |
+| Risiko                                                | Mitigasi                                                                                                    |
+| ----------------------------------------------------- | ----------------------------------------------------------------------------------------------------------- |
+| Pembaca `Preference` terlewat                         | Inventaris Task 1.3 + test arsitektur P-9                                                                   |
+| Template cetak/email kehilangan placeholder           | `LegacyPreferenceMap` 1:1 + test parity P-2 + test render existing                                          |
+| `num_per_page` bawaan berubah                         | Default tabel = nilai bawaan kode saat ini (25); `PreferenceSeeder` tetap menyemai 100 untuk instalasi baru |
+| Izin peran lama hilang                                | Penyalinan izin idempoten + test (Requirement 9.2)                                                          |
+| `initPermissions()` mengubah skema                    | Task 2.4                                                                                                    |
+| Rollback Rilis A kehilangan perubahan setelah cutover | Dicatat; `preferences` dibekukan, bukan dihapus, sampai Requirement 12                                      |
 
 ## Konfirmasi yang Masih Diperlukan
 

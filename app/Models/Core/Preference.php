@@ -21,6 +21,20 @@ class Preference extends Model {
         'mail%',
     ];
 
+    public static function isPrivateKey(string $key): bool {
+        if (in_array($key, self::HIDDEN_KEYS, true)) {
+            return true;
+        }
+        foreach (self::HIDDEN_KEY_PATTERNS as $pattern) {
+            $expression = str_replace(['%', '_'], ['.*', '.'], preg_quote($pattern, '/'));
+            if (preg_match('/^' . $expression . '$/iu', $key) === 1) {
+                return true;
+            }
+        }
+
+        return false;
+    }
+
     protected static function booted(): void {
         static::addGlobalScope(self::HIDE_PRIVATE_KEYS_SCOPE, function (Builder $builder): void {
             $table = $builder->getModel()->getTable();

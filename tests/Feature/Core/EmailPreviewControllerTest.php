@@ -20,6 +20,7 @@ use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Route;
 use Illuminate\Support\Facades\Schema;
 use Illuminate\Support\Str;
+use Tests\Support\CreatesModuleSettingTables;
 use Tests\TestCase;
 
 /**
@@ -42,8 +43,13 @@ class EmailPreviewTestDocumentController extends Controller {
 }
 
 class EmailPreviewControllerTest extends TestCase {
+    use CreatesModuleSettingTables;
+
     protected function setUp(): void {
         parent::setUp();
+
+        // Render email kini membaca LegacyPreferenceMap (tabel setting asli).
+        $this->createModuleSettingTables();
 
         $this->withoutMiddleware([
             AppMiddleware::class,

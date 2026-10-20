@@ -2,8 +2,9 @@
 
 namespace App\Services\Core;
 
+use App\Models\Core\CoreSetting;
 use App\Models\Core\FormatingSeries;
-use App\Models\Core\Preference;
+use App\Services\Core\Setting\SettingsService;
 use Carbon\Carbon;
 
 class FormatingSeriesService {
@@ -14,7 +15,7 @@ class FormatingSeriesService {
 
         $refLatest = (array) ((array) $ref->logs)[$keyFormat];
 
-        $timezone = (string) Preference::where('key', 'timezone')->first()?->value ?? 'UTC';
+        $timezone = (string) app(SettingsService::class)->get(CoreSetting::class)->timezone ?? 'UTC';
 
         $now         = Carbon::now()->timezone($timezone);
         $lastUpdated = Carbon::parse($refLatest['updated_at']);

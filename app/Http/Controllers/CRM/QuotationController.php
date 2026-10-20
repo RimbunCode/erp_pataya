@@ -5,11 +5,13 @@ namespace App\Http\Controllers\CRM;
 use App\Http\Controllers\Controller;
 use App\Http\Requests\CRM\QuotationRequest;
 use App\Http\Requests\CRM\QuotationSectionTemplateRequest;
-use App\Models\Core\Preference;
+use App\Models\Core\CoreSetting;
 use App\Models\Core\PrintTemplate;
 use App\Models\CRM\Opportunity;
 use App\Models\CRM\Quotation;
 use App\Models\CRM\QuotationSectionTemplate;
+use App\Models\Sales\SalesSetting;
+use App\Services\Core\Setting\SettingsService;
 use App\Services\CRM\QuotationService;
 use Illuminate\Database\Eloquent\Collection;
 use Illuminate\Http\Request;
@@ -42,8 +44,8 @@ class QuotationController extends Controller {
         // Nilai awal dari preference: kota terbit surat (dapat diubah per dokumen) dan
         // id pajak aktif untuk baris item baru. Kosong bila preference belum diatur.
         $preferenceDefaults = [
-            'issued_city'   => Preference::find('city')?->value,
-            'active_tax_id' => Preference::find('active_tax_id')?->value,
+            'issued_city'   => app(SettingsService::class)->get(CoreSetting::class)->city,
+            'active_tax_id' => app(SettingsService::class)->get(SalesSetting::class)->default_tax_id,
         ];
 
         if ($ref) {

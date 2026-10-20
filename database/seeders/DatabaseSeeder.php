@@ -14,6 +14,7 @@ class DatabaseSeeder extends Seeder {
         $this->call(UnitSeeder::class);
         $this->call(PreferenceSeeder::class);
         $this->call(AdministratorSeeder::class);
+        $this->call(ModuleSettingPermissionSeeder::class);
         $this->call(GlPostingStatusPermissionSeeder::class);
         $this->call(CountrySeeder::class);
         $this->call(AccountSeeder::class);

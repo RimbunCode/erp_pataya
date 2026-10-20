@@ -6,6 +6,28 @@ use Illuminate\Support\Facades\File;
 use Tests\TestCase;
 
 class LocaleKeysTest extends TestCase {
+    public function test_module_setting_translations_are_available(): void {
+        foreach (['id', 'en'] as $locale) {
+            foreach ([
+                'core/form.saved',
+                'core/form.save_failed',
+                'core/form.read_only',
+                'sales/setting.title',
+                'sales/setting.default.title',
+                'sales/setting.default_tax',
+                'finances/setting.title',
+                'finances/setting.tax_invoice.title',
+                'finances/setting.tax_invoice.range_start',
+                'finances/setting.tax_invoice.range_end',
+                'finances/setting.tax_invoice.last_used',
+                'finances/setting.tax_invoice.range_not_configured',
+                'finances/setting.tax_invoice.range_exhausted',
+            ] as $key) {
+                $this->assertTrue(app('translator')->hasForLocale($key, $locale), "$locale: $key");
+            }
+        }
+    }
+
     /**
      * Path ke direktori bahasa.
      */

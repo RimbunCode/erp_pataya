@@ -5,10 +5,11 @@ namespace Tests\Unit\Asset;
 use App\Models\Asset\Asset;
 use App\Models\Asset\AssetCategory;
 use App\Models\Asset\AssetLocation;
+use App\Models\Core\CoreSetting;
 use App\Models\Core\FormatingSeries;
 use App\Services\Asset\AssetService;
+use App\Services\Core\Setting\SettingsService;
 use Illuminate\Foundation\Testing\RefreshDatabase;
-use Illuminate\Support\Facades\DB;
 use LogicException;
 use PHPUnit\Framework\Attributes\Test;
 use Tests\TestCase;
@@ -26,13 +27,7 @@ class AssetServiceSplitTest extends TestCase {
         // butuh record FormatingSeries + Preference timezone, sama seperti
         // AssetControllerTest, karena initPermissions() tidak jalan otomatis di test.
         Asset::initPermissions();
-        DB::table('preferences')->insert([
-            'key'        => 'timezone',
-            'value'      => json_encode('UTC'),
-            'is_example' => false,
-            'created_at' => now(),
-            'updated_at' => now(),
-        ]);
+        app(SettingsService::class)->update(CoreSetting::class, ['timezone' => 'UTC']);
     }
 
     #[Test]

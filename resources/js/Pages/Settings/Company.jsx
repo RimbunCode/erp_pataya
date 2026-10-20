@@ -250,11 +250,13 @@ function Form() {
           <FormInput
             name="mail_password"
             label={t("core.company.email_setup.password")}
-            required={true}
+            description={t("core.company.email_setup.password_hint")}
             className=""
           >
             <Input
-              value={data.mail_password}
+              type="password"
+              autoComplete="new-password"
+              value={data.mail_password ?? ""}
               onChange={(e) => setData("mail_password", e.target.value)}
             />
           </FormInput>

@@ -3,6 +3,7 @@
 namespace Tests\Feature;
 
 use App\Models\Core\FormatingSeries;
+use App\Models\Finances\FinanceSetting;
 use App\Models\Finances\PurchaseInvoice;
 use App\Models\Finances\SalesInvoice;
 use App\Models\User\User;
@@ -47,6 +48,11 @@ class TaxInvoiceAssignmentTest extends TestCase {
     }
 
     private function seedSerialRange(int $start, int $end): void {
+        FinanceSetting::updateOrCreate(['singleton' => true], [
+            'tax_invoice_serial_range_start' => $start,
+            'tax_invoice_serial_range_end'   => $end,
+            'tax_invoice_serial_last_used'   => 0,
+        ]);
         DB::table('preferences')->insert([
             ['key' => 'tax_invoice_serial_range_start', 'value' => json_encode($start), 'is_example' => false, 'created_at' => now(), 'updated_at' => now()],
             ['key' => 'tax_invoice_serial_range_end', 'value' => json_encode($end), 'is_example' => false, 'created_at' => now(), 'updated_at' => now()],
@@ -117,6 +123,26 @@ class TaxInvoiceAssignmentTest extends TestCase {
 
         $this->expectException(ValidationException::class);
         $allocator->nextSerial('01');
+    }
+
+    public function test_serial_range_errors_explain_the_admin_action(): void {
+        app()->setLocale('id');
+        $allocator = app(TaxInvoiceSerialAllocator::class);
+        try {
+            $allocator->nextSerial('01');
+            $this->fail('Unconfigured range must be rejected.');
+        } catch (ValidationException $exception) {
+            $this->assertStringContainsString('Hubungi admin', $exception->errors()['tax_invoice_serial_number'][0]);
+        }
+
+        $this->seedSerialRange(1, 1);
+        $allocator->nextSerial('01');
+        try {
+            $allocator->nextSerial('01');
+            $this->fail('Exhausted range must be rejected.');
+        } catch (ValidationException $exception) {
+            $this->assertStringContainsString('Hubungi admin', $exception->errors()['tax_invoice_serial_number'][0]);
+        }
     }
 
     public function test_assign_tax_invoice_persists_dpp_ppn_breakdown_from_items(): void {

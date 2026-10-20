@@ -3,9 +3,9 @@
 namespace App\Services\Core\PrintTemplate;
 
 use App\Models\Core\Currency;
-use App\Models\Core\Preference;
 use App\Models\Core\PrintTemplate;
 use App\Services\Core\Approval\SignatureResolverService;
+use App\Services\Core\Setting\LegacyPreferenceMap;
 use App\Services\Handlebar\ArithmeticHelperService;
 use App\Services\Handlebar\FormatHelperService;
 use App\Services\Handlebar\LabelHelperService;
@@ -396,11 +396,11 @@ class PrintTemplateRenderService {
                     array_keys((array) $value),
                 )),
                 'date', 'time', 'datetime' => $this->formatDateTimeValue($value, $col['type'], $opts['lang'] ?? 'en'),
-                'boolean'                  => "<input type='checkbox' " . ($value ? 'checked' : '') . '>',
-                'formStatus'               => __("status.{$value}"),
-                'string'                   => $this->formatStringValue($value, $col),
-                'currency', 'number'       => $this->formatNumericValue($value, $col, $data, $opts),
-                default                    => $value,
+                'boolean'    => "<input type='checkbox' " . ($value ? 'checked' : '') . '>',
+                'formStatus' => __("status.{$value}"),
+                'string'     => $this->formatStringValue($value, $col),
+                'currency', 'number' => $this->formatNumericValue($value, $col, $data, $opts),
+                default => $value,
             };
         }
 
@@ -552,6 +552,6 @@ class PrintTemplateRenderService {
      * @return array<string, mixed>
      */
     protected function resolvePreferences(): array {
-        return Preference::query()->pluck('value', 'key')->all();
+        return LegacyPreferenceMap::build();
     }
 }

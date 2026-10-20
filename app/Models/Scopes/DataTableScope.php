@@ -3,6 +3,7 @@
 namespace App\Models\Scopes;
 
 use App\Models\Core\Branch;
+use App\Models\Core\CoreSetting;
 use App\Models\Core\Preference;
 use App\Models\Core\SavedFilter;
 use App\Services\Core\DataTable\Group\GroupColumnGate;
@@ -17,6 +18,7 @@ use App\Services\Core\DataTableColumnSelector;
 use App\Services\Core\DataTableConfigCache;
 use App\Services\Core\FilterColumnResolver;
 use App\Services\Core\FilterEvaluator;
+use App\Services\Core\Setting\SettingsService;
 use App\Utils;
 use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Database\Eloquent\Model;
@@ -277,7 +279,7 @@ class DataTableScope implements Scope {
             $show          = (int) (
                 $showFromQuery
                 ?? $request->cookie('datatable_show')
-                ?? (Preference::where('key', 'num_per_page')->first()?->value ?? 25)
+                ?? (app(SettingsService::class)->get(CoreSetting::class)->num_per_page ?? 25)
             );
             $show = $show <= 0 ? 25 : $show;
             // Kalau `show` datang dari query param, persist ke cookie pada path yang

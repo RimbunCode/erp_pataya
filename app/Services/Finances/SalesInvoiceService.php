@@ -13,15 +13,16 @@ use App\Events\Sales\Order\DocumentDeliveryStatusRecalculationRequested;
 use App\Http\Requests\Finances\Rules\ReturnAgainstItemRules;
 use App\Models\Asset\Asset;
 use App\Models\Core\Branch;
+use App\Models\Core\CoreSetting;
 use App\Models\Core\FormatingSeries;
 use App\Models\Core\GlPostingStatus;
-use App\Models\Core\Preference;
 use App\Models\Finances\SalesInvoice;
 use App\Models\Finances\Tax;
 use App\Models\Inventory\ItemUnit;
 use App\Models\Model;
 use App\Models\Sales\Customer;
 use App\Models\Sales\SalesOrderItem;
+use App\Services\Core\Setting\SettingsService;
 use App\Traits\HasDefaultDelete;
 use App\Utils;
 use Illuminate\Support\Facades\DB;
@@ -48,7 +49,7 @@ class SalesInvoiceService implements SubmitableService {
         $data['customer_branch_id']   = $data['customer_branch']['id'];
         $data['customer_branch_name'] = Branch::find($data['customer_branch']['id'])?->name;
 
-        $defaultCurrency            = Preference::find('default_currency_id')?->value;
+        $defaultCurrency            = app(SettingsService::class)->get(CoreSetting::class)->default_currency_id;
         $data['currency_code']      = $data['currency']['code'] ?? $defaultCurrency;
         $data['base_currency_code'] = $defaultCurrency;
 

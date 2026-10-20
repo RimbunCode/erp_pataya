@@ -2,9 +2,9 @@
 
 namespace App\Services\Migration\Migrators\User\Roles;
 
+use App\Models\Core\CoreSetting;
 use App\Models\Core\Currency;
 use App\Models\Core\EmailTemplate;
-use App\Models\Core\Preference;
 use App\Models\Finances\Account;
 use App\Models\Finances\GeneralLedger;
 use App\Models\Finances\PaymentEntry;
@@ -211,11 +211,12 @@ class RolePermissionMigrator extends BaseMigrator {
         'manage_purchase_order_email_template' => [EmailTemplate::class],
         'manage_shipment_email_template'       => [EmailTemplate::class],
 
-        // Setting / Preference
-        'manage_general_setting' => [Preference::class],
-        'manage_company_setting' => [Preference::class],
-        'manage_preference'      => [Preference::class],
-        'manage_setting'         => [Preference::class],
+        // Setting / Preference (spec module-settings-foundation 7.1:
+        // kunci legacy dipetakan ke CoreSetting, bukan Preference)
+        'manage_general_setting' => [CoreSetting::class],
+        'manage_company_setting' => [CoreSetting::class],
+        'manage_preference'      => [CoreSetting::class],
+        'manage_setting'         => [CoreSetting::class],
 
         // Income/Expense Category -> Account
         'manage_income_expense_category' => [Account::class],

@@ -11,10 +11,10 @@ use App\Events\Purchase\Invoice\PurchaseInvoiceReturnStatusChanged;
 use App\Events\Purchase\Invoice\PurchaseOrderItemBillingChanged;
 use App\Events\Purchase\Order\PurchaseOrderBillStatusRecalculationRequested;
 use App\Http\Requests\Finances\Rules\ReturnAgainstItemRules;
+use App\Models\Core\CoreSetting;
 use App\Models\Core\FormatingSeries;
 use App\Models\Core\GlPostingStatus;
 use App\Models\Core\ModelConnection;
-use App\Models\Core\Preference;
 use App\Models\Finances\Account;
 use App\Models\Finances\PurchaseInvoice;
 use App\Models\Finances\PurchaseInvoiceItem;
@@ -28,6 +28,7 @@ use App\Models\Purchase\PurchaseOrderItem;
 use App\Models\Purchase\PurchaseReceipt;
 use App\Models\Purchase\PurchaseReceiptItem;
 use App\Models\Purchase\Supplier;
+use App\Services\Core\Setting\SettingsService;
 use App\Traits\HasDefaultDelete;
 use App\Utils;
 use Illuminate\Support\Collection;
@@ -54,7 +55,7 @@ class PurchaseInvoiceService implements SubmitableService {
         $data['expanse_head_account_id'] = $data['expense_head_account']['id'] ?? null;
         $data['return_against_id']       = $data['return_against']['id'] ?? null;
 
-        $defaultCurrency            = Preference::find('default_currency_id')?->value;
+        $defaultCurrency            = app(SettingsService::class)->get(CoreSetting::class)->default_currency_id;
         $data['currency_code']      = $data['currency']['code'] ?? $defaultCurrency;
         $data['base_currency_code'] = $defaultCurrency;
 
@@ -452,7 +453,7 @@ class PurchaseInvoiceService implements SubmitableService {
             $rate,
             $purchaseInvoice,
             fn (StockLedgerEntry $sle) => $this->eligibleQuantityForPoItem($sle, $poItem),
-            ['item_id' => $poItem->item_id, 'warehouse_id' => $poItem->target_warehouse_id, 'item_unit_id' => $poItem->item_unit_id],
+            ['item_id'                 => $poItem->item_id, 'warehouse_id' => $poItem->target_warehouse_id, 'item_unit_id' => $poItem->item_unit_id],
         );
     }
 

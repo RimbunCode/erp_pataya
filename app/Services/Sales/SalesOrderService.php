@@ -7,9 +7,9 @@ use App\Enums\FormStatus;
 use App\Events\Core\DocumentSubmitted;
 use App\Events\Inventory\StockReservationChanged;
 use App\Models\Core\Branch;
+use App\Models\Core\CoreSetting;
 use App\Models\Core\FormatingSeries;
 use App\Models\Core\ModelConnection;
-use App\Models\Core\Preference;
 use App\Models\Finances\SalesInvoice;
 use App\Models\Finances\SalesInvoiceItem;
 use App\Models\Finances\Tax;
@@ -21,6 +21,7 @@ use App\Models\Model;
 use App\Models\Sales\Customer;
 use App\Models\Sales\SalesOrder;
 use App\Models\Sales\SalesOrderItem;
+use App\Services\Core\Setting\SettingsService;
 use App\Services\Finances\DocumentDiscountCalculator;
 use App\Traits\HasDefaultDelete;
 use App\Utils;
@@ -40,7 +41,7 @@ class SalesOrderService implements SubmitableService {
         $data['customer_branch_id']   = $data['customer_branch']['id'];
         $data['customer_branch_name'] = Branch::find($data['customer_branch']['id'])?->name;
 
-        $defaultCurrency            = Preference::find('default_currency_id')?->value;
+        $defaultCurrency            = app(SettingsService::class)->get(CoreSetting::class)->default_currency_id;
         $data['currency_code']      = $data['currency']['code'] ?? $defaultCurrency;
         $data['base_currency_code'] = $defaultCurrency;
 

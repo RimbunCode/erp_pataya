@@ -2,65 +2,47 @@
 
 namespace App\Services\Finances;
 
-use App\Models\Core\Preference;
+use App\Models\Finances\FinanceSetting;
+use App\Services\Core\Setting\SettingsService;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Validation\ValidationException;
 
-/**
- * Alokasikan nomor seri Faktur Pajak Keluaran (SalesInvoice) dari range yang
- * sudah dikonfigurasi admin di Preference (tax_invoice_serial_range_start/end),
- * BUKAN generate bebas -- DJP yang mengalokasikan range nomor seri ke PKP,
- * sistem hanya boleh memakai nomor di dalam range tsb (Requirement 7.3).
- *
- * Format nomor seri: 2 digit kode transaksi + 1 digit kode status ('0' = normal,
- * '1' = pengganti) + 13 digit serial, mis. 010.000-26.00000001.
- */
 class TaxInvoiceSerialAllocator {
-    /**
-     * Kode transaksi Faktur Pajak (2 digit pertama nomor seri), per PER-03/PJ/2022.
-     * Lihat lang/{id,en}/finances/taxInvoice.php untuk label tiap kode.
-     *
-     * @var array<int, string>
-     */
+    /** @var array<int, string> */
     public const array TRANSACTION_CODES = ['01', '02', '03', '04', '07', '08', '09', '10'];
 
+    public function __construct(private SettingsService $settings) {}
+
     public function nextSerial(string $transactionCode, string $statusCode = '0'): string {
-        if (! \in_array($transactionCode, self::TRANSACTION_CODES, true)) {
+        if (! in_array($transactionCode, self::TRANSACTION_CODES, true)) {
             throw ValidationException::withMessages([
                 'tax_invoice_transaction_code' => 'Kode transaksi Faktur Pajak tidak valid.',
             ]);
         }
 
-        return DB::transaction(function () use ($transactionCode, $statusCode) {
-            $rangeStart   = Preference::where('key', 'tax_invoice_serial_range_start')->lockForUpdate()->value('value');
-            $rangeEnd     = Preference::where('key', 'tax_invoice_serial_range_end')->value('value');
-            $lastUsedPref = Preference::where('key', 'tax_invoice_serial_last_used')->lockForUpdate()->first();
+        return DB::transaction(function () use ($transactionCode, $statusCode): string {
+            /** @var FinanceSetting $setting */
+            $setting    = $this->settings->lockedCurrent(FinanceSetting::class);
+            $rangeStart = (int) $setting->tax_invoice_serial_range_start;
+            $rangeEnd   = (int) $setting->tax_invoice_serial_range_end;
+            $lastUsed   = (int) $setting->tax_invoice_serial_last_used;
 
-            // 0 = sentinel "belum dikonfigurasi" (preferences.value NOT NULL, tidak bisa
-            // pakai null sebagai sentinel) -- range asli DJP selalu mulai dari angka positif.
-            if ($rangeStart === null || $rangeEnd === null || (int) $rangeStart <= 0 || (int) $rangeEnd <= 0) {
+            if ($rangeStart <= 0 || $rangeEnd <= 0) {
                 throw ValidationException::withMessages([
-                    'tax_invoice_serial_number' => 'Range nomor seri Faktur Pajak belum dikonfigurasi. Hubungi admin untuk mengisi tax_invoice_serial_range_start/end di Preferences.',
+                    'tax_invoice_serial_number' => __('finances/setting.tax_invoice.range_not_configured'),
                 ]);
             }
 
-            $lastUsed = (int) ($lastUsedPref?->value ?? 0);
-            $next     = max($lastUsed + 1, (int) $rangeStart);
-
-            if ($next > (int) $rangeEnd) {
+            $next = max($lastUsed + 1, $rangeStart);
+            if ($next > $rangeEnd) {
                 throw ValidationException::withMessages([
-                    'tax_invoice_serial_number' => 'Range nomor seri Faktur Pajak yang dialokasikan sudah habis. Hubungi admin untuk alokasi range baru dari DJP.',
+                    'tax_invoice_serial_number' => __('finances/setting.tax_invoice.range_exhausted'),
                 ]);
             }
 
-            $lastUsedPref?->update(['value' => $next]) ?? Preference::create(['key' => 'tax_invoice_serial_last_used', 'value' => $next]);
+            $this->settings->advanceTaxInvoiceSerial($setting, $next);
 
-            return \sprintf(
-                '%s%s.%013d',
-                $transactionCode,
-                $statusCode,
-                $next,
-            );
+            return sprintf('%s%s.%013d', $transactionCode, $statusCode, $next);
         });
     }
 }

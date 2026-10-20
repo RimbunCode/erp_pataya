@@ -7,14 +7,15 @@ use App\Http\Middleware\EnsureUserIsOnboarded;
 use App\Http\Middleware\HandleInertiaRequests;
 use App\Http\Middleware\LanguageMiddleware;
 use App\Models\Core\Branch;
+use App\Models\Core\CoreSetting;
 use App\Models\Core\FormatingSeries;
-use App\Models\Core\Preference;
 use App\Models\CRM\Quotation;
 use App\Models\Inventory\ItemUnit;
 use App\Models\Inventory\ItemVariant;
 use App\Models\Inventory\Unit;
 use App\Models\Sales\Customer;
 use App\Models\User\User;
+use App\Services\Core\Setting\SettingsService;
 use Database\Factories\Core\BranchFactory;
 use Database\Factories\Core\CountryFactory;
 use Database\Factories\Inventory\ItemVariantFactory;
@@ -56,7 +57,7 @@ abstract class QuotationTestCase extends TestCase {
         }
 
         CountryFactory::new()->create(['code' => 'IDN']);
-        Preference::create(['key' => 'timezone', 'value' => 'UTC']);
+        app(SettingsService::class)->update(CoreSetting::class, ['timezone' => 'UTC']);
 
         $this->user     = User::factory()->create();
         $this->branch   = BranchFactory::new()->create(['code' => 'HQ']);

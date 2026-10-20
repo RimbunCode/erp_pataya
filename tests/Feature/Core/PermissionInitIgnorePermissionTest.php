@@ -2,7 +2,7 @@
 
 namespace Tests\Feature\Core;
 
-use App\Models\Core\Preference;
+use App\Models\Core\CoreSetting;
 use App\Models\Core\Todo;
 use App\Models\Helpdesk\Ticket;
 use App\Models\User\Permission;
@@ -33,8 +33,8 @@ class PermissionInitIgnorePermissionTest extends TestCase {
     }
 
     public function test_init_permissions_defaults_ignore_permission_false_for_other_models(): void {
-        Preference::initPermissions();
+        CoreSetting::initPermissions();
 
-        $this->assertFalse((bool) Permission::where('model', Preference::class)->value('ignore_permission'));
+        $this->assertFalse((bool) Permission::where('model', CoreSetting::class)->value('ignore_permission'));
     }
 }

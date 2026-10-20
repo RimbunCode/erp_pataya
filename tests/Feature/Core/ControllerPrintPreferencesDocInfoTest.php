@@ -5,18 +5,23 @@ namespace Tests\Feature\Core;
 use App\Http\Middleware\AppMiddleware;
 use App\Http\Middleware\EnsureUserIsOnboarded;
 use App\Http\Middleware\LanguageMiddleware;
+use App\Models\Core\CoreSetting;
 use App\Models\Core\PrintTemplate;
 use App\Models\Sales\SalesOrder;
 use App\Models\User\User;
+use App\Services\Core\Setting\SettingsService;
 use BeyondCode\QueryDetector\QueryDetectorMiddleware;
 use Illuminate\Database\Schema\Blueprint;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Schema;
 use Illuminate\Support\Str;
 use Inertia\Testing\AssertableInertia as Assert;
+use Tests\Support\CreatesModuleSettingTables;
 use Tests\TestCase;
 
 class ControllerPrintPreferencesDocInfoTest extends TestCase {
+    use CreatesModuleSettingTables;
+
     protected function setUp(): void {
         parent::setUp();
 
@@ -251,6 +256,7 @@ class ControllerPrintPreferencesDocInfoTest extends TestCase {
                 $table->softDeletes();
             });
         }
+        $this->createModuleSettingTables();
     }
 
     public function test_print_response_contains_preferences_prop_with_correct_key_value_data(): void {
@@ -258,11 +264,10 @@ class ControllerPrintPreferencesDocInfoTest extends TestCase {
         $printTemplate = $this->createPrintTemplate();
         $salesOrder    = $this->createSalesOrder();
 
-        // Insert preferences
-        DB::table('preferences')->insert([
-            ['key' => 'company_name', 'value' => '"PT Test Company"', 'created_at' => now(), 'updated_at' => now()],
-            ['key' => 'phone', 'value' => '"021-12345"', 'created_at' => now(), 'updated_at' => now()],
-            ['key' => 'email', 'value' => '"test@company.com"', 'created_at' => now(), 'updated_at' => now()],
+        app(SettingsService::class)->update(CoreSetting::class, [
+            'company_name' => 'PT Test Company',
+            'phone'        => '021-12345',
+            'email'        => 'test@company.com',
         ]);
 
         $response = $this->actingAs($user)

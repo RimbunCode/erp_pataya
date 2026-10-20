@@ -250,6 +250,11 @@ Route::middleware(['auth', 'lang', 'onboarded', 'app', 'desk'])->group(function 
             Route::post('company/image', 'image')->name('companies.image');
             Route::delete('company/image', 'removeImage')->name('companies.removeImage');
         });
+        foreach (config('settings.pages', []) as $key => $page) {
+            $controller = $page['controller'];
+            Route::get("modules/{$key}", [$controller, 'show'])->defaults('moduleKey', $key)->name("moduleSettings.{$key}.show");
+            Route::put("modules/{$key}", [$controller, 'update'])->defaults('moduleKey', $key)->name("moduleSettings.{$key}.update");
+        }
         // Branches
         Route::resourceDetail('branch', BranchController::class);
         // Countries & Currencies

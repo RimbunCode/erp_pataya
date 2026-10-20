@@ -3,8 +3,8 @@
 namespace App\Services\Core\EmailTemplate;
 
 use App\Models\Core\EmailTemplate;
-use App\Models\Core\Preference;
 use App\Services\Core\PrintTemplate\RelationTrackerService;
+use App\Services\Core\Setting\LegacyPreferenceMap;
 use Illuminate\Database\Eloquent\Model;
 use Throwable;
 
@@ -89,10 +89,9 @@ class EmailTemplateRenderService {
     }
 
     protected function resolveCompanyDetails(): array {
-        return Preference::withoutGlobalScope(Preference::HIDE_PRIVATE_KEYS_SCOPE)
-            ->get(['key', 'value'])
-            ->mapWithKeys(fn ($pref) => [$pref->key => $pref->value])
-            ->toArray();
+        // Hidden keys (mail_password, *token*, *api_key*, ...) must never
+        // become template placeholders that can end up in a sent email.
+        return once(fn () => LegacyPreferenceMap::build());
     }
 
     /**

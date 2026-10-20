@@ -53,7 +53,7 @@ Spec ini sengaja **tidak mengubah perilaku aplikasi**: setelah selesai, nilai ya
 
 #### Acceptance Criteria
 
-1. THE sistem SHALL membuat tabel `core_settings` dengan kolom: `company_name`, `short_name`, `email`, `phone`, `street`, `city`, `state`, `zip_code`, `country_id` (FK `countries`), `bank_name`, `bank_account_name`, `bank_account_number`, `default_currency_id` (FK `currencies`), `default_number_format`, `timezone`, `num_per_page` (unsigned integer), `per_page_options` (json), `company_image_id` (FK `files`, `nullOnDelete`).
+1. THE sistem SHALL membuat tabel `core_settings` dengan kolom: `company_name`, `short_name`, `email`, `phone`, `street`, `city`, `state`, `zip_code`, `country_id` (FK `countries`), `bank_name`, `bank_account_name`, `bank_account_number`, `default_currency_id` (FK `currencies`), `default_number_format`, `timezone`, `num_per_page` (unsigned integer), `per_page_options` (json), `company_image_id` (FK `files`, `nullOnDelete`), serta field tab email Company yang sudah ada: `mail_protocol`, `mail_encryption`, `mail_host`, `mail_port`, `mail_username`, `mail_password`, `mail_from_address`, `mail_from_name`. Password disimpan terenkripsi dan tidak diserialisasikan ke browser/peta publik/audit; input kosong mempertahankan password tersimpan.
 2. THE sistem SHALL membuat tabel `finance_settings` dengan kolom `tax_invoice_serial_range_start`, `tax_invoice_serial_range_end`, `tax_invoice_serial_last_used` (unsigned big integer, default `0`; `0` tetap berarti "belum dikonfigurasi").
 3. THE sistem SHALL membuat tabel `sales_settings` dengan kolom `default_tax_id` (FK `taxes`, `nullOnDelete`), menggantikan kunci `active_tax_id`.
 4. THE pemetaan kunci lama → kolom baru SHALL dideklarasikan di satu tempat (`config/settings.php`) dan dipakai oleh migrasi data, `LegacyPreferenceMap`, dan test.
@@ -67,7 +67,7 @@ Spec ini sengaja **tidak mengubah perilaku aplikasi**: setelah selesai, nilai ya
 #### Acceptance Criteria
 
 1. THE `SettingsService::get(string $modelClass): ModuleSetting` SHALL mengembalikan baris singleton yang di-memo per request dan di-reset saat setting disimpan.
-2. THE `SettingsService::update(string $modelClass, array $attributes): ModuleSetting` SHALL memvalidasi dengan `rules()` model, menyimpan dalam satu transaksi, mencatat audit (Requirement 10), dan memicu event `ModuleSettingUpdated`.
+2. THE `SettingsService::update(string $modelClass, array $attributes): ModuleSetting` SHALL memvalidasi dengan `rules()` model, menyimpan dalam satu transaksi, mencatat audit (Requirement 10), dan memicu event `ModuleSettingUpdated` setelah transaksi terluar berhasil commit; rollback tidak menerbitkan event.
 3. THE `SettingsService` SHALL menyediakan `lockedCurrent(string $modelClass)` yang membaca baris dengan `lockForUpdate()` untuk pemakaian penghitung (mis. `tax_invoice_serial_last_used`).
 4. THE `update()` SHALL menolak atribut di luar kolom yang dideklarasikan model (mass-assignment aman) dan nilai yang melanggar FK atau aturan validasi, dengan `ValidationException` berlokalisasi.
 5. THE `update()` pada `CoreSetting` yang mengubah `default_currency_id` SHALL menurunkan `default_number_format` dari mata uang tersebut, mempertahankan perilaku `CompanyController` saat ini.
