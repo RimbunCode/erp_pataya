@@ -11,6 +11,7 @@ use App\Models\Asset\AssetService;
 use App\Models\Asset\AssetServiceConsumedItem;
 use App\Models\Asset\Maintenance\AssetMaintenanceTask;
 use App\Models\Core\FormatingSeries;
+use App\Models\Core\ModelConnection;
 use App\Models\Inventory\Stock;
 use App\Models\Model;
 use Illuminate\Support\Arr;
@@ -129,6 +130,7 @@ class AssetServiceService implements SubmitableService {
                 $model->update([
                     'code' => FormatingSeries::generate(AssetService::class, $model),
                 ]);
+                $this->attachMaintenanceTaskConnection($model);
                 DB::commit();
             } catch (\Throwable $e) {
                 DB::rollBack();
@@ -145,11 +147,30 @@ class AssetServiceService implements SubmitableService {
                 'code'   => FormatingSeries::generate(AssetService::class, $model),
                 'status' => [FormStatus::NEED_CONFIRMATION],
             ]);
+            $this->attachMaintenanceTaskConnection($model);
 
             $this->onApproved($model);
 
             return $model;
         });
+    }
+
+    /**
+     * Requirement FR2 (spec document-connection-coverage): induk AssetService yang
+     * ada di header (`asset_maintenance_task_id`) dicatat ke graf koneksi, supaya
+     * tab Connections menampilkannya. Dicatat dari sisi induk, jadi
+     * `model` = AssetMaintenanceTask dan `reference` = AssetService ini.
+     */
+    private function attachMaintenanceTaskConnection(AssetService $assetService): void {
+        $maintenanceTask = $assetService->assetMaintenanceTask;
+        if ($maintenanceTask === null) {
+            return;
+        }
+
+        ModelConnection::createConnection([
+            'model'     => $maintenanceTask,
+            'reference' => $assetService,
+        ]);
     }
 
     public function cancel(Model $model): mixed {

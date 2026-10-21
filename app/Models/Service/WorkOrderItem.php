@@ -6,6 +6,7 @@ use App\Models\Inventory\ItemUnit;
 use App\Models\Inventory\ItemVariant;
 use App\Models\Model;
 use Illuminate\Database\Eloquent\Concerns\HasUlids;
+use Illuminate\Database\Eloquent\Relations\MorphTo;
 use Illuminate\Database\Eloquent\SoftDeletes;
 
 class WorkOrderItem extends Model {
@@ -61,5 +62,9 @@ class WorkOrderItem extends Model {
 
     public function unit() {
         return $this->belongsTo(ItemUnit::class, 'item_unit_id', 'id');
+    }
+
+    public function referenceable(): MorphTo {
+        return $this->morphTo('referenceable', 'referenceable_type', 'referenceable_id');
     }
 }

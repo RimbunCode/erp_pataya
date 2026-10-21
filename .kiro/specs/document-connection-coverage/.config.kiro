@@ -2,7 +2,7 @@
   "specId": "c4a81f36-7d92-4e05-b318-9a2f5c0d6e74",
   "workflowType": "requirements-first",
   "specType": "bugfix",
-  "description": "Sebagian dokumen tidak pernah tercatat di model_connections saat disubmit, sehingga tab Connections dan panel relasi tampil kosong meski dokumennya benar-benar berhubungan. Lima service tidak memancarkan DocumentSubmitted maupun memanggil attachConnections sama sekali: WorkOrder, InternalOrder, AssetService, AssetMovement, AssetValueAdjustment. PurchaseOrder memakai jalur lama lewat item sehingga koneksi tingkat dokumennya bergantung pada keberadaan referenceable di item. Spec ini menyeragamkan pencatatan koneksi dan membackfill data lama.",
+  "description": "Sebagian dokumen tidak pernah tercatat di model_connections saat disubmit, sehingga tab Connections dan panel relasi tampil kosong meski dokumennya benar-benar berhubungan. Lima service tidak memanggil mekanisme pencatatan apa pun: WorkOrder, InternalOrder, AssetService, AssetMovement, AssetValueAdjustment. Mekanismenya sudah ada (attachConnections per item, dan DocumentSubmitted untuk dokumen yang induknya di kolom header), jadi perbaikannya memanggil yang sudah ada, bukan menulis yang baru. Termasuk menghubungkan retur ke dokumen asalnya dan command backfill untuk data lama.",
   "createdAt": "2026-10-18T00:00:00.000Z",
   "createdBy": "Claude"
 }
