@@ -470,7 +470,7 @@ describe("PurchaseInvoice Form", () => {
   });
 
   describe("kolom tax (item table)", () => {
-    it("kolom tax TIDAK required -- pajak boleh kosong (perbaikan 1)", () => {
+    it("kolom tax wajib (PurchaseInvoiceRequest 'items.*.tax.id' => required)", () => {
       formPageState = makeFormPageState({
         data: { items: [{ id: 1 }] },
       });
@@ -478,7 +478,24 @@ describe("PurchaseInvoice Form", () => {
 
       const itemColumns = formTablePropsSpy.mock.calls[0][0].columns;
       const taxCol = itemColumns.find((c) => c.name === "tax");
-      expect(taxCol.required).not.toBe(true);
+      expect(taxCol.required).toBe(true);
+    });
+
+    it("kolom Total Harga dan DPP tampil setelah kolom rate", () => {
+      formPageState = makeFormPageState({
+        data: { items: [{ id: 1 }] },
+      });
+      render(<Form />);
+
+      const names = formTablePropsSpy.mock.calls[0][0].columns
+        .filter(Boolean)
+        .map((c) => c.name);
+      const rateIndex = names.indexOf("rate");
+      expect(names.slice(rateIndex, rateIndex + 3)).toEqual([
+        "rate",
+        "gross_amount",
+        "dpp_amount",
+      ]);
     });
   });
 

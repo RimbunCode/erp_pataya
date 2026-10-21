@@ -131,6 +131,8 @@ return [
         'currency.placeholder'         => 'Pilih Mata Uang',
         'exchange_rate'                => 'Nilai Tukar',
         'basic_amount'                 => 'Jumlah Kotor',
+        'gross_amount'                 => 'Total Harga',
+        'dpp_amount'                   => 'DPP (Dasar Pengenaan Pajak)',
         'net_amount'                   => 'Jumlah Dasar',
         'tax_amount'                   => 'Jumlah Pajak',
         'amount'                       => 'Jumlah',

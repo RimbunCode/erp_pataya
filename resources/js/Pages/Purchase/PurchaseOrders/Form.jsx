@@ -290,6 +290,7 @@ export function PurchaseOrderFields({
       {
         name: "tax",
         titleTrans: "purchase.purchaseOrder.columns.tax",
+        required: true,
         cell({ data: value, setData, attributes, dataRow }) {
           return (
             <TaxLinkModel
@@ -328,6 +329,25 @@ export function PurchaseOrderFields({
               filters={{
                 group: dataRow?.item?.default_rate?.group,
               }}
+            />
+          );
+        },
+      },
+      {
+        // Total harga per baris (rate x quantity), mengikuti kolom gross_amount
+        // di form Sales Invoice. Hanya tampilan; basic_amount dihitung server.
+        name: "gross_amount",
+        titleTrans: "purchase.purchaseOrder.columns.gross_amount",
+        readOnly: true,
+        show: true,
+        cell({ dataRow, attributes }) {
+          return (
+            <NumberInput
+              {...attributes}
+              readOnly
+              decimalScale={2}
+              currencyCode={data?.currency?.code ?? "default"}
+              value={(dataRow?.quantity ?? 0) * (dataRow?.rate ?? 0)}
             />
           );
         },

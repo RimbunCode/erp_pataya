@@ -41,6 +41,8 @@ return [
         'tax_amount'                   => 'Jumlah Pajak',
         'total'                        => 'Total',
         'basic_amount'                 => 'Jumlah Kotor',
+        'gross_amount'                 => 'Total Harga',
+        'dpp_amount'                   => 'DPP (Dasar Pengenaan Pajak)',
         'net_amount'                   => 'Jumlah Dasar',
         'so'                           => 'Nomor Sales Order',
         'customer'                     => 'Pelanggan',

@@ -65,6 +65,8 @@ return [
         'tax.placeholder'  => 'Pilih pajak',
         'tax_rate'         => 'Tarif Pajak',
         'basic_amount'     => 'Sub Total',
+        'gross_amount'     => 'Total Harga',
+        'dpp_amount'       => 'DPP (Dasar Pengenaan Pajak)',
         'tax_amount'       => 'Jumlah Pajak',
         'price.by_type'    => [
             'spare_part' => 'Unit Price',
