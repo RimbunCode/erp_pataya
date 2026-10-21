@@ -1,6 +1,7 @@
 import { Button } from "@/Components/ui/button";
 import Form from "./Form";
 import { FormPage } from "@/Pages/Core/FormPage";
+import RelationPanels from "@/Pages/Core/Components/RelationPanels";
 import Link from "@/Components/Link";
 import { useLaravelReactI18n } from "laravel-react-i18n";
 import { calculateArray, inArray, isValidStatus } from "@/lib/utils";
@@ -51,6 +52,7 @@ export default function Show({ purchaseReceipt, defaultData, fixedAssets }) {
       }
     >
       <Form />
+      {purchaseReceipt?.submitted_at && <RelationPanels />}
     </FormPage>
   );
 }

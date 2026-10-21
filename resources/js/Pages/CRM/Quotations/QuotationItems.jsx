@@ -3,6 +3,7 @@ import { FormPageContent } from "@/Pages/Core/FormPage";
 import { Input } from "@/Components/ui/input";
 import ItemUnitLinkModel from "@/Pages/Inventory/Items/ItemUnitLinkModel";
 import ItemVariantLinkModel from "@/Pages/Inventory/Items/ItemVariantLinkModel";
+import TaxLinkModel from "@/Pages/Finances/Taxes/TaxLinkModel";
 import NumberInput from "@/Components/NumberInput";
 import { Textarea } from "@/Components/ui/textarea";
 import { useLaravelReactI18n } from "laravel-react-i18n";
@@ -112,6 +113,23 @@ export function buildQuotationItemColumns(type, t) {
             value={value}
             onValueChange={(val) => setData("item_unit", val)}
             filters={{ item_id: dataRow?.item?.item_id }}
+            {...attributes}
+          />
+        );
+      },
+    },
+    {
+      name: "tax",
+      titleTrans: "crm.quotation.columns.tax",
+      required: true,
+      width: 2,
+      cell({ dataRow, data: value, setData, attributes }) {
+        return (
+          <TaxLinkModel
+            disabled={!dataRow?.item}
+            placeholder={t("crm.quotation.columns.tax.placeholder")}
+            value={value}
+            onValueChange={(val) => setData("tax", val)}
             {...attributes}
           />
         );

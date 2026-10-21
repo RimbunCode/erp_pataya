@@ -1,6 +1,12 @@
 <?php
 
 return [
+    'panel' => [
+        'title'  => 'Info Sales Order',
+        'code'   => 'No Sales Order',
+        'date'   => 'Tanggal',
+        'status' => 'Status',
+    ],
     'title'                       => 'Sales Orders',
     'add'                         => 'Sales Order Baru',
     'customer'                    => 'Pelanggan',
@@ -35,6 +41,8 @@ return [
         'tax_amount'                   => 'Jumlah Pajak',
         'total'                        => 'Total',
         'basic_amount'                 => 'Jumlah Kotor',
+        'gross_amount'                 => 'Total Harga',
+        'dpp_amount'                   => 'DPP (Dasar Pengenaan Pajak)',
         'net_amount'                   => 'Jumlah Dasar',
         'so'                           => 'Nomor Sales Order',
         'customer'                     => 'Pelanggan',

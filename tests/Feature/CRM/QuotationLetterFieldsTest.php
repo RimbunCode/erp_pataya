@@ -170,6 +170,7 @@ class QuotationLetterFieldsTest extends QuotationTestCase {
                 'items'   => [[
                     'id'       => $quotation->items()->first()->id,
                     'item'     => ['id' => $this->variant->id],
+                    'tax'      => ['id' => $this->taxIdForPayload()],
                     'quantity' => 2,
                     'price'    => 100,
                 ]],

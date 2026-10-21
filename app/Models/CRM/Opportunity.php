@@ -20,6 +20,25 @@ class Opportunity extends Model {
         'expected_close_date' => 'date',
     ];
 
+    /**
+     * Aksi sama dengan tombol di CRM/Opportunities/Show.jsx.
+     *
+     * Opportunity tidak memakai Submitable, jadi panel ini tidak punya syarat
+     * submitted_at dan selalu tampil bila dokumennya ada.
+     */
+    public static function expectedRelationPanels(): array {
+        return [
+            Quotation::class => [
+                'action' => [
+                    'route'      => 'quotations.create',
+                    'params'     => ['ref' => 'opportunity/{id}'],
+                    'label'      => 'crm.opportunity.create_quotation',
+                    'permission' => 'create',
+                ],
+            ],
+        ];
+    }
+
     public static function templateLink() {
         return ':title';
     }

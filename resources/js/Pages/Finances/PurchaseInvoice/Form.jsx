@@ -369,6 +369,7 @@ export default function Form() {
       {
         name: "tax",
         titleTrans: "finances.purchaseInvoice.columns.tax",
+        required: true,
         width: 1,
         cell({ data, setData, attributes, dataRow }) {
           return (
@@ -402,6 +403,45 @@ export default function Form() {
                 setData("rate", val);
               }}
               {...attributes}
+            />
+          );
+        },
+      },
+      {
+        // Total harga per baris (rate x quantity), mengikuti kolom gross_amount
+        // di form Sales Invoice.
+        name: "gross_amount",
+        titleTrans: "finances.purchaseInvoice.columns.gross_amount",
+        readOnly: true,
+        show: true,
+        width: 1,
+        cell({ dataRow, attributes }) {
+          return (
+            <NumberInput
+              {...attributes}
+              readOnly
+              decimalScale={2}
+              currencyCode={data?.currency?.code ?? "default"}
+              value={(dataRow?.quantity ?? 0) * (dataRow?.rate ?? 0)}
+            />
+          );
+        },
+      },
+      {
+        // dpp_amount per baris diisi mapItem (basic_amount setelah diskon x DPP_FACTOR).
+        name: "dpp_amount",
+        titleTrans: "finances.purchaseInvoice.columns.dpp_amount",
+        readOnly: true,
+        show: true,
+        width: 1,
+        cell({ data: dppAmount, attributes }) {
+          return (
+            <NumberInput
+              {...attributes}
+              readOnly
+              decimalScale={2}
+              currencyCode={data?.currency?.code ?? "default"}
+              value={dppAmount ?? 0}
             />
           );
         },

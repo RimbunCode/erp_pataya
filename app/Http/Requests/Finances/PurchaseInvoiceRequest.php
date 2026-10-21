@@ -48,7 +48,7 @@ class PurchaseInvoiceRequest extends BaseFormRequest {
             'items.*.quantity'                 => ['required', 'numeric', 'min:1'],
             'items.*.unit.id'                  => ['required', new ExistsExcludingTrashed('item_units')],
             'items.*.unit.*'                   => ['nullable'],
-            'items.*.tax.id'                   => ['nullable', new ExistsExcludingTrashed('taxes')],
+            'items.*.tax.id'                   => ['required', new ExistsExcludingTrashed('taxes')],
             'items.*.tax.*'                    => ['nullable'],
             'items.*.rate'                     => ['required', 'numeric', 'min:0'],
             'items.*.return_against_item_id'   => ['nullable', new ExistsExcludingTrashed('purchase_invoice_items')],

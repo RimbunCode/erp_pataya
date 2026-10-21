@@ -115,6 +115,8 @@ return [
     ],
     'status'                   => 'Status',
     'connections'              => 'Koneksi',
+    'relations'                => 'Relasi',
+    'relation_empty'           => 'Belum ada dokumen terkait.',
     'approvals'                => 'Persetujuan',
     'actions'                  => 'Aksi',
     'log_informations'         => 'Informasi Log',

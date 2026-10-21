@@ -1,6 +1,22 @@
 <?php
 
 return [
+    'panel' => [
+        'title'   => 'Purchase Order Info',
+        'code'    => 'Purchase Order No',
+        'status'  => 'Status',
+        'receipt' => [
+            'remainder' => 'Not Yet Received',
+        ],
+        'invoice' => [
+            'title'     => 'Invoice Info',
+            'code'      => 'Invoice No',
+            'date'      => 'Date',
+            'total'     => 'Total',
+            'remainder' => 'Not Yet Invoiced',
+        ],
+        'remaining' => 'Remaining',
+    ],
     'title'              => 'Purchase Orders',
     'add'                => 'Add Purchase Order',
     'new'                => 'New Purchase Order',
@@ -115,6 +131,8 @@ return [
         'currency.placeholder'         => 'Select a Currency',
         'exchange_rate'                => 'Exchange Rate',
         'basic_amount'                 => 'Gross Amount',
+        'gross_amount'                 => 'Total Price',
+        'dpp_amount'                   => 'DPP (Tax Base Amount)',
         'net_amount'                   => 'Basic Amount',
         'tax_amount'                   => 'Tax Amount',
         'amount'                       => 'Amount',

@@ -115,6 +115,8 @@ return [
     ],
     'status'                   => 'Status',
     'connections'              => 'Connections',
+    'relations'                => 'Relations',
+    'relation_empty'           => 'No related documents yet.',
     'approvals'                => 'Approvals',
     'actions'                  => 'Actions',
     'log_informations'         => 'Log Informations',

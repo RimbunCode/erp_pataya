@@ -1,6 +1,12 @@
 <?php
 
 return [
+    'panel' => [
+        'title' => 'Info Tagihan',
+        'code'  => 'No Tagihan',
+        'date'  => 'Tanggal',
+        'total' => 'Total',
+    ],
     'title'                         => 'Sales Invoices',
     'add'                           => 'Sales Invoice Baru',
     'customer'                      => 'Pelanggan',

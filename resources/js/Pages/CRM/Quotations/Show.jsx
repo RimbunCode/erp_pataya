@@ -1,6 +1,7 @@
 import { Button } from "@/Components/ui/button";
 import Form from "./Form";
 import { FormPage } from "@/Pages/Core/FormPage";
+import RelationPanels from "@/Pages/Core/Components/RelationPanels";
 import Link from "@/Components/Link";
 import { inArray, isValidStatus } from "@/lib/utils";
 import { useLaravelReactI18n } from "laravel-react-i18n";
@@ -38,6 +39,7 @@ export default function Show({ quotation, defaultData }) {
       }}
     >
       <Form />
+      {quotation?.submitted_at && <RelationPanels />}
     </FormPage>
   );
 }

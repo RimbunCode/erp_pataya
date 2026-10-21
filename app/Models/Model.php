@@ -2,6 +2,7 @@
 
 namespace App\Models;
 
+use App\Traits\HasRelationPanel;
 use App\Traits\LinkModel;
 use Illuminate\Database\Eloquent\Model as EloquentModel;
 use Illuminate\Database\Eloquent\Relations\Relation;
@@ -11,7 +12,7 @@ use ReflectionMethod;
 use Throwable;
 
 class Model extends EloquentModel {
-    use LinkModel;
+    use HasRelationPanel, LinkModel;
 
     public static function resolveRelationPath(array|string $relationPaths): array {
         if (\is_string($relationPaths)) {

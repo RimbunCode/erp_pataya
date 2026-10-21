@@ -5,6 +5,7 @@ namespace App\Models\Purchase;
 use App\Enums\FormStatus;
 use App\Models\Core\Currency;
 use App\Models\Finances\PaymentSchedule;
+use App\Models\Finances\PurchaseInvoice;
 use App\Models\Model;
 use App\Services\Purchase\PurchaseOrderService;
 use App\Traits\DataTable;
@@ -47,6 +48,83 @@ class PurchaseOrder extends Model {
      * @var list<string>
      */
     protected static array $searchScope = ['code', 'external_note', 'supplier.name'];
+
+    /**
+     * Aksi memakai rute dan parameter ref yang sama dengan dropdown Actions
+     * di Purchase/PurchaseOrders/Show.jsx.
+     */
+    public static function expectedRelationPanels(): array {
+        return [
+            PurchaseReceipt::class => [
+                'action' => [
+                    'route'      => 'purchaseReceipts.create',
+                    'params'     => ['ref' => 'purchaseOrder/{id}'],
+                    'label'      => 'purchase.purchaseOrder.actions.create_purchase_receipt',
+                    'permission' => 'create',
+                ],
+                'remainder' => [
+                    'title'   => 'purchase.purchaseOrder.panel.receipt.remainder',
+                    'columns' => [
+                        ['key' => 'item', 'label' => 'purchase.purchaseOrder.columns.item', 'align' => 'left'],
+                        ['key' => 'remaining', 'label' => 'purchase.purchaseOrder.panel.remaining', 'align' => 'right', 'format' => 'number'],
+                    ],
+                    'rows' => 'unreceivedItemRows',
+                ],
+            ],
+            PurchaseInvoice::class => [
+                'action' => [
+                    'route'      => 'purchaseInvoices.create',
+                    'params'     => ['ref' => 'purchaseOrder/{id}'],
+                    'label'      => 'purchase.purchaseOrder.actions.create_purchase_invoice',
+                    'permission' => 'create',
+                ],
+                'remainder' => [
+                    'title'   => 'purchase.purchaseOrder.panel.invoice.remainder',
+                    'columns' => [
+                        ['key' => 'item', 'label' => 'purchase.purchaseOrder.columns.item', 'align' => 'left'],
+                        ['key' => 'remaining', 'label' => 'purchase.purchaseOrder.panel.remaining', 'align' => 'right', 'format' => 'number'],
+                    ],
+                    'rows' => 'unbilledItemRows',
+                ],
+            ],
+        ];
+    }
+
+    /**
+     * Item yang belum diterima sama sekali atau sebagian. Dibaca dari kolom
+     * generated unreceived_quantity, tidak dihitung ulang di sini.
+     *
+     * @return array<int, array{item: string|null, remaining: float}>
+     */
+    public function unreceivedItemRows(): array {
+        return $this->itemRemainderRows('unreceived_quantity');
+    }
+
+    /**
+     * Item yang belum ditagihkan sama sekali atau sebagian, dari kolom generated
+     * unbilled_quantity.
+     *
+     * @return array<int, array{item: string|null, remaining: float}>
+     */
+    public function unbilledItemRows(): array {
+        return $this->itemRemainderRows('unbilled_quantity');
+    }
+
+    /**
+     * @return array<int, array{item: string|null, remaining: float}>
+     */
+    private function itemRemainderRows(string $remainingColumn): array {
+        $this->loadMissing('items.item');
+
+        return $this->items
+            ->filter(fn (PurchaseOrderItem $item): bool => $item->{$remainingColumn} > 0)
+            ->map(fn (PurchaseOrderItem $item): array => [
+                'item'      => $item->item?->item_name ?? $item->item_name,
+                'remaining' => $item->{$remainingColumn},
+            ])
+            ->values()
+            ->all();
+    }
 
     protected array $configColumns = [
         'code' => [
@@ -103,6 +181,26 @@ class PurchaseOrder extends Model {
 
     public function supplier() {
         return $this->belongsTo(Supplier::class);
+    }
+
+    /**
+     * Dipakai saat PO menjadi tujuan panel di halaman AssetService.
+     */
+    public static function relationPanel(): array {
+        return [
+            'title'   => 'purchase.purchaseOrder.panel.title',
+            'columns' => [
+                ['key' => 'code', 'label' => 'purchase.purchaseOrder.panel.code', 'align' => 'left'],
+                ['key' => 'status', 'label' => 'purchase.purchaseOrder.panel.status', 'align' => 'left', 'format' => 'status'],
+            ],
+        ];
+    }
+
+    public function relationPanelRow(): array {
+        return [
+            'code'   => $this->code,
+            'status' => $this->status,
+        ];
     }
 
     public function items() {

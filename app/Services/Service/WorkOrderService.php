@@ -13,6 +13,7 @@ use App\Models\Sales\Customer;
 use App\Models\Service\WorkOrder;
 use App\Traits\HasDefaultDelete;
 use App\Utils;
+use Illuminate\Support\Facades\DB;
 use Symfony\Component\Uid\Ulid;
 
 class WorkOrderService implements SubmitableService {
@@ -100,9 +101,26 @@ class WorkOrderService implements SubmitableService {
     }
 
     public function submit(Model $workOrder): mixed {
-        $workOrder->update([
-            'code' => FormatingSeries::generate(WorkOrder::class, $workOrder),
-        ]);
+        DB::transaction(function () use ($workOrder) {
+            $workOrder->update([
+                'code' => FormatingSeries::generate(WorkOrder::class, $workOrder),
+            ]);
+
+            // Requirement FR1 (spec document-connection-coverage): item ber-referenceable
+            // dicatat ke graf koneksi lewat pola yang sama dengan PurchaseOrderService.
+            // Hanya satu tingkat di-eager-load: rantai lebih dalam dibaca lazy oleh
+            // attachConnections(), karena tidak semua tipe sumber punya relasi referenceable.
+            $items = $workOrder->items()
+                ->whereNotNull('referenceable_type')
+                ->whereNotNull('referenceable_id')
+                ->with('referenceable')
+                ->get();
+
+            foreach ($items as $item) {
+                $workOrder->attachConnections($item, null);
+            }
+        });
+
         $workOrder->checkApproval();
 
         return $workOrder;

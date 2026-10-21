@@ -1,6 +1,11 @@
 <?php
 
 return [
+    'panel' => [
+        'title'  => 'Quotation Info',
+        'code'   => 'Quotation No',
+        'status' => 'Status',
+    ],
     'title'                            => 'Manage Quotations',
     'add'                              => 'Add Quotation',
     'detail'                           => 'Quotation Details',
@@ -60,6 +65,8 @@ return [
         'tax.placeholder'  => 'Select tax',
         'tax_rate'         => 'Tax Rate',
         'basic_amount'     => 'Sub Total',
+        'gross_amount'     => 'Total Price',
+        'dpp_amount'       => 'DPP (Tax Base Amount)',
         'tax_amount'       => 'Tax Amount',
         'price.by_type'    => [
             'spare_part' => 'Unit Price',

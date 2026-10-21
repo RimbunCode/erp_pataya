@@ -184,6 +184,41 @@ class DocumentConnectionTest extends TestCase {
     }
 
     /**
+     * Rantai berhenti di induk yang tidak punya referenceable sendiri.
+     *
+     * Ini perilaku PaymentEntry: `paymentable` selalu PurchaseInvoice atau
+     * SalesInvoice (PaymentEntryService::fillRelations), dan tabel
+     * purchase_invoices tidak punya kolom referenceable -- hanya
+     * purchase_invoice_items yang punya. Guard di CreateDocumentConnection
+     * karena itu tidak pernah memanggil attachConnections(), sehingga koneksi
+     * langsung PurchaseOrder -> PaymentEntry tidak pernah tertulis.
+     *
+     * Panel relasi pada halaman PurchaseOrder karenanya tidak bisa membaca
+     * pembayaran lewat koneksi langsung.
+     */
+    #[Test]
+    public function chain_stops_when_parent_has_no_referenceable_column(): void {
+        $grandParent = ConnTestRootDocument::create([]);
+        $parent      = ConnTestRootDocument::create([]);
+        $child       = ConnTestChildDocument::create([
+            'referenceable_type' => ConnTestRootDocument::class,
+            'referenceable_id'   => $parent->id,
+        ]);
+
+        $this->handle($child, $parent);
+
+        $this->assertDatabaseHas('model_connections', [
+            'model_id'     => $parent->id,
+            'reference_id' => $child->id,
+        ]);
+
+        $this->assertSame(1, ModelConnection::count());
+        $this->assertDatabaseMissing('model_connections', [
+            'model_id' => $grandParent->id,
+        ]);
+    }
+
+    /**
      * parentRelation() pada model tanpa static $parentRelation harus
      * mengembalikan relasi kosong, bukan null, supaya akses sebagai atribut
      * tidak melempar LogicException.

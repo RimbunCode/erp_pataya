@@ -1,6 +1,13 @@
 <?php
 
 return [
+    'panel' => [
+        'return'   => ['title' => 'Info Retur Penerimaan'],
+        'title'    => 'Info Penerimaan Barang',
+        'code'     => 'No Penerimaan',
+        'date'     => 'Tanggal',
+        'quantity' => 'Total Qty',
+    ],
     'title'                  => 'Purchase Receipts',
     'add'                    => 'Purchase Receipt Baru',
     'supplier'               => 'Pemasok',

@@ -1,6 +1,12 @@
 <?php
 
 return [
+    'panel' => [
+        'title'  => 'Info Pembayaran',
+        'code'   => 'No Pembayaran',
+        'method' => 'Metode',
+        'total'  => 'Total',
+    ],
     'title'              => 'Pembayaran Masuk',
     'add'                => 'Tambah Pembayaran Masuk',
     'new'                => 'Pembayaran Masuk Baru',

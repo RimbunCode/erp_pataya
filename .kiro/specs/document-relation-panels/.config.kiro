@@ -1,0 +1,8 @@
+{
+  "specId": "b7e3d914-2a86-4f05-9c13-8d4e6f2a71bc",
+  "workflowType": "design-first",
+  "specType": "feature",
+  "description": "Panel relasi berkolom pada halaman dokumen (PurchaseOrder, SalesOrder, AssetService) menggantikan tree Connections yang hanya menampilkan link. Panel menampilkan tabel per jenis relasi (Penerimaan, Pembayaran, Retur, Pengiriman, Tagihan, Permintaan Pembelian) lengkap dengan kolom domain, baris total agregat dari backend, serta tombol aksi kontekstual saat relasi kosong. Data berasal dari ModelConnection yang diperkaya payload-nya, bukan relasi Eloquent baru.",
+  "createdAt": "2026-10-18T00:00:00.000Z",
+  "createdBy": "Claude"
+}
