@@ -105,6 +105,11 @@ vi.mock("@/Components/Link", () => ({
   default: ({ href, children }) => <a href={href}>{children}</a>,
 }));
 
+// RelationPanels butuh konteks Inertia (usePage, Deferred); diuji terpisah di RelationPanels.rtl.test.jsx.
+vi.mock("@/Pages/Core/Components/RelationPanels", () => ({
+  default: () => null,
+}));
+
 import Show from "./Show";
 
 function baseAssetService(overrides = {}) {

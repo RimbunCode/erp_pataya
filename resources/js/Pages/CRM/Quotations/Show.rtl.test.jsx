@@ -46,6 +46,11 @@ vi.mock("@/Pages/Core/FormPage", () => ({
 window.route = (name, params) =>
   params !== undefined ? `${name}/${JSON.stringify(params)}` : name;
 
+// RelationPanels butuh konteks Inertia (usePage, Deferred); diuji terpisah di RelationPanels.rtl.test.jsx.
+vi.mock("@/Pages/Core/Components/RelationPanels", () => ({
+  default: () => null,
+}));
+
 import Show from "./Show";
 
 describe("Show (CRM/Quotations)", () => {

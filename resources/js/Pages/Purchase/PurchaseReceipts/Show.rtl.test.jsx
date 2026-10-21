@@ -97,6 +97,11 @@ vi.mock("@/Pages/Asset/Assets/AssetCompletionAlert", () => ({
   ),
 }));
 
+// RelationPanels butuh konteks Inertia (usePage, Deferred); diuji terpisah di RelationPanels.rtl.test.jsx.
+vi.mock("@/Pages/Core/Components/RelationPanels", () => ({
+  default: () => null,
+}));
+
 import Show from "./Show";
 
 function basePurchaseReceipt(overrides = {}) {

@@ -156,7 +156,7 @@ abstract class QuotationTestCase extends TestCase {
     }
 
     /** Pajak wajib per baris item quotation (QuotationRequest 'items.*.tax.id'). */
-    private function taxIdForPayload(): string {
+    protected function taxIdForPayload(): string {
         return $this->payloadTaxId ??= TaxFactory::new()->create()->id;
     }
 
