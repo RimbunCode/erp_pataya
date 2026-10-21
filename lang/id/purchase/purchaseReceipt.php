@@ -50,6 +50,7 @@ return [
         'replaces_other_po'                     => 'PO Item yang digantikan bukan milik Purchase Order yang dipilih.',
         'replaced_exceeds_remaining'            => 'Kuantitas pengganti (:quantity) melebihi sisa kuantitas PO Item (:remaining).',
         'replaced_exceeds_remaining_on_approve' => 'PO Item :item hanya tersisa :remaining yang belum diterima; kuantitas pengganti :quantity tidak dapat disetujui.',
+        'over_receipt_tolerance_exceeded'       => 'Kuantitas penerimaan melebihi batas yang diizinkan (:limit; sisa sebelum toleransi: :remaining).',
     ],
 
 ];

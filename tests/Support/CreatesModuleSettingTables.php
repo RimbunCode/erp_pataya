@@ -18,6 +18,15 @@ trait CreatesModuleSettingTables {
             (require $migrations[0])->up();
         }
 
+        if (! Schema::hasColumn('sales_settings', 'default_source_warehouse_id')) {
+            Schema::table('sales_settings', function ($table): void {
+                $table->ulid('default_source_warehouse_id')->nullable();
+                $table->ulid('default_payment_term_template_id')->nullable();
+                $table->decimal('over_delivery_tolerance_percent', 5, 2)->default(0);
+                $table->decimal('over_billing_tolerance_percent', 5, 2)->default(0);
+            });
+        }
+
         if (! Schema::hasColumn('core_settings', 'mail_host')) {
             (require database_path('migrations/2026_10_19_093846_add_mail_fields_to_core_settings_table.php'))->up();
         }

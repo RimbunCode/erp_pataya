@@ -3,7 +3,7 @@ import {
   FormPageContentTitle,
   useFormPage,
 } from "@/Pages/Core/FormPage";
-import React, { useCallback, useEffect, useMemo } from "react";
+import React, { useCallback, useEffect, useMemo, useRef } from "react";
 import {
   calculateArray,
   calculateDurationDays,
@@ -12,6 +12,7 @@ import {
   getDataModel,
 } from "@/lib/utils";
 import { allocateDiscount } from "@/lib/discountAllocation";
+import { useDocumentDefaults } from "@/lib/documentDefaults";
 
 import AccountLinkModel from "../Accounts/AccountLinkModel";
 import AdditionalDiscount from "../Components/AdditionalDiscount";
@@ -72,7 +73,26 @@ export default function Form() {
   const { data, setData, disabled, dataBefore } = useFormPage(defaultValue, {
     notUseWhenCreate: true,
   });
-  const { default_currency_id } = usePage().props.preferences;
+  const pageProps = usePage().props;
+  const { default_currency_id } = pageProps.preferences;
+  const defaults = pageProps.defaults ?? {};
+  const { applyToNewLine, applyPaymentTerm } = useDocumentDefaults(defaults);
+  const paymentDefaultsApplied = useRef(false);
+
+  useEffect(() => {
+    if (paymentDefaultsApplied.current) return;
+    if (data.payment_schedules?.length) {
+      paymentDefaultsApplied.current = true;
+      return;
+    }
+    if (defaults.payment_term_template?.items?.length) {
+      setData(
+        "payment_schedules",
+        applyPaymentTerm(data.payment_schedules, data.date ?? new Date()),
+      );
+      paymentDefaultsApplied.current = true;
+    }
+  }, [applyPaymentTerm, data.date, data.payment_schedules, defaults.payment_term_template, setData]);
   const getContraIncomeAccount = (isContra) => {
     getDataModel(
       "App\\Models\\Finances\\Account",
@@ -224,14 +244,14 @@ export default function Form() {
                     conversion_factor: 1,
                     quantity: 1,
                     price: undefined,
-                    tax: undefined,
+                    tax: applyToNewLine(dataRow, null).tax,
                     description: undefined,
                   });
                   return;
                 }
                 // Opsi ItemVariant bebas.
                 if (val?.thisModel === ITEM_VARIANT_CLASS) {
-                  setData({
+                  const rowPatch = {
                     sales_order_item: null,
                     item: val,
                     asset: null,
@@ -240,8 +260,16 @@ export default function Form() {
                     conversion_factor: val.default_uom?.conversion_factor ?? 1,
                     quantity: 1,
                     price: undefined,
-                    tax: undefined,
                     description: undefined,
+                  };
+                  const defaultLine = applyToNewLine(
+                    { ...dataRow, ...rowPatch },
+                    val,
+                  );
+                  setData({
+                    ...rowPatch,
+                    tax: defaultLine.tax,
+                    tax_rate: defaultLine.tax_rate,
                   });
                   return;
                 }
@@ -800,6 +828,7 @@ export default function Form() {
             className="col-start-1 col-span-2"
             form={<ItemForm />}
             columns={itemColumns}
+            defaultValueRow={{ tax: defaults.tax, tax_rate: defaults.tax?.rate ?? 0 }}
             value={data?.items ?? []}
             valueBefore={dataBefore?.items}
             onValueChange={(v) => setData("items", v)}

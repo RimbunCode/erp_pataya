@@ -1,8 +1,9 @@
 import { FormPageContent, useFormPage } from "@/Pages/Core/FormPage";
-import React, { memo, useCallback, useEffect, useMemo } from "react";
+import React, { memo, useCallback, useEffect, useMemo, useRef } from "react";
 import SelectModel, { loadFromModel } from "@/Components/SelectModel";
 import { calculateArray, generateRandom } from "@/lib/utils";
 import { allocateDiscount } from "@/lib/discountAllocation";
+import { useDocumentDefaults } from "@/lib/documentDefaults";
 
 import AdditionalDiscount from "@/Pages/Finances/Components/AdditionalDiscount";
 import BranchLinkModel from "@/Pages/Settings/Branches/BranchLinkModel";
@@ -70,8 +71,27 @@ export default memo(function Form() {
     },
     { trackDefaultValue: false },
   );
-  const { default_currency_id } = usePage().props.preferences;
-  const loadFrom = usePage().props.loadFrom;
+  const pageProps = usePage().props;
+  const { default_currency_id } = pageProps.preferences;
+  const loadFrom = pageProps.loadFrom;
+  const defaults = pageProps.defaults ?? {};
+  const { applyToNewLine, applyPaymentTerm } = useDocumentDefaults(defaults);
+  const paymentDefaultsApplied = useRef(false);
+
+  useEffect(() => {
+    if (paymentDefaultsApplied.current) return;
+    if (data.payment_schedules?.length) {
+      paymentDefaultsApplied.current = true;
+      return;
+    }
+    if (defaults.payment_term_template?.items?.length) {
+      setData(
+        "payment_schedules",
+        applyPaymentTerm(data.payment_schedules, data.date ?? new Date()),
+      );
+      paymentDefaultsApplied.current = true;
+    }
+  }, [applyPaymentTerm, data.date, data.payment_schedules, defaults.payment_term_template, setData]);
 
   const asyncAdditionalData = useCallback(async (value, idChanges) => {
     return await axios.post(window.route("itemVariants.info"), {
@@ -225,18 +245,19 @@ export default memo(function Form() {
           const currentQty = items[idx]?.quantity ?? 0;
           items[idx] = { ...items[idx], quantity: currentQty + 1 };
         } else {
-          items.push({
+          const newLine = applyToNewLine({
             id: generateRandom(5),
             item: selectedItem,
             unit: selectedUnit,
             quantity: 1,
             source_warehouse: prev?.source_warehouse,
-          });
+          }, selectedItem, { warehouseField: "source_warehouse" });
+          items.push(newLine);
         }
         return { ...prev, items };
       });
     },
-    [setData],
+    [applyToNewLine, setData],
   );
 
   // Requirement 4.1, spec asset-service-billing-reference-flow: daftar id
@@ -299,13 +320,17 @@ export default memo(function Form() {
             onValueChange={(val) => {
               // Opsi dari sub model Asset: baris asset (tanpa unit & gudang).
               if (val?.thisModel === ASSET_CLASS) {
-                setRowData({
+                const rowPatch = {
                   asset: val,
                   item: null,
                   unit: null,
                   conversion_factor: 1,
                   source_warehouse: null,
                   quantity: 1,
+                };
+                setRowData({
+                  ...rowPatch,
+                  ...applyToNewLine({ ...dataRow, ...rowPatch }, null, {}),
                 });
                 return;
               }
@@ -362,7 +387,17 @@ export default memo(function Form() {
                   }));
                 }
               }
-              setRowData(rowPatch);
+              const defaultLine = applyToNewLine(
+                { ...dataRow, ...rowPatch },
+                val,
+                { warehouseField: "source_warehouse" },
+              );
+              setRowData({
+                ...rowPatch,
+                tax: defaultLine.tax,
+                tax_rate: defaultLine.tax_rate,
+                source_warehouse: defaultLine.source_warehouse,
+              });
             }}
             {...attributes}
             with={["defaultUom", "item", "item.category"]}
@@ -788,9 +823,23 @@ export default memo(function Form() {
             classNameDialog="max-w-(--breakpoint-lg)! w-full!"
             readOnly={disabled}
             columns={itemColumns}
+            defaultValueRow={{
+              tax: defaults.tax,
+              tax_rate: defaults.tax?.rate ?? 0,
+            }}
             value={data?.items ?? []}
-            onValueChange={(v) => {
-              setData("items", v);
+            onValueChange={(v, key) => {
+              const items =
+                key == null
+                  ? v
+                  : v.map((item) =>
+                      item.id === key
+                        ? applyToNewLine(item, item.item, {
+                            warehouseField: "source_warehouse",
+                          })
+                        : item,
+                    );
+              setData("items", items);
             }}
             asyncAdditionalData={asyncAdditionalData}
             mapItem={mapItem}

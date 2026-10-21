@@ -13,8 +13,14 @@ class SalesSettingFactory extends Factory {
 
     public function definition(): array {
         return [
-            'singleton'      => true,
-            'default_tax_id' => null,
+            'singleton'                        => true,
+            'default_tax_id'                   => null,
+            'default_source_warehouse_id'      => null,
+            'default_payment_term_template_id' => null,
+            'over_delivery_tolerance_percent'  => null,
+            'over_billing_tolerance_percent'   => null,
+            'rate_change_action'               => 'none',
+            'below_cost_action'                => 'none',
         ];
     }
 }

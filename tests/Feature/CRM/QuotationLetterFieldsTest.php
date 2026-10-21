@@ -201,6 +201,6 @@ class QuotationLetterFieldsTest extends QuotationTestCase {
             ->get(route('quotations.create'))
             ->assertOk()
             ->assertInertia(fn (AssertableInertia $page) => $page
-                ->where('defaultData.active_tax_id', null));
+                ->where('defaults.tax_id', null));
     }
 }

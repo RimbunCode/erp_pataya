@@ -48,6 +48,10 @@ vi.mock("laravel-react-i18n", () => ({
   useLaravelReactI18n: () => ({ t: stableT }),
 }));
 
+vi.mock("@inertiajs/react", () => ({
+  usePage: () => ({ props: { defaults: {} } }),
+}));
+
 // Izin `manage_off_source_items` (baris di luar dokumen sumber): default diizinkan,
 // test tertentu mematikan lewat globalThis.__canOffSource = false.
 vi.mock("@/Hooks/usePermission", () => ({

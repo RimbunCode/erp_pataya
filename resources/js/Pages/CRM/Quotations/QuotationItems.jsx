@@ -5,6 +5,8 @@ import ItemUnitLinkModel from "@/Pages/Inventory/Items/ItemUnitLinkModel";
 import ItemVariantLinkModel from "@/Pages/Inventory/Items/ItemVariantLinkModel";
 import NumberInput from "@/Components/NumberInput";
 import { Textarea } from "@/Components/ui/textarea";
+import { applyToNewLine } from "@/lib/documentDefaults";
+import TaxLinkModel from "@/Pages/Finances/Taxes/TaxLinkModel";
 import { useLaravelReactI18n } from "laravel-react-i18n";
 import { useMemo } from "react";
 
@@ -14,7 +16,7 @@ import { useMemo } from "react";
  * @param {string} type
  * @param {(key: string) => string} t
  */
-export function buildQuotationItemColumns(type, t) {
+export function buildQuotationItemColumns(type, t, defaults = {}) {
   const isSparePart = type === "spare_part";
   const isNewUnit = type === "new_unit";
   const isRental = type === "rental";
@@ -51,12 +53,23 @@ export function buildQuotationItemColumns(type, t) {
             fields={["item_code", "description"]}
             with={["defaultUom"]}
             onValueChange={(val) => {
+              const defaultLine = applyToNewLine(
+                {
+                  item: val,
+                  tax: dataRow?.tax,
+                  tax_rate: dataRow?.tax_rate,
+                },
+                val,
+                defaults,
+              );
               // Nilai awal disalin dari master, lalu menjadi milik dokumen
               // (pola P3): mengubah master tidak mengubah penawaran.
               setData({
                 item: val,
                 description: val?.description ?? "",
                 item_unit: val?.default_uom,
+                tax: defaultLine.tax,
+                tax_rate: defaultLine.tax_rate,
               });
             }}
             {...attributes}
@@ -112,6 +125,24 @@ export function buildQuotationItemColumns(type, t) {
             value={value}
             onValueChange={(val) => setData("item_unit", val)}
             filters={{ item_id: dataRow?.item?.item_id }}
+            {...attributes}
+          />
+        );
+      },
+    },
+    {
+      name: "tax",
+      titleTrans: "crm.quotation.columns.tax",
+      show: true,
+      width: 2,
+      cell({ data, setData, attributes }) {
+        return (
+          <TaxLinkModel
+            value={data}
+            placeholder={t("crm.quotation.columns.tax.placeholder")}
+            onValueChange={(tax) =>
+              setData({ tax, tax_rate: tax?.rate ?? 0 })
+            }
             {...attributes}
           />
         );
@@ -174,9 +205,13 @@ export default function QuotationItems({
   onValueChange,
   readOnly,
   type = "spare_part",
+  defaults = {},
 }) {
   const { t } = useLaravelReactI18n();
-  const columns = useMemo(() => buildQuotationItemColumns(type, t), [type, t]);
+  const columns = useMemo(
+    () => buildQuotationItemColumns(type, t, defaults),
+    [defaults, type, t],
+  );
 
   return (
     <FormPageContent value="items" title={t("crm.quotation.items")}>
@@ -189,7 +224,12 @@ export default function QuotationItems({
         classNameDialog="max-w-(--breakpoint-lg)! w-full!"
         readOnly={readOnly}
         columns={columns}
-        defaultValueRow={{ quantity: 1, price: 0 }}
+        defaultValueRow={{
+          quantity: 1,
+          price: 0,
+          tax: defaults.tax,
+          tax_rate: defaults.tax?.rate ?? 0,
+        }}
         value={value ?? []}
         onValueChange={onValueChange}
       />

@@ -8,7 +8,12 @@ use App\Http\Requests\Finances\Rules\PaymentSchedulesRules;
 use App\Http\Requests\Finances\Rules\ReturnAgainstItemRules;
 use App\Http\Requests\Sales\Rules\OffSourceItemRules;
 use App\Models\Finances\SalesInvoice;
+use App\Models\Inventory\ItemUnit;
+use App\Models\Sales\SalesOrderItem;
+use App\Models\Sales\SalesSetting;
 use App\Rules\ExistsExcludingTrashed;
+use App\Services\Core\Setting\RateChangeComparator;
+use App\Services\Core\Setting\ToleranceCalculator;
 use Illuminate\Contracts\Validation\ValidationRule;
 use Illuminate\Contracts\Validation\Validator;
 use Illuminate\Support\Facades\DB;
@@ -109,7 +114,124 @@ class SalesInvoiceRequest extends BaseFormRequest {
             OffSourceItemRules::validatePermission($validator, $this, SalesInvoice::class, $freeRows);
             OffSourceItemRules::validateFreeAssets($validator, $freeAsset, 'sales_invoice_items', 'sales_invoices', 'sales_invoice_id');
             OffSourceItemRules::validateSourceBelongsToHeader($validator, $this->sourceOrderOf($rows), $this->input('sales_order.id'), 'sales_order_item.id');
+
+            if (! $isReturn) {
+                $this->validateRateChanges($validator, $rows);
+                $this->validateBillingTolerance($validator, $rows);
+            }
         });
+    }
+
+    /** @param array<int|string,mixed> $rows */
+    private function validateBillingTolerance(Validator $validator, array $rows): void {
+        $tolerance = SalesSetting::current()->over_billing_tolerance_percent;
+        if ($tolerance === null) {
+            return;
+        }
+
+        $groupedRows = collect($rows)
+            ->filter(fn ($row) => filled($row['sales_order_item']['id'] ?? null))
+            ->groupBy('sales_order_item.id');
+        if ($groupedRows->isEmpty()) {
+            return;
+        }
+
+        $sourceItems = SalesOrderItem::query()
+            ->with('salesOrder:id,exchange_rate')
+            ->whereIn('id', $groupedRows->keys())
+            ->get()
+            ->keyBy('id');
+        $calculator   = app(ToleranceCalculator::class);
+        $exchangeRate = (float) ($this->input('exchange_rate') ?: 1);
+
+        foreach ($groupedRows as $sourceId => $sourceRows) {
+            $source = $sourceItems->get($sourceId);
+            if (! $source) {
+                continue;
+            }
+
+            $requestedQuantity  = $sourceRows->sum(fn ($row) => (float) $row['quantity']);
+            $sourceExchangeRate = (float) ($source->salesOrder?->exchange_rate ?: 1);
+            $sourceUnitValue    = (float) $source->price * $sourceExchangeRate;
+            $requestedValue     = $sourceRows->sum(fn ($row) => (float) ($row['quantity'] * ($row['price'] ?? $source->price) * $exchangeRate));
+            $alreadyBilledValue = (float) $source->billed_quantity * $sourceUnitValue;
+            $index              = $sourceRows->keys()->first();
+
+            if ($calculator->exceeds($requestedQuantity, (float) $source->quantity, (float) $source->billed_quantity, $tolerance)) {
+                $validator->errors()->add("items.{$index}.quantity", __('finances/salesInvoice.validation.over_billing_tolerance_exceeded', [
+                    'remaining' => max(0, (float) $source->quantity - (float) $source->billed_quantity),
+                    'tolerance' => $tolerance,
+                ]));
+            }
+
+            if ($calculator->exceedsValue($requestedValue, (float) $source->basic_amount_base_currency, $alreadyBilledValue, $tolerance)) {
+                $validator->errors()->add("items.{$index}.price", __('finances/salesInvoice.validation.over_billing_value_tolerance_exceeded', [
+                    'tolerance' => $tolerance,
+                ]));
+            }
+        }
+    }
+
+    /** @param array<int|string,mixed> $rows */
+    private function validateRateChanges(Validator $validator, array $rows): void {
+        $action = SalesSetting::current()->rate_change_action;
+        if ($action === 'none') {
+            return;
+        }
+
+        $groupedRows = collect($rows)
+            ->filter(fn ($row) => filled($row['sales_order_item']['id'] ?? null))
+            ->groupBy('sales_order_item.id');
+        $sourceItems = $groupedRows->isEmpty()
+            ? collect()
+            : SalesOrderItem::query()
+                ->with('salesOrder:id,exchange_rate')
+                ->whereIn('id', $groupedRows->keys())
+                ->get()
+                ->keyBy('id');
+        $unitIds     = collect($rows)->pluck('unit.id')->filter()->unique();
+        $unitFactors = $unitIds->isEmpty()
+            ? collect()
+            : ItemUnit::whereIn('item_units.id', $unitIds)->pluck('item_units.conversion_factor', 'item_units.id');
+        $exchangeRate = (float) ($this->input('exchange_rate') ?: 1);
+        $comparator   = app(RateChangeComparator::class);
+        $warnings     = [];
+
+        foreach ($groupedRows as $sourceId => $sourceRows) {
+            $source = $sourceItems->get($sourceId);
+            if (! $source) {
+                continue;
+            }
+
+            foreach ($sourceRows as $index => $row) {
+                $documentRate   = (float) ($row['price'] ?? $source->price);
+                $documentFactor = (float) ($unitFactors[$row['unit']['id'] ?? ''] ?? $source->conversion_factor ?: 1);
+                if (! $comparator->hasChanged(
+                    (float) $source->price,
+                    (float) ($source->salesOrder?->exchange_rate ?: 1),
+                    (float) ($source->conversion_factor ?: 1),
+                    $documentRate,
+                    $exchangeRate,
+                    $documentFactor,
+                )) {
+                    continue;
+                }
+
+                $message = __('finances/salesInvoice.validation.rate_changed', [
+                    'source'   => $source->price,
+                    'document' => $documentRate,
+                ]);
+                if ($action === 'stop') {
+                    $validator->errors()->add("items.{$index}.price", $message);
+                } else {
+                    $warnings[] = $message;
+                }
+            }
+        }
+
+        if ($warnings !== [] && $this->hasSession()) {
+            $this->session()->flash('priceWarnings', array_values(array_unique($warnings)));
+        }
     }
 
     /**

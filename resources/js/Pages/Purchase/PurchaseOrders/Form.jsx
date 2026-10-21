@@ -1,9 +1,10 @@
 import { FormPageContent, useFormPage } from "@/Pages/Core/FormPage";
-import React, { useCallback, useEffect } from "react";
+import React, { useCallback, useEffect, useRef } from "react";
 import SelectModel, { loadFromModel } from "@/Components/SelectModel";
 import { generateRandom } from "@/lib/utils";
 import { allocateDiscount } from "@/lib/discountAllocation";
 import { calculatePurchaseOrderAmounts } from "./purchaseOrderAmounts";
+import { useDocumentDefaults } from "@/lib/documentDefaults";
 
 import AdditionalDiscount from "@/Pages/Finances/Components/AdditionalDiscount";
 import NumberInput from "@/Components/NumberInput";
@@ -35,8 +36,27 @@ export function PurchaseOrderFields({
   renderSourceWarning,
 }) {
   const { t } = useLaravelReactI18n();
-  const loadFrom = usePage().props.loadFrom;
-  const { default_currency_id } = usePage().props.preferences;
+  const pageProps = usePage().props;
+  const loadFrom = pageProps.loadFrom;
+  const defaults = pageProps.defaults ?? {};
+  const { default_currency_id } = pageProps.preferences;
+  const { applyToNewLine, applyPaymentTerm } = useDocumentDefaults(defaults);
+  const paymentDefaultsApplied = useRef(false);
+
+  useEffect(() => {
+    if (paymentDefaultsApplied.current) return;
+    if (data.payment_schedules?.length) {
+      paymentDefaultsApplied.current = true;
+      return;
+    }
+    if (defaults.payment_term_template?.items?.length) {
+      setData(
+        "payment_schedules",
+        applyPaymentTerm(data.payment_schedules, data.date ?? new Date()),
+      );
+      paymentDefaultsApplied.current = true;
+    }
+  }, [applyPaymentTerm, data.date, data.payment_schedules, defaults.payment_term_template, setData]);
 
   // Dihitung langsung dari quantity*rate mentah + alokasi diskon saat ini --
   // BUKAN dari calculateArray(data.items, "basic_amount", "+"). Alasan: field
@@ -145,20 +165,20 @@ export function PurchaseOrderFields({
           const currentQty = items[idx]?.quantity ?? 0;
           items[idx] = { ...items[idx], quantity: currentQty + 1 };
         } else {
-          items.push({
+          const newLine = applyToNewLine({
             id: generateRandom(5),
             item: selectedItem,
             unit: selectedUnit,
             quantity: 1,
             required_date: prev?.required_date,
-
             target_warehouse: prev?.target_warehouse,
-          });
+          }, selectedItem, { warehouseField: "target_warehouse" });
+          items.push(newLine);
         }
         return { ...prev, items };
       });
     },
-    [setData],
+    [applyToNewLine, setData],
   );
   const itemColumns = useMemo(() => {
     return [
@@ -174,12 +194,20 @@ export function PurchaseOrderFields({
               value={dataRow?.item}
               onValueChange={(val) => {
                 const defaultUnit = val?.default_uom;
+                const defaultLine = applyToNewLine(
+                  { ...dataRow, item: val },
+                  val,
+                  { warehouseField: "target_warehouse" },
+                );
                 setData({
                   item: val,
                   unit: defaultUnit,
                   conversion_factor: defaultUnit?.conversion_factor,
                   required_date: data.required_date,
-                  target_warehouse: data.target_warehouse,
+                  tax: defaultLine.tax,
+                  tax_rate: defaultLine.tax_rate,
+                  target_warehouse:
+                    defaultLine.target_warehouse ?? data.target_warehouse,
                 });
               }}
               {...attributes}
@@ -575,6 +603,10 @@ export function PurchaseOrderFields({
               fixedRows={sourceLocked}
               readOnly={disabled}
               columns={sourceColumns}
+              defaultValueRow={{
+                tax: defaults.tax,
+                tax_rate: defaults.tax?.rate ?? 0,
+              }}
               value={data?.items}
               valueBefore={dataBefore?.items}
               onValueChange={(v) => setData("items", v)}

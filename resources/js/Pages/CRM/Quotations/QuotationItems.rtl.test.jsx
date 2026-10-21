@@ -92,6 +92,7 @@ describe("CRM QuotationItems", () => {
         "description",
         "quantity",
         "item_unit",
+        "tax",
         "price",
         "remark",
         "amount",
@@ -105,6 +106,7 @@ describe("CRM QuotationItems", () => {
         "item",
         "description",
         "quantity",
+        "tax",
         "price",
         "remark",
         "amount",
@@ -119,6 +121,7 @@ describe("CRM QuotationItems", () => {
         "description",
         "quantity",
         "item_unit",
+        "tax",
         "price",
       ]);
     });

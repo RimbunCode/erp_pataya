@@ -25,7 +25,9 @@ const QUOTATION_TYPES = ["spare_part", "new_unit", "rental"];
 
 export default function Form() {
   const { t } = useLaravelReactI18n();
-  const sectionTemplates = usePage().props.sectionTemplates;
+  const pageProps = usePage().props;
+  const sectionTemplates = pageProps.sectionTemplates;
+  const defaults = pageProps.defaults ?? {};
   const { data, setData, disabled } = useFormPage(
     {
       date: new Date(),
@@ -191,6 +193,7 @@ export default function Form() {
 
       <QuotationItems
         type={type}
+        defaults={defaults}
         value={data?.items ?? []}
         onValueChange={(val) => setData("items", val)}
         readOnly={disabled}

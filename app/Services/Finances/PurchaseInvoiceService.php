@@ -27,8 +27,11 @@ use App\Models\Purchase\PurchaseOrder;
 use App\Models\Purchase\PurchaseOrderItem;
 use App\Models\Purchase\PurchaseReceipt;
 use App\Models\Purchase\PurchaseReceiptItem;
+use App\Models\Purchase\PurchaseSetting;
 use App\Models\Purchase\Supplier;
+use App\Services\Core\Setting\RateChangeComparator;
 use App\Services\Core\Setting\SettingsService;
+use App\Services\Core\Setting\ToleranceCalculator;
 use App\Traits\HasDefaultDelete;
 use App\Utils;
 use Illuminate\Support\Collection;
@@ -290,6 +293,11 @@ class PurchaseInvoiceService implements SubmitableService {
             $items         = $purchaseInvoice->items;
             $purchaseOrder = $purchaseInvoice->purchaseOrder;
 
+            if (! $returnAgainst) {
+                $this->assertRateChanges($purchaseInvoice, $items);
+                $this->assertBillingTolerance($purchaseInvoice, $items);
+            }
+
             $basicAmount  = 0;
             $taxAmount    = 0;
             $totalStockGL = 0; // Untuk GL Stock/SRNB (ALUR-1)
@@ -407,6 +415,132 @@ class PurchaseInvoiceService implements SubmitableService {
         } catch (\Exception $e) {
             DB::rollBack();
             throw $e;
+        }
+    }
+
+    private function assertBillingTolerance(PurchaseInvoice $purchaseInvoice, Collection $items): void {
+        $tolerance = PurchaseSetting::current()->over_billing_tolerance_percent;
+        if ($tolerance === null) {
+            return;
+        }
+
+        $calculator  = app(ToleranceCalculator::class);
+        $poItemsById = $items->filter(fn ($item) => $item->purchase_order_item_id)
+            ->groupBy('purchase_order_item_id');
+        $sourcePoItems = $poItemsById->isEmpty()
+            ? collect()
+            : PurchaseOrderItem::query()
+                ->with('purchaseOrder:id,exchange_rate')
+                ->whereIn('id', $poItemsById->keys())
+                ->lockForUpdate()
+                ->get()
+                ->keyBy('id');
+
+        foreach ($poItemsById as $sourceId => $invoiceItems) {
+            $source = $sourcePoItems->get($sourceId);
+            if (! $source) {
+                continue;
+            }
+
+            $requestedQuantity  = (float) $invoiceItems->sum('quantity');
+            $requestedValue     = (float) $invoiceItems->sum(fn ($item) => ($item->basic_amount - $item->discount_amount) * $purchaseInvoice->exchange_rate);
+            $sourceExchangeRate = (float) ($source->purchaseOrder?->exchange_rate ?: 1);
+            $sourceUnitValue    = (float) $source->rate * $sourceExchangeRate;
+            $alreadyBilledValue = (float) $source->billed_quantity * $sourceUnitValue;
+
+            if ($calculator->exceeds($requestedQuantity, (float) $source->quantity, (float) $source->billed_quantity, $tolerance)) {
+                throw ValidationException::withMessages([
+                    'items' => __('finances/purchaseInvoice.validation.over_billing_tolerance_exceeded', [
+                        'remaining' => max(0, (float) $source->quantity - (float) $source->billed_quantity),
+                        'tolerance' => $tolerance,
+                    ]),
+                ]);
+            }
+
+            if ($calculator->exceedsValue($requestedValue, (float) $source->basic_amount * $sourceExchangeRate, $alreadyBilledValue, $tolerance)) {
+                throw ValidationException::withMessages([
+                    'items' => __('finances/purchaseInvoice.validation.over_billing_value_tolerance_exceeded', ['tolerance' => $tolerance]),
+                ]);
+            }
+        }
+
+        $receiptItemsById = $items->filter(fn ($item) => ! $item->purchase_order_item_id && $item->purchase_receipt_item_id)
+            ->groupBy('purchase_receipt_item_id');
+        $sourceReceiptItems = $receiptItemsById->isEmpty()
+            ? collect()
+            : PurchaseReceiptItem::query()
+                ->whereIn('id', $receiptItemsById->keys())
+                ->lockForUpdate()
+                ->get()
+                ->keyBy('id');
+
+        foreach ($receiptItemsById as $sourceId => $invoiceItems) {
+            $source = $sourceReceiptItems->get($sourceId);
+            if (! $source) {
+                continue;
+            }
+
+            $requestedQuantity = (float) $invoiceItems->sum('quantity');
+            if ($calculator->exceeds($requestedQuantity, (float) $source->quantity, (float) $source->billed_quantity, $tolerance)) {
+                throw ValidationException::withMessages([
+                    'items' => __('finances/purchaseInvoice.validation.over_billing_tolerance_exceeded', [
+                        'remaining' => max(0, (float) $source->quantity - (float) $source->billed_quantity),
+                        'tolerance' => $tolerance,
+                    ]),
+                ]);
+            }
+        }
+    }
+
+    private function assertRateChanges(PurchaseInvoice $purchaseInvoice, Collection $items): void {
+        $action = PurchaseSetting::current()->rate_change_action;
+        if ($action === 'none') {
+            return;
+        }
+
+        $groupedItems = $items->filter(fn ($item) => $item->purchase_order_item_id)->groupBy('purchase_order_item_id');
+        $sourceItems  = $groupedItems->isEmpty()
+            ? collect()
+            : PurchaseOrderItem::query()
+                ->with('purchaseOrder:id,exchange_rate')
+                ->whereIn('id', $groupedItems->keys())
+                ->lockForUpdate()
+                ->get()
+                ->keyBy('id');
+        $comparator = app(RateChangeComparator::class);
+        $warnings   = [];
+
+        foreach ($groupedItems as $sourceId => $invoiceItems) {
+            $source = $sourceItems->get($sourceId);
+            if (! $source) {
+                continue;
+            }
+
+            foreach ($invoiceItems as $item) {
+                if (! $comparator->hasChanged(
+                    (float) $source->rate,
+                    (float) ($source->purchaseOrder?->exchange_rate ?: 1),
+                    (float) ($source->conversion_factor ?: 1),
+                    (float) $item->rate,
+                    (float) ($purchaseInvoice->exchange_rate ?: 1),
+                    (float) ($item->conversion_factor ?: 1),
+                )) {
+                    continue;
+                }
+
+                $message = __('finances/purchaseInvoice.validation.rate_changed', [
+                    'source'   => $source->rate,
+                    'document' => $item->rate,
+                ]);
+                if ($action === 'stop') {
+                    throw ValidationException::withMessages(['items' => $message]);
+                }
+                $warnings[] = $message;
+            }
+        }
+
+        if ($warnings !== [] && request()->hasSession()) {
+            request()->session()->flash('priceWarnings', array_values(array_unique($warnings)));
         }
     }
 

@@ -5,6 +5,8 @@ namespace Tests\Feature\Settings;
 use App\Models\Core\CoreSetting;
 use App\Models\Core\Preference;
 use App\Models\Finances\FinanceSetting;
+use App\Models\Inventory\InventorySetting;
+use App\Models\Purchase\PurchaseSetting;
 use App\Models\Sales\SalesSetting;
 use App\Models\User\Permission;
 use App\Models\User\Role;
@@ -25,17 +27,19 @@ class ModuleSettingPermissionMigrationTest extends TestCase {
     public function test_permission_rows_exist_for_all_setting_models(): void {
         app(ModuleSettingPermissionSeeder::class)->run();
 
-        foreach ([CoreSetting::class, FinanceSetting::class, SalesSetting::class] as $modelClass) {
+        foreach ([CoreSetting::class, FinanceSetting::class, SalesSetting::class, PurchaseSetting::class, InventorySetting::class] as $modelClass) {
             $this->assertDatabaseHas('permissions', ['model' => $modelClass]);
         }
     }
 
-    public function test_finance_and_sales_use_dedicated_permission_module(): void {
+    public function test_module_settings_use_dedicated_permission_module(): void {
         app(ModuleSettingPermissionSeeder::class)->run();
 
         $this->assertSame('Core', Permission::where('model', CoreSetting::class)->value('module'));
         $this->assertSame('Setting', Permission::where('model', FinanceSetting::class)->value('module'));
         $this->assertSame('Setting', Permission::where('model', SalesSetting::class)->value('module'));
+        $this->assertSame('Setting', Permission::where('model', PurchaseSetting::class)->value('module'));
+        $this->assertSame('Setting', Permission::where('model', InventorySetting::class)->value('module'));
     }
 
     public function test_preference_role_permissions_are_copied_to_core_setting_idempotently(): void {
@@ -70,7 +74,7 @@ class ModuleSettingPermissionMigrationTest extends TestCase {
 
         // Halaman setting modul baru tetap tertutup bagi peran non-admin (Req 9.4).
         $this->assertSame(0, RolePermission::where('role_id', $role->id)
-            ->whereIn('model', [FinanceSetting::class, SalesSetting::class])
+            ->whereIn('model', [FinanceSetting::class, SalesSetting::class, PurchaseSetting::class, InventorySetting::class])
             ->count());
     }
 
@@ -82,7 +86,7 @@ class ModuleSettingPermissionMigrationTest extends TestCase {
 
         app(ModuleSettingPermissionSeeder::class)->run();
 
-        foreach ([CoreSetting::class, FinanceSetting::class, SalesSetting::class] as $modelClass) {
+        foreach ([CoreSetting::class, FinanceSetting::class, SalesSetting::class, PurchaseSetting::class, InventorySetting::class] as $modelClass) {
             $row = RolePermission::where('role_id', $role->id)->where('model', $modelClass)->first();
             $this->assertNotNull($row, "System Manager missing grant for {$modelClass}");
             $this->assertSame(
@@ -92,9 +96,9 @@ class ModuleSettingPermissionMigrationTest extends TestCase {
         }
 
         $this->assertSame(
-            3,
+            5,
             RolePermission::where('role_id', $role->id)
-                ->whereIn('model', [CoreSetting::class, FinanceSetting::class, SalesSetting::class])
+                ->whereIn('model', [CoreSetting::class, FinanceSetting::class, SalesSetting::class, PurchaseSetting::class, InventorySetting::class])
                 ->count(),
         );
     }

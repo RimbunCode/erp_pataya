@@ -10,8 +10,12 @@ use Inertia\Response;
 
 class SalesSettingController extends ModuleSettingController {
     public function show(Request $request, SettingsService $settings): Response {
+        $setting = $settings->get(SalesSetting::class);
+
         return parent::show($request, $settings)
-            ->with('defaultTax', $settings->get(SalesSetting::class)->defaultTax);
+            ->with('defaultTax', $setting->defaultTax)
+            ->with('defaultSourceWarehouse', $setting->defaultSourceWarehouse)
+            ->with('defaultPaymentTermTemplate', $setting->defaultPaymentTermTemplate);
     }
 
     protected function settingKey(): string {

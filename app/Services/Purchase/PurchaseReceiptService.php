@@ -22,6 +22,8 @@ use App\Models\Purchase\PurchaseOrder;
 use App\Models\Purchase\PurchaseOrderItem;
 use App\Models\Purchase\PurchaseReceipt;
 use App\Models\Purchase\PurchaseReceiptItem;
+use App\Models\Purchase\PurchaseSetting;
+use App\Services\Core\Setting\ToleranceCalculator;
 use App\Traits\HasDefaultDelete;
 use Illuminate\Support\Collection;
 use Illuminate\Support\Facades\DB;
@@ -177,11 +179,16 @@ class PurchaseReceiptService implements SubmitableService {
             ? collect()
             : $items->filter(fn ($row) => $row->replaces_purchase_order_item_id)
                 ->groupBy('replaces_purchase_order_item_id');
-        $replacedErrors = [];
+        $replacedErrors      = [];
+        $receiptTolerance    = PurchaseSetting::current()->over_receipt_tolerance_percent;
+        $toleranceCalculator = app(ToleranceCalculator::class);
         foreach ($replacedByItem as $replacedId => $rows) {
             $locked    = PurchaseOrderItem::where('id', $replacedId)->lockForUpdate()->first();
             $requested = (float) $rows->sum('replaced_quantity');
-            $remaining = $locked ? (float) $locked->quantity - (float) $locked->received_quantity : 0;
+            $remaining = $locked
+                ? ($toleranceCalculator->allowed((float) $locked->quantity, (float) $locked->received_quantity, $receiptTolerance)
+                    ?? ((float) $locked->quantity - (float) $locked->received_quantity))
+                : 0;
             if (! $locked || $requested - $remaining > 0.0001) {
                 $replacedErrors[] = __('purchase/purchaseReceipt.validation.replaced_exceeds_remaining_on_approve', [
                     'item'      => $locked?->item?->code ?? $replacedId,
@@ -189,6 +196,23 @@ class PurchaseReceiptService implements SubmitableService {
                     'quantity'  => $requested,
                 ]);
             }
+        }
+
+        $purchaseOrderItems = $returnAgainst
+            ? collect()
+            : $items->filter(fn ($row) => $row->purchase_order_item_id)
+                ->groupBy('purchase_order_item_id');
+        foreach ($purchaseOrderItems as $sourceId => $rows) {
+            $locked    = PurchaseOrderItem::whereKey($sourceId)->lockForUpdate()->first();
+            $requested = (float) $rows->sum('quantity');
+            if (! $locked || ! $toleranceCalculator->exceeds($requested, (float) $locked->quantity, (float) $locked->received_quantity, $receiptTolerance)) {
+                continue;
+            }
+
+            $replacedErrors[] = __('purchase/purchaseReceipt.validation.over_receipt_tolerance_exceeded', [
+                'remaining' => max(0, (float) $locked->quantity - (float) $locked->received_quantity),
+                'limit'     => $toleranceCalculator->allowed((float) $locked->quantity, (float) $locked->received_quantity, $receiptTolerance),
+            ]);
         }
         if (\count($replacedErrors) > 0) {
             DB::rollBack();

@@ -6,6 +6,7 @@
 #----------------------
 
 .codegraph/
+.sokudo/
 .claude/skills
 .claude/settings.local.json
 .github/skills

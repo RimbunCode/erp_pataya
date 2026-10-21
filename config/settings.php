@@ -2,9 +2,13 @@
 
 use App\Enums\Domain;
 use App\Http\Controllers\Finances\FinanceSettingController;
+use App\Http\Controllers\Inventory\InventorySettingController;
+use App\Http\Controllers\Purchase\PurchaseSettingController;
 use App\Http\Controllers\Sales\SalesSettingController;
 use App\Models\Core\CoreSetting;
 use App\Models\Finances\FinanceSetting;
+use App\Models\Inventory\InventorySetting;
+use App\Models\Purchase\PurchaseSetting;
 use App\Models\Sales\SalesSetting;
 
 return [
@@ -62,6 +66,26 @@ return [
             'label'      => 'Sales Settings',
             'desks'      => [Domain::Core, Domain::Sales, Domain::Finances],
             'order'      => 27,
+        ],
+        'purchase' => [
+            'model'      => PurchaseSetting::class,
+            'controller' => PurchaseSettingController::class,
+            'page'       => 'Settings/Modules/PurchaseSettings',
+            'icon'       => 'ShoppingBag',
+            'title'      => 'purchase.setting.title',
+            'label'      => 'Purchase Settings',
+            'desks'      => [Domain::Core, Domain::Purchase, Domain::Finances],
+            'order'      => 28,
+        ],
+        'inventory' => [
+            'model'      => InventorySetting::class,
+            'controller' => InventorySettingController::class,
+            'page'       => 'Settings/Modules/InventorySettings',
+            'icon'       => 'Warehouse',
+            'title'      => 'inventory.setting.title',
+            'label'      => 'Inventory Settings',
+            'desks'      => [Domain::Core, Domain::Inventory, Domain::Purchase, Domain::Sales],
+            'order'      => 29,
         ],
     ],
 ];

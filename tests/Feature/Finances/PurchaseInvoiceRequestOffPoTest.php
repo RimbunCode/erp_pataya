@@ -18,6 +18,7 @@ use App\Models\Purchase\PurchaseOrderItem;
 use App\Models\Purchase\PurchaseReceipt;
 use App\Models\Purchase\PurchaseReceiptItem;
 use App\Models\Purchase\PurchaseReceiptOffPoItem;
+use App\Models\Purchase\PurchaseSetting;
 use App\Models\Purchase\Supplier;
 use App\Models\User\User;
 use Database\Factories\Core\CountryFactory;
@@ -207,6 +208,56 @@ class PurchaseInvoiceRequestOffPoTest extends TestCase {
     #[Test]
     public function accepts_normal_row_unchanged(): void {
         $this->assertValid($this->validate([$this->row(['purchase_order_item' => ['id' => $this->poItem->id]])]));
+    }
+
+    #[Test]
+    public function invoice_tolerance_applies_to_po_quantity_and_gross_value_but_receipt_off_po_is_quantity_only(): void {
+        $this->poItem->update(['quantity' => 10, 'rate' => 1000]);
+        PurchaseSetting::current()->update(['over_billing_tolerance_percent' => 10]);
+
+        $withinLimit = $this->validate([$this->row(['purchase_order_item' => ['id' => $this->poItem->id]], ['quantity' => 11, 'rate' => 1000])]);
+        $this->assertValid($withinLimit);
+
+        $overValue = $this->validate([$this->row(['purchase_order_item' => ['id' => $this->poItem->id]], ['quantity' => 10, 'rate' => 1110])]);
+        $this->assertErrorOn($overValue, 'items.0.rate');
+
+        $receiptRow     = $this->makeReceiptRow($this->po);
+        $receiptInvoice = $this->validate([$this->row(['purchase_receipt_item' => ['id' => $receiptRow->id]], ['quantity' => 5.5, 'rate' => 1500])]);
+        $this->assertValid($receiptInvoice);
+    }
+
+    #[Test]
+    public function rate_change_stop_rejects_purchase_invoice_rate_different_from_purchase_order(): void {
+        $this->poItem->update(['rate' => 1000]);
+        PurchaseSetting::current()->update(['rate_change_action' => 'stop']);
+
+        $validator = $this->validate([
+            $this->row(['purchase_order_item' => ['id' => $this->poItem->id]], ['quantity' => 1, 'rate' => 1010]),
+        ]);
+
+        $this->assertErrorOn($validator, 'items.0.rate');
+    }
+
+    #[Test]
+    public function rate_change_warn_allows_purchase_invoice_and_flashes_warning(): void {
+        $this->poItem->update(['rate' => 1000]);
+        PurchaseSetting::current()->update(['rate_change_action' => 'warn']);
+        $data = [
+            'date'                 => now()->toDateString(),
+            'purchase_order'       => ['id' => $this->po->id],
+            'expense_head_account' => ['id' => $this->expense->id],
+            'credit_account'       => ['id' => $this->credit->id],
+            'supplier'             => ['id' => $this->supplier->id],
+            'items'                => [$this->row(['purchase_order_item' => ['id' => $this->poItem->id]], ['quantity' => 1, 'rate' => 1010])],
+        ];
+        $request = PurchaseInvoiceRequest::create('/', 'POST', $data);
+        $request->setContainer(app());
+        $request->setLaravelSession(app('session')->driver());
+        $validator = ValidatorFacade::make($data, $request->rules());
+        $request->withValidator($validator);
+
+        $this->assertFalse($validator->fails(), json_encode($validator->errors()->toArray()));
+        $this->assertNotEmpty($request->session()->get('priceWarnings'));
     }
 
     #[Test]

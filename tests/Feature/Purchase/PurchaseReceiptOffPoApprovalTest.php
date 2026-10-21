@@ -28,6 +28,7 @@ use App\Models\Purchase\PurchaseOrder;
 use App\Models\Purchase\PurchaseOrderItem;
 use App\Models\Purchase\PurchaseReceipt;
 use App\Models\Purchase\PurchaseReceiptItem;
+use App\Models\Purchase\PurchaseSetting;
 use App\Models\Purchase\Supplier;
 use App\Models\User\User;
 use App\Services\Asset\AssetService;
@@ -240,6 +241,28 @@ class PurchaseReceiptOffPoApprovalTest extends TestCase {
         $entry = Stock::where('item_variant_id', $this->xVariant->id)->first()->stock_queue[0];
         $this->assertEquals(1000, $entry['rate']);
         $this->assertFalse($entry['is_valuated']);
+    }
+
+    #[Test]
+    public function zero_receipt_tolerance_rechecks_source_limit_under_approval_lock(): void {
+        PurchaseSetting::current()->update(['over_receipt_tolerance_percent' => 0]);
+        $this->seedXIncoming(10);
+        $receipt = $this->makeReceipt();
+        $this->makeRow($receipt, [
+            'purchase_order_item_id' => $this->xItem->id,
+            'item_id'                => $this->xVariant->id,
+            'item_unit_id'           => $this->xUnit->id,
+            'quantity'               => 11,
+        ]);
+
+        try {
+            $this->service->onApproved($receipt);
+            $this->fail('Diharapkan ValidationException.');
+        } catch (ValidationException $exception) {
+            $this->assertArrayHasKey('items', $exception->errors());
+        }
+
+        $this->assertSame(0.0, $this->xItem->fresh()->received_quantity);
     }
 
     // --- substitusi ---------------------------------------------------------

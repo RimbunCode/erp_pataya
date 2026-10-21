@@ -15,6 +15,7 @@ import React from "react";
 import SupplierLinkModel from "../Suppliers/SupplierLinkModel";
 import { Textarea } from "@/Components/ui/textarea";
 import { generateRandom } from "@/lib/utils";
+import { useDocumentDefaults } from "@/lib/documentDefaults";
 import { useLaravelReactI18n } from "laravel-react-i18n";
 import { useMemo } from "react";
 import { usePage } from "@inertiajs/react";
@@ -36,7 +37,10 @@ const hasItem = (row) => !!(row?.purchase_order_item_id || row?.item?.id);
 function Form() {
   const { t } = useLaravelReactI18n();
   const fixedAssets = usePage().props.fixedAssets;
-  const purchaseReceiptId = usePage().props.purchaseReceipt?.id;
+  const pageProps = usePage().props;
+  const purchaseReceiptId = pageProps.purchaseReceipt?.id;
+  const defaults = pageProps.defaults ?? {};
+  const { applyToNewLine } = useDocumentDefaults(defaults);
   const { data, setData } = useFormPage(
     {
       date: new Date(),
@@ -74,7 +78,7 @@ function Form() {
                   // Opsi dari sub model (ItemVariant) = baris di luar PO
                   // (spec purchase-receipt-off-po-items); opsi PO Item = baris normal.
                   if (val?.thisModel === ITEM_VARIANT_MODEL) {
-                    setData({
+                    const rowPatch = {
                       ...OFF_PO_RESET,
                       purchase_order_item: null,
                       purchase_order_item_id: null,
@@ -83,7 +87,15 @@ function Form() {
                       conversion_factor: val.default_uom?.conversion_factor,
                       quantity: 1,
                       description: undefined,
-                      target_warehouse: null,
+                    };
+                    const defaultLine = applyToNewLine(
+                      { ...dataRow, ...rowPatch },
+                      val,
+                      { warehouseField: "target_warehouse" },
+                    );
+                    setData({
+                      ...rowPatch,
+                      target_warehouse: defaultLine.target_warehouse,
                     });
                     return;
                   }

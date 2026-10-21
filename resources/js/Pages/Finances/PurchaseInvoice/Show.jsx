@@ -13,9 +13,12 @@ import Form from "./Form";
 import { FormPage } from "@/Pages/Core/FormPage";
 import Link from "@/Components/Link";
 import { useLaravelReactI18n } from "laravel-react-i18n";
+import { usePage } from "@inertiajs/react";
+import PriceControlWarnings from "@/Pages/Finances/Components/PriceControlWarnings";
 
 export default function Show({ purchaseInvoice, defaultData, fixedAssets }) {
   const { t } = useLaravelReactI18n();
+  const { flash } = usePage().props;
   return (
     <FormPage
       defaultValues={defaultData}
@@ -93,11 +96,14 @@ export default function Show({ purchaseInvoice, defaultData, fixedAssets }) {
         }
       }}
       banner={
-        <AssetCompletionAlert
-          assets={fixedAssets}
-          sourceDocumentType="purchase_invoice"
-          sourceDocumentId={purchaseInvoice?.id}
-        />
+        <>
+          <PriceControlWarnings title={t("finances.purchaseInvoice.price_warning_title")} warnings={flash?.priceWarnings ?? []} />
+          <AssetCompletionAlert
+            assets={fixedAssets}
+            sourceDocumentType="purchase_invoice"
+            sourceDocumentId={purchaseInvoice?.id}
+          />
+        </>
       }
     >
       <Form />

@@ -6,6 +6,8 @@ use App\Models\Core\CoreSetting;
 use App\Models\Core\ModuleSetting;
 use App\Models\Core\Preference;
 use App\Models\Finances\FinanceSetting;
+use App\Models\Inventory\InventorySetting;
+use App\Models\Purchase\PurchaseSetting;
 use App\Models\Sales\SalesSetting;
 use App\Models\User\Permission;
 use App\Models\User\Role;
@@ -33,6 +35,8 @@ class ModuleSettingPermissionSeeder extends Seeder {
             CoreSetting::class,
             FinanceSetting::class,
             SalesSetting::class,
+            PurchaseSetting::class,
+            InventorySetting::class,
         ];
     }
 

@@ -4,7 +4,9 @@ namespace App\Http\Requests\Purchase;
 
 use App\Http\Requests\BaseFormRequest;
 use App\Models\Purchase\PurchaseOrderItem;
+use App\Models\Purchase\PurchaseSetting;
 use App\Rules\ExistsExcludingTrashed;
+use App\Services\Core\Setting\ToleranceCalculator;
 use Illuminate\Contracts\Validation\ValidationRule;
 use Illuminate\Validation\Validator;
 
@@ -78,6 +80,8 @@ class PurchaseReceiptRequest extends BaseFormRequest {
         $replacedIds = collect($items)->pluck('replaces_purchase_order_item_id')->filter()->unique()->all();
         $replaced    = PurchaseOrderItem::whereIn('id', $replacedIds)->get()->keyBy('id');
         $poItemIds   = PurchaseOrderItem::where('purchase_order_id', $purchaseOrderId)->pluck('item_id')->all();
+        $tolerance   = PurchaseSetting::current()->over_receipt_tolerance_percent;
+        $calculator  = app(ToleranceCalculator::class);
 
         $replacedSum = [];
         foreach ($items as $index => $item) {
@@ -110,13 +114,51 @@ class PurchaseReceiptRequest extends BaseFormRequest {
             }
 
             $replacedSum[$replacesId] = ($replacedSum[$replacesId] ?? 0) + (float) $item['replaced_quantity'];
-            $remaining                = (float) $replaced[$replacesId]->quantity - (float) $replaced[$replacesId]->received_quantity;
+            $remaining                = $calculator->allowed(
+                (float) $replaced[$replacesId]->quantity,
+                (float) $replaced[$replacesId]->received_quantity,
+                $tolerance,
+            ) ?? ((float) $replaced[$replacesId]->quantity - (float) $replaced[$replacesId]->received_quantity);
             if ($replacedSum[$replacesId] - $remaining > 0.0001) {
                 $validator->errors()->add("items.{$index}.replaced_quantity", __('purchase/purchaseReceipt.validation.replaced_exceeds_remaining', [
                     'quantity'  => $replacedSum[$replacesId],
                     'remaining' => $remaining,
                 ]));
             }
+        }
+
+        if ($tolerance === null) {
+            return;
+        }
+
+        $requestedByPoItem = [];
+        $requestedIndexes  = [];
+        foreach ($items as $index => $item) {
+            $poItemId = $item['purchase_order_item_id'] ?? null;
+            if (! $poItemId) {
+                continue;
+            }
+
+            $requestedByPoItem[$poItemId]  = ($requestedByPoItem[$poItemId] ?? 0) + (float) ($item['quantity'] ?? 0);
+            $requestedIndexes[$poItemId][] = $index;
+        }
+
+        if ($requestedByPoItem === []) {
+            return;
+        }
+
+        $sourceItems = PurchaseOrderItem::whereIn('id', array_keys($requestedByPoItem))->get()->keyBy('id');
+        foreach ($requestedByPoItem as $sourceId => $requested) {
+            $source = $sourceItems->get($sourceId);
+            if (! $source || ! $calculator->exceeds($requested, (float) $source->quantity, (float) $source->received_quantity, $tolerance)) {
+                continue;
+            }
+
+            $index = $requestedIndexes[$sourceId][0];
+            $validator->errors()->add("items.{$index}.quantity", __('purchase/purchaseReceipt.validation.over_receipt_tolerance_exceeded', [
+                'remaining' => max(0, (float) $source->quantity - (float) $source->received_quantity),
+                'limit'     => $calculator->allowed((float) $source->quantity, (float) $source->received_quantity, $tolerance),
+            ]));
         }
     }
 }

@@ -14,6 +14,7 @@ use App\Models\Model as BaseModel;
 use App\Models\Purchase\PurchaseOrder;
 use App\Models\Purchase\PurchaseOrderItem;
 use App\Models\Purchase\PurchaseReceipt;
+use App\Models\Purchase\PurchaseSetting;
 use App\Models\Purchase\Supplier;
 use App\Models\User\User;
 use Database\Factories\Core\CountryFactory;
@@ -144,6 +145,33 @@ class PurchaseReceiptRequestOffPoTest extends TestCase {
     #[Test]
     public function accepts_normal_row_unchanged(): void {
         $validator = $this->validate([$this->normalRow()]);
+
+        $this->assertFalse($validator->fails(), json_encode($validator->errors()->toArray()));
+    }
+
+    #[Test]
+    public function zero_receipt_tolerance_rejects_quantity_over_the_source_remaining(): void {
+        PurchaseSetting::current()->update(['over_receipt_tolerance_percent' => 0]);
+
+        $validator = $this->validate([$this->normalRow(['quantity' => 11])]);
+
+        $this->assertErrorOn($validator, 'items.0.quantity');
+    }
+
+    #[Test]
+    public function positive_receipt_tolerance_allows_the_configured_overage(): void {
+        PurchaseSetting::current()->update(['over_receipt_tolerance_percent' => 10]);
+
+        $validator = $this->validate([$this->normalRow(['quantity' => 11])]);
+
+        $this->assertFalse($validator->fails(), json_encode($validator->errors()->toArray()));
+    }
+
+    #[Test]
+    public function null_receipt_tolerance_does_not_add_a_source_quantity_limit(): void {
+        PurchaseSetting::current()->update(['over_receipt_tolerance_percent' => null]);
+
+        $validator = $this->validate([$this->normalRow(['quantity' => 11])]);
 
         $this->assertFalse($validator->fails(), json_encode($validator->errors()->toArray()));
     }

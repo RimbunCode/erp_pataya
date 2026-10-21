@@ -16,7 +16,9 @@ import SalesOrderItemLinkModel from "@/Pages/Sales/SalesOrders/SalesOrderItemLin
 import { Textarea } from "@/Components/ui/textarea";
 import WarehouseLinkModel from "@/Pages/Inventory/Warehouses/WarehouseLinkModel";
 import { generateRandom } from "@/lib/utils";
+import { useDocumentDefaults } from "@/lib/documentDefaults";
 import usePermission from "@/Hooks/usePermission";
+import { usePage } from "@inertiajs/react";
 import { useLaravelReactI18n } from "laravel-react-i18n";
 
 const ASSET_CLASS = "App\\Models\\Asset\\Asset";
@@ -24,6 +26,8 @@ const ITEM_VARIANT_CLASS = "App\\Models\\Inventory\\ItemVariant";
 
 export default function Form() {
   const { t } = useLaravelReactI18n();
+  const defaults = usePage().props.defaults ?? {};
+  const { applyToNewLine } = useDocumentDefaults(defaults);
   // Baris di luar dokumen sumber (sub model ItemVariant/Asset) butuh izin khusus.
   const canOffSource = usePermission(
     "App\\Models\\Inventory\\DeliveryNote",
@@ -129,7 +133,7 @@ export default function Form() {
                 }
                 // Opsi ItemVariant bebas.
                 if (val?.thisModel === ITEM_VARIANT_CLASS) {
-                  setData({
+                  const rowPatch = {
                     referenceable: null,
                     referenceable_id: null,
                     referenceable_type: null,
@@ -137,10 +141,18 @@ export default function Form() {
                     asset: null,
                     asset_id: null,
                     unit: val.default_uom,
-                    source_warehouse: null,
                     conversion_factor: val.default_uom?.conversion_factor ?? 1,
                     quantity: 1,
                     required_quantity: undefined,
+                  };
+                  const defaultLine = applyToNewLine(
+                    { ...dataRow, ...rowPatch },
+                    val,
+                    { warehouseField: "source_warehouse" },
+                  );
+                  setData({
+                    ...rowPatch,
+                    source_warehouse: defaultLine.source_warehouse ?? null,
                   });
                   return;
                 }

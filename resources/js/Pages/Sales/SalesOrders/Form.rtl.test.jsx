@@ -971,6 +971,64 @@ describe("Sales Order Form.jsx", () => {
     const ASSET_SERVICE_CONSUMED_ITEM_CLASS =
       "App\\Models\\Asset\\AssetServiceConsumedItem";
 
+    it("mengisi default pajak dan gudang saat memilih item stok", () => {
+      const tax = { id: "tax-1", name: "PPN", rate: 11 };
+      const warehouse = { id: "warehouse-1", name: "Main Warehouse" };
+      usePageMock.mockReturnValue({
+        props: {
+          preferences: { default_currency_id: "idr" },
+          loadFrom: null,
+          defaults: { tax, warehouse },
+        },
+      });
+      renderForm({ data: { date: new Date(), items: [] } });
+
+      const setDataRow = vi.fn();
+      const itemColumn = captured.formTableProps.columns.find(
+        (column) => column.name === "item",
+      );
+      const itemCell = itemColumn.cell({
+        dataRow: {},
+        setData: setDataRow,
+        attributes: {},
+      });
+
+      act(() => {
+        itemCell.props.onValueChange({
+          id: "item-1",
+          is_stock_item: true,
+          default_uom: null,
+        });
+      });
+
+      expect(setDataRow).toHaveBeenCalledWith(
+        expect.objectContaining({
+          tax,
+          tax_rate: 11,
+          source_warehouse: warehouse,
+        }),
+      );
+    });
+
+    it("mempertahankan gudang default ketika perubahan baris diteruskan FormTable", () => {
+      const warehouse = { id: "warehouse-1", name: "Main Warehouse" };
+      usePageMock.mockReturnValue({
+        props: {
+          preferences: { default_currency_id: "idr" },
+          loadFrom: null,
+          defaults: { warehouse },
+        },
+      });
+      const { stateRef } = renderForm({ data: { date: new Date(), items: [] } });
+      const row = { id: "row-1", item: { id: "item-1", is_stock_item: true } };
+
+      act(() => {
+        captured.formTableProps.onValueChange([row], row.id);
+      });
+
+      expect(stateRef.data.items[0].source_warehouse).toEqual(warehouse);
+    });
+
     function assetServiceReferenceable(overrides = {}) {
       return {
         id: 10,

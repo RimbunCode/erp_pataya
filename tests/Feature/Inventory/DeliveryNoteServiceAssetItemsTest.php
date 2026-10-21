@@ -20,6 +20,7 @@ use App\Models\Inventory\StockLedgerEntry;
 use App\Models\Sales\Customer;
 use App\Models\Sales\SalesOrder;
 use App\Models\Sales\SalesOrderItem;
+use App\Models\Sales\SalesSetting;
 use App\Models\User\Permission;
 use App\Models\User\User;
 use App\Services\Inventory\DeliveryNoteService;
@@ -29,6 +30,7 @@ use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Event;
 use Illuminate\Support\Str;
+use Illuminate\Validation\ValidationException;
 use PHPUnit\Framework\Attributes\Test;
 use Tests\TestCase;
 
@@ -352,6 +354,26 @@ class DeliveryNoteServiceAssetItemsTest extends TestCase {
             ->where('referenceable_id', $deliveryNote->id)->first();
         $this->assertEqualsWithDelta(-3.0, (float) $entry->quantity_change, 0.0001);
         $this->assertEqualsWithDelta(0.0, (float) $regularSo->fresh()->delivered_quantity, 0.0001, 'baris SO lain tidak tersentuh');
+    }
+
+    #[Test]
+    public function zero_delivery_tolerance_rechecks_sales_order_remaining_under_approval_lock(): void {
+        [$variant]      = $this->makeStockedVariant(10);
+        $item           = Item::findOrFail($variant->item_id);
+        $salesOrderItem = $this->makeSalesOrderItem($item);
+        SalesSetting::current()->update(['over_delivery_tolerance_percent' => 0]);
+        $deliveryNote = app(DeliveryNoteService::class)->create($this->payload([
+            'items' => [$this->row($salesOrderItem, $item, ['quantity' => 6])],
+        ]));
+
+        try {
+            app(DeliveryNoteService::class)->onApproved($deliveryNote->fresh());
+            $this->fail('Expected a source quantity validation error.');
+        } catch (ValidationException $exception) {
+            $this->assertArrayHasKey('items', $exception->errors());
+        }
+
+        $this->assertSame(0.0, $salesOrderItem->fresh()->delivered_quantity);
     }
 
     #[Test]

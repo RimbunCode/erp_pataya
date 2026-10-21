@@ -12,10 +12,13 @@ import Form from "./Form";
 import { FormPage } from "@/Pages/Core/FormPage";
 import Link from "@/Components/Link";
 import { useLaravelReactI18n } from "laravel-react-i18n";
+import { usePage } from "@inertiajs/react";
+import PriceControlWarnings from "@/Pages/Finances/Components/PriceControlWarnings";
 
 export default function Show({ salesInvoice, defaultData }) {
   const route = window.route;
   const { t } = useLaravelReactI18n();
+  const { flash } = usePage().props;
   // `items` berisi baris SO, ItemVariant bebas, dan Asset -- kelayakan nota kredit
   // (unreturned_quantity) menghitung semuanya.
   const allItems = salesInvoice?.items ?? [];
@@ -92,6 +95,7 @@ export default function Show({ salesInvoice, defaultData }) {
           );
         }
       }}
+      banner={<PriceControlWarnings title={t("finances.salesInvoice.price_warning_title")} warnings={flash?.priceWarnings ?? []} />}
     >
       <Form />
     </FormPage>

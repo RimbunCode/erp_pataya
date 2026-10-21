@@ -2,11 +2,13 @@
 
 namespace App\Http\Controllers\Purchase;
 
+use App\Enums\DefaultsDocumentType;
 use App\Http\Controllers\Controller;
 use App\Http\Requests\Purchase\PurchaseReceiptRequest;
 use App\Models\Asset\Asset;
 use App\Models\Purchase\PurchaseOrder;
 use App\Models\Purchase\PurchaseReceipt;
+use App\Services\Core\Setting\DocumentDefaultsResolver;
 use App\Services\Purchase\PurchaseReceiptService;
 use App\Utils;
 use Illuminate\Http\Request;
@@ -26,7 +28,9 @@ class PurchaseReceiptController extends Controller {
         $this->setBreadcrumbs();
         PurchaseReceipt::dataTable($request);
 
-        return Inertia::render('Purchase/PurchaseReceipts/Index');
+        return Inertia::render('Purchase/PurchaseReceipts/Index', [
+            'defaults' => app(DocumentDefaultsResolver::class)->defaultsFor(DefaultsDocumentType::PurchaseReceipt),
+        ]);
     }
 
     /**
@@ -115,6 +119,7 @@ class PurchaseReceiptController extends Controller {
 
         return Inertia::render('Purchase/PurchaseReceipts/Show', [
             'defaultData' => $defaultData ?? [],
+            'defaults'    => app(DocumentDefaultsResolver::class)->defaultsFor(DefaultsDocumentType::PurchaseReceipt),
         ]);
     }
 

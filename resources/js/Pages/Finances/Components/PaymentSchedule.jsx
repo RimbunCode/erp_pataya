@@ -9,7 +9,7 @@ import PaymentMethodLinkModel from "../PaymentMethods/PaymentMethodLinkModel";
 import PaymentTermTemplateLinkModel from "../PaymentTermTemplate/PaymentTermTemplateLinkModel";
 import Select from "@/Components/Select";
 import { Textarea } from "@/Components/ui/textarea";
-import { generateRandom } from "@/lib/utils";
+import { paymentTemplateToSchedule } from "@/lib/documentDefaults";
 import { useLaravelReactI18n } from "laravel-react-i18n";
 
 function PaymentSchedule({
@@ -207,39 +207,7 @@ function PaymentSchedule({
             value={null}
             onValueChange={(val) => {
               if (!val) return;
-              const template = val.items.map((item) => {
-                const due_date = new Date(date);
-                switch (item?.due_date_based_on) {
-                  case "days_after_invoice_date": {
-                    due_date.setDate(
-                      due_date.getDate() + (item?.credit_period ?? 0),
-                    );
-                    break;
-                  }
-                  case "weeks_after_invoice_week": {
-                    due_date.setDate(
-                      due_date.getDate() + (item?.credit_period ?? 0) * 7,
-                    );
-                    break;
-                  }
-                  case "months_after_invoice_month": {
-                    due_date.setMonth(
-                      due_date.getMonth() + (item?.credit_period ?? 0),
-                    );
-                    break;
-                  }
-                }
-                return {
-                  id: generateRandom(5),
-                  due_date,
-                  invoice_portion: item?.invoice_portion,
-                  discount_type: item?.discount_type,
-                  discount_date: item?.discount_type ? due_date : undefined,
-                  discount: item?.discount,
-                  payment_method: item?.payment_method,
-                };
-              });
-              onValueChange(template);
+              onValueChange(paymentTemplateToSchedule(val, date));
             }}
           />
         </FormInput>

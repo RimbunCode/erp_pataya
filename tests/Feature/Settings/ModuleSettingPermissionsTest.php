@@ -13,7 +13,11 @@ use App\Models\Core\CoreSetting;
 use App\Models\Core\Country;
 use App\Models\Core\Preference;
 use App\Models\Finances\FinanceSetting;
+use App\Models\Finances\PaymentTermTemplate;
 use App\Models\Finances\Tax;
+use App\Models\Inventory\InventorySetting;
+use App\Models\Inventory\Warehouse;
+use App\Models\Purchase\PurchaseSetting;
 use App\Models\Sales\SalesSetting;
 use App\Models\User\User;
 use App\Services\Core\Setting\LegacyPreferenceMap;
@@ -333,10 +337,52 @@ class ModuleSettingPermissionsTest extends TestCase {
 
         $this->getJson(route('moduleSettings.sales.show'), ['X-Inertia' => 'true'])
             ->assertOk()->assertJsonPath('props.defaultTax.id', $tax->id);
-        $this->putJson(route('moduleSettings.sales.update'), ['default_tax_id' => null])->assertRedirect();
+        $this->putJson(route('moduleSettings.sales.update'), [
+            'default_tax_id'                  => null,
+            'over_delivery_tolerance_percent' => 0,
+            'over_billing_tolerance_percent'  => 0,
+            'rate_change_action'              => 'none',
+            'below_cost_action'               => 'none',
+        ])->assertRedirect();
         $this->assertNull(SalesSetting::current()->default_tax_id);
-        $this->putJson(route('moduleSettings.sales.update'), ['default_tax_id' => 'invalid-tax'])
+        $this->putJson(route('moduleSettings.sales.update'), [
+            'default_tax_id'                  => 'invalid-tax',
+            'over_delivery_tolerance_percent' => 0,
+            'over_billing_tolerance_percent'  => 0,
+            'rate_change_action'              => 'none',
+            'below_cost_action'               => 'none',
+        ])
             ->assertUnprocessable()->assertJsonValidationErrors('default_tax_id');
+    }
+
+    public function test_purchase_and_inventory_setting_pages_return_selected_lookups(): void {
+        PurchaseSetting::initPermissions();
+        InventorySetting::initPermissions();
+        $tax       = Tax::create(['name' => 'PPN Purchase', 'rate' => 11]);
+        $warehouse = Warehouse::create([
+            'branch_id' => $this->branch->id,
+            'name'      => 'Global warehouse',
+            'code'      => 'GLOBAL',
+        ]);
+        $template = PaymentTermTemplate::create(['name' => 'Net 30']);
+        PurchaseSetting::factory()->create([
+            'default_tax_id'                   => $tax->id,
+            'default_target_warehouse_id'      => $warehouse->id,
+            'default_payment_term_template_id' => $template->id,
+        ]);
+        InventorySetting::factory()->create(['default_warehouse_id' => $warehouse->id]);
+
+        $this->actingAs($this->user)->withSession($this->sessionWithPermission(PurchaseSetting::class, ['read' => true]));
+        $this->getJson(route('moduleSettings.purchase.show'), ['X-Inertia' => 'true'])
+            ->assertOk()
+            ->assertJsonPath('props.defaultTax.id', $tax->id)
+            ->assertJsonPath('props.defaultTargetWarehouse.id', $warehouse->id)
+            ->assertJsonPath('props.defaultPaymentTermTemplate.id', $template->id);
+
+        $this->actingAs($this->user)->withSession($this->sessionWithPermission(InventorySetting::class, ['read' => true]));
+        $this->getJson(route('moduleSettings.inventory.show'), ['X-Inertia' => 'true'])
+            ->assertOk()
+            ->assertJsonPath('props.defaultWarehouse.id', $warehouse->id);
     }
 
     public function test_company_mail_settings_migrate_and_password_remains_private(): void {

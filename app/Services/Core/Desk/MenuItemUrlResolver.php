@@ -38,6 +38,10 @@ class MenuItemUrlResolver {
             return null;
         }
 
+        if (\str_starts_with($routeName, '_group.')) {
+            return null;
+        }
+
         if (! \str_contains($routeName, '*')) {
             try {
                 return route($routeName);

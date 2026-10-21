@@ -48,6 +48,9 @@ const stableT = (key) => key;
 vi.mock("laravel-react-i18n", () => ({
   useLaravelReactI18n: () => ({ t: stableT }),
 }));
+vi.mock("@inertiajs/react", () => ({
+  usePage: () => ({ props: { flash: {} } }),
+}));
 
 window.route = (name, params) =>
   params !== undefined ? `${name}/${JSON.stringify(params)}` : name;

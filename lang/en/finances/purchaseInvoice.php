@@ -1,19 +1,22 @@
 <?php
 
 return [
-    'title'                => 'Purchase Invoices',
-    'add'                  => 'New Purchase Invoices',
-    'supplier'             => 'Supplier',
-    'new'                  => 'New Purchase Invoice',
-    'items'                => 'Items',
-    'detail'               => 'Detail',
-    'status'               => 'Status',
-    'total'                => 'Total Price',
-    'source'               => 'Source Warehouse',
-    'exchange_rate'        => 'Exchange Rate',
-    'currency'             => 'Currency',
-    'currency.placeholder' => 'Select a Currency',
-    'actions'              => [
+    'title'                                            => 'Purchase Invoices',
+    'add'                                              => 'New Purchase Invoices',
+    'supplier'                                         => 'Supplier',
+    'new'                                              => 'New Purchase Invoice',
+    'price_warning_title'                              => 'Price control warning',
+    'validation.over_billing_tolerance_exceeded'       => 'The quantity exceeds the source item remaining quantity plus the :tolerance% tolerance (remaining: :remaining).',
+    'validation.over_billing_value_tolerance_exceeded' => 'The line value exceeds the source item remaining value plus the :tolerance% tolerance.',
+    'items'                                            => 'Items',
+    'detail'                                           => 'Detail',
+    'status'                                           => 'Status',
+    'total'                                            => 'Total Price',
+    'source'                                           => 'Source Warehouse',
+    'exchange_rate'                                    => 'Exchange Rate',
+    'currency'                                         => 'Currency',
+    'currency.placeholder'                             => 'Select a Currency',
+    'actions'                                          => [
         'create_payment_entry' => 'Create Payment Entry',
         'create_debit_note'    => 'Create Debit Note',
     ],
@@ -101,6 +104,7 @@ return [
         'tax_invoice_ppnbm_amount'     => 'Tax Invoice PPnBM',
     ],
     'validation' => [
+        'rate_changed'              => 'Purchase Order rate :source differs from this invoice rate :document.',
         'purchase_order_required'   => 'A Purchase Order is required to bill an item outside the PO.',
         'item_already_in_po'        => 'This item is already in the Purchase Order; choose it from the PO items instead.',
         'receipt_item_not_billable' => 'The Purchase Receipt row must be an approved receipt row outside the PO, from a receipt of this Purchase Order.',
