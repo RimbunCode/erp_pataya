@@ -54,6 +54,10 @@ export const DEFAULT_DATE_SELECTOR_I18N = {
   cancel: "Cancel",
   clear: "Clear",
   today: "Today",
+  // Tombol footer kalender hari ("Today" saat tanggal saja, "Now" saat ada
+  // jam). Terpisah dari `today` yang dipakai wrapper filter utk label pintasan.
+  goToToday: "Today",
+  now: "Now",
   labels: { operator: "Condition", period: "Period" },
   filterTypes: {
     is: "is",
@@ -801,7 +805,7 @@ export const DateSelectorDayPicker = memo(
       <div className={cn("w-full", className)}>
         {/* Header: bulan & tahun dapat dipilih + navigasi prev/next. */}
         <div className="flex items-center justify-between mb-1">
-          <div className="text-md font-bold ms-2 flex items-center [&_button]:cursor-pointer">
+          <div className="font-bold ms-2 flex items-center [&_button]:cursor-pointer">
             <button
               type="button"
               className="hover:underline"
@@ -935,7 +939,7 @@ export const DateSelectorDayPicker = memo(
               if (withTime) onTimeChange?.(now);
             }}
           >
-            {withTime ? "Now" : "Today"}
+            {withTime ? i18n.now : i18n.goToToday}
           </Button>
         </div>
       </div>
