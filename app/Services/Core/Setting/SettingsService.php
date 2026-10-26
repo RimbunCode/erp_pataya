@@ -17,10 +17,22 @@ class SettingsService {
     private array $memo = [];
 
     /** @param class-string<ModuleSettingModel> $modelClass */
+    public function forget(string $modelClass): void {
+        unset($this->memo[$modelClass]);
+    }
+
+    /** @param class-string<ModuleSettingModel> $modelClass */
     public function get(string $modelClass): ModuleSettingModel {
         $this->assertModelClass($modelClass);
 
         return $this->memo[$modelClass] ??= $modelClass::current();
+    }
+
+    /** @param class-string<ModuleSettingModel> $modelClass */
+    public function getForRead(string $modelClass): ModuleSettingModel {
+        $this->assertModelClass($modelClass);
+
+        return $modelClass::query()->first() ?? new $modelClass($modelClass::defaultAttributes());
     }
 
     /** @param class-string<ModuleSettingModel> $modelClass

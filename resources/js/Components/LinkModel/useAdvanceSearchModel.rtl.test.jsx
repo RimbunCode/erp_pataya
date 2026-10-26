@@ -34,6 +34,7 @@ function page({
   lastPage = 1,
   total,
   columns = [{ name: "code", type: "string", linkable: false }],
+  groupMeta = null,
 } = {}) {
   return {
     data: {
@@ -41,6 +42,7 @@ function page({
       route: "items",
       translateKey: null,
       columns,
+      groupMeta,
       templateLinkColumns: ["code"],
       parentColumn: null,
       data: {
@@ -80,6 +82,32 @@ describe("useAdvanceSearchModel", () => {
     expect(payload.includeAllLinkable).toBe(true);
     expect(payload.baseFilters).toEqual({ status: "active" });
     expect(payload.filters).toEqual({ root: { k: "and", c: {} } });
+  });
+
+  it("keeps the global warehouse flag on advanced search requests and group expansion params", async () => {
+    axiosPost.mockResolvedValue(
+      page({
+        groupMeta: {
+          levels: [{ column: "created_at", granularity: "day", range: [] }],
+        },
+      }),
+    );
+    const { Wrapper } = createWrapper();
+
+    const { result } = renderHook(
+      () =>
+        useAdvanceSearchModel({
+          model: "App\\Models\\Inventory\\Warehouse",
+          includeGlobalBranch: true,
+          open: true,
+        }),
+      { wrapper: Wrapper },
+    );
+
+    await waitFor(() => expect(axiosPost).toHaveBeenCalledTimes(1));
+    expect(axiosPost.mock.calls[0][1].includeGlobalBranch).toBe(true);
+    await waitFor(() => expect(result.current.groupBaseParams).not.toBeNull());
+    expect(result.current.groupBaseParams.includeGlobalBranch).toBe(true);
   });
 
   it("fetchNextPage() meminta page berikutnya & rows hasil append (bukan replace)", async () => {

@@ -208,6 +208,13 @@ const CellComponent = forwardRef(function Cell(
     defaultRowFieldCount ?? getRowFieldCount(defaultValueRow) + 1;
   const isRowEmpty = currentRowFieldCount <= minimumRowFieldCount;
   const cellValueBefore = dataRowBefore ? dataRowBefore[col.name] : undefined;
+  const handleKeyDown = (event) => {
+    props.onKeyDown?.(event);
+    if (col.props?.onKeyDown !== props.onKeyDown) {
+      col.props?.onKeyDown?.(event);
+    }
+    onCellKeyDown?.(event, index, col.name);
+  };
   const attributes = {
     ...props,
     ...col.props,
@@ -216,11 +223,8 @@ const CellComponent = forwardRef(function Cell(
     name: col.name,
     className: cn(!isDialog && "h-full", className, col.props?.className),
     ref,
+    onKeyDown: handleKeyDown,
     ...(dataRowBefore !== undefined ? { valueBefore: cellValueBefore } : {}),
-  };
-  const handleKeyDown = (event) => {
-    attributes.onKeyDown?.(event);
-    onCellKeyDown?.(event, index, col.name);
   };
 
   if (col.cell) {
@@ -669,6 +673,7 @@ export default memo(
       form,
       submitable = false,
       mapItem,
+      onDuplicateRow,
       forceCanDelete = false,
       fixedRows = false,
       additionalData: _additionalData,
@@ -1140,12 +1145,17 @@ export default memo(
       (index) => {
         const update = (prev) => {
           const newData = [...prev];
+          const sourceRow = {
+            ...(defaultValueRow ?? {}),
+            ...newData[index],
+          };
+          const duplicatedRow = onDuplicateRow?.(sourceRow) ?? sourceRow;
           newData.splice(
             index + 1,
             0,
             withItemKey({
-              ...(defaultValueRow ?? {}),
-              ...newData[index],
+              ...duplicatedRow,
+              [keyItem]: undefined,
             }),
           );
           setCurrentIndex(index + 1);
@@ -1157,7 +1167,9 @@ export default memo(
           if (result === prevData) {
             return prevData;
           }
-          updateParent(result, result[index]?.[keyItem], { immediate: true });
+          updateParent(result, result[index + 1]?.[keyItem], {
+            immediate: true,
+          });
           return result;
         });
       },
@@ -1165,6 +1177,7 @@ export default memo(
         _setData,
         defaultValueRow,
         keyItem,
+        onDuplicateRow,
         setCurrentData,
         setCurrentIndex,
         submitable,

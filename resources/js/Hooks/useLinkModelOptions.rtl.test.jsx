@@ -122,6 +122,29 @@ describe("useLinkModelOptions", () => {
     expect(payload.search).toBeUndefined();
   });
 
+  it("sends the branch-global lookup opt-in only when requested", async () => {
+    axiosPost.mockResolvedValue({ data: { data: [], total: 0 } });
+    const { Wrapper } = createWrapper();
+
+    renderHook(
+      () =>
+        useLinkModelOptions({
+          model: "App\\Models\\Inventory\\Warehouse",
+          open: true,
+          includeGlobalBranch: true,
+        }),
+      { wrapper: Wrapper },
+    );
+
+    await waitFor(() => expect(axiosPost).toHaveBeenCalledTimes(1));
+    expect(axiosPost.mock.calls[0][1]).toMatchObject({
+      includeGlobalBranch: true,
+    });
+    expect(
+      buildPersistKey({ model: "Warehouse", includeGlobalBranch: true }),
+    ).not.toBe(buildPersistKey({ model: "Warehouse" }));
+  });
+
   it("staleTime: data basi dari localStorage tetap tampil instan (no flicker) lalu refetch otomatis di background", async () => {
     axiosPost.mockResolvedValue({
       data: { data: [{ id: "first" }], total: 1 },

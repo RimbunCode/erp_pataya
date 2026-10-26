@@ -109,7 +109,7 @@ class SalesOrderRequestAssetItemsTest extends TestCase {
         $this->assertArrayNotHasKey('asset_items', $rules);
         $this->assertContains('required_without:items.*.asset.id', $rules['items.*.item.id']);
         $this->assertContains('required_without:items.*.item.id', $rules['items.*.asset.id']);
-        $this->assertContains('required', $rules['items.*.tax.id']);
+        $this->assertContains('nullable', $rules['items.*.tax.id']);
     }
 
     #[Test]
@@ -127,13 +127,15 @@ class SalesOrderRequestAssetItemsTest extends TestCase {
     }
 
     #[Test]
-    public function requires_tax_for_asset_rows_without_requiring_a_unit(): void {
-        $row = $this->assetRow();
-        unset($row['tax']);
+    public function accepts_rows_without_tax_for_conditional_no_tax_defaults(): void {
+        $regular = $this->regularRow();
+        unset($regular['tax']);
+        $asset = $this->assetRow();
+        unset($asset['tax']);
 
-        $validator = $this->validate(['items' => [$row]]);
+        $validator = $this->validate(['items' => [$regular, $asset]]);
 
-        $this->assertSame(['items.0.tax.id'], array_keys($validator->errors()->toArray()));
+        $this->assertFalse($validator->fails(), json_encode($validator->errors()->toArray()));
     }
 
     #[Test]

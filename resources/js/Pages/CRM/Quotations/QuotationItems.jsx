@@ -15,8 +15,19 @@ import { useMemo } from "react";
  * Kolom bernilai `false` dibuang oleh FormTable (`.filter((col) => col)`).
  * @param {string} type
  * @param {(key: string) => string} t
+ * @param defaults
+ * @param root0
+ * @param root0.isCreate
+ * @param root0.resolveForNewLine
+ * @param root0.markFieldEdited
+ * @param root0.isFieldEdited
  */
-export function buildQuotationItemColumns(type, t, defaults = {}) {
+export function buildQuotationItemColumns(
+  type,
+  t,
+  defaults = {},
+  { isCreate = false, resolveForNewLine, markFieldEdited, isFieldEdited } = {},
+) {
   const isSparePart = type === "spare_part";
   const isNewUnit = type === "new_unit";
   const isRental = type === "rental";
@@ -55,12 +66,14 @@ export function buildQuotationItemColumns(type, t, defaults = {}) {
             onValueChange={(val) => {
               const defaultLine = applyToNewLine(
                 {
+                  ...dataRow,
                   item: val,
                   tax: dataRow?.tax,
                   tax_rate: dataRow?.tax_rate,
                 },
                 val,
                 defaults,
+                { isFieldEdited },
               );
               // Nilai awal disalin dari master, lalu menjadi milik dokumen
               // (pola P3): mengubah master tidak mengubah penawaran.
@@ -71,6 +84,9 @@ export function buildQuotationItemColumns(type, t, defaults = {}) {
                 tax: defaultLine.tax,
                 tax_rate: defaultLine.tax_rate,
               });
+              if (isCreate) {
+                resolveForNewLine?.(dataRow?.id, val);
+              }
             }}
             {...attributes}
           />
@@ -135,14 +151,15 @@ export function buildQuotationItemColumns(type, t, defaults = {}) {
       titleTrans: "crm.quotation.columns.tax",
       show: true,
       width: 2,
-      cell({ data, setData, attributes }) {
+      cell({ data, dataRow, setData, attributes }) {
         return (
           <TaxLinkModel
             value={data}
             placeholder={t("crm.quotation.columns.tax.placeholder")}
-            onValueChange={(tax) =>
-              setData({ tax, tax_rate: tax?.rate ?? 0 })
-            }
+            onValueChange={(tax) => {
+              markFieldEdited?.(dataRow?.id, "tax");
+              setData({ tax, tax_rate: tax?.rate ?? 0 });
+            }}
             {...attributes}
           />
         );
@@ -206,11 +223,29 @@ export default function QuotationItems({
   readOnly,
   type = "spare_part",
   defaults = {},
+  isCreate = false,
+  resolveForNewLine,
+  markFieldEdited,
+  isFieldEdited,
 }) {
   const { t } = useLaravelReactI18n();
   const columns = useMemo(
-    () => buildQuotationItemColumns(type, t, defaults),
-    [defaults, type, t],
+    () =>
+      buildQuotationItemColumns(type, t, defaults, {
+        isCreate,
+        resolveForNewLine,
+        markFieldEdited,
+        isFieldEdited,
+      }),
+    [
+      defaults,
+      isCreate,
+      markFieldEdited,
+      isFieldEdited,
+      resolveForNewLine,
+      type,
+      t,
+    ],
   );
 
   return (

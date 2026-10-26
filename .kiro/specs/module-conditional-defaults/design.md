@@ -31,7 +31,7 @@ flowchart TD
     M --> TR[("default_tax_rules")]
     M --> WR[("default_warehouse_rules")]
     RES --> FB["Fallback: default modul<br/>→ inventory default gudang"]
-    RES -->|"{item_id: {tax_ids, warehouse_id}}"| FE
+    RES -->|"{item_id: {tax_ids, warehouse_id, warehouse?}}"| FE
     ADM["Tab Aturan Default<br/>Purchase/Sales Settings"] --> TR
     ADM --> WR
 ```
@@ -65,7 +65,7 @@ final class DefaultRuleMatcher {
 
 ```php
 /** @param list<string> $itemIds
- *  @return array<string, array{tax_ids: list<string>, warehouse_id: ?string}> */
+ *  @return array<string, array{tax_ids: list<string>, warehouse_id: ?string, warehouse: ?array<string, mixed>}> */
 public function resolveForItems(DefaultsDocumentType $type, array $itemIds): array;
 ```
 
@@ -74,11 +74,13 @@ Langkah: muat atribut semua barang (satu query), muat aturan pajak dan gudang mo
 - **Pajak:** `match(taxRules)` → bila ada aturan: `tax_id` (null → daftar kosong) ; bila tidak: `default_tax_id` modul → daftar satu elemen atau kosong.
 - **Gudang:** bila `isStockItem` false → `null`; selain itu `match(warehouseRules)` → `warehouse_id`; bila tidak ada aturan → default modul (tujuan untuk Purchase, asal untuk Sales) → `inventory_settings.default_warehouse_id` → `null`.
 
+Aturan gudang dan fallback gudang hanya berlaku untuk `purchase_order`, `purchase_receipt`, `sales_order`, dan `delivery_note`. Purchase Invoice, Sales Invoice, dan Quotation tidak menerima aturan gudang serta selalu menghasilkan `warehouse_id: null` dari resolver.
+
 Referensi yang nonaktif/terhapus dibuang menjadi kosong/null (sama dengan spec defaults).
 
 ### Endpoint
 
-`POST /defaults/resolve` → `DefaultsResolveController::resolve(DefaultsResolveRequest)`. Validasi: `document_type` anggota `DefaultsDocumentType`, `items` array maksimum 100, `item_id` ada. Izin: pengguna harus memiliki `create` (atau `read`) pada model dokumen terkait. Respons JSON.
+`POST /defaults/resolve` → `DefaultsResolveController::resolve(DefaultsResolveRequest)`. Validasi: `document_type` anggota `DefaultsDocumentType`, `items` array maksimum 100, `item_id` ada. Izin: pengguna harus memiliki `create` (atau `read`) pada model dokumen terkait, atau `read`/`write` pada model setting yang sesuai modul untuk mendukung pratinjau di halaman setting; izin setting modul lain tidak berlaku. Respons JSON mencakup `warehouse_id` dan referensi ringkas `warehouse` yang sudah di-eager-load tanpa branch scope, konsisten dengan resolver default modul global, sehingga form tidak kehilangan gudang hanya karena pengguna berada pada cabang berbeda.
 
 ### Frontend
 
@@ -144,10 +146,13 @@ Pada v1 setiap baris menyimpan satu `tax_id`. Kontrak dibuat siap untuk multi-pa
 |---|---|
 | Aturan saling bertabrakan membingungkan admin | Spesifisitas + prioritas deterministik, pratinjau hasil di halaman |
 | Latensi endpoint saat memilih barang | Pengelompokan permintaan, query konstan, fallback lokal |
-| Duplikasi logika dengan aturan akun Finance P2 | Q-C3; pencocok murni kecil, boleh dibagi di Core |
-| Hierarki kategori diharapkan (kategori induk) | v1 kecocokan langsung; Q-C2 |
+| Duplikasi logika dengan aturan akun Finance P2 | Q-C3 resolved: keep this matcher independent until Finance P2 has an implementation and a proven shared contract |
+| Hierarki kategori diharapkan (kategori induk) | Q-C2 resolved: Category has no parent relation; v1 uses direct category matching |
 | Aturan menunjuk referensi nonaktif | Penolakan saat simpan + peringatan + pembuangan saat resolusi |
 
-## Konfirmasi yang Masih Diperlukan
+## Decisions from Task 1 Verification
 
-Q-C1, Q-C2, Q-C3 (lihat requirements).
+- **Q-C1:** Customer/vendor-specific tax mapping remains out of scope.
+- **Q-C2:** Match categories directly through `items.category_id`; `Category` has no parent/hierarchy relation.
+- **Q-C3:** Implement `DefaultRuleMatcher` independently in Core. Finance P2 defines `AccountRuleMatcher` only in its design/tasks and has no implementation to reuse. Consider extracting a shared abstraction only when Finance P2 is implemented and its actual context contract is known.
+- `Item` has `is_stock_item` and `category_id`/`category()`; item type values must be checked against persisted schema before introducing enum-like validation. Store the rule's `item_type` as a string to remain forward-compatible.

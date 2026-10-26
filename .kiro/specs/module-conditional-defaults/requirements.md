@@ -37,7 +37,7 @@ Spec keempat program **Konfigurasi Modul** (lihat `docs/prd/module-settings-prd.
 #### Acceptance Criteria
 
 1. THE sistem SHALL membuat tabel `default_tax_rules` dengan kolom: `module` (`purchase`/`sales`), `document_type` nullable, `item_type` nullable, `is_stock_item` nullable boolean, `item_category_id` nullable (FK `categories`, `cascadeOnDelete`), `tax_id` nullable (FK `taxes`, `restrictOnDelete`; null berarti "tanpa pajak"), `priority` unsigned integer, timestamps.
-2. THE sistem SHALL membuat tabel `default_warehouse_rules` dengan kolom yang sama kecuali `warehouse_id` (FK `warehouses`, `restrictOnDelete`, wajib) menggantikan `tax_id`.
+2. THE sistem SHALL membuat tabel `default_warehouse_rules` dengan kolom yang sama kecuali `warehouse_id` (FK `warehouses`, `restrictOnDelete`, wajib) menggantikan `tax_id`. Warehouse rules SHALL only accept `purchase_order`, `purchase_receipt`, `sales_order`, and `delivery_note`; purchase/sales invoices and quotation SHALL NOT accept or resolve a warehouse rule.
 3. THE kondisi bernilai null berarti tidak dibatasi; aturan tanpa kondisi sama sekali SHALL ditolak (itu tugas default modul).
 4. THE dua aturan dengan kombinasi kondisi identik pada `module` yang sama SHALL ditolak saat disimpan.
 5. THE aturan pajak dengan `tax_id = null` SHALL berarti "kosongkan pajak" (pengecualian eksplisit), berbeda dari "tidak ada aturan".
@@ -52,7 +52,7 @@ Spec keempat program **Konfigurasi Modul** (lihat `docs/prd/module-settings-prd.
 
 1. THE `DefaultRuleMatcher` SHALL memilih aturan yang semua kondisi non-null-nya sama dengan konteks (jenis dokumen dan atribut barang); bila ada beberapa, SHALL memilih yang spesifisitasnya terbesar, lalu `priority` terbesar.
 2. THE urutan resolusi pajak SHALL: aturan cocok → `default_tax_id` modul → kosong.
-3. THE urutan resolusi gudang SHALL: (hanya item stok) aturan cocok → default gudang modul (tujuan untuk Purchase, asal untuk Sales) → `inventory_settings.default_warehouse_id` → kosong.
+3. THE urutan resolusi gudang SHALL for supported warehouse document types only: (hanya item stok) aturan cocok → default gudang modul (tujuan untuk Purchase, asal untuk Sales) → `inventory_settings.default_warehouse_id` → kosong. Other document types SHALL resolve `warehouse_id` as null.
 4. THE hasil SHALL deterministik: input sama menghasilkan nilai sama, tidak bergantung urutan penyimpanan.
 5. THE pencocokan SHALL murni (tanpa efek samping) dan tidak membaca dokumen tersimpan.
 
@@ -62,9 +62,9 @@ Spec keempat program **Konfigurasi Modul** (lihat `docs/prd/module-settings-prd.
 
 #### Acceptance Criteria
 
-1. THE sistem SHALL menyediakan `POST /defaults/resolve` dengan body `{document_type, items: [{item_id}]}` dan respons peta `item_id → {tax_ids: string[], warehouse_id: string|null}`.
+1. THE sistem SHALL menyediakan `POST /defaults/resolve` dengan body `{document_type, items: [{item_id}]}` dan respons peta `item_id → {tax_ids: string[], warehouse_id: string|null, warehouse?: object|null}`. Referensi `warehouse` disertakan agar form dapat menampilkan gudang global yang tidak lolos scope gudang cabang aktif; `warehouse_id` tetap menjadi nilai kontrak utamanya.
 2. THE `tax_ids` SHALL berbentuk daftar (kosong, atau satu elemen pada v1) sebagai kait multi-pajak.
-3. THE endpoint SHALL dibatasi autentikasi dan izin `read`/`create` pada model dokumen terkait, dan SHALL membatasi jumlah barang per permintaan.
+3. THE endpoint SHALL dibatasi autentikasi dan izin `read`/`create` pada model dokumen terkait, atau izin `read`/`write` pada model setting modul yang sama untuk mendukung pratinjau di halaman setting; izin modul lain SHALL NOT memberikan akses. Endpoint SHALL membatasi jumlah barang per permintaan.
 4. THE endpoint SHALL menjalankan satu query aturan per jenis (pajak, gudang) per permintaan dan satu query atribut barang, bukan query per barang.
 5. THE endpoint SHALL tidak menulis data apa pun.
 
@@ -106,5 +106,5 @@ Spec keempat program **Konfigurasi Modul** (lihat `docs/prd/module-settings-prd.
 | ID | Pertanyaan | Dampak |
 |---|---|---|
 | Q-C1 | Perlukah pajak default menurut pelanggan/pemasok (mirip *fiscal position* Odoo), misalnya pelanggan luar negeri bebas PPN? | Di luar scope sekarang |
-| Q-C2 | Apakah kondisi cukup tipe, kategori, dan status stok, atau perlu atribut lain (mis. grup barang induk)? | Requirement 1 |
-| Q-C3 | Pembagian pemakaian pencocok bersama dengan Finance P2 (`AccountRuleMatcher`) atau implementasi terpisah | Design |
+| Q-C2 | Resolved during Task 1: use direct category matching; categories have no parent hierarchy. | Requirement 1 |
+| Q-C3 | Resolved during Task 1: implement a separate pure matcher; Finance P2 has no implementation to share yet. | Design |

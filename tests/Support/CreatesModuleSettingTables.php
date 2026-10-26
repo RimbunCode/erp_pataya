@@ -18,12 +18,25 @@ trait CreatesModuleSettingTables {
             (require $migrations[0])->up();
         }
 
-        if (! Schema::hasColumn('sales_settings', 'default_source_warehouse_id')) {
-            Schema::table('sales_settings', function ($table): void {
-                $table->ulid('default_source_warehouse_id')->nullable();
-                $table->ulid('default_payment_term_template_id')->nullable();
-                $table->decimal('over_delivery_tolerance_percent', 5, 2)->default(0);
-                $table->decimal('over_billing_tolerance_percent', 5, 2)->default(0);
+        $salesSettingColumns = [
+            'default_source_warehouse_id'      => fn ($table) => $table->ulid('default_source_warehouse_id')->nullable(),
+            'default_payment_term_template_id' => fn ($table) => $table->ulid('default_payment_term_template_id')->nullable(),
+            'over_delivery_tolerance_percent'  => fn ($table) => $table->decimal('over_delivery_tolerance_percent', 5, 2)->nullable()->default(null),
+            'over_billing_tolerance_percent'   => fn ($table) => $table->decimal('over_billing_tolerance_percent', 5, 2)->nullable()->default(null),
+            'rate_change_action'               => fn ($table) => $table->string('rate_change_action')->default('none'),
+            'below_cost_action'                => fn ($table) => $table->string('below_cost_action')->default('none'),
+        ];
+        $missingSalesSettingColumns = array_filter(
+            $salesSettingColumns,
+            fn ($addColumn, $column): bool => ! Schema::hasColumn('sales_settings', $column),
+            ARRAY_FILTER_USE_BOTH,
+        );
+
+        if ($missingSalesSettingColumns !== []) {
+            Schema::table('sales_settings', function ($table) use ($missingSalesSettingColumns): void {
+                foreach ($missingSalesSettingColumns as $addColumn) {
+                    $addColumn($table);
+                }
             });
         }
 

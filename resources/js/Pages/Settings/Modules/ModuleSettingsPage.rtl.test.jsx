@@ -7,6 +7,8 @@ const putMock = vi.fn();
 let formState = {
   data: {},
   setData: vi.fn(),
+  setDefaults: vi.fn(),
+  transform: vi.fn(),
   put: putMock,
   processing: false,
   isDirty: false,
@@ -59,6 +61,8 @@ describe("ModuleSettingsPage RTL Component", () => {
     formState = {
       data: { field_a: "val_a" },
       setData: vi.fn(),
+      setDefaults: vi.fn(),
+      transform: vi.fn(),
       put: putMock,
       processing: false,
       isDirty: false,

@@ -172,7 +172,7 @@ class SalesInvoiceRequestAssetItemsTest extends TestCase {
         $this->assertArrayNotHasKey('asset_items', $rules);
         $this->assertArrayNotHasKey('asset_items.*.asset.id', $rules);
         $this->assertContains('required_without_all:items.*.item.id,items.*.asset.id', $rules['items.*.sales_order_item.id']);
-        $this->assertContains('required', $rules['items.*.tax.id']);
+        $this->assertContains('nullable', $rules['items.*.tax.id']);
         $this->assertContains('required_without:items.*.sales_order_item.id', $rules['items.*.price']);
     }
 
@@ -273,14 +273,19 @@ class SalesInvoiceRequestAssetItemsTest extends TestCase {
     }
 
     #[Test]
-    public function requires_tax_for_every_row_and_a_unit_only_for_item_rows(): void {
+    public function accepts_no_tax_rows_and_still_requires_a_unit_for_item_rows(): void {
+        $salesOrderRow = $this->soRow($this->regularSoItem, 'r1');
+        unset($salesOrderRow['tax']);
+        $freeItem = $this->freeItemRow('f1');
+        unset($freeItem['tax']);
         $asset = $this->freeAssetRow($this->asset);
         unset($asset['tax']);
+
+        $noTaxRows = $this->validate(['items' => [$salesOrderRow, $freeItem, $asset]]);
+        $this->assertFalse($noTaxRows->fails(), json_encode($noTaxRows->errors()->toArray()));
+
         $itemNoUnit = $this->freeItemRow('f2');
         unset($itemNoUnit['unit']);
-
-        $taxError = $this->validate(['items' => [$asset]]);
-        $this->assertSame(['items.0.tax.id'], array_keys($taxError->errors()->toArray()));
 
         $unitError = $this->validate(['items' => [$itemNoUnit]]);
         $this->assertSame(['items.0.unit.id'], array_keys($unitError->errors()->toArray()));

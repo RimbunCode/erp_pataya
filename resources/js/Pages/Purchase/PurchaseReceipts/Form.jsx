@@ -40,7 +40,6 @@ function Form() {
   const pageProps = usePage().props;
   const purchaseReceiptId = pageProps.purchaseReceipt?.id;
   const defaults = pageProps.defaults ?? {};
-  const { applyToNewLine } = useDocumentDefaults(defaults);
   const { data, setData } = useFormPage(
     {
       date: new Date(),
@@ -49,6 +48,11 @@ function Form() {
       trackDefaultValue: false,
       notUseWhenCreate: true,
     },
+  );
+  const { applyToNewLine, resolveForNewLine } = useDocumentDefaults(
+    defaults,
+    "purchase_receipt",
+    { items: data.items, setData },
   );
 
   // Id ItemVariant semua PO Item: menyaring sub model "Item Lainnya" supaya item
@@ -96,6 +100,9 @@ function Form() {
                     setData({
                       ...rowPatch,
                       target_warehouse: defaultLine.target_warehouse,
+                    });
+                    resolveForNewLine(dataRow.id, val, {
+                      warehouseField: "target_warehouse",
                     });
                     return;
                   }

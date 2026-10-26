@@ -142,7 +142,7 @@ class DataTableScope implements Scope {
      * Publik supaya jalur KPI laporan (spec modul-laporan, Req 4.1 dan 6.4) memakai
      * aturan cabang yang sama persis dengan macro dataTable().
      */
-    public static function applyBranchFilter(Builder $query): void {
+    public static function applyBranchFilter(Builder $query, bool $allowGlobalBranch = false): void {
         $model = $query->getModel();
         if (! \method_exists($model, 'getBranchColumn')) {
             return;
@@ -152,6 +152,10 @@ class DataTableScope implements Scope {
         // aturannya sendiri di bawah (currentBranch session), supaya tak
         // tumpang tindih/konflik dengan filter afiliasi user.
         $query->withoutGlobalScope('branch');
+
+        if ($allowGlobalBranch) {
+            return;
+        }
 
         if (! session()->has('currentBranch')) {
             return;
@@ -181,7 +185,10 @@ class DataTableScope implements Scope {
 
     protected function addDataTable(Builder $builder) {
         $builder->macro('dataTable', function (Builder $query, Request $request, ?array $showedColumns = null) {
-            $this->applyBranchFilter($query);
+            $this->applyBranchFilter(
+                $query,
+                $request->attributes->get('includeGlobalBranchAuthorized') === true,
+            );
 
             $dataTableColumns = \get_class($query->getModel())::getColumns(1);
             $dataTableColumns = GroupColumnGate::sanitizeColumns($dataTableColumns, $query->getModel());

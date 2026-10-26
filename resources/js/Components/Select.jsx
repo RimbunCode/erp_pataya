@@ -24,6 +24,7 @@ const Select = memo(
   forwardRef(function Select(
     {
       id,
+      "aria-label": ariaLabel,
       value,
       valueBefore,
       onValueChange,
@@ -272,6 +273,7 @@ const Select = memo(
                     <div>
                       <Input
                         id={id}
+                        aria-label={ariaLabel}
                         ref={ref}
                         disabled={disabled}
                         readOnly={readOnly}

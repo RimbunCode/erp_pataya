@@ -1,5 +1,5 @@
 import { describe, expect, it, vi, beforeEach } from "vitest";
-import { act, render, screen } from "@testing-library/react";
+import { act, render, screen, waitFor } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 
 // ============================================================================
@@ -62,7 +62,6 @@ vi.mock("axios", () => ({
 // useFormPageMock. FormPageContext diekspor sebagai React Context sungguhan
 // supaya useCanUpdate (dipakai FormInput/NumberInput/FormCheckbox di dalam
 // pohon) tidak error walau tanpa provider (default undefined -> boleh update).
-const useFormPageMock = vi.fn();
 vi.mock("@/Pages/Core/FormPage", async () => {
   const React = await import("react");
   const ctx = React.createContext();
@@ -81,7 +80,7 @@ vi.mock("@/Pages/Core/FormPage", async () => {
       );
     },
     FormPageContentDescription: ({ children }) => <p>{children}</p>,
-    useFormPage: (...a) => useFormPageMock(...a),
+    useFormPage: () => React.useContext(ctx),
     useFormPageMeta: () => undefined,
     FormPageContext: ctx,
   };
@@ -242,7 +241,8 @@ vi.mock("@/Pages/Finances/Taxes/TaxLinkModel", () => ({
   default: () => <div>tax-link</div>,
 }));
 
-import { useState } from "react";
+import { useCallback, useState } from "react";
+import { FormPageContext } from "@/Pages/Core/FormPage";
 import Form from "./Form";
 
 // useFormPage asli mengembalikan context React (state hidup, re-render saat
@@ -261,7 +261,7 @@ function TestFormPageState({ initial, stateRef, children }) {
   // form -- BUKAN merge. Mock lama (selalu merge utk objek) pernah
   // menyembunyikan bug nyata (Form.jsx sempat memanggil setData({...})
   // form-level yg menghapus date/referenceable/items).
-  const setData = (arg, val) => {
+  const setData = useCallback((arg, val) => {
     setDataState((prev) => {
       if (typeof arg === "function") {
         return arg(prev);
@@ -270,15 +270,20 @@ function TestFormPageState({ initial, stateRef, children }) {
       }
       return arg;
     });
-  };
+  }, []);
   stateRef.data = data;
-  useFormPageMock.mockReturnValue({
+  const contextValue = {
     data,
     setData,
     defaultData: initial.defaultData ?? {},
     disabled: initial.disabled ?? false,
-  });
-  return children;
+    isCreate: initial.isCreate ?? false,
+  };
+  return (
+    <FormPageContext.Provider value={contextValue}>
+      {children}
+    </FormPageContext.Provider>
+  );
 }
 
 function renderForm(overrides = {}) {
@@ -971,6 +976,135 @@ describe("Sales Order Form.jsx", () => {
     const ASSET_SERVICE_CONSUMED_ITEM_CLASS =
       "App\\Models\\Asset\\AssetServiceConsumedItem";
 
+    const setupResolutionTest = () => {
+      const moduleTax = { id: "module-tax", rate: 11 };
+      const moduleWarehouse = { id: "module-warehouse" };
+      const ruleTax = { id: "rule-tax", rate: 5 };
+      const ruleWarehouse = { id: "rule-warehouse" };
+      const responses = [];
+      usePageMock.mockReturnValue({
+        props: {
+          preferences: { default_currency_id: "idr" },
+          defaults: { tax: moduleTax, warehouse: moduleWarehouse },
+        },
+      });
+      axiosPost.mockImplementation((url) =>
+        url === "/defaults/resolve"
+          ? new Promise((resolve) => responses.push(resolve))
+          : Promise.resolve({ data: { data: [ruleTax] } }),
+      );
+      const { stateRef } = renderForm({
+        isCreate: true,
+        data: { date: new Date(), items: [{ id: "row-1" }] },
+      });
+      const update = (patch) =>
+        captured.formTableProps.onValueChange(
+          [{ ...stateRef.data.items[0], ...patch }],
+          "row-1",
+        );
+      const select = (itemId, defer = false) => {
+        let publish;
+        const cell = captured.formTableProps.columns
+          .find((column) => column.name === "item")
+          .cell({
+            dataRow: stateRef.data.items[0],
+            attributes: {},
+            setData: (patch) => {
+              publish = () => update(patch);
+              if (!defer) publish();
+            },
+          });
+        act(() =>
+          cell.props.onValueChange({ id: itemId, is_stock_item: true }),
+        );
+        return () => act(() => publish());
+      };
+      const respond = async (index, itemId, taxIds) => {
+        await waitFor(() => expect(responses[index]).toBeTypeOf("function"));
+        await act(async () =>
+          responses[index]({
+            data: {
+              items: {
+                [itemId]: {
+                  tax_ids: taxIds,
+                  warehouse_id: ruleWarehouse.id,
+                  warehouse: ruleWarehouse,
+                },
+              },
+            },
+          }),
+        );
+      };
+      return { stateRef, select, respond, update, ruleTax, ruleWarehouse };
+    };
+
+    it.each([[[]], [["rule-tax"]]])(
+      "retains early resolution %j until the selected row reaches the parent",
+      async (taxIds) => {
+        const { stateRef, select, respond, ruleTax, ruleWarehouse } =
+          setupResolutionTest();
+        const publish = select("item-1", true);
+        await respond(0, "item-1", taxIds);
+        expect(stateRef.data.items[0].item).toBeUndefined();
+        publish();
+        expect(stateRef.data.items[0].tax).toEqual(
+          taxIds.length ? ruleTax : null,
+        );
+        expect(stateRef.data.items[0].source_warehouse).toEqual(ruleWarehouse);
+      },
+    );
+
+    it("ignores an earlier generation when the same item is selected again", async () => {
+      const { stateRef, select, respond } = setupResolutionTest();
+      select("item-1");
+      await waitFor(() =>
+        expect(axiosPost).toHaveBeenCalledWith(
+          "/defaults/resolve",
+          expect.objectContaining({ items: [{ item_id: "item-1" }] }),
+          expect.objectContaining({ signal: expect.any(AbortSignal) }),
+        ),
+      );
+      select("item-2");
+      await waitFor(() =>
+        expect(axiosPost).toHaveBeenCalledWith(
+          "/defaults/resolve",
+          expect.objectContaining({ items: [{ item_id: "item-2" }] }),
+          expect.objectContaining({ signal: expect.any(AbortSignal) }),
+        ),
+      );
+      select("item-1");
+      await respond(2, "item-1", []);
+      expect(stateRef.data.items[0].tax).toBeNull();
+      await respond(0, "item-1", ["rule-tax"]);
+      expect(stateRef.data.items[0].tax).toBeNull();
+      await respond(1, "item-2", ["rule-tax"]);
+      expect(stateRef.data.items[0].tax).toBeNull();
+    });
+
+    it("keeps manually cleared tax and warehouse empty when replacing an item", async () => {
+      const { stateRef, select, respond, update } = setupResolutionTest();
+      select("item-1");
+      for (const name of ["tax", "source_warehouse"]) {
+        const cell = captured.formTableProps.columns
+          .find((column) => column.name === name)
+          .cell({
+            dataRow: stateRef.data.items[0],
+            data: stateRef.data.items[0][name],
+            attributes: {},
+            setData: (key, value) =>
+              update(typeof key === "string" ? { [key]: value } : key),
+          });
+        act(() => cell.props.onValueChange(null));
+      }
+      await respond(0, "item-1", ["rule-tax"]);
+      select("item-2");
+      expect(stateRef.data.items[0].tax).toBeNull();
+      expect(stateRef.data.items[0].source_warehouse).toBeNull();
+      await respond(1, "item-2", ["rule-tax"]);
+      expect(stateRef.data.items[0].tax).toBeNull();
+      expect(stateRef.data.items[0].source_warehouse).toBeNull();
+    });
+
     it("mengisi default pajak dan gudang saat memilih item stok", () => {
       const tax = { id: "tax-1", name: "PPN", rate: 11 };
       const warehouse = { id: "warehouse-1", name: "Main Warehouse" };
@@ -1019,7 +1153,9 @@ describe("Sales Order Form.jsx", () => {
           defaults: { warehouse },
         },
       });
-      const { stateRef } = renderForm({ data: { date: new Date(), items: [] } });
+      const { stateRef } = renderForm({
+        data: { date: new Date(), items: [] },
+      });
       const row = { id: "row-1", item: { id: "item-1", is_stock_item: true } };
 
       act(() => {
@@ -1027,6 +1163,239 @@ describe("Sales Order Form.jsx", () => {
       });
 
       expect(stateRef.data.items[0].source_warehouse).toEqual(warehouse);
+    });
+
+    it("mempertahankan pengecualian pajak bersyarat setelah baris diedit", async () => {
+      const moduleTax = { id: "module-tax", rate: 11 };
+      const item = { id: "item-1", is_stock_item: true, default_uom: null };
+      const row = {
+        id: "row-1",
+        item: null,
+        tax: moduleTax,
+        tax_rate: moduleTax.rate,
+      };
+      usePageMock.mockReturnValue({
+        props: {
+          preferences: { default_currency_id: "idr" },
+          loadFrom: null,
+          defaults: { tax: moduleTax },
+        },
+      });
+      axiosPost.mockImplementation((url) =>
+        url === "/defaults/resolve"
+          ? Promise.resolve({
+              data: {
+                items: { [item.id]: { tax_ids: [], warehouse_id: null } },
+              },
+            })
+          : Promise.resolve({ data: { data: [] } }),
+      );
+      const { stateRef } = renderForm({
+        isCreate: true,
+        data: { date: new Date(), items: [row] },
+      });
+      expect(
+        captured.formTableProps.columns.find((column) => column.name === "tax")
+          .required,
+      ).not.toBe(true);
+
+      const itemColumn = captured.formTableProps.columns.find(
+        (column) => column.name === "item",
+      );
+      const itemCell = itemColumn.cell({
+        dataRow: row,
+        setData: (patch) =>
+          captured.formTableProps.onValueChange([{ ...row, ...patch }], row.id),
+        attributes: {},
+      });
+      act(() => itemCell.props.onValueChange(item));
+
+      await act(async () => {
+        await new Promise((resolve) => setTimeout(resolve, 10));
+      });
+      expect(stateRef.data.items[0].tax).toBeNull();
+      act(() =>
+        captured.formTableProps.onValueChange(
+          [{ ...stateRef.data.items[0], quantity: 2 }],
+          row.id,
+        ),
+      );
+
+      expect(stateRef.data.items[0].tax).toBeNull();
+      expect(stateRef.data.items[0].tax_rate).toBe(0);
+
+      const duplicatedRow = { ...stateRef.data.items[0], id: "row-copy" };
+      act(() =>
+        captured.formTableProps.onValueChange(
+          [...stateRef.data.items, duplicatedRow],
+          duplicatedRow.id,
+        ),
+      );
+
+      expect(stateRef.data.items[1].tax).toBeNull();
+      expect(stateRef.data.items[1].tax_rate).toBe(0);
+    });
+
+    it("mengabaikan respons no-tax usang setelah barang baris berubah", async () => {
+      const moduleTax = { id: "module-tax", rate: 11 };
+      const row = {
+        id: "row-race",
+        item: null,
+        tax: moduleTax,
+        tax_rate: moduleTax.rate,
+      };
+      const pendingResponses = [];
+      usePageMock.mockReturnValue({
+        props: {
+          preferences: { default_currency_id: "idr" },
+          loadFrom: null,
+          defaults: { tax: moduleTax },
+        },
+      });
+      axiosPost.mockImplementation((url) => {
+        if (url !== "/defaults/resolve") {
+          return Promise.resolve({ data: { data: [] } });
+        }
+        return new Promise((resolve) => pendingResponses.push(resolve));
+      });
+      const { stateRef } = renderForm({
+        isCreate: true,
+        data: { date: new Date(), items: [row] },
+      });
+
+      const selectItem = async (item) => {
+        const itemColumn = captured.formTableProps.columns.find(
+          (column) => column.name === "item",
+        );
+        const currentRow = stateRef.data.items[0];
+        const itemCell = itemColumn.cell({
+          dataRow: currentRow,
+          setData: (patch) =>
+            captured.formTableProps.onValueChange(
+              [{ ...stateRef.data.items[0], ...patch }],
+              row.id,
+            ),
+          attributes: {},
+        });
+        act(() => itemCell.props.onValueChange(item));
+        await waitFor(() => expect(pendingResponses.length).toBeGreaterThan(0));
+      };
+
+      await selectItem({ id: "item-a", is_stock_item: true });
+      await selectItem({ id: "item-b", is_stock_item: true });
+      await waitFor(() => expect(pendingResponses).toHaveLength(2));
+
+      await act(async () => {
+        pendingResponses[1]({
+          data: { items: { "item-b": { tax_ids: [], warehouse_id: null } } },
+        });
+      });
+      await waitFor(() => expect(stateRef.data.items[0].tax).toBeNull());
+
+      await act(async () => {
+        pendingResponses[0]({
+          data: { items: { "item-a": { tax_ids: [], warehouse_id: null } } },
+        });
+      });
+      act(() =>
+        captured.formTableProps.onValueChange(
+          [{ ...stateRef.data.items[0], quantity: 2 }],
+          row.id,
+        ),
+      );
+
+      expect(stateRef.data.items[0].item.id).toBe("item-b");
+      expect(stateRef.data.items[0].tax).toBeNull();
+      expect(stateRef.data.items[0].tax_rate).toBe(0);
+    });
+
+    it("mempertahankan pajak dan gudang yang dikosongkan sebelum resolver selesai", async () => {
+      const moduleTax = { id: "module-tax", rate: 11 };
+      const moduleWarehouse = { id: "module-warehouse" };
+      const item = { id: "item-edit", is_stock_item: true, default_uom: null };
+      const row = {
+        id: "row-edit",
+        item: null,
+        tax: moduleTax,
+        tax_rate: moduleTax.rate,
+        source_warehouse: moduleWarehouse,
+      };
+      let resolveDefaults;
+      usePageMock.mockReturnValue({
+        props: {
+          preferences: { default_currency_id: "idr" },
+          loadFrom: null,
+          defaults: { tax: moduleTax, warehouse: moduleWarehouse },
+        },
+      });
+      axiosPost.mockImplementation((url) => {
+        if (url !== "/defaults/resolve") {
+          return Promise.resolve({ data: { data: [] } });
+        }
+        return new Promise((resolve) => {
+          resolveDefaults = resolve;
+        });
+      });
+      const { stateRef } = renderForm({
+        isCreate: true,
+        data: { date: new Date(), items: [row] },
+      });
+      const updateRow = (patch) =>
+        captured.formTableProps.onValueChange(
+          [{ ...stateRef.data.items[0], ...patch }],
+          row.id,
+        );
+      const itemColumn = captured.formTableProps.columns.find(
+        (column) => column.name === "item",
+      );
+      const itemCell = itemColumn.cell({
+        dataRow: row,
+        setData: (patch) => updateRow(patch),
+        attributes: {},
+      });
+      act(() => itemCell.props.onValueChange(item));
+      await waitFor(() => expect(resolveDefaults).toBeTypeOf("function"));
+
+      const taxColumn = captured.formTableProps.columns.find(
+        (column) => column.name === "tax",
+      );
+      const taxCell = taxColumn.cell({
+        dataRow: stateRef.data.items[0],
+        data: stateRef.data.items[0].tax,
+        setData: (key, value) => updateRow({ [key]: value }),
+        attributes: {},
+      });
+      act(() => taxCell.props.onValueChange(null));
+      expect(stateRef.data.items[0].tax).toBeNull();
+
+      const warehouseColumn = captured.formTableProps.columns.find(
+        (column) => column.name === "source_warehouse",
+      );
+      const warehouseCell = warehouseColumn.cell({
+        dataRow: stateRef.data.items[0],
+        data: stateRef.data.items[0].source_warehouse,
+        setData: (key, value) => updateRow({ [key]: value }),
+        attributes: {},
+      });
+      act(() => warehouseCell.props.onValueChange(null));
+      expect(stateRef.data.items[0].source_warehouse).toBeNull();
+
+      await act(async () => {
+        resolveDefaults({
+          data: {
+            items: {
+              [item.id]: {
+                tax_ids: [],
+                warehouse_id: "conditional-warehouse",
+                warehouse: { id: "conditional-warehouse" },
+              },
+            },
+          },
+        });
+      });
+
+      expect(stateRef.data.items[0].tax).toBeNull();
+      expect(stateRef.data.items[0].source_warehouse).toBeNull();
     });
 
     function assetServiceReferenceable(overrides = {}) {

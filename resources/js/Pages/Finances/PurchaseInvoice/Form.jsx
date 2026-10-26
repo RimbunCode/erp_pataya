@@ -72,16 +72,27 @@ export default function Form() {
     };
   }, []);
   const { t } = useLaravelReactI18n();
-  const { data, setData, disabled, dataBefore } = useFormPage(defaultValue, {
-    notUseWhenCreate: true,
-  });
+  const { data, setData, disabled, dataBefore, isCreate } = useFormPage(
+    defaultValue,
+    {
+      notUseWhenCreate: true,
+    },
+  );
 
   const pageProps = usePage().props;
   const { default_currency_id } = pageProps.preferences;
   const fixedAssets = pageProps.fixedAssets;
   const purchaseInvoiceId = pageProps.purchaseInvoice?.id;
   const defaults = pageProps.defaults ?? {};
-  const { applyToNewLine, applyPaymentTerm } = useDocumentDefaults(defaults);
+  const {
+    applyToNewLine,
+    applyPaymentTerm,
+    resolveForNewLine,
+    markFieldEdited,
+  } = useDocumentDefaults(defaults, isCreate ? "purchase_invoice" : null, {
+    items: data.items,
+    setData,
+  });
   const paymentDefaultsApplied = useRef(false);
 
   useEffect(() => {
@@ -97,7 +108,13 @@ export default function Form() {
       );
       paymentDefaultsApplied.current = true;
     }
-  }, [applyPaymentTerm, data.date, data.payment_schedules, defaults.payment_term_template, setData]);
+  }, [
+    applyPaymentTerm,
+    data.date,
+    data.payment_schedules,
+    defaults.payment_term_template,
+    setData,
+  ]);
   // Dihitung langsung dari quantity*rate mentah + alokasi diskon saat ini --
   // BUKAN dari calculateArray(data.items, "basic_amount"/"dpp_amount"/
   // "tax_amount", "+") seperti sebelumnya. Alasan: kolom basic_amount/
@@ -255,6 +272,7 @@ export default function Form() {
                       tax: defaultLine.tax,
                       tax_rate: defaultLine.tax_rate,
                     });
+                    resolveForNewLine(dataRow.id, val);
                     return;
                   }
                   setData({
@@ -407,6 +425,7 @@ export default function Form() {
               )}
               value={data}
               onValueChange={(val) => {
+                markFieldEdited(dataRow.id, "tax");
                 setData("tax", val);
               }}
               {...attributes}
@@ -435,7 +454,13 @@ export default function Form() {
         },
       },
     ];
-  }, [data, poVariantIdsKey]);
+  }, [
+    applyToNewLine,
+    data,
+    markFieldEdited,
+    poVariantIdsKey,
+    resolveForNewLine,
+  ]);
 
   return (
     <>
@@ -745,7 +770,10 @@ export default function Form() {
             className="col-start-1 col-span-2"
             form={<ItemForm />}
             columns={itemColumns}
-            defaultValueRow={{ tax: defaults.tax, tax_rate: defaults.tax?.rate ?? 0 }}
+            defaultValueRow={{
+              tax: defaults.tax,
+              tax_rate: defaults.tax?.rate ?? 0,
+            }}
             value={data?.items ?? []}
             onValueChange={(v) => setData("items", v)}
             mapItem={({ item, dataTable, index }) => {

@@ -189,6 +189,7 @@ const Input = React.forwardRef(function Input(
   }, [isFocused]);
   return (
     <input
+      ref={localRef}
       data-slot="input"
       type={type}
       className={cn(

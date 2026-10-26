@@ -126,6 +126,7 @@ export function buildGroupOptions(barColumns, lockedColumnNames, locale) {
  * @param {Array} [props.group] grup awal dari prop `group` LinkModel (`undefined`
  *   = default model di server, `[]` = tanpa grup); diinisialisasi ulang tiap
  *   dialog dibuka, perubahan di panel hanya lokal dialog
+ * @param props.includeGlobalBranch
  * @param {(row: object) => void} props.onSelect dipanggil dengan row yang SUDAH terpangkas (Requirement 7)
  * @returns {React.JSX.Element}
  */
@@ -141,6 +142,7 @@ function AdvanceSearchBody({
   translate,
   initialSearch,
   group,
+  includeGlobalBranch = false,
   onSelect,
 }) {
   const { t, currentLocale } = useLaravelReactI18n();
@@ -202,6 +204,7 @@ function AdvanceSearchBody({
     group: requestGroup,
     groupSort,
     open,
+    includeGlobalBranch,
   });
 
   const barColumns = useMemo(

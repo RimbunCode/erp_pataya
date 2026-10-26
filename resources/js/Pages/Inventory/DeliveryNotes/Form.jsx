@@ -27,7 +27,6 @@ const ITEM_VARIANT_CLASS = "App\\Models\\Inventory\\ItemVariant";
 export default function Form() {
   const { t } = useLaravelReactI18n();
   const defaults = usePage().props.defaults ?? {};
-  const { applyToNewLine } = useDocumentDefaults(defaults);
   // Baris di luar dokumen sumber (sub model ItemVariant/Asset) butuh izin khusus.
   const canOffSource = usePermission(
     "App\\Models\\Inventory\\DeliveryNote",
@@ -39,6 +38,11 @@ export default function Form() {
     {
       trackDefaultValue: false,
     },
+  );
+  const { applyToNewLine, resolveForNewLine } = useDocumentDefaults(
+    defaults,
+    "delivery_note",
+    { items: data.items, setData },
   );
   // Sumber baris dipilih lewat LinkModel multi-model (spec
   // delivery-note-sales-invoice-off-source-items): model utama = baris dokumen
@@ -153,6 +157,9 @@ export default function Form() {
                   setData({
                     ...rowPatch,
                     source_warehouse: defaultLine.source_warehouse ?? null,
+                  });
+                  resolveForNewLine(dataRow.id, val, {
+                    warehouseField: "source_warehouse",
                   });
                   return;
                 }

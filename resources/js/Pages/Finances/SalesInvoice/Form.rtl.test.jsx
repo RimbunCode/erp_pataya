@@ -1,6 +1,10 @@
 import { describe, expect, it, vi, beforeEach } from "vitest";
-import { render, screen, waitFor } from "@testing-library/react";
+import { act, render, screen, waitFor, within } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
+import axios from "axios";
+
+vi.mock("axios", () => ({ default: { post: vi.fn() } }));
+let conditionalDefaultsMode = false;
 
 // ============================================================================
 // Form.jsx (SalesInvoice) adalah salah satu halaman form transaksi terbesar
@@ -96,6 +100,14 @@ vi.mock("@/Pages/Core/FormPage", async () => {
       <div {...props}>{children}</div>
     ),
     useFormPage: (defaultValue) => {
+      const [data, setDataState] = React.useState(formPageState.data);
+      const setData = React.useCallback((keyOrFn, value) => {
+        setDataState((previous) =>
+          typeof keyOrFn === "function"
+            ? keyOrFn(previous)
+            : { ...previous, [keyOrFn]: value },
+        );
+      }, []);
       // Replika perilaku useFormPage nyata: defaultValue callback dipanggil
       // (agar tidak crash bila diakses), hasilnya diabaikan di sini karena
       // fokus test bukan pada defaultValue resolution (sudah dicover
@@ -103,7 +115,9 @@ vi.mock("@/Pages/Core/FormPage", async () => {
       if (typeof defaultValue === "function") {
         defaultValue().catch(() => {});
       }
-      return formPageState;
+      return conditionalDefaultsMode
+        ? { ...formPageState, data, setData, isCreate: true }
+        : formPageState;
     },
     useFormPageMeta: () => undefined,
     FormPageContext: React.createContext(),
@@ -220,9 +234,51 @@ vi.mock("@/Components/NumberInput", () => ({
 // hanya memverifikasi Form.jsx meneruskan columns/value/mapItem yang benar,
 // bukan rendering tabel itu sendiri.
 const formTablePropsSpy = vi.fn();
+let deferTableUpdate;
 vi.mock("@/Components/FormTable", () => ({
   default: (props) => {
     formTablePropsSpy(props);
+    if (conditionalDefaultsMode && props.name === "SalesInvoiceItems") {
+      return (
+        <div>
+          <output data-testid="conditional-items">
+            {JSON.stringify(props.value)}
+          </output>
+          {props.value.map((row) => (
+            <div key={row.id} data-testid={`conditional-row-${row.id}`}>
+              {props.columns
+                .filter((column) => ["item", "tax"].includes(column.name))
+                .map((column) => (
+                  <div key={column.name}>
+                    {column.cell({
+                      dataRow: row,
+                      data: row[column.name],
+                      attributes: {},
+                      setData: (keyOrPatch, value) => {
+                        const publish = () =>
+                          props.onValueChange(
+                            props.value.map((current) =>
+                              current.id === row.id
+                                ? {
+                                    ...current,
+                                    ...(typeof keyOrPatch === "string"
+                                      ? { [keyOrPatch]: value }
+                                      : keyOrPatch),
+                                  }
+                                : current,
+                            ),
+                          );
+                        if (deferTableUpdate) deferTableUpdate(publish);
+                        else publish();
+                      },
+                    })}
+                  </div>
+                ))}
+            </div>
+          ))}
+        </div>
+      );
+    }
     return <div data-testid="form-table-stub">{props.name}</div>;
   },
 }));
@@ -271,6 +327,7 @@ function tableProps(name) {
 describe("SalesInvoice Form", () => {
   beforeEach(() => {
     vi.clearAllMocks();
+    conditionalDefaultsMode = false;
     globalThis.__linkModelPayloads = {};
     globalThis.__contentProps = {};
     usePageMock.mockReturnValue({
@@ -278,6 +335,207 @@ describe("SalesInvoice Form", () => {
     });
     getDataModelMock.mockResolvedValue([]);
     formPageState = makeFormPageState();
+  });
+
+  describe("conditional defaults integration", () => {
+    const moduleTax = { id: "module-tax", rate: 11 };
+    const ruleTax = { id: "rule-tax", rate: 5 };
+    const manualTax = { id: "manual-tax", rate: 7 };
+    const variant = (id) => ({
+      id: `variant-${id}`,
+      item: { id },
+      thisModel: "App\\Models\\Inventory\\ItemVariant",
+      is_stock_item: true,
+    });
+    const rows = () =>
+      JSON.parse(screen.getByTestId("conditional-items").textContent);
+    const choose = async (testId, value) => {
+      globalThis.__linkModelPayloads[testId] = value;
+      await userEvent.click(
+        within(screen.getByTestId("conditional-row-row-1")).getByTestId(testId),
+      );
+    };
+    const mount = (row = {}) => {
+      conditionalDefaultsMode = true;
+      deferTableUpdate = undefined;
+      usePageMock.mockReturnValue({
+        props: {
+          preferences: { default_currency_id: "idr" },
+          defaults: { tax: moduleTax, warehouse: { id: "module-warehouse" } },
+        },
+      });
+      formPageState = makeFormPageState({
+        data: { sales_order: { id: "so-1" }, items: [{ id: "row-1", ...row }] },
+      });
+      const responses = new Map();
+      axios.post.mockImplementation((url, payload) => {
+        if (url === "/defaults/resolve")
+          return new Promise((resolve) => {
+            responses.set(payload.items[0].item_id, resolve);
+          });
+        return Promise.resolve({
+          data: {
+            data: payload.model.endsWith("Tax")
+              ? [ruleTax]
+              : [{ id: "rule-warehouse" }],
+          },
+        });
+      });
+      render(<Form />);
+      return async (itemId = "item-1", taxIds = [ruleTax.id]) => {
+        await waitFor(() => expect(responses.has(itemId)).toBe(true));
+        await act(async () => {
+          responses.get(itemId)({
+            data: {
+              items: {
+                [itemId]: { tax_ids: taxIds, warehouse_id: "rule-warehouse" },
+              },
+            },
+          });
+        });
+      };
+    };
+
+    it.each([[[]], [[ruleTax.id]]])(
+      "retains early resolution %j until the selected row reaches the parent",
+      async (taxIds) => {
+        const respond = mount();
+        let publish;
+        deferTableUpdate = (callback) => {
+          publish = callback;
+        };
+        await choose("sales-order-item-link", variant("item-1"));
+        await respond("item-1", taxIds);
+        expect(rows()[0].item).toBeUndefined();
+        deferTableUpdate = undefined;
+        act(() => publish());
+        expect(rows()[0].tax).toEqual(taxIds.length ? ruleTax : null);
+        expect(rows()[0].tax_rate).toBe(taxIds.length ? 5 : 0);
+      },
+    );
+
+    it("keeps manually cleared tax empty when replacing an item", async () => {
+      const respond = mount();
+      await choose("sales-order-item-link", variant("item-1"));
+      await choose("tax-link", null);
+      await choose("sales-order-item-link", variant("item-2"));
+      expect(rows()[0].tax).toBeNull();
+      await respond("item-2");
+      expect(rows()[0].tax).toBeNull();
+    });
+
+    it("applies hydrated conditional tax to a manual item through the real resolver", async () => {
+      const respond = mount();
+      await choose("sales-order-item-link", variant("item-1"));
+      await waitFor(() =>
+        expect(axios.post).toHaveBeenCalledWith(
+          "/defaults/resolve",
+          {
+            document_type: "sales_invoice",
+            items: [{ item_id: "item-1" }],
+          },
+          expect.objectContaining({ signal: expect.any(AbortSignal) }),
+        ),
+      );
+      expect(rows()[0].tax).toEqual(moduleTax);
+      await respond();
+      await waitFor(() => expect(rows()[0].tax).toEqual(ruleTax));
+      expect(rows()[0].tax_rate).toBe(5);
+      expect(rows()[0]).not.toHaveProperty("warehouse");
+    });
+
+    it.each([manualTax, null, moduleTax])(
+      "preserves user tax selection %j while resolution is pending",
+      async (tax) => {
+        const respond = mount();
+        await choose("sales-order-item-link", variant("item-1"));
+        await waitFor(() =>
+          expect(axios.post).toHaveBeenCalledWith(
+            "/defaults/resolve",
+            expect.anything(),
+            expect.objectContaining({ signal: expect.any(AbortSignal) }),
+          ),
+        );
+        await choose("tax-link", tax);
+        await respond();
+        await waitFor(() =>
+          expect(axios.post).toHaveBeenCalledWith(
+            expect.any(String),
+            expect.objectContaining({ model: "App\\Models\\Finances\\Tax" }),
+            expect.objectContaining({ signal: expect.any(AbortSignal) }),
+          ),
+        );
+        expect(rows()[0].tax).toEqual(tax);
+      },
+    );
+
+    it("preserves a source row selected before the manual item response arrives", async () => {
+      const respond = mount();
+      await choose("sales-order-item-link", variant("item-1"));
+      await waitFor(() =>
+        expect(axios.post).toHaveBeenCalledWith(
+          "/defaults/resolve",
+          expect.anything(),
+          expect.objectContaining({ signal: expect.any(AbortSignal) }),
+        ),
+      );
+      await choose("sales-order-item-link", {
+        id: "source-1",
+        item: { id: "item-1" },
+        tax: manualTax,
+        unbilled_quantity: 2,
+      });
+      await respond();
+      await waitFor(() =>
+        expect(axios.post).toHaveBeenCalledWith(
+          expect.any(String),
+          expect.objectContaining({ model: "App\\Models\\Finances\\Tax" }),
+          expect.objectContaining({ signal: expect.any(AbortSignal) }),
+        ),
+      );
+      expect(rows()[0].sales_order_item.id).toBe("source-1");
+      expect(rows()[0].tax).toEqual(manualTax);
+    });
+
+    it("ignores an older item response after the row changes item", async () => {
+      const respond = mount();
+      await choose("sales-order-item-link", variant("item-1"));
+      await waitFor(() =>
+        expect(axios.post).toHaveBeenCalledWith(
+          "/defaults/resolve",
+          expect.anything(),
+          expect.objectContaining({ signal: expect.any(AbortSignal) }),
+        ),
+      );
+      await choose("sales-order-item-link", variant("item-2"));
+      await respond("item-2", []);
+      await waitFor(() => expect(rows()[0].tax).toBeNull());
+      await respond();
+      await waitFor(() =>
+        expect(axios.post).toHaveBeenCalledWith(
+          expect.any(String),
+          expect.objectContaining({ model: "App\\Models\\Finances\\Tax" }),
+          expect.objectContaining({ signal: expect.any(AbortSignal) }),
+        ),
+      );
+      expect(rows()[0].item.item.id).toBe("item-2");
+      expect(rows()[0].tax).toBeNull();
+    });
+
+    it("applies an explicit no-tax result instead of the module fallback", async () => {
+      const respond = mount();
+      await choose("sales-order-item-link", variant("item-1"));
+      await waitFor(() =>
+        expect(axios.post).toHaveBeenCalledWith(
+          "/defaults/resolve",
+          expect.anything(),
+          expect.objectContaining({ signal: expect.any(AbortSignal) }),
+        ),
+      );
+      await respond("item-1", []);
+      await waitFor(() => expect(rows()[0].tax).toBeNull());
+      expect(rows()[0].tax_rate).toBe(0);
+    });
   });
 
   describe("kalkulasi total (net_amount/dpp_amount/tax_amount/amount)", () => {
@@ -935,7 +1193,7 @@ describe("SalesInvoice Form", () => {
       );
     });
 
-    it("unit nonaktif untuk baris asset; quantity/tax/price aktif untuk ketiga sumber; tax wajib", () => {
+    it("unit nonaktif untuk baris asset; quantity/tax/price aktif untuk ketiga sumber; tax dapat kosong", () => {
       renderWith();
       const assetRow = { asset: { id: "a1" }, asset_id: "a1" };
       const itemRow = { item: { id: "v1", item_id: "I1" } };
@@ -950,7 +1208,7 @@ describe("SalesInvoice Form", () => {
           cellOf(name, { sales_order_item: { id: 1 } }).props.disabled,
         ).toBe(false);
       }
-      expect(columnOf("tax").required).toBe(true);
+      expect(columnOf("tax").required).not.toBe(true);
     });
 
     it("net_amount, dpp_amount, dan tax_amount menjumlah semua baris items", () => {

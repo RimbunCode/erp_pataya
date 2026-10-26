@@ -129,6 +129,7 @@ export const fetchAdvanceGroupNode = async ({
  *   grup EFEKTIF (`undefined` = default model di server, `[]` = tanpa grup)
  * @param {string} [params.groupSort] 'asc' | 'desc' -- urutan nilai grup
  * @param {boolean} params.open dialog terbuka -- gate fetch
+ * @param params.includeGlobalBranch
  * @returns {object}
  */
 export default function useAdvanceSearchModel({
@@ -143,6 +144,7 @@ export default function useAdvanceSearchModel({
   group,
   groupSort,
   open,
+  includeGlobalBranch = false,
 }) {
   const [debouncedSearch, setDebouncedSearch] = useState(search ?? "");
   useEffect(() => {
@@ -174,10 +176,12 @@ export default function useAdvanceSearchModel({
       order,
       groupKey,
       groupSort,
+      includeGlobalBranch,
     ],
     queryFn: async ({ pageParam = 1 }) => {
       const res = await axios.post(window.route("model.selectData"), {
         model,
+        includeGlobalBranch,
         includeAllLinkable: true,
         baseFilters: baseFilters ?? undefined,
         filters: additiveFilters ?? undefined,
@@ -235,6 +239,7 @@ export default function useAdvanceSearchModel({
 
     return {
       model,
+      includeGlobalBranch,
       includeAllLinkable: true,
       baseFilters: baseFilters ?? undefined,
       filters: additiveFilters ?? undefined,
@@ -253,6 +258,7 @@ export default function useAdvanceSearchModel({
   }, [
     groupMeta,
     model,
+    includeGlobalBranch,
     baseFiltersKey,
     additiveFiltersKey,
     debouncedSearch,

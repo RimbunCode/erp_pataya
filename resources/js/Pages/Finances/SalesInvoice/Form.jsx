@@ -70,13 +70,24 @@ export default function Form() {
       debit_account: debitAccount,
     };
   }, []);
-  const { data, setData, disabled, dataBefore } = useFormPage(defaultValue, {
-    notUseWhenCreate: true,
-  });
+  const { data, setData, disabled, dataBefore, isCreate } = useFormPage(
+    defaultValue,
+    {
+      notUseWhenCreate: true,
+    },
+  );
   const pageProps = usePage().props;
   const { default_currency_id } = pageProps.preferences;
   const defaults = pageProps.defaults ?? {};
-  const { applyToNewLine, applyPaymentTerm } = useDocumentDefaults(defaults);
+  const {
+    applyToNewLine,
+    applyPaymentTerm,
+    resolveForNewLine,
+    markFieldEdited,
+  } = useDocumentDefaults(defaults, isCreate ? "sales_invoice" : null, {
+    items: data.items,
+    setData,
+  });
   const paymentDefaultsApplied = useRef(false);
 
   useEffect(() => {
@@ -92,7 +103,13 @@ export default function Form() {
       );
       paymentDefaultsApplied.current = true;
     }
-  }, [applyPaymentTerm, data.date, data.payment_schedules, defaults.payment_term_template, setData]);
+  }, [
+    applyPaymentTerm,
+    data.date,
+    data.payment_schedules,
+    defaults.payment_term_template,
+    setData,
+  ]);
   const getContraIncomeAccount = (isContra) => {
     getDataModel(
       "App\\Models\\Finances\\Account",
@@ -271,6 +288,7 @@ export default function Form() {
                     tax: defaultLine.tax,
                     tax_rate: defaultLine.tax_rate,
                   });
+                  resolveForNewLine(dataRow.id, val);
                   return;
                 }
                 // Opsi baris SO.
@@ -378,7 +396,6 @@ export default function Form() {
       {
         name: "tax",
         titleTrans: "finances.salesInvoice.columns.tax",
-        required: true,
         width: 1,
         cell({ data, setData, attributes, dataRow }) {
           return (
@@ -387,6 +404,7 @@ export default function Form() {
               placeholder={t("finances.salesInvoice.columns.tax.placeholder")}
               value={data}
               onValueChange={(val) => {
+                markFieldEdited(dataRow.id, "tax");
                 setData("tax", val);
               }}
               {...attributes}
@@ -451,7 +469,14 @@ export default function Form() {
         },
       },
     ];
-  }, [data, t, canOffSource]);
+  }, [
+    applyToNewLine,
+    canOffSource,
+    data,
+    markFieldEdited,
+    resolveForNewLine,
+    t,
+  ]);
 
   // basic_amount TIDAK ditimpa di sini -- generated (quantity*price) di server.
   // tax_amount dihitung dari basis DPP Nilai Lain SETELAH dikurangi discount_amount,
@@ -828,7 +853,10 @@ export default function Form() {
             className="col-start-1 col-span-2"
             form={<ItemForm />}
             columns={itemColumns}
-            defaultValueRow={{ tax: defaults.tax, tax_rate: defaults.tax?.rate ?? 0 }}
+            defaultValueRow={{
+              tax: defaults.tax,
+              tax_rate: defaults.tax?.rate ?? 0,
+            }}
             value={data?.items ?? []}
             valueBefore={dataBefore?.items}
             onValueChange={(v) => setData("items", v)}

@@ -6,7 +6,9 @@ import userEvent from "@testing-library/user-event";
 import SalesSettings from "./SalesSettings";
 
 const putMock = vi.fn();
-const translationMock = vi.hoisted(() => vi.fn((key, fallback) => fallback || key));
+const translationMock = vi.hoisted(() =>
+  vi.fn((key, fallback) => fallback || key),
+);
 
 vi.mock("@inertiajs/react", async (importOriginal) => ({
   ...(await importOriginal()),
@@ -48,6 +50,10 @@ vi.mock("@/lib/gooeyToast", () => ({
   gooeyToast: { success: vi.fn(), error: vi.fn() },
 }));
 
+vi.mock("./DefaultRulesSettings", () => ({
+  default: () => <div data-testid="default-rules-tab" />,
+}));
+
 vi.mock("@/Components/FormInput", () => ({
   default: ({ label, children }) => (
     <div data-testid="form-input">
@@ -80,9 +86,12 @@ vi.mock("@/Pages/Inventory/Warehouses/WarehouseLinkModel", () => ({
   default: () => <div data-testid="warehouse-link-model" />,
 }));
 
-vi.mock("@/Pages/Finances/PaymentTermTemplate/PaymentTermTemplateLinkModel", () => ({
-  default: () => <div data-testid="payment-term-template-link-model" />,
-}));
+vi.mock(
+  "@/Pages/Finances/PaymentTermTemplate/PaymentTermTemplateLinkModel",
+  () => ({
+    default: () => <div data-testid="payment-term-template-link-model" />,
+  }),
+);
 
 describe("SalesSettings RTL", () => {
   it("renders sales settings page with default tax and transaction controls", async () => {
@@ -97,14 +106,29 @@ describe("SalesSettings RTL", () => {
 
     expect(screen.getByTestId("sales-settings-form")).toBeInTheDocument();
     expect(screen.getByText("Sales Settings")).toBeInTheDocument();
-    expect(translationMock).toHaveBeenCalledWith("sales.setting.title", "Sales Settings");
-    expect(translationMock).toHaveBeenCalledWith("sales.setting.default.title", "Default");
-    expect(translationMock).toHaveBeenCalledWith("sales.setting.default_tax", "Default Tax");
+    expect(translationMock).toHaveBeenCalledWith(
+      "sales.setting.title",
+      "Sales Settings",
+    );
+    expect(translationMock).toHaveBeenCalledWith(
+      "sales.setting.default.title",
+      "Default",
+    );
+    expect(translationMock).toHaveBeenCalledWith(
+      "sales.setting.default_tax",
+      "Default Tax",
+    );
     expect(screen.getByTestId("tax-link-model")).toBeInTheDocument();
     expect(screen.getByTestId("tax-link-model")).not.toBeDisabled();
     await userEvent.click(screen.getByRole("tab", { name: "Transactions" }));
-    expect(screen.getByText("sales.setting.rate_change_action")).toBeInTheDocument();
-    expect(screen.getByText("sales.setting.below_cost_action")).toBeInTheDocument();
+    expect(
+      screen.getByText("sales.setting.rate_change_action"),
+    ).toBeInTheDocument();
+    expect(
+      screen.getByText("sales.setting.below_cost_action"),
+    ).toBeInTheDocument();
+    await userEvent.click(screen.getByRole("tab", { name: "Default Rules" }));
+    expect(screen.getByTestId("default-rules-tab")).toBeInTheDocument();
   });
 
   it("disables tax link model input when canWrite is false", () => {
@@ -123,7 +147,9 @@ describe("SalesSettings RTL", () => {
   it("does not report a newly selected tax as unavailable", async () => {
     render(<SalesSettings setting={{}} canWrite />);
 
-    await userEvent.click(screen.getByRole("button", { name: "Choose active tax" }));
+    await userEvent.click(
+      screen.getByRole("button", { name: "Choose active tax" }),
+    );
 
     expect(screen.queryByRole("alert")).not.toBeInTheDocument();
   });
