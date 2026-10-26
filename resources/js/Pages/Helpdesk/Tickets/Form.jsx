@@ -6,7 +6,7 @@ import FormInput from "@/Components/FormInput";
 import { Input } from "@/Components/ui/input";
 import React from "react";
 import Select from "@/Components/Select";
-import { Slider } from "@/Components/ui/slider";
+import { Slider, SliderThumb } from "@/Components/ui/slider";
 import TiptapEditor from "@/Components/TiptapEditor";
 import { useLaravelReactI18n } from "laravel-react-i18n";
 import { usePage } from "@inertiajs/react";
@@ -94,7 +94,9 @@ function Form() {
                 max={100}
                 step={5}
                 className="mt-2"
-              />
+              >
+                <SliderThumb />
+              </Slider>
             </FormInput>
           </div>
 
