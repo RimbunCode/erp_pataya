@@ -5,6 +5,7 @@ return [
     'show'                        => 'Show',
     'previous'                    => 'Previous',
     'next'                        => 'Next',
+    'total'                       => 'Total',
     'action'                      => 'Action',
     'select_row'                  => 'Select row',
     'select_all'                  => 'Select all',
