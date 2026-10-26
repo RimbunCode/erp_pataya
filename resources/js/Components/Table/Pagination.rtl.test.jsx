@@ -1,9 +1,32 @@
 import { describe, expect, it, vi } from "vitest";
 import { render, screen } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
+
+vi.mock("laravel-react-i18n", () => ({
+  useLaravelReactI18n: () => ({ t: (key) => `TR:${key}` }),
+}));
+
 import Pagination from "./Pagination";
 
 describe("Pagination", () => {
+  it("label tombol Previous dan Next diterjemahkan lewat core.datatable.*", () => {
+    render(<Pagination currentPage={3} totalPages={5} />);
+    expect(screen.getByText("TR:core.datatable.previous")).toBeInTheDocument();
+    expect(screen.getByText("TR:core.datatable.next")).toBeInTheDocument();
+    expect(screen.queryByText("Previous")).not.toBeInTheDocument();
+    expect(screen.queryByText("Next")).not.toBeInTheDocument();
+  });
+
+  it("tombol Previous dan Next memakai ukuran button yang valid (md), bukan 'default'", () => {
+    render(<Pagination currentPage={3} totalPages={5} />);
+    for (const name of [/previous/i, /next/i]) {
+      const button = screen.getByRole("button", { name });
+      // `size="default"` tidak ada di buttonVariants -> tanpa tinggi & padding.
+      expect(button.className).toContain("h-8.5");
+      expect(button.className).toContain("px-3");
+    }
+  });
+
   it("tidak render apapun jika totalPages <= 1", () => {
     const { container } = render(<Pagination currentPage={1} totalPages={1} />);
     expect(container).toBeEmptyDOMElement();

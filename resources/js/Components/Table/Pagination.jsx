@@ -8,6 +8,7 @@ import {
 } from "../ui/pagination";
 
 import { cn } from "@/lib/utils";
+import { useLaravelReactI18n } from "laravel-react-i18n";
 
 function condensePages(totalPages, currentPage, changePage) {
   const pages = Array.from({ length: totalPages }, (_, i) => i + 1);
@@ -50,6 +51,7 @@ function condensePages(totalPages, currentPage, changePage) {
 }
 
 function Pagination({ currentPage = 1, totalPages, onPageChanged, ...props }) {
+  const { t } = useLaravelReactI18n();
   if (!totalPages || totalPages <= 1) {
     return null;
   }
@@ -63,12 +65,12 @@ function Pagination({ currentPage = 1, totalPages, onPageChanged, ...props }) {
           <PaginationItem>
             <PaginationButton
               aria-label="Go to previous page"
-              size="default"
+              size="md"
               className={cn("gap-1 pl-2.5")}
               onClick={() => changePage(currentPage - 1)}
             >
               <ChevronLeft className="w-4 h-4" />
-              <span>Previous</span>
+              <span>{t("core.datatable.previous")}</span>
             </PaginationButton>
           </PaginationItem>
         )}
@@ -77,11 +79,11 @@ function Pagination({ currentPage = 1, totalPages, onPageChanged, ...props }) {
           <PaginationItem>
             <PaginationButton
               aria-label="Go to next page"
-              size="default"
+              size="md"
               className={cn("gap-1 pr-2.5")}
               onClick={() => changePage(currentPage + 1)}
             >
-              <span>Next</span>
+              <span>{t("core.datatable.next")}</span>
               <ChevronRight className="w-4 h-4" />
             </PaginationButton>
           </PaginationItem>
