@@ -327,6 +327,8 @@ function setPageProps(overrides = {}) {
   });
 }
 
+const TAX_MODEL = "App\\Models\\Finances\\Tax";
+
 describe("PurchaseOrders Form", () => {
   beforeEach(() => {
     formPageSeed = {};
@@ -741,6 +743,7 @@ describe("PurchaseOrders Form", () => {
       items = {
         "variant-a": {
           tax_ids: [conditionalTax.id],
+          taxes: [conditionalTax],
           warehouse_id: conditionalWarehouse.id,
         },
       },
@@ -762,6 +765,7 @@ describe("PurchaseOrders Form", () => {
         await finishResolution({
           "variant-a": {
             tax_ids: taxIds,
+            taxes: taxIds.map(() => conditionalTax),
             warehouse_id: conditionalWarehouse.id,
           },
         });
@@ -807,6 +811,7 @@ describe("PurchaseOrders Form", () => {
       await finishResolution({
         "variant-b": {
           tax_ids: [conditionalTax.id],
+          taxes: [conditionalTax],
           warehouse_id: conditionalWarehouse.id,
         },
       });
@@ -828,13 +833,10 @@ describe("PurchaseOrders Form", () => {
       expect(screen.getByTestId("cell-target_warehouse-0")).toHaveTextContent(
         "Gudang Aturan",
       );
-      expect(axios.post).toHaveBeenCalledWith(
+      expect(axios.post).not.toHaveBeenCalledWith(
         expect.any(String),
-        {
-          model: "App\\Models\\Finances\\Tax",
-          filters: { id: { in: [conditionalTax.id] } },
-        },
-        expect.objectContaining({ signal: expect.any(AbortSignal) }),
+        expect.objectContaining({ model: TAX_MODEL }),
+        expect.anything(),
       );
       expect(axios.post).toHaveBeenCalledWith(
         expect.any(String),
@@ -890,6 +892,7 @@ describe("PurchaseOrders Form", () => {
             items: {
               "variant-a": {
                 tax_ids: [conditionalTax.id],
+                taxes: [conditionalTax],
                 warehouse_id: conditionalWarehouse.id,
               },
             },

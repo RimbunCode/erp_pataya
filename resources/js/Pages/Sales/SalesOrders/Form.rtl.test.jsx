@@ -318,6 +318,10 @@ async function renderFormAsync(overrides = {}) {
   return result;
 }
 
+// Sel pajak dibungkus <div> bersama pesan galat baris; ambil pemilihnya.
+const unwrapTaxCell = (cell) =>
+  cell.type === "div" ? cell.props.children[0] : cell;
+
 describe("Sales Order Form.jsx", () => {
   beforeEach(() => {
     vi.clearAllMocks();
@@ -1027,6 +1031,7 @@ describe("Sales Order Form.jsx", () => {
               items: {
                 [itemId]: {
                   tax_ids: taxIds,
+                  taxes: taxIds.map((id) => ({ ...ruleTax, id })),
                   warehouse_id: ruleWarehouse.id,
                   warehouse: ruleWarehouse,
                 },
@@ -1094,7 +1099,7 @@ describe("Sales Order Form.jsx", () => {
             setData: (key, value) =>
               update(typeof key === "string" ? { [key]: value } : key),
           });
-        act(() => cell.props.onValueChange(null));
+        act(() => unwrapTaxCell(cell).props.onValueChange(null));
       }
       await respond(0, "item-1", ["rule-tax"]);
       select("item-2");
@@ -1197,7 +1202,7 @@ describe("Sales Order Form.jsx", () => {
       expect(
         captured.formTableProps.columns.find((column) => column.name === "tax")
           .required,
-      ).not.toBe(true);
+      ).toBe(true);
 
       const itemColumn = captured.formTableProps.columns.find(
         (column) => column.name === "item",
@@ -1365,7 +1370,7 @@ describe("Sales Order Form.jsx", () => {
         setData: (key, value) => updateRow({ [key]: value }),
         attributes: {},
       });
-      act(() => taxCell.props.onValueChange(null));
+      act(() => unwrapTaxCell(taxCell).props.onValueChange(null));
       expect(stateRef.data.items[0].tax).toBeNull();
 
       const warehouseColumn = captured.formTableProps.columns.find(
@@ -1787,7 +1792,7 @@ describe("Sales Order Form.jsx", () => {
       expect(cellOf("source_warehouse").props.disabled).toBe(true);
       expect(cellOf("available_quantity").props.disabled).toBe(true);
       expect(cellOf("quantity").props.disabled).toBeFalsy();
-      expect(cellOf("tax").props.disabled).toBeFalsy();
+      expect(unwrapTaxCell(cellOf("tax")).props.disabled).toBeFalsy();
     });
 
     it("total dokumen menjumlah baris ItemVariant dan baris asset dalam satu items", () => {

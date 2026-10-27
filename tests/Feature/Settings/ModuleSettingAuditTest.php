@@ -86,6 +86,24 @@ class ModuleSettingAuditTest extends TestCase {
         $this->assertSame('[redacted]', $log->data_after['bank_account_number']);
     }
 
+    public function test_mail_password_changes_are_traceable_without_leaking_the_secret(): void {
+        $this->actingAs(User::factory()->create());
+        $service = app(SettingsService::class);
+
+        $service->update(CoreSetting::class, ['mail_password' => 'rahasia-pertama']);
+        $first = Log::query()->latest('id')->firstOrFail();
+        $this->assertSame('[redacted]', $first->data_after['mail_password']);
+
+        $service->update(CoreSetting::class, ['mail_password' => 'rahasia-kedua']);
+        $second = Log::query()->latest('id')->firstOrFail();
+        $this->assertSame('[redacted]', $second->data_before['mail_password']);
+        $this->assertSame('[redacted:changed]', $second->data_after['mail_password']);
+
+        $payload = json_encode([$first->data_before, $first->data_after, $second->data_before, $second->data_after]);
+        $this->assertStringNotContainsString('rahasia-pertama', $payload);
+        $this->assertStringNotContainsString('rahasia-kedua', $payload);
+    }
+
     public function test_finance_setting_accepts_new_column_via_own_migration(): void {
         // Requirement 11.3: spec Finance menambah kolom lewat migrasi sendiri
         // tanpa perubahan infrastruktur. Kolom contoh hanya hidup di test ini.

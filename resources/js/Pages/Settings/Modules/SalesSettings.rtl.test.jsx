@@ -51,7 +51,13 @@ vi.mock("@/lib/gooeyToast", () => ({
 }));
 
 vi.mock("./DefaultRulesSettings", () => ({
-  default: () => <div data-testid="default-rules-tab" />,
+  default: ({ itemTypeOptions, taxDocumentTypes }) => (
+    <div
+      data-testid="default-rules-tab"
+      data-item-types={JSON.stringify(itemTypeOptions)}
+      data-tax-document-types={JSON.stringify(taxDocumentTypes)}
+    />
+  ),
 }));
 
 vi.mock("@/Components/FormInput", () => ({
@@ -83,7 +89,22 @@ vi.mock("@/Pages/Finances/Taxes/TaxLinkModel", () => ({
 }));
 
 vi.mock("@/Pages/Inventory/Warehouses/WarehouseLinkModel", () => ({
-  default: () => <div data-testid="warehouse-link-model" />,
+  default: ({ value, includeGlobalBranch, onValueChange }) => (
+    <div>
+      <button
+        type="button"
+        onClick={() => onValueChange({ id: "wh-new", name: "Gudang Baru" })}
+      >
+        pick-warehouse
+      </button>
+      <div
+        data-testid="warehouse-link-model"
+        data-global-branch={String(!!includeGlobalBranch)}
+      >
+        {value?.name ?? "none"}
+      </div>
+    </div>
+  ),
 }));
 
 vi.mock(
@@ -152,5 +173,78 @@ describe("SalesSettings RTL", () => {
     );
 
     expect(screen.queryByRole("alert")).not.toBeInTheDocument();
+  });
+  describe("default source warehouse picker is global", () => {
+    it("requests warehouses including other branches", () => {
+      render(<SalesSettings setting={{}} canWrite />);
+
+      expect(screen.getByTestId("warehouse-link-model")).toHaveAttribute(
+        "data-global-branch",
+        "true",
+      );
+    });
+
+    it("shows a saved warehouse from another branch without an unavailable warning", () => {
+      render(
+        <SalesSettings
+          setting={{ default_source_warehouse_id: "wh-b" }}
+          defaultSourceWarehouse={{ id: "wh-b", name: "Gudang Cabang B" }}
+          canWrite
+        />,
+      );
+
+      expect(screen.getByTestId("warehouse-link-model")).toHaveTextContent(
+        "Gudang Cabang B",
+      );
+      expect(screen.queryByRole("alert")).not.toBeInTheDocument();
+    });
+
+    it("does not warn after picking a new warehouse before saving", async () => {
+      render(<SalesSettings setting={{}} canWrite />);
+
+      await userEvent.click(screen.getByText("pick-warehouse"));
+
+      expect(screen.getByTestId("warehouse-link-model")).toHaveTextContent(
+        "Gudang Baru",
+      );
+      expect(screen.queryByRole("alert")).not.toBeInTheDocument();
+    });
+
+    it("still warns when the saved warehouse cannot be resolved", () => {
+      render(
+        <SalesSettings
+          setting={{ default_source_warehouse_id: "gone" }}
+          canWrite
+        />,
+      );
+
+      expect(screen.getByRole("alert")).toHaveTextContent(
+        "sales.setting.reference_unavailable",
+      );
+    });
+  });
+  it("forwards item type options and tax document types to the rules tab", async () => {
+    const itemTypeOptions = [{ value: "service", label: "Jasa/Layanan" }];
+    const taxDocumentTypes = ["sales_order", "sales_invoice", "quotation"];
+    render(
+      <SalesSettings
+        setting={{}}
+        canWrite
+        itemTypeOptions={itemTypeOptions}
+        taxDocumentTypes={taxDocumentTypes}
+      />,
+    );
+
+    await userEvent.click(screen.getByRole("tab", { name: "Default Rules" }));
+
+    const tab = screen.getByTestId("default-rules-tab");
+    expect(tab).toHaveAttribute(
+      "data-item-types",
+      JSON.stringify(itemTypeOptions),
+    );
+    expect(tab).toHaveAttribute(
+      "data-tax-document-types",
+      JSON.stringify(taxDocumentTypes),
+    );
   });
 });

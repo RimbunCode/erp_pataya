@@ -7,6 +7,7 @@ use App\Http\Requests\Finances\SalesInvoiceRequest;
 use App\Http\Requests\Sales\Rules\OffSourceItemRules;
 use App\Models\Asset\Asset;
 use App\Models\Asset\AssetCategory;
+use App\Models\Core\DefaultRules\DefaultTaxRule;
 use App\Models\Finances\SalesInvoice;
 use App\Models\Finances\SalesInvoiceItem;
 use App\Models\Inventory\Item;
@@ -273,7 +274,7 @@ class SalesInvoiceRequestAssetItemsTest extends TestCase {
     }
 
     #[Test]
-    public function accepts_no_tax_rows_and_still_requires_a_unit_for_item_rows(): void {
+    public function rows_without_tax_are_rejected_unless_an_explicit_no_tax_rule_matches(): void {
         $salesOrderRow = $this->soRow($this->regularSoItem, 'r1');
         unset($salesOrderRow['tax']);
         $freeItem = $this->freeItemRow('f1');
@@ -282,7 +283,12 @@ class SalesInvoiceRequestAssetItemsTest extends TestCase {
         unset($asset['tax']);
 
         $noTaxRows = $this->validate(['items' => [$salesOrderRow, $freeItem, $asset]]);
-        $this->assertFalse($noTaxRows->fails(), json_encode($noTaxRows->errors()->toArray()));
+        $this->assertEqualsCanonicalizing(['items.0.tax.id', 'items.1.tax.id', 'items.2.tax.id'], array_keys($noTaxRows->errors()->toArray()));
+
+        // Aturan "tanpa pajak" eksplisit untuk Sales Invoice dan semua jenis barang mencakup ketiga baris.
+        DefaultTaxRule::query()->create(['module' => 'sales', 'document_type' => 'sales_invoice', 'tax_id' => null, 'priority' => 0]);
+        $covered = $this->validate(['items' => [$salesOrderRow, $freeItem, $asset]]);
+        $this->assertFalse($covered->fails(), json_encode($covered->errors()->toArray()));
 
         $itemNoUnit = $this->freeItemRow('f2');
         unset($itemNoUnit['unit']);

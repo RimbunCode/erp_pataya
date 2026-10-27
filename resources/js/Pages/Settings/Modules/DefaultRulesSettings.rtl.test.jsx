@@ -231,6 +231,12 @@ vi.mock("@/Pages/Inventory/Categories/CategoryLinkModel", () => ({
   ),
 }));
 
+const itemTypeOptions = [
+  { value: "inventory", label: "Inventaris" },
+  { value: "vehicle", label: "Kendaraan" },
+  { value: "service", label: "Jasa/Layanan" },
+];
+
 describe("DefaultRulesSettings RTL", () => {
   beforeEach(() => {
     vi.clearAllMocks();
@@ -273,7 +279,9 @@ describe("DefaultRulesSettings RTL", () => {
     fireEvent.change(screen.getAllByRole("spinbutton")[0], {
       target: { value: "3" },
     });
-    rerender(<DefaultRulesSettings {...props} defaultRulesVersion="version-b" />);
+    rerender(
+      <DefaultRulesSettings {...props} defaultRulesVersion="version-b" />,
+    );
 
     const prepareSave = registerSaveHandler.mock.calls.at(-1)[0];
     expect(prepareSave().rules_version).toBe("version-a");
@@ -308,26 +316,40 @@ describe("DefaultRulesSettings RTL", () => {
     });
   });
 
-  it.each(["tax", "warehouse"])("reports %s draft edits and reverting to its saved value to the parent", (kind) => {
-    const registerSaveHandler = vi.fn();
-    const { unmount } = render(
-      <DefaultRulesSettings
-        moduleKey="purchase"
-        defaultTaxRules={[{ id: "tax-rule", item_type: "goods", priority: 0 }]}
-        defaultWarehouseRules={[{ id: "warehouse-rule", item_type: "goods", warehouse_id: "warehouse", priority: 0 }]}
-        registerSaveHandler={registerSaveHandler}
-      />,
-    );
-    expect(registerSaveHandler.mock.calls.at(-1)[2]).toBe(false);
-    const table = screen.getByTestId(`form-table-Default${kind === "tax" ? "Tax" : "Warehouse"}Rules`);
-    const priority = within(table).getAllByRole("spinbutton")[0];
-    fireEvent.change(priority, { target: { value: "3" } });
-    expect(registerSaveHandler.mock.calls.at(-1)[2]).toBe(true);
-    fireEvent.change(priority, { target: { value: "0" } });
-    expect(registerSaveHandler.mock.calls.at(-1)[2]).toBe(false);
-    unmount();
-    expect(registerSaveHandler).toHaveBeenLastCalledWith(null);
-  });
+  it.each(["tax", "warehouse"])(
+    "reports %s draft edits and reverting to its saved value to the parent",
+    (kind) => {
+      const registerSaveHandler = vi.fn();
+      const { unmount } = render(
+        <DefaultRulesSettings
+          moduleKey="purchase"
+          defaultTaxRules={[
+            { id: "tax-rule", item_type: "goods", priority: 0 },
+          ]}
+          defaultWarehouseRules={[
+            {
+              id: "warehouse-rule",
+              item_type: "goods",
+              warehouse_id: "warehouse",
+              priority: 0,
+            },
+          ]}
+          registerSaveHandler={registerSaveHandler}
+        />,
+      );
+      expect(registerSaveHandler.mock.calls.at(-1)[2]).toBe(false);
+      const table = screen.getByTestId(
+        `form-table-Default${kind === "tax" ? "Tax" : "Warehouse"}Rules`,
+      );
+      const priority = within(table).getAllByRole("spinbutton")[0];
+      fireEvent.change(priority, { target: { value: "3" } });
+      expect(registerSaveHandler.mock.calls.at(-1)[2]).toBe(true);
+      fireEvent.change(priority, { target: { value: "0" } });
+      expect(registerSaveHandler.mock.calls.at(-1)[2]).toBe(false);
+      unmount();
+      expect(registerSaveHandler).toHaveBeenLastCalledWith(null);
+    },
+  );
 
   it("removes persisted identity when FormTable duplicates a saved rule", () => {
     const savedRule = {
@@ -401,7 +423,12 @@ describe("DefaultRulesSettings RTL", () => {
       <DefaultRulesSettings
         moduleKey="purchase"
         defaultWarehouseRules={[
-          { id: "unsupported-rule", document_type: "purchase_invoice", item_type: "goods", warehouse_id: "warehouse-1" },
+          {
+            id: "unsupported-rule",
+            document_type: "purchase_invoice",
+            item_type: "goods",
+            warehouse_id: "warehouse-1",
+          },
         ]}
         registerSaveHandler={registerSaveHandler}
       />,
@@ -424,11 +451,159 @@ describe("DefaultRulesSettings RTL", () => {
     );
   });
 
+  it("exposes the current validation message to the parent save handler", () => {
+    const registerSaveHandler = vi.fn();
+    render(
+      <DefaultRulesSettings
+        moduleKey="purchase"
+        defaultWarehouseRules={[
+          {
+            id: "unsupported-rule",
+            document_type: "purchase_invoice",
+            item_type: "goods",
+            warehouse_id: "warehouse-1",
+          },
+        ]}
+        registerSaveHandler={registerSaveHandler}
+      />,
+    );
+
+    const [, callbacks] = registerSaveHandler.mock.calls.at(-1);
+    expect(callbacks.getValidationMessage()).toBe(
+      "purchase.setting.rules.validation.warehouse_document_type",
+    );
+  });
+
+  it("offers item types from the server as a dropdown with an unrestricted option", () => {
+    render(
+      <DefaultRulesSettings
+        moduleKey="purchase"
+        itemTypeOptions={itemTypeOptions}
+      />,
+    );
+
+    expect(
+      screen.queryByRole("textbox", {
+        name: "purchase.setting.rules.columns.item_type",
+      }),
+    ).not.toBeInTheDocument();
+    const select = screen.getAllByRole("combobox", {
+      name: "purchase.setting.rules.columns.item_type",
+    })[0];
+    expect(
+      within(select)
+        .getAllByRole("option")
+        .map((option) => [option.value, option.textContent]),
+    ).toEqual([
+      ["", ""],
+      ["", "purchase.setting.rules.any"],
+      ["inventory", "Inventaris"],
+      ["vehicle", "Kendaraan"],
+      ["service", "Jasa/Layanan"],
+    ]);
+  });
+
+  it("keeps a saved item type that is not in the options visible", () => {
+    render(
+      <DefaultRulesSettings
+        moduleKey="purchase"
+        itemTypeOptions={itemTypeOptions}
+        defaultTaxRules={[{ id: "legacy", item_type: "goods", priority: 0 }]}
+      />,
+    );
+
+    const select = screen.getAllByRole("combobox", {
+      name: "purchase.setting.rules.columns.item_type",
+    })[0];
+    expect(select).toHaveValue("goods");
+    expect(
+      within(select).getByRole("option", {
+        name: "purchase.setting.rules.unavailable_value (goods)",
+      }),
+    ).toBeInTheDocument();
+  });
+
+  it("limits tax rule document types to the server list while warehouse rules stay unchanged", () => {
+    render(
+      <DefaultRulesSettings
+        moduleKey="purchase"
+        taxDocumentTypes={["purchase_order", "purchase_invoice"]}
+      />,
+    );
+    const optionValues = (table) =>
+      within(
+        within(table).getAllByRole("combobox", {
+          name: "purchase.setting.rules.columns.document_type",
+        })[0],
+      )
+        .getAllByRole("option")
+        .map((option) => option.value)
+        .filter(Boolean);
+
+    expect(
+      optionValues(screen.getByTestId("form-table-DefaultTaxRules")),
+    ).toEqual(["purchase_order", "purchase_invoice"]);
+    expect(
+      optionValues(screen.getByTestId("form-table-DefaultWarehouseRules")),
+    ).toEqual(["purchase_order", "purchase_receipt"]);
+  });
+
+  it("shows server validation errors on the rule row and field that caused them", async () => {
+    const registerSaveHandler = vi.fn();
+    render(
+      <DefaultRulesSettings
+        moduleKey="sales"
+        itemTypeOptions={itemTypeOptions}
+        defaultTaxRules={[
+          { id: "tax-0", item_type: "inventory", priority: 0 },
+          { id: "tax-1", item_type: "vehicle", priority: 0 },
+        ]}
+        defaultWarehouseRules={[
+          { id: "wh-0", item_type: "service", warehouse_id: "w", priority: 0 },
+        ]}
+        registerSaveHandler={registerSaveHandler}
+      />,
+    );
+    const [, callbacks] = registerSaveHandler.mock.calls.at(-1);
+
+    await act(async () => {
+      callbacks.onError({
+        "tax_rules.1.item_type": "Tipe barang tidak sah",
+        "tax_rules.0.document_type": "Jenis dokumen tidak sah",
+        "warehouse_rules.0.item_type": "Tipe barang gudang tidak sah",
+      });
+    });
+
+    const taxTable = screen.getByTestId("form-table-DefaultTaxRules");
+    const warehouseTable = screen.getByTestId(
+      "form-table-DefaultWarehouseRules",
+    );
+    const combobox = (table, name, index) =>
+      within(table).getAllByRole("combobox", {
+        name: `sales.setting.rules.columns.${name}`,
+      })[index];
+    expect(
+      within(taxTable).getByText("Tipe barang tidak sah")
+        .previousElementSibling,
+    ).toBe(combobox(taxTable, "item_type", 1));
+    expect(
+      within(taxTable).getByText("Jenis dokumen tidak sah")
+        .previousElementSibling,
+    ).toBe(combobox(taxTable, "document_type", 0));
+    expect(
+      within(warehouseTable).getByText("Tipe barang gudang tidak sah")
+        .previousElementSibling,
+    ).toBe(combobox(warehouseTable, "item_type", 0));
+    expect(
+      within(taxTable).queryByText("Tipe barang gudang tidak sah"),
+    ).not.toBeInTheDocument();
+  });
+
   it("preserves FormTable cell classes in custom rule controls", () => {
     render(<DefaultRulesSettings moduleKey="purchase" />);
 
     expect(
-      screen.getAllByRole("textbox", {
+      screen.getAllByRole("combobox", {
         name: "purchase.setting.rules.columns.item_type",
       })[0],
     ).toHaveClass("formtable-cell");
@@ -441,13 +616,18 @@ describe("DefaultRulesSettings RTL", () => {
 
   it("submits both rule collections to the module endpoint", async () => {
     const user = userEvent.setup();
-    render(<DefaultRulesSettings moduleKey="purchase" />);
+    render(
+      <DefaultRulesSettings
+        moduleKey="purchase"
+        itemTypeOptions={itemTypeOptions}
+      />,
+    );
 
-    await user.type(
-      screen.getAllByRole("textbox", {
+    await user.selectOptions(
+      screen.getAllByRole("combobox", {
         name: "purchase.setting.rules.columns.item_type",
       })[0],
-      "goods",
+      "inventory",
     );
     await user.click(
       screen.getByRole("button", { name: "purchase.setting.rules.save" }),
@@ -459,7 +639,7 @@ describe("DefaultRulesSettings RTL", () => {
         {
           tax_rules: [
             expect.objectContaining({
-              item_type: "goods",
+              item_type: "inventory",
               tax_id: null,
               is_stock_item: null,
             }),
@@ -478,13 +658,18 @@ describe("DefaultRulesSettings RTL", () => {
 
   it("stores LinkModel selections as relation IDs in the API payload", async () => {
     const user = userEvent.setup();
-    render(<DefaultRulesSettings moduleKey="purchase" />);
+    render(
+      <DefaultRulesSettings
+        moduleKey="purchase"
+        itemTypeOptions={itemTypeOptions}
+      />,
+    );
 
-    await user.type(
-      screen.getAllByRole("textbox", {
+    await user.selectOptions(
+      screen.getAllByRole("combobox", {
         name: "purchase.setting.rules.columns.item_type",
       })[0],
-      "goods",
+      "inventory",
     );
     await user.type(
       screen.getAllByTestId("category-link-model")[0],
@@ -494,11 +679,11 @@ describe("DefaultRulesSettings RTL", () => {
     const warehouseTable = screen.getByTestId(
       "form-table-DefaultWarehouseRules",
     );
-    await user.type(
-      within(warehouseTable).getAllByRole("textbox", {
+    await user.selectOptions(
+      within(warehouseTable).getAllByRole("combobox", {
         name: "purchase.setting.rules.columns.item_type",
       })[0],
-      "stock-goods",
+      "vehicle",
     );
     await user.type(
       within(warehouseTable).getAllByTestId("warehouse-link-model")[0],
@@ -510,7 +695,7 @@ describe("DefaultRulesSettings RTL", () => {
 
     await waitFor(() => expect(requests.put).toHaveBeenCalledTimes(1));
     expect(requests.put.mock.calls[0][1].tax_rules[0]).toMatchObject({
-      item_type: "goods",
+      item_type: "inventory",
       tax_id: "tax-2",
       item_category_id: "category-2",
     });
@@ -521,7 +706,7 @@ describe("DefaultRulesSettings RTL", () => {
       "item_category",
     );
     expect(requests.put.mock.calls[0][1].warehouse_rules[0]).toMatchObject({
-      item_type: "stock-goods",
+      item_type: "vehicle",
       warehouse_id: "warehouse-2",
     });
     expect(requests.put.mock.calls[0][1].warehouse_rules[0]).not.toHaveProperty(
@@ -531,19 +716,24 @@ describe("DefaultRulesSettings RTL", () => {
 
   it("rejects duplicate condition sets before saving", async () => {
     const user = userEvent.setup();
-    render(<DefaultRulesSettings moduleKey="sales" />);
+    render(
+      <DefaultRulesSettings
+        moduleKey="sales"
+        itemTypeOptions={itemTypeOptions}
+      />,
+    );
 
-    await user.type(
-      screen.getAllByRole("textbox", {
+    await user.selectOptions(
+      screen.getAllByRole("combobox", {
         name: "sales.setting.rules.columns.item_type",
       })[0],
-      "goods",
+      "inventory",
     );
-    await user.type(
-      screen.getAllByRole("textbox", {
+    await user.selectOptions(
+      screen.getAllByRole("combobox", {
         name: "sales.setting.rules.columns.item_type",
       })[1],
-      "goods",
+      "inventory",
     );
     await user.click(
       screen.getByRole("button", { name: "sales.setting.rules.save" }),
@@ -589,7 +779,9 @@ describe("DefaultRulesSettings RTL", () => {
     ["onNetworkError", true],
     ["onHttpException", true],
     ["onFinish", false],
-  ])("handles the registered parent save after %s and allows retry", (callback, failed) => {
+  ])(
+    "handles the registered parent save after %s and allows retry",
+    (callback, failed) => {
       const registerSaveHandler = vi.fn();
       render(
         <DefaultRulesSettings
@@ -626,12 +818,19 @@ describe("DefaultRulesSettings RTL", () => {
       render(
         <DefaultRulesSettings
           moduleKey="sales"
+          itemTypeOptions={itemTypeOptions}
           categories={[{ id: "category-1", name: "Goods" }]}
           activeTaxes={[{ id: "tax-1", name: "Tax" }]}
           activeWarehouses={[{ id: "warehouse-1", name: "Warehouse" }]}
-          defaultTaxRules={[{ id: "rule-1", item_type: "goods", tax_id: null }]}
+          defaultTaxRules={[
+            { id: "rule-1", item_type: "inventory", tax_id: null },
+          ]}
           defaultWarehouseRules={[
-            { id: "rule-2", item_type: "goods", warehouse_id: "warehouse-1" },
+            {
+              id: "rule-2",
+              item_type: "inventory",
+              warehouse_id: "warehouse-1",
+            },
           ]}
         />,
       );
@@ -639,13 +838,14 @@ describe("DefaultRulesSettings RTL", () => {
       const warehouseTable = screen.getByTestId(
         "form-table-DefaultWarehouseRules",
       );
-      const taxItemType = within(taxTable).getAllByRole("textbox")[0];
-      const warehouseItemType =
-        within(warehouseTable).getAllByRole("textbox")[0];
-      await user.clear(taxItemType);
-      await user.type(taxItemType, "services");
-      await user.clear(warehouseItemType);
-      await user.type(warehouseItemType, "materials");
+      const itemTypeSelect = (table) =>
+        within(table).getAllByRole("combobox", {
+          name: "sales.setting.rules.columns.item_type",
+        })[0];
+      const taxItemType = itemTypeSelect(taxTable);
+      const warehouseItemType = itemTypeSelect(warehouseTable);
+      await user.selectOptions(taxItemType, "service");
+      await user.selectOptions(warehouseItemType, "vehicle");
       await user.click(
         screen.getByRole("button", { name: "sales.setting.rules.save" }),
       );
@@ -659,8 +859,8 @@ describe("DefaultRulesSettings RTL", () => {
         )) {
         expect(control).toBeDisabled();
       }
-      await user.type(taxItemType, "-lost");
-      await user.type(warehouseItemType, "-lost");
+      await user.selectOptions(taxItemType, "inventory");
+      await user.selectOptions(warehouseItemType, "inventory");
       await user.click(
         within(taxTable).getByRole("button", { name: "Add DefaultTaxRules" }),
       );
@@ -669,18 +869,18 @@ describe("DefaultRulesSettings RTL", () => {
           name: "Add DefaultWarehouseRules",
         }),
       );
-      expect(taxItemType).toHaveValue("services");
-      expect(warehouseItemType).toHaveValue("materials");
+      expect(taxItemType).toHaveValue("service");
+      expect(warehouseItemType).toHaveValue("vehicle");
       expect(requests.put).toHaveBeenCalledTimes(1);
       const submitted = requests.put.mock.calls[0][1];
       expect(submitted.tax_rules).toHaveLength(1);
       expect(submitted.tax_rules[0]).toMatchObject({
-        item_type: "services",
+        item_type: "service",
         tax_id: null,
       });
       expect(submitted.warehouse_rules).toHaveLength(1);
       expect(submitted.warehouse_rules[0]).toMatchObject({
-        item_type: "materials",
+        item_type: "vehicle",
       });
 
       await act(async () => {
@@ -697,12 +897,8 @@ describe("DefaultRulesSettings RTL", () => {
         pendingSave.onFinish();
       });
 
-      expect(within(taxTable).getAllByRole("textbox")[0]).toHaveValue(
-        "services",
-      );
-      expect(within(warehouseTable).getAllByRole("textbox")[0]).toHaveValue(
-        "materials",
-      );
+      expect(itemTypeSelect(taxTable)).toHaveValue("service");
+      expect(itemTypeSelect(warehouseTable)).toHaveValue("vehicle");
       expect(within(taxTable).getAllByTestId("tax-link-model")[0]).toHaveValue(
         "",
       );
@@ -715,10 +911,8 @@ describe("DefaultRulesSettings RTL", () => {
         )) {
         expect(control).toBeEnabled();
       }
-      await user.type(within(taxTable).getAllByRole("textbox")[0], "-next");
-      expect(within(taxTable).getAllByRole("textbox")[0]).toHaveValue(
-        "services-next",
-      );
+      await user.selectOptions(itemTypeSelect(taxTable), "vehicle");
+      expect(itemTypeSelect(taxTable)).toHaveValue("vehicle");
     },
   );
 

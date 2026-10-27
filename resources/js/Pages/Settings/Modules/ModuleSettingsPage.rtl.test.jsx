@@ -1,6 +1,7 @@
 import React from "react";
 import { describe, it, expect, vi, beforeEach } from "vitest";
-import { render, screen, fireEvent } from "@testing-library/react";
+import { render, screen, fireEvent, waitFor } from "@testing-library/react";
+import { gooeyToast } from "@/lib/gooeyToast";
 import ModuleSettingsPage from "./ModuleSettingsPage";
 
 const putMock = vi.fn();
@@ -135,5 +136,58 @@ describe("ModuleSettingsPage RTL Component", () => {
 
     fireEvent.click(screen.getByTestId("save-button"));
     expect(putMock).toHaveBeenCalledTimes(1);
+  });
+  describe("validasi simpan dari tab lain", () => {
+    function RulesTabStub({ registerSaveHandler, callbacks }) {
+      React.useEffect(() => {
+        registerSaveHandler(() => false, callbacks, true);
+        return () => registerSaveHandler(null);
+      }, [registerSaveHandler, callbacks]);
+
+      return <div>Rules tab</div>;
+    }
+
+    const renderWithInvalidRules = (callbacks) =>
+      render(
+        <ModuleSettingsPage
+          title="Sales Settings"
+          name="sales"
+          canWrite={true}
+          setting={{}}
+        >
+          {({ registerSaveHandler }) => (
+            <RulesTabStub
+              registerSaveHandler={registerSaveHandler}
+              callbacks={callbacks}
+            />
+          )}
+        </ModuleSettingsPage>,
+      );
+
+    it("menampilkan toast galat dengan pesan validasi dan tidak menyimpan", async () => {
+      renderWithInvalidRules({
+        getValidationMessage: () => "Aturan duplikat",
+      });
+
+      fireEvent.click(screen.getByTestId("save-button"));
+
+      await waitFor(() =>
+        expect(gooeyToast.error).toHaveBeenCalledWith("Aturan duplikat"),
+      );
+      expect(putMock).not.toHaveBeenCalled();
+    });
+
+    it("memakai pesan umum bila halaman anak tidak menyediakan pesan validasi", async () => {
+      renderWithInvalidRules({});
+
+      fireEvent.click(screen.getByTestId("save-button"));
+
+      await waitFor(() =>
+        expect(gooeyToast.error).toHaveBeenCalledWith(
+          "Failed to save settings",
+        ),
+      );
+      expect(putMock).not.toHaveBeenCalled();
+    });
   });
 });

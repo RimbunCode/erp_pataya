@@ -50,6 +50,17 @@ describe("document defaults", () => {
     });
   });
 
+  it("sets tax_rate from the filled tax even when the row carried tax_rate 0", () => {
+    const defaults = { tax: { id: "tax-1", rate: 11 } };
+
+    expect(
+      applyToNewLine({ item: {}, tax: null, tax_rate: 0 }, {}, defaults),
+    ).toMatchObject({ tax: defaults.tax, tax_rate: 11 });
+    expect(
+      applyToNewLine({ item: {}, tax_rate: 0 }, {}, { tax: { id: "t0" } }),
+    ).toMatchObject({ tax: { id: "t0" }, tax_rate: 0 });
+  });
+
   it("does not override selected values, source rows, or warehouses for non-stock items", () => {
     const defaults = {
       tax: { id: "default-tax", rate: 11 },

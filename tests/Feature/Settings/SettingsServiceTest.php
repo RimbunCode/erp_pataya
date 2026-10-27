@@ -129,6 +129,26 @@ class SettingsServiceTest extends TestCase {
         $this->assertSame('#.###,##', $setting->default_number_format);
     }
 
+    public function test_update_rejects_null_for_not_null_columns_instead_of_failing_in_the_database(): void {
+        $this->service->update(FinanceSetting::class, ['tax_invoice_serial_range_start' => 10]);
+
+        foreach ([
+            [FinanceSetting::class, 'tax_invoice_serial_range_start'],
+            [FinanceSetting::class, 'tax_invoice_serial_range_end'],
+            [CoreSetting::class, 'default_number_format'],
+        ] as [$modelClass, $column]) {
+            try {
+                $this->service->update($modelClass, [$column => null]);
+                $this->fail("Expected ValidationException for {$column}.");
+            } catch (ValidationException $e) {
+                $this->assertArrayHasKey($column, $e->errors());
+            }
+        }
+
+        $this->assertSame(10, FinanceSetting::current()->tax_invoice_serial_range_start);
+        $this->assertSame('#.###,##', CoreSetting::current()->default_number_format);
+    }
+
     public function test_locked_current_ensures_row_exists_outside_transaction(): void {
         $this->service->lockedCurrent(FinanceSetting::class);
 

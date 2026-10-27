@@ -7,7 +7,7 @@ vi.mock("axios", () => ({
   default: { post: (...args) => axiosPost(...args) },
 }));
 
-import { useDocumentDefaults } from "./documentDefaults";
+import { EMPTY_DEFAULTS, useDocumentDefaults } from "./documentDefaults";
 
 describe("conditional defaults delivery to document rows", () => {
   const defaults = {
@@ -39,13 +39,19 @@ describe("conditional defaults delivery to document rows", () => {
       });
       return { ...api, form, setForm };
     });
-  const respond = async (index, id, taxIds = []) => {
+  const respond = async (index, id, taxes = []) => {
     await waitFor(() => expect(responses[index]).toBeTypeOf("function"));
     await act(async () =>
       responses[index]({
         data: {
           items: {
-            [id]: { tax_ids: taxIds, warehouse_id: warehouse.id, warehouse },
+            [id]: {
+              tax_ids: taxes.map((tax) => tax.id),
+              taxes,
+              tax_optional: false,
+              warehouse_id: warehouse.id,
+              warehouse,
+            },
           },
         },
       }),
@@ -133,7 +139,7 @@ describe("conditional defaults delivery to document rows", () => {
         warehouseField: "target_warehouse",
       });
     });
-    await respond(0, "item-1", [defaults.tax.id]);
+    await respond(0, "item-1", [defaults.tax]);
     act(() => {
       result.current.markFieldEdited("row", "tax");
       result.current.markFieldEdited("row", "target_warehouse");
@@ -221,13 +227,18 @@ describe("conditional defaults delivery to document rows", () => {
       });
       await act(async () => vi.advanceTimersByTimeAsync(1));
       expect(completed).toBe(false);
-      await act(async () => responses[0]({
-        data: { items: { "item-1": { tax_ids: [], warehouse_id: null } } },
-      }));
+      await act(async () =>
+        responses[0]({
+          data: { items: { "item-1": { tax_ids: [], warehouse_id: null } } },
+        }),
+      );
       expect(completed).toBe(false);
       await act(async () => vi.advanceTimersToNextFrame());
       expect(completed).toBe(true);
-      expect(result.current.form.items[0]).toMatchObject({ tax: null, tax_rate: 0 });
+      expect(result.current.form.items[0]).toMatchObject({
+        tax: null,
+        tax_rate: 0,
+      });
     } finally {
       vi.useRealTimers();
     }
@@ -260,7 +271,7 @@ describe("conditional defaults delivery to document rows", () => {
       );
       await waitFor(() => expect(completed).toBe(true));
       await submission;
-      await respond(0, "item-1", [defaults.tax.id]);
+      await respond(0, "item-1", [defaults.tax]);
       expect(result.current.form.items).toEqual([
         { id: "row", ...replacement },
       ]);
@@ -304,7 +315,7 @@ describe("conditional defaults delivery to document rows", () => {
     await respond(1, "item-2");
     await submission;
     expect(completed).toBe(true);
-    await respond(0, "item-1", [defaults.tax.id]);
+    await respond(0, "item-1", [defaults.tax]);
     expect(result.current.form.items[0]).toMatchObject({
       item: item("item-2"),
       tax: null,
@@ -313,7 +324,10 @@ describe("conditional defaults delivery to document rows", () => {
 });
 
 describe("bounded conditional resolution", () => {
-  const defaults = { tax: { id: "module-tax", rate: 11 }, warehouse: { id: "module-warehouse" } };
+  const defaults = {
+    tax: { id: "module-tax", rate: 11 },
+    warehouse: { id: "module-warehouse" },
+  };
   const item = { id: "item-1", is_stock_item: true };
 
   beforeEach(() => {
@@ -322,51 +336,114 @@ describe("bounded conditional resolution", () => {
   });
   afterEach(() => vi.useRealTimers());
 
-  it.each(["resolution", "tax hydration", "warehouse hydration"])("falls back and releases submission when %s hangs, ignoring late results", async (stage) => {
-    let respond;
-    let requestSignal;
-    axiosPost.mockImplementation((url, _payload, options) => {
-      if (stage !== "resolution" && url === "/defaults/resolve") {
-        return new Promise((resolve) => setTimeout(() => resolve({ data: { items: { "item-1": {
-          tax_ids: stage === "tax hydration" ? ["rule-tax"] : [],
-          warehouse_id: stage === "warehouse hydration" ? "rule-warehouse" : null,
-        } } } }), 6000));
-      }
-      requestSignal = options?.signal;
-      return new Promise((resolve) => { respond = resolve; });
-    });
-    const { result } = renderHook(() => {
-      const [form, setForm] = useState({ items: [] });
-      const api = useDocumentDefaults(defaults, "purchase_order", { items: form.items, setData: setForm });
-      return { ...api, form, setForm };
-    });
-    let completed = false;
-    act(() => {
-      result.current.resolveForNewLine("row", item, { warehouseField: "target_warehouse" });
-      result.current.setForm({ items: [{ id: "row", item }] });
-    });
-    result.current.waitForPendingResolutions().then(() => { completed = true; });
-    await act(async () => vi.advanceTimersByTimeAsync(stage === "resolution" ? 1 : 6001));
-    expect(completed).toBe(false);
-    expect(respond).toBeTypeOf("function");
-    await act(async () => vi.advanceTimersByTimeAsync(stage === "resolution" ? 10000 : 4000));
-    expect(completed).toBe(true);
-    expect(requestSignal.aborted).toBe(true);
-    expect(result.current.form.items[0]).toMatchObject({ tax: defaults.tax, target_warehouse: defaults.warehouse });
-    const requestCount = axiosPost.mock.calls.length;
-    await act(async () => respond(stage === "resolution"
-      ? { data: { items: { "item-1": { tax_ids: ["late-tax"], warehouse_id: "late-warehouse" } } } }
-      : { data: { data: [{ id: "rule-tax", rate: 5 }] } }));
-    expect(axiosPost).toHaveBeenCalledTimes(requestCount);
-    expect(result.current.form.items[0]).toMatchObject({ tax: defaults.tax, target_warehouse: defaults.warehouse });
-  });
+  it.each(["resolution", "warehouse hydration"])(
+    "falls back and releases submission when %s hangs, ignoring late results",
+    async (stage) => {
+      let respond;
+      let requestSignal;
+      axiosPost.mockImplementation((url, _payload, options) => {
+        if (stage !== "resolution" && url === "/defaults/resolve") {
+          return new Promise((resolve) =>
+            setTimeout(
+              () =>
+                resolve({
+                  data: {
+                    items: {
+                      "item-1": {
+                        tax_ids: [],
+                        taxes: [],
+                        warehouse_id:
+                          stage === "warehouse hydration"
+                            ? "rule-warehouse"
+                            : null,
+                      },
+                    },
+                  },
+                }),
+              6000,
+            ),
+          );
+        }
+        requestSignal = options?.signal;
+        return new Promise((resolve) => {
+          respond = resolve;
+        });
+      });
+      const { result } = renderHook(() => {
+        const [form, setForm] = useState({ items: [] });
+        const api = useDocumentDefaults(defaults, "purchase_order", {
+          items: form.items,
+          setData: setForm,
+        });
+        return { ...api, form, setForm };
+      });
+      let completed = false;
+      act(() => {
+        result.current.resolveForNewLine("row", item, {
+          warehouseField: "target_warehouse",
+        });
+        result.current.setForm({ items: [{ id: "row", item }] });
+      });
+      result.current.waitForPendingResolutions().then(() => {
+        completed = true;
+      });
+      await act(async () =>
+        vi.advanceTimersByTimeAsync(stage === "resolution" ? 1 : 6001),
+      );
+      expect(completed).toBe(false);
+      expect(respond).toBeTypeOf("function");
+      await act(async () =>
+        vi.advanceTimersByTimeAsync(stage === "resolution" ? 10000 : 4000),
+      );
+      expect(completed).toBe(true);
+      expect(requestSignal.aborted).toBe(true);
+      expect(result.current.form.items[0]).toMatchObject({
+        tax: defaults.tax,
+        target_warehouse: defaults.warehouse,
+      });
+      const requestCount = axiosPost.mock.calls.length;
+      await act(async () =>
+        respond(
+          stage === "resolution"
+            ? {
+                data: {
+                  items: {
+                    "item-1": {
+                      tax_ids: ["late-tax"],
+                      taxes: [{ id: "late-tax", rate: 5 }],
+                      warehouse_id: "late-warehouse",
+                    },
+                  },
+                },
+              }
+            : { data: { data: [{ id: "rule-tax", rate: 5 }] } },
+        ),
+      );
+      expect(axiosPost).toHaveBeenCalledTimes(requestCount);
+      expect(result.current.form.items[0]).toMatchObject({
+        tax: defaults.tax,
+        target_warehouse: defaults.warehouse,
+      });
+    },
+  );
 
   it("releases a quick save if a selected row never propagates", async () => {
-    axiosPost.mockResolvedValue({ data: { items: { "item-1": { tax_ids: [], warehouse_id: null } } } });
-    const { result } = renderHook(() => useDocumentDefaults(defaults, "purchase_order", { items: [], setData: vi.fn() }));
+    axiosPost.mockResolvedValue({
+      data: { items: { "item-1": { tax_ids: [], warehouse_id: null } } },
+    });
+    const { result } = renderHook(() =>
+      useDocumentDefaults(defaults, "purchase_order", {
+        items: [],
+        setData: vi.fn(),
+      }),
+    );
     let completed = false;
-    act(() => { result.current.resolveForNewLine("orphan", item); });
-    result.current.waitForPendingResolutions().then(() => { completed = true; });
+    act(() => {
+      result.current.resolveForNewLine("orphan", item);
+    });
+    result.current.waitForPendingResolutions().then(() => {
+      completed = true;
+    });
     await act(async () => vi.advanceTimersByTimeAsync(1));
     expect(completed).toBe(false);
     await act(async () => vi.advanceTimersByTimeAsync(10000));
@@ -379,7 +456,9 @@ describe("bounded conditional resolution", () => {
       requestSignal = options?.signal;
       return new Promise(() => {});
     });
-    const { result, unmount } = renderHook(() => useDocumentDefaults(defaults, "purchase_order"));
+    const { result, unmount } = renderHook(() =>
+      useDocumentDefaults(defaults, "purchase_order"),
+    );
     const active = result.current.resolveForItem("item-1");
     await act(async () => vi.advanceTimersByTimeAsync(1));
     const queued = result.current.resolveForItem("item-2");
@@ -392,19 +471,34 @@ describe("bounded conditional resolution", () => {
 });
 
 describe("useDocumentDefaults conditional resolution", () => {
+  const item = (id) => ({
+    id: `variant-${id}`,
+    item: { id },
+    is_stock_item: true,
+  });
   beforeEach(() => {
     axiosPost.mockReset();
     window.route = (name) => name;
   });
 
-  it("batches item resolutions and hydrates resolved tax and warehouse records", async () => {
+  it("batches item resolutions and uses the resolved tax object and hydrated warehouse record", async () => {
     axiosPost.mockImplementation(async (url) => {
       if (url === "/defaults/resolve") {
         return {
           data: {
             items: {
-              "item-1": { tax_ids: ["tax-1"], warehouse_id: "warehouse-1" },
-              "item-2": { tax_ids: [], warehouse_id: null },
+              "item-1": {
+                tax_ids: ["tax-1"],
+                taxes: [{ id: "tax-1", name: "VAT", rate: 11 }],
+                tax_optional: false,
+                warehouse_id: "warehouse-1",
+              },
+              "item-2": {
+                tax_ids: [],
+                taxes: [],
+                tax_optional: true,
+                warehouse_id: null,
+              },
             },
           },
         };
@@ -412,10 +506,7 @@ describe("useDocumentDefaults conditional resolution", () => {
       if (url === "model") {
         return {
           data: {
-            data: [
-              { id: "tax-1", name: "VAT", rate: 11 },
-              { id: "warehouse-1", name: "Main" },
-            ],
+            data: [{ id: "warehouse-1", name: "Main" }],
           },
         };
       }
@@ -442,9 +533,15 @@ describe("useDocumentDefaults conditional resolution", () => {
     );
     expect(first).toEqual({
       tax: { id: "tax-1", name: "VAT", rate: 11 },
+      taxOptional: false,
       warehouse: { id: "warehouse-1", name: "Main" },
     });
-    expect(second).toEqual({ tax: null, warehouse: null });
+    expect(second).toEqual({ tax: null, taxOptional: true, warehouse: null });
+    expect(
+      axiosPost.mock.calls.some(
+        ([, payload]) => payload?.model === "App\\Models\\Finances\\Tax",
+      ),
+    ).toBe(false);
   });
 
   it("uses a globally resolved warehouse reference without a branch-scoped model lookup", async () => {
@@ -499,20 +596,25 @@ describe("useDocumentDefaults conditional resolution", () => {
     expect(resolved).toBe(defaults);
   });
 
-  it("falls back to module tax when resolved tax details cannot be loaded", async () => {
+  it("uses taxes[0] directly and never substitutes the module tax or looks up /model", async () => {
     const defaults = { tax: { id: "module-tax", rate: 11 }, warehouse: null };
+    const conditionalTax = { id: "conditional-tax", name: "PPh", rate: 2 };
     axiosPost.mockImplementation(async (url) => {
       if (url === "/defaults/resolve") {
         return {
           data: {
             items: {
-              "item-1": { tax_ids: ["conditional-tax"], warehouse_id: null },
+              "item-1": {
+                tax_ids: [conditionalTax.id],
+                taxes: [conditionalTax],
+                tax_optional: false,
+                warehouse_id: null,
+              },
             },
           },
         };
       }
-
-      return { data: { data: [] } };
+      throw new Error(`Unexpected URL: ${url}`);
     });
 
     const { result } = renderHook(() =>
@@ -525,6 +627,144 @@ describe("useDocumentDefaults conditional resolution", () => {
       resolved = await promise;
     });
 
-    expect(resolved).toEqual(defaults);
+    expect(resolved).toEqual({
+      tax: conditionalTax,
+      taxOptional: false,
+      warehouse: null,
+    });
+    expect(axiosPost).toHaveBeenCalledTimes(1);
+  });
+
+  it("keeps the tax empty and flags it optional for an explicit no-tax rule instead of filling the module tax", async () => {
+    const defaults = { tax: { id: "module-tax", rate: 11 }, warehouse: null };
+    axiosPost.mockResolvedValue({
+      data: {
+        items: {
+          "item-1": {
+            tax_ids: [],
+            taxes: [],
+            tax_optional: true,
+            warehouse_id: null,
+          },
+        },
+      },
+    });
+
+    const { result } = renderHook(() => {
+      const [form, setForm] = useState({ items: [] });
+      const api = useDocumentDefaults(defaults, "sales_order", {
+        items: form.items,
+        setData: setForm,
+      });
+      return { ...api, form, setForm };
+    });
+    act(() => {
+      result.current.resolveForNewLine("row", item("item-1"), {});
+      result.current.setForm({
+        items: [{ id: "row", item: item("item-1"), tax: defaults.tax }],
+      });
+    });
+    await waitFor(() => expect(result.current.isTaxOptional("row")).toBe(true));
+
+    await waitFor(() =>
+      expect(result.current.form.items[0]).toMatchObject({
+        tax: null,
+        tax_rate: 0,
+      }),
+    );
+  });
+
+  it("marks a row tax as required when the resolution is not optional and resets the flag for a new selection", async () => {
+    axiosPost.mockImplementation((_url) =>
+      Promise.resolve({
+        data: {
+          items: {
+            "item-1": {
+              tax_ids: [],
+              taxes: [],
+              tax_optional: true,
+              warehouse_id: null,
+            },
+            "item-2": {
+              tax_ids: ["t"],
+              taxes: [{ id: "t", rate: 1 }],
+              tax_optional: false,
+              warehouse_id: null,
+            },
+          },
+        },
+      }),
+    );
+
+    const { result } = renderHook(() =>
+      useDocumentDefaults({}, "sales_order", { items: [], setData: vi.fn() }),
+    );
+    expect(result.current.isTaxOptional("row")).toBe(false);
+    act(() => {
+      result.current.resolveForNewLine("row", item("item-1"), {});
+    });
+    await waitFor(() => expect(result.current.isTaxOptional("row")).toBe(true));
+
+    act(() => {
+      result.current.resolveForNewLine("row", item("item-2"), {});
+    });
+    expect(result.current.isTaxOptional("row")).toBe(false);
+    await waitFor(() => expect(axiosPost).toHaveBeenCalledTimes(2));
+    expect(result.current.isTaxOptional("row")).toBe(false);
+  });
+  it("treats tax as required only for rows resolved with tax_optional false", async () => {
+    axiosPost.mockImplementation(() =>
+      Promise.resolve({
+        data: {
+          items: {
+            "item-1": { tax_ids: [], taxes: [], tax_optional: true },
+            "item-2": { tax_ids: [], taxes: [], tax_optional: false },
+          },
+        },
+      }),
+    );
+    const { result } = renderHook(() =>
+      useDocumentDefaults({}, "sales_order", { items: [], setData: vi.fn() }),
+    );
+
+    expect(result.current.isTaxRequired("never-resolved")).toBe(false);
+    act(() => {
+      result.current.resolveForNewLine("optional", item("item-1"), {});
+      result.current.resolveForNewLine("strict", item("item-2"), {});
+    });
+    await waitFor(() =>
+      expect(result.current.isTaxRequired("strict")).toBe(true),
+    );
+    expect(result.current.isTaxRequired("optional")).toBe(false);
+    expect(result.current.isTaxOptional("optional")).toBe(true);
+  });
+
+  it("leaves tax requirement unknown when the resolution request fails", async () => {
+    axiosPost.mockRejectedValue(new Error("offline"));
+    const { result } = renderHook(() =>
+      useDocumentDefaults({}, "sales_order", { items: [], setData: vi.fn() }),
+    );
+
+    act(() => {
+      result.current.resolveForNewLine("row", item("item-1"), {});
+    });
+    await waitFor(() => expect(axiosPost).toHaveBeenCalled());
+    await act(async () => {});
+
+    expect(result.current.isTaxRequired("row")).toBe(false);
+    expect(result.current.isTaxOptional("row")).toBe(false);
+  });
+
+  it("keeps hook callbacks stable across renders while the defaults object is unchanged", () => {
+    const items = [];
+    const { result, rerender } = renderHook(() =>
+      useDocumentDefaults(EMPTY_DEFAULTS, null, { items }),
+    );
+    const first = result.current;
+    rerender();
+
+    expect(result.current.applyToNewLine).toBe(first.applyToNewLine);
+    expect(result.current.resolveForNewLine).toBe(first.resolveForNewLine);
+    expect(result.current.applyPaymentTerm).toBe(first.applyPaymentTerm);
   });
 });

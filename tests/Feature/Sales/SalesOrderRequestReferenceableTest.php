@@ -27,7 +27,8 @@ class SalesOrderRequestReferenceableTest extends TestCase {
      * (unit/tax/source_warehouse dst — di luar scope task ini).
      */
     private function validateReferenceable(array $item): Validator {
-        $data = ['items' => [$item]];
+        // Pajak baris wajib (kecuali aturan tanpa pajak): isi agar tes ini fokus pada aturan lain.
+        $data = ['items' => [$item + ['tax' => ['id' => (string) Str::ulid()]]]];
 
         $validator = ValidatorFacade::make($data, [
             'items.*.referenceable.type' => ['nullable', 'string'],

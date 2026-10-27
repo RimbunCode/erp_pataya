@@ -6,10 +6,18 @@ import { TooltipProvider } from "@/Components/ui/tooltip";
 
 const stableT = (key) => key;
 
-vi.mock("laravel-react-i18n", () => ({ useLaravelReactI18n: () => ({ t: stableT }) }));
+vi.mock("laravel-react-i18n", () => ({
+  useLaravelReactI18n: () => ({ t: stableT }),
+}));
 vi.mock("@inertiajs/react", async (importOriginal) => ({
   ...(await importOriginal()),
-  usePage: () => ({ props: { timezones: ["UTC"], preferences: {}, auth: { user: { id: "test-user" } } } }),
+  usePage: () => ({
+    props: {
+      timezones: ["UTC"],
+      preferences: {},
+      auth: { user: { id: "test-user" } },
+    },
+  }),
 }));
 vi.mock("@/Pages/Core/CountryLinkModel", () => ({ default: () => null }));
 vi.mock("@/Pages/Core/CurrencyLinkModel", () => ({ default: () => null }));
@@ -21,18 +29,29 @@ vi.mock("../Core/FormPage", async () => {
     FormPageContext: createContext({}),
     useFormPageMeta: () => ({}),
     useFormPage: () => ({
-      data: { company_name: "PT Test", per_page_options: [], num_per_page: 25, mail_password: null },
+      data: {
+        company_name: "PT Test",
+        per_page_options: [],
+        num_per_page: 25,
+        mail_password: null,
+      },
       setData: vi.fn(),
     }),
   };
 });
 
 it("keeps the saved mail password blank and optional when editing company settings", () => {
-  render(<TooltipProvider><Company company={{ company_name: "PT Test", company_image: null }} /></TooltipProvider>);
+  render(
+    <TooltipProvider>
+      <Company company={{ company_name: "PT Test", company_image: null }} />
+    </TooltipProvider>,
+  );
 
   const password = screen.getByLabelText("core.company.email_setup.password");
   expect(password).toHaveAttribute("type", "password");
   expect(password).toHaveValue("");
   expect(password).not.toBeRequired();
-  expect(screen.getByText("core.company.email_setup.password_hint")).toBeVisible();
+  expect(
+    screen.getByText("core.company.email_setup.password_hint"),
+  ).toBeVisible();
 });

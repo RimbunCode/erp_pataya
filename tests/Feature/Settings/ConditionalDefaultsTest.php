@@ -95,10 +95,16 @@ class ConditionalDefaultsTest extends TestCase {
         $this->assertSame([], $resolved[$stockItem->id]['tax_ids']);
         $this->assertSame($warehouse->id, $resolved[$stockItem->id]['warehouse_id']);
         $this->assertSame($warehouse->id, $resolved[$stockItem->id]['warehouse']['id']);
-        $this->assertSame(['tax_ids' => [$tax->id], 'warehouse_id' => null, 'warehouse' => null], $resolved[$serviceItem->id]);
+        $this->assertSame([], $resolved[$stockItem->id]['taxes']);
+        $this->assertTrue($resolved[$stockItem->id]['tax_optional'], 'Aturan tanpa pajak eksplisit cocok.');
+        $this->assertSame([$tax->id], $resolved[$serviceItem->id]['tax_ids']);
+        $this->assertSame($tax->id, $resolved[$serviceItem->id]['taxes'][0]['id']);
+        $this->assertFalse($resolved[$serviceItem->id]['tax_optional'], 'Tanpa aturan cocok pajak tetap wajib.');
+        $this->assertNull($resolved[$serviceItem->id]['warehouse_id']);
+        $this->assertNull($resolved[$serviceItem->id]['warehouse']);
     }
 
-    public function test_deleted_rule_references_clear_values_instead_of_falling_back_to_module_defaults(): void {
+    public function test_deleted_rule_references_fall_back_to_module_defaults(): void {
         $moduleTax       = Tax::query()->create(['name' => 'Module tax', 'rate' => 11]);
         $deletedRuleTax  = Tax::query()->create(['name' => 'Deleted rule tax', 'rate' => 5]);
         $moduleWarehouse = $this->createWarehouse('Module warehouse');
@@ -123,9 +129,72 @@ class ConditionalDefaultsTest extends TestCase {
 
         $resolved = app(DocumentDefaultsResolver::class)->resolveForItems(DefaultsDocumentType::PurchaseOrder, [$item->id]);
 
-        $this->assertSame([], $resolved[$item->id]['tax_ids']);
-        $this->assertNull($resolved[$item->id]['warehouse_id']);
-        $this->assertNull($resolved[$item->id]['warehouse']);
+        $this->assertSame([$moduleTax->id], $resolved[$item->id]['tax_ids']);
+        $this->assertSame($moduleTax->id, $resolved[$item->id]['taxes'][0]['id']);
+        $this->assertFalse($resolved[$item->id]['tax_optional'], 'Referensi rusak bukan aturan tanpa pajak.');
+        $this->assertSame($moduleWarehouse->id, $resolved[$item->id]['warehouse_id']);
+        $this->assertSame($moduleWarehouse->id, $resolved[$item->id]['warehouse']['id']);
+    }
+
+    public function test_deleted_rule_references_fall_back_to_inventory_warehouse_then_empty(): void {
+        $ruleWarehouse      = $this->createWarehouse('Rule warehouse');
+        $inventoryWarehouse = $this->createWarehouse('Inventory warehouse');
+        $ruleTax            = Tax::query()->create(['name' => 'Deleted rule tax', 'rate' => 5]);
+        $category           = Category::query()->create(['name' => 'Fallback category', 'type' => 'inventory']);
+        $item               = Item::factory()->create(['category_id' => $category->id, 'is_stock_item' => true]);
+
+        DefaultTaxRule::query()->create(['module' => 'purchase', 'document_type' => 'purchase_order', 'item_category_id' => $category->id, 'tax_id' => $ruleTax->id, 'priority' => 0]);
+        DefaultWarehouseRule::query()->create(['module' => 'purchase', 'document_type' => 'purchase_order', 'item_category_id' => $category->id, 'warehouse_id' => $ruleWarehouse->id, 'priority' => 0]);
+        $ruleTax->delete();
+        $ruleWarehouse->delete();
+        $resolver = app(DocumentDefaultsResolver::class);
+
+        // Tanpa default modul dan default Inventory: kosong, dan pajak tetap wajib.
+        $resolved = $resolver->resolveForItems(DefaultsDocumentType::PurchaseOrder, [$item->id])[$item->id];
+        $this->assertSame([], $resolved['tax_ids']);
+        $this->assertSame([], $resolved['taxes']);
+        $this->assertFalse($resolved['tax_optional']);
+        $this->assertNull($resolved['warehouse_id']);
+
+        // Default Inventory dipakai bila default modul kosong.
+        InventorySetting::current()->fill(['default_warehouse_id' => $inventoryWarehouse->id])->save();
+        $resolved = $resolver->resolveForItems(DefaultsDocumentType::PurchaseOrder, [$item->id])[$item->id];
+        $this->assertSame($inventoryWarehouse->id, $resolved['warehouse_id']);
+    }
+
+    public function test_explicit_no_tax_rule_is_optional_and_not_a_broken_reference(): void {
+        $moduleTax = Tax::query()->create(['name' => 'Module tax', 'rate' => 11]);
+        $category  = Category::query()->create(['name' => 'No tax category', 'type' => 'inventory']);
+        $matching  = Item::factory()->create(['category_id' => $category->id]);
+        $other     = Item::factory()->create(['category_id' => null]);
+        SalesSetting::current()->fill(['default_tax_id' => $moduleTax->id])->save();
+        DefaultTaxRule::query()->create(['module' => 'sales', 'document_type' => 'sales_order', 'item_category_id' => $category->id, 'tax_id' => null, 'priority' => 0]);
+        $resolver = app(DocumentDefaultsResolver::class);
+
+        $resolved = $resolver->resolveForItems(DefaultsDocumentType::SalesOrder, [$matching->id, $other->id]);
+        $this->assertSame([], $resolved[$matching->id]['tax_ids']);
+        $this->assertTrue($resolved[$matching->id]['tax_optional']);
+        $this->assertSame([$moduleTax->id], $resolved[$other->id]['tax_ids']);
+        $this->assertFalse($resolved[$other->id]['tax_optional']);
+
+        // Jenis dokumen lain tidak cocok dengan aturan: pajak wajib.
+        $invoice = $resolver->resolveForItems(DefaultsDocumentType::SalesInvoice, [$matching->id]);
+        $this->assertFalse($invoice[$matching->id]['tax_optional']);
+    }
+
+    public function test_resolved_taxes_follow_tax_ids_order_and_shape_of_the_form_tax_object(): void {
+        $tax  = Tax::query()->create(['name' => 'Rule tax', 'rate' => 7.5]);
+        $item = Item::factory()->create(['type' => 'inventory']);
+        DefaultTaxRule::query()->create(['module' => 'purchase', 'document_type' => 'purchase_order', 'item_type' => 'inventory', 'tax_id' => $tax->id, 'priority' => 0]);
+
+        $resolved = app(DocumentDefaultsResolver::class)->resolveForItems(DefaultsDocumentType::PurchaseOrder, [$item->id])[$item->id];
+
+        $this->assertSame([$tax->id], $resolved['tax_ids']);
+        $this->assertSame($tax->id, $resolved['taxes'][0]['id']);
+        $this->assertSame('Rule tax', $resolved['taxes'][0]['name']);
+        $this->assertEquals(7.5, $resolved['taxes'][0]['rate']);
+        $this->assertSame(Tax::class, $resolved['taxes'][0]['thisModel']);
+        $this->assertSame(Tax::templateLink(), $resolved['taxes'][0]['templateLink']);
     }
 
     public function test_saving_rules_normalizes_category_ulids_before_duplicate_detection(): void {
@@ -316,8 +385,8 @@ class ConditionalDefaultsTest extends TestCase {
             ])
             ->assertOk()
             ->assertExactJson(['items' => [
-                $first->id  => ['tax_ids' => [], 'warehouse_id' => null, 'warehouse' => null],
-                $second->id => ['tax_ids' => [], 'warehouse_id' => null, 'warehouse' => null],
+                $first->id  => ['tax_ids' => [], 'taxes' => [], 'tax_optional' => false, 'warehouse_id' => null, 'warehouse' => null],
+                $second->id => ['tax_ids' => [], 'taxes' => [], 'tax_optional' => false, 'warehouse_id' => null, 'warehouse' => null],
             ]]);
 
         $normalizedQueries = array_map(fn (string $sql): string => str_replace(['`', '"'], '', $sql), $queries);
@@ -378,7 +447,7 @@ class ConditionalDefaultsTest extends TestCase {
         $warehouse   = $this->createWarehouse('Rule warehouse');
         $permissions = [PurchaseSetting::class => [0 => [['permissions' => ['write' => true], 'only_creator' => false]]]];
         $this->grantCurrentPermission($user, PurchaseSetting::class, ['write' => true]);
-        $validTax = ['document_type' => 'purchase_order', 'item_type' => 'goods', 'is_stock_item' => null, 'item_category_id' => null, 'tax_id' => null, 'priority' => 0];
+        $validTax = ['document_type' => 'purchase_order', 'item_type' => 'inventory', 'is_stock_item' => null, 'item_category_id' => null, 'tax_id' => null, 'priority' => 0];
 
         $this->actingAs($user)->withSession(['permissions' => $permissions])
             ->put(route('moduleSettings.defaultRules.update', ['moduleKey' => 'purchase']), [
@@ -416,7 +485,7 @@ class ConditionalDefaultsTest extends TestCase {
             ->put(route('moduleSettings.defaultRules.update', ['moduleKey' => 'purchase']), [
                 'tax_rules'       => [],
                 'warehouse_rules' => [[
-                    'document_type'    => null, 'item_type' => 'goods', 'is_stock_item' => true,
+                    'document_type'    => null, 'item_type' => 'inventory', 'is_stock_item' => true,
                     'item_category_id' => null, 'warehouse_id' => $inactiveWarehouse->id, 'priority' => 0,
                 ]],
             ])
@@ -746,7 +815,7 @@ class ConditionalDefaultsTest extends TestCase {
 
         $this->actingAsRuleWriter('purchase')
             ->putJson(route('moduleSettings.defaultRules.update', ['moduleKey' => 'purchase']), [
-                'tax_rules'       => [['item_type' => 'goods', 'tax_id' => null]],
+                'tax_rules'       => [['item_type' => 'inventory', 'tax_id' => null]],
                 'warehouse_rules' => [],
             ])
             ->assertServerError();
@@ -821,7 +890,7 @@ class ConditionalDefaultsTest extends TestCase {
             'warehouse_rules' => [
                 [...$this->rulePayload($warehouseRule), 'priority' => 10],
                 ['item_type' => 'service', 'warehouse_id' => $warehouseRule->warehouse_id, 'priority' => 20],
-                ['id'        => (string) Str::ulid(), 'item_type' => 'asset', 'warehouse_id' => $warehouseRule->warehouse_id],
+                ['id'        => (string) Str::ulid(), 'item_type' => 'vehicle', 'warehouse_id' => $warehouseRule->warehouse_id],
             ],
         ];
     }

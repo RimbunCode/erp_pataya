@@ -213,6 +213,8 @@ const renderForm = (ui) => render(<TooltipProvider>{ui}</TooltipProvider>);
 
 import Form from "./Form";
 
+const TAX_MODEL = "App\\Models\\Finances\\Tax";
+
 describe("CRM Quotations Form", () => {
   beforeEach(() => {
     vi.clearAllMocks();
@@ -274,7 +276,11 @@ describe("CRM Quotations Form", () => {
           responses.get(itemId)({
             data: {
               items: {
-                [itemId]: { tax_ids: taxIds, warehouse_id: "rule-warehouse" },
+                [itemId]: {
+                  tax_ids: taxIds,
+                  taxes: taxIds.map((id) => ({ ...ruleTax, id })),
+                  warehouse_id: "rule-warehouse",
+                },
               },
             },
           });
@@ -356,12 +362,10 @@ describe("CRM Quotations Form", () => {
           ),
         );
         await respond();
-        await waitFor(() =>
-          expect(axios.post).toHaveBeenCalledWith(
-            "model",
-            expect.objectContaining({ model: "App\\Models\\Finances\\Tax" }),
-            expect.objectContaining({ signal: expect.any(AbortSignal) }),
-          ),
+        expect(axios.post).not.toHaveBeenCalledWith(
+          "model",
+          expect.objectContaining({ model: TAX_MODEL }),
+          expect.anything(),
         );
         expect(rows()[0].tax).toEqual(tax);
         expect(currentFormData.items[0].tax_rate).toBe(tax?.rate ?? 0);
@@ -383,12 +387,10 @@ describe("CRM Quotations Form", () => {
         ),
       );
       await respond();
-      await waitFor(() =>
-        expect(axios.post).toHaveBeenCalledWith(
-          "model",
-          expect.objectContaining({ model: "App\\Models\\Finances\\Tax" }),
-          expect.objectContaining({ signal: expect.any(AbortSignal) }),
-        ),
+      expect(axios.post).not.toHaveBeenCalledWith(
+        "model",
+        expect.objectContaining({ model: TAX_MODEL }),
+        expect.anything(),
       );
       expect(rows()[0].referenceable_id).toBe("source-1");
       expect(rows()[0].tax).toEqual(manualTax);
@@ -408,12 +410,10 @@ describe("CRM Quotations Form", () => {
       await respond("item-2", []);
       await waitFor(() => expect(rows()[0].tax).toBeNull());
       await respond();
-      await waitFor(() =>
-        expect(axios.post).toHaveBeenCalledWith(
-          "model",
-          expect.objectContaining({ model: "App\\Models\\Finances\\Tax" }),
-          expect.objectContaining({ signal: expect.any(AbortSignal) }),
-        ),
+      expect(axios.post).not.toHaveBeenCalledWith(
+        "model",
+        expect.objectContaining({ model: TAX_MODEL }),
+        expect.anything(),
       );
       expect(rows()[0].item.item.id).toBe("item-2");
       expect(rows()[0].tax).toBeNull();

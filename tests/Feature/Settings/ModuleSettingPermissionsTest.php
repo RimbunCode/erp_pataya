@@ -19,6 +19,9 @@ use App\Models\Inventory\InventorySetting;
 use App\Models\Inventory\Warehouse;
 use App\Models\Purchase\PurchaseSetting;
 use App\Models\Sales\SalesSetting;
+use App\Models\User\Permission;
+use App\Models\User\Role;
+use App\Models\User\RolePermission;
 use App\Models\User\User;
 use App\Services\Core\Setting\LegacyPreferenceMap;
 use App\Services\Core\Setting\PreferenceMigrator;
@@ -86,6 +89,28 @@ class ModuleSettingPermissionsTest extends TestCase {
                 ],
             ],
         ];
+    }
+
+    /** @param array<string, bool> $actions */
+    private function grantCurrentPermission(string $model, array $actions): void {
+        $role = Role::query()->create(['name' => 'Module settings ' . Str::ulid()]);
+        $this->user->roles()->attach($role);
+        $permission = Permission::query()->firstOrCreate(['model' => $model], [
+            'module'      => 'Setting',
+            'name'        => class_basename($model),
+            'permissions' => array_keys($actions),
+        ]);
+
+        RolePermission::query()->create([
+            'role_id'       => $role->id,
+            'permission_id' => $permission->id,
+            'module'        => 'Setting',
+            'name'          => class_basename($model),
+            'model'         => $model,
+            'permissions'   => $actions,
+            'level'         => 0,
+            'only_creator'  => false,
+        ]);
     }
 
     public function test_init_permissions_does_not_change_setting_schema(): void {
@@ -310,6 +335,52 @@ class ModuleSettingPermissionsTest extends TestCase {
         }
     }
 
+    public function test_company_page_props_can_be_saved_back_without_touching_the_logo(): void {
+        CoreSetting::factory()->create(['company_name' => 'Original']);
+        $this->actingAs($this->user)->withSession($this->sessionWithPermission(CoreSetting::class, ['read' => true, 'write' => true]));
+
+        $props = $this->getJson(route('companies.index'), ['X-Inertia' => 'true'])->assertOk()->json('props.company');
+        $this->assertArrayHasKey('company_image_id', $props);
+        $this->assertArrayHasKey('company_image', $props);
+
+        $props['company_name'] = 'Changed';
+        $this->putJson(route('companies.update'), $props)->assertRedirect();
+
+        $this->assertSame('Changed', CoreSetting::current()->company_name);
+        $this->assertNull(CoreSetting::current()->company_image_id);
+    }
+
+    public function test_general_company_update_rejects_unknown_keys_with_a_named_message(): void {
+        CoreSetting::factory()->create(['company_name' => 'Original']);
+        $this->actingAs($this->user)->withSession($this->sessionWithPermission(CoreSetting::class, ['write' => true]));
+
+        $response = $this->putJson(route('companies.update'), ['company_name' => 'Changed', 'bogus_field' => 'x'])
+            ->assertUnprocessable()
+            ->assertJsonValidationErrors('bogus_field');
+
+        $this->assertStringContainsString('bogus_field', $response->json('errors.bogus_field.0'));
+        $this->assertSame('Original', CoreSetting::current()->company_name);
+    }
+
+    public function test_general_company_update_ignores_logo_file_id(): void {
+        $fileId = (string) Str::ulid();
+        DB::table('files')->insert([
+            'id'         => $fileId,
+            'name'       => 'Berkas privat',
+            'mime_type'  => 'application/pdf',
+            'created_at' => now(),
+            'updated_at' => now(),
+        ]);
+        CoreSetting::factory()->create(['company_name' => 'Original']);
+        $this->actingAs($this->user)->withSession($this->sessionWithPermission(CoreSetting::class, ['write' => true]));
+
+        $this->putJson(route('companies.update'), ['company_name' => 'Changed', 'company_image_id' => $fileId])
+            ->assertRedirect();
+
+        $this->assertNull(CoreSetting::current()->company_image_id);
+        $this->assertSame('Changed', CoreSetting::current()->company_name);
+    }
+
     public function test_company_logo_assignment_and_removal_use_settings_only(): void {
         $fileId = (string) Str::ulid();
         DB::table('files')->insert([
@@ -333,6 +404,7 @@ class ModuleSettingPermissionsTest extends TestCase {
         $tax = Tax::create(['name' => 'PPN', 'rate' => 11]);
         SalesSetting::factory()->create(['default_tax_id' => $tax->id]);
         SalesSetting::initPermissions();
+        $this->grantCurrentPermission(SalesSetting::class, ['select' => true, 'read' => true, 'write' => true]);
         $this->actingAs($this->user)->withSession($this->sessionWithPermission(SalesSetting::class, ['read' => true, 'write' => true]));
 
         $this->getJson(route('moduleSettings.sales.show'), ['X-Inertia' => 'true'])
@@ -372,6 +444,7 @@ class ModuleSettingPermissionsTest extends TestCase {
         ]);
         InventorySetting::factory()->create(['default_warehouse_id' => $warehouse->id]);
 
+        $this->grantCurrentPermission(PurchaseSetting::class, ['select' => true, 'read' => true]);
         $this->actingAs($this->user)->withSession($this->sessionWithPermission(PurchaseSetting::class, ['read' => true]));
         $this->getJson(route('moduleSettings.purchase.show'), ['X-Inertia' => 'true'])
             ->assertOk()

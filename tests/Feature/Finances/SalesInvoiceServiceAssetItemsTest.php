@@ -17,11 +17,13 @@ use App\Models\Finances\SalesInvoiceItem;
 use App\Models\Inventory\Item;
 use App\Models\Inventory\ItemUnit;
 use App\Models\Inventory\Stock;
+use App\Models\Inventory\StockEntry;
 use App\Models\Inventory\Unit;
 use App\Models\Sales\Customer;
 use App\Models\Sales\SalesOrder;
 use App\Models\Sales\SalesSetting;
 use App\Models\User\User;
+use App\Services\Core\PermissionChecker;
 use App\Services\Finances\SalesInvoiceService;
 use Database\Factories\Core\CountryFactory;
 use Database\Factories\Finances\TaxFactory;
@@ -516,5 +518,79 @@ class SalesInvoiceServiceAssetItemsTest extends TestCase {
             'discount_rate'     => 18.18,
             'discount_amount'   => 20,
         ]));
+    }
+
+    private function grantValuationRateVisibility(bool $granted): void {
+        app()->instance(PermissionChecker::class, new PermissionChecker(
+            $granted ? [StockEntry::class => [0 => [['permissions' => ['write' => true, 'create' => true], 'only_creator' => false]]]] : [],
+        ));
+    }
+
+    #[Test]
+    public function below_cost_stop_message_hides_the_valuation_rate_without_stock_entry_permission(): void {
+        $this->grantValuationRateVisibility(false);
+        $invoice = $this->makeBelowCostInvoice('stop');
+        $service = app(SalesInvoiceService::class);
+        Event::fake();
+
+        try {
+            $service->onApproved($invoice->fresh());
+            $this->fail('Aksi stop harus tetap menolak.');
+        } catch (ValidationException $exception) {
+            $message = (string) $exception->errors()['items'][0];
+            $this->assertStringContainsString('90', $message, 'Tarif jual bersih tetap tampil.');
+            $this->assertStringNotContainsString('100', $message, 'HPP tidak boleh tampil.');
+            $this->assertStringNotContainsString(':cost', $message);
+        }
+    }
+
+    #[Test]
+    public function below_cost_stop_message_shows_the_valuation_rate_with_stock_entry_permission(): void {
+        $this->grantValuationRateVisibility(true);
+        $invoice = $this->makeBelowCostInvoice('stop');
+        $service = app(SalesInvoiceService::class);
+        Event::fake();
+
+        try {
+            $service->onApproved($invoice->fresh());
+            $this->fail('Aksi stop harus tetap menolak.');
+        } catch (ValidationException $exception) {
+            $message = (string) $exception->errors()['items'][0];
+            $this->assertStringContainsString('90', $message);
+            $this->assertStringContainsString('100', $message);
+        }
+    }
+
+    #[Test]
+    public function below_cost_warn_flash_hides_the_valuation_rate_without_permission_but_still_warns(): void {
+        $this->grantValuationRateVisibility(false);
+        $invoice = $this->makeBelowCostInvoice('warn');
+        $service = app(SalesInvoiceService::class);
+        $request = Request::create('/');
+        $request->setLaravelSession(app('session')->driver());
+        app()->instance('request', $request);
+        Event::fake();
+
+        $service->onApproved($invoice->fresh());
+
+        $warnings = $request->session()->get('priceWarnings');
+        $this->assertCount(1, $warnings);
+        $this->assertStringContainsString('90', $warnings[0]);
+        $this->assertStringNotContainsString('100', $warnings[0]);
+    }
+
+    #[Test]
+    public function below_cost_warn_flash_shows_the_valuation_rate_with_permission(): void {
+        $this->grantValuationRateVisibility(true);
+        $invoice = $this->makeBelowCostInvoice('warn');
+        $service = app(SalesInvoiceService::class);
+        $request = Request::create('/');
+        $request->setLaravelSession(app('session')->driver());
+        app()->instance('request', $request);
+        Event::fake();
+
+        $service->onApproved($invoice->fresh());
+
+        $this->assertStringContainsString('100', $request->session()->get('priceWarnings')[0]);
     }
 }

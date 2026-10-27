@@ -5,7 +5,9 @@ import { render, screen } from "@testing-library/react";
 import FinanceSettings from "./FinanceSettings";
 
 const putMock = vi.fn();
-const translationMock = vi.hoisted(() => vi.fn((key, fallback) => fallback || key));
+const translationMock = vi.hoisted(() =>
+  vi.fn((key, fallback) => fallback || key),
+);
 
 vi.mock("@inertiajs/react", async (importOriginal) => ({
   ...(await importOriginal()),
@@ -76,8 +78,14 @@ describe("FinanceSettings RTL", () => {
 
     expect(screen.getByTestId("finance-settings-form")).toBeInTheDocument();
     expect(screen.getByText("Finance Settings")).toBeInTheDocument();
-    expect(translationMock).toHaveBeenCalledWith("finances.setting.title", "Finance Settings");
-    expect(translationMock).toHaveBeenCalledWith("finances.setting.tax_invoice.title", "Faktur Pajak");
+    expect(translationMock).toHaveBeenCalledWith(
+      "finances.setting.title",
+      "Finance Settings",
+    );
+    expect(translationMock).toHaveBeenCalledWith(
+      "finances.setting.tax_invoice.title",
+      "Faktur Pajak",
+    );
     expect(translationMock).toHaveBeenCalledWith(
       "finances.setting.tax_invoice.range_start",
       "Awal Rentang Nomor Seri",

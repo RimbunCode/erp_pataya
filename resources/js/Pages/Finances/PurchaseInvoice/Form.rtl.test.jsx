@@ -888,6 +888,8 @@ describe("PurchaseInvoice Form", () => {
   });
 });
 
+const TAX_MODEL = "App\\Models\\Finances\\Tax";
+
 describe("PurchaseInvoice conditional defaults pada dokumen baru", () => {
   const moduleTax = { id: "module-tax", rate: 11 };
   const conditionalTax = { id: "rule-tax", rate: 5 };
@@ -947,7 +949,11 @@ describe("PurchaseInvoice conditional defaults pada dokumen baru", () => {
   };
   const finishResolution = async (
     items = {
-      [variant.id]: { tax_ids: [conditionalTax.id], warehouse_id: null },
+      [variant.id]: {
+        tax_ids: [conditionalTax.id],
+        taxes: [conditionalTax],
+        warehouse_id: null,
+      },
     },
   ) => {
     await act(async () => {
@@ -965,7 +971,11 @@ describe("PurchaseInvoice conditional defaults pada dokumen baru", () => {
       render(<Form />);
       await selectItem();
       await finishResolution({
-        [variant.id]: { tax_ids: taxIds, warehouse_id: null },
+        [variant.id]: {
+          tax_ids: taxIds,
+          taxes: taxIds.map(() => conditionalTax),
+          warehouse_id: null,
+        },
       });
       expect(rowState().item).toBeUndefined();
       deferTableUpdate = undefined;
@@ -997,7 +1007,11 @@ describe("PurchaseInvoice conditional defaults pada dokumen baru", () => {
       ),
     );
     await finishResolution({
-      "variant-b": { tax_ids: [conditionalTax.id], warehouse_id: null },
+      "variant-b": {
+        tax_ids: [conditionalTax.id],
+        taxes: [conditionalTax],
+        warehouse_id: null,
+      },
     });
     expect(rowState().tax).toBeNull();
   });
@@ -1016,13 +1030,10 @@ describe("PurchaseInvoice conditional defaults pada dokumen baru", () => {
       tax: conditionalTax,
       tax_rate: 5,
     });
-    expect(axios.post).toHaveBeenCalledWith(
+    expect(axios.post).not.toHaveBeenCalledWith(
       expect.any(String),
-      {
-        model: "App\\Models\\Finances\\Tax",
-        filters: { id: { in: [conditionalTax.id] } },
-      },
-      expect.objectContaining({ signal: expect.any(AbortSignal) }),
+      expect.objectContaining({ model: TAX_MODEL }),
+      expect.anything(),
     );
   });
 
@@ -1064,7 +1075,11 @@ describe("PurchaseInvoice conditional defaults pada dokumen baru", () => {
       resolveFirstItem({
         data: {
           items: {
-            [variant.id]: { tax_ids: [conditionalTax.id], warehouse_id: null },
+            [variant.id]: {
+              tax_ids: [conditionalTax.id],
+              taxes: [conditionalTax],
+              warehouse_id: null,
+            },
           },
         },
       });

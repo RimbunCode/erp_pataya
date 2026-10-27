@@ -1,5 +1,5 @@
 import { describe, expect, it, vi, beforeEach } from "vitest";
-import { render, screen, within } from "@testing-library/react";
+import { act, render, screen, waitFor, within } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { TooltipProvider } from "@/Components/ui/tooltip";
 
@@ -11,11 +11,18 @@ vi.mock("laravel-react-i18n", () => ({
 window.route = (name, params) =>
   params !== undefined ? `${name}/${JSON.stringify(params)}` : name;
 
+let pageDefaults;
 vi.mock("@inertiajs/react", () => ({
-  usePage: () => ({ props: { preferences: {} } }),
+  usePage: () => ({ props: { preferences: {}, defaults: pageDefaults } }),
+}));
+
+const axiosPost = vi.fn();
+vi.mock("axios", () => ({
+  default: { post: (...args) => axiosPost(...args) },
 }));
 
 let formPageSeed = {};
+let formPageIsCreate = false;
 vi.mock("@/Pages/Core/FormPage", async () => {
   const React = await import("react");
   return {
@@ -33,7 +40,7 @@ vi.mock("@/Pages/Core/FormPage", async () => {
           setDataState((prev) => ({ ...prev, ...keyOrFn }));
         }
       };
-      return { data, setData };
+      return { data, setData, isCreate: formPageIsCreate };
     },
     FormPageContent: ({ title, children }) => (
       <div data-testid={`form-page-content-${title ?? "untitled"}`}>
@@ -204,12 +211,15 @@ vi.mock("../PurchaseOrders/PurchaseOrderItemLinkModel", () => ({
   ),
 }));
 
+let nextWarehouse = null;
 vi.mock("@/Pages/Inventory/Warehouses/WarehouseLinkModel", () => ({
-  default: ({ disabled }) => (
+  default: ({ disabled, value, onValueChange }) => (
     <button
       type="button"
       data-testid="warehouse-link-model"
       data-disabled={disabled ? "true" : "false"}
+      data-value-id={value?.id ?? ""}
+      onClick={() => onValueChange?.(nextWarehouse)}
     />
   ),
 }));
@@ -221,7 +231,11 @@ import Form from "./Form";
 describe("PurchaseReceipts Form", () => {
   beforeEach(() => {
     formPageSeed = {};
+    formPageIsCreate = false;
+    pageDefaults = undefined;
+    nextWarehouse = null;
     nextOption = null;
+    axiosPost.mockReset();
   });
 
   it("memilih purchase_order mengisi supplier dan items (full-replace, tanpa mergeItems)", async () => {
@@ -510,6 +524,117 @@ describe("PurchaseReceipts Form", () => {
           purchase_order_id: 10,
           unreceived_quantity: { ">": 0 },
         }),
+      );
+    });
+  });
+  describe("default modul (documentDefaults)", () => {
+    const VARIANT = "App\\Models\\Inventory\\ItemVariant";
+    const moduleWarehouse = { id: "wh-module", name: "Gudang Modul" };
+    const stockVariant = {
+      id: "var-new",
+      thisModel: VARIANT,
+      is_stock_item: true,
+      default_uom: { id: "iu-1", conversion_factor: 1 },
+    };
+    const seed = () => {
+      formPageSeed = {
+        purchase_order: { id: 10, items: [] },
+        items: [{ id: "r1" }],
+      };
+    };
+    const resolveCalls = () =>
+      axiosPost.mock.calls.filter(([url]) => url === "/defaults/resolve");
+
+    it("mode edit tidak memanggil /defaults/resolve saat memilih item di luar PO", async () => {
+      const user = userEvent.setup({ delay: null });
+      seed();
+      renderForm(<Form />);
+      nextOption = stockVariant;
+
+      await user.click(screen.getByTestId("purchase-order-item-link-model"));
+      await act(async () => {
+        await new Promise((resolve) => setTimeout(resolve, 20));
+      });
+
+      expect(resolveCalls()).toHaveLength(0);
+      expect(screen.getByTestId("warehouse-link-model")).toHaveAttribute(
+        "data-value-id",
+        "",
+      );
+    });
+
+    it("dokumen baru memanggil /defaults/resolve dengan document_type purchase_receipt", async () => {
+      const user = userEvent.setup({ delay: null });
+      formPageIsCreate = true;
+      pageDefaults = { warehouse: moduleWarehouse };
+      axiosPost.mockResolvedValue({ data: { items: {} } });
+      seed();
+      renderForm(<Form />);
+      nextOption = stockVariant;
+
+      await user.click(screen.getByTestId("purchase-order-item-link-model"));
+      await new Promise((r) => setTimeout(r, 50));
+      console.log(
+        "DBG",
+        JSON.stringify(axiosPost.mock.calls),
+        document.body.innerHTML.length,
+      );
+
+      await waitFor(() => expect(resolveCalls()).toHaveLength(1));
+      expect(resolveCalls()[0][1]).toEqual({
+        document_type: "purchase_receipt",
+        items: [{ item_id: "var-new" }],
+      });
+      expect(screen.getByTestId("warehouse-link-model")).toHaveAttribute(
+        "data-value-id",
+        "wh-module",
+      );
+    });
+
+    it("gudang yang dikosongkan user tidak diisi ulang oleh respons resolusi yang terlambat", async () => {
+      const user = userEvent.setup({ delay: null });
+      formPageIsCreate = true;
+      pageDefaults = { warehouse: moduleWarehouse };
+      let respond;
+      axiosPost.mockImplementation(
+        () =>
+          new Promise((resolve) => {
+            respond = resolve;
+          }),
+      );
+      seed();
+      renderForm(<Form />);
+      nextOption = stockVariant;
+
+      await user.click(screen.getByTestId("purchase-order-item-link-model"));
+      await waitFor(() => expect(respond).toBeTypeOf("function"));
+      nextWarehouse = null;
+      await user.click(screen.getByTestId("warehouse-link-model"));
+      expect(screen.getByTestId("warehouse-link-model")).toHaveAttribute(
+        "data-value-id",
+        "",
+      );
+
+      await act(async () =>
+        respond({
+          data: {
+            items: {
+              "var-new": {
+                tax_ids: [],
+                warehouse_id: "wh-rule",
+                warehouse: { id: "wh-rule", name: "Gudang Aturan" },
+              },
+            },
+          },
+        }),
+      );
+      await act(async () => {
+        await new Promise((resolve) => setTimeout(resolve, 20));
+      });
+
+      expect(screen.getByTestId("warehouse-link-model")).toHaveAttribute(
+        "data-value-id",
+        "",
       );
     });
   });
