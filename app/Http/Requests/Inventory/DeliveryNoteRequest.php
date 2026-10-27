@@ -107,33 +107,40 @@ class DeliveryNoteRequest extends BaseFormRequest {
         });
     }
 
-    /** @param array<int|string, array<string,mixed>> $rows */
+    /**
+     * Toleransi pengiriman berlaku untuk baris Sales Order dan Internal Order (semua jenis baris);
+     * batas keras consumed item (validateAssetServiceConsumedItemQuantity) berjalan terpisah.
+     *
+     * @param  array<int|string, array<string,mixed>>  $rows
+     */
     private function validateSalesOrderDeliveryTolerance(Validator $validator, array $rows, bool $isReturn): void {
         $tolerance = SalesSetting::current()->over_delivery_tolerance_percent;
         if ($isReturn || $tolerance === null) {
             return;
         }
 
-        $groups = collect($rows)
-            ->filter(fn (array $row): bool => ($row['referenceable_type'] ?? null) === SalesOrderItem::class && filled($row['referenceable_id'] ?? null))
-            ->groupBy('referenceable_id');
-        if ($groups->isEmpty()) {
-            return;
-        }
-
-        $sourceItems = SalesOrderItem::whereIn('id', $groups->keys())->get()->keyBy('id');
-        $calculator  = app(ToleranceCalculator::class);
-        foreach ($groups as $sourceId => $sourceRows) {
-            $source = $sourceItems->get($sourceId);
-            if (! $source || ! $calculator->exceeds((float) $sourceRows->sum('quantity'), (float) $source->quantity, (float) $source->delivered_quantity, $tolerance)) {
+        $calculator = app(ToleranceCalculator::class);
+        foreach ([SalesOrderItem::class, InternalOrderItem::class] as $sourceClass) {
+            $groups = collect($rows)
+                ->filter(fn (array $row): bool => ($row['referenceable_type'] ?? null) === $sourceClass && filled($row['referenceable_id'] ?? null))
+                ->groupBy('referenceable_id', true);
+            if ($groups->isEmpty()) {
                 continue;
             }
 
-            $index = $sourceRows->keys()->first();
-            $validator->errors()->add("items.{$index}.quantity", __('inventory/deliveryNote.over_delivery_tolerance_exceeded', [
-                'remaining' => max(0, (float) $source->quantity - (float) $source->delivered_quantity),
-                'limit'     => $calculator->allowed((float) $source->quantity, (float) $source->delivered_quantity, $tolerance),
-            ]));
+            $sourceItems = $sourceClass::whereIn('id', $groups->keys())->get()->keyBy('id');
+            foreach ($groups as $sourceId => $sourceRows) {
+                $source = $sourceItems->get($sourceId);
+                if (! $source || ! $calculator->exceeds((float) $sourceRows->sum('quantity'), (float) $source->quantity, (float) $source->delivered_quantity, $tolerance)) {
+                    continue;
+                }
+
+                $index = $sourceRows->keys()->first();
+                $validator->errors()->add("items.{$index}.quantity", __('inventory/deliveryNote.over_delivery_tolerance_exceeded', [
+                    'remaining' => max(0, (float) $source->quantity - (float) $source->delivered_quantity),
+                    'limit'     => $calculator->allowed((float) $source->quantity, (float) $source->delivered_quantity, $tolerance),
+                ]));
+            }
         }
     }
 

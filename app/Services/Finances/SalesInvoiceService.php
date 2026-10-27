@@ -17,6 +17,7 @@ use App\Models\Core\CoreSetting;
 use App\Models\Core\FormatingSeries;
 use App\Models\Core\GlPostingStatus;
 use App\Models\Finances\SalesInvoice;
+use App\Models\Finances\SalesInvoiceItem;
 use App\Models\Finances\Tax;
 use App\Models\Inventory\ItemUnit;
 use App\Models\Inventory\ItemVariant;
@@ -25,6 +26,8 @@ use App\Models\Model;
 use App\Models\Sales\Customer;
 use App\Models\Sales\SalesOrderItem;
 use App\Models\Sales\SalesSetting;
+use App\Services\Core\PermissionChecker;
+use App\Services\Core\Setting\CurrencyMatcher;
 use App\Services\Core\Setting\RateChangeComparator;
 use App\Services\Core\Setting\SettingsService;
 use App\Services\Core\Setting\ToleranceCalculator;
@@ -42,7 +45,7 @@ class SalesInvoiceService implements SubmitableService {
      * Faktor DPP Nilai Lain PPN 12% (tarif efektif 11%) -- lihat migration
      * add_dpp_amount_to_sales_invoice_items_table, spec invoice-dpp-adjustment.
      */
-    private const float DPP_FACTOR = 11 / 12;
+    public const float DPP_FACTOR = 11 / 12;
 
     private function fillRelations(array $data) {
         $data['sales_order_id']    = $data['sales_order']['id'] ?? null;
@@ -400,12 +403,30 @@ class SalesInvoiceService implements SubmitableService {
         }
 
         $sourceItems = SalesOrderItem::query()
-            ->with('salesOrder:id,exchange_rate')
+            ->with('salesOrder:id,exchange_rate,currency_code')
             ->whereIn('id', $groupedItems->keys())
             ->lockForUpdate()
             ->get()
             ->keyBy('id');
         $calculator = app(ToleranceCalculator::class);
+        // Mata uang sama dengan SO: nilai dibandingkan apa adanya dalam mata uang dokumen (tanpa kurs).
+        $currencies = app(CurrencyMatcher::class);
+        $sourceInfo = [];
+        foreach ($sourceItems as $sourceId => $source) {
+            $sourceInfo[$sourceId] = [
+                'currency'           => $source->salesOrder?->currency_code,
+                'exchange_rate'      => (float) ($source->exchange_rate ?: ($source->salesOrder?->exchange_rate ?: 1)),
+                'in_source_currency' => $currencies->same($source->salesOrder?->currency_code, $salesInvoice->currency_code),
+            ];
+        }
+        $billedValues = app(InvoiceBilledValueResolver::class)->billedValues(
+            SalesInvoiceItem::class,
+            'salesInvoice',
+            'sales_order_item_id',
+            $sourceInfo,
+            $salesInvoice->id,
+            lock: true,
+        );
 
         foreach ($groupedItems as $sourceId => $invoiceItems) {
             $source = $sourceItems->get($sourceId);
@@ -413,11 +434,13 @@ class SalesInvoiceService implements SubmitableService {
                 continue;
             }
 
-            $requestedQuantity  = (float) $invoiceItems->sum('quantity');
-            $requestedValue     = (float) $invoiceItems->sum(fn ($item) => ($item->basic_amount - $item->discount_amount) * $salesInvoice->exchange_rate);
-            $sourceExchangeRate = (float) ($source->salesOrder?->exchange_rate ?: 1);
-            $sourceUnitValue    = (float) $source->price * $sourceExchangeRate;
-            $alreadyBilledValue = (float) $source->billed_quantity * $sourceUnitValue;
+            $requestedQuantity = (float) $invoiceItems->sum('quantity');
+            $inSourceCurrency  = $sourceInfo[$sourceId]['in_source_currency'];
+            $requestedValue    = (float) $invoiceItems->sum(fn ($item) => ($item->basic_amount - $item->discount_amount) * ($inSourceCurrency ? 1 : (float) ($salesInvoice->exchange_rate ?: 1)));
+            $sourceValue       = $inSourceCurrency
+                ? (float) $source->basic_amount - (float) $source->discount_amount
+                : (float) $source->basic_amount_base_currency;
+            $alreadyBilledValue = (float) ($billedValues[$sourceId] ?? 0);
 
             if ($calculator->exceeds($requestedQuantity, (float) $source->quantity, (float) $source->billed_quantity, $tolerance)) {
                 throw ValidationException::withMessages([
@@ -428,9 +451,12 @@ class SalesInvoiceService implements SubmitableService {
                 ]);
             }
 
-            if ($calculator->exceedsValue($requestedValue, (float) $source->basic_amount_base_currency, $alreadyBilledValue, $tolerance)) {
+            if ($calculator->exceedsValue($requestedValue, $sourceValue, $alreadyBilledValue, $tolerance)) {
                 throw ValidationException::withMessages([
-                    'items' => __('finances/salesInvoice.validation.over_billing_value_tolerance_exceeded', ['tolerance' => $tolerance]),
+                    'items' => __('finances/salesInvoice.validation.over_billing_value_tolerance_exceeded', [
+                        'remaining' => round(max(0, $sourceValue - $alreadyBilledValue), 2),
+                        'tolerance' => $tolerance,
+                    ]),
                 ]);
             }
         }
@@ -446,12 +472,13 @@ class SalesInvoiceService implements SubmitableService {
         $sourceItems  = $groupedItems->isEmpty()
             ? collect()
             : SalesOrderItem::query()
-                ->with('salesOrder:id,exchange_rate')
+                ->with('salesOrder:id,exchange_rate,currency_code')
                 ->whereIn('id', $groupedItems->keys())
                 ->lockForUpdate()
                 ->get()
                 ->keyBy('id');
         $comparator = app(RateChangeComparator::class);
+        $currencies = app(CurrencyMatcher::class);
         $warnings   = [];
 
         foreach ($groupedItems as $sourceId => $invoiceItems) {
@@ -468,6 +495,7 @@ class SalesInvoiceService implements SubmitableService {
                     (float) $item->price,
                     (float) ($salesInvoice->exchange_rate ?: 1),
                     (float) ($item->conversion_factor ?: 1),
+                    $currencies->same($source->salesOrder?->currency_code, $salesInvoice->currency_code),
                 )) {
                     continue;
                 }
@@ -518,7 +546,8 @@ class SalesInvoiceService implements SubmitableService {
             ->lockForUpdate()
             ->get()
             ->keyBy(fn (Stock $stock) => "{$stock->item_variant_id}-{$stock->warehouse_id}");
-        $warnings = [];
+        $warnings   = [];
+        $canSeeCost = PermissionChecker::forUser(request())->satisfies(Stock::VALUATION_RATE_VISIBILITY);
 
         foreach ($eligibleItems as $item) {
             $source = $sourceItems->get($item->sales_order_item_id);
@@ -538,10 +567,13 @@ class SalesInvoiceService implements SubmitableService {
                 continue;
             }
 
-            $message = __('finances/salesInvoice.validation.below_cost', [
-                'sales' => $netSalesRate,
-                'cost'  => $valuationRate,
-            ]);
+            // HPP (valuation rate) hanya boleh dilihat pemegang izin write/create StockEntry.
+            $message = $canSeeCost
+                ? __('finances/salesInvoice.validation.below_cost', [
+                    'sales' => $netSalesRate,
+                    'cost'  => $valuationRate,
+                ])
+                : __('finances/salesInvoice.validation.below_cost_hidden', ['sales' => $netSalesRate]);
             if ($action === 'stop') {
                 throw ValidationException::withMessages(['items' => $message]);
             }

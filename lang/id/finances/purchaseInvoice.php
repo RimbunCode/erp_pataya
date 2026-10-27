@@ -7,7 +7,7 @@ return [
     'new'                                              => 'Purchase Invoice Baru',
     'price_warning_title'                              => 'Peringatan kontrol harga',
     'validation.over_billing_tolerance_exceeded'       => 'Kuantitas melebihi sisa kuantitas item sumber ditambah toleransi :tolerance% (sisa: :remaining).',
-    'validation.over_billing_value_tolerance_exceeded' => 'Nilai baris melebihi sisa nilai item sumber ditambah toleransi :tolerance%.',
+    'validation.over_billing_value_tolerance_exceeded' => 'Nilai baris melebihi sisa nilai item sumber ditambah toleransi :tolerance% (sisa nilai: :remaining).',
     'items'                                            => 'Item',
     'detail'                                           => 'Detail',
     'status'                                           => 'Status',

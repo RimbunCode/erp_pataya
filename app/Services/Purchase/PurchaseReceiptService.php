@@ -180,6 +180,7 @@ class PurchaseReceiptService implements SubmitableService {
             : $items->filter(fn ($row) => $row->replaces_purchase_order_item_id)
                 ->groupBy('replaces_purchase_order_item_id');
         $replacedErrors      = [];
+        $replacedFlagged     = [];
         $receiptTolerance    = PurchaseSetting::current()->over_receipt_tolerance_percent;
         $toleranceCalculator = app(ToleranceCalculator::class);
         foreach ($replacedByItem as $replacedId => $rows) {
@@ -190,7 +191,8 @@ class PurchaseReceiptService implements SubmitableService {
                     ?? ((float) $locked->quantity - (float) $locked->received_quantity))
                 : 0;
             if (! $locked || $requested - $remaining > 0.0001) {
-                $replacedErrors[] = __('purchase/purchaseReceipt.validation.replaced_exceeds_remaining_on_approve', [
+                $replacedFlagged[$replacedId] = true;
+                $replacedErrors[]             = __('purchase/purchaseReceipt.validation.replaced_exceeds_remaining_on_approve', [
                     'item'      => $locked?->item?->code ?? $replacedId,
                     'remaining' => $remaining,
                     'quantity'  => $requested,
@@ -198,21 +200,23 @@ class PurchaseReceiptService implements SubmitableService {
             }
         }
 
-        $purchaseOrderItems = $returnAgainst
-            ? collect()
-            : $items->filter(fn ($row) => $row->purchase_order_item_id)
-                ->groupBy('purchase_order_item_id');
-        foreach ($purchaseOrderItems as $sourceId => $rows) {
-            $locked    = PurchaseOrderItem::whereKey($sourceId)->lockForUpdate()->first();
-            $requested = (float) $rows->sum('quantity');
-            if (! $locked || ! $toleranceCalculator->exceeds($requested, (float) $locked->quantity, (float) $locked->received_quantity, $receiptTolerance)) {
-                continue;
+        // Kuantitas baris normal + porsi yang digantikan baris pengganti dijumlahkan per PO Item
+        // dalam satu batas (lock PO Item diambil di dalam guard). PO Item yang sudah ditolak
+        // pemeriksaan sisa di atas dilewati agar tak ada pesan ganda.
+        if (! $returnAgainst) {
+            $guardRows = $items->map(fn ($row) => [
+                'purchase_order_item_id'          => $row->purchase_order_item_id,
+                'quantity'                        => $row->quantity,
+                'conversion_factor'               => $row->conversion_factor,
+                'replaces_purchase_order_item_id' => $row->replaces_purchase_order_item_id,
+                'replaced_quantity'               => $row->replaced_quantity,
+            ])->all();
+            foreach (app(PurchaseReceiptToleranceGuard::class)->violations($guardRows, $receiptTolerance, $replacedFlagged, lock: true) as $violation) {
+                $replacedErrors[] = __('purchase/purchaseReceipt.validation.over_receipt_tolerance_exceeded', [
+                    'remaining' => $violation['remaining'],
+                    'limit'     => $violation['limit'],
+                ]);
             }
-
-            $replacedErrors[] = __('purchase/purchaseReceipt.validation.over_receipt_tolerance_exceeded', [
-                'remaining' => max(0, (float) $locked->quantity - (float) $locked->received_quantity),
-                'limit'     => $toleranceCalculator->allowed((float) $locked->quantity, (float) $locked->received_quantity, $receiptTolerance),
-            ]);
         }
         if (\count($replacedErrors) > 0) {
             DB::rollBack();

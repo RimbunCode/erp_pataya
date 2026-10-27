@@ -29,6 +29,7 @@ use App\Models\Purchase\PurchaseReceipt;
 use App\Models\Purchase\PurchaseReceiptItem;
 use App\Models\Purchase\PurchaseSetting;
 use App\Models\Purchase\Supplier;
+use App\Services\Core\Setting\CurrencyMatcher;
 use App\Services\Core\Setting\RateChangeComparator;
 use App\Services\Core\Setting\SettingsService;
 use App\Services\Core\Setting\ToleranceCalculator;
@@ -46,7 +47,7 @@ class PurchaseInvoiceService implements SubmitableService {
      * Faktor DPP Nilai Lain PPN 12% (tarif efektif 11%) -- lihat migration
      * add_dpp_amount_to_purchase_invoice_items_table, spec invoice-dpp-adjustment.
      */
-    private const float DPP_FACTOR = 11 / 12;
+    public const float DPP_FACTOR = 11 / 12;
 
     private function fillRelations(array $data) {
         $data['purchase_order_id'] = $data['purchase_order']['id'];
@@ -430,11 +431,30 @@ class PurchaseInvoiceService implements SubmitableService {
         $sourcePoItems = $poItemsById->isEmpty()
             ? collect()
             : PurchaseOrderItem::query()
-                ->with('purchaseOrder:id,exchange_rate')
+                ->with('purchaseOrder:id,exchange_rate,currency_code')
                 ->whereIn('id', $poItemsById->keys())
                 ->lockForUpdate()
                 ->get()
                 ->keyBy('id');
+
+        // Mata uang sama dengan PO: nilai dibandingkan apa adanya dalam mata uang dokumen (tanpa kurs).
+        $currencies = app(CurrencyMatcher::class);
+        $sourceInfo = [];
+        foreach ($sourcePoItems as $sourceId => $source) {
+            $sourceInfo[$sourceId] = [
+                'currency'           => $source->purchaseOrder?->currency_code,
+                'exchange_rate'      => (float) ($source->purchaseOrder?->exchange_rate ?: 1),
+                'in_source_currency' => $currencies->same($source->purchaseOrder?->currency_code, $purchaseInvoice->currency_code),
+            ];
+        }
+        $billedValues = app(InvoiceBilledValueResolver::class)->billedValues(
+            PurchaseInvoiceItem::class,
+            'purchaseInvoice',
+            'purchase_order_item_id',
+            $sourceInfo,
+            $purchaseInvoice->id,
+            lock: true,
+        );
 
         foreach ($poItemsById as $sourceId => $invoiceItems) {
             $source = $sourcePoItems->get($sourceId);
@@ -443,10 +463,11 @@ class PurchaseInvoiceService implements SubmitableService {
             }
 
             $requestedQuantity  = (float) $invoiceItems->sum('quantity');
-            $requestedValue     = (float) $invoiceItems->sum(fn ($item) => ($item->basic_amount - $item->discount_amount) * $purchaseInvoice->exchange_rate);
-            $sourceExchangeRate = (float) ($source->purchaseOrder?->exchange_rate ?: 1);
-            $sourceUnitValue    = (float) $source->rate * $sourceExchangeRate;
-            $alreadyBilledValue = (float) $source->billed_quantity * $sourceUnitValue;
+            $inSourceCurrency   = $sourceInfo[$sourceId]['in_source_currency'];
+            $requestedValue     = (float) $invoiceItems->sum(fn ($item) => ($item->basic_amount - $item->discount_amount) * ($inSourceCurrency ? 1 : (float) ($purchaseInvoice->exchange_rate ?: 1)));
+            $sourceExchangeRate = $inSourceCurrency ? 1.0 : $sourceInfo[$sourceId]['exchange_rate'];
+            $sourceValue        = ((float) $source->basic_amount - (float) $source->discount_amount) * $sourceExchangeRate;
+            $alreadyBilledValue = (float) ($billedValues[$sourceId] ?? 0);
 
             if ($calculator->exceeds($requestedQuantity, (float) $source->quantity, (float) $source->billed_quantity, $tolerance)) {
                 throw ValidationException::withMessages([
@@ -457,9 +478,12 @@ class PurchaseInvoiceService implements SubmitableService {
                 ]);
             }
 
-            if ($calculator->exceedsValue($requestedValue, (float) $source->basic_amount * $sourceExchangeRate, $alreadyBilledValue, $tolerance)) {
+            if ($calculator->exceedsValue($requestedValue, $sourceValue, $alreadyBilledValue, $tolerance)) {
                 throw ValidationException::withMessages([
-                    'items' => __('finances/purchaseInvoice.validation.over_billing_value_tolerance_exceeded', ['tolerance' => $tolerance]),
+                    'items' => __('finances/purchaseInvoice.validation.over_billing_value_tolerance_exceeded', [
+                        'remaining' => round(max(0, $sourceValue - $alreadyBilledValue), 2),
+                        'tolerance' => $tolerance,
+                    ]),
                 ]);
             }
         }
@@ -502,12 +526,13 @@ class PurchaseInvoiceService implements SubmitableService {
         $sourceItems  = $groupedItems->isEmpty()
             ? collect()
             : PurchaseOrderItem::query()
-                ->with('purchaseOrder:id,exchange_rate')
+                ->with('purchaseOrder:id,exchange_rate,currency_code')
                 ->whereIn('id', $groupedItems->keys())
                 ->lockForUpdate()
                 ->get()
                 ->keyBy('id');
         $comparator = app(RateChangeComparator::class);
+        $currencies = app(CurrencyMatcher::class);
         $warnings   = [];
 
         foreach ($groupedItems as $sourceId => $invoiceItems) {
@@ -524,6 +549,7 @@ class PurchaseInvoiceService implements SubmitableService {
                     (float) $item->rate,
                     (float) ($purchaseInvoice->exchange_rate ?: 1),
                     (float) ($item->conversion_factor ?: 1),
+                    $currencies->same($source->purchaseOrder?->currency_code, $purchaseInvoice->currency_code),
                 )) {
                     continue;
                 }

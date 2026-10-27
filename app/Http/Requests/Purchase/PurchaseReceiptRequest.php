@@ -3,10 +3,12 @@
 namespace App\Http\Requests\Purchase;
 
 use App\Http\Requests\BaseFormRequest;
+use App\Models\Inventory\ItemUnit;
 use App\Models\Purchase\PurchaseOrderItem;
 use App\Models\Purchase\PurchaseSetting;
 use App\Rules\ExistsExcludingTrashed;
 use App\Services\Core\Setting\ToleranceCalculator;
+use App\Services\Purchase\PurchaseReceiptToleranceGuard;
 use Illuminate\Contracts\Validation\ValidationRule;
 use Illuminate\Validation\Validator;
 
@@ -83,7 +85,8 @@ class PurchaseReceiptRequest extends BaseFormRequest {
         $tolerance   = PurchaseSetting::current()->over_receipt_tolerance_percent;
         $calculator  = app(ToleranceCalculator::class);
 
-        $replacedSum = [];
+        $replacedSum     = [];
+        $replacedFlagged = [];
         foreach ($items as $index => $item) {
             $replacesId = $item['replaces_purchase_order_item_id'] ?? null;
             $itemId     = data_get($item, 'item.id');
@@ -120,6 +123,7 @@ class PurchaseReceiptRequest extends BaseFormRequest {
                 $tolerance,
             ) ?? ((float) $replaced[$replacesId]->quantity - (float) $replaced[$replacesId]->received_quantity);
             if ($replacedSum[$replacesId] - $remaining > 0.0001) {
+                $replacedFlagged[$replacesId] = true;
                 $validator->errors()->add("items.{$index}.replaced_quantity", __('purchase/purchaseReceipt.validation.replaced_exceeds_remaining', [
                     'quantity'  => $replacedSum[$replacesId],
                     'remaining' => $remaining,
@@ -131,33 +135,28 @@ class PurchaseReceiptRequest extends BaseFormRequest {
             return;
         }
 
-        $requestedByPoItem = [];
-        $requestedIndexes  = [];
+        $unitFactors = ItemUnit::query()
+            ->whereIn('item_units.id', collect($items)->pluck('unit.id')->filter()->unique()->all())
+            ->pluck('item_units.conversion_factor', 'item_units.id');
+        $rows = [];
         foreach ($items as $index => $item) {
-            $poItemId = $item['purchase_order_item_id'] ?? null;
-            if (! $poItemId) {
-                continue;
-            }
-
-            $requestedByPoItem[$poItemId]  = ($requestedByPoItem[$poItemId] ?? 0) + (float) ($item['quantity'] ?? 0);
-            $requestedIndexes[$poItemId][] = $index;
+            $rows[$index] = [
+                'purchase_order_item_id'          => $item['purchase_order_item_id'] ?? null,
+                'quantity'                        => $item['quantity'] ?? 0,
+                'conversion_factor'               => $unitFactors[data_get($item, 'unit.id')] ?? 1,
+                'replaces_purchase_order_item_id' => $item['replaces_purchase_order_item_id'] ?? null,
+                'replaced_quantity'               => $item['replaced_quantity'] ?? null,
+            ];
         }
 
-        if ($requestedByPoItem === []) {
-            return;
-        }
-
-        $sourceItems = PurchaseOrderItem::whereIn('id', array_keys($requestedByPoItem))->get()->keyBy('id');
-        foreach ($requestedByPoItem as $sourceId => $requested) {
-            $source = $sourceItems->get($sourceId);
-            if (! $source || ! $calculator->exceeds($requested, (float) $source->quantity, (float) $source->received_quantity, $tolerance)) {
-                continue;
-            }
-
-            $index = $requestedIndexes[$sourceId][0];
-            $validator->errors()->add("items.{$index}.quantity", __('purchase/purchaseReceipt.validation.over_receipt_tolerance_exceeded', [
-                'remaining' => max(0, (float) $source->quantity - (float) $source->received_quantity),
-                'limit'     => $calculator->allowed((float) $source->quantity, (float) $source->received_quantity, $tolerance),
+        // Kuantitas baris normal dan porsi yang digantikan baris pengganti dijumlahkan per
+        // PO Item dalam satu batas. PO Item yang sudah ditolak pemeriksaan sisa di atas dilewati.
+        $violations = app(PurchaseReceiptToleranceGuard::class)->violations($rows, $tolerance, $replacedFlagged);
+        foreach ($violations as $violation) {
+            $key = ($items[$violation['index']]['purchase_order_item_id'] ?? null) ? 'quantity' : 'replaced_quantity';
+            $validator->errors()->add("items.{$violation['index']}.{$key}", __('purchase/purchaseReceipt.validation.over_receipt_tolerance_exceeded', [
+                'remaining' => $violation['remaining'],
+                'limit'     => $violation['limit'],
             ]));
         }
     }

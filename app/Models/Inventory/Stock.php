@@ -12,7 +12,7 @@ class Stock extends Model {
     use HasUlids, SoftDeletes;
 
     /** Izin lihat HPP/valuation rate stok: pembuat StockEntry. */
-    private const VALUATION_RATE_VISIBILITY = [
+    public const VALUATION_RATE_VISIBILITY = [
         [StockEntry::class, [Permission::Write, Permission::Create]],
     ];
 

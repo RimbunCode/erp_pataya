@@ -2,23 +2,31 @@
 
 namespace App\Http\Requests\Finances;
 
+use App\Enums\DefaultsDocumentType;
 use App\Http\Requests\BaseFormRequest;
+use App\Http\Requests\Concerns\ValidatesRowTaxRequired;
 use App\Http\Requests\Finances\Rules\AdditionalDiscountRules;
 use App\Http\Requests\Finances\Rules\PaymentSchedulesRules;
 use App\Http\Requests\Finances\Rules\ReturnAgainstItemRules;
 use App\Http\Requests\Sales\Rules\OffSourceItemRules;
 use App\Models\Finances\SalesInvoice;
+use App\Models\Finances\SalesInvoiceItem;
 use App\Models\Inventory\ItemUnit;
 use App\Models\Sales\SalesOrderItem;
 use App\Models\Sales\SalesSetting;
 use App\Rules\ExistsExcludingTrashed;
+use App\Services\Core\Setting\CurrencyMatcher;
 use App\Services\Core\Setting\RateChangeComparator;
 use App\Services\Core\Setting\ToleranceCalculator;
+use App\Services\Finances\InvoiceBilledValueResolver;
+use App\Services\Finances\SalesInvoiceService;
 use Illuminate\Contracts\Validation\ValidationRule;
 use Illuminate\Contracts\Validation\Validator;
 use Illuminate\Support\Facades\DB;
 
 class SalesInvoiceRequest extends BaseFormRequest {
+    use ValidatesRowTaxRequired;
+
     /**
      * Determine if the user is authorized to make this request.
      */
@@ -115,11 +123,34 @@ class SalesInvoiceRequest extends BaseFormRequest {
             OffSourceItemRules::validateFreeAssets($validator, $freeAsset, 'sales_invoice_items', 'sales_invoices', 'sales_invoice_id');
             OffSourceItemRules::validateSourceBelongsToHeader($validator, $this->sourceOrderOf($rows), $this->input('sales_order.id'), 'sales_order_item.id');
 
+            $this->validateRowTaxRequired($validator, DefaultsDocumentType::SalesInvoice, $rows, $this->itemIdsOfRows($this->rowsWithSourceIdentity($rows)));
+
             if (! $isReturn) {
                 $this->validateRateChanges($validator, $rows);
                 $this->validateBillingTolerance($validator, $rows);
             }
         });
+    }
+
+    /**
+     * Baris SO membawa identitas barang/asset dari baris SO sumbernya.
+     *
+     * @param  array<int|string, array<string, mixed>>  $rows
+     * @return array<int|string, array<string, mixed>>
+     */
+    private function rowsWithSourceIdentity(array $rows): array {
+        $sourceIds = array_filter(array_map(fn ($row) => $row['sales_order_item']['id'] ?? null, $rows));
+        $sources   = $sourceIds === [] ? collect() : SalesOrderItem::query()->whereIn('id', array_unique($sourceIds))->get(['id', 'item_id', 'asset_id'])->keyBy('id');
+
+        foreach ($rows as $index => $row) {
+            $source = $sources->get($row['sales_order_item']['id'] ?? '');
+            if ($source) {
+                $rows[$index]['item']  = ['id' => $source->item_id];
+                $rows[$index]['asset'] = ['id' => $source->asset_id];
+            }
+        }
+
+        return $rows;
     }
 
     /** @param array<int|string,mixed> $rows */
@@ -131,18 +162,42 @@ class SalesInvoiceRequest extends BaseFormRequest {
 
         $groupedRows = collect($rows)
             ->filter(fn ($row) => filled($row['sales_order_item']['id'] ?? null))
-            ->groupBy('sales_order_item.id');
+            ->groupBy('sales_order_item.id', true);
         if ($groupedRows->isEmpty()) {
             return;
         }
 
         $sourceItems = SalesOrderItem::query()
-            ->with('salesOrder:id,exchange_rate')
+            ->with('salesOrder:id,exchange_rate,currency_code')
             ->whereIn('id', $groupedRows->keys())
             ->get()
             ->keyBy('id');
         $calculator   = app(ToleranceCalculator::class);
+        $resolver     = app(InvoiceBilledValueResolver::class);
         $exchangeRate = (float) ($this->input('exchange_rate') ?: 1);
+        $netValues    = $resolver->netValues(
+            $rows,
+            fn (array $row) => (float) ($row['price'] ?? $sourceItems->get($row['sales_order_item']['id'] ?? '')?->price ?? 0),
+            $this->input('discount_on'),
+            $this->input('discount_rate'),
+            $this->input('discount_amount'),
+            SalesInvoiceService::DPP_FACTOR,
+        );
+        $currencies = app(CurrencyMatcher::class);
+
+        // Mata uang sama dengan SO: nilai dibandingkan apa adanya dalam mata uang dokumen (tanpa kurs).
+        $sourceInfo = [];
+        foreach ($groupedRows->keys() as $sourceId) {
+            $source = $sourceItems->get($sourceId);
+            if ($source) {
+                $sourceInfo[$sourceId] = [
+                    'currency'           => $source->salesOrder?->currency_code,
+                    'exchange_rate'      => (float) ($source->exchange_rate ?: ($source->salesOrder?->exchange_rate ?: 1)),
+                    'in_source_currency' => $currencies->same($source->salesOrder?->currency_code, $this->input('currency.code')),
+                ];
+            }
+        }
+        $billedValues = $resolver->billedValues(SalesInvoiceItem::class, 'salesInvoice', 'sales_order_item_id', $sourceInfo);
 
         foreach ($groupedRows as $sourceId => $sourceRows) {
             $source = $sourceItems->get($sourceId);
@@ -150,11 +205,13 @@ class SalesInvoiceRequest extends BaseFormRequest {
                 continue;
             }
 
-            $requestedQuantity  = $sourceRows->sum(fn ($row) => (float) $row['quantity']);
-            $sourceExchangeRate = (float) ($source->salesOrder?->exchange_rate ?: 1);
-            $sourceUnitValue    = (float) $source->price * $sourceExchangeRate;
-            $requestedValue     = $sourceRows->sum(fn ($row) => (float) ($row['quantity'] * ($row['price'] ?? $source->price) * $exchangeRate));
-            $alreadyBilledValue = (float) $source->billed_quantity * $sourceUnitValue;
+            $requestedQuantity = $sourceRows->sum(fn ($row) => (float) $row['quantity']);
+            $inSourceCurrency  = $sourceInfo[$sourceId]['in_source_currency'];
+            $requestedValue    = (float) $sourceRows->keys()->sum(fn ($rowIndex) => $netValues[$rowIndex] * ($inSourceCurrency ? 1 : $exchangeRate));
+            $sourceValue       = $inSourceCurrency
+                ? (float) $source->basic_amount - (float) $source->discount_amount
+                : (float) $source->basic_amount_base_currency;
+            $alreadyBilledValue = (float) ($billedValues[$sourceId] ?? 0);
             $index              = $sourceRows->keys()->first();
 
             if ($calculator->exceeds($requestedQuantity, (float) $source->quantity, (float) $source->billed_quantity, $tolerance)) {
@@ -164,8 +221,9 @@ class SalesInvoiceRequest extends BaseFormRequest {
                 ]));
             }
 
-            if ($calculator->exceedsValue($requestedValue, (float) $source->basic_amount_base_currency, $alreadyBilledValue, $tolerance)) {
+            if ($calculator->exceedsValue($requestedValue, $sourceValue, $alreadyBilledValue, $tolerance)) {
                 $validator->errors()->add("items.{$index}.price", __('finances/salesInvoice.validation.over_billing_value_tolerance_exceeded', [
+                    'remaining' => round(max(0, $sourceValue - $alreadyBilledValue), 2),
                     'tolerance' => $tolerance,
                 ]));
             }
@@ -185,7 +243,7 @@ class SalesInvoiceRequest extends BaseFormRequest {
         $sourceItems = $groupedRows->isEmpty()
             ? collect()
             : SalesOrderItem::query()
-                ->with('salesOrder:id,exchange_rate')
+                ->with('salesOrder:id,exchange_rate,currency_code')
                 ->whereIn('id', $groupedRows->keys())
                 ->get()
                 ->keyBy('id');
@@ -195,6 +253,7 @@ class SalesInvoiceRequest extends BaseFormRequest {
             : ItemUnit::whereIn('item_units.id', $unitIds)->pluck('item_units.conversion_factor', 'item_units.id');
         $exchangeRate = (float) ($this->input('exchange_rate') ?: 1);
         $comparator   = app(RateChangeComparator::class);
+        $currencies   = app(CurrencyMatcher::class);
         $warnings     = [];
 
         foreach ($groupedRows as $sourceId => $sourceRows) {
@@ -213,6 +272,7 @@ class SalesInvoiceRequest extends BaseFormRequest {
                     $documentRate,
                     $exchangeRate,
                     $documentFactor,
+                    $currencies->same($source->salesOrder?->currency_code, $this->input('currency.code')),
                 )) {
                     continue;
                 }

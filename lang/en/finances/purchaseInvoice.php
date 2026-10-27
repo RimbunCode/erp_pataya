@@ -7,7 +7,7 @@ return [
     'new'                                              => 'New Purchase Invoice',
     'price_warning_title'                              => 'Price control warning',
     'validation.over_billing_tolerance_exceeded'       => 'The quantity exceeds the source item remaining quantity plus the :tolerance% tolerance (remaining: :remaining).',
-    'validation.over_billing_value_tolerance_exceeded' => 'The line value exceeds the source item remaining value plus the :tolerance% tolerance.',
+    'validation.over_billing_value_tolerance_exceeded' => 'The line value exceeds the source item remaining value plus the :tolerance% tolerance (remaining value: :remaining).',
     'items'                                            => 'Items',
     'detail'                                           => 'Detail',
     'status'                                           => 'Status',

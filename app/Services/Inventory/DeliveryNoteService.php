@@ -196,14 +196,15 @@ class DeliveryNoteService implements SubmitableService {
 
         $deliveryTolerance = SalesSetting::current()->over_delivery_tolerance_percent;
         if (! $returnAgainst && $deliveryTolerance !== null) {
-            $salesOrderRows = $items
-                ->filter(fn (DeliveryNoteItem $item): bool => $item->referenceable instanceof SalesOrderItem)
-                ->groupBy('referenceable_id');
+            $sourceRows = $items
+                ->filter(fn (DeliveryNoteItem $item): bool => $item->referenceable instanceof SalesOrderItem || $item->referenceable instanceof InternalOrderItem)
+                ->groupBy(fn (DeliveryNoteItem $item): string => $item->referenceable::class . '|' . $item->referenceable_id);
             $calculator      = app(ToleranceCalculator::class);
             $toleranceErrors = [];
-            foreach ($salesOrderRows as $sourceId => $sourceRows) {
-                $source    = SalesOrderItem::whereKey($sourceId)->lockForUpdate()->first();
-                $requested = (float) $sourceRows->sum('quantity');
+            foreach ($sourceRows as $group) {
+                $sourceClass = $group->first()->referenceable::class;
+                $source      = $sourceClass::whereKey($group->first()->referenceable_id)->lockForUpdate()->first();
+                $requested   = (float) $group->sum('quantity');
                 if (! $source || ! $calculator->exceeds($requested, (float) $source->quantity, (float) $source->delivered_quantity, $deliveryTolerance)) {
                     continue;
                 }
