@@ -11,8 +11,10 @@ use App\Models\User\Permission;
 use App\Services\Inventory\DeliveryNoteService;
 use App\Traits\DataTable;
 use App\Traits\Submitable;
+use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Database\Eloquent\Concerns\HasUlids;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
+use Illuminate\Database\Eloquent\Relations\HasMany;
 use Illuminate\Database\Eloquent\Relations\MorphTo;
 use Illuminate\Database\Eloquent\SoftDeletes;
 
@@ -35,6 +37,41 @@ class DeliveryNote extends Model {
     }
 
     public $keyBreadcrumb = 'code';
+
+    /**
+     * Panel retur memakai tipe yang sama dengan dokumen ini. Judul di-override
+     * supaya tidak tertukar dengan panel relasi lain, dan baris diambil dari
+     * returnRows() karena retur tidak tercatat di ModelConnection.
+     */
+    public static function expectedRelationPanels(): array {
+        return [
+            self::class => [
+                'action' => [
+                    'route'      => 'deliveryNotes.create',
+                    'params'     => ['ref' => 'deliveryNote/{id}'],
+                    'label'      => 'inventory.deliveryNote.actions.create_sales_return',
+                    'permission' => 'create',
+                ],
+                'source' => 'returnRows',
+                'title'  => 'inventory.deliveryNote.panel.return.title',
+            ],
+        ];
+    }
+
+    /**
+     * Dokumen yang meretur dokumen ini (return_against_id menunjuk ke sini).
+     */
+    public function returns(): HasMany {
+        return $this->hasMany(self::class, 'return_against_id');
+    }
+
+    /**
+     * Query builder untuk panel retur. Builder, bukan koleksi, supaya penjagaan
+     * RelationPanelService tetap berlaku.
+     */
+    public function returnRows(): Builder {
+        return $this->returns()->getQuery();
+    }
 
     public static function templateLink() {
         return ':code';
@@ -120,6 +157,26 @@ class DeliveryNote extends Model {
 
     public function referenceTo() {
         return $this->belongsTo(Permission::class, 'reference_to_id');
+    }
+
+    public static function relationPanel(): array {
+        return [
+            'title'   => 'inventory.deliveryNote.panel.title',
+            'columns' => [
+                ['key' => 'code', 'label' => 'inventory.deliveryNote.panel.code', 'align' => 'left'],
+                ['key' => 'status', 'label' => 'inventory.deliveryNote.panel.status', 'align' => 'left', 'format' => 'status'],
+                ['key' => 'total_quantity', 'label' => 'inventory.deliveryNote.panel.quantity', 'align' => 'right', 'format' => 'number', 'aggregate' => 'sum'],
+            ],
+            'eager' => ['items'],
+        ];
+    }
+
+    public function relationPanelRow(): array {
+        return [
+            'code'           => $this->code,
+            'status'         => $this->status,
+            'total_quantity' => $this->items->sum('quantity'),
+        ];
     }
 
     public function items() {

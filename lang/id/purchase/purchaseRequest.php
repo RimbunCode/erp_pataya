@@ -1,6 +1,11 @@
 <?php
 
 return [
+    'panel' => [
+        'title'  => 'Info Permintaan Pembelian',
+        'code'   => 'No Permintaan',
+        'status' => 'Status',
+    ],
     'title'              => 'Purchase Requests',
     'add'                => 'Tambah Purchase Request',
     'new'                => 'Purchase Request Baru',

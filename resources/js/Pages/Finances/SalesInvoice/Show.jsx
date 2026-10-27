@@ -10,6 +10,7 @@ import { Button } from "@/Components/ui/button";
 import { ChevronsUpDown } from "lucide-react";
 import Form from "./Form";
 import { FormPage } from "@/Pages/Core/FormPage";
+import RelationPanels from "@/Pages/Core/Components/RelationPanels";
 import Link from "@/Components/Link";
 import { useLaravelReactI18n } from "laravel-react-i18n";
 import { usePage } from "@inertiajs/react";
@@ -103,6 +104,7 @@ export default function Show({ salesInvoice, defaultData }) {
       }
     >
       <Form />
+      {salesInvoice?.submitted_at && <RelationPanels />}
     </FormPage>
   );
 }

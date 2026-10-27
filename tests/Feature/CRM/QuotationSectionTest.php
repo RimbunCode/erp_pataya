@@ -23,6 +23,7 @@ class QuotationSectionTest extends QuotationTestCase {
                 'items' => [[
                     'id'       => $quotation->items()->firstOrFail()->id,
                     'item'     => ['id' => $this->variant->id],
+                    'tax'      => ['id' => $this->taxIdForPayload()],
                     'quantity' => 2,
                     'price'    => 100,
                 ]],

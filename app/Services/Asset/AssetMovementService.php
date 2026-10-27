@@ -8,6 +8,7 @@ use App\Enums\FormStatus;
 use App\Events\Asset\AssetMovementApproved;
 use App\Models\Asset\AssetMovement;
 use App\Models\Core\FormatingSeries;
+use App\Models\Core\ModelConnection;
 use App\Models\Inventory\DeliveryNote;
 use App\Models\Inventory\DeliveryNoteItem;
 use App\Models\Model;
@@ -166,6 +167,14 @@ class AssetMovementService implements SubmitableService {
             'quantity'           => $line->quantity,
             'customer_id'        => $deliveryNote->customer_id,
             'customer_branch_id' => $deliveryNote->customer_branch_id,
+        ]);
+
+        // Requirement FR2 (spec document-connection-coverage): jalur ini tidak lewat
+        // submit() dan tidak memancarkan DocumentSubmitted, jadi induk DeliveryNote
+        // dicatat langsung di sini.
+        ModelConnection::createConnection([
+            'model'     => $deliveryNote,
+            'reference' => $movement,
         ]);
 
         return $movement;

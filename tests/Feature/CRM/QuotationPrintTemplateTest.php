@@ -208,6 +208,7 @@ class QuotationPrintTemplateTest extends QuotationTestCase {
             'items' => [[
                 'id'          => 'a',
                 'item'        => ['id' => $this->variant->id],
+                'tax'         => ['id' => $this->taxIdForPayload()],
                 'item_unit'   => ['id' => $this->makeItemUnit()->id],
                 'quantity'    => 2,
                 'price'       => 100,
@@ -242,6 +243,7 @@ class QuotationPrintTemplateTest extends QuotationTestCase {
             'items'   => [[
                 'id'          => 'a',
                 'item'        => ['id' => $this->variant->id],
+                'tax'         => ['id' => $this->taxIdForPayload()],
                 'quantity'    => 1,
                 'price'       => 5000,
                 'remark'      => 'Unit Ready Jakarta',
@@ -269,6 +271,7 @@ class QuotationPrintTemplateTest extends QuotationTestCase {
             'items' => [[
                 'id'          => 'a',
                 'item'        => ['id' => $this->variant->id],
+                'tax'         => ['id' => $this->taxIdForPayload()],
                 'quantity'    => 1,
                 'price'       => 172000000,
                 'description' => "Model: SRSC45H1\nYear Built: 2018\nCapacity: 45 ton",
@@ -360,6 +363,7 @@ class QuotationPrintTemplateTest extends QuotationTestCase {
             'items'       => [[
                 'id'        => 'a',
                 'item'      => ['id' => $this->variant->id],
+                'tax'       => ['id' => $this->taxIdForPayload()],
                 'item_unit' => ['id' => $this->makeItemUnit()->id],
                 'quantity'  => 2,
                 'price'     => 777190,
@@ -377,6 +381,7 @@ class QuotationPrintTemplateTest extends QuotationTestCase {
             'items'       => [[
                 'id'       => 'a',
                 'item'     => ['id' => $this->variant->id],
+                'tax'      => ['id' => $this->taxIdForPayload()],
                 'quantity' => 1,
                 'price'    => 5000000,
             ]],
@@ -393,6 +398,7 @@ class QuotationPrintTemplateTest extends QuotationTestCase {
             'items'       => [[
                 'id'        => 'a',
                 'item'      => ['id' => $this->variant->id],
+                'tax'       => ['id' => $this->taxIdForPayload()],
                 'item_unit' => ['id' => $this->makeItemUnit()->id],
                 'quantity'  => 1,
                 'price'     => 172000000,

@@ -1,6 +1,7 @@
 import { Button } from "@/Components/ui/button";
 import Form from "./Form";
 import { FormPage } from "@/Pages/Core/FormPage";
+import RelationPanels from "@/Pages/Core/Components/RelationPanels";
 import Link from "@/Components/Link";
 import { useLaravelReactI18n } from "laravel-react-i18n";
 
@@ -31,6 +32,7 @@ export default function Show({ opportunity, defaultData }) {
       }}
     >
       <Form />
+      {opportunity && <RelationPanels />}
     </FormPage>
   );
 }

@@ -7,7 +7,11 @@ use App\Enums\FormStatus;
 use App\Models\Asset\Maintenance\AssetMaintenanceTask;
 use App\Models\Core\Branch;
 use App\Models\Model;
+use App\Models\Purchase\PurchaseOrder;
+use App\Models\Purchase\PurchaseRequest;
 use App\Models\Sales\Customer;
+use App\Models\Sales\InternalOrder;
+use App\Models\Sales\SalesOrder;
 use App\Services\Asset\AssetServiceService;
 use App\Traits\DataTable;
 use App\Traits\Submitable;
@@ -44,6 +48,47 @@ class AssetService extends Model {
         'capitalize_repair_cost' => 'boolean',
         'bill_to_renter'         => 'boolean',
     ];
+
+    /**
+     * Empat aksi sama dengan dropdown Actions di Asset/Services/Show.jsx. Setiap
+     * aksi membawa ref assetService/{id}.
+     */
+    public static function expectedRelationPanels(): array {
+        return [
+            PurchaseRequest::class => [
+                'action' => [
+                    'route'      => 'purchaseRequests.create',
+                    'params'     => ['ref' => 'assetService/{id}'],
+                    'label'      => 'asset.service.actions.create_pr',
+                    'permission' => 'create',
+                ],
+            ],
+            PurchaseOrder::class => [
+                'action' => [
+                    'route'      => 'purchaseOrders.create',
+                    'params'     => ['ref' => 'assetService/{id}'],
+                    'label'      => 'asset.service.actions.create_po',
+                    'permission' => 'create',
+                ],
+            ],
+            SalesOrder::class => [
+                'action' => [
+                    'route'      => 'salesOrders.create',
+                    'params'     => ['ref' => 'assetService/{id}'],
+                    'label'      => 'asset.service.actions.create_so',
+                    'permission' => 'create',
+                ],
+            ],
+            InternalOrder::class => [
+                'action' => [
+                    'route'      => 'internalOrders.create',
+                    'params'     => ['ref' => 'assetService/{id}'],
+                    'label'      => 'asset.service.actions.create_io',
+                    'permission' => 'create',
+                ],
+            ],
+        ];
+    }
 
     public static function templateLink() {
         return ':code';

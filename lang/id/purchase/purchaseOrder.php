@@ -1,6 +1,22 @@
 <?php
 
 return [
+    'panel' => [
+        'title'   => 'Info Purchase Order',
+        'code'    => 'No Purchase Order',
+        'status'  => 'Status',
+        'receipt' => [
+            'remainder' => 'Belum Diterima',
+        ],
+        'invoice' => [
+            'title'     => 'Info Tagihan',
+            'code'      => 'No Tagihan',
+            'date'      => 'Tanggal',
+            'total'     => 'Total',
+            'remainder' => 'Belum Ditagihkan',
+        ],
+        'remaining' => 'Sisa',
+    ],
     'title'              => 'Purchase Orders',
     'add'                => 'Tambah Purchase Order',
     'new'                => 'Purchase Order Baru',
@@ -115,6 +131,8 @@ return [
         'currency.placeholder'         => 'Pilih Mata Uang',
         'exchange_rate'                => 'Nilai Tukar',
         'basic_amount'                 => 'Jumlah Kotor',
+        'gross_amount'                 => 'Total Harga',
+        'dpp_amount'                   => 'DPP (Dasar Pengenaan Pajak)',
         'net_amount'                   => 'Jumlah Dasar',
         'tax_amount'                   => 'Jumlah Pajak',
         'amount'                       => 'Jumlah',

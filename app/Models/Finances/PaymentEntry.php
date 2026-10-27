@@ -84,6 +84,27 @@ class PaymentEntry extends Model {
     ];
     public string $translateKey = 'finances.paymentEntry';
 
+    public static function relationPanel(): array {
+        return [
+            'title'   => 'finances.paymentEntry.panel.title',
+            'columns' => [
+                ['key' => 'code', 'label' => 'finances.paymentEntry.panel.code', 'align' => 'left'],
+                ['key' => 'payment_method', 'label' => 'finances.paymentEntry.panel.method', 'align' => 'left'],
+                ['key' => 'total', 'label' => 'finances.paymentEntry.panel.total', 'align' => 'right', 'format' => 'currency', 'aggregate' => 'sum', 'aggregate_key' => 'total_base'],
+            ],
+            'eager' => ['paymentMethod'],
+        ];
+    }
+
+    public function relationPanelRow(): array {
+        return [
+            'code'           => $this->code,
+            'payment_method' => $this->paymentMethod?->name,
+            'total'          => $this->paid_amount,
+            'total_base'     => $this->base_paid_amount,
+        ];
+    }
+
     public function paymentMethod() {
         return $this->belongsTo(PaymentMethod::class);
     }

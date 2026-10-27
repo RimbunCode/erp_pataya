@@ -14,6 +14,7 @@ use App\Models\Core\Todo;
 use App\Models\Model;
 use App\Models\User\Permission;
 use App\Services\Core\BufferedAttachmentService;
+use App\Services\Core\Connection\RelationPanelService;
 use App\Services\Core\DataTable\Group\GroupLevels;
 use Illuminate\Database\Eloquent\Relations\Relation;
 use Illuminate\Database\Eloquent\SoftDeletes;
@@ -814,6 +815,13 @@ trait DataTable {
                     //   ];
                     //   });
                 },
+            ),
+            // Panel relasi berkolom (spec document-relation-panels). Grup defer
+            // sendiri, terpisah dari `connections` di atas: tree sidebar tetap
+            // ringan dan kedua fitur bisa gagal independen.
+            'relationPanels' => Inertia::defer(
+                fn () => app(RelationPanelService::class)->build($this),
+                'relationPanels',
             ),
             'logs' => Inertia::defer(
                 fn () => Log::with('user')

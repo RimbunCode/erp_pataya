@@ -18,6 +18,7 @@ use App\Models\User\User;
 use App\Services\Core\Setting\SettingsService;
 use Database\Factories\Core\BranchFactory;
 use Database\Factories\Core\CountryFactory;
+use Database\Factories\Finances\TaxFactory;
 use Database\Factories\Inventory\ItemVariantFactory;
 use Database\Factories\Sales\CustomerFactory;
 use Illuminate\Foundation\Testing\RefreshDatabase;
@@ -35,6 +36,7 @@ abstract class QuotationTestCase extends TestCase {
         migrateDatabases as protected migrateDatabasesFromTrait;
     }
 
+    private ?string $payloadTaxId = null;
     protected User $user;
     protected Branch $branch;
     protected Customer $customer;
@@ -145,12 +147,18 @@ abstract class QuotationTestCase extends TestCase {
                 [
                     'id'       => 'new1',
                     'item'     => ['id' => $this->variant->id],
+                    'tax'      => ['id' => $this->taxIdForPayload()],
                     'quantity' => 2,
                     'price'    => 100,
                 ],
             ],
             ...$overrides,
         ];
+    }
+
+    /** Pajak wajib per baris item quotation (QuotationRequest 'items.*.tax.id'). */
+    protected function taxIdForPayload(): string {
+        return $this->payloadTaxId ??= TaxFactory::new()->create()->id;
     }
 
     /**

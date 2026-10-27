@@ -26,6 +26,7 @@ use App\Models\User\User;
 use App\Services\Finances\InvoiceBilledValueResolver;
 use App\Services\Finances\PurchaseInvoiceService;
 use Database\Factories\Core\CountryFactory;
+use Database\Factories\Finances\TaxFactory;
 use Database\Factories\Inventory\ItemFactory;
 use Database\Factories\Inventory\ItemVariantFactory;
 use Database\Factories\Inventory\WarehouseFactory;
@@ -54,6 +55,7 @@ class PurchaseInvoiceBilledValueToleranceTest extends TestCase {
     private User $user;
     private Warehouse $warehouse;
     private Supplier $supplier;
+    private string $taxId;
     private PurchaseOrder $po;
     private PurchaseOrderItem $poItem;
     private ItemVariant $variant;
@@ -99,6 +101,7 @@ class PurchaseInvoiceBilledValueToleranceTest extends TestCase {
 
         $this->user      = User::factory()->create();
         $this->supplier  = SupplierFactory::new()->create();
+        $this->taxId     = TaxFactory::new()->create()->id;
         $this->warehouse = WarehouseFactory::new()->create();
         $this->actingAs($this->user);
 
@@ -164,6 +167,7 @@ class PurchaseInvoiceBilledValueToleranceTest extends TestCase {
             'quantity'            => $quantity,
             'rate'                => $rate,
             'unit'                => ['id' => $this->itemUnit->id],
+            'tax'                 => ['id' => $this->taxId],
         ], $over);
     }
 

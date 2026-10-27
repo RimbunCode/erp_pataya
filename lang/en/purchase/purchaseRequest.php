@@ -1,6 +1,11 @@
 <?php
 
 return [
+    'panel' => [
+        'title'  => 'Purchase Request Info',
+        'code'   => 'Request No',
+        'status' => 'Status',
+    ],
     'title'              => 'Purchase Requests',
     'add'                => 'Add Purchase Request',
     'new'                => 'New Purchase Request',

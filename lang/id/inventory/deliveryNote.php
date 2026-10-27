@@ -1,6 +1,13 @@
 <?php
 
 return [
+    'panel' => [
+        'title'    => 'Info Pengiriman',
+        'code'     => 'No Pengiriman',
+        'status'   => 'Status',
+        'quantity' => 'Total Qty',
+        'return'   => ['title' => 'Info Retur Pengiriman'],
+    ],
     'title'                            => 'Delivery Notes',
     'add'                              => 'Delivery Note Baru',
     'new'                              => 'Delivery Note Baru',

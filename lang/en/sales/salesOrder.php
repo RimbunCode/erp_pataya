@@ -1,6 +1,12 @@
 <?php
 
 return [
+    'panel' => [
+        'title'  => 'Sales Order Info',
+        'code'   => 'Sales Order No',
+        'date'   => 'Date',
+        'status' => 'Status',
+    ],
     'title'                       => 'Sales Orders',
     'add'                         => 'New Sales Orders',
     'customer'                    => 'Customer',
@@ -35,6 +41,8 @@ return [
         'tax_amount'                   => 'Tax Amount',
         'total'                        => 'Total',
         'basic_amount'                 => 'Gross Amount',
+        'gross_amount'                 => 'Total Price',
+        'dpp_amount'                   => 'DPP (Tax Base Amount)',
         'net_amount'                   => 'Basic Amount',
         'so'                           => 'Sales Order Number',
         'customer'                     => 'Customer',

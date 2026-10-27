@@ -644,6 +644,26 @@ export default memo(function Form() {
         );
       },
     },
+    {
+      // Total harga per baris (price x quantity), mengikuti kolom gross_amount
+      // di form Sales Invoice. Hanya tampilan; basic_amount dihitung server.
+      name: "gross_amount",
+      titleTrans: "sales.salesOrder.columns.gross_amount",
+      readOnly: true,
+      show: true,
+      width: 2,
+      cell({ dataRow, attributes }) {
+        return (
+          <NumberInput
+            {...attributes}
+            readOnly
+            decimalScale={2}
+            currencyCode={data?.currency?.code ?? "default"}
+            value={(dataRow?.quantity ?? 0) * (dataRow?.price ?? 0)}
+          />
+        );
+      },
+    },
   ];
 
   // Diskon Tambahan (dokumen) mengubah discount_amount/tax_amount SETIAP baris secara

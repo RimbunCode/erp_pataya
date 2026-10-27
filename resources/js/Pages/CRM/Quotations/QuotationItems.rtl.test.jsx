@@ -114,7 +114,7 @@ describe("CRM QuotationItems", () => {
       ]);
     });
 
-    it("rental: tanpa Part No, Remark, dan Amount; Unit tetap ada", () => {
+    it("rental: tanpa Part No, Remark, dan Amount; Unit dan Tax tetap ada", () => {
       render(<QuotationItems type="rental" value={[]} />);
 
       expect(columnNames()).toEqual([
@@ -136,14 +136,18 @@ describe("CRM QuotationItems", () => {
       expect(screen.getByTestId("column-item_unit")).toBeInTheDocument();
     });
 
-    it("kolom item dan quantity wajib di semua jenis", () => {
+    it("kolom item, quantity, dan tax wajib di semua jenis", () => {
       for (const type of ["spare_part", "new_unit", "rental"]) {
         const columns = buildQuotationItemColumns(type, stableT).filter(
           (col) => col,
         );
         const required = columns.filter((col) => col.required);
 
-        expect(required.map((col) => col.name)).toEqual(["item", "quantity"]);
+        expect(required.map((col) => col.name)).toEqual([
+          "item",
+          "quantity",
+          "tax",
+        ]);
       }
     });
   });

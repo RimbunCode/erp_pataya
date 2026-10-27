@@ -125,6 +125,16 @@ class PurchaseReceiptService implements SubmitableService {
             'code' => FormatingSeries::generate(PurchaseReceipt::class, $purchaseReceipt),
         ]);
         event(new DocumentSubmitted($purchaseReceipt, $purchaseReceipt->purchaseOrder));
+
+        // Requirement FR3 (spec document-connection-coverage): retur tercatat ke receipt
+        // yang diretur. Arah mengikuti DocumentSubmitted: model = asal, reference = retur.
+        $returnAgainst = $purchaseReceipt->returnAgainst;
+        if ($returnAgainst) {
+            ModelConnection::createConnection([
+                'model'     => $returnAgainst,
+                'reference' => $purchaseReceipt,
+            ]);
+        }
         DB::commit();
         $purchaseReceipt->checkApproval();
 

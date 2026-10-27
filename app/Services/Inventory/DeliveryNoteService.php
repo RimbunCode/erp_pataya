@@ -14,6 +14,7 @@ use App\Models\Asset\Asset;
 use App\Models\Asset\AssetService;
 use App\Models\Core\FormatingSeries;
 use App\Models\Core\GlPostingStatus;
+use App\Models\Core\ModelConnection;
 use App\Models\Inventory\DeliveryNote;
 use App\Models\Inventory\DeliveryNoteItem;
 use App\Models\Inventory\ItemUnit;
@@ -155,6 +156,17 @@ class DeliveryNoteService implements SubmitableService {
         ]);
 
         event(new DocumentSubmitted($deliveryNote, $deliveryNote->referenceable));
+
+        // Requirement FR3 (spec document-connection-coverage): retur tercatat ke delivery
+        // note yang diretur. Arah mengikuti DocumentSubmitted: model = asal, reference = retur.
+        $returnAgainst = $deliveryNote->returnAgainst;
+        if ($returnAgainst) {
+            ModelConnection::createConnection([
+                'model'     => $returnAgainst,
+                'reference' => $deliveryNote,
+            ]);
+        }
+
         DeliveryNote::orWhere(function ($query) use ($deliveryNote) {
             $query->where(function ($query) use ($deliveryNote) {
                 $query->where('referenceable_type', $deliveryNote->referenceable_type)

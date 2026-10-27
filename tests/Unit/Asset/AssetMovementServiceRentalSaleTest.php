@@ -7,6 +7,7 @@ use App\Enums\FormStatus;
 use App\Models\Asset\Asset;
 use App\Models\Asset\AssetMovement;
 use App\Models\Core\FormatingSeries;
+use App\Models\Core\ModelConnection;
 use App\Models\Inventory\DeliveryNote;
 use App\Models\Inventory\DeliveryNoteItem;
 use App\Models\Sales\Customer;
@@ -71,6 +72,23 @@ class AssetMovementServiceRentalSaleTest extends TestCase {
 
         $this->assertSame($line->deliveryNote->id, $movement->reference_id);
         $this->assertSame(DeliveryNote::class, $movement->reference_type);
+    }
+
+    #[Test]
+    public function records_connection_from_delivery_note_to_movement(): void {
+        $line = $this->makeLine();
+
+        $movement = (new AssetMovementService)->createFromRentalSale($line, AssetMovementPurpose::RENT_OUT);
+
+        $this->assertTrue(
+            ModelConnection::query()
+                ->where('model_type', DeliveryNote::class)
+                ->where('model_id', $line->deliveryNote->id)
+                ->where('reference_type', AssetMovement::class)
+                ->where('reference_id', $movement->id)
+                ->exists(),
+            'Koneksi DeliveryNote -> AssetMovement harus tercatat (jalur ini tidak lewat submit).',
+        );
     }
 
     #[Test]

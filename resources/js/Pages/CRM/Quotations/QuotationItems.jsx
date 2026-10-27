@@ -3,10 +3,10 @@ import { FormPageContent } from "@/Pages/Core/FormPage";
 import { Input } from "@/Components/ui/input";
 import ItemUnitLinkModel from "@/Pages/Inventory/Items/ItemUnitLinkModel";
 import ItemVariantLinkModel from "@/Pages/Inventory/Items/ItemVariantLinkModel";
+import TaxLinkModel from "@/Pages/Finances/Taxes/TaxLinkModel";
 import NumberInput from "@/Components/NumberInput";
 import { Textarea } from "@/Components/ui/textarea";
 import { EMPTY_DEFAULTS, applyToNewLine } from "@/lib/documentDefaults";
-import TaxLinkModel from "@/Pages/Finances/Taxes/TaxLinkModel";
 import { useLaravelReactI18n } from "laravel-react-i18n";
 import { useMemo } from "react";
 
@@ -151,13 +151,14 @@ export function buildQuotationItemColumns(
     {
       name: "tax",
       titleTrans: "crm.quotation.columns.tax",
-      show: true,
+      required: true,
       width: 2,
-      cell({ data, dataRow, setData, attributes }) {
+      cell({ dataRow, data: value, setData, attributes }) {
         return (
           <TaxLinkModel
-            value={data}
+            disabled={!dataRow?.item}
             placeholder={t("crm.quotation.columns.tax.placeholder")}
+            value={value}
             onValueChange={(tax) => {
               markFieldEdited?.(dataRow?.id, "tax");
               setData({ tax, tax_rate: tax?.rate ?? 0 });

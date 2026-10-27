@@ -25,6 +25,7 @@ use App\Models\User\User;
 use App\Services\Purchase\PurchaseOrderService;
 use BeyondCode\QueryDetector\QueryDetectorMiddleware;
 use Database\Factories\Core\CountryFactory;
+use Database\Factories\Finances\TaxFactory;
 use Database\Factories\Inventory\WarehouseFactory;
 use Database\Factories\Purchase\SupplierFactory;
 use Illuminate\Foundation\Testing\RefreshDatabase;
@@ -41,6 +42,7 @@ class PurchaseOrderFromRequestsStoreTest extends TestCase {
     private string $otherSupplierId;
     private string $warehouseId;
     private string $branchId;
+    private string $taxId;
 
     protected function setUp(): void {
         parent::setUp();
@@ -67,6 +69,7 @@ class PurchaseOrderFromRequestsStoreTest extends TestCase {
         $this->supplierId      = $this->makeSupplier($country->code);
         $this->otherSupplierId = $this->makeSupplier($country->code);
         $this->warehouseId     = WarehouseFactory::new()->createQuietly()->id;
+        $this->taxId           = TaxFactory::new()->create()->id;
     }
 
     private function makeSupplier(string $countryCode): string {
@@ -118,6 +121,7 @@ class PurchaseOrderFromRequestsStoreTest extends TestCase {
                 'source_item_id'   => $source->id,
                 'item'             => ['id' => $source->item_variant_id],
                 'unit'             => ['id' => $source->item_unit_id],
+                'tax'              => ['id' => $this->taxId],
                 'target_warehouse' => ['id' => $this->warehouseId],
                 'required_date'    => now()->addDays(3)->toDateString(),
                 'quantity'         => $quantity,

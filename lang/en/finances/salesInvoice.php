@@ -1,6 +1,12 @@
 <?php
 
 return [
+    'panel' => [
+        'title' => 'Invoice Info',
+        'code'  => 'Invoice No',
+        'date'  => 'Date',
+        'total' => 'Total',
+    ],
     'title'                                            => 'Sales Invoices',
     'add'                                              => 'New Sales Invoices',
     'customer'                                         => 'Customer',

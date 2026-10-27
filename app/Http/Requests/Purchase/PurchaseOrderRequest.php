@@ -60,7 +60,7 @@ class PurchaseOrderRequest extends BaseFormRequest {
             'items.*.unit.*'              => ['nullable'],
             'items.*.target_warehouse.id' => ['required', new ExistsExcludingTrashed('warehouses')],
             'items.*.target_warehouse.*'  => ['nullable'],
-            'items.*.tax.id'              => ['nullable', new ExistsExcludingTrashed('taxes')],
+            'items.*.tax.id'              => ['required', new ExistsExcludingTrashed('taxes')],
             'items.*.tax.*'               => ['nullable'],
             'items.*.rate'                => ['required', 'numeric', 'min:0'],
             ...AdditionalDiscountRules::make($request),

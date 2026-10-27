@@ -22,6 +22,7 @@ use App\Models\Purchase\PurchaseSetting;
 use App\Models\Purchase\Supplier;
 use App\Models\User\User;
 use Database\Factories\Core\CountryFactory;
+use Database\Factories\Finances\TaxFactory;
 use Database\Factories\Inventory\ItemFactory;
 use Database\Factories\Inventory\ItemVariantFactory;
 use Database\Factories\Inventory\WarehouseFactory;
@@ -51,6 +52,7 @@ class PurchaseInvoiceRequestOffPoTest extends TestCase {
     private ItemVariant $poVariant;
     private ItemVariant $otherVariant;
     private ItemUnit $itemUnit;
+    private string $taxId;
     private Account $credit;
     private Account $expense;
 
@@ -95,6 +97,8 @@ class PurchaseInvoiceRequestOffPoTest extends TestCase {
         $this->credit       = Account::create(['account_name' => 'AP', 'account_number' => '2000', 'root_type' => 'liability', 'report_type' => 'balance_sheet']);
         $this->expense      = Account::create(['account_name' => 'Exp', 'account_number' => '5000', 'root_type' => 'expense', 'report_type' => 'profit_and_loss']);
 
+        $this->taxId = TaxFactory::new()->create()->id;
+
         $this->po     = $this->makePo();
         $this->poItem = $this->makePoItem($this->po, $this->poVariant);
     }
@@ -137,12 +141,23 @@ class PurchaseInvoiceRequestOffPoTest extends TestCase {
         ], $rowOver));
     }
 
+    #[Test]
+    public function rejects_normal_row_without_tax(): void {
+        $validator = $this->validate([
+            $this->row(['id' => (string) Str::ulid(), 'item' => ['id' => $this->poVariant->id], 'purchase_order_item' => ['id' => $this->poItem->id]], ['tax' => null]),
+        ]);
+
+        $this->assertErrorOn($validator, 'items.0.tax.id');
+    }
+
     private function row(array $source, array $over = []): array {
+        // Pajak wajib per baris (PurchaseInvoiceRequest 'items.*.tax.id' => required).
         return array_merge([
             'id'       => (string) Str::ulid(),
             'quantity' => 5,
             'rate'     => 1500,
             'unit'     => ['id' => $this->itemUnit->id],
+            'tax'      => ['id' => $this->taxId],
         ], $source, $over);
     }
 

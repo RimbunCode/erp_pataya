@@ -48,6 +48,23 @@ class PurchaseInvoice extends Model {
 
     public $keyBreadcrumb = 'code';
 
+    /**
+     * Aksi sama dengan dropdown di Finances/PurchaseInvoice/Show.jsx. Tombol
+     * debit note di dropdown itu bukan panel relasi dan tidak dideklarasikan di sini.
+     */
+    public static function expectedRelationPanels(): array {
+        return [
+            PaymentEntry::class => [
+                'action' => [
+                    'route'      => 'paymentEntries.create',
+                    'params'     => ['ref' => 'purchaseInvoice/{id}'],
+                    'label'      => 'finances.purchaseInvoice.actions.create_payment_entry',
+                    'permission' => 'create',
+                ],
+            ],
+        ];
+    }
+
     public static function templateLink() {
         return ':code';
     }
@@ -174,6 +191,51 @@ class PurchaseInvoice extends Model {
 
     public function purchaseOrder() {
         return $this->belongsTo(PurchaseOrder::class, 'purchase_order_id');
+    }
+
+    public static function relationPanel(): array {
+        return [
+            'title'   => 'purchase.purchaseOrder.panel.invoice.title',
+            'columns' => [
+                ['key' => 'code', 'label' => 'purchase.purchaseOrder.panel.invoice.code', 'align' => 'left'],
+                ['key' => 'date', 'label' => 'purchase.purchaseOrder.panel.invoice.date', 'align' => 'left', 'format' => 'date'],
+                ['key' => 'total', 'label' => 'purchase.purchaseOrder.panel.invoice.total', 'align' => 'right', 'format' => 'currency', 'aggregate' => 'sum', 'aggregate_key' => 'total_base'],
+            ],
+        ];
+    }
+
+    /**
+     * `total` memakai `amount` (mata uang transaksi) supaya baris menampilkan
+     * nilai asli dokumen. Baris total memakai `total_base`, karena invoice pada
+     * satu PO boleh berbeda currency_code: lihat PurchaseInvoiceService saat
+     * mengisi `currency_code` dari input, bukan mewarisi dari PO.
+     */
+    public function relationPanelRow(): array {
+        return [
+            'code'       => $this->code,
+            'date'       => $this->date,
+            'total'      => $this->amount,
+            'total_base' => $this->amount_base_currency,
+        ];
+    }
+
+    public static function relationPanelDetail(): array {
+        return [
+            'columns' => [
+                ['key' => 'item', 'label' => 'purchase.purchaseOrder.columns.item', 'align' => 'left'],
+                ['key' => 'quantity', 'label' => 'purchase.purchaseOrder.columns.quantity', 'align' => 'right', 'format' => 'number'],
+            ],
+            'eager' => ['items.item'],
+        ];
+    }
+
+    public function relationPanelDetailRows(): array {
+        return $this->items
+            ->map(fn (PurchaseInvoiceItem $item): array => [
+                'item'     => $item->item?->item_name ?? $item->item_name,
+                'quantity' => $item->quantity,
+            ])
+            ->all();
     }
 
     public function items() {

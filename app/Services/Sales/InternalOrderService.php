@@ -147,6 +147,19 @@ class InternalOrderService implements SubmitableService {
             event(new StockReservationChanged($internalOrder, 'increment', 'reservations', $validatedItems));
         }
 
+        // Requirement FR1 (spec document-connection-coverage): item ber-referenceable
+        // dicatat ke graf koneksi, di dalam transaksi yang sama dengan reservasi stok.
+        // Hanya satu tingkat di-eager-load, lihat WorkOrderService::submit().
+        $referencedItems = $internalOrder->items()
+            ->whereNotNull('referenceable_type')
+            ->whereNotNull('referenceable_id')
+            ->with('referenceable')
+            ->get();
+
+        foreach ($referencedItems as $item) {
+            $internalOrder->attachConnections($item, null);
+        }
+
         DB::commit();
         $internalOrder->checkApproval();
 

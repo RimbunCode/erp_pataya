@@ -63,7 +63,7 @@ class QuotationRequest extends BaseFormRequest {
             'items.*.remark'          => ['nullable', 'string', 'max:255'],
             'items.*.quantity'        => ['required', 'numeric', 'min:0.01'],
             'items.*.price'           => ['nullable', 'numeric', 'min:0'],
-            'items.*.tax.id'          => ['nullable', 'string', 'exists:taxes,id'],
+            'items.*.tax.id'          => ['required', 'string', 'exists:taxes,id'],
             'sections'                => ['nullable', 'array'],
             'sections.*.id'           => ['nullable', 'string'],
             'sections.*.title'        => ['required', 'string', 'max:255'],

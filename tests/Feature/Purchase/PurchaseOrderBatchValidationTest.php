@@ -10,6 +10,7 @@ use App\Models\Inventory\ItemVariant;
 use App\Models\Inventory\Unit;
 use App\Models\Purchase\PurchaseRequestItem;
 use Database\Factories\Core\CountryFactory;
+use Database\Factories\Finances\TaxFactory;
 use Database\Factories\Inventory\WarehouseFactory;
 use Database\Factories\Purchase\SupplierFactory;
 use Illuminate\Foundation\Testing\RefreshDatabase;
@@ -33,6 +34,7 @@ class PurchaseOrderBatchValidationTest extends TestCase {
         unset($supplier->parent_id);
         $supplier->saveQuietly();
         $warehouse = WarehouseFactory::new()->createQuietly();
+        $tax       = TaxFactory::new()->create();
         $unit      = Unit::withoutEvents(fn () => Unit::create(['code' => 'PCS', 'name' => 'Pieces']));
         $item      = Item::factory()->createQuietly(['default_unit_id' => $unit->id]);
         $variant   = ItemVariant::factory()->createQuietly(['item_id' => $item->id, 'default_unit_id' => $unit->id]);
@@ -55,6 +57,7 @@ class PurchaseOrderBatchValidationTest extends TestCase {
                 'source_item_id'   => $this->source->id,
                 'item'             => ['id' => $variant->id],
                 'unit'             => ['id' => $itemUnit->id],
+                'tax'              => ['id' => $tax->id],
                 'target_warehouse' => ['id' => $warehouse->id],
                 'required_date'    => '2026-10-15',
                 'quantity'         => 10,
