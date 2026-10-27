@@ -13,17 +13,22 @@ Urutan: verifikasi dan validasi ulang kebutuhan (1), skema dan model (2), pengir
 
 ## Tasks
 
-- [ ] 1. Verifikasi dan validasi ulang
-  - [ ] 1.1 Baca `AssetCategory` (model, request, form) dan pastikan nilai yang diizinkan untuk metode/frekuensi/jumlah; tentukan sumber opsi untuk `rules()`
+- [x] 1. Verifikasi dan validasi ulang
+  - [x] 1.1 Baca `AssetCategory` (model, request, form) dan pastikan nilai yang diizinkan untuk metode/frekuensi/jumlah; tentukan sumber opsi untuk `rules()`
     - _Requirements: 1.1, 1.2_
-  - [ ] 1.2 Baca `Quotation` (model, form, validasi `valid_until`) dan cara pajak default saat ini diterapkan
+    - Hasil 2026-10-27: request longgar (`nullable|string`, `integer`); sumber opsi = empat kunci `DepreciationMethodFactory`.
+  - [x] 1.2 Baca `Quotation` (model, form, validasi `valid_until`) dan cara pajak default saat ini diterapkan
     - _Requirements: 2.2, 2.4_
-  - [ ] 1.3 Baca `Ticket` (model, request, form): opsi `type`/`priority`, aturan `start_date`/`due_date`
+    - Hasil 2026-10-27: `valid_until` wajib hanya untuk `new_unit`/`rental`; form `Quotations/Form.jsx` sudah memakai `useDocumentDefaults`.
+  - [x] 1.3 Baca `Ticket` (model, request, form): opsi `type`/`priority`, aturan `start_date`/`due_date`
     - _Requirements: 3.1, 3.2_
-  - [ ] 1.4 Kaji alur Work Order untuk kandidat setting Service; catat keputusan di requirements (tambah requirement atau keluarkan Service)
+    - Hasil 2026-10-27: opsi hanya `in:` di `TicketRequest`/`TicketResponseRequest`; `start_date` wajib, `due_date` nullable.
+  - [x] 1.4 Kaji alur Work Order untuk kandidat setting Service; catat keputusan di requirements (tambah requirement atau keluarkan Service)
     - _Requirements: 4.1, 4.2_
-  - [ ] 1.5 Konfirmasi kebutuhan ketiga setting dengan pemilik produk (Q-O1) dan tentukan desk untuk CRM (Q-S2)
+    - Hasil 2026-10-27: tidak ada kandidat; Service dikeluarkan (D-O2).
+  - [x] 1.5 Konfirmasi kebutuhan ketiga setting dengan pemilik produk (Q-O1) dan tentukan desk untuk CRM (Q-S2)
     - _Requirements: 5.3_
+    - Hasil 2026-10-27: pemilik produk menyetujui ketiga setting (D-O1) dan pengeluaran Service (D-O2); Q-S2 tidak berlaku karena Quotation berada di Sales Settings.
 
 - [ ] 2. Skema dan model
   - [ ] 2.1 Migrasi + model `AssetSetting` dan `HelpdeskSetting`; migrasi `quotation_validity_days` pada `sales_settings`; `rules()` terhadap opsi sumber; factory
@@ -62,5 +67,5 @@ Urutan: verifikasi dan validasi ulang kebutuhan (1), skema dan model (2), pengir
 
 ## Catatan
 
-- Task 1.5 menunggu keputusan pemilik produk; jangan menandainya selesai tanpa konfirmasi tertulis.
+- Task 1 selesai 2026-10-27; keputusan D-O1/D-O2 ada di `requirements.md`.
 - Setting User dan Report sengaja tidak ada; tambahkan sebagai requirement baru hanya bila ada kebutuhan nyata (Q-O2).
