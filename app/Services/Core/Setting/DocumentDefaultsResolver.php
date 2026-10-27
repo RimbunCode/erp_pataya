@@ -49,6 +49,10 @@ class DocumentDefaultsResolver {
             ->filter(
                 fn (DefaultTaxRule $rule): bool => $rule->item_category_id === null || $rule->itemCategory !== null,
             )
+            // Aturan "tanpa pajak" hanya berlaku untuk SO/SI; pada dokumen lain diabaikan agar pajak tetap wajib.
+            ->filter(
+                fn (DefaultTaxRule $rule): bool => $rule->tax_id !== null || $type->supportsNoTaxRule(),
+            )
             ->values();
 
         // tax_id null = "tanpa pajak" eksplisit; tax_id terisi tetapi pajaknya terhapus = referensi rusak.

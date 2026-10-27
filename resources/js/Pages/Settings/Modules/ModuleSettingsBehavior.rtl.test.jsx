@@ -334,7 +334,12 @@ describe("module settings behavior with real Inertia useForm", () => {
                   <DefaultRulesSettings
                     moduleKey="purchase"
                     defaultTaxRules={[
-                      { id: "tax-rule", item_type: "goods", priority: 0 },
+                      {
+                        id: "tax-rule",
+                        item_type: "goods",
+                        tax_id: "tax-1",
+                        priority: 0,
+                      },
                     ]}
                     defaultWarehouseRules={[
                       {

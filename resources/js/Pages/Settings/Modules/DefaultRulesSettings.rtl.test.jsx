@@ -272,7 +272,9 @@ describe("DefaultRulesSettings RTL", () => {
     const props = {
       moduleKey: "purchase",
       defaultRulesVersion: "version-a",
-      defaultTaxRules: [{ id: "tax-rule", item_type: "goods", priority: 0 }],
+      defaultTaxRules: [
+        { id: "tax-rule", item_type: "goods", tax_id: "tax-1", priority: 0 },
+      ],
       registerSaveHandler,
     };
     const { rerender } = render(<DefaultRulesSettings {...props} />);
@@ -293,7 +295,9 @@ describe("DefaultRulesSettings RTL", () => {
       <DefaultRulesSettings
         moduleKey="purchase"
         defaultRulesVersion="version-a"
-        defaultTaxRules={[{ id: "old-rule", item_type: "goods", priority: 0 }]}
+        defaultTaxRules={[
+          { id: "old-rule", item_type: "goods", tax_id: "tax-1", priority: 0 },
+        ]}
         registerSaveHandler={registerSaveHandler}
       />,
     );
@@ -301,7 +305,9 @@ describe("DefaultRulesSettings RTL", () => {
       <DefaultRulesSettings
         moduleKey="purchase"
         defaultRulesVersion="version-b"
-        defaultTaxRules={[{ id: "new-rule", item_type: "asset", priority: 0 }]}
+        defaultTaxRules={[
+          { id: "new-rule", item_type: "asset", tax_id: "tax-1", priority: 0 },
+        ]}
         registerSaveHandler={registerSaveHandler}
       />,
     );
@@ -324,7 +330,12 @@ describe("DefaultRulesSettings RTL", () => {
         <DefaultRulesSettings
           moduleKey="purchase"
           defaultTaxRules={[
-            { id: "tax-rule", item_type: "goods", priority: 0 },
+            {
+              id: "tax-rule",
+              item_type: "goods",
+              tax_id: "tax-1",
+              priority: 0,
+            },
           ]}
           defaultWarehouseRules={[
             {
@@ -508,7 +519,9 @@ describe("DefaultRulesSettings RTL", () => {
       <DefaultRulesSettings
         moduleKey="purchase"
         itemTypeOptions={itemTypeOptions}
-        defaultTaxRules={[{ id: "legacy", item_type: "goods", priority: 0 }]}
+        defaultTaxRules={[
+          { id: "legacy", item_type: "goods", tax_id: "tax-1", priority: 0 },
+        ]}
       />,
     );
 
@@ -555,8 +568,8 @@ describe("DefaultRulesSettings RTL", () => {
         moduleKey="sales"
         itemTypeOptions={itemTypeOptions}
         defaultTaxRules={[
-          { id: "tax-0", item_type: "inventory", priority: 0 },
-          { id: "tax-1", item_type: "vehicle", priority: 0 },
+          { id: "tax-0", item_type: "inventory", tax_id: "tax-1", priority: 0 },
+          { id: "tax-1", item_type: "vehicle", tax_id: "tax-1", priority: 0 },
         ]}
         defaultWarehouseRules={[
           { id: "wh-0", item_type: "service", warehouse_id: "w", priority: 0 },
@@ -629,6 +642,7 @@ describe("DefaultRulesSettings RTL", () => {
       })[0],
       "inventory",
     );
+    await user.type(screen.getAllByTestId("tax-link-model")[0], "tax-1");
     await user.click(
       screen.getByRole("button", { name: "purchase.setting.rules.save" }),
     );
@@ -640,7 +654,7 @@ describe("DefaultRulesSettings RTL", () => {
           tax_rules: [
             expect.objectContaining({
               item_type: "inventory",
-              tax_id: null,
+              tax_id: "tax-1",
               is_stock_item: null,
             }),
           ],
@@ -735,6 +749,15 @@ describe("DefaultRulesSettings RTL", () => {
       })[1],
       "inventory",
     );
+    const taxTable = screen.getByTestId("form-table-DefaultTaxRules");
+    for (const index of [0, 1]) {
+      await user.selectOptions(
+        within(taxTable).getAllByRole("combobox", {
+          name: "sales.setting.rules.columns.document_type",
+        })[index],
+        "sales_order",
+      );
+    }
     await user.click(
       screen.getByRole("button", { name: "sales.setting.rules.save" }),
     );
@@ -743,6 +766,57 @@ describe("DefaultRulesSettings RTL", () => {
     );
     expect(requests.put).not.toHaveBeenCalled();
   });
+
+  it.each([
+    ["purchase", "purchase_order", true],
+    ["purchase", "purchase_invoice", true],
+    ["sales", "quotation", true],
+    ["sales", "", true],
+    ["sales", "sales_order", false],
+    ["sales", "sales_invoice", false],
+  ])(
+    "validates a no-tax rule for %s module and document type %j",
+    async (moduleKey, documentType, rejected) => {
+      const user = userEvent.setup();
+      render(
+        <DefaultRulesSettings
+          moduleKey={moduleKey}
+          itemTypeOptions={itemTypeOptions}
+        />,
+      );
+      const taxTable = screen.getByTestId("form-table-DefaultTaxRules");
+      await user.selectOptions(
+        within(taxTable).getAllByRole("combobox", {
+          name: `${moduleKey}.setting.rules.columns.item_type`,
+        })[0],
+        "inventory",
+      );
+      if (documentType) {
+        await user.selectOptions(
+          within(taxTable).getAllByRole("combobox", {
+            name: `${moduleKey}.setting.rules.columns.document_type`,
+          })[0],
+          documentType,
+        );
+      }
+      await user.click(
+        screen.getByRole("button", { name: `${moduleKey}.setting.rules.save` }),
+      );
+
+      if (rejected) {
+        expect(await screen.findByRole("alert")).toHaveTextContent(
+          `${moduleKey}.setting.rules.validation.no_tax_not_allowed`,
+        );
+        expect(requests.put).not.toHaveBeenCalled();
+      } else {
+        expect(requests.put).toHaveBeenCalledOnce();
+        expect(requests.put.mock.calls[0][1].tax_rules[0]).toMatchObject({
+          document_type: documentType,
+          tax_id: null,
+        });
+      }
+    },
+  );
 
   it("keeps a new wildcard stock condition distinct from a non-stock condition", async () => {
     const user = userEvent.setup();
@@ -823,7 +897,12 @@ describe("DefaultRulesSettings RTL", () => {
           activeTaxes={[{ id: "tax-1", name: "Tax" }]}
           activeWarehouses={[{ id: "warehouse-1", name: "Warehouse" }]}
           defaultTaxRules={[
-            { id: "rule-1", item_type: "inventory", tax_id: null },
+            {
+              id: "rule-1",
+              document_type: "sales_order",
+              item_type: "inventory",
+              tax_id: null,
+            },
           ]}
           defaultWarehouseRules={[
             {

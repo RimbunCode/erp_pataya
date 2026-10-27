@@ -2,6 +2,7 @@
 
 namespace App\Services\Core\Setting;
 
+use App\Enums\DefaultsDocumentType;
 use App\Models\Core\DefaultRules\DefaultTaxRule;
 use App\Models\Core\DefaultRules\DefaultWarehouseRule;
 use App\Models\Core\ModuleSetting;
@@ -151,6 +152,12 @@ class ModuleDefaultRulesService {
                 && $attributes['is_stock_item'] === null && $attributes['item_category_id'] === null) {
                 throw ValidationException::withMessages([
                     "{$field}.{$index}.item_type" => __("{$module}.setting.rules.server.condition_required"),
+                ]);
+            }
+            if ($hasTax && ($attributes['tax_id'] ?? null) === null
+                && DefaultsDocumentType::tryFrom((string) $attributes['document_type'])?->supportsNoTaxRule() !== true) {
+                throw ValidationException::withMessages([
+                    "{$field}.{$index}.tax_id" => __("{$module}.setting.rules.server.no_tax_not_allowed"),
                 ]);
             }
             if (! $hasTax && ($attributes['is_stock_item'] ?? null) === false) {

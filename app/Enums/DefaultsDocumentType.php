@@ -53,4 +53,16 @@ enum DefaultsDocumentType: string {
             self::PurchaseReceipt, self::DeliveryNote                                                         => false,
         };
     }
+
+    /**
+     * Dokumen yang boleh membuat pajak baris kosong lewat aturan "tanpa pajak" (`tax_id` null).
+     * Pajak pada Quotation, PO, dan PI wajib mutlak (`items.*.tax.id` required); hanya SO dan SI
+     * yang wajib-bersyarat (D-S13, dibatasi oleh D-S18).
+     */
+    public function supportsNoTaxRule(): bool {
+        return match ($this) {
+            self::SalesOrder, self::SalesInvoice => true,
+            self::PurchaseOrder, self::PurchaseInvoice, self::Quotation, self::PurchaseReceipt, self::DeliveryNote => false,
+        };
+    }
 }

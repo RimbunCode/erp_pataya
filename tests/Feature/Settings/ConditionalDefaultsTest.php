@@ -72,6 +72,7 @@ class ConditionalDefaultsTest extends TestCase {
 
     public function test_resolver_applies_specific_rules_and_fallbacks_and_ignores_non_stock_warehouses(): void {
         $tax         = Tax::query()->create(['name' => 'Goods tax', 'rate' => 11]);
+        $ruleTax     = Tax::query()->create(['name' => 'Goods rule tax', 'rate' => 5]);
         $warehouse   = $this->createWarehouse('Default warehouse');
         $category    = Category::query()->create(['name' => 'Parts', 'type' => 'inventory']);
         $stockItem   = Item::factory()->create(['type' => 'goods', 'is_stock_item' => true, 'category_id' => $category->id]);
@@ -80,7 +81,7 @@ class ConditionalDefaultsTest extends TestCase {
         PurchaseSetting::current()->fill(['default_tax_id' => $tax->id, 'default_target_warehouse_id' => $warehouse->id])->save();
         DefaultTaxRule::query()->create([
             'module'        => 'purchase', 'document_type' => 'purchase_order', 'item_type' => 'goods',
-            'is_stock_item' => true, 'item_category_id' => $category->id, 'tax_id' => null, 'priority' => 0,
+            'is_stock_item' => true, 'item_category_id' => $category->id, 'tax_id' => $ruleTax->id, 'priority' => 0,
         ]);
         DefaultWarehouseRule::query()->create([
             'module'        => 'purchase', 'document_type' => null, 'item_type' => 'goods',
@@ -92,11 +93,11 @@ class ConditionalDefaultsTest extends TestCase {
             [$stockItem->id, $serviceItem->id],
         );
 
-        $this->assertSame([], $resolved[$stockItem->id]['tax_ids']);
+        $this->assertSame([$ruleTax->id], $resolved[$stockItem->id]['tax_ids']);
         $this->assertSame($warehouse->id, $resolved[$stockItem->id]['warehouse_id']);
         $this->assertSame($warehouse->id, $resolved[$stockItem->id]['warehouse']['id']);
-        $this->assertSame([], $resolved[$stockItem->id]['taxes']);
-        $this->assertTrue($resolved[$stockItem->id]['tax_optional'], 'Aturan tanpa pajak eksplisit cocok.');
+        $this->assertSame($ruleTax->id, $resolved[$stockItem->id]['taxes'][0]['id']);
+        $this->assertFalse($resolved[$stockItem->id]['tax_optional'], 'Aturan pajak yang cocok memberi pajak; pajak PO tetap wajib.');
         $this->assertSame([$tax->id], $resolved[$serviceItem->id]['tax_ids']);
         $this->assertSame($tax->id, $resolved[$serviceItem->id]['taxes'][0]['id']);
         $this->assertFalse($resolved[$serviceItem->id]['tax_optional'], 'Tanpa aturan cocok pajak tetap wajib.');
@@ -182,6 +183,90 @@ class ConditionalDefaultsTest extends TestCase {
         $this->assertFalse($invoice[$matching->id]['tax_optional']);
     }
 
+    public function test_no_tax_rule_is_only_supported_for_sales_order_and_sales_invoice(): void {
+        $supported = array_values(array_map(
+            fn (DefaultsDocumentType $type): string => $type->value,
+            array_filter(DefaultsDocumentType::cases(), fn (DefaultsDocumentType $type): bool => $type->supportsNoTaxRule()),
+        ));
+
+        $this->assertEqualsCanonicalizing(['sales_order', 'sales_invoice'], $supported);
+    }
+
+    public function test_saving_rules_rejects_a_no_tax_rule_outside_sales_order_and_sales_invoice(): void {
+        $cases = [
+            ['purchase', 'purchase_order'],
+            ['purchase', 'purchase_invoice'],
+            ['purchase', null],
+            ['sales', 'quotation'],
+            ['sales', null],
+        ];
+
+        foreach ($cases as [$module, $documentType]) {
+            $rule = ['document_type' => $documentType, 'item_type' => 'inventory', 'is_stock_item' => null, 'item_category_id' => null, 'tax_id' => null, 'priority' => 0];
+
+            try {
+                app(ModuleDefaultRulesService::class)->replace($module, ['tax_rules' => [$rule], 'warehouse_rules' => []]);
+                $this->fail("Expected a no-tax rule for {$module}/" . ($documentType ?? 'any') . ' to be rejected.');
+            } catch (ValidationException $exception) {
+                $this->assertArrayHasKey('tax_rules.0.tax_id', $exception->errors(), "{$module}/" . ($documentType ?? 'any'));
+            }
+        }
+
+        $this->assertDatabaseCount('default_tax_rules', 0);
+    }
+
+    public function test_saving_rules_accepts_a_no_tax_rule_for_sales_order_and_sales_invoice_and_a_tax_rule_for_any_document(): void {
+        $tax   = Tax::query()->create(['name' => 'Rule tax', 'rate' => 11]);
+        $base  = ['item_type' => 'inventory', 'is_stock_item' => null, 'item_category_id' => null, 'priority' => 0];
+        $rules = [
+            [...$base, 'document_type' => 'sales_order', 'tax_id' => null],
+            [...$base, 'document_type' => 'sales_invoice', 'tax_id' => null],
+            [...$base, 'document_type' => 'quotation', 'tax_id' => $tax->id],
+            [...$base, 'document_type' => null, 'tax_id' => $tax->id],
+        ];
+
+        app(ModuleDefaultRulesService::class)->replace('sales', ['tax_rules' => $rules, 'warehouse_rules' => []]);
+
+        $this->assertDatabaseCount('default_tax_rules', 4);
+    }
+
+    public function test_endpoint_reports_the_no_tax_rule_error_on_the_tax_field(): void {
+        $user        = User::factory()->create();
+        $permissions = [PurchaseSetting::class => [0 => [['permissions' => ['write' => true], 'only_creator' => false]]]];
+        $this->grantCurrentPermission($user, PurchaseSetting::class, ['write' => true]);
+
+        $this->actingAs($user)->withSession(['permissions' => $permissions])
+            ->put(route('moduleSettings.defaultRules.update', ['moduleKey' => 'purchase']), [
+                'tax_rules'       => [['document_type' => 'purchase_order', 'item_type' => 'inventory', 'is_stock_item' => null, 'item_category_id' => null, 'tax_id' => null, 'priority' => 0]],
+                'warehouse_rules' => [],
+            ])
+            ->assertSessionHasErrors('tax_rules.0.tax_id');
+    }
+
+    public function test_resolver_ignores_legacy_no_tax_rules_on_documents_where_tax_is_mandatory(): void {
+        $purchaseTax = Tax::query()->create(['name' => 'Purchase module tax', 'rate' => 11]);
+        $salesTax    = Tax::query()->create(['name' => 'Sales module tax', 'rate' => 11]);
+        $item        = Item::factory()->create(['type' => 'inventory']);
+        PurchaseSetting::current()->fill(['default_tax_id' => $purchaseTax->id])->save();
+        SalesSetting::current()->fill(['default_tax_id' => $salesTax->id])->save();
+        // Disisipkan langsung (melewati validasi) untuk meniru data lama yang tidak lagi sah.
+        DefaultTaxRule::query()->create(['module' => 'purchase', 'document_type' => 'purchase_order', 'item_type' => 'inventory', 'tax_id' => null, 'priority' => 0]);
+        DefaultTaxRule::query()->create(['module' => 'sales', 'document_type' => null, 'item_type' => 'inventory', 'tax_id' => null, 'priority' => 0]);
+        $resolver = app(DocumentDefaultsResolver::class);
+
+        $purchaseOrder = $resolver->resolveForItems(DefaultsDocumentType::PurchaseOrder, [$item->id])[$item->id];
+        $this->assertSame([$purchaseTax->id], $purchaseOrder['tax_ids']);
+        $this->assertFalse($purchaseOrder['tax_optional']);
+
+        $quotation = $resolver->resolveForItems(DefaultsDocumentType::Quotation, [$item->id])[$item->id];
+        $this->assertSame([$salesTax->id], $quotation['tax_ids']);
+        $this->assertFalse($quotation['tax_optional']);
+
+        $salesOrder = $resolver->resolveForItems(DefaultsDocumentType::SalesOrder, [$item->id])[$item->id];
+        $this->assertSame([], $salesOrder['tax_ids']);
+        $this->assertTrue($salesOrder['tax_optional']);
+    }
+
     public function test_resolved_taxes_follow_tax_ids_order_and_shape_of_the_form_tax_object(): void {
         $tax  = Tax::query()->create(['name' => 'Rule tax', 'rate' => 7.5]);
         $item = Item::factory()->create(['type' => 'inventory']);
@@ -199,12 +284,13 @@ class ConditionalDefaultsTest extends TestCase {
 
     public function test_saving_rules_normalizes_category_ulids_before_duplicate_detection(): void {
         $category = Category::query()->create(['name' => 'Case normalization category', 'type' => 'inventory']);
+        $tax      = Tax::query()->create(['name' => 'Normalization tax', 'rate' => 11]);
         $rule     = [
             'document_type'    => 'purchase_order',
             'item_type'        => null,
             'is_stock_item'    => null,
             'item_category_id' => $category->id,
-            'tax_id'           => null,
+            'tax_id'           => $tax->id,
             'priority'         => 0,
         ];
 
@@ -447,7 +533,8 @@ class ConditionalDefaultsTest extends TestCase {
         $warehouse   = $this->createWarehouse('Rule warehouse');
         $permissions = [PurchaseSetting::class => [0 => [['permissions' => ['write' => true], 'only_creator' => false]]]];
         $this->grantCurrentPermission($user, PurchaseSetting::class, ['write' => true]);
-        $validTax = ['document_type' => 'purchase_order', 'item_type' => 'inventory', 'is_stock_item' => null, 'item_category_id' => null, 'tax_id' => null, 'priority' => 0];
+        $ruleTax  = Tax::query()->create(['name' => 'Rule tax', 'rate' => 11]);
+        $validTax = ['document_type' => 'purchase_order', 'item_type' => 'inventory', 'is_stock_item' => null, 'item_category_id' => null, 'tax_id' => $ruleTax->id, 'priority' => 0];
 
         $this->actingAs($user)->withSession(['permissions' => $permissions])
             ->put(route('moduleSettings.defaultRules.update', ['moduleKey' => 'purchase']), [
@@ -813,9 +900,10 @@ class ConditionalDefaultsTest extends TestCase {
             }
         });
 
+        $auditTax = Tax::query()->create(['name' => 'Audit tax', 'rate' => 11]);
         $this->actingAsRuleWriter('purchase')
             ->putJson(route('moduleSettings.defaultRules.update', ['moduleKey' => 'purchase']), [
-                'tax_rules'       => [['item_type' => 'inventory', 'tax_id' => null]],
+                'tax_rules'       => [['item_type' => 'inventory', 'tax_id' => $auditTax->id]],
                 'warehouse_rules' => [],
             ])
             ->assertServerError();
@@ -885,7 +973,7 @@ class ConditionalDefaultsTest extends TestCase {
         return [
             'tax_rules' => [
                 [...$this->rulePayload($taxRule), 'priority' => 10],
-                ['item_type' => 'service', 'tax_id' => null, 'priority' => 20],
+                ['item_type' => 'service', 'tax_id' => $taxRule->tax_id, 'priority' => 20],
             ],
             'warehouse_rules' => [
                 [...$this->rulePayload($warehouseRule), 'priority' => 10],

@@ -113,7 +113,7 @@ Unik kombinasi `(module, document_type, item_type, is_stock_item, item_category_
 - **P-C1 Spesifisitas:** untuk himpunan aturan acak, aturan dengan kondisi non-null terbanyak menang, lalu `priority`; hasil tidak bergantung urutan penyimpanan.
 - **P-C2 Netral:** tanpa aturan, `resolveForItems` sama dengan `defaultsFor` spec defaults.
 - **P-C3 Non-stok:** hasil gudang selalu `null` untuk `is_stock_item = false`.
-- **P-C4 Pengecualian pajak:** aturan `tax_id = null` menghasilkan `tax_ids = []` meski default modul berisi pajak.
+- **P-C4 Pengecualian pajak:** aturan `tax_id = null` menghasilkan `tax_ids = []` meski default modul berisi pajak, hanya untuk Sales Order dan Sales Invoice; pada jenis dokumen lain aturan itu ditolak saat disimpan dan diabaikan oleh resolver (D-S18).
 - **P-C5 Murni:** `DefaultRuleMatcher::match` tidak memanggil DB.
 - **P-C6 Tanpa timpa:** form tidak mengubah field yang sudah berisi.
 - **P-C7 Bentuk daftar:** `tax_ids` selalu daftar (kait multi-pajak).

@@ -13,8 +13,8 @@ use App\Models\Inventory\Category;
 use App\Models\Inventory\InventorySetting;
 use App\Models\Inventory\Item;
 use App\Models\Inventory\Warehouse;
-use App\Models\Purchase\PurchaseOrder;
 use App\Models\Purchase\PurchaseSetting;
+use App\Models\Sales\SalesOrder;
 use App\Models\Sales\SalesSetting;
 use App\Models\User\Permission;
 use App\Models\User\Role;
@@ -85,21 +85,21 @@ class ModuleDefaultsFollowUpTest extends TestCase {
         $category  = Category::query()->create(['name' => 'No tax goods', 'type' => 'inventory']);
         $taxed     = Item::factory()->create(['category_id' => null]);
         $untaxed   = Item::factory()->create(['category_id' => $category->id]);
-        PurchaseSetting::current()->fill(['default_tax_id' => $moduleTax->id])->save();
-        app(ModuleDefaultRulesService::class)->replace('purchase', [
+        SalesSetting::current()->fill(['default_tax_id' => $moduleTax->id])->save();
+        app(ModuleDefaultRulesService::class)->replace('sales', [
             'tax_rules' => [[
-                'document_type'    => 'purchase_order', 'item_type' => null, 'is_stock_item' => null,
+                'document_type'    => 'sales_order', 'item_type' => null, 'is_stock_item' => null,
                 'item_category_id' => $category->id, 'tax_id' => null, 'priority' => 0,
             ]],
             'warehouse_rules' => [],
         ]);
         $user        = User::factory()->create();
-        $permissions = [PurchaseOrder::class => [0 => [['permissions' => ['read' => true], 'only_creator' => false]]]];
-        $this->grantPermission($user, PurchaseOrder::class, ['read' => true]);
+        $permissions = [SalesOrder::class => [0 => [['permissions' => ['read' => true], 'only_creator' => false]]]];
+        $this->grantPermission($user, SalesOrder::class, ['read' => true]);
 
         $response = $this->actingAs($user)->withSession(['permissions' => $permissions])
             ->postJson(route('defaults.resolve'), [
-                'document_type' => 'purchase_order',
+                'document_type' => 'sales_order',
                 'items'         => [['item_id' => $taxed->id], ['item_id' => $untaxed->id]],
             ])
             ->assertOk()
@@ -152,7 +152,7 @@ class ModuleDefaultsFollowUpTest extends TestCase {
 
     /** @return array<string, mixed> */
     private function taxRule(array $over = []): array {
-        return ['document_type' => 'purchase_order', 'item_type' => 'inventory', 'is_stock_item' => null, 'item_category_id' => null, 'tax_id' => null, 'priority' => 0, ...$over];
+        return ['document_type' => 'purchase_order', 'item_type' => 'inventory', 'is_stock_item' => null, 'item_category_id' => null, 'tax_id' => Tax::query()->firstOrCreate(['name' => 'Rule tax'], ['rate' => 11])->id, 'priority' => 0, ...$over];
     }
 
     /** @return array<string, mixed> */

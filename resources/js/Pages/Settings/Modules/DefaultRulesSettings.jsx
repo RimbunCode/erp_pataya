@@ -19,6 +19,11 @@ import WarehouseLinkModel from "@/Pages/Inventory/Warehouses/WarehouseLinkModel"
 
 const EMPTY_ARRAY = [];
 
+// Cerminan DefaultsDocumentType::supportsNoTaxRule(); server tetap yang menentukan (D-S18).
+const NO_TAX_DOCUMENT_TYPES = ["sales_order", "sales_invoice"];
+
+const hasTaxValue = (rule) => Boolean(rule.tax_id || rule.tax?.id);
+
 const stockCondition = (value) =>
   value == null || value === "" ? null : [true, 1, "1", "true"].includes(value);
 
@@ -238,9 +243,12 @@ function RuleTable({
       ),
       column(
         valueKey,
-        ({ dataRow, setData, attributes }) => {
+        ({ dataRow, setData, attributes }, index) => {
           const data = dataRow[valueKey];
           const reference = kind === "tax" ? dataRow.tax : dataRow.warehouse;
+          const allowsNoTax = NO_TAX_DOCUMENT_TYPES.includes(
+            dataRow.document_type,
+          );
           const unavailable = isUnavailableValue(data);
           const LinkModelComponent =
             kind === "tax" ? TaxLinkModel : WarehouseLinkModel;
@@ -250,7 +258,11 @@ function RuleTable({
               <LinkModelComponent
                 value={reference ?? null}
                 placeholder={t(
-                  kind === "tax" ? "rules.no_tax" : "rules.choose_value",
+                  kind === "tax"
+                    ? allowsNoTax
+                      ? "rules.no_tax"
+                      : "rules.choose_tax"
+                    : "rules.choose_value",
                 )}
                 includeGlobalBranch={kind === "warehouse"}
                 onValueChange={(value) =>
@@ -266,6 +278,11 @@ function RuleTable({
                   {referenceUnavailable}
                 </p>
               )}
+              <InputError
+                message={ruleError(index, valueKey)}
+                className="mt-1 text-xs"
+                role="alert"
+              />
             </div>
           );
         },
@@ -450,6 +467,13 @@ export default function DefaultRulesSettings({
         }
         if (kind === "warehouse" && !rule.warehouse_id) {
           return t("rules.validation.warehouse_value_required");
+        }
+        if (
+          kind === "tax" &&
+          !hasTaxValue(rule) &&
+          !NO_TAX_DOCUMENT_TYPES.includes(rule.document_type)
+        ) {
+          return t("rules.validation.no_tax_not_allowed");
         }
       }
     }

@@ -23,7 +23,7 @@ return [
         'add'                   => 'Add rule', 'remove' => 'Remove', 'save' => 'Save rules', 'saving' => 'Saving…',
         'save_failed'           => 'Unable to save default rules.', 'empty' => 'No rules configured.',
         'any'                   => 'Any', 'stock' => 'Stock item', 'non_stock' => 'Non-stock item',
-        'no_tax'                => 'No tax (clear)', 'choose_value' => 'Choose warehouse', 'no_warehouse' => 'No warehouse',
+        'no_tax'                => 'No tax (clear)', 'choose_tax' => 'Choose tax', 'choose_value' => 'Choose warehouse', 'no_warehouse' => 'No warehouse',
         'reference_unavailable' => 'This saved reference is inactive or unavailable. Select an active value or remove this rule.',
         'unavailable_value'     => 'Unavailable reference', 'preview_title' => 'Preview resolution',
         'preview_document_type' => 'Document type',
@@ -46,12 +46,14 @@ return [
             'priority'                     => 'Priority must be a non-negative whole number.',
             'warehouse_value_required'     => 'Choose a warehouse for each warehouse rule.',
             'warehouse_document_type'      => 'Warehouse rules are only supported for Purchase Order and Purchase Receipt.',
+            'no_tax_not_allowed'           => 'A "no tax" rule only applies to Sales Order and Sales Invoice; choose a tax for this rule.',
         ],
         'server' => [
             'condition_required'  => 'Each rule needs at least one condition.',
             'warehouse_non_stock' => 'Warehouse rules cannot target non-stock items.',
             'duplicate'           => 'Rules with the same conditions cannot be duplicated.',
             'invalid_id'          => 'The selected rule is no longer available.',
+            'no_tax_not_allowed'  => 'A "no tax" rule only applies to Sales Order and Sales Invoice; choose a tax for this rule.',
         ],
     ],
 ];

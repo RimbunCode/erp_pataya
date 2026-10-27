@@ -3,7 +3,7 @@
 | | |
 |---|---|
 | **Status** | Draft v1.1 — keputusan bertanda **PENDING** (Bagian 8) menunggu konfirmasi |
-| **Revisi v1.1** | 2026-10-26 — hasil review implementasi: FR-D4 diganti alur fleksibel, FR-D6 disetujui, pajak SO/SI wajib kecuali aturan "tanpa pajak", toleransi DN mencakup Internal Order (D-S11 s.d. D-S15); Q-S6 dan R-S5 ditutup |
+| **Revisi v1.1** | 2026-10-26 — hasil review implementasi: FR-D4 diganti alur fleksibel, FR-D6 disetujui, pajak SO/SI wajib kecuali aturan "tanpa pajak", toleransi DN mencakup Internal Order (D-S11 s.d. D-S15); 2026-10-27: aturan "tanpa pajak" dibatasi untuk SO/SI (D-S18); Q-S6 dan R-S5 ditutup |
 | **Tanggal** | 2026-10-18 |
 | **Cakupan** | Halaman konfigurasi per modul (Finances, Purchase, Sales, Inventory, Asset, Service, Helpdesk, dan seterusnya), penyimpanan setting bertipe, default transaksi, dan kontrol transaksi |
 | **Spec turunan** | `module-settings-foundation`, `module-defaults-and-controls`, `module-conditional-defaults`, `module-settings-other-modules` (lihat Bagian 9); masa depan: `multi-tax-per-line` |
@@ -179,7 +179,7 @@ Kriteria penerimaan rinci ada di `requirements.md` tiap spec.
 - **FR-D4** ~~Kontrol rantai dokumen (wajib PO sebelum Receipt/Invoice dan seterusnya).~~ **Diganti (D-S11, 2026-10-26): alur dokumen fleksibel.** Setting pada program ini tidak mewajibkan atau melarang Purchase Order, Purchase Receipt, Sales Order, Delivery Note, Internal Order, retur, maupun baris di luar dokumen sumber; fitur baris di luar sumber mempertahankan perilaku dan izin saat ini.
 - **FR-D5** Toleransi penerimaan/tagihan berlebih (%).
 - **FR-D6** Kontrol opsional, **disetujui pemilik produk 2026-10-26 (D-S12)**: peringatan atau blokir saat tarif berubah antar dokumen, serta peringatan atau blokir saat harga jual di bawah biaya (valuation rate stok). Angka biaya hanya ditampilkan kepada pengguna yang berhak melihat valuation rate (izin StockEntry). Perbandingan tarif dan toleransi nilai dilakukan dalam mata uang dokumen; selisih kurs bukan bagian program ini.
-- **FR-D7** Pajak pada baris Sales Order dan Sales Invoice tetap **wajib**, kecuali aturan default bersyarat eksplisit "tanpa pajak" cocok untuk baris itu (D-S13).
+- **FR-D7** Pajak pada baris Sales Order dan Sales Invoice tetap **wajib**, kecuali aturan default bersyarat eksplisit "tanpa pajak" cocok untuk baris itu (D-S13). Aturan "tanpa pajak" hanya boleh dibuat untuk Sales Order dan Sales Invoice (D-S18); pajak baris Quotation, Purchase Order, dan Purchase Invoice wajib mutlak.
 - **FR-D8** Toleransi pengiriman berlebih Delivery Note berlaku untuk baris yang bersumber dari Sales Order maupun Internal Order (berdasarkan item sumber); batas keras kuantitas consumed item pada baris servis tetap berjalan terpisah (D-S14).
 
 ### 7.3 Default bersyarat (spec conditional-defaults)
@@ -210,9 +210,10 @@ Kriteria penerimaan rinci ada di `requirements.md` tiap spec.
 | D-S12 | Kontrol opsional FR-D6 disetujui, pembanding biaya = valuation rate stok (bukan "harga beli"); angka biaya hanya bagi pemegang izin valuation rate; perbandingan dalam mata uang dokumen bila mata uang sumber dan invoice sama, selisih kurs tetap milik Finance P4/P6 | **DECIDED** (2026-10-26) |
 | D-S13 | Pajak baris Sales Order/Invoice wajib kecuali aturan bersyarat "tanpa pajak" cocok (menjaga Prinsip 4: tanpa aturan, perilaku identik dengan sebelum program ini) | **DECIDED** (2026-10-26) |
 | D-S14 | Toleransi pengiriman Delivery Note mencakup Sales Order dan Internal Order (berdasarkan item sumber); batas consumed item tetap | **DECIDED** (2026-10-26) |
-| D-S15 | Aturan default bersyarat: `item_type` divalidasi terhadap nilai `items.type` yang sah; aturan pajak hanya untuk jenis dokumen yang memiliki pajak per baris (PO, PI, SO, SI, Quotation) | **DECIDED** (2026-10-26) |
+| D-S15 | Aturan default bersyarat: `item_type` divalidasi terhadap nilai `items.type` yang sah; aturan pajak hanya untuk jenis dokumen yang memiliki pajak per baris (PO, PI, SO, SI, Quotation); aturan "tanpa pajak" dipersempit lagi oleh D-S18 | **DECIDED** (2026-10-26) |
 | D-S16 | Tabel `default_tax_rules` dan `default_warehouse_rules` belum pernah dirilis (migrasi hanya ada di branch fitur), sehingga tidak ada migrasi pembersihan maupun catatan rilis untuk aturan lama yang tidak lolos validasi D-S15 | **DECIDED** (2026-10-27) |
 | D-S17 | Validasi `Rule::in(Category::TYPES)` pada `CategoryRequest` tidak dikerjakan di rangkaian ini (di luar spek); dapat dibuat sebagai perubahan terpisah setelah `DISTINCT type` pada data nyata diperiksa | **DEFERRED** (2026-10-27) |
+| D-S18 | Aturan default pajak dengan `tax_id` null ("tanpa pajak") hanya sah untuk `document_type` Sales Order atau Sales Invoice (`DefaultsDocumentType::supportsNoTaxRule()`); `document_type` kosong atau jenis lain ditolak 422 di `tax_rules.N.tax_id`. Pajak baris Quotation, PO, dan PI tetap wajib mutlak sesuai PR #266. Resolver mengabaikan aturan "tanpa pajak" lama pada dokumen selain SO/SI. Mempersempit D-S13 dan D-S15 | **DECIDED** (2026-10-27) |
 
 ### Pertanyaan terbuka
 

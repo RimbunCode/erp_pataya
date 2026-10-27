@@ -29,7 +29,7 @@ Urutan: verifikasi (1), skema dan model (2), pencocok, resolver, dan endpoint (3
 - [x] 2. Skema dan model
   - [x] 2.1 Migrasi + model `DefaultTaxRule` dan `DefaultWarehouseRule` (kolom eksplisit, FK, `rules()`, izin/audit mengikuti setting, factory)
     - _Requirements: 1.1–1.7_
-  - [x]* 2.2 Write tests model/service: duplikat ditolak, tanpa kondisi ditolak, `tax_id = null` valid, gudang dengan `is_stock_item = false` ditolak, referensi nonaktif ditolak
+  - [x]* 2.2 Write tests model/service: duplikat ditolak, tanpa kondisi ditolak, `tax_id = null` valid hanya untuk SO/SI (D-S18), gudang dengan `is_stock_item = false` ditolak, referensi nonaktif ditolak
     - **Validates: Requirements 1.3–1.7**
 
 - [x] 3. Pencocok, resolver, endpoint

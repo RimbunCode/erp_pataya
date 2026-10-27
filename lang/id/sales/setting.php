@@ -26,7 +26,7 @@ return [
         'add'                   => 'Tambah aturan', 'remove' => 'Hapus', 'save' => 'Simpan aturan', 'saving' => 'Menyimpan…',
         'save_failed'           => 'Aturan default tidak dapat disimpan.', 'empty' => 'Belum ada aturan.',
         'any'                   => 'Semua', 'stock' => 'Barang stok', 'non_stock' => 'Barang non-stok',
-        'no_tax'                => 'Tanpa pajak (kosongkan)', 'choose_value' => 'Pilih gudang', 'no_warehouse' => 'Tanpa gudang',
+        'no_tax'                => 'Tanpa pajak (kosongkan)', 'choose_tax' => 'Pilih pajak', 'choose_value' => 'Pilih gudang', 'no_warehouse' => 'Tanpa gudang',
         'reference_unavailable' => 'Referensi tersimpan ini tidak aktif atau tidak tersedia. Pilih nilai aktif atau hapus aturan.',
         'unavailable_value'     => 'Referensi tidak tersedia', 'preview_title' => 'Pratinjau resolusi',
         'preview_document_type' => 'Jenis dokumen', 'choose_document_type' => 'Pilih jenis dokumen',
@@ -47,12 +47,14 @@ return [
             'priority'                     => 'Prioritas harus berupa bilangan bulat tidak negatif.',
             'warehouse_value_required'     => 'Pilih gudang untuk setiap aturan gudang.',
             'warehouse_document_type'      => 'Aturan gudang hanya didukung untuk Pesanan Penjualan dan Surat Jalan.',
+            'no_tax_not_allowed'           => 'Aturan "tanpa pajak" hanya berlaku untuk Sales Order dan Sales Invoice; pilih pajak untuk aturan ini.',
         ],
         'server' => [
             'condition_required'  => 'Setiap aturan harus memiliki minimal satu kondisi.',
             'warehouse_non_stock' => 'Aturan gudang tidak dapat diterapkan pada barang non-stok.',
             'duplicate'           => 'Aturan dengan kondisi yang sama tidak boleh duplikat.',
             'invalid_id'          => 'Aturan yang dipilih sudah tidak tersedia.',
+            'no_tax_not_allowed'  => 'Aturan "tanpa pajak" hanya berlaku untuk Sales Order dan Sales Invoice; pilih pajak untuk aturan ini.',
         ],
     ],
 ];
