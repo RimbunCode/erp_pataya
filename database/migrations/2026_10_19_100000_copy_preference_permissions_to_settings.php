@@ -10,7 +10,8 @@ return new class extends Migration
      *
      * Instalasi yang sudah ada: salin baris role_permissions dari model
      * `Preference` ke `CoreSetting` dan beri System Manager flag penuh pada
-     * semua model setting. Idempoten (updateOrCreate di seeder). Instalasi
+     * semua model setting. Idempoten (firstOrCreate di seeder; baris yang sudah ada
+     * atau sudah dicabut tidak diubah). Instalasi
      * baru tercakup lewat DatabaseSeeder, sehingga pemanggilan di sini aman
      * dijalankan ulang.
      */

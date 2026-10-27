@@ -62,12 +62,17 @@ class ModuleSettingPermissionSeeder extends Seeder {
             return;
         }
 
-        $sourceRows = RolePermission::withTrashed()
+        // Hanya izin Preference yang masih aktif yang disalin: baris yang sudah
+        // dicabut lewat halaman Roles (soft delete) tidak boleh menghidupkan
+        // izin CoreSetting.
+        $sourceRows = RolePermission::query()
             ->where('permission_id', $preferencePermission->id)
             ->get();
 
         foreach ($sourceRows as $source) {
-            RolePermission::withTrashed()->updateOrCreate(
+            // Seeder ikut jalan di setiap deploy: buat hanya bila belum ada
+            // (termasuk yang sudah dicabut) agar perubahan admin tidak ditimpa.
+            RolePermission::withTrashed()->firstOrCreate(
                 [
                     'role_id'       => $source->role_id,
                     'permission_id' => $corePermission->id,
@@ -80,7 +85,6 @@ class ModuleSettingPermissionSeeder extends Seeder {
                     'model'         => CoreSetting::class,
                     'is_submitable' => (bool) $corePermission->is_submitable,
                     'permissions'   => (array) $source->permissions,
-                    'deleted_at'    => null,
                 ],
             );
         }
@@ -101,7 +105,9 @@ class ModuleSettingPermissionSeeder extends Seeder {
                 continue;
             }
 
-            RolePermission::withTrashed()->updateOrCreate(
+            // Hanya melengkapi baris yang belum ada; flag yang sudah diubah
+            // atau dicabut admin tidak dipulihkan.
+            RolePermission::withTrashed()->firstOrCreate(
                 [
                     'role_id'       => $role->id,
                     'permission_id' => $permission->id,
@@ -114,7 +120,6 @@ class ModuleSettingPermissionSeeder extends Seeder {
                     'model'         => $modelClass,
                     'is_submitable' => false,
                     'permissions'   => ['select' => true, 'read' => true, 'write' => true],
-                    'deleted_at'    => null,
                 ],
             );
         }

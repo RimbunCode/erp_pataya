@@ -2,7 +2,6 @@
 
 namespace App\Services\Core\DataTable\Group;
 
-use App\Models\Core\Preference;
 use App\Services\Core\Setting\LegacyPreferenceMap;
 use Illuminate\Database\Eloquent\Model;
 

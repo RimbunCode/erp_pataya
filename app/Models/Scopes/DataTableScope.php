@@ -4,7 +4,6 @@ namespace App\Models\Scopes;
 
 use App\Models\Core\Branch;
 use App\Models\Core\CoreSetting;
-use App\Models\Core\Preference;
 use App\Models\Core\SavedFilter;
 use App\Services\Core\DataTable\Group\GroupColumnGate;
 use App\Services\Core\DataTable\Group\GroupLevelResolver;

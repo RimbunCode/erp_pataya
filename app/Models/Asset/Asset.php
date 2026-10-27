@@ -10,7 +10,6 @@ use App\Events\Asset\AssetScrapped;
 use App\Models\Core\Branch;
 use App\Models\Core\CoreSetting;
 use App\Models\Core\GlPostingStatus;
-use App\Models\Core\Preference;
 use App\Models\Finances\PurchaseInvoiceItem;
 use App\Models\Inventory\Item;
 use App\Models\Model;
