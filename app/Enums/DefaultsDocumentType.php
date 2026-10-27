@@ -34,7 +34,7 @@ enum DefaultsDocumentType: string {
 
     public function module(): string {
         return match ($this) {
-            self::PurchaseOrder, self::PurchaseReceipt, self::PurchaseInvoice => 'purchase',
+            self::PurchaseOrder, self::PurchaseReceipt, self::PurchaseInvoice         => 'purchase',
             self::SalesOrder, self::DeliveryNote, self::SalesInvoice, self::Quotation => 'sales',
         };
     }
@@ -42,7 +42,7 @@ enum DefaultsDocumentType: string {
     public function supportsWarehouseDefault(): bool {
         return match ($this) {
             self::PurchaseOrder, self::PurchaseReceipt, self::SalesOrder, self::DeliveryNote => true,
-            self::PurchaseInvoice, self::SalesInvoice, self::Quotation => false,
+            self::PurchaseInvoice, self::SalesInvoice, self::Quotation                       => false,
         };
     }
 
@@ -50,7 +50,7 @@ enum DefaultsDocumentType: string {
     public function supportsTaxDefault(): bool {
         return match ($this) {
             self::PurchaseOrder, self::PurchaseInvoice, self::SalesOrder, self::SalesInvoice, self::Quotation => true,
-            self::PurchaseReceipt, self::DeliveryNote => false,
+            self::PurchaseReceipt, self::DeliveryNote                                                         => false,
         };
     }
 }

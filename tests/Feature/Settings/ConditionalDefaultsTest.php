@@ -890,7 +890,7 @@ class ConditionalDefaultsTest extends TestCase {
             'warehouse_rules' => [
                 [...$this->rulePayload($warehouseRule), 'priority' => 10],
                 ['item_type' => 'service', 'warehouse_id' => $warehouseRule->warehouse_id, 'priority' => 20],
-                ['id'        => (string) Str::ulid(), 'item_type' => 'vehicle', 'warehouse_id' => $warehouseRule->warehouse_id],
+                ['id' => (string) Str::ulid(), 'item_type' => 'vehicle', 'warehouse_id' => $warehouseRule->warehouse_id],
             ],
         ];
     }
