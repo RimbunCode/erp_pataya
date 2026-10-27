@@ -61,7 +61,7 @@ enum DefaultsDocumentType: string {
      */
     public function supportsNoTaxRule(): bool {
         return match ($this) {
-            self::SalesOrder, self::SalesInvoice => true,
+            self::SalesOrder, self::SalesInvoice                                                                   => true,
             self::PurchaseOrder, self::PurchaseInvoice, self::Quotation, self::PurchaseReceipt, self::DeliveryNote => false,
         };
     }
