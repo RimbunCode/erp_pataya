@@ -66,16 +66,20 @@ vi.mock("@/Components/Select", () => ({
 }));
 
 vi.mock("@/Components/ui/slider", () => ({
-  Slider: ({ value, onValueChange }) => (
-    <input
-      type="range"
-      data-testid="progress-slider"
-      min={0}
-      max={100}
-      value={value?.[0] ?? 0}
-      onChange={(e) => onValueChange?.([Number(e.target.value)])}
-    />
+  Slider: ({ value, onValueChange, children }) => (
+    <div>
+      <input
+        type="range"
+        data-testid="progress-slider"
+        min={0}
+        max={100}
+        value={value?.[0] ?? 0}
+        onChange={(e) => onValueChange?.([Number(e.target.value)])}
+      />
+      {children}
+    </div>
   ),
+  SliderThumb: () => <span data-testid="progress-slider-thumb" />,
 }));
 
 vi.mock("@/Pages/Users/ManageUsers/AssignableLinkModel", () => ({
@@ -163,6 +167,12 @@ describe("Helpdesk Tickets Form", () => {
     renderForm(<Form />);
 
     expect(screen.getByText(/45%/)).toBeInTheDocument();
+  });
+
+  it("slider progress menyertakan SliderThumb (Radix hanya menggambar pegangan yang diberikan)", () => {
+    renderForm(<Form />);
+
+    expect(screen.getByTestId("progress-slider-thumb")).toBeInTheDocument();
   });
 
   it("menggeser slider progress memanggil setData", async () => {

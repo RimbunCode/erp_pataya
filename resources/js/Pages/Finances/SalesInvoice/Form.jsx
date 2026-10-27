@@ -3,7 +3,7 @@ import {
   FormPageContentTitle,
   useFormPage,
 } from "@/Pages/Core/FormPage";
-import React, { useCallback, useEffect, useMemo } from "react";
+import React, { useCallback, useEffect, useMemo, useRef } from "react";
 import {
   calculateArray,
   calculateDurationDays,
@@ -12,6 +12,11 @@ import {
   getDataModel,
 } from "@/lib/utils";
 import { allocateDiscount } from "@/lib/discountAllocation";
+import {
+  EMPTY_DEFAULTS,
+  taxRowError,
+  useDocumentDefaults,
+} from "@/lib/documentDefaults";
 
 import AccountLinkModel from "../Accounts/AccountLinkModel";
 import AdditionalDiscount from "../Components/AdditionalDiscount";
@@ -22,6 +27,7 @@ import CustomerLinkModel from "@/Pages/Sales/Customers/CustomerLinkModel";
 import DatetimePicker from "@/Components/DatetimePicker";
 import { FormCheckbox } from "@/Components/ui/checkbox";
 import FormInput from "@/Components/FormInput";
+import InputError from "@/Components/InputError";
 import FormTable from "@/Components/FormTable";
 import ItemForm from "./ItemForm";
 import ItemUnitLinkModel from "@/Pages/Inventory/Items/ItemUnitLinkModel";
@@ -69,10 +75,47 @@ export default function Form() {
       debit_account: debitAccount,
     };
   }, []);
-  const { data, setData, disabled, dataBefore } = useFormPage(defaultValue, {
-    notUseWhenCreate: true,
+  const { data, setData, disabled, dataBefore, isCreate, errors } = useFormPage(
+    defaultValue,
+    {
+      notUseWhenCreate: true,
+    },
+  );
+  const pageProps = usePage().props;
+  const { default_currency_id } = pageProps.preferences;
+  const defaults = pageProps.defaults ?? EMPTY_DEFAULTS;
+  const {
+    applyToNewLine,
+    applyPaymentTerm,
+    resolveForNewLine,
+    markFieldEdited,
+    isTaxRequired,
+  } = useDocumentDefaults(defaults, isCreate ? "sales_invoice" : null, {
+    items: data.items,
+    setData,
   });
-  const { default_currency_id } = usePage().props.preferences;
+  const paymentDefaultsApplied = useRef(false);
+
+  useEffect(() => {
+    if (paymentDefaultsApplied.current) return;
+    if (data.payment_schedules?.length) {
+      paymentDefaultsApplied.current = true;
+      return;
+    }
+    if (defaults.payment_term_template?.items?.length) {
+      setData(
+        "payment_schedules",
+        applyPaymentTerm(data.payment_schedules, data.date ?? new Date()),
+      );
+      paymentDefaultsApplied.current = true;
+    }
+  }, [
+    applyPaymentTerm,
+    data.date,
+    data.payment_schedules,
+    defaults.payment_term_template,
+    setData,
+  ]);
   const getContraIncomeAccount = (isContra) => {
     getDataModel(
       "App\\Models\\Finances\\Account",
@@ -224,14 +267,14 @@ export default function Form() {
                     conversion_factor: 1,
                     quantity: 1,
                     price: undefined,
-                    tax: undefined,
+                    tax: applyToNewLine(dataRow, null).tax,
                     description: undefined,
                   });
                   return;
                 }
                 // Opsi ItemVariant bebas.
                 if (val?.thisModel === ITEM_VARIANT_CLASS) {
-                  setData({
+                  const rowPatch = {
                     sales_order_item: null,
                     item: val,
                     asset: null,
@@ -240,9 +283,18 @@ export default function Form() {
                     conversion_factor: val.default_uom?.conversion_factor ?? 1,
                     quantity: 1,
                     price: undefined,
-                    tax: undefined,
                     description: undefined,
+                  };
+                  const defaultLine = applyToNewLine(
+                    { ...dataRow, ...rowPatch },
+                    val,
+                  );
+                  setData({
+                    ...rowPatch,
+                    tax: defaultLine.tax,
+                    tax_rate: defaultLine.tax_rate,
                   });
+                  resolveForNewLine(dataRow.id, val);
                   return;
                 }
                 // Opsi baris SO.
@@ -352,17 +404,24 @@ export default function Form() {
         titleTrans: "finances.salesInvoice.columns.tax",
         required: true,
         width: 1,
-        cell({ data, setData, attributes, dataRow }) {
+        cell({ data, setData, attributes, dataRow }, index) {
+          const taxError = taxRowError(errors, index);
+
           return (
-            <TaxLinkModel
-              disabled={!hasSource(dataRow)}
-              placeholder={t("finances.salesInvoice.columns.tax.placeholder")}
-              value={data}
-              onValueChange={(val) => {
-                setData("tax", val);
-              }}
-              {...attributes}
-            />
+            <div className="flex w-full flex-col">
+              <TaxLinkModel
+                disabled={!hasSource(dataRow)}
+                placeholder={t("finances.salesInvoice.columns.tax.placeholder")}
+                value={data}
+                onValueChange={(val) => {
+                  markFieldEdited(dataRow.id, "tax");
+                  setData("tax", val);
+                }}
+                {...attributes}
+                required={attributes.required && isTaxRequired(dataRow.id)}
+              />
+              <InputError message={taxError} className="px-1 text-xs" />
+            </div>
           );
         },
       },
@@ -423,7 +482,16 @@ export default function Form() {
         },
       },
     ];
-  }, [data, t, canOffSource]);
+  }, [
+    applyToNewLine,
+    canOffSource,
+    data,
+    errors,
+    isTaxRequired,
+    markFieldEdited,
+    resolveForNewLine,
+    t,
+  ]);
 
   // basic_amount TIDAK ditimpa di sini -- generated (quantity*price) di server.
   // tax_amount dihitung dari basis DPP Nilai Lain SETELAH dikurangi discount_amount,

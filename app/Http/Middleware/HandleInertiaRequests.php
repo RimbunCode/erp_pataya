@@ -4,10 +4,9 @@ namespace App\Http\Middleware;
 
 use App\Models\Core\Changelog;
 use App\Models\Core\Country;
-use App\Models\Core\Preference;
 use App\Models\User\User;
+use App\Services\Core\Setting\LegacyPreferenceMap;
 use Illuminate\Http\Request;
-use Illuminate\Support\Collection;
 use Illuminate\Support\Facades\DB;
 use Inertia\Middleware;
 use Tighten\Ziggy\Ziggy;
@@ -79,33 +78,26 @@ class HandleInertiaRequests extends Middleware {
      * @return array<string, mixed>
      */
     private function resolveSharedPreferences(Request $request): array {
-        $latestVersion = $this->resolvePreferencesVersion();
+        // One snapshot per request: the version and the payload both come
+        // from it (previously snapshot() ran twice, doubling the queries).
+        $snapshot      = LegacyPreferenceMap::snapshot();
+        $latestVersion = (string) ($snapshot['updated_at'] ?? '0');
         $cachedVersion = $request->session()->get(self::SESSION_PREFERENCES_VERSION_KEY);
         $cachedPayload = $request->session()->get(self::SESSION_PREFERENCES_KEY);
 
-        if (\is_array($cachedPayload) && $cachedVersion === $latestVersion) {
+        $cachedValues = \is_array($cachedPayload)
+            ? array_diff_key($cachedPayload, array_flip(['country_name', 'updated_at']))
+            : null;
+        if ($cachedVersion === $latestVersion && $cachedValues === $snapshot['values']) {
             return $cachedPayload;
         }
 
-        $preferences = Preference::select('key', 'value', 'updated_at')->get();
-        $payload     = $this->buildPreferencesPayload($preferences);
+        $payload = $this->buildPreferencesPayload($snapshot);
 
         $request->session()->put(self::SESSION_PREFERENCES_KEY, $payload);
         $request->session()->put(self::SESSION_PREFERENCES_VERSION_KEY, $latestVersion);
 
         return $payload;
-    }
-
-    private function resolvePreferencesVersion(): string {
-        $version = Preference::query()
-            ->selectRaw('COUNT(`key`) as preference_count')
-            ->selectRaw('MAX(updated_at) as max_updated_at')
-            ->first();
-
-        return implode('|', [
-            (string) ($version?->preference_count ?? 0),
-            (string) ($version?->max_updated_at ?? '0'),
-        ]);
     }
 
     /**
@@ -146,21 +138,19 @@ class HandleInertiaRequests extends Middleware {
     }
 
     /**
-     * @param  Collection<int, Preference>  $preferences
+     * @param  array{values: array<string, mixed>, updated_at: string|null}  $snapshot
      * @return array<string, mixed>
      */
-    private function buildPreferencesPayload(Collection $preferences): array {
-        $lastUpdatedAt = $preferences->pluck('updated_at')->max();
-        $preferences   = $preferences->pluck('value', 'key');
-        $countryId     = $preferences->get('country_id');
-        $countryName   = $countryId !== null
+    private function buildPreferencesPayload(array $snapshot): array {
+        $countryId   = $snapshot['values']['country_id'] ?? null;
+        $countryName = $countryId !== null
             ? Country::query()->whereKey($countryId)->value('name')
             : null;
 
         return [
-            ...$preferences->all(),
+            ...$snapshot['values'],
             'country_name' => $countryName,
-            'updated_at'   => $lastUpdatedAt,
+            'updated_at'   => $snapshot['updated_at'],
         ];
     }
 }

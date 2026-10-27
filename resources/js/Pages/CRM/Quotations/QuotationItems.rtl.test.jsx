@@ -47,6 +47,7 @@ vi.mock("@/Pages/Inventory/Items/ItemVariantLinkModel", () => ({
       onClick={() =>
         onValueChange({
           id: "variant-1",
+          item: { id: "item-1" },
           item_code: "SP-001",
           description: "Baris 1\nBaris 2",
           default_uom: { id: "unit-pc", name: "Piece" },
@@ -231,13 +232,16 @@ describe("CRM QuotationItems", () => {
   });
 
   describe("sel kolom item (AC4.4)", () => {
-    const renderItemCell = (setData) => {
-      const column = buildQuotationItemColumns("spare_part", stableT).find(
-        (col) => col?.name === "item",
-      );
+    const renderItemCell = (setData, options = {}) => {
+      const column = buildQuotationItemColumns(
+        "spare_part",
+        stableT,
+        {},
+        options,
+      ).find((col) => col?.name === "item");
       render(
         column.cell({
-          dataRow: {},
+          dataRow: { id: "row-1" },
           setData,
           attributes: {},
         }),
@@ -263,6 +267,22 @@ describe("CRM QuotationItems", () => {
       expect(patch.item.id).toBe("variant-1");
       expect(patch.description).toBe("Baris 1\nBaris 2");
       expect(patch.item_unit).toEqual({ id: "unit-pc", name: "Piece" });
+    });
+
+    it("resolves conditional defaults for a manually selected item on a new Quotation", async () => {
+      const setData = vi.fn();
+      const resolveForNewLine = vi.fn();
+      renderItemCell(setData, {
+        isCreate: true,
+        resolveForNewLine,
+      });
+
+      await userEvent.click(screen.getByTestId("item-link-model"));
+
+      expect(resolveForNewLine).toHaveBeenCalledWith(
+        "row-1",
+        expect.objectContaining({ id: "variant-1" }),
+      );
     });
   });
 

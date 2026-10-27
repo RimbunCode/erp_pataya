@@ -16,7 +16,9 @@ import SalesOrderItemLinkModel from "@/Pages/Sales/SalesOrders/SalesOrderItemLin
 import { Textarea } from "@/Components/ui/textarea";
 import WarehouseLinkModel from "@/Pages/Inventory/Warehouses/WarehouseLinkModel";
 import { generateRandom } from "@/lib/utils";
+import { EMPTY_DEFAULTS, useDocumentDefaults } from "@/lib/documentDefaults";
 import usePermission from "@/Hooks/usePermission";
+import { usePage } from "@inertiajs/react";
 import { useLaravelReactI18n } from "laravel-react-i18n";
 
 const ASSET_CLASS = "App\\Models\\Asset\\Asset";
@@ -24,11 +26,12 @@ const ITEM_VARIANT_CLASS = "App\\Models\\Inventory\\ItemVariant";
 
 export default function Form() {
   const { t } = useLaravelReactI18n();
+  const defaults = usePage().props.defaults ?? EMPTY_DEFAULTS;
   // Baris di luar dokumen sumber (sub model ItemVariant/Asset) butuh izin khusus.
   const canOffSource = usePermission(
     "App\\Models\\Inventory\\DeliveryNote",
   ).can("manage_off_source_items");
-  const { data, setData, defaultData, dataBefore } = useFormPage(
+  const { data, setData, defaultData, dataBefore, isCreate } = useFormPage(
     {
       delivery_date: new Date(),
     },
@@ -36,6 +39,11 @@ export default function Form() {
       trackDefaultValue: false,
     },
   );
+  const { applyToNewLine, resolveForNewLine, markFieldEdited } =
+    useDocumentDefaults(defaults, isCreate ? "delivery_note" : null, {
+      items: data.items,
+      setData,
+    });
   // Sumber baris dipilih lewat LinkModel multi-model (spec
   // delivery-note-sales-invoice-off-source-items): model utama = baris dokumen
   // sumber (SalesOrderItem/InternalOrderItem), sub model = ItemVariant dan Asset
@@ -129,7 +137,7 @@ export default function Form() {
                 }
                 // Opsi ItemVariant bebas.
                 if (val?.thisModel === ITEM_VARIANT_CLASS) {
-                  setData({
+                  const rowPatch = {
                     referenceable: null,
                     referenceable_id: null,
                     referenceable_type: null,
@@ -137,10 +145,21 @@ export default function Form() {
                     asset: null,
                     asset_id: null,
                     unit: val.default_uom,
-                    source_warehouse: null,
                     conversion_factor: val.default_uom?.conversion_factor ?? 1,
                     quantity: 1,
                     required_quantity: undefined,
+                  };
+                  const defaultLine = applyToNewLine(
+                    { ...dataRow, ...rowPatch },
+                    val,
+                    { warehouseField: "source_warehouse" },
+                  );
+                  setData({
+                    ...rowPatch,
+                    source_warehouse: defaultLine.source_warehouse ?? null,
+                  });
+                  resolveForNewLine(dataRow.id, val, {
+                    warehouseField: "source_warehouse",
                   });
                   return;
                 }
@@ -224,7 +243,10 @@ export default function Form() {
                 "inventory.deliveryNote.columns.source_warehouse.placeholder",
               )}
               value={data}
-              onValueChange={(val) => setData("source_warehouse", val)}
+              onValueChange={(val) => {
+                markFieldEdited(dataRow.id, "source_warehouse");
+                setData("source_warehouse", val);
+              }}
               {...attributes}
             />
           );
@@ -276,7 +298,14 @@ export default function Form() {
         },
       },
     ];
-  }, [data, t, canOffSource]);
+  }, [
+    applyToNewLine,
+    canOffSource,
+    data,
+    markFieldEdited,
+    resolveForNewLine,
+    t,
+  ]);
 
   return (
     <>

@@ -66,6 +66,25 @@ describe("FormChildren", () => {
     expect(screen.getByText("Konten B")).toBeVisible();
   });
 
+  it("keeps force-mounted tab content hidden while an adjacent tab is selected", () => {
+    render(
+      <FormChildren data={{}} setData={vi.fn()} defaultData={{}}>
+        <FormPageContent value="default" title="Default">
+          <p>Default content</p>
+        </FormPageContent>
+        <FormPageContent value="rules" title="Rules" forceMount>
+          <p>Rules content</p>
+        </FormPageContent>
+      </FormChildren>,
+    );
+
+    const rulesPanel = screen
+      .getByText("Rules content")
+      .closest('[role="tabpanel"]');
+    expect(rulesPanel).toHaveAttribute("data-state", "inactive");
+    expect(rulesPanel).toHaveClass("data-[state=inactive]:hidden");
+  });
+
   it("defaultMenu menentukan tab yang aktif di awal", () => {
     render(
       <FormChildren

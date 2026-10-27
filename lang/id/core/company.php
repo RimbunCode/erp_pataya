@@ -35,6 +35,7 @@ return [
         'port'                 => 'Port',
         'username'             => 'Nama Pengguna',
         'password'             => 'Kata Sandi',
+        'password_hint'        => 'Kosongkan untuk mempertahankan kata sandi tersimpan.',
         'from_address'         => 'Alamat Pengirim',
         'from_name'            => 'Nama Pengirim',
     ],

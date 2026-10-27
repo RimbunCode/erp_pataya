@@ -1,19 +1,22 @@
 <?php
 
 return [
-    'title'                => 'Purchase Invoices',
-    'add'                  => 'Purchase Invoice Baru',
-    'supplier'             => 'Pemasok',
-    'new'                  => 'Purchase Invoice Baru',
-    'items'                => 'Item',
-    'detail'               => 'Detail',
-    'status'               => 'Status',
-    'total'                => 'Total Harga',
-    'source'               => 'Gudang Asal',
-    'exchange_rate'        => 'Nilai Tukar',
-    'currency'             => 'Mata Uang',
-    'currency.placeholder' => 'Pilih Mata Uang',
-    'actions'              => [
+    'title'                                            => 'Purchase Invoices',
+    'add'                                              => 'Purchase Invoice Baru',
+    'supplier'                                         => 'Pemasok',
+    'new'                                              => 'Purchase Invoice Baru',
+    'price_warning_title'                              => 'Peringatan kontrol harga',
+    'validation.over_billing_tolerance_exceeded'       => 'Kuantitas melebihi sisa kuantitas item sumber ditambah toleransi :tolerance% (sisa: :remaining).',
+    'validation.over_billing_value_tolerance_exceeded' => 'Nilai baris melebihi sisa nilai item sumber ditambah toleransi :tolerance% (sisa nilai: :remaining).',
+    'items'                                            => 'Item',
+    'detail'                                           => 'Detail',
+    'status'                                           => 'Status',
+    'total'                                            => 'Total Harga',
+    'source'                                           => 'Gudang Asal',
+    'exchange_rate'                                    => 'Nilai Tukar',
+    'currency'                                         => 'Mata Uang',
+    'currency.placeholder'                             => 'Pilih Mata Uang',
+    'actions'                                          => [
         'create_payment_entry' => 'Buat Entri Pembayaran',
         'create_debit_note'    => 'Buat Nota Debit',
     ],
@@ -103,6 +106,7 @@ return [
         'tax_invoice_ppnbm_amount'     => 'PPnBM Faktur Pajak',
     ],
     'validation' => [
+        'rate_changed'              => 'Tarif Purchase Order :source berbeda dengan tarif invoice ini :document.',
         'purchase_order_required'   => 'Purchase Order wajib untuk menagih item di luar PO.',
         'item_already_in_po'        => 'Item ini sudah ada di Purchase Order; pilih dari daftar item PO.',
         'receipt_item_not_billable' => 'Baris Purchase Receipt harus baris receipt di luar PO yang sudah di-approve, dari receipt Purchase Order ini.',

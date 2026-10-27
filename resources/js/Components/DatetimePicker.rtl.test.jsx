@@ -1,4 +1,4 @@
-import { describe, expect, it, vi } from "vitest";
+import { afterEach, describe, expect, it, vi } from "vitest";
 import { render as rtlRender, screen } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 
@@ -6,8 +6,9 @@ vi.mock("laravel-react-i18n", () => ({
   useLaravelReactI18n: () => ({ t: (key) => `TR:${key}` }),
 }));
 
+let mockLang = "en";
 vi.mock("@inertiajs/react", () => ({
-  usePage: () => ({ props: { lang: "en" } }),
+  usePage: () => ({ props: { lang: mockLang } }),
 }));
 
 import DatetimePicker from "./DatetimePicker";
@@ -100,5 +101,56 @@ describe("DatetimePicker", () => {
     await user.click(clearButton);
 
     expect(onValueChange).toHaveBeenCalledWith(null);
+  });
+});
+
+describe("DatetimePicker — label kalender mengikuti bahasa aplikasi", () => {
+  afterEach(() => {
+    mockLang = "en";
+  });
+
+  it("lang id: nama bulan di header dan tombol 'Hari ini' diterjemahkan", async () => {
+    mockLang = "id";
+    const user = userEvent.setup({ delay: null });
+    render(<DatetimePicker type="date" value="2026-10-15" />);
+
+    await user.click(screen.getByRole("textbox"));
+
+    expect(
+      await screen.findByRole("button", { name: "Oktober" }),
+    ).toBeInTheDocument();
+    expect(
+      screen.getByRole("button", { name: "TR:core.form.today" }),
+    ).toBeInTheDocument();
+    expect(
+      screen.queryByRole("button", { name: "Today" }),
+    ).not.toBeInTheDocument();
+  });
+
+  it("lang en: nama bulan tetap Inggris", async () => {
+    mockLang = "en";
+    const user = userEvent.setup({ delay: null });
+    render(<DatetimePicker type="date" value="2026-10-15" />);
+
+    await user.click(screen.getByRole("textbox"));
+
+    expect(
+      await screen.findByRole("button", { name: "October" }),
+    ).toBeInTheDocument();
+  });
+
+  it("type datetime: tombol footer memakai core.form.now, bukan 'Now'", async () => {
+    mockLang = "id";
+    const user = userEvent.setup({ delay: null });
+    render(<DatetimePicker type="datetime" value="2026-10-15T10:30:00" />);
+
+    await user.click(screen.getByRole("textbox"));
+
+    expect(
+      await screen.findByRole("button", { name: "TR:core.form.now" }),
+    ).toBeInTheDocument();
+    expect(
+      screen.queryByRole("button", { name: "Now" }),
+    ).not.toBeInTheDocument();
   });
 });

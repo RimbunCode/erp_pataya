@@ -7,6 +7,7 @@ use App\Http\Requests\Finances\SalesInvoiceRequest;
 use App\Http\Requests\Sales\Rules\OffSourceItemRules;
 use App\Models\Asset\Asset;
 use App\Models\Asset\AssetCategory;
+use App\Models\Core\DefaultRules\DefaultTaxRule;
 use App\Models\Finances\SalesInvoice;
 use App\Models\Finances\SalesInvoiceItem;
 use App\Models\Inventory\Item;
@@ -15,6 +16,7 @@ use App\Models\Inventory\Unit;
 use App\Models\Sales\Customer;
 use App\Models\Sales\SalesOrder;
 use App\Models\Sales\SalesOrderItem;
+use App\Models\Sales\SalesSetting;
 use App\Models\User\User;
 use App\Services\Core\PermissionChecker;
 use Database\Factories\Finances\TaxFactory;
@@ -171,7 +173,7 @@ class SalesInvoiceRequestAssetItemsTest extends TestCase {
         $this->assertArrayNotHasKey('asset_items', $rules);
         $this->assertArrayNotHasKey('asset_items.*.asset.id', $rules);
         $this->assertContains('required_without_all:items.*.item.id,items.*.asset.id', $rules['items.*.sales_order_item.id']);
-        $this->assertContains('required', $rules['items.*.tax.id']);
+        $this->assertContains('nullable', $rules['items.*.tax.id']);
         $this->assertContains('required_without:items.*.sales_order_item.id', $rules['items.*.price']);
     }
 
@@ -185,6 +187,49 @@ class SalesInvoiceRequestAssetItemsTest extends TestCase {
         ]]);
 
         $this->assertFalse($validator->fails(), json_encode($validator->errors()->toArray()));
+    }
+
+    #[Test]
+    public function invoice_tolerance_applies_to_source_quantity_and_gross_value(): void {
+        $this->regularSoItem->update(['quantity' => 10, 'price' => 100]);
+        SalesSetting::current()->update(['over_billing_tolerance_percent' => 10]);
+
+        $withinLimit = $this->validate(['items' => [$this->soRow($this->regularSoItem, 'within', ['quantity' => 11, 'price' => 100])]]);
+        $this->assertFalse($withinLimit->fails(), json_encode($withinLimit->errors()->toArray()));
+
+        $overValue = $this->validate(['items' => [$this->soRow($this->regularSoItem, 'over-value', ['quantity' => 10, 'price' => 111])]]);
+        $this->assertArrayHasKey('items.0.price', $overValue->errors()->toArray());
+
+        SalesSetting::current()->update(['over_billing_tolerance_percent' => 0]);
+        $strict = $this->validate(['items' => [$this->soRow($this->regularSoItem, 'strict', ['quantity' => 10.01, 'price' => 100])]]);
+        $this->assertArrayHasKey('items.0.quantity', $strict->errors()->toArray());
+    }
+
+    #[Test]
+    public function rate_change_stop_rejects_sales_invoice_price_different_from_sales_order(): void {
+        $this->regularSoItem->update(['quantity' => 10, 'price' => 100]);
+        SalesSetting::current()->update(['rate_change_action' => 'stop']);
+
+        $validator = $this->validate([
+            'items' => [$this->soRow($this->regularSoItem, 'changed-rate', ['quantity' => 1, 'price' => 101])],
+        ]);
+
+        $this->assertArrayHasKey('items.0.price', $validator->errors()->toArray());
+    }
+
+    #[Test]
+    public function rate_change_warn_allows_sales_invoice_and_flashes_warning(): void {
+        $this->regularSoItem->update(['quantity' => 10, 'price' => 100]);
+        SalesSetting::current()->update(['rate_change_action' => 'warn']);
+        $data    = ['items' => [$this->soRow($this->regularSoItem, 'warn-rate', ['quantity' => 1, 'price' => 101])]];
+        $request = SalesInvoiceRequest::create('/', 'POST', $data);
+        $request->setContainer(app());
+        $request->setLaravelSession(app('session')->driver());
+        $validator = ValidatorFacade::make($data, $this->itemRules($request));
+        $request->withValidator($validator);
+
+        $this->assertFalse($validator->fails(), json_encode($validator->errors()->toArray()));
+        $this->assertNotEmpty($request->session()->get('priceWarnings'));
     }
 
     #[Test]
@@ -229,14 +274,24 @@ class SalesInvoiceRequestAssetItemsTest extends TestCase {
     }
 
     #[Test]
-    public function requires_tax_for_every_row_and_a_unit_only_for_item_rows(): void {
+    public function rows_without_tax_are_rejected_unless_an_explicit_no_tax_rule_matches(): void {
+        $salesOrderRow = $this->soRow($this->regularSoItem, 'r1');
+        unset($salesOrderRow['tax']);
+        $freeItem = $this->freeItemRow('f1');
+        unset($freeItem['tax']);
         $asset = $this->freeAssetRow($this->asset);
         unset($asset['tax']);
+
+        $noTaxRows = $this->validate(['items' => [$salesOrderRow, $freeItem, $asset]]);
+        $this->assertEqualsCanonicalizing(['items.0.tax.id', 'items.1.tax.id', 'items.2.tax.id'], array_keys($noTaxRows->errors()->toArray()));
+
+        // Aturan "tanpa pajak" eksplisit untuk Sales Invoice dan semua jenis barang mencakup ketiga baris.
+        DefaultTaxRule::query()->create(['module' => 'sales', 'document_type' => 'sales_invoice', 'tax_id' => null, 'priority' => 0]);
+        $covered = $this->validate(['items' => [$salesOrderRow, $freeItem, $asset]]);
+        $this->assertFalse($covered->fails(), json_encode($covered->errors()->toArray()));
+
         $itemNoUnit = $this->freeItemRow('f2');
         unset($itemNoUnit['unit']);
-
-        $taxError = $this->validate(['items' => [$asset]]);
-        $this->assertSame(['items.0.tax.id'], array_keys($taxError->errors()->toArray()));
 
         $unitError = $this->validate(['items' => [$itemNoUnit]]);
         $this->assertSame(['items.0.unit.id'], array_keys($unitError->errors()->toArray()));

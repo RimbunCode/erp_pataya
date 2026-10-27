@@ -6,10 +6,18 @@ use App\Http\Requests\BaseFormRequest;
 use App\Http\Requests\Finances\Rules\AdditionalDiscountRules;
 use App\Http\Requests\Finances\Rules\PaymentSchedulesRules;
 use App\Http\Requests\Finances\Rules\ReturnAgainstItemRules;
+use App\Models\Finances\PurchaseInvoiceItem;
+use App\Models\Inventory\ItemUnit;
 use App\Models\Purchase\PurchaseOrderItem;
 use App\Models\Purchase\PurchaseReceipt;
 use App\Models\Purchase\PurchaseReceiptItem;
+use App\Models\Purchase\PurchaseSetting;
 use App\Rules\ExistsExcludingTrashed;
+use App\Services\Core\Setting\CurrencyMatcher;
+use App\Services\Core\Setting\RateChangeComparator;
+use App\Services\Core\Setting\ToleranceCalculator;
+use App\Services\Finances\InvoiceBilledValueResolver;
+use App\Services\Finances\PurchaseInvoiceService;
 use Illuminate\Contracts\Validation\ValidationRule;
 use Illuminate\Validation\Validator;
 
@@ -80,7 +88,169 @@ class PurchaseInvoiceRequest extends BaseFormRequest {
                 'item.id'                  => 'item_id',
                 'unit.id'                  => 'item_unit_id',
             ]);
+
+            if (! $this->input('return_against.id')) {
+                $this->validateRateChanges($validator, (array) $this->input('items', []));
+                $this->validateBillingTolerance($validator, (array) $this->input('items', []));
+            }
         });
+    }
+
+    /** @param array<int|string,mixed> $rows */
+    private function validateBillingTolerance(Validator $validator, array $rows): void {
+        $tolerance = PurchaseSetting::current()->over_billing_tolerance_percent;
+        if ($tolerance === null) {
+            return;
+        }
+
+        $calculator   = app(ToleranceCalculator::class);
+        $resolver     = app(InvoiceBilledValueResolver::class);
+        $exchangeRate = (float) ($this->input('exchange_rate') ?: 1);
+        $netValues    = $resolver->netValues(
+            $rows,
+            fn (array $row) => (float) ($row['rate'] ?? 0),
+            $this->input('discount_on'),
+            $this->input('discount_rate'),
+            $this->input('discount_amount'),
+            PurchaseInvoiceService::DPP_FACTOR,
+        );
+        $currencies = app(CurrencyMatcher::class);
+        $poRows     = collect($rows)
+            ->filter(fn ($row) => filled($row['purchase_order_item']['id'] ?? null))
+            ->groupBy('purchase_order_item.id', true);
+        $poItems = $poRows->isEmpty()
+            ? collect()
+            : PurchaseOrderItem::query()->with('purchaseOrder:id,exchange_rate,currency_code')->whereIn('id', $poRows->keys())->get()->keyBy('id');
+
+        // Mata uang sama dengan PO: nilai dibandingkan apa adanya dalam mata uang dokumen (tanpa kurs).
+        $sourceInfo = [];
+        foreach ($poRows as $sourceId => $invoiceRows) {
+            $source = $poItems->get($sourceId);
+            if ($source) {
+                $sourceInfo[$sourceId] = [
+                    'currency'           => $source->purchaseOrder?->currency_code,
+                    'exchange_rate'      => (float) ($source->purchaseOrder?->exchange_rate ?: 1),
+                    'in_source_currency' => $currencies->same($source->purchaseOrder?->currency_code, $this->input('currency.code')),
+                ];
+            }
+        }
+        $billedValues = $resolver->billedValues(PurchaseInvoiceItem::class, 'purchaseInvoice', 'purchase_order_item_id', $sourceInfo);
+
+        foreach ($poRows as $sourceId => $invoiceRows) {
+            $source = $poItems->get($sourceId);
+            if (! $source) {
+                continue;
+            }
+
+            $inSourceCurrency   = $sourceInfo[$sourceId]['in_source_currency'];
+            $requestedQuantity  = (float) $invoiceRows->sum(fn ($row) => (float) $row['quantity']);
+            $requestedValue     = (float) $invoiceRows->keys()->sum(fn ($rowIndex) => $netValues[$rowIndex] * ($inSourceCurrency ? 1 : $exchangeRate));
+            $sourceExchangeRate = $inSourceCurrency ? 1.0 : $sourceInfo[$sourceId]['exchange_rate'];
+            $sourceValue        = ((float) $source->basic_amount - (float) $source->discount_amount) * $sourceExchangeRate;
+            $alreadyBilledValue = (float) ($billedValues[$sourceId] ?? 0);
+            $index              = $invoiceRows->keys()->first();
+
+            if ($calculator->exceeds($requestedQuantity, (float) $source->quantity, (float) $source->billed_quantity, $tolerance)) {
+                $validator->errors()->add("items.{$index}.quantity", __('finances/purchaseInvoice.validation.over_billing_tolerance_exceeded', [
+                    'remaining' => max(0, (float) $source->quantity - (float) $source->billed_quantity),
+                    'tolerance' => $tolerance,
+                ]));
+            }
+
+            if ($calculator->exceedsValue($requestedValue, $sourceValue, $alreadyBilledValue, $tolerance)) {
+                $validator->errors()->add("items.{$index}.rate", __('finances/purchaseInvoice.validation.over_billing_value_tolerance_exceeded', [
+                    'remaining' => round(max(0, $sourceValue - $alreadyBilledValue), 2),
+                    'tolerance' => $tolerance,
+                ]));
+            }
+        }
+
+        $receiptRows = collect($rows)
+            ->filter(fn ($row) => blank($row['purchase_order_item']['id'] ?? null) && filled($row['purchase_receipt_item']['id'] ?? null))
+            ->groupBy('purchase_receipt_item.id', true);
+        $receiptItems = $receiptRows->isEmpty()
+            ? collect()
+            : PurchaseReceiptItem::query()->whereIn('id', $receiptRows->keys())->get()->keyBy('id');
+
+        foreach ($receiptRows as $sourceId => $invoiceRows) {
+            $source = $receiptItems->get($sourceId);
+            if (! $source) {
+                continue;
+            }
+
+            $requestedQuantity = (float) $invoiceRows->sum(fn ($row) => (float) $row['quantity']);
+            if ($calculator->exceeds($requestedQuantity, (float) $source->quantity, (float) $source->billed_quantity, $tolerance)) {
+                $index = $invoiceRows->keys()->first();
+                $validator->errors()->add("items.{$index}.quantity", __('finances/purchaseInvoice.validation.over_billing_tolerance_exceeded', [
+                    'remaining' => max(0, (float) $source->quantity - (float) $source->billed_quantity),
+                    'tolerance' => $tolerance,
+                ]));
+            }
+        }
+    }
+
+    /** @param array<int|string,mixed> $rows */
+    private function validateRateChanges(Validator $validator, array $rows): void {
+        $action = PurchaseSetting::current()->rate_change_action;
+        if ($action === 'none') {
+            return;
+        }
+
+        $groupedRows = collect($rows)
+            ->filter(fn ($row) => filled($row['purchase_order_item']['id'] ?? null))
+            ->groupBy('purchase_order_item.id');
+        $sourceItems = $groupedRows->isEmpty()
+            ? collect()
+            : PurchaseOrderItem::query()
+                ->with('purchaseOrder:id,exchange_rate,currency_code')
+                ->whereIn('id', $groupedRows->keys())
+                ->get()
+                ->keyBy('id');
+        $unitIds     = collect($rows)->pluck('unit.id')->filter()->unique();
+        $unitFactors = $unitIds->isEmpty()
+            ? collect()
+            : ItemUnit::whereIn('item_units.id', $unitIds)->pluck('item_units.conversion_factor', 'item_units.id');
+        $exchangeRate = (float) ($this->input('exchange_rate') ?: 1);
+        $comparator   = app(RateChangeComparator::class);
+        $currencies   = app(CurrencyMatcher::class);
+        $warnings     = [];
+
+        foreach ($groupedRows as $sourceId => $sourceRows) {
+            $source = $sourceItems->get($sourceId);
+            if (! $source) {
+                continue;
+            }
+
+            foreach ($sourceRows as $index => $row) {
+                $documentRate   = (float) $row['rate'];
+                $documentFactor = (float) ($unitFactors[$row['unit']['id'] ?? ''] ?? $source->conversion_factor ?: 1);
+                if (! $comparator->hasChanged(
+                    (float) $source->rate,
+                    (float) ($source->purchaseOrder?->exchange_rate ?: 1),
+                    (float) ($source->conversion_factor ?: 1),
+                    $documentRate,
+                    $exchangeRate,
+                    $documentFactor,
+                    $currencies->same($source->purchaseOrder?->currency_code, $this->input('currency.code')),
+                )) {
+                    continue;
+                }
+
+                $message = __('finances/purchaseInvoice.validation.rate_changed', [
+                    'source'   => $source->rate,
+                    'document' => $documentRate,
+                ]);
+                if ($action === 'stop') {
+                    $validator->errors()->add("items.{$index}.rate", $message);
+                } else {
+                    $warnings[] = $message;
+                }
+            }
+        }
+
+        if ($warnings !== [] && $this->hasSession()) {
+            $this->session()->flash('priceWarnings', array_values(array_unique($warnings)));
+        }
     }
 
     /**

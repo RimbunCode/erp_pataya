@@ -52,6 +52,7 @@ function getIdb() {
  * @param {string} [root0.keywords]
  * @param {string} [root0.order]
  * @param {string} [root0.translate]
+ * @param root0.includeGlobalBranch
  * @returns {string}
  */
 export function buildPersistKey({
@@ -62,8 +63,9 @@ export function buildPersistKey({
   keywords,
   order,
   translate,
+  includeGlobalBranch,
 }) {
-  return `linkmodel:${model}:${stableStringify(filters)}:${stableStringify(joins)}:${stableStringify(withParam)}:${keywords ?? ""}:${order ?? ""}:${translate ?? ""}`;
+  return `linkmodel:${model}:${stableStringify(filters)}:${stableStringify(joins)}:${stableStringify(withParam)}:${keywords ?? ""}:${order ?? ""}:${translate ?? ""}:${includeGlobalBranch ? "global-branch" : "branch-scoped"}`;
 }
 
 function getSyncStore(cacheStorage) {
@@ -143,6 +145,7 @@ async function writeStorage(cacheStorage, key, value) {
  * @param {string} [root0.keywords]
  * @param {string} [root0.order]
  * @param {string} [root0.translate]
+ * @param root0.includeGlobalBranch
  * @returns {object}
  */
 export function buildOptionsPayload({
@@ -158,6 +161,7 @@ export function buildOptionsPayload({
   keywords,
   order,
   translate,
+  includeGlobalBranch,
 }) {
   const payload = {
     model,
@@ -165,6 +169,7 @@ export function buildOptionsPayload({
     joins,
     filters: { ...filters, ...filterForDefaultValue },
   };
+  if (includeGlobalBranch) payload.includeGlobalBranch = true;
   if (!cacheMode) {
     Object.assign(payload, {
       limit: limit ?? 10,
@@ -208,6 +213,7 @@ export function buildOptionsPayload({
  * @param {boolean} [params.cacheMode]
  * @param {string} [params.cacheStorage]
  * @param {number} [params.staleTime]
+ * @param params.includeGlobalBranch
  * @returns {{options: Array, total: number, loading: boolean, settled: boolean}}
  */
 export default function useLinkModelOptions({
@@ -226,6 +232,7 @@ export default function useLinkModelOptions({
   cacheMode = false,
   cacheStorage = "memory",
   staleTime = 120_000,
+  includeGlobalBranch = false,
 }) {
   const { t } = useLaravelReactI18n();
   const queryClient = useQueryClient();
@@ -255,6 +262,7 @@ export default function useLinkModelOptions({
       keywords,
       order,
       translate,
+      includeGlobalBranch,
     });
   }, [
     cacheMode,
@@ -266,6 +274,7 @@ export default function useLinkModelOptions({
     keywords,
     order,
     translate,
+    includeGlobalBranch,
   ]);
 
   const queryKey = useMemo(() => {
@@ -274,6 +283,7 @@ export default function useLinkModelOptions({
         "linkModel",
         "cache",
         model,
+        includeGlobalBranch,
         filtersKey,
         joinsKey,
         withKey,
@@ -285,6 +295,7 @@ export default function useLinkModelOptions({
       "linkModel",
       "search",
       model,
+      includeGlobalBranch,
       filtersKey,
       debouncedSearch,
       joinsKey,
@@ -295,6 +306,7 @@ export default function useLinkModelOptions({
   }, [
     cacheMode,
     model,
+    includeGlobalBranch,
     filtersKey,
     joinsKey,
     withKey,
@@ -353,6 +365,7 @@ export default function useLinkModelOptions({
         keywords,
         order,
         translate,
+        includeGlobalBranch,
       });
       try {
         const res = await axios.post(window.route("model"), payload);

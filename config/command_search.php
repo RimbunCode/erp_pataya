@@ -1,6 +1,5 @@
 <?php
 use App\Models\Core\ApprovalInstanceStep;
-use App\Models\Core\Preference;
 use App\Models\Finances\PaymentSchedule;
 use App\Models\Inventory\Item;
 use App\Models\Inventory\ItemAlternative;
@@ -42,7 +41,7 @@ return [
     |
     */
     'exclude_models' => [
-        Preference::class,
+        // \App\Models\Core\Preference::class,
     ],
 
     'exclude_record_models' => [

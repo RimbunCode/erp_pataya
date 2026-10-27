@@ -15,20 +15,29 @@ use App\Models\Finances\Account;
 use App\Models\Finances\SalesInvoice;
 use App\Models\Finances\SalesInvoiceItem;
 use App\Models\Inventory\Item;
+use App\Models\Inventory\ItemUnit;
+use App\Models\Inventory\Stock;
+use App\Models\Inventory\StockEntry;
+use App\Models\Inventory\Unit;
 use App\Models\Sales\Customer;
 use App\Models\Sales\SalesOrder;
+use App\Models\Sales\SalesSetting;
 use App\Models\User\User;
+use App\Services\Core\PermissionChecker;
 use App\Services\Finances\SalesInvoiceService;
 use Database\Factories\Core\CountryFactory;
 use Database\Factories\Finances\TaxFactory;
 use Database\Factories\Inventory\ItemVariantFactory;
+use Database\Factories\Inventory\WarehouseFactory;
 use Database\Factories\Sales\CustomerFactory;
 use Illuminate\Foundation\Testing\RefreshDatabase;
+use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Event;
 use Illuminate\Support\Facades\Schema;
 use Illuminate\Support\Str;
+use Illuminate\Validation\ValidationException;
 use PHPUnit\Framework\Attributes\Test;
 use Tests\TestCase;
 
@@ -415,5 +424,173 @@ class SalesInvoiceServiceAssetItemsTest extends TestCase {
         $service->onApproved($invoice->fresh());
 
         Event::assertDispatchedTimes(SalesOrderItemBillingChanged::class, 1);
+    }
+
+    #[Test]
+    public function approval_rechecks_strict_invoice_tolerance_after_source_lock(): void {
+        $salesOrderItemId = $this->makeSalesOrderItem(false);
+        SalesSetting::current()->update(['over_billing_tolerance_percent' => 0]);
+        $service = app(SalesInvoiceService::class);
+        $invoice = $service->create($this->payload([
+            'items'             => [$this->row($salesOrderItemId, 11)],
+            'payment_schedules' => [],
+        ]));
+
+        $this->expectException(ValidationException::class);
+        $service->onApproved($invoice->fresh());
+    }
+
+    #[Test]
+    public function approval_rechecks_rate_change_stop_after_source_lock(): void {
+        $salesOrderItemId = $this->makeSalesOrderItem(false);
+        SalesSetting::current()->update(['rate_change_action' => 'stop']);
+        $service = app(SalesInvoiceService::class);
+        $invoice = $service->create($this->payload([
+            'items'             => [$this->row($salesOrderItemId, 1, ['price' => 1010])],
+            'payment_schedules' => [],
+        ]));
+
+        $this->expectException(ValidationException::class);
+        $service->onApproved($invoice->fresh());
+    }
+
+    #[Test]
+    public function below_cost_stop_rejects_stock_sales_invoice_against_current_warehouse_valuation(): void {
+        $invoice = $this->makeBelowCostInvoice('stop');
+        $service = app(SalesInvoiceService::class);
+
+        Event::fake();
+        $this->expectException(ValidationException::class);
+        $service->onApproved($invoice->fresh());
+    }
+
+    #[Test]
+    public function below_cost_warn_allows_posting_and_flashes_a_warning(): void {
+        $invoice = $this->makeBelowCostInvoice('warn');
+        $service = app(SalesInvoiceService::class);
+        $request = Request::create('/');
+        $request->setLaravelSession(app('session')->driver());
+        app()->instance('request', $request);
+        Event::fake();
+
+        $service->onApproved($invoice->fresh());
+
+        $this->assertNotEmpty($request->session()->get('priceWarnings'));
+    }
+
+    #[Test]
+    public function below_cost_stop_skips_a_stock_line_without_warehouse_valuation(): void {
+        $invoice = $this->makeBelowCostInvoice('stop', false);
+        $service = app(SalesInvoiceService::class);
+        Event::fake();
+
+        $this->assertNotNull($service->onApproved($invoice->fresh()));
+    }
+
+    private function makeBelowCostInvoice(string $action, bool $createStock = true): SalesInvoice {
+        $warehouse        = WarehouseFactory::new()->create();
+        $salesOrderItemId = $this->makeSalesOrderItem(false, Item::factory()->create(['is_stock_item' => true]));
+        $variantId        = DB::table('sales_order_items')->where('id', $salesOrderItemId)->value('item_id');
+        $unit             = Unit::query()->create(['code' => 'COST-' . Str::random(6), 'name' => 'Cost unit', 'conversion_factor' => 1, 'is_default' => true]);
+        $itemUnit         = ItemUnit::query()->create(['item_id' => DB::table('item_variants')->where('id', $variantId)->value('item_id'), 'unit_id' => $unit->id, 'conversion_factor' => 1, 'is_default' => true]);
+        DB::table('sales_order_items')->where('id', $salesOrderItemId)->update([
+            'source_warehouse_id' => $warehouse->id,
+            'item_unit_id'        => $itemUnit->id,
+            'conversion_factor'   => 1,
+        ]);
+        if ($createStock) {
+            Stock::query()->create([
+                'item_variant_id'   => $variantId,
+                'warehouse_id'      => $warehouse->id,
+                'item_unit_id'      => $itemUnit->id,
+                'quantity'          => 10,
+                'conversion_factor' => 1,
+                'stock_queue'       => [['quantity' => 10, 'rate' => 100]],
+            ]);
+        }
+        SalesSetting::current()->update(['below_cost_action' => $action]);
+        $service = app(SalesInvoiceService::class);
+
+        return $service->create($this->payload([
+            'items'             => [$this->row($salesOrderItemId, 1, ['price' => 110, 'unit' => ['id' => $itemUnit->id]])],
+            'payment_schedules' => [],
+            'discount_on'       => 'net_total',
+            'discount_rate'     => 18.18,
+            'discount_amount'   => 20,
+        ]));
+    }
+
+    private function grantValuationRateVisibility(bool $granted): void {
+        app()->instance(PermissionChecker::class, new PermissionChecker(
+            $granted ? [StockEntry::class => [0 => [['permissions' => ['write' => true, 'create' => true], 'only_creator' => false]]]] : [],
+        ));
+    }
+
+    #[Test]
+    public function below_cost_stop_message_hides_the_valuation_rate_without_stock_entry_permission(): void {
+        $this->grantValuationRateVisibility(false);
+        $invoice = $this->makeBelowCostInvoice('stop');
+        $service = app(SalesInvoiceService::class);
+        Event::fake();
+
+        try {
+            $service->onApproved($invoice->fresh());
+            $this->fail('Aksi stop harus tetap menolak.');
+        } catch (ValidationException $exception) {
+            $message = (string) $exception->errors()['items'][0];
+            $this->assertStringContainsString('90', $message, 'Tarif jual bersih tetap tampil.');
+            $this->assertStringNotContainsString('100', $message, 'HPP tidak boleh tampil.');
+            $this->assertStringNotContainsString(':cost', $message);
+        }
+    }
+
+    #[Test]
+    public function below_cost_stop_message_shows_the_valuation_rate_with_stock_entry_permission(): void {
+        $this->grantValuationRateVisibility(true);
+        $invoice = $this->makeBelowCostInvoice('stop');
+        $service = app(SalesInvoiceService::class);
+        Event::fake();
+
+        try {
+            $service->onApproved($invoice->fresh());
+            $this->fail('Aksi stop harus tetap menolak.');
+        } catch (ValidationException $exception) {
+            $message = (string) $exception->errors()['items'][0];
+            $this->assertStringContainsString('90', $message);
+            $this->assertStringContainsString('100', $message);
+        }
+    }
+
+    #[Test]
+    public function below_cost_warn_flash_hides_the_valuation_rate_without_permission_but_still_warns(): void {
+        $this->grantValuationRateVisibility(false);
+        $invoice = $this->makeBelowCostInvoice('warn');
+        $service = app(SalesInvoiceService::class);
+        $request = Request::create('/');
+        $request->setLaravelSession(app('session')->driver());
+        app()->instance('request', $request);
+        Event::fake();
+
+        $service->onApproved($invoice->fresh());
+
+        $warnings = $request->session()->get('priceWarnings');
+        $this->assertCount(1, $warnings);
+        $this->assertStringContainsString('90', $warnings[0]);
+        $this->assertStringNotContainsString('100', $warnings[0]);
+    }
+
+    #[Test]
+    public function below_cost_warn_flash_shows_the_valuation_rate_with_permission(): void {
+        $this->grantValuationRateVisibility(true);
+        $invoice = $this->makeBelowCostInvoice('warn');
+        $service = app(SalesInvoiceService::class);
+        $request = Request::create('/');
+        $request->setLaravelSession(app('session')->driver());
+        app()->instance('request', $request);
+        Event::fake();
+
+        $service->onApproved($invoice->fresh());
+
+        $this->assertStringContainsString('100', $request->session()->get('priceWarnings')[0]);
     }
 }

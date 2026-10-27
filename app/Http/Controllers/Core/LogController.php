@@ -5,6 +5,7 @@ namespace App\Http\Controllers\Core;
 use App\Http\Controllers\Controller;
 use App\Models\Core\Log;
 use Illuminate\Http\Request;
+use Illuminate\Support\Facades\Route;
 use Illuminate\Support\Str;
 use Inertia\Inertia;
 
@@ -27,7 +28,8 @@ class LogController extends Controller {
         $this->model = $log->loggable_type;
         $data        = class_exists($this->model) ? $this->model::find($log->loggable_id) : null;
 
-        if (! $data) {
+        if (! $data || ! Route::has("{$data->route}.index") || ! Route::has("{$data->route}.show")) {
+            $this->model = Log::class;
             $this->setBreadcrumbs($log);
 
             return Inertia::render('Core/ShowLog', [

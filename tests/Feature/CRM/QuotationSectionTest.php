@@ -80,6 +80,16 @@ class QuotationSectionTest extends QuotationTestCase {
                 ->where('quotation.sections.1.title', 'Kedua'));
     }
 
+    public function test_halaman_detail_tidak_menerima_defaults_dokumen_baru(): void {
+        $quotation = $this->storeQuotation();
+
+        $this->actingAs($this->user)
+            ->withSession($this->permissionSession())
+            ->get(route('quotations.show', $quotation))
+            ->assertOk()
+            ->assertInertia(fn (AssertableInertia $page) => $page->missing('defaults'));
+    }
+
     public function test_mengurutkan_ulang_blok_menyimpan_urutan_baru(): void {
         $quotation = $this->storeQuotation(['sections' => [
             ['id' => 'a', 'title' => 'A', 'content' => 'a'],

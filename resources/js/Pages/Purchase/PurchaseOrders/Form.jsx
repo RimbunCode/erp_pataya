@@ -1,9 +1,10 @@
 import { FormPageContent, useFormPage } from "@/Pages/Core/FormPage";
-import React, { useCallback, useEffect } from "react";
+import React, { useCallback, useEffect, useRef } from "react";
 import SelectModel, { loadFromModel } from "@/Components/SelectModel";
 import { generateRandom } from "@/lib/utils";
 import { allocateDiscount } from "@/lib/discountAllocation";
 import { calculatePurchaseOrderAmounts } from "./purchaseOrderAmounts";
+import { EMPTY_DEFAULTS, useDocumentDefaults } from "@/lib/documentDefaults";
 
 import AdditionalDiscount from "@/Pages/Finances/Components/AdditionalDiscount";
 import NumberInput from "@/Components/NumberInput";
@@ -30,13 +31,59 @@ export function PurchaseOrderFields({
   defaultData,
   disabled,
   dataBefore,
+  isCreate,
   sourceLocked = false,
   sourceItemActions,
   renderSourceWarning,
 }) {
   const { t } = useLaravelReactI18n();
-  const loadFrom = usePage().props.loadFrom;
-  const { default_currency_id } = usePage().props.preferences;
+  const pageProps = usePage().props;
+  const loadFrom = pageProps.loadFrom;
+  const defaults = pageProps.defaults ?? EMPTY_DEFAULTS;
+  const { default_currency_id } = pageProps.preferences;
+  const {
+    applyToNewLine,
+    applyPaymentTerm,
+    resolveForNewLine: resolveLineDefaults,
+    markFieldEdited,
+    isFieldEdited,
+  } = useDocumentDefaults(defaults, isCreate ? "purchase_order" : null, {
+    items: data.items,
+    setData,
+  });
+  const paymentDefaultsApplied = useRef(false);
+  const headerWarehouseEdited = useRef(false);
+
+  const resolveForNewLine = useCallback(
+    (rowId, item, warehouseField) => {
+      if (headerWarehouseEdited.current && warehouseField) {
+        markFieldEdited(rowId, warehouseField);
+      }
+      return resolveLineDefaults(rowId, item, { warehouseField });
+    },
+    [markFieldEdited, resolveLineDefaults],
+  );
+
+  useEffect(() => {
+    if (paymentDefaultsApplied.current) return;
+    if (data.payment_schedules?.length) {
+      paymentDefaultsApplied.current = true;
+      return;
+    }
+    if (defaults.payment_term_template?.items?.length) {
+      setData(
+        "payment_schedules",
+        applyPaymentTerm(data.payment_schedules, data.date ?? new Date()),
+      );
+      paymentDefaultsApplied.current = true;
+    }
+  }, [
+    applyPaymentTerm,
+    data.date,
+    data.payment_schedules,
+    defaults.payment_term_template,
+    setData,
+  ]);
 
   // Dihitung langsung dari quantity*rate mentah + alokasi diskon saat ini --
   // BUKAN dari calculateArray(data.items, "basic_amount", "+"). Alasan: field
@@ -145,20 +192,26 @@ export function PurchaseOrderFields({
           const currentQty = items[idx]?.quantity ?? 0;
           items[idx] = { ...items[idx], quantity: currentQty + 1 };
         } else {
-          items.push({
-            id: generateRandom(5),
-            item: selectedItem,
-            unit: selectedUnit,
-            quantity: 1,
-            required_date: prev?.required_date,
-
-            target_warehouse: prev?.target_warehouse,
-          });
+          const newLineId = generateRandom(5);
+          const newLine = applyToNewLine(
+            {
+              id: newLineId,
+              item: selectedItem,
+              unit: selectedUnit,
+              quantity: 1,
+              required_date: prev?.required_date,
+              target_warehouse: prev?.target_warehouse,
+            },
+            selectedItem,
+            { warehouseField: "target_warehouse" },
+          );
+          items.push(newLine);
+          resolveForNewLine(newLineId, selectedItem, "target_warehouse");
         }
         return { ...prev, items };
       });
     },
-    [setData],
+    [applyToNewLine, resolveForNewLine, setData],
   );
   const itemColumns = useMemo(() => {
     return [
@@ -167,20 +220,34 @@ export function PurchaseOrderFields({
         titleTrans: "purchase.purchaseOrder.columns.item",
         required: true,
         width: 3,
-        cell({ dataRow, setData, attributes }) {
+        cell({ dataRow, setData: setRowData, attributes }) {
           return (
             <ItemVariantLinkModel
               placeholder={t("purchase.purchaseOrder.columns.item.placeholder")}
+              fields={["is_stock_item"]}
               value={dataRow?.item}
               onValueChange={(val) => {
                 const defaultUnit = val?.default_uom;
-                setData({
+                const defaultLine = applyToNewLine(
+                  { ...dataRow, item: val },
+                  val,
+                  { warehouseField: "target_warehouse" },
+                );
+                setRowData({
                   item: val,
                   unit: defaultUnit,
                   conversion_factor: defaultUnit?.conversion_factor,
                   required_date: data.required_date,
-                  target_warehouse: data.target_warehouse,
+                  tax: defaultLine.tax,
+                  tax_rate: defaultLine.tax_rate,
+                  target_warehouse: isFieldEdited(
+                    dataRow.id,
+                    "target_warehouse",
+                  )
+                    ? defaultLine.target_warehouse
+                    : (defaultLine.target_warehouse ?? data.target_warehouse),
                 });
+                resolveForNewLine(dataRow.id, val, "target_warehouse");
               }}
               {...attributes}
               with={["defaultUom", "item"]}
@@ -200,7 +267,10 @@ export function PurchaseOrderFields({
               disabled={!dataRow?.item}
               rows={1}
               value={data ?? ""}
-              onValueChange={(val) => setData("target_warehouse", val)}
+              onValueChange={(val) => {
+                markFieldEdited(dataRow.id, "target_warehouse");
+                setData("target_warehouse", val);
+              }}
               {...attributes}
             />
           );
@@ -299,12 +369,13 @@ export function PurchaseOrderFields({
               placeholder={t("purchase.purchaseOrder.columns.tax.placeholder")}
               decimalScale={2}
               value={value}
-              onValueChange={(val) =>
+              onValueChange={(val) => {
+                markFieldEdited(dataRow.id, "tax");
                 setData({
                   tax: val,
                   tax_rate: val?.rate ?? 0,
-                })
-              }
+                });
+              }}
               {...attributes}
               filters={{
                 group: dataRow?.item?.default_tax?.group,
@@ -353,7 +424,15 @@ export function PurchaseOrderFields({
         },
       },
     ];
-  }, [data, sourceLocked, t]);
+  }, [
+    applyToNewLine,
+    data,
+    isFieldEdited,
+    markFieldEdited,
+    resolveForNewLine,
+    sourceLocked,
+    t,
+  ]);
   const sourceColumns = sourceLocked
     ? itemColumns.map((column) => {
         if (column.name === "item") {
@@ -568,6 +647,10 @@ export function PurchaseOrderFields({
               )}
               value={data.target_warehouse}
               onValueChange={(val) => {
+                headerWarehouseEdited.current = true;
+                (data.items ?? []).forEach((item) => {
+                  markFieldEdited(item.id, "target_warehouse");
+                });
                 setData((prev) => {
                   if (!prev.items || prev.items?.length <= 0)
                     return {

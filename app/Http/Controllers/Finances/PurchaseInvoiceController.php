@@ -2,6 +2,7 @@
 
 namespace App\Http\Controllers\Finances;
 
+use App\Enums\DefaultsDocumentType;
 use App\Http\Controllers\Controller;
 use App\Http\Requests\Finances\PurchaseInvoiceRequest;
 use App\Models\Asset\Asset;
@@ -9,6 +10,7 @@ use App\Models\Core\Branch;
 use App\Models\Finances\Account;
 use App\Models\Finances\PurchaseInvoice;
 use App\Models\Purchase\PurchaseOrder;
+use App\Services\Core\Setting\DocumentDefaultsResolver;
 use App\Services\Finances\PurchaseInvoiceService;
 use App\Utils;
 use Illuminate\Http\Request;
@@ -28,7 +30,9 @@ class PurchaseInvoiceController extends Controller {
         $this->setBreadcrumbs();
         PurchaseInvoice::dataTable($request);
 
-        return Inertia::render('Finances/PurchaseInvoice/Index');
+        return Inertia::render('Finances/PurchaseInvoice/Index', [
+            'defaults' => app(DocumentDefaultsResolver::class)->defaultsFor(DefaultsDocumentType::PurchaseInvoice),
+        ]);
     }
 
     /**
@@ -130,6 +134,7 @@ class PurchaseInvoiceController extends Controller {
 
         return Inertia::render('Finances/PurchaseInvoice/Show', [
             'defaultData' => $defaultData ?? [],
+            'defaults'    => app(DocumentDefaultsResolver::class)->defaultsFor(DefaultsDocumentType::PurchaseInvoice),
         ]);
     }
 

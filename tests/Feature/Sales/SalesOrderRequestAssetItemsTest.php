@@ -6,9 +6,11 @@ use App\Http\Requests\Sales\SalesOrderRequest;
 use App\Models\Asset\Asset;
 use App\Models\Asset\AssetCategory;
 use App\Models\Asset\AssetService;
+use App\Models\Core\DefaultRules\DefaultTaxRule;
 use App\Models\Inventory\Item;
 use App\Models\Inventory\ItemVariant;
 use App\Models\Inventory\Unit;
+use App\Models\Sales\SalesSetting;
 use Database\Factories\Finances\TaxFactory;
 use Database\Factories\Inventory\WarehouseFactory;
 use Illuminate\Contracts\Validation\Validator;
@@ -109,7 +111,7 @@ class SalesOrderRequestAssetItemsTest extends TestCase {
         $this->assertArrayNotHasKey('asset_items', $rules);
         $this->assertContains('required_without:items.*.asset.id', $rules['items.*.item.id']);
         $this->assertContains('required_without:items.*.item.id', $rules['items.*.asset.id']);
-        $this->assertContains('required', $rules['items.*.tax.id']);
+        $this->assertContains('nullable', $rules['items.*.tax.id']);
     }
 
     #[Test]
@@ -127,13 +129,71 @@ class SalesOrderRequestAssetItemsTest extends TestCase {
     }
 
     #[Test]
-    public function requires_tax_for_asset_rows_without_requiring_a_unit(): void {
-        $row = $this->assetRow();
-        unset($row['tax']);
+    public function rows_without_tax_are_rejected_when_no_explicit_no_tax_rule_matches(): void {
+        $regular = $this->regularRow();
+        unset($regular['tax']);
+        $asset = $this->assetRow();
+        unset($asset['tax']);
 
-        $validator = $this->validate(['items' => [$row]]);
+        $validator = $this->validate(['items' => [$regular, $asset]]);
 
-        $this->assertSame(['items.0.tax.id'], array_keys($validator->errors()->toArray()));
+        $errors = $validator->errors()->toArray();
+        $this->assertArrayHasKey('items.0.tax.id', $errors);
+        $this->assertArrayHasKey('items.1.tax.id', $errors);
+    }
+
+    #[Test]
+    public function a_default_module_tax_alone_does_not_make_tax_optional(): void {
+        SalesSetting::current()->fill(['default_tax_id' => $this->taxId])->save();
+        $regular = $this->regularRow();
+        unset($regular['tax']);
+
+        $this->assertArrayHasKey('items.0.tax.id', $this->validate(['items' => [$regular]])->errors()->toArray());
+    }
+
+    #[Test]
+    public function accepts_rows_without_tax_when_an_explicit_no_tax_rule_matches_the_row_item(): void {
+        // Aturan tanpa pajak khusus barang reguler (item_type + is_stock_item), bukan untuk asset.
+        $regularItem = $this->regularVariant->item;
+        DefaultTaxRule::query()->create([
+            'module'        => 'sales', 'document_type' => 'sales_order', 'item_type' => $regularItem->type,
+            'is_stock_item' => (bool) $regularItem->is_stock_item, 'tax_id' => null, 'priority' => 0,
+        ]);
+        $regular = $this->regularRow();
+        unset($regular['tax']);
+        $asset = $this->assetRow();
+        unset($asset['tax']);
+
+        $regularOnly = $this->validate(['items' => [$regular]]);
+        $this->assertFalse($regularOnly->fails(), json_encode($regularOnly->errors()->toArray()));
+
+        // Baris asset (barang lain, tidak cocok aturan) tetap wajib berpajak.
+        $this->assertTrue($regularItem->type !== $this->asset->item->type || $regularItem->is_stock_item !== $this->asset->item->is_stock_item);
+        $mixed = $this->validate(['items' => [$regular, $asset]]);
+        $this->assertArrayNotHasKey('items.0.tax.id', $mixed->errors()->toArray());
+        $this->assertArrayHasKey('items.1.tax.id', $mixed->errors()->toArray());
+    }
+
+    #[Test]
+    public function no_tax_rule_for_another_document_type_does_not_apply(): void {
+        $regularItem = $this->regularVariant->item;
+        DefaultTaxRule::query()->create(['module' => 'sales', 'document_type' => 'sales_invoice', 'item_type' => $regularItem->type, 'tax_id' => null, 'priority' => 0]);
+        $regular = $this->regularRow();
+        unset($regular['tax']);
+
+        $this->assertArrayHasKey('items.0.tax.id', $this->validate(['items' => [$regular]])->errors()->toArray());
+    }
+
+    #[Test]
+    public function deleted_tax_in_a_rule_is_a_broken_reference_not_a_no_tax_rule(): void {
+        $deletedTax  = TaxFactory::new()->create();
+        $regularItem = $this->regularVariant->item;
+        DefaultTaxRule::query()->create(['module' => 'sales', 'document_type' => 'sales_order', 'item_type' => $regularItem->type, 'tax_id' => $deletedTax->id, 'priority' => 0]);
+        $deletedTax->delete();
+        $regular = $this->regularRow();
+        unset($regular['tax']);
+
+        $this->assertArrayHasKey('items.0.tax.id', $this->validate(['items' => [$regular]])->errors()->toArray());
     }
 
     #[Test]

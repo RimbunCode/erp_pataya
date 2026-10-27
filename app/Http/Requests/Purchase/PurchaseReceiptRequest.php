@@ -3,8 +3,12 @@
 namespace App\Http\Requests\Purchase;
 
 use App\Http\Requests\BaseFormRequest;
+use App\Models\Inventory\ItemUnit;
 use App\Models\Purchase\PurchaseOrderItem;
+use App\Models\Purchase\PurchaseSetting;
 use App\Rules\ExistsExcludingTrashed;
+use App\Services\Core\Setting\ToleranceCalculator;
+use App\Services\Purchase\PurchaseReceiptToleranceGuard;
 use Illuminate\Contracts\Validation\ValidationRule;
 use Illuminate\Validation\Validator;
 
@@ -78,8 +82,11 @@ class PurchaseReceiptRequest extends BaseFormRequest {
         $replacedIds = collect($items)->pluck('replaces_purchase_order_item_id')->filter()->unique()->all();
         $replaced    = PurchaseOrderItem::whereIn('id', $replacedIds)->get()->keyBy('id');
         $poItemIds   = PurchaseOrderItem::where('purchase_order_id', $purchaseOrderId)->pluck('item_id')->all();
+        $tolerance   = PurchaseSetting::current()->over_receipt_tolerance_percent;
+        $calculator  = app(ToleranceCalculator::class);
 
-        $replacedSum = [];
+        $replacedSum     = [];
+        $replacedFlagged = [];
         foreach ($items as $index => $item) {
             $replacesId = $item['replaces_purchase_order_item_id'] ?? null;
             $itemId     = data_get($item, 'item.id');
@@ -110,13 +117,47 @@ class PurchaseReceiptRequest extends BaseFormRequest {
             }
 
             $replacedSum[$replacesId] = ($replacedSum[$replacesId] ?? 0) + (float) $item['replaced_quantity'];
-            $remaining                = (float) $replaced[$replacesId]->quantity - (float) $replaced[$replacesId]->received_quantity;
+            $remaining                = $calculator->allowed(
+                (float) $replaced[$replacesId]->quantity,
+                (float) $replaced[$replacesId]->received_quantity,
+                $tolerance,
+            ) ?? ((float) $replaced[$replacesId]->quantity - (float) $replaced[$replacesId]->received_quantity);
             if ($replacedSum[$replacesId] - $remaining > 0.0001) {
+                $replacedFlagged[$replacesId] = true;
                 $validator->errors()->add("items.{$index}.replaced_quantity", __('purchase/purchaseReceipt.validation.replaced_exceeds_remaining', [
                     'quantity'  => $replacedSum[$replacesId],
                     'remaining' => $remaining,
                 ]));
             }
+        }
+
+        if ($tolerance === null) {
+            return;
+        }
+
+        $unitFactors = ItemUnit::query()
+            ->whereIn('item_units.id', collect($items)->pluck('unit.id')->filter()->unique()->all())
+            ->pluck('item_units.conversion_factor', 'item_units.id');
+        $rows = [];
+        foreach ($items as $index => $item) {
+            $rows[$index] = [
+                'purchase_order_item_id'          => $item['purchase_order_item_id'] ?? null,
+                'quantity'                        => $item['quantity'] ?? 0,
+                'conversion_factor'               => $unitFactors[data_get($item, 'unit.id')] ?? 1,
+                'replaces_purchase_order_item_id' => $item['replaces_purchase_order_item_id'] ?? null,
+                'replaced_quantity'               => $item['replaced_quantity'] ?? null,
+            ];
+        }
+
+        // Kuantitas baris normal dan porsi yang digantikan baris pengganti dijumlahkan per
+        // PO Item dalam satu batas. PO Item yang sudah ditolak pemeriksaan sisa di atas dilewati.
+        $violations = app(PurchaseReceiptToleranceGuard::class)->violations($rows, $tolerance, $replacedFlagged);
+        foreach ($violations as $violation) {
+            $key = ($items[$violation['index']]['purchase_order_item_id'] ?? null) ? 'quantity' : 'replaced_quantity';
+            $validator->errors()->add("items.{$violation['index']}.{$key}", __('purchase/purchaseReceipt.validation.over_receipt_tolerance_exceeded', [
+                'remaining' => $violation['remaining'],
+                'limit'     => $violation['limit'],
+            ]));
         }
     }
 }

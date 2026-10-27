@@ -7,8 +7,9 @@ use App\Http\Controllers\Controller;
 use App\Http\Requests\Asset\AssetRequest;
 use App\Http\Requests\Asset\CompleteAssetDataRequest;
 use App\Models\Asset\Asset;
-use App\Models\Core\Preference;
+use App\Models\Core\CoreSetting;
 use App\Services\Asset\AssetService;
+use App\Services\Core\Setting\SettingsService;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
 use Inertia\Inertia;
@@ -41,7 +42,7 @@ class AssetController extends Controller {
         $this->setBreadcrumbs();
 
         return Inertia::render('Asset/Assets/Show', [
-            'companyName' => Preference::find('company_name')?->value,
+            'companyName' => app(SettingsService::class)->get(CoreSetting::class)->company_name,
         ]);
     }
 
@@ -57,7 +58,7 @@ class AssetController extends Controller {
         $asset->showDetail();
 
         return Inertia::render('Asset/Assets/Show', [
-            'companyName' => Preference::find('company_name')?->value,
+            'companyName' => app(SettingsService::class)->get(CoreSetting::class)->company_name,
             'asset'       => function () use ($asset) {
                 $asset->loadRelations();
 

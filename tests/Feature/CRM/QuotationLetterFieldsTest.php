@@ -2,8 +2,9 @@
 
 namespace Tests\Feature\CRM;
 
-use App\Models\Core\Preference;
+use App\Models\Core\CoreSetting;
 use App\Models\CRM\Quotation;
+use App\Services\Core\Setting\SettingsService;
 use Inertia\Testing\AssertableInertia;
 use PHPUnit\Framework\Attributes\DataProvider;
 
@@ -184,7 +185,7 @@ class QuotationLetterFieldsTest extends QuotationTestCase {
     }
 
     public function test_form_baru_membawa_kota_terbit_dari_preference_city(): void {
-        Preference::create(['key' => 'city', 'value' => 'Surabaya']);
+        app(SettingsService::class)->update(CoreSetting::class, ['city' => 'Surabaya']);
 
         $this->actingAs($this->user)
             ->withSession($this->permissionSession())
@@ -201,6 +202,6 @@ class QuotationLetterFieldsTest extends QuotationTestCase {
             ->get(route('quotations.create'))
             ->assertOk()
             ->assertInertia(fn (AssertableInertia $page) => $page
-                ->where('defaultData.active_tax_id', null));
+                ->where('defaults.tax_id', null));
     }
 }

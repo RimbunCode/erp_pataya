@@ -3,9 +3,9 @@
 namespace App\Services\Core\PrintTemplate;
 
 use App\Models\Core\Currency;
-use App\Models\Core\Preference;
 use App\Models\Core\PrintTemplate;
 use App\Services\Core\Approval\SignatureResolverService;
+use App\Services\Core\Setting\LegacyPreferenceMap;
 use App\Services\Handlebar\ArithmeticHelperService;
 use App\Services\Handlebar\FormatHelperService;
 use App\Services\Handlebar\LabelHelperService;
@@ -552,6 +552,6 @@ class PrintTemplateRenderService {
      * @return array<string, mixed>
      */
     protected function resolvePreferences(): array {
-        return Preference::query()->pluck('value', 'key')->all();
+        return LegacyPreferenceMap::build();
     }
 }

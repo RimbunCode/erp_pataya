@@ -17,6 +17,7 @@ use App\Models\Asset\Maintenance\AssetMaintenanceTeam;
 use App\Models\Core\ApprovalScheme;
 use App\Models\Core\Branch;
 use App\Models\Core\Chart;
+use App\Models\Core\CoreSetting;
 use App\Models\Core\Country;
 use App\Models\Core\Currency;
 use App\Models\Core\Dashboard;
@@ -27,7 +28,6 @@ use App\Models\Core\FormatingSeries;
 use App\Models\Core\Log;
 use App\Models\Core\MenuItem;
 use App\Models\Core\NumberCard;
-use App\Models\Core\Preference;
 use App\Models\Core\PrintTemplate;
 use App\Models\Core\SavedFilter;
 use App\Models\DashboardWidget;
@@ -59,6 +59,7 @@ use App\Models\Sales\SalesOrder;
 use App\Models\User\Permission as PermissionModel;
 use App\Models\User\Role;
 use App\Models\User\User;
+use App\Services\Core\Setting\SettingsRegistry;
 use Illuminate\Database\Seeder;
 use Illuminate\Support\Str;
 
@@ -210,6 +211,10 @@ class DeskSeeder extends Seeder {
         $this->menuGroup('Invoices', 'FileText', Domain::Finances);
         $this->menuGroup('Users', 'Users2', Domain::User);
         $this->menuGroup('General', 'Building2', Domain::Core);
+        // Spec module-settings-foundation 7.2: folder induk semua halaman
+        // setting modul. Label mengikuti default desain (Q-S1 terbuka: ganti
+        // satu konstanta ini bila pemilik produk memilih "Pengaturan Modul").
+        $this->menuGroup('Module Settings', 'Settings2', Domain::Core);
         $this->menuGroup('Workflow', 'Workflow', Domain::Core);
         $this->menuGroup('Templates', 'LayoutTemplate', Domain::Core);
         $this->menuGroup('Dashboard Widgets', 'Gauge', Domain::Core);
@@ -360,7 +365,7 @@ class DeskSeeder extends Seeder {
         $this->menuItem('Tickets', 'TicketsIcon', 'tickets.*', null, [Domain::Helpdesk], 1);
 
         // Settings: General — config level perusahaan/lokasi/mata uang
-        $this->menuItem('Company', 'Building2', 'companies.*', Preference::class, [Domain::Core], 14, group: 'General');
+        $this->menuItem('Company', 'Building2', 'companies.*', CoreSetting::class, [Domain::Core], 14, group: 'General');
         $this->menuItem('Branches', 'Building2', 'branches.*', Branch::class, [Domain::Core], 15, group: 'General');
         $this->menuItem('Countries', 'Building2', 'countries.*', Country::class, [Domain::Core], 16, group: 'General');
         $this->menuItem('Currencies', 'Building2', 'currencies.*', Currency::class, [Domain::Core], 17, group: 'General');
@@ -393,6 +398,23 @@ class DeskSeeder extends Seeder {
         // Logs — feedback user: posisi di bawah, setelah Files (section
         // tunggal, tidak butuh folder)
         $this->menuItem('Logs', 'HistoryIcon', 'logs.*', Log::class, [Domain::Core], 25);
+
+        // Settings: Module Settings — satu MenuItem per halaman registry
+        // (spec module-settings-foundation 7.2). Aturan datar-vs-submenu
+        // per desk berasal dari ResolveActiveDesk::groupByMenuItemParent(),
+        // bukan dari seeder: 1 anggota grup tampil datar, >1 jadi submenu.
+        // Sumber kebenaran halaman: config/settings.php via SettingsRegistry.
+        foreach (SettingsRegistry::all() as $key => $page) {
+            $this->menuItem(
+                $page['label'],
+                $page['icon'],
+                "moduleSettings.{$key}.*",
+                $page['model'],
+                $page['desks'],
+                $page['order'] ?? 0,
+                group: 'Module Settings',
+            );
+        }
     }
 
     // ========================================================================

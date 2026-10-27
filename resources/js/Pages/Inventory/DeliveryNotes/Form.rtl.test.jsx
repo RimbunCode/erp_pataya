@@ -1,5 +1,5 @@
 import { describe, expect, it, vi, beforeEach } from "vitest";
-import { render, screen, waitFor } from "@testing-library/react";
+import { act, render, screen, waitFor } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 
 // ============================================================================
@@ -46,6 +46,16 @@ const stableT = (key, params) =>
   params ? `${key}:${JSON.stringify(params)}` : key;
 vi.mock("laravel-react-i18n", () => ({
   useLaravelReactI18n: () => ({ t: stableT }),
+}));
+
+let pageDefaults = {};
+vi.mock("@inertiajs/react", () => ({
+  usePage: () => ({ props: { defaults: pageDefaults } }),
+}));
+
+const axiosPost = vi.fn();
+vi.mock("axios", () => ({
+  default: { post: (...args) => axiosPost(...args) },
 }));
 
 // Izin `manage_off_source_items` (baris di luar dokumen sumber): default diizinkan,
@@ -298,6 +308,7 @@ function TestFormPageState({ initial, stateRef, children }) {
     defaultData: initial.defaultData ?? {},
     dataBefore: initial.dataBefore,
     disabled: initial.disabled ?? false,
+    isCreate: initial.isCreate ?? false,
   });
   return children;
 }
@@ -321,6 +332,8 @@ function renderForm(overrides = {}) {
 describe("Inventory DeliveryNotes Form.jsx", () => {
   beforeEach(() => {
     vi.clearAllMocks();
+    pageDefaults = {};
+    axiosPost.mockReset();
     Object.keys(captured).forEach((k) => delete captured[k]);
     globalThis.__linkModelPayload = undefined;
     globalThis.__returnAgainstPayload = undefined;
@@ -1200,6 +1213,120 @@ describe("Inventory DeliveryNotes Form.jsx", () => {
 
       await user.type(externalNoteTextarea, "a");
       expect(stateRef.data.external_note).toBe("a");
+    });
+  });
+  // --------------------------------------------------------------------
+  // Default modul (spec module-defaults-and-controls & module-conditional-defaults)
+  // --------------------------------------------------------------------
+  describe("default modul (documentDefaults)", () => {
+    const VARIANT_MODEL = "App\\Models\\Inventory\\ItemVariant";
+    const moduleWarehouse = { id: "wh-module", name: "Gudang Modul" };
+    const stockVariant = {
+      id: "v1",
+      thisModel: VARIANT_MODEL,
+      is_stock_item: true,
+      default_uom: { id: "u1", conversion_factor: 1 },
+    };
+    const soData = () => ({
+      delivery_date: new Date(),
+      items: [{ id: "row-1" }],
+      reference_to: { model: "App\\Models\\Sales\\SalesOrder" },
+      referenceable: { id: 7 },
+    });
+    const resolveCalls = () =>
+      axiosPost.mock.calls.filter(([url]) => url === "/defaults/resolve");
+    const columnCell = (name, stateRef, setRow) =>
+      captured.formTableProps.columns
+        .find((c) => c.name === name)
+        .cell({
+          dataRow: stateRef.data.items[0],
+          data: stateRef.data.items[0][name],
+          setData: setRow,
+          attributes: {},
+        });
+    const patchRow = (keyOrPatch, value) =>
+      act(() =>
+        captured.formTableProps.onValueChange(
+          [
+            {
+              ...latestRow(),
+              ...(typeof keyOrPatch === "string"
+                ? { [keyOrPatch]: value }
+                : keyOrPatch),
+            },
+          ],
+          "row-1",
+        ),
+      );
+    let latestRow;
+
+    it("mode edit tidak memanggil /defaults/resolve dan tidak mengisi gudang", async () => {
+      const { stateRef } = renderForm({ data: soData() });
+      latestRow = () => stateRef.data.items[0];
+
+      columnCell("item", stateRef, patchRow).props.onValueChange(stockVariant);
+      await act(async () => {
+        await new Promise((resolve) => setTimeout(resolve, 20));
+      });
+
+      expect(resolveCalls()).toHaveLength(0);
+      expect(stateRef.data.items[0].item).toEqual(stockVariant);
+      expect(stateRef.data.items[0].source_warehouse).toBeNull();
+    });
+
+    it("dokumen baru memanggil /defaults/resolve dengan document_type delivery_note", async () => {
+      pageDefaults = { warehouse: moduleWarehouse };
+      axiosPost.mockResolvedValue({ data: { items: {} } });
+      const { stateRef } = renderForm({ data: soData(), isCreate: true });
+      latestRow = () => stateRef.data.items[0];
+
+      columnCell("item", stateRef, patchRow).props.onValueChange(stockVariant);
+
+      await waitFor(() => expect(resolveCalls()).toHaveLength(1));
+      expect(resolveCalls()[0][1]).toEqual({
+        document_type: "delivery_note",
+        items: [{ item_id: "v1" }],
+      });
+      expect(stateRef.data.items[0].source_warehouse).toEqual(moduleWarehouse);
+    });
+
+    it("gudang yang dikosongkan user tidak diisi ulang oleh respons resolusi yang terlambat", async () => {
+      pageDefaults = { warehouse: moduleWarehouse };
+      let respond;
+      axiosPost.mockImplementation(
+        () =>
+          new Promise((resolve) => {
+            respond = resolve;
+          }),
+      );
+      const { stateRef } = renderForm({ data: soData(), isCreate: true });
+      latestRow = () => stateRef.data.items[0];
+
+      columnCell("item", stateRef, patchRow).props.onValueChange(stockVariant);
+      await waitFor(() => expect(respond).toBeTypeOf("function"));
+      columnCell("source_warehouse", stateRef, patchRow).props.onValueChange(
+        null,
+      );
+      expect(stateRef.data.items[0].source_warehouse).toBeNull();
+
+      await act(async () =>
+        respond({
+          data: {
+            items: {
+              v1: {
+                tax_ids: [],
+                warehouse_id: "wh-rule",
+                warehouse: { id: "wh-rule", name: "Gudang Aturan" },
+              },
+            },
+          },
+        }),
+      );
+      await act(async () => {
+        await new Promise((resolve) => setTimeout(resolve, 20));
+      });
+
+      expect(stateRef.data.items[0].source_warehouse).toBeNull();
     });
   });
 });

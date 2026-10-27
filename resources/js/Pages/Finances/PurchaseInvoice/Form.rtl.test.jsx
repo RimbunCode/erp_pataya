@@ -1,6 +1,9 @@
-import { describe, expect, it, vi, beforeEach } from "vitest";
-import { render, screen } from "@testing-library/react";
+import { describe, expect, it, vi, beforeEach, afterEach } from "vitest";
+import { act, render, screen, waitFor } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
+import axios from "axios";
+
+vi.mock("axios", () => ({ default: { post: vi.fn() } }));
 
 // ============================================================================
 // Form.jsx (PurchaseInvoice) adalah halaman form transaksi tagihan dari
@@ -79,6 +82,8 @@ vi.mock("@/lib/utils", async () => {
 // jadi <div>/<h3> passthrough.
 let formPageState;
 let lastDefaultValueArg;
+let statefulDefaultsHarness = false;
+let deferTableUpdate;
 vi.mock("@/Pages/Core/FormPage", async () => {
   const React = await import("react");
   return {
@@ -92,7 +97,20 @@ vi.mock("@/Pages/Core/FormPage", async () => {
       <div {...props}>{children}</div>
     ),
     useFormPage: (defaultValue) => {
+      const [data, setDataState] = React.useState(formPageState.data);
+      const setData = React.useCallback((keyOrPatch, value) => {
+        setDataState((previous) => {
+          if (typeof keyOrPatch === "function") return keyOrPatch(previous);
+          if (typeof keyOrPatch === "string")
+            return { ...previous, [keyOrPatch]: value };
+          return { ...previous, ...keyOrPatch };
+        });
+      }, []);
+      if (typeof defaultValue === "undefined") {
+        return { registerBeforeSubmit: () => () => {} };
+      }
       lastDefaultValueArg = defaultValue;
+      if (statefulDefaultsHarness) return { ...formPageState, data, setData };
       return formPageState;
     },
     useFormPageMeta: () => undefined,
@@ -228,6 +246,49 @@ const formTablePropsSpy = vi.fn();
 vi.mock("@/Components/FormTable", () => ({
   default: (props) => {
     formTablePropsSpy(props);
+    if (statefulDefaultsHarness && props.name === "PurchaseInvoiceItems") {
+      return (
+        <div data-testid="form-table-stub">
+          {(props.value ?? []).map((row, index) => (
+            <div key={row.id} data-testid={`invoice-row-${index}`}>
+              {props.columns
+                .filter((column) =>
+                  ["purchase_order_item", "tax"].includes(column.name),
+                )
+                .map((column) => (
+                  <div key={column.name}>
+                    {column.cell({
+                      dataRow: row,
+                      data: row[column.name],
+                      attributes: {},
+                      setData: (keyOrPatch, value) => {
+                        const publish = () =>
+                          props.onValueChange(
+                            props.value.map((current) =>
+                              current.id !== row.id
+                                ? current
+                                : {
+                                    ...current,
+                                    ...(typeof keyOrPatch === "string"
+                                      ? { [keyOrPatch]: value }
+                                      : keyOrPatch),
+                                  },
+                            ),
+                          );
+                        if (deferTableUpdate) deferTableUpdate(publish);
+                        else publish();
+                      },
+                    })}
+                  </div>
+                ))}
+              <output data-testid={`invoice-row-state-${index}`}>
+                {JSON.stringify(row)}
+              </output>
+            </div>
+          ))}
+        </div>
+      );
+    }
     return <div data-testid="form-table-stub">{props.name}</div>;
   },
 }));
@@ -259,6 +320,7 @@ function makeFormPageState(overrides = {}) {
     setData: overrides.setData ?? vi.fn(),
     disabled: overrides.disabled ?? false,
     dataBefore: overrides.dataBefore,
+    isCreate: overrides.isCreate ?? false,
   };
   return state;
 }
@@ -840,6 +902,247 @@ describe("PurchaseInvoice Form", () => {
     const props = additionalDiscountPropsSpy.mock.calls[0][0];
     expect(props.netAmount).toBe(1200);
     expect(props.taxAmount).toBe(121);
+  });
+});
+
+const TAX_MODEL = "App\\Models\\Finances\\Tax";
+
+describe("PurchaseInvoice conditional defaults pada dokumen baru", () => {
+  const moduleTax = { id: "module-tax", rate: 11 };
+  const conditionalTax = { id: "rule-tax", rate: 5 };
+  const variant = {
+    id: "variant-a",
+    thisModel: "App\\Models\\Inventory\\ItemVariant",
+    is_stock_item: true,
+    default_uom: { id: "pcs", conversion_factor: 1 },
+  };
+  let resolveResponse;
+
+  beforeEach(() => {
+    vi.clearAllMocks();
+    statefulDefaultsHarness = true;
+    deferTableUpdate = undefined;
+    globalThis.__linkModelPayloads = { "purchase-order-item-link": variant };
+    formPageState = makeFormPageState({
+      isCreate: true,
+      data: { purchase_order: { id: "po" }, items: [{ id: "new-row" }] },
+    });
+    usePageMock.mockReturnValue({
+      props: {
+        preferences: { default_currency_id: "idr" },
+        defaults: { tax: moduleTax },
+      },
+    });
+    axios.post.mockReset();
+    axios.post.mockImplementation((url, payload) => {
+      if (url === "/defaults/resolve")
+        return new Promise((resolve) => {
+          resolveResponse = resolve;
+        });
+      if (payload.model === "App\\Models\\Finances\\Tax")
+        return Promise.resolve({ data: { data: [conditionalTax] } });
+      throw new Error(`Unexpected request: ${url}`);
+    });
+  });
+
+  afterEach(() => {
+    statefulDefaultsHarness = false;
+  });
+
+  const rowState = () =>
+    JSON.parse(screen.getByTestId("invoice-row-state-0").textContent);
+  const selectItem = async () => {
+    await userEvent.click(screen.getByTestId("purchase-order-item-link"));
+    await waitFor(() =>
+      expect(axios.post).toHaveBeenCalledWith(
+        "/defaults/resolve",
+        {
+          document_type: "purchase_invoice",
+          items: [{ item_id: variant.id }],
+        },
+        expect.objectContaining({ signal: expect.any(AbortSignal) }),
+      ),
+    );
+  };
+  const finishResolution = async (
+    items = {
+      [variant.id]: {
+        tax_ids: [conditionalTax.id],
+        taxes: [conditionalTax],
+        warehouse_id: null,
+      },
+    },
+  ) => {
+    await act(async () => {
+      resolveResponse({ data: { items } });
+    });
+  };
+
+  it.each([[[]], [[conditionalTax.id]]])(
+    "retains early resolution %j until the selected row reaches the parent",
+    async (taxIds) => {
+      let publish;
+      deferTableUpdate = (callback) => {
+        publish = callback;
+      };
+      render(<Form />);
+      await selectItem();
+      await finishResolution({
+        [variant.id]: {
+          tax_ids: taxIds,
+          taxes: taxIds.map(() => conditionalTax),
+          warehouse_id: null,
+        },
+      });
+      expect(rowState().item).toBeUndefined();
+      deferTableUpdate = undefined;
+      act(() => publish());
+      expect(rowState().tax).toEqual(taxIds.length ? conditionalTax : null);
+      expect(rowState().tax_rate).toBe(taxIds.length ? 5 : 0);
+    },
+  );
+
+  it("keeps manually cleared tax empty when replacing an item", async () => {
+    render(<Form />);
+    await selectItem();
+    globalThis.__linkModelPayloads["tax-link"] = null;
+    await userEvent.click(screen.getByTestId("tax-link"));
+    globalThis.__linkModelPayloads["purchase-order-item-link"] = {
+      ...variant,
+      id: "variant-b",
+    };
+    await userEvent.click(screen.getByTestId("purchase-order-item-link"));
+    expect(rowState().tax).toBeNull();
+    await waitFor(() =>
+      expect(axios.post).toHaveBeenCalledWith(
+        "/defaults/resolve",
+        {
+          document_type: "purchase_invoice",
+          items: [{ item_id: "variant-b" }],
+        },
+        expect.objectContaining({ signal: expect.any(AbortSignal) }),
+      ),
+    );
+    await finishResolution({
+      "variant-b": {
+        tax_ids: [conditionalTax.id],
+        taxes: [conditionalTax],
+        warehouse_id: null,
+      },
+    });
+    expect(rowState().tax).toBeNull();
+  });
+
+  it("pemilihan Item bebas menerapkan pajak bersyarat ke state form melalui hook asli", async () => {
+    render(<Form />);
+    await selectItem();
+    expect(rowState().tax).toEqual(moduleTax);
+    await finishResolution();
+
+    expect(screen.getByTestId("tax-link")).toHaveTextContent(
+      "tax-link:rule-tax",
+    );
+    expect(rowState()).toMatchObject({
+      item: { id: variant.id },
+      tax: conditionalTax,
+      tax_rate: 5,
+    });
+    expect(axios.post).not.toHaveBeenCalledWith(
+      expect.any(String),
+      expect.objectContaining({ model: TAX_MODEL }),
+      expect.anything(),
+    );
+  });
+
+  it("respons terlambat tidak mengisi kembali pajak yang dikosongkan manual", async () => {
+    render(<Form />);
+    await selectItem();
+    globalThis.__linkModelPayloads["tax-link"] = null;
+    await userEvent.click(screen.getByTestId("tax-link"));
+    expect(rowState().tax).toBeNull();
+    await finishResolution();
+
+    expect(rowState().tax).toBeNull();
+    expect(screen.getByTestId("tax-link")).toHaveTextContent("tax-link:none");
+  });
+
+  it("respons lama diabaikan setelah baris berpindah ke Item lain", async () => {
+    render(<Form />);
+    await selectItem();
+    const resolveFirstItem = resolveResponse;
+    globalThis.__linkModelPayloads["purchase-order-item-link"] = {
+      ...variant,
+      id: "variant-b",
+    };
+    await userEvent.click(screen.getByTestId("purchase-order-item-link"));
+    await waitFor(() =>
+      expect(axios.post).toHaveBeenCalledWith(
+        "/defaults/resolve",
+        {
+          document_type: "purchase_invoice",
+          items: [{ item_id: "variant-b" }],
+        },
+        expect.objectContaining({ signal: expect.any(AbortSignal) }),
+      ),
+    );
+    await finishResolution({
+      "variant-b": { tax_ids: [], warehouse_id: null },
+    });
+    await act(async () => {
+      resolveFirstItem({
+        data: {
+          items: {
+            [variant.id]: {
+              tax_ids: [conditionalTax.id],
+              taxes: [conditionalTax],
+              warehouse_id: null,
+            },
+          },
+        },
+      });
+    });
+
+    expect(rowState()).toMatchObject({
+      item: { id: "variant-b" },
+      tax: null,
+      tax_rate: 0,
+    });
+  });
+
+  it("respons tertunda tidak menimpa baris yang sudah diganti menjadi sumber PO", async () => {
+    render(<Form />);
+    await selectItem();
+    const sourceTax = { id: "source-tax", rate: 2 };
+    globalThis.__linkModelPayloads["purchase-order-item-link"] = {
+      id: "po-item",
+      thisModel: "App\\Models\\Purchase\\PurchaseOrderItem",
+      item: variant,
+      tax: sourceTax,
+      unbilled_quantity: 4,
+      rate: 100,
+    };
+    await userEvent.click(screen.getByTestId("purchase-order-item-link"));
+    await finishResolution();
+
+    expect(rowState()).toMatchObject({
+      purchase_order_item: { id: "po-item" },
+      tax: sourceTax,
+      quantity: 4,
+      rate: 100,
+    });
+    expect(
+      axios.post.mock.calls.filter(([url]) => url === "/defaults/resolve"),
+    ).toHaveLength(1);
+  });
+
+  it("nilai pajak existing tidak ditimpa hasil conditional defaults", async () => {
+    const existingTax = { id: "existing-tax", rate: 3 };
+    formPageState.data.items[0].tax = existingTax;
+    render(<Form />);
+    await selectItem();
+    await finishResolution();
+
+    expect(rowState().tax).toEqual(existingTax);
   });
 });
 

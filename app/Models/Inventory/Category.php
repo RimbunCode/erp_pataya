@@ -11,6 +11,9 @@ use Illuminate\Database\Eloquent\SoftDeletes;
 class Category extends Model {
     use DataTable, HasFactory, HasUlids, SoftDeletes;
 
+    /** Jenis kategori yang sah; `items.type` diturunkan dari `categories.type` (ItemServices). */
+    public const TYPES = ['inventory', 'vehicle', 'service'];
+
     protected $guarded = ['id'];
 
     public static function templateLink() {
@@ -35,7 +38,7 @@ class Category extends Model {
             'show'       => true,
             'order'      => 1,
             'valueTrans' => 'inventory.category.types',
-            'options'    => ['inventory', 'vehicle', 'service'],
+            'options'    => self::TYPES,
             'linkable'   => true,
             'groupable'  => true,
         ],

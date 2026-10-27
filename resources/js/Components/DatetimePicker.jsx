@@ -27,6 +27,7 @@ import {
   DEFAULT_DATE_SELECTOR_I18N,
 } from "@/Components/ui/date-selector";
 import { Input } from "./ui/input";
+import { buildDatetimePickerI18n } from "./datetimePickerI18n";
 import { useLaravelReactI18n } from "laravel-react-i18n";
 import { usePage } from "@inertiajs/react";
 
@@ -140,6 +141,13 @@ export default memo(
     const { t } = useLaravelReactI18n();
     const lang = usePage().props.lang;
     const dateLocale = useMemo(() => getLocaleDate(lang), [lang]);
+    const calendarI18n = useMemo(
+      () => ({
+        ...DEFAULT_DATE_SELECTOR_I18N,
+        ...buildDatetimePickerI18n({ t, dateLocale }),
+      }),
+      [t, dateLocale],
+    );
     const parseLocales = useMemo(() => {
       return Array.from(
         new Set([dateLocale, getLocaleDate("id"), getLocaleDate("en")]),
@@ -820,7 +828,7 @@ export default memo(
             >
               <DateSelectorContext.Provider
                 value={{
-                  i18n: DEFAULT_DATE_SELECTOR_I18N,
+                  i18n: calendarI18n,
                   variant: "outline",
                   size: "default",
                 }}

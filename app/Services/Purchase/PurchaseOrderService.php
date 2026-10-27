@@ -6,9 +6,9 @@ use App\Contracts\SubmitableService;
 use App\Enums\FormStatus;
 use App\Events\Inventory\StockReservationChanged;
 use App\Models\Asset\AssetServiceConsumedItem;
+use App\Models\Core\CoreSetting;
 use App\Models\Core\FormatingSeries;
 use App\Models\Core\ModelConnection;
-use App\Models\Core\Preference;
 use App\Models\Finances\PurchaseInvoice;
 use App\Models\Finances\PurchaseInvoiceItem;
 use App\Models\Finances\Tax;
@@ -23,6 +23,7 @@ use App\Models\Purchase\PurchaseRequestItem;
 use App\Models\Purchase\Supplier;
 use App\Models\Sales\InternalOrderItem;
 use App\Models\Sales\SalesOrderItem;
+use App\Services\Core\Setting\SettingsService;
 use App\Services\Finances\DocumentDiscountCalculator;
 use App\Traits\HasDefaultDelete;
 use App\Utils;
@@ -39,7 +40,7 @@ class PurchaseOrderService implements SubmitableService {
         $data['supplier_id']   = $data['supplier']['id'];
         $data['supplier_name'] = Supplier::find($data['supplier']['id'])?->name;
 
-        $defaultCurrency            = Preference::find('default_currency_id')?->value;
+        $defaultCurrency            = app(SettingsService::class)->get(CoreSetting::class)->default_currency_id;
         $data['currency_code']      = $data['currency']['code'] ?? $defaultCurrency;
         $data['base_currency_code'] = $defaultCurrency;
 

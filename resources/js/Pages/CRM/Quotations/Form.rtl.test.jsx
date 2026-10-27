@@ -1,7 +1,13 @@
 import { describe, expect, it, vi, beforeEach } from "vitest";
 import React from "react";
-import { render, screen } from "@testing-library/react";
+import { act, render, screen, waitFor, within } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
+import axios from "axios";
+
+vi.mock("axios", () => ({ default: { post: vi.fn() } }));
+let conditionalDefaultsMode = false;
+let deferTableUpdate;
+let currentFormData;
 
 import { TooltipProvider } from "@/Components/ui/tooltip";
 
@@ -24,10 +30,9 @@ vi.mock("@/Pages/Core/FormPage", async () => {
   const React = await import("react");
   return {
     useFormPage: (defaultValue, options) => {
-      useFormPageCalls.push({ defaultValue, options });
       const [data, setDataState] = React.useState({
-        ...defaultValue,
-        ...formPageSeed,
+        ...(defaultValue ?? {}),
+        ...(defaultValue === undefined ? {} : formPageSeed),
       });
       const setData = (keyOrFn, val) => {
         if (typeof keyOrFn === "function") {
@@ -38,7 +43,12 @@ vi.mock("@/Pages/Core/FormPage", async () => {
           setDataState((prev) => ({ ...prev, ...keyOrFn }));
         }
       };
-      return { data, setData, disabled: false };
+      if (typeof defaultValue === "undefined") {
+        return { registerBeforeSubmit: () => () => {} };
+      }
+      useFormPageCalls.push({ defaultValue, options });
+      currentFormData = data;
+      return { data, setData, disabled: false, isCreate: true };
     },
     FormPageContent: ({ children }) => <div>{children}</div>,
   };
@@ -89,10 +99,79 @@ vi.mock("@/Components/LinkModel", () => ({
   ),
 }));
 
-vi.mock("./QuotationItems", () => ({
-  default: ({ value, type }) => (
-    <div data-testid="quotation-items" data-type={type}>
-      items:{(value ?? []).length}
+vi.mock("./QuotationItems", async (importOriginal) => {
+  const actual = await importOriginal();
+  return {
+    default: (props) =>
+      conditionalDefaultsMode ? (
+        <actual.default {...props} />
+      ) : (
+        <div data-testid="quotation-items" data-type={props.type}>
+          items:{(props.value ?? []).length}
+        </div>
+      ),
+  };
+});
+
+vi.mock("@/Pages/Inventory/Items/ItemVariantLinkModel", () => ({
+  default: ({ value, onValueChange }) => (
+    <button
+      type="button"
+      onClick={() => onValueChange(globalThis.__quotationItem)}
+    >
+      item:{value?.id ?? "none"}
+    </button>
+  ),
+}));
+vi.mock("@/Pages/Finances/Taxes/TaxLinkModel", () => ({
+  default: ({ value, onValueChange }) => (
+    <button
+      type="button"
+      onClick={() => onValueChange(globalThis.__quotationTax)}
+    >
+      tax:{value?.id ?? "none"}
+    </button>
+  ),
+}));
+vi.mock("@/Pages/Inventory/Items/ItemUnitLinkModel", () => ({
+  default: () => null,
+}));
+vi.mock("@/Components/FormTable", () => ({
+  default: ({ columns, value, onValueChange }) => (
+    <div>
+      <output data-testid="conditional-items">{JSON.stringify(value)}</output>
+      {value.map((row) => (
+        <div key={row.id} data-testid={`conditional-row-${row.id}`}>
+          {columns
+            .filter((column) => column && ["item", "tax"].includes(column.name))
+            .map((column) => (
+              <div key={column.name}>
+                {column.cell({
+                  dataRow: row,
+                  data: row[column.name],
+                  attributes: {},
+                  setData: (keyOrPatch, fieldValue) => {
+                    const publish = () =>
+                      onValueChange(
+                        value.map((current) =>
+                          current.id === row.id
+                            ? {
+                                ...current,
+                                ...(typeof keyOrPatch === "string"
+                                  ? { [keyOrPatch]: fieldValue }
+                                  : keyOrPatch),
+                              }
+                            : current,
+                        ),
+                      );
+                    if (deferTableUpdate) deferTableUpdate(publish);
+                    else publish();
+                  },
+                })}
+              </div>
+            ))}
+        </div>
+      ))}
     </div>
   ),
 }));
@@ -134,11 +213,226 @@ const renderForm = (ui) => render(<TooltipProvider>{ui}</TooltipProvider>);
 
 import Form from "./Form";
 
+const TAX_MODEL = "App\\Models\\Finances\\Tax";
+
 describe("CRM Quotations Form", () => {
   beforeEach(() => {
+    vi.clearAllMocks();
+    conditionalDefaultsMode = false;
+    delete globalThis.__quotationItem;
+    delete globalThis.__quotationTax;
     formPageSeed = {};
     useFormPageCalls.length = 0;
     usePageMock.mockReturnValue({ props: { preferences: {} } });
+  });
+
+  describe("conditional defaults integration", () => {
+    const moduleTax = { id: "module-tax", rate: 11 };
+    const ruleTax = { id: "rule-tax", rate: 5 };
+    const manualTax = { id: "manual-tax", rate: 7 };
+    const chooseItem = async (id) => {
+      globalThis.__quotationItem = {
+        id: `variant-${id}`,
+        item: { id },
+        description: "Selected item",
+        is_stock_item: true,
+      };
+      await userEvent.click(
+        within(screen.getByTestId("conditional-row-row-1")).getByRole(
+          "button",
+          { name: /^item:/ },
+        ),
+      );
+    };
+    const rows = () =>
+      JSON.parse(screen.getByTestId("conditional-items").textContent);
+    const mount = (row = {}) => {
+      conditionalDefaultsMode = true;
+      deferTableUpdate = undefined;
+      formPageSeed = { items: [{ id: "row-1", ...row }] };
+      usePageMock.mockReturnValue({
+        props: {
+          defaults: { tax: moduleTax, warehouse: { id: "module-warehouse" } },
+        },
+      });
+      const responses = new Map();
+      axios.post.mockImplementation((url, payload) => {
+        if (url === "/defaults/resolve")
+          return new Promise((resolve) => {
+            responses.set(payload.items[0].item_id, resolve);
+          });
+        return Promise.resolve({
+          data: {
+            data: payload.model.endsWith("Tax")
+              ? [ruleTax]
+              : [{ id: "rule-warehouse" }],
+          },
+        });
+      });
+      renderForm(<Form />);
+      return async (itemId = "item-1", taxIds = [ruleTax.id]) => {
+        await waitFor(() => expect(responses.has(itemId)).toBe(true));
+        await act(async () => {
+          responses.get(itemId)({
+            data: {
+              items: {
+                [itemId]: {
+                  tax_ids: taxIds,
+                  taxes: taxIds.map((id) => ({ ...ruleTax, id })),
+                  warehouse_id: "rule-warehouse",
+                },
+              },
+            },
+          });
+        });
+      };
+    };
+
+    it.each([[[]], [[ruleTax.id]]])(
+      "retains early resolution %j until the selected row reaches the parent",
+      async (taxIds) => {
+        const respond = mount();
+        let publish;
+        deferTableUpdate = (callback) => {
+          publish = callback;
+        };
+        await chooseItem("item-1");
+        await respond("item-1", taxIds);
+        expect(rows()[0].item).toBeUndefined();
+        deferTableUpdate = undefined;
+        act(() => publish());
+        expect(rows()[0].tax).toEqual(taxIds.length ? ruleTax : null);
+        expect(rows()[0].tax_rate).toBe(taxIds.length ? 5 : 0);
+      },
+    );
+
+    it("keeps manually cleared tax empty when replacing an item", async () => {
+      const respond = mount();
+      await chooseItem("item-1");
+      globalThis.__quotationTax = null;
+      await userEvent.click(
+        within(screen.getByTestId("conditional-row-row-1")).getByRole(
+          "button",
+          { name: /^tax:/ },
+        ),
+      );
+      await chooseItem("item-2");
+      expect(rows()[0].tax).toBeNull();
+      await respond("item-2");
+      expect(rows()[0].tax).toBeNull();
+    });
+
+    it("applies hydrated conditional tax to actual QuotationItems and form state", async () => {
+      const respond = mount();
+      await chooseItem("item-1");
+      await waitFor(() =>
+        expect(axios.post).toHaveBeenCalledWith(
+          "/defaults/resolve",
+          {
+            document_type: "quotation",
+            items: [{ item_id: "item-1" }],
+          },
+          expect.objectContaining({ signal: expect.any(AbortSignal) }),
+        ),
+      );
+      expect(rows()[0].tax).toEqual(moduleTax);
+      await respond();
+      await waitFor(() => expect(rows()[0].tax).toEqual(ruleTax));
+      expect(currentFormData.items[0].tax_rate).toBe(5);
+      expect(rows()[0]).not.toHaveProperty("warehouse");
+    });
+
+    it.each([manualTax, null, moduleTax])(
+      "preserves user tax selection %j while the resolver is pending",
+      async (tax) => {
+        const respond = mount();
+        await chooseItem("item-1");
+        await waitFor(() =>
+          expect(axios.post).toHaveBeenCalledWith(
+            "/defaults/resolve",
+            expect.anything(),
+            expect.objectContaining({ signal: expect.any(AbortSignal) }),
+          ),
+        );
+        globalThis.__quotationTax = tax;
+        await userEvent.click(
+          within(screen.getByTestId("conditional-row-row-1")).getByRole(
+            "button",
+            { name: /^tax:/ },
+          ),
+        );
+        await respond();
+        expect(axios.post).not.toHaveBeenCalledWith(
+          "model",
+          expect.objectContaining({ model: TAX_MODEL }),
+          expect.anything(),
+        );
+        expect(rows()[0].tax).toEqual(tax);
+        expect(currentFormData.items[0].tax_rate).toBe(tax?.rate ?? 0);
+      },
+    );
+
+    it("preserves source row tax when a matching item is resolved", async () => {
+      const respond = mount({
+        referenceable_id: "source-1",
+        tax: manualTax,
+        tax_rate: manualTax.rate,
+      });
+      await chooseItem("item-1");
+      await waitFor(() =>
+        expect(axios.post).toHaveBeenCalledWith(
+          "/defaults/resolve",
+          expect.anything(),
+          expect.objectContaining({ signal: expect.any(AbortSignal) }),
+        ),
+      );
+      await respond();
+      expect(axios.post).not.toHaveBeenCalledWith(
+        "model",
+        expect.objectContaining({ model: TAX_MODEL }),
+        expect.anything(),
+      );
+      expect(rows()[0].referenceable_id).toBe("source-1");
+      expect(rows()[0].tax).toEqual(manualTax);
+    });
+
+    it("ignores a stale response after changing the selected item", async () => {
+      const respond = mount();
+      await chooseItem("item-1");
+      await waitFor(() =>
+        expect(axios.post).toHaveBeenCalledWith(
+          "/defaults/resolve",
+          expect.anything(),
+          expect.objectContaining({ signal: expect.any(AbortSignal) }),
+        ),
+      );
+      await chooseItem("item-2");
+      await respond("item-2", []);
+      await waitFor(() => expect(rows()[0].tax).toBeNull());
+      await respond();
+      expect(axios.post).not.toHaveBeenCalledWith(
+        "model",
+        expect.objectContaining({ model: TAX_MODEL }),
+        expect.anything(),
+      );
+      expect(rows()[0].item.item.id).toBe("item-2");
+      expect(rows()[0].tax).toBeNull();
+    });
+
+    it("applies an explicit tax exemption to the form state", async () => {
+      const respond = mount();
+      await chooseItem("item-1");
+      await waitFor(() =>
+        expect(axios.post).toHaveBeenCalledWith(
+          "/defaults/resolve",
+          expect.anything(),
+          expect.objectContaining({ signal: expect.any(AbortSignal) }),
+        ),
+      );
+      await respond("item-1", []);
+      await waitFor(() => expect(rows()[0].tax).toBeNull());
+      expect(currentFormData.items[0].tax_rate).toBe(0);
+    });
   });
 
   it("amount dihitung dari sum quantity*price seluruh items", () => {
@@ -237,9 +531,10 @@ describe("CRM Quotations Form", () => {
       renderForm(<Form />);
 
       expect(useFormPageCalls.length).toBeGreaterThan(0);
-      for (const call of useFormPageCalls) {
-        expect(call.options).toEqual({ trackDefaultValue: false });
-      }
+      const formCall = useFormPageCalls.find(
+        (call) => typeof call.defaultValue !== "undefined",
+      );
+      expect(formCall.options).toEqual({ trackDefaultValue: false });
     });
 
     it("field date terisi otomatis dengan tanggal saat ini (AC1.2)", () => {

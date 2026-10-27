@@ -23,10 +23,13 @@ use App\Models\Inventory\StockLedgerEntry;
 use App\Models\Model;
 use App\Models\Sales\InternalOrderItem;
 use App\Models\Sales\SalesOrderItem;
+use App\Models\Sales\SalesSetting;
+use App\Services\Core\Setting\ToleranceCalculator;
 use App\Traits\HasDefaultDelete;
 use Illuminate\Support\Collection;
 use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\DB;
+use Illuminate\Validation\ValidationException;
 use LogicException;
 use Symfony\Component\Uid\Ulid;
 
@@ -202,6 +205,32 @@ class DeliveryNoteService implements SubmitableService {
                 'unit',
             ])
             ->get();
+
+        $deliveryTolerance = SalesSetting::current()->over_delivery_tolerance_percent;
+        if (! $returnAgainst && $deliveryTolerance !== null) {
+            $sourceRows = $items
+                ->filter(fn (DeliveryNoteItem $item): bool => $item->referenceable instanceof SalesOrderItem || $item->referenceable instanceof InternalOrderItem)
+                ->groupBy(fn (DeliveryNoteItem $item): string => $item->referenceable::class . '|' . $item->referenceable_id);
+            $calculator      = app(ToleranceCalculator::class);
+            $toleranceErrors = [];
+            foreach ($sourceRows as $group) {
+                $sourceClass = $group->first()->referenceable::class;
+                $source      = $sourceClass::whereKey($group->first()->referenceable_id)->lockForUpdate()->first();
+                $requested   = (float) $group->sum('quantity');
+                if (! $source || ! $calculator->exceeds($requested, (float) $source->quantity, (float) $source->delivered_quantity, $deliveryTolerance)) {
+                    continue;
+                }
+
+                $toleranceErrors[] = __('inventory/deliveryNote.over_delivery_tolerance_exceeded', [
+                    'remaining' => max(0, (float) $source->quantity - (float) $source->delivered_quantity),
+                    'limit'     => $calculator->allowed((float) $source->quantity, (float) $source->delivered_quantity, $deliveryTolerance),
+                ]);
+            }
+            if ($toleranceErrors !== []) {
+                DB::rollBack();
+                throw ValidationException::withMessages(['items' => $toleranceErrors]);
+            }
+        }
 
         // Preload all needed stocks in one query to avoid N+1
         /** @var Collection<string, Stock> $stocks */

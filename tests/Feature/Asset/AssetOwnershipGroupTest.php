@@ -5,15 +5,15 @@ namespace Tests\Feature\Asset;
 use App\Enums\AssetOwnershipType;
 use App\Models\Asset\Asset;
 use App\Models\Core\ApprovalInstance;
+use App\Models\Core\CoreSetting;
 use App\Models\Core\FormatingSeries;
-use App\Models\Core\Preference;
 use App\Models\Model as BaseModel;
 use App\Models\Purchase\Supplier;
 use App\Models\Sales\Customer;
 use App\Models\User\User;
 use App\Services\Core\DataTable\Group\GroupColumnGate;
+use App\Services\Core\Setting\SettingsService;
 use Illuminate\Foundation\Testing\RefreshDatabase;
-use Illuminate\Support\Facades\DB;
 use PHPUnit\Framework\Attributes\Test;
 use Tests\TestCase;
 
@@ -33,13 +33,7 @@ class AssetOwnershipGroupTest extends TestCase {
         foreach ([FormatingSeries::class, Asset::class, Supplier::class, Customer::class] as $model) {
             $model::initPermissions();
         }
-        DB::table('preferences')->insert([
-            'key'        => 'timezone',
-            'value'      => json_encode('UTC'),
-            'is_example' => false,
-            'created_at' => now(),
-            'updated_at' => now(),
-        ]);
+        app(SettingsService::class)->update(CoreSetting::class, ['timezone' => 'UTC']);
         $this->user = User::factory()->create();
     }
 
@@ -56,7 +50,7 @@ class AssetOwnershipGroupTest extends TestCase {
         Asset::factory()->create(['ownership_type' => AssetOwnershipType::CUSTOMER, 'ownership_id' => $customer->id]);
         Asset::factory()->create(['ownership_type' => AssetOwnershipType::CUSTOMER, 'ownership_id' => $customer->id]);
         Asset::factory()->count(2)->create(['ownership_type' => AssetOwnershipType::COMPANY]);
-        Preference::query()->updateOrCreate(['key' => 'company_name'], ['value' => 'PT Contoh Sejahtera']);
+        app(SettingsService::class)->update(CoreSetting::class, ['company_name' => 'PT Contoh Sejahtera']);
 
         return [$supplier, $customer];
     }
@@ -178,7 +172,7 @@ class AssetOwnershipGroupTest extends TestCase {
     #[Test]
     public function company_group_without_preference_has_no_label(): void {
         $this->seedAssets();
-        Preference::query()->where('key', 'company_name')->delete();
+        app(SettingsService::class)->update(CoreSetting::class, ['company_name' => null]);
 
         $res = $this->lookup(['groupTree' => true, 'group' => ['ownership'], 'fields' => ['ownership']]);
 

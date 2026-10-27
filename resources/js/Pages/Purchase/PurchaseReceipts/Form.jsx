@@ -15,6 +15,7 @@ import React from "react";
 import SupplierLinkModel from "../Suppliers/SupplierLinkModel";
 import { Textarea } from "@/Components/ui/textarea";
 import { generateRandom } from "@/lib/utils";
+import { EMPTY_DEFAULTS, useDocumentDefaults } from "@/lib/documentDefaults";
 import { useLaravelReactI18n } from "laravel-react-i18n";
 import { useMemo } from "react";
 import { usePage } from "@inertiajs/react";
@@ -36,8 +37,10 @@ const hasItem = (row) => !!(row?.purchase_order_item_id || row?.item?.id);
 function Form() {
   const { t } = useLaravelReactI18n();
   const fixedAssets = usePage().props.fixedAssets;
-  const purchaseReceiptId = usePage().props.purchaseReceipt?.id;
-  const { data, setData } = useFormPage(
+  const pageProps = usePage().props;
+  const purchaseReceiptId = pageProps.purchaseReceipt?.id;
+  const defaults = pageProps.defaults ?? EMPTY_DEFAULTS;
+  const { data, setData, isCreate } = useFormPage(
     {
       date: new Date(),
     },
@@ -46,6 +49,11 @@ function Form() {
       notUseWhenCreate: true,
     },
   );
+  const { applyToNewLine, resolveForNewLine, markFieldEdited } =
+    useDocumentDefaults(defaults, isCreate ? "purchase_receipt" : null, {
+      items: data.items,
+      setData,
+    });
 
   // Id ItemVariant semua PO Item: menyaring sub model "Item Lainnya" supaya item
   // yang sudah ada di PO tidak muncul dobel di dropdown (dedupe di sisi form).
@@ -74,7 +82,7 @@ function Form() {
                   // Opsi dari sub model (ItemVariant) = baris di luar PO
                   // (spec purchase-receipt-off-po-items); opsi PO Item = baris normal.
                   if (val?.thisModel === ITEM_VARIANT_MODEL) {
-                    setData({
+                    const rowPatch = {
                       ...OFF_PO_RESET,
                       purchase_order_item: null,
                       purchase_order_item_id: null,
@@ -83,7 +91,18 @@ function Form() {
                       conversion_factor: val.default_uom?.conversion_factor,
                       quantity: 1,
                       description: undefined,
-                      target_warehouse: null,
+                    };
+                    const defaultLine = applyToNewLine(
+                      { ...dataRow, ...rowPatch },
+                      val,
+                      { warehouseField: "target_warehouse" },
+                    );
+                    setData({
+                      ...rowPatch,
+                      target_warehouse: defaultLine.target_warehouse,
+                    });
+                    resolveForNewLine(dataRow.id, val, {
+                      warehouseField: "target_warehouse",
                     });
                     return;
                   }
@@ -159,7 +178,10 @@ function Form() {
             <WarehouseLinkModel
               disabled={!hasItem(dataRow)}
               value={data}
-              onValueChange={(e) => setData("target_warehouse", e)}
+              onValueChange={(e) => {
+                markFieldEdited(dataRow.id, "target_warehouse");
+                setData("target_warehouse", e);
+              }}
               {...attributes}
             />
           );
@@ -291,7 +313,13 @@ function Form() {
         },
       },
     ];
-  }, [data.purchase_order, poVariantIdsKey]);
+  }, [
+    applyToNewLine,
+    data.purchase_order,
+    markFieldEdited,
+    poVariantIdsKey,
+    resolveForNewLine,
+  ]);
   return (
     <>
       <FormPageContent

@@ -21,6 +21,7 @@ use Illuminate\Support\Facades\Schema;
 use Illuminate\Support\Str;
 use Mockery;
 use RuntimeException;
+use Tests\Support\CreatesModuleSettingTables;
 use Tests\TestCase;
 
 class SendEmailPdfJobTestDocument extends AppModel {
@@ -32,8 +33,21 @@ class SendEmailPdfJobTestDocument extends AppModel {
 }
 
 class SendEmailWithPdfJobTest extends TestCase {
+    use CreatesModuleSettingTables;
+
     protected function setUp(): void {
         parent::setUp();
+
+        // Render print/email kini membaca LegacyPreferenceMap (tabel setting asli).
+        $this->createModuleSettingTables();
+
+        // Migrasi files asli membawa FK created_by_id -> users; SQLite butuh
+        // tabel induk ada walau nilai FK-nya NULL.
+        if (! Schema::hasTable('users')) {
+            Schema::create('users', function ($table): void {
+                $table->char('id', 26)->primary();
+            });
+        }
 
         if (! Schema::hasTable('send_email_pdf_test_documents')) {
             Schema::create('send_email_pdf_test_documents', function ($table): void {

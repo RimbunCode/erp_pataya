@@ -3,9 +3,10 @@ import {
   FormPageContentTitle,
   useFormPage,
 } from "@/Pages/Core/FormPage";
-import React, { useCallback, useMemo } from "react";
+import React, { useCallback, useEffect, useMemo, useRef } from "react";
 import { calculateArray, generateRandom, getDataModel } from "@/lib/utils";
 import { allocateDiscount } from "@/lib/discountAllocation";
+import { EMPTY_DEFAULTS, useDocumentDefaults } from "@/lib/documentDefaults";
 
 import AccountLinkModel from "../Accounts/AccountLinkModel";
 import AssetCompletionRowBadge from "@/Pages/Asset/Assets/AssetCompletionRowBadge";
@@ -71,13 +72,49 @@ export default function Form() {
     };
   }, []);
   const { t } = useLaravelReactI18n();
-  const { data, setData, disabled, dataBefore } = useFormPage(defaultValue, {
-    notUseWhenCreate: true,
-  });
+  const { data, setData, disabled, dataBefore, isCreate } = useFormPage(
+    defaultValue,
+    {
+      notUseWhenCreate: true,
+    },
+  );
 
-  const { default_currency_id } = usePage().props.preferences;
-  const fixedAssets = usePage().props.fixedAssets;
-  const purchaseInvoiceId = usePage().props.purchaseInvoice?.id;
+  const pageProps = usePage().props;
+  const { default_currency_id } = pageProps.preferences;
+  const fixedAssets = pageProps.fixedAssets;
+  const purchaseInvoiceId = pageProps.purchaseInvoice?.id;
+  const defaults = pageProps.defaults ?? EMPTY_DEFAULTS;
+  const {
+    applyToNewLine,
+    applyPaymentTerm,
+    resolveForNewLine,
+    markFieldEdited,
+  } = useDocumentDefaults(defaults, isCreate ? "purchase_invoice" : null, {
+    items: data.items,
+    setData,
+  });
+  const paymentDefaultsApplied = useRef(false);
+
+  useEffect(() => {
+    if (paymentDefaultsApplied.current) return;
+    if (data.payment_schedules?.length) {
+      paymentDefaultsApplied.current = true;
+      return;
+    }
+    if (defaults.payment_term_template?.items?.length) {
+      setData(
+        "payment_schedules",
+        applyPaymentTerm(data.payment_schedules, data.date ?? new Date()),
+      );
+      paymentDefaultsApplied.current = true;
+    }
+  }, [
+    applyPaymentTerm,
+    data.date,
+    data.payment_schedules,
+    defaults.payment_term_template,
+    setData,
+  ]);
   // Dihitung langsung dari quantity*rate mentah + alokasi diskon saat ini --
   // BUKAN dari calculateArray(data.items, "basic_amount"/"dpp_amount"/
   // "tax_amount", "+") seperti sebelumnya. Alasan: kolom basic_amount/
@@ -217,16 +254,25 @@ export default function Form() {
                   }
                   if (val?.thisModel === ITEM_VARIANT_MODEL) {
                     // Item bebas (belum diterima): satuan default varian.
-                    setData({
+                    const rowPatch = {
                       ...SOURCE_RESET,
                       item: val,
                       unit: val.default_uom ?? null,
                       conversion_factor: val.default_uom?.conversion_factor,
                       quantity: 1,
                       rate: undefined,
-                      tax: undefined,
                       description: undefined,
+                    };
+                    const defaultLine = applyToNewLine(
+                      { ...dataRow, ...rowPatch },
+                      val,
+                    );
+                    setData({
+                      ...rowPatch,
+                      tax: defaultLine.tax,
+                      tax_rate: defaultLine.tax_rate,
                     });
+                    resolveForNewLine(dataRow.id, val);
                     return;
                   }
                   setData({
@@ -380,6 +426,7 @@ export default function Form() {
               )}
               value={data}
               onValueChange={(val) => {
+                markFieldEdited(dataRow.id, "tax");
                 setData("tax", val);
               }}
               {...attributes}
@@ -447,7 +494,13 @@ export default function Form() {
         },
       },
     ];
-  }, [data, poVariantIdsKey]);
+  }, [
+    applyToNewLine,
+    data,
+    markFieldEdited,
+    poVariantIdsKey,
+    resolveForNewLine,
+  ]);
 
   return (
     <>

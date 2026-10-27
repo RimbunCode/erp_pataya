@@ -6,16 +6,30 @@ import ItemVariantLinkModel from "@/Pages/Inventory/Items/ItemVariantLinkModel";
 import TaxLinkModel from "@/Pages/Finances/Taxes/TaxLinkModel";
 import NumberInput from "@/Components/NumberInput";
 import { Textarea } from "@/Components/ui/textarea";
+import { EMPTY_DEFAULTS, applyToNewLine } from "@/lib/documentDefaults";
 import { useLaravelReactI18n } from "laravel-react-i18n";
 import { useMemo } from "react";
+
+const DEFAULT_VALUE_ROW = { quantity: 1, price: 0 };
 
 /**
  * Menyusun definisi kolom tabel item menurut jenis Quotation (AC9.4).
  * Kolom bernilai `false` dibuang oleh FormTable (`.filter((col) => col)`).
  * @param {string} type
  * @param {(key: string) => string} t
+ * @param defaults
+ * @param root0
+ * @param root0.isCreate
+ * @param root0.resolveForNewLine
+ * @param root0.markFieldEdited
+ * @param root0.isFieldEdited
  */
-export function buildQuotationItemColumns(type, t) {
+export function buildQuotationItemColumns(
+  type,
+  t,
+  defaults = EMPTY_DEFAULTS,
+  { isCreate = false, resolveForNewLine, markFieldEdited, isFieldEdited } = {},
+) {
   const isSparePart = type === "spare_part";
   const isNewUnit = type === "new_unit";
   const isRental = type === "rental";
@@ -52,13 +66,29 @@ export function buildQuotationItemColumns(type, t) {
             fields={["item_code", "description"]}
             with={["defaultUom"]}
             onValueChange={(val) => {
+              const defaultLine = applyToNewLine(
+                {
+                  ...dataRow,
+                  item: val,
+                  tax: dataRow?.tax,
+                  tax_rate: dataRow?.tax_rate,
+                },
+                val,
+                defaults,
+                { isFieldEdited },
+              );
               // Nilai awal disalin dari master, lalu menjadi milik dokumen
               // (pola P3): mengubah master tidak mengubah penawaran.
               setData({
                 item: val,
                 description: val?.description ?? "",
                 item_unit: val?.default_uom,
+                tax: defaultLine.tax,
+                tax_rate: defaultLine.tax_rate,
               });
+              if (isCreate) {
+                resolveForNewLine?.(dataRow?.id, val);
+              }
             }}
             {...attributes}
           />
@@ -129,7 +159,10 @@ export function buildQuotationItemColumns(type, t) {
             disabled={!dataRow?.item}
             placeholder={t("crm.quotation.columns.tax.placeholder")}
             value={value}
-            onValueChange={(val) => setData("tax", val)}
+            onValueChange={(tax) => {
+              markFieldEdited?.(dataRow?.id, "tax");
+              setData({ tax, tax_rate: tax?.rate ?? 0 });
+            }}
             {...attributes}
           />
         );
@@ -192,9 +225,31 @@ export default function QuotationItems({
   onValueChange,
   readOnly,
   type = "spare_part",
+  defaults = EMPTY_DEFAULTS,
+  isCreate = false,
+  resolveForNewLine,
+  markFieldEdited,
+  isFieldEdited,
 }) {
   const { t } = useLaravelReactI18n();
-  const columns = useMemo(() => buildQuotationItemColumns(type, t), [type, t]);
+  const columns = useMemo(
+    () =>
+      buildQuotationItemColumns(type, t, defaults, {
+        isCreate,
+        resolveForNewLine,
+        markFieldEdited,
+        isFieldEdited,
+      }),
+    [
+      defaults,
+      isCreate,
+      markFieldEdited,
+      isFieldEdited,
+      resolveForNewLine,
+      type,
+      t,
+    ],
+  );
 
   return (
     <FormPageContent value="items" title={t("crm.quotation.items")}>
@@ -207,7 +262,7 @@ export default function QuotationItems({
         classNameDialog="max-w-(--breakpoint-lg)! w-full!"
         readOnly={readOnly}
         columns={columns}
-        defaultValueRow={{ quantity: 1, price: 0 }}
+        defaultValueRow={DEFAULT_VALUE_ROW}
         value={value ?? []}
         onValueChange={onValueChange}
       />

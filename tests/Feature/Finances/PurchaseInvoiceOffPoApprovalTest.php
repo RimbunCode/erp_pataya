@@ -26,6 +26,7 @@ use App\Models\Purchase\PurchaseOrder;
 use App\Models\Purchase\PurchaseOrderItem;
 use App\Models\Purchase\PurchaseReceipt;
 use App\Models\Purchase\PurchaseReceiptItem;
+use App\Models\Purchase\PurchaseSetting;
 use App\Models\Purchase\Supplier;
 use App\Models\User\User;
 use App\Services\Finances\PurchaseInvoiceService;
@@ -40,6 +41,7 @@ use Illuminate\Foundation\Testing\RefreshDatabase;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Event;
 use Illuminate\Support\Facades\Schema;
+use Illuminate\Validation\ValidationException;
 use PHPUnit\Framework\Attributes\Test;
 use Tests\TestCase;
 
@@ -411,6 +413,40 @@ class PurchaseInvoiceOffPoApprovalTest extends TestCase {
         $sle = StockLedgerEntry::where('item_id', $this->xVariant->id)->where('referenceable_type', PurchaseReceipt::class)->first();
         $this->assertTrue((bool) $sle->is_valuated);
         $this->assertEquals(6000, $sle->change_in_stock_value);
+    }
+
+    #[Test]
+    public function approval_rechecks_strict_invoice_tolerance_after_source_lock(): void {
+        PurchaseSetting::current()->update(['over_billing_tolerance_percent' => 0]);
+
+        try {
+            $this->makeInvoice([
+                'purchase_order_item_id' => $this->xItem->id,
+                'item_id'                => $this->xVariant->id,
+                'quantity'               => 11,
+                'rate'                   => 1000,
+            ]);
+            $this->fail('Ekspektasi approval menolak kuantitas melebihi sisa PO.');
+        } catch (ValidationException $exception) {
+            $this->assertArrayHasKey('items', $exception->errors());
+        }
+    }
+
+    #[Test]
+    public function approval_rechecks_rate_change_stop_after_source_lock(): void {
+        PurchaseSetting::current()->update(['rate_change_action' => 'stop']);
+
+        $invoiceItem = $this->makeInvoice([
+            'purchase_order_item_id' => $this->xItem->id,
+            'item_id'                => $this->xVariant->id,
+            'item_unit_id'           => $this->xUnit->id,
+            'conversion_factor'      => 1,
+            'quantity'               => 1,
+            'rate'                   => 1010,
+        ], false);
+
+        $this->expectException(ValidationException::class);
+        $this->invoiceService->onApproved($invoiceItem->purchaseInvoice);
     }
 
     #[Test]

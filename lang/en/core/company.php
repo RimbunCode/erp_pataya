@@ -35,6 +35,7 @@ return [
         'port'                 => 'Port',
         'username'             => 'Username',
         'password'             => 'Password',
+        'password_hint'        => 'Leave blank to keep the saved password.',
         'from_address'         => 'From Address',
         'from_name'            => 'Form Name',
     ],

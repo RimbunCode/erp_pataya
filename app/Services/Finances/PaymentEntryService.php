@@ -6,14 +6,15 @@ use App\Contracts\SubmitableService;
 use App\Enums\FormStatus;
 use App\Events\Core\DocumentSubmitted;
 use App\Events\Finances\PaymentApplied;
+use App\Models\Core\CoreSetting;
 use App\Models\Core\FormatingSeries;
-use App\Models\Core\Preference;
 use App\Models\Finances\PaymentEntry;
 use App\Models\Finances\PurchaseInvoice;
 use App\Models\Finances\SalesInvoice;
 use App\Models\Model;
 use App\Models\Purchase\Supplier;
 use App\Models\Sales\Customer;
+use App\Services\Core\Setting\SettingsService;
 use App\Traits\HasDefaultDelete;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Validation\ValidationException;
@@ -23,7 +24,7 @@ class PaymentEntryService implements SubmitableService {
 
     private function fillRelations(array $data) {
         $data['default_account_id'] = $data['default_account']['id'] ?? null;
-        $defaultCurrency            = Preference::find('default_currency_id')?->value;
+        $defaultCurrency            = app(SettingsService::class)->get(CoreSetting::class)->default_currency_id;
         $data['currency_code']      = $data['currency']['code'] ?? $defaultCurrency;
         $data['base_currency_code'] = $defaultCurrency;
 

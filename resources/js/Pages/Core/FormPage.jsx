@@ -138,6 +138,7 @@ FormPageContentTrigger.displayName = "FormPageContentTrigger";
  * @property {string} className
  * @property {boolean} collapsible
  * @property {boolean} defaultOpen
+ * @property {boolean} forceMount
  * @property {boolean | string | string[]} showAt
  */
 /**
@@ -152,6 +153,7 @@ const FormPageContent = forwardRef(function FormPageContent(
     actions,
     collapsible = false,
     defaultOpen = false,
+    forceMount = false,
     showAt = false,
     show = true,
   },
@@ -227,7 +229,8 @@ const FormPageContent = forwardRef(function FormPageContent(
               : (menuSelected ?? menus?.[0]?.value)
           : value
       }
-      className="mt-0"
+      forceMount={forceMount}
+      className="mt-0 data-[state=inactive]:hidden"
     >
       <Collapsible open={openCollapsible} onOpenChange={setOpenCollapsible}>
         <div
@@ -281,6 +284,7 @@ const FormChildren = memo(function FormChildren({
   defaultMenu,
   disabled,
   form,
+  registerBeforeSubmit,
   isCreate = false,
   // hasConnections,
 }) {
@@ -419,6 +423,7 @@ const FormChildren = memo(function FormChildren({
           isCreate={isCreate}
           dataBefore={dataBefore}
           form={form}
+          registerBeforeSubmit={registerBeforeSubmit}
           isSingle={isSingle}
           firstIds={firstIds}
         >
@@ -435,6 +440,26 @@ const FormChildren = memo(function FormChildren({
 
 const FormPageContext = createContext();
 const FormPageMetaContext = createContext();
+
+const FormPageSaveButton = memo(function FormPageSaveButton({
+  disabled = false,
+  children,
+  ...props
+}) {
+  const { t } = useLaravelReactI18n();
+
+  return (
+    <Button
+      type="submit"
+      className="p-2! size-fit h-8"
+      disabled={disabled}
+      {...props}
+    >
+      <SaveIcon />
+      {children ?? t("core.form.save", "Save")}
+    </Button>
+  );
+});
 /**
  * @param {object|(() => object|Promise<object>)} defaultValue
  * @param {{ trackDefaultValue?: boolean, notUseWhenCreate:boolean }} options
@@ -576,6 +601,7 @@ const FormPageProvider = memo(function FormPageProvider({
   setMenuSelected,
   dataBefore,
   form,
+  registerBeforeSubmit,
   isCreate = false,
   isSingle = true,
   firstIds,
@@ -606,6 +632,7 @@ const FormPageProvider = memo(function FormPageProvider({
       dataBefore: stableDataBefore,
       isCreate,
       form,
+      registerBeforeSubmit,
       isSingle,
       firstIds,
     }),
@@ -624,6 +651,7 @@ const FormPageProvider = memo(function FormPageProvider({
       stableDataBefore,
       isCreate,
       form,
+      registerBeforeSubmit,
       isSingle,
       firstIds,
     ],
@@ -789,6 +817,12 @@ const FormPage = memo(
     const [showAlertBeforeSubmit, setShowAlertBeforeSubmit] = useState(false);
     const [showAlertBeforeCancel, setShowAlertBeforeCancel] = useState(false);
     const formRef = useRef();
+    const beforeSubmitHandlers = useRef(new Set());
+    const registerBeforeSubmit = useCallback((handler) => {
+      beforeSubmitHandlers.current.add(handler);
+      return () => beforeSubmitHandlers.current.delete(handler);
+    }, []);
+    const [waitingBeforeSubmit, setWaitingBeforeSubmit] = useState(false);
     const layoutRef = useRef(null); // wrapper AppLayout
     const lastPositionRef = useRef(0);
     const showHeaderRef = useRef(true);
@@ -878,10 +912,20 @@ const FormPage = memo(
         <form
           onKeyDown={onKeyDown}
           ref={formRef}
-          onSubmit={(e) => {
+          onSubmit={async (e) => {
             e.preventDefault();
             e.stopPropagation();
-            if (disabled) return;
+            if (disabled || waitingBeforeSubmit) return;
+            setWaitingBeforeSubmit(true);
+            try {
+              await Promise.all(
+                [...beforeSubmitHandlers.current].map((handler) => handler()),
+              );
+            } catch {
+              setWaitingBeforeSubmit(false);
+              return;
+            }
+            setWaitingBeforeSubmit(false);
             e.action = "update";
             onSubmit?.(e);
           }}
@@ -1166,14 +1210,9 @@ const FormPage = memo(
                           </Button>
                         ))
                 : can("write", { user_id: defaultData?.created_by_id }) && (
-                    <Button
-                      type="submit"
-                      className="p-2! size-fit h-8"
-                      disabled={processing}
-                    >
-                      <SaveIcon />
-                      {t("core.form.save")}
-                    </Button>
+                    <FormPageSaveButton
+                      disabled={processing || waitingBeforeSubmit}
+                    />
                   )}
             </div>
           </div>
@@ -1215,6 +1254,7 @@ const FormPage = memo(
                 data={data}
                 setData={setData}
                 form={form}
+                registerBeforeSubmit={registerBeforeSubmit}
               >
                 <SidebarChildren
                   content={sidebarContent}
@@ -1233,6 +1273,7 @@ const FormPage = memo(
                 data={data}
                 setData={setData}
                 form={form}
+                registerBeforeSubmit={registerBeforeSubmit}
               >
                 <SidebarChildren
                   content={sidebarContent}
@@ -1259,6 +1300,7 @@ const FormPage = memo(
               setData={setData}
               defaultMenu={defaultMenu}
               form={form}
+              registerBeforeSubmit={registerBeforeSubmit}
               hasConnections={
                 submitable &&
                 defaultData?.status &&
@@ -2248,6 +2290,7 @@ export {
   FormPageContentDescription,
   FormPageDialog,
   FormPageDiff,
+  FormPageSaveButton,
   FormPageContext,
   Approvals,
   useFormPage,

@@ -2,11 +2,13 @@
 
 namespace App\Http\Controllers\Finances;
 
+use App\Enums\DefaultsDocumentType;
 use App\Http\Controllers\Controller;
 use App\Http\Requests\Finances\SalesInvoiceRequest;
 use App\Models\Finances\Account;
 use App\Models\Finances\SalesInvoice;
 use App\Models\Sales\SalesOrder;
+use App\Services\Core\Setting\DocumentDefaultsResolver;
 use App\Services\Finances\SalesInvoiceService;
 use App\Services\Sales\RentalDurationService;
 use App\Utils;
@@ -28,7 +30,9 @@ class SalesInvoiceController extends Controller {
         $this->setBreadcrumbs();
         SalesInvoice::dataTable($request);
 
-        return Inertia::render('Finances/SalesInvoice/Index');
+        return Inertia::render('Finances/SalesInvoice/Index', [
+            'defaults' => app(DocumentDefaultsResolver::class)->defaultsFor(DefaultsDocumentType::SalesInvoice),
+        ]);
     }
 
     /**
@@ -156,6 +160,7 @@ class SalesInvoiceController extends Controller {
 
         return Inertia::render('Finances/SalesInvoice/Show', [
             'defaultData' => $defaultData ?? [],
+            'defaults'    => app(DocumentDefaultsResolver::class)->defaultsFor(DefaultsDocumentType::SalesInvoice),
         ]);
     }
 

@@ -117,15 +117,9 @@ describe("Input", () => {
     expect(input).not.toHaveAttribute("title");
   });
 
-  // Catatan (lihat bugFindings): localRef dibuat via useRef tapi TIDAK PERNAH
-  // disambungkan ke elemen <input> asli (JSX <input> tidak punya ref={localRef}).
-  // Akibatnya localRef.current selalu null, sehingga efek isFocused (yang
-  // memanggil localRef.current?.focus()) menjadi no-op. Test ini
-  // mendokumentasikan behavior SAAT INI: isFocused tidak benar-benar
-  // memfokuskan input.
-  it("isFocused=true TIDAK benar-benar memberi fokus ke input saat mount (dokumentasi bug: localRef dangling, tidak pernah di-attach ke elemen)", () => {
+  it("isFocused=true memfokuskan input saat mount", () => {
     render(<Input value="" onChange={() => {}} isFocused />);
-    expect(screen.getByRole("textbox")).not.toHaveFocus();
+    expect(screen.getByRole("textbox")).toHaveFocus();
   });
 
   it("tanpa isFocused (default false), input TIDAK otomatis fokus saat mount", () => {
@@ -147,18 +141,14 @@ describe("Input", () => {
     expect(typeof ref.current.focus).toBe("function");
   });
 
-  // Catatan (lihat bugFindings): karena localRef dangling (lihat test isFocused
-  // di atas), memanggil ref.current.focus() yang diekspos lewat
-  // useImperativeHandle juga menjadi no-op -- TIDAK benar-benar memfokuskan
-  // elemen <input>. Test ini mendokumentasikan behavior SAAT INI.
-  it("ref.current.focus() (diekspos via useImperativeHandle) TIDAK benar-benar memfokuskan input (dokumentasi bug yang sama: localRef dangling)", () => {
+  it("ref.current.focus() memfokuskan input melalui API imperative", () => {
     const ref = createRef();
     render(<Input ref={ref} value="" onChange={() => {}} />);
     const input = screen.getByRole("textbox");
 
     ref.current.focus();
 
-    expect(input).not.toHaveFocus();
+    expect(input).toHaveFocus();
   });
 });
 

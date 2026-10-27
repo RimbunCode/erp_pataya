@@ -451,7 +451,7 @@ Middleware: `auth, lang, onboarded, app`. Detail: [Modul Helpdesk](modules/helpd
 
 ## Lampiran: Daftar Controller
 
-Controller yang **tidak terhubung ke route web** (dipakai internal / command / belum dirilis): `Core\BackupController`, `Core\SettingController`, `Finances\PaymentScheduleController`, `RouteController`, `ProfileController` (Breeze profile, jika diaktifkan). Verifikasi ulang dengan:
+Controller yang **tidak terhubung ke route web** (dipakai internal / command / belum dirilis): `Core\BackupController`, `Core\SettingController`, `RouteController`, `ProfileController` (Breeze profile, jika diaktifkan). Verifikasi ulang dengan:
 
 ```bash
 php artisan route:list --except-vendor
@@ -465,7 +465,7 @@ php artisan route:list --except-vendor
 | `Purchase\` | PurchaseOrderController, PurchaseReceiptController, PurchaseRequestController, SupplierController |
 | `Sales\` | CustomerController, InternalOrderController, SalesOrderController |
 | `Service\` | WorkOrderController |
-| `Finances\` | AccountController, GeneralLedgerController, PaymentEntryController, PaymentMethodController, PaymentScheduleController*, PaymentTermTemplateController, PurchaseInvoiceController, SalesInvoiceController, TaxesController |
+| `Finances\` | AccountController, GeneralLedgerController, PaymentEntryController, PaymentMethodController, PaymentTermTemplateController, PurchaseInvoiceController, SalesInvoiceController, TaxesController |
 | `CRM\` | LeadController, OpportunityController, QuotationController |
 | `Helpdesk\` | TicketController |
 | `Api\` | DeployWebhookController* (route di `routes/api.php`, bukan `web.php`) |

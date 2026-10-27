@@ -11,10 +11,10 @@ use App\Events\Purchase\Invoice\PurchaseInvoiceReturnStatusChanged;
 use App\Events\Purchase\Invoice\PurchaseOrderItemBillingChanged;
 use App\Events\Purchase\Order\PurchaseOrderBillStatusRecalculationRequested;
 use App\Http\Requests\Finances\Rules\ReturnAgainstItemRules;
+use App\Models\Core\CoreSetting;
 use App\Models\Core\FormatingSeries;
 use App\Models\Core\GlPostingStatus;
 use App\Models\Core\ModelConnection;
-use App\Models\Core\Preference;
 use App\Models\Finances\Account;
 use App\Models\Finances\PurchaseInvoice;
 use App\Models\Finances\PurchaseInvoiceItem;
@@ -27,7 +27,12 @@ use App\Models\Purchase\PurchaseOrder;
 use App\Models\Purchase\PurchaseOrderItem;
 use App\Models\Purchase\PurchaseReceipt;
 use App\Models\Purchase\PurchaseReceiptItem;
+use App\Models\Purchase\PurchaseSetting;
 use App\Models\Purchase\Supplier;
+use App\Services\Core\Setting\CurrencyMatcher;
+use App\Services\Core\Setting\RateChangeComparator;
+use App\Services\Core\Setting\SettingsService;
+use App\Services\Core\Setting\ToleranceCalculator;
 use App\Traits\HasDefaultDelete;
 use App\Utils;
 use Illuminate\Support\Collection;
@@ -42,7 +47,7 @@ class PurchaseInvoiceService implements SubmitableService {
      * Faktor DPP Nilai Lain PPN 12% (tarif efektif 11%) -- lihat migration
      * add_dpp_amount_to_purchase_invoice_items_table, spec invoice-dpp-adjustment.
      */
-    private const float DPP_FACTOR = 11 / 12;
+    public const float DPP_FACTOR = 11 / 12;
 
     private function fillRelations(array $data) {
         $data['purchase_order_id'] = $data['purchase_order']['id'];
@@ -54,7 +59,7 @@ class PurchaseInvoiceService implements SubmitableService {
         $data['expanse_head_account_id'] = $data['expense_head_account']['id'] ?? null;
         $data['return_against_id']       = $data['return_against']['id'] ?? null;
 
-        $defaultCurrency            = Preference::find('default_currency_id')?->value;
+        $defaultCurrency            = app(SettingsService::class)->get(CoreSetting::class)->default_currency_id;
         $data['currency_code']      = $data['currency']['code'] ?? $defaultCurrency;
         $data['base_currency_code'] = $defaultCurrency;
 
@@ -289,6 +294,11 @@ class PurchaseInvoiceService implements SubmitableService {
             $items         = $purchaseInvoice->items;
             $purchaseOrder = $purchaseInvoice->purchaseOrder;
 
+            if (! $returnAgainst) {
+                $this->assertRateChanges($purchaseInvoice, $items);
+                $this->assertBillingTolerance($purchaseInvoice, $items);
+            }
+
             $basicAmount  = 0;
             $taxAmount    = 0;
             $totalStockGL = 0; // Untuk GL Stock/SRNB (ALUR-1)
@@ -406,6 +416,157 @@ class PurchaseInvoiceService implements SubmitableService {
         } catch (\Exception $e) {
             DB::rollBack();
             throw $e;
+        }
+    }
+
+    private function assertBillingTolerance(PurchaseInvoice $purchaseInvoice, Collection $items): void {
+        $tolerance = PurchaseSetting::current()->over_billing_tolerance_percent;
+        if ($tolerance === null) {
+            return;
+        }
+
+        $calculator  = app(ToleranceCalculator::class);
+        $poItemsById = $items->filter(fn ($item) => $item->purchase_order_item_id)
+            ->groupBy('purchase_order_item_id');
+        $sourcePoItems = $poItemsById->isEmpty()
+            ? collect()
+            : PurchaseOrderItem::query()
+                ->with('purchaseOrder:id,exchange_rate,currency_code')
+                ->whereIn('id', $poItemsById->keys())
+                ->lockForUpdate()
+                ->get()
+                ->keyBy('id');
+
+        // Mata uang sama dengan PO: nilai dibandingkan apa adanya dalam mata uang dokumen (tanpa kurs).
+        $currencies = app(CurrencyMatcher::class);
+        $sourceInfo = [];
+        foreach ($sourcePoItems as $sourceId => $source) {
+            $sourceInfo[$sourceId] = [
+                'currency'           => $source->purchaseOrder?->currency_code,
+                'exchange_rate'      => (float) ($source->purchaseOrder?->exchange_rate ?: 1),
+                'in_source_currency' => $currencies->same($source->purchaseOrder?->currency_code, $purchaseInvoice->currency_code),
+            ];
+        }
+        $billedValues = app(InvoiceBilledValueResolver::class)->billedValues(
+            PurchaseInvoiceItem::class,
+            'purchaseInvoice',
+            'purchase_order_item_id',
+            $sourceInfo,
+            $purchaseInvoice->id,
+            lock: true,
+        );
+
+        foreach ($poItemsById as $sourceId => $invoiceItems) {
+            $source = $sourcePoItems->get($sourceId);
+            if (! $source) {
+                continue;
+            }
+
+            $requestedQuantity  = (float) $invoiceItems->sum('quantity');
+            $inSourceCurrency   = $sourceInfo[$sourceId]['in_source_currency'];
+            $requestedValue     = (float) $invoiceItems->sum(fn ($item) => ($item->basic_amount - $item->discount_amount) * ($inSourceCurrency ? 1 : (float) ($purchaseInvoice->exchange_rate ?: 1)));
+            $sourceExchangeRate = $inSourceCurrency ? 1.0 : $sourceInfo[$sourceId]['exchange_rate'];
+            $sourceValue        = ((float) $source->basic_amount - (float) $source->discount_amount) * $sourceExchangeRate;
+            $alreadyBilledValue = (float) ($billedValues[$sourceId] ?? 0);
+
+            if ($calculator->exceeds($requestedQuantity, (float) $source->quantity, (float) $source->billed_quantity, $tolerance)) {
+                throw ValidationException::withMessages([
+                    'items' => __('finances/purchaseInvoice.validation.over_billing_tolerance_exceeded', [
+                        'remaining' => max(0, (float) $source->quantity - (float) $source->billed_quantity),
+                        'tolerance' => $tolerance,
+                    ]),
+                ]);
+            }
+
+            if ($calculator->exceedsValue($requestedValue, $sourceValue, $alreadyBilledValue, $tolerance)) {
+                throw ValidationException::withMessages([
+                    'items' => __('finances/purchaseInvoice.validation.over_billing_value_tolerance_exceeded', [
+                        'remaining' => round(max(0, $sourceValue - $alreadyBilledValue), 2),
+                        'tolerance' => $tolerance,
+                    ]),
+                ]);
+            }
+        }
+
+        $receiptItemsById = $items->filter(fn ($item) => ! $item->purchase_order_item_id && $item->purchase_receipt_item_id)
+            ->groupBy('purchase_receipt_item_id');
+        $sourceReceiptItems = $receiptItemsById->isEmpty()
+            ? collect()
+            : PurchaseReceiptItem::query()
+                ->whereIn('id', $receiptItemsById->keys())
+                ->lockForUpdate()
+                ->get()
+                ->keyBy('id');
+
+        foreach ($receiptItemsById as $sourceId => $invoiceItems) {
+            $source = $sourceReceiptItems->get($sourceId);
+            if (! $source) {
+                continue;
+            }
+
+            $requestedQuantity = (float) $invoiceItems->sum('quantity');
+            if ($calculator->exceeds($requestedQuantity, (float) $source->quantity, (float) $source->billed_quantity, $tolerance)) {
+                throw ValidationException::withMessages([
+                    'items' => __('finances/purchaseInvoice.validation.over_billing_tolerance_exceeded', [
+                        'remaining' => max(0, (float) $source->quantity - (float) $source->billed_quantity),
+                        'tolerance' => $tolerance,
+                    ]),
+                ]);
+            }
+        }
+    }
+
+    private function assertRateChanges(PurchaseInvoice $purchaseInvoice, Collection $items): void {
+        $action = PurchaseSetting::current()->rate_change_action;
+        if ($action === 'none') {
+            return;
+        }
+
+        $groupedItems = $items->filter(fn ($item) => $item->purchase_order_item_id)->groupBy('purchase_order_item_id');
+        $sourceItems  = $groupedItems->isEmpty()
+            ? collect()
+            : PurchaseOrderItem::query()
+                ->with('purchaseOrder:id,exchange_rate,currency_code')
+                ->whereIn('id', $groupedItems->keys())
+                ->lockForUpdate()
+                ->get()
+                ->keyBy('id');
+        $comparator = app(RateChangeComparator::class);
+        $currencies = app(CurrencyMatcher::class);
+        $warnings   = [];
+
+        foreach ($groupedItems as $sourceId => $invoiceItems) {
+            $source = $sourceItems->get($sourceId);
+            if (! $source) {
+                continue;
+            }
+
+            foreach ($invoiceItems as $item) {
+                if (! $comparator->hasChanged(
+                    (float) $source->rate,
+                    (float) ($source->purchaseOrder?->exchange_rate ?: 1),
+                    (float) ($source->conversion_factor ?: 1),
+                    (float) $item->rate,
+                    (float) ($purchaseInvoice->exchange_rate ?: 1),
+                    (float) ($item->conversion_factor ?: 1),
+                    $currencies->same($source->purchaseOrder?->currency_code, $purchaseInvoice->currency_code),
+                )) {
+                    continue;
+                }
+
+                $message = __('finances/purchaseInvoice.validation.rate_changed', [
+                    'source'   => $source->rate,
+                    'document' => $item->rate,
+                ]);
+                if ($action === 'stop') {
+                    throw ValidationException::withMessages(['items' => $message]);
+                }
+                $warnings[] = $message;
+            }
+        }
+
+        if ($warnings !== [] && request()->hasSession()) {
+            request()->session()->flash('priceWarnings', array_values(array_unique($warnings)));
         }
     }
 

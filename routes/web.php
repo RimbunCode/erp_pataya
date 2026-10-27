@@ -19,6 +19,7 @@ use App\Http\Controllers\Core\CompanyLogoController;
 use App\Http\Controllers\Core\CountryController;
 use App\Http\Controllers\Core\CurrencyController;
 use App\Http\Controllers\Core\DashboardController;
+use App\Http\Controllers\Core\DefaultsResolveController;
 use App\Http\Controllers\Core\DeskController;
 use App\Http\Controllers\Core\EmailTemplateController;
 use App\Http\Controllers\Core\FileController;
@@ -29,6 +30,7 @@ use App\Http\Controllers\Core\HtmlSanitizeController;
 use App\Http\Controllers\Core\LanguageController;
 use App\Http\Controllers\Core\LogController;
 use App\Http\Controllers\Core\ManualBookController;
+use App\Http\Controllers\Core\ModuleDefaultRulesController;
 use App\Http\Controllers\Core\NotificationController;
 use App\Http\Controllers\Core\NumberCardController;
 use App\Http\Controllers\Core\PrintTemplateController;
@@ -250,6 +252,14 @@ Route::middleware(['auth', 'lang', 'onboarded', 'app', 'desk'])->group(function 
             Route::post('company/image', 'image')->name('companies.image');
             Route::delete('company/image', 'removeImage')->name('companies.removeImage');
         });
+        foreach (config('settings.pages', []) as $key => $page) {
+            $controller = $page['controller'];
+            Route::get("modules/{$key}", [$controller, 'show'])->defaults('moduleKey', $key)->name("moduleSettings.{$key}.show");
+            Route::put("modules/{$key}", [$controller, 'update'])->defaults('moduleKey', $key)->name("moduleSettings.{$key}.update");
+        }
+        Route::put('modules/{moduleKey}/default-rules', [ModuleDefaultRulesController::class, 'update'])
+            ->whereIn('moduleKey', ['purchase', 'sales'])
+            ->name('moduleSettings.defaultRules.update');
         // Branches
         Route::resourceDetail('branch', BranchController::class);
         // Countries & Currencies
@@ -274,6 +284,7 @@ Route::middleware(['auth', 'lang', 'onboarded', 'app', 'desk'])->group(function 
         Route::resourceDetail('numberCard', NumberCardController::class);
         Route::resourceDetail('chart', ChartController::class);
     });
+    Route::post('/defaults/resolve', DefaultsResolveController::class)->name('defaults.resolve');
     // Tags
     Route::resourceDetail('tag', TagController::class);
     // Files

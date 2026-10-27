@@ -1,8 +1,14 @@
 import { FormPageContent, useFormPage } from "@/Pages/Core/FormPage";
-import React, { memo, useCallback, useEffect, useMemo } from "react";
+import React, { memo, useCallback, useEffect, useMemo, useRef } from "react";
 import SelectModel, { loadFromModel } from "@/Components/SelectModel";
 import { calculateArray, generateRandom } from "@/lib/utils";
 import { allocateDiscount } from "@/lib/discountAllocation";
+import {
+  EMPTY_DEFAULTS,
+  documentItemId,
+  taxRowError,
+  useDocumentDefaults,
+} from "@/lib/documentDefaults";
 
 import AdditionalDiscount from "@/Pages/Finances/Components/AdditionalDiscount";
 import BranchLinkModel from "@/Pages/Settings/Branches/BranchLinkModel";
@@ -12,6 +18,7 @@ import CustomerLinkModel from "@/Pages/Sales/Customers/CustomerLinkModel";
 import DatetimePicker from "@/Components/DatetimePicker";
 import { FormCheckbox } from "@/Components/ui/checkbox";
 import FormInput from "@/Components/FormInput";
+import InputError from "@/Components/InputError";
 import FormTable from "@/Components/FormTable";
 import ItemBarcode from "@/Pages/Inventory/Items/ItemBarcode";
 import ItemForm from "./ItemForm";
@@ -64,14 +71,91 @@ function resolveAssetServiceBillingCustomer(assetService) {
 
 export default memo(function Form() {
   const { t } = useLaravelReactI18n();
-  const { data, setData, defaultData, disabled } = useFormPage(
-    {
-      date: new Date(),
-    },
-    { trackDefaultValue: false },
+  const { data, setData, defaultData, disabled, isCreate, errors } =
+    useFormPage(
+      {
+        date: new Date(),
+      },
+      { trackDefaultValue: false },
+    );
+  const pageProps = usePage().props;
+  const { default_currency_id } = pageProps.preferences;
+  const loadFrom = pageProps.loadFrom;
+  const defaults = pageProps.defaults ?? EMPTY_DEFAULTS;
+  const {
+    applyToNewLine: applyDefaultsToLine,
+    applyPaymentTerm,
+    resolveForNewLine: resolveLineDefaults,
+    markFieldEdited,
+    isFieldEdited,
+    isTaxRequired,
+  } = useDocumentDefaults(defaults, isCreate ? "sales_order" : null, {
+    items: data.items,
+    setData,
+  });
+  const paymentDefaultsApplied = useRef(false);
+  const headerWarehouseEdited = useRef(false);
+  const resolvedTaxItemsByRow = useRef(new Map());
+
+  // Baris hasil konversi dari dokumen sumber (Quotation/WorkOrder/AssetService)
+  // tidak diberi default pajak/gudang (Req 2.2).
+  const sourceRowIds = useMemo(
+    () =>
+      new Set(
+        isCreate && defaultData?.referenceable_type
+          ? (defaultData.items ?? []).map((row) => String(row.id))
+          : [],
+      ),
+    [isCreate, defaultData],
   );
-  const { default_currency_id } = usePage().props.preferences;
-  const loadFrom = usePage().props.loadFrom;
+  const isSourceRow = useCallback(
+    (rowId) => rowId != null && sourceRowIds.has(String(rowId)),
+    [sourceRowIds],
+  );
+  const applyToNewLine = useCallback(
+    (line, item, options) =>
+      isSourceRow(line?.id) ? line : applyDefaultsToLine(line, item, options),
+    [applyDefaultsToLine, isSourceRow],
+  );
+
+  const resolveForNewLine = useCallback(
+    (rowId, item, warehouseField) => {
+      const itemId = documentItemId(item);
+      if (rowId == null || isSourceRow(rowId)) return;
+      const rowKey = String(rowId);
+      resolvedTaxItemsByRow.current.delete(rowKey);
+      if (headerWarehouseEdited.current && warehouseField) {
+        markFieldEdited(rowId, warehouseField);
+      }
+      return resolveLineDefaults(rowId, item, {
+        warehouseField,
+        onResolved: () =>
+          resolvedTaxItemsByRow.current.set(rowKey, String(itemId)),
+      });
+    },
+    [isSourceRow, markFieldEdited, resolveLineDefaults],
+  );
+
+  useEffect(() => {
+    if (paymentDefaultsApplied.current) return;
+    if (data.payment_schedules?.length) {
+      paymentDefaultsApplied.current = true;
+      return;
+    }
+    if (defaults.payment_term_template?.items?.length) {
+      setData(
+        "payment_schedules",
+        applyPaymentTerm(data.payment_schedules, data.date ?? new Date()),
+      );
+      paymentDefaultsApplied.current = true;
+    }
+  }, [
+    applyPaymentTerm,
+    data.date,
+    data.payment_schedules,
+    defaults.payment_term_template,
+    setData,
+  ]);
 
   const asyncAdditionalData = useCallback(async (value, idChanges) => {
     return await axios.post(window.route("itemVariants.info"), {
@@ -225,18 +309,25 @@ export default memo(function Form() {
           const currentQty = items[idx]?.quantity ?? 0;
           items[idx] = { ...items[idx], quantity: currentQty + 1 };
         } else {
-          items.push({
-            id: generateRandom(5),
-            item: selectedItem,
-            unit: selectedUnit,
-            quantity: 1,
-            source_warehouse: prev?.source_warehouse,
-          });
+          const newLineId = generateRandom(5);
+          const newLine = applyToNewLine(
+            {
+              id: newLineId,
+              item: selectedItem,
+              unit: selectedUnit,
+              quantity: 1,
+              source_warehouse: prev?.source_warehouse,
+            },
+            selectedItem,
+            { warehouseField: "source_warehouse" },
+          );
+          items.push(newLine);
+          resolveForNewLine(newLineId, selectedItem, "source_warehouse");
         }
         return { ...prev, items };
       });
     },
-    [setData],
+    [applyToNewLine, resolveForNewLine, setData],
   );
 
   // Requirement 4.1, spec asset-service-billing-reference-flow: daftar id
@@ -299,13 +390,17 @@ export default memo(function Form() {
             onValueChange={(val) => {
               // Opsi dari sub model Asset: baris asset (tanpa unit & gudang).
               if (val?.thisModel === ASSET_CLASS) {
-                setRowData({
+                const rowPatch = {
                   asset: val,
                   item: null,
                   unit: null,
                   conversion_factor: 1,
                   source_warehouse: null,
                   quantity: 1,
+                };
+                setRowData({
+                  ...rowPatch,
+                  ...applyToNewLine({ ...dataRow, ...rowPatch }, null, {}),
                 });
                 return;
               }
@@ -315,7 +410,9 @@ export default memo(function Form() {
                 item: val,
                 unit: defaultUnit,
                 conversion_factor: defaultUnit?.conversion_factor,
-                source_warehouse: data.source_warehouse,
+                source_warehouse: isFieldEdited(dataRow.id, "source_warehouse")
+                  ? dataRow.source_warehouse
+                  : (dataRow.source_warehouse ?? data.source_warehouse),
               };
               // Requirement 6, spec asset-service-billing-reference-flow:
               // auto-link baris ke AssetServiceConsumedItem (match persis via
@@ -362,7 +459,20 @@ export default memo(function Form() {
                   }));
                 }
               }
-              setRowData(rowPatch);
+              const defaultLine = applyToNewLine(
+                { ...dataRow, ...rowPatch },
+                val,
+                { warehouseField: "source_warehouse" },
+              );
+              setRowData({
+                ...rowPatch,
+                tax: defaultLine.tax,
+                tax_rate: defaultLine.tax_rate,
+                source_warehouse: defaultLine.source_warehouse,
+              });
+              if (!rowPatch.referenceable) {
+                resolveForNewLine(dataRow.id, val, "source_warehouse");
+              }
             }}
             {...attributes}
             with={["defaultUom", "item", "item.category"]}
@@ -404,7 +514,10 @@ export default memo(function Form() {
               "sales.salesOrder.columns.source_warehouse.placeholder",
             )}
             value={value}
-            onValueChange={(val) => setData("source_warehouse", val)}
+            onValueChange={(val) => {
+              markFieldEdited(dataRow.id, "source_warehouse");
+              setData("source_warehouse", val);
+            }}
             {...attributes}
           />
         );
@@ -486,20 +599,27 @@ export default memo(function Form() {
       titleTrans: "sales.salesOrder.columns.tax",
       required: true,
       width: 2,
-      cell({ data: value, setData, attributes, dataRow }) {
+      cell({ data: value, setData, attributes, dataRow }, index) {
+        const taxError = taxRowError(errors, index);
+
         return (
-          <TaxLinkModel
-            disabled={!dataRow?.item && !dataRow?.asset}
-            placeholder={t("sales.salesOrder.columns.tax.placeholder")}
-            value={value}
-            onValueChange={(val) => {
-              setData("tax", val);
-            }}
-            {...attributes}
-            readOnly={
-              attributes.readOnly || (dataRow.readOnly && !dataRow.isCustom)
-            }
-          />
+          <div className="flex w-full flex-col">
+            <TaxLinkModel
+              disabled={!dataRow?.item && !dataRow?.asset}
+              placeholder={t("sales.salesOrder.columns.tax.placeholder")}
+              value={value}
+              onValueChange={(val) => {
+                markFieldEdited(dataRow.id, "tax");
+                setData("tax", val);
+              }}
+              {...attributes}
+              required={attributes.required && isTaxRequired(dataRow.id)}
+              readOnly={
+                attributes.readOnly || (dataRow.readOnly && !dataRow.isCustom)
+              }
+            />
+            <InputError message={taxError} className="px-1 text-xs" />
+          </div>
         );
       },
     },
@@ -780,6 +900,10 @@ export default memo(function Form() {
               )}
               value={data.source_warehouse}
               onValueChange={(val) => {
+                headerWarehouseEdited.current = true;
+                (data.items ?? []).forEach((item) => {
+                  markFieldEdited(item.id, "source_warehouse");
+                });
                 setData((prev) => {
                   if (!prev.items || prev.items?.length <= 0)
                     return {
@@ -809,8 +933,46 @@ export default memo(function Form() {
             readOnly={disabled}
             columns={itemColumns}
             value={data?.items ?? []}
-            onValueChange={(v) => {
-              setData("items", v);
+            onValueChange={(v, key) => {
+              const updatedRow = v.find((item) => item.id === key);
+              const rowItemId = documentItemId(updatedRow?.item);
+              const hasResolvedTaxForItem =
+                rowItemId != null &&
+                v.some(
+                  (item) =>
+                    item.id !== key &&
+                    String(documentItemId(item.item)) === String(rowItemId) &&
+                    resolvedTaxItemsByRow.current.get(String(item.id)) ===
+                      String(rowItemId),
+                );
+              const skipTaxDefault =
+                rowItemId != null &&
+                ((key != null && isFieldEdited(key, "tax")) ||
+                  resolvedTaxItemsByRow.current.get(String(key)) ===
+                    String(rowItemId) ||
+                  hasResolvedTaxForItem);
+              if (skipTaxDefault && key != null) {
+                resolvedTaxItemsByRow.current.set(
+                  String(key),
+                  String(rowItemId),
+                );
+              }
+              const items =
+                key == null
+                  ? v
+                  : v.map((item) =>
+                      item.id === key
+                        ? applyToNewLine(item, item.item, {
+                            warehouseField: "source_warehouse",
+                            skipTaxDefault,
+                            skipWarehouseDefault: isFieldEdited(
+                              key,
+                              "source_warehouse",
+                            ),
+                          })
+                        : item,
+                    );
+              setData("items", items);
             }}
             asyncAdditionalData={asyncAdditionalData}
             mapItem={mapItem}

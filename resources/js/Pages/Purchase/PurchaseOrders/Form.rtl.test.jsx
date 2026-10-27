@@ -1,7 +1,15 @@
 import { describe, expect, it, vi, beforeEach } from "vitest";
-import { render as rtlRender, screen } from "@testing-library/react";
+import {
+  act,
+  render as rtlRender,
+  screen,
+  waitFor,
+} from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { useState } from "react";
+import axios from "axios";
+
+vi.mock("axios", () => ({ default: { post: vi.fn() } }));
 
 // ============================================================================
 // Form.jsx (PurchaseOrders) adalah halaman transaksi (749 baris) yang men-
@@ -46,6 +54,10 @@ vi.mock("@inertiajs/react", () => ({
 // (required_date/target_warehouse -> items) dan kalkulasi total yang
 // reaktif terhadap perubahan data.items.
 let formPageSeed = {};
+let formPageIsCreate = false;
+let selectedItemPayload;
+let deferTableUpdate;
+let clearDefaults = false;
 function useFormPageStateful() {
   const [data, setDataState] = useState(formPageSeed);
   const setData = (...args) => {
@@ -63,6 +75,7 @@ function useFormPageStateful() {
     defaultData: {},
     disabled: false,
     dataBefore: {},
+    isCreate: formPageIsCreate,
   };
 }
 
@@ -99,7 +112,9 @@ vi.mock("@/Components/FormTable", () => ({
         row[keyOrObj] = val;
       }
       next[index] = row;
-      onValueChange?.(next);
+      const publish = () => onValueChange?.(next);
+      if (deferTableUpdate) deferTableUpdate(publish);
+      else publish();
     };
     return (
       <div data-testid="stub-form-table" data-fixed-rows={String(!!fixedRows)}>
@@ -131,16 +146,19 @@ vi.mock("./ItemForm", () => ({
 // onValueChange/onSelect dengan payload tetap -- cukup untuk menguji bahwa
 // Form.jsx meneruskan value & memproses callback dengan benar.
 vi.mock("@/Pages/Inventory/Items/ItemVariantLinkModel", () => ({
-  default: ({ value, onValueChange }) => (
+  default: ({ value, onValueChange, fields }) => (
     <button
       type="button"
       data-testid="item-link-model"
+      data-fields={JSON.stringify(fields)}
       onClick={() =>
-        onValueChange?.({
-          id: 100,
-          name: "Item A",
-          default_uom: { id: 1, name: "PCS", conversion_factor: 1 },
-        })
+        onValueChange?.(
+          selectedItemPayload ?? {
+            id: 100,
+            name: "Item A",
+            default_uom: { id: 1, name: "PCS", conversion_factor: 1 },
+          },
+        )
       }
     >
       item:{value?.name ?? "none"}
@@ -153,7 +171,9 @@ vi.mock("@/Pages/Inventory/Warehouses/WarehouseLinkModel", () => ({
     <button
       type="button"
       data-testid="warehouse-link-model"
-      onClick={() => onValueChange?.({ id: 1, name: "Gudang A" })}
+      onClick={() =>
+        onValueChange?.(clearDefaults ? null : { id: 1, name: "Gudang A" })
+      }
     >
       warehouse:{value?.name ?? "none"}
     </button>
@@ -177,7 +197,9 @@ vi.mock("@/Pages/Finances/Taxes/TaxLinkModel", () => ({
     <button
       type="button"
       data-testid="tax-link-model"
-      onClick={() => onValueChange?.({ id: 1, name: "PPN", rate: 11 })}
+      onClick={() =>
+        onValueChange?.(clearDefaults ? null : { id: 1, name: "PPN", rate: 11 })
+      }
     >
       tax:{value?.name ?? "none"}
     </button>
@@ -305,9 +327,13 @@ function setPageProps(overrides = {}) {
   });
 }
 
+const TAX_MODEL = "App\\Models\\Finances\\Tax";
+
 describe("PurchaseOrders Form", () => {
   beforeEach(() => {
     formPageSeed = {};
+    formPageIsCreate = false;
+    selectedItemPayload = undefined;
     setPageProps();
   });
 
@@ -634,6 +660,10 @@ describe("PurchaseOrders Form", () => {
       };
       render(<Form />);
 
+      expect(screen.getByTestId("item-link-model")).toHaveAttribute(
+        "data-fields",
+        JSON.stringify(["is_stock_item"]),
+      );
       await user.click(screen.getByTestId("item-link-model"));
 
       const unitCell = screen.getByTestId("cell-unit-0");
@@ -651,6 +681,249 @@ describe("PurchaseOrders Form", () => {
       render(<Form />);
 
       expect(loadFromModel).not.toHaveBeenCalled();
+    });
+  });
+
+  describe("conditional defaults pada dokumen baru", () => {
+    const moduleTax = { id: "module-tax", name: "Pajak Modul", rate: 11 };
+    const moduleWarehouse = { id: "module-warehouse", name: "Gudang Modul" };
+    const conditionalTax = { id: "rule-tax", name: "Pajak Aturan", rate: 5 };
+    const conditionalWarehouse = {
+      id: "rule-warehouse",
+      name: "Gudang Aturan",
+    };
+    let resolveResponse;
+
+    beforeEach(() => {
+      deferTableUpdate = undefined;
+      clearDefaults = false;
+      formPageIsCreate = true;
+      selectedItemPayload = {
+        id: "variant-a",
+        name: "Item Bersyarat",
+        is_stock_item: true,
+        default_uom: { id: "pcs", name: "PCS", conversion_factor: 1 },
+      };
+      formPageSeed = { items: [{ id: "new-row", quantity: 1 }] };
+      setPageProps({
+        defaults: { tax: moduleTax, warehouse: moduleWarehouse },
+      });
+      axios.post.mockReset();
+      axios.post.mockImplementation((url, payload) => {
+        if (url === "/defaults/resolve") {
+          return new Promise((resolve) => {
+            resolveResponse = resolve;
+          });
+        }
+        if (payload.model === "App\\Models\\Finances\\Tax") {
+          return Promise.resolve({ data: { data: [conditionalTax] } });
+        }
+        if (payload.model === "App\\Models\\Inventory\\Warehouse") {
+          return Promise.resolve({ data: { data: [conditionalWarehouse] } });
+        }
+        throw new Error(`Unexpected request: ${url}`);
+      });
+    });
+
+    const selectItem = async () => {
+      await userEvent.click(screen.getByTestId("item-link-model"));
+      await waitFor(() => {
+        expect(axios.post).toHaveBeenCalledWith(
+          "/defaults/resolve",
+          {
+            document_type: "purchase_order",
+            items: [{ item_id: "variant-a" }],
+          },
+          expect.objectContaining({ signal: expect.any(AbortSignal) }),
+        );
+      });
+    };
+
+    const finishResolution = async (
+      items = {
+        "variant-a": {
+          tax_ids: [conditionalTax.id],
+          taxes: [conditionalTax],
+          warehouse_id: conditionalWarehouse.id,
+        },
+      },
+    ) => {
+      await act(async () => {
+        resolveResponse({ data: { items } });
+      });
+    };
+
+    it.each([[[]], [[conditionalTax.id]]])(
+      "retains early resolution %j until the selected row reaches the parent",
+      async (taxIds) => {
+        let publish;
+        deferTableUpdate = (callback) => {
+          publish = callback;
+        };
+        render(<Form />);
+        await selectItem();
+        await finishResolution({
+          "variant-a": {
+            tax_ids: taxIds,
+            taxes: taxIds.map(() => conditionalTax),
+            warehouse_id: conditionalWarehouse.id,
+          },
+        });
+        expect(screen.getByTestId("item-link-model")).toHaveTextContent(
+          "item:none",
+        );
+        deferTableUpdate = undefined;
+        act(() => publish());
+        expect(screen.getByTestId("cell-tax-0")).toHaveTextContent(
+          taxIds.length ? "Pajak Aturan" : "tax:none",
+        );
+        expect(screen.getByTestId("cell-target_warehouse-0")).toHaveTextContent(
+          "Gudang Aturan",
+        );
+      },
+    );
+
+    it("keeps manually cleared tax and warehouse empty when replacing an item", async () => {
+      formPageSeed.target_warehouse = moduleWarehouse;
+      render(<Form />);
+      await selectItem();
+      clearDefaults = true;
+      await userEvent.click(screen.getByTestId("tax-link-model"));
+      await userEvent.click(
+        screen.getByTestId("cell-target_warehouse-0").querySelector("button"),
+      );
+      selectedItemPayload = { ...selectedItemPayload, id: "variant-b" };
+      await userEvent.click(screen.getByTestId("item-link-model"));
+      expect(screen.getByTestId("cell-tax-0")).toHaveTextContent("tax:none");
+      expect(screen.getByTestId("cell-target_warehouse-0")).toHaveTextContent(
+        "warehouse:none",
+      );
+      await waitFor(() =>
+        expect(axios.post).toHaveBeenCalledWith(
+          "/defaults/resolve",
+          {
+            document_type: "purchase_order",
+            items: [{ item_id: "variant-b" }],
+          },
+          expect.objectContaining({ signal: expect.any(AbortSignal) }),
+        ),
+      );
+      await finishResolution({
+        "variant-b": {
+          tax_ids: [conditionalTax.id],
+          taxes: [conditionalTax],
+          warehouse_id: conditionalWarehouse.id,
+        },
+      });
+      expect(screen.getByTestId("cell-tax-0")).toHaveTextContent("tax:none");
+      expect(screen.getByTestId("cell-target_warehouse-0")).toHaveTextContent(
+        "warehouse:none",
+      );
+    });
+
+    it("memilih Item menerapkan pajak dan gudang hasil resolver ke state baris", async () => {
+      render(<Form />);
+      await selectItem();
+      expect(screen.getByTestId("cell-tax-0")).toHaveTextContent("Pajak Modul");
+      await finishResolution();
+
+      expect(screen.getByTestId("cell-tax-0")).toHaveTextContent(
+        "Pajak Aturan",
+      );
+      expect(screen.getByTestId("cell-target_warehouse-0")).toHaveTextContent(
+        "Gudang Aturan",
+      );
+      expect(axios.post).not.toHaveBeenCalledWith(
+        expect.any(String),
+        expect.objectContaining({ model: TAX_MODEL }),
+        expect.anything(),
+      );
+      expect(axios.post).toHaveBeenCalledWith(
+        expect.any(String),
+        {
+          model: "App\\Models\\Inventory\\Warehouse",
+          filters: { id: { in: [conditionalWarehouse.id] } },
+        },
+        expect.objectContaining({ signal: expect.any(AbortSignal) }),
+      );
+    });
+
+    it("respons terlambat tidak menimpa pajak dan gudang yang diedit manual", async () => {
+      render(<Form />);
+      await selectItem();
+      await userEvent.click(screen.getByTestId("tax-link-model"));
+      await userEvent.click(
+        screen.getByTestId("cell-target_warehouse-0").querySelector("button"),
+      );
+      await finishResolution();
+
+      expect(screen.getByTestId("cell-tax-0")).toHaveTextContent("tax:PPN");
+      expect(screen.getByTestId("cell-target_warehouse-0")).toHaveTextContent(
+        "warehouse:Gudang A",
+      );
+    });
+
+    it("respons Item sebelumnya diabaikan setelah Item pada baris diganti", async () => {
+      render(<Form />);
+      await selectItem();
+      const resolveFirstItem = resolveResponse;
+      selectedItemPayload = {
+        ...selectedItemPayload,
+        id: "variant-b",
+        name: "Item B",
+      };
+      await userEvent.click(screen.getByTestId("item-link-model"));
+      await waitFor(() =>
+        expect(axios.post).toHaveBeenCalledWith(
+          "/defaults/resolve",
+          {
+            document_type: "purchase_order",
+            items: [{ item_id: "variant-b" }],
+          },
+          expect.objectContaining({ signal: expect.any(AbortSignal) }),
+        ),
+      );
+      await finishResolution({
+        "variant-b": { tax_ids: [], warehouse_id: null },
+      });
+      await act(async () => {
+        resolveFirstItem({
+          data: {
+            items: {
+              "variant-a": {
+                tax_ids: [conditionalTax.id],
+                taxes: [conditionalTax],
+                warehouse_id: conditionalWarehouse.id,
+              },
+            },
+          },
+        });
+      });
+
+      expect(screen.getByTestId("item-link-model")).toHaveTextContent("Item B");
+      expect(screen.getByTestId("cell-tax-0")).toHaveTextContent("tax:none");
+      expect(screen.getByTestId("cell-target_warehouse-0")).toHaveTextContent(
+        "warehouse:none",
+      );
+    });
+
+    it("pajak dan gudang baris sumber tetap dipertahankan setelah resolusi", async () => {
+      formPageSeed.items[0] = {
+        ...formPageSeed.items[0],
+        referenceable_id: "pr-item",
+        tax: { id: "source-tax", name: "Pajak Sumber", rate: 2 },
+        target_warehouse: { id: "source-warehouse", name: "Gudang Sumber" },
+      };
+      render(<Form />);
+      await selectItem();
+      await finishResolution();
+
+      expect(screen.getByTestId("cell-tax-0")).toHaveTextContent(
+        "Pajak Sumber",
+      );
+      expect(screen.getByTestId("cell-target_warehouse-0")).toHaveTextContent(
+        "Gudang Sumber",
+      );
     });
   });
 });

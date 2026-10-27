@@ -6,10 +6,11 @@ use App\Enums\AssetOwnershipType;
 use App\Models\Asset\Asset;
 use App\Models\Asset\AssetOwnershipMorphTo;
 use App\Models\Core\Branch;
-use App\Models\Core\Preference;
+use App\Models\Core\CoreSetting;
 use App\Models\Model as BaseModel;
 use App\Models\Purchase\Supplier;
 use App\Models\Sales\Customer;
+use App\Services\Core\Setting\SettingsService;
 use Illuminate\Database\Eloquent\Relations\Relation;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Illuminate\Support\Facades\DB;
@@ -93,7 +94,7 @@ class AssetOwnershipMorphTest extends TestCase {
     #[Test]
     public function ownership_name_uses_owner_name_or_company_preference(): void {
         [, , $a, $b, $c] = $this->mixedAssets();
-        Preference::query()->updateOrCreate(['key' => 'company_name'], ['value' => 'PT Contoh']);
+        app(SettingsService::class)->update(CoreSetting::class, ['company_name' => 'PT Contoh']);
 
         $this->assertSame('Pemasok A', Asset::find($a->id)->ownership_name);
         $this->assertSame('Pelanggan B', Asset::find($b->id)->ownership_name);

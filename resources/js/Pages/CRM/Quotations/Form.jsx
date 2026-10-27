@@ -16,6 +16,7 @@ import OpportunityLinkModel from "@/Pages/CRM/Opportunities/OpportunityLinkModel
 import Select from "@/Components/Select";
 import { Textarea } from "@/Components/ui/textarea";
 import { calculateArray } from "@/lib/utils";
+import { EMPTY_DEFAULTS, useDocumentDefaults } from "@/lib/documentDefaults";
 import { useLaravelReactI18n } from "laravel-react-i18n";
 import { usePage } from "@inertiajs/react";
 
@@ -25,14 +26,21 @@ const QUOTATION_TYPES = ["spare_part", "new_unit", "rental"];
 
 export default function Form() {
   const { t } = useLaravelReactI18n();
-  const sectionTemplates = usePage().props.sectionTemplates;
-  const { data, setData, disabled } = useFormPage(
+  const pageProps = usePage().props;
+  const sectionTemplates = pageProps.sectionTemplates;
+  const defaults = pageProps.defaults ?? EMPTY_DEFAULTS;
+  const { data, setData, disabled, isCreate } = useFormPage(
     {
       date: new Date(),
       type: "spare_part",
     },
     { trackDefaultValue: false },
   );
+  const { resolveForNewLine, markFieldEdited, isFieldEdited } =
+    useDocumentDefaults(defaults, isCreate ? "quotation" : null, {
+      items: data.items,
+      setData,
+    });
 
   const type = data?.type ?? "spare_part";
   // Subject dan Valid by wajib untuk surat unit baru dan sewa (AC3.2, AC3.5).
@@ -191,6 +199,11 @@ export default function Form() {
 
       <QuotationItems
         type={type}
+        defaults={defaults}
+        isCreate={isCreate}
+        resolveForNewLine={resolveForNewLine}
+        markFieldEdited={markFieldEdited}
+        isFieldEdited={isFieldEdited}
         value={data?.items ?? []}
         onValueChange={(val) => setData("items", val)}
         readOnly={disabled}

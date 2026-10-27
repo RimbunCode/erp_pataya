@@ -2,14 +2,17 @@
 
 namespace App\Http\Controllers\CRM;
 
+use App\Enums\DefaultsDocumentType;
 use App\Http\Controllers\Controller;
 use App\Http\Requests\CRM\QuotationRequest;
 use App\Http\Requests\CRM\QuotationSectionTemplateRequest;
-use App\Models\Core\Preference;
+use App\Models\Core\CoreSetting;
 use App\Models\Core\PrintTemplate;
 use App\Models\CRM\Opportunity;
 use App\Models\CRM\Quotation;
 use App\Models\CRM\QuotationSectionTemplate;
+use App\Services\Core\Setting\DocumentDefaultsResolver;
+use App\Services\Core\Setting\SettingsService;
 use App\Services\CRM\QuotationService;
 use Illuminate\Database\Eloquent\Collection;
 use Illuminate\Http\Request;
@@ -32,18 +35,18 @@ class QuotationController extends Controller {
         $this->setBreadcrumbs();
         Quotation::dataTable($request);
 
-        return Inertia::render('CRM/Quotations/Index', []);
+        return Inertia::render('CRM/Quotations/Index', [
+            'defaults' => app(DocumentDefaultsResolver::class)->defaultsFor(DefaultsDocumentType::Quotation),
+        ]);
     }
 
     /**
      * Show the form for creating a new resource.
      */
     public function create(Request $request, ?string $ref = null) {
-        // Nilai awal dari preference: kota terbit surat (dapat diubah per dokumen) dan
-        // id pajak aktif untuk baris item baru. Kosong bila preference belum diatur.
+        // Nilai awal dari pengaturan Core: kota terbit surat (dapat diubah per dokumen).
         $preferenceDefaults = [
-            'issued_city'   => Preference::find('city')?->value,
-            'active_tax_id' => Preference::find('active_tax_id')?->value,
+            'issued_city' => app(SettingsService::class)->get(CoreSetting::class)->city,
         ];
 
         if ($ref) {
@@ -81,6 +84,7 @@ class QuotationController extends Controller {
 
         return Inertia::render('CRM/Quotations/Show', [
             'defaultData'      => $defaultData ?? $preferenceDefaults,
+            'defaults'         => app(DocumentDefaultsResolver::class)->defaultsFor(DefaultsDocumentType::Quotation),
             'sectionTemplates' => $this->sectionTemplates(),
         ]);
     }

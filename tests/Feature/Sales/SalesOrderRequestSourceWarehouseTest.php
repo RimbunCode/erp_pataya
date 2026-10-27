@@ -19,7 +19,8 @@ class SalesOrderRequestSourceWarehouseTest extends TestCase {
      * tidak ikut memvalidasi field lain di rules().
      */
     private function validateSourceWarehouse(array $item): Validator {
-        $data = ['items' => [$item]];
+        // Pajak baris wajib (kecuali aturan tanpa pajak): isi agar tes ini fokus pada aturan lain.
+        $data = ['items' => [$item + ['tax' => ['id' => (string) Str::ulid()]]]];
 
         $validator = ValidatorFacade::make($data, [
             'items.*.item.id'             => ['nullable', 'string'],

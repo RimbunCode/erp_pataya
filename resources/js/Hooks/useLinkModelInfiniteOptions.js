@@ -101,6 +101,7 @@ export const fetchLinkModelGroupNode = async ({
  * @param {boolean} [params.allowSearch] lihat `useLinkModelOptions`
  * @param {Array} [params.group] grup EFEKTIF dari prop (`undefined` = default model)
  * @param {number} [params.staleTime]
+ * @param params.includeGlobalBranch
  */
 export default function useLinkModelInfiniteOptions({
   model,
@@ -116,6 +117,7 @@ export default function useLinkModelInfiniteOptions({
   allowSearch = true,
   group,
   staleTime = 0,
+  includeGlobalBranch = false,
 }) {
   const { t } = useLaravelReactI18n();
 
@@ -139,6 +141,7 @@ export default function useLinkModelInfiniteOptions({
       "linkModel",
       "infinite",
       model,
+      includeGlobalBranch,
       filtersKey,
       joinsKey,
       withKey,
@@ -161,6 +164,7 @@ export default function useLinkModelInfiniteOptions({
           keywords,
           order,
           translate,
+          includeGlobalBranch,
           group,
         }),
         page: pageParam,
@@ -212,6 +216,7 @@ export default function useLinkModelInfiniteOptions({
       keywords,
       order,
       translate,
+      includeGlobalBranch,
       group: groupMeta.levels.map(({ column, granularity, range }) => ({
         column,
         granularity,
@@ -234,6 +239,7 @@ export default function useLinkModelInfiniteOptions({
     keywords,
     order,
     translate,
+    includeGlobalBranch,
   ]);
 
   return {

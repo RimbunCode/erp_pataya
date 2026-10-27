@@ -188,6 +188,7 @@ export default memo(
       customNavigation,
       canNavigation,
       requireReselectIfDeleted,
+      includeGlobalBranch = false,
     },
     ref,
   ) {
@@ -276,6 +277,7 @@ export default memo(
       cacheMode: !!cache,
       cacheStorage,
       staleTime,
+      includeGlobalBranch,
     });
     const searched = useLinkModelInfiniteOptions({
       model,
@@ -291,6 +293,7 @@ export default memo(
       allowSearch,
       group: groupProp,
       staleTime,
+      includeGlobalBranch,
     });
     const options = cache ? cached.options : searched.options;
     const fetchLoading = cache ? cached.loading : searched.loading;
@@ -471,6 +474,7 @@ export default memo(
           keywords,
           order,
           translate,
+          includeGlobalBranch,
         });
         axios
           .post(route("model"), payload)
@@ -787,6 +791,7 @@ export default memo(
               order,
               translate,
               group: groupProp,
+              includeGlobalBranch,
             }
           : {
               model: src.model,
@@ -797,6 +802,7 @@ export default memo(
               with: src.config.with,
               order: src.config.order,
               translate: src.config.translate,
+              includeGlobalBranch: src.config.includeGlobalBranch ?? false,
               group:
                 src.config.group === undefined || src.config.group === null
                   ? undefined
@@ -1258,6 +1264,7 @@ export default memo(
             order={order}
             translate={translate}
             group={groupProp}
+            includeGlobalBranch={includeGlobalBranch}
             initialSearch={advanceSearchText}
             onSelect={(row) => {
               setOption(row);

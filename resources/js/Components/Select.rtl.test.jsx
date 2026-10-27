@@ -26,6 +26,13 @@ describe("Select", () => {
     expect(screen.getByRole("textbox")).toHaveValue("");
   });
 
+  it("meneruskan aria-label ke input", () => {
+    render(<Select aria-label="Document type" options={options} />);
+    expect(
+      screen.getByRole("textbox", { name: "Document type" }),
+    ).toBeInTheDocument();
+  });
+
   it("render label opsi yang cocok dengan value (controlled)", () => {
     render(<Select options={options} value="b" />);
     expect(screen.getByRole("textbox")).toHaveValue("Beta");

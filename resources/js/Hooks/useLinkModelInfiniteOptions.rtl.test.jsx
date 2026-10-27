@@ -198,6 +198,46 @@ describe("useLinkModelInfiniteOptions", () => {
     });
   });
 
+  it("preserves global branch scope for group expansion and isolates scoped queries", async () => {
+    axiosPost.mockResolvedValue({
+      data: {
+        type: "groups",
+        data: [{ key: "a", raw: "a", count: 1 }],
+        current_page: 1,
+        last_page: 1,
+        groupMeta: { levels, aggregates: [] },
+      },
+    });
+    const { result, rerender } = renderHook(
+      ({ includeGlobalBranch }) =>
+        useLinkModelInfiniteOptions({
+          model: "M",
+          open: true,
+          includeGlobalBranch,
+        }),
+      { wrapper: wrapper(), initialProps: { includeGlobalBranch: true } },
+    );
+    await waitFor(() => expect(result.current.isGrouped).toBe(true));
+    expect(axiosPost.mock.calls[0][1].includeGlobalBranch).toBe(true);
+    expect(result.current.baseParams.includeGlobalBranch).toBe(true);
+    await fetchLinkModelGroupNode({
+      params: result.current.baseParams,
+      rawPath: ["a"],
+      page: 1,
+    });
+    expect(axiosPost.mock.calls[1][1]).toMatchObject({
+      includeGlobalBranch: true,
+      groupPath: '["a"]',
+    });
+    rerender({ includeGlobalBranch: false });
+    await waitFor(() => expect(axiosPost).toHaveBeenCalledTimes(3));
+    expect(axiosPost.mock.calls[2][1]).not.toHaveProperty(
+      "includeGlobalBranch",
+    );
+    await waitFor(() => expect(result.current.isGrouped).toBe(true));
+    expect(result.current.baseParams).not.toHaveProperty("includeGlobalBranch");
+  });
+
   it("gagal fetch -> daftar kosong tanpa melempar", async () => {
     axiosPost.mockRejectedValue(new Error("boom"));
     const { result } = renderHook(

@@ -2,6 +2,7 @@
 
 namespace App\Http\Controllers\Purchase;
 
+use App\Enums\DefaultsDocumentType;
 use App\Http\Controllers\Controller;
 use App\Http\Requests\Purchase\PurchaseOrderRequest;
 use App\Models\Asset\AssetService;
@@ -11,6 +12,7 @@ use App\Models\Purchase\PurchaseRequest;
 use App\Models\Purchase\PurchaseRequestItem;
 use App\Models\Service\WorkOrder;
 use App\Models\Service\WorkOrderItem;
+use App\Services\Core\Setting\DocumentDefaultsResolver;
 use App\Services\Purchase\ItemRequestService;
 use App\Services\Purchase\PurchaseOrderService;
 use App\Utils;
@@ -39,7 +41,9 @@ class PurchaseOrderController extends Controller {
         $this->setBreadcrumbs();
         PurchaseOrder::dataTable($request);
 
-        return Inertia::render('Purchase/PurchaseOrders/Index');
+        return Inertia::render('Purchase/PurchaseOrders/Index', [
+            'defaults' => app(DocumentDefaultsResolver::class)->defaultsFor(DefaultsDocumentType::PurchaseOrder),
+        ]);
     }
 
     /**
@@ -124,6 +128,7 @@ class PurchaseOrderController extends Controller {
 
         return Inertia::render('Purchase/PurchaseOrders/Show', [
             'defaultData' => $defaultData ?? null,
+            'defaults'    => app(DocumentDefaultsResolver::class)->defaultsFor(DefaultsDocumentType::PurchaseOrder),
         ]);
     }
 

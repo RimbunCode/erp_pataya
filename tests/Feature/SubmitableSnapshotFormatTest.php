@@ -11,6 +11,7 @@ use Illuminate\Database\Eloquent\SoftDeletes;
 use Illuminate\Database\Schema\Blueprint;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Schema;
+use Illuminate\Support\Str;
 use Tests\TestCase;
 
 class SubmitableSnapshotFormatTest extends TestCase {
@@ -80,6 +81,20 @@ class SubmitableSnapshotFormatTest extends TestCase {
             $table->boolean('is_example')->default(false);
             $table->timestamps();
         });
+
+        // FormatingSeries::generate() membaca timezone via SettingsService
+        // (tabel core_settings), bukan lagi tabel preferences.
+        Schema::create('core_settings', function (Blueprint $table) {
+            $table->ulid('id')->primary();
+            $table->string('timezone')->default('Asia/Jakarta');
+            $table->timestamps();
+        });
+        DB::table('core_settings')->insert([
+            'id'         => (string) Str::ulid(),
+            'timezone'   => 'UTC',
+            'created_at' => now(),
+            'updated_at' => now(),
+        ]);
 
         Schema::create('test_submitable_documents', function (Blueprint $table) {
             $table->string('id')->primary();

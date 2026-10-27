@@ -3,6 +3,10 @@
 namespace App\Http\Controllers;
 
 use App\Models\Asset\AssetOwnershipMorphTo;
+use App\Models\Inventory\Warehouse;
+use App\Models\Purchase\PurchaseSetting;
+use App\Models\Sales\SalesSetting;
+use App\Models\User\RolePermission;
 use App\Services\Core\DataTable\Group\GroupColumnGate;
 use App\Services\Core\DataTable\Group\GroupLevelResolver;
 use App\Services\Core\DataTable\Group\GroupNodeQuery;
@@ -537,9 +541,11 @@ class ModelController extends Controller {
 
             return;
         }
-        $isCache  = $request->boolean('cacheMode');
-        $model    = $request->model;
-        $search   = $isCache ? '' : ($request->search ?? '');
+        $isCache                = $request->boolean('cacheMode');
+        $model                  = $request->model;
+        $search                 = $isCache ? '' : ($request->search ?? '');
+        $includeGlobalWarehouse = $this->canLookupGlobalWarehouse($request, $model);
+        $request->attributes->set('includeGlobalBranchAuthorized', $includeGlobalWarehouse);
         $template = $model::templateLink();
         // Ekstrak daftar atribut dari template
         preg_match_all('/:((\w[\w]+{:[\w]+})|(\w[\w.]*))/', $template, $matches);
@@ -681,6 +687,9 @@ class ModelController extends Controller {
         } else {
             $query = $model::query();
         }
+        if ($includeGlobalWarehouse) {
+            $query->withoutGlobalScope('branch');
+        }
         $with = $request->with ?? [];
         $with = $isCache ? ($model::getRelationKeys(relations: $with) ?? []) : $with;
 
@@ -803,13 +812,31 @@ class ModelController extends Controller {
         // harus tetap resolve walau record-nya sudah di-soft-delete.
         if ($request->has('id')) {
             $usesSoftDeletes = \in_array(SoftDeletes::class, class_uses_recursive($model));
-            $dataModel       = $usesSoftDeletes ? $model::withTrashed()->find($request->id) : $model::find($request->id);
+            $lookupQuery     = $model::query();
+            if ($includeGlobalWarehouse) {
+                $request->validate(['id' => ['required', 'ulid']]);
+                $lookupQuery->withoutGlobalScope('branch');
+            }
+            if ($usesSoftDeletes) {
+                $lookupQuery->withTrashed();
+            }
+            $dataModel = $lookupQuery->find($request->id);
             if ($dataModel !== null) {
                 if ($request->has('with')) {
                     $dataModel->load($request->with);
                 }
                 if (! $request->has('joins') && isset($columns)) {
                     DataTableColumnSelector::applyAppends($dataModel, $columns, $safe);
+                }
+                if ($includeGlobalWarehouse) {
+                    return response()->json($this->filterRowColumns(
+                        $dataModel->toArray(),
+                        $safe,
+                        $relModes,
+                        $perm,
+                        $fields,
+                        withRelationPaths: $withRelationPaths,
+                    ));
                 }
             }
 
@@ -867,6 +894,24 @@ class ModelController extends Controller {
             'total' => $queryForCount->count(),
             'data'  => $results,
         ]);
+    }
+
+    private function canLookupGlobalWarehouse(Request $request, string $model): bool {
+        $user = $request->user();
+        if (! $request->boolean('includeGlobalBranch') || $model !== Warehouse::class
+            || $request->input('model') !== Warehouse::class || $request->filled('select') || $user === null) {
+            return false;
+        }
+
+        return RolePermission::query()
+            ->whereIn('model', [PurchaseSetting::class, SalesSetting::class])
+            ->where('level', 0)
+            ->whereHas('role', fn (Builder $roles): Builder => $roles
+                ->where('is_disabled', false)
+                ->whereHas('users', fn (Builder $users): Builder => $users->whereKey($user->getKey())))
+            ->get(['permissions'])
+            ->contains(fn (RolePermission $permission): bool => ($permission->permissions['read'] ?? false)
+                || ($permission->permissions['write'] ?? false));
     }
 
     /**
@@ -1081,6 +1126,8 @@ class ModelController extends Controller {
             }
         }
 
+        $includeGlobalWarehouse = $this->canLookupGlobalWarehouse($request, $target);
+        $request->attributes->set('includeGlobalBranchAuthorized', $includeGlobalWarehouse);
         $columns       = $target::getColumns(1);
         $showedColumns = $request->columns ?? [];
 
@@ -1131,6 +1178,9 @@ class ModelController extends Controller {
         // Tiga jalur filter (semua AND): baseFilters (tree LinkModel) + filters
         // ({root:{k,o,v,c}} native) di sini; fid/sort/paginate/submitable via macro.
         $query = $target::query();
+        if ($includeGlobalWarehouse) {
+            $query->withoutGlobalScope('branch');
+        }
 
         // Per-item: macro `dataTable` membangun ulang kolom via getColumns(1)
         // (mengabaikan re-inject di atas) sehingga adaptive-select tak tahu perlu

@@ -57,6 +57,7 @@ return [
         'replaces_other_po'                     => 'The replaced PO Item does not belong to the selected Purchase Order.',
         'replaced_exceeds_remaining'            => 'Replaced quantity (:quantity) exceeds the remaining quantity of the PO Item (:remaining).',
         'replaced_exceeds_remaining_on_approve' => 'The PO Item :item has only :remaining left to receive; replaced quantity :quantity cannot be approved.',
+        'over_receipt_tolerance_exceeded'       => 'The requested receipt exceeds the allowed remaining quantity (:limit; remaining before tolerance: :remaining).',
     ],
 
 ];

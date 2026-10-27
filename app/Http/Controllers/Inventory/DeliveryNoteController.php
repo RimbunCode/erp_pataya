@@ -2,6 +2,7 @@
 
 namespace App\Http\Controllers\Inventory;
 
+use App\Enums\DefaultsDocumentType;
 use App\Http\Controllers\Controller;
 use App\Http\Requests\Inventory\DeliveryNoteRequest;
 use App\Models\Core\Branch;
@@ -11,6 +12,7 @@ use App\Models\Sales\InternalOrderItem;
 use App\Models\Sales\SalesOrder;
 use App\Models\Sales\SalesOrderItem;
 use App\Models\User\Permission;
+use App\Services\Core\Setting\DocumentDefaultsResolver;
 use App\Services\Inventory\DeliveryNoteService;
 use App\Utils;
 use Illuminate\Http\Request;
@@ -30,7 +32,9 @@ class DeliveryNoteController extends Controller {
         $this->setBreadcrumbs();
         DeliveryNote::dataTable($request);
 
-        return Inertia::render('Inventory/DeliveryNotes/Index');
+        return Inertia::render('Inventory/DeliveryNotes/Index', [
+            'defaults' => app(DocumentDefaultsResolver::class)->defaultsFor(DefaultsDocumentType::DeliveryNote),
+        ]);
     }
 
     /**
@@ -177,6 +181,7 @@ class DeliveryNoteController extends Controller {
 
         return Inertia::render('Inventory/DeliveryNotes/Show', [
             'defaultData' => $defaultData ?? null,
+            'defaults'    => app(DocumentDefaultsResolver::class)->defaultsFor(DefaultsDocumentType::DeliveryNote),
         ]);
     }
 

@@ -5,6 +5,7 @@ return [
     'show'                        => 'Tampilkan',
     'previous'                    => 'Sebelumnya',
     'next'                        => 'Selanjutnya',
+    'total'                       => 'Total',
     'action'                      => 'Aksi',
     'select_row'                  => 'Pilih baris',
     'select_all'                  => 'Pilih semua',

@@ -2,10 +2,11 @@
 
 namespace App\Models\CRM;
 
-use App\Models\Core\Preference;
+use App\Models\Core\CoreSetting;
 use App\Models\Model;
 use App\Models\Sales\Customer;
 use App\Models\Sales\SalesOrder;
+use App\Services\Core\Setting\SettingsService;
 use App\Services\CRM\QuotationService;
 use App\Traits\DataTable;
 use App\Traits\Submitable;
@@ -143,7 +144,7 @@ class Quotation extends Model {
                 return null;
             }
 
-            $timezone = Preference::find('timezone')?->value;
+            $timezone = app(SettingsService::class)->get(CoreSetting::class)->timezone;
 
             return $this->date->copy()->timezone($timezone ?: config('app.timezone'))->toDateString();
         });
