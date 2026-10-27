@@ -84,6 +84,23 @@ abstract class ModuleSetting extends Model {
         return $snapshot;
     }
 
+    /**
+     * toArray() membuang atribut $hidden (mis. mail_password), padahal kolom
+     * itu harus tetap tercatat sebagai penanda redaksi di audit.
+     *
+     * @return array<string, mixed>
+     */
+    protected function auditValues(): array {
+        $values = $this->toArray();
+        foreach (static::$auditRedacted as $redactedKey) {
+            // Nilai mentah cukup (hanya dicek null/tidak): tidak perlu dekripsi,
+            // sehingga ciphertext yang tak terbaca tidak menggagalkan update.
+            $values[$redactedKey] = $this->getAttributes()[$redactedKey] ?? null;
+        }
+
+        return $values;
+    }
+
     protected static function booted(): void {
         static::created(function ($model): void {
             if ($model instanceof Log) {
@@ -95,7 +112,7 @@ abstract class ModuleSetting extends Model {
                 return;
             }
             $keys      = $model->logableFields();
-            $dataAfter = static::auditSnapshot($model->toArray(), $keys);
+            $dataAfter = static::auditSnapshot($model->auditValues(), $keys);
             event(new AuditableModelSaved($model, 'created', dataAfter: $dataAfter));
         });
 
@@ -107,14 +124,23 @@ abstract class ModuleSetting extends Model {
                 return;
             }
             $keys           = $model->logableFields();
-            $dataAfter      = static::auditSnapshot($model->toArray(), $keys);
+            $dataAfter      = static::auditSnapshot($model->auditValues(), $keys);
             $beforeFiltered = static::auditSnapshot($model->dataBefore, $keys);
+            // Nilai lama dan baru sama-sama tersamar; tandai bila berubah supaya
+            // penggantian kredensial tetap terlacak tanpa membuka isinya.
+            foreach (static::$auditRedacted as $redactedKey) {
+                if (($beforeFiltered[$redactedKey] ?? null) !== null
+                    && ($dataAfter[$redactedKey] ?? null) !== null
+                    && $model->wasChanged($redactedKey)) {
+                    $dataAfter[$redactedKey] = '[redacted:changed]';
+                }
+            }
             event(new AuditableModelSaved($model, 'updated', dataBefore: $beforeFiltered, dataAfter: $dataAfter));
         });
     }
 
     public function recordLogs(): void {
-        $this->dataBefore = $this->toArray();
+        $this->dataBefore = $this->auditValues();
     }
 
     public function fillForUpdate(array $attributes, bool $fillOnly = false): bool {

@@ -46,7 +46,7 @@ class CoreSetting extends ModuleSetting {
             'bank_account_name'     => ['nullable', 'string', 'max:255'],
             'bank_account_number'   => ['nullable', 'string', 'max:100'],
             'default_currency_id'   => ['nullable', 'string', 'max:10', 'exists:currencies,code'],
-            'default_number_format' => ['nullable', 'string', 'max:50'],
+            'default_number_format' => ['sometimes', 'required', 'string', 'max:50'],
             'timezone'              => ['required', 'string', 'timezone:all'],
             'num_per_page'          => ['required', 'integer', 'min:1'],
             'per_page_options'      => ['nullable', 'array'],

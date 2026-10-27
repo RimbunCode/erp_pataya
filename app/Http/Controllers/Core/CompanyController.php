@@ -64,14 +64,24 @@ class CompanyController extends Controller {
 
     public function update(Request $request, SettingsService $settings): RedirectResponse {
         DB::transaction(function () use ($request, $settings): void {
-            $allowedFields = array_filter(array_keys(CoreSetting::rules()), fn (string $field): bool => ! str_contains($field, '.'));
+            // Logo hanya lewat endpoint unggah/hapus; id berkas sembarang tidak boleh
+            // masuk dari update umum karena logo disajikan publik oleh /company-logo.
+            $logoAliases   = ['company_image_id', 'company_image'];
+            $allowedFields = array_filter(
+                array_keys(CoreSetting::rules()),
+                fn (string $field): bool => ! str_contains($field, '.') && ! in_array($field, $logoAliases, true),
+            );
 
             // Fail closed seperti SettingsService: kunci asing ditolak 422,
             // bukan dibuang diam-diam. onlyCreator disuntik konstruktor induk
             // (Controller::__construct) untuk DataTableScope, bukan input user.
-            $unknown = array_diff(array_keys($request->all()), $allowedFields, ['_token', '_method', 'onlyCreator']);
+            // Alias logo ikut terkirim bersama props halaman (index), jadi
+            // diabaikan: tidak ditolak dan tidak pernah ditulis dari sini.
+            $unknown = array_diff(array_keys($request->all()), $allowedFields, ['_token', '_method', 'onlyCreator'], $logoAliases);
             if ($unknown !== []) {
-                throw ValidationException::withMessages(array_fill_keys($unknown, __('validation.prohibited')));
+                throw ValidationException::withMessages(
+                    collect($unknown)->mapWithKeys(fn (string $field): array => [$field => __('validation.prohibited', ['attribute' => $field])])->all(),
+                );
             }
 
             $attributes = $request->only($allowedFields);

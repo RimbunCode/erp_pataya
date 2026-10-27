@@ -34,9 +34,10 @@ class FinanceSetting extends ModuleSetting {
 
     public static function rules(): array {
         return [
-            'tax_invoice_serial_range_start' => ['nullable', 'integer', 'min:0'],
-            'tax_invoice_serial_range_end'   => ['nullable', 'integer', 'min:0'],
-            'tax_invoice_serial_last_used'   => ['nullable', 'integer', 'min:0'],
+            // Kolom NOT NULL default 0: null harus ditolak validasi (422), bukan lolos lalu 500.
+            'tax_invoice_serial_range_start' => ['sometimes', 'required', 'integer', 'min:0'],
+            'tax_invoice_serial_range_end'   => ['sometimes', 'required', 'integer', 'min:0'],
+            'tax_invoice_serial_last_used'   => ['sometimes', 'required', 'integer', 'min:0'],
         ];
     }
 
