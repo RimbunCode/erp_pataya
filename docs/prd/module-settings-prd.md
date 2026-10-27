@@ -211,6 +211,8 @@ Kriteria penerimaan rinci ada di `requirements.md` tiap spec.
 | D-S13 | Pajak baris Sales Order/Invoice wajib kecuali aturan bersyarat "tanpa pajak" cocok (menjaga Prinsip 4: tanpa aturan, perilaku identik dengan sebelum program ini) | **DECIDED** (2026-10-26) |
 | D-S14 | Toleransi pengiriman Delivery Note mencakup Sales Order dan Internal Order (berdasarkan item sumber); batas consumed item tetap | **DECIDED** (2026-10-26) |
 | D-S15 | Aturan default bersyarat: `item_type` divalidasi terhadap nilai `items.type` yang sah; aturan pajak hanya untuk jenis dokumen yang memiliki pajak per baris (PO, PI, SO, SI, Quotation) | **DECIDED** (2026-10-26) |
+| D-S16 | Tabel `default_tax_rules` dan `default_warehouse_rules` belum pernah dirilis (migrasi hanya ada di branch fitur), sehingga tidak ada migrasi pembersihan maupun catatan rilis untuk aturan lama yang tidak lolos validasi D-S15 | **DECIDED** (2026-10-27) |
+| D-S17 | Validasi `Rule::in(Category::TYPES)` pada `CategoryRequest` tidak dikerjakan di rangkaian ini (di luar spek); dapat dibuat sebagai perubahan terpisah setelah `DISTINCT type` pada data nyata diperiksa | **DEFERRED** (2026-10-27) |
 
 ### Pertanyaan terbuka
 
