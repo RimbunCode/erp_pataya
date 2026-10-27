@@ -2,8 +2,11 @@
 
 namespace App\Http\Controllers\Core;
 
+use App\Enums\DefaultsDocumentType;
 use App\Http\Controllers\Controller;
 use App\Http\Requests\Core\ModuleSettingRequest;
+use App\Models\Inventory\Category;
+use App\Models\Inventory\Warehouse;
 use App\Services\Core\Setting\CurrentRolePermissionChecker;
 use App\Services\Core\Setting\ModuleDefaultRulesService;
 use App\Services\Core\Setting\SettingsService;
@@ -27,6 +30,36 @@ abstract class ModuleSettingController extends Controller {
             app(CurrentRolePermissionChecker::class)->allows($request->user(), $this->modelClass(), [$action]),
             403,
         );
+    }
+
+    /**
+     * Setting bersifat global (D-S2): gudang default dimuat tanpa scope cabang agar pengguna
+     * di cabang lain tetap melihat nilainya. Hanya satu baris yang dirujuk setting yang dimuat.
+     */
+    protected function defaultWarehouse(?string $warehouseId): ?Warehouse {
+        return $warehouseId === null ? null : Warehouse::withoutBranch()->with('branch')->find($warehouseId);
+    }
+
+    /**
+     * Pilihan untuk form aturan default: jenis barang (`items.type`, label terlokalisasi) dan
+     * jenis dokumen modul yang punya pajak per baris.
+     *
+     * @return array{itemTypeOptions: list<array{value: string, label: string}>, taxDocumentTypes: list<string>}
+     */
+    protected function defaultRuleOptions(): array {
+        return [
+            'itemTypeOptions' => array_map(
+                fn (string $type): array => ['value' => $type, 'label' => __("inventory/category.types.{$type}")],
+                Category::TYPES,
+            ),
+            'taxDocumentTypes' => array_values(array_map(
+                fn (DefaultsDocumentType $type): string => $type->value,
+                array_filter(
+                    DefaultsDocumentType::cases(),
+                    fn (DefaultsDocumentType $type): bool => $type->module() === $this->settingKey() && $type->supportsTaxDefault(),
+                ),
+            )),
+        ];
     }
 
     protected function enforcePermission($method) {

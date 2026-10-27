@@ -13,7 +13,7 @@ class InventorySettingController extends ModuleSettingController {
         $setting = $settings->get(InventorySetting::class);
 
         return parent::show($request, $settings)
-            ->with('defaultWarehouse', $setting->defaultWarehouse);
+            ->with('defaultWarehouse', $this->defaultWarehouse($setting->default_warehouse_id));
     }
 
     protected function settingKey(): string {

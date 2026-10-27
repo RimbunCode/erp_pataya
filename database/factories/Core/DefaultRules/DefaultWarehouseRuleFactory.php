@@ -15,7 +15,7 @@ class DefaultWarehouseRuleFactory extends Factory {
         return [
             'module'           => 'purchase',
             'document_type'    => 'purchase_order',
-            'item_type'        => 'goods',
+            'item_type'        => 'inventory',
             'is_stock_item'    => true,
             'item_category_id' => null,
             'warehouse_id'     => function (): string {

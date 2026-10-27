@@ -26,8 +26,12 @@ class DocumentDefaultsResolver {
     }
 
     /**
+     * `taxes` memuat objek pajak dalam urutan yang sama dengan `tax_ids`. `tax_optional` true hanya bila
+     * aturan "tanpa pajak" eksplisit (tax_id null) cocok untuk item; tanpa aturan, dengan referensi aturan
+     * rusak, atau tanpa default modul pajak tetap wajib.
+     *
      * @param  list<string>  $itemIds
-     * @return array<string, array{tax_ids: list<string>, warehouse_id: ?string, warehouse: ?array<string, mixed>}>
+     * @return array<string, array{tax_ids: list<string>, taxes: list<array<string, mixed>>, tax_optional: bool, warehouse_id: ?string, warehouse: ?array<string, mixed>}>
      */
     public function resolveForItems(DefaultsDocumentType $type, array $itemIds): array {
         if ($itemIds === []) {
@@ -38,18 +42,26 @@ class DocumentDefaultsResolver {
             ->whereIn('id', array_values(array_unique($itemIds)))
             ->get(['id', 'type', 'is_stock_item', 'category_id']);
 
-        $taxRules = DefaultTaxRule::query()
+        $taxRuleRecords = DefaultTaxRule::query()
             ->where('module', $type->module())
             ->with(['tax', 'itemCategory'])
             ->get()
             ->filter(
                 fn (DefaultTaxRule $rule): bool => $rule->item_category_id === null || $rule->itemCategory !== null,
             )
+            ->values();
+
+        // tax_id null = "tanpa pajak" eksplisit; tax_id terisi tetapi pajaknya terhapus = referensi rusak.
+        $taxRules = $taxRuleRecords
             ->map(fn (DefaultTaxRule $rule): DefaultRule => $this->ruleFromRecord(
                 $rule,
                 $rule->tax_id !== null && $rule->tax === null ? null : $rule->tax_id,
+                $rule->tax_id !== null && $rule->tax === null,
             ))
-            ->values()
+            ->all();
+        $taxPayloads = $taxRuleRecords
+            ->filter(fn (DefaultTaxRule $rule): bool => $rule->tax !== null)
+            ->mapWithKeys(fn (DefaultTaxRule $rule): array => [$rule->tax_id => $this->taxPayload($rule->tax)])
             ->all();
 
         $warehouseRuleRecords = DefaultWarehouseRule::query()
@@ -72,6 +84,7 @@ class DocumentDefaultsResolver {
             ->map(fn (DefaultWarehouseRule $rule): DefaultRule => $this->ruleFromRecord(
                 $rule,
                 $rule->warehouse === null ? null : $rule->warehouse_id,
+                $rule->warehouse === null,
             ))
             ->all();
 
@@ -84,12 +97,20 @@ class DocumentDefaultsResolver {
                 $item->category_id,
             );
             $taxRule = $this->ruleMatcher->match($taxRules, $type->value, $itemAttributes);
-            $taxId   = $taxRule?->value ?? ($taxRule === null ? $moduleDefaults['tax_id'] : null);
+            // Aturan cocok dengan referensi rusak jatuh ke default modul, seperti tidak ada aturan.
+            $useModuleTax = $taxRule === null || $taxRule->referenceBroken;
+            $taxId        = $useModuleTax ? $moduleDefaults['tax_id'] : $taxRule->value;
+            $taxOptional  = ! $useModuleTax && $taxRule->value === null;
+            $taxPayload   = $taxId === null
+                ? null
+                : ($taxPayloads[$taxId] ?? ($moduleDefaults['tax_id'] === $taxId ? $moduleDefaults['tax'] : null));
 
             $warehouseId = null;
             if ($itemAttributes->isStockItem && $type->supportsWarehouseDefault()) {
                 $warehouseRule = $this->ruleMatcher->match($warehouseRules, $type->value, $itemAttributes);
-                $warehouseId   = $warehouseRule?->value ?? ($warehouseRule === null ? $moduleDefaults['warehouse_id'] : null);
+                $warehouseId   = $warehouseRule === null || $warehouseRule->referenceBroken
+                    ? $moduleDefaults['warehouse_id']
+                    : $warehouseRule->value;
             }
 
             $warehouse = $warehouseId === null
@@ -100,6 +121,8 @@ class DocumentDefaultsResolver {
 
             $results[$item->id] = [
                 'tax_ids'      => $taxId === null ? [] : [$taxId],
+                'taxes'        => $taxPayload === null ? [] : [$taxPayload],
+                'tax_optional' => $taxOptional,
                 'warehouse_id' => $warehouseId,
                 'warehouse'    => $warehouse,
             ];
@@ -108,7 +131,7 @@ class DocumentDefaultsResolver {
         return $results;
     }
 
-    private function ruleFromRecord(DefaultTaxRule|DefaultWarehouseRule $rule, ?string $value): DefaultRule {
+    private function ruleFromRecord(DefaultTaxRule|DefaultWarehouseRule $rule, ?string $value, bool $referenceBroken = false): DefaultRule {
         return new DefaultRule(
             $rule->document_type,
             $rule->item_type,
@@ -116,7 +139,13 @@ class DocumentDefaultsResolver {
             $rule->item_category_id,
             $value,
             (int) $rule->priority,
+            $referenceBroken,
         );
+    }
+
+    /** @return array<string, mixed> */
+    private function taxPayload(Tax $tax): array {
+        return [...$tax->only(['id', 'name', 'rate']), 'templateLink' => Tax::templateLink(), 'thisModel' => Tax::class];
     }
 
     /**
@@ -160,10 +189,8 @@ class DocumentDefaultsResolver {
             : null;
 
         return [
-            'tax_id' => $tax?->id,
-            'tax'    => $tax === null
-                ? null
-                : [...$tax->only(['id', 'name', 'rate']), 'templateLink' => Tax::templateLink(), 'thisModel' => Tax::class],
+            'tax_id'                => $tax?->id,
+            'tax'                   => $tax === null ? null : $this->taxPayload($tax),
             'warehouse_id'          => $warehouse?->id,
             'warehouse'             => $warehouse === null ? null : $this->warehousePayload($warehouse),
             'payment_term_template' => $this->paymentTermTemplate($type, $setting),

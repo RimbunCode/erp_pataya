@@ -45,4 +45,12 @@ enum DefaultsDocumentType: string {
             self::PurchaseInvoice, self::SalesInvoice, self::Quotation => false,
         };
     }
+
+    /** Dokumen dengan kolom pajak per baris (Receipt dan Delivery Note tidak punya). */
+    public function supportsTaxDefault(): bool {
+        return match ($this) {
+            self::PurchaseOrder, self::PurchaseInvoice, self::SalesOrder, self::SalesInvoice, self::Quotation => true,
+            self::PurchaseReceipt, self::DeliveryNote => false,
+        };
+    }
 }

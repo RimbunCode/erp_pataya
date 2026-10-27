@@ -21,14 +21,15 @@ class PurchaseSettingController extends ModuleSettingController {
 
         return parent::show($request, $settings)
             ->with('defaultTax', $setting->defaultTax)
-            ->with('defaultTargetWarehouse', $setting->defaultTargetWarehouse)
+            ->with('defaultTargetWarehouse', $this->defaultWarehouse($setting->default_target_warehouse_id))
             ->with('defaultPaymentTermTemplate', $setting->defaultPaymentTermTemplate)
             ->with('defaultTaxRules', $defaultTaxRules)
             ->with('defaultWarehouseRules', $defaultWarehouseRules)
             ->with('defaultRulesVersion', $defaultRulesVersion)
             ->with('activeTaxes', Tax::query()->get(['id', 'name', 'rate']))
             ->with('activeWarehouses', Warehouse::withoutBranch()->with('branch')->get(['id', 'branch_id', 'name', 'code']))
-            ->with('categories', Category::query()->get(['id', 'name', 'type']));
+            ->with('categories', Category::query()->get(['id', 'name', 'type']))
+            ->with($this->defaultRuleOptions());
     }
 
     protected function settingKey(): string {

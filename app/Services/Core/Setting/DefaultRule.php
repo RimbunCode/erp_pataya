@@ -10,6 +10,7 @@ final readonly class DefaultRule {
         public ?string $itemCategoryId,
         public ?string $value,
         public int $priority,
+        public bool $referenceBroken = false,
     ) {}
 
     public function specificity(): int {

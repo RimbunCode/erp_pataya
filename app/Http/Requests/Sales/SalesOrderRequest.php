@@ -2,7 +2,9 @@
 
 namespace App\Http\Requests\Sales;
 
+use App\Enums\DefaultsDocumentType;
 use App\Http\Requests\BaseFormRequest;
+use App\Http\Requests\Concerns\ValidatesRowTaxRequired;
 use App\Http\Requests\Finances\Rules\AdditionalDiscountRules;
 use App\Http\Requests\Finances\Rules\PaymentSchedulesRules;
 use App\Models\Asset\AssetService;
@@ -15,6 +17,8 @@ use Illuminate\Contracts\Validation\Validator;
 use Illuminate\Validation\Rule;
 
 class SalesOrderRequest extends BaseFormRequest {
+    use ValidatesRowTaxRequired;
+
     /**
      * Determine if the user is authorized to make this request.
      */
@@ -80,6 +84,8 @@ class SalesOrderRequest extends BaseFormRequest {
             $this->validateItemOrAsset($validator);
             $this->validateAssetServiceReferenceables($validator);
             $this->validateSourceWarehouseRequired($validator);
+            $rows = (array) $this->input('items', []);
+            $this->validateRowTaxRequired($validator, DefaultsDocumentType::SalesOrder, $rows, $this->itemIdsOfRows($rows));
         });
     }
 
