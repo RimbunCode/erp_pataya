@@ -6,7 +6,7 @@ import {
 import React, { useCallback, useEffect, useMemo, useRef } from "react";
 import { calculateArray, generateRandom, getDataModel } from "@/lib/utils";
 import { allocateDiscount } from "@/lib/discountAllocation";
-import { useDocumentDefaults } from "@/lib/documentDefaults";
+import { EMPTY_DEFAULTS, useDocumentDefaults } from "@/lib/documentDefaults";
 
 import AccountLinkModel from "../Accounts/AccountLinkModel";
 import AssetCompletionRowBadge from "@/Pages/Asset/Assets/AssetCompletionRowBadge";
@@ -83,7 +83,7 @@ export default function Form() {
   const { default_currency_id } = pageProps.preferences;
   const fixedAssets = pageProps.fixedAssets;
   const purchaseInvoiceId = pageProps.purchaseInvoice?.id;
-  const defaults = pageProps.defaults ?? {};
+  const defaults = pageProps.defaults ?? EMPTY_DEFAULTS;
   const {
     applyToNewLine,
     applyPaymentTerm,
@@ -770,10 +770,6 @@ export default function Form() {
             className="col-start-1 col-span-2"
             form={<ItemForm />}
             columns={itemColumns}
-            defaultValueRow={{
-              tax: defaults.tax,
-              tax_rate: defaults.tax?.rate ?? 0,
-            }}
             value={data?.items ?? []}
             onValueChange={(v) => setData("items", v)}
             mapItem={({ item, dataTable, index }) => {

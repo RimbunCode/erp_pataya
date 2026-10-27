@@ -7,11 +7,18 @@ export default function PriceControlWarnings({ title, warnings = [] }) {
   }
 
   return (
-    <Alert variant="warning" appearance="light" role="status" data-testid="price-control-warnings">
+    <Alert
+      variant="warning"
+      appearance="light"
+      role="status"
+      data-testid="price-control-warnings"
+    >
       <AlertContent>
         <AlertTitle>{title}</AlertTitle>
         <ul>
-          {warnings.map((warning, index) => <li key={`${warning}-${index}`}>{warning}</li>)}
+          {warnings.map((warning, index) => (
+            <li key={`${warning}-${index}`}>{warning}</li>
+          ))}
         </ul>
       </AlertContent>
     </Alert>

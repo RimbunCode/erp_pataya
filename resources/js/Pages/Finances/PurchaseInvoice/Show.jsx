@@ -97,7 +97,10 @@ export default function Show({ purchaseInvoice, defaultData, fixedAssets }) {
       }}
       banner={
         <>
-          <PriceControlWarnings title={t("finances.purchaseInvoice.price_warning_title")} warnings={flash?.priceWarnings ?? []} />
+          <PriceControlWarnings
+            title={t("finances.purchaseInvoice.price_warning_title")}
+            warnings={flash?.priceWarnings ?? []}
+          />
           <AssetCompletionAlert
             assets={fixedAssets}
             sourceDocumentType="purchase_invoice"

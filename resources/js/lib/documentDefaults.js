@@ -16,6 +16,14 @@ const SOURCE_ROW_KEYS = [
 
 const RESOLUTION_TIMEOUT_MS = 10000;
 
+export const EMPTY_DEFAULTS = Object.freeze({});
+
+export function taxRowError(errors, index) {
+  return (
+    errors?.[`items.${index}.tax.id`] ?? errors?.[`items.${index}.tax`] ?? null
+  );
+}
+
 export function documentItemId(item) {
   return item?.item?.id ?? item?.item_id ?? item?.id ?? null;
 }
@@ -43,7 +51,7 @@ export function applyToNewLine(
     defaults?.tax
   ) {
     nextLine.tax = defaults.tax;
-    nextLine.tax_rate = nextLine.tax_rate ?? defaults.tax.rate ?? 0;
+    nextLine.tax_rate = defaults.tax.rate ?? 0;
   }
   if (
     warehouseField &&
@@ -148,6 +156,7 @@ export function useDocumentDefaults(
   const flushTimer = useRef(null);
   const editedFields = useRef(new Set());
   const lineResolutions = useRef(new Map());
+  const taxOptionalRows = useRef(new Map());
   const currentItems = useRef(items);
   currentItems.current = items;
   const [resolutionVersion, setResolutionVersion] = useState(0);
@@ -220,14 +229,6 @@ export function useDocumentDefaults(
               response?.data?.data ??
               response?.data ??
               {};
-            const taxIds = [
-              ...new Set(
-                itemIds
-                  .map((id) => resolvedItems[id]?.tax_ids?.[0])
-                  .filter(Boolean)
-                  .map(String),
-              ),
-            ];
             const warehouseIds = [
               ...new Set(
                 itemIds
@@ -259,10 +260,10 @@ export function useDocumentDefaults(
                 return new Map();
               }
             };
-            const [taxRecords, warehouseRecords] = await Promise.all([
-              fetchRecords("App\\Models\\Finances\\Tax", taxIds),
-              fetchRecords("App\\Models\\Inventory\\Warehouse", warehouseIds),
-            ]);
+            const warehouseRecords = await fetchRecords(
+              "App\\Models\\Inventory\\Warehouse",
+              warehouseIds,
+            );
             if (settled) return;
 
             const results = new Map();
@@ -271,17 +272,10 @@ export function useDocumentDefaults(
               if (!result) {
                 return;
               }
-              const taxId = result.tax_ids?.[0] ?? null;
               const warehouseId = result.warehouse_id ?? null;
               const resolvedDefaults = {
-                tax:
-                  taxId == null
-                    ? null
-                    : String(defaults?.tax?.id) === String(taxId)
-                      ? defaults.tax
-                      : (taxRecords.get(String(taxId)) ??
-                        defaults?.tax ??
-                        null),
+                tax: result.taxes?.[0] ?? null,
+                taxOptional: !!result.tax_optional,
                 warehouse:
                   warehouseId == null
                     ? null
@@ -328,6 +322,7 @@ export function useDocumentDefaults(
       if (rowId == null) return;
       const rowKey = String(rowId);
       lineResolutions.current.get(rowKey)?.resolveApplied?.();
+      taxOptionalRows.current.delete(rowKey);
       const lineBeforeSelection = items?.find(
         (line) => String(line.id) === rowKey,
       );
@@ -371,6 +366,9 @@ export function useDocumentDefaults(
         }
         request.resolvedDefaults = resolvedDefaults;
         request.resolved = true;
+        if (typeof resolvedDefaults?.taxOptional === "boolean") {
+          taxOptionalRows.current.set(rowKey, resolvedDefaults.taxOptional);
+        }
         onResolved?.();
         setResolutionVersion((version) => version + 1);
       });
@@ -437,6 +435,23 @@ export function useDocumentDefaults(
     });
   }, [items, resolutionVersion, defaults, isFieldEdited, setData]);
 
+  // Berubah identitas setiap hasil resolusi masuk agar `itemColumns` ber-memo
+  // ikut menghitung ulang penanda wajib pajak.
+  const isTaxOptional = useCallback(
+    (rowId) => taxOptionalRows.current.get(String(rowId)) === true,
+
+    [resolutionVersion],
+  );
+  // Wajib hanya bila baris sudah di-resolve dan hasilnya `tax_optional: false`.
+  // Baris yang tak pernah di-resolve (edit, dari dokumen sumber, Asset) atau
+  // yang resolusinya gagal berstatus tidak diketahui: tidak boleh memblokir
+  // submit di klien, server yang menegakkan.
+  const isTaxRequired = useCallback(
+    (rowId) => taxOptionalRows.current.get(String(rowId)) === false,
+
+    [resolutionVersion],
+  );
+
   const waitForPendingResolutions = useCallback(async () => {
     for (;;) {
       const activeRows = new Set(
@@ -478,5 +493,7 @@ export function useDocumentDefaults(
     waitForPendingResolutions,
     markFieldEdited,
     isFieldEdited,
+    isTaxOptional,
+    isTaxRequired,
   };
 }

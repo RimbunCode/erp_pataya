@@ -5,10 +5,12 @@ import ItemUnitLinkModel from "@/Pages/Inventory/Items/ItemUnitLinkModel";
 import ItemVariantLinkModel from "@/Pages/Inventory/Items/ItemVariantLinkModel";
 import NumberInput from "@/Components/NumberInput";
 import { Textarea } from "@/Components/ui/textarea";
-import { applyToNewLine } from "@/lib/documentDefaults";
+import { EMPTY_DEFAULTS, applyToNewLine } from "@/lib/documentDefaults";
 import TaxLinkModel from "@/Pages/Finances/Taxes/TaxLinkModel";
 import { useLaravelReactI18n } from "laravel-react-i18n";
 import { useMemo } from "react";
+
+const DEFAULT_VALUE_ROW = { quantity: 1, price: 0 };
 
 /**
  * Menyusun definisi kolom tabel item menurut jenis Quotation (AC9.4).
@@ -25,7 +27,7 @@ import { useMemo } from "react";
 export function buildQuotationItemColumns(
   type,
   t,
-  defaults = {},
+  defaults = EMPTY_DEFAULTS,
   { isCreate = false, resolveForNewLine, markFieldEdited, isFieldEdited } = {},
 ) {
   const isSparePart = type === "spare_part";
@@ -222,7 +224,7 @@ export default function QuotationItems({
   onValueChange,
   readOnly,
   type = "spare_part",
-  defaults = {},
+  defaults = EMPTY_DEFAULTS,
   isCreate = false,
   resolveForNewLine,
   markFieldEdited,
@@ -259,12 +261,7 @@ export default function QuotationItems({
         classNameDialog="max-w-(--breakpoint-lg)! w-full!"
         readOnly={readOnly}
         columns={columns}
-        defaultValueRow={{
-          quantity: 1,
-          price: 0,
-          tax: defaults.tax,
-          tax_rate: defaults.tax?.rate ?? 0,
-        }}
+        defaultValueRow={DEFAULT_VALUE_ROW}
         value={value ?? []}
         onValueChange={onValueChange}
       />

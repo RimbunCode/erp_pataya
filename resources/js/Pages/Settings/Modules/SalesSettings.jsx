@@ -27,6 +27,8 @@ export default function SalesSettings({
   activeTaxes = [],
   activeWarehouses = [],
   categories = [],
+  itemTypeOptions = [],
+  taxDocumentTypes = null,
 }) {
   const { t } = useLaravelReactI18n();
   const [selectedTax, setSelectedTax] = useState(null);
@@ -87,6 +89,8 @@ export default function SalesSettings({
             activeTaxes={activeTaxes}
             activeWarehouses={activeWarehouses}
             categories={categories}
+            itemTypeOptions={itemTypeOptions}
+            taxDocumentTypes={taxDocumentTypes}
             canWrite={canWrite}
             registerSaveHandler={registerSaveHandler}
           />
@@ -126,6 +130,7 @@ export default function SalesSettings({
             >
               <WarehouseLinkModel
                 disabled={disabled}
+                includeGlobalBranch
                 value={
                   [selectedWarehouse, defaultSourceWarehouse].find(
                     (warehouse) =>

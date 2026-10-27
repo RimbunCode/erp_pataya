@@ -12,7 +12,11 @@ import {
   getDataModel,
 } from "@/lib/utils";
 import { allocateDiscount } from "@/lib/discountAllocation";
-import { useDocumentDefaults } from "@/lib/documentDefaults";
+import {
+  EMPTY_DEFAULTS,
+  taxRowError,
+  useDocumentDefaults,
+} from "@/lib/documentDefaults";
 
 import AccountLinkModel from "../Accounts/AccountLinkModel";
 import AdditionalDiscount from "../Components/AdditionalDiscount";
@@ -23,6 +27,7 @@ import CustomerLinkModel from "@/Pages/Sales/Customers/CustomerLinkModel";
 import DatetimePicker from "@/Components/DatetimePicker";
 import { FormCheckbox } from "@/Components/ui/checkbox";
 import FormInput from "@/Components/FormInput";
+import InputError from "@/Components/InputError";
 import FormTable from "@/Components/FormTable";
 import ItemForm from "./ItemForm";
 import ItemUnitLinkModel from "@/Pages/Inventory/Items/ItemUnitLinkModel";
@@ -70,7 +75,7 @@ export default function Form() {
       debit_account: debitAccount,
     };
   }, []);
-  const { data, setData, disabled, dataBefore, isCreate } = useFormPage(
+  const { data, setData, disabled, dataBefore, isCreate, errors } = useFormPage(
     defaultValue,
     {
       notUseWhenCreate: true,
@@ -78,12 +83,13 @@ export default function Form() {
   );
   const pageProps = usePage().props;
   const { default_currency_id } = pageProps.preferences;
-  const defaults = pageProps.defaults ?? {};
+  const defaults = pageProps.defaults ?? EMPTY_DEFAULTS;
   const {
     applyToNewLine,
     applyPaymentTerm,
     resolveForNewLine,
     markFieldEdited,
+    isTaxRequired,
   } = useDocumentDefaults(defaults, isCreate ? "sales_invoice" : null, {
     items: data.items,
     setData,
@@ -396,19 +402,26 @@ export default function Form() {
       {
         name: "tax",
         titleTrans: "finances.salesInvoice.columns.tax",
+        required: true,
         width: 1,
-        cell({ data, setData, attributes, dataRow }) {
+        cell({ data, setData, attributes, dataRow }, index) {
+          const taxError = taxRowError(errors, index);
+
           return (
-            <TaxLinkModel
-              disabled={!hasSource(dataRow)}
-              placeholder={t("finances.salesInvoice.columns.tax.placeholder")}
-              value={data}
-              onValueChange={(val) => {
-                markFieldEdited(dataRow.id, "tax");
-                setData("tax", val);
-              }}
-              {...attributes}
-            />
+            <div className="flex w-full flex-col">
+              <TaxLinkModel
+                disabled={!hasSource(dataRow)}
+                placeholder={t("finances.salesInvoice.columns.tax.placeholder")}
+                value={data}
+                onValueChange={(val) => {
+                  markFieldEdited(dataRow.id, "tax");
+                  setData("tax", val);
+                }}
+                {...attributes}
+                required={attributes.required && isTaxRequired(dataRow.id)}
+              />
+              <InputError message={taxError} className="px-1 text-xs" />
+            </div>
           );
         },
       },
@@ -473,6 +486,8 @@ export default function Form() {
     applyToNewLine,
     canOffSource,
     data,
+    errors,
+    isTaxRequired,
     markFieldEdited,
     resolveForNewLine,
     t,
@@ -853,10 +868,6 @@ export default function Form() {
             className="col-start-1 col-span-2"
             form={<ItemForm />}
             columns={itemColumns}
-            defaultValueRow={{
-              tax: defaults.tax,
-              tax_rate: defaults.tax?.rate ?? 0,
-            }}
             value={data?.items ?? []}
             valueBefore={dataBefore?.items}
             onValueChange={(v) => setData("items", v)}

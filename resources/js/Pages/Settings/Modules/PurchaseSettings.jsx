@@ -27,6 +27,8 @@ export default function PurchaseSettings({
   activeTaxes = [],
   activeWarehouses = [],
   categories = [],
+  itemTypeOptions = [],
+  taxDocumentTypes = null,
 }) {
   const { t } = useLaravelReactI18n();
   const [selectedTax, setSelectedTax] = useState(null);
@@ -70,6 +72,8 @@ export default function PurchaseSettings({
             activeTaxes={activeTaxes}
             activeWarehouses={activeWarehouses}
             categories={categories}
+            itemTypeOptions={itemTypeOptions}
+            taxDocumentTypes={taxDocumentTypes}
             canWrite={canWrite}
             registerSaveHandler={registerSaveHandler}
           />
@@ -95,20 +99,24 @@ export default function PurchaseSettings({
                 }}
               />
             </FormInput>
-            {data.default_tax_id && !defaultTax && (
-              <p
-                role="alert"
-                className="text-sm text-amber-700 dark:text-amber-300"
-              >
-                {t("purchase.setting.reference_unavailable")}
-              </p>
-            )}
+            {data.default_tax_id &&
+              ![selectedTax, defaultTax].some(
+                (tax) => tax?.id === data.default_tax_id,
+              ) && (
+                <p
+                  role="alert"
+                  className="text-sm text-amber-700 dark:text-amber-300"
+                >
+                  {t("purchase.setting.reference_unavailable")}
+                </p>
+              )}
             <FormInput
               name="default_target_warehouse_id"
               label={t("purchase.setting.default_target_warehouse")}
             >
               <WarehouseLinkModel
                 disabled={disabled}
+                includeGlobalBranch
                 value={
                   [selectedWarehouse, defaultTargetWarehouse].find(
                     (warehouse) =>
@@ -121,14 +129,18 @@ export default function PurchaseSettings({
                 }}
               />
             </FormInput>
-            {data.default_target_warehouse_id && !defaultTargetWarehouse && (
-              <p
-                role="alert"
-                className="text-sm text-amber-700 dark:text-amber-300"
-              >
-                {t("purchase.setting.reference_unavailable")}
-              </p>
-            )}
+            {data.default_target_warehouse_id &&
+              ![selectedWarehouse, defaultTargetWarehouse].some(
+                (warehouse) =>
+                  warehouse?.id === data.default_target_warehouse_id,
+              ) && (
+                <p
+                  role="alert"
+                  className="text-sm text-amber-700 dark:text-amber-300"
+                >
+                  {t("purchase.setting.reference_unavailable")}
+                </p>
+              )}
             <FormInput
               name="default_payment_term_template_id"
               label={t("purchase.setting.default_payment_term_template")}
@@ -154,7 +166,10 @@ export default function PurchaseSettings({
               />
             </FormInput>
             {data.default_payment_term_template_id &&
-              !defaultPaymentTermTemplate && (
+              ![selectedPaymentTermTemplate, defaultPaymentTermTemplate].some(
+                (template) =>
+                  template?.id === data.default_payment_term_template_id,
+              ) && (
                 <p
                   role="alert"
                   className="text-sm text-amber-700 dark:text-amber-300"

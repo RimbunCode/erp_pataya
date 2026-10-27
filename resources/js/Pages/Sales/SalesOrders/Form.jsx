@@ -3,7 +3,12 @@ import React, { memo, useCallback, useEffect, useMemo, useRef } from "react";
 import SelectModel, { loadFromModel } from "@/Components/SelectModel";
 import { calculateArray, generateRandom } from "@/lib/utils";
 import { allocateDiscount } from "@/lib/discountAllocation";
-import { documentItemId, useDocumentDefaults } from "@/lib/documentDefaults";
+import {
+  EMPTY_DEFAULTS,
+  documentItemId,
+  taxRowError,
+  useDocumentDefaults,
+} from "@/lib/documentDefaults";
 
 import AdditionalDiscount from "@/Pages/Finances/Components/AdditionalDiscount";
 import BranchLinkModel from "@/Pages/Settings/Branches/BranchLinkModel";
@@ -13,6 +18,7 @@ import CustomerLinkModel from "@/Pages/Sales/Customers/CustomerLinkModel";
 import DatetimePicker from "@/Components/DatetimePicker";
 import { FormCheckbox } from "@/Components/ui/checkbox";
 import FormInput from "@/Components/FormInput";
+import InputError from "@/Components/InputError";
 import FormTable from "@/Components/FormTable";
 import ItemBarcode from "@/Pages/Inventory/Items/ItemBarcode";
 import ItemForm from "./ItemForm";
@@ -65,22 +71,24 @@ function resolveAssetServiceBillingCustomer(assetService) {
 
 export default memo(function Form() {
   const { t } = useLaravelReactI18n();
-  const { data, setData, defaultData, disabled, isCreate } = useFormPage(
-    {
-      date: new Date(),
-    },
-    { trackDefaultValue: false },
-  );
+  const { data, setData, defaultData, disabled, isCreate, errors } =
+    useFormPage(
+      {
+        date: new Date(),
+      },
+      { trackDefaultValue: false },
+    );
   const pageProps = usePage().props;
   const { default_currency_id } = pageProps.preferences;
   const loadFrom = pageProps.loadFrom;
-  const defaults = pageProps.defaults ?? {};
+  const defaults = pageProps.defaults ?? EMPTY_DEFAULTS;
   const {
-    applyToNewLine,
+    applyToNewLine: applyDefaultsToLine,
     applyPaymentTerm,
     resolveForNewLine: resolveLineDefaults,
     markFieldEdited,
     isFieldEdited,
+    isTaxRequired,
   } = useDocumentDefaults(defaults, isCreate ? "sales_order" : null, {
     items: data.items,
     setData,
@@ -89,10 +97,31 @@ export default memo(function Form() {
   const headerWarehouseEdited = useRef(false);
   const resolvedTaxItemsByRow = useRef(new Map());
 
+  // Baris hasil konversi dari dokumen sumber (Quotation/WorkOrder/AssetService)
+  // tidak diberi default pajak/gudang (Req 2.2).
+  const sourceRowIds = useMemo(
+    () =>
+      new Set(
+        isCreate && defaultData?.referenceable_type
+          ? (defaultData.items ?? []).map((row) => String(row.id))
+          : [],
+      ),
+    [isCreate, defaultData],
+  );
+  const isSourceRow = useCallback(
+    (rowId) => rowId != null && sourceRowIds.has(String(rowId)),
+    [sourceRowIds],
+  );
+  const applyToNewLine = useCallback(
+    (line, item, options) =>
+      isSourceRow(line?.id) ? line : applyDefaultsToLine(line, item, options),
+    [applyDefaultsToLine, isSourceRow],
+  );
+
   const resolveForNewLine = useCallback(
     (rowId, item, warehouseField) => {
       const itemId = documentItemId(item);
-      if (rowId == null) return;
+      if (rowId == null || isSourceRow(rowId)) return;
       const rowKey = String(rowId);
       resolvedTaxItemsByRow.current.delete(rowKey);
       if (headerWarehouseEdited.current && warehouseField) {
@@ -104,7 +133,7 @@ export default memo(function Form() {
           resolvedTaxItemsByRow.current.set(rowKey, String(itemId)),
       });
     },
-    [markFieldEdited, resolveLineDefaults],
+    [isSourceRow, markFieldEdited, resolveLineDefaults],
   );
 
   useEffect(() => {
@@ -568,22 +597,29 @@ export default memo(function Form() {
     {
       name: "tax",
       titleTrans: "sales.salesOrder.columns.tax",
+      required: true,
       width: 2,
-      cell({ data: value, setData, attributes, dataRow }) {
+      cell({ data: value, setData, attributes, dataRow }, index) {
+        const taxError = taxRowError(errors, index);
+
         return (
-          <TaxLinkModel
-            disabled={!dataRow?.item && !dataRow?.asset}
-            placeholder={t("sales.salesOrder.columns.tax.placeholder")}
-            value={value}
-            onValueChange={(val) => {
-              markFieldEdited(dataRow.id, "tax");
-              setData("tax", val);
-            }}
-            {...attributes}
-            readOnly={
-              attributes.readOnly || (dataRow.readOnly && !dataRow.isCustom)
-            }
-          />
+          <div className="flex w-full flex-col">
+            <TaxLinkModel
+              disabled={!dataRow?.item && !dataRow?.asset}
+              placeholder={t("sales.salesOrder.columns.tax.placeholder")}
+              value={value}
+              onValueChange={(val) => {
+                markFieldEdited(dataRow.id, "tax");
+                setData("tax", val);
+              }}
+              {...attributes}
+              required={attributes.required && isTaxRequired(dataRow.id)}
+              readOnly={
+                attributes.readOnly || (dataRow.readOnly && !dataRow.isCustom)
+              }
+            />
+            <InputError message={taxError} className="px-1 text-xs" />
+          </div>
         );
       },
     },
@@ -876,10 +912,6 @@ export default memo(function Form() {
             classNameDialog="max-w-(--breakpoint-lg)! w-full!"
             readOnly={disabled}
             columns={itemColumns}
-            defaultValueRow={{
-              tax: defaults.tax,
-              tax_rate: defaults.tax?.rate ?? 0,
-            }}
             value={data?.items ?? []}
             onValueChange={(v, key) => {
               const updatedRow = v.find((item) => item.id === key);

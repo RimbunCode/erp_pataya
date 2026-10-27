@@ -16,7 +16,7 @@ import OpportunityLinkModel from "@/Pages/CRM/Opportunities/OpportunityLinkModel
 import Select from "@/Components/Select";
 import { Textarea } from "@/Components/ui/textarea";
 import { calculateArray } from "@/lib/utils";
-import { useDocumentDefaults } from "@/lib/documentDefaults";
+import { EMPTY_DEFAULTS, useDocumentDefaults } from "@/lib/documentDefaults";
 import { useLaravelReactI18n } from "laravel-react-i18n";
 import { usePage } from "@inertiajs/react";
 
@@ -28,7 +28,7 @@ export default function Form() {
   const { t } = useLaravelReactI18n();
   const pageProps = usePage().props;
   const sectionTemplates = pageProps.sectionTemplates;
-  const defaults = pageProps.defaults ?? {};
+  const defaults = pageProps.defaults ?? EMPTY_DEFAULTS;
   const { data, setData, disabled, isCreate } = useFormPage(
     {
       date: new Date(),

@@ -11,6 +11,7 @@ import FormTable from "@/Components/FormTable";
 import Select from "@/Components/Select";
 import { Button } from "@/Components/ui/button";
 import { Input } from "@/Components/ui/input";
+import InputError from "@/Components/InputError";
 import CategoryLinkModel from "@/Pages/Inventory/Categories/CategoryLinkModel";
 import ItemLinkModel from "@/Pages/Inventory/Items/ItemLinkModel";
 import TaxLinkModel from "@/Pages/Finances/Taxes/TaxLinkModel";
@@ -60,12 +61,14 @@ const serializeRules = (rules, valueKey) =>
 
 const draftSnapshot = (taxRules, warehouseRules) =>
   JSON.stringify(
-    [[taxRules, "tax_id"], [warehouseRules, "warehouse_id"]].map(
-      ([rules, valueKey]) =>
-        serializeRules(rules, valueKey).map((rule, index) => ({
-          ...rule,
-          priority: String(rules[index].priority ?? 0),
-        })),
+    [
+      [taxRules, "tax_id"],
+      [warehouseRules, "warehouse_id"],
+    ].map(([rules, valueKey]) =>
+      serializeRules(rules, valueKey).map((rule, index) => ({
+        ...rule,
+        priority: String(rules[index].priority ?? 0),
+      })),
     ),
   );
 
@@ -91,6 +94,8 @@ function RuleTable({
   options,
   categories,
   documentTypes,
+  itemTypes,
+  errors,
   disabled,
   t,
   referenceUnavailable,
@@ -108,18 +113,56 @@ function RuleTable({
     const isUnavailableValue = (value) =>
       value && !options.some((option) => String(option.id) === String(value));
 
+    const ruleError = (index, field) =>
+      errors?.[`${kind}_rules.${index}.${field}`] ?? null;
+
     return [
       column(
         "document_type",
-        ({ data, dataRow, setData, attributes }) => (
+        ({ data, dataRow, setData, attributes }, index) => (
+          <div>
+            <Select
+              id={`default-rule-${kind}-document-type-${dataRow?.__row_key ?? "new"}`}
+              aria-label={t("rules.columns.document_type")}
+              value={data ?? undefined}
+              onValueChange={(value) => setData("document_type", value ?? "")}
+              placeholder={t("rules.any")}
+              options={[
+                ...(data && !documentTypes.some((type) => type.value === data)
+                  ? [
+                      {
+                        value: data,
+                        label: `${t("rules.unavailable_value")} (${data})`,
+                      },
+                    ]
+                  : []),
+                ...documentTypes.map((type) => ({
+                  value: type.value,
+                  label: t(`rules.document_types.${type.value}`),
+                })),
+              ]}
+              {...attributes}
+            />
+            <InputError
+              message={ruleError(index, "document_type")}
+              className="mt-1 text-xs"
+              role="alert"
+            />
+          </div>
+        ),
+        1.3,
+      ),
+      column("item_type", ({ data, dataRow, setData, attributes }, index) => (
+        <div>
           <Select
-            id={`default-rule-${kind}-document-type-${dataRow?.__row_key ?? "new"}`}
-            aria-label={t("rules.columns.document_type")}
+            id={`default-rule-${kind}-item-type-${dataRow?.__row_key ?? "new"}`}
+            aria-label={t("rules.columns.item_type")}
             value={data ?? undefined}
-            onValueChange={(value) => setData("document_type", value ?? "")}
+            onValueChange={(value) => setData("item_type", value ?? "")}
             placeholder={t("rules.any")}
             options={[
-              ...(data && !documentTypes.some((type) => type.value === data)
+              { value: "", label: t("rules.any") },
+              ...(data && !itemTypes.some((type) => type.value === data)
                 ? [
                     {
                       value: data,
@@ -127,28 +170,19 @@ function RuleTable({
                     },
                   ]
                 : []),
-              ...documentTypes.map((type) => ({
+              ...itemTypes.map((type) => ({
                 value: type.value,
-                label: t(`rules.document_types.${type.value}`),
+                label: type.label ?? type.value,
               })),
             ]}
             {...attributes}
           />
-        ),
-        1.3,
-      ),
-      column("item_type", ({ data, setData, attributes }) => (
-        <Input
-          aria-label={t("rules.columns.item_type")}
-          className={attributes.className}
-          value={data ?? ""}
-          disabled={attributes.readOnly}
-          name={attributes.name}
-          required={attributes.required}
-          ref={attributes.ref}
-          onKeyDown={attributes.onKeyDown}
-          onChange={(event) => setData("item_type", event.target.value)}
-        />
+          <InputError
+            message={ruleError(index, "item_type")}
+            className="mt-1 text-xs"
+            role="alert"
+          />
+        </div>
       )),
       column(
         "is_stock_item",
@@ -257,6 +291,8 @@ function RuleTable({
   }, [
     categories,
     documentTypes,
+    errors,
+    itemTypes,
     kind,
     options,
     referenceUnavailable,
@@ -288,6 +324,8 @@ export default function DefaultRulesSettings({
   activeTaxes = null,
   activeWarehouses = null,
   categories = null,
+  itemTypeOptions = EMPTY_ARRAY,
+  taxDocumentTypes = null,
   canWrite = true,
   registerSaveHandler,
 }) {
@@ -313,17 +351,27 @@ export default function DefaultRulesSettings({
     if (isDirty || defaultRulesVersion === baseRulesVersion) return;
 
     const nextTaxRules = normalizeRules(defaultTaxRules, "tax_id");
-    const nextWarehouseRules = normalizeRules(defaultWarehouseRules, "warehouse_id");
+    const nextWarehouseRules = normalizeRules(
+      defaultWarehouseRules,
+      "warehouse_id",
+    );
     setTaxRules(nextTaxRules);
     setWarehouseRules(nextWarehouseRules);
     setSavedDraft(draftSnapshot(nextTaxRules, nextWarehouseRules));
     setBaseRulesVersion(defaultRulesVersion);
-  }, [defaultTaxRules, defaultWarehouseRules, defaultRulesVersion, baseRulesVersion, isDirty]);
+  }, [
+    defaultTaxRules,
+    defaultWarehouseRules,
+    defaultRulesVersion,
+    baseRulesVersion,
+    isDirty,
+  ]);
   const [selectedItem, setSelectedItem] = useState(null);
   const [documentType, setDocumentType] = useState("");
   const [previewResult, setPreviewResult] = useState(null);
   const [previewError, setPreviewError] = useState("");
   const [saveError, setSaveError] = useState("");
+  const [serverErrors, setServerErrors] = useState({});
   const [saving, setSaving] = useState(false);
   const previewRequestVersion = useRef(0);
   const previewRequest = useHttp({ document_type: "", items: [] });
@@ -345,10 +393,22 @@ export default function DefaultRulesSettings({
       ).map((value) => ({ value })),
     [moduleKey],
   );
+  const taxDocumentTypeOptions = useMemo(
+    () =>
+      Array.isArray(taxDocumentTypes)
+        ? taxDocumentTypes.map((value) => ({ value }))
+        : documentTypeOptions,
+    [taxDocumentTypes, documentTypeOptions],
+  );
   const warehouseDocumentTypeOptions = useMemo(
     () =>
       documentTypeOptions.filter(({ value }) =>
-        ["purchase_order", "purchase_receipt", "sales_order", "delivery_note"].includes(value),
+        [
+          "purchase_order",
+          "purchase_receipt",
+          "sales_order",
+          "delivery_note",
+        ].includes(value),
       ),
     [documentTypeOptions],
   );
@@ -419,12 +479,19 @@ export default function DefaultRulesSettings({
 
   const saveCallbacks = useMemo(
     () => ({
-      onStart: () => setSaving(true),
+      getValidationMessage: validate,
+      onStart: () => {
+        setSaving(true);
+        setServerErrors({});
+      },
       onSuccess: (page) => {
         if (page?.props?.defaultRulesVersion) {
           setBaseRulesVersion(page.props.defaultRulesVersion);
         }
-        const savedTaxRules = normalizeRules(page?.props?.defaultTaxRules, "tax_id");
+        const savedTaxRules = normalizeRules(
+          page?.props?.defaultTaxRules,
+          "tax_id",
+        );
         const savedWarehouseRules = normalizeRules(
           page?.props?.defaultWarehouseRules,
           "warehouse_id",
@@ -433,16 +500,19 @@ export default function DefaultRulesSettings({
         setWarehouseRules(savedWarehouseRules);
         setSavedDraft(draftSnapshot(savedTaxRules, savedWarehouseRules));
         setSaveError("");
+        setServerErrors({});
       },
-      onError: (requestErrors) =>
+      onError: (requestErrors) => {
+        setServerErrors(requestErrors ?? {});
         setSaveError(
           Object.values(requestErrors ?? {})[0] ?? t("rules.save_failed"),
-        ),
+        );
+      },
       onNetworkError: () => setSaveError(t("rules.save_failed")),
       onHttpException: () => setSaveError(t("rules.save_failed")),
       onFinish: () => setSaving(false),
     }),
-    [t],
+    [t, validate],
   );
 
   const saveRules = useCallback(() => {
@@ -543,7 +613,9 @@ export default function DefaultRulesSettings({
         setRules={setTaxRules}
         options={Array.isArray(activeTaxes) ? activeTaxes : EMPTY_ARRAY}
         categories={Array.isArray(categories) ? categories : null}
-        documentTypes={documentTypeOptions}
+        documentTypes={taxDocumentTypeOptions}
+        itemTypes={itemTypeOptions}
+        errors={serverErrors}
         disabled={!canWrite || saving}
         t={t}
         referenceUnavailable={referenceUnavailable}
@@ -557,6 +629,8 @@ export default function DefaultRulesSettings({
         }
         categories={Array.isArray(categories) ? categories : null}
         documentTypes={warehouseDocumentTypeOptions}
+        itemTypes={itemTypeOptions}
+        errors={serverErrors}
         disabled={!canWrite || saving}
         t={t}
         referenceUnavailable={referenceUnavailable}

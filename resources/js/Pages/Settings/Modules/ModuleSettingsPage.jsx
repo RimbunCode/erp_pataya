@@ -102,6 +102,10 @@ export default function ModuleSettingsPage({
         const prepared = await handler.preparePayload();
         if (prepared === false) {
           finishSave();
+          toast.error(
+            callbacks.getValidationMessage?.() ||
+              t("core.form.save_failed", "Failed to save settings"),
+          );
           return;
         }
         if (

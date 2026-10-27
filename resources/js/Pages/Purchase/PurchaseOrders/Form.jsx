@@ -4,7 +4,7 @@ import SelectModel, { loadFromModel } from "@/Components/SelectModel";
 import { generateRandom } from "@/lib/utils";
 import { allocateDiscount } from "@/lib/discountAllocation";
 import { calculatePurchaseOrderAmounts } from "./purchaseOrderAmounts";
-import { useDocumentDefaults } from "@/lib/documentDefaults";
+import { EMPTY_DEFAULTS, useDocumentDefaults } from "@/lib/documentDefaults";
 
 import AdditionalDiscount from "@/Pages/Finances/Components/AdditionalDiscount";
 import NumberInput from "@/Components/NumberInput";
@@ -39,7 +39,7 @@ export function PurchaseOrderFields({
   const { t } = useLaravelReactI18n();
   const pageProps = usePage().props;
   const loadFrom = pageProps.loadFrom;
-  const defaults = pageProps.defaults ?? {};
+  const defaults = pageProps.defaults ?? EMPTY_DEFAULTS;
   const { default_currency_id } = pageProps.preferences;
   const {
     applyToNewLine,
@@ -658,10 +658,6 @@ export function PurchaseOrderFields({
               fixedRows={sourceLocked}
               readOnly={disabled}
               columns={sourceColumns}
-              defaultValueRow={{
-                tax: defaults.tax,
-                tax_rate: defaults.tax?.rate ?? 0,
-              }}
               value={data?.items}
               valueBefore={dataBefore?.items}
               onValueChange={(v) => setData("items", v)}

@@ -95,7 +95,12 @@ export default function Show({ salesInvoice, defaultData }) {
           );
         }
       }}
-      banner={<PriceControlWarnings title={t("finances.salesInvoice.price_warning_title")} warnings={flash?.priceWarnings ?? []} />}
+      banner={
+        <PriceControlWarnings
+          title={t("finances.salesInvoice.price_warning_title")}
+          warnings={flash?.priceWarnings ?? []}
+        />
+      }
     >
       <Form />
     </FormPage>

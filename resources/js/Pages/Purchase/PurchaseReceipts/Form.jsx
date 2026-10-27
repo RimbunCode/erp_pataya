@@ -15,7 +15,7 @@ import React from "react";
 import SupplierLinkModel from "../Suppliers/SupplierLinkModel";
 import { Textarea } from "@/Components/ui/textarea";
 import { generateRandom } from "@/lib/utils";
-import { useDocumentDefaults } from "@/lib/documentDefaults";
+import { EMPTY_DEFAULTS, useDocumentDefaults } from "@/lib/documentDefaults";
 import { useLaravelReactI18n } from "laravel-react-i18n";
 import { useMemo } from "react";
 import { usePage } from "@inertiajs/react";
@@ -39,8 +39,8 @@ function Form() {
   const fixedAssets = usePage().props.fixedAssets;
   const pageProps = usePage().props;
   const purchaseReceiptId = pageProps.purchaseReceipt?.id;
-  const defaults = pageProps.defaults ?? {};
-  const { data, setData } = useFormPage(
+  const defaults = pageProps.defaults ?? EMPTY_DEFAULTS;
+  const { data, setData, isCreate } = useFormPage(
     {
       date: new Date(),
     },
@@ -49,11 +49,11 @@ function Form() {
       notUseWhenCreate: true,
     },
   );
-  const { applyToNewLine, resolveForNewLine } = useDocumentDefaults(
-    defaults,
-    "purchase_receipt",
-    { items: data.items, setData },
-  );
+  const { applyToNewLine, resolveForNewLine, markFieldEdited } =
+    useDocumentDefaults(defaults, isCreate ? "purchase_receipt" : null, {
+      items: data.items,
+      setData,
+    });
 
   // Id ItemVariant semua PO Item: menyaring sub model "Item Lainnya" supaya item
   // yang sudah ada di PO tidak muncul dobel di dropdown (dedupe di sisi form).
@@ -178,7 +178,10 @@ function Form() {
             <WarehouseLinkModel
               disabled={!hasItem(dataRow)}
               value={data}
-              onValueChange={(e) => setData("target_warehouse", e)}
+              onValueChange={(e) => {
+                markFieldEdited(dataRow.id, "target_warehouse");
+                setData("target_warehouse", e);
+              }}
               {...attributes}
             />
           );
@@ -310,7 +313,13 @@ function Form() {
         },
       },
     ];
-  }, [data.purchase_order, poVariantIdsKey]);
+  }, [
+    applyToNewLine,
+    data.purchase_order,
+    markFieldEdited,
+    poVariantIdsKey,
+    resolveForNewLine,
+  ]);
   return (
     <>
       <FormPageContent

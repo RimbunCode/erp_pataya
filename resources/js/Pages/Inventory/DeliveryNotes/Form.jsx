@@ -16,7 +16,7 @@ import SalesOrderItemLinkModel from "@/Pages/Sales/SalesOrders/SalesOrderItemLin
 import { Textarea } from "@/Components/ui/textarea";
 import WarehouseLinkModel from "@/Pages/Inventory/Warehouses/WarehouseLinkModel";
 import { generateRandom } from "@/lib/utils";
-import { useDocumentDefaults } from "@/lib/documentDefaults";
+import { EMPTY_DEFAULTS, useDocumentDefaults } from "@/lib/documentDefaults";
 import usePermission from "@/Hooks/usePermission";
 import { usePage } from "@inertiajs/react";
 import { useLaravelReactI18n } from "laravel-react-i18n";
@@ -26,12 +26,12 @@ const ITEM_VARIANT_CLASS = "App\\Models\\Inventory\\ItemVariant";
 
 export default function Form() {
   const { t } = useLaravelReactI18n();
-  const defaults = usePage().props.defaults ?? {};
+  const defaults = usePage().props.defaults ?? EMPTY_DEFAULTS;
   // Baris di luar dokumen sumber (sub model ItemVariant/Asset) butuh izin khusus.
   const canOffSource = usePermission(
     "App\\Models\\Inventory\\DeliveryNote",
   ).can("manage_off_source_items");
-  const { data, setData, defaultData, dataBefore } = useFormPage(
+  const { data, setData, defaultData, dataBefore, isCreate } = useFormPage(
     {
       delivery_date: new Date(),
     },
@@ -39,11 +39,11 @@ export default function Form() {
       trackDefaultValue: false,
     },
   );
-  const { applyToNewLine, resolveForNewLine } = useDocumentDefaults(
-    defaults,
-    "delivery_note",
-    { items: data.items, setData },
-  );
+  const { applyToNewLine, resolveForNewLine, markFieldEdited } =
+    useDocumentDefaults(defaults, isCreate ? "delivery_note" : null, {
+      items: data.items,
+      setData,
+    });
   // Sumber baris dipilih lewat LinkModel multi-model (spec
   // delivery-note-sales-invoice-off-source-items): model utama = baris dokumen
   // sumber (SalesOrderItem/InternalOrderItem), sub model = ItemVariant dan Asset
@@ -243,7 +243,10 @@ export default function Form() {
                 "inventory.deliveryNote.columns.source_warehouse.placeholder",
               )}
               value={data}
-              onValueChange={(val) => setData("source_warehouse", val)}
+              onValueChange={(val) => {
+                markFieldEdited(dataRow.id, "source_warehouse");
+                setData("source_warehouse", val);
+              }}
               {...attributes}
             />
           );
@@ -295,7 +298,14 @@ export default function Form() {
         },
       },
     ];
-  }, [data, t, canOffSource]);
+  }, [
+    applyToNewLine,
+    canOffSource,
+    data,
+    markFieldEdited,
+    resolveForNewLine,
+    t,
+  ]);
 
   return (
     <>
