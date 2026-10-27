@@ -15,7 +15,7 @@ Urutan: verifikasi (1), model dan tabel (2), service dan peta legacy (3), migras
 
 ## Tasks
 
-- [-] 1. Verifikasi dan persiapan
+- [x] 1. Verifikasi dan persiapan
   - [x] 1.1 Baca `app/Traits/DataTable.php` (`initPermissions`, `getModule`, flag `ignorePermission`) dan tentukan namespace/lokasi model setting serta flag trait agar tidak menambah kolom runtime
     - _Requirements: 1.5, 1.6_
   - [x] 1.2 Verifikasi tipe PK `countries` dan `currencies`, cast `App\Casts\Json`, dan mekanisme audit (`auditable`, `AuditableModelSaved`, `Log`) pada model singleton ulid; perbarui `design.md`

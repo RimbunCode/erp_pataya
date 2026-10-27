@@ -71,7 +71,7 @@ Spec ini sengaja **tidak mengubah perilaku aplikasi**: setelah selesai, nilai ya
 3. THE `SettingsService` SHALL menyediakan `lockedCurrent(string $modelClass)` yang membaca baris dengan `lockForUpdate()` untuk pemakaian penghitung (mis. `tax_invoice_serial_last_used`).
 4. THE `update()` SHALL menolak atribut di luar kolom yang dideklarasikan model (mass-assignment aman) dan nilai yang melanggar FK atau aturan validasi, dengan `ValidationException` berlokalisasi.
 5. THE `update()` pada `CoreSetting` yang mengubah `default_currency_id` SHALL menurunkan `default_number_format` dari mata uang tersebut, mempertahankan perilaku `CompanyController` saat ini.
-6. THE penulisan setting SHALL hanya lewat `SettingsService`; test arsitektur SHALL menolak `Model::update`/`save` langsung pada model setting di luar service dan seeder.
+6. THE penulisan setting SHALL hanya lewat `SettingsService`; test arsitektur SHALL menolak `Model::update`/`save` langsung pada model setting di luar service dan seeder. Pengecualian terdaftar: `PreferenceMigrator` (migrasi data sekali jalan `preferences` → tabel setting, dengan aturan idempoten dan `--force` sendiri; Requirement 5), diputuskan 2026-10-26.
 
 ### Requirement 4: `LegacyPreferenceMap`
 
@@ -80,7 +80,7 @@ Spec ini sengaja **tidak mengubah perilaku aplikasi**: setelah selesai, nilai ya
 #### Acceptance Criteria
 
 1. THE `LegacyPreferenceMap::build(bool $includeHidden = false): array` SHALL mengembalikan peta dengan kunci `preferences` lama (`company_name`, `default_currency_id`, `timezone`, `num_per_page`, `per_page_options`, `company_image`, `active_tax_id`, `tax_invoice_serial_*`, dan seterusnya) dari tabel baru.
-2. THE peta SHALL menyertakan baris `preferences` yang belum termigrasi (kunci tak dikenal) dengan aturan penyembunyian kunci sensitif yang sama seperti sebelumnya (`%password%`, `%token%`, `%secret%`, `%private_key%`, `%api_key%`, `mail%`) kecuali `$includeHidden = true`.
+2. THE peta SHALL menyertakan baris `preferences` yang belum termigrasi (kunci tak dikenal) dengan aturan penyembunyian kunci sensitif yang sama seperti sebelumnya (`%password%`, `%token%`, `%secret%`, `%private_key%`, `%api_key%`, `mail%`) kecuali `$includeHidden = true`. Akibatnya placeholder email `mail_from_name`/`mail_from_address` kosong pada template email (perbaikan keamanan yang diterima 2026-10-26; kunci `mail_*` tidak ada di produksi).
 3. THE `LegacyPreferenceMap::snapshot()` SHALL menyertakan `updated_at` terbaru lintas tabel setting dan `preferences` untuk versi cache.
 4. THE prop Inertia `preferences`, `PrintTemplateRenderService`, `EmailTemplateRenderService`, dan `GroupLabelResolver` SHALL membaca peta ini, bukan model `Preference`.
 5. THE test parity SHALL membuktikan peta baru identik dengan peta lama untuk data seed (kunci, nilai, tipe).
@@ -97,7 +97,7 @@ Spec ini sengaja **tidak mengubah perilaku aplikasi**: setelah selesai, nilai ya
 3. THE sistem SHALL menyediakan perintah `settings:migrate-preferences {--dry-run} {--force} {--report}` yang menampilkan: kunci termigrasi, kunci tak dikenal (dibiarkan di `preferences`), nilai yang gagal divalidasi (mis. kode mata uang tak ada), dan keputusan per kunci.
 4. THE nilai yang gagal divalidasi SHALL tidak membatalkan migrasi: kolom dibiarkan `null`/bawaan, kunci dicatat di laporan, dan baris `preferences` asli tetap utuh.
 5. THE migrasi SHALL tidak menghapus apa pun dari `preferences`.
-6. THE `PreferenceSeeder` SHALL menyemai tabel baru (dan tetap membuat Branch utama), bukan `preferences`.
+6. THE `PreferenceSeeder` SHALL menyemai tabel baru (dan tetap membuat Branch utama), bukan `preferences`. Karena skrip deploy menjalankan `db:seed` di setiap rilis, seeder SHALL idempoten dan tidak pernah menimpa setting yang sudah ada atau menggeser `tax_invoice_serial_last_used`; kolom negara dan mata uang yang masih kosong karena `CountrySeeder` berjalan setelahnya hanya dilengkapi bila baris setting belum pernah diedit.
 7. THE rollback migrasi SHALL menghapus tabel baru tanpa menyentuh `preferences`.
 
 ### Requirement 6: Peralihan pembaca tanpa perubahan perilaku
@@ -150,6 +150,9 @@ Spec ini sengaja **tidak mengubah perilaku aplikasi**: setelah selesai, nilai ya
 2. THE izin yang saat ini melekat pada model `Preference` (peran yang memegang `manage_general_setting`, `manage_company_setting`, `manage_preference`, `manage_setting`) SHALL disalin ke `CoreSetting` melalui migrasi data idempoten; peran Administrator SHALL memperoleh izin pada seluruh model setting.
 3. THE `RolePermissionMigrator` SHALL memetakan kunci legacy `manage_*_setting`/`manage_preference` ke `CoreSetting`.
 4. THE halaman setting modul baru SHALL tidak terbuka bagi peran non-admin sampai izinnya diberikan eksplisit.
+5. THE penyalinan dan pemberian izin oleh `ModuleSettingPermissionSeeder` SHALL idempoten dan hanya membuat baris yang belum ada: izin Preference yang sudah dicabut (soft delete) tidak disalin, dan flag atau pencabutan yang dilakukan admin lewat halaman Roles tidak dipulihkan oleh seeder maupun migrasi.
+6. THE halaman Purchase Settings dan Sales Settings serta endpoint resolusi/aturan default SHALL memeriksa izin dari peran aktif pengguna di database (bukan hanya izin session yang dapat basi); halaman setting lain tetap memakai izin session. Keputusan 2026-10-26: dipertahankan dan dicatat di sini.
+7. THE peran dengan profil read-only untuk semua modul (Auditor) SHALL memperoleh `select`/`read` pada halaman setting; ini diterima karena profil itu memang read-only (keputusan 2026-10-26).
 
 ### Requirement 10: Audit perubahan setting
 
@@ -169,7 +172,7 @@ Spec ini sengaja **tidak mengubah perilaku aplikasi**: setelah selesai, nilai ya
 
 1. THE design SHALL mendokumentasikan langkah menambah setting baru: migrasi kolom, `casts/defaults/rules` pada model, entri `config/settings.php` bila punya padanan legacy, field pada halaman, kunci terjemahan, dan test.
 2. THE design SHALL mendokumentasikan langkah menambah halaman setting baru: entri registry (model, controller, halaman, desk), izin, dan item menu.
-3. THE `FinanceSetting` SHALL siap menerima kolom dari Finance Engine (`enforce_fiscal_period`, tanggal cutover, dan seterusnya) tanpa perubahan infrastruktur.
+3. THE `FinanceSetting` SHALL siap menerima kolom dari Finance Engine (`enforce_fiscal_period`, tanggal cutover, dan seterusnya) tanpa perubahan infrastruktur. **Catatan (keputusan 2026-10-26, dikerjakan sebelum Finance P1):** `SettingsService` saat ini memuat cabang khusus `CoreSetting`/`FinanceSetting` (turunan format angka dari mata uang, `advanceTaxInvoiceSerial`); sebelum spec Finance P1 menambah validasi lintas-field, logika khusus model itu dipindahkan ke hook pada model setting agar kolom Finance baru tidak memaksa perubahan service.
 4. THE test arsitektur Requirement 6.5 SHALL berlaku untuk semua spec berikutnya.
 
 ### Requirement 12: Pensiun tabel `preferences` (GATED)

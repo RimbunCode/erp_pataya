@@ -40,9 +40,11 @@ Spec keempat program **Konfigurasi Modul** (lihat `docs/prd/module-settings-prd.
 2. THE sistem SHALL membuat tabel `default_warehouse_rules` dengan kolom yang sama kecuali `warehouse_id` (FK `warehouses`, `restrictOnDelete`, wajib) menggantikan `tax_id`. Warehouse rules SHALL only accept `purchase_order`, `purchase_receipt`, `sales_order`, and `delivery_note`; purchase/sales invoices and quotation SHALL NOT accept or resolve a warehouse rule.
 3. THE kondisi bernilai null berarti tidak dibatasi; aturan tanpa kondisi sama sekali SHALL ditolak (itu tugas default modul).
 4. THE dua aturan dengan kombinasi kondisi identik pada `module` yang sama SHALL ditolak saat disimpan.
-5. THE aturan pajak dengan `tax_id = null` SHALL berarti "kosongkan pajak" (pengecualian eksplisit), berbeda dari "tidak ada aturan".
+5. THE aturan pajak dengan `tax_id = null` SHALL berarti "kosongkan pajak" (pengecualian eksplisit), berbeda dari "tidak ada aturan". Pada Sales Order dan Sales Invoice, hanya aturan inilah yang membuat pajak baris boleh kosong; tanpa aturan "tanpa pajak" yang cocok, server menolak simpan (422 pada `items.N.tax.id`) dan default pajak modul saja tidak membuat pajak opsional (PRD D-S13, 2026-10-26).
 6. THE aturan gudang SHALL tidak dapat memuat `is_stock_item = false` (item non-stok tidak pernah diberi gudang).
 7. THE `rules()` SHALL menolak pajak/gudang nonaktif atau terhapus dan kategori yang tidak ada.
+8. THE `item_type` SHALL dibatasi pada nilai `items.type` yang sah, yaitu `Category::TYPES` (`inventory`, `vehicle`, `service`); nilai lain ditolak (422 pada `tax_rules.N.item_type` atau `warehouse_rules.N.item_type`) supaya salah ketik tidak membuat aturan yang tak pernah cocok (PRD D-S15, 2026-10-26).
+9. THE `document_type` pada aturan **pajak** SHALL hanya jenis dokumen yang memiliki pajak per baris: Purchase Order, Purchase Invoice, Sales Order, Sales Invoice, dan Quotation (`DefaultsDocumentType::supportsTaxDefault()`); Purchase Receipt dan Delivery Note ditolak untuk aturan pajak. Aturan gudang tetap mengikuti butir 2 (PRD D-S15, 2026-10-26).
 
 ### Requirement 2: Pencocokan dan urutan fallback
 
@@ -54,6 +56,7 @@ Spec keempat program **Konfigurasi Modul** (lihat `docs/prd/module-settings-prd.
 2. THE urutan resolusi pajak SHALL: aturan cocok → `default_tax_id` modul → kosong.
 3. THE urutan resolusi gudang SHALL for supported warehouse document types only: (hanya item stok) aturan cocok → default gudang modul (tujuan untuk Purchase, asal untuk Sales) → `inventory_settings.default_warehouse_id` → kosong. Other document types SHALL resolve `warehouse_id` as null.
 4. THE hasil SHALL deterministik: input sama menghasilkan nilai sama, tidak bergantung urutan penyimpanan.
+4a. IF aturan yang cocok menunjuk referensi yang sudah rusak (pajak atau gudang terhapus/nonaktif), THEN THE resolusi SHALL melanjutkan urutan fallback seperti pada default modul: aturan (referensi rusak) → default modul → (gudang: `inventory_settings.default_warehouse_id`) → kosong. Aturan pajak dengan `tax_id = null` bukan referensi rusak dan tetap berarti "tanpa pajak" (tidak jatuh ke default modul). Menggantikan perilaku awal "referensi rusak menghasilkan kosong" (PRD, keputusan 2026-10-26).
 5. THE pencocokan SHALL murni (tanpa efek samping) dan tidak membaca dokumen tersimpan.
 
 ### Requirement 3: Endpoint resolusi
@@ -63,7 +66,7 @@ Spec keempat program **Konfigurasi Modul** (lihat `docs/prd/module-settings-prd.
 #### Acceptance Criteria
 
 1. THE sistem SHALL menyediakan `POST /defaults/resolve` dengan body `{document_type, items: [{item_id}]}` dan respons peta `item_id → {tax_ids: string[], warehouse_id: string|null, warehouse?: object|null}`. Referensi `warehouse` disertakan agar form dapat menampilkan gudang global yang tidak lolos scope gudang cabang aktif; `warehouse_id` tetap menjadi nilai kontrak utamanya.
-2. THE `tax_ids` SHALL berbentuk daftar (kosong, atau satu elemen pada v1) sebagai kait multi-pajak.
+2. THE `tax_ids` SHALL berbentuk daftar (kosong, atau satu elemen pada v1) sebagai kait multi-pajak. Respons juga memuat `taxes` (daftar objek pajak lengkap dalam urutan yang sama dengan `tax_ids`, bentuk sama dengan objek pajak yang dipakai form) sehingga form tidak perlu lookup tambahan dan tidak diam-diam jatuh ke pajak modul bila lookup gagal, serta `tax_optional` (boolean): `true` hanya bila aturan "tanpa pajak" eksplisit cocok (saat itu `tax_ids` dan `taxes` kosong); selain itu `false` dan pajak wajib pada Sales Order/Invoice (PRD D-S13).
 3. THE endpoint SHALL dibatasi autentikasi dan izin `read`/`create` pada model dokumen terkait, atau izin `read`/`write` pada model setting modul yang sama untuk mendukung pratinjau di halaman setting; izin modul lain SHALL NOT memberikan akses. Endpoint SHALL membatasi jumlah barang per permintaan.
 4. THE endpoint SHALL menjalankan satu query aturan per jenis (pajak, gudang) per permintaan dan satu query atribut barang, bukan query per barang.
 5. THE endpoint SHALL tidak menulis data apa pun.
@@ -75,7 +78,7 @@ Spec keempat program **Konfigurasi Modul** (lihat `docs/prd/module-settings-prd.
 #### Acceptance Criteria
 
 1. WHEN user memilih barang pada **baris baru** dokumen **baru**, THE form SHALL memanggil endpoint resolusi dan mengisi `tax_id` (elemen pertama `tax_ids`) dan gudang hanya bila field masih kosong.
-2. THE form SHALL tidak menimpa nilai yang sudah ada, baris yang berasal dari dokumen sumber, maupun nilai yang diubah user setelah terisi.
+2. THE form SHALL tidak menimpa nilai yang sudah ada, baris yang berasal dari dokumen sumber, maupun nilai yang diubah user setelah terisi. Baris hasil konversi dari dokumen sumber (mis. Sales Order dari Quotation/WorkOrder/AssetService) tidak diberi default pajak maupun gudang, termasuk saat user memilih ulang item pada baris tersebut; pajak default modul tidak boleh menempel pada baris sumber lewat nilai awal baris (keputusan 2026-10-26, tafsir Requirement ini).
 3. IF pemanggilan endpoint gagal, THEN THE form SHALL memakai default modul dari prop `defaults` (spec defaults) dan tidak memblokir user.
 4. THE form SHALL mengelompokkan pemanggilan (satu permintaan untuk beberapa barang yang ditambahkan bersamaan).
 5. THE perilaku untuk Quotation SHALL sama seperti Sales.
@@ -87,7 +90,7 @@ Spec keempat program **Konfigurasi Modul** (lihat `docs/prd/module-settings-prd.
 #### Acceptance Criteria
 
 1. THE halaman **Purchase Settings** dan **Sales Settings** SHALL memiliki tab **Aturan Default** berisi dua tabel yang dapat diedit (pajak dan gudang), dengan kolom jenis dokumen, tipe barang, status stok, kategori, nilai, dan prioritas.
-2. THE pemilih nilai SHALL hanya menampilkan pajak/gudang aktif, dan penyimpanan menolak kombinasi duplikat atau tanpa kondisi.
+2. THE pemilih nilai SHALL hanya menampilkan pajak/gudang aktif, dan penyimpanan menolak kombinasi duplikat atau tanpa kondisi. Kolom tipe barang berupa pilihan dari `itemTypeOptions` (dengan opsi "tidak dibatasi"), dan opsi jenis dokumen pada tab aturan pajak dibatasi pada `taxDocumentTypes` yang dikirim server (PRD D-S15). Galat validasi server ditampilkan pada baris aturan yang bersangkutan.
 3. THE halaman SHALL menampilkan peringatan bila aturan menunjuk referensi yang kemudian nonaktif atau terhapus, dan pratinjau "hasil untuk barang X" (memanggil endpoint resolusi).
 4. THE izin dan audit mengikuti model setting (`read`/`write`); aturan tercatat audit bersama setting.
 5. THE teks UI memakai kunci terjemahan `lang/id` dan `lang/en`; komponen baru memiliki test `.rtl.test.jsx`.

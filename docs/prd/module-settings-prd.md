@@ -2,7 +2,8 @@
 
 | | |
 |---|---|
-| **Status** | Draft v1 — keputusan bertanda **PENDING** (Bagian 8) menunggu konfirmasi |
+| **Status** | Draft v1.1 — keputusan bertanda **PENDING** (Bagian 8) menunggu konfirmasi |
+| **Revisi v1.1** | 2026-10-26 — hasil review implementasi: FR-D4 diganti alur fleksibel, FR-D6 disetujui, pajak SO/SI wajib kecuali aturan "tanpa pajak", toleransi DN mencakup Internal Order (D-S11 s.d. D-S15); Q-S6 dan R-S5 ditutup |
 | **Tanggal** | 2026-10-18 |
 | **Cakupan** | Halaman konfigurasi per modul (Finances, Purchase, Sales, Inventory, Asset, Service, Helpdesk, dan seterusnya), penyimpanan setting bertipe, default transaksi, dan kontrol transaksi |
 | **Spec turunan** | `module-settings-foundation`, `module-defaults-and-controls`, `module-conditional-defaults`, `module-settings-other-modules` (lihat Bagian 9); masa depan: `multi-tax-per-line` |
@@ -20,7 +21,7 @@ ERP ini belum memiliki konfigurasi per modul. Satu-satunya penyimpanan setting a
 Program ini menyediakan:
 
 1. **Fondasi setting bertipe**: satu tabel per modul dengan kolom bertipe dan foreign key nyata (akun, pajak, gudang), menggantikan `preferences`, lengkap dengan halaman setting bertab dan menu yang tampil di desk yang relevan (datar bila satu item, submenu bila lebih).
-2. **Default dan kontrol transaksi**: pajak, gudang, dan termin pembayaran default yang mengisi form baru; **default bersyarat** menurut jenis barang; kontrol rantai dokumen (mis. wajib PO sebelum receipt) dan toleransi.
+2. **Default dan kontrol transaksi**: pajak, gudang, dan termin pembayaran default yang mengisi form baru; **default bersyarat** menurut jenis barang; toleransi penerimaan/tagihan/pengiriman berlebih dan kontrol opsional (peringatan/blokir tarif berubah dan harga jual di bawah biaya). Alur dokumen tetap fleksibel: setting tidak mewajibkan urutan PO → Receipt → Invoice (D-S11).
 3. **Setting modul lain yang terbukti dibutuhkan**: default kategori Asset, masa berlaku Quotation, default tiket Helpdesk; Service dikaji dulu; User dan Report belum diusulkan karena tidak ada kebutuhan yang terbukti.
 
 Penentuan **akun**, **posting diskon**, **pembulatan pajak**, dan **selisih kurs** bukan bagian program ini; semuanya milik Finance Engine (lihat Bagian 6).
@@ -36,7 +37,7 @@ Penentuan **akun**, **posting diskon**, **pembulatan pajak**, dan **selisih kurs
 | Menu | Desk memakai `MenuItem` + pivot `desk_menu_item`; grup per desk otomatis datar bila satu anggota | Mekanisme "satu item, banyak desk" sudah ada dan cukup (S-06) |
 | Default transaksi | Pajak hanya ada di baris item (PO, SO, SI, PI, Quotation); gudang hanya di baris item; satu-satunya default adalah `active_tax_id` pada Quotation | Setiap baris harus diisi manual (S-07) |
 | Akun pencatatan | `account_type` di-hardcode di listener GL; user memilih akun di form | Ditangani Finance Engine P2 (S-08) |
-| Rantai dokumen | Receipt/Invoice/DN dapat memuat baris di luar PO/SO (spec `*-off-po-items`, `*-off-source-items`) | Kontrol "wajib dari dokumen sumber" harus selaras dengan fitur itu (S-09) |
+| Rantai dokumen | Receipt/Invoice/DN dapat memuat baris di luar PO/SO (spec `*-off-po-items`, `*-off-source-items`) | Alur tetap fleksibel: tidak ada kontrol "wajib dari dokumen sumber", fitur itu dipertahankan apa adanya (S-09, D-S11) |
 
 ## 3. Tujuan dan Non-Tujuan
 
@@ -45,7 +46,7 @@ Penentuan **akun**, **posting diskon**, **pembulatan pajak**, dan **selisih kurs
 - **G1 — Setting bertipe dan aman:** nilai setting divalidasi, memiliki foreign key, dan tercatat perubahannya.
 - **G2 — Satu tempat per modul:** tiap modul punya halaman setting bertab, tampil di desk Core dan desk yang relevan.
 - **G3 — Default yang mengurangi kesalahan:** pajak, gudang, dan termin default mengisi form baru dan tetap dapat diubah user di dokumen.
-- **G4 — Kontrol yang dapat dikonfigurasi:** rantai dokumen dan toleransi diatur per modul tanpa deploy.
+- **G4 — Kontrol yang dapat dikonfigurasi:** toleransi dan kontrol opsional diatur per modul tanpa deploy; urutan dokumen tidak diwajibkan (D-S11).
 - **G5 — Migrasi tanpa mengganggu operasi:** perilaku aplikasi tidak berubah saat setting pindah dari `preferences`; kontrak `preferences` untuk frontend dan template tetap terjaga.
 - **G6 — Fondasi bagi Finance Engine:** flag, tanggal cutover, dan toggle Finance Engine memiliki rumah bertipe.
 
@@ -80,7 +81,7 @@ flowchart LR
     TBL --> LEG[LegacyPreferenceMap<br/>peta key→value]
     LEG --> FE[Prop `preferences`<br/>Template cetak & email]
     TBL --> DEF[Default form baru<br/>pajak • gudang • termin]
-    TBL --> CTL[Kontrol transaksi<br/>rantai dokumen • toleransi]
+    TBL --> CTL[Kontrol transaksi<br/>toleransi • kontrol opsional]
     MENU[MenuItem + desk_menu_item<br/>grup 'Module Settings'] --> UI
 ```
 
@@ -120,7 +121,7 @@ flowchart TD
 | Kebutuhan | Dimiliki oleh | Catatan |
 |---|---|---|
 | Tabel/model setting, service, halaman, menu, migrasi `preferences` | **S** | Prasyarat semua spec lain |
-| Pajak, gudang, termin pembayaran default; kontrol rantai dokumen; toleransi | **module-defaults-and-controls** | Tidak bergantung Finance Engine |
+| Pajak, gudang, termin pembayaran default; toleransi; kontrol opsional (FR-D6) | **module-defaults-and-controls** | Tidak bergantung Finance Engine; kontrol rantai dokumen (FR-D4) diganti alur fleksibel (D-S11) |
 | Default pajak dan gudang bersyarat (tipe, kategori, status stok barang) | **module-conditional-defaults** | Hasil resolver berbentuk daftar pajak (kait multi-pajak) |
 | Banyak pajak per baris dokumen (pola Odoo) | **multi-tax-per-line** (masa depan, belum ditulis) | Bergantung Finance P3 Bagian B dan conditional-defaults |
 | Penghapusan kolom `accounts.is_contra` | **Finance P2** (Task 14.2) dan penyesuaian **Finance P5** | Keputusan 2026-10-18; bukan bagian program ini |
@@ -175,9 +176,11 @@ Kriteria penerimaan rinci ada di `requirements.md` tiap spec.
 - **FR-D1** Pajak default Purchase dan Sales mengisi baris baru.
 - **FR-D2** Gudang default: tujuan (Purchase), asal (Sales), dan umum (Inventory) mengisi baris baru.
 - **FR-D3** Termin pembayaran default mengisi jadwal pembayaran dokumen baru (PO, SO, PI, SI) dari templat terpilih, memakai konversi templat → jadwal yang sudah ada di komponen `PaymentSchedule`; tanpa kolom baru pada dokumen.
-- **FR-D4** Kontrol rantai dokumen: wajib PO sebelum Receipt/Invoice, wajib Receipt sebelum Invoice, wajib SO sebelum DN/Invoice, wajib DN sebelum Invoice; default **nonaktif** (perilaku sekarang).
+- **FR-D4** ~~Kontrol rantai dokumen (wajib PO sebelum Receipt/Invoice dan seterusnya).~~ **Diganti (D-S11, 2026-10-26): alur dokumen fleksibel.** Setting pada program ini tidak mewajibkan atau melarang Purchase Order, Purchase Receipt, Sales Order, Delivery Note, Internal Order, retur, maupun baris di luar dokumen sumber; fitur baris di luar sumber mempertahankan perilaku dan izin saat ini.
 - **FR-D5** Toleransi penerimaan/tagihan berlebih (%).
-- **FR-D6** Kontrol opsional (perlu konfirmasi sebelum dikerjakan): peringatan atau blokir saat tarif berubah antar dokumen, validasi harga jual di bawah harga beli.
+- **FR-D6** Kontrol opsional, **disetujui pemilik produk 2026-10-26 (D-S12)**: peringatan atau blokir saat tarif berubah antar dokumen, serta peringatan atau blokir saat harga jual di bawah biaya (valuation rate stok). Angka biaya hanya ditampilkan kepada pengguna yang berhak melihat valuation rate (izin StockEntry). Perbandingan tarif dan toleransi nilai dilakukan dalam mata uang dokumen; selisih kurs bukan bagian program ini.
+- **FR-D7** Pajak pada baris Sales Order dan Sales Invoice tetap **wajib**, kecuali aturan default bersyarat eksplisit "tanpa pajak" cocok untuk baris itu (D-S13).
+- **FR-D8** Toleransi pengiriman berlebih Delivery Note berlaku untuk baris yang bersumber dari Sales Order maupun Internal Order (berdasarkan item sumber); batas keras kuantitas consumed item pada baris servis tetap berjalan terpisah (D-S14).
 
 ### 7.3 Default bersyarat (spec conditional-defaults)
 
@@ -200,9 +203,14 @@ Kriteria penerimaan rinci ada di `requirements.md` tiap spec.
 | D-S5 | Satu halaman JSX per modul di atas pembungkus bersama; controller per modul dengan rute `moduleSettings.{modul}.*` | PROPOSED |
 | D-S6 | Menu: grup "Module Settings", satu MenuItem per halaman, multi-desk, aturan datar/submenu memakai mekanisme yang ada | **DECIDED** (aturan dari pemilik produk) |
 | D-S7 | Akun, diskon, pembulatan, selisih kurs dimiliki Finance Engine, bukan program ini | **DECIDED** |
-| D-S8 | Kontrol opsional (FR-D6) dan task opsional lain dikonfirmasi dulu sebelum dikerjakan | **DECIDED** (aturan proyek) |
+| D-S8 | Kontrol opsional (FR-D6) dan task opsional lain dikonfirmasi dulu sebelum dikerjakan | **DECIDED** (aturan proyek); FR-D6 dikonfirmasi 2026-10-26 (D-S12) |
 | D-S9 | Default bersyarat pajak/gudang masuk program sebagai spec `module-conditional-defaults` | **DECIDED** (2026-10-18) |
 | D-S10 | Multi-pajak per baris (pola Odoo) menjadi spec masa depan `multi-tax-per-line`; program ini menyiapkan kait (hasil resolver berbentuk daftar, `TaxInput` per pasangan baris–pajak) | **DECIDED** (arah); teknis PROPOSED |
+| D-S11 | Kontrol rantai dokumen (FR-D4) tidak dibangun; alur dokumen fleksibel. Menutup Q-S6 dan R-S5 | **DECIDED** (2026-10-26) |
+| D-S12 | Kontrol opsional FR-D6 disetujui, pembanding biaya = valuation rate stok (bukan "harga beli"); angka biaya hanya bagi pemegang izin valuation rate; perbandingan dalam mata uang dokumen bila mata uang sumber dan invoice sama, selisih kurs tetap milik Finance P4/P6 | **DECIDED** (2026-10-26) |
+| D-S13 | Pajak baris Sales Order/Invoice wajib kecuali aturan bersyarat "tanpa pajak" cocok (menjaga Prinsip 4: tanpa aturan, perilaku identik dengan sebelum program ini) | **DECIDED** (2026-10-26) |
+| D-S14 | Toleransi pengiriman Delivery Note mencakup Sales Order dan Internal Order (berdasarkan item sumber); batas consumed item tetap | **DECIDED** (2026-10-26) |
+| D-S15 | Aturan default bersyarat: `item_type` divalidasi terhadap nilai `items.type` yang sah; aturan pajak hanya untuk jenis dokumen yang memiliki pajak per baris (PO, PI, SO, SI, Quotation) | **DECIDED** (2026-10-26) |
 
 ### Pertanyaan terbuka
 
@@ -213,7 +221,7 @@ Kriteria penerimaan rinci ada di `requirements.md` tiap spec.
 | Q-S3 | Pemetaan desk yang relevan per halaman setting (usulan di spec S, dapat diubah) | S |
 | ~~Q-S4~~ | Dijawab (verifikasi kode): dokumen tidak menyimpan penaut templat, tetapi komponen `PaymentSchedule` mengonversi templat menjadi baris jadwal; default termin masuk tanpa kolom baru | — |
 | Q-S5 | Apakah ada kunci `preferences` lain di produksi di luar yang di-seed (mis. `mail*`)? | S, migrasi |
-| Q-S6 | Perlakuan kontrol rantai dokumen terhadap baris di luar sumber (`*-off-po-items`) | defaults |
+| ~~Q-S6~~ | Dijawab 2026-10-26 (D-S11): tidak ada kontrol rantai dokumen, sehingga baris di luar sumber mempertahankan perilaku sekarang | — |
 | ~~Q-S7~~ | Dijawab 2026-10-18: dibutuhkan; menjadi spec `module-conditional-defaults` | — |
 | Q-S8 | Perlukah pajak default menurut pelanggan/pemasok (mirip *fiscal position* Odoo)? | conditional-defaults (lanjutan) |
 
@@ -224,7 +232,7 @@ Estimasi kasar dalam minggu-orang untuk satu developer yang paham codebase, keti
 | Spec | Tujuan | Bergantung pada | Estimasi |
 |---|---|---|---|
 | [`module-settings-foundation`](../../.kiro/specs/module-settings-foundation/requirements.md) | Tabel setting bertipe, service, migrasi `preferences`, halaman, menu, izin | — | 3–5 |
-| [`module-defaults-and-controls`](../../.kiro/specs/module-defaults-and-controls/requirements.md) | Pajak/gudang/termin default; kontrol rantai dokumen; toleransi | S | 3–4 |
+| [`module-defaults-and-controls`](../../.kiro/specs/module-defaults-and-controls/requirements.md) | Pajak/gudang/termin default; toleransi; kontrol opsional FR-D6 (kontrol rantai dokumen diganti alur fleksibel, D-S11) | S | 3–4 |
 | [`module-conditional-defaults`](../../.kiro/specs/module-conditional-defaults/requirements.md) | Aturan pajak/gudang default bersyarat (jenis dokumen, tipe/kategori/status stok barang), endpoint resolusi, tab Aturan Default | S, defaults | 2–3 |
 | [`module-settings-other-modules`](../../.kiro/specs/module-settings-other-modules/requirements.md) | Default kategori Asset, masa berlaku Quotation, default tiket Helpdesk, kajian Service (draft, divalidasi pada Task 1) | S | 2–3 |
 
@@ -240,7 +248,7 @@ Finance Engine (P0–P6) dijadwalkan terpisah di [`finance-engine-prd.md`](finan
 | R-S2 | Placeholder template cetak/email memakai kunci lama | Dokumen cetak/email rusak | `LegacyPreferenceMap` 1:1; test parity peta lama vs baru |
 | R-S3 | Kunci `preferences` tak dikenal di produksi hilang | Kehilangan data | Migrasi menyalin yang dikenal, melaporkan sisanya, tidak menghapus; pensiun GATED |
 | R-S4 | `initPermissions()` menambah kolom tak terduga pada model setting (temuan F-12 Finance Engine) | Skema menyimpang | Test khusus; deklarasi kolom eksplisit di migrasi |
-| R-S5 | Kontrol rantai dokumen bentrok dengan fitur baris di luar sumber | Dokumen valid ditolak | Default nonaktif; keputusan Q-S6; test per fitur |
+| ~~R-S5~~ | ~~Kontrol rantai dokumen bentrok dengan fitur baris di luar sumber~~ | — | Tidak berlaku: kontrol rantai dokumen tidak dibangun (D-S11) |
 | R-S6 | Default mengisi nilai yang tidak diinginkan di form lama | Data salah diam-diam | Hanya pada dokumen baru; nilai kosong bila setting kosong; user bisa mengubah |
 | R-S7 | Scope melebar ke akun/diskon | Tumpang tindih dengan Finance Engine | D-S7 dan Bagian 6.1 menjadi batas |
 | R-S8 | Multi-pajak per baris kelak memaksa pengerjaan ulang default pajak (satu `tax_id` → himpunan) | Migrasi aturan/setting | Hasil resolver sudah berbentuk daftar; `TaxInput` per pasangan baris–pajak; perubahan terbatas pada penyimpanan aturan dan form |

@@ -50,7 +50,7 @@ Spec kedua program **Konfigurasi Modul** (lihat `docs/prd/module-settings-prd.md
 
 1. WHEN baris item baru ditambahkan pada dokumen **baru** (Purchase Order, Sales Order, Purchase Invoice, Sales Invoice, Quotation), THE form SHALL mengisi `tax_id` dengan pajak default modulnya bila field kosong; Purchase memakai `purchase_settings.default_tax_id`, Sales dan Quotation memakai `sales_settings.default_tax_id`.
 2. THE default SHALL tidak menimpa nilai yang sudah ada: baris yang berasal dari dokumen sumber (konversi PR→PO, PO→Receipt/Invoice, SO→DN/Invoice, duplikasi) mempertahankan pajaknya.
-3. THE user SHALL tetap dapat mengubah atau mengosongkan pajak pada baris.
+3. THE user SHALL tetap dapat mengubah pajak pada baris. Pada Sales Order dan Sales Invoice, pajak SHALL tetap wajib seperti sebelum spec ini; baris boleh tanpa pajak hanya bila aturan default bersyarat eksplisit "tanpa pajak" (spec `module-conditional-defaults` Requirement 1.5) cocok untuk baris itu (PRD D-S13). Server menolak (422) simpan Sales Order/Invoice tanpa pajak dan tanpa aturan tersebut.
 4. IF pajak default dinonaktifkan atau dihapus, THEN THE default SHALL tidak mengisi apa pun dan halaman setting SHALL menampilkan peringatan.
 5. THE `QuotationController` yang sudah memakai pajak default SHALL tetap berperilaku sama (sumber nilai kini `sales_settings.default_tax_id`).
 6. THE dokumen yang sudah ada dan baris yang sudah tersimpan SHALL tidak diubah.
@@ -89,7 +89,7 @@ Spec kedua program **Konfigurasi Modul** (lihat `docs/prd/module-settings-prd.md
 
 1. THE sistem SHALL menyediakan halaman **Purchase Settings**, **Sales Settings** (melengkapi halaman dari spec fondasi), dan **Inventory Settings** memakai `ModuleSettingsPage`, terdaftar di registry dengan desk menurut pemetaan spec fondasi.
 2. THE halaman Purchase dan Sales SHALL memiliki tab **Default** (pajak, gudang, termin) dan **Transaksi** (toleransi); halaman Inventory memiliki tab **Default**.
-3. THE pemilih pajak, gudang, dan termin SHALL hanya menampilkan baris aktif.
+3. THE pemilih pajak, gudang, dan termin SHALL hanya menampilkan baris aktif. Karena setting bersifat global (PRD D-S2), pemilih gudang pada halaman setting SHALL mencakup gudang lintas cabang (tidak ber-scope cabang pengguna), dan halaman memuat gudang tersimpan tanpa scope cabang sehingga nilai milik cabang lain tidak tampak kosong atau memicu peringatan palsu.
 4. THE halaman SHALL menampilkan peringatan bila referensi default nonaktif/terhapus dan keterangan singkat perilaku tiap toleransi.
 5. THE izin halaman mengikuti model setting (`read`/`write`) dan perubahan tercatat audit (spec fondasi).
 6. THE teks UI SHALL memakai kunci terjemahan `lang/id` dan `lang/en`; komponen baru memiliki test `.rtl.test.jsx`.
@@ -100,7 +100,7 @@ Spec kedua program **Konfigurasi Modul** (lihat `docs/prd/module-settings-prd.md
 
 #### Acceptance Criteria
 
-1. THE setting pada spec ini SHALL NOT mewajibkan atau melarang Purchase Order, Purchase Receipt, Sales Order, Delivery Note, Internal Order, retur, maupun baris di luar dokumen sumber.
+1. THE setting pada spec ini SHALL NOT mewajibkan atau melarang Purchase Order, Purchase Receipt, Sales Order, Delivery Note, Internal Order, retur, maupun baris di luar dokumen sumber. (Menggantikan FR-D4 "kontrol rantai dokumen" pada PRD; keputusan D-S11, 2026-10-26; Q-S6 dan R-S5 ditutup.)
 2. THE fitur baris di luar sumber yang sudah ada SHALL mempertahankan perilaku dan izin saat ini.
 3. THE perubahan default/toleransi SHALL tidak mengubah dokumen yang sudah dibuat atau memaksakan sumber dokumen baru.
 
@@ -110,8 +110,8 @@ Spec kedua program **Konfigurasi Modul** (lihat `docs/prd/module-settings-prd.md
 
 #### Acceptance Criteria
 
-1. THE `over_receipt_tolerance_percent` SHALL mengizinkan kuantitas Purchase Receipt per baris sampai `sisa × (1 + persen/100)`; `over_delivery_tolerance_percent` serupa untuk Delivery Note.
-2. THE `over_billing_tolerance_percent` SHALL mengizinkan nilai/kuantitas tagihan Purchase/Sales Invoice sampai `dokumen sumber × (1 + persen/100)`.
+1. THE `over_receipt_tolerance_percent` SHALL mengizinkan kuantitas Purchase Receipt per baris sampai `sisa × (1 + persen/100)`; `over_delivery_tolerance_percent` serupa untuk Delivery Note, berlaku untuk baris yang bersumber dari Sales Order maupun Internal Order (berdasarkan `referenceable` item sumber; PRD D-S14). Batas keras kuantitas consumed item pada baris servis/part Internal Order tetap berjalan terpisah dan tidak dilonggarkan toleransi. Kuantitas diperbandingkan dalam satu satuan (satuan stok) dan baris pengganti (`replaced_quantity`) dijumlahkan dengan kuantitas biasa per item PO dalam satu batas.
+2. THE `over_billing_tolerance_percent` SHALL mengizinkan nilai/kuantitas tagihan Purchase/Sales Invoice sampai `dokumen sumber × (1 + persen/100)`. Nilai tagihan memakai basis neto (`basic_amount − discount_amount`) yang sama saat simpan dan approve, dan nilai yang sudah ditagih dihitung dari invoice approved (retur dikurangkan) pada baris sumber yang sama. Perbandingan dilakukan dalam mata uang dokumen bila mata uang sumber dan invoice sama; bila berbeda, dikonversi ke mata uang dasar (PRD D-S12). Selisih kurs bukan bagian spec ini.
 3. THE nilai `0` SHALL menegakkan batas ketat tanpa kelebihan; nilai null/undefined SHALL tidak membatasi transaksi.
 4. THE validasi SHALL dilakukan server-side saat simpan dan diulang di bawah lock saat approve, mengikuti pola validasi sisa yang ada (mis. `ReturnAgainstItemRules`, validasi `received_quantity`).
 5. THE pesan galat SHALL menyebut batas yang berlaku (sisa dan toleransi).
@@ -122,13 +122,14 @@ Spec kedua program **Konfigurasi Modul** (lihat `docs/prd/module-settings-prd.md
 
 #### Acceptance Criteria
 
-1. THE `rate_change_action` SHALL menyediakan `none`/`warn`/`stop` pada Purchase dan Sales untuk membandingkan Purchase Invoice dengan tarif Purchase Order sumber dan Sales Invoice dengan tarif Sales Order sumber; retur dan baris tanpa tarif PO sumber SHALL dikecualikan.
+1. THE `rate_change_action` SHALL menyediakan `none`/`warn`/`stop` pada Purchase dan Sales untuk membandingkan Purchase Invoice dengan tarif Purchase Order sumber dan Sales Invoice dengan tarif Sales Order sumber; retur dan baris tanpa tarif PO sumber SHALL dikecualikan. Perbandingan tarif dilakukan dalam mata uang dokumen bila mata uang sumber dan invoice sama (selisih kurs tidak dianggap perubahan tarif); bila berbeda, dikonversi ke mata uang dasar.
 2. THE `below_cost_action` SHALL menyediakan `none`/`warn`/`stop` pada Sales untuk membandingkan Sales Invoice stok terhadap valuation rate terkini di gudang sumber ketika posting; diskon, mata uang dasar, dan conversion factor SHALL diperhitungkan.
 3. THE aksi `warn` SHALL mengizinkan transaksi dan menampilkan warning kepada pengguna; aksi `stop` SHALL memblokir perubahan yang melanggar kontrol.
 4. THE kontrol harga SHALL berawal `none`; retur, non-stok/aset, baris tanpa gudang sumber, dan baris tanpa valuation rate SHALL dikecualikan dari kontrol di bawah biaya.
 5. THE kontrol stok negatif SHALL tetap tidak diaktifkan karena jalur saat ini tidak aman dikonfigurasi tanpa desain valuasi baru.
+6. THE pesan peringatan di bawah biaya SHALL menampilkan angka biaya (valuation rate) hanya kepada pengguna yang berhak melihat valuation rate (izin write/create StockEntry); pengguna lain menerima pesan tanpa angka biaya, dan aksi `warn`/`stop` tetap berfungsi sama.
 
-**Persetujuan pemilik produk**: cakupan Task 7.1 dan 7.2 disetujui pada 2026-10-20; perbandingan harga di bawah biaya menggunakan valuation rate gudang saat posting dan aksi `none/warn/stop`.
+**Persetujuan pemilik produk**: cakupan Task 7.1 dan 7.2 disetujui pada 2026-10-20 (dicatat implementer) dan **dikonfirmasi langsung oleh pemilik produk pada 2026-10-26** (PRD D-S12); perbandingan harga di bawah biaya menggunakan valuation rate gudang saat posting dan aksi `none/warn/stop`.
 
 ### Requirement 9: Non-fungsional
 
