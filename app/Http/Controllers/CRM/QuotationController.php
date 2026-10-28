@@ -12,6 +12,7 @@ use App\Models\CRM\Opportunity;
 use App\Models\CRM\Quotation;
 use App\Models\CRM\QuotationSectionTemplate;
 use App\Services\Core\Setting\DocumentDefaultsResolver;
+use App\Services\Core\Setting\OtherModuleDefaultsResolver;
 use App\Services\Core\Setting\SettingsService;
 use App\Services\CRM\QuotationService;
 use Illuminate\Database\Eloquent\Collection;
@@ -83,8 +84,11 @@ class QuotationController extends Controller {
         $this->setBreadcrumbs('crm.quotation.new');
 
         return Inertia::render('CRM/Quotations/Show', [
-            'defaultData'      => $defaultData ?? $preferenceDefaults,
-            'defaults'         => app(DocumentDefaultsResolver::class)->defaultsFor(DefaultsDocumentType::Quotation),
+            'defaultData' => $defaultData ?? $preferenceDefaults,
+            'defaults'    => [
+                ...app(DocumentDefaultsResolver::class)->defaultsFor(DefaultsDocumentType::Quotation),
+                'quotation_validity_days' => app(OtherModuleDefaultsResolver::class)->quotationValidityDays(),
+            ],
             'sectionTemplates' => $this->sectionTemplates(),
         ]);
     }

@@ -8,6 +8,8 @@ return [
     'default_tax'                     => 'Pajak Default',
     'default_source_warehouse'        => 'Gudang Asal Default',
     'default_payment_term_template'   => 'Template Termin Pembayaran Default',
+    'quotation_validity_days'         => 'Masa Berlaku Quotation (Hari)',
+    'quotation_validity_days_help'    => 'Pada Quotation baru, Berlaku Hingga = Tanggal + jumlah hari ini dan mengikuti Tanggal sampai Anda mengubahnya. Kosongkan agar Berlaku Hingga tetap kosong.',
     'transaction'                     => ['title' => 'Transaksi'],
     'over_delivery_tolerance_percent' => 'Toleransi Kelebihan Pengiriman',
     'over_billing_tolerance_percent'  => 'Toleransi Kelebihan Penagihan',

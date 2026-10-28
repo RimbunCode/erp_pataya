@@ -4,7 +4,7 @@ import QuotationSections, {
   copyTemplatesToSections,
   templatesForType,
 } from "./QuotationSections";
-import React, { useMemo } from "react";
+import React, { useMemo, useState } from "react";
 
 import CustomerLinkModel from "@/Pages/Sales/Customers/CustomerLinkModel";
 import DatetimePicker from "@/Components/DatetimePicker";
@@ -17,6 +17,7 @@ import Select from "@/Components/Select";
 import { Textarea } from "@/Components/ui/textarea";
 import { calculateArray } from "@/lib/utils";
 import { EMPTY_DEFAULTS, useDocumentDefaults } from "@/lib/documentDefaults";
+import { useFollowingDate } from "@/lib/otherModuleDefaults";
 import { useLaravelReactI18n } from "laravel-react-i18n";
 import { usePage } from "@inertiajs/react";
 
@@ -29,10 +30,15 @@ export default function Form() {
   const pageProps = usePage().props;
   const sectionTemplates = pageProps.sectionTemplates;
   const defaults = pageProps.defaults ?? EMPTY_DEFAULTS;
+  // Masa berlaku (setting quotation_validity_days): valid_until = date + N hari pada dokumen
+  // baru, ikut default form dan mengikuti `date` sampai user mengubahnya sendiri.
+  const validity = useFollowingDate(defaults.quotation_validity_days ?? null);
+  const [initialDate] = useState(() => new Date());
   const { data, setData, disabled, isCreate } = useFormPage(
     {
-      date: new Date(),
+      date: initialDate,
       type: "spare_part",
+      ...validity.initialPatch(initialDate, "valid_until"),
     },
     { trackDefaultValue: false },
   );
@@ -97,7 +103,15 @@ export default function Form() {
             <DatetimePicker
               type="datetime"
               value={data?.date}
-              onValueChange={(val) => setData("date", val)}
+              onValueChange={(val) =>
+                setData((prev) => ({
+                  ...prev,
+                  date: val,
+                  ...(isCreate
+                    ? validity.followPatch(val, prev.valid_until, "valid_until")
+                    : {}),
+                }))
+              }
               disabled={disabled}
             />
           </FormInput>
@@ -143,7 +157,10 @@ export default function Form() {
             <DatetimePicker
               type="date"
               value={data?.valid_until}
-              onValueChange={(val) => setData("valid_until", val)}
+              onValueChange={(val) => {
+                validity.markTouched();
+                setData("valid_until", val);
+              }}
               disabled={disabled}
             />
           </FormInput>

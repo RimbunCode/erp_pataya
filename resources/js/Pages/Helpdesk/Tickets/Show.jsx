@@ -208,7 +208,7 @@ export default function Show({ ticket, defaultData }) {
         isCreate={!ticket}
         ignoreDraft={defaultData}
         name="ticket"
-        disabled
+        disabled={!!ticket}
         deleteable={false}
         defaultValues={defaultData}
         controls={() => {

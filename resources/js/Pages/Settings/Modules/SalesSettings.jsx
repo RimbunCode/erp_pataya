@@ -184,6 +184,24 @@ export default function SalesSettings({
                   {t("sales.setting.reference_unavailable")}
                 </p>
               )}
+            <FormInput
+              name="quotation_validity_days"
+              label={t("sales.setting.quotation_validity_days")}
+            >
+              <NumberInput
+                disabled={disabled}
+                value={data.quotation_validity_days ?? ""}
+                decimalScale={0}
+                min={0}
+                className="text-left"
+                onValueChange={(value) =>
+                  setData("quotation_validity_days", value)
+                }
+              />
+            </FormInput>
+            <p className="-mt-3 text-sm text-muted-foreground">
+              {t("sales.setting.quotation_validity_days_help")}
+            </p>
           </div>
         ) : (
           <div

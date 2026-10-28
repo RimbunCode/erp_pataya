@@ -8,6 +8,10 @@ import React from "react";
 import Select from "@/Components/Select";
 import { Slider, SliderThumb } from "@/Components/ui/slider";
 import TiptapEditor from "@/Components/TiptapEditor";
+import {
+  EMPTY_OTHER_DEFAULTS,
+  useFollowingDate,
+} from "@/lib/otherModuleDefaults";
 import { useLaravelReactI18n } from "laravel-react-i18n";
 import { usePage } from "@inertiajs/react";
 
@@ -17,13 +21,18 @@ const STATUS_OPTIONS = ["new", "in_progress", "on_hold", "resolved", "done"];
 
 function Form() {
   const { t } = useLaravelReactI18n();
-  const { data, setData, defaultData } = useFormPage({
-    type: "task",
-    priority: "medium",
+  const pageProps = usePage().props;
+  const defaults = pageProps.defaults ?? EMPTY_OTHER_DEFAULTS;
+  // Batas waktu (setting default_due_days): due_date = start_date + N hari pada tiket baru,
+  // mengikuti start_date sampai user mengubahnya sendiri.
+  const dueDate = useFollowingDate(defaults.due_days ?? null);
+  const { data, setData, defaultData, isCreate } = useFormPage({
+    type: defaults.type ?? "task",
+    priority: defaults.priority ?? "medium",
     status: "new",
     progress: 0,
   });
-  const ticket = usePage().props.ticket;
+  const ticket = pageProps.ticket;
   const imageUploadUrl = ticket
     ? window.route("tickets.addFile", ticket.id)
     : null;
@@ -121,7 +130,15 @@ function Form() {
               <DatetimePicker
                 type="datetime"
                 value={data.start_date}
-                onValueChange={(val) => setData("start_date", val)}
+                onValueChange={(val) =>
+                  setData((prev) => ({
+                    ...prev,
+                    start_date: val,
+                    ...(isCreate
+                      ? dueDate.followPatch(val, prev.due_date, "due_date")
+                      : {}),
+                  }))
+                }
               />
             </FormInput>
 
@@ -132,7 +149,10 @@ function Form() {
               <DatetimePicker
                 type="datetime"
                 value={data.due_date}
-                onValueChange={(val) => setData("due_date", val)}
+                onValueChange={(val) => {
+                  dueDate.markTouched();
+                  setData("due_date", val);
+                }}
               />
             </FormInput>
           </div>

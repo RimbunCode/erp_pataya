@@ -9,6 +9,7 @@ use App\Http\Requests\Asset\CompleteAssetDataRequest;
 use App\Models\Asset\Asset;
 use App\Models\Core\CoreSetting;
 use App\Services\Asset\AssetService;
+use App\Services\Core\Setting\OtherModuleDefaultsResolver;
 use App\Services\Core\Setting\SettingsService;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
@@ -43,6 +44,7 @@ class AssetController extends Controller {
 
         return Inertia::render('Asset/Assets/Show', [
             'companyName' => app(SettingsService::class)->get(CoreSetting::class)->company_name,
+            'defaults'    => app(OtherModuleDefaultsResolver::class)->forAsset(),
         ]);
     }
 

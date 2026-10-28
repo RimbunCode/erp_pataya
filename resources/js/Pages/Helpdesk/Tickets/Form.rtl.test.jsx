@@ -17,6 +17,7 @@ window.route = (name, id) => `${name}/${id}`;
 
 let formPageSeed = {};
 let formPageDefaultData = undefined;
+let formPageIsCreate = false;
 vi.mock("@/Pages/Core/FormPage", async () => {
   const React = await import("react");
   return {
@@ -34,7 +35,12 @@ vi.mock("@/Pages/Core/FormPage", async () => {
           setDataState((prev) => ({ ...prev, ...keyOrFn }));
         }
       };
-      return { data, setData, defaultData: formPageDefaultData };
+      return {
+        data,
+        setData,
+        defaultData: formPageDefaultData,
+        isCreate: formPageIsCreate,
+      };
     },
     FormPageContent: ({ children }) => <div>{children}</div>,
   };
@@ -91,7 +97,14 @@ vi.mock("@/Pages/Users/ManageUsers/AssignableLinkModel", () => ({
 }));
 
 vi.mock("@/Components/DatetimePicker", () => ({
-  default: () => <div data-testid="datetime-picker" />,
+  default: ({ value, onValueChange }) => (
+    <button
+      type="button"
+      data-testid="datetime-picker"
+      data-value={value ? new Date(value).getTime() : ""}
+      onClick={() => onValueChange?.(new Date(2030, 5, 20, 8, 0))}
+    />
+  ),
 }));
 
 const tiptapProps = vi.fn();
@@ -110,6 +123,7 @@ describe("Helpdesk Tickets Form", () => {
   beforeEach(() => {
     formPageSeed = {};
     formPageDefaultData = undefined;
+    formPageIsCreate = false;
     usePageMock.mockReturnValue({ props: { ticket: null } });
     tiptapProps.mockReset();
   });
@@ -239,5 +253,122 @@ describe("Helpdesk Tickets Form", () => {
     await user.type(input, "Bug login");
 
     expect(input).toHaveValue("Bug login");
+  });
+  describe("default tiket dari setting Helpdesk", () => {
+    const startPicker = () => screen.getAllByTestId("datetime-picker")[0];
+    const duePicker = () => screen.getAllByTestId("datetime-picker")[1];
+    const mount = (defaults, seed = {}) => {
+      formPageIsCreate = true;
+      formPageSeed = seed;
+      usePageMock.mockReturnValue({ props: { ticket: null, defaults } });
+      renderForm(<Form />);
+    };
+    const selectValue = (name) =>
+      within(screen.getByTestId(`forminput-${name}`)).getByRole("combobox");
+
+    it("tipe dan prioritas diisi dari setting pada tiket baru", () => {
+      mount({ type: "bug_problem", priority: "critical", due_days: null });
+
+      expect(selectValue("type")).toHaveValue("bug_problem");
+      expect(selectValue("priority")).toHaveValue("critical");
+    });
+
+    it("tanpa setting tetap memakai default bawaan form", () => {
+      mount({ type: null, priority: null, due_days: null });
+
+      expect(selectValue("type")).toHaveValue("task");
+      expect(selectValue("priority")).toHaveValue("medium");
+      expect(duePicker()).toHaveAttribute("data-value", "");
+    });
+
+    it("hanya satu dari tipe/prioritas diisi: yang lain tetap bawaan", () => {
+      mount({ type: "question", priority: null, due_days: null });
+
+      expect(selectValue("type")).toHaveValue("question");
+      expect(selectValue("priority")).toHaveValue("medium");
+    });
+
+    it("due_date kosong selama start_date belum dipilih, walau ada setting hari", () => {
+      mount({ type: null, priority: null, due_days: 3 });
+
+      expect(duePicker()).toHaveAttribute("data-value", "");
+    });
+
+    it("start_date yang dipilih kemudian mengisi due_date, dan edit manual menghentikan pengisian", async () => {
+      const user = userEvent.setup({ delay: null });
+      mount({ type: null, priority: null, due_days: 2 });
+
+      await user.click(startPicker());
+      expect(duePicker()).toHaveAttribute(
+        "data-value",
+        String(new Date(2030, 5, 22, 8, 0).getTime()),
+      );
+
+      await user.click(duePicker());
+      expect(duePicker()).toHaveAttribute(
+        "data-value",
+        String(new Date(2030, 5, 20, 8, 0).getTime()),
+      );
+    });
+
+    it("due_date yang sudah ada tidak ditimpa saat start_date dipilih", async () => {
+      const user = userEvent.setup({ delay: null });
+      const existing = new Date(2031, 0, 5, 9, 0);
+      mount(
+        { type: null, priority: null, due_days: 3 },
+        { due_date: existing },
+      );
+
+      await user.click(startPicker());
+
+      expect(duePicker()).toHaveAttribute(
+        "data-value",
+        String(existing.getTime()),
+      );
+    });
+
+    it("tanpa setting hari, memilih start_date tidak mengisi due_date", async () => {
+      const user = userEvent.setup({ delay: null });
+      mount({ type: null, priority: null, due_days: null });
+
+      await user.click(startPicker());
+
+      expect(duePicker()).toHaveAttribute("data-value", "");
+    });
+
+    it("start_date pada tiket yang sudah ada tidak mengisi due_date", async () => {
+      const user = userEvent.setup({ delay: null });
+      formPageIsCreate = false;
+      formPageDefaultData = { id: 1 };
+      usePageMock.mockReturnValue({
+        props: { ticket: { id: 1 }, defaults: { due_days: 3 } },
+      });
+      renderForm(<Form />);
+
+      await user.click(startPicker());
+
+      expect(duePicker()).toHaveAttribute("data-value", "");
+    });
+
+    it("tiket yang sudah ada (bukan create) tidak diubah oleh setting", () => {
+      formPageIsCreate = false;
+      formPageDefaultData = { id: 1 };
+      formPageSeed = {
+        type: "other",
+        priority: "low",
+        start_date: new Date(2030, 5, 10, 9, 0),
+      };
+      usePageMock.mockReturnValue({
+        props: {
+          ticket: { id: 1 },
+          defaults: { type: "bug_problem", priority: "critical", due_days: 3 },
+        },
+      });
+      renderForm(<Form />);
+
+      expect(selectValue("type")).toHaveValue("other");
+      expect(selectValue("priority")).toHaveValue("low");
+      expect(duePicker()).toHaveAttribute("data-value", "");
+    });
   });
 });

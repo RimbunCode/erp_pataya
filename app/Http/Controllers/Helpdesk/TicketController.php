@@ -7,6 +7,7 @@ use App\Http\Requests\Helpdesk\TicketRequest;
 use App\Http\Requests\Helpdesk\TicketResponseRequest;
 use App\Models\Helpdesk\Ticket;
 use App\Services\Core\BufferedAttachmentService;
+use App\Services\Core\Setting\OtherModuleDefaultsResolver;
 use App\Services\Helpdesk\TicketService;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
@@ -41,7 +42,9 @@ class TicketController extends Controller {
     public function create() {
         $this->setBreadcrumbs();
 
-        return Inertia::render('Helpdesk/Tickets/Show');
+        return Inertia::render('Helpdesk/Tickets/Show', [
+            'defaults' => app(OtherModuleDefaultsResolver::class)->forTicket(),
+        ]);
     }
 
     public function store(TicketRequest $request) {

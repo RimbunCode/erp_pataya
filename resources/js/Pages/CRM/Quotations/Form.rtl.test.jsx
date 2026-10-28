@@ -1,4 +1,4 @@
-import { describe, expect, it, vi, beforeEach } from "vitest";
+import { describe, expect, it, vi, beforeEach, afterEach } from "vitest";
 import React from "react";
 import { act, render, screen, waitFor, within } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
@@ -68,7 +68,14 @@ vi.mock("@/Components/FormInput", () => ({
 }));
 
 vi.mock("@/Components/DatetimePicker", () => ({
-  default: () => <div data-testid="datetime-picker" />,
+  default: ({ value, onValueChange }) => (
+    <button
+      type="button"
+      data-testid="datetime-picker"
+      data-value={value ? new Date(value).getTime() : ""}
+      onClick={() => onValueChange?.(new Date(2031, 0, 10, 12, 0))}
+    />
+  ),
 }));
 
 vi.mock("@/Pages/Sales/Customers/CustomerLinkModel", () => ({
@@ -759,6 +766,98 @@ describe("CRM Quotations Form", () => {
       await userEvent.click(screen.getByTestId("type-option-spare_part"));
 
       expect(sectionTitles()).toEqual([]);
+    });
+  });
+  describe("masa berlaku dari setting Sales (quotation_validity_days)", () => {
+    // Urutan picker pada form: [0] Tanggal, [1] Berlaku Hingga.
+    const datePicker = () => screen.getAllByTestId("datetime-picker")[0];
+    const validUntilPicker = () => screen.getAllByTestId("datetime-picker")[1];
+    const mount = (days, seed = {}) => {
+      formPageSeed = seed;
+      usePageMock.mockReturnValue({
+        props: {
+          sectionTemplates: [],
+          defaults: { quotation_validity_days: days },
+        },
+      });
+      renderForm(<Form />);
+    };
+
+    beforeEach(() => {
+      vi.useFakeTimers({ toFake: ["Date"] });
+      vi.setSystemTime(new Date(2030, 2, 1, 12, 0));
+    });
+    afterEach(() => {
+      vi.useRealTimers();
+    });
+
+    it("valid_until = date + N hari pada Quotation baru, tanpa menghapus default lain", () => {
+      mount(14);
+
+      expect(validUntilPicker()).toHaveAttribute(
+        "data-value",
+        String(new Date(2030, 2, 15, 12, 0).getTime()),
+      );
+      expect(datePicker()).toHaveAttribute(
+        "data-value",
+        String(new Date(2030, 2, 1, 12, 0).getTime()),
+      );
+      expect(currentFormData.type).toBe("spare_part");
+    });
+
+    it("0 hari menyamakan valid_until dengan date", () => {
+      mount(0);
+
+      expect(validUntilPicker()).toHaveAttribute(
+        "data-value",
+        String(new Date(2030, 2, 1, 12, 0).getTime()),
+      );
+    });
+
+    it("tanpa setting valid_until tetap kosong", () => {
+      mount(null);
+
+      expect(validUntilPicker()).toHaveAttribute("data-value", "");
+    });
+
+    it("tanpa prop defaults tidak error dan valid_until tetap kosong", () => {
+      usePageMock.mockReturnValue({ props: { sectionTemplates: [] } });
+      renderForm(<Form />);
+
+      expect(validUntilPicker()).toHaveAttribute("data-value", "");
+    });
+
+    it("mengubah date memindahkan valid_until selama belum disentuh manual", async () => {
+      const user = userEvent.setup({ delay: null });
+      mount(14);
+
+      await user.click(datePicker());
+
+      expect(validUntilPicker()).toHaveAttribute(
+        "data-value",
+        String(new Date(2031, 0, 24, 12, 0).getTime()),
+      );
+    });
+
+    it("berhenti mengikuti date setelah valid_until diubah manual", async () => {
+      const user = userEvent.setup({ delay: null });
+      mount(14);
+
+      await user.click(validUntilPicker());
+      const manual = validUntilPicker().getAttribute("data-value");
+      await user.click(datePicker());
+
+      expect(manual).toBe(String(new Date(2031, 0, 10, 12, 0).getTime()));
+      expect(validUntilPicker()).toHaveAttribute("data-value", manual);
+    });
+
+    it("mengubah date tanpa setting tidak mengisi valid_until", async () => {
+      const user = userEvent.setup({ delay: null });
+      mount(null);
+
+      await user.click(datePicker());
+
+      expect(validUntilPicker()).toHaveAttribute("data-value", "");
     });
   });
 });
