@@ -3,7 +3,7 @@
 | | |
 |---|---|
 | **Status** | Draft v1.1 — keputusan bertanda **PENDING** (Bagian 8) menunggu konfirmasi |
-| **Revisi v1.1** | 2026-10-26 — hasil review implementasi: FR-D4 diganti alur fleksibel, FR-D6 disetujui, pajak SO/SI wajib kecuali aturan "tanpa pajak", toleransi DN mencakup Internal Order (D-S11 s.d. D-S15); 2026-10-27: aturan "tanpa pajak" dibatasi untuk SO/SI (D-S18); Q-S6 dan R-S5 ditutup; `module-settings-other-modules` divalidasi, Service dikeluarkan, Q-S2 tidak berlaku (D-S19, D-S20) |
+| **Revisi v1.1** | 2026-10-26 — hasil review implementasi: FR-D4 diganti alur fleksibel, FR-D6 disetujui, pajak SO/SI wajib kecuali aturan "tanpa pajak", toleransi DN mencakup Internal Order (D-S11 s.d. D-S15); 2026-10-27: aturan "tanpa pajak" dibatasi untuk SO/SI (D-S18); Q-S6 dan R-S5 ditutup; `module-settings-other-modules` divalidasi, Service dikeluarkan, Q-S2 tidak berlaku (D-S19, D-S20); 2026-10-28: default Asset mengisi form Aset (D-S21); form Tiket baru dibuka kuncinya (D-S22) |
 | **Tanggal** | 2026-10-18 |
 | **Cakupan** | Halaman konfigurasi per modul (Finances, Purchase, Sales, Inventory, Asset, Service, Helpdesk, dan seterusnya), penyimpanan setting bertipe, default transaksi, dan kontrol transaksi |
 | **Spec turunan** | `module-settings-foundation`, `module-defaults-and-controls`, `module-conditional-defaults`, `module-settings-other-modules` (lihat Bagian 9); masa depan: `multi-tax-per-line` |
@@ -22,7 +22,7 @@ Program ini menyediakan:
 
 1. **Fondasi setting bertipe**: satu tabel per modul dengan kolom bertipe dan foreign key nyata (akun, pajak, gudang), menggantikan `preferences`, lengkap dengan halaman setting bertab dan menu yang tampil di desk yang relevan (datar bila satu item, submenu bila lebih).
 2. **Default dan kontrol transaksi**: pajak, gudang, dan termin pembayaran default yang mengisi form baru; **default bersyarat** menurut jenis barang; toleransi penerimaan/tagihan/pengiriman berlebih dan kontrol opsional (peringatan/blokir tarif berubah dan harga jual di bawah biaya). Alur dokumen tetap fleksibel: setting tidak mewajibkan urutan PO → Receipt → Invoice (D-S11).
-3. **Setting modul lain yang terbukti dibutuhkan**: default kategori Asset, masa berlaku Quotation, default tiket Helpdesk; Service dikeluarkan setelah kajian (D-S20); User dan Report belum diusulkan karena tidak ada kebutuhan yang terbukti.
+3. **Setting modul lain yang terbukti dibutuhkan**: default depresiasi Asset (form Aset baru), masa berlaku Quotation, default tiket Helpdesk; Service dikeluarkan setelah kajian (D-S20); User dan Report belum diusulkan karena tidak ada kebutuhan yang terbukti.
 
 Penentuan **akun**, **posting diskon**, **pembulatan pajak**, dan **selisih kurs** bukan bagian program ini; semuanya milik Finance Engine (lihat Bagian 6).
 
@@ -131,7 +131,7 @@ flowchart TD
 | Selisih kurs (realisasi, revaluasi) | **Finance P4 / P6** | |
 | Flag mode posting, `enforce_fiscal_period`, `tax_split_from`, dll. | Spec Finance masing-masing, **disimpan** lewat S | Nama logis dipertahankan |
 | Fallback akun Asset untuk kategori kosong | **Finance P2** (akun default peran di profil) | Tidak diduplikasi ke setting Asset |
-| Default kategori Asset, masa berlaku Quotation, default tiket Helpdesk | **module-settings-other-modules** | Tervalidasi 2026-10-27 (D-S19); Service dikeluarkan (D-S20); User dan Report tidak diusulkan |
+| Default depresiasi Asset, masa berlaku Quotation, default tiket Helpdesk | **module-settings-other-modules** | Tervalidasi 2026-10-27 (D-S19); Service dikeluarkan (D-S20); User dan Report tidak diusulkan |
 
 ### 6.2 Kontrak antar spec
 
@@ -214,8 +214,10 @@ Kriteria penerimaan rinci ada di `requirements.md` tiap spec.
 | D-S16 | Tabel `default_tax_rules` dan `default_warehouse_rules` belum pernah dirilis (migrasi hanya ada di branch fitur), sehingga tidak ada migrasi pembersihan maupun catatan rilis untuk aturan lama yang tidak lolos validasi D-S15 | **DECIDED** (2026-10-27) |
 | D-S17 | Validasi `Rule::in(Category::TYPES)` pada `CategoryRequest` tidak dikerjakan di rangkaian ini (di luar spek); dapat dibuat sebagai perubahan terpisah setelah `DISTINCT type` pada data nyata diperiksa | **DEFERRED** (2026-10-27) |
 | D-S18 | Aturan default pajak dengan `tax_id` null ("tanpa pajak") hanya sah untuk `document_type` Sales Order atau Sales Invoice (`DefaultsDocumentType::supportsNoTaxRule()`); `document_type` kosong atau jenis lain ditolak 422 di `tax_rules.N.tax_id`. Pajak baris Quotation, PO, dan PI tetap wajib mutlak sesuai PR #266. Resolver mengabaikan aturan "tanpa pajak" lama pada dokumen selain SO/SI. Mempersempit D-S13 dan D-S15 | **DECIDED** (2026-10-27) |
-| D-S19 | `module-settings-other-modules` dikerjakan untuk tiga setting: default kategori Asset (`asset_settings`), masa berlaku Quotation (`sales_settings.quotation_validity_days`), dan default tiket Helpdesk (`helpdesk_settings`). Menutup Q-O1 di spec itu | **DECIDED** (2026-10-27) |
+| D-S19 | `module-settings-other-modules` dikerjakan untuk tiga setting: default depresiasi Asset (`asset_settings`), masa berlaku Quotation (`sales_settings.quotation_validity_days`), dan default tiket Helpdesk (`helpdesk_settings`). Menutup Q-O1 di spec itu | **DECIDED** (2026-10-27) |
 | D-S20 | Setting Service dikeluarkan dari `module-settings-other-modules`: kajian Work Order tidak menemukan nilai berulang (`WorkOrderRequest` hanya memuat tanggal, pelanggan, cabang, item jasa, item, catatan). Setting Service baru ditambahkan hanya bila ada kebutuhan nyata. Q-S2 tidak berlaku karena masa berlaku Quotation berada di Sales Settings | **DECIDED** (2026-10-27) |
+| D-S21 | Default depresiasi Asset mengisi form **Aset** baru (bukan form Kategori Aset): form Kategori tidak memiliki field depresiasi dan kolom `asset_categories.default_*` tidak punya pembaca. Kolom itu dibiarkan apa adanya. Mengubah Requirement 1 spek other-modules | **DECIDED** (2026-10-28) |
+| D-S22 | Form Tiket baru dibuka kuncinya (`Tickets/Show.jsx`: `disabled={!!ticket}`); sebelumnya `disabled` tanpa syarat sejak 2026-06-11 sehingga tiket baru tidak dapat diisi dan default tiket tidak berfungsi. Tiket yang sudah ada tetap `disabled` (perubahan lewat dialog update). Perubahan di luar spek asli, disetujui pemilik produk | **DECIDED** (2026-10-28) |
 
 ### Pertanyaan terbuka
 
@@ -239,7 +241,7 @@ Estimasi kasar dalam minggu-orang untuk satu developer yang paham codebase, keti
 | [`module-settings-foundation`](../../.kiro/specs/module-settings-foundation/requirements.md) | Tabel setting bertipe, service, migrasi `preferences`, halaman, menu, izin | — | 3–5 |
 | [`module-defaults-and-controls`](../../.kiro/specs/module-defaults-and-controls/requirements.md) | Pajak/gudang/termin default; toleransi; kontrol opsional FR-D6 (kontrol rantai dokumen diganti alur fleksibel, D-S11) | S | 3–4 |
 | [`module-conditional-defaults`](../../.kiro/specs/module-conditional-defaults/requirements.md) | Aturan pajak/gudang default bersyarat (jenis dokumen, tipe/kategori/status stok barang), endpoint resolusi, tab Aturan Default | S, defaults | 2–3 |
-| [`module-settings-other-modules`](../../.kiro/specs/module-settings-other-modules/requirements.md) | Default kategori Asset, masa berlaku Quotation, default tiket Helpdesk (tervalidasi 2026-10-27; Service dikeluarkan) | S | 2–3 |
+| [`module-settings-other-modules`](../../.kiro/specs/module-settings-other-modules/requirements.md) | Default depresiasi Asset, masa berlaku Quotation, default tiket Helpdesk (tervalidasi 2026-10-27; Service dikeluarkan) | S | 2–3 |
 
 Masa depan (belum ditulis): `multi-tax-per-line` (banyak pajak per baris dokumen, pola Odoo; bergantung Finance P3 Bagian B dan conditional-defaults).
 

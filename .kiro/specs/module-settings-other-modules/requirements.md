@@ -6,7 +6,7 @@ Spec ketiga program **Konfigurasi Modul** (lihat `docs/prd/module-settings-prd.m
 
 | Modul | Bukti di kode | Setting kandidat |
 |---|---|---|
-| Asset | `asset_categories` memiliki `default_depreciation_method`, `default_frequency_of_depreciation`, `default_total_number_of_depreciations` per kategori | Default untuk kategori **baru** |
+| Asset | `assets` memiliki `depreciation_method`, `frequency_of_depreciation`, `total_number_of_depreciations` yang diisi per aset; kolom `default_*` pada `asset_categories` tidak punya input maupun pembaca (D-O3) | Default depresiasi untuk **aset** baru |
 | CRM / Sales | `quotations.valid_until` (tanggal) | Masa berlaku Quotation (hari) |
 | Helpdesk | `tickets` memiliki `type`, `priority`, `due_date` | Default tipe, prioritas, dan batas hari |
 | Service | `work_orders` memiliki pelanggan, item jasa, tanggal | **Dikeluarkan** (D-O2, 2026-10-27): kajian Task 1 tidak menemukan nilai berulang |
@@ -26,21 +26,21 @@ User dan Report **tidak** diusulkan: tidak ditemukan nilai berulang yang membutu
 
 ## Glossary
 
-- **Default kategori aset**: nilai awal metode, frekuensi, dan jumlah penyusutan saat membuat kategori aset baru.
+- **Default depresiasi aset**: nilai awal metode, frekuensi, dan jumlah penyusutan pada form aset baru saat "Hitung depresiasi" dicentang.
 - **Masa berlaku Quotation**: jumlah hari dari tanggal Quotation ke `valid_until`.
 - **Default tiket**: tipe, prioritas, dan batas hari yang mengisi tiket baru.
 
 ## Requirements
 
-### Requirement 1: Setting Asset (default kategori baru)
+### Requirement 1: Setting Asset (default depresiasi aset baru)
 
-**User Story:** Sebagai admin aset, saya ingin default penyusutan untuk kategori baru, so that kategori baru tidak perlu mengisi parameter yang sama berulang.
+**User Story:** Sebagai admin aset, saya ingin default penyusutan untuk aset baru, so that aset baru tidak perlu mengisi parameter yang sama berulang.
 
 #### Acceptance Criteria
 
 1. THE sistem SHALL membuat tabel `asset_settings` dengan kolom `default_depreciation_method` (string nullable), `default_frequency_of_depreciation` (unsignedInteger nullable), dan `default_total_number_of_depreciations` (unsignedInteger nullable). `AssetCategoryRequest` hanya memvalidasi metode sebagai `nullable|string` dan dua angka sebagai `integer` (tanpa daftar opsi), sehingga `rules()` setting memakai: metode ∈ {`straight_line`, `double_declining_balance`, `written_down_value`, `manual`} (kunci yang dikenali `DepreciationMethodFactory`), frekuensi dan jumlah `integer` minimal 1 (diverifikasi Task 1.1, 2026-10-27).
-2. WHEN form kategori aset **baru** dibuka, THE form SHALL mengisi ketiga field dari setting bila kosong; kategori yang sudah ada tidak berubah.
-3. THE user SHALL tetap dapat mengubah nilai pada kategori.
+2. WHEN form aset **baru** dibuka dan "Hitung depresiasi" dicentang, THE form SHALL mengisi ketiga field dari setting bila kosong; aset yang sudah ada dan kategori aset tidak berubah (D-O3).
+3. THE user SHALL tetap dapat mengubah nilai pada aset.
 4. THE `asset_settings` SHALL tidak memuat akun; fallback akun Asset dimiliki Finance P2.
 
 ### Requirement 2: Masa berlaku Quotation
@@ -89,7 +89,7 @@ User dan Report **tidak** diusulkan: tidak ditemukan nilai berulang yang membutu
 
 #### Acceptance Criteria
 
-1. THE perubahan SHALL tidak mengubah perilaku selama setting kosong; test regresi form kategori aset, Quotation, dan tiket tetap hijau.
+1. THE perubahan SHALL tidak mengubah perilaku selama setting kosong; test regresi form aset, Quotation, dan tiket tetap hijau.
 2. THE migrasi SHALL aditif dengan `down()`; pembacaan lewat `SettingsService`.
 3. THE kunci terjemahan baru tersedia di `lang/id` dan `lang/en`.
 
@@ -97,8 +97,10 @@ User dan Report **tidak** diusulkan: tidak ditemukan nilai berulang yang membutu
 
 | ID | Keputusan | Tanggal | Alasan | Disetujui |
 |---|---|---|---|---|
-| D-O1 | Ketiga setting dikerjakan: default kategori Asset, masa berlaku Quotation, default tiket Helpdesk (menutup Q-O1) | 2026-10-27 | Kebutuhan dikonfirmasi pemilik produk setelah validasi Task 1 | Pemilik produk |
+| D-O1 | Ketiga setting dikerjakan: default depresiasi Asset, masa berlaku Quotation, default tiket Helpdesk (menutup Q-O1) | 2026-10-27 | Kebutuhan dikonfirmasi pemilik produk setelah validasi Task 1 | Pemilik produk |
 | D-O2 | Service dikeluarkan dari spec ini; Requirement 4 ditutup tanpa setting | 2026-10-27 | Kajian Task 1.4 tidak menemukan nilai berulang pada Work Order | Pemilik produk |
+| D-O3 | Default depresiasi Asset mengisi form **Aset** baru, bukan form Kategori Aset. Kolom `default_*` pada `asset_categories` tidak diubah dan tidak dipakai | 2026-10-28 | Form Kategori tidak memiliki field depresiasi dan tidak ada pembaca kolom itu; field yang berulang diisi ada di form Aset | Pemilik produk |
+| D-O4 | Form Tiket baru dibuka kuncinya: `Tickets/Show.jsx` memakai `disabled={!!ticket}` (sebelumnya `disabled` tanpa syarat sejak commit `4fc05324`, 2026-06-11, sehingga tiket baru tidak dapat diisi sama sekali). Tiket yang sudah ada tetap `disabled`; perubahan lewat dialog update | 2026-10-28 | Tanpa ini default tiket (Req 3.2) dan Batas Waktu tidak dapat dipakai pada kode yang dikirim | Pemilik produk |
 
 ## Pertanyaan
 

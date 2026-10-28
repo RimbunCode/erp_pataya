@@ -10,7 +10,7 @@ Fakta codebase:
 
 | Fakta | Implikasi |
 |---|---|
-| `asset_categories` memuat `default_depreciation_method`, `default_frequency_of_depreciation`, `default_total_number_of_depreciations`; `AssetCategoryRequest` hanya `nullable|string` dan `integer`, tanpa daftar opsi | Setting menyediakan nilai awal untuk kategori baru; `rules()` setting memakai empat kunci `DepreciationMethodFactory` dan `integer min:1` |
+| `assets` memuat `depreciation_method`, `frequency_of_depreciation`, `total_number_of_depreciations` (form Aset, tampil saat `calculate_depreciation`); kolom `default_*` pada `asset_categories` tidak punya input maupun pembaca, dan `AssetCategoryRequest` hanya `nullable|string` dan `integer` | Setting menyediakan nilai awal untuk aset baru (D-O3); `rules()` setting memakai empat kunci `DepreciationMethodFactory` dan `integer min:1` |
 | `quotations.valid_until` bertipe date, wajib hanya untuk tipe `new_unit` dan `rental`, `after_or_equal:date`; Quotation sudah memakai `sales_settings.default_tax_id` lewat `useDocumentDefaults` | Masa berlaku masuk `sales_settings`; validasi tidak diubah; auto-isi berlaku semua tipe |
 | `tickets` memuat `type`, `priority`, `start_date` (wajib), `due_date` (nullable); opsi hanya berupa `in:` di `TicketRequest` dan `TicketResponseRequest`, tanpa enum | Default tiket di tabel `helpdesk_settings`; `rules()` setting memakai daftar yang sama |
 | Enum `Domain` memuat `Asset` dan `Helpdesk` tetapi tidak CRM dan Report | Tidak ada halaman setting CRM; Quotation ada di Sales Settings, sehingga Q-S2 tidak berlaku |
@@ -24,7 +24,7 @@ flowchart LR
     AS[("asset_settings")] --> SS[SettingsService]
     SALES[("sales_settings<br/>+ quotation_validity_days")] --> SS
     HS[("helpdesk_settings")] --> SS
-    SS --> D1["Controller create: kategori aset<br/>prop 'defaults'"]
+    SS --> D1["Controller create: aset<br/>prop 'defaults'"]
     SS --> D2["Controller create: Quotation<br/>prop 'defaults'"]
     SS --> D3["Controller create: tiket<br/>prop 'defaults'"]
     D1 --> FE["Form React: isi field kosong pada data baru"]
@@ -58,13 +58,13 @@ Semua tabel mewarisi `id` ulid, `singleton` unik, timestamps dari `ModuleSetting
 
 | Halaman | Tab | Isi | Desk (usulan) |
 |---|---|---|---|
-| Asset Settings | Default Kategori | metode, frekuensi, jumlah penyusutan | Core, Asset |
+| Asset Settings | Default Depresiasi | metode, frekuensi, jumlah penyusutan | Core, Asset |
 | Helpdesk Settings | Default Tiket | tipe, prioritas, batas hari | Core, Helpdesk |
 | Sales Settings (tab Default, dari spec lain) | Default | masa berlaku Quotation | Core, Sales, Finances |
 
 ## Correctness Properties
 
-- **P-O1 Hanya data baru:** default tidak mengubah kategori aset, Quotation, atau tiket yang sudah tersimpan.
+- **P-O1 Hanya data baru:** default tidak mengubah aset, Quotation, atau tiket yang sudah tersimpan.
 - **P-O2 Netral:** dengan setting kosong, form dan hasil simpan identik dengan sekarang.
 - **P-O3 Tanggal berlaku:** untuk Quotation baru, `valid_until = date + quotation_validity_days` dan mengikuti perubahan `date` hanya selama belum disentuh manual.
 - **P-O4 Opsi tidak valid:** nilai default yang tidak lagi valid tidak mengisi apa pun.
@@ -80,8 +80,8 @@ Semua tabel mewarisi `id` ulid, `singleton` unik, timestamps dari `ModuleSetting
 ## Testing Strategy
 
 - **Unit:** `rules()` tiap model setting; perhitungan `valid_until` dan `due_date` dari hari.
-- **Feature:** controller `create` kategori aset/Quotation/tiket mengirim `defaults` yang benar dan tidak pada edit (**P-O1**); regresi netral (**P-O2**).
-- **Frontend:** form kategori aset, Quotation, tiket (field kosong terisi, nilai tidak ditimpa, **P-O3**); halaman setting dengan `.rtl.test.jsx`.
+- **Feature:** controller `create` aset/Quotation/tiket mengirim `defaults` yang benar dan tidak pada edit (**P-O1**); regresi netral (**P-O2**).
+- **Frontend:** form aset, Quotation, tiket (field kosong terisi, nilai tidak ditimpa, **P-O3**); halaman setting dengan `.rtl.test.jsx`.
 
 ## Risiko Spesifik Spec
 
