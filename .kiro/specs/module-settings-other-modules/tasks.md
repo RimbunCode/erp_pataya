@@ -68,5 +68,5 @@ Urutan: verifikasi dan validasi ulang kebutuhan (1), skema dan model (2), pengir
 ## Catatan
 
 - Task 1 selesai 2026-10-27; keputusan D-O1/D-O2/D-O3 ada di `requirements.md`.
-- Task 7.1 selesai 2026-10-28: regresi backend (Settings, Asset, CRM, Helpdesk, LocaleKeys) 494 test dan Unit + test baru 1047 test hijau; frontend 313 test hijau; verifikasi browser Asset, Helpdesk, Sales, Quotation. `graphify update .` dilewati karena alat tidak terpasang di mesin ini.
+- Task 7.1 selesai 2026-10-28: regresi backend (Settings, Asset, CRM, Helpdesk, LocaleKeys) 494 test dan Unit + test baru 1047 test hijau; frontend 313 test hijau; verifikasi browser Asset, Helpdesk, Sales, Quotation. `graphify update .` sengaja dilewati atas keputusan pemilik produk (2026-10-28): alat tidak terpasang di mesin ini; graph pengetahuan belum memuat berkas baru dan tidak memengaruhi kode, test, atau perilaku aplikasi. Jalankan `graphify update .` sekali alat tersedia.
 - Setting User dan Report sengaja tidak ada; tambahkan sebagai requirement baru hanya bila ada kebutuhan nyata (Q-O2).
