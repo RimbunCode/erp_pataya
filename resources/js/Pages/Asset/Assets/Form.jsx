@@ -17,12 +17,28 @@ import React, { useEffect, useRef } from "react";
 import Select from "@/Components/Select";
 import SupplierLinkModel from "@/Pages/Purchase/Suppliers/SupplierLinkModel";
 import UserLinkModel from "@/Pages/Users/ManageUsers/UserLinkModel";
+import {
+  EMPTY_OTHER_DEFAULTS,
+  depreciationDefaultsPatch,
+} from "@/lib/otherModuleDefaults";
 import { useLaravelReactI18n } from "laravel-react-i18n";
 
 export default function Form() {
-  const { data, setData, _disabled } = useFormPage();
+  const { data, setData, isCreate, _disabled } = useFormPage();
   const { t } = useLaravelReactI18n();
-  const companyName = usePage().props?.companyName;
+  const pageProps = usePage().props;
+  const companyName = pageProps?.companyName;
+  const depreciationDefaults = pageProps?.defaults ?? EMPTY_OTHER_DEFAULTS;
+
+  // Setting Asset: pada aset baru, saat "Hitung depresiasi" dicentang, isi field depresiasi
+  // yang masih kosong. Nilai yang sudah ada tidak pernah ditimpa.
+  useEffect(() => {
+    if (!isCreate || !data?.calculate_depreciation) return;
+    const patch = depreciationDefaultsPatch(data, depreciationDefaults);
+    if (Object.keys(patch).length > 0) {
+      setData((prev) => ({ ...prev, ...patch }));
+    }
+  }, [isCreate, data?.calculate_depreciation]);
 
   // Requirement 2.6/2.8, spec asset-management-purchase-integration-v2:
   // ubah item_id -> reset link Purchase yang sudah tidak match Item baru.
