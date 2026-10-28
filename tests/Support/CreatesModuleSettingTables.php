@@ -25,6 +25,7 @@ trait CreatesModuleSettingTables {
             'over_billing_tolerance_percent'   => fn ($table) => $table->decimal('over_billing_tolerance_percent', 5, 2)->nullable()->default(null),
             'rate_change_action'               => fn ($table) => $table->string('rate_change_action')->default('none'),
             'below_cost_action'                => fn ($table) => $table->string('below_cost_action')->default('none'),
+            'quotation_validity_days'          => fn ($table) => $table->unsignedSmallInteger('quotation_validity_days')->nullable(),
         ];
         $missingSalesSettingColumns = array_filter(
             $salesSettingColumns,
