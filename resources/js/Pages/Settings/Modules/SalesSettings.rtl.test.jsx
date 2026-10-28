@@ -152,6 +152,50 @@ describe("SalesSettings RTL", () => {
     expect(screen.getByTestId("default-rules-tab")).toBeInTheDocument();
   });
 
+  describe("quotation validity (spec module-settings-other-modules)", () => {
+    it("shows the stored number of days with its help text on the Default tab", () => {
+      render(
+        <SalesSettings
+          setting={{ default_tax_id: null, quotation_validity_days: 30 }}
+          canWrite={true}
+        />,
+      );
+
+      expect(
+        screen.getByText("sales.setting.quotation_validity_days"),
+      ).toBeInTheDocument();
+      expect(
+        screen.getByText("sales.setting.quotation_validity_days_help"),
+      ).toBeInTheDocument();
+      expect(screen.getByDisplayValue("30")).toBeInTheDocument();
+    });
+
+    it("leaves the field empty when no validity is configured", () => {
+      render(
+        <SalesSettings
+          setting={{ default_tax_id: null, quotation_validity_days: null }}
+          canWrite={true}
+        />,
+      );
+
+      expect(screen.queryByDisplayValue("30")).not.toBeInTheDocument();
+      expect(
+        screen.getByText("sales.setting.quotation_validity_days"),
+      ).toBeInTheDocument();
+    });
+
+    it("is read-only when canWrite is false", () => {
+      render(
+        <SalesSettings
+          setting={{ default_tax_id: null, quotation_validity_days: 30 }}
+          canWrite={false}
+        />,
+      );
+
+      expect(screen.getByDisplayValue("30")).toBeDisabled();
+    });
+  });
+
   it("disables tax link model input when canWrite is false", () => {
     render(
       <SalesSettings

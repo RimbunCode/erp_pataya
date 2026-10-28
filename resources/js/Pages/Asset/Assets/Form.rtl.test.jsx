@@ -182,8 +182,11 @@ vi.mock("@/Pages/Inventory/Items/ItemLinkModel", () =>
 vi.mock("@/Pages/Purchase/Suppliers/SupplierLinkModel", () =>
   makeLinkModelStub("supplier-link", "name", { id: 5, name: "CV Pemasok" }),
 );
+const pageState = vi.hoisted(() => ({
+  props: { companyName: "PT Contoh Sejahtera" },
+}));
 vi.mock("@inertiajs/react", () => ({
-  usePage: () => ({ props: { companyName: "PT Contoh Sejahtera" } }),
+  usePage: () => ({ props: pageState.props }),
 }));
 vi.mock("@/Pages/Settings/Branches/BranchLinkModel", () =>
   makeLinkModelStub("branch-link", "name", { id: 9, name: "Cabang Utama" }),
@@ -234,8 +237,16 @@ function FormPageProviderFake({ value, children }) {
  * @param root0
  * @param root0.initialData
  * @param root0.disabled
+ * @param root0.isCreate
+ * @param root0.defaults
  */
-function renderForm({ initialData = {}, disabled = false } = {}) {
+function renderForm({
+  initialData = {},
+  disabled = false,
+  isCreate = false,
+  defaults = undefined,
+} = {}) {
+  pageState.props = { companyName: "PT Contoh Sejahtera", defaults };
   function Wrapper() {
     const [data, setDataState] = useState(initialData);
     const setData = (key, val) => {
@@ -248,7 +259,7 @@ function renderForm({ initialData = {}, disabled = false } = {}) {
       }
     };
     return (
-      <FormPageProviderFake value={{ data, setData, disabled }}>
+      <FormPageProviderFake value={{ data, setData, disabled, isCreate }}>
         <Form />
       </FormPageProviderFake>
     );
@@ -842,6 +853,107 @@ describe("Form (Asset/Assets)", () => {
       expect(
         screen.getByTestId("purchase-receipt-item-link-input"),
       ).toHaveValue("");
+    });
+  });
+  describe("default depresiasi dari setting Asset", () => {
+    const defaults = {
+      depreciation_method: "double_declining_balance",
+      frequency_of_depreciation: 12,
+      total_number_of_depreciations: 5,
+    };
+    const method = () =>
+      within(screen.getByTestId("forminput-depreciation_method")).getByTestId(
+        "select",
+      );
+    const numberOf = (name) =>
+      within(screen.getByTestId(`forminput-${name}`)).getByTestId(
+        "number-input",
+      );
+    const calculateCheckbox = () => screen.getAllByRole("forminput")[2];
+
+    it("mencentang Hitung depresiasi pada aset baru mengisi ketiga field dari setting", async () => {
+      const user = userEvent.setup({ delay: null });
+      renderForm({ isCreate: true, defaults });
+
+      await user.click(calculateCheckbox());
+
+      expect(method()).toHaveValue("double_declining_balance");
+      expect(numberOf("frequency_of_depreciation")).toHaveValue("12");
+      expect(numberOf("total_number_of_depreciations")).toHaveValue("5");
+    });
+
+    it("belum dicentang: tidak ada field yang diisi atau ditampilkan", () => {
+      renderForm({ isCreate: true, defaults });
+
+      expect(
+        screen.queryByTestId("forminput-depreciation_method"),
+      ).not.toBeInTheDocument();
+    });
+
+    it("nilai yang sudah diisi tidak ditimpa, hanya field kosong yang terisi", async () => {
+      const user = userEvent.setup({ delay: null });
+      renderForm({
+        isCreate: true,
+        defaults,
+        initialData: {
+          depreciation_method: "manual",
+          total_number_of_depreciations: 9,
+        },
+      });
+
+      await user.click(calculateCheckbox());
+
+      expect(method()).toHaveValue("manual");
+      expect(numberOf("frequency_of_depreciation")).toHaveValue("12");
+      expect(numberOf("total_number_of_depreciations")).toHaveValue("9");
+    });
+
+    it("setting kosong: field tetap kosong seperti sebelumnya", async () => {
+      const user = userEvent.setup({ delay: null });
+      renderForm({
+        isCreate: true,
+        defaults: {
+          depreciation_method: null,
+          frequency_of_depreciation: null,
+          total_number_of_depreciations: null,
+        },
+      });
+
+      await user.click(calculateCheckbox());
+
+      expect(method()).toHaveValue("");
+      expect(numberOf("frequency_of_depreciation")).toHaveValue("");
+      expect(numberOf("total_number_of_depreciations")).toHaveValue("");
+    });
+
+    it("tanpa prop defaults (halaman lain) tidak error dan tidak mengisi apa pun", async () => {
+      const user = userEvent.setup({ delay: null });
+      renderForm({ isCreate: true });
+
+      await user.click(calculateCheckbox());
+
+      expect(method()).toHaveValue("");
+    });
+
+    it("aset yang sudah ada (bukan create) tidak diubah oleh setting", () => {
+      renderForm({
+        isCreate: false,
+        defaults,
+        initialData: { calculate_depreciation: true },
+      });
+
+      expect(method()).toHaveValue("");
+      expect(numberOf("frequency_of_depreciation")).toHaveValue("");
+    });
+
+    it("mengosongkan field lalu form dirender ulang tidak mengisi ulang otomatis", async () => {
+      const user = userEvent.setup({ delay: null });
+      renderForm({ isCreate: true, defaults });
+
+      await user.click(calculateCheckbox());
+      await user.clear(numberOf("frequency_of_depreciation"));
+
+      expect(numberOf("frequency_of_depreciation")).toHaveValue("");
     });
   });
 });
