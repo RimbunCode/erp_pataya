@@ -25,6 +25,7 @@ class SalesSetting extends ModuleSetting {
             'singleton'                       => 'boolean',
             'over_delivery_tolerance_percent' => 'float',
             'over_billing_tolerance_percent'  => 'float',
+            'quotation_validity_days'         => 'integer',
         ];
     }
 
@@ -37,6 +38,7 @@ class SalesSetting extends ModuleSetting {
             'over_billing_tolerance_percent'   => null,
             'rate_change_action'               => 'none',
             'below_cost_action'                => 'none',
+            'quotation_validity_days'          => null,
         ];
     }
 
@@ -49,6 +51,7 @@ class SalesSetting extends ModuleSetting {
             'over_billing_tolerance_percent'   => ['nullable', 'numeric', 'between:0,100'],
             'rate_change_action'               => ['required', 'in:none,warn,stop'],
             'below_cost_action'                => ['required', 'in:none,warn,stop'],
+            'quotation_validity_days'          => ['nullable', 'integer', 'min:0', 'max:65535'],
         ];
     }
 

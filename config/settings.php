@@ -1,12 +1,16 @@
 <?php
 
 use App\Enums\Domain;
+use App\Http\Controllers\Asset\AssetSettingController;
 use App\Http\Controllers\Finances\FinanceSettingController;
+use App\Http\Controllers\Helpdesk\HelpdeskSettingController;
 use App\Http\Controllers\Inventory\InventorySettingController;
 use App\Http\Controllers\Purchase\PurchaseSettingController;
 use App\Http\Controllers\Sales\SalesSettingController;
+use App\Models\Asset\AssetSetting;
 use App\Models\Core\CoreSetting;
 use App\Models\Finances\FinanceSetting;
+use App\Models\Helpdesk\HelpdeskSetting;
 use App\Models\Inventory\InventorySetting;
 use App\Models\Purchase\PurchaseSetting;
 use App\Models\Sales\SalesSetting;
@@ -86,6 +90,26 @@ return [
             'label'      => 'Inventory Settings',
             'desks'      => [Domain::Core, Domain::Inventory, Domain::Purchase, Domain::Sales],
             'order'      => 29,
+        ],
+        'asset' => [
+            'model'      => AssetSetting::class,
+            'controller' => AssetSettingController::class,
+            'page'       => 'Settings/Modules/AssetSettings',
+            'icon'       => 'Building2',
+            'title'      => 'asset.setting.title',
+            'label'      => 'Asset Settings',
+            'desks'      => [Domain::Core, Domain::Asset],
+            'order'      => 30,
+        ],
+        'helpdesk' => [
+            'model'      => HelpdeskSetting::class,
+            'controller' => HelpdeskSettingController::class,
+            'page'       => 'Settings/Modules/HelpdeskSettings',
+            'icon'       => 'LifeBuoy',
+            'title'      => 'helpdesk.setting.title',
+            'label'      => 'Helpdesk Settings',
+            'desks'      => [Domain::Core, Domain::Helpdesk],
+            'order'      => 31,
         ],
     ],
 ];

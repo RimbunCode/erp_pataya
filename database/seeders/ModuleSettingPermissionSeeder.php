@@ -2,10 +2,12 @@
 
 namespace Database\Seeders;
 
+use App\Models\Asset\AssetSetting;
 use App\Models\Core\CoreSetting;
 use App\Models\Core\ModuleSetting;
 use App\Models\Core\Preference;
 use App\Models\Finances\FinanceSetting;
+use App\Models\Helpdesk\HelpdeskSetting;
 use App\Models\Inventory\InventorySetting;
 use App\Models\Purchase\PurchaseSetting;
 use App\Models\Sales\SalesSetting;
@@ -37,6 +39,8 @@ class ModuleSettingPermissionSeeder extends Seeder {
             SalesSetting::class,
             PurchaseSetting::class,
             InventorySetting::class,
+            AssetSetting::class,
+            HelpdeskSetting::class,
         ];
     }
 

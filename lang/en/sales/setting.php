@@ -8,6 +8,8 @@ return [
     'default_tax'                     => 'Default Tax',
     'default_source_warehouse'        => 'Default Source Warehouse',
     'default_payment_term_template'   => 'Default Payment Term Template',
+    'quotation_validity_days'         => 'Quotation Validity (Days)',
+    'quotation_validity_days_help'    => 'On a new Quotation, Valid Until = Date + this many days, following the Date until you change it. Leave empty to keep Valid Until blank.',
     'transaction'                     => ['title' => 'Transactions'],
     'over_delivery_tolerance_percent' => 'Over-delivery Tolerance',
     'over_billing_tolerance_percent'  => 'Over-billing Tolerance',
