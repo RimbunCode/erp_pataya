@@ -109,11 +109,22 @@ describe("Helpdesk Tickets Show", () => {
       expect(screen.getByTestId("stub-form-page-dialog")).toBeInTheDocument();
     });
 
-    it("FormPage menerima disabled dan deleteable=false", () => {
+    it("tiket yang sudah ada: FormPage disabled (perubahan lewat dialog update) dan deleteable=false", () => {
       renderShow({ ticket: baseTicket() });
 
       expect(formPageProps).toHaveBeenCalledWith(
         expect.objectContaining({ disabled: true, deleteable: false }),
+      );
+    });
+
+    it("tiket baru: FormPage tidak disabled supaya form dapat diisi (D-O4)", () => {
+      renderShow({ ticket: null, defaultData: undefined });
+
+      expect(formPageProps).toHaveBeenCalledWith(
+        expect.objectContaining({ isCreate: true, disabled: false }),
+      );
+      expect(formPageProps).not.toHaveBeenCalledWith(
+        expect.objectContaining({ isCreate: true, disabled: true }),
       );
     });
   });
