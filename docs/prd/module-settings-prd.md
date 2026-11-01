@@ -198,9 +198,9 @@ Kriteria penerimaan rinci ada di `requirements.md` tiap spec.
 |---|---|---|
 | D-S1 | Setting disimpan di tabel bertipe satu baris per modul, bukan key/value | **DECIDED** (arah dari pemilik produk; bentuk tabel PROPOSED) |
 | D-S2 | Semua setting global; tanpa variasi per cabang | **DECIDED** |
-| D-S3 | Migrasi: salin data, pindahkan pembaca, hentikan penulisan, lalu pensiunkan `preferences` pada rilis terpisah | PROPOSED |
-| D-S4 | Kontrak `preferences` (prop frontend, placeholder template) dijaga lewat `LegacyPreferenceMap` | PROPOSED |
-| D-S5 | Satu halaman JSX per modul di atas pembungkus bersama; controller per modul dengan rute `moduleSettings.{modul}.*` | PROPOSED |
+| D-S3 | Migrasi: salin data (`PreferenceMigrator`), pindahkan pembaca, hentikan penulisan, lalu pensiunkan `preferences` pada rilis terpisah. Tiga langkah pertama sudah berjalan; kode aplikasi tidak lagi menulis ke `Preference`. Langkah pensiun tetap menunggu Task 10 foundation (GATED: satu rilis stabil, laporan kunci tak dikenal bersih, persetujuan pemilik produk) | **DECIDED** (2026-11-01; pensiun belum dikerjakan) |
+| D-S4 | Kontrak `preferences` (prop frontend, placeholder template) dijaga lewat `LegacyPreferenceMap` (dipakai `HandleInertiaRequests` dan layanan render templat cetak/email) | **DECIDED** (2026-11-01; terimplementasi) |
+| D-S5 | Satu halaman JSX per modul di atas pembungkus bersama; controller per modul dengan rute `moduleSettings.{modul}.*` (dihasilkan otomatis dari `config/settings.php`) | **DECIDED** (2026-11-01; terimplementasi) |
 | D-S6 | Menu: grup "Module Settings", satu MenuItem per halaman, multi-desk, aturan datar/submenu memakai mekanisme yang ada | **DECIDED** (aturan dari pemilik produk) |
 | D-S7 | Akun, diskon, pembulatan, selisih kurs dimiliki Finance Engine, bukan program ini | **DECIDED** |
 | D-S8 | Kontrol opsional (FR-D6) dan task opsional lain dikonfirmasi dulu sebelum dikerjakan | **DECIDED** (aturan proyek); FR-D6 dikonfirmasi 2026-10-26 (D-S12) |
@@ -223,11 +223,11 @@ Kriteria penerimaan rinci ada di `requirements.md` tiap spec.
 
 | # | Pertanyaan | Dibutuhkan sebelum |
 |---|---|---|
-| Q-S1 | Label grup menu: "Module Settings" atau "Pengaturan Modul"? | S, tugas menu |
+| ~~Q-S1~~ | Dijawab (terimplementasi di `DeskSeeder`): label grup menu adalah "Module Settings"; disahkan pemilik produk 2026-11-01 | — |
 | ~~Q-S2~~ | Tidak berlaku (D-S20): satu-satunya setting CRM (masa berlaku Quotation) berada di Sales Settings; tidak ada halaman setting CRM/Report | — |
-| Q-S3 | Pemetaan desk yang relevan per halaman setting (usulan di spec S, dapat diubah) | S |
+| ~~Q-S3~~ | Dijawab (terimplementasi di `config/settings.php`): Finance → Core, Finances; Sales → Core, Sales, Finances; Purchase → Core, Purchase, Finances; Inventory → Core, Inventory, Purchase, Sales; Asset → Core, Asset; Helpdesk → Core, Helpdesk. Disahkan pemilik produk 2026-11-01; dapat diubah lewat registry atau editor desk | — |
 | ~~Q-S4~~ | Dijawab (verifikasi kode): dokumen tidak menyimpan penaut templat, tetapi komponen `PaymentSchedule` mengonversi templat menjadi baris jadwal; default termin masuk tanpa kolom baru | — |
-| Q-S5 | Apakah ada kunci `preferences` lain di produksi di luar yang di-seed (mis. `mail*`)? | S, migrasi |
+| Q-S5 | Apakah ada kunci `preferences` lain di produksi di luar yang di-seed (mis. `mail*`)? Masih terbuka; dijawab oleh laporan kunci tak dikenal pada produksi | Task 10 foundation (pensiun `preferences`, 10.1) |
 | ~~Q-S6~~ | Dijawab 2026-10-26 (D-S11): tidak ada kontrol rantai dokumen, sehingga baris di luar sumber mempertahankan perilaku sekarang | — |
 | ~~Q-S7~~ | Dijawab 2026-10-18: dibutuhkan; menjadi spec `module-conditional-defaults` | — |
 | Q-S8 | Perlukah pajak default menurut pelanggan/pemasok (mirip *fiscal position* Odoo)? | conditional-defaults (lanjutan) |

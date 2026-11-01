@@ -200,7 +200,7 @@ Spec ini sengaja **tidak mengubah perilaku aplikasi**: setelah selesai, nilai ya
 
 | ID | Pertanyaan | Dampak |
 |---|---|---|
-| Q-S1 | Label grup menu: "Module Settings" atau "Pengaturan Modul" | Requirement 8.1 |
-| Q-S2 | Setting CRM/Report ditempatkan di desk mana (enum `Domain` tidak memuat keduanya) | Requirement 8.4, spec other-modules |
-| Q-S3 | Pemetaan desk awal (usulan di design) | Requirement 8.4 |
-| Q-S5 | Apakah ada kunci `preferences` lain di produksi di luar yang di-seed (mis. `mail*`)? | Requirement 5.3, 12.1 |
+| ~~Q-S1~~ | Dijawab: label grup menu adalah "Module Settings" (terimplementasi di `DeskSeeder`; disahkan pemilik produk 2026-11-01) | Requirement 8.1 |
+| ~~Q-S2~~ | Tidak berlaku (D-S20 pada PRD): satu-satunya setting CRM (masa berlaku Quotation) berada di Sales Settings; tidak ada halaman setting CRM/Report | Requirement 8.4, spec other-modules |
+| ~~Q-S3~~ | Dijawab: pemetaan desk terimplementasi di `config/settings.php` sesuai usulan design (disahkan pemilik produk 2026-11-01; dapat diubah di registry atau editor desk) | Requirement 8.4 |
+| Q-S5 | Apakah ada kunci `preferences` lain di produksi di luar yang di-seed (mis. `mail*`)? Masih terbuka; dijawab oleh laporan kunci tak dikenal pada produksi sebelum Task 10 | Requirement 5.3, 12.1 |
