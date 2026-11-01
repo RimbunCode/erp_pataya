@@ -58,10 +58,10 @@ Alasan fase ini ada: PRD memuat temuan audit kode (F-01…F-15) yang sebagian ma
 #### Acceptance Criteria
 
 1. THE sistem SHALL menyediakan perintah `finance:snapshot-balances` yang menulis CSV (default `storage/app/finance-audit/baseline-<timestamp>.csv`) dengan kolom: `account_id`, `account_number`, `account_name`, `root_type`, `balance_type`, `sum_debit`, `sum_credit`, `net`, `balance_amount`, `difference`.
-2. THE `net` SHALL dihitung dari baris GL yang tidak soft-deleted; `difference` = `net` yang disesuaikan arah `balance_type` dikurangi `balance_amount`.
+2. THE `net` SHALL dihitung dari baris GL yang tidak soft-deleted sebagai Σdebit − Σkredit (bertanda, sama dengan konvensi `balance_amount` yang ditulis `StockEntryService`); `difference` = `net` − `balance_amount`. _Diubah 2026-11-01 (hasil Task 3.1): rumus awal menyesuaikan arah menurut `balance_type`, tetapi `balance_amount` bertanda debit − kredit untuk semua akun._
 3. THE perintah SHALL bersifat read-only dan idempoten (menjalankan ulang menghasilkan berkas baru tanpa efek samping).
 4. THE baris akun tanpa transaksi SHALL tetap dicantumkan dengan nilai nol agar jumlah akun dapat direkonsiliasi.
-5. IF `balance_type` akun null, THEN THE `difference` SHALL dikosongkan dan akun ditandai pada kolom `note`.
+5. IF `balance_type` akun null, THEN THE akun SHALL ditandai pada kolom `note`; `difference` tetap dihitung karena rumus tidak bergantung pada `balance_type`. _Diubah 2026-11-01 bersama butir 3.2._
 
 ### Requirement 4: Characterization test untuk setiap titik posting GL
 

@@ -10,34 +10,35 @@ Fase ini read-only: tidak ada migration dan tidak ada perubahan pada listener/se
 
 ## Tasks
 
-- [ ] 1. Kerangka kode audit
-  - [ ] 1.1 Buat `app/Services/Finances/Audit/AuditReport.php` (DTO: `toArray()`, `toJson()`)
+- [x] 1. Kerangka kode audit
+  - [x] 1.1 Buat `app/Services/Finances/Audit/AuditReport.php` (DTO: `toArray()`, `toJson()`)
     - _Requirements: 1.3, 1.4_
-  - [ ] 1.2 Buat `app/Console/Commands/Finances/AuditGeneralLedgerCommand.php` dengan signature `finance:audit-gl {--limit=20} {--json=} {--connection=}`; pastikan auto-discovery menemukan subfolder `Finances/`
+  - [x] 1.2 Buat `app/Console/Commands/Finances/AuditGeneralLedgerCommand.php` dengan signature `finance:audit-gl {--limit=20} {--json=} {--connection=}`; pastikan auto-discovery menemukan subfolder `Finances/`
     - _Requirements: 1.1, 1.4, 8.1, 8.2_
 
-- [ ] 2. Auditor integritas dan referensi
-  - [ ] 2.1 Buat `IntegrityChecks` (tak seimbang, nol/negatif, soft-deleted, akun hilang/terhapus, duplikasi) dengan agregasi database
+- [x] 2. Auditor integritas dan referensi
+  - [x] 2.1 Buat `IntegrityChecks` (tak seimbang, nol/negatif, soft-deleted, akun hilang/terhapus, duplikasi) dengan agregasi database
     - _Requirements: 1.2.1–1.2.4, 1.2.7, 1.5_
-  - [ ] 2.2 Buat `ReferenceChecks` (referenceable hilang; soft-delete diharapkan vs anomali; dokumen `canceled` dengan GL aktif)
+  - [x] 2.2 Buat `ReferenceChecks` (referenceable hilang; soft-delete diharapkan vs anomali; dokumen `canceled` dengan GL aktif)
     - _Requirements: 1.2.3, 1.2.5, 1.2.6_
-  - [ ] 2.3 Buat `DocumentCoverageMatrix` (9 jenis dokumen; tracked vs tidak; `posting_not_posted`)
+  - [x] 2.3 Buat `DocumentCoverageMatrix` (9 jenis dokumen; tracked vs tidak; `posting_not_posted`)
     - _Requirements: 2.1–2.4_
-  - [ ] 2.4 Buat `GeneralLedgerAuditor::run()` yang merakit ketiganya + total ringkasan
+  - [x] 2.4 Buat `GeneralLedgerAuditor::run()` yang merakit ketiganya + total ringkasan
     - _Requirements: 1.3, 1.6_
-  - [ ]* 2.5 Write property/feature tests auditor
+  - [x]* 2.5 Write property/feature tests auditor
     - Satu test per kategori anomali (suntik satu anomali → hitung tepat 1); test data sehat → semua kategori 0 (P-4); test tabel kosong (1.6); test determinisme (P-2)
     - **Validates: Requirements 1.2, 1.3, 1.6**
 
-- [ ] 3. Baseline saldo
-  - [ ] 3.1 Verifikasi nilai `accounts.balance_type` dan konvensi tanda `balance_amount` (baca `AccountSeeder`, `StockEntryService` ~555–640, data staging) lalu kunci rumus `net`/`difference`; hapus `[TODO]` di design.md
+- [x] 3. Baseline saldo
+  - [x] 3.1 Verifikasi nilai `accounts.balance_type` dan konvensi tanda `balance_amount` (baca `AccountSeeder`, `StockEntryService` ~555–640, data staging) lalu kunci rumus `net`/`difference`; hapus `[TODO]` di design.md
+    - Selesai 2026-11-01: rumus dikunci mengikuti kode (balance_amount bertanda debit − kredit untuk semua akun); Requirement 3.2 dan 3.5 disesuaikan, perlu disahkan pemilik produk. Verifikasi data staging menunggu Task 6.5.
     - _Requirements: 3.2, 3.5_
-  - [ ] 3.2 Buat `BalanceSnapshotService` + `app/Console/Commands/Finances/SnapshotBalancesCommand.php` (`finance:snapshot-balances`), CSV streaming, `LEFT JOIN` agar akun tanpa transaksi ikut
+  - [x] 3.2 Buat `BalanceSnapshotService` + `app/Console/Commands/Finances/SnapshotBalancesCommand.php` (`finance:snapshot-balances`), CSV streaming, `LEFT JOIN` agar akun tanpa transaksi ikut
     - _Requirements: 3.1, 3.3, 3.4_
-  - [ ]* 3.3 Write tests snapshot: header CSV, jumlah baris = jumlah akun, akun tanpa transaksi bernilai nol, `balance_type` null → `note`
+  - [x]* 3.3 Write tests snapshot: header CSV, jumlah baris = jumlah akun, akun tanpa transaksi bernilai nol, `balance_type` null → `note`
     - **Validates: Requirements 3.1–3.5**
 
-- [ ] 4. Checkpoint - Auditor dan snapshot
+- [x] 4. Checkpoint - Auditor dan snapshot
   - Jalankan test berkas Task 2.5 dan 3.3; pastikan P-1 (read-only: jumlah baris semua tabel tak berubah) lulus
   - Ensure all tests pass, ask the user if questions arise.
 

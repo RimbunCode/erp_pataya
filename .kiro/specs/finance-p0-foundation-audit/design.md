@@ -81,9 +81,15 @@ Metode: `toArray()`, `toJson()`, dan `Renderer` terpisah untuk konsol (`Symfony 
 
 ### 4. `App\Services\Finances\Audit\BalanceSnapshotService` dan `finance:snapshot-balances`
 
-Satu query agregat: `general_ledgers` (tanpa soft-deleted) `GROUP BY account_id` di-join ke `accounts` (termasuk akun tanpa transaksi lewat `LEFT JOIN`). Sinyal `net` disesuaikan arah normal akun lewat `balance_type` (`debit` → `sum_debit - sum_credit`; `credit` → `sum_credit - sum_debit`). Menulis CSV streaming (`fputcsv`) agar hemat memori.
+Satu query agregat: `accounts` di-`LEFT JOIN` ke `general_ledgers` (hanya baris tanpa soft-delete) lalu `GROUP BY` akun, sehingga akun tanpa transaksi dan akun soft-deleted ikut tercantum. Menulis CSV streaming (`cursor()` + `fputcsv`) agar hemat memori.
 
-> **[TODO: konfirmasi]** nilai valid `accounts.balance_type` ("debit"/"credit"?) dan konvensi tanda `balance_amount` di `StockEntryService` (debit akun aset menambah, akun lawan mengurangi) — diverifikasi pada Task 3.1 dengan membaca `AccountSeeder` dan data staging sebelum rumus `difference` dikunci.
+**Rumus terkunci (Task 3.1, diverifikasi dari kode 2026-11-01):**
+
+- Nilai valid `accounts.balance_type`: `debit`, `credit`, atau null (`AccountRequest`: `nullable|in:debit,credit`; `AccountSeeder`).
+- Satu-satunya penulis `accounts.balance_amount` di `app/` adalah `StockEntryService` (~562–640): sisi debit `+ jumlah`, sisi kredit `− jumlah`. Jadi `balance_amount` bertanda **debit − kredit untuk semua akun**, tanpa memandang `balance_type`. Jalur posting lain (invoice, receipt, delivery note, payment, aset) tidak menyentuhnya.
+- Maka `net = Σdebit − Σkredit` (baris aktif) dan `difference = net − balance_amount`. Menyesuaikan arah `net` menurut `balance_type` (rumus awal) akan membuat akun berjenis kredit tampak selisih `2 × (debit − kredit)` padahal konsisten.
+- `balance_type` tetap dicetak sebagai informasi; `note` menandai akun dengan `balance_type` kosong dan akun soft-deleted.
+- Belum diverifikasi terhadap data staging (tidak ada akses dari sesi ini); dikonfirmasi saat Task 6.5.
 
 ### 5. Characterization tests
 
