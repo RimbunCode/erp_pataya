@@ -47,9 +47,10 @@ class StandardPrintTemplateSeeder extends Seeder {
     }
 
     /**
-     * Seluruh definisi template, urut per domain.
+     * Seluruh definisi template, urut per domain. Kunci `css` opsional:
+     * bila tidak ada, dipakai CSS bersama `TemplateParts::css()`.
      *
-     * @return array<int, array{model: class-string, label: string, relations: array<int, string>, html: string}>
+     * @return array<int, array{model: class-string, label: string, relations: array<int, string>, html: string, css?: string}>
      */
     public static function definitions(): array {
         return [
@@ -71,7 +72,8 @@ class StandardPrintTemplateSeeder extends Seeder {
             ->value('id');
 
         foreach (self::definitions() as $definition) {
-            $permission = Permission::where('model', $definition['model'])->first();
+            $definitionCss = $definition['css'] ?? $css;
+            $permission    = Permission::where('model', $definition['model'])->first();
 
             $template = PrintTemplate::where('name', self::nameFor($definition['label']))->first()
                 ?? new PrintTemplate;
@@ -85,8 +87,8 @@ class StandardPrintTemplateSeeder extends Seeder {
                 'letter_head_id'       => $letterHeadId,
                 'default_language'     => 'id',
                 'html'                 => $definition['html'],
-                'css'                  => $css,
-                'template'             => $projectBuilder->build($definition['html'], $css),
+                'css'                  => $definitionCss,
+                'template'             => $projectBuilder->build($definition['html'], $definitionCss),
                 'used_relations'       => $definition['relations'],
                 'paper'                => $template->paper ?? 'A4',
                 'orientation'          => $template->orientation ?? 'portrait',

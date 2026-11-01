@@ -104,6 +104,22 @@ describe("helper: formatDate", () => {
     expect(render('{{formatDate date "DD/MM/YYYY"}}', { date: null })).toBe("");
   });
 
+  // formatData() di halaman cetak sudah mengubah kolom datetime menjadi teks
+  // lokal sebelum masuk helper; locale "id" menulis jam bertitik ("12.05.03").
+  it("membaca datetime berformat locale id (jam bertitik)", () => {
+    const result = render('{{formatDate date "DD-MM-YYYY"}}', {
+      date: "18 Oktober 2026 pukul 12.05.03",
+    });
+    expect(result).toBe("18-10-2026");
+  });
+
+  it("membaca datetime berformat locale en", () => {
+    const result = render('{{formatDate date "DD-MM-YYYY"}}', {
+      date: "October 18th, 2026 at 12:05:03 PM",
+    });
+    expect(result).toBe("18-10-2026");
+  });
+
   it("return pesan error jika format parameter bukan string", () => {
     const result = render("{{formatDate date 123}}", { date: "2026-01-01" });
     expect(result).toContain("[formatDate: format parameter must be a string]");

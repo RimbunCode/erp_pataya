@@ -82,7 +82,15 @@ function normalizeDateInput(value) {
   let detectedLocale = null;
   let normalized = value
     .replace(/\b(\d{1,2})(?:st|nd|rd|th)\b/gi, "$1")
-    .replace(/\b(?:pukul|at)\s+/gi, "");
+    .replace(/\b(?:pukul|at)\s+/gi, "")
+    // Locale "id" menulis jam dengan titik ("12.05.03"), yang tidak terbaca
+    // `new Date`. Hanya jam setelah tahun 4 digit yang diubah ke titik dua
+    // supaya tanggal bertitik seperti "18.10.2026" tidak ikut berubah.
+    .replace(
+      /(\b\d{4}\s+\d{1,2})\.(\d{2})(?:\.(\d{2}))?\b/,
+      (_, head, minute, second) =>
+        `${head}:${minute}${second ? `:${second}` : ""}`,
+    );
 
   for (const [idMonth, enMonth] of Object.entries(ID_MONTH_MAP)) {
     const regex = new RegExp(`\\b${idMonth}\\b`, "gi");

@@ -56,7 +56,7 @@ final class FinancesTemplates {
                 ]),
                 P::tableWithSummary('doc.items', [
                     ['label' => 'Item', 'value' => '{{relation this.item}}{{#if this.description}}<div class="pre-line">{{this.description}}</div>{{/if}}'],
-                    ['label' => 'Kuantitas', 'value' => '{{this.quantity}} {{this.unit.name}}', 'class' => 'col-qty'],
+                    ['label' => 'Kuantitas', 'value' => '{{this.quantity}} {{this.unit.name}}', 'class' => 'col-qty', 'width' => '14'],
                     ['label' => 'Harga Satuan', 'value' => '{{this.price}}', 'class' => 'col-number'],
                     ['label' => 'Total Harga', 'value' => '{{this.basic_amount}}', 'class' => 'col-number'],
                 ], [
@@ -118,10 +118,10 @@ final class FinancesTemplates {
                     ['label' => 'Description', 'value' => '{{this.item.item_name}}{{#if this.description}}<div class="pre-line">{{this.description}}</div>{{/if}}'],
                     ['label' => 'Qty', 'value' => '{{formatNumber this.quantity 0}}', 'class' => 'col-qty'],
                     ['label' => 'Unit', 'value' => '{{this.unit.name}}'],
-                    ['label' => 'Harga Barang', 'value' => '{{formatCurrency this.rate doc.currency.code}}', 'class' => 'col-number'],
-                    ['label' => 'Discount', 'value' => '{{formatCurrency this.discount_amount doc.currency.code}}', 'class' => 'col-number'],
-                    ['label' => 'Pajak', 'value' => '{{formatCurrency this.tax_amount doc.currency.code}}', 'class' => 'col-number'],
-                    ['label' => 'Jumlah', 'value' => '{{formatCurrency this.amount doc.currency.code}}', 'class' => 'col-number'],
+                    ['label' => 'Harga Barang', 'value' => '{{formatCurrency this.rate @root.doc.currency.code}}', 'class' => 'col-number'],
+                    ['label' => 'Discount', 'value' => '{{formatCurrency this.discount_amount @root.doc.currency.code}}', 'class' => 'col-number'],
+                    ['label' => 'Pajak', 'value' => '{{formatCurrency this.tax_amount @root.doc.currency.code}}', 'class' => 'col-number'],
+                    ['label' => 'Jumlah', 'value' => '{{formatCurrency this.amount @root.doc.currency.code}}', 'class' => 'col-number'],
                 ], [
                     ['Potongan', '{{formatCurrency doc.discount_amount doc.currency.code}}'],
                     ['Grand Total', '{{formatCurrency doc.amount doc.currency.code}}'],
