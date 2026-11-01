@@ -43,15 +43,15 @@ Fase ini read-only: tidak ada migration dan tidak ada perubahan pada listener/se
   - Ensure all tests pass, ask the user if questions arise.
 
 - [ ] 5. Helper fixture dan characterization test
-  - [ ] 5.1 Buat `tests/Support/BuildsFinanceFixtures.php` (user, branch, akun standar, setting, `initPermissions()` model terkait, `is_example` seperti pola `GeneralLedgerControllerTest`; `queue.default=sync`)
+  - [x] 5.1 Buat `tests/Support/BuildsFinanceFixtures.php` (user, branch, akun standar, setting, `initPermissions()` model terkait, `is_example` seperti pola `GeneralLedgerControllerTest`; `queue.default=sync`)
     - _Requirements: 4.4, 4.5_
-  - [ ] 5.2 Characterization: Sales Invoice (normal + retur)
+  - [x] 5.2 Characterization: Sales Invoice (normal + retur)
     - _Requirements: 4.1–4.3_
-  - [ ] 5.3 Characterization: Purchase Invoice (cabang stok/SRNB + expense/credit; normal + retur)
+  - [x] 5.3 Characterization: Purchase Invoice (cabang stok/SRNB + expense/credit; normal + retur)
     - _Requirements: 4.1–4.3_
-  - [ ] 5.4 Characterization: Purchase Receipt (normal + retur) dan Delivery Note (normal + retur; jalur rental bila terjangkau)
+  - [x] 5.4 Characterization: Purchase Receipt (normal + retur) dan Delivery Note (normal + retur; jalur rental bila terjangkau)
     - _Requirements: 4.1–4.3_
-  - [ ] 5.5 Characterization: Payment Entry (satu pembayaran penuh) dan Stock Entry (`item_receipt` + jenis lain yang memposting GL)
+  - [x] 5.5 Characterization: Payment Entry (satu pembayaran penuh) dan Stock Entry (`item_receipt` + jenis lain yang memposting GL)
     - _Requirements: 4.1–4.2_
   - [ ] 5.6 Characterization: Asset — depresiasi, scrap, value adjustment, disposal gain/loss (perluas test `PostAssetDepreciationCommandTest`/`PurchaseInvoiceServiceFixedAssetDispatchTest` yang ada alih-alih menduplikasi bila sudah mencakup)
     - _Requirements: 4.1–4.2_
