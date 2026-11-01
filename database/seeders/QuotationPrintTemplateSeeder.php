@@ -108,13 +108,15 @@ class QuotationPrintTemplateSeeder extends Seeder {
         }
     }
 
+    /**
+     * CSS template cetak Quotation. Selector memakai tag pembungkus dokumen
+     * (`body`) dengan sengaja; renderer menggantinya literal menjadi "main"
+     * (dokumen) atau "div" (kop surat). Jangan menaruh komentar berkoma di
+     * dalam string CSS: pelingkup selector memotong teks pada koma sehingga
+     * aturan di bawah komentar itu dibuang browser.
+     */
     private function css(): string {
         return <<<'CSS'
-/*
- * CSS template cetak Quotation. Selector memakai tag pembungkus dokumen dengan
- * sengaja: saat dirender, kata itu diganti literal menjadi "main" (dokumen) atau
- * "div" (kop surat), jadi kata tersebut tidak boleh dipakai di tempat lain.
- */
 body {
   font-family: Arial, Helvetica, sans-serif;
   font-size: 12px;

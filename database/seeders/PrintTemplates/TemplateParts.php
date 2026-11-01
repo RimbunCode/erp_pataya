@@ -18,19 +18,28 @@ namespace Database\Seeders\PrintTemplates;
  * (kop surat) secara literal.
  */
 final class TemplateParts {
+    /**
+     * CSS bersama template cetak standar. Selector memakai tag pembungkus
+     * dokumen dengan sengaja; renderer menggantinya secara literal.
+     *
+     * Jangan menaruh komentar CSS di dalam string ini. Pelingkup selector
+     * memotong teks sebelum `{` pada koma, sehingga komentar berkoma merusak
+     * selector aturan tepat di bawahnya dan aturan itu dibuang browser.
+     * Lebar kolom tabel item diatur lewat `<colgroup>` (lihat
+     * `columnGroup()`), bukan lewat CSS.
+     */
     public static function css(): string {
         return <<<'CSS'
-/*
- * CSS template cetak standar (dengan slot tanda tangan Dibuat oleh dan
- * Disetujui oleh). Selector memakai tag pembungkus dokumen dengan sengaja:
- * saat dirender, kata itu diganti literal menjadi "main", jadi kata tersebut
- * tidak boleh dipakai di tempat lain pada berkas ini.
- */
 body {
   font-family: Arial, Helvetica, sans-serif;
-  font-size: 10px;
+  font-size: 11px;
   color: #1a1a1a;
   line-height: 1.25;
+}
+
+body table {
+  font-size: inherit;
+  line-height: inherit;
 }
 
 body .doc-title {
@@ -124,24 +133,8 @@ body .items-table .col-number {
   text-align: right;
 }
 
-body .items-table th:first-child,
-body .items-table td:first-child {
-  width: 46%;
-}
-
-body .items-table th:nth-child(2),
-body .items-table td:nth-child(2) {
-  width: 14%;
-}
-
-body .items-table th:nth-child(3),
-body .items-table td:nth-child(3) {
-  width: 20%;
-}
-
-body .items-table th:nth-child(4),
-body .items-table td:nth-child(4) {
-  width: 20%;
+body .items-table td.col-number {
+  font-size: 8.5px;
 }
 
 body .totals-table {
@@ -596,6 +589,7 @@ CSS;
         }
 
         return "  <table class=\"items-table\">\n"
+            . self::columnGroup($columns, true)
             . "    <thead>\n      <tr>{$head}</tr>\n    </thead>\n"
             . "    <tbody>\n      {{#each {$each}}}\n      <tr>{$cells}</tr>\n      {{/each}}\n    </tbody>\n"
             . '  </table>';
@@ -639,9 +633,56 @@ CSS;
         $summaryBlock = $summaryLines !== [] ? "\n" . implode("\n", $summaryLines) : '';
 
         return "  <table class=\"items-table\">\n"
+            . self::columnGroup($columns, false)
             . "    <thead>\n      <tr>{$head}</tr>\n    </thead>\n"
             . "    <tbody>\n      {{#each {$each}}}\n      <tr>{$cells}</tr>\n      {{/each}}{$summaryBlock}\n    </tbody>\n"
             . '  </table>';
+    }
+
+    /**
+     * `<colgroup>` untuk tabel item (tabel memakai `table-layout: fixed`).
+     *
+     * Lebar tiap kolom diambil dari kunci `width` (mis. `'12%'`). Kolom tanpa
+     * `width` dihitung otomatis: nomor dan qty sempit, kolom angka sedang,
+     * kolom teks berbagi sisanya, dan kolom deskripsi (nama barang,
+     * keterangan, dsb.) mendapat bobot lebih besar. Lebar diatur di sini,
+     * bukan lewat CSS `nth-child`, karena jumlah kolom berbeda tiap dokumen.
+     *
+     * @param  array<int, array{label: string, value: string, class?: string, width?: string}>  $columns
+     */
+    private static function columnGroup(array $columns, bool $withNumber): string {
+        $weights = [];
+
+        if ($withNumber) {
+            $weights[] = ['fixed' => 5.0];
+        }
+
+        foreach ($columns as $column) {
+            $class = $column['class'] ?? '';
+
+            $weights[] = match (true) {
+                isset($column['width'])                                                                => ['fixed' => (float) $column['width']],
+                str_contains($class, 'col-qty')                                                        => ['fixed' => 7.0],
+                str_contains($class, 'col-number')                                                     => ['fixed' => 14.0],
+                (bool) preg_match('/desc|barang|item|aset|keterangan|alasan|note/i', $column['label']) => ['flex' => 2.5],
+                default                                                                                => ['flex' => 1.0],
+            };
+        }
+
+        $fixedTotal = array_sum(array_column($weights, 'fixed'));
+        $flexTotal  = array_sum(array_column($weights, 'flex'));
+        $remaining  = max(0.0, 100.0 - $fixedTotal);
+        $cols       = '';
+
+        foreach ($weights as $weight) {
+            $percent = isset($weight['fixed'])
+                ? $weight['fixed']
+                : ($flexTotal > 0 ? $remaining * $weight['flex'] / $flexTotal : 0.0);
+
+            $cols .= '      <col style="width:' . round($percent, 2) . "%;\">\n";
+        }
+
+        return "    <colgroup>\n{$cols}    </colgroup>\n";
     }
 
     /**
