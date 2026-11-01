@@ -125,7 +125,6 @@ final class AssetTemplates {
             'html' => P::document([
                 P::titleRight('Work Order'),
                 P::headerColumns([
-                    P::companyBlock(),
                     P::partyBlock('doc.customer'),
                     P::metaRight([
                         ['WO No', '{{doc.code}}'],

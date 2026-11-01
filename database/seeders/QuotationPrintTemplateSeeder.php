@@ -6,6 +6,7 @@ use App\Models\Core\PrintTemplate;
 use App\Models\CRM\Quotation;
 use App\Models\User\Permission;
 use App\Services\Core\PrintTemplate\PrintTemplateProjectBuilder;
+use Database\Seeders\PrintTemplates\DefaultLetterHead;
 use Illuminate\Database\Seeder;
 
 /**
@@ -49,10 +50,8 @@ class QuotationPrintTemplateSeeder extends Seeder {
             ->orderByRaw('name = ? desc', [Quotation::PRINT_TEMPLATE_BY_TYPE['spare_part']])
             ->first();
 
-        $letterHeadId = $existing?->letter_head_id ?? PrintTemplate::where('is_letter_head', true)
-            ->where('is_default', true)
-            ->value('id');
-        $permission = Permission::where('model', Quotation::class)->first();
+        $letterHeadId = $existing?->letter_head_id ?? DefaultLetterHead::ensure();
+        $permission   = Permission::where('model', Quotation::class)->first();
 
         $variants = [
             [

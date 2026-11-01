@@ -7,6 +7,7 @@ use App\Models\User\Permission;
 use App\Services\Core\PrintTemplate\PrintTemplateProjectBuilder;
 use Database\Seeders\PrintTemplates\Asset\AssetTemplates;
 use Database\Seeders\PrintTemplates\CRM\CrmTemplates;
+use Database\Seeders\PrintTemplates\DefaultLetterHead;
 use Database\Seeders\PrintTemplates\Finances\FinancesTemplates;
 use Database\Seeders\PrintTemplates\Inventory\InventoryTemplates;
 use Database\Seeders\PrintTemplates\Purchase\PurchaseTemplates;
@@ -30,8 +31,10 @@ use Illuminate\Support\Str;
  * menjadikannya default (pengaman supaya halaman cetak tidak kehilangan
  * template); bila sudah ada template lain, status default-nya tidak berubah.
  *
- * Kop surat TIDAK ditulis ulang di sini: dipakai kop surat default yang ada
- * lewat `letter_head_id`.
+ * Identitas perusahaan hanya tercetak di kop surat, bukan di body dokumen.
+ * Kop surat default dibuat oleh `DefaultLetterHead::ensure()` bila belum ada
+ * satu pun, lalu dipasang lewat `letter_head_id` ke template yang belum
+ * punya kop surat. Pilihan kop surat yang sudah ada tidak ditimpa.
  *
  * Markup tiap dokumen ada di `Database\Seeders\PrintTemplates\{Domain}`.
  */
@@ -67,9 +70,7 @@ class StandardPrintTemplateSeeder extends Seeder {
     public function run(): void {
         $projectBuilder = app(PrintTemplateProjectBuilder::class);
         $css            = TemplateParts::css();
-        $letterHeadId   = PrintTemplate::where('is_letter_head', true)
-            ->where('is_default', true)
-            ->value('id');
+        $letterHeadId   = DefaultLetterHead::ensure();
 
         foreach (self::definitions() as $definition) {
             $definitionCss = $definition['css'] ?? $css;
@@ -84,7 +85,7 @@ class StandardPrintTemplateSeeder extends Seeder {
                 'name_model'           => $permission?->name ?? Str::plural($definition['label']),
                 'permission_id'        => $permission?->id,
                 'is_letter_head'       => false,
-                'letter_head_id'       => $letterHeadId,
+                'letter_head_id'       => $template->letter_head_id ?? $letterHeadId,
                 'default_language'     => 'id',
                 'html'                 => $definition['html'],
                 'css'                  => $definitionCss,

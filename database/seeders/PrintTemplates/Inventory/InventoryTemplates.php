@@ -42,9 +42,8 @@ final class InventoryTemplates {
                     ['Delivery Date', '{{formatDate doc.delivery_date "DD-MM-YYYY"}}'],
                 ]),
                 P::headerColumns([
-                    P::companyBlock(),
-                    P::billToBlock('doc.customer', 'doc.customer_branch', 'Bill To'),
-                    P::shipToBlock('doc.customer', 'doc.customer_branch', 'Ship To'),
+                    ['content' => P::billToBlock('doc.customer', 'doc.customer_branch', 'Bill To'), 'width' => '50%'],
+                    ['content' => P::shipToBlock('doc.customer', 'doc.customer_branch', 'Ship To'), 'class' => 'header-col', 'width' => '50%'],
                 ]),
                 P::tableWithSummary('doc.items', [
                     ['label' => 'Part No', 'value' => '{{this.item.item_code}}'],

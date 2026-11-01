@@ -54,13 +54,38 @@ final class SalesTemplates {
 <body>
   <table class="so-head">
     <tr>
-      <td class="so-company">
-        <p class="so-company-name">{{companyDetail "company_name"}}</p>
-        <p>{{companyDetail "street"}}</p>
-        <p>{{companyDetail "city"}} {{companyDetail "state"}} {{companyDetail "zip_code"}}</p>
-        <p>{{companyDetail "country"}}</p>
-        <p>{{companyDetail "phone"}}</p>
-        <p>{{companyDetail "email"}}</p>
+      <td class="so-head-left">
+        <div class="so-party">
+          <div class="so-party-title">Bill To</div>
+          <p class="so-party-name">{{doc.customer.name}}</p>
+          {{#if doc.customer_branch.billing_street}}
+          <p>{{doc.customer_branch.billing_street}}</p>
+          <p>{{doc.customer_branch.billing_city}} {{doc.customer_branch.billing_state}} {{doc.customer_branch.billing_zip_code}}</p>
+          {{else}}
+          {{#if doc.customer_branch.shipping_street}}
+          <p>{{doc.customer_branch.shipping_street}}</p>
+          <p>{{doc.customer_branch.shipping_city}} {{doc.customer_branch.shipping_state}} {{doc.customer_branch.shipping_zip_code}}</p>
+          {{else}}
+          <p>{{doc.customer.street}}</p>
+          <p>{{doc.customer.city}} {{doc.customer.province}} {{doc.customer.zip_code}}</p>
+          {{/if}}
+          {{/if}}
+          <p>{{doc.customer.phone}}</p>
+          <p>{{doc.customer.email}}</p>
+          <p>{{doc.customer.vat}}</p>
+        </div>
+        <div class="so-party">
+          <div class="so-party-title">Ship To</div>
+          <p class="so-party-name">{{doc.customer.name}}</p>
+          {{#if doc.customer_branch.shipping_street}}
+          <p>{{doc.customer_branch.shipping_street}}</p>
+          <p>{{doc.customer_branch.shipping_city}} {{doc.customer_branch.shipping_state}} {{doc.customer_branch.shipping_zip_code}}</p>
+          {{else}}
+          <p>{{doc.customer.street}}</p>
+          <p>{{doc.customer.city}} {{doc.customer.province}} {{doc.customer.zip_code}}</p>
+          {{/if}}
+          <p>{{doc.customer.phone}}</p>
+        </div>
       </td>
       <td class="so-head-right">
         <div class="doc-title doc-title-right">Sales Order</div>
@@ -71,42 +96,6 @@ final class SalesTemplates {
             {{#if doc.branch}}<tr><td class="so-meta-label">Lokasi</td><td class="so-meta-sep">:</td><td class="so-meta-value">{{doc.branch.name}}</td></tr>{{/if}}
           </tbody>
         </table>
-      </td>
-    </tr>
-  </table>
-
-  <table class="so-parties">
-    <tr>
-      <td class="so-party">
-        <div class="so-party-title">Bill To</div>
-        <p class="so-party-name">{{doc.customer.name}}</p>
-        {{#if doc.customer_branch.billing_street}}
-        <p>{{doc.customer_branch.billing_street}}</p>
-        <p>{{doc.customer_branch.billing_city}} {{doc.customer_branch.billing_state}} {{doc.customer_branch.billing_zip_code}}</p>
-        {{else}}
-        {{#if doc.customer_branch.shipping_street}}
-        <p>{{doc.customer_branch.shipping_street}}</p>
-        <p>{{doc.customer_branch.shipping_city}} {{doc.customer_branch.shipping_state}} {{doc.customer_branch.shipping_zip_code}}</p>
-        {{else}}
-        <p>{{doc.customer.street}}</p>
-        <p>{{doc.customer.city}} {{doc.customer.province}} {{doc.customer.zip_code}}</p>
-        {{/if}}
-        {{/if}}
-        <p>{{doc.customer.phone}}</p>
-        <p>{{doc.customer.email}}</p>
-        <p>{{doc.customer.vat}}</p>
-      </td>
-      <td class="so-party">
-        <div class="so-party-title">Ship To</div>
-        <p class="so-party-name">{{doc.customer.name}}</p>
-        {{#if doc.customer_branch.shipping_street}}
-        <p>{{doc.customer_branch.shipping_street}}</p>
-        <p>{{doc.customer_branch.shipping_city}} {{doc.customer_branch.shipping_state}} {{doc.customer_branch.shipping_zip_code}}</p>
-        {{else}}
-        <p>{{doc.customer.street}}</p>
-        <p>{{doc.customer.city}} {{doc.customer.province}} {{doc.customer.zip_code}}</p>
-        {{/if}}
-        <p>{{doc.customer.phone}}</p>
       </td>
     </tr>
   </table>
@@ -211,14 +200,12 @@ body .so-head td {
   padding: 0;
 }
 
-body .so-company {
-  width: 55%;
+body .so-head {
+  margin-bottom: 14px;
 }
 
-body .so-company-name {
-  font-size: 14px;
-  font-weight: bold;
-  margin: 0 0 3px 0;
+body .so-head-left {
+  width: 55%;
 }
 
 body .so-head-right {
@@ -259,16 +246,8 @@ body .so-meta .so-meta-sep {
   text-align: center;
 }
 
-body .so-parties {
-  width: 100%;
-  border-collapse: collapse;
-  margin: 16px 0 14px 0;
-}
-
 body .so-party {
-  width: 50%;
-  vertical-align: top;
-  padding: 0 14px 0 0;
+  margin: 0 14px 10px 0;
 }
 
 body .so-party-title {
@@ -393,7 +372,6 @@ CSS;
             'html' => P::document([
                 P::titleRight('Internal Order'),
                 P::headerColumns([
-                    P::companyBlock(),
                     P::metaRight([
                         ['Order No', '{{doc.code}}'],
                         ['Order Date', '{{formatDate doc.date "DD-MM-YYYY"}}'],

@@ -75,7 +75,6 @@ final class PurchaseTemplates {
             'html' => P::document([
                 P::titleRight('Purchase Order'),
                 P::headerColumns([
-                    P::companyBlock(),
                     P::partyBlock('doc.supplier'),
                     P::metaRight([
                         ['Order No', '{{doc.code}}'],
@@ -126,7 +125,6 @@ final class PurchaseTemplates {
             'html' => P::document([
                 P::titleRight('Purchase Receipt'),
                 P::headerColumns([
-                    P::companyBlock(),
                     P::partyBlock('doc.supplier', 'Vendor'),
                     P::metaRight([
                         ['Receive No', '{{doc.code}}'],

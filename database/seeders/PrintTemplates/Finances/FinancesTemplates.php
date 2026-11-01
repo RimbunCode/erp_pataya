@@ -45,7 +45,6 @@ final class FinancesTemplates {
             'html' => P::document([
                 P::titleRight('Invoice Penjualan'),
                 P::headerColumns([
-                    P::companyBlock(),
                     P::billToBlock('doc.customer', 'doc.customer_branch', 'Tagih Ke'),
                     P::metaRight([
                         ['Nomor Faktur', '{{doc.code}}'],
@@ -104,7 +103,6 @@ final class FinancesTemplates {
             'html' => P::document([
                 P::titleRight('Invoice Pembelian'),
                 P::headerColumns([
-                    P::companyBlock(),
                     P::partyBlock('doc.supplier', 'Tagih Dari'),
                     P::metaRight([
                         ['Nomor Faktur', '{{doc.code}}'],

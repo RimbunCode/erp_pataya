@@ -279,6 +279,66 @@ class StandardPrintTemplateSeederTest extends TestCase {
     }
 
     #[Test]
+    public function creates_the_default_letter_head_when_none_exists_and_attaches_it_to_every_template(): void {
+        $this->assertSame(0, PrintTemplate::where('is_letter_head', true)->count());
+
+        $this->seedStandard();
+
+        $letterHead = PrintTemplate::where('is_letter_head', true)->sole();
+        $this->assertSame('Kop Surat Default', $letterHead->name);
+        $this->assertTrue($letterHead->is_default);
+        $this->assertStringContainsString('{{companyDetail "company_name"}}', $letterHead->html);
+
+        foreach (PrintTemplate::where('name', 'like', 'Standar - %')->get() as $template) {
+            $this->assertSame($letterHead->id, $template->letter_head_id, $template->name);
+        }
+
+        $this->seedStandard();
+
+        $this->assertSame(1, PrintTemplate::where('is_letter_head', true)->count());
+    }
+
+    #[Test]
+    public function fills_only_empty_letter_head_and_keeps_a_manual_choice(): void {
+        $this->seedStandard();
+
+        $default = PrintTemplate::where('is_letter_head', true)->sole();
+        $other   = PrintTemplate::create([
+            'name'           => 'Kop Surat Lain',
+            'is_letter_head' => true,
+            'is_default'     => false,
+            'html'           => '<body>lain</body>',
+        ]);
+
+        $chosen = PrintTemplate::where('name', StandardPrintTemplateSeeder::nameFor('Sales Order'))->first();
+        $chosen->update(['letter_head_id' => $other->id]);
+
+        $empty = PrintTemplate::where('name', StandardPrintTemplateSeeder::nameFor('Purchase Order'))->first();
+        $empty->update(['letter_head_id' => null]);
+
+        $this->seedStandard();
+
+        $this->assertSame($other->id, $chosen->fresh()->letter_head_id);
+        $this->assertSame($default->id, $empty->fresh()->letter_head_id);
+    }
+
+    #[Test]
+    public function does_not_create_a_letter_head_when_a_non_default_one_already_exists(): void {
+        $manual = PrintTemplate::create([
+            'name'           => 'Kop Surat Manual',
+            'is_letter_head' => true,
+            'html'           => '<body>manual</body>',
+        ]);
+        // Hook saving menjadikan kop surat pertama sebagai default; paksa non-default.
+        PrintTemplate::whereKey($manual->id)->update(['is_default' => false]);
+
+        $this->seedStandard();
+
+        $this->assertSame(1, PrintTemplate::where('is_letter_head', true)->count());
+        $this->assertNull($this->standardTemplate('Sales Order')->letter_head_id);
+    }
+
+    #[Test]
     public function document_bodies_differ_per_kind(): void {
         $this->seedStandard();
 
@@ -464,7 +524,7 @@ class StandardPrintTemplateSeederTest extends TestCase {
         foreach ($redesignedLabels as $label) {
             $html = $this->standardTemplate($label)->html;
 
-            $this->assertStringContainsString('{{companyDetail "company_name"}}', $html, $label);
+            $this->assertStringNotContainsString('companyDetail', $html, "{$label}: identitas perusahaan hanya di kop surat");
             $this->assertStringContainsString('<th>Part No</th>', $html, $label);
             $this->assertStringContainsString('{{this.item.item_code}}', $html, $label);
             $this->assertStringContainsString('formatDate', $html, $label);

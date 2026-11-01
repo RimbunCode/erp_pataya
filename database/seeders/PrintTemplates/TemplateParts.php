@@ -435,13 +435,22 @@ CSS;
     }
 
     /**
-     * Susunan kolom sejajar di bagian kepala dokumen (umumnya 3 kolom:
-     * identitas perusahaan, pihak lawan, dan meta rata kanan).
+     * Susunan kolom sejajar di bagian kepala dokumen: umumnya pihak lawan di
+     * kiri dan meta rata kanan di kolom terakhir. Identitas perusahaan tidak
+     * ada di sini karena sudah tercetak di kop surat.
+     *
+     * Satu atau dua kolom diberi lebar otomatis (100% atau 55% dan 45%);
+     * lebar lain diatur lewat kunci `width`.
      *
      * @param  array<int, string|array{content: string, class?: string, width?: string}>  $columns
      */
     public static function headerColumns(array $columns): string {
-        $count = \count($columns);
+        $count         = \count($columns);
+        $defaultWidths = match ($count) {
+            1       => ['100%'],
+            2       => ['55%', '45%'],
+            default => [],
+        };
         $cells = [];
 
         foreach ($columns as $index => $col) {
@@ -450,25 +459,12 @@ CSS;
             $class   = \is_array($col) && isset($col['class'])
                 ? $col['class']
                 : ($isLast ? 'header-col header-col-fixed header-col-right' : 'header-col header-col-fixed');
-            $widthAttr = \is_array($col) && isset($col['width']) ? ' style="width:' . $col['width'] . ';"' : '';
+            $width     = \is_array($col) && isset($col['width']) ? $col['width'] : ($defaultWidths[$index] ?? null);
+            $widthAttr = $width !== null ? ' style="width:' . $width . ';"' : '';
             $cells[]   = "      <td class=\"{$class}\"{$widthAttr}>\n{$content}\n      </td>";
         }
 
         return "  <table class=\"header-columns\">\n    <tr>\n" . implode("\n", $cells) . "\n    </tr>\n  </table>";
-    }
-
-    /**
-     * Blok identitas perusahaan di kolom kiri header, diambil dari preferences.
-     */
-    public static function companyBlock(): string {
-        return "        <div class=\"header-block\">\n"
-            . "          <p class=\"party-name\">{{companyDetail \"company_name\"}}</p>\n"
-            . "          <p>{{companyDetail \"street\"}}</p>\n"
-            . "          <p>{{companyDetail \"city\"}} {{companyDetail \"state\"}}</p>\n"
-            . "          <p>{{companyDetail \"country\"}} {{companyDetail \"zip_code\"}}</p>\n"
-            . "          <p>{{companyDetail \"phone\"}}</p>\n"
-            . "          <p>{{companyDetail \"email\"}}</p>\n"
-            . '        </div>';
     }
 
     /**
