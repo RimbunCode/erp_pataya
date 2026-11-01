@@ -11,6 +11,7 @@ use App\Models\Finances\GeneralLedger;
 use App\Models\Finances\PaymentEntry;
 use App\Models\Finances\PaymentSchedule;
 use App\Models\Finances\SalesInvoice;
+use App\Models\Finances\SalesInvoiceItem;
 use App\Models\Inventory\Item;
 use App\Models\Inventory\ItemUnit;
 use App\Models\Inventory\ItemVariant;
@@ -165,6 +166,34 @@ trait BuildsFinanceFixtures {
         $itemUnit = ItemUnit::create(['item_id' => $item->id, 'unit_id' => $unit->id, 'is_default' => true]);
 
         return ['warehouse' => $warehouse, 'variant' => $variant, 'itemUnit' => $itemUnit];
+    }
+
+    /**
+     * Faktur penjualan berstatus SUBMITTED dengan satu baris (2 × 1.000, pajak 10%), siap di-approve lewat
+     * `SalesInvoiceService::onApproved`. Model `SalesInvoice` harus sudah di `setUpFinanceFixtures()`.
+     *
+     * @param  array<string, mixed>  $attributes
+     * @param  array<string, mixed>  $itemAttributes
+     */
+    protected function makeSalesInvoice(Account $receivable, Account $income, array $attributes = [], array $itemAttributes = []): SalesInvoice {
+        $invoice = SalesInvoice::factory()->create([
+            'date'              => now()->subDays(5),
+            'debit_account_id'  => $receivable->id,
+            'income_account_id' => $income->id,
+            'branch_id'         => $this->branch->id,
+            'status'            => [FormStatus::SUBMITTED],
+            ...$attributes,
+        ]);
+
+        SalesInvoiceItem::factory()->create([
+            'sales_invoice_id' => $invoice->id,
+            'quantity'         => 2,
+            'price'            => 1000,
+            'tax_rate'         => 10,
+            ...$itemAttributes,
+        ]);
+
+        return $invoice->fresh();
     }
 
     /**

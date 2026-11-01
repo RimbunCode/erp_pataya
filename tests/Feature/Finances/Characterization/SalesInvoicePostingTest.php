@@ -5,7 +5,6 @@ namespace Tests\Feature\Finances\Characterization;
 use App\Enums\FormStatus;
 use App\Models\Finances\Account;
 use App\Models\Finances\SalesInvoice;
-use App\Models\Finances\SalesInvoiceItem;
 use App\Services\Finances\SalesInvoiceService;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Tests\Support\BuildsFinanceFixtures;
@@ -36,24 +35,7 @@ class SalesInvoicePostingTest extends TestCase {
      * @param  array<string, mixed>  $itemAttributes
      */
     private function makeInvoice(array $attributes = [], array $itemAttributes = []): SalesInvoice {
-        $invoice = SalesInvoice::factory()->create([
-            'date'              => now()->subDays(5),
-            'debit_account_id'  => $this->receivable->id,
-            'income_account_id' => $this->sales->id,
-            'branch_id'         => $this->branch->id,
-            'status'            => [FormStatus::SUBMITTED],
-            ...$attributes,
-        ]);
-
-        SalesInvoiceItem::factory()->create([
-            'sales_invoice_id' => $invoice->id,
-            'quantity'         => 2,
-            'price'            => 1000,
-            'tax_rate'         => 10,
-            ...$itemAttributes,
-        ]);
-
-        return $invoice->fresh();
+        return $this->makeSalesInvoice($this->receivable, $this->sales, $attributes, $itemAttributes);
     }
 
     private function approve(SalesInvoice $invoice): SalesInvoice {
