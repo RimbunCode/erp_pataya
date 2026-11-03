@@ -329,7 +329,8 @@ Setiap spec berisi `requirements.md`, `design.md`, `tasks.md`, dan `.config.kiro
 | Fase | Folder spec | Status dokumen |
 |---|---|---|
 | S | [`module-settings-foundation`](../../.kiro/specs/module-settings-foundation/requirements.md) | Draft lengkap; spec lintas modul, prasyarat Fase 1. Program induknya: [`module-settings-prd.md`](module-settings-prd.md) |
-| 0 | [`finance-p0-foundation-audit`](../../.kiro/specs/finance-p0-foundation-audit/requirements.md) | Berjalan — Task 1–6.4 (PR #271); 6.5 (pemilik produk, staging, 2026-11-03); draft Task 7 (PR #272); laporan audit disetujui dan keputusan proses disahkan 2026-11-03; sisa: persetujuan decision log, keputusan per bug, DV-D (sebelum Task 8), sisa Req 6.2 dan APP_ENV, Task 8 |
+| 0 | [`finance-p0-foundation-audit`](../../.kiro/specs/finance-p0-foundation-audit/requirements.md) | Berjalan — Task 1–6.4 (PR #271); 6.5 (pemilik produk, staging, 2026-11-03); draft Task 7 (PR #272); laporan audit dan decision log disetujui 2026-11-03 (PR #273/#274); sisa: Task 2.6 (DV-D, branch `feat/finance-p0-auditor-coverage`), skema staging Req 6.2 dan APP_ENV (Task 7.1), Task 8 |
+| H | `finance-payment-entry-hotfix` (akan dibuat) | Spec bugfix ringkas untuk N-4 dan F-10, beserta bagian `paid_amount` F-04; dikerjakan sebelum Fase 1; tidak mengoreksi data GL staging secara otomatis |
 | 1 | [`finance-p1-journal-core`](../../.kiro/specs/finance-p1-journal-core/requirements.md) | Draft lengkap — dieksekusi setelah Fase 0 disetujui |
 | 2 | [`finance-p2-posting-engine`](../../.kiro/specs/finance-p2-posting-engine/requirements.md) | Draft; peta rule sebagian bertanda `[TODO]` sampai kode sumber dibaca penuh |
 | 3 | [`finance-p3-tax-engine`](../../.kiro/specs/finance-p3-tax-engine/requirements.md) | Draft; menunggu D-12, D-15 |
@@ -343,7 +344,7 @@ Setiap spec berisi `requirements.md`, `design.md`, `tasks.md`, dan `.config.kiro
 
 | Fase | Selesai bila |
 |---|---|
-| 0 | Laporan audit disetujui; test pengunci perilaku lulus; D-1, D-4, D-11 terjawab atau ditunda dengan alasan tertulis. _Status 2026-11-03: laporan audit disetujui; D-4 sudah diputuskan; D-1 dan D-11 ditunda dengan alasan tertulis; verifikasi ulang test pengunci belum dilakukan pada tahapan ini; Fase 0 belum selesai (Task 8, persetujuan decision log)._ |
+| 0 | Laporan audit disetujui; test pengunci perilaku lulus; D-1, D-4, D-11 terjawab atau ditunda dengan alasan tertulis. _Status 2026-11-03: laporan audit dan decision log disetujui; D-4 sudah diputuskan; D-1 dan D-11 ditunda dengan alasan tertulis; keputusan penanganan per bug disetujui; DV-D (Task 2.6) dan skema staging Req 6.2/APP_ENV belum selesai; verifikasi ulang test pengunci belum dilakukan pada tahapan ini; Fase 0 belum selesai (Task 8)._ |
 | 1 | Tidak ada jalur menulis jurnal tak seimbang; backfill selesai dengan laporan selisih nol atau terdokumentasi; reversal berfungsi; test invarian lulus |
 | 2 | Semua jenis dokumen yang ada diposting lewat `PostingService` dengan parity terbukti; cancel membalik jurnal; query `latest()->first()` untuk akun hilang |
 | 3 | PPN/PPh terpisah di jurnal; perubahan tarif cukup dengan menambah versi aturan; golden test tarif lama/baru lulus |
