@@ -4,7 +4,7 @@
 
 Urutan: baca kode pembayaran + audit data (1), FX Engine dan kurs (2–3, tanpa perubahan perilaku), jejak kurs dokumen (4), pihak pada baris jurnal + `PartyLedgerService` (5), alokasi + calculator (6), rule `payment_settlement` + sakelar (7), retur/uang muka (8), rekonsiliasi + backfill (9), UI (10), checkpoint (11). **Sakelar `finance_payment_allocation_enabled` default `false`**: merge tidak mengubah perilaku sampai ada keputusan. Lint/Pint sekali di akhir.
 
-**Prasyarat**: Fase 1–2 selesai (Payment Entry, Sales Invoice, Purchase Invoice mode `on` stabil); D-16/D-17/D-18 dijawab sebelum Task 7; Q-P4-1…4 terjawab. Branch terbaru dari remote.
+**Prasyarat**: Fase 1–2 selesai (Payment Entry, Sales Invoice, Purchase Invoice mode `on` stabil); D-16/D-17/D-18 dijawab sebelum Task 7; Q-P4-1…4 terjawab. Branch baru dari `origin/dev-1` terbaru (lihat PRD Bagian 10, "Aturan branch per tahapan").
 
 **Aturan eksekusi**:
 - Jangan mengubah `paid_amount` historis atau jurnal lama (tidak ada restatement).
