@@ -329,7 +329,7 @@ Setiap spec berisi `requirements.md`, `design.md`, `tasks.md`, dan `.config.kiro
 | Fase | Folder spec | Status dokumen |
 |---|---|---|
 | S | [`module-settings-foundation`](../../.kiro/specs/module-settings-foundation/requirements.md) | Draft lengkap; spec lintas modul, prasyarat Fase 1. Program induknya: [`module-settings-prd.md`](module-settings-prd.md) |
-| 0 | [`finance-p0-foundation-audit`](../../.kiro/specs/finance-p0-foundation-audit/requirements.md) | Berjalan — Task 1–6.4 (PR #271); draft Task 7 (PR #272); keputusan proses disahkan 2026-11-03; sisa: 6.5 (pemilik produk, staging), persetujuan laporan, keputusan per bug, 8 |
+| 0 | [`finance-p0-foundation-audit`](../../.kiro/specs/finance-p0-foundation-audit/requirements.md) | Berjalan — Task 1–6.4 (PR #271); 6.5 (pemilik produk, staging, 2026-11-03); draft Task 7 (PR #272); laporan audit disetujui dan keputusan proses disahkan 2026-11-03; sisa: persetujuan decision log, keputusan per bug, DV-D (sebelum Task 8), sisa Req 6.2 dan APP_ENV, Task 8 |
 | 1 | [`finance-p1-journal-core`](../../.kiro/specs/finance-p1-journal-core/requirements.md) | Draft lengkap — dieksekusi setelah Fase 0 disetujui |
 | 2 | [`finance-p2-posting-engine`](../../.kiro/specs/finance-p2-posting-engine/requirements.md) | Draft; peta rule sebagian bertanda `[TODO]` sampai kode sumber dibaca penuh |
 | 3 | [`finance-p3-tax-engine`](../../.kiro/specs/finance-p3-tax-engine/requirements.md) | Draft; menunggu D-12, D-15 |
@@ -343,7 +343,7 @@ Setiap spec berisi `requirements.md`, `design.md`, `tasks.md`, dan `.config.kiro
 
 | Fase | Selesai bila |
 |---|---|
-| 0 | Laporan audit disetujui; test pengunci perilaku lulus; D-1, D-4, D-11 terjawab atau ditunda dengan alasan tertulis |
+| 0 | Laporan audit disetujui; test pengunci perilaku lulus; D-1, D-4, D-11 terjawab atau ditunda dengan alasan tertulis. _Status 2026-11-03: laporan audit disetujui; D-4 sudah diputuskan; D-1 dan D-11 ditunda dengan alasan tertulis; verifikasi ulang test pengunci belum dilakukan pada tahapan ini; Fase 0 belum selesai (Task 8, persetujuan decision log)._ |
 | 1 | Tidak ada jalur menulis jurnal tak seimbang; backfill selesai dengan laporan selisih nol atau terdokumentasi; reversal berfungsi; test invarian lulus |
 | 2 | Semua jenis dokumen yang ada diposting lewat `PostingService` dengan parity terbukti; cancel membalik jurnal; query `latest()->first()` untuk akun hilang |
 | 3 | PPN/PPh terpisah di jurnal; perubahan tarif cukup dengan menambah versi aturan; golden test tarif lama/baru lulus |

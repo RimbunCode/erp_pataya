@@ -89,7 +89,7 @@ Satu query agregat: `accounts` di-`LEFT JOIN` ke `general_ledgers` (hanya baris 
 - Satu-satunya penulis `accounts.balance_amount` di `app/` adalah `StockEntryService` (~562–640): sisi debit `+ jumlah`, sisi kredit `− jumlah`. Jadi `balance_amount` bertanda **debit − kredit untuk semua akun**, tanpa memandang `balance_type`. Jalur posting lain (invoice, receipt, delivery note, payment, aset) tidak menyentuhnya.
 - Maka `net = Σdebit − Σkredit` (baris aktif) dan `difference = net − balance_amount`. Menyesuaikan arah `net` menurut `balance_type` (rumus awal) akan membuat akun berjenis kredit tampak selisih `2 × (debit − kredit)` padahal konsisten.
 - `balance_type` tetap dicetak sebagai informasi; `note` menandai akun dengan `balance_type` kosong dan akun soft-deleted.
-- Belum diverifikasi terhadap data staging (tidak ada akses dari sesi ini); dikonfirmasi saat Task 6.5.
+- **terkonfirmasi sebagian (2026-11-03):** sesuai untuk akun ber-`balance_type` debit yang ditulis `StockEntryService` (5110, 1241); akun ber-`balance_type` kredit tidak punya cache di staging, sehingga belum teruji data.
 
 ### 5. Characterization tests
 
