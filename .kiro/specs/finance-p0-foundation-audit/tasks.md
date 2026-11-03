@@ -10,61 +10,65 @@ Fase ini read-only: tidak ada migration dan tidak ada perubahan pada listener/se
 
 ## Tasks
 
-- [ ] 1. Kerangka kode audit
-  - [ ] 1.1 Buat `app/Services/Finances/Audit/AuditReport.php` (DTO: `toArray()`, `toJson()`)
+- [x] 1. Kerangka kode audit
+  - [x] 1.1 Buat `app/Services/Finances/Audit/AuditReport.php` (DTO: `toArray()`, `toJson()`)
     - _Requirements: 1.3, 1.4_
-  - [ ] 1.2 Buat `app/Console/Commands/Finances/AuditGeneralLedgerCommand.php` dengan signature `finance:audit-gl {--limit=20} {--json=} {--connection=}`; pastikan auto-discovery menemukan subfolder `Finances/`
+  - [x] 1.2 Buat `app/Console/Commands/Finances/AuditGeneralLedgerCommand.php` dengan signature `finance:audit-gl {--limit=20} {--json=} {--connection=}`; pastikan auto-discovery menemukan subfolder `Finances/`
     - _Requirements: 1.1, 1.4, 8.1, 8.2_
 
-- [ ] 2. Auditor integritas dan referensi
-  - [ ] 2.1 Buat `IntegrityChecks` (tak seimbang, nol/negatif, soft-deleted, akun hilang/terhapus, duplikasi) dengan agregasi database
+- [x] 2. Auditor integritas dan referensi
+  - [x] 2.1 Buat `IntegrityChecks` (tak seimbang, nol/negatif, soft-deleted, akun hilang/terhapus, duplikasi) dengan agregasi database
     - _Requirements: 1.2.1–1.2.4, 1.2.7, 1.5_
-  - [ ] 2.2 Buat `ReferenceChecks` (referenceable hilang; soft-delete diharapkan vs anomali; dokumen `canceled` dengan GL aktif)
+  - [x] 2.2 Buat `ReferenceChecks` (referenceable hilang; soft-delete diharapkan vs anomali; dokumen `canceled` dengan GL aktif)
     - _Requirements: 1.2.3, 1.2.5, 1.2.6_
-  - [ ] 2.3 Buat `DocumentCoverageMatrix` (9 jenis dokumen; tracked vs tidak; `posting_not_posted`)
+  - [x] 2.3 Buat `DocumentCoverageMatrix` (9 jenis dokumen; tracked vs tidak; `posting_not_posted`)
     - _Requirements: 2.1–2.4_
-  - [ ] 2.4 Buat `GeneralLedgerAuditor::run()` yang merakit ketiganya + total ringkasan
+  - [x] 2.4 Buat `GeneralLedgerAuditor::run()` yang merakit ketiganya + total ringkasan
     - _Requirements: 1.3, 1.6_
-  - [ ]* 2.5 Write property/feature tests auditor
+  - [x]* 2.5 Write property/feature tests auditor
     - Satu test per kategori anomali (suntik satu anomali → hitung tepat 1); test data sehat → semua kategori 0 (P-4); test tabel kosong (1.6); test determinisme (P-2)
     - **Validates: Requirements 1.2, 1.3, 1.6**
 
-- [ ] 3. Baseline saldo
-  - [ ] 3.1 Verifikasi nilai `accounts.balance_type` dan konvensi tanda `balance_amount` (baca `AccountSeeder`, `StockEntryService` ~555–640, data staging) lalu kunci rumus `net`/`difference`; hapus `[TODO]` di design.md
+- [x] 3. Baseline saldo
+  - [x] 3.1 Verifikasi nilai `accounts.balance_type` dan konvensi tanda `balance_amount` (baca `AccountSeeder`, `StockEntryService` ~555–640, data staging) lalu kunci rumus `net`/`difference`; hapus `[TODO]` di design.md
+    - Selesai 2026-11-01: rumus dikunci mengikuti kode (balance_amount bertanda debit − kredit untuk semua akun); Requirement 3.2 dan 3.5 disesuaikan, perlu disahkan pemilik produk. Verifikasi data staging menunggu Task 6.5.
     - _Requirements: 3.2, 3.5_
-  - [ ] 3.2 Buat `BalanceSnapshotService` + `app/Console/Commands/Finances/SnapshotBalancesCommand.php` (`finance:snapshot-balances`), CSV streaming, `LEFT JOIN` agar akun tanpa transaksi ikut
+  - [x] 3.2 Buat `BalanceSnapshotService` + `app/Console/Commands/Finances/SnapshotBalancesCommand.php` (`finance:snapshot-balances`), CSV streaming, `LEFT JOIN` agar akun tanpa transaksi ikut
     - _Requirements: 3.1, 3.3, 3.4_
-  - [ ]* 3.3 Write tests snapshot: header CSV, jumlah baris = jumlah akun, akun tanpa transaksi bernilai nol, `balance_type` null → `note`
+  - [x]* 3.3 Write tests snapshot: header CSV, jumlah baris = jumlah akun, akun tanpa transaksi bernilai nol, `balance_type` null → `note`
     - **Validates: Requirements 3.1–3.5**
 
-- [ ] 4. Checkpoint - Auditor dan snapshot
+- [x] 4. Checkpoint - Auditor dan snapshot
   - Jalankan test berkas Task 2.5 dan 3.3; pastikan P-1 (read-only: jumlah baris semua tabel tak berubah) lulus
   - Ensure all tests pass, ask the user if questions arise.
 
 - [ ] 5. Helper fixture dan characterization test
-  - [ ] 5.1 Buat `tests/Support/BuildsFinanceFixtures.php` (user, branch, akun standar, setting, `initPermissions()` model terkait, `is_example` seperti pola `GeneralLedgerControllerTest`; `queue.default=sync`)
+  - [x] 5.1 Buat `tests/Support/BuildsFinanceFixtures.php` (user, branch, akun standar, setting, `initPermissions()` model terkait, `is_example` seperti pola `GeneralLedgerControllerTest`; `queue.default=sync`)
     - _Requirements: 4.4, 4.5_
-  - [ ] 5.2 Characterization: Sales Invoice (normal + retur)
+  - [x] 5.2 Characterization: Sales Invoice (normal + retur)
     - _Requirements: 4.1–4.3_
-  - [ ] 5.3 Characterization: Purchase Invoice (cabang stok/SRNB + expense/credit; normal + retur)
+  - [x] 5.3 Characterization: Purchase Invoice (cabang stok/SRNB + expense/credit; normal + retur)
+    - Selesai 2026-11-01: jalur expense/kredit lewat `onApproved`; cabang stok/SRNB di batas event + listener asli (nilai `totalStockGL` berasal dari valuasi SLE, sudah dicakup `PurchaseInvoicePendingSlesFifoOrderTest`). Temuan: `onApproved` tanpa PO gagal `TypeError` (event rekalkulasi PO butuh PO non-null).
     - _Requirements: 4.1–4.3_
-  - [ ] 5.4 Characterization: Purchase Receipt (normal + retur) dan Delivery Note (normal + retur; jalur rental bila terjangkau)
+  - [x] 5.4 Characterization: Purchase Receipt (normal + retur) dan Delivery Note (normal + retur; jalur rental bila terjangkau)
+    - Selesai 2026-11-01 dengan cakupan dipersempit: dikunci di batas event + listener asli (`totalRatesForGL`/`totalPicked` adalah keluaran valuasi stok, di luar refactor posting). Jalur rental Delivery Note tidak dibuat: posting rental ada di `PostAssetDisposalGainLoss` (task 5.6).
     - _Requirements: 4.1–4.3_
-  - [ ] 5.5 Characterization: Payment Entry (satu pembayaran penuh) dan Stock Entry (`item_receipt` + jenis lain yang memposting GL)
+  - [x] 5.5 Characterization: Payment Entry (satu pembayaran penuh) dan Stock Entry (`item_receipt` + jenis lain yang memposting GL)
     - _Requirements: 4.1–4.2_
-  - [ ] 5.6 Characterization: Asset — depresiasi, scrap, value adjustment, disposal gain/loss (perluas test `PostAssetDepreciationCommandTest`/`PurchaseInvoiceServiceFixedAssetDispatchTest` yang ada alih-alih menduplikasi bila sudah mencakup)
+  - [x] 5.6 Characterization: Asset — depresiasi, scrap, value adjustment, disposal gain/loss (perluas test `PostAssetDepreciationCommandTest`/`PurchaseInvoiceServiceFixedAssetDispatchTest` yang ada alih-alih menduplikasi bila sudah mencakup)
+    - Selesai 2026-11-01: depresiasi lewat command penuh, scrap lewat `Asset::scrap()`, penyesuaian nilai dan disposal di batas event + listener asli. Temuan: tanda laba/rugi disposal tampak terbalik terhadap konvensi umum (lihat docblock test).
     - _Requirements: 4.1–4.2_
 
 - [ ] 6. Known-issue test dan audit data nyata
-  - [ ] 6.1 Known-issue F-10: dua pembayaran parsial berurutan; catat jumlah yang diposting GL ke-2
+  - [x] 6.1 Known-issue F-10: dua pembayaran parsial berurutan; catat jumlah yang diposting GL ke-2
     - _Requirements: 5.1, 5.5_
-  - [ ] 6.2 Known-issue F-11 (FX): pembayaran mata uang asing dengan `exchange_rate` ≠ 1
+  - [x] 6.2 Known-issue F-11 (FX): pembayaran mata uang asing dengan `exchange_rate` ≠ 1
     - _Requirements: 5.2, 5.5_
-  - [ ] 6.3 Known-issue F-04: cancel Sales Invoice, Payment Entry, dan Stock Entry; catat bahwa GL/SLE di-soft-delete (hook `Submitable`) dan apakah `accounts.balance_amount` ikut disesuaikan
+  - [x] 6.3 Known-issue F-04: cancel Sales Invoice, Payment Entry, dan Stock Entry; catat bahwa GL/SLE di-soft-delete (hook `Submitable`) dan apakah `accounts.balance_amount` ikut disesuaikan
     - _Requirements: 5.3, 5.5_
-  - [ ] 6.3b Known-issue F-16: dispatch event posting (listener queued ditahan), batalkan dokumen, lalu jalankan listener; catat apakah GL aktif tercipta untuk dokumen `canceled`
+  - [x] 6.3b Known-issue F-16: dispatch event posting (listener queued ditahan), batalkan dokumen, lalu jalankan listener; catat apakah GL aktif tercipta untuk dokumen `canceled`
     - _Requirements: 5.4, 5.5_
-  - [ ] 6.4 Perbarui status temuan di PRD (terkonfirmasi / tidak terkonfirmasi) sesuai hasil 6.1–6.3b
+  - [x] 6.4 Perbarui status temuan di PRD (terkonfirmasi / tidak terkonfirmasi) sesuai hasil 6.1–6.3b
     - _Requirements: 5.6_
   - [ ] 6.5 **(Manual)** Jalankan `finance:audit-gl --json` dan `finance:snapshot-balances` di staging (dan produksi bila disetujui, Q1); simpan keluaran di `storage/app/finance-audit/`
     - _Requirements: 1.4, 3.1, 7.1_
