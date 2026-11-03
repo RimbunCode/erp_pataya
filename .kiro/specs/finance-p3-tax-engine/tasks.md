@@ -4,7 +4,7 @@
 
 Bagian A (Task 1–8) tidak mengubah angka di dokumen; Bagian B (Task 9) adalah konversi kolom yang **GATED D-15**. Urutan: audit data pajak (1), skema + model (2), backfill versi 1 (3), resolver + engine dengan test (4), snapshot di service dokumen (5), pemisahan baris pajak di rule posting + cutover (6), Faktur Pajak + UI (7–8), konversi kolom (9), checkpoint (10). Lint/Pint sekali di akhir.
 
-**Prasyarat**: Fase 2 selesai untuk Sales Invoice dan Purchase Invoice (mode `on` stabil); D-12 (kebijakan posting pajak) disetujui akuntan sebelum Task 6; Q-P3-1…4 terjawab. Branch terbaru dari remote.
+**Prasyarat**: Fase 2 selesai untuk Sales Invoice dan Purchase Invoice (mode `on` stabil); D-12 (kebijakan posting pajak) disetujui akuntan sebelum Task 6; Q-P3-1…4 terjawab. Branch baru dari `origin/dev-1` terbaru (lihat PRD Bagian 10, "Aturan branch per tahapan").
 
 **Aturan eksekusi**:
 - Task 9 **GATED**: hanya dengan persetujuan D-15, hasil audit pemakai kolom, dan jendela pemeliharaan.

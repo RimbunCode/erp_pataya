@@ -4,7 +4,7 @@
 
 Urutan: verifikasi + keputusan kebijakan (1), skema aditif (2), penegakan status periode (3), kerangka checklist + check (4), UI Tutup Periode (5), revaluasi FX (6–7), penutupan tahun (8), pelaporan `excludeClosing` (9), checkpoint (10). **`finance_enforce_fiscal_period` tetap `false` sampai D-21 diputuskan**: merge tidak mengubah perilaku produksi. Lint/Pint sekali di akhir.
 
-**Prasyarat**: Fase 1, 4, 5 selesai; D-21/D-22/D-23/D-24 terjawab sebelum Task 3 (transisi status) dan Task 8 (penutupan tahun); peran akun `unrealized_fx_*` dan `retained_earnings` dapat dipetakan akuntan. Branch terbaru dari remote.
+**Prasyarat**: Fase 1, 4, 5 selesai; D-21/D-22/D-23/D-24 terjawab sebelum Task 3 (transisi status) dan Task 8 (penutupan tahun); peran akun `unrealized_fx_*` dan `retained_earnings` dapat dipetakan akuntan. Branch baru dari `origin/dev-1` terbaru (lihat PRD Bagian 10, "Aturan branch per tahapan").
 
 **Aturan eksekusi**:
 - Jangan mengubah `transaction_date` posting tanpa keputusan D-21 (Requirement 9).

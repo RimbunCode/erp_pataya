@@ -4,7 +4,7 @@
 
 Fase ini read-only: tidak ada migration dan tidak ada perubahan pada listener/service existing. Urutan: kerangka dan auditor (dengan test per anomali), snapshot saldo, helper fixture, characterization test per titik posting, known-issue test, lalu dokumen laporan dan decision log. Lint/Pint dijalankan setelah semua task selesai (aturan project).
 
-**Prasyarat**: branch ini terbaru dari remote (aturan git worktree project). Baca `docs/prd/finance-engine-prd.md` (terutama Lampiran A dan B) sebelum mulai.
+**Prasyarat**: Branch baru dari `origin/dev-1` terbaru (lihat PRD Bagian 10, "Aturan branch per tahapan"). Baca `docs/prd/finance-engine-prd.md` (terutama Lampiran A dan B) sebelum mulai.
 
 **Catatan eksekusi**: Task 6.5 bersifat manual (butuh akses staging/produksi). Task 7 membutuhkan input pemilik produk; jangan memutuskan D-1/D-11 sendiri (D-4 sudah diputuskan: satu perusahaan).
 
@@ -42,7 +42,7 @@ Fase ini read-only: tidak ada migration dan tidak ada perubahan pada listener/se
   - Jalankan test berkas Task 2.5 dan 3.3; pastikan P-1 (read-only: jumlah baris semua tabel tak berubah) lulus
   - Ensure all tests pass, ask the user if questions arise.
 
-- [ ] 5. Helper fixture dan characterization test
+- [x] 5. Helper fixture dan characterization test
   - [x] 5.1 Buat `tests/Support/BuildsFinanceFixtures.php` (user, branch, akun standar, setting, `initPermissions()` model terkait, `is_example` seperti pola `GeneralLedgerControllerTest`; `queue.default=sync`)
     - _Requirements: 4.4, 4.5_
   - [x] 5.2 Characterization: Sales Invoice (normal + retur)
@@ -73,12 +73,15 @@ Fase ini read-only: tidak ada migration dan tidak ada perubahan pada listener/se
   - [ ] 6.5 **(Manual)** Jalankan `finance:audit-gl --json` dan `finance:snapshot-balances` di staging (dan produksi bila disetujui, Q1); simpan keluaran di `storage/app/finance-audit/`
     - _Requirements: 1.4, 3.1, 7.1_
 
-- [ ] 7. Audit skema dan dokumen keputusan
-  - [ ] 7.1 Dokumentasikan kolom yang ditambah `initPermissions()` per jenis model dan skema aktual `accounts`/`general_ledgers` di staging (bandingkan dengan migration)
+- [-] 7. Audit skema dan dokumen keputusan
+  - [-] 7.1 Dokumentasikan kolom yang ditambah `initPermissions()` per jenis model dan skema aktual `accounts`/`general_ledgers` di staging (bandingkan dengan migration)
+    - Draft 2026-11-03 di `docs/prd/finance-audit-report.md` Bagian 1: Req 6.1, 6.3, 6.4 selesai dari kode; Req 6.2 (skema aktual staging dan selisihnya) menunggu Task 6.5, query read-only sudah disiapkan.
     - _Requirements: 6.1–6.4_
-  - [ ] 7.2 Tulis `docs/prd/finance-audit-report.md` (ringkasan audit, hasil known-issue, estimasi beban backfill)
+  - [-] 7.2 Tulis `docs/prd/finance-audit-report.md` (ringkasan audit, hasil known-issue, estimasi beban backfill)
+    - Draft 2026-11-03: hasil known-issue dan temuan baru (Req 7.3) lengkap; angka `finance:audit-gl` (Req 7.1) dan estimasi backfill (Req 7.4) menunggu Task 6.5.
     - _Requirements: 7.1, 7.3, 7.4_
-  - [ ] 7.3 Tulis `docs/prd/finance-decision-log.md` (D-1, D-4, D-11, D-12, Q1–Q7) dan **minta konfirmasi pemilik produk**
+  - [-] 7.3 Tulis `docs/prd/finance-decision-log.md` (D-1, D-4, D-11, D-12, Q1–Q7) dan **minta konfirmasi pemilik produk**
+    - Draft 2026-11-03 selesai; menunggu konfirmasi pemilik produk (termasuk BR-2…BR-5, DV-A…DV-C).
     - _Requirements: 7.2, 7.5_
 
 - [ ] 8. Checkpoint akhir Fase 0
