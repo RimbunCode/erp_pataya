@@ -6,7 +6,7 @@ Fase 1 dari 7 fase program **Finance Engine** (lihat `docs/prd/finance-engine-pr
 
 Temuan audit yang menjadi dasar (PRD Lampiran A): F-01 (tanpa header, tak ada jaminan seimbang), F-02 (SoftDeletes + `cascadeOnDelete` pada GL), F-07 (`double`), F-08 (tanpa periode fiskal), F-13 (mata uang tanpa minor unit), F-15 (kode series per baris), dan F-04 (cancel men-soft-delete GL lewat update massal di `Submitable`, yang melewati event model).
 
-**Prasyarat:** Fase 0 selesai — laporan audit disetujui, D-4 (satu perusahaan; sudah diputuskan, PRD) dan Q1 (ada/tidaknya data produksi) terjawab, characterization test untuk 10 titik posting hijau, dan spec `module-settings-foundation` (D-25) menyediakan service setting Finances untuk `finance_enforce_fiscal_period`. Characterization test itu adalah jaring pengaman utama fase ini.
+**Prasyarat:** Fase 0 selesai — laporan audit disetujui, D-4 (satu perusahaan; sudah diputuskan, PRD) dan Q1 (ada/tidaknya data produksi, versi PRD) terjawab 2026-11-03 (belum ada data sama sekali (GL produksi kosong)), characterization test untuk 10 titik posting hijau, dan spec `module-settings-foundation` (D-25) menyediakan service setting Finances untuk `finance_enforce_fiscal_period`. Characterization test itu adalah jaring pengaman utama fase ini.
 
 **Prinsip fase:** aditif dan reversibel. Struktur lama tetap hidup; yang berubah adalah jalur penulisan (semua lewat `JournalService`) dan jaminan yang diberikan.
 

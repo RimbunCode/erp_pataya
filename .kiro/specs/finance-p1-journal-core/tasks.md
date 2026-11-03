@@ -4,7 +4,7 @@
 
 Urutan kerja: verifikasi asumsi dulu (Task 1), lalu migration + model aditif (2), service inti dengan test (4), adapter 10 titik posting yang dijaga characterization test Fase 0 (6), backfill + rekonsiliasi (7), perubahan tipe kolom yang **dikunci gate** (8–9), UI (10), dan jurnal manual opsional (11). Setiap checkpoint menjalankan test yang relevan. Lint/Pint dijalankan sekali di akhir (aturan project).
 
-**Prasyarat (wajib)**: Fase 0 selesai dan disetujui — characterization test hijau, laporan audit tersedia, Q1 terjawab (D-4 sudah diputuskan), dan service setting Finances dari spec `module-settings-foundation` tersedia (D-25). Jangan mulai Task 6 sebelum Task 4 selesai dan characterization test Fase 0 hijau di branch ini. Branch baru dari `origin/dev-1` terbaru (lihat PRD Bagian 10, "Aturan branch per tahapan").
+**Prasyarat (wajib)**: Fase 0 selesai dan disetujui — characterization test hijau, laporan audit tersedia, Q1 versi PRD terjawab 2026-11-03 (belum ada data sama sekali (GL produksi kosong); D-4 sudah diputuskan), dan service setting Finances dari spec `module-settings-foundation` tersedia (D-25). Jangan mulai Task 6 sebelum Task 4 selesai dan characterization test Fase 0 hijau di branch ini. Branch baru dari `origin/dev-1` terbaru (lihat PRD Bagian 10, "Aturan branch per tahapan").
 
 **Aturan eksekusi**:
 - Task 8 dan 9 bersifat *gated*: tidak dijalankan otomatis; membutuhkan hasil pra-pemeriksaan dan persetujuan jendela pemeliharaan.

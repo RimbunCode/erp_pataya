@@ -31,7 +31,7 @@ Fase ini read-only: tidak ada migration dan tidak ada perubahan pada listener/se
 
 - [x] 3. Baseline saldo
   - [x] 3.1 Verifikasi nilai `accounts.balance_type` dan konvensi tanda `balance_amount` (baca `AccountSeeder`, `StockEntryService` ~555–640, data staging) lalu kunci rumus `net`/`difference`; hapus `[TODO]` di design.md
-    - Selesai 2026-11-01: rumus dikunci mengikuti kode (balance_amount bertanda debit − kredit untuk semua akun); Requirement 3.2 dan 3.5 disesuaikan, perlu disahkan pemilik produk. Verifikasi data staging menunggu Task 6.5.
+    - Selesai 2026-11-01: rumus dikunci mengikuti kode (balance_amount bertanda debit − kredit untuk semua akun); Requirement 3.2 dan 3.5 disesuaikan, disahkan pemilik produk 2026-11-03 (DV-A). Verifikasi data staging menunggu Task 6.5.
     - _Requirements: 3.2, 3.5_
   - [x] 3.2 Buat `BalanceSnapshotService` + `app/Console/Commands/Finances/SnapshotBalancesCommand.php` (`finance:snapshot-balances`), CSV streaming, `LEFT JOIN` agar akun tanpa transaksi ikut
     - _Requirements: 3.1, 3.3, 3.4_
@@ -70,8 +70,9 @@ Fase ini read-only: tidak ada migration dan tidak ada perubahan pada listener/se
     - _Requirements: 5.4, 5.5_
   - [x] 6.4 Perbarui status temuan di PRD (terkonfirmasi / tidak terkonfirmasi) sesuai hasil 6.1–6.3b
     - _Requirements: 5.6_
-  - [ ] 6.5 **(Manual)** Jalankan `finance:audit-gl --json` dan `finance:snapshot-balances` di staging (dan produksi bila disetujui, Q1); simpan keluaran di `storage/app/finance-audit/`
+  - [ ] 6.5 **(Manual)** Jalankan `finance:audit-gl --json` dan `finance:snapshot-balances` di staging (produksi tidak diperlukan: belum ada data sama sekali (GL produksi kosong), Q1 versi PRD dijawab 2026-11-03); simpan keluaran di `storage/app/finance-audit/`
     - _Requirements: 1.4, 3.1, 7.1_
+    - Ditugaskan kepada pemilik produk di staging (Q-P0-1 dijawab 2026-11-03); produksi tidak diperlukan (Q1 versi PRD dijawab 2026-11-03). Checkbox tetap `[ ]` sampai hasil diserahkan dan Bagian 1.5.2, 2, dan 4 laporan audit terisi.
 
 - [-] 7. Audit skema dan dokumen keputusan
   - [-] 7.1 Dokumentasikan kolom yang ditambah `initPermissions()` per jenis model dan skema aktual `accounts`/`general_ledgers` di staging (bandingkan dengan migration)
@@ -81,12 +82,12 @@ Fase ini read-only: tidak ada migration dan tidak ada perubahan pada listener/se
     - Draft 2026-11-03: hasil known-issue dan temuan baru (Req 7.3) lengkap; angka `finance:audit-gl` (Req 7.1) dan estimasi backfill (Req 7.4) menunggu Task 6.5.
     - _Requirements: 7.1, 7.3, 7.4_
   - [-] 7.3 Tulis `docs/prd/finance-decision-log.md` (D-1, D-4, D-11, D-12, Q1–Q7) dan **minta konfirmasi pemilik produk**
-    - Draft 2026-11-03 selesai; menunggu konfirmasi pemilik produk (termasuk BR-2…BR-5, DV-A…DV-C).
+    - Draft 2026-11-03 selesai. Disahkan pemilik produk 2026-11-03: BR-2…BR-5, DV-A, dan DV-B; DV-C diterima. Persetujuan laporan dan keputusan penanganan per bug tetap menunggu.
     - _Requirements: 7.2, 7.5_
 
 - [ ] 8. Checkpoint akhir Fase 0
   - Jalankan seluruh test yang disentuh (`php artisan test --compact tests/Feature/Finances`), lalu `vendor/bin/pint --dirty --format agent` dan `npm run lint` bila ada perubahan JS (tidak diharapkan)
-  - Exit criteria: laporan audit & decision log disetujui; Q1 terjawab (D-4 sudah diputuskan); temuan F-04/F-10/F-11 berstatus terkonfirmasi/tidak
+  - Exit criteria: laporan audit & decision log disetujui; Q1 versi PRD terjawab 2026-11-03 (belum ada data sama sekali (GL produksi kosong); D-4 sudah diputuskan); temuan F-04/F-10/F-11 berstatus terkonfirmasi/tidak. _Diubah 2026-11-03 (disetujui pemilik produk): rumusan Q1 dirinci menjadi Q1 versi PRD._
   - Ensure all tests pass, ask the user if questions arise.
 
 ## Catatan

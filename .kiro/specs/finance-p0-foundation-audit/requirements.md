@@ -58,10 +58,10 @@ Alasan fase ini ada: PRD memuat temuan audit kode (F-01…F-15) yang sebagian ma
 #### Acceptance Criteria
 
 1. THE sistem SHALL menyediakan perintah `finance:snapshot-balances` yang menulis CSV (default `storage/app/finance-audit/baseline-<timestamp>.csv`) dengan kolom: `account_id`, `account_number`, `account_name`, `root_type`, `balance_type`, `sum_debit`, `sum_credit`, `net`, `balance_amount`, `difference`.
-2. THE `net` SHALL dihitung dari baris GL yang tidak soft-deleted sebagai Σdebit − Σkredit (bertanda, sama dengan konvensi `balance_amount` yang ditulis `StockEntryService`); `difference` = `net` − `balance_amount`. _Diubah 2026-11-01 (hasil Task 3.1): rumus awal menyesuaikan arah menurut `balance_type`, tetapi `balance_amount` bertanda debit − kredit untuk semua akun._
+2. THE `net` SHALL dihitung dari baris GL yang tidak soft-deleted sebagai Σdebit − Σkredit (bertanda, sama dengan konvensi `balance_amount` yang ditulis `StockEntryService`); `difference` = `net` − `balance_amount`. _Diubah 2026-11-01 (hasil Task 3.1): rumus awal menyesuaikan arah menurut `balance_type`, tetapi `balance_amount` bertanda debit − kredit untuk semua akun. Disahkan pemilik produk 2026-11-03 (DV-A)._
 3. THE perintah SHALL bersifat read-only dan idempoten (menjalankan ulang menghasilkan berkas baru tanpa efek samping).
 4. THE baris akun tanpa transaksi SHALL tetap dicantumkan dengan nilai nol agar jumlah akun dapat direkonsiliasi.
-5. IF `balance_type` akun null, THEN THE akun SHALL ditandai pada kolom `note`; `difference` tetap dihitung karena rumus tidak bergantung pada `balance_type`. _Diubah 2026-11-01 bersama butir 3.2._
+5. IF `balance_type` akun null, THEN THE akun SHALL ditandai pada kolom `note`; `difference` tetap dihitung karena rumus tidak bergantung pada `balance_type`. _Diubah 2026-11-01 bersama butir 3.2. Disahkan pemilik produk 2026-11-03 (DV-A)._
 
 ### Requirement 4: Characterization test untuk setiap titik posting GL
 
@@ -74,6 +74,7 @@ Alasan fase ini ada: PRD memuat temuan audit kode (F-01…F-15) yang sebagian ma
 3. FOR setiap titik posting yang memiliki jalur retur, THE test SHALL mencakup jalur retur (debit/kredit terbalik).
 4. THE test SHALL dijalankan tanpa bergantung pada worker queue eksternal (listener dieksekusi sinkron di test, mis. dengan `QUEUE_CONNECTION=sync`).
 5. THE test SHALL ditempatkan di `tests/Feature/Finances/Characterization/` dan memakai helper fixture bersama agar dapat dipakai ulang sebagai *parity test* Fase 2.
+6. FOR Purchase Receipt, Delivery Note, cabang stok/SRNB Purchase Invoice, penyesuaian nilai aset, dan disposal aset, THE test SHALL mengunci perilaku di batas event dan listener asli. Nilai debit/kredit pada Purchase Receipt, Delivery Note, dan cabang stok/SRNB Purchase Invoice berasal dari valuasi stok (SLE). Nilai penyesuaian nilai aset berasal dari selisih dokumen penyesuaian (`difference_amount`); nilai disposal aset berasal dari harga jual proporsional dikurangi nilai buku proporsional (`bookValue()`, yaitu biaya perolehan dikurangi depresiasi terposting). _Diubah 2026-11-03 (DV-B, disetujui pemilik produk): cakupan Task 5.3, 5.4, dan 5.6 dibatasi pada batas ini. Requirement 4.2 tetap berlaku untuk GL yang dihasilkan listener._
 
 ### Requirement 5: Known-issue test untuk dugaan bug
 
@@ -108,9 +109,9 @@ Alasan fase ini ada: PRD memuat temuan audit kode (F-01…F-15) yang sebagian ma
 
 1. THE sistem SHALL menghasilkan `docs/prd/finance-audit-report.md` yang merangkum hasil `finance:audit-gl` (dijalankan di staging, dan di produksi bila akses disetujui pemilik), hasil known-issue test, dan hasil audit skema.
 2. THE sistem SHALL menghasilkan `docs/prd/finance-decision-log.md` berisi D-1, D-4 (sudah diputuskan 2026-10-18: satu perusahaan), D-11, D-12 dan pertanyaan Q1–Q7 PRD, masing-masing dengan opsi, rekomendasi, pemilik keputusan, status, dan tanggal.
-3. FOR setiap bug terkonfirmasi, THE laporan SHALL mencantumkan dampak, usulan penanganan (hotfix terpisah, Fase 1, atau Fase 2), dan meminta keputusan pemilik produk.
+3. FOR setiap bug terkonfirmasi, THE laporan SHALL mencantumkan dampak, usulan penanganan (hotfix terpisah, Fase 1, Fase 2, atau fase terkait), dan meminta keputusan pemilik produk. _Diubah 2026-11-03 (DV-C, disetujui pemilik produk): usulan penanganan boleh berupa fase terkait di luar tiga pilihan semula, misalnya Fase 4 untuk F-11 (D-16, D-17) atau Fase 5 untuk bagian `balance_amount` F-04 (FR-R2). Keputusan penanganan per bug tetap menunggu pemilik produk._
 4. THE laporan SHALL menyajikan estimasi beban backfill Fase 1 berdasarkan jumlah baris, jumlah kelompok, dan persentase kelompok tak seimbang.
-5. THE spec Fase 1 SHALL TIDAK dimulai sebelum pemilik produk menyetujui laporan ini dan menjawab minimal Q1 (D-4 sudah diputuskan).
+5. THE spec Fase 1 SHALL TIDAK dimulai sebelum pemilik produk menyetujui laporan ini dan menjawab minimal Q1 versi PRD (apakah GL sudah berisi data produksi nyata; lihat prasyarat Fase 1) (D-4 sudah diputuskan). _Diubah 2026-11-03 (disetujui pemilik produk): kata "Q1" dirinci menjadi Q1 versi PRD. Q1 versi PRD dijawab 2026-11-03: belum ada data sama sekali (GL produksi kosong)._
 
 ### Requirement 8: Batasan non-fungsional fase
 
@@ -125,7 +126,7 @@ Alasan fase ini ada: PRD memuat temuan audit kode (F-01…F-15) yang sebagian ma
 
 | ID | Pertanyaan | Dampak |
 |---|---|---|
-| Q1 | Apakah audit boleh dijalankan pada DB **produksi** (read-only)? Menentukan apakah estimasi beban backfill berbasis data nyata | Requirement 1, 3, 7.4 |
-| Q-P0-1 | Siapa yang menjalankan perintah di staging/produksi dan mengirim hasilnya? | Task 6.5 |
+| Q1 | ~~Apakah audit boleh dijalankan pada DB **produksi** (read-only)?~~ **Dijawab 2026-11-03** (pemilik produk): untuk sekarang audit hanya di staging. ~~Apakah GL sudah berisi data produksi nyata?~~ **Dijawab 2026-11-03** (pemilik produk): belum ada data sama sekali (GL produksi kosong). | Requirement 1, 3, 7.4 |
+| Q-P0-1 | ~~Siapa yang menjalankan perintah di staging/produksi dan mengirim hasilnya?~~ **Dijawab 2026-11-03**: pemilik produk sendiri menjalankan `finance:audit-gl` dan `finance:snapshot-balances` di staging, lalu menyerahkan hasilnya. Produksi tidak untuk sekarang. | Task 6.5 |
 | D-4 | Satu perusahaan — DECIDED 2026-10-18 (PRD); dicatat di decision log | Requirement 7.5 |
-| D-11 | Standar akuntansi acuan (SAK/PSAK vs IFRS) — hanya dicatat di decision log pada fase ini | Requirement 7.2 |
+| D-11 | Standar akuntansi acuan (SAK/PSAK vs IFRS) — **ditunda 2026-11-03** (menunggu akuntan, Q2); hanya dicatat di decision log pada fase ini | Requirement 7.2 |
