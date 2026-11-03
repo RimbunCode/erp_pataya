@@ -6,6 +6,7 @@ use App\Models\Scopes\DataTableScope;
 use App\Services\Core\BranchScopeCache;
 use App\Services\Core\DataTableConfigCache;
 use App\Services\Core\SchemaColumnCache;
+use Illuminate\Database\Eloquent\Model as EloquentModel;
 use Illuminate\Foundation\Testing\TestCase as BaseTestCase;
 use Illuminate\Support\Facades\DB;
 
@@ -37,6 +38,18 @@ abstract class TestCase extends BaseTestCase {
         // Memo flat() DataTableConfigCache, statis per proses: tanpa reset, konfigurasi
         // kolom dari test lain (skema/konfigurasi model berbeda) bisa nyangkut.
         DataTableConfigCache::forgetMemo();
+
+        // Eloquent men-cache daftar kolom tabel per kelas model di
+        // Model::$guardableColumns (statis, per proses PHP, tidak pernah
+        // dibersihkan) untuk model ber-`$guarded`. Test yang membuat tabel
+        // buatan tangan tanpa semua kolom (mis. print_templates tanpa
+        // page_number_format di ControllerPrintPreferencesDocInfoTest) lalu
+        // memakai modelnya, meninggalkan daftar kolom basi di worker paratest
+        // yang sama; fill()/update() di test berikutnya diam-diam membuang
+        // kolom yang tidak ada di daftar itu. Seeder tidak kena karena
+        // `db:seed` berjalan dalam Model::unguarded().
+        $guardableColumns = new \ReflectionProperty(EloquentModel::class, 'guardableColumns');
+        $guardableColumns->setValue(null, []);
 
         // View laporan (modul-laporan) membaca tabel sumber. Di SQLite, ALTER TABLE yang
         // dipakai initPermissions() untuk menambah kolom runtime gagal bila view memakai
