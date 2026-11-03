@@ -2,34 +2,37 @@
 
 | | |
 |---|---|
-| **Status** | **Draft — sebagian MENUNGGU Task 6.5 (data staging/produksi)**; belum disetujui pemilik produk |
-| **Tanggal draft** | 2026-11-03 |
+| **Status** | **Disetujui pemilik produk 2026-11-03** (versi PR #272/#273, tanpa angka staging). Angka hasil Task 6.5 (staging) ditambahkan sesudahnya pada tahapan `docs/finance-p0-staging-audit`. **Masih MENUNGGU:** skema aktual staging (Req 6.2) dan konfirmasi `APP_ENV` |
+| **Tanggal** | Draft dan persetujuan 2026-11-03; angka staging ditambahkan 2026-11-03 |
 | **Spec** | [`finance-p0-foundation-audit`](../../.kiro/specs/finance-p0-foundation-audit/requirements.md) — Requirement 6 (audit skema), Requirement 7.1, 7.3, 7.4 (laporan) |
 | **Dokumen terkait** | [`finance-engine-prd.md`](finance-engine-prd.md) (Lampiran A dan B), [`finance-decision-log.md`](finance-decision-log.md) |
-| **Penyusun** | Pembacaan kode dan test pada branch `docs/finance-p0-audit-report`. Tidak ada data staging atau produksi yang dipakai |
+| **Penyusun** | Pembacaan kode dan test (branch `docs/finance-p0-audit-report`); angka staging dari dua berkas yang diserahkan pemilik produk (branch `docs/finance-p0-staging-audit`). Tidak ada data produksi yang dipakai (GL produksi kosong, Q1) |
 
-> **Cara membaca dokumen ini.** Bagian yang berlabel **MENUNGGU Task 6.5** memerlukan angka dari DB staging (produksi tidak diperlukan; lihat Q1). Angka tersebut **sengaja dikosongkan** dan tidak boleh diisi dari perkiraan. Semua klaim perilaku kode lain dirujuk ke `file:baris` atau ke test yang menjalankannya; klaim yang hanya berasal dari pembacaan kode (belum diuji) diberi label **belum diuji**.
+> **Cara membaca dokumen ini.** Angka **staging** di Bagian 2 sampai 4 berasal dari `audit-20261103-155516.json` (`generated_at` 2026-11-03T15:55:16+00:00) dan `baseline-20261103-155540.csv`, keduanya diserahkan pemilik produk (Task 6.5). Lingkungan sumber **diasumsikan staging** (sesuai Q-P0-1); penyerahan tidak menyebut lingkungannya secara eksplisit. Produksi tidak diperlukan (GL produksi kosong, Q1). Yang masih berlabel **MENUNGGU** (skema aktual Req 6.2, konfirmasi `APP_ENV`, dan query SQL tambahan) tetap **sengaja dikosongkan** dan tidak boleh diisi dari perkiraan. ID baris GL, ID dokumen, dan nama pihak dari berkas tidak disalin ke dokumen ini. Semua klaim perilaku kode lain dirujuk ke `file:baris` atau ke test yang menjalankannya; klaim yang hanya berasal dari pembacaan kode (belum diuji) diberi label **belum diuji**.
 
 ---
 
 ## 0. Ringkasan
 
-### 0.1 Yang sudah dapat disimpulkan (tanpa data staging)
+### 0.1 Yang sudah dapat disimpulkan
 
 1. **Skema runtime (Req 6).** Trait `DataTable::initPermissions()` menambah kolom langsung ke tabel saat `PermissionSeeder` dijalankan, dan seeder itu **berjalan di setiap deploy** staging dan produksi (`db:seed --force`, lihat Bagian 1.1). Untuk dua tabel Finance yang relevan: `general_ledgers` memperoleh `is_example`, `code` (unik), dan `have_transactions` yang **tidak ada di migration**; `accounts` memperoleh `is_example`, `have_transactions`, `parent_id`, `lft`, `rgt`, `depth` beserta lima indeks, juga tidak ada di migration. Kode produksi sudah bergantung pada kolom runtime itu (mis. `GeneralLedger::creating` menulis `code`; `StockEntryService` menulis `accounts.have_transactions`). **Konvensi yang disimpulkan:** kolom tabel baru Finance wajib dideklarasikan eksplisit di migration (Bagian 1.4).
 2. **Penghapusan kolom tidak seluruhnya hanya di lokal.** Penghapusan `have_transactions` pada model submitable berjalan **di semua lingkungan** (`DataTable.php:648-652`). Hanya penghapusan kolom Submitable pada model non-submitable dan kolom tree pada model non-tree yang dibatasi `app()->isLocal()`. Karena `db:seed --force` ikut dalam setiap deploy, **pemeriksaan** itu dijalankan pada setiap deploy ke staging dan produksi; kolom dihapus bila masih ada, sehingga penghapusan efektif hanya terjadi sekali per tabel (selanjutnya no-op), dengan asumsi `APP_ENV` di sana bukan `local` (belum dikonfirmasi, lihat Bagian 1.5.2). Ini **tidak sama** dengan uraian PRD F-12 (lihat Bagian 5.2; PRD sudah dikoreksi).
 3. **Dugaan bug terkonfirmasi oleh test** (Bagian 3): F-04, F-10, F-11 (bagian FX), F-16. Ditambah dua temuan baru dari PR #271 (tanda laba/rugi disposal aset; Purchase Invoice tanpa PO) dan satu temuan tambahan metode (pemecahan kelompok akibat `now()` per baris, Bagian 3.7). Semuanya menunggu keputusan pemilik produk.
-4. **Peringatan untuk estimasi backfill (Bagian 4).** F-10 dan F-11 menghasilkan jurnal yang **seimbang tetapi salah**, sehingga persentase kelompok tak seimbang dari `finance:audit-gl` tidak mendeteksinya. Persentase itu juga dapat membengkak karena baris satu dokumen terpecah lintas detik.
+4. **Hasil audit staging (Bagian 2 dan 4, 2026-11-03).** 60 baris GL aktif dalam 28 kelompok (rentang 2026-07-26 sampai 2026-10-28), Σdebit = Σkredit, dan **semua kategori anomali bernilai 0** kecuali 4 baris soft-delete yang diharapkan (dokumen sumber `canceled`: satu Sales Invoice dan satu Payment Entry). Tidak ada kelompok tak seimbang, sehingga beban backfill staging kecil. Angka ini kecil dan **tidak membuktikan kebenaran jurnal**: F-10, F-11, dan temuan N-4 menghasilkan jurnal seimbang tetapi salah.
+5. **Temuan baru dari analisis baseline saldo dan matriks cakupan (Bagian 2.6 dan 3.8 sampai 3.13):** N-4 (arah jurnal Payment Entry tampak terbalik terhadap konvensi umum), N-5 (akun SRNB 2214 bersaldo debit), N-6 (HPP 4210 berklasifikasi income), N-7 (akun selisih Stock Entry), N-8 (baris GL bernilai nol), N-9 (kolom `approved` matriks cakupan tidak bermakna pada data nyata). Status verifikasi tiap butir ditulis di bagiannya. `balance_amount` hanya terisi pada dua akun, konsisten dengan F-09.
+6. **Peringatan untuk estimasi backfill (Bagian 4).** F-10 dan F-11 menghasilkan jurnal yang **seimbang tetapi salah**, sehingga persentase kelompok tak seimbang dari `finance:audit-gl` tidak mendeteksinya. Persentase itu juga dapat membengkak karena baris satu dokumen terpecah lintas detik.
 
 ### 0.2 Yang menunggu
 
 | # | Menunggu | Pemilik | Dampak |
 |---|---|---|---|
-| 1 | **Task 6.5**: menjalankan `finance:audit-gl --json` dan `finance:snapshot-balances` di staging (produksi tidak diperlukan; Q1 dijawab 2026-11-03), menyimpan keluaran di `storage/app/finance-audit/` | Pemilik produk (Q-P0-1 dijawab 2026-11-03: menjalankan di staging) | Bagian 1.5 (skema aktual), Bagian 2 (hasil audit), Bagian 4 (angka backfill) |
+| 1 | **Task 6.5**: **sudah dijalankan dan diterima 2026-11-03** (`finance:audit-gl --json` dan `finance:snapshot-balances`, berkas tersimpan di `storage/app/finance-audit/`, ter-ignore git). **Sisa yang MENUNGGU:** (a) hasil query skema Req 6.2 (Bagian 1.5.2), (b) konfirmasi `APP_ENV` staging, (c) query SQL tambahan pada Bagian 2.3, 3.2, 3.3, 3.6, 3.9, 3.13 | Pemilik produk (pelaksana staging) | Bagian 1.5.2, serta paparan F-10, F-11, N-2, N-5 |
 | 2 | ~~**Q1** versi PRD~~ **Dijawab 2026-11-03**: belum ada data sama sekali (GL produksi kosong). Tidak lagi menunggu | Pemilik produk | Sudah tertutup; tidak memblokir Fase 1 |
 | 3 | **Q-P0-1** dijawab 2026-11-03: pemilik produk sendiri menjalankan perintah di staging dan menyerahkan hasilnya. Produksi tidak untuk sekarang | Pemilik produk | Task 6.5 dapat dilaksanakan; checkbox tetap terbuka sampai hasil diterima |
-| 4 | **Keputusan pemilik produk** atas tiap temuan di Bagian 3 (F-04, F-10, F-11, F-16, N-1, N-2, N-3) | Pemilik produk | Menentukan apakah ada hotfix terpisah dan apa yang masuk Fase 1, Fase 2, atau fase terkait |
-| 5 | **Persetujuan laporan ini** (Requirement 7.5). Fase 1 tidak dimulai sebelum laporan disetujui (Q1 versi PRD sudah dijawab 2026-11-03) | Pemilik produk | Gerbang Fase 1 |
+| 4 | **Keputusan pemilik produk** atas tiap temuan di Bagian 3 (F-04, F-10, F-11, F-16, N-1 sampai N-9) | Pemilik produk | Menentukan apakah ada hotfix terpisah dan apa yang masuk Fase 1, Fase 2, atau fase terkait |
+| 4a | **Keputusan DV-D (Req 2.2/N-9), dibutuhkan sebelum Task 8:** MENUNGGU | Pemilik produk | Perbaikan auditor cakupan dokumen (Bagian 3.13); lihat DV-D di `finance-decision-log.md` |
+| 5 | ~~**Persetujuan laporan ini** (Requirement 7.5)~~ **Disetujui 2026-11-03** (versi PR #272/#273). Angka staging dan temuan N-4 sampai N-9 ditambahkan sesudah persetujuan itu, sehingga **tidak tercakup** di dalamnya; keputusan penanganan per bug tetap menunggu. Apakah tambahan staging (Bagian 2 sampai 4, N-4 sampai N-9) memerlukan persetujuan ulang untuk Req 7.5 menunggu konfirmasi pemilik produk. | Pemilik produk | Gerbang Fase 1 (laporan disetujui; Q1 dijawab) |
 
 ---
 
@@ -169,9 +172,9 @@ FK **masuk** ke `general_ledgers` yang terbaca dari migration: `assets.journal_e
 
 Kolom runtime (bukan migration): lihat Bagian 1.2.
 
-#### 1.5.2 **MENUNGGU Task 6.5 (staging)**: skema aktual dan selisihnya
+#### 1.5.2 **MENUNGGU hasil query skema (staging)**: skema aktual dan selisihnya
 
-Bagian ini **belum terisi**. Jalankan query read-only berikut di DB staging (pelaksana: pemilik produk, Q-P0-1 dijawab 2026-11-03). Semua query hanya `SELECT`/`SHOW`; memakai `DATABASE()` agar nama skema tidak ditulis di sini. **Jangan menjalankan `db:seed`, `PermissionSeeder`, `migrate`, atau `tinker`** sebagai bagian Task 6.5; hanya query di bawah ini dan dua perintah `finance:*` pada Bagian 2.1 (deploy sudah menjalankan seeder sendiri).
+Bagian ini **belum terisi**: pemilik produk belum menyerahkan hasil query skema pada Task 6.5 (hanya dua berkas `finance:*`). Jalankan query read-only berikut di DB staging (pelaksana: pemilik produk, Q-P0-1 dijawab 2026-11-03). Semua query hanya `SELECT`/`SHOW`; memakai `DATABASE()` agar nama skema tidak ditulis di sini. **Jangan menjalankan `db:seed`, `PermissionSeeder`, `migrate`, atau `tinker`** sebagai bagian Task 6.5; hanya query di bawah ini dan dua perintah `finance:*` pada Bagian 2.1 (deploy sudah menjalankan seeder sendiri).
 
 ```sql
 -- 1. Definisi lengkap
@@ -220,7 +223,7 @@ ORDER BY id;
 SELECT VERSION();
 ```
 
-Tabel hasil, **MENUNGGU Task 6.5 (staging)**. Kolom "Asal" memakai: **M** = ada di migration, **R** = hanya dari `initPermissions()` (diharapkan, bukan *drift*), **?** = tidak ada di keduanya (*drift* sungguhan yang perlu diselidiki).
+Tabel hasil, **MENUNGGU hasil query skema (staging)**. Kolom "Asal" memakai: **M** = ada di migration, **R** = hanya dari `initPermissions()` (diharapkan, bukan *drift*), **?** = tidak ada di keduanya (*drift* sungguhan yang perlu diselidiki).
 
 | Objek | Asal yang diharapkan | Menurut migration | Aktual staging | Selisih / catatan |
 |---|---|---|---|---|
@@ -247,7 +250,7 @@ Tabel hasil, **MENUNGGU Task 6.5 (staging)**. Kolom "Asal" memakai: **M** = ada 
 
 ## 2. Hasil `finance:audit-gl` dan `finance:snapshot-balances` (Requirement 7.1)
 
-**Status: MENUNGGU Task 6.5.** Tidak ada angka di bagian ini. Hasil `finance:audit-gl` **tidak** berasal dari DB lokal: DB lokal tidak dapat dijangkau pada sesi penyusunan draft ini, dan data lokal tidak mewakili staging maupun produksi.
+**Status: terisi dari data staging (Task 6.5, diterima 2026-11-03).** Sumber: `audit-20261103-155516.json` (`generated_at` 2026-11-03T15:55:16+00:00) dan `baseline-20261103-155540.csv`. Lingkungan **diasumsikan staging** (Q-P0-1); penyerahan tidak menyebutnya secara eksplisit, dan konfirmasi `APP_ENV` masih MENUNGGU (Bagian 1.5.2). Angka tidak berasal dari DB lokal.
 
 ### 2.1 Perintah yang dijalankan (Task 6.5)
 
@@ -255,7 +258,7 @@ Kedua perintah read-only (`SELECT` saja). Jalankan di luar jam sibuk; gunakan `-
 
 > **Larangan untuk pelaksana Task 6.5.** Jangan menjalankan `db:seed`, `PermissionSeeder`, `migrate`, atau `tinker` di staging/produksi sebagai bagian Task 6.5. Yang dijalankan hanyalah dua perintah `finance:*` di bawah ini dan query `SELECT`/`SHOW` yang tercantum di dokumen ini. (Deploy sendiri sudah menjalankan `db:seed --force`, lihat Bagian 1.1; Task 6.5 tidak perlu dan tidak boleh menambahnya.)
 
-**Penanganan berkas hasil.** Berkas JSON dan CSV memuat data keuangan internal (ID dokumen, nominal, nama dan saldo akun). Kirim hanya lewat kanal internal yang terbatas; jangan diunggah ke tiket publik atau chat umum; hapus dari server setelah diserahkan kepada penerima. Berkas tidak dimaksudkan memuat data pribadi, tetapi tetap diperlakukan sebagai rahasia.
+**Penanganan berkas hasil.** Berkas JSON dan CSV memuat data keuangan internal (ID dokumen, nominal, nama dan saldo akun). Kirim hanya lewat kanal internal yang terbatas; jangan diunggah ke tiket publik atau chat umum; hapus dari server setelah diserahkan kepada penerima. Berkas tidak dimaksudkan memuat data pribadi, tetapi tetap diperlakukan sebagai rahasia. **Retensi salinan lokal:** salinan berkas hasil audit di `storage/app/finance-audit/` pada workspace pengembang (ter-ignore git) memuat ID baris GL, ID dokumen, dan ID akun; hapus salinan itu setelah Task 8 (checkpoint akhir Fase 0) selesai.
 
 ```bash
 # Audit integritas GL + matriks cakupan dokumen -> JSON (limit contoh per kategori default 20)
@@ -265,7 +268,7 @@ php artisan finance:audit-gl --limit=50 --json=storage/app/finance-audit/audit-s
 php artisan finance:snapshot-balances --path=storage/app/finance-audit/baseline-staging-<tanggal>.csv
 ```
 
-Catatan opsi: `--json=<berkas>.json` menulis ke berkas itu; `--json=<folder>` atau `--json` tanpa nilai menulis `audit-<Ymd-His>.json` ke folder tersebut (default `storage/app/finance-audit/`). Tanpa opsi `--json`, hanya tabel konsol yang dicetak. Pelaksana mencatat tanggal/jam run, lingkungan, dan koneksi yang dipakai.
+Catatan opsi: `--json=<berkas>.json` menulis ke berkas itu; `--json=<folder>` atau `--json` tanpa nilai menulis `audit-<Ymd-His>.json` ke folder tersebut (default `storage/app/finance-audit/`). Tanpa opsi `--json`, hanya tabel konsol yang dicetak. Pelaksana mencatat tanggal/jam run, lingkungan, dan koneksi yang dipakai. **Catatan pelaksanaan 2026-11-03:** pemilik produk menjalankan kedua perintah dan menyerahkan dua berkas; opsi `--limit` dan `--connection` yang dipakai tidak dicatat dalam penyerahan.
 
 Slot hasil dipisah per lingkungan: **Staging** (wajib) dan **Produksi** tidak diperlukan: belum ada data sama sekali (GL produksi kosong) (Q1 dijawab 2026-11-03).
 
@@ -275,29 +278,31 @@ Struktur: `AuditReport::toArray()` → `generated_at`, `totals`, `sections`, `co
 
 | Req | Kategori | Field JSON | Satuan | Staging | Produksi |
 |---|---|---|---|---|---|
-| 1.3 | Jumlah baris GL aktif | `totals.rows` | baris | MENUNGGU | tidak diperlukan (Q1) |
-| 1.3 | Baris GL soft-deleted | `totals.rows_soft_deleted` | baris | MENUNGGU | tidak diperlukan (Q1) |
-| 1.3 | Jumlah kelompok posting (aktif) | `totals.groups` | kelompok (`referenceable_type`, `referenceable_id`, `transaction_date`) | MENUNGGU | tidak diperlukan (Q1) |
-| 1.3 | Rentang `transaction_date` | `totals.date_min`, `totals.date_max` | tanggal | MENUNGGU | tidak diperlukan (Q1) |
-| 1.3 | Σdebit, Σkredit, selisih | `totals.sum_debit`, `totals.sum_credit`, `totals.diff` | nominal (4 desimal) | MENUNGGU | tidak diperlukan (Q1) |
-| 1.2.1 | Kelompok tak seimbang | `sections.unbalanced_groups.count`, `.total_diff`, `.samples[]` (`referenceable_type`, `referenceable_id`, `transaction_date`, `line_count`, `sum_debit`, `sum_credit`, `diff`) | kelompok; `total_diff` = Σ\|selisih\| per kelompok | MENUNGGU | tidak diperlukan (Q1) |
-| 1.2.2 | Debit dan kredit sama-sama nol, atau salah satunya negatif | `sections.zero_or_negative.count`, `.samples[]` | baris | MENUNGGU | tidak diperlukan (Q1) |
-| 1.2.3a | Soft-delete **diharapkan** (dokumen sumber `canceled`) | `sections.soft_deleted_expected.count` | baris | MENUNGGU | tidak diperlukan (Q1) |
-| 1.2.3b | Soft-delete **anomali** (dokumen tidak `canceled`, tidak ditemukan, atau jenis tanpa kolom `status`) | `sections.soft_deleted_unexpected.count` | baris | MENUNGGU | tidak diperlukan (Q1) |
-| 1.2.4 | Akun hilang atau soft-deleted | `sections.dangling_account.count` | baris; **baris yang kedua kolomnya (`account_id` dan `against_account_id`) bermasalah terhitung dua kali** | MENUNGGU | tidak diperlukan (Q1) |
-| 1.2.5 | `referenceable` tidak ditemukan | `sections.orphan_reference.count` (catatan `tipe tidak dikenal` pada contoh) | baris | MENUNGGU | tidak diperlukan (Q1) |
-| 1.2.6 | Dokumen `canceled` dengan GL aktif (F-16) | `sections.canceled_active_gl.count` | **dokumen** | MENUNGGU | tidak diperlukan (Q1) |
-| 1.2.7 | Duplikasi posting | `sections.duplicates.count`, `.extra_rows` | kelompok kombinasi duplikat; baris berlebih | MENUNGGU | tidak diperlukan (Q1) |
+| 1.3 | Jumlah baris GL aktif | `totals.rows` | baris | **60** | tidak diperlukan (Q1) |
+| 1.3 | Baris GL soft-deleted | `totals.rows_soft_deleted` | baris | **4** | tidak diperlukan (Q1) |
+| 1.3 | Jumlah kelompok posting (aktif) | `totals.groups` | kelompok (`referenceable_type`, `referenceable_id`, `transaction_date`) | **28** | tidak diperlukan (Q1) |
+| 1.3 | Rentang `transaction_date` | `totals.date_min`, `totals.date_max` | tanggal | 2026-07-26 07:48:57 sampai 2026-10-28 07:58:43 | tidak diperlukan (Q1) |
+| 1.3 | Σdebit, Σkredit, selisih | `totals.sum_debit`, `totals.sum_credit`, `totals.diff` | nominal (4 desimal) | Σdebit = Σkredit = **11.857.398.471,6758**; selisih **0** | tidak diperlukan (Q1) |
+| 1.2.1 | Kelompok tak seimbang | `sections.unbalanced_groups.count`, `.total_diff`, `.samples[]` (`referenceable_type`, `referenceable_id`, `transaction_date`, `line_count`, `sum_debit`, `sum_credit`, `diff`) | kelompok; `total_diff` = Σ\|selisih\| per kelompok | **0** kelompok; `total_diff` 0; contoh kosong | tidak diperlukan (Q1) |
+| 1.2.2 | Debit dan kredit sama-sama nol, atau salah satunya negatif | `sections.zero_or_negative.count`, `.samples[]` | baris | **0** (hanya baris aktif; lihat 2 baris bernilai 0 yang soft-deleted di N-8) | tidak diperlukan (Q1) |
+| 1.2.3a | Soft-delete **diharapkan** (dokumen sumber `canceled`) | `sections.soft_deleted_expected.count` | baris | **4** (2 baris Payment Entry bernilai 2.420.000 per sisi; 2 baris Sales Invoice bernilai 0) | tidak diperlukan (Q1) |
+| 1.2.3b | Soft-delete **anomali** (dokumen tidak `canceled`, tidak ditemukan, atau jenis tanpa kolom `status`) | `sections.soft_deleted_unexpected.count` | baris | **0** | tidak diperlukan (Q1) |
+| 1.2.4 | Akun hilang atau soft-deleted | `sections.dangling_account.count` | baris; **baris yang kedua kolomnya (`account_id` dan `against_account_id`) bermasalah terhitung dua kali** | **0** | tidak diperlukan (Q1) |
+| 1.2.5 | `referenceable` tidak ditemukan | `sections.orphan_reference.count` (catatan `tipe tidak dikenal` pada contoh) | baris | **0** | tidak diperlukan (Q1) |
+| 1.2.6 | Dokumen `canceled` dengan GL aktif (F-16) | `sections.canceled_active_gl.count` | **dokumen** | **0** dokumen | tidak diperlukan (Q1) |
+| 1.2.7 | Duplikasi posting | `sections.duplicates.count`, `.extra_rows` | kelompok kombinasi duplikat; baris berlebih | **0** kelompok; `extra_rows` **0** | tidak diperlukan (Q1) |
 
 Catatan pembacaan:
 
+- Total baris GL di tabel = 60 aktif + 4 soft-deleted = 64. Jumlah dokumen berGL menurut matriks (Bagian 2.4) = 7 + 10 + 3 + 6 + 4 = 30; dua di antaranya `canceled` (GL-nya soft-deleted), sehingga 28 dokumen berGL aktif = **28 kelompok**: tiap dokumen membentuk tepat satu kelompok (konsisten secara aritmetika; tidak ada dokumen yang terpecah ke beberapa `transaction_date`).
+- Dua baris Sales Invoice yang di-soft-delete bernilai debit 0 dan kredit 0. Kategori `zero_or_negative` hanya melihat baris aktif sehingga keduanya tidak terhitung. Penjelasan dan implikasinya ada di N-8 (Bagian 3.12).
 - Seluruh kategori selain `rows_soft_deleted` dan `soft_deleted_*` menghitung **baris aktif** (`deleted_at IS NULL`) saja.
 - `soft_deleted_unexpected` memasukkan seluruh baris soft-deleted milik jenis dokumen yang tidak punya kolom `status` (mis. jadwal depresiasi aset) karena status `canceled` tidak dapat diperiksa (`ReferenceChecks.php:29-37`). Angka pada jenis itu dibaca sebagai "tidak dapat dikategorikan".
 - `orphan_reference` dan kategori lain memakai `referenceable_type` sebagai nama kelas; tipe yang kelasnya tidak ada dihitung yatim dengan catatan `tipe tidak dikenal`.
 
 ### 2.3 Batasan metode audit yang perlu diketahui pembaca hasil
 
-1. **Data contoh ikut terhitung.** Auditor memakai query builder (`DB::table`), sehingga scope `exclude_example_data` (`is_example = false`) pada Eloquent **tidak berlaku**. Baris GL berstatus `is_example = 1` (bila ada) ikut dihitung. Periksa dengan query berikut (jalankan hanya bila kolom `is_example` ada di `general_ledgers`, lihat Bagian 1.5.2):
+1. **Data contoh ikut terhitung.** Auditor memakai query builder (`DB::table`), sehingga scope `exclude_example_data` (`is_example = false`) pada Eloquent **tidak berlaku**. Baris GL berstatus `is_example = 1` (bila ada) ikut dihitung. **Status staging: MENUNGGU**; berkas yang diserahkan tidak memuat distribusi `is_example`, jadi belum diketahui apakah 60 baris itu seluruhnya data bisnis. Periksa dengan query berikut (jalankan hanya bila kolom `is_example` ada di `general_ledgers`, lihat Bagian 1.5.2):
 
    ```sql
    SELECT is_example, COUNT(*) AS jumlah_baris FROM general_ledgers GROUP BY is_example;
@@ -309,43 +314,92 @@ Catatan pembacaan:
 
 ### 2.4 Matriks cakupan dokumen (Req 2): `coverage[]`
 
-**MENUNGGU Task 6.5.** Satu baris per jenis dokumen (`DocumentCoverageMatrix::DOCUMENT_TYPES`). Field JSON: `type`, `available`, `approved`, `canceled`, `with_gl`, `canceled_gl_softdeleted`, `canceled_active_gl`, `tracked`, `posting_not_posted`, `posting_missing`.
+**Terisi dari data staging** (`audit-20261103-155516.json` (`generated_at` 2026-11-03T15:55:16+00:00)). Satu baris per jenis dokumen (`DocumentCoverageMatrix::DOCUMENT_TYPES`). Field JSON: `type`, `available`, `approved`, `canceled`, `with_gl`, `canceled_gl_softdeleted`, `canceled_active_gl`, `tracked`, `posting_not_posted`, `posting_missing`.
 
 | `type` | `tracked` (desain) | `approved` | `canceled` | `with_gl` | `canceled_gl_softdeleted` | `canceled_active_gl` | `posting_not_posted` | `posting_missing` |
 |---|---|---|---|---|---|---|---|---|
-| `sales_invoice` | ya | MENUNGGU | MENUNGGU | MENUNGGU | MENUNGGU | MENUNGGU | MENUNGGU | MENUNGGU |
-| `purchase_invoice` | ya | MENUNGGU | MENUNGGU | MENUNGGU | MENUNGGU | MENUNGGU | MENUNGGU | MENUNGGU |
-| `purchase_receipt` | ya | MENUNGGU | MENUNGGU | MENUNGGU | MENUNGGU | MENUNGGU | MENUNGGU | MENUNGGU |
-| `delivery_note` | ya | MENUNGGU | MENUNGGU | MENUNGGU | MENUNGGU | MENUNGGU | MENUNGGU | MENUNGGU |
-| `payment_entry` | **tidak dilacak** | MENUNGGU | MENUNGGU | MENUNGGU | MENUNGGU | MENUNGGU | (kosong) | (kosong) |
-| `stock_entry` | **tidak dilacak** | MENUNGGU | MENUNGGU | MENUNGGU | MENUNGGU | MENUNGGU | (kosong) | (kosong) |
-| `asset_depreciation_schedule` | ya | (tanpa kolom `status`: null) | (null) | MENUNGGU | 0 (selalu 0) | 0 (selalu 0) | MENUNGGU | MENUNGGU |
-| `asset_value_adjustment` | ya | MENUNGGU | MENUNGGU | MENUNGGU | MENUNGGU | MENUNGGU | MENUNGGU | MENUNGGU |
-| `asset` | ya | MENUNGGU | MENUNGGU | MENUNGGU | MENUNGGU | MENUNGGU | MENUNGGU | MENUNGGU |
+| `sales_invoice` | ya | 0 | 1 | 7 | 1 | 0 | 0 | 0 |
+| `purchase_invoice` | ya | 0 | 0 | 10 | 0 | 0 | 0 | 0 |
+| `purchase_receipt` | ya | 0 | 0 | **0** | 0 | 0 | 0 | 0 |
+| `delivery_note` | ya | 0 | 0 | 3 | 0 | 0 | 0 | 0 |
+| `payment_entry` | **tidak dilacak** | 0 | 1 | 6 | 1 | 0 | (kosong) | (kosong) |
+| `stock_entry` | **tidak dilacak** | 0 | 0 | 4 | 0 | 0 | (kosong) | (kosong) |
+| `asset_depreciation_schedule` | ya | (tanpa kolom `status`: null) | (null) | 0 | 0 (selalu 0) | 0 (selalu 0) | 0 | 0 |
+| `asset_value_adjustment` | ya | 0 | 0 | 0 | 0 | 0 | 0 | 0 |
+| `asset` | ya | 0 | 0 | 0 | 0 | 0 | 0 | 0 |
 
 Catatan pembacaan matriks:
 
 - `payment_entry` dan `stock_entry` dilaporkan "tidak dilacak", **bukan anomali** (Req 2.3).
 - Baris **`asset`** kemungkinan tampak tidak lengkap secara palsu: aset berstatus `active`, bukan `approved` (fixture `tests/Support/BuildsAssetFixtures.php:29` memakai status `[ACTIVE]`), sehingga kolom `approved` dan `posting_*` bermakna terbatas; dan `GlPostingStatus` untuk disposal aset dikaitkan ke **`SalesInvoiceItem`**, bukan ke `Asset` (`PostAssetDisposalGainLoss.php:96-101`), sehingga `posting_missing` pada baris `asset` tidak otomatis berarti kegagalan posting. **Belum diverifikasi terhadap data**; pembaca hasil perlu memperlakukan baris ini dengan hati-hati.
 - Dokumen yang di-soft-delete tetap dihitung (tabel dokumen dibaca apa adanya).
+- **Kolom `approved` tidak bermakna pada data nyata (terverifikasi; temuan N-9, Bagian 3.13).** `approved` bernilai 0 untuk delapan jenis yang memiliki kolom `status` padahal `with_gl` > 0 pada lima di antaranya (jadwal depresiasi aset tanpa kolom `status`, nilainya null). Matriks menghitung `approved` dengan `whereJsonContains('status', 'approved')` (`DocumentCoverageMatrix.php:81`), sedangkan `onApproved` setiap service menimpa status dokumen dengan status lanjutan (Sales dan Purchase Invoice menjadi `unpaid` atau `returned`, Purchase Receipt `received` atau `returned`, Delivery Note `delivered` atau `returned`, Stock Entry `completed`, Payment Entry `paid`). Akibatnya **`posting_not_posted` = 0 dan `posting_missing` = 0 dihitung atas himpunan kosong untuk delapan jenis berkolom `status`** (`DocumentCoverageMatrix.php:97-100`) dan **bukan bukti bahwa semua posting berhasil**. Jenis `asset_depreciation_schedule` tidak terdampak: tanpa kolom `status`, subjeknya seluruh jadwal (`DocumentCoverageMatrix.php:97`), tetapi tabelnya kosong di staging. Kolom `canceled`, `with_gl`, `canceled_gl_softdeleted`, dan `canceled_active_gl` tetap bermakna karena status `canceled` memang tersimpan.
+- `purchase_receipt.with_gl` = 0: tidak ada Purchase Receipt yang menghasilkan GL. Ini konsisten dengan kode (Purchase Receipt memposting GL hanya pada ALUR-2 dan pada retur, lihat N-5, Bagian 3.9), tetapi berkas tidak memuat jumlah Purchase Receipt yang ada, jadi tidak dapat disimpulkan apakah ada receipt tanpa GL yang seharusnya memilikinya.
+- Baris `asset`, `asset_value_adjustment`, dan `asset_depreciation_schedule` seluruhnya 0: belum ada posting aset di staging. Dengan demikian jalur disposal (N-1) dan pemecahan kelompok akibat `now()` (N-3) tidak teramati di data ini.
 
 ### 2.5 Baseline saldo (`finance:snapshot-balances`)
 
-**MENUNGGU Task 6.5.** Kolom CSV: `account_id`, `account_number`, `account_name`, `root_type`, `balance_type`, `sum_debit`, `sum_credit`, `net`, `balance_amount`, `difference`, `note`. Rumus terkunci: `net = Σdebit − Σkredit` (baris aktif), `difference = net − balance_amount`.
+**Terisi dari data staging** (`baseline-20261103-155540.csv`; ID akun tidak disalin, hanya nomor dan nama akun CoA seeder). Kolom CSV: `account_id`, `account_number`, `account_name`, `root_type`, `balance_type`, `sum_debit`, `sum_credit`, `net`, `balance_amount`, `difference`, `note`. Rumus terkunci: `net = Σdebit − Σkredit` (baris aktif), `difference = net − balance_amount`.
 
 | Ringkasan yang diambil dari CSV | Staging | Produksi |
 |---|---|---|
-| Jumlah akun (baris CSV), termasuk akun tanpa transaksi dan akun soft-deleted | MENUNGGU | tidak diperlukan (Q1) |
-| Jumlah akun dengan `difference` ≠ 0 (toleransi 0,005) | MENUNGGU | tidak diperlukan (Q1) |
-| Σ `difference` seluruh akun | MENUNGGU | tidak diperlukan (Q1) |
-| Jumlah akun dengan `note` `balance_type kosong` / `akun soft-deleted` | MENUNGGU | tidak diperlukan (Q1) |
-| Konfirmasi konvensi tanda `balance_amount` terhadap data nyata (debit − kredit untuk semua akun; design.md bagian 4 (Task 3.1) belum diverifikasi terhadap data staging) | MENUNGGU | tidak diperlukan (Q1) |
+| Jumlah akun (baris CSV), termasuk akun tanpa transaksi dan akun soft-deleted | **44** akun (45 baris dengan header) | tidak diperlukan (Q1) |
+| Jumlah akun dengan `difference` ≠ 0 (toleransi 0,005) | **7** dari 44. Delapan akun memiliki transaksi GL; satu di antaranya (5110) `difference` = 0 | tidak diperlukan (Q1) |
+| Σ `difference` seluruh akun | **0**; Σnet juga 0, konsisten dengan Σdebit = Σkredit | tidak diperlukan (Q1) |
+| Jumlah akun dengan `note` `balance_type kosong` / `akun soft-deleted` | **0** (tidak ada akun ber-`balance_type` kosong atau soft-deleted) | tidak diperlukan (Q1) |
+| Konfirmasi konvensi tanda `balance_amount` terhadap data nyata (debit − kredit untuk semua akun; rumus terkunci di design.md bagian 4, Task 3.1) | **terkonfirmasi sebagian (2026-11-03):** sesuai untuk akun ber-`balance_type` debit yang ditulis `StockEntryService` (5110, 1241); akun ber-`balance_type` kredit tidak punya cache di staging, sehingga belum teruji data. Pada 5110, `balance_amount` −11.341.940.000 sama persis dengan net (debit − kredit), `difference` 0; Σ`balance_amount` seluruh akun = 0 | tidak diperlukan (Q1) |
+
+Akun yang memiliki transaksi GL (8 dari 44; 36 akun lain bernilai nol di semua kolom):
+
+| Akun | Nama | `root_type` | `balance_type` | Σdebit | Σkredit | `net` | `balance_amount` | `difference` |
+|---|---|---|---|---|---|---|---|---|
+| 1221 | Bank Rupiah | asset | debit | 7.951.666,67 | 4.392.325,00 | 3.559.341,67 | 0 | 3.559.341,67 |
+| 1231 | Piutang Dagang | asset | debit | 88.249.325,84 | 0 | 88.249.325,84 | 0 | 88.249.325,84 |
+| 1241 | Persediaan Barang | asset | debit | 11.348.640.000 | 49.670.000 | 11.298.970.000 | 11.341.940.000 | **−42.970.000** |
+| 2211 | Hutang Dagang Dalam Negeri | liability | credit | 1.210.000 | 369.629.145,84 | −368.419.145,84 | 0 | −368.419.145,84 |
+| 2214 | Stock Diterima Tapi Belum Dibayar | liability | credit | 361.677.479,17 | 7.910.000 | **+353.767.479,17 (debit)** | 0 | 353.767.479,17 |
+| 4110 | Penjualan | income | credit | 0 | 83.857.000,84 | −83.857.000,84 | 0 | −83.857.000,84 |
+| 4210 | HPP Pembelian | income | credit | 49.670.000 | 0 | 49.670.000 | 0 | 49.670.000 |
+| 5110 | Penyesuaian Stok | expense | debit | 0 | 11.341.940.000 | −11.341.940.000 | −11.341.940.000 | 0 |
+
+`net` bertanda debit − kredit (negatif = bersaldo kredit). Σ`balance_amount` seluruh akun = 0. Angka dibulatkan ke dua desimal; nilai asli memiliki empat desimal di CSV.
+
+### 2.6 Analisis pola pada baseline saldo
+
+Setiap dugaan dicek ke kode. Label: **terverifikasi** = dibuktikan oleh kode dan/atau aritmetika dari dua berkas; **dugaan, perlu verifikasi** = konsisten dengan data tetapi tidak dapat dibuktikan tanpa rincian per dokumen (berkas yang diserahkan hanya agregat).
+
+**P1. `balance_amount` hanya terisi pada 1241 dan 5110 (konsisten dengan F-09): terverifikasi.**
+
+- `grep` `balance_amount` di `app/` menunjukkan satu-satunya penulis adalah `StockEntryService` (`StockEntryService.php:572, 577, 601, 606, 635, 639`). Listener posting invoice, receipt, delivery note, aset, dan `PaymentEntryService` tidak menyentuhnya. Maka enam akun lain (1221, 1231, 2211, 2214, 4110, 4210) wajar bercache 0 dan `difference` = `net`. Ini bukti data untuk F-09 (cache dijadikan sumber), bukan temuan baru.
+- Dashboard "Total Saldo Account" menjumlahkan `accounts.balance_amount` (`database/seeders/DeskSeeder.php:893`). Pada data ini kartu itu menampilkan 0 (Σ`balance_amount` = 0), tidak mencerminkan GL.
+- **Arti `difference` 1241 = −42.970.000 (terverifikasi secara aritmetika dan kode).** Kolom `balance_amount` 1241 (11.341.940.000) sama dengan debit dari Stock Entry: pasangan GL Stock Entry mendebit 1241 dan mengkredit akun selisih dengan nilai yang sama, dan akun 5110 hanya bergerak sebesar itu (kredit 11.341.940.000 = cache −11.341.940.000, `difference` 0). Maka debit non-Stock-Entry pada 1241 = 11.348.640.000 − 11.341.940.000 = **6.700.000**, dan seluruh kredit 1241 (**49.670.000**) berasal dari Delivery Note: listener Delivery Note mengkredit akun stok dan mendebit akun HPP (`PostDeliveryNoteGeneralLedger.php:26-34, 36-53`), dan debit 4210 = 49.670.000 sama persis. Jadi `difference` = net − cache = (6.700.000 − 49.670.000) = −42.970.000, yaitu mutasi stok yang tidak melewati `StockEntryService` dan karenanya tidak masuk cache. Asumsi: 5110 hanya menerima Stock Entry.
+- **6.700.000 berasal dari jurnal stok/SRNB Purchase Invoice: dugaan, perlu verifikasi.** Jalur lain yang mendebit akun stok adalah Purchase Receipt (0 dokumen berGL) dan retur Delivery Note (tidak ada: 4210 tidak pernah dikredit). Secara aritmetika konsisten dengan 2214: kredit 7.910.000 = 6.700.000 (pasangan stok/SRNB) + 1.210.000 (kredit retur Purchase Invoice yang mendebit 2211 sebesar 1.210.000).
+
+**P2. 2214 (SRNB, liability) bersaldo net debit 353,77 juta sementara `purchase_receipt.with_gl` = 0: terverifikasi sebagai konsekuensi kode dan form; sebab bisnisnya dugaan.**
+
+- Purchase Invoice memposting dua pasang: (a) stok/SRNB sebesar `totalStockGL`, hanya bila > 0 dan bukan retur (`PostPurchaseInvoiceGeneralLedger.php:26-55`); (b) **selalu** debit "akun beban/expense head" dan kredit akun kredit sebesar total invoice (`PostPurchaseInvoiceGeneralLedger.php:57-76`). Akun (b) dipilih pengguna (wajib, `PurchaseInvoiceRequest.php:43-44`) dan **form mengisinya otomatis dengan akun SRNB** untuk expense head dan akun `payable` untuk akun kredit (`resources/js/Pages/Finances/PurchaseInvoice/Form.jsx:54-72`). Jadi tiap Purchase Invoice yang memakai default mendebit 2214 dan mengkredit 2211 sebesar total.
+- Data cocok persis: Σkredit 2211 (369.629.145,84) − Σdebit 2214 (361.677.479,17) = 7.951.666,67 = Σdebit 1221 (lihat N-4). Itu konsisten dengan seluruh Purchase Invoice (total 361.677.479,17) mendebit 2214 dan mengkredit 2211, dan kredit 2214 hanya 7.910.000 yang berasal dari jurnal stok/SRNB dan kredit retur (dugaan pada tingkat dokumen; berkas hanya agregat).
+- Purchase Receipt memposting GL **hanya pada ALUR-2 dan pada retur** (invoice di-approve lebih dulu): `$totalRatesForGL` "hanya ALUR-2 yang mengisi ini" dan kondisi posting adalah `$returnAgainst || $totalRatesForGL > 0` (`PurchaseReceiptService.php:271-272`, 447, 540). Pada ALUR-1 (receipt lebih dulu) receipt tidak memposting GL dan jurnal stok/SRNB baru dibuat saat invoice di-approve (`PurchaseInvoiceService.php:322-340`). Maka `purchase_receipt.with_gl` = 0 **tidak berarti** tidak ada penerimaan barang, dan **tidak ada kredit SRNB dari Purchase Receipt** pada alur mana pun yang terjadi di data ini.
+- **Dugaan, perlu verifikasi:** saldo debit 353,77 juta = total invoice yang didebit ke SRNB dikurangi nilai stok yang dikreditkan (6,7 juta). Penyebabnya bisa invoice yang menagih barang yang belum diterima (ALUR-2 belum disusul receipt), item non-stok yang mengikuti default akun, atau data uji. Query penentu ada di Bagian 3.9 (MENUNGGU). Ini bukan kesalahan data staging semata: pola yang sama akan terjadi di produksi selama default form dan aturan ALUR dipertahankan (N-5).
+
+**P3. 4210 "HPP Pembelian" ber-`root_type` income menerima debit COGS 49,67 juta: klasifikasi terverifikasi berasal dari seeder, bukan dari data staging; benar-tidaknya klasifikasi itu dugaan, perlu verifikasi akuntan.**
+
+- `AccountSeeder` menempatkan 4210 di bawah grup 4200 "Harga Pokok Pembelian" di bawah akar 4000 "Income" (`root_type` income, `report_type` profit_and_loss, `balance_type` credit), dan anak mewarisi `root_type`, `report_type`, `balance_type` induknya (`AccountSeeder.php:19-31, 240-283`). Karena itu CSV menampilkan `balance_type` = credit pada akun yang menerima debit.
+- Listener Delivery Note **mensyaratkan** klasifikasi ini: akun HPP dicari dengan `root_type = 'income'` dan `account_type = 'cost_of_goods_sold'` (`app/Listeners/Inventory/Ledger/PostDeliveryNoteGeneralLedger.php:31-34`). Mengubah klasifikasi di seeder tanpa mengubah listener membuat akun tidak ditemukan dan posting Delivery Note gagal (dan `AccountSeeder` memakai `updateOrCreate`, sehingga perubahan itu ikut ke data yang ada pada deploy berikutnya).
+- Dampak penyajian: akun bersaldo debit pada akar berwatak kredit akan tampil sebagai pengurang pendapatan; angka laba kotor tetap sama secara aritmetika, tetapi pengelompokan laporan (HPP sebagai beban pokok) bergantung pada kebijakan akuntan. Lihat N-6 (Bagian 3.10).
+
+**P4. Stock Entry pembukaan (11,34 miliar) mengkredit 5110 "Penyesuaian Stok" (expense) alih-alih 3110 "Pembukaan Stock" (equity): terverifikasi sebagai perilaku default form, bukan bug kode posting; bahwa dokumen itu adalah pembukaan stok adalah dugaan.**
+
+- `StockEntryService` mendebit akun stok pertama yang `root_type` asset dan `account_type` stock (`.latest()->first()`, F-06) dan mengkredit **akun selisih yang dipilih pengguna** (`StockEntryService.php:562-566`; `StockEntryRequest.php:31`). Tidak ada akun yang dipilih otomatis oleh kode di sisi layanan.
+- Form Stock Entry mengisi akun selisih otomatis dengan akun pertama ber-`root_type` expense dan `account_type` stock_adjustment (yaitu 5110), untuk semua jenis termasuk `item_receipt` (`resources/js/Pages/Inventory/StockEntries/Form.jsx:19-34`). Pilihan akun dibatasi ke liability, equity, atau expense (baris 490-494), sehingga 3110 dapat dipilih tetapi tidak menjadi default. Tidak ada jenis Stock Entry "pembukaan": jenis yang diterima hanya `item_transfer`, `item_issue`, `item_consumption`, `item_receipt` (`StockEntryRequest.php:25`).
+- Akun 3110 ber-`account_type` stock tetapi berakar equity, sehingga tidak tertukar dengan akun stok yang dicari kode (`root_type` asset). Berkas yang diserahkan tidak memuat jenis Stock Entry, sehingga bahwa 4 Stock Entry itu adalah "pembukaan" adalah dugaan.
+- Dampak: kredit 11,34 miliar masuk ke akun beban sehingga laba tampak meningkat sebesar itu pada laporan laba rugi alih-alih menambah ekuitas. Lihat N-7 (Bagian 3.11).
 
 ---
 
 ## 3. Hasil known-issue test dan temuan baru (Requirement 7.3)
 
-Semua test berada di `tests/Feature/Finances/Characterization/` dan menegaskan perilaku **aktual** (grup `known-issue`). Tidak ada perbaikan di fase ini (Requirement 5.7). Untuk tiap temuan, kolom keputusan pemilik produk berisi **MENUNGGU**.
+Semua test berada di `tests/Feature/Finances/Characterization/` dan menegaskan perilaku **aktual** (grup `known-issue`). Tidak ada perbaikan di fase ini (Requirement 5.7). Untuk tiap temuan, kolom keputusan pemilik produk berisi **MENUNGGU**. Temuan N-4 sampai N-9 ditambahkan 2026-11-03 setelah data staging diterima (bukan bagian persetujuan laporan versi PR #272/#273).
 
 Ringkasan:
 
@@ -357,7 +411,13 @@ Ringkasan:
 | F-16 | Cancel sebelum job posting → GL aktif untuk dokumen `canceled` | Terkonfirmasi (test) | Fase 2 (FR-P3); hotfix guard bila audit menemukan kasus nyata |
 | N-1 | Tanda laba/rugi disposal aset tampak terbalik; jurnal disposal tidak menghapus nilai buku | Terbaca dari kode + test karakterisasi | Tinjau akuntan sebelum Fase 2 (Asset); koreksi dalam Fase 2 |
 | N-2 | Purchase Invoice tanpa PO gagal `TypeError` di `onApproved` | Dibaca dari kode; **belum diuji** sebagai kegagalan | Hotfix kecil atau Fase 2 setelah ukuran paparan diketahui |
-| N-3 | Baris satu dokumen dapat terpecah lintas detik (`now()` per baris) | Dibaca dari kode; **belum diukur** | Ukur di staging; tentukan granularitas D-8 sebelum Fase 1 |
+| N-3 | Baris satu dokumen dapat terpecah lintas detik (`now()` per baris) | Dibaca dari kode; tidak teramati di data staging (0 kelompok tak seimbang) | Tentukan granularitas D-8 sebelum Fase 1 |
+| N-4 | Arah jurnal Payment Entry tampak terbalik terhadap konvensi umum bila akun dipilih sesuai filter form | Terverifikasi dari kode; data staging konsisten secara aritmetika (dugaan pada tingkat dokumen) | **Hotfix terpisah** (satu paket dengan F-10), konfirmasi semantik dulu |
+| N-5 | Akun SRNB (2214) bersaldo debit: default akun Purchase Invoice dan jurnal stok/SRNB bergantung pada ALUR | Terverifikasi dari kode dan form; sebab bisnis dugaan | Fase 2 (aturan posting pembelian), dengan akuntan |
+| N-6 | HPP (4210) berklasifikasi income di seeder dan diwajibkan listener Delivery Note | Terverifikasi dari seeder dan listener | Fase 2 (peran akun) dengan keputusan akuntan |
+| N-7 | Akun selisih Stock Entry default ke 5110 (expense) untuk semua jenis | Terverifikasi dari form; data staging dugaan | Fase 2 (D-26); koreksi data staging oleh pemilik |
+| N-8 | Listener Sales/Purchase Invoice memposting baris GL bernilai 0 untuk invoice bernilai 0; Fase 1 akan menolaknya (FR-L2) | Terverifikasi dari kode; 2 baris di staging (soft-deleted) | Fase 1 (adapter harus menanganinya) |
+| N-9 | Kolom `approved` dan `posting_*` matriks cakupan tidak bermakna pada data nyata | Terverifikasi (kode dan data) | Perbaikan alat audit (tambahan Fase 0 atau awal Fase 1) |
 
 ### 3.1 F-04: pembatalan men-soft-delete GL dan SLE
 
@@ -368,6 +428,8 @@ Ringkasan:
 - `test_f04_cancel_stock_entry_soft_deletes_gl_and_sle_but_keeps_cached_account_balances`: GL dan SLE di-soft-delete; `accounts.balance_amount` (+10.000 / −10.000) **tidak dikoreksi**, sehingga snapshot baseline menampilkan `difference` −10.000 pada akun persediaan.
 
 **Mekanisme.** Hook `saving` pada trait `Submitable` meng-`update(['deleted_at' => now()])` massal untuk GL dan SLE dokumen yang statusnya baru berubah ke `canceled` (`app/Traits/Submitable.php:98-106`). `cancel()` pada service hanya mengubah status (`PaymentEntryService.php:159-167`; `SalesInvoiceService::cancel` di baris 604; `StockEntryService::cancel` di baris 684).
+
+**Bukti data staging (2026-11-03).** Dua dokumen `canceled` (satu Sales Invoice dan satu Payment Entry) memiliki seluruh baris GL-nya soft-deleted: `coverage[].canceled_gl_softdeleted` = 1 pada masing-masing jenis, `soft_deleted_expected` = 4 baris, `soft_deleted_unexpected` = 0, tanpa jurnal pembalik. Jadi perilaku F-04 terjadi pada data nyata, bukan hanya di test.
 
 **Dampak.**
 - Riwayat ledger hilang dari laporan standar; periode lampau dapat berubah diam-diam (tidak ada pembalik yang diposting di periode terbuka).
@@ -382,6 +444,8 @@ Ringkasan:
 - *Bagian `balance_amount`:* **Fase 2**/**Fase 5** (saldo cache dipensiunkan sebagai sumber, FR-R2).
 
 Bentuk usulan diizinkan (DV-C, 2026-11-03); keputusan penanganan tetap menunggu.
+
+Bukti data untuk bagian `balance_amount`: baseline staging menunjukkan 7 dari 8 akun bertransaksi bercache menyimpang dari GL (Bagian 2.6, P1).
 
 **Keputusan pemilik produk: MENUNGGU.**
 
@@ -413,7 +477,7 @@ WHERE ABS(g.gl_debit - pe.paid_amount) > 0.005;
 
 | Hasil | Staging | Produksi |
 |---|---|---|
-| `jumlah_payment_terdampak`, `total_kelebihan_gl` | MENUNGGU Task 6.5 | tidak diperlukan (Q1) |
+| `jumlah_payment_terdampak`, `total_kelebihan_gl` | **MENUNGGU** (query SQL belum dijalankan). Konteks: hanya 6 Payment Entry berGL (1 `canceled`), jadi paparan di staging paling banyak 5 pembayaran aktif; berkas tidak menunjukkan berapa yang parsial | tidak diperlukan (Q1) |
 
 **Usulan penanganan: hotfix terpisah, dikerjakan sebelum backfill Fase 1.** Alasan: (1) perbaikan kecil dan terlokalisasi (memposting jumlah pembayaran ini, bukan jumlah kumulatif); (2) bila tidak diperbaiki, backfill D-8 akan membawa nilai salah ke jurnal baru sebagai jurnal "seimbang"; (3) Fase 4 akan mengganti model alokasi pembayaran sehingga menunggu Fase 4 berarti membiarkan GL baru terus salah. **Koreksi data historis** (jurnal penyesuaian atas selisih yang sudah terposting) adalah keputusan akuntansi terpisah dan memerlukan jurnal manual (D-14).
 
@@ -448,7 +512,7 @@ WHERE deleted_at IS NULL
 
 | Hasil | Staging | Produksi |
 |---|---|---|
-| `jumlah_payment_asing`, total | MENUNGGU Task 6.5 | tidak diperlukan (Q1) |
+| `jumlah_payment_asing`, total | **MENUNGGU** (query SQL belum dijalankan; berkas `finance:*` tidak memuat mata uang) | tidak diperlukan (Q1) |
 
 **Usulan penanganan: Fase 4**, bukan hotfix. *Bentuk usulan diizinkan (DV-C, 2026-11-03); keputusan penanganan tetap menunggu.* Alasan: perbaikan yang benar menyangkut kebijakan tipe kurs (D-16) dan pengakuan selisih kurs terealisasi (D-17), keduanya PENDING dan memerlukan akuntan; tambalan sepihak (mis. memposting `base_paid_amount`) berisiko tidak konsisten dengan jurnal invoice. **Pengecualian:** bila query di atas menemukan pembayaran valuta asing nyata di staging, atau produksi mulai menerima pembayaran valuta asing sebelum Fase 4, ajukan keputusan hotfix sementara atau peringatan operasional.
 
@@ -466,7 +530,7 @@ WHERE deleted_at IS NULL
 
 | Hasil | Staging | Produksi |
 |---|---|---|
-| `canceled_active_gl.count` (dokumen) | MENUNGGU Task 6.5 | tidak diperlukan (Q1) |
+| `canceled_active_gl.count` (dokumen) | **0** (`sections.canceled_active_gl.count` = 0 dan `coverage[].canceled_active_gl` = 0 untuk seluruh sembilan jenis). **Tidak ada kasus F-16 di staging per 2026-11-03**; hanya 2 dokumen `canceled`, sehingga ini tidak membuktikan bahwa jendela balapan tidak ada | tidak diperlukan (Q1) |
 
 **Usulan penanganan: Fase 2** (FR-P3: job posting yang menemukan dokumen `canceled` tidak memposting). **Hotfix guard** (periksa status dokumen di dalam transaksi listener) bila audit menemukan kasus nyata. Alasan: perbaikan kecil, tetapi baru bermakna bila disertai pembalik untuk kasus yang sudah terjadi (keputusan D-13).
 
@@ -508,7 +572,7 @@ GROUP BY status;
 
 | Hasil | Staging | Produksi |
 |---|---|---|
-| Jumlah PI tanpa PO, per status | MENUNGGU Task 6.5 | tidak diperlukan (Q1) |
+| Jumlah PI tanpa PO, per status | **MENUNGGU** (query SQL belum dijalankan; berkas `finance:*` tidak memuat `purchase_order_id`) | tidak diperlukan (Q1) |
 
 **Usulan penanganan.** Bila query menunjukkan PI tanpa PO nyata, **hotfix kecil terpisah** (event menerima PO nullable dan listener melewati rekalkulasi bila tidak ada PO). Bila tidak ada, masukkan ke **Fase 2** (refactor `PurchaseInvoiceService`), dan tambahkan test yang mengunci kegagalan terlebih dahulu. Alasan menunggu data: tanpa jalur nyata, risikonya rendah.
 
@@ -520,9 +584,115 @@ Bukan bagian permintaan awal; dicatat karena memengaruhi akurasi estimasi backfi
 
 **Bukti (kode).** `StockEntryService` (baris 587, 596, 616, dan seterusnya) dan `PostAssetDisposalGainLoss` (baris 63, 71, 81, 89) memanggil `now()` **terpisah untuk setiap baris GL**, sedangkan `transaction_date` bertipe `datetime` tanpa pecahan detik. Jika dua baris pasangan jatuh di sisi berbeda batas detik, keduanya tersimpan dengan `transaction_date` berbeda. Listener lain memakai satu `$event->transactionDate` untuk seluruh baris sehingga tidak terpengaruh.
 
-**Dampak.** Pengelompokan D-8 dan auditor (`GROUP BY referenceable_type, referenceable_id, transaction_date`) memperlakukan baris yang terpisah itu sebagai dua kelompok yang masing-masing **tampak tak seimbang**, padahal dokumennya seimbang. Frekuensinya **belum diukur**; diagnosis ada di Bagian 4.3.
+**Dampak.** Pengelompokan D-8 dan auditor (`GROUP BY referenceable_type, referenceable_id, transaction_date`) memperlakukan baris yang terpisah itu sebagai dua kelompok yang masing-masing **tampak tak seimbang**, padahal dokumennya seimbang. Frekuensinya **belum dapat diukur dari data ini**; diagnosis ada di Bagian 4.3.
+
+**Data staging (2026-11-03).** Tidak ada kelompok tak seimbang, dan 28 kelompok = 28 dokumen berGL aktif (Bagian 2.2), sehingga tidak ada pemecahan yang teramati. Cakupannya sempit: hanya 4 Stock Entry yang berpotensi terpengaruh dan tidak ada disposal aset (`asset.with_gl` = 0). Ini tidak membuktikan risikonya tidak ada pada volume lebih besar.
 
 **Usulan penanganan.** Ukur di staging (Bagian 4.3) lalu tentukan granularitas pengelompokan D-8 (per dokumen, atau per tanggal, atau per `datetime` dengan toleransi) **sebelum** spec Fase 1 difinalkan. Tidak ada perubahan kode di fase ini.
+
+**Keputusan pemilik produk: MENUNGGU.**
+
+### 3.8 N-4 (baru, dari baseline staging): arah jurnal Payment Entry tampak terbalik
+
+**Status verifikasi: terverifikasi dari kode; data staging konsisten secara aritmetika, tetapi pada tingkat dokumen itu dugaan, perlu verifikasi (berkas hanya agregat).**
+
+**Bukti (kode).**
+- `PaymentEntryService::onApproved` mendebit `accountPaidFrom` dan mengkredit `accountPaidTo` untuk semua jenis pembayaran (`PaymentEntryService.php:117-139`). Test karakterisasi mengunci ini: "Debit = `account_paid_from`, kredit = `account_paid_to`, tanpa memandang payment_type" (`PaymentEntryPostingTest::test_full_payment_debits_paid_from_and_credits_paid_to_with_payment_date`).
+- Form membatasi pilihan akun menurut jenis: untuk **`receive`**, `account_paid_from` harus akun `receivable` dan `account_paid_to` akun asset (kas/bank); untuk **`pay`**, `account_paid_from` akun asset (kas/bank) dan `account_paid_to` akun `payable` (`resources/js/Pages/Finances/PaymentEntries/Form.jsx:439-470`).
+- Maka pembayaran yang dipilih sesuai filter form menghasilkan: terima dari pelanggan = **debit Piutang, kredit Bank**; bayar ke pemasok = **debit Bank, kredit Utang**. Keduanya berlawanan dengan konvensi umum (terima: debit Bank, kredit Piutang; bayar: debit Utang, kredit Bank). Fixture test memakai kas sebagai `paid_from` untuk pembayaran `receive` (`tests/Support/BuildsFinanceFixtures.php:231-247`), yang tidak sesuai filter form, sehingga test tidak memperlihatkan inversi ini.
+- **Default sistem juga berarah sama.** Untuk Sales Invoice non-retur, default server mengisi `account_paid_from` = `$salesInvoice->debitAccount` (piutang) dan `account_paid_to` = bank (`app/Http/Controllers/Finances/PaymentEntryController.php:80-81`). Form klien memberi default yang sama: untuk pihak pemasok `account_paid_to` diisi `credit_account` (utang), selain itu `account_paid_from` diisi `debit_account` (`resources/js/Pages/Finances/PaymentEntries/Form.jsx:391-411`). Jadi pengguna yang menerima default menghasilkan debit Piutang/kredit Bank tanpa memilih akun sendiri.
+- **Label tidak membalik makna.** Label "Akun Dibayar Dari" dan "Akun Dibayar Kepada" (`lang/id/finances/paymentEntry.php:28-29`; berkas ini berada di folder `finances`) menegaskan bahwa tidak ada konvensi penamaan yang membuat "dari" berarti sisi debit; "dibayar dari" tetap sisi pembayar.
+- **Catatan sampingan (terverifikasi kode, belum diuji):** (a) default server Purchase Invoice memakai `$purchaseInvoice->debitAccount` (`PaymentEntryController.php:108`), padahal model `PurchaseInvoice` tidak memiliki relasi itu (relasi akunnya `expenseHeadAccount` dan `creditAccount`, `PurchaseInvoice.php:184, 188`), sehingga hasilnya `null`; (b) default yang sama mengisi `account_paid_to` = bank (`:109`), berlawanan dengan filter jenis `pay` (`paid_to` = akun utang); (c) untuk dokumen retur, `account_paid_to` diisi `customer_id` (`:81` dan `:109`): pada Sales Invoice itu ID pelanggan, bukan akun; pada Purchase Invoice atribut `customer_id` tidak ditemukan di migration maupun model, sehingga hasilnya `null`.
+
+**Bukti (data staging, dugaan, perlu verifikasi).** Piutang 1231 menerima debit 4.392.325,00 di luar total Sales Invoice (Σdebit 1231 88.249.325,84 − Σkredit 4110 83.857.000,84 = 4.392.325,00), dan nilai yang sama persis dikredit ke Bank 1221 (Σkredit 1221 = 4.392.325,00): pola debit Piutang/kredit Bank. Utang 2211 menerima kredit 7.951.666,67 di luar total Purchase Invoice (369.629.145,84 − 361.677.479,17), sama dengan Σdebit Bank 1221 (7.951.666,67): pola debit Bank/kredit Utang. Kedua pola cocok dengan inversi di atas. Tidak ada kredit pada 1231 dan tidak ada debit pada 2211 selain retur Purchase Invoice, jadi tidak ada pembayaran yang mengurangi piutang atau utang di GL.
+
+**Dampak.** Pelunasan piutang justru menambah saldo debit Piutang dan mengurangi Bank, sedangkan pembayaran utang menambah saldo kredit Utang dan menambah Bank. Saldo Kas/Bank, Piutang, dan Utang di GL melenceng dari subledger dokumen (`paid_amount` faktur benar). Jurnal tetap seimbang sehingga **tidak terdeteksi** oleh `finance:audit-gl`. Bila arah ini tertanam ke parity test Fase 2, kesalahan terkunci di engine.
+
+**Usulan penanganan: hotfix terpisah, satu paket dengan F-10** (kedua bug berada di `PaymentEntryService::onApproved` baris 117-139; memperbaikinya sekali lebih aman daripada dua kali). Alasan: dampaknya langsung ke saldo Kas/Bank, Piutang, dan Utang; perbaikan terlokalisasi. Syarat sebelum dikerjakan: (1) pemilik produk dan akuntan mengonfirmasi semantik `account_paid_from`/`account_paid_to` pada form; (2) test karakterisasi dan fixture yang mengunci arah lama dibalik bersamaan; (3) koreksi data historis (staging bernilai kecil; produksi kosong) diputuskan terpisah. Bila pemilik produk memilih menunggu, minimal sebelum backfill Fase 1 dan sebelum parity Fase 2 untuk Payment.
+
+**Keputusan pemilik produk: MENUNGGU.**
+
+### 3.9 N-5 (baru, dari baseline staging): akun SRNB 2214 bersaldo debit
+
+**Status verifikasi: perilaku kode dan form terverifikasi; sebab bisnis pada data staging dugaan, perlu verifikasi.**
+
+**Bukti.** Lihat Bagian 2.6, P2. Ringkasnya: (a) form Purchase Invoice mengisi expense head dengan akun SRNB (`Form.jsx:54-72`) dan `PostPurchaseInvoiceGeneralLedger` mendebitnya sebesar total invoice (baris 57-76); (b) jurnal stok/SRNB dibuat hanya sebesar `totalStockGL` (baris 26-55); (c) Purchase Receipt memposting GL hanya pada ALUR-2 dan pada retur (`PurchaseReceiptService.php:271-272, 540`: `$returnAgainst || $totalRatesForGL > 0`), dan pada ALUR-1 jurnal stok baru dibuat saat invoice di-approve (`PurchaseInvoiceService.php:322-340`). Data staging: `purchase_receipt.with_gl` = 0 dan 2214 net debit 353.767.479,17 (angka berkas); bahwa Σdebit 2214 sama dengan total Purchase Invoice adalah **dugaan, perlu verifikasi** (inferensi dari aritmetika agregat, lihat P2).
+
+**Dampak.** (1) Penerimaan barang yang belum ditagih (ALUR-1 sebelum invoice) tidak muncul di GL: stok di GL tertinggal dari SLE dan kewajiban "diterima belum ditagih" tidak tercatat. (2) Akun liabilitas bersaldo debit pada Neraca, dan sebagian nilainya (pajak, item non-stok) tidak pernah dikliringkan oleh jurnal stok. (3) Perilaku ini berbeda dari pola umum (penerimaan barang mendebit stok dan mengkredit SRNB saat receipt), sehingga Fase 2 harus memutuskan perlakuan sebelum jurnal pembelian diposting lewat engine (terkait Q-P2-5 untuk diskon pembelian stok).
+
+**Ukuran paparan (read-only, staging; MENUNGGU).** Distribusi akun expense head pada Purchase Invoice dan status dokumen:
+
+```sql
+SELECT a.account_number, COUNT(*) AS jumlah_pi, ROUND(SUM(pi.amount), 4) AS total_amount
+FROM purchase_invoices pi
+JOIN accounts a ON a.id = pi.expanse_head_account_id
+WHERE pi.deleted_at IS NULL
+GROUP BY a.account_number;
+
+SELECT status, COUNT(*) AS jumlah FROM purchase_invoices WHERE deleted_at IS NULL GROUP BY status;
+```
+
+| Hasil | Staging | Produksi |
+|---|---|---|
+| Distribusi `expanse_head_account_id` dan status Purchase Invoice | MENUNGGU (query belum dijalankan) | tidak diperlukan (Q1) |
+
+**Usulan penanganan: Fase 2** (aturan posting pembelian dan peran akun, D-26/D-27), dengan masukan akuntan (R-4). Alasan: menyangkut kebijakan perlakuan penerimaan barang yang belum ditagih dan default akun; bukan perbaikan lokal. Data staging adalah data uji; tidak ada koreksi data yang diusulkan di sini.
+
+**Keputusan pemilik produk: MENUNGGU.**
+
+### 3.10 N-6 (baru, dari baseline staging): HPP 4210 berklasifikasi income
+
+**Status verifikasi: klasifikasi seeder dan keterkaitannya dengan listener terverifikasi; apakah klasifikasi itu keliru adalah dugaan, perlu verifikasi akuntan.**
+
+**Bukti.** Bagian 2.6, P3: `AccountSeeder.php:240-283` (4210 di bawah akar income, balance_type credit) dan `app/Listeners/Inventory/Ledger/PostDeliveryNoteGeneralLedger.php:31-34` (mencari akun dengan `root_type = 'income'` dan `account_type = 'cost_of_goods_sold'`). Ini klasifikasi default seeder, bukan keanehan data staging.
+
+**Dampak.** Akun HPP bersaldo debit berada pada akar berwatak kredit; penyajian laporan (Fase 5, D-26: saldo bertanda menurut `balance_type`) akan menampilkannya sebagai pengurang pendapatan, bukan beban pokok. Mengubah klasifikasi tanpa mengubah listener memutus posting Delivery Note.
+
+**Usulan penanganan: Fase 2** (peran akun `cost_of_goods_sold` melalui resolver, tidak lagi dicari lewat `root_type`) bersama keputusan akuntan atas bagan akun (D-11/Q2 ditunda). Tidak ada hotfix: perubahan seeder sepihak berisiko memutus posting.
+
+**Keputusan pemilik produk: MENUNGGU.**
+
+### 3.11 N-7 (baru, dari baseline staging): akun selisih Stock Entry default ke 5110
+
+**Status verifikasi: perilaku default form terverifikasi; bahwa Stock Entry pada data staging adalah pembukaan stok adalah dugaan, perlu verifikasi.**
+
+**Bukti.** Bagian 2.6, P4: `Form.jsx:19-34` (default akun selisih = akun expense bertipe stock_adjustment untuk semua jenis), `StockEntryService.php:562-566`, `StockEntryRequest.php:25, 31`. Tidak ada jenis Stock Entry "pembukaan".
+
+**Dampak.** Stok awal yang dimasukkan lewat `item_receipt` dengan akun default mengkredit akun beban (11,34 miliar di staging), sehingga laba tampak meningkat alih-alih ekuitas bertambah (akun 3110 tersedia tetapi harus dipilih manual). Pada produksi, hal yang sama berlaku untuk saldo awal.
+
+**Usulan penanganan: Fase 2** (D-26: akun ditentukan konfigurasi, termasuk akun selisih per jenis Stock Entry atau jenis "pembukaan"). Untuk staging, koreksi data (memilih 3110) adalah tindakan pemilik data, bukan perubahan kode. Pertimbangkan panduan operasional sebelum produksi menginput saldo awal.
+
+**Keputusan pemilik produk: MENUNGGU.**
+
+### 3.12 N-8 (baru, dari audit staging): baris GL bernilai nol untuk invoice bernilai nol
+
+**Status verifikasi: perilaku kode terverifikasi; bahwa kedua baris staging berasal dari invoice bernilai nol adalah dugaan, perlu verifikasi (berkas tidak memuat total dokumen).**
+
+**Bukti.** Dua baris GL Sales Invoice yang di-soft-delete bernilai debit 0 dan kredit 0 (Bagian 2.2). `SalesInvoiceService::onApproved` membuat `GlPostingStatus` dan men-dispatch event posting tanpa memeriksa `totalAmount` (`SalesInvoiceService.php:337-350`), dan `PostSalesInvoiceGeneralLedger` menulis pasangan baris dengan `totalAmount` apa adanya (`PostSalesInvoiceGeneralLedger.php:22-51`). Pasangan expense/kredit Purchase Invoice "selalu dibuat" (`PostPurchaseInvoiceGeneralLedger.php:57-76`). Berbeda dengan Purchase Receipt yang memposting bila total > 0 atau retur (`PurchaseReceiptService.php:540`: `$returnAgainst || $totalRatesForGL > 0`).
+
+**Dampak.** Pada kode sekarang baris nol aktif akan lolos (kategori `zero_or_negative` akan menandainya). Pada Fase 1, `JournalService` menolak baris bernilai nol pada kedua sisi (FR-L2), sehingga adapter yang memanggil `JournalService` dari listener existing **akan gagal saat approve invoice bernilai nol** bila tidak ditangani (regresi perilaku). Auditor tidak menandai dua baris staging karena keduanya sudah soft-deleted.
+
+**Usulan penanganan: Fase 1** (adapter dan aturan backfill harus melewati atau menandai jurnal bernilai nol secara eksplisit, dan spec Fase 1 mencatat keputusannya). Alasan: dampak langsung pada rancangan adapter FR-L2; bukan bug produksi yang mendesak.
+
+**Keputusan pemilik produk: MENUNGGU.**
+
+### 3.13 N-9 (baru, dari matriks staging): kolom `approved` matriks cakupan tidak bermakna
+
+**Status verifikasi: terverifikasi (kode dan data).**
+
+**Bukti.** Data: `approved` = 0 pada delapan jenis berkolom `status` (jadwal depresiasi aset tanpa kolom `status`: null) sementara `with_gl` > 0 pada lima jenis (Bagian 2.4). Kode: matriks menghitung `approved` dan himpunan subjek `posting_not_posted`/`posting_missing` dengan `whereJsonContains('status', 'approved')` (`DocumentCoverageMatrix.php:81, 97-100`); `onApproved` menimpa status: Sales Invoice (`SalesInvoiceService.php:357-359`) dan Purchase Invoice (`PurchaseInvoiceService.php:376`) menjadi `unpaid`/`returned`, Purchase Receipt (`PurchaseReceiptService.php:152`) `received`/`returned`, Delivery Note (`DeliveryNoteService.php:192`) `delivered`/`returned`, Stock Entry (`StockEntryService.php:316`) `completed`, Payment Entry (`PaymentEntryService.php:111-115`) `paid`. Test auditor lulus karena fixture menyetel status `approved` secara manual (`GeneralLedgerAuditorTest.php:103-163`).
+
+**Dampak.** Requirement 2.2 (menandai dokumen approved yang `GlPostingStatus`-nya bukan `posted`) tidak terpenuhi pada data nyata; `posting_not_posted` = 0 dan `posting_missing` = 0 pada delapan jenis berkolom `status` tidak menjadi bukti bahwa tidak ada posting `pending`/`failed`/hilang (jenis `asset_depreciation_schedule` tidak terdampak: subjeknya seluruh jadwal). Ini hanya memengaruhi alat audit, bukan perilaku produksi. Kolom `canceled*` tidak terdampak.
+
+**Usulan penanganan: perbaikan alat audit** (kode baru Fase 0, bukan perilaku produksi; satu perubahan kecil pada `DocumentCoverageMatrix` dan test-nya: subjek = dokumen berstatus pasca-`onApproved`, atau dokumen yang memiliki `GlPostingStatus` atau GL). Himpunan status pasca-`onApproved` yang diusulkan: `unpaid`, `partially_paid`, `paid`, `overdue`, `returned`, `received`, `delivered`, `completed`. Verifikasi: `FormStatus.php` memuat kedelapannya; `onApproved` menetapkan `unpaid`/`returned` (Sales dan Purchase Invoice), `received`/`returned` (Purchase Receipt), `delivered`/`returned` (Delivery Note), `completed` (Stock Entry), `paid` (Payment Entry), dan `UpdatePaymentableStatus` menetapkan `partially_paid`/`paid` pada faktur; `overdue` ada di enum tetapi tidak ditemukan diset oleh kode (satu-satunya rujukan dikomentari di `StockEntry.php:48`) dan dicantumkan hanya agar aman. **Jangan** memakai definisi "bukan draft/canceled/rejected": status pra-persetujuan (`submitted`, `need_approval`, `pending`, `waiting`) akan terhitung `posting_missing` palsu. **Usulan: perbaikan auditor dikerjakan di Fase 0, sebelum Task 8** (auditor adalah kode Fase 0). Usulan ini termasuk bentuk "fase terkait" pada Req 7.3 (DV-C) dan menunggu persetujuan pemilik produk; keputusannya dicatat sebagai **DV-D** (PENDING; lihat DV-D di `finance-decision-log.md`). Alternatifnya dikerjakan di awal Fase 1 sebelum auditor dipakai untuk rekonsiliasi. Sementara itu, indikator posting `pending`/`failed` dapat dibaca langsung dari tabel `gl_posting_statuses` (query MENUNGGU):
+
+```sql
+SELECT referenceable_type, status, COUNT(*) AS jumlah FROM gl_posting_statuses GROUP BY referenceable_type, status;
+```
+
+| Hasil | Staging | Produksi |
+|---|---|---|
+| Distribusi `gl_posting_statuses` per jenis dan status | MENUNGGU (query belum dijalankan) | tidak diperlukan (Q1) |
 
 **Keputusan pemilik produk: MENUNGGU.**
 
@@ -530,7 +700,7 @@ Bukan bagian permintaan awal; dicatat karena memengaruhi akurasi estimasi backfi
 
 ## 4. Estimasi beban backfill Fase 1 (Requirement 7.4)
 
-**Status: MENUNGGU Task 6.5.** Bagian ini menetapkan **rumus dan metode**; seluruh angka dikosongkan. Tidak ada angka dari DB lokal atau perkiraan yang boleh dimasukkan.
+**Status: angka staging terisi (uji coba migrasi), sumber `audit-20261103-155516.json` (`generated_at` 2026-11-03T15:55:16+00:00).** Rumus dan metode tetap seperti di bawah. Angka tidak berasal dari DB lokal dan bukan perkiraan. Produksi: **nol** (GL produksi kosong, Q1 dijawab 2026-11-03), sehingga beban backfill produksi per 2026-11-03 = 0; estimasi ini berlaku sebagai uji coba pada staging. Ukuran batch (B) dan waktu per batch (t_batch) **tidak diukur** dan tidak diisi.
 
 ### 4.1 Metode dan sumber angka
 
@@ -540,16 +710,16 @@ Simbol: **R** = `totals.rows`; **G** = `totals.groups`; **U** = `sections.unbala
 
 | Besaran | Rumus | Field JSON sumber | Staging | Produksi |
 |---|---|---|---|---|
-| Jumlah baris yang diberi `journal_id` | R | `totals.rows` | MENUNGGU | tidak diperlukan (Q1) |
-| Jumlah `journal` yang dibuat | G | `totals.groups` | MENUNGGU | tidak diperlukan (Q1) |
-| Rata-rata baris per kelompok | R ÷ G | `totals.rows`, `totals.groups` | MENUNGGU | tidak diperlukan (Q1) |
-| Kelompok seimbang (`posted`) | G − U | (turunan) | MENUNGGU | tidak diperlukan (Q1) |
-| Kelompok tak seimbang (`legacy_unbalanced`) | U | `sections.unbalanced_groups.count` | MENUNGGU | tidak diperlukan (Q1) |
-| Persentase kelompok tak seimbang | U ÷ G × 100 % | (turunan) | MENUNGGU | tidak diperlukan (Q1) |
-| Total selisih kelompok tak seimbang | D | `sections.unbalanced_groups.total_diff` | MENUNGGU | tidak diperlukan (Q1) |
-| Selisih Σdebit − Σkredit seluruh GL | — | `totals.diff` | MENUNGGU | tidak diperlukan (Q1) |
-| Jumlah batch | ⌈G ÷ B⌉ | (B = ukuran batch) | MENUNGGU | tidak diperlukan (Q1) |
-| Durasi backfill | jumlah batch × t_batch | t_batch diukur | MENUNGGU | tidak diperlukan (Q1) |
+| Jumlah baris yang diberi `journal_id` | R | `totals.rows` | **60** | tidak diperlukan (Q1) |
+| Jumlah `journal` yang dibuat | G | `totals.groups` | **28** | tidak diperlukan (Q1) |
+| Rata-rata baris per kelompok | R ÷ G | `totals.rows`, `totals.groups` | **2,14** (60 ÷ 28) | tidak diperlukan (Q1) |
+| Kelompok seimbang (`posted`) | G − U | (turunan) | **28** (28 − 0) | tidak diperlukan (Q1) |
+| Kelompok tak seimbang (`legacy_unbalanced`) | U | `sections.unbalanced_groups.count` | **0** | tidak diperlukan (Q1) |
+| Persentase kelompok tak seimbang | U ÷ G × 100 % | (turunan) | **0 %** (0 ÷ 28) | tidak diperlukan (Q1) |
+| Total selisih kelompok tak seimbang | D | `sections.unbalanced_groups.total_diff` | **0** | tidak diperlukan (Q1) |
+| Selisih Σdebit − Σkredit seluruh GL | — | `totals.diff` | **0** | tidak diperlukan (Q1) |
+| Jumlah batch | ⌈G ÷ B⌉ | (B = ukuran batch) | tidak diisi (B belum ditetapkan; G = 28) | tidak diperlukan (Q1) |
+| Durasi backfill | jumlah batch × t_batch | t_batch diukur | tidak diisi (t_batch tidak terukur) | tidak diperlukan (Q1) |
 
 **B dan t_batch bukan asumsi:** keduanya ditetapkan dari uji coba backfill pada salinan data staging pada saat Fase 1, dan baru kemudian durasi dihitung. Tidak ada nilai default yang dipakai di dokumen ini. Ambang yang menentukan kategori beban (ringan/sedang/berat) juga ditetapkan pemilik produk dan pengembang **setelah** angka tersedia.
 
@@ -557,12 +727,14 @@ Komponen yang membutuhkan penanganan khusus (bukan bagian dari persentase di ata
 
 | Komponen | Field JSON sumber | Perlakuan yang perlu diputuskan di spec Fase 1 | Staging | Produksi |
 |---|---|---|---|---|
-| GL yatim (dokumen sumber tidak ada) | `sections.orphan_reference.count` (baris) | `journals.source_*` menggantung; dibackfill atau ditandai | MENUNGGU | tidak diperlukan (Q1) |
-| Akun hilang atau soft-deleted | `sections.dangling_account.count` (baris; dihitung ganda bila keduanya bermasalah) | Jurnal merujuk akun soft-deleted | MENUNGGU | tidak diperlukan (Q1) |
-| Baris nol atau negatif | `sections.zero_or_negative.count` (baris) | FR-L2 menolak jurnal baru semacam ini; baris lama perlu aturan lolos/ditandai | MENUNGGU | tidak diperlukan (Q1) |
-| Duplikasi posting | `sections.duplicates.count`, `.extra_rows` | Kandidat posting ganda; **jangan dihapus otomatis** | MENUNGGU | tidak diperlukan (Q1) |
-| Dokumen `canceled` dengan GL aktif | `sections.canceled_active_gl.count` (dokumen) | Aturan backfill untuk GL aktif milik dokumen batal (F-16) | MENUNGGU | tidak diperlukan (Q1) |
-| GL soft-deleted | `totals.rows_soft_deleted`; `sections.soft_deleted_expected.count`, `soft_deleted_unexpected.count` | Dikecualikan dari backfill; yang `unexpected` perlu dijelaskan | MENUNGGU | tidak diperlukan (Q1) |
+| GL yatim (dokumen sumber tidak ada) | `sections.orphan_reference.count` (baris) | `journals.source_*` menggantung; dibackfill atau ditandai | **0** | tidak diperlukan (Q1) |
+| Akun hilang atau soft-deleted | `sections.dangling_account.count` (baris; dihitung ganda bila keduanya bermasalah) | Jurnal merujuk akun soft-deleted | **0** | tidak diperlukan (Q1) |
+| Baris nol atau negatif | `sections.zero_or_negative.count` (baris) | FR-L2 menolak jurnal baru semacam ini; baris lama perlu aturan lolos/ditandai | **0** aktif (2 baris nol **soft-deleted**, dikecualikan dari backfill; lihat N-8) | tidak diperlukan (Q1) |
+| Duplikasi posting | `sections.duplicates.count`, `.extra_rows` | Kandidat posting ganda; **jangan dihapus otomatis** | **0** kelompok, **0** baris berlebih | tidak diperlukan (Q1) |
+| Dokumen `canceled` dengan GL aktif | `sections.canceled_active_gl.count` (dokumen) | Aturan backfill untuk GL aktif milik dokumen batal (F-16) | **0** | tidak diperlukan (Q1) |
+| GL soft-deleted | `totals.rows_soft_deleted`; `sections.soft_deleted_expected.count`, `soft_deleted_unexpected.count` | Dikecualikan dari backfill; yang `unexpected` perlu dijelaskan | **4** baris (4 diharapkan, 0 anomali), dikecualikan | tidak diperlukan (Q1) |
+
+**Kesimpulan estimasi staging.** Beban backfill staging kecil: 60 baris menjadi 28 jurnal, seluruhnya seimbang, tanpa yatim, akun menggantung, duplikasi, atau GL aktif milik dokumen batal. Backfill staging praktis hanya menguji mekanisme migrasi, bukan kasus sulit. Angka ini **tidak menunjukkan kebenaran jurnal**: lihat F-10, F-11, N-4 sampai N-7 yang menghasilkan jurnal seimbang tetapi salah. Catatan N-3 (`now()` per baris): tidak teramati di data ini (0 kelompok tak seimbang; 28 kelompok = 28 dokumen). Karena D-8 mengelompokkan per (`referenceable`, `transaction_date`) penuh, risiko pemecahan tetap ada pada volume yang lebih besar dan granularitasnya perlu diputuskan sebelum Fase 1 (Bagian 3.7).
 
 ### 4.2 Keterbatasan yang harus dibaca bersama angka
 
@@ -606,8 +778,8 @@ GROUP BY referenceable_type;
 
 | Hasil | Staging | Produksi |
 |---|---|---|
-| Kelompok tak seimbang per `referenceable_type` (granularitas auditor) | MENUNGGU Task 6.5 | tidak diperlukan (Q1) |
-| Dokumen tak seimbang per `referenceable_type` (tanpa `transaction_date`) | MENUNGGU Task 6.5 | tidak diperlukan (Q1) |
+| Kelompok tak seimbang per `referenceable_type` (granularitas auditor) | **0** (turunan dari U = 0; query tidak perlu dijalankan) | tidak diperlukan (Q1) |
+| Dokumen tak seimbang per `referenceable_type` (tanpa `transaction_date`) | **0** (turunan: jumlah kelompok seimbang per dokumen juga seimbang; query tidak perlu dijalankan) | tidak diperlukan (Q1) |
 
 ---
 
@@ -617,20 +789,25 @@ GROUP BY referenceable_type;
 
 | # | Item | Status |
 |---|---|---|
-| 1 | Task 6.5 dijalankan dan Bagian 1.5.2, 2, dan 4 terisi | MENUNGGU |
+| 1 | Task 6.5: dua berkas `finance:*` dijalankan di staging dan Bagian 2 dan 4 terisi | **SELESAI 2026-11-03** (lingkungan diasumsikan staging) |
+| 1a | Hasil query skema Req 6.2 (Bagian 1.5.2) dan konfirmasi `APP_ENV` staging ≠ `local` | MENUNGGU |
+| 1b | Query SQL tambahan: paparan F-10, F-11, N-2, N-5, `is_example`, dan `gl_posting_statuses` | MENUNGGU |
 | 2 | Q1 versi PRD dijawab 2026-11-03: belum ada data sama sekali (GL produksi kosong) | DIJAWAB |
 | 3 | Q-P0-1 dijawab 2026-11-03 (pemilik produk menjalankan di staging) | DIJAWAB |
-| 4 | Keputusan atas F-04, F-10, F-11, F-16, N-1, N-2, N-3 | MENUNGGU |
-| 5 | **Persetujuan laporan ini oleh pemilik produk** | **MENUNGGU** |
+| 4 | Keputusan atas F-04, F-10, F-11, F-16, N-1 sampai N-9 | MENUNGGU |
+| 4a | Keputusan DV-D (Req 2.2/N-9), dibutuhkan sebelum Task 8 | MENUNGGU |
+| 5 | **Persetujuan laporan ini oleh pemilik produk** | **DISETUJUI 2026-11-03** (versi PR #272/#273) |
 
-Persetujuan pemilik produk: _(belum ada)_. Tanggal persetujuan: _(belum ada)_.
+Persetujuan pemilik produk: **disetujui, 2026-11-03**, untuk versi laporan hasil PR #272 dan #273 (tanpa angka staging). Angka staging (Bagian 2 sampai 4) dan temuan N-4 sampai N-9 ditambahkan sesudahnya pada tahapan ini dan **tidak tercakup** dalam persetujuan itu; keputusan penanganan per bug (F-04, F-10, F-11, F-16, N-1 sampai N-9) tetap menunggu. **Apakah tambahan staging (Bagian 2 sampai 4, N-4 sampai N-9) memerlukan persetujuan ulang untuk Req 7.5 menunggu konfirmasi pemilik produk.**
 
 ### 5.2 Ketidaksesuaian dengan dokumen spec yang ditemukan saat penyusunan
 
-Butir 1 sampai 3 sudah **dikoreksi di PRD** (`finance-engine-prd.md`, Lampiran A, bertanda koreksi 2026-11-03), bukan sekadar diusulkan. Butir 4 dan 5 tetap dicatat untuk keputusan pemilik produk. Laporan ini tidak mengubah dokumen lain.
+Butir 1 sampai 3 sudah **dikoreksi di PRD** (`finance-engine-prd.md`, Lampiran A, bertanda koreksi 2026-11-03), bukan sekadar diusulkan. Butir 4 sampai 7 tetap dicatat untuk keputusan pemilik produk (butir 6 dan 7 ditambahkan 2026-11-03 bersama data staging). Laporan ini tidak mengubah dokumen lain.
 
 1. **PRD F-12** (sudah dikoreksi) menyebut kolom runtime "di lingkungan lokal **menghapusnya** bila flag trait dicabut". Pada kode, penghapusan `have_transactions` pada model submitable berjalan **di semua lingkungan** (`DataTable.php:648-652`); hanya dua penghapusan lainnya yang dibatasi `app()->isLocal()`. Pemeriksaan penambahan dan penghapusan itu dijalankan pada setiap deploy karena `db:seed --force` berjalan otomatis (`.scripts/deploy-staging.sh:67`, `.scripts/deploy-production.sh:68`).
 2. **PRD F-12** (sudah dikoreksi) mencantumkan kolom `accounts` saja; `general_ledgers` juga memperoleh `is_example`, `code` (unik), dan `have_transactions` yang tidak ada di migration (Bagian 1.2).
 3. **PRD F-04** (sudah dikoreksi) merujuk `SalesInvoiceService::cancel` di sekitar baris 386; posisi aktualnya baris 604.
 4. **Req 7.1** menyebut laporan merangkum hasil audit staging dan produksi, sedangkan Req 6.2 hanya menyebut staging; Q1 di PRD dan di spec dirumuskan berbeda (lihat catatan di [`finance-decision-log.md`](finance-decision-log.md)); keduanya dijawab 2026-11-03 (versi PRD: belum ada data sama sekali (GL produksi kosong); versi spec: untuk sekarang staging saja).
-5. Rumus baseline saldo pada `design.md` bagian 4 (Task 3.1) sudah dikunci dari kode, tetapi belum dikonfirmasi terhadap data staging (Bagian 2.5).
+5. Rumus baseline saldo pada `design.md` bagian 4 (Task 3.1) **terkonfirmasi sebagian (2026-11-03):** sesuai untuk akun ber-`balance_type` debit yang ditulis `StockEntryService` (5110, 1241); akun ber-`balance_type` kredit tidak punya cache di staging, sehingga belum teruji data (Bagian 2.5; pada 5110 `difference` 0). Akun lain bercache 0 karena hanya `StockEntryService` yang menulis `balance_amount` (F-09).
+6. **Requirement 2.2 dan bagian `DocumentCoverageMatrix` pada `design.md`** mengandaikan dokumen "berstatus `approved`", padahal `onApproved` setiap service menimpa status dengan status lanjutan; pada data nyata `approved` selalu 0 (N-9, Bagian 3.13). Spec dan auditor perlu disesuaikan bila pemilik produk menyetujui perbaikannya (lihat DV-D).
+7. **Test karakterisasi Payment Entry** (`PaymentEntryPostingTest`) dan fixture `makePaymentEntry` memakai kas sebagai `account_paid_from` untuk pembayaran `receive`, berbeda dengan filter form (`receive`: `paid_from` = piutang). Test mengunci arah debit = `paid_from` tanpa memperlihatkan inversi terhadap konvensi umum (N-4, Bagian 3.8). Catatan tindak lanjut fixture dan test ada pada entri **DV-D** di `finance-decision-log.md` (PENDING; lihat DV-D di `finance-decision-log.md`).
