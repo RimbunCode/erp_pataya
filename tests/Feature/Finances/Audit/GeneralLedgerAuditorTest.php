@@ -3,9 +3,14 @@
 namespace Tests\Feature\Finances\Audit;
 
 use App\Enums\FormStatus;
+use App\Models\Asset\Asset;
+use App\Models\Asset\AssetValueAdjustment;
+use App\Models\Core\GlPostingStatus;
 use App\Models\Finances\Account;
 use App\Models\Finances\GeneralLedger;
+use App\Models\Finances\SalesInvoice;
 use App\Models\Inventory\StockEntry;
+use App\Services\Finances\Audit\DocumentCoverageMatrix;
 use App\Services\Finances\Audit\GeneralLedgerAuditor;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Illuminate\Support\Facades\DB;
@@ -16,7 +21,8 @@ use Tests\TestCase;
 
 /**
  * Finance Fase 0, Task 2.5: satu test per kategori anomali (P-3), data sehat tanpa false positive (P-4),
- * tabel kosong (Req. 1.6), determinisme (P-2), dan read-only (P-1).
+ * tabel kosong (Req. 1.6), determinisme (P-2), dan read-only (P-1). Matriks cakupan memakai status realistis
+ * pasca-`onApproved` (DV-D opsi a), bukan literal `approved`.
  */
 class GeneralLedgerAuditorTest extends TestCase {
     use BuildsFinanceFixtures, RefreshDatabase;
@@ -27,7 +33,7 @@ class GeneralLedgerAuditorTest extends TestCase {
     protected function setUp(): void {
         parent::setUp();
 
-        $this->setUpFinanceFixtures([StockEntry::class]);
+        $this->setUpFinanceFixtures([StockEntry::class, SalesInvoice::class]);
         $this->cash  = $this->makeAccount('1101', 'Kas', 'asset', 'debit');
         $this->sales = $this->makeAccount('4101', 'Penjualan', 'income', 'credit');
     }
@@ -100,11 +106,11 @@ class GeneralLedgerAuditorTest extends TestCase {
     }
 
     public function test_separates_expected_and_unexpected_soft_deletes(): void {
-        $canceled = $this->makeStockEntry([FormStatus::APPROVED]);
+        $canceled = $this->makeStockEntry([FormStatus::COMPLETED]);
         $this->makeBalancedPosting($canceled, $this->cash, $this->sales, 100);
         $canceled->update(['status' => [FormStatus::CANCELED]]);
 
-        $approved = $this->makeStockEntry([FormStatus::APPROVED]);
+        $approved = $this->makeStockEntry([FormStatus::COMPLETED]);
         $this->makeBalancedPosting($approved, $this->cash, $this->sales, 50);
         GeneralLedger::where('referenceable_id', $approved->id)->delete();
 
@@ -160,7 +166,7 @@ class GeneralLedgerAuditorTest extends TestCase {
     public function test_detects_canceled_document_with_active_ledger(): void {
         $entry = $this->makeStockEntry([FormStatus::CANCELED]);
         $this->makeBalancedPosting($entry, $this->cash, $this->sales, 20);
-        $this->makeBalancedPosting($this->makeStockEntry([FormStatus::APPROVED]), $this->cash, $this->sales, 20);
+        $this->makeBalancedPosting($this->makeStockEntry([FormStatus::COMPLETED]), $this->cash, $this->sales, 20);
 
         $section = $this->audit()->sections['canceled_active_gl'];
 
@@ -192,12 +198,12 @@ class GeneralLedgerAuditorTest extends TestCase {
     }
 
     public function test_coverage_matrix_lists_every_document_type_and_counts_stock_entries(): void {
-        $canceled = $this->makeStockEntry([FormStatus::APPROVED]);
+        $canceled = $this->makeStockEntry([FormStatus::COMPLETED]);
         $this->makeBalancedPosting($canceled, $this->cash, $this->sales, 10);
         $canceled->update(['status' => [FormStatus::CANCELED]]);
         $leaked = $this->makeStockEntry([FormStatus::CANCELED]);
         $this->makeBalancedPosting($leaked, $this->cash, $this->sales, 10);
-        $this->makeBalancedPosting($this->makeStockEntry([FormStatus::APPROVED]), $this->cash, $this->sales, 10);
+        $this->makeBalancedPosting($this->makeStockEntry([FormStatus::COMPLETED]), $this->cash, $this->sales, 10);
 
         $coverage = collect($this->audit()->coverage)->keyBy('type');
 
@@ -209,7 +215,7 @@ class GeneralLedgerAuditorTest extends TestCase {
         $stock = $coverage['stock_entry'];
         $this->assertFalse($stock['tracked']);
         $this->assertNull($stock['posting_not_posted']);
-        $this->assertSame(1, $stock['approved']);
+        $this->assertSame(1, $stock['approved'], 'Kunci approved = dokumen pasca-onApproved (completed), bukan literal approved.');
         $this->assertSame(2, $stock['canceled']);
         $this->assertSame(3, $stock['with_gl']);
         $this->assertSame(1, $stock['canceled_gl_softdeleted']);
@@ -219,6 +225,132 @@ class GeneralLedgerAuditorTest extends TestCase {
         $this->assertFalse($coverage['payment_entry']['tracked']);
         $this->assertTrue($coverage['sales_invoice']['tracked']);
         $this->assertNull($coverage['asset_depreciation_schedule']['approved']);
+    }
+
+    /**
+     * @param  list<FormStatus>  $status
+     */
+    private function makeInvoice(array $status): SalesInvoice {
+        return SalesInvoice::create([
+            'code'      => 'SI-' . Str::upper(Str::random(8)),
+            'date'      => now(),
+            'amount'    => 100,
+            'status'    => $status,
+            'branch_id' => $this->branch->id,
+        ]);
+    }
+
+    private function postingStatus(SalesInvoice $invoice, string $status): void {
+        GlPostingStatus::create([
+            'referenceable_type' => SalesInvoice::class,
+            'referenceable_id'   => $invoice->id,
+            'status'             => $status,
+        ]);
+    }
+
+    private function coverageRow(string $type): array {
+        return collect($this->audit()->coverage)->keyBy('type')[$type];
+    }
+
+    public function test_approved_counts_every_post_approval_status_of_invoices(): void {
+        foreach ([[FormStatus::UNPAID], [FormStatus::PARTIALLY_PAID], [FormStatus::PAID], [FormStatus::RETURNED]] as $status) {
+            $this->makeInvoice($status);
+        }
+
+        $this->assertSame(4, $this->coverageRow('sales_invoice')['approved']);
+    }
+
+    public function test_pre_approval_and_canceled_documents_are_not_counted_as_approved_or_missing_posting(): void {
+        foreach ([[FormStatus::DRAFT], [FormStatus::SUBMITTED], [FormStatus::NEED_APPROVAL], [FormStatus::REJECTED], [FormStatus::CANCELED]] as $status) {
+            $this->makeInvoice($status);
+        }
+
+        $row = $this->coverageRow('sales_invoice');
+
+        $this->assertSame(0, $row['approved']);
+        $this->assertSame(1, $row['canceled']);
+        $this->assertSame(0, $row['posting_missing']);
+        $this->assertSame(0, $row['posting_not_posted']);
+    }
+
+    public function test_literal_approved_status_is_not_a_post_approval_status(): void {
+        $this->makeInvoice([FormStatus::APPROVED]);
+        $this->makeStockEntry([FormStatus::APPROVED]);
+
+        $this->assertSame(0, $this->coverageRow('sales_invoice')['approved']);
+        $this->assertSame(0, $this->coverageRow('stock_entry')['approved']);
+    }
+
+    public function test_post_approval_document_without_posting_status_is_posting_missing(): void {
+        $this->makeInvoice([FormStatus::UNPAID]);
+        $tracked = $this->makeInvoice([FormStatus::PARTIALLY_PAID]);
+        $this->postingStatus($tracked, 'posted');
+
+        $row = $this->coverageRow('sales_invoice');
+
+        $this->assertSame(2, $row['approved']);
+        $this->assertSame(1, $row['posting_missing']);
+        $this->assertSame(0, $row['posting_not_posted']);
+    }
+
+    public function test_post_approval_document_with_pending_or_failed_posting_is_not_posted(): void {
+        $pending = $this->makeInvoice([FormStatus::PAID]);
+        $this->postingStatus($pending, 'pending');
+        $failed = $this->makeInvoice([FormStatus::UNPAID]);
+        $this->postingStatus($failed, 'failed');
+        $posted = $this->makeInvoice([FormStatus::UNPAID]);
+        $this->postingStatus($posted, 'posted');
+
+        $row = $this->coverageRow('sales_invoice');
+
+        $this->assertSame(3, $row['approved']);
+        $this->assertSame(2, $row['posting_not_posted']);
+        $this->assertSame(0, $row['posting_missing']);
+    }
+
+    public function test_untracked_types_count_post_approval_documents_without_posting_columns(): void {
+        $this->makeStockEntry([FormStatus::COMPLETED]);
+        $this->makeStockEntry([FormStatus::DRAFT]);
+
+        $row = $this->coverageRow('stock_entry');
+
+        $this->assertSame(1, $row['approved']);
+        $this->assertNull($row['posting_not_posted']);
+        $this->assertNull($row['posting_missing']);
+    }
+
+    public function test_asset_types_count_submitted_and_operational_statuses_but_not_drafts(): void {
+        foreach ([[FormStatus::ACTIVE], [FormStatus::SUBMITTED], [FormStatus::SOLD], [FormStatus::SCRAPPED], [FormStatus::DRAFT], [FormStatus::NEED_APPROVAL]] as $status) {
+            Asset::factory()->create(['status' => $status]);
+        }
+        $difference = $this->makeAccount('7200', 'Selisih Revaluasi', 'income', 'credit', 'revaluation_gain');
+        foreach ([[FormStatus::SUBMITTED], [FormStatus::DRAFT], [FormStatus::NEED_APPROVAL]] as $status) {
+            AssetValueAdjustment::factory()->create(['status' => $status, 'difference_account_id' => $difference->id]);
+        }
+
+        $this->assertSame(4, $this->coverageRow('asset')['approved']);
+        $this->assertSame(1, $this->coverageRow('asset_value_adjustment')['approved']);
+    }
+
+    public function test_asset_with_stacked_need_approval_and_active_status_is_post_approval(): void {
+        // AssetService::onApproved hanya membuang `draft`; `need_approval` dari ApprovalService tetap tersimpan.
+        Asset::factory()->create(['status' => [FormStatus::NEED_APPROVAL, FormStatus::ACTIVE]]);
+        Asset::factory()->create(['status' => [FormStatus::NEED_APPROVAL]]);
+
+        $this->assertSame(1, $this->coverageRow('asset')['approved']);
+    }
+
+    public function test_every_document_type_with_status_column_has_post_approval_statuses(): void {
+        $types = (new \ReflectionClass(DocumentCoverageMatrix::class))->getReflectionConstant('DOCUMENT_TYPES')->getValue();
+
+        foreach ($types as $type) {
+            if ($type['type'] === 'asset_depreciation_schedule') {
+                $this->assertSame([], $type['statuses'], 'Jadwal depresiasi tanpa kolom status.');
+
+                continue;
+            }
+            $this->assertNotEmpty($type['statuses'], "Jenis {$type['type']} tanpa status pasca-approve.");
+        }
     }
 
     public function test_report_is_deterministic(): void {

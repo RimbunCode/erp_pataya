@@ -55,7 +55,7 @@ final class AuditReportRenderer {
         $command->newLine();
         $command->line('<options=bold>Matriks cakupan dokumen</>');
         $command->table(
-            ['Jenis', 'Approved', 'Canceled', 'Punya GL', 'Cancel: GL soft-deleted', 'Cancel: GL aktif', 'Dilacak', 'Belum posted', 'Tanpa status posting'],
+            ['Jenis', 'Pasca-approve', 'Canceled', 'Punya GL', 'Cancel: GL soft-deleted', 'Cancel: GL aktif', 'Dilacak', 'Belum posted', 'Tanpa status posting'],
             array_map(fn (array $row) => [
                 $row['type'] . ($row['available'] ? '' : ' (tidak tersedia)'),
                 $this->cell($row['approved']),

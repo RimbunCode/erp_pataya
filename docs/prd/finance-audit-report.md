@@ -2,7 +2,7 @@
 
 | | |
 |---|---|
-| **Status** | **Disetujui pemilik produk 2026-11-03** (versi PR #272/#273, tanpa angka staging). Angka hasil Task 6.5 (staging) ditambahkan sesudahnya pada tahapan `docs/finance-p0-staging-audit`. **Masih MENUNGGU:** skema aktual staging (Req 6.2) dan konfirmasi `APP_ENV` |
+| **Status** | **Disetujui pemilik produk 2026-11-03**: laporan (versi PR #272/#273), tambahan staging dan N-4…N-9 (PR #274), serta keputusan penanganan per bug. **Masih MENUNGGU:** skema aktual staging (Req 6.2) dan konfirmasi `APP_ENV`, query SQL tambahan (Bagian 5.1 butir 1b), serta implementasi DV-D (Task 2.6) sebelum Task 8 |
 | **Tanggal** | Draft dan persetujuan 2026-11-03; angka staging ditambahkan 2026-11-03 |
 | **Spec** | [`finance-p0-foundation-audit`](../../.kiro/specs/finance-p0-foundation-audit/requirements.md) — Requirement 6 (audit skema), Requirement 7.1, 7.3, 7.4 (laporan) |
 | **Dokumen terkait** | [`finance-engine-prd.md`](finance-engine-prd.md) (Lampiran A dan B), [`finance-decision-log.md`](finance-decision-log.md) |
@@ -23,16 +23,16 @@
 5. **Temuan baru dari analisis baseline saldo dan matriks cakupan (Bagian 2.6 dan 3.8 sampai 3.13):** N-4 (arah jurnal Payment Entry tampak terbalik terhadap konvensi umum), N-5 (akun SRNB 2214 bersaldo debit), N-6 (HPP 4210 berklasifikasi income), N-7 (akun selisih Stock Entry), N-8 (baris GL bernilai nol), N-9 (kolom `approved` matriks cakupan tidak bermakna pada data nyata). Status verifikasi tiap butir ditulis di bagiannya. `balance_amount` hanya terisi pada dua akun, konsisten dengan F-09.
 6. **Peringatan untuk estimasi backfill (Bagian 4).** F-10 dan F-11 menghasilkan jurnal yang **seimbang tetapi salah**, sehingga persentase kelompok tak seimbang dari `finance:audit-gl` tidak mendeteksinya. Persentase itu juga dapat membengkak karena baris satu dokumen terpecah lintas detik.
 
-### 0.2 Yang menunggu
+### 0.2 Status dan yang masih menunggu
 
 | # | Menunggu | Pemilik | Dampak |
 |---|---|---|---|
 | 1 | **Task 6.5**: **sudah dijalankan dan diterima 2026-11-03** (`finance:audit-gl --json` dan `finance:snapshot-balances`, berkas tersimpan di `storage/app/finance-audit/`, ter-ignore git). **Sisa yang MENUNGGU:** (a) hasil query skema Req 6.2 (Bagian 1.5.2), (b) konfirmasi `APP_ENV` staging, (c) query SQL tambahan pada Bagian 2.3, 3.2, 3.3, 3.6, 3.9, 3.13 | Pemilik produk (pelaksana staging) | Bagian 1.5.2, serta paparan F-10, F-11, N-2, N-5 |
 | 2 | ~~**Q1** versi PRD~~ **Dijawab 2026-11-03**: belum ada data sama sekali (GL produksi kosong). Tidak lagi menunggu | Pemilik produk | Sudah tertutup; tidak memblokir Fase 1 |
 | 3 | **Q-P0-1** dijawab 2026-11-03: pemilik produk sendiri menjalankan perintah di staging dan menyerahkan hasilnya. Produksi tidak untuk sekarang | Pemilik produk | Task 6.5 dapat dilaksanakan; checkbox tetap terbuka sampai hasil diterima |
-| 4 | **Keputusan pemilik produk** atas tiap temuan di Bagian 3 (F-04, F-10, F-11, F-16, N-1 sampai N-9) | Pemilik produk | Menentukan apakah ada hotfix terpisah dan apa yang masuk Fase 1, Fase 2, atau fase terkait |
-| 4a | **Keputusan DV-D (Req 2.2/N-9), dibutuhkan sebelum Task 8:** MENUNGGU | Pemilik produk | Perbaikan auditor cakupan dokumen (Bagian 3.13); lihat DV-D di `finance-decision-log.md` |
-| 5 | ~~**Persetujuan laporan ini** (Requirement 7.5)~~ **Disetujui 2026-11-03** (versi PR #272/#273). Angka staging dan temuan N-4 sampai N-9 ditambahkan sesudah persetujuan itu, sehingga **tidak tercakup** di dalamnya; keputusan penanganan per bug tetap menunggu. Apakah tambahan staging (Bagian 2 sampai 4, N-4 sampai N-9) memerlukan persetujuan ulang untuk Req 7.5 menunggu konfirmasi pemilik produk. | Pemilik produk | Gerbang Fase 1 (laporan disetujui; Q1 dijawab) |
+| 4 | ~~**Keputusan pemilik produk** atas tiap temuan di Bagian 3 (F-04, F-10, F-11, F-16, N-1 sampai N-9)~~ **Disetujui 2026-11-03** (lihat Bagian 3 dan decision log, Keputusan Penanganan per Bug) | Pemilik produk | Fase atau hotfix tiap temuan sudah ditetapkan |
+| 4a | ~~**Keputusan DV-D (Req 2.2/N-9), dibutuhkan sebelum Task 8:** MENUNGGU~~ **DV-D disetujui opsi (a) 2026-11-03**; implementasi Task 2.6 belum selesai, dibutuhkan sebelum Task 8 | Pemilik produk | Perbaikan auditor cakupan dokumen (Bagian 3.13); lihat DV-D di `finance-decision-log.md` |
+| 5 | ~~**Persetujuan laporan ini** (Requirement 7.5)~~ **Disetujui 2026-11-03** (versi PR #272/#273). Tambahan PR #274 (angka staging, N-4 sampai N-9) disetujui 2026-11-03 (AP-2); keputusan penanganan per bug disetujui 2026-11-03 | Pemilik produk | Gerbang Fase 1 (Req 7.5) untuk persetujuan laporan dan decision log terpenuhi; Fase 1 tetap mensyaratkan Fase 0 selesai |
 
 ---
 
@@ -333,7 +333,7 @@ Catatan pembacaan matriks:
 - `payment_entry` dan `stock_entry` dilaporkan "tidak dilacak", **bukan anomali** (Req 2.3).
 - Baris **`asset`** kemungkinan tampak tidak lengkap secara palsu: aset berstatus `active`, bukan `approved` (fixture `tests/Support/BuildsAssetFixtures.php:29` memakai status `[ACTIVE]`), sehingga kolom `approved` dan `posting_*` bermakna terbatas; dan `GlPostingStatus` untuk disposal aset dikaitkan ke **`SalesInvoiceItem`**, bukan ke `Asset` (`PostAssetDisposalGainLoss.php:96-101`), sehingga `posting_missing` pada baris `asset` tidak otomatis berarti kegagalan posting. **Belum diverifikasi terhadap data**; pembaca hasil perlu memperlakukan baris ini dengan hati-hati.
 - Dokumen yang di-soft-delete tetap dihitung (tabel dokumen dibaca apa adanya).
-- **Kolom `approved` tidak bermakna pada data nyata (terverifikasi; temuan N-9, Bagian 3.13).** `approved` bernilai 0 untuk delapan jenis yang memiliki kolom `status` padahal `with_gl` > 0 pada lima di antaranya (jadwal depresiasi aset tanpa kolom `status`, nilainya null). Matriks menghitung `approved` dengan `whereJsonContains('status', 'approved')` (`DocumentCoverageMatrix.php:81`), sedangkan `onApproved` setiap service menimpa status dokumen dengan status lanjutan (Sales dan Purchase Invoice menjadi `unpaid` atau `returned`, Purchase Receipt `received` atau `returned`, Delivery Note `delivered` atau `returned`, Stock Entry `completed`, Payment Entry `paid`). Akibatnya **`posting_not_posted` = 0 dan `posting_missing` = 0 dihitung atas himpunan kosong untuk delapan jenis berkolom `status`** (`DocumentCoverageMatrix.php:97-100`) dan **bukan bukti bahwa semua posting berhasil**. Jenis `asset_depreciation_schedule` tidak terdampak: tanpa kolom `status`, subjeknya seluruh jadwal (`DocumentCoverageMatrix.php:97`), tetapi tabelnya kosong di staging. Kolom `canceled`, `with_gl`, `canceled_gl_softdeleted`, dan `canceled_active_gl` tetap bermakna karena status `canceled` memang tersimpan.
+- **Kolom `approved` tidak bermakna pada data nyata (terverifikasi; temuan N-9, Bagian 3.13).** `approved` bernilai 0 untuk delapan jenis yang memiliki kolom `status` padahal `with_gl` > 0 pada lima di antaranya (jadwal depresiasi aset tanpa kolom `status`, nilainya null). Matriks menghitung `approved` dengan `whereJsonContains('status', 'approved')` (`DocumentCoverageMatrix.php:81`), sedangkan `onApproved` setiap service menimpa status dokumen dengan status lanjutan (Sales dan Purchase Invoice menjadi `unpaid` atau `returned`, Purchase Receipt `received` atau `returned`, Delivery Note `delivered` atau `returned`, Stock Entry `completed`, Payment Entry `paid`). Akibatnya **`posting_not_posted` = 0 dan `posting_missing` = 0 dihitung atas himpunan kosong untuk delapan jenis berkolom `status`** (`DocumentCoverageMatrix.php:97-100`) (kode versi PR #274, sebelum Task 2.6) dan **bukan bukti bahwa semua posting berhasil**. Jenis `asset_depreciation_schedule` tidak terdampak: tanpa kolom `status`, subjeknya seluruh jadwal (`DocumentCoverageMatrix.php:97`), tetapi tabelnya kosong di staging. Kolom `canceled`, `with_gl`, `canceled_gl_softdeleted`, dan `canceled_active_gl` tetap bermakna karena status `canceled` memang tersimpan. Definisi `approved` diperbaiki di Task 2.6 (DV-D opsi a, 2026-11-03); lihat tabel *Definisi `approved` pada matriks* di `design.md`. `posting_missing` adalah kolom informasi (DV-E, 2026-11-04).
 - `purchase_receipt.with_gl` = 0: tidak ada Purchase Receipt yang menghasilkan GL. Ini konsisten dengan kode (Purchase Receipt memposting GL hanya pada ALUR-2 dan pada retur, lihat N-5, Bagian 3.9), tetapi berkas tidak memuat jumlah Purchase Receipt yang ada, jadi tidak dapat disimpulkan apakah ada receipt tanpa GL yang seharusnya memilikinya.
 - Baris `asset`, `asset_value_adjustment`, dan `asset_depreciation_schedule` seluruhnya 0: belum ada posting aset di staging. Dengan demikian jalur disposal (N-1) dan pemecahan kelompok akibat `now()` (N-3) tidak teramati di data ini.
 
@@ -417,7 +417,7 @@ Ringkasan:
 | N-6 | HPP (4210) berklasifikasi income di seeder dan diwajibkan listener Delivery Note | Terverifikasi dari seeder dan listener | Fase 2 (peran akun) dengan keputusan akuntan |
 | N-7 | Akun selisih Stock Entry default ke 5110 (expense) untuk semua jenis | Terverifikasi dari form; data staging dugaan | Fase 2 (D-26); koreksi data staging oleh pemilik |
 | N-8 | Listener Sales/Purchase Invoice memposting baris GL bernilai 0 untuk invoice bernilai 0; Fase 1 akan menolaknya (FR-L2) | Terverifikasi dari kode; 2 baris di staging (soft-deleted) | Fase 1 (adapter harus menanganinya) |
-| N-9 | Kolom `approved` dan `posting_*` matriks cakupan tidak bermakna pada data nyata | Terverifikasi (kode dan data) | Perbaikan alat audit (tambahan Fase 0 atau awal Fase 1) |
+| N-9 | Kolom `approved` dan `posting_*` matriks cakupan tidak bermakna pada data nyata | Terverifikasi (kode dan data) | Diputuskan 2026-11-03 (DV-D a): perbaikan alat audit, Task 2.6, Fase 0 |
 
 ### 3.1 F-04: pembatalan men-soft-delete GL dan SLE
 
@@ -447,7 +447,7 @@ Bentuk usulan diizinkan (DV-C, 2026-11-03); keputusan penanganan tetap menunggu.
 
 Bukti data untuk bagian `balance_amount`: baseline staging menunjukkan 7 dari 8 akun bertransaksi bercache menyimpang dari GL (Bagian 2.6, P1).
 
-**Keputusan pemilik produk: MENUNGGU.**
+**Keputusan pemilik produk (2026-11-03): disetujui, dipecah menurut bagian.** GL (soft-delete → reversal): Fase 2 (D-13). `paid_amount` saat Payment Entry dibatalkan: hotfix, digabung ke paket hotfix pembayaran (F-10, N-4). `balance_amount`: Fase 2/Fase 5.
 
 ### 3.2 F-10: pembayaran parsial memposting total kumulatif
 
@@ -481,7 +481,7 @@ WHERE ABS(g.gl_debit - pe.paid_amount) > 0.005;
 
 **Usulan penanganan: hotfix terpisah, dikerjakan sebelum backfill Fase 1.** Alasan: (1) perbaikan kecil dan terlokalisasi (memposting jumlah pembayaran ini, bukan jumlah kumulatif); (2) bila tidak diperbaiki, backfill D-8 akan membawa nilai salah ke jurnal baru sebagai jurnal "seimbang"; (3) Fase 4 akan mengganti model alokasi pembayaran sehingga menunggu Fase 4 berarti membiarkan GL baru terus salah. **Koreksi data historis** (jurnal penyesuaian atas selisih yang sudah terposting) adalah keputusan akuntansi terpisah dan memerlukan jurnal manual (D-14).
 
-**Keputusan pemilik produk: MENUNGGU.**
+**Keputusan pemilik produk (2026-11-03): disetujui.** Hotfix satu paket dengan N-4 dan bagian `paid_amount` F-04 (spec `finance-payment-entry-hotfix`, sebelum Fase 1). Data GL staging yang salah tidak dikoreksi otomatis oleh hotfix.
 
 ### 3.3 F-11 (bagian FX): GL pembayaran mengabaikan kurs
 
@@ -516,7 +516,7 @@ WHERE deleted_at IS NULL
 
 **Usulan penanganan: Fase 4**, bukan hotfix. *Bentuk usulan diizinkan (DV-C, 2026-11-03); keputusan penanganan tetap menunggu.* Alasan: perbaikan yang benar menyangkut kebijakan tipe kurs (D-16) dan pengakuan selisih kurs terealisasi (D-17), keduanya PENDING dan memerlukan akuntan; tambalan sepihak (mis. memposting `base_paid_amount`) berisiko tidak konsisten dengan jurnal invoice. **Pengecualian:** bila query di atas menemukan pembayaran valuta asing nyata di staging, atau produksi mulai menerima pembayaran valuta asing sebelum Fase 4, ajukan keputusan hotfix sementara atau peringatan operasional.
 
-**Keputusan pemilik produk: MENUNGGU.**
+**Keputusan pemilik produk (2026-11-03): disetujui.** Fase 4 (D-16, D-17), bukan hotfix.
 
 ### 3.4 F-16: cancel sebelum job posting dieksekusi
 
@@ -534,7 +534,7 @@ WHERE deleted_at IS NULL
 
 **Usulan penanganan: Fase 2** (FR-P3: job posting yang menemukan dokumen `canceled` tidak memposting). **Hotfix guard** (periksa status dokumen di dalam transaksi listener) bila audit menemukan kasus nyata. Alasan: perbaikan kecil, tetapi baru bermakna bila disertai pembalik untuk kasus yang sudah terjadi (keputusan D-13).
 
-**Keputusan pemilik produk: MENUNGGU.**
+**Keputusan pemilik produk (2026-11-03): disetujui.** Fase 2 (FR-P3), dengan hotfix guard bila ada kasus nyata. Staging: 0 kasus.
 
 ### 3.5 N-1 (baru, PR #271): tanda laba/rugi disposal aset tampak terbalik
 
@@ -550,7 +550,7 @@ WHERE deleted_at IS NULL
 
 **Usulan penanganan.** Tinjau oleh akuntan **sebelum** Fase 2 memindahkan Asset ke engine (urutan migrasi PRD Bagian 11 menaruh Asset paling awal): bila parity test menyalin perilaku ini apa adanya, tanda yang salah terkunci dalam engine. Koreksi dikerjakan dalam Fase 2 sebagai bagian aturan posting Asset dengan pembalikan eksplisit ekspektasi test karakterisasi; koreksi data historis diputuskan terpisah. Tidak ada hotfix diusulkan sebelum akuntan mengonfirmasi desain yang dimaksud.
 
-**Keputusan pemilik produk: MENUNGGU.**
+**Keputusan pemilik produk (2026-11-03): disetujui.** Ditinjau akuntan sebelum Fase 2.
 
 ### 3.6 N-2 (baru, PR #271): Purchase Invoice tanpa PO gagal `TypeError` saat `onApproved`
 
@@ -576,7 +576,7 @@ GROUP BY status;
 
 **Usulan penanganan.** Bila query menunjukkan PI tanpa PO nyata, **hotfix kecil terpisah** (event menerima PO nullable dan listener melewati rekalkulasi bila tidak ada PO). Bila tidak ada, masukkan ke **Fase 2** (refactor `PurchaseInvoiceService`), dan tambahkan test yang mengunci kegagalan terlebih dahulu. Alasan menunggu data: tanpa jalur nyata, risikonya rendah.
 
-**Keputusan pemilik produk: MENUNGGU.**
+**Keputusan pemilik produk (2026-11-03): disetujui.** Hotfix kecil bila ada Purchase Invoice tanpa PO nyata; selain itu Fase 2.
 
 ### 3.7 N-3 (tambahan, dari verifikasi kode): baris satu dokumen dapat terpecah lintas detik
 
@@ -590,7 +590,7 @@ Bukan bagian permintaan awal; dicatat karena memengaruhi akurasi estimasi backfi
 
 **Usulan penanganan.** Ukur di staging (Bagian 4.3) lalu tentukan granularitas pengelompokan D-8 (per dokumen, atau per tanggal, atau per `datetime` dengan toleransi) **sebelum** spec Fase 1 difinalkan. Tidak ada perubahan kode di fase ini.
 
-**Keputusan pemilik produk: MENUNGGU.**
+**Keputusan pemilik produk (2026-11-03): disetujui.** Fase 1; granularitas D-8 ditentukan sebelum spec Fase 1 final.
 
 ### 3.8 N-4 (baru, dari baseline staging): arah jurnal Payment Entry tampak terbalik
 
@@ -610,7 +610,7 @@ Bukan bagian permintaan awal; dicatat karena memengaruhi akurasi estimasi backfi
 
 **Usulan penanganan: hotfix terpisah, satu paket dengan F-10** (kedua bug berada di `PaymentEntryService::onApproved` baris 117-139; memperbaikinya sekali lebih aman daripada dua kali). Alasan: dampaknya langsung ke saldo Kas/Bank, Piutang, dan Utang; perbaikan terlokalisasi. Syarat sebelum dikerjakan: (1) pemilik produk dan akuntan mengonfirmasi semantik `account_paid_from`/`account_paid_to` pada form; (2) test karakterisasi dan fixture yang mengunci arah lama dibalik bersamaan; (3) koreksi data historis (staging bernilai kecil; produksi kosong) diputuskan terpisah. Bila pemilik produk memilih menunggu, minimal sebelum backfill Fase 1 dan sebelum parity Fase 2 untuk Payment.
 
-**Keputusan pemilik produk: MENUNGGU.**
+**Keputusan pemilik produk (2026-11-03): disetujui.** Hotfix satu paket dengan F-10 (spec `finance-payment-entry-hotfix`, sebelum Fase 1). Data GL staging yang salah tidak dikoreksi otomatis oleh hotfix.
 
 ### 3.9 N-5 (baru, dari baseline staging): akun SRNB 2214 bersaldo debit
 
@@ -638,7 +638,7 @@ SELECT status, COUNT(*) AS jumlah FROM purchase_invoices WHERE deleted_at IS NUL
 
 **Usulan penanganan: Fase 2** (aturan posting pembelian dan peran akun, D-26/D-27), dengan masukan akuntan (R-4). Alasan: menyangkut kebijakan perlakuan penerimaan barang yang belum ditagih dan default akun; bukan perbaikan lokal. Data staging adalah data uji; tidak ada koreksi data yang diusulkan di sini.
 
-**Keputusan pemilik produk: MENUNGGU.**
+**Keputusan pemilik produk (2026-11-03): disetujui.** Fase 2.
 
 ### 3.10 N-6 (baru, dari baseline staging): HPP 4210 berklasifikasi income
 
@@ -650,7 +650,7 @@ SELECT status, COUNT(*) AS jumlah FROM purchase_invoices WHERE deleted_at IS NUL
 
 **Usulan penanganan: Fase 2** (peran akun `cost_of_goods_sold` melalui resolver, tidak lagi dicari lewat `root_type`) bersama keputusan akuntan atas bagan akun (D-11/Q2 ditunda). Tidak ada hotfix: perubahan seeder sepihak berisiko memutus posting.
 
-**Keputusan pemilik produk: MENUNGGU.**
+**Keputusan pemilik produk (2026-11-03): disetujui.** Fase 2.
 
 ### 3.11 N-7 (baru, dari baseline staging): akun selisih Stock Entry default ke 5110
 
@@ -662,7 +662,7 @@ SELECT status, COUNT(*) AS jumlah FROM purchase_invoices WHERE deleted_at IS NUL
 
 **Usulan penanganan: Fase 2** (D-26: akun ditentukan konfigurasi, termasuk akun selisih per jenis Stock Entry atau jenis "pembukaan"). Untuk staging, koreksi data (memilih 3110) adalah tindakan pemilik data, bukan perubahan kode. Pertimbangkan panduan operasional sebelum produksi menginput saldo awal.
 
-**Keputusan pemilik produk: MENUNGGU.**
+**Keputusan pemilik produk (2026-11-03): disetujui.** Fase 2.
 
 ### 3.12 N-8 (baru, dari audit staging): baris GL bernilai nol untuk invoice bernilai nol
 
@@ -674,17 +674,17 @@ SELECT status, COUNT(*) AS jumlah FROM purchase_invoices WHERE deleted_at IS NUL
 
 **Usulan penanganan: Fase 1** (adapter dan aturan backfill harus melewati atau menandai jurnal bernilai nol secara eksplisit, dan spec Fase 1 mencatat keputusannya). Alasan: dampak langsung pada rancangan adapter FR-L2; bukan bug produksi yang mendesak.
 
-**Keputusan pemilik produk: MENUNGGU.**
+**Keputusan pemilik produk (2026-11-03): disetujui.** Fase 1.
 
 ### 3.13 N-9 (baru, dari matriks staging): kolom `approved` matriks cakupan tidak bermakna
 
 **Status verifikasi: terverifikasi (kode dan data).**
 
-**Bukti.** Data: `approved` = 0 pada delapan jenis berkolom `status` (jadwal depresiasi aset tanpa kolom `status`: null) sementara `with_gl` > 0 pada lima jenis (Bagian 2.4). Kode: matriks menghitung `approved` dan himpunan subjek `posting_not_posted`/`posting_missing` dengan `whereJsonContains('status', 'approved')` (`DocumentCoverageMatrix.php:81, 97-100`); `onApproved` menimpa status: Sales Invoice (`SalesInvoiceService.php:357-359`) dan Purchase Invoice (`PurchaseInvoiceService.php:376`) menjadi `unpaid`/`returned`, Purchase Receipt (`PurchaseReceiptService.php:152`) `received`/`returned`, Delivery Note (`DeliveryNoteService.php:192`) `delivered`/`returned`, Stock Entry (`StockEntryService.php:316`) `completed`, Payment Entry (`PaymentEntryService.php:111-115`) `paid`. Test auditor lulus karena fixture menyetel status `approved` secara manual (`GeneralLedgerAuditorTest.php:103-163`).
+**Bukti.** Data: `approved` = 0 pada delapan jenis berkolom `status` (jadwal depresiasi aset tanpa kolom `status`: null) sementara `with_gl` > 0 pada lima jenis (Bagian 2.4). Kode: matriks menghitung `approved` dan himpunan subjek `posting_not_posted`/`posting_missing` dengan `whereJsonContains('status', 'approved')` (`DocumentCoverageMatrix.php:81, 97-100`); `onApproved` menimpa status: Sales Invoice (`SalesInvoiceService.php:357-359`) dan Purchase Invoice (`PurchaseInvoiceService.php:376`) menjadi `unpaid`/`returned`, Purchase Receipt (`PurchaseReceiptService.php:152`) `received`/`returned`, Delivery Note (`DeliveryNoteService.php:192`) `delivered`/`returned`, Stock Entry (`StockEntryService.php:316`) `completed`, Payment Entry (`PaymentEntryService.php:111-115`) `paid`. Test auditor lulus karena fixture menyetel status `approved` secara manual (`GeneralLedgerAuditorTest.php:103-163`) (kode versi PR #274, sebelum Task 2.6).
 
-**Dampak.** Requirement 2.2 (menandai dokumen approved yang `GlPostingStatus`-nya bukan `posted`) tidak terpenuhi pada data nyata; `posting_not_posted` = 0 dan `posting_missing` = 0 pada delapan jenis berkolom `status` tidak menjadi bukti bahwa tidak ada posting `pending`/`failed`/hilang (jenis `asset_depreciation_schedule` tidak terdampak: subjeknya seluruh jadwal). Ini hanya memengaruhi alat audit, bukan perilaku produksi. Kolom `canceled*` tidak terdampak.
+**Dampak.** Requirement 2.2 (menandai dokumen approved yang `GlPostingStatus`-nya bukan `posted`) tidak terpenuhi pada data nyata; `posting_not_posted` = 0 dan `posting_missing` = 0 pada delapan jenis berkolom `status` tidak menjadi bukti bahwa tidak ada posting `pending`/`failed`/hilang (jenis `asset_depreciation_schedule` tidak terdampak: subjeknya seluruh jadwal). Ini hanya memengaruhi alat audit, bukan perilaku produksi. Kolom `canceled*` tidak terdampak. `posting_missing` juga hanya kolom informasi (DV-E, 2026-11-04): baris `gl_posting_statuses` dibuat bersyarat pada empat jenis selain Sales dan Purchase Invoice, sehingga nilai > 0 belum tentu anomali.
 
-**Usulan penanganan: perbaikan alat audit** (kode baru Fase 0, bukan perilaku produksi; satu perubahan kecil pada `DocumentCoverageMatrix` dan test-nya: subjek = dokumen berstatus pasca-`onApproved`, atau dokumen yang memiliki `GlPostingStatus` atau GL). Himpunan status pasca-`onApproved` yang diusulkan: `unpaid`, `partially_paid`, `paid`, `overdue`, `returned`, `received`, `delivered`, `completed`. Verifikasi: `FormStatus.php` memuat kedelapannya; `onApproved` menetapkan `unpaid`/`returned` (Sales dan Purchase Invoice), `received`/`returned` (Purchase Receipt), `delivered`/`returned` (Delivery Note), `completed` (Stock Entry), `paid` (Payment Entry), dan `UpdatePaymentableStatus` menetapkan `partially_paid`/`paid` pada faktur; `overdue` ada di enum tetapi tidak ditemukan diset oleh kode (satu-satunya rujukan dikomentari di `StockEntry.php:48`) dan dicantumkan hanya agar aman. **Jangan** memakai definisi "bukan draft/canceled/rejected": status pra-persetujuan (`submitted`, `need_approval`, `pending`, `waiting`) akan terhitung `posting_missing` palsu. **Usulan: perbaikan auditor dikerjakan di Fase 0, sebelum Task 8** (auditor adalah kode Fase 0). Usulan ini termasuk bentuk "fase terkait" pada Req 7.3 (DV-C) dan menunggu persetujuan pemilik produk; keputusannya dicatat sebagai **DV-D** (PENDING; lihat DV-D di `finance-decision-log.md`). Alternatifnya dikerjakan di awal Fase 1 sebelum auditor dipakai untuk rekonsiliasi. Sementara itu, indikator posting `pending`/`failed` dapat dibaca langsung dari tabel `gl_posting_statuses` (query MENUNGGU):
+**Usulan penanganan: perbaikan alat audit** (kode baru Fase 0, bukan perilaku produksi; satu perubahan kecil pada `DocumentCoverageMatrix` dan test-nya: subjek = dokumen berstatus pasca-`onApproved` menurut daftar **per jenis** pada tabel *Definisi `approved` pada matriks* di `design.md`, bukan satu himpunan bersama; `submitted` berarti pasca-persetujuan hanya untuk Asset dan Asset Value Adjustment). Verifikasi: status tiap jenis ada di `FormStatus.php`; `onApproved` menetapkan `unpaid`/`returned` (Sales dan Purchase Invoice), `received`/`returned` (Purchase Receipt), `delivered`/`returned` (Delivery Note), `completed` (Stock Entry), `paid` (Payment Entry), dan `UpdatePaymentableStatus` menetapkan `partially_paid`/`paid` pada faktur; `overdue` ada di enum tetapi tidak ditemukan diset oleh kode (satu-satunya rujukan dikomentari di `StockEntry.php:48`) dan dicantumkan hanya agar aman. **Jangan** memakai definisi negatif ("bukan draft/canceled/rejected"), karena `need_approval` dan status lain di luar daftar ikut terhitung; gunakan daftar positif per jenis. `need_approval` adalah status pra-persetujuan di alur approval (`ApprovalService.php:37`); `submitted` baru pasca-persetujuan pada Asset dan Asset Value Adjustment. **Keputusan: diputuskan pemilik produk 2026-11-03 (DV-D a); diimplementasikan Task 2.6**, yaitu perbaikan auditor di Fase 0 sebelum Task 8 (auditor adalah kode Fase 0; bentuk "fase terkait" pada Req 7.3, DV-C). Lihat DV-D di `finance-decision-log.md`. Sementara itu, indikator posting `pending`/`failed` dapat dibaca langsung dari tabel `gl_posting_statuses` (query MENUNGGU):
 
 ```sql
 SELECT referenceable_type, status, COUNT(*) AS jumlah FROM gl_posting_statuses GROUP BY referenceable_type, status;
@@ -694,7 +694,7 @@ SELECT referenceable_type, status, COUNT(*) AS jumlah FROM gl_posting_statuses G
 |---|---|---|
 | Distribusi `gl_posting_statuses` per jenis dan status | MENUNGGU (query belum dijalankan) | tidak diperlukan (Q1) |
 
-**Keputusan pemilik produk: MENUNGGU.**
+**Keputusan pemilik produk (2026-11-03): disetujui.** Perbaikan alat audit, Task 2.6 (DV-D opsi a), dikerjakan sebelum Task 8.
 
 ---
 
@@ -794,11 +794,11 @@ GROUP BY referenceable_type;
 | 1b | Query SQL tambahan: paparan F-10, F-11, N-2, N-5, `is_example`, dan `gl_posting_statuses` | MENUNGGU |
 | 2 | Q1 versi PRD dijawab 2026-11-03: belum ada data sama sekali (GL produksi kosong) | DIJAWAB |
 | 3 | Q-P0-1 dijawab 2026-11-03 (pemilik produk menjalankan di staging) | DIJAWAB |
-| 4 | Keputusan atas F-04, F-10, F-11, F-16, N-1 sampai N-9 | MENUNGGU |
-| 4a | Keputusan DV-D (Req 2.2/N-9), dibutuhkan sebelum Task 8 | MENUNGGU |
+| 4 | Keputusan atas F-04, F-10, F-11, F-16, N-1 sampai N-9 | **DISETUJUI 2026-11-03** (lihat Bagian 3) |
+| 4a | Keputusan DV-D (Req 2.2/N-9): opsi (a) disetujui 2026-11-03; implementasi Task 2.6 belum selesai, dibutuhkan sebelum Task 8 | DECIDED, belum selesai |
 | 5 | **Persetujuan laporan ini oleh pemilik produk** | **DISETUJUI 2026-11-03** (versi PR #272/#273) |
 
-Persetujuan pemilik produk: **disetujui, 2026-11-03**, untuk versi laporan hasil PR #272 dan #273 (tanpa angka staging). Angka staging (Bagian 2 sampai 4) dan temuan N-4 sampai N-9 ditambahkan sesudahnya pada tahapan ini dan **tidak tercakup** dalam persetujuan itu; keputusan penanganan per bug (F-04, F-10, F-11, F-16, N-1 sampai N-9) tetap menunggu. **Apakah tambahan staging (Bagian 2 sampai 4, N-4 sampai N-9) memerlukan persetujuan ulang untuk Req 7.5 menunggu konfirmasi pemilik produk.**
+Persetujuan pemilik produk: **disetujui, 2026-11-03**, untuk versi laporan hasil PR #272 dan #273 dan, melalui PR #274, untuk tambahan angka staging (Bagian 2 sampai 4) dan temuan N-4 sampai N-9. Keputusan penanganan per bug juga disetujui 2026-11-03 (lihat Bagian 3 dan decision log). Tanggal persetujuan: 2026-11-03.
 
 ### 5.2 Ketidaksesuaian dengan dokumen spec yang ditemukan saat penyusunan
 
@@ -809,5 +809,5 @@ Butir 1 sampai 3 sudah **dikoreksi di PRD** (`finance-engine-prd.md`, Lampiran A
 3. **PRD F-04** (sudah dikoreksi) merujuk `SalesInvoiceService::cancel` di sekitar baris 386; posisi aktualnya baris 604.
 4. **Req 7.1** menyebut laporan merangkum hasil audit staging dan produksi, sedangkan Req 6.2 hanya menyebut staging; Q1 di PRD dan di spec dirumuskan berbeda (lihat catatan di [`finance-decision-log.md`](finance-decision-log.md)); keduanya dijawab 2026-11-03 (versi PRD: belum ada data sama sekali (GL produksi kosong); versi spec: untuk sekarang staging saja).
 5. Rumus baseline saldo pada `design.md` bagian 4 (Task 3.1) **terkonfirmasi sebagian (2026-11-03):** sesuai untuk akun ber-`balance_type` debit yang ditulis `StockEntryService` (5110, 1241); akun ber-`balance_type` kredit tidak punya cache di staging, sehingga belum teruji data (Bagian 2.5; pada 5110 `difference` 0). Akun lain bercache 0 karena hanya `StockEntryService` yang menulis `balance_amount` (F-09).
-6. **Requirement 2.2 dan bagian `DocumentCoverageMatrix` pada `design.md`** mengandaikan dokumen "berstatus `approved`", padahal `onApproved` setiap service menimpa status dengan status lanjutan; pada data nyata `approved` selalu 0 (N-9, Bagian 3.13). Spec dan auditor perlu disesuaikan bila pemilik produk menyetujui perbaikannya (lihat DV-D).
+6. **Requirement 2.2 dan bagian `DocumentCoverageMatrix` pada `design.md`** mengandaikan dokumen "berstatus `approved`", padahal `onApproved` setiap service menimpa status dengan status lanjutan; pada data nyata `approved` selalu 0 (N-9, Bagian 3.13). Disetujui (DV-D 2026-11-03, DV-E 2026-11-04); Req 2.1/2.2 dan `design.md` sudah disesuaikan; auditor diperbaiki di Task 2.6.
 7. **Test karakterisasi Payment Entry** (`PaymentEntryPostingTest`) dan fixture `makePaymentEntry` memakai kas sebagai `account_paid_from` untuk pembayaran `receive`, berbeda dengan filter form (`receive`: `paid_from` = piutang). Test mengunci arah debit = `paid_from` tanpa memperlihatkan inversi terhadap konvensi umum (N-4, Bagian 3.8). Catatan tindak lanjut fixture dan test ada pada entri **DV-D** di `finance-decision-log.md` (PENDING; lihat DV-D di `finance-decision-log.md`).

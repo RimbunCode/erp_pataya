@@ -2,12 +2,12 @@
 
 | | |
 |---|---|
-| **Status dokumen** | Laporan audit disetujui pemilik produk (2026-11-03); decision log belum disetujui secara eksplisit; Fase 0 belum selesai |
+| **Status dokumen** | Disetujui pemilik produk (2026-11-03); Fase 0 belum selesai (Task 2.6, skema staging Req 6.2 dan APP_ENV, Task 8) |
 | **Tanggal entri** | 2026-11-03 |
 | **Spec** | [`finance-p0-foundation-audit`](../../.kiro/specs/finance-p0-foundation-audit/requirements.md) (Requirement 7.2 dan 7.5; Task 7.3) |
 | **Dokumen terkait** | [`finance-engine-prd.md`](finance-engine-prd.md) (sumber keputusan: Bagian 7 dan 16); [`finance-audit-report.md`](finance-audit-report.md) (laporan audit, sedang disusun) |
 
-> Dokumen ini **disahkan sebagian** oleh pemilik produk pada 2026-11-03: BR-2 s.d. BR-5, DV-A, dan DV-B disahkan; DV-C diterima; Q1 versi PRD dan Q-P0-1 dijawab; D-1 dan D-11 ditunda; laporan audit ([`finance-audit-report.md`](finance-audit-report.md)) disetujui (lihat AP-1). Fase 0 **belum selesai**. Yang masih menunggu: (1) persetujuan decision log ini oleh pemilik produk; (2) keputusan penanganan per bug (F-04, F-10, F-11, F-16, N-1 s.d. N-9); (3) sisa Req 6.2 (skema aktual staging) dan konfirmasi `APP_ENV`; (4) keputusan DV-D, dibutuhkan sebelum Task 8; (5) Task 8 (checkpoint akhir Fase 0); (6) konfirmasi apakah tambahan staging (angka dan N-4…N-9) memerlukan persetujuan ulang untuk Req 7.5. Keputusan berstatus PENDING atau PROPOSED belum berlaku sebelum disahkan. Fase 1 mensyaratkan Fase 0 selesai dan disetujui. Sumber lengkap ada di [`finance-engine-prd.md`](finance-engine-prd.md) Bagian 7 (ADR), Bagian 10 (indeks spec dan aturan branch), dan Bagian 16 (pertanyaan terbuka).
+> Dokumen ini **disetujui** oleh pemilik produk pada 2026-11-03 (AP-3), termasuk keputusan proses BR-1 s.d. BR-5, penyimpangan DV-A s.d. DV-D (AP-3, 2026-11-03); DV-E disetujui terpisah 2026-11-04, dan keputusan penanganan per bug (PB-1 s.d. PB-15). Laporan audit ([`finance-audit-report.md`](finance-audit-report.md)) disetujui beserta tambahan PR #274 (AP-1, AP-2). Q1 versi PRD dan Q-P0-1 dijawab; D-1 dan D-11 ditunda. Fase 0 **belum selesai**. Yang masih menunggu: (1) implementasi DV-D (Task 2.6, branch `feat/finance-p0-auditor-coverage`); (2) hasil skema staging Req 6.2 dan konfirmasi `APP_ENV` (belum diserahkan); (3) Task 8 (checkpoint akhir Fase 0). Keputusan berstatus PENDING atau PROPOSED belum berlaku sebelum disahkan. Fase 1 mensyaratkan Fase 0 selesai dan disetujui. Sumber lengkap ada di [`finance-engine-prd.md`](finance-engine-prd.md) Bagian 7 (ADR), Bagian 10 (indeks spec dan aturan branch), dan Bagian 16 (pertanyaan terbuka).
 
 ## Ringkasan
 
@@ -23,8 +23,12 @@
 | BR-2 s.d. BR-5 | Konvensi turunan: cara membuat, pola nama, PR dan penggabungan dev-1, definisi tahapan | Proses | DECIDED (disahkan 2026-11-03) | 2026-11-03 |
 | DV-A | Rumus snapshot saldo (penyimpangan dari Requirement 3.2 dan 3.5) | 0 | DECIDED (disahkan 2026-11-03) | 2026-11-03 |
 | DV-B | Cakupan characterization test Task 5.3, 5.4, 5.6 (penyimpangan dari Requirement 4) | 0 | DECIDED (disahkan 2026-11-03) | 2026-11-03 |
-| DV-C | Penanganan bug di luar opsi Requirement 7.3 (hotfix, Fase 1, Fase 2, atau fase terkait) | 0 | DECIDED (diterima 2026-11-03); penanganan per bug menunggu | 2026-11-03 |
-| DV-D | Auditor cakupan dokumen tidak mengenali status pasca-approve (Req 2.2; N-9) | 0 | PENDING; dibutuhkan sebelum Task 8 | 2026-11-03 |
+| DV-C | Penanganan bug di luar opsi Requirement 7.3 (hotfix, Fase 1, Fase 2, atau fase terkait) | 0 | DECIDED (diterima 2026-11-03); penanganan per bug disetujui 2026-11-03 (PB) | 2026-11-03 |
+| DV-D | Auditor cakupan dokumen tidak mengenali status pasca-approve (Req 2.2; N-9) | 0 | DECIDED (opsi a, disetujui 2026-11-03); implementasi Task 2.6 | 2026-11-03 |
+| DV-E | `posting_missing` adalah kolom informasi saja; Req 2.2 tetap hanya `posting_not_posted` | 0 | DECIDED (disetujui 2026-11-04) | 2026-11-04 |
+| AP-2 | Tambahan laporan audit PR #274 (angka staging, N-4…N-9) | 0 | DECIDED (disetujui 2026-11-03) | 2026-11-03 |
+| AP-3 | Decision log disetujui | 0 | DECIDED (disetujui 2026-11-03) | 2026-11-03 |
+| PB-1 s.d. PB-15 | Keputusan penanganan per bug (F-04, F-10, F-11, F-16, N-1 s.d. N-9) | 0–4 | DECIDED (disetujui 2026-11-03) | 2026-11-03 |
 | Q1–Q7, Q-P0-1 | Pertanyaan terbuka | 0–6 | Terbuka (Q1 versi PRD, Q4, dan Q-P0-1 dijawab; Q2, Q3, Q5–Q7 terbuka) | Lihat tabel |
 | Q-P1-1 s.d. Q-P6-3 | 21 pertanyaan per fase dari spec Fase 1–6 | 1–6 | PENDING | 2026-11-03 |
 | AP-1 | Laporan audit Fase 0 (`finance-audit-report.md`) disetujui; Task 6.5 selesai di staging | 0 | DECIDED (disetujui 2026-11-03) | 2026-11-03 |
@@ -33,7 +37,7 @@
 
 ### AP-1 — Laporan audit Fase 0 disetujui
 
-**Keputusan 2026-11-03: disetujui** oleh pemilik produk: [`finance-audit-report.md`](finance-audit-report.md), versi hasil PR #272 dan #273. Angka staging ditambahkan sesudah persetujuan. Apakah tambahan staging (angka dan N-4…N-9) memerlukan persetujuan ulang untuk Req 7.5 menunggu konfirmasi pemilik produk. Keputusan penanganan per bug (F-04, F-10, F-11, F-16, N-1 s.d. N-9) tidak termasuk persetujuan ini dan tetap MENUNGGU.
+**Keputusan 2026-11-03: disetujui** oleh pemilik produk: [`finance-audit-report.md`](finance-audit-report.md), versi hasil PR #272 dan #273. Angka staging ditambahkan sesudah persetujuan. Tambahan staging (angka dan N-4…N-9) disetujui 2026-11-03 (AP-2). Keputusan penanganan per bug (F-04, F-10, F-11, F-16, N-1 s.d. N-9) juga disetujui 2026-11-03 (lihat Keputusan Penanganan per Bug).
 
 **Dasar.** Task 6.5 selesai 2026-11-03 oleh pemilik produk di staging (lingkungan diasumsikan staging, sesuai Q-P0-1; penyerahan tidak menyebut lingkungan secara eksplisit). Berkas yang diserahkan: `audit-20261103-155516.json` dan `baseline-20261103-155540.csv`, disimpan di `storage/app/finance-audit/` (ter-ignore git). Ringkasan JSON yang diserahkan: 60 baris GL, 28 kelompok, Σdebit = Σkredit; semua kategori anomali 0, kecuali 4 baris soft-delete yang diharapkan.
 
@@ -46,6 +50,14 @@
 | Disetujui (dipilih). | — | Pemilik produk | DECIDED (disetujui 2026-11-03) | 2026-11-03 |
 
 **Sumber:** `finance-audit-report.md`; `tasks.md` (Task 6.5, 7.1, 7.2); catatan pemilik produk 2026-11-03.
+
+### AP-2 — Tambahan laporan audit (PR #274) disetujui
+
+**Keputusan 2026-11-03: disetujui** oleh pemilik produk: tambahan laporan audit dari PR #274, yaitu angka staging (Bagian 2 sampai 4) dan temuan N-4 sampai N-9. Dasar: Task 6.5 dan berkas staging pada AP-1. Alasan: tidak dinyatakan pemilik produk. Batas: skema staging Req 6.2 dan `APP_ENV` belum diserahkan.
+
+### AP-3 — Decision log disetujui
+
+**Keputusan 2026-11-03: disetujui** oleh pemilik produk: dokumen `finance-decision-log.md` ini, termasuk keputusan proses BR-1 s.d. BR-5, penyimpangan DV-A s.d. DV-D (AP-3, 2026-11-03); DV-E disetujui terpisah 2026-11-04, dan keputusan penanganan per bug (PB-1 s.d. PB-15). Alasan: tidak dinyatakan pemilik produk. Persetujuan ini tidak mencakup implementasi DV-D (Task 2.6), yang belum selesai.
 
 ## Keputusan Arsitektur (ADR)
 
@@ -171,7 +183,7 @@
 
 ## Penyimpangan dan Usulan Perubahan Spec
 
-Empat butir berikut: DV-A dan DV-B disahkan, DV-C diterima, DV-D PENDING (usulan, dicatat 2026-11-03, menunggu keputusan). DV-C diterima sebagai bentuk usulan; keputusan penanganan per bug tetap menunggu. Teks spec yang terdampak (Requirement 3.2, 3.5, 4, dan 7.3) sudah disesuaikan pada tanggal perubahan masing-masing.
+Lima butir berikut: DV-A dan DV-B disahkan, DV-C diterima, DV-D disetujui opsi (a) pada 2026-11-03, DV-E disetujui 2026-11-04. DV-C diterima sebagai bentuk usulan; keputusan penanganan per bug disetujui 2026-11-03 (lihat Keputusan Penanganan per Bug). Teks spec yang terdampak (Requirement 3.2, 3.5, 4, dan 7.3) sudah disesuaikan pada tanggal perubahan masing-masing.
 
 ### DV-A — Rumus snapshot saldo (Requirement 3.2 dan 3.5)
 
@@ -218,21 +230,57 @@ Empat butir berikut: DV-A dan DV-B disahkan, DV-C diterima, DV-D PENDING (usulan
 
 **Sumber:** `requirements.md` (Requirement 7.3); PRD Bagian 7 (D-16, D-17), Bagian 8.5 (FR-R2); `finance-audit-report.md` Bagian 3.1 (F-04), Bagian 3.3 (F-11).
 
-**Keputusan 2026-11-03: diterima** oleh pemilik produk, sebagai bentuk usulan saja. Requirement 7.3 sudah diubah. Keputusan penanganan per bug (F-04, F-10, F-11, F-16, N-1 s.d. N-3) tetap MENUNGGU pemilik produk.
+**Keputusan 2026-11-03: diterima** oleh pemilik produk, sebagai bentuk usulan saja. Requirement 7.3 sudah diubah. Keputusan penanganan per bug (F-04, F-10, F-11, F-16, N-1 s.d. N-9) disetujui pemilik produk 2026-11-03 (lihat Keputusan Penanganan per Bug).
 
-### DV-D — Auditor cakupan dokumen tidak mengenali status pasca-approve (usulan)
+### DV-D — Auditor cakupan dokumen tidak mengenali status pasca-approve (disetujui opsi a, 2026-11-03)
 
 **Konteks.** Laporan audit (Bagian 3.13, N-9) menemukan bahwa `DocumentCoverageMatrix` menghitung dokumen `approved` dengan `whereJsonContains('status', 'approved')`. Padahal `onApproved` setiap service menimpa status menjadi `unpaid`, `returned`, `received`, `delivered`, `completed`, atau `paid`. Akibatnya Requirement 2.2 (menandai dokumen `approved` yang `GlPostingStatus`-nya bukan `posted`) tidak terpenuhi pada data nyata: `posting_not_posted` dan `posting_missing` bernilai 0 atas himpunan kosong, sehingga nol tidak menjadi bukti bahwa tidak ada posting `pending`, `failed`, atau hilang. Pengecualiannya `asset_depreciation_schedule`, yang tidak memiliki kolom status. Test auditor lulus karena fixture menyetel status `approved` secara manual. Dampaknya terbatas pada alat audit, bukan perilaku produksi; kolom `canceled*` tidak terdampak.
 
 **Catatan fixture.** Fixture test Payment Entry (`makePaymentEntry`) memakai kas sebagai `paid_from`, yang tidak sesuai filter form. Akibatnya arah terbalik N-4 tidak terlihat di test (laporan audit Bagian 5.2 butir 7).
 
-**Dibutuhkan sebelum:** Task 8 (checkpoint akhir Fase 0).
+**Dibutuhkan sebelum:** Task 8 (checkpoint akhir Fase 0). **Implementasi:** Task 2.6 di branch `feat/finance-p0-auditor-coverage`.
 
 | Opsi | Rekomendasi | Pemilik keputusan | Status | Tanggal |
 |---|---|---|---|---|
-| (a) Perbaiki auditor di Fase 0 sebelum Task 8: hitung dokumen berstatus pasca-`onApproved` (`unpaid`, `partially_paid`, `paid`, `overdue`, `returned`, `received`, `delivered`, `completed`), atau dokumen yang memiliki `GlPostingStatus`/GL, lalu perbarui test auditor. Status pra-persetujuan (`submitted`, `need_approval`, `pending`, `waiting`) belum melewati `onApproved`, sehingga akan terhitung `posting_missing` palsu jika ikut dihitung. (b) Ubah teks Req 2.2 dan terima keterbatasan ini. | (a), karena auditor dipakai sebagai alat verifikasi Fase 1–2 | Pemilik produk | PENDING | 2026-11-03 |
+| (a) **Dipilih** (disetujui 2026-11-03): perbaiki auditor di Fase 0 sebelum Task 8, dengan menghitung dokumen berstatus pasca-`onApproved` menurut daftar **per jenis** di tabel *Definisi `approved` pada matriks* di `.kiro/specs/finance-p0-foundation-audit/design.md` (bukan satu himpunan bersama), lalu memperbarui test auditor. `submitted` berarti pasca-persetujuan hanya untuk Asset dan Asset Value Adjustment; pada jenis lain `submitted` tidak pernah diset. Status pra-persetujuan (`draft`, `need_approval`, `rejected`) dan `canceled` tidak termasuk; `need_approval` adalah status pra-persetujuan di alur approval (`ApprovalService.php:37`). (b) Tidak dipilih: ubah teks Req 2.2 dan terima keterbatasan ini. | (a), karena auditor dipakai sebagai alat verifikasi Fase 1–2 | Pemilik produk | DECIDED (opsi a, 2026-11-03) | 2026-11-03 |
 
 **Sumber:** `finance-audit-report.md` Bagian 3.13 (N-9), Bagian 5.2 butir 7; `requirements.md` Req 2.2; `tasks.md` Task 2.3 dan 2.5.
+
+### DV-E — `posting_missing` adalah kolom informasi (disetujui 2026-11-04)
+
+**Konteks.** Matriks cakupan menghitung `posting_missing` untuk dokumen pasca-persetujuan tanpa baris `gl_posting_statuses`. Baris itu dibuat tanpa syarat saat `onApproved` hanya pada Sales Invoice dan Purchase Invoice, sehingga `posting_missing` > 0 pada kedua jenis itu adalah sinyal nyata. Pada Purchase Receipt, Delivery Note, Asset Value Adjustment, dan Asset pembuatannya bersyarat, sehingga dokumen pasca-persetujuan tanpa baris tersebut belum tentu gagal posting. Batas makna ini didokumentasikan di `design.md` (*`posting_missing` adalah kolom informasi, bukan kewajiban spec (keputusan pemilik produk 2026-11-04)*).
+
+**Keputusan 2026-11-04: disetujui** oleh pemilik produk. `posting_missing` adalah kolom informasi saja. Req 2.2 tetap hanya mewajibkan `posting_not_posted`. Bentuk JSON tidak berubah.
+
+| Opsi | Rekomendasi | Pemilik keputusan | Status | Tanggal |
+|---|---|---|---|---|
+| Kolom informasi saja; Req 2.2 tetap hanya `posting_not_posted` (dipilih). PRD dan spec tidak merinci opsi alternatif tertulis. | — (keputusan pemilik produk) | Pemilik produk | DECIDED (2026-11-04) | 2026-11-04 |
+
+**Sumber:** `design.md` (*Definisi `approved` pada matriks*, *`posting_missing` adalah kolom informasi, bukan kewajiban spec (keputusan pemilik produk 2026-11-04)*); `requirements.md` Req 2.2; `finance-audit-report.md` Bagian 2.4 dan 3.13.
+
+## Keputusan Penanganan per Bug (PB)
+
+Semua keputusan berikut disetujui pemilik produk pada 2026-11-03, sesuai laporan audit (Bagian 3).
+
+| ID | Temuan | Keputusan | Fase / hotfix | Tanggal | Disetujui |
+|---|---|---|---|---|---|
+| PB-1 | F-04: bagian GL (soft-delete → reversal) | Fase 2, per D-13 | Fase 2 | 2026-11-03 | Pemilik produk |
+| PB-2 | F-04: bagian `paid_amount` saat Payment Entry dibatalkan | Hotfix, digabung ke paket hotfix pembayaran (PB-4, PB-5) | Hotfix `finance-payment-entry-hotfix` | 2026-11-03 | Pemilik produk |
+| PB-3 | F-04: bagian `balance_amount` | Fase 2/Fase 5 | Fase 2/Fase 5 | 2026-11-03 | Pemilik produk |
+| PB-4 | F-10: pembayaran parsial memposting total kumulatif | Hotfix satu paket dengan N-4 dan PB-2 | Hotfix `finance-payment-entry-hotfix`; sebelum Fase 1 | 2026-11-03 | Pemilik produk |
+| PB-5 | N-4: arah jurnal Payment Entry tampak terbalik (akun dipilih sesuai filter form) | Hotfix satu paket dengan F-10 dan PB-2, termasuk perbaikan fixture test. Syarat sebelum dikerjakan: (1) pemilik produk dan akuntan mengonfirmasi semantik `account_paid_from`/`account_paid_to` pada form (prasyarat ini dibawa ke spec hotfix); (2) test karakterisasi dan fixture yang mengunci arah lama dibalik bersamaan; (3) koreksi data historis (staging bernilai kecil; produksi kosong) diputuskan terpisah | Hotfix `finance-payment-entry-hotfix`; sebelum Fase 1 | 2026-11-03 | Pemilik produk |
+| PB-6 | F-11: GL pembayaran mengabaikan kurs | Fase 4 (D-16, D-17), bukan hotfix. Pengecualian: hotfix hanya bila data staging menunjukkan pembayaran FX nyata (laporan Bagian 3.3) | Fase 4 | 2026-11-03 | Pemilik produk |
+| PB-7 | F-16: cancel sebelum job posting dieksekusi | Fase 2 (FR-P3); hotfix guard bila ada kasus nyata (staging: 0 kasus) | Fase 2 | 2026-11-03 | Pemilik produk |
+| PB-8 | N-1: tanda laba/rugi disposal aset tampak terbalik | Ditinjau akuntan sebelum Fase 2; koreksi dalam Fase 2 | Sebelum Fase 2 | 2026-11-03 | Pemilik produk |
+| PB-9 | N-2: Purchase Invoice tanpa PO gagal `TypeError` | Hotfix kecil bila ada PI tanpa PO nyata; selain itu Fase 2 | Hotfix kecil atau Fase 2 | 2026-11-03 | Pemilik produk |
+| PB-10 | N-3: baris satu dokumen terpecah lintas detik | Fase 1; granularitas D-8 ditentukan sebelum spec Fase 1 final | Fase 1 | 2026-11-03 | Pemilik produk |
+| PB-11 | N-5: akun SRNB 2214 bersaldo debit | Fase 2 | Fase 2 | 2026-11-03 | Pemilik produk |
+| PB-12 | N-6: HPP 4210 berklasifikasi income | Fase 2 | Fase 2 | 2026-11-03 | Pemilik produk |
+| PB-13 | N-7: akun selisih Stock Entry default ke 5110 | Fase 2; koreksi data staging oleh pemilik (memilih 3110), tindakan pemilik data, bukan perubahan kode | Fase 2 | 2026-11-03 | Pemilik produk |
+| PB-14 | N-8: baris GL bernilai nol untuk invoice bernilai nol | Fase 1 | Fase 1 | 2026-11-03 | Pemilik produk |
+| PB-15 | N-9: kolom `approved` dan `posting_*` matriks cakupan | DV-D opsi (a), Task 2.6, sebelum Task 8 | Fase 0 (alat audit) | 2026-11-03 | Pemilik produk |
+
+**Catatan PB-4 dan PB-5.** Hotfix tidak mengoreksi data GL staging yang salah secara otomatis. Koreksi data historis tetap keputusan terpisah.
 
 ## Pertanyaan Terbuka
 
@@ -251,7 +299,7 @@ Keterangan: "—" berarti PRD atau spec tidak mencantumkan opsi atau rekomendasi
 
 **Sumber:** PRD Bagian 16 (Q1–Q7). Q-P0-1 dari `requirements.md` dan `design.md` (bukan PRD).
 
-**Catatan Q1.** Q1 versi PRD (apakah GL sudah berisi data produksi nyata?) dijawab pemilik produk pada 2026-11-03: belum ada data sama sekali (GL produksi kosong). Konsekuensi (bukan keputusan baru): beban backfill produksi per 2026-11-03 nol (GL produksi kosong); estimasi backfill di laporan audit Bagian 4 berlaku untuk staging sebagai uji coba migrasi. Q1 versi spec (apakah audit boleh dijalankan pada DB produksi) dijawab 2026-11-03: untuk sekarang hanya staging. Persetujuan laporan versi PR #272/#273 tercatat (AP-1); apakah tambahan staging (angka dan N-4…N-9) memerlukan persetujuan ulang untuk Req 7.5 menunggu konfirmasi pemilik produk.
+**Catatan Q1.** Q1 versi PRD (apakah GL sudah berisi data produksi nyata?) dijawab pemilik produk pada 2026-11-03: belum ada data sama sekali (GL produksi kosong). Konsekuensi (bukan keputusan baru): beban backfill produksi per 2026-11-03 nol (GL produksi kosong); estimasi backfill di laporan audit Bagian 4 berlaku untuk staging sebagai uji coba migrasi. Q1 versi spec (apakah audit boleh dijalankan pada DB produksi) dijawab 2026-11-03: untuk sekarang hanya staging. Persetujuan laporan versi PR #272/#273 tercatat (AP-1); tambahan staging (angka dan N-4…N-9) disetujui 2026-11-03 (AP-2).
 
 ## Pertanyaan per Fase (Q-P1 s.d. Q-P6)
 
