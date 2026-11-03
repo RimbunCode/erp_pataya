@@ -83,7 +83,7 @@ Metode: `toArray()`, `toJson()`, dan `Renderer` terpisah untuk konsol (`Symfony 
 
 Satu query agregat: `accounts` di-`LEFT JOIN` ke `general_ledgers` (hanya baris tanpa soft-delete) lalu `GROUP BY` akun, sehingga akun tanpa transaksi dan akun soft-deleted ikut tercantum. Menulis CSV streaming (`cursor()` + `fputcsv`) agar hemat memori.
 
-**Rumus terkunci (Task 3.1, diverifikasi dari kode 2026-11-01):**
+**Rumus terkunci (Task 3.1, diverifikasi dari kode 2026-11-01; disahkan pemilik produk 2026-11-03, DV-A):**
 
 - Nilai valid `accounts.balance_type`: `debit`, `credit`, atau null (`AccountRequest`: `nullable|in:debit,credit`; `AccountSeeder`).
 - Satu-satunya penulis `accounts.balance_amount` di `app/` adalah `StockEntryService` (~562–640): sisi debit `+ jumlah`, sisi kredit `− jumlah`. Jadi `balance_amount` bertanda **debit − kredit untuk semua akun**, tanpa memandang `balance_type`. Jalur posting lain (invoice, receipt, delivery note, payment, aset) tidak menyentuhnya.
@@ -165,6 +165,6 @@ Tidak ada tabel atau kolom baru. File keluaran:
 
 | ID | Pertanyaan | Dampak pada fase ini |
 |---|---|---|
-| Q1 | Apakah audit boleh dijalankan pada DB **produksi** (read-only)? | Menentukan apakah estimasi backfill berbasis data nyata |
-| Q-P0-1 | Siapa yang menjalankan perintah di staging/produksi dan mengirim hasilnya? | Task manual 6.x |
-| D-11 | Standar akuntansi acuan | Hanya dicatat di decision log pada fase ini |
+| Q1 (versi spec dan versi PRD) | ~~Apakah audit boleh dijalankan pada DB **produksi** (read-only)?~~ **Dijawab 2026-11-03:** untuk sekarang hanya staging (versi spec). Q1 versi PRD dijawab 2026-11-03: belum ada data sama sekali (GL produksi kosong) | Estimasi backfill produksi tidak diperlukan (lihat Q1) |
+| Q-P0-1 | ~~Siapa yang menjalankan perintah di staging/produksi dan mengirim hasilnya?~~ **Dijawab 2026-11-03:** pemilik produk sendiri menjalankan di staging dan menyerahkan hasilnya; produksi tidak untuk sekarang | Task manual 6.x |
+| D-11 | Standar akuntansi acuan | **Ditunda 2026-11-03** (menunggu akuntan, Q2); hanya dicatat di decision log pada fase ini |

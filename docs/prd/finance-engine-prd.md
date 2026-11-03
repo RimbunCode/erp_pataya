@@ -2,7 +2,7 @@
 
 | | |
 |---|---|
-| **Status** | Draft v1.1 — menunggu konfirmasi keputusan bertanda **PENDING** (Bagian 7) |
+| **Status** | Draft v1.1 — menunggu konfirmasi keputusan bertanda **PENDING** atau **DITUNDA** (Bagian 7); keputusan proses Fase 0 disahkan 2026-11-03 |
 | **Revisi v1.1** | 2026-10-18 — keputusan pemilik produk: satu perusahaan, akun hanya dari konfigurasi, aturan akun bersyarat, setting keuangan dipindah dari `preferences` (D-4, D-25, D-26, D-27) |
 | **Tanggal** | 2026-10-18 |
 | **Cakupan** | Fondasi keuangan seluruh ERP: Journal/GL, Posting, Pajak, Mata Uang/FX, AR/AP, Pelaporan, Penutupan Periode |
@@ -149,11 +149,11 @@ app/Models/Finances/   Journal, GeneralLedger (= journal line), FiscalYear, Fisc
 
 ## 7. Keputusan Arsitektur (ADR Ringkas)
 
-Status: **DECIDED** = sudah ditetapkan (mis. dari spec terdahulu); **PROPOSED** = rekomendasi, dapat dijalankan tanpa menunggu karena risikonya rendah/dapat dibalik; **PENDING** = butuh konfirmasi pemilik produk sebelum fase terkait dikerjakan.
+Status: **DECIDED** = sudah ditetapkan (mis. dari spec terdahulu); **PROPOSED** = rekomendasi, dapat dijalankan tanpa menunggu karena risikonya rendah/dapat dibalik; **PENDING** = butuh konfirmasi pemilik produk sebelum fase terkait dikerjakan; **DITUNDA** = pemilik produk menunda secara eksplisit dengan alasan tertulis; wajib diputuskan sebelum fase yang disebut.
 
 | ID | Keputusan | Status | Fase |
 |---|---|---|---|
-| D-1 | Mode posting: antrian vs sinkron | **PENDING** | 2 |
+| D-1 | Mode posting: antrian vs sinkron | **DITUNDA (2026-11-03)**; rekomendasi tetap B | 2 |
 | D-2 | Perluas `general_ledgers` (tambah `journal_id`) alih-alih tabel jurnal baru | PROPOSED | 1 |
 | D-3 | `decimal(20,4)` untuk tabel jurnal; pembulatan di batas posting | PROPOSED | 1 |
 | D-4 | Satu perusahaan + dimensi cabang (multi-company di luar cakupan); profil dan setting bersifat global | **DECIDED** (2026-10-18) | 1 |
@@ -163,7 +163,7 @@ Status: **DECIDED** = sudah ditetapkan (mis. dari spec terdahulu); **PROPOSED** 
 | D-8 | Backfill: kelompokkan GL lama per (`referenceable`, `transaction_date`); yang tak seimbang ditandai, tidak dipaksa | PROPOSED | 1 |
 | D-9 | Valuasi persediaan & COGS memakai stock ledger existing | DECIDED (di luar cakupan) | — |
 | D-10 | IFRS 15/16, impairment di luar cakupan | DECIDED (di luar cakupan) | — |
-| D-11 | Standar akuntansi acuan (SAK/PSAK vs IFRS penuh) | **PENDING** | 0 |
+| D-11 | Standar akuntansi acuan (SAK/PSAK vs IFRS penuh) | **DITUNDA (2026-11-03)**, menunggu akuntan (Q2) | 0 |
 | D-12 | Penanganan pajak dalam jurnal: PPN Masukan/Keluaran sebagai akun terpisah, PPh sebagai utang/piutang pajak | PROPOSED, validasi akuntan | 3 |
 | D-13 | Perilaku pembatalan dokumen: ganti soft-delete GL (perilaku sekarang) dengan jurnal pembalik | **PENDING** (mengubah perilaku yang terlihat pengguna) | 2 |
 | D-14 | Jurnal manual (Journal Voucher) oleh pengguna: masuk Fase 1 atau ditunda | **PENDING** | 1 |
@@ -182,7 +182,7 @@ Status: **DECIDED** = sudah ditetapkan (mis. dari spec terdahulu); **PROPOSED** 
 | D-27 | Posting diskon ke akun terpisah, aktif lewat tanggal cutover per jenis dokumen; pembulatan di Fase 3, selisih kurs di Fase 4/6 | PROPOSED (perlakuan diskon pembelian stok menunggu akuntan, Q-P2-5) | 2 |
 | D-28 | `TaxEngine` tidak mengasumsikan satu pajak per baris (`TaxInput` per pasangan baris–pajak); multi-pajak per baris dokumen (pola Odoo) menjadi spec masa depan `multi-tax-per-line` | PROPOSED | 3 |
 
-### D-1 — Mode posting (PENDING)
+### D-1 — Mode posting (DITUNDA 2026-11-03)
 
 **Konteks.** Spec Fase 3 event-listener memindahkan GL ke queue karena posting GL bercampur dengan mutasi stok/SLE, dan menetapkannya sebagai keputusan kunci. Konsekuensinya: dokumen dapat berstatus `UNPAID`/`APPROVED` sementara GL-nya masih `pending`/`failed`. Payment Entry masih sinkron (F-05).
 
@@ -195,6 +195,8 @@ Status: **DECIDED** = sudah ditetapkan (mis. dari spec terdahulu); **PROPOSED** 
 | C | Semua sinkron dalam satu transaksi dengan dokumen | Konsistensi terkuat | Membalik keputusan lama; berisiko pada alur stok/FIFO yang terjalin; perubahan besar |
 
 **Catatan.** Invarian "jurnal seimbang" ditegakkan di `JournalService` dan **tidak bergantung** pada pilihan ini, sehingga Fase 1 tidak terblokir. Keputusan baru mengikat pada Fase 2.
+
+**Keputusan pemilik produk (2026-11-03): ditunda.** Alasan: keputusan baru mengikat pada Fase 2, sedangkan Fase 1 tidak terblokir oleh D-1. Rekomendasi tetap opsi B; keputusan wajib sebelum Fase 2.
 
 ### D-13 — Perilaku pembatalan (PENDING)
 
@@ -228,9 +230,11 @@ Pemilih akun pada form Sales Invoice, Purchase Invoice, Payment Entry, Stock Ent
 
 Diskon belum diposting ke GL (hanya dipakai sebagai pengurang basis pajak). Fase 2 Requirement 14 menambah jurnal terpisah (`discount`) di balik tanggal cutover per jenis dokumen sehingga dokumen lama tidak berubah. Pembulatan pajak tetap di Fase 3 (Requirement 8); selisih kurs terealisasi di Fase 4 dan revaluasi di Fase 6.
 
-### D-11 — Standar akuntansi (PENDING)
+### D-11 — Standar akuntansi (DITUNDA 2026-11-03)
 
 Dokumen sumber merujuk IAS/IFRS. Perusahaan di Indonesia umumnya mengikuti SAK/PSAK. Pilihan memengaruhi struktur laporan (Fase 5), kebijakan FX (Fase 4/6), dan penyajian pajak. Dibutuhkan masukan dari akuntan sebelum desain Fase 5 difinalkan.
+
+**Keputusan pemilik produk (2026-11-03): ditunda.** Alasan: menunggu akuntan (Q2); paling lambat sebelum desain Fase 5 difinalkan (PRD); berdampak juga ke Fase 4/6.
 
 ## 8. Persyaratan Fungsional
 
@@ -325,7 +329,7 @@ Setiap spec berisi `requirements.md`, `design.md`, `tasks.md`, dan `.config.kiro
 | Fase | Folder spec | Status dokumen |
 |---|---|---|
 | S | [`module-settings-foundation`](../../.kiro/specs/module-settings-foundation/requirements.md) | Draft lengkap; spec lintas modul, prasyarat Fase 1. Program induknya: [`module-settings-prd.md`](module-settings-prd.md) |
-| 0 | [`finance-p0-foundation-audit`](../../.kiro/specs/finance-p0-foundation-audit/requirements.md) | Berjalan — Task 1–6.4 selesai (PR #271, di-merge 2026-11-03); sisa 6.5 (manual, staging), 7, 8 |
+| 0 | [`finance-p0-foundation-audit`](../../.kiro/specs/finance-p0-foundation-audit/requirements.md) | Berjalan — Task 1–6.4 (PR #271); draft Task 7 (PR #272); keputusan proses disahkan 2026-11-03; sisa: 6.5 (pemilik produk, staging), persetujuan laporan, keputusan per bug, 8 |
 | 1 | [`finance-p1-journal-core`](../../.kiro/specs/finance-p1-journal-core/requirements.md) | Draft lengkap — dieksekusi setelah Fase 0 disetujui |
 | 2 | [`finance-p2-posting-engine`](../../.kiro/specs/finance-p2-posting-engine/requirements.md) | Draft; peta rule sebagian bertanda `[TODO]` sampai kode sumber dibaca penuh |
 | 3 | [`finance-p3-tax-engine`](../../.kiro/specs/finance-p3-tax-engine/requirements.md) | Draft; menunggu D-12, D-15 |
@@ -353,7 +357,7 @@ Setiap spec berisi `requirements.md`, `design.md`, `tasks.md`, dan `.config.kiro
 
 **Alasan.** Branch tahapan yang lama tertinggal dari `dev-1` setelah PR-nya di-merge. Contoh nyata: setelah PR #271 di-merge, branch `feat/finance-p0-foundation-audit` tertinggal 3 commit dari `dev-1` (perbaikan template cetak PR #270 beserta merge #270 dan #271). Tahapan berikutnya yang berangkat dari basis basi memicu konflik atau push yang ditolak.
 
-**Konvensi turunan (PROPOSED, menunggu konfirmasi pemilik produk).** Butir di bawah ini diturunkan dari keputusan di atas dan belum disahkan sebagai keputusan:
+**Konvensi turunan (diputuskan pemilik produk, 2026-11-03).** Butir di bawah ini diturunkan dari keputusan di atas dan disahkan pada tanggal yang sama dengan alasan yang sama:
 
 1. Cara membuat branch: `git fetch origin`, pastikan working tree bersih, lalu `git switch --no-track -c <branch> origin/dev-1`.
 2. Pola nama `<tipe>/finance-p<N>-<nama>` dengan `<tipe>` = `feat`, `docs`, atau `fix` sesuai isi tahapan (mis. `docs/finance-p0-audit-report` untuk sisa Fase 0).
@@ -370,6 +374,8 @@ Setiap spec berisi `requirements.md`, `design.md`, `tasks.md`, dan `.config.kiro
 4. Struktur lama (`accounts.balance_amount` sebagai sumber, pencarian akun hardcode) dipensiunkan hanya setelah Fase 5 membuktikan rekonsiliasi.
 
 **Backfill GL lama (D-8).** Kelompokkan baris `general_ledgers` per (`referenceable_type`, `referenceable_id`, `transaction_date`) menjadi satu `journal`. Kelompok seimbang → `posted`. Kelompok tak seimbang → `legacy_unbalanced = true` dan masuk laporan rekonsiliasi; **tidak** dikoreksi otomatis. Backfill idempoten, dapat dijalankan ulang, dan tidak mengubah `debit`/`credit` lama.
+
+**Q1 (dijawab 2026-11-03).** Belum ada data sama sekali (GL produksi kosong); backfill di produksi karenanya tidak diperlukan saat ini, sehingga beban backfill produksi per 2026-11-03 nol (GL produksi kosong). Estimasi di laporan audit Bagian 4 berlaku untuk staging sebagai uji coba migrasi.
 
 **Rollback.** Migrasi bersifat aditif (kolom/tabel baru, `nullable`); feature flag per jenis dokumen dapat dimatikan untuk kembali ke jalur lama; backfill dapat dihapus ulang karena hanya mengisi `journal_id`.
 
@@ -390,7 +396,7 @@ Catatan lingkungan: test suite memakai SQLite `:memory:` sedangkan dev DB MySQL 
 
 | ID | Risiko | Dampak | Mitigasi |
 |---|---|---|---|
-| R-1 | Backfill GL lama menemukan banyak kelompok tak seimbang | Laporan awal tidak cocok | Audit Fase 0 mengukur ukuran masalah lebih dulu; flag `legacy_unbalanced`; tidak memaksa koreksi |
+| R-1 | Backfill GL lama menemukan banyak kelompok tak seimbang | Laporan awal tidak cocok; untuk produksi saat ini tidak berlaku, karena GL produksi belum berisi data nyata (Q1 dijawab 2026-11-03) | Audit Fase 0 mengukur ukuran masalah lebih dulu; flag `legacy_unbalanced`; tidak memaksa koreksi |
 | R-2 | Kesalahan kebijakan pajak (DPP Nilai Lain, PPN 12%) | Kewajiban pajak salah | Aturan berversi; golden test; validasi akuntan; ikuti spec DPP yang berjalan |
 | R-3 | Dua pola posting hidup bersamaan saat transisi | Duplikasi/ketidakcocokan | Feature flag per dokumen; mode shadow; satu jalur aktif per jenis dokumen |
 | R-4 | Tidak ada akuntan sebagai pengambil keputusan | Kebijakan ditebak | Jadikan prasyarat Fase 0; D-11 dan D-12 butuh persetujuan akuntan |
@@ -419,7 +425,7 @@ Catatan lingkungan: test suite memakai SQLite `:memory:` sedangkan dev DB MySQL 
 
 | # | Pertanyaan | Dibutuhkan sebelum |
 |---|---|---|
-| Q1 | Apakah GL sudah berisi data **produksi** nyata (hanya staging yang terlihat)? Ini menentukan beban backfill dan kehati-hatian migrasi | Fase 1 |
+| Q1 | Apakah GL sudah berisi data **produksi** nyata (hanya staging yang terlihat)? Ini menentukan beban backfill dan kehati-hatian migrasi. **Status: Dijawab 2026-11-03** oleh pemilik produk: belum ada data sama sekali (GL produksi kosong). Konsekuensi: beban backfill produksi per 2026-11-03 nol (GL produksi kosong). | Fase 1 |
 | Q2 | Siapa penanggung jawab akuntansi yang menyetujui kebijakan (D-11, D-12)? | Fase 0 |
 | Q3 | Berapa developer yang tersedia, dan apakah ada tenggat bisnis (mis. audit/pajak tertentu)? | Fase 0 |
 | Q4 | ~~Apakah multi-company direncanakan dalam 12 bulan (D-4)?~~ Dijawab 2026-10-18: satu perusahaan | — |

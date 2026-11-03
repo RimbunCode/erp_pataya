@@ -2,29 +2,29 @@
 
 | | |
 |---|---|
-| **Status dokumen** | Menunggu konfirmasi pemilik produk |
+| **Status dokumen** | Sebagian disahkan pemilik produk (2026-11-03); Fase 0 belum selesai |
 | **Tanggal entri** | 2026-11-03 |
 | **Spec** | [`finance-p0-foundation-audit`](../../.kiro/specs/finance-p0-foundation-audit/requirements.md) (Requirement 7.2 dan 7.5; Task 7.3) |
 | **Dokumen terkait** | [`finance-engine-prd.md`](finance-engine-prd.md) (sumber keputusan: Bagian 7 dan 16); [`finance-audit-report.md`](finance-audit-report.md) (laporan audit, sedang disusun) |
 
-> Dokumen ini **menunggu konfirmasi pemilik produk**. Fase 1 tidak dimulai sebelum laporan audit ([`finance-audit-report.md`](finance-audit-report.md)) disetujui dan Q1 terjawab (Requirement 7.5). Keputusan berstatus PENDING atau PROPOSED belum berlaku sebelum disahkan; hanya keputusan DECIDED yang sudah ditetapkan di PRD atau oleh pemilik produk. Sumber lengkap ada di [`finance-engine-prd.md`](finance-engine-prd.md) Bagian 7 (ADR), Bagian 10 (indeks spec dan aturan branch), dan Bagian 16 (pertanyaan terbuka).
+> Dokumen ini **disahkan sebagian** oleh pemilik produk pada 2026-11-03: BR-2 s.d. BR-5, DV-A, dan DV-B disahkan; DV-C diterima; Q1 versi PRD dan Q-P0-1 dijawab; D-1 dan D-11 ditunda. Fase 0 **belum selesai**. Fase 1 tidak dimulai sebelum laporan audit ([`finance-audit-report.md`](finance-audit-report.md)) disetujui (Requirement 7.5) dan Task 6.5 selesai. Yang masih menunggu: (1) Task 6.5, ditugaskan kepada pemilik produk di staging dan hasilnya belum diserahkan; (2) persetujuan laporan audit; (3) keputusan penanganan per bug (F-04, F-10, F-11, F-16, N-1 s.d. N-3). Keputusan berstatus PENDING atau PROPOSED belum berlaku sebelum disahkan. Sumber lengkap ada di [`finance-engine-prd.md`](finance-engine-prd.md) Bagian 7 (ADR), Bagian 10 (indeks spec dan aturan branch), dan Bagian 16 (pertanyaan terbuka).
 
 ## Ringkasan
 
 | ID | Topik | Fase | Status | Tanggal |
 |---|---|---|---|---|
-| D-1 | Mode posting: antrian vs sinkron | 2 | PENDING | 2026-11-03 |
+| D-1 | Mode posting: antrian vs sinkron | 2 | DITUNDA (2026-11-03); rekomendasi tetap B | 2026-11-03 |
 | D-4 | Satu perusahaan | 1 | DECIDED | 2026-10-18 |
-| D-11 | Standar akuntansi acuan | 0 | PENDING | 2026-11-03 |
+| D-11 | Standar akuntansi acuan | 0 | DITUNDA (2026-11-03), menunggu Q2 | 2026-11-03 |
 | D-12 | Pajak dalam jurnal | 3 | PROPOSED (validasi akuntan) | 2026-11-03 |
 | D-25 | Penyimpanan setting keuangan | S, 1–6 | DECIDED | 2026-10-18 |
 | D-26 | Akun transaksi hanya dari konfigurasi | 2 | DECIDED | 2026-10-18 |
 | BR-1 | Branch baru dari `origin/dev-1` terbaru untuk setiap tahapan | Proses | DECIDED | 2026-11-03 |
-| BR-2 s.d. BR-5 | Konvensi turunan: cara membuat, pola nama, PR dan penggabungan dev-1, definisi tahapan | Proses | PROPOSED (menunggu konfirmasi) | 2026-11-03 |
-| DV-A | Rumus snapshot saldo (penyimpangan dari Requirement 3.2 dan 3.5) | 0 | PENDING | 2026-11-03 |
-| DV-B | Cakupan characterization test Task 5.3, 5.4, 5.6 (penyimpangan dari Requirement 4) | 0 | PENDING | 2026-11-03 |
-| DV-C | Penanganan bug di luar opsi Requirement 7.3 (hotfix, Fase 1, Fase 2) | 0 | PENDING | 2026-11-03 |
-| Q1–Q7, Q-P0-1 | Pertanyaan terbuka | 0–6 | Terbuka (Q4 sudah dijawab) | Lihat tabel |
+| BR-2 s.d. BR-5 | Konvensi turunan: cara membuat, pola nama, PR dan penggabungan dev-1, definisi tahapan | Proses | DECIDED (disahkan 2026-11-03) | 2026-11-03 |
+| DV-A | Rumus snapshot saldo (penyimpangan dari Requirement 3.2 dan 3.5) | 0 | DECIDED (disahkan 2026-11-03) | 2026-11-03 |
+| DV-B | Cakupan characterization test Task 5.3, 5.4, 5.6 (penyimpangan dari Requirement 4) | 0 | DECIDED (disahkan 2026-11-03) | 2026-11-03 |
+| DV-C | Penanganan bug di luar opsi Requirement 7.3 (hotfix, Fase 1, Fase 2, atau fase terkait) | 0 | DECIDED (diterima 2026-11-03); penanganan per bug menunggu | 2026-11-03 |
+| Q1–Q7, Q-P0-1 | Pertanyaan terbuka | 0–6 | Terbuka (Q1 versi PRD, Q4, dan Q-P0-1 dijawab; Q2, Q3, Q5–Q7 terbuka) | Lihat tabel |
 | Q-P1-1 s.d. Q-P6-3 | 21 pertanyaan per fase dari spec Fase 1–6 | 1–6 | PENDING | 2026-11-03 |
 
 ## Keputusan Arsitektur (ADR)
@@ -35,9 +35,11 @@
 
 | Opsi | Rekomendasi | Pemilik keputusan | Status | Tanggal |
 |---|---|---|---|---|
-| A: pertahankan queue untuk semua; jadikan `JournalService::post()` atomik di dalam job. B: A ditambah pengamanan (penutupan periode diblokir selama ada posting `pending`/`failed`; laporan menampilkan indikator posting lag; Payment dan Asset boleh sinkron). C: semua sinkron dalam satu transaksi dengan dokumen. | B (rekomendasi PRD) | Pemilik produk | PENDING | 2026-11-03 |
+| A: pertahankan queue untuk semua; jadikan `JournalService::post()` atomik di dalam job. B: A ditambah pengamanan (penutupan periode diblokir selama ada posting `pending`/`failed`; laporan menampilkan indikator posting lag; Payment dan Asset boleh sinkron). C: semua sinkron dalam satu transaksi dengan dokumen. | B (rekomendasi PRD) | Pemilik produk | DITUNDA (2026-11-03) | 2026-11-03 |
 
 **Sumber:** PRD Bagian 7 (D-1, R-8) dan Bagian 16 (Q5).
+
+**Keputusan 2026-11-03: ditunda** oleh pemilik produk. Alasan: keputusan ini baru mengikat pada Fase 2; invarian jurnal seimbang tidak bergantung padanya, sehingga Fase 1 tidak terblokir. Rekomendasi tetap opsi B. Keputusan wajib sebelum Fase 2. Q5 tetap Terbuka.
 
 ### D-4 — Satu perusahaan
 
@@ -55,9 +57,11 @@
 
 | Opsi | Rekomendasi | Pemilik keputusan | Status | Tanggal |
 |---|---|---|---|---|
-| A: SAK/PSAK. B: IFRS penuh. | Tidak ada di PRD; menunggu masukan akuntan (R-4, Q2) | Pemilik produk, dengan masukan akuntan | PENDING | 2026-11-03 |
+| A: SAK/PSAK. B: IFRS penuh. | Tidak ada di PRD; menunggu masukan akuntan (R-4, Q2) | Pemilik produk, dengan masukan akuntan | DITUNDA (2026-11-03) | 2026-11-03 |
 
 **Sumber:** PRD Bagian 7 (D-11, ADR tabel), Bagian 13 (R-4), Bagian 16 (Q2).
+
+**Keputusan 2026-11-03: ditunda** oleh pemilik produk. Alasan: menunggu akuntan (Q2); paling lambat sebelum desain Fase 5 difinalkan (PRD); berdampak juga ke Fase 4/6. Q2 tetap Terbuka.
 
 ### D-12 — Pajak dalam jurnal
 
@@ -95,7 +99,7 @@
 
 **Konteks.** Branch tahapan yang lama tertinggal dari `dev-1` setelah PR-nya di-merge. Contoh nyata: setelah PR #271 di-merge, branch `feat/finance-p0-foundation-audit` tertinggal 3 commit dari `dev-1` (perbaikan template cetak PR #270 beserta merge #270 dan #271). Tahapan berikutnya yang berangkat dari basis basi memicu konflik atau push yang ditolak.
 
-**Keputusan pemilik produk (2026-11-03).** Setiap tahapan dikerjakan di branch baru dari `origin/dev-1` terbaru. Hanya butir ini yang diputuskan; konvensi turunannya dicatat terpisah di BR-2 s.d. BR-5.
+**Keputusan pemilik produk (2026-11-03).** Setiap tahapan dikerjakan di branch baru dari `origin/dev-1` terbaru. Konvensi turunannya dicatat terpisah di BR-2 s.d. BR-5 dan juga disahkan pada 2026-11-03.
 
 | Opsi | Rekomendasi | Pemilik keputusan | Status | Tanggal |
 |---|---|---|---|---|
@@ -105,49 +109,49 @@
 
 ### BR-2 — Cara membuat branch tahapan
 
-**Konvensi turunan, belum diputuskan.** `git fetch origin`, pastikan working tree bersih, lalu `git switch --no-track -c <branch> origin/dev-1`.
+**Konvensi turunan, disahkan pemilik produk (2026-11-03).** `git fetch origin`, pastikan working tree bersih, lalu `git switch --no-track -c <branch> origin/dev-1`. Alasan: rincian pelaksanaan BR-1.
 
 | Opsi | Rekomendasi | Pemilik keputusan | Status | Tanggal |
 |---|---|---|---|---|
-| Konvensi di atas (diusulkan). PRD tidak mencantumkan alternatif tertulis. | Usulan; menunggu konfirmasi pemilik produk | Pemilik produk | PROPOSED, menunggu konfirmasi | 2026-11-03 |
+| Konvensi di atas (dipilih). PRD tidak mencantumkan alternatif tertulis. | Disahkan (usulan PRD Bagian 10) | Pemilik produk | DECIDED (disahkan 2026-11-03) | 2026-11-03 |
 
 **Sumber:** PRD Bagian 10 (butir 1 "Aturan branch per tahapan").
 
 ### BR-3 — Pola nama branch
 
-**Konvensi turunan, belum diputuskan.** Pola `<tipe>/finance-p<N>-<nama>`, dengan tipe `feat`, `docs`, atau `fix` sesuai isi pekerjaan. Contoh sisa Fase 0: `docs/finance-p0-audit-report`.
+**Konvensi turunan, disahkan pemilik produk (2026-11-03).** Pola `<tipe>/finance-p<N>-<nama>`, dengan tipe `feat`, `docs`, atau `fix` sesuai isi pekerjaan. Contoh sisa Fase 0: `docs/finance-p0-audit-report`.
 
-**Pilihan yang harus diputuskan.** PRD Bagian 10 mengusulkan opsi A; rumusan sebelumnya (putaran review 2026-11-03) hanya `feat/…`. Bila dipilih B, branch saat ini harus di-rename.
+**Keputusan 2026-11-03: opsi A.** Alasan: pola mengikuti isi tahapan (usulan PRD Bagian 10). PRD Bagian 10 mengusulkan opsi A; rumusan sebelumnya (putaran review 2026-11-03) hanya `feat/…`. Opsi B akan mewajibkan rename branch.
 
 | Opsi | Rekomendasi | Pemilik keputusan | Status | Tanggal |
 |---|---|---|---|---|
-| A: pola dengan tipe `feat`, `docs`, atau `fix` sesuai isi (contoh `docs/finance-p0-audit-report`). B: hanya `feat/finance-p<N>-<nama>`; branch saat ini harus di-rename. | A (usulan PRD Bagian 10), menunggu konfirmasi | Pemilik produk | PROPOSED, menunggu konfirmasi | 2026-11-03 |
+| A (dipilih): pola dengan tipe `feat`, `docs`, atau `fix` sesuai isi (contoh `docs/finance-p0-audit-report`). B (tidak dipilih): hanya `feat/finance-p<N>-<nama>`; branch saat ini harus di-rename. | A (usulan PRD Bagian 10, disahkan) | Pemilik produk | DECIDED (disahkan 2026-11-03) | 2026-11-03 |
 
 **Sumber:** PRD Bagian 10 (butir 2 "Aturan branch per tahapan"); branch aktual per git.
 
 ### BR-4 — PR dan penggabungan `dev-1`
 
-**Konvensi turunan, belum diputuskan.** PR selalu ber-base `dev-1`. Bila `dev-1` bergerak sebelum PR dibuka atau diperbarui, `origin/dev-1` digabung ke branch.
+**Konvensi turunan, disahkan pemilik produk (2026-11-03).** PR selalu ber-base `dev-1`. Bila `dev-1` bergerak sebelum PR dibuka atau diperbarui, `origin/dev-1` digabung ke branch. Alasan: rincian pelaksanaan BR-1.
 
 | Opsi | Rekomendasi | Pemilik keputusan | Status | Tanggal |
 |---|---|---|---|---|
-| Konvensi di atas (diusulkan). PRD tidak mencantumkan alternatif tertulis. | Usulan; menunggu konfirmasi pemilik produk | Pemilik produk | PROPOSED, menunggu konfirmasi | 2026-11-03 |
+| Konvensi di atas (dipilih). PRD tidak mencantumkan alternatif tertulis. | Disahkan (usulan PRD Bagian 10) | Pemilik produk | DECIDED (disahkan 2026-11-03) | 2026-11-03 |
 
 **Sumber:** PRD Bagian 10 (butir 3 "Aturan branch per tahapan").
 
 ### BR-5 — Definisi tahapan
 
-**Konvensi turunan, belum diputuskan.** Satu tahapan = satu fase, atau satu bagian fase yang dikirim sebagai PR tersendiri (contoh: sisa Fase 0 setelah PR #271).
+**Konvensi turunan, disahkan pemilik produk (2026-11-03).** Satu tahapan = satu fase, atau satu bagian fase yang dikirim sebagai PR tersendiri (contoh: sisa Fase 0 setelah PR #271). Alasan: rincian pelaksanaan BR-1.
 
 | Opsi | Rekomendasi | Pemilik keputusan | Status | Tanggal |
 |---|---|---|---|---|
-| Definisi di atas (diusulkan). PRD tidak mencantumkan alternatif tertulis. | Usulan; menunggu konfirmasi pemilik produk | Pemilik produk | PROPOSED, menunggu konfirmasi | 2026-11-03 |
+| Definisi di atas (dipilih). PRD tidak mencantumkan alternatif tertulis. | Disahkan (usulan PRD Bagian 10) | Pemilik produk | DECIDED (disahkan 2026-11-03) | 2026-11-03 |
 
 **Sumber:** PRD Bagian 10 (paragraf pembuka "Aturan branch per tahapan").
 
 ## Penyimpangan dan Usulan Perubahan Spec
 
-Tiga butir berikut belum disahkan dan dicatat sebagai PENDING. Untuk DV-A dan DV-B, teks spec sudah diubah pada tanggal perubahan masing-masing; bila pemilik produk tidak mengesahkan, teks dan rumus harus dikembalikan. Untuk DV-C, teks Requirement 7.3 belum diubah dan hanya berubah bila usulan diterima.
+Tiga butir berikut diputuskan pemilik produk pada 2026-11-03. DV-A dan DV-B disahkan. DV-C diterima sebagai bentuk usulan; keputusan penanganan per bug tetap menunggu. Teks spec yang terdampak (Requirement 3.2, 3.5, 4, dan 7.3) sudah disesuaikan pada tanggal perubahan masing-masing.
 
 ### DV-A — Rumus snapshot saldo (Requirement 3.2 dan 3.5)
 
@@ -155,15 +159,17 @@ Tiga butir berikut belum disahkan dan dicatat sebagai PENDING. Untuk DV-A dan DV
 
 **Teks spec.** Requirement 3.2 dan 3.5 di `requirements.md` sudah memakai rumus baru, dan `design.md` (bagian 4) mengunci rumus yang sama.
 
+**Keputusan 2026-11-03: disahkan** oleh pemilik produk. Alasan: mengikuti konvensi tanda `balance_amount` yang ditulis `StockEntryService`. Verifikasi terhadap data staging tetap dilakukan pada Task 6.5.
+
 | Opsi | Rekomendasi | Pemilik keputusan | Status | Tanggal |
 |---|---|---|---|---|
-| A: rumus baru, mengikuti tanda `balance_amount` yang ditulis kode saat ini (dipakai). B: rumus awal, arah `net` menurut `balance_type`. | A (rumus yang dikunci `design.md` dari kode saat ini); menunggu verifikasi staging dan pengesahan | Pemilik produk | PENDING | 2026-11-03 (perubahan spec 2026-11-01) |
+| A (dipilih, disahkan 2026-11-03): rumus baru, mengikuti tanda `balance_amount` yang ditulis kode saat ini. B (tidak dipilih): rumus awal, arah `net` menurut `balance_type`. | A (rumus yang dikunci `design.md` dari kode saat ini); verifikasi staging tetap pada Task 6.5 | Pemilik produk | DECIDED (disahkan 2026-11-03) | 2026-11-03 (perubahan spec 2026-11-01) |
 
 **Sumber:** `.kiro/specs/finance-p0-foundation-audit/requirements.md` (Requirement 3.2, 3.5), `design.md` (bagian 4), `tasks.md` (Task 3.1).
 
 ### DV-B — Cakupan characterization test Task 5.3, 5.4, 5.6 (Requirement 4.1–4.2)
 
-**Konteks.** Requirement 4 meminta characterization test untuk setiap titik posting, termasuk jalur stok/SRNB, retur, dan aset. Tiga task dipersempit ke batas event dan listener asli, bukan jalur service penuh, karena nilai yang diuji berasal dari valuasi stok (SLE), yang berada di luar refactor posting:
+**Konteks.** Requirement 4 meminta characterization test untuk setiap titik posting, termasuk jalur stok/SRNB, retur, dan aset. Tiga task dipersempit ke batas event dan listener asli, bukan jalur service penuh, karena nilai yang diuji berasal dari valuasi stok (SLE) untuk Task 5.3 dan 5.4, serta dari dokumen penyesuaian dan nilai buku aset untuk Task 5.6. Valuasi stok berada di luar refactor posting:
 
 - **Task 5.3** (Purchase Invoice cabang stok/SRNB): nilai `totalStockGL` berasal dari valuasi SLE. Cakupan valuasinya sudah ada di `PurchaseInvoicePendingSlesFifoOrderTest`.
 - **Task 5.4** (Purchase Receipt dan Delivery Note): `totalRatesForGL` dan `totalPicked` adalah keluaran valuasi stok. Jalur rental Delivery Note tidak dibuat di task ini; posting rental ada di `PostAssetDisposalGainLoss` (Task 5.6).
@@ -176,9 +182,11 @@ Tiga butir berikut belum disahkan dan dicatat sebagai PENDING. Untuk DV-A dan DV
 
 | Opsi | Rekomendasi | Pemilik keputusan | Status | Tanggal |
 |---|---|---|---|---|
-| A: cakupan dipersempit seperti sekarang, dengan batas yang dicatat di test. B: kembali ke cakupan Requirement 4.1–4.2 penuh (jalur service), dengan test tambahan pada task terkait. | Tidak ada rekomendasi tertulis di sumber | Pemilik produk | PENDING | 2026-11-03 (perubahan task 2026-11-01) |
+| A (dipilih, disahkan 2026-11-03): cakupan dipersempit seperti sekarang, dengan batas yang dicatat di test. B (tidak dipilih): kembali ke cakupan Requirement 4.1–4.2 penuh (jalur service), dengan test tambahan pada task terkait. | Tidak ada rekomendasi tertulis di sumber; keputusan pemilik produk | Pemilik produk | DECIDED (disahkan 2026-11-03) | 2026-11-03 (perubahan task 2026-11-01) |
 
 **Sumber:** `tasks.md` (catatan Task 5.3, 5.4, 5.6), `requirements.md` (Requirement 4.1–4.2, 5.7).
+
+**Keputusan 2026-11-03: disahkan** oleh pemilik produk. Alasan: (a) Purchase Receipt, Delivery Note, dan cabang stok/SRNB Purchase Invoice: nilai debit/kredit berasal dari valuasi stok (SLE), yang berada di luar cakupan refactor posting. (b) Penyesuaian nilai aset: nilai berasal dari selisih dokumen penyesuaian (`difference_amount`, `PostValueAdjustmentEntry`). Disposal aset: nilai berasal dari harga jual proporsional dikurangi nilai buku proporsional (`bookValue()` di `app/Models/Asset/Asset.php`, dipakai oleh `app/Listeners/Asset/Rental/PostAssetDisposalGainLoss.php` baris 33–39). Jalur service Sales Invoice dan dokumen penyesuaian dikunci terpisah oleh characterization test Sales Invoice (`SalesInvoicePostingTest`) dan oleh test listener (`PostValueAdjustmentEntryTest`). Batas ini dicatat sebagai Requirement 4.6 di `requirements.md`.
 
 ### DV-C — Penanganan bug di luar opsi Requirement 7.3 (usulan)
 
@@ -186,28 +194,30 @@ Tiga butir berikut belum disahkan dan dicatat sebagai PENDING. Untuk DV-A dan DV
 
 | Opsi | Rekomendasi | Pemilik keputusan | Status | Tanggal |
 |---|---|---|---|---|
-| A: terima, lalu Requirement 7.3 diubah menjadi "…atau fase terkait". B: tolak, dan pilih salah satu dari hotfix, Fase 1, atau Fase 2. | A, karena sejalan dengan PRD (D-16 dan D-17 di Fase 4; FR-R2 di Fase 5) | Pemilik produk | PENDING | 2026-11-03 |
+| A (dipilih, diterima 2026-11-03): terima, lalu Requirement 7.3 diubah menjadi "…atau fase terkait". B (tidak dipilih): tolak, dan pilih salah satu dari hotfix, Fase 1, atau Fase 2. | A, karena sejalan dengan PRD (D-16 dan D-17 di Fase 4; FR-R2 di Fase 5) | Pemilik produk | DECIDED (diterima 2026-11-03) | 2026-11-03 |
 
 **Sumber:** `requirements.md` (Requirement 7.3); PRD Bagian 7 (D-16, D-17), Bagian 8.5 (FR-R2); `finance-audit-report.md` Bagian 3.1 (F-04), Bagian 3.3 (F-11).
+
+**Keputusan 2026-11-03: diterima** oleh pemilik produk, sebagai bentuk usulan saja. Requirement 7.3 sudah diubah. Keputusan penanganan per bug (F-04, F-10, F-11, F-16, N-1 s.d. N-3) tetap MENUNGGU pemilik produk.
 
 ## Pertanyaan Terbuka
 
 | ID | Pertanyaan | Opsi | Rekomendasi | Pemilik keputusan | Status | Tanggal | Dibutuhkan sebelum |
 |---|---|---|---|---|---|---|---|
-| Q1 | Apakah GL sudah berisi data **produksi** nyata (hanya staging yang terlihat)? | — | — | Pemilik produk | Terbuka | 2026-11-03 | Fase 1 |
+| Q1 | Apakah GL sudah berisi data **produksi** nyata (hanya staging yang terlihat)? | — | — | Pemilik produk | Dijawab 2026-11-03: belum ada data sama sekali (GL produksi kosong) (versi spec: untuk sekarang staging saja) | 2026-11-03 | Fase 1 |
 | Q2 | Siapa penanggung jawab akuntansi yang menyetujui kebijakan (D-11, D-12)? | — | — | Pemilik produk (PRD tidak merinci) | Terbuka | 2026-11-03 | Fase 0 |
 | Q3 | Berapa developer yang tersedia, dan apakah ada tenggat bisnis (mis. audit atau pajak tertentu)? | — | — | Pemilik produk | Terbuka | 2026-11-03 | Fase 0 |
 | Q4 | ~~Apakah multi-company direncanakan dalam 12 bulan (D-4)?~~ Dijawab: satu perusahaan (lihat D-4). | — | — | Pemilik produk | Dijawab | 2026-10-18 | — |
 | Q5 | D-1: opsi A, B, atau C? | A, B, atau C (lihat D-1) | B (rekomendasi D-1) | Pemilik produk | Terbuka | 2026-11-03 | Fase 2 |
 | Q6 | Format laporan resmi yang dibutuhkan (SAK/PSAK, format e-Faktur/SPT)? | — | — | Pemilik produk | Terbuka | 2026-11-03 | Fase 5 |
 | Q7 | Apakah ada laporan keuangan eksternal yang saat ini dibuat manual di luar ERP dan harus direplikasi? | — | — | Pemilik produk | Terbuka | 2026-11-03 | Fase 5 |
-| Q-P0-1 | Siapa yang menjalankan perintah audit (`finance:audit-gl`, `finance:snapshot-balances`) di staging dan produksi, lalu mengirim hasilnya? | — | — | Pemilik produk (spec tidak merinci) | Terbuka | 2026-11-03 | Task 6.5 (Fase 0) |
+| Q-P0-1 | Siapa yang menjalankan perintah audit (`finance:audit-gl`, `finance:snapshot-balances`) di staging dan produksi, lalu mengirim hasilnya? **Dijawab: pemilik produk menjalankan di staging; produksi tidak untuk sekarang.** | — | — | Pemilik produk | Dijawab | 2026-11-03 | Task 6.5 (Fase 0) |
 
 Keterangan: "—" berarti PRD atau spec tidak mencantumkan opsi atau rekomendasi tertulis.
 
 **Sumber:** PRD Bagian 16 (Q1–Q7). Q-P0-1 dari `requirements.md` dan `design.md` (bukan PRD).
 
-**Catatan Q1.** Rumusan Q1 di `requirements.md` dan `design.md` berbeda dari PRD: "Apakah audit boleh dijalankan pada DB produksi (read-only)?". Pemilik produk perlu menjawab kedua pertanyaan, atau memilih salah satu rumusan.
+**Catatan Q1.** Q1 versi PRD (apakah GL sudah berisi data produksi nyata?) dijawab pemilik produk pada 2026-11-03: belum ada data sama sekali (GL produksi kosong). Konsekuensi (bukan keputusan baru): beban backfill produksi per 2026-11-03 nol (GL produksi kosong); estimasi backfill di laporan audit Bagian 4 berlaku untuk staging sebagai uji coba migrasi. Q1 versi spec (apakah audit boleh dijalankan pada DB produksi) dijawab 2026-11-03: untuk sekarang hanya staging. Prasyarat Fase 1 yang belum selesai (persetujuan laporan audit, Task 6.5) tetap berlaku.
 
 ## Pertanyaan per Fase (Q-P1 s.d. Q-P6)
 
@@ -248,5 +258,5 @@ Butir berikut tidak ditemukan secara tertulis di sumber dan ditandai "—" atau 
 - Opsi alternatif untuk D-4, D-25, dan D-26 (PRD hanya mencatat keputusan yang dipilih).
 - Opsi alternatif untuk D-12, BR-2, BR-4, dan BR-5 (PRD hanya memuat satu usulan).
 - Rekomendasi untuk D-11 (PRD meminta masukan akuntan).
-- Pemilik keputusan untuk Q1–Q3, Q6, Q7, dan Q-P0-1 (PRD dan spec tidak merinci; ditulis sebagai pemilik produk).
+- Pemilik keputusan untuk Q1–Q3, Q6, dan Q7 (PRD dan spec tidak merinci; ditulis sebagai pemilik produk).
 - Task yang membutuhkan Q-P1-1, Q-P1-2, Q-P2-1, Q-P2-4, Q-P5-2, Q-P6-2, dan Q-P6-3 tidak dirinci di `tasks.md`.

@@ -8,7 +8,7 @@
 | **Dokumen terkait** | [`finance-engine-prd.md`](finance-engine-prd.md) (Lampiran A dan B), [`finance-decision-log.md`](finance-decision-log.md) |
 | **Penyusun** | Pembacaan kode dan test pada branch `docs/finance-p0-audit-report`. Tidak ada data staging atau produksi yang dipakai |
 
-> **Cara membaca dokumen ini.** Bagian yang berlabel **MENUNGGU Task 6.5** memerlukan angka dari DB staging (dan produksi bila Q1 disetujui). Angka tersebut **sengaja dikosongkan** dan tidak boleh diisi dari perkiraan. Semua klaim perilaku kode lain dirujuk ke `file:baris` atau ke test yang menjalankannya; klaim yang hanya berasal dari pembacaan kode (belum diuji) diberi label **belum diuji**.
+> **Cara membaca dokumen ini.** Bagian yang berlabel **MENUNGGU Task 6.5** memerlukan angka dari DB staging (produksi tidak diperlukan; lihat Q1). Angka tersebut **sengaja dikosongkan** dan tidak boleh diisi dari perkiraan. Semua klaim perilaku kode lain dirujuk ke `file:baris` atau ke test yang menjalankannya; klaim yang hanya berasal dari pembacaan kode (belum diuji) diberi label **belum diuji**.
 
 ---
 
@@ -25,11 +25,11 @@
 
 | # | Menunggu | Pemilik | Dampak |
 |---|---|---|---|
-| 1 | **Task 6.5**: menjalankan `finance:audit-gl --json` dan `finance:snapshot-balances` di staging (dan produksi bila disetujui), menyimpan keluaran di `storage/app/finance-audit/` | Pelaksana Q-P0-1 | Bagian 1.5 (skema aktual), Bagian 2 (hasil audit), Bagian 4 (angka backfill) |
-| 2 | **Q1**: apakah audit boleh dijalankan pada DB produksi (read-only)? Rumusan Q1 di PRD (apakah GL sudah berisi data produksi nyata) berbeda dari rumusan spec; lihat catatan di decision log | Pemilik produk | Menentukan apakah estimasi berbasis data nyata atau hanya staging |
-| 3 | **Q-P0-1**: siapa yang menjalankan perintah di staging/produksi dan mengirim hasilnya | Pemilik produk | Task 6.5 tidak dapat dimulai tanpa jawaban ini |
-| 4 | **Keputusan pemilik produk** atas tiap temuan di Bagian 3 (F-04, F-10, F-11, F-16, N-1, N-2, N-3) | Pemilik produk | Menentukan apakah ada hotfix terpisah dan apa yang masuk Fase 1 atau 2 |
-| 5 | **Persetujuan laporan ini** (Requirement 7.5). Fase 1 tidak dimulai sebelum laporan disetujui dan Q1 dijawab | Pemilik produk | Gerbang Fase 1 |
+| 1 | **Task 6.5**: menjalankan `finance:audit-gl --json` dan `finance:snapshot-balances` di staging (produksi tidak diperlukan; Q1 dijawab 2026-11-03), menyimpan keluaran di `storage/app/finance-audit/` | Pemilik produk (Q-P0-1 dijawab 2026-11-03: menjalankan di staging) | Bagian 1.5 (skema aktual), Bagian 2 (hasil audit), Bagian 4 (angka backfill) |
+| 2 | ~~**Q1** versi PRD~~ **Dijawab 2026-11-03**: belum ada data sama sekali (GL produksi kosong). Tidak lagi menunggu | Pemilik produk | Sudah tertutup; tidak memblokir Fase 1 |
+| 3 | **Q-P0-1** dijawab 2026-11-03: pemilik produk sendiri menjalankan perintah di staging dan menyerahkan hasilnya. Produksi tidak untuk sekarang | Pemilik produk | Task 6.5 dapat dilaksanakan; checkbox tetap terbuka sampai hasil diterima |
+| 4 | **Keputusan pemilik produk** atas tiap temuan di Bagian 3 (F-04, F-10, F-11, F-16, N-1, N-2, N-3) | Pemilik produk | Menentukan apakah ada hotfix terpisah dan apa yang masuk Fase 1, Fase 2, atau fase terkait |
+| 5 | **Persetujuan laporan ini** (Requirement 7.5). Fase 1 tidak dimulai sebelum laporan disetujui (Q1 versi PRD sudah dijawab 2026-11-03) | Pemilik produk | Gerbang Fase 1 |
 
 ---
 
@@ -171,7 +171,7 @@ Kolom runtime (bukan migration): lihat Bagian 1.2.
 
 #### 1.5.2 **MENUNGGU Task 6.5 (staging)**: skema aktual dan selisihnya
 
-Bagian ini **belum terisi**. Jalankan query read-only berikut di DB staging (Q-P0-1: pelaksana belum ditentukan). Semua query hanya `SELECT`/`SHOW`; memakai `DATABASE()` agar nama skema tidak ditulis di sini. **Jangan menjalankan `db:seed`, `PermissionSeeder`, `migrate`, atau `tinker`** sebagai bagian Task 6.5; hanya query di bawah ini dan dua perintah `finance:*` pada Bagian 2.1 (deploy sudah menjalankan seeder sendiri).
+Bagian ini **belum terisi**. Jalankan query read-only berikut di DB staging (pelaksana: pemilik produk, Q-P0-1 dijawab 2026-11-03). Semua query hanya `SELECT`/`SHOW`; memakai `DATABASE()` agar nama skema tidak ditulis di sini. **Jangan menjalankan `db:seed`, `PermissionSeeder`, `migrate`, atau `tinker`** sebagai bagian Task 6.5; hanya query di bawah ini dan dua perintah `finance:*` pada Bagian 2.1 (deploy sudah menjalankan seeder sendiri).
 
 ```sql
 -- 1. Definisi lengkap
@@ -267,7 +267,7 @@ php artisan finance:snapshot-balances --path=storage/app/finance-audit/baseline-
 
 Catatan opsi: `--json=<berkas>.json` menulis ke berkas itu; `--json=<folder>` atau `--json` tanpa nilai menulis `audit-<Ymd-His>.json` ke folder tersebut (default `storage/app/finance-audit/`). Tanpa opsi `--json`, hanya tabel konsol yang dicetak. Pelaksana mencatat tanggal/jam run, lingkungan, dan koneksi yang dipakai.
 
-Slot hasil dipisah per lingkungan: **Staging** (wajib) dan **Produksi** (bersyarat jawaban Q1).
+Slot hasil dipisah per lingkungan: **Staging** (wajib) dan **Produksi** tidak diperlukan: belum ada data sama sekali (GL produksi kosong) (Q1 dijawab 2026-11-03).
 
 ### 2.2 Field JSON yang dibaca per kategori anomali
 
@@ -275,19 +275,19 @@ Struktur: `AuditReport::toArray()` → `generated_at`, `totals`, `sections`, `co
 
 | Req | Kategori | Field JSON | Satuan | Staging | Produksi |
 |---|---|---|---|---|---|
-| 1.3 | Jumlah baris GL aktif | `totals.rows` | baris | MENUNGGU | MENUNGGU (Q1) |
-| 1.3 | Baris GL soft-deleted | `totals.rows_soft_deleted` | baris | MENUNGGU | MENUNGGU (Q1) |
-| 1.3 | Jumlah kelompok posting (aktif) | `totals.groups` | kelompok (`referenceable_type`, `referenceable_id`, `transaction_date`) | MENUNGGU | MENUNGGU (Q1) |
-| 1.3 | Rentang `transaction_date` | `totals.date_min`, `totals.date_max` | tanggal | MENUNGGU | MENUNGGU (Q1) |
-| 1.3 | Σdebit, Σkredit, selisih | `totals.sum_debit`, `totals.sum_credit`, `totals.diff` | nominal (4 desimal) | MENUNGGU | MENUNGGU (Q1) |
-| 1.2.1 | Kelompok tak seimbang | `sections.unbalanced_groups.count`, `.total_diff`, `.samples[]` (`referenceable_type`, `referenceable_id`, `transaction_date`, `line_count`, `sum_debit`, `sum_credit`, `diff`) | kelompok; `total_diff` = Σ\|selisih\| per kelompok | MENUNGGU | MENUNGGU (Q1) |
-| 1.2.2 | Debit dan kredit sama-sama nol, atau salah satunya negatif | `sections.zero_or_negative.count`, `.samples[]` | baris | MENUNGGU | MENUNGGU (Q1) |
-| 1.2.3a | Soft-delete **diharapkan** (dokumen sumber `canceled`) | `sections.soft_deleted_expected.count` | baris | MENUNGGU | MENUNGGU (Q1) |
-| 1.2.3b | Soft-delete **anomali** (dokumen tidak `canceled`, tidak ditemukan, atau jenis tanpa kolom `status`) | `sections.soft_deleted_unexpected.count` | baris | MENUNGGU | MENUNGGU (Q1) |
-| 1.2.4 | Akun hilang atau soft-deleted | `sections.dangling_account.count` | baris; **baris yang kedua kolomnya (`account_id` dan `against_account_id`) bermasalah terhitung dua kali** | MENUNGGU | MENUNGGU (Q1) |
-| 1.2.5 | `referenceable` tidak ditemukan | `sections.orphan_reference.count` (catatan `tipe tidak dikenal` pada contoh) | baris | MENUNGGU | MENUNGGU (Q1) |
-| 1.2.6 | Dokumen `canceled` dengan GL aktif (F-16) | `sections.canceled_active_gl.count` | **dokumen** | MENUNGGU | MENUNGGU (Q1) |
-| 1.2.7 | Duplikasi posting | `sections.duplicates.count`, `.extra_rows` | kelompok kombinasi duplikat; baris berlebih | MENUNGGU | MENUNGGU (Q1) |
+| 1.3 | Jumlah baris GL aktif | `totals.rows` | baris | MENUNGGU | tidak diperlukan (Q1) |
+| 1.3 | Baris GL soft-deleted | `totals.rows_soft_deleted` | baris | MENUNGGU | tidak diperlukan (Q1) |
+| 1.3 | Jumlah kelompok posting (aktif) | `totals.groups` | kelompok (`referenceable_type`, `referenceable_id`, `transaction_date`) | MENUNGGU | tidak diperlukan (Q1) |
+| 1.3 | Rentang `transaction_date` | `totals.date_min`, `totals.date_max` | tanggal | MENUNGGU | tidak diperlukan (Q1) |
+| 1.3 | Σdebit, Σkredit, selisih | `totals.sum_debit`, `totals.sum_credit`, `totals.diff` | nominal (4 desimal) | MENUNGGU | tidak diperlukan (Q1) |
+| 1.2.1 | Kelompok tak seimbang | `sections.unbalanced_groups.count`, `.total_diff`, `.samples[]` (`referenceable_type`, `referenceable_id`, `transaction_date`, `line_count`, `sum_debit`, `sum_credit`, `diff`) | kelompok; `total_diff` = Σ\|selisih\| per kelompok | MENUNGGU | tidak diperlukan (Q1) |
+| 1.2.2 | Debit dan kredit sama-sama nol, atau salah satunya negatif | `sections.zero_or_negative.count`, `.samples[]` | baris | MENUNGGU | tidak diperlukan (Q1) |
+| 1.2.3a | Soft-delete **diharapkan** (dokumen sumber `canceled`) | `sections.soft_deleted_expected.count` | baris | MENUNGGU | tidak diperlukan (Q1) |
+| 1.2.3b | Soft-delete **anomali** (dokumen tidak `canceled`, tidak ditemukan, atau jenis tanpa kolom `status`) | `sections.soft_deleted_unexpected.count` | baris | MENUNGGU | tidak diperlukan (Q1) |
+| 1.2.4 | Akun hilang atau soft-deleted | `sections.dangling_account.count` | baris; **baris yang kedua kolomnya (`account_id` dan `against_account_id`) bermasalah terhitung dua kali** | MENUNGGU | tidak diperlukan (Q1) |
+| 1.2.5 | `referenceable` tidak ditemukan | `sections.orphan_reference.count` (catatan `tipe tidak dikenal` pada contoh) | baris | MENUNGGU | tidak diperlukan (Q1) |
+| 1.2.6 | Dokumen `canceled` dengan GL aktif (F-16) | `sections.canceled_active_gl.count` | **dokumen** | MENUNGGU | tidak diperlukan (Q1) |
+| 1.2.7 | Duplikasi posting | `sections.duplicates.count`, `.extra_rows` | kelompok kombinasi duplikat; baris berlebih | MENUNGGU | tidak diperlukan (Q1) |
 
 Catatan pembacaan:
 
@@ -335,11 +335,11 @@ Catatan pembacaan matriks:
 
 | Ringkasan yang diambil dari CSV | Staging | Produksi |
 |---|---|---|
-| Jumlah akun (baris CSV), termasuk akun tanpa transaksi dan akun soft-deleted | MENUNGGU | MENUNGGU (Q1) |
-| Jumlah akun dengan `difference` ≠ 0 (toleransi 0,005) | MENUNGGU | MENUNGGU (Q1) |
-| Σ `difference` seluruh akun | MENUNGGU | MENUNGGU (Q1) |
-| Jumlah akun dengan `note` `balance_type kosong` / `akun soft-deleted` | MENUNGGU | MENUNGGU (Q1) |
-| Konfirmasi konvensi tanda `balance_amount` terhadap data nyata (debit − kredit untuk semua akun; design.md bagian 4 (Task 3.1) belum diverifikasi terhadap data staging) | MENUNGGU | MENUNGGU (Q1) |
+| Jumlah akun (baris CSV), termasuk akun tanpa transaksi dan akun soft-deleted | MENUNGGU | tidak diperlukan (Q1) |
+| Jumlah akun dengan `difference` ≠ 0 (toleransi 0,005) | MENUNGGU | tidak diperlukan (Q1) |
+| Σ `difference` seluruh akun | MENUNGGU | tidak diperlukan (Q1) |
+| Jumlah akun dengan `note` `balance_type kosong` / `akun soft-deleted` | MENUNGGU | tidak diperlukan (Q1) |
+| Konfirmasi konvensi tanda `balance_amount` terhadap data nyata (debit − kredit untuk semua akun; design.md bagian 4 (Task 3.1) belum diverifikasi terhadap data staging) | MENUNGGU | tidak diperlukan (Q1) |
 
 ---
 
@@ -381,7 +381,7 @@ Ringkasan:
 - *Bagian `paid_amount` saat Payment Entry dibatalkan:* **kandidat hotfix terpisah**. Alasan: bug AR/AP yang nyata dan lokal pada satu alur, tidak bergantung pada jurnal baru. Perlu keputusan apakah dikerjakan sebelum Fase 2.
 - *Bagian `balance_amount`:* **Fase 2**/**Fase 5** (saldo cache dipensiunkan sebagai sumber, FR-R2).
 
-Usulan fase di luar pilihan Req 7.3 (hotfix/Fase 1/Fase 2), yaitu Fase 5 untuk `balance_amount`, menunggu persetujuan pemilik produk.
+Bentuk usulan diizinkan (DV-C, 2026-11-03); keputusan penanganan tetap menunggu.
 
 **Keputusan pemilik produk: MENUNGGU.**
 
@@ -413,7 +413,7 @@ WHERE ABS(g.gl_debit - pe.paid_amount) > 0.005;
 
 | Hasil | Staging | Produksi |
 |---|---|---|
-| `jumlah_payment_terdampak`, `total_kelebihan_gl` | MENUNGGU Task 6.5 | MENUNGGU (Q1) |
+| `jumlah_payment_terdampak`, `total_kelebihan_gl` | MENUNGGU Task 6.5 | tidak diperlukan (Q1) |
 
 **Usulan penanganan: hotfix terpisah, dikerjakan sebelum backfill Fase 1.** Alasan: (1) perbaikan kecil dan terlokalisasi (memposting jumlah pembayaran ini, bukan jumlah kumulatif); (2) bila tidak diperbaiki, backfill D-8 akan membawa nilai salah ke jurnal baru sebagai jurnal "seimbang"; (3) Fase 4 akan mengganti model alokasi pembayaran sehingga menunggu Fase 4 berarti membiarkan GL baru terus salah. **Koreksi data historis** (jurnal penyesuaian atas selisih yang sudah terposting) adalah keputusan akuntansi terpisah dan memerlukan jurnal manual (D-14).
 
@@ -448,9 +448,9 @@ WHERE deleted_at IS NULL
 
 | Hasil | Staging | Produksi |
 |---|---|---|
-| `jumlah_payment_asing`, total | MENUNGGU Task 6.5 | MENUNGGU (Q1) |
+| `jumlah_payment_asing`, total | MENUNGGU Task 6.5 | tidak diperlukan (Q1) |
 
-**Usulan penanganan: Fase 4**, bukan hotfix. *Usulan fase di luar pilihan Req 7.3 (hotfix/Fase 1/Fase 2); menunggu persetujuan pemilik produk.* Alasan: perbaikan yang benar menyangkut kebijakan tipe kurs (D-16) dan pengakuan selisih kurs terealisasi (D-17), keduanya PENDING dan memerlukan akuntan; tambalan sepihak (mis. memposting `base_paid_amount`) berisiko tidak konsisten dengan jurnal invoice. **Pengecualian:** bila query di atas menemukan pembayaran asing nyata di produksi, ajukan keputusan hotfix sementara atau peringatan operasional.
+**Usulan penanganan: Fase 4**, bukan hotfix. *Bentuk usulan diizinkan (DV-C, 2026-11-03); keputusan penanganan tetap menunggu.* Alasan: perbaikan yang benar menyangkut kebijakan tipe kurs (D-16) dan pengakuan selisih kurs terealisasi (D-17), keduanya PENDING dan memerlukan akuntan; tambalan sepihak (mis. memposting `base_paid_amount`) berisiko tidak konsisten dengan jurnal invoice. **Pengecualian:** bila query di atas menemukan pembayaran valuta asing nyata di staging, atau produksi mulai menerima pembayaran valuta asing sebelum Fase 4, ajukan keputusan hotfix sementara atau peringatan operasional.
 
 **Keputusan pemilik produk: MENUNGGU.**
 
@@ -466,7 +466,7 @@ WHERE deleted_at IS NULL
 
 | Hasil | Staging | Produksi |
 |---|---|---|
-| `canceled_active_gl.count` (dokumen) | MENUNGGU Task 6.5 | MENUNGGU (Q1) |
+| `canceled_active_gl.count` (dokumen) | MENUNGGU Task 6.5 | tidak diperlukan (Q1) |
 
 **Usulan penanganan: Fase 2** (FR-P3: job posting yang menemukan dokumen `canceled` tidak memposting). **Hotfix guard** (periksa status dokumen di dalam transaksi listener) bila audit menemukan kasus nyata. Alasan: perbaikan kecil, tetapi baru bermakna bila disertai pembalik untuk kasus yang sudah terjadi (keputusan D-13).
 
@@ -508,7 +508,7 @@ GROUP BY status;
 
 | Hasil | Staging | Produksi |
 |---|---|---|
-| Jumlah PI tanpa PO, per status | MENUNGGU Task 6.5 | MENUNGGU (Q1) |
+| Jumlah PI tanpa PO, per status | MENUNGGU Task 6.5 | tidak diperlukan (Q1) |
 
 **Usulan penanganan.** Bila query menunjukkan PI tanpa PO nyata, **hotfix kecil terpisah** (event menerima PO nullable dan listener melewati rekalkulasi bila tidak ada PO). Bila tidak ada, masukkan ke **Fase 2** (refactor `PurchaseInvoiceService`), dan tambahkan test yang mengunci kegagalan terlebih dahulu. Alasan menunggu data: tanpa jalur nyata, risikonya rendah.
 
@@ -540,16 +540,16 @@ Simbol: **R** = `totals.rows`; **G** = `totals.groups`; **U** = `sections.unbala
 
 | Besaran | Rumus | Field JSON sumber | Staging | Produksi |
 |---|---|---|---|---|
-| Jumlah baris yang diberi `journal_id` | R | `totals.rows` | MENUNGGU | MENUNGGU (Q1) |
-| Jumlah `journal` yang dibuat | G | `totals.groups` | MENUNGGU | MENUNGGU (Q1) |
-| Rata-rata baris per kelompok | R ÷ G | `totals.rows`, `totals.groups` | MENUNGGU | MENUNGGU (Q1) |
-| Kelompok seimbang (`posted`) | G − U | (turunan) | MENUNGGU | MENUNGGU (Q1) |
-| Kelompok tak seimbang (`legacy_unbalanced`) | U | `sections.unbalanced_groups.count` | MENUNGGU | MENUNGGU (Q1) |
-| Persentase kelompok tak seimbang | U ÷ G × 100 % | (turunan) | MENUNGGU | MENUNGGU (Q1) |
-| Total selisih kelompok tak seimbang | D | `sections.unbalanced_groups.total_diff` | MENUNGGU | MENUNGGU (Q1) |
-| Selisih Σdebit − Σkredit seluruh GL | — | `totals.diff` | MENUNGGU | MENUNGGU (Q1) |
-| Jumlah batch | ⌈G ÷ B⌉ | (B = ukuran batch) | MENUNGGU | MENUNGGU (Q1) |
-| Durasi backfill | jumlah batch × t_batch | t_batch diukur | MENUNGGU | MENUNGGU (Q1) |
+| Jumlah baris yang diberi `journal_id` | R | `totals.rows` | MENUNGGU | tidak diperlukan (Q1) |
+| Jumlah `journal` yang dibuat | G | `totals.groups` | MENUNGGU | tidak diperlukan (Q1) |
+| Rata-rata baris per kelompok | R ÷ G | `totals.rows`, `totals.groups` | MENUNGGU | tidak diperlukan (Q1) |
+| Kelompok seimbang (`posted`) | G − U | (turunan) | MENUNGGU | tidak diperlukan (Q1) |
+| Kelompok tak seimbang (`legacy_unbalanced`) | U | `sections.unbalanced_groups.count` | MENUNGGU | tidak diperlukan (Q1) |
+| Persentase kelompok tak seimbang | U ÷ G × 100 % | (turunan) | MENUNGGU | tidak diperlukan (Q1) |
+| Total selisih kelompok tak seimbang | D | `sections.unbalanced_groups.total_diff` | MENUNGGU | tidak diperlukan (Q1) |
+| Selisih Σdebit − Σkredit seluruh GL | — | `totals.diff` | MENUNGGU | tidak diperlukan (Q1) |
+| Jumlah batch | ⌈G ÷ B⌉ | (B = ukuran batch) | MENUNGGU | tidak diperlukan (Q1) |
+| Durasi backfill | jumlah batch × t_batch | t_batch diukur | MENUNGGU | tidak diperlukan (Q1) |
 
 **B dan t_batch bukan asumsi:** keduanya ditetapkan dari uji coba backfill pada salinan data staging pada saat Fase 1, dan baru kemudian durasi dihitung. Tidak ada nilai default yang dipakai di dokumen ini. Ambang yang menentukan kategori beban (ringan/sedang/berat) juga ditetapkan pemilik produk dan pengembang **setelah** angka tersedia.
 
@@ -557,12 +557,12 @@ Komponen yang membutuhkan penanganan khusus (bukan bagian dari persentase di ata
 
 | Komponen | Field JSON sumber | Perlakuan yang perlu diputuskan di spec Fase 1 | Staging | Produksi |
 |---|---|---|---|---|
-| GL yatim (dokumen sumber tidak ada) | `sections.orphan_reference.count` (baris) | `journals.source_*` menggantung; dibackfill atau ditandai | MENUNGGU | MENUNGGU (Q1) |
-| Akun hilang atau soft-deleted | `sections.dangling_account.count` (baris; dihitung ganda bila keduanya bermasalah) | Jurnal merujuk akun soft-deleted | MENUNGGU | MENUNGGU (Q1) |
-| Baris nol atau negatif | `sections.zero_or_negative.count` (baris) | FR-L2 menolak jurnal baru semacam ini; baris lama perlu aturan lolos/ditandai | MENUNGGU | MENUNGGU (Q1) |
-| Duplikasi posting | `sections.duplicates.count`, `.extra_rows` | Kandidat posting ganda; **jangan dihapus otomatis** | MENUNGGU | MENUNGGU (Q1) |
-| Dokumen `canceled` dengan GL aktif | `sections.canceled_active_gl.count` (dokumen) | Aturan backfill untuk GL aktif milik dokumen batal (F-16) | MENUNGGU | MENUNGGU (Q1) |
-| GL soft-deleted | `totals.rows_soft_deleted`; `sections.soft_deleted_expected.count`, `soft_deleted_unexpected.count` | Dikecualikan dari backfill; yang `unexpected` perlu dijelaskan | MENUNGGU | MENUNGGU (Q1) |
+| GL yatim (dokumen sumber tidak ada) | `sections.orphan_reference.count` (baris) | `journals.source_*` menggantung; dibackfill atau ditandai | MENUNGGU | tidak diperlukan (Q1) |
+| Akun hilang atau soft-deleted | `sections.dangling_account.count` (baris; dihitung ganda bila keduanya bermasalah) | Jurnal merujuk akun soft-deleted | MENUNGGU | tidak diperlukan (Q1) |
+| Baris nol atau negatif | `sections.zero_or_negative.count` (baris) | FR-L2 menolak jurnal baru semacam ini; baris lama perlu aturan lolos/ditandai | MENUNGGU | tidak diperlukan (Q1) |
+| Duplikasi posting | `sections.duplicates.count`, `.extra_rows` | Kandidat posting ganda; **jangan dihapus otomatis** | MENUNGGU | tidak diperlukan (Q1) |
+| Dokumen `canceled` dengan GL aktif | `sections.canceled_active_gl.count` (dokumen) | Aturan backfill untuk GL aktif milik dokumen batal (F-16) | MENUNGGU | tidak diperlukan (Q1) |
+| GL soft-deleted | `totals.rows_soft_deleted`; `sections.soft_deleted_expected.count`, `soft_deleted_unexpected.count` | Dikecualikan dari backfill; yang `unexpected` perlu dijelaskan | MENUNGGU | tidak diperlukan (Q1) |
 
 ### 4.2 Keterbatasan yang harus dibaca bersama angka
 
@@ -570,7 +570,7 @@ Komponen yang membutuhkan penanganan khusus (bukan bagian dari persentase di ata
 2. **Kelompok tak seimbang dapat membengkak akibat pemecahan lintas detik** (N-3, Bagian 3.7): pasangan baris dengan `now()` terpisah dapat menjadi dua kelompok tak seimbang. Gunakan diagnosis Bagian 4.3 sebelum memakai U sebagai ukuran beban.
 3. **JSON tidak memuat rincian per jenis dokumen** untuk kelompok tak seimbang (hanya total dan contoh sejumlah `--limit`). Pakai query Bagian 4.3.
 4. **Data contoh (`is_example`)** ikut terhitung oleh auditor (Bagian 2.3); angka R dan G mungkin lebih besar dari data bisnis nyata.
-5. Angka staging tidak otomatis mewakili produksi. Estimasi berbasis data produksi hanya bila Q1 disetujui; sebelum itu laporan ini hanya dapat memberi estimasi berbasis staging dan harus ditandai demikian.
+5. Angka staging tidak otomatis mewakili produksi. Belum ada data sama sekali (GL produksi kosong) (Q1 dijawab 2026-11-03), sehingga estimasi beban backfill produksi per 2026-11-03 nol (GL produksi kosong). Estimasi berbasis staging berlaku sebagai uji coba migrasi dan harus ditandai demikian.
 6. `double` pada `debit`/`credit`: perbandingan memakai toleransi 0,005 (`GeneralLedgerAuditor`), sehingga selisih di bawah ambang tidak dihitung sebagai tak seimbang.
 
 ### 4.3 Query diagnosis (read-only, staging; jalankan di luar jam sibuk)
@@ -606,8 +606,8 @@ GROUP BY referenceable_type;
 
 | Hasil | Staging | Produksi |
 |---|---|---|
-| Kelompok tak seimbang per `referenceable_type` (granularitas auditor) | MENUNGGU Task 6.5 | MENUNGGU (Q1) |
-| Dokumen tak seimbang per `referenceable_type` (tanpa `transaction_date`) | MENUNGGU Task 6.5 | MENUNGGU (Q1) |
+| Kelompok tak seimbang per `referenceable_type` (granularitas auditor) | MENUNGGU Task 6.5 | tidak diperlukan (Q1) |
+| Dokumen tak seimbang per `referenceable_type` (tanpa `transaction_date`) | MENUNGGU Task 6.5 | tidak diperlukan (Q1) |
 
 ---
 
@@ -618,8 +618,8 @@ GROUP BY referenceable_type;
 | # | Item | Status |
 |---|---|---|
 | 1 | Task 6.5 dijalankan dan Bagian 1.5.2, 2, dan 4 terisi | MENUNGGU |
-| 2 | Q1 dijawab (rumusan PRD dan spec berbeda; pilih salah satu atau jawab keduanya) | MENUNGGU |
-| 3 | Q-P0-1 dijawab (pelaksana di staging/produksi) | MENUNGGU |
+| 2 | Q1 versi PRD dijawab 2026-11-03: belum ada data sama sekali (GL produksi kosong) | DIJAWAB |
+| 3 | Q-P0-1 dijawab 2026-11-03 (pemilik produk menjalankan di staging) | DIJAWAB |
 | 4 | Keputusan atas F-04, F-10, F-11, F-16, N-1, N-2, N-3 | MENUNGGU |
 | 5 | **Persetujuan laporan ini oleh pemilik produk** | **MENUNGGU** |
 
@@ -632,5 +632,5 @@ Butir 1 sampai 3 sudah **dikoreksi di PRD** (`finance-engine-prd.md`, Lampiran A
 1. **PRD F-12** (sudah dikoreksi) menyebut kolom runtime "di lingkungan lokal **menghapusnya** bila flag trait dicabut". Pada kode, penghapusan `have_transactions` pada model submitable berjalan **di semua lingkungan** (`DataTable.php:648-652`); hanya dua penghapusan lainnya yang dibatasi `app()->isLocal()`. Pemeriksaan penambahan dan penghapusan itu dijalankan pada setiap deploy karena `db:seed --force` berjalan otomatis (`.scripts/deploy-staging.sh:67`, `.scripts/deploy-production.sh:68`).
 2. **PRD F-12** (sudah dikoreksi) mencantumkan kolom `accounts` saja; `general_ledgers` juga memperoleh `is_example`, `code` (unik), dan `have_transactions` yang tidak ada di migration (Bagian 1.2).
 3. **PRD F-04** (sudah dikoreksi) merujuk `SalesInvoiceService::cancel` di sekitar baris 386; posisi aktualnya baris 604.
-4. **Req 7.1** menyebut laporan merangkum hasil audit staging dan produksi, sedangkan Req 6.2 hanya menyebut staging; Q1 di PRD dan di spec dirumuskan berbeda (lihat catatan di [`finance-decision-log.md`](finance-decision-log.md)).
+4. **Req 7.1** menyebut laporan merangkum hasil audit staging dan produksi, sedangkan Req 6.2 hanya menyebut staging; Q1 di PRD dan di spec dirumuskan berbeda (lihat catatan di [`finance-decision-log.md`](finance-decision-log.md)); keduanya dijawab 2026-11-03 (versi PRD: belum ada data sama sekali (GL produksi kosong); versi spec: untuk sekarang staging saja).
 5. Rumus baseline saldo pada `design.md` bagian 4 (Task 3.1) sudah dikunci dari kode, tetapi belum dikonfirmasi terhadap data staging (Bagian 2.5).
