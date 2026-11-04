@@ -23,6 +23,9 @@ return [
             'submitted' => 'Submitted',
             'cancelled' => 'Cancelled',
             'amended'   => 'Amended',
+            'reversed'  => 'Reversed',
+            'closed'    => 'Closed',
+            'reopened'  => 'Reopened',
         ],
     ],
 ];

@@ -14,6 +14,10 @@ class RecordAuditLog {
         'cancelled' => ['en' => ':user canceled this',       'id' => ':user telah membatalkan'],
         'submitted' => ['en' => ':user submitted this',      'id' => ':user telah mengajukan ini'],
         'amended'   => ['en' => ':user amended this',        'id' => ':user telah mengembalikan ini'],
+        // Finance Fase 1: reversal jurnal dan penutupan/pembukaan periode fiskal (Requirement 14.2).
+        'reversed' => ['en' => ':user reversed this',        'id' => ':user telah membalik ini'],
+        'closed'   => ['en' => ':user closed this',          'id' => ':user telah menutup ini'],
+        'reopened' => ['en' => ':user reopened this',        'id' => ':user telah membuka kembali ini'],
     ];
 
     public function handle(AuditableModelSaved $event): void {

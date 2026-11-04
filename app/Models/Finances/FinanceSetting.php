@@ -21,6 +21,7 @@ class FinanceSetting extends ModuleSetting {
             'tax_invoice_serial_range_start' => 'integer',
             'tax_invoice_serial_range_end'   => 'integer',
             'tax_invoice_serial_last_used'   => 'integer',
+            'enforce_fiscal_period'          => 'boolean',
         ];
     }
 
@@ -29,6 +30,8 @@ class FinanceSetting extends ModuleSetting {
             'tax_invoice_serial_range_start' => 0,
             'tax_invoice_serial_range_end'   => 0,
             'tax_invoice_serial_last_used'   => 0,
+            // PRD D-25 `finance_enforce_fiscal_period`; Q-P1-2: nonaktif dulu, diaktifkan manual.
+            'enforce_fiscal_period' => false,
         ];
     }
 
@@ -38,6 +41,7 @@ class FinanceSetting extends ModuleSetting {
             'tax_invoice_serial_range_start' => ['sometimes', 'required', 'integer', 'min:0'],
             'tax_invoice_serial_range_end'   => ['sometimes', 'required', 'integer', 'min:0'],
             'tax_invoice_serial_last_used'   => ['sometimes', 'required', 'integer', 'min:0'],
+            'enforce_fiscal_period'          => ['sometimes', 'required', 'boolean'],
         ];
     }
 
