@@ -2,7 +2,7 @@
 
 | | |
 |---|---|
-| **Status** | Draft v1.1 — menunggu konfirmasi keputusan bertanda **PENDING** atau **DITUNDA** (Bagian 7); keputusan proses Fase 0 disahkan 2026-11-03 |
+| **Status** | Draft v1.1 — menunggu konfirmasi keputusan bertanda **PENDING** atau **DITUNDA** (Bagian 7); keputusan proses Fase 0 disahkan 2026-11-03; **Fase 0 selesai 2026-11-04**; D-3, D-8 (diubah), dan D-14 diputuskan 2026-11-04 |
 | **Revisi v1.1** | 2026-10-18 — keputusan pemilik produk: satu perusahaan, akun hanya dari konfigurasi, aturan akun bersyarat, setting keuangan dipindah dari `preferences` (D-4, D-25, D-26, D-27) |
 | **Tanggal** | 2026-10-18 |
 | **Cakupan** | Fondasi keuangan seluruh ERP: Journal/GL, Posting, Pajak, Mata Uang/FX, AR/AP, Pelaporan, Penutupan Periode |
@@ -155,18 +155,18 @@ Status: **DECIDED** = sudah ditetapkan (mis. dari spec terdahulu); **PROPOSED** 
 |---|---|---|---|
 | D-1 | Mode posting: antrian vs sinkron | **DITUNDA (2026-11-03)**; rekomendasi tetap B | 2 |
 | D-2 | Perluas `general_ledgers` (tambah `journal_id`) alih-alih tabel jurnal baru | PROPOSED | 1 |
-| D-3 | `decimal(20,4)` untuk tabel jurnal; pembulatan di batas posting | PROPOSED | 1 |
+| D-3 | `decimal(20,4)` untuk tabel jurnal; pembulatan HALF_UP di batas posting | **DECIDED** (2026-11-04) | 1 |
 | D-4 | Satu perusahaan + dimensi cabang (multi-company di luar cakupan); profil dan setting bersifat global | **DECIDED** (2026-10-18) | 1 |
 | D-5 | Hanya Indonesia; titik ekstensi `jurisdiction_code` | PROPOSED | 3 |
 | D-6 | Struktur kode `{Domain}/{Feature}` di domain `Finances` | DECIDED (konvensi project) | semua |
 | D-7 | Immutability di level aplikasi (guard model + service); trigger DB ditunda | PROPOSED | 1 |
-| D-8 | Backfill: kelompokkan GL lama per (`referenceable`, `transaction_date`); yang tak seimbang ditandai, tidak dipaksa | PROPOSED | 1 |
+| D-8 | Backfill: kelompokkan GL lama per dokumen (`referenceable_type` + `referenceable_id`), dipecah per tanggal hanya bila dokumen punya posting di hari berbeda (alasan N-3); yang tak seimbang ditandai, tidak dipaksa | **DECIDED** (2026-11-04; mengubah rumusan lama) | 1 |
 | D-9 | Valuasi persediaan & COGS memakai stock ledger existing | DECIDED (di luar cakupan) | — |
 | D-10 | IFRS 15/16, impairment di luar cakupan | DECIDED (di luar cakupan) | — |
 | D-11 | Standar akuntansi acuan (SAK/PSAK vs IFRS penuh) | **DITUNDA (2026-11-03)**, menunggu akuntan (Q2) | 0 |
 | D-12 | Penanganan pajak dalam jurnal: PPN Masukan/Keluaran sebagai akun terpisah, PPh sebagai utang/piutang pajak | PROPOSED, validasi akuntan | 3 |
 | D-13 | Perilaku pembatalan dokumen: ganti soft-delete GL (perilaku sekarang) dengan jurnal pembalik | **PENDING** (mengubah perilaku yang terlihat pengguna) | 2 |
-| D-14 | Jurnal manual (Journal Voucher) oleh pengguna: masuk Fase 1 atau ditunda | **PENDING** | 1 |
+| D-14 | Jurnal manual (Journal Voucher) oleh pengguna: masuk Fase 1 sebagai task opsional | **DECIDED** (2026-11-04) | 1 |
 | D-15 | Konversi kolom hitung item invoice (generated → kolom biasa) dan penyerapan Requirement 4 spec `dpp-discount-and-tax-compliance` oleh Fase 3 | **PENDING** | 3 (Bagian B) |
 | D-16 | Kebijakan tipe kurs: invoice/pembayaran (`transaction`), akhir periode (`closing`), kurs pajak | **PENDING** (akuntan) | 4 |
 | D-17 | Pengakuan selisih kurs terealisasi saat pelunasan dan toleransi selisih kecil | **PENDING** (akuntan) | 4 |
@@ -204,9 +204,17 @@ Status: **DECIDED** = sudah ditetapkan (mis. dari spec terdahulu); **PROPOSED** 
 
 **Opsi.** A: pertahankan soft-delete (bertentangan dengan G1/G2). B (rekomendasi): reversal untuk semua dokumen berjurnal, dimulai Fase 2 per jenis dokumen di balik feature flag. C: reversal hanya untuk periode tertutup, soft-delete untuk periode terbuka (dua perilaku, rumit; tidak direkomendasikan).
 
-### D-14 — Jurnal manual (PENDING)
+### D-14 — Jurnal manual (DECIDED 2026-11-04)
 
-Akuntan umumnya membutuhkan jurnal manual untuk penyesuaian dan koreksi pasca-reversal. Dokumen sumber tidak memuatnya, dan saat ini tidak ada fitur sejenis di ERP. Rekomendasi: sertakan sebagai tugas opsional Fase 1 (form sederhana, wajib seimbang, memakai `JournalService`), karena tanpa itu koreksi pasca-reversal harus lewat dokumen bisnis.
+Akuntan umumnya membutuhkan jurnal manual untuk penyesuaian dan koreksi pasca-reversal. Dokumen sumber tidak memuatnya, dan saat ini tidak ada fitur sejenis di ERP. **Keputusan pemilik produk (2026-11-04): disetujui sebagai tugas opsional Fase 1** (form Journal Voucher sederhana, wajib seimbang, memakai `JournalService`). Alasan (usulan PRD/implementer; tidak dinyatakan pemilik produk): tanpa itu koreksi pasca-reversal harus lewat dokumen bisnis. Requirement 12 spec Fase 1 menjadi requirement opsional (bukan lagi menunggu konfirmasi) dan Task 11 bertanda `- [ ]*`; cakupannya tetap dikonfirmasi sebelum dikerjakan.
+
+### D-3 — Tipe kolom uang tabel jurnal (DECIDED 2026-11-04)
+
+`decimal(20,4)` untuk tabel jurnal baru (`journals.total_*`, kolom `foreign_*`) dan, lewat Task 8 Fase 1 yang dikunci pra-pemeriksaan presisi, `general_ledgers.debit`/`credit`; pembulatan **HALF_UP** ke minor unit mata uang dasar di batas posting (`JournalService`). Kolom uang dokumen operasional tetap `double` (Risiko R-5). **Keputusan pemilik produk (2026-11-04): disetujui.** Alasan (usulan PRD/implementer; tidak dinyatakan pemilik produk): menghilangkan galat floating point di ledger sebelum laporan Fase 5 dibangun di atasnya. Dampak: Fase 1 Requirement 2.5, 7, 13.
+
+### D-8 — Granularitas pengelompokan backfill (DECIDED 2026-11-04; mengubah rumusan lama)
+
+Backfill GL lama mengelompokkan per **dokumen sumber** (`referenceable_type` + `referenceable_id`); kelompok dipecah per **tanggal** (hari kalender) hanya bila dokumen punya posting di hari berbeda. **Keputusan pemilik produk (2026-11-04): disetujui.** Alasan: temuan N-3 (laporan audit Bagian 3.7) — `StockEntryService` dan `PostAssetDisposalGainLoss` memanggil `now()` per baris, sehingga pasangan baris satu dokumen dapat berbeda detik; pada rumusan lama (per `transaction_date` penuh) pasangan itu menjadi dua kelompok yang tampak tak seimbang. Rumusan lama (per `referenceable_type`, `referenceable_id`, `transaction_date`) tidak berlaku lagi. Detail yang juga disetujui pemilik produk 2026-11-04: `transaction_date` jurnal legacy = nilai terkecil di kelompok; dokumen yang posting-nya melintasi tengah malam terpecah per tanggal dan, bila tiap bagiannya tak seimbang, ditandai `legacy_unbalanced`. Basis "hari kalender" (hari UTC) adalah detail desain implementer, bukan keputusan pemilik produk (`design.md` Fase 1). Aturan lain D-8 tidak berubah (kelompok tak seimbang ditandai, tidak dipaksa; backfill idempoten; angka lama tidak diubah). Detail: decision log D-8.
 
 ### D-21 — Tanggal pembukuan (PENDING)
 
@@ -329,9 +337,9 @@ Setiap spec berisi `requirements.md`, `design.md`, `tasks.md`, dan `.config.kiro
 | Fase | Folder spec | Status dokumen |
 |---|---|---|
 | S | [`module-settings-foundation`](../../.kiro/specs/module-settings-foundation/requirements.md) | Draft lengkap; spec lintas modul, prasyarat Fase 1. Program induknya: [`module-settings-prd.md`](module-settings-prd.md) |
-| 0 | [`finance-p0-foundation-audit`](../../.kiro/specs/finance-p0-foundation-audit/requirements.md) | Berjalan — Task 1–6.4 (PR #271); 6.5 (pemilik produk, staging, 2026-11-03); draft Task 7 (PR #272); laporan audit dan decision log disetujui 2026-11-03 (PR #273/#274); Task 2.6 selesai 2026-11-04 (PR #275); sisa: Req 6.2/APP_ENV (Task 7.1), Task 8 |
+| 0 | [`finance-p0-foundation-audit`](../../.kiro/specs/finance-p0-foundation-audit/requirements.md) | **Selesai 2026-11-04** — Task 1–6.4 (PR #271); 6.5 (pemilik produk, staging, 2026-11-03); draft Task 7 (PR #272); laporan audit dan decision log disetujui 2026-11-03 (PR #273/#274); Task 2.6 selesai 2026-11-04 (PR #275); skema staging Req 6.2 dan `APP_ENV` diterima 2026-11-04 (Task 7.1); checkpoint akhir Task 8 lulus 2026-11-04 |
 | H | [`finance-payment-entry-hotfix`](../../.kiro/specs/finance-payment-entry-hotfix/requirements.md) | Requirements, design, dan tasks selesai; implementasi selesai (Task 1–10, 2026-11-04); PR ke `feat/finance-engine` menyusul. Mencakup N-4, F-10, bagian `paid_amount` F-04, N-10, N-11, Q2, Q9b, dan N-12 (Q12); dikerjakan sebelum Fase 1; tidak mengoreksi data GL staging secara otomatis |
-| 1 | [`finance-p1-journal-core`](../../.kiro/specs/finance-p1-journal-core/requirements.md) | Draft lengkap — dieksekusi setelah Fase 0 disetujui |
+| 1 | [`finance-p1-journal-core`](../../.kiro/specs/finance-p1-journal-core/requirements.md) | Draft lengkap; Fase 0 selesai 2026-11-04 sehingga siap dieksekusi. Keputusan 2026-11-04 sudah diterapkan ke spec: D-3, D-8 (per dokumen), D-14 (task opsional), Q-P1-1 (tanpa jendela pemeliharaan), Q-P1-2 (penegakan periode nonaktif dulu), BR-7 (dua rilis: Rilis 1 tabel jurnal + `journal_id` nullable + backfill; Rilis 2 migration NOT NULL di PR/tahapan terpisah) |
 | 2 | [`finance-p2-posting-engine`](../../.kiro/specs/finance-p2-posting-engine/requirements.md) | Draft; peta rule sebagian bertanda `[TODO]` sampai kode sumber dibaca penuh |
 | 3 | [`finance-p3-tax-engine`](../../.kiro/specs/finance-p3-tax-engine/requirements.md) | Draft; menunggu D-12, D-15 |
 | 4 | [`finance-p4-ar-ap-fx`](../../.kiro/specs/finance-p4-ar-ap-fx/requirements.md) | Draft; menunggu D-16, D-17, D-18 |
@@ -344,7 +352,7 @@ Setiap spec berisi `requirements.md`, `design.md`, `tasks.md`, dan `.config.kiro
 
 | Fase | Selesai bila |
 |---|---|
-| 0 | Laporan audit disetujui; test pengunci perilaku lulus; D-1, D-4, D-11 terjawab atau ditunda dengan alasan tertulis. _Status 2026-11-04: laporan audit dan decision log disetujui; D-4 sudah diputuskan; D-1 dan D-11 ditunda dengan alasan tertulis; keputusan penanganan per bug disetujui; Task 2.6 (DV-D) selesai 2026-11-04 (PR #275); skema staging Req 6.2/APP_ENV belum selesai; verifikasi ulang test pengunci belum dilakukan pada tahapan ini; Fase 0 belum selesai (Task 8)._ |
+| 0 | Laporan audit disetujui; test pengunci perilaku lulus; D-1, D-4, D-11 terjawab atau ditunda dengan alasan tertulis. _**Terpenuhi, Fase 0 selesai 2026-11-04:** laporan audit dan decision log disetujui (2026-11-03); D-4 sudah diputuskan; D-1 dan D-11 ditunda dengan alasan tertulis; F-04, F-10, F-11 terkonfirmasi; keputusan penanganan per bug disetujui; Task 2.6 (DV-D) selesai (PR #275); skema staging Req 6.2 dan `APP_ENV` diterima 2026-11-04; test pengunci diverifikasi ulang pada tahap penutupan: `tests/Feature/Finances` 270 test, 1096 assertion, OK (2026-11-04, branch `docs/finance-p0-closure`); Pint `--dirty` lulus tanpa perubahan._ |
 | 1 | Tidak ada jalur menulis jurnal tak seimbang; backfill selesai dengan laporan selisih nol atau terdokumentasi; reversal berfungsi; test invarian lulus |
 | 2 | Semua jenis dokumen yang ada diposting lewat `PostingService` dengan parity terbukti; cancel membalik jurnal; query `latest()->first()` untuk akun hilang |
 | 3 | PPN/PPh terpisah di jurnal; perubahan tarif cukup dengan menambah versi aturan; golden test tarif lama/baru lulus |
@@ -354,7 +362,7 @@ Setiap spec berisi `requirements.md`, `design.md`, `tasks.md`, dan `.config.kiro
 
 ### Aturan branch per tahapan
 
-Sumber keputusan proses (BR-1 s.d. BR-6) dan pertanyaan terkait: [`finance-decision-log.md`](finance-decision-log.md).
+Sumber keputusan proses (BR-1 s.d. BR-7) dan pertanyaan terkait: [`finance-decision-log.md`](finance-decision-log.md).
 
 **Diputuskan pemilik produk (2026-11-03):** setiap tahapan dikerjakan di branch baru yang dibuat dari `origin/dev-1` terbaru, bukan melanjutkan branch tahapan sebelumnya (termasuk yang sudah di-merge). **Diubah 2026-11-04 (BR-6):** dari `origin/feat/finance-engine` terbaru; basis tahapan dan base PR adalah `feat/finance-engine`, bukan `dev-1`, agar `dev-1` tidak terganggu. `feat/finance-engine` dibuat dari `origin/dev-1` pada 2026-11-04; CI tetap berjalan untuk PR ke branch ini dan merge ke sana tidak memicu deploy staging. Kapan `feat/finance-engine` digabung ke `dev-1` belum diputuskan.
 
@@ -367,6 +375,8 @@ Sumber keputusan proses (BR-1 s.d. BR-6) dan pertanyaan terkait: [`finance-decis
 3. PR ber-base `feat/finance-engine` (diubah 2026-11-04, BR-6; semula `dev-1`); bila `feat/finance-engine` bergerak, gabungkan `origin/feat/finance-engine` ke branch sebelum PR dibuka atau diperbarui.
 4. Definisi satu tahapan: satu fase, atau satu bagian fase yang dikirim sebagai PR tersendiri (mis. sisa Fase 0 setelah PR #271).
 
+**Urutan rilis Fase 1 (BR-7, diputuskan pemilik produk 2026-11-04).** Dua rilis terpisah: **Rilis 1** = tabel jurnal, `journal_id` nullable, dan perintah backfill (backfill dijalankan di staging dan produksi); **Rilis 2** = migration NOT NULL, di PR/tahapan terpisah yang digabung ke `feat/finance-engine` dan kemudian ke `dev-1` hanya setelah backfill dijalankan dan diverifikasi di staging dan produksi. Alasan: skrip deploy memakai `set -e` dan `migrate --force` sebelum release diaktifkan, sehingga migration NOT NULL yang mendahului backfill menggagalkan deploy. Rilis 1 dan Rilis 2 adalah dua penggabungan berbeda ke `dev-1` (Q-BR-1). Merge PR ke `dev-1` memicu deploy staging; deploy produksi: tag `v*` mendeploy produksi, sedangkan `workflow_dispatch` punya input `environment` (staging atau produksi, default produksi; `deploy-cpanel.yml:15-28`) dan dapat dijalankan dari ref mana pun, sehingga urutan BR-7 juga berlaku untuk deploy manual (`deploy-cpanel.yml`), bukan oleh `dev-1`.
+
 ## 11. Strategi Migrasi dan Cutover
 
 **Pola strangler, per jenis dokumen.**
@@ -376,7 +386,7 @@ Sumber keputusan proses (BR-1 s.d. BR-6) dan pertanyaan terkait: [`finance-decis
 3. Untuk tiap jenis dokumen: jalankan mode *shadow* (hitung jurnal engine, bandingkan dengan jurnal lama, jangan tulis), lalu *cutover* ketika parity 100% pada seluruh fixture dan sampel data staging.
 4. Struktur lama (`accounts.balance_amount` sebagai sumber, pencarian akun hardcode) dipensiunkan hanya setelah Fase 5 membuktikan rekonsiliasi.
 
-**Backfill GL lama (D-8).** Kelompokkan baris `general_ledgers` per (`referenceable_type`, `referenceable_id`, `transaction_date`) menjadi satu `journal`. Kelompok seimbang → `posted`. Kelompok tak seimbang → `legacy_unbalanced = true` dan masuk laporan rekonsiliasi; **tidak** dikoreksi otomatis. Backfill idempoten, dapat dijalankan ulang, dan tidak mengubah `debit`/`credit` lama.
+**Backfill GL lama (D-8, diubah 2026-11-04).** Kelompokkan baris `general_ledgers` per dokumen sumber (`referenceable_type`, `referenceable_id`) menjadi satu `journal`; kelompok dipecah per **tanggal** (hari kalender) hanya bila dokumen punya posting di hari berbeda, sehingga pasangan baris yang hanya berbeda detik (N-3) tetap satu jurnal. Kelompok seimbang → `posted`. Kelompok tak seimbang → `legacy_unbalanced = true` dan masuk laporan rekonsiliasi; **tidak** dikoreksi otomatis. Backfill idempoten, dapat dijalankan ulang, dan tidak mengubah `debit`/`credit` lama.
 
 **Q1 (dijawab 2026-11-03).** Belum ada data sama sekali (GL produksi kosong); backfill di produksi karenanya tidak diperlukan saat ini, sehingga beban backfill produksi per 2026-11-03 nol (GL produksi kosong). Estimasi di laporan audit Bagian 4 berlaku untuk staging sebagai uji coba migrasi.
 
@@ -435,7 +445,7 @@ Catatan lingkungan: test suite memakai SQLite `:memory:` sedangkan dev DB MySQL 
 | Q5 | D-1: opsi A, B, atau C? | Fase 2 |
 | Q6 | Format laporan resmi yang dibutuhkan (SAK/PSAK, format e-Faktur/SPT)? | Fase 5 |
 | Q7 | Apakah ada laporan keuangan eksternal yang saat ini dibuat manual di luar ERP dan harus direplikasi? | Fase 5 |
-| Q-BR-1 | Kapan `feat/finance-engine` digabung ke `dev-1`? | Sebelum merge ke `dev-1` (belum dijadwalkan) |
+| Q-BR-1 | Kapan `feat/finance-engine` digabung ke `dev-1`? (Rilis 1 dan Rilis 2 Fase 1 adalah dua penggabungan berbeda, BR-7) | Sebelum merge ke `dev-1` (belum dijadwalkan) |
 
 ## 17. Glosarium
 
@@ -470,7 +480,7 @@ Setiap temuan diverifikasi dengan membaca file yang disebut pada 2026-10-18. Tem
 | F-09 | `accounts.balance_amount` diubah langsung (cache dijadikan sumber) | `StockEntryService` (~572–639) |
 | F-10 | **TERKONFIRMASI 2026-11-01** (sebelum hotfix, `KnownIssues/PartialPaymentPostsCumulativeAmountTest::test_f10_second_partial_payment_posts_cumulative_amount_instead_of_its_own`; kini dikonversi menjadi test regresi `tests/Feature/Finances/PaymentEntryPartialPaymentTest.php::test_each_partial_payment_posts_its_own_amount`, yang menegaskan 300.000): pembayaran 400.000 lalu 300.000 menghasilkan GL pembayaran kedua 700.000 (total debit kas 1.100.000 untuk pembayaran 700.000); saldo faktur benar, hanya GL yang berlebih. GL Payment memposting `$paymentable->paid_amount` setelah event `PaymentApplied` mengisinya dengan total kumulatif, bukan jumlah pembayaran ini → pembayaran parsial kedua berpotensi mem-posting jumlah kumulatif. **Diperbaiki 2026-11-04** (hotfix `finance-payment-entry-hotfix`). F-11 (FX, temuan terpisah) tetap terbuka (Fase 4). | `PaymentEntryService::onApproved`; `app/Listeners/Finances/Payment/UpdatePaymentableStatus.php` |
 | F-11 | Payment Entry 1:1 ke satu dokumen (`paymentable_*`); GL pembayaran tidak memperhitungkan `exchange_rate` / selisih kurs. **Bagian FX TERKONFIRMASI 2026-11-01** (`KnownIssues/ForeignCurrencyPaymentPostingTest`): pembayaran 100 pada kurs 15.000 memposting 100 (mata uang dokumen), bukan `base_paid_amount` 1.500.000, dan tidak ada baris selisih kurs | `PaymentEntryService`; migration `payment_entries` |
-| F-12 | Skema tabel model `DataTable` sebagian **dibentuk saat runtime**: `initPermissions()` (dipanggil `PermissionSeeder`) menambah kolom `is_example`, `code`, `have_transactions`, kolom Submitable, dan kolom tree (`parent_id`, `lft`, `rgt`, `depth`) bila belum ada — dan di lingkungan lokal **menghapus** kolom Submitable pada model non-submitable serta kolom tree pada model non-tree. Jadi `accounts.parent_id/lft/rgt/depth/have_transactions` tidak ada di migration `create_accounts_table`; demikian pula `general_ledgers.is_example`, `code` (unik), dan `have_transactions` tidak ada di migration `create_general_ledgers_table`. Konsekuensi: kolom wajib untuk tabel jurnal harus dideklarasikan eksplisit di migration (jangan bergantung pada `initPermissions`), dan Fase 1 harus menguji perilaku `initPermissions` terhadap model jurnal baru. **Koreksi 2026-11-03** (uraian sebelumnya menyatakan semua penghapusan hanya terjadi di lokal): penghapusan `have_transactions` pada model **submitable** berlaku di **semua lingkungan** (`DataTable.php:648-652`); hanya dua penghapusan lainnya yang dibatasi `app()->isLocal()`. `initPermissions()` juga **diperiksa pada setiap deploy** staging dan produksi (kolom dihapus bila ada, jadi penghapusan efektif sekali; mengandaikan `APP_ENV` di sana bukan `local`, belum dikonfirmasi) karena `db:seed --force` dijalankan tanpa syarat (`.scripts/deploy-staging.sh:67`, `.scripts/deploy-production.sh:68`; dipanggil dari `.github/workflows/deploy-cpanel.yml:101-108` lewat `.scripts/deploy.sh`), dan `database/seeders/DatabaseSeeder.php:13` memanggil `PermissionSeeder`. Rincian: `finance-audit-report.md` Bagian 1 | `app/Traits/DataTable.php` (~546–753), `database/seeders/PermissionSeeder.php:139`, `app/Traits/TreeView.php` |
+| F-12 | Skema tabel model `DataTable` sebagian **dibentuk saat runtime**: `initPermissions()` (dipanggil `PermissionSeeder`) menambah kolom `is_example`, `code`, `have_transactions`, kolom Submitable, dan kolom tree (`parent_id`, `lft`, `rgt`, `depth`) bila belum ada — dan di lingkungan lokal **menghapus** kolom Submitable pada model non-submitable serta kolom tree pada model non-tree. Jadi `accounts.parent_id/lft/rgt/depth/have_transactions` tidak ada di migration `create_accounts_table`; demikian pula `general_ledgers.is_example`, `code` (unik), dan `have_transactions` tidak ada di migration `create_general_ledgers_table`. Konsekuensi: kolom wajib untuk tabel jurnal harus dideklarasikan eksplisit di migration (jangan bergantung pada `initPermissions`), dan Fase 1 harus menguji perilaku `initPermissions` terhadap model jurnal baru. **Koreksi 2026-11-03** (uraian sebelumnya menyatakan semua penghapusan hanya terjadi di lokal): penghapusan `have_transactions` pada model **submitable** berlaku di **semua lingkungan** (`DataTable.php:648-652`); hanya dua penghapusan lainnya yang dibatasi `app()->isLocal()`. `initPermissions()` juga **diperiksa pada setiap deploy** staging dan produksi (kolom dihapus bila ada, jadi penghapusan efektif sekali; mengandaikan `APP_ENV` di sana bukan `local`: staging dikonfirmasi `staging` pada 2026-11-04, produksi belum dikonfirmasi) karena `db:seed --force` dijalankan tanpa syarat (`.scripts/deploy-staging.sh:67`, `.scripts/deploy-production.sh:68`; dipanggil dari `.github/workflows/deploy-cpanel.yml:101-108` lewat `.scripts/deploy.sh`), dan `database/seeders/DatabaseSeeder.php:13` memanggil `PermissionSeeder`. Rincian: `finance-audit-report.md` Bagian 1 | `app/Traits/DataTable.php` (~546–753), `database/seeders/PermissionSeeder.php:139`, `app/Traits/TreeView.php` |
 | F-13 | `currencies` tanpa minor unit/numeric code; `Currency::convertMoney` hanya perkalian | `0001_01_01_000000_create_currencies_table.php`; `app/Models/Core/Currency.php` |
 | F-14 | `taxes` hanya `name`+`rate` (sudah dibahas spec DPP, Requirement 4) | `2025_07_27_092413_create_taxes_table.php`; `.kiro/specs/dpp-discount-and-tax-compliance` |
 | F-15 | `GeneralLedger::creating` membuat `code` series (`GL-@[iiii]/@[yy]`) **per baris**, bukan per jurnal | `app/Models/Finances/GeneralLedger.php` |

@@ -4,7 +4,7 @@
 
 Urutan: verifikasi infrastruktur laporan dan audit COA (1), proyeksi saldo + view (2), pembaca saldo dan builder (3–4), laporan datar dan statement per rilis (5–9), pensiun `balance_amount` (10), UI/ekspor (11), checkpoint (12). Laporan dirilis **bertahap** (lihat Rollout di design): TB dan Buku Besar tidak menunggu fase lain. Lint/Pint sekali di akhir.
 
-**Prasyarat**: Fase 1 selesai (TB/Buku Besar); Fase 2 (semua posting via engine) untuk keandalan angka; Fase 3/4 untuk Rekap Pajak/Aging. Branch baru dari `origin/dev-1` terbaru (lihat PRD Bagian 10, "Aturan branch per tahapan").
+**Prasyarat**: Fase 1 selesai (TB/Buku Besar); Fase 2 (semua posting via engine) untuk keandalan angka; Fase 3/4 untuk Rekap Pajak/Aging. Branch baru dari `origin/feat/finance-engine` terbaru (BR-6, PRD Bagian 10).
 
 **Aturan eksekusi**:
 - Jangan mengubah laporan operasional existing (`tests/Feature/Report/*` harus hijau).

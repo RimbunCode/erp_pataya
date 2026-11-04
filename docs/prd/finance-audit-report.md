@@ -2,13 +2,13 @@
 
 | | |
 |---|---|
-| **Status** | **Disetujui pemilik produk 2026-11-03**: laporan (versi PR #272/#273), tambahan staging dan N-4…N-9 (PR #274), serta keputusan penanganan per bug. **Masih MENUNGGU:** skema aktual staging (Req 6.2) dan konfirmasi `APP_ENV`, query SQL tambahan (Bagian 5.1 butir 1b). DV-D (Task 2.6) selesai 2026-11-04 (PR #275). |
-| **Tanggal** | Draft dan persetujuan 2026-11-03; angka staging ditambahkan 2026-11-03 |
+| **Status** | **Fase 0 selesai 2026-11-04.** Laporan disetujui pemilik produk 2026-11-03 (versi PR #272/#273), tambahan staging dan N-4…N-9 (PR #274), serta keputusan penanganan per bug. Skema aktual staging (Req 6.2) dan `APP_ENV` (`staging`) terisi 2026-11-04 (Bagian 1.5.2). DV-D (Task 2.6) selesai 2026-11-04 (PR #275). Tersisa hanya query SQL tambahan paparan (Bagian 5.1 butir 1b): **opsional, tidak memblokir** (produksi kosong, Q1). |
+| **Tanggal** | Draft dan persetujuan 2026-11-03; angka staging ditambahkan 2026-11-03; skema staging dan penutupan Fase 0 2026-11-04 |
 | **Spec** | [`finance-p0-foundation-audit`](../../.kiro/specs/finance-p0-foundation-audit/requirements.md) — Requirement 6 (audit skema), Requirement 7.1, 7.3, 7.4 (laporan) |
 | **Dokumen terkait** | [`finance-engine-prd.md`](finance-engine-prd.md) (Lampiran A dan B), [`finance-decision-log.md`](finance-decision-log.md) |
 | **Penyusun** | Pembacaan kode dan test (branch `docs/finance-p0-audit-report`); angka staging dari dua berkas yang diserahkan pemilik produk (branch `docs/finance-p0-staging-audit`). Tidak ada data produksi yang dipakai (GL produksi kosong, Q1) |
 
-> **Cara membaca dokumen ini.** Angka **staging** di Bagian 2 sampai 4 berasal dari `audit-20261103-155516.json` (`generated_at` 2026-11-03T15:55:16+00:00) dan `baseline-20261103-155540.csv`, keduanya diserahkan pemilik produk (Task 6.5). Lingkungan sumber **diasumsikan staging** (sesuai Q-P0-1); penyerahan tidak menyebut lingkungannya secara eksplisit. Produksi tidak diperlukan (GL produksi kosong, Q1). Yang masih berlabel **MENUNGGU** (skema aktual Req 6.2, konfirmasi `APP_ENV`, dan query SQL tambahan) tetap **sengaja dikosongkan** dan tidak boleh diisi dari perkiraan. ID baris GL, ID dokumen, dan nama pihak dari berkas tidak disalin ke dokumen ini. Semua klaim perilaku kode lain dirujuk ke `file:baris` atau ke test yang menjalankannya; klaim yang hanya berasal dari pembacaan kode (belum diuji) diberi label **belum diuji**.
+> **Cara membaca dokumen ini.** Angka **staging** di Bagian 2 sampai 4 berasal dari `audit-20261103-155516.json` (`generated_at` 2026-11-03T15:55:16+00:00) dan `baseline-20261103-155540.csv`, keduanya diserahkan pemilik produk (Task 6.5). Lingkungan sumber **diasumsikan staging** (sesuai Q-P0-1); penyerahan tidak menyebut lingkungannya secara eksplisit. Produksi tidak diperlukan (GL produksi kosong, Q1). Skema aktual (Req 6.2) dan `APP_ENV` staging diisi 2026-11-04 dari keluaran `db:table` dan `env` yang diserahkan pemilik produk (Bagian 1.5.2). Yang masih berlabel **MENUNGGU** (query SQL tambahan paparan F-10, F-11, N-2, N-5, `is_example`, `gl_posting_statuses`) tetap **sengaja dikosongkan**, bersifat opsional dan tidak memblokir, dan tidak boleh diisi dari perkiraan. ID baris GL, ID dokumen, dan nama pihak dari berkas tidak disalin ke dokumen ini. Semua klaim perilaku kode lain dirujuk ke `file:baris` atau ke test yang menjalankannya; klaim yang hanya berasal dari pembacaan kode (belum diuji) diberi label **belum diuji**.
 
 ---
 
@@ -16,9 +16,9 @@
 
 ### 0.1 Yang sudah dapat disimpulkan
 
-1. **Skema runtime (Req 6).** Trait `DataTable::initPermissions()` menambah kolom langsung ke tabel saat `PermissionSeeder` dijalankan, dan seeder itu **berjalan di setiap deploy** staging dan produksi (`db:seed --force`, lihat Bagian 1.1). Untuk dua tabel Finance yang relevan: `general_ledgers` memperoleh `is_example`, `code` (unik), dan `have_transactions` yang **tidak ada di migration**; `accounts` memperoleh `is_example`, `have_transactions`, `parent_id`, `lft`, `rgt`, `depth` beserta lima indeks, juga tidak ada di migration. Kode produksi sudah bergantung pada kolom runtime itu (mis. `GeneralLedger::creating` menulis `code`; `StockEntryService` menulis `accounts.have_transactions`). **Konvensi yang disimpulkan:** kolom tabel baru Finance wajib dideklarasikan eksplisit di migration (Bagian 1.4).
-2. **Penghapusan kolom tidak seluruhnya hanya di lokal.** Penghapusan `have_transactions` pada model submitable berjalan **di semua lingkungan** (`DataTable.php:648-652`). Hanya penghapusan kolom Submitable pada model non-submitable dan kolom tree pada model non-tree yang dibatasi `app()->isLocal()`. Karena `db:seed --force` ikut dalam setiap deploy, **pemeriksaan** itu dijalankan pada setiap deploy ke staging dan produksi; kolom dihapus bila masih ada, sehingga penghapusan efektif hanya terjadi sekali per tabel (selanjutnya no-op), dengan asumsi `APP_ENV` di sana bukan `local` (belum dikonfirmasi, lihat Bagian 1.5.2). Ini **tidak sama** dengan uraian PRD F-12 (lihat Bagian 5.2; PRD sudah dikoreksi).
-3. **Dugaan bug terkonfirmasi oleh test** (Bagian 3): F-04, F-10, F-11 (bagian FX), F-16. Ditambah dua temuan baru dari PR #271 (tanda laba/rugi disposal aset; Purchase Invoice tanpa PO) dan satu temuan tambahan metode (pemecahan kelompok akibat `now()` per baris, Bagian 3.7). Semuanya menunggu keputusan pemilik produk.
+1. **Skema runtime (Req 6).** Trait `DataTable::initPermissions()` menambah kolom langsung ke tabel saat `PermissionSeeder` dijalankan, dan seeder itu **berjalan di setiap deploy** staging dan produksi (`db:seed --force`, lihat Bagian 1.1). Untuk dua tabel Finance yang relevan: `general_ledgers` memperoleh `is_example`, `code` (unik), dan `have_transactions` yang **tidak ada di migration**; `accounts` memperoleh `is_example`, `have_transactions`, `parent_id`, `lft`, `rgt`, `depth` beserta lima indeks, juga tidak ada di migration. Kode produksi sudah bergantung pada kolom runtime itu (mis. `GeneralLedger::creating` menulis `code`; `StockEntryService` menulis `accounts.have_transactions`). **Skema aktual staging diverifikasi 2026-11-04: sama dengan migration ditambah kolom runtime tersebut, tanpa *drift*** (Bagian 1.5.2). **Konvensi yang disimpulkan:** kolom tabel baru Finance wajib dideklarasikan eksplisit di migration (Bagian 1.4).
+2. **Penghapusan kolom tidak seluruhnya hanya di lokal.** Penghapusan `have_transactions` pada model submitable berjalan **di semua lingkungan** (`DataTable.php:648-652`). Hanya penghapusan kolom Submitable pada model non-submitable dan kolom tree pada model non-tree yang dibatasi `app()->isLocal()`. Karena `db:seed --force` ikut dalam setiap deploy, **pemeriksaan** itu dijalankan pada setiap deploy ke staging dan produksi; kolom dihapus bila masih ada, sehingga penghapusan efektif hanya terjadi sekali per tabel (selanjutnya no-op), dengan `APP_ENV` yang bukan `local`: **dikonfirmasi 2026-11-04 untuk staging (`APP_ENV` = `staging`)**; produksi tidak dikonfirmasi (Bagian 1.5.2). Ini **tidak sama** dengan uraian PRD F-12 (lihat Bagian 5.2; PRD sudah dikoreksi).
+3. **Dugaan bug terkonfirmasi oleh test** (Bagian 3): F-04, F-10, F-11 (bagian FX), F-16. Ditambah dua temuan baru dari PR #271 (tanda laba/rugi disposal aset; Purchase Invoice tanpa PO) dan satu temuan tambahan metode (pemecahan kelompok akibat `now()` per baris, Bagian 3.7). Keputusan penanganan tiap bug sudah disetujui pemilik produk pada 2026-11-03 (decision log: PB-1 s.d. PB-15 dan DV-C); hotfix Payment Entry sudah digabung (PR #277), sisanya ditangani di fase yang ditetapkan tabel PB.
 4. **Hasil audit staging (Bagian 2 dan 4, 2026-11-03).** 60 baris GL aktif dalam 28 kelompok (rentang 2026-07-26 sampai 2026-10-28), Σdebit = Σkredit, dan **semua kategori anomali bernilai 0** kecuali 4 baris soft-delete yang diharapkan (dokumen sumber `canceled`: satu Sales Invoice dan satu Payment Entry). Tidak ada kelompok tak seimbang, sehingga beban backfill staging kecil. Angka ini kecil dan **tidak membuktikan kebenaran jurnal**: F-10, F-11, dan temuan N-4 menghasilkan jurnal seimbang tetapi salah.
 5. **Temuan baru dari analisis baseline saldo dan matriks cakupan (Bagian 2.6 dan 3.8 sampai 3.13):** N-4 (arah jurnal Payment Entry tampak terbalik terhadap konvensi umum), N-5 (akun SRNB 2214 bersaldo debit), N-6 (HPP 4210 berklasifikasi income), N-7 (akun selisih Stock Entry), N-8 (baris GL bernilai nol), N-9 (kolom `approved` matriks cakupan tidak bermakna pada data nyata). Status verifikasi tiap butir ditulis di bagiannya. `balance_amount` hanya terisi pada dua akun, konsisten dengan F-09.
 6. **Peringatan untuk estimasi backfill (Bagian 4).** F-10 dan F-11 menghasilkan jurnal yang **seimbang tetapi salah**, sehingga persentase kelompok tak seimbang dari `finance:audit-gl` tidak mendeteksinya. Persentase itu juga dapat membengkak karena baris satu dokumen terpecah lintas detik.
@@ -27,12 +27,13 @@
 
 | # | Menunggu | Pemilik | Dampak |
 |---|---|---|---|
-| 1 | **Task 6.5**: **sudah dijalankan dan diterima 2026-11-03** (`finance:audit-gl --json` dan `finance:snapshot-balances`, berkas tersimpan di `storage/app/finance-audit/`, ter-ignore git). **Sisa yang MENUNGGU:** (a) hasil query skema Req 6.2 (Bagian 1.5.2), (b) konfirmasi `APP_ENV` staging, (c) query SQL tambahan pada Bagian 2.3, 3.2, 3.3, 3.6, 3.9, 3.13 | Pemilik produk (pelaksana staging) | Bagian 1.5.2, serta paparan F-10, F-11, N-2, N-5 |
+| 1 | **Task 6.5**: **sudah dijalankan dan diterima 2026-11-03** (`finance:audit-gl --json` dan `finance:snapshot-balances`, berkas tersimpan di `storage/app/finance-audit/`, ter-ignore git). **Sudah diterima 2026-11-04:** (a) skema aktual Req 6.2 (Bagian 1.5.2), (b) konfirmasi `APP_ENV` staging = `staging`. **Sisa, opsional dan tidak memblokir:** (c) query SQL tambahan pada Bagian 2.3, 3.2, 3.3, 3.6, 3.9, 3.13 (paparan F-10, F-11, N-2, N-5; tidak diperlukan karena GL produksi kosong) | Pemilik produk (pelaksana staging) | Hanya paparan F-10, F-11, N-2, N-5 |
 | 2 | ~~**Q1** versi PRD~~ **Dijawab 2026-11-03**: belum ada data sama sekali (GL produksi kosong). Tidak lagi menunggu | Pemilik produk | Sudah tertutup; tidak memblokir Fase 1 |
 | 3 | **Q-P0-1** dijawab 2026-11-03: pemilik produk sendiri menjalankan perintah di staging dan menyerahkan hasilnya. Produksi tidak untuk sekarang | Pemilik produk | Task 6.5 dapat dilaksanakan; checkbox tetap terbuka sampai hasil diterima |
 | 4 | ~~**Keputusan pemilik produk** atas tiap temuan di Bagian 3 (F-04, F-10, F-11, F-16, N-1 sampai N-9)~~ **Disetujui 2026-11-03** (lihat Bagian 3 dan decision log, Keputusan Penanganan per Bug) | Pemilik produk | Fase atau hotfix tiap temuan sudah ditetapkan |
 | 4a | ~~**Keputusan DV-D (Req 2.2/N-9), dibutuhkan sebelum Task 8:** MENUNGGU~~ **DV-D disetujui opsi (a) 2026-11-03; implementasi Task 2.6 selesai 2026-11-04 (PR #275)** | Pemilik produk | Perbaikan auditor cakupan dokumen (Bagian 3.13); lihat DV-D di `finance-decision-log.md` |
 | 5 | ~~**Persetujuan laporan ini** (Requirement 7.5)~~ **Disetujui 2026-11-03** (versi PR #272/#273). Tambahan PR #274 (angka staging, N-4 sampai N-9) disetujui 2026-11-03 (AP-2); keputusan penanganan per bug disetujui 2026-11-03 | Pemilik produk | Gerbang Fase 1 (Req 7.5) untuk persetujuan laporan dan decision log terpenuhi; Fase 1 tetap mensyaratkan Fase 0 selesai |
+| 6 | ~~**Penutupan Fase 0 (Task 8)**~~ **Selesai 2026-11-04**: skema staging dan `APP_ENV` diterima; `tests/Feature/Finances` lulus; exit criteria Fase 0 terpenuhi (lihat PRD Bagian 10 dan `tasks.md` Fase 0). Fase 0 tidak lagi menunggu | Pemilik produk, pengembang | Gerbang Fase 1 terbuka; keputusan Fase 1 (D-3, D-8, D-14, Q-P1-1, Q-P1-2) diputuskan 2026-11-04 (decision log) |
 
 ---
 
@@ -101,7 +102,7 @@ Tiga perilaku penghapusan, dengan cakupan lingkungan yang berbeda:
 
 `app()->isLocal()` bernilai benar bila `APP_ENV=local`. Seeder berjalan pada setiap deploy (Bagian 1.1) dan pada pengembangan lokal (`db:seed`). Akibatnya: pemeriksaan `have_transactions` pada model submitable **dijalankan pada setiap deploy staging/produksi** dan kolom dihapus bila masih ada (penghapusan efektif hanya sekali, selanjutnya no-op); dua penghapusan lainnya hanya terjadi pada mesin ber-`APP_ENV=local`, tetapi di sana dapat **menghapus kolom yang dideklarasikan eksplisit di migration** apabila namanya sama dengan kolom di atas dan model tidak memiliki flag yang bersangkutan.
 
-**Catatan asumsi.** Kesimpulan bahwa di staging/produksi hanya `have_transactions` pada model submitable yang dihapus mengandaikan `APP_ENV` di sana bukan `local`. Hal itu tidak terlihat dari repo; dikonfirmasi pada Task 6.5 (baris terakhir tabel Bagian 1.5.2).
+**Catatan asumsi (dikonfirmasi 2026-11-04 untuk staging).** Kesimpulan bahwa di staging/produksi hanya `have_transactions` pada model submitable yang dihapus mengandaikan `APP_ENV` di sana bukan `local`. Staging: `APP_ENV` = `staging`, sehingga dua penghapusan yang dibatasi `isLocal()` tidak berlaku di sana (Bagian 1.5.2). Produksi: tidak dikonfirmasi; asumsi yang sama dipakai sampai ada konfirmasi, dan tidak memblokir karena GL produksi kosong (Q1).
 
 Risiko bagi model jurnal baru (Fase 1):
 
@@ -123,6 +124,8 @@ Risiko bagi model jurnal baru (Fase 1):
 5. Migration yang menambah kolom NOT NULL ke `general_ledgers` (mis. `journal_id`) harus nullable atau berdefault, karena tabel sudah berisi data.
 6. Kode aplikasi tidak boleh memakai kolom yang hanya ada lewat `initPermissions()` pada tabel jurnal baru tanpa deklarasi migration.
 7. **Konsekuensi bagi deploy Fase 1:** `migrate --force` berjalan sebelum `db:seed --force` dalam skrip deploy. Bila model jurnal baru memakai `DataTable` dan migration-nya tidak mendeklarasikan kolom yang dicakup Bagian 1.1, `initPermissions()` akan mengubah tabel jurnal baru itu pada **deploy pertamanya** (menambah `is_example`, `code`, `have_transactions`, dst.). Penghapusan di staging/produksi terbatas pada `have_transactions` pada model submitable, bila kolom itu ada; dua jalur penghapusan lain (kolom Submitable pada model non-submitable, kolom tree pada model non-tree) dibatasi `app()->isLocal()` dan tidak berlaku di sana. Pada tabel yang sudah terisi (mis. setelah backfill di dalam migration), penambahan kolom NOT NULL berisiko gagal (Bagian 1.2). Karena itu deklarasi eksplisit di migration bukan sekadar kerapian, melainkan syarat agar deploy pertama tidak mengubah skema yang sudah diuji.
+8. **Bentuk deklarasi persis dan flag model pemicunya** (skema staging 2026-11-04, Bagian 1.5.2; flag diverifikasi ke `app/Traits/DataTable.php`): (a) `is_example` untuk **semua** model `DataTable` (baris 559-563): `boolean` default `false` + `index()` (nama bawaan `<tabel>_is_example_index`); (b) `code` (`string` NOT NULL + `unique()`, nama bawaan `<tabel>_code_unique`) **hanya bila `$is_submitable` atau `$generateCodeSeries`** (baris 565 dan 594-598); (c) `have_transactions` (`boolean` default `false`) **hanya untuk model non-submitable** (baris 693-697); untuk model submitable kolom ini dihapus di semua lingkungan (baris 648-652); (d) kolom Submitable hanya bila `$is_submitable` (baris 600), kolom tree hanya bila `$is_tree_view` (baris 699). Konvensi: tabel jurnal Fase 1 (`journals`, `fiscal_years`, `fiscal_periods`; baris jurnal tetap di `general_ledgers`, tidak ada tabel `journal_lines`) mendeklarasikan eksplisit **persis kolom yang akan ditambahkan `initPermissions()` menurut flag modelnya**, sehingga `initPermissions()` no-op karena setiap penambahan dijaga `hasColumn`. Contoh: `Journal` memakai kode series (Req 1.6 Fase 1), jadi `code` wajib dideklarasikan; bila sengaja nullable, test Task 2.5 Fase 1 membuktikan `initPermissions()` tidak mengubahnya.
+9. **Verifikasi staging:** pada `general_ledgers` dan `accounts` tidak ada kolom di luar migration dan `initPermissions()` (tanpa *drift*), sehingga konvensi di atas tidak memerlukan pembersihan tabel yang ada sebelum Fase 1.
 
 ### 1.5 Skema `accounts` dan `general_ledgers` (Req 6.2)
 
@@ -172,79 +175,61 @@ FK **masuk** ke `general_ledgers` yang terbaca dari migration: `assets.journal_e
 
 Kolom runtime (bukan migration): lihat Bagian 1.2.
 
-#### 1.5.2 **MENUNGGU hasil query skema (staging)**: skema aktual dan selisihnya
+#### 1.5.2 Skema aktual staging dan selisihnya terhadap migration (terisi 2026-11-04)
 
-Bagian ini **belum terisi**: pemilik produk belum menyerahkan hasil query skema pada Task 6.5 (hanya dua berkas `finance:*`). Jalankan query read-only berikut di DB staging (pelaksana: pemilik produk, Q-P0-1 dijawab 2026-11-03). Semua query hanya `SELECT`/`SHOW`; memakai `DATABASE()` agar nama skema tidak ditulis di sini. **Jangan menjalankan `db:seed`, `PermissionSeeder`, `migrate`, atau `tinker`** sebagai bagian Task 6.5; hanya query di bawah ini dan dua perintah `finance:*` pada Bagian 2.1 (deploy sudah menjalankan seeder sendiri).
+**Sumber.** Keluaran `php artisan env`, `php artisan db:table general_ledgers`, dan `php artisan db:table accounts` yang dijalankan pemilik produk di staging dan diserahkan 2026-11-04. Hanya **struktur** yang disalin ke sini (kolom, tipe, indeks, FK); tidak ada ID atau data baris. Query SQL yang disiapkan semula (`SHOW CREATE TABLE`, `information_schema`) tidak dijalankan: `db:table` menggantikannya dan memadai untuk Req 6.2, kecuali hal-hal yang tidak tampak pada keluarannya (daftar di bawah tabel).
+
+**`APP_ENV` staging = `staging`** (bukan `local`). Akibatnya dua jalur penghapusan yang dibatasi `app()->isLocal()` (kolom Submitable pada model non-submitable; kolom tree pada model non-tree) **tidak berlaku di staging**; yang tetap berlaku hanya penghapusan `have_transactions` pada model submitable (Bagian 1.3). `APP_ENV` produksi **tidak dikonfirmasi** (produksi tidak diperlukan sekarang, Q1 dan Q-P0-1); skrip deploy produksi menjalankan seeder yang sama (Bagian 5.2 butir 1).
+
+**Tabel.** `general_ledgers`: 18 kolom, InnoDB, `utf8mb4_unicode_ci`, ukuran 128,00 KB. `accounts`: 22 kolom, InnoDB, `utf8mb4_unicode_ci`, ukuran 128,00 KB. Jumlah baris pasti tidak ditampilkan `db:table`; baris GL ada pada audit (60 aktif, 4 soft-deleted, Bagian 2) dan jumlah akun ada pada baseline (Bagian 2.5). Kolom "Asal": **M** = ada di migration, **R** = hanya dari `initPermissions()` (diharapkan, bukan *drift*), **?** = tidak ada di keduanya (*drift* sungguhan).
+
+| Objek | Asal | Menurut migration | Aktual staging | Selisih / catatan |
+|---|---|---|---|---|
+| `general_ledgers.is_example` | R | tidak ada | `tinyint(1)` default 0; indeks `general_ledgers_is_example_index` | Sesuai harapan. Ditambahkan `initPermissions()`, diletakkan setelah `deleted_at` |
+| `general_ledgers.code` | R | tidak ada | `varchar(255)` NOT NULL (tanpa default); indeks unik `general_ledgers_code_unique` | Sesuai harapan. Terisi per baris (F-15) dan unik per baris |
+| `general_ledgers.have_transactions` | R | tidak ada | `tinyint(1)` default 0 | Sesuai harapan. Tidak dihapus karena `GeneralLedger` bukan model submitable |
+| `general_ledgers.transaction_date` | M | `datetime NOT NULL` | `datetime` NOT NULL, tanpa default, tanpa pecahan detik | Sesuai migration |
+| `general_ledgers.against_account_id` | M | `char(26) NOT NULL` | `char(26)` NOT NULL | Sesuai migration (Fase 1 menjadikannya nullable, Req 1.3) |
+| `general_ledgers.debit`, `credit` | M | `double` default 0 | `double` default 0 | Sesuai migration (Fase 1 Task 8 mengubah ke `decimal(20,4)`) |
+| FK `account_id` dan `against_account_id` | M | `CASCADE` saat hapus (PRD F-02) | `account_id -> accounts.id`, ubah `restrict`, hapus `cascade`; `against_account_id -> accounts.id`, ubah `restrict`, hapus `cascade` | Sesuai migration. **F-02 terkonfirmasi di staging**: menghapus akun menghapus baris GL |
+| FK `branch_id` | M | `nullOnDelete` | `branch_id -> branches.id`, ubah `restrict`, hapus `set null` | Sesuai migration |
+| FK masuk `assets.journal_entry_for_scrap_id -> general_ledgers.id` | M | `SET NULL` | **tidak tampak** (`db:table` hanya mencantumkan FK keluar) | Tetap berdasarkan pembacaan migration (Bagian 1.5.1); belum diverifikasi di DB |
+| Indeks `transaction_date` / `deleted_at` | tidak ada | tidak ada | tidak ada | Sesuai migration. Indeks aktual: PK, `referenceable_index`, `partyable_index`, `general_ledgers_code_unique`, `general_ledgers_is_example_index`, dan tiga indeks FK (`account_id`, `against_account_id`, `branch_id`) |
+| `accounts.is_example` | R | tidak ada | `tinyint(1)` default 0; indeks `accounts_is_example_index` | Sesuai harapan |
+| `accounts.have_transactions` | R | tidak ada | `tinyint(1)` default 0 | Sesuai harapan |
+| `accounts.parent_id` | R | tidak ada | `char(26)` NULL; FK `parent_id -> accounts.id`, ubah `restrict`, hapus `set null` | Sesuai harapan (self-FK) |
+| `accounts.lft`, `rgt`, `depth` | R | tidak ada | `int unsigned` default 0 masing-masing | Sesuai harapan |
+| Indeks tree | R | tidak ada | `lft_index`, `rgt_index`, `depth_index`, `idx_depth_lft (depth, lft)`, `idx_parent_lft (parent_id, lft)` | Kelima indeks yang diperkirakan ada. Indeks FK `parent_id` dipenuhi `idx_parent_lft` |
+| `accounts.is_contra` | M | `tinyint(1) NOT NULL` default false | `tinyint(1)` default 0 | Sesuai migration (dihapus pada Fase 2 Task 14.2, D-26) |
+| FK `accounts.currency_code` | M | `nullOnDelete` | `currency_code -> currencies.code`, ubah `restrict`, hapus `set null`; indeks `accounts_currency_code_foreign` | Sesuai migration |
+| Kolom lain di DB yang tidak ada di migration maupun `initPermissions()` | ? | tidak ada | **tidak ada**: 15 kolom migration + 3 kolom runtime = 18 (`general_ledgers`); 16 kolom migration + 6 kolom runtime = 22 (`accounts`) | **Tidak ada *drift*** |
+| Jumlah baris, ukuran, mesin, kolasi | — | — | InnoDB, `utf8mb4_unicode_ci`, 128,00 KB per tabel; jumlah baris pasti tidak ditampilkan | Baris GL dari audit (60 aktif, 4 soft-deleted) |
+| Versi server DB | — | — | **tidak tampak** pada keluaran | Tidak memblokir; lihat di bawah |
+
+**Kesimpulan Req 6.2.** Skema aktual staging **sama dengan migration ditambah kolom runtime yang diharapkan**, tanpa *drift*. Kolom runtime diletakkan setelah kolom migration (urutan `is_example`, `code`, `have_transactions` pada `general_ledgers`). Konsekuensinya bagi Fase 1:
+
+1. **Konvensi deklarasi eksplisit (Bagian 1.4) menjadi konkret.** Agar `initPermissions()` no-op pada tabel baru, migration harus mendeklarasikan kolom persis seperti hasil staging: `is_example` `boolean` default `false` dengan indeks bernama `<tabel>_is_example_index`; `have_transactions` `boolean` default `false` (model non-submitable); `code` `string` (varchar 255) NOT NULL dengan indeks unik `<tabel>_code_unique` bila model memakai `$generateCodeSeries`. Nama indeks default Laravel itulah yang dibuat `initPermissions()`, sehingga deklarasi migration yang memakai `->index()`/`->unique()` bawaan akan cocok.
+2. **`general_ledgers.code` tetap NOT NULL unik per baris** (F-15). Adapter Fase 1 tidak mengubahnya; baris jurnal baru tetap memperoleh `code` lewat `GeneralLedger::creating`.
+3. **Kolom baru `journal_id`, `line_no`, `foreign_*`, `exchange_rate` pada `general_ledgers` harus nullable** (tabel staging berisi 64 baris termasuk soft-deleted); kolom nullable tidak terpengaruh kegagalan NOT NULL pada tabel terisi (Bagian 1.2).
+4. **Perubahan FK (Req 13.3)** menyasar dua FK `ON DELETE CASCADE` yang terkonfirmasi di staging; nama FK tidak tampak pada keluaran, dan nama indeks FK (`general_ledgers_account_id_foreign` dan `general_ledgers_against_account_id_foreign`) sesuai pola nama default Laravel, sehingga nama FK **diduga** sama. Verifikasi nama FK dilakukan di Fase 1 Task 8.3 sebelum `dropForeign`.
+5. **Tidak ada kolom tak terduga** pada tabel yang akan dimodifikasi, sehingga migration Fase 1 tidak perlu menangani *drift*.
+
+**Hal yang tidak tampak pada keluaran `db:table` (opsional, tidak memblokir penutupan Fase 0).** (a) FK masuk dari tabel lain, termasuk `assets.journal_entry_for_scrap_id` dan seluruh tabel yang merujuk `accounts`; (b) versi server DB; (c) nama FK; (d) isi tabel `migrations`. Bila diperlukan sebelum Fase 1 Task 8.3, query read-only berikut mengisinya:
 
 ```sql
--- 1. Definisi lengkap
-SHOW CREATE TABLE accounts;
-SHOW CREATE TABLE general_ledgers;
-
--- 2. Kolom (tipe, nullable, default, kolom generated)
-SELECT TABLE_NAME, ORDINAL_POSITION, COLUMN_NAME, COLUMN_TYPE, IS_NULLABLE,
-       COLUMN_DEFAULT, EXTRA, COLUMN_KEY, GENERATION_EXPRESSION
-FROM information_schema.COLUMNS
-WHERE TABLE_SCHEMA = DATABASE() AND TABLE_NAME IN ('accounts', 'general_ledgers')
-ORDER BY TABLE_NAME, ORDINAL_POSITION;
-
--- 3. Indeks
-SELECT TABLE_NAME, INDEX_NAME, NON_UNIQUE, SEQ_IN_INDEX, COLUMN_NAME, INDEX_TYPE
-FROM information_schema.STATISTICS
-WHERE TABLE_SCHEMA = DATABASE() AND TABLE_NAME IN ('accounts', 'general_ledgers')
-ORDER BY TABLE_NAME, INDEX_NAME, SEQ_IN_INDEX;
-
--- 4. Foreign key beserta aturan hapus/ubah (tabel itu sendiri dan tabel yang merujuknya)
 SELECT k.TABLE_NAME, k.CONSTRAINT_NAME, k.COLUMN_NAME,
-       k.REFERENCED_TABLE_NAME, k.REFERENCED_COLUMN_NAME, r.UPDATE_RULE, r.DELETE_RULE
+       k.REFERENCED_TABLE_NAME, r.UPDATE_RULE, r.DELETE_RULE
 FROM information_schema.KEY_COLUMN_USAGE k
 JOIN information_schema.REFERENTIAL_CONSTRAINTS r
   ON r.CONSTRAINT_SCHEMA = k.CONSTRAINT_SCHEMA
  AND r.TABLE_NAME = k.TABLE_NAME
  AND r.CONSTRAINT_NAME = k.CONSTRAINT_NAME
 WHERE k.TABLE_SCHEMA = DATABASE()
-  AND k.REFERENCED_TABLE_NAME IS NOT NULL
-  AND (k.TABLE_NAME IN ('accounts', 'general_ledgers')
-       OR k.REFERENCED_TABLE_NAME IN ('accounts', 'general_ledgers'))
+  AND k.REFERENCED_TABLE_NAME IN ('accounts', 'general_ledgers')
 ORDER BY k.TABLE_NAME, k.CONSTRAINT_NAME;
 
--- 5. Ukuran dan mesin tabel; migration yang tercatat sudah dijalankan.
---    TABLE_ROWS pada InnoDB hanya PERKIRAAN; angka pasti jumlah baris GL aktif ada di
---    `totals.rows` keluaran finance:audit-gl, dan jumlah akun ada di CSV baseline.
-SELECT TABLE_NAME, ENGINE, TABLE_ROWS, DATA_LENGTH, INDEX_LENGTH, TABLE_COLLATION
-FROM information_schema.TABLES
-WHERE TABLE_SCHEMA = DATABASE() AND TABLE_NAME IN ('accounts', 'general_ledgers');
-
-SELECT migration, batch FROM migrations
-WHERE migration LIKE '%accounts%' OR migration LIKE '%general_ledgers%'
-ORDER BY id;
-
--- 6. Versi server (pengaruh pada perilaku DDL dan kolom generated)
 SELECT VERSION();
 ```
-
-Tabel hasil, **MENUNGGU hasil query skema (staging)**. Kolom "Asal" memakai: **M** = ada di migration, **R** = hanya dari `initPermissions()` (diharapkan, bukan *drift*), **?** = tidak ada di keduanya (*drift* sungguhan yang perlu diselidiki).
-
-| Objek | Asal yang diharapkan | Menurut migration | Aktual staging | Selisih / catatan |
-|---|---|---|---|---|
-| `general_ledgers.is_example` (+ indeks) | R | tidak ada | MENUNGGU | MENUNGGU |
-| `general_ledgers.code` (NOT NULL, unique) | R | tidak ada | MENUNGGU | MENUNGGU |
-| `general_ledgers.have_transactions` | R | tidak ada | MENUNGGU | MENUNGGU |
-| `general_ledgers.transaction_date` | M | `datetime NOT NULL` | MENUNGGU | MENUNGGU |
-| `general_ledgers.against_account_id` | M | `char(26) NOT NULL` | MENUNGGU | MENUNGGU |
-| FK `account_id` dan `against_account_id`: `DELETE_RULE` | M | `CASCADE` (PRD F-02) | MENUNGGU | MENUNGGU |
-| FK masuk `assets.journal_entry_for_scrap_id` -> `general_ledgers.id`: `DELETE_RULE` | M | `SET NULL` | MENUNGGU | MENUNGGU |
-| Indeks `transaction_date` / `deleted_at` | tidak ada | tidak ada | MENUNGGU | MENUNGGU |
-| `accounts.is_example` (+ indeks) | R | tidak ada | MENUNGGU | MENUNGGU |
-| `accounts.have_transactions` | R | tidak ada | MENUNGGU | MENUNGGU |
-| `accounts.parent_id` (self-FK) | R | tidak ada | MENUNGGU | MENUNGGU |
-| `accounts.lft`, `rgt`, `depth` | R | tidak ada | MENUNGGU | MENUNGGU |
-| Indeks `lft_index`, `rgt_index`, `depth_index`, `idx_depth_lft`, `idx_parent_lft` | R | tidak ada | MENUNGGU | MENUNGGU |
-| `accounts.is_contra` | M | `tinyint(1) NOT NULL` | MENUNGGU | MENUNGGU (dihapus pada Fase 2 Task 14.2, D-26) |
-| Kolom lain yang ada di DB tetapi tidak di migration maupun `initPermissions()` | ? | tidak ada | MENUNGGU | MENUNGGU |
-| Jumlah baris, ukuran data dan indeks, mesin, kolasi | — | — | MENUNGGU | MENUNGGU |
-| Versi server DB | — | — | MENUNGGU | MENUNGGU |
-| **Konfirmasi `APP_ENV` staging/produksi ≠ `local`** (kesimpulan Bagian 1.3 bahwa hanya `have_transactions` pada model submitable yang dihapus di sana mengandaikan ini; `APP_ENV` tidak terlihat dari repo; jangan menyalin nilai `.env` lain ke laporan, cukup catat "≠ local" atau "local") | — | — | MENUNGGU | MENUNGGU |
 
 ---
 
@@ -596,6 +581,8 @@ Bukan bagian permintaan awal; dicatat karena memengaruhi akurasi estimasi backfi
 
 **Keputusan pemilik produk (2026-11-03): disetujui.** Fase 1; granularitas D-8 ditentukan sebelum spec Fase 1 final.
 
+**Granularitas D-8 diputuskan 2026-11-04 (pemilik produk):** backfill mengelompokkan per dokumen (`referenceable_type` + `referenceable_id`), dan kelompok dipecah per **tanggal** hanya bila dokumen punya posting pada hari berbeda. Pasangan baris yang hanya berbeda detik (N-3) karenanya tetap satu jurnal. Lihat D-8 di decision log dan PRD Bagian 7 dan 11. Auditor Fase 0 tetap mengelompokkan per (`referenceable_type`, `referenceable_id`, `transaction_date`) penuh dan tidak diubah (alat ukur Fase 0); pada data staging hasilnya sama dengan pengelompokan baru (28 kelompok = 28 dokumen).
+
 ### 3.8 N-4 (baru, dari baseline staging): arah jurnal Payment Entry tampak terbalik
 
 **Status verifikasi: terverifikasi dari kode; data staging konsisten secara aritmetika, tetapi pada tingkat dokumen itu dugaan, perlu verifikasi (berkas hanya agregat).**
@@ -754,7 +741,7 @@ Temuan (a) s.d. (d) ditemukan saat mengerjakan hotfix dan belum diputuskan. Stat
 
 ### 4.1 Metode dan sumber angka
 
-Dasar: D-8 (PRD Bagian 7 dan 11): baris `general_ledgers` dikelompokkan per (`referenceable_type`, `referenceable_id`, `transaction_date`) menjadi satu `journal`; kelompok seimbang → `posted`; kelompok tak seimbang → `legacy_unbalanced = true`, tidak dikoreksi otomatis; backfill idempoten dan tidak mengubah `debit`/`credit` lama. Baris yang sudah soft-deleted (`totals.rows_soft_deleted`) **dikecualikan** dari backfill (catatan D-13: data lama yang soft-deleted tetap apa adanya). Semua angka di bawah berasal dari baris **aktif**.
+Dasar: D-8 (PRD Bagian 7 dan 11; **diubah 2026-11-04**: semula per (`referenceable_type`, `referenceable_id`, `transaction_date`), kini per (`referenceable_type`, `referenceable_id`) dengan pemecahan per tanggal hanya bila dokumen punya posting di hari berbeda). Angka di bawah dihitung auditor dengan pengelompokan lama yang lebih rinci; pada staging keduanya sama (28 kelompok = 28 dokumen). Baris `general_ledgers` menjadi satu `journal` per kelompok; kelompok seimbang → `posted`; kelompok tak seimbang → `legacy_unbalanced = true`, tidak dikoreksi otomatis; backfill idempoten dan tidak mengubah `debit`/`credit` lama. Baris yang sudah soft-deleted (`totals.rows_soft_deleted`) **dikecualikan** dari backfill (catatan D-13: data lama yang soft-deleted tetap apa adanya). Semua angka di bawah berasal dari baris **aktif**.
 
 Simbol: **R** = `totals.rows`; **G** = `totals.groups`; **U** = `sections.unbalanced_groups.count`; **D** = `sections.unbalanced_groups.total_diff`.
 
@@ -784,12 +771,12 @@ Komponen yang membutuhkan penanganan khusus (bukan bagian dari persentase di ata
 | Dokumen `canceled` dengan GL aktif | `sections.canceled_active_gl.count` (dokumen) | Aturan backfill untuk GL aktif milik dokumen batal (F-16) | **0** | tidak diperlukan (Q1) |
 | GL soft-deleted | `totals.rows_soft_deleted`; `sections.soft_deleted_expected.count`, `soft_deleted_unexpected.count` | Dikecualikan dari backfill; yang `unexpected` perlu dijelaskan | **4** baris (4 diharapkan, 0 anomali), dikecualikan | tidak diperlukan (Q1) |
 
-**Kesimpulan estimasi staging.** Beban backfill staging kecil: 60 baris menjadi 28 jurnal, seluruhnya seimbang, tanpa yatim, akun menggantung, duplikasi, atau GL aktif milik dokumen batal. Backfill staging praktis hanya menguji mekanisme migrasi, bukan kasus sulit. Angka ini **tidak menunjukkan kebenaran jurnal**: lihat F-10, F-11, N-4 sampai N-7 yang menghasilkan jurnal seimbang tetapi salah. Catatan N-3 (`now()` per baris): tidak teramati di data ini (0 kelompok tak seimbang; 28 kelompok = 28 dokumen). Karena D-8 mengelompokkan per (`referenceable`, `transaction_date`) penuh, risiko pemecahan tetap ada pada volume yang lebih besar dan granularitasnya perlu diputuskan sebelum Fase 1 (Bagian 3.7).
+**Kesimpulan estimasi staging.** Beban backfill staging kecil: 60 baris menjadi 28 jurnal, seluruhnya seimbang, tanpa yatim, akun menggantung, duplikasi, atau GL aktif milik dokumen batal. Backfill staging praktis hanya menguji mekanisme migrasi, bukan kasus sulit. Angka ini **tidak menunjukkan kebenaran jurnal**: lihat F-10, F-11, N-4 sampai N-7 yang menghasilkan jurnal seimbang tetapi salah. Catatan N-3 (`now()` per baris): tidak teramati di data ini (0 kelompok tak seimbang; 28 kelompok = 28 dokumen). Granularitas D-8 telah diubah 2026-11-04 menjadi per dokumen dengan pemecahan per tanggal (Bagian 3.7), sehingga risiko pemecahan lintas detik pada volume lebih besar sudah ditangani oleh aturan backfill; persentase tak seimbang dari auditor (pengelompokan lama) tetap dapat membengkak oleh N-3 dan tidak boleh dibaca sebagai beban backfill baru.
 
 ### 4.2 Keterbatasan yang harus dibaca bersama angka
 
 1. **Persentase tak seimbang tidak menggambarkan kebenaran data.** F-10 (GL pembayaran memposting total kumulatif) dan F-11 (pembayaran asing tercatat dalam mata uang dokumen) menghasilkan jurnal yang **seimbang tetapi salah**: kedua sisi sama-sama berlebih atau sama-sama dalam mata uang asing. Kelompok seperti ini lolos sebagai "seimbang" dan akan di-backfill sebagai `posted`. Ukur paparannya dengan query Bagian 3.2 dan 3.3, terpisah dari persentase U ÷ G.
-2. **Kelompok tak seimbang dapat membengkak akibat pemecahan lintas detik** (N-3, Bagian 3.7): pasangan baris dengan `now()` terpisah dapat menjadi dua kelompok tak seimbang. Gunakan diagnosis Bagian 4.3 sebelum memakai U sebagai ukuran beban.
+2. **Kelompok tak seimbang dapat membengkak akibat pemecahan lintas detik** (N-3, Bagian 3.7): pasangan baris dengan `now()` terpisah dapat menjadi dua kelompok tak seimbang. Gunakan diagnosis Bagian 4.3 sebelum memakai U sebagai ukuran beban. (Pengelompokan backfill D-8 yang baru, per dokumen, tidak terpengaruh pemecahan ini.)
 3. **JSON tidak memuat rincian per jenis dokumen** untuk kelompok tak seimbang (hanya total dan contoh sejumlah `--limit`). Pakai query Bagian 4.3.
 4. **Data contoh (`is_example`)** ikut terhitung oleh auditor (Bagian 2.3); angka R dan G mungkin lebih besar dari data bisnis nyata.
 5. Angka staging tidak otomatis mewakili produksi. Belum ada data sama sekali (GL produksi kosong) (Q1 dijawab 2026-11-03), sehingga estimasi beban backfill produksi per 2026-11-03 nol (GL produksi kosong). Estimasi berbasis staging berlaku sebagai uji coba migrasi dan harus ditandai demikian.
@@ -840,13 +827,14 @@ GROUP BY referenceable_type;
 | # | Item | Status |
 |---|---|---|
 | 1 | Task 6.5: dua berkas `finance:*` dijalankan di staging dan Bagian 2 dan 4 terisi | **SELESAI 2026-11-03** (lingkungan diasumsikan staging) |
-| 1a | Hasil query skema Req 6.2 (Bagian 1.5.2) dan konfirmasi `APP_ENV` staging ≠ `local` | MENUNGGU |
-| 1b | Query SQL tambahan: paparan F-10, F-11, N-2, N-5, `is_example`, dan `gl_posting_statuses` | MENUNGGU |
+| 1a | Hasil skema Req 6.2 (Bagian 1.5.2) dan konfirmasi `APP_ENV` staging ≠ `local` | **SELESAI 2026-11-04** (`APP_ENV` = `staging`; skema sama dengan migration + kolom runtime, tanpa *drift*) |
+| 1b | Query SQL tambahan: paparan F-10, F-11, N-2, N-5, `is_example`, dan `gl_posting_statuses` | MENUNGGU (opsional, tidak memblokir; tidak diperlukan karena GL produksi kosong, Q1) |
 | 2 | Q1 versi PRD dijawab 2026-11-03: belum ada data sama sekali (GL produksi kosong) | DIJAWAB |
 | 3 | Q-P0-1 dijawab 2026-11-03 (pemilik produk menjalankan di staging) | DIJAWAB |
 | 4 | Keputusan atas F-04, F-10, F-11, F-16, N-1 sampai N-9 | **DISETUJUI 2026-11-03** (lihat Bagian 3) |
 | 4a | Keputusan DV-D (Req 2.2/N-9): opsi (a) disetujui 2026-11-03; implementasi Task 2.6 selesai 2026-11-04 (PR #275) | SELESAI 2026-11-04 |
 | 5 | **Persetujuan laporan ini oleh pemilik produk** | **DISETUJUI 2026-11-03** (versi PR #272/#273) |
+| 6 | Penutupan Fase 0 (Task 8): exit criteria terpenuhi dan `tests/Feature/Finances` lulus | **SELESAI 2026-11-04** |
 
 Persetujuan pemilik produk: **disetujui, 2026-11-03**, untuk versi laporan hasil PR #272 dan #273 dan, melalui PR #274, untuk tambahan angka staging (Bagian 2 sampai 4) dan temuan N-4 sampai N-9. Keputusan penanganan per bug juga disetujui 2026-11-03 (lihat Bagian 3 dan decision log). Tanggal persetujuan: 2026-11-03.
 

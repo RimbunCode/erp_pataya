@@ -2,26 +2,30 @@
 
 | | |
 |---|---|
-| **Status dokumen** | Disetujui pemilik produk (2026-11-03); Fase 0 belum selesai (skema staging Req 6.2, APP_ENV, Task 8) |
+| **Status dokumen** | Disetujui pemilik produk (2026-11-03); **Fase 0 selesai 2026-11-04**; keputusan Fase 1 (D-3, D-8, D-14, Q-P1-1, Q-P1-2, BR-7) diputuskan 2026-11-04 |
 | **Tanggal entri** | 2026-11-03 |
 | **Spec** | [`finance-p0-foundation-audit`](../../.kiro/specs/finance-p0-foundation-audit/requirements.md) (Requirement 7.2 dan 7.5; Task 7.3) |
-| **Dokumen terkait** | [`finance-engine-prd.md`](finance-engine-prd.md) (sumber keputusan: Bagian 7 dan 16); [`finance-audit-report.md`](finance-audit-report.md) (laporan audit, sedang disusun) |
+| **Dokumen terkait** | [`finance-engine-prd.md`](finance-engine-prd.md) (sumber keputusan: Bagian 7 dan 16); [`finance-audit-report.md`](finance-audit-report.md) (laporan audit, disetujui) |
 
-> Dokumen ini **disetujui** oleh pemilik produk pada 2026-11-03 (AP-3), termasuk keputusan proses BR-1 s.d. BR-5, penyimpangan DV-A s.d. DV-D (AP-3, 2026-11-03); DV-E disetujui terpisah 2026-11-04, dan keputusan penanganan per bug (PB-1 s.d. PB-15 (AP-3, 2026-11-03)). PB-16 s.d. PB-18 diputuskan pemilik produk 2026-11-04. Hotfix Payment Entry diimplementasi 2026-11-04 (PB-2, PB-4, PB-5, PB-16 s.d. PB-18). Laporan audit ([`finance-audit-report.md`](finance-audit-report.md)) disetujui beserta tambahan PR #274 (AP-1, AP-2). Q1 versi PRD dan Q-P0-1 dijawab; D-1 dan D-11 ditunda. Fase 0 **belum selesai**. Yang masih menunggu: (1) hasil skema staging Req 6.2 dan konfirmasi `APP_ENV` (Task 7.1, belum diserahkan); (2) Task 8 (checkpoint akhir Fase 0). Implementasi DV-D (Task 2.6) selesai 2026-11-04 dan sudah di-merge ke `feat/finance-engine` lewat PR #275. Keputusan berstatus PENDING atau PROPOSED belum berlaku sebelum disahkan. Fase 1 mensyaratkan Fase 0 selesai dan disetujui. Sumber lengkap ada di [`finance-engine-prd.md`](finance-engine-prd.md) Bagian 7 (ADR), Bagian 10 (indeks spec dan aturan branch), dan Bagian 16 (pertanyaan terbuka).
+> Dokumen ini **disetujui** oleh pemilik produk pada 2026-11-03 (AP-3), termasuk keputusan proses BR-1 s.d. BR-5, penyimpangan DV-A s.d. DV-D (AP-3, 2026-11-03); DV-E disetujui terpisah 2026-11-04, dan keputusan penanganan per bug (PB-1 s.d. PB-15 (AP-3, 2026-11-03)). PB-16 s.d. PB-18 diputuskan pemilik produk 2026-11-04. Hotfix Payment Entry diimplementasi 2026-11-04 (PB-2, PB-4, PB-5, PB-16 s.d. PB-18). Laporan audit ([`finance-audit-report.md`](finance-audit-report.md)) disetujui beserta tambahan PR #274 (AP-1, AP-2). Q1 versi PRD dan Q-P0-1 dijawab; D-1 dan D-11 ditunda. Fase 0 **selesai 2026-11-04** (CL-0): hasil skema staging Req 6.2 dan `APP_ENV` (`staging`) diterima 2026-11-04 (Task 7.1) dan checkpoint akhir (Task 8) lulus. Pemilik produk juga memutuskan D-3, D-8 (diubah), D-14, Q-P1-1, Q-P1-2, dan BR-7 (urutan rilis Fase 1) pada 2026-11-04 (lihat Keputusan Arsitektur dan Pertanyaan per Fase). Implementasi DV-D (Task 2.6) selesai 2026-11-04 dan sudah di-merge ke `feat/finance-engine` lewat PR #275. Keputusan berstatus PENDING atau PROPOSED belum berlaku sebelum disahkan. Prasyarat Fase 1 (Fase 0 selesai dan disetujui) terpenuhi 2026-11-04. Sumber lengkap ada di [`finance-engine-prd.md`](finance-engine-prd.md) Bagian 7 (ADR), Bagian 10 (indeks spec dan aturan branch), dan Bagian 16 (pertanyaan terbuka).
 
 ## Ringkasan
 
 | ID | Topik | Fase | Status | Tanggal |
 |---|---|---|---|---|
 | D-1 | Mode posting: antrian vs sinkron | 2 | DITUNDA (2026-11-03); rekomendasi tetap B | 2026-11-03 |
+| D-3 | `decimal(20,4)` untuk tabel jurnal; pembulatan HALF_UP di batas posting | 1 | DECIDED (disetujui 2026-11-04) | 2026-11-04 |
 | D-4 | Satu perusahaan | 1 | DECIDED | 2026-10-18 |
+| D-8 | Granularitas backfill: per dokumen, dipecah per tanggal bila posting di hari berbeda (mengubah rumusan lama per `transaction_date` penuh) | 1 | DECIDED (disetujui 2026-11-04) | 2026-11-04 |
 | D-11 | Standar akuntansi acuan | 0 | DITUNDA (2026-11-03), menunggu Q2 | 2026-11-03 |
 | D-12 | Pajak dalam jurnal | 3 | PROPOSED (validasi akuntan) | 2026-11-03 |
+| D-14 | Jurnal manual (Journal Voucher): masuk Fase 1 sebagai task opsional | 1 | DECIDED (disetujui 2026-11-04) | 2026-11-04 |
 | D-25 | Penyimpanan setting keuangan | S, 1–6 | DECIDED | 2026-10-18 |
 | D-26 | Akun transaksi hanya dari konfigurasi | 2 | DECIDED | 2026-10-18 |
 | BR-1 | Branch baru dari `origin/dev-1` terbaru untuk setiap tahapan (basis diubah 2026-11-04 menjadi `origin/feat/finance-engine`, lihat BR-6) | Proses | DECIDED | 2026-11-03 |
 | BR-2 s.d. BR-5 | Konvensi turunan: cara membuat, pola nama, PR dan penggabungan branch basis, definisi tahapan | Proses | DECIDED (disahkan 2026-11-03) | 2026-11-03 |
 | BR-6 | Basis tahapan dan base PR: `feat/finance-engine` (bukan `dev-1`) | Proses | DECIDED (2026-11-04) | 2026-11-04 |
+| BR-7 | Urutan rilis Fase 1: dua rilis terpisah (Rilis 1: tabel jurnal + `journal_id` nullable + backfill; Rilis 2: migration NOT NULL di PR/tahapan terpisah setelah backfill terverifikasi di staging dan produksi) | 1, Proses | DECIDED (2026-11-04) | 2026-11-04 |
 | DV-A | Rumus snapshot saldo (penyimpangan dari Requirement 3.2 dan 3.5) | 0 | DECIDED (disahkan 2026-11-03) | 2026-11-03 |
 | DV-B | Cakupan characterization test Task 5.3, 5.4, 5.6 (penyimpangan dari Requirement 4) | 0 | DECIDED (disahkan 2026-11-03) | 2026-11-03 |
 | DV-C | Penanganan bug di luar opsi Requirement 7.3 (hotfix, Fase 1, Fase 2, atau fase terkait) | 0 | DECIDED (diterima 2026-11-03); penanganan per bug disetujui 2026-11-03 (PB) | 2026-11-03 |
@@ -29,11 +33,13 @@
 | DV-E | `posting_missing` adalah kolom informasi saja; Req 2.2 tetap hanya `posting_not_posted` | 0 | DECIDED (disetujui 2026-11-04) | 2026-11-04 |
 | AP-2 | Tambahan laporan audit PR #274 (angka staging, N-4…N-9) | 0 | DECIDED (disetujui 2026-11-03) | 2026-11-03 |
 | AP-3 | Decision log disetujui | 0 | DECIDED (disetujui 2026-11-03) | 2026-11-03 |
+| CL-0 | Penutupan Fase 0 (Task 8): skema staging dan `APP_ENV` diterima, test lulus | 0 | SELESAI (2026-11-04); catatan checkpoint, bukan keputusan pemilik produk | 2026-11-04 |
 | PB-1 s.d. PB-15 | Keputusan penanganan per bug (F-04, F-10, F-11, F-16, N-1 s.d. N-9), AP-3 | 0–4 | DECIDED (disetujui 2026-11-03) | 2026-11-03 |
 | PB-16 s.d. PB-18 | Keputusan penanganan per bug (N-10, N-11, N-12 (Q12)) | 0–2 | DECIDED (diputuskan 2026-11-04) | 2026-11-04 |
 | HF | Hotfix Payment Entry (`finance-payment-entry-hotfix`): N-4, F-10, bagian `paid_amount` F-04, N-10 (Q3), N-11 (Q10, Q11), N-12 (Q12), Q2, Q9b | 0–1 | DECIDED (diimplementasi 2026-11-04) | 2026-11-04 |
 | Q1–Q7, Q-P0-1 | Pertanyaan terbuka | 0–6 | Terbuka (Q1 versi PRD, Q4, dan Q-P0-1 dijawab; Q2, Q3, Q5–Q7 terbuka) | Lihat tabel |
-| Q-P1-1 s.d. Q-P6-3 | 21 pertanyaan per fase dari spec Fase 1–6 | 1–6 | PENDING | 2026-11-03 |
+| Q-P1-1, Q-P1-2 | Pertanyaan Fase 1 (jendela pemeliharaan; kapan penegakan periode) | 1 | DECIDED (diputuskan 2026-11-04) | 2026-11-04 |
+| Q-P2-1 s.d. Q-P6-3 | 19 pertanyaan per fase dari spec Fase 2–6 | 2–6 | PENDING | 2026-11-03 |
 | AP-1 | Laporan audit Fase 0 (`finance-audit-report.md`) disetujui; Task 6.5 selesai di staging | 0 | DECIDED (disetujui 2026-11-03) | 2026-11-03 |
 
 ## Persetujuan Laporan Audit
@@ -46,7 +52,7 @@
 
 **Alasan.** Tidak dinyatakan pemilik produk; yang tercatat hanya persetujuan laporan.
 
-**Belum diserahkan.** Konfirmasi `APP_ENV` staging dan hasil query skema Req 6.2. Keduanya masih diperlukan untuk Task 7.1.
+**Diserahkan 2026-11-04.** Konfirmasi `APP_ENV` staging (`staging`) dan hasil skema Req 6.2 (keluaran `db:table`) diterima untuk Task 7.1; lihat CL-0 dan laporan audit Bagian 1.5.2.
 
 | Opsi | Rekomendasi | Pemilik keputusan | Status | Tanggal |
 |---|---|---|---|---|
@@ -56,11 +62,15 @@
 
 ### AP-2 — Tambahan laporan audit (PR #274) disetujui
 
-**Keputusan 2026-11-03: disetujui** oleh pemilik produk: tambahan laporan audit dari PR #274, yaitu angka staging (Bagian 2 sampai 4) dan temuan N-4 sampai N-9. Dasar: Task 6.5 dan berkas staging pada AP-1. Alasan: tidak dinyatakan pemilik produk. Batas: skema staging Req 6.2 dan `APP_ENV` belum diserahkan.
+**Keputusan 2026-11-03: disetujui** oleh pemilik produk: tambahan laporan audit dari PR #274, yaitu angka staging (Bagian 2 sampai 4) dan temuan N-4 sampai N-9. Dasar: Task 6.5 dan berkas staging pada AP-1. Alasan: tidak dinyatakan pemilik produk. Batas: skema staging Req 6.2 dan `APP_ENV` belum diserahkan saat itu; keduanya diterima 2026-11-04 (CL-0).
 
 ### AP-3 — Decision log disetujui
 
 **Keputusan 2026-11-03: disetujui** oleh pemilik produk: dokumen `finance-decision-log.md` ini, termasuk keputusan proses BR-1 s.d. BR-5, penyimpangan DV-A s.d. DV-D (AP-3, 2026-11-03); DV-E disetujui terpisah 2026-11-04, dan keputusan penanganan per bug (PB-1 s.d. PB-15). Alasan: tidak dinyatakan pemilik produk. Persetujuan ini tidak mencakup implementasi DV-D (Task 2.6); implementasi itu selesai 2026-11-04 (PR #275).
+
+### CL-0 — Penutupan Fase 0 (Task 8), 2026-11-04 (SELESAI)
+
+**Selesai 2026-11-04.** Butir ini mencatat checkpoint, bukan keputusan pemilik produk. Dasar: (1) pemilik produk menyerahkan keluaran `env`, `db:table general_ledgers`, dan `db:table accounts` dari staging (Task 7.1 / Req 6.2): `APP_ENV` staging = `staging`, skema aktual sama dengan migration ditambah kolom runtime yang diharapkan, tanpa *drift* (laporan audit Bagian 1.5.2); (2) `tests/Feature/Finances` lulus pada branch penutupan; (3) exit criteria Fase 0 (PRD Bagian 10) terpenuhi: laporan audit dan decision log disetujui (AP-1, AP-2, AP-3); Q1 versi PRD dijawab 2026-11-03; F-04, F-10, F-11 berstatus terkonfirmasi; D-4 DECIDED, D-1 dan D-11 DITUNDA dengan alasan tertulis; DV-D selesai (PR #275). Item opsional yang tidak memblokir: query SQL tambahan paparan (laporan audit Bagian 5.1 butir 1b) dan FK masuk/versi DB (Bagian 1.5.2).
 
 ## Keputusan Arsitektur (ADR)
 
@@ -128,6 +138,42 @@
 
 **Sumber:** PRD Bagian 3.1 (G7), Bagian 7 (D-26), Bagian 8.2 (FR-P5).
 
+### D-3 — Tipe kolom uang tabel jurnal (DECIDED 2026-11-04)
+
+**Konteks.** Kolom uang `general_ledgers` bertipe `double` (F-07), sehingga penjumlahan memakai toleransi 0,005 dan tidak ada jaminan presisi. Usulan PRD: `decimal(20,4)` untuk tabel jurnal, dengan pembulatan di batas posting. Kolom uang dokumen operasional tetap `double` pada program ini (PRD Risiko R-5).
+
+| Opsi | Rekomendasi | Pemilik keputusan | Status | Tanggal |
+|---|---|---|---|---|
+| A: `decimal(20,4)` untuk tabel jurnal (`journals.total_*`, kolom baru `foreign_*`) dan, lewat Task 8 Fase 1 yang dikunci pra-pemeriksaan, `general_ledgers.debit`/`credit`; pembulatan HALF_UP ke minor unit mata uang dasar di batas posting (`JournalService`). B: tetap `double` dengan toleransi. | A (usulan PRD) | Pemilik produk | **DECIDED (disetujui pemilik produk 2026-11-04): opsi A** | 2026-11-04 |
+
+**Alasan (usulan PRD/implementer; tidak dinyatakan pemilik produk).** Menghilangkan galat floating point di ledger sebelum laporan (Fase 5) dibangun di atasnya. Dampak pada spec Fase 1: Requirement 2.5 (pembulatan HALF_UP dan pengecekan keseimbangan dalam minor unit), Requirement 7 (minor unit mata uang), Requirement 13 (konversi tipe, tetap *gated* oleh pra-pemeriksaan presisi Task 8.1).
+
+**Sumber:** PRD Bagian 7 (D-3), Bagian 6 (model data), Risiko R-5.
+
+### D-8 — Granularitas pengelompokan backfill (DECIDED 2026-11-04; mengubah rumusan lama)
+
+**Konteks.** Rumusan lama: kelompokkan GL lama per (`referenceable_type`, `referenceable_id`, `transaction_date`). Temuan N-3 (laporan audit Bagian 3.7): `StockEntryService` dan `PostAssetDisposalGainLoss` memanggil `now()` terpisah per baris GL, sedangkan `transaction_date` bertipe `datetime` tanpa pecahan detik, sehingga dua baris satu pasangan dapat jatuh pada detik berbeda dan, pada rumusan lama, menjadi dua kelompok yang masing-masing tampak tak seimbang.
+
+| Opsi | Rekomendasi | Pemilik keputusan | Status | Tanggal |
+|---|---|---|---|---|
+| A: per (`referenceable_type`, `referenceable_id`, `transaction_date`) penuh (rumusan lama). B: per dokumen (`referenceable_type` + `referenceable_id`); kelompok dipecah per **tanggal** (hari kalender) hanya bila dokumen punya posting di hari berbeda. C (dibahas di laporan 3.7, tidak dipilih): per `datetime` dengan toleransi. | B (dasar: N-3) | Pemilik produk | **DECIDED (disetujui pemilik produk 2026-11-04): opsi B** | 2026-11-04 |
+
+**Konsekuensi (butir 3 dan 4 disetujui pemilik produk 2026-11-04 bersama opsi B).** (1) Pasangan baris yang hanya berbeda detik tetap satu jurnal. (2) Posting dokumen yang sama di hari berbeda, bila ada, tetap jurnal terpisah per tanggal; tidak ada contoh yang terverifikasi (pada data staging 28 kelompok = 28 dokumen, jadi tidak ada pemecahan). Pembayaran bertahap bukan contoh: tiap Payment Entry adalah dokumen berbeda dengan `referenceable` berbeda, dan GL lama tidak memiliki jurnal pembalik. (3) Baris GL tetap menyimpan `transaction_date` aslinya (Requirement 9.5 Fase 1 tidak berubah); `transaction_date` jurnal legacy = nilai terkecil di kelompoknya (**disetujui pemilik produk 2026-11-04**; dirumuskan di `design.md` Fase 1). (4) Dokumen yang pasangannya melintasi tengah malam dapat terpecah per tanggal dan ditandai `legacy_unbalanced`; kasus ini diterima (**disetujui pemilik produk 2026-11-04**) dan dilaporkan sebagai informasi. (5) Aturan lain D-8 tidak berubah: kelompok seimbang menjadi `posted`; tak seimbang diberi `legacy_unbalanced = true` dan tidak dikoreksi otomatis; backfill idempoten dan tidak mengubah `debit`/`credit` lama. (6) Auditor Fase 0 tidak diubah dan tetap mengelompokkan per `transaction_date` penuh; pada data staging hasilnya sama (28 kelompok = 28 dokumen). (7) Basis "hari kalender" = hari UTC (`DATE(transaction_date)`; `APP_TIMEZONE=UTC`, `config/app.php:68`): **detail desain implementer, bukan keputusan pemilik produk**; alasan dan konsekuensinya di `design.md` Fase 1 (Backfill).
+
+**Sumber:** PRD Bagian 7 (D-8) dan Bagian 11; `finance-audit-report.md` Bagian 3.7, 4.1; PB-10.
+
+### D-14 — Jurnal manual (Journal Voucher) (DECIDED 2026-11-04)
+
+**Konteks (usulan PRD/implementer; alasan tidak dinyatakan pemilik produk).** Akuntan umumnya membutuhkan jurnal manual untuk penyesuaian dan koreksi pasca-reversal; saat ini tidak ada fitur sejenis di ERP. Tanpa itu, koreksi pasca-reversal harus lewat dokumen bisnis.
+
+| Opsi | Rekomendasi | Pemilik keputusan | Status | Tanggal |
+|---|---|---|---|---|
+| A: sertakan di Fase 1 sebagai **tugas opsional**: form Journal Voucher sederhana, wajib seimbang, memakai `JournalService`. B: tunda ke fase lain. | A (usulan PRD) | Pemilik produk | **DECIDED (disetujui pemilik produk 2026-11-04): opsi A** | 2026-11-04 |
+
+**Konsekuensi.** Requirement 12 Fase 1 tidak lagi "menunggu konfirmasi": ia menjadi requirement **opsional** (Task 11 bertanda `- [ ]*`); cakupannya tetap dikonfirmasi dengan pemilik produk sebelum dikerjakan. Izin `create` pada `Journal` hanya didaftarkan bila Task 11 dikerjakan.
+
+**Sumber:** PRD Bagian 7 (D-14).
+
 ## Keputusan dan Konvensi Proses
 
 ### BR-1 — Branch baru dari `origin/dev-1` untuk setiap tahapan
@@ -194,6 +240,20 @@
 | Base PR dan basis tahapan = `feat/finance-engine` (dipilih). Base `dev-1` (tidak dipilih untuk program ini). | — (keputusan pemilik produk) | Pemilik produk | DECIDED (2026-11-04) | 2026-11-04 |
 
 **Sumber:** keputusan pemilik produk 2026-11-04; PRD Bagian 10 ("Aturan branch per tahapan").
+
+### BR-7 — Urutan rilis Fase 1: dua rilis terpisah (diputuskan 2026-11-04)
+
+**Konteks.** Review independen tahapan penutupan Fase 0 menunjukkan bahwa rumusan awal (migration NOT NULL `general_ledgers.journal_id` "ikut deploy biasa") dapat menggagalkan deploy: `.scripts/deploy-staging.sh` dan `deploy-production.sh` memakai `set -e` dan menjalankan `php artisan migrate --force` sebelum release diaktifkan (symlink `current`). Di staging ada 64 baris GL yang belum punya `journal_id` sampai backfill dijalankan. Merge PR ke `dev-1` memicu deploy staging, sedangkan deploy produksi: tag `v*` mendeploy produksi, sedangkan `workflow_dispatch` punya input `environment` (staging atau produksi, default produksi; `deploy-cpanel.yml:15-28`) dan dapat dijalankan dari ref mana pun, sehingga urutan BR-7 juga berlaku untuk deploy manual (`.github/workflows/deploy-cpanel.yml`). Keputusan ini terpisah dari Q-P1-1 (jendela pemeliharaan).
+
+**Keputusan pemilik produk (2026-11-04).** Fase 1 dirilis dua tahap. **Rilis 1:** tabel jurnal, kolom `journal_id` nullable, dan perintah backfill; backfill dijalankan di staging dan produksi. **Rilis 2:** migration NOT NULL, di PR/tahapan terpisah. Rilis 2 digabung ke `feat/finance-engine`, dan kemudian ke `dev-1`, **hanya setelah** backfill dijalankan dan diverifikasi di staging dan produksi.
+
+| Opsi | Rekomendasi | Pemilik keputusan | Status | Tanggal |
+|---|---|---|---|---|
+| A: dua rilis terpisah (dipilih). B: satu rilis dengan migration NOT NULL ikut deploy biasa (tidak dipilih: dapat menggagalkan deploy). | — (keputusan pemilik produk) | Pemilik produk | DECIDED (2026-11-04) | 2026-11-04 |
+
+**Konsekuensi.** (1) Migration NOT NULL (Task 9 Fase 1) tetap memeriksa sendiri dan menolak jalan bila masih ada baris aktif tanpa `journal_id`, sebagai pengaman (bukan pengatur urutan). (2) Terkait BR-6 dan Q-BR-1: Rilis 1 dan Rilis 2 adalah **dua penggabungan berbeda** `feat/finance-engine` ke `dev-1`; PR Rilis 2 tidak boleh digabung ke `feat/finance-engine` sebelum Rilis 1 berada di `dev-1` dan backfill terverifikasi, karena penggabungan `feat/finance-engine` ke `dev-1` membawa seluruh isinya. (3) Q-P1-1 tetap: tidak perlu jendela pemeliharaan. (4) Spec terdampak: Fase 1 Requirement 13.5, `design.md` (Migrasi, Rollback, dan Urutan Aman), `tasks.md` (aturan eksekusi, Task 9, Task 12). (5) Rilis 2 **dirancang** agar deploy tidak gagal karena urutan; bila migration Rilis 2 tetap gagal (mis. ada baris baru tanpa `journal_id`), dapat dipulihkan dengan menjalankan backfill lalu deploy ulang. (6) Pemicu deploy (`.github/workflows/deploy-cpanel.yml`): **merge PR ke `dev-1` memicu deploy staging** (kecuali label `skip-deploy`); **deploy produksi: tag `v*` mendeploy produksi, sedangkan `workflow_dispatch` punya input `environment` (staging atau produksi, default produksi; `deploy-cpanel.yml:15-28`) dan dapat dijalankan dari ref mana pun, sehingga urutan BR-7 juga berlaku untuk deploy manual, bukan oleh `dev-1`**. Prasyarat sebelum PR Rilis 2 digabung ke `feat/finance-engine`: (a) Rilis 1 sudah dideploy ke produksi (tag `v*` atau dispatch manual ke produksi); (b) backfill produksi terverifikasi; (c) pemeriksaan "nol baris aktif tanpa `journal_id`" diulang di staging dan produksi tepat sebelum penggabungan Rilis 2 ke `dev-1`. (7) Pra-pemeriksaan presisi untuk migration `decimal(20,4)` (detail desain, bukan keputusan pemilik produk): karena perintah artisan-nya adalah kode baru yang tiba di staging dalam deploy yang sama dengan migration, pra-pemeriksaan staging dijalankan pemilik produk sebagai query SQL read-only (praktik Task 6.5 Fase 0) **sebelum Rilis 1 digabung ke `dev-1`**; perintah artisan tetap dibuat untuk Rilis 2 dan seterusnya.
+
+**Sumber:** keputusan pemilik produk 2026-11-04; `.scripts/deploy-staging.sh` dan `.scripts/deploy-production.sh` (`set -e`, `migrate --force`); PRD Bagian 10.
 
 ## Penyimpangan dan Usulan Perubahan Spec
 
@@ -322,7 +382,7 @@ PB-1 s.d. PB-15 disetujui pemilik produk pada 2026-11-03 (AP-3), sesuai laporan 
 | Q6 | Format laporan resmi yang dibutuhkan (SAK/PSAK, format e-Faktur/SPT)? | — | — | Pemilik produk | Terbuka | 2026-11-03 | Fase 5 |
 | Q7 | Apakah ada laporan keuangan eksternal yang saat ini dibuat manual di luar ERP dan harus direplikasi? | — | — | Pemilik produk | Terbuka | 2026-11-03 | Fase 5 |
 | Q-P0-1 | Siapa yang menjalankan perintah audit (`finance:audit-gl`, `finance:snapshot-balances`) di staging dan produksi, lalu mengirim hasilnya? **Dijawab: pemilik produk menjalankan di staging; produksi tidak untuk sekarang. Task 6.5 selesai 2026-11-03 (lihat AP-1).** | — | — | Pemilik produk | Dijawab | 2026-11-03 | Task 6.5 (Fase 0) |
-| Q-BR-1 | Kapan `feat/finance-engine` digabung ke `dev-1`? | — | — | Pemilik produk | Terbuka (belum diputuskan) | 2026-11-04 | Sebelum merge ke `dev-1` (belum dijadwalkan) |
+| Q-BR-1 | Kapan `feat/finance-engine` digabung ke `dev-1`? Catatan (BR-7, 2026-11-04): Rilis 1 dan Rilis 2 Fase 1 adalah dua penggabungan berbeda; Rilis 2 hanya setelah backfill terverifikasi di staging dan produksi | — | — | Pemilik produk | Terbuka (belum diputuskan) | 2026-11-04 | Sebelum merge ke `dev-1` (belum dijadwalkan) |
 
 Keterangan: "—" berarti PRD atau spec tidak mencantumkan opsi atau rekomendasi tertulis.
 
@@ -332,12 +392,12 @@ Keterangan: "—" berarti PRD atau spec tidak mencantumkan opsi atau rekomendasi
 
 ## Pertanyaan per Fase (Q-P1 s.d. Q-P6)
 
-Dirangkum dari bagian "Pertanyaan yang Menunggu Konfirmasi" di akhir `requirements.md` tiap fase. Tidak ada sumber yang menyebut pertanyaan ini sudah terjawab, sehingga semuanya PENDING. Kolom "Dibutuhkan sebelum" diambil dari sumber: prasyarat `tasks.md` bila ada, atau Requirement yang disebut tabel pertanyaan. Bila sumber tidak merinci task, hal itu ditulis.
+Dirangkum dari bagian "Pertanyaan yang Menunggu Konfirmasi" di akhir `requirements.md` tiap fase. Pada saat dirangkum (2026-11-03) tidak ada sumber yang menyebut pertanyaan ini sudah terjawab, sehingga semuanya PENDING; Q-P1-1 dan Q-P1-2 dijawab pemilik produk 2026-11-04. Kolom "Dibutuhkan sebelum" diambil dari sumber: prasyarat `tasks.md` bila ada, atau Requirement yang disebut tabel pertanyaan. Bila sumber tidak merinci task, hal itu ditulis.
 
 | ID | Pertanyaan | Fase | Dibutuhkan sebelum | Status | Tanggal |
 |---|---|---|---|---|---|
-| Q-P1-1 | Boleh membuat jendela pemeliharaan untuk `ALTER TABLE general_ledgers` di MySQL produksi? | 1 | Requirement 13 (task tidak dirinci) | PENDING | 2026-11-03 |
-| Q-P1-2 | Penegakan periode diaktifkan kapan (setelah berapa periode terisi)? | 1 | Requirement 6.4 (task tidak dirinci) | PENDING | 2026-11-03 |
+| Q-P1-1 | Boleh membuat jendela pemeliharaan untuk `ALTER TABLE general_ledgers` di MySQL produksi? **Dijawab 2026-11-04 (pemilik produk): tidak perlu jendela pemeliharaan.** GL produksi kosong (Q1); Task 9.1 Fase 1 tetap memeriksa nol baris tanpa `journal_id` sebelum kolom dikunci NOT NULL. Urutan rilis diputuskan terpisah (BR-7): migration NOT NULL tidak ikut Rilis 1 | 1 | Requirement 13 (diubah 2026-11-04) | DECIDED (2026-11-04) | 2026-11-04 |
+| Q-P1-2 | Penegakan periode diaktifkan kapan (setelah berapa periode terisi)? **Dijawab 2026-11-04 (pemilik produk): penegakan nonaktif dulu** (setting `finance_enforce_fiscal_period` off), diaktifkan manual; penutupan periode tetap di Fase 6. Detail desain (bukan keputusan pemilik produk): pengaktifan lewat toggle di halaman setting | 1 | Requirement 6.4 (diubah 2026-11-04) | DECIDED (2026-11-04) | 2026-11-04 |
 | Q-P2-1 | Siapa yang menyetujui perpindahan mode `on` per jenis dokumen? | 2 | Requirement 6.8, 7.2 (task tidak dirinci) | PENDING | 2026-11-03 |
 | Q-P2-2 | Apakah COA saat ini sudah memisah akun PPN Masukan/Keluaran (seeder hanya memiliki `account_type = tax`)? Menentukan peta peran `tax_*` di profil default | 2 | Requirement 1; sebelum Fase 3 | PENDING | 2026-11-03 |
 | Q-P2-3 | Apakah F-10 (Payment kumulatif) diperbaiki saat migrasi Payment atau sebagai hotfix terpisah? | 2 | Task 7.2 (`tasks.md`); Requirement 7 | PENDING | 2026-11-03 |
@@ -358,9 +418,9 @@ Dirangkum dari bagian "Pertanyaan yang Menunggu Konfirmasi" di akhir `requiremen
 | Q-P6-2 | Pos moneter lain yang perlu direvaluasi (mis. pinjaman valas, uang muka valas) | 6 | Requirement 4.2 (task tidak dirinci) | PENDING | 2026-11-03 |
 | Q-P6-3 | Perlukah periode penyesuaian ke-13 untuk jurnal audit pasca-tutup? | 6 | Requirement 6 (task tidak dirinci) | PENDING | 2026-11-03 |
 
-**Catatan jumlah.** Jumlah per fase: Fase 1 (2), Fase 2 (5), Fase 3 (4), Fase 4 (4), Fase 5 (3), Fase 6 (3), total 21. Fase 3 perlu perhatian: prasyarat `requirements.md` menyebut "Q-P3-1…3", sedangkan `tasks.md` menyebut "Q-P3-1…4" dan tabel memuat empat pertanyaan. Tabel diikuti, sehingga Q-P3-4 tetap dicantumkan.
+**Catatan jumlah.** Jumlah per fase: Fase 1 (2; keduanya DECIDED 2026-11-04), Fase 2 (5), Fase 3 (4), Fase 4 (4), Fase 5 (3), Fase 6 (3), total 21 (19 masih PENDING). Fase 3 perlu perhatian: prasyarat `requirements.md` menyebut "Q-P3-1…3", sedangkan `tasks.md` menyebut "Q-P3-1…4" dan tabel memuat empat pertanyaan. Tabel diikuti, sehingga Q-P3-4 tetap dicantumkan.
 
-**Catatan D-xx belum tercatat.** Tabel "Pertanyaan yang Menunggu Konfirmasi" di spec Fase 1–6 juga memuat keputusan D-xx berikut yang belum punya entri di log ini, dan tidak dimasukkan di sini karena di luar cakupan: D-3, D-13, D-14, D-15, D-16, D-17, D-18, D-19, D-20, D-21, D-22, D-23, D-24.
+**Catatan D-xx belum tercatat.** Tabel "Pertanyaan yang Menunggu Konfirmasi" di spec Fase 1–6 juga memuat keputusan D-xx berikut yang belum punya entri di log ini (D-3, D-8, dan D-14 sudah punya entri sejak 2026-11-04), dan tidak dimasukkan di sini karena di luar cakupan: D-13, D-15, D-16, D-17, D-18, D-19, D-20, D-21, D-22, D-23, D-24.
 
 ## Catatan Sumber
 
