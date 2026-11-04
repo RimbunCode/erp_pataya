@@ -12,62 +12,67 @@ Urutan kerja: verifikasi asumsi dulu (Task 1), lalu migration + model aditif (2)
 - Penegakan periode (`finance_enforce_fiscal_period`) tetap nonaktif pada rilis ini dan diaktifkan manual (Q-P1-2, 2026-11-04, pemilik produk; mekanisme toggle di halaman setting adalah detail desain).
 - Task bertanda `*` opsional; konfirmasi cakupan dengan pemilik produk sebelum dikerjakan.
 - Jangan mengubah perilaku akuntansi pada adapter (Req. 8.2); perubahan satu-satunya adalah Req. 2.10 (pasangan 0).
-- Jangan memperbaiki F-10 (Payment kumulatif) di fase ini; adapter mempertahankan nilainya.
+- F-10 (Payment kumulatif) dan N-4 (arah jurnal Payment) sudah diperbaiki oleh hotfix Payment Entry (2026-11-04); adapter Task 6.5 mempertahankan perilaku pasca-hotfix (arah, jumlah per pembayaran, guard status, alokasi jadwal), bukan perilaku lama. _Diselaraskan Task 1.1, 2026-11-04._
 
 ## Tasks
 
-- [ ] 1. Verifikasi asumsi desain (read-only)
-  - [ ] 1.1 Baca ulang `docs/prd/finance-engine-prd.md` (Lampiran A/B), `finance-audit-report.md`, dan `finance-decision-log.md` (hasil Fase 0); verifikasi bahwa keputusan D-3/D-4/D-8/D-14/Q-P1-1/Q-P1-2 (sudah dicatat di bagian atas `design.md` per 2026-11-04) tidak bertentangan dengan temuan Task 1.2–1.6
+- [x] 1. Verifikasi asumsi desain (read-only)
+  - [x] 1.1 Baca ulang `docs/prd/finance-engine-prd.md` (Lampiran A/B), `finance-audit-report.md`, dan `finance-decision-log.md` (hasil Fase 0); verifikasi bahwa keputusan D-3/D-4/D-8/D-14/Q-P1-1/Q-P1-2 (sudah dicatat di bagian atas `design.md` per 2026-11-04) tidak bertentangan dengan temuan Task 1.2–1.6
     - _Requirements: seluruh_
-  - [ ] 1.2 Cari semua penulisan/ubah/hapus `GeneralLedger` di `app/`, `database/seeders/`, `tests/` (`GeneralLedger::create|insert|where(...)->update|delete`, `generalLedgerEntries()->…`); daftar hasil menjadi allowlist test arsitektur
+  - [x] 1.2 Cari semua penulisan/ubah/hapus `GeneralLedger` di `app/`, `database/seeders/`, `tests/` (`GeneralLedger::create|insert|where(...)->update|delete`, `generalLedgerEntries()->…`); daftar hasil menjadi allowlist test arsitektur
     - _Requirements: 4.1, 4.2, 4.6_
-  - [ ] 1.3 Inventarisasi pemakai kolom `debit`/`credit` (query mentah, view DB, laporan, `groupAggregate`, frontend) untuk Task 8
+  - [x] 1.3 Inventarisasi pemakai kolom `debit`/`credit` (query mentah, view DB, laporan, `groupAggregate`, frontend) untuk Task 8
     - _Requirements: 13.4_
-  - [ ] 1.4 Tentukan mekanisme audit aplikasi (`Log` model / pencatat lain) dan cara memakainya dari service; hapus `[TODO]` Req. 14.2
+  - [x] 1.4 Tentukan mekanisme audit aplikasi (`Log` model / pencatat lain) dan cara memakainya dari service; hapus `[TODO]` Req. 14.2
     - _Requirements: 14.2_
-  - [ ] 1.5 Verifikasi mekanisme `FormatingSeries::generate()` (pendaftaran baris series untuk model baru, keamanan terhadap balapan); tentukan strategi kunci untuk `Journal.code`; hapus `[TODO]` di design
+  - [x] 1.5 Verifikasi mekanisme `FormatingSeries::generate()` (pendaftaran baris series untuk model baru, keamanan terhadap balapan); tentukan strategi kunci untuk `Journal.code`; hapus `[TODO]` di design
     - _Requirements: 1.6_
-  - [ ] 1.6 Verifikasi kontrak service setting Finances dari spec `module-settings-foundation` (cara menambah setting baru pada lingkungan berjalan, cara membacanya dari service/listener) dan pakai untuk `finance_enforce_fiscal_period`
+  - [x] 1.6 Verifikasi kontrak service setting Finances dari spec `module-settings-foundation` (cara menambah setting baru pada lingkungan berjalan, cara membacanya dari service/listener) dan pakai untuk `finance_enforce_fiscal_period`
     - _Requirements: 6.4_
+  - Berkas berubah: `design.md` (bagian Hasil Verifikasi Task 1), `requirements.md` (Req 2.8, 5.5, 14.2; Q-P1-3 s.d. Q-P1-6), `tasks.md`.
 
-- [ ] 2. Migration, model, dan exception (aditif)
-  - [ ] 2.1 Migration `create_journals_table` (kolom sesuai Req. 1.1; indeks `transaction_date`, `(source_type, source_id)`, unik `posting_key`, unik `code`)
+- [x] 2. Migration, model, dan exception (aditif)
+  - [x] 2.1 Migration `create_journals_table` (kolom sesuai Req. 1.1; indeks `transaction_date`, `(source_type, source_id)`, unik `posting_key`, unik `code`)
     - _Requirements: 1.1_
-  - [ ] 2.2 Migration `create_fiscal_years_table` dan `create_fiscal_periods_table`
+  - [x] 2.2 Migration `create_fiscal_years_table` dan `create_fiscal_periods_table`
     - _Requirements: 6.1_
-  - [ ] 2.3 Migration `add_journal_columns_to_general_ledgers_table` (`journal_id`, `line_no`, `foreign_*`, `exchange_rate`, indeks `(account_id, transaction_date)` dan `(journal_id, line_no)`) — aditif saja, belum mengubah tipe
+  - [x] 2.3 Migration `add_journal_columns_to_general_ledgers_table` (`journal_id`, `line_no`, `foreign_*`, `exchange_rate`, indeks `(account_id, transaction_date)` dan `(journal_id, line_no)`) — aditif saja, belum mengubah tipe
     - _Requirements: 1.2_
-  - [ ] 2.4 Migration `add_minor_unit_to_currencies_table` + migration data ISO 4217 idempoten
+  - [x] 2.4 Migration `add_minor_unit_to_currencies_table` + migration data ISO 4217 **lengkap** (daftar statis `Iso4217`, idempoten) dan pengisian oleh `CountrySeeder` (Q-P1-4, disetujui pemilik produk 2026-11-04)
     - _Requirements: 7.1, 7.2_
-  - [ ] 2.5 Buat `Journal`, `FiscalYear`, `FiscalPeriod` (trait `DataTable`, `HasUlids`, `permissions()`, `configColumns`, `translateKey`), enum `JournalStatus`, relasi `GeneralLedger::journal()`; tulis test yang menjalankan `initPermissions()` pada ketiga model dan memastikan tidak ada kolom tak terduga ditambah/dihapus (F-12)
+  - [x] 2.5 Buat `Journal`, `FiscalYear`, `FiscalPeriod` (trait `DataTable`, `HasUlids`, `permissions()`, `configColumns`, `translateKey`), enum `JournalStatus`, relasi `GeneralLedger::journal()`; tulis test yang menjalankan `initPermissions()` pada ketiga model dan memastikan tidak ada kolom tak terduga ditambah/dihapus (F-12)
     - _Requirements: 1.4, 1.5, 1.7, 14.1_
-  - [ ] 2.6 Buat 6 exception di `app/Exceptions/Finances/` dengan kunci pesan `finances.journal.*` di `lang/id` dan `lang/en`
+  - [x] 2.6 Buat 6 exception di `app/Exceptions/Finances/` dengan kunci pesan `finances.journal.*` di `lang/id` dan `lang/en`
     - _Requirements: 2.3–2.6, 3.2, 4.1, 5.4_
+  - Berkas: migration `database/migrations/2026_11_04_100001`..`100007` (100005 `against_account_id` nullable dimajukan dari 8.3, 100007 setting `enforce_fiscal_period`); `app/Enums/JournalStatus.php`; `app/Exceptions/Finances/*` (6); `app/Models/Finances/{Journal,FiscalYear,FiscalPeriod}.php`; ubah `GeneralLedger.php`, `FinanceSetting.php`; `lang/{id,en}/finances/{journal,fiscalYear,fiscalPeriod}.php`; test `tests/Feature/Finances/Ledger/JournalSchemaTest.php`.
 
-- [ ] 3. Checkpoint - Skema
+- [x] 3. Checkpoint - Skema
   - Jalankan migrasi pada DB uji (SQLite) dan, manual, pada MySQL dev; `php artisan test --compact tests/Feature/Finances` untuk memastikan test existing tetap hijau
   - Ensure all tests pass, ask the user if questions arise.
+  - Dijalankan pada SQLite (`RefreshDatabase`): akhir Putaran A `tests/Feature/Finances` = 332 test hijau (hitungan reviewer independen; angka "395" pada laporan awal keliru karena menggabungkan `tests/Unit/Finances` dan `LogControllerTest`); setelah putaran perbaikan 2026-11-04: `tests/Feature/Finances` = 397 test hijau (2112 assertion; termasuk tes baru di `Ledger/`), plus `tests/Unit/Finances` dan `LogControllerTest` hijau. Uji migrasi di MySQL 8.0 dev dijalankan koordinator (batasan putaran: implementer tidak menulis ke DB dev); `down()` migration `100004` diperbaiki setelah galat 1553 di MySQL.
 
-- [ ] 4. Service inti (TDD: test lebih dulu)
-  - [ ] 4.1 `MinorUnit` (`round`, `toMinor`, `fromMinor`, batas nilai) + unit test (1.005, 0.125, nilai besar, minor unit 0)
+- [x] 4. Service inti (TDD: test lebih dulu)
+  - [x] 4.1 `MinorUnit` (`round`, `toMinor`, `fromMinor`, batas nilai) + unit test (1.005, 0.125, nilai besar, minor unit 0)
     - _Requirements: 2.5, 7.3_
-  - [ ] 4.2 `FiscalPeriodService` (`resolve`, `assertOpen`, `generateYear`, `close`, `open`, larangan tumpang-tindih) + perintah `finance:generate-fiscal-year {year}` + test
+  - [x] 4.2 `FiscalPeriodService` (`resolve`, `assertOpen`, `generateYear` (menolak tahun non-kalender bernama sama), `close`, `open`, larangan tumpang-tindih; hari/periode dalam zona waktu perusahaan `CoreSetting.timezone`, Q-P1-5) + perintah `finance:generate-fiscal-year {year}` + test
     - _Requirements: 6.1–6.3, 6.5–6.7_
-  - [ ] 4.3 `JournalDraft`, `JournalLineDraft`, `JournalService::post()` dan `postPair()` (urutan langkah di design; idempotensi; kode series sesuai 1.5)
+  - [x] 4.3 `JournalDraft`, `JournalLineDraft`, `JournalService::post()` dan `postPair()` (urutan langkah di design; idempotensi; kode series sesuai 1.5)
     - _Requirements: 2.1–2.10, 3.1–3.4_
-  - [ ]* 4.4 Write property-style tests `JournalService`
+  - [x]* 4.4 Write property-style tests `JournalService` _(Dikerjakan atas persetujuan pemilik produk: "semua task termasuk opsional", 2026-11-04.)_
     - **P-1** 1.000 draft acak valid (seimbang) diterima dan 1.000 tak seimbang ditolak (seed tetap); **P-2** kegagalan di baris ke-k tidak menyisakan data; **P-3** `postingKey` ganda; **P-8** enforcement aktif/mati terhadap periode closed/tak ada; akun group/disabled/terhapus; pasangan 0 → `null`
     - **Validates: Requirements 2.2–2.10, 3.1–3.2, 6.5–6.6**
-  - [ ] 4.5 Guard immutability `GeneralLedger` dan `Journal` (+ jalur backfill terizinkan) + test **P-5** (update/delete/forceDelete ditolak; update `journal_id`/`line_no` pada baris `journal_id` null diizinkan)
+  - [x] 4.5 Guard immutability `GeneralLedger` dan `Journal` (+ jalur backfill terizinkan) + test **P-5** (update/delete/forceDelete ditolak; update `journal_id`/`line_no` pada baris `journal_id` null diizinkan)
     - _Requirements: 4.1–4.3_
-  - [ ] 4.6 `JournalReversalService` + test **P-4** (net nol per akun, status, tautan dua arah, reversal ganda ditolak, jurnal legacy tak seimbang ditolak, periode tertutup ditolak, izin `reverse`)
+  - [x] 4.6 `JournalReversalService` + test **P-4** (net nol per akun, status, tautan dua arah, reversal ganda ditolak, jurnal legacy tak seimbang ditolak, periode tertutup ditolak, izin `reverse`)
     - _Requirements: 5.1–5.8_
-  - [ ] 4.7 Test arsitektur: pindai `app/` terhadap allowlist dari Task 1.2 (hanya `JournalService`, `JournalReversalService`, backfill yang menulis GL; pengecualian `Submitable` hook update massal didokumentasikan)
+  - [x] 4.7 Test arsitektur: pindai `app/` terhadap allowlist dari Task 1.2 (hanya `JournalService`, `JournalReversalService`, backfill yang menulis GL; pengecualian `Submitable` hook update massal didokumentasikan)
     - _Requirements: 4.5, 4.6_
+  - Berkas: `app/Services/Finances/Ledger/{MinorUnit,JournalLineDraft,JournalDraft,NormalizedLine,NormalizedJournal,JournalDraftValidator,FiscalPeriodService,JournalService,JournalReversalService}.php`; `app/Console/Commands/Finances/GenerateFiscalYearCommand.php`; ubah `app/Listeners/Core/Audit/RecordAuditLog.php`, `lang/{id,en}/core/log.php`; test `tests/Unit/Finances/Ledger/{MinorUnitTest,JournalDraftValidatorTest}.php`, `tests/Feature/Finances/Ledger/{FiscalPeriodServiceTest,JournalServiceTest,LedgerImmutabilityTest,JournalReversalServiceTest,LedgerWriteAllowlistTest}.php`.
 
-- [ ] 5. Checkpoint - Service inti
+- [x] 5. Checkpoint - Service inti
   - Jalankan test Task 4; characterization Fase 0 masih hijau (belum ada adapter)
   - Ensure all tests pass, ask the user if questions arise.
+  - Test Task 4 hijau; belum ada adapter sehingga characterization Fase 0 tidak berubah (seluruh `tests/Feature/Finances` hijau).
 
 - [ ] 6. Adapter 10 titik posting (satu rilis, urutan pengerjaan di bawah)
   - [ ] 6.1 `PostSalesInvoiceGeneralLedger` → `postPair` + `postingKey` + tangani `DuplicatePostingException`
@@ -76,22 +81,22 @@ Urutan kerja: verifikasi asumsi dulu (Task 1), lalu migration + model aditif (2)
     - _Requirements: 8.1–8.4_
   - [ ] 6.3 `PostPurchaseReceiptGeneralLedger` → `postPair`
     - _Requirements: 8.1–8.4_
-  - [ ] 6.4 Baca lalu alihkan `PostDeliveryNoteGeneralLedger` (belum dibaca saat spec ditulis; sesuaikan bila polanya berbeda, mis. jalur rental)
+  - [ ] 6.4 Alihkan `PostDeliveryNoteGeneralLedger` (pola sudah dibaca di Task 1.1: debit HPP, kredit stok, `isReturn` menukar sisi; periksa jalur rental)
     - _Requirements: 8.1–8.4_
-  - [ ] 6.5 `PaymentEntryService::onApproved` → `postPair` (nilai tetap = perilaku sekarang, termasuk F-10)
+  - [ ] 6.5 `PaymentEntryService::onApproved` → `postPair` (perilaku pasca-hotfix: debit `accountPaidTo`, kredit `accountPaidFrom`, jumlah `paid_amount` PE itu; `PaymentEntryPostingTest` dan `PaymentEntryPartialPaymentTest` menjaga paritas)
     - _Requirements: 8.1, 8.2_
   - [ ] 6.6 `StockEntryService` (GL + biaya tambahan) → `postPair`; `balance_amount` dibiarkan
     - _Requirements: 8.1, 8.2, 8.5_
-  - [ ] 6.7 Empat listener Asset (`PostDepreciationEntry`, `PostScrapWriteOff`, `PostValueAdjustmentEntry`, `PostAssetDisposalGainLoss`) → `postPair`
+  - [ ] 6.7 Empat listener Asset (`PostDepreciationEntry`, `PostScrapWriteOff`, `PostValueAdjustmentEntry`, `PostAssetDisposalGainLoss`) → `postPair`; `purpose` Asset: `write_off` dan `disposal` diputuskan pemilik produk 2026-11-04 (Q-P1-6, ditutup; alasan tidak dinyatakan): scrap `Asset:{id}:write_off`; disposal dibedakan per baris invoice, `posting_key` = `Asset:{id}:disposal:{sales_invoice_item_id}` (tiap baris penjualan punya posting sendiri, baris yang sama tidak dapat diposting dua kali; verifikasi model baris `$event->line` yang tepat saat implementasi)
     - _Requirements: 8.1–8.4_
   - [ ] 6.8 Hook `Submitable`: tandai jurnal sumber `voided` setelah update massal soft-delete + test untuk Sales Invoice, Payment Entry, Stock Entry
     - _Requirements: 8.6, 4.5_
-  - [ ] 6.9 Jalankan seluruh characterization Fase 0 + test arsitektur 4.7; selisih hanya boleh pada kasus pasangan 0 dan urutan `id` (dicatat eksplisit)
+  - [ ] 6.9 Jalankan seluruh characterization Fase 0 (Payment kini dijaga `tests/Feature/Finances/PaymentEntryPostingTest` dan `PaymentEntryPartialPaymentTest` hasil hotfix; `Characterization/KnownIssues/` hanya F-04 bagian GL dan F-11) + test arsitektur 4.7 (kosongkan daftar `LEGACY_WRITERS` di `LedgerWriteAllowlistTest` seiring Task 6.1–6.7); selisih hanya boleh pada kasus pasangan 0 dan urutan `id` (dicatat eksplisit)
     - **P-6** parity
     - _Requirements: 8.2, 14.5_
 
 - [ ] 7. Backfill dan rekonsiliasi
-  - [ ] 7.1 `finance:backfill-journals` (`--dry-run`, `--chunk`, `--limit`): kelompok per dokumen (`referenceable_type`, `referenceable_id`), dipecah per tanggal hanya bila dokumen punya posting di hari berbeda (D-8, 2026-11-04), jurnal legacy, `legacy_unbalanced`, panggil generate periode, rekonsiliasi sebelum/sesudah
+  - [ ] 7.1 `finance:backfill-journals` (`--dry-run`, `--chunk`, `--limit`): kelompok per dokumen (`referenceable_type`, `referenceable_id`), dipecah per tanggal **dalam zona waktu perusahaan (`CoreSetting.timezone`, dihitung di PHP lewat `FiscalPeriodService::businessDay()`; Q-P1-5, 2026-11-04)** hanya bila dokumen punya posting di hari berbeda (D-8, 2026-11-04), jurnal legacy, `legacy_unbalanced`, panggil generate periode, rekonsiliasi sebelum/sesudah
     - _Requirements: 6.8, 9.1–9.9_
   - [ ]* 7.2 Write tests backfill
     - **P-7** Σ per akun sama sebelum/sesudah; idempoten (run dua kali); kelompok seimbang/tak seimbang/soft-deleted; resume setelah gagal di tengah; dry-run tidak menulis; pasangan satu dokumen yang beda detik tetap satu jurnal (N-3); dokumen dengan posting di dua hari berbeda menjadi dua jurnal (D-8)
@@ -108,7 +113,7 @@ Urutan kerja: verifikasi asumsi dulu (Task 1), lalu migration + model aditif (2)
     - _Requirements: 13.1_
   - [ ] 8.2 Selesaikan audit pemakai `debit`/`credit` (Task 1.3): perbaiki cast/format di PHP dan frontend yang terdampak string `decimal`; tambah test laporan terkait
     - _Requirements: 13.4_
-  - [ ] 8.3 Migration terpisah: `against_account_id` nullable; `debit`/`credit` → `decimal(20,4)`; FK akun → `restrictOnDelete`; `down()` terdokumentasi; uji di SQLite dan pada salinan atau DB dev MySQL (staging baru tersedia setelah Rilis 1 dideploy); berisi pra-pemeriksaan presisi sebagai pengaman; Rilis 1 baru digabung ke `dev-1` setelah query 8.1(a) dijalankan pemilik produk di staging dan hasilnya dilaporkan; Bila query 8.1(a) menunjukkan `hit_ketat` > 0, ambang pengaman migration atau daftar pengecualian yang disetujui ditetapkan **oleh pemilik produk** sebelum Rilis 1 digabung ke `dev-1`, agar pengaman tidak menggagalkan deploy staging; mekanismenya di dalam migration (detail desain): ambang yang dapat dikonfigurasi (mis. konstanta atau config) dan/atau daftar pengecualian.
+  - [ ] 8.3 Migration terpisah: (`against_account_id` nullable sudah dimajukan ke Task 2, migration `..._100005`; **disetujui pemilik produk 2026-11-04, Q-P1-3**, jadi tidak dikerjakan lagi di sini) `debit`/`credit` → `decimal(20,4)`; FK akun → `restrictOnDelete`; `down()` terdokumentasi; uji di SQLite dan pada salinan atau DB dev MySQL (staging baru tersedia setelah Rilis 1 dideploy); berisi pra-pemeriksaan presisi sebagai pengaman; Rilis 1 baru digabung ke `dev-1` setelah query 8.1(a) dijalankan pemilik produk di staging dan hasilnya dilaporkan; Bila query 8.1(a) menunjukkan `hit_ketat` > 0, ambang pengaman migration atau daftar pengecualian yang disetujui ditetapkan **oleh pemilik produk** sebelum Rilis 1 digabung ke `dev-1`, agar pengaman tidak menggagalkan deploy staging; mekanismenya di dalam migration (detail desain): ambang yang dapat dikonfigurasi (mis. konstanta atau config) dan/atau daftar pengecualian.
     - _Requirements: 1.3, 13.2, 13.3_
 
 - [ ] 9. **(Rilis 2, PR/tahapan terpisah; BR-7)** `journal_id` NOT NULL — deploy produksi: tag `v*` mendeploy produksi, sedangkan `workflow_dispatch` punya input `environment` (staging atau produksi, default produksi; `deploy-cpanel.yml:15-28`) dan dapat dijalankan dari ref mana pun, sehingga urutan BR-7 juga berlaku untuk deploy manual (bukan `dev-1`; merge ke `dev-1` memicu deploy staging). Prasyarat sebelum PR Rilis 2 digabung ke `feat/finance-engine`: (a) Rilis 1 sudah dideploy ke produksi (tag `v*` atau dispatch manual ke produksi); (b) backfill produksi terverifikasi (dan staging); (c) pemeriksaan "nol baris aktif tanpa `journal_id`" diulang di staging dan produksi tepat sebelum penggabungan Rilis 2 ke `dev-1`
@@ -142,6 +147,7 @@ Urutan kerja: verifikasi asumsi dulu (Task 1), lalu migration + model aditif (2)
 
 ## Catatan
 
-- Seluruh `postingKey` memakai `purpose` baku: `default`, `stock`, `expense`, `depreciation`, `write_off`, `value_adjustment`, `disposal`, `reversal`. Daftar ini menjadi kontrak untuk Fase 2.
+- Seluruh `postingKey` memakai `purpose` baku: `default`, `stock`, `expense`, `depreciation`, `write_off`, `value_adjustment`, `disposal`, `reversal`. Daftar ini menjadi kontrak untuk Fase 2. Pengecualian (Q-P1-6, pemilik produk 2026-11-04): `disposal` Asset memakai sufiks id baris invoice, yaitu `Asset:{id}:disposal:{sales_invoice_item_id}`.
 - Fase 2 menghapus pengecualian `Submitable` (soft-delete GL saat cancel) dan status `voided`; jangan membangun fitur baru yang bergantung pada `voided`.
 - Jika Task 1.2–1.6 mengungkap asumsi design yang salah, perbarui `design.md` lebih dulu dan minta konfirmasi sebelum lanjut.
+- Catatan Task 4.3: `JournalService::postPair()` mengembalikan `null` bila jumlah 0 setelah pembulatan (Req. 2.10); ini bagian dari kontrak adapter Task 6 (N-8/PB-14 mengacu Req. 2.10).

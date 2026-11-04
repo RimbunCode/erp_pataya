@@ -4,6 +4,7 @@ namespace Database\Seeders;
 
 use App\Models\Core\Country;
 use App\Models\Core\Currency;
+use App\Services\Finances\Ledger\Iso4217;
 use Illuminate\Database\Seeder;
 use Illuminate\Support\Facades\Http;
 use Illuminate\Support\Facades\Schema;
@@ -80,9 +81,10 @@ class CountrySeeder extends Seeder {
             Schema::enableForeignKeyConstraints();
         }
 
-        $countries   = $this->fetchAllCountries();
-        $timezoneMap = $this->buildTimezoneMap();
-        $currencies  = [];
+        $countries    = $this->fetchAllCountries();
+        $timezoneMap  = $this->buildTimezoneMap();
+        $currencies   = [];
+        $hasMinorUnit = Schema::hasColumn('currencies', 'minor_unit');
 
         usort($countries, fn ($a, $b) => strcmp(
             $a['names']['common'] ?? '',
@@ -125,6 +127,12 @@ class CountrySeeder extends Seeder {
                     'symbol'        => $currency['symbol'] ?? null,
                     'number_format' => $this->deriveNumberFormat($numberFormats),
                 ];
+
+                // ISO 4217 (Finance Fase 1, Requirement 7): kode numerik dan minor unit; kode non-ISO tetap default 2.
+                if ($hasMinorUnit) {
+                    $currencies[$currencyCode]['minor_unit']   = Iso4217::minorUnit($currencyCode);
+                    $currencies[$currencyCode]['numeric_code'] = Iso4217::numericCode($currencyCode);
+                }
             }
         }
 

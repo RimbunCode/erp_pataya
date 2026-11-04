@@ -23,6 +23,9 @@ return [
             'submitted' => 'Diajukan',
             'cancelled' => 'Dibatalkan',
             'amended'   => 'Diamandemen',
+            'reversed'  => 'Dibalik',
+            'closed'    => 'Ditutup',
+            'reopened'  => 'Dibuka Kembali',
         ],
     ],
 ];

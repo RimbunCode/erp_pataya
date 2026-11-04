@@ -2,7 +2,7 @@
 
 | | |
 |---|---|
-| **Status dokumen** | Disetujui pemilik produk (2026-11-03); **Fase 0 selesai 2026-11-04**; keputusan Fase 1 (D-3, D-8, D-14, Q-P1-1, Q-P1-2, BR-7) diputuskan 2026-11-04 |
+| **Status dokumen** | Disetujui pemilik produk (2026-11-03); **Fase 0 selesai 2026-11-04**; keputusan Fase 1 (D-3, D-8, D-14, Q-P1-1, Q-P1-2, Q-P1-3 s.d. Q-P1-6, BR-7) diputuskan 2026-11-04 |
 | **Tanggal entri** | 2026-11-03 |
 | **Spec** | [`finance-p0-foundation-audit`](../../.kiro/specs/finance-p0-foundation-audit/requirements.md) (Requirement 7.2 dan 7.5; Task 7.3) |
 | **Dokumen terkait** | [`finance-engine-prd.md`](finance-engine-prd.md) (sumber keputusan: Bagian 7 dan 16); [`finance-audit-report.md`](finance-audit-report.md) (laporan audit, disetujui) |
@@ -39,6 +39,7 @@
 | HF | Hotfix Payment Entry (`finance-payment-entry-hotfix`): N-4, F-10, bagian `paid_amount` F-04, N-10 (Q3), N-11 (Q10, Q11), N-12 (Q12), Q2, Q9b | 0–1 | DECIDED (diimplementasi 2026-11-04) | 2026-11-04 |
 | Q1–Q7, Q-P0-1 | Pertanyaan terbuka | 0–6 | Terbuka (Q1 versi PRD, Q4, dan Q-P0-1 dijawab; Q2, Q3, Q5–Q7 terbuka) | Lihat tabel |
 | Q-P1-1, Q-P1-2 | Pertanyaan Fase 1 (jendela pemeliharaan; kapan penegakan periode) | 1 | DECIDED (diputuskan 2026-11-04) | 2026-11-04 |
+| Q-P1-3 s.d. Q-P1-6 | Pertanyaan Fase 1 dari verifikasi Task 1 (urutan migration `against_account_id`; `minor_unit` ISO 4217 lengkap; zona waktu hari/periode; `purpose` posting key Asset) | 1 | DECIDED (disetujui pemilik produk 2026-11-04) | 2026-11-04 |
 | Q-P2-1 s.d. Q-P6-3 | 19 pertanyaan per fase dari spec Fase 2–6 | 2–6 | PENDING | 2026-11-03 |
 | AP-1 | Laporan audit Fase 0 (`finance-audit-report.md`) disetujui; Task 6.5 selesai di staging | 0 | DECIDED (disetujui 2026-11-03) | 2026-11-03 |
 
@@ -158,7 +159,7 @@
 |---|---|---|---|---|
 | A: per (`referenceable_type`, `referenceable_id`, `transaction_date`) penuh (rumusan lama). B: per dokumen (`referenceable_type` + `referenceable_id`); kelompok dipecah per **tanggal** (hari kalender) hanya bila dokumen punya posting di hari berbeda. C (dibahas di laporan 3.7, tidak dipilih): per `datetime` dengan toleransi. | B (dasar: N-3) | Pemilik produk | **DECIDED (disetujui pemilik produk 2026-11-04): opsi B** | 2026-11-04 |
 
-**Konsekuensi (butir 3 dan 4 disetujui pemilik produk 2026-11-04 bersama opsi B).** (1) Pasangan baris yang hanya berbeda detik tetap satu jurnal. (2) Posting dokumen yang sama di hari berbeda, bila ada, tetap jurnal terpisah per tanggal; tidak ada contoh yang terverifikasi (pada data staging 28 kelompok = 28 dokumen, jadi tidak ada pemecahan). Pembayaran bertahap bukan contoh: tiap Payment Entry adalah dokumen berbeda dengan `referenceable` berbeda, dan GL lama tidak memiliki jurnal pembalik. (3) Baris GL tetap menyimpan `transaction_date` aslinya (Requirement 9.5 Fase 1 tidak berubah); `transaction_date` jurnal legacy = nilai terkecil di kelompoknya (**disetujui pemilik produk 2026-11-04**; dirumuskan di `design.md` Fase 1). (4) Dokumen yang pasangannya melintasi tengah malam dapat terpecah per tanggal dan ditandai `legacy_unbalanced`; kasus ini diterima (**disetujui pemilik produk 2026-11-04**) dan dilaporkan sebagai informasi. (5) Aturan lain D-8 tidak berubah: kelompok seimbang menjadi `posted`; tak seimbang diberi `legacy_unbalanced = true` dan tidak dikoreksi otomatis; backfill idempoten dan tidak mengubah `debit`/`credit` lama. (6) Auditor Fase 0 tidak diubah dan tetap mengelompokkan per `transaction_date` penuh; pada data staging hasilnya sama (28 kelompok = 28 dokumen). (7) Basis "hari kalender" = hari UTC (`DATE(transaction_date)`; `APP_TIMEZONE=UTC`, `config/app.php:68`): **detail desain implementer, bukan keputusan pemilik produk**; alasan dan konsekuensinya di `design.md` Fase 1 (Backfill).
+**Konsekuensi (butir 3 dan 4 disetujui pemilik produk 2026-11-04 bersama opsi B).** (1) Pasangan baris yang hanya berbeda detik tetap satu jurnal. (2) Posting dokumen yang sama di hari berbeda, bila ada, tetap jurnal terpisah per tanggal; tidak ada contoh yang terverifikasi (pada data staging 28 kelompok = 28 dokumen, jadi tidak ada pemecahan). Pembayaran bertahap bukan contoh: tiap Payment Entry adalah dokumen berbeda dengan `referenceable` berbeda, dan GL lama tidak memiliki jurnal pembalik. (3) Baris GL tetap menyimpan `transaction_date` aslinya (Requirement 9.5 Fase 1 tidak berubah); `transaction_date` jurnal legacy = nilai terkecil di kelompoknya (**disetujui pemilik produk 2026-11-04**; dirumuskan di `design.md` Fase 1). (4) Dokumen yang pasangannya melintasi tengah malam dapat terpecah per tanggal dan ditandai `legacy_unbalanced`; kasus ini diterima (**disetujui pemilik produk 2026-11-04**) dan dilaporkan sebagai informasi. (5) Aturan lain D-8 tidak berubah: kelompok seimbang menjadi `posted`; tak seimbang diberi `legacy_unbalanced = true` dan tidak dikoreksi otomatis; backfill idempoten dan tidak mengubah `debit`/`credit` lama. (6) Auditor Fase 0 tidak diubah dan tetap mengelompokkan per `transaction_date` penuh; pada data staging hasilnya sama (28 kelompok = 28 dokumen). (7) Basis "hari kalender" = hari dalam **zona waktu perusahaan**, yaitu `CoreSetting.timezone` (default `Asia/Jakarta`; `app/Models/Core/CoreSetting.php:28`), bukan hari UTC. **Diubah 2026-11-04 (Q-P1-5, disetujui pemilik produk)** dari rumusan sebelumnya (hari UTC, `DATE(transaction_date)`, detail desain implementer). Alasan: tidak dinyatakan pemilik produk; konsekuensi yang diterima: `transaction_date` tetap disimpan sebagai instan UTC (`config/app.php:68`), tetapi pemecahan per hari pada backfill, penentuan periode fiskal, dan "hari" jurnal memakai tanggal dalam zona perusahaan (pada pagi hari WIB tanggal 1, bulan WIB mendahului bulan UTC). Pengelompokan Putaran B (backfill) harus mengonversi zona lebih dulu (bukan `DATE(transaction_date)` mentah di SQL); auditor Fase 0 tidak diubah (butir 6). Detail desain di `design.md` Fase 1.
 
 **Sumber:** PRD Bagian 7 (D-8) dan Bagian 11; `finance-audit-report.md` Bagian 3.7, 4.1; PB-10.
 
@@ -173,6 +174,17 @@
 **Konsekuensi.** Requirement 12 Fase 1 tidak lagi "menunggu konfirmasi": ia menjadi requirement **opsional** (Task 11 bertanda `- [ ]*`); cakupannya tetap dikonfirmasi dengan pemilik produk sebelum dikerjakan. Izin `create` pada `Journal` hanya didaftarkan bila Task 11 dikerjakan.
 
 **Sumber:** PRD Bagian 7 (D-14).
+
+### Q-P1-3 s.d. Q-P1-6 — Keputusan Fase 1 dari verifikasi Task 1 (DECIDED 2026-11-04)
+
+Ditemukan pada Task 1 Putaran A (`design.md` Fase 1, "Hasil Verifikasi Task 1"); semuanya **disetujui pemilik produk 2026-11-04**.
+
+| ID | Keputusan | Alasan | Dampak |
+|---|---|---|---|
+| Q-P1-3 | `against_account_id` nullable dimajukan ke migration Fase 1 (`2026_11_04_100005`), bukan menunggu Task 8.3 | Tidak dinyatakan pemilik produk; temuan implementer: jurnal 3 baris atau lebih tidak dapat disimpan tanpa kolom nullable; melonggarkan NOT NULL bersifat aditif dan aman | Requirement 1.3; Task 8.3 tidak lagi memuat `against_account_id` |
+| Q-P1-4 | `minor_unit` (dan kode numerik) diisi **lengkap ISO 4217** untuk semua kode di `currencies`, statis dan idempoten (mis. JPY=0, KWD/BHD/OMR/TND/JOD/IQD/LYD=3, CLF=4); kode tak dikenal tetap 2 | Tidak dinyatakan pemilik produk; pembulatan jurnal harus mengikuti standar untuk semua mata uang yang mungkin dipakai | Requirement 7; migration `..._100006` dan `CountrySeeder` memakai `Iso4217` |
+| Q-P1-5 | Zona waktu "hari" jurnal dan periode fiskal mengikuti `CoreSetting.timezone` (default `Asia/Jakarta`), bukan UTC; berlaku juga untuk pemecahan per hari backfill D-8 | Tidak dinyatakan pemilik produk; pencatatan oleh perusahaan mengikuti hari kerja lokal | Requirement 6; `FiscalPeriodService`; backfill Putaran B; D-8 butir (7) diubah |
+| Q-P1-6 | Scrap: `posting_key` `Asset:{id}:write_off`. Disposal (penjualan aset): dibedakan **per baris invoice**, `posting_key` = `Asset:{id}:disposal:{sales_invoice_item_id}`; tiap baris penjualan punya posting sendiri dan baris yang sama tidak dapat diposting dua kali | Tidak dinyatakan pemilik produk; satu sumber `Asset` diposting lebih dari sekali (beberapa baris penjualan menabrak satu kunci `{Asset}:{id}:disposal`) | Requirement 3; Task 6.7 (Putaran B) |
 
 ## Keputusan dan Konvensi Proses
 
@@ -392,15 +404,19 @@ Keterangan: "—" berarti PRD atau spec tidak mencantumkan opsi atau rekomendasi
 
 ## Pertanyaan per Fase (Q-P1 s.d. Q-P6)
 
-Dirangkum dari bagian "Pertanyaan yang Menunggu Konfirmasi" di akhir `requirements.md` tiap fase. Pada saat dirangkum (2026-11-03) tidak ada sumber yang menyebut pertanyaan ini sudah terjawab, sehingga semuanya PENDING; Q-P1-1 dan Q-P1-2 dijawab pemilik produk 2026-11-04. Kolom "Dibutuhkan sebelum" diambil dari sumber: prasyarat `tasks.md` bila ada, atau Requirement yang disebut tabel pertanyaan. Bila sumber tidak merinci task, hal itu ditulis.
+Dirangkum dari bagian "Pertanyaan yang Menunggu Konfirmasi" di akhir `requirements.md` tiap fase. Pada saat dirangkum (2026-11-03) tidak ada sumber yang menyebut pertanyaan ini sudah terjawab, sehingga semuanya PENDING; Q-P1-1 dan Q-P1-2 dijawab pemilik produk 2026-11-04, Q-P1-3 s.d. Q-P1-6 juga 2026-11-04; Q-P2-3 dan Q-P4-4 terjawab oleh hotfix Payment Entry (2026-11-04). Kolom "Dibutuhkan sebelum" diambil dari sumber: prasyarat `tasks.md` bila ada, atau Requirement yang disebut tabel pertanyaan. Bila sumber tidak merinci task, hal itu ditulis.
 
 | ID | Pertanyaan | Fase | Dibutuhkan sebelum | Status | Tanggal |
 |---|---|---|---|---|---|
 | Q-P1-1 | Boleh membuat jendela pemeliharaan untuk `ALTER TABLE general_ledgers` di MySQL produksi? **Dijawab 2026-11-04 (pemilik produk): tidak perlu jendela pemeliharaan.** GL produksi kosong (Q1); Task 9.1 Fase 1 tetap memeriksa nol baris tanpa `journal_id` sebelum kolom dikunci NOT NULL. Urutan rilis diputuskan terpisah (BR-7): migration NOT NULL tidak ikut Rilis 1 | 1 | Requirement 13 (diubah 2026-11-04) | DECIDED (2026-11-04) | 2026-11-04 |
 | Q-P1-2 | Penegakan periode diaktifkan kapan (setelah berapa periode terisi)? **Dijawab 2026-11-04 (pemilik produk): penegakan nonaktif dulu** (setting `finance_enforce_fiscal_period` off), diaktifkan manual; penutupan periode tetap di Fase 6. Detail desain (bukan keputusan pemilik produk): pengaktifan lewat toggle di halaman setting | 1 | Requirement 6.4 (diubah 2026-11-04) | DECIDED (2026-11-04) | 2026-11-04 |
+| Q-P1-3 | `against_account_id` nullable dimajukan ke migration Fase 1 (bukan Task 8.3)? **Dijawab 2026-11-04 (pemilik produk): disetujui.** Alasan tidak dinyatakan; temuan implementer: jurnal 3 baris atau lebih tidak dapat disimpan | 1 | Requirement 1.3; Task 8.3 | DECIDED (2026-11-04) | 2026-11-04 |
+| Q-P1-4 | Seberapa lengkap `minor_unit` mata uang? **Dijawab 2026-11-04 (pemilik produk): lengkap ISO 4217** untuk semua kode di `currencies`, statis dan idempoten; kode tak dikenal tetap 2. Alasan tidak dinyatakan | 1 | Requirement 7 | DECIDED (2026-11-04) | 2026-11-04 |
+| Q-P1-5 | Zona waktu hari/periode fiskal? **Dijawab 2026-11-04 (pemilik produk): mengikuti `CoreSetting.timezone`** (default `Asia/Jakarta`), termasuk pemecahan per hari backfill D-8. Alasan tidak dinyatakan | 1 | Requirement 6; backfill (Putaran B) | DECIDED (2026-11-04) | 2026-11-04 |
+| Q-P1-6 | `purpose` `posting_key` untuk Asset? **Dijawab 2026-11-04 (pemilik produk): scrap `Asset:{id}:write_off`; disposal per baris invoice, `Asset:{id}:disposal:{sales_invoice_item_id}`.** Alasan tidak dinyatakan | 1 | Requirement 3; Task 6.7 | DECIDED (2026-11-04) | 2026-11-04 |
 | Q-P2-1 | Siapa yang menyetujui perpindahan mode `on` per jenis dokumen? | 2 | Requirement 6.8, 7.2 (task tidak dirinci) | PENDING | 2026-11-03 |
 | Q-P2-2 | Apakah COA saat ini sudah memisah akun PPN Masukan/Keluaran (seeder hanya memiliki `account_type = tax`)? Menentukan peta peran `tax_*` di profil default | 2 | Requirement 1; sebelum Fase 3 | PENDING | 2026-11-03 |
-| Q-P2-3 | Apakah F-10 (Payment kumulatif) diperbaiki saat migrasi Payment atau sebagai hotfix terpisah? | 2 | Task 7.2 (`tasks.md`); Requirement 7 | PENDING | 2026-11-03 |
+| Q-P2-3 | Apakah F-10 (Payment kumulatif) diperbaiki saat migrasi Payment atau sebagai hotfix terpisah? **Terjawab oleh hotfix Payment Entry (PR #277, 2026-11-04):** F-10 diperbaiki sebagai hotfix terpisah sebelum Fase 1 (PB-4); pekerjaan Fase 2 tidak lagi memperbaikinya | 2 | Task 7.2 (`tasks.md`); Requirement 7 | TERJAWAB oleh hotfix PR #277 (fakta implementasi, bukan keputusan pemilik produk) | 2026-11-04 |
 | Q-P2-4 | Daftar awal aturan akun bersyarat (barang non-stok, retur, kategori) disusun bersama akuntan saat `init-posting-profile` | 2 | Requirement 12.7 (task tidak dirinci) | PENDING | 2026-11-03 |
 | Q-P2-5 | Perlakuan diskon pembelian untuk baris stok (net ke persediaan) dan non-stok (potongan pembelian) | 2 | Task 13 (GATED Q-P2-5); Requirement 14.3 | PENDING | 2026-11-03 |
 | Q-P3-1 | Semantik `taxes.rate` di data produksi: apakah 11 dengan DPP 11/12 (≈10,08%), atau seharusnya 12? Apakah invoice historis bernilai benar? | 3 | Task 1.1 (`tasks.md`); Requirement 6.3; prasyarat fase (`tasks.md`) | PENDING | 2026-11-03 |
@@ -410,7 +426,7 @@ Dirangkum dari bagian "Pertanyaan yang Menunggu Konfirmasi" di akhir `requiremen
 | Q-P4-1 | Apakah transaksi tiga mata uang berbeda perlu didukung nanti? | 4 | Prasyarat fase (`tasks.md`); Requirement 7.7 | PENDING | 2026-11-03 |
 | Q-P4-2 | Bagaimana pembayaran dalam mata uang asing diterima di bank (rekening valas atau dikonversi bank ke IDR)? Menentukan mata uang `payment_entries` | 4 | Prasyarat fase (`tasks.md`); Requirement 7.2, 11.2 | PENDING | 2026-11-03 |
 | Q-P4-3 | Apakah uang muka dipakai sekarang (proses bisnis nyata)? Menentukan prioritas Requirement 5.8 | 4 | Requirement 5; prasyarat fase (`tasks.md`) | PENDING | 2026-11-03 |
-| Q-P4-4 | F-10: apakah dikonfirmasi sebagai bug oleh Fase 0? Tentukan apakah hotfix terpisah lebih dulu | 4 | Prasyarat fase (`tasks.md`); Requirement 7.1 | PENDING | 2026-11-03 |
+| Q-P4-4 | F-10: apakah dikonfirmasi sebagai bug oleh Fase 0? Tentukan apakah hotfix terpisah lebih dulu. **Terjawab oleh hotfix Payment Entry (PR #277, 2026-11-04):** F-10 dikonfirmasi sebagai bug oleh Fase 0 dan diperbaiki lewat hotfix terpisah (PB-4) | 4 | Prasyarat fase (`tasks.md`); Requirement 7.1 | TERJAWAB oleh hotfix PR #277 (fakta implementasi, bukan keputusan pemilik produk) | 2026-11-04 |
 | Q-P5-1 | Aturan default jatuh tempo untuk invoice tanpa termin (tunai? 30 hari?) | 5 | Requirement 7.2; fallback `AgingBuilder` (`design.md`) | PENDING | 2026-11-03 |
 | Q-P5-2 | Siapa pemakai laporan (hak akses cabang vs gabungan) dan apakah ada laporan eksternal yang saat ini dibuat manual dan harus direplikasi (Q7) | 5 | Requirement 11 (task tidak dirinci) | PENDING | 2026-11-03 |
 | Q-P5-3 | Apakah akun HPP (`cost_of_goods_sold`, yang di seeder berada di bawah root `income`) harus ditampilkan sebagai beban pada Laba Rugi? | 5 | Task 1.2 (`tasks.md`); Requirement 4.1 | PENDING | 2026-11-03 |
@@ -418,7 +434,7 @@ Dirangkum dari bagian "Pertanyaan yang Menunggu Konfirmasi" di akhir `requiremen
 | Q-P6-2 | Pos moneter lain yang perlu direvaluasi (mis. pinjaman valas, uang muka valas) | 6 | Requirement 4.2 (task tidak dirinci) | PENDING | 2026-11-03 |
 | Q-P6-3 | Perlukah periode penyesuaian ke-13 untuk jurnal audit pasca-tutup? | 6 | Requirement 6 (task tidak dirinci) | PENDING | 2026-11-03 |
 
-**Catatan jumlah.** Jumlah per fase: Fase 1 (2; keduanya DECIDED 2026-11-04), Fase 2 (5), Fase 3 (4), Fase 4 (4), Fase 5 (3), Fase 6 (3), total 21 (19 masih PENDING). Fase 3 perlu perhatian: prasyarat `requirements.md` menyebut "Q-P3-1…3", sedangkan `tasks.md` menyebut "Q-P3-1…4" dan tabel memuat empat pertanyaan. Tabel diikuti, sehingga Q-P3-4 tetap dicantumkan.
+**Catatan jumlah.** Jumlah per fase: Fase 1 (6; seluruhnya DECIDED 2026-11-04; Q-P1-3 s.d. Q-P1-6 ditambahkan oleh verifikasi Task 1), Fase 2 (5), Fase 3 (4), Fase 4 (4), Fase 5 (3), Fase 6 (3), total 25 (17 masih PENDING; Q-P2-3 dan Q-P4-4 terjawab oleh hotfix Payment Entry 2026-11-04). Fase 3 perlu perhatian: prasyarat `requirements.md` menyebut "Q-P3-1…3", sedangkan `tasks.md` menyebut "Q-P3-1…4" dan tabel memuat empat pertanyaan. Tabel diikuti, sehingga Q-P3-4 tetap dicantumkan.
 
 **Catatan D-xx belum tercatat.** Tabel "Pertanyaan yang Menunggu Konfirmasi" di spec Fase 1–6 juga memuat keputusan D-xx berikut yang belum punya entri di log ini (D-3, D-8, dan D-14 sudah punya entri sejak 2026-11-04), dan tidak dimasukkan di sini karena di luar cakupan: D-13, D-15, D-16, D-17, D-18, D-19, D-20, D-21, D-22, D-23, D-24.
 

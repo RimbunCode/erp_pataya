@@ -16,6 +16,8 @@ Keputusan D-1 (queue vs sinkron) **tidak disentuh**: listener tetap queued denga
 
 **Keputusan pemilik produk 2026-11-04 yang berlaku pada desain ini:** D-3 (`decimal(20,4)`, HALF_UP di batas posting) disetujui; D-8 diubah (backfill per dokumen, dipecah per tanggal hanya bila dokumen punya posting di hari berbeda, alasan N-3; detail tanggal jurnal legacy = `transaction_date` terkecil dan pemecahan dokumen lintas tengah malam juga disetujui); D-14 masuk sebagai task opsional (Journal Voucher sederhana); Q-P1-1 tanpa jendela pemeliharaan (GL produksi kosong); Q-P1-2 penegakan periode nonaktif dulu dan diaktifkan manual; BR-7 rilis dua tahap (Rilis 1: tabel jurnal + `journal_id` nullable + perintah backfill; Rilis 2: migration NOT NULL di PR/tahapan terpisah setelah backfill terverifikasi di staging dan produksi). Yang bukan keputusan pemilik produk dan ditandai "detail desain" di bawah: basis zona waktu D-8, perintah pra-pemeriksaan presisi, dan mekanisme toggle penegakan periode. Rujukan: `docs/prd/finance-decision-log.md`.
 
+**Hotfix Payment Entry (`finance-payment-entry-hotfix`, selesai 2026-11-04) sudah masuk ke basis branch ini.** Hotfix itu mengubah `PaymentEntryService` (arah jurnal, jumlah GL per pembayaran, guard status, alokasi jadwal, pembatalan); bagian spec ini yang ditulis sebelumnya telah diselaraskan pada Task 1.1 (lihat "Hasil Verifikasi Task 1" di bawah).
+
 Dua fakta codebase yang membentuk desain:
 
 1. **Hook `Submitable` (`app/Traits/Submitable.php:98-106`)** menandai `deleted_at` massal pada GL/SLE saat cancel melalui query builder — *tidak* memicu event model. Guard immutability berbasis event tidak akan menangkapnya, jadi (a) pengecualian ini didokumentasikan dan diuji, (b) jurnal terkait ditandai `voided`, dan (c) penggantiannya dengan reversal adalah Fase 2 (D-13).
@@ -89,6 +91,9 @@ app/Services/Finances/Ledger/
 ├── JournalService.php
 ├── JournalDraft.php            (readonly, DTO)
 ├── JournalLineDraft.php        (readonly, DTO)
+├── JournalDraftValidator.php   (validasi struktur + keseimbangan tanpa DB; dipisah agar P-1 dapat diuji massal)
+├── NormalizedJournal.php       (hasil validator: baris + total dalam minor unit)
+├── NormalizedLine.php
 ├── JournalReversalService.php
 ├── FiscalPeriodService.php
 └── MinorUnit.php               (helper statis)
@@ -113,11 +118,13 @@ Folder `Ledger/` mengikuti konvensi `{Domain}/{Feature}` (Domain `Finances`). Fo
 final readonly class JournalLineDraft {
     public function __construct(
         public string $accountId,
-        public float|string $debit = 0,
-        public float|string $credit = 0,
+        public float|int|string $debit = 0,
+        public float|int|string $credit = 0,
         public ?Model $party = null,        // -> partyable_*
         public ?string $description = null,
         public ?string $againstAccountId = null, // diisi adapter 2-baris
+        public ?string $partyType = null,   // representasi mentah (reversal); $party didahulukan
+        public ?string $partyId = null,
     ) {}
 }
 
@@ -130,6 +137,8 @@ final readonly class JournalDraft {
         public ?string $postingKey = null,
         public ?string $branchId = null,
         public ?string $description = null,
+        public ?string $sourceType = null,  // representasi mentah (reversal, sumber yang sudah soft-deleted); $source didahulukan
+        public ?string $sourceId = null,
     ) {}
 }
 ```
@@ -154,17 +163,20 @@ final class JournalService {
 }
 ```
 
-Langkah `post()` (urutan penting):
+Langkah `post()` (urutan penting; diimplementasikan Putaran A, Task 4.3):
 
-1. **Validasi struktur** (tanpa DB): jumlah baris, nilai non-negatif, satu sisi per baris.
-2. **Pembulatan & keseimbangan** (tanpa DB): `MinorUnit::toMinor($v, $mu)` per baris; bandingkan Σ debit vs Σ kredit sebagai integer. `$mu` = `minor_unit` mata uang dasar (setting umum `default_currency_id`).
+0. **Pra-pemeriksaan idempotensi** (tanpa kunci): bila `postingKey` sudah ada → `DuplicatePostingException($existingId)` sebelum validasi apa pun, agar retry job yang sudah terposting selalu berakhir sebagai duplikat walau keadaan akun/periode sudah berubah. Pembacaan ini sengaja tidak terkunci: `SELECT ... FOR UPDATE` atas kunci unik yang belum ada mengambil gap lock dan dapat membuat dua posting dengan kunci berbeda saling deadlock saat INSERT.
+1. **Validasi struktur** (tanpa DB, `JournalDraftValidator`): jumlah baris, nilai non-negatif, satu sisi per baris, angka valid/dalam rentang.
+2. **Pembulatan & keseimbangan** (tanpa DB): `MinorUnit::toMinor($v, $mu)` per baris; bandingkan Σ debit vs Σ kredit sebagai integer. `$mu` = `minor_unit` mata uang dasar (setting umum `default_currency_id`, dibaca lewat `SettingsService::getForRead` agar tidak memakai memo basi di worker); tanpa setting mata uang dasar, `$mu` = 2 dan `journals.currency_code` null.
 3. **Transaksi**: `DB::transaction(...)`. Bila sudah di dalam transaksi pemanggil (listener/service), Laravel memakai savepoint — kegagalan menggulung kembali sampai savepoint dan exception diteruskan ke pemanggil.
-4. **Lock & validasi akun**: `Account::withTrashed()->whereIn('id', $ids)->orderBy('id')->lockForUpdate()->get()`; tolak jika hilang/terhapus/`is_group`/`is_disabled`.
-5. **Periode**: `FiscalPeriodService::resolve($date)`; jika `finance_enforce_fiscal_period` aktif → `assertOpen`.
-6. **Idempotensi**: jika `postingKey` ada → cek `Journal::where('posting_key', ...)` (dan tangkap pelanggaran unique sebagai pengaman balapan) → `DuplicatePostingException($existingId)`.
-7. **Tulis**: `Journal::create` (kode via `FormatingSeries` di dalam transaksi), lalu `GeneralLedger::create` per baris (dipertahankan per-baris, bukan bulk insert, agar hook `creating` yang membuat `code` baris — F-15 — tetap berjalan).
+4. **Lock & validasi akun**: `Account::withoutGlobalScopes()->whereIn('id', $ids)->orderBy('id')->lockForUpdate()->get()`; tolak jika hilang/terhapus/`is_group`/`is_disabled`. Global scope dilepas (termasuk `exclude_example_data` dan soft-delete) supaya akun contoh tidak tampak "hilang" dan penolakan akun terhapus eksplisit.
+5. **Periode**: bila `finance_enforce_fiscal_period` aktif → `FiscalPeriodService::assertOpen($date, lockForShare: true)` (baris periode dibaca ulang dengan kunci bersama lewat primary key, sehingga `close()` yang bersamaan menunggu posting yang berjalan dan posting sesudah penutupan melihat `closed`); bila nonaktif → `resolve($date)` (hanya mengisi `fiscal_period_id`).
+6. **Tulis jurnal**: pastikan baris `FormatingSeries` Journal ada (bila tidak: `InvalidJournalException::seriesMissing()`, bukan galat null), lalu `Journal::create` dengan `code` dari `FormatingSeries::generate()` (kunci baris series, lihat hasil Task 1.5). **Idempotensi saat balapan:** pelanggaran kunci unik `posting_key` pada INSERT ditangkap; INSERT yang menabrak kunci unik menunggu commit lawan, sehingga pembacaan ulang pemilik kunci memakai `lockForUpdate` (current read; pembacaan biasa pada REPEATABLE READ dapat melewatkan baris yang baru di-commit) → `DuplicatePostingException($existingId)`; transaksi menggulung kembali nomor series yang terpakai.
+7. **Tulis baris**: `GeneralLedger::create` per baris (dipertahankan per-baris, bukan bulk insert, agar hook `creating` yang membuat `code` baris — F-15 — tetap berjalan). Sumber null (jurnal manual): `referenceable_*` baris menunjuk jurnal itu sendiri (kolom itu NOT NULL), dan `journals.source_*` tetap null. Setelah itu relasi `lines` pada `Journal` yang dikembalikan diisi eksplisit (hook `created` `DataTable` memuat relasi saat ada user login; tanpa pengisian eksplisit, `$journal->lines` dapat tertinggal kosong).
 
-> **[TODO: verifikasi Task 1.5]** `FormatingSeries::generate()` membaca/menulis JSON `logs` pada satu baris `FormatingSeries` per model dan tidak terlihat memakai `lockForUpdate`. Pastikan generate nomor aman dari balapan di dalam transaksi posting (mis. dengan mengunci baris `FormatingSeries` Journal) atau pakai pola yang sudah dipakai model submitable. Pastikan juga bagaimana baris `FormatingSeries` untuk model baru terdaftar (apakah via `initPermissions()` untuk `$generateCodeSeries`).
+**Urutan kunci** (konsisten untuk semua posting): akun (id menaik) → periode (kunci bersama, hanya saat enforce) → baris series Journal → baris series GL (per baris, F-15). Pemanggil yang sudah memegang kunci lain (mis. `PaymentEntryService::onApproved` mengunci paymentable lalu Payment Entry, lalu memanggil `post()`) tetap kompatibel selama tidak memegang kunci series atau mengunci akun dalam urutan berbeda.
+
+**Hasil verifikasi Task 1.5 (2026-11-04):** `FormatingSeries::generate()` sekarang membungkus pembacaan-ubah-tulis counter dalam `DB::transaction` dan `lockForUpdate()` pada baris series model itu (premis lama bahwa ia tidak mengunci sudah usang). Di dalam transaksi posting ia menjadi savepoint, sehingga kunci tertahan sampai transaksi posting selesai dan menserialkan semua posting jurnal (satu baris series per model); ini diterima karena tiap posting singkat. Baris series untuk model baru dibuat oleh `DataTable::initPermissions()` bila `$generateCodeSeries` atau `$is_submitable` (dipanggil `PermissionSeeder`, yang menemukan semua model ber-trait `DataTable` lewat classmap dan berjalan pada deploy sebelum release diaktifkan); bila barisnya tidak ada, `generate()` jatuh pada galat null, sehingga `JournalService` memeriksanya lebih dulu. Tahun pada kode memakai `now()` (zona waktu setting `timezone`), bukan `transaction_date` — berlaku juga untuk kode jurnal legacy hasil backfill (Task 7.1). Test yang membuat jurnal wajib memanggil `Journal::initPermissions()` (fixture `setUpFinanceFixtures([Journal::class, ...])`).
 
 ### `MinorUnit`
 
@@ -176,7 +188,7 @@ final class MinorUnit {
 }
 ```
 
-PHP project 8.4: `round()` mengimplementasikan pembulatan yang benar untuk representasi desimal terdekat (mis. `round(1.005, 2)`), sehingga tidak dibuat penanganan pra-pembulatan sendiri. Perbandingan keseimbangan memakai integer agar bebas error floating point. Batas aman: |nilai| < ~9×10¹³ untuk `mu=2`; di atas itu `UnbalancedJournalException`/`InvalidJournalException` (nilai di luar rentang) agar tidak overflow diam-diam.
+PHP project 8.4: `round()` mengimplementasikan pembulatan yang benar untuk representasi desimal terdekat (mis. `round(1.005, 2)`), sehingga tidak dibuat penanganan pra-pembulatan sendiri. **Diverifikasi pada binary Herd PHP 8.4.27 (2026-11-04):** `round(1.005, 2)` = 1.01, `round(0.125, 2)` = 0.13, `round(2.675, 2)` = 2.68, `round(-1.005, 2)` = -1.01, `round(1234567890.125, 2)` = 1234567890.13. Perbandingan keseimbangan memakai integer agar bebas error floating point. Batas aman: |nilai| × 10^mu < 2⁵³ (= 9.007×10¹⁵ minor unit; mis. < 9.007×10¹³ untuk `mu=2`); di atas itu `MinorUnit` melempar `RangeException` (dan nilai bukan angka `InvalidArgumentException`), yang diterjemahkan `JournalDraftValidator` menjadi `InvalidJournalException` per baris agar tidak overflow/kehilangan presisi diam-diam. Jumlah total yang meluber ke float juga ditolak. `mu` di luar 0..6 ditolak.
 
 ### `JournalReversalService`
 
@@ -186,33 +198,36 @@ final class JournalReversalService {
 }
 ```
 
-Dalam satu transaksi: `lockForUpdate` pada jurnal asal, tolak jika `status != posted` atau `legacy_unbalanced` atau `reverses_journal_id != null`; bangun `JournalDraft` dari baris aktif (tukar sisi, salin `party`, `description` diberi awalan "Pembalik: "), `postingKey = ($journal->posting_key ?? "journal:{$journal->id}") . ':reversal'`; panggil `JournalService::post()`; lalu `Journal::query()->whereKey($journal->id)->update(['status' => 'reversed', 'reversed_by_journal_id' => $rev->id])` dan `...->whereKey($rev->id)->update(['reverses_journal_id' => $journal->id, 'reversal_reason' => $reason])`.
+Dalam satu transaksi: `lockForUpdate` pada jurnal asal, tolak jika `reverses_journal_id != null` (jurnal pembalik, `InvalidJournalException`), `status` `reversed`/`voided` (`JournalAlreadyReversedException`), `legacy_unbalanced`, atau tanpa baris aktif; bangun `JournalDraft` dari baris aktif (tukar sisi, salin pihak lewat `partyType`/`partyId` mentah dan sumber lewat `sourceType`/`sourceId` mentah agar dokumen yang sudah di-soft-delete tidak menghilangkan tautan, `description` diberi awalan lokal "Pembalik: "/"Reversal: "), `postingKey = ($journal->posting_key ?? "journal:{$journal->id}") . ':reversal'`; panggil `JournalService::post()`; lalu `Journal::query()->whereKey($journal->id)->update(['status' => 'reversed', 'reversed_by_journal_id' => $rev->id])` dan `...->whereKey($rev->id)->update(['reverses_journal_id' => $journal->id, 'reversal_reason' => $reason])`.
 
-Pembaruan memakai query builder (bukan model) secara sengaja karena guard model menolak `update`; ini jalur terkontrol yang diuji. `reverses_journal_id` diisi lewat update kedua karena jurnal pembalik harus ada dulu sebelum mereferensikan sumbernya dalam FK sirkular.
+Pembaruan memakai query builder (bukan model) secara sengaja karena guard model menolak `update`; ini jalur terkontrol yang diuji. Reversal dicatat di log aplikasi dengan `event(new AuditableModelSaved($original, 'reversed', ...))` karena `update` lewat query builder tidak memicu hook audit otomatis. **Izin `reverse` (Req 5.8)** terdaftar lewat `extraPermissions()` pada `Journal` (diuji Task 2.5) dan **ditegakkan di controller (Task 10.1)**, bukan di service: pengecekan izin memakai sesi dan `abort(403)`, yang tidak pantas dari dalam service; uji HTTP 403 ada di Task 10.1. **Tanggal pada periode tertutup (Req 5.5)** ditolak oleh `post()` menurut Req 6.5/6.6, yaitu hanya bila `finance_enforce_fiscal_period` aktif (dengan penegakan nonaktif, Q-P1-2, reversal tidak ditolak karena periode). `reverses_journal_id` diisi lewat update kedua karena jurnal pembalik harus ada dulu sebelum mereferensikan sumbernya dalam FK sirkular.
 
 ### `FiscalPeriodService`
 
-`resolve(CarbonInterface $date): ?FiscalPeriod`, `assertOpen(CarbonInterface $date): FiscalPeriod`, `generateYear(int $year): FiscalYear` (12 bulan kalender, idempoten), `close(FiscalPeriod)`, `open(FiscalPeriod)`. Tahun fiskal non-kalender (mis. Juli–Juni) didukung oleh struktur data (`start_date`/`end_date` bebas) tetapi generator hanya menyediakan tahun kalender; **[TODO: konfirmasi dengan akuntan apakah tahun fiskal = tahun kalender]**.
+`resolve(CarbonInterface $date, bool $lockForShare = false): ?FiscalPeriod`, `assertOpen(CarbonInterface $date, bool $lockForShare = false): FiscalPeriod`, `generateYear(int $year): FiscalYear` (12 bulan kalender, idempoten, melengkapi periode yang hilang), `createYear()`/`createPeriod()` (menolak rentang terbalik, tumpang-tindih, periode di luar tahunnya, dan nama ganda dengan `ValidationException`), `close(FiscalPeriod, ?string $reason)`, `open(FiscalPeriod, ?string $reason)` (no-op bila status sudah sama; kolom `closed_at`/`closed_by_id` dan log audit `closed`/`reopened` membawa alasan). "Hari" sebuah transaksi ditentukan dalam **zona waktu perusahaan**, yaitu `CoreSetting.timezone` (default `Asia/Jakarta`; **diputuskan pemilik produk 2026-11-04, Q-P1-5**; sebelumnya rumusan ini memakai UTC). `transaction_date` tetap disimpan sebagai instan dalam `APP_TIMEZONE` (UTC, `config/app.php:68`); `FiscalPeriodService::businessDay($date)` mengonversinya ke zona perusahaan (`companyTimezone()`, dibaca lewat `SettingsService::getForRead(CoreSetting::class)`: tanpa memo sehingga tidak basi, dan tanpa efek samping membuat baris singleton `CoreSetting` di dalam transaksi posting; setting belum ada memakai default `Asia/Jakarta`; kosong jatuh ke `config('app.timezone')`; harganya satu query ringan per pemanggilan) dan `resolve()`/`assertOpen()` memakai tanggal hasil konversi. Contoh: 17.30 UTC tanggal 30 November = 00.30 WIB tanggal 1 Desember masuk periode **Desember**; 23.30 WIB tanggal 30 November tetap November. Basis yang sama dipakai backfill (di bawah). Konsekuensi: mengganti `CoreSetting.timezone` setelah ada jurnal tidak menggeser `fiscal_period_id` jurnal yang sudah diposting (nilai disimpan saat posting), tetapi memengaruhi posting dan backfill berikutnya. Tahun fiskal non-kalender (mis. Juli–Juni) didukung oleh struktur data (`start_date`/`end_date` bebas) tetapi generator hanya menyediakan tahun kalender; **[TODO: konfirmasi dengan akuntan apakah tahun fiskal = tahun kalender]**.
 
 ### Guard immutability (model)
 
-`GeneralLedger::booted()`:
+`GeneralLedger::boot()` (diimplementasikan Putaran A, Task 4.5). **Koreksi atas sketsa awal (Task 1.1):** sketsa awal menolak *setiap* `deleting` dan setiap `updating` selain jalur backfill, sehingga juga mengunci baris legacy tanpa `journal_id`; Req 4.1-4.2 hanya melindungi baris yang **memiliki** `journal_id`. Guard yang diimplementasikan mengikuti requirement:
 
 ```php
 static::updating(function (self $m) {
     if ($m->getOriginal('journal_id') === null) {
-        // jalur backfill: hanya boleh mengisi journal_id & line_no
-        $allowed = ['journal_id', 'line_no', 'updated_at'];
-        if (array_diff(array_keys($m->getDirty()), $allowed) === []) { return; }
+        // baris legacy: bebas, atau jalur backfill (hanya journal_id, line_no, updated_at yang berubah)
+        if ($m->journal_id === null || array_diff(array_keys($m->getDirty()), self::BACKFILL_ASSIGNABLE) === []) { return; }
     }
-    throw new ImmutableLedgerException();
+    throw ImmutableLedgerException::line();   // baris ber-journal_id, atau penugasan jurnal yang menyertakan kolom lain
 });
-static::deleting(fn (self $m) => throw new ImmutableLedgerException()); // soft & force
+static::deleting(function (self $m) {         // soft & force
+    if ($m->journal_id !== null) { throw ImmutableLedgerException::line(); }
+});
 ```
 
-Catatan: `Journal` memiliki guard serupa; keduanya **tidak** dipicu oleh `Model::query()->update()` / `DB::table()`. Ini dinyatakan sebagai batasan (Req. 4.4). Test arsitektur (Req. 4.6) melengkapinya dengan memindai `app/` untuk penulisan GL di luar service/perintah yang diizinkan.
+`Journal::booted()` menolak setiap `updating` dan `deleting` (`ImmutableLedgerException::journal()`). Kedua guard **tidak** dipicu oleh `Model::query()->update()` / `DB::table()` (Req. 4.4); test arsitektur (Req. 4.6) melengkapinya dengan memindai `app/`.
 
-Dampak pada kode yang ada: `Submitable` memakai `GeneralLedger::where(...)->update([...])` (query builder; tidak terkena guard — pengecualian legacy). Tidak ada kode lain yang meng-update/menghapus GL menurut pencarian `app/` (Task 1.2 memverifikasi ulang, termasuk seeder dan test).
+**Temuan Task 1.2 yang memengaruhi guard:** `LinkModel` (dipakai semua model `DataTable`) sudah mendaftarkan hook `deleting` generik yang melempar `ValidationException` bila `canDelete()` false (`enforce_delete_guard`, `config/have_transactions.php`). Karena `GeneralLedger::canDelete()` dan `Journal::canDelete()` false, penghapusan lewat model — termasuk baris legacy — sudah ditolak sejak sebelum Fase 1 oleh guard generik itu; `ImmutableLedgerException` adalah pengaman sendiri yang berlaku walau guard generik dimatikan lewat config (keduanya diuji). Guard generik dipicu lebih dulu, sehingga di konfigurasi default pesan yang terlihat adalah milik guard generik.
+
+Dampak pada kode yang ada (hasil pencarian Task 1.2, 2026-11-04, `app/`, `database/seeders/`, `database/factories/`, `tests/`): satu-satunya update/delete massal baris GL adalah `Submitable` (`GeneralLedger::where(...)->update(['deleted_at' => now()])`, query builder; tidak terkena guard — pengecualian legacy yang dipertahankan dan diuji). Tidak ada seeder atau factory yang menulis GL. Test existing hanya memakai `GeneralLedger::query()->delete()/forceDelete()` (builder, bukan model) dan `GeneralLedger::create`/`makeLedger` untuk fixture; tidak ada yang bergantung pada update/delete model atas baris ber-jurnal.
 
 ### Penanganan legacy cancel (`voided`)
 
@@ -225,12 +240,12 @@ Di `Submitable`, tepat setelah blok yang men-soft-delete GL, tambahkan satu lang
 | 1 | `PostSalesInvoiceGeneralLedger` | dua `create` → `postPair(debit=$event->debitAccountId, credit=$event->creditAccountId, amount=$event->totalAmount, reverseSides=$event->isReturn, purpose='default')` |
 | 2 | `PostPurchaseInvoiceGeneralLedger` | blok stok/SRNB → `postPair(stock, srnb, totalStockGL, purpose='stock')`; blok expense/credit → `postPair(expenseHead, credit, totalAmount, reverseSides, purpose='expense')` — **dua jurnal** per invoice, `postingKey` berbeda |
 | 3 | `PostPurchaseReceiptGeneralLedger` | `postPair(stock, srnb, total, reverseSides=isReturn)` |
-| 4 | `PostDeliveryNoteGeneralLedger` | dibaca saat Task 6.4 (belum dibaca di spec ini); pola sama |
-| 5 | `PaymentEntryService::onApproved` | `postPair(accountPaidFrom, accountPaidTo, paid_amount, ...)` — **nilai tetap sama dengan perilaku sekarang termasuk dugaan bug F-10**; perbaikan F-10 terpisah |
-| 6 | `StockEntryService` (GL + `additionalCosts`) | `postPair`; mutasi `balance_amount` tidak diubah |
-| 7–10 | Listener Asset (depresiasi, scrap, value adjustment, disposal gain/loss) | `postPair` dengan `purpose` `depreciation`/`write_off`/`value_adjustment`/`disposal` |
+| 4 | `PostDeliveryNoteGeneralLedger` | dibaca pada Task 1.1 (2026-11-04): pola sama dengan Receipt; debit HPP (`cost_of_goods_sold`, root `income`), kredit stok; `isReturn` menukar sisi → `postPair(cogs, stock, totalPicked, reverseSides=isReturn)`; akun dicari `->latest()->first()` (F-06, tidak diubah di Fase 1) |
+| 5 | `PaymentEntryService::onApproved` → `postLedger()` | **Diselaraskan dengan hotfix (Task 1.1, 2026-11-04):** `postPair(debit=accountPaidTo, credit=accountPaidFrom, amount=$locked->paid_amount (jumlah Payment Entry itu, bukan kumulatif), source=PaymentEntry, date=$date ?? now(), purpose='default')`. Arah, jumlah (F-10), guard status, dan alokasi jadwal sudah diperbaiki hotfix dan **tidak diubah** adapter; nilai tidak dikonversi kurs (F-11, Fase 4). `onApproved` sinkron dalam `DB::transaction` yang sudah mengunci paymentable lalu Payment Entry; `post()` bersarang sebagai savepoint dan galatnya menggulung seluruh penerapan pembayaran (perilaku sama dengan sekarang). Hotfix sudah memanggil `generalLedgerEntries()->create` dua kali (kredit dulu, lalu debit) — urutan `id` berubah menjadi debit dulu (line_no 1) |
+| 6 | `StockEntryService` (GL + `additionalCosts`) | `postPair`; mutasi `balance_amount` tidak diubah. **Satu Stock Entry menghasilkan beberapa pasangan** (pasangan utama + satu pasangan per `additionalCost`), dan `transaction_date => now()` dipanggil per baris (N-3); adapter memberi satu `now()` per pasangan, sehingga pasangan kini berbagi detik yang sama (perbaikan N-3 yang tidak mengubah angka). Tiap pasangan butuh `postingKey` berbeda (lihat Q-P1-6) |
+| 7–10 | Listener Asset (depresiasi, scrap, value adjustment, disposal gain/loss) | `postPair` dengan `purpose` `depreciation`/`write_off`/`value_adjustment`/`disposal`. **Sumber (`referenceable`) tidak seragam (diverifikasi Task 1.1):** depresiasi memakai `AssetDepreciationSchedule` (satu posting per baris jadwal, aman), value adjustment memakai `AssetValueAdjustment` (satu per penyesuaian, aman), sedangkan scrap dan disposal gain/loss memakai `Asset` — disposal dapat terjadi per baris (`$event->line`) untuk aset yang sama (`now()` per posting). **Keputusan pemilik produk 2026-11-04 (Q-P1-6, alasan tidak dinyatakan):** `postingKey` disposal = `Asset:{id}:disposal:{sales_invoice_item_id}`, yaitu pembeda per baris invoice penjualan aset, sehingga setiap baris penjualan punya posting sendiri dan baris yang sama tidak dapat diposting dua kali (`DuplicatePostingException` hanya berlaku untuk baris yang sama, bukan menelan posting sah baris lain); scrap tetap `Asset:{id}:write_off`. Detail implementasi di Task 6.7 (Putaran B): `postPair()` memakai `purpose` `write_off`/`disposal` dengan sufiks id baris sehingga kuncinya `{Asset}:{id}:disposal:{lineId}`; model baris yang tepat (`$event->line`) diverifikasi saat implementasi. **`PostScrapWriteOff` memakai id baris kredit sebagai `assets.journal_entry_for_scrap_id`** (FK ke `general_ledgers.id`); adapter harus mengambil id baris kredit dari `$journal->lines` hasil `postPair()` |
 
-Pasangan yang sama sekarang dibuat dua kali dengan urutan "kredit dulu lalu debit" di beberapa listener; urutan insert tidak memengaruhi hasil dan tidak dipertahankan. Bila characterization test mengasersi urutan `id`, ekspektasi disesuaikan *secara eksplisit* dan dicatat.
+Pasangan yang sama sekarang dibuat dua kali dengan urutan "kredit dulu lalu debit" di beberapa listener; urutan insert tidak memengaruhi hasil dan tidak dipertahankan (`postPair` menulis baris debit sebagai `line_no` 1, lalu kredit). Bila characterization test mengasersi urutan `id`, ekspektasi disesuaikan *secara eksplisit* dan dicatat.
 
 > Perubahan perilaku yang disengaja (satu-satunya): pasangan bernilai 0 tidak lagi membuat baris 0/0 (Req. 2.10). Karakterisasi Fase 0 untuk kasus 0 (bila ada) diperbarui bersamaan dan dijelaskan.
 
@@ -240,35 +255,41 @@ Pseudocode:
 
 ```php
 // 1. Kunci kelompok (D-8, diubah 2026-11-04): per dokumen sumber; dipecah per hari kalender
-//    hanya bila dokumen punya posting di hari berbeda (pasangan yang beda detik tetap satu kelompok, N-3).
-$groups = GeneralLedger::query()
+//    ZONA PERUSAHAAN (Q-P1-5, 2026-11-04) hanya bila dokumen punya posting di hari berbeda (pasangan yang beda
+//    detik tetap satu kelompok, N-3). Hari dihitung di PHP (`FiscalPeriodService::businessDay()`), bukan
+//    `DATE(transaction_date)` di SQL: konversi zona di SQL tidak portabel (MySQL vs SQLite uji) dan zona dengan
+//    DST tidak punya offset tetap. Kursor di tingkat dokumen; baris per dokumen sedikit.
+$documents = GeneralLedger::query()
     ->whereNull('journal_id')
-    ->selectRaw('referenceable_type, referenceable_id, DATE(transaction_date) as posting_day')
-    ->groupBy('referenceable_type', 'referenceable_id', DB::raw('DATE(transaction_date)'))
-    ->orderBy('posting_day')
+    ->select('referenceable_type', 'referenceable_id')
+    ->groupBy('referenceable_type', 'referenceable_id')
+    ->orderBy('referenceable_type')->orderBy('referenceable_id')
     ->cursor();                       // agregasi + kursor, bukan memuat semua baris
 
-foreach ($groups as $g) {
-    DB::transaction(function () use ($g) {
-        $lines = GeneralLedger::whereNull('journal_id')
-            ->where('referenceable_type', $g->referenceable_type)
-            ->where('referenceable_id', $g->referenceable_id)
-            ->whereDate('transaction_date', $g->posting_day)
+foreach ($documents as $doc) {
+    DB::transaction(function () use ($doc) {
+        $all = GeneralLedger::whereNull('journal_id')
+            ->where('referenceable_type', $doc->referenceable_type)
+            ->where('referenceable_id', $doc->referenceable_id)
             ->orderBy('created_at')->orderBy('id')->lockForUpdate()->get();
-        if ($lines->isEmpty()) return;                       // idempoten
-        $balanced = MinorUnit::balanced($lines, $mu);
-        $journal = Journal::create([... 'transaction_date' => $lines->min('transaction_date'),
-            'legacy_origin' => true, 'legacy_unbalanced' => !$balanced, 'status' => 'posted' ...]);
-        foreach ($lines as $i => $line) {
-            // jalur terizinkan oleh guard: hanya journal_id & line_no
-            $line->forceFill(['journal_id' => $journal->id, 'line_no' => $i + 1])->save();
+        if ($all->isEmpty()) return;                         // idempoten
+        foreach ($all->groupBy(fn ($l) => $periods->businessDay($l->transaction_date)) as $day => $lines) {
+            // $lines = baris satu dokumen pada hari $day (zona perusahaan)
+            $balanced = MinorUnit::balanced($lines, $mu);
+            // `forceCreate`: kolom status/legacy_*/total_* dilindungi $guarded (hanya service yang menulisnya)
+            $journal = Journal::forceCreate([... 'transaction_date' => $lines->min('transaction_date'),
+                'legacy_origin' => true, 'legacy_unbalanced' => !$balanced, 'status' => 'posted' ...]);
+            foreach ($lines->values() as $i => $line) {
+                // jalur terizinkan oleh guard: hanya journal_id & line_no
+                $line->forceFill(['journal_id' => $journal->id, 'line_no' => $i + 1])->save();
+            }
         }
     });
 }
 ```
 
 - `journals.transaction_date` jurnal legacy = nilai terkecil di kelompok; dokumen yang posting-nya melintasi tengah malam dapat terpecah dua dan, bila tiap bagiannya tak seimbang, ditandai `legacy_unbalanced` (tidak dipaksa). Keduanya **disetujui pemilik produk 2026-11-04** (D-8). `GeneralLedgerAuditor` dan `finance:reconcile-ledger` tetap mengelompokkan per `transaction_date` penuh; perbedaannya dilaporkan, bukan disamakan.
-- **Basis "hari kalender" = hari UTC (detail desain, bukan keputusan pemilik produk).** `DATE(transaction_date)` dipakai apa adanya. Alasan: `transaction_date` dicast `datetime` oleh Eloquent dan disimpan dalam `APP_TIMEZONE` (`config/app.php:68`, default `UTC`; `.env.example` `APP_TIMEZONE=UTC`), `config/database.php` tidak menetapkan `timezone` koneksi, sehingga nilai di DB adalah waktu UTC; `DATE()` tidak butuh konversi zona waktu di SQL (yang tidak portabel antara MySQL dan SQLite uji). Konsekuensi: batas hari jatuh pukul 07.00 WIB, sehingga posting `now()` antara 00.00 dan 06.59 WIB tergolong hari UTC sebelumnya; karena kelompok dibentuk per dokumen, ini hanya memengaruhi dokumen yang diposting lebih dari sekali melintasi batas itu. Belum diverifikasi: apakah tanggal dokumen yang diinput pengguna (`date`) disimpan pukul 00.00 UTC; verifikasi pada Task 7.1 terhadap data staging (28 kelompok = 28 dokumen, jadi tidak ada pemecahan di staging).
+- **Basis "hari kalender" = hari dalam zona waktu perusahaan (`CoreSetting.timezone`, default `Asia/Jakarta`).** **Diputuskan pemilik produk 2026-11-04 (Q-P1-5, D-8 butir 7 diubah)**; rumusan sebelumnya (hari UTC, `DATE(transaction_date)`) adalah detail desain implementer dan sudah tidak berlaku. `transaction_date` disimpan sebagai instan UTC (`APP_TIMEZONE`, `config/app.php:68`; `config/database.php` tidak menetapkan `timezone` koneksi), lalu dikonversi ke zona perusahaan oleh `FiscalPeriodService::businessDay()`; konversi dilakukan di PHP, bukan SQL (tidak portabel). Konsekuensi: batas hari jatuh pukul 00.00 WIB (17.00 UTC hari sebelumnya), sehingga posting `now()` pada dini hari WIB tergolong hari WIB yang sama; karena kelompok dibentuk per dokumen, ini hanya memengaruhi dokumen yang diposting lebih dari sekali melintasi batas itu. Belum diverifikasi: apakah tanggal dokumen yang diinput pengguna (`date`) disimpan pukul 00.00 UTC (yang akan terbaca 07.00 WIB hari yang sama; aman) atau pukul 00.00 zona lain; verifikasi pada Task 7.1 terhadap data staging (28 kelompok = 28 dokumen, jadi tidak ada pemecahan di staging).
 - `fiscal_period_id` diisi bila periode ada (Req. 9.9). Periode lama dibuat oleh `finance:generate-fiscal-year` yang dipanggil perintah ini untuk rentang data (Req. 6.8) sebelum langkah di atas.
 - Jurnal legacy untuk dokumen yang kini berstatus `canceled` tidak dibuat bila seluruh barisnya soft-deleted (sudah dikecualikan oleh `whereNull('deleted_at')` default Eloquent soft-delete).
 - `Journal.code` untuk legacy memakai series yang sama; **[TODO: konfirmasi]** apakah nomor jurnal legacy perlu awalan berbeda (`LJ-`) agar tidak menghabiskan nomor urut "nyata".
@@ -281,7 +302,7 @@ foreach ($groups as $g) {
 | Kolom | Tipe | Catatan |
 |---|---|---|
 | `id` | ulid PK | |
-| `code` | string, unik, nullable sementara | series `JV-@[iiii]/@[yy]` |
+| `code` | string NOT NULL, unik (`journals_code_unique`) | series `JV-@[iiii]/@[yy]`. **Koreksi (Task 1.1):** sketsa awal "nullable sementara" bertentangan dengan Req 1.7 (deklarasi persis kolom yang akan ditambahkan `initPermissions()` untuk model dengan `$generateCodeSeries`: `code` NOT NULL unik); migration memakai NOT NULL dan test Task 2.5 membuktikan `initPermissions()` no-op |
 | `transaction_date` | datetime, indeks | |
 | `fiscal_period_id` | ulid FK nullable, `restrictOnDelete` | |
 | `branch_id` | ulid FK nullable, `nullOnDelete` | |
@@ -291,31 +312,33 @@ foreach ($groups as $g) {
 | `reverses_journal_id` | ulid FK nullable → `journals`, `restrictOnDelete` | |
 | `reversed_by_journal_id` | ulid FK nullable → `journals`, `restrictOnDelete` | |
 | `reversal_reason` | text nullable | |
-| `currency_code` | string(10) FK `currencies` nullable | mata uang dasar |
+| `currency_code` | string(10) FK `currencies` nullable, `restrictOnDelete` | mata uang dasar; null bila setting `default_currency_id` kosong |
 | `description` | text nullable | |
 | `total_debit`,`total_credit` | decimal(20,4) default 0 | cache turunan, divalidasi rekonsiliasi |
-| `posted_at` | timestamp | |
+| `posted_at` | timestamp default `CURRENT_TIMESTAMP` | diisi eksplisit oleh `post()` |
 | `posted_by_id` | ulid FK `users` nullable, `nullOnDelete` | `Auth::id()` bila ada |
 | `legacy_origin`,`legacy_unbalanced` | boolean default false | |
+| `is_example` | boolean default false + indeks `journals_is_example_index` | dideklarasikan eksplisit (F-12, Req 1.7) |
+| `have_transactions` | boolean default false | idem (model non-submitable) |
 | `created_at`,`updated_at` | timestamps | tanpa `deleted_at` |
 
 ### Perubahan `general_ledgers`
 
 Tambah: `journal_id` (ulid nullable, FK `journals` `restrictOnDelete`, indeks), `line_no` (smallInteger unsigned nullable), `foreign_currency_code` (string(10) nullable, FK), `foreign_debit`/`foreign_credit` (decimal(20,4) nullable), `exchange_rate` (decimal(20,8) nullable). Indeks tambahan `(account_id, transaction_date)` dan `(journal_id, line_no)`.
 
-Ubah (Task 8, **Rilis 1**, setelah query pra-pemeriksaan presisi dijalankan pemilik produk di staging): `against_account_id` → nullable; `debit`/`credit` → `decimal(20,4) default 0`; FK akun → `restrictOnDelete`. Ubah (Task 9, **Rilis 2**, PR/tahapan terpisah): `journal_id` → NOT NULL.
+`against_account_id` → nullable (Req 1.3): **dimajukan dari Task 8.3 ke Task 2.3 (migration terpisah `make_against_account_id_nullable_on_general_ledgers_table`)** karena `JournalService::post()` (Task 4) harus dapat menyimpan jurnal 3 baris atau lebih; hanya melonggarkan NOT NULL (tipe dan FK tidak berubah), `down()` menolak jalan bila sudah ada baris tanpa akun lawan; menunggu konfirmasi pemilik produk (Q-P1-3). Ubah (Task 8, **Rilis 1**, setelah query pra-pemeriksaan presisi dijalankan pemilik produk di staging): `debit`/`credit` → `decimal(20,4) default 0`; FK akun → `restrictOnDelete`. Ubah (Task 9, **Rilis 2**, PR/tahapan terpisah): `journal_id` → NOT NULL.
 
 ### `fiscal_years` dan `fiscal_periods`
 
-`fiscal_years`: `id`, `name` (unik), `start_date`, `end_date`, `status` (`open`/`closed`), timestamps. `fiscal_periods`: `id`, `fiscal_year_id` (FK `cascadeOnDelete` dibatasi — pakai `restrictOnDelete`), `name`, `start_date`, `end_date`, `status`, `closed_at`, `closed_by_id`, timestamps; indeks `(start_date, end_date)`. Larangan tumpang-tindih ditegakkan di `FiscalPeriodService` (dan unik `(fiscal_year_id, name)` di DB).
+`fiscal_years`: `id`, `name` (unik), `start_date`, `end_date` (tipe `date`), `status` (`open`/`closed`), timestamps, `is_example` (+ indeks), `have_transactions` (tanpa `code`: tidak memakai series). `fiscal_periods`: `id`, `fiscal_year_id` (FK `cascadeOnDelete` dibatasi — pakai `restrictOnDelete`), `name`, `start_date`, `end_date`, `status`, `closed_at`, `closed_by_id`, timestamps; indeks `(start_date, end_date)`. Larangan tumpang-tindih ditegakkan di `FiscalPeriodService` (dan unik `(fiscal_year_id, name)` di DB). `fiscal_periods` juga memuat `is_example` (+ indeks) dan `have_transactions`.
 
 ### `currencies`
 
-Tambah `minor_unit` (smallInteger default 2) dan `numeric_code` (string(3) nullable). Migration data mengisi mata uang umum (IDR=360, USD=840, EUR=978, SGD=702, MYR=458, JPY=392 minor unit 0, dst.) secara idempoten dan hanya untuk kode yang sudah ada.
+Tambah `minor_unit` (unsignedSmallInteger default 2) dan `numeric_code` (string(3) nullable). **Diputuskan pemilik produk 2026-11-04 (Q-P1-4):** kolom diisi **lengkap ISO 4217** (kode numerik dan minor unit; mis. JPY/KRW/VND/CLP/ISK/UGX/XOF/XAF/XPF = 0; KWD/BHD/OMR/TND/JOD/IQD/LYD = 3; CLF/UYW = 4; selebihnya 2) dari satu daftar statis `App\Services\Finances\Ledger\Iso4217`, secara idempoten. Dua jalur memakai daftar itu: migration `..._100006` (baris `currencies` yang sudah ada, hanya kode yang ada) dan `CountrySeeder` (mata uang yang di-seed sesudah `migrate`, pada instalasi baru atau kode baru, mengisi `minor_unit` dan `numeric_code` dari `Iso4217`). Kode yang tidak ada di daftar (mis. non-ISO `GGP`, `IMP`, `JEP`) tetap default 2 tanpa kode numerik. Daftar memuat juga mata uang yang sudah ditarik (HRK, CUC, ZWL) agar baris lama benar, serta kode dana ISO 4217 (BOV 984, CHE 947, CHW 948, COU 970, MXV 979, USN 997; minor unit 2). **Ketergantungan:** migration `..._100006` memakai kelas `App\Services\Finances\Ledger\Iso4217` (data statis); kelas itu tidak boleh dihapus atau dipindah tanpa memperbarui migration, dan perubahan isinya di masa depan tidak mengubah baris yang sudah termigrasi kecuali migration data baru dijalankan.
 
 ### Setting
 
-`finance_enforce_fiscal_period` (default `false`) disimpan sebagai setting modul Finances pada tabel setting hasil spec `module-settings-foundation` (PRD D-25), **bukan** di tabel `preferences`. Nilai awal dan migrasi data ditentukan spec tersebut; di sini cukup dibaca lewat service setting Finances (mis. `FinanceSettings::enforceFiscalPeriod()`), bukan `Preference::find(...)`. Mata uang dasar (`default_currency_id`) dibaca dari setting umum yang sama.
+`finance_enforce_fiscal_period` (default `false`) disimpan sebagai setting modul Finances pada tabel setting hasil spec `module-settings-foundation` (PRD D-25), **bukan** di tabel `preferences`. **Kontrak terverifikasi (Task 1.6, 2026-11-04):** setting Finances adalah model singleton `FinanceSetting` (tabel `finance_settings`, satu baris, dibuat otomatis oleh `ModuleSetting::current()`). Setting baru ditambahkan dengan (1) migration kolom pada tabel itu (`enforce_fiscal_period` boolean default false; nama kolom tanpa awalan modul mengikuti `tax_invoice_serial_*`), (2) entri `casts()`, `defaults()`, dan `rules()` di `FinanceSetting` (`rules()` membuatnya dapat ditulis lewat `SettingsService::update()` dan halaman setting; audit perubahan otomatis oleh `ModuleSetting`), tanpa seeder karena baris singleton memakai default kolom. Dibaca lewat `app(SettingsService::class)->getForRead(FinanceSetting::class)->enforce_fiscal_period` (pembacaan segar tanpa memo; dipakai `JournalService` karena `SettingsService` bersifat `scoped` dan memoisasi dapat basi di worker antrean). Mata uang dasar (`default_currency_id`) dibaca dari `CoreSetting` lewat cara yang sama; fixture test dapat mengubahnya langsung di tabel `core_settings`/`finance_settings`.
 
 ## Correctness Properties
 
@@ -377,7 +400,7 @@ Pesan exception berlokalisasi lewat kunci `lang/{id,en}/finances/journal.php` (b
 | `ALTER TABLE general_ledgers` lama/mengunci di MySQL | Tabel kecil (GL produksi kosong, staging 64 baris; Q-P1-1 2026-11-04: tanpa jendela pemeliharaan); pemilik produk menjalankan query SQL pra-pemeriksaan presisi di staging sebelum Rilis 1 digabung ke `dev-1` (perintah artisan baru tidak dapat dijalankan lebih dulu); pra-pemeriksaan di dalam migration sebagai pengaman |
 | Query/laporan yang mengharapkan `double` mengembalikan string dari `decimal` | Audit (Req. 13.4); cast numerik eksplisit; test laporan terkait |
 | Hook `Submitable` diubah menyentuh semua dokumen | Perubahan satu baris, diuji pada tiga model; dihapus di Fase 2 |
-| Penomoran jurnal balapan | Verifikasi Task 1.5; kunci baris series |
+| Penomoran jurnal balapan | Terverifikasi Task 1.5: `FormatingSeries::generate()` mengunci baris series (`lockForUpdate` dalam transaksi) dan menjadi savepoint di dalam posting; baris series Journal wajib terdaftar lewat `initPermissions()` (diuji pada fixture) |
 | Listener lama dan baru hidup bersamaan saat deploy bertahap | Adapter diaktifkan dalam satu rilis untuk semua titik, bukan bertahap |
 | `initPermissions()` menambah/menghapus kolom model baru | Deklarasi eksplisit sesuai flag model (Req. 1.7) + test (Task 2.5) |
 | Migration NOT NULL menggagalkan deploy bila backfill belum dijalankan | Rilis 2 terpisah (BR-7): digabung hanya setelah backfill terverifikasi di staging dan produksi; migration tetap menolak jalan bila ada baris tanpa `journal_id` |
@@ -387,4 +410,55 @@ Pesan exception berlokalisasi lewat kunci `lang/{id,en}/finances/journal.php` (b
 1. **D-4** — diputuskan satu perusahaan (2026-10-18): tidak ada `company_id` di `journals`.
 2. ~~D-14~~ — **diputuskan 2026-11-04 (pemilik produk)**: jurnal manual masuk sebagai task opsional (Task 11).
 3. Awalan nomor jurnal legacy dan tahun fiskal kalender vs non-kalender (akuntan).
-4. Mekanisme audit aplikasi yang dipakai (`Log` vs lainnya).
+4. ~~Mekanisme audit aplikasi yang dipakai~~ — **terjawab Task 1.4 (2026-11-04)**: model `Log` lewat event `AuditableModelSaved` (lihat "Hasil Verifikasi Task 1").
+5. ~~Pertanyaan baru dari verifikasi Task 1: Q-P1-3 sampai Q-P1-6~~ — **seluruhnya diputuskan pemilik produk 2026-11-04** (Q-P1-3 urutan `against_account_id` disetujui; Q-P1-4 `minor_unit` ISO 4217 lengkap; Q-P1-5 zona waktu mengikuti `CoreSetting.timezone`; Q-P1-6 `posting_key` disposal per baris invoice `Asset:{id}:disposal:{sales_invoice_item_id}`, scrap `Asset:{id}:write_off`); lihat `requirements.md` dan decision log.
+
+## Hasil Verifikasi Task 1
+
+Dikerjakan pada Putaran A (2026-11-04), read-only terhadap kode; tidak ada tulis ke database dev (test memakai SQLite `:memory:`; uji migration di MySQL dev tidak dijalankan sesuai batasan putaran). Butir yang membutuhkan keputusan pemilik produk dicatat sebagai pertanyaan Q-P1-3 sampai Q-P1-6, bukan diputuskan sepihak; Q-P1-3 sampai Q-P1-6 **diputuskan pemilik produk 2026-11-04** dan spec ini sudah diubah sesuai keputusan itu.
+
+### 1.1 Keselarasan spec dengan hotfix Payment Entry dan keputusan terbaru
+
+Keputusan D-3, D-4, D-8, D-14, Q-P1-1, Q-P1-2, dan BR-7 tidak bertentangan dengan temuan 1.2-1.6 (D-1 ditunda dan tidak disentuh). Butir spec yang diselaraskan sebagai teks (bukan perilaku baru):
+
+| Butir | Sebelum | Sesudah | Alasan |
+|---|---|---|---|
+| `design.md`, tabel adapter, baris Payment Entry | `postPair(accountPaidFrom, accountPaidTo, paid_amount)`; "nilai tetap termasuk dugaan bug F-10" | debit `accountPaidTo`, kredit `accountPaidFrom`, jumlah `paid_amount` PE itu | Hotfix 2026-11-04 memperbaiki N-4 (arah) dan F-10 (jumlah kumulatif); adapter tidak boleh mengembalikan perilaku lama |
+| `tasks.md`, aturan eksekusi dan Task 6.5 | "jangan memperbaiki F-10; adapter mempertahankan nilainya" | adapter mempertahankan perilaku pasca-hotfix | F-10 sudah diperbaiki |
+| `tasks.md` Task 6.9 dan `design.md` P-6 | characterization Fase 0 untuk Payment di `Characterization/` | `PaymentEntryPostingTest` dan `PaymentEntryPartialPaymentTest` sudah berada di `tests/Feature/Finances/` | Penempatan diputuskan hotfix; `Characterization/KnownIssues/` hanya memuat F-04 (bagian GL) dan F-11 |
+| `design.md`, baris Delivery Note | "belum dibaca" | pola dijelaskan (debit HPP, kredit stok, `isReturn` menukar sisi) | Dibaca pada 1.1 |
+| `design.md`, `journals.code` | "nullable sementara" | NOT NULL, unik | Konsisten dengan Req 1.7 |
+| `design.md`, sketsa guard immutability | menolak semua `deleting` dan semua `updating` baris legacy | hanya baris ber-`journal_id` | Sketsa lebih ketat daripada Req 4.1-4.2 |
+| `requirements.md` Req 14.2 | `[TODO]` mekanisme log | `Log` lewat `AuditableModelSaved` | Task 1.4 |
+| `requirements.md` Req 5.5 | tanggal pada periode tertutup menolak | diperjelas: hanya bila penegakan aktif (Req 6.5/6.6) | Menghindari pembacaan yang bertentangan dengan Req 6.6 |
+| `requirements.md` Req 2.8 | `referenceable_*` dari sumber | sumber null: baris merujuk jurnal itu sendiri | `referenceable_*` NOT NULL; dibutuhkan jurnal manual |
+| `design.md`/`tasks.md` Task 8.3 | `against_account_id` nullable di Task 8.3 | dimajukan ke migration Fase 1 (`..._100005`) | Jurnal 3 baris atau lebih tidak dapat disimpan tanpa ini (lihat Q-P1-3) |
+
+### 1.2 Penulis/pengubah `GeneralLedger` (allowlist)
+
+Pencarian `app/`, `database/seeders/`, `database/factories/`, `tests/` (2026-11-04):
+
+- **Penulis baris GL (10 titik posting Lampiran B)**: `PostSalesInvoiceGeneralLedger`, `PostPurchaseInvoiceGeneralLedger`, `PostPurchaseReceiptGeneralLedger`, `PostDeliveryNoteGeneralLedger`, `PaymentEntryService::postLedger`, `StockEntryService` (enam `GeneralLedger::create`), `PostDepreciationEntry`, `PostScrapWriteOff`, `PostValueAdjustmentEntry`, `PostAssetDisposalGainLoss`. Tidak ada seeder/factory yang menulis GL.
+- **Update/delete massal**: hanya hook cancel `Submitable` (`GeneralLedger::where(...)->update(['deleted_at' => now()])`).
+- **Test existing** memakai `GeneralLedger::query()->delete()/forceDelete()` (builder) dan `GeneralLedger::create`/`makeLedger` sebagai fixture saja.
+- **Allowlist final** (test arsitektur `LedgerWriteAllowlistTest`): `JournalService`, `JournalReversalService`, `BackfillJournalsCommand`. Karena Task 6 belum dikerjakan, test memuat daftar sementara 10 berkas legacy beserta nomor task pengalihannya; test gagal bila entri sementara tidak lagi menulis GL, sehingga daftar harus dikosongkan oleh Task 6.1-6.7.
+- **Catatan untuk Task 6**: (a) `PostScrapWriteOff` memakai id baris kredit sebagai `assets.journal_entry_for_scrap_id`; (b) sumber `Asset` untuk scrap/disposal dapat diposting lebih dari sekali (lihat Q-P1-6: ditutup 2026-11-04, kunci disposal per baris invoice).
+
+### 1.3 Pemakai kolom `debit`/`credit` (masukan Task 8)
+
+- **PHP**: cast `float` di `GeneralLedger`; `Audit\IntegrityChecks` dan `Audit\BalanceSnapshotService` memakai `SUM(...)` lalu cast `(float)` (`HAVING ABS(SUM(debit)-SUM(credit)) > x` valid pada `decimal`); `ReferenceChecks`/`DocumentCoverageMatrix` hanya `EXISTS`; listener dan service penulis memasukkan nilai lewat cast `float`.
+- **Agregat generik**: `$configColumns` menandai `debit`/`credit` `groupAggregate: sum`; pada `decimal` MySQL hasil `SUM` kembali sebagai string, sehingga Task 8.2 perlu memastikan frontend memformat string numerik.
+- **Frontend**: `Pages/Finances/GeneralLedger.jsx`, `GeneralLedgers/Show.jsx`, `GeneralLedgers/Form.jsx` (`NumberInput decimalScale={2}`) dan test RTL-nya.
+- Tidak ada view DB atau laporan SQL mentah yang membaca `general_ledgers`.
+
+### 1.4 Mekanisme audit aplikasi (Req 14.2)
+
+Model `App\Models\Core\Log` ditulis oleh listener `RecordAuditLog` untuk event `AuditableModelSaved($model, $action, $dataBefore, $dataAfter)`; `DataTable` mengirimnya otomatis pada `created` dan `fillForUpdate`. `Changelog` adalah catatan rilis, bukan audit. Konsekuensi: (1) `Journal`/`FiscalYear`/`FiscalPeriod` tercatat `created` otomatis; (2) reversal dan perubahan status periode memakai query builder atau `save()`, jadi event dikirim eksplisit; (3) `RecordAuditLog::ACTIVITY` adalah peta tetap, sehingga aksi `reversed`, `closed`, `reopened` ditambahkan di sana dan di `lang/{id,en}/core/log.php`. Data log: siapa (`Auth::id()`, null bila job), kapan (`created_at`), alasan (`data_after.reason`).
+
+### 1.5 `FormatingSeries::generate()` dan `Journal.code`
+
+Lihat "Hasil verifikasi Task 1.5" di bawah langkah `post()`. Ringkas: baris series dikunci di dalam transaksi posting; kode jurnal NOT NULL unik.
+
+### 1.6 Kontrak setting Finances
+
+Lihat bagian "Setting" pada Data Models. Ringkas: kolom `finance_settings.enforce_fiscal_period` (default false), `FinanceSetting` `casts`/`defaults`/`rules`; dibaca lewat `SettingsService::getForRead`.
