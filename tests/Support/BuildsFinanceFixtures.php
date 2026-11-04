@@ -4,12 +4,14 @@ namespace Tests\Support;
 
 use App\Enums\FormStatus;
 use App\Models\Core\Branch;
+use App\Models\Core\Country;
 use App\Models\Core\FormatingSeries;
 use App\Models\Core\GlPostingStatus;
 use App\Models\Finances\Account;
 use App\Models\Finances\GeneralLedger;
 use App\Models\Finances\PaymentEntry;
 use App\Models\Finances\PaymentSchedule;
+use App\Models\Finances\PurchaseInvoice;
 use App\Models\Finances\SalesInvoice;
 use App\Models\Finances\SalesInvoiceItem;
 use App\Models\Inventory\Item;
@@ -18,6 +20,7 @@ use App\Models\Inventory\ItemVariant;
 use App\Models\Inventory\StockEntry;
 use App\Models\Inventory\Unit;
 use App\Models\Inventory\Warehouse;
+use App\Models\Purchase\Supplier;
 use App\Models\Sales\Customer;
 use App\Models\User\User;
 use BeyondCode\QueryDetector\QueryDetectorMiddleware;
@@ -197,10 +200,13 @@ trait BuildsFinanceFixtures {
     }
 
     /**
-     * Faktur penjualan UNPAID dengan satu jadwal bayar penuh, siap dibayar lewat `PaymentEntry`.
+     * Faktur penjualan UNPAID dengan jadwal bayar penuh, siap dibayar lewat `PaymentEntry`. Default satu jadwal;
+     * `$schedulePortions` (persen, jumlah 100) membuat beberapa jadwal dengan `due_date` berbeda (cicilan).
      * Model `SalesInvoice`, `PaymentSchedule`, dan `PaymentEntry` harus sudah di `setUpFinanceFixtures()`.
+     *
+     * @param  list<float|int>  $schedulePortions
      */
-    protected function makeUnpaidSalesInvoice(float $amount): SalesInvoice {
+    protected function makeUnpaidSalesInvoice(float $amount, array $schedulePortions = [100]): SalesInvoice {
         $invoice = SalesInvoice::create([
             'date'        => now()->subDays(2),
             'amount'      => $amount,
@@ -210,34 +216,72 @@ trait BuildsFinanceFixtures {
             'code'        => 'SI-' . Str::upper(Str::random(8)),
         ]);
 
-        PaymentSchedule::create([
-            'payment_scheduleable_type' => SalesInvoice::class,
-            'payment_scheduleable_id'   => $invoice->id,
-            'invoice_portion'           => 100,
-            'payment_amount'            => $amount,
-            'paid_amount'               => 0,
-            'for_internal'              => false,
-            'due_date'                  => now()->addDays(7),
-        ]);
+        $this->makePaymentSchedules($invoice, $amount, $schedulePortions);
 
         return $invoice;
     }
 
     /**
-     * Payment Entry DRAFT atas faktur; `onApproved` dipanggil test.
+     * Faktur pembelian UNPAID dengan jadwal bayar penuh, siap dibayar lewat `PaymentEntry` bertipe `pay`.
+     * Model `PurchaseInvoice`, `PaymentSchedule`, dan `PaymentEntry` harus sudah di `setUpFinanceFixtures()`.
+     *
+     * @param  list<float|int>  $schedulePortions
+     */
+    protected function makeUnpaidPurchaseInvoice(float $amount, array $schedulePortions = [100]): PurchaseInvoice {
+        $invoice = PurchaseInvoice::create([
+            'date'        => now()->subDays(2),
+            'amount'      => $amount,
+            'paid_amount' => 0,
+            'status'      => [FormStatus::UNPAID],
+            'branch_id'   => $this->branch->id,
+            'code'        => 'PI-' . Str::upper(Str::random(8)),
+        ]);
+
+        $this->makePaymentSchedules($invoice, $amount, $schedulePortions);
+
+        return $invoice;
+    }
+
+    /**
+     * @param  list<float|int>  $portions
+     */
+    private function makePaymentSchedules(Model $invoice, float $amount, array $portions): void {
+        foreach (array_values($portions) as $index => $portion) {
+            PaymentSchedule::create([
+                'payment_scheduleable_type' => $invoice::class,
+                'payment_scheduleable_id'   => $invoice->id,
+                'invoice_portion'           => $portion,
+                'payment_amount'            => $amount * $portion / 100,
+                'paid_amount'               => 0,
+                'for_internal'              => false,
+                'due_date'                  => now()->addDays(7 + $index),
+            ]);
+        }
+    }
+
+    /**
+     * Payment Entry DRAFT atas faktur; `onApproved` dipanggil test. Akun mengikuti filter form: `receive` atas
+     * Sales Invoice memakai `$paidFrom` = piutang dan `$paidTo` = kas/bank; `pay` atas Purchase Invoice memakai
+     * `$paidFrom` = kas/bank dan `$paidTo` = utang. Jenis pembayaran dan pihak diturunkan dari jenis faktur.
      *
      * @param  array<string, mixed>  $extra
      */
-    protected function makePaymentEntry(SalesInvoice $invoice, float $amount, Account $paidFrom, Account $paidTo, array $extra = []): PaymentEntry {
-        $customerId = (string) Str::ulid();
-        DB::table('customers')->insert(['id' => $customerId, 'name' => 'Pelanggan ' . Str::random(4), 'created_at' => now(), 'updated_at' => now()]);
+    protected function makePaymentEntry(SalesInvoice|PurchaseInvoice $invoice, float $amount, Account $paidFrom, Account $paidTo, array $extra = []): PaymentEntry {
+        $isPurchase = $invoice instanceof PurchaseInvoice;
+        $partyId    = (string) Str::ulid();
+        $party      = ['id' => $partyId, 'name' => ($isPurchase ? 'Pemasok ' : 'Pelanggan ') . Str::random(4), 'created_at' => now(), 'updated_at' => now()];
+        if ($isPurchase) {
+            // Accessor `Supplier::address` membaca `country->name`; log audit saat PE dibuat memuatnya.
+            $party['country_id'] = Country::factory()->create()->code;
+        }
+        DB::table($isPurchase ? 'suppliers' : 'customers')->insert($party);
 
         return PaymentEntry::create([
             'date'                 => now()->subDay()->startOfDay(),
-            'payment_type'         => 'receive',
-            'partyable_type'       => Customer::class,
-            'partyable_id'         => $customerId,
-            'paymentable_type'     => SalesInvoice::class,
+            'payment_type'         => $isPurchase ? 'pay' : 'receive',
+            'partyable_type'       => $isPurchase ? Supplier::class : Customer::class,
+            'partyable_id'         => $partyId,
+            'paymentable_type'     => $invoice::class,
             'paymentable_id'       => $invoice->id,
             'paid_amount'          => $amount,
             'base_paid_amount'     => $amount,

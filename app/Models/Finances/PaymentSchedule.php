@@ -99,7 +99,9 @@ class PaymentSchedule extends Model {
     }
 
     /**
-     * Summary of getDetailPayment
+     * Rincian default pembayaran dari jadwal: `amount` = total sisa (`outstanding_amount`) jadwal yang sudah jatuh
+     * tempo (jadwal pertama selalu ikut); jadwal yang sudah lunas dilewati. Pemanggil membatasinya dengan sisa
+     * tagihan dokumen.
      *
      * @param  Collection<PaymentSchedule>  $paymentSchedules
      * @return array
@@ -114,7 +116,7 @@ class PaymentSchedule extends Model {
                 continue;
             }
 
-            $total += $paymentSchedule->payment_amount;
+            $total += $paymentSchedule->outstanding_amount;
         }
 
         $paymentMethod = $paymentSchedules->first()->paymentMethod;

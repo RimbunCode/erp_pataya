@@ -68,6 +68,9 @@ class PaymentEntryController extends Controller {
                         }
                         $salesInvoice->loadRelations();
                         ['accountBank' => $accountBank, 'amount' => $amount, 'paymentMethod' => $paymentMethod] = PaymentSchedule::getDetailPayment($salesInvoice->paymentSchedules);
+                        if ($salesInvoice->return_against_id === null) {
+                            $amount = max(0.0, min((float) $amount, (float) $salesInvoice->outstanding_amount));
+                        }
 
                         $defaultData = [
                             'date'              => now(),
@@ -96,6 +99,9 @@ class PaymentEntryController extends Controller {
                         }
                         $purchaseInvoice->loadRelations();
                         ['accountBank' => $accountBank, 'amount' => $amount, 'paymentMethod' => $paymentMethod] = PaymentSchedule::getDetailPayment($purchaseInvoice->paymentSchedules);
+                        if ($purchaseInvoice->return_against_id === null) {
+                            $amount = max(0.0, min((float) $amount, (float) $purchaseInvoice->outstanding_amount));
+                        }
 
                         $defaultData = [
                             'date'              => now(),
@@ -105,8 +111,8 @@ class PaymentEntryController extends Controller {
                             'partyable'         => $purchaseInvoice->supplier,
                             'currency'          => $purchaseInvoice->currency,
                             'exchange_rate'     => $purchaseInvoice->exchange_rate,
-                            'account_paid_from' => $purchaseInvoice->return_against_id === null ? $purchaseInvoice->debitAccount : $accountBank,
-                            'account_paid_to'   => $purchaseInvoice->return_against_id === null ? $accountBank : $purchaseInvoice->customer_id,
+                            'account_paid_from' => $accountBank,
+                            'account_paid_to'   => $purchaseInvoice->return_against_id === null ? $purchaseInvoice->creditAccount : $purchaseInvoice->customer_id,
                             'paid_amount'       => $amount,
                             'payment_method'    => $paymentMethod,
                         ];

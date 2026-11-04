@@ -34,7 +34,7 @@ class ForeignCurrencyPaymentPostingTest extends TestCase {
     public function test_f11_foreign_currency_payment_posts_document_currency_amount_ignoring_exchange_rate(): void {
         // Faktur 100 (mata uang asing), kurs 15.000: `base_paid_amount` 1.500.000 dalam mata uang dasar.
         $invoice = $this->makeUnpaidSalesInvoice(100);
-        $payment = $this->makePaymentEntry($invoice, 100, $this->cash, $this->receivable, [
+        $payment = $this->makePaymentEntry($invoice, 100, $this->receivable, $this->cash, [
             'exchange_rate'    => 15_000,
             'base_paid_amount' => 1_500_000,
         ]);

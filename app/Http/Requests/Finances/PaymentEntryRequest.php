@@ -3,7 +3,10 @@
 namespace App\Http\Requests\Finances;
 
 use App\Http\Requests\BaseFormRequest;
+use App\Models\Finances\PurchaseInvoice;
+use App\Models\Finances\SalesInvoice;
 use App\Rules\ExistsExcludingTrashed;
+use Closure;
 use Illuminate\Contracts\Validation\ValidationRule;
 
 class PaymentEntryRequest extends BaseFormRequest {
@@ -22,7 +25,7 @@ class PaymentEntryRequest extends BaseFormRequest {
     public function rules(): array {
         return [
             'date'                 => ['required', 'date'],
-            'paid_amount'          => ['required', 'numeric', 'min:0'],
+            'paid_amount'          => ['required', 'numeric', 'gt:0', fn (string $attribute, mixed $value, Closure $fail) => $this->failWhenOverOutstanding((float) $value, $fail)],
             'payment_type'         => ['required', 'string', 'in:receive,pay,internal_transfer'],
             'payment_method.id'    => ['nullable', new ExistsExcludingTrashed('payment_methods')],
             'party_type'           => ['required_unless:payment_type,internal_transfer', 'string', 'in:customer,supplier'],
@@ -38,5 +41,28 @@ class PaymentEntryRequest extends BaseFormRequest {
             'account_paid_from.id' => ['required', new ExistsExcludingTrashed('accounts')],
             'notes'                => ['nullable', 'string'],
         ];
+    }
+
+    /**
+     * Pembayaran tidak boleh melebihi sisa tagihan paymentable. Dilewati untuk `internal_transfer` (tanpa paymentable)
+     * dan dokumen retur, yang jalurnya belum dicakup hotfix ini.
+     *
+     * @param  Closure(string): mixed  $fail
+     */
+    private function failWhenOverOutstanding(float $amount, Closure $fail): void {
+        $paymentableId = $this->input('paymentable.id');
+        if ($this->input('payment_type') === 'internal_transfer' || ! \is_string($paymentableId) || $paymentableId === '') {
+            return;
+        }
+
+        $class       = $this->input('party_type') === 'supplier' ? PurchaseInvoice::class : SalesInvoice::class;
+        $paymentable = $class::query()->find($paymentableId);
+        if ($paymentable === null || $paymentable->return_against_id !== null) {
+            return;
+        }
+
+        if ($amount > (float) $paymentable->outstanding_amount + 0.005) {
+            $fail(__('finances/paymentEntry.errors.paid_amount_exceeds_outstanding'));
+        }
     }
 }
