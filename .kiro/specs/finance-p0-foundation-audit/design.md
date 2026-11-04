@@ -45,9 +45,35 @@ Memanggil tiga kelompok pemeriksaan (kelas kecil agar mudah diuji terpisah):
 |---|---|---|
 | `IntegrityChecks` | tak seimbang; nol/negatif; soft-deleted; akun hilang/terhapus; duplikasi | agregasi `GROUP BY (referenceable_type, referenceable_id, transaction_date)` + `HAVING ABS(SUM(debit)-SUM(credit)) > :tol`; `LEFT JOIN accounts` dengan `withTrashed`; `GROUP BY` kombinasi duplikat `HAVING COUNT(*) > 1` |
 | `ReferenceChecks` | referenceable hilang; soft-delete diharapkan vs anomali; dokumen `canceled` dengan GL aktif | per `referenceable_type` distinct: `whereNotExists` terhadap tabel modelnya (resolusi tabel via `(new $type)->getTable()`); status `canceled` lewat `whereJsonContains('status', 'canceled')` (kolom `status` disimpan JSON, lihat pemakaian di `SalesInvoiceService`). Soft-delete dikategorikan *diharapkan* bila dokumen sumbernya `canceled` |
-| `DocumentCoverageMatrix` | matriks per jenis dokumen (Req. 2) | daftar jenis dokumen sebagai konfigurasi statis di kelas (`type`, `model`, `tracked_by_gl_posting_status`), dihitung dengan satu query agregat per jenis |
+| `DocumentCoverageMatrix` | matriks per jenis dokumen (Req. 2) | daftar jenis dokumen sebagai konfigurasi statis di kelas (`type`, `model`, `tracked`, `statuses`), dihitung dengan satu query agregat per jenis; subjek `approved` memakai `statuses` (lihat **Definisi `approved`** di bawah) |
 
 **Catatan pembatalan.** Belum ada konsep reversal (Fase 1 yang membuatnya). Perilaku saat ini: hook `saving` pada trait `Submitable` (`app/Traits/Submitable.php:98-106`) me-`update` `deleted_at` massal pada baris GL dan SLE dokumen yang baru berubah ke `canceled`. Maka definisi audit: (a) dokumen `canceled` dengan **semua** baris GL soft-deleted = sehat menurut perilaku sekarang; (b) dokumen `canceled` dengan baris GL **aktif** = anomali (indikasi balapan F-16 atau cancel yang melewati hook); (c) baris soft-deleted pada dokumen yang tidak `canceled` = anomali. Pembatasan: `deleted_at` tidak menyimpan waktu terpisah dari `canceled_at`; kecocokan waktunya dilaporkan sebagai informasi, tidak sebagai kriteria.
+
+**Definisi `approved` pada matriks (DV-D opsi a, disetujui pemilik produk 2026-11-03).** Kunci JSON `approved` dipertahankan agar keluaran kompatibel, tetapi maknanya adalah *dokumen pasca-persetujuan*: status `approved` hampir tidak pernah tersimpan karena `onApproved` setiap service menimpa status dokumen (temuan N-9). Subjek `approved`, `posting_not_posted`, dan `posting_missing` (kolom informasi, lihat di bawah) adalah dokumen yang statusnya mengandung salah satu status pasca-`onApproved` jenisnya. Daftar dibuat **per jenis** (konstanta `statuses` di `DocumentCoverageMatrix`), bukan satu himpunan bersama, karena `submitted` pasca-persetujuan pada Asset dan Asset Value Adjustment tetapi tidak pernah diset pada jenis lain. Status pra-persetujuan (`draft`, `need_approval`, `rejected`) dan `canceled` tidak termasuk.
+
+| Jenis | Status pasca-persetujuan | Sumber (terverifikasi) |
+|---|---|---|
+| Sales Invoice, Purchase Invoice | `unpaid`, `partially_paid`, `paid`, `returned`, `overdue` | `onApproved` menetapkan `unpaid`/`returned`; `UpdatePaymentableStatus` menetapkan `partially_paid`/`paid`. `overdue` ada di enum tetapi belum diset kode |
+| Purchase Receipt | `received`, `returned` | `PurchaseReceiptService::onApproved` |
+| Delivery Note | `delivered`, `returned` | `DeliveryNoteService::onApproved` |
+| Payment Entry | `paid` | `PaymentEntryService::onApproved` |
+| Stock Entry | `completed` | `StockEntryService::onApproved` |
+| Asset Value Adjustment | `submitted` | `AssetValueAdjustmentService::onApproved` (membuang `draft`, menambah `submitted`) |
+| Asset | `submitted`, `active`, `issued`, `in_maintenance`, `out_of_order`, `scrapped`, `sold`, `partially_sold`, `in_rent`, `partially_rented`, `fully_depreciated` | `AssetService::onApproved` (`submitted` bila tanggal siap pakai di masa depan, selain itu `active`), lalu transisi operasional di `Asset`; aset terjual penuh kehilangan `active` |
+| Jadwal depresiasi aset | (tanpa kolom `status`: subjek seluruh baris, `approved` bernilai null) | tidak berubah |
+
+**`posting_missing` adalah kolom informasi, bukan kewajiban spec (keputusan pemilik produk 2026-11-04).** Requirement 2.2 hanya mewajibkan `posting_not_posted`. `posting_missing` (dokumen pasca-persetujuan tanpa baris `gl_posting_statuses` sama sekali) tetap dikeluarkan sebagai informasi tambahan; bentuk JSON tidak berubah dan tidak ada kunci penanda baru. Batas maknanya: baris `gl_posting_statuses` dibuat tanpa syarat saat `onApproved` hanya pada Sales Invoice dan Purchase Invoice, sehingga `posting_missing` > 0 pada kedua jenis itu adalah sinyal nyata. Pada empat jenis lain pembuatannya bersyarat, sehingga nilai > 0 belum tentu anomali:
+
+| Jenis | `GlPostingStatus` dibuat hanya bila | Rujukan |
+|---|---|---|
+| Purchase Receipt | `returnAgainst` atau nilai GL > 0 | `PurchaseReceiptService.php:539-545` |
+| Delivery Note | `totalPicked` > 0 | `DeliveryNoteService.php:446` |
+| Asset Value Adjustment | `difference_amount` ≠ 0 | `AssetValueAdjustmentService.php:118-125` |
+| Asset | saat scrap bila `is_depreciable` dan nilai hapus buku > 0; pelepasan lewat penjualan mengaitkan statusnya ke `SalesInvoiceItem`, bukan ke aset | `Asset.php:307-312` |
+
+`posting_not_posted` tidak terdampak: baris yang ada dan bukan `posted` selalu anomali. Jadwal depresiasi tanpa kolom `status` menghitung seluruh baris, termasuk jadwal yang belum jatuh tempo (statusnya dibuat `assets:post-depreciation` hanya untuk jadwal jatuh tempo); batas ini sudah ada sebelum perubahan ini.
+
+**Status ganda.** Status disimpan sebagai larik. `ApprovalService` menyetel `need_approval`, dan `onApproved` Asset serta Asset Value Adjustment hanya membuang `draft`, sehingga dokumen pasca-persetujuan dapat bernilai `[need_approval, active]` atau `[need_approval, submitted]`. Subjek memakai "mengandung salah satu status pasca-persetujuan", jadi larik seperti itu tetap terhitung; `[need_approval]` saja (belum disetujui) tidak. Daftar `statuses` yang kosong pada jenis berkolom `status` ditolak dengan `LogicException` agar tidak menghitung semua dokumen secara diam-diam.
 
 **Toleransi.** Kolom `debit`/`credit` bertipe `double`; perbandingan memakai toleransi `0.005` agar noise floating point tidak dilaporkan sebagai anomali.
 
@@ -69,7 +95,7 @@ Struktur:
      'canceled_active_gl'  => [...],       // dokumen canceled dengan GL aktif (F-16)
      'duplicates'          => [...],
   ],
-  'coverage' => [ ['type' => 'sales_invoice', 'approved' => n, 'canceled' => n, 'with_gl' => n, 'canceled_gl_softdeleted' => n, 'canceled_active_gl' => n, 'tracked' => bool, 'posting_not_posted' => n], ... ],
+  'coverage' => [ ['type' => 'sales_invoice', 'approved' => n /* dokumen pasca-persetujuan; null bila tanpa kolom status */, 'canceled' => n, 'with_gl' => n, 'canceled_gl_softdeleted' => n, 'canceled_active_gl' => n, 'tracked' => bool, 'posting_not_posted' => n /* null bila tidak dilacak */, 'posting_missing' => n /* null bila tidak dilacak */], ... ],
 ]
 ```
 
