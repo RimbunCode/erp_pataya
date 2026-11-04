@@ -14,6 +14,8 @@ Fase 1 menambahkan **header jurnal** di atas tabel `general_ledgers` yang sudah 
 
 Keputusan D-1 (queue vs sinkron) **tidak disentuh**: listener tetap queued dengan `GlPostingStatus`. Invarian "seimbang" ditegakkan di `JournalService`, sehingga berlaku apa pun mode pemanggilnya.
 
+**Keputusan pemilik produk 2026-11-04 yang berlaku pada desain ini:** D-3 (`decimal(20,4)`, HALF_UP di batas posting) disetujui; D-8 diubah (backfill per dokumen, dipecah per tanggal hanya bila dokumen punya posting di hari berbeda, alasan N-3; detail tanggal jurnal legacy = `transaction_date` terkecil dan pemecahan dokumen lintas tengah malam juga disetujui); D-14 masuk sebagai task opsional (Journal Voucher sederhana); Q-P1-1 tanpa jendela pemeliharaan (GL produksi kosong); Q-P1-2 penegakan periode nonaktif dulu dan diaktifkan manual; BR-7 rilis dua tahap (Rilis 1: tabel jurnal + `journal_id` nullable + perintah backfill; Rilis 2: migration NOT NULL di PR/tahapan terpisah setelah backfill terverifikasi di staging dan produksi). Yang bukan keputusan pemilik produk dan ditandai "detail desain" di bawah: basis zona waktu D-8, perintah pra-pemeriksaan presisi, dan mekanisme toggle penegakan periode. Rujukan: `docs/prd/finance-decision-log.md`.
+
 Dua fakta codebase yang membentuk desain:
 
 1. **Hook `Submitable` (`app/Traits/Submitable.php:98-106`)** menandai `deleted_at` massal pada GL/SLE saat cancel melalui query builder — *tidak* memicu event model. Guard immutability berbasis event tidak akan menangkapnya, jadi (a) pengecualian ini didokumentasikan dan diuji, (b) jurnal terkait ditandai `voided`, dan (c) penggantiannya dengan reversal adalah Fase 2 (D-13).
@@ -27,7 +29,7 @@ flowchart TD
         L1["Listener GL: Sales/Purchase Invoice,<br/>Receipt, DN, Asset x4 (queued)"]
         L2["PaymentEntryService (sinkron)"]
         L3["StockEntryService (sinkron)"]
-        UI["Jurnal manual (opsional, D-14)"]
+        UI["Jurnal manual (opsional, D-14 disetujui 2026-11-04)"]
     end
     L1 -->|postPair / post + postingKey| JS
     L2 --> JS
@@ -237,20 +239,26 @@ Pasangan yang sama sekarang dibuat dua kali dengan urutan "kredit dulu lalu debi
 Pseudocode:
 
 ```php
-// 1. Kunci kelompok: baris aktif tanpa journal_id
+// 1. Kunci kelompok (D-8, diubah 2026-11-04): per dokumen sumber; dipecah per hari kalender
+//    hanya bila dokumen punya posting di hari berbeda (pasangan yang beda detik tetap satu kelompok, N-3).
 $groups = GeneralLedger::query()
     ->whereNull('journal_id')
-    ->select('referenceable_type','referenceable_id','transaction_date')
-    ->groupBy('referenceable_type','referenceable_id','transaction_date')
-    ->orderBy('transaction_date')
+    ->selectRaw('referenceable_type, referenceable_id, DATE(transaction_date) as posting_day')
+    ->groupBy('referenceable_type', 'referenceable_id', DB::raw('DATE(transaction_date)'))
+    ->orderBy('posting_day')
     ->cursor();                       // agregasi + kursor, bukan memuat semua baris
 
 foreach ($groups as $g) {
     DB::transaction(function () use ($g) {
-        $lines = GeneralLedger::whereNull('journal_id')->where(...$g...)->orderBy('created_at')->orderBy('id')->lockForUpdate()->get();
+        $lines = GeneralLedger::whereNull('journal_id')
+            ->where('referenceable_type', $g->referenceable_type)
+            ->where('referenceable_id', $g->referenceable_id)
+            ->whereDate('transaction_date', $g->posting_day)
+            ->orderBy('created_at')->orderBy('id')->lockForUpdate()->get();
         if ($lines->isEmpty()) return;                       // idempoten
         $balanced = MinorUnit::balanced($lines, $mu);
-        $journal = Journal::create([... 'legacy_origin' => true, 'legacy_unbalanced' => !$balanced, 'status' => 'posted' ...]);
+        $journal = Journal::create([... 'transaction_date' => $lines->min('transaction_date'),
+            'legacy_origin' => true, 'legacy_unbalanced' => !$balanced, 'status' => 'posted' ...]);
         foreach ($lines as $i => $line) {
             // jalur terizinkan oleh guard: hanya journal_id & line_no
             $line->forceFill(['journal_id' => $journal->id, 'line_no' => $i + 1])->save();
@@ -259,6 +267,8 @@ foreach ($groups as $g) {
 }
 ```
 
+- `journals.transaction_date` jurnal legacy = nilai terkecil di kelompok; dokumen yang posting-nya melintasi tengah malam dapat terpecah dua dan, bila tiap bagiannya tak seimbang, ditandai `legacy_unbalanced` (tidak dipaksa). Keduanya **disetujui pemilik produk 2026-11-04** (D-8). `GeneralLedgerAuditor` dan `finance:reconcile-ledger` tetap mengelompokkan per `transaction_date` penuh; perbedaannya dilaporkan, bukan disamakan.
+- **Basis "hari kalender" = hari UTC (detail desain, bukan keputusan pemilik produk).** `DATE(transaction_date)` dipakai apa adanya. Alasan: `transaction_date` dicast `datetime` oleh Eloquent dan disimpan dalam `APP_TIMEZONE` (`config/app.php:68`, default `UTC`; `.env.example` `APP_TIMEZONE=UTC`), `config/database.php` tidak menetapkan `timezone` koneksi, sehingga nilai di DB adalah waktu UTC; `DATE()` tidak butuh konversi zona waktu di SQL (yang tidak portabel antara MySQL dan SQLite uji). Konsekuensi: batas hari jatuh pukul 07.00 WIB, sehingga posting `now()` antara 00.00 dan 06.59 WIB tergolong hari UTC sebelumnya; karena kelompok dibentuk per dokumen, ini hanya memengaruhi dokumen yang diposting lebih dari sekali melintasi batas itu. Belum diverifikasi: apakah tanggal dokumen yang diinput pengguna (`date`) disimpan pukul 00.00 UTC; verifikasi pada Task 7.1 terhadap data staging (28 kelompok = 28 dokumen, jadi tidak ada pemecahan di staging).
 - `fiscal_period_id` diisi bila periode ada (Req. 9.9). Periode lama dibuat oleh `finance:generate-fiscal-year` yang dipanggil perintah ini untuk rentang data (Req. 6.8) sebelum langkah di atas.
 - Jurnal legacy untuk dokumen yang kini berstatus `canceled` tidak dibuat bila seluruh barisnya soft-deleted (sudah dikecualikan oleh `whereNull('deleted_at')` default Eloquent soft-delete).
 - `Journal.code` untuk legacy memakai series yang sama; **[TODO: konfirmasi]** apakah nomor jurnal legacy perlu awalan berbeda (`LJ-`) agar tidak menghabiskan nomor urut "nyata".
@@ -293,7 +303,7 @@ foreach ($groups as $g) {
 
 Tambah: `journal_id` (ulid nullable, FK `journals` `restrictOnDelete`, indeks), `line_no` (smallInteger unsigned nullable), `foreign_currency_code` (string(10) nullable, FK), `foreign_debit`/`foreign_credit` (decimal(20,4) nullable), `exchange_rate` (decimal(20,8) nullable). Indeks tambahan `(account_id, transaction_date)` dan `(journal_id, line_no)`.
 
-Ubah (gated, Task 8): `against_account_id` → nullable; `debit`/`credit` → `decimal(20,4) default 0`; FK akun → `restrictOnDelete`. Ubah (gated, Task 9): `journal_id` → NOT NULL.
+Ubah (Task 8, **Rilis 1**, setelah query pra-pemeriksaan presisi dijalankan pemilik produk di staging): `against_account_id` → nullable; `debit`/`credit` → `decimal(20,4) default 0`; FK akun → `restrictOnDelete`. Ubah (Task 9, **Rilis 2**, PR/tahapan terpisah): `journal_id` → NOT NULL.
 
 ### `fiscal_years` dan `fiscal_periods`
 
@@ -339,35 +349,42 @@ Pesan exception berlokalisasi lewat kunci `lang/{id,en}/finances/journal.php` (b
 - **Parity (P-6):** seluruh characterization Fase 0 dijalankan ulang tanpa perubahan ekspektasi; test tambahan membandingkan jumlah jurnal per dokumen (mis. Purchase Invoice → 2 jurnal bila ada stok).
 - **Test arsitektur:** pindai `app/` — penulisan GL hanya di allowlist (`JournalService`, `JournalReversalService`, perintah backfill).
 - **Legacy cancel:** cancel Sales Invoice/Payment Entry/Stock Entry → baris GL soft-deleted (perilaku lama) **dan** jurnal `voided`.
-- **Migration:** jalankan migrasi pada SQLite (test) dan, manual, pada MySQL staging; uji `down()` yang aman; uji perilaku `initPermissions()` terhadap `Journal`/`FiscalPeriod` (tidak menambah kolom tak terduga, tidak menghapus kolom di lokal).
+- **Migration:** jalankan migrasi pada SQLite (test) dan, manual, pada salinan atau DB dev MySQL (staging baru tersedia setelah Rilis 1 dideploy); uji `down()` yang aman; uji perilaku `initPermissions()` terhadap `Journal`/`FiscalPeriod` (tidak menambah kolom tak terduga, tidak menghapus kolom di lokal).
 - **Frontend (Vitest + RTL):** halaman Journal (daftar, detail, dialog reverse), Periode Fiskal (generate, buka/tutup, toggle enforcement); kasus kosong dan error.
 - **Manual (staging):** dry-run backfill → backfill nyata → bandingkan baseline Fase 0 (`finance:snapshot-balances`).
 
 ## Migrasi, Rollback, dan Urutan Aman
 
-1. Migration aditif (journals, fiscal*, kolom baru, currencies) — aman, dapat di-rollback.
-2. Deploy kode adapter + guard (jurnal mulai dibuat untuk posting baru; data lama masih `journal_id` null dan masih dapat diubah lewat jalur backfill saja).
-3. Jalankan `finance:generate-fiscal-year` (via backfill) dan `finance:backfill-journals --dry-run`, tinjau, lalu jalankan nyata di luar jam sibuk.
-4. Aktifkan `finance:reconcile-ledger` terjadwal.
-5. (Gated) konversi tipe/FK dan NOT NULL `journal_id` setelah pra-pemeriksaan hijau dan persetujuan jendela pemeliharaan.
-6. Aktifkan enforcement periode setelah periode terisi dan disetujui akuntan.
+**Dua rilis terpisah (BR-7, diputuskan pemilik produk 2026-11-04).** `.scripts/deploy-staging.sh` dan `deploy-production.sh` memakai `set -e` dan menjalankan `php artisan migrate --force` sebelum release diaktifkan, sehingga migration yang gagal menggagalkan deploy. Karena itu migration NOT NULL tidak boleh ikut rilis yang sama dengan backfill. **Pemicu deploy** (`.github/workflows/deploy-cpanel.yml`): merge PR ke `dev-1` memicu deploy **staging** (kecuali label `skip-deploy`); deploy **produksi**: tag `v*` mendeploy produksi, sedangkan `workflow_dispatch` punya input `environment` (staging atau produksi, default produksi; `deploy-cpanel.yml:15-28`) dan dapat dijalankan dari ref mana pun, sehingga urutan BR-7 juga berlaku untuk deploy manual, **bukan** oleh `dev-1`.
 
-**Rollback:** sebelum langkah 5, kembalikan kode (adapter) — GL lama tetap utuh karena kolom/ tabel baru bersifat aditif dan backfill tidak mengubah angka; `journal_id` yang sudah terisi tidak mengganggu kode lama. Setelah langkah 5, rollback butuh `down()` migration dan bersifat berisiko presisi (didokumentasikan).
+**Rilis 1** (Task 1–8, 10, opsional 11):
+
+1. Migration aditif (journals, fiscal*, kolom baru, currencies) dan `journal_id` **nullable** — aman, dapat di-rollback.
+2. **Pra-pemeriksaan presisi (detail desain, Task 8.1):** perintah artisan `finance:check-ledger-precision` (usulan nama) adalah kode baru yang baru tiba di staging bersama migration `decimal(20,4)` dalam deploy yang sama (BR-6/BR-7), sehingga tidak dapat dijalankan lebih dulu di sana. Maka pra-pemeriksaan staging dijalankan **pemilik produk sebagai query SQL read-only**, seperti praktik Task 6.5 Fase 0, **sebelum Rilis 1 digabung ke `dev-1`**: `SELECT COUNT(*) AS total_baris, SUM(ABS(ROUND(debit,4)-debit) > 1e-9 OR ABS(ROUND(credit,4)-credit) > 1e-9) AS hit_ketat, SUM(ABS(ROUND(debit,4)-debit) > 1e-5 OR ABS(ROUND(credit,4)-credit) > 1e-5) AS hit_bermakna, MAX(GREATEST(ABS(debit),ABS(credit))) AS nilai_maks FROM general_ledgers;` Verifikasi query (penalaran dan simulasi presisi double; belum dijalankan di MySQL): kolom `debit`/`credit` bertipe `double` NOT NULL default 0 (skema staging, Bagian 1.5.2 laporan audit), jadi tidak ada NULL; `ROUND(double, 4)` mengembalikan double dan perbandingan `ABS(ROUND(x,4)-x) > 1e-9` valid. Pada semua baris dihitung, termasuk yang soft-deleted, karena `ALTER` mengubah semua baris. **Namun ambang `1e-9` mutlak menghasilkan positif palsu untuk nilai besar:** satu ulp double ≈ 1,9e-9 pada 1e7 dan ≈ 1,2e-7 pada 1e9, sehingga hasil hitung seperti `1234567890.1 + 2345678901.2` (= 3580246791.2999997, selisih 4,8e-7) terhitung melanggar padahal tidak punya desimal bermakna. Karena itu query dua ambang: `hit_ketat` (1e-9, rumusan Req 13.1) dan `hit_bermakna` (1e-5, memisahkan pecahan sungguhan dari derau double); `nilai_maks` membantu menilai apakah `hit_ketat` hanya derau. Keputusan penyesuaian ambang ada di pemilik produk bersama hasil query. **Batas berlaku `hit_bermakna` (detail desain):** untuk |x| ≥ 2³⁶ ≈ 6,87e10 satu ulp ≥ 1,53e-5 (terverifikasi: ulp(2³⁶) = 1,526e-5), sehingga ambang 1e-5 pun dapat memberi positif palsu; `nilai_maks` dipakai untuk menilainya. Bila query 8.1(a) menunjukkan `hit_ketat` > 0, ambang pengaman migration atau daftar pengecualian yang disetujui ditetapkan **oleh pemilik produk** sebelum Rilis 1 digabung ke `dev-1`, agar pengaman tidak menggagalkan deploy staging; mekanismenya di dalam migration (detail desain): ambang yang dapat dikonfigurasi (mis. konstanta atau config) dan/atau daftar pengecualian. Perintah artisan tetap dibuat (dipakai Rilis 2 dan seterusnya); pra-pemeriksaan di dalam migration tetap ada sebagai pengaman.
+3. Deploy kode adapter + guard (jurnal mulai dibuat untuk posting baru; data lama masih `journal_id` null dan hanya dapat diubah lewat jalur backfill).
+4. Jalankan `finance:generate-fiscal-year` (via backfill) dan `finance:backfill-journals --dry-run`, tinjau, lalu jalankan nyata di staging (setelah Rilis 1 dideploy ke staging, yaitu setelah merge ke `dev-1` atau `workflow_dispatch` ke staging dari ref mana pun, mis. `feat/finance-engine`, bila diputuskan pemilik produk) dan di produksi (setelah Rilis 1 dideploy lewat tag `v*` atau dispatch manual ke produksi), di luar jam sibuk; verifikasi dengan `finance:reconcile-ledger` serta baseline Fase 0. Waktu penggabungan ke `dev-1` bergantung pada Q-BR-1 (belum diputuskan).
+5. Aktifkan `finance:reconcile-ledger` terjadwal.
+6. Enforcement periode **tidak** diaktifkan oleh rilis ini (Q-P1-2): diaktifkan manual (detail desain: lewat toggle di halaman setting).
+
+**Rilis 2** (Task 9, PR/tahapan terpisah): migration NOT NULL `journal_id`. **Prasyarat sebelum PR Rilis 2 digabung ke `feat/finance-engine`:** (a) Rilis 1 sudah dideploy ke **produksi (lewat tag `v*` atau dispatch manual ke produksi)** (deploy produksi tidak dipicu oleh `dev-1`; tag atau `workflow_dispatch`); (b) backfill produksi terverifikasi (dan backfill staging); (c) pemeriksaan "nol baris aktif tanpa `journal_id`" diulang di staging **dan** produksi tepat sebelum penggabungan Rilis 2 ke `dev-1` (merge ke `dev-1` memicu deploy staging otomatis). Migration tetap memeriksa sendiri dan menolak jalan bila masih ada baris aktif tanpa `journal_id` (pengaman, bukan pengatur urutan). Rilis 1 dan Rilis 2 adalah dua penggabungan berbeda ke `dev-1` (Q-BR-1: penggabungan `feat/finance-engine` ke `dev-1` belum dijadwalkan). Rancangan ini dimaksudkan agar deploy tidak gagal karena urutan; bila migration Rilis 2 tetap gagal (mis. ada baris baru tanpa `journal_id`), pulihkan dengan menjalankan backfill lalu deploy ulang. Tidak diperlukan jendela pemeliharaan (Q-P1-1).
+
+**Rollback:** sebelum Rilis 2, kembalikan kode (adapter) — GL lama tetap utuh karena kolom/tabel baru bersifat aditif dan backfill tidak mengubah angka; `journal_id` yang sudah terisi tidak mengganggu kode lama. Konversi tipe (Task 8) dan Rilis 2 butuh `down()` migration; konversi tipe berisiko presisi (didokumentasikan).
 
 ## Risiko Spesifik Fase
 
 | Risiko | Mitigasi |
 |---|---|
-| `ALTER TABLE general_ledgers` lama/mengunci di MySQL | Jendela pemeliharaan; migration gated; ukur ukuran tabel di Fase 0 |
+| `ALTER TABLE general_ledgers` lama/mengunci di MySQL | Tabel kecil (GL produksi kosong, staging 64 baris; Q-P1-1 2026-11-04: tanpa jendela pemeliharaan); pemilik produk menjalankan query SQL pra-pemeriksaan presisi di staging sebelum Rilis 1 digabung ke `dev-1` (perintah artisan baru tidak dapat dijalankan lebih dulu); pra-pemeriksaan di dalam migration sebagai pengaman |
 | Query/laporan yang mengharapkan `double` mengembalikan string dari `decimal` | Audit (Req. 13.4); cast numerik eksplisit; test laporan terkait |
 | Hook `Submitable` diubah menyentuh semua dokumen | Perubahan satu baris, diuji pada tiga model; dihapus di Fase 2 |
 | Penomoran jurnal balapan | Verifikasi Task 1.5; kunci baris series |
 | Listener lama dan baru hidup bersamaan saat deploy bertahap | Adapter diaktifkan dalam satu rilis untuk semua titik, bukan bertahap |
-| `initPermissions()` menambah/menghapus kolom model baru | Deklarasi eksplisit + test (Task 2.5) |
+| `initPermissions()` menambah/menghapus kolom model baru | Deklarasi eksplisit sesuai flag model (Req. 1.7) + test (Task 2.5) |
+| Migration NOT NULL menggagalkan deploy bila backfill belum dijalankan | Rilis 2 terpisah (BR-7): digabung hanya setelah backfill terverifikasi di staging dan produksi; migration tetap menolak jalan bila ada baris tanpa `journal_id` |
 
 ## Konfirmasi yang Masih Diperlukan
 
 1. **D-4** — diputuskan satu perusahaan (2026-10-18): tidak ada `company_id` di `journals`.
-2. **D-14** — jurnal manual di fase ini atau tidak.
+2. ~~D-14~~ — **diputuskan 2026-11-04 (pemilik produk)**: jurnal manual masuk sebagai task opsional (Task 11).
 3. Awalan nomor jurnal legacy dan tahun fiskal kalender vs non-kalender (akuntan).
 4. Mekanisme audit aplikasi yang dipakai (`Log` vs lainnya).

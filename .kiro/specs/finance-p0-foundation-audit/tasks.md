@@ -4,7 +4,7 @@
 
 Fase ini read-only: tidak ada migration dan tidak ada perubahan pada listener/service existing. Urutan: kerangka dan auditor (dengan test per anomali), snapshot saldo, helper fixture, characterization test per titik posting, known-issue test, lalu dokumen laporan dan decision log. Lint/Pint dijalankan setelah semua task selesai (aturan project).
 
-**Prasyarat**: Branch baru dari `origin/dev-1` terbaru (lihat PRD Bagian 10, "Aturan branch per tahapan"). Baca `docs/prd/finance-engine-prd.md` (terutama Lampiran A dan B) sebelum mulai.
+**Prasyarat**: Branch baru dari `origin/feat/finance-engine` terbaru (BR-6, PRD Bagian 10). Baca `docs/prd/finance-engine-prd.md` (terutama Lampiran A dan B) sebelum mulai.
 
 **Catatan eksekusi**: Task 6.5 bersifat manual (butuh akses staging/produksi). Task 7 membutuhkan input pemilik produk; jangan memutuskan D-1/D-11 sendiri (D-4 sudah diputuskan: satu perusahaan).
 
@@ -77,11 +77,12 @@ Fase ini read-only: tidak ada migration dan tidak ada perubahan pada listener/se
     - _Requirements: 5.6_
   - [x] 6.5 **(Manual)** Jalankan `finance:audit-gl --json` dan `finance:snapshot-balances` di staging (produksi tidak diperlukan: belum ada data sama sekali (GL produksi kosong), Q1 versi PRD dijawab 2026-11-03); simpan keluaran di `storage/app/finance-audit/`
     - _Requirements: 1.4, 3.1, 7.1_
-    - Selesai 2026-11-03 oleh pemilik produk (staging): `audit-20261103-155516.json`, `baseline-20261103-155540.csv`; disimpan di `storage/app/finance-audit/` (ter-ignore git). Produksi tidak diperlukan (Q1 versi PRD dijawab 2026-11-03). Belum diserahkan: konfirmasi `APP_ENV` dan hasil query skema Req 6.2 (lihat 7.1).
+    - Selesai 2026-11-03 oleh pemilik produk (staging): `audit-20261103-155516.json`, `baseline-20261103-155540.csv`; disimpan di `storage/app/finance-audit/` (ter-ignore git). Produksi tidak diperlukan (Q1 versi PRD dijawab 2026-11-03). `APP_ENV` dan skema aktual `accounts`/`general_ledgers` diserahkan pemilik produk 2026-11-04 (lihat 7.1).
 
-- [-] 7. Audit skema dan dokumen keputusan
-  - [-] 7.1 Dokumentasikan kolom yang ditambah `initPermissions()` per jenis model dan skema aktual `accounts`/`general_ledgers` di staging (bandingkan dengan migration)
-    - Draft 2026-11-03 di `docs/prd/finance-audit-report.md` Bagian 1: Req 6.1, 6.3, 6.4 selesai dari kode; Req 6.2 (skema aktual staging dan selisihnya) belum diserahkan pemilik produk (2026-11-03): `APP_ENV` staging dan hasil query skema; query read-only sudah disiapkan.
+- [x] 7. Audit skema dan dokumen keputusan
+  - Selesai 2026-11-04: 7.1, 7.2, dan 7.3 selesai.
+  - [x] 7.1 Dokumentasikan kolom yang ditambah `initPermissions()` per jenis model dan skema aktual `accounts`/`general_ledgers` di staging (bandingkan dengan migration)
+    - Draft 2026-11-03 di `docs/prd/finance-audit-report.md` Bagian 1: Req 6.1, 6.3, 6.4 selesai dari kode; Req 6.2 (skema aktual staging dan selisihnya) diserahkan pemilik produk dan dicatat 2026-11-04: `APP_ENV` staging = `staging` (bukan `local`, sehingga dua jalur penghapusan kolom yang dibatasi `isLocal()` tidak berlaku di staging) dan skema `accounts`/`general_ledgers` (hanya struktur) tanpa drift terhadap migration + kolom runtime `initPermissions()`; hasil di `docs/prd/finance-audit-report.md` Bagian 1.5.2, kesimpulan 1.3/1.4 diperbarui. Selesai 2026-11-04.
     - _Requirements: 6.1–6.4_
   - [x] 7.2 Tulis `docs/prd/finance-audit-report.md` (ringkasan audit, hasil known-issue, estimasi beban backfill)
     - Draft 2026-11-03: hasil known-issue dan temuan baru (Req 7.3) lengkap; angka `finance:audit-gl` (Req 7.1) dan estimasi backfill (Req 7.4) diisi dari hasil Task 6.5 (2026-11-03). Laporan disetujui pemilik produk 2026-11-03 (PR #272/#273); tambahan staging (angka dan N-4…N-9, PR #274) disetujui 2026-11-03 (AP-2); angka staging diisi.
@@ -90,9 +91,10 @@ Fase ini read-only: tidak ada migration dan tidak ada perubahan pada listener/se
     - Draft 2026-11-03 selesai. Disahkan pemilik produk 2026-11-03: BR-2…BR-5, DV-A, dan DV-B; DV-C diterima. Decision log disetujui pemilik produk 2026-11-03 (AP-3); keputusan penanganan per bug disetujui 2026-11-03 (PB); DV-D disetujui opsi (a) 2026-11-03 (implementasi Task 2.6).
     - _Requirements: 7.2, 7.5_
 
-- [ ] 8. Checkpoint akhir Fase 0
+- [x] 8. Checkpoint akhir Fase 0
   - Jalankan seluruh test yang disentuh (`php artisan test --compact tests/Feature/Finances`), lalu `vendor/bin/pint --dirty --format agent` dan `npm run lint` bila ada perubahan JS (tidak diharapkan)
-  - Exit criteria: laporan audit & decision log disetujui; Q1 versi PRD terjawab 2026-11-03 (belum ada data sama sekali (GL produksi kosong); D-4 sudah diputuskan); temuan F-04/F-10/F-11 berstatus terkonfirmasi/tidak. _Diubah 2026-11-03 (disetujui pemilik produk): rumusan Q1 dirinci menjadi Q1 versi PRD._ Status 2026-11-03: laporan audit dan decision log disetujui. Syarat tersisa sebelum Task 8 dijalankan: skema staging Req 6.2 dan `APP_ENV` diserahkan (Task 7.1). Task 2.6 (DV-D) selesai 2026-11-04.
+  - Exit criteria: laporan audit & decision log disetujui; Q1 versi PRD terjawab 2026-11-03 (belum ada data sama sekali (GL produksi kosong); D-4 sudah diputuskan); temuan F-04/F-10/F-11 berstatus terkonfirmasi/tidak. _Diubah 2026-11-03 (disetujui pemilik produk): rumusan Q1 dirinci menjadi Q1 versi PRD._ Status 2026-11-03: laporan audit dan decision log disetujui. Task 2.6 (DV-D) selesai 2026-11-04.
+  - **Selesai 2026-11-04.** Hasil: `tests/Feature/Finances` 270 test, 1096 assertion, OK (2026-11-04, branch `docs/finance-p0-closure`); Pint `--dirty` lulus tanpa perubahan. Exit criteria terpenuhi: laporan audit dan decision log disetujui (2026-11-03); Q1 versi PRD terjawab (2026-11-03); F-04/F-10/F-11 terkonfirmasi (laporan audit Bagian 3); D-4 diputuskan, D-1 dan D-11 ditunda dengan alasan tertulis; DV-D selesai (Task 2.6, PR #275); skema staging Req 6.2 dan `APP_ENV` diterima (Task 7.1). Fase 0 selesai 2026-11-04; keputusan Fase 1 yang menyertainya (D-3, D-8, D-14, Q-P1-1, Q-P1-2) tercatat di decision log.
   - Ensure all tests pass, ask the user if questions arise.
 
 ## Catatan

@@ -16,7 +16,7 @@ Temuan audit yang menjadi dasar (PRD Lampiran A): F-01 (tanpa header, tak ada ja
 - Mengganti soft-delete saat cancel dengan reversal otomatis (Fase 2, bergantung D-13). Fase ini hanya memastikan jurnal tetap konsisten terhadap perilaku cancel yang ada (Requirement 8.6).
 - Penutupan periode penuh, jurnal penutup tahun, revaluasi (Fase 6). Fase ini hanya status `open`/`closed` dasar.
 - Pensiun `accounts.balance_amount` (Fase 5) dan konversi kolom uang tabel operasional ke `decimal` (di luar program).
-- Jurnal manual oleh pengguna adalah **opsional** (D-14, menunggu konfirmasi) — lihat Requirement 12.
+- Jurnal manual oleh pengguna adalah **opsional** (D-14, disetujui pemilik produk 2026-11-04 sebagai task opsional) — lihat Requirement 12.
 
 ## Glossary
 
@@ -44,7 +44,7 @@ Temuan audit yang menjadi dasar (PRD Lampiran A): F-01 (tanpa header, tak ada ja
 4. THE model `GeneralLedger` SHALL tetap menjadi model baris jurnal (tidak diganti nama) agar halaman, izin, dan relasi existing tidak berubah; relasi `journal()` ditambahkan.
 5. THE model `Journal` SHALL memiliki relasi `lines()` (hasMany `GeneralLedger`), `source()` (morphTo), `fiscalPeriod()`, `reverses()`, `reversedBy()`, `postedBy()`, dan `branch()`.
 6. THE penomoran `Journal.code` SHALL memakai `FormatingSeries` dengan format default `JV-@[iiii]/@[yy]` dan dibuat di dalam transaksi posting.
-7. THE kolom wajib tabel baru SHALL dideklarasikan eksplisit di migration (tidak bergantung pada penambahan runtime oleh `initPermissions()`, F-12).
+7. THE kolom wajib tabel baru SHALL dideklarasikan eksplisit di migration (tidak bergantung pada penambahan runtime oleh `initPermissions()`, F-12), yaitu **persis kolom yang akan ditambahkan `initPermissions()` menurut flag model tabel itu** (diverifikasi ke `app/Traits/DataTable.php`; skema staging 2026-11-04, laporan audit Bagian 1.4 butir 8 dan 1.5.2): `is_example` (boolean default `false` + indeks `<tabel>_is_example_index`) untuk **semua** model `DataTable`; `code` (string NOT NULL + unique `<tabel>_code_unique`) hanya bila `$is_submitable` atau `$generateCodeSeries`; `have_transactions` (boolean default `false`) hanya untuk model non-submitable (untuk model submitable kolom ini dihapus di semua lingkungan); kolom Submitable hanya bila `$is_submitable`; kolom tree hanya bila `$is_tree_view`. Berlaku untuk tabel `journals`, `fiscal_years`, dan `fiscal_periods` (baris jurnal tetap di `general_ledgers`; tidak ada tabel `journal_lines`). Bila deklarasi sengaja berbeda (mis. `journals.code` nullable sementara), test Task 2.5 SHALL membuktikan `initPermissions()` tidak menambah atau mengubah kolom.
 
 ### Requirement 2: Validasi dan pembuatan jurnal oleh `JournalService`
 
@@ -111,7 +111,7 @@ Temuan audit yang menjadi dasar (PRD Lampiran A): F-01 (tanpa header, tak ada ja
 1. THE sistem SHALL membuat tabel `fiscal_years` (`name` unik, `start_date`, `end_date`, `status` `open`/`closed`) dan `fiscal_periods` (`fiscal_year_id`, `name`, `start_date`, `end_date`, `status` `open`/`closed`, `closed_at`, `closed_by_id`).
 2. THE sistem SHALL menolak tahun/periode yang tumpang-tindih tanggalnya, dan menolak periode di luar rentang tahun fiskalnya.
 3. THE sistem SHALL menyediakan perintah `finance:generate-fiscal-year {year}` yang membuat satu tahun fiskal berisi 12 periode bulanan (kalender), idempoten.
-4. THE sistem SHALL menambah setting `finance_enforce_fiscal_period` (default `false`).
+4. THE sistem SHALL menambah setting `finance_enforce_fiscal_period` (default `false`). _Diputuskan 2026-11-04 (Q-P1-2, pemilik produk):_ penegakan periode **nonaktif** dulu dan **diaktifkan manual**; penutupan periode penuh tetap di Fase 6. _Detail desain (bukan keputusan pemilik produk):_ pengaktifan lewat toggle di halaman setting (Requirement 11.5); tidak ada pengaktifan otomatis.
 5. WHEN setting aktif dan `post()` dipanggil dengan `transaction_date` yang periodenya `closed` atau tidak ditemukan, THE sistem SHALL menolak (`ClosedPeriodException`).
 6. WHEN setting nonaktif, THE sistem SHALL tetap mengisi `fiscal_period_id` bila periode ditemukan, dan tidak menolak.
 7. THE sistem SHALL menyediakan aksi buka/tutup periode dengan izin `close_period`/`reopen_period`; penutupan penuh (checklist, jurnal penutup) adalah Fase 6.
@@ -150,7 +150,7 @@ Temuan audit yang menjadi dasar (PRD Lampiran A): F-01 (tanpa header, tak ada ja
 #### Acceptance Criteria
 
 1. THE sistem SHALL menyediakan perintah `finance:backfill-journals {--dry-run} {--chunk=1000} {--limit=}` yang idempoten (menjalankan ulang tidak mengubah hasil).
-2. THE perintah SHALL mengelompokkan baris `general_ledgers` yang belum memiliki `journal_id` dan tidak soft-deleted per (`referenceable_type`, `referenceable_id`, `transaction_date`) menjadi satu `journal` (`legacy_origin = true`), mengisi `journal_id` dan `line_no`.
+2. THE perintah SHALL mengelompokkan baris `general_ledgers` yang belum memiliki `journal_id` dan tidak soft-deleted per dokumen sumber (`referenceable_type`, `referenceable_id`) menjadi satu `journal` (`legacy_origin = true`), mengisi `journal_id` dan `line_no`. Kelompok SHALL dipecah per **tanggal** (hari kalender = **hari UTC**, yaitu `DATE(transaction_date)` apa adanya (detail desain implementer, bukan keputusan pemilik produk; alasan di `design.md`)) hanya bila dokumen punya posting di hari berbeda; pasangan baris satu dokumen yang hanya berbeda detik (N-3: `now()` per baris di `StockEntryService` dan `PostAssetDisposalGainLoss`) SHALL tetap satu jurnal. `journals.transaction_date` jurnal legacy SHALL = nilai `transaction_date` terkecil di kelompok. Dokumen yang posting-nya melintasi tengah malam dapat terpecah per tanggal dan, bila tiap bagiannya tak seimbang, ditandai `legacy_unbalanced`. _Diubah 2026-11-04 (D-8, disetujui pemilik produk, termasuk detail tanggal jurnal legacy dan pemecahan lintas tengah malam; semula per `referenceable_type`, `referenceable_id`, `transaction_date` penuh); alasan: N-3._
 3. FOR kelompok seimbang (dalam toleransi minor unit), THE jurnal berstatus `posted`; FOR kelompok tak seimbang, THE jurnal diberi `legacy_unbalanced = true` dan dimasukkan ke laporan rekonsiliasi — nilai `debit`/`credit` TIDAK diubah.
 4. THE baris GL yang soft-deleted SHALL tidak digabungkan ke jurnal dan dilaporkan jumlahnya; jurnal untuk sumber yang seluruh barisnya soft-deleted tidak dibuat.
 5. THE backfill SHALL TIDAK mengubah `debit`, `credit`, `account_id`, `transaction_date`, atau `code` baris yang ada.
@@ -184,16 +184,16 @@ Temuan audit yang menjadi dasar (PRD Lampiran A): F-01 (tanpa header, tak ada ja
 6. THE seluruh teks UI SHALL memakai kunci terjemahan di `lang/id` dan `lang/en` (dijaga `LocaleKeysTest`).
 7. THE komponen React baru SHALL memiliki test `.rtl.test.jsx`.
 
-### Requirement 12: Jurnal manual (OPSIONAL — menunggu konfirmasi D-14)
+### Requirement 12: Jurnal manual (OPSIONAL — D-14 disetujui 2026-11-04)
 
 **User Story:** Sebagai akuntan, saya ingin membuat jurnal penyesuaian manual yang seimbang, so that saya dapat mengoreksi tanpa dokumen bisnis.
 
 #### Acceptance Criteria
 
-1. IF D-14 disetujui, THEN THE sistem SHALL menyediakan form pembuatan jurnal manual (tanggal, deskripsi, ≥2 baris akun/debit/kredit/keterangan, indikator seimbang waktu nyata) yang menyimpan lewat `JournalService::post()`.
+1. THE sistem SHALL menyediakan (sebagai requirement opsional; D-14 disetujui pemilik produk 2026-11-04) form Journal Voucher sederhana untuk pembuatan jurnal manual (tanggal, deskripsi, ≥2 baris akun/debit/kredit/keterangan, indikator seimbang waktu nyata) yang wajib seimbang dan menyimpan lewat `JournalService::post()`.
 2. THE jurnal manual SHALL memiliki `source` null atau penanda `manual`, memerlukan izin `create` pada `Journal`, dan tunduk pada semua validasi Requirement 2 dan 6.
 3. THE jurnal manual SHALL dapat dibalik seperti jurnal lain, dan tidak dapat diedit setelah diposting.
-4. IF D-14 ditunda, THEN Requirement 12 SHALL dikeluarkan dari fase ini tanpa memengaruhi requirement lain.
+4. THE Requirement 12 SHALL dikerjakan sebagai task opsional (`- [ ]*`, Task 11): cakupannya dikonfirmasi dengan pemilik produk sebelum dikerjakan, dan bila tidak dikerjakan SHALL tidak memengaruhi requirement lain atau exit criteria fase ini.
 
 ### Requirement 13: Perubahan tipe kolom dan FK (gated)
 
@@ -201,29 +201,31 @@ Temuan audit yang menjadi dasar (PRD Lampiran A): F-01 (tanpa header, tak ada ja
 
 #### Acceptance Criteria
 
-1. BEFORE mengubah tipe, THE sistem SHALL menjalankan pra-pemeriksaan (read-only) yang melaporkan baris dengan `debit`/`credit` yang memiliki presisi lebih dari 4 desimal bermakna (`ABS(ROUND(x,4) - x) > 1e-9`), dan perubahan SHALL TIDAK dijalankan bila ada pelanggaran yang belum disetujui.
-2. THE sistem SHALL mengubah `general_ledgers.debit` dan `credit` menjadi `decimal(20,4)` default 0 dengan migration terpisah yang aman dijalankan ulang dan terdokumentasi (jendela pemeliharaan untuk MySQL).
+1. BEFORE mengubah tipe, THE sistem SHALL menjalankan pra-pemeriksaan (read-only) yang melaporkan baris dengan `debit`/`credit` yang memiliki presisi lebih dari 4 desimal bermakna (`ABS(ROUND(x,4) - x) > 1e-9`), dan perubahan SHALL TIDAK dijalankan bila ada pelanggaran yang belum disetujui. Pra-pemeriksaan SHALL tersedia sebagai perintah artisan read-only (berguna untuk Rilis 2 dan seterusnya). Karena perintah itu kode baru yang tiba di staging dalam deploy yang sama dengan migration tipe kolom (BR-6/BR-7), pra-pemeriksaan untuk staging dijalankan lebih dulu oleh pemilik produk sebagai **query SQL read-only** (praktik Task 6.5 Fase 0), sebelum Rilis 1 digabung ke `dev-1` (detail desain; Task 8.1). Bila query 8.1(a) menunjukkan `hit_ketat` > 0, ambang pengaman migration atau daftar pengecualian yang disetujui ditetapkan **oleh pemilik produk** sebelum Rilis 1 digabung ke `dev-1`, agar pengaman tidak menggagalkan deploy staging; mekanismenya di dalam migration (detail desain): ambang yang dapat dikonfigurasi (mis. konstanta atau config) dan/atau daftar pengecualian.
+2. THE sistem SHALL mengubah `general_ledgers.debit` dan `credit` menjadi `decimal(20,4)` default 0 dengan migration terpisah yang aman dijalankan ulang dan terdokumentasi. _Diputuskan 2026-11-04 (Q-P1-1, pemilik produk):_ **tidak** diperlukan jendela pemeliharaan (GL produksi kosong). _Detail desain (bukan keputusan pemilik produk):_ staging hanya 64 baris; migration ini ikut **Rilis 1** (butir 5) setelah query pra-pemeriksaan (butir 1) dijalankan pemilik produk di staging dan hasilnya dilaporkan; pra-pemeriksaan di dalam migration tetap ada sebagai pengaman. Tipe `decimal(20,4)` dan pembulatan HALF_UP di batas posting disetujui (D-3, 2026-11-04, pemilik produk).
 3. THE sistem SHALL mengubah FK `account_id` dan `against_account_id` dari `cascadeOnDelete` menjadi `restrictOnDelete`.
 4. THE sistem SHALL mengaudit seluruh pemakai kolom `debit`/`credit` (query mentah, view, laporan, `groupAggregate`) sebelum konversi dan memastikan hasil `SUM` decimal tetap ditangani benar (cast numerik) di PHP dan frontend.
-5. WHEN backfill selesai dan audit menunjukkan nol baris aktif tanpa `journal_id`, THE sistem SHALL menyediakan migration terpisah yang mengubah `general_ledgers.journal_id` menjadi NOT NULL; migration ini SHALL dikunci oleh pemeriksaan di dalam migration dan tidak dijalankan otomatis bersama migrasi lain.
+5. WHEN backfill selesai dan audit menunjukkan nol baris aktif tanpa `journal_id`, THE sistem SHALL menyediakan migration terpisah yang mengubah `general_ledgers.journal_id` menjadi NOT NULL; migration ini SHALL dikunci oleh pemeriksaan di dalam migration yang menolak jalan bila masih ada baris aktif tanpa `journal_id`. _Diputuskan 2026-11-04 (BR-7, pemilik produk; terpisah dari Q-P1-1):_ rilis Fase 1 dua tahap. **Rilis 1** = tabel jurnal, `journal_id` nullable, dan perintah backfill (Requirement 1–12 dan 13.1–13.4); backfill dijalankan di staging dan produksi. **Rilis 2** = migration NOT NULL ini, di PR/tahapan terpisah yang digabung ke `feat/finance-engine` dan kemudian ke `dev-1` **hanya setelah** backfill dijalankan dan diverifikasi di staging dan produksi. Urutan ini **dirancang** agar deploy tidak gagal karena urutan (`.scripts/deploy-*.sh` memakai `set -e` dan `migrate --force` sebelum release diaktifkan); bila migration Rilis 2 tetap gagal (mis. ada baris baru tanpa `journal_id`), dapat dipulihkan dengan menjalankan backfill lalu deploy ulang. Merge PR ke `dev-1` memicu deploy staging; deploy produksi: tag `v*` mendeploy produksi, sedangkan `workflow_dispatch` punya input `environment` (staging atau produksi, default produksi; `deploy-cpanel.yml:15-28`) dan dapat dijalankan dari ref mana pun, sehingga urutan BR-7 juga berlaku untuk deploy manual, bukan `dev-1`. Rilis 1 dan Rilis 2 adalah dua penggabungan berbeda ke `dev-1` (Q-BR-1). Tidak diperlukan jendela pemeliharaan (Q-P1-1).
 
 ### Requirement 14: Izin, audit, dan kompatibilitas
 
 #### Acceptance Criteria
 
-1. THE model `Journal` SHALL mendaftarkan izin `select`, `read`, `export`, `print`, `reverse` (dan `create` bila Requirement 12 diaktifkan); `FiscalYear`/`FiscalPeriod` mendaftarkan izin dasar plus `close_period`/`reopen_period`; seluruhnya dijalankan melalui `initPermissions()` dan seeder izin.
+1. THE model `Journal` SHALL mendaftarkan izin `select`, `read`, `export`, `print`, `reverse` (dan `create` bila Requirement 12 dikerjakan); `FiscalYear`/`FiscalPeriod` mendaftarkan izin dasar plus `close_period`/`reopen_period`; seluruhnya dijalankan melalui `initPermissions()` dan seeder izin.
 2. THE setiap perubahan status periode dan setiap reversal SHALL tercatat (siapa, kapan, alasan) pada kolom model dan pada mekanisme log aplikasi yang ada **[TODO: tentukan: `Log` model atau `Changelog` — verifikasi API di Task 1]**.
 3. THE `GeneralLedgerController`, `GlPostingStatusController::retry`, dan laporan yang membaca `general_ledgers` SHALL tetap berfungsi tanpa perubahan perilaku.
 4. THE seluruh migration SHALL aditif atau terdokumentasi reversible (`down()`), kecuali konversi tipe pada Requirement 13 yang `down()`-nya mengembalikan tipe dengan peringatan kehilangan presisi.
 5. THE test suite SHALL lulus: characterization Fase 0, test baru fase ini, dan test existing yang menyentuh Finance.
 
-## Pertanyaan yang Menunggu Konfirmasi
+## Pertanyaan dan Keputusan
 
 | ID | Pertanyaan | Dampak |
 |---|---|---|
 | D-4 | Satu perusahaan — DECIDED 2026-10-18 (PRD) | `company_id` tidak ditambahkan di `journals` |
-| D-3 | `decimal(20,4)` dan pembulatan HALF_UP di batas posting disetujui? | Requirement 2.5, 7, 13 |
-| D-14 | Jurnal manual masuk fase ini? | Requirement 12 |
-| Q-P1-1 | Boleh membuat jendela pemeliharaan untuk `ALTER TABLE general_ledgers` di MySQL produksi? | Requirement 13 |
-| Q-P1-2 | Penegakan periode diaktifkan kapan (setelah berapa periode terisi)? | Requirement 6.4 |
+| D-3 | `decimal(20,4)` dan pembulatan HALF_UP di batas posting — **DECIDED 2026-11-04, disetujui pemilik produk** (alasan: tidak dinyatakan pemilik produk; usulan PRD/implementer: menghilangkan galat floating point di ledger sebelum laporan Fase 5) | Requirement 2.5, 7, 13 |
+| D-8 | Granularitas backfill — **DECIDED 2026-11-04 (diubah), disetujui pemilik produk**: per dokumen (`referenceable_type` + `referenceable_id`), dipecah per tanggal hanya bila dokumen punya posting di hari berbeda (alasan N-3); detail disetujui 2026-11-04: `transaction_date` jurnal legacy = nilai terkecil di kelompok, dokumen lintas tengah malam terpecah dan bila tiap bagian tak seimbang ditandai `legacy_unbalanced` | Requirement 9.2 |
+| D-14 | Jurnal manual masuk fase ini? — **DECIDED 2026-11-04, disetujui pemilik produk**: masuk sebagai task opsional (form Journal Voucher sederhana, wajib seimbang, via `JournalService`) | Requirement 12 (opsional), Task 11 |
+| Q-P1-1 | Jendela pemeliharaan untuk `ALTER TABLE general_ledgers`? — **DECIDED 2026-11-04, disetujui pemilik produk**: tidak diperlukan (GL produksi kosong); Task 9.1 tetap memeriksa nol baris tanpa `journal_id` sebelum kolom dikunci | Requirement 13 |
+| BR-7 | Urutan rilis Fase 1 — **DECIDED 2026-11-04, disetujui pemilik produk** (terpisah dari Q-P1-1): **Rilis 1** = tabel jurnal + `journal_id` nullable + perintah backfill (backfill dijalankan di staging dan produksi); **Rilis 2** = migration NOT NULL, di PR/tahapan terpisah, digabung ke `feat/finance-engine` lalu `dev-1` hanya setelah backfill terverifikasi di staging dan produksi; dua penggabungan berbeda ke `dev-1` (Q-BR-1) | Requirement 13.5, Task 9 |
+| Q-P1-2 | Penegakan periode diaktifkan kapan? — **DECIDED 2026-11-04, disetujui pemilik produk**: nonaktif dulu (`finance_enforce_fiscal_period` = off), diaktifkan manual; penutupan periode tetap di Fase 6. Detail desain (bukan keputusan pemilik produk): pengaktifan lewat toggle di halaman setting | Requirement 6.4, 11.5 |
 | D-21 | `transaction_date` posting invoice sekarang `now()` saat approve, bukan tanggal dokumen (F-19). Fase 1 **tidak mengubah** hal ini; keputusan menentukan makna periode fiskal | Requirement 6 (fase ini hanya mencatat; keputusan dibawa ke Fase 6) |
