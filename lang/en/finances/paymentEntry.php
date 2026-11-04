@@ -48,4 +48,12 @@ return [
         ],
         'notes' => 'Notes',
     ],
+    'errors' => [
+        'update_not_draft'                => 'A payment that has been submitted cannot be changed.',
+        'paid_amount_exceeds_outstanding' => 'The payment amount exceeds the outstanding balance.',
+        'cancel_exceeds_paid'             => 'This payment cannot be canceled because it exceeds the total recorded as paid on the document.',
+        'cancel_paymentable_missing'      => 'The paid document was not found; the payment cannot be canceled.',
+        'submit_not_draft'                => 'A payment that has already been submitted cannot be submitted again.',
+        'paymentable_changed'             => 'The paid document changed while the payment was being processed; reload the page and try again.',
+    ],
 ];

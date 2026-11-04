@@ -64,17 +64,17 @@ class CancelSoftDeletesLedgerTest extends TestCase {
         $this->assertPostingStatus($invoice, 'posted');
     }
 
-    public function test_f04_cancel_payment_entry_soft_deletes_ledger_but_does_not_restore_invoice_paid_amount(): void {
+    public function test_f04_cancel_payment_entry_soft_deletes_ledger_without_reversal(): void {
         $invoice = $this->makeUnpaidSalesInvoice(1_000_000);
-        $payment = $this->makePaymentEntry($invoice, 1_000_000, $this->cash, $this->receivable);
+        $payment = $this->makePaymentEntry($invoice, 1_000_000, $this->receivable, $this->cash);
         app(PaymentEntryService::class)->onApproved($payment->fresh());
 
         app(PaymentEntryService::class)->cancel($payment->fresh());
 
+        // Hanya bagian GL yang masih known-issue. Pembalikan paid_amount/status/jadwal sudah diperbaiki (N-10, hotfix)
+        // dan diuji di PaymentEntryCancelTest.
         $this->assertContains(FormStatus::CANCELED, $payment->fresh()->status);
         $this->assertSoftDeletedWithoutReversal($payment, 2);
-        $this->assertEqualsWithDelta(1_000_000, $invoice->fresh()->paid_amount, 0.01, 'paid_amount faktur tidak dikembalikan saat pembayaran dibatalkan.');
-        $this->assertContains(FormStatus::PAID, $invoice->fresh()->status);
     }
 
     public function test_f04_cancel_stock_entry_soft_deletes_gl_and_sle_but_keeps_cached_account_balances(): void {

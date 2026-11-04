@@ -1,0 +1,6 @@
+{
+  "specId": "46fcdf92-a46d-494e-abb1-286d4477bab6",
+  "workflowType": "requirements-first",
+  "specType": "bugfix",
+  "description": "Hotfix Payment Entry sebelum Fase 1 Finance Engine: arah debit/kredit GL terbalik (N-4), GL pembayaran parsial memposting total kumulatif (F-10), dan pembatalan Payment Entry tidak mengembalikan paid_amount serta status faktur (F-04, bagian paid_amount). Termasuk perbaikan fixture dan test karakterisasi yang mengunci perilaku lama."
+}

@@ -2,7 +2,7 @@
 
 | | |
 |---|---|
-| **Status** | **Disetujui pemilik produk 2026-11-03**: laporan (versi PR #272/#273), tambahan staging dan N-4…N-9 (PR #274), serta keputusan penanganan per bug. **Masih MENUNGGU:** skema aktual staging (Req 6.2) dan konfirmasi `APP_ENV`, query SQL tambahan (Bagian 5.1 butir 1b), serta implementasi DV-D (Task 2.6) sebelum Task 8 |
+| **Status** | **Disetujui pemilik produk 2026-11-03**: laporan (versi PR #272/#273), tambahan staging dan N-4…N-9 (PR #274), serta keputusan penanganan per bug. **Masih MENUNGGU:** skema aktual staging (Req 6.2) dan konfirmasi `APP_ENV`, query SQL tambahan (Bagian 5.1 butir 1b). DV-D (Task 2.6) selesai 2026-11-04 (PR #275). |
 | **Tanggal** | Draft dan persetujuan 2026-11-03; angka staging ditambahkan 2026-11-03 |
 | **Spec** | [`finance-p0-foundation-audit`](../../.kiro/specs/finance-p0-foundation-audit/requirements.md) — Requirement 6 (audit skema), Requirement 7.1, 7.3, 7.4 (laporan) |
 | **Dokumen terkait** | [`finance-engine-prd.md`](finance-engine-prd.md) (Lampiran A dan B), [`finance-decision-log.md`](finance-decision-log.md) |
@@ -31,7 +31,7 @@
 | 2 | ~~**Q1** versi PRD~~ **Dijawab 2026-11-03**: belum ada data sama sekali (GL produksi kosong). Tidak lagi menunggu | Pemilik produk | Sudah tertutup; tidak memblokir Fase 1 |
 | 3 | **Q-P0-1** dijawab 2026-11-03: pemilik produk sendiri menjalankan perintah di staging dan menyerahkan hasilnya. Produksi tidak untuk sekarang | Pemilik produk | Task 6.5 dapat dilaksanakan; checkbox tetap terbuka sampai hasil diterima |
 | 4 | ~~**Keputusan pemilik produk** atas tiap temuan di Bagian 3 (F-04, F-10, F-11, F-16, N-1 sampai N-9)~~ **Disetujui 2026-11-03** (lihat Bagian 3 dan decision log, Keputusan Penanganan per Bug) | Pemilik produk | Fase atau hotfix tiap temuan sudah ditetapkan |
-| 4a | ~~**Keputusan DV-D (Req 2.2/N-9), dibutuhkan sebelum Task 8:** MENUNGGU~~ **DV-D disetujui opsi (a) 2026-11-03**; implementasi Task 2.6 belum selesai, dibutuhkan sebelum Task 8 | Pemilik produk | Perbaikan auditor cakupan dokumen (Bagian 3.13); lihat DV-D di `finance-decision-log.md` |
+| 4a | ~~**Keputusan DV-D (Req 2.2/N-9), dibutuhkan sebelum Task 8:** MENUNGGU~~ **DV-D disetujui opsi (a) 2026-11-03; implementasi Task 2.6 selesai 2026-11-04 (PR #275)** | Pemilik produk | Perbaikan auditor cakupan dokumen (Bagian 3.13); lihat DV-D di `finance-decision-log.md` |
 | 5 | ~~**Persetujuan laporan ini** (Requirement 7.5)~~ **Disetujui 2026-11-03** (versi PR #272/#273). Tambahan PR #274 (angka staging, N-4 sampai N-9) disetujui 2026-11-03 (AP-2); keputusan penanganan per bug disetujui 2026-11-03 | Pemilik produk | Gerbang Fase 1 (Req 7.5) untuk persetujuan laporan dan decision log terpenuhi; Fase 1 tetap mensyaratkan Fase 0 selesai |
 
 ---
@@ -399,25 +399,29 @@ Setiap dugaan dicek ke kode. Label: **terverifikasi** = dibuktikan oleh kode dan
 
 ## 3. Hasil known-issue test dan temuan baru (Requirement 7.3)
 
-Semua test berada di `tests/Feature/Finances/Characterization/` dan menegaskan perilaku **aktual** (grup `known-issue`). Tidak ada perbaikan di fase ini (Requirement 5.7). Untuk tiap temuan, kolom keputusan pemilik produk berisi **MENUNGGU**. Temuan N-4 sampai N-9 ditambahkan 2026-11-03 setelah data staging diterima (bukan bagian persetujuan laporan versi PR #272/#273).
+Test known-issue dan characterization berada di `tests/Feature/Finances/Characterization/` (grup `known-issue` untuk perilaku yang masih salah). Test Payment Entry yang perilakunya kini benar dipindah ke `tests/Feature/Finances/` oleh hotfix (2026-11-04). Fase 0 tidak memperbaiki bug produksi (Requirement 5.7): perbaikan dikerjakan terpisah di hotfix `finance-payment-entry-hotfix` (N-4, F-10, bagian `paid_amount` F-04, N-10, N-11, N-12) dan Task 2.6 (auditor, N-9). Kolom keputusan per temuan (Bagian 3) berisi keputusan pemilik produk tanggal 2026-11-03, dan untuk N-10 sampai N-12 tanggal 2026-11-04. Temuan N-4 sampai N-9 ditambahkan 2026-11-03 setelah data staging diterima (bukan bagian persetujuan laporan versi PR #272/#273).
 
 Ringkasan:
 
 | ID | Temuan singkat | Status bukti | Usulan penanganan |
 |---|---|---|---|
-| F-04 | Cancel men-soft-delete GL/SLE, tanpa jurnal pembalik; saldo cache dan `paid_amount` tidak dikoreksi | Terkonfirmasi (test) | Fase 2 (reversal, D-13); `paid_amount` pembayaran dibatalkan: kandidat hotfix |
-| F-10 | GL pembayaran parsial ke-2 dst. memposting total kumulatif | Terkonfirmasi (test) | **Hotfix terpisah** (sebelum backfill Fase 1); koreksi data historis diputuskan terpisah |
+| F-04 | Cancel men-soft-delete GL/SLE, tanpa jurnal pembalik; saldo cache dan `paid_amount` tidak dikoreksi | Terkonfirmasi (test) | **Diperbaiki 2026-11-04** untuk bagian `paid_amount` (hotfix `finance-payment-entry-hotfix`); bagian GL: Fase 2 (reversal, D-13); `balance_amount`: Fase 2/5. |
+| F-10 | GL pembayaran parsial ke-2 dst. memposting total kumulatif | Terkonfirmasi (test) | **Diperbaiki 2026-11-04** (hotfix `finance-payment-entry-hotfix`). F-11 (FX, temuan terpisah) tetap terbuka (Fase 4). Koreksi data historis diputuskan terpisah. |
 | F-11 (FX) | GL pembayaran memposting jumlah mata uang dokumen, bukan dasar; tanpa selisih kurs | Terkonfirmasi (test) | Fase 4 (D-16, D-17); hotfix hanya bila data staging menunjukkan pembayaran FX nyata |
 | F-16 | Cancel sebelum job posting → GL aktif untuk dokumen `canceled` | Terkonfirmasi (test) | Fase 2 (FR-P3); hotfix guard bila audit menemukan kasus nyata |
 | N-1 | Tanda laba/rugi disposal aset tampak terbalik; jurnal disposal tidak menghapus nilai buku | Terbaca dari kode + test karakterisasi | Tinjau akuntan sebelum Fase 2 (Asset); koreksi dalam Fase 2 |
 | N-2 | Purchase Invoice tanpa PO gagal `TypeError` di `onApproved` | Dibaca dari kode; **belum diuji** sebagai kegagalan | Hotfix kecil atau Fase 2 setelah ukuran paparan diketahui |
 | N-3 | Baris satu dokumen dapat terpecah lintas detik (`now()` per baris) | Dibaca dari kode; tidak teramati di data staging (0 kelompok tak seimbang) | Tentukan granularitas D-8 sebelum Fase 1 |
-| N-4 | Arah jurnal Payment Entry tampak terbalik terhadap konvensi umum bila akun dipilih sesuai filter form | Terverifikasi dari kode; data staging konsisten secara aritmetika (dugaan pada tingkat dokumen) | **Hotfix terpisah** (satu paket dengan F-10), konfirmasi semantik dulu |
+| N-4 | Arah jurnal Payment Entry tampak terbalik terhadap konvensi umum bila akun dipilih sesuai filter form | Terverifikasi dari kode; data staging konsisten secara aritmetika (dugaan pada tingkat dokumen) | **Diperbaiki 2026-11-04** (hotfix `finance-payment-entry-hotfix`, satu paket dengan F-10); semantik `account_paid_from`/`account_paid_to` diputuskan 2026-11-04. |
 | N-5 | Akun SRNB (2214) bersaldo debit: default akun Purchase Invoice dan jurnal stok/SRNB bergantung pada ALUR | Terverifikasi dari kode dan form; sebab bisnis dugaan | Fase 2 (aturan posting pembelian), dengan akuntan |
 | N-6 | HPP (4210) berklasifikasi income di seeder dan diwajibkan listener Delivery Note | Terverifikasi dari seeder dan listener | Fase 2 (peran akun) dengan keputusan akuntan |
 | N-7 | Akun selisih Stock Entry default ke 5110 (expense) untuk semua jenis | Terverifikasi dari form; data staging dugaan | Fase 2 (D-26); koreksi data staging oleh pemilik |
 | N-8 | Listener Sales/Purchase Invoice memposting baris GL bernilai 0 untuk invoice bernilai 0; Fase 1 akan menolaknya (FR-L2) | Terverifikasi dari kode; 2 baris di staging (soft-deleted) | Fase 1 (adapter harus menanganinya) |
 | N-9 | Kolom `approved` dan `posting_*` matriks cakupan tidak bermakna pada data nyata | Terverifikasi (kode dan data) | Diputuskan 2026-11-03 (DV-D a): perbaikan alat audit, Task 2.6, Fase 0 |
+| N-10 | Jadwal pembayaran (`PaymentSchedule.paid_amount`) ditimpa, bukan ditambah (3.14) | Terverifikasi dari kode; dibuktikan dengan test yang gagal sebelum perbaikan | **Diperbaiki 2026-11-04** (hotfix `finance-payment-entry-hotfix`) |
+| N-11 | Server tidak menjaga status Payment Entry (update, submit ulang, approve di sela commit) (3.15) | Terverifikasi dari kode | **Diperbaiki 2026-11-04** (hotfix; Q10 opsi a dan c, Q11) |
+| N-12 (Q12) | Default `paid_amount` tombol bayar invoice (3.16) | Terverifikasi dari kode | **Diperbaiki 2026-11-04** (hotfix) |
+| TL-a…TL-d | Temuan lanjutan hotfix (3.17) | Terbuka, belum diputuskan | Lihat 3.17 |
 
 ### 3.1 F-04: pembatalan men-soft-delete GL dan SLE
 
@@ -440,20 +444,20 @@ Ringkasan:
 
 **Usulan penanganan.**
 - *Bagian GL (soft-delete → reversal):* **Fase 2**, per D-13 (PENDING). Alasan: mengubah perilaku yang terlihat pengguna dan membutuhkan jurnal pembalik dari Fase 1.
-- *Bagian `paid_amount` saat Payment Entry dibatalkan:* **kandidat hotfix terpisah**. Alasan: bug AR/AP yang nyata dan lokal pada satu alur, tidak bergantung pada jurnal baru. Perlu keputusan apakah dikerjakan sebelum Fase 2.
+- *Bagian `paid_amount` saat Payment Entry dibatalkan:* **diperbaiki 2026-11-04** (hotfix `finance-payment-entry-hotfix`, satu paket dengan F-10 dan N-4). Alasan: bug AR/AP yang nyata dan lokal pada satu alur, tidak bergantung pada jurnal baru.
 - *Bagian `balance_amount`:* **Fase 2**/**Fase 5** (saldo cache dipensiunkan sebagai sumber, FR-R2).
 
-Bentuk usulan diizinkan (DV-C, 2026-11-03); keputusan penanganan tetap menunggu.
+Bentuk usulan diizinkan (DV-C, 2026-11-03); keputusan penanganan disetujui 2026-11-03 (lihat di bawah).
 
 Bukti data untuk bagian `balance_amount`: baseline staging menunjukkan 7 dari 8 akun bertransaksi bercache menyimpang dari GL (Bagian 2.6, P1).
 
-**Keputusan pemilik produk (2026-11-03): disetujui, dipecah menurut bagian.** GL (soft-delete → reversal): Fase 2 (D-13). `paid_amount` saat Payment Entry dibatalkan: hotfix, digabung ke paket hotfix pembayaran (F-10, N-4). `balance_amount`: Fase 2/Fase 5.
+**Keputusan pemilik produk (2026-11-03): disetujui, dipecah menurut bagian.** GL (soft-delete → reversal): Fase 2 (D-13). `paid_amount` saat Payment Entry dibatalkan: hotfix, digabung ke paket hotfix pembayaran (F-10, N-4). `balance_amount`: Fase 2/Fase 5. **Bagian `paid_amount` diperbaiki 2026-11-04** (hotfix `finance-payment-entry-hotfix`). Tetap terbuka: bagian GL (Fase 2) dan `balance_amount` (Fase 2/5).
 
 ### 3.2 F-10: pembayaran parsial memposting total kumulatif
 
-**Bukti test.** `KnownIssues/PartialPaymentPostsCumulativeAmountTest::test_f10_second_partial_payment_posts_cumulative_amount_instead_of_its_own`: pembayaran 400.000 lalu 300.000 atas satu faktur 1.000.000. GL pembayaran pertama memposting 400.000 (benar); GL pembayaran kedua memposting **700.000**, bukan 300.000. Total debit kas 1.100.000 untuk pembayaran total 700.000. `paid_amount` faktur benar (700.000); hanya GL yang berlebih.
+**Bukti (2026-11-01, sebelum hotfix):** `KnownIssues/PartialPaymentPostsCumulativeAmountTest::test_f10_second_partial_payment_posts_cumulative_amount_instead_of_its_own` memposting 700.000; kini dikonversi menjadi test regresi `tests/Feature/Finances/PaymentEntryPartialPaymentTest.php::test_each_partial_payment_posts_its_own_amount`, yang menegaskan 300.000. Kasus: pembayaran 400.000 lalu 300.000 atas satu faktur 1.000.000. GL pembayaran pertama memposting 400.000 (benar); GL pembayaran kedua (sebelum hotfix) memposting **700.000**, bukan 300.000. Total debit kas 1.100.000 untuk pembayaran total 700.000. `paid_amount` faktur benar (700.000); hanya GL yang berlebih (keadaan sebelum hotfix).
 
-**Mekanisme.** `PaymentEntryService::onApproved` men-dispatch `PaymentApplied` (baris 109) yang membuat listener `UpdatePaymentableStatus` mengisi `paymentable->paid_amount = newPaidAmount` (kumulatif); kemudian GL diposting dari `$paymentable->paid_amount` (baris 122–139), bukan dari `$paymentEntry->paid_amount`.
+**Mekanisme.** `PaymentEntryService::onApproved` men-dispatch `PaymentApplied` (baris 109; kode sebelum hotfix, induk commit `abb2dbd0`) yang membuat listener `UpdatePaymentableStatus` mengisi `paymentable->paid_amount = newPaidAmount` (kumulatif); kemudian GL diposting dari `$paymentable->paid_amount` (baris 122–139; kode sebelum hotfix, induk commit `abb2dbd0`), bukan dari `$paymentEntry->paid_amount`.
 
 **Dampak.**
 - Setiap pembayaran ke-2 dan seterusnya atas dokumen yang sama memposting nominal berlebih ke akun kas dan piutang/utang, dengan besar kelebihan sama dengan total pembayaran sebelumnya.
@@ -481,7 +485,7 @@ WHERE ABS(g.gl_debit - pe.paid_amount) > 0.005;
 
 **Usulan penanganan: hotfix terpisah, dikerjakan sebelum backfill Fase 1.** Alasan: (1) perbaikan kecil dan terlokalisasi (memposting jumlah pembayaran ini, bukan jumlah kumulatif); (2) bila tidak diperbaiki, backfill D-8 akan membawa nilai salah ke jurnal baru sebagai jurnal "seimbang"; (3) Fase 4 akan mengganti model alokasi pembayaran sehingga menunggu Fase 4 berarti membiarkan GL baru terus salah. **Koreksi data historis** (jurnal penyesuaian atas selisih yang sudah terposting) adalah keputusan akuntansi terpisah dan memerlukan jurnal manual (D-14).
 
-**Keputusan pemilik produk (2026-11-03): disetujui.** Hotfix satu paket dengan N-4 dan bagian `paid_amount` F-04 (spec `finance-payment-entry-hotfix`, sebelum Fase 1). Data GL staging yang salah tidak dikoreksi otomatis oleh hotfix.
+**Keputusan pemilik produk (2026-11-03): disetujui.** Hotfix satu paket dengan N-4 dan bagian `paid_amount` F-04 (spec `finance-payment-entry-hotfix`, sebelum Fase 1). Data GL staging yang salah tidak dikoreksi otomatis oleh hotfix. **Diperbaiki 2026-11-04** (hotfix `finance-payment-entry-hotfix`). F-11 (FX, temuan terpisah) tetap terbuka (Fase 4).
 
 ### 3.3 F-11 (bagian FX): GL pembayaran mengabaikan kurs
 
@@ -514,7 +518,7 @@ WHERE deleted_at IS NULL
 |---|---|---|
 | `jumlah_payment_asing`, total | **MENUNGGU** (query SQL belum dijalankan; berkas `finance:*` tidak memuat mata uang) | tidak diperlukan (Q1) |
 
-**Usulan penanganan: Fase 4**, bukan hotfix. *Bentuk usulan diizinkan (DV-C, 2026-11-03); keputusan penanganan tetap menunggu.* Alasan: perbaikan yang benar menyangkut kebijakan tipe kurs (D-16) dan pengakuan selisih kurs terealisasi (D-17), keduanya PENDING dan memerlukan akuntan; tambalan sepihak (mis. memposting `base_paid_amount`) berisiko tidak konsisten dengan jurnal invoice. **Pengecualian:** bila query di atas menemukan pembayaran valuta asing nyata di staging, atau produksi mulai menerima pembayaran valuta asing sebelum Fase 4, ajukan keputusan hotfix sementara atau peringatan operasional.
+**Usulan penanganan: Fase 4**, bukan hotfix. *Bentuk usulan diizinkan (DV-C, 2026-11-03); keputusan penanganan disetujui 2026-11-03 (Fase 4).* Alasan: perbaikan yang benar menyangkut kebijakan tipe kurs (D-16) dan pengakuan selisih kurs terealisasi (D-17), keduanya PENDING dan memerlukan akuntan; tambalan sepihak (mis. memposting `base_paid_amount`) berisiko tidak konsisten dengan jurnal invoice. **Pengecualian:** bila query di atas menemukan pembayaran valuta asing nyata di staging, atau produksi mulai menerima pembayaran valuta asing sebelum Fase 4, ajukan keputusan hotfix sementara atau peringatan operasional.
 
 **Keputusan pemilik produk (2026-11-03): disetujui.** Fase 4 (D-16, D-17), bukan hotfix.
 
@@ -597,7 +601,7 @@ Bukan bagian permintaan awal; dicatat karena memengaruhi akurasi estimasi backfi
 **Status verifikasi: terverifikasi dari kode; data staging konsisten secara aritmetika, tetapi pada tingkat dokumen itu dugaan, perlu verifikasi (berkas hanya agregat).**
 
 **Bukti (kode).**
-- `PaymentEntryService::onApproved` mendebit `accountPaidFrom` dan mengkredit `accountPaidTo` untuk semua jenis pembayaran (`PaymentEntryService.php:117-139`). Test karakterisasi mengunci ini: "Debit = `account_paid_from`, kredit = `account_paid_to`, tanpa memandang payment_type" (`PaymentEntryPostingTest::test_full_payment_debits_paid_from_and_credits_paid_to_with_payment_date`).
+- `PaymentEntryService::onApproved` mendebit `accountPaidFrom` dan mengkredit `accountPaidTo` untuk semua jenis pembayaran (`PaymentEntryService.php:117-139`; kode sebelum hotfix, induk commit `abb2dbd0`). Test karakterisasi mengunci ini: "Debit = `account_paid_from`, kredit = `account_paid_to`, tanpa memandang payment_type" (`PaymentEntryPostingTest::test_full_payment_debits_paid_from_and_credits_paid_to_with_payment_date`).
 - Form membatasi pilihan akun menurut jenis: untuk **`receive`**, `account_paid_from` harus akun `receivable` dan `account_paid_to` akun asset (kas/bank); untuk **`pay`**, `account_paid_from` akun asset (kas/bank) dan `account_paid_to` akun `payable` (`resources/js/Pages/Finances/PaymentEntries/Form.jsx:439-470`).
 - Maka pembayaran yang dipilih sesuai filter form menghasilkan: terima dari pelanggan = **debit Piutang, kredit Bank**; bayar ke pemasok = **debit Bank, kredit Utang**. Keduanya berlawanan dengan konvensi umum (terima: debit Bank, kredit Piutang; bayar: debit Utang, kredit Bank). Fixture test memakai kas sebagai `paid_from` untuk pembayaran `receive` (`tests/Support/BuildsFinanceFixtures.php:231-247`), yang tidak sesuai filter form, sehingga test tidak memperlihatkan inversi ini.
 - **Default sistem juga berarah sama.** Untuk Sales Invoice non-retur, default server mengisi `account_paid_from` = `$salesInvoice->debitAccount` (piutang) dan `account_paid_to` = bank (`app/Http/Controllers/Finances/PaymentEntryController.php:80-81`). Form klien memberi default yang sama: untuk pihak pemasok `account_paid_to` diisi `credit_account` (utang), selain itu `account_paid_from` diisi `debit_account` (`resources/js/Pages/Finances/PaymentEntries/Form.jsx:391-411`). Jadi pengguna yang menerima default menghasilkan debit Piutang/kredit Bank tanpa memilih akun sendiri.
@@ -608,9 +612,9 @@ Bukan bagian permintaan awal; dicatat karena memengaruhi akurasi estimasi backfi
 
 **Dampak.** Pelunasan piutang justru menambah saldo debit Piutang dan mengurangi Bank, sedangkan pembayaran utang menambah saldo kredit Utang dan menambah Bank. Saldo Kas/Bank, Piutang, dan Utang di GL melenceng dari subledger dokumen (`paid_amount` faktur benar). Jurnal tetap seimbang sehingga **tidak terdeteksi** oleh `finance:audit-gl`. Bila arah ini tertanam ke parity test Fase 2, kesalahan terkunci di engine.
 
-**Usulan penanganan: hotfix terpisah, satu paket dengan F-10** (kedua bug berada di `PaymentEntryService::onApproved` baris 117-139; memperbaikinya sekali lebih aman daripada dua kali). Alasan: dampaknya langsung ke saldo Kas/Bank, Piutang, dan Utang; perbaikan terlokalisasi. Syarat sebelum dikerjakan: (1) pemilik produk dan akuntan mengonfirmasi semantik `account_paid_from`/`account_paid_to` pada form; (2) test karakterisasi dan fixture yang mengunci arah lama dibalik bersamaan; (3) koreksi data historis (staging bernilai kecil; produksi kosong) diputuskan terpisah. Bila pemilik produk memilih menunggu, minimal sebelum backfill Fase 1 dan sebelum parity Fase 2 untuk Payment.
+**Usulan penanganan: hotfix terpisah, satu paket dengan F-10** (kedua bug berada di `PaymentEntryService::onApproved` baris 117-139 (kode sebelum hotfix, induk commit `abb2dbd0`); memperbaikinya sekali lebih aman daripada dua kali). Alasan: dampaknya langsung ke saldo Kas/Bank, Piutang, dan Utang; perbaikan terlokalisasi. Syarat sebelum dikerjakan: (1) pemilik produk dan akuntan mengonfirmasi semantik `account_paid_from`/`account_paid_to` pada form; (2) test karakterisasi dan fixture yang mengunci arah lama dibalik bersamaan; (3) koreksi data historis (staging bernilai kecil; produksi kosong) diputuskan terpisah. Bila pemilik produk memilih menunggu, minimal sebelum backfill Fase 1 dan sebelum parity Fase 2 untuk Payment. Status 2026-11-04: Syarat (1): semantik diputuskan pemilik produk 2026-11-04 (Q1 hotfix); syarat konfirmasi akuntan dikesampingkan oleh pemilik produk 2026-11-04.
 
-**Keputusan pemilik produk (2026-11-03): disetujui.** Hotfix satu paket dengan F-10 (spec `finance-payment-entry-hotfix`, sebelum Fase 1). Data GL staging yang salah tidak dikoreksi otomatis oleh hotfix.
+**Keputusan pemilik produk (2026-11-03): disetujui.** Hotfix satu paket dengan F-10 (spec `finance-payment-entry-hotfix`, sebelum Fase 1). Data GL staging yang salah tidak dikoreksi otomatis oleh hotfix. **Diperbaiki 2026-11-04** (hotfix `finance-payment-entry-hotfix`); semantik `account_paid_from`/`account_paid_to` diputuskan 2026-11-04 (debit `account_paid_to`, kredit `account_paid_from`).
 
 ### 3.9 N-5 (baru, dari baseline staging): akun SRNB 2214 bersaldo debit
 
@@ -694,9 +698,55 @@ SELECT referenceable_type, status, COUNT(*) AS jumlah FROM gl_posting_statuses G
 |---|---|---|
 | Distribusi `gl_posting_statuses` per jenis dan status | MENUNGGU (query belum dijalankan) | tidak diperlukan (Q1) |
 
-**Keputusan pemilik produk (2026-11-03): disetujui.** Perbaikan alat audit, Task 2.6 (DV-D opsi a), dikerjakan sebelum Task 8.
+**Keputusan pemilik produk (2026-11-03): disetujui.** Perbaikan alat audit, Task 2.6 (DV-D opsi a), dikerjakan sebelum Task 8; selesai 2026-11-04 (PR #275).
 
 ---
+
+### 3.14 N-10 (baru, dari hotfix 2026-11-04): jadwal pembayaran ditimpa, bukan ditambah
+
+**Status verifikasi: terverifikasi dari kode; dibuktikan dengan test yang gagal sebelum perbaikan** (spec `finance-payment-entry-hotfix` Requirement 3).
+
+**Bukti.** `outstanding_amount` adalah kolom generated `payment_amount - paid_amount` (`database/migrations/2025_09_06_094005_create_payment_schedules_table.php:22`). Kode lama (`PaymentEntryService.php:93-106`) membaca sisa jadwal lalu menetapkan `paid_amount` jadwal ke jumlah pembayaran terakhir, tanpa menambahkan ke nilai sebelumnya. Contoh: 400.000 lalu 300.000 menghasilkan 300.000, seharusnya 700.000; jadwal yang sudah lunas di-reset ke 0 pada pembayaran berikutnya. Rujukan baris kode di bukti ini adalah kode sebelum hotfix (induk commit `abb2dbd0`).
+
+**Dampak.** Sisa tagihan per termin tidak akurat, dan pembatalan pembayaran tidak dapat mengembalikan jadwal dengan benar.
+
+**Usulan penanganan.** Hotfix, ikut paket pembayaran. Alokasi dihitung dari total dengan urutan `due_date` lalu `id`.
+
+**Keputusan pemilik produk (2026-11-04): diperbaiki di hotfix** (Q3). Diperbaiki 2026-11-04 (`finance-payment-entry-hotfix`, Requirement 3).
+
+### 3.15 N-11 (baru, dari hotfix 2026-11-04): server tidak menjaga status Payment Entry
+
+**Status verifikasi: terverifikasi dari kode** (spec hotfix Requirement 5, butir F16 dan F17).
+
+**Bukti.** Route `PUT /paymentEntries/{paymentEntry}/{level?}` (`routes/web.php:110-111`) diteruskan ke `PaymentEntryController::update` lalu `PaymentEntryService::update` tanpa pemeriksaan status `draft`. Di jalur approver, `DB::commit()` dijalankan sebelum `onApproved` (`ApprovalInstanceController.php:174-182`), dan `onApproved` tidak memeriksa ulang status Payment Entry di bawah kunci (`PaymentEntryService.php:75-144`). Submit ulang atas Payment Entry non-draft menerapkan efek samping lagi: nomor baru lewat `FormatingSeries::generate` dan `DocumentSubmitted` dikirim ulang. Rujukan baris kode di bukti ini adalah kode sebelum hotfix (induk commit `abb2dbd0`).
+
+**Dampak.** Pembayaran dapat tercatat dua kali, dan pembatalan tidak selalu membalik nilai yang sama dengan yang diterapkan.
+
+**Usulan penanganan.** Guard di server: `update` menolak Payment Entry non-draft (opsi a); `onApproved` memeriksa ulang status di bawah kunci (opsi c); guard `submit` ikut (Q11). Opsi (b) tidak dipakai.
+
+**Keputusan pemilik produk (2026-11-04): diperbaiki di hotfix** (Q10 opsi a dan c, Q11).
+
+### 3.16 N-12 (Q12, baru 2026-11-04): default `paid_amount` tombol bayar invoice
+
+ID N-12 ditetapkan di bagian ini pada 2026-11-04 (Q12 pada spec hotfix).
+
+**Status verifikasi: terverifikasi dari kode** (spec hotfix Requirement 10, butir F22).
+
+**Bukti.** `PaymentSchedule::getDetailPayment` menjumlahkan `payment_amount` jadwal yang `outstanding_amount`-nya masih positif (`PaymentSchedule.php:107-127`), bukan sisanya. `PaymentEntryController::create` memakainya sebagai `paid_amount` default untuk Sales Invoice dan Purchase Invoice. Rujukan baris kode di bukti ini adalah kode sebelum hotfix (induk commit `abb2dbd0`).
+
+**Dampak.** Setelah pembayaran parsial 400.000 atas faktur 1.000.000, default tetap 1.000.000 dan ditolak validasi batas atas (Requirement 7).
+
+**Keputusan pemilik produk (2026-11-04): diperbaiki di hotfix**, default menjadi `min(total sisa jadwal, sisa faktur)` (Q12).
+
+### 3.17 Temuan lanjutan dari pengerjaan hotfix ((a) s.d. (d) belum diputuskan; (e) sudah diputuskan, PB-9)
+
+Temuan (a) s.d. (d) ditemukan saat mengerjakan hotfix dan belum diputuskan. Status verifikasi mengikuti spec hotfix; butir (d) berstatus belum diuji. Butir (e) sudah diputuskan (PB-9) dan belum dikerjakan.
+
+- **(a)** Default `paid_amount` = 0 bila jadwal pertama lunas dan cicilan berikutnya belum jatuh tempo; kandidat perbaikan UX.
+- **(b)** `DB::commit()` eksplisit di `Submitable::checkApproval` (DV-4 di design hotfix). Perubahan generik yang memengaruhi semua dokumen submitable; tidak diubah oleh hotfix.
+- **(c)** Dua berkas test menyebut `print_templates` tanpa `RefreshDatabase`/`DatabaseTransactions`/`DatabaseMigrations` di berkasnya sendiri: `tests/Feature/Core/PrintTemplate/PrintPdfControllerTest.php` dan `tests/Feature/Core/PrintTemplateRequestTest.php` (kriteria diverifikasi dengan grep; PR #276 hanya mengubah `tests/TestCase.php`, sehingga butir ini tetap terbuka).
+- **(d)** Jalur retur dan `internal_transfer` di Payment Entry (Q4 hotfix): dugaan `ModelNotFoundException` pada retur (belum diuji); `internal_transfer` lolos validasi tanpa pengecekan `partyable` dan `paymentable`. Hotfix tidak boleh menambah kegagalan pada jalur ini.
+- **(e)** TL-e: N-2 tetap terbuka (sudah diputuskan PB-9; belum dikerjakan; lihat 3.6).
 
 ## 4. Estimasi beban backfill Fase 1 (Requirement 7.4)
 
@@ -795,7 +845,7 @@ GROUP BY referenceable_type;
 | 2 | Q1 versi PRD dijawab 2026-11-03: belum ada data sama sekali (GL produksi kosong) | DIJAWAB |
 | 3 | Q-P0-1 dijawab 2026-11-03 (pemilik produk menjalankan di staging) | DIJAWAB |
 | 4 | Keputusan atas F-04, F-10, F-11, F-16, N-1 sampai N-9 | **DISETUJUI 2026-11-03** (lihat Bagian 3) |
-| 4a | Keputusan DV-D (Req 2.2/N-9): opsi (a) disetujui 2026-11-03; implementasi Task 2.6 belum selesai, dibutuhkan sebelum Task 8 | DECIDED, belum selesai |
+| 4a | Keputusan DV-D (Req 2.2/N-9): opsi (a) disetujui 2026-11-03; implementasi Task 2.6 selesai 2026-11-04 (PR #275) | SELESAI 2026-11-04 |
 | 5 | **Persetujuan laporan ini oleh pemilik produk** | **DISETUJUI 2026-11-03** (versi PR #272/#273) |
 
 Persetujuan pemilik produk: **disetujui, 2026-11-03**, untuk versi laporan hasil PR #272 dan #273 dan, melalui PR #274, untuk tambahan angka staging (Bagian 2 sampai 4) dan temuan N-4 sampai N-9. Keputusan penanganan per bug juga disetujui 2026-11-03 (lihat Bagian 3 dan decision log). Tanggal persetujuan: 2026-11-03.
@@ -810,4 +860,4 @@ Butir 1 sampai 3 sudah **dikoreksi di PRD** (`finance-engine-prd.md`, Lampiran A
 4. **Req 7.1** menyebut laporan merangkum hasil audit staging dan produksi, sedangkan Req 6.2 hanya menyebut staging; Q1 di PRD dan di spec dirumuskan berbeda (lihat catatan di [`finance-decision-log.md`](finance-decision-log.md)); keduanya dijawab 2026-11-03 (versi PRD: belum ada data sama sekali (GL produksi kosong); versi spec: untuk sekarang staging saja).
 5. Rumus baseline saldo pada `design.md` bagian 4 (Task 3.1) **terkonfirmasi sebagian (2026-11-03):** sesuai untuk akun ber-`balance_type` debit yang ditulis `StockEntryService` (5110, 1241); akun ber-`balance_type` kredit tidak punya cache di staging, sehingga belum teruji data (Bagian 2.5; pada 5110 `difference` 0). Akun lain bercache 0 karena hanya `StockEntryService` yang menulis `balance_amount` (F-09).
 6. **Requirement 2.2 dan bagian `DocumentCoverageMatrix` pada `design.md`** mengandaikan dokumen "berstatus `approved`", padahal `onApproved` setiap service menimpa status dengan status lanjutan; pada data nyata `approved` selalu 0 (N-9, Bagian 3.13). Disetujui (DV-D 2026-11-03, DV-E 2026-11-04); Req 2.1/2.2 dan `design.md` sudah disesuaikan; auditor diperbaiki di Task 2.6.
-7. **Test karakterisasi Payment Entry** (`PaymentEntryPostingTest`) dan fixture `makePaymentEntry` memakai kas sebagai `account_paid_from` untuk pembayaran `receive`, berbeda dengan filter form (`receive`: `paid_from` = piutang). Test mengunci arah debit = `paid_from` tanpa memperlihatkan inversi terhadap konvensi umum (N-4, Bagian 3.8). Catatan tindak lanjut fixture dan test ada pada entri **DV-D** di `finance-decision-log.md` (PENDING; lihat DV-D di `finance-decision-log.md`).
+7. **Test karakterisasi Payment Entry** (`PaymentEntryPostingTest`, kini `tests/Feature/Finances/PaymentEntryPostingTest.php` setelah hotfix 2026-11-04) dan fixture `makePaymentEntry` (sebelum hotfix) memakai kas sebagai `account_paid_from` untuk pembayaran `receive`, berbeda dengan filter form (`receive`: `paid_from` = piutang). Sebelum hotfix, test mengunci arah debit = `paid_from` tanpa memperlihatkan inversi terhadap konvensi umum (N-4, Bagian 3.8). Catatan tindak lanjut fixture dan test ada pada entri **DV-D** di `finance-decision-log.md`. Diselesaikan hotfix 2026-11-04 (Req 8.1, 8.2): fixture dan test kini mengikuti filter form.

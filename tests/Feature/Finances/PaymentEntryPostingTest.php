@@ -1,6 +1,6 @@
 <?php
 
-namespace Tests\Feature\Finances\Characterization;
+namespace Tests\Feature\Finances;
 
 use App\Enums\FormStatus;
 use App\Models\Core\GlPostingStatus;
@@ -14,10 +14,11 @@ use Tests\Support\BuildsFinanceFixtures;
 use Tests\TestCase;
 
 /**
- * Characterization Fase 0 (titik posting #5, Lampiran B PRD): Payment Entry.
+ * Posting Payment Entry (titik posting #5, Lampiran B PRD), setelah hotfix N-4/F-10.
  *
  * Posting sinkron di dalam `onApproved` (tanpa queue, tanpa `GlPostingStatus`), berbeda dari invoice (F-05).
- * Satu pembayaran penuh; pembayaran parsial dan valuta asing ada di `KnownIssues` (F-10, F-11).
+ * Arah: debit `account_paid_to`, kredit `account_paid_from` (receive: Dr kas, Cr piutang). Pembayaran parsial ada di
+ * `PaymentEntryPartialPaymentTest`; valuta asing (F-11) masih known-issue di `Characterization/KnownIssues`.
  */
 class PaymentEntryPostingTest extends TestCase {
     use BuildsFinanceFixtures, RefreshDatabase;
@@ -33,13 +34,13 @@ class PaymentEntryPostingTest extends TestCase {
         $this->receivable = $this->makeAccount('1200', 'Piutang Usaha', 'asset', 'debit', 'accounts_receivable');
     }
 
-    public function test_full_payment_debits_paid_from_and_credits_paid_to_with_payment_date(): void {
+    public function test_full_payment_debits_paid_to_and_credits_paid_from_with_payment_date(): void {
         $invoice = $this->makeUnpaidSalesInvoice(1_000_000);
-        $payment = $this->makePaymentEntry($invoice, 1_000_000, $this->cash, $this->receivable);
+        $payment = $this->makePaymentEntry($invoice, 1_000_000, $this->receivable, $this->cash);
 
         app(PaymentEntryService::class)->onApproved($payment->fresh());
 
-        // Debit = `account_paid_from`, kredit = `account_paid_to`, tanpa memandang payment_type.
+        // Debit = `account_paid_to` (kas), kredit = `account_paid_from` (piutang), tanpa memandang payment_type.
         $this->assertLedger($payment, [
             ['account' => $this->cash, 'against' => $this->receivable, 'debit' => 1_000_000, 'credit' => 0],
             ['account' => $this->receivable, 'against' => $this->cash, 'debit' => 0, 'credit' => 1_000_000],
@@ -48,7 +49,7 @@ class PaymentEntryPostingTest extends TestCase {
 
     public function test_payment_updates_invoice_schedule_and_own_status_synchronously(): void {
         $invoice = $this->makeUnpaidSalesInvoice(1_000_000);
-        $payment = $this->makePaymentEntry($invoice, 1_000_000, $this->cash, $this->receivable);
+        $payment = $this->makePaymentEntry($invoice, 1_000_000, $this->receivable, $this->cash);
 
         app(PaymentEntryService::class)->onApproved($payment->fresh());
 
@@ -63,7 +64,7 @@ class PaymentEntryPostingTest extends TestCase {
     public function test_payment_posting_is_not_tracked_by_gl_posting_status(): void {
         // Payment Entry dan Stock Entry posting sinkron: "tidak dilacak", bukan anomali (audit Req. 2.3).
         $invoice = $this->makeUnpaidSalesInvoice(500);
-        $payment = $this->makePaymentEntry($invoice, 500, $this->cash, $this->receivable);
+        $payment = $this->makePaymentEntry($invoice, 500, $this->receivable, $this->cash);
 
         app(PaymentEntryService::class)->onApproved($payment->fresh());
 
@@ -74,7 +75,7 @@ class PaymentEntryPostingTest extends TestCase {
     public function test_payment_does_not_fill_partyable_on_ledger_rows(): void {
         // F-18 berlaku juga di pembayaran: GL tidak membawa pihak (pelanggan/pemasok).
         $invoice = $this->makeUnpaidSalesInvoice(500);
-        $payment = $this->makePaymentEntry($invoice, 500, $this->cash, $this->receivable);
+        $payment = $this->makePaymentEntry($invoice, 500, $this->receivable, $this->cash);
 
         app(PaymentEntryService::class)->onApproved($payment->fresh());
 

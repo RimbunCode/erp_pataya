@@ -48,4 +48,12 @@ return [
         ],
         'notes' => 'Catatan',
     ],
+    'errors' => [
+        'update_not_draft'                => 'Pembayaran yang sudah diajukan tidak dapat diubah.',
+        'paid_amount_exceeds_outstanding' => 'Jumlah pembayaran melebihi sisa tagihan.',
+        'cancel_exceeds_paid'             => 'Pembayaran tidak dapat dibatalkan karena melebihi total yang tercatat terbayar pada dokumen.',
+        'cancel_paymentable_missing'      => 'Dokumen yang dibayar tidak ditemukan; pembayaran tidak dapat dibatalkan.',
+        'submit_not_draft'                => 'Pembayaran yang sudah diajukan tidak dapat diajukan lagi.',
+        'paymentable_changed'             => 'Dokumen yang dibayar telah berubah saat pembayaran diproses; muat ulang halaman dan coba lagi.',
+    ],
 ];
