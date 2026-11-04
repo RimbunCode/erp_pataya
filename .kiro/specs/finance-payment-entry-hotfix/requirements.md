@@ -41,7 +41,7 @@ Spec ini berjenis bugfix ringkas. `design.md` menyertai requirements ini; `tasks
 - **Jadwal pembayaran** (`PaymentSchedule`): baris `payment_schedules` milik paymentable; `outstanding_amount` adalah kolom turunan tersimpan `payment_amount - paid_amount`.
 - **Total terbayar**: `paid_amount` paymentable, jumlah kumulatif seluruh Payment Entry yang sudah diterapkan atas dokumen itu.
 - **Known-issue test**: characterization test untuk perilaku yang salah, ditandai grup `known-issue` dan merujuk ID temuan; dibalik menjadi test regresi saat bug diperbaiki.
-- **PB-5**: prasyarat dari laporan audit: pemilik produk dan akuntan mengonfirmasi semantik `account_paid_from`/`account_paid_to` sebelum arah jurnal diubah. **Dikonfirmasi 2026-11-04 (pemilik produk).**
+- **PB-5**: prasyarat dari laporan audit: pemilik produk dan akuntan mengonfirmasi semantik `account_paid_from`/`account_paid_to` sebelum arah jurnal diubah. **Dikonfirmasi 2026-11-04 (pemilik produk).** Syarat konfirmasi akuntan dikesampingkan oleh pemilik produk 2026-11-04.
 
 ## Requirements
 
