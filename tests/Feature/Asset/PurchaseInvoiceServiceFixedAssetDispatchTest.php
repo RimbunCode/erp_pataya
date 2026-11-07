@@ -7,6 +7,7 @@ use App\Events\Asset\FixedAssetItemApproved;
 use App\Models\Core\FormatingSeries;
 use App\Models\Finances\Account;
 use App\Models\Finances\GeneralLedger;
+use App\Models\Finances\Journal;
 use App\Models\Finances\PurchaseInvoice;
 use App\Models\Finances\PurchaseInvoiceItem;
 use App\Models\Inventory\Item;
@@ -59,6 +60,7 @@ class PurchaseInvoiceServiceFixedAssetDispatchTest extends TestCase {
             PurchaseOrder::class,
             PurchaseInvoice::class,
             GeneralLedger::class,
+            Journal::class,
         ] as $model) {
             $model::initPermissions();
         }

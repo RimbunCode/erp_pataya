@@ -8,6 +8,7 @@ use App\Services\Core\Setting\SettingsService;
 use App\Traits\DataTable;
 use Carbon\Carbon;
 use Illuminate\Database\Eloquent\Concerns\HasUlids;
+use Illuminate\Database\UniqueConstraintViolationException;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Session;
 use Illuminate\Support\Str;
@@ -107,6 +108,76 @@ class FormatingSeries extends Model {
         })->toArray();
 
         return $codeRelations;
+    }
+
+    /**
+     * Hanya membuat seri bila belum ada; TIDAK PERNAH menulis pada seri yang sudah ada. Untuk jalur posting
+     * (`JournalService`, keputusan A pemilik produk 2026-11-04): menulis ulang `logs` dari bacaan tanpa kunci akan
+     * menimpa counter `generate()` yang baru dinaikkan proses lain (kode ganda). Aman dipanggil di dalam transaksi
+     * luar, maka pembuatan seri ikut transaksi itu.
+     *
+     * @param  string  $alias  alias model (dijadikan tunggal untuk `name`)
+     */
+    public static function ensureExists(string $model, string $alias, string $format): void {
+        if (static::where('model', $model)->withoutGlobalScope('exclude_example_data')->exists()) {
+            return;
+        }
+
+        // `model` unik. `createOrFirst` memberi savepoint, tetapi fallback `first()`-nya adalah consistent read: di
+        // dalam transaksi luar (REPEATABLE READ, snapshot sudah ditetapkan oleh `exists()` di atas) ia tidak melihat
+        // baris yang baru di-commit proses lain. Maka pelanggaran unik ditangkap: artinya baris sudah ada, dan
+        // `generate()` membacanya dengan `lockForUpdate` (current read) sehingga baris itu terlihat.
+        try {
+            static::query()->createOrFirst(['model' => $model], [
+                'name'   => Str::singular($alias),
+                'format' => $format,
+                'logs'   => [
+                    static::generateKeyLogsForInit($model, $format) => [],
+                ],
+            ]);
+        } catch (UniqueConstraintViolationException) {
+            return;
+        }
+    }
+
+    /**
+     * Jalur seeding (`DataTable::initPermissions()`): membuat seri bila belum ada; pada seri yang sudah ada
+     * melengkapi kunci `logs`, dan pada lingkungan lokal menyamakan nama dan format dengan definisi model (perilaku
+     * lama, tidak diubah). JANGAN dipakai di jalur posting: lihat `ensureExists()`.
+     *
+     * @param  string  $alias  alias model (dijadikan tunggal untuk `name`)
+     */
+    public static function ensureFor(string $model, string $alias, string $format): void {
+        $formatingSeries = static::where('model', $model)
+            ->withoutGlobalScope('exclude_example_data')
+            ->first();
+        if (! $formatingSeries) {
+            static::create([
+                'model'  => $model,
+                'name'   => Str::singular($alias),
+                'format' => $format,
+                'logs'   => [
+                    static::generateKeyLogsForInit($model, $format) => [],
+                ],
+            ]);
+
+            return;
+        }
+
+        $logs = (array) $formatingSeries->logs;
+        $key  = static::generateKeyLogsForInit($model, $format);
+        if (! \array_key_exists($key, $logs)) {
+            $logs[$key] = [];
+        }
+        if (app()->isLocal()) {
+            $formatingSeries->update([
+                'name'   => Str::singular($alias),
+                'format' => $format,
+                'logs'   => $logs,
+            ]);
+        } else {
+            $formatingSeries->update(['logs' => $logs]);
+        }
     }
 
     public static function generateKeyLogsForInit(string $model, string $format) {

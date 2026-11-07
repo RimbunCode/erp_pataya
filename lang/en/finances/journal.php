@@ -49,7 +49,6 @@ return [
         'account_deleted'      => 'Account has been deleted: :account.',
         'account_is_group'     => 'Group accounts cannot be posted to: :account.',
         'account_disabled'     => 'Account is disabled: :account.',
-        'series_missing'       => 'The journal numbering series is not registered. Run the permission seeder (initPermissions) for the Journal model.',
         'period_closed'        => 'Fiscal period :period is closed; a journal dated :date cannot be posted.',
         'period_not_defined'   => 'No fiscal period covers :date; the journal cannot be posted.',
         'duplicate_posting'    => 'A journal with posting key :key already exists.',

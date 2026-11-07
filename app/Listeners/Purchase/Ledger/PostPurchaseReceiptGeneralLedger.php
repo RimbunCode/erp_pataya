@@ -4,12 +4,15 @@ namespace App\Listeners\Purchase\Ledger;
 
 use App\Enums\FormStatus;
 use App\Events\Purchase\PurchaseReceiptGeneralLedgerPostingRequested;
+use App\Exceptions\Finances\DuplicatePostingException;
 use App\Models\Core\GlPostingStatus;
 use App\Models\Finances\Account;
+use App\Services\Finances\Ledger\JournalService;
 use Illuminate\Contracts\Queue\ShouldQueue;
 use Illuminate\Foundation\Bus\Dispatchable;
 use Illuminate\Queue\InteractsWithQueue;
 use Illuminate\Queue\SerializesModels;
+use Illuminate\Support\Carbon;
 use Illuminate\Support\Facades\DB;
 use Throwable;
 
@@ -33,23 +36,18 @@ class PostPurchaseReceiptGeneralLedger implements ShouldQueue {
                 ->where('account_type', 'stock_received_but_not_billed')
                 ->latest()->first();
 
-            $creditAccount->generalLedgerEntries()->create([
-                'against_account_id' => $debitAccount->id,
-                'credit'             => $event->isReturn ? 0 : $event->totalRatesForGL,
-                'debit'              => $event->isReturn ? $event->totalRatesForGL : 0,
-                'transaction_date'   => $event->transactionDate,
-                'referenceable_type' => $purchaseReceipt::class,
-                'referenceable_id'   => $purchaseReceipt->id,
-            ]);
-
-            $debitAccount->generalLedgerEntries()->create([
-                'against_account_id' => $creditAccount->id,
-                'credit'             => $event->isReturn ? $event->totalRatesForGL : 0,
-                'debit'              => $event->isReturn ? 0 : $event->totalRatesForGL,
-                'transaction_date'   => $event->transactionDate,
-                'referenceable_type' => $purchaseReceipt::class,
-                'referenceable_id'   => $purchaseReceipt->id,
-            ]);
+            try {
+                app(JournalService::class)->postPair(
+                    $debitAccount->id,
+                    $creditAccount->id,
+                    $event->totalRatesForGL,
+                    $purchaseReceipt,
+                    Carbon::instance($event->transactionDate),
+                    reverseSides: $event->isReturn,
+                );
+            } catch (DuplicatePostingException) {
+                // Sudah terposting (Requirement 3.3).
+            }
 
             GlPostingStatus::where('referenceable_type', $purchaseReceipt::class)
                 ->where('referenceable_id', $purchaseReceipt->id)

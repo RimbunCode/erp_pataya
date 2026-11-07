@@ -9,6 +9,7 @@ use App\Models\Asset\Asset;
 use App\Models\Asset\AssetCategoryAccount;
 use App\Models\Core\GlPostingStatus;
 use App\Models\Finances\GeneralLedger;
+use App\Models\Finances\Journal;
 use App\Models\Finances\SalesInvoiceItem;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Illuminate\Support\Facades\DB;
@@ -33,6 +34,7 @@ class PostAssetDisposalGainLossTest extends TestCase {
         }
 
         GeneralLedger::initPermissions();
+        Journal::initPermissions();
     }
 
     private function makeAccountId(string $rootType, string $accountType): string {

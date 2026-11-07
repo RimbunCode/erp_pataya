@@ -355,15 +355,94 @@ class JournalServiceTest extends TestCase {
         $this->assertSame('10.0100', $journal->total_debit);
     }
 
-    public function test_missing_series_fails_with_a_clear_exception_and_leaves_no_rows(): void {
+    public function test_missing_series_is_created_automatically_and_posting_succeeds(): void {
         FormatingSeries::query()->where('model', Journal::class)->delete();
 
-        $this->expectException(InvalidJournalException::class);
-        try {
-            $this->service->post($this->draft($this->twoLines(10)));
-        } finally {
-            $this->assertNothingPosted();
+        $first = $this->service->post($this->draft($this->twoLines(10)));
+
+        $series = FormatingSeries::query()->where('model', Journal::class)->get();
+        $this->assertCount(1, $series);
+        $this->assertSame('JV-@[iiii]/@[yy]', $series->first()->format);
+        $this->assertStringStartsWith('JV-0001/', $first->code);
+
+        // Idempoten: panggilan kedua tidak membuat seri ganda dan nomor berlanjut.
+        $second = $this->service->post($this->draft($this->twoLines(20)));
+        $this->assertSame(1, FormatingSeries::query()->where('model', Journal::class)->count());
+        $this->assertStringStartsWith('JV-0002/', $second->code);
+    }
+
+    public function test_posting_with_an_existing_series_never_writes_to_it_in_any_environment(): void {
+        $series = FormatingSeries::query()->where('model', Journal::class)->firstOrFail();
+        $series->forceFill(['name' => 'Nama Kustom', 'format' => 'KUSTOM-@[iiii]/@[yy]'])->save();
+
+        foreach (['production', 'local'] as $environment) {
+            $this->app['env'] = $environment;
+            DB::flushQueryLog();
+            DB::enableQueryLog();
+
+            Journal::ensureNumberingSeries();
+
+            $writes = collect(DB::getQueryLog())->filter(fn (array $q) => preg_match('/^\s*(update|insert|delete)/i', $q['query']) && str_contains($q['query'], 'formating_series'));
+            $this->assertCount(0, $writes, "Tanpa UPDATE/INSERT pada seri yang ada ({$environment}).");
+            DB::disableQueryLog();
         }
+
+        $this->service->post($this->draft($this->twoLines(10)));
+
+        $after = FormatingSeries::query()->where('model', Journal::class)->firstOrFail();
+        $this->assertSame('Nama Kustom', $after->name);
+        $this->assertSame('KUSTOM-@[iiii]/@[yy]', $after->format);
+        $this->assertSame(1, FormatingSeries::query()->where('model', Journal::class)->count());
+    }
+
+    public function test_seeding_path_ensure_for_completes_logs_keeps_custom_format_when_not_local_and_resets_it_when_local(): void {
+        $series = FormatingSeries::query()->where('model', Journal::class)->firstOrFail();
+        $series->forceFill(['name' => 'Nama Kustom', 'format' => 'KUSTOM-@[iiii]/@[yy]', 'logs' => []])->save();
+
+        $this->app['env'] = 'production';
+        FormatingSeries::ensureFor(Journal::class, 'Journal', 'JV-@[iiii]/@[yy]');
+        $fresh = FormatingSeries::query()->where('model', Journal::class)->firstOrFail();
+        $this->assertSame('KUSTOM-@[iiii]/@[yy]', $fresh->format, 'Non-lokal: format kustom dipertahankan.');
+        $this->assertSame('Nama Kustom', $fresh->name);
+        $this->assertArrayHasKey(FormatingSeries::generateKeyLogsForInit(Journal::class, 'JV-@[iiii]/@[yy]'), (array) $fresh->logs, 'Kunci logs ditambahkan.');
+
+        $this->app['env'] = 'local';
+        FormatingSeries::ensureFor(Journal::class, 'Journal', 'JV-@[iiii]/@[yy]');
+        $fresh = FormatingSeries::query()->where('model', Journal::class)->firstOrFail();
+        $this->assertSame('JV-@[iiii]/@[yy]', $fresh->format, 'Lokal: disamakan dengan definisi model (perilaku lama).');
+        $this->assertSame('Journal', $fresh->name);
+    }
+
+    public function test_ensure_exists_creates_the_series_once_and_tolerates_a_concurrent_creator(): void {
+        FormatingSeries::query()->where('model', Journal::class)->delete();
+
+        Journal::ensureNumberingSeries();
+        Journal::ensureNumberingSeries();
+
+        $this->assertSame(1, FormatingSeries::query()->where('model', Journal::class)->count());
+        // Seam: proses lain menyisipkan baris seri tepat setelah query exists() milik ensureExists().
+        FormatingSeries::query()->where('model', Journal::class)->delete();
+        $fired = false;
+        DB::listen(function ($query) use (&$fired) {
+            if (! $fired && str_contains($query->sql, 'formating_series') && str_starts_with(strtolower(ltrim($query->sql)), 'select exists')) {
+                $fired = true;
+                DB::table('formating_series')->insert([
+                    'id'         => (string) Str::ulid(),
+                    'model'      => Journal::class,
+                    'name'       => 'Lain',
+                    'format'     => 'X-@[iiii]',
+                    'logs'       => '{}',
+                    'created_at' => now(),
+                    'updated_at' => now(),
+                ]);
+            }
+        });
+
+        Journal::ensureNumberingSeries();
+
+        $this->assertTrue($fired);
+        $this->assertSame(1, FormatingSeries::query()->where('model', Journal::class)->count());
+        $this->assertSame('X-@[iiii]', FormatingSeries::query()->where('model', Journal::class)->value('format'), 'Baris proses lain tidak ditimpa.');
     }
 
     public function test_post_pair_builds_a_two_line_journal_with_against_accounts_and_posting_key(): void {

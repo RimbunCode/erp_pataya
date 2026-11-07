@@ -11,6 +11,7 @@ use App\Models\Asset\AssetDepreciationSchedule;
 use App\Models\Core\FormatingSeries;
 use App\Models\Core\GlPostingStatus;
 use App\Models\Finances\GeneralLedger;
+use App\Models\Finances\Journal;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Log;
@@ -35,6 +36,7 @@ class PostDepreciationEntryTest extends TestCase {
         }
 
         GeneralLedger::initPermissions();
+        Journal::initPermissions();
 
         FormatingSeries::firstOrCreate(
             ['model' => GeneralLedger::class],

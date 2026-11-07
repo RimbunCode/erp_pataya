@@ -4,12 +4,15 @@ namespace App\Listeners\Finances\Ledger;
 
 use App\Enums\FormStatus;
 use App\Events\Finances\PurchaseInvoiceGeneralLedgerPostingRequested;
+use App\Exceptions\Finances\DuplicatePostingException;
 use App\Models\Core\GlPostingStatus;
 use App\Models\Finances\Account;
+use App\Services\Finances\Ledger\JournalService;
 use Illuminate\Contracts\Queue\ShouldQueue;
 use Illuminate\Foundation\Bus\Dispatchable;
 use Illuminate\Queue\InteractsWithQueue;
 use Illuminate\Queue\SerializesModels;
+use Illuminate\Support\Carbon;
 use Illuminate\Support\Facades\DB;
 use Throwable;
 
@@ -22,6 +25,7 @@ class PostPurchaseInvoiceGeneralLedger implements ShouldQueue {
     public function handle(PurchaseInvoiceGeneralLedgerPostingRequested $event): void {
         DB::transaction(function () use ($event) {
             $purchaseInvoice = $event->purchaseInvoice;
+            $transactionDate = Carbon::instance($event->transactionDate);
 
             // === GL Stock/SRNB (kondisional: hanya jika $totalStockGL > 0) ===
             if ($event->totalStockGL > 0 && ! $event->isReturn) {
@@ -35,46 +39,38 @@ class PostPurchaseInvoiceGeneralLedger implements ShouldQueue {
                     ->where('account_type', 'stock_received_but_not_billed')
                     ->latest()->first();
 
-                $stockAccount->generalLedgerEntries()->create([
-                    'against_account_id' => $srnbAccount->id,
-                    'debit'              => $event->totalStockGL,
-                    'credit'             => 0,
-                    'transaction_date'   => $event->transactionDate,
-                    'referenceable_type' => $purchaseInvoice::class,
-                    'referenceable_id'   => $purchaseInvoice->id,
-                ]);
-
-                $srnbAccount->generalLedgerEntries()->create([
-                    'against_account_id' => $stockAccount->id,
-                    'debit'              => 0,
-                    'credit'             => $event->totalStockGL,
-                    'transaction_date'   => $event->transactionDate,
-                    'referenceable_type' => $purchaseInvoice::class,
-                    'referenceable_id'   => $purchaseInvoice->id,
-                ]);
+                // Dua jurnal terpisah per invoice dengan `purpose` berbeda (Requirement 8.1): `stock` dan `expense`.
+                try {
+                    app(JournalService::class)->postPair(
+                        $stockAccount->id,
+                        $srnbAccount->id,
+                        $event->totalStockGL,
+                        $purchaseInvoice,
+                        $transactionDate,
+                        purpose: 'stock',
+                    );
+                } catch (DuplicatePostingException) {
+                    // Sudah terposting (Requirement 3.3).
+                }
             }
 
             // === GL Expense/Credit (selalu dibuat) — akun spesifik invoice ini, BUKAN query generik ===
             $debitAccount  = Account::where('id', $event->expenseHeadAccountId)->lockForUpdate()->firstOrFail();
             $creditAccount = Account::where('id', $event->creditAccountId)->lockForUpdate()->firstOrFail();
 
-            $debitAccount->generalLedgerEntries()->create([
-                'against_account_id' => $creditAccount->id,
-                'debit'              => $event->isReturn ? 0 : $event->totalAmount,
-                'credit'             => $event->isReturn ? $event->totalAmount : 0,
-                'transaction_date'   => $event->transactionDate,
-                'referenceable_type' => $purchaseInvoice::class,
-                'referenceable_id'   => $purchaseInvoice->id,
-            ]);
-
-            $creditAccount->generalLedgerEntries()->create([
-                'against_account_id' => $debitAccount->id,
-                'debit'              => $event->isReturn ? $event->totalAmount : 0,
-                'credit'             => $event->isReturn ? 0 : $event->totalAmount,
-                'transaction_date'   => $event->transactionDate,
-                'referenceable_type' => $purchaseInvoice::class,
-                'referenceable_id'   => $purchaseInvoice->id,
-            ]);
+            try {
+                app(JournalService::class)->postPair(
+                    $debitAccount->id,
+                    $creditAccount->id,
+                    $event->totalAmount,
+                    $purchaseInvoice,
+                    $transactionDate,
+                    purpose: 'expense',
+                    reverseSides: $event->isReturn,
+                );
+            } catch (DuplicatePostingException) {
+                // Sudah terposting (Requirement 3.3).
+            }
 
             GlPostingStatus::where('referenceable_type', $purchaseInvoice::class)
                 ->where('referenceable_id', $purchaseInvoice->id)

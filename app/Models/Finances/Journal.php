@@ -5,6 +5,7 @@ namespace App\Models\Finances;
 use App\Exceptions\Finances\ImmutableLedgerException;
 use App\Models\Core\Branch;
 use App\Models\Core\Currency;
+use App\Models\Core\FormatingSeries;
 use App\Models\Model;
 use App\Models\User\User;
 use App\Traits\DataTable;
@@ -48,9 +49,18 @@ class Journal extends Model {
     ];
 
     protected static string $defaultFormatCode = 'JV-@[iiii]/@[yy]';
-    protected static $generateCodeSeries       = true;
-    public string $translateKey                = 'finances.journal';
-    protected $casts                           = [
+
+    /**
+     * Memastikan seri penomoran jurnal ada: hanya membuat bila belum ada dan tidak pernah menulis pada seri yang sudah
+     * ada (aman untuk jalur posting; keputusan A pemilik produk 2026-11-04).
+     */
+    public static function ensureNumberingSeries(): void {
+        FormatingSeries::ensureExists(static::class, 'Journal', static::$defaultFormatCode);
+    }
+
+    protected static $generateCodeSeries = true;
+    public string $translateKey          = 'finances.journal';
+    protected $casts                     = [
         'transaction_date'  => 'datetime',
         'posted_at'         => 'datetime',
         'total_debit'       => 'decimal:4',

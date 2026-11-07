@@ -4,12 +4,15 @@ namespace App\Listeners\Asset\Depreciation;
 
 use App\Enums\FormStatus;
 use App\Events\Asset\AssetScrapped;
+use App\Exceptions\Finances\DuplicatePostingException;
 use App\Models\Asset\Asset;
 use App\Models\Core\GlPostingStatus;
+use App\Services\Finances\Ledger\JournalService;
 use Illuminate\Contracts\Queue\ShouldQueue;
 use Illuminate\Foundation\Bus\Dispatchable;
 use Illuminate\Queue\InteractsWithQueue;
 use Illuminate\Queue\SerializesModels;
+use Illuminate\Support\Carbon;
 use Illuminate\Support\Facades\DB;
 use LogicException;
 use Throwable;
@@ -36,25 +39,23 @@ class PostScrapWriteOff implements ShouldQueue {
             $accumAccount = $accounts->accumulatedDepreciationAccount()->lockForUpdate()->first();
             $fixedAccount = $accounts->fixedAssetAccount()->lockForUpdate()->first();
 
-            $accumAccount->generalLedgerEntries()->create([
-                'against_account_id' => $fixedAccount->id,
-                'debit'              => $event->writeOffAmount,
-                'credit'             => 0,
-                'transaction_date'   => $event->transactionDate,
-                'referenceable_type' => Asset::class,
-                'referenceable_id'   => $asset->id,
-            ]);
+            try {
+                $journal = app(JournalService::class)->postPair(
+                    $accumAccount->id,
+                    $fixedAccount->id,
+                    $event->writeOffAmount,
+                    $asset,
+                    Carbon::instance($event->transactionDate),
+                    purpose: 'write_off',
+                );
 
-            $journalEntry = $fixedAccount->generalLedgerEntries()->create([
-                'against_account_id' => $accumAccount->id,
-                'debit'              => 0,
-                'credit'             => $event->writeOffAmount,
-                'transaction_date'   => $event->transactionDate,
-                'referenceable_type' => Asset::class,
-                'referenceable_id'   => $asset->id,
-            ]);
-
-            $asset->update(['journal_entry_for_scrap_id' => $journalEntry->id]);
+                // `assets.journal_entry_for_scrap_id` menunjuk baris kredit (akun aset tetap), seperti sebelumnya.
+                // Jumlah nol tidak membuat jurnal (Requirement 2.10), sehingga tidak ada baris untuk ditunjuk.
+                $creditLine = $journal?->lines->first(fn ($line) => $line->account_id === $fixedAccount->id && (float) $line->credit > 0);
+                $asset->update(['journal_entry_for_scrap_id' => $creditLine?->id]);
+            } catch (DuplicatePostingException) {
+                // Sudah terposting (Requirement 3.3); `journal_entry_for_scrap_id` sudah terisi oleh posting pertama.
+            }
 
             GlPostingStatus::where('referenceable_type', Asset::class)
                 ->where('referenceable_id', $asset->id)

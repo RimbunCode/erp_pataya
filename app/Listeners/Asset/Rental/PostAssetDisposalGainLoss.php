@@ -4,8 +4,9 @@ namespace App\Listeners\Asset\Rental;
 
 use App\Enums\FormStatus;
 use App\Events\Asset\AssetSoldViaInvoice;
-use App\Models\Asset\Asset;
+use App\Exceptions\Finances\DuplicatePostingException;
 use App\Models\Core\GlPostingStatus;
+use App\Services\Finances\Ledger\JournalService;
 use Illuminate\Contracts\Queue\ShouldQueue;
 use Illuminate\Foundation\Bus\Dispatchable;
 use Illuminate\Queue\InteractsWithQueue;
@@ -55,41 +56,21 @@ class PostAssetDisposalGainLoss implements ShouldQueue {
                     throw new LogicException("gain_loss_disposal_account_id belum diisi untuk AssetCategoryAccount Asset {$asset->id}.");
                 }
 
-                if ($gainLoss >= 0) {
-                    $fixedAccount->generalLedgerEntries()->create([
-                        'against_account_id' => $gainLossAccount->id,
-                        'debit'              => 0,
-                        'credit'             => $gainLoss,
-                        'transaction_date'   => now(),
-                        'referenceable_type' => Asset::class,
-                        'referenceable_id'   => $asset->id,
-                    ]);
-                    $gainLossAccount->generalLedgerEntries()->create([
-                        'against_account_id' => $fixedAccount->id,
-                        'debit'              => $gainLoss,
-                        'credit'             => 0,
-                        'transaction_date'   => now(),
-                        'referenceable_type' => Asset::class,
-                        'referenceable_id'   => $asset->id,
-                    ]);
-                } else {
-                    $loss = abs($gainLoss);
-                    $gainLossAccount->generalLedgerEntries()->create([
-                        'against_account_id' => $fixedAccount->id,
-                        'debit'              => 0,
-                        'credit'             => $loss,
-                        'transaction_date'   => now(),
-                        'referenceable_type' => Asset::class,
-                        'referenceable_id'   => $asset->id,
-                    ]);
-                    $fixedAccount->generalLedgerEntries()->create([
-                        'against_account_id' => $gainLossAccount->id,
-                        'debit'              => $loss,
-                        'credit'             => 0,
-                        'transaction_date'   => now(),
-                        'referenceable_type' => Asset::class,
-                        'referenceable_id'   => $asset->id,
-                    ]);
+                // Untung: debit akun selisih, kredit aset tetap. Rugi: debit aset tetap, kredit akun selisih.
+                // Keputusan pemilik produk 2026-11-04 (Q-P1-6): kunci idempotensi per baris invoice
+                // (`purpose` = `disposal:{sales_invoice_item_id}`), sehingga baris penjualan lain atas aset yang sama
+                // punya posting sendiri dan baris yang sama tidak dapat diposting dua kali.
+                try {
+                    app(JournalService::class)->postPair(
+                        $gainLoss >= 0 ? $gainLossAccount->id : $fixedAccount->id,
+                        $gainLoss >= 0 ? $fixedAccount->id : $gainLossAccount->id,
+                        abs($gainLoss),
+                        $asset,
+                        now(),
+                        purpose: "disposal:{$line->id}",
+                    );
+                } catch (DuplicatePostingException) {
+                    // Baris invoice ini sudah diposting (Requirement 3.3).
                 }
             }
 
