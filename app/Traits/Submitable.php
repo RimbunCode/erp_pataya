@@ -6,6 +6,7 @@ use App\Casts\FormStatusesCast;
 use App\Casts\Json;
 use App\Contracts\SubmitableService;
 use App\Enums\FormStatus;
+use App\Enums\JournalStatus;
 use App\Events\Core\AuditableModelSaved;
 use App\Events\Core\DocumentCanceled;
 use App\Events\Core\DocumentStatusChanged;
@@ -14,6 +15,7 @@ use App\Models\Core\Branch;
 use App\Models\Core\FormatingSeries;
 use App\Models\Core\ModelConnection;
 use App\Models\Finances\GeneralLedger;
+use App\Models\Finances\Journal;
 use App\Models\Inventory\StockLedgerEntry;
 use App\Models\Model;
 use App\Models\User\User;
@@ -100,6 +102,15 @@ trait Submitable {
                 GeneralLedger::where('referenceable_type', get_class($model))->where('referenceable_id', $model->id)->update([
                     'deleted_at' => now(),
                 ]);
+                // Finance Fase 1 (Requirement 8.6): jurnal sumber yang barisnya baru di-soft-delete di atas ditandai
+                // `voided` (status saja), supaya tidak ada jurnal aktif dengan seluruh baris terhapus. Berlaku untuk
+                // jurnal `posted` maupun `reversed` (jurnal asal dan jurnal pembaliknya berbagi sumber yang sama).
+                // Pengecualian legacy ini dihapus pada Fase 2 (digantikan reversal).
+                Journal::query()->withoutGlobalScopes()
+                    ->where('source_type', get_class($model))
+                    ->where('source_id', $model->id)
+                    ->whereIn('status', [JournalStatus::Posted->value, JournalStatus::Reversed->value])
+                    ->update(['status' => JournalStatus::Voided->value]);
                 StockLedgerEntry::where('referenceable_type', get_class($model))->where('referenceable_id', $model->id)->update([
                     'deleted_at' => now(),
                 ]);

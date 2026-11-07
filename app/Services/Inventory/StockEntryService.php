@@ -7,12 +7,12 @@ use App\Enums\FormStatus;
 use App\Events\Core\DocumentSubmitted;
 use App\Models\Core\FormatingSeries;
 use App\Models\Finances\Account;
-use App\Models\Finances\GeneralLedger;
 use App\Models\Inventory\ItemUnit;
 use App\Models\Inventory\Stock;
 use App\Models\Inventory\StockEntry;
 use App\Models\Inventory\StockLedgerEntry;
 use App\Models\Model;
+use App\Services\Finances\Ledger\JournalService;
 use App\Traits\HasDefaultDelete;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Validation\ValidationException;
@@ -310,8 +310,16 @@ class StockEntryService implements SubmitableService {
         return $stockEntry;
     }
 
+    /**
+     * Seluruh approval (status, stok, saldo akun, dan posting jurnal) berjalan dalam satu `DB::transaction`: exception
+     * dari `JournalService` (mis. akun grup/nonaktif, Requirement 2.4) menggulung semuanya dan tidak meninggalkan
+     * transaksi menggantung. `DB::transaction` bersarang aman dengan transaksi pemanggil (savepoint).
+     */
     public function onApproved(Model $stockEntry): mixed {
-        DB::beginTransaction();
+        return DB::transaction(fn () => $this->completeApproval($stockEntry));
+    }
+
+    private function completeApproval(Model $stockEntry): mixed {
         $stockEntry->update([
             'status' => FormStatus::COMPLETED,
         ]);
@@ -577,24 +585,7 @@ class StockEntryService implements SubmitableService {
                 'balance_amount'    => $creditAccount->balance_amount - $totalBasicAmount,
             ]);
 
-            GeneralLedger::create([
-                'account_id'         => $debitAccount->id,
-                'against_account_id' => $creditAccount->id,
-                'debit'              => $totalBasicAmount,
-                'credit'             => 0,
-                'referenceable_type' => StockEntry::class,
-                'referenceable_id'   => $stockEntry->id,
-                'transaction_date'   => now(),
-            ]);
-            GeneralLedger::create([
-                'account_id'         => $creditAccount->id,
-                'against_account_id' => $debitAccount->id,
-                'debit'              => 0,
-                'credit'             => $totalBasicAmount,
-                'referenceable_type' => StockEntry::class,
-                'referenceable_id'   => $stockEntry->id,
-                'transaction_date'   => now(),
-            ]);
+            $this->postStockEntryPair($stockEntry, $debitAccount->id, $creditAccount->id, $totalBasicAmount, 'default');
         } elseif (\in_array($stockEntry->type, ['item_issue'])) {
             $debitAccount->update([
                 'have_transactions' => true,
@@ -606,24 +597,8 @@ class StockEntryService implements SubmitableService {
                 'balance_amount'    => $creditAccount->balance_amount + $totalBasicAmount,
             ]);
 
-            GeneralLedger::create([
-                'account_id'         => $debitAccount->id,
-                'against_account_id' => $creditAccount->id,
-                'debit'              => 0,
-                'credit'             => $totalBasicAmount,
-                'referenceable_type' => StockEntry::class,
-                'referenceable_id'   => $stockEntry->id,
-                'transaction_date'   => now(),
-            ]);
-            GeneralLedger::create([
-                'account_id'         => $creditAccount->id,
-                'against_account_id' => $debitAccount->id,
-                'debit'              => $totalBasicAmount,
-                'credit'             => 0,
-                'referenceable_type' => StockEntry::class,
-                'referenceable_id'   => $stockEntry->id,
-                'transaction_date'   => now(),
-            ]);
+            // Item issue: sisi menyala terbalik dari penamaan variabel (akun "debit" menerima kredit).
+            $this->postStockEntryPair($stockEntry, $creditAccount->id, $debitAccount->id, $totalBasicAmount, 'default');
         }
 
         // record general ledger for additional cost
@@ -639,30 +614,21 @@ class StockEntryService implements SubmitableService {
                     'balance_amount'    => $expenseAccount->balance_amount - $additionalCost->amount,
                 ]);
 
-                GeneralLedger::create([
-                    'account_id'         => $debitAccount->id,
-                    'against_account_id' => $expenseAccount->id,
-                    'debit'              => $additionalCost->amount,
-                    'credit'             => 0,
-                    'referenceable_type' => StockEntry::class,
-                    'referenceable_id'   => $stockEntry->id,
-                    'transaction_date'   => now(),
-                ]);
-                GeneralLedger::create([
-                    'account_id'         => $expenseAccount->id,
-                    'against_account_id' => $debitAccount->id,
-                    'debit'              => 0,
-                    'credit'             => $additionalCost->amount,
-                    'referenceable_type' => StockEntry::class,
-                    'referenceable_id'   => $stockEntry->id,
-                    'transaction_date'   => now(),
-                ]);
+                $this->postStockEntryPair($stockEntry, $debitAccount->id, $expenseAccount->id, $additionalCost->amount, "additional_cost:{$additionalCost->id}");
             }
         }
 
-        DB::commit();
-
         return $stockEntry;
+    }
+
+    /**
+     * Satu pasangan GL Stock Entry lewat `JournalService` (Requirement 8.1). Tiap pasangan punya `purpose` berbeda
+     * (`default` untuk pasangan utama, `additional_cost:{id}` per biaya tambahan) karena satu Stock Entry menghasilkan
+     * beberapa jurnal. `now()` diambil sekali per pasangan (N-3). `DuplicatePostingException` tidak ditangkap:
+     * approve hanya terjadi sekali, jadi kunci ganda adalah inkonsistensi yang menggulung transaksi.
+     */
+    private function postStockEntryPair(StockEntry $stockEntry, string $debitAccountId, string $creditAccountId, float|int|string $amount, string $purpose): void {
+        app(JournalService::class)->postPair($debitAccountId, $creditAccountId, $amount, $stockEntry, now(), $purpose);
     }
 
     public function onRejected(Model $stockEntry): mixed {

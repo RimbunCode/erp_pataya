@@ -49,7 +49,6 @@ return [
         'account_deleted'      => 'Akun sudah dihapus: :account.',
         'account_is_group'     => 'Akun grup tidak dapat diposting: :account.',
         'account_disabled'     => 'Akun dinonaktifkan: :account.',
-        'series_missing'       => 'Seri penomoran jurnal belum terdaftar. Jalankan seeder izin (initPermissions) untuk model Jurnal.',
         'period_closed'        => 'Periode fiskal :period sudah ditutup; jurnal bertanggal :date tidak dapat diposting.',
         'period_not_defined'   => 'Tidak ada periode fiskal untuk tanggal :date; jurnal tidak dapat diposting.',
         'duplicate_posting'    => 'Jurnal dengan kunci posting :key sudah ada.',

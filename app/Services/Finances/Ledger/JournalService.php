@@ -74,6 +74,12 @@ final class JournalService {
         $normalized                 = JournalDraftValidator::validate($draft, $minorUnit);
         $enforcePeriod              = (bool) $this->settings->getForRead(FinanceSetting::class)->enforce_fiscal_period;
 
+        // Seri penomoran dibuat otomatis bila belum ada (keputusan A pemilik produk 2026-11-04) dan tidak pernah
+        // ditulis ulang bila sudah ada. Dipanggil sebelum transaksi jurnal ini, tetapi adapter memanggil posting di
+        // dalam DB::transaction luar (Payment Entry, Stock Entry, hook Submitable), sehingga pembuatan seri ikut
+        // transaksi luar itu; pelanggaran unik akibat dua proses yang membuatnya bersamaan ditangkap di `FormatingSeries::ensureExists()` (fallback `first()` saja tidak cukup di bawah snapshot REPEATABLE READ).
+        Journal::ensureNumberingSeries();
+
         return DB::transaction(function () use ($draft, $normalized, $currencyCode, $enforcePeriod): Journal {
             $this->lockAndValidateAccounts($normalized);
 
@@ -160,7 +166,7 @@ final class JournalService {
      *
      * @return array{0: string|null, 1: int}
      */
-    private function baseCurrency(): array {
+    public function baseCurrency(): array {
         $code = $this->settings->getForRead(CoreSetting::class)->default_currency_id;
         if ($code === null || $code === '') {
             return [null, self::DEFAULT_MINOR_UNIT];
@@ -206,10 +212,6 @@ final class JournalService {
     }
 
     private function insertJournal(JournalDraft $draft, NormalizedJournal $normalized, ?string $currencyCode, ?FiscalPeriod $period): Journal {
-        if (! FormatingSeries::query()->where('model', Journal::class)->exists()) {
-            throw InvalidJournalException::seriesMissing();
-        }
-
         $total                   = MinorUnit::fromMinor($normalized->totalMinor, $normalized->minorUnit);
         [$sourceType, $sourceId] = $this->sourceReference($draft);
 

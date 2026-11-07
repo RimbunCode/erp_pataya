@@ -49,10 +49,6 @@ class InvalidJournalException extends RuntimeException {
         return new self(__('finances/journal.errors.account_disabled', ['account' => $accountLabel]));
     }
 
-    public static function seriesMissing(): self {
-        return new self(__('finances/journal.errors.series_missing'));
-    }
-
     public static function notReversible(string $status): self {
         return new self(__('finances/journal.errors.not_reversible', ['status' => $status]));
     }

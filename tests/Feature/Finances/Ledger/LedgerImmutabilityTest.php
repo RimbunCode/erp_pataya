@@ -200,6 +200,6 @@ class LedgerImmutabilityTest extends TestCase {
         $this->assertContains(FormStatus::CANCELED, $invoice->fresh()->status);
         $this->assertSame(0, GeneralLedger::where('journal_id', $journal->id)->count(), 'Baris tidak terlihat oleh query standar.');
         $this->assertSame(2, GeneralLedger::onlyTrashed()->where('journal_id', $journal->id)->count());
-        $this->assertSame('posted', $journal->fresh()->status, 'Penandaan `voided` adalah Task 6.8 (belum dikerjakan).');
+        $this->assertSame('voided', $journal->fresh()->status, 'Hook cancel menandai jurnal sumber `voided` (Task 6.8, Requirement 8.6).');
     }
 }

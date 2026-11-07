@@ -7,6 +7,7 @@ use App\Models\Core\Branch;
 use App\Models\Core\FormatingSeries;
 use App\Models\Finances\Account;
 use App\Models\Finances\GeneralLedger;
+use App\Models\Finances\Journal;
 use App\Models\Inventory\Item;
 use App\Models\Inventory\ItemUnit;
 use App\Models\Inventory\ItemVariant;
@@ -34,7 +35,7 @@ class StockEntrySubmitTest extends TestCase {
         // initPermissions() menambah kolom runtime (is_example, status, code, dst)
         // yang di produksi dibuat oleh PermissionSeeder, bukan migration.
         // Juga otomatis membuat row formating_series untuk StockEntry.
-        foreach ([User::class, FormatingSeries::class, Branch::class, Unit::class, Warehouse::class, Item::class, ItemVariant::class, StockEntry::class, StockLedgerEntry::class, GeneralLedger::class, Account::class] as $model) {
+        foreach ([User::class, FormatingSeries::class, Branch::class, Unit::class, Warehouse::class, Item::class, ItemVariant::class, StockEntry::class, StockLedgerEntry::class, GeneralLedger::class, Journal::class, Account::class] as $model) {
             $model::initPermissions();
         }
 

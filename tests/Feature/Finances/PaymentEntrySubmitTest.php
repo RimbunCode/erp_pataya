@@ -6,6 +6,7 @@ use App\Enums\FormStatus;
 use App\Models\Core\Branch;
 use App\Models\Core\FormatingSeries;
 use App\Models\Finances\GeneralLedger;
+use App\Models\Finances\Journal;
 use App\Models\Finances\PaymentEntry;
 use App\Models\Finances\PaymentSchedule;
 use App\Models\Finances\SalesInvoice;
@@ -27,7 +28,7 @@ class PaymentEntrySubmitTest extends TestCase {
         // initPermissions() menambah kolom runtime (is_example, status, code, dst)
         // yang di produksi dibuat oleh PermissionSeeder, bukan migration. Juga
         // otomatis membuat row formating_series untuk model terkait.
-        foreach ([User::class, FormatingSeries::class, Branch::class, SalesInvoice::class, PaymentSchedule::class, PaymentEntry::class, GeneralLedger::class] as $model) {
+        foreach ([User::class, FormatingSeries::class, Branch::class, SalesInvoice::class, PaymentSchedule::class, PaymentEntry::class, GeneralLedger::class, Journal::class] as $model) {
             $model::initPermissions();
         }
 

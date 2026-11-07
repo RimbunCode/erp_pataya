@@ -4,12 +4,15 @@ namespace App\Listeners\Finances\Ledger;
 
 use App\Enums\FormStatus;
 use App\Events\Finances\SalesInvoiceGeneralLedgerPostingRequested;
+use App\Exceptions\Finances\DuplicatePostingException;
 use App\Models\Core\GlPostingStatus;
 use App\Models\Finances\Account;
+use App\Services\Finances\Ledger\JournalService;
 use Illuminate\Contracts\Queue\ShouldQueue;
 use Illuminate\Foundation\Bus\Dispatchable;
 use Illuminate\Queue\InteractsWithQueue;
 use Illuminate\Queue\SerializesModels;
+use Illuminate\Support\Carbon;
 use Illuminate\Support\Facades\DB;
 use Throwable;
 
@@ -26,23 +29,20 @@ class PostSalesInvoiceGeneralLedger implements ShouldQueue {
             $debitAccount  = Account::where('id', $event->debitAccountId)->lockForUpdate()->firstOrFail();
             $creditAccount = Account::where('id', $event->creditAccountId)->lockForUpdate()->firstOrFail();
 
-            $creditAccount->generalLedgerEntries()->create([
-                'against_account_id' => $debitAccount->id,
-                'credit'             => $event->isReturn ? 0 : $event->totalAmount,
-                'debit'              => $event->isReturn ? $event->totalAmount : 0,
-                'transaction_date'   => $event->transactionDate,
-                'referenceable_type' => $salesInvoice::class,
-                'referenceable_id'   => $salesInvoice->id,
-            ]);
-
-            $debitAccount->generalLedgerEntries()->create([
-                'against_account_id' => $creditAccount->id,
-                'credit'             => $event->isReturn ? $event->totalAmount : 0,
-                'debit'              => $event->isReturn ? 0 : $event->totalAmount,
-                'transaction_date'   => $event->transactionDate,
-                'referenceable_type' => $salesInvoice::class,
-                'referenceable_id'   => $salesInvoice->id,
-            ]);
+            try {
+                // Requirement 8.1: satu jurnal dua baris lewat JournalService; retur menukar sisi. Jumlah nol tidak
+                // lagi membuat baris 0/0 (Requirement 2.10, N-8).
+                app(JournalService::class)->postPair(
+                    $debitAccount->id,
+                    $creditAccount->id,
+                    $event->totalAmount,
+                    $salesInvoice,
+                    Carbon::instance($event->transactionDate),
+                    reverseSides: $event->isReturn,
+                );
+            } catch (DuplicatePostingException) {
+                // Retry atas posting yang sudah berhasil: perlakukan sebagai sudah terposting (Requirement 3.3).
+            }
 
             GlPostingStatus::where('referenceable_type', $salesInvoice::class)
                 ->where('referenceable_id', $salesInvoice->id)

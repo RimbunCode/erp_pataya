@@ -13,9 +13,8 @@ use RecursiveIteratorIterator;
  * menangkap pola penulisan yang umum.
  *
  * - Allowlist final: `JournalService`, `JournalReversalService`, dan perintah backfill.
- * - Daftar sementara penulis legacy: titik posting yang belum dialihkan ke `JournalService` (Task 6.x). Setiap
- *   entri dihapus ketika titik itu dialihkan; test juga gagal bila entri sementara tidak lagi menulis GL (daftar
- *   tidak boleh basi).
+ * - Semua titik posting legacy sudah dialihkan ke `JournalService` (Task 6.1-6.7); daftar sementara penulis legacy
+ *   dikosongkan seluruhnya dan dihapus pada Task 6.9.
  * - Satu-satunya update/delete massal baris GL adalah hook cancel `Submitable` (Requirement 4.5; dihapus Fase 2).
  */
 class LedgerWriteAllowlistTest extends TestCase {
@@ -54,24 +53,6 @@ class LedgerWriteAllowlistTest extends TestCase {
         'Services/Finances/Ledger/JournalService.php',
         'Services/Finances/Ledger/JournalReversalService.php',
         'Console/Commands/Finances/BackfillJournalsCommand.php',
-    ];
-
-    /**
-     * Penulis legacy sementara; dialihkan pada Task 6.x (setiap entri dihapus saat titiknya dialihkan).
-     *
-     * @var array<string, string>
-     */
-    private const LEGACY_WRITERS = [
-        'Listeners/Finances/Ledger/PostSalesInvoiceGeneralLedger.php'    => 'Task 6.1',
-        'Listeners/Finances/Ledger/PostPurchaseInvoiceGeneralLedger.php' => 'Task 6.2',
-        'Listeners/Purchase/Ledger/PostPurchaseReceiptGeneralLedger.php' => 'Task 6.3',
-        'Listeners/Inventory/Ledger/PostDeliveryNoteGeneralLedger.php'   => 'Task 6.4',
-        'Services/Finances/PaymentEntryService.php'                      => 'Task 6.5',
-        'Services/Inventory/StockEntryService.php'                       => 'Task 6.6',
-        'Listeners/Asset/Depreciation/PostDepreciationEntry.php'         => 'Task 6.7',
-        'Listeners/Asset/Depreciation/PostScrapWriteOff.php'             => 'Task 6.7',
-        'Listeners/Asset/Depreciation/PostValueAdjustmentEntry.php'      => 'Task 6.7',
-        'Listeners/Asset/Rental/PostAssetDisposalGainLoss.php'           => 'Task 6.7',
     ];
 
     /**
@@ -118,17 +99,9 @@ class LedgerWriteAllowlistTest extends TestCase {
     }
 
     public function test_only_allowed_code_writes_general_ledger_rows(): void {
-        $unexpected = array_values(array_diff($this->filesMatching(self::WRITE_PATTERN), self::ALLOWED, array_keys(self::LEGACY_WRITERS)));
+        $unexpected = array_values(array_diff($this->filesMatching(self::WRITE_PATTERN), self::ALLOWED));
 
         $this->assertSame([], $unexpected, 'Penulisan GL di luar allowlist. Gunakan JournalService::post()/postPair(): ' . implode(', ', $unexpected));
-    }
-
-    public function test_temporary_legacy_writer_list_is_not_stale(): void {
-        $writers = $this->filesMatching(self::WRITE_PATTERN);
-
-        $stale = array_values(array_diff(array_keys(self::LEGACY_WRITERS), $writers));
-
-        $this->assertSame([], $stale, 'Entri sementara tidak lagi menulis GL; hapus dari LEGACY_WRITERS: ' . implode(', ', $stale));
     }
 
     public function test_allowed_writers_exist_or_are_planned(): void {

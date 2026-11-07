@@ -4,12 +4,15 @@ namespace App\Listeners\Asset\Depreciation;
 
 use App\Enums\FormStatus;
 use App\Events\Asset\AssetDepreciationDue;
+use App\Exceptions\Finances\DuplicatePostingException;
 use App\Models\Asset\AssetDepreciationSchedule;
 use App\Models\Core\GlPostingStatus;
+use App\Services\Finances\Ledger\JournalService;
 use Illuminate\Contracts\Queue\ShouldQueue;
 use Illuminate\Foundation\Bus\Dispatchable;
 use Illuminate\Queue\InteractsWithQueue;
 use Illuminate\Queue\SerializesModels;
+use Illuminate\Support\Carbon;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Log;
 use LogicException;
@@ -45,23 +48,18 @@ class PostDepreciationEntry implements ShouldQueue {
                 $expenseAccount = $accounts->depreciationExpenseAccount()->lockForUpdate()->first();
                 $accumAccount   = $accounts->accumulatedDepreciationAccount()->lockForUpdate()->first();
 
-                $expenseAccount->generalLedgerEntries()->create([
-                    'against_account_id' => $accumAccount->id,
-                    'debit'              => $schedule->depreciation_amount,
-                    'credit'             => 0,
-                    'transaction_date'   => $event->transactionDate,
-                    'referenceable_type' => AssetDepreciationSchedule::class,
-                    'referenceable_id'   => $schedule->id,
-                ]);
-
-                $accumAccount->generalLedgerEntries()->create([
-                    'against_account_id' => $expenseAccount->id,
-                    'debit'              => 0,
-                    'credit'             => $schedule->depreciation_amount,
-                    'transaction_date'   => $event->transactionDate,
-                    'referenceable_type' => AssetDepreciationSchedule::class,
-                    'referenceable_id'   => $schedule->id,
-                ]);
+                try {
+                    app(JournalService::class)->postPair(
+                        $expenseAccount->id,
+                        $accumAccount->id,
+                        $schedule->depreciation_amount,
+                        $schedule,
+                        Carbon::instance($event->transactionDate),
+                        purpose: 'depreciation',
+                    );
+                } catch (DuplicatePostingException) {
+                    // Sudah terposting (Requirement 3.3).
+                }
             }
 
             GlPostingStatus::where('referenceable_type', AssetDepreciationSchedule::class)

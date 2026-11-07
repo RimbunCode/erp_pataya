@@ -7,6 +7,7 @@ use App\Events\Purchase\PurchaseReceiptGeneralLedgerPostingRequested;
 use App\Listeners\Purchase\Ledger\PostPurchaseReceiptGeneralLedger;
 use App\Models\Core\GlPostingStatus;
 use App\Models\Finances\GeneralLedger;
+use App\Models\Finances\Journal;
 use App\Models\Purchase\PurchaseReceipt;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Illuminate\Support\Facades\DB;
@@ -36,6 +37,7 @@ class PostPurchaseReceiptGeneralLedgerTest extends TestCase {
         }
 
         GeneralLedger::initPermissions();
+        Journal::initPermissions();
     }
 
     private function makePurchaseReceiptId(): string {

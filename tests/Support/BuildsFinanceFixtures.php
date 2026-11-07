@@ -9,6 +9,7 @@ use App\Models\Core\FormatingSeries;
 use App\Models\Core\GlPostingStatus;
 use App\Models\Finances\Account;
 use App\Models\Finances\GeneralLedger;
+use App\Models\Finances\Journal;
 use App\Models\Finances\PaymentEntry;
 use App\Models\Finances\PaymentSchedule;
 use App\Models\Finances\PurchaseInvoice;
@@ -49,7 +50,7 @@ trait BuildsFinanceFixtures {
         $this->withoutMiddleware([QueryDetectorMiddleware::class]);
         config(['queue.default' => 'sync']);
 
-        $models = array_values(array_unique([User::class, FormatingSeries::class, Account::class, GeneralLedger::class, ...$models]));
+        $models = array_values(array_unique([User::class, FormatingSeries::class, Account::class, GeneralLedger::class, Journal::class, ...$models]));
 
         // Semua tabel, bukan hanya model di `$models`: factory (mis. Supplier, Country) menyentuh `is_example`
         // tanpa `initPermissions()`, yang tidak bisa dipanggil untuk Account dan Supplier sekaligus karena

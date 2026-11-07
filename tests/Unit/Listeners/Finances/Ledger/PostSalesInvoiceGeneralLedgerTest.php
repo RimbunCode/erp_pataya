@@ -7,6 +7,7 @@ use App\Events\Finances\SalesInvoiceGeneralLedgerPostingRequested;
 use App\Listeners\Finances\Ledger\PostSalesInvoiceGeneralLedger;
 use App\Models\Core\GlPostingStatus;
 use App\Models\Finances\GeneralLedger;
+use App\Models\Finances\Journal;
 use App\Models\Finances\SalesInvoice;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Illuminate\Support\Facades\DB;
@@ -33,6 +34,7 @@ class PostSalesInvoiceGeneralLedgerTest extends TestCase {
         }
 
         GeneralLedger::initPermissions();
+        Journal::initPermissions();
     }
 
     private function makeAccountId(string $rootType, string $accountType): string {

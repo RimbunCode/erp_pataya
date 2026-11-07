@@ -7,6 +7,7 @@ use App\Events\Inventory\DeliveryNoteGeneralLedgerPostingRequested;
 use App\Listeners\Inventory\Ledger\PostDeliveryNoteGeneralLedger;
 use App\Models\Core\GlPostingStatus;
 use App\Models\Finances\GeneralLedger;
+use App\Models\Finances\Journal;
 use App\Models\Inventory\DeliveryNote;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Illuminate\Support\Facades\DB;
@@ -34,6 +35,7 @@ class PostDeliveryNoteGeneralLedgerTest extends TestCase {
         }
 
         GeneralLedger::initPermissions();
+        Journal::initPermissions();
     }
 
     private function makeDeliveryNoteId(): string {

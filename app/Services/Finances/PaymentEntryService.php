@@ -15,8 +15,10 @@ use App\Models\Model;
 use App\Models\Purchase\Supplier;
 use App\Models\Sales\Customer;
 use App\Services\Core\Setting\SettingsService;
+use App\Services\Finances\Ledger\JournalService;
 use App\Traits\HasDefaultDelete;
 use App\Utils;
+use Illuminate\Support\Carbon;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Validation\ValidationException;
 
@@ -167,23 +169,17 @@ class PaymentEntryService implements SubmitableService {
         $transactionDate = $paymentEntry->date ?? now();
         $amount          = $paymentEntry->paid_amount;
 
-        $creditAccount->generalLedgerEntries()->create([
-            'against_account_id' => $debitAccount->id,
-            'credit'             => $amount,
-            'debit'              => 0,
-            'transaction_date'   => $transactionDate,
-            'referenceable_type' => PaymentEntry::class,
-            'referenceable_id'   => $paymentEntry->id,
-        ]);
-
-        $debitAccount->generalLedgerEntries()->create([
-            'against_account_id' => $creditAccount->id,
-            'credit'             => 0,
-            'debit'              => $amount,
-            'transaction_date'   => $transactionDate,
-            'referenceable_type' => PaymentEntry::class,
-            'referenceable_id'   => $paymentEntry->id,
-        ]);
+        // Adapter JournalService (Requirement 8.1): perilaku pasca-hotfix dipertahankan (debit accountPaidTo, kredit
+        // accountPaidFrom, jumlah Payment Entry ini). `DuplicatePostingException` sengaja tidak ditangkap: guard
+        // status (`isApplicable`) mencegah approve ganda, jadi kunci ganda berarti inkonsistensi yang harus
+        // menggulung seluruh penerapan pembayaran.
+        app(JournalService::class)->postPair(
+            $debitAccount->id,
+            $creditAccount->id,
+            $amount,
+            $paymentEntry,
+            Carbon::instance($transactionDate),
+        );
     }
 
     /**

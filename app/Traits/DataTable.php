@@ -563,34 +563,7 @@ trait DataTable {
             });
         }
         if ((static::$is_submitable ?? false) || (static::$generateCodeSeries ?? false)) {
-            $formatingSeries = FormatingSeries::where('model', static::class)
-                ->withoutGlobalScope('exclude_example_data')
-                ->first();
-            if (! $formatingSeries) {
-                FormatingSeries::create([
-                    'model'  => static::class,
-                    'name'   => Str::singular($alias),
-                    'format' => static::$defaultFormatCode ?? '@[iiii]',
-                    'logs'   => [
-                        FormatingSeries::generateKeyLogsForInit(static::class, static::$defaultFormatCode ?? '@[iiii]') => [],
-                    ],
-                ]);
-            } else {
-                $logs = (array) $formatingSeries->logs;
-                $key  = FormatingSeries::generateKeyLogsForInit(static::class, static::$defaultFormatCode ?? '@[iiii]');
-                if (! \array_key_exists($key, $logs)) {
-                    $logs[$key] = [];
-                }
-                if (app()->isLocal()) {
-                    $formatingSeries->update([
-                        'name'   => Str::singular($alias),
-                        'format' => static::$defaultFormatCode ?? '@[iiii]',
-                        'logs'   => $logs,
-                    ]);
-                } else {
-                    $formatingSeries->update(['logs' => $logs]);
-                }
-            }
+            FormatingSeries::ensureFor(static::class, $alias, static::$defaultFormatCode ?? '@[iiii]');
             if (! Schema::hasColumn($tableName, 'code')) {
                 Schema::table($tableName, function (Blueprint $table) {
                     $table->string('code')->unique();

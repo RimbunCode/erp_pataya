@@ -4,12 +4,15 @@ namespace App\Listeners\Inventory\Ledger;
 
 use App\Enums\FormStatus;
 use App\Events\Inventory\DeliveryNoteGeneralLedgerPostingRequested;
+use App\Exceptions\Finances\DuplicatePostingException;
 use App\Models\Core\GlPostingStatus;
 use App\Models\Finances\Account;
+use App\Services\Finances\Ledger\JournalService;
 use Illuminate\Contracts\Queue\ShouldQueue;
 use Illuminate\Foundation\Bus\Dispatchable;
 use Illuminate\Queue\InteractsWithQueue;
 use Illuminate\Queue\SerializesModels;
+use Illuminate\Support\Carbon;
 use Illuminate\Support\Facades\DB;
 use Throwable;
 
@@ -33,23 +36,19 @@ class PostDeliveryNoteGeneralLedger implements ShouldQueue {
                 ->where('account_type', 'cost_of_goods_sold')
                 ->latest()->first();
 
-            $creditAccount->generalLedgerEntries()->create([
-                'against_account_id' => $debitAccount->id,
-                'credit'             => $event->isReturn ? 0 : $event->totalPicked,
-                'debit'              => $event->isReturn ? $event->totalPicked : 0,
-                'transaction_date'   => $event->transactionDate,
-                'referenceable_type' => $deliveryNote::class,
-                'referenceable_id'   => $deliveryNote->id,
-            ]);
-
-            $debitAccount->generalLedgerEntries()->create([
-                'against_account_id' => $creditAccount->id,
-                'credit'             => $event->isReturn ? $event->totalPicked : 0,
-                'debit'              => $event->isReturn ? 0 : $event->totalPicked,
-                'transaction_date'   => $event->transactionDate,
-                'referenceable_type' => $deliveryNote::class,
-                'referenceable_id'   => $deliveryNote->id,
-            ]);
+            try {
+                // Debit HPP, kredit stok; retur menukar sisi.
+                app(JournalService::class)->postPair(
+                    $debitAccount->id,
+                    $creditAccount->id,
+                    $event->totalPicked,
+                    $deliveryNote,
+                    Carbon::instance($event->transactionDate),
+                    reverseSides: $event->isReturn,
+                );
+            } catch (DuplicatePostingException) {
+                // Sudah terposting (Requirement 3.3).
+            }
 
             GlPostingStatus::where('referenceable_type', $deliveryNote::class)
                 ->where('referenceable_id', $deliveryNote->id)
