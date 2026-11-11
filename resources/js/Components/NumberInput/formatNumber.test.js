@@ -90,3 +90,28 @@ describe("formatTyping", () => {
     expect(formatTyping(undefined)).toBe("");
   });
 });
+
+describe("formatNumber: string desimal dari kolom decimal(20,4) (Finance Fase 1, Task 8.2)", () => {
+  it("memformat string desimal MySQL seperti angka", () => {
+    expect(formatNumber("1000.0000", { decimalScale: 2 })).toBe("1,000.00");
+    expect(formatNumber("1234567.8900", { decimalScale: 2 })).toBe(
+      "1,234,567.89",
+    );
+  });
+
+  it("tanpa decimalScale, nol di belakang string decimal tidak ditampilkan", () => {
+    expect(formatNumber("1000.5000")).toBe("1,000.5");
+    expect(formatNumber("1000.0000")).toBe("1,000");
+  });
+
+  it("string negatif dan nol diformat benar", () => {
+    expect(formatNumber("-250.1234", { decimalScale: 4 })).toBe("-250.1234");
+    expect(formatNumber("0.0000", { decimalScale: 2 })).toBe("0.00");
+  });
+
+  it("string desimal sama dengan angka setara untuk empat desimal", () => {
+    expect(formatNumber("100.1234", { decimalScale: 4 })).toBe(
+      formatNumber(100.1234, { decimalScale: 4 }),
+    );
+  });
+});

@@ -7,9 +7,11 @@ use App\Exceptions\Finances\ClosedPeriodException;
 use App\Models\Core\CoreSetting;
 use App\Models\Finances\FiscalPeriod;
 use App\Models\Finances\FiscalYear;
+use App\Models\Finances\GeneralLedger;
 use App\Services\Core\Setting\SettingsService;
 use Carbon\CarbonImmutable;
 use Carbon\CarbonInterface;
+use Illuminate\Database\UniqueConstraintViolationException;
 use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Validation\ValidationException;
@@ -74,6 +76,51 @@ final class FiscalPeriodService {
     }
 
     /**
+     * Jumlah baris GL aktif (tidak soft-deleted) yang "hari"-nya, dalam zona waktu perusahaan, tidak tercakup periode
+     * mana pun. Dipakai peringatan saat mengaktifkan penegakan periode (Requirement 11.5): dengan penegakan aktif,
+     * posting ke tanggal seperti ini akan ditolak (`ClosedPeriodException::notDefined`). Batas tiap periode dihitung
+     * sebagai instan UTC dari tengah malam zona perusahaan (start_date 00:00 sampai end_date + 1 hari 00:00).
+     */
+    public function uncoveredTransactionCount(): int {
+        $timezone = $this->companyTimezone();
+        $storage  = (string) config('app.timezone');
+
+        $ranges = [];
+        foreach (FiscalPeriod::query()->orderBy('start_date')->get(['start_date', 'end_date']) as $period) {
+            $start = CarbonImmutable::parse($period->start_date->toDateString(), $timezone)->startOfDay()->setTimezone($storage);
+            $end   = CarbonImmutable::parse($period->end_date->toDateString(), $timezone)->addDay()->startOfDay()->setTimezone($storage);
+
+            $last = \count($ranges) - 1;
+            if ($last >= 0 && $start->lessThanOrEqualTo($ranges[$last][1])) {
+                if ($end->greaterThan($ranges[$last][1])) {
+                    $ranges[$last][1] = $end;
+                }
+
+                continue;
+            }
+            $ranges[] = [$start, $end];
+        }
+
+        $query = GeneralLedger::query();
+        if ($ranges === []) {
+            return $query->count();
+        }
+
+        $format = 'Y-m-d H:i:s';
+
+        return $query->where(function ($outside) use ($ranges, $format) {
+            $outside->where('transaction_date', '<', $ranges[0][0]->format($format))
+                ->orWhere('transaction_date', '>=', $ranges[\count($ranges) - 1][1]->format($format));
+
+            for ($i = 0; $i < \count($ranges) - 1; $i++) {
+                $outside->orWhere(fn ($gap) => $gap
+                    ->where('transaction_date', '>=', $ranges[$i][1]->format($format))
+                    ->where('transaction_date', '<', $ranges[$i + 1][0]->format($format)));
+            }
+        })->count();
+    }
+
+    /**
      * @throws ClosedPeriodException bila periode `closed` atau tidak ditemukan
      */
     public function assertOpen(CarbonInterface $date, bool $lockForShare = false): FiscalPeriod {
@@ -98,6 +145,15 @@ final class FiscalPeriodService {
      *                             sudah ada dengan rentang non-kalender (tidak dilengkapi dengan periode bulanan kalender)
      */
     public function generateYear(int $year): FiscalYear {
+        try {
+            return $this->generateYearOnce($year);
+        } catch (UniqueConstraintViolationException) {
+            // Permintaan serentak membuat tahun/periode yang sama lebih dulu; generate idempoten, ulangi sekali.
+            return $this->generateYearOnce($year);
+        }
+    }
+
+    private function generateYearOnce(int $year): FiscalYear {
         $name  = (string) $year;
         $start = CarbonImmutable::create($year, 1, 1)->startOfDay();
         $end   = CarbonImmutable::create($year, 12, 31)->startOfDay();

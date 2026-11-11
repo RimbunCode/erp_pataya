@@ -128,4 +128,46 @@ describe("Show (Finances/GeneralLedgers)", () => {
       `purchaseInvoices.show/${JSON.stringify(7)}`,
     );
   });
+  it("generalLedger dengan journal: tombol view_journal menuju journals.show", () => {
+    render(
+      <Show
+        generalLedger={{ id: 1, journal: { id: "j9", code: "JV-0009" } }}
+      />,
+    );
+
+    const link = screen
+      .getByText("finances.generalLedger.actions.view_journal")
+      .closest("a");
+    expect(link).toHaveAttribute(
+      "href",
+      `journals.show/${JSON.stringify("j9")}`,
+    );
+  });
+
+  it("journal dan referenceable sekaligus: dua tombol", () => {
+    render(
+      <Show
+        generalLedger={{
+          id: 1,
+          journal: { id: "j9" },
+          referenceable: { route: "salesInvoices", id: 42 },
+        }}
+      />,
+    );
+
+    expect(
+      screen.getByText("finances.generalLedger.actions.view_journal"),
+    ).toBeInTheDocument();
+    expect(
+      screen.getByText("finances.generalLedger.actions.view_reference"),
+    ).toBeInTheDocument();
+  });
+
+  it("tanpa journal: tombol view_journal tidak ada (baris legacy)", () => {
+    render(<Show generalLedger={{ id: 1, journal: null }} />);
+
+    expect(
+      screen.queryByText("finances.generalLedger.actions.view_journal"),
+    ).toBeNull();
+  });
 });

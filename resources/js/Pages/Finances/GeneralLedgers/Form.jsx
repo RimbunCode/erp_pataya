@@ -5,6 +5,7 @@ import AccountLinkModel from "../Accounts/AccountLinkModel";
 import DatetimePicker from "@/Components/DatetimePicker";
 import FormInput from "@/Components/FormInput";
 
+import { Input } from "@/Components/ui/input";
 import NumberInput from "@/Components/NumberInput";
 import { useLaravelReactI18n } from "laravel-react-i18n";
 
@@ -25,11 +26,19 @@ export default function Form() {
           name="against_account"
           label={t("finances.generalLedger.columns.against_account")}
         >
-          <AccountLinkModel
-            value={data?.against_account}
-            readOnly
-            disabledAddButton
-          />
+          {data?.against_account || data?.against_account_id ? (
+            <AccountLinkModel
+              value={data?.against_account}
+              readOnly
+              disabledAddButton
+            />
+          ) : (
+            // Jurnal 3 baris atau lebih tidak punya satu akun lawan (Requirement 1.3, 11.3).
+            <Input
+              readOnly
+              value={t("finances.generalLedger.columns.multiple_accounts")}
+            />
+          )}
         </FormInput>
         {/* <FormInput
           name="branch"

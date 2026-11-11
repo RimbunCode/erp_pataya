@@ -41,7 +41,9 @@ use App\Http\Controllers\CRM\LeadController;
 use App\Http\Controllers\CRM\OpportunityController;
 use App\Http\Controllers\CRM\QuotationController;
 use App\Http\Controllers\Finances\AccountController;
+use App\Http\Controllers\Finances\FiscalPeriodController;
 use App\Http\Controllers\Finances\GeneralLedgerController;
+use App\Http\Controllers\Finances\JournalController;
 use App\Http\Controllers\Finances\PaymentEntryController;
 use App\Http\Controllers\Finances\PaymentMethodController;
 use App\Http\Controllers\Finances\PaymentTermTemplateController;
@@ -260,6 +262,15 @@ Route::middleware(['auth', 'lang', 'onboarded', 'app', 'desk'])->group(function 
         Route::put('modules/{moduleKey}/default-rules', [ModuleDefaultRulesController::class, 'update'])
             ->whereIn('moduleKey', ['purchase', 'sales'])
             ->name('moduleSettings.defaultRules.update');
+        // Fiscal Periods (Finance Fase 1)
+        Route::controller(FiscalPeriodController::class)->prefix('fiscalPeriods')->name('fiscalPeriods.')->group(function () {
+            Route::get('/', 'index')->name('index');
+            Route::post('/generate', 'generate')->name('generate');
+            Route::put('/enforcement', 'updateEnforcement')->name('enforcement');
+            Route::put('/{fiscalPeriod}/close', 'close')->name('close');
+            Route::put('/{fiscalPeriod}/open', 'open')->name('open');
+            Route::get('/{fiscalPeriod}', 'show')->name('show');
+        });
         // Branches
         Route::resourceDetail('branch', BranchController::class);
         // Countries & Currencies
@@ -459,6 +470,12 @@ Route::middleware(['auth', 'lang', 'onboarded', 'app', 'desk'])->group(function 
     Route::resourceDetail('account', AccountController::class);
     // General Ledgers
     Route::resourceDetail('generalLedger', GeneralLedgerController::class);
+    // Journals (Finance Fase 1; jurnal hanya dibuat oleh JournalService, aksi tulis hanya Balik)
+    Route::controller(JournalController::class)->prefix('journals')->name('journals.')->group(function () {
+        Route::get('/', 'index')->name('index');
+        Route::get('/{journal}', 'show')->name('show');
+        Route::post('/{journal}/reverse', 'reverse')->name('reverse');
+    });
     // Payment Methods
     Route::resourceDetail('paymentMethod', PaymentMethodController::class);
     // Payment Term Template

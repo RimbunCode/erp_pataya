@@ -81,33 +81,61 @@ class GeneralLedger extends Model {
         return $this->belongsTo(Journal::class, 'journal_id');
     }
 
+    /*
+     * Kolom Fase 1 (Task 10.4): `journal` (tautan ke header jurnal) dan "Beberapa akun" bila `against_account_id`
+     * null (jurnal 3 baris atau lebih tidak punya satu akun lawan, Requirement 1.3/11.3).
+     * - `multiple_accounts` (number, tersembunyi) bernilai 1 bila `against_account_id` null; dipakai `template`
+     *   kolom virtual `against_account_view` lewat `<when>` dan `|trans` (label di
+     *   `finances.generalLedger.multiple_accounts_state`).
+     * - `debit`/`credit` bertipe `decimal(20,4)` di database (Task 8.3) tetapi cast model tetap `float`: JSON ke frontend
+     *   tetap angka dan hasil characterization Fase 0 tidak berubah.
+     */
     protected $configColumns = [
         'code' => [
             'order'  => 0,
             'show'   => true,
             'isLink' => true,
         ],
+        'journal' => [
+            'order' => 1,
+            'show'  => true,
+        ],
         'account' => [
-            'order'     => 1,
+            'order'     => 2,
             'show'      => true,
             'groupable' => true,
         ],
+        // Akun lawan: kolom relasi tetap ada (filter/urut/tautan) tetapi disembunyikan; tampilan memakai kolom virtual
+        // `against_account_view` yang jatuh ke label "Beberapa akun" bila `against_account_id` null.
         'againstAccount' => [
-            'order' => 2,
-            'show'  => true,
+            'order' => 3,
+            'show'  => false,
+        ],
+        'against_account_view' => [
+            'order'      => 3,
+            'show'       => true,
+            'template'   => '<nav-link to="against_account">:against_account.account_name</nav-link><when field="multiple_accounts"><muted>:multiple_accounts|trans</muted></when>',
+            'valueTrans' => 'finances.generalLedger.multiple_accounts_state',
+            'searchable' => true,
+        ],
+        'multiple_accounts' => [
+            'type'       => 'number',
+            'expression' => 'CASE WHEN general_ledgers.against_account_id IS NULL THEN 1 ELSE 0 END',
+            'order'      => 7,
+            'show'       => false,
         ],
         'debit' => [
-            'order'          => 3,
-            'show'           => true,
-            'groupAggregate' => 'sum',
-        ],
-        'credit' => [
             'order'          => 4,
             'show'           => true,
             'groupAggregate' => 'sum',
         ],
+        'credit' => [
+            'order'          => 5,
+            'show'           => true,
+            'groupAggregate' => 'sum',
+        ],
         'created_at' => [
-            'order' => 5,
+            'order' => 6,
             'show'  => true,
         ],
         'branch' => [
@@ -125,7 +153,6 @@ class GeneralLedger extends Model {
         'referenceable_type' => [
             'ignore' => true,
         ],
-        // Kolom Fase 1: tampil di UI pada Task 10.4.
         'journal_id' => [
             'ignore' => true,
         ],
@@ -155,7 +182,7 @@ class GeneralLedger extends Model {
     }
 
     public static function loadRelationsOnShow() {
-        return ['account', 'againstAccount', 'branch', 'referenceable'];
+        return ['account', 'againstAccount', 'branch', 'referenceable', 'journal'];
     }
 
     public function branch() {

@@ -70,10 +70,44 @@ describe("Finances GeneralLedgers Form", () => {
     expect(debitInput).toHaveAttribute("readonly");
   });
 
+  it("debit/credit berupa string decimal (kolom decimal(20,4)) tetap diformat sebagai angka", () => {
+    formPageSeed = { debit: "100000.0000", credit: "2500.5000" };
+    renderForm(<Form />);
+
+    expect(
+      screen.getByTestId("forminput-debit").querySelector("input"),
+    ).toHaveValue("100,000.00");
+    expect(
+      screen.getByTestId("forminput-credit").querySelector("input"),
+    ).toHaveValue("2,500.50");
+  });
+
   it("menampilkan created_at via DatetimePicker", () => {
     formPageSeed = { created_at: "2026-01-01T00:00:00Z" };
     renderForm(<Form />);
 
     expect(screen.getByTestId("datetime-picker")).toBeInTheDocument();
+  });
+  it("against_account null tanpa id (jurnal 3 baris atau lebih): menampilkan label Beberapa akun, bukan pilihan akun", () => {
+    formPageSeed = {
+      account: { name: "Kas" },
+      against_account: null,
+      against_account_id: null,
+    };
+    renderForm(<Form />);
+
+    const field = screen.getByTestId("forminput-against_account");
+    expect(field.querySelector("input")).toHaveValue(
+      "finances.generalLedger.columns.multiple_accounts",
+    );
+    expect(field.querySelector("input")).toHaveAttribute("readonly");
+    expect(screen.getAllByTestId("account-link-model")).toHaveLength(1);
+  });
+
+  it("against_account_id terisi tetapi relasi tidak termuat: tetap memakai pilihan akun (data legacy)", () => {
+    formPageSeed = { against_account: null, against_account_id: "a2" };
+    renderForm(<Form />);
+
+    expect(screen.getAllByTestId("account-link-model")).toHaveLength(2);
   });
 });

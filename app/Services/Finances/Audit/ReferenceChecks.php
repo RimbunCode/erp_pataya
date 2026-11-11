@@ -120,7 +120,7 @@ final class ReferenceChecks {
         $found = (clone $query)
             ->select(['id', 'referenceable_type', 'referenceable_id', 'debit', 'credit', 'deleted_at'])
             ->orderBy('id')->limit($limit)->get()
-            ->map(fn ($row) => [...(array) $row, ...$extra])->all();
+            ->map(fn ($row) => [...AmountColumns::normalize((array) $row), ...$extra])->all();
 
         $section['samples'] = array_slice([...$section['samples'], ...$found], 0, $limit);
     }
