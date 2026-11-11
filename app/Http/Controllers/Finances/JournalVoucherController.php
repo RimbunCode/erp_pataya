@@ -2,6 +2,7 @@
 
 namespace App\Http\Controllers\Finances;
 
+use App\Enums\FormStatus;
 use App\Http\Controllers\Controller;
 use App\Http\Requests\Finances\JournalVoucherRequest;
 use App\Models\Finances\JournalVoucher;
@@ -32,6 +33,20 @@ class JournalVoucherController extends Controller {
             'defaultData' => ['date' => now()],
             'minorUnit'   => $this->minorUnit(),
         ]);
+    }
+
+    /**
+     * Amend hanya untuk voucher yang dibatalkan atau ditolak (keputusan pemilik produk 2026-11-12). Guard generik
+     * `Submitable` tidak memeriksa status di server; voucher langsung memengaruhi buku besar, jadi salinan dari
+     * voucher yang sudah diposting atau masih berjalan ditolak (UI juga hanya menampilkan Amend pada status itu).
+     */
+    public function amend(string $id) {
+        $voucher  = JournalVoucher::query()->findOrFail($id);
+        $statuses = collect($voucher->status)->map(fn ($status) => $status instanceof FormStatus ? $status : FormStatus::tryFrom((string) $status));
+
+        abort_unless($statuses->contains(FormStatus::CANCELED) || $statuses->contains(FormStatus::REJECTED), 422);
+
+        return parent::amend($id);
     }
 
     public function store(JournalVoucherRequest $request) {

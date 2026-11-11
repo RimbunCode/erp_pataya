@@ -549,6 +549,19 @@ class JournalVoucherFlowTest extends TestCase {
         $this->assertNotContains($foreign->id, $first->fresh()->items->pluck('id')->all());
     }
 
+    public function test_amend_is_refused_unless_the_voucher_is_canceled_or_rejected(): void {
+        $draft = $this->storeVoucher();
+        $this->http()->put(route('journalVouchers.amend', $draft))->assertStatus(422);
+
+        $posted = $this->storeVoucher();
+        $this->submit($posted);
+        $journalsBefore = Journal::query()->count();
+        $this->http()->put(route('journalVouchers.amend', $posted))->assertStatus(422);
+
+        $this->assertSame(0, JournalVoucher::query()->whereNotNull('amended_from_id')->count());
+        $this->assertSame($journalsBefore, Journal::query()->count());
+    }
+
     public function test_amend_after_cancel_creates_a_new_draft_without_ledger_effect(): void {
         $voucher = $this->storeVoucher();
         $this->submit($voucher);
