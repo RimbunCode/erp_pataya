@@ -197,7 +197,9 @@ describe("FiscalPeriods Index", () => {
     render(<Index fiscalYears={[]} defaultYear={2027} {...allowAll} />);
 
     const form = screen.getByTestId("generate-form");
-    expect(within(form).getByLabelText("finances.fiscalPeriod.generate.year")).toHaveValue(2027);
+    expect(
+      within(form).getByLabelText("finances.fiscalPeriod.generate.year"),
+    ).toHaveValue(2027);
     await user.click(
       within(form).getByRole("button", {
         name: "finances.fiscalPeriod.generate.submit",
@@ -215,11 +217,15 @@ describe("FiscalPeriods Index", () => {
   });
 
   it("menampilkan kesalahan validasi generate (mis. tahun non-kalender)", () => {
-    generateErrors = { year: "Tahun fiskal 2026 sudah ada dengan rentang non-kalender" };
+    generateErrors = {
+      year: "Tahun fiskal 2026 sudah ada dengan rentang non-kalender",
+    };
     render(<Index fiscalYears={[]} {...allowAll} />);
 
     expect(
-      screen.getByText("Tahun fiskal 2026 sudah ada dengan rentang non-kalender"),
+      screen.getByText(
+        "Tahun fiskal 2026 sudah ada dengan rentang non-kalender",
+      ),
     ).toBeInTheDocument();
   });
 
@@ -242,9 +248,7 @@ describe("FiscalPeriods Index", () => {
 
   it("penegakan aktif: toggle tercentang dan mematikan mengirim false", async () => {
     const user = userEvent.setup();
-    render(
-      <Index fiscalYears={years} enforceFiscalPeriod {...allowAll} />,
-    );
+    render(<Index fiscalYears={years} enforceFiscalPeriod {...allowAll} />);
 
     const toggle = screen.getByRole("switch");
     expect(toggle).toBeChecked();
@@ -256,9 +260,7 @@ describe("FiscalPeriods Index", () => {
   });
 
   it("tanpa izin ubah setting: toggle dinonaktifkan dengan keterangan", () => {
-    render(
-      <Index fiscalYears={years} {...allowAll} canEnforce={false} />,
-    );
+    render(<Index fiscalYears={years} {...allowAll} canEnforce={false} />);
 
     expect(screen.getByRole("switch")).toBeDisabled();
     expect(

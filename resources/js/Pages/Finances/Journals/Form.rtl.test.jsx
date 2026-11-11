@@ -256,8 +256,12 @@ describe("Finances Journals Form", () => {
       />,
     );
 
-    expect(screen.getByText("finances.journal.voided_notice")).toBeInTheDocument();
-    expect(screen.getByTestId("journal-line").className).toMatch(/line-through/);
+    expect(
+      screen.getByText("finances.journal.voided_notice"),
+    ).toBeInTheDocument();
+    expect(screen.getByTestId("journal-line").className).toMatch(
+      /line-through/,
+    );
   });
 
   it("pemisah angka mengikuti preferensi (#.###,##)", () => {

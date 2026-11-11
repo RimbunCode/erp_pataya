@@ -18,7 +18,7 @@ import InputError from "@/Components/InputError";
 import { Label } from "@/Components/ui/label";
 import { Switch } from "@/Components/ui/switch";
 import { Textarea } from "@/Components/ui/textarea";
-import { cn, getLocaleDate } from "@/lib/utils";
+import { getLocaleDate } from "@/lib/utils";
 import { format } from "date-fns";
 import { useLaravelReactI18n } from "laravel-react-i18n";
 
