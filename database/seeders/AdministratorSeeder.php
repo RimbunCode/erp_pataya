@@ -173,6 +173,11 @@ class AdministratorSeeder extends Seeder {
                 'description' => 'Manage accounting and financial transactions.',
                 'modules'     => ['Finances'],
                 'profile'     => 'operator',
+                // Pembuatan tahun fiskal hanya untuk profil `full` (Q-P1-15, 2026-11-12): operator tidak mendapat `create`.
+                'scope_overrides' => [
+                    ['module' => 'Finances', 'model' => 'Fiscal Years', 'profile' => ['select', 'read', 'write', 'submit', 'print', 'import', 'export', 'share']],
+                    ['module' => 'Finances', 'model' => 'Fiscal Periods', 'profile' => ['select', 'read', 'write', 'submit', 'print', 'import', 'export', 'share']],
+                ],
             ],
             [
                 'name'        => 'Approver',
@@ -254,6 +259,11 @@ class AdministratorSeeder extends Seeder {
             ) {
                 $scopes[] = $scope;
             }
+        }
+
+        // Scope yang ditambahkan belakangan menimpa scope sebelumnya (payload dikunci per permission).
+        foreach ($roleDefinition['scope_overrides'] ?? [] as $override) {
+            $scopes[] = $this->makeScope($override['module'], $override['model'] ?? null, $override['profile'], $roleProfileOnlyCreator);
         }
 
         return $scopes;
