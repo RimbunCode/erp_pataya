@@ -83,6 +83,7 @@ sequenceDiagram
 
 ```text
 app/Models/Finances/
+├── JournalVoucher.php          (baru, Task 11; + JournalVoucherItem.php, flat; lihat bagian Journal Voucher)
 ├── Journal.php                 (baru)
 ├── FiscalYear.php              (baru)
 ├── FiscalPeriod.php            (baru)
@@ -232,6 +233,16 @@ Dampak pada kode yang ada (hasil pencarian Task 1.2, 2026-11-04, `app/`, `databa
 ### Penanganan legacy cancel (`voided`)
 
 Di `Submitable`, tepat setelah blok yang men-soft-delete GL, tambahkan satu langkah: `Journal::query()->where('source_type', get_class($model))->where('source_id', $model->id)->whereIn('status', ['posted', 'reversed'])->update(['status' => 'voided'])` (jurnal asal yang sudah `reversed` dan jurnal pembaliknya berbagi sumber yang sama, keduanya di-`voided`; keputusan pemilik produk 2026-11-04, Minor-4). Tidak ada perubahan perilaku untuk pengguna. Perubahan ini kecil tetapi menyentuh trait yang dipakai semua dokumen — dijaga test untuk beberapa model (Sales Invoice, Payment Entry, Stock Entry) dan dihapus pada Fase 2 (digantikan reversal).
+
+### Journal Voucher (Task 11, opsional; diimplementasikan 2026-11-12)
+
+Jurnal manual = dokumen submitable `JournalVoucher` + `JournalVoucherItem` (Q-P1-13, pemilik produk 2026-11-07); `Journal` tidak berubah (tanpa status draft, tetap immutable). Pola mengikuti `PaymentEntry` (service, controller, request) dan `AssetValueAdjustment` (migration submitable eksplisit):
+
+- **Data:** `journal_vouchers` (`code` unik, `date` timestamp, `description`, `branch_id`, kolom Submitable dideklarasikan eksplisit persis seperti `initPermissions()`, tanpa `have_transactions`; test `JournalSchemaTest` membuktikan `initPermissions()` no-op) dan `journal_voucher_items` (`journal_voucher_id`, `account_id` `restrictOnDelete`, `debit`/`credit` `decimal(20,4)`, `description`, `line_no`). Model baris bukan `DataTable` (pola `QuotationItem`). Relasi baris bernama **`items()`**, bukan `lines()`, karena `LedgerWriteAllowlistTest` memindai teks sumber dan menganggap relasi `lines` yang menulis sebagai penulis GL (jangan menambahkan model voucher ke allowlist). Model tetap flat di `app/Models/Finances/` karena `DataTable::initPermissions()` memakai segmen namespace sebelum nama kelas sebagai nama modul izin (folder `JournalVoucher/` akan mendaftarkan modul baru). Penomoran `JVC-@[iiii]/@[yy]` (sengaja bukan `JV-`, yang dipakai `Journal.code`).
+- **`JournalVoucherService`:** `create`/`update` (hanya draft, baris dikunci dan dibaca ulang) menyinkronkan item; `submit` (mengunci, pra-pemeriksaan posting: keseimbangan dalam minor unit, akun dapat diposting, periode terbuka bila penegakan aktif; lalu `checkApproval()`); **`onApproved`** (transaksi sendiri, kunci baris dengan global scope cabang dilepas, hanya dari `draft`/`need_approval`, memanggil `JournalService::post()` dengan `source` = voucher, `posting_key` `{FQCN}:{id}:default`, `branchId`, tanggal = instan `date` voucher; `ClosedPeriodException`/`InvalidJournalException`/`UnbalancedJournalException` menjadi `ValidationException` dan menggulung seluruhnya; `DuplicatePostingException` sengaja tidak ditangkap, pola `PaymentEntryService`); `onRejected` (status `rejected`); `cancel` (hanya mengubah status ke `canceled`; hook `Submitable` men-soft-delete baris GL sumber dan men-`voided` jurnalnya bila sudah diposting, Requirement 8.6; sebelum posting tidak ada jurnal atau baris GL). Status guard `onApproved` = idempotensi pertama, `posting_key` = kedua.
+- **`JournalVoucherRequest`:** minimal 2 baris, akun ada/bukan grup/tidak nonaktif, nilai non-negatif, lalu `JournalDraftValidator::validate()` dengan minor unit dari `JournalService::baseCurrency()` (satu aturan keseimbangan untuk form dan posting); periode diperiksa hanya bila penegakan aktif (Q-P1-2).
+- **UI:** `Finances/JournalVouchers/{Index,Show,Form}.jsx` (`FormPage` + `FormTable`), `balance.js` (indikator seimbang dalam minor unit, HALF_UP via notasi eksponen), indikator memakai ikon + teks dan `text-green-700 dark:text-green-400` untuk seimbang. Izin `create` didaftarkan pada `JournalVoucher` (Requirement 12.2); `Journal` tidak mendapat `create` (tidak punya rute pembuatan).
+- **Keterbatasan yang diwarisi (sama dengan dokumen submitable lain):** `ApprovalInstanceController::approve` meng-commit keputusan sebelum memanggil `onApproved`; bila posting ditolak saat persetujuan akhir (mis. periode ditutup sesudah diajukan), voucher tetap `need_approval` tanpa jurnal dan instance approval sudah `approved`. Pra-pemeriksaan saat `submit` mempersempit jendela itu; penanganan lanjutan menunggu keputusan pemilik produk.
 
 ### Adapter: peta titik posting
 

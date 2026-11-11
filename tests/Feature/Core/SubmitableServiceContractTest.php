@@ -4,6 +4,7 @@ namespace Tests\Feature\Core;
 
 use App\Contracts\SubmitableService;
 use App\Services\CRM\QuotationService;
+use App\Services\Finances\JournalVoucherService;
 use App\Services\Finances\PaymentEntryService;
 use App\Services\Finances\PurchaseInvoiceService;
 use App\Services\Finances\SalesInvoiceService;
@@ -19,12 +20,12 @@ use Tests\TestCase;
 
 class SubmitableServiceContractTest extends TestCase {
     /**
-     * Seluruh 12 Service dokumen submitable yang dipanggil dari
+     * Seluruh 13 Service dokumen submitable yang dipanggil dari
      * checkApproval() harus implement SubmitableService setelah
      * migrasi — test ini mencegah drift di masa depan (Service
      * baru lupa implement kontrak, atau Service lama belum di-update).
      */
-    public function test_all_12_submitable_services_implement_submitable_service_contract(): void {
+    public function test_all_13_submitable_services_implement_submitable_service_contract(): void {
         $services = [
             SalesOrderService::class,
             PurchaseOrderService::class,
@@ -38,6 +39,7 @@ class SubmitableServiceContractTest extends TestCase {
             InternalOrderService::class,
             WorkOrderService::class,
             QuotationService::class,
+            JournalVoucherService::class,
         ];
 
         foreach ($services as $serviceClass) {
