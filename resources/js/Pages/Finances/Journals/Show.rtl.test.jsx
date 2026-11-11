@@ -11,10 +11,11 @@ vi.mock("laravel-react-i18n", () => ({
 const postMock = vi.fn();
 const setDataMock = vi.fn();
 let formErrors = {};
+let formDataOverride = {};
 vi.mock("@inertiajs/react", () => ({
   usePage: () => ({ props: { preferences: {} } }),
   useForm: (initial) => ({
-    data: initial,
+    data: { ...initial, ...formDataOverride },
     setData: setDataMock,
     post: postMock,
     errors: formErrors,
@@ -77,6 +78,7 @@ describe("Show (Finances/Journals)", () => {
   beforeEach(() => {
     vi.clearAllMocks();
     formErrors = {};
+    formDataOverride = {};
   });
 
   it("FormPage read-only dan meneruskan lines/totals/minorUnit ke Form", () => {
@@ -157,7 +159,41 @@ describe("Show (Finances/Journals)", () => {
     ).toBeInTheDocument();
   });
 
+  it("tombol kirim nonaktif selama alasan kosong; batas tanggal dari server", async () => {
+    const user = userEvent.setup();
+    render(
+      <Show
+        journal={journal}
+        lines={[]}
+        totals={totals}
+        minorUnit={2}
+        canReverse
+        reversal={{
+          min_date: "2026-11-04",
+          max_date: "2026-11-12",
+          default_date: "2026-11-12",
+        }}
+      />,
+    );
+
+    await user.click(
+      screen.getByRole("button", { name: "finances.journal.actions.reverse" }),
+    );
+
+    const date = await screen.findByLabelText("finances.journal.reverse.date");
+    expect(date).toHaveAttribute("min", "2026-11-04");
+    expect(date).toHaveAttribute("max", "2026-11-12");
+    expect(date).toHaveValue("2026-11-12");
+    expect(
+      screen.getByLabelText("finances.journal.reverse.reason"),
+    ).toBeRequired();
+    expect(
+      screen.getByRole("button", { name: "finances.journal.reverse.submit" }),
+    ).toBeDisabled();
+  });
+
   it("kirim dialog memanggil POST journals.reverse untuk jurnal ini", async () => {
+    formDataOverride = { reason: "Salah akun" };
     const user = userEvent.setup();
     render(
       <Show

@@ -130,6 +130,7 @@ Urutan kerja: verifikasi asumsi dulu (Task 1), lalu migration + model aditif (2)
     - _Requirements: 11.1, 11.2, 11.4, 14.1_
   - [x] 10.2 Halaman `Finances/Journals/Index.jsx` dan `Show.jsx` (header, tabel baris, total, indikator seimbang, tautan sumber/asal/pembalik, dialog Balik) — ikuti pola `Finances/GeneralLedger.jsx` dan `GeneralLedgers/Show.jsx`; test `.rtl.test.jsx`
     - _Requirements: 11.1, 11.2, 11.7_
+    - **Keputusan 2026-11-12 (Q-P1-14, pemilik produk):** dialog Balik mewajibkan alasan dan membatasi tanggal (tidak sebelum tanggal jurnal asal, tidak di masa depan, zona waktu perusahaan); batas dan default dikirim server. Dikerjakan di PR terpisah dari Putaran C.
   - [x] 10.3 Halaman `Finances/FiscalPeriods/Index.jsx` (daftar, generate tahun, buka/tutup, toggle enforcement + peringatan); test `.rtl.test.jsx`
     - _Requirements: 11.4, 11.5, 11.7_
   - [x] 10.4 Perbarui halaman General Ledger: kolom `Journal` (tautan) dan "Beberapa akun" untuk `against_account_id` null; perbarui `GeneralLedger::$configColumns`; sesuaikan `Show.rtl.test.jsx` yang ada

@@ -15,28 +15,27 @@ import { Textarea } from "@/Components/ui/textarea";
 import { useForm } from "@inertiajs/react";
 import { useLaravelReactI18n } from "laravel-react-i18n";
 
-function today() {
-  const now = new Date();
-  const month = String(now.getMonth() + 1).padStart(2, "0");
-  const day = String(now.getDate()).padStart(2, "0");
-
-  return `${now.getFullYear()}-${month}-${day}`;
-}
-
 /**
  * Dialog Balik (reverse) jurnal (Requirement 11.2): meminta tanggal dan alasan,
- * lalu `POST journals.reverse`. Kesalahan server (periode tertutup, jurnal
+ * lalu `POST journals.reverse`. Alasan wajib; tanggal dibatasi dari tanggal jurnal asal sampai hari ini dalam zona
+ * waktu perusahaan (batas dan default dikirim server, diputuskan pemilik produk 2026-11-12). Kesalahan server (periode tertutup, jurnal
  * sudah dibalik) muncul sebagai pesan validasi pada field `date` / `reverse`.
  * @param {object} props
  * @param {boolean} props.open
  * @param {(open: boolean) => void} props.onOpenChange
  * @param {{id: string, code: string}} props.journal
+ * @param {{min_date?: string, max_date?: string, default_date?: string}} [props.reversal]
  * @returns {import("react").JSX.Element}
  */
-export default function ReverseJournalDialog({ open, onOpenChange, journal }) {
+export default function ReverseJournalDialog({
+  open,
+  onOpenChange,
+  journal,
+  reversal = {},
+}) {
   const { t } = useLaravelReactI18n();
   const route = window.route;
-  const form = useForm({ date: today(), reason: "" });
+  const form = useForm({ date: reversal.default_date ?? "", reason: "" });
 
   const submit = (event) => {
     event.preventDefault();
@@ -66,6 +65,8 @@ export default function ReverseJournalDialog({ open, onOpenChange, journal }) {
             <Input
               id="journal-reverse-date"
               type="date"
+              min={reversal.min_date}
+              max={reversal.max_date}
               value={form.data.date}
               onChange={(event) => form.setData("date", event.target.value)}
             />
@@ -78,6 +79,7 @@ export default function ReverseJournalDialog({ open, onOpenChange, journal }) {
             </Label>
             <Textarea
               id="journal-reverse-reason"
+              required
               value={form.data.reason}
               placeholder={t("finances.journal.reverse.reason_placeholder")}
               onChange={(event) => form.setData("reason", event.target.value)}
@@ -95,7 +97,10 @@ export default function ReverseJournalDialog({ open, onOpenChange, journal }) {
             >
               {t("finances.journal.reverse.cancel")}
             </Button>
-            <Button type="submit" disabled={form.processing}>
+            <Button
+              type="submit"
+              disabled={form.processing || form.data.reason.trim() === ""}
+            >
               {t("finances.journal.reverse.submit")}
             </Button>
           </DialogFooter>

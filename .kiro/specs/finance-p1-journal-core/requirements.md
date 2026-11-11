@@ -180,7 +180,7 @@ Temuan audit yang menjadi dasar (PRD Lampiran A): F-01 (tanpa header, tak ada ja
 #### Acceptance Criteria
 
 1. THE sistem SHALL menyediakan halaman daftar Journal (DataTable: kode, tanggal, sumber, status, total debit/kredit, periode) dan halaman detail Journal (header, tabel baris dengan total dan indikator seimbang, tautan ke dokumen sumber, tautan ke jurnal asal/pembalik).
-2. THE halaman detail SHALL menampilkan tombol Balik (reverse) hanya untuk pengguna ber-izin `reverse` dan hanya untuk jurnal yang dapat dibalik; aksi meminta tanggal dan alasan.
+2. THE halaman detail SHALL menampilkan tombol Balik (reverse) hanya untuk pengguna ber-izin `reverse` dan hanya untuk jurnal yang dapat dibalik; aksi meminta tanggal dan alasan. **Diputuskan 2026-11-12 (pemilik produk, Q-P1-14): alasan WAJIB diisi, dan tanggal pembalikan dibatasi: tidak boleh sebelum tanggal jurnal asal dan tidak boleh di masa depan, keduanya sebagai hari dalam zona waktu perusahaan (Requirement 6.9); batas dan tanggal default dikirim server.**
 3. THE halaman General Ledger existing SHALL tetap berfungsi, menampilkan kolom `Journal` (tautan) dan menampilkan "Beberapa akun" bila `against_account_id` null.
 4. THE sistem SHALL menyediakan halaman pengaturan Periode Fiskal (daftar tahun/periode, generate tahun, buka/tutup periode) di balik izin, didaftarkan sebagai menu item grup setting (desk Finances dan Core) mengikuti spec `module-settings-foundation`.
 5. THE sistem SHALL menyediakan toggle penegakan periode (`finance_enforce_fiscal_period`) pada halaman pengaturan yang sama, dengan peringatan bila ada transaksi di periode tak terdefinisi.

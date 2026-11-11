@@ -76,6 +76,10 @@ return [
         'submit'             => 'Balik Jurnal',
         'cancel'             => 'Batal',
         'success'            => 'Jurnal pembalik :code berhasil dibuat.',
+        'errors'             => [
+            'before_journal' => 'Tanggal pembalikan tidak boleh sebelum tanggal jurnal asal (:date).',
+            'in_future'      => 'Tanggal pembalikan tidak boleh di masa depan.',
+        ],
     ],
     'totals' => [
         'title'      => 'Total',

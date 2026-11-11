@@ -46,7 +46,7 @@ class JournalController extends Controller {
         return Inertia::render('Finances/Journals/Index');
     }
 
-    public function show(Journal $journal, JournalReversalService $reversals): Response {
+    public function show(Journal $journal, JournalReversalService $reversals, FiscalPeriodService $periods): Response {
         $this->setBreadcrumbs($journal);
         $journal->showDetail();
 
@@ -63,6 +63,7 @@ class JournalController extends Controller {
             'totals'     => $this->totals($lines, $minorUnit),
             'minorUnit'  => $minorUnit,
             'canReverse' => $this->hasPermission('reverse') && $reversals->canReverse($journal),
+            'reversal'   => $this->reversalBounds($journal, $periods->companyTimezone()),
         ]);
     }
 
@@ -82,6 +83,22 @@ class JournalController extends Controller {
         }
 
         return redirect()->route('journals.show', $reversal)->with('success', __('finances/journal.reverse.success', ['code' => $reversal->code]));
+    }
+
+    /**
+     * Batas dan default tanggal pembalikan sebagai hari dalam zona waktu perusahaan (Requirement 6.9; batas
+     * diputuskan pemilik produk 2026-11-12): paling awal tanggal jurnal asal, paling akhir hari ini.
+     *
+     * @return array{min_date: string, max_date: string, default_date: string}
+     */
+    private function reversalBounds(Journal $journal, string $timezone): array {
+        $today = CarbonImmutable::now($timezone)->toDateString();
+
+        return [
+            'min_date'     => CarbonImmutable::parse($journal->transaction_date)->setTimezone($timezone)->toDateString(),
+            'max_date'     => $today,
+            'default_date' => $today,
+        ];
     }
 
     /**
