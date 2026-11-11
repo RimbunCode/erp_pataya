@@ -149,6 +149,6 @@ final class IntegrityChecks {
      * @return list<array<string, mixed>>
      */
     private function samples(Builder $query): array {
-        return $query->get()->map(fn ($row) => (array) $row)->all();
+        return $query->get()->map(fn ($row) => AmountColumns::normalize((array) $row))->all();
     }
 }

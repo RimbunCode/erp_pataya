@@ -89,6 +89,20 @@ final class JournalReversalService {
         });
     }
 
+    /**
+     * Apakah jurnal dapat dibalik menurut status dan tautannya (tanpa menyentuh periode atau baris). Dipakai UI untuk
+     * menampilkan tombol Balik; `reverse()` tetap memvalidasi ulang di dalam transaksi dengan kunci baris.
+     */
+    public function canReverse(Journal $journal): bool {
+        try {
+            $this->assertReversible($journal);
+        } catch (InvalidJournalException|JournalAlreadyReversedException) {
+            return false;
+        }
+
+        return true;
+    }
+
     private function assertReversible(Journal $original): void {
         if ($original->reverses_journal_id !== null) {
             throw InvalidJournalException::reversalOfReversal();

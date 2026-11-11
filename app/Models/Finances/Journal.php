@@ -110,33 +110,31 @@ class Journal extends Model {
             'order' => 1,
             'show'  => true,
         ],
+        'source' => [
+            'order' => 2,
+            'show'  => true,
+        ],
         'status' => [
-            'order'      => 2,
+            'order'      => 3,
             'show'       => true,
             'valueTrans' => 'finances.journal.columns.status.options',
             'groupable'  => true,
         ],
         'total_debit' => [
-            'order'          => 3,
-            'show'           => true,
-            'groupAggregate' => 'sum',
-        ],
-        'total_credit' => [
             'order'          => 4,
             'show'           => true,
             'groupAggregate' => 'sum',
         ],
+        'total_credit' => [
+            'order'          => 5,
+            'show'           => true,
+            'groupAggregate' => 'sum',
+        ],
         'fiscalPeriod' => [
-            'order' => 5,
+            'order' => 6,
             'show'  => true,
         ],
         'branch' => [
-            'ignore' => true,
-        ],
-        'source_id' => [
-            'ignore' => true,
-        ],
-        'source_type' => [
             'ignore' => true,
         ],
         'fiscal_period_id' => [

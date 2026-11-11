@@ -13,6 +13,7 @@ return [
     'category'           => 'Kategori',
     'actions'            => [
         'view_reference' => 'Lihat Dokumen Sumber',
+        'view_journal'   => 'Lihat Jurnal',
     ],
     'columns' => [
         'code'                        => 'Kode',
@@ -30,6 +31,12 @@ return [
         'partyable_type'              => 'Tipe Pihak',
         'referenceable_id'            => 'ID Referensi',
         'referenceable_type'          => 'Tipe Referensi',
+        'journal'                     => 'Jurnal',
+        'against_account_view'        => 'Akun Lawan',
+        'multiple_accounts'           => 'Beberapa akun',
         'description'                 => 'Deskripsi',
+    ],
+    'multiple_accounts_state' => [
+        1 => 'Beberapa akun',
     ],
 ];

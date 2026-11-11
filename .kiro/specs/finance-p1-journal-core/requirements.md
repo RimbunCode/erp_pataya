@@ -193,10 +193,11 @@ Temuan audit yang menjadi dasar (PRD Lampiran A): F-01 (tanpa header, tak ada ja
 
 #### Acceptance Criteria
 
-1. THE sistem SHALL menyediakan (sebagai requirement opsional; D-14 disetujui pemilik produk 2026-11-04) form Journal Voucher sederhana untuk pembuatan jurnal manual (tanggal, deskripsi, ≥2 baris akun/debit/kredit/keterangan, indikator seimbang waktu nyata) yang wajib seimbang dan menyimpan lewat `JournalService::post()`.
-2. THE jurnal manual SHALL memiliki `source` null atau penanda `manual`, memerlukan izin `create` pada `Journal`, dan tunduk pada semua validasi Requirement 2 dan 6.
+1. THE sistem SHALL menyediakan (sebagai requirement opsional; D-14 disetujui pemilik produk 2026-11-04) form Journal Voucher sederhana untuk pembuatan jurnal manual (tanggal, deskripsi, ≥2 baris akun/debit/kredit/keterangan, indikator seimbang waktu nyata) yang wajib seimbang. **Diubah 2026-11-07 (disetujui pemilik produk, D-14 keputusan lanjutan): jurnal manual melewati alur persetujuan modul Approval yang sudah ada dan baru diposting lewat `JournalService::post()` setelah disetujui; sebelum disetujui tidak ada jurnal maupun baris GL yang terbentuk.**
+2. THE jurnal manual SHALL memiliki `source` = dokumen `JournalVoucher` asalnya (**diubah 2026-11-07, Q-P1-13, disetujui pemilik produk; sebelumnya `source` null atau penanda `manual`**), pembuatan Journal Voucher memerlukan izin `create` pada `JournalVoucher`, dan jurnal tunduk pada semua validasi Requirement 2 dan 6.
 3. THE jurnal manual SHALL dapat dibalik seperti jurnal lain, dan tidak dapat diedit setelah diposting.
-4. THE Requirement 12 SHALL dikerjakan sebagai task opsional (`- [ ]*`, Task 11): cakupannya dikonfirmasi dengan pemilik produk sebelum dikerjakan, dan bila tidak dikerjakan SHALL tidak memengaruhi requirement lain atau exit criteria fase ini.
+4. THE Requirement 12 SHALL dikerjakan sebagai task opsional (`- [ ]*`, Task 11): cakupannya **dikonfirmasi pemilik produk 2026-11-07: dengan approval (butir 5)**, dan bila tidak dikerjakan SHALL tidak memengaruhi requirement lain atau exit criteria fase ini.
+5. WHEN Journal Voucher diajukan, THE sistem SHALL menjalankan alur Approval yang sama dengan dokumen submitable lain; WHEN disetujui, THE sistem SHALL memposting jurnal lewat `JournalService::post()` dengan `posting_key` idempoten; WHEN ditolak atau dibatalkan sebelum disetujui, THE sistem SHALL tidak membentuk jurnal; WHEN dibatalkan setelah diposting, THE sistem SHALL membalik/mem-void jurnalnya mengikuti Requirement 8.6. **Bentuk model (Q-P1-13, diputuskan pemilik produk 2026-11-07): dokumen `JournalVoucher` (+ item) tersendiri yang submitable dan memakai modul Approval; `Journal` tidak mendapat status draft dan tetap tidak dapat diubah. Journal yang dihasilkan memakai `source` = dokumen `JournalVoucher` tersebut. Pembuat/penyetuju dan penomoran mengikuti pola dokumen submitable yang ada.**
 
 ### Requirement 13: Perubahan tipe kolom dan FK (gated)
 

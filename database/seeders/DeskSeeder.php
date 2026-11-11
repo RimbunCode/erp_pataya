@@ -32,7 +32,9 @@ use App\Models\Core\PrintTemplate;
 use App\Models\Core\SavedFilter;
 use App\Models\DashboardWidget;
 use App\Models\Finances\Account;
+use App\Models\Finances\FiscalPeriod;
 use App\Models\Finances\GeneralLedger;
+use App\Models\Finances\Journal;
 use App\Models\Finances\PaymentEntry;
 use App\Models\Finances\PaymentMethod;
 use App\Models\Finances\PaymentTermTemplate;
@@ -314,7 +316,8 @@ class DeskSeeder extends Seeder {
 
         // Finances: Accounting
         $this->menuItem('Accounts', 'Calculator', 'accounts.*', Account::class, [Domain::Finances], 1, group: 'Accounting');
-        $this->menuItem('General Ledgers', 'Calculator', 'generalLedgers.*', GeneralLedger::class, [Domain::Finances], 2, group: 'Accounting');
+        $this->menuItem('Journals', 'BookOpen', 'journals.*', Journal::class, [Domain::Finances], 2, group: 'Accounting');
+        $this->menuItem('General Ledgers', 'Calculator', 'generalLedgers.*', GeneralLedger::class, [Domain::Finances], 3, group: 'Accounting');
 
         // Finances: Payments
         $this->menuItem('Payment Methods', 'CreditCard', 'paymentMethods.*', PaymentMethod::class, [Domain::Finances], 3, group: 'Payments');
@@ -415,6 +418,10 @@ class DeskSeeder extends Seeder {
                 group: 'Module Settings',
             );
         }
+
+        // Finance Fase 1 (Requirement 11.4): halaman Periode Fiskal masuk grup Module Settings pada desk Finances dan
+        // Core. Bukan halaman registry `settings.pages` (itu pola show/update singleton), jadi didaftarkan langsung.
+        $this->menuItem('Fiscal Periods', 'CalendarRange', 'fiscalPeriods.*', FiscalPeriod::class, [Domain::Core, Domain::Finances], 32, group: 'Module Settings');
     }
 
     // ========================================================================

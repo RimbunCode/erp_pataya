@@ -114,33 +114,37 @@ Urutan kerja: verifikasi asumsi dulu (Task 1), lalu migration + model aditif (2)
 - [ ] 8. **(Dikunci pra-pemeriksaan, Rilis 1)** Konversi tipe kolom dan FK — D-3 disetujui 2026-11-04; tanpa jendela pemeliharaan (Q-P1-1)
   - [ ] 8.1 Pra-pemeriksaan presisi, dua bentuk: (a) **query SQL read-only yang dijalankan pemilik produk di staging sebelum Rilis 1 digabung ke `dev-1`** (praktik Task 6.5 Fase 0; query dan catatan verifikasinya di `design.md` Rilis 1 langkah 2: dua ambang `1e-9` dan `1e-5` karena ambang mutlak `1e-9` memberi positif palsu pada nilai besar), hasilnya dilaporkan ke pemilik produk; (b) **perintah artisan** (usulan nama `finance:check-ledger-precision`) dengan logika yang sama plus ukuran tabel, tetap dibuat untuk Rilis 2 dan seterusnya (tidak dapat dijalankan di staging sebelum Rilis 1 karena kode barunya tiba bersama migration 8.3)
     - _Requirements: 13.1_
-  - [ ] 8.2 Selesaikan audit pemakai `debit`/`credit` (Task 1.3): perbaiki cast/format di PHP dan frontend yang terdampak string `decimal`; tambah test laporan terkait
+  - [x] 8.2 Selesaikan audit pemakai `debit`/`credit` (Task 1.3): perbaiki cast/format di PHP dan frontend yang terdampak string `decimal`; tambah test laporan terkait
     - _Requirements: 13.4_
-  - [ ] 8.3 Migration terpisah: (`against_account_id` nullable sudah dimajukan ke Task 2, migration `..._100005`; **disetujui pemilik produk 2026-11-04, Q-P1-3**, jadi tidak dikerjakan lagi di sini) `debit`/`credit` → `decimal(20,4)`; FK akun → `restrictOnDelete`; `down()` terdokumentasi; uji di SQLite dan pada salinan atau DB dev MySQL (staging baru tersedia setelah Rilis 1 dideploy); berisi pra-pemeriksaan presisi sebagai pengaman; Rilis 1 baru digabung ke `dev-1` setelah query 8.1(a) dijalankan pemilik produk di staging dan hasilnya dilaporkan; Bila query 8.1(a) menunjukkan `hit_ketat` > 0, ambang pengaman migration atau daftar pengecualian yang disetujui ditetapkan **oleh pemilik produk** sebelum Rilis 1 digabung ke `dev-1`, agar pengaman tidak menggagalkan deploy staging; mekanismenya di dalam migration (detail desain): ambang yang dapat dikonfigurasi (mis. konstanta atau config) dan/atau daftar pengecualian.
+  - [x] 8.3 Migration terpisah: (`against_account_id` nullable sudah dimajukan ke Task 2, migration `..._100005`; **disetujui pemilik produk 2026-11-04, Q-P1-3**, jadi tidak dikerjakan lagi di sini) `debit`/`credit` → `decimal(20,4)`; FK akun → `restrictOnDelete`; `down()` terdokumentasi; uji di SQLite dan pada salinan atau DB dev MySQL (staging baru tersedia setelah Rilis 1 dideploy); berisi pra-pemeriksaan presisi sebagai pengaman; Rilis 1 baru digabung ke `dev-1` setelah query 8.1(a) dijalankan pemilik produk di staging dan hasilnya dilaporkan; Bila query 8.1(a) menunjukkan `hit_ketat` > 0, ambang pengaman migration atau daftar pengecualian yang disetujui ditetapkan **oleh pemilik produk** sebelum Rilis 1 digabung ke `dev-1`, agar pengaman tidak menggagalkan deploy staging; mekanismenya di dalam migration (detail desain): ambang yang dapat dikonfigurasi (mis. konstanta atau config) dan/atau daftar pengecualian.
     - _Requirements: 1.3, 13.2, 13.3_
+    - **Catatan berkas Task 8 (Putaran C, 2026-11-11):** `app/Services/Finances/Audit/{LedgerPrecisionChecker,AmountColumns}.php`, `app/Console/Commands/Finances/CheckLedgerPrecisionCommand.php`, `config/finance.php` (`ledger_precision_guard_threshold`, **default 1e-9 sesuai Req 13.1**; pelonggaran hanya oleh pemilik produk), migration `..._100008` (konversi per kolom sehingga aman dilanjutkan bila terhenti di antara dua `ALTER`; menolak nilai >= 1e16), test `LedgerPrecisionTest`, `DecimalAmountReportTest`, `GroupNodeQueryDecimalTest`. Migration sudah diuji di MySQL dev (naik, turun, naik lagi; skema `decimal(20,4)` dan FK `RESTRICT` terverifikasi). **8.1(a) masih menunggu hasil query pemilik produk di staging; penggabungan ke `dev-1` tetap terkunci olehnya.**
 
 - [ ] 9. **(Rilis 2, PR/tahapan terpisah; BR-7)** `journal_id` NOT NULL — deploy produksi: tag `v*` mendeploy produksi, sedangkan `workflow_dispatch` punya input `environment` (staging atau produksi, default produksi; `deploy-cpanel.yml:15-28`) dan dapat dijalankan dari ref mana pun, sehingga urutan BR-7 juga berlaku untuk deploy manual (bukan `dev-1`; merge ke `dev-1` memicu deploy staging). Prasyarat sebelum PR Rilis 2 digabung ke `feat/finance-engine`: (a) Rilis 1 sudah dideploy ke produksi (tag `v*` atau dispatch manual ke produksi); (b) backfill produksi terverifikasi (dan staging); (c) pemeriksaan "nol baris tanpa `journal_id`" (**termasuk baris soft-deleted**, I-1) diulang di staging dan produksi tepat sebelum penggabungan Rilis 2 ke `dev-1`
   - [ ] 9.1 Migration terpisah yang di dalamnya memeriksa nol baris tanpa `journal_id` (**semua baris, termasuk soft-deleted**; backfill kini mengubah baris soft-deleted menjadi jurnal `voided`, I-1, 2026-11-04) dan menolak jalan jika tidak (pengaman; urutan rilis dijaga oleh BR-7, bukan oleh pemeriksaan ini). Dikirim di PR/tahapan terpisah dari Rilis 1; tanpa jendela pemeliharaan (Q-P1-1, 2026-11-04)
     - _Requirements: 13.5_
     - **Pencabutan opsi jadwal (Q-P1-11, 2026-11-04):** sebelum atau bersamaan dengan Rilis 2, cabut `['--ignore-unjournaled']` dari `Schedule::command('finance:reconcile-ledger', ...)` di `routes/console.php` (dan sesuaikan `LedgerReconciliationTest::test_command_is_scheduled_daily`), agar pemeriksaan (c) kembali menjadi kegagalan.
 
-- [ ] 10. Antarmuka pengguna
-  - [ ] 10.1 `JournalController` (`index`, `show`, `reverse`) + `FiscalPeriodController` + rute (`Route::resourceDetail('journals', …)` mengikuti pola `generalLedger` di `routes/web.php`) + izin di seeder
+- [x] 10. Antarmuka pengguna
+  - [x] 10.1 `JournalController` (`index`, `show`, `reverse`) + `FiscalPeriodController` + rute (`Route::resourceDetail('journals', …)` mengikuti pola `generalLedger` di `routes/web.php`) + izin di seeder
     - _Requirements: 11.1, 11.2, 11.4, 14.1_
-  - [ ] 10.2 Halaman `Finances/Journals/Index.jsx` dan `Show.jsx` (header, tabel baris, total, indikator seimbang, tautan sumber/asal/pembalik, dialog Balik) — ikuti pola `Finances/GeneralLedger.jsx` dan `GeneralLedgers/Show.jsx`; test `.rtl.test.jsx`
+  - [x] 10.2 Halaman `Finances/Journals/Index.jsx` dan `Show.jsx` (header, tabel baris, total, indikator seimbang, tautan sumber/asal/pembalik, dialog Balik) — ikuti pola `Finances/GeneralLedger.jsx` dan `GeneralLedgers/Show.jsx`; test `.rtl.test.jsx`
     - _Requirements: 11.1, 11.2, 11.7_
-  - [ ] 10.3 Halaman `Finances/FiscalPeriods/Index.jsx` (daftar, generate tahun, buka/tutup, toggle enforcement + peringatan); test `.rtl.test.jsx`
+  - [x] 10.3 Halaman `Finances/FiscalPeriods/Index.jsx` (daftar, generate tahun, buka/tutup, toggle enforcement + peringatan); test `.rtl.test.jsx`
     - _Requirements: 11.4, 11.5, 11.7_
-  - [ ] 10.4 Perbarui halaman General Ledger: kolom `Journal` (tautan) dan "Beberapa akun" untuk `against_account_id` null; perbarui `GeneralLedger::$configColumns`; sesuaikan `Show.rtl.test.jsx` yang ada
+  - [x] 10.4 Perbarui halaman General Ledger: kolom `Journal` (tautan) dan "Beberapa akun" untuk `against_account_id` null; perbarui `GeneralLedger::$configColumns`; sesuaikan `Show.rtl.test.jsx` yang ada
     - _Requirements: 11.3_
-  - [ ] 10.5 Kunci terjemahan `lang/id` dan `lang/en` (jurnal, periode, exception, menu); pastikan `LocaleKeysTest` hijau; daftarkan item menu/desk sesuai mekanisme project
+  - [x] 10.5 Kunci terjemahan `lang/id` dan `lang/en` (jurnal, periode, exception, menu); pastikan `LocaleKeysTest` hijau; daftarkan item menu/desk sesuai mekanisme project
     - _Requirements: 11.6_
+    - **Catatan berkas Task 10 (Putaran C, 2026-11-11):** `JournalController` (`index`, `show`, `reverse`; rute eksplisit, bukan `resourceDetail`, agar tidak ada permukaan tulis yang tidak dipakai), `FiscalPeriodController` (rute di bawah `settings/fiscalPeriods`), FormRequest `JournalReverseRequest`/`FiscalPeriodStatusRequest`/`FiscalYearGenerateRequest`/`FiscalEnforcementRequest`, halaman `Finances/Journals/*` dan `Finances/FiscalPeriods/Index.jsx`, perubahan `GeneralLedgers/{Form,Show}.jsx`, `DeskSeeder` (menu Journals dan Fiscal Periods), lang id/en. Diverifikasi di browser (daftar, detail, Balik, tutup/buka periode) pada DB dev.
 
-- [ ]* 11. Jurnal manual (opsional; D-14 disetujui pemilik produk 2026-11-04 sebagai task opsional, cakupan dikonfirmasi sebelum dikerjakan)
-  - [ ]* 11.1 Form jurnal manual (≥2 baris, indikator seimbang realtime) + `JournalController@store` → `JournalService::post()` + izin `create`
-    - _Requirements: 12.1, 12.2_
-  - [ ]* 11.2 Test: jurnal manual tidak seimbang ditolak; periode tertutup ditolak; dapat dibalik; tidak dapat diedit
-    - **Validates: Requirements 12.2, 12.3**
+- [ ]* 11. Jurnal manual dengan approval (opsional; D-14 disetujui 2026-11-04, cakupan dikonfirmasi pemilik produk 2026-11-07: **dengan approval**, Q-P1-13: dokumen `JournalVoucher` tersendiri)
+  - [ ]* 11.1 `JournalVoucher` + item (model, migration, factory, izin `create`/`submit`/`cancel`, penomoran, submitable memakai modul Approval) mengikuti pola dokumen submitable yang ada; `Journal` tidak mendapat status draft
+    - _Requirements: 12.1, 12.2, 12.5_
+  - [ ]* 11.2 Form Journal Voucher (tanggal, deskripsi, ≥2 baris akun/debit/kredit/keterangan, indikator seimbang waktu nyata); setelah disetujui, posting lewat `JournalService::post()` dengan `posting_key` `{FQCN JournalVoucher}:{id}:default`; sebelum disetujui, ditolak, atau dibatalkan sebelum disetujui tidak ada jurnal/baris GL; batal setelah posting membalik/mem-void jurnalnya (Req 8.6)
+    - _Requirements: 12.1, 12.3, 12.5_
+  - [ ]* 11.3 Test: tidak seimbang ditolak; periode tertutup ditolak; approval memicu posting tepat sekali (idempoten); ditolak/dibatalkan tidak memposting; jurnal hasilnya dapat dibalik dan tidak dapat diedit
+    - **Validates: Requirements 12.2, 12.3, 12.5**
 
 - [ ] 12. Checkpoint akhir Fase 1
   - Jalankan `php artisan test --compact tests/Feature/Finances tests/Feature/Asset tests/Unit` dan test frontend yang disentuh (`npx vitest run <path>`)

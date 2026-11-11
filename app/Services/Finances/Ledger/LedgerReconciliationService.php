@@ -3,6 +3,7 @@
 namespace App\Services\Finances\Ledger;
 
 use App\Enums\JournalStatus;
+use App\Services\Finances\Audit\AmountColumns;
 use App\Services\Finances\Audit\GeneralLedgerAuditor;
 use Illuminate\Database\Query\Builder;
 use Illuminate\Support\Facades\DB;
@@ -128,7 +129,7 @@ final class LedgerReconciliationService {
     private function result(Builder $query, array $columns, int $limit): array {
         return [
             'count'   => (clone $query)->count(),
-            'samples' => (clone $query)->select($columns)->limit($limit)->get()->map(fn ($row) => (array) $row)->all(),
+            'samples' => (clone $query)->select($columns)->limit($limit)->get()->map(fn ($row) => AmountColumns::normalize((array) $row))->all(),
         ];
     }
 }

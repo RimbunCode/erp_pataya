@@ -13,6 +13,7 @@ return [
     'category'           => 'Category',
     'actions'            => [
         'view_reference' => 'View Source Document',
+        'view_journal'   => 'View Journal',
     ],
     'columns' => [
         'code'                        => 'Code',
@@ -30,6 +31,12 @@ return [
         'partyable_type'              => 'Partyable Type',
         'referenceable_id'            => 'Referenceable ID',
         'referenceable_type'          => 'Referenceable Type',
+        'journal'                     => 'Journal',
+        'against_account_view'        => 'Against Account',
+        'multiple_accounts'           => 'Multiple accounts',
         'description'                 => 'Description',
+    ],
+    'multiple_accounts_state' => [
+        1 => 'Multiple accounts',
     ],
 ];

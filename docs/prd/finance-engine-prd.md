@@ -445,7 +445,8 @@ Catatan lingkungan: test suite memakai SQLite `:memory:` sedangkan dev DB MySQL 
 | Q5 | D-1: opsi A, B, atau C? | Fase 2 |
 | Q6 | Format laporan resmi yang dibutuhkan (SAK/PSAK, format e-Faktur/SPT)? | Fase 5 |
 | Q7 | Apakah ada laporan keuangan eksternal yang saat ini dibuat manual di luar ERP dan harus direplikasi? | Fase 5 |
-| Q-BR-1 | Kapan `feat/finance-engine` digabung ke `dev-1`? (Rilis 1 dan Rilis 2 Fase 1 adalah dua penggabungan berbeda, BR-7) | Sebelum merge ke `dev-1` (belum dijadwalkan) |
+| Q-BR-1 | Kapan `feat/finance-engine` digabung ke `dev-1`? **Dijawab pemilik produk 2026-11-07: hingga semua tahapan Finance Engine selesai.** Konsekuensi untuk urutan dua rilis BR-7 dicatat sebagai Q-BR-2 (lihat decision log) | Dijawab |
+| Q-BR-2 | Akibat Q-BR-1 terhadap BR-7: bagaimana backfill dan verifikasinya di staging dan produksi dipenuhi bila merge ke `dev-1` baru setelah semua fase selesai. **Dijawab pemilik produk 2026-11-07: opsi (c)**, yaitu backfill dan verifikasi per fase lewat `workflow_dispatch` dari `feat/finance-engine`, dan Rilis 2 (NOT NULL) dikeluarkan dari penggabungan akhir ke `dev-1` serta dikirim terpisah setelah backfill produksi terverifikasi | Dijawab |
 
 ## 17. Glosarium
 
