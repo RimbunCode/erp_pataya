@@ -76,6 +76,10 @@ return [
         'submit'             => 'Reverse Journal',
         'cancel'             => 'Cancel',
         'success'            => 'Reversing journal :code was created.',
+        'errors'             => [
+            'before_journal' => 'The reversal date cannot be before the original journal date (:date).',
+            'in_future'      => 'The reversal date cannot be in the future.',
+        ],
     ],
     'totals' => [
         'title'      => 'Totals',

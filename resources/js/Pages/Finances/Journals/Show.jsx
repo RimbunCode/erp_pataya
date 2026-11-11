@@ -13,6 +13,7 @@ export default function Show({
   totals,
   minorUnit,
   canReverse = false,
+  reversal = {},
 }) {
   const { t } = useLaravelReactI18n();
   const [reverseOpen, setReverseOpen] = useState(false);
@@ -42,6 +43,7 @@ export default function Show({
               open={reverseOpen}
               onOpenChange={setReverseOpen}
               journal={journal}
+              reversal={reversal}
             />
           </>
         )
