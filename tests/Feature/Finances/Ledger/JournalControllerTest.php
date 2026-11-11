@@ -152,6 +152,54 @@ class JournalControllerTest extends TestCase {
         $this->assertSame($reversal->id, $this->journal->fresh()->reversed_by_journal_id);
     }
 
+    public function test_reverse_requires_a_reason(): void {
+        foreach ([[], ['reason' => ''], ['reason' => '   ']] as $payload) {
+            $this->actingWith(['select', 'read', 'reverse'])->post(route('journals.reverse', $this->journal), $payload)
+                ->assertSessionHasErrors('reason');
+        }
+
+        $this->assertSame(JournalStatus::Posted->value, $this->journal->fresh()->status);
+        $this->assertSame(1, Journal::count());
+    }
+
+    public function test_reverse_rejects_date_before_the_original_journal_date(): void {
+        $this->actingWith(['select', 'read', 'reverse'])->post(route('journals.reverse', $this->journal), [
+            'date'   => '2026-11-03',
+            'reason' => 'Salah tanggal',
+        ])->assertSessionHasErrors('date');
+
+        $this->assertSame(1, Journal::count());
+    }
+
+    public function test_reverse_rejects_date_in_the_future(): void {
+        $this->actingWith(['select', 'read', 'reverse'])->post(route('journals.reverse', $this->journal), [
+            'date'   => CarbonImmutable::now()->addDays(2)->toDateString(),
+            'reason' => 'Terlalu maju',
+        ])->assertSessionHasErrors('date');
+
+        $this->assertSame(1, Journal::count());
+    }
+
+    public function test_reverse_accepts_the_original_journal_day(): void {
+        $this->actingWith(['select', 'read', 'reverse'])->post(route('journals.reverse', $this->journal), [
+            'date'   => '2026-11-04',
+            'reason' => 'Hari yang sama',
+        ])->assertSessionHasNoErrors()->assertRedirect();
+
+        $this->assertSame(JournalStatus::Reversed->value, $this->journal->fresh()->status);
+    }
+
+    public function test_show_exposes_reversal_date_bounds_in_company_timezone(): void {
+        $timezone = app(FiscalPeriodService::class)->companyTimezone();
+        $today    = CarbonImmutable::now($timezone)->toDateString();
+
+        $this->actingWith(['select', 'read', 'reverse'])->get(route('journals.show', $this->journal))
+            ->assertInertia(fn ($page) => $page
+                ->where('reversal.min_date', CarbonImmutable::parse('2026-11-04 10:30:00')->setTimezone($timezone)->toDateString())
+                ->where('reversal.max_date', $today)
+                ->where('reversal.default_date', $today));
+    }
+
     public function test_reverse_ignores_attributes_outside_date_and_reason(): void {
         $this->actingWith(['select', 'read', 'reverse'])->post(route('journals.reverse', $this->journal), [
             'reason'        => 'ok',
@@ -182,7 +230,9 @@ class JournalControllerTest extends TestCase {
         app(FiscalPeriodService::class)->close($period);
         app(SettingsService::class)->update(FinanceSetting::class, ['enforce_fiscal_period' => true]);
 
-        $this->actingWith(['select', 'read', 'reverse'])->post(route('journals.reverse', $this->journal), ['date' => '2026-12-15'])
+        CarbonImmutable::setTestNow('2026-12-20 03:00:00');
+
+        $this->actingWith(['select', 'read', 'reverse'])->post(route('journals.reverse', $this->journal), ['date' => '2026-12-15', 'reason' => 'x'])
             ->assertSessionHasErrors('date');
 
         $this->assertSame(JournalStatus::Posted->value, $this->journal->fresh()->status);
@@ -190,13 +240,20 @@ class JournalControllerTest extends TestCase {
     }
 
     public function test_reverse_date_is_read_in_the_company_timezone(): void {
+        CarbonImmutable::setTestNow('2026-12-20 03:00:00');
         app(FiscalPeriodService::class)->generateYear(2026);
 
-        $this->actingWith(['select', 'read', 'reverse'])->post(route('journals.reverse', $this->journal), ['date' => '2026-12-01'])->assertRedirect();
+        $this->actingWith(['select', 'read', 'reverse'])->post(route('journals.reverse', $this->journal), ['date' => '2026-12-01', 'reason' => 'x'])->assertRedirect();
 
         $reversal = Journal::query()->where('reverses_journal_id', $this->journal->id)->firstOrFail();
         $this->assertSame('2026-12-01', app(FiscalPeriodService::class)->businessDay($reversal->transaction_date));
         $this->assertSame('2026-12', $reversal->fiscalPeriod->name);
+    }
+
+    protected function tearDown(): void {
+        CarbonImmutable::setTestNow();
+
+        parent::tearDown();
     }
 
     public function test_reverse_validates_input(): void {
