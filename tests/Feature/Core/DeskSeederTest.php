@@ -5,6 +5,7 @@ namespace Tests\Feature\Core;
 use App\Enums\DeskType;
 use App\Models\Core\Desk;
 use App\Models\Core\MenuItem;
+use App\Models\Finances\JournalVoucher;
 use Database\Seeders\DeskSeeder;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Illuminate\Support\Facades\Route;
@@ -62,6 +63,26 @@ class DeskSeederTest extends TestCase {
         }
 
         $this->assertEmpty($unresolvable, 'route_name tidak resolvable: ' . implode(', ', $unresolvable));
+    }
+
+    /**
+     * Regresi: `JournalVoucher::class` tanpa `use` menjadi `Database\Seeders\JournalVoucher` dan menu tersimpan
+     * dengan model yang tidak ada (menu tersembunyi). Setiap `menu_items.model` harus nama kelas yang ada.
+     */
+    public function test_seeder_menu_items_reference_existing_model_classes(): void {
+        (new DeskSeeder)->run();
+
+        $missing = MenuItem::query()
+            ->whereNotNull('model')
+            ->pluck('model')
+            ->filter(fn (string $model) => ! class_exists($model))
+            ->unique()
+            ->all();
+
+        $this->assertSame([], $missing, 'Model menu tidak ada: ' . implode(', ', $missing));
+        $this->assertTrue(
+            MenuItem::where('route_name', 'journalVouchers.*')->where('model', JournalVoucher::class)->exists(),
+        );
     }
 
     public function test_seeder_is_idempotent_when_run_twice(): void {

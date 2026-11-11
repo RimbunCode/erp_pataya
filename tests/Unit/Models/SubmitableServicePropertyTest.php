@@ -10,6 +10,7 @@ use App\Models\Asset\AssetValueAdjustment;
 use App\Models\Asset\Maintenance\AssetMaintenance;
 use App\Models\Asset\Maintenance\AssetMaintenanceTeam;
 use App\Models\CRM\Quotation;
+use App\Models\Finances\JournalVoucher;
 use App\Models\Finances\PaymentEntry;
 use App\Models\Finances\PurchaseInvoice;
 use App\Models\Finances\SalesInvoice;
@@ -61,6 +62,7 @@ class SubmitableServicePropertyTest extends TestCase {
         AssetMaintenance::class,
         AssetMaintenanceTeam::class,
         Quotation::class,
+        JournalVoucher::class,
         PaymentEntry::class,
         PurchaseInvoice::class,
         SalesInvoice::class,
@@ -82,6 +84,7 @@ class SubmitableServicePropertyTest extends TestCase {
      */
     private const SUBMITABLE_MODELS = [
         Quotation::class,
+        JournalVoucher::class,
         PaymentEntry::class,
         PurchaseInvoice::class,
         SalesInvoice::class,

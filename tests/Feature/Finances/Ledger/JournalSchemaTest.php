@@ -7,6 +7,7 @@ use App\Models\Finances\FinanceSetting;
 use App\Models\Finances\FiscalPeriod;
 use App\Models\Finances\FiscalYear;
 use App\Models\Finances\Journal;
+use App\Models\Finances\JournalVoucher;
 use App\Models\User\Permission;
 use App\Services\Core\Setting\SettingsService;
 use Illuminate\Foundation\Testing\RefreshDatabase;
@@ -45,7 +46,7 @@ class JournalSchemaTest extends TestCase {
     }
 
     public function test_init_permissions_is_a_noop_on_new_tables(): void {
-        foreach ([Journal::class, FiscalYear::class, FiscalPeriod::class] as $model) {
+        foreach ([Journal::class, FiscalYear::class, FiscalPeriod::class, JournalVoucher::class] as $model) {
             $table  = (new $model)->getTable();
             $before = $this->snapshot($table);
 

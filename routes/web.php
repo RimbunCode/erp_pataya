@@ -44,6 +44,7 @@ use App\Http\Controllers\Finances\AccountController;
 use App\Http\Controllers\Finances\FiscalPeriodController;
 use App\Http\Controllers\Finances\GeneralLedgerController;
 use App\Http\Controllers\Finances\JournalController;
+use App\Http\Controllers\Finances\JournalVoucherController;
 use App\Http\Controllers\Finances\PaymentEntryController;
 use App\Http\Controllers\Finances\PaymentMethodController;
 use App\Http\Controllers\Finances\PaymentTermTemplateController;
@@ -480,6 +481,8 @@ Route::middleware(['auth', 'lang', 'onboarded', 'app', 'desk'])->group(function 
     Route::resourceDetail('paymentMethod', PaymentMethodController::class);
     // Payment Term Template
     Route::resourceDetail('paymentTermTemplate', PaymentTermTemplateController::class);
+    // Journal Voucher: jurnal manual dengan approval (Finance Fase 1, Task 11); diposting JournalService saat disetujui
+    Route::resourceDetail('journalVoucher', JournalVoucherController::class, isSubmmitable: true);
     // Payment Entries
     Route::resourceDetail('paymentEntry', PaymentEntryController::class, isSubmmitable: true);
     // Purchase Invoices
