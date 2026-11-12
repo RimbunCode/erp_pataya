@@ -148,6 +148,29 @@ Tabel arah Payment Entry. Kode saat ini (`postLedger`) mendebit `account_paid_to
 
 Catatan: `cash_or_bank` di-resolve dari akun master Metode Pembayaran yang dibawa konteks (`PaymentMethod.default_account_id`; default form diambil `PaymentSchedule::getDetailPayment` dari `paymentMethod.defaultAccount` jadwal pertama). Bila metode pembayaran tidak punya `default_account_id` → `UnresolvedAccountRoleException`. Tanda `—` pada retur berarti perilaku saat ini tidak mengenal retur untuk dokumen itu.
 
+#### Kontrak konteks per rule (Sprint B, 2026-11-12)
+
+Rule berada di `app/Services/Finances/Posting/Rules/` dan didaftarkan `PostingRuleRegistry` (10 jenis). Nama jumlah dan bendera yang dibaca tiap rule (pabrik konteks Task 7/8 wajib mengisinya persis; `sourceType` = `getMorphClass()` dokumen sumber, yaitu FQCN karena tidak ada morph map):
+
+| Rule | `amounts` | `flags` | `lines[]` (`amounts['amount']`) | Catatan |
+|---|---|---|---|---|
+| `SalesInvoiceRule` | `total` | `is_return` | kredit `revenue` per baris; Σ harus = `total` | tanpa `lines`: satu baris `revenue` = `total` |
+| `PurchaseInvoiceRule` | `total`, `stock_total` | `is_return` | debit `expense` per baris; Σ = `total` | jurnal `stock` hanya bila `stock_total` > 0 dan bukan retur |
+| `PurchaseReceiptRule` | `total` | `is_return` | — | |
+| `DeliveryNoteRule` | `total_picked` | `is_return` | — | |
+| `PaymentEntryRule` | `paid_amount` | `payment_type` (`receive`/`pay`), `paymentable_kind` (`sales_invoice`/`purchase_invoice`) | — | `internal_transfer` dan kind lain: `LogicException` (T-4); arah retur memakai tabel arah yang sama (T-3) |
+| `StockEntryRule` | `basic_total` | `entry_type`, `additional_costs` (list `{id, amount}`) | `stock_adjustment` per baris (`basic_amount`); Σ = `basic_total` | `stock` tetap tingkat dokumen; transfer/consumption: hanya jurnal biaya tambahan |
+| `AssetDepreciationRule` | `depreciation_amount` | — | — | akun dari `masterAccounts` aset |
+| `AssetScrapRule` | `write_off_amount` | `is_depreciable` (default true) | — | |
+| `AssetValueAdjustmentRule` | `difference_amount` (bertanda) | — | — | |
+| `AssetDisposalRule` | `gain_loss` (bertanda) | `sales_invoice_item_id` | — | ambang `abs` > 0,0001 |
+
+`transactionDate` dan `branchId` diteruskan apa adanya ke jurnal (jalur lama memakai `branchId` null pada semua titik kecuali yang tertulis di kodenya; pabrik konteks harus menyamakannya demi parity). `PostingService` membulatkan ke minor unit mata uang dasar, membuang jurnal yang nol setelah pembulatan (selaras `postPair`), menggabungkan baris beratribut dengan akun dan sisi sama, dan menyerap sisa pembulatan antarbaris (paling banyak jumlah kelompok pada sisi yang terpecah) pada baris terbesar sisi itu agar jurnal seimbang (P-12). `ParityComparator` membandingkan dengan tanggal (hari, zona penyimpanan) per jurnal.
+
+#### Mode engine (Sprint B)
+
+Setting `finance_posting_mode.{type}` disimpan sebagai satu kolom JSON `finance_settings.posting_modes` (peta jenis dokumen => mode), default `off` untuk semua jenis; kolom ini tidak ada di `FinanceSetting::rules()` (tidak tampil di halaman Finance Settings dan tidak dapat ditulis lewat form umum) dan hanya ditulis `PostingModeService::switch()` lewat `SettingsService::updateInternal()` (izin `switch_posting_mode` pada `PostingParityLog`, audit pengaturan modul bawaan). `PostingModeResolver` men-cache 60 detik; nilai hilang/tak dikenal dibaca `off`.
+
 #### Temuan Task 1.1 (butuh konfirmasi pemilik produk; tidak diubah diam-diam)
 
 - **T-1 Scrap tanpa `gain_loss_disposal`.** `PostScrapWriteOff` hanya memposting debit akumulasi / kredit aset tetap sebesar nilai buku; tidak ada baris untung/rugi atau "sisa". Rule meniru perilaku ini (parity). Catatan "(+ gain_loss_disposal bila sisa)" pada draf peta lama dihapus karena tidak didukung kode.
@@ -178,34 +201,34 @@ Validasi di `Account` hasil: bukan `is_group`, bukan `is_disabled`, tidak terhap
 ```php
 final class PostingService {
     public function preview(PostingContext $ctx): array;   // list<JournalDraft> (akun nyata, tanpa tulis)
-    public function post(PostingContext $ctx): array;      // list<Journal>
+    public function post(PostingContext $ctx): PostingOutcome;  // posted | already_posted | skipped + journals (Q-P2-12)
 }
 ```
 
-`post()`: dalam satu `DB::transaction`: `registry->for($ctx->documentType)->build($ctx)` → untuk tiap `RoleJournalDraft`, resolve peran ke akun → `JournalDraft` dengan `postingKey = "{$ctx->sourceType}:{$ctx->sourceId}:{$purpose}"` → `JournalService::post()`. Idempotensi: periksa semua key dulu; semua ada → kembalikan; sebagian → `PartialPostingException`.
+`post()`: dalam satu `DB::transaction` (guard cancel termasuk di dalamnya; dokumen penjaga dibaca dengan `lockForUpdate`): `registry->for($ctx->documentType)->build($ctx)` → untuk tiap `RoleJournalDraft`, resolve peran ke akun → `JournalDraft` dengan `postingKey = "{$ctx->sourceType}:{$ctx->sourceId}:{$purpose}"` → `JournalService::post()`. Idempotensi: periksa semua key dulu; semua ada → kembalikan; sebagian → `PartialPostingException`.
 
 ### `PostingGateway`
 
 ```php
 final class PostingGateway {
     /** @param Closure(): void $legacy  jalur lama (Fase 1 postPair) milik listener */
-    public function post(PostingContext $ctx, Closure $legacy): void;
+    public function post(PostingContext $ctx, Closure $legacy): PostingOutcome;
 }
 ```
 
-Logika:
+Logika (seluruh isi `post()` berjalan dalam satu `DB::transaction`; di dalam transaksi listener menjadi savepoint, sehingga guard berkunci baris selalu pada `transactionLevel() >= 1` dan kunci bertahan sampai penulisan selesai; pengecualian jalur lama/`on` menggulung, error engine `shadow` ditelan di savepoint sendiri tanpa menggulung jalur lama):
 
-1. **Guard cancel (F-16)**: muat sumber generik (`$ctx->sourceType::query()->withTrashed()->find($ctx->sourceId)`) dan bila ber-status `canceled` → tandai `GlPostingStatus` `skipped`, log info, **return** (semua mode).
+1. **Guard cancel (F-16)**: muat dokumen penjaga generik (`PostingContext::guardDocument`, default sumber; mis. disposal aset memakai Sales Invoice, Q-P2-13) dan bila ber-status `canceled` → tandai `GlPostingStatus` penjaga yang `pending` menjadi `skipped`, log info, **return `PostingOutcome::skipped()`** (semua mode).
 2. `mode = PostingModeResolver::for($ctx->documentType)`.
 3. `off` → `$legacy()`.
 4. `shadow` → `$legacy()`; lalu dalam `try`: `drafts = PostingService::preview($ctx)`; `ParityComparator::compare($ctx, $drafts)` → tulis `posting_parity_logs`; `catch (Throwable)` → log `engine_error`, tidak melempar.
-5. `on` → `PostingService::post($ctx)`.
+5. `on` → `PostingService::post($ctx)` dan hasilnya (`posted`/`already_posted`) dikembalikan apa adanya. Pada `off`/`shadow` gateway mengembalikan `posted` tanpa jurnal (jalur lama memegang jurnalnya). Kontrak untuk listener (Q-P2-12): (a) jangan menimpa `GlPostingStatus` `skipped` menjadi `posted`; (b) jangan menerapkan efek samping non-idempoten (mis. `gross_purchase_amount` aset, mutasi SLE) saat `already_posted`; (c) pakai `journals` hasil untuk kebutuhan turunan (mis. `journal_entry_for_scrap_id`).
 
-Listener berubah minimal: bagian `DB::transaction` yang berisi dua `create` diganti `PostingGateway::post($ctx, fn () => /* kode Fase 1 persis */)`; update `GlPostingStatus`, `tries`, `backoff`, `failed()` tidak diubah.
+Listener berubah minimal: bagian `DB::transaction` yang berisi dua `create` diganti `PostingGateway::post($ctx, fn () => /* kode Fase 1 persis */)`; `tries`, `backoff`, `failed()` tidak diubah, dan update `GlPostingStatus` menjadi `posted` hanya bila hasil gateway bukan `skipped` (Q-P2-12).
 
 ### `ParityComparator`
 
-Normalisasi sisi lama: ambil jurnal yang ditulis untuk `postingKey` `{type}:{id}:*` beserta baris aktifnya; sisi engine: draft hasil `preview`. Representasi kanonik per `purpose`: daftar terurut `(account_id, debit_minor, credit_minor)`. Status: `match` bila identik; `rounding` bila beda ≤ 1 minor unit per baris; `config_diff` bila satu-satunya perbedaan adalah akun yang dipilih pengguna pada dokumen lama berbeda dari akun hasil konfigurasi (menyimpan akun kedua sisi); `mismatch` selainnya (menyimpan diff JSON). Jumlah jurnal berbeda → `mismatch`.
+Normalisasi sisi lama: ambil jurnal bersumber sama (`source_type`/`source_id`, status `posted`, bukan `reversal`) yang `purpose`-nya termasuk himpunan `purpose` milik konteks (`PostingService::purposes()`, dari rule sebelum filter nol), sehingga jurnal lain dari sumber yang sama (mis. aset yang dijual lewat dua baris invoice, `disposal:{id}` berbeda) tidak dibandingkan; sisi engine: draft hasil `preview`. Representasi kanonik per `purpose`: tanggal (hari, zona penyimpanan) dan daftar terurut `(account_id, debit_minor, credit_minor)`. Status per jurnal: `match` bila identik; `rounding` bila akun sama dan beda ≤ 1 minor unit per baris; `config_diff` HANYA untuk dokumen yang akunnya dipilih pengguna pada dokumen lama (Req 6.5, 13.1): Sales Invoice, Payment Entry, Stock Entry, Asset Value Adjustment, dan Purchase Invoice purpose `expense` saja, dan hanya bila setiap akun yang ada di kedua sisi tetap pada sisi dan jumlah yang sama sementara akun yang berbeda membawa jumlah yang sama (hanya akun yang berbeda disimpan pada `diff`); `mismatch` selainnya, termasuk sisi debit/kredit tertukar, permutasi akun, tanggal berbeda, dan beda akun pada dokumen tanpa akun pilihan pengguna (Purchase Receipt, Delivery Note, Purchase Invoice purpose `stock`, depresiasi, scrap, disposal). Himpunan `purpose` yang berbeda → `mismatch`. Status gabungan: `mismatch` > `config_diff` > `rounding` > `match`.
 
 ### `PostingModeResolver`
 

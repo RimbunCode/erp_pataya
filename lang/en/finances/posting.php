@@ -6,6 +6,7 @@ return [
         'unresolved_role_account'   => 'The account for role ":role" (document :document, variant :variant, date :date) cannot be used: :reason (:account). Account source: :layer.',
         'unresolved_role_ambiguous' => 'The account role ":role" (document :document, variant :variant, date :date) is ambiguous in the legacy fallback: :candidates accounts match :root/:type and none was chosen. Map this role in the Posting Profile.',
         'unknown_document_type'     => 'The posting document type ":type" has no registered posting rule.',
+        'switch_mode_forbidden'     => 'You are not allowed to change the posting engine mode.',
         'partial_posting'           => 'Partial posting for :source: journals :existing already exist, :missing do not. Manual intervention is required.',
     ],
 

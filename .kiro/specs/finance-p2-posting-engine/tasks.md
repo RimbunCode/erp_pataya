@@ -51,32 +51,32 @@ Urutan: fondasi data dan resolver (1–3), kontrak + rule + service + gateway de
     - **P-10** spesifisitas deterministik (acak urutan simpan); **P-11** retur tanpa aturan khusus = akun normal (separuh "sisi ditukar" belum dapat diuji karena `PostingRule` belum ada; ditunda ke Task 4.3)
     - **Validates: Requirements 12.2–12.3**
 
-- [ ] 4. Rule dan PostingService
-  - [ ] 4.1 `PostingRuleRegistry` + rule untuk 6 jenis yang sudah jelas bentuknya: Sales Invoice, Purchase Invoice (dua `purpose`), Purchase Receipt, Delivery Note, Payment Entry, Asset depreciation
+- [x] 4. Rule dan PostingService
+  - [x] 4.1 `PostingRuleRegistry` + rule untuk 6 jenis yang sudah jelas bentuknya: Sales Invoice, Purchase Invoice (dua `purpose`), Purchase Receipt, Delivery Note, Payment Entry, Asset depreciation
     - _Requirements: 4.2–4.3, 4.6_
-  - [ ] 4.2 Rule untuk Stock Entry, Asset scrap, value adjustment, disposal (setelah Task 1.1)
+  - [x] 4.2 Rule untuk Stock Entry, Asset scrap, value adjustment, disposal (setelah Task 1.1)
     - _Requirements: 4.3_
-  - [ ]* 4.3 Write unit tests setiap rule (tanpa DB; **P-2**; **P-11** bagian "sisi ditukar": retur tanpa aturan khusus memakai akun normal dengan sisi debit/kredit ditukar): normal, retur, jumlah 0, `stock_total` 0, akun master, baris peka-barang (gabung per akun, **P-12**)
+  - [x]* 4.3 Write unit tests setiap rule (tanpa DB; **P-2**; **P-11** bagian "sisi ditukar": retur tanpa aturan khusus memakai akun normal dengan sisi debit/kredit ditukar): normal, retur, jumlah 0, `stock_total` 0, akun master, baris peka-barang (gabung per akun, **P-12**)
     - **Validates: Requirements 4.3, 4.6**
-  - [ ] 4.4 `PostingService::preview()` dan `post()` (idempotensi, `PartialPostingException`, guard dokumen `canceled`)
+  - [x] 4.4 `PostingService::preview()` dan `post()` (idempotensi, `PartialPostingException`, guard dokumen `canceled`)
     - _Requirements: 5.1–5.6_
-  - [ ]* 4.5 Write tests `PostingService`
+  - [x]* 4.5 Write tests `PostingService`
     - **P-4** idempoten; sebagian ada → exception; atomik multi-jurnal (kegagalan jurnal ke-2 menggulung ke-1)
     - **Validates: Requirements 5.2–5.4**
-  - [ ] 4.6 Test arsitektur: tidak ada `use` terlarang pada `Posting/**` dan `Ledger/**` (**P-8**)
+  - [x] 4.6 Test arsitektur: tidak ada `use` terlarang pada `Posting/**` dan `Ledger/**` (**P-8**)
     - _Requirements: 4.4_
 
 - [ ] 5. Gateway, mode, dan parity
-  - [ ] 5.1 `PostingModeResolver` (cache 60 dtk) + `PostingModeService::switch()` (izin `switch_posting_mode`, audit, invalidasi cache); seed setting Finances default `off` lewat service setting (`module-settings-foundation`); daftarkan juga izin `switch_posting_mode` (Req. 11.3; ditunda dari Task 2.2)
+  - [x] 5.1 `PostingModeResolver` (cache 60 dtk) + `PostingModeService::switch()` (izin `switch_posting_mode`, audit, invalidasi cache); seed setting Finances default `off` lewat service setting (`module-settings-foundation`); daftarkan juga izin `switch_posting_mode` (Req. 11.3; ditunda dari Task 2.2)
     - _Requirements: 6.1, 6.8_
-  - [ ] 5.2 `ParityComparator` (kanonisasi per `purpose`, `match/rounding/config_diff/mismatch`) + test unit
+  - [x] 5.2 `ParityComparator` (kanonisasi per `purpose`, `match/rounding/config_diff/mismatch`) + test unit
     - _Requirements: 6.5–6.6_
-  - [ ] 5.3 `PostingGateway` (guard cancel semua mode; `off/shadow/on`; engine error di `shadow` ditelan) 
+  - [x] 5.3 `PostingGateway` (guard cancel semua mode; `off/shadow/on`; engine error di `shadow` ditelan) 
     - _Requirements: 6.2–6.4, 10.5, 10.6_
-  - [ ]* 5.4 Write tests gateway
+  - [x]* 5.4 Write tests gateway
     - **P-5** mode aman; **P-6** guard cancel pada tiga mode; `GlPostingStatus` menjadi `skipped` bila pending
     - **Validates: Requirements 6.2–6.4, 10.5, 10.6**
-  - [ ] 5.5 Perintah `finance:parity-report {--type=} {--since=}` dan `finance:prune-parity-logs`
+  - [x] 5.5 Perintah `finance:parity-report {--type=} {--since=}` dan `finance:prune-parity-logs`
     - _Requirements: 6.7, 11.4_
   - [ ] 5.6 Checkpoint - jalankan semua test Fase 0–2 pada mode `off`
     - Ensure all tests pass, ask the user if questions arise.
@@ -171,6 +171,8 @@ Urutan: fondasi data dan resolver (1–3), kontrak + rule + service + gateway de
 
 ## Catatan
 
+- Kontrak listener pada Task 7/8 (Q-P2-12, disetujui pemilik produk 2026-11-12): `PostingGateway::post()` mengembalikan `PostingOutcome`; listener WAJIB (a) tidak menimpa `GlPostingStatus` `skipped` menjadi `posted`, (b) tidak menerapkan efek samping non-idempoten (mis. `gross_purchase_amount` nilai aset pada Task 7.1, mutasi SLE) saat `already_posted`, (c) memakai `journals` hasil untuk kebutuhan seperti `journal_entry_for_scrap_id`.
+- Task 7.1/8.x (Q-P2-13, disetujui 2026-11-12): pabrik konteks disposal aset mengisi `guardDocument` dengan Sales Invoice sumber baris penjualan (bukan aset); `GlPostingStatus` `skipped` menyasar baris status dokumen penjaga itu. Karena baris status disposal dibuat listener pada SalesInvoiceItem setelah posting, listener Task 7.1 wajib membuat baris `skipped` untuk SalesInvoiceItem saat disposal dilewati (tidak membuat `POSTED`, tidak menimpa `skipped`); disetujui pemilik produk 2026-11-12.
 - Task 7.4/8.5/14.1 bersifat operasional dan menunggu waktu/persetujuan; jangan menandainya selesai sebelum bukti parity tersimpan di laporan.
 - Fase 3 akan menambah rule pajak ke rule Sales/Purchase Invoice yang dibuat di sini; jaga bentuk `RoleJournalDraft` tetap dapat menampung ≥3 baris.
 - Jika Task 1 mengungkap asumsi tabel "Fakta codebase" salah, perbarui `design.md` dan minta konfirmasi sebelum lanjut.

@@ -54,6 +54,16 @@ abstract class ModuleSetting extends Model {
     abstract public static function rules(): array;
 
     /**
+     * Columns written only by dedicated services through SettingsService::updateInternal(), validated by these
+     * rules. They are absent from rules(), so they never appear on the generic settings page or its request.
+     *
+     * @return array<string, mixed>
+     */
+    public static function internalRules(): array {
+        return [];
+    }
+
+    /**
      * Columns validated by rules() but never writable through
      * SettingsService (system-maintained counters etc.).
      *

@@ -20,6 +20,8 @@ final readonly class PostingContext {
      * @param  array<string, string>  $masterAccounts  peta peran => `accounts.id` dari konfigurasi master
      * @param  list<LineAttributes>  $lines  baris beratribut barang; kosong untuk dokumen tanpa barang
      * @param  array{type: string, id: string}|null  $party
+     * @param  array{type: string, id: string}|null  $guardDocument  dokumen yang statusnya diperiksa guard cancel (default
+     *                                                               sumber); mis. disposal aset memakai Sales Invoice
      */
     public function __construct(
         public PostingDocumentType $documentType,
@@ -33,7 +35,19 @@ final readonly class PostingContext {
         public array $lines = [],
         public ?array $party = null,
         public ?string $description = null,
+        public ?array $guardDocument = null,
     ) {}
+
+    /**
+     * Tipe dokumen yang statusnya diperiksa guard cancel; default sumber (Q-P2-13).
+     */
+    public function guardType(): string {
+        return $this->guardDocument['type'] ?? $this->sourceType;
+    }
+
+    public function guardId(): string {
+        return (string) ($this->guardDocument['id'] ?? $this->sourceId);
+    }
 
     public function isReturn(): bool {
         return (bool) ($this->flags['is_return'] ?? false);

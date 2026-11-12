@@ -1,0 +1,24 @@
+<?php
+
+namespace App\Services\Finances\Posting\Rules;
+
+use App\Enums\AccountRole;
+use App\Enums\PostingDocumentType;
+use App\Services\Finances\Posting\Contexts\PostingContext;
+
+/**
+ * Purchase Receipt (design.md, peta rule): satu jurnal `default`, debit `stock`, kredit
+ * `stock_received_but_not_billed` sebesar `amounts['total']` (nilai rate untuk GL); retur menukar sisi
+ * (`flags['is_return']`).
+ */
+final class PurchaseReceiptRule extends BasePostingRule {
+    public function documentType(): PostingDocumentType {
+        return PostingDocumentType::PurchaseReceipt;
+    }
+
+    public function build(PostingContext $ctx): array {
+        return self::compact([
+            self::pair('default', AccountRole::Stock, AccountRole::StockReceivedButNotBilled, $ctx->amount('total'), $ctx->isReturn()),
+        ]);
+    }
+}

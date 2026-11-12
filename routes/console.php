@@ -55,3 +55,10 @@ Schedule::command('finance:reconcile-ledger', ['--ignore-unjournaled'])
     ->timezone('Asia/Jakarta')
     ->dailyAt('03:00')
     ->withoutOverlapping();
+
+// Finance Fase 2 (Requirement 11.4; Q-P2-14, disetujui pemilik produk 2026-11-12): bersihkan posting_parity_logs yang
+// melewati retensi (config finance.posting.parity_retention_days, default 90 hari).
+Schedule::command('finance:prune-parity-logs')
+    ->timezone('Asia/Jakarta')
+    ->dailyAt('03:30')
+    ->withoutOverlapping();

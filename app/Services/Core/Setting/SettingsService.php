@@ -7,6 +7,7 @@ use App\Models\Core\CoreSetting;
 use App\Models\Core\Currency;
 use App\Models\Core\ModuleSetting as ModuleSettingModel;
 use App\Models\Finances\FinanceSetting;
+use Closure;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Validator;
 use Illuminate\Validation\ValidationException;
@@ -86,6 +87,52 @@ class SettingsService {
         ModuleSettingUpdated::dispatch($updated, $validated);
 
         return $updated;
+    }
+
+    /**
+     * Write columns declared in `internalRules()` (not exposed by the generic settings form). Same locking, audit
+     * snapshot, and event as `update()`; used by dedicated services that enforce their own authorization.
+     *
+     * `$attributes` may be a closure receiving the row locked inside the transaction and returning the attributes,
+     * so read-modify-write of a JSON column cannot lose a concurrent update.
+     *
+     * @param  class-string<ModuleSettingModel>  $modelClass
+     * @param  array<string, mixed>|Closure(ModuleSettingModel): array<string, mixed>  $attributes
+     */
+    public function updateInternal(string $modelClass, array|Closure $attributes): ModuleSettingModel {
+        $this->assertModelClass($modelClass);
+
+        $internal = $modelClass::internalRules();
+        $allowed  = array_filter(array_keys($internal), fn (string $attribute): bool => ! str_contains($attribute, '.'));
+        $setting  = $this->get($modelClass);
+
+        $updated = DB::transaction(function () use ($modelClass, $setting, $attributes, $internal, $allowed): array {
+            $locked     = $modelClass::query()->whereKey($setting->getKey())->lockForUpdate()->firstOrFail();
+            $attributes = $attributes instanceof Closure ? $attributes($locked) : $attributes;
+
+            $unknown = array_diff(array_keys($attributes), $allowed);
+            if ($unknown !== []) {
+                throw ValidationException::withMessages(array_fill_keys($unknown, __('validation.prohibited', ['attribute' => implode(', ', $unknown)])));
+            }
+
+            $rules = array_filter(
+                $internal,
+                fn (string $attribute): bool => array_key_exists(explode('.', $attribute)[0], $attributes),
+                ARRAY_FILTER_USE_KEY,
+            );
+            $validated = Validator::make($attributes, $rules)->validate();
+
+            $locked->recordLogs();
+            $locked->fill($validated);
+            $locked->save();
+            $this->memo[$modelClass] = $locked->refresh();
+
+            return [$this->memo[$modelClass], $validated];
+        });
+
+        ModuleSettingUpdated::dispatch($updated[0], $updated[1]);
+
+        return $updated[0];
     }
 
     private function assertValidSerialRange(FinanceSetting $setting): void {
