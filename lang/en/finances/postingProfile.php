@@ -1,0 +1,56 @@
+<?php
+
+return [
+    'title'      => 'Posting Profiles',
+    'name'       => 'Posting Profile',
+    'open_ended' => 'open-ended',
+    'accounts'   => 'Role Default Accounts',
+    'rules'      => 'Conditional Account Rules',
+
+    'columns' => [
+        'name'           => 'Name',
+        'effective_from' => 'Effective From',
+        'effective_to'   => 'Effective To',
+        'status'         => 'Status',
+        'status.options' => [
+            'draft'   => 'Draft',
+            'active'  => 'Active',
+            'retired' => 'Retired',
+        ],
+        'version'          => 'Version',
+        'notes'            => 'Notes',
+        'previous_profile' => 'Previous Version',
+        'role'             => 'Role',
+        'account'          => 'Account',
+        'document_type'    => 'Document Type',
+        'variant'          => 'Variant',
+        'variant.options'  => [
+            'normal' => 'Normal',
+            'return' => 'Return',
+        ],
+        'item_type'     => 'Item Type',
+        'is_stock_item' => 'Stock Item',
+        'item_category' => 'Item Category',
+        'priority'      => 'Priority',
+    ],
+
+    'errors' => [
+        'invalid_range'                  => 'The effective end date must be on or after the effective start date.',
+        'overlap'                        => 'The active profile ":name" (:from to :to) overlaps the effective range of this profile.',
+        'not_draft'                      => 'A profile with status :status cannot be changed; create a new version.',
+        'not_active'                     => 'Only active profiles can be retired (current status: :status).',
+        'role_required'                  => 'The role is required.',
+        'account_problem'                => 'Account :account for role ":role" cannot be used: :reason.',
+        'rule_duplicate'                 => 'A rule with the same conditions already exists for role ":role" in this profile.',
+        'rule_item_condition_role'       => 'Role ":role" is not a line-sensitive role; item attribute conditions are only allowed for line-sensitive roles.',
+        'rule_unknown_document_type'     => 'Unknown document type ":type".',
+        'rule_invalid_variant'           => 'Invalid variant ":variant"; use normal or return.',
+        'version_starts_before_previous' => 'The new version must start after the previous profile start date (:from).',
+        'version_ends_before_previous'   => 'The new version must not end before the previous profile end date (:to); the difference would leave a gap with no active profile.',
+        'field_too_long'                 => 'The :field field exceeds :max characters.',
+        'delete_referenced'              => 'This draft profile is the basis of another new version and cannot be deleted; delete the newer version first.',
+        'rule_negative_priority'         => 'Priority must not be negative.',
+        'rule_invalid_item_type'         => 'Unknown item type ":type"; use one of :allowed.',
+        'rule_unknown_category'          => 'The item category in the rule was not found.',
+    ],
+];

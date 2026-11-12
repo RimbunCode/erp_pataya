@@ -26,6 +26,8 @@ return [
             'reversed'  => 'Reversed',
             'closed'    => 'Closed',
             'reopened'  => 'Reopened',
+            'activated' => 'Activated',
+            'retired'   => 'Retired',
         ],
     ],
 ];

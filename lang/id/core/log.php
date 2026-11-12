@@ -26,6 +26,8 @@ return [
             'reversed'  => 'Dibalik',
             'closed'    => 'Ditutup',
             'reopened'  => 'Dibuka Kembali',
+            'activated' => 'Diaktifkan',
+            'retired'   => 'Dipensiunkan',
         ],
     ],
 ];
