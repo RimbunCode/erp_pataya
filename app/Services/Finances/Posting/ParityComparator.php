@@ -213,8 +213,8 @@ final class ParityComparator {
     private function userChosenAccounts(?string $documentType, string $purpose): bool {
         return match ($documentType) {
             'sales_invoice', 'payment_entry', 'stock_entry', 'asset_value_adjustment' => true,
-            'purchase_invoice' => $purpose === 'expense',
-            default            => false,
+            'purchase_invoice'                                                        => $purpose === 'expense',
+            default                                                                   => false,
         };
     }
 
