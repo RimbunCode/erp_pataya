@@ -195,7 +195,7 @@ class PostingProfileServiceTest extends TestCase {
 
         $this->service->updateDraft(
             $profile,
-            ['name'    => 'Diubah', 'effective_to' => '2026-12-31'],
+            ['name' => 'Diubah', 'effective_to' => '2026-12-31'],
             ['payable' => $this->expense->id],
             [['role' => 'revenue', 'account_id' => $this->revenueReturn->id, 'variant' => 'return']],
         );
@@ -413,10 +413,10 @@ class PostingProfileServiceTest extends TestCase {
 
         $cases = [
             ['priority' => -1],
-            ['priority'         => 4294967296],
-            ['role'             => str_repeat('x', 65)],
-            ['item_type'        => str_repeat('x', 65)],
-            ['item_type'        => 'barang-aneh'],
+            ['priority' => 4294967296],
+            ['role' => str_repeat('x', 65)],
+            ['item_type' => str_repeat('x', 65)],
+            ['item_type' => 'barang-aneh'],
             ['item_category_id' => $deletedCategory],
         ];
         foreach ($cases as $invalid) {
@@ -638,7 +638,7 @@ class PostingProfileServiceTest extends TestCase {
 
         foreach ([
             ['document_type' => 'kwitansi'],
-            ['variant'          => 'refund'],
+            ['variant' => 'refund'],
             ['item_category_id' => (string) Str::ulid()],
         ] as $invalid) {
             try {
