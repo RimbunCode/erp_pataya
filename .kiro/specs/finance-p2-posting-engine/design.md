@@ -113,23 +113,53 @@ final readonly class RoleJournalDraft { /* purpose, lines: list<RoleLine{role, s
 
 `RoleLine::side` ∈ {`debit`,`credit`}; retur ditangani rule dengan menukar sisi (bukan caller).
 
+Lokasi dan bentuk final (Sprint A, 2026-11-12): enum `PostingDocumentType` dan `AccountRole` berada di `app/Enums` (tempat enum proyek; bukan di `Posting/Contexts`); DTO `PostingContext` dan `LineAttributes` di `app/Services/Finances/Posting/Contexts/`; `RoleJournalDraft` dan `RoleLine` di `app/Services/Finances/Posting/`; kontrak `PostingRule` di `app/Services/Finances/Posting/Rules/`. `RoleLine` membawa `?LineAttributes $line` untuk peran peka-barang (resolver mengevaluasi aturan terhadap atribut baris itu). `AccountRole::legacyPair()` memetakan `expense` ke `liability/stock_received_but_not_billed` demi parity (T-9), dan `tax_*`, `cash_or_bank`, peran aset, `rounding`, `fx_*` ke null. Sumber pasangan legacy berbeda per peran: `stock`, SRNB, `cost_of_goods_sold` berasal dari pencarian `latest()->first()` pada listener/`StockEntryService`; `receivable`, `payable`, `revenue`, `expense` berasal dari default controller (`SalesInvoiceController`, `PurchaseInvoiceController`: `->get()->first()` tanpa urutan, `is_contra=false` pada jalur normal Sales Invoice; jalur retur `SalesInvoiceController` memakai `is_contra=true`), sehingga untuk peran itu fallback legacy resolver hanya mendekati perilaku lama: satu kandidat dipakai dengan peringatan, lebih dari satu gagal tertutup (Q-P2-6); `stock_adjustment`, `expense_included_in_valuation`, `discount` tidak punya pencarian di kode (diambil dari `AccountSeeder`). Lapis master resolver hanya menerima `cash_or_bank` dan peran aset (Req. 3.1.1); peran lain di `masterAccounts` diabaikan dengan log peringatan.
+
 ### Peta rule (meniru bentuk jurnal Fase 1)
 
-| Dokumen | `purpose` | Debit | Kredit | Jumlah | Retur |
-|---|---|---|---|---|---|
-| Sales Invoice | `default` | `receivable` | `revenue` (per baris, peka-barang) | `total` | tukar sisi |
-| Purchase Invoice | `stock` (jika `stock_total` > 0 dan bukan retur) | `stock` | `stock_received_but_not_billed` | `stock_total` | tidak dibuat |
-| Purchase Invoice | `expense` | `expense` (per baris, peka-barang) | `payable` | `total` | tukar sisi |
-| Purchase Receipt | `default` | `stock` | `stock_received_but_not_billed` | `total` | tukar sisi |
-| Delivery Note | `default` | `cost_of_goods_sold` | `stock` | `total_picked` | tukar sisi |
-| Payment Entry | `default` | `cash_or_bank` / `payable` (menurut arah) | `receivable` / `cash_or_bank` | `paid_amount` | — |
-| Stock Entry | `default`, `additional_cost` | `stock` / `stock_adjustment` dan `expense_included_in_valuation` (biaya tambahan) | — | **[TODO Task 8.x: baca penuh `StockEntryService` ~540–650, termasuk jenis selain `item_receipt`]** | — |
-| Asset depreciation | `depreciation` | `depreciation_expense` | `accumulated_depreciation` | `depreciation_amount` | — |
-| Asset scrap | `write_off` | `accumulated_depreciation` (+ `gain_loss_disposal` bila sisa) | `fixed_asset` | **[TODO Task 7.x: ikuti `PostScrapWriteOff`]** | — |
-| Asset value adj. | `value_adjustment` | **[TODO: ikuti `PostValueAdjustmentEntry`]** | | | |
-| Asset disposal | `disposal` | **[TODO: ikuti `PostAssetDisposalGainLoss`]** | | | |
+Hasil pembacaan penuh kode saat ini (Task 1.1, 2026-11-12). Kolom "Sumber jurnal / `purpose`" menyebut model yang menjadi `source` (menentukan `postingKey` `{morphClass}:{id}:{purpose}`).
 
-Catatan: `cash_or_bank` di-resolve dari akun master Metode Pembayaran yang dibawa konteks; bila metode pembayaran tidak punya `default_account_id` → `UnresolvedAccountRoleException`. Arah debit/kredit dan jenis `paymentable` Payment Entry dipastikan saat Task 7.2 (**[TODO]**). Tanda `—` pada retur berarti perilaku saat ini tidak mengenal retur untuk dokumen itu (dikonfirmasi saat task).
+| Dokumen | Sumber jurnal / `purpose` | Debit | Kredit | Jumlah | Retur |
+|---|---|---|---|---|---|
+| Sales Invoice | dokumen / `default` | `receivable` | `revenue` (per baris, peka-barang) | `total` | tukar sisi |
+| Purchase Invoice | dokumen / `stock` (hanya jika `stock_total` > 0 dan bukan retur) | `stock` | `stock_received_but_not_billed` | `stock_total` | tidak dibuat |
+| Purchase Invoice | dokumen / `expense` | `expense` (per baris, peka-barang) | `payable` | `total` | tukar sisi |
+| Purchase Receipt | dokumen / `default` | `stock` | `stock_received_but_not_billed` | `total` (nilai rate untuk GL) | tukar sisi |
+| Delivery Note | dokumen / `default` | `cost_of_goods_sold` | `stock` | `total_picked` | tukar sisi |
+| Payment Entry | dokumen / `default` | lihat tabel arah di bawah | | `paid_amount` entri ini (bukan kumulatif; hotfix sudah merge) | tidak ada rute retur terpisah; arah mengikuti `payment_type` |
+| Stock Entry `item_receipt` | dokumen / `default` | `stock` | `stock_adjustment` | jumlah dasar (Σ `basic_amount` item) | — |
+| Stock Entry `item_issue` | dokumen / `default` | `stock_adjustment` | `stock` | jumlah dasar (Σ `basic_amount` item) | — |
+| Stock Entry `item_transfer`, `item_consumption` | **tidak ada jurnal utama** (perilaku sekarang) | | | | — |
+| Stock Entry, tiap biaya tambahan (semua jenis, termasuk transfer/consumption) | dokumen / `additional_cost:{additional_cost_id}` (satu jurnal per biaya) | `stock` | `expense_included_in_valuation` | `amount` biaya tambahan | — |
+| Asset depreciation | jadwal depresiasi / `depreciation` (hanya jika `depreciation_amount` > 0) | `depreciation_expense` | `accumulated_depreciation` | `depreciation_amount` | — |
+| Asset scrap | aset / `write_off` (hanya jika `is_depreciable` dan nilai buku > 0) | `accumulated_depreciation` | `fixed_asset` | nilai buku saat scrap (`writeOffAmount`) | — |
+| Asset value adjustment | dokumen penyesuaian / `value_adjustment` | `fixed_asset` bila `difference_amount` > 0 | `asset_revaluation` (T-2, diputuskan 2026-11-12) | `abs(difference_amount)` | sisi ditukar bila `difference_amount` < 0 |
+| Asset disposal (penjualan aset via invoice) | aset / `disposal:{sales_invoice_item_id}` (hanya bila `abs(untung/rugi)` > 0,0001) | untung: `gain_loss_disposal`; rugi: `fixed_asset` | untung: `fixed_asset`; rugi: `gain_loss_disposal` | `abs(harga proporsional - nilai buku proporsional)` | — |
+
+Tabel arah Payment Entry. Kode saat ini (`postLedger`) mendebit `account_paid_to` dan mengkredit `account_paid_from`; kedua akun itu pilihan pengguna, dengan default form yang diisi controller dari dokumen yang dibayar. Arah pada engine ditentukan `payment_type`, lawan akunnya oleh jenis `paymentable`:
+
+| `payment_type` | `paymentable` | Debit | Kredit | Default form saat ini (controller) |
+|---|---|---|---|---|
+| `receive` | Sales Invoice (normal) | `cash_or_bank` | `receivable` | `account_paid_to` = akun default metode pembayaran; `account_paid_from` = `debit_account` invoice |
+| `pay` | Purchase Invoice (normal) | `payable` | `cash_or_bank` | `account_paid_from` = akun default metode pembayaran; `account_paid_to` = `credit_account` invoice |
+| `pay` | Sales Invoice retur | `receivable` | `cash_or_bank` | lihat T-3 |
+| `receive` | Purchase Invoice retur | `cash_or_bank` | `payable` | lihat T-3 |
+| `internal_transfer` | tanpa paymentable | **butuh konfirmasi** (T-4) | | |
+
+Catatan: `cash_or_bank` di-resolve dari akun master Metode Pembayaran yang dibawa konteks (`PaymentMethod.default_account_id`; default form diambil `PaymentSchedule::getDetailPayment` dari `paymentMethod.defaultAccount` jadwal pertama). Bila metode pembayaran tidak punya `default_account_id` → `UnresolvedAccountRoleException`. Tanda `—` pada retur berarti perilaku saat ini tidak mengenal retur untuk dokumen itu.
+
+#### Temuan Task 1.1 (butuh konfirmasi pemilik produk; tidak diubah diam-diam)
+
+- **T-1 Scrap tanpa `gain_loss_disposal`.** `PostScrapWriteOff` hanya memposting debit akumulasi / kredit aset tetap sebesar nilai buku; tidak ada baris untung/rugi atau "sisa". Rule meniru perilaku ini (parity). Catatan "(+ gain_loss_disposal bila sisa)" pada draf peta lama dihapus karena tidak didukung kode.
+- **T-2 Peran selisih Asset Value Adjustment (DIPUTUSKAN 2026-11-12, Q-P2-8, disetujui pemilik produk).** Katalog peran Req. 1.1 ditambah `asset_revaluation` untuk akun selisih penyesuaian nilai aset (revaluasi/penurunan nilai). `legacyPair()`-nya null: kode tidak mencari akun ini (dipilih pengguna lewat `difference_account_id`) dan `AccountSeeder` tidak memiliki `account_type` yang dapat diturunkan; peran dipetakan di profil/aturan bersyarat. Peran bukan akun master (bukan `isMasterRole()`).
+- **T-3 Default form Payment Entry untuk retur tampak salah.** Untuk Sales Invoice retur, controller mengisi `account_paid_to` dengan `customer_id` (bukan id akun); untuk Purchase Invoice retur, `account_paid_to` juga `customer_id` dan `account_paid_from` akun bank. Jurnal yang tertulis tetap debit `account_paid_to` / kredit `account_paid_from` sesuai akun yang akhirnya dipilih pengguna. Arah pada tabel di atas adalah arah yang masuk akal secara akuntansi, belum terbukti dari data; perlu dikonfirmasi sebelum rule Payment (Task 4.1) dan parity-nya.
+- **T-4 `internal_transfer`.** Request memperbolehkan `payment_type=internal_transfer` tanpa paymentable, tetapi `PaymentEntryService::onApproved` memanggil `$paymentableClass::where(...)` sehingga gagal untuk tipe ini. Bila tipe ini harus didukung, jurnalnya `cash_or_bank` pada kedua sisi (dua akun bank berbeda), yang tidak dapat dinyatakan oleh satu kunci `masterAccounts[role]`. Perlu keputusan: tipe ini di luar cakupan engine, atau konteks membawa dua akun bank.
+- **T-5 `item_consumption` dan `item_transfer` tanpa jurnal utama.** Stok berkurang pada `item_consumption` (stok sumber diturunkan, SLE ditulis) tanpa jurnal GL; `item_transfer` juga tanpa jurnal. Rule meniru (tidak ada jurnal) demi parity; apakah consumption seharusnya memposting beban perlu diputuskan akuntan (di luar Fase 2).
+- **T-6 Biaya tambahan Stock Entry diposting untuk semua jenis**, termasuk `item_transfer` dan `item_consumption`, selalu debit `stock`. Rule meniru.
+- **T-7 Arah jurnal untung/rugi disposal terbalik dari konvensi umum.** Untung mendebit akun untung/rugi dan mengkredit aset tetap (komentar kode: "Untung: debit akun selisih, kredit aset tetap"). Dipertahankan demi parity; apakah ini bug perlu diputuskan akuntan (perubahan sadar dengan parity-diff, seperti F-10).
+- **T-8 Tanggal jurnal.** Stock Entry dan disposal memakai `now()` (bukan tanggal dokumen). Pabrik konteks harus meneruskan `transactionDate` yang sama dengan jalur lama agar parity.
+- **T-9 `expense` Purchase Invoice default ke akun SRNB (DIPUTUSKAN 2026-11-12, Q-P2-8, disetujui pemilik produk: dipertahankan demi parity).** Controller mengisi `expanse_head_account_id` dengan akun SRNB, sehingga peran `expense` memetakan ke pasangan legacy `liability/stock_received_but_not_billed` (sama dengan peran `stock_received_but_not_billed`). Akuntan diharapkan menggantinya lewat aturan akun bersyarat (Req. 12).
+- **T-10 Asumsi "dipetakan 1:1" pada tabel "Fakta codebase" tidak berlaku penuh pada COA seed:** `liability/payable` memiliki 3 akun (2211, 2212, 2230 Hutang Pajak), `income/income_account` 2 akun (4110 dan 4120 yang `is_contra`), dan `account_type=stock` juga muncul di ekuitas (3110; tidak terjaring karena pencarian legacy memfilter `root_type=asset`). Karena itu `init-posting-profile` melaporkan ambiguitas untuk `payable` dan `revenue` dan tidak menebak. Tabel "Fakta codebase" tidak diubah.
 
 ### `AccountRoleResolver`
 
@@ -139,7 +169,7 @@ final class AccountRoleResolver {
 }
 ```
 
-Urutan (Req. 3.1): `ctx.masterAccounts[role]` → aturan akun bersyarat pada profil aktif efektif pada tanggal (Req. 12; peran peka-barang memakai `$line`) → akun default peran pada profil aktif efektif → (jika `config('finance.posting.legacy_account_fallback')`) `Account::where(root_type, account_type)` dengan peringatan. Hasil di-cache per `(profile_id|'legacy', role, document_type, variant, item_type, is_stock_item, item_category_id)` dalam instance resolver (di-scope per job/request lewat binding non-singleton). Pemilihan profil memakai satu query dengan `effective_from <= date AND (effective_to IS NULL OR effective_to >= date) AND status='active'`; profil global sehingga tidak ada urutan cakupan.
+Urutan (Req. 3.1): `ctx.masterAccounts[role]` → aturan akun bersyarat pada profil aktif efektif pada tanggal (Req. 12; peran peka-barang memakai `$line`) → akun default peran pada profil aktif efektif → (jika `config('finance.posting.legacy_account_fallback')`) `Account::where(root_type, account_type)` dengan peringatan; bila lebih dari satu akun cocok, gagal tertutup dengan `UnresolvedAccountRoleException` (Q-P2-6). Hasil di-cache per `(profile_id|'legacy', role, document_type, variant, item_type, is_stock_item, item_category_id)` dalam instance resolver (di-scope per job/request lewat binding non-singleton). Pemilihan profil memakai satu query dengan `effective_from <= date AND (effective_to IS NULL OR effective_to >= date) AND status='active'`; profil global sehingga tidak ada urutan cakupan.
 
 Validasi di `Account` hasil: bukan `is_group`, bukan `is_disabled`, tidak terhapus — selaras `JournalService`; pelanggaran → `UnresolvedAccountRoleException` yang menjelaskan lapis penyebabnya.
 
@@ -208,7 +238,7 @@ Hook `Submitable` diubah menjadi: SLE selalu di-soft-delete seperti sekarang; ba
 | `effective_to` | date nullable | |
 | `status` | string(16) | `draft`/`active`/`retired` |
 | `version` | unsignedInteger | |
-| `previous_profile_id` | ulid FK nullable → `posting_profiles` | rantai versi |
+| `previous_profile_id` | ulid FK nullable → `posting_profiles` (`restrictOnDelete`) | rantai versi; diisi saat salin versi baru, dan dipakai aktivasi untuk menutup `effective_to` profil lama |
 | `notes` | text nullable | |
 | timestamps | | |
 
@@ -234,13 +264,51 @@ Hook `Submitable` diubah menjadi: SLE selalu di-soft-delete seperti sekarang; ba
 
 Unik `(posting_profile_id, role, document_type, variant, item_type, is_stock_item, item_category_id)`; karena kolom nullable, penjaga duplikat dilakukan di `PostingProfileService` (kunci aplikasi), bukan hanya indeks DB.
 
+### Inventaris kolom akun (Task 1.2, 2026-11-12)
+
+Hasil pembacaan migrasi, request validasi, controller, dan form saat ini. Dipakai Req. 13 (penghapusan input akun) dan Task 12.1 (kolom `posted_account_id`).
+
+**A. Kolom akun per-dokumen (input pengguna yang digantikan konfigurasi)**
+
+| Dokumen | Kolom DB (`onDelete`) | Field request / form | Request validasi | Form | Pengisi default saat ini |
+|---|---|---|---|---|---|
+| Sales Invoice | `debit_account_id` (nullOnDelete) → peran `receivable`; `income_account_id` (nullOnDelete) → peran `revenue` | `debit_account.id`, `income_account.id` (wajib) | `SalesInvoiceRequest` | `Finances/SalesInvoice/Form.jsx` | `SalesInvoiceController` (default dari `account_type` `receivable`/`income_account` dengan `is_contra=false`; untuk retur: akun `income_account` ber-`is_contra=true`) dan `Form.jsx` (pencarian `account_type`) |
+| Purchase Invoice | `credit_account_id` (nullOnDelete) → peran `payable`; `expanse_head_account_id` (nullOnDelete; ejaan kolom `expanse`) → peran `expense` | `credit_account.id`, `expense_head_account.id` (nama field `expense_head_account`, kolom `expanse_head_account_id`) | `PurchaseInvoiceRequest` | `Finances/PurchaseInvoice/Form.jsx` | `PurchaseInvoiceController` (default `account_type` `payable` dan `stock_received_but_not_billed`) |
+| Payment Entry | `account_paid_to_id`, `account_paid_from_id` (restrictOnDelete) → `cash_or_bank` / `receivable` / `payable` menurut tabel arah | `account_paid_to.id`, `account_paid_from.id` (wajib) | `PaymentEntryRequest` | `Finances/PaymentEntries/Form.jsx` | `PaymentEntryController` (dari invoice dan akun default metode pembayaran) |
+| Stock Entry | `difference_account_id` (nullOnDelete) → peran `stock_adjustment` | `difference_account.id` (wajib) | `StockEntryRequest` | `Inventory/StockEntries/Form.jsx` | tidak ada default |
+| Additional Cost (biaya tambahan Stock Entry) | `expense_account_id` (**cascadeOnDelete**) → peran `expense_included_in_valuation` | `additional_costs.*.expense_account.id` (wajib) | `StockEntryRequest` | `Inventory/StockEntries/Form.jsx` (kolom tabel biaya) | tidak ada default |
+| Asset Value Adjustment | `difference_account_id` (restrictOnDelete) → peran belum ada (T-2) | `difference_account.id` (wajib) | `AssetValueAdjustmentRequest` | `Asset/ValueAdjustments/Form.jsx` | tidak ada default |
+
+Catatan: dokumen tanpa kolom akun pengguna (Purchase Receipt, Delivery Note, Asset depreciation/scrap/disposal) sudah memakai pencarian `account_type` atau `AssetCategoryAccount`; tidak ada field yang dihapus untuknya. `additional_costs.expense_account_id` berstatus `cascadeOnDelete` sehingga penghapusan permanen sebuah akun akan ikut menghapus biaya tambahan; hanya relevan bila akun dihapus keras (akun memakai soft delete) dan tidak diubah di fase ini.
+
+**B. Atribut barang untuk aturan bersyarat (Req. 12) dan tabel item untuk `posted_account_id`**
+
+Atribut barang berasal dari `item_variants` (`type`, `is_stock_item`, `category_id`), karena kolom `item_id` pada seluruh tabel item menunjuk `item_variants`.
+
+| Tabel item | Peran peka-barang yang dicatat | Status |
+|---|---|---|
+| `sales_invoice_items` | `revenue` | kandidat tetap (disebut design) |
+| `purchase_invoice_items` | `expense` | kandidat tetap (disebut design) |
+| `stock_entry_items` | `stock_adjustment` (selisih per baris) | kandidat tetap (disebut design) |
+| `delivery_note_items` | `cost_of_goods_sold`, `stock` | **kandidat tambahan, butuh konfirmasi (T-11)**: kedua peran itu peka-barang (Req. 12.4) tetapi dokumen ini tidak ada di daftar tabel design |
+| `purchase_receipt_items` | `stock` | **kandidat tambahan, butuh konfirmasi (T-11)** |
+
+- **T-11** Req. 12.4 menandai `stock` dan `cost_of_goods_sold` sebagai peka-barang, sehingga Delivery Note dan Purchase Receipt ikut beraturan bersyarat per baris, tetapi design hanya merencanakan `posted_account_id` pada tiga tabel di atas. Rekomendasi: tambahkan dua tabel ini pada Task 12.1 agar akun per baris yang dipakai tercatat.
+
+**C. Akun master (konfigurasi, bukan input transaksi; Req. 13.3)**
+
+| Konfigurasi | Kolom (`onDelete`) | Dipakai peran |
+|---|---|---|
+| `payment_methods` | `default_account_id` (**cascadeOnDelete**) | `cash_or_bank` |
+| `asset_category_accounts` (per kategori aset dan per cabang) | `fixed_asset_account_id`, `accumulated_depreciation_account_id`, `depreciation_expense_account_id`, `capital_work_in_progress_account_id`, `gain_loss_disposal_account_id` (semua nullable, nullOnDelete) | `fixed_asset`, `accumulated_depreciation`, `depreciation_expense`, `capital_work_in_progress`, `gain_loss_disposal` |
+
 ### Kolom catatan akun (Req. 13.2)
 
 Kolom akun dokumen yang sudah ada (`sales_invoices.debit_account_id`/`income_account_id`, `purchase_invoices.credit_account_id`/`expanse_head_account_id`, `payment_entries.account_paid_from_id`/`account_paid_to_id`, `stock_entries.difference_account_id`, `additional_costs.expense_account_id`, `asset_value_adjustments.difference_account_id`) dipertahankan. Migration aditif menambah `posted_account_id` (ulid FK nullable `restrictOnDelete`) pada `sales_invoice_items`, `purchase_invoice_items`, dan item Stock Entry untuk peran peka-barang. Nama dan daftar tabel final ditetapkan setelah Task 1.2.
 
 ### `posting_parity_logs`
 
-`id` ulid, `document_type` string(32), `source_type`, `source_id`, `status` (`match`/`rounding`/`mismatch`/`engine_error`), `legacy` json, `engine` json, `diff` json nullable, `created_at`; indeks `(document_type, status, created_at)`. Tidak ada update; dibersihkan oleh perintah `finance:prune-parity-logs` (retensi 90 hari, dapat dikonfigurasi).
+`id` ulid, `document_type` string(32), `source_type`, `source_id`, `status` (`match`/`rounding`/`config_diff`/`mismatch`/`engine_error`; `config_diff` mengikuti Req. 6.6), `legacy` json nullable, `engine` json nullable (kosong pada `engine_error`), `diff` json nullable, `created_at`; indeks `(document_type, status, created_at)`. Tidak ada update; dibersihkan oleh perintah `finance:prune-parity-logs` (retensi 90 hari, dapat dikonfigurasi).
 
 ### Setting
 
@@ -258,7 +326,19 @@ Contoh konfigurasi yang diharapkan akuntan (nilai akun hanyalah ilustrasi):
 | Purchase Invoice | `normal` | `expense` | `is_stock_item = false`, kategori X | beban khusus kategori X |
 | Purchase Invoice | `return` | `expense` | — | Retur Pembelian |
 
-Algoritme `AccountRuleMatcher::match(profile, role, ctx, line)`: ambil aturan profil untuk `role`; saring yang semua kondisi non-null-nya sama dengan konteks (`document_type`, `variant` dari `flags.is_return`, atribut `line`); urutkan menurun menurut jumlah kondisi non-null, lalu `priority`; kembalikan yang pertama atau null. Untuk retur: jalankan sekali dengan `variant=return`; bila null, jalankan lagi dengan `variant=normal`. Pencocokan murni dan tanpa DB selain pemuatan aturan profil (di-cache per instance resolver).
+Algoritme `AccountRuleMatcher::match(rules, role, ctx, line)` (aturan profil dimuat dan di-cache oleh resolver; matcher sendiri murni tanpa DB): ambil aturan untuk `role`; saring yang semua kondisi non-null-nya sama dengan konteks (`document_type`, atribut `line`; aturan yang mensyaratkan atribut barang tidak cocok bila `line` null atau atributnya null); urutkan menurun menurut jumlah kondisi non-null, lalu `priority`, lalu kunci kanonik isi aturan (kondisi + `account_id`, naik); kembalikan yang pertama atau null.
+
+Ketentuan final pencocokan dan resolusi (disetujui pemilik produk 2026-11-12, Q-P2-9; menggantikan kalimat awal rancangan):
+
+- **Varian retur:** pada konteks retur, lintasan pertama hanya mempertimbangkan aturan yang secara eksplisit `variant=return`; bila tidak ada yang cocok, dievaluasi ulang seperti dokumen normal (aturan `variant` null atau `normal`). Aturan tanpa varian tidak ikut lintasan pertama; bila ikut, aturan generik yang kebetulan lebih spesifik daripada aturan `normal` akan membuat retur tanpa aturan khusus me-resolve akun yang berbeda dari dokumen normal (melanggar P-11).
+- **Pemutus seri terakhir:** dua aturan berkombinasi kondisi berbeda dengan spesifisitas dan `priority` sama dapat sama-sama cocok; pemenangnya ditentukan kunci kanonik isi aturan, bukan `id` (ULID mengikuti urutan penyisipan, sehingga hasil akan bergantung urutan simpan).
+- **Tanggal berlaku profil** dibandingkan terhadap hari bisnis dalam zona waktu perusahaan (selaras Q-P1-5 dan `FiscalPeriodService`).
+- **Lapis master** hanya menerima `cash_or_bank` dan peran aset (`fixed_asset`, `accumulated_depreciation`, `depreciation_expense`, `capital_work_in_progress`, `gain_loss_disposal`; Req. 3.1.1); peran lain di `masterAccounts` diabaikan dengan log peringatan.
+- **Versi baru profil (Req. 2.4, Q-P2-7):** aktivasi salinan yang menutup profil lama ditolak bila `effective_from` versi baru tidak sesudah `effective_from` profil lama, atau `effective_to` versi baru lebih awal dari `effective_to` profil lama (atau berakhir sedangkan profil lama tanpa batas akhir), karena menciptakan celah tanpa profil aktif atau memindahkan tanggal yang sudah diposting ke profil lain. Pemeriksaan terhadap tanggal jurnal terakhir yang di-resolve profil lama tidak dapat dilakukan karena jurnal tidak mencatat profil yang dipakai.
+- **Salinan harus bersambung (Req. 2.4, Q-P2-10, disetujui pemilik produk 2026-11-12):** bila profil lama berbatas akhir, `effective_from` salinan harus `effective_to` lama + 1 hari; selain itu `activate()` melempar `InvalidPostingProfileException` (`versionNotContiguous`). Pemeriksaan dilakukan juga saat rentang tidak beririsan (celah), bukan hanya saat profil lama ditutup.
+- **`retire()` hanya memperingatkan (Q-P2-11, disetujui pemilik produk 2026-11-12):** pemensiunan tidak pernah ditolak karena celah. `retire()` tetap mengembalikan profil; `retireWithWarnings()` mengembalikan `{profile, warnings[]}` dengan rentang tanggal profil yang menjadi tanpa profil aktif (profil aktif tidak beririsan, sehingga seluruh rentang profil itu), dan mencatat `Log::warning('posting.profile_retire_gap')`.
+- **Lapis yang menghasilkan akun tidak valid** (group/nonaktif/terhapus) melempar `UnresolvedAccountRoleException` dengan lapis penyebabnya; resolver tidak jatuh diam-diam ke lapis berikutnya.
+- **Fallback legacy gagal tertutup (DIPUTUSKAN 2026-11-12, Q-P2-6, disetujui pemilik produk):** bila lebih dari satu akun cocok dengan pasangan `(root_type, account_type)` sebuah peran (seed: `payable` 3 akun, `income_account` 2 akun termasuk `is_contra`), resolver melempar `UnresolvedAccountRoleException` yang menyebut peran dan jumlah kandidat, tanpa memilih; peran ambigu wajib dipetakan di profil. Dengan satu kandidat perilaku tidak berubah (akun tidak disaring nonaktif agar identik dengan pencarian lama; hasilnya divalidasi).
 
 Peran peka-barang menghasilkan satu `RoleLine` per kelompok akun hasil resolusi: rule membentuk baris per `lines[]`, `PostingService` me-resolve akun tiap baris, lalu menggabungkan baris dengan akun dan sisi yang sama sebelum membentuk `JournalDraft`.
 
@@ -332,4 +412,6 @@ Peran peka-barang menghasilkan satu `RoleLine` per kelompok akun hasil resolusi:
 
 ## Konfirmasi yang Masih Diperlukan
 
-D-1, D-13, Q-P2-1…5 (lihat requirements), serta peta rule untuk Stock Entry/scrap/value adjustment/disposal setelah dibaca penuh pada Task 7–8.
+D-1, D-13, Q-P2-1…5 (lihat requirements), serta temuan Task 1.1/1.2 berikut yang masih terbuka (peta rule sudah lengkap berdasarkan pembacaan kode). T-2, T-9, T-10, serta pertanyaan fallback legacy ambigu (Q-P2-6), celah versi baru (Q-P2-7), dan klarifikasi matcher (Q-P2-9) sudah diputuskan pemilik produk 2026-11-12 dan dicatat di decision log:
+
+- **T-1** scrap tanpa `gain_loss_disposal`; **T-3** default form Payment Entry untuk retur tampak salah (`customer_id` dipakai sebagai id akun) dan arah jurnal retur belum terbukti; **T-4** `internal_transfer` Payment Entry (gagal di `onApproved`, butuh dua akun bank); **T-5/T-6** `item_consumption`/`item_transfer` tanpa jurnal utama dan biaya tambahan diposting untuk semua jenis; **T-7** arah untung/rugi disposal terbalik dari konvensi umum; **T-8** `now()` sebagai tanggal jurnal Stock Entry dan disposal; **T-11** `posted_account_id` untuk `delivery_note_items` dan `purchase_receipt_items` (peran `stock`/`cost_of_goods_sold` peka-barang).

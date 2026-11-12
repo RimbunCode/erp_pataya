@@ -17,37 +17,38 @@ Urutan: fondasi data dan resolver (1–3), kontrak + rule + service + gateway de
 ## Tasks
 
 - [ ] 1. Verifikasi dan persiapan
-  - [ ] 1.1 Baca penuh `StockEntryService` (~540–650, semua jenis stock entry), `PostScrapWriteOff`, `PostValueAdjustmentEntry`, `PostAssetDisposalGainLoss`; lengkapi tabel peta rule di `design.md` dan hapus `[TODO]`
+  - [x] 1.1 Baca penuh `StockEntryService` (~540–650, semua jenis stock entry), `PostScrapWriteOff`, `PostValueAdjustmentEntry`, `PostAssetDisposalGainLoss`; lengkapi tabel peta rule di `design.md` dan hapus `[TODO]`
     - _Requirements: 4.3, 7.4_
-  - [ ] 1.2 Inventarisasi kolom akun per-dokumen (`*_account_id` di Sales/Purchase Invoice, Payment Entry, Stock Entry, Additional Cost, Asset Value Adjustment), field form dan request validasinya yang akan dihapus (Req. 13), serta tabel item yang perlu kolom `posted_account_id`; catat juga akun master (`PaymentMethod.default_account_id`, `AssetCategoryAccount`)
+  - [x] 1.2 Inventarisasi kolom akun per-dokumen (`*_account_id` di Sales/Purchase Invoice, Payment Entry, Stock Entry, Additional Cost, Asset Value Adjustment), field form dan request validasinya yang akan dihapus (Req. 13), serta tabel item yang perlu kolom `posted_account_id`; catat juga akun master (`PaymentMethod.default_account_id`, `AssetCategoryAccount`)
     - _Requirements: 3.1, 13.1–13.3_
   - [ ] 1.3 Audit COA aktual vs `account_type` yang dibutuhkan peran (jalankan `init-posting-profile` dalam mode laporan pada salinan data staging); catat peran ambigu/hilang untuk akuntan
     - _Requirements: 2.5_
 
 - [ ] 2. Enum, kontrak, dan model data
-  - [ ] 2.1 Enum `PostingDocumentType`, `AccountRole` (+ `legacyPair()`), DTO `PostingContext`, `RoleJournalDraft`, `RoleLine`, kontrak `PostingRule`; label peran di `lang/id` & `lang/en`
+  - [x] 2.1 Enum `PostingDocumentType`, `AccountRole` (+ `legacyPair()`), DTO `PostingContext`, `RoleJournalDraft`, `RoleLine`, kontrak `PostingRule`; label peran di `lang/id` & `lang/en`
     - _Requirements: 1.1–1.4, 4.1–4.2_
-  - [ ] 2.2 Migration `create_posting_profiles_table`, `create_posting_profile_accounts_table`, `create_posting_profile_rules_table`, `create_posting_parity_logs_table`; model `PostingProfile`, `PostingProfileAccount`, `PostingProfileRule`, `PostingParityLog` (izin, `configColumns`, `translateKey`); `config/finance.php`
+  - [x] 2.2 Migration `create_posting_profiles_table`, `create_posting_profile_accounts_table`, `create_posting_profile_rules_table`, `create_posting_parity_logs_table`; model `PostingProfile`, `PostingProfileAccount`, `PostingProfileRule`, `PostingParityLog` (izin, `configColumns`, `translateKey`); `config/finance.php`
+    - Catatan: izin `switch_posting_mode` (Req. 11.3) sengaja belum didaftarkan di Sprint A; didaftarkan pada Task 5.1 bersama `PostingModeService`.
     - _Requirements: 2.1, 6.6, 11.2–11.3, 12.1_
-  - [ ] 2.3 Test `initPermissions()` pada model baru (tidak menambah/menghapus kolom tak terduga)
+  - [x] 2.3 Test `initPermissions()` pada model baru (tidak menambah/menghapus kolom tak terduga)
     - _Requirements: 11.2_
-  - [ ] 2.4 Exception: `UnresolvedAccountRoleException`, `InvalidPostingProfileException`, `UnknownPostingDocumentTypeException`, `PartialPostingException` (+ kunci pesan)
+  - [x] 2.4 Exception: `UnresolvedAccountRoleException`, `InvalidPostingProfileException`, `UnknownPostingDocumentTypeException`, `PartialPostingException` (+ kunci pesan)
     - _Requirements: 3.2, 5.4, 5.6_
 
 - [ ] 3. Profil dan resolver
-  - [ ] 3.1 `PostingProfileService` (profil global; validasi akun non-group/aktif, larangan tumpang-tindih, buat versi baru/salin termasuk aturan, aktivasi, retire; validasi aturan: duplikat kondisi, kondisi barang hanya untuk peran peka-barang) + test
+  - [x] 3.1 `PostingProfileService` (profil global; validasi akun non-group/aktif, larangan tumpang-tindih, buat versi baru/salin termasuk aturan, aktivasi, retire; validasi aturan: duplikat kondisi, kondisi barang hanya untuk peran peka-barang) + test
     - _Requirements: 2.2–2.4, 12.5–12.6_
-  - [ ] 3.2 Perintah `finance:init-posting-profile` (laporkan peran tak ter-resolve & ambiguitas; idempoten; tidak menebak saat ambigu) + test
+  - [x] 3.2 Perintah `finance:init-posting-profile` (laporkan peran tak ter-resolve & ambiguitas; idempoten; tidak menebak saat ambigu) + test
     - _Requirements: 2.5_
-  - [ ] 3.3 `AccountRoleResolver` (master → aturan bersyarat → default profil → legacy; cache per instance, validasi akun, peringatan legacy/ambiguitas) memakai `AccountRuleMatcher` 
+  - [x] 3.3 `AccountRoleResolver` (master → aturan bersyarat → default profil → legacy; cache per instance, validasi akun, peringatan legacy/ambiguitas) memakai `AccountRuleMatcher` 
     - _Requirements: 3.1–3.6_
-  - [ ]* 3.4 Write tests resolver
+  - [x]* 3.4 Write tests resolver
     - **P-3** deterministik; urutan master > aturan bersyarat > default > legacy; fallback legacy dimatikan konfig; akun group/disabled ditolak; profil efektif berdasarkan tanggal; cache tidak melintasi job
     - **Validates: Requirements 3.1–3.5**
-  - [ ] 3.5 `AccountRuleMatcher` (kondisi non-null, spesifisitas, `priority`, varian retur dengan fallback ke normal) + `AccountRole::isLineSensitive()`
+  - [x] 3.5 `AccountRuleMatcher` (kondisi non-null, spesifisitas, `priority`, varian retur dengan fallback ke normal) + `AccountRole::isLineSensitive()`
     - _Requirements: 12.2–12.4_
-  - [ ]* 3.6 Write tests matcher
-    - **P-10** spesifisitas deterministik (acak urutan simpan); **P-11** retur tanpa aturan khusus = akun normal + sisi ditukar
+  - [x]* 3.6 Write tests matcher
+    - **P-10** spesifisitas deterministik (acak urutan simpan); **P-11** retur tanpa aturan khusus = akun normal (separuh "sisi ditukar" belum dapat diuji karena `PostingRule` belum ada; ditunda ke Task 4.3)
     - **Validates: Requirements 12.2–12.3**
 
 - [ ] 4. Rule dan PostingService
@@ -55,7 +56,7 @@ Urutan: fondasi data dan resolver (1–3), kontrak + rule + service + gateway de
     - _Requirements: 4.2–4.3, 4.6_
   - [ ] 4.2 Rule untuk Stock Entry, Asset scrap, value adjustment, disposal (setelah Task 1.1)
     - _Requirements: 4.3_
-  - [ ]* 4.3 Write unit tests setiap rule (tanpa DB; **P-2**): normal, retur, jumlah 0, `stock_total` 0, akun master, baris peka-barang (gabung per akun, **P-12**)
+  - [ ]* 4.3 Write unit tests setiap rule (tanpa DB; **P-2**; **P-11** bagian "sisi ditukar": retur tanpa aturan khusus memakai akun normal dengan sisi debit/kredit ditukar): normal, retur, jumlah 0, `stock_total` 0, akun master, baris peka-barang (gabung per akun, **P-12**)
     - **Validates: Requirements 4.3, 4.6**
   - [ ] 4.4 `PostingService::preview()` dan `post()` (idempotensi, `PartialPostingException`, guard dokumen `canceled`)
     - _Requirements: 5.1–5.6_
@@ -66,7 +67,7 @@ Urutan: fondasi data dan resolver (1–3), kontrak + rule + service + gateway de
     - _Requirements: 4.4_
 
 - [ ] 5. Gateway, mode, dan parity
-  - [ ] 5.1 `PostingModeResolver` (cache 60 dtk) + `PostingModeService::switch()` (izin `switch_posting_mode`, audit, invalidasi cache); seed setting Finances default `off` lewat service setting (`module-settings-foundation`)
+  - [ ] 5.1 `PostingModeResolver` (cache 60 dtk) + `PostingModeService::switch()` (izin `switch_posting_mode`, audit, invalidasi cache); seed setting Finances default `off` lewat service setting (`module-settings-foundation`); daftarkan juga izin `switch_posting_mode` (Req. 11.3; ditunda dari Task 2.2)
     - _Requirements: 6.1, 6.8_
   - [ ] 5.2 `ParityComparator` (kanonisasi per `purpose`, `match/rounding/config_diff/mismatch`) + test unit
     - _Requirements: 6.5–6.6_

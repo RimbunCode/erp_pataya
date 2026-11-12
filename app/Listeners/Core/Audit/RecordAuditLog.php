@@ -18,6 +18,9 @@ class RecordAuditLog {
         'reversed' => ['en' => ':user reversed this',        'id' => ':user telah membalik ini'],
         'closed'   => ['en' => ':user closed this',          'id' => ':user telah menutup ini'],
         'reopened' => ['en' => ':user reopened this',        'id' => ':user telah membuka kembali ini'],
+        // Finance Fase 2: aktivasi dan pensiun Posting Profile (Requirement 2.6).
+        'activated' => ['en' => ':user activated this',       'id' => ':user telah mengaktifkan ini'],
+        'retired'   => ['en' => ':user retired this',         'id' => ':user telah memensiunkan ini'],
     ];
 
     public function handle(AuditableModelSaved $event): void {
