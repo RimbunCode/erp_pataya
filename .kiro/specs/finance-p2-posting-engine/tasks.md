@@ -48,7 +48,7 @@ Urutan: fondasi data dan resolver (1–3), kontrak + rule + service + gateway de
   - [x] 3.5 `AccountRuleMatcher` (kondisi non-null, spesifisitas, `priority`, varian retur dengan fallback ke normal) + `AccountRole::isLineSensitive()`
     - _Requirements: 12.2–12.4_
   - [x]* 3.6 Write tests matcher
-    - **P-10** spesifisitas deterministik (acak urutan simpan); **P-11** retur tanpa aturan khusus = akun normal + sisi ditukar
+    - **P-10** spesifisitas deterministik (acak urutan simpan); **P-11** retur tanpa aturan khusus = akun normal (separuh "sisi ditukar" belum dapat diuji karena `PostingRule` belum ada; ditunda ke Task 4.3)
     - **Validates: Requirements 12.2–12.3**
 
 - [ ] 4. Rule dan PostingService
@@ -56,7 +56,7 @@ Urutan: fondasi data dan resolver (1–3), kontrak + rule + service + gateway de
     - _Requirements: 4.2–4.3, 4.6_
   - [ ] 4.2 Rule untuk Stock Entry, Asset scrap, value adjustment, disposal (setelah Task 1.1)
     - _Requirements: 4.3_
-  - [ ]* 4.3 Write unit tests setiap rule (tanpa DB; **P-2**): normal, retur, jumlah 0, `stock_total` 0, akun master, baris peka-barang (gabung per akun, **P-12**)
+  - [ ]* 4.3 Write unit tests setiap rule (tanpa DB; **P-2**; **P-11** bagian "sisi ditukar": retur tanpa aturan khusus memakai akun normal dengan sisi debit/kredit ditukar): normal, retur, jumlah 0, `stock_total` 0, akun master, baris peka-barang (gabung per akun, **P-12**)
     - **Validates: Requirements 4.3, 4.6**
   - [ ] 4.4 `PostingService::preview()` dan `post()` (idempotensi, `PartialPostingException`, guard dokumen `canceled`)
     - _Requirements: 5.1–5.6_

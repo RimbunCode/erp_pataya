@@ -271,7 +271,7 @@ class PostingProfileServiceTest extends TestCase {
         $first = $this->service->activate($this->draft('2026-01-01', '2026-12-31', 'A'));
         $this->service->activate($this->draft('2027-01-01', '2027-12-31', 'B'));
 
-        $copy = $this->service->createNewVersion($first, '2026-06-01');
+        $copy = $this->service->createNewVersion($first, '2027-01-01');
 
         try {
             $this->service->activate($copy);
@@ -296,21 +296,26 @@ class PostingProfileServiceTest extends TestCase {
         $this->assertSame(PostingProfile::STATUS_DRAFT, $v2->refresh()->status);
     }
 
-    public function test_new_version_ending_before_a_bounded_previous_profile_is_rejected(): void {
+    public function test_new_version_ending_before_a_bounded_previous_profile_is_rejected_as_not_contiguous(): void {
         $v1    = $this->service->activate($this->draft('2026-01-01', '2026-12-31', 'P'));
         $short = $this->service->createNewVersion($v1, '2026-07-01', '2026-10-31');
 
-        $this->expectException(InvalidPostingProfileException::class);
-        $this->service->activate($short);
+        try {
+            $this->service->activate($short);
+            $this->fail('Versi yang tidak bersambung seharusnya ditolak.');
+        } catch (InvalidPostingProfileException $e) {
+            $this->assertSame(__('finances/postingProfile.errors.version_not_contiguous', ['from' => '2027-01-01']), $e->getMessage());
+        }
+        $this->assertSame('2026-12-31', $v1->refresh()->effective_to->toDateString());
     }
 
     public function test_new_version_ending_on_or_after_the_previous_end_is_accepted(): void {
         $v1   = $this->service->activate($this->draft('2026-01-01', '2026-12-31', 'P'));
-        $same = $this->service->createNewVersion($v1, '2026-07-01', '2026-12-31');
+        $same = $this->service->createNewVersion($v1, '2027-01-01', '2027-12-31');
 
         $this->service->activate($same);
 
-        $this->assertSame('2026-06-30', $v1->refresh()->effective_to->toDateString());
+        $this->assertSame('2026-12-31', $v1->refresh()->effective_to->toDateString());
     }
 
     public function test_new_version_cannot_start_on_or_before_the_previous_profile_start(): void {
@@ -408,6 +413,7 @@ class PostingProfileServiceTest extends TestCase {
 
         $cases = [
             ['priority' => -1],
+            ['priority'         => 4294967296],
             ['role'             => str_repeat('x', 65)],
             ['item_type'        => str_repeat('x', 65)],
             ['item_type'        => 'barang-aneh'],
@@ -427,6 +433,95 @@ class PostingProfileServiceTest extends TestCase {
             $this->service->addRule($profile, ['role' => 'revenue', 'account_id' => $this->revenue->id, 'item_type' => $type, 'priority' => $i]);
         }
         $this->assertSame(3, $profile->rules()->count());
+    }
+
+    public function test_priority_accepts_the_unsigned_int_maximum(): void {
+        $profile = $this->draft();
+        $this->service->addRule($profile, ['role' => 'revenue', 'account_id' => $this->revenue->id, 'priority' => 4294967295]);
+
+        $this->assertSame(4294967295, $profile->rules()->firstOrFail()->priority);
+    }
+
+    public function test_activation_rejects_a_rule_category_soft_deleted_since_drafting(): void {
+        $profile  = $this->draft();
+        $category = $this->category();
+        $this->service->addRule($profile, ['role' => 'revenue', 'account_id' => $this->revenue->id, 'item_category_id' => $category]);
+        DB::table('categories')->where('id', $category)->update(['deleted_at' => now()]);
+
+        try {
+            $this->service->activate($profile);
+            $this->fail('Aktivasi seharusnya ditolak');
+        } catch (InvalidPostingRuleException) {
+            // diharapkan
+        }
+        $this->assertSame(PostingProfile::STATUS_DRAFT, $profile->refresh()->status);
+    }
+
+    public function test_initial_mapping_and_new_version_copies_are_audited_with_snapshots(): void {
+        Event::fake([AuditableModelSaved::class]);
+
+        $v1 = $this->draft();
+        Event::assertDispatched(AuditableModelSaved::class, fn (AuditableModelSaved $e) => $e->action === 'updated'
+            && $e->model->is($v1) && $e->dataAfter['accounts'] === [
+                AccountRole::Receivable->value => $this->receivable->id,
+                AccountRole::Revenue->value    => $this->revenue->id,
+            ]);
+
+        $this->service->addRule($v1, ['role' => 'revenue', 'account_id' => $this->revenueReturn->id, 'variant' => 'return']);
+        $active = $this->service->activate($v1);
+        $copy   = $this->service->createNewVersion($active, '2026-07-01');
+        Event::assertDispatched(AuditableModelSaved::class, fn (AuditableModelSaved $e) => $e->action === 'updated'
+            && $e->model->is($copy) && \count($e->dataAfter['accounts']) === 2 && \count($e->dataAfter['rules']) === 1);
+    }
+
+    public function test_retired_action_writes_a_log_row(): void {
+        $profile = $this->service->activate($this->draft());
+        $this->service->retire($profile);
+
+        $this->assertDatabaseHas('logs', ['loggable_id' => $profile->id, 'action' => 'retired']);
+        $this->assertDatabaseHas('logs', ['loggable_id' => $profile->id, 'action' => 'activated']);
+    }
+
+    public function test_new_version_must_start_the_day_after_a_bounded_previous_profile_ends(): void {
+        $v1 = $this->service->activate($this->draft('2026-01-01', '2026-06-30', 'A'));
+
+        $gap = $this->service->createNewVersion($v1, '2026-08-01');
+        try {
+            $this->service->activate($gap);
+            $this->fail('Celah seharusnya ditolak');
+        } catch (InvalidPostingProfileException) {
+            // diharapkan
+        }
+        $this->assertSame(PostingProfile::STATUS_DRAFT, $gap->refresh()->status);
+
+        $overlap = $this->service->createNewVersion($v1, '2026-06-01');
+        try {
+            $this->service->activate($overlap);
+            $this->fail('Tumpang-tindih seharusnya ditolak');
+        } catch (InvalidPostingProfileException) {
+            // diharapkan
+        }
+
+        $next = $this->service->createNewVersion($v1, '2026-07-01');
+        $this->assertSame(PostingProfile::STATUS_ACTIVE, $this->service->activate($next)->status);
+        $this->assertSame('2026-06-30', $v1->refresh()->effective_to->toDateString());
+    }
+
+    public function test_retiring_a_successor_that_leaves_a_gap_succeeds_with_a_warning(): void {
+        $v1 = $this->service->activate($this->draft('2026-01-01', '2026-06-30', 'A'));
+        $v2 = $this->service->activate($this->service->createNewVersion($v1, '2026-07-01', '2026-12-31'));
+        $v3 = $this->service->activate($this->service->createNewVersion($v2, '2027-01-01'));
+
+        $result = $this->service->retireWithWarnings($v2);
+
+        $this->assertSame(PostingProfile::STATUS_RETIRED, $result['profile']->status);
+        $this->assertCount(1, $result['warnings']);
+        $this->assertSame('2026-07-01', $result['warnings'][0]['from']);
+        $this->assertSame('2026-12-31', $result['warnings'][0]['to']);
+        $this->assertStringContainsString('2026-07-01', $result['warnings'][0]['message']);
+
+        $clean = $this->service->retireWithWarnings($v3);
+        $this->assertSame([['from' => '2027-01-01', 'to' => null]], array_map(fn (array $w) => ['from' => $w['from'], 'to' => $w['to']], $clean['warnings']));
     }
 
     public function test_profile_account_role_length_is_limited(): void {

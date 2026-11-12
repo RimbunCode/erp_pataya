@@ -44,8 +44,10 @@ enum AccountRole: string {
      *   dan `StockEntryService`.
      * - `Receivable`, `Payable`, `Revenue`, `Expense`: jalur lama adalah default form yang diisi controller
      *   (`SalesInvoiceController`, `PurchaseInvoiceController`) lewat `->get()->first()` tanpa urutan, dengan
-     *   `is_contra = false` untuk Sales Invoice; bukan `latest()`. Untuk peran ini fallback legacy resolver
-     *   (`created_at` terbaru) hanya mendekati perilaku lama, dan pada pasangan ambigu menunggu keputusan pemilik produk.
+     *   `is_contra = false` pada jalur normal Sales Invoice (jalur retur `SalesInvoiceController` memakai
+     *   `is_contra = true`); bukan `latest()`. Fallback legacy resolver memakai `orderBy('id')`: satu kandidat dipakai
+     *   dengan peringatan, lebih dari satu kandidat melempar `UnresolvedAccountRoleException` (fail-closed, Q-P2-6);
+     *   peran ambigu wajib dipetakan di profil.
      * - `AssetRevaluation` (akun selisih Asset Value Adjustment, dipilih pengguna hari ini): tidak ada pencarian di
      *   kode dan tidak ada `account_type` di `AccountSeeder` yang dapat diturunkan, jadi null (dipetakan di profil).
      * - `StockAdjustment`, `ExpenseIncludedInValuation`, `Discount`: tidak ada pencarian di kode (akun selisih/biaya

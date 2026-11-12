@@ -34,6 +34,10 @@ class InvalidPostingProfileException extends RuntimeException {
         return new self(__('finances/postingProfile.errors.version_starts_before_previous', ['from' => $previousFrom]));
     }
 
+    public static function versionNotContiguous(string $expectedFrom): self {
+        return new self(__('finances/postingProfile.errors.version_not_contiguous', ['from' => $expectedFrom]));
+    }
+
     public static function versionEndsBeforePrevious(?string $previousTo): self {
         return new self(__('finances/postingProfile.errors.version_ends_before_previous', ['to' => $previousTo ?? __('finances/postingProfile.open_ended')]));
     }

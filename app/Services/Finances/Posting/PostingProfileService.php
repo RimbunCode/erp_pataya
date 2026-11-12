@@ -15,6 +15,7 @@ use Carbon\CarbonImmutable;
 use Carbon\CarbonInterface;
 use Illuminate\Database\Eloquent\ModelNotFoundException;
 use Illuminate\Support\Facades\DB;
+use Illuminate\Support\Facades\Log;
 
 /**
  * Siklus hidup Posting Profile (Finance Fase 2, Requirement 2 dan 12.5-12.6): buat draft, ubah draft, salin menjadi
@@ -31,10 +32,13 @@ final class PostingProfileService {
     private const VARIANTS             = ['normal', 'return'];
     private const MAX_ROLE_LENGTH      = 64;
     private const MAX_ITEM_TYPE_LENGTH = 64;
+    private const MAX_PRIORITY         = 4294967295;
 
     /**
      * Domain nilai `item_variants.type` / `items.type`: diturunkan dari `categories.type`
-     * (`ItemServices`; konstanta sumber `Category::TYPES`). Disalin di sini karena engine tidak boleh mengimpor
+     * (`ItemServices`; konstanta sumber `Category::TYPES`). Catatan utang di luar Sprint A: `CategoryRequest` tidak
+     * memvalidasi `type` terhadap `Category::TYPES` dan `ItemFactory` memakai 'goods', jadi data nyata/test dapat
+     * memuat nilai di luar domain ini. Disalin di sini karena engine tidak boleh mengimpor
      * model Inventory (P-8); `PostingProfileServiceTest` menjaga kesamaannya dengan sumber.
      *
      * @var list<string>
@@ -65,8 +69,10 @@ final class PostingProfileService {
                 'notes'          => $notes,
             ]);
 
+            $before = $this->snapshot($profile);
             $this->replaceAccounts($profile, $accounts);
             $this->replaceRules($profile, $rules);
+            $this->auditMappings($profile, $before);
 
             return $profile->refresh();
         });
@@ -197,6 +203,8 @@ final class PostingProfileService {
                 'notes'               => $source->notes,
             ]);
 
+            $before = $this->snapshot($copy);
+
             foreach ($source->accounts()->get() as $account) {
                 PostingProfileAccount::forceCreate([
                     'posting_profile_id' => $copy->getKey(),
@@ -218,6 +226,8 @@ final class PostingProfileService {
                     'priority'           => $rule->priority,
                 ]);
             }
+
+            $this->auditMappings($copy, $before);
 
             return $copy->refresh();
         });
@@ -251,6 +261,11 @@ final class PostingProfileService {
 
             $before = $this->snapshot($locked);
 
+            $previous = $locked->previous_profile_id === null ? null : $all->get($locked->previous_profile_id);
+            if ($previous !== null && $previous->isActive()) {
+                $this->assertContiguous($previous, $from);
+            }
+
             foreach ($all->where('status', PostingProfile::STATUS_ACTIVE) as $other) {
                 if (! $this->overlaps($from, $to, $other->effective_from->toDateString(), $other->effective_to?->toDateString())) {
                     continue;
@@ -280,7 +295,19 @@ final class PostingProfileService {
      * Memensiunkan profil `active`: tidak lagi dipilih resolver. Riwayat jurnal tidak berubah.
      */
     public function retire(PostingProfile $profile): PostingProfile {
-        return DB::transaction(function () use ($profile): PostingProfile {
+        return $this->retireWithWarnings($profile)['profile'];
+    }
+
+    /**
+     * Seperti `retire()`, tetapi juga mengembalikan peringatan celah (keputusan pemilik produk 2026-11-12, Q-P2-11):
+     * pemensiunan tidak pernah ditolak karena celah (profil yang keliru harus dapat ditarik), namun rentang tanggal
+     * profil ini yang tidak lagi dicakup profil aktif lain dilaporkan, juga lewat `Log::warning`
+     * (`posting.profile_retire_gap`), karena resolver gagal tertutup pada tanggal tanpa profil aktif.
+     *
+     * @return array{profile: PostingProfile, warnings: list<array{from: string, to: string|null, message: string}>}
+     */
+    public function retireWithWarnings(PostingProfile $profile): array {
+        return DB::transaction(function () use ($profile): array {
             $locked = PostingProfile::query()->whereKey($profile->getKey())->lockForUpdate()->firstOrFail();
             if (! $locked->isActive()) {
                 throw InvalidPostingProfileException::notActive($locked->status);
@@ -290,7 +317,20 @@ final class PostingProfileService {
             $locked->forceFill(['status' => PostingProfile::STATUS_RETIRED])->save();
             $this->audit($locked, 'retired', $before, $this->snapshot($locked));
 
-            return $locked;
+            // Profil aktif tidak pernah beririsan (Req 2.2), jadi seluruh rentang profil ini menjadi tanpa profil aktif.
+            $gaps = [[$locked->effective_from->toDateString(), $locked->effective_to?->toDateString()]];
+
+            $warnings = [];
+            foreach ($gaps as [$gapFrom, $gapTo]) {
+                $warnings[] = [
+                    'from'    => $gapFrom,
+                    'to'      => $gapTo,
+                    'message' => __('finances/postingProfile.warnings.retire_gap', ['from' => $gapFrom, 'to' => $gapTo ?? __('finances/postingProfile.open_ended')]),
+                ];
+                Log::warning('posting.profile_retire_gap', ['from' => $gapFrom, 'to' => $gapTo]);
+            }
+
+            return ['profile' => $locked, 'warnings' => $warnings];
         });
     }
 
@@ -304,6 +344,23 @@ final class PostingProfileService {
      * - `effective_to` versi baru tidak boleh lebih awal dari `effective_to` profil lama (atau berakhir sedangkan
      *   profil lama tanpa batas akhir); selisihnya menjadi celah tanpa profil aktif.
      */
+    /**
+     * Salinan versi harus bersambung (keputusan pemilik produk 2026-11-12, Q-P2-10): bila profil lama berbatas akhir,
+     * `effective_from` versi baru = `effective_to` profil lama + 1 hari; selain itu muncul celah tanpa profil aktif
+     * (resolver gagal tertutup) atau tumpang-tindih. Profil lama tanpa batas akhir diatur `assertCanSupersede`.
+     */
+    private function assertContiguous(PostingProfile $old, string $from): void {
+        $oldTo = $old->effective_to?->toDateString();
+        if ($oldTo === null) {
+            return;
+        }
+
+        $expected = CarbonImmutable::parse($oldTo)->addDay()->toDateString();
+        if ($from !== $expected) {
+            throw InvalidPostingProfileException::versionNotContiguous($expected);
+        }
+    }
+
     private function assertCanSupersede(PostingProfile $old, string $from, ?string $to): void {
         $oldFrom = $old->effective_from->toDateString();
         $oldTo   = $old->effective_to?->toDateString();
@@ -403,6 +460,10 @@ final class PostingProfileService {
             throw InvalidPostingRuleException::negativePriority();
         }
 
+        if ($rule['priority'] > self::MAX_PRIORITY) {
+            throw InvalidPostingRuleException::priorityTooLarge(self::MAX_PRIORITY);
+        }
+
         if ($rule['item_type'] !== null) {
             if (mb_strlen($rule['item_type']) > self::MAX_ITEM_TYPE_LENGTH) {
                 throw InvalidPostingRuleException::fieldTooLong('item_type', self::MAX_ITEM_TYPE_LENGTH);
@@ -477,6 +538,9 @@ final class PostingProfileService {
             $this->assertAccountUsable($row->account_id, $row->role, rule: false);
         }
         foreach ($profile->rules()->get() as $rule) {
+            if ($rule->item_category_id !== null && ! DB::table('categories')->where('id', $rule->item_category_id)->whereNull('deleted_at')->exists()) {
+                throw InvalidPostingRuleException::unknownCategory();
+            }
             $this->assertAccountUsable($rule->account_id, $rule->role, rule: true);
         }
     }
@@ -535,6 +599,21 @@ final class PostingProfileService {
             'accounts'       => $profile->accounts()->orderBy('role')->pluck('account_id', 'role')->all(),
             'rules'          => $rules,
         ];
+    }
+
+    /**
+     * Audit `updated` agar isi pemetaan awal (akun default dan aturan) tercatat sebelum aktivasi (Requirement 2.6).
+     * Tidak dikirim bila tidak ada pemetaan.
+     *
+     * @param  array<string, mixed>  $before
+     */
+    private function auditMappings(PostingProfile $profile, array $before): void {
+        $after = $this->snapshot($profile);
+        if ($after['accounts'] === [] && $after['rules'] === []) {
+            return;
+        }
+
+        $this->audit($profile, 'updated', $before, $after);
     }
 
     /**

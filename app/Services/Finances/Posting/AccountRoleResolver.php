@@ -173,8 +173,8 @@ final class AccountRoleResolver {
     }
 
     /**
-     * Akun legacy `(root_type, account_type)`: `created_at` terbaru (dengan `id` sebagai pemutus agar deterministik
-     * pada akun seed yang berstempel waktu sama); peringatan bila ambigu.
+     * Akun legacy `(root_type, account_type)`: satu kandidat dipakai dengan peringatan fallback; lebih dari satu
+     * kandidat gagal tertutup dengan `UnresolvedAccountRoleException` (Q-P2-6), tidak memilih salah satu.
      */
     private function legacyAccount(string $role, string $rootType, string $accountType, PostingContext $ctx, string $day): ?Account {
         $candidates = Account::query()

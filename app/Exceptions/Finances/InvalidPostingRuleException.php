@@ -35,6 +35,10 @@ class InvalidPostingRuleException extends RuntimeException {
         return new self(__('finances/postingProfile.errors.rule_negative_priority'));
     }
 
+    public static function priorityTooLarge(int $max): self {
+        return new self(__('finances/postingProfile.errors.rule_priority_too_large', ['max' => $max]));
+    }
+
     public static function fieldTooLong(string $field, int $max): self {
         return new self(__('finances/postingProfile.errors.field_too_long', ['field' => $field, 'max' => $max]));
     }

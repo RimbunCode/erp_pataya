@@ -50,7 +50,13 @@ return [
         'field_too_long'                 => 'The :field field exceeds :max characters.',
         'delete_referenced'              => 'This draft profile is the basis of another new version and cannot be deleted; delete the newer version first.',
         'rule_negative_priority'         => 'Priority must not be negative.',
+        'rule_priority_too_large'        => 'Priority must not exceed :max.',
+        'version_not_contiguous'         => 'The new version must start on :from, the day after the previous profile ends, so that no date is left without an active profile.',
         'rule_invalid_item_type'         => 'Unknown item type ":type"; use one of :allowed.',
         'rule_unknown_category'          => 'The item category in the rule was not found.',
+    ],
+
+    'warnings' => [
+        'retire_gap' => 'After retiring this profile, no active profile covers :from to :to; posting on those dates will fail until another profile is activated.',
     ],
 ];

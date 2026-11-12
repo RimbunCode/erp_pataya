@@ -50,7 +50,13 @@ return [
         'field_too_long'                 => 'Isian :field melebihi :max karakter.',
         'delete_referenced'              => 'Profil draft ini menjadi dasar versi baru lain dan tidak dapat dihapus; hapus versi barunya lebih dulu.',
         'rule_negative_priority'         => 'Prioritas tidak boleh negatif.',
+        'rule_priority_too_large'        => 'Prioritas tidak boleh melebihi :max.',
+        'version_not_contiguous'         => 'Versi baru harus mulai pada :from, sehari setelah profil sebelumnya berakhir, agar tidak ada tanggal tanpa profil aktif.',
         'rule_invalid_item_type'         => 'Tipe barang ":type" tidak dikenal; gunakan salah satu dari :allowed.',
         'rule_unknown_category'          => 'Kategori barang pada aturan tidak ditemukan.',
+    ],
+
+    'warnings' => [
+        'retire_gap' => 'Setelah profil ini dipensiunkan, tidak ada profil aktif untuk :from s.d. :to; posting pada tanggal itu akan gagal sampai profil lain diaktifkan.',
     ],
 ];

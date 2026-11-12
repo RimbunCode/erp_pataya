@@ -59,7 +59,7 @@ Selain itu fase ini memperbaiki perilaku pembatalan: dari soft-delete GL (F-04) 
 1. THE sistem SHALL membuat tabel `posting_profiles` (`name`, `effective_from`, `effective_to` nullable, `status` `draft`/`active`/`retired`, `version`, catatan) dan `posting_profile_accounts` (`posting_profile_id`, `role` string, `account_id`), unik `(posting_profile_id, role)`. Profil bersifat **global**: tidak ada kolom cakupan atau cabang.
 2. THE sistem SHALL menolak dua profil `active` dengan rentang tanggal yang tumpang-tindih.
 3. THE sistem SHALL menolak penetapan akun yang `is_group`, `is_disabled`, atau terhapus pada `posting_profile_accounts`.
-4. THE profil `active` yang sudah dipakai posting SHALL tidak diedit di tempat; perubahan dilakukan dengan membuat versi baru (salinan) dengan `effective_from` baru, dan versi lama diberi `effective_to`. Aktivasi versi baru yang menutup profil lama SHALL ditolak bila `effective_from`-nya tidak sesudah `effective_from` profil lama, atau `effective_to`-nya lebih awal dari `effective_to` profil lama (atau berakhir sedangkan profil lama tanpa batas akhir), agar tidak ada celah tanpa profil aktif atau perubahan hasil resolve untuk tanggal yang sudah diposting (keputusan pemilik produk 2026-11-12, Q-P2-7).
+4. THE profil `active` yang sudah dipakai posting SHALL tidak diedit di tempat; perubahan dilakukan dengan membuat versi baru (salinan) dengan `effective_from` baru, dan versi lama diberi `effective_to`. Aktivasi versi baru yang menutup profil lama SHALL ditolak bila `effective_from`-nya tidak sesudah `effective_from` profil lama, atau `effective_to`-nya lebih awal dari `effective_to` profil lama (atau berakhir sedangkan profil lama tanpa batas akhir), agar tidak ada celah tanpa profil aktif atau perubahan hasil resolve untuk tanggal yang sudah diposting (keputusan pemilik produk 2026-11-12, Q-P2-7). Selain itu, bila profil lama berbatas akhir, `effective_from` salinan SHALL sama dengan `effective_to` profil lama + 1 hari (bersambung, tanpa celah maupun irisan); aktivasi yang melanggarnya SHALL ditolak dengan `InvalidPostingProfileException` (contoh: profil lama 01-01..06-30, salinan mulai 08-01 ditolak, mulai 07-01 diterima; Q-P2-10). Pemensiunan (`retire`) profil penerus yang meninggalkan celah tanggal SHALL tetap berhasil, tetapi hasilnya SHALL memuat peringatan celah beserta rentang tanggalnya (dan dicatat sebagai `Log::warning`), karena resolver gagal tertutup pada tanggal tanpa profil aktif dan profil yang keliru harus dapat ditarik (Q-P2-11).
 5. THE sistem SHALL menyediakan perintah `finance:init-posting-profile` yang membangkitkan profil awal dari COA saat ini memakai pemetaan legacy Requirement 1.2, melaporkan peran yang tidak dapat di-resolve, dan idempoten (tidak menduplikasi bila profil awal sudah ada).
 6. THE perubahan profil SHALL tercatat (siapa, kapan, sebelum/sesudah) sesuai mekanisme audit yang dipilih di Fase 1 (Task 1.4).
 
@@ -237,7 +237,14 @@ Selain itu fase ini memperbaiki perilaku pembatalan: dari soft-delete GL (F-04) 
 | Q-P2-3 | Apakah F-10 (Payment kumulatif) diperbaiki saat migrasi Payment atau sebagai hotfix terpisah? | Requirement 7 |
 | Q-P2-4 | Daftar awal aturan akun bersyarat (barang non-stok, retur, kategori) disusun bersama akuntan saat `init-posting-profile` | Requirement 12.7 |
 | Q-P2-5 | Perlakuan diskon pembelian untuk baris stok (net ke persediaan) dan non-stok (potongan pembelian) | Requirement 14.3 |
+
+## Pertanyaan yang Sudah Diputuskan
+
+| ID | Keputusan | Dampak |
+|---|---|---|
 | Q-P2-6 | Fallback legacy ambigu: pilih `created_at` terbaru atau gagal? **Dijawab pemilik produk 2026-11-12: gagal tertutup** (Req 3.4 diubah) | Requirement 3.4 |
 | Q-P2-7 | Versi baru profil yang menciptakan celah atau mengubah tanggal yang sudah diposting? **Dijawab 2026-11-12: ditolak** (Req 2.4 diubah) | Requirement 2.4 |
 | Q-P2-8 | Peran untuk akun selisih Asset Value Adjustment; `expense` Purchase Invoice default SRNB? **Dijawab 2026-11-12: peran baru `asset_revaluation` (Req 1.1 diubah); `expense` = SRNB dipertahankan demi parity** | Requirement 1.1 |
 | Q-P2-9 | Klarifikasi matcher (lintasan retur ketat, pemutus seri kunci isi aturan)? **Dijawab 2026-11-12: disetujui** (Req 12.2-12.3 diubah) | Requirement 12.2-12.3 |
+| Q-P2-10 | Salinan versi bersambung dengan profil lama berbatas akhir? **Dijawab 2026-11-12: ditolak bila tidak bersambung** (Req 2.4 diubah) | Requirement 2.4 |
+| Q-P2-11 | `retire()` yang meninggalkan celah: tolak atau peringatan? **Dijawab 2026-11-12: peringatan saja** (Req 2.4 diubah) | Requirement 2.4 |
