@@ -81,12 +81,12 @@ Urutan: fondasi data dan resolver (1–3), kontrak + rule + service + gateway de
   - [ ] 5.6 Checkpoint - jalankan semua test Fase 0–2 pada mode `off`
     - Ensure all tests pass, ask the user if questions arise.
 
-- [ ] 6. Antarmuka Posting Profile dan Parity
-  - [ ] 6.1 `PostingProfileController` + rute + izin; halaman `Finances/PostingProfiles/{Index,Form}.jsx` (tabel peran → akun default, salin versi, aktifkan, peringatan peran belum terpetakan; tanpa cakupan cabang; didaftarkan sebagai menu item grup setting di desk Core dan Finances); `.rtl.test.jsx`
+- [x] 6. Antarmuka Posting Profile dan Parity
+  - [x] 6.1 `PostingProfileController` + rute + izin; halaman `Finances/PostingProfiles/{Index,Form}.jsx` (tabel peran → akun default, salin versi, aktifkan, peringatan peran belum terpetakan; tanpa cakupan cabang; didaftarkan sebagai menu item grup setting di desk Core dan Finances); `.rtl.test.jsx`
     - _Requirements: 8.1–8.2, 8.4_
-  - [ ] 6.2 Halaman Parity Log + kontrol ubah mode per jenis dokumen (izin khusus); `.rtl.test.jsx`
+  - [x] 6.2 Halaman Parity Log + kontrol ubah mode per jenis dokumen (izin khusus); `.rtl.test.jsx`
     - _Requirements: 8.3–8.4_
-  - [ ] 6.3 Kunci terjemahan `lang/id` & `lang/en`; `LocaleKeysTest` hijau; item menu/desk
+  - [x] 6.3 Kunci terjemahan `lang/id` & `lang/en`; `LocaleKeysTest` hijau; item menu/desk
     - _Requirements: 8.4_
 
 - [ ] 7. Migrasi jenis dokumen — kelompok 1 (Asset, Payment)
@@ -173,6 +173,8 @@ Urutan: fondasi data dan resolver (1–3), kontrak + rule + service + gateway de
 
 - Kontrak listener pada Task 7/8 (Q-P2-12, disetujui pemilik produk 2026-11-12): `PostingGateway::post()` mengembalikan `PostingOutcome`; listener WAJIB (a) tidak menimpa `GlPostingStatus` `skipped` menjadi `posted`, (b) tidak menerapkan efek samping non-idempoten (mis. `gross_purchase_amount` nilai aset pada Task 7.1, mutasi SLE) saat `already_posted`, (c) memakai `journals` hasil untuk kebutuhan seperti `journal_entry_for_scrap_id`.
 - Task 7.1/8.x (Q-P2-13, disetujui 2026-11-12): pabrik konteks disposal aset mengisi `guardDocument` dengan Sales Invoice sumber baris penjualan (bukan aset); `GlPostingStatus` `skipped` menyasar baris status dokumen penjaga itu. Karena baris status disposal dibuat listener pada SalesInvoiceItem setelah posting, listener Task 7.1 wajib membuat baris `skipped` untuk SalesInvoiceItem saat disposal dilewati (tidak membuat `POSTED`, tidak menimpa `skipped`); disetujui pemilik produk 2026-11-12.
+- Sprint C (Task 6.x, 2026-11-13): UI memakai halaman Inertia kustom (pola `FiscalPeriodController`), bukan `FormPage`/DataTable. Rute di `/settings/postingProfiles` dan `/settings/postingParityLogs`; izin: `select` (daftar), `read` (detail/selisih parity), `write` (buat/ubah/salin/hapus draft), `activate` (aktifkan/pensiunkan), `switch_posting_mode` (ubah mode; `on` wajib `confirmed`). Aturan akun bersyarat pada form ditampilkan baca-saja; editornya tetap Task 12.2. Peringatan "peran belum terpetakan" memakai `PostingRoleRequirements` (peran non-master per jenis dokumen yang modenya bukan `off`). Endpoint lookup generik `ModelController` (`model`, `model.selectData`, `model.datatable`) tidak memeriksa izin `select` model sasaran; model baru ikut serta lewat `lookupRequiresSelectPermission()` (catatan S3).
+- Keputusan 2026-11-13 (disetujui pemilik produk, Q-P2-15 s.d. Q-P2-17): Finance Officer baca-saja pada Posting Profile; salin versi dari `draft` ditolak di `PostingProfileService`; guard `select` lookup generik tetap opt-in (`PostingProfile`, `PostingParityLog`). Lihat decision log.
 - Task 7.4/8.5/14.1 bersifat operasional dan menunggu waktu/persetujuan; jangan menandainya selesai sebelum bukti parity tersimpan di laporan.
 - Fase 3 akan menambah rule pajak ke rule Sales/Purchase Invoice yang dibuat di sini; jaga bentuk `RoleJournalDraft` tetap dapat menampung ≥3 baris.
 - Jika Task 1 mengungkap asumsi tabel "Fakta codebase" salah, perbarui `design.md` dan minta konfirmasi sebelum lanjut.

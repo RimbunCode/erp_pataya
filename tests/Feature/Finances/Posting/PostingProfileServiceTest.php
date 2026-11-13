@@ -195,7 +195,7 @@ class PostingProfileServiceTest extends TestCase {
 
         $this->service->updateDraft(
             $profile,
-            ['name' => 'Diubah', 'effective_to' => '2026-12-31'],
+            ['name'    => 'Diubah', 'effective_to' => '2026-12-31'],
             ['payable' => $this->expense->id],
             [['role' => 'revenue', 'account_id' => $this->revenueReturn->id, 'variant' => 'return']],
         );
@@ -413,10 +413,10 @@ class PostingProfileServiceTest extends TestCase {
 
         $cases = [
             ['priority' => -1],
-            ['priority' => 4294967296],
-            ['role' => str_repeat('x', 65)],
-            ['item_type' => str_repeat('x', 65)],
-            ['item_type' => 'barang-aneh'],
+            ['priority'         => 4294967296],
+            ['role'             => str_repeat('x', 65)],
+            ['item_type'        => str_repeat('x', 65)],
+            ['item_type'        => 'barang-aneh'],
             ['item_category_id' => $deletedCategory],
         ];
         foreach ($cases as $invalid) {
@@ -534,9 +534,24 @@ class PostingProfileServiceTest extends TestCase {
         $this->assertSame(Category::TYPES, PostingProfileService::ITEM_TYPES);
     }
 
+    public function test_copying_a_draft_is_rejected(): void {
+        $draft = $this->draft();
+
+        try {
+            $this->service->createNewVersion($draft, '2026-07-01');
+            $this->fail('Salin dari draft harus ditolak.');
+        } catch (InvalidPostingProfileException $e) {
+            $this->assertSame(__('finances/postingProfile.errors.copy_draft'), $e->getMessage());
+        }
+
+        $this->assertSame(1, PostingProfile::query()->count());
+    }
+
     public function test_draft_referenced_by_a_newer_version_cannot_be_deleted(): void {
+        // Salin dari draft ditolak (Q-P2-16), jadi rujukan dibuat langsung pada data (mis. sisa data lama).
         $v1 = $this->draft();
-        $v2 = $this->service->createNewVersion($v1, '2026-07-01');
+        $v2 = $this->draft('2026-07-01', null, 'V2');
+        DB::table('posting_profiles')->where('id', $v2->id)->update(['previous_profile_id' => $v1->id]);
 
         try {
             $this->service->deleteDraft($v1);
@@ -638,7 +653,7 @@ class PostingProfileServiceTest extends TestCase {
 
         foreach ([
             ['document_type' => 'kwitansi'],
-            ['variant' => 'refund'],
+            ['variant'          => 'refund'],
             ['item_category_id' => (string) Str::ulid()],
         ] as $invalid) {
             try {

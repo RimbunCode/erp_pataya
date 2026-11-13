@@ -43,4 +43,19 @@ class PostingProfileAccount extends Model {
     public function account(): BelongsTo {
         return $this->belongsTo(Account::class, 'account_id')->withTrashed();
     }
+
+    /**
+     * Lookup generik (`ModelController`) wajib memeriksa izin: label akun dan nama profil tidak boleh bocor lewat
+     * lookup model anak. Model ini tidak punya entri izin sendiri, jadi mengikuti izin `select` `PostingProfile`.
+     */
+    public static function lookupRequiresSelectPermission(): bool {
+        return true;
+    }
+
+    /**
+     * @return class-string
+     */
+    public static function lookupPermissionModel(): string {
+        return PostingProfile::class;
+    }
 }

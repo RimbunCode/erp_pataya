@@ -39,6 +39,8 @@ use App\Models\Finances\JournalVoucher;
 use App\Models\Finances\PaymentEntry;
 use App\Models\Finances\PaymentMethod;
 use App\Models\Finances\PaymentTermTemplate;
+use App\Models\Finances\PostingParityLog;
+use App\Models\Finances\PostingProfile;
 use App\Models\Finances\PurchaseInvoice;
 use App\Models\Finances\SalesInvoice;
 use App\Models\Finances\Tax;
@@ -424,6 +426,10 @@ class DeskSeeder extends Seeder {
         // Finance Fase 1 (Requirement 11.4): halaman Periode Fiskal masuk grup Module Settings pada desk Finances dan
         // Core. Bukan halaman registry `settings.pages` (itu pola show/update singleton), jadi didaftarkan langsung.
         $this->menuItem('Fiscal Periods', 'CalendarRange', 'fiscalPeriods.*', FiscalPeriod::class, [Domain::Core, Domain::Finances], 32, group: 'Module Settings');
+
+        // Finance Fase 2 (Requirement 8.5): Posting Profile dan Parity Log pada grup yang sama di desk Core dan Finances.
+        $this->menuItem('Posting Profiles', 'ListTree', 'postingProfiles.*', PostingProfile::class, [Domain::Core, Domain::Finances], 33, group: 'Module Settings');
+        $this->menuItem('Posting Parity Logs', 'GitCompare', 'postingParityLogs.*', PostingParityLog::class, [Domain::Core, Domain::Finances], 34, group: 'Module Settings');
     }
 
     // ========================================================================

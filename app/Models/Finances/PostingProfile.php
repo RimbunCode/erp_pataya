@@ -89,6 +89,14 @@ class PostingProfile extends Model {
     }
 
     /**
+     * Lookup generik (`ModelController`) wajib memeriksa izin `select`: konfigurasi akun posting bukan data master
+     * umum yang boleh dilihat setiap pengguna lewat LinkModel.
+     */
+    public static function lookupRequiresSelectPermission(): bool {
+        return true;
+    }
+
+    /**
      * Hanya profil `draft` yang boleh dihapus (profil aktif/pensiun adalah riwayat konfigurasi).
      */
     public function canDelete() {

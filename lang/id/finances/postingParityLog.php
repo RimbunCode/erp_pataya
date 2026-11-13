@@ -33,4 +33,45 @@ return [
         'diff'        => 'Selisih',
         'created_at'  => 'Dicatat Pada',
     ],
+
+    'filters' => [
+        'document_type' => 'Jenis Dokumen',
+        'status'        => 'Status',
+        'date_from'     => 'Dari Tanggal',
+        'date_to'       => 'Sampai Tanggal',
+        'all'           => 'Semua',
+        'apply'         => 'Terapkan',
+        'reset'         => 'Atur Ulang',
+    ],
+
+    'list' => [
+        'empty'     => 'Tidak ada catatan parity yang cocok dengan filter.',
+        'show_diff' => 'Lihat selisih',
+        'hide_diff' => 'Sembunyikan selisih',
+        'no_diff'   => 'Tidak ada selisih tercatat.',
+        'total'     => ':count catatan',
+        'previous'  => 'Halaman sebelumnya',
+        'next'      => 'Halaman berikutnya',
+    ],
+
+    'mode' => [
+        'title'       => 'Mode Engine per Jenis Dokumen',
+        'description' => 'off: jalur lama menulis jurnal. shadow: jalur lama menulis, engine hanya membandingkan. on: engine menulis jurnal.',
+        'current'     => 'Mode',
+        'change'      => 'Ubah mode untuk :document_type',
+        'read_only'   => 'Anda tidak memiliki izin untuk mengubah mode engine.',
+        'switched'    => 'Mode :document_type diubah menjadi :mode.',
+        'options'     => [
+            'off'    => 'Off (jalur lama)',
+            'shadow' => 'Shadow (bandingkan)',
+            'on'     => 'On (engine menulis)',
+        ],
+        'confirm' => [
+            'title'       => 'Aktifkan Engine untuk :document_type',
+            'description' => 'Mode on membuat Posting Engine menulis jurnal untuk jenis dokumen ini dan jalur lama tidak dipakai lagi. Lanjutkan hanya bila parity terbukti dan pemilik produk menyetujui.',
+            'checkbox'    => 'Saya memahami bahwa engine akan menulis jurnal untuk jenis dokumen ini.',
+            'confirm'     => 'Aktifkan',
+            'cancel'      => 'Batal',
+        ],
+    ],
 ];

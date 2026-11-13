@@ -26,6 +26,10 @@ class InvalidPostingProfileException extends RuntimeException {
         return new self(__('finances/postingProfile.errors.not_draft', ['status' => $status]));
     }
 
+    public static function copyFromDraft(): self {
+        return new self(__('finances/postingProfile.errors.copy_draft'));
+    }
+
     public static function notActive(string $status): self {
         return new self(__('finances/postingProfile.errors.not_active', ['status' => $status]));
     }
