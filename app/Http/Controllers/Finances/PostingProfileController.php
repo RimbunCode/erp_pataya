@@ -42,8 +42,8 @@ class PostingProfileController extends Controller {
     protected function enforcePermission(string $method) {
         return match ($method) {
             'form', 'save', 'discard', 'newVersion' => 'write',
-            'activate', 'retire' => 'activate',
-            default => parent::enforcePermission($method),
+            'activate', 'retire'                    => 'activate',
+            default                                 => parent::enforcePermission($method),
         };
     }
 
