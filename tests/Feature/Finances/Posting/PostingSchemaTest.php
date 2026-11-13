@@ -126,7 +126,7 @@ class PostingSchemaTest extends TestCase {
         $this->assertSame('Finances', $profile->module);
 
         $log = Permission::withoutGlobalScopes()->where('model', PostingParityLog::class)->firstOrFail();
-        $this->assertSame(['select', 'read'], $log->permissions);
+        $this->assertSame(['select', 'read', 'switch_posting_mode'], $log->permissions);
         $this->assertSame('Posting Parity Logs', $log->name);
     }
 

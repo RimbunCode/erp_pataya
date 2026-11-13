@@ -99,11 +99,11 @@ Selain itu fase ini memperbaiki perilaku pembatalan: dari soft-delete GL (F-04) 
 
 #### Acceptance Criteria
 
-1. THE sistem SHALL menyediakan `PostingService::post(PostingContext): list<Journal>` dan `PostingService::preview(PostingContext): list<JournalDraft>` (resolve akun dan bentuk draft tanpa menulis).
+1. THE sistem SHALL menyediakan `PostingService::post(PostingContext): PostingOutcome` (status `posted`/`already_posted`/`skipped` beserta daftar jurnal; Q-P2-12) dan `PostingService::preview(PostingContext): list<JournalDraft>` (resolve akun dan bentuk draft tanpa menulis).
 2. THE `post()` SHALL menjalankan rule, me-resolve peran, dan memanggil `JournalService::post()` untuk tiap draft dengan `postingKey` `{sourceType}:{sourceId}:{purpose}` (kontrak purpose dari Fase 1).
 3. THE `post()` SHALL atomik untuk seluruh jurnal satu konteks (semua atau tidak sama sekali) dalam satu transaksi.
-4. THE `post()` SHALL idempoten: bila semua `postingKey` konteks sudah ada, mengembalikan jurnal yang ada tanpa menulis; bila sebagian ada, melaporkan kondisi inkonsisten (`PartialPostingException`) alih-alih menulis sisanya diam-diam.
-5. THE `post()` SHALL TIDAK memposting bila dokumen sumber sudah berstatus `canceled` (guard F-16): ia mengembalikan hasil kosong, menandai `GlPostingStatus` sebagai `skipped` bila ada, dan mencatat log informasi.
+4. THE `post()` SHALL idempoten: bila semua `postingKey` konteks sudah ada, mengembalikan jurnal yang ada tanpa menulis dengan status `already_posted` (termasuk bila kunci ditulis proses lain saat `post()` berjalan); bila sebagian ada, melaporkan kondisi inkonsisten (`PartialPostingException`) alih-alih menulis sisanya diam-diam.
+5. THE `post()` SHALL TIDAK memposting bila dokumen penjaga sudah berstatus `canceled` (guard F-16; dokumen penjaga = `PostingContext::guardDocument`, default dokumen sumber, mis. disposal aset memakai Sales Invoice; Q-P2-13): ia mengembalikan hasil berstatus `skipped` tanpa jurnal, menandai `GlPostingStatus` dokumen penjaga yang `pending` sebagai `skipped`, dan mencatat log informasi. Pemeriksaan berlangsung di dalam transaksi dengan membaca dokumen penjaga berkunci baris.
 6. THE `PostingService` SHALL menolak `documentType` tanpa rule terdaftar (`UnknownPostingDocumentTypeException`).
 
 ### Requirement 6: Mode engine per jenis dokumen (off / shadow / on)
@@ -169,7 +169,7 @@ Selain itu fase ini memperbaiki perilaku pembatalan: dari soft-delete GL (F-04) 
 3. THE hook `saving` pada `Submitable` SHALL memanggil service tersebut menggantikan update massal soft-delete GL, dikendalikan setting `finance_cancel_mode` (`soft_delete` default / `reversal`), sehingga perilaku dapat dibalik tanpa deploy; soft-delete **SLE** tetap berjalan (bukan bagian Finance Engine).
 4. THE status `voided` dari Fase 1 SHALL tidak lagi ditetapkan pada mode `reversal`; jurnal lama berstatus `voided` tetap dipertahankan sebagai riwayat.
 5. WHEN `PostingService::post()` atau listener posting dijalankan untuk dokumen yang sudah `canceled` (balapan F-16), THE posting SHALL dilewati (Requirement 5.5) pada **semua** mode, termasuk `soft_delete` dan jalur lama.
-6. WHEN dokumen dibatalkan sebelum job posting berjalan (`GlPostingStatus=pending`), THE sistem SHALL menandai status posting `skipped` agar tidak muncul sebagai kegagalan di halaman monitoring.
+6. WHEN dokumen dibatalkan sebelum job posting berjalan (`GlPostingStatus=pending`), THE sistem SHALL menandai status posting `skipped` agar tidak muncul sebagai kegagalan di halaman monitoring. `PostingGateway::post()` dan `PostingService::post()` SHALL mengembalikan `PostingOutcome` (`posted`/`already_posted`/`skipped`, daftar jurnal; pada mode `off`/`shadow` status `posted` tanpa jurnal karena jalur lama memegang jurnalnya); listener SHALL (a) tidak menimpa `GlPostingStatus` `skipped` menjadi `posted`, (b) tidak menerapkan efek samping non-idempoten saat `already_posted`, dan (c) memakai jurnal hasil untuk kebutuhan turunan seperti `journal_entry_for_scrap_id` (Q-P2-12, disetujui pemilik produk 2026-11-12).
 7. THE pembatalan dokumen pada periode yang ditutup SHALL menghasilkan reversal pada periode terbuka berikutnya dan menampilkan pemberitahuan kepada pengguna; bila penegakan periode aktif dan tidak ada periode terbuka, pembatalan ditolak dengan pesan jelas.
 
 ### Requirement 11: Non-fungsional
@@ -248,3 +248,6 @@ Selain itu fase ini memperbaiki perilaku pembatalan: dari soft-delete GL (F-04) 
 | Q-P2-9 | Klarifikasi matcher (lintasan retur ketat, pemutus seri kunci isi aturan)? **Dijawab 2026-11-12: disetujui** (Req 12.2-12.3 diubah) | Requirement 12.2-12.3 |
 | Q-P2-10 | Salinan versi bersambung dengan profil lama berbatas akhir? **Dijawab 2026-11-12: ditolak bila tidak bersambung** (Req 2.4 diubah) | Requirement 2.4 |
 | Q-P2-11 | `retire()` yang meninggalkan celah: tolak atau peringatan? **Dijawab 2026-11-12: peringatan saja** (Req 2.4 diubah) | Requirement 2.4 |
+| Q-P2-12 | Gateway/service mengembalikan void atau hasil terstruktur? **Disetujui pemilik produk 2026-11-12: `PostingOutcome`** (Req 5.1, 5.4, 10.6 diubah) | Requirement 5, 10.6 |
+| Q-P2-13 | Guard cancel untuk dokumen yang statusnya ada di dokumen lain (disposal aset)? **Disetujui 2026-11-12: `PostingContext::guardDocument` opsional, default sumber** (Req 5.5 diubah) | Requirement 5.5 |
+| Q-P2-14 | Penjadwalan `finance:prune-parity-logs`? **Disetujui 2026-11-12: harian 03:30 (Asia/Jakarta), `withoutOverlapping`** (Req 11.4 terpenuhi) | Requirement 11.4 |

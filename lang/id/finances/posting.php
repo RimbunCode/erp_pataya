@@ -6,6 +6,7 @@ return [
         'unresolved_role_account'   => 'Akun untuk peran ":role" (dokumen :document, varian :variant, tanggal :date) tidak dapat dipakai: :reason (:account). Sumber akun: :layer.',
         'unresolved_role_ambiguous' => 'Peran akun ":role" (dokumen :document, varian :variant, tanggal :date) ambigu pada fallback legacy: :candidates akun cocok dengan :root/:type dan tidak ada yang dipilih. Petakan peran ini pada Posting Profile.',
         'unknown_document_type'     => 'Jenis dokumen posting ":type" tidak memiliki aturan posting terdaftar.',
+        'switch_mode_forbidden'     => 'Anda tidak memiliki izin untuk mengubah mode posting engine.',
         'partial_posting'           => 'Posting sebagian untuk :source: jurnal :existing sudah ada, :missing belum ada. Diperlukan intervensi manual.',
     ],
 

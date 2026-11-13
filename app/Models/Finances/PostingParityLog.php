@@ -36,8 +36,7 @@ class PostingParityLog extends Model {
     ];
 
     /**
-     * Izin Requirement 11.3: `select`, `read`. Izin ubah-mode (`switch_posting_mode`) dibuat bersama
-     * `PostingModeService` (Task 5.1).
+     * Izin Requirement 11.3: `select`, `read`, ditambah izin ubah-mode `switch_posting_mode` (lihat `extraPermissions`).
      *
      * @return string[]
      */
@@ -46,6 +45,15 @@ class PostingParityLog extends Model {
             'select',
             'read',
         ];
+    }
+
+    /**
+     * Izin ubah mode engine per jenis dokumen (Requirement 6.8, 11.3), diperiksa `PostingModeService`.
+     *
+     * @return string[]
+     */
+    protected static function extraPermissions(): array {
+        return ['switch_posting_mode'];
     }
 
     public static function getDefaultSortColumn(): string {
