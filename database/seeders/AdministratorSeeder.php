@@ -177,6 +177,8 @@ class AdministratorSeeder extends Seeder {
                 'scope_overrides' => [
                     ['module' => 'Finances', 'model' => 'Fiscal Years', 'profile' => ['select', 'read', 'write', 'submit', 'print', 'import', 'export', 'share']],
                     ['module' => 'Finances', 'model' => 'Fiscal Periods', 'profile' => ['select', 'read', 'write', 'submit', 'print', 'import', 'export', 'share']],
+                    // Posting Profile baca-saja untuk operator (Q-P2-15, 2026-11-13): akun default posting hanya diubah profil `full`.
+                    ['module' => 'Finances', 'model' => 'Posting Profiles', 'profile' => ['select', 'read']],
                 ],
             ],
             [

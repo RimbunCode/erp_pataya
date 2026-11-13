@@ -541,8 +541,9 @@ class ModelController extends Controller {
 
             return;
         }
-        $isCache                = $request->boolean('cacheMode');
-        $model                  = $request->model;
+        $isCache = $request->boolean('cacheMode');
+        $model   = $request->model;
+        $this->enforceSelectForGuardedLookup($request, (string) $model);
         $search                 = $isCache ? '' : ($request->search ?? '');
         $includeGlobalWarehouse = $this->canLookupGlobalWarehouse($request, $model);
         $request->attributes->set('includeGlobalBranchAuthorized', $includeGlobalWarehouse);
@@ -1126,6 +1127,8 @@ class ModelController extends Controller {
             }
         }
 
+        $this->enforceSelectForGuardedLookup($request, $parent);
+        $this->enforceSelectForGuardedLookup($request, $target);
         $includeGlobalWarehouse = $this->canLookupGlobalWarehouse($request, $target);
         $request->attributes->set('includeGlobalBranchAuthorized', $includeGlobalWarehouse);
         $columns       = $target::getColumns(1);
@@ -1402,7 +1405,25 @@ class ModelController extends Controller {
     public function datatable(Request $request) {
         $model         = $request->model;
         $showedColumns = $request->showedColumns;
+        $this->enforceSelectForGuardedLookup($request, (string) $model);
 
         return $model::dataTable($request, $showedColumns);
+    }
+
+    /**
+     * Endpoint lookup generik (`model`, `model.selectData`, `model.datatable`) tidak memeriksa izin `select` model
+     * sasaran; hanya kolom yang aman dikirim. Model yang menyimpan konfigurasi akuntansi atau catatan audit (Posting
+     * Profile, Parity Log; Finance Fase 2, Requirement 8) memilih ikut serta lewat
+     * `lookupRequiresSelectPermission()` agar lookup tanpa izin `select` ditolak 403.
+     */
+    private function enforceSelectForGuardedLookup(Request $request, string $model): void {
+        if (! \class_exists($model) || ! \method_exists($model, 'lookupRequiresSelectPermission') || ! $model::lookupRequiresSelectPermission()) {
+            return;
+        }
+
+        // Model anak tanpa entri izin sendiri mengikuti izin `select` model induk lewat `lookupPermissionModel()`.
+        $permissionModel = \method_exists($model, 'lookupPermissionModel') ? $model::lookupPermissionModel() : $model;
+
+        abort_unless(PermissionChecker::forUser($request)->canAction($permissionModel, 'select'), 403);
     }
 }

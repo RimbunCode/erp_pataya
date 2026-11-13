@@ -48,6 +48,8 @@ use App\Http\Controllers\Finances\JournalVoucherController;
 use App\Http\Controllers\Finances\PaymentEntryController;
 use App\Http\Controllers\Finances\PaymentMethodController;
 use App\Http\Controllers\Finances\PaymentTermTemplateController;
+use App\Http\Controllers\Finances\PostingParityLogController;
+use App\Http\Controllers\Finances\PostingProfileController;
 use App\Http\Controllers\Finances\PurchaseInvoiceController;
 use App\Http\Controllers\Finances\SalesInvoiceController;
 use App\Http\Controllers\Finances\TaxesController;
@@ -271,6 +273,22 @@ Route::middleware(['auth', 'lang', 'onboarded', 'app', 'desk'])->group(function 
             Route::put('/{fiscalPeriod}/close', 'close')->name('close');
             Route::put('/{fiscalPeriod}/open', 'open')->name('open');
             Route::get('/{fiscalPeriod}', 'show')->name('show');
+        });
+        // Posting Profile dan Parity Log (Finance Fase 2, Requirement 8)
+        Route::controller(PostingProfileController::class)->prefix('postingProfiles')->name('postingProfiles.')->group(function () {
+            Route::get('/', 'index')->name('index');
+            Route::get('/new', 'form')->name('form');
+            Route::post('/', 'save')->name('save');
+            Route::get('/{postingProfile}', 'show')->name('show');
+            Route::put('/{postingProfile}', 'update')->name('update');
+            Route::delete('/{postingProfile}', 'discard')->name('discard');
+            Route::post('/{postingProfile}/versions', 'newVersion')->name('newVersion');
+            Route::put('/{postingProfile}/activate', 'activate')->name('activate');
+            Route::put('/{postingProfile}/retire', 'retire')->name('retire');
+        });
+        Route::controller(PostingParityLogController::class)->prefix('postingParityLogs')->name('postingParityLogs.')->group(function () {
+            Route::get('/', 'index')->name('index');
+            Route::put('/modes/{documentType}', 'switchMode')->name('switchMode');
         });
         // Branches
         Route::resourceDetail('branch', BranchController::class);

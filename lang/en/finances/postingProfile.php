@@ -54,9 +54,95 @@ return [
         'version_not_contiguous'         => 'The new version must start on :from, the day after the previous profile ends, so that no date is left without an active profile.',
         'rule_invalid_item_type'         => 'Unknown item type ":type"; use one of :allowed.',
         'rule_unknown_category'          => 'The item category in the rule was not found.',
+        'unknown_input'                  => 'The field ":field" is not recognized and was rejected.',
+        'unknown_role'                   => 'Role ":role" is not in the account role catalog.',
+        'copy_draft'                     => 'A draft profile cannot be copied; edit the draft directly or activate it first.',
     ],
 
     'warnings' => [
         'retire_gap' => 'After retiring this profile, no active profile covers :from to :to; posting on those dates will fail until another profile is activated.',
+    ],
+
+    'new' => 'New Profile',
+
+    'list' => [
+        'empty'    => 'There are no Posting Profiles yet.',
+        'add'      => 'New Profile',
+        'range'    => ':from to :to',
+        'mapped'   => ':count roles mapped',
+        'open'     => 'Open',
+        'subtitle' => 'Default account per role for the whole company, effective over a date range.',
+    ],
+
+    'form' => [
+        'general'                  => 'Profile Details',
+        'roles_description'        => 'Choose the default account for each role. Only active, non-group accounts can be selected.',
+        'role_master_hint'         => 'Usually supplied by a master account; the account here is only a fallback.',
+        'role_line_sensitive_hint' => 'Evaluated per item line; can be overridden by conditional rules.',
+        'account_placeholder'      => 'Select account',
+        'rules_read_only'          => 'Rules are shown read-only. Copy a version to carry rules over to a new version.',
+        'rules_empty'              => 'There are no conditional account rules yet.',
+        'any'                      => 'Any',
+        'yes'                      => 'Yes',
+        'no'                       => 'No',
+        'read_only'                => 'A profile with status :status cannot be changed. Create a new version to change accounts.',
+        'view_only'                => 'You do not have permission to change this profile.',
+        'save'                     => 'Save',
+        'create'                   => 'Create Draft',
+        'back'                     => 'Back to List',
+        'unmapped_cell'            => 'Not mapped',
+    ],
+
+    'actions' => [
+        'new_version' => 'Create New Version',
+        'activate'    => 'Activate',
+        'retire'      => 'Retire',
+        'discard'     => 'Delete Draft',
+    ],
+
+    'new_version' => [
+        'title'          => 'Create New Version',
+        'description'    => 'Copies the default accounts and rules into a new draft version. The effective date must continue from the previous profile.',
+        'effective_from' => 'Effective From',
+        'effective_to'   => 'Effective To (optional)',
+        'name'           => 'Name (optional)',
+        'confirm'        => 'Create Version',
+        'cancel'         => 'Cancel',
+    ],
+
+    'confirm' => [
+        'activate' => [
+            'title'       => 'Activate Profile',
+            'description' => 'Profile ":name" will be used by the account resolver for dates within its effective range.',
+            'confirm'     => 'Activate',
+        ],
+        'retire' => [
+            'title'       => 'Retire Profile',
+            'description' => 'Profile ":name" will no longer be chosen by the resolver. Posting on dates not covered by another active profile will fail.',
+            'confirm'     => 'Retire',
+        ],
+        'discard' => [
+            'title'       => 'Delete Draft',
+            'description' => 'Draft ":name" and its accounts and rules will be permanently deleted.',
+            'confirm'     => 'Delete',
+        ],
+        'cancel' => 'Cancel',
+    ],
+
+    'unmapped' => [
+        'title'   => 'Required roles are not mapped',
+        'note'    => 'This check only looks at the profile default accounts; conditional account rules are not counted.',
+        'message' => ':document: :roles',
+    ],
+
+    'retire_warning_title' => 'Date gap warning',
+
+    'messages' => [
+        'created'         => 'Draft profile ":name" created.',
+        'updated'         => 'Profile ":name" saved.',
+        'discarded'       => 'Draft profile ":name" deleted.',
+        'version_created' => 'Draft version :version created.',
+        'activated'       => 'Profile ":name" activated.',
+        'retired'         => 'Profile ":name" retired.',
     ],
 ];

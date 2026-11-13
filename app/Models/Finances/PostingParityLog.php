@@ -103,4 +103,11 @@ class PostingParityLog extends Model {
     public static function templateLink() {
         return ':document_type :source_id';
     }
+
+    /**
+     * Lookup generik (`ModelController`) wajib memeriksa izin `select`: catatan parity adalah data audit engine.
+     */
+    public static function lookupRequiresSelectPermission(): bool {
+        return true;
+    }
 }

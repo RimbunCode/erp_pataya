@@ -534,9 +534,24 @@ class PostingProfileServiceTest extends TestCase {
         $this->assertSame(Category::TYPES, PostingProfileService::ITEM_TYPES);
     }
 
+    public function test_copying_a_draft_is_rejected(): void {
+        $draft = $this->draft();
+
+        try {
+            $this->service->createNewVersion($draft, '2026-07-01');
+            $this->fail('Salin dari draft harus ditolak.');
+        } catch (InvalidPostingProfileException $e) {
+            $this->assertSame(__('finances/postingProfile.errors.copy_draft'), $e->getMessage());
+        }
+
+        $this->assertSame(1, PostingProfile::query()->count());
+    }
+
     public function test_draft_referenced_by_a_newer_version_cannot_be_deleted(): void {
+        // Salin dari draft ditolak (Q-P2-16), jadi rujukan dibuat langsung pada data (mis. sisa data lama).
         $v1 = $this->draft();
-        $v2 = $this->service->createNewVersion($v1, '2026-07-01');
+        $v2 = $this->draft('2026-07-01', null, 'V2');
+        DB::table('posting_profiles')->where('id', $v2->id)->update(['previous_profile_id' => $v1->id]);
 
         try {
             $this->service->deleteDraft($v1);

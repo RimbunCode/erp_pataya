@@ -192,6 +192,10 @@ final class PostingProfileService {
 
         return DB::transaction(function () use ($source, $from, $to, $name): PostingProfile {
             $source = PostingProfile::query()->whereKey($source->getKey())->lockForUpdate()->firstOrFail();
+            if ($source->isDraft()) {
+                // Keputusan pemilik produk 2026-11-13 (Q-P2-16): draft diubah langsung atau diaktifkan lebih dulu.
+                throw InvalidPostingProfileException::copyFromDraft();
+            }
 
             $copy = PostingProfile::forceCreate([
                 'name'                => $name ?? $source->name,

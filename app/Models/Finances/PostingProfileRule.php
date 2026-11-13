@@ -94,4 +94,19 @@ class PostingProfileRule extends Model {
             $this->item_category_id,
         ], static fn ($value) => $value !== null));
     }
+
+    /**
+     * Lookup generik (`ModelController`) wajib memeriksa izin: label akun dan nama profil tidak boleh bocor lewat
+     * lookup model anak. Model ini tidak punya entri izin sendiri, jadi mengikuti izin `select` `PostingProfile`.
+     */
+    public static function lookupRequiresSelectPermission(): bool {
+        return true;
+    }
+
+    /**
+     * @return class-string
+     */
+    public static function lookupPermissionModel(): string {
+        return PostingProfile::class;
+    }
 }
