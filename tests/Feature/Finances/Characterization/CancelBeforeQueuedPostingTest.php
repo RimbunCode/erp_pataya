@@ -1,6 +1,6 @@
 <?php
 
-namespace Tests\Feature\Finances\Characterization\KnownIssues;
+namespace Tests\Feature\Finances\Characterization;
 
 use App\Enums\FormStatus;
 use App\Events\Finances\SalesInvoiceGeneralLedgerPostingRequested;
@@ -11,20 +11,22 @@ use App\Services\Finances\Audit\GeneralLedgerAuditor;
 use App\Services\Finances\SalesInvoiceService;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Illuminate\Support\Facades\Event;
-use PHPUnit\Framework\Attributes\Group;
 use Tests\Support\BuildsFinanceFixtures;
 use Tests\TestCase;
 
 /**
- * Known-issue F-16 (PRD Lampiran A): dokumen dibatalkan sebelum listener posting yang di-queue berjalan.
- * Hook cancel (F-04) tidak menemukan baris GL untuk di-soft-delete; listener lalu memposting GL AKTIF untuk dokumen
- * `canceled`. Test menahan listener dengan `Event::fake` lalu menjalankannya setelah pembatalan.
+ * F-16 (PRD Lampiran A): dokumen dibatalkan sebelum listener posting yang di-queue berjalan.
+ * Hook cancel (F-04) tidak menemukan baris GL untuk di-soft-delete. Test menahan listener dengan `Event::fake` lalu
+ * menjalankannya setelah pembatalan.
+ *
+ * Diperbarui Finance Fase 2 Sprint D (Task 8.2; Requirement 10.5, P-6): listener kini memanggil `PostingGateway`
+ * yang memeriksa dokumen penjaga pada SEMUA mode (termasuk `off`). Sebelum itu test ini mengunci bug (GL aktif untuk
+ * dokumen `canceled`); kini mengunci perbaikannya: tidak ada GL, `GlPostingStatus` `skipped`, auditor bersih.
  */
-#[Group('known-issue')]
 class CancelBeforeQueuedPostingTest extends TestCase {
     use BuildsFinanceFixtures, RefreshDatabase;
 
-    public function test_f16_listener_running_after_cancel_posts_active_ledger_for_canceled_document(): void {
+    public function test_f16_listener_running_after_cancel_is_skipped_by_the_gateway_guard(): void {
         $this->setUpFinanceFixtures([SalesInvoice::class]);
         $receivable = $this->makeAccount('1200', 'Piutang Usaha', 'asset', 'debit', 'accounts_receivable');
         $sales      = $this->makeAccount('4000', 'Penjualan', 'income', 'credit', 'sales');
@@ -43,16 +45,13 @@ class CancelBeforeQueuedPostingTest extends TestCase {
         $event = Event::dispatched(SalesInvoiceGeneralLedgerPostingRequested::class)->first()[0];
         (new PostSalesInvoiceGeneralLedger)->handle($event);
 
-        // F-16 TERKONFIRMASI: dokumen `canceled` memiliki GL aktif.
-        $active = GeneralLedger::where('referenceable_type', SalesInvoice::class)->where('referenceable_id', $invoice->id)->get();
-        $this->assertCount(2, $active);
-        $this->assertTrue($active->every(fn ($row) => $row->deleted_at === null));
+        // Guard gateway (mode `off`, jalur lama): dokumen `canceled` tidak diposting dan statusnya `skipped`.
+        $this->assertCount(0, GeneralLedger::withTrashed()->where('referenceable_type', SalesInvoice::class)->where('referenceable_id', $invoice->id)->get());
         $this->assertContains(FormStatus::CANCELED, $invoice->fresh()->status);
-        $this->assertPostingStatus($invoice, 'posted');
+        $this->assertPostingStatus($invoice, 'skipped');
 
-        // Auditor Fase 0 mendeteksi kondisi yang sama.
+        // Auditor Fase 0 tidak lagi menemukan GL aktif untuk dokumen `canceled`.
         $report = (new GeneralLedgerAuditor)->run();
-        $this->assertSame(1, $report->sections['canceled_active_gl']['count']);
-        $this->assertSame($invoice->id, $report->sections['canceled_active_gl']['samples'][0]['referenceable_id']);
+        $this->assertSame(0, $report->sections['canceled_active_gl']['count']);
     }
 }

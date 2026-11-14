@@ -6,6 +6,7 @@ use App\Contracts\SubmitableService;
 use App\Enums\FormStatus;
 use App\Events\Core\DocumentSubmitted;
 use App\Events\Finances\PaymentApplied;
+use App\Exceptions\Finances\DuplicatePostingException;
 use App\Models\Core\CoreSetting;
 use App\Models\Core\FormatingSeries;
 use App\Models\Finances\PaymentEntry;
@@ -15,7 +16,9 @@ use App\Models\Model;
 use App\Models\Purchase\Supplier;
 use App\Models\Sales\Customer;
 use App\Services\Core\Setting\SettingsService;
+use App\Services\Finances\Accounting\PaymentEntryPostingContextFactory;
 use App\Services\Finances\Ledger\JournalService;
+use App\Services\Finances\Posting\PostingGateway;
 use App\Traits\HasDefaultDelete;
 use App\Utils;
 use Illuminate\Support\Carbon;
@@ -164,22 +167,38 @@ class PaymentEntryService implements SubmitableService {
      * Nilai tidak dikonversi ke mata uang dasar (F-11, Fase 4).
      */
     private function postLedger(PaymentEntry $paymentEntry): void {
-        $debitAccount    = $paymentEntry->accountPaidTo;
-        $creditAccount   = $paymentEntry->accountPaidFrom;
-        $transactionDate = $paymentEntry->date ?? now();
-        $amount          = $paymentEntry->paid_amount;
+        // Gateway Posting Engine (Finance Fase 2, Task 7.2): closure = jalur Fase 1 apa adanya (mode `off`/`shadow`).
+        $outcome = app(PostingGateway::class)->postDeferred(
+            app(PaymentEntryPostingContextFactory::class)->forGuard($paymentEntry),
+            fn () => app(PaymentEntryPostingContextFactory::class)->forApproval($paymentEntry),
+            function () use ($paymentEntry) {
+                $debitAccount    = $paymentEntry->accountPaidTo;
+                $creditAccount   = $paymentEntry->accountPaidFrom;
+                $transactionDate = $paymentEntry->date ?? now();
+                $amount          = $paymentEntry->paid_amount;
 
-        // Adapter JournalService (Requirement 8.1): perilaku pasca-hotfix dipertahankan (debit accountPaidTo, kredit
-        // accountPaidFrom, jumlah Payment Entry ini). `DuplicatePostingException` sengaja tidak ditangkap: guard
-        // status (`isApplicable`) mencegah approve ganda, jadi kunci ganda berarti inkonsistensi yang harus
-        // menggulung seluruh penerapan pembayaran.
-        app(JournalService::class)->postPair(
-            $debitAccount->id,
-            $creditAccount->id,
-            $amount,
-            $paymentEntry,
-            Carbon::instance($transactionDate),
+                // Adapter JournalService (Requirement 8.1): perilaku pasca-hotfix dipertahankan (debit accountPaidTo, kredit
+                // accountPaidFrom, jumlah Payment Entry ini). `DuplicatePostingException` sengaja tidak ditangkap: guard
+                // status (`isApplicable`) mencegah approve ganda, jadi kunci ganda berarti inkonsistensi yang harus
+                // menggulung seluruh penerapan pembayaran.
+                app(JournalService::class)->postPair(
+                    $debitAccount->id,
+                    $creditAccount->id,
+                    $amount,
+                    $paymentEntry,
+                    Carbon::instance($transactionDate),
+                );
+            },
         );
+
+        // Jalur engine (mode `on`): semantik sama dengan jalur lama. Penerapan pembayaran (jadwal, `PaymentApplied`)
+        // sudah berjalan dalam transaksi yang sama sebelum posting, jadi jurnal yang ternyata sudah ada adalah
+        // inkonsistensi yang menggulung seluruh approve, bukan keadaan yang dilewati (Q-P2-12b).
+        if ($outcome->isAlreadyPosted()) {
+            $existing = $outcome->journals[0];
+
+            throw new DuplicatePostingException((string) $existing->getKey(), (string) $existing->posting_key);
+        }
     }
 
     /**
