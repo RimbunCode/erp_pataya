@@ -24,7 +24,7 @@ Urutan: fondasi data dan resolver (1–3), kontrak + rule + service + gateway de
   - [ ] 1.3 Audit COA aktual vs `account_type` yang dibutuhkan peran (jalankan `init-posting-profile` dalam mode laporan pada salinan data staging); catat peran ambigu/hilang untuk akuntan
     - _Requirements: 2.5_
 
-- [ ] 2. Enum, kontrak, dan model data
+- [x] 2. Enum, kontrak, dan model data
   - [x] 2.1 Enum `PostingDocumentType`, `AccountRole` (+ `legacyPair()`), DTO `PostingContext`, `RoleJournalDraft`, `RoleLine`, kontrak `PostingRule`; label peran di `lang/id` & `lang/en`
     - _Requirements: 1.1–1.4, 4.1–4.2_
   - [x] 2.2 Migration `create_posting_profiles_table`, `create_posting_profile_accounts_table`, `create_posting_profile_rules_table`, `create_posting_parity_logs_table`; model `PostingProfile`, `PostingProfileAccount`, `PostingProfileRule`, `PostingParityLog` (izin, `configColumns`, `translateKey`); `config/finance.php`
@@ -35,7 +35,7 @@ Urutan: fondasi data dan resolver (1–3), kontrak + rule + service + gateway de
   - [x] 2.4 Exception: `UnresolvedAccountRoleException`, `InvalidPostingProfileException`, `UnknownPostingDocumentTypeException`, `PartialPostingException` (+ kunci pesan)
     - _Requirements: 3.2, 5.4, 5.6_
 
-- [ ] 3. Profil dan resolver
+- [x] 3. Profil dan resolver
   - [x] 3.1 `PostingProfileService` (profil global; validasi akun non-group/aktif, larangan tumpang-tindih, buat versi baru/salin termasuk aturan, aktivasi, retire; validasi aturan: duplikat kondisi, kondisi barang hanya untuk peran peka-barang) + test
     - _Requirements: 2.2–2.4, 12.5–12.6_
   - [x] 3.2 Perintah `finance:init-posting-profile` (laporkan peran tak ter-resolve & ambiguitas; idempoten; tidak menebak saat ambigu) + test
@@ -78,7 +78,7 @@ Urutan: fondasi data dan resolver (1–3), kontrak + rule + service + gateway de
     - **Validates: Requirements 6.2–6.4, 10.5, 10.6**
   - [x] 5.5 Perintah `finance:parity-report {--type=} {--since=}` dan `finance:prune-parity-logs`
     - _Requirements: 6.7, 11.4_
-  - [ ] 5.6 Checkpoint - jalankan semua test Fase 0–2 pada mode `off`
+  - [x] 5.6 Checkpoint - jalankan semua test Fase 0–2 pada mode `off` (2026-11-14, setelah Sprint D ter-merge: `tests/Feature/Finances` 770 OK, 1 dilewati; `tests/Feature/Asset` 170 OK; `tests/Unit` 1130 test dengan 1 kegagalan `SignatureImageServiceTest::large_4000x4000_image_completes_under_three_seconds`, uji waktu pemrosesan gambar tanda tangan di luar cakupan Posting Engine, bergantung pada kecepatan mesin lokal)
     - Ensure all tests pass, ask the user if questions arise.
 
 - [x] 6. Antarmuka Posting Profile dan Parity
