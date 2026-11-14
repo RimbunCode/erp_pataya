@@ -41,6 +41,7 @@
 | Q-P1-1, Q-P1-2 | Pertanyaan Fase 1 (jendela pemeliharaan; kapan penegakan periode) | 1 | DECIDED (diputuskan 2026-11-04) | 2026-11-04 |
 | Q-P1-3 s.d. Q-P1-6 | Pertanyaan Fase 1 dari verifikasi Task 1 (urutan migration `against_account_id`; `minor_unit` ISO 4217 lengkap; zona waktu hari/periode; `purpose` posting key Asset) | 1 | DECIDED (disetujui pemilik produk 2026-11-04) | 2026-11-04 |
 | Q-P1-7 s.d. Q-P1-12, I-1, I-2, Minor-4, A, B | Keputusan Fase 1 Putaran B (seri nomor jurnal legacy; baris contoh dan baris soft-deleted di backfill; `purpose`/`posting_key`; jadwal rekonsiliasi; celah migrate/seed; selisih paritas; void `reversed`; seri `Journal` otomatis; pembulatan tetap HALF_UP) | 1 | DECIDED (disetujui pemilik produk 2026-11-04) | 2026-11-04 |
+| Q-P1-13 | Pelonggaran ambang pengaman presisi `general_ledgers` di staging (hasil query 8.1(a): 8 baris data uji; pembulatan diterima) | 1 | DECIDED (disetujui pemilik produk 2026-11-15) | 2026-11-15 |
 | Q-P2-1 s.d. Q-P6-3 (di luar Q-P2-6 s.d. Q-P2-21) | Pertanyaan per fase dari spec Fase 2–6 yang masih terbuka | 2–6 | PENDING | 2026-11-03 |
 | Q-P2-12 s.d. Q-P2-14 | Keputusan Fase 2 Sprint B (hasil terstruktur `PostingOutcome` pada gateway/service; `guardDocument` pada konteks; jadwal harian `finance:prune-parity-logs`) | 2 | DECIDED (disetujui pemilik produk 2026-11-12) | 2026-11-12 |
 | Q-P2-15 s.d. Q-P2-17 | Keputusan Fase 2 Sprint C (Finance Officer baca-saja pada Posting Profile; salin versi dari draft ditolak di service; guard `select` lookup generik tetap opt-in) | 2 | DECIDED (disetujui pemilik produk 2026-11-13) | 2026-11-13 |
@@ -210,6 +211,16 @@ Ditemukan pada Task 6 dan 7 (Putaran B) dan review independennya; semuanya **dis
 | A | Seri penomoran `Journal` dibuat otomatis oleh `JournalService` lewat `FormatingSeries::ensureExists()` (hanya membuat bila belum ada; tidak pernah menulis pada seri yang ada); jalur seeding `DataTable::initPermissions()` memakai `FormatingSeries::ensureFor()` (logika lama diekstrak, perilaku seri model lain tidak berubah); format `JV-@[iiii]/@[yy]`; `seriesMissing` dan kunci bahasanya dihapus | Dari pemilik produk: "jika belum ada langsung buatkan saja baris FormatingSeries, format default diatur pada model" (model `Journal` punya `$defaultFormatCode`; logika pembuatan sudah ada di `initPermissions()`). Catatan implementer: jalur posting hanya membuat, tidak pernah menulis ulang seri yang ada (hindari kode ganda) | Requirement 2, 8.2; Task 6, 7.5 |
 | B | Arah pembulatan tetap HALF_UP (D-3); konfigurasi HALF_UP/HALF_DOWN/HALF_EVEN di `CoreSetting` tidak dikerjakan, hanya ide fase berikutnya | Dari pemilik produk: "harusnya ada konfigurasi arah pembulatan", lalu menyetujui HALF_UP tetap sebagai keputusan fase ini (konfigurasi = ide fase berikutnya) | Requirement 2.5 |
 | Minor-4 | Hook cancel `Submitable` men-`voided` jurnal `posted` maupun `reversed` milik sumber (jurnal asal dan pembaliknya) | Tidak dinyatakan | Requirement 8.6; Task 6.8 |
+
+### Q-P1-13 — Pelonggaran ambang pengaman presisi di staging (DECIDED 2026-11-15)
+
+**Konteks.** Pemilik produk menjalankan query read-only 8.1(a) di staging: `total_baris` 64, `hit_ketat` 8, `hit_bermakna` 8, `nilai_maks` 9.000.000.000. Karena `hit_bermakna` = 8 (ulp `double` pada 9e9 sekitar 1,9e-6, jauh di bawah ambang 1e-5), delapan baris itu memang berpecahan lebih dari 4 desimal, bukan derau. Dengan ambang bawaan `1e-9`, migration `2026_11_04_100008` menolak jalan sebelum DDL dan menggagalkan deploy (`set -e`).
+
+**Keputusan (disetujui pemilik produk 2026-11-15).** Delapan baris itu adalah data uji; pembulatan HALF_UP ke 4 desimal diterima. Ambang pengaman migration dilonggarkan **hanya di staging** lewat env `FINANCE_LEDGER_PRECISION_GUARD_THRESHOLD=1e-4` pada `.env` bersama staging (selisih pembulatan ke 4 desimal paling besar 5e-5, jadi semua baris lolos dan nilainya terbulat). Default `1e-9` tetap untuk lokal dan produksi (GL produksi kosong, Q-P1-1).
+
+**Alasan.** Data uji; tidak ada nilai transaksi nyata yang berubah.
+
+**Dampak.** Requirement 13.1 dan Task 8.1(a) (hasil dicatat di `tasks.md`); migration `..._100008` tidak diubah. Menutup syarat persetujuan pelanggaran Req 13.1 untuk staging. Pelonggaran ini tidak berlaku untuk produksi: bila produksi memiliki baris serupa, keputusan baru diperlukan.
 
 ## Keputusan dan Konvensi Proses
 
