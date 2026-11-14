@@ -1,6 +1,6 @@
 # Runbook: Mode `shadow` Posting Engine di Staging (Fase 2, Task 7.4 dan 8.5)
 
-Panduan operasional untuk mengumpulkan bukti parity sebelum satu jenis dokumen boleh dipindah ke `on`. Dokumen ini bukan keputusan: perpindahan ke `on` tetap keputusan pemilik produk (Req 7.2c, Q-P2-1 masih terbuka).
+Panduan operasional untuk mengumpulkan bukti parity (skenario terarah per jenis dokumen, Req 7.2b, Q-P2-22) sebelum satu jenis dokumen boleh dipindah ke `on`. Dokumen ini bukan keputusan: perpindahan ke `on` tetap keputusan pemilik produk (Req 7.2c, Q-P2-1 masih terbuka).
 
 ## 1. Apa yang dilakukan mode `shadow`
 
@@ -38,7 +38,7 @@ Req 7.1 menetapkan urutan risiko menaik. Mulai dari **kelompok 1**, satu jenis p
 
 1. Buka **Posting Parity Logs** (`/settings/postingParityLogs`), panel **Mode Engine per Jenis Dokumen**.
 2. Pilih **Shadow (bandingkan)** untuk **satu** jenis. Perubahan tercatat di audit pengaturan modul (pelaku, nilai sebelum dan sesudah).
-3. Biarkan operasional normal berjalan (approve, bayar, depresiasi terjadwal, dan seterusnya). Jangan membuat dokumen uji khusus kecuali volume terlalu rendah.
+3. Jalankan skenario terarah jenis itu (daftar di bagian 6) lewat operasional normal di staging; bila volume operasional sudah cukup, skenario dapat terpenuhi dari dokumen yang ada. Jangan memakai skrip untuk membuat dokumen.
 4. Pantau berkala (lihat bagian 5).
 5. Setelah kriteria bagian 6 terpenuhi, **laporkan ke pemilik produk** dan tunggu keputusan. Kembalikan ke `off` bila diminta, atau pindah ke `on` hanya atas persetujuan tertulis.
 
@@ -69,8 +69,25 @@ Juga perhatikan log aplikasi: `posting.invoice_lines_total_mismatch` (jumlah bar
 Untuk **setiap** jenis dokumen:
 
 - (a) Test parity hijau (sudah: `PostingParityGroup1Test` dan `PostingParityGroup2Test`).
-- (b) Minimal **200 dokumen atau 14 hari** pada mode `shadow` di staging, dengan **0 `mismatch` yang tidak dijelaskan**. `engine_error` dan `config_diff` dijelaskan dan, bila perlu, diselesaikan lewat profil.
+- (b) Paritas terbukti pada **skenario terarah** (daftar di bawah) di mode `shadow` pada staging: semua hasil `match` atau `rounding`, `config_diff` dijelaskan, **0 `mismatch` dan 0 `engine_error` yang tidak dijelaskan**. Tidak ada batas minimum jumlah dokumen atau hari (keputusan pemilik produk 2026-11-15, Q-P2-22; sebelumnya 200 dokumen atau 14 hari).
 - (c) Persetujuan pemilik produk.
+
+**Skenario terarah minimum per jenis** (akuntan atau QA dapat menambah; satu dokumen atau lebih per baris):
+
+| Jenis | Skenario |
+|-------|----------|
+| `asset_depreciation` | Satu jadwal depresiasi terposting |
+| `asset_scrap` | Satu scrap aset |
+| `asset_value_adjustment` | Kenaikan dan penurunan nilai |
+| `asset_disposal` | Penjualan aset dengan untung, dan dengan rugi |
+| `payment_entry` | Receive atas Sales Invoice, pay atas Purchase Invoice (retur dan `internal_transfer` di luar cakupan sampai T-3 dan T-4 diputuskan) |
+| `purchase_receipt` | Normal dan retur, barang stok |
+| `delivery_note` | Normal dan retur |
+| `sales_invoice` | Normal, retur, berpajak, barang stok dan non-stok, berdiskon |
+| `purchase_invoice` | Stok (dua jurnal), non-stok, retur, off-PO |
+| `stock_entry` | Setiap `purpose` yang dipakai operasional |
+
+Dokumen yang tidak dapat dibuat di staging (mis. mata uang asing bila belum ada kurs) dicatat sebagai **tidak tercakup** di laporan, beserta alasannya, dan menjadi keputusan pemilik produk.
 
 Laporan ke pemilik produk memuat per jenis: jumlah dokumen, hitungan per status, daftar `mismatch` beserta penjelasan, `engine_error` yang tersisa, dan rekomendasi. Tanpa menyalin ID baris atau nama pihak ke dokumen.
 
