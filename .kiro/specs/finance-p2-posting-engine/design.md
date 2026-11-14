@@ -446,7 +446,7 @@ Peran peka-barang menghasilkan satu `RoleLine` per kelompok akun hasil resolusi:
 - **Parity end-to-end:** seluruh characterization Fase 0 + test Fase 1 dijalankan pada tiga mode (`off`, `shadow`, `on`) dengan profil default; hasil harus identik.
 - **Arsitektur/statik:** P-8, P-9.
 - **Frontend:** halaman Posting Profile (form, salin versi, aktivasi, peringatan peran belum terpetakan), Parity Log (filter, ubah mode), `.rtl.test.jsx`.
-- **Staging (manual):** mode `shadow` ≥14 hari atau ≥200 dokumen per jenis; `finance:parity-report`; keputusan pindah `on` per jenis.
+- **Staging (manual):** mode `shadow` dengan skenario terarah per jenis dokumen (Req. 7.2b, Q-P2-22; tanpa batas 200 dokumen atau 14 hari); `finance:parity-report`; keputusan pindah `on` per jenis.
 
 ## Strategi Rollout
 

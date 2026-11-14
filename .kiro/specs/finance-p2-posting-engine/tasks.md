@@ -97,7 +97,7 @@ Urutan: fondasi data dan resolver (1–3), kontrak + rule + service + gateway de
   - [x]* 7.3 Write parity test end-to-end kelompok 1 pada tiga mode
     - **P-1** hasil identik pada `off`, `shadow`, `on`
     - **Validates: Requirements 7.2, 11.5**
-  - [ ] 7.4 **(Manual, staging)** Set `shadow` untuk kelompok 1, kumpulkan parity (≥200 dokumen atau 14 hari), laporkan ke pemilik produk; **tunggu keputusan** sebelum `on`
+  - [ ] 7.4 **(Manual, staging)** Set `shadow` untuk kelompok 1, kumpulkan parity lewat skenario terarah per jenis (Req 7.2b, Q-P2-22; tanpa batas 200 dokumen atau 14 hari), laporkan ke pemilik produk; **tunggu keputusan** sebelum `on`
     - _Requirements: 7.2_
 
 - [ ] 8. Migrasi jenis dokumen — kelompok 2 (inventori dan penjualan/pembelian)
