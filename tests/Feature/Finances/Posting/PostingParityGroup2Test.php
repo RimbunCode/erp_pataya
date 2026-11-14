@@ -200,7 +200,7 @@ class PostingParityGroup2Test extends TestCase {
                 $this->receivable,
                 $this->revenue,
                 ['return_against_id' => $original->id],
-                ['quantity'          => 1, 'return_against_item_id' => $originalItem->id],
+                ['quantity' => 1, 'return_against_item_id' => $originalItem->id],
             );
             $return = $this->approveSalesInvoice($return);
 

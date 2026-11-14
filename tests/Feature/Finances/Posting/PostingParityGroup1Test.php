@@ -260,7 +260,7 @@ class PostingParityGroup1Test extends TestCase {
             $signatures['receive'][$mode] = $this->journalSignature($receive);
             $signatures['pay'][$mode]     = $this->journalSignature($pay);
             $effects[$mode]               = [
-                (float) $sales->fresh()->paid_amount, array_map(fn ($status) => $status->value, $sales->fresh()->status),
+                (float) $sales->fresh()->paid_amount, array_map(fn ($status)    => $status->value, $sales->fresh()->status),
                 (float) $purchase->fresh()->paid_amount, array_map(fn ($status) => $status->value, $purchase->fresh()->status),
                 \count(GlPostingStatus::where('referenceable_type', PaymentEntry::class)->get()),
             ];

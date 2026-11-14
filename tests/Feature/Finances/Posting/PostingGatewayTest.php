@@ -207,9 +207,9 @@ class PostingGatewayTest extends TestCase {
             $this->source->getKey(),
             $date,
             null,
-            ['gain_loss'             => $gainLoss],
+            ['gain_loss' => $gainLoss],
             ['sales_invoice_item_id' => $line],
-            ['gain_loss_disposal'    => $gain->id, 'fixed_asset' => $fixed->id],
+            ['gain_loss_disposal' => $gain->id, 'fixed_asset' => $fixed->id],
         );
         $postLegacy = fn (string $line, float $amount) => app(JournalService::class)->postPair($gain->id, $fixed->id, $amount, $this->source, $date, "disposal:{$line}");
 
@@ -470,9 +470,9 @@ class PostingGatewayTest extends TestCase {
                 $this->source->getKey(),
                 CarbonImmutable::parse('2026-11-12 10:00:00'),
                 null,
-                ['gain_loss'             => 30],
+                ['gain_loss' => 30],
                 ['sales_invoice_item_id' => 'L1'],
-                ['gain_loss_disposal'    => $gain->id, 'fixed_asset' => $fixed->id],
+                ['gain_loss_disposal' => $gain->id, 'fixed_asset' => $fixed->id],
                 guardDocument: ['type' => $invoice::class, 'id' => $invoice->getKey()],
             );
 
