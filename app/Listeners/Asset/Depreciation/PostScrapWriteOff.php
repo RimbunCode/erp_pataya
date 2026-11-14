@@ -7,7 +7,9 @@ use App\Events\Asset\AssetScrapped;
 use App\Exceptions\Finances\DuplicatePostingException;
 use App\Models\Asset\Asset;
 use App\Models\Core\GlPostingStatus;
+use App\Services\Asset\Accounting\AssetPostingContextFactory;
 use App\Services\Finances\Ledger\JournalService;
+use App\Services\Finances\Posting\PostingGateway;
 use Illuminate\Contracts\Queue\ShouldQueue;
 use Illuminate\Foundation\Bus\Dispatchable;
 use Illuminate\Queue\InteractsWithQueue;
@@ -36,25 +38,47 @@ class PostScrapWriteOff implements ShouldQueue {
                 throw new LogicException("AssetCategoryAccount tidak ditemukan untuk Asset {$asset->id} (branch {$branchId}).");
             }
 
-            $accumAccount = $accounts->accumulatedDepreciationAccount()->lockForUpdate()->first();
-            $fixedAccount = $accounts->fixedAssetAccount()->lockForUpdate()->first();
+            // Gateway Posting Engine (Finance Fase 2, Task 7.1): closure = jalur Fase 1 apa adanya (mode `off`/`shadow`).
+            $legacyRan = false;
+            $outcome   = app(PostingGateway::class)->post(
+                app(AssetPostingContextFactory::class)->scrap($asset, $accounts, (float) $event->writeOffAmount, Carbon::instance($event->transactionDate)),
+                function () use ($event, $asset, $accounts, &$legacyRan) {
+                    $legacyRan = true;
 
-            try {
-                $journal = app(JournalService::class)->postPair(
-                    $accumAccount->id,
-                    $fixedAccount->id,
-                    $event->writeOffAmount,
-                    $asset,
-                    Carbon::instance($event->transactionDate),
-                    purpose: 'write_off',
-                );
+                    $accumAccount = $accounts->accumulatedDepreciationAccount()->lockForUpdate()->first();
+                    $fixedAccount = $accounts->fixedAssetAccount()->lockForUpdate()->first();
 
-                // `assets.journal_entry_for_scrap_id` menunjuk baris kredit (akun aset tetap), seperti sebelumnya.
-                // Jumlah nol tidak membuat jurnal (Requirement 2.10), sehingga tidak ada baris untuk ditunjuk.
-                $creditLine = $journal?->lines->first(fn ($line) => $line->account_id === $fixedAccount->id && (float) $line->credit > 0);
+                    try {
+                        $journal = app(JournalService::class)->postPair(
+                            $accumAccount->id,
+                            $fixedAccount->id,
+                            $event->writeOffAmount,
+                            $asset,
+                            Carbon::instance($event->transactionDate),
+                            purpose: 'write_off',
+                        );
+
+                        // `assets.journal_entry_for_scrap_id` menunjuk baris kredit (akun aset tetap), seperti sebelumnya.
+                        // Jumlah nol tidak membuat jurnal (Requirement 2.10), sehingga tidak ada baris untuk ditunjuk.
+                        $creditLine = $journal?->lines->first(fn ($line) => $line->account_id === $fixedAccount->id && (float) $line->credit > 0);
+                        $asset->update(['journal_entry_for_scrap_id' => $creditLine?->id]);
+                    } catch (DuplicatePostingException) {
+                        // Sudah terposting (Requirement 3.3); `journal_entry_for_scrap_id` sudah terisi oleh posting pertama.
+                    }
+                },
+            );
+
+            // Q-P2-12: jangan menimpa `skipped` menjadi `posted`.
+            if ($outcome->isSkipped()) {
+                return;
+            }
+
+            // Jalur engine (mode `on`): `journal_entry_for_scrap_id` dari jurnal hasil (Q-P2-12c), hanya saat jurnal baru
+            // ditulis; `already_posted` (retry) tidak menimpa nilai yang sudah terisi oleh posting pertama (Q-P2-12b).
+            if (! $legacyRan && $outcome->isPosted() && $outcome->journals !== []) {
+                // Baris kredit pada akun master `fixed_asset` (sama dengan jalur lama), bukan sekadar baris kredit pertama.
+                $creditLine = $outcome->journals[0]->lines->first(fn ($line) => $line->account_id === $accounts->fixed_asset_account_id && (float) $line->credit > 0);
                 $asset->update(['journal_entry_for_scrap_id' => $creditLine?->id]);
-            } catch (DuplicatePostingException) {
-                // Sudah terposting (Requirement 3.3); `journal_entry_for_scrap_id` sudah terisi oleh posting pertama.
             }
 
             GlPostingStatus::where('referenceable_type', Asset::class)

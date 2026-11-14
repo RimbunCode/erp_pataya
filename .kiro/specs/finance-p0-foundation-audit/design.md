@@ -133,11 +133,11 @@ tests/Feature/Finances/Characterization/
 ├── AssetScrapPostingTest.php
 ├── AssetValueAdjustmentPostingTest.php
 ├── AssetDisposalGainLossPostingTest.php
+├── CancelBeforeQueuedPostingTest.php              (F-16; dipindah dari KnownIssues/ pada Fase 2 Sprint D, 2026-11-14: guard cancel PostingGateway memperbaikinya)
 └── KnownIssues/
     ├── PartialPaymentPostsCumulativeAmountTest.php   (F-10)
     ├── ForeignCurrencyPaymentPostingTest.php          (F-11)
-    ├── CancelSoftDeletesLedgerTest.php                (F-04)
-    └── CancelBeforeQueuedPostingTest.php              (F-16)
+    └── CancelSoftDeletesLedgerTest.php                (F-04)
 tests/Support/BuildsFinanceFixtures.php
 ```
 

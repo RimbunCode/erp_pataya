@@ -5,14 +5,18 @@ namespace App\Services\Inventory;
 use App\Contracts\SubmitableService;
 use App\Enums\FormStatus;
 use App\Events\Core\DocumentSubmitted;
+use App\Exceptions\Finances\DuplicatePostingException;
 use App\Models\Core\FormatingSeries;
 use App\Models\Finances\Account;
+use App\Models\Finances\Journal;
 use App\Models\Inventory\ItemUnit;
 use App\Models\Inventory\Stock;
 use App\Models\Inventory\StockEntry;
 use App\Models\Inventory\StockLedgerEntry;
 use App\Models\Model;
 use App\Services\Finances\Ledger\JournalService;
+use App\Services\Finances\Posting\PostingGateway;
+use App\Services\Inventory\Accounting\StockEntryPostingContextFactory;
 use App\Traits\HasDefaultDelete;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Validation\ValidationException;
@@ -567,58 +571,112 @@ class StockEntryService implements SubmitableService {
             }
         }
 
-        $debitAccount = Account::lockForUpdate()
-            ->where('root_type', 'asset')
-            ->where('account_type', 'stock')
-            ->latest()->first();
-        $creditAccount = $stockEntry->differenceAccount()->lockForUpdate()->first();
+        // Gateway Posting Engine (Finance Fase 2, Task 8.3): closure = jalur Fase 1 apa adanya (mode `off`/`shadow`),
+        // termasuk mutasi `accounts.balance_amount` yang berselang-seling dengan posting. Engine tidak memutasi
+        // `balance_amount` (Requirement 7.5): pada mode `on` mutasi dilakukan di bawah dari jurnal hasil engine.
+        $legacyRan = false;
+        $outcome   = app(PostingGateway::class)->post(
+            app(StockEntryPostingContextFactory::class)->forApproval($stockEntry, $items, $additionalCosts, (float) $totalBasicAmount, now()),
+            function () use ($stockEntry, $additionalCosts, $totalBasicAmount, &$legacyRan) {
+                $legacyRan = true;
 
-        // record general ledger
-        if (\in_array($stockEntry->type, ['item_receipt'])) {
-            $debitAccount->update([
-                'have_transactions' => true,
-                'balance_amount'    => $debitAccount->balance_amount + $totalBasicAmount,
-            ]);
+                $debitAccount = Account::lockForUpdate()
+                    ->where('root_type', 'asset')
+                    ->where('account_type', 'stock')
+                    ->latest()->first();
+                $creditAccount = $stockEntry->differenceAccount()->lockForUpdate()->first();
 
-            $creditAccount->update([
-                'have_transactions' => true,
-                'balance_amount'    => $creditAccount->balance_amount - $totalBasicAmount,
-            ]);
+                // record general ledger
+                if (\in_array($stockEntry->type, ['item_receipt'])) {
+                    $debitAccount->update([
+                        'have_transactions' => true,
+                        'balance_amount'    => $debitAccount->balance_amount + $totalBasicAmount,
+                    ]);
 
-            $this->postStockEntryPair($stockEntry, $debitAccount->id, $creditAccount->id, $totalBasicAmount, 'default');
-        } elseif (\in_array($stockEntry->type, ['item_issue'])) {
-            $debitAccount->update([
-                'have_transactions' => true,
-                'balance_amount'    => $debitAccount->balance_amount - $totalBasicAmount,
-            ]);
+                    $creditAccount->update([
+                        'have_transactions' => true,
+                        'balance_amount'    => $creditAccount->balance_amount - $totalBasicAmount,
+                    ]);
 
-            $creditAccount->update([
-                'have_transactions' => true,
-                'balance_amount'    => $creditAccount->balance_amount + $totalBasicAmount,
-            ]);
+                    $this->postStockEntryPair($stockEntry, $debitAccount->id, $creditAccount->id, $totalBasicAmount, 'default');
+                } elseif (\in_array($stockEntry->type, ['item_issue'])) {
+                    $debitAccount->update([
+                        'have_transactions' => true,
+                        'balance_amount'    => $debitAccount->balance_amount - $totalBasicAmount,
+                    ]);
 
-            // Item issue: sisi menyala terbalik dari penamaan variabel (akun "debit" menerima kredit).
-            $this->postStockEntryPair($stockEntry, $creditAccount->id, $debitAccount->id, $totalBasicAmount, 'default');
+                    $creditAccount->update([
+                        'have_transactions' => true,
+                        'balance_amount'    => $creditAccount->balance_amount + $totalBasicAmount,
+                    ]);
+
+                    // Item issue: sisi menyala terbalik dari penamaan variabel (akun "debit" menerima kredit).
+                    $this->postStockEntryPair($stockEntry, $creditAccount->id, $debitAccount->id, $totalBasicAmount, 'default');
+                }
+
+                // record general ledger for additional cost
+                if ($additionalCosts->count() > 0) {
+                    foreach ($additionalCosts as $additionalCost) {
+                        $expenseAccount = $additionalCost->expenseAccount;
+                        $debitAccount->update([
+                            'have_transactions' => true,
+                            'balance_amount'    => $debitAccount->balance_amount + $additionalCost->amount,
+                        ]);
+                        $expenseAccount->update([
+                            'have_transactions' => true,
+                            'balance_amount'    => $expenseAccount->balance_amount - $additionalCost->amount,
+                        ]);
+
+                        $this->postStockEntryPair($stockEntry, $debitAccount->id, $expenseAccount->id, $additionalCost->amount, "additional_cost:{$additionalCost->id}");
+                    }
+                }
+            },
+        );
+
+        // Jalur engine (mode `on`). Semantik sama dengan jalur lama: approve hanya terjadi sekali, jadi jurnal yang
+        // ternyata sudah ada adalah inkonsistensi yang menggulung transaksi (Q-P2-12b; mutasi SLE dan stok di atas
+        // non-idempoten dan tidak boleh diulang).
+        if (! $legacyRan && $outcome->isAlreadyPosted()) {
+            $existing = $outcome->journals[0];
+
+            throw new DuplicatePostingException((string) $existing->getKey(), (string) $existing->posting_key);
         }
 
-        // record general ledger for additional cost
-        if ($additionalCosts->count() > 0) {
-            foreach ($additionalCosts as $additionalCost) {
-                $expenseAccount = $additionalCost->expenseAccount;
-                $debitAccount->update([
-                    'have_transactions' => true,
-                    'balance_amount'    => $debitAccount->balance_amount + $additionalCost->amount,
-                ]);
-                $expenseAccount->update([
-                    'have_transactions' => true,
-                    'balance_amount'    => $expenseAccount->balance_amount - $additionalCost->amount,
-                ]);
-
-                $this->postStockEntryPair($stockEntry, $debitAccount->id, $expenseAccount->id, $additionalCost->amount, "additional_cost:{$additionalCost->id}");
-            }
+        if (! $legacyRan && $outcome->isPosted()) {
+            $this->applyBalancesFromJournals($outcome->journals);
         }
 
         return $stockEntry;
+    }
+
+    /**
+     * Mutasi `accounts.balance_amount` untuk jurnal hasil engine (Requirement 7.5: engine tidak memutasinya; sampai Fase
+     * 5 mempensiunkannya, service ini yang memutasi). Setara jalur lama: akun yang menerima debit bertambah, akun yang
+     * menerima kredit berkurang, yaitu `balance_amount += debit - kredit` per baris jurnal. Dihitung dari jurnal
+     * (akun hasil resolusi engine), bukan dari pencarian `account_type`/`difference_account_id`, sehingga saldo tetap
+     * konsisten dengan GL walau akun profil berbeda dari akun pilihan dokumen.
+     *
+     * @param  list<Journal>  $journals
+     */
+    private function applyBalancesFromJournals(array $journals): void {
+        $net = [];
+        foreach ($journals as $journal) {
+            foreach ($journal->lines as $line) {
+                $net[$line->account_id] = ($net[$line->account_id] ?? 0.0) + (float) $line->debit - (float) $line->credit;
+            }
+        }
+
+        if ($net === []) {
+            return;
+        }
+
+        $accounts = Account::query()->whereIn('id', array_keys($net))->lockForUpdate()->get();
+        foreach ($accounts as $account) {
+            $account->update([
+                'have_transactions' => true,
+                'balance_amount'    => $account->balance_amount + $net[$account->id],
+            ]);
+        }
     }
 
     /**

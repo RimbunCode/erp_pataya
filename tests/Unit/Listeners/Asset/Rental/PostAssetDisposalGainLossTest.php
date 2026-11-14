@@ -152,4 +152,68 @@ class PostAssetDisposalGainLossTest extends TestCase {
         $this->assertEquals(FormStatus::FAILED, $glStatus->status);
         $this->assertEquals('Account not found', $glStatus->last_error);
     }
+
+    #[Test]
+    public function retry_after_failure_leaves_a_single_posted_row_without_a_stale_failed_row(): void {
+        $asset = $this->makeAssetWithCategoryAccount(1000);
+        $line  = $this->makeLine($asset, 1, 1500);
+
+        (new PostAssetDisposalGainLoss)->failed(new AssetSoldViaInvoice($line), new RuntimeException('Deadlock'));
+        (new PostAssetDisposalGainLoss)->failed(new AssetSoldViaInvoice($line), new RuntimeException('Deadlock lagi'));
+        $this->assertSame(1, GlPostingStatus::where('referenceable_type', SalesInvoiceItem::class)->where('referenceable_id', $line->id)->count(), 'failed() berulang tidak membuat baris ganda.');
+
+        (new PostAssetDisposalGainLoss)->handle(new AssetSoldViaInvoice($line));
+
+        $rows = GlPostingStatus::where('referenceable_type', SalesInvoiceItem::class)->where('referenceable_id', $line->id)->get();
+        $this->assertCount(1, $rows, 'Satu baris status per disposal.');
+        $this->assertEquals(FormStatus::POSTED, $rows->first()->status);
+        $this->assertNotNull($rows->first()->posted_at);
+        $this->assertSame(0, GlPostingStatus::where('status', FormStatus::FAILED->value)->count(), 'Tidak ada baris FAILED tersisa.');
+        $this->assertNotNull($line->fresh()->processed_at);
+    }
+
+    #[Test]
+    public function failed_does_not_overwrite_terminal_rows_or_processed_lines(): void {
+        $asset = Asset::factory()->create(['status' => [FormStatus::ACTIVE]]);
+
+        foreach ([FormStatus::POSTED, FormStatus::SKIPPED] as $terminal) {
+            $line = $this->makeLine($asset, 1, 1500);
+            GlPostingStatus::create(['referenceable_type' => SalesInvoiceItem::class, 'referenceable_id' => $line->id, 'status' => $terminal->value]);
+
+            (new PostAssetDisposalGainLoss)->failed(new AssetSoldViaInvoice($line), new RuntimeException('MaxAttemptsExceeded'));
+
+            $rows = GlPostingStatus::where('referenceable_type', SalesInvoiceItem::class)->where('referenceable_id', $line->id)->get();
+            $this->assertCount(1, $rows);
+            $this->assertEquals($terminal, $rows->first()->status, "{$terminal->value} tidak boleh menjadi FAILED.");
+            $this->assertNull($rows->first()->last_error);
+        }
+
+        // Baris sudah diproses (processed_at terisi) tanpa baris status: tidak dibuat FAILED.
+        $processed = $this->makeLine($asset, 1, 1500);
+        $processed->update(['processed_at' => now()]);
+        (new PostAssetDisposalGainLoss)->failed(new AssetSoldViaInvoice($processed), new RuntimeException('MaxAttemptsExceeded'));
+        $this->assertSame(0, GlPostingStatus::where('referenceable_type', SalesInvoiceItem::class)->where('referenceable_id', $processed->id)->count());
+    }
+
+    #[Test]
+    public function failed_still_marks_missing_pending_and_failed_rows_as_failed_without_duplicates(): void {
+        $asset = Asset::factory()->create(['status' => [FormStatus::ACTIVE]]);
+
+        $missing = $this->makeLine($asset, 1, 1500);
+        $pending = $this->makeLine($asset, 1, 1500);
+        GlPostingStatus::create(['referenceable_type' => SalesInvoiceItem::class, 'referenceable_id' => $pending->id, 'status' => FormStatus::PENDING->value]);
+        $failed = $this->makeLine($asset, 1, 1500);
+        GlPostingStatus::create(['referenceable_type' => SalesInvoiceItem::class, 'referenceable_id' => $failed->id, 'status' => FormStatus::FAILED->value, 'retry_count' => 1]);
+
+        foreach ([$missing, $pending, $failed] as $line) {
+            (new PostAssetDisposalGainLoss)->failed(new AssetSoldViaInvoice($line), new RuntimeException('Deadlock'));
+
+            $rows = GlPostingStatus::where('referenceable_type', SalesInvoiceItem::class)->where('referenceable_id', $line->id)->get();
+            $this->assertCount(1, $rows, 'Tanpa baris ganda.');
+            $this->assertEquals(FormStatus::FAILED, $rows->first()->status);
+            $this->assertSame('Deadlock', $rows->first()->last_error);
+        }
+
+        $this->assertSame(2, (int) GlPostingStatus::where('referenceable_type', SalesInvoiceItem::class)->where('referenceable_id', $failed->id)->value('retry_count'), 'retry_count bertambah pada baris FAILED yang ada.');
+    }
 }

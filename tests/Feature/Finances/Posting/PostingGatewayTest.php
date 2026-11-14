@@ -20,8 +20,13 @@ use App\Services\Finances\Posting\PostingModeResolver;
 use App\Services\Finances\Posting\PostingOutcome;
 use App\Services\Finances\Posting\PostingProfileService;
 use Carbon\CarbonImmutable;
+use Illuminate\Database\Connection;
+use Illuminate\Database\DeadlockException;
+use Illuminate\Database\LostConnectionException;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Illuminate\Support\Facades\DB;
+use PHPUnit\Framework\Attributes\DataProvider;
+use Tests\Support\AssertsPostingParity;
 use Tests\Support\BuildsFinanceFixtures;
 use Tests\TestCase;
 
@@ -31,7 +36,7 @@ use Tests\TestCase;
  * pending menjadi `skipped`).
  */
 class PostingGatewayTest extends TestCase {
-    use BuildsFinanceFixtures, RefreshDatabase;
+    use AssertsPostingParity, BuildsFinanceFixtures, RefreshDatabase;
 
     private Account $stock;
     private Account $srnb;
@@ -202,9 +207,9 @@ class PostingGatewayTest extends TestCase {
             $this->source->getKey(),
             $date,
             null,
-            ['gain_loss' => $gainLoss],
+            ['gain_loss'             => $gainLoss],
             ['sales_invoice_item_id' => $line],
-            ['gain_loss_disposal' => $gain->id, 'fixed_asset' => $fixed->id],
+            ['gain_loss_disposal'    => $gain->id, 'fixed_asset' => $fixed->id],
         );
         $postLegacy = fn (string $line, float $amount) => app(JournalService::class)->postPair($gain->id, $fixed->id, $amount, $this->source, $date, "disposal:{$line}");
 
@@ -217,6 +222,225 @@ class PostingGatewayTest extends TestCase {
         $this->assertSame('match', $log->status, 'Jurnal disposal baris lain tidak boleh menjadi missing_in_engine.');
         $this->assertSame(['disposal:L1'], array_keys($log->legacy));
         $this->assertSame(['disposal:L1'], array_keys($log->engine));
+    }
+
+    /**
+     * Pada savepoint bersarang Laravel membungkus error konkurensi (deadlock/lock wait timeout) menjadi `DeadlockException`,
+     * sehingga kedua kasus berikut lewat cabang `DeadlockException` di gateway. Cabang `ConcurrencyErrorDetector` diuji
+     * langsung di `test_concurrency_detector_branch_recognizes_lock_wait_timeout_messages`.
+     *
+     * @return iterable<string, array{0: \Throwable}>
+     */
+    public static function concurrencyErrors(): iterable {
+        yield 'DeadlockException' => [new DeadlockException('Deadlock found when trying to get lock')];
+        yield 'lock wait timeout' => [new \RuntimeException('SQLSTATE[HY000]: General error: 1205 Lock wait timeout exceeded; try restarting transaction')];
+    }
+
+    #[DataProvider('concurrencyErrors')]
+    public function test_shadow_rethrows_concurrency_errors_instead_of_swallowing_them(\Throwable $error): void {
+        $this->setMode(PostingDocumentType::PurchaseReceipt, 'shadow');
+        $this->failParityLogInserts([$error]);
+
+        try {
+            $this->gateway()->post($this->ctx(), $this->legacy());
+            $this->fail('Error konkurensi harus dilempar ulang.');
+        } catch (\Throwable $caught) {
+            $chain = [];
+            for ($e = $caught; $e !== null; $e = $e->getPrevious()) {
+                $chain[] = $e;
+            }
+            $this->assertContains($error, $chain, 'Error konkurensi asli (atau pembungkusnya) harus dilempar ulang.');
+        }
+
+        // Error konkurensi pada savepoint bersarang tidak digulung di tempat oleh Laravel (rollback diserahkan ke transaksi
+        // terluar, yaitu transaksi listener/job di produksi; di test ini transaksi terluar milik RefreshDatabase). Yang
+        // dijamin gateway: error naik ke pemanggil dan tidak berakhir sebagai outcome `posted` yang ditelan.
+        $this->assertSame(1, $this->legacyCalls);
+    }
+
+    public function test_shadow_still_swallows_ordinary_engine_errors_and_keeps_the_legacy_journal(): void {
+        $this->setMode(PostingDocumentType::PurchaseReceipt, 'shadow');
+        $this->failParityLogInserts([new \RuntimeException('engine bug')]);
+
+        $outcome = $this->gateway()->post($this->ctx(), $this->legacy());
+
+        $this->assertSame(PostingOutcome::POSTED, $outcome->status);
+        $this->assertSame(1, $this->legacyCalls);
+        $this->assertSame(1, Journal::count(), 'Savepoint engine tidak merusak jurnal jalur lama.');
+        $this->assertSame(['engine_error'], PostingParityLog::query()->pluck('status')->map(fn ($status) => $status instanceof \BackedEnum ? $status->value : $status)->all());
+    }
+
+    public function test_concurrency_detector_branch_recognizes_lock_wait_timeout_messages(): void {
+        $method = new \ReflectionMethod(PostingGateway::class, 'isConcurrencyError');
+
+        $this->assertTrue($method->invoke($this->gateway(), new \RuntimeException('SQLSTATE[HY000]: General error: 1205 Lock wait timeout exceeded; try restarting transaction')));
+        $this->assertTrue($method->invoke($this->gateway(), new DeadlockException('Deadlock found')));
+        $this->assertFalse($method->invoke($this->gateway(), new \RuntimeException('engine bug')));
+    }
+
+    public function test_shadow_rethrows_a_deadlock_on_the_engine_error_insert_after_an_ordinary_engine_error(): void {
+        $this->setMode(PostingDocumentType::PurchaseReceipt, 'shadow');
+        // Injeksi 1: error engine biasa pada insert parity pertama (ditelan, lalu dicatat `engine_error`).
+        // Injeksi 2: deadlock pada insert `engine_error` itu sendiri (bentrok `finance:prune-parity-logs`): HARUS naik.
+        $deadlock = new DeadlockException('Deadlock found when trying to get lock');
+        $this->failParityLogInserts([new \RuntimeException('engine bug'), $deadlock]);
+
+        try {
+            $this->gateway()->post($this->ctx(), $this->legacy());
+            $this->fail('Deadlock pada insert engine_error harus dilempar ulang, bukan menghasilkan outcome posted.');
+        } catch (\Throwable $caught) {
+            $chain = [];
+            for ($e = $caught; $e !== null; $e = $e->getPrevious()) {
+                $chain[] = $e;
+            }
+            $this->assertContains($deadlock, $chain);
+        }
+
+        $this->assertSame(1, $this->legacyCalls);
+    }
+
+    public function test_shadow_swallows_an_ordinary_error_on_the_engine_error_insert_itself(): void {
+        $this->setMode(PostingDocumentType::PurchaseReceipt, 'shadow');
+        $this->failParityLogInserts([new \RuntimeException('engine bug'), new \RuntimeException('log insert failed')]);
+
+        $outcome = $this->gateway()->post($this->ctx(), $this->legacy());
+
+        $this->assertSame(PostingOutcome::POSTED, $outcome->status);
+        $this->assertSame(1, Journal::count());
+        $this->assertSame(0, PostingParityLog::count());
+    }
+
+    private function guardContext(): PostingContext {
+        return new PostingContext(PostingDocumentType::PurchaseReceipt, $this->source::class, $this->source->getKey(), CarbonImmutable::parse('2026-11-12 10:00:00'), null, []);
+    }
+
+    public function test_shadow_builds_the_context_after_legacy_and_swallows_an_ordinary_factory_error(): void {
+        $this->setMode(PostingDocumentType::PurchaseReceipt, 'shadow');
+        $order = [];
+
+        $outcome = $this->gateway()->postDeferred(
+            $this->guardContext(),
+            function () use (&$order): PostingContext {
+                $order[] = 'context';
+
+                throw new \RuntimeException('factory bug');
+            },
+            function () use (&$order): void {
+                $order[] = 'legacy';
+                ($this->legacy())();
+            },
+        );
+
+        $this->assertSame(['legacy', 'context'], $order, 'Konteks dibangun setelah jalur lama berjalan.');
+        $this->assertSame(PostingOutcome::POSTED, $outcome->status);
+        $this->assertSame(1, Journal::count(), 'Error pabrik tidak menggagalkan posting lama.');
+        $log = PostingParityLog::query()->firstOrFail();
+        $this->assertSame('engine_error', $log->status);
+    }
+
+    public function test_shadow_rethrows_a_concurrency_error_raised_by_the_context_factory(): void {
+        $this->setMode(PostingDocumentType::PurchaseReceipt, 'shadow');
+        $deadlock = new DeadlockException('Deadlock found when trying to get lock');
+
+        try {
+            $this->gateway()->postDeferred($this->guardContext(), fn () => throw $deadlock, $this->legacy());
+            $this->fail('Error konkurensi dari pabrik konteks harus dilempar ulang.');
+        } catch (\Throwable $caught) {
+            $chain = [];
+            for ($e = $caught; $e !== null; $e = $e->getPrevious()) {
+                $chain[] = $e;
+            }
+            $this->assertContains($deadlock, $chain);
+        }
+    }
+
+    /**
+     * @return iterable<string, array{0: \Throwable}>
+     */
+    public static function lostConnectionErrors(): iterable {
+        yield 'LostConnectionException' => [new LostConnectionException('Lost connection and no reconnector available.')];
+        yield 'server has gone away' => [new \RuntimeException('SQLSTATE[HY000]: General error: 2006 MySQL server has gone away')];
+    }
+
+    /**
+     * @param  \Closure(): mixed  $run
+     */
+    private function assertRethrown(\Throwable $expected, \Closure $run): void {
+        try {
+            $run();
+            $this->fail('Error harus dilempar ulang, bukan menghasilkan outcome posted.');
+        } catch (\Throwable $caught) {
+            $chain = [];
+            for ($e = $caught; $e !== null; $e = $e->getPrevious()) {
+                $chain[] = $e;
+            }
+            $this->assertContains($expected, $chain);
+        }
+    }
+
+    #[DataProvider('lostConnectionErrors')]
+    public function test_shadow_rethrows_lost_connection_errors_from_the_engine(\Throwable $error): void {
+        $this->setMode(PostingDocumentType::PurchaseReceipt, 'shadow');
+        $this->failParityLogInserts([$error]);
+
+        $this->assertRethrown($error, fn () => $this->gateway()->post($this->ctx(), $this->legacy()));
+        $this->assertSame(1, $this->legacyCalls);
+    }
+
+    #[DataProvider('lostConnectionErrors')]
+    public function test_shadow_rethrows_lost_connection_errors_on_the_engine_error_insert(\Throwable $error): void {
+        $this->setMode(PostingDocumentType::PurchaseReceipt, 'shadow');
+        $this->failParityLogInserts([new \RuntimeException('engine bug'), $error]);
+
+        $this->assertRethrown($error, fn () => $this->gateway()->post($this->ctx(), $this->legacy()));
+    }
+
+    public function test_shadow_rethrows_when_the_transaction_level_dropped_below_the_level_before_the_savepoint(): void {
+        $this->setMode(PostingDocumentType::PurchaseReceipt, 'shadow');
+
+        $connection = DB::connection();
+        $property   = new \ReflectionProperty(Connection::class, 'transactions');
+        $original   = $property->getValue($connection);
+        $error      = new \RuntimeException('engine bug (koneksi direset: level transaksi turun)');
+        $fired      = false;
+        DB::listen(function ($query) use (&$fired, $property, $connection, $error): void {
+            if (! $fired && str_starts_with(strtolower($query->sql), 'insert') && str_contains($query->sql, 'posting_parity_logs')) {
+                $fired = true;
+                // Simulasi: koneksi putus saat savepoint, Laravel mereset counter ke 0 dan server menggulung transaksi.
+                $property->setValue($connection, 0);
+
+                throw $error;
+            }
+        });
+
+        try {
+            $this->assertRethrown($error, fn () => $this->gateway()->post($this->ctx(), $this->legacy()));
+        } finally {
+            $property->setValue($connection, $original);
+        }
+    }
+
+    public function test_deferred_context_is_not_built_in_off_mode_but_is_built_for_shadow_and_on(): void {
+        $built = 0;
+        $guard = new PostingContext(PostingDocumentType::PurchaseReceipt, $this->source::class, $this->source->getKey(), CarbonImmutable::parse('2026-11-12 10:00:00'), null, []);
+        $full  = function () use (&$built): PostingContext {
+            $built++;
+
+            return $this->ctx();
+        };
+
+        $this->gateway()->postDeferred($guard, $full, $this->legacy());
+        $this->assertSame(0, $built, 'Mode off: pabrik konteks tidak berjalan.');
+        $this->assertSame(1, $this->legacyCalls);
+
+        $this->setMode(PostingDocumentType::PurchaseReceipt, 'shadow');
+        $this->gateway()->postDeferred($guard, $full, fn () => null);
+        $this->assertSame(1, $built);
+
+        $this->setMode(PostingDocumentType::PurchaseReceipt, 'on');
+        $this->source->update(['status' => [FormStatus::APPROVED]]);
+        $this->gateway()->postDeferred($guard, $full, $this->legacy());
+        $this->assertSame(2, $built);
     }
 
     public function test_on_mode_reports_already_posted_on_retry_without_new_journals(): void {
@@ -246,9 +470,9 @@ class PostingGatewayTest extends TestCase {
                 $this->source->getKey(),
                 CarbonImmutable::parse('2026-11-12 10:00:00'),
                 null,
-                ['gain_loss' => 30],
+                ['gain_loss'             => 30],
                 ['sales_invoice_item_id' => 'L1'],
-                ['gain_loss_disposal' => $gain->id, 'fixed_asset' => $fixed->id],
+                ['gain_loss_disposal'    => $gain->id, 'fixed_asset' => $fixed->id],
                 guardDocument: ['type' => $invoice::class, 'id' => $invoice->getKey()],
             );
 

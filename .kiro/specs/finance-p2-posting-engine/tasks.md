@@ -90,33 +90,33 @@ Urutan: fondasi data dan resolver (1–3), kontrak + rule + service + gateway de
     - _Requirements: 8.4_
 
 - [ ] 7. Migrasi jenis dokumen — kelompok 1 (Asset, Payment)
-  - [ ] 7.1 `AssetPostingContextFactory` (akun master dari `AssetCategoryAccount`) + ubah 4 listener Asset memakai `PostingGateway` (closure legacy = kode Fase 1)
+  - [x] 7.1 `AssetPostingContextFactory` (akun master dari `AssetCategoryAccount`) + ubah 4 listener Asset memakai `PostingGateway` (closure legacy = kode Fase 1)
     - _Requirements: 7.1, 7.4_
-  - [ ] 7.2 `PaymentEntryPostingContextFactory` + ubah `PaymentEntryService::onApproved` memakai gateway (nilai tetap seperti jalur lama; ikuti keputusan Q-P2-3 untuk F-10)
+  - [x] 7.2 `PaymentEntryPostingContextFactory` + ubah `PaymentEntryService::onApproved` memakai gateway (nilai tetap seperti jalur lama; ikuti keputusan Q-P2-3 untuk F-10)
     - _Requirements: 7.1, 7.4_
-  - [ ]* 7.3 Write parity test end-to-end kelompok 1 pada tiga mode
+  - [x]* 7.3 Write parity test end-to-end kelompok 1 pada tiga mode
     - **P-1** hasil identik pada `off`, `shadow`, `on`
     - **Validates: Requirements 7.2, 11.5**
   - [ ] 7.4 **(Manual, staging)** Set `shadow` untuk kelompok 1, kumpulkan parity (≥200 dokumen atau 14 hari), laporkan ke pemilik produk; **tunggu keputusan** sebelum `on`
     - _Requirements: 7.2_
 
 - [ ] 8. Migrasi jenis dokumen — kelompok 2 (inventori dan penjualan/pembelian)
-  - [ ] 8.1 Purchase Receipt dan Delivery Note: pabrik konteks + gateway
+  - [x] 8.1 Purchase Receipt dan Delivery Note: pabrik konteks + gateway
     - _Requirements: 7.1, 7.4_
-  - [ ] 8.2 Sales Invoice dan Purchase Invoice: pabrik konteks (bawa baris beratribut barang; tidak membaca kolom akun dokumen) + gateway; Purchase Invoice menghasilkan dua jurnal
+  - [x] 8.2 Sales Invoice dan Purchase Invoice: pabrik konteks (bawa baris beratribut barang; tidak membaca kolom akun dokumen) + gateway; Purchase Invoice menghasilkan dua jurnal
     - _Requirements: 7.1, 7.4_
-  - [ ] 8.3 Stock Entry: pabrik konteks + gateway; `balance_amount` tidak dimutasi engine
+  - [x] 8.3 Stock Entry: pabrik konteks + gateway; `balance_amount` tidak dimutasi engine
     - _Requirements: 7.1, 7.5_
-  - [ ]* 8.4 Write parity test end-to-end kelompok 2 pada tiga mode
+  - [x]* 8.4 Write parity test end-to-end kelompok 2 pada tiga mode
     - **P-1** identik; kasus retur; Purchase Invoice stok & non-stok
     - **Validates: Requirements 7.2, 11.5**
   - [ ] 8.5 **(Manual, staging)** Shadow & laporan parity per jenis; tunggu persetujuan `on`
     - _Requirements: 7.2_
 
-- [ ] 9. Pengerasan dan kinerja
-  - [ ] 9.1 Ukur overhead engine vs jalur lama (benchmark seed data; batas 25%) dan optimasi resolver bila perlu
+- [x] 9. Pengerasan dan kinerja
+  - [x] 9.1 Ukur overhead engine vs jalur lama (benchmark seed data; batas 25%) dan optimasi resolver bila perlu
     - _Requirements: 11.1_
-  - [ ] 9.2 Uji statik **P-9**: pada jenis dokumen yang diset `on`, pola `where('account_type'` tidak muncul di jalurnya (test yang membaca daftar jenis `on` dari konfigurasi uji)
+  - [x] 9.2 Uji statik **P-9**: self-check detektor (mengenali pola `where('account_type'` di jalur yang masih memuat closure legacy, mengabaikan komentar) dan, untuk jenis dokumen pada daftar `on` dari konfigurasi uji (kosong sampai Task 14.1), pola tidak muncul di jalurnya; penegakan penuh setelah Task 14.1 (Q-P2-19)
     - _Requirements: 7.3_
 
 - [ ] 10. **(GATED D-1)** Sakelar eksekusi queue/inline
@@ -161,7 +161,7 @@ Urutan: fondasi data dan resolver (1–3), kontrak + rule + service + gateway de
     - **Validates: Requirements 14.1–14.6**
 
 - [ ] 14. Penutupan fase dan pembersihan legacy
-  - [ ] 14.1 **(Setelah semua jenis `on` stabil satu siklus tutup bulan, atas persetujuan)** matikan `legacy_account_fallback`, hapus closure legacy dari listener dan pencarian `account_type`
+  - [ ] 14.1 **(Setelah semua jenis `on` stabil satu siklus tutup bulan, atas persetujuan)** matikan `legacy_account_fallback`, hapus closure legacy dari listener dan pencarian `account_type`; pada saat ini penegakan P-9 (Requirement 7.3; uji `PostingLegacyLookupTest` dengan daftar `on` terisi, dan grep CI) mulai berlaku (Q-P2-19)
     - _Requirements: 7.3_
   - [ ] 14.2 **(Setelah semua jenis `on`, Task 12.3 selesai, dan Fase 5 tidak lagi merujuknya)** hapus kolom `accounts.is_contra`: migrasi reversible, `Account` (cast + `configColumns`), `AccountSeeder`, terjemahan `lang/id` dan `lang/en`, sisa rujukan di controller/form/test; tambah test bahwa laporan/pemilihan akun tidak bergantung padanya
     - _Requirements: 12.8, 13.8_
@@ -175,6 +175,7 @@ Urutan: fondasi data dan resolver (1–3), kontrak + rule + service + gateway de
 - Task 7.1/8.x (Q-P2-13, disetujui 2026-11-12): pabrik konteks disposal aset mengisi `guardDocument` dengan Sales Invoice sumber baris penjualan (bukan aset); `GlPostingStatus` `skipped` menyasar baris status dokumen penjaga itu. Karena baris status disposal dibuat listener pada SalesInvoiceItem setelah posting, listener Task 7.1 wajib membuat baris `skipped` untuk SalesInvoiceItem saat disposal dilewati (tidak membuat `POSTED`, tidak menimpa `skipped`); disetujui pemilik produk 2026-11-12.
 - Sprint C (Task 6.x, 2026-11-13): UI memakai halaman Inertia kustom (pola `FiscalPeriodController`), bukan `FormPage`/DataTable. Rute di `/settings/postingProfiles` dan `/settings/postingParityLogs`; izin: `select` (daftar), `read` (detail/selisih parity), `write` (buat/ubah/salin/hapus draft), `activate` (aktifkan/pensiunkan), `switch_posting_mode` (ubah mode; `on` wajib `confirmed`). Aturan akun bersyarat pada form ditampilkan baca-saja; editornya tetap Task 12.2. Peringatan "peran belum terpetakan" memakai `PostingRoleRequirements` (peran non-master per jenis dokumen yang modenya bukan `off`). Endpoint lookup generik `ModelController` (`model`, `model.selectData`, `model.datatable`) tidak memeriksa izin `select` model sasaran; model baru ikut serta lewat `lookupRequiresSelectPermission()` (catatan S3).
 - Keputusan 2026-11-13 (disetujui pemilik produk, Q-P2-15 s.d. Q-P2-17): Finance Officer baca-saja pada Posting Profile; salin versi dari `draft` ditolak di `PostingProfileService`; guard `select` lookup generik tetap opt-in (`PostingProfile`, `PostingParityLog`). Lihat decision log.
+- Sprint D (Task 7.1-7.3, 8.1-8.4, 9.1-9.2, 2026-11-14): seluruh 10 titik posting kini memanggil `PostingGateway` dengan pabrik konteks milik domain dokumen (lihat design.md, "Sprint D"); mode default tetap `off` dan closure legacy dipindah apa adanya. Sales/Purchase Invoice dan Payment Entry memakai `PostingGateway::postDeferred()` agar konteks penuh tidak dibangun pada `off`; pada `shadow` konteks dibangun setelah jalur lama di dalam blok penelan. Test: `PostingParityGroup1Test`, `PostingParityGroup2Test` (P-1 pada tiga mode, termasuk retur, PI stok/non-stok, saldo Stock Entry), `PostingRoutingTest` (akun dokumen vs akun profil per mode; konteks SI/PI/Payment tidak dibangun pada `off`; deadlock pada insert parity muncul dari listener dan status tetap `pending`), `PostingLegacyLookupTest` (P-9; daftar jenis `on` konfigurasi uji, kosong), `PostingEngineOverheadTest` (benchmark opt-in lewat env `RUN_POSTING_BENCHMARK=1`; pembanding closure legacy dipanggil langsung; rasio query engine/legacy <= 1,25 sebagai proksi terdokumentasi; `PostingService` di-resolve baru per dokumen (resolver dingin), dilaporkan per ronde dan maksimum). `CancelBeforeQueuedPostingTest` (sebelumnya known-issue F-16) kini mengunci perbaikan (guard gateway pada semua mode). Keputusan pemilik produk 2026-11-14 (Q-P2-18 s.d. Q-P2-21, lihat decision log): guard cancel pada semua mode; penegakan P-9 bersamaan Task 14.1; saldo Stock Entry `on` dari jurnal engine dan disposal dilewati tidak mengisi `processed_at`; error konkurensi pada `shadow` dilempar ulang (termasuk pada insert `engine_error`), diperluas 2026-11-14 ke error koneksi putus dan level transaksi yang turun di bawah level sebelum savepoint (Q-P2-21); status disposal aset satu baris per disposal dengan upsert di semua jalur (M-9, disetujui 2026-11-14). Hardening gagal tertutup baris invoice TIDAK disetujui (risiko diterima). Task 7.4 dan 8.5 (manual staging) belum dikerjakan; T-3/T-4 tetap di luar klaim parity Payment.
 - Task 7.4/8.5/14.1 bersifat operasional dan menunggu waktu/persetujuan; jangan menandainya selesai sebelum bukti parity tersimpan di laporan.
 - Fase 3 akan menambah rule pajak ke rule Sales/Purchase Invoice yang dibuat di sini; jaga bentuk `RoleJournalDraft` tetap dapat menampung ≥3 baris.
 - Jika Task 1 mengungkap asumsi tabel "Fakta codebase" salah, perbarui `design.md` dan minta konfirmasi sebelum lanjut.

@@ -8,6 +8,8 @@ use App\Exceptions\Finances\DuplicatePostingException;
 use App\Models\Core\GlPostingStatus;
 use App\Models\Finances\Account;
 use App\Services\Finances\Ledger\JournalService;
+use App\Services\Finances\Posting\PostingGateway;
+use App\Services\Sales\Accounting\SalesInvoicePostingContextFactory;
 use Illuminate\Contracts\Queue\ShouldQueue;
 use Illuminate\Foundation\Bus\Dispatchable;
 use Illuminate\Queue\InteractsWithQueue;
@@ -26,22 +28,34 @@ class PostSalesInvoiceGeneralLedger implements ShouldQueue {
         DB::transaction(function () use ($event) {
             $salesInvoice = $event->salesInvoice;
 
-            $debitAccount  = Account::where('id', $event->debitAccountId)->lockForUpdate()->firstOrFail();
-            $creditAccount = Account::where('id', $event->creditAccountId)->lockForUpdate()->firstOrFail();
+            // Gateway Posting Engine (Finance Fase 2, Task 8.2): closure = jalur Fase 1 apa adanya (mode `off`/`shadow`).
+            $outcome = app(PostingGateway::class)->postDeferred(
+                app(SalesInvoicePostingContextFactory::class)->forGuard($salesInvoice, Carbon::instance($event->transactionDate)),
+                fn () => app(SalesInvoicePostingContextFactory::class)->forPosting($salesInvoice, (float) $event->totalAmount, $event->isReturn, Carbon::instance($event->transactionDate)),
+                function () use ($event, $salesInvoice) {
+                    $debitAccount  = Account::where('id', $event->debitAccountId)->lockForUpdate()->firstOrFail();
+                    $creditAccount = Account::where('id', $event->creditAccountId)->lockForUpdate()->firstOrFail();
 
-            try {
-                // Requirement 8.1: satu jurnal dua baris lewat JournalService; retur menukar sisi. Jumlah nol tidak
-                // lagi membuat baris 0/0 (Requirement 2.10, N-8).
-                app(JournalService::class)->postPair(
-                    $debitAccount->id,
-                    $creditAccount->id,
-                    $event->totalAmount,
-                    $salesInvoice,
-                    Carbon::instance($event->transactionDate),
-                    reverseSides: $event->isReturn,
-                );
-            } catch (DuplicatePostingException) {
-                // Retry atas posting yang sudah berhasil: perlakukan sebagai sudah terposting (Requirement 3.3).
+                    try {
+                        // Requirement 8.1: satu jurnal dua baris lewat JournalService; retur menukar sisi. Jumlah nol tidak
+                        // lagi membuat baris 0/0 (Requirement 2.10, N-8).
+                        app(JournalService::class)->postPair(
+                            $debitAccount->id,
+                            $creditAccount->id,
+                            $event->totalAmount,
+                            $salesInvoice,
+                            Carbon::instance($event->transactionDate),
+                            reverseSides: $event->isReturn,
+                        );
+                    } catch (DuplicatePostingException) {
+                        // Retry atas posting yang sudah berhasil: perlakukan sebagai sudah terposting (Requirement 3.3).
+                    }
+                },
+            );
+
+            // Q-P2-12: jangan menimpa `skipped` (dokumen dibatalkan sebelum job berjalan) menjadi `posted`.
+            if ($outcome->isSkipped()) {
+                return;
             }
 
             GlPostingStatus::where('referenceable_type', $salesInvoice::class)
