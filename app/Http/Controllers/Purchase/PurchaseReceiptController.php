@@ -88,6 +88,7 @@ class PurchaseReceiptController extends Controller {
 
                             $purchaseReceiptTarget->loadRelations();
                             $defaultData = [
+                                'is_return'      => true,
                                 'return_against' => $purchaseReceiptTarget,
                                 'date'           => now(),
                                 'purchase_order' => $purchaseReceiptTarget->purchaseOrder,
