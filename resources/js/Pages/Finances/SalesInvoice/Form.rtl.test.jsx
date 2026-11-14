@@ -129,7 +129,16 @@ vi.mock("@/Pages/Core/FormPage", async () => {
 // tetap -- cukup untuk menguji bahwa Form.jsx meneruskan transform yang
 // benar, tanpa mem-render internal LinkModel (bukan concern file ini).
 function makeLinkModelStub(testId) {
-  return function LinkModelStub({ value, onValueChange, disabled, required }) {
+  return function LinkModelStub({
+    value,
+    onValueChange,
+    disabled,
+    required,
+    with: withRelations,
+    fields,
+  }) {
+    globalThis.__linkModelProps[testId] = { with: withRelations, fields };
+
     return (
       <button
         type="button"
@@ -336,6 +345,7 @@ describe("SalesInvoice Form", () => {
     vi.clearAllMocks();
     conditionalDefaultsMode = false;
     globalThis.__linkModelPayloads = {};
+    globalThis.__linkModelProps = {};
     globalThis.__contentProps = {};
     usePageMock.mockReturnValue({
       props: { preferences: { default_currency_id: "idr" } },
@@ -1454,6 +1464,30 @@ describe("SalesInvoice Form", () => {
         ]);
         expect("asset_items" in moved).toBe(false);
       });
+    });
+  });
+
+  describe("kontrak lookup (with = relasi, fields = kolom)", () => {
+    it("lookup Sales Order meminta items.asset_id sebagai kolom, bukan relasi", () => {
+      render(<Form />);
+
+      const props = globalThis.__linkModelProps["sales-order-link"];
+
+      expect(props.with).toContain("items.asset");
+      expect(props.with).not.toContain("items.asset_id");
+      expect(props.fields).toContain("items.asset_id");
+    });
+
+    it("tidak ada lookup yang memakai nama kolom *_id sebagai relasi di with", () => {
+      render(<Form />);
+
+      const columnLikeRelations = Object.entries(globalThis.__linkModelProps)
+        .flatMap(([testId, props]) =>
+          (props.with ?? []).map((path) => [testId, path]),
+        )
+        .filter(([, path]) => path.split(".").pop().endsWith("_id"));
+
+      expect(columnLikeRelations).toEqual([]);
     });
   });
 });

@@ -573,11 +573,11 @@ export default function Form() {
                   "items.asset",
                   "items.tax",
                   "items.unit",
-                  "items.asset_id",
                   "paymentSchedules",
                   "paymentSchedules.paymentMethod",
                 ]}
                 fields={[
+                  "items.asset_id",
                   "amount",
                   "discount_on",
                   "discount_rate",
