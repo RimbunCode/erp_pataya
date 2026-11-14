@@ -31,7 +31,7 @@ class StockEntryController extends Controller {
     /**
      * Show the form for creating a new resource.
      */
-    public function create(Request $request, $ref) {
+    public function create(Request $request, ?string $ref = null) {
         if ($ref) {
             $select   = $request->has('select') ? $request->select : null;
             $split    = \explode('/', $ref);
