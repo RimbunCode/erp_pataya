@@ -103,6 +103,30 @@ class AssetTest extends TestCase {
         $this->assertFalse($asset->is_depreciable);
     }
 
+    #[Test]
+    public function depreciable_category_defaults_to_true_when_flag_not_given(): void {
+        $category = AssetCategory::factory()->create(['non_depreciable_category' => false]);
+
+        $asset = Asset::factory()->companyOwned()->create([
+            'asset_category_id' => $category->id,
+            'is_depreciable'    => null,
+        ]);
+
+        $this->assertTrue($asset->fresh()->is_depreciable);
+    }
+
+    #[Test]
+    public function explicit_false_is_kept_for_depreciable_category(): void {
+        $category = AssetCategory::factory()->create(['non_depreciable_category' => false]);
+
+        $asset = Asset::factory()->companyOwned()->create([
+            'asset_category_id' => $category->id,
+            'is_depreciable'    => false,
+        ]);
+
+        $this->assertFalse($asset->fresh()->is_depreciable);
+    }
+
     // 8.9 ── Property 2: Rentable quantity invariant ────────────────────────
     // Spec asset-category-simplification: allow_bulk_quantity kini milik Asset
     // sendiri (bukan AssetCategory) -- satu sumber kebenaran untuk guard ini.

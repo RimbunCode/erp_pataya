@@ -325,7 +325,7 @@ class AssetService implements SubmitableService {
 | purchase_receipt_id, purchase_invoice_id | ulid, nullable | |
 | net_purchase_amount, gross_purchase_amount, additional_asset_cost | decimal(15,2) | default 0 |
 | total_asset_cost | decimal(15,2) | computed via accessor, TIDAK disimpan sbg kolom fisik |
-| calculate_depreciation, is_depreciable | boolean | default false |
+| calculate_depreciation, is_depreciable | boolean | default kolom false; `is_depreciable` diisi saat create dari kategori (`true` kecuali `non_depreciable_category`) oleh hook `saving()` (keputusan 2026-11-15, pemilik produk) |
 | opening_accumulated_depreciation | decimal(15,2) | default 0 |
 | opening_number_of_booked_depreciations | integer | default 0 |
 | depreciation_method | string, nullable | |

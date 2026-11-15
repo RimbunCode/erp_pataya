@@ -52,6 +52,19 @@ class AccountSeeder extends Seeder {
                         'account_name'   => 'Asset Tetap',
                         'account_number' => '1100',
                         'is_group'       => true,
+                        'children'       => [
+                            [
+                                'account_name'   => 'Aset Tetap',
+                                'account_number' => '1110',
+                                'account_type'   => 'fixed_asset',
+                            ],
+                            [
+                                'account_name'   => 'Akumulasi Penyusutan',
+                                'account_number' => '1120',
+                                'account_type'   => 'accumulated_depreciation',
+                                'is_contra'      => true,
+                            ],
+                        ],
                     ],
                     [
                         'account_name'   => 'Asset Bergerak',
@@ -285,6 +298,13 @@ class AccountSeeder extends Seeder {
                         'account_name'   => 'Pendapatan Lain-Lain',
                         'account_number' => '4300',
                         'is_group'       => true,
+                        'children'       => [
+                            [
+                                'account_name'   => 'Laba Pelepasan Aset',
+                                'account_number' => '4310',
+                                'account_type'   => 'income_account',
+                            ],
+                        ],
                     ],
                 ],
             ],
@@ -312,11 +332,25 @@ class AccountSeeder extends Seeder {
                         'account_name'   => 'Beban Operasional',
                         'account_number' => '5200',
                         'is_group'       => true,
+                        'children'       => [
+                            [
+                                'account_name'   => 'Beban Penyusutan',
+                                'account_number' => '5210',
+                                'account_type'   => 'depreciation',
+                            ],
+                        ],
                     ],
                     [
                         'account_name'   => 'Beban Lain-Lain',
                         'account_number' => '5300',
                         'is_group'       => true,
+                        'children'       => [
+                            [
+                                'account_name'   => 'Rugi Pelepasan Aset',
+                                'account_number' => '5310',
+                                'account_type'   => 'expense_account',
+                            ],
+                        ],
                     ],
                 ],
             ],
