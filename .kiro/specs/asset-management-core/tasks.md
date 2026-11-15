@@ -117,6 +117,7 @@ Membangun domain `Asset` baru: model `AssetCategory` (flat), `AssetLocation` (tr
   - [x] 8.3 Implementasi hook `saving()` untuk auto is_depreciable dan asset_quantity
     - Auto-false `is_depreciable` jika `ownership_type !== company` (kecuali override eksplisit dari data)
     - Auto-set default `is_depreciable` dari `assetCategory.non_depreciable_category` saat create
+    - _Catatan 2026-11-15 (pemilik produk menyetujui): default kini `true` untuk kategori depreciable (sebelumnya hanya `false`); lihat Requirement 6.2._
     - _Requirements: 4.7, 6.2_
 
   - [x] 8.4 Implementasi accessor `total_asset_cost`

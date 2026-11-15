@@ -414,15 +414,17 @@ class Asset extends Model {
                 $asset->ownership_customer_branch_id = null;
             }
 
-            // Default is_depreciable from AssetCategory on create
+            // Default is_depreciable dari AssetCategory saat create (asset-management-core Req 2.2, keputusan
+            // pemilik produk 2026-11-15): true kecuali kategori non_depreciable_category. Nilai eksplisit
+            // (termasuk false) dan aturan kepemilikan non-company di atas tetap diutamakan.
             if (
                 ! $asset->exists
                 && $asset->asset_category_id
-                && ! $asset->isDirty('is_depreciable')
+                && ($asset->is_depreciable === null || ! $asset->isDirty('is_depreciable'))
             ) {
                 $category = AssetCategory::find($asset->asset_category_id);
-                if ($category && $category->non_depreciable_category) {
-                    $asset->is_depreciable = false;
+                if ($category) {
+                    $asset->is_depreciable = ! $category->non_depreciable_category;
                 }
             }
 

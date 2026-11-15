@@ -178,6 +178,7 @@ Kondisi nyata yang membentuk fase ini (diverifikasi di kode):
 5. THE migrasi SHALL memuat pra-pemeriksaan paritas (jumlah baris dengan selisih > 1 minor unit harus nol atau disetujui), jendela pemeliharaan, dan `down()` terdokumentasi.
 6. THE seluruh pemakai kolom (view laporan `report_sales_invoice_view`, laporan invoice, `assignTaxInvoice`, cetak) SHALL diaudit sebelum konversi.
 7. THE konversi SHALL TIDAK mengubah dokumen order (di luar scope).
+8. THE kolom DPP pada dokumen invoice SHALL murni tampilan dari hasil `TaxEngine` (faktor DPP versi aturan yang berlaku pada tanggal dokumen), bukan jumlah yang menambah pajak, dan SHALL hanya ditampilkan bila versi aturan pajak baris itu memakai faktor DPP selain `1/1`; baris dengan pajak tanpa DPP Nilai Lain (mis. "no tax") tidak menampilkan angka DPP. Faktor DPP, tarif, dan peran akun SHALL dapat diubah lewat versi aturan baru tanpa perubahan kode ketika regulasi berubah. _Keputusan 2026-11-15 (disetujui pemilik produk): kebutuhan ini dikerjakan pada fase mesin perpajakan (Fase 3), bukan sebagai perbaikan terpisah; temuan E2E: DPP 9.166.666,67 tampil pada SI-0011 berpajak "no tax" karena rumus tampilan saat ini memakai faktor 11/12 tetap (F-17)._
 
 ### Requirement 13: Non-fungsional
 
@@ -195,7 +196,7 @@ Kondisi nyata yang membentuk fase ini (diverifikasi di kode):
 | ID | Pertanyaan | Dampak |
 |---|---|---|
 | D-12 | Kebijakan posting pajak (PPN Masukan/Keluaran terpisah; PPh sebagai utang/piutang pajak) — validasi akuntan | Requirement 7, 12.4 |
-| D-15 | Konversi kolom generated invoice ke kolom biasa (Bagian B) disetujui? Spec DPP Requirement 4 dinyatakan disupersede? | Requirement 1.5, 12 |
+| D-15 | Konversi kolom generated invoice ke kolom biasa (Bagian B) disetujui? Spec DPP Requirement 4 dinyatakan disupersede? _Catatan 2026-11-15: pemilik produk menegaskan faktor DPP harus dapat diatur lewat aturan data (Requirement 12.8) dan dikerjakan di Fase 3; persetujuan formal D-15 masih perlu dikonfirmasi._ | Requirement 1.5, 12 |
 | Q-P3-1 | Semantik `taxes.rate` di data produksi: apakah 11 dengan DPP 11/12 (≈10,08%), atau seharusnya 12? Apakah invoice historis bernilai benar? | Requirement 6.3 |
 | Q-P3-2 | Apakah perusahaan PKP? Apakah PPN Masukan seluruhnya dapat dikreditkan? | Requirement 7.2, 7.9 |
 | Q-P3-3 | Tanggal cutover pemisahan pajak per jenis dokumen (awal bulan/periode terbuka) | Requirement 7.5 |
