@@ -69,6 +69,8 @@ Selain bug ini, audit menemukan gap struktural pada data model pajak dan pihak (
 
 ### Requirement 4: Kategori pajak dan arah pemotongan/penambahan
 
+> **Disupersede oleh `finance-p3-tax-engine` (Requirement 1.5 dan 12), keputusan D-15 disetujui 2026-11-15 oleh pemilik produk.** Kategori/arah pajak dan faktor DPP kini dimodelkan sebagai master pajak berklasifikasi dan versi aturan berlaku-tanggal di spec Fase 3; `use_dpp_nilai_lain` tidak dibuat di `taxes`. Isi di bawah dipertahankan sebagai riwayat.
+
 **User Story:** As an Accounting staff, I want master Pajak bisa membedakan PPN (ditambahkan ke total) dari PPh (dipotong dari pembayaran ke counterparty), so that dokumen yang memakai kombinasi PPN dan PPh menghasilkan total yang benar arahnya.
 
 #### Acceptance Criteria

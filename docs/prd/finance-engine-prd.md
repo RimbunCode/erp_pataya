@@ -167,7 +167,7 @@ Status: **DECIDED** = sudah ditetapkan (mis. dari spec terdahulu); **PROPOSED** 
 | D-12 | Penanganan pajak dalam jurnal: PPN Masukan/Keluaran sebagai akun terpisah, PPh sebagai utang/piutang pajak | PROPOSED, validasi akuntan | 3 |
 | D-13 | Perilaku pembatalan dokumen: ganti soft-delete GL (perilaku sekarang) dengan jurnal pembalik | **PENDING** (mengubah perilaku yang terlihat pengguna) | 2 |
 | D-14 | Jurnal manual (Journal Voucher) oleh pengguna: masuk Fase 1 sebagai task opsional | **DECIDED** (2026-11-04) | 1 |
-| D-15 | Konversi kolom hitung item invoice (generated → kolom biasa) dan penyerapan Requirement 4 spec `dpp-discount-and-tax-compliance` oleh Fase 3 | **PENDING** | 3 (Bagian B) |
+| D-15 | Konversi kolom hitung item invoice (generated → kolom biasa) dan penyerapan Requirement 4 spec `dpp-discount-and-tax-compliance` oleh Fase 3 | **DISETUJUI 2026-11-15 (pemilik produk; belum ada data asli, semua data uji)** | 3 (Bagian B) |
 | D-16 | Kebijakan tipe kurs: invoice/pembayaran (`transaction`), akhir periode (`closing`), kurs pajak | **PENDING** (akuntan) | 4 |
 | D-17 | Pengakuan selisih kurs terealisasi saat pelunasan dan toleransi selisih kecil | **PENDING** (akuntan) | 4 |
 | D-18 | Granularitas alokasi pembayaran: per invoice (termin tetap dipelihara jalur existing) | PROPOSED | 4 |
@@ -341,7 +341,7 @@ Setiap spec berisi `requirements.md`, `design.md`, `tasks.md`, dan `.config.kiro
 | H | [`finance-payment-entry-hotfix`](../../.kiro/specs/finance-payment-entry-hotfix/requirements.md) | Requirements, design, dan tasks selesai; implementasi selesai (Task 1–10, 2026-11-04); PR ke `feat/finance-engine` menyusul. Mencakup N-4, F-10, bagian `paid_amount` F-04, N-10, N-11, Q2, Q9b, dan N-12 (Q12); dikerjakan sebelum Fase 1; tidak mengoreksi data GL staging secara otomatis |
 | 1 | [`finance-p1-journal-core`](../../.kiro/specs/finance-p1-journal-core/requirements.md) | Draft lengkap; Fase 0 selesai 2026-11-04 sehingga siap dieksekusi. Keputusan 2026-11-04 sudah diterapkan ke spec: D-3, D-8 (per dokumen), D-14 (task opsional), Q-P1-1 (tanpa jendela pemeliharaan), Q-P1-2 (penegakan periode nonaktif dulu), Q-P1-3 s.d. Q-P1-6 (`against_account_id` nullable di migration Fase 1; `minor_unit` ISO 4217 lengkap; zona waktu hari/periode = `CoreSetting.timezone`; `posting_key` Asset: scrap `Asset:{id}:write_off`, disposal per baris invoice `Asset:{id}:disposal:{sales_invoice_item_id}`; semuanya disetujui pemilik produk 2026-11-04), BR-7 (dua rilis: Rilis 1 tabel jurnal + `journal_id` nullable + backfill; Rilis 2 migration NOT NULL di PR/tahapan terpisah) |
 | 2 | [`finance-p2-posting-engine`](../../.kiro/specs/finance-p2-posting-engine/requirements.md) | Draft; peta rule sebagian bertanda `[TODO]` sampai kode sumber dibaca penuh |
-| 3 | [`finance-p3-tax-engine`](../../.kiro/specs/finance-p3-tax-engine/requirements.md) | Draft; menunggu D-12, D-15 |
+| 3 | [`finance-p3-tax-engine`](../../.kiro/specs/finance-p3-tax-engine/requirements.md) | Draft; menunggu D-12 (D-15 disetujui 2026-11-15) |
 | 4 | [`finance-p4-ar-ap-fx`](../../.kiro/specs/finance-p4-ar-ap-fx/requirements.md) | Draft; menunggu D-16, D-17, D-18 |
 | 5 | [`finance-p5-reporting`](../../.kiro/specs/finance-p5-reporting/requirements.md) | Draft; menunggu D-11, D-20 |
 | 6 | [`finance-p6-closing-revaluation`](../../.kiro/specs/finance-p6-closing-revaluation/requirements.md) | Draft; menunggu D-21…D-24 |

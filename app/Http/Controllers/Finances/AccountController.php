@@ -58,12 +58,12 @@ class AccountController extends Controller {
 
         DB::beginTransaction();
         try {
-            $data['parent_account_id'] = $data['parent_account']['id'];
-            $data['currency_code']     = isset($data['currency']) ? $data['currency']['code'] : null;
-            $parent_account            = Account::find($data['parent_account_id']);
-            $data['root_type']         = $parent_account->root_type;
-            $data['report_type']       = $parent_account->report_type;
-            $account                   = Account::create($data);
+            $data['parent_id']     = $data['parent_account']['id'];
+            $data['currency_code'] = isset($data['currency']) ? $data['currency']['code'] : null;
+            $parent_account        = Account::find($data['parent_id']);
+            $data['root_type']     = $parent_account->root_type;
+            $data['report_type']   = $parent_account->report_type;
+            $account               = Account::create($data);
             DB::commit();
 
             return redirect()->route('accounts.show', $account)
@@ -104,11 +104,11 @@ class AccountController extends Controller {
     public function update(AccountRequest $request, Account $account) {
         $data = $request->validated();
         DB::beginTransaction();
-        $data['parent_account_id'] = $data['parent_account']['id'];
-        $data['currency_code']     = isset($data['currency']) ? $data['currency']['code'] : null;
-        $parent_account            = Account::find($data['parent_account_id']);
-        $data['root_type']         = $parent_account->root_type;
-        $data['report_type']       = $parent_account->report_type;
+        $data['parent_id']     = $data['parent_account']['id'];
+        $data['currency_code'] = isset($data['currency']) ? $data['currency']['code'] : null;
+        $parent_account        = Account::find($data['parent_id']);
+        $data['root_type']     = $parent_account->root_type;
+        $data['report_type']   = $parent_account->report_type;
         $account->fillForUpdate($data);
         DB::commit();
 
