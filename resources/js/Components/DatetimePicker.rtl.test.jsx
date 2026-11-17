@@ -45,8 +45,36 @@ describe("DatetimePicker", () => {
 
     expect(onValueChange).toHaveBeenCalled();
     const [calledWith] = onValueChange.mock.calls.at(-1);
-    expect(new Date(calledWith).getFullYear()).toBe(2026);
-    expect(new Date(calledWith).getMonth()).toBe(5); // Juni = index 5
+    expect(calledWith).toBe("2026-06-01");
+  });
+
+  it("type='date' mengirim string tanggal kalender yang tidak bergeser hari saat diserialisasi JSON", async () => {
+    const user = userEvent.setup({ delay: null });
+    const onValueChange = vi.fn();
+    render(<DatetimePicker type="date" onValueChange={onValueChange} />);
+
+    await user.type(screen.getByRole("textbox"), "15/11/2026{Enter}");
+
+    const [calledWith] = onValueChange.mock.calls.at(-1);
+    expect(typeof calledWith).toBe("string");
+    // Objek Date lokal akan menjadi hari sebelumnya di zona waktu positif (mis. WIB) saat di-JSON-kan.
+    expect(JSON.parse(JSON.stringify({ d: calledWith })).d).toBe("2026-11-15");
+  });
+
+  it("type='date' menampilkan string yyyy-MM-dd sebagai tanggal kalender yang sama", () => {
+    render(<DatetimePicker type="date" value="2026-11-15" />);
+    expect(screen.getByRole("textbox")).toHaveValue("November 15th, 2026");
+  });
+
+  it("type='datetime' tetap mengirim objek Date", async () => {
+    const user = userEvent.setup({ delay: null });
+    const onValueChange = vi.fn();
+    render(<DatetimePicker type="datetime" onValueChange={onValueChange} />);
+
+    await user.type(screen.getByRole("textbox"), "2026-06-01 10:30{Enter}");
+
+    const [calledWith] = onValueChange.mock.calls.at(-1);
+    expect(calledWith).toBeInstanceOf(Date);
   });
 
   it("mengosongkan input lalu blur memanggil onValueChange dengan null", async () => {
