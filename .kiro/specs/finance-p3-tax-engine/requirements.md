@@ -171,7 +171,7 @@ Kondisi nyata yang membentuk fase ini (diverifikasi di kode):
 
 #### Acceptance Criteria
 
-1. IF D-15 tidak disetujui, THEN Requirement 12 SHALL dikeluarkan dari fase ini tanpa memengaruhi requirement lain.
+1. IF D-15 tidak disetujui, THEN Requirement 12 SHALL dikeluarkan dari fase ini tanpa memengaruhi requirement lain. _D-15 disetujui 2026-11-15 oleh pemilik produk; butir 2 berlaku._
 2. IF D-15 disetujui, THEN THE kolom `dpp_amount`, `tax_amount` (dan `amount` pada Purchase Invoice) pada `sales_invoice_items` dan `purchase_invoice_items` SHALL dikonversi dari *stored generated column* menjadi kolom biasa bertipe sama, dengan nilai tersalin dan diverifikasi sama persis sebelum kolom lama dilepas.
 3. THE perhitungan SHALL berpindah ke `TaxEngine` pada `SalesInvoiceService`/`PurchaseInvoiceService` (`fillItemRelations`), dengan faktor DPP dan `rate` dari versi aturan.
 4. THE pajak `withholding` SHALL dikeluarkan dari `tax_amount` yang menambah total dokumen dan ditampilkan sebagai pemotongan terpisah, selaras DPP spec Requirement 4.3; jurnal SHALL memetakannya ke peran `withholding_receivable` (penjualan) atau `withholding_payable` (pembelian) sesuai D-12.
@@ -196,7 +196,7 @@ Kondisi nyata yang membentuk fase ini (diverifikasi di kode):
 | ID | Pertanyaan | Dampak |
 |---|---|---|
 | D-12 | Kebijakan posting pajak (PPN Masukan/Keluaran terpisah; PPh sebagai utang/piutang pajak) — validasi akuntan | Requirement 7, 12.4 |
-| D-15 | Konversi kolom generated invoice ke kolom biasa (Bagian B) disetujui? Spec DPP Requirement 4 dinyatakan disupersede? _Catatan 2026-11-15: pemilik produk menegaskan faktor DPP harus dapat diatur lewat aturan data (Requirement 12.8) dan dikerjakan di Fase 3; persetujuan formal D-15 masih perlu dikonfirmasi._ | Requirement 1.5, 12 |
+| D-15 | ~~Konversi kolom generated invoice ke kolom biasa (Bagian B) disetujui? Spec DPP Requirement 4 dinyatakan disupersede?~~ **DISETUJUI 2026-11-15 oleh pemilik produk.** Alasan: faktor DPP harus dapat diatur lewat aturan data (Requirement 12.8) dan dikerjakan di Fase 3; saat ini belum ada data asli, semua invoice adalah data uji. Konsekuensi: Requirement 12 berlaku (bukan dikeluarkan, lihat 12.1) dan spec DPP Requirement 4 disupersede (Requirement 1.5). Pra-pemeriksaan paritas dan jendela pemeliharaan (Requirement 12.5) tetap dijalankan sebelum konversi; risiko migrasi data historis rendah selama belum ada data asli. | Requirement 1.5, 12 |
 | Q-P3-1 | Semantik `taxes.rate` di data produksi: apakah 11 dengan DPP 11/12 (≈10,08%), atau seharusnya 12? Apakah invoice historis bernilai benar? | Requirement 6.3 |
 | Q-P3-2 | Apakah perusahaan PKP? Apakah PPN Masukan seluruhnya dapat dikreditkan? | Requirement 7.2, 7.9 |
 | Q-P3-3 | Tanggal cutover pemisahan pajak per jenis dokumen (awal bulan/periode terbuka) | Requirement 7.5 |

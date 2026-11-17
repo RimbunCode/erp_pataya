@@ -31,6 +31,35 @@ import { buildDatetimePickerI18n } from "./datetimePickerI18n";
 import { useLaravelReactI18n } from "laravel-react-i18n";
 import { usePage } from "@inertiajs/react";
 
+const DATE_ONLY_PATTERN = /^\d{4}-\d{2}-\d{2}$/;
+
+/**
+ * Nilai `type="date"` dikirim ke form sebagai string tanggal kalender `yyyy-MM-dd`, bukan objek `Date`.
+ * Objek `Date` pada tengah malam lokal berubah menjadi hari sebelumnya saat diserialisasi ke JSON (UTC),
+ * mis. 15 Nov 00:00 WIB menjadi `2026-11-14T17:00:00.000Z` dan server menyimpan 14 Nov.
+ * @param {Date} date tanggal yang dipilih pengguna
+ * @returns {string} tanggal kalender lokal, `yyyy-MM-dd`
+ */
+export function toDateOnlyString(date) {
+  return format(date, "yyyy-MM-dd");
+}
+
+/**
+ * Mengubah nilai picker menjadi TZDate. String `yyyy-MM-dd` dibaca sebagai tanggal kalender lokal
+ * (bukan tengah malam UTC, yang bisa tampil sebagai hari sebelumnya di zona waktu negatif).
+ * @param {Date|string|number} value nilai dari form
+ * @param {string|undefined} timezone zona waktu IANA opsional
+ * @returns {TZDate} tanggal untuk kalender dan tampilan
+ */
+function toPickerDate(value, timezone) {
+  if (typeof value === "string" && DATE_ONLY_PATTERN.test(value)) {
+    const [year, month, day] = value.split("-").map(Number);
+    return new TZDate(new Date(year, month - 1, day), timezone);
+  }
+
+  return new TZDate(value, timezone);
+}
+
 const DATE_DISPLAY_FORMAT = "PPP";
 const DATETIME_DISPLAY_FORMAT = "PPPp";
 const DATE_INPUT_FORMATS = [
@@ -189,7 +218,7 @@ export default memo(
         return anchorDate ? new TZDate(anchorDate, timezone) : undefined;
       }
 
-      return new TZDate(value, timezone);
+      return toPickerDate(value, timezone);
     }, [type, value, timezone]);
 
     const initialSelectedValue = useMemo(() => {
@@ -201,7 +230,7 @@ export default memo(
         return value;
       }
 
-      return new TZDate(value, timezone);
+      return toPickerDate(value, timezone);
     }, [type, value, timezone]);
 
     const defaultCalendarDate = useMemo(
@@ -355,7 +384,9 @@ export default memo(
         }
 
         setDate(nextValue);
-        onValueChange?.(nextValue);
+        onValueChange?.(
+          type === "date" ? toDateOnlyString(nextValue) : nextValue,
+        );
       },
       [
         date,
@@ -467,7 +498,13 @@ export default memo(
           }
           case "date": {
             if (value) {
-              return format(value, DATE_DISPLAY_FORMAT, { locale: dateLocale });
+              const dateValue =
+                typeof value === "string" && DATE_ONLY_PATTERN.test(value)
+                  ? toPickerDate(value)
+                  : value;
+              return format(dateValue, DATE_DISPLAY_FORMAT, {
+                locale: dateLocale,
+              });
             }
             break;
           }
@@ -498,7 +535,7 @@ export default memo(
             if (!Array.isArray(val)) return "";
             return getDateValue(val.map((d) => new TZDate(d, timezone)));
           }
-          return getDateValue(new TZDate(val, timezone));
+          return getDateValue(toPickerDate(val, timezone));
         } catch {
           return "";
         }
@@ -660,7 +697,11 @@ export default memo(
         setDate(nextDateValue);
         setMonth(nextDateValue);
         onValueChange?.(
-          type === "datetime" ? new Date(nextDateValue) : nextDateValue,
+          type === "datetime"
+            ? new Date(nextDateValue)
+            : type === "date"
+              ? toDateOnlyString(nextDateValue)
+              : nextDateValue,
         );
         setSearch(getDateValue(nextDateValue));
 

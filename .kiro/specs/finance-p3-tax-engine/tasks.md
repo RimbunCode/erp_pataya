@@ -7,7 +7,7 @@ Bagian A (Task 1–8) tidak mengubah angka di dokumen; Bagian B (Task 9) adalah 
 **Prasyarat**: Fase 2 selesai untuk Sales Invoice dan Purchase Invoice (mode `on` stabil); D-12 (kebijakan posting pajak) disetujui akuntan sebelum Task 6; Q-P3-1…4 terjawab. Branch baru dari `origin/feat/finance-engine` terbaru (BR-6, PRD Bagian 10).
 
 **Aturan eksekusi**:
-- Task 9 **GATED**: hanya dengan persetujuan D-15, hasil audit pemakai kolom, dan jendela pemeliharaan.
+- Task 9 **GATED**: D-15 disetujui 2026-11-15 (pemilik produk); tetap hanya dengan hasil audit pemakai kolom dan jendela pemeliharaan.
 - Jangan mengubah `taxes.rate` data lama; perubahan tarif = versi baru.
 - Jangan menebak klasifikasi pajak (`unclassified` sampai akuntan menetapkan).
 - Spec `dpp-discount-and-tax-compliance`: beri catatan "Requirement 4 disupersede oleh finance-p3-tax-engine" hanya setelah D-15 disetujui.
