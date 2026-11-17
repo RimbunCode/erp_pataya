@@ -4,6 +4,8 @@ namespace App\Models\Core;
 
 use App\Casts\FormStatusCast;
 use App\Enums\FormStatus;
+use App\Models\Asset\AssetDepreciationSchedule;
+use App\Models\Finances\SalesInvoiceItem;
 use App\Models\Model;
 use App\Traits\DataTable;
 use Illuminate\Database\Eloquent\Builder;
@@ -79,8 +81,16 @@ class GlPostingStatus extends Model {
         return ['select', 'read', 'write'];
     }
 
+    /**
+     * Dokumen sumber posting. `morphWith` memuat relasi yang dirujuk `templateLink` anak
+     * (`:asset.asset_name` pada jadwal depresiasi, `:asset`/`:item` pada baris Sales Invoice) karena child
+     * morph di-SELECT tanpa relasi bersarang; tanpa ini label tampil sebagai token mentah (`:item`).
+     */
     public function referenceable(): MorphTo {
-        return $this->morphTo();
+        return $this->morphTo()->morphWith([
+            AssetDepreciationSchedule::class => ['asset'],
+            SalesInvoiceItem::class          => ['item', 'asset'],
+        ]);
     }
 
     public function scopePending(Builder $query): Builder {

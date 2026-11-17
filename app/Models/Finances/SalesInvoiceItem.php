@@ -162,7 +162,7 @@ class SalesInvoiceItem extends Model {
     ];
 
     public static function templateLink() {
-        return ':item';
+        return ':asset_id ? :asset | :item';
     }
 
     public function salesInvoice() {
