@@ -25,6 +25,7 @@ class LedgerPrecisionTest extends TestCase {
 
     protected function setUp(): void {
         parent::setUp();
+        $this->allowLegacyLedgerRows();
 
         $this->setUpFinanceFixtures();
         $this->cash  = $this->makeAccount('1101', 'Cash');

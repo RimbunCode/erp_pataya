@@ -19,6 +19,7 @@ class BalanceSnapshotTest extends TestCase {
 
     protected function setUp(): void {
         parent::setUp();
+        $this->allowLegacyLedgerRows();
 
         $this->setUpFinanceFixtures([StockEntry::class]);
     }
