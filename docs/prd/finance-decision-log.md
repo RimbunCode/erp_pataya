@@ -13,7 +13,7 @@
 
 | ID | Topik | Fase | Status | Tanggal |
 |---|---|---|---|---|
-| D-1 | Mode posting: antrian vs sinkron | 2 | DITUNDA (2026-11-03); rekomendasi tetap B | 2026-11-03 |
+| D-1 | Mode posting: antrian vs sinkron | 2 | **DECIDED 2026-11-21: opsi C** (semua sinkron); sakelar per jenis dokumen tetap tersedia | 2026-11-21 |
 | D-3 | `decimal(20,4)` untuk tabel jurnal; pembulatan HALF_UP di batas posting | 1 | DECIDED (disetujui 2026-11-04) | 2026-11-04 |
 | D-4 | Satu perusahaan | 1 | DECIDED | 2026-10-18 |
 | D-8 | Granularitas backfill: per dokumen, dipecah per tanggal bila posting di hari berbeda (mengubah rumusan lama per `transaction_date` penuh) | 1 | DECIDED (disetujui 2026-11-04) | 2026-11-04 |
@@ -89,11 +89,13 @@
 
 | Opsi | Rekomendasi | Pemilik keputusan | Status | Tanggal |
 |---|---|---|---|---|
-| A: pertahankan queue untuk semua; jadikan `JournalService::post()` atomik di dalam job. B: A ditambah pengamanan (penutupan periode diblokir selama ada posting `pending`/`failed`; laporan menampilkan indikator posting lag; Payment dan Asset boleh sinkron). C: semua sinkron dalam satu transaksi dengan dokumen. | B (rekomendasi PRD) | Pemilik produk | DITUNDA (2026-11-03) | 2026-11-03 |
+| A: pertahankan queue untuk semua; jadikan `JournalService::post()` atomik di dalam job. B: A ditambah pengamanan (penutupan periode diblokir selama ada posting `pending`/`failed`; laporan menampilkan indikator posting lag; Payment dan Asset boleh sinkron). C: semua sinkron dalam satu transaksi dengan dokumen. | B (rekomendasi PRD) | Pemilik produk | DECIDED 2026-11-21: opsi C | 2026-11-21 |
 
 **Sumber:** PRD Bagian 7 (D-1, R-8) dan Bagian 16 (Q5).
 
 **Keputusan 2026-11-03: ditunda** oleh pemilik produk. Alasan: keputusan ini baru mengikat pada Fase 2; invarian jurnal seimbang tidak bergantung padanya, sehingga Fase 1 tidak terblokir. Rekomendasi tetap opsi B. Keputusan wajib sebelum Fase 2. Q5 tetap Terbuka.
+
+**Keputusan 2026-11-21 (pemilik produk): opsi C, semua dokumen sinkron.** Pemilik produk menanyakan apakah posting dapat langsung sinkron tanpa antrean, lalu memilih "semua dokumen" (bukan hanya Payment dan Asset seperti rekomendasi B). Konsekuensi yang diterima: (1) kegagalan posting GL membatalkan transaksi dokumen sumber (Requirement 9.3), dan transaksi dokumen menjadi lebih panjang; (2) PRD dan Requirement 9.4 mencatat risiko pada jenis dokumen yang terjalin dengan mutasi Stock/SLE/FIFO (Purchase Receipt, Delivery Note, Purchase Invoice cabang stok), dan larangan inline untuk jenis itu dicabut; (3) Payment Entry dan Stock Entry sudah sinkron sejak sebelumnya (`onApproved` memanggil gateway langsung); yang berpindah dari antrean adalah delapan listener GL (Sales Invoice, Purchase Invoice, Delivery Note, Purchase Receipt, penyusutan, scrap, penyesuaian nilai, pelepasan aset); (4) jalur antrean dipertahankan lewat setting `finance_posting_execution.{type}` (`inline` default, `queue`), dapat dibalik tanpa deploy dan tercatat di audit pengaturan modul. Penutupan periode tidak lagi perlu menunggu antrean untuk jenis yang inline.
 
 ### D-4 — Satu perusahaan
 

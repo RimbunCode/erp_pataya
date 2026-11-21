@@ -146,16 +146,18 @@ Selain itu fase ini memperbaiki perilaku pembatalan: menutup balapan cancel-vs-p
 4. THE kunci terjemahan baru SHALL tersedia di `lang/id` dan `lang/en` (`LocaleKeysTest` hijau); komponen React baru memiliki test `.rtl.test.jsx`.
 5. THE halaman Posting Profile dan Parity Log SHALL didaftarkan sebagai menu item pada grup setting dan tampil di desk Core serta Finances, mengikuti aturan menu spec `module-settings-foundation` (datar bila satu item pada sebuah desk, submenu bila lebih).
 
-### Requirement 9: Sakelar eksekusi queue vs inline (GATED — bergantung D-1)
+### Requirement 9: Sakelar eksekusi queue vs inline (D-1 diputuskan 2026-11-21: opsi C)
 
 **User Story:** Sebagai pemilik produk, saya ingin memilih apakah posting suatu jenis dokumen berjalan inline atau via queue, so that konsistensi GL dengan dokumen dapat ditingkatkan di titik yang penting tanpa membalik keputusan lama.
 
 #### Acceptance Criteria
 
-1. IF D-1 diputuskan opsi A, THEN Requirement 9 SHALL dikeluarkan dari fase ini.
-2. IF D-1 diputuskan opsi B atau C, THEN THE sistem SHALL menyediakan setting `finance_posting_execution.{type}` (`queue`/`inline`, default `queue`) dan jalur `inline` yang memanggil `PostingService::post()` dalam transaksi dokumen sumber, dengan `GlPostingStatus` dibuat langsung bernilai `posted` bila sukses.
+_Diputuskan 2026-11-21 (pemilik produk, D-1): opsi C, semua dokumen sinkron. Butir 9.1 (opsi A) gugur; default sakelar menjadi `inline`; butir 9.4 dicabut._
+
+1. ~~IF D-1 diputuskan opsi A, THEN Requirement 9 SHALL dikeluarkan dari fase ini.~~ (gugur: D-1 opsi C)
+2. THE sistem SHALL menyediakan setting `finance_posting_execution.{type}` (`inline`/`queue`, **default `inline`**) dan jalur `inline` yang memanggil `PostingService::post()` dalam transaksi dokumen sumber, dengan `GlPostingStatus` dibuat langsung bernilai `posted` bila sukses.
 3. WHEN mode `inline` gagal, THE seluruh transaksi dokumen SHALL dibatalkan (dokumen tidak berstatus approved tanpa GL).
-4. THE jalur `inline` SHALL tidak dipakai untuk jenis dokumen yang terjalin dengan mutasi Stock/SLE (Purchase Receipt, Delivery Note, Purchase Invoice cabang stok) kecuali ada keputusan eksplisit — alasan keputusan Fase 3 event-listener (`event-listener-migration-phase-3`).
+4. ~~THE jalur `inline` SHALL tidak dipakai untuk jenis dokumen yang terjalin dengan mutasi Stock/SLE~~ (**dicabut 2026-11-21**: keputusan eksplisit pemilik produk, D-1 opsi C; risiko pada alur stok/FIFO diterima dan tercatat di decision log). Payment Entry dan Stock Entry sudah sinkron sejak sebelumnya dan tidak memakai sakelar.
 5. THE perubahan sakelar SHALL tercatat dan dapat dibalik tanpa deploy.
 
 ### Requirement 10: Pembatalan dokumen (D-13 diputuskan: opsi A, soft-delete dipertahankan)
@@ -227,7 +229,7 @@ _Diputuskan 2026-11-21 (pemilik produk, D-13): "jika dibatalkan maka dihapus", b
 
 | ID | Pertanyaan | Dampak |
 |---|---|---|
-| D-1 | Mode posting (opsi A/B/C) | Requirement 9 |
+| D-1 | Mode posting (opsi A/B/C). **Diputuskan 2026-11-21 (pemilik produk): opsi C, semua sinkron** | Requirement 9 |
 | D-13 | **Diputuskan 2026-11-21 (pemilik produk):** pembatalan menghapus jurnal (opsi A, soft-delete); reversal tidak dipakai, semua jenis dokumen | Requirement 10 (hanya guard F-16 dan status `skipped` yang tersisa) |
 | Q-P2-2 | Apakah COA saat ini sudah memisah akun PPN Masukan/Keluaran (seeder hanya memiliki `account_type = tax`)? Menentukan peta peran `tax_*` di profil default | Requirement 1, Fase 3 |
 | Q-P2-3 | Apakah F-10 (Payment kumulatif) diperbaiki saat migrasi Payment atau sebagai hotfix terpisah? | Requirement 7 |

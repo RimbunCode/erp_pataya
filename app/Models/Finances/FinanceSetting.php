@@ -15,6 +15,12 @@ class FinanceSetting extends ModuleSetting {
     public const POSTING_MODE_ON     = 'on';
     public const POSTING_MODES       = [self::POSTING_MODE_OFF, self::POSTING_MODE_SHADOW, self::POSTING_MODE_ON];
 
+    /** Eksekusi posting GL (D-1 opsi C, 2026-11-21): `inline` = dalam transaksi dokumen, `queue` = lewat antrean. */
+    public const POSTING_EXECUTION_INLINE = 'inline';
+
+    public const POSTING_EXECUTION_QUEUE = 'queue';
+    public const POSTING_EXECUTIONS      = [self::POSTING_EXECUTION_INLINE, self::POSTING_EXECUTION_QUEUE];
+
     public string $translateKey = 'finances.setting';
 
     // Dedicated module so role profiles in AdministratorSeeder cannot
@@ -30,6 +36,7 @@ class FinanceSetting extends ModuleSetting {
             'tax_invoice_serial_last_used'   => 'integer',
             'enforce_fiscal_period'          => 'boolean',
             'posting_modes'                  => 'array',
+            'posting_executions'             => 'array',
         ];
     }
 
@@ -42,6 +49,8 @@ class FinanceSetting extends ModuleSetting {
             'enforce_fiscal_period' => false,
             // Finance Fase 2, Requirement 6.1: semua jenis dokumen `off` sampai ada keputusan eksplisit per jenis.
             'posting_modes' => array_fill_keys(PostingDocumentType::values(), self::POSTING_MODE_OFF),
+            // D-1 opsi C (2026-11-21): posting GL sinkron untuk semua jenis dokumen; `queue` hanya lewat sakelar.
+            'posting_executions' => array_fill_keys(PostingDocumentType::values(), self::POSTING_EXECUTION_INLINE),
         ];
     }
 
@@ -70,6 +79,9 @@ class FinanceSetting extends ModuleSetting {
         return [
             'posting_modes'   => ['required', 'array:' . implode(',', PostingDocumentType::values())],
             'posting_modes.*' => ['string', Rule::in(self::POSTING_MODES)],
+
+            'posting_executions'   => ['required', 'array:' . implode(',', PostingDocumentType::values())],
+            'posting_executions.*' => ['string', Rule::in(self::POSTING_EXECUTIONS)],
         ];
     }
 }

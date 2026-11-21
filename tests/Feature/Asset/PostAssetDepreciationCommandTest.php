@@ -129,6 +129,32 @@ class PostAssetDepreciationCommandTest extends TestCase {
     }
 
     #[Test]
+    public function inline_failure_marks_row_failed_and_continues_with_other_rows(): void {
+        // Eksekusi inline (D-1 opsi C): aset tanpa akun kategori gagal diposting; baris lain tetap diproses.
+        $badAsset = Asset::factory()->create();
+        $bad      = AssetDepreciationSchedule::factory()->create([
+            'asset_id'            => $badAsset->id,
+            'schedule_date'       => now()->subDay(),
+            'depreciation_amount' => 500.0,
+        ]);
+        [, $good] = $this->makeAssetWithSchedule();
+
+        $this->artisan('assets:post-depreciation')->assertSuccessful();
+
+        $badStatus = GlPostingStatus::where('referenceable_type', AssetDepreciationSchedule::class)
+            ->where('referenceable_id', $bad->id)->first();
+        $this->assertNotNull($badStatus);
+        $this->assertEquals(FormStatus::FAILED, $badStatus->status);
+        $this->assertSame(1, (int) $badStatus->retry_count);
+        $this->assertNotEmpty($badStatus->last_error);
+        $this->assertSame(0, GeneralLedger::where('referenceable_id', $bad->id)->count());
+
+        $goodStatus = GlPostingStatus::where('referenceable_type', AssetDepreciationSchedule::class)
+            ->where('referenceable_id', $good->id)->first();
+        $this->assertEquals(FormStatus::POSTED, $goodStatus->status);
+    }
+
+    #[Test]
     public function command_ignores_schedule_not_yet_due(): void {
         $asset    = Asset::factory()->create();
         $schedule = AssetDepreciationSchedule::factory()->create([

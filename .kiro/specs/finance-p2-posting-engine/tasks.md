@@ -7,7 +7,7 @@ Urutan: fondasi data dan resolver (1–3), kontrak + rule + service + gateway de
 **Prasyarat**: Fase 1 selesai (JournalService, adapter, backfill, reconcile hijau); characterization Fase 0 + test Fase 1 hijau; service setting Finances dari spec `module-settings-foundation` tersedia (D-25). Branch baru dari `origin/feat/finance-engine` terbaru (BR-6, PRD Bagian 10).
 
 **Aturan eksekusi**:
-- Task 10 (sakelar eksekusi) **GATED**: kerjakan hanya setelah D-1 terjawab. Task 11 (reversal saat cancel) **dikeluarkan**: D-13 diputuskan 2026-11-21 (pemilik produk) untuk mempertahankan soft-delete.
+- Task 10 (sakelar eksekusi): D-1 diputuskan 2026-11-21 (opsi C), dikerjakan. Task 11 (reversal saat cancel) **dikeluarkan**: D-13 diputuskan 2026-11-21 (pemilik produk) untuk mempertahankan soft-delete.
 - Task 13 (posting diskon) **GATED**: kerjakan hanya setelah Q-P2-5 terjawab akuntan; mengubah bentuk jurnal sehingga hanya aktif lewat tanggal cutover.
 - Task 12 dikerjakan per jenis dokumen **setelah** jenis itu berada pada mode `on`; field akun pada form tidak dihapus sebelum itu.
 - Perpindahan ke mode `on` adalah **keputusan pemilik produk**, bukan bagian dari menyelesaikan task; task hanya menyiapkan dan membuktikan parity.
@@ -119,10 +119,10 @@ Urutan: fondasi data dan resolver (1–3), kontrak + rule + service + gateway de
   - [x] 9.2 Uji statik **P-9**: self-check detektor (mengenali pola `where('account_type'` di jalur yang masih memuat closure legacy, mengabaikan komentar) dan, untuk jenis dokumen pada daftar `on` dari konfigurasi uji (kosong sampai Task 14.1), pola tidak muncul di jalurnya; penegakan penuh setelah Task 14.1 (Q-P2-19)
     - _Requirements: 7.3_
 
-- [ ] 10. **(GATED D-1)** Sakelar eksekusi queue/inline
-  - [ ] 10.1 Setting `finance_posting_execution.{type}` + jalur `inline` (transaksi dokumen, `GlPostingStatus` langsung `posted`) untuk jenis yang diizinkan (Payment, Asset); tolak `inline` untuk jenis terjalin stok
+- [x] 10. **(D-1 diputuskan 2026-11-21: opsi C, semua sinkron)** Sakelar eksekusi queue/inline
+  - [x] 10.1 Setting `finance_posting_execution.{type}` + jalur `inline` (transaksi dokumen, `GlPostingStatus` langsung `posted`) untuk **semua** jenis (default `inline`; larangan jenis terjalin stok dicabut, D-1 opsi C). _Dikerjakan 2026-11-21: kolom `posting_executions` (migrasi `2026_11_21_100001`), `PostingExecutionResolver` (cache 60 dtk), `PostingExecutionService` (izin `switch_posting_mode`, audit), `PostingExecutionRouter` (inline = panggil `handle()` sinkron; `queue` = `CallQueuedListener` dengan `tries`/`backoff` listener); delapan listener GL didaftarkan lewat router di `EventServiceProvider::boot()`, bukan `$listen`; `PostAssetDepreciationCommand` menangkap kegagalan per baris dan mencatat `failed`. Inline di luar transaksi apa pun (scrap aset yang memanggil event setelah commit) tidak dilempar ke pengguna: router memanggil `failed()` listener sehingga status `failed` dan dapat dicoba ulang; di dalam transaksi dokumen kegagalan tetap menggulung dokumen. Payment Entry dan Stock Entry sudah sinkron. `shouldQueue()` pada listener `ShouldQueue` tidak dipakai karena listener yang `shouldQueue()`-nya false tidak dijalankan sama sekali._
     - _Requirements: 9.2–9.4_
-  - [ ]* 10.2 Write tests: kegagalan inline membatalkan transaksi dokumen; sakelar dapat dibalik tanpa deploy
+  - [x]* 10.2 Write tests: kegagalan inline membatalkan transaksi dokumen; sakelar dapat dibalik tanpa deploy _(`PostingExecutionTest`, tes kegagalan inline di `PostAssetDepreciationCommandTest`)_
     - **Validates: Requirements 9.3, 9.5**
 
 - [x] 11. **(DIKELUARKAN, D-13 diputuskan 2026-11-21: pembatalan menghapus jurnal)** Pembatalan sebagai reversal
