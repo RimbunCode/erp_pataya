@@ -10,17 +10,23 @@ use App\Http\Middleware\LanguageMiddleware;
 use App\Models\Core\Currency;
 use App\Models\Finances\Account;
 use App\Models\Finances\FinanceSetting;
+use App\Models\Finances\GeneralLedger;
 use App\Models\Finances\SalesInvoice;
+use App\Models\Sales\SalesOrder;
 use App\Models\User\User;
 use App\Services\Core\Setting\SettingsService;
 use App\Services\Finances\Posting\PostingModeResolver;
 use Database\Factories\Finances\SalesInvoiceFactory;
+use Database\Factories\Sales\SalesOrderFactory;
 use Database\Seeders\AccountSeeder;
+use Illuminate\Database\Migrations\Migration;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Schema;
+use Illuminate\Support\Str;
 use Inertia\Testing\AssertableInertia;
 use PHPUnit\Framework\Attributes\Test;
+use RuntimeException;
 use Tests\TestCase;
 
 /**
@@ -53,6 +59,45 @@ class AccountIsContraRemovedTest extends TestCase {
         Account::initPermissions();
         SalesInvoice::initPermissions();
         Currency::firstOrCreate(['code' => 'IDR'], ['name' => 'Indonesian rupiah']);
+    }
+
+    /**
+     * Drift migrasi yang sudah dikenal (lihat OrderItemStoredColumnMigrationTest): `sales_orders` di SQLite uji tidak
+     * punya kolom `code`/`created_by_id`/`status` yang diasumsikan `SalesOrderFactory`.
+     */
+    private function createSalesOrder(): SalesOrder {
+        foreach (['code', 'created_by_id'] as $column) {
+            if (! Schema::hasColumn('sales_orders', $column)) {
+                Schema::table('sales_orders', fn ($table) => $table->string($column)->nullable());
+            }
+        }
+        if (! Schema::hasColumn('sales_orders', 'status')) {
+            Schema::table('sales_orders', fn ($table) => $table->json('status')->nullable());
+        }
+
+        return SalesOrderFactory::new()->create();
+    }
+
+    /**
+     * @param  class-string  ...$models
+     * @return array<string, mixed>
+     */
+    private function readPermissions(string ...$models): array {
+        $permissions = [];
+        foreach ($models as $model) {
+            $permissions[$model] = [0 => [[
+                'model'        => $model,
+                'level'        => 0,
+                'only_creator' => false,
+                'permissions'  => ['select' => true, 'read' => true],
+            ]]];
+        }
+
+        return [
+            'permissions'         => $permissions,
+            'permissions_version' => '0|0|0|0',
+            'currentBranch'       => null,
+        ];
     }
 
     private function setSalesInvoiceMode(string $mode): void {
@@ -115,16 +160,39 @@ class AccountIsContraRemovedTest extends TestCase {
     }
 
     #[Test]
-    public function account_selection_by_type_does_not_depend_on_the_flag(): void {
+    public function model_lookup_for_account_selection_works_by_account_type_after_the_drop(): void {
         $this->seed(AccountSeeder::class);
 
-        $incomeNumbers = Account::where('root_type', 'income')
-            ->where('account_type', 'income_account')
-            ->pluck('account_number')
-            ->all();
+        $response = $this->actingAs(User::factory()->create())
+            ->postJson(route('model'), [
+                'model'   => Account::class,
+                'filters' => [
+                    'root_type'    => 'income',
+                    'account_type' => 'income_account',
+                    'is_group'     => false,
+                ],
+            ], ['X-Requested-With' => 'XMLHttpRequest']);
 
-        $this->assertContains('4110', $incomeNumbers);
-        $this->assertContains('4120', $incomeNumbers);
+        $response->assertOk();
+        $numbers = collect($response->json('data'))->pluck('account_number')->all();
+        $this->assertContains('4110', $numbers);
+        $this->assertContains('4120', $numbers, 'Akun bekas kontra tetap dapat dipilih lewat lookup /model tanpa filter flag.');
+    }
+
+    #[Test]
+    public function account_index_and_general_ledger_pages_run_after_the_drop(): void {
+        $this->seed(AccountSeeder::class);
+        GeneralLedger::initPermissions();
+        $user = User::factory()->create();
+
+        $this->actingAs($user)
+            ->withSession($this->readPermissions(Account::class, GeneralLedger::class))
+            ->get(route('accounts.index'))
+            ->assertOk();
+        $this->actingAs($user)
+            ->withSession($this->readPermissions(Account::class, GeneralLedger::class))
+            ->get(route('generalLedgers.index'))
+            ->assertOk();
     }
 
     #[Test]
@@ -157,5 +225,116 @@ class AccountIsContraRemovedTest extends TestCase {
             ->assertOk()
             ->assertInertia(fn (AssertableInertia $page) => $page
                 ->where('accountsManagedByEngine', false));
+    }
+
+    #[Test]
+    public function sales_invoice_create_from_sales_order_defaults_to_income_and_receivable_accounts_when_mode_is_not_on(): void {
+        $this->seed(AccountSeeder::class);
+        $this->setSalesInvoiceMode('off');
+
+        $user  = User::factory()->create();
+        $order = $this->createSalesOrder();
+
+        $this->actingAs($user)
+            ->withSession(['permissions' => $this->createPermissions()])
+            ->get(route('salesInvoices.create', ['ref' => "salesOrder/{$order->id}"]))
+            ->assertOk()
+            ->assertInertia(fn (AssertableInertia $page) => $page
+                ->where('defaultData.income_account.account_number', '4110')
+                ->where('defaultData.income_account.account_type', 'income_account')
+                ->where('defaultData.debit_account.account_type', 'receivable'));
+    }
+
+    #[Test]
+    public function sales_invoice_create_from_sales_order_has_no_account_defaults_when_mode_is_on(): void {
+        $this->seed(AccountSeeder::class);
+        $this->setSalesInvoiceMode('on');
+
+        $user  = User::factory()->create();
+        $order = $this->createSalesOrder();
+
+        $this->actingAs($user)
+            ->withSession(['permissions' => $this->createPermissions()])
+            ->get(route('salesInvoices.create', ['ref' => "salesOrder/{$order->id}"]))
+            ->assertOk()
+            ->assertInertia(fn (AssertableInertia $page) => $page
+                ->where('defaultData.income_account', null)
+                ->where('defaultData.debit_account', null));
+    }
+
+    /**
+     * @param  array<string, string>  $modes
+     */
+    private function insertFinanceSettingModes(array $modes): void {
+        DB::table('finance_settings')->delete();
+        DB::table('finance_settings')->insert([
+            'id'            => (string) Str::ulid(),
+            'singleton'     => true,
+            'posting_modes' => json_encode($modes),
+            'created_at'    => now(),
+            'updated_at'    => now(),
+        ]);
+    }
+
+    private function dropMigration(): Migration {
+        return require database_path('migrations/2026_11_22_100001_drop_is_contra_from_accounts_table.php');
+    }
+
+    #[Test]
+    public function drop_migration_refuses_to_run_while_any_document_type_is_not_on(): void {
+        $migration = $this->dropMigration();
+        $migration->down();
+
+        $modes                                           = array_fill_keys(PostingDocumentType::values(), 'on');
+        $modes[PostingDocumentType::PaymentEntry->value] = 'shadow';
+        $this->insertFinanceSettingModes($modes);
+
+        try {
+            $migration->up();
+            $this->fail('up() harus menolak berjalan bila ada jenis dokumen yang belum on.');
+        } catch (RuntimeException $e) {
+            $this->assertStringContainsString('payment_entry', $e->getMessage());
+        }
+
+        $this->assertTrue(Schema::hasColumn('accounts', 'is_contra'), 'Kolom tidak disentuh saat prasyarat belum terpenuhi.');
+    }
+
+    #[Test]
+    public function drop_migration_refuses_when_modes_are_missing_or_null(): void {
+        $migration = $this->dropMigration();
+        $migration->down();
+
+        DB::table('finance_settings')->delete();
+        DB::table('finance_settings')->insert([
+            'id'         => (string) Str::ulid(),
+            'singleton'  => true,
+            'created_at' => now(),
+            'updated_at' => now(),
+        ]);
+
+        $this->expectException(RuntimeException::class);
+        $migration->up();
+    }
+
+    #[Test]
+    public function drop_migration_runs_when_every_document_type_is_on(): void {
+        $migration = $this->dropMigration();
+        $migration->down();
+
+        $this->insertFinanceSettingModes(array_fill_keys(PostingDocumentType::values(), 'on'));
+        $migration->up();
+
+        $this->assertFalse(Schema::hasColumn('accounts', 'is_contra'));
+    }
+
+    #[Test]
+    public function drop_migration_runs_on_a_fresh_install_without_finance_settings_row(): void {
+        $migration = $this->dropMigration();
+        $migration->down();
+
+        DB::table('finance_settings')->delete();
+        $migration->up();
+
+        $this->assertFalse(Schema::hasColumn('accounts', 'is_contra'));
     }
 }

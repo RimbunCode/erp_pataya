@@ -100,6 +100,7 @@ export default function Form() {
     setData,
   });
   const paymentDefaultsApplied = useRef(false);
+  const incomeAccountBeforeReturn = useRef(undefined);
 
   useEffect(() => {
     if (paymentDefaultsApplied.current) return;
@@ -677,11 +678,20 @@ export default function Form() {
               checked={data.is_return}
               valueBefore={dataBefore?.is_return}
               onCheckedChange={(val) => {
+                // Tanpa default akun retur (flag akun kontra dihapus, Task
+                // 14.2): mencentang mengosongkan akun pendapatan dan mengingat
+                // nilai sebelumnya; melepas centang memulihkannya, sehingga
+                // akun yang dipilih manual saat mode retur tidak terbawa ke
+                // invoice normal. Mode `on` tidak memakai akun di form.
+                if (val)
+                  incomeAccountBeforeReturn.current = data.income_account;
+                const restoredIncomeAccount = accountsManaged
+                  ? undefined
+                  : incomeAccountBeforeReturn.current;
                 setData((prev) => ({
                   ...prev,
                   is_return: val,
-                  // Tanpa default akun retur (flag akun kontra dihapus, Task 14.2).
-                  income_account: val ? undefined : prev.income_account,
+                  income_account: val ? undefined : restoredIncomeAccount,
                   sales_order: undefined,
                   customer: undefined,
                   customer_branch: undefined,
