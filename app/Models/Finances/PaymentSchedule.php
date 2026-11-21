@@ -36,17 +36,25 @@ class PaymentSchedule extends Model {
             'disabledNavigation' => true,
             'isLink'             => true,
         ],
+        // `linkable`: form Payment Entry membaca kolom ini dari lookup `model` (jalur "Referensi ke").
         'due_date' => [
-            'order' => 1,
-            'show'  => true,
+            'order'    => 1,
+            'show'     => true,
+            'linkable' => true,
         ],
         'payment_amount' => [
-            'order' => 2,
-            'show'  => true,
+            'order'    => 2,
+            'show'     => true,
+            'linkable' => true,
+        ],
+        'paid_amount' => [
+            'hidden'   => true,
+            'linkable' => true,
         ],
         'outstanding_amount' => [
-            'order' => 3,
-            'show'  => true,
+            'order'    => 3,
+            'show'     => true,
+            'linkable' => true,
         ],
         'status' => [
             'type'       => 'string',

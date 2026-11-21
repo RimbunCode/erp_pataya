@@ -369,6 +369,12 @@ export default function Form() {
                         : null
                   }
                   disabledAddButton={true}
+                  fields={[
+                    "payment_schedules.due_date",
+                    "payment_schedules.payment_amount",
+                    "payment_schedules.paid_amount",
+                    "payment_schedules.outstanding_amount",
+                  ]}
                   with={[
                     "currency",
                     "paymentSchedules",
