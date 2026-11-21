@@ -102,7 +102,7 @@ Laporan ke pemilik produk memuat per jenis: jumlah dokumen, hitungan per status,
 - **Beban:** engine menambah sekitar 7 sampai 12% query per posting (proksi benchmark lokal, resolver dingin). Rasio waktu sungguhan belum terukur di MySQL/staging; catat durasi job posting sebelum dan sesudah `shadow` dan laporkan bila lebih dari 25% (Req 11.1).
 - **Konkurensi:** bila job posting sering gagal dengan deadlock setelah `shadow` diaktifkan, kembalikan ke `off` dan laporkan; gagal berulang berarti kontensi persisten, bukan parity.
 - **Hardening gagal-tertutup baris invoice** tidak diberlakukan (risiko diterima, Q-P2-21); gejalanya hanya log peringatan di atas.
-- **Mode `on` bukan bagian dari runbook ini.**
+- **Mode `on` bukan bagian dari prosedur shadow di atas.** Pemakaian `on` di staging dan hasil ujinya dicatat di bagian 10.
 
 ## 9. Yang menunggu keputusan sebelum atau selama shadow
 
@@ -114,3 +114,33 @@ Laporan ke pemilik produk memuat per jenis: jumlah dokumen, hitungan per status,
 | T-1, T-5/T-6, T-7, T-8 (bentuk jurnal legacy) | Menilai `mismatch` yang berasal dari kesalahan bawaan jalur lama |
 | T-11 (`posted_account_id` pada item Delivery Note dan Purchase Receipt) | Task 12.1 (setelah `on`) |
 | Q-P2-1 (siapa menyetujui `on`) | Langkah 5 bagian 4 |
+
+## 10. Hasil uji mode `on` di staging (21 November 2026)
+
+**Keputusan:** pemilik produk memerintahkan semua 10 jenis dokumen dinyalakan ke `on` di staging pada 2026-11-21 (data staging seluruhnya data uji; belum ada data asli). Pengaktifan ini hanya berlaku untuk staging; rollout ke lingkungan dengan data asli tetap menunggu butir bagian 9.
+
+**Prasyarat yang dibereskan sebelum pengujian:** profil posting v3 (berlaku mulai 2026-11-16, tanpa batas akhir, 11 peran terpetakan) dibuat dari v2 dan diaktifkan; sebelumnya dokumen bertanggal 16 November ke atas tidak punya profil aktif (v3 lama berstatus `retired` dan tanpa pemetaan).
+
+**Metode:** dokumen uji dibuat lewat UI staging dan diajukan; jurnal dibaca dari Buku Besar Umum. Dengan mode `on` tidak ada log parity (jalur lama tidak menulis jurnal), jadi pembuktiannya dari jurnal dan status antrean.
+
+| Jenis dokumen | Dokumen uji | Jurnal | Hasil |
+|---------------|-------------|--------|-------|
+| Stock Entry (penerimaan) | StockEntry-0020/26, 5 x 100.000 | JV-0026: Dr 1241 Persediaan 500.000, Cr 5110 Penyesuaian Stok 500.000 | Sesuai |
+| Sales Invoice | SalesInvoice-0012/26, 10 x 1.000.000, PPN 11% | JV-0027: Dr 1231 Piutang 11.008.333,33, Cr 4110 Penjualan 11.008.333,33 (PPN tanpa baris sendiri, D-12) | Sesuai desain |
+| Purchase Invoice | PurchaseINV-0020/26 dari PO-0012 | JV-0028: Dr 2214 615.250, Cr 2211 Hutang Dagang 615.250 (PPN 11% dari DPP baris berpajak) | Sesuai |
+| Delivery Note | DN-0007/26 dari SO-0007 | JV-0029: Dr 4210 HPP 15.250.000, Cr 1241 Persediaan 15.250.000 | Arah sesuai; nilai HPP belum dicocokkan dengan kartu stok |
+| Purchase Receipt | Receipt-0016/26 dari PO-0012, dua baris stok | JV-0030: Dr 1241 285.000, Cr 2214 285.000 | Sesuai |
+| Penyesuaian Nilai Aset | 0004, Asset-0009 9.000.000 menjadi 9.500.000 | JV-0031: Dr 1251.1 500.000, Cr 5110 500.000 | Sesuai |
+| Pelepasan Aset | SalesInvoice-0013/26 dari SO-0015, Asset-0009 dijual 10.000.000 | JV-0033 (faktur): Dr 1231 10.000.000, Cr 4110 10.000.000. JV-0032 (pelepasan): Dr 4110 500.000, Cr 1251.1 500.000 | Sesuai desain; arah dan cakupan jurnal pelepasan adalah T-7 yang masih terbuka |
+| Scrap Aset | Asset-0010 (diuji sebelumnya) | Terposting | Sesuai |
+| Depresiasi Aset | Tidak dipicu ulang; job harian 02.30 | JV-0024 dan JV-0025 (16 November, jalur lama) | Tidak diuji dengan `on` |
+| Payment Entry | Tidak dibuat | - | Belum teruji (lihat catatan) |
+
+Semua jurnal seimbang dan terposting dalam sekitar 2 menit. Satu baris antrean lama berstatus Gagal (retry 1): dokumen "0001", `AssetCategoryAccount` tidak ditemukan untuk aset terkait; tidak berasal dari pengujian ini dan tidak diubah.
+
+**Catatan dan temuan:**
+- **Payment Entry belum teruji.** Form tipe Terima mewajibkan Pelanggan dan Referensi ke faktur dengan baris jadwal tagihan (`outstanding_amount`); faktur uji yang ada tidak punya jadwal tagihan, sehingga barisnya tetap kosong dan dokumen tidak dapat dibuat. Pengujian N-4 (arah jurnal), F-10 (pembayaran parsial), dan F-04 (pembatalan) membutuhkan faktur dengan syarat pembayaran.
+- **T-7 (jurnal pelepasan aset) tetap menunggu keputusan akuntan.** JV-0032 hanya memuat selisih untung/rugi (harga dikurangi nilai buku), tidak mengeluarkan nilai buku aset, dan arahnya mengikuti perilaku lama (untung mendebit akun untung/rugi dan mengkredit aset tetap). Ini disengaja demi parity (`AssetDisposalRule`), bukan regresi engine.
+- **D-12:** jurnal Sales Invoice dan Purchase Invoice mencatat total termasuk PPN ke satu pasang akun tanpa baris PPN Keluaran/Masukan terpisah; menunggu keputusan akuntan.
+- **Tanggal bergeser sehari di staging:** Penyesuaian Nilai 0004 diketik 21 November tersimpan 20 November. Ini bug DatetimePicker `type="date"` yang sudah diperbaiki di kode; staging belum memuatnya karena PR perbaikannya berlabel `skip-deploy`. Label dokumen sumber di Status Posting GL juga masih tampil token mentah (`:item`, `:asset.asset_name`) karena alasan yang sama.
+- **Data uji yang tersisa di staging:** StockEntry-0020, SalesInvoice-0012 dan 0013, PurchaseINV-0020, DN-0007, Receipt-0016, SO-0015, Penyesuaian Nilai 0004, dan Asset-0009 yang kini terjual.
