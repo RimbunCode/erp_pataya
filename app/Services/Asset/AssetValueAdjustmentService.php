@@ -108,21 +108,29 @@ class AssetValueAdjustmentService implements SubmitableService {
         return $model->amend();
     }
 
+    /**
+     * Seluruh perubahan status, `GlPostingStatus`, dan posting inline berjalan dalam satu transaksi dokumen (pola
+     * `SalesInvoiceService`/`PaymentEntryService`): kegagalan posting inline (mis. peran akun belum dipetakan di
+     * Posting Profile) menggulung status dokumen dan exception-nya, yang pesannya menyebut peran dan halaman
+     * konfigurasi, sampai ke pengguna (Requirement 9.3 dan 13.7), bukan ditelan `PostingExecutionRouter`.
+     */
     public function onApproved(Model $model): mixed {
-        $statusValues   = array_map(fn (FormStatus $s) => $s->value, $model->status ?? []);
-        $statusValues   = array_values(array_diff($statusValues, [FormStatus::DRAFT->value]));
-        $statusValues[] = FormStatus::SUBMITTED->value;
+        DB::transaction(function () use ($model) {
+            $statusValues   = array_map(fn (FormStatus $s) => $s->value, $model->status ?? []);
+            $statusValues   = array_values(array_diff($statusValues, [FormStatus::DRAFT->value]));
+            $statusValues[] = FormStatus::SUBMITTED->value;
 
-        $model->update(['status' => array_map(fn (string $v) => FormStatus::from($v), $statusValues)]);
+            $model->update(['status' => array_map(fn (string $v) => FormStatus::from($v), $statusValues)]);
 
-        if ((float) $model->difference_amount !== 0.0) {
-            GlPostingStatus::create([
-                'referenceable_type' => AssetValueAdjustment::class,
-                'referenceable_id'   => $model->id,
-                'status'             => 'pending',
-            ]);
-            event(new AssetValueAdjustmentApproved($model, now()));
-        }
+            if ((float) $model->difference_amount !== 0.0) {
+                GlPostingStatus::create([
+                    'referenceable_type' => AssetValueAdjustment::class,
+                    'referenceable_id'   => $model->id,
+                    'status'             => 'pending',
+                ]);
+                event(new AssetValueAdjustmentApproved($model, now()));
+            }
+        });
 
         return null;
     }

@@ -5,6 +5,7 @@ namespace Tests\Feature\Asset;
 use App\Enums\FormStatus;
 use App\Enums\PostingDocumentType;
 use App\Events\Asset\AssetValueAdjustmentApproved;
+use App\Exceptions\Finances\UnresolvedAccountRoleException;
 use App\Http\Requests\Asset\AssetValueAdjustmentRequest;
 use App\Listeners\Asset\Depreciation\PostValueAdjustmentEntry;
 use App\Models\Asset\AssetValueAdjustment;
@@ -12,8 +13,11 @@ use App\Models\Core\GlPostingStatus;
 use App\Models\Finances\PostingParityLog;
 use App\Models\Finances\PostingProfile;
 use App\Services\Asset\AssetValueAdjustmentService;
+use App\Services\Finances\Posting\PostingExecutionResolver;
+use App\Services\Finances\Posting\PostingExecutionRouter;
 use Carbon\CarbonImmutable;
 use Illuminate\Foundation\Testing\RefreshDatabase;
+use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Validator;
 use LogicException;
 use PHPUnit\Framework\Attributes\Test;
@@ -218,6 +222,39 @@ class AssetValueAdjustmentAccountFieldsEngineModeTest extends TestCase {
         $this->assertEquals(['value_adjustment' => ['date' => '2026-11-10', 'lines' => [['1500', 1000.0, 0.0], ['7200', 0.0, 1000.0]]]], $this->journalSignature($adjustment->fresh()));
         $this->assertEquals(6000.0, (float) $setup['asset']->fresh()->gross_purchase_amount);
         $this->assertSame(FormStatus::POSTED, GlPostingStatus::where('referenceable_id', $adjustment->id)->first()->status);
+    }
+
+    #[Test]
+    public function on_approved_rolls_back_the_document_and_surfaces_the_error_when_the_role_is_unresolved(): void {
+        $setup = $this->makeAssetWithAccounts(['gross_purchase_amount' => 5000]);
+        // Profil aktif tanpa peran `asset_revaluation`: resolusi akun gagal saat mode `on`.
+        $this->activateParityProfile([]);
+        $this->setPostingMode(PostingDocumentType::AssetValueAdjustment, 'on');
+        // Tes berjalan di dalam transaksi `RefreshDatabase`; kedalaman itu dianggap "di luar transaksi dokumen" seperti
+        // produksi (kedalaman 0), sehingga hanya transaksi `onApproved` yang membuat kegagalan dilempar ulang.
+        $this->app->instance(PostingExecutionRouter::class, new PostingExecutionRouter(app(PostingExecutionResolver::class), DB::transactionLevel()));
+
+        $adjustment = AssetValueAdjustment::factory()->create([
+            'asset_id'              => $setup['asset']->id,
+            'current_asset_value'   => 5000,
+            'new_asset_value'       => 6000,
+            'difference_account_id' => null,
+            'status'                => [FormStatus::NEED_APPROVAL],
+        ]);
+
+        try {
+            app(AssetValueAdjustmentService::class)->onApproved($adjustment);
+            $this->fail('Kegagalan posting inline harus sampai ke pengguna (Requirement 9.3 dan 13.7).');
+        } catch (UnresolvedAccountRoleException $e) {
+            $this->assertNotSame('', $e->role);
+        }
+
+        $statuses = array_map(fn (FormStatus $s) => $s->value, $adjustment->fresh()->status);
+        $this->assertNotContains(FormStatus::SUBMITTED->value, $statuses, 'Status dokumen digulung.');
+        $this->assertContains(FormStatus::NEED_APPROVAL->value, $statuses);
+        $this->assertSame(0, GlPostingStatus::where('referenceable_id', $adjustment->id)->count(), 'GlPostingStatus ikut digulung.');
+        $this->assertDatabaseCount('general_ledgers', 0);
+        $this->assertEquals(5000.0, (float) $setup['asset']->fresh()->gross_purchase_amount);
     }
 
     #[Test]
