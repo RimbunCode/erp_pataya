@@ -36,6 +36,7 @@ class LedgerImmutabilityTest extends TestCase {
 
     protected function setUp(): void {
         parent::setUp();
+        $this->allowLegacyLedgerRows();
 
         $this->setUpFinanceFixtures([Journal::class, FiscalYear::class, FiscalPeriod::class, SalesInvoice::class, PaymentSchedule::class]);
         $this->cash    = $this->makeAccount('1100', 'Kas', 'asset', 'debit', 'cash');
