@@ -1,6 +1,6 @@
 # Runbook: Mode `shadow` Posting Engine di Staging (Fase 2, Task 7.4 dan 8.5)
 
-Panduan operasional untuk mengumpulkan bukti parity (skenario terarah per jenis dokumen, Req 7.2b, Q-P2-22) sebelum satu jenis dokumen boleh dipindah ke `on`. Dokumen ini bukan keputusan: perpindahan ke `on` tetap keputusan pemilik produk (Req 7.2c, Q-P2-1 masih terbuka).
+Panduan operasional untuk mengumpulkan bukti parity (skenario terarah per jenis dokumen, Req 7.2b, Q-P2-22) sebelum satu jenis dokumen boleh dipindah ke `on`. Dokumen ini bukan keputusan: perpindahan ke `on` tetap keputusan pemilik produk (Req 7.2c; Q-P2-1 dijawab pemilik produk 2026-11-21, lihat bagian 10).
 
 ## 1. Apa yang dilakukan mode `shadow`
 
@@ -113,11 +113,11 @@ Laporan ke pemilik produk memuat per jenis: jumlah dokumen, hitungan per status,
 | T-3 dan T-4 (retur Payment, `internal_transfer`) | `payment_entry` |
 | T-1, T-5/T-6, T-7, T-8 (bentuk jurnal legacy) | Menilai `mismatch` yang berasal dari kesalahan bawaan jalur lama |
 | T-11 (`posted_account_id` pada item Delivery Note dan Purchase Receipt) | Task 12.1 (setelah `on`) |
-| Q-P2-1 (siapa menyetujui `on`) | Langkah 5 bagian 4 |
+| ~~Q-P2-1 (siapa menyetujui `on`)~~ dijawab pemilik produk 2026-11-21 (pemilik produk sendiri; bagian 10) | Langkah 5 bagian 4 |
 
 ## 10. Hasil uji mode `on` di staging (21 November 2026)
 
-**Keputusan:** pemilik produk memerintahkan semua 10 jenis dokumen dinyalakan ke `on` di staging pada 2026-11-21 (data staging seluruhnya data uji; belum ada data asli). Pengaktifan ini hanya berlaku untuk staging; rollout ke lingkungan dengan data asli tetap menunggu butir bagian 9.
+**Keputusan:** pemilik produk memerintahkan semua 10 jenis dokumen dinyalakan ke `on` di staging pada 2026-11-21 (data staging seluruhnya data uji; belum ada data asli). Pengaktifan ini hanya berlaku untuk staging; rollout ke lingkungan dengan data asli tetap menunggu butir bagian 9. Pada tanggal yang sama pemilik produk menyatakan Task 7.4 dan 8.5 selesai (Q-P2-1 dijawab; Req 7.2(c) terpenuhi); laporan parity `shadow` per jenis tidak dilampirkan di dokumen ini, sehingga bukti tertulisnya adalah hasil uji `on` di bawah.
 
 **Prasyarat yang dibereskan sebelum pengujian:** profil posting v3 (berlaku mulai 2026-11-16, tanpa batas akhir, 11 peran terpetakan) dibuat dari v2 dan diaktifkan; sebelumnya dokumen bertanggal 16 November ke atas tidak punya profil aktif (v3 lama berstatus `retired` dan tanpa pemetaan).
 
