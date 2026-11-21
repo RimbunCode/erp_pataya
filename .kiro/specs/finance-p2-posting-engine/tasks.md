@@ -66,7 +66,7 @@ Urutan: fondasi data dan resolver (1–3), kontrak + rule + service + gateway de
   - [x] 4.6 Test arsitektur: tidak ada `use` terlarang pada `Posting/**` dan `Ledger/**` (**P-8**)
     - _Requirements: 4.4_
 
-- [ ] 5. Gateway, mode, dan parity
+- [x] 5. Gateway, mode, dan parity
   - [x] 5.1 `PostingModeResolver` (cache 60 dtk) + `PostingModeService::switch()` (izin `switch_posting_mode`, audit, invalidasi cache); seed setting Finances default `off` lewat service setting (`module-settings-foundation`); daftarkan juga izin `switch_posting_mode` (Req. 11.3; ditunda dari Task 2.2)
     - _Requirements: 6.1, 6.8_
   - [x] 5.2 `ParityComparator` (kanonisasi per `purpose`, `match/rounding/config_diff/mismatch`) + test unit
@@ -89,7 +89,7 @@ Urutan: fondasi data dan resolver (1–3), kontrak + rule + service + gateway de
   - [x] 6.3 Kunci terjemahan `lang/id` & `lang/en`; `LocaleKeysTest` hijau; item menu/desk
     - _Requirements: 8.4_
 
-- [ ] 7. Migrasi jenis dokumen — kelompok 1 (Asset, Payment)
+- [x] 7. Migrasi jenis dokumen — kelompok 1 (Asset, Payment)
   - [x] 7.1 `AssetPostingContextFactory` (akun master dari `AssetCategoryAccount`) + ubah 4 listener Asset memakai `PostingGateway` (closure legacy = kode Fase 1)
     - _Requirements: 7.1, 7.4_
   - [x] 7.2 `PaymentEntryPostingContextFactory` + ubah `PaymentEntryService::onApproved` memakai gateway (nilai tetap seperti jalur lama; ikuti keputusan Q-P2-3 untuk F-10)
@@ -97,10 +97,10 @@ Urutan: fondasi data dan resolver (1–3), kontrak + rule + service + gateway de
   - [x]* 7.3 Write parity test end-to-end kelompok 1 pada tiga mode
     - **P-1** hasil identik pada `off`, `shadow`, `on`
     - **Validates: Requirements 7.2, 11.5**
-  - [ ] 7.4 **(Manual, staging)** Set `shadow` untuk kelompok 1, kumpulkan parity lewat skenario terarah per jenis (Req 7.2b, Q-P2-22; tanpa batas 200 dokumen atau 14 hari), laporkan ke pemilik produk; **tunggu keputusan** sebelum `on`
+  - [x] 7.4 **(Manual, staging)** Set `shadow` untuk kelompok 1, kumpulkan parity lewat skenario terarah per jenis (Req 7.2b, Q-P2-22; tanpa batas 200 dokumen atau 14 hari), laporkan ke pemilik produk; **tunggu keputusan** sebelum `on` _(Dinyatakan selesai oleh pemilik produk 2026-11-21 dan persetujuan `on` diberikan, Q-P2-1 / Req 7.2(c). Bukti tertulis yang ada: uji mode `on` di staging, runbook bagian 10. Laporan parity `shadow` per jenis tidak dilampirkan di spec.)_
     - _Requirements: 7.2_
 
-- [ ] 8. Migrasi jenis dokumen — kelompok 2 (inventori dan penjualan/pembelian)
+- [x] 8. Migrasi jenis dokumen — kelompok 2 (inventori dan penjualan/pembelian)
   - [x] 8.1 Purchase Receipt dan Delivery Note: pabrik konteks + gateway
     - _Requirements: 7.1, 7.4_
   - [x] 8.2 Sales Invoice dan Purchase Invoice: pabrik konteks (bawa baris beratribut barang; tidak membaca kolom akun dokumen) + gateway; Purchase Invoice menghasilkan dua jurnal
@@ -110,7 +110,7 @@ Urutan: fondasi data dan resolver (1–3), kontrak + rule + service + gateway de
   - [x]* 8.4 Write parity test end-to-end kelompok 2 pada tiga mode
     - **P-1** identik; kasus retur; Purchase Invoice stok & non-stok
     - **Validates: Requirements 7.2, 11.5**
-  - [ ] 8.5 **(Manual, staging)** Shadow & laporan parity per jenis; tunggu persetujuan `on`
+  - [x] 8.5 **(Manual, staging)** Shadow & laporan parity per jenis; tunggu persetujuan `on` _(Dinyatakan selesai oleh pemilik produk 2026-11-21 dan persetujuan `on` diberikan, Q-P2-1 / Req 7.2(c); semua 10 jenis dokumen dinyalakan ke `on` di staging pada tanggal yang sama, hasilnya di runbook bagian 10.)_
     - _Requirements: 7.2_
 
 - [x] 9. Pengerasan dan kinerja
@@ -125,7 +125,7 @@ Urutan: fondasi data dan resolver (1–3), kontrak + rule + service + gateway de
   - [ ]* 10.2 Write tests: kegagalan inline membatalkan transaksi dokumen; sakelar dapat dibalik tanpa deploy
     - **Validates: Requirements 9.3, 9.5**
 
-- [-] 11. **(DIKELUARKAN, D-13 diputuskan 2026-11-21: pembatalan menghapus jurnal)** Pembatalan sebagai reversal
+- [x] 11. **(DIKELUARKAN, D-13 diputuskan 2026-11-21: pembatalan menghapus jurnal)** Pembatalan sebagai reversal
   - _Diputuskan pemilik produk 2026-11-21: "jika dibatalkan maka dihapus", semua jenis dokumen; soft-delete GL dipertahankan dan reversal tidak dibangun. Sub-task 11.1 s.d. 11.4 (service reversal, `finance_cancel_mode`, periode tertutup, audit laporan, P-7) tidak dikerjakan. Guard F-16 dan status `skipped` sudah dikerjakan di Task 5.3/5.4 (Requirement 10.2–10.3)._
 
 - [ ] 12. Akun tanpa input pengguna dan aturan bersyarat (per jenis dokumen yang sudah `on`)
