@@ -3,12 +3,14 @@
 namespace App\Http\Controllers\Finances;
 
 use App\Enums\DefaultsDocumentType;
+use App\Enums\PostingDocumentType;
 use App\Http\Controllers\Controller;
 use App\Http\Requests\Finances\SalesInvoiceRequest;
 use App\Models\Finances\Account;
 use App\Models\Finances\SalesInvoice;
 use App\Models\Sales\SalesOrder;
 use App\Services\Core\Setting\DocumentDefaultsResolver;
+use App\Services\Finances\Posting\PostingModeResolver;
 use App\Services\Finances\SalesInvoiceService;
 use App\Services\Sales\RentalDurationService;
 use App\Utils;
@@ -39,6 +41,8 @@ class SalesInvoiceController extends Controller {
      * Show the form for creating a new resource.
      */
     public function create(Request $request, ?string $ref = null) {
+        $accountsManagedByEngine = app(PostingModeResolver::class)->isOn(PostingDocumentType::SalesInvoice);
+
         if ($ref) {
             $split    = \explode('/', $ref);
             $modelOri = $split[0] ?? null;
@@ -55,10 +59,13 @@ class SalesInvoiceController extends Controller {
                                 return redirect()->route('salesInvoices.show', $salesInvoice);
                             }
                             $so->loadRelations();
-                            $accounts = Account::whereIn('root_type', ['income', 'asset'])
-                                ->whereIn('account_type', ['income_account', 'receivable'])
-                                ->where('is_contra', false)
-                                ->get();
+                            // Akun hanya diisi default saat engine belum `on` (Task 12.3); saat `on` engine yang menentukan.
+                            $accounts = $accountsManagedByEngine
+                                ? collect()
+                                : Account::whereIn('root_type', ['income', 'asset'])
+                                    ->whereIn('account_type', ['income_account', 'receivable'])
+                                    ->where('is_contra', false)
+                                    ->get();
 
                             $rentalDurationService = app(RentalDurationService::class);
                             $rentalCutoffDate      = $request->query('rental_cutoff_date')
@@ -117,10 +124,12 @@ class SalesInvoiceController extends Controller {
                             if ($salesInvoiceTarget) {
                                 return redirect()->route('salesInvoices.show', $salesInvoiceTarget);
                             }
-                            $account = Account::where('root_type', 'income')
-                                ->where('account_type', 'income_account')
-                                ->where('is_contra', true)
-                                ->first();
+                            $account = $accountsManagedByEngine
+                                ? null
+                                : Account::where('root_type', 'income')
+                                    ->where('account_type', 'income_account')
+                                    ->where('is_contra', true)
+                                    ->first();
                             $salesInvoice->loadRelations();
                             $defaultData = [
                                 'return_against'  => $salesInvoice,
@@ -128,7 +137,7 @@ class SalesInvoiceController extends Controller {
                                 'date'            => now(),
                                 'sales_order'     => $salesInvoice->salesOrder,
                                 'income_account'  => $account,
-                                'debit_account'   => $salesInvoice->debitAccount,
+                                'debit_account'   => $accountsManagedByEngine ? null : $salesInvoice->debitAccount,
                                 'customer'        => $salesInvoice?->customer,
                                 'customer_branch' => $salesInvoice?->customerBranch,
                                 'currency'        => $salesInvoice?->currency,
@@ -159,8 +168,9 @@ class SalesInvoiceController extends Controller {
         $this->setBreadcrumbs('finances.salesInvoice.new');
 
         return Inertia::render('Finances/SalesInvoice/Show', [
-            'defaultData' => $defaultData ?? [],
-            'defaults'    => app(DocumentDefaultsResolver::class)->defaultsFor(DefaultsDocumentType::SalesInvoice),
+            'defaultData'             => $defaultData ?? [],
+            'defaults'                => app(DocumentDefaultsResolver::class)->defaultsFor(DefaultsDocumentType::SalesInvoice),
+            'accountsManagedByEngine' => $accountsManagedByEngine,
         ]);
     }
 
@@ -197,6 +207,7 @@ class SalesInvoiceController extends Controller {
 
                 return $salesInvoice;
             },
+            'accountsManagedByEngine' => app(PostingModeResolver::class)->isOn(PostingDocumentType::SalesInvoice),
         ]);
     }
 

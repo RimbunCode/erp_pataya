@@ -54,7 +54,7 @@ class PurchaseInvoiceService implements SubmitableService {
         $data['supplier_id']       = $data['supplier']['id'];
         $data['supplier_name']     = Supplier::find($data['supplier']['id'])?->name;
 
-        // account relations
+        // account relations (saat engine `on` request tidak membawa akun: Finance Fase 2, Task 12.3)
         $data['credit_account_id']       = $data['credit_account']['id'] ?? null;
         $data['expanse_head_account_id'] = $data['expense_head_account']['id'] ?? null;
         $data['return_against_id']       = $data['return_against']['id'] ?? null;
@@ -364,8 +364,8 @@ class PurchaseInvoiceService implements SubmitableService {
                 $totalAmount,
                 (bool) $returnAgainst,
                 now(),
-                $purchaseInvoice->expenseHeadAccount->id,
-                $purchaseInvoice->creditAccount->id,
+                $purchaseInvoice->expenseHeadAccount?->id,
+                $purchaseInvoice->creditAccount?->id,
             ));
 
             // === UPDATE STATUS PO ===

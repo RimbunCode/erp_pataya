@@ -223,4 +223,30 @@ class PostingRoutingTest extends TestCase {
     private function makeAccountOnce(string $number): Account {
         return Account::query()->where('account_number', $number)->firstOrFail();
     }
+
+    public function test_sales_invoice_without_document_accounts_posts_through_the_profile_when_mode_is_on(): void {
+        $recv    = $this->makeAccount('1210', 'Piutang Profil', 'asset', 'debit', 'accounts_receivable');
+        $rev     = $this->makeAccount('4010', 'Penjualan Profil', 'income', 'credit', 'sales');
+        $payable = $this->makeAccount('2000', 'Utang', 'liability', 'credit', 'accounts_payable');
+        $srnb    = $this->makeAccount('2100', 'SRNB', 'liability', 'credit', 'stock_received_but_not_billed');
+        $stock   = $this->makeAccount('1300', 'Persediaan', 'asset', 'debit', 'stock');
+        $this->activateParityProfile(['receivable' => $recv, 'revenue' => $rev, 'payable' => $payable, 'expense' => $srnb, 'stock' => $stock, 'stock_received_but_not_billed' => $srnb]);
+        $this->setPostingMode(PostingDocumentType::SalesInvoice, 'on');
+        $this->setPostingMode(PostingDocumentType::PurchaseInvoice, 'on');
+
+        // Task 12.3: dokumen dibuat tanpa akun (form tidak lagi meminta), kolom akun null.
+        $invoice = $this->makeSalesInvoice($recv, $rev, ['debit_account_id' => null, 'income_account_id' => null]);
+        $this->assertNull($invoice->debit_account_id);
+        app(SalesInvoiceService::class)->onApproved($invoice);
+
+        $this->assertSame(['default' => ['1210', '4010']], array_map(fn (array $j): array => array_column($j['lines'], 0), $this->journalSignature($invoice->fresh())));
+
+        $po       = BaseModel::withoutEvents(fn () => PurchaseOrder::create(['code' => 'PO-NOACC-1', 'date' => now(), 'status' => [FormStatus::SUBMITTED], 'created_by_id' => $this->user->id]));
+        $purchase = PurchaseInvoice::create(['date' => now(), 'purchase_order_id' => $po->id, 'branch_id' => $this->branch->id, 'status' => [FormStatus::SUBMITTED]]);
+        PurchaseInvoiceItem::create(['purchase_invoice_id' => $purchase->id, 'item_id' => ItemVariant::factory()->create()->id, 'quantity' => 2, 'rate' => 1000, 'tax_rate' => 10]);
+        GlPostingStatus::create(['referenceable_type' => PurchaseInvoice::class, 'referenceable_id' => $purchase->id, 'status' => FormStatus::PENDING]);
+        (new PostPurchaseInvoiceGeneralLedger)->handle(new PurchaseInvoiceGeneralLedgerPostingRequested($purchase, 0.0, 2183.33, false, now(), null, null));
+
+        $this->assertNotEmpty($this->journalSignature($purchase->fresh()), 'Purchase Invoice tanpa akun dokumen tetap terposting lewat engine.');
+    }
 }

@@ -13,7 +13,7 @@ class SalesInvoiceGeneralLedgerPostingRequested {
         public readonly float $totalAmount,
         public readonly bool $isReturn,
         public readonly \DateTimeInterface $transactionDate,
-        public readonly string $debitAccountId,
-        public readonly string $creditAccountId,
+        public readonly ?string $debitAccountId,
+        public readonly ?string $creditAccountId,
     ) {}
 }

@@ -354,6 +354,28 @@ describe("SalesInvoice Form", () => {
     formPageState = makeFormPageState();
   });
 
+  describe("akun dikelola engine (mode on, Task 12.3)", () => {
+    const ACCOUNTS_TITLE = "finances.salesInvoice.columns.accounts";
+
+    it("menyembunyikan seksi akun saat mode on", () => {
+      usePageMock.mockReturnValue({
+        props: {
+          preferences: { default_currency_id: "idr" },
+          accountsManagedByEngine: true,
+        },
+      });
+      render(<Form />);
+
+      expect(globalThis.__contentProps[ACCOUNTS_TITLE]).toBeUndefined();
+    });
+
+    it("menampilkan seksi akun saat mode bukan on", () => {
+      render(<Form />);
+
+      expect(globalThis.__contentProps[ACCOUNTS_TITLE]).toBeDefined();
+    });
+  });
+
   describe("conditional defaults integration", () => {
     const moduleTax = { id: "module-tax", rate: 11 };
     const ruleTax = { id: "rule-tax", rate: 5 };

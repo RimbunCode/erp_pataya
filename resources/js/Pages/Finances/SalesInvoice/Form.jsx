@@ -53,7 +53,13 @@ export default function Form() {
   const canOffSource = usePermission("App\\Models\\Finances\\SalesInvoice").can(
     "manage_off_source_items",
   );
+  // Engine `on`: akun pencatatan ditentukan engine saat posting (Finance Fase 2,
+  // Task 12.3), jadi form tidak meminta maupun mengisi default akun.
+  const accountsManaged = usePage().props.accountsManagedByEngine === true;
   const defaultValue = useCallback(async () => {
+    if (accountsManaged) {
+      return { date: new Date() };
+    }
     const accounts = await getDataModel("App\\Models\\Finances\\Account", {
       root_type: {
         in: ["income", "asset"],
@@ -74,7 +80,7 @@ export default function Form() {
       income_account: incomeAccount,
       debit_account: debitAccount,
     };
-  }, []);
+  }, [accountsManaged]);
   const { data, setData, disabled, dataBefore, isCreate, errors } = useFormPage(
     defaultValue,
     {
@@ -117,6 +123,7 @@ export default function Form() {
     setData,
   ]);
   const getContraIncomeAccount = (isContra) => {
+    if (accountsManaged) return;
     getDataModel(
       "App\\Models\\Finances\\Account",
       {
@@ -811,53 +818,55 @@ export default function Form() {
           </div>
         </div>
       </FormPageContent>
-      <FormPageContent
-        value="detail"
-        title={t("finances.salesInvoice.columns.accounts")}
-      >
-        <div className="grid gap-4  grid-cols-2">
-          <FormInput
-            label={t("finances.salesInvoice.columns.income_account")}
-            name="income_account"
-            required
-          >
-            <AccountLinkModel
-              filters={{
-                root_type: "income",
-                account_type: "income_account",
-                is_contra: !!data?.is_return,
-                is_group: false,
-              }}
-              placeholder={t(
-                "finances.salesInvoice.columns.accounts.placeholder",
-              )}
-              value={data.income_account}
-              onValueChange={(val) => {
-                setData("income_account", val);
-              }}
-            />
-          </FormInput>
-          <FormInput
-            label={t("finances.salesInvoice.columns.debit_account")}
-            name="debit_account"
-            required
-          >
-            <AccountLinkModel
-              filters={{
-                root_type: "asset",
-                is_group: false,
-              }}
-              placeholder={t(
-                "finances.salesInvoice.columns.accounts.placeholder",
-              )}
-              value={data.debit_account}
-              onValueChange={(val) => {
-                setData("debit_account", val);
-              }}
-            />
-          </FormInput>
-        </div>
-      </FormPageContent>
+      {!accountsManaged && (
+        <FormPageContent
+          value="detail"
+          title={t("finances.salesInvoice.columns.accounts")}
+        >
+          <div className="grid gap-4  grid-cols-2">
+            <FormInput
+              label={t("finances.salesInvoice.columns.income_account")}
+              name="income_account"
+              required
+            >
+              <AccountLinkModel
+                filters={{
+                  root_type: "income",
+                  account_type: "income_account",
+                  is_contra: !!data?.is_return,
+                  is_group: false,
+                }}
+                placeholder={t(
+                  "finances.salesInvoice.columns.accounts.placeholder",
+                )}
+                value={data.income_account}
+                onValueChange={(val) => {
+                  setData("income_account", val);
+                }}
+              />
+            </FormInput>
+            <FormInput
+              label={t("finances.salesInvoice.columns.debit_account")}
+              name="debit_account"
+              required
+            >
+              <AccountLinkModel
+                filters={{
+                  root_type: "asset",
+                  is_group: false,
+                }}
+                placeholder={t(
+                  "finances.salesInvoice.columns.accounts.placeholder",
+                )}
+                value={data.debit_account}
+                onValueChange={(val) => {
+                  setData("debit_account", val);
+                }}
+              />
+            </FormInput>
+          </div>
+        </FormPageContent>
+      )}
       <FormPageContent value="detail" title={t("finances.salesInvoice.items")}>
         <FormPageContentTitle className="flex items-center justify-between gap-x-4">
           {t("finances.salesInvoice.items")}

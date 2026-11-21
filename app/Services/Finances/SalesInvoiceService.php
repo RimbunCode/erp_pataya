@@ -48,11 +48,12 @@ class SalesInvoiceService implements SubmitableService {
     public const float DPP_FACTOR = 11 / 12;
 
     private function fillRelations(array $data) {
-        $data['sales_order_id']    = $data['sales_order']['id'] ?? null;
-        $data['customer_id']       = $data['customer']['id'];
-        $data['customer_name']     = Customer::find($data['customer']['id'])?->name;
-        $data['income_account_id'] = $data['income_account']['id'];
-        $data['debit_account_id']  = $data['debit_account']['id'];
+        $data['sales_order_id'] = $data['sales_order']['id'] ?? null;
+        $data['customer_id']    = $data['customer']['id'];
+        $data['customer_name']  = Customer::find($data['customer']['id'])?->name;
+        // Saat engine `on` request tidak membawa akun (Task 12.3); kolom tetap null sampai engine mencatatnya.
+        $data['income_account_id'] = $data['income_account']['id'] ?? null;
+        $data['debit_account_id']  = $data['debit_account']['id'] ?? null;
 
         // relasi cabang customer
         $data['customer_branch_id']   = $data['customer_branch']['id'];
@@ -345,8 +346,8 @@ class SalesInvoiceService implements SubmitableService {
                 $totalAmount,
                 (bool) $returnAgainst,
                 now(),
-                $debitAccount->id,
-                $creditAccount->id,
+                $debitAccount?->id,
+                $creditAccount?->id,
             ));
 
             $salesOrder = $salesInvoice->salesOrder;
