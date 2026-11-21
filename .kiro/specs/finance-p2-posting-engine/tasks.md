@@ -144,7 +144,7 @@ Urutan: fondasi data dan resolver (1–3), kontrak + rule + service + gateway de
   - [ ] 12.7 Checkpoint - jalankan test Finances, Sales, Purchase, Inventory yang disentuh
     - Ensure all tests pass, ask the user if questions arise.
 
-- [ ] 13. **(GATED Q-P2-5)** Posting diskon terpisah
+- [ ] 13. **(Q-P2-5 diputuskan 2026-11-21: ikuti praktik umum ERP; siap dikerjakan)** Posting diskon terpisah
   - [ ] 13.1 Jumlah bernama `gross_amount`/`discount_amount` di pabrik konteks Sales Invoice (dan Purchase Invoice non-stok) + flag `discount_split` dari setting `finance_discount_split_from.*`; validasi peran `discount` terpetakan sebelum setting boleh diisi
     - _Requirements: 14.1, 14.4_
   - [ ] 13.2 Rule Sales Invoice (dan Purchase Invoice non-stok) bentuk jurnal diskon; baris pajak dan DPP tidak berubah
@@ -153,9 +153,9 @@ Urutan: fondasi data dan resolver (1–3), kontrak + rule + service + gateway de
     - **Validates: Requirements 14.1–14.6**
 
 - [ ] 14. Penutupan fase dan pembersihan legacy
-  - [ ] 14.1 **(Setelah semua jenis `on` stabil satu siklus tutup bulan, atas persetujuan)** matikan `legacy_account_fallback`, hapus closure legacy dari listener dan pencarian `account_type`; pada saat ini penegakan P-9 (Requirement 7.3; uji `PostingLegacyLookupTest` dengan daftar `on` terisi, dan grep CI) mulai berlaku (Q-P2-19)
+  - [ ] 14.1 **(Setelah semua jenis `on` stabil satu siklus tutup bulan, atas persetujuan; _disetujui pemilik produk 2026-11-21 untuk dikerjakan sekarang tanpa menunggu siklus tutup bulan: data staging adalah data uji dan produksi belum berisi data_)** matikan `legacy_account_fallback`, hapus closure legacy dari listener dan pencarian `account_type`; pada saat ini penegakan P-9 (Requirement 7.3; uji `PostingLegacyLookupTest` dengan daftar `on` terisi, dan grep CI) mulai berlaku (Q-P2-19)
     - _Requirements: 7.3_
-  - [ ] 14.2 **(Setelah semua jenis `on`, Task 12.3 selesai, dan Fase 5 tidak lagi merujuknya)** hapus kolom `accounts.is_contra`: migrasi reversible, `Account` (cast + `configColumns`), `AccountSeeder`, terjemahan `lang/id` dan `lang/en`, sisa rujukan di controller/form/test; tambah test bahwa laporan/pemilihan akun tidak bergantung padanya
+  - [ ] 14.2 **(Setelah semua jenis `on`, Task 12.3 selesai, dan Fase 5 tidak lagi merujuknya; _penghapusan kolom disetujui pemilik produk 2026-11-21; urutan teknis tetap: `is_contra` masih dipakai default akun retur di `SalesInvoiceController` dan form invoice, jadi bagian 12.3 untuk Sales/Purchase Invoice dikerjakan lebih dulu_)** hapus kolom `accounts.is_contra`: migrasi reversible, `Account` (cast + `configColumns`), `AccountSeeder`, terjemahan `lang/id` dan `lang/en`, sisa rujukan di controller/form/test; tambah test bahwa laporan/pemilihan akun tidak bergantung padanya
     - _Requirements: 12.8, 13.8_
   - [ ] 14.3 Checkpoint akhir: `php artisan test --compact tests/Feature/Finances tests/Feature/Asset tests/Unit`, test frontend yang disentuh; setelah semua task: `vendor/bin/pint --dirty --format agent`, `npm run lint`, `graphify update .`
     - Exit criteria: parity 100% terbukti untuk jenis yang `on`; sisa legacy fallback = 0 untuk jenis tersebut; keputusan D-1 dan D-13 (diputuskan 2026-11-21: soft-delete dipertahankan) terdokumentasi
