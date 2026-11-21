@@ -358,7 +358,7 @@ Kolom akun dokumen yang sudah ada (`sales_invoices.debit_account_id`/`income_acc
 
 ### Setting
 
-Disimpan sebagai setting modul Finances (tabel setting dari spec `module-settings-foundation`, D-25; bukan tabel `preferences`): `finance_posting_mode.{document_type}` (10 kunci, default `off`), `finance_cancel_mode` (`soft_delete`), `finance_posting_execution.{type}` (hanya bila D-1 B/C), dan `finance_discount_split_from.{sales_invoice|purchase_invoice}` (tanggal; kosong = nonaktif, Req. 14). Konfigurasi `config/finance.php`: `posting.legacy_account_fallback` (true), `posting.parity_retention_days` (90).
+Disimpan sebagai setting modul Finances (tabel setting dari spec `module-settings-foundation`, D-25; bukan tabel `preferences`): `finance_posting_mode.{document_type}` (10 kunci, default `off`), `finance_cancel_mode` (`soft_delete`), `finance_posting_execution.{type}` (`inline` default, `queue`; D-1 diputuskan opsi C 2026-11-21; disimpan di kolom JSON `posting_executions`), dan `finance_discount_split_from.{sales_invoice|purchase_invoice}` (tanggal; kosong = nonaktif, Req. 14). Konfigurasi `config/finance.php`: `posting.legacy_account_fallback` (true), `posting.parity_retention_days` (90).
 
 ## Aturan Akun Bersyarat (Req. 12)
 
