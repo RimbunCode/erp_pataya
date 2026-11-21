@@ -337,6 +337,37 @@ describe("PurchaseInvoice Form", () => {
     lastDefaultValueArg = undefined;
   });
 
+  describe("akun dikelola engine (mode on, Task 12.3)", () => {
+    const managedProps = (managed) => ({
+      props: {
+        preferences: { default_currency_id: "idr" },
+        accountsManagedByEngine: managed,
+      },
+    });
+
+    it("tidak mengambil default akun dan menyembunyikan seksi akun saat mode on", async () => {
+      usePageMock.mockReturnValue(managedProps(true));
+      render(<Form />);
+
+      const result = await lastDefaultValueArg();
+
+      expect(getDataModelMock).not.toHaveBeenCalled();
+      expect(result).toEqual({ date: expect.any(Date) });
+      expect(
+        screen.queryByText("finances.purchaseInvoice.columns.accounts"),
+      ).not.toBeInTheDocument();
+    });
+
+    it("menampilkan seksi akun saat mode bukan on", () => {
+      usePageMock.mockReturnValue(managedProps(false));
+      render(<Form />);
+
+      expect(
+        screen.getByText("finances.purchaseInvoice.columns.accounts"),
+      ).toBeInTheDocument();
+    });
+  });
+
   describe("defaultValue (mode create)", () => {
     it("mengambil expense_head_account (stock_received_but_not_billed) & credit_account (payable) dari getDataModel", async () => {
       getDataModelMock.mockResolvedValue([

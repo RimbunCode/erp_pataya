@@ -25,6 +25,14 @@ final class PostingModeResolver {
     }
 
     /**
+     * True bila engine sudah menentukan akun jenis dokumen ini sehingga form tidak lagi meminta akun (Finance Fase 2,
+     * Task 12.3, Requirement 13.1). Mode `off`/`shadow` masih memakai jalur lama yang membaca kolom akun dokumen.
+     */
+    public function isOn(PostingDocumentType $type): bool {
+        return $this->for($type) === FinanceSetting::POSTING_MODE_ON;
+    }
+
+    /**
      * @return array<string, string>
      */
     public function all(): array {

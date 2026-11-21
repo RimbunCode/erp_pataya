@@ -3,6 +3,7 @@
 namespace App\Http\Controllers\Finances;
 
 use App\Enums\DefaultsDocumentType;
+use App\Enums\PostingDocumentType;
 use App\Http\Controllers\Controller;
 use App\Http\Requests\Finances\PurchaseInvoiceRequest;
 use App\Models\Asset\Asset;
@@ -11,6 +12,7 @@ use App\Models\Finances\Account;
 use App\Models\Finances\PurchaseInvoice;
 use App\Models\Purchase\PurchaseOrder;
 use App\Services\Core\Setting\DocumentDefaultsResolver;
+use App\Services\Finances\Posting\PostingModeResolver;
 use App\Services\Finances\PurchaseInvoiceService;
 use App\Utils;
 use Illuminate\Http\Request;
@@ -39,6 +41,8 @@ class PurchaseInvoiceController extends Controller {
      * Show the form for creating a new resource.
      */
     public function create(Request $request, ?string $ref = null) {
+        $accountsManagedByEngine = app(PostingModeResolver::class)->isOn(PostingDocumentType::PurchaseInvoice);
+
         if ($ref) {
             $split    = \explode('/', $ref);
             $modelOri = $split[0] ?? null;
@@ -55,9 +59,12 @@ class PurchaseInvoiceController extends Controller {
                                 return redirect()->route('purchaseInvoices.show', $purchaseInvoice);
                             }
                             $po->loadRelations();
-                            $accounts = Account::where('root_type', 'liability')
-                                ->whereIn('account_type', ['stock_received_but_not_billed', 'payable'])
-                                ->get();
+                            // Akun hanya diisi default saat engine belum `on` (Task 12.3); saat `on` engine yang menentukan.
+                            $accounts = $accountsManagedByEngine
+                                ? collect()
+                                : Account::where('root_type', 'liability')
+                                    ->whereIn('account_type', ['stock_received_but_not_billed', 'payable'])
+                                    ->get();
 
                             $defaultData = [
                                 'date'                 => now(),
@@ -102,8 +109,8 @@ class PurchaseInvoiceController extends Controller {
                                 'is_return'            => true,
                                 'date'                 => now(),
                                 'purchase_order'       => $purchaseInvoice->purchaseOrder,
-                                'expense_head_account' => $purchaseInvoice->expenseHeadAccount,
-                                'credit_account'       => $purchaseInvoice->creditAccount,
+                                'expense_head_account' => $accountsManagedByEngine ? null : $purchaseInvoice->expenseHeadAccount,
+                                'credit_account'       => $accountsManagedByEngine ? null : $purchaseInvoice->creditAccount,
                                 'supplier'             => $purchaseInvoice?->supplier,
                                 'currency'             => $purchaseInvoice?->currency,
                                 'amount'               => $purchaseInvoice?->amount,
@@ -133,8 +140,9 @@ class PurchaseInvoiceController extends Controller {
         $this->setBreadcrumbs('finances.purchaseInvoice.new');
 
         return Inertia::render('Finances/PurchaseInvoice/Show', [
-            'defaultData' => $defaultData ?? [],
-            'defaults'    => app(DocumentDefaultsResolver::class)->defaultsFor(DefaultsDocumentType::PurchaseInvoice),
+            'defaultData'             => $defaultData ?? [],
+            'defaults'                => app(DocumentDefaultsResolver::class)->defaultsFor(DefaultsDocumentType::PurchaseInvoice),
+            'accountsManagedByEngine' => $accountsManagedByEngine,
         ]);
     }
 
@@ -176,7 +184,8 @@ class PurchaseInvoiceController extends Controller {
 
                 return $purchaseInvoice;
             },
-            'fixedAssets' => $fixedAssets,
+            'fixedAssets'             => $fixedAssets,
+            'accountsManagedByEngine' => app(PostingModeResolver::class)->isOn(PostingDocumentType::PurchaseInvoice),
         ]);
     }
 
