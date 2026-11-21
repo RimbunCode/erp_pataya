@@ -64,7 +64,7 @@ class SalesInvoiceController extends Controller {
                                 ? collect()
                                 : Account::whereIn('root_type', ['income', 'asset'])
                                     ->whereIn('account_type', ['income_account', 'receivable'])
-                                    ->where('is_contra', false)
+                                    ->orderBy('id')
                                     ->get();
 
                             $rentalDurationService = app(RentalDurationService::class);
@@ -124,19 +124,14 @@ class SalesInvoiceController extends Controller {
                             if ($salesInvoiceTarget) {
                                 return redirect()->route('salesInvoices.show', $salesInvoiceTarget);
                             }
-                            $account = $accountsManagedByEngine
-                                ? null
-                                : Account::where('root_type', 'income')
-                                    ->where('account_type', 'income_account')
-                                    ->where('is_contra', true)
-                                    ->first();
                             $salesInvoice->loadRelations();
+                            // Retur tanpa default akun pendapatan (kolom flag akun kontra dihapus, Task 14.2): pengguna memilih saat bukan `on`.
                             $defaultData = [
                                 'return_against'  => $salesInvoice,
                                 'is_return'       => true,
                                 'date'            => now(),
                                 'sales_order'     => $salesInvoice->salesOrder,
-                                'income_account'  => $account,
+                                'income_account'  => null,
                                 'debit_account'   => $accountsManagedByEngine ? null : $salesInvoice->debitAccount,
                                 'customer'        => $salesInvoice?->customer,
                                 'customer_branch' => $salesInvoice?->customerBranch,

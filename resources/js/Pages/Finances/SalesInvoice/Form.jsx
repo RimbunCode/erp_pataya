@@ -67,7 +67,6 @@ export default function Form() {
       account_type: {
         in: ["income_account", "receivable"],
       },
-      is_contra: false,
     });
     const incomeAccount = accounts.filter(
       (x) => x.account_type == "income_account",
@@ -122,24 +121,6 @@ export default function Form() {
     defaults.payment_term_template,
     setData,
   ]);
-  const getContraIncomeAccount = (isContra) => {
-    if (accountsManaged) return;
-    getDataModel(
-      "App\\Models\\Finances\\Account",
-      {
-        root_type: "income",
-        account_type: "income_account",
-        is_contra: isContra,
-      },
-      { limit: 1 },
-    ).then((res) => {
-      console.log(res);
-      setData((prev) => ({
-        ...prev,
-        income_account: res,
-      }));
-    });
-  };
   // basic_amount adalah generated column KOTOR (quantity * price), belum dikurangi
   // diskon dokumen -- net_amount (label "Jumlah Dasar") harus mengurangi
   // discount_amount per item (ditulis backend saat create/update, lihat
@@ -696,10 +677,11 @@ export default function Form() {
               checked={data.is_return}
               valueBefore={dataBefore?.is_return}
               onCheckedChange={(val) => {
-                getContraIncomeAccount(val);
                 setData((prev) => ({
                   ...prev,
                   is_return: val,
+                  // Tanpa default akun retur (flag akun kontra dihapus, Task 14.2).
+                  income_account: val ? undefined : prev.income_account,
                   sales_order: undefined,
                   customer: undefined,
                   customer_branch: undefined,
@@ -833,7 +815,6 @@ export default function Form() {
                 filters={{
                   root_type: "income",
                   account_type: "income_account",
-                  is_contra: !!data?.is_return,
                   is_group: false,
                 }}
                 placeholder={t(

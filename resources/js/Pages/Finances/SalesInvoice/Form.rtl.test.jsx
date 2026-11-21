@@ -19,13 +19,12 @@ let conditionalDefaultsMode = false;
 //   - Memo kalkulasi net_amount/dpp_amount/tax_amount/amount dari data.items.
 //   - useEffect rekalkulasi price item rental "running" saat rental_cutoff_date
 //     berubah (item "completed" tidak ikut).
-//   - defaultValue() (getContraIncomeAccount tidak dites krn dipanggil manual
-//     dari handler is_return, sedangkan defaultValue() dipanggil useFormPage
+//   - defaultValue() (dipanggil useFormPage
 //     internal -- yang terakhir ini sudah dicover test lain, cukup pastikan
 //     Form tidak crash saat useFormPage dipanggil dgn defaultValue callback).
 //   - Transform data saat memilih sales_order (checkout SO -> item invoice).
-//   - Transform reset saat toggle is_return checkbox + panggilan
-//     getContraIncomeAccount (income_account contra).
+//   - Transform reset saat toggle is_return checkbox (income_account dikosongkan,
+//     tanpa pencarian akun retur).
 //   - Transform data saat memilih return_against (retur invoice lama).
 //   - mapItem callback yang diteruskan ke FormTable (alokasi diskon per-baris
 //     via allocateDiscount dgn DPP_FACTOR 11/12 -- port dari
@@ -856,7 +855,7 @@ describe("SalesInvoice Form", () => {
   });
 
   describe("toggle is_return", () => {
-    it("mencentang is_return mereset field terkait SO/customer/items dan memanggil getContraIncomeAccount (is_contra=true)", async () => {
+    it("mencentang is_return mereset field terkait SO/customer/items dan income_account tanpa memanggil getDataModel", async () => {
       const user = userEvent.setup({ delay: null });
       const setData = vi.fn();
       formPageState = makeFormPageState({
@@ -865,35 +864,22 @@ describe("SalesInvoice Form", () => {
           items: [{ id: 1 }],
           sales_order: { id: 1 },
           customer: { id: 1 },
+          income_account: { id: 5 },
         },
       });
-      getDataModelMock.mockResolvedValue({ id: 77, is_contra: true });
 
       render(<Form />);
+      getDataModelMock.mockClear();
       const checkbox = screen.getByRole("forminput", {
         name: /finances.salesInvoice.columns.is_return/,
       });
       await user.click(checkbox);
 
-      // getContraIncomeAccount dipanggil dgn is_contra=true (checkbox baru
-      // dicentang) -- getDataModel dipanggil dgn filter is_contra: true.
-      expect(getDataModelMock).toHaveBeenCalledWith(
-        "App\\Models\\Finances\\Account",
-        expect.objectContaining({
-          root_type: "income",
-          account_type: "income_account",
-          is_contra: true,
-        }),
-        expect.objectContaining({ limit: 1 }),
-      );
+      // Tidak ada lagi pencarian akun retur (flag akun kontra dihapus, Task
+      // 14.2): toggle is_return murni functional updater sinkron.
+      expect(getDataModelMock).not.toHaveBeenCalled();
 
       expect(setData).toHaveBeenCalled();
-      // Form.jsx memanggil setData dua kali secara independen saat toggle
-      // is_return: (1) reset field sinkron via functional updater, (2)
-      // getContraIncomeAccount().then() mengisi income_account secara async
-      // setelah getDataModel resolve -- urutan keduanya di mock.calls tidak
-      // dijamin, jadi cari pemanggilan functional updater yang menghasilkan
-      // is_return alih-alih mengasumsikan salah satu index tetap.
       const resetCall = setData.mock.calls
         .map(([arg]) =>
           typeof arg === "function" ? arg(formPageState.data) : arg,
@@ -904,6 +890,8 @@ describe("SalesInvoice Form", () => {
       expect(resetCall.sales_order).toBeUndefined();
       expect(resetCall.customer).toBeUndefined();
       expect(resetCall.items).toEqual([]);
+      // Retur tidak membawa default akun pendapatan normal.
+      expect(resetCall.income_account).toBeUndefined();
     });
   });
 
