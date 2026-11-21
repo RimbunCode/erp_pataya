@@ -7,7 +7,7 @@ Urutan: fondasi data dan resolver (1–3), kontrak + rule + service + gateway de
 **Prasyarat**: Fase 1 selesai (JournalService, adapter, backfill, reconcile hijau); characterization Fase 0 + test Fase 1 hijau; service setting Finances dari spec `module-settings-foundation` tersedia (D-25). Branch baru dari `origin/feat/finance-engine` terbaru (BR-6, PRD Bagian 10).
 
 **Aturan eksekusi**:
-- Task 10 (sakelar eksekusi) dan Task 11 (reversal saat cancel) **GATED**: kerjakan hanya setelah D-1 / D-13 terjawab.
+- Task 10 (sakelar eksekusi) **GATED**: kerjakan hanya setelah D-1 terjawab. Task 11 (reversal saat cancel) **dikeluarkan**: D-13 diputuskan 2026-11-21 (pemilik produk) untuk mempertahankan soft-delete.
 - Task 13 (posting diskon) **GATED**: kerjakan hanya setelah Q-P2-5 terjawab akuntan; mengubah bentuk jurnal sehingga hanya aktif lewat tanggal cutover.
 - Task 12 dikerjakan per jenis dokumen **setelah** jenis itu berada pada mode `on`; field akun pada form tidak dihapus sebelum itu.
 - Perpindahan ke mode `on` adalah **keputusan pemilik produk**, bukan bagian dari menyelesaikan task; task hanya menyiapkan dan membuktikan parity.
@@ -72,10 +72,10 @@ Urutan: fondasi data dan resolver (1–3), kontrak + rule + service + gateway de
   - [x] 5.2 `ParityComparator` (kanonisasi per `purpose`, `match/rounding/config_diff/mismatch`) + test unit
     - _Requirements: 6.5–6.6_
   - [x] 5.3 `PostingGateway` (guard cancel semua mode; `off/shadow/on`; engine error di `shadow` ditelan) 
-    - _Requirements: 6.2–6.4, 10.5, 10.6_
+    - _Requirements: 6.2–6.4, 10.2, 10.3_
   - [x]* 5.4 Write tests gateway
     - **P-5** mode aman; **P-6** guard cancel pada tiga mode; `GlPostingStatus` menjadi `skipped` bila pending
-    - **Validates: Requirements 6.2–6.4, 10.5, 10.6**
+    - **Validates: Requirements 6.2–6.4, 10.2, 10.3**
   - [x] 5.5 Perintah `finance:parity-report {--type=} {--since=}` dan `finance:prune-parity-logs`
     - _Requirements: 6.7, 11.4_
   - [x] 5.6 Checkpoint - jalankan semua test Fase 0–2 pada mode `off` (2026-11-14, setelah Sprint D ter-merge: `tests/Feature/Finances` 770 OK, 1 dilewati; `tests/Feature/Asset` 170 OK; `tests/Unit` 1130 test dengan 1 kegagalan `SignatureImageServiceTest::large_4000x4000_image_completes_under_three_seconds`, uji waktu pemrosesan gambar tanda tangan di luar cakupan Posting Engine, bergantung pada kecepatan mesin lokal)
@@ -125,16 +125,8 @@ Urutan: fondasi data dan resolver (1–3), kontrak + rule + service + gateway de
   - [ ]* 10.2 Write tests: kegagalan inline membatalkan transaksi dokumen; sakelar dapat dibalik tanpa deploy
     - **Validates: Requirements 9.3, 9.5**
 
-- [ ] 11. **(GATED D-13)** Pembatalan sebagai reversal
-  - [ ] 11.1 `DocumentCancellationLedgerService` + setting `finance_cancel_mode` (`soft_delete` default / `reversal`); ubah hook `Submitable` mendelegasikan bagian GL (SLE tetap di-soft-delete)
-    - _Requirements: 10.2–10.4_
-  - [ ] 11.2 Penanganan periode tertutup (reversal pada periode terbuka; tolak bila tak ada) dan pesan pengguna
-    - _Requirements: 10.7_
-  - [ ]* 11.3 Write tests
-    - **P-7** reversal bersih untuk Sales Invoice, Payment Entry, Stock Entry; kedua mode; cancel sebelum posting queued → `skipped`
-    - **Validates: Requirements 10.2–10.6**
-  - [ ] 11.4 Audit laporan yang memfilter GL aktif/`deleted_at` untuk dampak reversal (D-13 konsekuensi 3); catat hasil di decision log
-    - _Requirements: 10.2_
+- [-] 11. **(DIKELUARKAN, D-13 diputuskan 2026-11-21: pembatalan menghapus jurnal)** Pembatalan sebagai reversal
+  - _Diputuskan pemilik produk 2026-11-21: "jika dibatalkan maka dihapus", semua jenis dokumen; soft-delete GL dipertahankan dan reversal tidak dibangun. Sub-task 11.1 s.d. 11.4 (service reversal, `finance_cancel_mode`, periode tertutup, audit laporan, P-7) tidak dikerjakan. Guard F-16 dan status `skipped` sudah dikerjakan di Task 5.3/5.4 (Requirement 10.2–10.3)._
 
 - [ ] 12. Akun tanpa input pengguna dan aturan bersyarat (per jenis dokumen yang sudah `on`)
   - [ ] 12.1 Migration `posted_account_id` pada tabel item terkait; engine menulis balik akun yang dipakai ke kolom catatan (header dan baris) dalam transaksi posting
@@ -166,7 +158,7 @@ Urutan: fondasi data dan resolver (1–3), kontrak + rule + service + gateway de
   - [ ] 14.2 **(Setelah semua jenis `on`, Task 12.3 selesai, dan Fase 5 tidak lagi merujuknya)** hapus kolom `accounts.is_contra`: migrasi reversible, `Account` (cast + `configColumns`), `AccountSeeder`, terjemahan `lang/id` dan `lang/en`, sisa rujukan di controller/form/test; tambah test bahwa laporan/pemilihan akun tidak bergantung padanya
     - _Requirements: 12.8, 13.8_
   - [ ] 14.3 Checkpoint akhir: `php artisan test --compact tests/Feature/Finances tests/Feature/Asset tests/Unit`, test frontend yang disentuh; setelah semua task: `vendor/bin/pint --dirty --format agent`, `npm run lint`, `graphify update .`
-    - Exit criteria: parity 100% terbukti untuk jenis yang `on`; sisa legacy fallback = 0 untuk jenis tersebut; keputusan D-1/D-13 terdokumentasi
+    - Exit criteria: parity 100% terbukti untuk jenis yang `on`; sisa legacy fallback = 0 untuk jenis tersebut; keputusan D-1 dan D-13 (diputuskan 2026-11-21: soft-delete dipertahankan) terdokumentasi
     - Ensure all tests pass, ask the user if questions arise.
 
 ## Catatan

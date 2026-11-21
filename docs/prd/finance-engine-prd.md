@@ -165,7 +165,7 @@ Status: **DECIDED** = sudah ditetapkan (mis. dari spec terdahulu); **PROPOSED** 
 | D-10 | IFRS 15/16, impairment di luar cakupan | DECIDED (di luar cakupan) | — |
 | D-11 | Standar akuntansi acuan (SAK/PSAK vs IFRS penuh) | **DITUNDA (2026-11-03)**, menunggu akuntan (Q2) | 0 |
 | D-12 | Penanganan pajak dalam jurnal: PPN Masukan/Keluaran sebagai akun terpisah, PPh sebagai utang/piutang pajak | PROPOSED, validasi akuntan | 3 |
-| D-13 | Perilaku pembatalan dokumen: ganti soft-delete GL (perilaku sekarang) dengan jurnal pembalik | **PENDING** (mengubah perilaku yang terlihat pengguna) | 2 |
+| D-13 | Perilaku pembatalan dokumen: ganti soft-delete GL (perilaku sekarang) dengan jurnal pembalik | **DECIDED 2026-11-21: opsi A**, pembatalan menghapus jurnal (soft-delete dipertahankan) | 2 |
 | D-14 | Jurnal manual (Journal Voucher) oleh pengguna: masuk Fase 1 sebagai task opsional | **DECIDED** (2026-11-04) | 1 |
 | D-15 | Konversi kolom hitung item invoice (generated → kolom biasa) dan penyerapan Requirement 4 spec `dpp-discount-and-tax-compliance` oleh Fase 3 | **DISETUJUI 2026-11-15 (pemilik produk; belum ada data asli, semua data uji)** | 3 (Bagian B) |
 | D-16 | Kebijakan tipe kurs: invoice/pembayaran (`transaction`), akhir periode (`closing`), kurs pajak | **PENDING** (akuntan) | 4 |
@@ -198,7 +198,9 @@ Status: **DECIDED** = sudah ditetapkan (mis. dari spec terdahulu); **PROPOSED** 
 
 **Keputusan pemilik produk (2026-11-03): ditunda.** Alasan: keputusan baru mengikat pada Fase 2, sedangkan Fase 1 tidak terblokir oleh D-1. Rekomendasi tetap opsi B; keputusan wajib sebelum Fase 2.
 
-### D-13 — Perilaku pembatalan (PENDING)
+### D-13 — Perilaku pembatalan (DECIDED 2026-11-21)
+
+**Keputusan pemilik produk (2026-11-21): opsi A.** "Jika dibatalkan maka dihapus": pembatalan dokumen menghapus jurnalnya (soft-delete GL, jurnal `voided`) untuk semua jenis dokumen; jurnal pembalik tidak dibangun. Konsekuensi yang diterima: opsi A bertentangan dengan tujuan G1/G2 (immutability) sebagaimana tertulis di bawah, jejak pembatalan hanya lewat status `voided` dan audit log, dan angka periode tertutup dapat berubah bila dokumen di dalamnya dibatalkan (penegakan lewat penutupan periode Fase 6, bukan lewat reversal). FR-P3 bagian reversal dan Requirement 10/Task 11 spec Fase 2 dikeluarkan; guard balapan F-16 tetap berlaku. Dikonfirmasi di staging pada uji mode `on` (Payment Entry).
 
 **Konteks.** Saat ini cancel men-soft-delete GL (F-04). Dengan prinsip immutability, pembatalan seharusnya menghasilkan jurnal pembalik yang tertaut. Konsekuensi yang terlihat pengguna: (1) halaman General Ledger menampilkan jurnal asli *dan* pembalik (net nol), bukan baris yang menghilang; (2) pembatalan dokumen pada periode yang sudah ditutup tidak lagi mengubah angka periode itu — pembalik diposting pada tanggal pembatalan (periode terbuka); (3) laporan lama yang memfilter `deleted_at IS NULL` harus diaudit. Data lama yang sudah soft-deleted tetap apa adanya (tidak dibackfill menjadi jurnal).
 
@@ -262,7 +264,7 @@ ID bersifat ringkas; kriteria penerimaan terperinci ada di `requirements.md` tia
 
 - **FR-P1** Setiap jenis dokumen memiliki *posting rule* yang menghasilkan baris jurnal dari `PostingContext`.
 - **FR-P2** Akun ditentukan oleh *account role* (mis. `receivable`, `revenue`, `tax_output`, `stock`) melalui rantai tetap: akun master (metode pembayaran, kategori aset) → aturan akun bersyarat (jenis dokumen × varian retur × tipe/kategori/status stok barang) → akun default profil global → *legacy fallback* selama transisi.
-- **FR-P3** Pembatalan/amend dokumen yang sudah diposting memicu reversal otomatis, menggantikan soft-delete GL di hook `Submitable` (bergantung pada D-13), dan menangani balapan cancel vs posting asinkron (F-16): job posting yang menemukan dokumen `canceled` tidak memposting.
+- **FR-P3** ~~Pembatalan/amend dokumen yang sudah diposting memicu reversal otomatis, menggantikan soft-delete GL di hook `Submitable`~~ (dikeluarkan: D-13 diputuskan 2026-11-21, pembatalan menghapus jurnal) dan menangani balapan cancel vs posting asinkron (F-16): job posting yang menemukan dokumen `canceled` tidak memposting.
 - **FR-P4** Migrasi per jenis dokumen dilindungi feature flag dan *parity test* terhadap perilaku lama.
 - **FR-P5** Dokumen transaksi tidak menerima input akun; kolom akun di DB dipertahankan dan diisi engine sebagai catatan audit (per baris untuk peran peka-barang). Pengecualian: baris Jurnal Manual.
 - **FR-P6** Diskon penjualan/pembelian dapat diposting ke akun diskon tersendiri, aktif per jenis dokumen lewat tanggal cutover (GATED).

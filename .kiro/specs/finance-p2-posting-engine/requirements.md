@@ -4,11 +4,11 @@
 
 Fase 2 dari 7 fase program **Finance Engine** (lihat `docs/prd/finance-engine-prd.md`). Fase 1 membuat semua penulisan GL melewati `JournalService`, tetapi *pemilihan akun* dan *bentuk jurnal* masih tersebar di 10 listener/service dan sebagian memakai pencarian rapuh `where('account_type', …)->latest()->first()` (F-06). Fase ini memusatkan keduanya ke **Posting Engine**: modul bisnis menyerahkan `PostingContext` (angka bernama + sumber), engine memutuskan akun lewat **peran akun (account role)** yang di-resolve dari **Posting Profile** berversi, lalu menghasilkan jurnal.
 
-Selain itu fase ini memperbaiki perilaku pembatalan: dari soft-delete GL (F-04) menjadi jurnal pembalik, dan menutup balapan cancel-vs-posting-asinkron (F-16) — keduanya bergantung pada keputusan **D-13** (PENDING).
+Selain itu fase ini memperbaiki perilaku pembatalan: menutup balapan cancel-vs-posting-asinkron (F-16). Perilaku pembatalan GL tetap soft-delete (F-04 bagian GL tidak diubah menjadi jurnal pembalik): **D-13 diputuskan 2026-11-21 oleh pemilik produk, "jika dibatalkan maka dihapus"**.
 
 **Prinsip fase:** *parity dulu, perubahan kemudian.* Setiap jenis dokumen dimigrasikan di balik feature flag tiga mode (`off` → `shadow` → `on`), dan hasil engine harus identik dengan jalur lama (jurnal Fase 1) sebelum diaktifkan. Posting Profile default dibangkitkan dari COA yang ada sehingga hasilnya sama dengan pencarian `account_type` sekarang.
 
-**Prasyarat:** Fase 1 selesai (JournalService, adapter, backfill hijau) dan spec `module-settings-foundation` menyediakan tempat penyimpanan setting Finances (D-25). D-1 (mode posting) dan D-13 (perilaku cancel) terjawab — atau bagian yang bergantung padanya (Requirement 9 dan 10) ditunda tanpa memblokir sisanya.
+**Prasyarat:** Fase 1 selesai (JournalService, adapter, backfill hijau) dan spec `module-settings-foundation` menyediakan tempat penyimpanan setting Finances (D-25). D-1 (mode posting) terjawab — atau bagian yang bergantung padanya (Requirement 9) ditunda tanpa memblokir sisanya. D-13 (perilaku cancel) terjawab 2026-11-21: soft-delete dipertahankan.
 
 **Keputusan 2026-10-18 yang membentuk fase ini** (lihat PRD D-4, D-25, D-26, D-27):
 
@@ -158,20 +158,17 @@ Selain itu fase ini memperbaiki perilaku pembatalan: dari soft-delete GL (F-04) 
 4. THE jalur `inline` SHALL tidak dipakai untuk jenis dokumen yang terjalin dengan mutasi Stock/SLE (Purchase Receipt, Delivery Note, Purchase Invoice cabang stok) kecuali ada keputusan eksplisit — alasan keputusan Fase 3 event-listener (`event-listener-migration-phase-3`).
 5. THE perubahan sakelar SHALL tercatat dan dapat dibalik tanpa deploy.
 
-### Requirement 10: Pembatalan sebagai reversal (GATED — bergantung D-13)
+### Requirement 10: Pembatalan dokumen (D-13 diputuskan: opsi A, soft-delete dipertahankan)
 
-**User Story:** Sebagai auditor, saya ingin pembatalan dokumen meninggalkan jejak jurnal pembalik, so that riwayat tidak hilang dan periode lampau tidak berubah diam-diam.
+**User Story:** Sebagai staf keuangan, saya ingin pembatalan dokumen menghapus jurnalnya, so that buku besar hanya memuat dokumen yang berlaku.
+
+_Diputuskan 2026-11-21 (pemilik produk, D-13): "jika dibatalkan maka dihapus", berlaku untuk semua jenis dokumen. Opsi A (pertahankan soft-delete GL dan tandai jurnal `voided`) dipilih; opsi B (jurnal pembalik) tidak dipakai. Dikonfirmasi di staging pada uji mode `on` Payment Entry (JV-0035 hilang dari Buku Besar setelah PE dibatalkan). Butir 10.1 s.d. 10.4 dan 10.7 versi sebelumnya (bentuk reversal) dikeluarkan dari fase ini; yang berlaku hanya butir di bawah._
 
 #### Acceptance Criteria
 
-1. IF D-13 diputuskan opsi A (pertahankan soft-delete), THEN Requirement 10 SHALL dikeluarkan dari fase ini kecuali butir 10.5 (guard F-16).
-2. IF D-13 diputuskan opsi B, THEN THE sistem SHALL menyediakan `DocumentCancellationLedgerService::handle(Model $document)` yang untuk setiap jurnal `posted` bersumber dokumen tersebut memanggil `JournalReversalService::reverse()` dengan tanggal = tanggal pembatalan (atau hari ini bila periode asal tertutup).
-3. THE hook `saving` pada `Submitable` SHALL memanggil service tersebut menggantikan update massal soft-delete GL, dikendalikan setting `finance_cancel_mode` (`soft_delete` default / `reversal`), sehingga perilaku dapat dibalik tanpa deploy; soft-delete **SLE** tetap berjalan (bukan bagian Finance Engine).
-4. THE status `voided` dari Fase 1 SHALL tidak lagi ditetapkan pada mode `reversal`; jurnal lama berstatus `voided` tetap dipertahankan sebagai riwayat.
-5. WHEN `PostingService::post()` atau listener posting dijalankan untuk dokumen yang sudah `canceled` (balapan F-16), THE posting SHALL dilewati (Requirement 5.5) pada **semua** mode, termasuk `off`, `soft_delete`, dan jalur lama (diterima pemilik produk 2026-11-14, Q-P2-18; menjadi pengecualian Requirement 6.2 dan 11.5).
-6. WHEN dokumen dibatalkan sebelum job posting berjalan (`GlPostingStatus=pending`), THE sistem SHALL menandai status posting `skipped` agar tidak muncul sebagai kegagalan di halaman monitoring. `PostingGateway::post()` dan `PostingService::post()` SHALL mengembalikan `PostingOutcome` (`posted`/`already_posted`/`skipped`, daftar jurnal; pada mode `off`/`shadow` status `posted` tanpa jurnal karena jalur lama memegang jurnalnya); listener SHALL (a) tidak menimpa `GlPostingStatus` `skipped` menjadi `posted`, (b) tidak menerapkan efek samping non-idempoten saat `already_posted`, dan (c) memakai jurnal hasil untuk kebutuhan turunan seperti `journal_entry_for_scrap_id` (Q-P2-12, disetujui pemilik produk 2026-11-12).
-7. THE pembatalan dokumen pada periode yang ditutup SHALL menghasilkan reversal pada periode terbuka berikutnya dan menampilkan pemberitahuan kepada pengguna; bila penegakan periode aktif dan tidak ada periode terbuka, pembatalan ditolak dengan pesan jelas.
-
+1. THE pembatalan dokumen SHALL tetap men-soft-delete baris GL dokumen dan menandai jurnal sumbernya `voided` (perilaku Fase 1/legacy); Fase 2 SHALL TIDAK menambah `DocumentCancellationLedgerService` maupun setting `finance_cancel_mode`, dan hook `Submitable` SHALL TIDAK diubah untuk keperluan ini.
+2. WHEN `PostingService::post()` atau listener posting dijalankan untuk dokumen yang sudah `canceled` (balapan F-16), THE posting SHALL dilewati (Requirement 5.5) pada **semua** mode, termasuk `off`, `soft_delete`, dan jalur lama (diterima pemilik produk 2026-11-14, Q-P2-18; menjadi pengecualian Requirement 6.2 dan 11.5).
+3. WHEN dokumen dibatalkan sebelum job posting berjalan (`GlPostingStatus=pending`), THE sistem SHALL menandai status posting `skipped` agar tidak muncul sebagai kegagalan di halaman monitoring. `PostingGateway::post()` dan `PostingService::post()` SHALL mengembalikan `PostingOutcome` (`posted`/`already_posted`/`skipped`, daftar jurnal; pada mode `off`/`shadow` status `posted` tanpa jurnal karena jalur lama memegang jurnalnya); listener SHALL (a) tidak menimpa `GlPostingStatus` `skipped` menjadi `posted`, (b) tidak menerapkan efek samping non-idempoten saat `already_posted`, dan (c) memakai jurnal hasil untuk kebutuhan turunan seperti `journal_entry_for_scrap_id` (Q-P2-12, disetujui pemilik produk 2026-11-12).
 ### Requirement 11: Non-fungsional
 
 #### Acceptance Criteria
@@ -180,7 +177,7 @@ Selain itu fase ini memperbaiki perilaku pembatalan: dari soft-delete GL (F-04) 
 2. THE seluruh tabel dan model baru SHALL mendeklarasikan kolom eksplisit di migration dan diuji terhadap `initPermissions()` (F-12).
 3. THE izin baru: `PostingProfile` (`select`, `read`, `write`, `activate`), `PostingParityLog` (`select`, `read`), dan izin ubah-mode (`switch_posting_mode`). Finance Officer (profil `operator`) hanya `select`/`read` pada `PostingProfile` (keputusan pemilik produk 2026-11-13, Q-P2-15); endpoint lookup generik memeriksa `select` untuk model opt-in `PostingProfile` dan `PostingParityLog` (Q-P2-17).
 4. THE seluruh perubahan SHALL reversible: mode kembali ke `off` mengembalikan jalur lama tanpa kehilangan data; migration baru aditif dengan `down()`.
-5. THE characterization Fase 0 dan test Fase 1 SHALL tetap hijau pada mode `off`, `shadow`, dan `on`, dengan pengecualian test yang mengunci bug F-16 (dokumen `canceled` diposting oleh listener queued): test itu kini mengunci perbaikannya karena guard cancel berlaku pada semua mode (Requirement 10.5; Q-P2-18).
+5. THE characterization Fase 0 dan test Fase 1 SHALL tetap hijau pada mode `off`, `shadow`, dan `on`, dengan pengecualian test yang mengunci bug F-16 (dokumen `canceled` diposting oleh listener queued): test itu kini mengunci perbaikannya karena guard cancel berlaku pada semua mode (Requirement 10.2; Q-P2-18).
 
 ### Requirement 12: Aturan akun bersyarat dan varian retur
 
@@ -231,7 +228,7 @@ Selain itu fase ini memperbaiki perilaku pembatalan: dari soft-delete GL (F-04) 
 | ID | Pertanyaan | Dampak |
 |---|---|---|
 | D-1 | Mode posting (opsi A/B/C) | Requirement 9 |
-| D-13 | Perilaku pembatalan (soft-delete vs reversal) | Requirement 10 |
+| D-13 | **Diputuskan 2026-11-21 (pemilik produk):** pembatalan menghapus jurnal (opsi A, soft-delete); reversal tidak dipakai, semua jenis dokumen | Requirement 10 (hanya guard F-16 dan status `skipped` yang tersisa) |
 | Q-P2-1 | Siapa yang menyetujui perpindahan mode `on` per jenis dokumen? | Requirement 6.8, 7.2 |
 | Q-P2-2 | Apakah COA saat ini sudah memisah akun PPN Masukan/Keluaran (seeder hanya memiliki `account_type = tax`)? Menentukan peta peran `tax_*` di profil default | Requirement 1, Fase 3 |
 | Q-P2-3 | Apakah F-10 (Payment kumulatif) diperbaiki saat migrasi Payment atau sebagai hotfix terpisah? | Requirement 7 |
@@ -248,13 +245,13 @@ Selain itu fase ini memperbaiki perilaku pembatalan: dari soft-delete GL (F-04) 
 | Q-P2-9 | Klarifikasi matcher (lintasan retur ketat, pemutus seri kunci isi aturan)? **Dijawab 2026-11-12: disetujui** (Req 12.2-12.3 diubah) | Requirement 12.2-12.3 |
 | Q-P2-10 | Salinan versi bersambung dengan profil lama berbatas akhir? **Dijawab 2026-11-12: ditolak bila tidak bersambung** (Req 2.4 diubah) | Requirement 2.4 |
 | Q-P2-11 | `retire()` yang meninggalkan celah: tolak atau peringatan? **Dijawab 2026-11-12: peringatan saja** (Req 2.4 diubah) | Requirement 2.4 |
-| Q-P2-12 | Gateway/service mengembalikan void atau hasil terstruktur? **Disetujui pemilik produk 2026-11-12: `PostingOutcome`** (Req 5.1, 5.4, 10.6 diubah) | Requirement 5, 10.6 |
+| Q-P2-12 | Gateway/service mengembalikan void atau hasil terstruktur? **Disetujui pemilik produk 2026-11-12: `PostingOutcome`** (Req 5.1, 5.4, 10.3 diubah) | Requirement 5, 10.3 |
 | Q-P2-13 | Guard cancel untuk dokumen yang statusnya ada di dokumen lain (disposal aset)? **Disetujui 2026-11-12: `PostingContext::guardDocument` opsional, default sumber** (Req 5.5 diubah) | Requirement 5.5 |
 | Q-P2-14 | Penjadwalan `finance:prune-parity-logs`? **Disetujui 2026-11-12: harian 03:30 (Asia/Jakarta), `withoutOverlapping`** (Req 11.4 terpenuhi) | Requirement 11.4 |
 | Q-P2-15 | Finance Officer pada Posting Profile? **Dijawab pemilik produk 2026-11-13: baca-saja** (Req 11.3 diubah; `AdministratorSeeder`) | Requirement 11.3 |
 | Q-P2-16 | Salin versi dari profil `draft`? **Dijawab 2026-11-13: ditolak di service** (Req 2.4, 8.2 diubah) | Requirement 2.4, 8.2 |
 | Q-P2-17 | Guard `select` lookup generik default atau opt-in? **Dijawab 2026-11-13: tetap opt-in** (`PostingProfile`, `PostingParityLog`; diperluas 2026-11-14 ke model anak `PostingProfileAccount` dan `PostingProfileRule` yang mengikuti izin `select` `PostingProfile`; audit model lain sprint terpisah) | Requirement 11.3 |
-| Q-P2-18 | Guard cancel F-16 pada semua mode termasuk `off`? **Disetujui pemilik produk 2026-11-14: diterima** (Req 6.2, 10.5, 11.5 diubah; alasan: menutup balapan F-16 tanpa menunggu `on`) | Requirement 6.2, 10.5, 11.5 |
+| Q-P2-18 | Guard cancel F-16 pada semua mode termasuk `off`? **Disetujui pemilik produk 2026-11-14: diterima** (Req 6.2, 10.2, 11.5 diubah; alasan: menutup balapan F-16 tanpa menunggu `on`) | Requirement 6.2, 10.2, 11.5 |
 | Q-P2-19 | Req 7.3 vs Task 14.1? **Disetujui pemilik produk 2026-11-14: penegakan P-9 (pola `where('account_type'` hilang, grep CI) berlaku bersamaan dengan Task 14.1**; rollback ke `off` tanpa deploy tetap utuh selama closure ada (Req 7.3 diubah) | Requirement 7.3; Task 9.2, 14.1 |
 | Q-P2-20 | Stock Entry `on`: sumber mutasi `balance_amount`; disposal dilewati? **Disetujui pemilik produk 2026-11-14: mutasi dari jurnal hasil engine** (Req 7.5 diperjelas); disposal yang dilewati tidak mengisi `processed_at` dan baris `failed` lama menjadi `skipped`; pengecualian `off` (Req 6.2): satu baris `GlPostingStatus` per disposal dengan upsert pada jalur sukses, `failed()`, dan `skipped`, dan `failed()` tidak menimpa baris terminal | Requirement 6.2, 7.5; Task 7.1, 8.3 |
 | Q-P2-21 | Error konkurensi pada `shadow`? **Disetujui pemilik produk 2026-11-14: dilempar ulang, diperluas ke error koneksi putus dan level transaksi yang turun; error engine lain tetap ditelan** (Req 6.3 diubah). Hardening gagal tertutup baris invoice tidak disetujui, risiko diterima | Requirement 6.3 |
