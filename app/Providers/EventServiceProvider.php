@@ -2,6 +2,7 @@
 
 namespace App\Providers;
 
+use App\Enums\PostingDocumentType;
 use App\Events\Asset\AssetDepreciationDue;
 use App\Events\Asset\AssetMovementApproved;
 use App\Events\Asset\AssetRentalDeliveryApproved;
@@ -67,7 +68,9 @@ use App\Listeners\Purchase\Request\RecalculatePurchaseRequestReceiveStatus;
 use App\Listeners\Sales\Invoice\UpdateSalesInvoiceReturnStatus;
 use App\Listeners\Sales\Invoice\UpdateSalesOrderItemBilling;
 use App\Listeners\Sales\Order\RecalculateDocumentDeliveryStatus;
+use App\Services\Finances\Posting\PostingExecutionRouter;
 use Illuminate\Foundation\Support\Providers\EventServiceProvider as ServiceProvider;
+use Illuminate\Support\Facades\Event;
 
 class EventServiceProvider extends ServiceProvider {
     /**
@@ -125,32 +128,11 @@ class EventServiceProvider extends ServiceProvider {
         PurchaseInvoiceReturnStatusChanged::class => [
             UpdatePurchaseInvoiceReturnStatus::class,
         ],
-        PurchaseReceiptGeneralLedgerPostingRequested::class => [
-            PostPurchaseReceiptGeneralLedger::class,
-        ],
-        DeliveryNoteGeneralLedgerPostingRequested::class => [
-            PostDeliveryNoteGeneralLedger::class,
-        ],
-        PurchaseInvoiceGeneralLedgerPostingRequested::class => [
-            PostPurchaseInvoiceGeneralLedger::class,
-        ],
-        SalesInvoiceGeneralLedgerPostingRequested::class => [
-            PostSalesInvoiceGeneralLedger::class,
-        ],
         LeadConvertedToCustomer::class => [
             CreateCustomerFromLead::class,
         ],
         FixedAssetItemApproved::class => [
             CreateAssetFromPurchase::class,
-        ],
-        AssetDepreciationDue::class => [
-            PostDepreciationEntry::class,
-        ],
-        AssetScrapped::class => [
-            PostScrapWriteOff::class,
-        ],
-        AssetValueAdjustmentApproved::class => [
-            PostValueAdjustmentEntry::class,
         ],
         AssetMovementApproved::class => [
             UpdateAssetLocationFromMovement::class,
@@ -167,10 +149,29 @@ class EventServiceProvider extends ServiceProvider {
         AssetSoldViaDelivery::class => [
             MarkAssetSoldFromDelivery::class,
         ],
-        AssetSoldViaInvoice::class => [
-            PostAssetDisposalGainLoss::class,
-        ],
     ];
+
+    /**
+     * Listener posting GL didaftarkan lewat `PostingExecutionRouter` (bukan `$listen`): setiap event dijalankan inline
+     * (sinkron, dalam transaksi dokumen) atau diantrekan menurut setting `posting_executions` (Finance Fase 2,
+     * Requirement 9; D-1 opsi C, 2026-11-21). Default `inline`.
+     */
+    public function boot(): void {
+        $routed = [
+            SalesInvoiceGeneralLedgerPostingRequested::class    => [PostSalesInvoiceGeneralLedger::class, PostingDocumentType::SalesInvoice],
+            PurchaseInvoiceGeneralLedgerPostingRequested::class => [PostPurchaseInvoiceGeneralLedger::class, PostingDocumentType::PurchaseInvoice],
+            DeliveryNoteGeneralLedgerPostingRequested::class    => [PostDeliveryNoteGeneralLedger::class, PostingDocumentType::DeliveryNote],
+            PurchaseReceiptGeneralLedgerPostingRequested::class => [PostPurchaseReceiptGeneralLedger::class, PostingDocumentType::PurchaseReceipt],
+            AssetDepreciationDue::class                         => [PostDepreciationEntry::class, PostingDocumentType::AssetDepreciation],
+            AssetScrapped::class                                => [PostScrapWriteOff::class, PostingDocumentType::AssetScrap],
+            AssetValueAdjustmentApproved::class                 => [PostValueAdjustmentEntry::class, PostingDocumentType::AssetValueAdjustment],
+            AssetSoldViaInvoice::class                          => [PostAssetDisposalGainLoss::class, PostingDocumentType::AssetDisposal],
+        ];
+
+        foreach ($routed as $event => [$listener, $type]) {
+            Event::listen($event, fn (object $payload) => app(PostingExecutionRouter::class)->route($listener, $type, $payload));
+        }
+    }
 
     /**
      * Nonaktifkan auto-discovery listener dari app/Listeners/ untuk instance

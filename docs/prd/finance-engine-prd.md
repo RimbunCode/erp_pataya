@@ -153,7 +153,7 @@ Status: **DECIDED** = sudah ditetapkan (mis. dari spec terdahulu); **PROPOSED** 
 
 | ID | Keputusan | Status | Fase |
 |---|---|---|---|
-| D-1 | Mode posting: antrian vs sinkron | **DITUNDA (2026-11-03)**; rekomendasi tetap B | 2 |
+| D-1 | Mode posting: antrian vs sinkron | **DECIDED 2026-11-21: opsi C** (semua sinkron; sakelar per jenis tetap ada) | 2 |
 | D-2 | Perluas `general_ledgers` (tambah `journal_id`) alih-alih tabel jurnal baru | PROPOSED | 1 |
 | D-3 | `decimal(20,4)` untuk tabel jurnal; pembulatan HALF_UP di batas posting | **DECIDED** (2026-11-04) | 1 |
 | D-4 | Satu perusahaan + dimensi cabang (multi-company di luar cakupan); profil dan setting bersifat global | **DECIDED** (2026-10-18) | 1 |
@@ -182,7 +182,7 @@ Status: **DECIDED** = sudah ditetapkan (mis. dari spec terdahulu); **PROPOSED** 
 | D-27 | Posting diskon ke akun terpisah, aktif lewat tanggal cutover per jenis dokumen; pembulatan di Fase 3, selisih kurs di Fase 4/6 | PROPOSED (perlakuan diskon pembelian stok menunggu akuntan, Q-P2-5) | 2 |
 | D-28 | `TaxEngine` tidak mengasumsikan satu pajak per baris (`TaxInput` per pasangan baris–pajak); multi-pajak per baris dokumen (pola Odoo) menjadi spec masa depan `multi-tax-per-line` | PROPOSED | 3 |
 
-### D-1 — Mode posting (DITUNDA 2026-11-03)
+### D-1 — Mode posting (DECIDED 2026-11-21)
 
 **Konteks.** Spec Fase 3 event-listener memindahkan GL ke queue karena posting GL bercampur dengan mutasi stok/SLE, dan menetapkannya sebagai keputusan kunci. Konsekuensinya: dokumen dapat berstatus `UNPAID`/`APPROVED` sementara GL-nya masih `pending`/`failed`. Payment Entry masih sinkron (F-05).
 
@@ -197,6 +197,8 @@ Status: **DECIDED** = sudah ditetapkan (mis. dari spec terdahulu); **PROPOSED** 
 **Catatan.** Invarian "jurnal seimbang" ditegakkan di `JournalService` dan **tidak bergantung** pada pilihan ini, sehingga Fase 1 tidak terblokir. Keputusan baru mengikat pada Fase 2.
 
 **Keputusan pemilik produk (2026-11-03): ditunda.** Alasan: keputusan baru mengikat pada Fase 2, sedangkan Fase 1 tidak terblokir oleh D-1. Rekomendasi tetap opsi B; keputusan wajib sebelum Fase 2.
+
+**Keputusan pemilik produk (2026-11-21): opsi C, semua dokumen sinkron.** Posting GL berjalan inline dalam transaksi dokumen untuk semua jenis; kegagalan posting membatalkan dokumen. Risiko pada alur stok/FIFO yang terjalin diterima. Antrean dipertahankan sebagai sakelar per jenis dokumen (default inline). Payment Entry dan Stock Entry memang sudah sinkron.
 
 ### D-13 — Perilaku pembatalan (DECIDED 2026-11-21)
 
