@@ -7,7 +7,7 @@ Fase 2 memusatkan *keputusan akuntansi* (akun mana, jurnal apa) ke satu engine, 
 - **Account role + Posting Profile berversi** menggantikan pencarian `account_type` yang tersebar (F-06). Profil default dibangkitkan dari COA saat ini → parity. Profil bersifat **global** (tanpa cabang) dan memuat **aturan akun bersyarat** (jenis dokumen × varian retur × atribut barang); dokumen tidak lagi menerima input akun (Req. 12–13).
 - **`PostingContext` → `PostingRule` → `PostingService`**: modul menyerahkan fakta; rule (murni) membentuk jurnal berperan; engine me-resolve peran dan memanggil `JournalService` (Fase 1).
 - **`PostingGateway` + mode `off/shadow/on` per jenis dokumen**: listener tetap memegang alur queue/transaksinya, hanya bagian "tulis GL"-nya yang dilewatkan gateway. Shadow membandingkan engine terhadap jalur lama dan mencatat parity.
-- **Cancel sebagai reversal** (D-13) dan **guard balapan cancel-vs-posting** (F-16) sebagai langkah terpisah yang dapat dikeluarkan.
+- **Guard balapan cancel-vs-posting** (F-16). Cancel sebagai reversal (D-13) dikeluarkan: diputuskan 2026-11-21 pembatalan menghapus jurnal (soft-delete).
 
 Fakta codebase yang dipakai desain (hasil audit):
 
@@ -47,8 +47,9 @@ flowchart TD
     GW -->|off / shadow| LEG["Jalur lama: closure listener<br/>(JournalService::postPair — Fase 1)"]
     PS --> JS["JournalService (Fase 1)"]
     LEG --> JS
-    CAN["Submitable hook → DocumentCancellationLedgerService<br/>(D-13)"] --> REV["JournalReversalService (Fase 1)"]
 ```
+
+Pembatalan tidak melewati engine: hook `Submitable` tetap men-soft-delete GL (D-13, diputuskan 2026-11-21).
 
 ### Aturan ketergantungan (ditegakkan test arsitektur)
 
@@ -265,20 +266,11 @@ Normalisasi sisi lama: ambil jurnal bersumber sama (`source_type`/`source_id`, s
 
 Membaca setting `finance_posting_mode.{type}` (default `off`) dengan cache pendek (60 detik) agar tidak query setiap posting; invalidasi saat mode diubah. Semua perubahan lewat `PostingModeService::switch()` yang memeriksa izin dan menulis audit.
 
-### Pembatalan (D-13) — `DocumentCancellationLedgerService`
+### Pembatalan (D-13) — diputuskan 2026-11-21: soft-delete dipertahankan
 
-```php
-final class DocumentCancellationLedgerService {
-    public function handle(Model $document): void;  // dipanggil hook Submitable saat status -> CANCELED
-}
-```
+_Diputuskan pemilik produk 2026-11-21 ("jika dibatalkan maka dihapus", semua jenis dokumen): opsi A. `DocumentCancellationLedgerService`, setting `finance_cancel_mode`, mode `reversal`, dan perubahan hook `Submitable` **tidak dibangun**. Rancangan reversal sebelumnya dihapus dari dokumen ini; riwayatnya ada di git dan decision log._
 
-Mode `finance_cancel_mode`:
-
-- `soft_delete` (default; perilaku Fase 1): hook lama men-soft-delete GL dan menandai jurnal `voided`.
-- `reversal`: untuk tiap jurnal `posted` bersumber dokumen → `JournalReversalService::reverse()` (tanggal = hari pembatalan; bila periode asal tertutup, tanggal tetap hari ini; bila tidak ada periode terbuka dan penegakan aktif → pembatalan ditolak dengan pesan jelas). GL **tidak** di-soft-delete; SLE tetap di-soft-delete oleh hook (di luar Finance Engine). Bila `GlPostingStatus` dokumen `pending` → `skipped`.
-
-Hook `Submitable` diubah menjadi: SLE selalu di-soft-delete seperti sekarang; bagian GL didelegasikan ke service sesuai mode. Perubahan ini menyentuh trait semua dokumen → dijaga test untuk tiga model + kedua mode.
+Perilaku yang berlaku: hook `Submitable` tetap men-soft-delete GL dan SLE dokumen yang dibatalkan, dan jurnal sumbernya ditandai `voided` (Fase 1). Bila `GlPostingStatus` dokumen `pending`, posting ditandai `skipped` oleh `PostingGateway` (guard F-16 pada semua mode, Requirement 10.2–10.3).
 
 ## Data Models
 
@@ -416,7 +408,7 @@ Peran peka-barang menghasilkan satu `RoleLine` per kelompok akun hasil resolusi:
 - **P-4 Idempoten:** `post()` dua kali → satu set jurnal; sebagian ada → `PartialPostingException`.
 - **P-5 Mode aman:** pada `shadow`, kegagalan engine tidak mengubah hasil posting lama; pada `off`, engine tidak dipanggil sama sekali.
 - **P-6 Guard cancel:** posting dengan sumber `canceled` tidak membuat jurnal pada semua mode.
-- **P-7 Reversal bersih:** mode `reversal`: setelah cancel, net per akun atas jurnal sumber = 0 dan GL tidak ada yang soft-deleted.
+- **P-7 (dikeluarkan, D-13 2026-11-21):** properti reversal bersih tidak berlaku karena reversal tidak dibangun; pembatalan menghapus jurnal.
 - **P-8 Ketergantungan:** tidak ada `use` terlarang pada `Posting/**` dan `Ledger/**`.
 - **P-9 Legacy habis:** pada jenis dokumen `on`, pola `where('account_type'` tidak muncul di kode jalurnya (uji statik).
 - **P-10 Spesifisitas deterministik:** untuk himpunan aturan acak, `AccountRuleMatcher` selalu memilih aturan dengan kondisi non-null terbanyak, lalu `priority` tertinggi; hasil tidak bergantung urutan penyimpanan.
@@ -442,7 +434,7 @@ Peran peka-barang menghasilkan satu `RoleLine` per kelompok akun hasil resolusi:
 ## Testing Strategy
 
 - **Unit (tanpa DB):** setiap `PostingRule` — tabel kasus (normal, retur, jumlah 0, `stock_total` 0); `AccountRole::legacyPair`; `ParityComparator` (match/rounding/mismatch).
-- **Feature:** resolver (urutan master → aturan → default → legacy, spesifisitas aturan, varian retur, cache, ambiguitas legacy, akun group/disabled); profil (tumpang-tindih, versi baru, init dari COA, idempoten); `PostingService` (P-4); `PostingGateway` (P-5, P-6 pada tiga mode); mode switch (izin, audit); `DocumentCancellationLedgerService` (P-7, periode tertutup); hook `Submitable` pada Sales Invoice/Payment Entry/Stock Entry untuk kedua `finance_cancel_mode`.
+- **Feature:** resolver (urutan master → aturan → default → legacy, spesifisitas aturan, varian retur, cache, ambiguitas legacy, akun group/disabled); profil (tumpang-tindih, versi baru, init dari COA, idempoten); `PostingService` (P-4); `PostingGateway` (P-5, P-6 pada tiga mode); mode switch (izin, audit); hook `Submitable` tidak diubah (D-13: soft-delete dipertahankan, P-7 dan periode tertutup untuk reversal dikeluarkan).
 - **Parity end-to-end:** seluruh characterization Fase 0 + test Fase 1 dijalankan pada tiga mode (`off`, `shadow`, `on`) dengan profil default; hasil harus identik.
 - **Arsitektur/statik:** P-8, P-9.
 - **Frontend:** halaman Posting Profile (form, salin versi, aktivasi, peringatan peran belum terpetakan), Parity Log (filter, ubah mode), `.rtl.test.jsx`.
@@ -454,7 +446,7 @@ Peran peka-barang menghasilkan satu `RoleLine` per kelompok akun hasil resolusi:
 2. `finance:init-posting-profile` → tinjau profil default bersama akuntan; lengkapi peran tak ter-resolve.
 3. Per jenis dokumen, urut Req. 7.1: `shadow` → pantau parity → `on` setelah kriteria Req. 7.2. Bila ada masalah: kembalikan ke `off` (tanpa deploy). Setelah sebuah jenis `on`, field akun pada form jenis itu dihapus (Req. 13) dan aturan akun bersyarat disusun bersama akuntan (Req. 12.7).
 4. Setelah seluruh jenis `on` stabil satu siklus tutup bulan: matikan `legacy_account_fallback`, hapus closure legacy dari listener dan pencarian `account_type` (Req. 7.3).
-5. D-13: aktifkan `finance_cancel_mode=reversal` di staging, validasi laporan GL/periode, baru produksi.
+5. D-13: tidak ada langkah rilis; diputuskan 2026-11-21 soft-delete dipertahankan.
 
 ## Risiko Spesifik Fase
 

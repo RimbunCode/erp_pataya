@@ -387,7 +387,7 @@ PB-1 s.d. PB-15 disetujui pemilik produk pada 2026-11-03 (AP-3), sesuai laporan 
 
 | ID | Temuan | Keputusan | Fase / hotfix | Tanggal | Disetujui |
 |---|---|---|---|---|---|
-| PB-1 | F-04: bagian GL (soft-delete → reversal) | Fase 2, per D-13 | Fase 2 | 2026-11-03 | Pemilik produk |
+| PB-1 | F-04: bagian GL (soft-delete → reversal) | **Diubah 2026-11-21 (pemilik produk, D-13):** pembatalan menghapus jurnal ("jika dibatalkan maka dihapus"); soft-delete dipertahankan, reversal tidak dibangun. Semula: Fase 2, per D-13 | Fase 2 (Requirement 10 dikeluarkan, Task 11 dibatalkan) | 2026-11-21 | Pemilik produk |
 | PB-2 | F-04: bagian `paid_amount` saat Payment Entry dibatalkan | Hotfix, digabung ke paket hotfix pembayaran (PB-4, PB-5). **Diperbaiki 2026-11-04** (hotfix `finance-payment-entry-hotfix`) | Hotfix `finance-payment-entry-hotfix` | 2026-11-03 | Pemilik produk |
 | PB-3 | F-04: bagian `balance_amount` | Fase 2/Fase 5 | Fase 2/Fase 5 | 2026-11-03 | Pemilik produk |
 | PB-4 | F-10: pembayaran parsial memposting total kumulatif | Hotfix satu paket dengan N-4 dan PB-2. **Diperbaiki 2026-11-04** (hotfix `finance-payment-entry-hotfix`) | Hotfix `finance-payment-entry-hotfix`; sebelum Fase 1 | 2026-11-03 | Pemilik produk |
@@ -495,7 +495,9 @@ Dirangkum dari bagian "Pertanyaan yang Menunggu Konfirmasi" di akhir `requiremen
 
 **Catatan jumlah.** Jumlah per fase: Fase 1 (12; seluruhnya DECIDED 2026-11-04; Q-P1-3 s.d. Q-P1-6 ditambahkan oleh verifikasi Task 1, Q-P1-7 s.d. Q-P1-12 oleh Putaran B), Fase 2 (5), Fase 3 (4), Fase 4 (4), Fase 5 (3), Fase 6 (3), total 31 (17 masih PENDING; Q-P2-3 dan Q-P4-4 terjawab oleh hotfix Payment Entry 2026-11-04). Fase 3 perlu perhatian: prasyarat `requirements.md` menyebut "Q-P3-1…3", sedangkan `tasks.md` menyebut "Q-P3-1…4" dan tabel memuat empat pertanyaan. Tabel diikuti, sehingga Q-P3-4 tetap dicantumkan.
 
-**Catatan D-xx belum tercatat.** Tabel "Pertanyaan yang Menunggu Konfirmasi" di spec Fase 1–6 juga memuat keputusan D-xx berikut yang belum punya entri di log ini (D-3, D-8, dan D-14 sudah punya entri sejak 2026-11-04), dan tidak dimasukkan di sini karena di luar cakupan: D-13, D-15, D-16, D-17, D-18, D-19, D-20, D-21, D-22, D-23, D-24.
+**D-13 diputuskan 2026-11-21 (pemilik produk).** Perilaku pembatalan: opsi A, pembatalan dokumen menghapus jurnalnya (soft-delete GL, jurnal `voided`), berlaku untuk semua jenis dokumen; jurnal pembalik tidak dipakai. Alasan singkat dari pemilik produk: "jika dibatalkan maka di hapus". Dikonfirmasi di staging dengan mode `on` pada Payment Entry (JV-0035 hilang dari Buku Besar setelah PE-0014 dibatalkan). Diubah di spec `finance-p2-posting-engine` (Requirement 10, Task 11, design) dan PB-1 di atas; Q-P5 yang mensyaratkan "mode reversal" tetap bersyarat dan tidak berlaku.
+
+**Catatan D-xx belum tercatat.** Tabel "Pertanyaan yang Menunggu Konfirmasi" di spec Fase 1–6 juga memuat keputusan D-xx berikut yang belum punya entri di log ini (D-3, D-8, dan D-14 sudah punya entri sejak 2026-11-04), dan tidak dimasukkan di sini karena di luar cakupan (D-13 kini punya entri, lihat di atas): D-15, D-16, D-17, D-18, D-19, D-20, D-21, D-22, D-23, D-24.
 
 ## Catatan Sumber
 

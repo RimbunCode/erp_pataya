@@ -390,7 +390,7 @@ Ringkasan:
 
 | ID | Temuan singkat | Status bukti | Usulan penanganan |
 |---|---|---|---|
-| F-04 | Cancel men-soft-delete GL/SLE, tanpa jurnal pembalik; saldo cache dan `paid_amount` tidak dikoreksi | Terkonfirmasi (test) | **Diperbaiki 2026-11-04** untuk bagian `paid_amount` (hotfix `finance-payment-entry-hotfix`); bagian GL: Fase 2 (reversal, D-13); `balance_amount`: Fase 2/5. |
+| F-04 | Cancel men-soft-delete GL/SLE, tanpa jurnal pembalik; saldo cache dan `paid_amount` tidak dikoreksi | Terkonfirmasi (test) | **Diperbaiki 2026-11-04** untuk bagian `paid_amount` (hotfix `finance-payment-entry-hotfix`); bagian GL: **diputuskan 2026-11-21 (D-13) tetap soft-delete, tidak diubah menjadi reversal**; `balance_amount`: Fase 2/5. |
 | F-10 | GL pembayaran parsial ke-2 dst. memposting total kumulatif | Terkonfirmasi (test) | **Diperbaiki 2026-11-04** (hotfix `finance-payment-entry-hotfix`). F-11 (FX, temuan terpisah) tetap terbuka (Fase 4). Koreksi data historis diputuskan terpisah. |
 | F-11 (FX) | GL pembayaran memposting jumlah mata uang dokumen, bukan dasar; tanpa selisih kurs | Terkonfirmasi (test) | Fase 4 (D-16, D-17); hotfix hanya bila data staging menunjukkan pembayaran FX nyata |
 | F-16 | Cancel sebelum job posting → GL aktif untuk dokumen `canceled` | Terkonfirmasi (test); **diperbaiki Fase 2 Sprint D** | **Diperbaiki Fase 2 (2026-11-14)**: guard cancel `PostingGateway` pada semua mode (Req 10.5); test `Characterization/CancelBeforeQueuedPostingTest` kini mengunci perbaikan. Sisa: jenis lain selain Sales Invoice belum punya test per-jenis (parity grup 2 memuat Purchase Receipt). |
@@ -428,7 +428,7 @@ Ringkasan:
 - **Belum diuji:** karena update itu melalui Eloquent builder, global scope `SoftDeletes` dan `exclude_example_data` tetap berlaku pada query-nya. Akibatnya baris GL berstatus `is_example = 1` kemungkinan **tidak ikut di-soft-delete** saat dokumen dibatalkan (bila kolom `is_example` ada), dan baris yang sudah soft-deleted tidak disentuh ulang.
 
 **Usulan penanganan.**
-- *Bagian GL (soft-delete → reversal):* **Fase 2**, per D-13 (PENDING). Alasan: mengubah perilaku yang terlihat pengguna dan membutuhkan jurnal pembalik dari Fase 1.
+- *Bagian GL (soft-delete → reversal):* **diputuskan 2026-11-21 (pemilik produk, D-13): soft-delete dipertahankan, reversal tidak dibangun** (semula Fase 2, PENDING). Alasan: mengubah perilaku yang terlihat pengguna dan membutuhkan jurnal pembalik dari Fase 1.
 - *Bagian `paid_amount` saat Payment Entry dibatalkan:* **diperbaiki 2026-11-04** (hotfix `finance-payment-entry-hotfix`, satu paket dengan F-10 dan N-4). Alasan: bug AR/AP yang nyata dan lokal pada satu alur, tidak bergantung pada jurnal baru.
 - *Bagian `balance_amount`:* **Fase 2**/**Fase 5** (saldo cache dipensiunkan sebagai sumber, FR-R2).
 
@@ -436,7 +436,7 @@ Bentuk usulan diizinkan (DV-C, 2026-11-03); keputusan penanganan disetujui 2026-
 
 Bukti data untuk bagian `balance_amount`: baseline staging menunjukkan 7 dari 8 akun bertransaksi bercache menyimpang dari GL (Bagian 2.6, P1).
 
-**Keputusan pemilik produk (2026-11-03): disetujui, dipecah menurut bagian.** GL (soft-delete → reversal): Fase 2 (D-13). `paid_amount` saat Payment Entry dibatalkan: hotfix, digabung ke paket hotfix pembayaran (F-10, N-4). `balance_amount`: Fase 2/Fase 5. **Bagian `paid_amount` diperbaiki 2026-11-04** (hotfix `finance-payment-entry-hotfix`). Tetap terbuka: bagian GL (Fase 2) dan `balance_amount` (Fase 2/5).
+**Keputusan pemilik produk (2026-11-03): disetujui, dipecah menurut bagian.** GL (soft-delete → reversal): Fase 2 (D-13). `paid_amount` saat Payment Entry dibatalkan: hotfix, digabung ke paket hotfix pembayaran (F-10, N-4). `balance_amount`: Fase 2/Fase 5. **Bagian `paid_amount` diperbaiki 2026-11-04** (hotfix `finance-payment-entry-hotfix`). Bagian GL ditutup 2026-11-21 (D-13: pembatalan menghapus jurnal, tidak diubah); tetap terbuka: `balance_amount` (Fase 2/5).
 
 ### 3.2 F-10: pembayaran parsial memposting total kumulatif
 
