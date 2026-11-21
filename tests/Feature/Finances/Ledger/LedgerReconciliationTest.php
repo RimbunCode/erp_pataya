@@ -169,7 +169,7 @@ class LedgerReconciliationTest extends TestCase {
 
         $this->assertCount(1, $events);
         $this->assertSame('0 3 * * *', $events->first()->expression);
-        $this->assertStringContainsString('--ignore-unjournaled', (string) $events->first()->command, 'Rilis 1: dicabut setelah backfill (Q-P1-11).');
+        $this->assertStringNotContainsString('--ignore-unjournaled', (string) $events->first()->command, 'Dicabut setelah backfill (Q-P1-11, Task 7.5).');
         $this->assertTrue($events->first()->withoutOverlapping);
     }
 

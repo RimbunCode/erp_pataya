@@ -209,7 +209,7 @@ _Diputuskan 2026-11-21 (pemilik produk, D-13): "jika dibatalkan maka dihapus", b
 7. IF peran tidak ter-resolve saat approve, THEN THE dokumen SHALL tidak berstatus approved tanpa pesan jelas yang menunjuk peran dan halaman konfigurasi yang harus dilengkapi.
 8. WHEN seluruh jenis dokumen berada pada mode `on` dan pemakaiannya pada form telah dihapus, THE kolom `accounts.is_contra` SHALL dihapus lewat migrasi reversible beserta cast dan `configColumns` pada `Account`, kunci terjemahan terkait, flag pada `AccountSeeder` (akun Retur Penjualan dan Potongan Penjualan tetap ada sebagai akun biasa), dan seluruh rujukan di `SalesInvoiceController` serta form Sales/Purchase Invoice; laporan Fase 5 memakai saldo bertanda sehingga tidak bergantung pada kolom ini.
 
-### Requirement 14: Posting diskon terpisah (GATED — perubahan perilaku)
+### Requirement 14: Posting diskon terpisah (perubahan perilaku; Q-P2-5 diputuskan 2026-11-21, tidak lagi GATED)
 
 **User Story:** Sebagai akuntan, saya ingin diskon penjualan dan pembelian tercatat pada akun diskon tersendiri, so that laporan laba rugi menunjukkan penjualan kotor dan potongannya.
 
@@ -217,7 +217,7 @@ _Diputuskan 2026-11-21 (pemilik produk, D-13): "jika dibatalkan maka dihapus", b
 
 1. THE sistem SHALL menyediakan setting Finances `finance_discount_split_from.{sales_invoice|purchase_invoice}` (tanggal; kosong = tidak aktif, default kosong). Dokumen bertanggal sebelum tanggal itu tetap memakai bentuk jurnal sekarang (total bersih).
 2. WHEN aktif untuk Sales Invoice, THE rule SHALL memposting `receivable` debit sebesar total bersih, `discount` debit sebesar jumlah diskon, dan `revenue` kredit sebesar jumlah kotor; jurnal tetap seimbang. Diskon baris dan diskon dokumen sama-sama dicakup.
-3. WHEN aktif untuk Purchase Invoice, THE baris non-stok SHALL memakai pola serupa dengan `discount` kredit (potongan pembelian); baris stok SHALL tetap bersih karena diskon mengurangi nilai persediaan (asumsi yang menunggu konfirmasi akuntan, Q-P2-5).
+3. WHEN aktif untuk Purchase Invoice, THE baris non-stok SHALL memakai pola serupa dengan `discount` kredit (potongan pembelian); baris stok SHALL tetap bersih karena diskon mengurangi nilai persediaan (praktik umum ERP; diputuskan pemilik produk 2026-11-21, Q-P2-5).
 4. THE peran `discount` SHALL sudah terpetakan pada profil aktif sebelum tanggal cutover boleh diisi; bila tidak, penyimpanan setting ditolak dengan pesan jelas.
 5. THE perhitungan dasar pajak (DPP bersih setelah diskon) SHALL tidak berubah; Fase 3 tetap memegang pajak.
 6. THE perbedaan bentuk jurnal pada mode `shadow` setelah cutover aktif SHALL dicatat dengan alasan `discount_split` agar tidak dianggap regresi.
@@ -232,7 +232,7 @@ _Diputuskan 2026-11-21 (pemilik produk, D-13): "jika dibatalkan maka dihapus", b
 | Q-P2-2 | Apakah COA saat ini sudah memisah akun PPN Masukan/Keluaran (seeder hanya memiliki `account_type = tax`)? Menentukan peta peran `tax_*` di profil default | Requirement 1, Fase 3 |
 | Q-P2-3 | Apakah F-10 (Payment kumulatif) diperbaiki saat migrasi Payment atau sebagai hotfix terpisah? | Requirement 7 |
 | Q-P2-4 | Daftar awal aturan akun bersyarat (barang non-stok, retur, kategori) disusun bersama akuntan saat `init-posting-profile` | Requirement 12.7 |
-| Q-P2-5 | Perlakuan diskon pembelian untuk baris stok (net ke persediaan) dan non-stok (potongan pembelian) | Requirement 14.3 |
+| Q-P2-5 | Perlakuan diskon pembelian untuk baris stok (net ke persediaan) dan non-stok (potongan pembelian). **Diputuskan 2026-11-21 (pemilik produk): ikuti praktik umum ERP** (tidak ada akuntan; asumsi Requirement 14.3 diterima) | Requirement 14.3 |
 
 ## Pertanyaan yang Sudah Diputuskan
 

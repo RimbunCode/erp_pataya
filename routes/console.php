@@ -49,9 +49,9 @@ Schedule::command('queue:work --stop-when-empty --tries=3 --max-time=50')
 
 // Finance Fase 1 (Requirement 10.3): rekonsiliasi invarian ledger jurnal harian; kode keluar non-nol + log warning
 // bila ada pelanggaran. Jurnal legacy tak seimbang hanya dilaporkan sebagai informasi.
-// Q-P1-11 (pemilik produk, 2026-11-04): di Rilis 1 jadwal memakai `--ignore-unjournaled` karena backfill (Task 7.5)
-// belum dijalankan. WAJIB dicabut setelah backfill selesai, dan paling lambat di Rilis 2 (NOT NULL, Task 9).
-Schedule::command('finance:reconcile-ledger', ['--ignore-unjournaled'])
+// Q-P1-11 (pemilik produk, 2026-11-04): opsi `--ignore-unjournaled` dicabut setelah backfill staging selesai dan
+// `finance:reconcile-ledger` hijau (Task 7.5, 2026-11-21); pemeriksaan (c) kini menjadi kegagalan.
+Schedule::command('finance:reconcile-ledger')
     ->timezone('Asia/Jakarta')
     ->dailyAt('03:00')
     ->withoutOverlapping();
