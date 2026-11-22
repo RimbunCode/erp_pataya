@@ -6,11 +6,14 @@ use App\Enums\FormStatus;
 use App\Models\Core\GlPostingStatus;
 use App\Models\Finances\Account;
 use App\Models\Finances\PaymentEntry;
+use App\Models\Finances\PaymentMethod;
 use App\Models\Finances\PaymentSchedule;
+use App\Models\Finances\PostingProfile;
 use App\Models\Finances\SalesInvoice;
 use App\Services\Finances\PaymentEntryService;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Tests\Support\BuildsFinanceFixtures;
+use Tests\Support\EnablesEnginePosting;
 use Tests\TestCase;
 
 /**
@@ -21,22 +24,27 @@ use Tests\TestCase;
  * `PaymentEntryPartialPaymentTest`; valuta asing (F-11) masih known-issue di `Characterization/KnownIssues`.
  */
 class PaymentEntryPostingTest extends TestCase {
-    use BuildsFinanceFixtures, RefreshDatabase;
+    use BuildsFinanceFixtures, EnablesEnginePosting, RefreshDatabase;
 
     private Account $cash;
     private Account $receivable;
+    private PaymentMethod $method;
 
     protected function setUp(): void {
         parent::setUp();
 
-        $this->setUpFinanceFixtures([SalesInvoice::class, PaymentSchedule::class, PaymentEntry::class]);
+        $this->setUpFinanceFixtures([SalesInvoice::class, PaymentSchedule::class, PaymentEntry::class, PostingProfile::class]);
         $this->cash       = $this->makeAccount('1100', 'Kas', 'asset', 'debit', 'cash');
         $this->receivable = $this->makeAccount('1200', 'Piutang Usaha', 'asset', 'debit', 'accounts_receivable');
+
+        // Task 14.1: closure legacy dihapus; jurnal ditulis engine (kas dari Metode Pembayaran, piutang dari profil).
+        $this->enableEnginePosting(['receivable' => $this->receivable]);
+        $this->method = $this->makeCashPaymentMethod($this->cash);
     }
 
     public function test_full_payment_debits_paid_to_and_credits_paid_from_with_payment_date(): void {
         $invoice = $this->makeUnpaidSalesInvoice(1_000_000);
-        $payment = $this->makePaymentEntry($invoice, 1_000_000, $this->receivable, $this->cash);
+        $payment = $this->makePaymentEntry($invoice, 1_000_000, $this->receivable, $this->cash, ['payment_method_id' => $this->method->id]);
 
         app(PaymentEntryService::class)->onApproved($payment->fresh());
 
@@ -49,7 +57,7 @@ class PaymentEntryPostingTest extends TestCase {
 
     public function test_payment_updates_invoice_schedule_and_own_status_synchronously(): void {
         $invoice = $this->makeUnpaidSalesInvoice(1_000_000);
-        $payment = $this->makePaymentEntry($invoice, 1_000_000, $this->receivable, $this->cash);
+        $payment = $this->makePaymentEntry($invoice, 1_000_000, $this->receivable, $this->cash, ['payment_method_id' => $this->method->id]);
 
         app(PaymentEntryService::class)->onApproved($payment->fresh());
 
@@ -64,7 +72,7 @@ class PaymentEntryPostingTest extends TestCase {
     public function test_payment_posting_is_not_tracked_by_gl_posting_status(): void {
         // Payment Entry dan Stock Entry posting sinkron: "tidak dilacak", bukan anomali (audit Req. 2.3).
         $invoice = $this->makeUnpaidSalesInvoice(500);
-        $payment = $this->makePaymentEntry($invoice, 500, $this->receivable, $this->cash);
+        $payment = $this->makePaymentEntry($invoice, 500, $this->receivable, $this->cash, ['payment_method_id' => $this->method->id]);
 
         app(PaymentEntryService::class)->onApproved($payment->fresh());
 
@@ -75,7 +83,7 @@ class PaymentEntryPostingTest extends TestCase {
     public function test_payment_does_not_fill_partyable_on_ledger_rows(): void {
         // F-18 berlaku juga di pembayaran: GL tidak membawa pihak (pelanggan/pemasok).
         $invoice = $this->makeUnpaidSalesInvoice(500);
-        $payment = $this->makePaymentEntry($invoice, 500, $this->receivable, $this->cash);
+        $payment = $this->makePaymentEntry($invoice, 500, $this->receivable, $this->cash, ['payment_method_id' => $this->method->id]);
 
         app(PaymentEntryService::class)->onApproved($payment->fresh());
 

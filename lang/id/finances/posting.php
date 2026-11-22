@@ -5,6 +5,7 @@ return [
         'unresolved_role'           => 'Peran akun ":role" tidak dapat ditentukan untuk dokumen :document (varian :variant) pada tanggal :date. Lapis yang diperiksa: :layers. Lengkapi Posting Profile atau akun master terkait.',
         'unresolved_role_account'   => 'Akun untuk peran ":role" (dokumen :document, varian :variant, tanggal :date) tidak dapat dipakai: :reason (:account). Sumber akun: :layer.',
         'unresolved_role_ambiguous' => 'Peran akun ":role" (dokumen :document, varian :variant, tanggal :date) ambigu pada fallback legacy: :candidates akun cocok dengan :root/:type dan tidak ada yang dipilih. Petakan peran ini pada Posting Profile.',
+        'mode_not_on'               => 'Mode Posting Engine untuk dokumen :document adalah ":mode", bukan "on". Jalur posting lama sudah dihapus (Task 14.1), jadi dokumen ini tidak dapat diposting. Ubah mode dokumen ini ke "on" pada pengaturan posting, lalu coba lagi.',
         'unknown_document_type'     => 'Jenis dokumen posting ":type" tidak memiliki aturan posting terdaftar.',
         'switch_mode_forbidden'     => 'Anda tidak memiliki izin untuk mengubah mode posting engine.',
         'partial_posting'           => 'Posting sebagian untuk :source: jurnal :existing sudah ada, :missing belum ada. Diperlukan intervensi manual.',

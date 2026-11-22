@@ -8,6 +8,7 @@ use App\Models\Core\FormatingSeries;
 use App\Models\Finances\Account;
 use App\Models\Finances\GeneralLedger;
 use App\Models\Finances\Journal;
+use App\Models\Finances\PostingProfile;
 use App\Models\Inventory\Item;
 use App\Models\Inventory\ItemUnit;
 use App\Models\Inventory\ItemVariant;
@@ -24,10 +25,11 @@ use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Str;
 use Illuminate\Validation\ValidationException;
+use Tests\Support\EnablesEnginePosting;
 use Tests\TestCase;
 
 class StockEntrySubmitTest extends TestCase {
-    use RefreshDatabase;
+    use EnablesEnginePosting, RefreshDatabase;
 
     protected function setUp(): void {
         parent::setUp();
@@ -35,7 +37,7 @@ class StockEntrySubmitTest extends TestCase {
         // initPermissions() menambah kolom runtime (is_example, status, code, dst)
         // yang di produksi dibuat oleh PermissionSeeder, bukan migration.
         // Juga otomatis membuat row formating_series untuk StockEntry.
-        foreach ([User::class, FormatingSeries::class, Branch::class, Unit::class, Warehouse::class, Item::class, ItemVariant::class, StockEntry::class, StockLedgerEntry::class, GeneralLedger::class, Journal::class, Account::class] as $model) {
+        foreach ([User::class, FormatingSeries::class, Branch::class, Unit::class, Warehouse::class, Item::class, ItemVariant::class, StockEntry::class, StockLedgerEntry::class, GeneralLedger::class, Journal::class, Account::class, PostingProfile::class] as $model) {
             $model::initPermissions();
         }
 
@@ -210,12 +212,13 @@ class StockEntrySubmitTest extends TestCase {
             'is_default' => true,
         ]);
 
-        // debit: akun stok (root_type asset / account_type stock)
-        $this->makeAccountId('asset', 'stock');
-        // credit: difference account milik stock entry
+        $stockAccountId      = $this->makeAccountId('asset', 'stock');
         $differenceAccountId = $this->makeAccountId('expense', 'stock_adjustment');
 
         Auth::login($this->makeUser());
+
+        // Task 14.1: closure legacy dihapus; jurnal ditulis engine dengan akun stok dan selisih dari profil.
+        $this->enableEnginePosting(['stock' => $stockAccountId, 'stock_adjustment' => $differenceAccountId]);
 
         $stockEntry = StockEntry::create([
             'code'                  => 'SE-RCV-1',

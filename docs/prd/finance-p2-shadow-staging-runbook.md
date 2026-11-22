@@ -93,7 +93,7 @@ Laporan ke pemilik produk memuat per jenis: jumlah dokumen, hitungan per status,
 
 ## 7. Rollback
 
-- **Tanpa deploy:** ubah mode jenis itu kembali ke **Off** di panel yang sama. Efeknya segera (cache mode 60 detik). Closure legacy masih ada sehingga jalur lama langsung kembali menjadi satu-satunya penulis (Q-P2-19).
+- **Tidak ada lagi rollback ke jalur lama (sejak Task 14.1, 2026-11-22).** Closure legacy sudah dihapus. Mengubah mode jenis dokumen ke **Off** atau **Shadow** tidak mengembalikan jalur lama: posting dokumen jenis itu gagal tertutup (`PostingModeNotOnException`, `GlPostingStatus` `failed`, tanpa jurnal) sampai mode kembali **On**; dokumen yang gagal dapat dicoba ulang setelah itu. Nasib mode `off`/`shadow` dan default mode adalah pertanyaan terbuka Q-P2-23 pada decision log. Rollback sesungguhnya adalah revert kode (git) ke sebelum Task 14.1.
 - Profil yang salah: buat versi baru dari profil aktif (versi harus bersambung dengan versi lama) atau pensiunkan; pensiun yang menimbulkan celah hanya memberi peringatan (Q-P2-11).
 - Jangan menghapus data jurnal untuk "memperbaiki" parity; jalur lama tidak berubah dan jurnal asli tetap benar.
 

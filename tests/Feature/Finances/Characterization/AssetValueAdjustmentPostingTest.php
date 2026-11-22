@@ -7,9 +7,11 @@ use App\Events\Asset\AssetValueAdjustmentApproved;
 use App\Listeners\Asset\Depreciation\PostValueAdjustmentEntry;
 use App\Models\Asset\AssetValueAdjustment;
 use App\Models\Core\GlPostingStatus;
+use App\Models\Finances\PostingProfile;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Tests\Support\BuildsAssetFixtures;
 use Tests\Support\BuildsFinanceFixtures;
+use Tests\Support\EnablesEnginePosting;
 use Tests\TestCase;
 
 /**
@@ -20,12 +22,12 @@ use Tests\TestCase;
  * penurunan mengkredit; akun lawan adalah `difference_account` milik penyesuaian.
  */
 class AssetValueAdjustmentPostingTest extends TestCase {
-    use BuildsAssetFixtures, BuildsFinanceFixtures, RefreshDatabase;
+    use BuildsAssetFixtures, BuildsFinanceFixtures, EnablesEnginePosting, RefreshDatabase;
 
     protected function setUp(): void {
         parent::setUp();
 
-        $this->setUpFinanceFixtures();
+        $this->setUpFinanceFixtures([PostingProfile::class]);
     }
 
     private function adjust(float $current, float $new): array {
@@ -43,6 +45,9 @@ class AssetValueAdjustmentPostingTest extends TestCase {
             'referenceable_id'   => $adjustment->id,
             'status'             => FormStatus::PENDING,
         ]);
+
+        // Task 14.1: closure legacy dihapus; akun selisih datang dari peran `asset_revaluation` pada profil.
+        $this->enableEnginePosting(['asset_revaluation' => $difference]);
 
         (new PostValueAdjustmentEntry)->handle(new AssetValueAdjustmentApproved($adjustment, now()));
 

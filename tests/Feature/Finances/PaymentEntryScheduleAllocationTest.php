@@ -6,10 +6,12 @@ use App\Enums\FormStatus;
 use App\Models\Finances\Account;
 use App\Models\Finances\PaymentEntry;
 use App\Models\Finances\PaymentSchedule;
+use App\Models\Finances\PostingProfile;
 use App\Models\Finances\SalesInvoice;
 use App\Services\Finances\PaymentEntryService;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Tests\Support\BuildsFinanceFixtures;
+use Tests\Support\EnablesEnginePosting;
 use Tests\TestCase;
 
 /**
@@ -17,7 +19,7 @@ use Tests\TestCase;
  * pembayaran bertahap menambah (bukan menimpa) dan jadwal yang sudah lunas tidak di-reset.
  */
 class PaymentEntryScheduleAllocationTest extends TestCase {
-    use BuildsFinanceFixtures, RefreshDatabase;
+    use BuildsFinanceFixtures, EnablesEnginePosting, RefreshDatabase;
 
     private Account $cash;
     private Account $receivable;
@@ -25,9 +27,12 @@ class PaymentEntryScheduleAllocationTest extends TestCase {
     protected function setUp(): void {
         parent::setUp();
 
-        $this->setUpFinanceFixtures([SalesInvoice::class, PaymentSchedule::class, PaymentEntry::class]);
+        $this->setUpFinanceFixtures([SalesInvoice::class, PaymentSchedule::class, PaymentEntry::class, PostingProfile::class]);
         $this->cash       = $this->makeAccount('1100', 'Kas', 'asset', 'debit', 'cash');
         $this->receivable = $this->makeAccount('1200', 'Piutang Usaha', 'asset', 'debit', 'accounts_receivable');
+
+        // Task 14.1: closure legacy dihapus; kas dari Metode Pembayaran (otomatis di makePaymentEntry), piutang dari profil.
+        $this->enableEnginePosting(['receivable' => $this->receivable]);
     }
 
     private function pay(SalesInvoice $invoice, float $amount): PaymentEntry {

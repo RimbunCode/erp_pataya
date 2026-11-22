@@ -578,78 +578,22 @@ class StockEntryService implements SubmitableService {
             }
         }
 
-        // Gateway Posting Engine (Finance Fase 2, Task 8.3): closure = jalur Fase 1 apa adanya (mode `off`/`shadow`),
-        // termasuk mutasi `accounts.balance_amount` yang berselang-seling dengan posting. Engine tidak memutasi
-        // `balance_amount` (Requirement 7.5): pada mode `on` mutasi dilakukan di bawah dari jurnal hasil engine.
-        $legacyRan = false;
-        $outcome   = app(PostingGateway::class)->post(
+        // Gateway Posting Engine (Finance Fase 2, Task 8.3; closure legacy dihapus Task 14.1). Engine tidak memutasi
+        // `accounts.balance_amount` (Requirement 7.5): mutasinya dilakukan di bawah dari jurnal hasil engine.
+        // `PostingModeNotOnException`/`UnresolvedAccountRoleException` menggulung seluruh approve.
+        $outcome = app(PostingGateway::class)->post(
             app(StockEntryPostingContextFactory::class)->forApproval($stockEntry, $items, $additionalCosts, (float) $totalBasicAmount, now()),
-            function () use ($stockEntry, $additionalCosts, $totalBasicAmount, &$legacyRan) {
-                $legacyRan = true;
-
-                $debitAccount = Account::lockForUpdate()
-                    ->where('root_type', 'asset')
-                    ->where('account_type', 'stock')
-                    ->latest()->first();
-                $creditAccount = $stockEntry->differenceAccount()->lockForUpdate()->first();
-
-                // record general ledger
-                if (\in_array($stockEntry->type, ['item_receipt'])) {
-                    $debitAccount->update([
-                        'have_transactions' => true,
-                        'balance_amount'    => $debitAccount->balance_amount + $totalBasicAmount,
-                    ]);
-
-                    $creditAccount->update([
-                        'have_transactions' => true,
-                        'balance_amount'    => $creditAccount->balance_amount - $totalBasicAmount,
-                    ]);
-
-                    $this->postStockEntryPair($stockEntry, $debitAccount->id, $creditAccount->id, $totalBasicAmount, 'default');
-                } elseif (\in_array($stockEntry->type, ['item_issue'])) {
-                    $debitAccount->update([
-                        'have_transactions' => true,
-                        'balance_amount'    => $debitAccount->balance_amount - $totalBasicAmount,
-                    ]);
-
-                    $creditAccount->update([
-                        'have_transactions' => true,
-                        'balance_amount'    => $creditAccount->balance_amount + $totalBasicAmount,
-                    ]);
-
-                    // Item issue: sisi menyala terbalik dari penamaan variabel (akun "debit" menerima kredit).
-                    $this->postStockEntryPair($stockEntry, $creditAccount->id, $debitAccount->id, $totalBasicAmount, 'default');
-                }
-
-                // record general ledger for additional cost
-                if ($additionalCosts->count() > 0) {
-                    foreach ($additionalCosts as $additionalCost) {
-                        $expenseAccount = $additionalCost->expenseAccount;
-                        $debitAccount->update([
-                            'have_transactions' => true,
-                            'balance_amount'    => $debitAccount->balance_amount + $additionalCost->amount,
-                        ]);
-                        $expenseAccount->update([
-                            'have_transactions' => true,
-                            'balance_amount'    => $expenseAccount->balance_amount - $additionalCost->amount,
-                        ]);
-
-                        $this->postStockEntryPair($stockEntry, $debitAccount->id, $expenseAccount->id, $additionalCost->amount, "additional_cost:{$additionalCost->id}");
-                    }
-                }
-            },
         );
 
-        // Jalur engine (mode `on`). Semantik sama dengan jalur lama: approve hanya terjadi sekali, jadi jurnal yang
-        // ternyata sudah ada adalah inkonsistensi yang menggulung transaksi (Q-P2-12b; mutasi SLE dan stok di atas
-        // non-idempoten dan tidak boleh diulang).
-        if (! $legacyRan && $outcome->isAlreadyPosted()) {
+        // Approve hanya terjadi sekali, jadi jurnal yang ternyata sudah ada adalah inkonsistensi yang menggulung
+        // transaksi (Q-P2-12b; mutasi SLE dan stok di atas non-idempoten dan tidak boleh diulang).
+        if ($outcome->isAlreadyPosted()) {
             $existing = $outcome->journals[0];
 
             throw new DuplicatePostingException((string) $existing->getKey(), (string) $existing->posting_key);
         }
 
-        if (! $legacyRan && $outcome->isPosted()) {
+        if ($outcome->isPosted()) {
             $this->applyBalancesFromJournals($outcome->journals);
         }
 
@@ -684,16 +628,6 @@ class StockEntryService implements SubmitableService {
                 'balance_amount'    => $account->balance_amount + $net[$account->id],
             ]);
         }
-    }
-
-    /**
-     * Satu pasangan GL Stock Entry lewat `JournalService` (Requirement 8.1). Tiap pasangan punya `purpose` berbeda
-     * (`default` untuk pasangan utama, `additional_cost:{id}` per biaya tambahan) karena satu Stock Entry menghasilkan
-     * beberapa jurnal. `now()` diambil sekali per pasangan (N-3). `DuplicatePostingException` tidak ditangkap:
-     * approve hanya terjadi sekali, jadi kunci ganda adalah inkonsistensi yang menggulung transaksi.
-     */
-    private function postStockEntryPair(StockEntry $stockEntry, string $debitAccountId, string $creditAccountId, float|int|string $amount, string $purpose): void {
-        app(JournalService::class)->postPair($debitAccountId, $creditAccountId, $amount, $stockEntry, now(), $purpose);
     }
 
     public function onRejected(Model $stockEntry): mixed {

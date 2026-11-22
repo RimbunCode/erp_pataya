@@ -10,6 +10,7 @@ use App\Models\Finances\FinanceSetting;
 use App\Models\Finances\PaymentEntry;
 use App\Models\Finances\PaymentMethod;
 use App\Models\Finances\PaymentSchedule;
+use App\Models\Finances\PostingProfile;
 use App\Models\Finances\PurchaseInvoice;
 use App\Models\Finances\SalesInvoice;
 use App\Services\Core\Setting\SettingsService;
@@ -20,6 +21,7 @@ use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Event;
 use Illuminate\Support\Facades\Validator;
 use Tests\Support\BuildsFinanceFixtures;
+use Tests\Support\EnablesEnginePosting;
 use Tests\TestCase;
 
 /**
@@ -27,10 +29,11 @@ use Tests\TestCase;
  * (Q9 b), guard `update` non-draft (Q10 a), dan pembatalan yang ditolak (Q5) melalui controller.
  */
 class PaymentEntryHttpTest extends TestCase {
-    use BuildsFinanceFixtures, RefreshDatabase;
+    use BuildsFinanceFixtures, EnablesEnginePosting, RefreshDatabase;
 
     private Account $cash;
     private Account $receivable;
+    private Account $payable;
 
     protected function setUp(): void {
         parent::setUp();
@@ -44,9 +47,14 @@ class PaymentEntryHttpTest extends TestCase {
             return array_intersect($left, $right) !== [] ? 1 : 0;
         }, 2);
 
-        $this->setUpFinanceFixtures([SalesInvoice::class, PurchaseInvoice::class, PaymentSchedule::class, PaymentEntry::class, PaymentMethod::class]);
+        $this->setUpFinanceFixtures([SalesInvoice::class, PurchaseInvoice::class, PaymentSchedule::class, PaymentEntry::class, PaymentMethod::class, PostingProfile::class]);
         $this->cash       = $this->makeAccount('1100', 'Kas', 'asset', 'debit', 'cash');
         $this->receivable = $this->makeAccount('1200', 'Piutang Usaha', 'asset', 'debit', 'accounts_receivable');
+        $this->payable    = $this->makeAccount('2100', 'Utang Usaha', 'liability', 'credit', 'accounts_payable');
+
+        // Task 14.1: closure legacy dihapus; mode `on` dan profil memetakan piutang/utang, kas dari Metode Pembayaran
+        // (otomatis di makePaymentEntry). Uji perilaku mode `off`/`shadow` menyetel modenya sendiri.
+        $this->enableEnginePosting(['receivable' => $this->receivable, 'payable' => $this->payable]);
     }
 
     /**
@@ -102,7 +110,8 @@ class PaymentEntryHttpTest extends TestCase {
     }
 
     public function test_purchase_invoice_default_uses_bank_as_paid_from_and_payable_as_paid_to(): void {
-        $payable = $this->makeAccount('2100', 'Utang Usaha', 'liability', 'credit', 'accounts_payable');
+        $this->setPostingMode('off'); // prefill akun hanya berlaku saat mode belum `on`
+        $payable = $this->payable;
         $bank    = $this->makeAccount('1110', 'Bank', 'asset', 'debit', 'bank');
         $invoice = $this->makeUnpaidPurchaseInvoice(1_000_000);
         $method  = PaymentMethod::create(['name' => 'Transfer', 'default_account_id' => $bank->id]);
@@ -312,7 +321,7 @@ class PaymentEntryHttpTest extends TestCase {
     }
 
     public function test_purchase_invoice_default_amount_is_the_outstanding_balance(): void {
-        $payable = $this->makeAccount('2100', 'Utang Usaha', 'liability', 'credit', 'accounts_payable');
+        $payable = $this->payable;
         $invoice = $this->makeUnpaidPurchaseInvoice(1_000_000);
         PurchaseInvoice::whereKey($invoice->id)->update(['credit_account_id' => $payable->id]);
         $payment = $this->makePaymentEntry($invoice, 400_000, $this->cash, $payable);
@@ -341,7 +350,7 @@ class PaymentEntryHttpTest extends TestCase {
     }
 
     public function test_create_page_prefills_accounts_and_reports_unmanaged_while_mode_is_not_on(): void {
-        $payable = $this->makeAccount('2100', 'Utang Usaha', 'liability', 'credit', 'accounts_payable');
+        $payable = $this->payable;
         $bank    = $this->makeAccount('1110', 'Bank', 'asset', 'debit', 'bank');
         $invoice = $this->makeUnpaidPurchaseInvoice(1_000_000);
         $method  = PaymentMethod::create(['name' => 'Transfer', 'default_account_id' => $bank->id]);
@@ -361,7 +370,7 @@ class PaymentEntryHttpTest extends TestCase {
     }
 
     public function test_create_page_does_not_prefill_accounts_when_mode_is_on(): void {
-        $payable = $this->makeAccount('2100', 'Utang Usaha', 'liability', 'credit', 'accounts_payable');
+        $payable = $this->payable;
         $bank    = $this->makeAccount('1110', 'Bank', 'asset', 'debit', 'bank');
         $invoice = $this->makeUnpaidPurchaseInvoice(1_000_000);
         $method  = PaymentMethod::create(['name' => 'Transfer', 'default_account_id' => $bank->id]);
@@ -404,6 +413,7 @@ class PaymentEntryHttpTest extends TestCase {
     }
 
     public function test_store_without_accounts_is_rejected_while_mode_is_not_on(): void {
+        $this->setPostingMode('off');
         $invoice = $this->makeUnpaidSalesInvoice(1_000_000);
         $payment = $this->makePaymentEntry($invoice, 100, $this->receivable, $this->cash);
 

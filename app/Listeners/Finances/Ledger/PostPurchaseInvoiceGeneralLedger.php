@@ -4,11 +4,8 @@ namespace App\Listeners\Finances\Ledger;
 
 use App\Enums\FormStatus;
 use App\Events\Finances\PurchaseInvoiceGeneralLedgerPostingRequested;
-use App\Exceptions\Finances\DuplicatePostingException;
 use App\Models\Core\GlPostingStatus;
-use App\Models\Finances\Account;
 use App\Services\Finances\Accounting\PurchaseInvoicePostingContextFactory;
-use App\Services\Finances\Ledger\JournalService;
 use App\Services\Finances\Posting\PostingGateway;
 use Illuminate\Contracts\Queue\ShouldQueue;
 use Illuminate\Foundation\Bus\Dispatchable;
@@ -29,57 +26,12 @@ class PostPurchaseInvoiceGeneralLedger implements ShouldQueue {
             $purchaseInvoice = $event->purchaseInvoice;
             $transactionDate = Carbon::instance($event->transactionDate);
 
-            // Gateway Posting Engine (Finance Fase 2, Task 8.2): closure = jalur Fase 1 apa adanya (mode `off`/`shadow`).
-            // Dua jurnal (`stock` dan `expense`) ditulis satu konteks; `PostingService::post()` atomik untuk keduanya.
+            // Gateway Posting Engine (Finance Fase 2, Task 8.2; closure legacy dihapus Task 14.1): akun datang dari peran
+            // profil. Dua jurnal (`stock` dan `expense`) ditulis satu konteks; `PostingService::post()` atomik untuk keduanya.
+            // `PostingModeNotOnException`/`UnresolvedAccountRoleException` membuat job gagal ke `failed`.
             $outcome = app(PostingGateway::class)->postDeferred(
                 app(PurchaseInvoicePostingContextFactory::class)->forGuard($purchaseInvoice, $transactionDate),
                 fn () => app(PurchaseInvoicePostingContextFactory::class)->forPosting($purchaseInvoice, (float) $event->totalStockGL, (float) $event->totalAmount, $event->isReturn, $transactionDate),
-                function () use ($event, $purchaseInvoice, $transactionDate) {
-                    // === GL Stock/SRNB (kondisional: hanya jika $totalStockGL > 0) ===
-                    if ($event->totalStockGL > 0 && ! $event->isReturn) {
-                        $stockAccount = Account::lockForUpdate()
-                            ->where('root_type', 'asset')
-                            ->where('account_type', 'stock')
-                            ->latest()->first();
-
-                        $srnbAccount = Account::lockForUpdate()
-                            ->where('root_type', 'liability')
-                            ->where('account_type', 'stock_received_but_not_billed')
-                            ->latest()->first();
-
-                        // Dua jurnal terpisah per invoice dengan `purpose` berbeda (Requirement 8.1): `stock` dan `expense`.
-                        try {
-                            app(JournalService::class)->postPair(
-                                $stockAccount->id,
-                                $srnbAccount->id,
-                                $event->totalStockGL,
-                                $purchaseInvoice,
-                                $transactionDate,
-                                purpose: 'stock',
-                            );
-                        } catch (DuplicatePostingException) {
-                            // Sudah terposting (Requirement 3.3).
-                        }
-                    }
-
-                    // === GL Expense/Credit (selalu dibuat) — akun spesifik invoice ini, BUKAN query generik ===
-                    $debitAccount  = Account::where('id', $event->expenseHeadAccountId)->lockForUpdate()->firstOrFail();
-                    $creditAccount = Account::where('id', $event->creditAccountId)->lockForUpdate()->firstOrFail();
-
-                    try {
-                        app(JournalService::class)->postPair(
-                            $debitAccount->id,
-                            $creditAccount->id,
-                            $event->totalAmount,
-                            $purchaseInvoice,
-                            $transactionDate,
-                            purpose: 'expense',
-                            reverseSides: $event->isReturn,
-                        );
-                    } catch (DuplicatePostingException) {
-                        // Sudah terposting (Requirement 3.3).
-                    }
-                },
             );
 
             // Q-P2-12: jangan menimpa `skipped` (dokumen dibatalkan sebelum job berjalan) menjadi `posted`.

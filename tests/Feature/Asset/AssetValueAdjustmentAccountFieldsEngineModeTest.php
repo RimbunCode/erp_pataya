@@ -5,6 +5,7 @@ namespace Tests\Feature\Asset;
 use App\Enums\FormStatus;
 use App\Enums\PostingDocumentType;
 use App\Events\Asset\AssetValueAdjustmentApproved;
+use App\Exceptions\Finances\PostingModeNotOnException;
 use App\Exceptions\Finances\UnresolvedAccountRoleException;
 use App\Http\Requests\Asset\AssetValueAdjustmentRequest;
 use App\Listeners\Asset\Depreciation\PostValueAdjustmentEntry;
@@ -19,7 +20,6 @@ use Carbon\CarbonImmutable;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Validator;
-use LogicException;
 use PHPUnit\Framework\Attributes\Test;
 use Tests\Support\AssertsPostingParity;
 use Tests\Support\BuildsAssetFixtures;
@@ -258,7 +258,9 @@ class AssetValueAdjustmentAccountFieldsEngineModeTest extends TestCase {
     }
 
     #[Test]
-    public function legacy_path_fails_with_a_clear_message_for_a_document_without_account(): void {
+    public function off_mode_fails_closed_with_a_clear_message_for_a_document_without_account(): void {
+        // Task 14.1: jalur lama dihapus. Dokumen tanpa akun selisih pada mode `off` tidak lagi ditolak oleh closure legacy
+        // (LogicException 'akun selisih'); gateway gagal tertutup dengan PostingModeNotOnException, tanpa jurnal.
         $setup = $this->makeAssetWithAccounts(['gross_purchase_amount' => 5000]);
         $this->setPostingMode(PostingDocumentType::AssetValueAdjustment, 'off');
 
@@ -272,9 +274,10 @@ class AssetValueAdjustmentAccountFieldsEngineModeTest extends TestCase {
 
         try {
             (new PostValueAdjustmentEntry)->handle(new AssetValueAdjustmentApproved($adjustment, now()));
-            $this->fail('Jalur lama harus menolak dokumen tanpa akun selisih.');
-        } catch (LogicException $e) {
-            $this->assertStringContainsString('akun selisih', $e->getMessage());
+            $this->fail('Mode off harus gagal tertutup.');
+        } catch (PostingModeNotOnException $e) {
+            $this->assertStringContainsString('asset_value_adjustment', $e->getMessage());
+            $this->assertSame('off', $e->mode);
         }
 
         $this->assertDatabaseCount('general_ledgers', 0);

@@ -31,8 +31,9 @@ use Tests\TestCase;
  *
  * Metodologi:
  * - Fixture (dokumen, baris, akun, profil) dibuat DI LUAR pengukuran; yang diukur hanya jalur posting.
- * - Basis = jalur Fase 1 murni: isi closure legacy (kunci akun `account_type` + `postPair`) dipanggil LANGSUNG tanpa
- *   gateway, bukan mode `off` yang sudah memuat biaya gateway (mode, guard).
+ * - Basis = jalur Fase 1 murni: salinan isi closure legacy (kunci akun `account_type` + `postPair`) yang disimpan DI
+ *   DALAM uji ini dan dipanggil LANGSUNG tanpa gateway. Sejak Task 14.1 closure aslinya sudah dihapus dari listener;
+ *   salinan ini hanya baseline benchmark opt-in, bukan jalur produksi (dan di luar penegakan P-9).
  * - Engine = pabrik konteks + `PostingService::post()` (resolver profil, rule, `JournalService`), dokumen yang berbeda
  *   tetapi setara (kunci jurnal tidak boleh bentrok). `PostingService` di-resolve BARU per dokumen (resolver dingin, cache
  *   dalam-memori `AccountRoleResolver` kosong) seperti tiap job produksi yang memanggil `app()` baru.

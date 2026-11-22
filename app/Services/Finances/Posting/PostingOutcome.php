@@ -8,8 +8,8 @@ use App\Models\Finances\Journal;
  * Hasil terstruktur `PostingService::post()` dan `PostingGateway::post()` (Finance Fase 2, Requirement 10.6; Q-P2-12).
  * Pemanggil (listener) wajib membedakan tiga keadaan:
  *
- * - `posted`: jurnal baru ditulis engine; atau jalur lama dijalankan gateway pada mode `off`/`shadow` (`journals`
- *   kosong karena jalur lama memegang jurnalnya sendiri); atau tidak ada jurnal yang perlu ditulis (jumlah nol).
+ * - `posted`: jurnal baru ditulis engine; atau tidak ada jurnal yang perlu ditulis (jumlah nol, `journals` kosong).
+ *   Sejak Task 14.1 tidak ada jalur lama lagi: mode bukan `on` melempar `PostingModeNotOnException`, bukan `posted`.
  * - `already_posted`: seluruh jurnal konteks sudah ada (retry); efek samping non-idempoten tidak boleh diulang.
  * - `skipped`: dokumen penjaga `canceled`; tidak ada jurnal, `GlPostingStatus` penjaga menjadi `skipped`.
  */

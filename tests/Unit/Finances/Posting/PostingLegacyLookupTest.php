@@ -6,22 +6,29 @@ use App\Enums\PostingDocumentType;
 use PHPUnit\Framework\TestCase;
 
 /**
- * Finance Fase 2, Task 9.2 (P-9; Requirement 7.3): pada jenis dokumen yang berada pada mode `on`, pola pencarian akun
- * legacy `where('account_type', ...)` tidak boleh muncul di kode jalurnya (komentar tidak dihitung).
+ * Finance Fase 2, Task 9.2 dan Task 14.1 (P-9; Requirement 7.3; Q-P2-19): pada jenis dokumen yang berada pada mode
+ * `on`, pola pencarian akun legacy `where('account_type', ...)` tidak boleh muncul di kode jalurnya (komentar tidak
+ * dihitung). Uji ini adalah "grep CI" P-9: ia berjalan di suite Unit pada CI (`paratest --functional`).
  *
- * Daftar jenis `on` adalah konfigurasi uji (`ON_TYPES`, atau env `POSTING_ON_TYPES` dipisah koma), BUKAN mode runtime:
- * perpindahan ke `on` adalah keputusan pemilik produk. Selama semua jenis `off` daftarnya kosong; saat sebuah jenis
- * dipindah ke `on`, jenis itu ditambahkan di sini bersamaan dengan penghapusan closure legacy-nya dari berkas jalur
- * (Task 14.1), dan uji ini mulai menegakkan Requirement 7.3 untuknya.
- *
- * Catatan konflik spek (dilaporkan untuk pemilik produk): Requirement 7.3 meminta pencarian legacy dihapus saat sebuah
- * jenis `on`, sedangkan Task 14.1 menghapus closure legacy hanya setelah SEMUA jenis `on` stabil satu siklus tutup
- * bulan. Sebelum itu closure legacy (beserta pola `account_type`) masih berada di berkas jalur karena menjadi jalur
- * `off`/`shadow` dan jalan keluar rollback tanpa deploy.
+ * Penegakan berlaku penuh sejak Task 14.1 (keputusan pemilik produk 2026-11-21; semua jenis dokumen dikonfirmasi `on`
+ * 2026-11-22): `ON_TYPES` memuat ke-10 jenis dokumen dan closure legacy (beserta pencarian `account_type`) sudah dihapus
+ * dari seluruh berkas jalur. Daftar `ON_TYPES` boleh ditimpa env `POSTING_ON_TYPES` (dipisah koma) untuk menjalankan
+ * uji ini terhadap subset jenis.
  */
 class PostingLegacyLookupTest extends TestCase {
     /** @var list<string> jenis dokumen pada mode `on` (nilai `PostingDocumentType`) */
-    private const ON_TYPES = [];
+    private const ON_TYPES = [
+        'asset_depreciation',
+        'asset_scrap',
+        'asset_value_adjustment',
+        'asset_disposal',
+        'payment_entry',
+        'purchase_receipt',
+        'delivery_note',
+        'sales_invoice',
+        'purchase_invoice',
+        'stock_entry',
+    ];
 
     /** @var array<string, list<string>> jenis dokumen => berkas jalur posting (relatif terhadap root proyek) */
     private const PATH_FILES = [
@@ -84,26 +91,28 @@ class PostingLegacyLookupTest extends TestCase {
         }
     }
 
-    public function test_the_detector_flags_the_legacy_lookups_that_exist_today(): void {
-        // Bukti detektor tidak buta: jalur yang masih memakai `where('account_type', ...)` terdeteksi (komentar diabaikan).
-        foreach (['purchase_receipt', 'delivery_note', 'purchase_invoice', 'stock_entry'] as $type) {
-            $this->assertTrue($this->hasLegacyLookup($type), "{$type} masih memakai pencarian legacy di closure jalur lama.");
-        }
-        foreach (['payment_entry', 'sales_invoice', 'asset_depreciation', 'asset_scrap', 'asset_value_adjustment', 'asset_disposal'] as $type) {
-            $this->assertFalse($this->hasLegacyLookup($type), "{$type} tidak memakai pencarian account_type.");
-        }
+    public function test_all_document_types_are_enforced_since_task_14_1(): void {
+        // Penegakan P-9 berlaku untuk SEMUA jenis dokumen (Task 14.1). Env `POSTING_ON_TYPES` hanya untuk menyempitkan
+        // uji secara lokal; tanpa env, daftar bawaan harus memuat setiap jenis.
+        $this->assertEqualsCanonicalizing(array_keys(self::PATH_FILES), self::ON_TYPES);
+    }
+
+    public function test_the_detector_flags_account_type_lookups_and_ignores_comments(): void {
+        // Self-check detektor memakai string sintetis (pencarian legacy sudah tidak ada di kode): pola terdeteksi dan
+        // komentar diabaikan setelah penyaringan token.
         $this->assertSame(1, preg_match(self::LEGACY_LOOKUP, "Account::query()\n    ->where('account_type', 'stock')"));
+        $this->assertSame(1, preg_match(self::LEGACY_LOOKUP, 'Account::where( "account_type", "stock")'));
         $this->assertSame(0, preg_match(self::LEGACY_LOOKUP, $this->stripComments("<?php
 // ->where('account_type', 'stock')
 /* where('account_type', 'x') */")), 'Komentar tidak dihitung setelah penyaringan token.');
     }
 
     public function test_on_types_have_no_legacy_account_type_lookup_in_their_path(): void {
+        $this->assertNotEmpty($this->onTypes());
+
         foreach ($this->onTypes() as $type) {
             $this->assertArrayHasKey($type, self::PATH_FILES, "Jenis dokumen tidak dikenal: {$type}");
             $this->assertFalse($this->hasLegacyLookup($type), "P-9: jenis `{$type}` berada pada mode `on`, tetapi jalurnya masih memuat where('account_type', ...) (Requirement 7.3).");
         }
-
-        $this->assertIsArray($this->onTypes());
     }
 }

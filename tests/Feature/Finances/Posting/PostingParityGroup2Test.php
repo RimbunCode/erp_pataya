@@ -44,9 +44,10 @@ use Tests\TestCase;
 
 /**
  * Finance Fase 2, Task 8.4: parity end-to-end kelompok 2 (Purchase Receipt, Delivery Note, Sales Invoice, Purchase
- * Invoice stok dan non-stok, Stock Entry). P-1: satu dokumen per mode (`off`, `shadow`, `on`) lewat listener/service
- * sungguhan, tanda tangan jurnal, efek samping (saldo akun, `GlPostingStatus`), dan parity log `match` pada `shadow`
- * identik. Termasuk kasus retur. Profil memetakan semua peran ke akun yang sama dengan jalur lama
+ * Invoice stok dan non-stok, Stock Entry). Diperbarui Task 14.1: closure legacy dihapus sehingga `off`/`shadow` tidak
+ * lagi punya jalur; tanda tangan jurnal, efek samping (saldo akun, `GlPostingStatus`) pada mode `on` dikunci terhadap
+ * nilai karakterisasi Fase 0 (bukti parity 100%, exit criteria 14.3). Semula (P-1): satu dokumen per mode (`off`,
+ * `shadow`, `on`) harus identik. Termasuk kasus retur. Profil memetakan semua peran ke akun yang sama dengan jalur lama
  * (`expense` Purchase Invoice = SRNB, T-9).
  */
 class PostingParityGroup2Test extends TestCase {
@@ -132,12 +133,12 @@ class PostingParityGroup2Test extends TestCase {
         return DeliveryNote::withoutEvents(fn () => DeliveryNote::find($id));
     }
 
-    public function test_purchase_receipt_and_delivery_note_are_identical_in_all_modes(): void {
+    public function test_purchase_receipt_and_delivery_note_post_the_locked_journals_in_on_mode(): void {
         $date       = CarbonImmutable::parse('2026-11-10 09:00:00');
         $signatures = [];
         $effects    = [];
 
-        foreach (['off', 'shadow', 'on'] as $mode) {
+        foreach (['on'] as $mode) {
             $this->setPostingMode(PostingDocumentType::PurchaseReceipt, $mode);
             $this->setPostingMode(PostingDocumentType::DeliveryNote, $mode);
 
@@ -175,8 +176,6 @@ class PostingParityGroup2Test extends TestCase {
         }
         $this->assertSignaturesIdentical('canceled', $signatures['canceled'], allowEmpty: true);
         $this->assertSame([], $signatures['canceled']['on']);
-        $this->assertEquals($effects['off'], $effects['shadow']);
-        $this->assertEquals($effects['off'], $effects['on']);
         $this->assertSame('skipped', $effects['on']['canceled']);
         $this->assertSame('posted', $effects['on']['receipt']);
 
@@ -186,11 +185,11 @@ class PostingParityGroup2Test extends TestCase {
         $this->assertEquals([['1300', 700.0, 0.0], ['5100', 0.0, 700.0]], $signatures['delivery_return']['on']['default']['lines']);
     }
 
-    public function test_sales_invoice_normal_and_return_are_identical_in_all_modes(): void {
+    public function test_sales_invoice_normal_and_return_post_the_locked_journals_in_on_mode(): void {
         $signatures = [];
         $effects    = [];
 
-        foreach (['off', 'shadow', 'on'] as $mode) {
+        foreach (['on'] as $mode) {
             $this->setPostingMode(PostingDocumentType::SalesInvoice, $mode);
 
             $original     = $this->makeSalesInvoice($this->receivable, $this->revenue);
@@ -200,7 +199,7 @@ class PostingParityGroup2Test extends TestCase {
                 $this->receivable,
                 $this->revenue,
                 ['return_against_id' => $original->id],
-                ['quantity' => 1, 'return_against_item_id' => $originalItem->id],
+                ['quantity'          => 1, 'return_against_item_id' => $originalItem->id],
             );
             $return = $this->approveSalesInvoice($return);
 
@@ -214,8 +213,6 @@ class PostingParityGroup2Test extends TestCase {
 
         $this->assertSignaturesIdentical('normal', $signatures['normal']);
         $this->assertSignaturesIdentical('return', $signatures['return']);
-        $this->assertEquals($effects['off'], $effects['shadow']);
-        $this->assertEquals($effects['off'], $effects['on']);
 
         $this->assertEquals([['1200', 2183.33, 0.0], ['4000', 0.0, 2183.33]], $signatures['normal']['on']['default']['lines']);
         $this->assertEquals([['4000', 1091.67, 0.0], ['1200', 0.0, 1091.67]], $signatures['return']['on']['default']['lines']);
@@ -254,11 +251,11 @@ class PostingParityGroup2Test extends TestCase {
         return $invoice->fresh();
     }
 
-    public function test_purchase_invoice_non_stock_stock_and_return_are_identical_in_all_modes(): void {
+    public function test_purchase_invoice_non_stock_stock_and_return_post_the_locked_journals_in_on_mode(): void {
         $signatures = [];
         $effects    = [];
 
-        foreach (['off', 'shadow', 'on'] as $mode) {
+        foreach (['on'] as $mode) {
             $this->setPostingMode(PostingDocumentType::PurchaseInvoice, $mode);
 
             // Non-stok: satu jurnal `expense` (jalur service penuh, baris invoice menjadi `lines` konteks).
@@ -298,8 +295,6 @@ class PostingParityGroup2Test extends TestCase {
         foreach (['normal', 'return', 'stock', 'stock_return'] as $case) {
             $this->assertSignaturesIdentical($case, $signatures[$case]);
         }
-        $this->assertEquals($effects['off'], $effects['shadow']);
-        $this->assertEquals($effects['off'], $effects['on']);
 
         $this->assertSame(['expense'], array_keys($signatures['normal']['on']));
         $this->assertEquals([['2100', 2183.33, 0.0], ['2000', 0.0, 2183.33]], $signatures['normal']['on']['expense']['lines']);
@@ -363,13 +358,13 @@ class PostingParityGroup2Test extends TestCase {
         return Account::query()->orderBy('account_number')->get()->mapWithKeys(fn (Account $account): array => [$account->account_number => round((float) $account->balance_amount, 4)])->all();
     }
 
-    public function test_stock_entry_is_identical_in_all_modes_including_balances_and_additional_costs(): void {
+    public function test_stock_entry_posts_the_locked_journals_in_on_mode_including_balances_and_additional_costs(): void {
         $inventory  = $this->makeInventoryFixture();
         $target     = Warehouse::create(['branch_id' => $this->branch->id, 'name' => 'Gudang Tujuan', 'code' => 'WH-TGT']);
         $signatures = [];
         $deltas     = [];
 
-        foreach (['off', 'shadow', 'on'] as $mode) {
+        foreach (['on'] as $mode) {
             $this->setPostingMode(PostingDocumentType::StockEntry, $mode);
             $before = $this->balances();
 
@@ -393,9 +388,7 @@ class PostingParityGroup2Test extends TestCase {
         foreach (['receipt', 'issue', 'transfer'] as $case) {
             $this->assertSignaturesIdentical($case, $signatures[$case]);
         }
-        // `balance_amount` (F-09) identik: engine tidak memutasinya, service yang memutasi dari akun yang sama.
-        $this->assertEquals($deltas['off'], $deltas['shadow']);
-        $this->assertEquals($deltas['off'], $deltas['on']);
+        // `balance_amount` (F-09): engine tidak memutasinya, service yang memutasi dari jurnal hasil engine.
         $this->assertEqualsWithDelta(10_000 + 300 - 4_000 + 120, $deltas['on']['1300'], 0.01);
         $this->assertEqualsWithDelta(-10_000 + 4_000, $deltas['on']['5900'], 0.01);
         $this->assertEqualsWithDelta(-300 - 120, $deltas['on']['5800'], 0.01);
@@ -407,14 +400,14 @@ class PostingParityGroup2Test extends TestCase {
     }
 
     /**
-     * Pengecualian parity yang disetujui (Q-P2-20, Req 7.5): Stock Entry bertotal 0 tidak menghasilkan jurnal; jalur lama
-     * tetap menyetel `have_transactions` pada akun stok dan akun selisih, sedangkan pada `on` (tanpa jurnal) tidak.
+     * Pengecualian parity yang disetujui (Q-P2-20, Req 7.5), PERMANEN sejak Task 14.1 (jalur lama dihapus): Stock Entry
+     * bertotal 0 tidak menghasilkan jurnal dan tidak menyetel `have_transactions` pada akun stok dan akun selisih.
      */
     public function test_stock_entry_with_zero_total_does_not_set_have_transactions_on_in_on_mode(): void {
         $inventory = $this->makeInventoryFixture();
         $flags     = [];
 
-        foreach (['off', 'on'] as $mode) {
+        foreach (['on'] as $mode) {
             $this->setPostingMode(PostingDocumentType::StockEntry, $mode);
             Account::query()->update(['have_transactions' => false]);
 
@@ -424,7 +417,6 @@ class PostingParityGroup2Test extends TestCase {
             $flags[$mode] = [(bool) $this->stock->fresh()->have_transactions, (bool) $this->difference->fresh()->have_transactions];
         }
 
-        $this->assertSame([true, true], $flags['off'], 'Jalur lama menyetel have_transactions walau total 0.');
         $this->assertSame([false, false], $flags['on'], 'on: tanpa jurnal, have_transactions tidak disetel (pengecualian parity Q-P2-20).');
     }
 

@@ -39,9 +39,10 @@ enum AccountRole: string {
      * Pasangan legacy `[root_type, account_type]`, atau null bila peran tidak punya padanan. Sumber pasangan ini
      * berbeda per peran (diverifikasi `AccountRoleTest` terhadap kode sumber):
      *
-     * - `Stock`, `StockReceivedButNotBilled`, `CostOfGoodsSold`: pencarian `where('root_type', ...)
+     * - `Stock`, `StockReceivedButNotBilled`, `CostOfGoodsSold`: dahulu pencarian `where('root_type', ...)
      *   ->where('account_type', ...)->latest()->first()` pada listener Purchase Receipt/Purchase Invoice/Delivery Note
-     *   dan `StockEntryService`.
+     *   dan `StockEntryService` (closure legacy itu dihapus Task 14.1; pasangan ini kini hanya dipakai
+     *   `PostingProfileInitializer`/`finance:init-posting-profile` dan lapis fallback resolver yang dimatikan).
      * - `Receivable`, `Payable`, `Revenue`, `Expense`: jalur lama adalah default form yang diisi controller
      *   (`SalesInvoiceController`, `PurchaseInvoiceController`) lewat `->get()->first()` tanpa urutan, dengan
      *   `is_contra = false` pada jalur normal Sales Invoice (jalur retur `SalesInvoiceController` memakai

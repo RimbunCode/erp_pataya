@@ -4,11 +4,9 @@ namespace App\Listeners\Asset\Depreciation;
 
 use App\Enums\FormStatus;
 use App\Events\Asset\AssetDepreciationDue;
-use App\Exceptions\Finances\DuplicatePostingException;
 use App\Models\Asset\AssetDepreciationSchedule;
 use App\Models\Core\GlPostingStatus;
 use App\Services\Asset\Accounting\AssetPostingContextFactory;
-use App\Services\Finances\Ledger\JournalService;
 use App\Services\Finances\Posting\PostingGateway;
 use Illuminate\Contracts\Queue\ShouldQueue;
 use Illuminate\Foundation\Bus\Dispatchable;
@@ -46,28 +44,11 @@ class PostDepreciationEntry implements ShouldQueue {
                 throw new LogicException("AssetCategoryAccount tidak ditemukan untuk Asset {$asset->id} (branch {$branchId}).");
             }
 
-            // Gateway Posting Engine (Finance Fase 2, Task 7.1): closure = jalur Fase 1 apa adanya (mode `off`/`shadow`).
+            // Gateway Posting Engine (Finance Fase 2, Task 7.1; closure legacy dihapus Task 14.1): akun master datang dari
+            // `AssetCategoryAccount` lewat konteks; `PostingModeNotOnException`/`UnresolvedAccountRoleException`
+            // membuat job gagal ke `failed`.
             $outcome = app(PostingGateway::class)->post(
                 app(AssetPostingContextFactory::class)->depreciation($schedule, $accounts, Carbon::instance($event->transactionDate)),
-                function () use ($event, $schedule, $accounts) {
-                    if ((float) $schedule->depreciation_amount > 0) {
-                        $expenseAccount = $accounts->depreciationExpenseAccount()->lockForUpdate()->first();
-                        $accumAccount   = $accounts->accumulatedDepreciationAccount()->lockForUpdate()->first();
-
-                        try {
-                            app(JournalService::class)->postPair(
-                                $expenseAccount->id,
-                                $accumAccount->id,
-                                $schedule->depreciation_amount,
-                                $schedule,
-                                Carbon::instance($event->transactionDate),
-                                purpose: 'depreciation',
-                            );
-                        } catch (DuplicatePostingException) {
-                            // Sudah terposting (Requirement 3.3).
-                        }
-                    }
-                },
             );
 
             // Q-P2-12: jangan menimpa `skipped` (dokumen dibatalkan sebelum job berjalan) menjadi `posted`.

@@ -69,21 +69,26 @@ class LockForUpdateQueryTest extends TestCase {
 
     /** @test */
     public function gl_job_listeners_have_lock_points(): void {
-        // GL Account (debitAccount/creditAccount, atau expenseHeadAccount/
-        // creditAccount untuk PurchaseInvoice) dikunci DI DALAM Job — bukan
-        // di Service — karena blok GL sudah dipindah total ke queued Job
-        // (Requirement 5-7). Window race antara commit transaksi 1 dan Job
-        // mulai dieksekusi DITERIMA sebagai konsekuensi desain queue (lihat
-        // design.md Requirement 5 Acceptance Criteria 4) — lock ini cuma
-        // mencegah race ANTAR-JOB, bukan mencegah perubahan selama di antrian.
-        $receiptJob = $this->loadSource('app/Listeners/Purchase/Ledger/PostPurchaseReceiptGeneralLedger.php');
-        $this->assertGreaterThanOrEqual(2, substr_count($receiptJob, 'lockForUpdate()'), 'PostPurchaseReceiptGeneralLedger harus lock Account');
+        // Task 14.1 (2026-11-22): closure legacy yang mengunci baris Account
+        // (`Account::lockForUpdate()`) di dalam Job dihapus. Penulisan GL kini
+        // lewat PostingGateway/PostingService, yang mencegah race ANTAR-JOB
+        // lewat unique `posting_key` (idempotensi) dan guard dokumen sumber
+        // (`CanceledSourceGuard`, lockForUpdate pada dokumen penjaga), bukan
+        // lewat kunci baris Account. Test ini kini mengunci bahwa ketiga Job
+        // GL tidak menulis GL langsung, tetapi lewat gateway.
+        $jobs = [
+            'PostPurchaseReceiptGeneralLedger' => 'app/Listeners/Purchase/Ledger/PostPurchaseReceiptGeneralLedger.php',
+            'PostPurchaseInvoiceGeneralLedger' => 'app/Listeners/Finances/Ledger/PostPurchaseInvoiceGeneralLedger.php',
+            'PostDeliveryNoteGeneralLedger'    => 'app/Listeners/Inventory/Ledger/PostDeliveryNoteGeneralLedger.php',
+        ];
 
-        $invoiceJob = $this->loadSource('app/Listeners/Finances/Ledger/PostPurchaseInvoiceGeneralLedger.php');
-        $this->assertGreaterThanOrEqual(2, substr_count($invoiceJob, 'lockForUpdate()'), 'PostPurchaseInvoiceGeneralLedger harus lock Account');
+        foreach ($jobs as $name => $path) {
+            $source = $this->loadSource($path);
+            $this->assertStringContainsString('PostingGateway', $source, "{$name} harus memposting lewat PostingGateway");
+        }
 
-        $deliveryJob = $this->loadSource('app/Listeners/Inventory/Ledger/PostDeliveryNoteGeneralLedger.php');
-        $this->assertGreaterThanOrEqual(2, substr_count($deliveryJob, 'lockForUpdate()'), 'PostDeliveryNoteGeneralLedger harus lock Account');
+        $guard = $this->loadSource('app/Services/Finances/Posting/CanceledSourceGuard.php');
+        $this->assertStringContainsString('lockForUpdate()', $guard, 'CanceledSourceGuard harus mengunci dokumen penjaga');
     }
 
     /** @test */

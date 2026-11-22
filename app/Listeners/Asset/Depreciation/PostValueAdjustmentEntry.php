@@ -4,11 +4,9 @@ namespace App\Listeners\Asset\Depreciation;
 
 use App\Enums\FormStatus;
 use App\Events\Asset\AssetValueAdjustmentApproved;
-use App\Exceptions\Finances\DuplicatePostingException;
 use App\Models\Asset\AssetValueAdjustment;
 use App\Models\Core\GlPostingStatus;
 use App\Services\Asset\Accounting\AssetPostingContextFactory;
-use App\Services\Finances\Ledger\JournalService;
 use App\Services\Finances\Posting\PostingGateway;
 use Illuminate\Contracts\Queue\ShouldQueue;
 use Illuminate\Foundation\Bus\Dispatchable;
@@ -39,40 +37,12 @@ class PostValueAdjustmentEntry implements ShouldQueue {
                 throw new LogicException("AssetCategoryAccount tidak ditemukan untuk Asset {$asset->id} (branch {$branchId}).");
             }
 
-            // Gateway Posting Engine (Finance Fase 2, Task 7.1): closure = jalur Fase 1 apa adanya (mode `off`/`shadow`).
-            $legacyRan = false;
-            $outcome   = app(PostingGateway::class)->post(
+            // Gateway Posting Engine (Finance Fase 2, Task 7.1; closure legacy dihapus Task 14.1): akun aset dari
+            // `AssetCategoryAccount` lewat konteks, akun selisih dari peran `asset_revaluation` pada profil (bukan lagi
+            // kolom `difference_account_id` dokumen); `PostingModeNotOnException`/`UnresolvedAccountRoleException`
+            // membuat job gagal ke `failed`.
+            $outcome = app(PostingGateway::class)->post(
                 app(AssetPostingContextFactory::class)->valueAdjustment($adjustment, $accounts, Carbon::instance($event->transactionDate)),
-                function () use ($event, $adjustment, $asset, $accounts, &$legacyRan) {
-                    $legacyRan = true;
-
-                    $fixedAccount      = $accounts->fixedAssetAccount()->lockForUpdate()->first();
-                    $differenceAccount = $adjustment->differenceAccount()->lockForUpdate()->first();
-                    // Dokumen yang dibuat saat mode `on` tidak punya akun selisih (Task 12.3); jalur lama membutuhkannya.
-                    if (! $differenceAccount) {
-                        throw new LogicException("Penyesuaian nilai aset {$adjustment->id} tidak memiliki akun selisih untuk jalur posting lama (mode off/shadow). Dokumen dibuat saat mode engine on; naikkan kembali mode asset_value_adjustment ke on atau isi akun selisihnya.");
-                    }
-                    $amount     = abs((float) $adjustment->difference_amount);
-                    $isIncrease = (float) $adjustment->difference_amount > 0;
-
-                    try {
-                        app(JournalService::class)->postPair(
-                            $fixedAccount->id,
-                            $differenceAccount->id,
-                            $amount,
-                            $adjustment,
-                            Carbon::instance($event->transactionDate),
-                            purpose: 'value_adjustment',
-                            reverseSides: ! $isIncrease,
-                        );
-
-                        $asset->update([
-                            'gross_purchase_amount' => (float) $asset->gross_purchase_amount + (float) $adjustment->difference_amount,
-                        ]);
-                    } catch (DuplicatePostingException) {
-                        // Sudah terposting (Requirement 3.3): jangan menerapkan ulang `gross_purchase_amount`.
-                    }
-                },
             );
 
             // Q-P2-12: jangan menimpa `skipped` menjadi `posted`.
@@ -80,9 +50,9 @@ class PostValueAdjustmentEntry implements ShouldQueue {
                 return;
             }
 
-            // Jalur engine (mode `on`): `gross_purchase_amount` bersifat non-idempoten, diterapkan hanya saat jurnal baru
-            // ditulis; `already_posted` (retry) tidak menerapkannya ulang (Q-P2-12b).
-            if (! $legacyRan && $outcome->isPosted()) {
+            // `gross_purchase_amount` bersifat non-idempoten, diterapkan hanya saat jurnal baru ditulis; `already_posted`
+            // (retry) tidak menerapkannya ulang (Q-P2-12b).
+            if ($outcome->isPosted()) {
                 $asset->update([
                     'gross_purchase_amount' => (float) $asset->gross_purchase_amount + (float) $adjustment->difference_amount,
                 ]);

@@ -48,15 +48,12 @@ class AccountRoleTest extends TestCase {
     }
 
     public function test_legacy_pair_matches_the_lookups_in_the_real_phase_one_sources(): void {
-        $latestLookups = $this->pairsFoundIn([
-            'app/Listeners/Purchase/Ledger/PostPurchaseReceiptGeneralLedger.php',
-            'app/Listeners/Finances/Ledger/PostPurchaseInvoiceGeneralLedger.php',
-            'app/Listeners/Inventory/Ledger/PostDeliveryNoteGeneralLedger.php',
-            'app/Services/Inventory/StockEntryService.php',
-        ]);
-        foreach ([AccountRole::Stock, AccountRole::StockReceivedButNotBilled, AccountRole::CostOfGoodsSold] as $role) {
-            $this->assertContains(implode('/', $role->legacyPair()), $latestLookups, $role->value);
-        }
+        // Task 14.1 (2026-11-22): pencarian `where('account_type', ...)` di listener dan StockEntryService sudah dihapus
+        // (P-9), sehingga sumbernya tidak bisa lagi dijadikan pembanding. Pasangan peran stok dikunci sebagai literal
+        // (nilai yang dulu dicari kode sumber Fase 1); `legacyPair()` tetap dipakai PostingProfileInitializer.
+        $this->assertSame(['asset', 'stock'], AccountRole::Stock->legacyPair());
+        $this->assertSame(['liability', 'stock_received_but_not_billed'], AccountRole::StockReceivedButNotBilled->legacyPair());
+        $this->assertSame(['income', 'cost_of_goods_sold'], AccountRole::CostOfGoodsSold->legacyPair());
 
         $controllerDefaults = $this->pairsFoundIn([
             'app/Http/Controllers/Finances/SalesInvoiceController.php',

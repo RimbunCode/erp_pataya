@@ -12,15 +12,17 @@ use App\Models\Core\FormatingSeries;
 use App\Models\Core\GlPostingStatus;
 use App\Models\Finances\GeneralLedger;
 use App\Models\Finances\Journal;
+use App\Models\Finances\PostingProfile;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Schema;
 use Illuminate\Support\Str;
 use PHPUnit\Framework\Attributes\Test;
+use Tests\Support\EnablesEnginePosting;
 use Tests\TestCase;
 
 class PostValueAdjustmentEntryTest extends TestCase {
-    use RefreshDatabase;
+    use EnablesEnginePosting, RefreshDatabase;
 
     protected function setUp(): void {
         parent::setUp();
@@ -34,6 +36,7 @@ class PostValueAdjustmentEntryTest extends TestCase {
 
         GeneralLedger::initPermissions();
         Journal::initPermissions();
+        PostingProfile::initPermissions();
 
         FormatingSeries::firstOrCreate(
             ['model' => GeneralLedger::class],
@@ -75,6 +78,8 @@ class PostValueAdjustmentEntryTest extends TestCase {
         $branchId = $this->makeBranchId();
         $fixedAcc = $this->makeAccountId('asset', 'fixed_asset');
         $diffAcc  = $this->makeAccountId('income', 'revaluation_gain');
+        // Task 14.1: closure legacy dihapus; akun selisih datang dari peran `asset_revaluation` pada profil.
+        $this->enableEnginePosting(['asset_revaluation' => $diffAcc]);
 
         $asset = Asset::factory()->create(['gross_purchase_amount' => 5000]);
         $asset->assetLocation->update(['branch_id' => $branchId]);

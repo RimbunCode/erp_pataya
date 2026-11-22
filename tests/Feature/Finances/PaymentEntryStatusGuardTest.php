@@ -7,6 +7,7 @@ use App\Events\Core\DocumentSubmitted;
 use App\Models\Finances\Account;
 use App\Models\Finances\PaymentEntry;
 use App\Models\Finances\PaymentSchedule;
+use App\Models\Finances\PostingProfile;
 use App\Models\Finances\PurchaseInvoice;
 use App\Models\Finances\SalesInvoice;
 use App\Services\Finances\PaymentEntryService;
@@ -16,6 +17,7 @@ use Illuminate\Support\Facades\Event;
 use Illuminate\Validation\ValidationException;
 use PHPUnit\Framework\Attributes\DataProvider;
 use Tests\Support\BuildsFinanceFixtures;
+use Tests\Support\EnablesEnginePosting;
 use Tests\TestCase;
 
 /**
@@ -24,17 +26,22 @@ use Tests\TestCase;
  * `lockForUpdate` tidak berefek di SQLite, sehingga konkurensi diuji lewat idempotensi.
  */
 class PaymentEntryStatusGuardTest extends TestCase {
-    use BuildsFinanceFixtures, RefreshDatabase;
+    use BuildsFinanceFixtures, EnablesEnginePosting, RefreshDatabase;
 
     private Account $cash;
     private Account $receivable;
+    private Account $payable;
 
     protected function setUp(): void {
         parent::setUp();
 
-        $this->setUpFinanceFixtures([SalesInvoice::class, PurchaseInvoice::class, PaymentSchedule::class, PaymentEntry::class]);
+        $this->setUpFinanceFixtures([SalesInvoice::class, PurchaseInvoice::class, PaymentSchedule::class, PaymentEntry::class, PostingProfile::class]);
         $this->cash       = $this->makeAccount('1100', 'Kas', 'asset', 'debit', 'cash');
         $this->receivable = $this->makeAccount('1200', 'Piutang Usaha', 'asset', 'debit', 'accounts_receivable');
+        $this->payable    = $this->makeAccount('2100', 'Utang Usaha', 'liability', 'credit', 'accounts_payable');
+
+        // Task 14.1: closure legacy dihapus; kas dari Metode Pembayaran (otomatis di makePaymentEntry), lawan dari profil.
+        $this->enableEnginePosting(['receivable' => $this->receivable, 'payable' => $this->payable]);
     }
 
     /**
@@ -182,7 +189,7 @@ class PaymentEntryStatusGuardTest extends TestCase {
     }
 
     public function test_pay_payment_entry_on_a_purchase_invoice_debits_paid_to_and_credits_paid_from(): void {
-        $payable = $this->makeAccount('2100', 'Utang Usaha', 'liability', 'credit', 'accounts_payable');
+        $payable = $this->payable;
         $invoice = $this->makeUnpaidPurchaseInvoice(1_000_000);
         $payment = $this->makePaymentEntry($invoice, 400_000, $this->cash, $payable);
 

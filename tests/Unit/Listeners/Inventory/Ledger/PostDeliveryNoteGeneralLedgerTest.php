@@ -8,12 +8,14 @@ use App\Listeners\Inventory\Ledger\PostDeliveryNoteGeneralLedger;
 use App\Models\Core\GlPostingStatus;
 use App\Models\Finances\GeneralLedger;
 use App\Models\Finances\Journal;
+use App\Models\Finances\PostingProfile;
 use App\Models\Inventory\DeliveryNote;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Schema;
 use Illuminate\Support\Str;
 use RuntimeException;
+use Tests\Support\EnablesEnginePosting;
 use Tests\TestCase;
 
 /**
@@ -22,7 +24,7 @@ use Tests\TestCase;
  * di skema test SQLite) — pola sama dengan PostPurchaseReceiptGeneralLedgerTest.
  */
 class PostDeliveryNoteGeneralLedgerTest extends TestCase {
-    use RefreshDatabase;
+    use EnablesEnginePosting, RefreshDatabase;
 
     protected function setUp(): void {
         parent::setUp();
@@ -36,6 +38,7 @@ class PostDeliveryNoteGeneralLedgerTest extends TestCase {
 
         GeneralLedger::initPermissions();
         Journal::initPermissions();
+        PostingProfile::initPermissions();
     }
 
     private function makeDeliveryNoteId(): string {
@@ -79,9 +82,18 @@ class PostDeliveryNoteGeneralLedgerTest extends TestCase {
         return $id;
     }
 
+    /**
+     * Task 14.1: closure legacy dihapus; jurnal ditulis engine dengan akun dari profil.
+     */
+    private function enableEngine(): void {
+        $this->enableEnginePosting([
+            'stock'              => $this->makeAccountId('asset', 'stock'),
+            'cost_of_goods_sold' => $this->makeAccountId('income', 'cost_of_goods_sold'),
+        ]);
+    }
+
     public function test_handle_creates_two_gl_entries_for_forward_pick(): void {
-        $this->makeAccountId('asset', 'stock');
-        $this->makeAccountId('income', 'cost_of_goods_sold');
+        $this->enableEngine();
         $deliveryNoteId = $this->makeDeliveryNoteId();
 
         GlPostingStatus::create([
@@ -121,8 +133,7 @@ class PostDeliveryNoteGeneralLedgerTest extends TestCase {
     }
 
     public function test_handle_reverses_debit_credit_for_return(): void {
-        $this->makeAccountId('asset', 'stock');
-        $this->makeAccountId('income', 'cost_of_goods_sold');
+        $this->enableEngine();
         $deliveryNoteId = $this->makeDeliveryNoteId();
 
         GlPostingStatus::create([

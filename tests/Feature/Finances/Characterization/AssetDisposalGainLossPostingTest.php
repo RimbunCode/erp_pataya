@@ -7,10 +7,12 @@ use App\Events\Asset\AssetSoldViaInvoice;
 use App\Listeners\Asset\Rental\PostAssetDisposalGainLoss;
 use App\Models\Asset\Asset;
 use App\Models\Core\GlPostingStatus;
+use App\Models\Finances\PostingProfile;
 use App\Models\Finances\SalesInvoiceItem;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Tests\Support\BuildsAssetFixtures;
 use Tests\Support\BuildsFinanceFixtures;
+use Tests\Support\EnablesEnginePosting;
 use Tests\TestCase;
 
 /**
@@ -22,12 +24,15 @@ use Tests\TestCase;
  * temuan untuk ditinjau (laporan audit Fase 0), bukan diperbaiki di fase ini.
  */
 class AssetDisposalGainLossPostingTest extends TestCase {
-    use BuildsAssetFixtures, BuildsFinanceFixtures, RefreshDatabase;
+    use BuildsAssetFixtures, BuildsFinanceFixtures, EnablesEnginePosting, RefreshDatabase;
 
     protected function setUp(): void {
         parent::setUp();
 
-        $this->setUpFinanceFixtures();
+        $this->setUpFinanceFixtures([PostingProfile::class]);
+
+        // Task 14.1: closure legacy dihapus; jurnal ditulis engine dengan akun master dari AssetCategoryAccount.
+        $this->enableEnginePosting();
     }
 
     private function sell(Asset $asset, float $price): SalesInvoiceItem {

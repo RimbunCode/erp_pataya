@@ -15,14 +15,14 @@ use Illuminate\Database\Eloquent\Model;
 use Illuminate\Support\Facades\DB;
 
 /**
- * Pembantu parity test end-to-end Finance Fase 2 (Task 7.3, 8.4; P-1): satu dokumen per mode (`off`, `shadow`, `on`)
- * diproses lewat listener/service sungguhan, lalu tanda tangan jurnalnya (purpose, tanggal, akun, debit, kredit)
- * harus identik di ketiga mode. Dipakai bersama `BuildsFinanceFixtures` (`setUpFinanceFixtures()` harus memuat
- * `PostingProfile` dan `PostingParityLog`).
+ * Pembantu parity test end-to-end Finance Fase 2 (Task 7.3, 8.4; P-1; diperbarui Task 14.1): dokumen diproses lewat
+ * listener/service sungguhan pada mode `on` (satu-satunya jalur setelah closure legacy dihapus), lalu tanda tangan
+ * jurnalnya (purpose, tanggal, akun, debit, kredit) dikunci terhadap nilai karakterisasi Fase 0. Dipakai bersama
+ * `BuildsFinanceFixtures` (`setUpFinanceFixtures()` harus memuat `PostingProfile` dan `PostingParityLog`).
  */
 trait AssertsPostingParity {
     /** @var list<string> */
-    private const PARITY_MODES = [FinanceSetting::POSTING_MODE_OFF, FinanceSetting::POSTING_MODE_SHADOW, FinanceSetting::POSTING_MODE_ON];
+    private const PARITY_MODES = [FinanceSetting::POSTING_MODE_ON];
 
     /**
      * `ParityComparator` berkelas `final` (tidak bisa di-mock): paksa kegagalan nyata pada insert `posting_parity_logs`.
@@ -101,7 +101,9 @@ trait AssertsPostingParity {
     }
 
     /**
-     * Pastikan tanda tangan dokumen identik di semua mode dan tidak kosong (kecuali `$allowEmpty`).
+     * Pastikan skenario hanya diproses pada mode `on` (Task 14.1: `off`/`shadow` tidak lagi punya jalur) dan tanda
+     * tangan jurnalnya tidak kosong (kecuali `$allowEmpty`). Nilai tanda tangan itu sendiri dikunci eksplisit oleh
+     * pemanggil terhadap hasil karakterisasi Fase 0 (bukti parity 100%, exit criteria 14.3).
      *
      * @param  array<string, array<string, mixed>>  $signaturesByMode  mode => tanda tangan
      */
@@ -109,10 +111,7 @@ trait AssertsPostingParity {
         $this->assertSame(self::PARITY_MODES, array_keys($signaturesByMode), $scenario);
 
         if (! $allowEmpty) {
-            $this->assertNotEmpty($signaturesByMode[FinanceSetting::POSTING_MODE_OFF], "{$scenario}: jalur lama harus menulis jurnal.");
+            $this->assertNotEmpty($signaturesByMode[FinanceSetting::POSTING_MODE_ON], "{$scenario}: engine harus menulis jurnal.");
         }
-
-        $this->assertEquals($signaturesByMode[FinanceSetting::POSTING_MODE_OFF], $signaturesByMode[FinanceSetting::POSTING_MODE_SHADOW], "{$scenario}: shadow harus identik dengan off.");
-        $this->assertEquals($signaturesByMode[FinanceSetting::POSTING_MODE_OFF], $signaturesByMode[FinanceSetting::POSTING_MODE_ON], "{$scenario}: on harus identik dengan off.");
     }
 }

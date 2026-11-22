@@ -4,10 +4,8 @@ namespace App\Listeners\Asset\Rental;
 
 use App\Enums\FormStatus;
 use App\Events\Asset\AssetSoldViaInvoice;
-use App\Exceptions\Finances\DuplicatePostingException;
 use App\Models\Core\GlPostingStatus;
 use App\Services\Asset\Accounting\AssetPostingContextFactory;
-use App\Services\Finances\Ledger\JournalService;
 use App\Services\Finances\Posting\PostingGateway;
 use Illuminate\Contracts\Queue\ShouldQueue;
 use Illuminate\Foundation\Bus\Dispatchable;
@@ -50,37 +48,11 @@ class PostAssetDisposalGainLoss implements ShouldQueue {
                 throw new LogicException("AssetCategoryAccount tidak ditemukan untuk Asset {$asset->id} (branch {$branchId}).");
             }
 
-            // Gateway Posting Engine (Finance Fase 2, Task 7.1): closure = jalur Fase 1 apa adanya (mode `off`/`shadow`).
-            // Dokumen penjaga guard cancel adalah Sales Invoice sumber baris (Q-P2-13), bukan aset.
+            // Gateway Posting Engine (Finance Fase 2, Task 7.1; closure legacy dihapus Task 14.1). Dokumen penjaga guard
+            // cancel adalah Sales Invoice sumber baris (Q-P2-13), bukan aset. Kunci idempotensi per baris invoice
+            // (`disposal:{sales_invoice_item_id}`, Q-P1-6) dipegang rule engine.
             $outcome = app(PostingGateway::class)->post(
                 app(AssetPostingContextFactory::class)->disposal($line, $asset, $accounts, (float) $gainLoss, now()),
-                function () use ($line, $asset, $accounts, $gainLoss) {
-                    if (abs($gainLoss) > 0.0001) {
-                        $fixedAccount    = $accounts->fixedAssetAccount()->lockForUpdate()->first();
-                        $gainLossAccount = $accounts->gainLossDisposalAccount()->lockForUpdate()->first();
-
-                        if (! $gainLossAccount) {
-                            throw new LogicException("gain_loss_disposal_account_id belum diisi untuk AssetCategoryAccount Asset {$asset->id}.");
-                        }
-
-                        // Untung: debit akun selisih, kredit aset tetap. Rugi: debit aset tetap, kredit akun selisih.
-                        // Keputusan pemilik produk 2026-11-04 (Q-P1-6): kunci idempotensi per baris invoice
-                        // (`purpose` = `disposal:{sales_invoice_item_id}`), sehingga baris penjualan lain atas aset yang sama
-                        // punya posting sendiri dan baris yang sama tidak dapat diposting dua kali.
-                        try {
-                            app(JournalService::class)->postPair(
-                                $gainLoss >= 0 ? $gainLossAccount->id : $fixedAccount->id,
-                                $gainLoss >= 0 ? $fixedAccount->id : $gainLossAccount->id,
-                                abs($gainLoss),
-                                $asset,
-                                now(),
-                                purpose: "disposal:{$line->id}",
-                            );
-                        } catch (DuplicatePostingException) {
-                            // Baris invoice ini sudah diposting (Requirement 3.3).
-                        }
-                    }
-                },
             );
 
             if ($outcome->isSkipped()) {

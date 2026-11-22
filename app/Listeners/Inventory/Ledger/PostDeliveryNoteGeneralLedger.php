@@ -4,10 +4,7 @@ namespace App\Listeners\Inventory\Ledger;
 
 use App\Enums\FormStatus;
 use App\Events\Inventory\DeliveryNoteGeneralLedgerPostingRequested;
-use App\Exceptions\Finances\DuplicatePostingException;
 use App\Models\Core\GlPostingStatus;
-use App\Models\Finances\Account;
-use App\Services\Finances\Ledger\JournalService;
 use App\Services\Finances\Posting\PostingGateway;
 use App\Services\Inventory\Accounting\DeliveryNotePostingContextFactory;
 use Illuminate\Contracts\Queue\ShouldQueue;
@@ -28,34 +25,11 @@ class PostDeliveryNoteGeneralLedger implements ShouldQueue {
         DB::transaction(function () use ($event) {
             $deliveryNote = $event->deliveryNote;
 
-            // Gateway Posting Engine (Finance Fase 2, Task 8.1): closure = jalur Fase 1 apa adanya (mode `off`/`shadow`).
+            // Gateway Posting Engine (Finance Fase 2, Task 8.1; closure legacy dihapus Task 14.1): akun datang dari
+            // peran profil (debit HPP, kredit stok; retur menukar sisi lewat rule), dan `PostingModeNotOnException`/
+            // `UnresolvedAccountRoleException` membuat job gagal ke `failed`.
             $outcome = app(PostingGateway::class)->post(
                 app(DeliveryNotePostingContextFactory::class)->forPosting($deliveryNote, (float) $event->totalPicked, $event->isReturn, Carbon::instance($event->transactionDate)),
-                function () use ($event, $deliveryNote) {
-                    $creditAccount = Account::lockForUpdate()
-                        ->where('root_type', 'asset')
-                        ->where('account_type', 'stock')
-                        ->latest()->first();
-
-                    $debitAccount = Account::lockForUpdate()
-                        ->where('root_type', 'income')
-                        ->where('account_type', 'cost_of_goods_sold')
-                        ->latest()->first();
-
-                    try {
-                        // Debit HPP, kredit stok; retur menukar sisi.
-                        app(JournalService::class)->postPair(
-                            $debitAccount->id,
-                            $creditAccount->id,
-                            $event->totalPicked,
-                            $deliveryNote,
-                            Carbon::instance($event->transactionDate),
-                            reverseSides: $event->isReturn,
-                        );
-                    } catch (DuplicatePostingException) {
-                        // Sudah terposting (Requirement 3.3).
-                    }
-                },
             );
 
             // Q-P2-12: jangan menimpa `skipped` (dokumen dibatalkan sebelum job berjalan) menjadi `posted`.
