@@ -48,8 +48,12 @@ class PostValueAdjustmentEntry implements ShouldQueue {
 
                     $fixedAccount      = $accounts->fixedAssetAccount()->lockForUpdate()->first();
                     $differenceAccount = $adjustment->differenceAccount()->lockForUpdate()->first();
-                    $amount            = abs((float) $adjustment->difference_amount);
-                    $isIncrease        = (float) $adjustment->difference_amount > 0;
+                    // Dokumen yang dibuat saat mode `on` tidak punya akun selisih (Task 12.3); jalur lama membutuhkannya.
+                    if (! $differenceAccount) {
+                        throw new LogicException("Penyesuaian nilai aset {$adjustment->id} tidak memiliki akun selisih untuk jalur posting lama (mode off/shadow). Dokumen dibuat saat mode engine on; naikkan kembali mode asset_value_adjustment ke on atau isi akun selisihnya.");
+                    }
+                    $amount     = abs((float) $adjustment->difference_amount);
+                    $isIncrease = (float) $adjustment->difference_amount > 0;
 
                     try {
                         app(JournalService::class)->postPair(
