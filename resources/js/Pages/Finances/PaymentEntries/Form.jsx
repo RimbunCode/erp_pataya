@@ -34,7 +34,11 @@ export default function Form() {
     },
   );
   const { t } = useLaravelReactI18n();
-  const { default_currency_id } = usePage().props.preferences;
+  const pageProps = usePage().props;
+  const { default_currency_id } = pageProps.preferences;
+  // Engine `on`: akun pencatatan ditentukan engine saat posting (Finance Fase 2,
+  // Task 12.3), jadi form tidak meminta, mengisi default, maupun memuat akun.
+  const accountsManaged = pageProps.accountsManagedByEngine === true;
   const paymentEntryScheduleColumns = [
     {
       name: "due_date",
@@ -175,6 +179,13 @@ export default function Form() {
         }
         const paymentMethod =
           prev?.paymentable?.payment_schedules[index]?.payment_method;
+        if (accountsManaged) {
+          return {
+            ...prev,
+            paid_amount: amount,
+            payment_method: paymentMethod,
+          };
+        }
         const account = paymentMethod?.default_account;
         const keyAccount =
           prev.party_type === "supplier"
@@ -189,7 +200,7 @@ export default function Form() {
       });
       toast.success(t("finances.paymentTermTemplate.alert.success"));
     },
-    [setData],
+    [setData, accountsManaged],
   );
   const paymentEntryScheduleActions = useCallback(
     ({ row, index }) => {
@@ -256,10 +267,13 @@ export default function Form() {
               label={t("finances.paymentEntry.columns.payment_method")}
             >
               <PaymentMethodLinkModel
-                with={["defaultAccount"]}
+                with={accountsManaged ? [] : ["defaultAccount"]}
                 value={data.payment_method}
                 onValueChange={(val) => {
                   setData((prev) => {
+                    if (accountsManaged) {
+                      return { ...prev, payment_method: val };
+                    }
                     const keyAccount =
                       data.payment_type === "receive"
                         ? "account_paid_to"
@@ -379,11 +393,19 @@ export default function Form() {
                     "currency",
                     "paymentSchedules",
                     "paymentSchedules.paymentMethod",
-                    "paymentSchedules.paymentMethod.defaultAccount",
+                    ...(accountsManaged
+                      ? []
+                      : ["paymentSchedules.paymentMethod.defaultAccount"]),
                     ...(data.party_type === "customer"
-                      ? ["customer", "debitAccount"]
+                      ? [
+                          "customer",
+                          ...(accountsManaged ? [] : ["debitAccount"]),
+                        ]
                       : data.party_type === "supplier"
-                        ? ["supplier", "creditAccount"]
+                        ? [
+                            "supplier",
+                            ...(accountsManaged ? [] : ["creditAccount"]),
+                          ]
                         : []),
                   ]}
                   onValueChange={(val) => {
@@ -392,6 +414,17 @@ export default function Form() {
                       const amount = getAmountPayment(paymentSchedules ?? []);
                       const paymentMethod =
                         paymentSchedules?.[0]?.payment_method;
+                      if (accountsManaged) {
+                        return {
+                          ...prev,
+                          paymentable: val,
+                          currency: val?.currency,
+                          exchange_rate: val?.exchange_rate ?? 1,
+                          partyable: val?.[prev.party_type] ?? null,
+                          paid_amount: amount,
+                          payment_method: paymentMethod,
+                        };
+                      }
                       const account = paymentMethod?.default_account;
                       const keyDefaultAccountPayment =
                         prev.party_type === "supplier"
@@ -436,47 +469,49 @@ export default function Form() {
           </div>
         </FormPageContent>
       )}
-      <FormPageContent
-        title={t("finances.paymentEntry.accounts")}
-        value="detail"
-      >
-        <div className="grid md:grid-cols-2  gap-x-3 gap-y-4">
-          <FormInput
-            name="account_paid_from"
-            required={true}
-            label={t("finances.paymentEntry.columns.account_paid_from")}
-          >
-            <AccountLinkModel
-              filters={
-                data.payment_type === "receive"
-                  ? { root_type: "asset", account_type: "receivable" }
-                  : data.payment_type === "pay"
+      {!accountsManaged && (
+        <FormPageContent
+          title={t("finances.paymentEntry.accounts")}
+          value="detail"
+        >
+          <div className="grid md:grid-cols-2  gap-x-3 gap-y-4">
+            <FormInput
+              name="account_paid_from"
+              required={true}
+              label={t("finances.paymentEntry.columns.account_paid_from")}
+            >
+              <AccountLinkModel
+                filters={
+                  data.payment_type === "receive"
+                    ? { root_type: "asset", account_type: "receivable" }
+                    : data.payment_type === "pay"
+                      ? { root_type: "asset", is_group: false }
+                      : {}
+                }
+                value={data?.account_paid_from}
+                onValueChange={(val) => setData("account_paid_from", val)}
+              />
+            </FormInput>
+            <FormInput
+              name="account_paid_to"
+              required={true}
+              label={t("finances.paymentEntry.columns.account_paid_to")}
+            >
+              <AccountLinkModel
+                filters={
+                  data.payment_type === "receive"
                     ? { root_type: "asset", is_group: false }
-                    : {}
-              }
-              value={data?.account_paid_from}
-              onValueChange={(val) => setData("account_paid_from", val)}
-            />
-          </FormInput>
-          <FormInput
-            name="account_paid_to"
-            required={true}
-            label={t("finances.paymentEntry.columns.account_paid_to")}
-          >
-            <AccountLinkModel
-              filters={
-                data.payment_type === "receive"
-                  ? { root_type: "asset", is_group: false }
-                  : data.payment_type === "pay"
-                    ? { root_type: "liability", account_type: "payable" }
-                    : {}
-              }
-              value={data?.account_paid_to}
-              onValueChange={(val) => setData("account_paid_to", val)}
-            />
-          </FormInput>
-        </div>
-      </FormPageContent>
+                    : data.payment_type === "pay"
+                      ? { root_type: "liability", account_type: "payable" }
+                      : {}
+                }
+                value={data?.account_paid_to}
+                onValueChange={(val) => setData("account_paid_to", val)}
+              />
+            </FormInput>
+          </div>
+        </FormPageContent>
+      )}
       <FormPageContent title={t("finances.paymentEntry.amount")} value="detail">
         <div className="grid md:grid-cols-2  gap-x-3 gap-y-4">
           {data?.payment_type && data?.payment_type !== "internal_transfer" && (
