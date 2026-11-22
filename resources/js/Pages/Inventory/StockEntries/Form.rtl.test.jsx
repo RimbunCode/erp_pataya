@@ -46,8 +46,9 @@ vi.mock("@inertiajs/react", () => ({
   usePage: () => usePageMock(),
 }));
 
-// getDataModel dipantau supaya terbukti default akun selisih tidak diambil saat
-// mode engine `on`; helper lain di @/lib/utils dipakai apa adanya.
+// getDataModel dipantau supaya terbukti default akun selisih tidak pernah
+// diambil (akun ditentukan engine, Q-P2-23); helper lain di @/lib/utils dipakai
+// apa adanya.
 const getDataModelMock = vi.fn();
 vi.mock("@/lib/utils", async () => {
   const actual = await vi.importActual("@/lib/utils");
@@ -312,9 +313,8 @@ describe("Inventory/StockEntries Form", () => {
     setPageProps();
   });
 
-  describe("akun dikelola engine (mode on, Task 12.3)", () => {
-    it("tidak mengambil default akun selisih dan menyembunyikan seksi akun saat mode on", async () => {
-      setPageProps({ accountsManagedByEngine: true });
+  describe("akun dikelola engine (Q-P2-23, Task 12.3)", () => {
+    it("tidak mengambil default akun selisih dan menyembunyikan seksi akun", async () => {
       formPageSeed = { type: "item_receipt", items: [] };
       render(<Form />);
 
@@ -330,8 +330,7 @@ describe("Inventory/StockEntries Form", () => {
       ).not.toBeInTheDocument();
     });
 
-    it("menyembunyikan kolom akun biaya tambahan saat mode on", () => {
-      setPageProps({ accountsManagedByEngine: true });
+    it("menyembunyikan kolom akun biaya tambahan", () => {
       formPageSeed = {
         type: "item_receipt",
         items: [],
@@ -352,39 +351,27 @@ describe("Inventory/StockEntries Form", () => {
       ).toBeInTheDocument();
     });
 
-    it("mengambil default akun selisih dan menampilkan seksi akun saat mode bukan on", async () => {
+    it("tidak terpengaruh prop accountsManagedByEngine yang sudah dihapus", () => {
       setPageProps({ accountsManagedByEngine: false });
-      formPageSeed = {
-        type: "item_receipt",
-        items: [],
-        additional_costs: [{ id: "c1", purpose: "Angkut", amount: 100 }],
-      };
+      formPageSeed = { type: "item_receipt", items: [] };
       render(<Form />);
 
-      const result = await lastDefaultValueArg();
-
-      expect(getDataModelMock).toHaveBeenCalledTimes(1);
-      expect(result.difference_account).toEqual({
-        id: 99,
-        name: "Selisih Stok",
-      });
       expect(
-        screen.getByText("inventory.stockEntry.accounting"),
-      ).toBeInTheDocument();
-      expect(
-        screen.getByTestId("cell-expense_account-StockEntryAdditionalCosts-0"),
-      ).toBeInTheDocument();
+        screen.queryByTestId("account-link-model"),
+      ).not.toBeInTheDocument();
     });
   });
 
   describe("rendering dasar & visibility field", () => {
-    it("merender field date, type, dan difference_account", () => {
+    it("merender field date dan type tanpa field akun", () => {
       formPageSeed = { type: null, items: [] };
       render(<Form />);
 
       expect(screen.getByTestId("datetime-picker")).toBeInTheDocument();
       expect(screen.getByLabelText("type-select")).toBeInTheDocument();
-      expect(screen.getByTestId("account-link-model")).toBeInTheDocument();
+      expect(
+        screen.queryByTestId("account-link-model"),
+      ).not.toBeInTheDocument();
     });
 
     it("checkbox using_transit TIDAK tampil ketika type != item_transfer", () => {

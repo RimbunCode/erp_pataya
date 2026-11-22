@@ -76,26 +76,20 @@ describe("Asset ValueAdjustments Form", () => {
     usePageMock.mockReturnValue({ props: { preferences: {} } });
   });
 
-  it("memilih asset/difference_account menampilkan value terkini", () => {
+  it("memilih asset menampilkan value terkini", () => {
     formPageSeed = {
       asset: { name: "Laptop A" },
-      difference_account: { name: "Loss on Revaluation" },
     };
     renderForm(<Form />);
 
     expect(screen.getByTestId("asset-link-model")).toHaveTextContent(
       "asset:Laptop A",
     );
-    expect(screen.getByTestId("account-link-model")).toHaveTextContent(
-      "account:Loss on Revaluation",
-    );
   });
 
-  describe("akun dikelola engine (mode on, Task 12.3)", () => {
-    it("menyembunyikan field akun selisih saat mode on", () => {
-      usePageMock.mockReturnValue({
-        props: { preferences: {}, accountsManagedByEngine: true },
-      });
+  describe("akun dikelola engine (Q-P2-23, Task 12.3)", () => {
+    it("selalu menyembunyikan field akun selisih", () => {
+      formPageSeed = { difference_account: { name: "Loss on Revaluation" } };
       renderForm(<Form />);
 
       expect(
@@ -109,13 +103,15 @@ describe("Asset ValueAdjustments Form", () => {
       ).toBeInTheDocument();
     });
 
-    it("menampilkan field akun selisih saat mode bukan on", () => {
+    it("tidak membaca prop accountsManagedByEngine yang sudah dihapus", () => {
+      usePageMock.mockReturnValue({
+        props: { preferences: {}, accountsManagedByEngine: false },
+      });
       renderForm(<Form />);
 
       expect(
-        screen.getByTestId("forminput-difference_account"),
-      ).toBeInTheDocument();
-      expect(screen.getByTestId("account-link-model")).toBeInTheDocument();
+        screen.queryByTestId("forminput-difference_account"),
+      ).not.toBeInTheDocument();
     });
   });
 

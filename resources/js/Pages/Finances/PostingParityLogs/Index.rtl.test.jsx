@@ -46,7 +46,6 @@ import Index from "./Index";
 
 const documentTypes = ["sales_invoice", "stock_entry"];
 const statuses = ["match", "mismatch"];
-const modes = { sales_invoice: "off", stock_entry: "shadow" };
 
 const logs = {
   total: 2,
@@ -76,8 +75,6 @@ const baseProps = {
   logs,
   documentTypes,
   statuses,
-  modes,
-  canSwitchMode: false,
 };
 
 describe("PostingParityLogs Index", () => {
@@ -161,105 +158,22 @@ describe("PostingParityLogs Index", () => {
     expect(rows[0]).toHaveTextContent("akun berbeda");
   });
 
-  it("tanpa izin ubah mode, kontrol tidak dirender dan mode tampil sebagai teks", () => {
-    render(<Index {...baseProps} canSwitchMode={false} />);
-
-    const rows = screen.getAllByTestId("mode-row");
-    expect(rows).toHaveLength(2);
-    expect(within(rows[1]).queryByRole("button")).toBeNull();
-    expect(rows[1]).toHaveTextContent(
-      "finances.postingParityLog.mode.options.shadow",
+  it("tidak merender bagian atau kontrol mode meski prop lama dikirim", () => {
+    render(
+      <Index
+        {...baseProps}
+        modes={{ sales_invoice: "off" }}
+        modeOptions={["off", "shadow", "on"]}
+        canSwitchMode
+      />,
     );
+
+    expect(screen.queryByTestId("mode-section")).toBeNull();
+    expect(screen.queryAllByTestId("mode-row")).toHaveLength(0);
     expect(
-      screen.getByText("finances.postingParityLog.mode.read_only"),
-    ).toBeInTheDocument();
-  });
-
-  it("dengan izin, memilih shadow langsung memanggil rute ubah mode", async () => {
-    const user = userEvent.setup();
-    render(<Index {...baseProps} canSwitchMode />);
-
-    const row = screen.getAllByTestId("mode-row")[0];
-    expect(
-      within(row).getByRole("button", {
-        name: "finances.postingParityLog.mode.options.off",
-      }),
-    ).toHaveAttribute("aria-pressed", "true");
-
-    await user.click(
-      within(row).getByRole("button", {
-        name: "finances.postingParityLog.mode.options.shadow",
-      }),
-    );
-
-    expect(mocks.put).toHaveBeenCalledWith(
-      "postingParityLogs.switchMode/sales_invoice",
-      { mode: "shadow" },
-      expect.any(Object),
-    );
-  });
-
-  it("mengklik mode yang sudah aktif tidak mengirim apa pun", async () => {
-    const user = userEvent.setup();
-    render(<Index {...baseProps} canSwitchMode />);
-
-    await user.click(
-      within(screen.getAllByTestId("mode-row")[0]).getByRole("button", {
-        name: "finances.postingParityLog.mode.options.off",
-      }),
-    );
-
-    expect(mocks.put).not.toHaveBeenCalled();
-  });
-
-  it("memilih on meminta konfirmasi eksplisit sebelum mengirim", async () => {
-    const user = userEvent.setup();
-    render(<Index {...baseProps} canSwitchMode />);
-
-    await user.click(
-      within(screen.getAllByTestId("mode-row")[0]).getByRole("button", {
-        name: "finances.postingParityLog.mode.options.on",
-      }),
-    );
-    expect(mocks.put).not.toHaveBeenCalled();
-
-    const dialog = await screen.findByRole("dialog");
-    const confirm = within(dialog).getByRole("button", {
-      name: "finances.postingParityLog.mode.confirm.confirm",
-    });
-    expect(confirm).toBeDisabled();
-
-    await user.click(
-      within(dialog).getByLabelText(
-        "finances.postingParityLog.mode.confirm.checkbox",
-      ),
-    );
-    expect(confirm).toBeEnabled();
-    await user.click(confirm);
-
-    expect(mocks.put).toHaveBeenCalledWith(
-      "postingParityLogs.switchMode/sales_invoice",
-      { mode: "on", confirmed: true },
-      expect.any(Object),
-    );
-  });
-
-  it("membatalkan dialog konfirmasi on tidak mengubah mode", async () => {
-    const user = userEvent.setup();
-    render(<Index {...baseProps} canSwitchMode />);
-
-    await user.click(
-      within(screen.getAllByTestId("mode-row")[0]).getByRole("button", {
-        name: "finances.postingParityLog.mode.options.on",
-      }),
-    );
-    const dialog = await screen.findByRole("dialog");
-    await user.click(
-      within(dialog).getByRole("button", {
-        name: "finances.postingParityLog.mode.confirm.cancel",
-      }),
-    );
-
+      screen.queryByText("finances.postingParityLog.mode.title"),
+    ).toBeNull();
+    expect(screen.queryByRole("dialog")).toBeNull();
     expect(mocks.put).not.toHaveBeenCalled();
   });
 
@@ -269,18 +183,18 @@ describe("PostingParityLogs Index", () => {
     expect(screen.getByTestId("empty-state")).toBeInTheDocument();
   });
 
-  it("menampilkan galat validasi server (filter dan ubah mode) dalam alert", () => {
+  it("menampilkan galat validasi server (filter) dalam alert", () => {
     mocks.pageProps = {
       errors: {
         date_to: "Tanggal akhir sebelum tanggal awal",
-        confirmed: "Konfirmasi diperlukan",
+        document_type: "Jenis dokumen tidak valid",
       },
     };
     render(<Index {...baseProps} />);
 
     const alert = screen.getByRole("alert");
     expect(alert).toHaveTextContent("Tanggal akhir sebelum tanggal awal");
-    expect(alert).toHaveTextContent("Konfirmasi diperlukan");
+    expect(alert).toHaveTextContent("Jenis dokumen tidak valid");
   });
 
   it("tanpa galat tidak ada alert", () => {

@@ -4,11 +4,10 @@ import {
   useFormPage,
 } from "@/Pages/Core/FormPage";
 import React, { useCallback, useEffect, useMemo, useRef } from "react";
-import { calculateArray, generateRandom, getDataModel } from "@/lib/utils";
+import { calculateArray, generateRandom } from "@/lib/utils";
 import { allocateDiscount } from "@/lib/discountAllocation";
 import { EMPTY_DEFAULTS, useDocumentDefaults } from "@/lib/documentDefaults";
 
-import AccountLinkModel from "../Accounts/AccountLinkModel";
 import AssetCompletionRowBadge from "@/Pages/Asset/Assets/AssetCompletionRowBadge";
 import AdditionalDiscount from "../Components/AdditionalDiscount";
 import NumberInput from "@/Components/NumberInput";
@@ -51,32 +50,9 @@ const SOURCE_RESET = {
 };
 
 export default function Form() {
-  // Engine `on`: akun pencatatan ditentukan engine saat posting (Finance Fase 2,
-  // Task 12.3), jadi form tidak meminta maupun mengisi default akun.
-  const accountsManaged = usePage().props.accountsManagedByEngine === true;
-  const defaultValue = useCallback(async () => {
-    if (accountsManaged) {
-      return { date: new Date() };
-    }
-    const accounts = await getDataModel("App\\Models\\Finances\\Account", {
-      root_type: "liability",
-      account_type: {
-        in: ["stock_received_but_not_billed", "payable"],
-      },
-      is_contra: false,
-    });
-    const expenseHeadAccount = accounts.filter(
-      (x) => x.account_type == "stock_received_but_not_billed",
-    )[0];
-    const creditAccount = accounts.filter(
-      (x) => x.account_type == "payable",
-    )[0];
-    return {
-      date: new Date(),
-      expense_head_account: expenseHeadAccount,
-      credit_account: creditAccount,
-    };
-  }, [accountsManaged]);
+  // Akun pencatatan ditentukan engine saat posting (Finance Fase 2, Task 12.3,
+  // Q-P2-23), jadi form tidak meminta maupun mengisi default akun.
+  const defaultValue = useCallback(async () => ({ date: new Date() }), []);
   const { t } = useLaravelReactI18n();
   const { data, setData, disabled, dataBefore, isCreate } = useFormPage(
     defaultValue,
@@ -724,10 +700,6 @@ export default function Form() {
                       supplier: val?.supplier,
                       currency: val?.currency,
                       exchange_rate: val?.exchange_rate,
-                      credit_account:
-                        val?.credit_account ?? prev.credit_account,
-                      expense_head_account:
-                        val?.expense_head_account ?? prev.expense_head_account,
                       discount_on: val?.discount_on,
                       discount_rate: val?.discount_rate,
                       discount_amount: val?.discount_amount,
@@ -756,55 +728,6 @@ export default function Form() {
           </div>
         </div>
       </FormPageContent>
-      {!accountsManaged && (
-        <FormPageContent
-          value="detail"
-          title={t("finances.purchaseInvoice.columns.accounts")}
-        >
-          <div className="grid gap-4  grid-cols-2">
-            <FormInput
-              label={t("finances.purchaseInvoice.columns.expense_head_account")}
-              name="expense_head_account"
-              required
-            >
-              <AccountLinkModel
-                filters={{
-                  root_type: "liability",
-                  account_type: "stock_received_but_not_billed",
-                  is_group: false,
-                }}
-                placeholder={t(
-                  "finances.purchaseInvoice.columns.accounts.placeholder",
-                )}
-                value={data.expense_head_account}
-                onValueChange={(val) => {
-                  setData("expense_head_account", val);
-                }}
-              />
-            </FormInput>
-            <FormInput
-              label={t("finances.purchaseInvoice.columns.credit_account")}
-              name="credit_account"
-              required
-            >
-              <AccountLinkModel
-                filters={{
-                  root_type: "liability",
-                  account_type: "payable",
-                  is_group: false,
-                }}
-                placeholder={t(
-                  "finances.purchaseInvoice.columns.accounts.placeholder",
-                )}
-                value={data.credit_account}
-                onValueChange={(val) => {
-                  setData("credit_account", val);
-                }}
-              />
-            </FormInput>
-          </div>
-        </FormPageContent>
-      )}
       <FormPageContent
         value="detail"
         title={t("finances.purchaseInvoice.items")}

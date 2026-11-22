@@ -103,8 +103,6 @@ return [
             'months_after_invoice_month' => 'Bulan setelah bulan faktur',
         ],
         'outstanding_amount'            => 'Jumlah Belum Dibayar',
-        'accounts'                      => 'Akun',
-        'accounts.placeholder'          => 'Pilih akun',
         'income_account'                => 'Akun Pendapatan',
         'debit_account'                 => 'Debit Ke',
         'is_return'                     => 'Apakah Retur (Nota Kredit)',

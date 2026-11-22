@@ -9,7 +9,6 @@ import {
   calculateDurationDays,
   calculateRentalAmount,
   generateRandom,
-  getDataModel,
 } from "@/lib/utils";
 import { allocateDiscount } from "@/lib/discountAllocation";
 import {
@@ -18,7 +17,6 @@ import {
   useDocumentDefaults,
 } from "@/lib/documentDefaults";
 
-import AccountLinkModel from "../Accounts/AccountLinkModel";
 import AdditionalDiscount from "../Components/AdditionalDiscount";
 import BranchLinkModel from "@/Pages/Settings/Branches/BranchLinkModel";
 import NumberInput from "@/Components/NumberInput";
@@ -53,34 +51,9 @@ export default function Form() {
   const canOffSource = usePermission("App\\Models\\Finances\\SalesInvoice").can(
     "manage_off_source_items",
   );
-  // Engine `on`: akun pencatatan ditentukan engine saat posting (Finance Fase 2,
-  // Task 12.3), jadi form tidak meminta maupun mengisi default akun.
-  const accountsManaged = usePage().props.accountsManagedByEngine === true;
-  const defaultValue = useCallback(async () => {
-    if (accountsManaged) {
-      return { date: new Date() };
-    }
-    const accounts = await getDataModel("App\\Models\\Finances\\Account", {
-      root_type: {
-        in: ["income", "asset"],
-      },
-      account_type: {
-        in: ["income_account", "receivable"],
-      },
-      is_contra: false,
-    });
-    const incomeAccount = accounts.filter(
-      (x) => x.account_type == "income_account",
-    )[0];
-    const debitAccount = accounts.filter(
-      (x) => x.account_type == "receivable",
-    )[0];
-    return {
-      date: new Date(),
-      income_account: incomeAccount,
-      debit_account: debitAccount,
-    };
-  }, [accountsManaged]);
+  // Akun pencatatan ditentukan engine saat posting (Finance Fase 2, Task 12.3,
+  // Q-P2-23), jadi form tidak meminta maupun mengisi default akun.
+  const defaultValue = useCallback(async () => ({ date: new Date() }), []);
   const { data, setData, disabled, dataBefore, isCreate, errors } = useFormPage(
     defaultValue,
     {
@@ -122,24 +95,6 @@ export default function Form() {
     defaults.payment_term_template,
     setData,
   ]);
-  const getContraIncomeAccount = (isContra) => {
-    if (accountsManaged) return;
-    getDataModel(
-      "App\\Models\\Finances\\Account",
-      {
-        root_type: "income",
-        account_type: "income_account",
-        is_contra: isContra,
-      },
-      { limit: 1 },
-    ).then((res) => {
-      console.log(res);
-      setData((prev) => ({
-        ...prev,
-        income_account: res,
-      }));
-    });
-  };
   // basic_amount adalah generated column KOTOR (quantity * price), belum dikurangi
   // diskon dokumen -- net_amount (label "Jumlah Dasar") harus mengurangi
   // discount_amount per item (ditulis backend saat create/update, lihat
@@ -696,7 +651,6 @@ export default function Form() {
               checked={data.is_return}
               valueBefore={dataBefore?.is_return}
               onCheckedChange={(val) => {
-                getContraIncomeAccount(val);
                 setData((prev) => ({
                   ...prev,
                   is_return: val,
@@ -767,7 +721,6 @@ export default function Form() {
                       customer_branch: val?.customer_branch,
                       currency: val?.currency,
                       exchange_rate: val?.exchange_rate,
-                      debit_account: val?.debit_account ?? prev.debit_account,
                       discount_on: val?.discount_on,
                       discount_rate: val?.discount_rate,
                       discount_amount: val?.discount_amount,
@@ -818,55 +771,6 @@ export default function Form() {
           </div>
         </div>
       </FormPageContent>
-      {!accountsManaged && (
-        <FormPageContent
-          value="detail"
-          title={t("finances.salesInvoice.columns.accounts")}
-        >
-          <div className="grid gap-4  grid-cols-2">
-            <FormInput
-              label={t("finances.salesInvoice.columns.income_account")}
-              name="income_account"
-              required
-            >
-              <AccountLinkModel
-                filters={{
-                  root_type: "income",
-                  account_type: "income_account",
-                  is_contra: !!data?.is_return,
-                  is_group: false,
-                }}
-                placeholder={t(
-                  "finances.salesInvoice.columns.accounts.placeholder",
-                )}
-                value={data.income_account}
-                onValueChange={(val) => {
-                  setData("income_account", val);
-                }}
-              />
-            </FormInput>
-            <FormInput
-              label={t("finances.salesInvoice.columns.debit_account")}
-              name="debit_account"
-              required
-            >
-              <AccountLinkModel
-                filters={{
-                  root_type: "asset",
-                  is_group: false,
-                }}
-                placeholder={t(
-                  "finances.salesInvoice.columns.accounts.placeholder",
-                )}
-                value={data.debit_account}
-                onValueChange={(val) => {
-                  setData("debit_account", val);
-                }}
-              />
-            </FormInput>
-          </div>
-        </FormPageContent>
-      )}
       <FormPageContent value="detail" title={t("finances.salesInvoice.items")}>
         <FormPageContentTitle className="flex items-center justify-between gap-x-4">
           {t("finances.salesInvoice.items")}

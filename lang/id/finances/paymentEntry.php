@@ -18,7 +18,6 @@ return [
     'payment_from'       => 'Pembayaran Dari',
     'payment_to'         => 'Pembayaran Ke',
     'amount'             => 'Jumlah',
-    'accounts'           => 'Akun',
     'columns'            => [
         'date'                       => 'Tanggal',
         'code'                       => 'Kode',

@@ -18,7 +18,6 @@ return [
     'payment_from'       => 'Payment From',
     'payment_to'         => 'Payment To',
     'amount'             => 'Amount',
-    'accounts'           => 'Accounts',
     'columns'            => [
         'date'                       => 'Date',
         'code'                       => 'Code',

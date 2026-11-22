@@ -1,4 +1,6 @@
-# Runbook: Mode `shadow` Posting Engine di Staging (Fase 2, Task 7.4 dan 8.5)
+# Runbook: Mode `shadow` Posting Engine di Staging (Fase 2, Task 7.4 dan 8.5) — RIWAYAT, dihentikan 22 November 2026
+
+> **DIHENTIKAN 22 November 2026 (Q-P2-23, opsi A, disetujui pemilik produk).** Mode `off`/`shadow`/`on` dihapus: Posting Engine selalu aktif dan halaman Posting Parity Logs tidak lagi memiliki kontrol ubah mode. Bagian 1 sampai 6, 8, dan 9 adalah prosedur historis yang **tidak dapat dijalankan lagi** (tidak ada mode `shadow`, tidak ada jalur lama untuk dibandingkan, tidak ada catatan parity baru). Bagian 7 sudah diperbarui dan bagian 10 tetap berlaku sebagai bukti uji engine di staging (21 November 2026). Pemilik produk menyatakan produksi belum berisi data dan staging hanya berisi data uji, sehingga tidak ada lingkungan dengan data asli yang menunggu prosedur ini.
 
 Panduan operasional untuk mengumpulkan bukti parity (skenario terarah per jenis dokumen, Req 7.2b, Q-P2-22) sebelum satu jenis dokumen boleh dipindah ke `on`. Dokumen ini bukan keputusan: perpindahan ke `on` tetap keputusan pemilik produk (Req 7.2c; Q-P2-1 dijawab pemilik produk 2026-11-21, lihat bagian 10).
 
@@ -93,7 +95,7 @@ Laporan ke pemilik produk memuat per jenis: jumlah dokumen, hitungan per status,
 
 ## 7. Rollback
 
-- **Tidak ada lagi rollback ke jalur lama (sejak Task 14.1, 2026-11-22).** Closure legacy sudah dihapus. Mengubah mode jenis dokumen ke **Off** atau **Shadow** tidak mengembalikan jalur lama: posting dokumen jenis itu gagal tertutup (`PostingModeNotOnException`, `GlPostingStatus` `failed`, tanpa jurnal) sampai mode kembali **On**; dokumen yang gagal dapat dicoba ulang setelah itu. Nasib mode `off`/`shadow` dan default mode adalah pertanyaan terbuka Q-P2-23 pada decision log. Rollback sesungguhnya adalah revert kode (git) ke sebelum Task 14.1.
+- **Tidak ada lagi rollback ke jalur lama (sejak Task 14.1, 2026-11-22) dan tidak ada lagi mode yang dapat diubah (sejak 22 November 2026, Q-P2-23).** Closure legacy sudah dihapus dan mode `off`/`shadow`/`on` dihapus: posting selalu lewat engine. Dokumen yang gagal posting (`GlPostingStatus` `failed`, mis. peran tak ter-resolve) dicoba ulang setelah profil dilengkapi. Rollback sesungguhnya adalah redeploy rilis sebelumnya (git revert); migrasi `2026_11_22_090001` reversible (`down()` memulihkan kolom `finance_settings.posting_modes` dan mengisi `on` untuk 10 jenis bila baris setting ada).
 - Profil yang salah: buat versi baru dari profil aktif (versi harus bersambung dengan versi lama) atau pensiunkan; pensiun yang menimbulkan celah hanya memberi peringatan (Q-P2-11).
 - Jangan menghapus data jurnal untuk "memperbaiki" parity; jalur lama tidak berubah dan jurnal asli tetap benar.
 
@@ -104,7 +106,7 @@ Laporan ke pemilik produk memuat per jenis: jumlah dokumen, hitungan per status,
 - **Hardening gagal-tertutup baris invoice** tidak diberlakukan (risiko diterima, Q-P2-21); gejalanya hanya log peringatan di atas.
 - **Mode `on` bukan bagian dari prosedur shadow di atas.** Pemakaian `on` di staging dan hasil ujinya dicatat di bagian 10.
 
-## 9. Yang menunggu keputusan sebelum atau selama shadow
+## 9. Yang menunggu keputusan sebelum atau selama shadow (riwayat; mode `shadow` dihapus 22 November 2026)
 
 | Butir | Dibutuhkan untuk |
 |-------|------------------|
@@ -117,7 +119,7 @@ Laporan ke pemilik produk memuat per jenis: jumlah dokumen, hitungan per status,
 
 ## 10. Hasil uji mode `on` di staging (21 November 2026)
 
-**Keputusan:** pemilik produk memerintahkan semua 10 jenis dokumen dinyalakan ke `on` di staging pada 2026-11-21 (data staging seluruhnya data uji; belum ada data asli). Pengaktifan ini hanya berlaku untuk staging; rollout ke lingkungan dengan data asli tetap menunggu butir bagian 9. Pada tanggal yang sama pemilik produk menyatakan Task 7.4 dan 8.5 selesai (Q-P2-1 dijawab; Req 7.2(c) terpenuhi); laporan parity `shadow` per jenis tidak dilampirkan di dokumen ini, sehingga bukti tertulisnya adalah hasil uji `on` di bawah.
+**Keputusan:** pemilik produk memerintahkan semua 10 jenis dokumen dinyalakan ke `on` di staging pada 2026-11-21 (data staging seluruhnya data uji; belum ada data asli). Pengaktifan ini semula hanya berlaku untuk staging dan rollout ke lingkungan dengan data asli menunggu butir bagian 9. **Diubah 22 November 2026 (Q-P2-23):** prosedur itu tidak dapat dijalankan lagi (mode dihapus) dan pemilik produk menyatakan produksi belum berisi data, sehingga tidak ada lingkungan dengan data asli yang menunggu. Pada tanggal yang sama pemilik produk menyatakan Task 7.4 dan 8.5 selesai (Q-P2-1 dijawab; Req 7.2(c) terpenuhi); laporan parity `shadow` per jenis tidak dilampirkan di dokumen ini, sehingga bukti tertulisnya adalah hasil uji `on` di bawah.
 
 **Prasyarat yang dibereskan sebelum pengujian:** profil posting v3 (berlaku mulai 2026-11-16, tanpa batas akhir, 11 peran terpetakan) dibuat dari v2 dan diaktifkan; sebelumnya dokumen bertanggal 16 November ke atas tidak punya profil aktif (v3 lama berstatus `retired` dan tanpa pemetaan).
 
