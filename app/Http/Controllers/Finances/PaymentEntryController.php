@@ -2,6 +2,7 @@
 
 namespace App\Http\Controllers\Finances;
 
+use App\Enums\PostingDocumentType;
 use App\Http\Controllers\Controller;
 use App\Http\Requests\Finances\PaymentEntryRequest;
 use App\Models\Finances\PaymentEntry;
@@ -9,6 +10,7 @@ use App\Models\Finances\PaymentSchedule;
 use App\Models\Finances\PurchaseInvoice;
 use App\Models\Finances\SalesInvoice;
 use App\Services\Finances\PaymentEntryService;
+use App\Services\Finances\Posting\PostingModeResolver;
 use Illuminate\Http\Request;
 use Inertia\Inertia;
 
@@ -35,6 +37,9 @@ class PaymentEntryController extends Controller {
      * Show the form for creating a new resource.
      */
     public function create(Request $request, ?string $ref = null) {
+        // Akun hanya diisi default saat engine belum `on` (Task 12.3); saat `on` engine yang menentukan.
+        $accountsManagedByEngine = app(PostingModeResolver::class)->isOn(PostingDocumentType::PaymentEntry);
+
         if ($ref) {
             $split    = \explode('/', $ref);
             $modelOri = $split[0] ?? null;
@@ -80,8 +85,8 @@ class PaymentEntryController extends Controller {
                             'partyable'         => $salesInvoice->customer,
                             'currency'          => $salesInvoice->currency,
                             'exchange_rate'     => $salesInvoice->exchange_rate,
-                            'account_paid_from' => $salesInvoice->return_against_id === null ? $salesInvoice->debitAccount : $accountBank,
-                            'account_paid_to'   => $salesInvoice->return_against_id === null ? $accountBank : $salesInvoice->customer_id,
+                            'account_paid_from' => $accountsManagedByEngine ? null : ($salesInvoice->return_against_id === null ? $salesInvoice->debitAccount : $accountBank),
+                            'account_paid_to'   => $accountsManagedByEngine ? null : ($salesInvoice->return_against_id === null ? $accountBank : $salesInvoice->customer_id),
                             'paid_amount'       => $amount,
                             'payment_method'    => $paymentMethod,
                         ];
@@ -111,8 +116,8 @@ class PaymentEntryController extends Controller {
                             'partyable'         => $purchaseInvoice->supplier,
                             'currency'          => $purchaseInvoice->currency,
                             'exchange_rate'     => $purchaseInvoice->exchange_rate,
-                            'account_paid_from' => $accountBank,
-                            'account_paid_to'   => $purchaseInvoice->return_against_id === null ? $purchaseInvoice->creditAccount : $purchaseInvoice->customer_id,
+                            'account_paid_from' => $accountsManagedByEngine ? null : $accountBank,
+                            'account_paid_to'   => $accountsManagedByEngine ? null : ($purchaseInvoice->return_against_id === null ? $purchaseInvoice->creditAccount : $purchaseInvoice->customer_id),
                             'paid_amount'       => $amount,
                             'payment_method'    => $paymentMethod,
                         ];
@@ -125,7 +130,8 @@ class PaymentEntryController extends Controller {
         $this->setBreadcrumbs('finances.paymentEntry.new');
 
         return Inertia::render('Finances/PaymentEntries/Show', [
-            'defaultData' => $defaultData ?? null,
+            'defaultData'             => $defaultData ?? null,
+            'accountsManagedByEngine' => $accountsManagedByEngine,
         ]);
     }
 
@@ -153,6 +159,7 @@ class PaymentEntryController extends Controller {
 
                 return $paymentEntry;
             },
+            'accountsManagedByEngine' => app(PostingModeResolver::class)->isOn(PostingDocumentType::PaymentEntry),
         ]);
     }
 

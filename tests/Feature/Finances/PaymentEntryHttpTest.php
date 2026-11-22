@@ -3,14 +3,18 @@
 namespace Tests\Feature\Finances;
 
 use App\Enums\FormStatus;
+use App\Enums\PostingDocumentType;
 use App\Http\Requests\Finances\PaymentEntryRequest;
 use App\Models\Finances\Account;
+use App\Models\Finances\FinanceSetting;
 use App\Models\Finances\PaymentEntry;
 use App\Models\Finances\PaymentMethod;
 use App\Models\Finances\PaymentSchedule;
 use App\Models\Finances\PurchaseInvoice;
 use App\Models\Finances\SalesInvoice;
+use App\Services\Core\Setting\SettingsService;
 use App\Services\Finances\PaymentEntryService;
+use App\Services\Finances\Posting\PostingModeResolver;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Event;
@@ -318,5 +322,133 @@ class PaymentEntryHttpTest extends TestCase {
 
         $response->assertOk();
         $response->assertInertia(fn ($page) => $page->where('defaultData.paid_amount', fn ($value) => abs((float) $value - 600_000) < 0.01));
+    }
+
+    private function setPostingMode(string $mode): void {
+        $modes = array_merge(FinanceSetting::defaultAttributes()['posting_modes'], [PostingDocumentType::PaymentEntry->value => $mode]);
+        app(SettingsService::class)->updateInternal(FinanceSetting::class, ['posting_modes' => $modes]);
+        PostingModeResolver::forget();
+    }
+
+    /**
+     * @return array<string, mixed>
+     */
+    private function receivePayloadWithoutAccounts(PaymentEntry $payment, float $amount): array {
+        $payload = $this->receivePayload($payment, $amount);
+        unset($payload['account_paid_from'], $payload['account_paid_to']);
+
+        return $payload;
+    }
+
+    public function test_create_page_prefills_accounts_and_reports_unmanaged_while_mode_is_not_on(): void {
+        $payable = $this->makeAccount('2100', 'Utang Usaha', 'liability', 'credit', 'accounts_payable');
+        $bank    = $this->makeAccount('1110', 'Bank', 'asset', 'debit', 'bank');
+        $invoice = $this->makeUnpaidPurchaseInvoice(1_000_000);
+        $method  = PaymentMethod::create(['name' => 'Transfer', 'default_account_id' => $bank->id]);
+        PaymentSchedule::where('payment_scheduleable_id', $invoice->id)->update(['payment_method_id' => $method->id]);
+        PurchaseInvoice::whereKey($invoice->id)->update(['credit_account_id' => $payable->id]);
+
+        foreach (['off', 'shadow'] as $mode) {
+            $this->setPostingMode($mode);
+
+            $this->http()->get('/paymentEntries/create/purchaseInvoice/' . $invoice->id)->assertInertia(
+                fn ($page) => $page
+                    ->where('accountsManagedByEngine', false)
+                    ->where('defaultData.account_paid_from.id', $bank->id)
+                    ->where('defaultData.account_paid_to.id', $payable->id),
+            );
+        }
+    }
+
+    public function test_create_page_does_not_prefill_accounts_when_mode_is_on(): void {
+        $payable = $this->makeAccount('2100', 'Utang Usaha', 'liability', 'credit', 'accounts_payable');
+        $bank    = $this->makeAccount('1110', 'Bank', 'asset', 'debit', 'bank');
+        $invoice = $this->makeUnpaidPurchaseInvoice(1_000_000);
+        $method  = PaymentMethod::create(['name' => 'Transfer', 'default_account_id' => $bank->id]);
+        PaymentSchedule::where('payment_scheduleable_id', $invoice->id)->update(['payment_method_id' => $method->id]);
+        PurchaseInvoice::whereKey($invoice->id)->update(['credit_account_id' => $payable->id]);
+        $this->setPostingMode('on');
+
+        $this->http()->get('/paymentEntries/create/purchaseInvoice/' . $invoice->id)->assertInertia(
+            fn ($page) => $page
+                ->component('Finances/PaymentEntries/Show')
+                ->where('accountsManagedByEngine', true)
+                ->where('defaultData.payment_type', 'pay')
+                ->where('defaultData.account_paid_from', null)
+                ->where('defaultData.account_paid_to', null)
+                ->where('defaultData.payment_method.id', $method->id),
+        );
+
+        $sales = $this->makeUnpaidSalesInvoice(1_000_000);
+        $this->http()->get('/paymentEntries/create/salesInvoice/' . $sales->id)->assertInertia(
+            fn ($page) => $page
+                ->where('accountsManagedByEngine', true)
+                ->where('defaultData.account_paid_from', null)
+                ->where('defaultData.account_paid_to', null),
+        );
+
+        $this->http()->get('/paymentEntries/create')->assertInertia(fn ($page) => $page->where('accountsManagedByEngine', true));
+    }
+
+    public function test_show_page_reports_whether_accounts_are_managed_by_the_engine(): void {
+        $invoice = $this->makeUnpaidSalesInvoice(1_000_000);
+        $payment = $this->makePaymentEntry($invoice, 400_000, $this->receivable, $this->cash);
+
+        foreach ([['off', false], ['shadow', false], ['on', true]] as [$mode, $managed]) {
+            $this->setPostingMode($mode);
+
+            $this->http()->get('/paymentEntries/' . $payment->id)->assertInertia(
+                fn ($page) => $page->where('accountsManagedByEngine', $managed),
+            );
+        }
+    }
+
+    public function test_store_without_accounts_is_rejected_while_mode_is_not_on(): void {
+        $invoice = $this->makeUnpaidSalesInvoice(1_000_000);
+        $payment = $this->makePaymentEntry($invoice, 100, $this->receivable, $this->cash);
+
+        $response = $this->http()->post('/paymentEntries', $this->receivePayloadWithoutAccounts($payment, 250_000));
+
+        $response->assertSessionHasErrors(['account_paid_to.id', 'account_paid_from.id']);
+        $this->assertSame(1, PaymentEntry::count());
+    }
+
+    public function test_store_without_accounts_succeeds_and_leaves_account_columns_null_when_mode_is_on(): void {
+        $this->setPostingMode('on');
+        $invoice = $this->makeUnpaidSalesInvoice(1_000_000);
+        $payment = $this->makePaymentEntry($invoice, 100, $this->receivable, $this->cash);
+
+        $response = $this->http()->post('/paymentEntries', $this->receivePayloadWithoutAccounts($payment, 250_000));
+
+        $response->assertSessionHasNoErrors();
+        $created = PaymentEntry::query()->whereKeyNot($payment->id)->firstOrFail();
+        $this->assertEqualsWithDelta(250_000, $created->paid_amount, 0.01);
+        $this->assertNull($created->account_paid_to_id);
+        $this->assertNull($created->account_paid_from_id);
+    }
+
+    public function test_store_discards_account_columns_sent_by_a_client_when_mode_is_on(): void {
+        $this->setPostingMode('on');
+        $invoice = $this->makeUnpaidSalesInvoice(1_000_000);
+        $payment = $this->makePaymentEntry($invoice, 100, $this->receivable, $this->cash);
+
+        $this->http()->post('/paymentEntries', $this->receivePayload($payment, 250_000))->assertSessionHasNoErrors();
+
+        $created = PaymentEntry::query()->whereKeyNot($payment->id)->firstOrFail();
+        $this->assertNull($created->account_paid_to_id, 'P-14: akun kiriman klien dibuang saat mode on.');
+        $this->assertNull($created->account_paid_from_id);
+    }
+
+    public function test_update_without_accounts_keeps_recorded_accounts_when_mode_is_on(): void {
+        $this->setPostingMode('on');
+        $invoice = $this->makeUnpaidSalesInvoice(1_000_000);
+        $payment = $this->makePaymentEntry($invoice, 400_000, $this->receivable, $this->cash);
+
+        $this->http()->put('/paymentEntries/' . $payment->id, $this->receivePayloadWithoutAccounts($payment, 250_000))->assertSessionHasNoErrors();
+
+        $fresh = $payment->fresh();
+        $this->assertEqualsWithDelta(250_000, $fresh->paid_amount, 0.01);
+        $this->assertSame($this->cash->id, $fresh->account_paid_to_id, 'Nilai lama dipertahankan sebagai catatan audit.');
+        $this->assertSame($this->receivable->id, $fresh->account_paid_from_id);
     }
 }
