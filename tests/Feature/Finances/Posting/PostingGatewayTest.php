@@ -171,9 +171,9 @@ class PostingGatewayTest extends TestCase {
             $this->source->getKey(),
             CarbonImmutable::parse('2026-11-12 10:00:00'),
             null,
-            ['proceeds'              => 130, 'cost' => 100, 'accumulated_depreciation' => 0, 'gain_loss' => 30],
+            ['proceeds' => 130, 'cost' => 100, 'accumulated_depreciation' => 0, 'gain_loss' => 30],
             ['sales_invoice_item_id' => 'L1'],
-            ['gain_loss_disposal'    => $gain->id, 'fixed_asset' => $fixed->id],
+            ['gain_loss_disposal' => $gain->id, 'fixed_asset' => $fixed->id],
             guardDocument: ['type' => $invoice::class, 'id' => $invoice->getKey()],
         );
 
