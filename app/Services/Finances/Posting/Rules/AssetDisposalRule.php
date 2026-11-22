@@ -24,12 +24,12 @@ use LogicException;
  * `amounts['accumulated_depreciation']` (akumulasi penyusutan: jadwal terposting + saldo awal), `amounts['gain_loss']`
  * (informatif; jurnal menurunkan sendiri proceeds + akumulasi - cost agar seimbang menurut konstruksi);
  * `lines[0]` = atribut barang baris (peran `revenue` peka-barang); `flags['sales_invoice_item_id']`,
- * `flags['is_return']`, `flags['discount_split']` dengan `amounts['discount_amount']`.
+ * `flags['discount_split']` dengan `amounts['discount_amount']`.
  *
  * Diposting bila harga perolehan > 0 (kasus impas tetap mengeluarkan aset dan akumulasi). Retur tidak memposting
- * pelepasan. Saat posting diskon terpisah aktif pada Sales Invoice sumber (SI mengkredit `revenue` kotor dan mendebit
- * `discount`), pelepasan membalik kotor: Dr `revenue` (proceeds + diskon) dan Cr `discount` (diskon), sehingga pendapatan
- * dan diskon baris aset kembali nol. Kunci idempotensi per baris invoice (Q-P1-6).
+ * pelepasan (listener tidak membangun konteksnya; rule tidak membaca arah retur). Saat Sales Invoice sumber memposting
+ * diskon terpisah (SI mengkredit `revenue` kotor dan mendebit `discount`), pelepasan membalik kotor: Dr `revenue`
+ * (proceeds + diskon) dan Cr `discount` (diskon), sehingga pendapatan dan diskon baris aset kembali nol. Kunci idempotensi per baris invoice (Q-P1-6).
  */
 final class AssetDisposalRule extends BasePostingRule {
     public function documentType(): PostingDocumentType {
@@ -38,7 +38,7 @@ final class AssetDisposalRule extends BasePostingRule {
 
     public function build(PostingContext $ctx): array {
         $cost = $ctx->amount('cost');
-        if ($ctx->isReturn() || $cost <= 0 || self::isZero($cost)) {
+        if ($cost <= 0 || self::isZero($cost)) {
             return [];
         }
 

@@ -16,7 +16,9 @@ use App\Models\Finances\PostingProfile;
 use App\Models\Finances\SalesInvoice;
 use App\Models\Finances\SalesInvoiceItem;
 use App\Services\Core\Setting\SettingsService;
+use App\Services\Finances\Ledger\FiscalPeriodService;
 use App\Services\Finances\SalesInvoiceService;
+use Carbon\CarbonInterface;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Tests\Support\AssertsPostingParity;
 use Tests\Support\BuildsAssetFixtures;
@@ -62,10 +64,10 @@ class AssetDisposalGainLossPostingTest extends TestCase {
     /**
      * @param  array<string, mixed>  $attributes
      */
-    private function sell(Asset $asset, float $price, float $quantity = 1, array $attributes = []): SalesInvoiceItem {
+    private function sell(Asset $asset, float $price, float $quantity = 1, array $attributes = [], ?CarbonInterface $invoiceDate = null): SalesInvoiceItem {
         $line = SalesInvoiceItem::factory()->create(['item_id' => null, 'asset_id' => $asset->id, 'quantity' => $quantity, 'price' => $price, ...$attributes]);
 
-        (new PostAssetDisposalGainLoss)->handle(new AssetSoldViaInvoice($line));
+        (new PostAssetDisposalGainLoss)->handle(new AssetSoldViaInvoice($line, $invoiceDate));
 
         return $line->fresh();
     }
@@ -203,9 +205,16 @@ class AssetDisposalGainLossPostingTest extends TestCase {
         $this->assertPostingStatus($line, 'skipped');
     }
 
-    public function test_combined_with_the_sales_invoice_journal_the_result_is_the_standard_disposal_form(): void {
+    /**
+     * Setujui Sales Invoice satu baris aset (perolehan 10.000, akumulasi awal 4.000) dan kembalikan saldo bersih per akun
+     * gabungan jurnal Sales Invoice + jurnal pelepasan (debit - kredit).
+     *
+     * @param  array<string, mixed>  $itemAttributes
+     * @return array<string, float>
+     */
+    private function approveAndNetBalances(array $itemAttributes): array {
         ['asset' => $asset] = $this->bookedAsset(['gross_purchase_amount' => 10000, 'opening_accumulated_depreciation' => 4000]);
-        $invoice            = $this->makeSalesInvoice($this->receivable, $this->revenue, [], ['item_id' => null, 'asset_id' => $asset->id, 'quantity' => 1, 'price' => 7000, 'tax_rate' => 0]);
+        $invoice            = $this->makeSalesInvoice($this->receivable, $this->revenue, [], ['item_id' => null, 'asset_id' => $asset->id, 'quantity' => 1, ...$itemAttributes]);
 
         app(SalesInvoiceService::class)->onApproved($invoice);
 
@@ -219,9 +228,65 @@ class AssetDisposalGainLossPostingTest extends TestCase {
         }
         ksort($net);
 
+        return $net;
+    }
+
+    public function test_combined_with_the_sales_invoice_journal_the_result_is_the_standard_disposal_form(): void {
+        $net = $this->approveAndNetBalances(['price' => 7000, 'tax_rate' => 0]);
+
         // Piutang tepat harga jual (tidak ganda), pendapatan saling meniadakan, nilai buku keluar, untung 1.000 di kredit.
         $this->assertSame(['1200' => 7000.0, '1500' => -10000.0, '1590' => 4000.0, '4100' => 0.0, '7100' => -1000.0], $net);
         $this->assertSame(0.0, array_sum($net));
         $this->assertSame(2, Journal::query()->count());
+    }
+
+    public function test_combined_with_a_taxed_sales_invoice_leaves_only_the_tax_in_revenue(): void {
+        // Harga 7.200: DPP baris 6.600 (basic x 11/12), pajak 10% = 660.
+        $net = $this->approveAndNetBalances(['price' => 7200, 'tax_rate' => 10]);
+
+        // F-03: pajak masih menyatu di pendapatan sampai Fase 3, jadi sisa pendapatan = pajak (660) di kredit; piutang
+        // menanggung harga jual + pajak (7.860). Untung 1.200 = 7.200 + 4.000 - 10.000 (pajak tidak ikut hasil penjualan).
+        $this->assertSame(['1200' => 7860.0, '1500' => -10000.0, '1590' => 4000.0, '4100' => -660.0, '7100' => -1200.0], $net);
+        $this->assertSame(0.0, array_sum($net));
+    }
+
+    public function test_combined_with_discount_split_active_returns_both_revenue_and_discount_to_zero(): void {
+        app(SettingsService::class)->update(FinanceSetting::class, [FinanceSetting::DISCOUNT_SPLIT_COLUMNS[PostingDocumentType::SalesInvoice->value] => '2020-01-01']);
+
+        $net = $this->approveAndNetBalances(['price' => 7000, 'tax_rate' => 0, 'discount_amount' => 500]);
+
+        // SI: Dr piutang 6.500, Dr diskon 500, Cr pendapatan 7.000; pelepasan membalik kotor: pendapatan dan diskon nol.
+        $this->assertSame(['1200' => 6500.0, '1500' => -10000.0, '1590' => 4000.0, '4100' => 0.0, '4900' => 0.0, '7100' => -500.0], $net);
+        $this->assertSame(0.0, array_sum($net));
+    }
+
+    public function test_disposal_form_follows_the_invoice_approval_date_not_the_job_run_date(): void {
+        // Cutover hari ini; SI disetujui kemarin (jurnal bersih, sebelum cutover) tetapi job pelepasan baru berjalan hari
+        // ini: pelepasan harus tetap bersih agar pendapatan dan diskon baris aset kembali nol.
+        app(SettingsService::class)->update(FinanceSetting::class, [FinanceSetting::DISCOUNT_SPLIT_COLUMNS[PostingDocumentType::SalesInvoice->value] => app(FiscalPeriodService::class)->businessDay(now())]);
+        ['asset' => $asset] = $this->bookedAsset();
+
+        $line = $this->sell($asset, 700, 1, ['discount_amount' => 100], now()->subDay());
+
+        $this->assertSame([
+            '1500' => [0.0, 1000.0],
+            '1590' => [400.0, 0.0],
+            '4100' => [600.0, 0.0],
+        ], $this->disposalLines($asset, $line));
+    }
+
+    public function test_disposal_form_is_split_when_the_invoice_was_approved_after_cutover(): void {
+        // Kebalikannya: SI disetujui hari ini (setelah cutover kemarin) sehingga jurnalnya bentuk kotor.
+        app(SettingsService::class)->update(FinanceSetting::class, [FinanceSetting::DISCOUNT_SPLIT_COLUMNS[PostingDocumentType::SalesInvoice->value] => app(FiscalPeriodService::class)->businessDay(now()->subDay())]);
+        ['asset' => $asset] = $this->bookedAsset();
+
+        $line = $this->sell($asset, 700, 1, ['discount_amount' => 100], now());
+
+        $this->assertSame([
+            '1500' => [0.0, 1000.0],
+            '1590' => [400.0, 0.0],
+            '4100' => [700.0, 0.0],
+            '4900' => [0.0, 100.0],
+        ], $this->disposalLines($asset, $line));
     }
 }

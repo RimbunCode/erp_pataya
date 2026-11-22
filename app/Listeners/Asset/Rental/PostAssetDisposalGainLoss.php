@@ -63,7 +63,7 @@ class PostAssetDisposalGainLoss implements ShouldQueue {
             // cancel adalah Sales Invoice sumber baris (Q-P2-13), bukan aset. Kunci idempotensi per baris invoice
             // (`disposal:{sales_invoice_item_id}`, Q-P1-6) dipegang rule engine.
             $outcome = app(PostingGateway::class)->post(
-                app(AssetPostingContextFactory::class)->disposal($line, $asset, $accounts, $proceeds, $cost, $accumulated, now()),
+                app(AssetPostingContextFactory::class)->disposal($line, $asset, $accounts, $proceeds, $cost, $accumulated, now(), $event->invoiceDate),
             );
 
             if ($outcome->isSkipped()) {

@@ -11,7 +11,7 @@ use App\Models\Finances\SalesInvoice;
 use App\Models\Finances\SalesInvoiceItem;
 use App\Services\Finances\Posting\Contexts\LineAttributes;
 use App\Services\Finances\Posting\Contexts\PostingContext;
-use App\Services\Finances\Posting\DiscountSplit\DiscountSplitResolver;
+use App\Services\Sales\Accounting\SalesInvoicePostingContextFactory;
 use Carbon\CarbonInterface;
 
 /**
@@ -31,7 +31,7 @@ final class AssetPostingContextFactory {
         'gain_loss_disposal'       => 'gain_loss_disposal_account_id',
     ];
 
-    public function __construct(private readonly ?DiscountSplitResolver $discountSplit = null) {}
+    public function __construct(private readonly ?SalesInvoicePostingContextFactory $salesInvoiceFactory = null) {}
 
     public function depreciation(AssetDepreciationSchedule $schedule, AssetCategoryAccount $accounts, CarbonInterface $transactionDate): PostingContext {
         return new PostingContext(
@@ -77,15 +77,20 @@ final class AssetPostingContextFactory {
      * Jumlah bernama (semuanya sudah proporsional terhadap qty baris / `asset_quantity`, dihitung pemanggil):
      * `proceeds` = hasil penjualan baris (`basic_amount - discount_amount`, tanpa pajak), `cost` = harga perolehan,
      * `accumulated_depreciation`, dan `gain_loss` = proceeds - (cost - accumulated_depreciation), bertanda (untung
-     * positif). `discount_amount` (diskon baris) dan flag `discount_split` memberi rule bentuk pembalikan saat posting
-     * diskon terpisah aktif pada Sales Invoice sumber. Baris penjualan dibawa sebagai `lines[0]` beratribut barang
-     * persis seperti `InvoiceLineAttributesBuilder` agar peran `revenue` ter-resolve ke akun yang sama dengan yang
-     * dikredit jurnal Sales Invoice untuk baris itu.
+     * positif). `discount_amount` (diskon baris) dan flag `discount_split` memberi rule bentuk pembalikan saat Sales Invoice
+     * sumber memposting diskon terpisah. Flag diturunkan dari Sales Invoice sumber (`$invoiceDate` = waktu approve-nya,
+     * bukan waktu job; syarat cutover dan konsistensi baris sama dengan jurnal Sales Invoice) sehingga pelepasan dan
+     * Sales Invoice selalu searah. Retur tidak sampai ke sini (listener melewatinya). Baris penjualan dibawa sebagai
+     * `lines[0]` beratribut barang persis seperti `InvoiceLineAttributesBuilder` agar peran `revenue` ter-resolve ke akun
+     * yang sama dengan yang dikredit jurnal Sales Invoice untuk baris itu.
      */
-    public function disposal(SalesInvoiceItem $line, Asset $asset, AssetCategoryAccount $accounts, float $proceeds, float $cost, float $accumulatedDepreciation, CarbonInterface $transactionDate, bool $isReturn = false): PostingContext {
+    public function disposal(SalesInvoiceItem $line, Asset $asset, AssetCategoryAccount $accounts, float $proceeds, float $cost, float $accumulatedDepreciation, CarbonInterface $transactionDate, ?CarbonInterface $invoiceDate = null): PostingContext {
         $line->loadMissing(['item' => fn ($query) => $query->withTrashed()]);
         $variant  = $line->item;
         $discount = (float) $line->discount_amount;
+        $split    = $discount > 0
+            && ($this->salesInvoiceFactory ?? app(SalesInvoicePostingContextFactory::class))
+                ->postsDiscountSplit($line->salesInvoice, $invoiceDate ?? $transactionDate);
 
         return new PostingContext(
             documentType: PostingDocumentType::AssetDisposal,
@@ -102,9 +107,7 @@ final class AssetPostingContextFactory {
             ],
             flags: [
                 'sales_invoice_item_id' => (string) $line->getKey(),
-                'is_return'             => $isReturn,
-                'discount_split'        => $discount > 0
-                    && ($this->discountSplit ?? app(DiscountSplitResolver::class))->isActive(PostingDocumentType::SalesInvoice, $transactionDate),
+                'discount_split'        => $split,
             ],
             masterAccounts: $this->masters($accounts, ['gain_loss_disposal', 'fixed_asset', 'accumulated_depreciation']),
             lines: [new LineAttributes(

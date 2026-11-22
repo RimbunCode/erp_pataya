@@ -344,8 +344,7 @@ class PostingRulesTest extends TestCase {
         ], $this->shape($net[0]));
     }
 
-    public function test_asset_disposal_is_skipped_for_returns_and_zero_cost_and_requires_the_line_key(): void {
-        $this->assertSame([], $this->disposal(['proceeds' => 7000000, 'cost' => 10000000, 'accumulated_depreciation' => 4000000], ['is_return' => true]));
+    public function test_asset_disposal_is_skipped_for_zero_cost_and_requires_the_line_key(): void {
         $this->assertSame([], $this->disposal(['proceeds' => 7000000, 'cost' => 0, 'accumulated_depreciation' => 0]));
 
         $this->expectException(LogicException::class);

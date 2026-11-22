@@ -87,11 +87,11 @@ class PostAssetDisposalGainLossTest extends TestCase {
         $asset->assetLocation->update(['branch_id' => $branchId]);
 
         AssetCategoryAccount::factory()->create([
-            'asset_category_id'             => $asset->asset_category_id,
-            'branch_id'                     => $branchId,
-            'fixed_asset_account_id'        => $fixed,
+            'asset_category_id'                   => $asset->asset_category_id,
+            'branch_id'                           => $branchId,
+            'fixed_asset_account_id'              => $fixed,
             'accumulated_depreciation_account_id' => $accum,
-            'gain_loss_disposal_account_id' => $gainLoss,
+            'gain_loss_disposal_account_id'       => $gainLoss,
         ]);
 
         return $asset->refresh();
