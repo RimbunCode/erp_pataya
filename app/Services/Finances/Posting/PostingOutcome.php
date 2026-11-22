@@ -9,7 +9,7 @@ use App\Models\Finances\Journal;
  * Pemanggil (listener) wajib membedakan tiga keadaan:
  *
  * - `posted`: jurnal baru ditulis engine; atau tidak ada jurnal yang perlu ditulis (jumlah nol, `journals` kosong).
- *   Sejak Task 14.1 tidak ada jalur lama lagi: mode bukan `on` melempar `PostingModeNotOnException`, bukan `posted`.
+ *   Tidak ada jalur lama dan tidak ada mode (Q-P2-23, 2026-11-22): engine selalu menulis.
  * - `already_posted`: seluruh jurnal konteks sudah ada (retry); efek samping non-idempoten tidak boleh diulang.
  * - `skipped`: dokumen penjaga `canceled`; tidak ada jurnal, `GlPostingStatus` penjaga menjadi `skipped`.
  */

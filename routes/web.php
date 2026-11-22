@@ -288,7 +288,6 @@ Route::middleware(['auth', 'lang', 'onboarded', 'app', 'desk'])->group(function 
         });
         Route::controller(PostingParityLogController::class)->prefix('postingParityLogs')->name('postingParityLogs.')->group(function () {
             Route::get('/', 'index')->name('index');
-            Route::put('/modes/{documentType}', 'switchMode')->name('switchMode');
         });
         // Branches
         Route::resourceDetail('branch', BranchController::class);

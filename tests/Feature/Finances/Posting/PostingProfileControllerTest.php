@@ -3,14 +3,13 @@
 namespace Tests\Feature\Finances\Posting;
 
 use App\Enums\AccountRole;
+use App\Enums\PostingDocumentType;
 use App\Models\Finances\Account;
-use App\Models\Finances\FinanceSetting;
 use App\Models\Finances\PostingParityLog;
 use App\Models\Finances\PostingProfile;
-use App\Services\Finances\Posting\PostingModeResolver;
 use App\Services\Finances\Posting\PostingProfileService;
+use App\Services\Finances\Posting\PostingRoleRequirements;
 use Illuminate\Foundation\Testing\RefreshDatabase;
-use Illuminate\Support\Facades\DB;
 use Tests\Support\BuildsFinanceFixtures;
 use Tests\TestCase;
 
@@ -61,16 +60,6 @@ class PostingProfileControllerTest extends TestCase {
 
     private function active(string $from = '2026-01-01', ?string $to = null, string $name = 'Aktif'): PostingProfile {
         return $this->service->activate($this->draft($from, $to, $name));
-    }
-
-    /**
-     * @param  array<string, string>  $modes
-     */
-    private function setModes(array $modes): void {
-        $current = FinanceSetting::defaultAttributes()['posting_modes'];
-        FinanceSetting::current();
-        DB::table('finance_settings')->update(['posting_modes' => json_encode([...$current, ...$modes])]);
-        PostingModeResolver::forget();
     }
 
     public function test_index_requires_select_permission(): void {
@@ -148,19 +137,30 @@ class PostingProfileControllerTest extends TestCase {
                 ->where('profile.accounts.revenue.deleted_at', null));
     }
 
-    public function test_show_warns_about_required_roles_only_for_document_types_not_off(): void {
-        $profile = $this->draft(); // hanya receivable dan revenue
-        $this->setModes(['sales_invoice' => 'shadow', 'purchase_receipt' => 'on']);
+    public function test_show_warns_about_required_roles_for_every_document_type(): void {
+        $profile = $this->draft(); // hanya receivable dan revenue; engine selalu aktif sehingga semua jenis diperiksa
 
         $this->actingWith(['select', 'read'])->get(route('postingProfiles.show', $profile))
             ->assertInertia(fn ($page) => $page
-                ->has('unmapped', 1)
-                ->where('unmapped.0.document_type', 'purchase_receipt')
-                ->where('unmapped.0.roles', ['stock', 'stock_received_but_not_billed']));
+                ->has('unmapped', 6)
+                ->where('unmapped', fn ($unmapped) => collect($unmapped)->mapWithKeys(fn ($row) => [$row['document_type'] => $row['roles']])->all() === [
+                    'purchase_invoice'       => ['stock', 'stock_received_but_not_billed', 'expense', 'payable'],
+                    'purchase_receipt'       => ['stock', 'stock_received_but_not_billed'],
+                    'delivery_note'          => ['cost_of_goods_sold', 'stock'],
+                    'payment_entry'          => ['payable'],
+                    'stock_entry'            => ['stock', 'stock_adjustment', 'expense_included_in_valuation'],
+                    'asset_value_adjustment' => ['asset_revaluation'],
+                ]));
     }
 
-    public function test_show_has_no_unmapped_warning_when_every_type_is_off(): void {
-        $profile = $this->draft();
+    public function test_show_has_no_unmapped_warning_when_every_required_role_is_mapped(): void {
+        $roles = [];
+        foreach (PostingDocumentType::cases() as $type) {
+            foreach (PostingRoleRequirements::for($type) as $role) {
+                $roles[$role->value] = $this->other->id;
+            }
+        }
+        $profile = $this->service->createDraft('Profil lengkap', '2026-01-01', null, $roles);
 
         $this->actingWith(['select', 'read'])->get(route('postingProfiles.show', $profile))
             ->assertInertia(fn ($page) => $page->where('unmapped', []));

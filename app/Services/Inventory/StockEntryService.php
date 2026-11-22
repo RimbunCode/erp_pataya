@@ -29,11 +29,9 @@ class StockEntryService implements SubmitableService {
     }
 
     private function fillRelations(array $data) {
-        // Saat engine `on` request tidak membawa akun (Task 12.3): kolom tidak disentuh, jadi null pada dokumen baru
-        // dan nilai lama (catatan audit) dipertahankan saat draft diubah, sampai engine mencatatnya.
-        if (isset($data['difference_account']['id'])) {
-            $data['difference_account_id'] = $data['difference_account']['id'];
-        }
+        // Akun tidak diterima dari input (Q-P2-23, 2026-11-22): engine yang menentukan akun, kolom dokumen dikosongkan
+        // pada create dan update draft sampai engine mencatatnya (Task 12.1).
+        $data['difference_account_id'] = null;
 
         return $data;
     }
@@ -93,10 +91,8 @@ class StockEntryService implements SubmitableService {
     }
 
     private function fillAdditionalCostRelations(array $data) {
-        // Sama dengan akun selisih: tanpa akun di request (engine `on`), kolom tidak disentuh.
-        if (isset($data['expense_account']['id'])) {
-            $data['expense_account_id'] = $data['expense_account']['id'];
-        }
+        // Sama dengan akun selisih: akun biaya tidak diterima dari input, diisi engine (Q-P2-23, 2026-11-22).
+        $data['expense_account_id'] = null;
 
         return $data;
     }
@@ -579,7 +575,7 @@ class StockEntryService implements SubmitableService {
 
         // Gateway Posting Engine (Finance Fase 2, Task 8.3; closure legacy dihapus Task 14.1). Engine tidak memutasi
         // `accounts.balance_amount` (Requirement 7.5): mutasinya dilakukan di bawah dari jurnal hasil engine.
-        // `PostingModeNotOnException`/`UnresolvedAccountRoleException` menggulung seluruh approve.
+        // `UnresolvedAccountRoleException` dan sejenisnya menggulung seluruh approve.
         $outcome = app(PostingGateway::class)->post(
             app(StockEntryPostingContextFactory::class)->forApproval($stockEntry, $items, $additionalCosts, (float) $totalBasicAmount, now()),
         );

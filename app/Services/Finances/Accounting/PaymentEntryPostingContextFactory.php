@@ -19,7 +19,7 @@ use Illuminate\Support\Carbon;
  * - Akun master hanya `cash_or_bank` dari `default_account_id` Metode Pembayaran entri ini. Kolom akun dokumen
  *   (`account_paid_from_id`/`account_paid_to_id`) tidak dibaca (Requirement 7.4); lawan `receivable`/`payable`
  *   di-resolve dari profil. Metode pembayaran tanpa akun default tidak melempar di sini: resolver yang menolaknya
- *   hanya bila engine dipakai (mode `shadow`/`on`), sehingga mode `off` tidak berubah.
+ *   karena engine selalu dipakai (Q-P2-23).
  * - `paymentable_kind` null untuk dokumen yang dibayar selain Sales/Purchase Invoice: rule menolaknya (T-4). Arah
  *   retur (T-3) dan `internal_transfer` (T-4) tetap menunggu keputusan pemilik produk.
  */

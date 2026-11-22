@@ -6,17 +6,17 @@ use App\Enums\PostingDocumentType;
 use PHPUnit\Framework\TestCase;
 
 /**
- * Finance Fase 2, Task 9.2 dan Task 14.1 (P-9; Requirement 7.3; Q-P2-19): pada jenis dokumen yang berada pada mode
- * `on`, pola pencarian akun legacy `where('account_type', ...)` tidak boleh muncul di kode jalurnya (komentar tidak
+ * Finance Fase 2, Task 9.2, Task 14.1 dan Q-P2-23 (P-9; Requirement 7.3; Q-P2-19): pada semua jenis dokumen (engine
+ * selalu aktif, tidak ada mode), pola pencarian akun legacy `where('account_type', ...)` tidak boleh muncul di kode jalurnya (komentar tidak
  * dihitung). Uji ini adalah "grep CI" P-9: ia berjalan di suite Unit pada CI (`paratest --functional`).
  *
- * Penegakan berlaku penuh sejak Task 14.1 (keputusan pemilik produk 2026-11-21; semua jenis dokumen dikonfirmasi `on`
- * 2026-11-22): `ON_TYPES` memuat ke-10 jenis dokumen dan closure legacy (beserta pencarian `account_type`) sudah dihapus
+ * Penegakan berlaku penuh sejak Task 14.1 (keputusan pemilik produk 2026-11-21) dan mode `off`/`shadow` dihapus
+ * 2026-11-22 (Q-P2-23): `ON_TYPES` (nama historis; artinya semua jenis) memuat ke-10 jenis dokumen dan closure legacy (beserta pencarian `account_type`) sudah dihapus
  * dari seluruh berkas jalur. Daftar `ON_TYPES` tidak dapat ditimpa (tanpa override env) agar penegakan selalu mencakup
  * ke-10 jenis.
  */
 class PostingLegacyLookupTest extends TestCase {
-    /** @var list<string> jenis dokumen pada mode `on` (nilai `PostingDocumentType`) */
+    /** @var list<string> seluruh jenis dokumen (nilai `PostingDocumentType`); nama historis dari masa mode `on` */
     private const ON_TYPES = [
         'asset_depreciation',
         'asset_scrap',
@@ -103,7 +103,7 @@ class PostingLegacyLookupTest extends TestCase {
 
         foreach (self::ON_TYPES as $type) {
             $this->assertArrayHasKey($type, self::PATH_FILES, "Jenis dokumen tidak dikenal: {$type}");
-            $this->assertFalse($this->hasLegacyLookup($type), "P-9: jenis `{$type}` berada pada mode `on`, tetapi jalurnya masih memuat where('account_type', ...) (Requirement 7.3).");
+            $this->assertFalse($this->hasLegacyLookup($type), "P-9: jenis `{$type}` dijalankan engine, tetapi jalurnya masih memuat where('account_type', ...) (Requirement 7.3).");
         }
     }
 }

@@ -26,8 +26,8 @@ class PostSalesInvoiceGeneralLedger implements ShouldQueue {
             $salesInvoice = $event->salesInvoice;
 
             // Gateway Posting Engine (Finance Fase 2, Task 8.2; closure legacy dihapus Task 14.1): akun datang dari peran
-            // profil (retur menukar sisi lewat rule), dan `PostingModeNotOnException`/`UnresolvedAccountRoleException`
-            // membuat job gagal ke `failed`. Konteks lengkap hanya dibangun bila mode `on`.
+            // profil (retur menukar sisi lewat rule), dan `UnresolvedAccountRoleException`
+            // membuat job gagal ke `failed`. Konteks lengkap hanya dibangun bila dokumen tidak `canceled`.
             $outcome = app(PostingGateway::class)->postDeferred(
                 app(SalesInvoicePostingContextFactory::class)->forGuard($salesInvoice, Carbon::instance($event->transactionDate)),
                 fn () => app(SalesInvoicePostingContextFactory::class)->forPosting($salesInvoice, (float) $event->totalAmount, $event->isReturn, Carbon::instance($event->transactionDate)),

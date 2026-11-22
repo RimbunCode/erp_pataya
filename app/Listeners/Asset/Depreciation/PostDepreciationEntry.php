@@ -45,7 +45,7 @@ class PostDepreciationEntry implements ShouldQueue {
             }
 
             // Gateway Posting Engine (Finance Fase 2, Task 7.1; closure legacy dihapus Task 14.1): akun master datang dari
-            // `AssetCategoryAccount` lewat konteks; `PostingModeNotOnException`/`UnresolvedAccountRoleException`
+            // `AssetCategoryAccount` lewat konteks; `UnresolvedAccountRoleException` dan sejenisnya
             // membuat job gagal ke `failed`.
             $outcome = app(PostingGateway::class)->post(
                 app(AssetPostingContextFactory::class)->depreciation($schedule, $accounts, Carbon::instance($event->transactionDate)),

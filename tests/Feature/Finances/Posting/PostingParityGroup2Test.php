@@ -3,7 +3,6 @@
 namespace Tests\Feature\Finances\Posting;
 
 use App\Enums\FormStatus;
-use App\Enums\PostingDocumentType;
 use App\Events\Finances\PurchaseInvoiceGeneralLedgerPostingRequested;
 use App\Events\Inventory\DeliveryNoteGeneralLedgerPostingRequested;
 use App\Events\Purchase\PurchaseReceiptGeneralLedgerPostingRequested;
@@ -139,8 +138,6 @@ class PostingParityGroup2Test extends TestCase {
         $effects    = [];
 
         foreach (['on'] as $mode) {
-            $this->setPostingMode(PostingDocumentType::PurchaseReceipt, $mode);
-            $this->setPostingMode(PostingDocumentType::DeliveryNote, $mode);
 
             $documents = [];
             foreach (['receipt' => false, 'receipt_return' => true] as $case => $isReturn) {
@@ -159,7 +156,7 @@ class PostingParityGroup2Test extends TestCase {
             foreach ($documents as $case => $document) {
                 $signatures[$case][$mode] = $this->journalSignature($document);
                 $effects[$mode][$case]    = $this->postingStatusOf($document);
-                $this->assertSame($mode === 'shadow' ? 'match' : null, $this->parityLogStatus($document), "{$case} / {$mode}");
+                $this->assertNull($this->parityLogStatus($document), "{$case} / {$mode}");
             }
 
             // Dokumen dibatalkan sebelum job berjalan: dilewati pada semua mode, `skipped` tidak ditimpa `posted`.
@@ -190,7 +187,6 @@ class PostingParityGroup2Test extends TestCase {
         $effects    = [];
 
         foreach (['on'] as $mode) {
-            $this->setPostingMode(PostingDocumentType::SalesInvoice, $mode);
 
             $original     = $this->makeSalesInvoice($this->receivable, $this->revenue);
             $original     = $this->approveSalesInvoice($original);
@@ -199,7 +195,7 @@ class PostingParityGroup2Test extends TestCase {
                 $this->receivable,
                 $this->revenue,
                 ['return_against_id' => $original->id],
-                ['quantity' => 1, 'return_against_item_id' => $originalItem->id],
+                ['quantity'          => 1, 'return_against_item_id' => $originalItem->id],
             );
             $return = $this->approveSalesInvoice($return);
 
@@ -207,8 +203,8 @@ class PostingParityGroup2Test extends TestCase {
             $signatures['return'][$mode] = $this->journalSignature($return);
             $effects[$mode]              = [$this->postingStatusOf($original), $this->postingStatusOf($return), (float) $original->amount, (float) $return->amount];
 
-            $this->assertSame($mode === 'shadow' ? 'match' : null, $this->parityLogStatus($original), "normal / {$mode}");
-            $this->assertSame($mode === 'shadow' ? 'match' : null, $this->parityLogStatus($return), "return / {$mode}");
+            $this->assertNull($this->parityLogStatus($original), "normal / {$mode}");
+            $this->assertNull($this->parityLogStatus($return), "return / {$mode}");
         }
 
         $this->assertSignaturesIdentical('normal', $signatures['normal']);
@@ -256,7 +252,6 @@ class PostingParityGroup2Test extends TestCase {
         $effects    = [];
 
         foreach (['on'] as $mode) {
-            $this->setPostingMode(PostingDocumentType::PurchaseInvoice, $mode);
 
             // Non-stok: satu jurnal `expense` (jalur service penuh, baris invoice menjadi `lines` konteks).
             $normal = $this->makePurchaseInvoice();
@@ -288,7 +283,7 @@ class PostingParityGroup2Test extends TestCase {
             foreach (['normal' => $normal, 'return' => $return, 'stock' => $stockInvoice, 'stock_return' => $returnedStock] as $case => $document) {
                 $signatures[$case][$mode] = $this->journalSignature($document);
                 $effects[$mode][$case]    = $this->postingStatusOf($document);
-                $this->assertSame($mode === 'shadow' ? 'match' : null, $this->parityLogStatus($document), "{$case} / {$mode}");
+                $this->assertNull($this->parityLogStatus($document), "{$case} / {$mode}");
             }
         }
 
@@ -365,7 +360,6 @@ class PostingParityGroup2Test extends TestCase {
         $deltas     = [];
 
         foreach (['on'] as $mode) {
-            $this->setPostingMode(PostingDocumentType::StockEntry, $mode);
             $before = $this->balances();
 
             $receipt  = $this->approveStockEntry($this->makeStockEntry2('item_receipt', ['target_warehouse_id' => $inventory['warehouse']->id], [300.0], $inventory));
@@ -381,7 +375,7 @@ class PostingParityGroup2Test extends TestCase {
             $this->assertSame(0, GlPostingStatus::where('referenceable_type', StockEntry::class)->count(), 'Stock Entry tidak dilacak GlPostingStatus.');
 
             foreach ([$receipt, $issue, $transfer] as $document) {
-                $this->assertSame($mode === 'shadow' ? 'match' : null, $this->parityLogStatus($document), "{$document->type} / {$mode}");
+                $this->assertNull($this->parityLogStatus($document), "{$document->type} / {$mode}");
             }
         }
 
@@ -408,7 +402,6 @@ class PostingParityGroup2Test extends TestCase {
         $flags     = [];
 
         foreach (['on'] as $mode) {
-            $this->setPostingMode(PostingDocumentType::StockEntry, $mode);
             Account::query()->update(['have_transactions' => false]);
 
             $entry = $this->approveStockEntry($this->makeStockEntry2('item_receipt', ['target_warehouse_id' => $inventory['warehouse']->id, 'basic_rate' => 0], [], $inventory));
@@ -422,7 +415,6 @@ class PostingParityGroup2Test extends TestCase {
 
     public function test_stock_entry_on_mode_rolls_back_when_the_journal_already_exists(): void {
         $inventory = $this->makeInventoryFixture();
-        $this->setPostingMode(PostingDocumentType::StockEntry, 'on');
 
         $entry = $this->makeStockEntry2('item_receipt', ['target_warehouse_id' => $inventory['warehouse']->id], [], $inventory);
         app(JournalService::class)->postPair($this->stock->id, $this->difference->id, 10_000, $entry, CarbonImmutable::now(), 'default');

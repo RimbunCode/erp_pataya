@@ -2,20 +2,18 @@
 
 namespace Tests\Feature\Finances\Posting;
 
-use App\Enums\PostingDocumentType;
 use App\Models\Finances\PostingParityLog;
-use App\Services\Finances\Posting\PostingModeResolver;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Illuminate\Support\Facades\Cache;
 use Illuminate\Support\Facades\DB;
+use Illuminate\Support\Facades\Route;
 use Illuminate\Support\Str;
 use Tests\Support\BuildsFinanceFixtures;
 use Tests\TestCase;
 
 /**
- * Finance Fase 2, Task 6.2 (Requirement 6.8, 8.3, 11.3): halaman Parity Log dan kontrol mode engine. Daftar
- * difilter jenis dokumen/status/tanggal; mengubah mode hanya untuk izin `switch_posting_mode`, lewat
- * `PostingModeService`, dan `on` wajib dikonfirmasi.
+ * Finance Fase 2, Task 6.2 dan Q-P2-23 (Requirement 8.3, 2026-11-22): halaman Parity Log baca-saja sebagai riwayat.
+ * Daftar difilter jenis dokumen/status/tanggal; kontrol ubah mode engine dihapus bersama mode `off`/`shadow`.
  */
 class PostingParityLogControllerTest extends TestCase {
     use BuildsFinanceFixtures, RefreshDatabase;
@@ -59,7 +57,7 @@ class PostingParityLogControllerTest extends TestCase {
         $this->actingWith(['read'])->get(route('postingParityLogs.index'))->assertForbidden();
     }
 
-    public function test_index_lists_logs_newest_first_with_all_modes_default_off(): void {
+    public function test_index_lists_logs_newest_first_without_any_mode_controls(): void {
         $this->log('sales_invoice', 'match', '2026-11-01 10:00:00');
         $this->log('stock_entry', 'mismatch', '2026-11-02 10:00:00');
 
@@ -70,8 +68,9 @@ class PostingParityLogControllerTest extends TestCase {
                 ->has('logs.data', 2)
                 ->where('logs.data.0.document_type', 'stock_entry')
                 ->where('logs.data.0.source_type', 'SalesInvoice')
-                ->where('modes', array_fill_keys(PostingDocumentType::values(), 'off'))
-                ->where('canSwitchMode', false));
+                ->missing('modes')
+                ->missing('modeOptions')
+                ->missing('canSwitchMode'));
     }
 
     public function test_index_filters_by_document_type_status_and_dates(): void {
@@ -111,68 +110,14 @@ class PostingParityLogControllerTest extends TestCase {
             ->assertInertia(fn ($page) => $page->where('logs.data.0.diff.reason', 'akun berbeda'));
     }
 
-    public function test_can_switch_mode_flag_follows_the_permission(): void {
+    public function test_mode_controls_are_gone_even_for_the_switch_posting_mode_permission(): void {
         $this->actingWith(['select', 'switch_posting_mode'])->get(route('postingParityLogs.index'))
-            ->assertInertia(fn ($page) => $page->where('canSwitchMode', true));
-    }
+            ->assertOk()
+            ->assertInertia(fn ($page) => $page->missing('modes')->missing('modeOptions')->missing('canSwitchMode'));
 
-    public function test_switch_mode_requires_the_switch_posting_mode_permission(): void {
-        $this->actingWith(['select', 'read'])
-            ->put(route('postingParityLogs.switchMode', 'sales_invoice'), ['mode' => 'shadow'])
-            ->assertForbidden();
-
-        $this->assertSame('off', app(PostingModeResolver::class)->for(PostingDocumentType::SalesInvoice));
-    }
-
-    public function test_switch_mode_changes_only_the_requested_type(): void {
+        $this->assertFalse(Route::has('postingParityLogs.switchMode'), 'Rute ubah mode dihapus (Q-P2-23).');
         $this->actingWith(['select', 'switch_posting_mode'])
-            ->put(route('postingParityLogs.switchMode', 'sales_invoice'), ['mode' => 'shadow'])
-            ->assertRedirect()
-            ->assertSessionHas('success', fn (string $message): bool => str_contains($message, 'Sales Invoice') && str_contains($message, 'Shadow') && ! str_contains($message, 'finances'));
-
-        $resolver = app(PostingModeResolver::class);
-        $this->assertSame('shadow', $resolver->for(PostingDocumentType::SalesInvoice));
-        $this->assertSame('off', $resolver->for(PostingDocumentType::PurchaseInvoice));
-
-        $this->actingWith(['select', 'switch_posting_mode'])
-            ->put(route('postingParityLogs.switchMode', 'sales_invoice'), ['mode' => 'off'])
-            ->assertRedirect();
-        $this->assertSame('off', $resolver->for(PostingDocumentType::SalesInvoice), 'Kembali ke off tanpa deploy.');
-    }
-
-    public function test_switch_to_on_requires_explicit_confirmation(): void {
-        $this->actingWith(['select', 'switch_posting_mode'])
-            ->put(route('postingParityLogs.switchMode', 'sales_invoice'), ['mode' => 'on'])
-            ->assertSessionHasErrors('confirmed');
-        $this->assertSame('off', app(PostingModeResolver::class)->for(PostingDocumentType::SalesInvoice));
-
-        $this->actingWith(['select', 'switch_posting_mode'])
-            ->put(route('postingParityLogs.switchMode', 'sales_invoice'), ['mode' => 'on', 'confirmed' => false])
-            ->assertSessionHasErrors('confirmed');
-        $this->assertSame('off', app(PostingModeResolver::class)->for(PostingDocumentType::SalesInvoice));
-
-        $this->actingWith(['select', 'switch_posting_mode'])
-            ->put(route('postingParityLogs.switchMode', 'sales_invoice'), ['mode' => 'on', 'confirmed' => true])
-            ->assertRedirect();
-        $this->assertSame('on', app(PostingModeResolver::class)->for(PostingDocumentType::SalesInvoice));
-    }
-
-    public function test_switch_mode_rejects_unknown_modes_input_and_document_types(): void {
-        $this->actingWith(['select', 'switch_posting_mode'])
-            ->put(route('postingParityLogs.switchMode', 'sales_invoice'), ['mode' => 'turbo'])
-            ->assertSessionHasErrors('mode');
-
-        $this->actingWith(['select', 'switch_posting_mode'])
-            ->put(route('postingParityLogs.switchMode', 'sales_invoice'), ['mode' => 'shadow', 'posting_modes' => ['stock_entry' => 'on']])
-            ->assertSessionHasErrors('posting_modes');
-
-        $this->actingWith(['select', 'switch_posting_mode'])
-            ->put(route('postingParityLogs.switchMode', 'bukan_jenis'), ['mode' => 'shadow'])
+            ->put(route('postingParityLogs.index') . '/modes/sales_invoice', ['mode' => 'on', 'confirmed' => true])
             ->assertNotFound();
-
-        $resolver = app(PostingModeResolver::class);
-        foreach (PostingDocumentType::cases() as $type) {
-            $this->assertSame('off', $resolver->for($type));
-        }
     }
 }

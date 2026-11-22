@@ -39,7 +39,7 @@ class PostValueAdjustmentEntry implements ShouldQueue {
 
             // Gateway Posting Engine (Finance Fase 2, Task 7.1; closure legacy dihapus Task 14.1): akun aset dari
             // `AssetCategoryAccount` lewat konteks, akun selisih dari peran `asset_revaluation` pada profil (bukan lagi
-            // kolom `difference_account_id` dokumen); `PostingModeNotOnException`/`UnresolvedAccountRoleException`
+            // kolom `difference_account_id` dokumen); `UnresolvedAccountRoleException` dan sejenisnya
             // membuat job gagal ke `failed`.
             $outcome = app(PostingGateway::class)->post(
                 app(AssetPostingContextFactory::class)->valueAdjustment($adjustment, $accounts, Carbon::instance($event->transactionDate)),

@@ -2,7 +2,6 @@
 
 namespace App\Http\Requests\Finances;
 
-use App\Enums\PostingDocumentType;
 use App\Http\Requests\BaseFormRequest;
 use App\Http\Requests\Finances\Rules\AdditionalDiscountRules;
 use App\Http\Requests\Finances\Rules\PaymentSchedulesRules;
@@ -18,7 +17,6 @@ use App\Services\Core\Setting\CurrencyMatcher;
 use App\Services\Core\Setting\RateChangeComparator;
 use App\Services\Core\Setting\ToleranceCalculator;
 use App\Services\Finances\InvoiceBilledValueResolver;
-use App\Services\Finances\Posting\PostingModeResolver;
 use App\Services\Finances\PurchaseInvoiceService;
 use Illuminate\Contracts\Validation\ValidationRule;
 use Illuminate\Validation\Validator;
@@ -32,31 +30,12 @@ class PurchaseInvoiceRequest extends BaseFormRequest {
     }
 
     /**
-     * Akun pencatatan hanya divalidasi saat engine belum `on` untuk Purchase Invoice. Saat `on`, aturannya tidak ada
-     * sehingga `validated()` membuang kolom akun dari request dan akun ditentukan engine (Finance Fase 2, Task 12.3,
-     * Requirement 13.1/13.3).
-     *
-     * @return array<string, array<mixed>>
-     */
-    private function accountRules(): array {
-        if (app(PostingModeResolver::class)->isOn(PostingDocumentType::PurchaseInvoice)) {
-            return [];
-        }
-
-        return [
-            'expense_head_account.id' => ['required', new ExistsExcludingTrashed('accounts')],
-            'credit_account.id'       => ['required', new ExistsExcludingTrashed('accounts')],
-        ];
-    }
-
-    /**
      * Get the validation rules that apply to the request.
      *
      * @return array<string, ValidationRule|array<mixed>|string>
      */
     public function rules(): array {
         return [
-            ...$this->accountRules(),
             'date'                             => ['required', 'date'],
             'purchase_order.id'                => ['nullable', new ExistsExcludingTrashed('purchase_orders')],
             'purchase_order.*'                 => ['nullable'],

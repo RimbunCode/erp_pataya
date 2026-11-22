@@ -10,11 +10,6 @@ use Illuminate\Validation\Rule;
 class FinanceSetting extends ModuleSetting {
     use HasFactory;
 
-    public const POSTING_MODE_OFF    = 'off';
-    public const POSTING_MODE_SHADOW = 'shadow';
-    public const POSTING_MODE_ON     = 'on';
-    public const POSTING_MODES       = [self::POSTING_MODE_OFF, self::POSTING_MODE_SHADOW, self::POSTING_MODE_ON];
-
     /** Eksekusi posting GL (D-1 opsi C, 2026-11-21): `inline` = dalam transaksi dokumen, `queue` = lewat antrean. */
     public const POSTING_EXECUTION_INLINE = 'inline';
 
@@ -35,7 +30,6 @@ class FinanceSetting extends ModuleSetting {
             'tax_invoice_serial_range_end'   => 'integer',
             'tax_invoice_serial_last_used'   => 'integer',
             'enforce_fiscal_period'          => 'boolean',
-            'posting_modes'                  => 'array',
             'posting_executions'             => 'array',
         ];
     }
@@ -47,8 +41,6 @@ class FinanceSetting extends ModuleSetting {
             'tax_invoice_serial_last_used'   => 0,
             // PRD D-25 `finance_enforce_fiscal_period`; Q-P1-2: nonaktif dulu, diaktifkan manual.
             'enforce_fiscal_period' => false,
-            // Finance Fase 2, Requirement 6.1: semua jenis dokumen `off` sampai ada keputusan eksplisit per jenis.
-            'posting_modes' => array_fill_keys(PostingDocumentType::values(), self::POSTING_MODE_OFF),
             // D-1 opsi C (2026-11-21): posting GL sinkron untuk semua jenis dokumen; `queue` hanya lewat sakelar.
             'posting_executions' => array_fill_keys(PostingDocumentType::values(), self::POSTING_EXECUTION_INLINE),
         ];
@@ -71,15 +63,13 @@ class FinanceSetting extends ModuleSetting {
 
     /**
      * Kolom yang tidak muncul di halaman Finance Settings dan tidak dapat ditulis lewat form pengaturan umum:
-     * `posting_modes` hanya ditulis `PostingModeService` (izin `switch_posting_mode`, Requirement 6.8).
+     * `posting_executions` hanya ditulis `PostingExecutionService` (izin `switch_posting_mode`). Setting
+     * `posting_modes` dihapus 2026-11-22 (Q-P2-23, opsi A): engine selalu aktif.
      *
      * @return array<string, mixed>
      */
     public static function internalRules(): array {
         return [
-            'posting_modes'   => ['required', 'array:' . implode(',', PostingDocumentType::values())],
-            'posting_modes.*' => ['string', Rule::in(self::POSTING_MODES)],
-
             'posting_executions'   => ['required', 'array:' . implode(',', PostingDocumentType::values())],
             'posting_executions.*' => ['string', Rule::in(self::POSTING_EXECUTIONS)],
         ];

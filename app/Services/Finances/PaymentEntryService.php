@@ -42,15 +42,11 @@ class PaymentEntryService implements SubmitableService {
         $data['paymentable_id']    = $data['paymentable']['id'];
         $data['paymentable_type']  = $data['payment_type'] == 'pay' ? PurchaseInvoice::class : SalesInvoice::class;
         $data['payment_method_id'] = $data['payment_method']['id'] ?? null;
-        // Saat engine `on` request tidak membawa akun (Task 12.3): kolom tidak disentuh, jadi null pada dokumen baru
-        // dan nilai lama (catatan audit) dipertahankan saat draft diubah, sampai engine mencatatnya.
-        if (isset($data['account_paid_to']['id'])) {
-            $data['account_paid_to_id'] = $data['account_paid_to']['id'];
-        }
-        if (isset($data['account_paid_from']['id'])) {
-            $data['account_paid_from_id'] = $data['account_paid_from']['id'];
-        }
-        $data['exchange_rate'] = $data['exchange_rate'] ?? 1;
+        // Akun tidak diterima dari input (Q-P2-23, 2026-11-22): engine yang menentukan akun, kolom dokumen dikosongkan
+        // pada create dan update draft sampai engine mencatatnya (Task 12.1).
+        $data['account_paid_to_id']   = null;
+        $data['account_paid_from_id'] = null;
+        $data['exchange_rate']        = $data['exchange_rate'] ?? 1;
 
         return $data;
     }
@@ -166,8 +162,8 @@ class PaymentEntryService implements SubmitableService {
      * metode pembayaran (master) dan peran profil lewat engine. Nilai tidak dikonversi ke mata uang dasar (F-11, Fase 4).
      */
     private function postLedger(PaymentEntry $paymentEntry): void {
-        // Gateway Posting Engine (Finance Fase 2, Task 7.2; closure legacy dihapus Task 14.1). `PostingModeNotOnException`/
-        // `UnresolvedAccountRoleException` menggulung seluruh approve.
+        // Gateway Posting Engine (Finance Fase 2, Task 7.2; closure legacy dihapus Task 14.1). `UnresolvedAccountRoleException` dan sejenisnya
+        // menggulung seluruh approve.
         $outcome = app(PostingGateway::class)->postDeferred(
             app(PaymentEntryPostingContextFactory::class)->forGuard($paymentEntry),
             fn () => app(PaymentEntryPostingContextFactory::class)->forApproval($paymentEntry),

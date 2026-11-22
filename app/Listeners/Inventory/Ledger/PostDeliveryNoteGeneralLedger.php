@@ -26,7 +26,7 @@ class PostDeliveryNoteGeneralLedger implements ShouldQueue {
             $deliveryNote = $event->deliveryNote;
 
             // Gateway Posting Engine (Finance Fase 2, Task 8.1; closure legacy dihapus Task 14.1): akun datang dari
-            // peran profil (debit HPP, kredit stok; retur menukar sisi lewat rule), dan `PostingModeNotOnException`/
+            // peran profil (debit HPP, kredit stok; retur menukar sisi lewat rule), dan
             // `UnresolvedAccountRoleException` membuat job gagal ke `failed`.
             $outcome = app(PostingGateway::class)->post(
                 app(DeliveryNotePostingContextFactory::class)->forPosting($deliveryNote, (float) $event->totalPicked, $event->isReturn, Carbon::instance($event->transactionDate)),

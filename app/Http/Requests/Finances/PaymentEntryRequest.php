@@ -2,12 +2,10 @@
 
 namespace App\Http\Requests\Finances;
 
-use App\Enums\PostingDocumentType;
 use App\Http\Requests\BaseFormRequest;
 use App\Models\Finances\PurchaseInvoice;
 use App\Models\Finances\SalesInvoice;
 use App\Rules\ExistsExcludingTrashed;
-use App\Services\Finances\Posting\PostingModeResolver;
 use Closure;
 use Illuminate\Contracts\Validation\ValidationRule;
 
@@ -20,31 +18,12 @@ class PaymentEntryRequest extends BaseFormRequest {
     }
 
     /**
-     * Akun pencatatan hanya divalidasi saat engine belum `on` untuk Payment Entry. Saat `on`, aturannya tidak ada
-     * sehingga `validated()` membuang kolom akun dari request dan akun ditentukan engine (Finance Fase 2, Task 12.3,
-     * Requirement 13.1/13.3).
-     *
-     * @return array<string, array<mixed>>
-     */
-    private function accountRules(): array {
-        if (app(PostingModeResolver::class)->isOn(PostingDocumentType::PaymentEntry)) {
-            return [];
-        }
-
-        return [
-            'account_paid_to.id'   => ['required', new ExistsExcludingTrashed('accounts')],
-            'account_paid_from.id' => ['required', new ExistsExcludingTrashed('accounts')],
-        ];
-    }
-
-    /**
      * Get the validation rules that apply to the request.
      *
      * @return array<string, ValidationRule|array<mixed>|string>
      */
     public function rules(): array {
         return [
-            ...$this->accountRules(),
             'date'              => ['required', 'date'],
             'paid_amount'       => ['required', 'numeric', 'gt:0', fn (string $attribute, mixed $value, Closure $fail) => $this->failWhenOverOutstanding((float) $value, $fail)],
             'payment_type'      => ['required', 'string', 'in:receive,pay,internal_transfer'],

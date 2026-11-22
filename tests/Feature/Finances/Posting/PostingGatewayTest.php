@@ -4,7 +4,6 @@ namespace Tests\Feature\Finances\Posting;
 
 use App\Enums\FormStatus;
 use App\Enums\PostingDocumentType;
-use App\Exceptions\Finances\PostingModeNotOnException;
 use App\Exceptions\Finances\UnresolvedAccountRoleException;
 use App\Models\Core\GlPostingStatus;
 use App\Models\Finances\Account;
@@ -13,24 +12,22 @@ use App\Models\Finances\Journal;
 use App\Models\Finances\PostingParityLog;
 use App\Models\Finances\PostingProfile;
 use App\Models\Inventory\StockEntry;
-use App\Services\Core\Setting\SettingsService;
 use App\Services\Finances\Posting\Contexts\PostingContext;
 use App\Services\Finances\Posting\PostingGateway;
-use App\Services\Finances\Posting\PostingModeResolver;
 use App\Services\Finances\Posting\PostingOutcome;
 use App\Services\Finances\Posting\PostingProfileService;
 use Carbon\CarbonImmutable;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Illuminate\Support\Facades\DB;
+use Illuminate\Support\Facades\Schema;
 use Tests\Support\BuildsFinanceFixtures;
 use Tests\TestCase;
 
 /**
- * Finance Fase 2, Task 5.3-5.4 dan Task 14.1: `PostingGateway`. Sejak closure legacy dihapus (Task 14.1) gateway hanya
- * punya satu jalur tulis (engine, mode `on`). Yang dikunci di sini: guard cancel pada SEMUA mode (P-6; `GlPostingStatus`
- * pending menjadi `skipped`), mode `on` menulis lewat engine tanpa fallback diam-diam (Requirement 7.6), dan mode
- * `off`/`shadow` gagal tertutup dengan `PostingModeNotOnException` sebelum pabrik konteks dipanggil: tanpa jurnal dan
- * tanpa catatan parity.
+ * Finance Fase 2, Task 5.3-5.4, Task 14.1 dan Q-P2-23 (2026-11-22): `PostingGateway`. Mode `off`/`shadow` dihapus dan
+ * engine selalu aktif, jadi gateway hanya punya satu jalur tulis. Yang dikunci di sini: guard cancel (P-6;
+ * `GlPostingStatus` pending menjadi `skipped`, pabrik konteks tidak dipanggil), penulisan lewat engine tanpa fallback
+ * diam-diam (Requirement 7.6), dan gateway memposting tanpa baris setting Finance sama sekali (tidak ada sakelar mode).
  */
 class PostingGatewayTest extends TestCase {
     use BuildsFinanceFixtures, RefreshDatabase;
@@ -54,13 +51,6 @@ class PostingGatewayTest extends TestCase {
         ]));
 
         $this->source = $this->makeStockEntry();
-        PostingModeResolver::forget();
-    }
-
-    private function setMode(PostingDocumentType $type, string $mode): void {
-        $modes = array_merge(FinanceSetting::defaultAttributes()['posting_modes'], [$type->value => $mode]);
-        app(SettingsService::class)->updateInternal(FinanceSetting::class, ['posting_modes' => $modes]);
-        PostingModeResolver::forget();
     }
 
     private function ctx(PostingDocumentType $type = PostingDocumentType::PurchaseReceipt, array $flags = []): PostingContext {
@@ -75,46 +65,7 @@ class PostingGatewayTest extends TestCase {
         return app(PostingGateway::class);
     }
 
-    public function test_all_modes_default_to_off(): void {
-        // Default `off` tidak diubah Task 14.1 (Requirement 6.1): perubahan default menunggu keputusan pemilik produk.
-        foreach (PostingDocumentType::cases() as $type) {
-            $this->assertSame('off', app(PostingModeResolver::class)->for($type), $type->value);
-        }
-    }
-
-    public function test_off_mode_fails_closed_without_journals_and_never_touches_the_engine(): void {
-        // Tanpa profil/akun untuk `cash_or_bank` engine akan gagal dengan UnresolvedAccountRoleException bila dipanggil;
-        // yang dilempar justru PostingModeNotOnException, jadi engine tidak disentuh.
-        try {
-            $this->gateway()->post($this->ctx(PostingDocumentType::PaymentEntry, ['payment_type' => 'receive', 'paymentable_kind' => 'sales_invoice']));
-            $this->fail('Mode off harus gagal tertutup.');
-        } catch (PostingModeNotOnException $e) {
-            $this->assertSame('payment_entry', $e->documentType);
-            $this->assertSame('off', $e->mode);
-            $this->assertStringContainsString('payment_entry', $e->getMessage());
-        }
-
-        $this->assertSame(0, Journal::count());
-        $this->assertSame(0, PostingParityLog::count(), 'Mode off tidak membuat catatan parity.');
-    }
-
-    public function test_shadow_mode_fails_closed_without_journals_or_parity_log(): void {
-        $this->setMode(PostingDocumentType::PurchaseReceipt, 'shadow');
-
-        try {
-            $this->gateway()->post($this->ctx());
-            $this->fail('Mode shadow harus gagal tertutup (tidak ada jalur lama untuk dibandingkan).');
-        } catch (PostingModeNotOnException $e) {
-            $this->assertSame('shadow', $e->mode);
-        }
-
-        $this->assertSame(0, Journal::count());
-        $this->assertSame(0, PostingParityLog::count());
-    }
-
-    public function test_on_mode_posts_through_the_engine(): void {
-        $this->setMode(PostingDocumentType::PurchaseReceipt, 'on');
-
+    public function test_gateway_posts_through_the_engine(): void {
         $outcome = $this->gateway()->post($this->ctx());
 
         $this->assertSame(PostingOutcome::POSTED, $outcome->status);
@@ -124,8 +75,7 @@ class PostingGatewayTest extends TestCase {
         $this->assertSame(0, PostingParityLog::count());
     }
 
-    public function test_on_mode_unresolved_role_fails_loudly_without_any_fallback(): void {
-        $this->setMode(PostingDocumentType::PaymentEntry, 'on');
+    public function test_unresolved_role_fails_loudly_without_any_fallback(): void {
 
         try {
             $this->gateway()->post($this->ctx(PostingDocumentType::PaymentEntry, ['payment_type' => 'receive', 'paymentable_kind' => 'sales_invoice']));
@@ -142,21 +92,16 @@ class PostingGatewayTest extends TestCase {
         $this->assertFalse(config('finance.posting.legacy_account_fallback'));
     }
 
-    public function test_canceled_source_is_skipped_on_every_mode_p6(): void {
+    public function test_canceled_source_is_skipped_p6(): void {
         $this->source->update(['status' => [FormStatus::CANCELED]]);
+        GlPostingStatus::create(['referenceable_type' => $this->source::class, 'referenceable_id' => $this->source->getKey(), 'status' => 'pending']);
 
-        foreach (['off', 'shadow', 'on'] as $mode) {
-            $this->setMode(PostingDocumentType::PurchaseReceipt, $mode);
-            GlPostingStatus::query()->where('referenceable_id', $this->source->getKey())->delete();
-            GlPostingStatus::create(['referenceable_type' => $this->source::class, 'referenceable_id' => $this->source->getKey(), 'status' => 'pending']);
+        $outcome = $this->gateway()->post($this->ctx());
 
-            $outcome = $this->gateway()->post($this->ctx());
-
-            $this->assertSame(PostingOutcome::SKIPPED, $outcome->status, "mode {$mode}");
-            $this->assertSame(0, Journal::count(), "mode {$mode}: tidak ada jurnal");
-            $this->assertSame(0, PostingParityLog::count(), "mode {$mode}: tidak ada parity");
-            $this->assertSame('skipped', GlPostingStatus::query()->where('referenceable_id', $this->source->getKey())->firstOrFail()->status->value, "mode {$mode}");
-        }
+        $this->assertSame(PostingOutcome::SKIPPED, $outcome->status);
+        $this->assertSame(0, Journal::count(), 'tidak ada jurnal');
+        $this->assertSame(0, PostingParityLog::count(), 'tidak ada parity');
+        $this->assertSame('skipped', GlPostingStatus::query()->where('referenceable_id', $this->source->getKey())->firstOrFail()->status->value);
     }
 
     public function test_non_pending_posting_status_of_a_canceled_source_is_left_untouched(): void {
@@ -168,7 +113,7 @@ class PostingGatewayTest extends TestCase {
         $this->assertSame('posted', GlPostingStatus::query()->where('referenceable_id', $this->source->getKey())->firstOrFail()->status->value);
     }
 
-    public function test_deferred_context_is_built_only_in_on_mode(): void {
+    public function test_deferred_context_is_built_only_when_the_guard_document_is_not_canceled(): void {
         $built = 0;
         $guard = $this->guardContext();
         $full  = function () use (&$built): PostingContext {
@@ -177,25 +122,34 @@ class PostingGatewayTest extends TestCase {
             return $this->ctx();
         };
 
-        foreach (['off', 'shadow'] as $mode) {
-            $this->setMode(PostingDocumentType::PurchaseReceipt, $mode);
-            try {
-                $this->gateway()->postDeferred($guard, $full);
-                $this->fail("mode {$mode}: harus gagal tertutup");
-            } catch (PostingModeNotOnException) {
-                $this->assertSame(0, $built, "Mode {$mode}: pabrik konteks tidak berjalan.");
-            }
-        }
+        $this->source->update(['status' => [FormStatus::CANCELED]]);
+        GlPostingStatus::create(['referenceable_type' => $this->source::class, 'referenceable_id' => $this->source->getKey(), 'status' => 'pending']);
+        $this->assertSame(PostingOutcome::SKIPPED, $this->gateway()->postDeferred($guard, $full)->status);
+        $this->assertSame(0, $built, 'Dokumen dibatalkan: pabrik konteks tidak berjalan.');
 
-        $this->setMode(PostingDocumentType::PurchaseReceipt, 'on');
         $this->source->update(['status' => [FormStatus::APPROVED]]);
         $this->gateway()->postDeferred($guard, $full);
         $this->assertSame(1, $built);
     }
 
-    public function test_on_mode_reports_already_posted_on_retry_without_new_journals(): void {
-        $this->setMode(PostingDocumentType::PurchaseReceipt, 'on');
+    public function test_gateway_posts_without_any_finance_setting_row(): void {
+        // Tidak ada lagi sakelar mode: gateway tidak membaca setting Finance untuk memutuskan boleh memposting atau tidak.
+        FinanceSetting::query()->delete();
 
+        $outcome = $this->gateway()->post($this->ctx());
+
+        $this->assertSame(PostingOutcome::POSTED, $outcome->status);
+        $this->assertSame(1, Journal::count());
+    }
+
+    public function test_finance_setting_no_longer_has_posting_modes(): void {
+        $this->assertArrayNotHasKey('posting_modes', FinanceSetting::defaultAttributes());
+        $this->assertArrayNotHasKey('posting_modes', FinanceSetting::internalRules());
+        $this->assertArrayHasKey('posting_executions', FinanceSetting::internalRules());
+        $this->assertFalse(Schema::hasColumn('finance_settings', 'posting_modes'));
+    }
+
+    public function test_gateway_reports_already_posted_on_retry_without_new_journals(): void {
         $first = $this->gateway()->post($this->ctx());
         $retry = $this->gateway()->post($this->ctx());
 
@@ -211,32 +165,28 @@ class PostingGatewayTest extends TestCase {
         $fixed = $this->makeAccount('1510', 'Aset Tetap', 'asset');
         $gain  = $this->makeAccount('4910', 'Untung Pelepasan', 'income', 'credit');
 
-        foreach (['off', 'shadow', 'on'] as $mode) {
-            $this->setMode(PostingDocumentType::AssetDisposal, $mode);
-            GlPostingStatus::query()->where('referenceable_id', $invoice->getKey())->update(['status' => 'pending']);
-            $ctx = new PostingContext(
-                PostingDocumentType::AssetDisposal,
-                $this->source::class,
-                $this->source->getKey(),
-                CarbonImmutable::parse('2026-11-12 10:00:00'),
-                null,
-                ['gain_loss' => 30],
-                ['sales_invoice_item_id' => 'L1'],
-                ['gain_loss_disposal' => $gain->id, 'fixed_asset' => $fixed->id],
-                guardDocument: ['type' => $invoice::class, 'id' => $invoice->getKey()],
-            );
+        $ctx = new PostingContext(
+            PostingDocumentType::AssetDisposal,
+            $this->source::class,
+            $this->source->getKey(),
+            CarbonImmutable::parse('2026-11-12 10:00:00'),
+            null,
+            ['gain_loss'             => 30],
+            ['sales_invoice_item_id' => 'L1'],
+            ['gain_loss_disposal'    => $gain->id, 'fixed_asset' => $fixed->id],
+            guardDocument: ['type' => $invoice::class, 'id' => $invoice->getKey()],
+        );
 
-            $outcome = $this->gateway()->post($ctx);
+        $outcome = $this->gateway()->post($ctx);
 
-            $this->assertSame(PostingOutcome::SKIPPED, $outcome->status, $mode);
-            $this->assertSame(0, Journal::count(), $mode);
-            $this->assertSame('skipped', GlPostingStatus::query()->where('referenceable_id', $invoice->getKey())->firstOrFail()->status->value, $mode);
-        }
+        $this->assertSame(PostingOutcome::SKIPPED, $outcome->status);
+        $this->assertSame(0, Journal::count());
+        $this->assertSame('skipped', GlPostingStatus::query()->where('referenceable_id', $invoice->getKey())->firstOrFail()->status->value);
     }
 
-    public function test_guard_reads_the_source_inside_a_transaction_in_every_mode(): void {
+    public function test_guard_reads_the_source_inside_a_transaction(): void {
         // Bukti terbatas (SQLite, satu proses): FOR UPDATE diabaikan; yang dibuktikan adalah guard membaca dokumen
-        // penjaga pada transactionLevel >= 1 (tempat kunci baris berlaku di MySQL), pada ketiga mode.
+        // penjaga pada transactionLevel >= 1 (tempat kunci baris berlaku di MySQL).
         $levels = [];
         DB::listen(function ($query) use (&$levels): void {
             if (str_contains($query->sql, 'stock_entries')) {
@@ -244,18 +194,9 @@ class PostingGatewayTest extends TestCase {
             }
         });
 
-        foreach (['off', 'shadow', 'on'] as $mode) {
-            $this->setMode(PostingDocumentType::PurchaseReceipt, $mode);
-            $levels = [];
+        $this->gateway()->post($this->ctx());
 
-            try {
-                $this->gateway()->post($this->ctx());
-            } catch (PostingModeNotOnException) {
-                // off/shadow gagal tertutup setelah guard membaca sumber.
-            }
-
-            $this->assertNotEmpty($levels, "mode {$mode}: guard harus membaca sumber");
-            $this->assertSame([], array_filter($levels, fn (int $level): bool => $level < 1), "mode {$mode}: sumber dibaca di luar transaksi");
-        }
+        $this->assertNotEmpty($levels, 'guard harus membaca sumber');
+        $this->assertSame([], array_filter($levels, fn (int $level): bool => $level < 1), 'sumber dibaca di luar transaksi');
     }
 }

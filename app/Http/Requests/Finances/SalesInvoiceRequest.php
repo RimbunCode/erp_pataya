@@ -3,7 +3,6 @@
 namespace App\Http\Requests\Finances;
 
 use App\Enums\DefaultsDocumentType;
-use App\Enums\PostingDocumentType;
 use App\Http\Requests\BaseFormRequest;
 use App\Http\Requests\Concerns\ValidatesRowTaxRequired;
 use App\Http\Requests\Finances\Rules\AdditionalDiscountRules;
@@ -20,7 +19,6 @@ use App\Services\Core\Setting\CurrencyMatcher;
 use App\Services\Core\Setting\RateChangeComparator;
 use App\Services\Core\Setting\ToleranceCalculator;
 use App\Services\Finances\InvoiceBilledValueResolver;
-use App\Services\Finances\Posting\PostingModeResolver;
 use App\Services\Finances\SalesInvoiceService;
 use Illuminate\Contracts\Validation\ValidationRule;
 use Illuminate\Contracts\Validation\Validator;
@@ -37,24 +35,6 @@ class SalesInvoiceRequest extends BaseFormRequest {
     }
 
     /**
-     * Akun pencatatan hanya divalidasi saat engine belum `on` untuk Sales Invoice. Saat `on`, aturannya tidak ada
-     * sehingga `validated()` membuang kolom akun dari request dan akun ditentukan engine (Finance Fase 2, Task 12.3,
-     * Requirement 13.1/13.3).
-     *
-     * @return array<string, array<mixed>>
-     */
-    private function accountRules(): array {
-        if (app(PostingModeResolver::class)->isOn(PostingDocumentType::SalesInvoice)) {
-            return [];
-        }
-
-        return [
-            'income_account.id' => ['required', new ExistsExcludingTrashed('accounts')],
-            'debit_account.id'  => ['required', new ExistsExcludingTrashed('accounts')],
-        ];
-    }
-
-    /**
      * Get the validation rules that apply to the request.
      *
      * Spec delivery-note-sales-invoice-off-source-items: satu `items[]`, tiap baris
@@ -66,7 +46,6 @@ class SalesInvoiceRequest extends BaseFormRequest {
      */
     public function rules(): array {
         return [
-            ...$this->accountRules(),
             'date'                           => ['required', 'date'],
             'sales_order.id'                 => ['nullable', new ExistsExcludingTrashed('sales_orders')],
             'sales_order.*'                  => ['nullable'],

@@ -7,8 +7,8 @@ use App\Traits\DataTable;
 use Illuminate\Database\Eloquent\Concerns\HasUlids;
 
 /**
- * Catatan parity mode `shadow` (Finance Fase 2, Requirement 6.5-6.6): hasil perbandingan jurnal jalur lama dengan
- * hasil engine per dokumen. Hanya dibuat, tidak pernah diubah (tanpa `updated_at`); dibersihkan oleh
+ * Riwayat parity mode `shadow` (Finance Fase 2, Requirement 6.5-6.6): hasil perbandingan jurnal jalur lama dengan
+ * hasil engine per dokumen. Tidak ada catatan baru sejak mode shadow dihapus (Q-P2-23, 2026-11-22). Tidak pernah diubah (tanpa `updated_at`); dibersihkan oleh
  * `finance:prune-parity-logs` lewat query builder.
  */
 class PostingParityLog extends Model {
@@ -48,7 +48,7 @@ class PostingParityLog extends Model {
     }
 
     /**
-     * Izin ubah mode engine per jenis dokumen (Requirement 6.8, 11.3), diperiksa `PostingModeService`.
+     * Izin `switch_posting_mode` kini hanya menjaga sakelar cara eksekusi posting (inline/queue), diperiksa `PostingExecutionService` (Q-P2-23: mode off/shadow dihapus 2026-11-22).
      *
      * @return string[]
      */

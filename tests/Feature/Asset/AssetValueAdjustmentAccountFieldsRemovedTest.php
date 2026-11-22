@@ -3,9 +3,7 @@
 namespace Tests\Feature\Asset;
 
 use App\Enums\FormStatus;
-use App\Enums\PostingDocumentType;
 use App\Events\Asset\AssetValueAdjustmentApproved;
-use App\Exceptions\Finances\PostingModeNotOnException;
 use App\Exceptions\Finances\UnresolvedAccountRoleException;
 use App\Http\Requests\Asset\AssetValueAdjustmentRequest;
 use App\Listeners\Asset\Depreciation\PostValueAdjustmentEntry;
@@ -27,12 +25,12 @@ use Tests\Support\BuildsFinanceFixtures;
 use Tests\TestCase;
 
 /**
- * Finance Fase 2, Task 12.3 (Requirement 13.1/13.3, P-14) untuk Asset Value Adjustment: saat mode engine `on`, request
- * tidak lagi memvalidasi kolom akun selisih sehingga `validated()` membuangnya, controller menyuplai
- * `accountsManagedByEngine`, dan dokumen tanpa akun terposting lewat profil. Saat `off`/`shadow` jalur lama tetap
- * mewajibkan akun.
+ * Finance Fase 2, Task 12.3 (Requirement 13.1/13.3, P-14) dan Q-P2-23 (2026-11-22) untuk Asset Value Adjustment: request
+ * tidak memvalidasi kolom akun selisih sehingga `validated()` membuangnya, controller tidak lagi menyuplai
+ * `accountsManagedByEngine` (tidak ada mode), update draft mengosongkan kolom akun, dan dokumen tanpa akun terposting
+ * lewat profil. Mode `off`/`shadow` yang mewajibkan akun sudah dihapus.
  */
-class AssetValueAdjustmentAccountFieldsEngineModeTest extends TestCase {
+class AssetValueAdjustmentAccountFieldsRemovedTest extends TestCase {
     use AssertsPostingParity, BuildsAssetFixtures, BuildsFinanceFixtures, RefreshDatabase;
 
     protected function setUp(): void {
@@ -78,47 +76,33 @@ class AssetValueAdjustmentAccountFieldsEngineModeTest extends TestCase {
     }
 
     #[Test]
-    public function create_page_reports_whether_accounts_are_managed_by_the_engine(): void {
-        foreach (['off' => false, 'shadow' => false, 'on' => true] as $mode => $managed) {
-            $this->setPostingMode(PostingDocumentType::AssetValueAdjustment, $mode);
-
-            $this->http()->get('/assetValueAdjustments/create')->assertOk()->assertInertia(
-                fn ($page) => $page->component('Asset/ValueAdjustments/Show')->where('accountsManagedByEngine', $managed),
-            );
-        }
+    public function create_page_does_not_send_the_removed_mode_prop(): void {
+        $this->http()->get('/assetValueAdjustments/create')->assertOk()->assertInertia(
+            fn ($page) => $page->component('Asset/ValueAdjustments/Show')->missing('accountsManagedByEngine'),
+        );
     }
 
     #[Test]
-    public function show_page_reports_whether_accounts_are_managed_by_the_engine(): void {
+    public function show_page_does_not_send_the_removed_mode_prop(): void {
         $adjustment = AssetValueAdjustment::factory()->create(['asset_id' => $this->makeAssetWithAccounts()['asset']->id]);
 
-        foreach (['off' => false, 'on' => true] as $mode => $managed) {
-            $this->setPostingMode(PostingDocumentType::AssetValueAdjustment, $mode);
-
-            $this->http()->get('/assetValueAdjustments/' . $adjustment->id)->assertOk()->assertInertia(
-                fn ($page) => $page->component('Asset/ValueAdjustments/Show')->where('accountsManagedByEngine', $managed),
-            );
-        }
+        $this->http()->get('/assetValueAdjustments/' . $adjustment->id)->assertOk()->assertInertia(
+            fn ($page) => $page->component('Asset/ValueAdjustments/Show')->missing('accountsManagedByEngine'),
+        );
     }
 
     #[Test]
-    public function store_without_account_is_accepted_in_mode_on_and_rejected_otherwise(): void {
+    public function store_without_account_is_accepted_and_leaves_the_column_null(): void {
         $payload = $this->payload();
         unset($payload['difference_account']);
 
-        $this->setPostingMode(PostingDocumentType::AssetValueAdjustment, 'off');
-        $this->http()->post('/assetValueAdjustments', $payload)->assertSessionHasErrors('difference_account.id');
-        $this->assertSame(0, AssetValueAdjustment::count());
-
-        $this->setPostingMode(PostingDocumentType::AssetValueAdjustment, 'on');
         $this->http()->post('/assetValueAdjustments', $payload)->assertSessionHasNoErrors();
         $this->assertSame(1, AssetValueAdjustment::count());
         $this->assertNull(AssetValueAdjustment::first()->difference_account_id);
     }
 
     #[Test]
-    public function store_in_mode_on_ignores_an_account_sent_by_the_client(): void {
-        $this->setPostingMode(PostingDocumentType::AssetValueAdjustment, 'on');
+    public function store_ignores_an_account_sent_by_the_client(): void {
 
         $this->http()->post('/assetValueAdjustments', $this->payload())->assertSessionHasNoErrors();
 
@@ -126,26 +110,7 @@ class AssetValueAdjustmentAccountFieldsEngineModeTest extends TestCase {
     }
 
     #[Test]
-    public function account_field_is_required_while_mode_is_not_on(): void {
-        foreach (['off', 'shadow'] as $mode) {
-            $this->setPostingMode(PostingDocumentType::AssetValueAdjustment, $mode);
-            $rules = (new AssetValueAdjustmentRequest)->rules();
-
-            $this->assertArrayHasKey('difference_account.id', $rules, "Mode {$mode}: akun selisih harus divalidasi.");
-            $this->assertContains('required', $rules['difference_account.id']);
-
-            $payload = $this->payload();
-            unset($payload['difference_account']);
-            $this->assertTrue(Validator::make($payload, $rules)->errors()->has('difference_account.id'), "Mode {$mode}: tanpa akun harus ditolak.");
-
-            $validated = Validator::make($this->payload(), $rules)->validated();
-            $this->assertArrayHasKey('difference_account', $validated, "Mode {$mode}: akun selisih ikut tervalidasi.");
-        }
-    }
-
-    #[Test]
-    public function account_field_is_dropped_from_validated_data_when_mode_is_on(): void {
-        $this->setPostingMode(PostingDocumentType::AssetValueAdjustment, 'on');
+    public function account_field_is_dropped_from_validated_data(): void {
         $rules = (new AssetValueAdjustmentRequest)->rules();
 
         $this->assertArrayNotHasKey('difference_account.id', $rules);
@@ -160,19 +125,11 @@ class AssetValueAdjustmentAccountFieldsEngineModeTest extends TestCase {
 
         $withoutAccount = $this->payload();
         unset($withoutAccount['difference_account']);
-        $this->assertFalse(Validator::make($withoutAccount, $rules)->fails(), 'Tanpa akun valid saat mode on.');
-    }
-
-    #[Test]
-    public function only_asset_value_adjustment_mode_decides_the_request_rules(): void {
-        $this->setPostingMode(PostingDocumentType::StockEntry, 'on');
-
-        $this->assertArrayHasKey('difference_account.id', (new AssetValueAdjustmentRequest)->rules());
+        $this->assertFalse(Validator::make($withoutAccount, $rules)->fails(), 'Tanpa akun valid.');
     }
 
     #[Test]
     public function service_creates_and_updates_a_document_without_account(): void {
-        $this->setPostingMode(PostingDocumentType::AssetValueAdjustment, 'on');
         $data = Validator::make($this->payload(), (new AssetValueAdjustmentRequest)->rules())->validated();
 
         $service    = app(AssetValueAdjustmentService::class);
@@ -187,26 +144,25 @@ class AssetValueAdjustmentAccountFieldsEngineModeTest extends TestCase {
     }
 
     #[Test]
-    public function update_in_mode_on_keeps_the_account_recorded_before_cutover(): void {
+    public function update_of_a_draft_clears_the_recorded_account_for_the_engine_to_fill(): void {
+        // Keputusan pemilik produk 2026-11-22 (Q-P2-23): update draft tidak wajib mempertahankan akun lama.
         $difference = $this->makeAccount('7200', 'Selisih Revaluasi', 'income', 'credit', 'revaluation_gain');
         $adjustment = AssetValueAdjustment::factory()->create([
             'asset_id'              => $this->makeAssetWithAccounts()['asset']->id,
             'difference_account_id' => $difference->id,
         ]);
 
-        $this->setPostingMode(PostingDocumentType::AssetValueAdjustment, 'on');
         $data = Validator::make($this->payload(), (new AssetValueAdjustmentRequest)->rules())->validated();
         app(AssetValueAdjustmentService::class)->update($adjustment, $data);
 
-        $this->assertSame($difference->id, $adjustment->fresh()->difference_account_id, 'Requirement 13.6: kolom lama tidak diubah.');
+        $this->assertNull($adjustment->fresh()->difference_account_id, 'Kolom akun dikosongkan; engine yang mengisinya.');
     }
 
     #[Test]
-    public function document_without_account_posts_through_the_profile_when_mode_is_on(): void {
+    public function document_without_account_posts_through_the_profile(): void {
         $setup      = $this->makeAssetWithAccounts(['gross_purchase_amount' => 5000]);
         $difference = $this->makeAccount('7200', 'Selisih Revaluasi', 'income', 'credit', 'revaluation_gain');
         $this->activateParityProfile(['asset_revaluation' => $difference]);
-        $this->setPostingMode(PostingDocumentType::AssetValueAdjustment, 'on');
 
         $adjustment = AssetValueAdjustment::factory()->create([
             'asset_id'              => $setup['asset']->id,
@@ -227,9 +183,8 @@ class AssetValueAdjustmentAccountFieldsEngineModeTest extends TestCase {
     #[Test]
     public function on_approved_rolls_back_the_document_and_surfaces_the_error_when_the_role_is_unresolved(): void {
         $setup = $this->makeAssetWithAccounts(['gross_purchase_amount' => 5000]);
-        // Profil aktif tanpa peran `asset_revaluation`: resolusi akun gagal saat mode `on`.
+        // Profil aktif tanpa peran `asset_revaluation`: resolusi akun gagal.
         $this->activateParityProfile([]);
-        $this->setPostingMode(PostingDocumentType::AssetValueAdjustment, 'on');
         // Tes berjalan di dalam transaksi `RefreshDatabase`; kedalaman itu dianggap "di luar transaksi dokumen" seperti
         // produksi (kedalaman 0), sehingga hanya transaksi `onApproved` yang membuat kegagalan dilempar ulang.
         $this->app->instance(PostingExecutionRouter::class, new PostingExecutionRouter(app(PostingExecutionResolver::class), DB::transactionLevel()));
@@ -253,33 +208,6 @@ class AssetValueAdjustmentAccountFieldsEngineModeTest extends TestCase {
         $this->assertNotContains(FormStatus::SUBMITTED->value, $statuses, 'Status dokumen digulung.');
         $this->assertContains(FormStatus::NEED_APPROVAL->value, $statuses);
         $this->assertSame(0, GlPostingStatus::where('referenceable_id', $adjustment->id)->count(), 'GlPostingStatus ikut digulung.');
-        $this->assertDatabaseCount('general_ledgers', 0);
-        $this->assertEquals(5000.0, (float) $setup['asset']->fresh()->gross_purchase_amount);
-    }
-
-    #[Test]
-    public function off_mode_fails_closed_with_a_clear_message_for_a_document_without_account(): void {
-        // Task 14.1: jalur lama dihapus. Dokumen tanpa akun selisih pada mode `off` tidak lagi ditolak oleh closure legacy
-        // (LogicException 'akun selisih'); gateway gagal tertutup dengan PostingModeNotOnException, tanpa jurnal.
-        $setup = $this->makeAssetWithAccounts(['gross_purchase_amount' => 5000]);
-        $this->setPostingMode(PostingDocumentType::AssetValueAdjustment, 'off');
-
-        $adjustment = AssetValueAdjustment::factory()->create([
-            'asset_id'              => $setup['asset']->id,
-            'current_asset_value'   => 5000,
-            'new_asset_value'       => 6000,
-            'difference_account_id' => null,
-        ]);
-        GlPostingStatus::create(['referenceable_type' => AssetValueAdjustment::class, 'referenceable_id' => $adjustment->id, 'status' => FormStatus::PENDING]);
-
-        try {
-            (new PostValueAdjustmentEntry)->handle(new AssetValueAdjustmentApproved($adjustment, now()));
-            $this->fail('Mode off harus gagal tertutup.');
-        } catch (PostingModeNotOnException $e) {
-            $this->assertStringContainsString('asset_value_adjustment', $e->getMessage());
-            $this->assertSame('off', $e->mode);
-        }
-
         $this->assertDatabaseCount('general_ledgers', 0);
         $this->assertEquals(5000.0, (float) $setup['asset']->fresh()->gross_purchase_amount);
     }

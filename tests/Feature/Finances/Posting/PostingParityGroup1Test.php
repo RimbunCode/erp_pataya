@@ -3,7 +3,6 @@
 namespace Tests\Feature\Finances\Posting;
 
 use App\Enums\FormStatus;
-use App\Enums\PostingDocumentType;
 use App\Events\Asset\AssetDepreciationDue;
 use App\Events\Asset\AssetScrapped;
 use App\Events\Asset\AssetSoldViaInvoice;
@@ -53,23 +52,10 @@ use Tests\TestCase;
 class PostingParityGroup1Test extends TestCase {
     use AssertsPostingParity, BuildsAssetFixtures, BuildsFinanceFixtures, RefreshDatabase;
 
-    private const ASSET_TYPES = [
-        PostingDocumentType::AssetDepreciation,
-        PostingDocumentType::AssetScrap,
-        PostingDocumentType::AssetValueAdjustment,
-        PostingDocumentType::AssetDisposal,
-    ];
-
     protected function setUp(): void {
         parent::setUp();
 
         $this->setUpFinanceFixtures([PostingProfile::class, PostingParityLog::class, SalesInvoice::class, PurchaseInvoice::class, PaymentSchedule::class, PaymentEntry::class]);
-    }
-
-    private function setAssetModes(string $mode): void {
-        foreach (self::ASSET_TYPES as $type) {
-            $this->setPostingMode($type, $mode);
-        }
     }
 
     /**
@@ -119,7 +105,6 @@ class PostingParityGroup1Test extends TestCase {
         $signatures = [];
         $effects    = [];
         foreach (['on'] as $mode) {
-            $this->setAssetModes($mode);
 
             $schedule = AssetDepreciationSchedule::factory()->create(['asset_id' => $this->siblingAsset($setup)->id, 'schedule_date' => $date->subDay(), 'depreciation_amount' => 400]);
             $this->pending($schedule);
@@ -175,7 +160,6 @@ class PostingParityGroup1Test extends TestCase {
         $signatures = [];
         $effects    = [];
         foreach (['on'] as $mode) {
-            $this->setAssetModes($mode);
 
             foreach (['gain' => 1500, 'loss' => 700, 'flat' => 1000] as $case => $price) {
                 $asset = $this->siblingAsset($setup);
@@ -241,7 +225,6 @@ class PostingParityGroup1Test extends TestCase {
         $signatures = [];
         $effects    = [];
         foreach (['on'] as $mode) {
-            $this->setPostingMode(PostingDocumentType::PaymentEntry, $mode);
 
             $sales    = $this->makeUnpaidSalesInvoice(1_000_000);
             $receive  = $this->makePaymentEntry($sales, 400_000, $receivable, $cash, ['payment_method_id' => $method->id]);
@@ -254,7 +237,7 @@ class PostingParityGroup1Test extends TestCase {
             $signatures['receive'][$mode] = $this->journalSignature($receive);
             $signatures['pay'][$mode]     = $this->journalSignature($pay);
             $effects[$mode]               = [
-                (float) $sales->fresh()->paid_amount, array_map(fn ($status)    => $status->value, $sales->fresh()->status),
+                (float) $sales->fresh()->paid_amount, array_map(fn ($status) => $status->value, $sales->fresh()->status),
                 (float) $purchase->fresh()->paid_amount, array_map(fn ($status) => $status->value, $purchase->fresh()->status),
                 \count(GlPostingStatus::where('referenceable_type', PaymentEntry::class)->get()),
             ];
@@ -274,7 +257,6 @@ class PostingParityGroup1Test extends TestCase {
 
     public function test_payment_entry_on_mode_rolls_back_the_approval_when_the_journal_already_exists(): void {
         ['cash' => $cash, 'receivable' => $receivable, 'method' => $method] = $this->paymentFixture();
-        $this->setPostingMode(PostingDocumentType::PaymentEntry, 'on');
 
         $invoice = $this->makeUnpaidSalesInvoice(1_000_000);
         $payment = $this->makePaymentEntry($invoice, 400_000, $receivable, $cash, ['payment_method_id' => $method->id]);
@@ -296,7 +278,6 @@ class PostingParityGroup1Test extends TestCase {
         $setup      = $this->makeAssetWithAccounts();
         $difference = $this->makeAccount('7200', 'Selisih Revaluasi', 'income', 'credit', 'revaluation_gain');
         $this->activateParityProfile(['asset_revaluation' => $difference]);
-        $this->setAssetModes('on');
         $date = CarbonImmutable::parse('2026-11-10 09:00:00');
 
         // (b) already_posted tidak mengulang `gross_purchase_amount`; (a) status tetap `posted`.
