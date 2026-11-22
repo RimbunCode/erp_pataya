@@ -14,7 +14,6 @@ use App\Models\Inventory\Stock;
 use App\Models\Inventory\StockEntry;
 use App\Models\Inventory\StockLedgerEntry;
 use App\Models\Model;
-use App\Services\Finances\Ledger\JournalService;
 use App\Services\Finances\Posting\PostingGateway;
 use App\Services\Inventory\Accounting\StockEntryPostingContextFactory;
 use App\Traits\HasDefaultDelete;
@@ -323,7 +322,7 @@ class StockEntryService implements SubmitableService {
 
     /**
      * Seluruh approval (status, stok, saldo akun, dan posting jurnal) berjalan dalam satu `DB::transaction`: exception
-     * dari `JournalService` (mis. akun grup/nonaktif, Requirement 2.4) menggulung semuanya dan tidak meninggalkan
+     * dari posting jurnal (mis. akun grup/nonaktif, Requirement 2.4) menggulung semuanya dan tidak meninggalkan
      * transaksi menggantung. `DB::transaction` bersarang aman dengan transaksi pemanggil (savepoint).
      */
     public function onApproved(Model $stockEntry): mixed {

@@ -12,8 +12,8 @@ use PHPUnit\Framework\TestCase;
  *
  * Penegakan berlaku penuh sejak Task 14.1 (keputusan pemilik produk 2026-11-21; semua jenis dokumen dikonfirmasi `on`
  * 2026-11-22): `ON_TYPES` memuat ke-10 jenis dokumen dan closure legacy (beserta pencarian `account_type`) sudah dihapus
- * dari seluruh berkas jalur. Daftar `ON_TYPES` boleh ditimpa env `POSTING_ON_TYPES` (dipisah koma) untuk menjalankan
- * uji ini terhadap subset jenis.
+ * dari seluruh berkas jalur. Daftar `ON_TYPES` tidak dapat ditimpa (tanpa override env) agar penegakan selalu mencakup
+ * ke-10 jenis.
  */
 class PostingLegacyLookupTest extends TestCase {
     /** @var list<string> jenis dokumen pada mode `on` (nilai `PostingDocumentType`) */
@@ -45,15 +45,6 @@ class PostingLegacyLookupTest extends TestCase {
     ];
 
     private const LEGACY_LOOKUP = '/where\(\s*[\'"]account_type[\'"]/';
-
-    /**
-     * @return list<string>
-     */
-    private function onTypes(): array {
-        $fromEnv = getenv('POSTING_ON_TYPES');
-
-        return $fromEnv !== false && $fromEnv !== '' ? array_map('trim', explode(',', $fromEnv)) : self::ON_TYPES;
-    }
 
     private function codeOf(string $relativePath): string {
         return $this->stripComments((string) file_get_contents(\dirname(__DIR__, 4) . '/' . $relativePath));
@@ -92,9 +83,9 @@ class PostingLegacyLookupTest extends TestCase {
     }
 
     public function test_all_document_types_are_enforced_since_task_14_1(): void {
-        // Penegakan P-9 berlaku untuk SEMUA jenis dokumen (Task 14.1). Env `POSTING_ON_TYPES` hanya untuk menyempitkan
-        // uji secara lokal; tanpa env, daftar bawaan harus memuat setiap jenis.
-        $this->assertEqualsCanonicalizing(array_keys(self::PATH_FILES), self::ON_TYPES);
+        // Penegakan P-9 berlaku untuk SEMUA jenis dokumen (Task 14.1), tanpa pengecualian: daftar harus memuat setiap
+        // kasus `PostingDocumentType`.
+        $this->assertEqualsCanonicalizing(array_map(fn (PostingDocumentType $type): string => $type->value, PostingDocumentType::cases()), self::ON_TYPES);
     }
 
     public function test_the_detector_flags_account_type_lookups_and_ignores_comments(): void {
@@ -108,9 +99,9 @@ class PostingLegacyLookupTest extends TestCase {
     }
 
     public function test_on_types_have_no_legacy_account_type_lookup_in_their_path(): void {
-        $this->assertNotEmpty($this->onTypes());
+        $this->assertNotEmpty(self::ON_TYPES);
 
-        foreach ($this->onTypes() as $type) {
+        foreach (self::ON_TYPES as $type) {
             $this->assertArrayHasKey($type, self::PATH_FILES, "Jenis dokumen tidak dikenal: {$type}");
             $this->assertFalse($this->hasLegacyLookup($type), "P-9: jenis `{$type}` berada pada mode `on`, tetapi jalurnya masih memuat where('account_type', ...) (Requirement 7.3).");
         }

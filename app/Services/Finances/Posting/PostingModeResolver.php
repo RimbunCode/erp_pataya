@@ -8,9 +8,11 @@ use App\Services\Core\Setting\SettingsService;
 use Illuminate\Support\Facades\Cache;
 
 /**
- * Membaca mode engine per jenis dokumen (Finance Fase 2, Requirement 6.1): `off` (jalur lama), `shadow`, atau `on`,
+ * Membaca mode engine per jenis dokumen (Finance Fase 2, Requirement 6.1): `off`, `shadow`, atau `on`,
  * dari setting Finances `posting_modes`. Hasil di-cache 60 detik agar tidak query setiap posting; `PostingModeService`
- * menginvalidasi cache saat mode diubah. Nilai hilang atau tidak dikenal dibaca sebagai `off` (aman: jalur lama).
+ * menginvalidasi cache saat mode diubah. Sejak Task 14.1 jalur lama sudah tidak ada: hanya `on` yang memposting;
+ * `off`/`shadow` gagal tertutup dengan `PostingModeNotOnException` (Q-P2-23). Nilai hilang atau tidak dikenal dibaca
+ * sebagai `off`, yang berarti posting gagal (bukan fallback aman), jadi jangan menyetel `off` sebagai rollback.
  */
 final class PostingModeResolver {
     public const CACHE_KEY = 'finance.posting_modes';
@@ -26,7 +28,7 @@ final class PostingModeResolver {
 
     /**
      * True bila engine sudah menentukan akun jenis dokumen ini sehingga form tidak lagi meminta akun (Finance Fase 2,
-     * Task 12.3, Requirement 13.1). Mode `off`/`shadow` masih memakai jalur lama yang membaca kolom akun dokumen.
+     * Task 12.3, Requirement 13.1). Mode `off`/`shadow` gagal tertutup dengan `PostingModeNotOnException` sejak Task 14.1 (jalur lama dihapus; Q-P2-23).
      */
     public function isOn(PostingDocumentType $type): bool {
         return $this->for($type) === FinanceSetting::POSTING_MODE_ON;

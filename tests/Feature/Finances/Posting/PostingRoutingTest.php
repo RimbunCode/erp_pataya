@@ -175,7 +175,7 @@ class PostingRoutingTest extends TestCase {
         $this->assertGreaterThan(0, $queriesTouching('purchase_invoice_items', fn () => $purchaseRun($purchase)), 'on: konteks Purchase Invoice dibangun.');
     }
 
-    public function test_payment_context_is_not_built_in_off_mode_but_is_built_for_shadow_and_on(): void {
+    public function test_payment_context_is_built_only_in_on_mode(): void {
         $paidFrom   = $this->makeAccount('1202', 'Piutang Dokumen', 'asset', 'debit');
         $paidTo     = $this->makeAccount('1101', 'Kas Dokumen', 'asset', 'debit', 'cash');
         $methodCash = $this->makeAccount('1110', 'Kas Metode Bayar', 'asset', 'debit', 'cash');
@@ -242,6 +242,34 @@ class PostingRoutingTest extends TestCase {
         $this->assertSame(FormStatus::PENDING->value, $status instanceof \BackedEnum ? $status->value : $status);
         $this->assertSame([], $this->journalSignature($invoice->fresh()));
         $this->assertNull($this->parityLogStatus($invoice->fresh()));
+    }
+
+    public function test_sales_invoice_listener_in_off_mode_ends_failed_with_mode_not_on_message(): void {
+        $recv = $this->makeAccount('1200', 'Piutang', 'asset', 'debit', 'accounts_receivable');
+        $rev  = $this->makeAccount('4000', 'Penjualan', 'income', 'credit', 'sales');
+        $this->activateParityProfile(['receivable' => $recv, 'revenue' => $rev]);
+        $this->setPostingMode(PostingDocumentType::SalesInvoice, 'off');
+
+        $invoice = $this->makeSalesInvoice($recv, $rev);
+        GlPostingStatus::create(['referenceable_type' => SalesInvoice::class, 'referenceable_id' => $invoice->id, 'status' => FormStatus::PENDING]);
+
+        $event    = new SalesInvoiceGeneralLedgerPostingRequested($invoice, 2183.33, false, now(), $recv->id, $rev->id);
+        $listener = new PostSalesInvoiceGeneralLedger;
+
+        // Job listener: handle() melempar, queue worker lalu memanggil failed() dengan exception itu.
+        try {
+            $listener->handle($event);
+            $this->fail('Mode off harus gagal tertutup.');
+        } catch (PostingModeNotOnException $e) {
+            $listener->failed($event, $e);
+        }
+
+        $row = GlPostingStatus::where('referenceable_type', SalesInvoice::class)->where('referenceable_id', $invoice->id)->firstOrFail();
+        $this->assertSame(FormStatus::FAILED->value, $row->status instanceof \BackedEnum ? $row->status->value : $row->status);
+        $this->assertSame(1, (int) $row->retry_count);
+        $this->assertSame(__('finances/posting.errors.mode_not_on', ['document' => PostingDocumentType::SalesInvoice->value, 'mode' => 'off']), $e->getMessage());
+        $this->assertSame($e->getMessage(), $row->last_error);
+        $this->assertSame([], $this->journalSignature($invoice->fresh()));
     }
 
     private function makeAccountOnce(string $number): Account {

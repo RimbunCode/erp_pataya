@@ -135,11 +135,6 @@ class PaymentEntryService implements SubmitableService {
                 ]);
             }
 
-            $locked->load([
-                'accountPaidFrom',
-                'accountPaidTo',
-            ]);
-
             $newPaidAmount = (float) $paymentable->paid_amount + (float) $locked->paid_amount;
             $this->allocateToSchedules($paymentable, $newPaidAmount);
             event(new PaymentApplied($paymentable, $newPaidAmount));
