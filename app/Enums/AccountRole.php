@@ -44,9 +44,11 @@ enum AccountRole: string {
      *   dan `StockEntryService` (closure legacy itu dihapus Task 14.1; pasangan ini kini hanya dipakai
      *   `PostingProfileInitializer`/`finance:init-posting-profile` dan lapis fallback resolver yang dimatikan).
      * - `Receivable`, `Payable`, `Revenue`, `Expense`: jalur lama adalah default form yang diisi controller
-     *   (`SalesInvoiceController`, `PurchaseInvoiceController`) lewat `->get()->first()` tanpa urutan, dengan
-     *   `is_contra = false` pada jalur normal Sales Invoice (jalur retur `SalesInvoiceController` memakai
-     *   `is_contra = true`); bukan `latest()`. Fallback legacy resolver memakai `orderBy('id')`: satu kandidat dipakai
+     *   (`SalesInvoiceController`, `PurchaseInvoiceController`) lewat `->get()->first()` tanpa urutan; bukan
+     *   `latest()`. Semula jalur normal Sales Invoice memfilter flag akun kontra dan jalur retur memilih akun
+     *   kontra; kolom flag itu sudah dihapus (Task 14.2), sehingga default akun jalur non-`on` kini tanpa filter
+     *   flag dan jalur retur tanpa default akun (retur memakai aturan `variant=return`). Fallback legacy resolver
+     *   memakai `orderBy('id')`: satu kandidat dipakai
      *   dengan peringatan, lebih dari satu kandidat melempar `UnresolvedAccountRoleException` (fail-closed, Q-P2-6);
      *   peran ambigu wajib dipetakan di profil.
      * - `AssetRevaluation` (akun selisih Asset Value Adjustment, dipilih pengguna hari ini): tidak ada pencarian di

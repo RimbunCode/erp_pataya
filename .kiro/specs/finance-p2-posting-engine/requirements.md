@@ -16,7 +16,7 @@ Selain itu fase ini memperbaiki perilaku pembatalan: menutup balapan cancel-vs-p
 - **Cakupan global.** Satu perusahaan; cabang hanyalah dimensi jurnal. Posting Profile tidak memiliki cakupan per cabang.
 - **Aturan akun bersyarat dan varian retur.** Akun dapat berbeda menurut jenis dokumen, retur, serta tipe/kategori/status stok barang (Requirement 12).
 - **Setting disimpan di tabel setting modul**, bukan tabel `preferences` (D-25).
-- **Posting diskon terpisah** ditambahkan sebagai bagian GATED dengan tanggal cutover (Requirement 14).
+- **Posting diskon terpisah** ditambahkan dengan tanggal cutover (Requirement 14; Q-P2-5 diputuskan 2026-11-21, aktif lewat tanggal cutover).
 
 **Keputusan 2026-11-22 yang mengubah fase ini** (pemilik produk; lihat decision log Q-P2-23 dan Q-P2-24):
 
@@ -239,12 +239,12 @@ _Diputuskan 2026-11-21 (pemilik produk, D-13): "jika dibatalkan maka dihapus", b
 | Q-P2-2 | Apakah COA saat ini sudah memisah akun PPN Masukan/Keluaran (seeder hanya memiliki `account_type = tax`)? Menentukan peta peran `tax_*` di profil default | Requirement 1, Fase 3 |
 | Q-P2-3 | Apakah F-10 (Payment kumulatif) diperbaiki saat migrasi Payment atau sebagai hotfix terpisah? | Requirement 7 |
 | Q-P2-4 | Daftar awal aturan akun bersyarat (barang non-stok, retur, kategori) disusun bersama akuntan saat `init-posting-profile` | Requirement 12.7 |
-| Q-P2-5 | Perlakuan diskon pembelian untuk baris stok (net ke persediaan) dan non-stok (potongan pembelian). **Diputuskan 2026-11-21 (pemilik produk): ikuti praktik umum ERP** (tidak ada akuntan; asumsi Requirement 14.3 diterima) | Requirement 14.3 |
 
 ## Pertanyaan yang Sudah Diputuskan
 
 | ID | Keputusan | Dampak |
 |---|---|---|
+| Q-P2-5 | Perlakuan diskon pembelian untuk baris stok (net ke persediaan) dan non-stok (potongan pembelian)? **Diputuskan 2026-11-21 (pemilik produk): ikuti praktik umum ERP** (tidak ada akuntan; asumsi Requirement 14.3 diterima; Task 13 tidak lagi GATED dan diimplementasikan 22 November 2026) | Requirement 14.3 |
 | Q-P2-6 | Fallback legacy ambigu: pilih `created_at` terbaru atau gagal? **Dijawab pemilik produk 2026-11-12: gagal tertutup** (Req 3.4 diubah) | Requirement 3.4 |
 | Q-P2-7 | Versi baru profil yang menciptakan celah atau mengubah tanggal yang sudah diposting? **Dijawab 2026-11-12: ditolak** (Req 2.4 diubah) | Requirement 2.4 |
 | Q-P2-8 | Peran untuk akun selisih Asset Value Adjustment; `expense` Purchase Invoice default SRNB? **Dijawab 2026-11-12: peran baru `asset_revaluation` (Req 1.1 diubah); `expense` = SRNB dipertahankan demi parity** | Requirement 1.1 |

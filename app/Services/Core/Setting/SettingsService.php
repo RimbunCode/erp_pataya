@@ -2,11 +2,13 @@
 
 namespace App\Services\Core\Setting;
 
+use App\Enums\PostingDocumentType;
 use App\Events\Core\ModuleSettingUpdated;
 use App\Models\Core\CoreSetting;
 use App\Models\Core\Currency;
 use App\Models\Core\ModuleSetting as ModuleSettingModel;
 use App\Models\Finances\FinanceSetting;
+use App\Services\Finances\Posting\DiscountSplit\DiscountSplitMappingValidator;
 use Closure;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Validator;
@@ -76,6 +78,7 @@ class SettingsService {
 
             if ($setting instanceof FinanceSetting) {
                 $this->assertValidSerialRange($setting);
+                $this->assertDiscountSplitMapped($setting);
             }
 
             $setting->save();
@@ -151,6 +154,23 @@ class SettingsService {
             throw ValidationException::withMessages([
                 'tax_invoice_serial_range_end' => __('validation.gte.numeric', ['attribute' => 'tax_invoice_serial_range_end', 'value' => $lastUsed]),
             ]);
+        }
+    }
+
+    /**
+     * Finance Fase 2, Requirement 14.4: tanggal cutover posting diskon terpisah hanya boleh diisi (atau diubah) bila
+     * peran `discount` sudah terpetakan pada profil aktif. Mengosongkan, atau menyimpan ulang nilai yang sama, tidak
+     * divalidasi agar penyimpanan setting lain tidak terblokir.
+     */
+    private function assertDiscountSplitMapped(FinanceSetting $setting): void {
+        foreach (FinanceSetting::DISCOUNT_SPLIT_COLUMNS as $type => $column) {
+            $documentType = PostingDocumentType::from($type);
+            $from         = $setting->discountSplitFrom($documentType);
+            if ($from === null || ! $setting->isDirty($column)) {
+                continue;
+            }
+
+            app(DiscountSplitMappingValidator::class)->assertMapped($documentType, $from);
         }
     }
 

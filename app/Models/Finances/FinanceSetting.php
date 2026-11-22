@@ -16,6 +16,15 @@ class FinanceSetting extends ModuleSetting {
     public const POSTING_EXECUTION_QUEUE = 'queue';
     public const POSTING_EXECUTIONS      = [self::POSTING_EXECUTION_INLINE, self::POSTING_EXECUTION_QUEUE];
 
+    /**
+     * Kolom tanggal cutover posting diskon terpisah per jenis dokumen (Finance Fase 2, Requirement 14.1): nama logis
+     * `finance_discount_split_from.{type}`. Null = tidak aktif.
+     */
+    public const DISCOUNT_SPLIT_COLUMNS = [
+        'sales_invoice'    => 'discount_split_from_sales_invoice',
+        'purchase_invoice' => 'discount_split_from_purchase_invoice',
+    ];
+
     public string $translateKey = 'finances.setting';
 
     // Dedicated module so role profiles in AdministratorSeeder cannot
@@ -34,6 +43,20 @@ class FinanceSetting extends ModuleSetting {
         ];
     }
 
+    /**
+     * Tanggal cutover posting diskon terpisah (`Y-m-d`) untuk jenis dokumen itu, atau null bila tidak aktif atau jenis
+     * dokumen tidak mengenal posting diskon.
+     *
+     * Kolom sengaja TIDAK memakai cast `date`: halaman setting mengirim atribut apa adanya ke Inertia dan form mengirim
+     * ulang seluruh nilai awal saat simpan, sehingga cast akan menghasilkan timestamp ISO yang ditolak `date_format:Y-m-d`.
+     */
+    public function discountSplitFrom(PostingDocumentType $type): ?string {
+        $column = self::DISCOUNT_SPLIT_COLUMNS[$type->value] ?? null;
+        $value  = $column === null ? null : $this->{$column};
+
+        return $value === null || $value === '' ? null : substr((string) $value, 0, 10);
+    }
+
     protected static function defaults(): array {
         return [
             'tax_invoice_serial_range_start' => 0,
@@ -43,6 +66,9 @@ class FinanceSetting extends ModuleSetting {
             'enforce_fiscal_period' => false,
             // D-1 opsi C (2026-11-21): posting GL sinkron untuk semua jenis dokumen; `queue` hanya lewat sakelar.
             'posting_executions' => array_fill_keys(PostingDocumentType::values(), self::POSTING_EXECUTION_INLINE),
+            // Requirement 14.1: posting diskon terpisah nonaktif sampai tanggal cutover diisi.
+            'discount_split_from_sales_invoice'    => null,
+            'discount_split_from_purchase_invoice' => null,
         ];
     }
 
@@ -53,6 +79,9 @@ class FinanceSetting extends ModuleSetting {
             'tax_invoice_serial_range_end'   => ['sometimes', 'required', 'integer', 'min:0'],
             'tax_invoice_serial_last_used'   => ['sometimes', 'required', 'integer', 'min:0'],
             'enforce_fiscal_period'          => ['sometimes', 'required', 'boolean'],
+            // Requirement 14.1: kosong = nonaktif. Validasi peran `discount` terpetakan (14.4) ada di SettingsService.
+            'discount_split_from_sales_invoice'    => ['sometimes', 'nullable', 'date_format:Y-m-d'],
+            'discount_split_from_purchase_invoice' => ['sometimes', 'nullable', 'date_format:Y-m-d'],
         ];
     }
 

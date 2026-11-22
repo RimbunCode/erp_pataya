@@ -31,8 +31,7 @@ vi.mock("axios", () => ({ default: { post: vi.fn() } }));
 //   - Transform data saat memilih purchase_order (checkout PO -> item invoice,
 //     quantity dari unbilled_quantity, amount = basic_amount+tax_amount).
 //   - Transform reset saat toggle is_return checkbox (SEMUA field terkait dan
-//     is_return sendiri, TANPA panggilan getDataModel -- beda dgn SalesInvoice
-//     yang punya getContraIncomeAccount async).
+//     is_return sendiri, TANPA panggilan getDataModel).
 //   - Transform data saat memilih return_against (retur invoice lama) --
 //     akun (credit_account/expense_head_account) tidak disalin dari invoice
 //     yang diretur (Q-P2-23).
@@ -713,9 +712,8 @@ describe("PurchaseInvoice Form", () => {
       });
       await user.click(checkbox);
 
-      // Toggle is_return TIDAK memanggil getDataModel sama sekali (beda dari
-      // SalesInvoice yang punya getContraIncomeAccount async) -- reset field
-      // murni functional updater sinkron.
+      // Toggle is_return TIDAK memanggil getDataModel sama sekali -- reset
+      // field murni functional updater sinkron.
       expect(getDataModelMock).not.toHaveBeenCalled();
 
       expect(setData).toHaveBeenCalled();

@@ -26,7 +26,6 @@ return [
         ],
         'is_group'          => 'Grup Akun',
         'is_disabled'       => 'Dinonaktifkan',
-        'is_contra'         => 'Akun Kontra',
         'tax_rate'          => 'Tarif Pajak',
         'root_type'         => 'Tipe Dasar',
         'root_type.options' => [

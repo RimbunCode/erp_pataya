@@ -2,6 +2,7 @@
 
 namespace Tests\Feature\Settings;
 
+use App\Enums\PostingDocumentType;
 use App\Events\Core\ModuleSettingUpdated;
 use App\Http\Middleware\AppMiddleware;
 use App\Http\Middleware\EnsureUserIsOnboarded;
@@ -172,6 +173,30 @@ class ModuleSettingPermissionsTest extends TestCase {
             ->withSession($this->sessionWithPermission(FinanceSetting::class, ['read' => true, 'write' => false]))
             ->getJson(route('moduleSettings.finance.show'), ['X-Inertia' => 'true'])
             ->assertOk()->assertJsonPath('props.canWrite', false);
+    }
+
+    public function test_finance_setting_round_trips_the_discount_split_dates_as_plain_dates(): void {
+        FinanceSetting::current();
+        DB::table('finance_settings')->update(['discount_split_from_sales_invoice' => '2026-12-01']);
+
+        $session = $this->sessionWithPermission(FinanceSetting::class, ['read' => true, 'write' => true]);
+        $props   = $this->actingAs($this->user)->withSession($session)
+            ->getJson(route('moduleSettings.finance.show'), ['X-Inertia' => 'true'])
+            ->assertOk()->json('props.setting');
+
+        $this->assertSame('2026-12-01', $props['discount_split_from_sales_invoice'], 'tanggal dikirim sebagai Y-m-d, bukan timestamp ISO');
+        $this->assertNull($props['discount_split_from_purchase_invoice']);
+
+        // Form mengirim ulang seluruh nilai awal pada setiap simpan: menyimpan tab lain tidak boleh gagal validasi tanggal.
+        $payload                                   = array_diff_key($props, ['tax_invoice_serial_last_used' => true]);
+        $payload['tax_invoice_serial_range_start'] = 7;
+        $this->actingAs($this->user)->withSession($session)
+            ->put(route('moduleSettings.finance.update'), $payload)
+            ->assertSessionHasNoErrors()
+            ->assertRedirect();
+
+        $this->assertDatabaseHas('finance_settings', ['tax_invoice_serial_range_start' => 7]);
+        $this->assertSame('2026-12-01', FinanceSetting::query()->first()->discountSplitFrom(PostingDocumentType::SalesInvoice));
     }
 
     public function test_setting_page_exposes_true_write_permission_and_no_database_metadata(): void {

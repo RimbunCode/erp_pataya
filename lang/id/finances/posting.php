@@ -7,6 +7,8 @@ return [
         'unresolved_role_ambiguous' => 'Peran akun ":role" (dokumen :document, varian :variant, tanggal :date) ambigu pada fallback legacy: :candidates akun cocok dengan :root/:type dan tidak ada yang dipilih. Petakan peran ini pada Posting Profile.',
         'unknown_document_type'     => 'Jenis dokumen posting ":type" tidak memiliki aturan posting terdaftar.',
         'switch_mode_forbidden'     => 'Anda tidak memiliki izin untuk mengubah cara eksekusi posting.',
+        'discount_split_no_profile' => 'Tanggal cutover diskon terpisah :date untuk :document ditolak: tidak ada Posting Profile aktif yang berlaku pada tanggal itu. Aktifkan profil yang memetakan peran "discount" lebih dulu.',
+        'discount_split_unmapped'   => 'Tanggal cutover diskon terpisah untuk :document ditolak: peran ":role" belum terpetakan pada Posting Profile aktif (:profiles). Petakan akun peran ini (akun default atau aturan akun bersyarat) di halaman Posting Profile lebih dulu.',
         'partial_posting'           => 'Posting sebagian untuk :source: jurnal :existing sudah ada, :missing belum ada. Diperlukan intervensi manual.',
     ],
 

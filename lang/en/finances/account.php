@@ -26,7 +26,6 @@ return [
         ],
         'is_group'          => 'Is Group',
         'is_disabled'       => 'Disabled',
-        'is_contra'         => 'Is Contra',
         'tax_rate'          => 'Tax Rate',
         'root_type'         => 'Root Type',
         'root_type.options' => [
