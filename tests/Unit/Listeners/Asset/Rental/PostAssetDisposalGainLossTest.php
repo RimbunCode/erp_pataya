@@ -10,6 +10,7 @@ use App\Models\Asset\AssetCategoryAccount;
 use App\Models\Core\GlPostingStatus;
 use App\Models\Finances\GeneralLedger;
 use App\Models\Finances\Journal;
+use App\Models\Finances\PostingProfile;
 use App\Models\Finances\SalesInvoiceItem;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Illuminate\Support\Facades\DB;
@@ -18,10 +19,11 @@ use Illuminate\Support\Str;
 use LogicException;
 use PHPUnit\Framework\Attributes\Test;
 use RuntimeException;
+use Tests\Support\EnablesEnginePosting;
 use Tests\TestCase;
 
 class PostAssetDisposalGainLossTest extends TestCase {
-    use RefreshDatabase;
+    use EnablesEnginePosting, RefreshDatabase;
 
     protected function setUp(): void {
         parent::setUp();
@@ -35,6 +37,10 @@ class PostAssetDisposalGainLossTest extends TestCase {
 
         GeneralLedger::initPermissions();
         Journal::initPermissions();
+        PostingProfile::initPermissions();
+
+        // Task 14.1: closure legacy dihapus; disposal ditulis engine dengan akun master AssetCategoryAccount.
+        $this->enableEnginePosting();
     }
 
     private function makeAccountId(string $rootType, string $accountType): string {

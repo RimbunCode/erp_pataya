@@ -5,6 +5,7 @@ namespace Tests\Feature\Finances\Characterization;
 use App\Enums\FormStatus;
 use App\Models\Core\GlPostingStatus;
 use App\Models\Finances\Account;
+use App\Models\Finances\PostingProfile;
 use App\Models\Inventory\Item;
 use App\Models\Inventory\ItemVariant;
 use App\Models\Inventory\StockEntry;
@@ -14,6 +15,7 @@ use App\Models\Inventory\Warehouse;
 use App\Services\Inventory\StockEntryService;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Tests\Support\BuildsFinanceFixtures;
+use Tests\Support\EnablesEnginePosting;
 use Tests\TestCase;
 
 /**
@@ -24,10 +26,11 @@ use Tests\TestCase;
  * `item_transfer` dan `item_consumption` tidak.
  */
 class StockEntryPostingTest extends TestCase {
-    use BuildsFinanceFixtures, RefreshDatabase;
+    use BuildsFinanceFixtures, EnablesEnginePosting, RefreshDatabase;
 
     private Account $stock;
     private Account $difference;
+    private Account $freight;
     private Warehouse $warehouse;
     private ItemVariant $variant;
     private $itemUnit;
@@ -35,9 +38,17 @@ class StockEntryPostingTest extends TestCase {
     protected function setUp(): void {
         parent::setUp();
 
-        $this->setUpFinanceFixtures([Unit::class, Warehouse::class, Item::class, ItemVariant::class, StockEntry::class, StockLedgerEntry::class]);
+        $this->setUpFinanceFixtures([Unit::class, Warehouse::class, Item::class, ItemVariant::class, StockEntry::class, StockLedgerEntry::class, PostingProfile::class]);
         $this->stock      = $this->makeAccount('1300', 'Persediaan', 'asset', 'debit', 'stock');
         $this->difference = $this->makeAccount('5900', 'Selisih Stok', 'expense', 'debit', 'stock_adjustment');
+        $this->freight    = $this->makeAccount('5800', 'Biaya Angkut', 'expense', 'debit');
+
+        // Task 14.1: closure legacy dihapus; jurnal ditulis engine dengan akun dari profil (ekspektasi ledger tidak berubah).
+        $this->enableEnginePosting([
+            'stock'                         => $this->stock,
+            'stock_adjustment'              => $this->difference,
+            'expense_included_in_valuation' => $this->freight,
+        ]);
 
         ['warehouse' => $this->warehouse, 'variant' => $this->variant, 'itemUnit' => $this->itemUnit] = $this->makeInventoryFixture();
     }
@@ -134,7 +145,7 @@ class StockEntryPostingTest extends TestCase {
     }
 
     public function test_additional_cost_posts_stock_debit_and_expense_credit_per_cost(): void {
-        $freight = $this->makeAccount('5800', 'Biaya Angkut', 'expense', 'debit');
+        $freight = $this->freight;
         $entry   = $this->makeEntry('item_receipt', ['target_warehouse_id' => $this->warehouse->id]);
         $entry->additionalCosts()->create(['expense_account_id' => $freight->id, 'purpose' => 'Angkut', 'amount' => 300]);
 

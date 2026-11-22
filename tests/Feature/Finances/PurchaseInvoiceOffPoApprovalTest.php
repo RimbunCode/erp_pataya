@@ -485,4 +485,50 @@ class PurchaseInvoiceOffPoApprovalTest extends TestCase {
         $this->assertSame($this->xVariant->id, $items[1]->item_id);
         $this->assertNull($items[1]->purchase_receipt_item_id);
     }
+
+    #[Test]
+    public function service_create_ignores_account_input_and_leaves_account_columns_null(): void {
+        $invoice = $this->invoiceService->create($this->accountPayload([
+            'expense_head_account'    => ['id' => $this->expense->id],
+            'credit_account'          => ['id' => $this->credit->id],
+            'expanse_head_account_id' => $this->expense->id,
+            'credit_account_id'       => $this->credit->id,
+        ]));
+
+        $fresh = $invoice->fresh();
+        $this->assertNull($fresh->expanse_head_account_id, 'Q-P2-24: akun tidak diterima dari input.');
+        $this->assertNull($fresh->credit_account_id);
+    }
+
+    #[Test]
+    public function service_update_of_a_draft_clears_recorded_accounts_for_the_engine_to_fill(): void {
+        $invoice = $this->invoiceService->create($this->accountPayload());
+        $invoice->forceFill([
+            'expanse_head_account_id' => $this->expense->id,
+            'credit_account_id'       => $this->credit->id,
+        ])->save();
+        $this->assertNotNull($invoice->fresh()->credit_account_id);
+
+        $this->invoiceService->update($invoice->fresh(), $this->accountPayload());
+
+        $fresh = $invoice->fresh();
+        $this->assertNull($fresh->expanse_head_account_id, 'Q-P2-24: update draft mengosongkan akun lama, engine yang mengisinya.');
+        $this->assertNull($fresh->credit_account_id);
+    }
+
+    /**
+     * @param  array<string, mixed>  $extra
+     * @return array<string, mixed>
+     */
+    private function accountPayload(array $extra = []): array {
+        return [
+            'date'              => now()->toDateString(),
+            'branch'            => ['code' => 'MAIN'],
+            'purchase_order'    => ['id' => $this->po->id],
+            'supplier'          => ['id' => $this->po->supplier_id],
+            'items'             => [],
+            'payment_schedules' => [],
+            ...$extra,
+        ];
+    }
 }

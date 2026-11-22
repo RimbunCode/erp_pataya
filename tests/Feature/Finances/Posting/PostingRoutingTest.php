@@ -33,7 +33,6 @@ use App\Services\Finances\PaymentEntryService;
 use App\Services\Finances\Posting\Contexts\PostingContext;
 use App\Services\Finances\SalesInvoiceService;
 use App\Services\Inventory\StockEntryService;
-use Illuminate\Database\DeadlockException;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Illuminate\Support\Facades\DB;
 use Tests\Support\AssertsPostingParity;
@@ -41,11 +40,10 @@ use Tests\Support\BuildsFinanceFixtures;
 use Tests\TestCase;
 
 /**
- * Finance Fase 2 (putaran perbaikan Sprint D): bukti routing gateway yang DISKRIMINATIF. Pada parity test kelompok 1 dan
- * 2 akun dokumen dan akun profil sama, sehingga `on` yang secara keliru masih memakai jalur lama tidak terdeteksi. Di sini
- * akun pada dokumen SENGAJA berbeda dari akun profil: `off` memakai akun dokumen, `on` HARUS memakai akun profil
- * (atau akun master metode pembayaran), `shadow` memakai akun dokumen dan mencatat `config_diff`. Juga membuktikan pabrik
- * konteks Sales/Purchase Invoice tidak berjalan pada `off` (Requirement 6.2).
+ * Finance Fase 2 (putaran perbaikan Sprint D; diperbarui Task 14.1 dan Q-P2-23, 2026-11-22): bukti routing gateway yang
+ * DISKRIMINATIF. Akun pada dokumen SENGAJA berbeda dari akun profil: engine HARUS memakai akun profil (atau akun master
+ * metode pembayaran) dan bukan akun dokumen. Mode `off`/`shadow` sudah dihapus, jadi engine selalu aktif; pabrik
+ * konteks Sales/Purchase Invoice/Payment Entry hanya tidak berjalan untuk dokumen penjaga yang dibatalkan.
  */
 class PostingRoutingTest extends TestCase {
     use AssertsPostingParity, BuildsFinanceFixtures, RefreshDatabase;
@@ -56,7 +54,7 @@ class PostingRoutingTest extends TestCase {
         $this->setUpFinanceFixtures([PostingProfile::class, PostingParityLog::class, SalesInvoice::class, PurchaseInvoice::class, PurchaseOrder::class, PaymentSchedule::class, PaymentEntry::class, Unit::class, Warehouse::class, Item::class, ItemVariant::class, StockEntry::class, StockLedgerEntry::class]);
     }
 
-    public function test_sales_invoice_and_payment_follow_the_mode_when_document_accounts_differ_from_profile_accounts(): void {
+    public function test_sales_invoice_and_payment_use_profile_accounts_when_document_accounts_differ_from_profile_accounts(): void {
         $docReceivable  = $this->makeAccount('1201', 'Piutang Dokumen', 'asset', 'debit', 'accounts_receivable');
         $docRevenue     = $this->makeAccount('4001', 'Penjualan Dokumen', 'income', 'credit', 'sales');
         $profReceivable = $this->makeAccount('1210', 'Piutang Profil', 'asset');
@@ -67,39 +65,24 @@ class PostingRoutingTest extends TestCase {
         $method         = PaymentMethod::create(['name' => 'Kas Tunai', 'default_account_id' => $methodCash->id]);
         $this->activateParityProfile(['receivable' => $profReceivable, 'revenue' => $profRevenue]);
 
-        $signatures = [];
-        $statuses   = [];
-        foreach (['off', 'shadow', 'on'] as $mode) {
-            $this->setPostingMode(PostingDocumentType::SalesInvoice, $mode);
-            $this->setPostingMode(PostingDocumentType::PaymentEntry, $mode);
+        $invoice = $this->makeSalesInvoice($docReceivable, $docRevenue);
+        $sales   = $this->makeUnpaidSalesInvoice(1_000_000);
+        $payment = $this->makePaymentEntry($sales, 400_000, $docPaidFrom, $docCashTo, ['payment_method_id' => $method->id]);
 
-            $invoice = $this->makeSalesInvoice($docReceivable, $docRevenue);
-            app(SalesInvoiceService::class)->onApproved($invoice);
+        app(SalesInvoiceService::class)->onApproved($invoice);
+        app(PaymentEntryService::class)->onApproved($payment->fresh());
 
-            $sales   = $this->makeUnpaidSalesInvoice(1_000_000);
-            $payment = $this->makePaymentEntry($sales, 400_000, $docPaidFrom, $docCashTo, ['payment_method_id' => $method->id]);
-            app(PaymentEntryService::class)->onApproved($payment->fresh());
+        $invoiceLines = array_map(fn (array $j): array => array_column($j['lines'], 0), $this->journalSignature($invoice->fresh()));
+        $paymentLines = array_map(fn (array $j): array => array_column($j['lines'], 0), $this->journalSignature($payment));
 
-            $signatures['invoice'][$mode] = array_map(fn (array $j): array => array_column($j['lines'], 0), $this->journalSignature($invoice->fresh()));
-            $signatures['payment'][$mode] = array_map(fn (array $j): array => array_column($j['lines'], 0), $this->journalSignature($payment));
-            $statuses[$mode]              = [$this->parityLogStatus($invoice->fresh()), $this->parityLogStatus($payment)];
-        }
-
-        // off dan shadow: akun yang dipilih pada dokumen. on: akun profil (invoice) dan akun master + profil (payment).
-        $this->assertSame(['default' => ['1201', '4001']], $signatures['invoice']['off']);
-        $this->assertSame(['default' => ['1201', '4001']], $signatures['invoice']['shadow']);
-        $this->assertSame(['default' => ['1210', '4010']], $signatures['invoice']['on'], 'on memakai akun profil, bukan akun dokumen.');
-        $this->assertSame(['default' => ['1101', '1202']], $signatures['payment']['off']);
-        $this->assertSame(['default' => ['1101', '1202']], $signatures['payment']['shadow']);
-        $this->assertSame(['default' => ['1110', '1210']], $signatures['payment']['on'], 'on: debit akun master metode bayar, kredit piutang profil.');
-
-        // shadow mencatat perbedaan konfigurasi (bukan mismatch) untuk dokumen yang akunnya dipilih pengguna.
-        $this->assertSame(['config_diff', 'config_diff'], $statuses['shadow']);
-        $this->assertSame([null, null], $statuses['off']);
-        $this->assertSame([null, null], $statuses['on']);
+        // Akun profil (invoice) dan akun master + profil (payment), bukan akun yang dipilih pada dokumen.
+        $this->assertSame(['default' => ['1210', '4010']], $invoiceLines, 'Engine memakai akun profil, bukan akun dokumen.');
+        $this->assertSame(['default' => ['1110', '1210']], $paymentLines, 'Debit akun master metode bayar, kredit piutang profil.');
+        $this->assertNull($this->parityLogStatus($invoice->fresh()), 'Tidak ada catatan parity.');
+        $this->assertNull($this->parityLogStatus($payment), 'Tidak ada catatan parity.');
     }
 
-    public function test_invoice_context_is_not_built_in_off_mode_for_sales_and_purchase_invoice(): void {
+    public function test_invoice_context_is_built_for_sales_and_purchase_invoice_unless_the_guard_document_is_canceled(): void {
         $recv    = $this->makeAccount('1200', 'Piutang', 'asset', 'debit', 'accounts_receivable');
         $rev     = $this->makeAccount('4000', 'Penjualan', 'income', 'credit', 'sales');
         $payable = $this->makeAccount('2000', 'Utang', 'liability', 'credit', 'accounts_payable');
@@ -140,24 +123,22 @@ class PostingRoutingTest extends TestCase {
             return $invoice;
         };
 
-        // off: baris invoice tidak dibaca pabrik konteks.
+        // Dokumen dibatalkan: guard melewati posting SEBELUM pabrik konteks berjalan, jadi baris invoice tidak dibaca.
         $sales    = $makeSales();
         $purchase = $makePurchase();
-        $this->assertSame(0, $queriesTouching('sales_invoice_items', fn () => $salesRun($sales)), 'off: tidak ada query baris Sales Invoice.');
-        $this->assertSame(0, $queriesTouching('purchase_invoice_items', fn () => $purchaseRun($purchase)), 'off: tidak ada query baris Purchase Invoice.');
+        $sales->update(['status' => [FormStatus::CANCELED]]);
+        $purchase->update(['status' => [FormStatus::CANCELED]]);
+        $this->assertSame(0, $queriesTouching('sales_invoice_items', fn () => $salesRun($sales)), 'Canceled: tidak ada query baris Sales Invoice.');
+        $this->assertSame(0, $queriesTouching('purchase_invoice_items', fn () => $purchaseRun($purchase)), 'Canceled: tidak ada query baris Purchase Invoice.');
 
-        // shadow dan on: konteks dibangun (baris invoice dibaca).
-        foreach (['shadow', 'on'] as $mode) {
-            $this->setPostingMode(PostingDocumentType::SalesInvoice, $mode);
-            $this->setPostingMode(PostingDocumentType::PurchaseInvoice, $mode);
-            $sales    = $makeSales();
-            $purchase = $makePurchase();
-            $this->assertGreaterThan(0, $queriesTouching('sales_invoice_items', fn () => $salesRun($sales)), "{$mode}: konteks Sales Invoice dibangun.");
-            $this->assertGreaterThan(0, $queriesTouching('purchase_invoice_items', fn () => $purchaseRun($purchase)), "{$mode}: konteks Purchase Invoice dibangun.");
-        }
+        // Dokumen aktif: konteks dibangun (baris invoice dibaca).
+        $sales    = $makeSales();
+        $purchase = $makePurchase();
+        $this->assertGreaterThan(0, $queriesTouching('sales_invoice_items', fn () => $salesRun($sales)), 'Konteks Sales Invoice dibangun.');
+        $this->assertGreaterThan(0, $queriesTouching('purchase_invoice_items', fn () => $purchaseRun($purchase)), 'Konteks Purchase Invoice dibangun.');
     }
 
-    public function test_payment_context_is_not_built_in_off_mode_but_is_built_for_shadow_and_on(): void {
+    public function test_payment_context_is_built_once_on_approval(): void {
         $paidFrom   = $this->makeAccount('1202', 'Piutang Dokumen', 'asset', 'debit');
         $paidTo     = $this->makeAccount('1101', 'Kas Dokumen', 'asset', 'debit', 'cash');
         $methodCash = $this->makeAccount('1110', 'Kas Metode Bayar', 'asset', 'debit', 'cash');
@@ -185,8 +166,7 @@ class PostingRoutingTest extends TestCase {
         };
         $this->app->instance(PaymentEntryPostingContextFactory::class, $spy);
 
-        $builds = function (string $mode) use ($paidFrom, $paidTo, $method, $spy): int {
-            $this->setPostingMode(PostingDocumentType::PaymentEntry, $mode);
+        $builds = function () use ($paidFrom, $paidTo, $method, $spy): int {
             $sales   = $this->makeUnpaidSalesInvoice(1_000_000);
             $payment = $this->makePaymentEntry($sales, 400_000, $paidFrom, $paidTo, ['payment_method_id' => $method->id])->fresh();
 
@@ -196,51 +176,48 @@ class PostingRoutingTest extends TestCase {
             return $spy->fullContextBuilds - $before;
         };
 
-        $this->assertSame(0, $builds('off'), 'off: pabrik konteks penuh Payment Entry tidak berjalan.');
-        $this->assertSame(1, $builds('shadow'), 'shadow: konteks dibangun.');
-        $this->assertSame(1, $builds('on'), 'on: konteks dibangun.');
+        $this->assertSame(1, $builds(), 'Konteks penuh dibangun satu kali.');
     }
 
-    public function test_sales_invoice_listener_in_shadow_propagates_a_deadlock_from_the_parity_insert_and_keeps_status_pending(): void {
+    public function test_sales_invoice_listener_ends_failed_with_the_unresolved_role_message(): void {
         $recv = $this->makeAccount('1200', 'Piutang', 'asset', 'debit', 'accounts_receivable');
         $rev  = $this->makeAccount('4000', 'Penjualan', 'income', 'credit', 'sales');
-        $this->activateParityProfile(['receivable' => $recv, 'revenue' => $rev]);
-        $this->setPostingMode(PostingDocumentType::SalesInvoice, 'shadow');
+        // Profil aktif tanpa pemetaan peran: engine selalu aktif dan menolak dengan peran yang tidak ter-resolve.
+        $this->activateParityProfile([]);
 
         $invoice = $this->makeSalesInvoice($recv, $rev);
         GlPostingStatus::create(['referenceable_type' => SalesInvoice::class, 'referenceable_id' => $invoice->id, 'status' => FormStatus::PENDING]);
 
-        $deadlock = new DeadlockException('Deadlock found when trying to get lock');
-        $this->failParityLogInserts([$deadlock]);
+        $event    = new SalesInvoiceGeneralLedgerPostingRequested($invoice, 2183.33, false, now(), $recv->id, $rev->id);
+        $listener = new PostSalesInvoiceGeneralLedger;
 
+        // Job listener: handle() melempar, queue worker lalu memanggil failed() dengan exception itu.
         try {
-            (new PostSalesInvoiceGeneralLedger)->handle(new SalesInvoiceGeneralLedgerPostingRequested($invoice, 2183.33, false, now(), $recv->id, $rev->id));
-            $this->fail('Deadlock pada insert parity harus muncul dari listener, bukan menghasilkan POSTED tanpa jurnal.');
-        } catch (\Throwable $caught) {
-            $chain = [];
-            for ($e = $caught; $e !== null; $e = $e->getPrevious()) {
-                $chain[] = $e;
-            }
-            $this->assertContains($deadlock, $chain);
+            $listener->handle($event);
+            $this->fail('Peran yang tidak ter-resolve harus menggagalkan posting.');
+        } catch (UnresolvedAccountRoleException $e) {
+            $listener->failed($event, $e);
         }
 
-        $status = GlPostingStatus::where('referenceable_type', SalesInvoice::class)->where('referenceable_id', $invoice->id)->firstOrFail()->status;
-        $this->assertSame(FormStatus::PENDING->value, $status instanceof \BackedEnum ? $status->value : $status);
+        $row = GlPostingStatus::where('referenceable_type', SalesInvoice::class)->where('referenceable_id', $invoice->id)->firstOrFail();
+        $this->assertSame(FormStatus::FAILED->value, $row->status instanceof \BackedEnum ? $row->status->value : $row->status);
+        $this->assertSame(1, (int) $row->retry_count);
+        $this->assertSame($e->getMessage(), $row->last_error);
+        $this->assertSame([], $this->journalSignature($invoice->fresh()));
+        $this->assertNull($this->parityLogStatus($invoice->fresh()));
     }
 
     private function makeAccountOnce(string $number): Account {
         return Account::query()->where('account_number', $number)->firstOrFail();
     }
 
-    public function test_sales_invoice_without_document_accounts_posts_through_the_profile_when_mode_is_on(): void {
+    public function test_sales_invoice_without_document_accounts_posts_through_the_profile(): void {
         $recv    = $this->makeAccount('1210', 'Piutang Profil', 'asset', 'debit', 'accounts_receivable');
         $rev     = $this->makeAccount('4010', 'Penjualan Profil', 'income', 'credit', 'sales');
         $payable = $this->makeAccount('2000', 'Utang', 'liability', 'credit', 'accounts_payable');
         $srnb    = $this->makeAccount('2100', 'SRNB', 'liability', 'credit', 'stock_received_but_not_billed');
         $stock   = $this->makeAccount('1300', 'Persediaan', 'asset', 'debit', 'stock');
         $this->activateParityProfile(['receivable' => $recv, 'revenue' => $rev, 'payable' => $payable, 'expense' => $srnb, 'stock' => $stock, 'stock_received_but_not_billed' => $srnb]);
-        $this->setPostingMode(PostingDocumentType::SalesInvoice, 'on');
-        $this->setPostingMode(PostingDocumentType::PurchaseInvoice, 'on');
 
         // Task 12.3: dokumen dibuat tanpa akun (form tidak lagi meminta), kolom akun null.
         $invoice = $this->makeSalesInvoice($recv, $rev, ['debit_account_id' => null, 'income_account_id' => null]);
@@ -258,13 +235,12 @@ class PostingRoutingTest extends TestCase {
         $this->assertNotEmpty($this->journalSignature($purchase->fresh()), 'Purchase Invoice tanpa akun dokumen tetap terposting lewat engine.');
     }
 
-    public function test_payment_entry_without_document_accounts_posts_through_the_profile_when_mode_is_on(): void {
+    public function test_payment_entry_without_document_accounts_posts_through_the_profile(): void {
         $methodCash = $this->makeAccount('1110', 'Kas Metode Bayar', 'asset', 'debit', 'cash');
         $receivable = $this->makeAccount('1210', 'Piutang Profil', 'asset');
         $payable    = $this->makeAccount('2010', 'Utang Profil', 'liability', 'credit');
         $method     = PaymentMethod::create(['name' => 'Kas Tunai', 'default_account_id' => $methodCash->id]);
         $this->activateParityProfile(['receivable' => $receivable, 'payable' => $payable]);
-        $this->setPostingMode(PostingDocumentType::PaymentEntry, 'on');
 
         // Task 12.3: Payment Entry dibuat tanpa akun (form tidak lagi meminta), kolom akun null.
         $sales   = $this->makeUnpaidSalesInvoice(1_000_000);
@@ -283,12 +259,11 @@ class PostingRoutingTest extends TestCase {
         $this->assertSame(['default' => ['2010', '1110']], array_map(fn (array $j): array => array_column($j['lines'], 0), $this->journalSignature($pay)), 'pay: debit utang profil, kredit akun master metode bayar.');
     }
 
-    public function test_payment_entry_with_unresolved_role_in_on_mode_fails_with_a_clear_message_and_rolls_back(): void {
+    public function test_payment_entry_with_unresolved_role_fails_with_a_clear_message_and_rolls_back(): void {
         config(['finance.posting.legacy_account_fallback' => false]);
         $methodCash = $this->makeAccount('1110', 'Kas Metode Bayar', 'asset', 'debit', 'cash');
         $method     = PaymentMethod::create(['name' => 'Kas Tunai', 'default_account_id' => $methodCash->id]);
         $this->activateParityProfile([]);
-        $this->setPostingMode(PostingDocumentType::PaymentEntry, 'on');
 
         $sales   = $this->makeUnpaidSalesInvoice(1_000_000);
         $payment = $this->makePaymentEntry($sales, 400_000, $methodCash, $methodCash, ['payment_method_id' => $method->id, 'account_paid_to_id' => null, 'account_paid_from_id' => null]);
@@ -332,12 +307,11 @@ class PostingRoutingTest extends TestCase {
         return [...$inventory, 'entry' => $entry->fresh()];
     }
 
-    public function test_stock_entry_without_document_accounts_posts_through_the_profile_when_mode_is_on(): void {
+    public function test_stock_entry_without_document_accounts_posts_through_the_profile(): void {
         $stock      = $this->makeAccount('1300', 'Persediaan', 'asset', 'debit', 'stock');
         $difference = $this->makeAccount('5900', 'Selisih Stok', 'expense', 'debit', 'stock_adjustment');
         $freight    = $this->makeAccount('5800', 'Biaya Angkut', 'expense', 'debit');
         $this->activateParityProfile(['stock' => $stock, 'stock_adjustment' => $difference, 'expense_included_in_valuation' => $freight]);
-        $this->setPostingMode(PostingDocumentType::StockEntry, 'on');
 
         // Task 12.3: Stock Entry dan biaya tambahannya dibuat tanpa akun (form tidak lagi meminta), kolom akun null.
         $fixture = $this->receiptWithoutAccounts();
@@ -357,10 +331,9 @@ class PostingRoutingTest extends TestCase {
         $this->assertSame([['1300', 300.0, 0.0], ['5800', 0.0, 300.0]], $signature[$purposes[0]]['lines'], 'Biaya tambahan tanpa akun biaya tetap terposting lewat profil.');
     }
 
-    public function test_stock_entry_with_unresolved_role_in_on_mode_fails_with_a_clear_message_and_rolls_back(): void {
+    public function test_stock_entry_with_unresolved_role_fails_with_a_clear_message_and_rolls_back(): void {
         config(['finance.posting.legacy_account_fallback' => false]);
         $this->activateParityProfile([]);
-        $this->setPostingMode(PostingDocumentType::StockEntry, 'on');
 
         $entry = $this->receiptWithoutAccounts()['entry'];
 

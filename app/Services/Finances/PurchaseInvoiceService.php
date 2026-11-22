@@ -15,7 +15,6 @@ use App\Models\Core\CoreSetting;
 use App\Models\Core\FormatingSeries;
 use App\Models\Core\GlPostingStatus;
 use App\Models\Core\ModelConnection;
-use App\Models\Finances\Account;
 use App\Models\Finances\PurchaseInvoice;
 use App\Models\Finances\PurchaseInvoiceItem;
 use App\Models\Finances\Tax;
@@ -54,9 +53,10 @@ class PurchaseInvoiceService implements SubmitableService {
         $data['supplier_id']       = $data['supplier']['id'];
         $data['supplier_name']     = Supplier::find($data['supplier']['id'])?->name;
 
-        // account relations (saat engine `on` request tidak membawa akun: Finance Fase 2, Task 12.3)
-        $data['credit_account_id']       = $data['credit_account']['id'] ?? null;
-        $data['expanse_head_account_id'] = $data['expense_head_account']['id'] ?? null;
+        // Akun tidak diterima dari input (Q-P2-23, 2026-11-22): engine yang menentukan akun, kolom dokumen dikosongkan
+        // pada create dan update draft sampai engine mencatatnya (Task 12.1).
+        $data['credit_account_id']       = null;
+        $data['expanse_head_account_id'] = null;
         $data['return_against_id']       = $data['return_against']['id'] ?? null;
 
         $defaultCurrency            = app(SettingsService::class)->get(CoreSetting::class)->default_currency_id;

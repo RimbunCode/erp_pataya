@@ -2,12 +2,10 @@
 
 namespace App\Http\Controllers\Inventory;
 
-use App\Enums\PostingDocumentType;
 use App\Http\Controllers\Controller;
 use App\Http\Requests\Inventory\StockEntryRequest;
 use App\Models\Inventory\StockEntry;
 use App\Models\Service\WorkOrder;
-use App\Services\Finances\Posting\PostingModeResolver;
 use App\Services\Inventory\StockEntryService;
 use App\Utils;
 use Illuminate\Http\Request;
@@ -64,8 +62,7 @@ class StockEntryController extends Controller {
         $this->setBreadcrumbs('inventory.stockEntry.new');
 
         return Inertia::render('Inventory/StockEntries/Show', [
-            'defaultData'             => $defaultData ?? null,
-            'accountsManagedByEngine' => app(PostingModeResolver::class)->isOn(PostingDocumentType::StockEntry),
+            'defaultData' => $defaultData ?? null,
         ]);
     }
 
@@ -94,7 +91,6 @@ class StockEntryController extends Controller {
 
                 return $stockEntry;
             },
-            'accountsManagedByEngine' => app(PostingModeResolver::class)->isOn(PostingDocumentType::StockEntry),
         ]);
     }
 

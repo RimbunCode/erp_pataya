@@ -8,12 +8,14 @@ use App\Listeners\Finances\Ledger\PostPurchaseInvoiceGeneralLedger;
 use App\Models\Core\GlPostingStatus;
 use App\Models\Finances\GeneralLedger;
 use App\Models\Finances\Journal;
+use App\Models\Finances\PostingProfile;
 use App\Models\Finances\PurchaseInvoice;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Schema;
 use Illuminate\Support\Str;
 use RuntimeException;
+use Tests\Support\EnablesEnginePosting;
 use Tests\TestCase;
 
 /**
@@ -22,7 +24,7 @@ use Tests\TestCase;
  * PostPurchaseReceiptGeneralLedgerTest/PostDeliveryNoteGeneralLedgerTest.
  */
 class PostPurchaseInvoiceGeneralLedgerTest extends TestCase {
-    use RefreshDatabase;
+    use EnablesEnginePosting, RefreshDatabase;
 
     protected function setUp(): void {
         parent::setUp();
@@ -36,6 +38,7 @@ class PostPurchaseInvoiceGeneralLedgerTest extends TestCase {
 
         GeneralLedger::initPermissions();
         Journal::initPermissions();
+        PostingProfile::initPermissions();
     }
 
     private function makeAccountId(string $rootType, string $accountType): string {
@@ -73,11 +76,18 @@ class PostPurchaseInvoiceGeneralLedgerTest extends TestCase {
     }
 
     public function test_handle_creates_stock_srnb_and_expense_credit_entries(): void {
-        $this->makeAccountId('asset', 'stock');
-        $this->makeAccountId('liability', 'stock_received_but_not_billed');
+        $stockAccountId       = $this->makeAccountId('asset', 'stock');
+        $srnbAccountId        = $this->makeAccountId('liability', 'stock_received_but_not_billed');
         $expenseHeadAccountId = $this->makeAccountId('expense', 'expense');
         $creditAccountId      = $this->makeAccountId('liability', 'creditors');
         $purchaseInvoiceId    = $this->makePurchaseInvoiceId($expenseHeadAccountId, $creditAccountId);
+        // Task 14.1: closure legacy dihapus; jurnal ditulis engine dengan akun dari profil.
+        $this->enableEnginePosting([
+            'stock'                         => $stockAccountId,
+            'stock_received_but_not_billed' => $srnbAccountId,
+            'expense'                       => $expenseHeadAccountId,
+            'payable'                       => $creditAccountId,
+        ]);
 
         GlPostingStatus::create([
             'referenceable_type' => PurchaseInvoice::class,
@@ -127,6 +137,7 @@ class PostPurchaseInvoiceGeneralLedgerTest extends TestCase {
         $expenseHeadAccountId = $this->makeAccountId('expense', 'expense');
         $creditAccountId      = $this->makeAccountId('liability', 'creditors');
         $purchaseInvoiceId    = $this->makePurchaseInvoiceId($expenseHeadAccountId, $creditAccountId);
+        $this->enableEnginePosting(['expense' => $expenseHeadAccountId, 'payable' => $creditAccountId]);
 
         GlPostingStatus::create([
             'referenceable_type' => PurchaseInvoice::class,
@@ -164,6 +175,8 @@ class PostPurchaseInvoiceGeneralLedgerTest extends TestCase {
         // Sengaja invoice INI pakai akun yang BUKAN "terbaru" — insert 1 akun expense/credit lagi SETELAHNYA
         $newerExpenseId = $this->makeAccountId('expense', 'expense');
         $newerCreditId  = $this->makeAccountId('liability', 'creditors');
+        // Task 14.1: akun invoice ini dipetakan di profil; akun lain (termasuk yang lebih baru) tidak dipakai.
+        $this->enableEnginePosting(['expense' => $expenseHeadAccountId, 'payable' => $creditAccountId]);
 
         GlPostingStatus::create([
             'referenceable_type' => PurchaseInvoice::class,

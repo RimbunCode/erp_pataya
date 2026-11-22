@@ -45,7 +45,7 @@ class CancelBeforeQueuedPostingTest extends TestCase {
         $event = Event::dispatched(SalesInvoiceGeneralLedgerPostingRequested::class)->first()[0];
         (new PostSalesInvoiceGeneralLedger)->handle($event);
 
-        // Guard gateway (mode `off`, jalur lama): dokumen `canceled` tidak diposting dan statusnya `skipped`.
+        // Guard gateway (berjalan sebelum pengecekan mode, jadi berlaku pada semua mode): dokumen `canceled` tidak diposting dan statusnya `skipped`.
         $this->assertCount(0, GeneralLedger::withTrashed()->where('referenceable_type', SalesInvoice::class)->where('referenceable_id', $invoice->id)->get());
         $this->assertContains(FormStatus::CANCELED, $invoice->fresh()->status);
         $this->assertPostingStatus($invoice, 'skipped');

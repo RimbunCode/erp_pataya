@@ -5,9 +5,11 @@ namespace Tests\Feature\Finances\Characterization;
 use App\Enums\FormStatus;
 use App\Models\Asset\AssetDepreciationSchedule;
 use App\Models\Core\GlPostingStatus;
+use App\Models\Finances\PostingProfile;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Tests\Support\BuildsAssetFixtures;
 use Tests\Support\BuildsFinanceFixtures;
+use Tests\Support\EnablesEnginePosting;
 use Tests\TestCase;
 
 /**
@@ -17,12 +19,15 @@ use Tests\TestCase;
  * (queue sinkron di test). Jadwal diproses hanya bila `schedule_date <= now()`.
  */
 class AssetDepreciationPostingTest extends TestCase {
-    use BuildsAssetFixtures, BuildsFinanceFixtures, RefreshDatabase;
+    use BuildsAssetFixtures, BuildsFinanceFixtures, EnablesEnginePosting, RefreshDatabase;
 
     protected function setUp(): void {
         parent::setUp();
 
-        $this->setUpFinanceFixtures();
+        $this->setUpFinanceFixtures([PostingProfile::class]);
+
+        // Task 14.1: closure legacy dihapus; jurnal ditulis engine dengan akun master dari AssetCategoryAccount.
+        $this->enableEnginePosting();
     }
 
     private function makeSchedule($asset, float $amount, $date = null): AssetDepreciationSchedule {

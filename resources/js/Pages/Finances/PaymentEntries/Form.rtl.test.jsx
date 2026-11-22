@@ -17,14 +17,15 @@ import userEvent from "@testing-library/user-event";
 //     "due" (index 0 selalu ikut, index>0 hanya jika due_date <= now, baris
 //     outstanding_amount<=0 tidak ikut).
 //   - selectPayment: klik tombol "select" pada baris payment schedule ->
-//     mengisi paid_amount (kumulatif s.d. index), payment_method, dan
-//     account_paid_from/account_paid_to sesuai party_type.
+//     mengisi paid_amount (kumulatif s.d. index) dan payment_method. Akun
+//     (account_paid_from/account_paid_to) TIDAK diisi: ditentukan engine
+//     (Q-P2-23).
 //   - Transform payment_type -> party_type (receive->customer, pay->
 //     supplier, internal_transfer->null) + reset payment_method saat
 //     payment_type berubah.
 //   - Transform memilih paymentable (invoice) -> currency, exchange_rate,
-//     partyable, paid_amount (dari getAmountPayment), payment_method,
-//     account_paid_from/to dari debit_account/credit_account invoice.
+//     partyable, paid_amount (dari getAmountPayment), payment_method; akun
+//     tidak diisi dari invoice/payment method (Q-P2-23).
 //   - Visibilitas conditional: field payment_method/party detail/FormTable
 //     payment schedules/exchange_rate hanya muncul sesuai payment_type &
 //     currency vs default_currency_id.
@@ -328,8 +329,8 @@ describe("PaymentEntries Form", () => {
       expect(result.payment_method).toEqual(
         expect.objectContaining({ id: 1, name: "Transfer" }),
       );
-      // party_type customer -> account_paid_to diisi dari default_account.
-      expect(result.account_paid_to).toEqual({ id: 10 });
+      // Akun ditentukan engine: tidak diisi dari default_account (Q-P2-23).
+      expect(result).not.toHaveProperty("account_paid_to");
     });
 
     it("index > 0 hanya ikut dijumlahkan jika due_date sudah lewat (<= now)", async () => {
@@ -398,7 +399,7 @@ describe("PaymentEntries Form", () => {
   });
 
   describe("transform data saat memilih paymentable (invoice)", () => {
-    it("party_type=customer: mengisi currency, exchange_rate, partyable dari customer, dan account_paid_from dari debit_account", async () => {
+    it("party_type=customer: mengisi currency, exchange_rate, partyable dari customer, tanpa mengisi account_paid_from dari debit_account", async () => {
       const user = userEvent.setup({ delay: null });
       const setData = vi.fn();
       formPageState = makeFormPageState({
@@ -423,10 +424,10 @@ describe("PaymentEntries Form", () => {
       expect(result.currency).toEqual({ id: 2, code: "usd" });
       expect(result.exchange_rate).toBe(15000);
       expect(result.partyable).toEqual({ id: 7, name: "PT ABC" });
-      expect(result.account_paid_from).toEqual({ id: 55 });
+      expect(result).not.toHaveProperty("account_paid_from");
     });
 
-    it("party_type=supplier: partyable dari supplier, account_paid_to dari credit_account", async () => {
+    it("party_type=supplier: partyable dari supplier, tanpa mengisi account_paid_to dari credit_account", async () => {
       const user = userEvent.setup({ delay: null });
       const setData = vi.fn();
       formPageState = makeFormPageState({
@@ -449,7 +450,7 @@ describe("PaymentEntries Form", () => {
       const result = updater({ party_type: "supplier" });
 
       expect(result.partyable).toEqual({ id: 9, name: "Supplier X" });
-      expect(result.account_paid_to).toEqual({ id: 66 });
+      expect(result).not.toHaveProperty("account_paid_to");
     });
 
     it("exchange_rate fallback ke 1 bila paymentable tidak membawa exchange_rate", async () => {
@@ -472,32 +473,6 @@ describe("PaymentEntries Form", () => {
       const updater = setData.mock.calls[setData.mock.calls.length - 1][0];
       const result = updater({ party_type: "customer" });
       expect(result.exchange_rate).toBe(1);
-    });
-
-    it("account_paid_to fallback ke prev value saat paymentMethod tidak punya default_account (party_type customer)", async () => {
-      const user = userEvent.setup({ delay: null });
-      const setData = vi.fn();
-      formPageState = makeFormPageState({
-        setData,
-        data: { payment_type: "receive", party_type: "customer" },
-      });
-      globalThis.__linkModelPayloads["paymentable-link"] = {
-        id: 13,
-        currency: { id: 1, code: "idr" },
-        customer: { id: 1 },
-        payment_schedules: [{ outstanding_amount: 100, payment_method: null }],
-      };
-
-      render(<Form />);
-      await user.click(screen.getByTestId("paymentable-link"));
-
-      const updater = setData.mock.calls[setData.mock.calls.length - 1][0];
-      const prevAccount = { id: 999 };
-      const result = updater({
-        party_type: "customer",
-        account_paid_to: prevAccount,
-      });
-      expect(result.account_paid_to).toBe(prevAccount);
     });
   });
 
@@ -542,7 +517,7 @@ describe("PaymentEntries Form", () => {
       expect(result.payment_method).toEqual(
         expect.objectContaining({ id: 3, name: "Cash" }),
       );
-      expect(result.account_paid_to).toEqual({ id: 20 });
+      expect(result).not.toHaveProperty("account_paid_to");
       expect(toastSuccess).toHaveBeenCalledWith(
         "finances.paymentTermTemplate.alert.success",
       );
@@ -579,7 +554,7 @@ describe("PaymentEntries Form", () => {
       expect(result.paid_amount).toBe(1000);
     });
 
-    it("party_type=supplier: account_paid_from diisi dari default_account payment_method terpilih", async () => {
+    it("party_type=supplier: account_paid_from tidak diisi dari default_account payment_method terpilih", async () => {
       const user = userEvent.setup({ delay: null });
       const setData = vi.fn();
       formPageState = makeFormPageState({
@@ -613,7 +588,7 @@ describe("PaymentEntries Form", () => {
         paymentable: formPageState.data.paymentable,
       });
 
-      expect(result.account_paid_from).toEqual({ id: 88 });
+      expect(result).not.toHaveProperty("account_paid_from");
     });
 
     it("tombol select disabled saat baris outstanding_amount <= 0", () => {
@@ -747,7 +722,7 @@ describe("PaymentEntries Form", () => {
   });
 
   describe("memilih payment_method (header) via PaymentMethodLinkModel", () => {
-    it("party_type=receive: account_paid_to diisi dari default_account payment method", async () => {
+    it("party_type=receive: account_paid_to tidak diisi dari default_account payment method", async () => {
       const user = userEvent.setup({ delay: null });
       const setData = vi.fn();
       formPageState = makeFormPageState({
@@ -769,20 +744,12 @@ describe("PaymentEntries Form", () => {
       expect(result.payment_method).toEqual(
         expect.objectContaining({ id: 5, name: "QRIS" }),
       );
-      expect(result.account_paid_to).toEqual({ id: 33 });
+      expect(result).not.toHaveProperty("account_paid_to");
     });
   });
 
-  describe("akun dikelola engine (mode on, Task 12.3)", () => {
-    const managedProps = (managed) => ({
-      props: {
-        preferences: { default_currency_id: "idr" },
-        accountsManagedByEngine: managed,
-      },
-    });
-
-    it("menyembunyikan seksi akun saat mode on", () => {
-      usePageMock.mockReturnValue(managedProps(true));
+  describe("akun dikelola engine (Q-P2-23, Task 12.3)", () => {
+    it("selalu menyembunyikan seksi akun", () => {
       formPageState = makeFormPageState({
         data: { payment_type: "receive", party_type: "customer" },
       });
@@ -797,23 +764,24 @@ describe("PaymentEntries Form", () => {
       ).not.toBeInTheDocument();
     });
 
-    it("menampilkan seksi akun saat mode bukan on", () => {
-      usePageMock.mockReturnValue(managedProps(false));
+    it("tidak terpengaruh prop accountsManagedByEngine yang sudah dihapus", () => {
+      usePageMock.mockReturnValue({
+        props: {
+          preferences: { default_currency_id: "idr" },
+          accountsManagedByEngine: false,
+        },
+      });
       formPageState = makeFormPageState({
         data: { payment_type: "receive", party_type: "customer" },
       });
       render(<Form />);
 
-      expect(screen.getAllByTestId("account-link").length).toBe(2);
-      expect(
-        screen.getByText("finances.paymentEntry.columns.account_paid_from"),
-      ).toBeInTheDocument();
+      expect(screen.queryByTestId("account-link")).not.toBeInTheDocument();
     });
 
-    it("memilih payment_method tidak mengisi akun saat mode on", async () => {
+    it("memilih payment_method tidak mengisi akun ", async () => {
       const user = userEvent.setup({ delay: null });
       const setData = vi.fn();
-      usePageMock.mockReturnValue(managedProps(true));
       formPageState = makeFormPageState({
         setData,
         data: { payment_type: "receive", party_type: "customer" },
@@ -837,10 +805,9 @@ describe("PaymentEntries Form", () => {
       expect(result).not.toHaveProperty("account_paid_from");
     });
 
-    it("memilih paymentable tidak mengisi akun saat mode on", async () => {
+    it("memilih paymentable tidak mengisi akun ", async () => {
       const user = userEvent.setup({ delay: null });
       const setData = vi.fn();
-      usePageMock.mockReturnValue(managedProps(true));
       formPageState = makeFormPageState({
         setData,
         data: { payment_type: "receive", party_type: "customer" },
@@ -878,10 +845,9 @@ describe("PaymentEntries Form", () => {
       expect(result).not.toHaveProperty("account_paid_from");
     });
 
-    it("tombol select pada baris payment schedule tidak mengisi akun saat mode on", async () => {
+    it("tombol select pada baris payment schedule tidak mengisi akun ", async () => {
       const user = userEvent.setup({ delay: null });
       const setData = vi.fn();
-      usePageMock.mockReturnValue(managedProps(true));
       formPageState = makeFormPageState({
         setData,
         data: {
@@ -922,14 +888,6 @@ describe("PaymentEntries Form", () => {
   });
 
   describe("field lain", () => {
-    it("account-link (account_paid_from/account_paid_to) dirender", () => {
-      formPageState = makeFormPageState({
-        data: { payment_type: "receive", party_type: "customer" },
-      });
-      render(<Form />);
-      expect(screen.getAllByTestId("account-link").length).toBe(2);
-    });
-
     it("merender tanpa error saat payment_type='pay'", () => {
       formPageState = makeFormPageState({
         data: { payment_type: "pay", party_type: "supplier" },

@@ -593,4 +593,31 @@ class SalesInvoiceServiceAssetItemsTest extends TestCase {
 
         $this->assertStringContainsString('100', $request->session()->get('priceWarnings')[0]);
     }
+
+    #[Test]
+    public function create_ignores_account_input_and_leaves_account_columns_null(): void {
+        $invoice = app(SalesInvoiceService::class)->create($this->payload([
+            'items'             => [],
+            'payment_schedules' => [],
+        ]));
+
+        $fresh = $invoice->fresh();
+        $this->assertNull($fresh->income_account_id, 'Q-P2-24: akun tidak diterima dari input.');
+        $this->assertNull($fresh->debit_account_id);
+    }
+
+    #[Test]
+    public function update_of_a_draft_clears_recorded_accounts_for_the_engine_to_fill(): void {
+        $service = app(SalesInvoiceService::class);
+        $invoice = $service->create($this->payload(['items' => [], 'payment_schedules' => []]));
+        $account = Account::firstOrCreate(['account_number' => '4000'], ['account_name' => 'Sales', 'root_type' => 'income', 'account_type' => 'sales', 'report_type' => 'profit_and_loss']);
+        $invoice->forceFill(['income_account_id' => $account->id, 'debit_account_id' => $account->id])->save();
+        $this->assertNotNull($invoice->fresh()->income_account_id);
+
+        $service->update($invoice->fresh(), $this->payload(['items' => [], 'payment_schedules' => []]));
+
+        $fresh = $invoice->fresh();
+        $this->assertNull($fresh->income_account_id, 'Q-P2-24: update draft mengosongkan akun lama, engine yang mengisinya.');
+        $this->assertNull($fresh->debit_account_id);
+    }
 }

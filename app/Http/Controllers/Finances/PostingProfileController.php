@@ -12,7 +12,6 @@ use App\Http\Requests\Finances\PostingProfileVersionRequest;
 use App\Models\Finances\Account;
 use App\Models\Finances\PostingProfile;
 use App\Models\Finances\PostingProfileRule;
-use App\Services\Finances\Posting\PostingModeResolver;
 use App\Services\Finances\Posting\PostingProfileService;
 use App\Services\Finances\Posting\PostingRoleRequirements;
 use Carbon\CarbonImmutable;
@@ -86,13 +85,13 @@ class PostingProfileController extends Controller {
         ]);
     }
 
-    public function show(PostingProfile $postingProfile, PostingModeResolver $modes): Response {
+    public function show(PostingProfile $postingProfile): Response {
         $this->setBreadcrumbs($postingProfile);
 
         return Inertia::render('Finances/PostingProfiles/Form', [
             ...$this->catalog(),
             'profile'     => $this->profilePayload($postingProfile),
-            'unmapped'    => $postingProfile->status === PostingProfile::STATUS_RETIRED ? [] : PostingRoleRequirements::unmapped($postingProfile, $modes->all()),
+            'unmapped'    => $postingProfile->status === PostingProfile::STATUS_RETIRED ? [] : PostingRoleRequirements::unmapped($postingProfile),
             'canWrite'    => $this->hasPermission('write'),
             'canActivate' => $this->hasPermission('activate'),
             'defaultFrom' => ($postingProfile->effective_to ?? $postingProfile->effective_from)->addDay()->toDateString(),

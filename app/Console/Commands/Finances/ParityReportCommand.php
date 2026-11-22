@@ -11,15 +11,15 @@ use InvalidArgumentException;
 use Throwable;
 
 /**
- * Ringkasan hasil parity mode `shadow` per jenis dokumen (Finance Fase 2, Requirement 6.7): jumlah match, rounding,
- * config_diff, mismatch, dan engine_error. Dipakai pemilik produk sebagai bukti sebelum memindahkan jenis dokumen ke
- * mode `on` (Requirement 7.2). Hanya membaca.
+ * Ringkasan riwayat hasil parity mode `shadow` (sudah dihapus, Q-P2-23) per jenis dokumen (Finance Fase 2, Requirement 6.7): jumlah match, rounding,
+ * config_diff, mismatch, dan engine_error. Hanya merangkum riwayat parity yang sudah tercatat (bukti historis
+ * Requirement 7.2); tidak ada lagi perpindahan jenis dokumen ke mode `on` karena engine selalu aktif. Hanya membaca.
  */
 class ParityReportCommand extends Command {
     protected $signature = 'finance:parity-report
         {--type= : Batasi pada satu jenis dokumen (mis. sales_invoice)}
         {--since= : Hanya catatan sejak tanggal ini (Y-m-d)}';
-    protected $description = 'Ringkas hasil parity posting engine (mode shadow) per jenis dokumen';
+    protected $description = 'Ringkas hasil parity posting engine (riwayat mode shadow) per jenis dokumen';
 
     public function handle(): int {
         $type = $this->option('type');

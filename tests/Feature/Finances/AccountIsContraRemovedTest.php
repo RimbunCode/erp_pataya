@@ -2,20 +2,16 @@
 
 namespace Tests\Feature\Finances;
 
-use App\Enums\PostingDocumentType;
 use App\Http\Middleware\AppMiddleware;
 use App\Http\Middleware\EnsureUserIsOnboarded;
 use App\Http\Middleware\HandleInertiaRequests;
 use App\Http\Middleware\LanguageMiddleware;
 use App\Models\Core\Currency;
 use App\Models\Finances\Account;
-use App\Models\Finances\FinanceSetting;
 use App\Models\Finances\GeneralLedger;
 use App\Models\Finances\SalesInvoice;
 use App\Models\Sales\SalesOrder;
 use App\Models\User\User;
-use App\Services\Core\Setting\SettingsService;
-use App\Services\Finances\Posting\PostingModeResolver;
 use Database\Factories\Finances\SalesInvoiceFactory;
 use Database\Factories\Sales\SalesOrderFactory;
 use Database\Seeders\AccountSeeder;
@@ -26,7 +22,6 @@ use Illuminate\Support\Facades\Schema;
 use Illuminate\Support\Str;
 use Inertia\Testing\AssertableInertia;
 use PHPUnit\Framework\Attributes\Test;
-use RuntimeException;
 use Tests\TestCase;
 
 /**
@@ -98,12 +93,6 @@ class AccountIsContraRemovedTest extends TestCase {
             'permissions_version' => '0|0|0|0',
             'currentBranch'       => null,
         ];
-    }
-
-    private function setSalesInvoiceMode(string $mode): void {
-        $modes = array_merge(FinanceSetting::defaultAttributes()['posting_modes'], [PostingDocumentType::SalesInvoice->value => $mode]);
-        app(SettingsService::class)->updateInternal(FinanceSetting::class, ['posting_modes' => $modes]);
-        PostingModeResolver::forget();
     }
 
     /**
@@ -196,9 +185,8 @@ class AccountIsContraRemovedTest extends TestCase {
     }
 
     #[Test]
-    public function sales_invoice_create_form_has_no_return_account_default_when_mode_is_not_on(): void {
+    public function sales_invoice_return_form_has_no_account_default(): void {
         $this->seed(AccountSeeder::class);
-        $this->setSalesInvoiceMode('off');
 
         $user    = User::factory()->create();
         $invoice = SalesInvoiceFactory::new()->create(['created_by_id' => $user->id]);
@@ -209,13 +197,12 @@ class AccountIsContraRemovedTest extends TestCase {
             ->assertOk()
             ->assertInertia(fn (AssertableInertia $page) => $page
                 ->where('defaultData.is_return', true)
-                ->where('defaultData.income_account', null));
+                ->missing('defaultData.income_account'));
     }
 
     #[Test]
-    public function sales_invoice_create_form_still_works_for_normal_path_when_mode_is_not_on(): void {
+    public function sales_invoice_create_form_works_for_normal_path_without_engine_mode_prop(): void {
         $this->seed(AccountSeeder::class);
-        $this->setSalesInvoiceMode('off');
 
         $user = User::factory()->create();
 
@@ -224,13 +211,12 @@ class AccountIsContraRemovedTest extends TestCase {
             ->get(route('salesInvoices.create'))
             ->assertOk()
             ->assertInertia(fn (AssertableInertia $page) => $page
-                ->where('accountsManagedByEngine', false));
+                ->missing('accountsManagedByEngine'));
     }
 
     #[Test]
-    public function sales_invoice_create_from_sales_order_defaults_to_income_and_receivable_accounts_when_mode_is_not_on(): void {
+    public function sales_invoice_create_from_sales_order_has_no_account_defaults(): void {
         $this->seed(AccountSeeder::class);
-        $this->setSalesInvoiceMode('off');
 
         $user  = User::factory()->create();
         $order = $this->createSalesOrder();
@@ -240,40 +226,8 @@ class AccountIsContraRemovedTest extends TestCase {
             ->get(route('salesInvoices.create', ['ref' => "salesOrder/{$order->id}"]))
             ->assertOk()
             ->assertInertia(fn (AssertableInertia $page) => $page
-                ->where('defaultData.income_account.account_number', '4110')
-                ->where('defaultData.income_account.account_type', 'income_account')
-                ->where('defaultData.debit_account.account_type', 'receivable'));
-    }
-
-    #[Test]
-    public function sales_invoice_create_from_sales_order_has_no_account_defaults_when_mode_is_on(): void {
-        $this->seed(AccountSeeder::class);
-        $this->setSalesInvoiceMode('on');
-
-        $user  = User::factory()->create();
-        $order = $this->createSalesOrder();
-
-        $this->actingAs($user)
-            ->withSession(['permissions' => $this->createPermissions()])
-            ->get(route('salesInvoices.create', ['ref' => "salesOrder/{$order->id}"]))
-            ->assertOk()
-            ->assertInertia(fn (AssertableInertia $page) => $page
-                ->where('defaultData.income_account', null)
-                ->where('defaultData.debit_account', null));
-    }
-
-    /**
-     * @param  array<string, string>  $modes
-     */
-    private function insertFinanceSettingModes(array $modes): void {
-        DB::table('finance_settings')->delete();
-        DB::table('finance_settings')->insert([
-            'id'            => (string) Str::ulid(),
-            'singleton'     => true,
-            'posting_modes' => json_encode($modes),
-            'created_at'    => now(),
-            'updated_at'    => now(),
-        ]);
+                ->missing('defaultData.income_account')
+                ->missing('defaultData.debit_account'));
     }
 
     private function dropMigration(): Migration {
@@ -281,60 +235,37 @@ class AccountIsContraRemovedTest extends TestCase {
     }
 
     #[Test]
-    public function drop_migration_refuses_to_run_while_any_document_type_is_not_on(): void {
+    public function drop_migration_runs_without_depending_on_any_finance_setting(): void {
         $migration = $this->dropMigration();
         $migration->down();
+        $this->assertTrue(Schema::hasColumn('accounts', 'is_contra'));
 
-        $modes                                           = array_fill_keys(PostingDocumentType::values(), 'on');
-        $modes[PostingDocumentType::PaymentEntry->value] = 'shadow';
-        $this->insertFinanceSettingModes($modes);
-
-        try {
-            $migration->up();
-            $this->fail('up() harus menolak berjalan bila ada jenis dokumen yang belum on.');
-        } catch (RuntimeException $e) {
-            $this->assertStringContainsString('payment_entry', $e->getMessage());
-        }
-
-        $this->assertTrue(Schema::hasColumn('accounts', 'is_contra'), 'Kolom tidak disentuh saat prasyarat belum terpenuhi.');
-    }
-
-    #[Test]
-    public function drop_migration_refuses_when_modes_are_missing_or_null(): void {
-        $migration = $this->dropMigration();
-        $migration->down();
-
+        // Tanpa mode posting (Q-P2-23): ada tidaknya baris setting Finances tidak memengaruhi migrasi.
         DB::table('finance_settings')->delete();
+        $migration->up();
+        $this->assertFalse(Schema::hasColumn('accounts', 'is_contra'), 'up() tanpa baris setting menghapus kolom.');
+
+        $migration->down();
         DB::table('finance_settings')->insert([
             'id'         => (string) Str::ulid(),
             'singleton'  => true,
             'created_at' => now(),
             'updated_at' => now(),
         ]);
-
-        $this->expectException(RuntimeException::class);
         $migration->up();
+        $this->assertFalse(Schema::hasColumn('accounts', 'is_contra'), 'up() dengan baris setting menghapus kolom.');
     }
 
     #[Test]
-    public function drop_migration_runs_when_every_document_type_is_on(): void {
+    public function drop_migration_down_restores_the_column_with_false_values(): void {
+        $this->seed(AccountSeeder::class);
         $migration = $this->dropMigration();
+
         $migration->down();
 
-        $this->insertFinanceSettingModes(array_fill_keys(PostingDocumentType::values(), 'on'));
-        $migration->up();
-
-        $this->assertFalse(Schema::hasColumn('accounts', 'is_contra'));
-    }
-
-    #[Test]
-    public function drop_migration_runs_on_a_fresh_install_without_finance_settings_row(): void {
-        $migration = $this->dropMigration();
-        $migration->down();
-
-        DB::table('finance_settings')->delete();
-        $migration->up();
-
-        $this->assertFalse(Schema::hasColumn('accounts', 'is_contra'));
+        $this->assertTrue(Schema::hasColumn('accounts', 'is_contra'));
+        $this->assertGreaterThan(0, DB::table('accounts')->count());
+        $this->assertSame(0, DB::table('accounts')->where('is_contra', true)->count(), 'Nilai lama tidak dapat dipulihkan: semua baris false.');
+        $this->assertSame(DB::table('accounts')->count(), DB::table('accounts')->where('is_contra', false)->count());
     }
 }

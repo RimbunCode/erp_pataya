@@ -22,12 +22,15 @@ return [
     |
     | legacy_account_fallback: lapis terakhir `AccountRoleResolver` (Requirement 3.1.4): bila tidak ada akun master,
     | aturan bersyarat, maupun akun default profil, peran dicari lewat pasangan lama (root_type, account_type) dengan
-    | peringatan log. Aktif selama transisi; dimatikan pada penutupan fase (Task 14.1).
+    | peringatan log. DIMATIKAN sejak Task 14.1 (default `false`, disetujui pemilik produk 2026-11-21): peran yang tidak
+    | terpetakan melempar `UnresolvedAccountRoleException`. Jangan menyetel
+    | `FINANCE_POSTING_LEGACY_ACCOUNT_FALLBACK=true` di server; kunci ini hanya dipertahankan agar uji lapis legacy
+    | resolver tetap dapat menyalakannya secara eksplisit.
     |
     | parity_retention_days: retensi `posting_parity_logs` untuk `finance:prune-parity-logs` (Requirement 11.4).
     */
     'posting' => [
-        'legacy_account_fallback' => (bool) env('FINANCE_POSTING_LEGACY_ACCOUNT_FALLBACK', true),
+        'legacy_account_fallback' => (bool) env('FINANCE_POSTING_LEGACY_ACCOUNT_FALLBACK', false),
         'parity_retention_days'   => (int) env('FINANCE_POSTING_PARITY_RETENTION_DAYS', 90),
     ],
 ];

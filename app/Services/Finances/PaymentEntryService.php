@@ -17,11 +17,9 @@ use App\Models\Purchase\Supplier;
 use App\Models\Sales\Customer;
 use App\Services\Core\Setting\SettingsService;
 use App\Services\Finances\Accounting\PaymentEntryPostingContextFactory;
-use App\Services\Finances\Ledger\JournalService;
 use App\Services\Finances\Posting\PostingGateway;
 use App\Traits\HasDefaultDelete;
 use App\Utils;
-use Illuminate\Support\Carbon;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Validation\ValidationException;
 
@@ -44,15 +42,11 @@ class PaymentEntryService implements SubmitableService {
         $data['paymentable_id']    = $data['paymentable']['id'];
         $data['paymentable_type']  = $data['payment_type'] == 'pay' ? PurchaseInvoice::class : SalesInvoice::class;
         $data['payment_method_id'] = $data['payment_method']['id'] ?? null;
-        // Saat engine `on` request tidak membawa akun (Task 12.3): kolom tidak disentuh, jadi null pada dokumen baru
-        // dan nilai lama (catatan audit) dipertahankan saat draft diubah, sampai engine mencatatnya.
-        if (isset($data['account_paid_to']['id'])) {
-            $data['account_paid_to_id'] = $data['account_paid_to']['id'];
-        }
-        if (isset($data['account_paid_from']['id'])) {
-            $data['account_paid_from_id'] = $data['account_paid_from']['id'];
-        }
-        $data['exchange_rate'] = $data['exchange_rate'] ?? 1;
+        // Akun tidak diterima dari input (Q-P2-23, 2026-11-22): engine yang menentukan akun, kolom dokumen dikosongkan
+        // pada create dan update draft sampai engine mencatatnya (Task 12.1).
+        $data['account_paid_to_id']   = null;
+        $data['account_paid_from_id'] = null;
+        $data['exchange_rate']        = $data['exchange_rate'] ?? 1;
 
         return $data;
     }
@@ -137,11 +131,6 @@ class PaymentEntryService implements SubmitableService {
                 ]);
             }
 
-            $locked->load([
-                'accountPaidFrom',
-                'accountPaidTo',
-            ]);
-
             $newPaidAmount = (float) $paymentable->paid_amount + (float) $locked->paid_amount;
             $this->allocateToSchedules($paymentable, $newPaidAmount);
             event(new PaymentApplied($paymentable, $newPaidAmount));
@@ -169,37 +158,20 @@ class PaymentEntryService implements SubmitableService {
     }
 
     /**
-     * Jurnal pembayaran: debit `account_paid_to`, kredit `account_paid_from`, sebesar jumlah Payment Entry ini.
-     * Nilai tidak dikonversi ke mata uang dasar (F-11, Fase 4).
+     * Jurnal pembayaran: debit akun penerima, kredit akun pembayar, sebesar jumlah Payment Entry ini. Akun datang dari
+     * metode pembayaran (master) dan peran profil lewat engine. Nilai tidak dikonversi ke mata uang dasar (F-11, Fase 4).
      */
     private function postLedger(PaymentEntry $paymentEntry): void {
-        // Gateway Posting Engine (Finance Fase 2, Task 7.2): closure = jalur Fase 1 apa adanya (mode `off`/`shadow`).
+        // Gateway Posting Engine (Finance Fase 2, Task 7.2; closure legacy dihapus Task 14.1). `UnresolvedAccountRoleException` dan sejenisnya
+        // menggulung seluruh approve.
         $outcome = app(PostingGateway::class)->postDeferred(
             app(PaymentEntryPostingContextFactory::class)->forGuard($paymentEntry),
             fn () => app(PaymentEntryPostingContextFactory::class)->forApproval($paymentEntry),
-            function () use ($paymentEntry) {
-                $debitAccount    = $paymentEntry->accountPaidTo;
-                $creditAccount   = $paymentEntry->accountPaidFrom;
-                $transactionDate = $paymentEntry->date ?? now();
-                $amount          = $paymentEntry->paid_amount;
-
-                // Adapter JournalService (Requirement 8.1): perilaku pasca-hotfix dipertahankan (debit accountPaidTo, kredit
-                // accountPaidFrom, jumlah Payment Entry ini). `DuplicatePostingException` sengaja tidak ditangkap: guard
-                // status (`isApplicable`) mencegah approve ganda, jadi kunci ganda berarti inkonsistensi yang harus
-                // menggulung seluruh penerapan pembayaran.
-                app(JournalService::class)->postPair(
-                    $debitAccount->id,
-                    $creditAccount->id,
-                    $amount,
-                    $paymentEntry,
-                    Carbon::instance($transactionDate),
-                );
-            },
         );
 
-        // Jalur engine (mode `on`): semantik sama dengan jalur lama. Penerapan pembayaran (jadwal, `PaymentApplied`)
-        // sudah berjalan dalam transaksi yang sama sebelum posting, jadi jurnal yang ternyata sudah ada adalah
-        // inkonsistensi yang menggulung seluruh approve, bukan keadaan yang dilewati (Q-P2-12b).
+        // Penerapan pembayaran (jadwal, `PaymentApplied`) sudah berjalan dalam transaksi yang sama sebelum posting,
+        // jadi jurnal yang ternyata sudah ada adalah inkonsistensi yang menggulung seluruh approve, bukan keadaan yang
+        // dilewati; guard status (`isApplicable`) mencegah approve ganda (Q-P2-12b).
         if ($outcome->isAlreadyPosted()) {
             $existing = $outcome->journals[0];
 

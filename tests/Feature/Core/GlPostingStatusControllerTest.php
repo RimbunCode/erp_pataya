@@ -3,10 +3,12 @@
 namespace Tests\Feature\Core;
 
 use App\Enums\FormStatus;
+use App\Events\Finances\PurchaseInvoiceGeneralLedgerPostingRequested;
 use App\Events\Purchase\PurchaseReceiptGeneralLedgerPostingRequested;
 use App\Models\Core\Branch;
 use App\Models\Core\FormatingSeries;
 use App\Models\Core\GlPostingStatus;
+use App\Models\Finances\PurchaseInvoice;
 use App\Models\Purchase\PurchaseReceipt;
 use App\Models\User\User;
 use BeyondCode\QueryDetector\QueryDetectorMiddleware;
@@ -132,6 +134,41 @@ class GlPostingStatusControllerTest extends TestCase {
         $this->assertNull($glPostingStatus->last_error);
 
         Event::assertDispatched(PurchaseReceiptGeneralLedgerPostingRequested::class);
+    }
+
+    public function test_retry_redispatches_purchase_invoice_event_when_account_columns_are_null(): void {
+        Event::fake([PurchaseInvoiceGeneralLedgerPostingRequested::class]);
+
+        // Q-P2-24: dokumen baru/diedit berkolom akun null (engine yang mencatat akun), retry tidak boleh 500.
+        $purchaseInvoiceId = (string) Str::ulid();
+        DB::table('purchase_invoices')->insert([
+            'id'                      => $purchaseInvoiceId,
+            'date'                    => now(),
+            'credit_account_id'       => null,
+            'expanse_head_account_id' => null,
+            'created_at'              => now(),
+            'updated_at'              => now(),
+        ]);
+        $glPostingStatus = GlPostingStatus::create([
+            'referenceable_type' => PurchaseInvoice::class,
+            'referenceable_id'   => $purchaseInvoiceId,
+            'status'             => FormStatus::FAILED,
+            'retry_count'        => 1,
+            'last_error'         => 'Unmapped role',
+        ]);
+
+        $this
+            ->withSession($this->sessionWithPermission(['select' => true, 'read' => true, 'write' => true]))
+            ->withCookie('lang', 'en')
+            ->actingAs($this->user)
+            ->post(route('gl-posting-statuses.retry', $glPostingStatus))
+            ->assertRedirect();
+
+        $this->assertEquals(FormStatus::PENDING, $glPostingStatus->fresh()->status);
+        Event::assertDispatched(
+            PurchaseInvoiceGeneralLedgerPostingRequested::class,
+            fn ($e) => $e->expenseHeadAccountId === null && $e->creditAccountId === null,
+        );
     }
 
     public function test_retry_rejects_pending_status(): void {

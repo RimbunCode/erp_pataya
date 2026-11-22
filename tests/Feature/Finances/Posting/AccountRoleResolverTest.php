@@ -36,6 +36,10 @@ class AccountRoleResolverTest extends TestCase {
         parent::setUp();
 
         $this->setUpFinanceFixtures([PostingProfile::class]);
+
+        // Task 14.1: default config fallback legacy kini `false`. Uji lapis 4 di bawah menyalakannya secara eksplisit
+        // (kode lapis dipertahankan); uji `test_legacy_fallback_is_off_by_default_since_task_14_1` memakai nilai default asli.
+        config(['finance.posting.legacy_account_fallback' => true]);
         $this->profiles     = app(PostingProfileService::class);
         $this->legacyStock  = $this->makeAccount('1241', 'Persediaan Legacy', 'asset', 'debit', 'stock');
         $this->profileStock = $this->makeAccount('1242', 'Persediaan Profil', 'asset', 'debit');
@@ -138,6 +142,26 @@ class AccountRoleResolverTest extends TestCase {
             $this->assertNotEmpty($e->layers);
             $this->assertStringContainsString('legacy', strtolower($e->getMessage()));
         }
+    }
+
+    public function test_legacy_fallback_is_off_by_default_since_task_14_1(): void {
+        // Nilai default asli config/finance.php (bukan nilai yang disetel setUp): fallback legacy mati. Akun legacy
+        // tunggal (`legacyStock`) ada, tetapi tidak dipakai; peran tanpa master/profil gagal dengan lapis `legacy_off`
+        // dan tidak ada peringatan `posting.legacy_account_fallback`.
+        $default = (include config_path('finance.php'))['posting']['legacy_account_fallback'];
+        $this->assertFalse($default, 'Default config harus false (pastikan env FINANCE_POSTING_LEGACY_ACCOUNT_FALLBACK tidak disetel true).');
+        config(['finance.posting.legacy_account_fallback' => $default]);
+
+        Log::spy();
+
+        try {
+            $this->resolver()->resolve(AccountRole::Stock, $this->ctx());
+            $this->fail('Tanpa master dan profil, peran tidak boleh jatuh ke akun legacy.');
+        } catch (UnresolvedAccountRoleException $e) {
+            $this->assertStringContainsString(__('finances/posting.layers.legacy_off'), $e->getMessage());
+        }
+
+        Log::shouldNotHaveReceived('warning');
     }
 
     public function test_disabled_legacy_fallback_does_not_hide_profile_layers(): void {

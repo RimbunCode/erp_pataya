@@ -85,7 +85,7 @@ flowchart LR
     MENU[MenuItem + desk_menu_item<br/>grup 'Module Settings'] --> UI
 ```
 
-**Penamaan kunci.** Kunci logis pada spec Finance Engine (`finance_enforce_fiscal_period`) menjadi kolom `finance_settings.enforce_fiscal_period` (awalan modul dibuang). Kunci berindeks (`finance_posting_mode.{type}`) menjadi tabel anak milik spec yang memperkenalkannya.
+**Penamaan kunci.** Kunci logis pada spec Finance Engine (`finance_enforce_fiscal_period`) menjadi kolom `finance_settings.enforce_fiscal_period` (awalan modul dibuang). Kunci berindeks menjadi tabel anak milik spec yang memperkenalkannya (contoh `finance_posting_mode.{type}` sudah dihapus pada 22 November 2026, Q-P2-23, disetujui pemilik produk: mode posting `off`/`shadow` tidak ada lagi).
 
 ## 6. Peta Keterikatan Antar Spec
 

@@ -19,12 +19,10 @@ let conditionalDefaultsMode = false;
 //   - Memo kalkulasi net_amount/dpp_amount/tax_amount/amount dari data.items.
 //   - useEffect rekalkulasi price item rental "running" saat rental_cutoff_date
 //     berubah (item "completed" tidak ikut).
-//   - defaultValue() (dipanggil useFormPage
-//     internal -- yang terakhir ini sudah dicover test lain, cukup pastikan
-//     Form tidak crash saat useFormPage dipanggil dgn defaultValue callback).
+//   - defaultValue() hanya mengisi tanggal (akun ditentukan engine, Q-P2-23);
+//     tidak ada lookup akun default via getDataModel.
 //   - Transform data saat memilih sales_order (checkout SO -> item invoice).
-//   - Transform reset saat toggle is_return checkbox (income_account dikosongkan,
-//     tanpa pencarian akun retur).
+//   - Transform reset saat toggle is_return checkbox (tanpa lookup akun).
 //   - Transform data saat memilih return_against (retur invoice lama).
 //   - mapItem callback yang diteruskan ke FormTable (alokasi diskon per-baris
 //     via allocateDiscount dgn DPP_FACTOR 11/12 -- port dari
@@ -58,6 +56,7 @@ vi.mock("@inertiajs/react", () => ({
 // ADANYA (implementasi asli) supaya logic Form.jsx yang menggunakannya benar-
 // benar diuji, bukan stub.
 const getDataModelMock = vi.fn();
+let lastDefaultValueResult;
 vi.mock("@/lib/utils", async () => {
   const actual = await vi.importActual("@/lib/utils");
   return {
@@ -112,7 +111,8 @@ vi.mock("@/Pages/Core/FormPage", async () => {
       // fokus test bukan pada defaultValue resolution (sudah dicover
       // FormPage.rtl.test.jsx / useFormPage internal).
       if (typeof defaultValue === "function") {
-        defaultValue().catch(() => {});
+        lastDefaultValueResult = defaultValue();
+        lastDefaultValueResult.catch(() => {});
       }
       return conditionalDefaultsMode
         ? { ...formPageState, data, setData, isCreate: true }
@@ -353,14 +353,21 @@ describe("SalesInvoice Form", () => {
     formPageState = makeFormPageState();
   });
 
-  describe("akun dikelola engine (mode on, Task 12.3)", () => {
+  describe("akun dikelola engine (Q-P2-23, Task 12.3)", () => {
     const ACCOUNTS_TITLE = "finances.salesInvoice.columns.accounts";
 
-    it("menyembunyikan seksi akun saat mode on", () => {
+    it("selalu menyembunyikan seksi akun", () => {
+      render(<Form />);
+
+      expect(globalThis.__contentProps[ACCOUNTS_TITLE]).toBeUndefined();
+      expect(screen.queryByTestId("account-link")).not.toBeInTheDocument();
+    });
+
+    it("tidak terpengaruh prop accountsManagedByEngine yang sudah dihapus", () => {
       usePageMock.mockReturnValue({
         props: {
           preferences: { default_currency_id: "idr" },
-          accountsManagedByEngine: true,
+          accountsManagedByEngine: false,
         },
       });
       render(<Form />);
@@ -368,10 +375,13 @@ describe("SalesInvoice Form", () => {
       expect(globalThis.__contentProps[ACCOUNTS_TITLE]).toBeUndefined();
     });
 
-    it("menampilkan seksi akun saat mode bukan on", () => {
+    it("defaultValue hanya mengisi tanggal dan tidak mengambil akun default", async () => {
       render(<Form />);
 
-      expect(globalThis.__contentProps[ACCOUNTS_TITLE]).toBeDefined();
+      await expect(lastDefaultValueResult).resolves.toEqual({
+        date: expect.any(Date),
+      });
+      expect(getDataModelMock).not.toHaveBeenCalled();
     });
   });
 
@@ -855,7 +865,7 @@ describe("SalesInvoice Form", () => {
   });
 
   describe("toggle is_return", () => {
-    it("mencentang is_return mereset field terkait SO/customer/items dan income_account tanpa memanggil getDataModel", async () => {
+    it("mencentang is_return mereset field terkait SO/customer/items tanpa lookup akun", async () => {
       const user = userEvent.setup({ delay: null });
       const setData = vi.fn();
       formPageState = makeFormPageState({
@@ -864,10 +874,8 @@ describe("SalesInvoice Form", () => {
           items: [{ id: 1 }],
           sales_order: { id: 1 },
           customer: { id: 1 },
-          income_account: { id: 5 },
         },
       });
-
       render(<Form />);
       getDataModelMock.mockClear();
       const checkbox = screen.getByRole("forminput", {
@@ -875,11 +883,11 @@ describe("SalesInvoice Form", () => {
       });
       await user.click(checkbox);
 
-      // Tidak ada lagi pencarian akun retur (flag akun kontra dihapus, Task
-      // 14.2): toggle is_return murni functional updater sinkron.
+      // Akun ditentukan engine: tidak ada lookup akun kontra saat toggle.
       expect(getDataModelMock).not.toHaveBeenCalled();
 
       expect(setData).toHaveBeenCalled();
+      // Cari pemanggilan functional updater yang menghasilkan is_return.
       const resetCall = setData.mock.calls
         .map(([arg]) =>
           typeof arg === "function" ? arg(formPageState.data) : arg,
@@ -890,8 +898,6 @@ describe("SalesInvoice Form", () => {
       expect(resetCall.sales_order).toBeUndefined();
       expect(resetCall.customer).toBeUndefined();
       expect(resetCall.items).toEqual([]);
-      // Retur tidak membawa default akun pendapatan normal.
-      expect(resetCall.income_account).toBeUndefined();
     });
 
     describe("melepas centang is_return", () => {
@@ -901,60 +907,12 @@ describe("SalesInvoice Form", () => {
           .map(([arg]) => (typeof arg === "function" ? arg(prevData) : arg))
           .pop();
 
-      it("mode bukan on: memulihkan akun pendapatan sebelum dicentang, bukan akun retur yang dipilih manual", async () => {
-        const user = userEvent.setup({ delay: null });
-        const setData = vi.fn();
-        const normalAccount = { id: 41, account_number: "4110" };
-        const returnAccount = { id: 42, account_number: "4120" };
-        formPageState = makeFormPageState({
-          setData,
-          data: { items: [], is_return: false, income_account: normalAccount },
-        });
-
-        const { rerender } = render(<Form />);
-        await user.click(screen.getByRole("forminput", { name: checkboxName }));
-
-        formPageState = makeFormPageState({
-          setData,
-          data: { items: [], is_return: true, income_account: returnAccount },
-        });
-        rerender(<Form />);
-        getDataModelMock.mockClear();
-        await user.click(screen.getByRole("forminput", { name: checkboxName }));
-
-        const result = lastResult(setData, formPageState.data);
-        expect(result.is_return).toBe(false);
-        expect(result.income_account).toEqual(normalAccount);
-        expect(getDataModelMock).not.toHaveBeenCalled();
-      });
-
-      it("mode bukan on: dokumen yang dibuka sebagai retur lalu dilepas tidak membawa akun retur", async () => {
-        const user = userEvent.setup({ delay: null });
-        const setData = vi.fn();
-        formPageState = makeFormPageState({
-          setData,
-          data: {
-            items: [],
-            is_return: true,
-            income_account: { id: 42, account_number: "4120" },
-          },
-        });
-
-        render(<Form />);
-        await user.click(screen.getByRole("forminput", { name: checkboxName }));
-
-        const result = lastResult(setData, formPageState.data);
-        expect(result.is_return).toBe(false);
-        expect(result.income_account).toBeUndefined();
-      });
-
-      it("mode on: tidak ada akun dan tidak memanggil getDataModel", async () => {
+      it("tidak ada akun dan tidak memanggil getDataModel saat retur dilepas", async () => {
         const user = userEvent.setup({ delay: null });
         const setData = vi.fn();
         usePageMock.mockReturnValue({
           props: {
             preferences: { default_currency_id: "idr" },
-            accountsManagedByEngine: true,
           },
         });
         formPageState = makeFormPageState({
@@ -1003,32 +961,11 @@ describe("SalesInvoice Form", () => {
 
       expect(result.customer).toEqual({ id: 1, name: "PT Retur" });
       expect(result.sales_order).toEqual({ id: 9 });
-      expect(result.debit_account).toEqual({ id: 88 });
+      // Akun ditentukan engine: tidak disalin dari invoice yang diretur.
+      expect(result.debit_account).toEqual({ id: 1 });
       expect(result.items[0]).toEqual(
         expect.objectContaining({ return_against_item_id: 300 }),
       );
-    });
-
-    it("debit_account fallback ke prev.debit_account saat return_against tidak membawa debit_account", async () => {
-      const user = userEvent.setup({ delay: null });
-      const setData = vi.fn();
-      formPageState = makeFormPageState({
-        setData,
-        data: { items: [], is_return: true },
-      });
-      globalThis.__linkModelPayloads["sales-invoice-link"] = {
-        id: 201,
-        items: [],
-        debit_account: undefined,
-      };
-
-      render(<Form />);
-      await user.click(screen.getByTestId("sales-invoice-link"));
-
-      const updater = setData.mock.calls[setData.mock.calls.length - 1][0];
-      const prevDebitAccount = { id: 42 };
-      const result = updater({ items: [], debit_account: prevDebitAccount });
-      expect(result.debit_account).toBe(prevDebitAccount);
     });
   });
 

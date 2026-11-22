@@ -15,8 +15,8 @@ use Carbon\CarbonInterface;
  * Sales Invoice dan Purchase Invoice, berarti tidak aktif (jurnal bersih seperti sekarang).
  *
  * Dipanggil pabrik konteks (domain pemilik dokumen) sehingga Posting Rule tetap murni (P-2). Setting dibaca lewat
- * `SettingsService::getForRead()` tanpa memo dan tanpa cache: pabrik konteks lengkap hanya dibangun pada mode
- * `shadow`/`on`, dan pembacaan satu baris itu murah dibanding query item yang mendampinginya.
+ * `SettingsService::getForRead()` tanpa memo dan tanpa cache: pembacaan satu baris itu murah dibanding query item
+ * yang mendampingi pabrik konteks lengkap.
  */
 final class DiscountSplitResolver {
     public function __construct(

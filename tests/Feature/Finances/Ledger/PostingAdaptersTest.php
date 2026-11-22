@@ -8,7 +8,7 @@ use App\Events\Asset\AssetScrapped;
 use App\Events\Asset\AssetSoldViaInvoice;
 use App\Events\Finances\PurchaseInvoiceGeneralLedgerPostingRequested;
 use App\Events\Finances\SalesInvoiceGeneralLedgerPostingRequested;
-use App\Exceptions\Finances\InvalidJournalException;
+use App\Exceptions\Finances\UnresolvedAccountRoleException;
 use App\Listeners\Asset\Depreciation\PostScrapWriteOff;
 use App\Listeners\Asset\Rental\PostAssetDisposalGainLoss;
 use App\Listeners\Finances\Ledger\PostPurchaseInvoiceGeneralLedger;
@@ -19,6 +19,7 @@ use App\Models\Finances\GeneralLedger;
 use App\Models\Finances\Journal;
 use App\Models\Finances\PaymentEntry;
 use App\Models\Finances\PaymentSchedule;
+use App\Models\Finances\PostingProfile;
 use App\Models\Finances\PurchaseInvoice;
 use App\Models\Finances\SalesInvoice;
 use App\Models\Finances\SalesInvoiceItem;
@@ -37,6 +38,7 @@ use Illuminate\Foundation\Testing\RefreshDatabase;
 use Illuminate\Support\Facades\DB;
 use Tests\Support\BuildsAssetFixtures;
 use Tests\Support\BuildsFinanceFixtures;
+use Tests\Support\EnablesEnginePosting;
 use Tests\TestCase;
 
 /**
@@ -46,19 +48,44 @@ use Tests\TestCase;
  * (Requirement 8.6). Kesamaan baris dengan perilaku lama dijaga test characterization Fase 0.
  */
 class PostingAdaptersTest extends TestCase {
-    use BuildsAssetFixtures, BuildsFinanceFixtures, RefreshDatabase;
+    use BuildsAssetFixtures, BuildsFinanceFixtures, EnablesEnginePosting, RefreshDatabase;
 
     private Account $receivable;
     private Account $sales;
     private Account $cash;
+    private Account $expense;
+    private Account $payable;
+    private Account $stock;
+    private Account $srnb;
+    private Account $difference;
+    private Account $freight;
 
     protected function setUp(): void {
         parent::setUp();
 
-        $this->setUpFinanceFixtures([SalesInvoice::class, PurchaseInvoice::class, PaymentSchedule::class, PaymentEntry::class, Unit::class, Warehouse::class, Item::class, ItemVariant::class, StockEntry::class, StockLedgerEntry::class]);
+        $this->setUpFinanceFixtures([SalesInvoice::class, PurchaseInvoice::class, PaymentSchedule::class, PaymentEntry::class, Unit::class, Warehouse::class, Item::class, ItemVariant::class, StockEntry::class, StockLedgerEntry::class, PostingProfile::class]);
         $this->receivable = $this->makeAccount('1200', 'Piutang Usaha', 'asset', 'debit', 'accounts_receivable');
         $this->sales      = $this->makeAccount('4000', 'Penjualan', 'income', 'credit', 'sales');
         $this->cash       = $this->makeAccount('1100', 'Kas', 'asset', 'debit', 'cash');
+        $this->expense    = $this->makeAccount('5000', 'Beban Pembelian', 'expense', 'debit');
+        $this->payable    = $this->makeAccount('2000', 'Utang Usaha', 'liability', 'credit', 'accounts_payable');
+        $this->stock      = $this->makeAccount('1300', 'Persediaan', 'asset', 'debit', 'stock');
+        $this->srnb       = $this->makeAccount('2100', 'SRNB', 'liability', 'credit', 'stock_received_but_not_billed');
+        $this->difference = $this->makeAccount('5900', 'Selisih Stok', 'expense', 'debit', 'stock_adjustment');
+        $this->freight    = $this->makeAccount('5800', 'Biaya Angkut', 'expense', 'debit');
+
+        // Task 14.1: closure legacy dihapus; semua adapter menulis lewat engine dengan akun dari profil (kas dari
+        // Metode Pembayaran otomatis di makePaymentEntry, akun aset dari AssetCategoryAccount).
+        $this->enableEnginePosting([
+            'receivable'                    => $this->receivable,
+            'revenue'                       => $this->sales,
+            'payable'                       => $this->payable,
+            'expense'                       => $this->expense,
+            'stock'                         => $this->stock,
+            'stock_received_but_not_billed' => $this->srnb,
+            'stock_adjustment'              => $this->difference,
+            'expense_included_in_valuation' => $this->freight,
+        ]);
     }
 
     private function journalsOf(object $document): Collection {
@@ -91,9 +118,12 @@ class PostingAdaptersTest extends TestCase {
 
         (new PostSalesInvoiceGeneralLedger)->handle($this->salesEvent($invoice, 500, isReturn: true));
 
+        // Task 14.1: engine menjaga urutan baris rule (piutang lalu pendapatan) dan menukar sisinya pada retur; urutan
+        // baris dulu terbalik pada jalur legacy, jadi sisi diperiksa per akun.
         $lines = $this->journalsOf($invoice)->sole()->lines;
-        $this->assertSame([$this->sales->id, $this->receivable->id], $lines->pluck('account_id')->all());
-        $this->assertSame([500.0, 0.0], $lines->pluck('debit')->all());
+        $this->assertCount(2, $lines);
+        $this->assertSame([500.0, 0.0], [(float) $lines->firstWhere('account_id', $this->sales->id)->debit, (float) $lines->firstWhere('account_id', $this->sales->id)->credit]);
+        $this->assertSame([0.0, 500.0], [(float) $lines->firstWhere('account_id', $this->receivable->id)->debit, (float) $lines->firstWhere('account_id', $this->receivable->id)->credit]);
     }
 
     public function test_retry_of_an_already_posted_invoice_is_treated_as_posted_without_duplicating_rows(): void {
@@ -121,10 +151,9 @@ class PostingAdaptersTest extends TestCase {
     }
 
     public function test_purchase_invoice_posts_two_separate_journals_for_stock_and_expense(): void {
-        $expense = $this->makeAccount('5000', 'Beban Pembelian', 'expense', 'debit');
-        $payable = $this->makeAccount('2000', 'Utang Usaha', 'liability', 'credit', 'accounts_payable');
-        $stock   = $this->makeAccount('1300', 'Persediaan', 'asset', 'debit', 'stock');
-        $this->makeAccount('2100', 'SRNB', 'liability', 'credit', 'stock_received_but_not_billed');
+        $expense = $this->expense;
+        $payable = $this->payable;
+        $stock   = $this->stock;
         $invoice = PurchaseInvoice::create([
             'date'                    => now(),
             'expanse_head_account_id' => $expense->id,
@@ -159,9 +188,9 @@ class PostingAdaptersTest extends TestCase {
     }
 
     public function test_stock_entry_additional_costs_each_get_their_own_journal(): void {
-        $stock                                                                      = $this->makeAccount('1300', 'Persediaan', 'asset', 'debit', 'stock');
-        $difference                                                                 = $this->makeAccount('5900', 'Selisih Stok', 'expense', 'debit', 'stock_adjustment');
-        $freight                                                                    = $this->makeAccount('5800', 'Biaya Angkut', 'expense', 'debit');
+        $stock                                                                      = $this->stock;
+        $difference                                                                 = $this->difference;
+        $freight                                                                    = $this->freight;
         $insurance                                                                  = $this->makeAccount('5801', 'Biaya Asuransi', 'expense', 'debit');
         ['warehouse' => $warehouse, 'variant' => $variant, 'itemUnit' => $itemUnit] = $this->makeInventoryFixture();
 
@@ -247,8 +276,8 @@ class PostingAdaptersTest extends TestCase {
         $this->assertSame('voided', $this->journalsOf($payment)->sole()->status);
 
         // Stock Entry
-        $stock                                                                      = $this->makeAccount('1300', 'Persediaan', 'asset', 'debit', 'stock');
-        $difference                                                                 = $this->makeAccount('5900', 'Selisih Stok', 'expense', 'debit', 'stock_adjustment');
+        $stock                                                                      = $this->stock;
+        $difference                                                                 = $this->difference;
         ['warehouse' => $warehouse, 'variant' => $variant, 'itemUnit' => $itemUnit] = $this->makeInventoryFixture();
         $entry                                                                      = StockEntry::create(['code' => 'SE-VOID', 'date' => now(), 'type' => 'item_receipt', 'status' => [FormStatus::DRAFT], 'branch_id' => $this->branch->id, 'difference_account_id' => $difference->id]);
         $entry->items()->create(['item_id' => $variant->id, 'item_unit_id' => $itemUnit->id, 'conversion_factor' => 1, 'quantity' => 5, 'basic_rate' => 2000, 'target_warehouse_id' => $warehouse->id]);
@@ -294,12 +323,11 @@ class PostingAdaptersTest extends TestCase {
     }
 
     public function test_stock_entry_approval_rolls_back_completely_when_posting_is_rejected_and_leaves_no_open_transaction(): void {
-        $this->makeAccount('1300', 'Persediaan', 'asset', 'debit', 'stock');
-        $difference                                                                 = $this->makeAccount('5900', 'Selisih Stok', 'expense', 'debit', 'stock_adjustment');
+        $difference                                                                 = $this->difference;
         ['warehouse' => $warehouse, 'variant' => $variant, 'itemUnit' => $itemUnit] = $this->makeInventoryFixture();
         $entry                                                                      = StockEntry::create(['code' => 'SE-RB', 'date' => now(), 'type' => 'item_receipt', 'status' => [FormStatus::DRAFT], 'branch_id' => $this->branch->id, 'difference_account_id' => $difference->id]);
         $entry->items()->create(['item_id' => $variant->id, 'item_unit_id' => $itemUnit->id, 'conversion_factor' => 1, 'quantity' => 5, 'basic_rate' => 2000, 'target_warehouse_id' => $warehouse->id]);
-        // Akun grup ditolak JournalService (Requirement 2.4) setelah status dan stok sudah diubah di dalam approval.
+        // Akun grup ditolak (Requirement 2.4) setelah status dan stok sudah diubah di dalam approval.
         DB::table('accounts')->where('id', $difference->id)->update(['is_group' => true]);
         $level         = DB::transactionLevel();
         $balanceBefore = DB::table('accounts')->pluck('balance_amount', 'id')->all();
@@ -307,7 +335,9 @@ class PostingAdaptersTest extends TestCase {
         try {
             app(StockEntryService::class)->onApproved($entry->fresh());
             $this->fail('Approval harus ditolak karena akun grup.');
-        } catch (InvalidJournalException) {
+        } catch (UnresolvedAccountRoleException) {
+            // Task 14.1: engine menolak akun grup saat menyelesaikan peran (sebelum JournalService); efeknya sama:
+            // seluruh approval tergulung.
             $this->addToAssertionCount(1);
         }
 

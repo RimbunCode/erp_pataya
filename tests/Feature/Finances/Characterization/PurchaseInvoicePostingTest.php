@@ -7,6 +7,7 @@ use App\Events\Finances\PurchaseInvoiceGeneralLedgerPostingRequested;
 use App\Listeners\Finances\Ledger\PostPurchaseInvoiceGeneralLedger;
 use App\Models\Core\GlPostingStatus;
 use App\Models\Finances\Account;
+use App\Models\Finances\PostingProfile;
 use App\Models\Finances\PurchaseInvoice;
 use App\Models\Finances\PurchaseInvoiceItem;
 use App\Models\Inventory\ItemVariant;
@@ -15,6 +16,7 @@ use App\Models\Purchase\PurchaseOrder;
 use App\Services\Finances\PurchaseInvoiceService;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Tests\Support\BuildsFinanceFixtures;
+use Tests\Support\EnablesEnginePosting;
 use Tests\TestCase;
 
 /**
@@ -25,18 +27,30 @@ use Tests\TestCase;
  * nilai `totalStockGL` berasal dari valuasi SLE pending yang sudah dicakup `PurchaseInvoicePendingSlesFifoOrderTest`.
  */
 class PurchaseInvoicePostingTest extends TestCase {
-    use BuildsFinanceFixtures, RefreshDatabase;
+    use BuildsFinanceFixtures, EnablesEnginePosting, RefreshDatabase;
 
     private Account $expenseHead;
     private Account $payable;
+    private Account $stock;
+    private Account $srnb;
     private PurchaseOrder $purchaseOrder;
 
     protected function setUp(): void {
         parent::setUp();
 
-        $this->setUpFinanceFixtures([PurchaseInvoice::class, PurchaseOrder::class]);
+        $this->setUpFinanceFixtures([PurchaseInvoice::class, PurchaseOrder::class, PostingProfile::class]);
         $this->expenseHead = $this->makeAccount('5000', 'Beban Pembelian', 'expense', 'debit');
         $this->payable     = $this->makeAccount('2000', 'Utang Usaha', 'liability', 'credit', 'accounts_payable');
+        $this->stock       = $this->makeAccount('1300', 'Persediaan', 'asset', 'debit', 'stock');
+        $this->srnb        = $this->makeAccount('2100', 'SRNB', 'liability', 'credit', 'stock_received_but_not_billed');
+
+        // Task 14.1: closure legacy dihapus; jurnal ditulis engine dengan akun dari profil (ekspektasi ledger tidak berubah).
+        $this->enableEnginePosting([
+            'expense'                       => $this->expenseHead,
+            'payable'                       => $this->payable,
+            'stock'                         => $this->stock,
+            'stock_received_but_not_billed' => $this->srnb,
+        ]);
 
         // `onApproved` selalu men-dispatch PurchaseOrderBillStatusRecalculationRequested(PO non-null):
         // Purchase Invoice tanpa PO gagal dengan TypeError, jadi semua fixture memakai satu PO.
@@ -133,15 +147,12 @@ class PurchaseInvoicePostingTest extends TestCase {
     }
 
     public function test_stock_branch_adds_stock_debit_and_srnb_credit_before_expense_pair(): void {
-        $stock = $this->makeAccount('1300', 'Persediaan', 'asset', 'debit', 'stock');
-        $srnb  = $this->makeAccount('2100', 'SRNB', 'liability', 'credit', 'stock_received_but_not_billed');
-
         $invoice = $this->makeInvoice();
         $this->dispatchPosting($invoice, 1500, 2183.33, false);
 
         $this->assertLedger($invoice, [
-            ['account' => $stock, 'against' => $srnb, 'debit' => 1500, 'credit' => 0],
-            ['account' => $srnb, 'against' => $stock, 'debit' => 0, 'credit' => 1500],
+            ['account' => $this->stock, 'against' => $this->srnb, 'debit' => 1500, 'credit' => 0],
+            ['account' => $this->srnb, 'against' => $this->stock, 'debit' => 0, 'credit' => 1500],
             ['account' => $this->expenseHead, 'against' => $this->payable, 'debit' => 2183.33, 'credit' => 0],
             ['account' => $this->payable, 'against' => $this->expenseHead, 'debit' => 0, 'credit' => 2183.33],
         ], now()->toDateString());
@@ -150,9 +161,6 @@ class PurchaseInvoicePostingTest extends TestCase {
     }
 
     public function test_return_skips_stock_branch_even_when_stock_total_is_positive(): void {
-        $this->makeAccount('1300', 'Persediaan', 'asset', 'debit', 'stock');
-        $this->makeAccount('2100', 'SRNB', 'liability', 'credit', 'stock_received_but_not_billed');
-
         $invoice = $this->makeInvoice();
         $this->dispatchPosting($invoice, 500, 800, true);
 
@@ -162,22 +170,21 @@ class PurchaseInvoicePostingTest extends TestCase {
         ]);
     }
 
-    public function test_stock_and_srnb_accounts_are_chosen_by_latest_created_not_by_configuration(): void {
-        // F-06: `where(account_type)->latest()->first()`: akun terbaru menang bila ada lebih dari satu.
-        $oldStock = $this->makeAccount('1300', 'Persediaan Lama', 'asset', 'debit', 'stock');
+    public function test_stock_and_srnb_accounts_come_from_the_profile_not_from_the_latest_created(): void {
+        // F-06 diperbaiki Task 14.1: pencarian `where(account_type)->latest()->first()` sudah dihapus. Akun stok yang
+        // lebih baru dengan `account_type` sama tidak dipilih; peran `stock` dijawab profil.
         $newStock = $this->makeAccount('1301', 'Persediaan Baru', 'asset', 'debit', 'stock');
-        Account::whereKey($oldStock->id)->update(['created_at' => now()->subDay()]);
-        $srnb = $this->makeAccount('2100', 'SRNB', 'liability', 'credit', 'stock_received_but_not_billed');
+        Account::whereKey($this->stock->id)->update(['created_at' => now()->subDay()]);
 
         $invoice = $this->makeInvoice();
         $this->dispatchPosting($invoice, 100, 100, false);
 
         $this->assertLedger($invoice, [
-            ['account' => $newStock, 'against' => $srnb, 'debit' => 100, 'credit' => 0],
-            ['account' => $srnb, 'against' => $newStock, 'debit' => 0, 'credit' => 100],
+            ['account' => $this->stock, 'against' => $this->srnb, 'debit' => 100, 'credit' => 0],
+            ['account' => $this->srnb, 'against' => $this->stock, 'debit' => 0, 'credit' => 100],
             ['account' => $this->expenseHead, 'against' => $this->payable, 'debit' => 100, 'credit' => 0],
             ['account' => $this->payable, 'against' => $this->expenseHead, 'debit' => 0, 'credit' => 100],
         ]);
-        $this->assertSame(0, $this->ledgerOf($invoice)->where('account_id', $oldStock->id)->count());
+        $this->assertSame(0, $this->ledgerOf($invoice)->where('account_id', $newStock->id)->count());
     }
 }

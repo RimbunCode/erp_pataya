@@ -2,10 +2,8 @@
 
 namespace App\Http\Requests\Inventory;
 
-use App\Enums\PostingDocumentType;
 use App\Http\Requests\BaseFormRequest;
 use App\Rules\ExistsExcludingTrashed;
-use App\Services\Finances\Posting\PostingModeResolver;
 use Illuminate\Contracts\Validation\ValidationRule;
 
 class StockEntryRequest extends BaseFormRequest {
@@ -17,31 +15,12 @@ class StockEntryRequest extends BaseFormRequest {
     }
 
     /**
-     * Akun pencatatan (akun selisih dan akun biaya tambahan) hanya divalidasi saat engine belum `on` untuk Stock
-     * Entry. Saat `on`, aturannya tidak ada sehingga `validated()` membuang kolom akun dari request dan akun
-     * ditentukan engine (Finance Fase 2, Task 12.3, Requirement 13.1/13.3).
-     *
-     * @return array<string, array<mixed>>
-     */
-    private function accountRules(): array {
-        if (app(PostingModeResolver::class)->isOn(PostingDocumentType::StockEntry)) {
-            return [];
-        }
-
-        return [
-            'difference_account.id'                 => ['required', new ExistsExcludingTrashed('accounts')],
-            'additional_costs.*.expense_account.id' => ['required', new ExistsExcludingTrashed('accounts')],
-        ];
-    }
-
-    /**
      * Get the validation rules that apply to the request.
      *
      * @return array<string, ValidationRule|array<mixed>|string>
      */
     public function rules(): array {
         return [
-            ...$this->accountRules(),
             'date' => ['required', 'date'],
             'type' => ['required', 'string', 'in:item_transfer,item_issue,item_consumption,item_receipt'],
             // 'in_transit' => ['nullable', 'required_if:type,item_transfer', 'boolean'],

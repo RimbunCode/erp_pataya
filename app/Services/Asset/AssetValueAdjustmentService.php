@@ -23,10 +23,9 @@ class AssetValueAdjustmentService implements SubmitableService {
             $adjustment = AssetValueAdjustment::create([
                 'code'                => FormatingSeries::generate(AssetValueAdjustment::class, $data, true),
                 'current_asset_value' => $asset->bookValue(),
-                ...Arr::only($data, [
-                    'asset_id', 'date', 'new_asset_value',
-                    'difference_account_id', 'branch_id',
-                ]),
+                ...Arr::only($data, ['asset_id', 'date', 'new_asset_value', 'branch_id']),
+                // Akun selisih tidak diterima dari input; engine yang menentukan (Q-P2-23, 2026-11-22).
+                'difference_account_id' => null,
             ]);
             DB::commit();
         } catch (\Throwable $e) {
@@ -43,10 +42,11 @@ class AssetValueAdjustmentService implements SubmitableService {
 
         try {
             $data = $this->flattenRelationFields($data);
-            $model->update(Arr::only($data, [
-                'asset_id', 'date', 'new_asset_value',
-                'difference_account_id', 'branch_id',
-            ]));
+            $model->update([
+                ...Arr::only($data, ['asset_id', 'date', 'new_asset_value', 'branch_id']),
+                // Update draft mengosongkan akun lama; engine mengisinya (Q-P2-23, 2026-11-22).
+                'difference_account_id' => null,
+            ]);
             DB::commit();
         } catch (\Throwable $e) {
             DB::rollBack();
@@ -62,7 +62,7 @@ class AssetValueAdjustmentService implements SubmitableService {
     }
 
     /**
-     * Frontend mengirim relasi (asset, difference_account) sebagai objek
+     * Frontend mengirim relasi (asset) sebagai objek
      * LinkModel utuh ({id, ...}), bukan string id flat. Ekstrak `.id` ke key
      * `_id` yang dikonsumsi Arr::only() di atas, sama seperti pola
      * PurchaseOrderService::fillItemRelations() / AssetService::flattenRelationFields().
@@ -73,9 +73,6 @@ class AssetValueAdjustmentService implements SubmitableService {
     private function flattenRelationFields(array $data): array {
         if (isset($data['asset']['id'])) {
             $data['asset_id'] = $data['asset']['id'];
-        }
-        if (isset($data['difference_account']['id'])) {
-            $data['difference_account_id'] = $data['difference_account']['id'];
         }
 
         return $data;

@@ -51,9 +51,10 @@ class SalesInvoiceService implements SubmitableService {
         $data['sales_order_id'] = $data['sales_order']['id'] ?? null;
         $data['customer_id']    = $data['customer']['id'];
         $data['customer_name']  = Customer::find($data['customer']['id'])?->name;
-        // Saat engine `on` request tidak membawa akun (Task 12.3); kolom tetap null sampai engine mencatatnya.
-        $data['income_account_id'] = $data['income_account']['id'] ?? null;
-        $data['debit_account_id']  = $data['debit_account']['id'] ?? null;
+        // Akun tidak diterima dari input (Q-P2-23, 2026-11-22): engine yang menentukan akun, kolom dokumen dikosongkan
+        // pada create dan update draft sampai engine mencatatnya (Task 12.1).
+        $data['income_account_id'] = null;
+        $data['debit_account_id']  = null;
 
         // relasi cabang customer
         $data['customer_branch_id']   = $data['customer_branch']['id'];

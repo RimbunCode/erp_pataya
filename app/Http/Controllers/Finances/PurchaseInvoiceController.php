@@ -3,16 +3,13 @@
 namespace App\Http\Controllers\Finances;
 
 use App\Enums\DefaultsDocumentType;
-use App\Enums\PostingDocumentType;
 use App\Http\Controllers\Controller;
 use App\Http\Requests\Finances\PurchaseInvoiceRequest;
 use App\Models\Asset\Asset;
 use App\Models\Core\Branch;
-use App\Models\Finances\Account;
 use App\Models\Finances\PurchaseInvoice;
 use App\Models\Purchase\PurchaseOrder;
 use App\Services\Core\Setting\DocumentDefaultsResolver;
-use App\Services\Finances\Posting\PostingModeResolver;
 use App\Services\Finances\PurchaseInvoiceService;
 use App\Utils;
 use Illuminate\Http\Request;
@@ -41,8 +38,6 @@ class PurchaseInvoiceController extends Controller {
      * Show the form for creating a new resource.
      */
     public function create(Request $request, ?string $ref = null) {
-        $accountsManagedByEngine = app(PostingModeResolver::class)->isOn(PostingDocumentType::PurchaseInvoice);
-
         if ($ref) {
             $split    = \explode('/', $ref);
             $modelOri = $split[0] ?? null;
@@ -59,27 +54,18 @@ class PurchaseInvoiceController extends Controller {
                                 return redirect()->route('purchaseInvoices.show', $purchaseInvoice);
                             }
                             $po->loadRelations();
-                            // Akun hanya diisi default saat engine belum `on` (Task 12.3); saat `on` engine yang menentukan.
-                            $accounts = $accountsManagedByEngine
-                                ? collect()
-                                : Account::where('root_type', 'liability')
-                                    ->whereIn('account_type', ['stock_received_but_not_billed', 'payable'])
-                                    ->get();
-
                             $defaultData = [
-                                'date'                 => now(),
-                                'purchase_order'       => $po,
-                                'supplier'             => $po?->supplier,
-                                'expense_head_account' => $accounts->where('root_type', 'liability')->where('account_type', 'stock_received_but_not_billed')->first(),
-                                'credit_account'       => $accounts->where('root_type', 'liability')->where('account_type', 'payable')->first(),
-                                'currency'             => $po?->currency,
-                                'amount'               => $po?->amount,
-                                'discount_on'          => $po?->discount_on,
-                                'discount_rate'        => $po?->discount_rate,
-                                'discount_amount'      => $po?->discount_amount,
-                                'exchange_rate'        => $po?->exchange_rate,
-                                'external_note'        => $po?->external_note,
-                                'items'                => $po?->items->map(fn ($item) => [
+                                'date'            => now(),
+                                'purchase_order'  => $po,
+                                'supplier'        => $po?->supplier,
+                                'currency'        => $po?->currency,
+                                'amount'          => $po?->amount,
+                                'discount_on'     => $po?->discount_on,
+                                'discount_rate'   => $po?->discount_rate,
+                                'discount_amount' => $po?->discount_amount,
+                                'exchange_rate'   => $po?->exchange_rate,
+                                'external_note'   => $po?->external_note,
+                                'items'           => $po?->items->map(fn ($item) => [
                                     ...$item->toArray(),
                                     'id'                     => Utils::generateRandom(5),
                                     'purchase_order_item'    => $item,
@@ -105,21 +91,19 @@ class PurchaseInvoiceController extends Controller {
                             }
                             $purchaseInvoice->loadRelations();
                             $defaultData = [
-                                'return_against'       => $purchaseInvoice,
-                                'is_return'            => true,
-                                'date'                 => now(),
-                                'purchase_order'       => $purchaseInvoice->purchaseOrder,
-                                'expense_head_account' => $accountsManagedByEngine ? null : $purchaseInvoice->expenseHeadAccount,
-                                'credit_account'       => $accountsManagedByEngine ? null : $purchaseInvoice->creditAccount,
-                                'supplier'             => $purchaseInvoice?->supplier,
-                                'currency'             => $purchaseInvoice?->currency,
-                                'amount'               => $purchaseInvoice?->amount,
-                                'discount_on'          => $purchaseInvoice?->discount_on,
-                                'discount_rate'        => $purchaseInvoice?->discount_rate,
-                                'discount_amount'      => $purchaseInvoice?->discount_amount,
-                                'exchange_rate'        => $purchaseInvoice?->exchange_rate,
-                                'external_note'        => $purchaseInvoice?->external_note,
-                                'items'                => $purchaseInvoice?->items->map(fn ($item) => [
+                                'return_against'  => $purchaseInvoice,
+                                'is_return'       => true,
+                                'date'            => now(),
+                                'purchase_order'  => $purchaseInvoice->purchaseOrder,
+                                'supplier'        => $purchaseInvoice?->supplier,
+                                'currency'        => $purchaseInvoice?->currency,
+                                'amount'          => $purchaseInvoice?->amount,
+                                'discount_on'     => $purchaseInvoice?->discount_on,
+                                'discount_rate'   => $purchaseInvoice?->discount_rate,
+                                'discount_amount' => $purchaseInvoice?->discount_amount,
+                                'exchange_rate'   => $purchaseInvoice?->exchange_rate,
+                                'external_note'   => $purchaseInvoice?->external_note,
+                                'items'           => $purchaseInvoice?->items->map(fn ($item) => [
                                     ...$item->toArray(),
                                     'id'                     => Utils::generateRandom(5),
                                     'return_against_item_id' => $item->id,
@@ -140,9 +124,8 @@ class PurchaseInvoiceController extends Controller {
         $this->setBreadcrumbs('finances.purchaseInvoice.new');
 
         return Inertia::render('Finances/PurchaseInvoice/Show', [
-            'defaultData'             => $defaultData ?? [],
-            'defaults'                => app(DocumentDefaultsResolver::class)->defaultsFor(DefaultsDocumentType::PurchaseInvoice),
-            'accountsManagedByEngine' => $accountsManagedByEngine,
+            'defaultData' => $defaultData ?? [],
+            'defaults'    => app(DocumentDefaultsResolver::class)->defaultsFor(DefaultsDocumentType::PurchaseInvoice),
         ]);
     }
 
@@ -184,8 +167,7 @@ class PurchaseInvoiceController extends Controller {
 
                 return $purchaseInvoice;
             },
-            'fixedAssets'             => $fixedAssets,
-            'accountsManagedByEngine' => app(PostingModeResolver::class)->isOn(PostingDocumentType::PurchaseInvoice),
+            'fixedAssets' => $fixedAssets,
         ]);
     }
 

@@ -20,7 +20,7 @@ use RangeException;
  * Satu panggilan untuk memposting konteks (Finance Fase 2, Requirement 5): menjalankan `PostingRule`, me-resolve peran
  * menjadi akun lewat `AccountRoleResolver`, lalu menulis lewat `JournalService::post()`.
  *
- * - `preview()` membentuk draft beserta akun nyata tanpa menulis (dipakai mode `shadow` dan panel "Akun pencatatan").
+ * - `preview()` membentuk draft beserta akun nyata tanpa menulis (dipakai panel "Akun pencatatan").
  * - `post()` atomik untuk seluruh jurnal satu konteks dan idempoten: semua `postingKey` sudah ada -> mengembalikan
  *   jurnal yang ada tanpa menulis (dan tanpa me-resolve akun); sebagian ada -> `PartialPostingException`. Sumber yang
  *   berstatus `canceled` dilewati (guard F-16).

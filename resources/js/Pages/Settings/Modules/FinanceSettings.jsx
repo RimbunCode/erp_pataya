@@ -56,7 +56,7 @@ export default function FinanceSettings({ setting = {}, canWrite = true }) {
             <p className="text-sm text-muted-foreground">
               {t(
                 "finances.setting.posting.discount_split_help",
-                "Mulai tanggal ini jurnal invoice memisahkan diskon ke akun Diskon (peran discount). Kosongkan untuk menonaktifkan. Hanya berlaku pada mode posting shadow/on; dokumen sebelum tanggal ini tidak berubah. Peran discount harus sudah dipetakan pada Posting Profile aktif.",
+                "Mulai tanggal ini jurnal invoice memisahkan diskon ke akun Diskon (peran discount). Kosongkan untuk menonaktifkan. Dokumen sebelum tanggal ini tidak berubah. Peran discount harus sudah dipetakan pada Posting Profile aktif.",
               )}
             </p>
             {discountSplitFields.map((field) => (

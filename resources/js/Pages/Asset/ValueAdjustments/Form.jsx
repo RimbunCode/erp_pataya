@@ -1,7 +1,5 @@
 import { FormPageContent, useFormPage } from "@/Pages/Core/FormPage";
-import { usePage } from "@inertiajs/react";
 
-import AccountLinkModel from "@/Pages/Finances/Accounts/AccountLinkModel";
 import AssetLinkModel from "@/Pages/Asset/Assets/AssetLinkModel";
 import DatetimePicker from "@/Components/DatetimePicker";
 import FormInput from "@/Components/FormInput";
@@ -12,9 +10,8 @@ import { useLaravelReactI18n } from "laravel-react-i18n";
 export default function Form() {
   const { data, setData } = useFormPage();
   const { t } = useLaravelReactI18n();
-  // Engine `on`: akun selisih ditentukan engine saat posting (Finance Fase 2,
-  // Task 12.3), jadi form tidak meminta akun.
-  const accountsManaged = usePage().props.accountsManagedByEngine === true;
+  // Akun selisih ditentukan engine saat posting (Finance Fase 2, Task 12.3,
+  // Q-P2-23), jadi form tidak meminta akun.
 
   return (
     <FormPageContent title={t("asset.valueAdjustment.title")} value="main">
@@ -63,18 +60,6 @@ export default function Form() {
             className="text-left"
           />
         </FormInput>
-        {!accountsManaged && (
-          <FormInput
-            name="difference_account"
-            required={true}
-            label={t("asset.valueAdjustment.columns.difference_account_id")}
-          >
-            <AccountLinkModel
-              value={data?.difference_account}
-              onValueChange={(val) => setData("difference_account", val)}
-            />
-          </FormInput>
-        )}
       </div>
     </FormPageContent>
   );

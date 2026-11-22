@@ -3,7 +3,6 @@
 namespace Tests\Feature\Finances\Posting;
 
 use App\Enums\FormStatus;
-use App\Enums\PostingDocumentType;
 use App\Events\Asset\AssetDepreciationDue;
 use App\Events\Asset\AssetScrapped;
 use App\Events\Asset\AssetSoldViaInvoice;
@@ -40,7 +39,9 @@ use Tests\TestCase;
 
 /**
  * Finance Fase 2, Task 7.3: parity end-to-end kelompok 1 (Asset: depresiasi, scrap, penyesuaian nilai, disposal;
- * Payment Entry). P-1: satu dokumen per mode (`off`, `shadow`, `on`) diproses lewat listener/service sungguhan dan
+ * Payment Entry). Diperbarui Task 14.1: closure legacy dihapus sehingga `off`/`shadow` tidak lagi punya jalur; bukti
+ * parity 100% (exit criteria 14.3) kini berupa tanda tangan jurnal `on` yang dikunci terhadap nilai karakterisasi Fase 0
+ * (tes di bawah). Semula (P-1): satu dokumen per mode (`off`, `shadow`, `on`) diproses lewat listener/service sungguhan dan
  * tanda tangan jurnalnya (purpose, tanggal, akun, debit, kredit) harus identik; efek samping dan `GlPostingStatus`
  * juga identik. Mode `shadow` harus mencatat parity `match` (bukan `config_diff`: fixture memetakan profil ke akun
  * yang sama dengan pilihan dokumen). Kontrak listener (Q-P2-12/13) diuji pada mode `on`.
@@ -51,23 +52,10 @@ use Tests\TestCase;
 class PostingParityGroup1Test extends TestCase {
     use AssertsPostingParity, BuildsAssetFixtures, BuildsFinanceFixtures, RefreshDatabase;
 
-    private const ASSET_TYPES = [
-        PostingDocumentType::AssetDepreciation,
-        PostingDocumentType::AssetScrap,
-        PostingDocumentType::AssetValueAdjustment,
-        PostingDocumentType::AssetDisposal,
-    ];
-
     protected function setUp(): void {
         parent::setUp();
 
         $this->setUpFinanceFixtures([PostingProfile::class, PostingParityLog::class, SalesInvoice::class, PurchaseInvoice::class, PaymentSchedule::class, PaymentEntry::class]);
-    }
-
-    private function setAssetModes(string $mode): void {
-        foreach (self::ASSET_TYPES as $type) {
-            $this->setPostingMode($type, $mode);
-        }
     }
 
     /**
@@ -108,7 +96,7 @@ class PostingParityGroup1Test extends TestCase {
         return $adjustment;
     }
 
-    public function test_asset_depreciation_scrap_and_value_adjustment_are_identical_in_all_modes(): void {
+    public function test_asset_depreciation_scrap_and_value_adjustment_post_the_locked_journals_in_on_mode(): void {
         $setup      = $this->makeAssetWithAccounts();
         $difference = $this->makeAccount('7200', 'Selisih Revaluasi', 'income', 'credit', 'revaluation_gain');
         $this->activateParityProfile(['asset_revaluation' => $difference]);
@@ -116,8 +104,7 @@ class PostingParityGroup1Test extends TestCase {
 
         $signatures = [];
         $effects    = [];
-        foreach (['off', 'shadow', 'on'] as $mode) {
-            $this->setAssetModes($mode);
+        foreach (['on'] as $mode) {
 
             $schedule = AssetDepreciationSchedule::factory()->create(['asset_id' => $this->siblingAsset($setup)->id, 'schedule_date' => $date->subDay(), 'depreciation_amount' => 400]);
             $this->pending($schedule);
@@ -149,20 +136,14 @@ class PostingParityGroup1Test extends TestCase {
                 'scrap_id' => [$scrapLine?->account_id === $setup['fixed']->id, (float) $scrapLine?->credit],
             ];
 
-            if ($mode === 'shadow') {
-                foreach ([$schedule, $scrapped, $increase, $decrease] as $document) {
-                    $this->assertSame('match', $this->parityLogStatus($document), $document::class);
-                }
-            } else {
-                $this->assertNull($this->parityLogStatus($schedule), "Mode {$mode} tidak membuat catatan parity.");
+            foreach ([$schedule, $scrapped, $increase, $decrease] as $document) {
+                $this->assertNull($this->parityLogStatus($document), "Mode {$mode} tidak membuat catatan parity.");
             }
         }
 
         foreach ($signatures as $scenario => $byMode) {
             $this->assertSignaturesIdentical($scenario, $byMode);
         }
-        $this->assertEquals($effects['off'], $effects['shadow']);
-        $this->assertEquals($effects['off'], $effects['on']);
 
         // Bukan sekadar identik: nilai dikunci (debit beban/kredit akumulasi, hapus buku, revaluasi naik/turun).
         $this->assertEquals(['depreciation' => ['date' => '2026-11-10', 'lines' => [['6100', 400.0, 0.0], ['1590', 0.0, 400.0]]]], $signatures['depreciation']['on']);
@@ -172,14 +153,13 @@ class PostingParityGroup1Test extends TestCase {
         $this->assertEquals([['statuses' => ['posted', 'posted', 'posted', 'posted'], 'gross' => [6000.0, 4200.0], 'scrap_id' => [true, 1000.0]]], [$effects['on']]);
     }
 
-    public function test_asset_disposal_is_identical_in_all_modes_and_skipped_when_the_invoice_is_canceled(): void {
+    public function test_asset_disposal_posts_the_locked_journals_in_on_mode_and_is_skipped_when_the_invoice_is_canceled(): void {
         $setup = $this->makeAssetWithAccounts();
         $this->activateParityProfile([]);
 
         $signatures = [];
         $effects    = [];
-        foreach (['off', 'shadow', 'on'] as $mode) {
-            $this->setAssetModes($mode);
+        foreach (['on'] as $mode) {
 
             foreach (['gain' => 1500, 'loss' => 700, 'flat' => 1000] as $case => $price) {
                 $asset = $this->siblingAsset($setup);
@@ -219,11 +199,9 @@ class PostingParityGroup1Test extends TestCase {
         $this->assertSame([], $signatures['canceled']['on']);
 
         foreach (['gain', 'loss', 'flat'] as $case) {
-            $this->assertEquals($effects[$case]['off'], $effects[$case]['shadow']);
-            $this->assertEquals($effects[$case]['off'], $effects[$case]['on']);
             $this->assertSame([true, 'posted'], $effects[$case]['on'], $case);
         }
-        foreach (['off', 'shadow', 'on'] as $mode) {
+        foreach (['on'] as $mode) {
             $this->assertSame([false, 'skipped'], $effects['canceled'][$mode], "Disposal tertunda (invoice canceled), mode {$mode}.");
         }
     }
@@ -241,13 +219,12 @@ class PostingParityGroup1Test extends TestCase {
         return compact('cash', 'receivable', 'payable', 'method');
     }
 
-    public function test_payment_entry_receive_and_pay_are_identical_in_all_modes(): void {
+    public function test_payment_entry_receive_and_pay_post_the_locked_journals_in_on_mode(): void {
         ['cash' => $cash, 'receivable' => $receivable, 'payable' => $payable, 'method' => $method] = $this->paymentFixture();
 
         $signatures = [];
         $effects    = [];
-        foreach (['off', 'shadow', 'on'] as $mode) {
-            $this->setPostingMode(PostingDocumentType::PaymentEntry, $mode);
+        foreach (['on'] as $mode) {
 
             $sales    = $this->makeUnpaidSalesInvoice(1_000_000);
             $receive  = $this->makePaymentEntry($sales, 400_000, $receivable, $cash, ['payment_method_id' => $method->id]);
@@ -265,19 +242,13 @@ class PostingParityGroup1Test extends TestCase {
                 \count(GlPostingStatus::where('referenceable_type', PaymentEntry::class)->get()),
             ];
 
-            if ($mode === 'shadow') {
-                $this->assertSame('match', $this->parityLogStatus($receive));
-                $this->assertSame('match', $this->parityLogStatus($pay));
-            } else {
-                $this->assertNull($this->parityLogStatus($receive));
-            }
+            $this->assertNull($this->parityLogStatus($receive));
+            $this->assertNull($this->parityLogStatus($pay));
         }
 
         foreach ($signatures as $scenario => $byMode) {
             $this->assertSignaturesIdentical($scenario, $byMode);
         }
-        $this->assertEquals($effects['off'], $effects['shadow']);
-        $this->assertEquals($effects['off'], $effects['on']);
 
         // Jumlah entri ini (bukan kumulatif; F-10 sudah diperbaiki hotfix, Q-P2-3): debit kas, kredit piutang; pay sebaliknya.
         $this->assertEquals(['default' => ['date' => now()->subDay()->toDateString(), 'lines' => [['1100', 400000.0, 0.0], ['1200', 0.0, 400000.0]]]], $signatures['receive']['on']);
@@ -286,7 +257,6 @@ class PostingParityGroup1Test extends TestCase {
 
     public function test_payment_entry_on_mode_rolls_back_the_approval_when_the_journal_already_exists(): void {
         ['cash' => $cash, 'receivable' => $receivable, 'method' => $method] = $this->paymentFixture();
-        $this->setPostingMode(PostingDocumentType::PaymentEntry, 'on');
 
         $invoice = $this->makeUnpaidSalesInvoice(1_000_000);
         $payment = $this->makePaymentEntry($invoice, 400_000, $receivable, $cash, ['payment_method_id' => $method->id]);
@@ -308,7 +278,6 @@ class PostingParityGroup1Test extends TestCase {
         $setup      = $this->makeAssetWithAccounts();
         $difference = $this->makeAccount('7200', 'Selisih Revaluasi', 'income', 'credit', 'revaluation_gain');
         $this->activateParityProfile(['asset_revaluation' => $difference]);
-        $this->setAssetModes('on');
         $date = CarbonImmutable::parse('2026-11-10 09:00:00');
 
         // (b) already_posted tidak mengulang `gross_purchase_amount`; (a) status tetap `posted`.

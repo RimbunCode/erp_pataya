@@ -12,15 +12,17 @@ use App\Models\Core\FormatingSeries;
 use App\Models\Core\GlPostingStatus;
 use App\Models\Finances\GeneralLedger;
 use App\Models\Finances\Journal;
+use App\Models\Finances\PostingProfile;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Schema;
 use Illuminate\Support\Str;
 use PHPUnit\Framework\Attributes\Test;
+use Tests\Support\EnablesEnginePosting;
 use Tests\TestCase;
 
 class PostAssetDepreciationCommandTest extends TestCase {
-    use RefreshDatabase;
+    use EnablesEnginePosting, RefreshDatabase;
 
     protected function setUp(): void {
         parent::setUp();
@@ -34,6 +36,10 @@ class PostAssetDepreciationCommandTest extends TestCase {
 
         GeneralLedger::initPermissions();
         Journal::initPermissions();
+        PostingProfile::initPermissions();
+
+        // Task 14.1: closure legacy dihapus; depresiasi ditulis engine dengan akun master AssetCategoryAccount.
+        $this->enableEnginePosting();
 
         FormatingSeries::firstOrCreate(
             ['model' => GeneralLedger::class],

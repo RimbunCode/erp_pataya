@@ -103,8 +103,6 @@ return [
             'months_after_invoice_month' => 'Months after invoice month',
         ],
         'outstanding_amount'            => 'Outstanding Amount',
-        'accounts'                      => 'Accounts',
-        'accounts.placeholder'          => 'Select an account',
         'income_account'                => 'Income Account',
         'debit_account'                 => 'Debit To',
         'is_return'                     => 'Is Return (Credit Note) ',
