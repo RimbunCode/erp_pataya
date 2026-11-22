@@ -12,8 +12,8 @@ use Throwable;
 
 /**
  * Ringkasan riwayat hasil parity mode `shadow` (sudah dihapus, Q-P2-23) per jenis dokumen (Finance Fase 2, Requirement 6.7): jumlah match, rounding,
- * config_diff, mismatch, dan engine_error. Dipakai pemilik produk sebagai bukti sebelum memindahkan jenis dokumen ke
- * mode `on` (Requirement 7.2). Hanya membaca.
+ * config_diff, mismatch, dan engine_error. Hanya merangkum riwayat parity yang sudah tercatat (bukti historis
+ * Requirement 7.2); tidak ada lagi perpindahan jenis dokumen ke mode `on` karena engine selalu aktif. Hanya membaca.
  */
 class ParityReportCommand extends Command {
     protected $signature = 'finance:parity-report

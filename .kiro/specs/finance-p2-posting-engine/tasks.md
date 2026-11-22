@@ -153,8 +153,8 @@ Urutan: fondasi data dan resolver (1–3), kontrak + rule + service + gateway de
     - _Requirements: 14.1, 14.4_
   - [ ] 13.2 Rule Sales Invoice (dan Purchase Invoice non-stok) bentuk jurnal diskon; baris pajak dan DPP tidak berubah
     - _Requirements: 14.2, 14.3, 14.5_
-  - [ ]* 13.3 Write tests **P-13** jurnal seimbang, total `receivable` = total bersih; alasan `discount_split` pada shadow; dokumen sebelum cutover tidak berubah
-    - **Validates: Requirements 14.1–14.6**
+  - [ ]* 13.3 Write tests **P-13** jurnal seimbang, total `receivable` = total bersih; ~~alasan `discount_split` pada shadow~~ (butir ini gugur 22 November 2026: mode `shadow` dihapus, Q-P2-23, atas persetujuan pemilik produk); dokumen sebelum cutover tidak berubah
+    - **Validates: Requirements 14.1–14.5**
 
 - [ ] 14. Penutupan fase dan pembersihan legacy
   - [x] 14.1 **(Setelah semua jenis `on` stabil satu siklus tutup bulan, atas persetujuan; _disetujui pemilik produk 2026-11-21 untuk dikerjakan sekarang tanpa menunggu siklus tutup bulan: data staging adalah data uji dan produksi belum berisi data_)** matikan `legacy_account_fallback`, hapus closure legacy dari listener dan pencarian `account_type`; pada saat ini penegakan P-9 (Requirement 7.3; uji `PostingLegacyLookupTest` dengan daftar `on` terisi, dan grep CI) mulai berlaku (Q-P2-19)

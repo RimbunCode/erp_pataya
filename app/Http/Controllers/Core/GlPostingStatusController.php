@@ -80,8 +80,8 @@ class GlPostingStatusController extends Controller {
                 totalAmount: (float) $doc->amount,
                 isReturn: (bool) $doc->return_against_id,
                 transactionDate: now(),
-                expenseHeadAccountId: $doc->expenseHeadAccount->id,
-                creditAccountId: $doc->creditAccount->id,
+                expenseHeadAccountId: $doc->expenseHeadAccount?->id,
+                creditAccountId: $doc->creditAccount?->id,
             ),
             $doc instanceof AssetDepreciationSchedule => new AssetDepreciationDue(
                 schedule: $doc,

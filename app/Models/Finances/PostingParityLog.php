@@ -36,7 +36,7 @@ class PostingParityLog extends Model {
     ];
 
     /**
-     * Izin Requirement 11.3: `select`, `read`, ditambah izin ubah-mode `switch_posting_mode` (lihat `extraPermissions`).
+     * Izin Requirement 11.3: `select`, `read`, ditambah izin sakelar cara eksekusi `switch_posting_mode` (lihat `extraPermissions`; sakelar mode off/shadow/on sudah dihapus, Q-P2-23).
      *
      * @return string[]
      */
