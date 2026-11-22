@@ -232,7 +232,7 @@ Diputuskan pemilik produk (2026-10-18): satu entitas hukum; cabang (`branches`) 
 
 ### D-25 — Penyimpanan setting (DECIDED)
 
-Tabel `preferences` (key/value JSON) tidak dipakai untuk setting baru karena tidak mendukung foreign key (akun, pajak, gudang) dan validasi bertipe. Setting keuangan dibaca lewat service setting Finances dari spec `module-settings-foundation`. Nama logis kunci (`finance_posting_mode.{type}`, `finance_enforce_fiscal_period`, `finance_tax_split_from.*`, `finance_discount_split_from.*`, dan seterusnya) pada spec fase dipertahankan; bentuk kolom/tabelnya ditetapkan spec fondasi. Spec tersebut harus tersedia sebelum Fase 1.
+Tabel `preferences` (key/value JSON) tidak dipakai untuk setting baru karena tidak mendukung foreign key (akun, pajak, gudang) dan validasi bertipe. Setting keuangan dibaca lewat service setting Finances dari spec `module-settings-foundation`. Nama logis kunci (~~`finance_posting_mode.{type}`~~ [dihapus 22 November 2026, Q-P2-23, disetujui pemilik produk: mode posting dihapus, engine selalu aktif], `finance_enforce_fiscal_period`, `finance_tax_split_from.*`, `finance_discount_split_from.*`, dan seterusnya) pada spec fase dipertahankan; bentuk kolom/tabelnya ditetapkan spec fondasi. Spec tersebut harus tersedia sebelum Fase 1.
 
 ### D-26 — Akun hanya dari konfigurasi (DECIDED)
 

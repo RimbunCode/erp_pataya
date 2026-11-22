@@ -10,14 +10,12 @@ use App\Models\Core\GlPostingStatus;
 use App\Models\Finances\Account;
 use App\Models\Finances\FinanceSetting;
 use App\Models\Finances\Journal;
-use App\Models\Finances\PostingParityLog;
 use App\Models\Finances\PostingProfile;
 use App\Models\Finances\PurchaseInvoice;
 use App\Models\Finances\PurchaseInvoiceItem;
 use App\Models\Finances\SalesInvoice;
 use App\Models\Inventory\Item;
 use App\Models\Inventory\ItemVariant;
-use App\Models\Inventory\StockEntry;
 use App\Models\Inventory\Unit;
 use App\Models\Inventory\Warehouse;
 use App\Models\Model as BaseModel;
@@ -58,7 +56,7 @@ class DiscountSplitCutoverTest extends TestCase {
     protected function setUp(): void {
         parent::setUp();
 
-        $this->setUpFinanceFixtures([PostingProfile::class, PostingParityLog::class, SalesInvoice::class, PurchaseInvoice::class, PurchaseOrder::class, Unit::class, Warehouse::class, Item::class, ItemVariant::class, StockEntry::class]);
+        $this->setUpFinanceFixtures([PostingProfile::class, SalesInvoice::class, PurchaseInvoice::class, PurchaseOrder::class, Unit::class, Warehouse::class, Item::class, ItemVariant::class]);
 
         $this->receivable       = $this->makeAccount('1200', 'Piutang Usaha', 'asset', 'debit', 'accounts_receivable');
         $this->revenue          = $this->makeAccount('4000', 'Penjualan', 'income', 'credit', 'sales');
@@ -193,7 +191,6 @@ class DiscountSplitCutoverTest extends TestCase {
     }
 
     public function test_documents_posted_before_the_cutover_are_not_changed_or_reposted(): void {
-
         $invoice = $this->approveSalesInvoice();
         $before  = $this->journalSignature($invoice);
         $this->assertNetShape($invoice);
@@ -210,7 +207,6 @@ class DiscountSplitCutoverTest extends TestCase {
     }
 
     public function test_purchase_invoice_non_stock_line_splits_with_a_credit_discount_from_the_cutover(): void {
-
         $net = $this->approvePurchaseInvoice(stockItem: false);
         $this->assertSame(
             ['2000' => [0.0, 1965.0], '2100' => [1965.0, 0.0]],
