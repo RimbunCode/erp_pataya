@@ -394,7 +394,7 @@ Peran peka-barang menghasilkan satu `RoleLine` per kelompok akun hasil resolusi:
 
 ## Posting Diskon (Req. 14)
 
-Diimplementasikan sebagai Task 13 (22 November 2026). Bagian ini mencatat kontrak konteks, bentuk jurnal, setting, validasi, dan label `shadow`. Butir yang bertanda **(bacaan konservatif)** tidak dijawab spek dan menunggu konfirmasi pemilik produk; implementasi mengambil pilihan paling aman sampai ada jawaban.
+Diimplementasikan sebagai Task 13 (22 November 2026). Bagian ini mencatat kontrak konteks, bentuk jurnal, setting, dan validasi (label `shadow` gugur 22 November 2026, Q-P2-23, disetujui pemilik produk). Butir yang bertanda **(bacaan konservatif)** tidak dijawab spek dan menunggu konfirmasi pemilik produk; implementasi mengambil pilihan paling aman sampai ada jawaban.
 
 **Setting.** `finance_discount_split_from.{sales_invoice|purchase_invoice}` disimpan sebagai dua kolom `date` nullable pada `finance_settings` (`discount_split_from_sales_invoice`, `discount_split_from_purchase_invoice`; default null = nonaktif; migrasi aditif dengan `down()`), bukan satu kolom JSON, supaya penyimpanan lewat form setting umum (`SettingsService::update()` melakukan `fill()`) tidak menimpa kunci lain. Tampil pada tab "Posting" halaman Finance Settings (izin modul `Setting`; **bacaan konservatif**: halaman itu hanya dibuka eksplisit untuk admin). Audit lewat `ModuleSettingUpdated` seperti setting lain.
 
