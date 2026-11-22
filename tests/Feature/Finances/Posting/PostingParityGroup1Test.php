@@ -155,7 +155,7 @@ class PostingParityGroup1Test extends TestCase {
 
     public function test_asset_disposal_posts_the_locked_journals_in_on_mode_and_is_skipped_when_the_invoice_is_canceled(): void {
         $setup = $this->makeAssetWithAccounts();
-        $this->activateParityProfile([]);
+        $this->activateParityProfile(['revenue' => $this->makeAccount('4100', 'Penjualan', 'income', 'credit', 'sales')]);
 
         $signatures = [];
         $effects    = [];
@@ -192,10 +192,11 @@ class PostingParityGroup1Test extends TestCase {
         $this->assertSignaturesIdentical('flat', $signatures['flat'], allowEmpty: true);
         $this->assertSignaturesIdentical('canceled', $signatures['canceled'], allowEmpty: true);
 
-        // Tanda laba/rugi dikunci apa adanya (T-7): laba mendebit akun laba-rugi, rugi mendebit aset tetap.
-        $this->assertEquals([['7100', 500.0, 0.0], ['1500', 0.0, 500.0]], $signatures['gain']['on']['disposal']['lines']);
-        $this->assertEquals([['1500', 300.0, 0.0], ['7100', 0.0, 300.0]], $signatures['loss']['on']['disposal']['lines']);
-        $this->assertSame([], $signatures['flat']['on']);
+        // Bentuk baku (T-7, 2026-11-23): perolehan 1.000 tanpa akumulasi; pendapatan dibalik sebesar hasil penjualan, untung di kredit,
+        // rugi di debit, impas tetap mengeluarkan aset tetap.
+        $this->assertEquals([['4100', 1500.0, 0.0], ['1500', 0.0, 1000.0], ['7100', 0.0, 500.0]], $signatures['gain']['on']['disposal']['lines']);
+        $this->assertEquals([['4100', 700.0, 0.0], ['7100', 300.0, 0.0], ['1500', 0.0, 1000.0]], $signatures['loss']['on']['disposal']['lines']);
+        $this->assertEquals([['4100', 1000.0, 0.0], ['1500', 0.0, 1000.0]], $signatures['flat']['on']['disposal']['lines']);
         $this->assertSame([], $signatures['canceled']['on']);
 
         foreach (['gain', 'loss', 'flat'] as $case) {
@@ -237,7 +238,7 @@ class PostingParityGroup1Test extends TestCase {
             $signatures['receive'][$mode] = $this->journalSignature($receive);
             $signatures['pay'][$mode]     = $this->journalSignature($pay);
             $effects[$mode]               = [
-                (float) $sales->fresh()->paid_amount, array_map(fn ($status)    => $status->value, $sales->fresh()->status),
+                (float) $sales->fresh()->paid_amount, array_map(fn ($status) => $status->value, $sales->fresh()->status),
                 (float) $purchase->fresh()->paid_amount, array_map(fn ($status) => $status->value, $purchase->fresh()->status),
                 \count(GlPostingStatus::where('referenceable_type', PaymentEntry::class)->get()),
             ];

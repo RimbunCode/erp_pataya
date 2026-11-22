@@ -539,6 +539,8 @@ WHERE deleted_at IS NULL
 
 **Usulan penanganan.** Tinjau oleh akuntan **sebelum** Fase 2 memindahkan Asset ke engine (urutan migrasi PRD Bagian 11 menaruh Asset paling awal): bila parity test menyalin perilaku ini apa adanya, tanda yang salah terkunci dalam engine. Koreksi dikerjakan dalam Fase 2 sebagai bagian aturan posting Asset dengan pembalikan eksplisit ekspektasi test karakterisasi; koreksi data historis diputuskan terpisah. Tidak ada hotfix diusulkan sebelum akuntan mengonfirmasi desain yang dimaksud.
 
+**Status (diperbarui 23 November 2026): DIPUTUSKAN dan DIPERBAIKI (T-7, disetujui pemilik produk 22 dan 23 November 2026).** Jurnal pelepasan kini berbentuk baku: gabungan jurnal Sales Invoice + jurnal pelepasan = Dr piutang (harga jual), Dr akumulasi penyusutan, Cr aset tetap sebesar harga perolehan, untung di kredit, rugi di debit. Sales Invoice tidak diubah (opsi A): jurnal pelepasan mendebit pendapatan sebesar hasil penjualan baris (`basic_amount - discount_amount`, tanpa pajak), sehingga piutang dan pendapatan tidak ganda (dampak 3). Dampak 6 ditangani: baris retur tidak memposting pelepasan. Dampak 4 (GL pelepasan tetap aktif setelah invoice dibatalkan) dan pemulihan aset karena retur TIDAK diperbaiki di sini dan menjadi pekerjaan lanjutan. Saldo akun aset tetap dibentuk lewat Journal Voucher / saldo awal (tanpa PR kapitalisasi prasyarat). Tidak ada koreksi data historis (staging tidak punya pelepasan). Rincian: decision log, "Keputusan T-7", dan design.md Fase 2, T-7.
+
 **Keputusan pemilik produk (2026-11-03): disetujui.** Ditinjau akuntan sebelum Fase 2.
 
 ### 3.6 N-2 (baru, PR #271): Purchase Invoice tanpa PO gagal `TypeError` saat `onApproved`
