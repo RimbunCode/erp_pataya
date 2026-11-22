@@ -14,7 +14,7 @@ use Carbon\CarbonInterface;
 use Throwable;
 
 /**
- * Membandingkan jurnal jalur lama dengan hasil engine pada mode `shadow` (Finance Fase 2, Requirement 6.5-6.6).
+ * Membandingkan jurnal jalur lama dengan hasil engine (riwayat mode `shadow` yang sudah dihapus, Q-P2-23; Finance Fase 2, Requirement 6.5-6.6).
  *
  * Representasi kanonik per `purpose`: tanggal (hari, zona penyimpanan) dan daftar terurut `(account_id, debit_minor,
  * credit_minor)`. Status per jurnal, lalu gabungan dengan prioritas `mismatch` > `config_diff` > `rounding` > `match`:
@@ -70,7 +70,6 @@ final class ParityComparator {
      */
     public function record(PostingContext $ctx, array $drafts, ?array $purposes = null): PostingParityLog {
         $result = $this->compare($this->legacyOf($ctx, $purposes), $this->engineOf($ctx, $drafts), $ctx->documentType->value);
-        $result = $this->explainDiscountSplit($ctx, $result);
 
         return PostingParityLog::forceCreate([
             'document_type' => $ctx->documentType->value,
@@ -84,43 +83,7 @@ final class ParityComparator {
     }
 
     /**
-     * Alasan `discount_split` (Requirement 14.6): jalur lama selalu menulis jurnal bersih, sehingga setelah cutover
-     * bentuk jurnal engine (diskon terpisah) berbeda dari jalur lama. Perbedaan itu diberi alasan HANYA bila terbukti
-     * semata karena pemisahan diskon: konteks yang sama dengan flag dimatikan di-preview ulang dan dibandingkan dengan
-     * jurnal lama; bila hasilnya `match`, `rounding`, atau `config_diff`, selisih bentuk itu dijelaskan oleh flag.
-     * Status tersimpan tetap hasil perbandingan sebenarnya (bukan nilai enum baru, Requirement 6.6); alasan dan status
-     * pembanding bersih dicatat pada `diff.reason` dan `diff.net_status`. Bila perbandingan bersih pun tidak cocok
-     * (regresi nyata), hasil tidak diberi label supaya tidak tersembunyi.
-     */
-    private function explainDiscountSplit(PostingContext $ctx, ParityResult $result): ParityResult {
-        if (! $ctx->flag('discount_split', false) || $result->status === PostingParityLog::STATUS_MATCH) {
-            return $result;
-        }
-
-        // Tanpa try/catch: preview bersih memakai peran yang lebih sedikit daripada preview engine yang baru berhasil;
-        // error konkurensi/koneksi harus sampai ke `PostingGateway::mustRethrow` (Q-P2-21), bukan ditelan di sini.
-        $netCtx    = $ctx->withFlag('discount_split', false);
-        $netEngine = $this->engineOf($netCtx, app(PostingService::class)->preview($netCtx));
-
-        // Flag aktif tetapi tidak mengubah jurnal (mis. diskon nol): perbedaan bukan karena pemisahan diskon.
-        if ($netEngine === $result->engine) {
-            return $result;
-        }
-
-        $net = $this->compare($result->legacy, $netEngine, $ctx->documentType->value);
-        if ($net->status === PostingParityLog::STATUS_MISMATCH) {
-            return $result;
-        }
-
-        return new ParityResult($result->status, $result->legacy, $result->engine, [
-            ...$result->diff,
-            'reason'     => 'discount_split',
-            'net_status' => $net->status,
-        ]);
-    }
-
-    /**
-     * Mencatat kegagalan engine pada mode `shadow` (Requirement 6.3): tanpa sisi engine.
+     * Mencatat kegagalan engine (peninggalan mode `shadow`, Requirement 6.3): tanpa sisi engine.
      */
     public function recordEngineError(PostingContext $ctx, Throwable $error, ?array $purposes = null): PostingParityLog {
         return PostingParityLog::forceCreate([
@@ -250,8 +213,8 @@ final class ParityComparator {
     private function userChosenAccounts(?string $documentType, string $purpose): bool {
         return match ($documentType) {
             'sales_invoice', 'payment_entry', 'stock_entry', 'asset_value_adjustment' => true,
-            'purchase_invoice'                                                        => $purpose === 'expense',
-            default                                                                   => false,
+            'purchase_invoice' => $purpose === 'expense',
+            default            => false,
         };
     }
 

@@ -160,12 +160,7 @@ describe("PostingParityLogs Index", () => {
 
   it("tidak merender bagian atau kontrol mode meski prop lama dikirim", () => {
     render(
-      <Index
-        {...baseProps}
-        modes={{ sales_invoice: "off" }}
-        modeOptions={["off", "shadow", "on"]}
-        canSwitchMode
-      />,
+      <Index {...baseProps} modes={{ sales_invoice: "off" }} canSwitchMode />,
     );
 
     expect(screen.queryByTestId("mode-section")).toBeNull();

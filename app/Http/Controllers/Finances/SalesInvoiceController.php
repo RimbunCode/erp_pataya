@@ -110,7 +110,7 @@ class SalesInvoiceController extends Controller {
                                 return redirect()->route('salesInvoices.show', $salesInvoiceTarget);
                             }
                             $salesInvoice->loadRelations();
-                            // Retur tanpa default akun pendapatan (kolom flag akun kontra dihapus, Task 14.2): pengguna memilih saat bukan `on`.
+                            // Retur tanpa default akun: kolom flag akun kontra dihapus (Task 14.2) dan akun diisi engine posting (Q-P2-23).
                             $defaultData = [
                                 'return_against'  => $salesInvoice,
                                 'is_return'       => true,

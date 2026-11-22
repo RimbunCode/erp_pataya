@@ -874,7 +874,6 @@ describe("SalesInvoice Form", () => {
           items: [{ id: 1 }],
           sales_order: { id: 1 },
           customer: { id: 1 },
-          income_account: { id: 5 },
         },
       });
       render(<Form />);
@@ -899,8 +898,6 @@ describe("SalesInvoice Form", () => {
       expect(resetCall.sales_order).toBeUndefined();
       expect(resetCall.customer).toBeUndefined();
       expect(resetCall.items).toEqual([]);
-      // Retur tidak membawa default akun pendapatan normal.
-      expect(resetCall.income_account).toBeUndefined();
     });
 
     describe("melepas centang is_return", () => {
@@ -910,60 +907,12 @@ describe("SalesInvoice Form", () => {
           .map(([arg]) => (typeof arg === "function" ? arg(prevData) : arg))
           .pop();
 
-      it("mode bukan on: memulihkan akun pendapatan sebelum dicentang, bukan akun retur yang dipilih manual", async () => {
-        const user = userEvent.setup({ delay: null });
-        const setData = vi.fn();
-        const normalAccount = { id: 41, account_number: "4110" };
-        const returnAccount = { id: 42, account_number: "4120" };
-        formPageState = makeFormPageState({
-          setData,
-          data: { items: [], is_return: false, income_account: normalAccount },
-        });
-
-        const { rerender } = render(<Form />);
-        await user.click(screen.getByRole("forminput", { name: checkboxName }));
-
-        formPageState = makeFormPageState({
-          setData,
-          data: { items: [], is_return: true, income_account: returnAccount },
-        });
-        rerender(<Form />);
-        getDataModelMock.mockClear();
-        await user.click(screen.getByRole("forminput", { name: checkboxName }));
-
-        const result = lastResult(setData, formPageState.data);
-        expect(result.is_return).toBe(false);
-        expect(result.income_account).toEqual(normalAccount);
-        expect(getDataModelMock).not.toHaveBeenCalled();
-      });
-
-      it("mode bukan on: dokumen yang dibuka sebagai retur lalu dilepas tidak membawa akun retur", async () => {
-        const user = userEvent.setup({ delay: null });
-        const setData = vi.fn();
-        formPageState = makeFormPageState({
-          setData,
-          data: {
-            items: [],
-            is_return: true,
-            income_account: { id: 42, account_number: "4120" },
-          },
-        });
-
-        render(<Form />);
-        await user.click(screen.getByRole("forminput", { name: checkboxName }));
-
-        const result = lastResult(setData, formPageState.data);
-        expect(result.is_return).toBe(false);
-        expect(result.income_account).toBeUndefined();
-      });
-
-      it("mode on: tidak ada akun dan tidak memanggil getDataModel", async () => {
+      it("tidak ada akun dan tidak memanggil getDataModel saat retur dilepas", async () => {
         const user = userEvent.setup({ delay: null });
         const setData = vi.fn();
         usePageMock.mockReturnValue({
           props: {
             preferences: { default_currency_id: "idr" },
-            accountsManagedByEngine: true,
           },
         });
         formPageState = makeFormPageState({

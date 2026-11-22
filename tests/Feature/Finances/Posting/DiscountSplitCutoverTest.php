@@ -24,14 +24,7 @@ use App\Models\Model as BaseModel;
 use App\Models\Purchase\PurchaseOrder;
 use App\Services\Core\Setting\SettingsService;
 use App\Services\Finances\Ledger\FiscalPeriodService;
-use App\Services\Finances\Ledger\JournalDraft;
-use App\Services\Finances\Ledger\JournalLineDraft;
-use App\Services\Finances\Ledger\JournalService;
-use App\Services\Finances\Posting\Contexts\LineAttributes;
-use App\Services\Finances\Posting\Contexts\PostingContext;
-use App\Services\Finances\Posting\ParityComparator;
 use App\Services\Finances\Posting\PostingProfileService;
-use App\Services\Finances\Posting\PostingService;
 use App\Services\Finances\PurchaseInvoiceService;
 use App\Services\Finances\SalesInvoiceService;
 use App\Services\Sales\Accounting\SalesInvoicePostingContextFactory;
@@ -42,10 +35,11 @@ use Tests\Support\BuildsFinanceFixtures;
 use Tests\TestCase;
 
 /**
- * Finance Fase 2, Task 13.1-13.3 (Requirement 14.1, 14.2, 14.3, 14.6): tanggal cutover `finance_discount_split_from.*`
- * menentukan bentuk jurnal invoice lewat service/listener sungguhan. Sebelum cutover (atau setting kosong, atau mode
- * `off`) jurnal tetap bersih; pada dan sesudah cutover berbentuk diskon terpisah; jurnal yang sudah terposting tidak
- * berubah; mode `shadow` memberi alasan `discount_split` pada parity log hanya bila selisih terbukti karena pemisahan.
+ * Finance Fase 2, Task 13.1-13.3 (Requirement 14.1, 14.2, 14.3): tanggal cutover `finance_discount_split_from.*`
+ * menentukan bentuk jurnal invoice lewat service/listener sungguhan. Sebelum cutover (atau setting kosong) jurnal
+ * tetap bersih; pada dan sesudah cutover berbentuk diskon terpisah; jurnal yang sudah terposting tidak berubah.
+ * Engine selalu aktif (Q-P2-23, 22 November 2026), jadi tidak ada lagi mode `off`/`shadow` dan alasan parity
+ * `discount_split` (Requirement 14.6 gugur).
  *
  * Fixture: item Sales Invoice 2 x 1.000, pajak 10% (DPP 11/12), diskon 200 -> DPP 1.650, pajak 165, bersih 1.965,
  * kotor 2.165.
@@ -162,8 +156,7 @@ class DiscountSplitCutoverTest extends TestCase {
         );
     }
 
-    public function test_sales_invoice_in_on_mode_splits_only_from_the_cutover_date(): void {
-        $this->setPostingMode(PostingDocumentType::SalesInvoice, 'on');
+    public function test_sales_invoice_splits_only_from_the_cutover_date(): void {
         $today = $this->businessToday();
 
         // Setting kosong (default): jurnal bersih.
@@ -194,15 +187,12 @@ class DiscountSplitCutoverTest extends TestCase {
     }
 
     public function test_the_sales_cutover_does_not_affect_purchase_invoice_and_vice_versa(): void {
-        $this->setPostingMode(PostingDocumentType::SalesInvoice, 'on');
-        $this->setPostingMode(PostingDocumentType::PurchaseInvoice, 'on');
         $this->setCutover(PostingDocumentType::PurchaseInvoice, $this->businessToday()->toDateString());
 
         $this->assertNetShape($this->approveSalesInvoice());
     }
 
     public function test_documents_posted_before_the_cutover_are_not_changed_or_reposted(): void {
-        $this->setPostingMode(PostingDocumentType::SalesInvoice, 'on');
 
         $invoice = $this->approveSalesInvoice();
         $before  = $this->journalSignature($invoice);
@@ -219,62 +209,7 @@ class DiscountSplitCutoverTest extends TestCase {
         $this->assertSame($journals, Journal::query()->count());
     }
 
-    public function test_off_mode_ignores_the_cutover_setting(): void {
-        $this->setPostingMode(PostingDocumentType::SalesInvoice, 'off');
-        $this->setCutover(PostingDocumentType::SalesInvoice, $this->businessToday()->toDateString());
-
-        $this->assertNetShape($this->approveSalesInvoice());
-        $this->assertSame(0, PostingParityLog::query()->count());
-    }
-
-    public function test_shadow_mode_labels_the_difference_with_discount_split_after_the_cutover(): void {
-        $this->setPostingMode(PostingDocumentType::SalesInvoice, 'shadow');
-
-        // Sebelum cutover: engine berbentuk bersih, parity `match`, tanpa alasan.
-        $before = $this->approveSalesInvoice();
-        $this->assertNetShape($before);
-        $this->assertSame('match', $this->parityLogStatus($before));
-
-        $this->setCutover(PostingDocumentType::SalesInvoice, $this->businessToday()->toDateString());
-
-        // Setelah cutover: jalur lama menulis bersih; engine split -> mismatch BERLABEL (bukan regresi).
-        $after = $this->approveSalesInvoice();
-        $this->assertNetShape($after);
-
-        $log = PostingParityLog::query()->where('source_id', $after->id)->firstOrFail();
-        $this->assertSame('mismatch', $log->status);
-        $this->assertSame('discount_split', $log->diff['reason']);
-        $this->assertSame('match', $log->diff['net_status']);
-        $this->assertCount(3, $log->engine['default']['lines'], 'sisi engine memuat piutang, diskon, dan pendapatan kotor');
-    }
-
-    public function test_shadow_difference_unrelated_to_the_split_is_not_labeled(): void {
-        $this->setPostingMode(PostingDocumentType::SalesInvoice, 'shadow');
-        $this->setCutover(PostingDocumentType::SalesInvoice, $this->businessToday()->toDateString());
-
-        $source = $this->makeStockEntry();
-        $date   = CarbonImmutable::parse('2026-11-22 10:00:00');
-
-        // Jalur lama menulis jurnal 1.000, sedangkan engine (total 1.965) berbeda jumlah: regresi nyata.
-        app(JournalService::class)->post(new JournalDraft(
-            transactionDate: $date,
-            lines: [new JournalLineDraft($this->receivable->id, debit: 1000), new JournalLineDraft($this->revenue->id, credit: 1000)],
-            postingKey: StockEntry::class . ':' . $source->getKey() . ':default',
-            sourceType: StockEntry::class,
-            sourceId: (string) $source->getKey(),
-        ));
-
-        $line = new LineAttributes(['amount' => 1965, 'gross_amount' => 2165, 'discount_amount' => 200], isStockItem: true);
-        $ctx  = new PostingContext(PostingDocumentType::SalesInvoice, StockEntry::class, (string) $source->getKey(), $date, null, ['total' => 1965, 'gross_amount' => 2165, 'discount_amount' => 200], ['discount_split' => true], [], [$line]);
-
-        $log = app(ParityComparator::class)->record($ctx, app(PostingService::class)->preview($ctx), app(PostingService::class)->purposes($ctx));
-
-        $this->assertSame('mismatch', $log->status);
-        $this->assertArrayNotHasKey('reason', $log->diff);
-    }
-
     public function test_purchase_invoice_non_stock_line_splits_with_a_credit_discount_from_the_cutover(): void {
-        $this->setPostingMode(PostingDocumentType::PurchaseInvoice, 'on');
 
         $net = $this->approvePurchaseInvoice(stockItem: false);
         $this->assertSame(
@@ -292,7 +227,6 @@ class DiscountSplitCutoverTest extends TestCase {
     }
 
     public function test_purchase_invoice_stock_line_stays_net_after_the_cutover(): void {
-        $this->setPostingMode(PostingDocumentType::PurchaseInvoice, 'on');
         $this->setCutover(PostingDocumentType::PurchaseInvoice, $this->businessToday()->toDateString());
 
         $stock = $this->approvePurchaseInvoice(stockItem: true);
@@ -305,7 +239,6 @@ class DiscountSplitCutoverTest extends TestCase {
     }
 
     public function test_purchase_invoice_mixing_stock_and_non_stock_lines_splits_only_the_non_stock_discount(): void {
-        $this->setPostingMode(PostingDocumentType::PurchaseInvoice, 'on');
         $this->setCutover(PostingDocumentType::PurchaseInvoice, $this->businessToday()->toDateString());
 
         $invoice = PurchaseInvoice::create([
@@ -338,7 +271,6 @@ class DiscountSplitCutoverTest extends TestCase {
     }
 
     public function test_sales_invoice_return_after_the_cutover_swaps_every_side_of_the_split_journal(): void {
-        $this->setPostingMode(PostingDocumentType::SalesInvoice, 'on');
         $this->setCutover(PostingDocumentType::SalesInvoice, $this->businessToday()->toDateString());
 
         $invoice = $this->makeSalesInvoice($this->receivable, $this->revenue, [], ['discount_amount' => 200]);

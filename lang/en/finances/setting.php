@@ -14,6 +14,6 @@ return [
         'title'                                => 'Posting',
         'discount_split_from_sales_invoice'    => 'Separate Discount for Sales Invoice From',
         'discount_split_from_purchase_invoice' => 'Separate Discount for Purchase Invoice From',
-        'discount_split_help'                  => 'From this date, invoice journals post the discount to a separate Discount account (the discount role). Leave empty to disable. Only applies to posting modes shadow/on; documents before this date are unchanged. The discount role must already be mapped on the active Posting Profile.',
+        'discount_split_help'                  => 'From this date, invoice journals post the discount to a separate Discount account (the discount role). Leave empty to disable. Documents before this date are unchanged. The discount role must already be mapped on the active Posting Profile.',
     ],
 ];
