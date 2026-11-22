@@ -11,13 +11,15 @@ use App\Services\Finances\Posting\Contexts\LineAttributes;
  * diskon, tarif pajak 0/11/12, DPP berfaktor 11/12. Pajak tidak dibulatkan (kolom generated double), sehingga jumlah
  * baris bernilai pecahan banyak digit: keadaan terburuk untuk keseimbangan setelah pembulatan.
  *
+ * `isStockItem` `null` (varian `$withUnknownStock`) diperlakukan Purchase Invoice seperti baris stok: tetap bersih.
+ *
  * Pemanggil wajib memanggil `mt_srand()` (tanpa argumen) di `tearDown()` agar seed tetap tidak bocor ke tes lain.
  */
 trait GeneratesDiscountedInvoiceAmounts {
     /**
      * @return array{0: list<LineAttributes>, 1: array{total: float, gross_amount: float, discount_amount: float, non_stock_gross: float, non_stock_discount: float}}
      */
-    protected function discountedDocument(int $seed, bool $allStock = false): array {
+    protected function discountedDocument(int $seed, bool $allStock = false, bool $withUnknownStock = false): array {
         mt_srand($seed);
 
         $count    = mt_rand(1, 6);
@@ -49,7 +51,9 @@ trait GeneratesDiscountedInvoiceAmounts {
             $tax       = (float) $allocated[$i]['tax_amount'];
             $net       = $raw['basic_amount'] - $discount + $tax;
             $grossLine = $raw['basic_amount'] + $tax;
-            $isStock   = $allStock ? true : (bool) mt_rand(0, 1);
+            // `$withUnknownStock`: sebagian baris tanpa atribut stok (`null`, mis. baris aset); jalur bawaan tidak berubah
+            // agar seed tes lama tetap menghasilkan dokumen yang sama.
+            $isStock = $allStock ? true : ($withUnknownStock ? [true, false, null][mt_rand(0, 2)] : (bool) mt_rand(0, 1));
 
             $lines[] = new LineAttributes(
                 ['amount' => $net, 'gross_amount' => $grossLine, 'discount_amount' => $discount],
@@ -58,7 +62,7 @@ trait GeneratesDiscountedInvoiceAmounts {
             $totals['total'] += $net;
             $totals['gross_amount'] += $grossLine;
             $totals['discount_amount'] += $discount;
-            if (! $isStock) {
+            if ($isStock === false) {
                 $totals['non_stock_gross'] += $grossLine;
                 $totals['non_stock_discount'] += $discount;
             }

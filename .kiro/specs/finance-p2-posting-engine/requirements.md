@@ -16,7 +16,7 @@ Selain itu fase ini memperbaiki perilaku pembatalan: menutup balapan cancel-vs-p
 - **Cakupan global.** Satu perusahaan; cabang hanyalah dimensi jurnal. Posting Profile tidak memiliki cakupan per cabang.
 - **Aturan akun bersyarat dan varian retur.** Akun dapat berbeda menurut jenis dokumen, retur, serta tipe/kategori/status stok barang (Requirement 12).
 - **Setting disimpan di tabel setting modul**, bukan tabel `preferences` (D-25).
-- **Posting diskon terpisah** ditambahkan sebagai bagian GATED dengan tanggal cutover (Requirement 14).
+- **Posting diskon terpisah** ditambahkan dengan tanggal cutover (Requirement 14; Q-P2-5 diputuskan 2026-11-21, aktif lewat tanggal cutover).
 
 **Di luar scope:**
 - Pemisahan baris pajak dan versi aturan pajak (Fase 3). Rule Fase 2 meniru bentuk jurnal sekarang (total ke satu akun); *tempat* untuk baris pajak disiapkan lewat peran `tax_output`/`tax_input` tetapi belum dipakai.

@@ -212,6 +212,13 @@ final class PostingService {
             }
         }
 
+        $discountSplit = false;
+        $sideCounts    = [RoleLine::DEBIT => 0, RoleLine::CREDIT => 0];
+        foreach ($groups as $group) {
+            $sideCounts[$group['side']]++;
+            $discountSplit = $discountSplit || \in_array(AccountRole::Discount->value, $group['roles'], true);
+        }
+
         foreach ($groups as $key => $group) {
             $groups[$key]['amount'] = MinorUnit::round($group['amount'], $minorUnit);
             if (MinorUnit::toMinor($groups[$key]['amount'], $minorUnit) === 0) {
@@ -219,7 +226,9 @@ final class PostingService {
             }
         }
 
-        $groups = $this->absorbRounding($groups, $minorUnit);
+        $groups = $discountSplit
+            ? $this->absorbDiscountSplitRounding($groups, $minorUnit, max($sideCounts))
+            : $this->absorbRounding($groups, $minorUnit);
 
         $debitAccounts  = array_values(array_unique(array_column(array_filter($groups, fn (array $g): bool => $g['side'] === RoleLine::DEBIT), 'account')));
         $creditAccounts = array_values(array_unique(array_column(array_filter($groups, fn (array $g): bool => $g['side'] === RoleLine::CREDIT), 'account')));
@@ -244,25 +253,14 @@ final class PostingService {
     /**
      * Penjumlahan baris yang sudah dibulatkan satu per satu dapat berbeda satu-dua minor unit dari sisi lawannya.
      * Selisih kecil (tidak melebihi jumlah kelompok pada sisi yang terpecah) diserap kelompok terbesar sisi itu;
-     * selisih lain dibiarkan agar `JournalService` menolaknya sebagai tak seimbang.
-     *
-     * Pengecualian posting diskon terpisah (Requirement 14, P-13): bila sisi yang terpecah memuat kelompok peran
-     * `discount`, kelompok `receivable`/`payable` TIDAK boleh menyerap sisa (jumlah piutang/utang harus sama dengan
-     * total dokumen); sisa diserap kelompok terbesar lainnya pada sisi itu (diskon, atau akun pendapatan/biaya).
-     * Tanpa kelompok `discount` pada sisi itu, perilaku tidak berubah untuk rule lain.
+     * selisih lain dibiarkan agar `JournalService` menolaknya sebagai tak seimbang. Jurnal yang memuat peran `discount`
+     * (posting diskon terpisah) memakai `absorbDiscountSplitRounding()`.
      *
      * @param  array<string, array{account: string, side: string, amount: float, description: ?string, roles: list<string>}>  $groups
      * @return array<string, array{account: string, side: string, amount: float, description: ?string, roles: list<string>}>
      */
     private function absorbRounding(array $groups, int $minorUnit): array {
-        $totals = [RoleLine::DEBIT => 0, RoleLine::CREDIT => 0];
-        $counts = [RoleLine::DEBIT => 0, RoleLine::CREDIT => 0];
-        foreach ($groups as $group) {
-            $totals[$group['side']] += MinorUnit::toMinor($group['amount'], $minorUnit);
-            $counts[$group['side']]++;
-        }
-
-        $difference = $totals[RoleLine::DEBIT] - $totals[RoleLine::CREDIT];
+        [$difference, $counts] = $this->imbalance($groups, $minorUnit);
         if ($difference === 0) {
             return $groups;
         }
@@ -272,37 +270,97 @@ final class PostingService {
             return $groups;
         }
 
-        $hasDiscount = false;
-        foreach ($groups as $group) {
-            if ($group['side'] === $splitSide && \in_array(AccountRole::Discount->value, $group['roles'], true)) {
-                $hasDiscount = true;
-            }
-        }
-
-        $largestKey = null;
-        foreach ($groups as $key => $group) {
-            if ($group['side'] !== $splitSide) {
-                continue;
-            }
-            if ($hasDiscount && array_intersect($group['roles'], [AccountRole::Receivable->value, AccountRole::Payable->value]) !== []) {
-                continue;
-            }
-            if ($largestKey === null || $group['amount'] > $groups[$largestKey]['amount']) {
-                $largestKey = $key;
-            }
-        }
+        $largestKey = $this->largestGroupKey($groups, $splitSide, protectNet: false);
         if ($largestKey === null) {
             return $groups;
         }
 
-        // Selisih > 0: debit lebih besar. Pada sisi debit kurangi, pada sisi kredit tambah; kebalikannya bila < 0.
-        $shift    = $splitSide === RoleLine::DEBIT ? -$difference : $difference;
-        $adjusted = MinorUnit::toMinor($groups[$largestKey]['amount'], $minorUnit) + $shift;
-        if ($hasDiscount && $adjusted <= 0) {
-            return $groups; // biarkan JournalService menolaknya sebagai tak seimbang, bukan menulis baris nol/negatif
-        }
+        $adjusted                      = MinorUnit::toMinor($groups[$largestKey]['amount'], $minorUnit) + $this->shiftFor($splitSide, $difference);
         $groups[$largestKey]['amount'] = (float) MinorUnit::fromMinor($adjusted, $minorUnit);
 
         return $groups;
+    }
+
+    /**
+     * Pembulatan jurnal posting diskon terpisah (Requirement 14, P-13): kelompok `receivable`/`payable` TIDAK boleh
+     * menyerap sisa (jumlahnya harus sama dengan total dokumen). Sisa diserap kelompok terbesar lain pada sisi yang
+     * terpecah (diskon, atau akun pendapatan/biaya); bila kelompok itu tidak dapat menyerap (jumlah jadi nol/negatif),
+     * atau tidak ada (kelompok `discount` hilang karena nol setelah pembulatan, sehingga sisi itu hanya berisi
+     * piutang/utang), kelompok terbesar pada sisi lawan menyerapnya. Batas selisih: jumlah kelompok terbanyak per sisi
+     * SEBELUM kelompok nol dibuang (`$sideLimit`); selisih lebih besar dibiarkan agar `JournalService` menolaknya.
+     *
+     * @param  array<string, array{account: string, side: string, amount: float, description: ?string, roles: list<string>}>  $groups
+     * @return array<string, array{account: string, side: string, amount: float, description: ?string, roles: list<string>}>
+     */
+    private function absorbDiscountSplitRounding(array $groups, int $minorUnit, int $sideLimit): array {
+        [$difference, $counts] = $this->imbalance($groups, $minorUnit);
+        if ($difference === 0 || abs($difference) > $sideLimit) {
+            return $groups;
+        }
+
+        $splitSide = $counts[RoleLine::CREDIT] > $counts[RoleLine::DEBIT] ? RoleLine::CREDIT : RoleLine::DEBIT;
+        $otherSide = $splitSide === RoleLine::DEBIT ? RoleLine::CREDIT : RoleLine::DEBIT;
+
+        foreach ([$splitSide, $otherSide] as $side) {
+            $key = $this->largestGroupKey($groups, $side, protectNet: true);
+            if ($key === null) {
+                continue;
+            }
+
+            $adjusted = MinorUnit::toMinor($groups[$key]['amount'], $minorUnit) + $this->shiftFor($side, $difference);
+            if ($adjusted <= 0) {
+                continue; // tidak menulis baris nol/negatif; coba sisi lawan, atau biarkan JournalService menolaknya
+            }
+
+            $groups[$key]['amount'] = (float) MinorUnit::fromMinor($adjusted, $minorUnit);
+
+            return $groups;
+        }
+
+        return $groups;
+    }
+
+    /**
+     * @param  array<string, array{account: string, side: string, amount: float, description: ?string, roles: list<string>}>  $groups
+     * @return array{0: int, 1: array<string, int>} selisih debit - kredit (minor unit) dan jumlah kelompok per sisi
+     */
+    private function imbalance(array $groups, int $minorUnit): array {
+        $totals = [RoleLine::DEBIT => 0, RoleLine::CREDIT => 0];
+        $counts = [RoleLine::DEBIT => 0, RoleLine::CREDIT => 0];
+        foreach ($groups as $group) {
+            $totals[$group['side']] += MinorUnit::toMinor($group['amount'], $minorUnit);
+            $counts[$group['side']]++;
+        }
+
+        return [$totals[RoleLine::DEBIT] - $totals[RoleLine::CREDIT], $counts];
+    }
+
+    /**
+     * Kelompok terbesar pada `$side`; `$protectNet` melewati kelompok `receivable`/`payable`.
+     *
+     * @param  array<string, array{account: string, side: string, amount: float, description: ?string, roles: list<string>}>  $groups
+     */
+    private function largestGroupKey(array $groups, string $side, bool $protectNet): ?string {
+        $largestKey = null;
+        foreach ($groups as $key => $group) {
+            if ($group['side'] !== $side) {
+                continue;
+            }
+            if ($protectNet && array_intersect($group['roles'], [AccountRole::Receivable->value, AccountRole::Payable->value]) !== []) {
+                continue;
+            }
+            if ($largestKey === null || $group['amount'] > $groups[$largestKey]['amount']) {
+                $largestKey = (string) $key;
+            }
+        }
+
+        return $largestKey;
+    }
+
+    /**
+     * Selisih > 0: debit lebih besar. Pada sisi debit kurangi, pada sisi kredit tambah; kebalikannya bila < 0.
+     */
+    private function shiftFor(string $side, int $difference): int {
+        return $side === RoleLine::DEBIT ? -$difference : $difference;
     }
 }

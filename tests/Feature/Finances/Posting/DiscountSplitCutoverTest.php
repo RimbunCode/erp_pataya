@@ -304,6 +304,56 @@ class DiscountSplitCutoverTest extends TestCase {
         );
     }
 
+    public function test_purchase_invoice_mixing_stock_and_non_stock_lines_splits_only_the_non_stock_discount(): void {
+        $this->setPostingMode(PostingDocumentType::PurchaseInvoice, 'on');
+        $this->setCutover(PostingDocumentType::PurchaseInvoice, $this->businessToday()->toDateString());
+
+        $invoice = PurchaseInvoice::create([
+            'date'                    => now()->subDays(3),
+            'expanse_head_account_id' => $this->srnb->id,
+            'credit_account_id'       => $this->payable->id,
+            'purchase_order_id'       => $this->purchaseOrder->id,
+            'branch_id'               => $this->branch->id,
+            'status'                  => [FormStatus::SUBMITTED],
+        ]);
+        // Dua baris sama (2 x 1.000, pajak 10%, diskon 200 -> bersih 1.965, kotor 2.165): satu stok, satu non-stok.
+        foreach ([true, false] as $stockItem) {
+            PurchaseInvoiceItem::create([
+                'purchase_invoice_id' => $invoice->id,
+                'item_id'             => ItemVariant::factory()->create(['is_stock_item' => $stockItem])->id,
+                'quantity'            => 2,
+                'rate'                => 1000,
+                'tax_rate'            => 10,
+                'discount_amount'     => 200,
+            ]);
+        }
+        app(PurchaseInvoiceService::class)->onApproved($invoice);
+
+        // Beban = bersih baris stok (1.965) + kotor baris non-stok (2.165); diskon hanya milik baris non-stok (200);
+        // utang = total bersih kedua baris (3.930).
+        $this->assertSame(
+            ['2000' => [0.0, 3930.0], '2100' => [4130.0, 0.0], '5900' => [0.0, 200.0]],
+            $this->linesOf($this->journalSignature($invoice->fresh()), 'expense'),
+        );
+    }
+
+    public function test_sales_invoice_return_after_the_cutover_swaps_every_side_of_the_split_journal(): void {
+        $this->setPostingMode(PostingDocumentType::SalesInvoice, 'on');
+        $this->setCutover(PostingDocumentType::SalesInvoice, $this->businessToday()->toDateString());
+
+        $invoice = $this->makeSalesInvoice($this->receivable, $this->revenue, [], ['discount_amount' => 200]);
+        GlPostingStatus::create(['referenceable_type' => SalesInvoice::class, 'referenceable_id' => $invoice->id, 'status' => FormStatus::PENDING]);
+
+        // Retur lewat listener sungguhan (event `isReturn` = true), seperti `SalesInvoiceService::onApproved()` untuk retur.
+        (new PostSalesInvoiceGeneralLedger)->handle(new SalesInvoiceGeneralLedgerPostingRequested($invoice, 1965.0, true, now(), $this->receivable->id, $this->revenue->id));
+
+        $this->assertSame(
+            ['1200' => [0.0, 1965.0], '4000' => [2165.0, 0.0], '4900' => [0.0, 200.0]],
+            $this->linesOf($this->journalSignature($invoice), 'default'),
+            'piutang dikredit sebesar bersih, pendapatan kotor didebit, diskon dikredit',
+        );
+    }
+
     public function test_context_factory_does_not_split_when_the_line_total_is_inconsistent(): void {
         $this->setCutover(PostingDocumentType::SalesInvoice, $this->businessToday()->toDateString());
         $invoice = $this->makeSalesInvoice($this->receivable, $this->revenue, [], ['discount_amount' => 200]);

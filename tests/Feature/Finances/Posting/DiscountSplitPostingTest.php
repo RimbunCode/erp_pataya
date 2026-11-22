@@ -193,6 +193,102 @@ class DiscountSplitPostingTest extends TestCase {
         $this->assertSame(102, $this->accountMinor($drafts, $this->expense, 'debit', 0));
     }
 
+    public function test_sales_discount_below_one_minor_unit_drops_the_discount_line_and_keeps_the_journal_balanced(): void {
+        $this->useMinorUnit(0);
+
+        // total 100,3 -> 100; diskon 0,4 -> 0 (baris dibuang); kotor 100,7 -> 101. Tanpa penanganan: debit 100 vs kredit 101.
+        $line   = new LineAttributes(['amount' => 100.3, 'gross_amount' => 100.7, 'discount_amount' => 0.4], isStockItem: true);
+        $amount = ['total' => 100.3, 'gross_amount' => 100.7, 'discount_amount' => 0.4];
+
+        $drafts = app(PostingService::class)->preview($this->ctx(PostingDocumentType::SalesInvoice, $amount, ['discount_split' => true], [$line]));
+        $sums   = $this->minorTotals($drafts, 0);
+
+        $this->assertSame($sums['debit'], $sums['credit']);
+        $this->assertSame(100, $this->accountMinor($drafts, $this->receivable, 'debit', 0), 'piutang tetap sama dengan total');
+        $this->assertSame(0, $this->accountMinor($drafts, $this->discountSales, 'debit', 0));
+        $this->assertSame(100, $this->accountMinor($drafts, $this->revenue, 'credit', 0), 'pendapatan menyerap sisa, sama dengan jurnal bersih');
+
+        // Retur menukar sisi; posting sungguhan tidak ditolak sebagai tak seimbang.
+        $return = app(PostingService::class)->preview($this->ctx(PostingDocumentType::SalesInvoice, $amount, ['discount_split' => true, 'is_return' => true], [$line]));
+        $this->assertSame(100, $this->accountMinor($return, $this->receivable, 'credit', 0));
+        $this->assertSame(100, $this->accountMinor($return, $this->revenue, 'debit', 0));
+
+        app(PostingService::class)->post($this->ctx(PostingDocumentType::SalesInvoice, $amount, ['discount_split' => true], [$line]), checkCanceled: false);
+        $this->assertSame(1, Journal::query()->count());
+    }
+
+    public function test_sales_discount_of_one_minor_unit_that_must_absorb_a_reduction_falls_back_to_the_revenue_line(): void {
+        $this->useMinorUnit(0);
+
+        // total 100,5 -> 101; diskon 0,5 -> 1; kotor 101,0 -> 101. Debit 102 vs kredit 101: diskon (1) tidak dapat dikurangi
+        // menjadi 0, piutang dilindungi, jadi pendapatan menyerap (102).
+        $line   = new LineAttributes(['amount' => 100.5, 'gross_amount' => 101.0, 'discount_amount' => 0.5], isStockItem: true);
+        $amount = ['total' => 100.5, 'gross_amount' => 101.0, 'discount_amount' => 0.5];
+
+        $drafts = app(PostingService::class)->preview($this->ctx(PostingDocumentType::SalesInvoice, $amount, ['discount_split' => true], [$line]));
+        $sums   = $this->minorTotals($drafts, 0);
+
+        $this->assertSame($sums['debit'], $sums['credit']);
+        $this->assertSame(101, $this->accountMinor($drafts, $this->receivable, 'debit', 0));
+        $this->assertSame(1, $this->accountMinor($drafts, $this->discountSales, 'debit', 0));
+        $this->assertSame(102, $this->accountMinor($drafts, $this->revenue, 'credit', 0));
+
+        app(PostingService::class)->post($this->ctx(PostingDocumentType::SalesInvoice, $amount, ['discount_split' => true], [$line]), checkCanceled: false);
+        $this->assertSame(1, Journal::query()->count());
+    }
+
+    public function test_purchase_discount_below_one_minor_unit_drops_the_discount_line_and_keeps_the_journal_balanced(): void {
+        $this->useMinorUnit(0);
+
+        // Baris non-stok: total 100,3 -> 100; diskon 0,4 -> 0; kotor 100,7 -> 101 (beban). Utang tetap 100, beban menyerap.
+        $line   = new LineAttributes(['amount' => 100.3, 'gross_amount' => 100.7, 'discount_amount' => 0.4], isStockItem: false);
+        $amount = ['total' => 100.3, 'stock_total' => 0, 'gross_amount' => 100.7, 'discount_amount' => 0.4];
+
+        foreach ([false, true] as $isReturn) {
+            $drafts = app(PostingService::class)->preview($this->ctx(PostingDocumentType::PurchaseInvoice, $amount, ['discount_split' => true, 'is_return' => $isReturn], [$line]));
+            $sums   = $this->minorTotals($drafts, 0);
+
+            $this->assertSame($sums['debit'], $sums['credit']);
+            $this->assertSame(100, $this->accountMinor($drafts, $this->payable, $isReturn ? 'debit' : 'credit', 0));
+            $this->assertSame(0, $this->accountMinor($drafts, $this->discountPurchase, $isReturn ? 'debit' : 'credit', 0));
+            $this->assertSame(100, $this->accountMinor($drafts, $this->expense, $isReturn ? 'credit' : 'debit', 0));
+        }
+
+        app(PostingService::class)->post($this->ctx(PostingDocumentType::PurchaseInvoice, $amount, ['discount_split' => true], [$line]), checkCanceled: false);
+        $this->assertSame(1, Journal::query()->count());
+    }
+
+    public function test_tiny_discounts_stay_balanced_and_keep_the_net_amount_at_minor_unit_zero(): void {
+        $this->useMinorUnit(0);
+
+        $checked = 0;
+        // Pecahan sen di sekitar batas pembulatan; tiap pratinjau menyentuh DB sehingga sampelnya sengaja kecil.
+        foreach ([0, 20, 49, 50, 51, 70, 99] as $cents) {
+            $total = round(100 + $cents / 100, 2);
+
+            foreach ([0.1, 0.4, 0.5, 0.9, 1.0, 1.5] as $discount) {
+                $gross = round($total + $discount, 2);
+                $line  = new LineAttributes(['amount' => $total, 'gross_amount' => $gross, 'discount_amount' => $discount], isStockItem: false);
+
+                foreach ([false, true] as $return) {
+                    $sales = app(PostingService::class)->preview($this->ctx(PostingDocumentType::SalesInvoice, ['total' => $total, 'gross_amount' => $gross, 'discount_amount' => $discount], ['discount_split' => true, 'is_return' => $return], [$line]));
+                    $sums  = $this->minorTotals($sales, 0);
+                    $this->assertSame($sums['debit'], $sums['credit'], "sales total {$total} diskon {$discount}");
+                    $this->assertSame(MinorUnit::toMinor($total, 0), $this->accountMinor($sales, $this->receivable, $return ? 'credit' : 'debit', 0), "sales total {$total} diskon {$discount}: piutang = total");
+
+                    $purchase = app(PostingService::class)->preview($this->ctx(PostingDocumentType::PurchaseInvoice, ['total' => $total, 'stock_total' => 0, 'gross_amount' => $gross, 'discount_amount' => $discount], ['discount_split' => true, 'is_return' => $return], [$line]));
+                    $sums     = $this->minorTotals($purchase, 0);
+                    $this->assertSame($sums['debit'], $sums['credit'], "purchase total {$total} diskon {$discount}");
+                    $this->assertSame(MinorUnit::toMinor($total, 0), $this->accountMinor($purchase, $this->payable, $return ? 'debit' : 'credit', 0), "purchase total {$total} diskon {$discount}: utang = total");
+
+                    $checked += 2;
+                }
+            }
+        }
+
+        $this->assertSame(168, $checked);
+    }
+
     public function test_discount_accounts_differ_between_sales_and_purchase_invoice_by_document_type_rule(): void {
         $line = new LineAttributes(['amount' => 900, 'gross_amount' => 1000, 'discount_amount' => 100], isStockItem: false);
 

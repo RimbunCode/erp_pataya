@@ -76,6 +76,7 @@ class DiscountSplitBalanceTest extends TestCase {
                 $this->assertEqualsWithDelta($totals['total'], $this->roleTotal($drafts[0], 'receivable'), self::TOLERANCE, "seed {$seed}: receivable = total bersih");
                 $this->assertEqualsWithDelta($totals['discount_amount'], $this->roleTotal($drafts[0], 'discount'), self::TOLERANCE, "seed {$seed}: discount = Σ diskon");
                 $this->assertEqualsWithDelta($totals['gross_amount'], $this->roleTotal($drafts[0], 'revenue'), self::TOLERANCE, "seed {$seed}: revenue = Σ kotor");
+                $this->assertEqualsWithDelta($totals['total'] + $totals['discount_amount'], $this->roleTotal($drafts[0], 'revenue'), self::TOLERANCE, "seed {$seed}: revenue = total bersih + diskon (tidak bergantung gross_amount baris)");
 
                 if ($totals['discount_amount'] > 0) {
                     $splits++;
@@ -122,6 +123,48 @@ class DiscountSplitBalanceTest extends TestCase {
         }
 
         $this->assertGreaterThan(50, $splits, 'sampel acak harus memuat cukup dokumen berdiskon non-stok');
+    }
+
+    public function test_purchase_invoice_split_keeps_lines_without_stock_attribute_net(): void {
+        $registry = new PostingRuleRegistry;
+        $unknown  = 0;
+
+        for ($seed = 1; $seed <= 300; $seed++) {
+            [$lines, $totals] = $this->discountedDocument($seed, withUnknownStock: true);
+
+            foreach ([false, true] as $return) {
+                $ctx = new PostingContext(
+                    PostingDocumentType::PurchaseInvoice,
+                    'App\\Models\\Doc',
+                    "doc-{$seed}",
+                    CarbonImmutable::parse('2026-11-22'),
+                    null,
+                    ['total'          => $totals['total'], 'stock_total' => 0, 'gross_amount' => $totals['non_stock_gross'], 'discount_amount' => $totals['non_stock_discount']],
+                    ['discount_split' => true, 'is_return' => $return],
+                    [],
+                    $lines,
+                );
+
+                $drafts = $registry->for(PostingDocumentType::PurchaseInvoice)->build($ctx);
+                $this->assertCount(1, $drafts, "seed {$seed}");
+                $sides = $this->sides($drafts[0]);
+
+                // Beban = bersih semua baris + diskon baris tegas non-stok (baris stok dan baris tanpa atribut tetap bersih).
+                $expectedExpense = $totals['total'] + $totals['non_stock_discount'];
+
+                $this->assertEqualsWithDelta($sides['debit'], $sides['credit'], self::TOLERANCE, "seed {$seed}: jurnal seimbang");
+                $this->assertEqualsWithDelta($expectedExpense, $this->roleTotal($drafts[0], 'expense'), self::TOLERANCE, "seed {$seed}: beban memakai kotor hanya untuk baris tegas non-stok");
+                $this->assertEqualsWithDelta($totals['non_stock_discount'], $this->roleTotal($drafts[0], 'discount'), self::TOLERANCE, "seed {$seed}: discount = Σ diskon baris non-stok");
+
+                foreach ($lines as $line) {
+                    if ($line->isStockItem === null && $line->amount('discount_amount') > 0) {
+                        $unknown++;
+                    }
+                }
+            }
+        }
+
+        $this->assertGreaterThan(50, $unknown, 'sampel acak harus memuat baris berdiskon tanpa atribut stok');
     }
 
     public function test_split_never_changes_the_net_receivable_compared_with_the_unsplit_shape(): void {

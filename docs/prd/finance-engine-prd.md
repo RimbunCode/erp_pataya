@@ -269,7 +269,7 @@ ID bersifat ringkas; kriteria penerimaan terperinci ada di `requirements.md` tia
 - **FR-P3** ~~Pembatalan/amend dokumen yang sudah diposting memicu reversal otomatis, menggantikan soft-delete GL di hook `Submitable`~~ (dikeluarkan: D-13 diputuskan 2026-11-21, pembatalan menghapus jurnal) dan menangani balapan cancel vs posting asinkron (F-16): job posting yang menemukan dokumen `canceled` tidak memposting.
 - **FR-P4** Migrasi per jenis dokumen dilindungi feature flag dan *parity test* terhadap perilaku lama.
 - **FR-P5** Dokumen transaksi tidak menerima input akun; kolom akun di DB dipertahankan dan diisi engine sebagai catatan audit (per baris untuk peran peka-barang). Pengecualian: baris Jurnal Manual.
-- **FR-P6** Diskon penjualan/pembelian dapat diposting ke akun diskon tersendiri, aktif per jenis dokumen lewat tanggal cutover (GATED).
+- **FR-P6** Diskon penjualan/pembelian dapat diposting ke akun diskon tersendiri, aktif per jenis dokumen lewat tanggal cutover (Q-P2-5 diputuskan 2026-11-21; aktif lewat tanggal cutover).
 
 ### 8.3 Tax Engine (Fase 3)
 
@@ -326,7 +326,7 @@ Estimasi dalam minggu-orang untuk **satu developer senior** yang paham codebase;
 | S | `module-settings-foundation` | Tabel setting modul bertipe (menggantikan `preferences`), halaman setting bertab, menu item multi-desk; menampung setting keuangan fase 1–6 (D-25) | — (paralel dengan Fase 0) | belum diestimasi (spec ditulis terpisah) |
 | 0 | `finance-p0-foundation-audit` | Audit, characterization test, decision log, baseline data | — | 2–3 |
 | 1 | `finance-p1-journal-core` | Journal header+lines, immutability, reversal, fiscal period dasar, backfill | 0, S | 6–10 |
-| 2 | `finance-p2-posting-engine` | Posting profile global, aturan akun bersyarat + varian retur, resolver akun, akun tanpa input pengguna, refactor listener bertahap, reversal saat cancel, posting diskon (GATED) | 1, D-1 | 5–8 |
+| 2 | `finance-p2-posting-engine` | Posting profile global, aturan akun bersyarat + varian retur, resolver akun, akun tanpa input pengguna, refactor listener bertahap, reversal saat cancel, posting diskon (Q-P2-5 diputuskan 2026-11-21; aktif lewat tanggal cutover) | 1, D-1 | 5–8 |
 | 3 | `finance-p3-tax-engine` | Aturan pajak berversi, baris pajak di jurnal, TaxResult. **Bagian A** (aman, tanpa mengubah angka dokumen) dan **Bagian B** (konversi kolom hitung, GATED D-15) | 2; menyerap Requirement 4 spec `dpp-discount-and-tax-compliance` (belum diimplementasi) | 4–6 (A) + 2–3 (B) |
 | 4 | `finance-p4-ar-ap-fx` | Sub-ledger, alokasi pembayaran, master kurs, realized FX | 2 (3 untuk pajak pada alokasi) | 6–9 |
 | 5 | `finance-p5-reporting` | Laporan keuangan dari ledger, `account_balances` | 1–4 | 4–6 |
