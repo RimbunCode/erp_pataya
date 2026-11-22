@@ -7,6 +7,8 @@ return [
         'unresolved_role_ambiguous' => 'The account role ":role" (document :document, variant :variant, date :date) is ambiguous in the legacy fallback: :candidates accounts match :root/:type and none was chosen. Map this role in the Posting Profile.',
         'unknown_document_type'     => 'The posting document type ":type" has no registered posting rule.',
         'switch_mode_forbidden'     => 'You are not allowed to change the posting engine mode.',
+        'discount_split_no_profile' => 'The separate-discount cutover date :date for :document was rejected: no active Posting Profile applies on that date. Activate a profile that maps the "discount" role first.',
+        'discount_split_unmapped'   => 'The separate-discount cutover date for :document was rejected: the ":role" role is not mapped on the active Posting Profile (:profiles). Map this role (default account or conditional account rule) on the Posting Profile page first.',
         'partial_posting'           => 'Partial posting for :source: journals :existing already exist, :missing do not. Manual intervention is required.',
     ],
 

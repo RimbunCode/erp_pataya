@@ -155,8 +155,8 @@ Rule berada di `app/Services/Finances/Posting/Rules/` dan didaftarkan `PostingRu
 
 | Rule | `amounts` | `flags` | `lines[]` (`amounts['amount']`) | Catatan |
 |---|---|---|---|---|
-| `SalesInvoiceRule` | `total` | `is_return` | kredit `revenue` per baris; Σ harus = `total` | tanpa `lines`: satu baris `revenue` = `total` |
-| `PurchaseInvoiceRule` | `total`, `stock_total` | `is_return` | debit `expense` per baris; Σ = `total` | jurnal `stock` hanya bila `stock_total` > 0 dan bukan retur |
+| `SalesInvoiceRule` | `total`; `gross_amount`, `discount_amount` (Task 13) | `is_return`, `discount_split` | kredit `revenue` per baris; Σ harus = `total` (bila `discount_split`: per baris `gross_amount`, Σ = `total` + `discount_amount`) | tanpa `lines`: satu baris `revenue` = `total`; bila `discount_split` dan diskon > 0: tambah debit `discount` (lihat "Posting Diskon") |
+| `PurchaseInvoiceRule` | `total`, `stock_total`; `gross_amount`, `discount_amount` (Σ baris non-stok, Task 13) | `is_return`, `discount_split` | debit `expense` per baris; Σ = `total` (bila `discount_split`: baris tegas non-stok memakai `gross_amount`) | jurnal `stock` hanya bila `stock_total` > 0 dan bukan retur; bila `discount_split` dan diskon > 0: tambah kredit `discount` pada jurnal `expense` |
 | `PurchaseReceiptRule` | `total` | `is_return` | — | |
 | `DeliveryNoteRule` | `total_picked` | `is_return` | — | |
 | `PaymentEntryRule` | `paid_amount` | `payment_type` (`receive`/`pay`), `paymentable_kind` (`sales_invoice`/`purchase_invoice`) | — | `internal_transfer` dan kind lain: `LogicException` (T-4); arah retur memakai tabel arah yang sama (T-3) |
@@ -398,7 +398,32 @@ Peran peka-barang menghasilkan satu `RoleLine` per kelompok akun hasil resolusi:
 
 ## Posting Diskon (Req. 14)
 
-`PostingContext.flags['discount_split'] = true` bila `transaction_date >= finance_discount_split_from.{type}` (diputuskan pabrik konteks, sehingga rule tetap murni, selaras `tax_split` Fase 3). Jumlah bernama baru: `gross_amount`, `discount_amount`. Bentuk jurnal Sales Invoice saat aktif: debit `receivable` (total bersih) + debit `discount` (diskon) = kredit `revenue` (kotor). Pada Fase 3 yang aktif, baris pajak tetap dipisah dan basis pajak tidak berubah. Purchase Invoice: lihat Req. 14.3 dan Q-P2-5.
+Diimplementasikan sebagai Task 13 (22 November 2026). Bagian ini mencatat kontrak konteks, bentuk jurnal, setting, validasi, dan label `shadow`. Butir yang bertanda **(bacaan konservatif)** tidak dijawab spek dan menunggu konfirmasi pemilik produk; implementasi mengambil pilihan paling aman sampai ada jawaban.
+
+**Setting.** `finance_discount_split_from.{sales_invoice|purchase_invoice}` disimpan sebagai dua kolom `date` nullable pada `finance_settings` (`discount_split_from_sales_invoice`, `discount_split_from_purchase_invoice`; default null = nonaktif; migrasi aditif dengan `down()`), bukan satu kolom JSON, supaya penyimpanan lewat form setting umum (`SettingsService::update()` melakukan `fill()`) tidak menimpa kunci lain. Tampil pada tab "Posting" halaman Finance Settings (izin modul `Setting`; **bacaan konservatif**: halaman itu hanya dibuka eksplisit untuk admin). Audit lewat `ModuleSettingUpdated` seperti setting lain.
+
+**Validasi 14.4.** `SettingsService::update()` memanggil `DiscountSplitMappingValidator::assertMapped()` hanya bila kolom berubah dan diisi (mengosongkan dan menyimpan ulang nilai yang sama tidak divalidasi). Syarat: ada profil `active` yang berlaku pada tanggal cutover, dan setiap profil `active` yang masih berlaku sesudahnya memetakan peran `discount` untuk jenis dokumen itu, lewat akun default profil atau aturan akun bersyarat `role = discount` (`document_type` null atau sama, varian null atau `normal`, tanpa kondisi barang; peran `discount` tingkat dokumen sehingga aturan berkondisi barang tidak pernah cocok). Fallback legacy `(income, discount)` tidak dihitung. Pelanggaran: `ValidationException` pada kolom terkait dengan pesan yang menyebut peran, jenis dokumen, dan halaman Posting Profile. Tanggal cutover di masa lalu **tidak** ditolak (spek diam; **bacaan konservatif**: tidak menambah pembatasan di luar spek; dokumen yang sudah terposting tidak berubah karena `posting_key` idempoten dan flag dihitung dari tanggal konteks).
+
+**Flag.** `PostingContext.flags['discount_split']` diputuskan pabrik konteks lewat `DiscountSplitResolver::isActive(type, transactionDate)`: hari bisnis `transactionDate` (zona waktu perusahaan, sama dengan tanggal jurnal dan effective dating profil) >= tanggal cutover. Rule tetap murni (P-2). Pabrik konteks lengkap hanya dibangun pada `shadow`/`on`, sehingga pada `off` setting tidak berpengaruh. Tanggal pembanding adalah tanggal konteks (saat approve, `now()`), bukan kolom `date` dokumen (**bacaan konservatif**). Bila `InvoiceLineAttributesBuilder` mengosongkan daftar baris (total baris tak konsisten dengan `total`), flag dipaksa false dan dicatat `posting.discount_split_skipped_lines_mismatch`: jurnal tetap bersih.
+
+**Jumlah bernama.** Baris (`LineAttributes.amounts`): `amount` (bersih, tidak berubah), `gross_amount` = `basic_amount + tax_amount` (pajak masih menyatu dengan pendapatan/biaya, F-03; sama dengan bersih + diskon), `discount_amount` = `discount_amount` item (alokasi diskon dokumen ke baris oleh `DocumentDiscountCalculator`; item invoice tidak punya diskon baris sendiri, jadi cakupan "diskon baris dan diskon dokumen" dibaca sebagai Σ diskon alokasi item, **bacaan konservatif**). Dokumen: `gross_amount` dan `discount_amount` = Σ baris, BUKAN `discount_amount` header (pada basis `grand_total` header memuat porsi pajak sedangkan diskon baris adalah pengurang DPP). Purchase Invoice hanya menjumlah baris tegas non-stok (`is_stock_item === false`); baris stok dan baris tanpa atribut stok (null, mis. baris aset) tetap bersih (**bacaan konservatif**).
+
+**Bentuk jurnal saat aktif dan diskon > 0.**
+
+| Dokumen | Debit | Kredit |
+|---|---|---|
+| Sales Invoice (`default`) | `receivable` = total bersih; `discount` = Σ diskon | `revenue` = Σ kotor (per baris, peka-barang) |
+| Purchase Invoice (`expense`) | `expense` = kotor (baris non-stok, per baris) dan bersih (baris stok/null) | `discount` = Σ diskon non-stok; `payable` = total bersih |
+
+Retur menukar semua sisi (**bacaan konservatif**: retur setelah cutover mencerminkan split walau invoice asalnya sebelum cutover; akun diskon lalu dibebani asimetris). Jurnal `stock` Purchase Invoice, dasar pajak/DPP, dan `tax_amount` tidak berubah (14.5). Tanpa flag, diskon nol, atau tanpa `lines`, bentuk jurnal identik dengan sebelumnya. Contoh (Sales Invoice, basis `net_total`): baris A 1.000.000 dan B 500.000, PPN 12% atas DPP 11/12, diskon dokumen 150.000 (A 100.000, B 50.000) -> bersih A 999.000 + B 499.500 = 1.498.500, kotor 1.099.000 + 549.500 = 1.648.500: Dr piutang 1.498.500, Dr diskon 150.000, Cr pendapatan 1.648.500.
+
+**Pembulatan (P-13).** Dengan split, sisi debit Sales Invoice (`receivable` + `discount`) dan sisi kredit Purchase Invoice (`discount` + `payable`) memiliki dua kelompok, sehingga `PostingService::absorbRounding()` dapat menggeser piutang/utang bila minor unit mata uang dasar lebih kecil dari presisi `tax_amount` (kolom generated double, tidak dibulatkan). Pengecualian terbatas: bila sisi yang terpecah memuat kelompok peran `discount`, kelompok `receivable`/`payable` tidak boleh menyerap sisa; kelompok terbesar lainnya yang menyerap. Tanpa kelompok `discount` pada sisi itu perilaku semua rule lain tidak berubah. Diuji pada minor unit 0 dan 2.
+
+**Label `shadow` (14.6).** Jalur lama selalu menulis jurnal bersih, jadi setelah cutover engine berbeda bentuk dari jalur lama. `ParityComparator::record()` memberi `diff.reason = discount_split` (dan `diff.net_status`) HANYA bila konteks yang sama dengan flag dimatikan menghasilkan `match`, `rounding`, atau `config_diff` terhadap jurnal lama. Status tersimpan tetap hasil perbandingan sebenarnya (`mismatch`; enum Req 6.6 tidak berubah, **bacaan konservatif**); selisih lain (regresi nyata) tidak diberi label. Laporan `finance:parity-report` belum memisahkan hitungan mismatch berlabel ini (menunggu keputusan pemilik produk, terkait Req 7.2(b)).
+
+**Peran akun.** Peran `discount` tunggal dipakai Sales Invoice (debit, Potongan Penjualan) dan Purchase Invoice (kredit, Potongan Pembelian); akun berbeda dipetakan lewat aturan akun bersyarat `document_type`. Seed hanya memiliki 'Potongan Penjualan'.
+
+**Di luar cakupan Task 13:** nilai persediaan/SLE Purchase Invoice (dinilai dari `rate` kotor; diskon baris stok kini mengendap sebagai residu di SRNB, T-9), pemisahan pajak (Fase 3; kontrak `gross_amount` harus disepakati dengan Fase 3 agar split diskon + split pajak tetap seimbang), FX (Fase 4), pembulatan (14.7), dan peringatan `PostingRoleRequirements::unmapped()` untuk `discount`.
 
 ## Correctness Properties
 

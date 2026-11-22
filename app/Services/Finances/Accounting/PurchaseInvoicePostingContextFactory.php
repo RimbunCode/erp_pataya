@@ -4,8 +4,11 @@ namespace App\Services\Finances\Accounting;
 
 use App\Enums\PostingDocumentType;
 use App\Models\Finances\PurchaseInvoice;
+use App\Services\Finances\Posting\Contexts\LineAttributes;
 use App\Services\Finances\Posting\Contexts\PostingContext;
+use App\Services\Finances\Posting\DiscountSplit\DiscountSplitResolver;
 use Carbon\CarbonInterface;
+use Illuminate\Support\Facades\Log;
 
 /**
  * Pabrik `PostingContext` Purchase Invoice (Finance Fase 2, Task 8.2). Milik domain Finances (P-8). Menghasilkan konteks
@@ -14,9 +17,17 @@ use Carbon\CarbonInterface;
  * (`credit_account_id`/`expanse_head_account_id`) tidak dibaca (Requirement 7.4): `payable`, `expense` (dipetakan ke
  * SRNB demi parity, T-9), `stock`, dan `stock_received_but_not_billed` di-resolve dari profil. Baris membawa atribut
  * barang untuk aturan bersyarat `expense`.
+ *
+ * Posting diskon terpisah (Requirement 14.3, Task 13.1): `gross_amount` dan `discount_amount` tingkat dokumen hanya
+ * menjumlah baris yang tegas non-stok (`is_stock_item === false`); baris stok dan baris tanpa atribut stok (null,
+ * mis. baris aset) tetap bersih (bacaan konservatif, Q-P2-5). Flag `discount_split` dari `DiscountSplitResolver`;
+ * dipaksa false (dan dicatat) bila daftar baris dikosongkan builder. `stock_total` tidak berubah.
  */
 final class PurchaseInvoicePostingContextFactory {
-    public function __construct(private readonly InvoiceLineAttributesBuilder $lines = new InvoiceLineAttributesBuilder) {}
+    public function __construct(
+        private readonly InvoiceLineAttributesBuilder $lines = new InvoiceLineAttributesBuilder,
+        private readonly ?DiscountSplitResolver $discountSplit = null,
+    ) {}
 
     /**
      * Konteks minimal tanpa query untuk guard cancel dan pembacaan mode; konteks lengkap (`forPosting`) hanya dibangun
@@ -28,6 +39,7 @@ final class PurchaseInvoicePostingContextFactory {
 
     public function forPosting(PurchaseInvoice $purchaseInvoice, float $totalStockGl, float $totalAmount, bool $isReturn, CarbonInterface $transactionDate): PostingContext {
         $items = $purchaseInvoice->items()->with(['item' => fn ($query) => $query->withTrashed()])->get();
+        $lines = $this->lines->build($items, $totalAmount, PostingDocumentType::PurchaseInvoice->value, (string) $purchaseInvoice->getKey());
 
         return new PostingContext(
             documentType: PostingDocumentType::PurchaseInvoice,
@@ -35,9 +47,30 @@ final class PurchaseInvoicePostingContextFactory {
             sourceId: (string) $purchaseInvoice->getKey(),
             transactionDate: $transactionDate,
             branchId: null,
-            amounts: ['total' => $totalAmount, 'stock_total' => $totalStockGl],
-            flags: ['is_return' => $isReturn],
-            lines: $this->lines->build($items, $totalAmount, PostingDocumentType::PurchaseInvoice->value, (string) $purchaseInvoice->getKey()),
+            amounts: ['total' => $totalAmount, 'stock_total' => $totalStockGl, ...$this->lines->discountTotals($lines, nonStockOnly: true)],
+            flags: ['is_return' => $isReturn, 'discount_split' => $this->discountSplitActive($lines, $transactionDate, (string) $purchaseInvoice->getKey())],
+            lines: $lines,
         );
+    }
+
+    /**
+     * @param  list<LineAttributes>  $lines
+     */
+    private function discountSplitActive(array $lines, CarbonInterface $transactionDate, string $sourceId): bool {
+        $resolver = $this->discountSplit ?? app(DiscountSplitResolver::class);
+        if (! $resolver->isActive(PostingDocumentType::PurchaseInvoice, $transactionDate)) {
+            return false;
+        }
+
+        if ($lines === []) {
+            Log::warning('posting.discount_split_skipped_lines_mismatch', [
+                'document_type' => PostingDocumentType::PurchaseInvoice->value,
+                'source_id'     => $sourceId,
+            ]);
+
+            return false;
+        }
+
+        return true;
     }
 }

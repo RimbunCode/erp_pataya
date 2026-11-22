@@ -18,6 +18,13 @@ use App\Services\Finances\Posting\RoleLine;
  *
  * Kontrak konteks: `amounts['total']`, `amounts['stock_total']`, `flags['is_return']`, `lines[]` opsional dengan
  * `amounts['amount']` yang berjumlah `total`.
+ *
+ * Posting diskon terpisah (Requirement 14.3), hanya jurnal `expense`: bila `flags['discount_split']` dan
+ * `amounts['discount_amount']` (Σ diskon baris non-stok) > 0 dan ada `lines[]`, baris yang tegas non-stok
+ * (`isStockItem === false`) didebit `expense` sebesar `gross_amount` (kotor), baris stok dan baris tanpa atribut stok
+ * tetap `amount` (bersih), satu baris `discount` DIKREDIT sebesar `discount_amount` (potongan pembelian), dan `payable`
+ * tetap `total`; retur menukar semua sisi. Jurnal `stock` tidak berubah. Tanpa flag atau diskon nol, bentuk jurnal
+ * identik dengan sebelumnya.
  */
 final class PurchaseInvoiceRule extends BasePostingRule {
     public function documentType(): PostingDocumentType {
@@ -43,21 +50,31 @@ final class PurchaseInvoiceRule extends BasePostingRule {
             return null;
         }
 
-        $return  = $ctx->isReturn();
+        $return   = $ctx->isReturn();
+        $discount = $ctx->amount('discount_amount');
+        $split    = (bool) $ctx->flag('discount_split', false) && $ctx->lines !== [] && ! self::isZero($discount);
+
         $expense = [];
         foreach ($ctx->lines as $line) {
-            if (! self::isZero($line->amount('amount'))) {
+            $amount = $split && $line->isStockItem === false ? $line->amount('gross_amount') : $line->amount('amount');
+            if (! self::isZero($amount)) {
                 $expense[] = $return
-                    ? RoleLine::credit(AccountRole::Expense, $line->amount('amount'), line: $line)
-                    : RoleLine::debit(AccountRole::Expense, $line->amount('amount'), line: $line);
+                    ? RoleLine::credit(AccountRole::Expense, $amount, line: $line)
+                    : RoleLine::debit(AccountRole::Expense, $amount, line: $line);
             }
         }
         if ($expense === []) {
+            $split   = false;
             $expense = [$return ? RoleLine::credit(AccountRole::Expense, $total) : RoleLine::debit(AccountRole::Expense, $total)];
         }
 
         $payable = $return ? RoleLine::debit(AccountRole::Payable, $total) : RoleLine::credit(AccountRole::Payable, $total);
 
-        return new RoleJournalDraft('expense', [...$expense, $payable]);
+        $discountLines = [];
+        if ($split) {
+            $discountLines[] = $return ? RoleLine::debit(AccountRole::Discount, $discount) : RoleLine::credit(AccountRole::Discount, $discount);
+        }
+
+        return new RoleJournalDraft('expense', [...$expense, ...$discountLines, $payable]);
     }
 }
