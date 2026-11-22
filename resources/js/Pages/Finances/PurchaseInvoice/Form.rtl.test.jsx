@@ -16,8 +16,8 @@ vi.mock("axios", () => ({ default: { post: vi.fn() } }));
 // Strategi (paralel dgn SalesInvoice/Form.rtl.test.jsx): stub SEMUA child
 // berat/sudah-ditest, fokus HANYA ke logic UNIK Form.jsx sendiri:
 //   - defaultValue() -- resolve expense_head_account (stock_received_but_not_
-//     billed) & credit_account (payable) dari getDataModel, filter is_contra
-//     false diterapkan di FE (bukan bagian query filter langsung, cek shape).
+//     billed) & credit_account (payable) dari getDataModel (tanpa filter flag akun kontra,
+//     kolom itu dihapus pada Task 14.2).
 //   - Memo kalkulasi net_amount/dpp_amount/tax_amount/amount dihitung dari
 //     quantity*rate + tax.rate MENTAH per baris (rawLines) lalu dialokasikan
 //     ulang via allocateDiscount dgn DPP_FACTOR 11/12 (allocatedLines) --
@@ -31,8 +31,7 @@ vi.mock("axios", () => ({ default: { post: vi.fn() } }));
 //   - Transform data saat memilih purchase_order (checkout PO -> item invoice,
 //     quantity dari unbilled_quantity, amount = basic_amount+tax_amount).
 //   - Transform reset saat toggle is_return checkbox (SEMUA field terkait dan
-//     is_return sendiri, TANPA panggilan getDataModel -- beda dgn SalesInvoice
-//     yang punya getContraIncomeAccount async).
+//     is_return sendiri, TANPA panggilan getDataModel).
 //   - Transform data saat memilih return_against (retur invoice lama) --
 //     termasuk fallback credit_account/expense_head_account ke prev jika
 //     return_against tidak membawa field tsb.
@@ -391,7 +390,6 @@ describe("PurchaseInvoice Form", () => {
         expect.objectContaining({
           root_type: "liability",
           account_type: { in: ["stock_received_but_not_billed", "payable"] },
-          is_contra: false,
         }),
       );
 
@@ -750,9 +748,8 @@ describe("PurchaseInvoice Form", () => {
       });
       await user.click(checkbox);
 
-      // Toggle is_return TIDAK memanggil getDataModel sama sekali (beda dari
-      // SalesInvoice yang punya getContraIncomeAccount async) -- reset field
-      // murni functional updater sinkron.
+      // Toggle is_return TIDAK memanggil getDataModel sama sekali -- reset
+      // field murni functional updater sinkron.
       expect(getDataModelMock).not.toHaveBeenCalled();
 
       expect(setData).toHaveBeenCalled();

@@ -67,7 +67,6 @@ export default function Form() {
       account_type: {
         in: ["income_account", "receivable"],
       },
-      is_contra: false,
     });
     const incomeAccount = accounts.filter(
       (x) => x.account_type == "income_account",
@@ -101,6 +100,7 @@ export default function Form() {
     setData,
   });
   const paymentDefaultsApplied = useRef(false);
+  const incomeAccountBeforeReturn = useRef(undefined);
 
   useEffect(() => {
     if (paymentDefaultsApplied.current) return;
@@ -122,24 +122,6 @@ export default function Form() {
     defaults.payment_term_template,
     setData,
   ]);
-  const getContraIncomeAccount = (isContra) => {
-    if (accountsManaged) return;
-    getDataModel(
-      "App\\Models\\Finances\\Account",
-      {
-        root_type: "income",
-        account_type: "income_account",
-        is_contra: isContra,
-      },
-      { limit: 1 },
-    ).then((res) => {
-      console.log(res);
-      setData((prev) => ({
-        ...prev,
-        income_account: res,
-      }));
-    });
-  };
   // basic_amount adalah generated column KOTOR (quantity * price), belum dikurangi
   // diskon dokumen -- net_amount (label "Jumlah Dasar") harus mengurangi
   // discount_amount per item (ditulis backend saat create/update, lihat
@@ -696,10 +678,20 @@ export default function Form() {
               checked={data.is_return}
               valueBefore={dataBefore?.is_return}
               onCheckedChange={(val) => {
-                getContraIncomeAccount(val);
+                // Tanpa default akun retur (flag akun kontra dihapus, Task
+                // 14.2): mencentang mengosongkan akun pendapatan dan mengingat
+                // nilai sebelumnya; melepas centang memulihkannya, sehingga
+                // akun yang dipilih manual saat mode retur tidak terbawa ke
+                // invoice normal. Mode `on` tidak memakai akun di form.
+                if (val)
+                  incomeAccountBeforeReturn.current = data.income_account;
+                const restoredIncomeAccount = accountsManaged
+                  ? undefined
+                  : incomeAccountBeforeReturn.current;
                 setData((prev) => ({
                   ...prev,
                   is_return: val,
+                  income_account: val ? undefined : restoredIncomeAccount,
                   sales_order: undefined,
                   customer: undefined,
                   customer_branch: undefined,
@@ -833,7 +825,6 @@ export default function Form() {
                 filters={{
                   root_type: "income",
                   account_type: "income_account",
-                  is_contra: !!data?.is_return,
                   is_group: false,
                 }}
                 placeholder={t(

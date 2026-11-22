@@ -63,7 +63,6 @@ export default function Form() {
       account_type: {
         in: ["stock_received_but_not_billed", "payable"],
       },
-      is_contra: false,
     });
     const expenseHeadAccount = accounts.filter(
       (x) => x.account_type == "stock_received_but_not_billed",
