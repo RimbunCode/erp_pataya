@@ -293,12 +293,28 @@ class PurchaseReceiptService implements SubmitableService {
                 $returnAgainstItem = $item->returnAgainstItem()->lockForUpdate()->first();
 
                 if ($poItem) {
-                    $totalRate = $poItem->rate * $quantity;
-
-                    for ($i = \count($queue) - 1; $i >= 0; $i--) {
-                        if ($queue[$i]['rate'] == $poItem->rate) {
-                            $queue[$i]['quantity'] -= $quantity;
-                            break;
+                    // Entri queue dicari lewat baris receipt asal (`receipt_item_id`) dan dinilai dari rate entri itu:
+                    // sejak diskon baris stok masuk nilai persediaan (22 November 2026, Req 14.3) rate entri yang
+                    // sudah ditagih berupa rate bersih, tidak lagi sama dengan `rate` PO Item. Sisa yang tidak
+                    // ditemukan di queue memakai rate PO Item seperti sebelumnya.
+                    $totalRate       = 0;
+                    $remainingReturn = $quantity;
+                    for ($i = \count($queue) - 1; $i >= 0 && $remainingReturn > 0; $i--) {
+                        if (($queue[$i]['receipt_item_id'] ?? null) !== $item->return_against_item_id) {
+                            continue;
+                        }
+                        $take = min($queue[$i]['quantity'], $remainingReturn);
+                        $queue[$i]['quantity'] -= $take;
+                        $totalRate += $queue[$i]['rate'] * $take;
+                        $remainingReturn -= $take;
+                    }
+                    if ($remainingReturn > 0) {
+                        $totalRate += $poItem->rate * $remainingReturn;
+                        for ($i = \count($queue) - 1; $i >= 0; $i--) {
+                            if ($queue[$i]['rate'] == $poItem->rate) {
+                                $queue[$i]['quantity'] -= $remainingReturn;
+                                break;
+                            }
                         }
                     }
                 } else {
@@ -395,7 +411,7 @@ class PurchaseReceiptService implements SubmitableService {
                     $toStock = $isStandalone
                         ? (float) ($invoiceItem->conversion_factor ?: 1) / (float) ($stock->conversion_factor ?: 1)
                         : 1.0;
-                    $rate         = $invoiceItem->rate / $toStock;
+                    $rate         = $invoiceItem->netRate() / $toStock;
                     $availableQty = ($invoiceItem->quantity - $invoiceItem->allocated_qty) * $toStock;
                     if ($availableQty <= 0) {
                         continue;

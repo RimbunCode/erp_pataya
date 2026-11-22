@@ -312,7 +312,8 @@ class PurchaseInvoiceService implements SubmitableService {
 
                 $poItem = $item->purchaseOrderItem;
                 $qty    = $item->quantity;
-                $rate   = $item->rate;
+                // Nilai persediaan memakai rate bersih setelah diskon baris (keputusan 22 November 2026, Req 14.3).
+                $rate = $item->netRate();
 
                 // Baris di luar PO (baris receipt / item bebas) tak punya PO Item:
                 // status tagihan PO hanya menghitung PO Item (spec purchase-invoice-off-po-items).
@@ -613,7 +614,7 @@ class PurchaseInvoiceService implements SubmitableService {
             $rate,
             $purchaseInvoice,
             fn (StockLedgerEntry $sle) => $this->eligibleQuantityForPoItem($sle, $poItem),
-            ['item_id' => $poItem->item_id, 'warehouse_id' => $poItem->target_warehouse_id, 'item_unit_id' => $poItem->item_unit_id],
+            ['item_id'                 => $poItem->item_id, 'warehouse_id' => $poItem->target_warehouse_id, 'item_unit_id' => $poItem->item_unit_id],
         );
     }
 
@@ -821,7 +822,7 @@ class PurchaseInvoiceService implements SubmitableService {
                 continue;
             }
 
-            $total += $this->valueReceiptRow($row, $allocate, (float) $item->rate, $purchaseInvoice, false, $invoiceFactor);
+            $total += $this->valueReceiptRow($row, $allocate, $item->netRate(), $purchaseInvoice, false, $invoiceFactor);
             $row->increment('billed_quantity', $allocate * $invoiceFactor / $rowFactor);
             $remaining -= $allocate;
             $allocated += $allocate;

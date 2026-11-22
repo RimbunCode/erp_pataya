@@ -164,7 +164,7 @@ Status: **DECIDED** = sudah ditetapkan (mis. dari spec terdahulu); **PROPOSED** 
 | D-9 | Valuasi persediaan & COGS memakai stock ledger existing | DECIDED (di luar cakupan) | — |
 | D-10 | IFRS 15/16, impairment di luar cakupan | DECIDED (di luar cakupan) | — |
 | D-11 | Standar akuntansi acuan (SAK/PSAK vs IFRS penuh) | **DITUNDA (2026-11-03)**, menunggu akuntan (Q2) | 0 |
-| D-12 | Penanganan pajak dalam jurnal: PPN Masukan/Keluaran sebagai akun terpisah, PPh sebagai utang/piutang pajak | PROPOSED, validasi akuntan | 3 |
+| D-12 | Penanganan pajak dalam jurnal: PPN Masukan/Keluaran sebagai akun terpisah, PPh sebagai utang/piutang pajak | **DISETUJUI pemilik produk 22 November 2026 (tanpa validasi akuntan, risiko R-4 diterima); implementasi di Fase 3 (tax engine), tanpa implementasi di Fase 2** | 3 |
 | D-13 | Perilaku pembatalan dokumen: ganti soft-delete GL (perilaku sekarang) dengan jurnal pembalik | **DECIDED 2026-11-21: opsi A**, pembatalan menghapus jurnal (soft-delete dipertahankan) | 2 |
 | D-14 | Jurnal manual (Journal Voucher) oleh pengguna: masuk Fase 1 sebagai task opsional | **DECIDED** (2026-11-04) | 1 |
 | D-15 | Konversi kolom hitung item invoice (generated → kolom biasa) dan penyerapan Requirement 4 spec `dpp-discount-and-tax-compliance` oleh Fase 3 | **DISETUJUI 2026-11-15 (pemilik produk; belum ada data asli, semua data uji)** | 3 (Bagian B) |
@@ -345,7 +345,7 @@ Setiap spec berisi `requirements.md`, `design.md`, `tasks.md`, dan `.config.kiro
 | H | [`finance-payment-entry-hotfix`](../../.kiro/specs/finance-payment-entry-hotfix/requirements.md) | Requirements, design, dan tasks selesai; implementasi selesai (Task 1–10, 2026-11-04); PR ke `feat/finance-engine` menyusul. Mencakup N-4, F-10, bagian `paid_amount` F-04, N-10, N-11, Q2, Q9b, dan N-12 (Q12); dikerjakan sebelum Fase 1; tidak mengoreksi data GL staging secara otomatis |
 | 1 | [`finance-p1-journal-core`](../../.kiro/specs/finance-p1-journal-core/requirements.md) | Draft lengkap; Fase 0 selesai 2026-11-04 sehingga siap dieksekusi. Keputusan 2026-11-04 sudah diterapkan ke spec: D-3, D-8 (per dokumen), D-14 (task opsional), Q-P1-1 (tanpa jendela pemeliharaan), Q-P1-2 (penegakan periode nonaktif dulu), Q-P1-3 s.d. Q-P1-6 (`against_account_id` nullable di migration Fase 1; `minor_unit` ISO 4217 lengkap; zona waktu hari/periode = `CoreSetting.timezone`; `posting_key` Asset: scrap `Asset:{id}:write_off`, disposal per baris invoice `Asset:{id}:disposal:{sales_invoice_item_id}`; semuanya disetujui pemilik produk 2026-11-04), BR-7 (dua rilis: Rilis 1 tabel jurnal + `journal_id` nullable + backfill; Rilis 2 migration NOT NULL di PR/tahapan terpisah) |
 | 2 | [`finance-p2-posting-engine`](../../.kiro/specs/finance-p2-posting-engine/requirements.md) | Sedang berjalan: Sprint A–D selesai (peta rule `[TODO]` sudah dilengkapi, Task 1.1); semua 10 jenis dokumen dinyalakan ke `on` di staging 2026-11-21 dan Task 7.4/8.5 dinyatakan selesai oleh pemilik produk (Q-P2-1); D-13 diputuskan 2026-11-21 (opsi A, Task 11 dikeluarkan). Sisa: Task 1.3, 10 (gated D-1), 12, 13 (Q-P2-5 diputuskan 2026-11-21; Task 13.1-13.3 diimplementasikan 22 November 2026 di branch `feat/finance-p2-discount-split`, belum merge), 14 |
-| 3 | [`finance-p3-tax-engine`](../../.kiro/specs/finance-p3-tax-engine/requirements.md) | Draft; menunggu D-12 (D-15 disetujui 2026-11-15) |
+| 3 | [`finance-p3-tax-engine`](../../.kiro/specs/finance-p3-tax-engine/requirements.md) | Draft; D-12 disetujui 22 November 2026 (implementasi di fase ini), D-15 disetujui 2026-11-15 |
 | 4 | [`finance-p4-ar-ap-fx`](../../.kiro/specs/finance-p4-ar-ap-fx/requirements.md) | Draft; menunggu D-16, D-17, D-18 |
 | 5 | [`finance-p5-reporting`](../../.kiro/specs/finance-p5-reporting/requirements.md) | Draft; menunggu D-11, D-20 |
 | 6 | [`finance-p6-closing-revaluation`](../../.kiro/specs/finance-p6-closing-revaluation/requirements.md) | Draft; menunggu D-21…D-24 |
@@ -416,7 +416,7 @@ Catatan lingkungan: test suite memakai SQLite `:memory:` sedangkan dev DB MySQL 
 | R-1 | Backfill GL lama menemukan banyak kelompok tak seimbang | Laporan awal tidak cocok; untuk produksi saat ini tidak berlaku, karena GL produksi belum berisi data nyata (Q1 dijawab 2026-11-03) | Audit Fase 0 mengukur ukuran masalah lebih dulu; flag `legacy_unbalanced`; tidak memaksa koreksi |
 | R-2 | Kesalahan kebijakan pajak (DPP Nilai Lain, PPN 12%) | Kewajiban pajak salah | Aturan berversi; golden test; validasi akuntan; ikuti spec DPP yang berjalan |
 | R-3 | Dua pola posting hidup bersamaan saat transisi | Duplikasi/ketidakcocokan | Feature flag per dokumen; mode shadow; satu jalur aktif per jenis dokumen (riwayat; sejak 22 November 2026 jalur lama dihapus dan hanya engine yang aktif, Q-P2-23) |
-| R-4 | Tidak ada akuntan sebagai pengambil keputusan | Kebijakan ditebak | Jadikan prasyarat Fase 0; D-11 dan D-12 butuh persetujuan akuntan |
+| R-4 | Tidak ada akuntan sebagai pengambil keputusan | Kebijakan ditebak | Jadikan prasyarat Fase 0; D-11 butuh persetujuan akuntan. D-12 disetujui pemilik produk 22 November 2026 TANPA akuntan (risiko diterima, bukan terselesaikan) |
 | R-5 | Konversi `double`→`decimal` di puluhan tabel operasional | Regresi luas | Terapkan `decimal` hanya di tabel jurnal; pembulatan di batas posting; konversi tabel operasional program terpisah |
 | R-6 | Requirement 4 spec `dpp-discount-and-tax-compliance` (kolom klasifikasi di `taxes`) **belum diimplementasi** (Task 11 opsional dan dilewati), dan perhitungan pajak invoice terkunci pada kolom generated berfaktor 11/12 (F-17) | Konflik skema/ruang lingkup ganda; tarif efektif data lama tidak jelas | Fase 3 menyerap Requirement 4 (D-15); dibagi Bagian A (aman) dan Bagian B (gated); audit semantik `rate` data produksi (Q-P3-1) |
 | R-7 | Scope creep (IFRS 15/16, multi-company, multi-negara) | Jadwal molor | Non-tujuan Bagian 3.2; perubahan scope masuk spec lebih dulu |
@@ -443,7 +443,7 @@ Catatan lingkungan: test suite memakai SQLite `:memory:` sedangkan dev DB MySQL 
 | # | Pertanyaan | Dibutuhkan sebelum |
 |---|---|---|
 | Q1 | Apakah GL sudah berisi data **produksi** nyata (hanya staging yang terlihat)? Ini menentukan beban backfill dan kehati-hatian migrasi. **Status: Dijawab 2026-11-03** oleh pemilik produk: belum ada data sama sekali (GL produksi kosong). Konsekuensi: beban backfill produksi per 2026-11-03 nol (GL produksi kosong). | Fase 1 |
-| Q2 | Siapa penanggung jawab akuntansi yang menyetujui kebijakan (D-11, D-12)? | Fase 0 |
+| Q2 | Siapa penanggung jawab akuntansi yang menyetujui kebijakan (D-11, D-12)? (D-12 disetujui pemilik produk 22 November 2026 tanpa akuntan; D-11 tetap menunggu) | Fase 0 |
 | Q3 | Berapa developer yang tersedia, dan apakah ada tenggat bisnis (mis. audit/pajak tertentu)? | Fase 0 |
 | Q4 | ~~Apakah multi-company direncanakan dalam 12 bulan (D-4)?~~ Dijawab 2026-10-18: satu perusahaan | — |
 | Q5 | D-1: opsi A, B, atau C? | Fase 2 |

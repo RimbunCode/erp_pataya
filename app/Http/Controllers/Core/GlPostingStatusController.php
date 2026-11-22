@@ -135,7 +135,7 @@ class GlPostingStatusController extends Controller {
             if (! $poItem || $pi->return_against_id) {
                 continue;
             }
-            $total += (float) $item->rate * (float) $item->quantity;
+            $total += $item->netRate() * (float) $item->quantity;
         }
 
         return $total;
