@@ -128,6 +128,93 @@ class PostingRulesTest extends TestCase {
         $this->assertSame([], $this->build($this->ctx(PostingDocumentType::PurchaseInvoice, ['total' => 0, 'stock_total' => 0])));
     }
 
+    /**
+     * @return array{0: list<LineAttributes>, 1: array<string, float|int>}
+     */
+    private function salesSplitFixture(): array {
+        // Net 999.000 + 499.500 = 1.498.500; kotor 1.099.000 + 549.500; diskon 100.000 + 50.000.
+        $a = new LineAttributes(['amount' => 999000, 'gross_amount' => 1099000, 'discount_amount' => 100000], isStockItem: true);
+        $b = new LineAttributes(['amount' => 499500, 'gross_amount' => 549500, 'discount_amount' => 50000], isStockItem: false);
+
+        return [[$a, $b], ['total' => 1498500, 'gross_amount' => 1648500, 'discount_amount' => 150000]];
+    }
+
+    public function test_sales_invoice_discount_split_posts_gross_revenue_and_discount_debit(): void {
+        [$lines, $amounts] = $this->salesSplitFixture();
+        $drafts            = $this->build($this->ctx(PostingDocumentType::SalesInvoice, $amounts, ['discount_split' => true], $lines));
+
+        $this->assertCount(1, $drafts);
+        $this->assertSame(
+            ['debit:receivable:1498500', 'debit:discount:150000', 'credit:revenue:1099000', 'credit:revenue:549500'],
+            $this->shape($drafts[0]),
+        );
+        $this->assertSame($lines[0], $drafts[0]->lines[2]->line, 'revenue tetap peka-barang');
+        $this->assertNull($drafts[0]->lines[1]->line, 'discount tingkat dokumen, bukan peka-barang');
+    }
+
+    public function test_sales_invoice_discount_split_return_swaps_every_side(): void {
+        [$lines, $amounts] = $this->salesSplitFixture();
+        $drafts            = $this->build($this->ctx(PostingDocumentType::SalesInvoice, $amounts, ['discount_split' => true, 'is_return' => true], $lines));
+
+        $this->assertSame(
+            ['credit:receivable:1498500', 'credit:discount:150000', 'debit:revenue:1099000', 'debit:revenue:549500'],
+            $this->shape($drafts[0]),
+        );
+    }
+
+    public function test_sales_invoice_keeps_the_net_shape_without_flag_zero_discount_or_lines(): void {
+        [$lines, $amounts] = $this->salesSplitFixture();
+
+        $noFlag = $this->build($this->ctx(PostingDocumentType::SalesInvoice, $amounts, [], $lines));
+        $this->assertSame(['debit:receivable:1498500', 'credit:revenue:999000', 'credit:revenue:499500'], $this->shape($noFlag[0]));
+
+        $flagFalse = $this->build($this->ctx(PostingDocumentType::SalesInvoice, $amounts, ['discount_split' => false], $lines));
+        $this->assertSame($this->shape($noFlag[0]), $this->shape($flagFalse[0]));
+
+        $zeroDiscount = $this->build($this->ctx(PostingDocumentType::SalesInvoice, ['total' => 1000, 'gross_amount' => 1000, 'discount_amount' => 0], ['discount_split' => true], [new LineAttributes(['amount' => 1000, 'gross_amount' => 1000, 'discount_amount' => 0])]));
+        $this->assertSame(['debit:receivable:1000', 'credit:revenue:1000'], $this->shape($zeroDiscount[0]));
+
+        // Tanpa `lines` (fallback pabrik) tidak ada split walau flag menyala.
+        $noLines = $this->build($this->ctx(PostingDocumentType::SalesInvoice, $amounts, ['discount_split' => true]));
+        $this->assertSame(['debit:receivable:1498500', 'credit:revenue:1498500'], $this->shape($noLines[0]));
+    }
+
+    public function test_purchase_invoice_discount_split_only_touches_non_stock_lines(): void {
+        // Baris non-stok: bersih 199.800, kotor 219.800, diskon 20.000. Baris stok bersih 999.000. Total 1.198.800.
+        $nonStock = new LineAttributes(['amount' => 199800, 'gross_amount' => 219800, 'discount_amount' => 20000], isStockItem: false);
+        $stock    = new LineAttributes(['amount' => 999000, 'gross_amount' => 1099000, 'discount_amount' => 100000], isStockItem: true);
+        $amounts  = ['total' => 1198800, 'stock_total' => 1000000, 'gross_amount' => 219800, 'discount_amount' => 20000];
+
+        $drafts = $this->build($this->ctx(PostingDocumentType::PurchaseInvoice, $amounts, ['discount_split' => true], [$nonStock, $stock]));
+
+        $this->assertSame(['stock', 'expense'], array_map(fn (RoleJournalDraft $d): string => $d->purpose, $drafts));
+        $this->assertSame(['debit:stock:1000000', 'credit:stock_received_but_not_billed:1000000'], $this->shape($drafts[0]), 'jurnal stock tidak berubah');
+        $this->assertSame(
+            ['debit:expense:219800', 'debit:expense:999000', 'credit:discount:20000', 'credit:payable:1198800'],
+            $this->shape($drafts[1]),
+        );
+
+        $return = $this->build($this->ctx(PostingDocumentType::PurchaseInvoice, $amounts, ['discount_split' => true, 'is_return' => true], [$nonStock, $stock]));
+        $this->assertSame(
+            ['credit:expense:219800', 'credit:expense:999000', 'debit:discount:20000', 'debit:payable:1198800'],
+            $this->shape($return[0]),
+        );
+    }
+
+    public function test_purchase_invoice_without_non_stock_discount_keeps_net_shape_and_null_stock_attribute_stays_net(): void {
+        $stock = new LineAttributes(['amount' => 900, 'gross_amount' => 1000, 'discount_amount' => 100], isStockItem: true);
+        $asset = new LineAttributes(['amount' => 90, 'gross_amount' => 100, 'discount_amount' => 10], isStockItem: null);
+
+        // Pabrik hanya menjumlah baris tegas non-stok: stok dan null tidak menghasilkan `discount_amount` dokumen.
+        $drafts = $this->build($this->ctx(PostingDocumentType::PurchaseInvoice, ['total' => 990, 'stock_total' => 0, 'gross_amount' => 0, 'discount_amount' => 0], ['discount_split' => true], [$stock, $asset]));
+        $this->assertSame(['debit:expense:900', 'debit:expense:90', 'credit:payable:990'], $this->shape($drafts[0]));
+
+        // Bila ada diskon non-stok, baris null tetap bersih.
+        $nonStock = new LineAttributes(['amount' => 90, 'gross_amount' => 100, 'discount_amount' => 10], isStockItem: false);
+        $mixed    = $this->build($this->ctx(PostingDocumentType::PurchaseInvoice, ['total' => 1080, 'stock_total' => 0, 'gross_amount' => 100, 'discount_amount' => 10], ['discount_split' => true], [$asset, $nonStock, $stock]));
+        $this->assertSame(['debit:expense:90', 'debit:expense:100', 'debit:expense:900', 'credit:discount:10', 'credit:payable:1080'], $this->shape($mixed[0]));
+    }
+
     public function test_purchase_receipt_and_delivery_note_normal_return_zero(): void {
         $receipt = $this->build($this->ctx(PostingDocumentType::PurchaseReceipt, ['total' => 800]));
         $this->assertSame(['debit:stock:800', 'credit:stock_received_but_not_billed:800'], $this->shape($receipt[0]));

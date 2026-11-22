@@ -67,4 +67,25 @@ final readonly class PostingContext {
     public function flag(string $name, mixed $default = null): mixed {
         return $this->flags[$name] ?? $default;
     }
+
+    /**
+     * Salinan konteks dengan satu flag diganti. Dipakai pembanding parity untuk menguji apakah perbedaan hanya berasal
+     * dari flag itu (mis. `discount_split`, Requirement 14.6); konteks asli tidak berubah.
+     */
+    public function withFlag(string $name, mixed $value): self {
+        return new self(
+            $this->documentType,
+            $this->sourceType,
+            $this->sourceId,
+            $this->transactionDate,
+            $this->branchId,
+            $this->amounts,
+            [...$this->flags, $name => $value],
+            $this->masterAccounts,
+            $this->lines,
+            $this->party,
+            $this->description,
+            $this->guardDocument,
+        );
+    }
 }

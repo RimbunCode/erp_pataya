@@ -2,13 +2,13 @@
 
 ## Overview
 
-Urutan: fondasi data dan resolver (1–3), kontrak + rule + service + gateway dengan test (4–5), UI profil (6), migrasi per jenis dokumen di balik mode `off/shadow/on` (7–9), lalu bagian GATED (sakelar eksekusi — D-1; pembatalan reversal — D-13), akun tanpa input pengguna dan aturan bersyarat (12), posting diskon GATED (13), dan pembersihan legacy (14). **Semua mode default `off`**: merge tidak mengubah perilaku sampai ada keputusan eksplisit per jenis dokumen. Lint/Pint dijalankan sekali di akhir.
+Urutan: fondasi data dan resolver (1–3), kontrak + rule + service + gateway dengan test (4–5), UI profil (6), migrasi per jenis dokumen di balik mode `off/shadow/on` (7–9), lalu bagian GATED (sakelar eksekusi — D-1; pembatalan reversal — D-13), akun tanpa input pengguna dan aturan bersyarat (12), posting diskon (13; Q-P2-5 diputuskan 2026-11-21, aktif lewat tanggal cutover), dan pembersihan legacy (14). **Semua mode default `off`**: merge tidak mengubah perilaku sampai ada keputusan eksplisit per jenis dokumen. Lint/Pint dijalankan sekali di akhir.
 
 **Prasyarat**: Fase 1 selesai (JournalService, adapter, backfill, reconcile hijau); characterization Fase 0 + test Fase 1 hijau; service setting Finances dari spec `module-settings-foundation` tersedia (D-25). Branch baru dari `origin/feat/finance-engine` terbaru (BR-6, PRD Bagian 10).
 
 **Aturan eksekusi**:
 - Task 10 (sakelar eksekusi): D-1 diputuskan 2026-11-21 (opsi C), dikerjakan. Task 11 (reversal saat cancel) **dikeluarkan**: D-13 diputuskan 2026-11-21 (pemilik produk) untuk mempertahankan soft-delete.
-- Task 13 (posting diskon) **GATED**: kerjakan hanya setelah Q-P2-5 terjawab akuntan; mengubah bentuk jurnal sehingga hanya aktif lewat tanggal cutover.
+- Task 13 (posting diskon): Q-P2-5 diputuskan 2026-11-21 (pemilik produk: ikuti praktik umum ERP) sehingga tidak lagi GATED; mengubah bentuk jurnal sehingga hanya aktif lewat tanggal cutover.
 - Task 12 dikerjakan per jenis dokumen **setelah** jenis itu berada pada mode `on`; field akun pada form tidak dihapus sebelum itu.
 - Perpindahan ke mode `on` adalah **keputusan pemilik produk**, bukan bagian dari menyelesaikan task; task hanya menyiapkan dan membuktikan parity.
 - Sebelum menulis rule untuk Stock Entry, scrap, value adjustment, dan disposal, baca penuh kode sumbernya (tanda `[TODO]` di design) dan perbarui tabel peta rule.
@@ -146,13 +146,15 @@ Urutan: fondasi data dan resolver (1–3), kontrak + rule + service + gateway de
   - [ ] 12.7 Checkpoint - jalankan test Finances, Sales, Purchase, Inventory yang disentuh
     - Ensure all tests pass, ask the user if questions arise.
 
-- [ ] 13. **(Q-P2-5 diputuskan 2026-11-21: ikuti praktik umum ERP; siap dikerjakan)** Posting diskon terpisah
-  - [ ] 13.1 Jumlah bernama `gross_amount`/`discount_amount` di pabrik konteks Sales Invoice (dan Purchase Invoice non-stok) + flag `discount_split` dari setting `finance_discount_split_from.*`; validasi peran `discount` terpetakan sebelum setting boleh diisi
+- [x] 13. **(Q-P2-5 diputuskan 2026-11-21: ikuti praktik umum ERP; diimplementasikan 22 November 2026)** Posting diskon terpisah
+  - [x] 13.1 Jumlah bernama `gross_amount`/`discount_amount` di pabrik konteks Sales Invoice (dan Purchase Invoice non-stok) + flag `discount_split` dari setting `finance_discount_split_from.*`; validasi peran `discount` terpetakan sebelum setting boleh diisi
     - _Requirements: 14.1, 14.4_
-  - [ ] 13.2 Rule Sales Invoice (dan Purchase Invoice non-stok) bentuk jurnal diskon; baris pajak dan DPP tidak berubah
+  - [x] 13.2 Rule Sales Invoice (dan Purchase Invoice non-stok) bentuk jurnal diskon; baris pajak dan DPP tidak berubah
     - _Requirements: 14.2, 14.3, 14.5_
-  - [ ]* 13.3 Write tests **P-13** jurnal seimbang, total `receivable` = total bersih; alasan `discount_split` pada shadow; dokumen sebelum cutover tidak berubah
+  - [x]* 13.3 Write tests **P-13** jurnal seimbang, total `receivable` = total bersih; alasan `discount_split` pada shadow; dokumen sebelum cutover tidak berubah
     - **Validates: Requirements 14.1–14.6**
+    - **Catatan kemajuan (22 November 2026):** Task 13.1-13.3 selesai dan teruji. Butir 13.3 bertanda opsional (`*`) di rencana awal, tetapi tes P-13 tetap ditulis karena aturan proyek mewajibkan setiap perubahan diuji secara terprogram (tes: `DiscountSplitBalanceTest`, `DiscountSplitPostingTest`, `DiscountSplitCutoverTest`, `DiscountSplitSettingTest`, tambahan `PostingRulesTest`, `FinanceSettings.rtl.test.jsx`). Setting disimpan sebagai dua kolom `date` nullable pada `finance_settings` dan diisi lewat tab "Posting" Finance Settings; validasi 14.4 ada di `SettingsService::update()` (`DiscountSplitMappingValidator`); flag dari `DiscountSplitResolver` di pabrik konteks; `PostingService::absorbRounding()` mendapat pengecualian terbatas agar piutang/utang tidak menyerap sisa pembulatan saat ada baris `discount` (P-13). Detail dan contoh angka: bagian "Posting Diskon" di `design.md`.
+    - **Bacaan konservatif yang menunggu konfirmasi pemilik produk (tidak diputuskan sepihak; belum menjadi keputusan):** (1) tanggal pembanding cutover = tanggal konteks/jurnal (saat approve), bukan kolom `date` dokumen; (2) tanggal cutover di masa lalu tidak ditolak; (3) pengisi setting = izin modul `Setting` (halaman Finance Settings), bukan `switch_posting_mode`; (4) "diskon baris" dibaca sebagai Σ diskon alokasi item (invoice tidak punya diskon baris sendiri); (5) jumlah kotor = bersih + diskon, pajak masih menyatu (F-03); (6) retur setelah cutover mencerminkan split dengan sisi ditukar, termasuk atas invoice asal sebelum cutover; (7) baris Purchase Invoice tanpa atribut stok (null) diperlakukan sebagai stok (tetap bersih); (8) status parity log tetap `mismatch` dengan `diff.reason = discount_split` (bukan enum baru) dan `finance:parity-report` belum menghitungnya terpisah (Req 7.2(b)); (9) peringatan `PostingRoleRequirements::unmapped()` untuk `discount` dan penolakan aktivasi profil yang menghilangkan pemetaan setelah cutover tidak dibangun; (10) bila total baris tak konsisten, split dimatikan dan jurnal bersih; (11) peran `discount` dipakai bersama Sales dan Purchase Invoice (akun berbeda lewat aturan `document_type`; tanpa peringatan bila akunnya sama). Risiko yang dilaporkan: nilai persediaan/SLE Purchase Invoice dinilai dari `rate` kotor sehingga diskon baris stok mengendap di SRNB (T-9), dan kontrak `gross_amount` harus disepakati dengan Fase 3.
 
 - [ ] 14. Penutupan fase dan pembersihan legacy
   - [ ] 14.1 **(Setelah semua jenis `on` stabil satu siklus tutup bulan, atas persetujuan; _disetujui pemilik produk 2026-11-21 untuk dikerjakan sekarang tanpa menunggu siklus tutup bulan: data staging adalah data uji dan produksi belum berisi data_)** matikan `legacy_account_fallback`, hapus closure legacy dari listener dan pencarian `account_type`; pada saat ini penegakan P-9 (Requirement 7.3; uji `PostingLegacyLookupTest` dengan daftar `on` terisi, dan grep CI) mulai berlaku (Q-P2-19)
