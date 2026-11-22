@@ -91,6 +91,34 @@ describe("Asset ValueAdjustments Form", () => {
     );
   });
 
+  describe("akun dikelola engine (mode on, Task 12.3)", () => {
+    it("menyembunyikan field akun selisih saat mode on", () => {
+      usePageMock.mockReturnValue({
+        props: { preferences: {}, accountsManagedByEngine: true },
+      });
+      renderForm(<Form />);
+
+      expect(
+        screen.queryByTestId("forminput-difference_account"),
+      ).not.toBeInTheDocument();
+      expect(
+        screen.queryByTestId("account-link-model"),
+      ).not.toBeInTheDocument();
+      expect(
+        screen.getByTestId("forminput-new_asset_value"),
+      ).toBeInTheDocument();
+    });
+
+    it("menampilkan field akun selisih saat mode bukan on", () => {
+      renderForm(<Form />);
+
+      expect(
+        screen.getByTestId("forminput-difference_account"),
+      ).toBeInTheDocument();
+      expect(screen.getByTestId("account-link-model")).toBeInTheDocument();
+    });
+  });
+
   it("current_asset_value selalu disabled (read-only)", () => {
     formPageSeed = { current_asset_value: 5000000 };
     renderForm(<Form />);
