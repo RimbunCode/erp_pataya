@@ -773,6 +773,154 @@ describe("PaymentEntries Form", () => {
     });
   });
 
+  describe("akun dikelola engine (mode on, Task 12.3)", () => {
+    const managedProps = (managed) => ({
+      props: {
+        preferences: { default_currency_id: "idr" },
+        accountsManagedByEngine: managed,
+      },
+    });
+
+    it("menyembunyikan seksi akun saat mode on", () => {
+      usePageMock.mockReturnValue(managedProps(true));
+      formPageState = makeFormPageState({
+        data: { payment_type: "receive", party_type: "customer" },
+      });
+      render(<Form />);
+
+      expect(screen.queryByTestId("account-link")).not.toBeInTheDocument();
+      expect(
+        screen.queryByText("finances.paymentEntry.columns.account_paid_from"),
+      ).not.toBeInTheDocument();
+      expect(
+        screen.queryByText("finances.paymentEntry.columns.account_paid_to"),
+      ).not.toBeInTheDocument();
+    });
+
+    it("menampilkan seksi akun saat mode bukan on", () => {
+      usePageMock.mockReturnValue(managedProps(false));
+      formPageState = makeFormPageState({
+        data: { payment_type: "receive", party_type: "customer" },
+      });
+      render(<Form />);
+
+      expect(screen.getAllByTestId("account-link").length).toBe(2);
+      expect(
+        screen.getByText("finances.paymentEntry.columns.account_paid_from"),
+      ).toBeInTheDocument();
+    });
+
+    it("memilih payment_method tidak mengisi akun saat mode on", async () => {
+      const user = userEvent.setup({ delay: null });
+      const setData = vi.fn();
+      usePageMock.mockReturnValue(managedProps(true));
+      formPageState = makeFormPageState({
+        setData,
+        data: { payment_type: "receive", party_type: "customer" },
+      });
+      globalThis.__linkModelPayloads["payment-method-link"] = {
+        id: 5,
+        name: "QRIS",
+        default_account: { id: 33 },
+      };
+
+      render(<Form />);
+      await user.click(screen.getByTestId("payment-method-link"));
+
+      const updater = setData.mock.calls[setData.mock.calls.length - 1][0];
+      const result = updater({ payment_type: "receive" });
+
+      expect(result.payment_method).toEqual(
+        expect.objectContaining({ id: 5, name: "QRIS" }),
+      );
+      expect(result).not.toHaveProperty("account_paid_to");
+      expect(result).not.toHaveProperty("account_paid_from");
+    });
+
+    it("memilih paymentable tidak mengisi akun saat mode on", async () => {
+      const user = userEvent.setup({ delay: null });
+      const setData = vi.fn();
+      usePageMock.mockReturnValue(managedProps(true));
+      formPageState = makeFormPageState({
+        setData,
+        data: { payment_type: "receive", party_type: "customer" },
+      });
+      globalThis.__linkModelPayloads["paymentable-link"] = {
+        id: 10,
+        currency: { id: 2, code: "usd" },
+        exchange_rate: 15000,
+        customer: { id: 7, name: "PT ABC" },
+        debit_account: { id: 55 },
+        payment_schedules: [
+          {
+            outstanding_amount: 1000,
+            payment_method: {
+              id: 1,
+              name: "Transfer",
+              default_account: { id: 10 },
+            },
+          },
+        ],
+      };
+
+      render(<Form />);
+      await user.click(screen.getByTestId("paymentable-link"));
+
+      const updater = setData.mock.calls[setData.mock.calls.length - 1][0];
+      const result = updater({ party_type: "customer" });
+
+      expect(result.partyable).toEqual({ id: 7, name: "PT ABC" });
+      expect(result.paid_amount).toBe(1000);
+      expect(result.payment_method).toEqual(
+        expect.objectContaining({ id: 1, name: "Transfer" }),
+      );
+      expect(result).not.toHaveProperty("account_paid_to");
+      expect(result).not.toHaveProperty("account_paid_from");
+    });
+
+    it("tombol select pada baris payment schedule tidak mengisi akun saat mode on", async () => {
+      const user = userEvent.setup({ delay: null });
+      const setData = vi.fn();
+      usePageMock.mockReturnValue(managedProps(true));
+      formPageState = makeFormPageState({
+        setData,
+        data: {
+          payment_type: "receive",
+          party_type: "customer",
+          paymentable: {
+            id: 1,
+            payment_schedules: [
+              {
+                outstanding_amount: 700,
+                payment_method: {
+                  id: 3,
+                  name: "Cash",
+                  default_account: { id: 20 },
+                },
+              },
+            ],
+          },
+        },
+      });
+
+      render(<Form />);
+      await user.click(screen.getByTestId("row-0").querySelector("button"));
+
+      const updater = setData.mock.calls[setData.mock.calls.length - 1][0];
+      const result = updater({
+        party_type: "customer",
+        paymentable: formPageState.data.paymentable,
+      });
+
+      expect(result.paid_amount).toBe(700);
+      expect(result.payment_method).toEqual(
+        expect.objectContaining({ id: 3, name: "Cash" }),
+      );
+      expect(result).not.toHaveProperty("account_paid_to");
+      expect(result).not.toHaveProperty("account_paid_from");
+    });
+  });
+
   describe("field lain", () => {
     it("account-link (account_paid_from/account_paid_to) dirender", () => {
       formPageState = makeFormPageState({

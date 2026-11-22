@@ -46,13 +46,26 @@ vi.mock("@inertiajs/react", () => ({
   usePage: () => usePageMock(),
 }));
 
+// getDataModel dipantau supaya terbukti default akun selisih tidak diambil saat
+// mode engine `on`; helper lain di @/lib/utils dipakai apa adanya.
+const getDataModelMock = vi.fn();
+vi.mock("@/lib/utils", async () => {
+  const actual = await vi.importActual("@/lib/utils");
+  return {
+    ...actual,
+    getDataModel: (...args) => getDataModelMock(...args),
+  };
+});
+
 // useFormPage di-mock sebagai stateful hook (state sungguhan) supaya setData
 // yang dipanggil Form.jsx (mis. cascade default_source_warehouse -> items,
 // atau additional_costs -> recompute items) betul2 memicu re-render dengan
 // data terbaru -- diperlukan utk menguji cascade & kalkulasi total reaktif.
 let formPageSeed = {};
 let formPageDisabled = false;
-function useFormPageStateful() {
+let lastDefaultValueArg;
+function useFormPageStateful(defaultValue) {
+  lastDefaultValueArg = defaultValue;
   const [data, setDataState] = useState(formPageSeed);
   const setData = (...args) => {
     if (typeof args[0] === "function") {
@@ -293,7 +306,75 @@ describe("Inventory/StockEntries Form", () => {
   beforeEach(() => {
     formPageSeed = {};
     formPageDisabled = false;
+    lastDefaultValueArg = undefined;
+    getDataModelMock.mockReset();
+    getDataModelMock.mockResolvedValue({ id: 99, name: "Selisih Stok" });
     setPageProps();
+  });
+
+  describe("akun dikelola engine (mode on, Task 12.3)", () => {
+    it("tidak mengambil default akun selisih dan menyembunyikan seksi akun saat mode on", async () => {
+      setPageProps({ accountsManagedByEngine: true });
+      formPageSeed = { type: "item_receipt", items: [] };
+      render(<Form />);
+
+      const result = await lastDefaultValueArg();
+
+      expect(getDataModelMock).not.toHaveBeenCalled();
+      expect(result).toEqual({ date: expect.any(Date) });
+      expect(
+        screen.queryByText("inventory.stockEntry.accounting"),
+      ).not.toBeInTheDocument();
+      expect(
+        screen.queryByTestId("account-link-model"),
+      ).not.toBeInTheDocument();
+    });
+
+    it("menyembunyikan kolom akun biaya tambahan saat mode on", () => {
+      setPageProps({ accountsManagedByEngine: true });
+      formPageSeed = {
+        type: "item_receipt",
+        items: [],
+        additional_costs: [{ id: "c1", purpose: "Angkut", amount: 100 }],
+      };
+      render(<Form />);
+
+      expect(
+        screen.queryByTestId(
+          "cell-expense_account-StockEntryAdditionalCosts-0",
+        ),
+      ).not.toBeInTheDocument();
+      expect(
+        screen.getByTestId("cell-purpose-StockEntryAdditionalCosts-0"),
+      ).toBeInTheDocument();
+      expect(
+        screen.getByTestId("cell-amount-StockEntryAdditionalCosts-0"),
+      ).toBeInTheDocument();
+    });
+
+    it("mengambil default akun selisih dan menampilkan seksi akun saat mode bukan on", async () => {
+      setPageProps({ accountsManagedByEngine: false });
+      formPageSeed = {
+        type: "item_receipt",
+        items: [],
+        additional_costs: [{ id: "c1", purpose: "Angkut", amount: 100 }],
+      };
+      render(<Form />);
+
+      const result = await lastDefaultValueArg();
+
+      expect(getDataModelMock).toHaveBeenCalledTimes(1);
+      expect(result.difference_account).toEqual({
+        id: 99,
+        name: "Selisih Stok",
+      });
+      expect(
+        screen.getByText("inventory.stockEntry.accounting"),
+      ).toBeInTheDocument();
+      expect(
+        screen.getByTestId("cell-expense_account-StockEntryAdditionalCosts-0"),
+      ).toBeInTheDocument();
+    });
   });
 
   describe("rendering dasar & visibility field", () => {

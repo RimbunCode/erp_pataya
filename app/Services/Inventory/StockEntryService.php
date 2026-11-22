@@ -30,7 +30,11 @@ class StockEntryService implements SubmitableService {
     }
 
     private function fillRelations(array $data) {
-        $data['difference_account_id'] = $data['difference_account']['id'];
+        // Saat engine `on` request tidak membawa akun (Task 12.3): kolom tidak disentuh, jadi null pada dokumen baru
+        // dan nilai lama (catatan audit) dipertahankan saat draft diubah, sampai engine mencatatnya.
+        if (isset($data['difference_account']['id'])) {
+            $data['difference_account_id'] = $data['difference_account']['id'];
+        }
 
         return $data;
     }
@@ -90,7 +94,10 @@ class StockEntryService implements SubmitableService {
     }
 
     private function fillAdditionalCostRelations(array $data) {
-        $data['expense_account_id'] = $data['expense_account']['id'];
+        // Sama dengan akun selisih: tanpa akun di request (engine `on`), kolom tidak disentuh.
+        if (isset($data['expense_account']['id'])) {
+            $data['expense_account_id'] = $data['expense_account']['id'];
+        }
 
         return $data;
     }

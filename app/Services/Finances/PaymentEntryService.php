@@ -38,15 +38,21 @@ class PaymentEntryService implements SubmitableService {
             throw ValidationException::withMessages(['exchange_rate' => 'Exchange rate is required for non-default currency.']);
         }
 
-        $data['exchange_rate']        = $data['currency_code'] == $defaultCurrency ? 1 : $data['exchange_rate'];
-        $data['partyable_id']         = $data['partyable']['id'];
-        $data['partyable_type']       = $data['payment_type'] == 'pay' ? Supplier::class : Customer::class;
-        $data['paymentable_id']       = $data['paymentable']['id'];
-        $data['paymentable_type']     = $data['payment_type'] == 'pay' ? PurchaseInvoice::class : SalesInvoice::class;
-        $data['payment_method_id']    = $data['payment_method']['id'] ?? null;
-        $data['account_paid_to_id']   = $data['account_paid_to']['id'];
-        $data['account_paid_from_id'] = $data['account_paid_from']['id'];
-        $data['exchange_rate']        = $data['exchange_rate'] ?? 1;
+        $data['exchange_rate']     = $data['currency_code'] == $defaultCurrency ? 1 : $data['exchange_rate'];
+        $data['partyable_id']      = $data['partyable']['id'];
+        $data['partyable_type']    = $data['payment_type'] == 'pay' ? Supplier::class : Customer::class;
+        $data['paymentable_id']    = $data['paymentable']['id'];
+        $data['paymentable_type']  = $data['payment_type'] == 'pay' ? PurchaseInvoice::class : SalesInvoice::class;
+        $data['payment_method_id'] = $data['payment_method']['id'] ?? null;
+        // Saat engine `on` request tidak membawa akun (Task 12.3): kolom tidak disentuh, jadi null pada dokumen baru
+        // dan nilai lama (catatan audit) dipertahankan saat draft diubah, sampai engine mencatatnya.
+        if (isset($data['account_paid_to']['id'])) {
+            $data['account_paid_to_id'] = $data['account_paid_to']['id'];
+        }
+        if (isset($data['account_paid_from']['id'])) {
+            $data['account_paid_from_id'] = $data['account_paid_from']['id'];
+        }
+        $data['exchange_rate'] = $data['exchange_rate'] ?? 1;
 
         return $data;
     }
