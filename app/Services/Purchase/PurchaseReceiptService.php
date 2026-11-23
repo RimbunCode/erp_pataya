@@ -295,27 +295,18 @@ class PurchaseReceiptService implements SubmitableService {
                 if ($poItem) {
                     // Entri queue dicari lewat baris receipt asal (`receipt_item_id`) dan dinilai dari rate entri itu:
                     // sejak diskon baris stok masuk nilai persediaan (22 November 2026, Req 14.3) rate entri yang
-                    // sudah ditagih berupa rate bersih, tidak lagi sama dengan `rate` PO Item. Sisa yang tidak
-                    // ditemukan di queue memakai rate PO Item seperti sebelumnya.
-                    $totalRate       = 0;
-                    $remainingReturn = $quantity;
-                    for ($i = \count($queue) - 1; $i >= 0 && $remainingReturn > 0; $i--) {
-                        if (($queue[$i]['receipt_item_id'] ?? null) !== $item->return_against_item_id) {
-                            continue;
-                        }
-                        $take = min($queue[$i]['quantity'], $remainingReturn);
-                        $queue[$i]['quantity'] -= $take;
-                        $totalRate += $queue[$i]['rate'] * $take;
-                        $remainingReturn -= $take;
+                    // sudah ditagih berupa rate bersih, tidak lagi sama dengan `rate` PO Item. Sisa yang layer asalnya
+                    // sudah habis (mis. dikonsumsi FIFO oleh Delivery Note) diambil dari entri lain, terbaru lebih
+                    // dulu, berapa pun rate-nya dan dinilai pada rate entri itu, agar queue tetap berkurang sebesar
+                    // kuantitas retur. Hanya bila queue tak cukup, sisanya dinilai pada rate PO Item tanpa
+                    // mengurangi queue (kuantitas stok yang tak punya layer).
+                    [$totalRate, $remainingReturn] = $this->takeFromQueue($queue, (float) $quantity, $item->return_against_item_id);
+                    if ($remainingReturn > 0) {
+                        [$fallbackRate, $remainingReturn] = $this->takeFromQueue($queue, $remainingReturn);
+                        $totalRate += $fallbackRate;
                     }
                     if ($remainingReturn > 0) {
                         $totalRate += $poItem->rate * $remainingReturn;
-                        for ($i = \count($queue) - 1; $i >= 0; $i--) {
-                            if ($queue[$i]['rate'] == $poItem->rate) {
-                                $queue[$i]['quantity'] -= $remainingReturn;
-                                break;
-                            }
-                        }
                     }
                 } else {
                     // Baris di luar PO: tarif dari entri queue milik baris receipt asal
@@ -579,6 +570,33 @@ class PurchaseReceiptService implements SubmitableService {
         }
 
         return $purchaseReceipt;
+    }
+
+    /**
+     * Ambil `$quantity` dari `stock_queue` mulai entri terbaru (arah sama dengan pengambilan retur lainnya), mengurangi
+     * kuantitas entri dan menilai yang diambil pada rate entri itu. `$receiptItemId` non-null membatasi pada entri milik
+     * baris receipt tersebut; null = entri mana pun yang masih berkuantitas.
+     *
+     * @param  list<array<string, mixed>>  $queue
+     * @return array{0: float, 1: float} [nilai yang diambil, sisa kuantitas yang tak ditemukan di queue]
+     */
+    private function takeFromQueue(array &$queue, float $quantity, ?string $receiptItemId = null): array {
+        $value     = 0.0;
+        $remaining = $quantity;
+        for ($i = \count($queue) - 1; $i >= 0 && $remaining > 0; $i--) {
+            if ($receiptItemId !== null && ($queue[$i]['receipt_item_id'] ?? null) !== $receiptItemId) {
+                continue;
+            }
+            if ($queue[$i]['quantity'] <= 0) {
+                continue;
+            }
+            $take = min($queue[$i]['quantity'], $remaining);
+            $queue[$i]['quantity'] -= $take;
+            $value += $queue[$i]['rate'] * $take;
+            $remaining -= $take;
+        }
+
+        return [$value, $remaining];
     }
 
     /**

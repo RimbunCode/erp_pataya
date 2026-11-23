@@ -18,12 +18,15 @@ use Carbon\CarbonInterface;
  * Tanggal pembanding adalah tanggal JURNAL (`transactionDate` konteks, yaitu saat approve atau saat percobaan ulang
  * posting), bukan kolom `date` dokumen (keputusan pemilik produk 22 November 2026, Requirement 14.1).
  *
- * Retur mengikuti bentuk invoice ASAL (keputusan 22 November 2026): `isActiveForDocument()` membandingkan tanggal
- * jurnal invoice asal (lewat `return_against_id`) dengan setting, sehingga retur atas invoice pra-cutover tetap bersih
- * dan retur atas invoice pasca-cutover tetap terpisah dengan sisi ditukar, di sisi mana pun tanggal retur terhadap
- * cutover. Tanpa invoice asal, atau jurnal asal tidak ditemukan (posting gagal/tertunda atau total nol), dipakai
- * tanggal retur sendiri. Perbandingan memakai setting SAAT INI: bila cutover dipindah atau dikosongkan sesudah invoice
- * asal diposting, retur mengikuti setting baru (bentuk asal tidak direkam; tercatat sebagai risiko di spek).
+ * Retur mengikuti bentuk invoice ASAL (keputusan 22 November 2026): `isActiveForDocument()` membaca bentuk yang
+ * DIREKAM pada jurnal invoice asal (`journals.discount_split`, ditulis `PostingService` saat posting; lewat
+ * `return_against_id`), sehingga retur atas invoice pra-cutover tetap bersih dan retur atas invoice pasca-cutover tetap
+ * terpisah dengan sisi ditukar, di sisi mana pun tanggal retur terhadap cutover, termasuk bila cutover dipindah atau
+ * dikosongkan sesudah invoice asal diposting, atau split asal dimatikan (total baris tak konsisten, diskon nol).
+ * Tanpa invoice asal dipakai tanggal retur sendiri (keputusan pemilik produk 22 November 2026). Dua jatuhan ini adalah
+ * pilihan implementer yang menunggu konfirmasi pemilik produk: jurnal asal ada tetapi bentuknya tak direkam (null,
+ * diposting sebelum kolom ada), dan jurnal asal tidak ditemukan (posting gagal/tertunda atau total nol); keduanya
+ * membandingkan tanggal jurnal asal (atau tanggal retur sendiri bila jurnal asal tak ada) dengan setting SAAT INI.
  *
  * Dipanggil pabrik konteks (domain pemilik dokumen) sehingga Posting Rule tetap murni (P-2). Setting dibaca lewat
  * `SettingsService::getForRead()` tanpa memo dan tanpa cache: pembacaan satu baris itu murah dibanding query item
@@ -50,7 +53,8 @@ final class DiscountSplitResolver {
     }
 
     /**
-     * Seperti `isActive()`, tetapi retur (`$returnAgainstId` terisi) mengikuti tanggal jurnal invoice asal.
+     * Seperti `isActive()`, tetapi retur (`$originId` terisi) mengikuti bentuk jurnal invoice asal: bentuk yang direkam
+     * pada jurnal asal bila ada; bila tak direkam, tanggal jurnal asal; bila jurnal asal tak ada, tanggal retur sendiri.
      *
      * @param  string|null  $originMorphClass  `getMorphClass()` invoice asal (sama dengan dokumen retur)
      * @param  string|null  $originId  `return_against_id`
@@ -63,7 +67,11 @@ final class DiscountSplitResolver {
             $origin = Journal::query()
                 ->withoutGlobalScopes()
                 ->where('posting_key', "{$originMorphClass}:{$originId}:{$purpose}")
-                ->first(['id', 'transaction_date']);
+                ->first(['id', 'transaction_date', 'discount_split']);
+
+            if ($origin?->discount_split !== null) {
+                return (bool) $origin->discount_split;
+            }
 
             $effectiveDate = $origin?->transaction_date ?? $transactionDate;
         }

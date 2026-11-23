@@ -614,7 +614,11 @@ class PurchaseInvoiceService implements SubmitableService {
             $rate,
             $purchaseInvoice,
             fn (StockLedgerEntry $sle) => $this->eligibleQuantityForPoItem($sle, $poItem),
-            ['item_id'                 => $poItem->item_id, 'warehouse_id' => $poItem->target_warehouse_id, 'item_unit_id' => $poItem->item_unit_id],
+            [
+                'item_id'      => $poItem->item_id,
+                'warehouse_id' => $poItem->target_warehouse_id,
+                'item_unit_id' => $poItem->item_unit_id,
+            ],
         );
     }
 
@@ -658,6 +662,7 @@ class PurchaseInvoiceService implements SubmitableService {
             $sleQty      = $sle->quantity_change;
             $allocateQty = min($sleQty, $remainingQty, $eligible ?? $sleQty);
 
+            $newSle = null;
             if ($allocateQty < $sleQty) {
                 // SLE perlu dipecah: buat SLE baru untuk porsi yang tervaluasi
                 $newSle                        = $sle->replicate();
@@ -680,23 +685,46 @@ class PurchaseInvoiceService implements SubmitableService {
                 ]);
             }
 
-            // Koreksi stock_queue di Stock: lookup by sle_id → update rate + is_valuated
-            $sleIdToFind = $allocateQty < $sleQty ? $newSle->id : $sle->id;
-            $stockKey    = "{$sle->item_id}-{$sle->warehouse_id}";
-            $stock       = $stocks->get($stockKey);
+            // Koreksi stock_queue di Stock: lookup by sle_id → update rate + is_valuated. Entri queue masih memegang
+            // id SLE ASAL (bukan id SLE hasil pecahan), sehingga pada penagihan parsial entri dipecah: porsi yang
+            // dinilai menjadi entri baru berrate bersih (`is_valuated`), sisanya tetap pending pada SLE asal.
+            $stockKey = "{$sle->item_id}-{$sle->warehouse_id}";
+            $stock    = $stocks->get($stockKey);
             if ($stock) {
                 $queue   = $stock->stock_queue ?? [];
                 $updated = false;
 
-                foreach ($queue as &$entry) {
-                    if (($entry['sle_id'] ?? null) === $sleIdToFind) {
-                        $entry['rate']        = $rate;
-                        $entry['is_valuated'] = true;
-                        $updated              = true;
-                        break;
+                foreach ($queue as $index => $entry) {
+                    if (($entry['sle_id'] ?? null) !== $sle->id) {
+                        continue;
                     }
+
+                    if ($newSle === null) {
+                        $queue[$index]['rate']        = $rate;
+                        $queue[$index]['is_valuated'] = true;
+                    } else {
+                        // Bagian entri yang sudah terkonsumsi (mis. FIFO Delivery Note) tak lagi ada di queue:
+                        // hanya yang tersisa yang dinilai, kuantitas tak pernah menjadi negatif.
+                        $entryQuantity = (float) $entry['quantity'];
+                        $valued        = min($allocateQty, $entryQuantity);
+                        if ($valued >= $entryQuantity) {
+                            $queue[$index]['rate']        = $rate;
+                            $queue[$index]['is_valuated'] = true;
+                            $queue[$index]['sle_id']      = $newSle->id;
+                        } elseif ($valued > 0) {
+                            $queue[$index]['quantity'] = $entryQuantity - $valued;
+                            array_splice($queue, $index, 0, [[
+                                ...$entry,
+                                'rate'        => $rate,
+                                'quantity'    => $valued,
+                                'is_valuated' => true,
+                                'sle_id'      => $newSle->id,
+                            ]]);
+                        }
+                    }
+                    $updated = true;
+                    break;
                 }
-                unset($entry);
 
                 if ($updated) {
                     $stock->update(['stock_queue' => $queue]);

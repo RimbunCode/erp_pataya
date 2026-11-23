@@ -16,6 +16,7 @@ use App\Models\Asset\AssetValueAdjustment;
 use App\Models\Core\GlPostingStatus;
 use App\Models\Finances\PurchaseInvoice;
 use App\Models\Inventory\DeliveryNote;
+use App\Models\Inventory\StockLedgerEntry;
 use App\Models\Purchase\PurchaseReceipt;
 use Illuminate\Http\Request;
 use Inertia\Inertia;
@@ -102,17 +103,38 @@ class GlPostingStatusController extends Controller {
         };
     }
 
+    /**
+     * Nilai jurnal stok Purchase Receipt dihitung dari SLE yang ditulis receipt ini sendiri, bukan dari `rate` PO Item:
+     * SLE itu sudah memuat nilai persis yang dipakai posting asli (rate bersih ALUR-2, rate entri queue pada retur),
+     * sehingga percobaan ulang selalu sama dengan nilai persediaan (Finance Fase 2, Task 13.4).
+     *
+     * - Retur: seluruh SLE-nya ditulis dan dinilai oleh receipt retur itu sendiri; total = Σ -`change_in_stock_value`.
+     * - Receipt biasa (hanya ALUR-2 yang memposting jurnal stok): hanya SLE yang DINILAI receipt saat dibuat. SLE pending
+     *   (sisa over-receipt, baris ALUR-1) yang kemudian dinilai Purchase Invoice tetap berreferensi ke receipt ini dan
+     *   berstatus `is_valuated`, tetapi nilainya dijurnal oleh Purchase Invoice itu; pembedanya snapshot `stock_queue`
+     *   milik SLE: entri terakhirnya (entri yang baru dibuat SLE itu) berstatus `is_valuated` hanya bila receipt sendiri
+     *   yang menilainya, dan penilaian Purchase Invoice tidak pernah menulis ulang snapshot itu.
+     */
     private function recalcPurchaseReceiptGL(PurchaseReceipt $pr): float {
-        $total = 0;
-        foreach ($pr->items as $item) {
-            $poItem = $item->purchaseOrderItem;
-            if (! $poItem) {
-                continue;
+        $entries = StockLedgerEntry::query()
+            ->where('referenceable_type', PurchaseReceipt::class)
+            ->where('referenceable_id', $pr->id)
+            ->where('is_valuated', true)
+            ->get(['id', 'change_in_stock_value', 'stock_queue']);
+
+        $total = 0.0;
+        foreach ($entries as $entry) {
+            if (! $pr->return_against_id) {
+                $snapshot = $entry->stock_queue ?? [];
+                $last     = $snapshot === [] ? null : end($snapshot);
+                if (! \is_array($last) || ! ($last['is_valuated'] ?? false)) {
+                    continue;
+                }
             }
-            $total += (float) $poItem->rate * (float) $item->quantity;
+            $total += (float) $entry->change_in_stock_value;
         }
 
-        return $total;
+        return $pr->return_against_id ? -$total : $total;
     }
 
     private function recalcDeliveryNoteGL(DeliveryNote $dn): float {

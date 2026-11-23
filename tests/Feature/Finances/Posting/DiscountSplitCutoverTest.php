@@ -362,6 +362,73 @@ class DiscountSplitCutoverTest extends TestCase {
         );
     }
 
+    public function test_posting_records_the_journal_form_in_discount_split(): void {
+        $net = $this->approveSalesInvoice();
+        $this->setCutover(PostingDocumentType::SalesInvoice, $this->businessToday()->toDateString());
+        $split = $this->approveSalesInvoice();
+
+        $recorded = fn (SalesInvoice $invoice) => Journal::query()->withoutGlobalScopes()
+            ->where('source_type', $invoice->getMorphClass())->where('source_id', $invoice->getKey())
+            ->value('discount_split');
+
+        $this->assertFalse((bool) $recorded($net));
+        $this->assertNotNull($recorded($net), 'bentuk bersih direkam false, bukan null');
+        $this->assertTrue((bool) $recorded($split));
+    }
+
+    public function test_sales_return_keeps_the_split_form_when_the_cutover_moves_after_the_origin_was_posted(): void {
+        $this->setCutover(PostingDocumentType::SalesInvoice, $this->businessToday()->toDateString());
+        $origin = $this->approveSalesInvoice();
+        $this->assertSplitShape($origin);
+
+        // Cutover dipindah ke masa depan, lalu dikosongkan: retur tetap mengikuti bentuk asal (split).
+        foreach ([$this->businessToday()->addDays(10)->toDateString(), null] as $moved) {
+            $this->setCutover(PostingDocumentType::SalesInvoice, $moved);
+            $return = $this->makeSalesInvoice($this->receivable, $this->revenue, ['return_against_id' => $origin->id], ['discount_amount' => 200]);
+            $this->postSalesReturn($return);
+
+            $this->assertSame(
+                ['1200' => [0.0, 1965.0], '4000' => [2165.0, 0.0], '4900' => [0.0, 200.0]],
+                $this->linesOf($this->journalSignature($return), 'default'),
+                'retur tetap split walau cutover sudah bergeser',
+            );
+        }
+    }
+
+    public function test_sales_return_stays_net_when_the_cutover_is_set_after_a_net_origin_was_posted(): void {
+        $origin = $this->approveSalesInvoice();
+        $this->assertNetShape($origin);
+
+        // Jurnal asal bertanggal hari ini (sama dengan cutover) tetapi diposting bersih: retur tetap bersih.
+        $this->setCutover(PostingDocumentType::SalesInvoice, $this->businessToday()->toDateString());
+        $return = $this->makeSalesInvoice($this->receivable, $this->revenue, ['return_against_id' => $origin->id], ['discount_amount' => 200]);
+        $this->postSalesReturn($return);
+
+        $this->assertSame(
+            ['1200' => [0.0, 1965.0], '4000' => [1965.0, 0.0]],
+            $this->linesOf($this->journalSignature($return), 'default'),
+        );
+    }
+
+    public function test_sales_return_falls_back_to_the_origin_journal_date_when_the_form_was_not_recorded(): void {
+        $this->setCutover(PostingDocumentType::SalesInvoice, $this->businessToday()->toDateString());
+        $origin = $this->approveSalesInvoice();
+        $this->assertSplitShape($origin);
+
+        // Jurnal yang diposting sebelum kolom ada: bentuk null, dipakai tanggal jurnal asal terhadap setting saat ini.
+        Journal::query()->withoutGlobalScopes()
+            ->where('source_type', $origin->getMorphClass())->where('source_id', $origin->getKey())
+            ->update(['discount_split' => null]);
+
+        $return = $this->makeSalesInvoice($this->receivable, $this->revenue, ['return_against_id' => $origin->id], ['discount_amount' => 200]);
+        $this->postSalesReturn($return);
+
+        $this->assertSame(
+            ['1200' => [0.0, 1965.0], '4000' => [2165.0, 0.0], '4900' => [0.0, 200.0]],
+            $this->linesOf($this->journalSignature($return), 'default'),
+        );
+    }
+
     public function test_sales_return_uses_its_own_date_when_the_origin_journal_is_missing(): void {
         // Invoice asal tidak pernah diposting (tidak ada jurnal): dipakai tanggal retur sendiri.
         $origin = $this->makeSalesInvoice($this->receivable, $this->revenue, [], ['discount_amount' => 200]);

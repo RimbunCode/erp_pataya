@@ -3,6 +3,7 @@
 namespace Tests\Feature\Finances\Posting;
 
 use App\Enums\FormStatus;
+use App\Http\Controllers\Core\GlPostingStatusController;
 use App\Models\Core\ModelConnection;
 use App\Models\Finances\Account;
 use App\Models\Finances\PostingProfile;
@@ -329,6 +330,122 @@ class PurchaseStockDiscountValuationTest extends TestCase {
 
         $this->assertSame(['1300' => [0.0, 1000.0], '2100' => [1000.0, 0.0]], $this->linesOf($this->journalSignature($return), 'default'));
         $this->assertEqualsWithDelta(1.0, (float) $this->stock()->stock_queue[0]['quantity'], 1e-9);
+    }
+
+    /**
+     * Total yang dipakai percobaan ulang GL Purchase Receipt (`GlPostingStatusController::recalcPurchaseReceiptGL`).
+     */
+    private function retryTotal(PurchaseReceipt $receipt): float {
+        $controller = (new \ReflectionClass(GlPostingStatusController::class))->newInstanceWithoutConstructor();
+        $method     = new \ReflectionMethod($controller, 'recalcPurchaseReceiptGL');
+
+        return (float) $method->invoke($controller, $receipt->load('items'));
+    }
+
+    public function test_retry_total_of_an_alur2_receipt_uses_the_net_value_of_its_sles(): void {
+        $this->approveInvoice();
+        $receipt = $this->approveReceipt();
+
+        $this->assertEqualsWithDelta(1800.0, $this->retryTotal($receipt), 1e-6, 'bukan 2.000 (rate PO kotor)');
+    }
+
+    public function test_retry_total_of_a_return_uses_the_queue_layer_value(): void {
+        $original = $this->approveReceipt();
+        $this->approveInvoice();
+        $return = $this->approveReceipt(1, ['return_against_item_id' => $original->items()->firstOrFail()->id], $original);
+
+        $this->assertEqualsWithDelta(900.0, $this->retryTotal($return), 1e-6, 'sama dengan kredit persediaan posting asli, bukan 1.000');
+    }
+
+    public function test_retry_total_of_a_return_before_billing_uses_the_po_rate(): void {
+        $original = $this->approveReceipt();
+        $return   = $this->approveReceipt(1, ['return_against_item_id' => $original->items()->firstOrFail()->id], $original);
+
+        $this->assertEqualsWithDelta(1000.0, $this->retryTotal($return), 1e-6);
+    }
+
+    public function test_retry_total_excludes_pending_sles_that_a_later_invoice_valued(): void {
+        $this->poItem->update(['quantity' => 3]);
+        $this->stock()->updateDetails('increment', 'incomings', $this->po->code, 1);
+
+        // Invoice menagih 2 dulu; receipt 3 unit: 2 dinilai receipt (ALUR-2, rate bersih 900), 1 sisa pending.
+        $this->approveInvoice();
+        $receipt = $this->approveReceipt(3);
+        $this->assertEqualsWithDelta(1800.0, $this->retryTotal($receipt), 1e-6);
+
+        // Invoice kedua menilai sisa pending (jurnal stoknya diposting invoice itu): tidak boleh ikut total retry receipt.
+        $this->approveInvoice(0, ['quantity' => 1]);
+        $this->assertEqualsWithDelta(1000.0, (float) StockLedgerEntry::query()->where('referenceable_id', $receipt->id)->where('is_valuated', true)->where('valuation_rate', 1000)->sum('change_in_stock_value'), 1e-6, 'SLE sisa memang sudah bernilai');
+        $this->assertEqualsWithDelta(1800.0, $this->retryTotal($receipt), 1e-6);
+    }
+
+    public function test_receipt_return_reduces_the_queue_when_the_original_layer_was_already_consumed(): void {
+        $this->poItem->update(['quantity' => 4]);
+        $this->stock()->updateDetails('increment', 'incomings', $this->po->code, 2);
+
+        $this->approveInvoice(400, ['quantity' => 4]);
+        $a = $this->approveReceipt(2);
+        $this->approveReceipt(2);
+
+        // Delivery Note FIFO menghabiskan layer receipt A (hilang dari queue, kuantitas stok turun 2).
+        $stock = $this->stock();
+        $queue = array_values(array_filter($stock->stock_queue, fn ($entry) => $entry['receipt_item_id'] !== $a->items()->firstOrFail()->id));
+        $this->assertCount(1, $queue);
+        $stock->update(['stock_queue' => $queue, 'quantity' => 2]);
+
+        $return = $this->approveReceipt(1, ['return_against_item_id' => $a->items()->firstOrFail()->id], $a);
+
+        $remaining = $this->stock()->stock_queue;
+        $this->assertEqualsWithDelta(1.0, (float) $remaining[0]['quantity'], 1e-9, 'queue tetap berkurang sebesar kuantitas retur');
+        $this->assertEqualsWithDelta(900.0, (float) $remaining[0]['rate'], 1e-6);
+        $this->assertEqualsWithDelta(1.0, (float) $this->stock()->quantity, 1e-9);
+        $this->assertSame(['1300' => [0.0, 900.0], '2100' => [900.0, 0.0]], $this->linesOf($this->journalSignature($return), 'default'), 'dinilai pada rate entri (bersih), bukan rate PO');
+        $this->assertEqualsWithDelta(900.0, $this->retryTotal($return), 1e-6);
+    }
+
+    public function test_partial_billing_of_a_discounted_item_splits_the_queue_entry(): void {
+        $receipt = $this->approveReceipt();
+        $this->approveInvoice(100, ['quantity' => 1]);
+
+        $queue = $this->stock()->stock_queue;
+        $this->assertCount(2, $queue, 'entri queue dipecah: porsi yang ditagih dan sisanya');
+        $rowId = $receipt->items()->firstOrFail()->id;
+
+        $this->assertEqualsWithDelta(900.0, (float) $queue[0]['rate'], 1e-6);
+        $this->assertEqualsWithDelta(1.0, (float) $queue[0]['quantity'], 1e-9);
+        $this->assertTrue($queue[0]['is_valuated']);
+        $this->assertSame($rowId, $queue[0]['receipt_item_id']);
+        $this->assertNotNull($queue[0]['sle_id']);
+
+        $this->assertEqualsWithDelta(1000.0, (float) $queue[1]['rate'], 1e-6);
+        $this->assertEqualsWithDelta(1.0, (float) $queue[1]['quantity'], 1e-9);
+        $this->assertFalse($queue[1]['is_valuated']);
+        $this->assertSame($rowId, $queue[1]['receipt_item_id']);
+
+        // Penagihan sisanya mengoreksi entri pending (SLE asal) tanpa menambah entri.
+        $this->approveInvoice(0, ['quantity' => 1]);
+        $queue = $this->stock()->stock_queue;
+        $this->assertCount(2, $queue);
+        $this->assertEqualsWithDelta(1000.0, (float) $queue[1]['rate'], 1e-6);
+        $this->assertTrue($queue[1]['is_valuated']);
+    }
+
+    public function test_partial_billing_values_only_what_is_left_when_the_layer_was_partly_consumed(): void {
+        $this->approveReceipt();
+
+        // Delivery Note FIFO mengambil 1 dari 2 unit sebelum invoice menagih 1 unit.
+        $stock                = $this->stock();
+        $queue                = $stock->stock_queue;
+        $queue[0]['quantity'] = 1;
+        $stock->update(['stock_queue' => $queue, 'quantity' => 1]);
+
+        $this->approveInvoice(100, ['quantity' => 1]);
+
+        $queue = $this->stock()->stock_queue;
+        $this->assertCount(1, $queue);
+        $this->assertEqualsWithDelta(1.0, (float) $queue[0]['quantity'], 1e-9, 'kuantitas tak pernah negatif');
+        $this->assertEqualsWithDelta(900.0, (float) $queue[0]['rate'], 1e-6);
+        $this->assertTrue($queue[0]['is_valuated']);
     }
 
     public function test_a_receipt_row_outside_the_po_is_valued_at_the_net_rate_of_the_invoice_line(): void {
