@@ -29,6 +29,7 @@ use Database\Factories\Inventory\ItemVariantFactory;
 use Database\Factories\Inventory\WarehouseFactory;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Foundation\Testing\RefreshDatabase;
+use Illuminate\Support\Facades\Log;
 use Tests\Support\AssertsPostingParity;
 use Tests\Support\BuildsFinanceFixtures;
 use Tests\TestCase;
@@ -379,6 +380,27 @@ class PurchaseStockDiscountValuationTest extends TestCase {
         $this->assertEqualsWithDelta(1800.0, $this->retryTotal($receipt), 1e-6);
     }
 
+    public function test_retry_total_falls_back_to_the_sle_value_when_no_sle_has_a_queue_snapshot(): void {
+        $this->approveInvoice();
+        $receipt = $this->approveReceipt();
+
+        // Data legacy/impor: SLE valued tanpa snapshot stock_queue.
+        StockLedgerEntry::query()->where('referenceable_id', $receipt->id)->update(['stock_queue' => null]);
+
+        $this->assertEqualsWithDelta(1800.0, $this->retryTotal($receipt), 1e-6, 'tidak diam-diam 0: memakai Σ change_in_stock_value');
+    }
+
+    public function test_retry_total_logs_a_warning_when_nothing_can_be_computed(): void {
+        $this->approveInvoice();
+        $receipt = $this->approveReceipt();
+        StockLedgerEntry::query()->where('referenceable_id', $receipt->id)->delete();
+
+        Log::spy();
+
+        $this->assertEqualsWithDelta(0.0, $this->retryTotal($receipt), 1e-9);
+        Log::shouldHaveReceived('warning')->once();
+    }
+
     public function test_receipt_return_reduces_the_queue_when_the_original_layer_was_already_consumed(): void {
         $this->poItem->update(['quantity' => 4]);
         $this->stock()->updateDetails('increment', 'incomings', $this->po->code, 2);
@@ -401,6 +423,37 @@ class PurchaseStockDiscountValuationTest extends TestCase {
         $this->assertEqualsWithDelta(1.0, (float) $this->stock()->quantity, 1e-9);
         $this->assertSame(['1300' => [0.0, 900.0], '2100' => [900.0, 0.0]], $this->linesOf($this->journalSignature($return), 'default'), 'dinilai pada rate entri (bersih), bukan rate PO');
         $this->assertEqualsWithDelta(900.0, $this->retryTotal($return), 1e-6);
+    }
+
+    public function test_receipt_return_fallback_takes_valued_entries_before_pending_ones(): void {
+        $this->poItem->update(['quantity' => 6]);
+        $this->stock()->updateDetails('increment', 'incomings', $this->po->code, 4);
+
+        // Invoice menagih 4 unit dulu (ALUR-2): receipt A dan B dinilai bersih 900; receipt P (sisa) pending di harga PO 1.000.
+        $this->approveInvoice(400, ['quantity' => 4]);
+        $a = $this->approveReceipt(2);
+        $this->approveReceipt(2);
+        $this->approveReceipt(2);
+
+        $stock = $this->stock();
+        $this->assertCount(3, $stock->stock_queue);
+        $this->assertTrue($stock->stock_queue[1]['is_valuated']);
+        $this->assertFalse($stock->stock_queue[2]['is_valuated'], 'entri terbaru (P) masih pending');
+
+        // Delivery Note FIFO menghabiskan layer receipt A.
+        $rowA  = $a->items()->firstOrFail()->id;
+        $queue = array_values(array_filter($stock->stock_queue, fn ($entry) => $entry['receipt_item_id'] !== $rowA));
+        $this->assertCount(2, $queue);
+        $stock->update(['stock_queue' => $queue, 'quantity' => 4]);
+
+        $return = $this->approveReceipt(1, ['return_against_item_id' => $rowA], $a);
+
+        $remaining = $this->stock()->stock_queue;
+        $this->assertTrue($remaining[0]['is_valuated']);
+        $this->assertEqualsWithDelta(1.0, (float) $remaining[0]['quantity'], 1e-9, 'entri valued diambil lebih dulu walau bukan yang terbaru');
+        $this->assertFalse($remaining[1]['is_valuated']);
+        $this->assertEqualsWithDelta(2.0, (float) $remaining[1]['quantity'], 1e-9, 'entri pending tidak tersentuh selama entri valued mencukupi');
+        $this->assertSame(['1300' => [0.0, 900.0], '2100' => [900.0, 0.0]], $this->linesOf($this->journalSignature($return), 'default'), 'dinilai pada rate entri valued (900), bukan harga PO kotor entri pending');
     }
 
     public function test_partial_billing_of_a_discounted_item_splits_the_queue_entry(): void {

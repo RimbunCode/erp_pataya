@@ -19,6 +19,7 @@ use App\Models\Inventory\DeliveryNote;
 use App\Models\Inventory\StockLedgerEntry;
 use App\Models\Purchase\PurchaseReceipt;
 use Illuminate\Http\Request;
+use Illuminate\Support\Facades\Log;
 use Inertia\Inertia;
 
 class GlPostingStatusController extends Controller {
@@ -113,7 +114,9 @@ class GlPostingStatusController extends Controller {
      *   (sisa over-receipt, baris ALUR-1) yang kemudian dinilai Purchase Invoice tetap berreferensi ke receipt ini dan
      *   berstatus `is_valuated`, tetapi nilainya dijurnal oleh Purchase Invoice itu; pembedanya snapshot `stock_queue`
      *   milik SLE: entri terakhirnya (entri yang baru dibuat SLE itu) berstatus `is_valuated` hanya bila receipt sendiri
-     *   yang menilainya, dan penilaian Purchase Invoice tidak pernah menulis ulang snapshot itu.
+     *   yang menilainya, dan penilaian Purchase Invoice tidak pernah menulis ulang snapshot itu. Bila tak satu pun SLE
+     *   valued punya snapshot (data legacy/impor), total memakai Σ `change_in_stock_value` seluruh SLE valued itu; total
+     *   0 dicatat sebagai `Log::warning`, tidak diam-diam dianggap sukses.
      */
     private function recalcPurchaseReceiptGL(PurchaseReceipt $pr): float {
         $entries = StockLedgerEntry::query()
@@ -122,19 +125,35 @@ class GlPostingStatusController extends Controller {
             ->where('is_valuated', true)
             ->get(['id', 'change_in_stock_value', 'stock_queue']);
 
-        $total = 0.0;
-        foreach ($entries as $entry) {
-            if (! $pr->return_against_id) {
-                $snapshot = $entry->stock_queue ?? [];
-                $last     = $snapshot === [] ? null : end($snapshot);
-                if (! \is_array($last) || ! ($last['is_valuated'] ?? false)) {
-                    continue;
-                }
-            }
-            $total += (float) $entry->change_in_stock_value;
+        if ($pr->return_against_id) {
+            return -$entries->sum(fn ($entry) => (float) $entry->change_in_stock_value);
         }
 
-        return $pr->return_against_id ? -$total : $total;
+        // Data legacy/impor bisa tak punya snapshot `stock_queue`: bila TIDAK ADA SLE ber-snapshot, pembeda di atas tak
+        // bisa dipakai dan total diambil dari seluruh SLE valued receipt ini.
+        $withSnapshot = $entries->filter(fn ($entry) => ! empty($entry->stock_queue));
+        if ($withSnapshot->isEmpty()) {
+            $total = (float) $entries->sum(fn ($entry) => (float) $entry->change_in_stock_value);
+        } else {
+            $total = 0.0;
+            foreach ($withSnapshot as $entry) {
+                $snapshot = $entry->stock_queue;
+                $last     = end($snapshot);
+                if (\is_array($last) && ($last['is_valuated'] ?? false)) {
+                    $total += (float) $entry->change_in_stock_value;
+                }
+            }
+        }
+
+        if ($total == 0.0) {
+            Log::warning('Percobaan ulang GL Purchase Receipt: total jurnal stok tidak dapat dihitung dari SLE (0).', [
+                'purchase_receipt_id' => $pr->id,
+                'valued_sle_count'    => $entries->count(),
+                'with_snapshot_count' => $withSnapshot->count(),
+            ]);
+        }
+
+        return $total;
     }
 
     private function recalcDeliveryNoteGL(DeliveryNote $dn): float {

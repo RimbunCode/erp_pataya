@@ -298,11 +298,16 @@ class PurchaseReceiptService implements SubmitableService {
                     // sudah ditagih berupa rate bersih, tidak lagi sama dengan `rate` PO Item. Sisa yang layer asalnya
                     // sudah habis (mis. dikonsumsi FIFO oleh Delivery Note) diambil dari entri lain, terbaru lebih
                     // dulu, berapa pun rate-nya dan dinilai pada rate entri itu, agar queue tetap berkurang sebesar
-                    // kuantitas retur. Hanya bila queue tak cukup, sisanya dinilai pada rate PO Item tanpa
+                    // kuantitas retur. Entri valued (`is_valuated` true) diambil lebih dulu; entri pending (ALUR-1,
+                    // bernilai harga PO kotor dan belum pernah didebit ke GL stok) baru disentuh bila entri valued
+                    // tak mencukupi. Hanya bila queue tak cukup, sisanya dinilai pada rate PO Item tanpa
                     // mengurangi queue (kuantitas stok yang tak punya layer).
                     [$totalRate, $remainingReturn] = $this->takeFromQueue($queue, (float) $quantity, $item->return_against_item_id);
-                    if ($remainingReturn > 0) {
-                        [$fallbackRate, $remainingReturn] = $this->takeFromQueue($queue, $remainingReturn);
+                    foreach ([true, false] as $valuated) {
+                        if ($remainingReturn <= 0) {
+                            break;
+                        }
+                        [$fallbackRate, $remainingReturn] = $this->takeFromQueue($queue, $remainingReturn, null, $valuated);
                         $totalRate += $fallbackRate;
                     }
                     if ($remainingReturn > 0) {
@@ -575,16 +580,20 @@ class PurchaseReceiptService implements SubmitableService {
     /**
      * Ambil `$quantity` dari `stock_queue` mulai entri terbaru (arah sama dengan pengambilan retur lainnya), mengurangi
      * kuantitas entri dan menilai yang diambil pada rate entri itu. `$receiptItemId` non-null membatasi pada entri milik
-     * baris receipt tersebut; null = entri mana pun yang masih berkuantitas.
+     * baris receipt tersebut; null = entri mana pun yang masih berkuantitas. `$valuated` non-null membatasi pada entri
+     * berstatus `is_valuated` yang sama (entri tanpa penanda dianggap valued, data lama); null = tanpa pembatasan.
      *
      * @param  list<array<string, mixed>>  $queue
      * @return array{0: float, 1: float} [nilai yang diambil, sisa kuantitas yang tak ditemukan di queue]
      */
-    private function takeFromQueue(array &$queue, float $quantity, ?string $receiptItemId = null): array {
+    private function takeFromQueue(array &$queue, float $quantity, ?string $receiptItemId = null, ?bool $valuated = null): array {
         $value     = 0.0;
         $remaining = $quantity;
         for ($i = \count($queue) - 1; $i >= 0 && $remaining > 0; $i--) {
             if ($receiptItemId !== null && ($queue[$i]['receipt_item_id'] ?? null) !== $receiptItemId) {
+                continue;
+            }
+            if ($valuated !== null && (bool) ($queue[$i]['is_valuated'] ?? true) !== $valuated) {
                 continue;
             }
             if ($queue[$i]['quantity'] <= 0) {

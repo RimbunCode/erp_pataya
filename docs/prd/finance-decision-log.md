@@ -18,7 +18,7 @@
 | D-4 | Satu perusahaan | 1 | DECIDED | 2026-10-18 |
 | D-8 | Granularitas backfill: per dokumen, dipecah per tanggal bila posting di hari berbeda (mengubah rumusan lama per `transaction_date` penuh) | 1 | DECIDED (disetujui 2026-11-04) | 2026-11-04 |
 | D-11 | Standar akuntansi acuan | 0 | DITUNDA (2026-11-03), menunggu Q2 | 2026-11-03 |
-| D-12 | Pajak dalam jurnal | 3 | **DECIDED (disetujui pemilik produk 2026-11-22; tanpa validasi akuntan; implementasi di Fase 3)** | 2026-11-22 |
+| D-12 | Pajak dalam jurnal | 3 | **DECIDED (disetujui pemilik produk 2026-11-22 sebagai usulan PRD; implementasi di Fase 3)** | 2026-11-22 |
 | D-14 | Jurnal manual (Journal Voucher): masuk Fase 1 sebagai task opsional | 1 | DECIDED (disetujui 2026-11-04) | 2026-11-04 |
 | D-25 | Penyimpanan setting keuangan | S, 1–6 | DECIDED | 2026-10-18 |
 | D-26 | Akun transaksi hanya dari konfigurasi | 2 | DECIDED | 2026-10-18 |
@@ -132,7 +132,7 @@
 
 **Sumber:** PRD Bagian 7 (D-12, ADR tabel), Bagian 8.3 (FR-T3), Bagian 13 (R-2, R-4).
 
-**Keputusan 22 November 2026: disetujui** oleh pemilik produk sebagai usulan PRD (PPN Masukan/Keluaran sebagai akun terpisah; PPh sebagai utang/piutang pajak). Alasan: pemilik produk memutuskan melanjutkan tanpa menunggu akuntan (konsisten dengan Q-P2-5, 2026-11-21: tidak ada akuntan; ikuti praktik umum ERP). Risiko R-2/R-4 diterima, bukan terselesaikan: kebijakan tidak divalidasi akuntan. IMPLEMENTASI di Fase 3 (tax engine); tidak ada perubahan kode di Fase 2, sehingga kontrak `gross_amount` Task 13 (pajak masih menyatu) tetap terbuka sampai Fase 3.
+**Keputusan 22 November 2026: disetujui** oleh pemilik produk sebagai usulan PRD (PPN Masukan/Keluaran sebagai akun terpisah; PPh sebagai utang/piutang pajak). Alasan: pemilik produk memutuskan melanjutkan tanpa menunggu akuntan (konsisten dengan Q-P2-5, 2026-11-21: tidak ada akuntan; ikuti praktik umum ERP). Risiko R-2/R-4 tetap tercatat terbuka: kebijakan belum divalidasi akuntan. IMPLEMENTASI di Fase 3 (tax engine); tidak ada perubahan kode di Fase 2, sehingga kontrak `gross_amount` Task 13 (pajak masih menyatu) tetap terbuka sampai Fase 3.
 
 ### D-25 — Penyimpanan setting keuangan
 
@@ -436,7 +436,7 @@ PB-1 s.d. PB-15 disetujui pemilik produk pada 2026-11-03 (AP-3), sesuai laporan 
 | ID | Pertanyaan | Opsi | Rekomendasi | Pemilik keputusan | Status | Tanggal | Dibutuhkan sebelum |
 |---|---|---|---|---|---|---|---|
 | Q1 | Apakah GL sudah berisi data **produksi** nyata (hanya staging yang terlihat)? | — | — | Pemilik produk | Dijawab 2026-11-03: belum ada data sama sekali (GL produksi kosong) (versi spec: untuk sekarang staging saja) | 2026-11-03 | Fase 1 |
-| Q2 | Siapa penanggung jawab akuntansi yang menyetujui kebijakan (D-11, D-12)? (D-12 disetujui pemilik produk 22 November 2026 tanpa akuntan; D-11 tetap menunggu) | — | — | Pemilik produk (PRD tidak merinci) | Terbuka | 2026-11-03 | Fase 0 |
+| Q2 | Siapa penanggung jawab akuntansi yang menyetujui kebijakan (D-11, D-12)? (D-12 disetujui pemilik produk 22 November 2026 sebagai usulan PRD, implementasi di Fase 3; D-11 tetap menunggu) | — | — | Pemilik produk (PRD tidak merinci) | Terbuka | 2026-11-03 | Fase 0 |
 | Q3 | Berapa developer yang tersedia, dan apakah ada tenggat bisnis (mis. audit atau pajak tertentu)? | — | — | Pemilik produk | Terbuka | 2026-11-03 | Fase 0 |
 | Q4 | ~~Apakah multi-company direncanakan dalam 12 bulan (D-4)?~~ Dijawab: satu perusahaan (lihat D-4). | — | — | Pemilik produk | Dijawab | 2026-10-18 | — |
 | Q5 | D-1: opsi A, B, atau C? | A, B, atau C (lihat D-1) | B (rekomendasi D-1) | Pemilik produk | Terbuka | 2026-11-03 | Fase 2 |
