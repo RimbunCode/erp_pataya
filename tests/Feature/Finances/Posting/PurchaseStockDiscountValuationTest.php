@@ -275,6 +275,27 @@ class PurchaseStockDiscountValuationTest extends TestCase {
         $this->assertEqualsWithDelta(0.0, $this->srnbCreditBalance([$invoice, $receipt]), 1e-6);
     }
 
+    public function test_a_non_divisible_net_rate_keeps_the_journals_balanced_within_rounding(): void {
+        // 3 unit @ 1.000, diskon 100: rate bersih 966,666... (tidak habis dibagi), nilai persediaan 2.900.
+        $this->poItem->update(['quantity' => 3]);
+        $receipt = $this->approveReceipt(3);
+        $invoice = $this->approveInvoice(100, ['quantity' => 3]);
+
+        $this->assertEqualsWithDelta(1000 * 2900 / 3000, (float) $this->valuedEntry()->valuation_rate, 1e-4);
+
+        $signature = $this->journalSignature($invoice);
+        foreach (['stock', 'expense'] as $purpose) {
+            $lines = $this->linesOf($signature, $purpose);
+            $this->assertNotSame([], $lines, "jurnal {$purpose} harus ada");
+            $debit  = array_sum(array_column($lines, 0));
+            $credit = array_sum(array_column($lines, 1));
+            $this->assertEqualsWithDelta($debit, $credit, 0.005, "jurnal {$purpose} seimbang");
+        }
+
+        $this->assertEqualsWithDelta(2900.0, $this->linesOf($signature, 'stock')['1300'][0], 0.01, 'persediaan masuk bersih setelah diskon');
+        $this->assertEqualsWithDelta(0.0, $this->srnbCreditBalance([$invoice, $receipt]), 0.01, 'residu SRNB hanya selisih pembulatan');
+    }
+
     public function test_an_invoice_without_discount_keeps_the_gross_rate(): void {
         $this->approveReceipt();
         $invoice = $this->approveInvoice(0);
