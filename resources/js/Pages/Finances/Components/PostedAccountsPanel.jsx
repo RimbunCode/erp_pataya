@@ -90,20 +90,26 @@ function PanelBody({ panel, t }) {
       return (
         <div className="space-y-1">
           <PanelNote role="alert">{panel.message}</PanelNote>
-          {panel.fixable && (
-            <p className="px-1 py-1 text-sm">
-              <Link
-                href={window.route("postingProfiles.index")}
-                className="text-blue-800 hover:underline dark:text-blue-200"
-              >
-                {t("finances.postedAccounts.fix_profile")}
-              </Link>
-            </p>
-          )}
+          {panel.fixable &&
+            (panel.canFixProfile ? (
+              <p className="px-1 py-1 text-sm">
+                <Link
+                  href={window.route("postingProfiles.index")}
+                  className="text-blue-800 hover:underline dark:text-blue-200"
+                >
+                  {t("finances.postedAccounts.fix_profile")}
+                </Link>
+              </p>
+            ) : (
+              <PanelNote>
+                {t("finances.postedAccounts.fix_profile_admin")}
+              </PanelNote>
+            ))}
         </div>
       );
     case "pending_approval":
     case "pending_posting":
+    case "no_journal":
     case "unavailable":
       return (
         <PanelNote>

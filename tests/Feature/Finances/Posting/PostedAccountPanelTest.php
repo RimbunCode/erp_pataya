@@ -223,6 +223,15 @@ class PostedAccountPanelTest extends TestCase {
         $this->assertTrue($result['fixable']);
         $this->assertStringContainsString('receivable', (string) $result['message']);
         $this->assertSame([], $result['rows']);
+        $this->assertFalse($result['canFixProfile'], 'tanpa izin Posting Profile tautan perbaikan tidak boleh ditawarkan');
+    }
+
+    public function test_unresolved_role_offers_the_profile_link_only_to_users_who_can_open_it(): void {
+        DB::table('posting_profiles')->update(['effective_from' => now()->addYear()->toDateString()]);
+        $invoice = $this->salesInvoice();
+
+        $permitted = $this->withSession(['permissions' => [PostingProfile::class => [0 => [['model' => PostingProfile::class, 'level' => 0, 'only_creator' => false, 'permissions' => ['select' => true]]]]]]);
+        $this->assertTrue($permitted->panel()->build($invoice->fresh())['canFixProfile']);
     }
 
     public function test_draft_purchase_invoice_previews_and_is_flagged_as_estimate(): void {

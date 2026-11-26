@@ -16,6 +16,7 @@ use App\Models\User\Permission;
 use App\Services\Core\BufferedAttachmentService;
 use App\Services\Core\Connection\RelationPanelService;
 use App\Services\Core\DataTable\Group\GroupLevels;
+use App\Services\Finances\Posting\AccountPanel\PanelSourceRegistry;
 use App\Services\Finances\Posting\AccountPanel\PostedAccountPanel;
 use Illuminate\Database\Eloquent\Relations\Relation;
 use Illuminate\Database\Eloquent\SoftDeletes;
@@ -741,7 +742,8 @@ trait DataTable {
         }
         // Panel baca-saja "Akun pencatatan" (Finance Fase 2, Task 12.4): hanya untuk dokumen yang diposting engine, dan
         // hanya ikut respons halaman show (yang sudah lolos otorisasi), tidak lewat endpoint terpisah.
-        if (app(PostedAccountPanel::class)->supports($this)) {
+        // Cek statis dulu agar model lain tidak me-resolve PostedAccountPanel beserta dependensinya dari container.
+        if (isset(PanelSourceRegistry::MODEL_TYPES[static::class])) {
             Inertia::share([
                 'postedAccounts' => Inertia::defer(
                     fn () => app(PostedAccountPanel::class)->build($this),

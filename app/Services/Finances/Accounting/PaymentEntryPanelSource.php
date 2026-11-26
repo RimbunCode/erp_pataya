@@ -7,6 +7,7 @@ use App\Enums\PostingDocumentType;
 use App\Models\Finances\PaymentEntry;
 use App\Models\Finances\PurchaseInvoice;
 use App\Models\Finances\SalesInvoice;
+use App\Services\Finances\Posting\AccountPanel\PanelPreviewUnavailableException;
 use App\Services\Finances\Posting\AccountPanel\PanelSource;
 use App\Services\Finances\Posting\AccountPanel\RecordedColumns;
 use App\Services\Finances\Posting\Contexts\PostingContext;
@@ -27,6 +28,12 @@ final class PaymentEntryPanelSource implements PanelSource {
 
     public function previewContext(Model $document): ?PostingContext {
         /** @var PaymentEntry $document */
+        // Engine menolak jenis ini (T-4: `internal_transfer`, atau dokumen yang dibayar bukan Sales/Purchase Invoice).
+        // Itu penolakan yang dapat diduga, bukan galat: tampilkan pesannya tanpa `report()` pada tiap muat halaman.
+        if (! in_array($document->payment_type, ['receive', 'pay'], true) || ! in_array($document->paymentable_type, [SalesInvoice::class, PurchaseInvoice::class], true)) {
+            throw new PanelPreviewUnavailableException(__('finances/postedAccounts.errors.payment_type_unsupported'));
+        }
+
         return $this->factory->forApproval($document);
     }
 

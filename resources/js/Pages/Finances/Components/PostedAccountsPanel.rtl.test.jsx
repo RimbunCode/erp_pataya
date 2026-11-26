@@ -121,7 +121,7 @@ describe("PostedAccountsPanel", () => {
     expect(screen.getByText("4000 - Penjualan Barang")).toBeInTheDocument();
   });
 
-  it.each(["pending_approval", "pending_posting", "unavailable"])(
+  it.each(["pending_approval", "pending_posting", "no_journal", "unavailable"])(
     "menampilkan catatan untuk state %s tanpa tabel",
     (state) => {
       renderWith({
@@ -145,6 +145,7 @@ describe("PostedAccountsPanel", () => {
       estimated: false,
       message: 'Peran akun "revenue" tidak dapat ditentukan.',
       fixable: true,
+      canFixProfile: true,
       rows: [],
     });
 
@@ -152,6 +153,22 @@ describe("PostedAccountsPanel", () => {
     expect(
       screen.getByRole("link", { name: "finances.postedAccounts.fix_profile" }),
     ).toHaveAttribute("href", "/postingProfiles.index");
+  });
+
+  it("tanpa izin Posting Profile: tidak ada tautan, pembaca diminta menghubungi administrator", () => {
+    renderWith({
+      state: "error",
+      estimated: false,
+      message: 'Peran akun "revenue" tidak dapat ditentukan.',
+      fixable: true,
+      canFixProfile: false,
+      rows: [],
+    });
+
+    expect(screen.queryByRole("link")).not.toBeInTheDocument();
+    expect(
+      screen.getByText("finances.postedAccounts.fix_profile_admin"),
+    ).toBeInTheDocument();
   });
 
   it("tidak menampilkan tautan perbaikan untuk galat umum", () => {
