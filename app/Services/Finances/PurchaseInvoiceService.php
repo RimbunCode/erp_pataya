@@ -90,6 +90,8 @@ class PurchaseInvoiceService implements SubmitableService {
         $data['exchange_rate']     = $purchaseInvoice->exchange_rate;
         $data['tax_id']            = $data['tax']['id'] ?? null;
         $data['tax_rate']          = $tax?->rate ?? 0;
+        // Akun baris dicatat engine saat approve (Task 12.1); create dan update draft mengosongkannya (Q-P2-24).
+        $data['posted_account_id'] = null;
 
         return $data;
     }

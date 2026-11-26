@@ -12,6 +12,7 @@ use App\Models\Inventory\StockLedgerEntry;
 use App\Models\Inventory\Unit;
 use App\Models\Inventory\Warehouse;
 use Illuminate\Foundation\Testing\RefreshDatabase;
+use Illuminate\Support\Facades\DB;
 use Tests\Support\BuildsFinanceFixtures;
 use Tests\TestCase;
 
@@ -135,5 +136,33 @@ class StockEntryAccountFieldsRemovedTest extends TestCase {
         $cost = AdditionalCost::query()->findOrFail($costId);
         $this->assertNull($cost->expense_account_id);
         $this->assertEqualsWithDelta(450, $cost->amount, 0.01);
+    }
+
+    public function test_store_discards_posted_account_id_sent_by_a_client_on_items(): void {
+        $inventory = $this->makeInventoryFixture();
+        $account   = $this->makeAccount('5900', 'Selisih Stok', 'expense', 'debit', 'stock_adjustment');
+        $payload   = $this->receiptPayload($inventory, false);
+
+        $payload['items'][0]['posted_account_id'] = $account->id;
+
+        $this->http()->post('/stockEntries', $payload)->assertSessionHasNoErrors();
+
+        $this->assertNull(StockEntry::query()->firstOrFail()->items()->firstOrFail()->posted_account_id, 'Akun baris tidak boleh di-mass-assign dari request.');
+    }
+
+    public function test_update_of_a_draft_clears_posted_account_id_on_items(): void {
+        $inventory = $this->makeInventoryFixture();
+        $this->http()->post('/stockEntries', $this->receiptPayload($inventory, false))->assertSessionHasNoErrors();
+        $entry   = StockEntry::query()->firstOrFail();
+        $item    = $entry->items()->firstOrFail();
+        $account = $this->makeAccount('5900', 'Selisih Stok', 'expense', 'debit', 'stock_adjustment');
+        DB::table('stock_entry_items')->where('id', $item->id)->update(['posted_account_id' => $account->id]);
+
+        $payload                   = $this->receiptPayload($inventory, false);
+        $payload['items'][0]['id'] = $item->id;
+
+        $this->http()->put('/stockEntries/' . $entry->id, $payload)->assertSessionHasNoErrors();
+
+        $this->assertNull($item->fresh()->posted_account_id, 'Update draft mengosongkan akun baris; engine yang mengisinya (Q-P2-24).');
     }
 }

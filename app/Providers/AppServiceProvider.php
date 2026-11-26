@@ -4,6 +4,7 @@ namespace App\Providers;
 
 use App\Services\Core\HaveTransactionsSyncService;
 use App\Services\Core\Setting\SettingsService;
+use App\Services\Finances\Posting\PostedAccountRecorderRegistry;
 use Illuminate\Database\Eloquent\Model as EloquentModel;
 use Illuminate\Support\Facades\Vite;
 use Illuminate\Support\ServiceProvider;
@@ -17,6 +18,9 @@ class AppServiceProvider extends ServiceProvider {
         // Scoped: the per-request memo in SettingsService (Requirement 3.1)
         // only works when every resolve within one request/job shares it.
         $this->app->scoped(SettingsService::class);
+        // Harus didaftarkan eksplisit: untuk parameter class opsional yang belum terdaftar, container memakai default
+        // null, sehingga `PostingService` tidak menerima registry write-back (Finance Fase 2, Task 12.1).
+        $this->app->singleton(PostedAccountRecorderRegistry::class);
     }
 
     /**

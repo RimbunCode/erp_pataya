@@ -101,6 +101,8 @@ class SalesInvoiceService implements SubmitableService {
         $data['exchange_rate']      = $salesInvoice->exchange_rate;
         $data['price'] ??= 0;
         $data['price_base_currency'] = 0;
+        // Akun baris dicatat engine saat approve (Task 12.1); create dan update draft mengosongkannya (Q-P2-24).
+        $data['posted_account_id'] = null;
 
         return $data;
     }

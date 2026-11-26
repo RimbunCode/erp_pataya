@@ -159,6 +159,12 @@ class SalesInvoiceItem extends Model {
         'return_against_item_id' => [
             'ignore' => true,
         ],
+        'postedAccount' => [
+            'ignore' => true,
+        ],
+        'posted_account_id' => [
+            'ignore' => true,
+        ],
     ];
 
     public static function templateLink() {
@@ -175,6 +181,13 @@ class SalesInvoiceItem extends Model {
 
     public function returnAgainstItem() {
         return $this->belongsTo(SalesInvoiceItem::class, 'return_against_item_id');
+    }
+
+    /**
+     * Akun peran per baris yang dicatat engine posting saat approve (Task 12.1).
+     */
+    public function postedAccount(): BelongsTo {
+        return $this->belongsTo(Account::class, 'posted_account_id');
     }
 
     public function unit() {
