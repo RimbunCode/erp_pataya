@@ -403,6 +403,53 @@ class Asset extends Model {
     }
 
     /**
+     * Kebalikan addSoldQuantity (dipakai saat Delivery Note penjualan aset dibatalkan): kurangi sold_quantity (tidak
+     * kurang dari 0), pulihkan status, kosongkan disposal_date, dan pulihkan jadwal penyusutan yang belum terposting
+     * hanya bila aset tidak lagi terjual habis. Aset SCRAPPED tidak disentuh. Pemanggil wajib mengunci baris aset.
+     *
+     * Bila aset masih terjual habis lewat jurnal pelepasan Sales Invoice (hasFullyPostedDisposal), hanya qty yang
+     * dikurangi; status, disposal_date, dan jadwal dibiarkan karena aset tetap terlepas.
+     */
+    public function reduceSoldQuantity(float $quantity): void {
+        if (in_array(FormStatus::SCRAPPED, $this->status ?? [], true)) {
+            return;
+        }
+
+        DB::transaction(function () use ($quantity) {
+            $wasFullySold        = in_array(FormStatus::SOLD, $this->status ?? [], true);
+            $this->sold_quantity = max(0, (float) $this->sold_quantity - $quantity);
+
+            if ($this->isFullySold()) {
+                $this->save();
+
+                return;
+            }
+
+            $statuses  = $this->removeStatuses([FormStatus::SOLD, FormStatus::PARTIALLY_SOLD]);
+            $hasActive = in_array(FormStatus::ACTIVE, $statuses, true);
+
+            if ((float) $this->sold_quantity <= 0) {
+                if ($wasFullySold && ! $hasActive) {
+                    $statuses[] = FormStatus::ACTIVE;
+                }
+            } elseif ($this->available_quantity <= 0) {
+                $statuses[] = FormStatus::SOLD;
+            } else {
+                if ($wasFullySold && ! $hasActive) {
+                    $statuses[] = FormStatus::ACTIVE;
+                }
+                $statuses[] = FormStatus::PARTIALLY_SOLD;
+            }
+
+            $this->status        = $statuses;
+            $this->disposal_date = null;
+            $this->save();
+
+            $this->depreciationSchedules()->onlyTrashed()->restore();
+        });
+    }
+
+    /**
      * Tambah/hapus status full/partial berdasar threshold available_quantity,
      * menjaga ACTIVE tetap ada selama available_quantity > 0.
      */
