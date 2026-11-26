@@ -28,7 +28,7 @@ class PostPurchaseReceiptGeneralLedger implements ShouldQueue {
             // Gateway Posting Engine (Finance Fase 2, Task 8.1; closure legacy dihapus Task 14.1): akun datang dari
             // peran profil, dan `UnresolvedAccountRoleException` membuat job gagal ke `failed`.
             $outcome = app(PostingGateway::class)->post(
-                app(PurchaseReceiptPostingContextFactory::class)->forPosting($purchaseReceipt, (float) $event->totalRatesForGL, $event->isReturn, Carbon::instance($event->transactionDate)),
+                app(PurchaseReceiptPostingContextFactory::class)->forPosting($purchaseReceipt, (float) $event->totalRatesForGL, $event->isReturn, Carbon::instance($event->transactionDate), $event->lineAmounts),
             );
 
             // Q-P2-12: jangan menimpa `skipped` (dokumen dibatalkan sebelum job berjalan) menjadi `posted`.

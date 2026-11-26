@@ -17,6 +17,7 @@ use App\Models\Core\GlPostingStatus;
 use App\Models\Finances\PurchaseInvoice;
 use App\Models\Inventory\DeliveryNote;
 use App\Models\Purchase\PurchaseReceipt;
+use App\Services\Inventory\Accounting\DeliveryNoteLineAmounts;
 use Illuminate\Http\Request;
 use Inertia\Inertia;
 
@@ -62,14 +63,9 @@ class GlPostingStatusController extends Controller {
         $doc = $glPostingStatus->referenceable;
 
         return match (true) {
-            $doc instanceof PurchaseReceipt => new PurchaseReceiptGeneralLedgerPostingRequested(
-                purchaseReceipt: $doc->load('items.purchaseOrderItem'),
-                totalRatesForGL: $this->recalcPurchaseReceiptGL($doc),
-                isReturn: (bool) $doc->return_against_id,
-                transactionDate: now(),
-            ),
-            $doc instanceof DeliveryNote => new DeliveryNoteGeneralLedgerPostingRequested(
-                deliveryNote: $doc->load('items.returnAgainstItem'),
+            $doc instanceof PurchaseReceipt => $this->purchaseReceiptRetryEvent($doc),
+            $doc instanceof DeliveryNote    => new DeliveryNoteGeneralLedgerPostingRequested(
+                deliveryNote: $doc->load('items.item', 'items.returnAgainstItem'),
                 totalPicked: $this->recalcDeliveryNoteGL($doc),
                 isReturn: (bool) $doc->return_against_id,
                 transactionDate: now(),
@@ -102,30 +98,42 @@ class GlPostingStatusController extends Controller {
         };
     }
 
-    private function recalcPurchaseReceiptGL(PurchaseReceipt $pr): float {
-        $total = 0;
+    private function purchaseReceiptRetryEvent(PurchaseReceipt $pr): PurchaseReceiptGeneralLedgerPostingRequested {
+        $pr->load('items.purchaseOrderItem');
+        $lineAmounts = $this->recalcPurchaseReceiptLineAmounts($pr);
+
+        return new PurchaseReceiptGeneralLedgerPostingRequested(
+            purchaseReceipt: $pr,
+            totalRatesForGL: (float) array_sum($lineAmounts),
+            isReturn: (bool) $pr->return_against_id,
+            transactionDate: now(),
+            lineAmounts: $lineAmounts,
+        );
+    }
+
+    /**
+     * Nilai GL per baris receipt (id baris => nilai); total event = jumlahnya, sehingga selalu konsisten.
+     *
+     * @return array<string, float>
+     */
+    private function recalcPurchaseReceiptLineAmounts(PurchaseReceipt $pr): array {
+        $amounts = [];
         foreach ($pr->items as $item) {
             $poItem = $item->purchaseOrderItem;
             if (! $poItem) {
                 continue;
             }
-            $total += (float) $poItem->rate * (float) $item->quantity;
+            $amounts[(string) $item->getKey()] = (float) $poItem->rate * (float) $item->quantity;
         }
 
-        return $total;
+        return $amounts;
     }
 
     private function recalcDeliveryNoteGL(DeliveryNote $dn): float {
-        $total = 0;
-        foreach ($dn->items as $item) {
-            $valuationRates = $item->valuation_rates ?? [];
-            $total += array_sum(array_map(
-                fn ($v) => (float) ($v['rate'] ?? 0) * (float) ($v['quantity'] ?? 0),
-                $valuationRates,
-            ));
-        }
-
-        return $total;
+        // Retur memakai nilai baris dokumen asal (baris retur tidak menyimpan valuation_rates sendiri).
+        return DeliveryNoteLineAmounts::total(
+            DeliveryNoteLineAmounts::forDocument($dn, (bool) $dn->return_against_id),
+        );
     }
 
     private function recalcPurchaseInvoiceStockGL(PurchaseInvoice $pi): float {

@@ -46,6 +46,10 @@ class PurchaseReceiptService implements SubmitableService {
         $purchaseOrderItemId = $data['purchase_order_item_id'] ?? null;
         $isOffPo             = ! $purchaseOrderItemId;
 
+        // Akun baris tidak diterima dari input: dikosongkan pada create dan update draft sampai engine mencatatnya
+        // (Q-P2-24, Task 12.1).
+        $data['posted_account_id'] = null;
+
         // Baris di luar PO (spec purchase-receipt-off-po-items): item_id dari input
         // `item.id`; kolom substitusi hanya berlaku di baris tanpa PO Item.
         $data['purchase_order_item_id']          = $purchaseOrderItemId;
@@ -273,6 +277,8 @@ class PurchaseReceiptService implements SubmitableService {
         // Total nilai retur untuk GL: dihitung di dalam loop supaya baris tanpa
         // PO Item (di luar PO) tidak bergantung pada purchaseOrderItem->rate.
         $returnTotalForGL = 0;
+        // Nilai GL per baris receipt (id baris => nilai), untuk jurnal stock per baris dan catatan akun (Task 12.1).
+        $lineAmountsForGL = [];
 
         foreach ($items as $item) {
             $defaultUom              = $item->item->defaultUom;
@@ -320,6 +326,7 @@ class PurchaseReceiptService implements SubmitableService {
                     }
                 }
                 $returnTotalForGL += $totalRate;
+                $lineAmountsForGL[$item->id] = ($lineAmountsForGL[$item->id] ?? 0) + $totalRate;
 
                 $stock->update([
                     'stock_queue' => $queue,
@@ -445,6 +452,7 @@ class PurchaseReceiptService implements SubmitableService {
                         $item->increment('billed_quantity', $allocateQty * (float) ($stock->conversion_factor ?: 1) / (float) ($item->conversion_factor ?: 1));
                     }
                     $totalRatesForGL += $rate * $allocateQty;
+                    $lineAmountsForGL[$item->id] = ($lineAmountsForGL[$item->id] ?? 0) + $rate * $allocateQty;
                     $remainingQty -= $allocateQty;
                     $budget -= $allocateQty;
                 }
@@ -548,6 +556,7 @@ class PurchaseReceiptService implements SubmitableService {
                 $returnAgainst ? $returnTotalForGL : $totalRatesForGL,
                 (bool) $returnAgainst,
                 now(),
+                $lineAmountsForGL,
             ));
         }
 

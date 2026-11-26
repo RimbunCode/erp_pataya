@@ -68,8 +68,12 @@ class DeliveryNoteService implements SubmitableService {
         $unit                        = $units[$item['item_unit_id']] ?? null;
         $item['conversion_factor']   = $unit?->conversion_factor ?? 1;
         $item['quantity'] ??= 0;
-        $item['valuation_rates']        = [];
-        $item['return_against_item_id'] = $item['return_against_item']['id'] ?? null;
+        // Akun baris tidak diterima dari input: dikosongkan pada create dan update draft sampai engine mencatatnya
+        // (Q-P2-24, Task 12.1 bagian B).
+        $item['posted_account_id']       = null;
+        $item['posted_stock_account_id'] = null;
+        $item['valuation_rates']         = [];
+        $item['return_against_item_id']  = $item['return_against_item']['id'] ?? null;
 
         return $item;
     }
@@ -444,6 +448,9 @@ class DeliveryNoteService implements SubmitableService {
         event(new DocumentDeliveryStatusRecalculationRequested($toReference));
 
         if ($totalPicked > 0) {
+            // Relasi `items` bisa sudah ter-load dari sebelum `valuation_rates` diisi di atas; muat ulang supaya nilai per
+            // baris untuk jurnal dan catatan akun (Task 12.1) tidak kosong.
+            $deliveryNote->load('items.item', 'items.returnAgainstItem');
             GlPostingStatus::create([
                 'referenceable_type' => DeliveryNote::class,
                 'referenceable_id'   => $deliveryNote->id,

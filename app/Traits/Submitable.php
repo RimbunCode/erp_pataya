@@ -300,6 +300,9 @@ trait Submitable {
                                 'deleted_at',
                                 ...$item->getGuarded(),
                                 ...static::generatedColumnsOf($item->getTable()),
+                                // Akun catatan engine (Requirement 13.2, Q-P2-24): draft hasil amend dikosongkan.
+                                'posted_account_id',
+                                'posted_stock_account_id',
                                 $foreignKey,
                             ]);
                             $newItem->$foreignKey = $newData->id;
