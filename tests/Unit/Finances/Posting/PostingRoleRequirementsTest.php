@@ -36,6 +36,7 @@ class PostingRoleRequirementsTest extends TestCase {
         $this->assertSame(['stock', 'stock_received_but_not_billed'], $values(PostingDocumentType::PurchaseReceipt));
         $this->assertSame(['asset_revaluation'], $values(PostingDocumentType::AssetValueAdjustment));
         $this->assertSame([], $values(PostingDocumentType::AssetDepreciation));
+        $this->assertSame(['revenue'], $values(PostingDocumentType::AssetDisposal));
     }
 
     /**
@@ -67,7 +68,7 @@ class PostingRoleRequirementsTest extends TestCase {
             PostingDocumentType::AssetDepreciation->value    => [$make(PostingDocumentType::AssetDepreciation, ['depreciation_amount' => 10])],
             PostingDocumentType::AssetScrap->value           => [$make(PostingDocumentType::AssetScrap, ['write_off_amount' => 10], ['is_depreciable' => true])],
             PostingDocumentType::AssetValueAdjustment->value => [$make(PostingDocumentType::AssetValueAdjustment, ['difference_amount' => 10])],
-            PostingDocumentType::AssetDisposal->value        => [$make(PostingDocumentType::AssetDisposal, ['gain_loss' => 10], ['sales_invoice_item_id' => 'L1'])],
+            PostingDocumentType::AssetDisposal->value        => [$make(PostingDocumentType::AssetDisposal, ['proceeds' => 10, 'cost' => 12, 'accumulated_depreciation' => 4, 'gain_loss' => 2], ['sales_invoice_item_id' => 'L1'])],
         ];
 
         foreach (PostingDocumentType::cases() as $type) {

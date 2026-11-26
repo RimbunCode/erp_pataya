@@ -267,12 +267,21 @@ class Asset extends Model {
         return Attribute::get(fn () => (float) $this->asset_quantity - (float) $this->rental_quantity - (float) $this->sold_quantity);
     }
 
-    public function bookValue(): float {
-        $accumulated = $this->depreciationSchedules()
+    /**
+     * Akumulasi penyusutan total aset: `opening_accumulated_depreciation` (saldo awal/migrasi, dibentuk lewat Journal
+     * Voucher; metode penyusutan memulai jadwal dari angka ini) ditambah jadwal yang sudah terposting ke GL. Satu-satunya
+     * sumber angka akumulasi untuk nilai buku, jurnal pelepasan (T-7), dan scrap.
+     */
+    public function accumulatedDepreciation(): float {
+        $posted = $this->depreciationSchedules()
             ->whereHas('glPostingStatus', fn ($q) => $q->where('status', FormStatus::POSTED))
             ->sum('depreciation_amount');
 
-        return (float) $this->total_asset_cost - (float) $accumulated;
+        return (float) ($this->opening_accumulated_depreciation ?? 0) + (float) $posted;
+    }
+
+    public function bookValue(): float {
+        return (float) $this->total_asset_cost - $this->accumulatedDepreciation();
     }
 
     // ─── Guard — ERPNext: Asset tidak mengenal cancel/delete ─────────────

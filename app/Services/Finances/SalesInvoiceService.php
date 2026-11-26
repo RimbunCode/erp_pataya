@@ -278,6 +278,9 @@ class SalesInvoiceService implements SubmitableService {
     public function onApproved(Model $salesInvoice): mixed {
         DB::beginTransaction();
 
+        // Satu waktu approve untuk jurnal Sales Invoice dan event pelepasan aset (bentuk jurnal pelepasan mengikuti tanggal ini).
+        $approvedAt = now();
+
         try {
             $salesInvoice->load([
                 'debitAccount',
@@ -326,7 +329,7 @@ class SalesInvoiceService implements SubmitableService {
                         && ! Asset::where('id', $item->asset_id)->whereJsonContains('status', FormStatus::ACTIVE->value)->lockForUpdate()->exists()) {
                         throw new \LogicException(__('sales/offSource.asset_not_active'));
                     }
-                    event(new AssetSoldViaInvoice($item));
+                    event(new AssetSoldViaInvoice($item, $approvedAt));
                 }
             }
             // basic_amount/tax_amount item sudah net (dikurangi discount_amount) sejak
@@ -346,7 +349,7 @@ class SalesInvoiceService implements SubmitableService {
                 $salesInvoice,
                 $totalAmount,
                 (bool) $returnAgainst,
-                now(),
+                $approvedAt,
                 $debitAccount?->id,
                 $creditAccount?->id,
             ));

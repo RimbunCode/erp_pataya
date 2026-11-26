@@ -279,15 +279,76 @@ class PostingRulesTest extends TestCase {
         $this->assertSame([], $this->build($this->ctx(PostingDocumentType::AssetValueAdjustment, ['difference_amount' => 0])));
     }
 
-    public function test_asset_disposal_keeps_legacy_direction_and_per_line_key(): void {
-        $gain = $this->build($this->ctx(PostingDocumentType::AssetDisposal, ['gain_loss' => 200], ['sales_invoice_item_id' => 'L1']));
+    /**
+     * @param  array<string, float|int>  $amounts
+     * @param  array<string, mixed>  $flags
+     * @return list<RoleJournalDraft>
+     */
+    private function disposal(array $amounts, array $flags = []): array {
+        return $this->build($this->ctx(PostingDocumentType::AssetDisposal, $amounts, ['sales_invoice_item_id' => 'L1', ...$flags], [new LineAttributes(lineId: 'L1')]));
+    }
+
+    public function test_asset_disposal_gain_has_standard_shape_with_gain_on_credit_and_per_line_key(): void {
+        // Perolehan 10.000.000, akumulasi 4.000.000 (nilai buku 6.000.000), jual 7.000.000: untung 1.000.000.
+        $gain = $this->disposal(['proceeds' => 7000000, 'cost' => 10000000, 'accumulated_depreciation' => 4000000, 'gain_loss' => 1000000]);
+
+        $this->assertCount(1, $gain);
         $this->assertSame('disposal:L1', $gain[0]->purpose);
-        $this->assertSame(['debit:gain_loss_disposal:200', 'credit:fixed_asset:200'], $this->shape($gain[0]));
+        $this->assertSame([
+            'debit:revenue:7000000', 'debit:accumulated_depreciation:4000000', 'credit:fixed_asset:10000000', 'credit:gain_loss_disposal:1000000',
+        ], $this->shape($gain[0]));
+        $this->assertSame('L1', $gain[0]->lines[0]->line?->lineId, 'Baris pendapatan peka-barang membawa atribut baris aset.');
+    }
 
-        $loss = $this->build($this->ctx(PostingDocumentType::AssetDisposal, ['gain_loss' => -200], ['sales_invoice_item_id' => 'L1']));
-        $this->assertSame(['debit:fixed_asset:200', 'credit:gain_loss_disposal:200'], $this->shape($loss[0]));
+    public function test_asset_disposal_loss_debits_gain_loss_account(): void {
+        $loss = $this->disposal(['proceeds' => 5000000, 'cost' => 10000000, 'accumulated_depreciation' => 4000000]);
 
-        $this->assertSame([], $this->build($this->ctx(PostingDocumentType::AssetDisposal, ['gain_loss' => 0.00005], ['sales_invoice_item_id' => 'L1'])));
+        $this->assertSame([
+            'debit:revenue:5000000', 'debit:accumulated_depreciation:4000000', 'credit:fixed_asset:10000000', 'debit:gain_loss_disposal:1000000',
+        ], $this->shape($loss[0]));
+    }
+
+    public function test_asset_disposal_break_even_still_posts_without_a_gain_loss_line(): void {
+        $even = $this->disposal(['proceeds' => 6000000, 'cost' => 10000000, 'accumulated_depreciation' => 4000000]);
+
+        $this->assertCount(1, $even);
+        $this->assertSame(['debit:revenue:6000000', 'debit:accumulated_depreciation:4000000', 'credit:fixed_asset:10000000'], $this->shape($even[0]));
+    }
+
+    public function test_asset_disposal_omits_zero_lines_and_is_always_balanced(): void {
+        // Aset tanpa penyusutan dijual gratis: Dr rugi = Cr aset tetap.
+        $free = $this->disposal(['proceeds' => 0, 'cost' => 800, 'accumulated_depreciation' => 0]);
+        $this->assertSame(['credit:fixed_asset:800', 'debit:gain_loss_disposal:800'], $this->shape($free[0]));
+
+        foreach ([[7000000, 10000000, 4000000], [5000000, 10000000, 4000000], [6000000, 10000000, 4000000], [0, 800, 0], [333.33, 1000 / 3, 111.11]] as [$proceeds, $cost, $accumulated]) {
+            $draft  = $this->disposal(['proceeds' => $proceeds, 'cost' => $cost, 'accumulated_depreciation' => $accumulated])[0];
+            $debit  = array_sum(array_map(fn (RoleLine $l): float => $l->side === RoleLine::DEBIT ? (float) $l->amount : 0.0, $draft->lines));
+            $credit = array_sum(array_map(fn (RoleLine $l): float => $l->side === RoleLine::CREDIT ? (float) $l->amount : 0.0, $draft->lines));
+            $this->assertEqualsWithDelta($debit, $credit, 1e-6);
+        }
+    }
+
+    public function test_asset_disposal_reverses_gross_revenue_and_credits_discount_when_discount_split_is_active(): void {
+        // Jual 7.000.000 diskon 500.000 (hasil bersih 6.500.000): SI mengkredit revenue kotor dan mendebit discount.
+        $split = $this->disposal(
+            ['proceeds' => 6500000, 'cost' => 10000000, 'accumulated_depreciation' => 4000000, 'discount_amount' => 500000],
+            ['discount_split' => true],
+        );
+        $this->assertSame([
+            'debit:revenue:7000000', 'credit:discount:500000', 'debit:accumulated_depreciation:4000000', 'credit:fixed_asset:10000000', 'credit:gain_loss_disposal:500000',
+        ], $this->shape($split[0]));
+
+        $net = $this->disposal(['proceeds' => 6500000, 'cost' => 10000000, 'accumulated_depreciation' => 4000000, 'discount_amount' => 500000]);
+        $this->assertSame([
+            'debit:revenue:6500000', 'debit:accumulated_depreciation:4000000', 'credit:fixed_asset:10000000', 'credit:gain_loss_disposal:500000',
+        ], $this->shape($net[0]));
+    }
+
+    public function test_asset_disposal_is_skipped_for_zero_cost_and_requires_the_line_key(): void {
+        $this->assertSame([], $this->disposal(['proceeds' => 7000000, 'cost' => 0, 'accumulated_depreciation' => 0]));
+
+        $this->expectException(LogicException::class);
+        $this->build($this->ctx(PostingDocumentType::AssetDisposal, ['proceeds' => 1, 'cost' => 1]));
     }
 
     public function test_stock_entry_receipt_issue_and_additional_costs(): void {

@@ -302,10 +302,19 @@ otomatis menghitung untung/rugi penjualan aset itu (selisih harga jual
 dengan nilai bukunya saat itu) dan mencatatnya ke pembukuan — kamu tidak
 perlu menghitung manual.
 
-> 💡 Misalnya sebuah aset nilai bukunya saat ini Rp8.000.000, lalu dijual
-> Rp10.000.000 — sistem otomatis mencatat untung Rp2.000.000 dari
-> penjualan aset tersebut. Kalau dijual di bawah nilai bukunya, tercatat
-> sebagai rugi.
+> 💡 Misalnya sebuah aset dibeli Rp10.000.000 dan sudah disusutkan
+> Rp2.000.000 (nilai bukunya Rp8.000.000), lalu dijual Rp10.000.000 —
+> sistem otomatis mengeluarkan aset dari pembukuan (harga perolehan
+> Rp10.000.000 dan akumulasi penyusutan Rp2.000.000 dihapus) dan mencatat
+> untung Rp2.000.000. Kalau dijual di bawah nilai bukunya, tercatat sebagai
+> rugi. Penjualan tepat di nilai buku tetap mengeluarkan aset dari
+> pembukuan, hanya tanpa untung atau rugi.
+>
+> Catatan untuk akuntan: pendapatan penjualan aset dari Sales Invoice
+> dibalik oleh jurnal pelepasan, sehingga piutang pelanggan tetap sebesar
+> harga jual dan hasilnya hanya berupa untung/rugi. Saldo akun aset tetap
+> dan akumulasi penyusutan awal dibentuk lewat Journal Voucher / saldo awal.
+> Retur Sales Invoice atas aset tidak memposting pelepasan.
 
 ## Susut Nilai Aset (Depresiasi)
 
