@@ -302,6 +302,42 @@ class PostingServiceTest extends TestCase {
         $this->assertJournalBalanced($journals[0], 100.01);
     }
 
+    public function test_per_line_merge_stays_balanced_after_rounding_for_random_documents_p12(): void {
+        $multiAccount = 0;
+
+        for ($seed = 1; $seed <= 60; $seed++) {
+            mt_srand($seed);
+            $lines = [];
+            $total = 0;
+            for ($i = 0, $count = mt_rand(1, 6); $i < $count; $i++) {
+                $milli = mt_rand(1, 5_000_000); // seperseribu: rawan selisih pembulatan antarbaris; total = jumlah float baris seperti pabrik konteks
+                $total += $milli / 1000;
+                $lines[] = new LineAttributes(['amount' => $milli / 1000], isStockItem: (bool) mt_rand(0, 1));
+            }
+
+            foreach ([false, true] as $return) {
+                $ctx    = $this->ctx(PostingDocumentType::SalesInvoice, ['total' => $total], ['is_return' => $return], $lines);
+                $drafts = $this->service()->preview($ctx);
+
+                $this->assertCount(1, $drafts, "seed {$seed}");
+                $debit    = $credit = 0.0;
+                $accounts = [];
+                foreach ($drafts[0]->lines as $line) {
+                    $debit += (float) $line->debit;
+                    $credit += (float) $line->credit;
+                    $accounts[$line->accountId] = true;
+                }
+                $this->assertEqualsWithDelta($debit, $credit, 1e-9, "seed {$seed}: Σdebit = Σkredit setelah penggabungan dan pembulatan");
+                $this->assertEqualsWithDelta(round($total, 2), max($debit, $credit), 1e-9, "seed {$seed}: total jurnal = total dokumen terbulatkan");
+                $this->assertLessThanOrEqual(3, \count($accounts), "seed {$seed}: baris dengan akun sama digabung");
+                $multiAccount += \count($accounts) === 3 ? 1 : 0;
+            }
+        }
+        mt_srand();
+
+        $this->assertGreaterThan(20, $multiAccount, 'sampel acak harus memuat dokumen dengan dua akun pendapatan');
+    }
+
     public function test_split_rounding_difference_is_absorbed_so_the_journal_balances(): void {
         // Dua baris 0,335 pada akun berbeda: dibulatkan satu per satu 0,34 + 0,34 = 0,68, sedangkan total 0,67.
         $lines = [
