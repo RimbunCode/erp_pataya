@@ -464,13 +464,17 @@ final class PostingProfileService {
      * @return array{role: string, account_id: string, document_type: ?string, variant: ?string, item_type: ?string, is_stock_item: ?bool, item_category_id: ?string, priority: int}
      */
     private function normalizeRule(array $attributes): array {
-        $role = $attributes['role'] ?? null;
-        $role = $role instanceof AccountRole ? $role->value : $role;
-        $type = $attributes['document_type'] ?? null;
+        $role      = $attributes['role'] ?? null;
+        $role      = $role instanceof AccountRole ? $role->value : $role;
+        $type      = $attributes['document_type'] ?? null;
+        $accountId = $attributes['account_id'] ?? null;
+        if (($role !== null && ! \is_scalar($role)) || ($accountId !== null && ! \is_scalar($accountId))) {
+            throw new \InvalidArgumentException('Nilai aturan harus berupa teks atau angka.');
+        }
 
         return [
             'role'             => (string) ($role ?? ''),
-            'account_id'       => (string) ($attributes['account_id'] ?? ''),
+            'account_id'       => (string) ($accountId ?? ''),
             'document_type'    => $type instanceof PostingDocumentType ? $type->value : $this->nullIfBlank($type),
             'variant'          => $this->nullIfBlank($attributes['variant'] ?? null),
             'item_type'        => $this->nullIfBlank($attributes['item_type'] ?? null),
@@ -591,6 +595,10 @@ final class PostingProfileService {
     }
 
     private function nullIfBlank(mixed $value): ?string {
+        if ($value !== null && ! \is_scalar($value)) {
+            throw new \InvalidArgumentException('Nilai aturan harus berupa teks atau angka.');
+        }
+
         return $value === null || $value === '' ? null : (string) $value;
     }
 

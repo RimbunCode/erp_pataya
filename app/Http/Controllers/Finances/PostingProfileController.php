@@ -135,7 +135,7 @@ class PostingProfileController extends Controller {
             $request->has('accounts') ? [...$custom, ...$request->accountMap()] : null,
             // Sama seperti `accounts`: tanpa kunci `rules` aturan tidak diubah; daftar kosong menghapus semua aturan
             // katalog. Aturan berperan kustom tidak tampil di editor sehingga dibawa kembali apa adanya.
-            $request->has('rules') ? [...$this->customRules($postingProfile), ...$request->ruleRows()] : null,
+            \is_array($request->input('rules')) ? [...$this->customRules($postingProfile), ...$request->ruleRows()] : null,
         ));
 
         return back()->with('success', __('finances/postingProfile.messages.updated', ['name' => $data['name']]));

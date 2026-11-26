@@ -613,6 +613,45 @@ class PostingProfileControllerTest extends TestCase {
         $this->assertSame(0, $profile->rules()->count());
     }
 
+    public function test_update_rejects_array_values_in_rule_rows_with_a_validation_error(): void {
+        $profile = $this->draft();
+
+        foreach (['account_id', 'item_category_id', 'priority'] as $field) {
+            $this->actingWith(['select', 'read', 'write'])->put(route('postingProfiles.update', $profile), $this->updatePayload([
+                'rules' => [$this->ruleRow(['role' => 'revenue', $field => ['x']])],
+            ]))->assertSessionHasErrors("rules.0.{$field}");
+        }
+
+        $this->assertSame(0, $profile->rules()->count());
+    }
+
+    public function test_update_attaches_unusable_rule_account_errors_to_the_row(): void {
+        $profile  = $this->draft();
+        $disabled = Account::create(['account_name' => 'Nonaktif', 'account_number' => '1100', 'root_type' => 'asset', 'report_type' => 'balance_sheet', 'balance_type' => 'debit', 'is_disabled' => true]);
+
+        $this->actingWith(['select', 'read', 'write'])->put(route('postingProfiles.update', $profile), $this->updatePayload([
+            'rules' => [
+                $this->ruleRow(['variant' => 'normal']),
+                $this->ruleRow(['account_id' => $disabled->id]),
+                $this->ruleRow(['variant' => null, 'account_id' => '01ARZ3NDEKTSV4RRFFQ69G5FAV']),
+            ],
+        ]))->assertSessionHasErrors(['rules.1.account_id', 'rules.2.account_id'])
+            ->assertSessionDoesntHaveErrors(['rules.0.account_id']);
+
+        $this->assertSame(0, $profile->rules()->count());
+    }
+
+    public function test_update_with_null_rules_keeps_the_existing_rules(): void {
+        $profile = $this->service->createDraft('Awal', '2026-01-01', null, [], [
+            ['role' => 'revenue', 'account_id' => $this->other->id, 'document_type' => 'sales_invoice'],
+        ]);
+
+        $this->actingWith(['select', 'read', 'write'])->put(route('postingProfiles.update', $profile), $this->updatePayload(['rules' => null]))
+            ->assertSessionHasNoErrors();
+
+        $this->assertSame(1, $profile->rules()->count());
+    }
+
     public function test_update_rejects_unknown_keys_inside_a_rule_row(): void {
         $profile = $this->draft();
 
@@ -630,7 +669,7 @@ class PostingProfileControllerTest extends TestCase {
         $this->actingWith(['select', 'read', 'write'])->put(route('postingProfiles.update', $profile), $this->updatePayload([
             'name'  => 'Tidak Boleh Tersimpan',
             'rules' => [$this->ruleRow(['account_id' => $group->id])],
-        ]))->assertSessionHasErrors('profile');
+        ]))->assertSessionHasErrors('rules.0.account_id');
 
         $profile->refresh();
         $this->assertSame('Awal', $profile->name);

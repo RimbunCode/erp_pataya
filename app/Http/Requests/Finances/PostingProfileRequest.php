@@ -5,6 +5,7 @@ namespace App\Http\Requests\Finances;
 use App\Enums\AccountRole;
 use App\Enums\PostingDocumentType;
 use App\Http\Requests\Finances\Concerns\RejectsUnknownInput;
+use App\Models\Finances\Account;
 use App\Services\Finances\Posting\PostingProfileService;
 use Illuminate\Contracts\Validation\ValidationRule;
 use Illuminate\Foundation\Http\FormRequest;
@@ -97,8 +98,8 @@ class PostingProfileRequest extends FormRequest {
                 $validator->errors()->add("rules.{$index}.{$unknown}", __('finances/postingProfile.errors.unknown_input', ['field' => $unknown]));
             }
 
-            // Baris yang gagal aturan dasar (peran tak dikenal, tipe salah) tidak dinilai lebih lanjut.
-            if ($validator->errors()->hasAny(["rules.{$index}.role", "rules.{$index}.document_type", "rules.{$index}.variant", "rules.{$index}.item_type", "rules.{$index}.is_stock_item"])) {
+            // Baris yang sudah punya galat apa pun (peran tak dikenal, tipe salah, nilai bukan teks) tidak dinilai lebih lanjut.
+            if ($this->rowHasErrors($validator, $index)) {
                 continue;
             }
 
@@ -117,7 +118,44 @@ class PostingProfileRequest extends FormRequest {
                 $validator->errors()->add("rules.{$index}.role", __('finances/postingProfile.errors.rule_duplicate', ['role' => $role]));
             }
             $seen[$key] = true;
+
+            $this->validateRuleAccount($validator, $index, $role, (string) $row['account_id']);
         }
+    }
+
+    private function rowHasErrors(Validator $validator, int|string $index): bool {
+        foreach (array_keys($validator->errors()->messages()) as $key) {
+            if (str_starts_with((string) $key, "rules.{$index}.")) {
+                return true;
+            }
+        }
+
+        return false;
+    }
+
+    /**
+     * Akun aturan harus ada, tidak terhapus, bukan group, dan aktif (Requirement 12.5); galat menempel pada barisnya.
+     * `PostingProfileService` tetap penjaga akhir.
+     */
+    private function validateRuleAccount(Validator $validator, int|string $index, string $role, string $accountId): void {
+        $account = Account::query()->withoutGlobalScopes()->find($accountId);
+        $problem = match (true) {
+            $account === null             => 'not_found',
+            $account->deleted_at !== null => 'deleted',
+            (bool) $account->is_group     => 'group',
+            (bool) $account->is_disabled  => 'disabled',
+            default                       => null,
+        };
+        if ($problem === null) {
+            return;
+        }
+
+        $label = $account === null ? $accountId : "{$account->account_number} - {$account->account_name}";
+        $validator->errors()->add("rules.{$index}.account_id", __('finances/postingProfile.errors.account_problem', [
+            'role'    => $role,
+            'account' => $label,
+            'reason'  => __("finances/posting.account_problems.{$problem}"),
+        ]));
     }
 
     /**

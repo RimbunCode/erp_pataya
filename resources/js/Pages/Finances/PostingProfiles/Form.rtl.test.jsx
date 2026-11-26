@@ -15,6 +15,7 @@ const mocks = vi.hoisted(() => ({
   routerDelete: vi.fn(),
   pageProps: {},
   formErrors: {},
+  clearErrors: vi.fn(),
 }));
 
 vi.mock("@inertiajs/react", async () => {
@@ -38,6 +39,7 @@ vi.mock("@inertiajs/react", async () => {
         post: (url, options) => mocks.post(url, data, options),
         put: (url, options) => mocks.put(url, data, options),
         errors: mocks.formErrors,
+        clearErrors: mocks.clearErrors,
         processing: false,
       };
     },
@@ -857,6 +859,24 @@ describe("PostingProfiles Form", () => {
       expect(
         screen.getByText("Daftar aturan tidak valid."),
       ).toBeInTheDocument();
+    });
+
+    it("membersihkan galat server aturan saat baris berubah agar tidak salah alamat", async () => {
+      const user = userEvent.setup();
+      mocks.formErrors = {
+        "rules.0.role": "Galat lama.",
+        rules: "Galat umum.",
+        name: "Galat nama.",
+      };
+      render(<Form {...baseProps} profile={profile({ rules: [rule()] })} />);
+
+      await user.click(
+        within(editorRows()[0]).getByRole("button", {
+          name: "finances.postingProfile.rules_editor.remove",
+        }),
+      );
+
+      expect(mocks.clearErrors).toHaveBeenCalledWith("rules.0.role", "rules");
     });
 
     it("profil baru dapat menyimpan aturan bersama draft pertamanya", async () => {

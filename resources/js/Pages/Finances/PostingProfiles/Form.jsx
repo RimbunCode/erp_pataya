@@ -355,6 +355,13 @@ function FormContent({
   const changeRules = (rows) => {
     setRuleRows(rows);
     form.setData("rules", rows.map(toPayload));
+    // Galat server dipetakan lewat indeks baris; setelah baris berubah/bergeser galat lama menjadi salah alamat.
+    const staleKeys = Object.keys(form.errors).filter(
+      (key) => key === "rules" || key.startsWith("rules."),
+    );
+    if (staleKeys.length > 0) {
+      form.clearErrors(...staleKeys);
+    }
   };
 
   const ruleErrors = validateRows(ruleRows, roles);
