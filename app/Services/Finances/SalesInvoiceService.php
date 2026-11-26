@@ -4,6 +4,7 @@ namespace App\Services\Finances;
 
 use App\Contracts\SubmitableService;
 use App\Enums\FormStatus;
+use App\Enums\JournalStatus;
 use App\Events\Asset\AssetSoldViaInvoice;
 use App\Events\Core\DocumentSubmitted;
 use App\Events\Finances\SalesInvoiceGeneralLedgerPostingRequested;
@@ -16,9 +17,12 @@ use App\Models\Core\Branch;
 use App\Models\Core\CoreSetting;
 use App\Models\Core\FormatingSeries;
 use App\Models\Core\GlPostingStatus;
+use App\Models\Finances\GeneralLedger;
+use App\Models\Finances\Journal;
 use App\Models\Finances\SalesInvoice;
 use App\Models\Finances\SalesInvoiceItem;
 use App\Models\Finances\Tax;
+use App\Models\Inventory\DeliveryNoteItem;
 use App\Models\Inventory\ItemUnit;
 use App\Models\Inventory\ItemVariant;
 use App\Models\Inventory\Stock;
@@ -31,6 +35,7 @@ use App\Services\Core\Setting\CurrencyMatcher;
 use App\Services\Core\Setting\RateChangeComparator;
 use App\Services\Core\Setting\SettingsService;
 use App\Services\Core\Setting\ToleranceCalculator;
+use App\Services\Finances\Ledger\JournalReversalService;
 use App\Traits\HasDefaultDelete;
 use App\Utils;
 use Illuminate\Support\Collection;
@@ -607,11 +612,203 @@ class SalesInvoiceService implements SubmitableService {
     }
 
     public function cancel(Model $salesInvoice): mixed {
-        $salesInvoice->update([
-            'status' => FormStatus::CANCELED,
-        ]);
+        DB::transaction(function () use ($salesInvoice): void {
+            $assetLines = $this->assetLinesOf($salesInvoice);
+
+            // Kunci baris aset (urut id agar tidak deadlock) sebelum membaca status apa pun: handler posting pelepasan
+            // mengunci aset yang sama, sehingga cancel dan posting berjalan bergantian, bukan bersamaan.
+            $this->lockAssets($assetLines);
+
+            $this->assertNoApprovedAssetDelivery($salesInvoice, $assetLines);
+
+            $salesInvoice->update([
+                'status' => FormStatus::CANCELED,
+            ]);
+
+            $this->voidAssetDisposalJournals($assetLines);
+            $this->restoreAssetDepreciationSchedules($salesInvoice, $assetLines);
+        });
 
         return $salesInvoice;
+    }
+
+    /**
+     * Pembatalan Sales Invoice yang memuat baris aset ditolak selama aset itu sudah dikirim lewat Delivery Note penjualan
+     * yang masih berlaku (belum dibatalkan, bukan retur, bukan sewa): pengiriman adalah kenyataan fisik yang tidak boleh
+     * hilang diam-diam karena invoice dibatalkan (`sold_quantity`/status aset berasal dari Delivery Note, bukan dari
+     * invoice). Batalkan Delivery Note-nya lebih dulu. Tidak mengubah data apa pun.
+     *
+     * Penanda "sudah terkirim" adalah `delivery_note_items.processed_at`: hanya diisi `MarkAssetSoldFromDelivery` (sinkron,
+     * di transaksi persetujuan Delivery Note) tepat saat `sold_quantity` aset bertambah. `submitted_at` tidak dipakai karena
+     * juga terisi untuk Delivery Note yang masih menunggu persetujuan atau ditolak (aset belum bergerak).
+     *
+     * Aset non-bulk (satu unit): pengiriman mana pun atas aset itu memblokir. Aset bulk (`allow_bulk_quantity`, dijual
+     * sebagian ke beberapa pelanggan): hanya pengiriman milik invoice ini yang memblokir, dikenali dari baris Sales Order
+     * yang sama (`sales_invoice_items.sales_order_item_id` = `delivery_note_items.referenceable_id`). Pengiriman tanpa
+     * Sales Order (bebas) tidak bisa dikaitkan ke invoice mana pun, jadi dipakai pencocokan kuantitas: memblokir hanya bila
+     * total qty terkirim melebihi qty aset dikurangi qty baris invoice yang dibatalkan (artinya sebagian unit invoice ini
+     * pasti sudah ikut terkirim).
+     *
+     * @param  Collection<int, SalesInvoiceItem>  $assetLines
+     */
+    private function assertNoApprovedAssetDelivery(Model $salesInvoice, Collection $assetLines): void {
+        if ($salesInvoice->return_against_id !== null) {
+            return;
+        }
+
+        $assetIds = $assetLines->pluck('asset_id')->unique()->all();
+        if ($assetIds === []) {
+            return;
+        }
+
+        $delivered = DeliveryNoteItem::query()
+            ->whereIn('asset_id', $assetIds)
+            ->whereNotNull('processed_at')
+            ->whereHas('deliveryNote', fn ($query) => $query
+                ->whereNull('canceled_at')
+                ->whereNull('return_against_id'))
+            ->with('referenceable.salesOrder')
+            ->get()
+            ->reject(fn (DeliveryNoteItem $item): bool => $item->referenceable instanceof SalesOrderItem
+                && (bool) ($item->referenceable->salesOrder?->is_rent ?? false));
+
+        if ($delivered->isEmpty()) {
+            return;
+        }
+
+        $assets = Asset::query()->whereIn('id', $assetIds)->get()->keyBy('id');
+
+        foreach ($assetLines->groupBy('asset_id') as $assetId => $lines) {
+            $items = $delivered->where('asset_id', $assetId);
+            if ($items->isEmpty()) {
+                continue;
+            }
+
+            if (! (bool) $assets->get($assetId)?->allow_bulk_quantity || $this->bulkDeliveryBelongsToInvoice($assets->get($assetId), $lines, $items)) {
+                throw ValidationException::withMessages(['asset' => __('finances/salesInvoice.validation.asset_already_delivered')]);
+            }
+        }
+    }
+
+    /**
+     * Apakah pengiriman aset bulk menyangkut baris invoice yang dibatalkan (lihat `assertNoApprovedAssetDelivery`).
+     *
+     * @param  Collection<int, SalesInvoiceItem>  $lines  baris invoice untuk aset ini
+     * @param  Collection<int, DeliveryNoteItem>  $items  baris Delivery Note terkirim untuk aset ini
+     */
+    private function bulkDeliveryBelongsToInvoice(Asset $asset, Collection $lines, Collection $items): bool {
+        $orderItemIds = $lines->pluck('sales_order_item_id')->filter()->all();
+
+        $linked = $items->contains(fn (DeliveryNoteItem $item): bool => $item->referenceable instanceof SalesOrderItem
+            && \in_array($item->referenceable_id, $orderItemIds, true));
+        if ($linked) {
+            return true;
+        }
+
+        $hasUnlinked = $items->contains(fn (DeliveryNoteItem $item): bool => ! ($item->referenceable instanceof SalesOrderItem));
+        if (! $hasUnlinked) {
+            return false;
+        }
+
+        return (float) $items->sum('quantity') > (float) $asset->asset_quantity - (float) $lines->sum('quantity') + 0.000001;
+    }
+
+    /**
+     * Pulihkan jadwal penyusutan aset baris invoice yang dihentikan saat aset terjual habis (kebalikan penghentian di
+     * `PostAssetDisposalGainLoss`/`Asset::addSoldQuantity`). Hanya bila aset tidak lagi terjual habis (jurnal pelepasan
+     * lain atau `sold_quantity`) dan tidak berstatus scrap (jadwal aset scrap sengaja dihentikan dan tidak dipulihkan).
+     * Jadwal yang sudah terposting tidak pernah dihapus sehingga tidak tersentuh. Idempoten, dan harus dipanggil setelah
+     * status posting baris ditandai `skipped`.
+     *
+     * @param  Collection<int, SalesInvoiceItem>  $assetLines
+     */
+    private function restoreAssetDepreciationSchedules(Model $salesInvoice, Collection $assetLines): void {
+        if ($salesInvoice->return_against_id !== null) {
+            return;
+        }
+
+        $assetIds = $assetLines->pluck('asset_id')->unique()->all();
+
+        foreach (Asset::query()->whereIn('id', $assetIds)->get() as $asset) {
+            if ($asset->isFullySold() || \in_array(FormStatus::SCRAPPED, (array) $asset->status, true)) {
+                continue;
+            }
+
+            $asset->depreciationSchedules()->onlyTrashed()->restore();
+        }
+    }
+
+    /**
+     * Kunci baris Asset milik baris invoice, urut id agar dua pembatalan bersamaan tidak saling menunggu (deadlock).
+     *
+     * @param  Collection<int, SalesInvoiceItem>  $assetLines
+     */
+    private function lockAssets(Collection $assetLines): void {
+        $assetIds = $assetLines->pluck('asset_id')->unique()->sort()->values()->all();
+        if ($assetIds === []) {
+            return;
+        }
+
+        Asset::query()->whereIn('id', $assetIds)->orderBy('id')->lockForUpdate()->get(['id']);
+    }
+
+    /** @return Collection<int, SalesInvoiceItem> */
+    private function assetLinesOf(Model $salesInvoice): Collection {
+        return SalesInvoiceItem::query()
+            ->where('sales_invoice_id', $salesInvoice->getKey())
+            ->whereNotNull('asset_id')
+            ->get(['id', 'asset_id', 'quantity', 'sales_order_item_id']);
+    }
+
+    /**
+     * Jurnal pelepasan aset (`disposal:{sales_invoice_item_id}`) bersumber dari aset, bukan dari Sales Invoice, sehingga
+     * tidak ikut di-void oleh hook pembatalan `Submitable` (yang hanya menyentuh jurnal ber-sumber dokumen yang dibatalkan).
+     * Di sini baris GL-nya di-soft-delete dan jurnalnya ditandai `voided` dengan cara yang sama seperti jurnal Sales Invoice
+     * sendiri, terbatas pada baris invoice ini. Idempoten: jurnal yang sudah `voided` tidak diproses ulang.
+     *
+     * @param  Collection<int, SalesInvoiceItem>  $lines
+     */
+    private function voidAssetDisposalJournals(Collection $lines): void {
+        if ($lines->isEmpty()) {
+            return;
+        }
+
+        $this->markAssetDisposalPostingSkipped($lines);
+
+        // Jurnal pelepasan dan jurnal pembaliknya (JournalReversalService: key `<asli>:reversal`, `reverses_journal_id`)
+        // sama-sama di-void agar GL tidak menyisakan kebalikan pelepasan saja.
+        $keys = $lines
+            ->map(fn (SalesInvoiceItem $line): string => (new Asset)->getMorphClass() . ":{$line->asset_id}:disposal:{$line->id}")
+            ->all();
+
+        $originalIds = Journal::query()->withoutGlobalScopes()->whereIn('posting_key', $keys)->pluck('id');
+
+        $journalIds = Journal::query()->withoutGlobalScopes()
+            ->where(function ($query) use ($keys, $originalIds): void {
+                $query->whereIn('posting_key', [...$keys, ...array_map(fn (string $key): string => $key . ':' . JournalReversalService::REVERSAL_PURPOSE, $keys)])
+                    ->orWhereIn('reverses_journal_id', $originalIds);
+            })
+            ->whereIn('status', [JournalStatus::Posted->value, JournalStatus::Reversed->value])
+            ->pluck('id');
+
+        if ($journalIds->isEmpty()) {
+            return;
+        }
+
+        GeneralLedger::query()->whereIn('journal_id', $journalIds)->update(['deleted_at' => now()]);
+        Journal::query()->withoutGlobalScopes()->whereIn('id', $journalIds)->update(['status' => JournalStatus::Voided->value]);
+    }
+
+    /**
+     * Tandai status posting baris aset sebagai `skipped` (tidak aktif), konvensi dokumen dibatalkan (Q-P2-12/Q-P2-13:
+     * `CanceledSourceGuard` dan listener posting). `processed_at` dibiarkan agar job lama tidak memposting ulang baris ini.
+     */
+    private function markAssetDisposalPostingSkipped(Collection $lines): void {
+        GlPostingStatus::query()
+            ->where('referenceable_type', SalesInvoiceItem::class)
+            ->whereIn('referenceable_id', $lines->pluck('id'))
+            ->where('status', '!=', FormStatus::SKIPPED->value)
+            ->update(['status' => FormStatus::SKIPPED->value]);
     }
 
     public function amend(Model $model): mixed {

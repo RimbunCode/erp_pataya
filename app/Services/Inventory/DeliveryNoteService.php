@@ -3,6 +3,7 @@
 namespace App\Services\Inventory;
 
 use App\Contracts\SubmitableService;
+use App\Enums\AssetMovementPurpose;
 use App\Enums\FormStatus;
 use App\Events\Asset\AssetRentalDeliveryApproved;
 use App\Events\Asset\AssetRentalReturnApproved;
@@ -11,6 +12,7 @@ use App\Events\Core\DocumentSubmitted;
 use App\Events\Inventory\DeliveryNoteGeneralLedgerPostingRequested;
 use App\Events\Sales\Order\DocumentDeliveryStatusRecalculationRequested;
 use App\Models\Asset\Asset;
+use App\Models\Asset\AssetMovement;
 use App\Models\Asset\AssetService;
 use App\Models\Core\FormatingSeries;
 use App\Models\Core\GlPostingStatus;
@@ -511,11 +513,54 @@ class DeliveryNoteService implements SubmitableService {
     }
 
     public function cancel(Model $deliveryNote): mixed {
-        $deliveryNote->update([
-            'status' => FormStatus::CANCELED,
-        ]);
+        DB::transaction(function () use ($deliveryNote) {
+            $deliveryNote->update([
+                'status' => FormStatus::CANCELED,
+            ]);
+
+            $this->reverseAssetSales($deliveryNote);
+        });
 
         return $deliveryNote;
+    }
+
+    /**
+     * Balik efek penjualan aset (MarkAssetSoldFromDelivery) saat DN penjualan dibatalkan: kurangi sold_quantity, pulihkan
+     * status/jadwal penyusutan, dan batalkan asset movement SELL (status canceled, bukan dihapus, agar jejak tetap ada).
+     * Hanya baris yang benar-benar terkirim (processed_at terisi); processed_at dikosongkan sehingga cancel ulang idempoten.
+     * Retur DN dan baris sewa tidak diubah: efeknya dibalik lewat alur retur sewa, bukan lewat cancel DN.
+     */
+    private function reverseAssetSales(DeliveryNote $deliveryNote): void {
+        if ($deliveryNote->return_against_id) {
+            return;
+        }
+
+        $lines = $deliveryNote->items()
+            ->whereNotNull('asset_id')
+            ->whereNotNull('processed_at')
+            ->get()
+            ->reject(fn (DeliveryNoteItem $line) => $line->referenceable instanceof SalesOrderItem
+                && (bool) ($line->referenceable->salesOrder?->is_rent ?? false));
+
+        foreach ($lines as $line) {
+            $asset = Asset::query()->whereKey($line->asset_id)->lockForUpdate()->first();
+            $line->update(['processed_at' => null]);
+
+            if (! $asset) {
+                continue;
+            }
+
+            $asset->reduceSoldQuantity((float) $line->quantity);
+
+            $movement = AssetMovement::query()
+                ->where('reference_type', DeliveryNote::class)
+                ->where('reference_id', $deliveryNote->id)
+                ->where('purpose', AssetMovementPurpose::SELL->value)
+                ->whereJsonDoesntContain('status', FormStatus::CANCELED->value)
+                ->whereHas('items', fn ($q) => $q->where('asset_id', $line->asset_id))
+                ->first();
+            $movement?->update(['status' => [FormStatus::CANCELED]]);
+        }
     }
 
     public function amend(Model $model): mixed {

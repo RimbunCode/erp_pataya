@@ -4,6 +4,7 @@ namespace App\Listeners\Asset\Rental;
 
 use App\Enums\FormStatus;
 use App\Events\Asset\AssetSoldViaInvoice;
+use App\Models\Asset\Asset;
 use App\Models\Core\GlPostingStatus;
 use App\Services\Asset\Accounting\AssetPostingContextFactory;
 use App\Services\Finances\Posting\PostingGateway;
@@ -23,6 +24,12 @@ class PostAssetDisposalGainLoss implements ShouldQueue {
 
     public function handle(AssetSoldViaInvoice $event): void {
         DB::transaction(function () use ($event) {
+            // Kunci aset lebih dulu (sebelum pembacaan biasa apa pun) agar bergantian dengan `SalesInvoiceService::cancel`
+            // yang mengunci aset yang sama: status invoice yang dibaca guard sesudahnya sudah mencakup pembatalan yang commit.
+            if ($event->line->asset_id !== null) {
+                Asset::query()->whereKey($event->line->asset_id)->lockForUpdate()->first(['id']);
+            }
+
             $line = $event->line->fresh();
             if (! $line || $line->processed_at) {
                 return;
@@ -87,6 +94,12 @@ class PostAssetDisposalGainLoss implements ShouldQueue {
             );
 
             $line->update(['processed_at' => now()]);
+
+            // Seluruh qty aset sudah dilepas lewat jurnal terposting (walau DN belum/tak pernah dibuat): hentikan jadwal
+            // penyusutan yang belum terposting agar tidak ada akumulasi bersaldo kredit tanpa aset. Idempoten.
+            if ($asset->hasFullyPostedDisposal()) {
+                $asset->deleteUnpostedDepreciationSchedules();
+            }
         });
     }
 

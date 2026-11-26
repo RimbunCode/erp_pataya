@@ -20,6 +20,7 @@ return [
     'validation.rate_changed'                          => 'Sales Order rate :source differs from this invoice rate :document.',
     'validation.below_cost'                            => 'Net sales rate :sales is below the warehouse valuation rate :cost.',
     'validation.below_cost_hidden'                     => 'Net sales rate :sales is below the warehouse valuation rate.',
+    'validation.asset_already_delivered'               => 'The asset was already delivered through an active Delivery Note. Cancel that Delivery Note first before canceling this invoice.',
     'price_warning_title'                              => 'Price control warning',
     'detail'                                           => 'Detail',
     'status'                                           => 'Status',

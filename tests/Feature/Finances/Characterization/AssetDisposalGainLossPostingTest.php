@@ -3,6 +3,7 @@
 namespace Tests\Feature\Finances\Characterization;
 
 use App\Enums\FormStatus;
+use App\Enums\JournalStatus;
 use App\Enums\PostingDocumentType;
 use App\Events\Asset\AssetSoldViaInvoice;
 use App\Listeners\Asset\Rental\PostAssetDisposalGainLoss;
@@ -11,15 +12,22 @@ use App\Models\Asset\AssetDepreciationSchedule;
 use App\Models\Core\GlPostingStatus;
 use App\Models\Finances\Account;
 use App\Models\Finances\FinanceSetting;
+use App\Models\Finances\GeneralLedger;
 use App\Models\Finances\Journal;
 use App\Models\Finances\PostingProfile;
 use App\Models\Finances\SalesInvoice;
 use App\Models\Finances\SalesInvoiceItem;
+use App\Models\Inventory\DeliveryNote;
+use App\Models\Inventory\DeliveryNoteItem;
+use App\Models\Inventory\ItemVariant;
+use App\Models\Sales\SalesOrderItem;
 use App\Services\Core\Setting\SettingsService;
 use App\Services\Finances\Ledger\FiscalPeriodService;
+use App\Services\Finances\Ledger\JournalReversalService;
 use App\Services\Finances\SalesInvoiceService;
 use Carbon\CarbonInterface;
 use Illuminate\Foundation\Testing\RefreshDatabase;
+use Illuminate\Validation\ValidationException;
 use Tests\Support\AssertsPostingParity;
 use Tests\Support\BuildsAssetFixtures;
 use Tests\Support\BuildsFinanceFixtures;
@@ -229,6 +237,298 @@ class AssetDisposalGainLossPostingTest extends TestCase {
         ksort($net);
 
         return $net;
+    }
+
+    public function test_canceling_the_sales_invoice_voids_the_disposal_journal_and_restores_account_balances(): void {
+        ['asset' => $asset] = $this->bookedAsset(['gross_purchase_amount' => 10000, 'opening_accumulated_depreciation' => 4000]);
+        $invoice            = $this->makeSalesInvoice($this->receivable, $this->revenue, [], ['item_id' => null, 'asset_id' => $asset->id, 'quantity' => 1]);
+        app(SalesInvoiceService::class)->onApproved($invoice);
+        $this->assertNotSame([], $this->journalSignature($asset));
+
+        app(SalesInvoiceService::class)->cancel($invoice->fresh());
+        app(SalesInvoiceService::class)->cancel($invoice->fresh());
+
+        $journals = Journal::query()->withoutGlobalScopes()->where('source_type', $asset->getMorphClass())->get();
+        $this->assertNotEmpty($journals);
+        $this->assertSame([JournalStatus::Voided->value], $journals->pluck('status')->unique()->values()->all());
+        $this->assertSame(0, GeneralLedger::query()->whereIn('journal_id', $journals->pluck('id'))->count());
+    }
+
+    public function test_reversing_the_disposal_journal_then_canceling_the_invoice_voids_both_and_nets_every_account_to_zero(): void {
+        ['asset' => $asset] = $this->bookedAsset(['gross_purchase_amount' => 10000, 'opening_accumulated_depreciation' => 4000]);
+        $invoice            = $this->makeSalesInvoice($this->receivable, $this->revenue, [], ['item_id' => null, 'asset_id' => $asset->id, 'quantity' => 1]);
+        app(SalesInvoiceService::class)->onApproved($invoice);
+
+        $disposal = Journal::query()->where('source_type', $asset->getMorphClass())->firstOrFail();
+        $reversal = app(JournalReversalService::class)->reverse($disposal);
+
+        app(SalesInvoiceService::class)->cancel($invoice->fresh());
+
+        $this->assertSame(JournalStatus::Voided->value, Journal::query()->withoutGlobalScopes()->find($disposal->id)->status);
+        $this->assertSame(JournalStatus::Voided->value, Journal::query()->withoutGlobalScopes()->find($reversal->id)->status);
+
+        $net = GeneralLedger::query()->get()->groupBy('account_id')->map(fn ($rows) => round((float) $rows->sum('debit') - (float) $rows->sum('credit'), 2));
+        $this->assertSame([], $net->filter(fn ($value) => $value !== 0.0)->all());
+    }
+
+    public function test_canceling_the_invoice_marks_the_asset_line_posting_status_skipped(): void {
+        ['asset' => $asset] = $this->bookedAsset();
+        $invoice            = $this->makeSalesInvoice($this->receivable, $this->revenue, [], ['item_id' => null, 'asset_id' => $asset->id, 'quantity' => 1]);
+        app(SalesInvoiceService::class)->onApproved($invoice);
+        $line = $invoice->items()->first();
+        $this->assertEquals(FormStatus::POSTED, GlPostingStatus::where('referenceable_id', $line->id)->first()->status);
+
+        app(SalesInvoiceService::class)->cancel($invoice->fresh());
+
+        $this->assertEquals(FormStatus::SKIPPED, GlPostingStatus::where('referenceable_id', $line->id)->first()->status);
+    }
+
+    private function unpostedSchedule(Asset $asset): AssetDepreciationSchedule {
+        return AssetDepreciationSchedule::factory()->create(['asset_id' => $asset->id, 'schedule_date' => now()->subDay(), 'depreciation_amount' => 100.0]);
+    }
+
+    public function test_full_quantity_disposal_posting_stops_unposted_schedules_without_a_delivery_note(): void {
+        ['asset' => $asset] = $this->bookedAsset();
+        $posted             = $this->unpostedSchedule($asset);
+        GlPostingStatus::create(['referenceable_type' => AssetDepreciationSchedule::class, 'referenceable_id' => $posted->id, 'status' => FormStatus::POSTED->value]);
+        $unposted = $this->unpostedSchedule($asset);
+
+        $this->sell($asset, 700);
+        $this->sell($asset->refresh(), 0); // idempoten: baris kedua tidak mengubah hasil
+
+        $this->assertSoftDeleted($unposted);
+        $this->assertNotSoftDeleted($posted);
+        $this->assertTrue($asset->refresh()->isFullySold());
+
+        $this->artisan('assets:post-depreciation')->assertSuccessful();
+        $this->assertDatabaseMissing('gl_posting_statuses', ['referenceable_id' => $unposted->id]);
+    }
+
+    public function test_partial_quantity_disposal_keeps_the_schedules(): void {
+        ['asset' => $asset] = $this->bookedAsset(['allow_bulk_quantity' => true, 'asset_quantity' => 2]);
+        $unposted           = $this->unpostedSchedule($asset);
+
+        $this->sell($asset, 700, 1);
+
+        $this->assertNotSoftDeleted($unposted);
+        $this->assertFalse($asset->refresh()->isFullySold());
+    }
+
+    public function test_invoice_then_delivery_note_keeps_schedules_stopped(): void {
+        ['asset' => $asset] = $this->bookedAsset();
+        $unposted           = $this->unpostedSchedule($asset);
+
+        $this->sell($asset, 700);
+        $asset->refresh()->addSoldQuantity(1); // DN belakangan
+
+        $this->assertSoftDeleted($unposted);
+        $this->assertTrue($asset->refresh()->isFullySold());
+    }
+
+    public function test_a_canceled_disposal_no_longer_counts_as_fully_sold(): void {
+        ['asset' => $asset] = $this->bookedAsset();
+        $invoice            = $this->makeSalesInvoice($this->receivable, $this->revenue, [], ['item_id' => null, 'asset_id' => $asset->id, 'quantity' => 1]);
+        app(SalesInvoiceService::class)->onApproved($invoice);
+        $this->assertTrue($asset->refresh()->isFullySold());
+
+        app(SalesInvoiceService::class)->cancel($invoice->fresh());
+
+        $this->assertFalse($asset->refresh()->isFullySold());
+    }
+
+    /**
+     * @return array{0: Asset, 1: SalesInvoice, 2: AssetDepreciationSchedule, 3: AssetDepreciationSchedule}
+     */
+    private function approvedAssetInvoice(array $assetAttributes = [], float $quantity = 1): array {
+        ['asset' => $asset] = $this->bookedAsset($assetAttributes);
+        $posted             = $this->unpostedSchedule($asset);
+        GlPostingStatus::create(['referenceable_type' => AssetDepreciationSchedule::class, 'referenceable_id' => $posted->id, 'status' => FormStatus::POSTED->value]);
+        $unposted = $this->unpostedSchedule($asset);
+        $invoice  = $this->makeSalesInvoice($this->receivable, $this->revenue, [], ['item_id' => null, 'asset_id' => $asset->id, 'quantity' => $quantity]);
+        app(SalesInvoiceService::class)->onApproved($invoice);
+
+        return [$asset->refresh(), $invoice, $posted, $unposted];
+    }
+
+    public function test_canceling_a_full_sale_invoice_restores_unposted_schedules_and_keeps_posted_ones_intact(): void {
+        [$asset, $invoice, $posted, $unposted] = $this->approvedAssetInvoice();
+        $this->assertSoftDeleted($unposted);
+
+        app(SalesInvoiceService::class)->cancel($invoice->fresh());
+        app(SalesInvoiceService::class)->cancel($invoice->fresh()); // idempoten
+
+        $this->assertNotSoftDeleted($unposted);
+        $this->assertNotSoftDeleted($posted);
+        $this->assertFalse($asset->refresh()->isFullySold());
+        $this->assertContains(FormStatus::ACTIVE, $asset->status);
+    }
+
+    public function test_a_replacement_invoice_can_be_approved_after_the_cancel_and_stops_the_schedules_again(): void {
+        [$asset, $invoice, , $unposted] = $this->approvedAssetInvoice();
+        app(SalesInvoiceService::class)->cancel($invoice->fresh());
+
+        $replacement = $this->makeSalesInvoice($this->receivable, $this->revenue, [], ['item_id' => null, 'asset_id' => $asset->id, 'quantity' => 1]);
+        app(SalesInvoiceService::class)->onApproved($replacement);
+
+        $this->assertTrue($asset->refresh()->isFullySold());
+        $this->assertSoftDeleted($unposted);
+    }
+
+    public function test_canceling_does_not_restore_schedules_of_a_scrapped_asset(): void {
+        [$asset, $invoice, , $unposted] = $this->approvedAssetInvoice();
+        $asset->update(['status' => [FormStatus::SCRAPPED]]);
+
+        app(SalesInvoiceService::class)->cancel($invoice->fresh());
+
+        $this->assertSoftDeleted($unposted);
+    }
+
+    public function test_canceling_a_partial_sale_invoice_keeps_schedules_untouched(): void {
+        [$asset, $invoice, , $unposted] = $this->approvedAssetInvoice(['allow_bulk_quantity' => true, 'asset_quantity' => 2]);
+        $this->assertNotSoftDeleted($unposted);
+
+        app(SalesInvoiceService::class)->cancel($invoice->fresh());
+
+        $this->assertNotSoftDeleted($unposted);
+        $this->assertFalse($asset->refresh()->isFullySold());
+    }
+
+    public function test_canceling_does_not_restore_schedules_while_another_invoice_still_fully_disposes_the_asset(): void {
+        [$asset, $invoice, , $unposted] = $this->approvedAssetInvoice();
+        $second                         = $this->makeSalesInvoice($this->receivable, $this->revenue, [], ['item_id' => null, 'asset_id' => $asset->id, 'quantity' => 1]);
+        app(SalesInvoiceService::class)->onApproved($second);
+        $this->assertSoftDeleted($unposted);
+
+        app(SalesInvoiceService::class)->cancel($invoice->fresh());
+        $this->assertSoftDeleted($unposted); // invoice kedua masih melepas seluruh qty
+
+        app(SalesInvoiceService::class)->cancel($second->fresh());
+        $this->assertNotSoftDeleted($unposted);
+    }
+
+    public function test_canceling_is_rejected_without_changing_data_while_an_approved_delivery_note_covers_the_asset(): void {
+        [$asset, $invoice, , $unposted] = $this->approvedAssetInvoice();
+        $deliveryNote                   = DeliveryNote::factory()->create(['submitted_at' => now(), 'canceled_at' => null]);
+        DeliveryNoteItem::factory()->create([
+            'delivery_note_id'   => $deliveryNote->id, 'item_id' => null, 'asset_id' => $asset->id,
+            'referenceable_type' => null, 'referenceable_id' => null,
+            'processed_at'       => now(),
+        ]);
+        $asset->refresh()->addSoldQuantity(1);
+
+        try {
+            app(SalesInvoiceService::class)->cancel($invoice->fresh());
+            $this->fail('Pembatalan seharusnya ditolak.');
+        } catch (ValidationException $e) {
+            $this->assertArrayHasKey('asset', $e->errors());
+        }
+
+        $this->assertSoftDeleted($unposted);
+        $this->assertEquals(FormStatus::POSTED, GlPostingStatus::where('referenceable_id', $invoice->items()->first()->id)->first()->status);
+        $this->assertSame(1.0, (float) $asset->refresh()->sold_quantity);
+    }
+
+    private function salesOrderItemForBulkTest(): SalesOrderItem {
+        return SalesOrderItem::create([
+            'sales_order_id' => DeliveryNote::factory()->create()->referenceable_id,
+            'item_id'        => ItemVariant::factory()->create()->id,
+            'quantity'       => 1,
+            'price'          => 0,
+        ]);
+    }
+
+    private function deliverAsset(Asset $asset, ?SalesOrderItem $orderItem, float $quantity = 1): void {
+        $deliveryNote = DeliveryNote::factory()->create(['submitted_at' => now(), 'canceled_at' => null]);
+        DeliveryNoteItem::factory()->create([
+            'delivery_note_id'   => $deliveryNote->id, 'item_id' => null, 'asset_id' => $asset->id,
+            'referenceable_type' => $orderItem ? SalesOrderItem::class : null, 'referenceable_id' => $orderItem?->id,
+            'quantity'           => $quantity, 'processed_at' => now(),
+        ]);
+    }
+
+    /**
+     * @return array{0: Asset, 1: SalesInvoice, 2: SalesInvoice, 3: SalesOrderItem, 4: SalesOrderItem}
+     */
+    private function bulkAssetSoldToTwoCustomers(): array {
+        ['asset' => $asset] = $this->bookedAsset(['allow_bulk_quantity' => true, 'asset_quantity' => 2]);
+        $orderItemA         = $this->salesOrderItemForBulkTest();
+        $orderItemB         = $this->salesOrderItemForBulkTest();
+        $invoiceA           = $this->makeSalesInvoice($this->receivable, $this->revenue, [], ['item_id' => null, 'asset_id' => $asset->id, 'quantity' => 1, 'sales_order_item_id' => $orderItemA->id]);
+        $invoiceB           = $this->makeSalesInvoice($this->receivable, $this->revenue, [], ['item_id' => null, 'asset_id' => $asset->id, 'quantity' => 1, 'sales_order_item_id' => $orderItemB->id]);
+        app(SalesInvoiceService::class)->onApproved($invoiceA);
+        app(SalesInvoiceService::class)->onApproved($invoiceB);
+
+        return [$asset->refresh(), $invoiceA->fresh(), $invoiceB->fresh(), $orderItemA, $orderItemB];
+    }
+
+    public function test_bulk_asset_cancel_is_only_blocked_by_the_delivery_note_of_the_same_invoice(): void {
+        [$asset, $invoiceA, $invoiceB, , $orderItemB] = $this->bulkAssetSoldToTwoCustomers();
+        $this->deliverAsset($asset, $orderItemB); // hanya unit pelanggan B yang terkirim
+        $asset->refresh()->addSoldQuantity(1);
+
+        app(SalesInvoiceService::class)->cancel($invoiceA);
+        $this->assertContains(FormStatus::CANCELED, (array) $invoiceA->fresh()->status);
+
+        try {
+            app(SalesInvoiceService::class)->cancel($invoiceB);
+            $this->fail('Pembatalan invoice yang sudah dikirim seharusnya ditolak.');
+        } catch (ValidationException $e) {
+            $this->assertArrayHasKey('asset', $e->errors());
+        }
+        $this->assertNotContains(FormStatus::CANCELED, (array) $invoiceB->fresh()->status);
+    }
+
+    public function test_bulk_asset_free_delivery_blocks_only_when_quantity_covers_the_invoice_units(): void {
+        [$asset, $invoiceA] = $this->bulkAssetSoldToTwoCustomers();
+        $this->deliverAsset($asset, null, 1); // 1 <= 2 - 1: unit SI-A bisa saja belum terkirim
+
+        app(SalesInvoiceService::class)->cancel($invoiceA);
+        $this->assertContains(FormStatus::CANCELED, (array) $invoiceA->fresh()->status);
+
+        [$asset2, $invoiceC] = $this->bulkAssetSoldToTwoCustomers();
+        $this->deliverAsset($asset2, null, 2); // 2 > 2 - 1: sebagian unit SI-C pasti sudah terkirim
+
+        $this->expectException(ValidationException::class);
+        app(SalesInvoiceService::class)->cancel($invoiceC);
+    }
+
+    public function test_a_canceled_delivery_note_no_longer_blocks_the_invoice_cancel(): void {
+        [$asset, $invoice] = $this->approvedAssetInvoice();
+        $deliveryNote      = DeliveryNote::factory()->create(['submitted_at' => now(), 'canceled_at' => now()]);
+        DeliveryNoteItem::factory()->create([
+            'delivery_note_id'   => $deliveryNote->id, 'item_id' => null, 'asset_id' => $asset->id,
+            'referenceable_type' => null, 'referenceable_id' => null,
+            'processed_at'       => now(),
+        ]);
+
+        app(SalesInvoiceService::class)->cancel($invoice->fresh());
+
+        $this->assertEquals(FormStatus::SKIPPED, GlPostingStatus::where('referenceable_id', $invoice->items()->first()->id)->first()->status);
+    }
+
+    public function test_a_rejected_or_pending_delivery_note_does_not_block_the_invoice_cancel(): void {
+        foreach (['rejected' => FormStatus::REJECTED, 'pending' => FormStatus::PENDING] as $label => $status) {
+            [$asset, $invoice] = $this->approvedAssetInvoice();
+            $deliveryNote      = DeliveryNote::factory()->create(['submitted_at' => now(), 'canceled_at' => null, 'status' => $status]);
+            DeliveryNoteItem::factory()->create([
+                'delivery_note_id'   => $deliveryNote->id, 'item_id' => null, 'asset_id' => $asset->id,
+                'referenceable_type' => null, 'referenceable_id' => null, 'processed_at' => null,
+            ]);
+
+            app(SalesInvoiceService::class)->cancel($invoice->fresh());
+
+            $this->assertContains(FormStatus::CANCELED, (array) $invoice->fresh()->status, $label);
+        }
+    }
+
+    public function test_canceling_an_invoice_without_asset_lines_leaves_other_disposal_journals_untouched(): void {
+        ['asset' => $asset] = $this->bookedAsset();
+        $line               = $this->sell($asset, 700);
+        $other              = $this->makeSalesInvoice($this->receivable, $this->revenue, [], []);
+
+        app(SalesInvoiceService::class)->cancel($other->fresh());
+
+        $this->assertArrayHasKey("disposal:{$line->id}", $this->journalSignature($asset));
     }
 
     public function test_combined_with_the_sales_invoice_journal_the_result_is_the_standard_disposal_form(): void {

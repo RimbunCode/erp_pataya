@@ -20,6 +20,7 @@ return [
     'validation.rate_changed'                          => 'Tarif Sales Order :source berbeda dengan tarif invoice ini :document.',
     'validation.below_cost'                            => 'Tarif penjualan bersih :sales lebih rendah dari nilai valuasi gudang :cost.',
     'validation.below_cost_hidden'                     => 'Tarif penjualan bersih :sales lebih rendah dari nilai valuasi gudang.',
+    'validation.asset_already_delivered'               => 'Aset sudah dikirim lewat Delivery Note yang masih berlaku. Batalkan Delivery Note-nya lebih dulu sebelum membatalkan invoice ini.',
     'price_warning_title'                              => 'Peringatan kontrol harga',
     'detail'                                           => 'Detail',
     'status'                                           => 'Status',
