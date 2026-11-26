@@ -245,7 +245,7 @@ class PurchaseReceiptRetryGlValueTest extends TestCase {
         $this->assertSame($this->stock->id, $row->fresh()->posted_account_id);
     }
 
-    public function test_document_posted_before_the_fix_falls_back_to_the_po_rate_calculation(): void {
+    public function test_document_posted_before_the_fix_falls_back_to_the_sle_based_total(): void {
         [$variant, $unit] = $this->makeVariant();
         $poItem           = $this->makePoItem($variant, $unit, 10, 1000);
         $this->seedApprovedInvoice($poItem, 10, 1500);
@@ -254,13 +254,14 @@ class PurchaseReceiptRetryGlValueTest extends TestCase {
         (new PurchaseReceiptService)->onApproved($receipt);
 
         $status = $this->simulateFailedPosting($receipt);
-        // Dokumen lama: nilai per baris belum pernah dicatat.
+        // Dokumen lama: nilai per baris belum pernah dicatat, sehingga total dihitung dari SLE receipt itu sendiri
+        // (Task 13.4), yaitu rate invoice 1.500 yang benar-benar dipakai posting asli, bukan rate PO Item 1.000.
         PurchaseReceiptItem::query()->whereKey($row->id)->update(['gl_value' => null]);
         $this->retry($status)->assertRedirect();
 
         $this->assertLedger($receipt, [
-            ['account' => $this->stock, 'against' => $this->srnb, 'debit' => 10000, 'credit' => 0],
-            ['account' => $this->srnb, 'against' => $this->stock, 'debit' => 0, 'credit' => 10000],
+            ['account' => $this->stock, 'against' => $this->srnb, 'debit' => 15000, 'credit' => 0],
+            ['account' => $this->srnb, 'against' => $this->stock, 'debit' => 0, 'credit' => 15000],
         ]);
         $this->assertPostingStatus($receipt, 'posted');
     }

@@ -187,7 +187,7 @@ class PurchaseReceiptPostedAccountWritebackTest extends TestCase {
     }
 
     /**
-     * Receipt dua baris (qty 1 dan 2) yang masing-masing terhubung ke PO Item ber-rate 100 dan 250.
+     * Receipt dua baris (qty 1 dan 2) yang masing-masing terhubung ke PO Item ber-rate 100 dan 250 dan sudah mencatat `gl_value` (100 dan 500).
      *
      * @return array{0: PurchaseReceipt, 1: PurchaseReceiptItem, 2: PurchaseReceiptItem}
      */
@@ -202,7 +202,11 @@ class PurchaseReceiptPostedAccountWritebackTest extends TestCase {
                 'id'       => $poItemId, 'purchase_order_id' => $poId, 'item_id' => $line->item_id,
                 'quantity' => 10, 'rate' => $rate, 'created_at' => now(), 'updated_at' => now(),
             ]);
-            DB::table('purchase_receipt_items')->where('id', $line->id)->update(['purchase_order_item_id' => $poItemId]);
+            // Nilai GL per baris yang dicatat saat approve; retry memakainya apa adanya (Task 12.1 bagian B).
+            DB::table('purchase_receipt_items')->where('id', $line->id)->update([
+                'purchase_order_item_id' => $poItemId,
+                'gl_value'               => (float) $line->quantity * $rate,
+            ]);
         }
 
         return [$receipt, PurchaseReceiptItem::findOrFail($first->id), PurchaseReceiptItem::findOrFail($second->id)];
