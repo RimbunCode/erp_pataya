@@ -87,6 +87,12 @@ class PostAssetDisposalGainLoss implements ShouldQueue {
             );
 
             $line->update(['processed_at' => now()]);
+
+            // Seluruh qty aset sudah dilepas lewat jurnal terposting (walau DN belum/tak pernah dibuat): hentikan jadwal
+            // penyusutan yang belum terposting agar tidak ada akumulasi bersaldo kredit tanpa aset. Idempoten.
+            if ($asset->hasFullyPostedDisposal()) {
+                $asset->deleteUnpostedDepreciationSchedules();
+            }
         });
     }
 

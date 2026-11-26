@@ -4,6 +4,7 @@ namespace App\Services\Finances;
 
 use App\Contracts\SubmitableService;
 use App\Enums\FormStatus;
+use App\Enums\JournalStatus;
 use App\Events\Asset\AssetSoldViaInvoice;
 use App\Events\Core\DocumentSubmitted;
 use App\Events\Finances\SalesInvoiceGeneralLedgerPostingRequested;
@@ -16,6 +17,8 @@ use App\Models\Core\Branch;
 use App\Models\Core\CoreSetting;
 use App\Models\Core\FormatingSeries;
 use App\Models\Core\GlPostingStatus;
+use App\Models\Finances\GeneralLedger;
+use App\Models\Finances\Journal;
 use App\Models\Finances\SalesInvoice;
 use App\Models\Finances\SalesInvoiceItem;
 use App\Models\Finances\Tax;
@@ -31,6 +34,7 @@ use App\Services\Core\Setting\CurrencyMatcher;
 use App\Services\Core\Setting\RateChangeComparator;
 use App\Services\Core\Setting\SettingsService;
 use App\Services\Core\Setting\ToleranceCalculator;
+use App\Services\Finances\Ledger\JournalReversalService;
 use App\Traits\HasDefaultDelete;
 use App\Utils;
 use Illuminate\Support\Collection;
@@ -607,11 +611,69 @@ class SalesInvoiceService implements SubmitableService {
     }
 
     public function cancel(Model $salesInvoice): mixed {
-        $salesInvoice->update([
-            'status' => FormStatus::CANCELED,
-        ]);
+        DB::transaction(function () use ($salesInvoice): void {
+            $salesInvoice->update([
+                'status' => FormStatus::CANCELED,
+            ]);
+
+            $this->voidAssetDisposalJournals($salesInvoice);
+        });
 
         return $salesInvoice;
+    }
+
+    /**
+     * Jurnal pelepasan aset (`disposal:{sales_invoice_item_id}`) bersumber dari aset, bukan dari Sales Invoice, sehingga
+     * tidak ikut di-void oleh hook pembatalan `Submitable` (yang hanya menyentuh jurnal ber-sumber dokumen yang dibatalkan).
+     * Di sini baris GL-nya di-soft-delete dan jurnalnya ditandai `voided` dengan cara yang sama seperti jurnal Sales Invoice
+     * sendiri, terbatas pada baris invoice ini. Idempoten: jurnal yang sudah `voided` tidak diproses ulang.
+     */
+    private function voidAssetDisposalJournals(Model $salesInvoice): void {
+        $lines = SalesInvoiceItem::query()
+            ->where('sales_invoice_id', $salesInvoice->getKey())
+            ->whereNotNull('asset_id')
+            ->get(['id', 'asset_id']);
+
+        if ($lines->isEmpty()) {
+            return;
+        }
+
+        $this->markAssetDisposalPostingSkipped($lines);
+
+        // Jurnal pelepasan dan jurnal pembaliknya (JournalReversalService: key `<asli>:reversal`, `reverses_journal_id`)
+        // sama-sama di-void agar GL tidak menyisakan kebalikan pelepasan saja.
+        $keys = $lines
+            ->map(fn (SalesInvoiceItem $line): string => (new Asset)->getMorphClass() . ":{$line->asset_id}:disposal:{$line->id}")
+            ->all();
+
+        $originalIds = Journal::query()->withoutGlobalScopes()->whereIn('posting_key', $keys)->pluck('id');
+
+        $journalIds = Journal::query()->withoutGlobalScopes()
+            ->where(function ($query) use ($keys, $originalIds): void {
+                $query->whereIn('posting_key', [...$keys, ...array_map(fn (string $key): string => $key . ':' . JournalReversalService::REVERSAL_PURPOSE, $keys)])
+                    ->orWhereIn('reverses_journal_id', $originalIds);
+            })
+            ->whereIn('status', [JournalStatus::Posted->value, JournalStatus::Reversed->value])
+            ->pluck('id');
+
+        if ($journalIds->isEmpty()) {
+            return;
+        }
+
+        GeneralLedger::query()->whereIn('journal_id', $journalIds)->update(['deleted_at' => now()]);
+        Journal::query()->withoutGlobalScopes()->whereIn('id', $journalIds)->update(['status' => JournalStatus::Voided->value]);
+    }
+
+    /**
+     * Tandai status posting baris aset sebagai `skipped` (tidak aktif), konvensi dokumen dibatalkan (Q-P2-12/Q-P2-13:
+     * `CanceledSourceGuard` dan listener posting). `processed_at` dibiarkan agar job lama tidak memposting ulang baris ini.
+     */
+    private function markAssetDisposalPostingSkipped(Collection $lines): void {
+        GlPostingStatus::query()
+            ->where('referenceable_type', SalesInvoiceItem::class)
+            ->whereIn('referenceable_id', $lines->pluck('id'))
+            ->where('status', '!=', FormStatus::SKIPPED->value)
+            ->update(['status' => FormStatus::SKIPPED->value]);
     }
 
     public function amend(Model $model): mixed {

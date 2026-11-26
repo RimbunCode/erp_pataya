@@ -118,6 +118,9 @@ final class AssetPostingContextFactory {
                 lineId: (string) $line->getKey(),
             )],
             guardDocument: ['type' => (new SalesInvoice)->getMorphClass(), 'id' => (string) $line->sales_invoice_id],
+            // F6: `revenue`/`discount` membalik kredit/debit jurnal Sales Invoice, jadi aturan akun bersyarat
+            // `document_type = sales_invoice` ikut berlaku agar akunnya sama persis dengan jurnal SI untuk baris itu.
+            ruleDocumentTypes: ['revenue' => PostingDocumentType::SalesInvoice, 'discount' => PostingDocumentType::SalesInvoice],
         );
     }
 
