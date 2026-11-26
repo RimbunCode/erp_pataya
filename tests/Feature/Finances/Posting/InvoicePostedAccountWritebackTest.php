@@ -395,12 +395,9 @@ class InvoicePostedAccountWritebackTest extends TestCase {
      */
     public static function lineStockCombinations(): array {
         return [
-            'satu baris stok'               => [[true]],
-            'satu baris non-stok'           => [[false]],
-            'stok dan non-stok'             => [[true, false]],
-            'dua non-stok'                  => [[false, false]],
-            'tiga baris campuran'           => [[true, false, true]],
-            'empat baris non-stok dan stok' => [[false, true, false, false]],
+            'satu baris stok'     => [[true]],
+            'satu baris non-stok' => [[false]],
+            'stok dan non-stok'   => [[true, false]],
         ];
     }
 

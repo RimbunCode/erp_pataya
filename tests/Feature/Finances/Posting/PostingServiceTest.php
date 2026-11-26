@@ -32,6 +32,7 @@ use Carbon\CarbonImmutable;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Event;
+use PHPUnit\Framework\Attributes\DataProvider;
 use Tests\Support\BuildsFinanceFixtures;
 use Tests\TestCase;
 
@@ -49,6 +50,10 @@ class PostingServiceTest extends TestCase {
     private Account $stock;
     private Account $srnb;
     private Account $payable;
+    private Account $cogs;
+    private Account $cogsNonStock;
+    private Account $expenseNonStock;
+    private Account $stockNonStock;
     private StockEntry $source;
 
     protected function setUp(): void {
@@ -62,6 +67,10 @@ class PostingServiceTest extends TestCase {
         $this->stock           = $this->makeAccount('1241', 'Persediaan', 'asset');
         $this->srnb            = $this->makeAccount('2150', 'SRNB', 'liability', 'credit');
         $this->payable         = $this->makeAccount('2211', 'Hutang', 'liability', 'credit');
+        $this->cogs            = $this->makeAccount('5110', 'HPP Barang', 'expense');
+        $this->cogsNonStock    = $this->makeAccount('5120', 'HPP Non-Stok', 'expense');
+        $this->expenseNonStock = $this->makeAccount('5210', 'Beban Non-Stok', 'expense');
+        $this->stockNonStock   = $this->makeAccount('1242', 'Persediaan Non-Stok', 'asset');
 
         $profiles = app(PostingProfileService::class);
         $profiles->activate($profiles->createDraft('Profil', '2026-01-01', null, [
@@ -71,8 +80,12 @@ class PostingServiceTest extends TestCase {
             'stock_received_but_not_billed' => $this->srnb->id,
             'expense'                       => $this->srnb->id,
             'payable'                       => $this->payable->id,
+            'cost_of_goods_sold'            => $this->cogs->id,
         ], [
             ['role' => 'revenue', 'account_id' => $this->revenueNonStock->id, 'is_stock_item' => false],
+            ['role' => 'expense', 'account_id' => $this->expenseNonStock->id, 'is_stock_item' => false],
+            ['role' => 'stock', 'account_id' => $this->stockNonStock->id, 'is_stock_item' => false],
+            ['role' => 'cost_of_goods_sold', 'account_id' => $this->cogsNonStock->id, 'is_stock_item' => false],
         ]));
 
         $this->source = $this->makeStockEntry();
@@ -302,10 +315,35 @@ class PostingServiceTest extends TestCase {
         $this->assertJournalBalanced($journals[0], 100.01);
     }
 
-    public function test_per_line_merge_stays_balanced_after_rounding_for_random_documents_p12(): void {
+    protected function tearDown(): void {
+        mt_srand();
+
+        parent::tearDown();
+    }
+
+    /**
+     * @return array<string, array{0: PostingDocumentType, 1: string, 2: string, 3: bool}> jenis dokumen, kunci total, akun non-stok yang diharapkan, apakah total jurnal harus persis total dokumen terbulatkan
+     */
+    public static function lineSensitiveDocuments(): array {
+        return [
+            'sales invoice'    => [PostingDocumentType::SalesInvoice, 'total', 'revenueNonStock', true],
+            'purchase invoice' => [PostingDocumentType::PurchaseInvoice, 'total', 'expenseNonStock', true],
+            'purchase receipt' => [PostingDocumentType::PurchaseReceipt, 'total', 'stockNonStock', true],
+            'delivery note'    => [PostingDocumentType::DeliveryNote, 'total_picked', 'cogsNonStock', false], // pembulatan per akun di dua sisi: total bisa bergeser satu sen dari total dokumen (open question pembulatan satu kelompok)
+        ];
+    }
+
+    /**
+     * P-12 lewat `PostingService` (resolver akun, penggabungan per akun, pembulatan, `absorbRounding`) untuk semua jenis
+     * dokumen peka-barang: baris seperseribu dengan akun stok dan non-stok berbeda tetap menghasilkan jurnal seimbang.
+     *
+     * @param  non-empty-string  $totalKey
+     */
+    #[DataProvider('lineSensitiveDocuments')]
+    public function test_per_line_merge_stays_balanced_after_rounding_for_random_documents_p12(PostingDocumentType $type, string $totalKey, string $nonStockAccount, bool $exactTotal): void {
         $multiAccount = 0;
 
-        for ($seed = 1; $seed <= 60; $seed++) {
+        for ($seed = 1; $seed <= 20; $seed++) {
             mt_srand($seed);
             $lines = [];
             $total = 0;
@@ -316,26 +354,27 @@ class PostingServiceTest extends TestCase {
             }
 
             foreach ([false, true] as $return) {
-                $ctx    = $this->ctx(PostingDocumentType::SalesInvoice, ['total' => $total], ['is_return' => $return], $lines);
+                $ctx    = $this->ctx($type, [$totalKey => $total], ['is_return' => $return], $lines);
                 $drafts = $this->service()->preview($ctx);
 
-                $this->assertCount(1, $drafts, "seed {$seed}");
-                $debit    = $credit = 0.0;
-                $accounts = [];
-                foreach ($drafts[0]->lines as $line) {
-                    $debit += (float) $line->debit;
-                    $credit += (float) $line->credit;
-                    $accounts[$line->accountId] = true;
+                $this->assertNotSame([], $drafts, "seed {$seed}");
+                foreach ($drafts as $draft) {
+                    $debit    = $credit = 0.0;
+                    $accounts = [];
+                    foreach ($draft->lines as $line) {
+                        $debit += (float) $line->debit;
+                        $credit += (float) $line->credit;
+                        $accounts[$line->accountId] = true;
+                    }
+                    $this->assertEqualsWithDelta($debit, $credit, 1e-9, "seed {$seed}: Σdebit = Σkredit setelah penggabungan dan pembulatan");
+                    $this->assertEqualsWithDelta(round($total, 2), max($debit, $credit), $exactTotal ? 1e-9 : 0.005 * \count($accounts) + 1e-9, "seed {$seed}: total jurnal = total dokumen terbulatkan");
+                    $this->assertLessThanOrEqual(4, \count($accounts), "seed {$seed}: baris dengan akun sama digabung");
+                    $multiAccount += isset($accounts[$this->{$nonStockAccount}->id]) && \count($accounts) >= 3 ? 1 : 0;
                 }
-                $this->assertEqualsWithDelta($debit, $credit, 1e-9, "seed {$seed}: Σdebit = Σkredit setelah penggabungan dan pembulatan");
-                $this->assertEqualsWithDelta(round($total, 2), max($debit, $credit), 1e-9, "seed {$seed}: total jurnal = total dokumen terbulatkan");
-                $this->assertLessThanOrEqual(3, \count($accounts), "seed {$seed}: baris dengan akun sama digabung");
-                $multiAccount += \count($accounts) === 3 ? 1 : 0;
             }
         }
-        mt_srand();
 
-        $this->assertGreaterThan(20, $multiAccount, 'sampel acak harus memuat dokumen dengan dua akun pendapatan');
+        $this->assertGreaterThan(10, $multiAccount, 'sampel acak harus memuat dokumen dengan akun stok dan non-stok sekaligus');
     }
 
     public function test_split_rounding_difference_is_absorbed_so_the_journal_balances(): void {
