@@ -145,6 +145,7 @@ Urutan: fondasi data dan resolver (1–3), kontrak + rule + service + gateway de
     - _Requirements: 13.4, 13.7_
   - [ ] 12.5 Perluas `finance:init-posting-profile` mode laporan: usulan aturan awal (barang non-stok, retur, kategori) untuk akuntan; tidak membuat aturan otomatis
     - _Requirements: 12.7_
+    - **Catatan (27 November 2026):** `PostingProfileInitializer::proposeRules()` dan bagian "Usulan aturan akun bersyarat awal" pada keluaran `finance:init-posting-profile --report` (read-only, tanpa menulis DB). Usulan: Sales Invoice retur (`revenue`), Purchase Invoice retur (`expense`), barang non-stok, dan satu per kategori yang punya barang non-stok; tiap usulan memuat kandidat akun (retur disaring dari nama akun, non-stok dari akun berakar beban) dan akun default peran, tanpa memilih akun dan tanpa membuat aturan. Bentuk usulan lolos validasi `PostingProfileService::createDraft`. Mode tanpa `--report` tidak mencetak usulan. Tes: `InitPostingProfileProposalsTest`. Runbook staging diperbarui.
   - [ ]* 12.6 Write tests: **P-12** penggabungan per baris tetap seimbang; **P-14** request berisi kolom akun diabaikan dan akun tercatat = hasil resolver
     - **Validates: Requirements 12.4, 13.1–13.2**
   - [ ] 12.7 Checkpoint - jalankan test Finances, Sales, Purchase, Inventory yang disentuh
