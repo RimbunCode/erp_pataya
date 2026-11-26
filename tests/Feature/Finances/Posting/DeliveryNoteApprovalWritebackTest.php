@@ -286,7 +286,7 @@ class DeliveryNoteApprovalWritebackTest extends TestCase {
         $this->assertPostingStatus($return, 'posted');
     }
 
-    public function test_return_without_stock_row_is_still_rejected_without_side_effects(): void {
+    public function test_return_into_warehouse_without_stock_row_creates_the_row_and_posts_a_journal(): void {
         Event::fake([DocumentDeliveryStatusRecalculationRequested::class]);
 
         $fixture  = $this->makeInventoryFixture('DN-RETNO');
@@ -299,13 +299,78 @@ class DeliveryNoteApprovalWritebackTest extends TestCase {
         $returnLine = $this->addFreeLine($return, $fixture, 1);
         DB::table('delivery_note_items')->where('id', $returnLine->id)->update(['return_against_item_id' => $origLine->id]);
 
-        $this->expectException(ValidationException::class);
+        $this->assertSame(0, Stock::where('item_variant_id', $fixture['variant']->id)->count());
+
+        (new DeliveryNoteService)->onApproved($return->fresh());
+
+        $stock = Stock::where('item_variant_id', $fixture['variant']->id)->first();
+        $this->assertNotNull($stock, 'Baris stok dibuat otomatis.');
+        $this->assertEqualsWithDelta(1, (float) $stock->quantity, 0.0001);
+        $this->assertEquals([['rate' => 100, 'quantity' => 1]], $stock->stock_queue);
+        $this->assertSame(1, StockLedgerEntry::count());
+        $this->assertLedger($return, [
+            ['account' => $this->stock, 'against' => $this->cogs, 'debit' => 100, 'credit' => 0],
+            ['account' => $this->cogs, 'against' => $this->stock, 'debit' => 0, 'credit' => 100],
+        ]);
+        $this->assertPostingStatus($return, 'posted');
+        $this->assertNotNull($returnLine->fresh()->posted_account_id);
+    }
+
+    public function test_two_return_lines_for_same_variant_and_warehouse_create_one_stock_row_with_summed_quantity(): void {
+        Event::fake([DocumentDeliveryStatusRecalculationRequested::class]);
+
+        $fixture  = $this->makeInventoryFixture('DN-RET2');
+        $original = $this->makeNote('DN-RET2-O');
+        $origA    = $this->addFreeLine($original, $fixture, 1);
+        $origB    = $this->addFreeLine($original, $fixture, 2);
+        $origA->forceFill(['valuation_rates' => [['rate' => 100, 'quantity' => 1]]])->save();
+        $origB->forceFill(['valuation_rates' => [['rate' => 100, 'quantity' => 2]]])->save();
+
+        $return = $this->makeNote('DN-RET2-R');
+        DB::table('delivery_notes')->where('id', $return->id)->update(['return_against_id' => $original->id]);
+        $lineA = $this->addFreeLine($return, $fixture, 1);
+        $lineB = $this->addFreeLine($return, $fixture, 2);
+        DB::table('delivery_note_items')->where('id', $lineA->id)->update(['return_against_item_id' => $origA->id]);
+        DB::table('delivery_note_items')->where('id', $lineB->id)->update(['return_against_item_id' => $origB->id]);
+
+        (new DeliveryNoteService)->onApproved($return->fresh());
+
+        $this->assertSame(1, Stock::where('item_variant_id', $fixture['variant']->id)->count());
+        $this->assertEqualsWithDelta(3, (float) Stock::where('item_variant_id', $fixture['variant']->id)->value('quantity'), 0.0001);
+        $this->assertSame(2, StockLedgerEntry::count());
+        $this->assertPostingStatus($return, 'posted');
+    }
+
+    public function test_return_for_variant_without_default_uom_is_rejected_without_side_effects(): void {
+        Event::fake([DocumentDeliveryStatusRecalculationRequested::class]);
+
+        $fixture  = $this->makeInventoryFixture('DN-NOUOM');
+        $original = $this->makeNote('DN-NOUOM-O');
+        $origLine = $this->addFreeLine($original, $fixture, 1);
+        $origLine->forceFill(['valuation_rates' => [['rate' => 100, 'quantity' => 1]]])->save();
+
+        $return = $this->makeNote('DN-NOUOM-R');
+        DB::table('delivery_notes')->where('id', $return->id)->update(['return_against_id' => $original->id]);
+        $returnLine = $this->addFreeLine($return, $fixture, 1);
+        DB::table('delivery_note_items')->where('id', $returnLine->id)->update(['return_against_item_id' => $origLine->id]);
+        // Satuan default barang tidak terdaftar sebagai ItemUnit.
+        DB::table('item_units')->where('id', $fixture['itemUnit']->id)->delete();
+        $statusBefore = $return->fresh()->status;
+
         try {
             (new DeliveryNoteService)->onApproved($return->fresh());
-        } finally {
-            $this->assertSame(0, StockLedgerEntry::count());
-            $this->assertSame(0, GlPostingStatus::count());
+            $this->fail('Diharapkan ValidationException.');
+        } catch (ValidationException $e) {
+            $this->assertCount(1, $e->errors()['items']);
+            $this->assertStringContainsString('DN-NOUOM', $e->errors()['items'][0]);
+            $this->assertStringContainsString('satuan default', $e->errors()['items'][0]);
         }
+
+        $this->assertSame(0, Stock::where('item_variant_id', $fixture['variant']->id)->count());
+        $this->assertSame(0, StockLedgerEntry::count());
+        $this->assertSame(0, GlPostingStatus::count());
+        $this->assertSame($statusBefore, $return->fresh()->status);
+        Event::assertNotDispatched(DocumentDeliveryStatusRecalculationRequested::class);
     }
 
     public function test_amend_leaves_both_posted_account_columns_of_the_new_draft_lines_empty(): void {

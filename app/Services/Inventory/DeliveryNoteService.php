@@ -203,6 +203,7 @@ class DeliveryNoteService implements SubmitableService {
                 'asset',
                 'item.item',
                 'item.item.category',
+                'item.defaultUom',
                 'referenceable',
                 'returnAgainstItem',
                 'sourceWarehouse',
@@ -252,6 +253,31 @@ class DeliveryNoteService implements SubmitableService {
             DB::rollBack();
 
             throw ValidationException::withMessages(['items' => $stockErrors]);
+        }
+
+        // Retur ke gudang yang belum punya baris stok: buat barisnya (satuan dasar barang, antrean kosong),
+        // setelah validasi lolos dan di dalam transaksi, sehingga penolakan di tahap lain tidak menyisakan baris baru.
+        if ($returnAgainst) {
+            foreach ($items as $item) {
+                if (! $this->isStockMutatingLine($item)) {
+                    continue;
+                }
+                $stockKey = "{$item->item_id}-{$item->source_warehouse_id}";
+                if ($stocks->has($stockKey)) {
+                    continue;
+                }
+
+                $defaultUom = $item->item->defaultUom;
+                $newStock   = Stock::lockForUpdate()->firstOrCreate([
+                    'item_variant_id' => $item->item_id,
+                    'warehouse_id'    => $item->source_warehouse_id,
+                ], [
+                    'conversion_factor' => $defaultUom->conversion_factor,
+                    'item_unit_id'      => $defaultUom->id,
+                    'stock_queue'       => [],
+                ]);
+                $stocks->put($stockKey, $newStock->load('unit'));
+            }
         }
 
         $totalPicked = 0;
@@ -468,7 +494,7 @@ class DeliveryNoteService implements SubmitableService {
     /**
      * Kumpulkan pesan error stok untuk semua baris stok. Baris asset, jasa AssetService, dan non-stok dilewati
      * (sama seperti loop mutasi). Pengiriman maju: stok harus ada dan cukup (akumulatif untuk baris yang berbagi stok
-     * yang sama). Retur menambah stok, jadi hanya keberadaan baris stok yang diperiksa, bukan jumlahnya.
+     * yang sama). Retur menambah stok, jadi tidak ada pemeriksaan stok (baris stok yang belum ada dibuat otomatis).
      *
      * @param  Collection<int, DeliveryNoteItem>  $items
      * @param  Collection<string, Stock>  $stocks
@@ -479,14 +505,7 @@ class DeliveryNoteService implements SubmitableService {
         $required = [];
 
         foreach ($items as $item) {
-            if ($item->asset_id) {
-                continue;
-            }
-            if (($item->referenceable instanceof SalesOrderItem || $item->referenceable instanceof InternalOrderItem)
-                && $item->referenceable->referenceable_type === AssetService::class) {
-                continue;
-            }
-            if (! $item->item->is_stock_item) {
+            if (! $this->isStockMutatingLine($item)) {
                 continue;
             }
 
@@ -494,12 +513,17 @@ class DeliveryNoteService implements SubmitableService {
             $stock     = $stocks->get($stockKey);
             $itemLabel = "{$item->item->code} - {$item->item->item_name}";
 
-            if (! $stock) {
-                $errors[] = "Item {$itemLabel} is not in {$item->sourceWarehouse?->name} stock";
+            if ($isReturn) {
+                // Retur menambah stok: baris stok yang belum ada dibuat otomatis (butuh satuan default barang).
+                if (! $stock && ! $item->item->defaultUom) {
+                    $errors[$stockKey] = "Item {$itemLabel} tidak memiliki satuan default, sehingga baris stok di {$item->sourceWarehouse?->name} tidak dapat dibuat";
+                }
 
                 continue;
             }
-            if ($isReturn) {
+            if (! $stock) {
+                $errors[] = "Item {$itemLabel} is not in {$item->sourceWarehouse?->name} stock";
+
                 continue;
             }
 
@@ -512,7 +536,23 @@ class DeliveryNoteService implements SubmitableService {
             }
         }
 
-        return $errors;
+        return array_values($errors);
+    }
+
+    /**
+     * Baris yang memutasi stok: bukan asset, bukan jasa AssetService (SO/IO), dan barangnya barang stok.
+     * Baris lain dilewati di validasi, pembuatan baris stok, dan loop mutasi.
+     */
+    private function isStockMutatingLine(DeliveryNoteItem $item): bool {
+        if ($item->asset_id) {
+            return false;
+        }
+        if (($item->referenceable instanceof SalesOrderItem || $item->referenceable instanceof InternalOrderItem)
+            && $item->referenceable->referenceable_type === AssetService::class) {
+            return false;
+        }
+
+        return (bool) $item->item->is_stock_item;
     }
 
     /** Cek ulang di bawah lock: Asset bebas harus masih `active` saat approve (bisa berubah sejak validasi). */
