@@ -101,8 +101,8 @@ final class PostingProfileInitializer {
         $report ??= $this->analyze();
 
         $proposals = [
-            $this->returnProposal('sales_invoice', AccountRole::Revenue, ['income'], 'penjualan', 'pembelian', $report),
-            $this->returnProposal('purchase_invoice', AccountRole::Expense, ['income', 'expense'], 'pembelian', 'penjualan', $report),
+            $this->returnProposal('sales_invoice', AccountRole::Revenue, ['income'], 'penjualan', ['pembelian', 'purchase'], $report),
+            $this->returnProposal('purchase_invoice', AccountRole::Expense, ['income', 'expense'], 'pembelian', ['penjualan', 'sales'], $report),
         ];
 
         $nonStockCount = ItemVariant::query()->where('is_stock_item', false)->count();
@@ -144,15 +144,25 @@ final class PostingProfileInitializer {
 
     /**
      * @param  list<string>  $rootTypes
+     * @param  list<string>  $otherWords  kata pembeda dokumen lawan (Indonesia dan Inggris) yang menyingkirkan kandidat
      * @param  array{resolved: array<string, array{id: string, label: string}>, ambiguous: array<string, list<string>>}  $report
      * @return array{key: string, document_type: string, variant: string, role: string, conditions: array{is_stock_item: bool|null, category: string|null, category_id: string|null}, basis: string|null, default_account: string, candidates: list<string>, note: string|null}
      */
-    private function returnProposal(string $documentType, AccountRole $role, array $rootTypes, string $ownWord, string $otherWord, array $report): array {
+    private function returnProposal(string $documentType, AccountRole $role, array $rootTypes, string $ownWord, array $otherWords, array $report): array {
         $candidates = $this->accountLabels(Account::query()->whereIn('root_type', $rootTypes))
-            ->filter(static function (string $label) use ($otherWord): bool {
+            ->filter(static function (string $label) use ($otherWords): bool {
                 $name = mb_strtolower($label);
 
-                return preg_match('/retur|return/u', $name) === 1 && ! str_contains($name, $otherWord);
+                if (preg_match('/retur/u', $name) !== 1) {
+                    return false;
+                }
+                foreach ($otherWords as $otherWord) {
+                    if (str_contains($name, $otherWord)) {
+                        return false;
+                    }
+                }
+
+                return true;
             })
             ->values();
 

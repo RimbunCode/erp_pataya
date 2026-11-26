@@ -5,6 +5,7 @@ namespace App\Console\Commands\Finances;
 use App\Models\Finances\PostingProfile;
 use App\Services\Finances\Posting\PostingProfileInitializer;
 use Illuminate\Console\Command;
+use Symfony\Component\Console\Formatter\OutputFormatter;
 use Throwable;
 
 /**
@@ -54,7 +55,7 @@ class InitPostingProfileCommand extends Command {
         $this->info('Peran ter-resolve (tepat satu akun cocok): ' . \count($report['resolved']));
         if ($report['resolved'] !== []) {
             $this->table(['Peran', 'Akun'], array_map(
-                static fn (string $role, array $row): array => [$role, $row['label']],
+                static fn (string $role, array $row): array => [$role, OutputFormatter::escape($row['label'])],
                 array_keys($report['resolved']),
                 $report['resolved'],
             ));
@@ -64,7 +65,7 @@ class InitPostingProfileCommand extends Command {
         $this->warn('Peran ambigu (lebih dari satu akun cocok; tidak ditebak, pilih manual): ' . \count($report['ambiguous']));
         if ($report['ambiguous'] !== []) {
             $this->table(['Peran', 'Kandidat'], array_map(
-                static fn (string $role, array $labels): array => [$role, implode("\n", $labels)],
+                static fn (string $role, array $labels): array => [$role, implode("\n", array_map(OutputFormatter::escape(...), $labels))],
                 array_keys($report['ambiguous']),
                 $report['ambiguous'],
             ));
@@ -74,7 +75,7 @@ class InitPostingProfileCommand extends Command {
         $this->warn('Peran tanpa akun pada COA: ' . \count($report['missing']));
         if ($report['missing'] !== []) {
             $this->table(['Peran', 'Pasangan root_type/account_type'], array_map(
-                static fn (string $role, string $pair): array => [$role, $pair],
+                static fn (string $role, string $pair): array => [$role, OutputFormatter::escape($pair)],
                 array_keys($report['missing']),
                 $report['missing'],
             ));
@@ -83,7 +84,7 @@ class InitPostingProfileCommand extends Command {
         $this->newLine();
         $this->line('Peran akun master / tanpa padanan legacy (diisi dari master atau dilengkapi manual): ' . \count($report['master']));
         if ($report['master'] !== []) {
-            $this->line('  ' . implode(', ', $report['master']));
+            $this->line('  ' . OutputFormatter::escape(implode(', ', $report['master'])));
         }
     }
 
@@ -101,26 +102,26 @@ class InitPostingProfileCommand extends Command {
                 $conditions[] = 'is_stock_item = ' . ($proposal['conditions']['is_stock_item'] ? 'ya' : 'tidak');
             }
             if ($proposal['conditions']['category'] !== null) {
-                $conditions[] = "kategori = {$proposal['conditions']['category']}";
+                $conditions[] = 'kategori = ' . OutputFormatter::escape($proposal['conditions']['category']);
             }
 
             $this->newLine();
             $this->line('Usulan ' . ($number + 1) . ": {$proposal['document_type']} / {$proposal['variant']} / peran {$proposal['role']}");
             $this->line('  Kondisi barang : ' . ($conditions === [] ? '(tidak ada)' : implode('; ', $conditions)));
             if ($proposal['basis'] !== null) {
-                $this->line("  Dasar          : {$proposal['basis']}");
+                $this->line('  Dasar          : ' . OutputFormatter::escape($proposal['basis']));
             }
-            $this->line("  Akun default   : {$proposal['default_account']}");
+            $this->line('  Akun default   : ' . OutputFormatter::escape($proposal['default_account']));
             if ($proposal['candidates'] === []) {
                 $this->line('  Kandidat akun  : (tidak ada)');
             } else {
                 $this->line('  Kandidat akun  :');
                 foreach ($proposal['candidates'] as $candidate) {
-                    $this->line("    - {$candidate}");
+                    $this->line('    - ' . OutputFormatter::escape($candidate));
                 }
             }
             if ($proposal['note'] !== null) {
-                $this->line("  Catatan        : {$proposal['note']}");
+                $this->line('  Catatan        : ' . OutputFormatter::escape($proposal['note']));
             }
         }
     }

@@ -114,6 +114,25 @@ class InitPostingProfileProposalsTest extends TestCase {
         $this->assertSame(['5120 - Retur Pembelian'], $purchase['candidates']);
     }
 
+    public function test_english_named_opposite_document_accounts_are_not_candidates(): void {
+        $this->makeAccount('4130', 'Sales Returns', 'income', 'credit', 'income_account');
+        $this->makeAccount('4140', 'Purchase Return', 'income', 'credit', 'income_account');
+        $this->makeAccount('5120', 'Purchase Returns', 'expense', 'debit', 'expense_account');
+
+        $proposals = $this->proposals();
+
+        $this->assertSame(['4120 - Retur Penjualan', '4130 - Sales Returns'], $proposals['sales_invoice.return']['candidates']);
+        $this->assertSame(['4140 - Purchase Return', '5120 - Purchase Returns'], $proposals['purchase_invoice.return']['candidates'], 'Akun Sales Return berakar income tidak boleh menjadi kandidat Retur Pembelian.');
+    }
+
+    public function test_report_output_escapes_console_markup_in_account_names(): void {
+        $this->makeAccount('4150', 'Retur Penjualan <fg=red>PALSU</>', 'income', 'credit', 'income_account');
+
+        $output = $this->runReport();
+
+        $this->assertStringContainsString('<fg=red>PALSU</>', $output);
+    }
+
     public function test_non_stock_and_category_proposals_follow_live_non_stock_variants(): void {
         $this->assertArrayNotHasKey('purchase_invoice.non_stock', $this->proposals(), 'Tanpa varian non-stok tidak ada usulan non-stok.');
 
