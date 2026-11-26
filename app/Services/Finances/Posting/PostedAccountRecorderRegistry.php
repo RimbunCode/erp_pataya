@@ -19,6 +19,8 @@ final class PostedAccountRecorderRegistry {
         'payment_entry'          => 'App\Services\Finances\Accounting\PaymentEntryPostedAccountRecorder',
         'stock_entry'            => 'App\Services\Inventory\Accounting\StockEntryPostedAccountRecorder',
         'asset_value_adjustment' => 'App\Services\Asset\Accounting\AssetValueAdjustmentPostedAccountRecorder',
+        'delivery_note'          => 'App\Services\Inventory\Accounting\DeliveryNotePostedAccountRecorder',
+        'purchase_receipt'       => 'App\Services\Purchase\Accounting\PurchaseReceiptPostedAccountRecorder',
     ];
 
     /**

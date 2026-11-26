@@ -215,6 +215,22 @@ class PostingRulesTest extends TestCase {
         $this->assertSame(['debit:expense:90', 'debit:expense:100', 'debit:expense:900', 'credit:discount:10', 'credit:payable:1080'], $this->shape($mixed[0]));
     }
 
+    public function test_purchase_receipt_splits_stock_per_line_and_falls_back_to_document_level(): void {
+        $lines = [new LineAttributes(['amount' => 500], lineId: 'L1'), new LineAttributes(['amount' => 300], lineId: 'L2'), new LineAttributes(['amount' => 0], lineId: 'L3')];
+
+        $normal = $this->build($this->ctx(PostingDocumentType::PurchaseReceipt, ['total' => 800], [], $lines));
+        $this->assertSame(['debit:stock:500', 'debit:stock:300', 'credit:stock_received_but_not_billed:800'], $this->shape($normal[0]));
+        $this->assertSame(['L1', 'L2'], array_map(fn (RoleLine $line): ?string => $line->line?->lineId, array_slice($normal[0]->lines, 0, 2)));
+        $this->assertNull($normal[0]->lines[2]->line, 'SRNB tetap tingkat dokumen.');
+
+        $return = $this->build($this->ctx(PostingDocumentType::PurchaseReceipt, ['total' => 800], ['is_return' => true], $lines));
+        $this->assertSame(['debit:stock_received_but_not_billed:800', 'credit:stock:500', 'credit:stock:300'], $this->shape($return[0]));
+
+        $mismatch = $this->build($this->ctx(PostingDocumentType::PurchaseReceipt, ['total' => 900], [], $lines));
+        $this->assertSame(['debit:stock:900', 'credit:stock_received_but_not_billed:900'], $this->shape($mismatch[0]));
+        $this->assertNull($mismatch[0]->lines[0]->line);
+    }
+
     public function test_purchase_receipt_and_delivery_note_normal_return_zero(): void {
         $receipt = $this->build($this->ctx(PostingDocumentType::PurchaseReceipt, ['total' => 800]));
         $this->assertSame(['debit:stock:800', 'credit:stock_received_but_not_billed:800'], $this->shape($receipt[0]));

@@ -247,7 +247,7 @@ class PostedAccountRecorderTest extends TestCase {
 
     public function test_default_map_has_the_agreed_document_types(): void {
         $this->assertSame(
-            ['sales_invoice', 'purchase_invoice', 'payment_entry', 'stock_entry', 'asset_value_adjustment'],
+            ['sales_invoice', 'purchase_invoice', 'payment_entry', 'stock_entry', 'asset_value_adjustment', 'delivery_note', 'purchase_receipt'],
             array_keys((new PostedAccountRecorderRegistry(app()))->map()),
         );
     }

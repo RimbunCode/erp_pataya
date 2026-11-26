@@ -18,8 +18,10 @@ use App\Models\Finances\PurchaseInvoice;
 use App\Models\Inventory\DeliveryNote;
 use App\Models\Inventory\StockLedgerEntry;
 use App\Models\Purchase\PurchaseReceipt;
+use App\Services\Inventory\Accounting\DeliveryNoteLineAmounts;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Log;
+use Illuminate\Validation\ValidationException;
 use Inertia\Inertia;
 
 class GlPostingStatusController extends Controller {
@@ -45,13 +47,26 @@ class GlPostingStatusController extends Controller {
     public function retry(GlPostingStatus $glPostingStatus) {
         abort_unless($glPostingStatus->status === FormStatus::FAILED, 422);
 
+        $event = $this->resolveRetryEvent($glPostingStatus);
+
+        // Purchase Receipt non-retur dengan baris tetapi total 0: jangan ditandai posted tanpa jurnal, biarkan tetap
+        // failed. Retur bernilai 0 tetap boleh di-retry, sama seperti approve yang juga mem-posting retur bernilai 0.
+        if ($event instanceof PurchaseReceiptGeneralLedgerPostingRequested
+            && ! $event->isReturn
+            && $event->totalRatesForGL <= 0
+            && $event->purchaseReceipt->items->isNotEmpty()) {
+            throw ValidationException::withMessages([
+                'retry' => __('core/glPostingStatus.zero_total_retry'),
+            ]);
+        }
+
         $glPostingStatus->update([
             'status'      => FormStatus::PENDING,
             'retry_count' => 0,
             'last_error'  => null,
         ]);
 
-        event($this->resolveRetryEvent($glPostingStatus));
+        event($event);
 
         return back();
     }
@@ -64,14 +79,9 @@ class GlPostingStatusController extends Controller {
         $doc = $glPostingStatus->referenceable;
 
         return match (true) {
-            $doc instanceof PurchaseReceipt => new PurchaseReceiptGeneralLedgerPostingRequested(
-                purchaseReceipt: $doc->load('items.purchaseOrderItem'),
-                totalRatesForGL: $this->recalcPurchaseReceiptGL($doc),
-                isReturn: (bool) $doc->return_against_id,
-                transactionDate: now(),
-            ),
-            $doc instanceof DeliveryNote => new DeliveryNoteGeneralLedgerPostingRequested(
-                deliveryNote: $doc->load('items.returnAgainstItem'),
+            $doc instanceof PurchaseReceipt => $this->purchaseReceiptRetryEvent($doc),
+            $doc instanceof DeliveryNote    => new DeliveryNoteGeneralLedgerPostingRequested(
+                deliveryNote: $doc->load('items.item', 'items.returnAgainstItem'),
                 totalPicked: $this->recalcDeliveryNoteGL($doc),
                 isReturn: (bool) $doc->return_against_id,
                 transactionDate: now(),
@@ -102,6 +112,37 @@ class GlPostingStatusController extends Controller {
                 'Unsupported referenceable type: ' . get_class($doc),
             ),
         };
+    }
+
+    private function purchaseReceiptRetryEvent(PurchaseReceipt $pr): PurchaseReceiptGeneralLedgerPostingRequested {
+        $pr->load('items.purchaseOrderItem');
+        $lineAmounts = $this->storedPurchaseReceiptLineAmounts($pr);
+
+        return new PurchaseReceiptGeneralLedgerPostingRequested(
+            purchaseReceipt: $pr,
+            totalRatesForGL: $lineAmounts !== [] ? (float) array_sum($lineAmounts) : $this->recalcPurchaseReceiptGL($pr),
+            isReturn: (bool) $pr->return_against_id,
+            transactionDate: now(),
+            lineAmounts: $lineAmounts,
+        );
+    }
+
+    /**
+     * Nilai GL per baris yang dicatat saat approve (id baris => nilai), dipakai apa adanya sehingga retry sama persis dengan
+     * posting asli. Kosong untuk dokumen yang diposting sebelum nilai per baris dicatat: total dihitung ulang dari SLE
+     * (`recalcPurchaseReceiptGL`) dan jurnal memakai bentuk tingkat dokumen.
+     *
+     * @return array<string, float>
+     */
+    private function storedPurchaseReceiptLineAmounts(PurchaseReceipt $pr): array {
+        $stored = [];
+        foreach ($pr->items as $item) {
+            if ($item->gl_value !== null) {
+                $stored[(string) $item->getKey()] = (float) $item->gl_value;
+            }
+        }
+
+        return $stored;
     }
 
     /**
@@ -157,16 +198,10 @@ class GlPostingStatusController extends Controller {
     }
 
     private function recalcDeliveryNoteGL(DeliveryNote $dn): float {
-        $total = 0;
-        foreach ($dn->items as $item) {
-            $valuationRates = $item->valuation_rates ?? [];
-            $total += array_sum(array_map(
-                fn ($v) => (float) ($v['rate'] ?? 0) * (float) ($v['quantity'] ?? 0),
-                $valuationRates,
-            ));
-        }
-
-        return $total;
+        // Retur memakai nilai baris dokumen asal (baris retur tidak menyimpan valuation_rates sendiri).
+        return DeliveryNoteLineAmounts::total(
+            DeliveryNoteLineAmounts::forDocument($dn, (bool) $dn->return_against_id),
+        );
     }
 
     private function recalcPurchaseInvoiceStockGL(PurchaseInvoice $pi): float {
