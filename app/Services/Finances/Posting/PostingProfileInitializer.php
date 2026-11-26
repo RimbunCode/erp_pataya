@@ -6,12 +6,11 @@ use App\Enums\AccountRole;
 use App\Models\Finances\Account;
 use App\Models\Finances\FiscalYear;
 use App\Models\Finances\PostingProfile;
-use App\Models\Inventory\Category;
-use App\Models\Inventory\ItemVariant;
 use Carbon\CarbonImmutable;
 use Carbon\CarbonInterface;
 use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Support\Collection;
+use Illuminate\Support\Facades\DB;
 
 /**
  * Membangkitkan profil awal (default) dari COA saat ini (Finance Fase 2, Requirement 2.5): setiap peran yang punya
@@ -105,7 +104,7 @@ final class PostingProfileInitializer {
             $this->returnProposal('purchase_invoice', AccountRole::Expense, ['income', 'expense'], 'pembelian', ['penjualan', 'sales'], $report),
         ];
 
-        $nonStockCount = ItemVariant::query()->where('is_stock_item', false)->count();
+        $nonStockCount = DB::table('item_variants')->whereNull('deleted_at')->where('is_stock_item', false)->count();
         if ($nonStockCount === 0) {
             return $proposals;
         }
@@ -209,19 +208,22 @@ final class PostingProfileInitializer {
      * @return list<array{id: string, name: string, total: int}>
      */
     private function nonStockCategories(): array {
-        $totals = ItemVariant::query()
+        // Query langsung ke tabel (bukan model) agar Posting tidak mengimpor model Inventory (P-8); soft delete dihormati manual.
+        $totals = DB::table('item_variants')
+            ->whereNull('deleted_at')
             ->where('is_stock_item', false)
             ->whereNotNull('category_id')
             ->selectRaw('category_id, count(*) as total')
             ->groupBy('category_id')
             ->pluck('total', 'category_id');
 
-        return Category::query()
+        return DB::table('categories')
+            ->whereNull('deleted_at')
             ->whereIn('id', $totals->keys())
             ->orderBy('name')
             ->orderBy('id')
-            ->get()
-            ->map(static fn (Category $category): array => ['id' => $category->getKey(), 'name' => $category->name, 'total' => (int) $totals[$category->getKey()]])
+            ->get(['id', 'name'])
+            ->map(static fn (object $category): array => ['id' => (string) $category->id, 'name' => (string) $category->name, 'total' => (int) $totals[$category->id]])
             ->all();
     }
 
