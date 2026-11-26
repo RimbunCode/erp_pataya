@@ -4,6 +4,7 @@ namespace Tests\Feature\Finances\Posting;
 
 use App\Enums\FormStatus;
 use App\Events\Finances\SalesInvoiceGeneralLedgerPostingRequested;
+use App\Http\Middleware\HandleInertiaRequests;
 use App\Listeners\Finances\Ledger\PostSalesInvoiceGeneralLedger;
 use App\Models\Core\GlPostingStatus;
 use App\Models\Finances\Account;
@@ -23,7 +24,6 @@ use App\Services\Finances\Posting\AccountPanel\PostedAccountPanel;
 use App\Services\Finances\Posting\PostingProfileService;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Illuminate\Support\Facades\DB;
-use Inertia\Inertia;
 use Tests\Support\BuildsFinanceFixtures;
 use Tests\TestCase;
 
@@ -289,7 +289,7 @@ class PostedAccountPanelTest extends TestCase {
     private function partialHeaders(): array {
         return [
             'X-Inertia'                   => 'true',
-            'X-Inertia-Version'           => (string) Inertia::getVersion(),
+            'X-Inertia-Version'           => (string) app(HandleInertiaRequests::class)->version(request()),
             'X-Inertia-Partial-Component' => 'Finances/SalesInvoice/Show',
             'X-Inertia-Partial-Data'      => 'postedAccounts',
         ];

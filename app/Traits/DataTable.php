@@ -743,7 +743,7 @@ trait DataTable {
         // Panel baca-saja "Akun pencatatan" (Finance Fase 2, Task 12.4): hanya untuk dokumen yang diposting engine, dan
         // hanya ikut respons halaman show (yang sudah lolos otorisasi), tidak lewat endpoint terpisah.
         // Cek statis dulu agar model lain tidak me-resolve PostedAccountPanel beserta dependensinya dari container.
-        if (isset(PanelSourceRegistry::MODEL_TYPES[static::class])) {
+        if (app(PanelSourceRegistry::class)->handles(static::class)) {
             Inertia::share([
                 'postedAccounts' => Inertia::defer(
                     fn () => app(PostedAccountPanel::class)->build($this),
