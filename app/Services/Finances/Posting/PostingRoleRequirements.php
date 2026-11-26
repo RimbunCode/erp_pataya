@@ -28,8 +28,10 @@ final class PostingRoleRequirements {
             PostingDocumentType::StockEntry           => [AccountRole::Stock, AccountRole::StockAdjustment, AccountRole::ExpenseIncludedInValuation],
             PostingDocumentType::AssetValueAdjustment => [AccountRole::AssetRevaluation],
             PostingDocumentType::AssetDepreciation,
-            PostingDocumentType::AssetScrap,
-            PostingDocumentType::AssetDisposal => [],
+            PostingDocumentType::AssetScrap => [],
+            // T-7 (opsi A): pelepasan membalik pendapatan baris aset, jadi `revenue` (peka-barang, diskon bila posting diskon
+            // terpisah) harus ter-resolve; peran aset tetap berasal dari akun master kategori aset.
+            PostingDocumentType::AssetDisposal => [AccountRole::Revenue],
         };
     }
 

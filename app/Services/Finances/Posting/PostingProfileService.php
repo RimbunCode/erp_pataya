@@ -8,9 +8,11 @@ use App\Events\Core\AuditableModelSaved;
 use App\Exceptions\Finances\InvalidPostingProfileException;
 use App\Exceptions\Finances\InvalidPostingRuleException;
 use App\Models\Finances\Account;
+use App\Models\Finances\FinanceSetting;
 use App\Models\Finances\PostingProfile;
 use App\Models\Finances\PostingProfileAccount;
 use App\Models\Finances\PostingProfileRule;
+use App\Services\Finances\Posting\DiscountSplit\DiscountSplitMappingValidator;
 use Carbon\CarbonImmutable;
 use Carbon\CarbonInterface;
 use Illuminate\Database\Eloquent\ModelNotFoundException;
@@ -251,8 +253,11 @@ final class PostingProfileService {
      */
     public function activate(PostingProfile $profile): PostingProfile {
         return DB::transaction(function () use ($profile): PostingProfile {
-            $all    = PostingProfile::query()->lockForUpdate()->get()->keyBy('id');
-            $locked = $all->get($profile->getKey()) ?? throw (new ModelNotFoundException)->setModel(PostingProfile::class, [$profile->getKey()]);
+            // Urutan kunci sama dengan `SettingsService::update()` (finance_settings lebih dulu, lalu profil): menyimpan
+            // tanggal cutover dan mengaktifkan profil tidak dapat saling melewati pemeriksaan pemetaan `discount`.
+            $setting = FinanceSetting::query()->lockForUpdate()->first();
+            $all     = PostingProfile::query()->lockForUpdate()->get()->keyBy('id');
+            $locked  = $all->get($profile->getKey()) ?? throw (new ModelNotFoundException)->setModel(PostingProfile::class, [$profile->getKey()]);
             if (! $locked->isDraft()) {
                 throw InvalidPostingProfileException::notDraft($locked->status);
             }
@@ -262,6 +267,12 @@ final class PostingProfileService {
             $from = $locked->effective_from->toDateString();
             $to   = $locked->effective_to?->toDateString();
             $this->assertRange($from, $to);
+
+            // Peran `discount` tidak boleh hilang dari profil yang menjangkau tanggal cutover diskon terpisah
+            // (keputusan pemilik produk 22 November 2026, Requirement 14.4).
+            if ($setting !== null) {
+                app(DiscountSplitMappingValidator::class)->assertProfileKeepsDiscountMapped($locked, $setting);
+            }
 
             $before = $this->snapshot($locked);
 

@@ -11,6 +11,7 @@ use App\Models\Core\GlPostingStatus;
 use App\Models\Finances\GeneralLedger;
 use App\Models\Finances\Journal;
 use App\Models\Finances\PostingProfile;
+use App\Models\Finances\SalesInvoice;
 use App\Models\Finances\SalesInvoiceItem;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Illuminate\Support\Facades\DB;
@@ -39,8 +40,9 @@ class PostAssetDisposalGainLossTest extends TestCase {
         Journal::initPermissions();
         PostingProfile::initPermissions();
 
-        // Task 14.1: closure legacy dihapus; disposal ditulis engine dengan akun master AssetCategoryAccount.
-        $this->enableEnginePosting();
+        // Task 14.1: closure legacy dihapus; disposal ditulis engine dengan akun master AssetCategoryAccount. T-7: jurnal
+        // pelepasan membalik pendapatan baris aset, jadi profil harus memetakan `revenue`.
+        $this->enableEnginePosting(['revenue' => $this->makeAccountId('income', 'sales')]);
     }
 
     private function makeAccountId(string $rootType, string $accountType): string {
@@ -75,6 +77,7 @@ class PostAssetDisposalGainLossTest extends TestCase {
     private function makeAssetWithCategoryAccount(float $grossAmount = 1000): Asset {
         $branchId = $this->makeBranchId();
         $fixed    = $this->makeAccountId('asset', 'fixed_asset');
+        $accum    = $this->makeAccountId('asset', 'accumulated_depreciation');
         $gainLoss = $this->makeAccountId('income', 'gain_loss_disposal');
 
         $asset = Asset::factory()->create([
@@ -84,10 +87,11 @@ class PostAssetDisposalGainLossTest extends TestCase {
         $asset->assetLocation->update(['branch_id' => $branchId]);
 
         AssetCategoryAccount::factory()->create([
-            'asset_category_id'             => $asset->asset_category_id,
-            'branch_id'                     => $branchId,
-            'fixed_asset_account_id'        => $fixed,
-            'gain_loss_disposal_account_id' => $gainLoss,
+            'asset_category_id'                   => $asset->asset_category_id,
+            'branch_id'                           => $branchId,
+            'fixed_asset_account_id'              => $fixed,
+            'accumulated_depreciation_account_id' => $accum,
+            'gain_loss_disposal_account_id'       => $gainLoss,
         ]);
 
         return $asset->refresh();
@@ -109,9 +113,11 @@ class PostAssetDisposalGainLossTest extends TestCase {
 
         (new PostAssetDisposalGainLoss)->handle(new AssetSoldViaInvoice($line));
 
-        $this->assertSame(2, GeneralLedger::where('referenceable_type', Asset::class)
-            ->where('referenceable_id', $asset->id)
-            ->count());
+        // Bentuk baku (T-7): Dr pendapatan 1.500, Cr aset tetap 1.000 (perolehan), Cr untung 500; akumulasi 0 tidak berbaris.
+        $rows = GeneralLedger::where('referenceable_type', Asset::class)->where('referenceable_id', $asset->id)->get();
+        $this->assertCount(3, $rows);
+        $this->assertEqualsWithDelta(1500, $rows->sum('debit'), 0.01);
+        $this->assertEqualsWithDelta(1500, $rows->sum('credit'), 0.01);
 
         $line->refresh();
         $this->assertNotNull($line->processed_at);
@@ -120,6 +126,35 @@ class PostAssetDisposalGainLossTest extends TestCase {
             ->where('referenceable_id', $line->id)
             ->first();
         $this->assertEquals(FormStatus::POSTED, $glStatus->status);
+    }
+
+    #[Test]
+    public function return_line_posts_nothing_and_is_marked_skipped(): void {
+        $asset         = $this->makeAssetWithCategoryAccount(1000);
+        $returnInvoice = SalesInvoice::factory()->create(['return_against_id' => SalesInvoice::factory()->create()->id]);
+        $line          = $this->makeLine($asset, 1, 1500);
+        $line->update(['sales_invoice_id' => $returnInvoice->id]);
+
+        (new PostAssetDisposalGainLoss)->handle(new AssetSoldViaInvoice($line->fresh()));
+
+        $this->assertSame(0, GeneralLedger::where('referenceable_type', Asset::class)->where('referenceable_id', $asset->id)->count());
+        $this->assertNull($line->fresh()->processed_at);
+        $this->assertEquals(FormStatus::SKIPPED, GlPostingStatus::where('referenceable_type', SalesInvoiceItem::class)->where('referenceable_id', $line->id)->first()->status);
+    }
+
+    #[Test]
+    public function fractional_proportions_keep_the_journal_balanced(): void {
+        // 3 unit senilai 1.000, jual 1 unit: perolehan 333,33; jurnal tetap seimbang setelah pembulatan.
+        $asset = $this->makeAssetWithCategoryAccount(1000);
+        $asset->update(['asset_quantity' => 3, 'allow_bulk_quantity' => true, 'opening_accumulated_depreciation' => 100]);
+        $line = $this->makeLine($asset->fresh(), 1, 250);
+
+        (new PostAssetDisposalGainLoss)->handle(new AssetSoldViaInvoice($line));
+
+        $rows = GeneralLedger::where('referenceable_type', Asset::class)->where('referenceable_id', $asset->id)->get();
+        $this->assertGreaterThanOrEqual(3, $rows->count());
+        $this->assertEqualsWithDelta($rows->sum('debit'), $rows->sum('credit'), 0.001);
+        $this->assertNotNull($line->fresh()->processed_at);
     }
 
     #[Test]

@@ -98,17 +98,20 @@ class DiscountSplitSettingTest extends TestCase {
         $this->assertRejected(PostingDocumentType::PurchaseInvoice, '2026-12-01', 'Tanpa diskon');
     }
 
-    public function test_cutover_is_accepted_when_discount_is_mapped_as_a_profile_default(): void {
+    public function test_cutover_is_accepted_for_sales_invoice_when_discount_is_mapped_as_a_profile_default(): void {
         $this->activateProfile('Dengan diskon', '2020-01-01', null, [...$this->baseAccounts(), 'discount' => $this->discount->id]);
 
         $setting = $this->save(PostingDocumentType::SalesInvoice, '2026-12-01');
 
         $this->assertSame('2026-12-01', $setting->discountSplitFrom(PostingDocumentType::SalesInvoice));
         $this->assertNull($setting->discountSplitFrom(PostingDocumentType::PurchaseInvoice), 'jenis lain tidak ikut berubah');
+    }
 
-        $this->save(PostingDocumentType::PurchaseInvoice, '2026-12-15');
-        $this->assertSame('2026-12-01', FinanceSetting::query()->first()->discountSplitFrom(PostingDocumentType::SalesInvoice));
-        $this->assertSame('2026-12-15', FinanceSetting::query()->first()->discountSplitFrom(PostingDocumentType::PurchaseInvoice));
+    public function test_purchase_invoice_cutover_is_rejected_when_discount_is_only_the_shared_profile_default(): void {
+        $this->activateProfile('Dengan diskon', '2020-01-01', null, [...$this->baseAccounts(), 'discount' => $this->discount->id]);
+
+        // Keputusan pemilik produk 22 November 2026: akun default dipakai bersama Sales Invoice, tidak dihitung.
+        $this->assertRejected(PostingDocumentType::PurchaseInvoice, '2026-12-15', 'Purchase Invoice document type');
     }
 
     public function test_cutover_is_accepted_when_discount_is_mapped_by_a_document_type_rule(): void {
@@ -120,15 +123,65 @@ class DiscountSplitSettingTest extends TestCase {
         $this->assertRejected(PostingDocumentType::SalesInvoice, '2026-12-01', 'discount');
     }
 
-    public function test_a_rule_without_document_type_counts_for_both_types(): void {
+    public function test_a_rule_without_document_type_counts_for_sales_invoice_but_not_for_purchase_invoice(): void {
         $this->activateProfile('Aturan umum', '2020-01-01', null, $this->baseAccounts(), [
             ['role' => 'discount', 'account_id' => $this->discount->id],
         ]);
 
         $this->save(PostingDocumentType::SalesInvoice, '2026-12-01');
+        $this->assertRejected(PostingDocumentType::PurchaseInvoice, '2026-12-01', 'Purchase Invoice document type');
+    }
+
+    public function test_a_purchase_invoice_rule_and_a_sales_default_are_configured_separately(): void {
+        $this->activateProfile('Terpisah', '2020-01-01', null, [...$this->baseAccounts(), 'discount' => $this->discount->id], [
+            ['role' => 'discount', 'account_id' => $this->discount->id, 'document_type' => 'purchase_invoice'],
+        ]);
+
+        $this->save(PostingDocumentType::SalesInvoice, '2026-12-01');
+        $this->save(PostingDocumentType::PurchaseInvoice, '2026-12-15');
+
+        $this->assertSame('2026-12-01', FinanceSetting::query()->first()->discountSplitFrom(PostingDocumentType::SalesInvoice));
+        $this->assertSame('2026-12-15', FinanceSetting::query()->first()->discountSplitFrom(PostingDocumentType::PurchaseInvoice));
+    }
+
+    public function test_the_same_account_for_sales_and_purchase_discount_is_not_rejected(): void {
+        // Konfigurasi terpisah, akunnya boleh kebetulan sama (pilihan implementer, menunggu konfirmasi pemilik produk): yang diwajibkan aturan sendiri.
+        $this->activateProfile('Akun sama', '2020-01-01', null, [...$this->baseAccounts(), 'discount' => $this->discount->id], [
+            ['role' => 'discount', 'account_id' => $this->discount->id, 'document_type' => 'purchase_invoice'],
+        ]);
+
         $this->save(PostingDocumentType::PurchaseInvoice, '2026-12-01');
 
         $this->assertSame('2026-12-01', FinanceSetting::query()->first()->discountSplitFrom(PostingDocumentType::PurchaseInvoice));
+    }
+
+    public function test_a_purchase_invoice_normal_rule_alone_is_enough_because_returns_fall_back_to_it(): void {
+        $this->activateProfile('Aturan PI normal', '2020-01-01', null, $this->baseAccounts(), [
+            ['role' => 'discount', 'account_id' => $this->discount->id, 'document_type' => 'purchase_invoice', 'variant' => 'normal'],
+        ]);
+
+        $setting = $this->save(PostingDocumentType::PurchaseInvoice, '2026-12-01');
+
+        $this->assertSame('2026-12-01', $setting->discountSplitFrom(PostingDocumentType::PurchaseInvoice));
+    }
+
+    public function test_a_purchase_invoice_return_only_rule_is_rejected_because_the_normal_variant_is_unmapped(): void {
+        $this->activateProfile('Aturan PI retur', '2020-01-01', null, $this->baseAccounts(), [
+            ['role' => 'discount', 'account_id' => $this->discount->id, 'document_type' => 'purchase_invoice', 'variant' => 'return'],
+        ]);
+
+        $this->assertRejected(PostingDocumentType::PurchaseInvoice, '2026-12-01', 'Purchase Invoice document type');
+    }
+
+    public function test_an_untyped_return_rule_that_would_win_for_purchase_invoice_returns_is_rejected(): void {
+        // Aturan retur tanpa jenis dokumen menang atas aturan PI normal pada lintasan retur pertama (hanya `variant = return`),
+        // sehingga retur PI jatuh ke aturan yang dibagi dengan Sales Invoice.
+        $this->activateProfile('Retur bersama', '2020-01-01', null, $this->baseAccounts(), [
+            ['role' => 'discount', 'account_id' => $this->discount->id, 'document_type' => 'purchase_invoice'],
+            ['role' => 'discount', 'account_id' => $this->discount->id, 'variant' => 'return'],
+        ]);
+
+        $this->assertRejected(PostingDocumentType::PurchaseInvoice, '2026-12-01', 'Purchase Invoice document type');
     }
 
     public function test_a_return_only_rule_does_not_count_as_mapped(): void {

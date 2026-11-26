@@ -74,7 +74,7 @@ final class AccountRuleMatcher {
     }
 
     private function matches(PostingProfileRule $rule, PostingContext $ctx, ?LineAttributes $line, bool $strictReturn): bool {
-        if ($rule->document_type !== null && $rule->document_type !== $ctx->documentType->value) {
+        if ($rule->document_type !== null && $rule->document_type !== $ctx->ruleTypeFor((string) $rule->role)->value) {
             return false;
         }
 

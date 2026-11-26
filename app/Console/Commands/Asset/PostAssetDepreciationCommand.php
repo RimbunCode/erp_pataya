@@ -20,10 +20,16 @@ class PostAssetDepreciationCommand extends Command {
 
         AssetDepreciationSchedule::where('schedule_date', '<=', now())
             ->whereDoesntHave('glPostingStatus')
+            ->whereHas('asset', fn ($q) => $q->whereColumn('sold_quantity', '<', 'asset_quantity'))
             ->with('asset.assetCategory.accounts')
             ->orderBy('asset_id')->orderBy('schedule_date')
             ->chunkById(100, function ($schedules) use (&$count, &$failed) {
                 foreach ($schedules as $schedule) {
+                    // Aset yang jurnal pelepasan seluruh qty-nya sudah terposting (tanpa DN) juga tidak disusutkan lagi.
+                    if ($schedule->asset->isFullySold()) {
+                        continue;
+                    }
+
                     try {
                         DB::transaction(function () use ($schedule) {
                             GlPostingStatus::create([
