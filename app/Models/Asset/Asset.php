@@ -11,6 +11,7 @@ use App\Models\Core\Branch;
 use App\Models\Core\CoreSetting;
 use App\Models\Core\GlPostingStatus;
 use App\Models\Finances\PurchaseInvoiceItem;
+use App\Models\Finances\SalesInvoiceItem;
 use App\Models\Inventory\Item;
 use App\Models\Model;
 use App\Models\Purchase\PurchaseReceiptItem;
@@ -267,12 +268,21 @@ class Asset extends Model {
         return Attribute::get(fn () => (float) $this->asset_quantity - (float) $this->rental_quantity - (float) $this->sold_quantity);
     }
 
-    public function bookValue(): float {
-        $accumulated = $this->depreciationSchedules()
+    /**
+     * Akumulasi penyusutan total aset: `opening_accumulated_depreciation` (saldo awal/migrasi, dibentuk lewat Journal
+     * Voucher; metode penyusutan memulai jadwal dari angka ini) ditambah jadwal yang sudah terposting ke GL. Satu-satunya
+     * sumber angka akumulasi untuk nilai buku, jurnal pelepasan (T-7), dan scrap.
+     */
+    public function accumulatedDepreciation(): float {
+        $posted = $this->depreciationSchedules()
             ->whereHas('glPostingStatus', fn ($q) => $q->where('status', FormStatus::POSTED))
             ->sum('depreciation_amount');
 
-        return (float) $this->total_asset_cost - (float) $accumulated;
+        return (float) ($this->opening_accumulated_depreciation ?? 0) + (float) $posted;
+    }
+
+    public function bookValue(): float {
+        return (float) $this->total_asset_cost - $this->accumulatedDepreciation();
     }
 
     // ─── Guard — ERPNext: Asset tidak mengenal cancel/delete ─────────────
@@ -296,9 +306,7 @@ class Asset extends Model {
         $writeOffAmount = $this->bookValue();
 
         DB::transaction(function () {
-            $this->depreciationSchedules()
-                ->whereDoesntHave('glPostingStatus', fn ($q) => $q->where('status', FormStatus::POSTED))
-                ->delete();
+            $this->deleteUnpostedDepreciationSchedules();
 
             $this->status        = [...$this->removeStatuses([FormStatus::ACTIVE, FormStatus::ISSUED, FormStatus::OUT_OF_ORDER]), FormStatus::SCRAPPED];
             $this->disposal_date = now();
@@ -313,6 +321,46 @@ class Asset extends Model {
             ]);
             event(new AssetScrapped($this, $writeOffAmount, now()));
         }
+    }
+
+    /**
+     * Hapus jadwal penyusutan yang belum terposting ke GL (yang sudah terposting tetap sebagai riwayat). Idempoten.
+     */
+    public function deleteUnpostedDepreciationSchedules(): void {
+        $this->depreciationSchedules()
+            ->whereDoesntHave('glPostingStatus', fn ($q) => $q->where('status', FormStatus::POSTED))
+            ->delete();
+    }
+
+    /**
+     * Terjual habis: seluruh qty aset sudah terjual lewat Delivery Note/sell manual (`sold_quantity`) ATAU jurnal pelepasan
+     * dari Sales Invoice sudah terposting untuk seluruh qty (alur SI approve lebih dulu, DN belakangan atau tak pernah ada).
+     * Penjualan sebagian tidak termasuk.
+     */
+    public function isFullySold(): bool {
+        if ((float) $this->asset_quantity <= 0) {
+            return false;
+        }
+
+        return (float) $this->sold_quantity >= (float) $this->asset_quantity || $this->hasFullyPostedDisposal();
+    }
+
+    /**
+     * Total qty baris Sales Invoice aset ini yang jurnal pelepasannya berstatus `posted` mencapai seluruh qty aset.
+     * Baris yang dibatalkan/retur berstatus `skipped` sehingga tidak dihitung.
+     */
+    public function hasFullyPostedDisposal(): bool {
+        $postedLineIds = GlPostingStatus::query()
+            ->where('referenceable_type', SalesInvoiceItem::class)
+            ->where('status', FormStatus::POSTED->value)
+            ->select('referenceable_id');
+
+        $postedQuantity = (float) SalesInvoiceItem::query()
+            ->where('asset_id', $this->getKey())
+            ->whereIn('id', $postedLineIds)
+            ->sum('quantity');
+
+        return (float) $this->asset_quantity > 0 && round($postedQuantity, 6) >= round((float) $this->asset_quantity, 6);
     }
 
     public function sell(): void {
@@ -343,7 +391,62 @@ class Asset extends Model {
         if ($this->available_quantity <= 0) {
             $this->disposal_date ??= now();
         }
-        $this->save();
+        DB::transaction(function () {
+            $this->save();
+
+            // Terjual habis: seperti scrap, jadwal penyusutan yang belum terposting dihentikan agar tidak ada akumulasi
+            // bersaldo kredit tanpa aset. Penjualan sebagian tidak menghentikan jadwal.
+            if ($this->isFullySold()) {
+                $this->deleteUnpostedDepreciationSchedules();
+            }
+        });
+    }
+
+    /**
+     * Kebalikan addSoldQuantity (dipakai saat Delivery Note penjualan aset dibatalkan): kurangi sold_quantity (tidak
+     * kurang dari 0), pulihkan status, kosongkan disposal_date, dan pulihkan jadwal penyusutan yang belum terposting
+     * hanya bila aset tidak lagi terjual habis. Aset SCRAPPED tidak disentuh. Pemanggil wajib mengunci baris aset.
+     *
+     * Bila aset masih terjual habis lewat jurnal pelepasan Sales Invoice (hasFullyPostedDisposal), hanya qty yang
+     * dikurangi; status, disposal_date, dan jadwal dibiarkan karena aset tetap terlepas.
+     */
+    public function reduceSoldQuantity(float $quantity): void {
+        if (in_array(FormStatus::SCRAPPED, $this->status ?? [], true)) {
+            return;
+        }
+
+        DB::transaction(function () use ($quantity) {
+            $wasFullySold        = in_array(FormStatus::SOLD, $this->status ?? [], true);
+            $this->sold_quantity = max(0, (float) $this->sold_quantity - $quantity);
+
+            if ($this->isFullySold()) {
+                $this->save();
+
+                return;
+            }
+
+            $statuses  = $this->removeStatuses([FormStatus::SOLD, FormStatus::PARTIALLY_SOLD]);
+            $hasActive = in_array(FormStatus::ACTIVE, $statuses, true);
+
+            if ((float) $this->sold_quantity <= 0) {
+                if ($wasFullySold && ! $hasActive) {
+                    $statuses[] = FormStatus::ACTIVE;
+                }
+            } elseif ($this->available_quantity <= 0) {
+                $statuses[] = FormStatus::SOLD;
+            } else {
+                if ($wasFullySold && ! $hasActive) {
+                    $statuses[] = FormStatus::ACTIVE;
+                }
+                $statuses[] = FormStatus::PARTIALLY_SOLD;
+            }
+
+            $this->status        = $statuses;
+            $this->disposal_date = null;
+            $this->save();
+
+            $this->depreciationSchedules()->onlyTrashed()->restore();
+        });
     }
 
     /**

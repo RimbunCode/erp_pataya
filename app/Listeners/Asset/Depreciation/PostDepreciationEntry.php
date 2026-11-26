@@ -25,9 +25,22 @@ class PostDepreciationEntry implements ShouldQueue {
     public array $backoff = [10, 30, 60];
 
     public function handle(AssetDepreciationDue $event): void {
-        DB::transaction(function () use ($event) {
+        $skipped = false;
+
+        DB::transaction(function () use ($event, &$skipped) {
             $schedule = $event->schedule;
             $asset    = $schedule->asset;
+
+            // Jaring pengaman: aset sudah terjual habis, jadwal yang telanjur antre tidak diposting.
+            if ($asset->isFullySold()) {
+                GlPostingStatus::where('referenceable_type', AssetDepreciationSchedule::class)
+                    ->where('referenceable_id', $schedule->id)
+                    ->where('status', '!=', FormStatus::POSTED->value) // baris yang sudah terposting tidak ditimpa
+                    ->update(['status' => FormStatus::SKIPPED->value]);
+                $skipped = true;
+
+                return;
+            }
 
             $branchId = $asset->branch()?->id;
             $accounts = $asset->assetCategory?->accounts()
@@ -63,6 +76,10 @@ class PostDepreciationEntry implements ShouldQueue {
                     'posted_at' => now(),
                 ]);
         });
+
+        if ($skipped) {
+            return;
+        }
 
         $this->maybeMarkFullyDepreciated($event->schedule->asset);
     }

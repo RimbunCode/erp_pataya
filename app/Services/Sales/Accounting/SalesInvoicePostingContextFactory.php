@@ -54,6 +54,25 @@ final class SalesInvoicePostingContextFactory {
     }
 
     /**
+     * Apakah jurnal Sales Invoice ini memakai bentuk diskon terpisah (kotor + baris `discount`) bila diposting pada
+     * `$transactionDate`: syarat yang sama dengan `forPosting` (setting cutover terhadap tanggal posting, dan baris
+     * konsisten dengan total approve `Σ(basic - diskon) + Σ pajak`). Dipakai jurnal pelepasan aset agar membalik bentuk yang
+     * sama dengan yang diposting Sales Invoice, tanpa membaca jurnal yang mungkin belum terposting.
+     */
+    public function postsDiscountSplit(SalesInvoice $salesInvoice, CarbonInterface $transactionDate): bool {
+        $resolver = $this->discountSplit ?? app(DiscountSplitResolver::class);
+        if (! $resolver->isActive(PostingDocumentType::SalesInvoice, $transactionDate)) {
+            return false;
+        }
+
+        $items = $salesInvoice->items()->with(['item' => fn ($query) => $query->withTrashed()])->get();
+        $total = (float) $items->sum(fn ($item): float => (float) $item->basic_amount - (float) $item->discount_amount + (float) $item->tax_amount);
+        $lines = $this->lines->build($items, $total, PostingDocumentType::SalesInvoice->value, (string) $salesInvoice->getKey());
+
+        return $this->discountSplitActive($lines, $transactionDate, (string) $salesInvoice->getKey());
+    }
+
+    /**
      * @param  list<LineAttributes>  $lines
      */
     private function discountSplitActive(array $lines, CarbonInterface $transactionDate, SalesInvoice $salesInvoice, bool $isReturn): bool {
