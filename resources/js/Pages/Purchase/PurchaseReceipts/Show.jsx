@@ -1,6 +1,7 @@
 import { Button } from "@/Components/ui/button";
 import Form from "./Form";
 import { FormPage } from "@/Pages/Core/FormPage";
+import PostedAccountsPanel from "@/Pages/Finances/Components/PostedAccountsPanel";
 import RelationPanels from "@/Pages/Core/Components/RelationPanels";
 import Link from "@/Components/Link";
 import { useLaravelReactI18n } from "laravel-react-i18n";
@@ -52,6 +53,7 @@ export default function Show({ purchaseReceipt, defaultData, fixedAssets }) {
       }
     >
       <Form />
+      <PostedAccountsPanel isNew={!purchaseReceipt} />
       {purchaseReceipt?.submitted_at && <RelationPanels />}
     </FormPage>
   );

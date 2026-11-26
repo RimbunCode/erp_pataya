@@ -33,6 +33,13 @@ vi.mock("@/Pages/Core/FormPage", () => ({
   ),
 }));
 
+// PostedAccountsPanel butuh konteks FormPage dan Inertia; diuji terpisah di PostedAccountsPanel.rtl.test.jsx.
+vi.mock("@/Pages/Finances/Components/PostedAccountsPanel", () => ({
+  default: ({ isNew }) => (
+    <div data-testid="posted-accounts-panel" data-new={String(!!isNew)} />
+  ),
+}));
+
 import Show from "./Show";
 
 describe("Show (Finances/PaymentEntries)", () => {
@@ -44,6 +51,21 @@ describe("Show (Finances/PaymentEntries)", () => {
     render(<Show paymentEntry={{ id: 1 }} />);
 
     expect(screen.getByTestId("form-stub")).toBeInTheDocument();
+  });
+
+  it("memasang panel Akun pencatatan: dokumen tersimpan tidak baru, dokumen baru ditandai baru", () => {
+    const { unmount } = render(<Show paymentEntry={{ id: 1 }} />);
+    expect(screen.getByTestId("posted-accounts-panel")).toHaveAttribute(
+      "data-new",
+      "false",
+    );
+    unmount();
+
+    render(<Show paymentEntry={undefined} />);
+    expect(screen.getByTestId("posted-accounts-panel")).toHaveAttribute(
+      "data-new",
+      "true",
+    );
   });
 
   it("isCreate true, disabled false saat paymentEntry tidak ada (tanpa crash walau tidak dikirim)", () => {
