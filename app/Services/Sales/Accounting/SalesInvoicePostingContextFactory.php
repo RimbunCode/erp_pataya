@@ -69,7 +69,7 @@ final class SalesInvoicePostingContextFactory {
         $total = (float) $items->sum(fn ($item): float => (float) $item->basic_amount - (float) $item->discount_amount + (float) $item->tax_amount);
         $lines = $this->lines->build($items, $total, PostingDocumentType::SalesInvoice->value, (string) $salesInvoice->getKey());
 
-        return $this->discountSplitActive($lines, $transactionDate, (string) $salesInvoice->getKey());
+        return $this->discountSplitActive($lines, $transactionDate, $salesInvoice, false);
     }
 
     /**
