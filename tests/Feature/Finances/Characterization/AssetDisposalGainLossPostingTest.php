@@ -19,6 +19,8 @@ use App\Models\Finances\SalesInvoice;
 use App\Models\Finances\SalesInvoiceItem;
 use App\Models\Inventory\DeliveryNote;
 use App\Models\Inventory\DeliveryNoteItem;
+use App\Models\Inventory\ItemVariant;
+use App\Models\Sales\SalesOrderItem;
 use App\Services\Core\Setting\SettingsService;
 use App\Services\Finances\Ledger\FiscalPeriodService;
 use App\Services\Finances\Ledger\JournalReversalService;
@@ -424,6 +426,70 @@ class AssetDisposalGainLossPostingTest extends TestCase {
         $this->assertSoftDeleted($unposted);
         $this->assertEquals(FormStatus::POSTED, GlPostingStatus::where('referenceable_id', $invoice->items()->first()->id)->first()->status);
         $this->assertSame(1.0, (float) $asset->refresh()->sold_quantity);
+    }
+
+    private function salesOrderItemForBulkTest(): SalesOrderItem {
+        return SalesOrderItem::create([
+            'sales_order_id' => DeliveryNote::factory()->create()->referenceable_id,
+            'item_id'        => ItemVariant::factory()->create()->id,
+            'quantity'       => 1,
+            'price'          => 0,
+        ]);
+    }
+
+    private function deliverAsset(Asset $asset, ?SalesOrderItem $orderItem, float $quantity = 1): void {
+        $deliveryNote = DeliveryNote::factory()->create(['submitted_at' => now(), 'canceled_at' => null]);
+        DeliveryNoteItem::factory()->create([
+            'delivery_note_id'   => $deliveryNote->id, 'item_id' => null, 'asset_id' => $asset->id,
+            'referenceable_type' => $orderItem ? SalesOrderItem::class : null, 'referenceable_id' => $orderItem?->id,
+            'quantity'           => $quantity, 'processed_at' => now(),
+        ]);
+    }
+
+    /**
+     * @return array{0: Asset, 1: SalesInvoice, 2: SalesInvoice, 3: SalesOrderItem, 4: SalesOrderItem}
+     */
+    private function bulkAssetSoldToTwoCustomers(): array {
+        ['asset' => $asset] = $this->bookedAsset(['allow_bulk_quantity' => true, 'asset_quantity' => 2]);
+        $orderItemA         = $this->salesOrderItemForBulkTest();
+        $orderItemB         = $this->salesOrderItemForBulkTest();
+        $invoiceA           = $this->makeSalesInvoice($this->receivable, $this->revenue, [], ['item_id' => null, 'asset_id' => $asset->id, 'quantity' => 1, 'sales_order_item_id' => $orderItemA->id]);
+        $invoiceB           = $this->makeSalesInvoice($this->receivable, $this->revenue, [], ['item_id' => null, 'asset_id' => $asset->id, 'quantity' => 1, 'sales_order_item_id' => $orderItemB->id]);
+        app(SalesInvoiceService::class)->onApproved($invoiceA);
+        app(SalesInvoiceService::class)->onApproved($invoiceB);
+
+        return [$asset->refresh(), $invoiceA->fresh(), $invoiceB->fresh(), $orderItemA, $orderItemB];
+    }
+
+    public function test_bulk_asset_cancel_is_only_blocked_by_the_delivery_note_of_the_same_invoice(): void {
+        [$asset, $invoiceA, $invoiceB, , $orderItemB] = $this->bulkAssetSoldToTwoCustomers();
+        $this->deliverAsset($asset, $orderItemB); // hanya unit pelanggan B yang terkirim
+        $asset->refresh()->addSoldQuantity(1);
+
+        app(SalesInvoiceService::class)->cancel($invoiceA);
+        $this->assertContains(FormStatus::CANCELED, (array) $invoiceA->fresh()->status);
+
+        try {
+            app(SalesInvoiceService::class)->cancel($invoiceB);
+            $this->fail('Pembatalan invoice yang sudah dikirim seharusnya ditolak.');
+        } catch (ValidationException $e) {
+            $this->assertArrayHasKey('asset', $e->errors());
+        }
+        $this->assertNotContains(FormStatus::CANCELED, (array) $invoiceB->fresh()->status);
+    }
+
+    public function test_bulk_asset_free_delivery_blocks_only_when_quantity_covers_the_invoice_units(): void {
+        [$asset, $invoiceA] = $this->bulkAssetSoldToTwoCustomers();
+        $this->deliverAsset($asset, null, 1); // 1 <= 2 - 1: unit SI-A bisa saja belum terkirim
+
+        app(SalesInvoiceService::class)->cancel($invoiceA);
+        $this->assertContains(FormStatus::CANCELED, (array) $invoiceA->fresh()->status);
+
+        [$asset2, $invoiceC] = $this->bulkAssetSoldToTwoCustomers();
+        $this->deliverAsset($asset2, null, 2); // 2 > 2 - 1: sebagian unit SI-C pasti sudah terkirim
+
+        $this->expectException(ValidationException::class);
+        app(SalesInvoiceService::class)->cancel($invoiceC);
     }
 
     public function test_a_canceled_delivery_note_no_longer_blocks_the_invoice_cancel(): void {

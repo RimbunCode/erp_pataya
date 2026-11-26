@@ -642,6 +642,13 @@ class SalesInvoiceService implements SubmitableService {
      * di transaksi persetujuan Delivery Note) tepat saat `sold_quantity` aset bertambah. `submitted_at` tidak dipakai karena
      * juga terisi untuk Delivery Note yang masih menunggu persetujuan atau ditolak (aset belum bergerak).
      *
+     * Aset non-bulk (satu unit): pengiriman mana pun atas aset itu memblokir. Aset bulk (`allow_bulk_quantity`, dijual
+     * sebagian ke beberapa pelanggan): hanya pengiriman milik invoice ini yang memblokir, dikenali dari baris Sales Order
+     * yang sama (`sales_invoice_items.sales_order_item_id` = `delivery_note_items.referenceable_id`). Pengiriman tanpa
+     * Sales Order (bebas) tidak bisa dikaitkan ke invoice mana pun, jadi dipakai pencocokan kuantitas: memblokir hanya bila
+     * total qty terkirim melebihi qty aset dikurangi qty baris invoice yang dibatalkan (artinya sebagian unit invoice ini
+     * pasti sudah ikut terkirim).
+     *
      * @param  Collection<int, SalesInvoiceItem>  $assetLines
      */
     private function assertNoApprovedAssetDelivery(Model $salesInvoice, Collection $assetLines): void {
@@ -662,12 +669,48 @@ class SalesInvoiceService implements SubmitableService {
                 ->whereNull('return_against_id'))
             ->with('referenceable.salesOrder')
             ->get()
-            ->contains(fn (DeliveryNoteItem $item): bool => ! ($item->referenceable instanceof SalesOrderItem
-                && (bool) ($item->referenceable->salesOrder?->is_rent ?? false)));
+            ->reject(fn (DeliveryNoteItem $item): bool => $item->referenceable instanceof SalesOrderItem
+                && (bool) ($item->referenceable->salesOrder?->is_rent ?? false));
 
-        if ($delivered) {
-            throw ValidationException::withMessages(['asset' => __('finances/salesInvoice.validation.asset_already_delivered')]);
+        if ($delivered->isEmpty()) {
+            return;
         }
+
+        $assets = Asset::query()->whereIn('id', $assetIds)->get()->keyBy('id');
+
+        foreach ($assetLines->groupBy('asset_id') as $assetId => $lines) {
+            $items = $delivered->where('asset_id', $assetId);
+            if ($items->isEmpty()) {
+                continue;
+            }
+
+            if (! (bool) $assets->get($assetId)?->allow_bulk_quantity || $this->bulkDeliveryBelongsToInvoice($assets->get($assetId), $lines, $items)) {
+                throw ValidationException::withMessages(['asset' => __('finances/salesInvoice.validation.asset_already_delivered')]);
+            }
+        }
+    }
+
+    /**
+     * Apakah pengiriman aset bulk menyangkut baris invoice yang dibatalkan (lihat `assertNoApprovedAssetDelivery`).
+     *
+     * @param  Collection<int, SalesInvoiceItem>  $lines  baris invoice untuk aset ini
+     * @param  Collection<int, DeliveryNoteItem>  $items  baris Delivery Note terkirim untuk aset ini
+     */
+    private function bulkDeliveryBelongsToInvoice(Asset $asset, Collection $lines, Collection $items): bool {
+        $orderItemIds = $lines->pluck('sales_order_item_id')->filter()->all();
+
+        $linked = $items->contains(fn (DeliveryNoteItem $item): bool => $item->referenceable instanceof SalesOrderItem
+            && \in_array($item->referenceable_id, $orderItemIds, true));
+        if ($linked) {
+            return true;
+        }
+
+        $hasUnlinked = $items->contains(fn (DeliveryNoteItem $item): bool => ! ($item->referenceable instanceof SalesOrderItem));
+        if (! $hasUnlinked) {
+            return false;
+        }
+
+        return (float) $items->sum('quantity') > (float) $asset->asset_quantity - (float) $lines->sum('quantity') + 0.000001;
     }
 
     /**
@@ -714,7 +757,7 @@ class SalesInvoiceService implements SubmitableService {
         return SalesInvoiceItem::query()
             ->where('sales_invoice_id', $salesInvoice->getKey())
             ->whereNotNull('asset_id')
-            ->get(['id', 'asset_id']);
+            ->get(['id', 'asset_id', 'quantity', 'sales_order_item_id']);
     }
 
     /**
