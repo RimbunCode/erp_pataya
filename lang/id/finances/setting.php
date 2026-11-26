@@ -14,6 +14,6 @@ return [
         'title'                                => 'Posting',
         'discount_split_from_sales_invoice'    => 'Diskon Terpisah Sales Invoice Mulai',
         'discount_split_from_purchase_invoice' => 'Diskon Terpisah Purchase Invoice Mulai',
-        'discount_split_help'                  => 'Mulai tanggal ini jurnal invoice memisahkan diskon ke akun Diskon (peran discount). Kosongkan untuk menonaktifkan. Dokumen sebelum tanggal ini tidak berubah. Peran discount harus sudah dipetakan pada Posting Profile aktif.',
+        'discount_split_help'                  => 'Mulai tanggal ini jurnal invoice memisahkan diskon ke akun Diskon (peran discount). Kosongkan untuk menonaktifkan. Jurnal bertanggal sebelum tanggal ini tidak berubah. Peran discount harus sudah dipetakan pada Posting Profile aktif (Purchase Invoice: lewat aturan akun untuk jenis dokumen Purchase Invoice).',
     ],
 ];

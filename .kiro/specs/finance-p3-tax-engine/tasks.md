@@ -4,7 +4,7 @@
 
 Bagian A (Task 1–8) tidak mengubah angka di dokumen; Bagian B (Task 9) adalah konversi kolom yang **GATED D-15**. Urutan: audit data pajak (1), skema + model (2), backfill versi 1 (3), resolver + engine dengan test (4), snapshot di service dokumen (5), pemisahan baris pajak di rule posting + cutover (6), Faktur Pajak + UI (7–8), konversi kolom (9), checkpoint (10). Lint/Pint sekali di akhir.
 
-**Prasyarat**: Fase 2 selesai untuk Sales Invoice dan Purchase Invoice (mode `on` stabil); D-12 (kebijakan posting pajak) disetujui akuntan sebelum Task 6; Q-P3-1…4 terjawab. Branch baru dari `origin/feat/finance-engine` terbaru (BR-6, PRD Bagian 10).
+**Prasyarat**: Fase 2 selesai untuk Sales Invoice dan Purchase Invoice (mode `on` stabil); D-12 (kebijakan posting pajak) disetujui pemilik produk 22 November 2026 sebagai usulan PRD (implementasi di Task 6); Q-P3-1…4 terjawab. Branch baru dari `origin/feat/finance-engine` terbaru (BR-6, PRD Bagian 10).
 
 **Aturan eksekusi**:
 - Task 9 **GATED**: D-15 disetujui 2026-11-15 (pemilik produk); tetap hanya dengan hasil audit pemakai kolom dan jendela pemeliharaan.
@@ -72,7 +72,7 @@ Bagian A (Task 1–8) tidak mengubah angka di dokumen; Bagian B (Task 9) adalah 
     - **P-2** angka dokumen tidak berubah (golden); invoice legacy tanpa snapshot tetap valid; versi tak ada → `NoEffectiveTaxRuleException`; `tax_breakdown` tak berubah setelah approved
     - **Validates: Requirements 5.1–5.6**
 
-- [ ] 6. Pemisahan baris pajak di jurnal (butuh D-12, Q-P3-2…4)
+- [ ] 6. Pemisahan baris pajak di jurnal (D-12 disetujui 22 November 2026; butuh Q-P3-2…4)
   - [ ] 6.1 Perluas `PostingContext` dengan `taxComponents` (kompatibel mundur) dan `RoleLine` dengan `taxRuleVersionId`; teruskan ke `general_ledgers.tax_rule_version_id`
     - _Requirements: 5.4, 7.4_
   - [ ] 6.2 Pabrik konteks invoice: kelompokkan komponen dari item tersimpan; hitung `classified`, `isCreditable`; set `flags['tax_split']` berdasarkan `finance_tax_split_from.*`

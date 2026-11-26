@@ -20,7 +20,7 @@ use Illuminate\Support\Facades\Log;
  * Posting diskon terpisah (Requirement 14, Task 13.1): konteks membawa jumlah bernama `gross_amount` dan
  * `discount_amount` (tingkat dokumen = Σ baris, bukan `sales_invoices.discount_amount` header, karena pada basis
  * `grand_total` header memuat porsi pajak sedangkan diskon baris adalah pengurang DPP) serta flag `discount_split`
- * dari `DiscountSplitResolver` (tanggal konteks terhadap setting cutover). Bila daftar baris dikosongkan builder
+ * dari `DiscountSplitResolver` (tanggal jurnal terhadap setting cutover; retur mengikuti invoice asal, keputusan 22 November 2026). Bila daftar baris dikosongkan builder
  * (total baris tak konsisten dengan `total`), flag dipaksa false dan dicatat: jurnal tetap bersih (konservatif).
  */
 final class SalesInvoicePostingContextFactory {
@@ -48,7 +48,7 @@ final class SalesInvoicePostingContextFactory {
             transactionDate: $transactionDate,
             branchId: null,
             amounts: ['total' => $totalAmount, ...$this->lines->discountTotals($lines)],
-            flags: ['is_return' => $isReturn, 'discount_split' => $this->discountSplitActive($lines, $transactionDate, (string) $salesInvoice->getKey())],
+            flags: ['is_return' => $isReturn, 'discount_split' => $this->discountSplitActive($lines, $transactionDate, $salesInvoice, $isReturn)],
             lines: $lines,
         );
     }
@@ -69,22 +69,24 @@ final class SalesInvoicePostingContextFactory {
         $total = (float) $items->sum(fn ($item): float => (float) $item->basic_amount - (float) $item->discount_amount + (float) $item->tax_amount);
         $lines = $this->lines->build($items, $total, PostingDocumentType::SalesInvoice->value, (string) $salesInvoice->getKey());
 
-        return $this->discountSplitActive($lines, $transactionDate, (string) $salesInvoice->getKey());
+        return $this->discountSplitActive($lines, $transactionDate, $salesInvoice, false);
     }
 
     /**
      * @param  list<LineAttributes>  $lines
      */
-    private function discountSplitActive(array $lines, CarbonInterface $transactionDate, string $sourceId): bool {
+    private function discountSplitActive(array $lines, CarbonInterface $transactionDate, SalesInvoice $salesInvoice, bool $isReturn): bool {
         $resolver = $this->discountSplit ?? app(DiscountSplitResolver::class);
-        if (! $resolver->isActive(PostingDocumentType::SalesInvoice, $transactionDate)) {
+        // Retur mengikuti bentuk invoice asal (keputusan pemilik produk 22 November 2026).
+        $originId = $isReturn ? $salesInvoice->return_against_id : null;
+        if (! $resolver->isActiveForDocument(PostingDocumentType::SalesInvoice, $transactionDate, $salesInvoice->getMorphClass(), $originId === null ? null : (string) $originId)) {
             return false;
         }
 
         if ($lines === []) {
             Log::warning('posting.discount_split_skipped_lines_mismatch', [
                 'document_type' => PostingDocumentType::SalesInvoice->value,
-                'source_id'     => $sourceId,
+                'source_id'     => (string) $salesInvoice->getKey(),
             ]);
 
             return false;
