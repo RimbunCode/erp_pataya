@@ -301,13 +301,25 @@ class PurchaseReceiptService implements SubmitableService {
                 $returnAgainstItem = $item->returnAgainstItem()->lockForUpdate()->first();
 
                 if ($poItem) {
-                    $totalRate = $poItem->rate * $quantity;
-
-                    for ($i = \count($queue) - 1; $i >= 0; $i--) {
-                        if ($queue[$i]['rate'] == $poItem->rate) {
-                            $queue[$i]['quantity'] -= $quantity;
+                    // Entri queue dicari lewat baris receipt asal (`receipt_item_id`) dan dinilai dari rate entri itu:
+                    // sejak diskon baris stok masuk nilai persediaan (22 November 2026, Req 14.3) rate entri yang
+                    // sudah ditagih berupa rate bersih, tidak lagi sama dengan `rate` PO Item. Sisa yang layer asalnya
+                    // sudah habis (mis. dikonsumsi FIFO oleh Delivery Note) diambil dari entri lain, terbaru lebih
+                    // dulu, berapa pun rate-nya dan dinilai pada rate entri itu, agar queue tetap berkurang sebesar
+                    // kuantitas retur. Entri valued (`is_valuated` true) diambil lebih dulu; entri pending (ALUR-1,
+                    // bernilai harga PO kotor dan belum pernah didebit ke GL stok) baru disentuh bila entri valued
+                    // tak mencukupi. Hanya bila queue tak cukup, sisanya dinilai pada rate PO Item tanpa
+                    // mengurangi queue (kuantitas stok yang tak punya layer).
+                    [$totalRate, $remainingReturn] = $this->takeFromQueue($queue, (float) $quantity, $item->return_against_item_id);
+                    foreach ([true, false] as $valuated) {
+                        if ($remainingReturn <= 0) {
                             break;
                         }
+                        [$fallbackRate, $remainingReturn] = $this->takeFromQueue($queue, $remainingReturn, null, $valuated);
+                        $totalRate += $fallbackRate;
+                    }
+                    if ($remainingReturn > 0) {
+                        $totalRate += $poItem->rate * $remainingReturn;
                     }
                 } else {
                     // Baris di luar PO: tarif dari entri queue milik baris receipt asal
@@ -404,7 +416,7 @@ class PurchaseReceiptService implements SubmitableService {
                     $toStock = $isStandalone
                         ? (float) ($invoiceItem->conversion_factor ?: 1) / (float) ($stock->conversion_factor ?: 1)
                         : 1.0;
-                    $rate         = $invoiceItem->rate / $toStock;
+                    $rate         = $invoiceItem->netRate() / $toStock;
                     $availableQty = ($invoiceItem->quantity - $invoiceItem->allocated_qty) * $toStock;
                     if ($availableQty <= 0) {
                         continue;
@@ -580,6 +592,37 @@ class PurchaseReceiptService implements SubmitableService {
         }
 
         return $purchaseReceipt;
+    }
+
+    /**
+     * Ambil `$quantity` dari `stock_queue` mulai entri terbaru (arah sama dengan pengambilan retur lainnya), mengurangi
+     * kuantitas entri dan menilai yang diambil pada rate entri itu. `$receiptItemId` non-null membatasi pada entri milik
+     * baris receipt tersebut; null = entri mana pun yang masih berkuantitas. `$valuated` non-null membatasi pada entri
+     * berstatus `is_valuated` yang sama (entri tanpa penanda dianggap valued, data lama); null = tanpa pembatasan.
+     *
+     * @param  list<array<string, mixed>>  $queue
+     * @return array{0: float, 1: float} [nilai yang diambil, sisa kuantitas yang tak ditemukan di queue]
+     */
+    private function takeFromQueue(array &$queue, float $quantity, ?string $receiptItemId = null, ?bool $valuated = null): array {
+        $value     = 0.0;
+        $remaining = $quantity;
+        for ($i = \count($queue) - 1; $i >= 0 && $remaining > 0; $i--) {
+            if ($receiptItemId !== null && ($queue[$i]['receipt_item_id'] ?? null) !== $receiptItemId) {
+                continue;
+            }
+            if ($valuated !== null && (bool) ($queue[$i]['is_valuated'] ?? true) !== $valuated) {
+                continue;
+            }
+            if ($queue[$i]['quantity'] <= 0) {
+                continue;
+            }
+            $take = min($queue[$i]['quantity'], $remaining);
+            $queue[$i]['quantity'] -= $take;
+            $value += $queue[$i]['rate'] * $take;
+            $remaining -= $take;
+        }
+
+        return [$value, $remaining];
     }
 
     /**

@@ -166,7 +166,7 @@ final class AccountRoleResolver {
         return implode('|', [
             $profile?->getKey() ?? 'legacy',
             $role,
-            $ctx->documentType->value,
+            $ctx->ruleTypeFor($role)->value,
             $ctx->variant(),
             $line?->itemType ?? '',
             $line === null || $line->isStockItem === null ? '' : ($line->isStockItem ? '1' : '0'),

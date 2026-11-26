@@ -20,7 +20,7 @@ use Illuminate\Support\Facades\Log;
  *
  * Posting diskon terpisah (Requirement 14.3, Task 13.1): `gross_amount` dan `discount_amount` tingkat dokumen hanya
  * menjumlah baris yang tegas non-stok (`is_stock_item === false`); baris stok dan baris tanpa atribut stok (null,
- * mis. baris aset) tetap bersih (bacaan konservatif, Q-P2-5). Flag `discount_split` dari `DiscountSplitResolver`;
+ * mis. baris aset) tetap bersih (`is_stock_item` null diperlakukan stok; keputusan pemilik produk 22 November 2026). Flag `discount_split` dari `DiscountSplitResolver` (retur mengikuti invoice asal);
  * dipaksa false (dan dicatat) bila daftar baris dikosongkan builder. `stock_total` tidak berubah.
  */
 final class PurchaseInvoicePostingContextFactory {
@@ -48,7 +48,7 @@ final class PurchaseInvoicePostingContextFactory {
             transactionDate: $transactionDate,
             branchId: null,
             amounts: ['total' => $totalAmount, 'stock_total' => $totalStockGl, ...$this->lines->discountTotals($lines, nonStockOnly: true)],
-            flags: ['is_return' => $isReturn, 'discount_split' => $this->discountSplitActive($lines, $transactionDate, (string) $purchaseInvoice->getKey())],
+            flags: ['is_return' => $isReturn, 'discount_split' => $this->discountSplitActive($lines, $transactionDate, $purchaseInvoice, $isReturn)],
             lines: $lines,
         );
     }
@@ -56,16 +56,18 @@ final class PurchaseInvoicePostingContextFactory {
     /**
      * @param  list<LineAttributes>  $lines
      */
-    private function discountSplitActive(array $lines, CarbonInterface $transactionDate, string $sourceId): bool {
+    private function discountSplitActive(array $lines, CarbonInterface $transactionDate, PurchaseInvoice $purchaseInvoice, bool $isReturn): bool {
         $resolver = $this->discountSplit ?? app(DiscountSplitResolver::class);
-        if (! $resolver->isActive(PostingDocumentType::PurchaseInvoice, $transactionDate)) {
+        // Retur mengikuti bentuk invoice asal (keputusan pemilik produk 22 November 2026).
+        $originId = $isReturn ? $purchaseInvoice->return_against_id : null;
+        if (! $resolver->isActiveForDocument(PostingDocumentType::PurchaseInvoice, $transactionDate, $purchaseInvoice->getMorphClass(), $originId === null ? null : (string) $originId)) {
             return false;
         }
 
         if ($lines === []) {
             Log::warning('posting.discount_split_skipped_lines_mismatch', [
                 'document_type' => PostingDocumentType::PurchaseInvoice->value,
-                'source_id'     => $sourceId,
+                'source_id'     => (string) $purchaseInvoice->getKey(),
             ]);
 
             return false;

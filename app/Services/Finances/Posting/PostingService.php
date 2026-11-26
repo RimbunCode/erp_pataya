@@ -196,10 +196,25 @@ final class PostingService {
                 description: $draft->description ?? $ctx->description,
                 sourceType: $ctx->sourceType,
                 sourceId: $ctx->sourceId,
+                discountSplit: $this->hasDiscountRole($draft),
             );
         }
 
         return [$drafts, new PostedAccountNotes($notes)];
+    }
+
+    /**
+     * Bentuk jurnal yang direkam ke `journals.discount_split` (Requirement 14.8): true bila drafnya memuat baris berperan
+     * `discount`, yaitu bentuk posting diskon terpisah. Dibaca retur invoice sebagai bentuk invoice ASAL.
+     */
+    private function hasDiscountRole(RoleJournalDraft $draft): bool {
+        foreach ($draft->lines as $line) {
+            if ($line->roleValue() === AccountRole::Discount->value) {
+                return true;
+            }
+        }
+
+        return false;
     }
 
     private function postingKey(PostingContext $ctx, RoleJournalDraft $draft): string {

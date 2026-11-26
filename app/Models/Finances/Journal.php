@@ -44,6 +44,7 @@ class Journal extends Model {
         'reversal_reason',
         'legacy_origin',
         'legacy_unbalanced',
+        'discount_split',
         'posted_at',
         'posted_by_id',
     ];
@@ -67,6 +68,7 @@ class Journal extends Model {
         'total_credit'      => 'decimal:4',
         'legacy_origin'     => 'boolean',
         'legacy_unbalanced' => 'boolean',
+        'discount_split'    => 'boolean',
     ];
 
     public static function getDefaultSortColumn(): string {
