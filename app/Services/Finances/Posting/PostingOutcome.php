@@ -24,13 +24,14 @@ final readonly class PostingOutcome {
     public function __construct(
         public string $status,
         public array $journals = [],
+        public PostedAccountNotes $accountNotes = new PostedAccountNotes,
     ) {}
 
     /**
      * @param  list<Journal>  $journals
      */
-    public static function posted(array $journals = []): self {
-        return new self(self::POSTED, $journals);
+    public static function posted(array $journals = [], ?PostedAccountNotes $accountNotes = null): self {
+        return new self(self::POSTED, $journals, $accountNotes ?? new PostedAccountNotes);
     }
 
     /**

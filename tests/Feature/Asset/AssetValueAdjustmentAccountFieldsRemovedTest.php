@@ -174,7 +174,7 @@ class AssetValueAdjustmentAccountFieldsRemovedTest extends TestCase {
 
         (new PostValueAdjustmentEntry)->handle(new AssetValueAdjustmentApproved($adjustment, CarbonImmutable::parse('2026-11-10 09:00:00')));
 
-        $this->assertNull($adjustment->fresh()->difference_account_id);
+        $this->assertSame($difference->id, $adjustment->fresh()->difference_account_id, 'Engine menulis balik akun asset_revaluation yang dipakai (Task 12.1).');
         $this->assertEquals(['value_adjustment' => ['date' => '2026-11-10', 'lines' => [['1500', 1000.0, 0.0], ['7200', 0.0, 1000.0]]]], $this->journalSignature($adjustment->fresh()));
         $this->assertEquals(6000.0, (float) $setup['asset']->fresh()->gross_purchase_amount);
         $this->assertSame(FormStatus::POSTED, GlPostingStatus::where('referenceable_id', $adjustment->id)->first()->status);

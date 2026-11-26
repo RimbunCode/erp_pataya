@@ -37,6 +37,9 @@ class StockEntryService implements SubmitableService {
     }
 
     private function fillItemRelations(array $data, StockEntry $stockEntry, array &$stockSourceCache = [], array $units = [], array $defaultUnits = []) {
+        // Akun baris tidak diterima dari input: dikosongkan pada create dan update draft sampai engine mencatatnya
+        // (Q-P2-24, Task 12.1).
+        $data['posted_account_id']   = null;
         $data['item_id']             = $data['item']['id'];
         $data['item_unit_id']        = $data['unit']['id'];
         $data['source_warehouse_id'] = $data['source_warehouse']['id'] ?? null;

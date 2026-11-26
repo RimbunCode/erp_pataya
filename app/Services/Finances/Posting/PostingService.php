@@ -37,6 +37,7 @@ final class PostingService {
         private readonly AccountRoleResolver $resolver,
         private readonly JournalService $journals,
         private readonly CanceledSourceGuard $guard,
+        private readonly ?PostedAccountRecorderRegistry $recorders = null,
     ) {}
 
     /**
@@ -45,7 +46,7 @@ final class PostingService {
     public function preview(PostingContext $ctx): array {
         $minorUnit = $this->journals->baseCurrency()[1];
 
-        return $this->resolveDrafts($ctx, $this->roleDrafts($ctx, $minorUnit), $minorUnit);
+        return $this->resolveDrafts($ctx, $this->roleDrafts($ctx, $minorUnit), $minorUnit)[0];
     }
 
     /**
@@ -87,8 +88,11 @@ final class PostingService {
                 return PostingOutcome::alreadyPosted($this->existingOrPartial($ctx, $keys, $existing));
             }
 
+            // Resolusi akun sekali per post; catatan akun dipakai recorder untuk menulis balik ke dokumen sumber.
+            [$drafts, $notes] = $this->resolveDrafts($ctx, $roleDrafts, $minorUnit);
+
             $journals = [];
-            foreach ($this->resolveDrafts($ctx, $roleDrafts, $minorUnit) as $draft) {
+            foreach ($drafts as $draft) {
                 try {
                     $journals[] = $this->journals->post($draft);
                 } catch (DuplicatePostingException) {
@@ -98,7 +102,10 @@ final class PostingService {
                 }
             }
 
-            return PostingOutcome::posted($journals);
+            // Di dalam transaksi yang sama dengan jurnal: kegagalan recorder menggulung semuanya (Requirement 13.2).
+            $this->recorders?->record($ctx, $notes);
+
+            return PostingOutcome::posted($journals, $notes);
         });
     }
 
@@ -174,18 +181,25 @@ final class PostingService {
 
     /**
      * @param  list<RoleJournalDraft>  $roleDrafts
-     * @return list<JournalDraft>
+     * @return array{0: list<JournalDraft>, 1: PostedAccountNotes} draf jurnal dan catatan akun hasil resolve
      */
     private function resolveDrafts(PostingContext $ctx, array $roleDrafts, int $minorUnit): array {
-        return array_map(fn (RoleJournalDraft $draft): JournalDraft => new JournalDraft(
-            transactionDate: $ctx->transactionDate,
-            lines: $this->resolveLines($ctx, $draft, $minorUnit),
-            postingKey: $this->postingKey($ctx, $draft),
-            branchId: $ctx->branchId,
-            description: $draft->description ?? $ctx->description,
-            sourceType: $ctx->sourceType,
-            sourceId: $ctx->sourceId,
-        ), $roleDrafts);
+        $drafts = [];
+        $notes  = [];
+
+        foreach ($roleDrafts as $draft) {
+            $drafts[] = new JournalDraft(
+                transactionDate: $ctx->transactionDate,
+                lines: $this->resolveLines($ctx, $draft, $minorUnit, $notes),
+                postingKey: $this->postingKey($ctx, $draft),
+                branchId: $ctx->branchId,
+                description: $draft->description ?? $ctx->description,
+                sourceType: $ctx->sourceType,
+                sourceId: $ctx->sourceId,
+            );
+        }
+
+        return [$drafts, new PostedAccountNotes($notes)];
     }
 
     private function postingKey(PostingContext $ctx, RoleJournalDraft $draft): string {
@@ -195,14 +209,16 @@ final class PostingService {
     /**
      * Resolve peran tiap baris, gabungkan baris beraccount dan sisi sama, bulatkan, serap sisa pembulatan.
      *
+     * @param  list<PostedAccountNote>  $notes  diisi per baris peran, sebelum penggabungan
      * @return list<JournalLineDraft>
      */
-    private function resolveLines(PostingContext $ctx, RoleJournalDraft $draft, int $minorUnit): array {
+    private function resolveLines(PostingContext $ctx, RoleJournalDraft $draft, int $minorUnit, array &$notes): array {
         /** @var array<string, array{account: string, side: string, amount: float, description: ?string, roles: list<string>}> $groups */
         $groups = [];
 
         foreach ($draft->lines as $line) {
             $account = $this->resolver->resolve($line->role, $ctx, $line->line);
+            $notes[] = new PostedAccountNote($draft->purpose, $line->roleValue(), (string) $account->getKey(), $line->line?->lineId);
             $key     = $line->side . '|' . $account->getKey();
 
             $groups[$key] ??= ['account' => (string) $account->getKey(), 'side' => $line->side, 'amount' => 0.0, 'description' => $line->description, 'roles' => []];
