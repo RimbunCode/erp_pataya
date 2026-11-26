@@ -3,6 +3,7 @@ import { calculateArray, inArray, isValidStatus } from "@/lib/utils";
 import { Button } from "@/Components/ui/button";
 import Form from "./Form";
 import { FormPage } from "@/Pages/Core/FormPage";
+import PostedAccountsPanel from "@/Pages/Finances/Components/PostedAccountsPanel";
 import RelationPanels from "@/Pages/Core/Components/RelationPanels";
 import Link from "@/Components/Link";
 import { useLaravelReactI18n } from "laravel-react-i18n";
@@ -65,6 +66,7 @@ export default function Show({ deliveryNote, defaultData, flash }) {
       }}
     >
       <Form />
+      <PostedAccountsPanel isNew={!deliveryNote} />
       {deliveryNote?.submitted_at && <RelationPanels />}
     </FormPage>
   );

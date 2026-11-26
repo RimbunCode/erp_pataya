@@ -50,6 +50,17 @@ final class PostingService {
     }
 
     /**
+     * Akun yang akan dipakai `post()` untuk konteks ini, per baris peran, tanpa menulis apa pun (Requirement 13.4).
+     * Memakai resolusi yang sama dengan `preview()` dan `post()`; dipakai panel "Akun pencatatan" yang butuh peran dan
+     * baris dokumen sumber, yang tidak ada pada draf jurnal.
+     */
+    public function previewAccounts(PostingContext $ctx): PostedAccountNotes {
+        $minorUnit = $this->journals->baseCurrency()[1];
+
+        return $this->resolveDrafts($ctx, $this->roleDrafts($ctx, $minorUnit), $minorUnit)[1];
+    }
+
+    /**
      * `purpose` yang dimiliki konteks ini menurut rule, sebelum jurnal nol-setelah-pembulatan dibuang. Dipakai
      * `ParityComparator` agar hanya jurnal milik konteks yang dibandingkan (mis. satu aset dijual lewat dua baris
      * invoice, masing-masing `disposal:{id}`).

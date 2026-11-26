@@ -1,5 +1,6 @@
 import Form from "./Form";
 import { FormPage } from "@/Pages/Core/FormPage";
+import PostedAccountsPanel from "@/Pages/Finances/Components/PostedAccountsPanel";
 import { useLaravelReactI18n } from "laravel-react-i18n";
 
 export default function Show({ stockEntry, flash, defaultData }) {
@@ -30,6 +31,7 @@ export default function Show({ stockEntry, flash, defaultData }) {
       }
     >
       <Form />
+      <PostedAccountsPanel isNew={!stockEntry} />
     </FormPage>
   );
 }
