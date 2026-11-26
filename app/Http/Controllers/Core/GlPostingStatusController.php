@@ -19,6 +19,7 @@ use App\Models\Inventory\DeliveryNote;
 use App\Models\Purchase\PurchaseReceipt;
 use App\Services\Inventory\Accounting\DeliveryNoteLineAmounts;
 use Illuminate\Http\Request;
+use Illuminate\Validation\ValidationException;
 use Inertia\Inertia;
 
 class GlPostingStatusController extends Controller {
@@ -44,13 +45,26 @@ class GlPostingStatusController extends Controller {
     public function retry(GlPostingStatus $glPostingStatus) {
         abort_unless($glPostingStatus->status === FormStatus::FAILED, 422);
 
+        $event = $this->resolveRetryEvent($glPostingStatus);
+
+        // Purchase Receipt non-retur dengan baris tetapi total 0: jangan ditandai posted tanpa jurnal, biarkan tetap
+        // failed. Retur bernilai 0 tetap boleh di-retry, sama seperti approve yang juga mem-posting retur bernilai 0.
+        if ($event instanceof PurchaseReceiptGeneralLedgerPostingRequested
+            && ! $event->isReturn
+            && $event->totalRatesForGL <= 0
+            && $event->purchaseReceipt->items->isNotEmpty()) {
+            throw ValidationException::withMessages([
+                'retry' => __('core/glPostingStatus.zero_total_retry'),
+            ]);
+        }
+
         $glPostingStatus->update([
             'status'      => FormStatus::PENDING,
             'retry_count' => 0,
             'last_error'  => null,
         ]);
 
-        event($this->resolveRetryEvent($glPostingStatus));
+        event($event);
 
         return back();
     }
@@ -117,6 +131,19 @@ class GlPostingStatusController extends Controller {
      * @return array<string, float>
      */
     private function recalcPurchaseReceiptLineAmounts(PurchaseReceipt $pr): array {
+        // Nilai yang dicatat saat approve dipakai apa adanya, sehingga retry sama persis dengan posting asli
+        // (retur di luar PO dan ALUR-2 dengan rate invoice tidak bisa dihitung ulang dari rate PO Item).
+        $stored = [];
+        foreach ($pr->items as $item) {
+            if ($item->gl_value !== null) {
+                $stored[(string) $item->getKey()] = (float) $item->gl_value;
+            }
+        }
+        if ($stored !== []) {
+            return $stored;
+        }
+
+        // Dokumen yang diposting sebelum nilai per baris dicatat: hitung dari rate PO Item seperti semula.
         $amounts = [];
         foreach ($pr->items as $item) {
             $poItem = $item->purchaseOrderItem;

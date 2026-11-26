@@ -35,6 +35,7 @@ class PurchaseReceiptItem extends Model {
         'returned_quantity'   => 'float',
         'billed_quantity'     => 'float',
         'unreturned_quantity' => 'float',
+        'gl_value'            => 'float',
     ];
     protected array $configColumns = [
         'item' => [
@@ -100,6 +101,10 @@ class PurchaseReceiptItem extends Model {
             'ignore' => true,
         ],
         'postedAccount' => [
+            'ignore' => true,
+        ],
+        // Nilai GL per baris yang dicatat saat approve, dipakai retry posting: bukan kolom tabel data.
+        'gl_value' => [
             'ignore' => true,
         ],
     ];

@@ -49,6 +49,8 @@ class PurchaseReceiptService implements SubmitableService {
         // Akun baris tidak diterima dari input: dikosongkan pada create dan update draft sampai engine mencatatnya
         // (Q-P2-24, Task 12.1).
         $data['posted_account_id'] = null;
+        // Nilai GL per baris juga hanya dicatat service saat approve, tidak pernah dari input klien.
+        $data['gl_value'] = null;
 
         // Baris di luar PO (spec purchase-receipt-off-po-items): item_id dari input
         // `item.id`; kolom substitusi hanya berlaku di baris tanpa PO Item.
@@ -543,6 +545,12 @@ class PurchaseReceiptService implements SubmitableService {
         // === UPDATE STATUS PO ===
         event(new PurchaseOrderReceiveStatusRecalculationRequested($purchaseOrder));
         event(new PurchaseRequestReceiveStatusRecalculationRequested($purchaseOrder));
+
+        // Simpan nilai GL per baris agar retry posting menghasilkan nilai yang identik dengan posting ini
+        // (satu transaksi dengan approve). Query builder: tidak memicu event model.
+        foreach ($lineAmountsForGL as $lineId => $lineAmount) {
+            PurchaseReceiptItem::whereKey($lineId)->update(['gl_value' => $lineAmount]);
+        }
 
         // === GL Stock/SRNB: dipindah ke queued Job ===
         if ($returnAgainst || $totalRatesForGL > 0) {

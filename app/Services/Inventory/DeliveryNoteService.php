@@ -245,7 +245,15 @@ class DeliveryNoteService implements SubmitableService {
             ->get()
             ->keyBy(fn ($stock) => "{$stock->item_variant_id}-{$stock->warehouse_id}");
 
-        $errorItems  = [];
+        // Validasi stok seluruh baris DULU, sebelum ada mutasi apa pun (delivered_quantity, stok, SLE, status GL, event),
+        // supaya penolakan tidak meninggalkan efek samping. Semua baris yang gagal dilaporkan sekaligus.
+        $stockErrors = $this->collectStockErrors($items, $stocks, (bool) $returnAgainst);
+        if ($stockErrors !== []) {
+            DB::rollBack();
+
+            throw ValidationException::withMessages(['items' => $stockErrors]);
+        }
+
         $totalPicked = 0;
         foreach ($items as $item) {
             // Baris bebas (spec delivery-note-sales-invoice-off-source-items): tanpa
@@ -304,22 +312,10 @@ class DeliveryNoteService implements SubmitableService {
             // update stock
             $stockKey = "{$item->item_id}-{$item->source_warehouse_id}";
             /** @var Stock|null $stock */
-            $stock     = $stocks->get($stockKey);
-            $itemLabel = "{$item->item->code} - {$item->item->item_name}";
+            $stock = $stocks->get($stockKey);
 
-            if (! $stock) {
-                $errorItems[] = "Item {$itemLabel} is not in {$item->sourceWarehouse->name} stock";
-
-                continue;
-            }
-            $quantity = $item->quantity * $item->conversion_factor / $stock->conversion_factor;
-            if ($stock->actual_quantity < $quantity) {
-                $stockUnitName = $stock->unit?->name;
-                $orderUnitName = $item->unit?->name;
-                $errorItems[]  = "Item {$itemLabel} in {$item->sourceWarehouse->name} stock is {$stock->actual_quantity} {$stockUnitName} but you need {$quantity} {$stockUnitName} ({$item->quantity} {$orderUnitName})";
-
-                continue;
-            }
+            // Keberadaan baris stok dan kecukupan jumlah sudah dijamin collectStockErrors() di atas.
+            $quantity        = $item->quantity * $item->conversion_factor / $stock->conversion_factor;
             $rentedQuantity  = $stock->rented_quantity ?? 0;
             $quantityRequest = $quantity;
 
@@ -467,6 +463,56 @@ class DeliveryNoteService implements SubmitableService {
         DB::commit();
 
         return $deliveryNote;
+    }
+
+    /**
+     * Kumpulkan pesan error stok untuk semua baris stok. Baris asset, jasa AssetService, dan non-stok dilewati
+     * (sama seperti loop mutasi). Pengiriman maju: stok harus ada dan cukup (akumulatif untuk baris yang berbagi stok
+     * yang sama). Retur menambah stok, jadi hanya keberadaan baris stok yang diperiksa, bukan jumlahnya.
+     *
+     * @param  Collection<int, DeliveryNoteItem>  $items
+     * @param  Collection<string, Stock>  $stocks
+     * @return list<string>
+     */
+    private function collectStockErrors(Collection $items, Collection $stocks, bool $isReturn): array {
+        $errors   = [];
+        $required = [];
+
+        foreach ($items as $item) {
+            if ($item->asset_id) {
+                continue;
+            }
+            if (($item->referenceable instanceof SalesOrderItem || $item->referenceable instanceof InternalOrderItem)
+                && $item->referenceable->referenceable_type === AssetService::class) {
+                continue;
+            }
+            if (! $item->item->is_stock_item) {
+                continue;
+            }
+
+            $stockKey  = "{$item->item_id}-{$item->source_warehouse_id}";
+            $stock     = $stocks->get($stockKey);
+            $itemLabel = "{$item->item->code} - {$item->item->item_name}";
+
+            if (! $stock) {
+                $errors[] = "Item {$itemLabel} is not in {$item->sourceWarehouse?->name} stock";
+
+                continue;
+            }
+            if ($isReturn) {
+                continue;
+            }
+
+            $quantity            = $item->quantity * $item->conversion_factor / $stock->conversion_factor;
+            $required[$stockKey] = ($required[$stockKey] ?? 0) + $quantity;
+            if ($stock->actual_quantity < $required[$stockKey]) {
+                $stockUnitName = $stock->unit?->name;
+                $orderUnitName = $item->unit?->name;
+                $errors[]      = "Item {$itemLabel} in {$item->sourceWarehouse?->name} stock is {$stock->actual_quantity} {$stockUnitName} but you need {$required[$stockKey]} {$stockUnitName} ({$item->quantity} {$orderUnitName})";
+            }
+        }
+
+        return $errors;
     }
 
     /** Cek ulang di bawah lock: Asset bebas harus masih `active` saat approve (bisa berubah sejak validasi). */
