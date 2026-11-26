@@ -27,7 +27,7 @@ class DeliveryNoteRulePerLineTest extends TestCase {
             CarbonImmutable::parse('2026-11-26'),
             null,
             ['total_picked' => $total],
-            ['is_return'    => $isReturn],
+            ['is_return' => $isReturn],
             [],
             $lines,
         ));
