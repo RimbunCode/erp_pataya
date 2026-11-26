@@ -439,6 +439,27 @@ final class PostingProfileService {
     }
 
     /**
+     * Kunci identitas kondisi aturan (Requirement 12.2): peran + kondisi non-akun, setelah normalisasi (kosong =
+     * null, `is_stock_item` menjadi boolean). Dua aturan berkunci sama pada satu profil ditolak; `priority` dan akun
+     * tidak ikut. Satu-satunya definisi "duplikat", dipakai juga validasi request agar pesan baris dan penjaga
+     * service tidak berselisih.
+     *
+     * @param  array<string, mixed>  $attributes
+     */
+    public function conditionKey(array $attributes): string {
+        $rule = $this->normalizeRule($attributes);
+
+        return json_encode([
+            $rule['role'],
+            $rule['document_type'],
+            $rule['variant'],
+            $rule['item_type'],
+            $rule['is_stock_item'],
+            $rule['item_category_id'],
+        ], JSON_THROW_ON_ERROR);
+    }
+
+    /**
      * @param  array<string, mixed>  $attributes
      * @return array{role: string, account_id: string, document_type: ?string, variant: ?string, item_type: ?string, is_stock_item: ?bool, item_category_id: ?string, priority: int}
      */
@@ -507,15 +528,12 @@ final class PostingProfileService {
 
         $this->assertAccountUsable($rule['account_id'], $rule['role'], rule: true);
 
+        $key       = $this->conditionKey($rule);
         $duplicate = PostingProfileRule::query()
             ->where('posting_profile_id', $profile->getKey())
             ->where('role', $rule['role'])
             ->get()
-            ->contains(fn (PostingProfileRule $existing): bool => $existing->document_type === $rule['document_type']
-                && $existing->variant === $rule['variant']
-                && $existing->item_type === $rule['item_type']
-                && $existing->is_stock_item === $rule['is_stock_item']
-                && $existing->item_category_id === $rule['item_category_id']);
+            ->contains(fn (PostingProfileRule $existing): bool => $this->conditionKey($existing->only(['role', 'document_type', 'variant', 'item_type', 'is_stock_item', 'item_category_id'])) === $key);
         if ($duplicate) {
             throw InvalidPostingRuleException::duplicate($rule['role']);
         }

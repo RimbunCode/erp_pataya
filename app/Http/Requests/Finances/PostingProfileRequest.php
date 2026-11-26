@@ -3,20 +3,31 @@
 namespace App\Http\Requests\Finances;
 
 use App\Enums\AccountRole;
+use App\Enums\PostingDocumentType;
 use App\Http\Requests\Finances\Concerns\RejectsUnknownInput;
+use App\Services\Finances\Posting\PostingProfileService;
 use Illuminate\Contracts\Validation\ValidationRule;
 use Illuminate\Foundation\Http\FormRequest;
+use Illuminate\Support\Arr;
+use Illuminate\Validation\Rule;
 use Illuminate\Validation\Validator;
 
 /**
  * Masukan simpan/ubah Posting Profile `draft` (Finance Fase 2, Requirement 8.1): nama, rentang berlaku, catatan, dan
- * peta peran => akun default. Peran dibatasi pada katalog `AccountRole`; kelayakan akun (non-group, aktif) dan
- * tumpang-tindih diputuskan `PostingProfileService`. Status, versi, dan rantai versi tidak dapat diisi dari request.
+ * peta peran => akun default, dan aturan akun bersyarat (Requirement 12, Task 12.2). Peran dibatasi pada katalog
+ * `AccountRole`; kelayakan akun (non-group, aktif) dan tumpang-tindih diputuskan `PostingProfileService`. Status,
+ * versi, dan rantai versi tidak dapat diisi dari request.
+ *
+ * Aturan dikirim sebagai daftar penuh (menggantikan seluruh aturan draft); tanpa kunci `rules` aturan tidak diubah.
+ * Kondisi barang pada peran non peka-barang dan kombinasi kondisi kembar ditolak di sini per baris agar pesan
+ * menempel pada barisnya; definisi "kembar" milik `PostingProfileService::conditionKey()` (Requirement 12.2, 12.5).
  */
 class PostingProfileRequest extends FormRequest {
     use RejectsUnknownInput {
         withValidator as private rejectUnknownInput;
     }
+
+    private const RULE_KEYS = ['role', 'document_type', 'variant', 'item_type', 'is_stock_item', 'item_category_id', 'account_id', 'priority'];
 
     public function authorize(): bool {
         return true;
@@ -27,12 +38,31 @@ class PostingProfileRequest extends FormRequest {
      */
     public function rules(): array {
         return [
-            'name'           => ['required', 'string', 'max:255'],
-            'effective_from' => ['required', 'date_format:Y-m-d'],
-            'effective_to'   => ['nullable', 'date_format:Y-m-d', 'after_or_equal:effective_from'],
-            'notes'          => ['nullable', 'string', 'max:2000'],
-            'accounts'       => ['nullable', 'array'],
-            'accounts.*'     => ['nullable', 'string', 'max:64'],
+            'name'                     => ['required', 'string', 'max:255'],
+            'effective_from'           => ['required', 'date_format:Y-m-d'],
+            'effective_to'             => ['nullable', 'date_format:Y-m-d', 'after_or_equal:effective_from'],
+            'notes'                    => ['nullable', 'string', 'max:2000'],
+            'accounts'                 => ['nullable', 'array'],
+            'accounts.*'               => ['nullable', 'string', 'max:64'],
+            'rules'                    => ['nullable', 'array'],
+            'rules.*'                  => ['array'],
+            'rules.*.role'             => ['required', 'string', Rule::in(AccountRole::values())],
+            'rules.*.account_id'       => ['required', 'string', 'max:64'],
+            'rules.*.document_type'    => ['nullable', 'string', Rule::in(PostingDocumentType::values())],
+            'rules.*.variant'          => ['nullable', 'string', Rule::in(['normal', 'return'])],
+            'rules.*.item_type'        => ['nullable', 'string', Rule::in(PostingProfileService::ITEM_TYPES)],
+            'rules.*.is_stock_item'    => ['nullable', 'boolean'],
+            'rules.*.item_category_id' => ['nullable', 'string', 'max:64', Rule::exists('categories', 'id')->whereNull('deleted_at')],
+            'rules.*.priority'         => ['nullable', 'integer', 'min:0', 'max:4294967295'],
+        ];
+    }
+
+    /**
+     * @return array<string, string>
+     */
+    public function messages(): array {
+        return [
+            'rules.*.item_category_id.exists' => __('finances/postingProfile.errors.rule_unknown_category'),
         ];
     }
 
@@ -45,7 +75,49 @@ class PostingProfileRequest extends FormRequest {
                     $validator->errors()->add("accounts.{$role}", __('finances/postingProfile.errors.unknown_role', ['role' => $role]));
                 }
             }
+
+            $this->validateRuleRows($validator);
         });
+    }
+
+    private function validateRuleRows(Validator $validator): void {
+        $rows = $this->input('rules');
+        if (! \is_array($rows)) {
+            return;
+        }
+
+        $service = app(PostingProfileService::class);
+        $seen    = [];
+        foreach ($rows as $index => $row) {
+            if (! \is_array($row)) {
+                continue;
+            }
+
+            foreach (array_diff(array_keys($row), self::RULE_KEYS) as $unknown) {
+                $validator->errors()->add("rules.{$index}.{$unknown}", __('finances/postingProfile.errors.unknown_input', ['field' => $unknown]));
+            }
+
+            // Baris yang gagal aturan dasar (peran tak dikenal, tipe salah) tidak dinilai lebih lanjut.
+            if ($validator->errors()->hasAny(["rules.{$index}.role", "rules.{$index}.document_type", "rules.{$index}.variant", "rules.{$index}.item_type", "rules.{$index}.is_stock_item"])) {
+                continue;
+            }
+
+            $role             = (string) ($row['role'] ?? '');
+            $hasItemCondition = ($row['item_type'] ?? null) !== null && $row['item_type'] !== ''
+                || ($row['is_stock_item'] ?? null) !== null && $row['is_stock_item'] !== ''
+                || ($row['item_category_id'] ?? null) !== null && $row['item_category_id'] !== '';
+            if ($hasItemCondition && ! AccountRole::isLineSensitiveRole($role)) {
+                $validator->errors()->add("rules.{$index}.role", __('finances/postingProfile.errors.rule_item_condition_role', ['role' => $role]));
+
+                continue;
+            }
+
+            $key = $service->conditionKey($row);
+            if (isset($seen[$key])) {
+                $validator->errors()->add("rules.{$index}.role", __('finances/postingProfile.errors.rule_duplicate', ['role' => $role]));
+            }
+            $seen[$key] = true;
+        }
     }
 
     /**
@@ -58,5 +130,15 @@ class PostingProfileRequest extends FormRequest {
             array_map('strval', (array) $this->validated('accounts', [])),
             static fn (string $accountId): bool => $accountId !== '',
         );
+    }
+
+    /**
+     * Aturan akun bersyarat tervalidasi dalam bentuk yang diterima `PostingProfileService` (daftar kosong bila tidak
+     * dikirim).
+     *
+     * @return list<array<string, mixed>>
+     */
+    public function ruleRows(): array {
+        return array_values(array_map(static fn (array $row): array => Arr::only($row, self::RULE_KEYS), (array) $this->validated('rules', [])));
     }
 }

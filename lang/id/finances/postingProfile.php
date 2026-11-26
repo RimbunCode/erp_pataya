@@ -82,7 +82,7 @@ return [
         'role_master_hint'         => 'Biasanya disuplai akun master; akun di sini hanya cadangan.',
         'role_line_sensitive_hint' => 'Dievaluasi per baris barang; dapat dikecualikan oleh aturan bersyarat.',
         'account_placeholder'      => 'Pilih akun',
-        'rules_read_only'          => 'Aturan ditampilkan baca-saja. Salin versi untuk membawa aturan ke versi baru.',
+        'rules_read_only'          => 'Aturan tidak dapat diubah pada profil ini. Buat versi baru (salin) untuk merevisi aturan.',
         'rules_empty'              => 'Belum ada aturan akun bersyarat.',
         'any'                      => 'Semua',
         'yes'                      => 'Ya',
@@ -93,6 +93,26 @@ return [
         'create'                   => 'Buat Draft',
         'back'                     => 'Kembali ke Daftar',
         'unmapped_cell'            => 'Belum dipetakan',
+    ],
+
+    'rules_editor' => [
+        'description'             => 'Akun dipilih otomatis menurut jenis dokumen, varian, dan barang. Kondisi kosong ("Semua") berarti tidak dibatasi; aturan paling spesifik menang, lalu prioritas lebih tinggi. Daftar ini menggantikan seluruh aturan draft saat disimpan.',
+        'add'                     => 'Tambah Aturan',
+        'remove'                  => 'Hapus aturan',
+        'role_placeholder'        => 'Pilih peran',
+        'category_placeholder'    => 'Semua kategori',
+        'not_line_sensitive_hint' => 'Peran tingkat dokumen: kondisi barang tidak berlaku.',
+        'discount_hint'           => 'Peran diskon dipakai Sales Invoice dan Purchase Invoice. Buat aturan terpisah per jenis dokumen; aturan khusus varian Retur saja tidak memenuhi syarat pemetaan diskon.',
+        'custom_title'            => 'Aturan Peran Kustom',
+        'custom_description'      => 'Aturan berperan kustom (di luar katalog peran) tidak dapat diedit di sini dan dipertahankan saat disimpan.',
+        'errors'                  => [
+            'role_required'       => 'Pilih peran.',
+            'account_required'    => 'Pilih akun.',
+            'priority_invalid'    => 'Prioritas harus bilangan bulat 0 atau lebih.',
+            'priority_too_large'  => 'Prioritas terlalu besar.',
+            'item_condition_role' => 'Kondisi barang hanya boleh untuk peran peka-barang; kosongkan kondisi barang atau ganti peran.',
+            'duplicate'           => 'Kombinasi peran dan kondisi yang sama sudah ada pada aturan lain.',
+        ],
     ],
 
     'actions' => [

@@ -20,6 +20,8 @@ import { Label } from "@/Components/ui/label";
 import { Textarea } from "@/Components/ui/textarea";
 import Link from "@/Components/Link";
 import AccountLinkModel from "@/Pages/Finances/Accounts/AccountLinkModel";
+import RulesEditor from "./RulesEditor";
+import { rowFromRule, toPayload, validateRows } from "./ruleEditor";
 
 // Akun grup dan akun nonaktif tidak dapat dipakai sebagai akun default (Requirement 2.3, 8.1); AccountLinkModel
 // sudah menyaring akun nonaktif.
@@ -175,13 +177,21 @@ function NewVersionDialog({ open, profileId, defaultFrom, onClose }) {
 }
 
 /**
- * Aturan akun bersyarat, baca-saja (editor adalah Task 12.2).
+ * Aturan akun bersyarat, baca-saja: seluruh aturan pada profil aktif/pensiun, dan aturan berperan kustom di luar
+ * katalog peran pada draft (tidak dapat diedit dari form, dipertahankan saat simpan).
  * @param {object} props
  * @param {object[]} props.rules
  * @param {{value: string, label: string}[]} props.roles
+ * @param {string} [props.description] kunci terjemahan keterangan
+ * @param {string} [props.title] kunci terjemahan judul
  * @returns {import("react").JSX.Element}
  */
-function RulesTable({ rules, roles }) {
+function RulesTable({
+  rules,
+  roles,
+  description = "finances.postingProfile.form.rules_read_only",
+  title = "finances.postingProfile.rules",
+}) {
   const { t } = useLaravelReactI18n();
   const any = t("finances.postingProfile.form.any");
   const roleLabel = (value) =>
@@ -193,12 +203,8 @@ function RulesTable({ rules, roles }) {
 
   return (
     <section className="grid gap-2" data-testid="rules-section">
-      <h2 className="text-base font-semibold">
-        {t("finances.postingProfile.rules")}
-      </h2>
-      <p className="text-sm text-muted-foreground">
-        {t("finances.postingProfile.form.rules_read_only")}
-      </p>
+      <h2 className="text-base font-semibold">{t(title)}</h2>
+      <p className="text-sm text-muted-foreground">{t(description)}</p>
       {rules.length === 0 ? (
         <p className="text-sm text-muted-foreground">
           {t("finances.postingProfile.form.rules_empty")}
@@ -242,9 +248,13 @@ function RulesTable({ rules, roles }) {
                         )
                       : any}
                   </td>
-                  <td className="px-3 py-2">{rule.item_type ?? any}</td>
+                  <td className="px-3 py-2">
+                    {rule.item_type
+                      ? t(`inventory.category.types.${rule.item_type}`)
+                      : any}
+                  </td>
                   <td className="px-3 py-2">{yesNo(rule.is_stock_item)}</td>
-                  <td className="px-3 py-2">{rule.category ?? any}</td>
+                  <td className="px-3 py-2">{rule.category?.name ?? any}</td>
                   <td className="px-3 py-2">{accountLabel(rule.account)}</td>
                   <td className="px-3 py-2">{rule.priority}</td>
                 </tr>
@@ -265,6 +275,8 @@ function RulesTable({ rules, roles }) {
  * @param {object} props
  * @param {object|null} [props.profile] null untuk profil baru
  * @param {{value: string, label: string, line_sensitive: boolean, master: boolean}[]} [props.roles]
+ * @param {string[]} [props.documentTypes]
+ * @param {string[]} [props.itemTypes]
  * @param {{document_type: string, roles: string[]}[]} [props.unmapped]
  * @param {boolean} [props.canWrite]
  * @param {boolean} [props.canActivate]
@@ -274,6 +286,8 @@ function RulesTable({ rules, roles }) {
 function FormContent({
   profile = null,
   roles = [],
+  documentTypes = [],
+  itemTypes = [],
   unmapped = [],
   canWrite = false,
   canActivate = false,
@@ -292,6 +306,15 @@ function FormContent({
   const [selected, setSelected] = useState(() => profile?.accounts ?? {});
   const [confirmAction, setConfirmAction] = useState(null);
   const [versionOpen, setVersionOpen] = useState(false);
+  // Aturan berperan kustom (di luar katalog UI) tidak dapat diedit: ditampilkan baca-saja dan dibawa kembali server.
+  const catalogRules = (profile?.rules ?? []).filter((rule) =>
+    roles.some((role) => role.value === rule.role),
+  );
+  const customRules = (profile?.rules ?? []).filter(
+    (rule) => !roles.some((role) => role.value === rule.role),
+  );
+  const [ruleRows, setRuleRows] = useState(() => catalogRules.map(rowFromRule));
+  const [showRuleErrors, setShowRuleErrors] = useState(false);
 
   const form = useForm({
     name: profile?.name ?? "",
@@ -304,6 +327,7 @@ function FormContent({
         account?.id ?? null,
       ]),
     ),
+    rules: ruleRows.map(toPayload),
   });
 
   const title = isNew
@@ -328,8 +352,21 @@ function FormContent({
     });
   };
 
+  const changeRules = (rows) => {
+    setRuleRows(rows);
+    form.setData("rules", rows.map(toPayload));
+  };
+
+  const ruleErrors = validateRows(ruleRows, roles);
+
   const submit = (event) => {
     event.preventDefault();
+    // Validasi klien mencerminkan server (peran, akun, kondisi kembar, kondisi barang); server tetap penjaga akhir.
+    if (Object.keys(ruleErrors).length > 0) {
+      setShowRuleErrors(true);
+
+      return;
+    }
     if (isNew) {
       form.post(route("postingProfiles.save"));
     } else {
@@ -494,7 +531,8 @@ function FormContent({
           </p>
         )}
 
-        <form onSubmit={submit} className="grid gap-6">
+        {/* noValidate: validasi native (min prioritas) memblokir submit tanpa pesan di baris; pesan inline yang dipakai. */}
+        <form onSubmit={submit} noValidate className="grid gap-6">
           <section className="grid gap-4 rounded-md border p-4 md:grid-cols-2">
             <h2 className="text-base font-semibold md:col-span-2">
               {t("finances.postingProfile.form.general")}
@@ -636,6 +674,28 @@ function FormContent({
             </div>
           </section>
 
+          {editable && (
+            <>
+              <RulesEditor
+                rows={ruleRows}
+                onChange={changeRules}
+                roles={roles}
+                documentTypes={documentTypes}
+                itemTypes={itemTypes}
+                clientErrors={showRuleErrors ? ruleErrors : {}}
+                serverErrors={form.errors}
+              />
+              {customRules.length > 0 && (
+                <RulesTable
+                  rules={customRules}
+                  roles={roles}
+                  title="finances.postingProfile.rules_editor.custom_title"
+                  description="finances.postingProfile.rules_editor.custom_description"
+                />
+              )}
+            </>
+          )}
+
           <div className="flex flex-wrap gap-2">
             {editable && (
               <Button type="submit" disabled={form.processing}>
@@ -652,7 +712,9 @@ function FormContent({
           </div>
         </form>
 
-        {profile && <RulesTable rules={profile.rules ?? []} roles={roles} />}
+        {!editable && profile && (
+          <RulesTable rules={profile.rules ?? []} roles={roles} />
+        )}
       </div>
 
       <ConfirmDialog
