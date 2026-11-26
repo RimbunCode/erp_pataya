@@ -12,13 +12,13 @@ use App\Http\Requests\Finances\PostingProfileVersionRequest;
 use App\Models\Finances\Account;
 use App\Models\Finances\PostingProfile;
 use App\Models\Finances\PostingProfileRule;
+use App\Models\Inventory\Category;
 use App\Services\Finances\Posting\PostingProfileService;
 use App\Services\Finances\Posting\PostingRoleRequirements;
 use Carbon\CarbonImmutable;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
 use Illuminate\Support\Arr;
-use Illuminate\Support\Facades\DB;
 use Illuminate\Validation\ValidationException;
 use Inertia\Inertia;
 use Inertia\Response;
@@ -29,7 +29,9 @@ use Symfony\Component\HttpKernel\Exception\HttpException;
  * => akun default), salin versi, aktifkan, pensiunkan, dan hapus draft. Seluruh penulisan lewat
  * `PostingProfileService` (model `$guarded = ['*']`; tidak ada mass assignment dari request) dan hanya input yang
  * dikenal `PostingProfileRequest` yang diterima. Profil `active`/`retired` hanya dapat dibaca, disalin, atau
- * dipensiunkan. Aturan akun bersyarat ditampilkan baca-saja; editornya adalah Task 12.2.
+ * dipensiunkan. Aturan akun bersyarat (Requirement 12, Task 12.2) disimpan bersama form sebagai daftar penuh yang
+ * menggantikan seluruh aturan draft; tanpa kunci `rules` aturan tidak diubah, dan aturan berperan kustom di luar
+ * katalog UI dipertahankan.
  *
  * Izin: `select` (daftar), `read` (detail), `write` (buat/ubah/salin/hapus draft), `activate` (aktifkan/pensiunkan).
  */
@@ -106,7 +108,7 @@ class PostingProfileController extends Controller {
             $data['effective_from'],
             $data['effective_to'] ?? null,
             $request->accountMap(),
-            [],
+            $request->ruleRows(),
             $data['notes'] ?? null,
         ));
 
@@ -131,9 +133,25 @@ class PostingProfileController extends Controller {
             ],
             // Tanpa kunci `accounts` pemetaan tidak diubah (null), bukan dikosongkan.
             $request->has('accounts') ? [...$custom, ...$request->accountMap()] : null,
+            // Sama seperti `accounts`: tanpa kunci `rules` aturan tidak diubah; daftar kosong menghapus semua aturan
+            // katalog. Aturan berperan kustom tidak tampil di editor sehingga dibawa kembali apa adanya.
+            \is_array($request->input('rules')) ? [...$this->customRules($postingProfile), ...$request->ruleRows()] : null,
         ));
 
         return back()->with('success', __('finances/postingProfile.messages.updated', ['name' => $data['name']]));
+    }
+
+    /**
+     * Aturan akun bersyarat berperan di luar katalog UI (Requirement 1.3); tidak dapat diedit dari form.
+     *
+     * @return list<array<string, mixed>>
+     */
+    private function customRules(PostingProfile $profile): array {
+        return $profile->rules()->get()
+            ->reject(fn (PostingProfileRule $rule): bool => \in_array($rule->role, AccountRole::values(), true))
+            ->map(fn (PostingProfileRule $rule): array => $rule->only(['role', 'document_type', 'variant', 'item_type', 'is_stock_item', 'item_category_id', 'account_id', 'priority']))
+            ->values()
+            ->all();
     }
 
     public function discard(PostingProfile $postingProfile, PostingProfileService $profiles): RedirectResponse {
@@ -190,7 +208,7 @@ class PostingProfileController extends Controller {
     }
 
     /**
-     * @return array{roles: list<array{value: string, label: string, line_sensitive: bool, master: bool}>, documentTypes: list<string>}
+     * @return array{roles: list<array{value: string, label: string, line_sensitive: bool, master: bool}>, documentTypes: list<string>, itemTypes: list<string>}
      */
     private function catalog(): array {
         return [
@@ -201,6 +219,7 @@ class PostingProfileController extends Controller {
                 'master'         => $role->isMasterRole(),
             ], AccountRole::cases()),
             'documentTypes' => PostingDocumentType::values(),
+            'itemTypes'     => PostingProfileService::ITEM_TYPES,
         ];
     }
 
@@ -218,7 +237,11 @@ class PostingProfileController extends Controller {
             ? Arr::only($accounts[$id]->toArray(), ['id', 'account_number', 'account_name', 'is_group', 'is_disabled', 'deleted_at', 'thisModel', 'templateLink', 'route', 'keyModel'])
             : null;
 
-        $categories = DB::table('categories')->whereIn('id', $rules->pluck('item_category_id')->filter()->all())->pluck('name', 'id');
+        // Kategori yang sudah dihapus tetap dimuat (`deleted_at` ikut) agar baris tidak diam-diam berubah menjadi "semua".
+        $categories = Category::withTrashed()->whereIn('id', $rules->pluck('item_category_id')->filter()->all())->get()->keyBy('id');
+        $category   = static fn (?string $id): ?array => $id !== null && $categories->has($id)
+            ? Arr::only($categories[$id]->toArray(), ['id', 'name', 'type', 'deleted_at', 'thisModel', 'templateLink', 'route', 'keyModel'])
+            : null;
 
         return [
             'id'                  => $profile->id,
@@ -231,15 +254,16 @@ class PostingProfileController extends Controller {
             'previous_profile_id' => $profile->previous_profile_id,
             'accounts'            => $profile->accounts()->get()->mapWithKeys(fn ($row): array => [$row->role => $label($row->account_id)])->all(),
             'rules'               => $rules->map(fn (PostingProfileRule $rule): array => [
-                'id'            => $rule->id,
-                'role'          => $rule->role,
-                'document_type' => $rule->document_type,
-                'variant'       => $rule->variant,
-                'item_type'     => $rule->item_type,
-                'is_stock_item' => $rule->is_stock_item,
-                'category'      => $rule->item_category_id === null ? null : ($categories[$rule->item_category_id] ?? null),
-                'account'       => $label($rule->account_id),
-                'priority'      => $rule->priority,
+                'id'               => $rule->id,
+                'role'             => $rule->role,
+                'document_type'    => $rule->document_type,
+                'variant'          => $rule->variant,
+                'item_type'        => $rule->item_type,
+                'is_stock_item'    => $rule->is_stock_item,
+                'item_category_id' => $rule->item_category_id,
+                'category'         => $category($rule->item_category_id),
+                'account'          => $label($rule->account_id),
+                'priority'         => $rule->priority,
             ])->all(),
         ];
     }

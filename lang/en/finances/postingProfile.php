@@ -82,7 +82,7 @@ return [
         'role_master_hint'         => 'Usually supplied by a master account; the account here is only a fallback.',
         'role_line_sensitive_hint' => 'Evaluated per item line; can be overridden by conditional rules.',
         'account_placeholder'      => 'Select account',
-        'rules_read_only'          => 'Rules are shown read-only. Copy a version to carry rules over to a new version.',
+        'rules_read_only'          => 'Rules cannot be changed on this profile. Create a new version (copy) to revise the rules.',
         'rules_empty'              => 'There are no conditional account rules yet.',
         'any'                      => 'Any',
         'yes'                      => 'Yes',
@@ -93,6 +93,26 @@ return [
         'create'                   => 'Create Draft',
         'back'                     => 'Back to List',
         'unmapped_cell'            => 'Not mapped',
+    ],
+
+    'rules_editor' => [
+        'description'             => 'The account is chosen automatically by document type, variant, and item. An empty condition ("Any") is unrestricted; the most specific rule wins, then the higher priority. This list replaces all rules of the draft when saved.',
+        'add'                     => 'Add Rule',
+        'remove'                  => 'Remove rule',
+        'role_placeholder'        => 'Select role',
+        'category_placeholder'    => 'All categories',
+        'not_line_sensitive_hint' => 'Document-level role: item conditions do not apply.',
+        'discount_hint'           => 'The discount role is used by both Sales Invoice and Purchase Invoice. Create a separate rule per document type; a rule limited to the Return variant alone does not satisfy the discount mapping check.',
+        'custom_title'            => 'Custom Role Rules',
+        'custom_description'      => 'Rules with a custom role (outside the role catalog) cannot be edited here and are kept when saving.',
+        'errors'                  => [
+            'role_required'       => 'Select a role.',
+            'account_required'    => 'Select an account.',
+            'priority_invalid'    => 'Priority must be a whole number of 0 or more.',
+            'priority_too_large'  => 'Priority is too large.',
+            'item_condition_role' => 'Item conditions are only allowed for line-sensitive roles; clear the item conditions or change the role.',
+            'duplicate'           => 'The same role and condition combination already exists in another rule.',
+        ],
     ],
 
     'actions' => [
