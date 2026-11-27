@@ -2,6 +2,7 @@
 
 namespace Tests\Feature\Finances\Tax;
 
+use App\Http\Middleware\HandleInertiaRequests;
 use App\Models\Core\Branch;
 use App\Models\Core\Country;
 use App\Models\Finances\Account;
@@ -242,7 +243,9 @@ class TaxBreakdownPanelTest extends TestCase {
         // Partial reload yang diminta halaman lewat <Deferred data={["taxBreakdown"]}>.
         $this->withSession($session(['select', 'read']))->withCookie('lang', 'en')->actingAs($this->user)
             ->get(route('salesInvoices.show', $invoice), [
-                'X-Inertia'                   => 'true',
+                'X-Inertia' => 'true',
+                // Dengan manifest build (CI) versi aset harus cocok, jika tidak respons 409.
+                'X-Inertia-Version'           => (string) app(HandleInertiaRequests::class)->version(request()),
                 'X-Inertia-Partial-Component' => 'Finances/SalesInvoice/Show',
                 'X-Inertia-Partial-Data'      => 'taxBreakdown',
             ])
