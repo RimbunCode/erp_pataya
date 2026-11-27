@@ -440,7 +440,7 @@ Retur menukar semua sisi dan mengikuti bentuk invoice asal (lihat "Flag"; keputu
 - **P-9 Legacy habis:** pada jenis dokumen `on`, pola `where('account_type'` tidak muncul di kode jalurnya (uji statik).
 - **P-10 Spesifisitas deterministik:** untuk himpunan aturan acak, `AccountRuleMatcher` selalu memilih aturan dengan kondisi non-null terbanyak, lalu `priority` tertinggi; hasil tidak bergantung urutan penyimpanan.
 - **P-11 Retur kembali ke normal:** tanpa aturan `variant=return`, retur me-resolve akun yang sama dengan dokumen normal dan menukar sisi (identik dengan perilaku Fase 1).
-- **P-12 Penggabungan per baris:** jurnal hasil peran peka-barang memiliki jumlah total yang sama dengan jumlah baris sumber dan tetap seimbang.
+- **P-12 Penggabungan per baris:** jurnal hasil peran peka-barang memiliki jumlah total yang sama dengan jumlah baris sumber dan tetap seimbang. Total tiap sisi jurnal sama dengan jumlah baris sumber yang dibulatkan sekali, juga bila sisi terpecah menjadi beberapa kelompok akun (diputuskan pemilik produk 27 November 2026; `PostingService::alignSideTotals`).
 - **P-13 Diskon seimbang:** dengan `discount_split` aktif, Σdebit = Σkredit dan total `receivable` sama dengan total bersih dokumen.
 - **P-14 Tanpa input akun:** pada jenis `on`, request yang berisi kolom akun transaksi diabaikan/ditolak dan akun tercatat sama dengan hasil resolver.
 

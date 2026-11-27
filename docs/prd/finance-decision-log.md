@@ -546,6 +546,8 @@ Dirangkum dari bagian "Pertanyaan yang Menunggu Konfirmasi" di akhir `requiremen
 
 **Q-P2-35 diputuskan 26 November 2026 (pemilik produk).** Dokumen Purchase Receipt ALUR-2 yang gagal posting sebelum kolom `purchase_receipt_items.gl_value` ada tetap memakai rate PO saat retry, sehingga nilai jurnalnya bisa berbeda dari posting asli. Tidak dibuat backfill dari ledger stok dan retry tidak ditolak; produksi belum berisi data (Q-P2-28), sehingga cukup dicatat sebagai catatan deploy di design.md (T-11). Pemilik produk yang menyetujui.
 
+**Q-P2-36 diputuskan 27 November 2026 (pemilik produk).** Pembulatan per kelompok akun pada sisi jurnal yang terpecah (contoh Delivery Note: dua kelompok di tiap sisi) tidak boleh menggeser total jurnal dari total dokumen. Dipilih memperbaiki engine (`alignSideTotals`) dibanding menerima pergeseran 0,01 dan melonggarkan tes; alasan: P-12 mensyaratkan total sama dengan jumlah baris sumber.
+
 **Catatan D-xx belum tercatat.** Tabel "Pertanyaan yang Menunggu Konfirmasi" di spec Fase 1–6 juga memuat keputusan D-xx berikut yang belum punya entri di log ini (D-3, D-8, dan D-14 sudah punya entri sejak 2026-11-04), dan tidak dimasukkan di sini karena di luar cakupan (D-13 kini punya entri, lihat di atas): D-15, D-16, D-17, D-18, D-19, D-20, D-21, D-22, D-23, D-24.
 
 ## Catatan Sumber
