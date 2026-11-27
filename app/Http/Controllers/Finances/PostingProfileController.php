@@ -134,21 +134,25 @@ class PostingProfileController extends Controller {
             // Tanpa kunci `accounts` pemetaan tidak diubah (null), bukan dikosongkan.
             $request->has('accounts') ? [...$custom, ...$request->accountMap()] : null,
             // Sama seperti `accounts`: tanpa kunci `rules` aturan tidak diubah; daftar kosong menghapus semua aturan
-            // katalog. Aturan berperan kustom tidak tampil di editor sehingga dibawa kembali apa adanya.
-            \is_array($request->input('rules')) ? [...$this->customRules($postingProfile), ...$request->ruleRows()] : null,
+            // katalog. Aturan berperan kustom tampil baca-saja di editor (hanya dapat dihapus): yang id-nya dikirim kembali
+            // lewat `custom_rule_ids` dibawa apa adanya (dan divalidasi ulang service), sisanya ikut terhapus.
+            \is_array($request->input('rules')) ? [...$this->customRules($postingProfile, $request->keptCustomRuleIds()), ...$request->ruleRows()] : null,
         ));
 
         return back()->with('success', __('finances/postingProfile.messages.updated', ['name' => $data['name']]));
     }
 
     /**
-     * Aturan akun bersyarat berperan di luar katalog UI (Requirement 1.3); tidak dapat diedit dari form.
+     * Aturan akun bersyarat berperan di luar katalog UI (Requirement 1.3); tidak dapat diedit dari form, hanya
+     * dipertahankan atau dihapus. `$keepIds` null (klien lama tanpa kunci `custom_rule_ids`) mempertahankan semuanya.
      *
+     * @param  list<string>|null  $keepIds
      * @return list<array<string, mixed>>
      */
-    private function customRules(PostingProfile $profile): array {
+    private function customRules(PostingProfile $profile, ?array $keepIds = null): array {
         return $profile->rules()->get()
             ->reject(fn (PostingProfileRule $rule): bool => \in_array($rule->role, AccountRole::values(), true))
+            ->filter(fn (PostingProfileRule $rule): bool => $keepIds === null || \in_array($rule->id, $keepIds, true))
             ->map(fn (PostingProfileRule $rule): array => $rule->only(['role', 'document_type', 'variant', 'item_type', 'is_stock_item', 'item_category_id', 'account_id', 'priority']))
             ->values()
             ->all();

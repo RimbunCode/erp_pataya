@@ -46,6 +46,8 @@ class PostingProfileRequest extends FormRequest {
             'accounts'                 => ['nullable', 'array'],
             'accounts.*'               => ['nullable', 'string', 'max:64'],
             'rules'                    => ['nullable', 'array'],
+            'custom_rule_ids'          => ['nullable', 'array'],
+            'custom_rule_ids.*'        => ['string', 'max:64'],
             'rules.*'                  => ['array'],
             'rules.*.role'             => ['required', 'string', Rule::in(AccountRole::values())],
             'rules.*.account_id'       => ['required', 'string', 'max:64'],
@@ -168,6 +170,17 @@ class PostingProfileRequest extends FormRequest {
             array_map('strval', (array) $this->validated('accounts', [])),
             static fn (string $accountId): bool => $accountId !== '',
         );
+    }
+
+    /**
+     * Id aturan berperan kustom (di luar katalog) yang masih dipertahankan klien; null bila kunci tidak dikirim.
+     *
+     * @return list<string>|null
+     */
+    public function keptCustomRuleIds(): ?array {
+        $ids = $this->validated('custom_rule_ids');
+
+        return \is_array($ids) ? array_values(array_map('strval', $ids)) : null;
     }
 
     /**

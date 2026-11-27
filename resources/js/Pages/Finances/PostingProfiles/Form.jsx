@@ -1,6 +1,6 @@
 import { useState } from "react";
 import { Head, router, useForm, usePage } from "@inertiajs/react";
-import { TriangleAlert } from "lucide-react";
+import { Trash2, TriangleAlert } from "lucide-react";
 import { useLaravelReactI18n } from "laravel-react-i18n";
 
 import AppLayout from "@/Layouts/AppLayout";
@@ -184,6 +184,7 @@ function NewVersionDialog({ open, profileId, defaultFrom, onClose }) {
  * @param {{value: string, label: string}[]} props.roles
  * @param {string} [props.description] kunci terjemahan keterangan
  * @param {string} [props.title] kunci terjemahan judul
+ * @param {(id: string) => void} [props.onRemove] bila ada, tiap baris punya tombol Hapus (hanya hapus, tanpa edit)
  * @returns {import("react").JSX.Element}
  */
 function RulesTable({
@@ -191,6 +192,7 @@ function RulesTable({
   roles,
   description = "finances.postingProfile.form.rules_read_only",
   title = "finances.postingProfile.rules",
+  onRemove = null,
 }) {
   const { t } = useLaravelReactI18n();
   const any = t("finances.postingProfile.form.any");
@@ -228,6 +230,13 @@ function RulesTable({
                     {t(`finances.postingProfile.columns.${column}`)}
                   </th>
                 ))}
+                {onRemove && (
+                  <th className="px-3 py-2">
+                    <span className="sr-only">
+                      {t("finances.postingProfile.rules_editor.remove")}
+                    </span>
+                  </th>
+                )}
               </tr>
             </thead>
             <tbody>
@@ -257,6 +266,21 @@ function RulesTable({
                   <td className="px-3 py-2">{rule.category?.name ?? any}</td>
                   <td className="px-3 py-2">{accountLabel(rule.account)}</td>
                   <td className="px-3 py-2">{rule.priority}</td>
+                  {onRemove && (
+                    <td className="px-3 py-2">
+                      <Button
+                        type="button"
+                        variant="ghost"
+                        size="icon"
+                        aria-label={t(
+                          "finances.postingProfile.rules_editor.remove",
+                        )}
+                        onClick={() => onRemove(rule.id)}
+                      >
+                        <Trash2 aria-hidden="true" />
+                      </Button>
+                    </td>
+                  )}
                 </tr>
               ))}
             </tbody>
@@ -310,8 +334,10 @@ function FormContent({
   const catalogRules = (profile?.rules ?? []).filter((rule) =>
     roles.some((role) => role.value === rule.role),
   );
-  const customRules = (profile?.rules ?? []).filter(
-    (rule) => !roles.some((role) => role.value === rule.role),
+  const [customRules, setCustomRules] = useState(() =>
+    (profile?.rules ?? []).filter(
+      (rule) => !roles.some((role) => role.value === rule.role),
+    ),
   );
   const [ruleRows, setRuleRows] = useState(() => catalogRules.map(rowFromRule));
   const [showRuleErrors, setShowRuleErrors] = useState(false);
@@ -328,6 +354,8 @@ function FormContent({
       ]),
     ),
     rules: ruleRows.map(toPayload),
+    // Id aturan berperan kustom yang dipertahankan; yang dihapus pengguna tidak dikirim sehingga server membuangnya.
+    custom_rule_ids: customRules.map((rule) => rule.id),
   });
 
   const title = isNew
@@ -361,6 +389,18 @@ function FormContent({
     );
     if (staleKeys.length > 0) {
       form.clearErrors(...staleKeys);
+    }
+  };
+
+  const removeCustomRule = (id) => {
+    const next = customRules.filter((rule) => rule.id !== id);
+    setCustomRules(next);
+    form.setData(
+      "custom_rule_ids",
+      next.map((rule) => rule.id),
+    );
+    if (form.errors.profile) {
+      form.clearErrors("profile");
     }
   };
 
@@ -698,6 +738,7 @@ function FormContent({
                   roles={roles}
                   title="finances.postingProfile.rules_editor.custom_title"
                   description="finances.postingProfile.rules_editor.custom_description"
+                  onRemove={removeCustomRule}
                 />
               )}
             </>
