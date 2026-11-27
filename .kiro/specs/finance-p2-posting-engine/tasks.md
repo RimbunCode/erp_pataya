@@ -23,6 +23,7 @@ Urutan: fondasi data dan resolver (1–3), kontrak + rule + service + gateway de
     - _Requirements: 3.1, 13.1–13.3_
   - [ ] 1.3 Audit COA aktual vs `account_type` yang dibutuhkan peran (jalankan `init-posting-profile` dalam mode laporan pada salinan data staging); catat peran ambigu/hilang untuk akuntan
     - **Kemajuan (27 November 2026):** mode laporan `init-posting-profile` dijalankan pada DB dev (data uji, bukan salinan staging): 8 peran ter-resolve, `payable` dan `revenue` ambigu, 0 peran tanpa akun, 3 usulan aturan. Belum dicentang: butir ini menunggu salinan data staging dan peninjauan akuntan.
+    - **Keputusan pemilik produk (27 November 2026):** Task 1.3 ditunda sampai salinan data staging tersedia dan akuntan dapat meninjau hasilnya; sengaja tidak dicentang. Pembaruan graph (`graphify update .`) juga ditunda karena alatnya belum terpasang di lingkungan pengembangan.
     - _Requirements: 2.5_
 
 - [x] 2. Enum, kontrak, dan model data
