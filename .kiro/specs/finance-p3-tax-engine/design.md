@@ -110,7 +110,7 @@ Angka di DTO bertipe string desimal agar serialisasi stabil dan bebas drift floa
 
 ### `TaxEngine`
 
-`calculate(TaxInput): TaxComponent`: ambil versi → `dpp = base × num/den` → `tax = dpp × rate/100` → bulatkan HALF_UP ke `minorUnit` (`per_line`). `calculateDocument(list<TaxInput>): TaxResult`: hitung tiap baris; bila `rounding_mode = per_document`, jumlahkan per komponen, bulatkan sekali, sebar selisih pembulatan ke baris terbesar (selaras DPP spec Req. 1.7) dan isi `roundingAdjustment`. `verify(TaxResult|string $json): VerificationReport`: hitung ulang dari versi yang direferensikan snapshot dan bandingkan dengan nilai di snapshot; selisih ≤ 1 minor unit = lolos.
+`calculate(TaxInput): TaxResult` (Requirement 4.1; versi awal design ini menulis `TaxComponent`, diselaraskan ke Requirement 4.1 saat implementasi Task 4 dan menunggu konfirmasi pemilik produk; implementasinya mendelegasikan ke `calculateDocument([$input])`): ambil versi → `dpp = base × num/den` → `tax = dpp × rate/100` → bulatkan HALF_UP ke `minorUnit` (`per_line`). `calculateDocument(list<TaxInput>): TaxResult`: hitung tiap baris; bila `rounding_mode = per_document`, jumlahkan per komponen, bulatkan sekali, sebar selisih pembulatan ke baris terbesar (selaras DPP spec Req. 1.7) dan isi `roundingAdjustment`. `verify(TaxResult|string $json): VerificationReport`: hitung ulang dari versi yang direferensikan snapshot dan bandingkan dengan nilai di snapshot; selisih ≤ 1 minor unit = lolos.
 
 Aritmetika memakai integer minor unit (helper `MinorUnit` Fase 1) dengan pecahan faktor sebagai rasio bilangan bulat; tidak ada perkalian `float` untuk keputusan keseimbangan.
 
@@ -278,3 +278,55 @@ Unik `(tax_id, version)`; indeks `(tax_id, status, effective_from)`.
 ## Konfirmasi yang Masih Diperlukan
 
 D-12, D-15, Q-P3-1…4 (lihat requirements).
+
+## Temuan Task 1 (audit read-only, 2026-11-21)
+
+Diverifikasi terhadap `origin/feat/finance-engine` (`ab76a569`). Task 1.1 menunggu data staging/produksi dari pemilik produk (lihat query di bawah); Task 1.2–1.4 selesai dari kode.
+
+### 1.2 Pemakai kolom `dpp_amount` / `tax_amount` / `amount` item invoice
+
+| Lapisan | Pemakai | Dampak Bagian A | Dampak Bagian B (Task 9) |
+|---|---|---|---|
+| Skema | `sales_invoice_items`: `dpp_amount = (basic_amount − discount_amount) × 11/12`, `tax_amount = dpp_amount × tax_rate / 100`; `purchase_invoice_items`: sama + `amount = (basic_amount − discount_amount) + tax_amount`. Semua `double` (tanpa pembulatan), *stored generated* (migration `2026_07_18_*` dan `2026_08_18_155751/155754`) | tidak berubah | konversi ke kolom biasa |
+| View laporan | `report_sales_invoice_view` / `report_purchase_invoice_view` hanya memakai kolom **header** (`tax_invoice_dpp_amount`, `tax_invoice_ppn_amount`, `amount`); **tidak** membaca kolom item. `report_sales_view` / `report_purchase_view` memakai `tax_amount` item **order** (di luar scope) | tidak ada | tidak perlu dibuat ulang untuk invoice |
+| Model | `SalesInvoice::getDppAmountAttribute()` (`$appends`, `Σ items.dpp_amount`); cast `float` dan `configColumns` di `SalesInvoiceItem`/`PurchaseInvoiceItem`; `InvoiceLineAttributesBuilder` (jumlah baris = `basic_amount − discount_amount + tax_amount`) | tidak berubah | ikut nilai kolom baru |
+| Service | `SalesInvoiceService`/`PurchaseInvoiceService`: `DPP_FACTOR = 11/12` (konstanta publik, dipakai `DocumentDiscountCalculator::applyDiscountColumnToItems`), `create`/`update` (header `amount`), `onApproved` (`Σ(basic − discount) + Σ tax_amount`); `assignTaxInvoice` (Sales) **dan** `recordTaxInvoice` (Purchase) menjumlah seluruh `dpp_amount`/`tax_amount` | Task 7 harus mencakup **kedua** fungsi (Requirement 9 hanya menyebut `assignTaxInvoice`) | `DPP_FACTOR` dan `DocumentDiscountCalculator` digantikan `TaxEngine` |
+| Cetak | `database/seeders/PrintTemplates/Finances/FinancesTemplates.php` (`{{doc.dpp_amount}}`, `{{this.tax_amount}}`) | tidak berubah | token tetap valid selama nama kolom sama |
+| Frontend | `SalesInvoice/Form.jsx` dan `PurchaseInvoice/Form.jsx` **mereplika** `DPP_FACTOR = 11/12` dan menghitung ulang `dpp_amount`/`tax_amount` di klien; `AdditionalDiscount.jsx`; `lib/discountAllocation.js`; kunci terjemahan `columns.dpp_amount` | tidak berubah | **wajib diubah**: klien tidak boleh lagi menebak faktor DPP (Requirement 12.8) |
+| Test | `InvoiceDppMigrationTest`, `*InvoiceDiscountPersistenceTest`, `TaxInvoiceAssignmentTest`, `DocumentDiscountCalculatorTest`, `InvoiceDppModelConfigTest`, `Report/*InvoiceReportTest`, `Support/InsertsReportData` | harus tetap hijau (Requirement 13.5) | disesuaikan |
+
+### 1.3 Perbedaan dengan asumsi design
+
+1. **Tanggal dokumen** = kolom `date` (timestamp) pada header `sales_invoices`/`purchase_invoices`. Resolver memakai tanggal ini (Requirement 3.4), bukan `now()`; posting GL masih memakai `now()` (F-19, D-21 PENDING), sehingga versi pajak (tanggal dokumen) dan periode jurnal (tanggal approve) dapat berbeda pada invoice yang disetujui lintas tanggal berlaku. Dicatat sebagai risiko untuk Task 6, bukan diubah di Bagian A.
+2. **Nilai tersimpan tidak dibulatkan.** Kolom generated adalah `double` mentah; hanya total header yang dibulatkan 2 desimal oleh `DocumentDiscountCalculator::roundWithResidual`. `TaxEngine` (bulat HALF_UP per baris) dan nilai tersimpan karenanya selisih ≤ 0,5 minor unit **per baris**; pada dokumen N baris, selisih total komponen dapat mencapai N × 0,5 minor unit. Maka `verify`/`tax_breakdown` membandingkan **per baris** (toleransi 1 minor unit) dan membandingkan total komponen dengan toleransi `jumlah baris` minor unit, bukan satu minor unit untuk seluruh dokumen (penjelasan lebih ketat dari Requirement 6.4/5.3 versi tertulis; selisih ini bukan ketidakcocokan).
+3. **`fillItemRelations` persis satu titik** per service (`$data['tax_rate'] = $tax?->rate ?? 0`), dipanggil dari `create` dan `update` (item draft disimpan ulang tiap `update`). Purchase Invoice tidak punya jalur pajak terpisah untuk off-PO/retur: ketiga sumber baris (PO item, baris receipt, item bebas) dan retur memakai `tax_id` yang dikirim klien.
+4. **Item tanpa pajak** (`tax_id = null`): `tax_rate = 0`, tidak ada versi, tidak ada komponen; engine melewati baris ini.
+5. **Faktor DPP, `DocumentDiscountCalculator`, dan FE** memakai `11/12` sebagai konstanta di tiga tempat (PHP service, PHP calculator, JS dua form); guard Requirement 2.7 menutup semuanya selama Bagian B belum aktif.
+6. **Pajak tak punya versi sama sekali** (data lama sebelum `finance:init-tax-rules`, atau `Tax` yang baru dibuat sebelum UI Versi Aturan Task 8 tersedia): resolver yang melempar `NoEffectiveTaxRuleException` menggagalkan pembuatan invoice. **Diputuskan 2026-11-21 (pemilik produk, Q-P3-5): selalu gagal tertutup**, tanpa fallback ke `taxes.rate`; service menerjemahkannya menjadi 422 pada `items.{i}.tax` dan me-resolve sebelum penulisan apa pun (tidak ada header yatim). Prasyarat deploy: `finance:init-tax-rules` dijalankan lebih dulu.
+7. **`InvoiceBilledValueResolver::netValues()` masih memakai `taxes.rate`** (bukan versi aturan) untuk mengalokasikan diskon header pada basis total saat memeriksa toleransi penagihan. Sejak backfill, rate versi 1 sama dengan `taxes.rate`, jadi hasilnya identik; bila kelak ada versi dengan tarif berbeda dari `taxes.rate` (Task 8), pemeriksaan toleransi dapat sedikit menyimpang dari angka yang disimpan service. Belum diubah di Bagian A (di luar daftar file Task 5; dua pemanggil di `SalesInvoiceRequest`/`PurchaseInvoiceRequest`); dicatat untuk keputusan bersama Task 8.
+8. **Mata uang `tax_breakdown`.** Nilai item invoice disimpan dalam mata uang dokumen, sehingga snapshot Bagian A (`DocumentTaxSnapshot`) memakai minor unit mata uang dokumen (`currencies.minor_unit`, default 2) walaupun `TaxInput` menyebut mata uang dasar; konversi ke mata uang dasar adalah urusan FX Engine (Fase 4).
+9. **`TaxFactory` membuat versi 1 otomatis** (`afterCreating`), menyerupai kondisi pasca-backfill, supaya test invoice yang ada tetap hijau di bawah kebijakan gagal tertutup. Test yang butuh pajak tanpa versi memakai `Tax::query()->create()`.
+
+### 1.4 Audit COA
+
+- `AccountSeeder` hanya memuat **satu** akun `account_type = tax`: `2310 VAT` (grup `2300 Kewajiban dan Pajak`); `2230 Hutang Pajak` bertipe `payable`, bukan `tax`. **Tidak ada** akun PPN Masukan (aset), PPh dipotong/dibayar di muka, maupun PPh terutang.
+- `AccountRole::TaxOutput`/`TaxInput`/`WithholdingReceivable`/`WithholdingPayable` sudah ada di katalog tetapi `legacyPair()` bernilai `null` (tidak ada padanan legacy): peran itu **harus dipetakan eksplisit di Posting Profile** oleh akuntan (Q-P3-4). Tanpa pemetaan, posting dengan cutover aktif gagal tertutup (Requirement 7.7).
+- Spec `dpp-discount-and-tax-compliance`: seluruh Task 11 (11.1–11.6) masih `[ ]*` (opsional, dilewati); kolom `category`/`behavior`/`use_dpp_nilai_lain` belum ada di `taxes` (skema `taxes`: `name`, `rate`, timestamps, soft delete). Task 2.1 fase ini tidak berbenturan.
+
+### 1.1 Query read-only untuk pemilik produk (staging/produksi)
+
+```sql
+SELECT t.name, t.rate,
+       ROUND(t.rate * 11 / 12, 4) AS tarif_efektif_persen_bila_dpp_11_12,
+       (SELECT COUNT(*) FROM sales_invoice_items i
+          JOIN sales_invoices s ON s.id = i.sales_invoice_id
+         WHERE i.tax_id = t.id AND s.date >= DATE_SUB(NOW(), INTERVAL 12 MONTH)) AS item_penjualan_12_bulan,
+       (SELECT COUNT(*) FROM purchase_invoice_items i
+          JOIN purchase_invoices p ON p.id = i.purchase_invoice_id
+         WHERE i.tax_id = t.id AND p.date >= DATE_SUB(NOW(), INTERVAL 12 MONTH)) AS item_pembelian_12_bulan
+FROM taxes t
+WHERE t.deleted_at IS NULL
+ORDER BY t.name;
+```
+
+Hasil dibawa ke akuntan untuk menjawab Q-P3-1 (apakah `rate = 11` dengan DPP 11/12 memang dimaksud). Query hanya membaca; tidak mengubah data.

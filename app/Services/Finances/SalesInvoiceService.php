@@ -19,6 +19,7 @@ use App\Models\Core\GlPostingStatus;
 use App\Models\Finances\SalesInvoice;
 use App\Models\Finances\SalesInvoiceItem;
 use App\Models\Finances\Tax;
+use App\Models\Finances\TaxRuleVersion;
 use App\Models\Inventory\ItemUnit;
 use App\Models\Inventory\ItemVariant;
 use App\Models\Inventory\Stock;
@@ -31,8 +32,11 @@ use App\Services\Core\Setting\CurrencyMatcher;
 use App\Services\Core\Setting\RateChangeComparator;
 use App\Services\Core\Setting\SettingsService;
 use App\Services\Core\Setting\ToleranceCalculator;
+use App\Services\Finances\Tax\DocumentTaxRules;
+use App\Services\Finances\Tax\DocumentTaxSnapshot;
 use App\Traits\HasDefaultDelete;
 use App\Utils;
+use Carbon\CarbonImmutable;
 use Illuminate\Support\Collection;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Validation\ValidationException;
@@ -48,6 +52,9 @@ class SalesInvoiceService implements SubmitableService {
     public const float DPP_FACTOR = 11 / 12;
 
     private function fillRelations(array $data) {
+        // `tax_breakdown` hanya ditulis `onApproved()` dan immutable sesudahnya (Requirement 5.3).
+        unset($data['tax_breakdown']);
+
         $data['sales_order_id']    = $data['sales_order']['id'] ?? null;
         $data['customer_id']       = $data['customer']['id'];
         $data['customer_name']     = Customer::find($data['customer']['id'])?->name;
@@ -73,7 +80,10 @@ class SalesInvoiceService implements SubmitableService {
         return $data;
     }
 
-    private function fillItemRelations(array $data, SalesInvoice $salesInvoice, array $units = [], array $taxes = [], array $salesOrderItems = []) {
+    /**
+     * @param  array<string, TaxRuleVersion>  $taxRules  versi aturan berlaku pada tanggal dokumen per `tax_id` (`resolveTaxRules()`)
+     */
+    private function fillItemRelations(array $data, SalesInvoice $salesInvoice, array $units = [], array $taxRules = [], array $salesOrderItems = []) {
         // Baris SO mengambil identitas dari baris sumber; baris bebas (spec
         // delivery-note-sales-invoice-off-source-items) dari `item.id` (ItemVariant)
         // atau `asset.id` -- prioritas sumber > item > asset.
@@ -82,16 +92,19 @@ class SalesInvoiceService implements SubmitableService {
         $data['item_id']             = $source ? $source->item_id : ($data['item']['id'] ?? null);
         $data['asset_id']            = $source ? $source->asset_id : (($data['item']['id'] ?? null) ? null : ($data['asset']['id'] ?? null));
 
-        $unitId                     = $data['asset_id'] ? null : ($data['unit']['id'] ?? null);
-        $unit                       = $units[$unitId] ?? null;
-        $tax                        = $taxes[$data['tax']['id'] ?? ''] ?? null;
-        $data['item_unit_id']       = $unitId;
-        $data['conversion_factor']  = $unit?->conversion_factor ?? 1;
-        $data['tax_id']             = $data['tax']['id'] ?? null;
-        $data['tax_rate']           = $tax?->rate ?? 0;
-        $data['currency_code']      = $salesInvoice->currency_code;
-        $data['base_currency_code'] = $salesInvoice->base_currency_code;
-        $data['exchange_rate']      = $salesInvoice->exchange_rate;
+        $unitId                    = $data['asset_id'] ? null : ($data['unit']['id'] ?? null);
+        $unit                      = $units[$unitId] ?? null;
+        $taxRule                   = $taxRules[$data['tax']['id'] ?? ''] ?? null;
+        $data['item_unit_id']      = $unitId;
+        $data['conversion_factor'] = $unit?->conversion_factor ?? 1;
+        $data['tax_id']            = $data['tax']['id'] ?? null;
+        // Tarif dan versinya dari aturan yang berlaku pada tanggal dokumen (Requirement 5.2); selalu ditimpa agar
+        // `tax_rule_version_id` tidak dapat diisi dari request.
+        $data['tax_rate']            = $taxRule !== null ? (float) $taxRule->rate : 0;
+        $data['tax_rule_version_id'] = $taxRule?->getKey();
+        $data['currency_code']       = $salesInvoice->currency_code;
+        $data['base_currency_code']  = $salesInvoice->base_currency_code;
+        $data['exchange_rate']       = $salesInvoice->exchange_rate;
         $data['price'] ??= 0;
         $data['price_base_currency'] = 0;
 
@@ -116,6 +129,30 @@ class SalesInvoiceService implements SubmitableService {
         return Tax::whereIn('id', $taxIds)->get()->keyBy('id')->all();
     }
 
+    /**
+     * Versi aturan pajak pada tanggal dokumen untuk setiap pajak di item (Requirement 3.4). Dipanggil sebelum
+     * penulisan apa pun: pajak tanpa versi berlaku menggagalkan permintaan dengan pesan pada `items.{i}.tax`.
+     *
+     * @return array<string, TaxRuleVersion>
+     */
+    private function resolveTaxRules(array $data): array {
+        return app(DocumentTaxRules::class)->resolveForRows($data['items'], $this->batchLoadTaxes($data), $data['date'] ?? null);
+    }
+
+    /**
+     * Penjelasan pajak yang disimpan saat approve (Requirement 5.3); tidak mengubah angka dokumen.
+     *
+     * @param  Collection<int, SalesInvoiceItem>  $items
+     * @return array<string, mixed>|null
+     */
+    private function buildTaxBreakdown(SalesInvoice $salesInvoice, Collection $items): ?array {
+        return app(DocumentTaxSnapshot::class)->build(
+            $items,
+            CarbonImmutable::parse($salesInvoice->date),
+            DocumentTaxSnapshot::minorUnitFor($salesInvoice->currency_code),
+        )?->toArray();
+    }
+
     private function fillPaymentScheduleRelations(array $data, SalesInvoice $salesInvoice) {
         $data['payment_amount']     = $salesInvoice->amount * ($data['invoice_portion'] / 100);
         $data['currency_code']      = $salesInvoice->currency_code;
@@ -128,16 +165,17 @@ class SalesInvoiceService implements SubmitableService {
     }
 
     public function create(array $data): Model {
+        $taxRules = $this->resolveTaxRules($data);
+
         $data['code'] = FormatingSeries::generate(SalesInvoice::class, $data, true);
         $salesInvoice = SalesInvoice::create($this->fillRelations($data));
 
         $units           = $this->batchLoadUnits($data);
-        $taxes           = $this->batchLoadTaxes($data);
         $salesOrderItems = $this->batchLoadSalesOrderItems($data);
 
         $items = collect();
         foreach ($data['items'] as $item) {
-            $item      = $this->fillItemRelations($item, $salesInvoice, $units, $taxes, $salesOrderItems);
+            $item      = $this->fillItemRelations($item, $salesInvoice, $units, $taxRules, $salesOrderItems);
             $itemModel = $salesInvoice->items()->create($item);
             // basic_amount generated column (quantity * price) -- belum terisi di object
             // sampai di-refresh dari DB.
@@ -160,6 +198,8 @@ class SalesInvoiceService implements SubmitableService {
     }
 
     public function update(Model $salesInvoice, array $data): Model {
+        $taxRules = $this->resolveTaxRules($data);
+
         $salesInvoice->fillForUpdate($this->fillRelations($data), true);
         $salesInvoice->items()
             ->whereNotIn('id', array_column($data['items'], 'id'))
@@ -175,12 +215,11 @@ class SalesInvoiceService implements SubmitableService {
             ->keyBy('id');
 
         $units           = $this->batchLoadUnits($data);
-        $taxes           = $this->batchLoadTaxes($data);
         $salesOrderItems = $this->batchLoadSalesOrderItems($data);
 
         $items = collect();
         foreach ($data['items'] as $item) {
-            $item = $this->fillItemRelations($item, $salesInvoice, $units, $taxes, $salesOrderItems);
+            $item = $this->fillItemRelations($item, $salesInvoice, $units, $taxRules, $salesOrderItems);
 
             if (Ulid::isValid($item['id'])) {
                 $itemModel = $existingItems->get($item['id']);
@@ -357,6 +396,8 @@ class SalesInvoiceService implements SubmitableService {
             $salesInvoice->update([
                 'amount' => $totalAmount,
                 'status' => $returnAgainst ? FormStatus::RETURNED : FormStatus::UNPAID,
+                // Immutable setelah approve: yang sudah ada tidak pernah dihitung ulang (Requirement 5.3).
+                'tax_breakdown' => $salesInvoice->tax_breakdown ?? $this->buildTaxBreakdown($salesInvoice, $items),
             ]);
 
             if ($returnAgainst) {

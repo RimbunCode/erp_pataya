@@ -95,7 +95,7 @@ Kondisi nyata yang membentuk fase ini (diverifikasi di kode):
 #### Acceptance Criteria
 
 1. THE sistem SHALL menambah `tax_rule_version_id` (nullable, FK) pada `sales_invoice_items` dan `purchase_invoice_items`, dan `tax_breakdown` (JSON nullable) pada `sales_invoices` dan `purchase_invoices`.
-2. WHEN item invoice dibuat/diubah, THE service SHALL me-resolve versi pada tanggal dokumen, mengisi `tax_rate` dari versi tersebut (kolom tetap ada untuk kompatibilitas) dan menyimpan `tax_rule_version_id`.
+2. WHEN item invoice dibuat/diubah, THE service SHALL me-resolve versi pada tanggal dokumen, mengisi `tax_rate` dari versi tersebut (kolom tetap ada untuk kompatibilitas) dan menyimpan `tax_rule_version_id`. Bila sebuah pajak tidak punya versi berlaku pada tanggal dokumen, permintaan SHALL gagal tertutup sebelum penulisan apa pun dengan pesan pada `items.{i}.tax`, tanpa fallback ke `taxes.rate` (Q-P3-5, 2026-11-21).
 3. WHEN invoice disetujui (`onApproved`), THE service SHALL menyimpan `TaxResult` serial ke `tax_breakdown` (immutable setelah approved).
 4. THE sistem SHALL menambah `general_ledgers.tax_rule_version_id` (nullable, FK) yang diisi pada baris jurnal pajak.
 5. THE invoice yang dibuat sebelum fase ini (tanpa snapshot) SHALL tetap valid; `tax_rule_version_id` null diperlakukan sebagai "legacy" dan penjelasannya dibangun dari `tax_rate`/`dpp_amount` tersimpan dengan label legacy.
@@ -201,3 +201,4 @@ Kondisi nyata yang membentuk fase ini (diverifikasi di kode):
 | Q-P3-2 | Apakah perusahaan PKP? Apakah PPN Masukan seluruhnya dapat dikreditkan? | Requirement 7.2, 7.9 |
 | Q-P3-3 | Tanggal cutover pemisahan pajak per jenis dokumen (awal bulan/periode terbuka) | Requirement 7.5 |
 | Q-P3-4 | Akun COA PPN Keluaran/Masukan/PPh yang akan dipakai (akuntan melengkapi COA) | Requirement 7.7–7.8 |
+| Q-P3-5 | ~~Pajak tanpa versi aturan berlaku pada tanggal dokumen: fallback ke `taxes.rate` atau gagal?~~ **DIJAWAB 2026-11-21 oleh pemilik produk: selalu gagal tertutup (sesuai Requirement 3.2/5.2).** Service invoice menerjemahkan `NoEffectiveTaxRuleException` menjadi 422 pada `items.{i}.tax`; tidak ada fallback ke `taxes.rate`. Konsekuensi: `finance:init-tax-rules` dijalankan sebelum deploy Task 5, dan pajak baru butuh versi aturan sebelum dapat dipakai di invoice. | Requirement 3.2, 5.2 |

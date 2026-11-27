@@ -22,6 +22,7 @@ class PurchaseInvoice extends Model {
     protected $guarded            = ['id'];
     protected $casts              = [
         'date'                             => 'datetime',
+        'tax_breakdown'                    => 'array',
         'exchange_rate'                    => 'float',
         'amount'                           => 'float',
         'amount_base_currency'             => 'float',

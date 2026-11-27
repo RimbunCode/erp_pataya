@@ -37,6 +37,7 @@ class SalesInvoice extends Model {
         'tax_invoice_dpp_amount'           => 'float',
         'tax_invoice_ppn_amount'           => 'float',
         'tax_invoice_ppnbm_amount'         => 'float',
+        'tax_breakdown'                    => 'array',
     ];
     protected static string $defaultFormatCode = '@[branch_code]/SalesInvoice-@[iiii]/@[yy]';
 

@@ -15,60 +15,60 @@ Bagian A (Task 1–8) tidak mengubah angka di dokumen; Bagian B (Task 9) adalah 
 
 ## Tasks
 
-- [ ] 1. Audit dan verifikasi asumsi (read-only)
+- [-] 1. Audit dan verifikasi asumsi (read-only; 1.2–1.4 selesai 2026-11-21, 1.1 menunggu data staging dari pemilik produk)
   - [ ] 1.1 Dump seluruh `taxes` (nama, rate) di staging/produksi dan jumlah pemakaian per pajak pada item invoice 12 bulan; tandai `rate` yang mencurigakan terhadap DPP 11/12; kirim ke pemilik produk/akuntan (Q-P3-1)
     - _Requirements: 6.3_
-  - [ ] 1.2 Audit pemakai kolom `dpp_amount`/`tax_amount`/`amount` item invoice: view (`report_sales_invoice_view`), laporan, `assignTaxInvoice`, cetak, frontend
+  - [x] 1.2 Audit pemakai kolom `dpp_amount`/`tax_amount`/`amount` item invoice: view (`report_sales_invoice_view`), laporan, `assignTaxInvoice`, cetak, frontend
     - _Requirements: 12.6_
-  - [ ] 1.3 Baca `PurchaseInvoiceService` untuk alur pajak (fillItemRelations, onApproved, retur, off-PO) dan `SalesInvoiceService` baris 60–200 dan 280–340; catat perbedaan dengan asumsi design
+  - [x] 1.3 Baca `PurchaseInvoiceService` untuk alur pajak (fillItemRelations, onApproved, retur, off-PO) dan `SalesInvoiceService` baris 60–200 dan 280–340; catat perbedaan dengan asumsi design
     - _Requirements: 5.2–5.3_
-  - [ ] 1.4 Audit COA: akun `account_type = tax` dan kebutuhan PPN Keluaran/Masukan/PPh (Q-P3-4); verifikasi status task 11 spec DPP (belum dikerjakan)
+  - [x] 1.4 Audit COA: akun `account_type = tax` dan kebutuhan PPN Keluaran/Masukan/PPh (Q-P3-4); verifikasi status task 11 spec DPP (belum dikerjakan)
     - _Requirements: 1.5, 7.7_
 
-- [ ] 2. Skema dan model (aditif)
-  - [ ] 2.1 Migration `add_classification_columns_to_taxes_table` (`category`, `behavior`, `jurisdiction_code`, `is_creditable`); model `Tax` (`$casts`, `$configColumns`)
+- [x] 2. Skema dan model (aditif)
+  - [x] 2.1 Migration `add_classification_columns_to_taxes_table` (`category`, `behavior`, `jurisdiction_code`, `is_creditable`); model `Tax` (`$casts`, `$configColumns`)
     - _Requirements: 1.1–1.2_
-  - [ ] 2.2 Migration `create_tax_rule_versions_table` + model `TaxRuleVersion` (izin `manage_rule_versions`, `configColumns`, `translateKey`)
+  - [x] 2.2 Migration `create_tax_rule_versions_table` + model `TaxRuleVersion` (izin `manage_rule_versions`, `configColumns`, `translateKey`)
     - _Requirements: 2.1, 13.3_
-  - [ ] 2.3 Migration kolom snapshot: `tax_rule_version_id` pada `sales_invoice_items`, `purchase_invoice_items`, `general_ledgers`; `tax_breakdown` JSON pada `sales_invoices`, `purchase_invoices`
+  - [x] 2.3 Migration kolom snapshot: `tax_rule_version_id` pada `sales_invoice_items`, `purchase_invoice_items`, `general_ledgers`; `tax_breakdown` JSON pada `sales_invoices`, `purchase_invoices`
     - _Requirements: 5.1, 5.4_
-  - [ ] 2.4 Setting `finance_tax_split_from.*`, `finance_company_is_pkp`, `finance_tax_engine_calc_enabled`
+  - [x] 2.4 Setting `finance_tax_split_from.*`, `finance_company_is_pkp`, `finance_tax_engine_calc_enabled`
     - _Requirements: 2.7, 7.5, 7.9_
-  - [ ] 2.5 Test `initPermissions()` pada `TaxRuleVersion` dan perubahan `Tax` (F-12)
+  - [x] 2.5 Test `initPermissions()` pada `TaxRuleVersion` dan perubahan `Tax` (F-12)
     - _Requirements: 13.2_
 
-- [ ] 3. Backfill versi awal
-  - [ ] 3.1 `finance:init-tax-rules {--dry-run}`: versi 1 per pajak (`rate` dari `taxes.rate`, 11/12, `per_line`, `active`, `needs review`), idempoten, laporan rate mencurigakan
+- [x] 3. Backfill versi awal
+  - [x] 3.1 `finance:init-tax-rules {--dry-run}`: versi 1 per pajak (`rate` dari `taxes.rate`, 11/12, `per_line`, `active`, `needs review`), idempoten, laporan rate mencurigakan
     - _Requirements: 6.1–6.3_
-  - [ ] 3.2 `finance:report-unclassified-taxes` (pajak `unclassified` + pemakaian)
+  - [x] 3.2 `finance:report-unclassified-taxes` (pajak `unclassified` + pemakaian)
     - _Requirements: 10.5_
-  - [ ]* 3.3 Write tests backfill dan laporan
+  - [x]* 3.3 Write tests backfill dan laporan
     - **P-6** idempoten; tidak menimpa; laporan menandai rate mencurigakan
     - **Validates: Requirements 6.1–6.3**
 
-- [ ] 4. Resolver dan engine (TDD)
-  - [ ] 4.1 `TaxInput`, `TaxComponent`, `TaxResult` (serialisasi/`fromJson`), exception `NoEffectiveTaxRuleException`, `InvalidTaxRuleVersionException`
+- [x] 4. Resolver dan engine (TDD)
+  - [x] 4.1 `TaxInput`, `TaxComponent`, `TaxResult` (serialisasi/`fromJson`), exception `NoEffectiveTaxRuleException`, `InvalidTaxRuleVersionException`
     - _Requirements: 3.2, 4.2, 4.6_
-  - [ ] 4.2 `TaxRuleVersionService` (tumpang-tindih, versi baru, aktivasi, **guard faktor 11/12** selama `finance_tax_engine_calc_enabled=false`)
+  - [x] 4.2 `TaxRuleVersionService` (tumpang-tindih, versi baru, aktivasi, **guard faktor 11/12** selama `finance_tax_engine_calc_enabled=false`)
     - _Requirements: 2.2–2.3, 2.7_
-  - [ ] 4.3 `TaxRuleResolver` (query efektif, cache per `(tax,date)`)
+  - [x] 4.3 `TaxRuleResolver` (query efektif, cache per `(tax,date)`)
     - _Requirements: 3.1–3.4_
-  - [ ] 4.4 `TaxEngine` (`calculate`, `calculateDocument`, `verify`; aritmetika integer minor unit)
+  - [x] 4.4 `TaxEngine` (`calculate`, `calculateDocument`, `verify`; aritmetika integer minor unit)
     - _Requirements: 4.1–4.6, 8.1_
-  - [ ]* 4.5 Write tests resolver dan engine
+  - [x]* 4.5 Write tests resolver dan engine
     - **P-3** batas tanggal; **P-4** versi baru lewat data; **P-5** verify versi 1 = kolom generated; **P-7** guard faktor; pembulatan per_line/per_document; minor unit 0
     - **Validates: Requirements 2.2–2.7, 3.1–3.4, 4.1–4.6**
-  - [ ] 4.6 Test arsitektur **P-9**: `Tax/**` tanpa `use` model Sales/Purchase/Inventory
+  - [x] 4.6 Test arsitektur **P-9**: `Tax/**` tanpa `use` model Sales/Purchase/Inventory
     - _Requirements: 4.4_
 
-- [ ] 5. Snapshot di service dokumen
-  - [ ] 5.1 `SalesInvoiceService::fillItemRelations()` memakai resolver (tanggal dokumen) → isi `tax_rate` dan `tax_rule_version_id`
+- [x] 5. Snapshot di service dokumen
+  - [x] 5.1 `SalesInvoiceService::fillItemRelations()` memakai resolver (tanggal dokumen) → isi `tax_rate` dan `tax_rule_version_id`
     - _Requirements: 5.2_
-  - [ ] 5.2 Padanan di `PurchaseInvoiceService` (termasuk jalur off-PO dan retur)
+  - [x] 5.2 Padanan di `PurchaseInvoiceService` (termasuk jalur off-PO dan retur)
     - _Requirements: 5.2_
-  - [ ] 5.3 `onApproved()` kedua service menyimpan `tax_breakdown` (`TaxResult` dari nilai tersimpan + `warnings` bila beda dengan engine); immutable setelah approved
+  - [x] 5.3 `onApproved()` kedua service menyimpan `tax_breakdown` (`TaxResult` dari nilai tersimpan + `warnings` bila beda dengan engine); immutable setelah approved
     - _Requirements: 5.3_
-  - [ ]* 5.4 Write tests snapshot
+  - [x]* 5.4 Write tests snapshot
     - **P-2** angka dokumen tidak berubah (golden); invoice legacy tanpa snapshot tetap valid; versi tak ada → `NoEffectiveTaxRuleException`; `tax_breakdown` tak berubah setelah approved
     - **Validates: Requirements 5.1–5.6**
 
