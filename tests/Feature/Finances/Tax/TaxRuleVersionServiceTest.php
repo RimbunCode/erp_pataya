@@ -287,6 +287,14 @@ class TaxRuleVersionServiceTest extends TestCase {
         $this->assertSame('migrated; needs review', $version->notes);
     }
 
+    public function test_create_initial_version_is_skipped_when_the_tax_already_has_a_version(): void {
+        $tax = $this->tax('PPN 11', 11);
+        $this->assertNotNull($this->service->createInitialVersion($tax));
+
+        $this->assertNull($this->service->createInitialVersion($tax), 'Diperiksa di dalam kunci baris pajak: tidak menggandakan versi 1.');
+        $this->assertSame(1, TaxRuleVersion::query()->where('tax_id', $tax->getKey())->count());
+    }
+
     public function test_changes_are_recorded_through_the_audit_event(): void {
         Event::fake([AuditableModelSaved::class]);
 

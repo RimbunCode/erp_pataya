@@ -135,3 +135,8 @@ Bagian A (Task 1.2-1.4, 2-5) digabung dengan `origin/feat/finance-engine` (Fase 
 - Retur: memakai versi aturan pada tanggal retur, atau mewarisi versi item dokumen asal.
 - `TaxesController::store` membuat pajak tanpa versi aturan (pajak baru dari UI belum bisa dipakai di invoice sampai versi dibuat).
 - `InvoiceBilledValueResolver` masih membaca `taxes.rate`, bukan versi aturan.
+
+**Tindak lanjut review PR #330 (27 November 2026)**
+- I-1 diperbaiki: `Submitable::amend()` kini mengecualikan kolom lewat `amendExcludedColumns()`; `SalesInvoice` dan `PurchaseInvoice` mengecualikan `tax_breakdown`, sehingga revisi hasil amend dihitung ulang saat approve (Requirement 5.3). M-1 (`activate()` mengunci baris pajak), M-2 (pemeriksaan "sudah punya versi" di dalam kunci baris pajak pada `createInitialVersion()`, hasil `null` bila sudah ada) dan M-4 (`ExampleDataSeeder` membuat versi awal pajak contoh) diperbaiki.
+- **Catatan untuk Task 6 (M-5)**: `finance_tax_split_from.{type}` bernilai NULL berarti pemisahan baris pajak TIDAK aktif; rule posting harus memperlakukan NULL sebagai tidak aktif, bukan sebagai tanggal paling awal.
+- Pertanyaan terbuka tambahan (V-1): tanggal dokumen untuk memilih versi aturan pajak diturunkan dengan `CarbonImmutable::parse($data['date'])->toDateString()` (zona UTC, `app.timezone`), sedangkan frontend mengirim datetime ISO UTC dan posting/guard periode fiskal memakai hari bisnis zona perusahaan (`FiscalPeriodService::businessDay()`, Asia/Jakarta). Dokumen antara 00.00-07.00 WIB bisa memakai versi aturan hari sebelumnya, sehingga berbeda dari tanggal jurnalnya pada hari pergantian tarif. Belum diubah karena menyangkut definisi "tanggal berlaku" pajak; perlu keputusan pemilik produk.

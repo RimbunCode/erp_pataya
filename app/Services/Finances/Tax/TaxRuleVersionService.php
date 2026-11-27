@@ -116,7 +116,7 @@ final class TaxRuleVersionService {
     }
 
     /**
-     * Mengaktifkan versi `draft`. Seluruh versi pajak yang sama dikunci agar dua aktivasi serentak tidak lolos
+     * Mengaktifkan versi `draft`. Baris pajak dan seluruh versi pajak yang sama dikunci agar dua aktivasi serentak tidak lolos
      * pemeriksaan tumpang-tindih bersamaan.
      *
      * Bila versi ini menimpa tepat satu versi `active` yang mulai lebih awal (versi penerus, Requirement 2.3),
@@ -127,6 +127,8 @@ final class TaxRuleVersionService {
      */
     public function activate(TaxRuleVersion $version): TaxRuleVersion {
         return DB::transaction(function () use ($version): TaxRuleVersion {
+            // Kunci baris pajak lebih dulu (urutan sama dengan `createDraft()`), baru versi dan saudaranya.
+            $this->lockTax($version->tax_id);
             $locked = TaxRuleVersion::query()->whereKey($version->getKey())->lockForUpdate()->firstOrFail();
             if (! $locked->isDraft()) {
                 throw InvalidTaxRuleVersionException::notDraft($locked->status);
@@ -217,10 +219,17 @@ final class TaxRuleVersionService {
      * Versi 1 hasil backfill (`finance:init-tax-rules`, Requirement 6.1): berlaku sejak `1970-01-01` tanpa batas
      * akhir, `rate` disalin dari `taxes.rate`, faktor DPP `11/12` (menyamai kolom generated dokumen saat ini),
      * `per_line`, langsung `active`, dan ditandai `needs review`. Idempoten di tingkat pemanggil: tidak membuat
-     * versi bila pajak sudah punya versi apa pun (Requirement 6.2).
+     * versi bila pajak sudah punya versi apa pun (Requirement 6.2): hasilnya `null` bila pajak sudah punya versi
+     * (diperiksa di dalam kunci baris pajak).
      */
-    public function createInitialVersion(Tax $tax): TaxRuleVersion {
-        return DB::transaction(function () use ($tax): TaxRuleVersion {
+    public function createInitialVersion(Tax $tax): ?TaxRuleVersion {
+        return DB::transaction(function () use ($tax): ?TaxRuleVersion {
+            // Periksa setelah baris pajak dikunci, agar dua proses serentak tidak sama-sama membuat versi 1 (Requirement 6.2).
+            $locked = $this->lockTax($tax);
+            if (TaxRuleVersion::query()->where('tax_id', $locked->getKey())->exists()) {
+                return null;
+            }
+
             $draft = $this->createDraft($tax, [
                 'effective_from'  => self::EPOCH,
                 'effective_to'    => null,

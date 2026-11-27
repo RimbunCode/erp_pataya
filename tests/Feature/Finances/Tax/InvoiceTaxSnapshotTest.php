@@ -506,4 +506,57 @@ class InvoiceTaxSnapshotTest extends TestCase {
         $this->assertSame('183.33', $breakdown['components'][0]['tax_amount']);
         $this->assertSame('183.33', $breakdown['total_additive']);
     }
+
+    public function test_amended_sales_revision_does_not_inherit_the_breakdown_and_recomputes_on_approval(): void {
+        $tax      = $this->taxWithVersion('PPN 10', 10);
+        $invoice  = $this->approvableSalesInvoice(['tax_id' => $tax->getKey(), 'tax_rule_version_id' => $this->activeVersionOf($tax)->getKey()]);
+        $original = $this->approveSales($invoice);
+        $this->assertSame('183.33', $original->tax_breakdown['total_additive']);
+
+        $revision = $original->amend();
+
+        $this->assertNull($revision->fresh()->tax_breakdown, 'Revisi tidak boleh membawa snapshot dokumen asal (Requirement 5.3).');
+        $this->assertNotNull($original->fresh()->tax_breakdown, 'Dokumen asal tetap immutable.');
+
+        $other = $this->taxWithVersion('PPN 5', 5);
+        $item  = $revision->items()->firstOrFail();
+        $item->update(['tax_id' => $other->getKey(), 'tax_rate' => 5, 'tax_rule_version_id' => $this->activeVersionOf($other)->getKey()]);
+
+        $approved = $this->approveSales($revision->fresh());
+
+        $component = $approved->tax_breakdown['components'][0];
+        $this->assertSame($other->getKey(), $component['tax_id']);
+        $this->assertSame('91.67', $component['tax_amount'], '2.000 x 11/12 x 5%.');
+        $this->assertSame('183.33', $original->fresh()->tax_breakdown['total_additive']);
+    }
+
+    public function test_amended_purchase_revision_does_not_inherit_the_breakdown(): void {
+        $tax   = $this->taxWithVersion('PPN 10', 10);
+        $order = BaseModel::withoutEvents(fn () => PurchaseOrder::create([
+            'code'          => 'PO-SNAP-AMD',
+            'date'          => now(),
+            'status'        => [FormStatus::SUBMITTED],
+            'created_by_id' => $this->user->id,
+        ]));
+        $invoice = PurchaseInvoice::create([
+            'date'              => now()->subDays(3),
+            'purchase_order_id' => $order->id,
+            'branch_id'         => $this->branch->id,
+            'status'            => [FormStatus::SUBMITTED],
+            'tax_breakdown'     => ['marker' => 'lama'],
+        ]);
+        PurchaseInvoiceItem::create([
+            'purchase_invoice_id' => $invoice->id,
+            'item_id'             => ItemVariant::factory()->create()->id,
+            'quantity'            => 2,
+            'rate'                => 1000,
+            'tax_id'              => $tax->getKey(),
+            'tax_rate'            => 10,
+        ]);
+
+        $revision = $invoice->fresh()->amend();
+
+        $this->assertNull($revision->fresh()->tax_breakdown);
+        $this->assertSame(['marker' => 'lama'], $invoice->fresh()->tax_breakdown);
+    }
 }

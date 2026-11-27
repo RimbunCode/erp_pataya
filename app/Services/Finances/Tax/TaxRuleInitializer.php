@@ -83,7 +83,10 @@ final class TaxRuleInitializer {
             }
 
             try {
-                $created[] = $this->versions->createInitialVersion($tax);
+                $version = $this->versions->createInitialVersion($tax);
+                if ($version !== null) {
+                    $created[] = $version;
+                }
             } catch (Throwable $e) {
                 $failed[] = ['tax' => $tax, 'message' => $e->getMessage()];
             }

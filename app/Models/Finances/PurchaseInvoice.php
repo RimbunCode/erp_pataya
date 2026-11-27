@@ -274,4 +274,13 @@ class PurchaseInvoice extends Model {
 
         return true;
     }
+
+    /**
+     * `tax_breakdown` dihitung ulang saat revisi di-approve (Finance Fase 3, Requirement 5.3); tidak boleh terbawa.
+     *
+     * @return array<int, string>
+     */
+    protected function amendExcludedColumns(): array {
+        return ['tax_breakdown'];
+    }
 }
