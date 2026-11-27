@@ -11,8 +11,8 @@ use Illuminate\Support\Facades\Log;
  * Dipakai pabrik konteks Sales Invoice dan Purchase Invoice.
  *
  * Jumlah baris = `basic_amount - discount_amount + tax_amount`, persis rumus total yang dipakai approve
- * (`Σ(basic_amount - discount_amount) + Σ tax_amount`; basis pajak dan jumlah tidak diubah di Fase 2, pajak masih
- * menyatu dengan total). Atribut barang dari varian item (`type`, `is_stock_item`, `category_id`); baris tanpa item
+ * (`Σ(basic_amount - discount_amount) + Σ tax_amount`; basis pajak dan jumlah tidak diubah di Fase 2, pajak ikut dalam jumlah baris;
+ * pemisahan baris pajak Fase 3 dilakukan rule dengan mengurangi bagian pajak baris, bukan oleh builder). Atribut barang dari varian item (`type`, `is_stock_item`, `category_id`); baris tanpa item
  * (mis. baris aset) membawa atribut null sehingga aturan berkondisi barang tidak cocok untuknya.
  *
  * Bila jumlah baris tidak berjumlah `total` dalam toleransi (data tak konsisten, mis. retry memakai total tersimpan),
@@ -36,7 +36,7 @@ final class InvoiceLineAttributesBuilder {
 
             $variant = $item->item;
             $lines[] = new LineAttributes(
-                // `gross_amount`/`discount_amount` (Requirement 14.2): kotor = basic + pajak (pajak masih menyatu, F-03) =
+                // `gross_amount`/`discount_amount` (Requirement 14.2): kotor = basic + pajak (pajak ikut dalam jumlah baris; rule Fase 3 mengurangi bagian pajak bila dipisah) =
                 // bersih + diskon alokasi baris. `amount` (bersih) tetap menjadi dasar rumus, toleransi, dan fallback.
                 amounts: [
                     'amount'          => $amount,

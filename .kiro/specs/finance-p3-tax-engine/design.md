@@ -164,9 +164,9 @@ Rule posting memisahkan hanya komponen `classified && (SI || isCreditable)` bila
 | PPN Masukan (per komponen) | Debit | `input_role` versi | `amount` komponen |
 | Utang | Kredit | `payable` (override `credit_account_id`) | `total` |
 
-Retur: sisi ditukar. Bila tidak ada komponen terpisah atau invoice < cutover → bentuk 2-baris lama. Baris pajak memberi `tax_rule_version_id` pada `RoleLine` agar diteruskan ke `general_ledgers`. Karena baris pendapatan/beban = sisa, jurnal seimbang tanpa baris pembulatan.
+Retur: sisi ditukar, dan bentuknya (terpisah atau tertanam) mengikuti bentuk jurnal invoice ASAL lewat `return_against_id`, bukan tanggal retur (keputusan pemilik produk 27 November 2026, Q-P3-8; selaras Q-P2-25): retur terpisah bila dan hanya bila jurnal asal memuat baris pajak terpisah (`tax_rule_version_id` terisi); alasan: saldo `tax_output`/`tax_input` tidak boleh debit/kredit tanpa lawan dari invoice asal. Bila tidak ada komponen terpisah atau invoice < cutover → bentuk 2-baris lama. Baris pajak memberi `tax_rule_version_id` pada `RoleLine` agar diteruskan ke `general_ledgers`. Karena baris pendapatan/beban = sisa, jurnal seimbang tanpa baris pembulatan.
 
-**Cutover:** `PostingContext.flags['tax_split'] = true` bila `transaction_date >= finance_tax_split_from.{type}` (setting Finances); rule tidak membaca setting sendiri (murni). Diimplementasikan di `TaxSplitResolver` (tanggal jurnal, NULL = tidak aktif; Q-P3-3) dan `InvoiceTaxComponentsBuilder` (Task 6.2); lihat "Catatan implementasi Task 6" di `tasks.md` untuk perilaku komponen yang tidak dipisah dan pertanyaan terbuka (retur terhadap cutover).
+**Cutover:** `PostingContext.flags['tax_split'] = true` bila `transaction_date >= finance_tax_split_from.{type}` (setting Finances); rule tidak membaca setting sendiri (murni). Diimplementasikan di `TaxSplitResolver` (tanggal jurnal, NULL = tidak aktif; Q-P3-3) dan `InvoiceTaxComponentsBuilder` (Task 6.2); lihat "Catatan implementasi Task 6" di `tasks.md` untuk perilaku komponen yang tidak dipisah. Retur memakai `TaxSplitResolver::isActiveForDocument()` (bentuk invoice asal, Q-P3-8); invoice non-retur tetap memakai tanggal jurnalnya. Peran `tax_output`/`tax_input` masuk `PostingRoleRequirements::unmapped()` hanya untuk jenis dokumen yang cutover-nya terisi.
 
 ### Hubungan dengan Faktur Pajak
 

@@ -41,11 +41,11 @@ final class PurchaseInvoicePostingContextFactory {
         return new PostingContext(PostingDocumentType::PurchaseInvoice, $purchaseInvoice->getMorphClass(), (string) $purchaseInvoice->getKey(), $transactionDate, null, []);
     }
 
-    public function forPosting(PurchaseInvoice $purchaseInvoice, float $totalStockGl, float $totalAmount, bool $isReturn, CarbonInterface $transactionDate): PostingContext {
+    public function forPosting(PurchaseInvoice $purchaseInvoice, float $totalStockGl, float $totalAmount, bool $isReturn, CarbonInterface $transactionDate, bool $preview = false): PostingContext {
         $items = $purchaseInvoice->items()->with(['item' => fn ($query) => $query->withTrashed()])->get();
         $lines = $this->lines->build($items, $totalAmount, PostingDocumentType::PurchaseInvoice->value, (string) $purchaseInvoice->getKey());
 
-        [$taxComponents, $taxSplitActive] = $this->taxSplitFor($purchaseInvoice, $items, $transactionDate);
+        [$taxComponents, $taxSplitActive] = $this->taxSplitFor($purchaseInvoice, $items, $transactionDate, $isReturn, $preview);
 
         return new PostingContext(
             documentType: PostingDocumentType::PurchaseInvoice,
@@ -87,19 +87,23 @@ final class PurchaseInvoicePostingContextFactory {
      * Komponen pajak dari nilai tersimpan dan flag cutover pemisahan baris pajak (Finance Fase 3, Requirement 7.5).
      * Pemisahan aktif hanya bila tanggal jurnal >= `finance_tax_split_from.{type}` DAN ada komponen; komponen yang tidak
      * dapat dipisah (tak terklasifikasi, tanpa versi, tak dapat dikreditkan) dicatat `unsplit_tax` dan tertanam seperti
-     * semula. Retur memakai tanggal jurnalnya sendiri (pertanyaan terbuka: mengikuti invoice asal?).
+     * semula. Retur mengikuti bentuk jurnal invoice ASAL (keputusan pemilik produk 27 November 2026, selaras Q-P2-25),
+     * bukan tanggal retur. `$preview` (panel akun draft) tidak mencatat log `unsplit_tax`.
      *
      * @param  iterable<Model>  $items
      * @return array{0: list<TaxComponentLine>, 1: bool}
      */
-    private function taxSplitFor($purchaseInvoice, iterable $items, CarbonInterface $transactionDate): array {
+    private function taxSplitFor(PurchaseInvoice $purchaseInvoice, iterable $items, CarbonInterface $transactionDate, bool $isReturn, bool $preview): array {
         $resolver = $this->taxSplit ?? app(TaxSplitResolver::class);
-        if (! $resolver->isActive(PostingDocumentType::PurchaseInvoice, $transactionDate)) {
+        $originId = $isReturn ? $purchaseInvoice->return_against_id : null;
+        if (! $resolver->isActiveForDocument(PostingDocumentType::PurchaseInvoice, $transactionDate, $purchaseInvoice->getMorphClass(), $originId === null ? null : (string) $originId)) {
             return [[], false];
         }
 
         $components = $this->taxComponents->build($items, true, $resolver->companyIsPkp());
-        $this->taxComponents->logUnsplit($components, true, PostingDocumentType::PurchaseInvoice->value, (string) $purchaseInvoice->getKey());
+        if (! $preview) {
+            $this->taxComponents->logUnsplit($components, true, PostingDocumentType::PurchaseInvoice->value, (string) $purchaseInvoice->getKey());
+        }
 
         return [$components, $components !== []];
     }

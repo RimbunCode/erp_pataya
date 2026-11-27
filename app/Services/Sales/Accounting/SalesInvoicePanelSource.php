@@ -29,7 +29,7 @@ final class SalesInvoicePanelSource implements PanelSource {
             $total += (float) $item->basic_amount - (float) $item->discount_amount + (float) $item->tax_amount;
         }
 
-        return $this->factory->forPosting($document, $total, $document->return_against_id !== null, now());
+        return $this->factory->forPosting($document, $total, $document->return_against_id !== null, now(), preview: true);
     }
 
     public function previewIsEstimate(): bool {

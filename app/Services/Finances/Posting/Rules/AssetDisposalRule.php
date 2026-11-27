@@ -20,7 +20,7 @@ use LogicException;
  * (jurnal lama terbalik dan tidak mengeluarkan nilai buku; N-1).
  *
  * Kontrak konteks (semua proporsional terhadap qty baris): `amounts['proceeds']` (hasil penjualan = basic - diskon,
- * tanpa pajak yang masih menyatu di pendapatan sampai Fase 3, F-03), `amounts['cost']` (harga perolehan),
+ * tanpa pajak; sejak cutover pajak Fase 3 pendapatan baris itu juga bersih dari pajak karena pajak dipisah ke baris `tax_output`, sebelumnya pajak menyatu di pendapatan), `amounts['cost']` (harga perolehan),
  * `amounts['accumulated_depreciation']` (akumulasi penyusutan: jadwal terposting + saldo awal), `amounts['gain_loss']`
  * (informatif; jurnal menurunkan sendiri proceeds + akumulasi - cost agar seimbang menurut konstruksi);
  * `lines[0]` = atribut barang baris (peran `revenue` peka-barang); `flags['sales_invoice_item_id']`,

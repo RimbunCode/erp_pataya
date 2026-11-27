@@ -22,24 +22,29 @@ class TaxSplitRulePropertyTest extends TestCase {
     private const RUNS = 60;
 
     /**
-     * @return array{0: list<LineAttributes>, 1: list<TaxComponentLine>, 2: float}
+     * @return array{0: list<LineAttributes>, 1: list<TaxComponentLine>, 2: float, 3: float} baris, komponen, total bersih, diskon (Sales: semua baris; Purchase: baris non-stok)
      */
-    private function randomDocument(int $seed, bool $purchase): array {
+    private function randomDocument(int $seed, bool $purchase, bool $withDiscount = false): array {
         mt_srand($seed);
         $lineCount = mt_rand(1, 5);
         $versions  = ['v-a', 'v-b', 'v-c'];
 
-        $lines  = [];
-        $shares = ['v-a' => [], 'v-b' => [], 'v-c' => []];
-        $total  = 0.0;
+        $lines    = [];
+        $shares   = ['v-a' => [], 'v-b' => [], 'v-c' => []];
+        $total    = 0.0;
+        $discount = 0.0;
         for ($i = 0; $i < $lineCount; $i++) {
             $basic = mt_rand(1_000, 90_000_000) / 100;
             $ver   = $versions[mt_rand(0, 2)];
             $tax   = round($basic * 11 / 12 * mt_rand(0, 12) / 100, 6);
+            $off   = $withDiscount ? round($basic * mt_rand(0, 20) / 100, 2) : 0.0;
+            $stock = $purchase && $withDiscount && mt_rand(0, 2) === 0;
 
-            $lines[]               = new LineAttributes(['amount' => $basic + $tax, 'gross_amount' => $basic + $tax, 'discount_amount' => 0], isStockItem: false, lineId: "l{$i}");
+            $lines[]               = new LineAttributes(['amount' => $basic - $off + $tax, 'gross_amount' => $basic + $tax, 'discount_amount' => $off], isStockItem: $stock, lineId: "l{$i}");
             $shares[$ver]["l{$i}"] = $tax;
-            $total += $basic + $tax;
+            $total += $basic - $off + $tax;
+            // Purchase Invoice: hanya diskon baris non-stok yang dipisah (baris stok masuk nilai persediaan).
+            $discount += $stock ? 0.0 : $off;
         }
 
         $components = [];
@@ -50,18 +55,18 @@ class TaxSplitRulePropertyTest extends TestCase {
             $components[] = new TaxComponentLine($ver, $purchase ? 'tax_input' : 'tax_output', array_sum($map), true, true, $map, 'tax-' . $ver);
         }
 
-        return [$lines, $components, $total];
+        return [$lines, $components, $total, $discount];
     }
 
-    private function context(PostingDocumentType $type, array $lines, array $components, float $total, bool $return, bool $split): PostingContext {
+    private function context(PostingDocumentType $type, array $lines, array $components, float $total, bool $return, bool $split, float $discount = 0.0, bool $discountSplit = false): PostingContext {
         return new PostingContext(
             documentType: $type,
             sourceType: 'x',
             sourceId: '1',
             transactionDate: CarbonImmutable::parse('2026-11-27'),
             branchId: null,
-            amounts: ['total' => $total],
-            flags: ['is_return' => $return, 'tax_split' => $split],
+            amounts: ['total' => $total, 'discount_amount' => $discount],
+            flags: ['is_return' => $return, 'tax_split' => $split, 'discount_split' => $discountSplit],
             lines: $lines,
             taxComponents: $components,
         );
@@ -119,6 +124,42 @@ class TaxSplitRulePropertyTest extends TestCase {
                 $this->assertEqualsWithDelta($sum['debit'], $sum['credit'], 1e-6, "seed {$seed}: seimbang");
                 $this->assertEqualsWithDelta($taxSum, $sum['tax'], 1e-6, "seed {$seed}: Σ pajak = Σ komponen (P-1)");
                 $this->assertEqualsWithDelta($total - $taxSum, $sum['remainder'], 1e-6, "seed {$seed}: beban = sisa");
+            }
+        }
+    }
+
+    /**
+     * Diskon bukan nol dan flag `discount_split` bersama pemisahan pajak: seimbang, Σ pajak = Σ komponen, dan
+     * pendapatan/beban = total + diskon terpisah - pajak.
+     */
+    public function test_sales_invoice_with_discount_split_and_tax_split_is_balanced(): void {
+        for ($seed = 200; $seed < 200 + self::RUNS; $seed++) {
+            [$lines, $components, $total, $discount] = $this->randomDocument($seed, false, true);
+            $taxSum                                  = array_sum(array_map(fn (TaxComponentLine $c): float => $c->amount, $components));
+
+            foreach ([false, true] as $return) {
+                $drafts = (new SalesInvoiceRule)->build($this->context(PostingDocumentType::SalesInvoice, $lines, $components, $total, $return, true, $discount, true));
+                $sum    = $this->summarize($drafts, 'default', 'tax_output', 'revenue');
+
+                $this->assertEqualsWithDelta($sum['debit'], $sum['credit'], 1e-6, "seed {$seed}: seimbang");
+                $this->assertEqualsWithDelta($taxSum, $sum['tax'], 1e-6, "seed {$seed}: Σ pajak = Σ komponen");
+                $this->assertEqualsWithDelta($total + $discount - $taxSum, $sum['remainder'], 1e-6, "seed {$seed}: pendapatan kotor - pajak");
+            }
+        }
+    }
+
+    public function test_purchase_invoice_with_discount_split_and_tax_split_is_balanced(): void {
+        for ($seed = 300; $seed < 300 + self::RUNS; $seed++) {
+            [$lines, $components, $total, $discount] = $this->randomDocument($seed, true, true);
+            $taxSum                                  = array_sum(array_map(fn (TaxComponentLine $c): float => $c->amount, $components));
+
+            foreach ([false, true] as $return) {
+                $drafts = (new PurchaseInvoiceRule)->build($this->context(PostingDocumentType::PurchaseInvoice, $lines, $components, $total, $return, true, $discount, true));
+                $sum    = $this->summarize($drafts, 'expense', 'tax_input', 'expense');
+
+                $this->assertEqualsWithDelta($sum['debit'], $sum['credit'], 1e-6, "seed {$seed}: seimbang");
+                $this->assertEqualsWithDelta($taxSum, $sum['tax'], 1e-6, "seed {$seed}: Σ pajak = Σ komponen");
+                $this->assertEqualsWithDelta($total + $discount - $taxSum, $sum['remainder'], 1e-6, "seed {$seed}: beban kotor non-stok - pajak");
             }
         }
     }

@@ -4,6 +4,8 @@ namespace App\Services\Finances\Accounting;
 
 use App\Enums\PostingDocumentType;
 use App\Models\Finances\FinanceSetting;
+use App\Models\Finances\GeneralLedger;
+use App\Models\Finances\Journal;
 use App\Services\Core\Setting\SettingsService;
 use App\Services\Finances\Ledger\FiscalPeriodService;
 use Carbon\CarbonInterface;
@@ -20,6 +22,14 @@ use Carbon\CarbonInterface;
  * (Requirement 7.9).
  */
 final class TaxSplitResolver {
+    /**
+     * `purpose` jurnal yang menjadi tolok ukur bentuk invoice asal (bagian akhir `posting_key`; sama dengan diskon).
+     */
+    private const ORIGIN_JOURNAL_PURPOSE = [
+        'sales_invoice'    => 'default',
+        'purchase_invoice' => 'expense',
+    ];
+
     public function __construct(
         private readonly SettingsService $settings,
         private readonly FiscalPeriodService $periods,
@@ -29,6 +39,53 @@ final class TaxSplitResolver {
         $from = $this->cutoverDate($type);
 
         return $from !== null && $this->periods->businessDay($transactionDate) >= $from;
+    }
+
+    /**
+     * Seperti `isActive()`, tetapi retur (`$originId` terisi) mengikuti bentuk jurnal invoice ASAL (keputusan pemilik
+     * produk 27 November 2026, selaras Q-P2-25 `DiscountSplitResolver`): retur memisahkan pajak bila dan hanya bila jurnal
+     * asal memuat baris pajak terpisah (baris dengan `tax_rule_version_id`), di sisi mana pun tanggal retur terhadap
+     * cutover, sehingga saldo `tax_output`/`tax_input` tidak pernah debit/kredit tanpa lawan dari invoice asal.
+     * Jurnal asal ada tanpa baris pajak = tertanam (pra-cutover, atau tak ada komponen yang dapat dipisah). Tanpa invoice
+     * asal, atau jurnal asal belum ada, dipakai tanggal retur sendiri.
+     *
+     * @param  string|null  $originMorphClass  `getMorphClass()` invoice asal (sama dengan dokumen retur)
+     * @param  string|null  $originId  `return_against_id`
+     */
+    public function isActiveForDocument(PostingDocumentType $type, CarbonInterface $transactionDate, ?string $originMorphClass = null, ?string $originId = null): bool {
+        $purpose = self::ORIGIN_JOURNAL_PURPOSE[$type->value] ?? null;
+        if ($originMorphClass !== null && $originId !== null && $originId !== '' && $purpose !== null) {
+            $origin = Journal::query()
+                ->withoutGlobalScopes()
+                ->where('posting_key', "{$originMorphClass}:{$originId}:{$purpose}")
+                ->first(['id']);
+
+            if ($origin !== null) {
+                return GeneralLedger::query()
+                    ->withoutGlobalScopes()
+                    ->where('journal_id', $origin->id)
+                    ->whereNotNull('tax_rule_version_id')
+                    ->exists();
+            }
+        }
+
+        return $this->isActive($type, $transactionDate);
+    }
+
+    /**
+     * Nilai jenis dokumen yang `finance_tax_split_from`-nya sudah terisi (dasar peringatan peran pajak belum terpetakan).
+     *
+     * @return list<string>
+     */
+    public function documentTypesWithCutover(): array {
+        $types = [];
+        foreach (PostingDocumentType::cases() as $type) {
+            if ($this->cutoverDate($type) !== null) {
+                $types[] = $type->value;
+            }
+        }
+
+        return $types;
     }
 
     /**

@@ -209,6 +209,33 @@ class InitPostingProfileCommandTest extends TestCase {
         $this->assertContains('tax_output', app(PostingProfileInitializer::class)->analyze()['tax']['unmapped_roles'], 'Masih dilaporkan belum terpetakan setelah profil awal dibuat.');
     }
 
+    public function test_a_draft_mapping_tax_roles_does_not_count_when_the_active_profile_does_not(): void {
+        $output = $this->makeAccount('2310', 'PPN Keluaran', 'liability', 'credit', 'tax');
+        $this->runCommand();
+        $service = app(PostingProfileService::class);
+        $active  = $service->activate(PostingProfile::query()->firstOrFail());
+        $this->assertSame(PostingProfile::STATUS_ACTIVE, $active->status);
+
+        $draft = $service->createNewVersion($active, now()->addYear());
+        DB::table('posting_profile_accounts')->insert([
+            'id'                 => (string) Str::ulid(),
+            'posting_profile_id' => $draft->getKey(),
+            'role'               => 'tax_output',
+            'account_id'         => $output->getKey(),
+        ]);
+
+        $this->assertContains('tax_output', app(PostingProfileInitializer::class)->analyze()['tax']['unmapped_roles'], 'Draft v2 yang memetakan tax_output tidak dihitung; resolver memakai profil aktif.');
+    }
+
+    public function test_tax_roles_are_not_repeated_in_the_master_roles_section_of_the_report(): void {
+        $output = $this->runCommand(['--report' => true]);
+
+        $this->assertSame(1, preg_match('/Peran akun master[^\n]*\n([^\n]*)/', $output, $matches));
+        $this->assertStringNotContainsString('tax_output', $matches[1]);
+        $this->assertStringNotContainsString('withholding_', $matches[1]);
+        $this->assertStringContainsString('Peran pajak belum dipetakan', $output, 'Peran pajak tetap dilaporkan di bagian pajak.');
+    }
+
     public function test_tax_roles_mapped_on_the_profile_are_no_longer_reported_unmapped(): void {
         $output = $this->makeAccount('2310', 'PPN Keluaran', 'liability', 'credit', 'tax');
         $this->runCommand();
@@ -220,6 +247,9 @@ class InitPostingProfileCommandTest extends TestCase {
             'account_id'         => $output->getKey(),
         ]);
 
+        $this->assertContains('tax_output', app(PostingProfileInitializer::class)->analyze()['tax']['unmapped_roles'], 'Profil masih draft: resolver belum memakainya.');
+
+        app(PostingProfileService::class)->activate($profile);
         $unmapped = app(PostingProfileInitializer::class)->analyze()['tax']['unmapped_roles'];
 
         $this->assertNotContains('tax_output', $unmapped);

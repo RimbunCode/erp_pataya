@@ -75,7 +75,7 @@ final class AssetPostingContextFactory {
      * pembatalan ada di Sales Invoice sumber baris penjualan sehingga ia menjadi dokumen penjaga guard cancel (Q-P2-13).
      *
      * Jumlah bernama (semuanya sudah proporsional terhadap qty baris / `asset_quantity`, dihitung pemanggil):
-     * `proceeds` = hasil penjualan baris (`basic_amount - discount_amount`, tanpa pajak), `cost` = harga perolehan,
+     * `proceeds` = hasil penjualan baris (`basic_amount - discount_amount`, tanpa pajak; selaras pendapatan baris Sales Invoice setelah pajak dipisah, Fase 3), `cost` = harga perolehan,
      * `accumulated_depreciation`, dan `gain_loss` = proceeds - (cost - accumulated_depreciation), bertanda (untung
      * positif). `discount_amount` (diskon baris) dan flag `discount_split` memberi rule bentuk pembalikan saat Sales Invoice
      * sumber memposting diskon terpisah. Flag diturunkan dari Sales Invoice sumber (`$invoiceDate` = waktu approve-nya,

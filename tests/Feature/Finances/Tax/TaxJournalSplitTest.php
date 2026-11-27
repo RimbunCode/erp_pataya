@@ -28,10 +28,12 @@ use App\Models\Inventory\Warehouse;
 use App\Models\Model as BaseModel;
 use App\Models\Purchase\PurchaseOrder;
 use App\Services\Core\Setting\SettingsService;
+use App\Services\Finances\Accounting\PurchaseInvoicePanelSource;
 use App\Services\Finances\Ledger\FiscalPeriodService;
 use App\Services\Finances\Ledger\JournalReversalService;
 use App\Services\Finances\Posting\PostingProfileService;
 use App\Services\Finances\Tax\TaxRuleVersionService;
+use App\Services\Sales\Accounting\SalesInvoicePanelSource;
 use Carbon\CarbonImmutable;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Illuminate\Support\Facades\DB;
@@ -55,6 +57,8 @@ class TaxJournalSplitTest extends TestCase {
     private Account $srnb;
     private Account $taxOutput;
     private Account $taxInput;
+    private Account $discountSales;
+    private Account $discountPurchase;
     private PurchaseOrder $purchaseOrder;
 
     protected function setUp(): void {
@@ -62,13 +66,15 @@ class TaxJournalSplitTest extends TestCase {
 
         $this->setUpFinanceFixtures([PostingProfile::class, SalesInvoice::class, PurchaseInvoice::class, PurchaseOrder::class, Unit::class, Warehouse::class, Item::class, ItemVariant::class]);
 
-        $this->receivable = $this->makeAccount('1200', 'Piutang Usaha', 'asset', 'debit', 'accounts_receivable');
-        $this->revenue    = $this->makeAccount('4000', 'Penjualan', 'income', 'credit', 'sales');
-        $this->payable    = $this->makeAccount('2000', 'Utang Usaha', 'liability', 'credit', 'accounts_payable');
-        $this->expense    = $this->makeAccount('5000', 'Beban Pembelian', 'expense', 'debit');
-        $this->srnb       = $this->makeAccount('2100', 'SRNB', 'liability', 'credit', 'stock_received_but_not_billed');
-        $this->taxOutput  = $this->makeAccount('2300', 'PPN Keluaran', 'liability', 'credit');
-        $this->taxInput   = $this->makeAccount('1300', 'PPN Masukan', 'asset', 'debit');
+        $this->receivable       = $this->makeAccount('1200', 'Piutang Usaha', 'asset', 'debit', 'accounts_receivable');
+        $this->revenue          = $this->makeAccount('4000', 'Penjualan', 'income', 'credit', 'sales');
+        $this->payable          = $this->makeAccount('2000', 'Utang Usaha', 'liability', 'credit', 'accounts_payable');
+        $this->expense          = $this->makeAccount('5000', 'Beban Pembelian', 'expense', 'debit');
+        $this->srnb             = $this->makeAccount('2100', 'SRNB', 'liability', 'credit', 'stock_received_but_not_billed');
+        $this->taxOutput        = $this->makeAccount('2300', 'PPN Keluaran', 'liability', 'credit');
+        $this->taxInput         = $this->makeAccount('1300', 'PPN Masukan', 'asset', 'debit');
+        $this->discountSales    = $this->makeAccount('4900', 'Potongan Penjualan', 'income', 'debit');
+        $this->discountPurchase = $this->makeAccount('5900', 'Potongan Pembelian', 'expense', 'credit');
 
         $this->activateProfile(withTaxRoles: true);
 
@@ -87,6 +93,7 @@ class TaxJournalSplitTest extends TestCase {
             'payable'                       => $this->payable->id,
             'expense'                       => $this->expense->id,
             'stock_received_but_not_billed' => $this->srnb->id,
+            'discount'                      => $this->discountSales->id,
         ];
         if ($withTaxRoles) {
             $roles['tax_output'] = $this->taxOutput->id;
@@ -94,7 +101,7 @@ class TaxJournalSplitTest extends TestCase {
         }
 
         $profiles = app(PostingProfileService::class);
-        $profiles->activate($profiles->createDraft('Profil tes pajak', '2020-01-01', null, $roles, []));
+        $profiles->activate($profiles->createDraft('Profil tes pajak', '2020-01-01', null, $roles, [['role' => 'discount', 'account_id' => $this->discountPurchase->id, 'document_type' => 'purchase_invoice']]));
     }
 
     private function setCutover(?string $date, ?string $purchaseDate = null): void {
@@ -119,19 +126,22 @@ class TaxJournalSplitTest extends TestCase {
     }
 
     /**
-     * @param  list<array{tax: Tax, price: float, quantity?: float}>  $rows
+     * @param  list<array{tax: Tax, price: float, quantity?: float, discount?: float}>  $rows
+     * @param  array<string, mixed>  $attributes
      */
-    private function salesInvoice(array $rows): SalesInvoice {
+    private function salesInvoice(array $rows, array $attributes = []): SalesInvoice {
         $invoice = SalesInvoice::factory()->create([
             'date'      => now()->subDay(),
             'branch_id' => $this->branch->id,
             'status'    => [FormStatus::SUBMITTED],
+            ...$attributes,
         ]);
         foreach ($rows as $row) {
             SalesInvoiceItem::factory()->create([
                 'sales_invoice_id'    => $invoice->id,
                 'quantity'            => $row['quantity'] ?? 1,
                 'price'               => $row['price'],
+                'discount_amount'     => $row['discount'] ?? 0,
                 'tax_id'              => $row['tax']->getKey(),
                 'tax_rate'            => $row['tax']->rate,
                 'tax_rule_version_id' => $this->versionOf($row['tax'])->getKey(),
@@ -143,21 +153,24 @@ class TaxJournalSplitTest extends TestCase {
     }
 
     /**
-     * @param  list<array{tax: Tax, rate: float, quantity?: float}>  $rows
+     * @param  list<array{tax: Tax, rate: float, quantity?: float, discount?: float, stock?: bool}>  $rows
+     * @param  array<string, mixed>  $attributes
      */
-    private function purchaseInvoice(array $rows): PurchaseInvoice {
+    private function purchaseInvoice(array $rows, array $attributes = []): PurchaseInvoice {
         $invoice = PurchaseInvoice::create([
             'date'              => now()->subDays(3),
             'purchase_order_id' => $this->purchaseOrder->id,
-            'branch_id'         => $this->branch->id,
-            'status'            => [FormStatus::SUBMITTED],
+            ...$attributes,
+            'branch_id' => $this->branch->id,
+            'status'    => [FormStatus::SUBMITTED],
         ]);
         foreach ($rows as $row) {
             PurchaseInvoiceItem::create([
                 'purchase_invoice_id' => $invoice->id,
-                'item_id'             => ItemVariant::factory()->create(['is_stock_item' => false])->id,
+                'item_id'             => ItemVariant::factory()->create(['is_stock_item' => $row['stock'] ?? false])->id,
                 'quantity'            => $row['quantity'] ?? 1,
                 'rate'                => $row['rate'],
+                'discount_amount'     => $row['discount'] ?? 0,
                 'tax_id'              => $row['tax']->getKey(),
                 'tax_rate'            => $row['tax']->rate,
                 'tax_rule_version_id' => $this->versionOf($row['tax'])->getKey(),
@@ -420,6 +433,158 @@ class TaxJournalSplitTest extends TestCase {
         $lines = GeneralLedger::query()->where('journal_id', $reversal->id)->get();
         $this->assertCount(2, $lines);
         $this->assertNull($lines->first()->tax_rule_version_id);
+    }
+
+    /**
+     * Retur mengikuti bentuk jurnal invoice ASAL (keputusan pemilik produk 27 November 2026, selaras Q-P2-25).
+     */
+    public function test_sales_return_against_a_pre_cutover_invoice_stays_embedded_even_after_the_cutover(): void {
+        $tax    = $this->ppn();
+        $origin = $this->salesInvoice([['tax' => $tax, 'price' => 12_000_000]]);
+        $this->postSales($origin);
+        $this->setCutover('today');
+
+        $return = $this->salesInvoice([['tax' => $tax, 'price' => 12_000_000]], ['return_against_id' => $origin->id]);
+        $this->postSales($return, isReturn: true);
+
+        $journal = $this->journalOf($return->id);
+        $this->assertCount(2, $journal, 'Retur atas invoice pra-cutover tetap tertanam.');
+        $this->assertEqualsWithDelta(13_320_000, $journal['D:' . $this->revenue->id], 0.01);
+        $this->assertSame(0, GeneralLedger::query()->whereNotNull('tax_rule_version_id')->count());
+    }
+
+    public function test_sales_return_against_a_post_cutover_invoice_stays_split_even_if_the_cutover_is_removed(): void {
+        $this->setCutover('today');
+        $tax     = $this->ppn();
+        $version = $this->versionOf($tax);
+        $origin  = $this->salesInvoice([['tax' => $tax, 'price' => 12_000_000]]);
+        $this->postSales($origin);
+        $this->setCutover(now()->addDays(30)->toDateString());
+
+        $return = $this->salesInvoice([['tax' => $tax, 'price' => 12_000_000]], ['return_against_id' => $origin->id]);
+        $this->postSales($return, isReturn: true);
+
+        $journal = $this->journalOf($return->id);
+        $this->assertEqualsWithDelta(1_320_000, $journal['D:' . $this->taxOutput->id . ':' . $version->getKey()], 0.01, 'Saldo tax_output tidak boleh debit tanpa kredit asal.');
+        $this->assertEqualsWithDelta(12_000_000, $journal['D:' . $this->revenue->id], 0.01);
+        $this->assertBalanced($journal);
+    }
+
+    public function test_purchase_return_follows_the_form_of_the_origin_invoice(): void {
+        $tax    = $this->ppn();
+        $before = $this->purchaseInvoice([['tax' => $tax, 'rate' => 10_000_000]]);
+        $this->postPurchase($before);
+        $this->setCutover('today');
+        $after = $this->purchaseInvoice([['tax' => $tax, 'rate' => 10_000_000]]);
+        $this->postPurchase($after);
+
+        $returnBefore = $this->purchaseInvoice([['tax' => $tax, 'rate' => 10_000_000]], ['return_against_id' => $before->id]);
+        $this->postPurchase($returnBefore, isReturn: true);
+        $returnAfter = $this->purchaseInvoice([['tax' => $tax, 'rate' => 10_000_000]], ['return_against_id' => $after->id]);
+        $this->postPurchase($returnAfter, isReturn: true);
+
+        $embedded = $this->journalOf($returnBefore->id, 'expense');
+        $this->assertCount(2, $embedded, 'Retur atas PI pra-cutover tetap tertanam.');
+        $this->assertEqualsWithDelta(11_100_000, $embedded['C:' . $this->expense->id], 0.01);
+
+        $split = $this->journalOf($returnAfter->id, 'expense');
+        $this->assertEqualsWithDelta(1_100_000, $split['C:' . $this->taxInput->id . ':' . $this->versionOf($tax)->getKey()], 0.01);
+        $this->assertEqualsWithDelta(10_000_000, $split['C:' . $this->expense->id], 0.01);
+        $this->assertBalanced($split);
+    }
+
+    private function setDiscountCutoverToday(): void {
+        $today = app(FiscalPeriodService::class)->businessDay(now());
+        app(SettingsService::class)->update(FinanceSetting::class, [
+            FinanceSetting::DISCOUNT_SPLIT_COLUMNS['sales_invoice']    => $today,
+            FinanceSetting::DISCOUNT_SPLIT_COLUMNS['purchase_invoice'] => $today,
+        ]);
+    }
+
+    public function test_sales_invoice_with_split_discount_and_split_tax_is_balanced(): void {
+        $this->setCutover('today');
+        $this->setDiscountCutoverToday();
+        $tax     = $this->ppn();
+        $invoice = $this->salesInvoice([['tax' => $tax, 'price' => 6_000_000, 'quantity' => 2, 'discount' => 500_000]]);
+
+        $this->postSales($invoice);
+
+        $items    = $invoice->items()->get();
+        $basic    = (float) $items->sum('basic_amount');
+        $storedTx = (float) $items->sum('tax_amount');
+        $journal  = $this->journalOf($invoice->id);
+        $this->assertEqualsWithDelta($basic - 500_000 + $storedTx, $journal['D:' . $this->receivable->id], 0.01);
+        $this->assertEqualsWithDelta(500_000, $journal['D:' . $this->discountSales->id], 0.01);
+        $this->assertEqualsWithDelta($basic, $journal['C:' . $this->revenue->id], 0.01, 'Pendapatan kotor tanpa pajak.');
+        $this->assertEqualsWithDelta($storedTx, $journal['C:' . $this->taxOutput->id . ':' . $this->versionOf($tax)->getKey()], 0.01);
+        $this->assertBalanced($journal);
+    }
+
+    public function test_purchase_invoice_with_split_discount_and_split_tax_is_balanced(): void {
+        $this->setCutover('today');
+        $this->setDiscountCutoverToday();
+        $tax     = $this->ppn();
+        $invoice = $this->purchaseInvoice([['tax' => $tax, 'rate' => 6_000_000, 'quantity' => 2, 'discount' => 500_000]]);
+
+        $this->postPurchase($invoice);
+
+        $items    = $invoice->items()->get();
+        $basic    = (float) $items->sum('basic_amount');
+        $storedTx = (float) $items->sum('tax_amount');
+        $journal  = $this->journalOf($invoice->id, 'expense');
+        $this->assertEqualsWithDelta($basic - 500_000 + $storedTx, $journal['C:' . $this->payable->id], 0.01);
+        $this->assertEqualsWithDelta(500_000, $journal['C:' . $this->discountPurchase->id], 0.01);
+        $this->assertEqualsWithDelta($basic, $journal['D:' . $this->expense->id], 0.01);
+        $this->assertEqualsWithDelta($storedTx, $journal['D:' . $this->taxInput->id . ':' . $this->versionOf($tax)->getKey()], 0.01);
+        $this->assertBalanced($journal);
+    }
+
+    public function test_purchase_invoice_with_a_stock_line_and_tax_keeps_tax_exact_and_balanced_under_discount_split(): void {
+        $this->setCutover('today');
+        $this->setDiscountCutoverToday();
+        $tax     = $this->ppn();
+        $invoice = $this->purchaseInvoice([
+            ['tax' => $tax, 'rate' => 1001.37, 'quantity' => 3, 'discount' => 100.11, 'stock' => true],
+            ['tax' => $tax, 'rate' => 777.77, 'quantity' => 7, 'discount' => 33.33],
+        ]);
+
+        $this->postPurchase($invoice);
+
+        $journal  = $this->journalOf($invoice->id, 'expense');
+        $storedTx = (float) $invoice->items()->sum('tax_amount');
+        $this->assertBalanced($journal);
+        $this->assertEqualsWithDelta($storedTx, $journal['D:' . $this->taxInput->id . ':' . $this->versionOf($tax)->getKey()], 0.01, 'Baris pajak tidak menyerap pembulatan (selisih paling satu minor unit dari nilai tersimpan).');
+        $this->assertEqualsWithDelta($this->total($invoice), $journal['C:' . $this->payable->id], 0.01, 'Utang = total dokumen (dibulatkan ke minor unit).');
+    }
+
+    public function test_the_draft_panel_preview_does_not_log_unsplit_tax_but_real_posting_does(): void {
+        Log::spy();
+        $this->setCutover('today');
+        $tax     = $this->ppn('PPN lama', 11, Tax::CATEGORY_UNCLASSIFIED);
+        $invoice = $this->salesInvoice([['tax' => $tax, 'price' => 10_000_000]]);
+
+        $context = app(SalesInvoicePanelSource::class)->previewContext($invoice);
+
+        $this->assertNotNull($context);
+        Log::shouldNotHaveReceived('info', fn (string $message) => $message === 'posting.unsplit_tax');
+
+        $this->postSales($invoice);
+        Log::shouldHaveReceived('info')->withArgs(fn (string $message) => $message === 'posting.unsplit_tax')->once();
+    }
+
+    public function test_the_purchase_draft_panel_preview_does_not_log_unsplit_tax(): void {
+        Log::spy();
+        $this->setCutover('today');
+        $tax     = $this->ppn('PPN tak kredit', 12, Tax::CATEGORY_PPN_STANDARD, creditable: false);
+        $invoice = $this->purchaseInvoice([['tax' => $tax, 'rate' => 10_000_000]]);
+
+        $context = app(PurchaseInvoicePanelSource::class)->previewContext($invoice);
+
+        $this->assertNotNull($context);
+        Log::shouldNotHaveReceived('info', fn (string $message) => $message === 'posting.unsplit_tax');
+
+        $this->postPurchase($invoice);
+        Log::shouldHaveReceived('info')->withArgs(fn (string $message) => $message === 'posting.unsplit_tax')->once();
     }
 
     public function test_the_tax_split_flag_is_only_for_the_two_invoice_types(): void {

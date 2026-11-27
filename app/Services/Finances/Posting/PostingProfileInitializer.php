@@ -6,6 +6,7 @@ use App\Enums\AccountRole;
 use App\Models\Finances\Account;
 use App\Models\Finances\FiscalYear;
 use App\Models\Finances\PostingProfile;
+use App\Services\Finances\Ledger\FiscalPeriodService;
 use Carbon\CarbonImmutable;
 use Carbon\CarbonInterface;
 use Illuminate\Database\Eloquent\Builder;
@@ -78,8 +79,8 @@ final class PostingProfileInitializer {
      * Laporan akun pajak untuk pemisahan baris pajak Fase 3 (Requirement 7.7-7.8, Task 6.4), read-only dan tanpa menebak:
      * `accounts` = SEMUA akun aktif non-group bertipe `tax` (COA lama tidak membedakan PPN Keluaran, PPN Masukan, dan
      * PPh, sehingga dilaporkan sebagai kandidat ambigu bila lebih dari satu, dan tidak pernah dipetakan otomatis);
-     * `unmapped_roles` = peran `tax_*`/`withholding_*` yang belum dipetakan pada profil default aktif (atau seluruhnya
-     * bila belum ada profil aktif). Akuntan melengkapi COA dan memetakan peran ini di Posting Profile sebelum cutover.
+     * `unmapped_roles` = peran `tax_*`/`withholding_*` yang belum dipetakan pada profil `active` yang berlaku hari ini, sama dengan profil yang dipakai resolver (atau seluruhnya
+     * bila tidak ada profil aktif yang berlaku; draft tidak dihitung). Akuntan melengkapi COA dan memetakan peran ini di Posting Profile sebelum cutover.
      *
      * @return array{accounts: list<string>, unmapped_roles: list<string>}
      */
@@ -106,12 +107,22 @@ final class PostingProfileInitializer {
     }
 
     /**
-     * Peran yang sudah dipetakan pada profil terbaru (draft atau aktif); kosong bila belum ada profil.
+     * Peran yang sudah dipetakan pada profil `active` yang berlaku hari ini (zona waktu perusahaan), yaitu profil yang
+     * sama dengan yang dipakai `AccountRoleResolver::profileFor`; draft dan profil pensiun tidak dihitung. Kosong bila
+     * tidak ada profil aktif yang berlaku.
      *
      * @return list<string>
      */
     private function mappedRolesOfLatestProfile(): array {
-        $profile = PostingProfile::query()->orderByDesc('version')->orderByDesc('created_at')->first();
+        $day     = app(FiscalPeriodService::class)->businessDay(CarbonImmutable::now());
+        $profile = PostingProfile::query()
+            ->where('status', PostingProfile::STATUS_ACTIVE)
+            ->whereDate('effective_from', '<=', $day)
+            ->where(fn ($query) => $query->whereNull('effective_to')->orWhereDate('effective_to', '>=', $day))
+            ->orderByDesc('effective_from')
+            ->orderByDesc('version')
+            ->orderByDesc('id')
+            ->first();
 
         return $profile === null ? [] : $profile->accounts()->pluck('role')->all();
     }
