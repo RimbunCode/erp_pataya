@@ -166,7 +166,7 @@ Rule posting memisahkan hanya komponen `classified && (SI || isCreditable)` bila
 
 Retur: sisi ditukar. Bila tidak ada komponen terpisah atau invoice < cutover → bentuk 2-baris lama. Baris pajak memberi `tax_rule_version_id` pada `RoleLine` agar diteruskan ke `general_ledgers`. Karena baris pendapatan/beban = sisa, jurnal seimbang tanpa baris pembulatan.
 
-**Cutover:** `PostingContext.flags['tax_split'] = true` bila `transaction_date >= finance_tax_split_from.{type}` (setting Finances); rule tidak membaca setting sendiri (murni).
+**Cutover:** `PostingContext.flags['tax_split'] = true` bila `transaction_date >= finance_tax_split_from.{type}` (setting Finances); rule tidak membaca setting sendiri (murni). Diimplementasikan di `TaxSplitResolver` (tanggal jurnal, NULL = tidak aktif; Q-P3-3) dan `InvoiceTaxComponentsBuilder` (Task 6.2); lihat "Catatan implementasi Task 6" di `tasks.md` untuk perilaku komponen yang tidak dipisah dan pertanyaan terbuka (retur terhadap cutover).
 
 ### Hubungan dengan Faktur Pajak
 
