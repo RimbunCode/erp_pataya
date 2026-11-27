@@ -40,6 +40,7 @@ use App\Services\Core\Setting\ToleranceCalculator;
 use App\Services\Finances\Ledger\JournalReversalService;
 use App\Services\Finances\Tax\DocumentTaxRules;
 use App\Services\Finances\Tax\DocumentTaxSnapshot;
+use App\Services\Finances\Tax\TaxInvoiceAmounts;
 use App\Traits\HasDefaultDelete;
 use App\Utils;
 use Carbon\CarbonImmutable;
@@ -883,14 +884,17 @@ class SalesInvoiceService implements SubmitableService {
 
         $salesInvoice->loadMissing('items');
 
+        // Requirement 9.1: hanya komponen PPN bila snapshot terklasifikasi; selain itu perilaku lama.
+        $ppnAmounts = TaxInvoiceAmounts::fromBreakdown($salesInvoice->tax_breakdown);
+
         $serialNumber = app(TaxInvoiceSerialAllocator::class)->nextSerial($transactionCode, $statusCode);
 
         $salesInvoice->update([
             'tax_invoice_transaction_code' => $transactionCode,
             'tax_invoice_serial_number'    => $serialNumber,
             'tax_invoice_date'             => now(),
-            'tax_invoice_dpp_amount'       => $salesInvoice->items->sum('dpp_amount'),
-            'tax_invoice_ppn_amount'       => $salesInvoice->items->sum('tax_amount'),
+            'tax_invoice_dpp_amount'       => $ppnAmounts['dpp'] ?? $salesInvoice->items->sum('dpp_amount'),
+            'tax_invoice_ppn_amount'       => $ppnAmounts['ppn'] ?? $salesInvoice->items->sum('tax_amount'),
         ]);
 
         return $salesInvoice;

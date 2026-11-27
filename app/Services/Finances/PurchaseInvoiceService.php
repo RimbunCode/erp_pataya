@@ -35,6 +35,7 @@ use App\Services\Core\Setting\SettingsService;
 use App\Services\Core\Setting\ToleranceCalculator;
 use App\Services\Finances\Tax\DocumentTaxRules;
 use App\Services\Finances\Tax\DocumentTaxSnapshot;
+use App\Services\Finances\Tax\TaxInvoiceAmounts;
 use App\Traits\HasDefaultDelete;
 use App\Utils;
 use Carbon\CarbonImmutable;
@@ -997,12 +998,15 @@ class PurchaseInvoiceService implements SubmitableService {
 
         $purchaseInvoice->loadMissing('items');
 
+        // Requirement 9.1: hanya komponen PPN bila snapshot terklasifikasi; selain itu perilaku lama.
+        $ppnAmounts = TaxInvoiceAmounts::fromBreakdown($purchaseInvoice->tax_breakdown);
+
         $purchaseInvoice->update([
             'tax_invoice_transaction_code' => $transactionCode,
             'tax_invoice_serial_number'    => $serialNumber,
             'tax_invoice_date'             => $taxInvoiceDate,
-            'tax_invoice_dpp_amount'       => $purchaseInvoice->items->sum('dpp_amount'),
-            'tax_invoice_ppn_amount'       => $purchaseInvoice->items->sum('tax_amount'),
+            'tax_invoice_dpp_amount'       => $ppnAmounts['dpp'] ?? $purchaseInvoice->items->sum('dpp_amount'),
+            'tax_invoice_ppn_amount'       => $ppnAmounts['ppn'] ?? $purchaseInvoice->items->sum('tax_amount'),
         ]);
 
         return $purchaseInvoice;
