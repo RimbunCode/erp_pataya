@@ -245,6 +245,8 @@ class TaxRuleVersionServiceTest extends TestCase {
     }
 
     public function test_dpp_factor_guard_blocks_non_legacy_factors_until_calc_is_enabled(): void {
+        // Default setelah konversi Bagian B adalah true; guard hanya relevan bila setting dimatikan (mis. down() migrasi).
+        app(SettingsService::class)->updateInternal(FinanceSetting::class, ['tax_engine_calc_enabled' => false]);
         $tax = $this->tax();
 
         // 1/1 (default kolom) bukan 11/12, jadi ditolak selama kolom generated dokumen masih mengalikan 11/12 tetap.

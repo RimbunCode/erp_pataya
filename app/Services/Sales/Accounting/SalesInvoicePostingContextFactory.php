@@ -48,6 +48,8 @@ final class SalesInvoicePostingContextFactory {
         $lines = $this->lines->build($items, $totalAmount, PostingDocumentType::SalesInvoice->value, (string) $salesInvoice->getKey());
 
         [$taxComponents, $taxSplitActive] = $this->taxSplitFor($salesInvoice, $items, $transactionDate, $isReturn, $preview);
+        // Pajak potong (Bagian B, Requirement 12.4) tidak bergantung pada cutover: sudah keluar dari `amount` dokumen.
+        $withholding = $this->taxComponents->withholdingComponents($items, false);
 
         return new PostingContext(
             documentType: PostingDocumentType::SalesInvoice,
@@ -55,11 +57,18 @@ final class SalesInvoicePostingContextFactory {
             sourceId: (string) $salesInvoice->getKey(),
             transactionDate: $transactionDate,
             branchId: null,
-            amounts: ['total' => $totalAmount, ...$this->lines->discountTotals($lines)],
+            amounts: ['total' => $totalAmount, 'withholding' => $this->sum($withholding), ...$this->lines->discountTotals($lines)],
             flags: ['is_return' => $isReturn, 'discount_split' => $this->discountSplitActive($lines, $transactionDate, $salesInvoice, $isReturn), 'tax_split' => $taxSplitActive],
             lines: $lines,
-            taxComponents: $taxComponents,
+            taxComponents: [...$taxComponents, ...$withholding],
         );
+    }
+
+    /**
+     * @param  list<TaxComponentLine>  $components
+     */
+    private function sum(array $components): float {
+        return round(array_sum(array_map(static fn (TaxComponentLine $component): float => $component->amount, $components)), 6);
     }
 
     /**

@@ -291,7 +291,12 @@ class StandardPrintTemplateSeederTest extends TestCase {
         $this->assertStringContainsString('doc.items', $invoice);
         $this->assertStringContainsString('this.price', $invoice);
         $this->assertStringContainsString('Total Harga', $invoice);
-        $this->assertStringContainsString('doc.dpp_amount', $invoice);
+        // Bagian B: DPP hanya dari baris berfaktor selain 1/1 dan pajak potong tampil terpisah agar Grand Total cocok.
+        $this->assertStringContainsString('doc.printed_dpp_amount', $invoice);
+        $this->assertStringNotContainsString('doc.dpp_amount', $invoice);
+        $this->assertStringContainsString('{{#if doc.withholding_amount}}', $invoice);
+        $this->assertStringContainsString('Pajak Dipotong', $invoice);
+        $this->assertStringContainsString('Pajak Dipotong', $this->standardTemplate('Purchase Invoice')->html);
         $this->assertStringNotContainsString('this.dpp_amount', $invoice);
         $this->assertStringContainsString('{{this.price}}', $invoice);
         $this->assertStringContainsString('{{this.basic_amount}}', $invoice);

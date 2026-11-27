@@ -156,7 +156,7 @@ class TaxSchemaTest extends TestCase {
 
         $this->assertSame(['sales_invoice' => null, 'purchase_invoice' => null], $setting->tax_split_from, 'Cutover kosong = tidak aktif (Requirement 7.5).');
         $this->assertTrue($setting->company_is_pkp, 'Requirement 7.9: default PKP true.');
-        $this->assertFalse($setting->tax_engine_calc_enabled, 'Requirement 2.7: guard faktor DPP aktif secara default.');
+        $this->assertTrue($setting->tax_engine_calc_enabled, 'Requirement 12.3: setelah konversi Bagian B perhitungan engine aktif secara default (guard faktor DPP terangkat).');
     }
 
     public function test_tax_engine_settings_are_internal_and_validated(): void {

@@ -147,9 +147,10 @@ class PostingProfileControllerTest extends TestCase {
 
         $this->actingWith(['select', 'read'])->get(route('postingProfiles.show', $profile))
             ->assertInertia(fn ($page) => $page
-                ->has('unmapped', 6)
+                ->has('unmapped', 7)
                 ->where('unmapped', fn ($unmapped) => collect($unmapped)->mapWithKeys(fn ($row) => [$row['document_type'] => $row['roles']])->all() === [
-                    'purchase_invoice'       => ['stock', 'stock_received_but_not_billed', 'expense', 'payable'],
+                    'sales_invoice'          => ['withholding_receivable'],
+                    'purchase_invoice'       => ['stock', 'stock_received_but_not_billed', 'expense', 'payable', 'withholding_payable'],
                     'purchase_receipt'       => ['stock', 'stock_received_but_not_billed'],
                     'delivery_note'          => ['cost_of_goods_sold', 'stock'],
                     'payment_entry'          => ['payable'],

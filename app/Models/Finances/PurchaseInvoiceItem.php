@@ -11,6 +11,7 @@ use App\Models\Model;
 use App\Models\Purchase\PurchaseOrder;
 use App\Models\Purchase\PurchaseOrderItem;
 use App\Models\Purchase\PurchaseReceiptOffPoItem;
+use App\Traits\ComputesLegacyInvoiceItemAmounts;
 use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Database\Eloquent\Concerns\HasUlids;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
@@ -18,7 +19,12 @@ use Illuminate\Database\Eloquent\Relations\HasOne;
 use Illuminate\Database\Eloquent\SoftDeletes;
 
 class PurchaseInvoiceItem extends Model {
-    use HasUlids, SoftDeletes;
+    use ComputesLegacyInvoiceItemAmounts, HasUlids, SoftDeletes;
+
+    /** Kolom harga satuan dan keberadaan kolom `amount` (dipakai `ComputesLegacyInvoiceItemAmounts`). */
+    public const LEGACY_PRICE_COLUMN = 'rate';
+
+    public const LEGACY_HAS_AMOUNT_COLUMN = true;
 
     /** Izin lihat kolom harga beli: pembuat PurchaseOrder atau PurchaseInvoice. */
     private const PRICE_VISIBILITY = [
@@ -48,6 +54,7 @@ class PurchaseInvoiceItem extends Model {
         'discount_amount'     => 'float',
         'dpp_amount'          => 'float',
         'tax_amount'          => 'float',
+        'withholding_amount'  => 'float',
         'amount'              => 'float',
         'rate'                => 'float',
     ];
@@ -103,6 +110,12 @@ class PurchaseInvoiceItem extends Model {
             'type'       => 'currency',
             'show'       => true,
             'order'      => 8,
+            'linkable'   => true,
+            'visibleFor' => self::PRICE_VISIBILITY,
+        ],
+        'withholding_amount' => [
+            'type'       => 'currency',
+            'show'       => false,
             'linkable'   => true,
             'visibleFor' => self::PRICE_VISIBILITY,
         ],

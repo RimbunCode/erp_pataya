@@ -110,7 +110,7 @@ class PurchaseInvoiceRequest extends BaseFormRequest {
             $this->input('discount_on'),
             $this->input('discount_rate'),
             $this->input('discount_amount'),
-            PurchaseInvoiceService::DPP_FACTOR,
+            $this->input('date'),
         );
         $currencies = app(CurrencyMatcher::class);
         $poRows     = collect($rows)

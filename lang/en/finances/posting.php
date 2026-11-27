@@ -5,6 +5,7 @@ return [
         'approve_blocked'                  => 'The document cannot be approved. :message Configure it on the Posting Profile page (:url).',
         'approve_blocked_no_link'          => 'The document cannot be approved. :message Ask someone with access to the Posting Profile page to complete the configuration.',
         'unresolved_role'                  => 'The account role ":role" cannot be resolved for document :document (variant :variant) on :date. Layers checked: :layers. Complete the Posting Profile or the related master account.',
+        'withholding_role_unmapped'        => 'The document has withholding tax (:amount) but the account role ":role" is not mapped in the Posting Profile effective on :date. Map this role in the Posting Profile, then approve again.',
         'unresolved_role_account'          => 'The account for role ":role" (document :document, variant :variant, date :date) cannot be used: :reason (:account). Account source: :layer.',
         'unresolved_role_ambiguous'        => 'The account role ":role" (document :document, variant :variant, date :date) is ambiguous in the legacy fallback: :candidates accounts match :root/:type and none was chosen. Map this role in the Posting Profile.',
         'unknown_document_type'            => 'The posting document type ":type" has no registered posting rule.',

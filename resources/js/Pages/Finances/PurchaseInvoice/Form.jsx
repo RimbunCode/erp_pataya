@@ -28,10 +28,7 @@ import { Textarea } from "@/Components/ui/textarea";
 import { useLaravelReactI18n } from "laravel-react-i18n";
 import { usePage } from "@inertiajs/react";
 import { Input } from "@/Components/ui/input";
-
-// Replika App\Services\Finances\PurchaseInvoiceService::DPP_FACTOR (PPN Nilai
-// Lain: DPP = 11/12 x basic_amount, tarif efektif 11% dari PPN 12%).
-const DPP_FACTOR = 11 / 12;
+import { EMPTY_TAX_RULE_VERSIONS, resolveTaxRule } from "@/lib/taxRules";
 
 const ITEM_VARIANT_MODEL = "App\\Models\\Inventory\\ItemVariant";
 const RECEIPT_ITEM_MODEL = "App\\Models\\Purchase\\PurchaseReceiptOffPoItem";
@@ -66,6 +63,18 @@ export default function Form() {
   const fixedAssets = pageProps.fixedAssets;
   const purchaseInvoiceId = pageProps.purchaseInvoice?.id;
   const defaults = pageProps.defaults ?? EMPTY_DEFAULTS;
+  // Faktor DPP, tarif, dan perilaku pajak dari versi aturan server (Requirement 12.8), bukan konstanta klien.
+  const taxRuleVersions = pageProps.taxRuleVersions ?? EMPTY_TAX_RULE_VERSIONS;
+  const ruleOf = useCallback(
+    (row) =>
+      resolveTaxRule(
+        taxRuleVersions,
+        row?.tax?.id ?? row?.tax_id,
+        data?.date,
+        row?.tax_rule_version_id,
+      ),
+    [taxRuleVersions, data?.date],
+  );
   const {
     applyToNewLine,
     applyPaymentTerm,
@@ -119,11 +128,17 @@ export default function Form() {
   const rawLines = useMemo(() => {
     return (data.items ?? [])
       .filter((item) => hasSource(item))
-      .map((item) => ({
-        basic_amount: (item.quantity ?? 0) * (item.rate ?? 0),
-        tax_rate: item.tax?.rate ?? 0,
-      }));
-  }, [data.items]);
+      .map((item) => {
+        const rule = ruleOf(item);
+        return {
+          basic_amount: (item.quantity ?? 0) * (item.rate ?? 0),
+          tax_rate: rule?.rate ?? item.tax?.rate ?? 0,
+          dpp_factor: rule?.dppFactor ?? 1,
+          additive: rule?.additive ?? true,
+          shows_dpp: rule?.showsDpp ?? false,
+        };
+      });
+  }, [data.items, ruleOf]);
 
   const rawNetAmount = useMemo(() => {
     return calculateArray(rawLines, "basic_amount", "+");
@@ -136,13 +151,15 @@ export default function Form() {
   // setDiscount di AdditionalDiscount terpanggil ulang.
   //
   // Beda dari PurchaseOrders/SalesOrders: pajak Purchase Invoice dihitung di
-  // atas basis DPP Nilai Lain (basic_amount * DPP_FACTOR), bukan basic_amount
-  // langsung -- replika App\Services\Finances\PurchaseInvoiceService::
-  // DPP_FACTOR.
+  // atas basis DPP (basic_amount * faktor DPP versi aturan pajak baris),
+  // bukan basic_amount langsung. Pajak withholding tidak menambah total.
   const rawTaxAmount = useMemo(() => {
     return rawLines.reduce(
       (sum, line) =>
-        sum + (line.basic_amount * DPP_FACTOR * line.tax_rate) / 100,
+        sum +
+        (line.additive
+          ? (line.basic_amount * line.dpp_factor * line.tax_rate) / 100
+          : 0),
       0,
     );
   }, [rawLines]);
@@ -154,7 +171,6 @@ export default function Form() {
       data.discount_rate ?? 0,
       data.discount_amount ?? 0,
       data.latestDiscountKey ?? "discount_rate",
-      DPP_FACTOR,
     );
   }, [
     rawLines,
@@ -171,12 +187,30 @@ export default function Form() {
     return calculateArray(allocatedLines, "basic_amount", "+");
   }, [allocatedLines]);
 
+  // DPP hanya dihitung untuk baris yang versi aturannya berfaktor selain 1/1
+  // (Requirement 12.8); baris tanpa pajak atau berfaktor 1/1 tidak punya angka DPP.
   const dpp_amount = useMemo(() => {
     return allocatedLines.reduce(
-      (sum, line) => sum + (line.basic_amount ?? 0) * DPP_FACTOR,
+      (sum, line, i) =>
+        rawLines[i]?.shows_dpp
+          ? sum + (line.basic_amount ?? 0) * rawLines[i].dpp_factor
+          : sum,
       0,
     );
-  }, [allocatedLines]);
+  }, [allocatedLines, rawLines]);
+  const showDpp = useMemo(
+    () => rawLines.some((line) => line.shows_dpp),
+    [rawLines],
+  );
+
+  // Pajak withholding dipotong dari total (Requirement 12.4), tampil terpisah.
+  const withholding_amount = useMemo(() => {
+    return allocatedLines.reduce((sum, line, i) => {
+      const raw = rawLines[i];
+      if (!raw || raw.additive) return sum;
+      return sum + (line.basic_amount * raw.dpp_factor * raw.tax_rate) / 100;
+    }, 0);
+  }, [allocatedLines, rawLines]);
 
   const tax_amount = useMemo(() => {
     return calculateArray(allocatedLines, "tax_amount", "+");
@@ -186,8 +220,8 @@ export default function Form() {
   // (grossAmounts[index] - discountForLine + tax_amount) karena
   // gross - discountForLine persis basic_amount hasil alokasi per baris.
   const amount = useMemo(
-    () => net_amount + tax_amount,
-    [net_amount, tax_amount],
+    () => net_amount + tax_amount - withholding_amount,
+    [net_amount, tax_amount, withholding_amount],
   );
 
   // Id ItemVariant semua PO Item: menyaring sub model "Item Lainnya" supaya item
@@ -457,13 +491,16 @@ export default function Form() {
         },
       },
       {
-        // dpp_amount per baris diisi mapItem (basic_amount setelah diskon x DPP_FACTOR).
+        // dpp_amount per baris diisi mapItem (basic_amount setelah diskon x faktor DPP versi aturan pajak baris).
+        // Kolom hanya tampil bila ada baris yang versi aturannya berfaktor selain 1/1, dan baris tanpa pajak atau
+        // berfaktor 1/1 tidak menampilkan angka DPP (Requirement 12.8).
         name: "dpp_amount",
         titleTrans: "finances.purchaseInvoice.columns.dpp_amount",
         readOnly: true,
-        show: true,
+        show: showDpp,
         width: 1,
-        cell({ data: dppAmount, attributes }) {
+        cell({ data: dppAmount, dataRow, attributes }) {
+          if (!ruleOf(dataRow)?.showsDpp) return null;
           return (
             <NumberInput
               {...attributes}
@@ -482,6 +519,8 @@ export default function Form() {
     markFieldEdited,
     poVariantIdsKey,
     resolveForNewLine,
+    ruleOf,
+    showDpp,
   ]);
 
   return (
@@ -747,7 +786,7 @@ export default function Form() {
               // basic_amount TIDAK ditimpa di sini -- generated (quantity*rate) di
               // server. tax_amount/amount dihitung dari basis DPP Nilai Lain SETELAH
               // dikurangi discount_amount, konsisten dgn DocumentDiscountCalculator::
-              // applyDiscountColumnToItems(). discount_amount sendiri item-level
+              // invoiceItemDiscounts(). discount_amount sendiri item-level
               // Invoice tidak diedit di form ini (murni carry-over/hasil server) --
               // dipakai apa adanya sebagai basis alokasi ulang saat quantity/rate/tax berubah.
               const rows = dataTable ?? [];
@@ -756,10 +795,16 @@ export default function Form() {
                   ? (item.quantity ?? 0) * (item.rate ?? 0)
                   : (row.quantity ?? 0) * (row.rate ?? 0),
               );
+              const lineRules = rows.map((row, i) =>
+                ruleOf(i === index ? item : row),
+              );
               const lines = rows.map((row, i) => ({
                 basic_amount: grossAmounts[i],
                 tax_rate:
-                  i === index ? (item.tax?.rate ?? 0) : (row.tax?.rate ?? 0),
+                  lineRules[i]?.rate ??
+                  (i === index ? (item.tax?.rate ?? 0) : (row.tax?.rate ?? 0)),
+                dpp_factor: lineRules[i]?.dppFactor ?? 1,
+                additive: lineRules[i]?.additive ?? true,
               }));
               const allocated = allocateDiscount(
                 lines,
@@ -767,18 +812,27 @@ export default function Form() {
                 data.discount_rate ?? 0,
                 data.discount_amount ?? 0,
                 data.latestDiscountKey ?? "discount_rate",
-                DPP_FACTOR,
               );
               const result = allocated[index] ?? allocated[0];
+              const rule = lineRules[index] ?? null;
               const discountForLine =
                 Math.round(
                   (grossAmounts[index] - (result?.basic_amount ?? 0)) * 100,
                 ) / 100;
+              // Pajak withholding tidak menambah total: dihitung terpisah sebagai pemotongan.
+              const withholdingForLine =
+                rule && !rule.additive
+                  ? ((result?.basic_amount ?? 0) * rule.dppFactor * rule.rate) /
+                    100
+                  : 0;
               return {
                 ...item,
                 discount_amount: discountForLine,
-                dpp_amount: (result?.basic_amount ?? 0) * DPP_FACTOR,
+                dpp_amount: rule
+                  ? (result?.basic_amount ?? 0) * rule.dppFactor
+                  : 0,
                 tax_amount: result?.tax_amount ?? 0,
+                withholding_amount: withholdingForLine,
                 amount:
                   grossAmounts[index] -
                   discountForLine +
@@ -812,32 +866,36 @@ export default function Form() {
               currencyCode={data?.currency?.code ?? "default"}
             ></NumberInput>
           </FormInput>
-          {data?.currency?.code &&
-            data?.currency?.code !== default_currency_id && (
+          {showDpp && (
+            <>
+              {data?.currency?.code &&
+                data?.currency?.code !== default_currency_id && (
+                  <FormInput
+                    readOnly
+                    label={`${t("finances.purchaseInvoice.columns.dpp_amount")} (${default_currency_id.toUpperCase()})`}
+                  >
+                    <NumberInput
+                      className="text-right"
+                      decimalScale={2}
+                      value={dpp_amount * (data?.exchange_rate ?? 1)}
+                      currencyCode="default"
+                    ></NumberInput>
+                  </FormInput>
+                )}
               <FormInput
                 readOnly
-                label={`${t("finances.purchaseInvoice.columns.dpp_amount")} (${default_currency_id.toUpperCase()})`}
+                label={`${t("finances.purchaseInvoice.columns.dpp_amount")} (${(data?.currency?.code ?? default_currency_id).toUpperCase()})`}
+                className="col-start-2"
               >
                 <NumberInput
-                  className="text-right"
                   decimalScale={2}
-                  value={dpp_amount * (data?.exchange_rate ?? 1)}
-                  currencyCode="default"
+                  className="text-right"
+                  value={dpp_amount}
+                  currencyCode={data?.currency?.code ?? "default"}
                 ></NumberInput>
               </FormInput>
-            )}
-          <FormInput
-            readOnly
-            label={`${t("finances.purchaseInvoice.columns.dpp_amount")} (${(data?.currency?.code ?? default_currency_id).toUpperCase()})`}
-            className="col-start-2"
-          >
-            <NumberInput
-              decimalScale={2}
-              className="text-right"
-              value={dpp_amount}
-              currencyCode={data?.currency?.code ?? "default"}
-            ></NumberInput>
-          </FormInput>
+            </>
+          )}
           {data?.currency?.code &&
             data?.currency?.code !== default_currency_id && (
               <FormInput
@@ -864,6 +922,36 @@ export default function Form() {
               currencyCode={data?.currency?.code ?? "default"}
             ></NumberInput>
           </FormInput>
+          {withholding_amount > 0 && (
+            <>
+              {data?.currency?.code &&
+                data?.currency?.code !== default_currency_id && (
+                  <FormInput
+                    readOnly
+                    label={`${t("finances.purchaseInvoice.columns.withholding_amount")} (${default_currency_id.toUpperCase()})`}
+                  >
+                    <NumberInput
+                      className="text-right"
+                      decimalScale={2}
+                      value={withholding_amount * (data?.exchange_rate ?? 1)}
+                      currencyCode="default"
+                    ></NumberInput>
+                  </FormInput>
+                )}
+              <FormInput
+                readOnly
+                label={`${t("finances.purchaseInvoice.columns.withholding_amount")} (${(data?.currency?.code ?? default_currency_id).toUpperCase()})`}
+                className="col-start-2"
+              >
+                <NumberInput
+                  className="text-right"
+                  decimalScale={2}
+                  value={withholding_amount}
+                  currencyCode={data?.currency?.code ?? "default"}
+                ></NumberInput>
+              </FormInput>
+            </>
+          )}
           {data?.currency?.code &&
             data?.currency?.code !== default_currency_id && (
               <FormInput

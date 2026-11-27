@@ -31,6 +31,7 @@ return [
         'basic_amount'                 => 'Basic Amount',
         'dpp_amount'                   => 'DPP (Tax Base Amount)',
         'tax_amount'                   => 'Tax Amount',
+        'withholding_amount'           => 'Tax Withheld',
         'total'                        => 'Total Amount',
         'gross_amount'                 => 'Total Price',
         'so'                           => 'SO Number',

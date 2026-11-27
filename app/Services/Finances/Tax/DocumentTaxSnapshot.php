@@ -17,7 +17,7 @@ use Throwable;
  * unit berbeda untuk sebuah baris.
  *
  * Tidak mengenal model dokumen: pemanggil menyerahkan item bergaya model dengan atribut `tax_id`, `basic_amount`,
- * `discount_amount`, `tax_rate`, `dpp_amount`, `tax_amount`, `tax_rule_version_id`.
+ * `discount_amount`, `tax_rate`, `dpp_amount`, `tax_amount`, `withholding_amount`, `tax_rule_version_id`.
  */
 final class DocumentTaxSnapshot {
     /** Kode peringatan pada snapshot yang gagal dibangun (Q-P3-6). */
@@ -47,9 +47,11 @@ final class DocumentTaxSnapshot {
             $netBase         = (float) $item->basic_amount - (float) $item->discount_amount;
             $inputs[]        = new TaxInput((string) $item->tax_id, $netBase, $date, $minorUnit, $ref);
             $persisted[$ref] = [
-                'tax_rate'        => (float) $item->tax_rate,
-                'dpp_amount'      => (float) $item->dpp_amount,
-                'tax_amount'      => (float) $item->tax_amount,
+                'tax_rate'   => (float) $item->tax_rate,
+                'dpp_amount' => (float) $item->dpp_amount,
+                // Pajak potong (`withholding`) disimpan di `withholding_amount`, pajak penambah di `tax_amount`
+                // (Bagian B, Requirement 12.4); salah satunya selalu 0 sehingga jumlahnya adalah nilai komponen.
+                'tax_amount'      => (float) $item->tax_amount + (float) ($item->withholding_amount ?? 0),
                 'rule_version_id' => $item->tax_rule_version_id,
             ];
         }

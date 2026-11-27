@@ -10,13 +10,18 @@ use App\Models\Purchase\PurchaseOrder;
 use App\Models\Purchase\Supplier;
 use App\Services\Finances\PurchaseInvoiceService;
 use App\Traits\DataTable;
+use App\Traits\ExposesInvoicePrintTax;
 use App\Traits\Submitable;
 use Illuminate\Database\Eloquent\Concerns\HasUlids;
 use Illuminate\Database\Eloquent\SoftDeletes;
 
 class PurchaseInvoice extends Model {
-    use DataTable, HasUlids, SoftDeletes, Submitable;
+    use DataTable, ExposesInvoicePrintTax, HasUlids, SoftDeletes, Submitable;
 
+    protected $appends = [
+        'withholding_amount',
+        'printed_dpp_amount',
+    ];
     public static string $service = PurchaseInvoiceService::class;
     public string $formComponent  = 'Finances/PurchaseInvoice/Form';
     protected $guarded            = ['id'];
@@ -81,6 +86,16 @@ class PurchaseInvoice extends Model {
     protected static array $searchScope = ['code', 'external_note', 'tax_invoice_serial_number', 'supplier.name'];
 
     protected array $configColumns = [
+        'withholding_amount' => [
+            'type'      => 'currency',
+            'show'      => false,
+            'dependsOn' => ['items'],
+        ],
+        'printed_dpp_amount' => [
+            'type'      => 'currency',
+            'show'      => false,
+            'dependsOn' => ['items'],
+        ],
         'code' => [
             'isLink' => true,
             'show'   => true,

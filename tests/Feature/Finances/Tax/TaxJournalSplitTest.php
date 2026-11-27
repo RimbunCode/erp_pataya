@@ -247,7 +247,8 @@ class TaxJournalSplitTest extends TestCase {
 
         $old = $this->salesInvoice([['tax' => $tax, 'price' => 12_000_000]]);
         $new = $this->salesInvoice([['tax' => $tax, 'price' => 12_000_000]]);
-        $new->items()->update(['tax_rule_version_id' => $v2->getKey(), 'tax_rate' => 12]);
+        // Item dibuat lewat factory (kolom hitung kini tersimpan): isi pajak versi 2 secara eksplisit (12% x 11/12 x 12jt).
+        $new->items()->update(['tax_rule_version_id' => $v2->getKey(), 'tax_rate' => 12, 'dpp_amount' => 11_000_000, 'tax_amount' => 1_320_000]);
 
         $this->postSales($old->fresh());
         $this->postSales($new->fresh());

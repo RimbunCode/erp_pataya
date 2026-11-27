@@ -207,13 +207,13 @@ class InvoiceTaxSnapshotTest extends TestCase {
     }
 
     public function test_sales_document_numbers_equal_the_legacy_formula(): void {
-        // P-2: Bagian A tidak mengubah angka dokumen; kolom hitung item tetap sumber kebenaran.
+        // P-2 / Requirement 12.2: angka dokumen versi 11/12 sama dengan formula lama dalam 1 minor unit (kini dihitung engine, Bagian B).
         $tax  = $this->taxWithVersion('PPN 11', 11);
         $item = $this->createSalesInvoice([$tax->getKey()], '2026-03-01')->items()->firstOrFail()->refresh();
 
         $this->assertEqualsWithDelta(1_000_000, $item->basic_amount, 0.001);
-        $this->assertEqualsWithDelta(1_000_000 * 11 / 12, $item->dpp_amount, 0.001);
-        $this->assertEqualsWithDelta(1_000_000 * 11 / 12 * 11 / 100, $item->tax_amount, 0.001);
+        $this->assertEqualsWithDelta(1_000_000 * 11 / 12, $item->dpp_amount, 0.01, 'Paritas dalam 1 minor unit (engine membulatkan ke 2 desimal).');
+        $this->assertEqualsWithDelta(1_000_000 * 11 / 12 * 11 / 100, $item->tax_amount, 0.01);
     }
 
     public function test_sales_item_without_tax_has_no_version_and_zero_rate(): void {
@@ -387,8 +387,8 @@ class InvoiceTaxSnapshotTest extends TestCase {
         $item = $this->createPurchaseInvoice([$tax->getKey()], '2026-03-01')->items()->firstOrFail()->refresh();
 
         $this->assertEqualsWithDelta(1_000_000, $item->basic_amount, 0.001);
-        $this->assertEqualsWithDelta(1_000_000 * 11 / 12, $item->dpp_amount, 0.001);
-        $this->assertEqualsWithDelta(1_000_000 * 11 / 12 * 11 / 100, $item->tax_amount, 0.001);
+        $this->assertEqualsWithDelta(1_000_000 * 11 / 12, $item->dpp_amount, 0.01, 'Paritas dalam 1 minor unit (engine membulatkan ke 2 desimal).');
+        $this->assertEqualsWithDelta(1_000_000 * 11 / 12 * 11 / 100, $item->tax_amount, 0.01);
     }
 
     public function test_purchase_tax_without_any_version_fails_closed_and_leaves_nothing_behind(): void {

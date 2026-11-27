@@ -9,6 +9,7 @@ use App\Models\Finances\PostingProfile;
 use App\Services\Finances\Ledger\FiscalPeriodService;
 use App\Services\Finances\Posting\Contexts\LineAttributes;
 use App\Services\Finances\Posting\Contexts\PostingContext;
+use Carbon\CarbonInterface;
 use Illuminate\Support\Collection;
 use Illuminate\Support\Facades\Log;
 
@@ -120,6 +121,25 @@ final class AccountRoleResolver {
         }
 
         throw UnresolvedAccountRoleException::notResolved($roleValue, $ctx->documentType->value, $ctx->variant(), $day, $layers);
+    }
+
+    /**
+     * Apakah peran punya pemetaan pada profil `active` yang berlaku pada hari bisnis waktu itu: akun default atau
+     * minimal satu aturan akun untuk peran itu. Dipakai pemeriksaan pra-approve untuk peran tanpa padanan legacy
+     * (mis. `withholding_*`); aturan bersyarat dianggap memetakan (kecocokan pasti baru diketahui saat posting).
+     */
+    public function isMappedOnProfile(AccountRole $role, CarbonInterface $at): bool {
+        $this->timezone ??= $this->periods->companyTimezone();
+        $profile = $this->profileFor($at->copy()->setTimezone($this->timezone)->toDateString());
+        if ($profile === null) {
+            return false;
+        }
+
+        if (isset($this->accountsOf($profile)[$role->value])) {
+            return true;
+        }
+
+        return $this->rulesOf($profile)->contains(fn ($rule): bool => $rule->role === $role->value);
     }
 
     /**

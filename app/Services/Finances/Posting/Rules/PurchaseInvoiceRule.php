@@ -32,6 +32,10 @@ use App\Services\Finances\Posting\RoleLine;
  * didebit pada perannya (`tax_input`) sebesar `amount` tersimpan dengan `taxRuleVersionId`; `expense` per baris dikurangi
  * bagian pajak baris itu (atau, tanpa `lines`, `total` dikurangi Σ pajak), `payable` tetap `total`. Komponen yang tidak
  * dapat dipisah tetap tertanam di `expense`. Jurnal `stock` tidak berubah. Retur menukar semua sisi.
+ *
+ * Pajak potong (Bagian B, Requirement 12.4, D-12): komponen `withholding` (di luar `tax_split`) mengurangi kredit
+ * `payable` menjadi `total - Σ potongan` (sama dengan `amount` dokumen) dan dikredit pada `withholding_payable`
+ * sebesar potongan; biaya dan pajak penambah tidak berubah, sehingga jurnal tetap seimbang.
  */
 final class PurchaseInvoiceRule extends BasePostingRule {
     public function documentType(): PostingDocumentType {
@@ -87,13 +91,25 @@ final class PurchaseInvoiceRule extends BasePostingRule {
                 : RoleLine::debit($component->role, $component->amount, taxRuleVersionId: $component->ruleVersionId);
         }
 
-        $payable = $return ? RoleLine::debit(AccountRole::Payable, $total) : RoleLine::credit(AccountRole::Payable, $total);
+        // Pajak potong (Bagian B, Requirement 12.4, D-12): sudah keluar dari `amount` dokumen; utang ke pemasok berkurang
+        // sebesar itu dan dicatat pada `withholding_payable` (utang pajak ke negara), tanpa memengaruhi biaya.
+        $withholdingLines = array_values(array_filter($ctx->taxComponents, static fn (TaxComponentLine $component): bool => $component->withholding && $component->amount > 0));
+        $payableAmount    = $total - array_sum(array_map(static fn (TaxComponentLine $component): float => $component->amount, $withholdingLines));
+
+        $payable = self::isZero($payableAmount)
+            ? []
+            : [$return ? RoleLine::debit(AccountRole::Payable, $payableAmount) : RoleLine::credit(AccountRole::Payable, $payableAmount)];
+        foreach ($withholdingLines as $component) {
+            $payable[] = $return
+                ? RoleLine::debit($component->role, $component->amount, taxRuleVersionId: $component->ruleVersionId)
+                : RoleLine::credit($component->role, $component->amount, taxRuleVersionId: $component->ruleVersionId);
+        }
 
         $discountLines = [];
         if ($split) {
             $discountLines[] = $return ? RoleLine::debit(AccountRole::Discount, $discount) : RoleLine::credit(AccountRole::Discount, $discount);
         }
 
-        return new RoleJournalDraft('expense', [...$expense, ...$discountLines, $payable]);
+        return new RoleJournalDraft('expense', [...$expense, ...$discountLines, ...$payable]);
     }
 }

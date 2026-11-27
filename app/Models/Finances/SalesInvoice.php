@@ -10,13 +10,14 @@ use App\Models\Sales\Customer;
 use App\Models\Sales\SalesOrder;
 use App\Services\Finances\SalesInvoiceService;
 use App\Traits\DataTable;
+use App\Traits\ExposesInvoicePrintTax;
 use App\Traits\Submitable;
 use Illuminate\Database\Eloquent\Concerns\HasUlids;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\SoftDeletes;
 
 class SalesInvoice extends Model {
-    use DataTable, HasFactory, HasUlids, SoftDeletes, Submitable;
+    use DataTable, ExposesInvoicePrintTax, HasFactory, HasUlids, SoftDeletes, Submitable;
 
     public static string $service = SalesInvoiceService::class;
     public string $formComponent  = 'Finances/SalesInvoice/Form';
@@ -74,6 +75,8 @@ class SalesInvoice extends Model {
     protected $appends = [
         'is_return',
         'dpp_amount',
+        'withholding_amount',
+        'printed_dpp_amount',
     ];
 
     protected function getIsReturnAttribute() {
@@ -177,6 +180,16 @@ class SalesInvoice extends Model {
         'items' => [
             'show'  => true,
             'order' => 10,
+        ],
+        'withholding_amount' => [
+            'type'      => 'currency',
+            'show'      => false,
+            'dependsOn' => ['items'],
+        ],
+        'printed_dpp_amount' => [
+            'type'      => 'currency',
+            'show'      => false,
+            'dependsOn' => ['items'],
         ],
         'dpp_amount' => [
             'type'      => 'currency',

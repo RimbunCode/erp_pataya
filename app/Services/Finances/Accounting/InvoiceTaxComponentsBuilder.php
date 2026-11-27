@@ -2,6 +2,7 @@
 
 namespace App\Services\Finances\Accounting;
 
+use App\Enums\AccountRole;
 use App\Models\Finances\Tax;
 use App\Models\Finances\TaxRuleVersion;
 use App\Services\Finances\Posting\Contexts\TaxComponentLine;
@@ -68,6 +69,43 @@ final class InvoiceTaxComponentsBuilder {
         }
 
         return $components;
+    }
+
+    /**
+     * Komponen pajak potong (`withholding`, Bagian B, Requirement 12.4): Σ `withholding_amount` tersimpan per (pajak,
+     * versi). Peran tetap `withholding_receivable` (penjualan) atau `withholding_payable` (pembelian), D-12. Tidak
+     * bergantung pada cutover pemisahan pajak: nilai itu SUDAH dikeluarkan dari `amount` dokumen, jadi jurnal harus
+     * memotong `receivable`/`payable` sebesar itu agar seimbang.
+     *
+     * @param  iterable<Model>  $items  baris invoice (atribut `tax_id`, `tax_rule_version_id`, `withholding_amount`)
+     * @return list<TaxComponentLine>
+     */
+    public function withholdingComponents(iterable $items, bool $purchase): array {
+        $groups = [];
+        foreach ($items as $item) {
+            $amount = (float) ($item->withholding_amount ?? 0);
+            if (blank($item->tax_id) || $amount <= 0) {
+                continue;
+            }
+
+            $versionId = blank($item->tax_rule_version_id) ? null : (string) $item->tax_rule_version_id;
+            $key       = $item->tax_id . '|' . ($versionId ?? '');
+
+            $groups[$key] ??= ['tax_id' => (string) $item->tax_id, 'version_id' => $versionId, 'amount' => 0.0];
+            $groups[$key]['amount'] += $amount;
+        }
+
+        $role = ($purchase ? AccountRole::WithholdingPayable : AccountRole::WithholdingReceivable)->value;
+
+        return array_values(array_map(static fn (array $group): TaxComponentLine => new TaxComponentLine(
+            ruleVersionId: $group['version_id'],
+            role: $role,
+            amount: round($group['amount'], 6),
+            isCreditable: false,
+            classified: false,
+            taxId: $group['tax_id'],
+            withholding: true,
+        ), $groups));
     }
 
     /**

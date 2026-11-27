@@ -31,6 +31,7 @@ return [
         'basic_amount'                 => 'Jumlah Dasar',
         'dpp_amount'                   => 'DPP (Dasar Pengenaan Pajak)',
         'tax_amount'                   => 'Jumlah Pajak',
+        'withholding_amount'           => 'Pajak Dipotong (Withholding)',
         'total'                        => 'Total Jumlah',
         'gross_amount'                 => 'Total Harga',
         'so'                           => 'Nomor SO',

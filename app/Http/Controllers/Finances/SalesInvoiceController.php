@@ -9,6 +9,7 @@ use App\Models\Finances\SalesInvoice;
 use App\Models\Sales\SalesOrder;
 use App\Services\Core\Setting\DocumentDefaultsResolver;
 use App\Services\Finances\SalesInvoiceService;
+use App\Services\Finances\Tax\DocumentTaxRules;
 use App\Services\Sales\RentalDurationService;
 use App\Utils;
 use Carbon\Carbon;
@@ -146,8 +147,9 @@ class SalesInvoiceController extends Controller {
         $this->setBreadcrumbs('finances.salesInvoice.new');
 
         return Inertia::render('Finances/SalesInvoice/Show', [
-            'defaultData' => $defaultData ?? [],
-            'defaults'    => app(DocumentDefaultsResolver::class)->defaultsFor(DefaultsDocumentType::SalesInvoice),
+            'taxRuleVersions' => fn () => app(DocumentTaxRules::class)->versionsForClient(),
+            'defaultData'     => $defaultData ?? [],
+            'defaults'        => app(DocumentDefaultsResolver::class)->defaultsFor(DefaultsDocumentType::SalesInvoice),
         ]);
     }
 
@@ -179,7 +181,8 @@ class SalesInvoiceController extends Controller {
         $salesInvoice->showDetail();
 
         return Inertia::render('Finances/SalesInvoice/Show', [
-            'salesInvoice' => function () use ($salesInvoice) {
+            'taxRuleVersions' => fn () => app(DocumentTaxRules::class)->versionsForClient(),
+            'salesInvoice'    => function () use ($salesInvoice) {
                 $salesInvoice->loadRelations();
 
                 return $salesInvoice;
