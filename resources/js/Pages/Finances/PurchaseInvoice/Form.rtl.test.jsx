@@ -20,7 +20,7 @@ vi.mock("axios", () => ({ default: { post: vi.fn() } }));
 //     (Q-P2-23).
 //   - Memo kalkulasi net_amount/dpp_amount/tax_amount/amount dihitung dari
 //     quantity*rate + tax.rate MENTAH per baris (rawLines) lalu dialokasikan
-//     ulang via allocateDiscount dgn DPP_FACTOR 11/12 (allocatedLines) --
+//     ulang via allocateDiscount dgn faktor DPP 11/12 dari versi aturan fixture (allocatedLines) --
 //     BUKAN dibaca dari kolom basic_amount/dpp_amount/tax_amount milik
 //     data.items (yang hanya di-refresh oleh mapItem FormTable saat referensi
 //     array items berubah, bukan saat discount_on/discount_rate/discount_amount
@@ -36,8 +36,8 @@ vi.mock("axios", () => ({ default: { post: vi.fn() } }));
 //     akun (credit_account/expense_head_account) tidak disalin dari invoice
 //     yang diretur (Q-P2-23).
 //   - mapItem callback yang diteruskan ke FormTable (alokasi diskon per-baris
-//     via allocateDiscount dgn DPP_FACTOR 11/12, port dari
-//     PurchaseInvoiceService::DPP_FACTOR).
+//     via allocateDiscount dgn faktor DPP 11/12 dari versi aturan fixture, port dari
+//     InvoiceItemTaxCalculator).
 //   - additionalData callback yang diteruskan ke PaymentSchedule (payment/
 //     outstanding amount per invoice_portion, dihitung dari `amount`).
 //   - Kolom item: PurchaseOrderItemLinkModel filter & carry-over field
@@ -420,7 +420,7 @@ describe("PurchaseInvoice Form", () => {
 
   describe("kalkulasi total (net_amount/dpp_amount/tax_amount/amount)", () => {
     // Item acuan dipakai berulang: quantity 12 x rate 100 = basic_amount 1200
-    // (kelipatan 12 supaya basic_amount * DPP_FACTOR (11/12) hasilnya bilangan
+    // (kelipatan 12 supaya basic_amount * faktor DPP (11/12) hasilnya bilangan
     // bulat bersih -- 1100, bukan desimal berulang -- jadi assertion display
     // value bisa exact-match tanpa masalah presisi floating point).
     // Tanpa diskon: net_amount=1200, dpp_amount=1200*11/12=1100,
@@ -557,7 +557,7 @@ describe("PurchaseInvoice Form", () => {
       const props = additionalDiscountPropsSpy.mock.calls[0][0];
       // Basis DPP: 1200 * 11/12 * 11/100 = 121.
       expect(props.rawTaxAmount).toBe(121);
-      // BUKAN 1200 * 11/100 = 132 (basic_amount x tax_rate langsung tanpa DPP_FACTOR).
+      // BUKAN 1200 * 11/100 = 132 (basic_amount x tax_rate langsung tanpa faktor DPP).
       expect(props.rawTaxAmount).not.toBe(132);
     });
 
@@ -827,7 +827,7 @@ describe("PurchaseInvoice Form", () => {
     });
   });
 
-  describe("mapItem FormTable (alokasi diskon per baris item, DPP_FACTOR 11/12)", () => {
+  describe("mapItem FormTable (alokasi diskon per baris item, faktor DPP 11/12)", () => {
     it("tanpa discount_on: discount_amount 0, dpp_amount = basic_amount * 11/12, tax_amount dari tax_rate item", () => {
       formPageState = makeFormPageState({
         data: {
@@ -850,7 +850,7 @@ describe("PurchaseInvoice Form", () => {
       // basic_amount gross = 2*500 = 1000, tanpa discount_on hasil basic_amount
       // = gross (allocateDiscount return apa adanya).
       expect(result.discount_amount).toBe(0);
-      // dpp_amount = basic_amount_setelah_alokasi * DPP_FACTOR = 1000 * 11/12.
+      // dpp_amount = basic_amount_setelah_alokasi * faktor DPP = 1000 * 11/12.
       expect(result.dpp_amount).toBeCloseTo(1000 * (11 / 12), 5);
       // tax_amount = dpp_amount * tax_rate/100 = (1000*11/12)*11/100.
       expect(result.tax_amount).toBeCloseTo((1000 * (11 / 12) * 11) / 100, 2);

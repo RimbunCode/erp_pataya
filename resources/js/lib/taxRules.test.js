@@ -1,6 +1,6 @@
 import { describe, expect, it } from "vitest";
 import { allocateDiscount } from "./discountAllocation";
-import { resolveTaxRule } from "./taxRules";
+import { resolveTaxRule, toDay } from "./taxRules";
 
 const version = (overrides = {}) => ({
   id: "v1",
@@ -108,5 +108,30 @@ describe("allocateDiscount dengan parameter per baris dari versi aturan", () => 
 
     expect(a.tax_amount).toBe(0);
     expect(a.basic_amount).toBeCloseTo(900, 5);
+  });
+});
+
+describe("toDay", () => {
+  it("mengambil bagian tanggal string server tanpa konversi zona (tidak bergeser ke UTC)", () => {
+    expect(toDay("2026-07-01")).toBe("2026-07-01");
+    expect(toDay("2026-07-01T00:30:00+07:00")).toBe("2026-07-01");
+    expect(toDay("2026-06-30T23:59:59-05:00")).toBe("2026-06-30");
+    expect(toDay("2026-07-01 00:00:00")).toBe("2026-07-01");
+  });
+
+  it("objek Date memakai komponen lokal dan kosong menjadi hari ini", () => {
+    expect(toDay(new Date(2026, 6, 1, 0, 30))).toBe("2026-07-01");
+    expect(toDay(null)).toMatch(/^\d{4}-\d{2}-\d{2}$/);
+    expect(toDay("bukan tanggal")).toMatch(/^\d{4}-\d{2}-\d{2}$/);
+  });
+
+  it("resolveTaxRule memilih versi menurut hari tanpa pergeseran zona", () => {
+    const versions = [version({ id: "new", effective_from: "2026-07-01" })];
+    expect(
+      resolveTaxRule(versions, "tax-1", "2026-07-01T00:30:00+07:00")?.versionId,
+    ).toBe("new");
+    expect(
+      resolveTaxRule(versions, "tax-1", "2026-06-30T23:59:59+07:00"),
+    ).toBeNull();
   });
 });

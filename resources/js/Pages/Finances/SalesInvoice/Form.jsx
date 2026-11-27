@@ -108,7 +108,7 @@ export default function Form() {
   // basic_amount adalah generated column KOTOR (quantity * price), belum dikurangi
   // diskon dokumen -- net_amount (label "Jumlah Dasar") harus mengurangi
   // discount_amount per item (ditulis backend saat create/update, lihat
-  // DocumentDiscountCalculator::applyDiscountColumnToItems()). Item hasil
+  // DocumentDiscountCalculator::invoiceItemDiscounts()). Item hasil
   // carry-over dari SalesOrder (mode create) belum punya discount_amount --
   // default 0 sampai backend menghitung ulang saat disimpan.
   // `items` berisi baris SO, ItemVariant bebas, dan Asset (satu sales_invoice_items).
@@ -492,7 +492,7 @@ export default function Form() {
 
   // basic_amount TIDAK ditimpa di sini -- generated (quantity*price) di server.
   // tax_amount dihitung dari basis DPP Nilai Lain SETELAH dikurangi discount_amount,
-  // konsisten dgn DocumentDiscountCalculator::applyDiscountColumnToItems().
+  // konsisten dgn DocumentDiscountCalculator::invoiceItemDiscounts().
   // SalesInvoiceItem tidak punya kolom amount (beda dari PurchaseInvoiceItem), jadi
   // tidak diisi di sini. Alokasi diskon memakai seluruh baris tabel (`dataTable`).
   const mapItem = ({ item, dataTable, index }) => {

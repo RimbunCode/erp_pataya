@@ -125,7 +125,7 @@ class PurchaseInvoiceController extends Controller {
         $this->setBreadcrumbs('finances.purchaseInvoice.new');
 
         return Inertia::render('Finances/PurchaseInvoice/Show', [
-            'taxRuleVersions' => app(DocumentTaxRules::class)->versionsForClient(),
+            'taxRuleVersions' => fn () => app(DocumentTaxRules::class)->versionsForClient(),
             'defaultData'     => $defaultData ?? [],
             'defaults'        => app(DocumentDefaultsResolver::class)->defaultsFor(DefaultsDocumentType::PurchaseInvoice),
         ]);
@@ -164,7 +164,7 @@ class PurchaseInvoiceController extends Controller {
             ->get();
 
         return Inertia::render('Finances/PurchaseInvoice/Show', [
-            'taxRuleVersions' => app(DocumentTaxRules::class)->versionsForClient(),
+            'taxRuleVersions' => fn () => app(DocumentTaxRules::class)->versionsForClient(),
             'purchaseInvoice' => function () use ($purchaseInvoice) {
                 $purchaseInvoice->loadRelations();
 

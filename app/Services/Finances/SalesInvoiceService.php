@@ -3,6 +3,7 @@
 namespace App\Services\Finances;
 
 use App\Contracts\SubmitableService;
+use App\Enums\AccountRole;
 use App\Enums\FormStatus;
 use App\Enums\JournalStatus;
 use App\Events\Asset\AssetSoldViaInvoice;
@@ -37,6 +38,7 @@ use App\Services\Core\Setting\CurrencyMatcher;
 use App\Services\Core\Setting\RateChangeComparator;
 use App\Services\Core\Setting\SettingsService;
 use App\Services\Core\Setting\ToleranceCalculator;
+use App\Services\Finances\Accounting\WithholdingRoleGuard;
 use App\Services\Finances\Ledger\JournalReversalService;
 use App\Services\Finances\Tax\DocumentTaxRules;
 use App\Services\Finances\Tax\DocumentTaxSnapshot;
@@ -363,6 +365,11 @@ class SalesInvoiceService implements SubmitableService {
 
             $returnAgainst = $salesInvoice->returnAgainst;
             $items         = $salesInvoice->items;
+
+            // Sebelum efek apa pun: versi aturan harus masih yang berlaku pada tanggal dokumen dan peran withholding
+            // harus terpetakan (keputusan pemilik produk 28 November 2026). Gagal di sini membatalkan transaksi.
+            app(DocumentTaxRules::class)->assertStoredVersionsCurrent($items, CarbonImmutable::parse($salesInvoice->date));
+            app(WithholdingRoleGuard::class)->assertMapped(AccountRole::WithholdingReceivable, (float) $items->sum('withholding_amount'), $approvedAt);
 
             if (! $returnAgainst) {
                 $this->assertRateChanges($salesInvoice, $items);

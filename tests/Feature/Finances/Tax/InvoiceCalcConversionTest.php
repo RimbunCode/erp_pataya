@@ -3,12 +3,16 @@
 namespace Tests\Feature\Finances\Tax;
 
 use App\Enums\FormStatus;
+use App\Enums\PostingDocumentType;
+use App\Exceptions\Finances\StaleTaxRuleVersionException;
+use App\Exceptions\Finances\UnmappedWithholdingRoleException;
 use App\Models\Core\Branch;
 use App\Models\Core\Country;
 use App\Models\Finances\Account;
 use App\Models\Finances\GeneralLedger;
 use App\Models\Finances\Journal;
 use App\Models\Finances\PostingProfile;
+use App\Models\Finances\PostingProfileAccount;
 use App\Models\Finances\PurchaseInvoice;
 use App\Models\Finances\SalesInvoice;
 use App\Models\Finances\SalesInvoiceItem;
@@ -20,8 +24,10 @@ use App\Models\Purchase\Supplier;
 use App\Models\Sales\Customer;
 use App\Models\Sales\SalesOrder;
 use App\Services\Finances\Posting\PostingProfileService;
+use App\Services\Finances\Posting\PostingRoleRequirements;
 use App\Services\Finances\PurchaseInvoiceService;
 use App\Services\Finances\SalesInvoiceService;
+use App\Services\Finances\Tax\DocumentTaxRules;
 use App\Services\Finances\Tax\TaxRuleVersionService;
 use Database\Factories\Core\CountryFactory;
 use Database\Factories\Inventory\ItemVariantFactory;
@@ -513,6 +519,121 @@ class InvoiceCalcConversionTest extends TestCase {
         $this->assertSame('additive', $byTax[$ppn->getKey()]['behavior']);
         $this->assertSame('withholding', $byTax[$pph->getKey()]['behavior']);
         $this->assertSame('active', $byTax[$pph->getKey()]['status']);
+    }
+
+    // ---------------------------------------------------------------------------------------------------------
+    // Putaran perbaikan (keputusan pemilik produk 28 November 2026)
+    // ---------------------------------------------------------------------------------------------------------
+
+    public function test_legacy_hook_zeroes_rows_without_tax_and_routes_withholding_to_its_own_column(): void {
+        $pph     = $this->withholdingTax(2);
+        $invoice = $this->createSalesInvoice([['tax' => $pph->getKey(), 'price' => 1000]]);
+        $version = $this->versionOf($pph);
+
+        // Penulis lain (factory/seeder) tanpa nilai hitung eksplisit: jaring pengaman legacy.
+        $noTax    = SalesInvoiceItem::factory()->create(['sales_invoice_id' => $invoice->id, 'quantity' => 1, 'price' => 1000, 'discount_amount' => 0, 'tax_id' => null, 'tax_rule_version_id' => null, 'tax_rate' => 0]);
+        $withheld = SalesInvoiceItem::factory()->create(['sales_invoice_id' => $invoice->id, 'quantity' => 1, 'price' => 1000, 'discount_amount' => 0, 'tax_id' => $pph->getKey(), 'tax_rule_version_id' => $version->getKey(), 'tax_rate' => 2]);
+
+        $this->assertEqualsWithDelta(0, $noTax->fresh()->dpp_amount, 0.001, 'Baris tanpa pajak: dpp 0.');
+        $this->assertEqualsWithDelta(0, $noTax->fresh()->tax_amount, 0.001);
+        $this->assertEqualsWithDelta(0, $withheld->fresh()->tax_amount, 0.001, 'Pajak potong tidak masuk tax_amount.');
+        $this->assertEqualsWithDelta(20, $withheld->fresh()->withholding_amount, 0.001, '2% x 1.000 (faktor 1/1).');
+    }
+
+    public function test_approve_is_rejected_when_the_effective_rule_version_differs_from_the_stored_one(): void {
+        $tax     = $this->taxWith('PPN bertahap', 11, 11, 12, '2026-01-01');
+        $invoice = $this->createSalesInvoice([['tax' => $tax->getKey(), 'price' => 1200]], '2026-08-01');
+        $v1      = $this->versionOf($tax);
+        $this->assertSame($v1->getKey(), $invoice->items()->firstOrFail()->tax_rule_version_id);
+
+        // Versi baru berlaku sejak 1 Juli: pada tanggal dokumen versi yang berlaku bukan lagi versi tersimpan.
+        $this->versions->activate($this->versions->createNewVersion($v1, '2026-07-01', null, ['rate' => 12]));
+        $invoice->update(['status' => [FormStatus::SUBMITTED]]);
+
+        try {
+            app(SalesInvoiceService::class)->onApproved($invoice->fresh());
+            $this->fail('Approve harus ditolak.');
+        } catch (StaleTaxRuleVersionException $exception) {
+            $this->assertStringContainsString('PPN bertahap', $exception->getMessage());
+        }
+
+        $this->assertSame(0, Journal::query()->where('source_id', $invoice->id)->count());
+    }
+
+    public function test_purchase_approve_is_rejected_when_the_effective_rule_version_differs(): void {
+        $tax     = $this->taxWith('PPN bertahap', 11, 11, 12, '2026-01-01');
+        $invoice = $this->createPurchaseInvoice([['tax' => $tax->getKey(), 'price' => 1200]], '2026-08-01');
+        $this->versions->activate($this->versions->createNewVersion($this->versionOf($tax), '2026-07-01', null, ['rate' => 12]));
+        $invoice->update(['status' => [FormStatus::SUBMITTED]]);
+
+        $this->expectException(StaleTaxRuleVersionException::class);
+        app(PurchaseInvoiceService::class)->onApproved($invoice->fresh());
+    }
+
+    public function test_approve_is_rejected_when_the_withholding_role_is_not_mapped(): void {
+        $pph = $this->withholdingTax(2);
+        PostingProfileAccount::query()->whereIn('role', ['withholding_receivable', 'withholding_payable'])->delete();
+
+        $sales = $this->createSalesInvoice([['tax' => $pph->getKey(), 'price' => 10_000]]);
+        $sales->update(['status' => [FormStatus::SUBMITTED]]);
+        try {
+            app(SalesInvoiceService::class)->onApproved($sales->fresh());
+            $this->fail('Approve penjualan harus ditolak.');
+        } catch (UnmappedWithholdingRoleException $exception) {
+            $this->assertStringContainsString('withholding_receivable', $exception->getMessage());
+        }
+        $this->assertSame(0, Journal::query()->where('source_id', $sales->id)->count());
+
+        $purchase = $this->createPurchaseInvoice([['tax' => $pph->getKey(), 'price' => 10_000]]);
+        $purchase->update(['status' => [FormStatus::SUBMITTED]]);
+        $this->expectException(UnmappedWithholdingRoleException::class);
+        app(PurchaseInvoiceService::class)->onApproved($purchase->fresh());
+    }
+
+    public function test_unmapped_withholding_role_does_not_block_documents_without_withholding(): void {
+        $ppn = $this->taxWith('PPN 11/12', 12, 11, 12);
+        PostingProfileAccount::query()->whereIn('role', ['withholding_receivable', 'withholding_payable'])->delete();
+
+        $approved = $this->approveSales($this->createSalesInvoice([['tax' => $ppn->getKey(), 'price' => 1200]]));
+
+        $this->assertEqualsWithDelta(1332, $approved->amount, 0.001);
+    }
+
+    public function test_withholding_roles_are_required_by_the_posting_profile_warning_list(): void {
+        $sales    = array_map(fn ($role) => $role->value, PostingRoleRequirements::for(PostingDocumentType::SalesInvoice));
+        $purchase = array_map(fn ($role) => $role->value, PostingRoleRequirements::for(PostingDocumentType::PurchaseInvoice));
+
+        $this->assertContains('withholding_receivable', $sales);
+        $this->assertContains('withholding_payable', $purchase);
+    }
+
+    public function test_print_attributes_show_dpp_only_for_non_1_1_rows_and_withholding_separately(): void {
+        $ppn  = $this->taxWith('PPN 11/12', 12, 11, 12);
+        $flat = $this->taxWith('Pajak 1/1', 10, 1, 1);
+        $pph  = $this->withholdingTax(2);
+
+        $mixed = $this->createSalesInvoice([
+            ['tax' => $ppn->getKey(), 'price' => 12_000],
+            ['tax' => $pph->getKey(), 'price' => 10_000],
+        ])->load('items');
+        $this->assertEqualsWithDelta(11_000, $mixed->printed_dpp_amount, 0.001, 'Basis PPh (10.000) tidak tercampur dengan DPP PPN.');
+        $this->assertEqualsWithDelta(200, $mixed->withholding_amount, 0.001);
+
+        $flatOnly = $this->createSalesInvoice([['tax' => $flat->getKey(), 'price' => 1000], ['tax' => $pph->getKey(), 'price' => 1000]])->load('items');
+        $this->assertNull($flatOnly->printed_dpp_amount, 'Semua baris berfaktor 1/1 atau potong: DPP tidak dicetak.');
+        $this->assertEqualsWithDelta(20, $flatOnly->withholding_amount, 0.001);
+    }
+
+    public function test_invoice_page_rule_versions_expose_only_the_fields_the_form_uses(): void {
+        $this->taxWith('PPN 11/12', 12, 11, 12, version: ['notes' => 'rahasia']);
+
+        $versions = app(DocumentTaxRules::class)->versionsForClient();
+
+        $this->assertNotEmpty($versions);
+        $this->assertEqualsCanonicalizing(
+            ['id', 'tax_id', 'status', 'effective_from', 'effective_to', 'rate', 'dpp_numerator', 'dpp_denominator', 'behavior'],
+            array_keys($versions[0]),
+        );
     }
 
     private function versionOf(Tax $tax): TaxRuleVersion {

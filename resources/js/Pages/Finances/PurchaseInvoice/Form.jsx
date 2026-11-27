@@ -786,7 +786,7 @@ export default function Form() {
               // basic_amount TIDAK ditimpa di sini -- generated (quantity*rate) di
               // server. tax_amount/amount dihitung dari basis DPP Nilai Lain SETELAH
               // dikurangi discount_amount, konsisten dgn DocumentDiscountCalculator::
-              // applyDiscountColumnToItems(). discount_amount sendiri item-level
+              // invoiceItemDiscounts(). discount_amount sendiri item-level
               // Invoice tidak diedit di form ini (murni carry-over/hasil server) --
               // dipakai apa adanya sebagai basis alokasi ulang saat quantity/rate/tax berubah.
               const rows = dataTable ?? [];

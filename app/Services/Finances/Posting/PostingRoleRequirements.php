@@ -20,8 +20,8 @@ final class PostingRoleRequirements {
      */
     public static function for(PostingDocumentType $type): array {
         return match ($type) {
-            PostingDocumentType::SalesInvoice         => [AccountRole::Receivable, AccountRole::Revenue],
-            PostingDocumentType::PurchaseInvoice      => [AccountRole::Stock, AccountRole::StockReceivedButNotBilled, AccountRole::Expense, AccountRole::Payable],
+            PostingDocumentType::SalesInvoice         => [AccountRole::Receivable, AccountRole::Revenue, AccountRole::WithholdingReceivable],
+            PostingDocumentType::PurchaseInvoice      => [AccountRole::Stock, AccountRole::StockReceivedButNotBilled, AccountRole::Expense, AccountRole::Payable, AccountRole::WithholdingPayable],
             PostingDocumentType::PurchaseReceipt      => [AccountRole::Stock, AccountRole::StockReceivedButNotBilled],
             PostingDocumentType::DeliveryNote         => [AccountRole::CostOfGoodsSold, AccountRole::Stock],
             PostingDocumentType::PaymentEntry         => [AccountRole::Receivable, AccountRole::Payable],

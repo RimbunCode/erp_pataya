@@ -25,8 +25,8 @@ let conditionalDefaultsMode = false;
 //   - Transform reset saat toggle is_return checkbox (tanpa lookup akun).
 //   - Transform data saat memilih return_against (retur invoice lama).
 //   - mapItem callback yang diteruskan ke FormTable (alokasi diskon per-baris
-//     via allocateDiscount dgn DPP_FACTOR 11/12 -- port dari
-//     SalesInvoiceService::DPP_FACTOR).
+//     via allocateDiscount dgn faktor DPP 11/12 dari versi aturan fixture -- port dari
+//     InvoiceItemTaxCalculator).
 //   - additionalData callback yang diteruskan ke PaymentSchedule (payment/
 //     outstanding amount per invoice_portion).
 // ============================================================================
@@ -1024,7 +1024,7 @@ describe("SalesInvoice Form", () => {
     });
   });
 
-  describe("mapItem FormTable (alokasi diskon per baris item, DPP_FACTOR 11/12)", () => {
+  describe("mapItem FormTable (alokasi diskon per baris item, faktor DPP 11/12)", () => {
     it("tanpa discount_on: discount_amount 0, dpp_amount = basic_amount * 11/12, tax_amount dari tax_rate item", () => {
       formPageState = makeFormPageState({
         data: {
@@ -1052,7 +1052,7 @@ describe("SalesInvoice Form", () => {
       // basic_amount gross = 2*500 = 1000, tanpa discount_on hasil basic_amount
       // = gross (allocateDiscount return apa adanya).
       expect(result.discount_amount).toBe(0);
-      // dpp_amount = basic_amount_setelah_alokasi * DPP_FACTOR = 1000 * 11/12.
+      // dpp_amount = basic_amount_setelah_alokasi * faktor DPP = 1000 * 11/12.
       expect(result.dpp_amount).toBeCloseTo(1000 * (11 / 12), 5);
       // tax_amount = dpp_amount * tax_rate/100 = (1000*11/12)*11/100.
       expect(result.tax_amount).toBeCloseTo((1000 * (11 / 12) * 11) / 100, 2);

@@ -46,7 +46,8 @@ class PostingRoleRequirementsTest extends TestCase {
     public function test_known_requirements(): void {
         $values = fn (PostingDocumentType $type): array => array_map(fn ($role): string => $role->value, PostingRoleRequirements::for($type));
 
-        $this->assertSame(['receivable', 'revenue'], $values(PostingDocumentType::SalesInvoice));
+        $this->assertSame(['receivable', 'revenue', 'withholding_receivable'], $values(PostingDocumentType::SalesInvoice));
+        $this->assertSame(['stock', 'stock_received_but_not_billed', 'expense', 'payable', 'withholding_payable'], $values(PostingDocumentType::PurchaseInvoice));
         $this->assertSame(['stock', 'stock_received_but_not_billed'], $values(PostingDocumentType::PurchaseReceipt));
         $this->assertSame(['asset_revaluation'], $values(PostingDocumentType::AssetValueAdjustment));
         $this->assertSame([], $values(PostingDocumentType::AssetDepreciation));
@@ -98,8 +99,13 @@ class PostingRoleRequirementsTest extends TestCase {
                 }
             }
 
-            $expected = array_map(fn ($role): string => $role->value, PostingRoleRequirements::for($type));
-            $actual   = array_keys($referenced);
+            // `withholding_*` adalah peran bersyarat (hanya dokumen berpajak potong; konteks uji tanpa potongan tidak merujuknya),
+            // tetapi wajib dipetakan (peringatan Posting Profile; keputusan 28 November 2026), jadi dikecualikan dari perbandingan.
+            $expected = array_values(array_filter(
+                array_map(fn ($role): string => $role->value, PostingRoleRequirements::for($type)),
+                fn (string $role): bool => ! str_starts_with($role, 'withholding_'),
+            ));
+            $actual = array_keys($referenced);
             sort($expected);
             sort($actual);
 

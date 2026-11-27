@@ -3,6 +3,7 @@
 namespace App\Services\Finances\Tax;
 
 use App\Exceptions\Finances\NoEffectiveTaxRuleException;
+use App\Exceptions\Finances\StaleTaxRuleVersionException;
 use App\Models\Finances\Tax;
 use App\Models\Finances\TaxRuleVersion;
 use Carbon\CarbonImmutable;
@@ -130,5 +131,40 @@ final class DocumentTaxRules {
             ])
             ->values()
             ->all();
+    }
+
+    /**
+     * Approve ditolak bila versi aturan yang berlaku pada tanggal dokumen berbeda dari versi tersimpan pada item
+     * (keputusan pemilik produk 28 November 2026): angka item dihitung saat simpan dan tidak dihitung ulang saat
+     * approve, jadi dokumen harus disimpan ulang dulu. Item tanpa `tax_rule_version_id` (data legacy Bagian A) dilewati.
+     *
+     * @param  iterable<int|string, object>  $items  objek dengan `tax_id` dan `tax_rule_version_id`
+     *
+     * @throws StaleTaxRuleVersionException
+     */
+    public function assertStoredVersionsCurrent(iterable $items, mixed $date): void {
+        $day = $date instanceof CarbonInterface ? $date : CarbonImmutable::parse($date ?? 'now');
+
+        $checked = [];
+        foreach ($items as $item) {
+            $taxId     = $item->tax_id ?? null;
+            $versionId = $item->tax_rule_version_id ?? null;
+            if (! filled($taxId) || ! filled($versionId) || isset($checked[$taxId . '|' . $versionId])) {
+                continue;
+            }
+            $checked[$taxId . '|' . $versionId] = true;
+
+            $name = (string) Tax::query()->withTrashed()->whereKey($taxId)->value('name');
+
+            try {
+                $effective = $this->resolver->resolve((string) $taxId, $day);
+            } catch (NoEffectiveTaxRuleException) {
+                throw new StaleTaxRuleVersionException($name !== '' ? $name : (string) $taxId, $day->toDateString());
+            }
+
+            if ((string) $effective->getKey() !== (string) $versionId) {
+                throw new StaleTaxRuleVersionException($name !== '' ? $name : (string) $taxId, $day->toDateString());
+            }
+        }
     }
 }

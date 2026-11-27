@@ -150,6 +150,28 @@ class InvoiceDppMigrationTest extends TestCase {
         $this->migration()->down();
     }
 
+    public function test_down_precheck_ignores_rows_without_tax_whose_stored_dpp_is_zero(): void {
+        // Keputusan 28 November 2026: baris tanpa pajak menyimpan dpp/pajak 0, sedangkan generated lama menghasilkan
+        // basis x 11/12 untuknya; pra-pemeriksaan `down()` tidak boleh menolak karenanya. (SQLite tidak dapat
+        // menambah kolom stored pada tabel berisi, jadi yang diuji pra-pemeriksaannya, bukan DDL-nya.)
+        $id = $this->insertSalesItem();
+        DB::table('sales_invoice_items')->where('id', $id)->update(['dpp_amount' => 0, 'tax_amount' => 0]);
+
+        $migration = $this->migration();
+        $check     = new \ReflectionMethod($migration, 'assertRestorable');
+        $check->setAccessible(true);
+        $check->invoke($migration, 'sales_invoice_items', ['dpp_amount', 'tax_amount']);
+        $this->assertTrue(true, 'Tidak ada pengecualian untuk baris tanpa pajak.');
+
+        // Baris BERPAJAK dengan dpp 0 tetap menyimpang dari formula dan ditolak.
+        $taxId = (string) Str::ulid();
+        DB::table('taxes')->insert(['id' => $taxId, 'name' => 'T', 'rate' => 11, 'created_at' => now(), 'updated_at' => now()]);
+        DB::table('sales_invoice_items')->where('id', $id)->update(['tax_id' => $taxId]);
+
+        $this->expectException(RuntimeException::class);
+        $check->invoke($migration, 'sales_invoice_items', ['dpp_amount', 'tax_amount']);
+    }
+
     public function test_the_calculation_setting_is_enabled_by_the_migration(): void {
         $this->assertTrue((bool) app(SettingsService::class)->get(FinanceSetting::class)->tax_engine_calc_enabled);
     }

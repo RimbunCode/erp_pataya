@@ -35,9 +35,30 @@ use Illuminate\Support\Facades\Schema;
  * implisit); periksa skema tabel, selesaikan langkah yang tersisa manual (lepas generated yang tersisa, ganti nama
  * `*_v2`), lalu catat migrasi sebagai selesai.
  *
+ * RUNBOOK DEPLOY (M-7, keputusan 28 November 2026):
+ *   a. KODE DAN MIGRASI SATU JENDELA. Kode baru menulis `dpp_amount`/`tax_amount`/`amount` secara eksplisit; bila
+ *      kode itu berjalan sebelum migrasi, MySQL menolak penulisan ke kolom generated (error 3105) dan invoice gagal
+ *      disimpan. Sebaliknya kode lama sesudah migrasi tidak lagi menghitung angka. Deploy kode lalu `migrate` tanpa
+ *      jeda, dalam mode pemeliharaan (`php artisan down`).
+ *   b. BARIS BARU ANTARA SALIN DAN DROP. Langkah 2 menyalin sekali; baris yang ditulis sesudahnya tidak ikut tersalin
+ *      (`*_v2` = 0) dan pra-pemeriksaan paritas tidak melihatnya. Karena itu tidak boleh ada penulisan invoice
+ *      (web, queue worker, scheduler) selama migrasi berjalan.
+ *   c. PEMULIHAN BILA GAGAL ANTARA DROP VIEW DAN BUAT ULANG VIEW (langkah 4 sampai 6): view laporan hilang. Setelah
+ *      skema tabel selesai (lihat catatan jendela pemeliharaan), buat ulang view dengan menjalankan `up()` migrasi
+ *      `2026_10_15_100400_create_report_sales_invoice_view.php` dan
+ *      `2026_10_15_100500_create_report_purchase_invoice_view.php` (`(require $path)->up();` lewat tinker; migrasi itu
+ *      sudah tercatat sehingga tidak dijalankan ulang oleh `migrate`), lalu `DROP VIEW IF EXISTS` dahulu bila sebagian
+ *      sudah terbentuk.
+ *   d. IZIN/PERAN BARU. Tidak ada izin pengguna baru. Peran akun `withholding_receivable` (penjualan) dan
+ *      `withholding_payable` (pembelian) kini wajib dipetakan pada Posting Profile aktif sebelum menyetujui invoice
+ *      yang memuat pajak potong (approve ditolak dengan pesan jelas bila belum). Peran ini tampil di peringatan halaman
+ *      Posting Profile.
+ *   e. SETELAH MIGRASI: pajak "tanpa pajak" hasil backfill yang masih berfaktor 11/12 tetap menampilkan kolom DPP
+ *      di form; buat versi aturan berfaktor 1/1 untuknya (tab Versi Aturan) bila kolom DPP tidak diinginkan.
+ *
  * `down()` mengembalikan kolom generated 11/12 (formula migrasi 2026-08-18). Nilai kolom biasa DIBUANG dan dihitung ulang
  * dari `basic_amount`, `discount_amount`, `tax_rate`, sehingga `down()` menolak berjalan bila ada baris yang nilai
- * tersimpannya menyimpang lebih dari 0,01 dari formula itu atau memuat `withholding_amount` > 0 (dokumen berfaktor DPP
+ * tersimpannya menyimpang lebih dari 0,01 dari formula itu (baris tanpa `tax_id` dikecualikan: nilai tersimpannya 0 sesuai keputusan 28 November 2026, sedangkan kolom generated lama menghasilkan basis x 11/12 untuknya; pemulihan sengaja mengembalikan perilaku lama itu) atau memuat `withholding_amount` > 0 (dokumen berfaktor DPP
  * selain 11/12 atau berpajak potong tidak dapat dipulihkan tanpa mengubah angka).
  */
 return new class extends Migration
@@ -179,7 +200,7 @@ return new class extends Migration
             $conditions[] = "ABS({$column} - ({$expected[$column]})) > " . self::PARITY_TOLERANCE;
         }
 
-        $drifted = (int) DB::table($table)->whereRaw('(' . implode(') OR (', $conditions) . ')')->count();
+        $drifted = (int) DB::table($table)->whereNotNull('tax_id')->whereRaw('(' . implode(') OR (', $conditions) . ')')->count();
         if ($drifted > 0) {
             throw new RuntimeException(
                 "down() ditolak: {$drifted} baris {$table} memiliki dpp/pajak/jumlah yang tidak sama dengan formula 11/12 lama "

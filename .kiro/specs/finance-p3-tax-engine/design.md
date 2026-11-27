@@ -183,7 +183,7 @@ Langkah migrasi untuk `sales_invoice_items` dan `purchase_invoice_items` (rantai
 5. Buat ulang view yang bergantung (mis. `report_sales_invoice_view`) bila perlu.
 6. Aktifkan `finance_tax_engine_calc_enabled=true` (membuka guard faktor DPP).
 
-Perhitungan berpindah ke `TaxEngine` di `fillItemRelations`/`create`/`update`; `onApproved` tidak lagi sekadar menjumlah. Withholding dikeluarkan dari total dokumen dan diposting ke `withholding_receivable`/`withholding_payable`. Perubahan ini menyentuh lebih dari 4 file dan laporan → ditangani sebagai bagian terpisah dengan jendela pemeliharaan dan audit pemakai kolom.
+Perhitungan berpindah ke `TaxEngine` di `fillItemRelations`/`create`/`update`; `onApproved` tidak menghitung ulang, tetapi menjumlah nilai tersimpan setelah MEMVALIDASI (gagal sebelum commit) bahwa versi aturan yang berlaku pada tanggal dokumen sama dengan versi tersimpan pada item (`DocumentTaxRules::assertStoredVersionsCurrent`; bila berbeda pengguna menyimpan ulang draft) dan bahwa peran `withholding_*` terpetakan bila dokumen punya pajak potong (`WithholdingRoleGuard`). Keputusan pemilik produk 28 November 2026: pajak potong disimpan di `withholding_amount` per item; `amount` header NET dari potongan; sisa pembulatan `per_document` dibebankan ke baris item terbesar (tanpa baris peran `rounding`; satu baris bisa bergeser > 1 minor unit); baris tanpa pajak menyimpan `dpp_amount` 0; prop `taxRuleVersions` tanpa gerbang izin baru. Withholding dikeluarkan dari total dokumen dan diposting ke `withholding_receivable`/`withholding_payable`. Perubahan ini menyentuh lebih dari 4 file dan laporan → ditangani sebagai bagian terpisah dengan jendela pemeliharaan dan audit pemakai kolom.
 
 ## Data Models
 

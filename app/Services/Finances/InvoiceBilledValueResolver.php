@@ -44,8 +44,8 @@ class InvoiceBilledValueResolver {
         }
 
         // Tarif, faktor DPP, dan perilaku pajak dari versi aturan pada tanggal dokumen, sama dengan yang dipakai
-        // service saat menyimpan (Requirement 12.3); pajak tanpa versi berlaku jatuh ke `taxes.rate` dan 11/12 hanya
-        // untuk pemeriksaan ini (service tetap gagal tertutup saat menyimpan, Q-P3-5).
+        // service saat menyimpan (Requirement 12.3). Pajak tanpa versi berlaku dilewati (tarif 0, faktor 1) hanya untuk
+        // pemeriksaan ini; service tetap gagal tertutup saat menyimpan (Q-P3-5).
         $taxIds    = collect($rows)->pluck('tax.id')->filter()->unique()->all();
         $taxes     = $taxIds === [] ? [] : Tax::whereIn('id', $taxIds)->get()->keyBy('id')->all();
         $taxRules  = app(DocumentTaxRules::class);

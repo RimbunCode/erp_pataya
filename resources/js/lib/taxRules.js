@@ -7,10 +7,28 @@
 
 export const EMPTY_TAX_RULE_VERSIONS = Object.freeze([]);
 
-function toDay(date) {
-  const parsed = date ? new Date(date) : new Date();
+function pad(value) {
+  return String(value).padStart(2, "0");
+}
+
+/**
+ * Hari (Y-m-d) dari tanggal dokumen TANPA konversi zona waktu: string dari server diambil bagian tanggalnya apa
+ * adanya (tanggal bisnis yang sama dengan yang dipakai server memilih versi aturan); objek Date dibaca dengan
+ * komponen lokal; kosong/tidak valid = hari ini (lokal).
+ *
+ * @param {string|Date|null|undefined} date
+ * @returns {string}
+ */
+export function toDay(date) {
+  if (typeof date === "string") {
+    const match = /^(\d{4}-\d{2}-\d{2})/.exec(date.trim());
+    if (match) return match[1];
+  }
+
+  const parsed =
+    date instanceof Date ? date : date ? new Date(date) : new Date();
   const valid = Number.isNaN(parsed.getTime()) ? new Date() : parsed;
-  return valid.toISOString().slice(0, 10);
+  return `${valid.getFullYear()}-${pad(valid.getMonth() + 1)}-${pad(valid.getDate())}`;
 }
 
 /**

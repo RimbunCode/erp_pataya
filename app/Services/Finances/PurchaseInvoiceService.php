@@ -3,6 +3,7 @@
 namespace App\Services\Finances;
 
 use App\Contracts\SubmitableService;
+use App\Enums\AccountRole;
 use App\Enums\FormStatus;
 use App\Events\Asset\FixedAssetItemApproved;
 use App\Events\Core\DocumentSubmitted;
@@ -33,6 +34,7 @@ use App\Services\Core\Setting\CurrencyMatcher;
 use App\Services\Core\Setting\RateChangeComparator;
 use App\Services\Core\Setting\SettingsService;
 use App\Services\Core\Setting\ToleranceCalculator;
+use App\Services\Finances\Accounting\WithholdingRoleGuard;
 use App\Services\Finances\Tax\DocumentTaxRules;
 use App\Services\Finances\Tax\DocumentTaxSnapshot;
 use App\Services\Finances\Tax\InvoiceItemTaxCalculator;
@@ -356,6 +358,11 @@ class PurchaseInvoiceService implements SubmitableService {
             $returnAgainst = $purchaseInvoice->returnAgainst;
             $items         = $purchaseInvoice->items;
             $purchaseOrder = $purchaseInvoice->purchaseOrder;
+
+            // Sebelum efek apa pun: versi aturan harus masih yang berlaku pada tanggal dokumen dan peran withholding
+            // harus terpetakan (keputusan pemilik produk 28 November 2026). Gagal di sini membatalkan transaksi.
+            app(DocumentTaxRules::class)->assertStoredVersionsCurrent($items, CarbonImmutable::parse($purchaseInvoice->date));
+            app(WithholdingRoleGuard::class)->assertMapped(AccountRole::WithholdingPayable, (float) $items->sum('withholding_amount'), now());
 
             if (! $returnAgainst) {
                 $this->assertRateChanges($purchaseInvoice, $items);

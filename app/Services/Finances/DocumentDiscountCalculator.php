@@ -12,14 +12,12 @@ class DocumentDiscountCalculator {
 
     /**
      * Alokasikan diskon dokumen header ($document->discount_on/discount_rate/discount_amount)
-     * ke tiap item baris ($items, masing-masing punya basic_amount & tax_rate). basic_amount
-     * (kotor, quantity*rate/price) TETAP generated column -- diskon TIDAK menimpa basic_amount,
-     * melainkan ditulis ke kolom terpisah discount_amount, konsisten dengan
-     * PurchaseInvoiceItem/SalesInvoiceItem (lihat migration
-     * add_discount_amount_to_purchase_order_items_table). Beda dari
-     * applyDiscountColumnToItems() (varian Invoice): PurchaseOrderItem/SalesOrderItem tidak
-     * punya kolom dpp_amount sebagai perantara, jadi tax_amount/amount TETAP kolom biasa yang
-     * ditulis langsung di sini, bukan generated dari discount_amount.
+     * ke tiap item baris ($items, masing-masing punya basic_amount & tax_rate). Varian dokumen
+     * ORDER (PurchaseOrderItem/SalesOrderItem): basic_amount (kotor, quantity*rate/price) tetap
+     * generated column dan diskon TIDAK menimpanya, melainkan ditulis ke kolom discount_amount;
+     * tax_amount/amount adalah kolom biasa yang ditulis langsung di sini. Varian INVOICE tidak
+     * lewat metode ini: diskon per baris dihitung invoiceItemDiscounts() dan dpp/pajak/withholding
+     * ditulis InvoiceItemTaxCalculator (TaxEngine) sejak konversi Bagian B.
      *
      * @param  Collection<int, Model>  $items  item model dengan attribute basic_amount & tax_rate
      * @return array{basic_amount: float, tax_amount: float} total basic_amount(net)/tax_amount header

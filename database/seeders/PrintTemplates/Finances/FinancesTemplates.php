@@ -61,7 +61,8 @@ final class FinancesTemplates {
                     ['label' => 'Total Harga', 'value' => '{{this.basic_amount}}', 'class' => 'col-number'],
                 ], [
                     ['Potongan', '{{doc.discount_amount}}'],
-                    ['DPP', '{{doc.dpp_amount}}'],
+                    ['DPP', '{{doc.printed_dpp_amount}}', 'doc.printed_dpp_amount'],
+                    ['Pajak Dipotong', '{{doc.withholding_amount}}', 'doc.withholding_amount'],
                     ['Grand Total', '{{doc.amount}}'],
                     ['Terbayar', '{{doc.paid_amount}}'],
                     ['Sisa Tagihan', '{{doc.outstanding_amount}}'],
@@ -124,6 +125,7 @@ final class FinancesTemplates {
                     ['label' => 'Jumlah', 'value' => '{{formatCurrency this.amount @root.doc.currency.code}}', 'class' => 'col-number'],
                 ], [
                     ['Potongan', '{{formatCurrency doc.discount_amount doc.currency.code}}'],
+                    ['Pajak Dipotong', '{{formatCurrency doc.withholding_amount doc.currency.code}}', 'doc.withholding_amount'],
                     ['Grand Total', '{{formatCurrency doc.amount doc.currency.code}}'],
                     ['Terbayar', '{{formatCurrency doc.paid_amount doc.currency.code}}'],
                     ['Sisa Tagihan', '{{formatCurrency doc.outstanding_amount doc.currency.code}}'],

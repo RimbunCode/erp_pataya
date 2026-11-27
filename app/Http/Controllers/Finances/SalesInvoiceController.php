@@ -147,7 +147,7 @@ class SalesInvoiceController extends Controller {
         $this->setBreadcrumbs('finances.salesInvoice.new');
 
         return Inertia::render('Finances/SalesInvoice/Show', [
-            'taxRuleVersions' => app(DocumentTaxRules::class)->versionsForClient(),
+            'taxRuleVersions' => fn () => app(DocumentTaxRules::class)->versionsForClient(),
             'defaultData'     => $defaultData ?? [],
             'defaults'        => app(DocumentDefaultsResolver::class)->defaultsFor(DefaultsDocumentType::SalesInvoice),
         ]);
@@ -181,7 +181,7 @@ class SalesInvoiceController extends Controller {
         $salesInvoice->showDetail();
 
         return Inertia::render('Finances/SalesInvoice/Show', [
-            'taxRuleVersions' => app(DocumentTaxRules::class)->versionsForClient(),
+            'taxRuleVersions' => fn () => app(DocumentTaxRules::class)->versionsForClient(),
             'salesInvoice'    => function () use ($salesInvoice) {
                 $salesInvoice->loadRelations();
 

@@ -46,6 +46,7 @@ return [
         'unknown_tax'                    => 'Pajak tidak ditemukan.',
         'delete_not_draft'               => 'Hanya versi draft yang dapat dihapus.',
         'no_effective_rule'              => 'Tidak ada versi aturan pajak yang berlaku untuk ":tax" pada tanggal :date.',
+        'stale_rule_version'             => 'Versi aturan pajak ":tax" yang berlaku pada tanggal dokumen (:date) berbeda dari versi yang tersimpan pada item. Simpan ulang draft dokumen agar pajak dihitung dengan versi yang berlaku, lalu setujui kembali.',
     ],
 
     'messages' => [
