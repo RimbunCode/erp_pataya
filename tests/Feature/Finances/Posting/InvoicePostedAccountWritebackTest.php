@@ -37,6 +37,7 @@ use Carbon\CarbonImmutable;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Illuminate\Support\Facades\DB;
+use PHPUnit\Framework\Attributes\DataProvider;
 use ReflectionMethod;
 use RuntimeException;
 use Tests\Support\AssertsPostingParity;
@@ -387,5 +388,55 @@ class InvoicePostedAccountWritebackTest extends TestCase {
         $item->save();
 
         $this->assertNull($item->fresh()->posted_account_id);
+    }
+
+    /**
+     * @return array<string, array{0: list<bool>}> `is_stock_item` varian tiap baris
+     */
+    public static function lineStockCombinations(): array {
+        return [
+            'satu baris stok'     => [[true]],
+            'satu baris non-stok' => [[false]],
+            'stok dan non-stok'   => [[true, false]],
+        ];
+    }
+
+    /**
+     * P-14 (Requirement 13.1-13.2): apa pun yang tersisa di kolom akun dokumen sebelum approve (nilai kiriman klien
+     * yang lolos, data lama), akun tercatat sesudah posting sama dengan hasil resolver untuk peran masing-masing.
+     *
+     * @param  list<bool>  $stockFlags
+     */
+    #[DataProvider('lineStockCombinations')]
+    public function test_sales_invoice_recorded_accounts_equal_the_resolver_result_whatever_the_columns_held(array $stockFlags): void {
+        $invoice = $this->draftSalesInvoice($stockFlags);
+        DB::table('sales_invoices')->where('id', $invoice->id)->update(['debit_account_id' => $this->payable->id, 'income_account_id' => $this->expense->id]);
+        DB::table('sales_invoice_items')->where('sales_invoice_id', $invoice->id)->update(['posted_account_id' => $this->expense->id]);
+
+        app(SalesInvoiceService::class)->onApproved($invoice->fresh());
+
+        $expectedLines = array_map(fn (bool $stock): string => $stock ? $this->revenue->id : $this->revenueNonStock->id, $stockFlags);
+        $fresh         = $invoice->fresh();
+        $this->assertSame($this->receivable->id, $fresh->debit_account_id);
+        $this->assertSame(\count(array_unique($expectedLines)) === 1 ? $expectedLines[0] : null, $fresh->income_account_id);
+        $this->assertEqualsCanonicalizing($expectedLines, $this->itemAccounts('sales_invoice_items', 'sales_invoice_id', $invoice->id));
+    }
+
+    /**
+     * @param  list<bool>  $stockFlags
+     */
+    #[DataProvider('lineStockCombinations')]
+    public function test_purchase_invoice_recorded_accounts_equal_the_resolver_result_whatever_the_columns_held(array $stockFlags): void {
+        $invoice = $this->draftPurchaseInvoice($stockFlags);
+        DB::table('purchase_invoices')->where('id', $invoice->id)->update(['credit_account_id' => $this->receivable->id, 'expanse_head_account_id' => $this->revenue->id]);
+        DB::table('purchase_invoice_items')->where('purchase_invoice_id', $invoice->id)->update(['posted_account_id' => $this->revenue->id]);
+
+        app(PurchaseInvoiceService::class)->onApproved($invoice->fresh());
+
+        $expectedLines = array_map(fn (bool $stock): string => $stock ? $this->expense->id : $this->expenseNonStock->id, $stockFlags);
+        $fresh         = $invoice->fresh();
+        $this->assertSame($this->payable->id, $fresh->credit_account_id);
+        $this->assertSame(\count(array_unique($expectedLines)) === 1 ? $expectedLines[0] : null, $fresh->expanse_head_account_id);
+        $this->assertEqualsCanonicalizing($expectedLines, $this->itemAccounts('purchase_invoice_items', 'purchase_invoice_id', $invoice->id));
     }
 }
