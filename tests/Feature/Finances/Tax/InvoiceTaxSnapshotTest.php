@@ -6,6 +6,7 @@ use App\Enums\FormStatus;
 use App\Models\Core\Branch;
 use App\Models\Core\Country;
 use App\Models\Finances\Account;
+use App\Models\Finances\PostingProfile;
 use App\Models\Finances\PurchaseInvoice;
 use App\Models\Finances\PurchaseInvoiceItem;
 use App\Models\Finances\SalesInvoice;
@@ -17,6 +18,7 @@ use App\Models\Purchase\PurchaseOrder;
 use App\Models\Purchase\Supplier;
 use App\Models\Sales\Customer;
 use App\Models\Sales\SalesOrder;
+use App\Services\Finances\Posting\PostingProfileService;
 use App\Services\Finances\PurchaseInvoiceService;
 use App\Services\Finances\SalesInvoiceService;
 use App\Services\Finances\Tax\TaxEngine;
@@ -50,7 +52,7 @@ class InvoiceTaxSnapshotTest extends TestCase {
     protected function setUp(): void {
         parent::setUp();
 
-        $this->setUpFinanceFixtures([SalesInvoice::class, SalesOrder::class, PurchaseInvoice::class, PurchaseOrder::class]);
+        $this->setUpFinanceFixtures([PostingProfile::class, SalesInvoice::class, SalesOrder::class, PurchaseInvoice::class, PurchaseOrder::class]);
 
         // Supplier memakai nested set; `initPermissions()` tidak dipanggil untuknya (indeks `lft_index` bentrok dengan
         // Account), jadi kolomnya ditambahkan langsung seperti PurchaseInvoiceDiscountPersistenceTest.
@@ -67,6 +69,15 @@ class InvoiceTaxSnapshotTest extends TestCase {
         $this->expense    = $this->makeAccount('5000', 'Beban Pembelian', 'expense', 'debit');
         $this->payable    = $this->makeAccount('2000', 'Utang Usaha', 'liability', 'credit', 'accounts_payable');
         $this->versions   = app(TaxRuleVersionService::class);
+
+        // Fase 2: akun dokumen ditentukan engine posting; tanpa Posting Profile aktif, `onApproved()` gagal.
+        $profiles = app(PostingProfileService::class);
+        $profiles->activate($profiles->createDraft('Profil tes snapshot pajak', '2020-01-01', null, [
+            'receivable' => $this->receivable->id,
+            'revenue'    => $this->income->id,
+            'payable'    => $this->payable->id,
+            'expense'    => $this->expense->id,
+        ], []));
     }
 
     /**

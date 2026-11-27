@@ -123,3 +123,15 @@ Bagian A (Task 1–8) tidak mengubah angka di dokumen; Bagian B (Task 9) adalah 
 - Bagian A dapat berhenti di Task 8 dan sudah memberi nilai penuh pada GL; Bagian B dapat ditunda tanpa menghalangi Fase 4–6.
 - Jika Task 1.3 menemukan perbedaan alur pajak Purchase Invoice (mis. off-PO) dibanding Sales Invoice, perbarui `design.md` dan minta konfirmasi sebelum Task 5.
 - Peran pajak kustom (mis. PPh 23) dibuat sebagai kunci string di profil; jangan menambah nilai enum untuk setiap jenis pajak.
+
+## Catatan penggabungan dengan Fase 2 (27 November 2026)
+
+Bagian A (Task 1.2-1.4, 2-5) digabung dengan `origin/feat/finance-engine` (Fase 2 sudah ter-merge). Konflik di `FinanceSetting`, `AppServiceProvider`, `SalesInvoiceService`, `PurchaseInvoiceService` diselesaikan dengan mempertahankan kedua sisi: setting `posting_executions` dan kolom diskon Fase 2 beserta setting pajak Fase 3 (`tax_split_from`, `company_is_pkp`, `tax_engine_calc_enabled`; `posting_modes` sudah dihapus Fase 2); registrasi `PostingService`/`PanelSourceRegistry` beserta `TaxRuleResolver` scoped; di service invoice, akun dokumen tetap dikosongkan (Q-P2-23) dan `posted_account_id = null` (Q-P2-24), sementara `tax_rate` dan `tax_rule_version_id` berasal dari versi aturan pajak pada tanggal dokumen. `InvoiceTaxSnapshotTest` disesuaikan: `onApproved()` kini memicu engine posting, sehingga tes membuat Posting Profile aktif. Task 1.1 tetap `[ ]` (menunggu data staging).
+
+**Prasyarat deploy Task 5**: jalankan `php artisan finance:init-tax-rules` (boleh `--dry-run` dahulu) SEBELUM kode Task 5 dideploy; tanpa versi aturan berlaku, service invoice gagal tertutup (422 pada `items.{i}.tax`) sesuai Q-P3-5 (21 November 2026).
+
+**Pertanyaan terbuka (belum diputuskan, menunggu pemilik produk)**
+- Konflik design.md vs Requirement 4.1 (lihat diskusi desain; perlu diputuskan mana yang berlaku).
+- Retur: memakai versi aturan pada tanggal retur, atau mewarisi versi item dokumen asal.
+- `TaxesController::store` membuat pajak tanpa versi aturan (pajak baru dari UI belum bisa dipakai di invoice sampai versi dibuat).
+- `InvoiceBilledValueResolver` masih membaca `taxes.rate`, bukan versi aturan.
