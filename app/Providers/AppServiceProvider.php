@@ -17,6 +17,7 @@ use App\Services\Finances\Accounting\PaymentEntryPanelSource;
 use App\Services\Finances\Accounting\PurchaseInvoicePanelSource;
 use App\Services\Finances\Posting\AccountPanel\PanelSourceRegistry;
 use App\Services\Finances\Posting\PostedAccountRecorderRegistry;
+use App\Services\Finances\Tax\TaxRuleResolver;
 use App\Services\Inventory\Accounting\DeliveryNotePanelSource;
 use App\Services\Inventory\Accounting\StockEntryPanelSource;
 use App\Services\Purchase\Accounting\PurchaseReceiptPanelSource;
@@ -34,6 +35,8 @@ class AppServiceProvider extends ServiceProvider {
         // Scoped: the per-request memo in SettingsService (Requirement 3.1)
         // only works when every resolve within one request/job shares it.
         $this->app->scoped(SettingsService::class);
+        // Scoped: cache (tax, tanggal) Tax Engine berlaku satu request/job (Finance Fase 3, Requirement 3.3).
+        $this->app->scoped(TaxRuleResolver::class);
         // Harus didaftarkan eksplisit: untuk parameter class opsional yang belum terdaftar, container memakai default
         // null, sehingga `PostingService` tidak menerima registry write-back (Finance Fase 2, Task 12.1).
         $this->app->singleton(PostedAccountRecorderRegistry::class);

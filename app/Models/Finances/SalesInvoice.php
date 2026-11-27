@@ -37,6 +37,7 @@ class SalesInvoice extends Model {
         'tax_invoice_dpp_amount'           => 'float',
         'tax_invoice_ppn_amount'           => 'float',
         'tax_invoice_ppnbm_amount'         => 'float',
+        'tax_breakdown'                    => 'array',
     ];
     protected static string $defaultFormatCode = '@[branch_code]/SalesInvoice-@[iiii]/@[yy]';
 
@@ -312,5 +313,14 @@ class SalesInvoice extends Model {
         }
 
         return true;
+    }
+
+    /**
+     * `tax_breakdown` dihitung ulang saat revisi di-approve (Finance Fase 3, Requirement 5.3); tidak boleh terbawa.
+     *
+     * @return array<int, string>
+     */
+    protected function amendExcludedColumns(): array {
+        return ['tax_breakdown'];
     }
 }

@@ -18,6 +18,7 @@ use App\Models\Core\ModelConnection;
 use App\Models\Finances\PurchaseInvoice;
 use App\Models\Finances\PurchaseInvoiceItem;
 use App\Models\Finances\Tax;
+use App\Models\Finances\TaxRuleVersion;
 use App\Models\Inventory\ItemUnit;
 use App\Models\Inventory\Stock;
 use App\Models\Inventory\StockLedgerEntry;
@@ -32,8 +33,11 @@ use App\Services\Core\Setting\CurrencyMatcher;
 use App\Services\Core\Setting\RateChangeComparator;
 use App\Services\Core\Setting\SettingsService;
 use App\Services\Core\Setting\ToleranceCalculator;
+use App\Services\Finances\Tax\DocumentTaxRules;
+use App\Services\Finances\Tax\DocumentTaxSnapshot;
 use App\Traits\HasDefaultDelete;
 use App\Utils;
+use Carbon\CarbonImmutable;
 use Illuminate\Support\Collection;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Validation\ValidationException;
@@ -49,6 +53,9 @@ class PurchaseInvoiceService implements SubmitableService {
     public const float DPP_FACTOR = 11 / 12;
 
     private function fillRelations(array $data) {
+        // `tax_breakdown` hanya ditulis `onApproved()` dan immutable sesudahnya (Requirement 5.3).
+        unset($data['tax_breakdown']);
+
         $data['purchase_order_id'] = $data['purchase_order']['id'];
         $data['supplier_id']       = $data['supplier']['id'];
         $data['supplier_name']     = Supplier::find($data['supplier']['id'])?->name;
@@ -72,9 +79,12 @@ class PurchaseInvoiceService implements SubmitableService {
         return $data;
     }
 
-    private function fillItemRelations(array $data, PurchaseInvoice $purchaseInvoice, array $units = [], array $taxes = [], array $purchaseOrderItems = [], array $receiptItems = []) {
+    /**
+     * @param  array<string, TaxRuleVersion>  $taxRules  versi aturan berlaku pada tanggal dokumen per `tax_id` (`resolveTaxRules()`)
+     */
+    private function fillItemRelations(array $data, PurchaseInvoice $purchaseInvoice, array $units = [], array $taxRules = [], array $purchaseOrderItems = [], array $receiptItems = []) {
         $unit          = $units[$data['unit']['id']] ?? null;
-        $tax           = $taxes[$data['tax']['id'] ?? ''] ?? null;
+        $taxRule       = $taxRules[$data['tax']['id'] ?? ''] ?? null;
         $poItemId      = $data['purchase_order_item']['id'] ?? null;
         $receiptItemId = $data['purchase_receipt_item']['id'] ?? null;
 
@@ -89,7 +99,10 @@ class PurchaseInvoiceService implements SubmitableService {
         $data['conversion_factor'] = $unit?->conversion_factor ?? 1;
         $data['exchange_rate']     = $purchaseInvoice->exchange_rate;
         $data['tax_id']            = $data['tax']['id'] ?? null;
-        $data['tax_rate']          = $tax?->rate ?? 0;
+        // Tarif dan versinya dari aturan yang berlaku pada tanggal dokumen (Requirement 5.2); selalu ditimpa agar
+        // `tax_rule_version_id` tidak dapat diisi dari request. Berlaku untuk ketiga sumber baris dan retur.
+        $data['tax_rate']            = $taxRule !== null ? (float) $taxRule->rate : 0;
+        $data['tax_rule_version_id'] = $taxRule?->getKey();
         // Akun baris dicatat engine saat approve (Task 12.1); create dan update draft mengosongkannya (Q-P2-24).
         $data['posted_account_id'] = null;
 
@@ -120,6 +133,33 @@ class PurchaseInvoiceService implements SubmitableService {
         return Tax::whereIn('id', $taxIds)->get()->keyBy('id')->all();
     }
 
+    /**
+     * Versi aturan pajak pada tanggal dokumen untuk setiap pajak di item (Requirement 3.4). Dipanggil sebelum
+     * penulisan apa pun: pajak tanpa versi berlaku menggagalkan permintaan dengan pesan pada `items.{i}.tax`.
+     *
+     * @return array<string, TaxRuleVersion>
+     */
+    private function resolveTaxRules(array $data): array {
+        return app(DocumentTaxRules::class)->resolveForRows($data['items'], $this->batchLoadTaxes($data), $data['date'] ?? null);
+    }
+
+    /**
+     * Penjelasan pajak yang disimpan saat approve (Requirement 5.3); tidak mengubah angka dokumen.
+     *
+     * @param  Collection<int, PurchaseInvoiceItem>  $items
+     * @return array<string, mixed>|null
+     */
+    private function buildTaxBreakdown(PurchaseInvoice $purchaseInvoice, Collection $items): ?array {
+        // Kegagalan snapshot tidak boleh memblokir approve (Q-P3-6).
+        return app(DocumentTaxSnapshot::class)->buildOrDescribeFailure(
+            $items,
+            CarbonImmutable::parse($purchaseInvoice->date),
+            DocumentTaxSnapshot::minorUnitFor($purchaseInvoice->currency_code),
+            'purchase_invoice',
+            (string) $purchaseInvoice->getKey(),
+        );
+    }
+
     private function fillPaymentScheduleRelations(array $data, PurchaseInvoice $purchaseInvoice) {
         $data['payment_amount']     = $purchaseInvoice->amount * ($data['invoice_portion'] / 100);
         $data['currency_code']      = $purchaseInvoice->currency_code;
@@ -132,17 +172,18 @@ class PurchaseInvoiceService implements SubmitableService {
     }
 
     public function create(array $data): Model {
+        $taxRules = $this->resolveTaxRules($data);
+
         $data['code']    = FormatingSeries::generate(PurchaseInvoice::class, $data, true);
         $purchaseInvoice = PurchaseInvoice::create($this->fillRelations($data));
 
         $units              = $this->batchLoadUnits($data);
-        $taxes              = $this->batchLoadTaxes($data);
         $purchaseOrderItems = $this->batchLoadPurchaseOrderItems($data);
         $receiptItems       = $this->batchLoadReceiptItems($data);
 
         $items = collect();
         foreach ($data['items'] as $item) {
-            $item      = $this->fillItemRelations($item, $purchaseInvoice, $units, $taxes, $purchaseOrderItems, $receiptItems);
+            $item      = $this->fillItemRelations($item, $purchaseInvoice, $units, $taxRules, $purchaseOrderItems, $receiptItems);
             $itemModel = $purchaseInvoice->items()->create($item);
             // basic_amount generated column (quantity * rate) -- belum terisi di object
             // sampai di-refresh dari DB.
@@ -164,6 +205,8 @@ class PurchaseInvoiceService implements SubmitableService {
     }
 
     public function update(Model $purchaseInvoice, array $data): Model {
+        $taxRules = $this->resolveTaxRules($data);
+
         $purchaseInvoice->fillForUpdate($this->fillRelations($data));
 
         $purchaseInvoice->items()
@@ -180,13 +223,12 @@ class PurchaseInvoiceService implements SubmitableService {
             ->keyBy('id');
 
         $units              = $this->batchLoadUnits($data);
-        $taxes              = $this->batchLoadTaxes($data);
         $purchaseOrderItems = $this->batchLoadPurchaseOrderItems($data);
         $receiptItems       = $this->batchLoadReceiptItems($data);
 
         $items = collect();
         foreach ($data['items'] as $item) {
-            $item = $this->fillItemRelations($item, $purchaseInvoice, $units, $taxes, $purchaseOrderItems, $receiptItems);
+            $item = $this->fillItemRelations($item, $purchaseInvoice, $units, $taxRules, $purchaseOrderItems, $receiptItems);
 
             if (Ulid::isValid($item['id'])) {
                 $itemModel = $existingItems->get($item['id']);
@@ -377,6 +419,8 @@ class PurchaseInvoiceService implements SubmitableService {
             $purchaseInvoice->update([
                 'amount' => $totalAmount,
                 'status' => $returnAgainst ? FormStatus::RETURNED : FormStatus::UNPAID,
+                // Immutable setelah approve: yang sudah ada tidak pernah dihitung ulang (Requirement 5.3).
+                'tax_breakdown' => $purchaseInvoice->tax_breakdown ?? $this->buildTaxBreakdown($purchaseInvoice, $items),
             ]);
 
             if ($returnAgainst) {

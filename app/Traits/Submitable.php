@@ -244,6 +244,16 @@ trait Submitable {
             ->all();
     }
 
+    /**
+     * Kolom header tambahan yang tidak boleh disalin ke revisi hasil amend (mis. snapshot yang dihitung ulang saat
+     * approve). Model dapat menimpa; default kosong.
+     *
+     * @return array<int, string>
+     */
+    protected function amendExcludedColumns(): array {
+        return [];
+    }
+
     public function amend($withRelations = true) {
         DB::beginTransaction();
         $this->loadAllRelations(HasMany::class, MorphMany::class);
@@ -271,6 +281,7 @@ trait Submitable {
             'code',
             'submitted_format',
             ...static::generatedColumnsOf($this->getTable()),
+            ...$this->amendExcludedColumns(),
         ]);
         $newData->code            = $newCode;
         $newData->amended_from_id = $amendedFromId;

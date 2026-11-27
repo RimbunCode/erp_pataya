@@ -25,6 +25,13 @@ class FinanceSetting extends ModuleSetting {
         'purchase_invoice' => 'discount_split_from_purchase_invoice',
     ];
 
+    /**
+     * Jenis dokumen yang memiliki cutover pemisahan baris pajak (`finance_tax_split_from.{type}`, Requirement 7.5).
+     *
+     * @var list<string>
+     */
+    public const TAX_SPLIT_DOCUMENT_TYPES = ['sales_invoice', 'purchase_invoice'];
+
     public string $translateKey = 'finances.setting';
 
     // Dedicated module so role profiles in AdministratorSeeder cannot
@@ -40,6 +47,9 @@ class FinanceSetting extends ModuleSetting {
             'tax_invoice_serial_last_used'   => 'integer',
             'enforce_fiscal_period'          => 'boolean',
             'posting_executions'             => 'array',
+            'tax_split_from'                 => 'array',
+            'company_is_pkp'                 => 'boolean',
+            'tax_engine_calc_enabled'        => 'boolean',
         ];
     }
 
@@ -69,6 +79,12 @@ class FinanceSetting extends ModuleSetting {
             // Requirement 14.1: posting diskon terpisah nonaktif sampai tanggal cutover diisi.
             'discount_split_from_sales_invoice'    => null,
             'discount_split_from_purchase_invoice' => null,
+            // Finance Fase 3, Requirement 7.5: cutover pemisahan baris pajak per jenis dokumen; kosong = tidak aktif.
+            'tax_split_from' => array_fill_keys(self::TAX_SPLIT_DOCUMENT_TYPES, null),
+            // Finance Fase 3, Requirement 7.9 (`finance_company_is_pkp`, default true; menunggu D-12/Q-P3-2).
+            'company_is_pkp' => true,
+            // Finance Fase 3, Requirement 2.7 (`finance_tax_engine_calc_enabled`): false sampai migrasi Bagian B.
+            'tax_engine_calc_enabled' => false,
         ];
     }
 
@@ -101,6 +117,11 @@ class FinanceSetting extends ModuleSetting {
         return [
             'posting_executions'   => ['required', 'array:' . implode(',', PostingDocumentType::values())],
             'posting_executions.*' => ['string', Rule::in(self::POSTING_EXECUTIONS)],
+            // Setting Tax Engine (Fase 3): ditulis hanya oleh service/migrasi khusus, bukan halaman setting umum.
+            'tax_split_from'          => ['required', 'array:' . implode(',', self::TAX_SPLIT_DOCUMENT_TYPES)],
+            'tax_split_from.*'        => ['nullable', 'date_format:Y-m-d'],
+            'company_is_pkp'          => ['required', 'boolean'],
+            'tax_engine_calc_enabled' => ['required', 'boolean'],
         ];
     }
 }

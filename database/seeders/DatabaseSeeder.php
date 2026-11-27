@@ -18,6 +18,7 @@ class DatabaseSeeder extends Seeder {
         $this->call(GlPostingStatusPermissionSeeder::class);
         $this->call(CountrySeeder::class);
         $this->call(AccountSeeder::class);
+        $this->call(TaxSeeder::class);
         $this->call(DeskSeeder::class);
         $this->call(QuotationSectionTemplateSeeder::class);
         $this->call(QuotationPrintTemplateSeeder::class);

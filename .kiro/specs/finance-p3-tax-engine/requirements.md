@@ -47,7 +47,7 @@ Kondisi nyata yang membentuk fase ini (diverifikasi di kode):
 1. THE sistem SHALL menambah kolom pada `taxes`: `category` (default `unclassified`), `behavior` (`additive`/`withholding`, default `additive`), `jurisdiction_code` (default `ID`), `is_creditable` (boolean, default true; hanya bermakna untuk pajak masukan).
 2. THE migration SHALL TIDAK menebak klasifikasi pajak yang sudah ada: seluruh baris existing diberi `category = unclassified` dan `behavior = additive` (menyamai perilaku hitung sekarang), sesuai peringatan DPP spec Requirement 8.1.
 3. THE halaman master Pajak SHALL memungkinkan pengisian `category` dan `behavior`, menampilkan peringatan bila ada pajak `unclassified` yang dipakai transaksi 12 bulan terakhir, dan melarang `behavior = withholding` pada kategori PPN.
-4. THE sistem SHALL menyediakan seed `PPN 12% (DPP Nilai Lain 11/12)` hanya bila belum ada pajak `ppn_standard`; seed tidak menimpa data.
+4. THE sistem SHALL menyediakan seed `PPN 12% (DPP Nilai Lain 11/12)` hanya bila belum ada pajak `ppn_standard`; seed tidak menimpa data. Diimplementasikan di `Database\Seeders\TaxSeeder` (Task 1.5, 27 November 2026): pajak `rate` 12, `category = ppn_standard`, `behavior = additive`, versi 1 aktif berfaktor DPP 11/12 lewat `TaxRuleVersionService::createInitialVersion()`; pajak `ppn_standard` yang terhapus lunak juga menghalangi seed.
 5. THE field `use_dpp_nilai_lain` dari DPP spec SHALL digantikan oleh faktor DPP pada versi aturan (Requirement 2) dan tidak dibuat di `taxes`; DPP spec Requirement 4 dinyatakan *disupersede* oleh spec ini setelah D-15 disetujui.
 
 ### Requirement 2: Versi aturan pajak berlaku-tanggal
@@ -81,9 +81,9 @@ Kondisi nyata yang membentuk fase ini (diverifikasi di kode):
 
 #### Acceptance Criteria
 
-1. THE sistem SHALL menyediakan `TaxEngine::calculate(TaxInput $input): TaxResult` untuk satu baris (basis bersih setelah diskon, `tax`, tanggal, mata uang dasar) dan `TaxEngine::calculateDocument(list<TaxInput>): TaxResult` yang mengagregasi.
+1. THE sistem SHALL menyediakan `TaxEngine::calculate(TaxInput $input): TaxResult` untuk satu baris (basis bersih setelah diskon, `tax`, tanggal, dan minor unit mata uang DOKUMEN; keputusan Q-P3-7, 27 November 2026) dan `TaxEngine::calculateDocument(list<TaxInput>): TaxResult` yang mengagregasi.
 2. THE `TaxResult` SHALL berisi `components` (per komponen: `tax_id`, `tax_code/nama`, `category`, `behavior`, `rule_version_id`, `base_amount`, `dpp_factor`, `dpp_amount`, `rate`, `tax_amount`, `rounding_adjustment`), `total_additive`, `total_withholding`, dan `explanation` (daftar langkah berbahasa terstruktur yang dapat dirender).
-3. THE perhitungan SHALL: `dpp = base × numerator/denominator`; `tax = dpp × rate/100`; pembulatan ke minor unit mata uang dasar HALF_UP sesuai `rounding_mode` (per baris, atau sekali di akhir per komponen dokumen) dengan sisa pembulatan dibebankan pada baris terbesar sehingga jumlah komponen = jumlah dokumen (selaras DPP spec Req. 1.7).
+3. THE perhitungan SHALL: `dpp = base × numerator/denominator`; `tax = dpp × rate/100`; pembulatan ke minor unit mata uang dokumen (`currencies.minor_unit`; nilai item invoice disimpan dalam mata uang dokumen, Q-P3-7) HALF_UP sesuai `rounding_mode` (per baris, atau sekali di akhir per komponen dokumen) dengan sisa pembulatan dibebankan pada baris terbesar sehingga jumlah komponen = jumlah dokumen (selaras DPP spec Req. 1.7).
 4. THE `TaxEngine` SHALL murni (tanpa DB) selain pemanggilan resolver, dan TIDAK memanggil kelas model Sales/Purchase.
 5. THE `TaxEngine` SHALL TIDAK mengetahui akun; ia mengembalikan peran (`output_role`/`input_role`) untuk dipetakan Posting Engine.
 6. THE `TaxResult` SHALL dapat diserialisasi ke JSON dan diverifikasi ulang (`TaxEngine::verify(json)` menghitung ulang dari versi yang disnapshot dan membandingkan).
@@ -95,8 +95,8 @@ Kondisi nyata yang membentuk fase ini (diverifikasi di kode):
 #### Acceptance Criteria
 
 1. THE sistem SHALL menambah `tax_rule_version_id` (nullable, FK) pada `sales_invoice_items` dan `purchase_invoice_items`, dan `tax_breakdown` (JSON nullable) pada `sales_invoices` dan `purchase_invoices`.
-2. WHEN item invoice dibuat/diubah, THE service SHALL me-resolve versi pada tanggal dokumen, mengisi `tax_rate` dari versi tersebut (kolom tetap ada untuk kompatibilitas) dan menyimpan `tax_rule_version_id`.
-3. WHEN invoice disetujui (`onApproved`), THE service SHALL menyimpan `TaxResult` serial ke `tax_breakdown` (immutable setelah approved).
+2. WHEN item invoice dibuat/diubah, THE service SHALL me-resolve versi pada tanggal dokumen, mengisi `tax_rate` dari versi tersebut (kolom tetap ada untuk kompatibilitas) dan menyimpan `tax_rule_version_id`. Bila sebuah pajak tidak punya versi berlaku pada tanggal dokumen, permintaan SHALL gagal tertutup sebelum penulisan apa pun dengan pesan pada `items.{i}.tax`, tanpa fallback ke `taxes.rate` (Q-P3-5, 2026-11-21).
+3. WHEN invoice disetujui (`onApproved`), THE service SHALL menyimpan `TaxResult` serial ke `tax_breakdown` (immutable setelah approved). Bila pembangunan snapshot gagal (mis. `RangeException` pada basis sangat besar), approve SHALL tetap berjalan: `tax_breakdown` disimpan dengan `warnings` berkode `snapshot_build_failed` (atau null bila tak mungkin), kegagalan dicatat ke log dengan id dokumen dan pajak, dan angka dokumen tidak berubah (Q-P3-6, 2026-11-27, disetujui pemilik produk; alasan: snapshot hanya penjelasan, Q-P3-5 berlaku untuk aturan bukan snapshot).
 4. THE sistem SHALL menambah `general_ledgers.tax_rule_version_id` (nullable, FK) yang diisi pada baris jurnal pajak.
 5. THE invoice yang dibuat sebelum fase ini (tanpa snapshot) SHALL tetap valid; `tax_rule_version_id` null diperlakukan sebagai "legacy" dan penjelasannya dibangun dari `tax_rate`/`dpp_amount` tersimpan dengan label legacy.
 6. WHEN versi yang dirujuk tidak ada (dihapus lewat jalur tak terduga), THE tampilan penjelasan SHALL tidak error dan menampilkan pesan "versi tidak tersedia".
@@ -133,7 +133,7 @@ Kondisi nyata yang membentuk fase ini (diverifikasi di kode):
 
 #### Acceptance Criteria
 
-1. THE jurnal pajak SHALL membulatkan jumlah tiap komponen ke minor unit mata uang dasar (HALF_UP) sebelum dikirim ke `JournalService`.
+1. THE jurnal pajak SHALL membulatkan jumlah tiap komponen ke minor unit mata uang dasar (HALF_UP) sebelum dikirim ke `JournalService`. Konversi dari mata uang dokumen ke mata uang dasar (kurs dokumen) dilakukan pada tahap posting (Task 6) dan FX Engine (Fase 4), bukan oleh `TaxEngine`/snapshot (Q-P3-7).
 2. IF pembulatan menyebabkan ketidakseimbangan, THEN THE selisih (≤ 1 minor unit per komponen) SHALL diserap oleh baris `revenue`/`expense` (karena dihitung sebagai sisa), bukan oleh akun pembulatan, sehingga tidak ada baris pembulatan di Bagian A.
 3. WHERE Bagian B aktif dan `rounding_mode = per_document` menghasilkan selisih terhadap jumlah item, THE selisih SHALL diposting ke peran `rounding` (peran dari Fase 2).
 
@@ -201,3 +201,6 @@ Kondisi nyata yang membentuk fase ini (diverifikasi di kode):
 | Q-P3-2 | Apakah perusahaan PKP? Apakah PPN Masukan seluruhnya dapat dikreditkan? | Requirement 7.2, 7.9 |
 | Q-P3-3 | Tanggal cutover pemisahan pajak per jenis dokumen (awal bulan/periode terbuka) | Requirement 7.5 |
 | Q-P3-4 | Akun COA PPN Keluaran/Masukan/PPh yang akan dipakai (akuntan melengkapi COA) | Requirement 7.7–7.8 |
+| Q-P3-5 | ~~Pajak tanpa versi aturan berlaku pada tanggal dokumen: fallback ke `taxes.rate` atau gagal?~~ **DIJAWAB 2026-11-21 oleh pemilik produk: selalu gagal tertutup (sesuai Requirement 3.2/5.2).** Service invoice menerjemahkan `NoEffectiveTaxRuleException` menjadi 422 pada `items.{i}.tax`; tidak ada fallback ke `taxes.rate`. Konsekuensi: `finance:init-tax-rules` dijalankan sebelum deploy Task 5, dan pajak baru butuh versi aturan sebelum dapat dipakai di invoice. | Requirement 3.2, 5.2 |
+| Q-P3-6 | ~~Bila snapshot `tax_breakdown` gagal dibangun saat approve, apakah approve diblokir?~~ **DIJAWAB 2026-11-27 oleh pemilik produk: tidak diblokir.** Snapshot disimpan dengan `warnings` `snapshot_build_failed` (atau null), dicatat ke log, approve lanjut; angka dokumen tidak berubah. Alasan: snapshot hanya penjelasan; Q-P3-5 berlaku untuk aturan, bukan snapshot. | Requirement 5.3 |
+| Q-P3-7 | ~~Mata uang `tax_breakdown`/`TaxInput`: mata uang dasar atau mata uang dokumen?~~ **DIJAWAB 2026-11-27 oleh pemilik produk: mata uang DOKUMEN** (minor unit `currencies.minor_unit` dokumen). Alasan: nilai item invoice disimpan dalam mata uang dokumen. Konversi ke mata uang dasar diurus Task 6/FX Engine (Fase 4). | Requirement 4.1, 4.3, 5.3 |

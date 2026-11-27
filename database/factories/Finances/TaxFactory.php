@@ -3,6 +3,7 @@
 namespace Database\Factories\Finances;
 
 use App\Models\Finances\Tax;
+use App\Services\Finances\Tax\TaxRuleVersionService;
 use Illuminate\Database\Eloquent\Factories\Factory;
 
 /**
@@ -27,5 +28,17 @@ class TaxFactory extends Factory {
             'name' => $tax['name'] . ' ' . fake()->unique()->numerify('##'),
             'rate' => $tax['rate'],
         ];
+    }
+
+    /**
+     * Setiap pajak buatan factory langsung punya versi aturan 1 yang berlaku sejak 1970-01-01, menyerupai kondisi
+     * setelah `finance:init-tax-rules` (Finance Fase 3, Requirement 6.1). Service invoice gagal tertutup untuk pajak
+     * tanpa versi (Q-P3-5), jadi tanpa ini setiap test invoice harus menyiapkan versi sendiri. Test yang memerlukan
+     * pajak tanpa versi membuatnya lewat `Tax::query()->create()`.
+     */
+    public function configure(): static {
+        return $this->afterCreating(function (Tax $tax): void {
+            app(TaxRuleVersionService::class)->createInitialVersion($tax);
+        });
     }
 }

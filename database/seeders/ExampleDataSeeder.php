@@ -31,6 +31,7 @@ use App\Models\Service\WorkOrder;
 use App\Models\Service\WorkOrderItem;
 use App\Models\User\Permission;
 use App\Models\User\User;
+use App\Services\Finances\Tax\TaxRuleVersionService;
 use Illuminate\Database\Seeder;
 use Illuminate\Support\Carbon;
 
@@ -122,12 +123,17 @@ class ExampleDataSeeder extends Seeder {
     }
 
     private function getOrCreateTax(): Tax {
-        return Tax::exampleData()->first()
+        $tax = Tax::exampleData()->first()
             ?? Tax::query()->create([
                 'name'       => 'PPN 11%',
                 'rate'       => 11,
                 'is_example' => true,
             ]);
+
+        // Tanpa versi aturan berlaku, invoice yang memakai pajak ini ditolak (Finance Fase 3, Q-P3-5); idempoten.
+        app(TaxRuleVersionService::class)->createInitialVersion($tax);
+
+        return $tax;
     }
 
     private function getOrCreateUser(): User {

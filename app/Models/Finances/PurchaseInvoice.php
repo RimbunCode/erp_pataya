@@ -22,6 +22,7 @@ class PurchaseInvoice extends Model {
     protected $guarded            = ['id'];
     protected $casts              = [
         'date'                             => 'datetime',
+        'tax_breakdown'                    => 'array',
         'exchange_rate'                    => 'float',
         'amount'                           => 'float',
         'amount_base_currency'             => 'float',
@@ -272,5 +273,14 @@ class PurchaseInvoice extends Model {
         }
 
         return true;
+    }
+
+    /**
+     * `tax_breakdown` dihitung ulang saat revisi di-approve (Finance Fase 3, Requirement 5.3); tidak boleh terbawa.
+     *
+     * @return array<int, string>
+     */
+    protected function amendExcludedColumns(): array {
+        return ['tax_breakdown'];
     }
 }
