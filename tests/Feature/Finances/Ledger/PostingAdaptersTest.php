@@ -331,6 +331,8 @@ class PostingAdaptersTest extends TestCase {
         DB::table('accounts')->where('id', $difference->id)->update(['is_group' => true]);
         $level         = DB::transactionLevel();
         $balanceBefore = DB::table('accounts')->pluck('balance_amount', 'id')->all();
+        // Q-P2-41: URL Posting Profile hanya untuk pengguna berizin `select`.
+        $this->withSession(['permissions' => [PostingProfile::class => [0 => [['model' => PostingProfile::class, 'level' => 0, 'only_creator' => false, 'permissions' => ['select' => true]]]]]]);
 
         try {
             app(StockEntryService::class)->onApproved($entry->fresh());

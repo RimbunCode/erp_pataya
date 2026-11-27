@@ -5,6 +5,7 @@ namespace App\Services\Sales;
 use App\Contracts\SubmitableService;
 use App\Enums\FormStatus;
 use App\Events\Inventory\StockReservationChanged;
+use App\Models\Core\ApprovalInstance;
 use App\Models\Core\FormatingSeries;
 use App\Models\Inventory\ItemUnit;
 use App\Models\Inventory\Stock;
@@ -253,6 +254,7 @@ class InternalOrderService implements SubmitableService {
 
     public function cancel(Model $internalOrder): mixed {
         DB::beginTransaction();
+        ApprovalInstance::lockForDocument($internalOrder);
 
         $internalOrder->update([
             'status' => [

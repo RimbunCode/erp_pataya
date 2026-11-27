@@ -13,6 +13,7 @@ use App\Events\Sales\Invoice\SalesOrderItemBillingChanged;
 use App\Events\Sales\Order\DocumentDeliveryStatusRecalculationRequested;
 use App\Http\Requests\Finances\Rules\ReturnAgainstItemRules;
 use App\Models\Asset\Asset;
+use App\Models\Core\ApprovalInstance;
 use App\Models\Core\Branch;
 use App\Models\Core\CoreSetting;
 use App\Models\Core\FormatingSeries;
@@ -616,6 +617,7 @@ class SalesInvoiceService implements SubmitableService {
     public function cancel(Model $salesInvoice): mixed {
         DB::transaction(function () use ($salesInvoice): void {
             $assetLines = $this->assetLinesOf($salesInvoice);
+            ApprovalInstance::lockForDocument($salesInvoice);
 
             // Kunci baris aset (urut id agar tidak deadlock) sebelum membaca status apa pun: handler posting pelepasan
             // mengunci aset yang sama, sehingga cancel dan posting berjalan bergantian, bukan bersamaan.

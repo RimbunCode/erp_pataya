@@ -7,6 +7,7 @@ use App\Enums\FormStatus;
 use App\Exceptions\Finances\ClosedPeriodException;
 use App\Exceptions\Finances\InvalidJournalException;
 use App\Exceptions\Finances\UnbalancedJournalException;
+use App\Models\Core\ApprovalInstance;
 use App\Models\Core\FormatingSeries;
 use App\Models\Finances\Account;
 use App\Models\Finances\FinanceSetting;
@@ -157,6 +158,7 @@ class JournalVoucherService implements SubmitableService {
      */
     public function cancel(Model $voucher): mixed {
         $result = DB::transaction(function () use ($voucher) {
+            ApprovalInstance::lockForDocument($voucher);
             $locked = $this->lockVoucher($voucher);
 
             if ($this->hasStatus($locked, FormStatus::CANCELED)) {
