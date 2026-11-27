@@ -168,17 +168,18 @@ class TaxInvoiceAssignmentTest extends TestCase {
     }
 
     /**
-     * @param  list<array{category: string, dpp: string, tax: string}>  $components
+     * @param  list<array{category: string, dpp: mixed, tax: mixed, rule_version_id?: string|null}>  $components
      */
     private function setBreakdown(string $table, string $id, array $components): void {
         DB::table($table)->where('id', $id)->update(['tax_breakdown' => json_encode([
             'minor_unit' => 2,
             'components' => array_map(fn (array $c): array => [
-                'tax_id'     => (string) Str::ulid(),
-                'category'   => $c['category'],
-                'behavior'   => 'additive',
-                'dpp_amount' => $c['dpp'],
-                'tax_amount' => $c['tax'],
+                'tax_id'          => (string) Str::ulid(),
+                'category'        => $c['category'],
+                'behavior'        => 'additive',
+                'dpp_amount'      => $c['dpp'],
+                'tax_amount'      => $c['tax'],
+                'rule_version_id' => $c['rule_version_id'] ?? null,
             ], $components),
         ])]);
     }
@@ -241,6 +242,88 @@ class TaxInvoiceAssignmentTest extends TestCase {
 
         $this->assertGreaterThan(0, $expectedPpn);
         $this->assertEqualsWithDelta($expectedPpn, $result->tax_invoice_ppn_amount, 0.01);
+    }
+
+    private function createPurchaseInvoiceWithItem(): PurchaseInvoice {
+        $itemVariant       = ItemVariantFactory::new()->create();
+        $purchaseInvoiceId = (string) Str::ulid();
+        DB::table('purchase_invoices')->insert([
+            'id'            => $purchaseInvoiceId, 'code' => 'PI-TEST-' . Str::random(8), 'date' => now(),
+            'created_by_id' => Auth::id(), 'amount' => 0, 'created_at' => now(), 'updated_at' => now(),
+        ]);
+        DB::table('purchase_invoice_items')->insert([
+            'id'       => (string) Str::ulid(), 'purchase_invoice_id' => $purchaseInvoiceId, 'item_id' => $itemVariant->id,
+            'quantity' => 4, 'rate' => 3000, 'tax_rate' => 11, 'created_at' => now(), 'updated_at' => now(),
+        ]);
+
+        return PurchaseInvoice::findOrFail($purchaseInvoiceId);
+    }
+
+    public function test_record_purchase_tax_invoice_keeps_legacy_sum_when_breakdown_has_unclassified_component(): void {
+        $purchaseInvoice = $this->createPurchaseInvoiceWithItem();
+        $this->setBreakdown('purchase_invoices', $purchaseInvoice->id, [
+            ['category' => 'ppn_standard', 'dpp' => '1.00', 'tax' => '1.00'],
+            ['category' => 'unclassified', 'dpp' => '2.00', 'tax' => '2.00'],
+        ]);
+        $fresh       = $purchaseInvoice->fresh()->load('items');
+        $expectedDpp = $fresh->items->sum('dpp_amount');
+        $expectedPpn = $fresh->items->sum('tax_amount');
+
+        $result = app(PurchaseInvoiceService::class)->recordTaxInvoice($fresh, '01', '010.000-26.00000125', now())->fresh();
+
+        $this->assertGreaterThan(0, $expectedPpn);
+        $this->assertEqualsWithDelta($expectedDpp, $result->tax_invoice_dpp_amount, 0.01);
+        $this->assertEqualsWithDelta($expectedPpn, $result->tax_invoice_ppn_amount, 0.01);
+    }
+
+    public function test_record_purchase_tax_invoice_keeps_legacy_sum_when_snapshot_components_are_empty(): void {
+        $purchaseInvoice = $this->createPurchaseInvoiceWithItem();
+        $this->setBreakdown('purchase_invoices', $purchaseInvoice->id, []);
+        $fresh       = $purchaseInvoice->fresh()->load('items');
+        $expectedDpp = $fresh->items->sum('dpp_amount');
+        $expectedPpn = $fresh->items->sum('tax_amount');
+
+        $result = app(PurchaseInvoiceService::class)->recordTaxInvoice($fresh, '01', '010.000-26.00000126', now())->fresh();
+
+        $this->assertGreaterThan(0, $expectedPpn);
+        $this->assertEqualsWithDelta($expectedDpp, $result->tax_invoice_dpp_amount, 0.01);
+        $this->assertEqualsWithDelta($expectedPpn, $result->tax_invoice_ppn_amount, 0.01);
+    }
+
+    public function test_assign_tax_invoice_treats_legacy_component_with_classified_category_by_its_category(): void {
+        $this->seedSerialRange(1, 100);
+        $salesInvoice = $this->createSalesInvoiceWithItem(price: 1200, taxRate: 11);
+        $this->setBreakdown('sales_invoices', $salesInvoice->id, [
+            // Legacy: tanpa versi aturan, kategori PPN terklasifikasi -> ikut dijumlahkan (Requirement 9.4).
+            ['category' => 'ppn_standard', 'dpp' => '5000.00', 'tax' => '550.00', 'rule_version_id' => null],
+            ['category' => 'ppn_standard', 'dpp' => '6000.00', 'tax' => '660.00', 'rule_version_id' => (string) Str::ulid()],
+            // Legacy non-PPN terklasifikasi -> tidak dijumlahkan.
+            ['category' => 'pph_23', 'dpp' => '12000.00', 'tax' => '240.00', 'rule_version_id' => null],
+        ]);
+
+        $result = app(SalesInvoiceService::class)->assignTaxInvoice($salesInvoice->fresh(), '04')->fresh();
+
+        $this->assertEqualsWithDelta(11000.00, $result->tax_invoice_dpp_amount, 0.001);
+        $this->assertEqualsWithDelta(1210.00, $result->tax_invoice_ppn_amount, 0.001);
+    }
+
+    public function test_assign_tax_invoice_with_malformed_breakdown_throws_before_serial_is_allocated(): void {
+        $this->seedSerialRange(1, 100);
+        $salesInvoice = $this->createSalesInvoiceWithItem(price: 1200, taxRate: 11);
+        $this->setBreakdown('sales_invoices', $salesInvoice->id, [
+            ['category' => 'ppn_standard', 'dpp' => 'bukan-angka', 'tax' => '1.00'],
+        ]);
+
+        try {
+            app(SalesInvoiceService::class)->assignTaxInvoice($salesInvoice->fresh(), '04');
+            $this->fail('Breakdown rusak harus melempar exception.');
+        } catch (\Throwable $e) {
+            $this->assertNotInstanceOf(ValidationException::class, $e);
+        }
+
+        $this->assertSame(0, (int) FinanceSetting::query()->value('tax_invoice_serial_last_used'), 'nomor seri tidak boleh terpakai');
+        $this->assertNull($salesInvoice->fresh()->tax_invoice_serial_number);
+        $this->assertSame('040.0000000000001', app(TaxInvoiceSerialAllocator::class)->nextSerial('04'));
     }
 
     public function test_record_purchase_tax_invoice_sums_only_ppn_components_when_breakdown_is_classified(): void {
