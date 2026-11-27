@@ -414,10 +414,24 @@ class ApprovalSignatureRenderTest extends TestCase {
         // Dan HTML itu benar-benar bisa menjadi PDF. generate() memilih
         // wkhtmltopdf bila ada, dompdf bila tidak; keduanya harus
         // menghasilkan berkas PDF yang sah.
+        // Paksa jalur dompdf agar hasilnya sama di mesin yang punya
+        // wkhtmltopdf maupun tidak (CI Linux tidak punya).
+        config(['pdf.wkhtmltopdf_binary' => '']);
+
         $pdf = app(PdfExportService::class)->generate($html, $template);
 
         $this->assertStringStartsWith('%PDF', $pdf);
-        $this->assertGreaterThan(1000, \strlen($pdf));
+
+        // Bukti isi, bukan ukuran: PDF kosong (halaman tanpa konten) pun
+        // sudah ~900 byte, jadi batas ukuran tidak membuktikan apa pun.
+        // PNG tanda tangan beralpha menjadi satu objek gambar plus satu
+        // SMask; tiga tanda tangan akan menghasilkan tiga SMask. Tepat satu
+        // berarti hanya tanda tangan terakhir yang masuk ke PDF.
+        $this->assertSame(
+            1,
+            preg_match_all('#/SMask\s+\d+#', $pdf),
+            'PDF harus memuat tepat satu gambar tanda tangan.',
+        );
     }
 
     /**
