@@ -141,9 +141,12 @@ Kondisi nyata yang membentuk fase ini (diverifikasi di kode):
 
 #### Acceptance Criteria
 
-1. WHEN `assignTaxInvoice` mengisi `tax_invoice_dpp_amount` dan `tax_invoice_ppn_amount`, THE nilai SHALL berasal dari komponen `ppn_standard`/`ppn_luxury` pada `TaxResult` bila ada klasifikasi, dan dari seluruh `sum(items)` (perilaku lama) bila invoice legacy/`unclassified`.
-2. THE perubahan ini SHALL tidak mengubah nomor seri, kode transaksi, atau alokasi `TaxInvoiceSerialAllocator`.
-3. THE test `TaxInvoiceAssignmentTest` yang ada SHALL tetap hijau.
+1. WHEN `assignTaxInvoice` (Sales) atau `recordTaxInvoice` (Purchase) mengisi `tax_invoice_dpp_amount` dan `tax_invoice_ppn_amount`, THE nilai SHALL berasal dari komponen berkategori `ppn_standard`/`ppn_luxury` pada snapshot `tax_breakdown` (jumlah `dpp_amount` dan `tax_amount` komponen PPN) bila snapshot ada, `components` tidak kosong, dan tidak ada komponen `unclassified`; selain itu (tanpa snapshot, `components` kosong termasuk `snapshot_build_failed`, atau invoice legacy) THE nilai SHALL berasal dari `sum(items)` (perilaku lama). Cakupan `recordTaxInvoice` mengikuti design.md ("Hubungan dengan Faktur Pajak" dan audit Task 1.2).
+2. WHERE snapshot memuat satu atau lebih komponen `unclassified`, THE DPP/PPN faktur pajak SHALL memakai perilaku lama untuk seluruh dokumen (penjumlahan item), supaya pajak yang belum diklasifikasi akuntan tidak diam-diam terbuang (keputusan pemilik produk 27 November 2026, Q-P3-9).
+3. WHERE snapshot terklasifikasi sepenuhnya tetapi tanpa komponen PPN (mis. hanya PPh), THE `tax_invoice_dpp_amount` dan `tax_invoice_ppn_amount` SHALL bernilai 0 (Q-P3-9).
+4. THE komponen dengan `rule_version_id` null (legacy) yang kategorinya sudah terklasifikasi SHALL diperlakukan sebagai terklasifikasi, berdasarkan kategorinya (Q-P3-9).
+5. THE perubahan ini SHALL tidak mengubah nomor seri, kode transaksi, atau alokasi `TaxInvoiceSerialAllocator`.
+6. THE test `TaxInvoiceAssignmentTest` yang ada SHALL tetap hijau.
 
 ### Requirement 10: Antarmuka dan penjelasan
 

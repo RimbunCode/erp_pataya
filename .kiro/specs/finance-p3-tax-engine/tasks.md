@@ -93,6 +93,7 @@ Bagian A (Task 1–8) tidak mengubah angka di dokumen; Bagian B (Task 9) adalah 
   - [x] 7.1 `assignTaxInvoice`: sumber `tax_invoice_dpp_amount`/`tax_invoice_ppn_amount` dari komponen PPN bila ter-snapshot terklasifikasi, selain itu perilaku lama
     - _Requirements: 9.1–9.2_
     - Catatan implementasi: logika di `Tax/TaxInvoiceAmounts::fromBreakdown()`, dipakai `SalesInvoiceService::assignTaxInvoice` dan `PurchaseInvoiceService::recordTaxInvoice` (audit 1.2). "Terklasifikasi" diartikan: `tax_breakdown.components` tidak kosong dan TIDAK ada komponen berkategori `unclassified`; bila ya, hanya komponen `ppn_standard`/`ppn_luxury` dijumlahkan (dpp dan tax). Snapshot kosong/gagal (`snapshot_build_failed`), tanpa snapshot, atau ada komponen `unclassified` memakai perilaku lama. Terklasifikasi tanpa komponen PPN menghasilkan 0/0. Nomor seri tak disentuh.
+    - Keputusan pemilik produk 27 November 2026 (Q-P3-9), sesuai perilaku di atas: (1) satu komponen `unclassified` membuat seluruh dokumen memakai penjumlahan item lama; (2) terklasifikasi tanpa komponen PPN menghasilkan 0/0; (3) komponen legacy berkategori terklasifikasi dianggap terklasifikasi. Cakupan `recordTaxInvoice` dimasukkan ke Requirement 9.1. Pertanyaan terbuka Task 7 ditutup; tidak ada perubahan kode.
   - [x]* 7.2 Pastikan `TaxInvoiceAssignmentTest` tetap hijau dan tambah kasus campuran PPN + pajak lain
     - **Validates: Requirements 9.1–9.3**
 
