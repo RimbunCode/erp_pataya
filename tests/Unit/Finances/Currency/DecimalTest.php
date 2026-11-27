@@ -79,6 +79,18 @@ class DecimalTest extends TestCase {
         $this->assertSame('1019416.' . str_repeat('0', 11), Decimal::multiply('15800000000.000', '0.00006452'));
     }
 
+    public function test_values_beyond_64_bit_integers_do_not_overflow(): void {
+        // 1e16 minor unit x rate 1e8 = 1e24 (jauh di atas PHP_INT_MAX ~ 9.2e18).
+        $this->assertSame('1000000000000000000000000', Decimal::multiply('10000000000000000', '100000000'));
+        $this->assertSame('1000000000000000000000000.00', Decimal::roundHalfUp(Decimal::multiply('10000000000000000', '100000000'), 2));
+        // 1e9 unit mata uang (1e11 minor unit pada skala 2) x 99999999.99999999.
+        $this->assertSame('99999999999999990.00000000000000', Decimal::multiply('1000000000.000000', '99999999.99999999'));
+        $this->assertSame('1000000000000000000.00', Decimal::divide('1000000000000000000000000', '1000000', 2));
+        $this->assertSame('0.00', Decimal::roundHalfUp('0.004999999999999999999999', 2));
+        $this->assertSame(0, Decimal::compare('1.0', '1'));
+        $this->assertSame(-1, Decimal::compare('0.00000001', '0.0000001'));
+    }
+
     public function test_divide_rounds_half_up_to_the_requested_scale(): void {
         $this->assertSame('1000.00', Decimal::divide('15800000', '15800', 2));
         $this->assertSame('0.33333333', Decimal::divide('1', '3', 8));

@@ -2,14 +2,15 @@
 
 namespace App\Services\Finances\Currency;
 
+use Brick\Math\BigDecimal;
+use Brick\Math\Exception\DivisionByZeroException as MathDivisionByZeroException;
+use Brick\Math\RoundingMode;
 use InvalidArgumentException;
 
 /**
- * Aritmetika desimal berbasis string (bcmath) untuk kurs dan konversi (Finance Fase 4, Requirement 2.3): tanpa
- * `float` pada perkalian/pembagian, sehingga tidak ada drift. Pembulatan HALF_UP menjauhi nol (sama dengan
- * `MinorUnit::round`, D-3), termasuk untuk nilai negatif.
- *
- * Asumsi: ekstensi `bcmath` tersedia (tidak dideklarasikan di `composer.json`; lihat pertanyaan terbuka Fase 4).
+ * Aritmetika desimal berbasis string (`Brick\Math\BigDecimal`, dependensi transitif `laravel/framework`) untuk kurs dan
+ * konversi (Finance Fase 4, Requirement 2.3): tanpa `float` pada perkalian/pembagian dan tanpa luapan bilangan bulat.
+ * Pembulatan HALF_UP menjauhi nol (sama dengan `MinorUnit::round`, D-3), termasuk untuk nilai negatif.
  */
 final class Decimal {
     private function __construct() {}
@@ -60,34 +61,27 @@ final class Decimal {
         return $position === false ? 0 : \strlen($value) - $position - 1;
     }
 
-    /** Perkalian eksak (skala hasil = jumlah skala kedua operan). */
-    public static function multiply(string $a, string $b): string {
-        return bcmul($a, $b, self::scale($a) + self::scale($b));
+    /** Perbandingan numerik eksak: -1, 0, atau 1 (skala berbeda diperlakukan sama: "1.0" == "1"). */
+    public static function compare(string $a, string $b): int {
+        return BigDecimal::of($a)->compareTo($b);
     }
 
-    /**
-     * `$a / $b` dibulatkan HALF_UP ke `$scale` digit. Dipotong pada digit ke `$scale + 1` lalu dibulatkan; hasilnya
-     * identik dengan pembulatan nilai eksak karena keputusan hanya bergantung pada digit tersebut.
-     */
+    /** Perkalian eksak (skala hasil = jumlah skala kedua operan). */
+    public static function multiply(string $a, string $b): string {
+        return (string) BigDecimal::of($a)->multipliedBy($b);
+    }
+
+    /** `$a / $b` dibulatkan HALF_UP (menjauhi nol) ke `$scale` digit, dihitung dari nilai eksak. */
     public static function divide(string $a, string $b, int $scale): string {
-        if (bccomp($b, '0', 12) === 0) {
+        try {
+            return (string) BigDecimal::of($a)->dividedBy($b, $scale, RoundingMode::HalfUp);
+        } catch (MathDivisionByZeroException) {
             throw new \DivisionByZeroError('Division by zero.');
         }
-
-        return self::roundHalfUp(bcdiv($a, $b, $scale + 1), $scale);
     }
 
     /** Pembulatan HALF_UP (menjauhi nol) ke `$scale` digit desimal; hasil selalu bertepatan `$scale` digit. */
     public static function roundHalfUp(string $value, int $scale): string {
-        $negative = str_starts_with($value, '-');
-        $absolute = ltrim($value, '-');
-        $half     = '0.' . str_repeat('0', $scale) . '5';
-        $rounded  = bcadd($absolute, $half, $scale);
-
-        if ($negative && bccomp($rounded, '0', $scale) !== 0) {
-            return '-' . $rounded;
-        }
-
-        return $rounded;
+        return (string) BigDecimal::of($value)->toScale($scale, RoundingMode::HalfUp);
     }
 }

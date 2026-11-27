@@ -117,7 +117,7 @@ final class ExchangeRateRecorder {
                 return self::CREATED;
             }
 
-            if (bccomp($existing->rate, $data['rate'], ExchangeRate::RATE_SCALE) === 0) {
+            if (Decimal::compare($existing->rate, $data['rate']) === 0) {
                 return self::UNCHANGED;
             }
 
@@ -207,7 +207,7 @@ final class ExchangeRateRecorder {
             return '0';
         }
 
-        if (str_starts_with($rate, '-') || bccomp($rate, '0', 8) === 0) {
+        if (str_starts_with($rate, '-') || Decimal::compare($rate, '0') === 0) {
             $errors['rate'] = __('finances/exchangeRate.errors.rate_not_positive');
         } elseif (Decimal::scale($rate) > ExchangeRate::RATE_SCALE) {
             $errors['rate'] = __('finances/exchangeRate.errors.rate_invalid_format');

@@ -11,7 +11,7 @@ use App\Services\Finances\Ledger\Iso4217;
 use Carbon\CarbonInterface;
 
 /**
- * Konversi mata uang yang dapat dijelaskan (Finance Fase 4, Requirement 2.3-2.4). Aritmetika bcmath tanpa `float`;
+ * Konversi mata uang yang dapat dijelaskan (Finance Fase 4, Requirement 2.3-2.4). Aritmetika `Brick\Math\BigDecimal` tanpa `float`;
  * pembulatan HALF_UP ke minor unit mata uang tujuan (`currencies.minor_unit`).
  *
  * - `from = to`: jumlah yang sama, `rate = 1`, tanpa pencarian kurs.
