@@ -104,7 +104,7 @@ return [
         'not_line_sensitive_hint' => 'Document-level role: item conditions do not apply.',
         'discount_hint'           => 'The discount role is used by both Sales Invoice and Purchase Invoice. Create a separate rule per document type; a rule limited to the Return variant alone does not satisfy the discount mapping check.',
         'custom_title'            => 'Custom Role Rules',
-        'custom_description'      => 'Rules with a custom role (outside the role catalog) cannot be edited here and are kept when saving.',
+        'custom_description'      => 'Rules with a custom role (outside the role catalog) cannot be edited here; they are kept when saving unless you remove them with the remove button.',
         'errors'                  => [
             'role_required'       => 'Select a role.',
             'account_required'    => 'Select an account.',

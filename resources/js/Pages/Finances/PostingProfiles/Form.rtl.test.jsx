@@ -846,6 +846,43 @@ describe("PostingProfiles Form", () => {
       expect(mocks.put.mock.calls[0][1].rules[0].role).toBe("revenue");
     });
 
+    it("aturan berperan kustom dibawa lewat custom_rule_ids dan tombol Hapus membuangnya tanpa mengubah baris editor", async () => {
+      const user = userEvent.setup();
+      render(
+        <Form
+          {...baseProps}
+          profile={profile({
+            rules: [
+              rule(),
+              rule({ id: "r9", role: "custom_tax", variant: null }),
+              rule({ id: "r10", role: "custom_fee", variant: null }),
+            ],
+          })}
+        />,
+      );
+
+      await save(user);
+      expect(mocks.put.mock.calls[0][1].custom_rule_ids).toEqual(["r9", "r10"]);
+
+      const customRow = screen
+        .getAllByTestId("rule-row")
+        .find((row) => row.textContent.includes("custom_tax"));
+      await user.click(
+        within(customRow).getByRole("button", {
+          name: "finances.postingProfile.rules_editor.remove",
+        }),
+      );
+
+      const rows = screen.getAllByTestId("rule-row");
+      expect(rows).toHaveLength(1);
+      expect(rows[0]).toHaveTextContent("custom_fee");
+      expect(editorRows()).toHaveLength(1);
+
+      await save(user);
+      expect(mocks.put.mock.calls[1][1].custom_rule_ids).toEqual(["r10"]);
+      expect(mocks.put.mock.calls[1][1].rules).toHaveLength(1);
+    });
+
     it("menampilkan galat server per baris dan galat umum aturan", () => {
       mocks.formErrors = {
         "rules.0.role": "Peran revenue bukan peka-barang.",
