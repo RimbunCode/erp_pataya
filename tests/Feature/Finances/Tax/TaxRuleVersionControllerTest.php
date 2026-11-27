@@ -2,8 +2,10 @@
 
 namespace Tests\Feature\Finances\Tax;
 
+use App\Models\Finances\FinanceSetting;
 use App\Models\Finances\Tax;
 use App\Models\Finances\TaxRuleVersion;
+use App\Services\Core\Setting\SettingsService;
 use App\Services\Finances\Tax\TaxRuleVersionService;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Tests\Support\BuildsFinanceFixtures;
@@ -160,6 +162,8 @@ class TaxRuleVersionControllerTest extends TestCase {
     }
 
     public function test_dpp_factor_guard_message_is_returned_to_the_page(): void {
+        // Guard hanya berlaku bila setting dimatikan (default true setelah konversi Bagian B).
+        app(SettingsService::class)->updateInternal(FinanceSetting::class, ['tax_engine_calc_enabled' => false]);
         $draft = $this->service->createDraft($this->tax, $this->payload(['dpp_numerator' => 1, 'dpp_denominator' => 1]));
 
         $this->actingWith(['manage_rule_versions'])
