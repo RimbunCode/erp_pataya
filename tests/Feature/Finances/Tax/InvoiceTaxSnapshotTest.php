@@ -333,7 +333,7 @@ class InvoiceTaxSnapshotTest extends TestCase {
         $return = $this->createSalesInvoice(
             [$tax->getKey()],
             '2026-07-01',
-            ['return_against'         => ['id' => $original->id]],
+            ['return_against' => ['id' => $original->id]],
             ['return_against_item_id' => $originalItem->id, 'quantity' => 1],
         );
         $returnItem = $return->items()->firstOrFail();
@@ -352,7 +352,7 @@ class InvoiceTaxSnapshotTest extends TestCase {
         $return = $this->createPurchaseInvoice(
             [$tax->getKey()],
             '2026-07-01',
-            ['return_against'         => ['id' => $original->id]],
+            ['return_against' => ['id' => $original->id]],
             ['return_against_item_id' => $originalItem->id, 'quantity' => 1],
         );
         $returnItem = $return->items()->firstOrFail();
