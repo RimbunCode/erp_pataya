@@ -99,6 +99,11 @@ class JournalSchemaTest extends TestCase {
 
         foreach (['journal_id', 'line_no', 'foreign_currency_code', 'foreign_debit', 'foreign_credit', 'exchange_rate'] as $column) {
             $this->assertArrayHasKey($column, $columns, "general_ledgers.{$column} tidak ada.");
+            if ($column === 'journal_id') {
+                $this->assertFalse($columns[$column]['nullable'], 'general_ledgers.journal_id harus NOT NULL (Task 9.1, Rilis 2).');
+
+                continue;
+            }
             $this->assertTrue($columns[$column]['nullable'], "general_ledgers.{$column} harus nullable (tabel sudah berisi data).");
         }
         $this->assertTrue($columns['against_account_id']['nullable'], 'Requirement 1.3: against_account_id nullable.');

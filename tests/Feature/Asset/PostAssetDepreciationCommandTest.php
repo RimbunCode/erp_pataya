@@ -12,15 +12,17 @@ use App\Models\Core\FormatingSeries;
 use App\Models\Core\GlPostingStatus;
 use App\Models\Finances\GeneralLedger;
 use App\Models\Finances\Journal;
+use App\Models\Finances\PostingProfile;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Schema;
 use Illuminate\Support\Str;
 use PHPUnit\Framework\Attributes\Test;
+use Tests\Support\EnablesEnginePosting;
 use Tests\TestCase;
 
 class PostAssetDepreciationCommandTest extends TestCase {
-    use RefreshDatabase;
+    use EnablesEnginePosting, RefreshDatabase;
 
     protected function setUp(): void {
         parent::setUp();
@@ -34,6 +36,10 @@ class PostAssetDepreciationCommandTest extends TestCase {
 
         GeneralLedger::initPermissions();
         Journal::initPermissions();
+        PostingProfile::initPermissions();
+
+        // Task 14.1: closure legacy dihapus; depresiasi ditulis engine dengan akun master AssetCategoryAccount.
+        $this->enableEnginePosting();
 
         FormatingSeries::firstOrCreate(
             ['model' => GeneralLedger::class],
@@ -126,6 +132,32 @@ class PostAssetDepreciationCommandTest extends TestCase {
             ->count();
 
         $this->assertSame($countAfterFirst, $countAfterSecond);
+    }
+
+    #[Test]
+    public function inline_failure_marks_row_failed_and_continues_with_other_rows(): void {
+        // Eksekusi inline (D-1 opsi C): aset tanpa akun kategori gagal diposting; baris lain tetap diproses.
+        $badAsset = Asset::factory()->create();
+        $bad      = AssetDepreciationSchedule::factory()->create([
+            'asset_id'            => $badAsset->id,
+            'schedule_date'       => now()->subDay(),
+            'depreciation_amount' => 500.0,
+        ]);
+        [, $good] = $this->makeAssetWithSchedule();
+
+        $this->artisan('assets:post-depreciation')->assertSuccessful();
+
+        $badStatus = GlPostingStatus::where('referenceable_type', AssetDepreciationSchedule::class)
+            ->where('referenceable_id', $bad->id)->first();
+        $this->assertNotNull($badStatus);
+        $this->assertEquals(FormStatus::FAILED, $badStatus->status);
+        $this->assertSame(1, (int) $badStatus->retry_count);
+        $this->assertNotEmpty($badStatus->last_error);
+        $this->assertSame(0, GeneralLedger::where('referenceable_id', $bad->id)->count());
+
+        $goodStatus = GlPostingStatus::where('referenceable_type', AssetDepreciationSchedule::class)
+            ->where('referenceable_id', $good->id)->first();
+        $this->assertEquals(FormStatus::POSTED, $goodStatus->status);
     }
 
     #[Test]

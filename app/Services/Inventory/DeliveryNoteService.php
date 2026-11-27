@@ -3,6 +3,7 @@
 namespace App\Services\Inventory;
 
 use App\Contracts\SubmitableService;
+use App\Enums\AssetMovementPurpose;
 use App\Enums\FormStatus;
 use App\Events\Asset\AssetRentalDeliveryApproved;
 use App\Events\Asset\AssetRentalReturnApproved;
@@ -11,7 +12,9 @@ use App\Events\Core\DocumentSubmitted;
 use App\Events\Inventory\DeliveryNoteGeneralLedgerPostingRequested;
 use App\Events\Sales\Order\DocumentDeliveryStatusRecalculationRequested;
 use App\Models\Asset\Asset;
+use App\Models\Asset\AssetMovement;
 use App\Models\Asset\AssetService;
+use App\Models\Core\ApprovalInstance;
 use App\Models\Core\FormatingSeries;
 use App\Models\Core\GlPostingStatus;
 use App\Models\Core\ModelConnection;
@@ -68,8 +71,12 @@ class DeliveryNoteService implements SubmitableService {
         $unit                        = $units[$item['item_unit_id']] ?? null;
         $item['conversion_factor']   = $unit?->conversion_factor ?? 1;
         $item['quantity'] ??= 0;
-        $item['valuation_rates']        = [];
-        $item['return_against_item_id'] = $item['return_against_item']['id'] ?? null;
+        // Akun baris tidak diterima dari input: dikosongkan pada create dan update draft sampai engine mencatatnya
+        // (Q-P2-24, Task 12.1 bagian B).
+        $item['posted_account_id']       = null;
+        $item['posted_stock_account_id'] = null;
+        $item['valuation_rates']         = [];
+        $item['return_against_item_id']  = $item['return_against_item']['id'] ?? null;
 
         return $item;
     }
@@ -199,6 +206,7 @@ class DeliveryNoteService implements SubmitableService {
                 'asset',
                 'item.item',
                 'item.item.category',
+                'item.defaultUom',
                 'referenceable',
                 'returnAgainstItem',
                 'sourceWarehouse',
@@ -241,7 +249,40 @@ class DeliveryNoteService implements SubmitableService {
             ->get()
             ->keyBy(fn ($stock) => "{$stock->item_variant_id}-{$stock->warehouse_id}");
 
-        $errorItems  = [];
+        // Validasi stok seluruh baris DULU, sebelum ada mutasi apa pun (delivered_quantity, stok, SLE, status GL, event),
+        // supaya penolakan tidak meninggalkan efek samping. Semua baris yang gagal dilaporkan sekaligus.
+        $stockErrors = $this->collectStockErrors($items, $stocks, (bool) $returnAgainst);
+        if ($stockErrors !== []) {
+            DB::rollBack();
+
+            throw ValidationException::withMessages(['items' => $stockErrors]);
+        }
+
+        // Retur ke gudang yang belum punya baris stok: buat barisnya (satuan dasar barang, antrean kosong),
+        // setelah validasi lolos dan di dalam transaksi, sehingga penolakan di tahap lain tidak menyisakan baris baru.
+        if ($returnAgainst) {
+            foreach ($items as $item) {
+                if (! $this->isStockMutatingLine($item)) {
+                    continue;
+                }
+                $stockKey = "{$item->item_id}-{$item->source_warehouse_id}";
+                if ($stocks->has($stockKey)) {
+                    continue;
+                }
+
+                $defaultUom = $item->item->defaultUom;
+                $newStock   = Stock::lockForUpdate()->firstOrCreate([
+                    'item_variant_id' => $item->item_id,
+                    'warehouse_id'    => $item->source_warehouse_id,
+                ], [
+                    'conversion_factor' => $defaultUom->conversion_factor,
+                    'item_unit_id'      => $defaultUom->id,
+                    'stock_queue'       => [],
+                ]);
+                $stocks->put($stockKey, $newStock->load('unit'));
+            }
+        }
+
         $totalPicked = 0;
         foreach ($items as $item) {
             // Baris bebas (spec delivery-note-sales-invoice-off-source-items): tanpa
@@ -300,22 +341,10 @@ class DeliveryNoteService implements SubmitableService {
             // update stock
             $stockKey = "{$item->item_id}-{$item->source_warehouse_id}";
             /** @var Stock|null $stock */
-            $stock     = $stocks->get($stockKey);
-            $itemLabel = "{$item->item->code} - {$item->item->item_name}";
+            $stock = $stocks->get($stockKey);
 
-            if (! $stock) {
-                $errorItems[] = "Item {$itemLabel} is not in {$item->sourceWarehouse->name} stock";
-
-                continue;
-            }
-            $quantity = $item->quantity * $item->conversion_factor / $stock->conversion_factor;
-            if ($stock->actual_quantity < $quantity) {
-                $stockUnitName = $stock->unit?->name;
-                $orderUnitName = $item->unit?->name;
-                $errorItems[]  = "Item {$itemLabel} in {$item->sourceWarehouse->name} stock is {$stock->actual_quantity} {$stockUnitName} but you need {$quantity} {$stockUnitName} ({$item->quantity} {$orderUnitName})";
-
-                continue;
-            }
+            // Keberadaan baris stok dan kecukupan jumlah sudah dijamin collectStockErrors() di atas.
+            $quantity        = $item->quantity * $item->conversion_factor / $stock->conversion_factor;
             $rentedQuantity  = $stock->rented_quantity ?? 0;
             $quantityRequest = $quantity;
 
@@ -444,6 +473,9 @@ class DeliveryNoteService implements SubmitableService {
         event(new DocumentDeliveryStatusRecalculationRequested($toReference));
 
         if ($totalPicked > 0) {
+            // Relasi `items` bisa sudah ter-load dari sebelum `valuation_rates` diisi di atas; muat ulang supaya nilai per
+            // baris untuk jurnal dan catatan akun (Task 12.1) tidak kosong.
+            $deliveryNote->load('items.item', 'items.returnAgainstItem');
             GlPostingStatus::create([
                 'referenceable_type' => DeliveryNote::class,
                 'referenceable_id'   => $deliveryNote->id,
@@ -460,6 +492,70 @@ class DeliveryNoteService implements SubmitableService {
         DB::commit();
 
         return $deliveryNote;
+    }
+
+    /**
+     * Kumpulkan pesan error stok untuk semua baris stok. Baris asset, jasa AssetService, dan non-stok dilewati
+     * (sama seperti loop mutasi). Pengiriman maju: stok harus ada dan cukup (akumulatif untuk baris yang berbagi stok
+     * yang sama). Retur menambah stok, jadi tidak ada pemeriksaan stok (baris stok yang belum ada dibuat otomatis).
+     *
+     * @param  Collection<int, DeliveryNoteItem>  $items
+     * @param  Collection<string, Stock>  $stocks
+     * @return list<string>
+     */
+    private function collectStockErrors(Collection $items, Collection $stocks, bool $isReturn): array {
+        $errors   = [];
+        $required = [];
+
+        foreach ($items as $item) {
+            if (! $this->isStockMutatingLine($item)) {
+                continue;
+            }
+
+            $stockKey  = "{$item->item_id}-{$item->source_warehouse_id}";
+            $stock     = $stocks->get($stockKey);
+            $itemLabel = "{$item->item->code} - {$item->item->item_name}";
+
+            if ($isReturn) {
+                // Retur menambah stok: baris stok yang belum ada dibuat otomatis (butuh satuan default barang).
+                if (! $stock && ! $item->item->defaultUom) {
+                    $errors[$stockKey] = "Item {$itemLabel} tidak memiliki satuan default, sehingga baris stok di {$item->sourceWarehouse?->name} tidak dapat dibuat";
+                }
+
+                continue;
+            }
+            if (! $stock) {
+                $errors[] = "Item {$itemLabel} is not in {$item->sourceWarehouse?->name} stock";
+
+                continue;
+            }
+
+            $quantity            = $item->quantity * $item->conversion_factor / $stock->conversion_factor;
+            $required[$stockKey] = ($required[$stockKey] ?? 0) + $quantity;
+            if ($stock->actual_quantity < $required[$stockKey]) {
+                $stockUnitName = $stock->unit?->name;
+                $orderUnitName = $item->unit?->name;
+                $errors[]      = "Item {$itemLabel} in {$item->sourceWarehouse?->name} stock is {$stock->actual_quantity} {$stockUnitName} but you need {$required[$stockKey]} {$stockUnitName} ({$item->quantity} {$orderUnitName})";
+            }
+        }
+
+        return array_values($errors);
+    }
+
+    /**
+     * Baris yang memutasi stok: bukan asset, bukan jasa AssetService (SO/IO), dan barangnya barang stok.
+     * Baris lain dilewati di validasi, pembuatan baris stok, dan loop mutasi.
+     */
+    private function isStockMutatingLine(DeliveryNoteItem $item): bool {
+        if ($item->asset_id) {
+            return false;
+        }
+        if (($item->referenceable instanceof SalesOrderItem || $item->referenceable instanceof InternalOrderItem)
+            && $item->referenceable->referenceable_type === AssetService::class) {
+            return false;
+        }
+
+        return (bool) $item->item->is_stock_item;
     }
 
     /** Cek ulang di bawah lock: Asset bebas harus masih `active` saat approve (bisa berubah sejak validasi). */
@@ -511,11 +607,55 @@ class DeliveryNoteService implements SubmitableService {
     }
 
     public function cancel(Model $deliveryNote): mixed {
-        $deliveryNote->update([
-            'status' => FormStatus::CANCELED,
-        ]);
+        DB::transaction(function () use ($deliveryNote) {
+            ApprovalInstance::lockForDocument($deliveryNote);
+            $deliveryNote->update([
+                'status' => FormStatus::CANCELED,
+            ]);
+
+            $this->reverseAssetSales($deliveryNote);
+        });
 
         return $deliveryNote;
+    }
+
+    /**
+     * Balik efek penjualan aset (MarkAssetSoldFromDelivery) saat DN penjualan dibatalkan: kurangi sold_quantity, pulihkan
+     * status/jadwal penyusutan, dan batalkan asset movement SELL (status canceled, bukan dihapus, agar jejak tetap ada).
+     * Hanya baris yang benar-benar terkirim (processed_at terisi); processed_at dikosongkan sehingga cancel ulang idempoten.
+     * Retur DN dan baris sewa tidak diubah: efeknya dibalik lewat alur retur sewa, bukan lewat cancel DN.
+     */
+    private function reverseAssetSales(DeliveryNote $deliveryNote): void {
+        if ($deliveryNote->return_against_id) {
+            return;
+        }
+
+        $lines = $deliveryNote->items()
+            ->whereNotNull('asset_id')
+            ->whereNotNull('processed_at')
+            ->get()
+            ->reject(fn (DeliveryNoteItem $line) => $line->referenceable instanceof SalesOrderItem
+                && (bool) ($line->referenceable->salesOrder?->is_rent ?? false));
+
+        foreach ($lines as $line) {
+            $asset = Asset::query()->whereKey($line->asset_id)->lockForUpdate()->first();
+            $line->update(['processed_at' => null]);
+
+            if (! $asset) {
+                continue;
+            }
+
+            $asset->reduceSoldQuantity((float) $line->quantity);
+
+            $movement = AssetMovement::query()
+                ->where('reference_type', DeliveryNote::class)
+                ->where('reference_id', $deliveryNote->id)
+                ->where('purpose', AssetMovementPurpose::SELL->value)
+                ->whereJsonDoesntContain('status', FormStatus::CANCELED->value)
+                ->whereHas('items', fn ($q) => $q->where('asset_id', $line->asset_id))
+                ->first();
+            $movement?->update(['status' => [FormStatus::CANCELED]]);
+        }
     }
 
     public function amend(Model $model): mixed {

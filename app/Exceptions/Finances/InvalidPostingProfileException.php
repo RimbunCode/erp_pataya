@@ -46,6 +46,18 @@ class InvalidPostingProfileException extends RuntimeException {
         return new self(__('finances/postingProfile.errors.version_ends_before_previous', ['to' => $previousTo ?? __('finances/postingProfile.open_ended')]));
     }
 
+    /**
+     * Aktivasi ditolak: profil menjangkau tanggal cutover diskon terpisah yang sudah terisi tetapi tidak memetakan
+     * peran `discount` untuk jenis dokumen itu (keputusan pemilik produk 22 November 2026, Requirement 14.4).
+     *
+     * @param  bool  $requiresDocumentRule  Purchase Invoice: wajib aturan bersyarat `document_type = purchase_invoice`
+     */
+    public static function discountUnmappedAfterCutover(string $role, string $documentLabel, string $from, bool $requiresDocumentRule = false): self {
+        $key = $requiresDocumentRule ? 'discount_split_unmapped_purchase' : 'discount_split_unmapped';
+
+        return new self(__("finances/postingProfile.errors.{$key}", ['role' => $role, 'document' => $documentLabel, 'from' => $from]));
+    }
+
     public static function roleTooLong(int $max): self {
         return new self(__('finances/postingProfile.errors.field_too_long', ['field' => 'role', 'max' => $max]));
     }

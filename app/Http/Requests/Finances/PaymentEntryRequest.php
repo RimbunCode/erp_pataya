@@ -24,22 +24,20 @@ class PaymentEntryRequest extends BaseFormRequest {
      */
     public function rules(): array {
         return [
-            'date'                 => ['required', 'date'],
-            'paid_amount'          => ['required', 'numeric', 'gt:0', fn (string $attribute, mixed $value, Closure $fail) => $this->failWhenOverOutstanding((float) $value, $fail)],
-            'payment_type'         => ['required', 'string', 'in:receive,pay,internal_transfer'],
-            'payment_method.id'    => ['nullable', new ExistsExcludingTrashed('payment_methods')],
-            'party_type'           => ['required_unless:payment_type,internal_transfer', 'string', 'in:customer,supplier'],
-            'partyable'            => ['required_unless:payment_type,internal_transfer', 'array'],
-            'partyable.id'         => ['required_unless:payment_type,internal_transfer', $this->party_type == 'supplier' ? new ExistsExcludingTrashed('suppliers') : new ExistsExcludingTrashed('customers')],
-            'partyable.*'          => ['nullable'],
-            'currency.code'        => ['nullable', 'exists:currencies,code'],
-            'currency.*'           => ['nullable'],
-            'exchange_rate'        => ['nullable', 'numeric', 'min:0'],
-            'paymentable'          => ['required_unless:payment_type,internal_transfer', 'array'],
-            'paymentable.id'       => ['required_unless:payment_type,internal_transfer', $this->party_type == 'supplier' ? new ExistsExcludingTrashed('purchase_invoices') : new ExistsExcludingTrashed('sales_invoices')],
-            'account_paid_to.id'   => ['required', new ExistsExcludingTrashed('accounts')],
-            'account_paid_from.id' => ['required', new ExistsExcludingTrashed('accounts')],
-            'notes'                => ['nullable', 'string'],
+            'date'              => ['required', 'date'],
+            'paid_amount'       => ['required', 'numeric', 'gt:0', fn (string $attribute, mixed $value, Closure $fail) => $this->failWhenOverOutstanding((float) $value, $fail)],
+            'payment_type'      => ['required', 'string', 'in:receive,pay,internal_transfer'],
+            'payment_method.id' => ['nullable', new ExistsExcludingTrashed('payment_methods')],
+            'party_type'        => ['required_unless:payment_type,internal_transfer', 'string', 'in:customer,supplier'],
+            'partyable'         => ['required_unless:payment_type,internal_transfer', 'array'],
+            'partyable.id'      => ['required_unless:payment_type,internal_transfer', $this->party_type == 'supplier' ? new ExistsExcludingTrashed('suppliers') : new ExistsExcludingTrashed('customers')],
+            'partyable.*'       => ['nullable'],
+            'currency.code'     => ['nullable', 'exists:currencies,code'],
+            'currency.*'        => ['nullable'],
+            'exchange_rate'     => ['nullable', 'numeric', 'min:0'],
+            'paymentable'       => ['required_unless:payment_type,internal_transfer', 'array'],
+            'paymentable.id'    => ['required_unless:payment_type,internal_transfer', $this->party_type == 'supplier' ? new ExistsExcludingTrashed('purchase_invoices') : new ExistsExcludingTrashed('sales_invoices')],
+            'notes'             => ['nullable', 'string'],
         ];
     }
 

@@ -40,8 +40,6 @@ class PurchaseInvoiceRequest extends BaseFormRequest {
             'purchase_order.id'                => ['nullable', new ExistsExcludingTrashed('purchase_orders')],
             'purchase_order.*'                 => ['nullable'],
             'return_against.id'                => ['nullable', new ExistsExcludingTrashed('purchase_invoices')],
-            'expense_head_account.id'          => ['required', new ExistsExcludingTrashed('accounts')],
-            'credit_account.id'                => ['required', new ExistsExcludingTrashed('accounts')],
             'items'                            => ['required', 'array', 'min:1'],
             'items.*.id'                       => ['required', 'string'],
             'items.*.purchase_order_item.id'   => ['nullable', 'required_without_all:items.*.purchase_receipt_item.id,items.*.item.id', new ExistsExcludingTrashed('purchase_order_items')],

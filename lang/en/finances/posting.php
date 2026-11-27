@@ -2,12 +2,17 @@
 
 return [
     'errors' => [
-        'unresolved_role'           => 'The account role ":role" cannot be resolved for document :document (variant :variant) on :date. Layers checked: :layers. Complete the Posting Profile or the related master account.',
-        'unresolved_role_account'   => 'The account for role ":role" (document :document, variant :variant, date :date) cannot be used: :reason (:account). Account source: :layer.',
-        'unresolved_role_ambiguous' => 'The account role ":role" (document :document, variant :variant, date :date) is ambiguous in the legacy fallback: :candidates accounts match :root/:type and none was chosen. Map this role in the Posting Profile.',
-        'unknown_document_type'     => 'The posting document type ":type" has no registered posting rule.',
-        'switch_mode_forbidden'     => 'You are not allowed to change the posting engine mode.',
-        'partial_posting'           => 'Partial posting for :source: journals :existing already exist, :missing do not. Manual intervention is required.',
+        'approve_blocked'                  => 'The document cannot be approved. :message Configure it on the Posting Profile page (:url).',
+        'approve_blocked_no_link'          => 'The document cannot be approved. :message Ask someone with access to the Posting Profile page to complete the configuration.',
+        'unresolved_role'                  => 'The account role ":role" cannot be resolved for document :document (variant :variant) on :date. Layers checked: :layers. Complete the Posting Profile or the related master account.',
+        'unresolved_role_account'          => 'The account for role ":role" (document :document, variant :variant, date :date) cannot be used: :reason (:account). Account source: :layer.',
+        'unresolved_role_ambiguous'        => 'The account role ":role" (document :document, variant :variant, date :date) is ambiguous in the legacy fallback: :candidates accounts match :root/:type and none was chosen. Map this role in the Posting Profile.',
+        'unknown_document_type'            => 'The posting document type ":type" has no registered posting rule.',
+        'switch_mode_forbidden'            => 'You are not allowed to change how posting is executed.',
+        'discount_split_no_profile'        => 'The separate-discount cutover date :date for :document was rejected: no active Posting Profile applies on that date. Activate a profile that maps the "discount" role first.',
+        'discount_split_unmapped'          => 'The separate-discount cutover date for :document was rejected: the ":role" role is not mapped on the active Posting Profile (:profiles). Map this role (default account or conditional account rule) on the Posting Profile page first.',
+        'discount_split_unmapped_purchase' => 'The separate-discount cutover date for :document was rejected: the ":role" role on the Posting Profile (:profiles) is not mapped through a conditional account rule with the Purchase Invoice document type (normal and return variants). The profile default account and rules without a document type do not count because they are shared with Sales Invoice. Create that rule on the Posting Profile page first.',
+        'partial_posting'                  => 'Partial posting for :source: journals :existing already exist, :missing do not. Manual intervention is required.',
     ],
 
     'layers' => [

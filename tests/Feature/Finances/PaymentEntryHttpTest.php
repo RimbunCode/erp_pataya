@@ -8,6 +8,7 @@ use App\Models\Finances\Account;
 use App\Models\Finances\PaymentEntry;
 use App\Models\Finances\PaymentMethod;
 use App\Models\Finances\PaymentSchedule;
+use App\Models\Finances\PostingProfile;
 use App\Models\Finances\PurchaseInvoice;
 use App\Models\Finances\SalesInvoice;
 use App\Services\Finances\PaymentEntryService;
@@ -16,6 +17,7 @@ use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Event;
 use Illuminate\Support\Facades\Validator;
 use Tests\Support\BuildsFinanceFixtures;
+use Tests\Support\EnablesEnginePosting;
 use Tests\TestCase;
 
 /**
@@ -23,10 +25,11 @@ use Tests\TestCase;
  * (Q9 b), guard `update` non-draft (Q10 a), dan pembatalan yang ditolak (Q5) melalui controller.
  */
 class PaymentEntryHttpTest extends TestCase {
-    use BuildsFinanceFixtures, RefreshDatabase;
+    use BuildsFinanceFixtures, EnablesEnginePosting, RefreshDatabase;
 
     private Account $cash;
     private Account $receivable;
+    private Account $payable;
 
     protected function setUp(): void {
         parent::setUp();
@@ -40,9 +43,14 @@ class PaymentEntryHttpTest extends TestCase {
             return array_intersect($left, $right) !== [] ? 1 : 0;
         }, 2);
 
-        $this->setUpFinanceFixtures([SalesInvoice::class, PurchaseInvoice::class, PaymentSchedule::class, PaymentEntry::class, PaymentMethod::class]);
+        $this->setUpFinanceFixtures([SalesInvoice::class, PurchaseInvoice::class, PaymentSchedule::class, PaymentEntry::class, PaymentMethod::class, PostingProfile::class]);
         $this->cash       = $this->makeAccount('1100', 'Kas', 'asset', 'debit', 'cash');
         $this->receivable = $this->makeAccount('1200', 'Piutang Usaha', 'asset', 'debit', 'accounts_receivable');
+        $this->payable    = $this->makeAccount('2100', 'Utang Usaha', 'liability', 'credit', 'accounts_payable');
+
+        // Task 14.1: closure legacy dihapus; profil memetakan piutang/utang, kas dari Metode Pembayaran
+        // (otomatis di makePaymentEntry).
+        $this->enableEnginePosting(['receivable' => $this->receivable, 'payable' => $this->payable]);
     }
 
     /**
@@ -95,26 +103,6 @@ class PaymentEntryHttpTest extends TestCase {
         app(PaymentEntryService::class)->onApproved($payment->fresh());
 
         return $payment->fresh();
-    }
-
-    public function test_purchase_invoice_default_uses_bank_as_paid_from_and_payable_as_paid_to(): void {
-        $payable = $this->makeAccount('2100', 'Utang Usaha', 'liability', 'credit', 'accounts_payable');
-        $bank    = $this->makeAccount('1110', 'Bank', 'asset', 'debit', 'bank');
-        $invoice = $this->makeUnpaidPurchaseInvoice(1_000_000);
-        $method  = PaymentMethod::create(['name' => 'Transfer', 'default_account_id' => $bank->id]);
-        PaymentSchedule::where('payment_scheduleable_id', $invoice->id)->update(['payment_method_id' => $method->id]);
-        PurchaseInvoice::whereKey($invoice->id)->update(['credit_account_id' => $payable->id]);
-
-        $response = $this->http()->get('/paymentEntries/create/purchaseInvoice/' . $invoice->id);
-
-        $response->assertOk();
-        $response->assertInertia(
-            fn ($page) => $page
-                ->component('Finances/PaymentEntries/Show')
-                ->where('defaultData.payment_type', 'pay')
-                ->where('defaultData.account_paid_from.id', $bank->id)
-                ->where('defaultData.account_paid_to.id', $payable->id),
-        );
     }
 
     public function test_zero_paid_amount_is_rejected(): void {
@@ -308,7 +296,7 @@ class PaymentEntryHttpTest extends TestCase {
     }
 
     public function test_purchase_invoice_default_amount_is_the_outstanding_balance(): void {
-        $payable = $this->makeAccount('2100', 'Utang Usaha', 'liability', 'credit', 'accounts_payable');
+        $payable = $this->payable;
         $invoice = $this->makeUnpaidPurchaseInvoice(1_000_000);
         PurchaseInvoice::whereKey($invoice->id)->update(['credit_account_id' => $payable->id]);
         $payment = $this->makePaymentEntry($invoice, 400_000, $this->cash, $payable);
@@ -318,5 +306,90 @@ class PaymentEntryHttpTest extends TestCase {
 
         $response->assertOk();
         $response->assertInertia(fn ($page) => $page->where('defaultData.paid_amount', fn ($value) => abs((float) $value - 600_000) < 0.01));
+    }
+
+    /**
+     * @return array<string, mixed>
+     */
+    private function receivePayloadWithoutAccounts(PaymentEntry $payment, float $amount): array {
+        $payload = $this->receivePayload($payment, $amount);
+        unset($payload['account_paid_from'], $payload['account_paid_to']);
+
+        return $payload;
+    }
+
+    public function test_create_page_does_not_prefill_accounts_or_send_the_removed_mode_prop(): void {
+        $payable = $this->payable;
+        $bank    = $this->makeAccount('1110', 'Bank', 'asset', 'debit', 'bank');
+        $invoice = $this->makeUnpaidPurchaseInvoice(1_000_000);
+        $method  = PaymentMethod::create(['name' => 'Transfer', 'default_account_id' => $bank->id]);
+        PaymentSchedule::where('payment_scheduleable_id', $invoice->id)->update(['payment_method_id' => $method->id]);
+        PurchaseInvoice::whereKey($invoice->id)->update(['credit_account_id' => $payable->id]);
+
+        $this->http()->get('/paymentEntries/create/purchaseInvoice/' . $invoice->id)->assertInertia(
+            fn ($page) => $page
+                ->component('Finances/PaymentEntries/Show')
+                ->missing('accountsManagedByEngine')
+                ->where('defaultData.payment_type', 'pay')
+                ->missing('defaultData.account_paid_from')
+                ->missing('defaultData.account_paid_to')
+                ->where('defaultData.payment_method.id', $method->id),
+        );
+
+        $sales = $this->makeUnpaidSalesInvoice(1_000_000);
+        $this->http()->get('/paymentEntries/create/salesInvoice/' . $sales->id)->assertInertia(
+            fn ($page) => $page
+                ->missing('accountsManagedByEngine')
+                ->missing('defaultData.account_paid_from')
+                ->missing('defaultData.account_paid_to'),
+        );
+
+        $this->http()->get('/paymentEntries/create')->assertInertia(fn ($page) => $page->missing('accountsManagedByEngine'));
+    }
+
+    public function test_show_page_does_not_send_the_removed_mode_prop(): void {
+        $invoice = $this->makeUnpaidSalesInvoice(1_000_000);
+        $payment = $this->makePaymentEntry($invoice, 400_000, $this->receivable, $this->cash);
+
+        $this->http()->get('/paymentEntries/' . $payment->id)->assertInertia(
+            fn ($page) => $page->missing('accountsManagedByEngine'),
+        );
+    }
+
+    public function test_store_without_accounts_succeeds_and_leaves_account_columns_null(): void {
+        $invoice = $this->makeUnpaidSalesInvoice(1_000_000);
+        $payment = $this->makePaymentEntry($invoice, 100, $this->receivable, $this->cash);
+
+        $response = $this->http()->post('/paymentEntries', $this->receivePayloadWithoutAccounts($payment, 250_000));
+
+        $response->assertSessionHasNoErrors();
+        $created = PaymentEntry::query()->whereKeyNot($payment->id)->firstOrFail();
+        $this->assertEqualsWithDelta(250_000, $created->paid_amount, 0.01);
+        $this->assertNull($created->account_paid_to_id);
+        $this->assertNull($created->account_paid_from_id);
+    }
+
+    public function test_store_discards_account_columns_sent_by_a_client(): void {
+        $invoice = $this->makeUnpaidSalesInvoice(1_000_000);
+        $payment = $this->makePaymentEntry($invoice, 100, $this->receivable, $this->cash);
+
+        $this->http()->post('/paymentEntries', $this->receivePayload($payment, 250_000))->assertSessionHasNoErrors();
+
+        $created = PaymentEntry::query()->whereKeyNot($payment->id)->firstOrFail();
+        $this->assertNull($created->account_paid_to_id, 'P-14: akun kiriman klien dibuang.');
+        $this->assertNull($created->account_paid_from_id);
+    }
+
+    public function test_update_of_a_draft_clears_recorded_accounts_for_the_engine_to_fill(): void {
+        $invoice = $this->makeUnpaidSalesInvoice(1_000_000);
+        $payment = $this->makePaymentEntry($invoice, 400_000, $this->receivable, $this->cash);
+
+        $this->http()->put('/paymentEntries/' . $payment->id, $this->receivePayloadWithoutAccounts($payment, 250_000))->assertSessionHasNoErrors();
+
+        $fresh = $payment->fresh();
+        $this->assertEqualsWithDelta(250_000, $fresh->paid_amount, 0.01);
+        // Keputusan pemilik produk 2026-11-22 (Q-P2-23): update draft tidak wajib mempertahankan akun lama.
+        $this->assertNull($fresh->account_paid_to_id, 'Akun lama dikosongkan; engine yang mengisinya.');
+        $this->assertNull($fresh->account_paid_from_id);
     }
 }

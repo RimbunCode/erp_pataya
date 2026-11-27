@@ -13,5 +13,7 @@ class PurchaseReceiptGeneralLedgerPostingRequested {
         public readonly float $totalRatesForGL,
         public readonly bool $isReturn,
         public readonly \DateTimeInterface $transactionDate,
+        /** @var array<string, float> nilai GL per baris receipt (id baris => nilai); kosong = jurnal tingkat dokumen */
+        public readonly array $lineAmounts = [],
     ) {}
 }

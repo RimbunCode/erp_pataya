@@ -6,7 +6,9 @@ use App\Enums\FormStatus;
 use App\Models\Finances\Account;
 use App\Models\Finances\GeneralLedger;
 use App\Models\Finances\PaymentEntry;
+use App\Models\Finances\PaymentMethod;
 use App\Models\Finances\PaymentSchedule;
+use App\Models\Finances\PostingProfile;
 use App\Models\Finances\SalesInvoice;
 use App\Models\Inventory\Item;
 use App\Models\Inventory\ItemVariant;
@@ -21,6 +23,7 @@ use App\Services\Inventory\StockEntryService;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use PHPUnit\Framework\Attributes\Group;
 use Tests\Support\BuildsFinanceFixtures;
+use Tests\Support\EnablesEnginePosting;
 use Tests\TestCase;
 
 /**
@@ -29,19 +32,33 @@ use Tests\TestCase;
  */
 #[Group('known-issue')]
 class CancelSoftDeletesLedgerTest extends TestCase {
-    use BuildsFinanceFixtures, RefreshDatabase;
+    use BuildsFinanceFixtures, EnablesEnginePosting, RefreshDatabase;
 
     private Account $cash;
     private Account $receivable;
     private Account $sales;
+    private Account $stock;
+    private Account $difference;
+    private PaymentMethod $method;
 
     protected function setUp(): void {
         parent::setUp();
 
-        $this->setUpFinanceFixtures([SalesInvoice::class, PaymentSchedule::class, PaymentEntry::class, Unit::class, Warehouse::class, Item::class, ItemVariant::class, StockEntry::class, StockLedgerEntry::class]);
+        $this->setUpFinanceFixtures([SalesInvoice::class, PaymentSchedule::class, PaymentEntry::class, Unit::class, Warehouse::class, Item::class, ItemVariant::class, StockEntry::class, StockLedgerEntry::class, PostingProfile::class]);
         $this->cash       = $this->makeAccount('1100', 'Kas', 'asset', 'debit', 'cash');
         $this->receivable = $this->makeAccount('1200', 'Piutang Usaha', 'asset', 'debit', 'accounts_receivable');
         $this->sales      = $this->makeAccount('4000', 'Penjualan', 'income', 'credit', 'sales');
+        $this->stock      = $this->makeAccount('1300', 'Persediaan', 'asset', 'debit', 'stock');
+        $this->difference = $this->makeAccount('5900', 'Selisih Stok', 'expense', 'debit', 'stock_adjustment');
+
+        // Task 14.1: closure legacy dihapus; jurnal ditulis engine dengan akun dari profil dan Metode Pembayaran.
+        $this->enableEnginePosting([
+            'receivable'       => $this->receivable,
+            'revenue'          => $this->sales,
+            'stock'            => $this->stock,
+            'stock_adjustment' => $this->difference,
+        ]);
+        $this->method = $this->makeCashPaymentMethod($this->cash);
     }
 
     private function assertSoftDeletedWithoutReversal($document, int $expectedRows): void {
@@ -66,7 +83,7 @@ class CancelSoftDeletesLedgerTest extends TestCase {
 
     public function test_f04_cancel_payment_entry_soft_deletes_ledger_without_reversal(): void {
         $invoice = $this->makeUnpaidSalesInvoice(1_000_000);
-        $payment = $this->makePaymentEntry($invoice, 1_000_000, $this->receivable, $this->cash);
+        $payment = $this->makePaymentEntry($invoice, 1_000_000, $this->receivable, $this->cash, ['payment_method_id' => $this->method->id]);
         app(PaymentEntryService::class)->onApproved($payment->fresh());
 
         app(PaymentEntryService::class)->cancel($payment->fresh());
@@ -78,8 +95,8 @@ class CancelSoftDeletesLedgerTest extends TestCase {
     }
 
     public function test_f04_cancel_stock_entry_soft_deletes_gl_and_sle_but_keeps_cached_account_balances(): void {
-        $stock                                                                      = $this->makeAccount('1300', 'Persediaan', 'asset', 'debit', 'stock');
-        $difference                                                                 = $this->makeAccount('5900', 'Selisih Stok', 'expense', 'debit', 'stock_adjustment');
+        $stock                                                                      = $this->stock;
+        $difference                                                                 = $this->difference;
         ['warehouse' => $warehouse, 'variant' => $variant, 'itemUnit' => $itemUnit] = $this->makeInventoryFixture();
 
         $entry = StockEntry::create([

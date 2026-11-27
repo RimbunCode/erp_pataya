@@ -19,6 +19,7 @@ use Illuminate\Support\Facades\URL;
 use Illuminate\Support\Str;
 use Inertia\Inertia;
 use Symfony\Component\HttpFoundation\Response as SymfonyResponse;
+use Throwable;
 
 class ApprovalInstanceController extends Controller {
     public function __construct(Request $request) {
@@ -124,6 +125,7 @@ class ApprovalInstanceController extends Controller {
     }
 
     private function approve(ApprovalInstanceStep $approvalInstanceStep, ?string $notes = null) {
+        $level = DB::transactionLevel();
         DB::beginTransaction();
         $approvalInstanceStep = $this->lockDecidableStep($approvalInstanceStep);
         if ($approvalInstanceStep === null) {
@@ -171,18 +173,31 @@ class ApprovalInstanceController extends Controller {
                 'status' => FormStatus::APPROVED,
             ]);
             $approval->save();
-            DB::commit();
 
             $document     = $approval->document;
             $serviceClass = $document::$service ?? null;
+            $result       = null;
+
+            // onApproved() berjalan di transaksi yang sama dengan status instance/step: bila ia melempar (mis.
+            // ValidationException karena peran akun tak ter-resolve, Requirement 13.7), seluruh keputusan
+            // digulung sehingga instance dan step kembali pending dan approver dapat mengulang setelah profil
+            // dilengkapi. Galat tetap diteruskan ke pengguna. ApprovalDecided baru dikirim setelah commit agar
+            // notifikasi dan lampiran PDF tidak keluar untuk keputusan yang digulung.
+            try {
+                if ($serviceClass) {
+                    $result = app($serviceClass)->onApproved($document);
+                }
+                DB::commit();
+            } catch (Throwable $e) {
+                // Kembali ke level sebelum beginTransaction: onApproved() dapat membocorkan level transaksinya sendiri.
+                DB::rollBack($level);
+
+                throw $e;
+            }
 
             event(new ApprovalDecided($approval, 'approved'));
 
-            if ($serviceClass) {
-                return $this->asInertiaResponse(app($serviceClass)->onApproved($document));
-            }
-
-            return back();
+            return $serviceClass ? $this->asInertiaResponse($result) : back();
         }
         $approval->save();
         DB::commit();
@@ -228,6 +243,7 @@ class ApprovalInstanceController extends Controller {
     }
 
     private function reject(ApprovalInstanceStep $approvalInstanceStep, ?string $notes = null) {
+        $level = DB::transactionLevel();
         DB::beginTransaction();
         $approvalInstanceStep = $this->lockDecidableStep($approvalInstanceStep);
         if ($approvalInstanceStep === null) {
@@ -267,18 +283,29 @@ class ApprovalInstanceController extends Controller {
                 'status' => FormStatus::REJECTED,
             ]);
             $approval->save();
-            DB::commit();
 
             $document     = $approval->document;
             $serviceClass = $document::$service ?? null;
+            $result       = null;
+
+            // Sama dengan approve() (Q-P2-43): onRejected() berjalan di transaksi yang sama dengan status
+            // instance/step; bila melempar, keputusan digulung (instance/step kembali pending, dokumen tetap
+            // need_approval) dan galat diteruskan. ApprovalDecided dikirim setelah commit.
+            try {
+                if ($serviceClass) {
+                    $result = app($serviceClass)->onRejected($document);
+                }
+                DB::commit();
+            } catch (Throwable $e) {
+                // Kembali ke level sebelum beginTransaction: onRejected() dapat membocorkan level transaksinya sendiri.
+                DB::rollBack($level);
+
+                throw $e;
+            }
 
             event(new ApprovalDecided($approval, 'rejected', notes: $notes));
 
-            if ($serviceClass) {
-                return $this->asInertiaResponse(app($serviceClass)->onRejected($document));
-            }
-
-            return back();
+            return $serviceClass ? $this->asInertiaResponse($result) : back();
         }
         $approval->save();
         DB::commit();

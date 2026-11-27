@@ -8,7 +8,9 @@ use App\Models\Core\FormatingSeries;
 use App\Models\Finances\GeneralLedger;
 use App\Models\Finances\Journal;
 use App\Models\Finances\PaymentEntry;
+use App\Models\Finances\PaymentMethod;
 use App\Models\Finances\PaymentSchedule;
+use App\Models\Finances\PostingProfile;
 use App\Models\Finances\SalesInvoice;
 use App\Models\Sales\Customer;
 use App\Models\User\User;
@@ -17,10 +19,11 @@ use Illuminate\Foundation\Testing\RefreshDatabase;
 use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Str;
+use Tests\Support\EnablesEnginePosting;
 use Tests\TestCase;
 
 class PaymentEntrySubmitTest extends TestCase {
-    use RefreshDatabase;
+    use EnablesEnginePosting, RefreshDatabase;
 
     protected function setUp(): void {
         parent::setUp();
@@ -28,7 +31,7 @@ class PaymentEntrySubmitTest extends TestCase {
         // initPermissions() menambah kolom runtime (is_example, status, code, dst)
         // yang di produksi dibuat oleh PermissionSeeder, bukan migration. Juga
         // otomatis membuat row formating_series untuk model terkait.
-        foreach ([User::class, FormatingSeries::class, Branch::class, SalesInvoice::class, PaymentSchedule::class, PaymentEntry::class, GeneralLedger::class, Journal::class] as $model) {
+        foreach ([User::class, FormatingSeries::class, Branch::class, SalesInvoice::class, PaymentSchedule::class, PaymentEntry::class, GeneralLedger::class, Journal::class, PostingProfile::class] as $model) {
             $model::initPermissions();
         }
 
@@ -88,6 +91,10 @@ class PaymentEntrySubmitTest extends TestCase {
         $paidFromId = $this->makeAccountId('Kas', 'asset', 'cash');
         $paidToId   = $this->makeAccountId('Piutang Dagang', 'asset', 'receivable');
 
+        // Task 14.1: closure legacy dihapus; jurnal ditulis engine (kas dari Metode Pembayaran, piutang dari profil).
+        $this->enableEnginePosting(['receivable' => $paidToId]);
+        $method = PaymentMethod::create(['name' => 'Kas Tunai', 'default_account_id' => $paidFromId]);
+
         $invoice = SalesInvoice::create([
             'date'        => now()->subDay(),
             'amount'      => 1_000_000,
@@ -129,6 +136,7 @@ class PaymentEntrySubmitTest extends TestCase {
             'exchange_rate'        => 1,
             'account_paid_to_id'   => $paidToId,
             'account_paid_from_id' => $paidFromId,
+            'payment_method_id'    => $method->id,
             'status'               => [FormStatus::DRAFT],
             'branch_id'            => $branch->id,
             'code'                 => 'PE-1',

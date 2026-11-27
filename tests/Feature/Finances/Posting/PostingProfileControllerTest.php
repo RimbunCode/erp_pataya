@@ -3,14 +3,16 @@
 namespace Tests\Feature\Finances\Posting;
 
 use App\Enums\AccountRole;
+use App\Enums\PostingDocumentType;
 use App\Models\Finances\Account;
-use App\Models\Finances\FinanceSetting;
 use App\Models\Finances\PostingParityLog;
 use App\Models\Finances\PostingProfile;
-use App\Services\Finances\Posting\PostingModeResolver;
+use App\Models\Inventory\Category;
 use App\Services\Finances\Posting\PostingProfileService;
+use App\Services\Finances\Posting\PostingRoleRequirements;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Illuminate\Support\Facades\DB;
+use Illuminate\Support\Str;
 use Tests\Support\BuildsFinanceFixtures;
 use Tests\TestCase;
 
@@ -61,16 +63,6 @@ class PostingProfileControllerTest extends TestCase {
 
     private function active(string $from = '2026-01-01', ?string $to = null, string $name = 'Aktif'): PostingProfile {
         return $this->service->activate($this->draft($from, $to, $name));
-    }
-
-    /**
-     * @param  array<string, string>  $modes
-     */
-    private function setModes(array $modes): void {
-        $current = FinanceSetting::defaultAttributes()['posting_modes'];
-        FinanceSetting::current();
-        DB::table('finance_settings')->update(['posting_modes' => json_encode([...$current, ...$modes])]);
-        PostingModeResolver::forget();
     }
 
     public function test_index_requires_select_permission(): void {
@@ -148,19 +140,30 @@ class PostingProfileControllerTest extends TestCase {
                 ->where('profile.accounts.revenue.deleted_at', null));
     }
 
-    public function test_show_warns_about_required_roles_only_for_document_types_not_off(): void {
-        $profile = $this->draft(); // hanya receivable dan revenue
-        $this->setModes(['sales_invoice' => 'shadow', 'purchase_receipt' => 'on']);
+    public function test_show_warns_about_required_roles_for_every_document_type(): void {
+        $profile = $this->draft(); // hanya receivable dan revenue; engine selalu aktif sehingga semua jenis diperiksa
 
         $this->actingWith(['select', 'read'])->get(route('postingProfiles.show', $profile))
             ->assertInertia(fn ($page) => $page
-                ->has('unmapped', 1)
-                ->where('unmapped.0.document_type', 'purchase_receipt')
-                ->where('unmapped.0.roles', ['stock', 'stock_received_but_not_billed']));
+                ->has('unmapped', 6)
+                ->where('unmapped', fn ($unmapped) => collect($unmapped)->mapWithKeys(fn ($row) => [$row['document_type'] => $row['roles']])->all() === [
+                    'purchase_invoice'       => ['stock', 'stock_received_but_not_billed', 'expense', 'payable'],
+                    'purchase_receipt'       => ['stock', 'stock_received_but_not_billed'],
+                    'delivery_note'          => ['cost_of_goods_sold', 'stock'],
+                    'payment_entry'          => ['payable'],
+                    'stock_entry'            => ['stock', 'stock_adjustment', 'expense_included_in_valuation'],
+                    'asset_value_adjustment' => ['asset_revaluation'],
+                ]));
     }
 
-    public function test_show_has_no_unmapped_warning_when_every_type_is_off(): void {
-        $profile = $this->draft();
+    public function test_show_has_no_unmapped_warning_when_every_required_role_is_mapped(): void {
+        $roles = [];
+        foreach (PostingDocumentType::cases() as $type) {
+            foreach (PostingRoleRequirements::for($type) as $role) {
+                $roles[$role->value] = $this->other->id;
+            }
+        }
+        $profile = $this->service->createDraft('Profil lengkap', '2026-01-01', null, $roles);
 
         $this->actingWith(['select', 'read'])->get(route('postingProfiles.show', $profile))
             ->assertInertia(fn ($page) => $page->where('unmapped', []));
@@ -448,6 +451,307 @@ class PostingProfileControllerTest extends TestCase {
         $this->actingWith(['select', 'activate'])->put(route('postingProfiles.retire', $draft))->assertSessionHasErrors('profile');
 
         $this->assertSame('draft', $draft->refresh()->status);
+    }
+
+    // --- Editor aturan akun bersyarat (Task 12.2, Requirement 12.1-12.6) ---
+
+    private function category(string $name = 'Kategori', bool $deleted = false): string {
+        $id = (string) Str::ulid();
+        DB::table('categories')->insert(['id' => $id, 'name' => $name, 'type' => 'inventory', 'created_at' => now(), 'updated_at' => now(), 'deleted_at' => $deleted ? now() : null]);
+
+        return $id;
+    }
+
+    /**
+     * @param  array<string, mixed>  $overrides
+     * @return array<string, mixed>
+     */
+    private function ruleRow(array $overrides = []): array {
+        return [
+            'role'             => 'revenue',
+            'document_type'    => 'sales_invoice',
+            'variant'          => 'return',
+            'item_type'        => null,
+            'is_stock_item'    => null,
+            'item_category_id' => null,
+            'account_id'       => $this->other->id,
+            'priority'         => 0,
+            ...$overrides,
+        ];
+    }
+
+    /**
+     * @param  array<string, mixed>  $extra
+     * @return array<string, mixed>
+     */
+    private function updatePayload(array $extra): array {
+        return ['name' => 'Profil', 'effective_from' => '2026-01-01', ...$extra];
+    }
+
+    public function test_save_creates_draft_with_conditional_rules(): void {
+        $category = $this->category();
+
+        $this->actingWith(['select', 'write'])->post(route('postingProfiles.save'), $this->updatePayload([
+            'accounts' => ['receivable' => $this->receivable->id],
+            'rules'    => [
+                $this->ruleRow(['priority' => 3]),
+                $this->ruleRow(['variant' => null, 'document_type' => null, 'item_type' => 'inventory', 'is_stock_item' => false, 'item_category_id' => $category]),
+            ],
+        ]))->assertSessionHasNoErrors()->assertRedirect();
+
+        $profile = PostingProfile::query()->firstOrFail();
+        $this->assertSame(2, $profile->rules()->count());
+        $first = $profile->rules()->where('variant', 'return')->firstOrFail();
+        $this->assertSame('sales_invoice', $first->document_type);
+        $this->assertSame(3, $first->priority);
+        $this->assertSame($this->other->id, $first->account_id);
+        $second = $profile->rules()->whereNull('variant')->firstOrFail();
+        $this->assertFalse($second->is_stock_item);
+        $this->assertSame($category, $second->item_category_id);
+    }
+
+    public function test_update_replaces_rules_and_an_empty_list_clears_them(): void {
+        $profile = $this->service->createDraft('Awal', '2026-01-01', null, [], [
+            ['role' => 'revenue', 'account_id' => $this->other->id, 'document_type' => 'sales_invoice', 'variant' => 'return'],
+            ['role' => 'revenue', 'account_id' => $this->other->id, 'document_type' => 'purchase_invoice'],
+        ]);
+
+        $this->actingWith(['select', 'read', 'write'])->put(route('postingProfiles.update', $profile), $this->updatePayload([
+            'rules' => [$this->ruleRow(['variant' => 'normal'])],
+        ]))->assertSessionHasNoErrors();
+
+        $this->assertSame(['normal'], $profile->rules()->pluck('variant')->all());
+
+        $this->actingWith(['select', 'read', 'write'])->put(route('postingProfiles.update', $profile), $this->updatePayload(['rules' => []]))
+            ->assertSessionHasNoErrors();
+
+        $this->assertSame(0, $profile->rules()->count());
+    }
+
+    public function test_update_without_rules_key_keeps_the_existing_rules(): void {
+        $profile = $this->service->createDraft('Awal', '2026-01-01', null, [], [
+            ['role' => 'revenue', 'account_id' => $this->other->id, 'document_type' => 'sales_invoice', 'variant' => 'return'],
+        ]);
+
+        $this->actingWith(['select', 'read', 'write'])->put(route('postingProfiles.update', $profile), $this->updatePayload(['name' => 'Ganti']))
+            ->assertSessionHasNoErrors();
+
+        $this->assertSame(1, $profile->rules()->count());
+    }
+
+    public function test_update_keeps_rules_of_custom_roles_outside_the_catalog(): void {
+        $profile = $this->service->createDraft('Awal', '2026-01-01', null, [], [
+            ['role' => 'custom_tax', 'account_id' => $this->other->id, 'document_type' => 'sales_invoice', 'priority' => 5],
+            ['role' => 'revenue', 'account_id' => $this->other->id, 'document_type' => 'sales_invoice'],
+        ]);
+
+        $this->actingWith(['select', 'read', 'write'])->put(route('postingProfiles.update', $profile), $this->updatePayload(['rules' => []]))
+            ->assertSessionHasNoErrors();
+
+        $this->assertSame(['custom_tax'], $profile->rules()->pluck('role')->all());
+        $this->assertSame(5, $profile->rules()->value('priority'));
+    }
+
+    public function test_update_can_remove_custom_role_rule_even_when_its_account_is_disabled(): void {
+        $profile = $this->service->createDraft('Awal', '2026-01-01', null, [], [
+            ['role' => 'custom_tax', 'account_id' => $this->other->id, 'document_type' => 'sales_invoice', 'priority' => 5],
+            ['role' => 'revenue', 'account_id' => $this->other->id, 'document_type' => 'sales_invoice'],
+        ]);
+        $this->other->forceFill(['is_disabled' => true])->save();
+        $custom = $profile->rules()->where('role', 'custom_tax')->firstOrFail();
+        $url    = route('postingProfiles.update', $profile);
+        $acting = $this->actingWith(['select', 'read', 'write']);
+
+        // Aturan kustom yang dibawa kembali divalidasi ulang service: akun nonaktif membuat simpan macet.
+        $acting->put($url, $this->updatePayload(['rules' => [], 'custom_rule_ids' => [$custom->id]]))
+            ->assertSessionHasErrors(['profile']);
+        $this->assertEqualsCanonicalizing(['custom_tax', 'revenue'], $profile->rules()->pluck('role')->all());
+
+        // Tidak dikirim kembali: aturan kustom ikut terhapus dan simpan berhasil.
+        $this->actingWith(['select', 'read', 'write'])->put($url, $this->updatePayload(['rules' => [], 'custom_rule_ids' => []]))
+            ->assertSessionHasNoErrors();
+        $this->assertSame(0, $profile->rules()->count());
+    }
+
+    public function test_update_keeps_only_the_listed_custom_role_rules(): void {
+        $profile = $this->service->createDraft('Awal', '2026-01-01', null, [], [
+            ['role' => 'custom_tax', 'account_id' => $this->other->id, 'document_type' => 'sales_invoice', 'priority' => 5],
+            ['role' => 'custom_fee', 'account_id' => $this->other->id, 'document_type' => 'sales_invoice', 'priority' => 6],
+        ]);
+        $keep = $profile->rules()->where('role', 'custom_fee')->firstOrFail();
+
+        $this->actingWith(['select', 'read', 'write'])->put(route('postingProfiles.update', $profile), $this->updatePayload(['rules' => [], 'custom_rule_ids' => [$keep->id, 'tidak-ada']]))
+            ->assertSessionHasNoErrors();
+
+        $this->assertSame(['custom_fee'], $profile->rules()->pluck('role')->all());
+    }
+
+    public function test_update_rejects_duplicate_condition_combinations_per_row(): void {
+        $profile = $this->draft();
+
+        $this->actingWith(['select', 'read', 'write'])->put(route('postingProfiles.update', $profile), $this->updatePayload([
+            'rules' => [$this->ruleRow(), $this->ruleRow(['priority' => 9, 'account_id' => $this->revenue->id])],
+        ]))->assertSessionHasErrors(['rules.1.role']);
+
+        $this->assertSame(0, $profile->rules()->count());
+    }
+
+    public function test_update_treats_blank_and_null_conditions_as_the_same_combination(): void {
+        $profile = $this->draft();
+
+        // Isian kosong (diubah middleware menjadi null) dan null identik; false pada is_stock_item berbeda dari null.
+        $this->actingWith(['select', 'read', 'write'])->put(route('postingProfiles.update', $profile), $this->updatePayload([
+            'rules' => [
+                $this->ruleRow(['variant' => null, 'document_type' => '']),
+                $this->ruleRow(['variant' => '', 'document_type' => null]),
+            ],
+        ]))->assertSessionHasErrors(['rules.1.role']);
+
+        $this->actingWith(['select', 'read', 'write'])->put(route('postingProfiles.update', $profile), $this->updatePayload([
+            'rules' => [
+                $this->ruleRow(['variant' => null, 'document_type' => null, 'is_stock_item' => null]),
+                $this->ruleRow(['variant' => null, 'document_type' => null, 'is_stock_item' => false]),
+            ],
+        ]))->assertSessionHasNoErrors();
+        $this->assertSame(2, $profile->rules()->count());
+    }
+
+    public function test_update_rejects_item_conditions_on_roles_that_are_not_line_sensitive(): void {
+        $profile = $this->draft();
+
+        $this->actingWith(['select', 'read', 'write'])->put(route('postingProfiles.update', $profile), $this->updatePayload([
+            'rules' => [$this->ruleRow(['role' => 'discount', 'item_type' => 'inventory'])],
+        ]))->assertSessionHasErrors(['rules.0.role']);
+
+        $this->assertSame(0, $profile->rules()->count());
+    }
+
+    public function test_update_rejects_invalid_rule_fields(): void {
+        $profile = $this->draft();
+        $cases   = [
+            'rules.0.role'             => ['role' => 'tidak_ada'],
+            'rules.0.document_type'    => ['document_type' => 'tidak_ada'],
+            'rules.0.variant'          => ['variant' => 'campur'],
+            'rules.0.item_type'        => ['item_type' => 'tidak_ada'],
+            'rules.0.priority'         => ['priority' => -1],
+            'rules.0.account_id'       => ['account_id' => null],
+            'rules.0.item_category_id' => ['item_category_id' => $this->category('Terhapus', deleted: true)],
+        ];
+
+        foreach ($cases as $field => $override) {
+            $this->actingWith(['select', 'read', 'write'])->put(route('postingProfiles.update', $profile), $this->updatePayload([
+                'rules' => [$this->ruleRow($override)],
+            ]))->assertSessionHasErrors($field);
+        }
+
+        $this->assertSame(0, $profile->rules()->count());
+    }
+
+    public function test_update_rejects_array_values_in_rule_rows_with_a_validation_error(): void {
+        $profile = $this->draft();
+
+        foreach (['account_id', 'item_category_id', 'priority'] as $field) {
+            $this->actingWith(['select', 'read', 'write'])->put(route('postingProfiles.update', $profile), $this->updatePayload([
+                'rules' => [$this->ruleRow(['role' => 'revenue', $field => ['x']])],
+            ]))->assertSessionHasErrors("rules.0.{$field}");
+        }
+
+        $this->assertSame(0, $profile->rules()->count());
+    }
+
+    public function test_update_attaches_unusable_rule_account_errors_to_the_row(): void {
+        $profile  = $this->draft();
+        $disabled = Account::create(['account_name' => 'Nonaktif', 'account_number' => '1100', 'root_type' => 'asset', 'report_type' => 'balance_sheet', 'balance_type' => 'debit', 'is_disabled' => true]);
+
+        $this->actingWith(['select', 'read', 'write'])->put(route('postingProfiles.update', $profile), $this->updatePayload([
+            'rules' => [
+                $this->ruleRow(['variant' => 'normal']),
+                $this->ruleRow(['account_id' => $disabled->id]),
+                $this->ruleRow(['variant' => null, 'account_id' => '01ARZ3NDEKTSV4RRFFQ69G5FAV']),
+            ],
+        ]))->assertSessionHasErrors(['rules.1.account_id', 'rules.2.account_id'])
+            ->assertSessionDoesntHaveErrors(['rules.0.account_id']);
+
+        $this->assertSame(0, $profile->rules()->count());
+    }
+
+    public function test_update_with_null_rules_keeps_the_existing_rules(): void {
+        $profile = $this->service->createDraft('Awal', '2026-01-01', null, [], [
+            ['role' => 'revenue', 'account_id' => $this->other->id, 'document_type' => 'sales_invoice'],
+        ]);
+
+        $this->actingWith(['select', 'read', 'write'])->put(route('postingProfiles.update', $profile), $this->updatePayload(['rules' => null]))
+            ->assertSessionHasNoErrors();
+
+        $this->assertSame(1, $profile->rules()->count());
+    }
+
+    public function test_update_rejects_unknown_keys_inside_a_rule_row(): void {
+        $profile = $this->draft();
+
+        $this->actingWith(['select', 'read', 'write'])->put(route('postingProfiles.update', $profile), $this->updatePayload([
+            'rules' => [$this->ruleRow(['posting_profile_id' => 'x', 'id' => 'y'])],
+        ]))->assertSessionHasErrors(['rules.0.posting_profile_id', 'rules.0.id']);
+    }
+
+    public function test_update_with_unusable_rule_account_rolls_back_the_whole_save(): void {
+        $profile = $this->service->createDraft('Awal', '2026-01-01', null, [], [
+            ['role' => 'revenue', 'account_id' => $this->other->id, 'document_type' => 'sales_invoice'],
+        ]);
+        $group = Account::create(['account_name' => 'Grup', 'account_number' => '1000', 'root_type' => 'asset', 'report_type' => 'balance_sheet', 'balance_type' => 'debit', 'is_group' => true]);
+
+        $this->actingWith(['select', 'read', 'write'])->put(route('postingProfiles.update', $profile), $this->updatePayload([
+            'name'  => 'Tidak Boleh Tersimpan',
+            'rules' => [$this->ruleRow(['account_id' => $group->id])],
+        ]))->assertSessionHasErrors('rules.0.account_id');
+
+        $profile->refresh();
+        $this->assertSame('Awal', $profile->name);
+        $this->assertSame(['sales_invoice'], $profile->rules()->pluck('document_type')->all());
+    }
+
+    public function test_active_profile_rules_cannot_be_edited(): void {
+        $profile = $this->active();
+
+        $this->actingWith(['select', 'read', 'write'])->put(route('postingProfiles.update', $profile), $this->updatePayload([
+            'rules' => [$this->ruleRow()],
+        ]))->assertSessionHasErrors('profile');
+
+        $this->assertSame(0, $profile->rules()->count());
+    }
+
+    public function test_rules_write_requires_write_permission(): void {
+        $profile = $this->draft();
+
+        $this->actingWith(['select', 'read'])->put(route('postingProfiles.update', $profile), $this->updatePayload([
+            'rules' => [$this->ruleRow()],
+        ]))->assertForbidden();
+
+        $this->assertSame(0, $profile->rules()->count());
+    }
+
+    public function test_show_exposes_rule_editor_catalog_and_category_payload(): void {
+        $category = $this->category('Suku Cadang');
+        $deleted  = $this->category('Lama', deleted: true);
+        $profile  = $this->service->createDraft('Profil', '2026-01-01', null, [], [
+            ['role' => 'revenue', 'account_id' => $this->other->id, 'item_category_id' => $category, 'priority' => 4],
+            ['role' => 'expense', 'account_id' => $this->other->id, 'document_type' => 'purchase_invoice'],
+        ]);
+        // Kategori terhapus disisipkan langsung: service menolak kategori terhapus, tetapi data lama dapat memilikinya.
+        DB::table('posting_profile_rules')->where('role', 'expense')->update(['item_category_id' => $deleted]);
+
+        $this->actingWith(['select', 'read', 'write'])->get(route('postingProfiles.show', $profile))
+            ->assertInertia(function ($page) use ($category, $deleted): void {
+                $props = $page->toArray()['props'];
+                $this->assertSame(PostingProfileService::ITEM_TYPES, $props['itemTypes']);
+                $rules = collect($props['profile']['rules'])->keyBy('role');
+                $this->assertSame($category, $rules['revenue']['item_category_id']);
+                $this->assertSame('Suku Cadang', $rules['revenue']['category']['name']);
+                $this->assertSame(Category::class, $rules['revenue']['category']['thisModel']);
+                $this->assertSame($deleted, $rules['expense']['item_category_id']);
+                $this->assertSame('Lama', $rules['expense']['category']['name']);
+                $this->assertNotNull($rules['expense']['category']['deleted_at']);
+            });
     }
 
     public function test_controllers_never_write_models_directly(): void {

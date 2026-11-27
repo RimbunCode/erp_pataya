@@ -3,12 +3,14 @@
 namespace App\Models\Purchase;
 
 use App\Models\Asset\Asset;
+use App\Models\Finances\Account;
 use App\Models\Inventory\ItemUnit;
 use App\Models\Inventory\ItemVariant;
 use App\Models\Inventory\Warehouse;
 use App\Models\Model;
 use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Database\Eloquent\Concerns\HasUlids;
+use Illuminate\Database\Eloquent\Relations\BelongsTo;
 use Illuminate\Database\Eloquent\Relations\HasOne;
 use Illuminate\Database\Eloquent\SoftDeletes;
 
@@ -33,6 +35,7 @@ class PurchaseReceiptItem extends Model {
         'returned_quantity'   => 'float',
         'billed_quantity'     => 'float',
         'unreturned_quantity' => 'float',
+        'gl_value'            => 'float',
     ];
     protected array $configColumns = [
         'item' => [
@@ -93,6 +96,17 @@ class PurchaseReceiptItem extends Model {
         'return_against_item_id' => [
             'ignore' => true,
         ],
+        // Catatan audit akun yang dipakai engine (Task 12.1): bukan kolom tabel data.
+        'posted_account_id' => [
+            'ignore' => true,
+        ],
+        'postedAccount' => [
+            'ignore' => true,
+        ],
+        // Nilai GL per baris yang dicatat saat approve, dipakai retry posting: bukan kolom tabel data.
+        'gl_value' => [
+            'ignore' => true,
+        ],
     ];
 
     public function purchaseReceipt() {
@@ -120,6 +134,13 @@ class PurchaseReceiptItem extends Model {
 
     public function targetWarehouse() {
         return $this->belongsTo(Warehouse::class);
+    }
+
+    /**
+     * Akun `stock` yang dipakai engine saat jurnal baris ini diposting (catatan audit, Task 12.1).
+     */
+    public function postedAccount(): BelongsTo {
+        return $this->belongsTo(Account::class, 'posted_account_id');
     }
 
     public function returnAgainstItem() {

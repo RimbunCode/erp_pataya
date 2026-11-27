@@ -4,10 +4,9 @@ namespace App\Listeners\Asset\Rental;
 
 use App\Enums\FormStatus;
 use App\Events\Asset\AssetSoldViaInvoice;
-use App\Exceptions\Finances\DuplicatePostingException;
+use App\Models\Asset\Asset;
 use App\Models\Core\GlPostingStatus;
 use App\Services\Asset\Accounting\AssetPostingContextFactory;
-use App\Services\Finances\Ledger\JournalService;
 use App\Services\Finances\Posting\PostingGateway;
 use Illuminate\Contracts\Queue\ShouldQueue;
 use Illuminate\Foundation\Bus\Dispatchable;
@@ -25,21 +24,38 @@ class PostAssetDisposalGainLoss implements ShouldQueue {
 
     public function handle(AssetSoldViaInvoice $event): void {
         DB::transaction(function () use ($event) {
+            // Kunci aset lebih dulu (sebelum pembacaan biasa apa pun) agar bergantian dengan `SalesInvoiceService::cancel`
+            // yang mengunci aset yang sama: status invoice yang dibaca guard sesudahnya sudah mencakup pembatalan yang commit.
+            if ($event->line->asset_id !== null) {
+                Asset::query()->whereKey($event->line->asset_id)->lockForUpdate()->first(['id']);
+            }
+
             $line = $event->line->fresh();
             if (! $line || $line->processed_at) {
                 return;
             }
 
-            $asset      = $line->asset;
-            $parentItem = $line;
+            // Baris RETUR tidak memposting pelepasan (T-7): pemulihan aset karena retur diputuskan terpisah. Status `skipped`
+            // tanpa `processed_at`, sama dengan jalur Sales Invoice dibatalkan.
+            if ($line->salesInvoice?->return_against_id !== null) {
+                GlPostingStatus::updateOrCreate(
+                    ['referenceable_type' => $line::class, 'referenceable_id' => $line->id],
+                    ['status' => FormStatus::SKIPPED->value],
+                );
 
-            $proportionPrice = $parentItem->quantity > 0
-                ? ($parentItem->price / $parentItem->quantity) * $line->quantity
-                : 0;
-            $proportionBook = $asset->asset_quantity > 0
-                ? $asset->bookValue() * ($line->quantity / $asset->asset_quantity)
-                : 0;
-            $gainLoss = $proportionPrice - $proportionBook;
+                return;
+            }
+
+            $asset = $line->asset;
+
+            // Bentuk baku (T-7): hasil penjualan = DPP baris dikurangi diskon (basic_amount - discount_amount, TANPA pajak
+            // yang masih menyatu di pendapatan sampai Fase 3, F-03), bukan harga satuan. Harga perolehan dan akumulasi
+            // penyusutan (jadwal terposting + saldo awal) proporsional terhadap qty baris / qty aset. Jadwal penyusutan
+            // tidak dikurangi setelah penjualan sebagian (risiko terpisah, dicatat di spek).
+            $ratio       = (float) $asset->asset_quantity > 0 ? (float) $line->quantity / (float) $asset->asset_quantity : 0.0;
+            $proceeds    = (float) $line->basic_amount - (float) $line->discount_amount;
+            $cost        = (float) $asset->total_asset_cost * $ratio;
+            $accumulated = $asset->accumulatedDepreciation() * $ratio;
 
             $branchId = $asset->branch()?->id;
             $accounts = $asset->assetCategory?->accounts()
@@ -50,37 +66,11 @@ class PostAssetDisposalGainLoss implements ShouldQueue {
                 throw new LogicException("AssetCategoryAccount tidak ditemukan untuk Asset {$asset->id} (branch {$branchId}).");
             }
 
-            // Gateway Posting Engine (Finance Fase 2, Task 7.1): closure = jalur Fase 1 apa adanya (mode `off`/`shadow`).
-            // Dokumen penjaga guard cancel adalah Sales Invoice sumber baris (Q-P2-13), bukan aset.
+            // Gateway Posting Engine (Finance Fase 2, Task 7.1; closure legacy dihapus Task 14.1). Dokumen penjaga guard
+            // cancel adalah Sales Invoice sumber baris (Q-P2-13), bukan aset. Kunci idempotensi per baris invoice
+            // (`disposal:{sales_invoice_item_id}`, Q-P1-6) dipegang rule engine.
             $outcome = app(PostingGateway::class)->post(
-                app(AssetPostingContextFactory::class)->disposal($line, $asset, $accounts, (float) $gainLoss, now()),
-                function () use ($line, $asset, $accounts, $gainLoss) {
-                    if (abs($gainLoss) > 0.0001) {
-                        $fixedAccount    = $accounts->fixedAssetAccount()->lockForUpdate()->first();
-                        $gainLossAccount = $accounts->gainLossDisposalAccount()->lockForUpdate()->first();
-
-                        if (! $gainLossAccount) {
-                            throw new LogicException("gain_loss_disposal_account_id belum diisi untuk AssetCategoryAccount Asset {$asset->id}.");
-                        }
-
-                        // Untung: debit akun selisih, kredit aset tetap. Rugi: debit aset tetap, kredit akun selisih.
-                        // Keputusan pemilik produk 2026-11-04 (Q-P1-6): kunci idempotensi per baris invoice
-                        // (`purpose` = `disposal:{sales_invoice_item_id}`), sehingga baris penjualan lain atas aset yang sama
-                        // punya posting sendiri dan baris yang sama tidak dapat diposting dua kali.
-                        try {
-                            app(JournalService::class)->postPair(
-                                $gainLoss >= 0 ? $gainLossAccount->id : $fixedAccount->id,
-                                $gainLoss >= 0 ? $fixedAccount->id : $gainLossAccount->id,
-                                abs($gainLoss),
-                                $asset,
-                                now(),
-                                purpose: "disposal:{$line->id}",
-                            );
-                        } catch (DuplicatePostingException) {
-                            // Baris invoice ini sudah diposting (Requirement 3.3).
-                        }
-                    }
-                },
+                app(AssetPostingContextFactory::class)->disposal($line, $asset, $accounts, $proceeds, $cost, $accumulated, now(), $event->invoiceDate),
             );
 
             if ($outcome->isSkipped()) {
@@ -104,6 +94,12 @@ class PostAssetDisposalGainLoss implements ShouldQueue {
             );
 
             $line->update(['processed_at' => now()]);
+
+            // Seluruh qty aset sudah dilepas lewat jurnal terposting (walau DN belum/tak pernah dibuat): hentikan jadwal
+            // penyusutan yang belum terposting agar tidak ada akumulasi bersaldo kredit tanpa aset. Idempoten.
+            if ($asset->hasFullyPostedDisposal()) {
+                $asset->deleteUnpostedDepreciationSchedules();
+            }
         });
     }
 

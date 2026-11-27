@@ -8,12 +8,14 @@ use App\Listeners\Finances\Ledger\PostSalesInvoiceGeneralLedger;
 use App\Models\Core\GlPostingStatus;
 use App\Models\Finances\GeneralLedger;
 use App\Models\Finances\Journal;
+use App\Models\Finances\PostingProfile;
 use App\Models\Finances\SalesInvoice;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Schema;
 use Illuminate\Support\Str;
 use RuntimeException;
+use Tests\Support\EnablesEnginePosting;
 use Tests\TestCase;
 
 /**
@@ -21,7 +23,7 @@ use Tests\TestCase;
  * untuk hindari boot hook Eloquent -- pola sama dengan PostPurchaseInvoiceGeneralLedgerTest.
  */
 class PostSalesInvoiceGeneralLedgerTest extends TestCase {
-    use RefreshDatabase;
+    use EnablesEnginePosting, RefreshDatabase;
 
     protected function setUp(): void {
         parent::setUp();
@@ -35,6 +37,7 @@ class PostSalesInvoiceGeneralLedgerTest extends TestCase {
 
         GeneralLedger::initPermissions();
         Journal::initPermissions();
+        PostingProfile::initPermissions();
     }
 
     private function makeAccountId(string $rootType, string $accountType): string {
@@ -74,7 +77,9 @@ class PostSalesInvoiceGeneralLedgerTest extends TestCase {
     public function test_handle_creates_credit_and_debit_entries(): void {
         $debitAccountId  = $this->makeAccountId('asset', 'accounts_receivable');
         $creditAccountId = $this->makeAccountId('income', 'sales');
-        $salesInvoiceId  = $this->makeSalesInvoiceId($debitAccountId, $creditAccountId);
+        // Task 14.1: closure legacy dihapus; jurnal ditulis engine dengan akun dari profil.
+        $this->enableEnginePosting(['receivable' => $debitAccountId, 'revenue' => $creditAccountId]);
+        $salesInvoiceId = $this->makeSalesInvoiceId($debitAccountId, $creditAccountId);
 
         GlPostingStatus::create([
             'referenceable_type' => SalesInvoice::class,
@@ -116,7 +121,8 @@ class PostSalesInvoiceGeneralLedgerTest extends TestCase {
     public function test_handle_reverses_debit_credit_when_return(): void {
         $debitAccountId  = $this->makeAccountId('asset', 'accounts_receivable');
         $creditAccountId = $this->makeAccountId('income', 'sales');
-        $salesInvoiceId  = $this->makeSalesInvoiceId($debitAccountId, $creditAccountId);
+        $this->enableEnginePosting(['receivable' => $debitAccountId, 'revenue' => $creditAccountId]);
+        $salesInvoiceId = $this->makeSalesInvoiceId($debitAccountId, $creditAccountId);
 
         GlPostingStatus::create([
             'referenceable_type' => SalesInvoice::class,

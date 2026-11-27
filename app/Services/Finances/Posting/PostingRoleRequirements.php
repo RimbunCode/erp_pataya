@@ -4,7 +4,6 @@ namespace App\Services\Finances\Posting;
 
 use App\Enums\AccountRole;
 use App\Enums\PostingDocumentType;
-use App\Models\Finances\FinanceSetting;
 use App\Models\Finances\PostingProfile;
 
 /**
@@ -29,27 +28,24 @@ final class PostingRoleRequirements {
             PostingDocumentType::StockEntry           => [AccountRole::Stock, AccountRole::StockAdjustment, AccountRole::ExpenseIncludedInValuation],
             PostingDocumentType::AssetValueAdjustment => [AccountRole::AssetRevaluation],
             PostingDocumentType::AssetDepreciation,
-            PostingDocumentType::AssetScrap,
-            PostingDocumentType::AssetDisposal => [],
+            PostingDocumentType::AssetScrap => [],
+            // T-7 (opsi A): pelepasan membalik pendapatan baris aset, jadi `revenue` (peka-barang, diskon bila posting diskon
+            // terpisah) harus ter-resolve; peran aset tetap berasal dari akun master kategori aset.
+            PostingDocumentType::AssetDisposal => [AccountRole::Revenue],
         };
     }
 
     /**
-     * Peran wajib yang belum dipetakan pada akun default profil, hanya untuk jenis dokumen yang tidak berstatus
-     * `off` (jenis `off` memakai jalur lama sehingga profil tidak dipakainya).
+     * Peran wajib yang belum dipetakan pada akun default profil, untuk semua jenis dokumen (engine selalu aktif;
+     * mode off/shadow dihapus 2026-11-22, Q-P2-23).
      *
-     * @param  array<string, string>  $modes  peta jenis dokumen => mode
      * @return list<array{document_type: string, roles: list<string>}>
      */
-    public static function unmapped(PostingProfile $profile, array $modes): array {
+    public static function unmapped(PostingProfile $profile): array {
         $mapped = $profile->accounts()->pluck('role')->all();
         $result = [];
 
         foreach (PostingDocumentType::cases() as $type) {
-            if (($modes[$type->value] ?? FinanceSetting::POSTING_MODE_OFF) === FinanceSetting::POSTING_MODE_OFF) {
-                continue;
-            }
-
             $missing = array_values(array_map(
                 static fn (AccountRole $role): string => $role->value,
                 array_filter(self::for($type), static fn (AccountRole $role): bool => ! \in_array($role->value, $mapped, true)),

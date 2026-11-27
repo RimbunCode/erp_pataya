@@ -14,7 +14,6 @@ return [
     'detail'             => 'Detail',
     'items'              => 'Item',
     'additional_costs'   => 'Biaya Tambahan',
-    'accounting'         => 'Akuntansi',
     'columns'            => [
         'code'                     => 'Kode',
         'date'                     => 'Tanggal',

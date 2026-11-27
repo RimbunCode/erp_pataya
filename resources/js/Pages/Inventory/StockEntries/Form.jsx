@@ -1,8 +1,7 @@
 import { FormPageContent, useFormPage } from "@/Pages/Core/FormPage";
 import React, { useCallback, useMemo, useRef } from "react";
-import { calculateArray, getDataModel } from "@/lib/utils";
+import { calculateArray } from "@/lib/utils";
 
-import AccountLinkModel from "@/Pages/Finances/Accounts/AccountLinkModel";
 import NumberInput from "@/Components/NumberInput";
 import DatetimePicker from "@/Components/DatetimePicker";
 import { FormCheckbox } from "@/Components/ui/checkbox";
@@ -17,22 +16,10 @@ import { useLaravelReactI18n } from "laravel-react-i18n";
 import { usePage } from "@inertiajs/react";
 
 export default function Form() {
-  const defaultValue = useCallback(async () => {
-    const account = await getDataModel(
-      "App\\Models\\Finances\\Account",
-      {
-        root_type: "expense",
-        account_type: "stock_adjustment",
-      },
-      {
-        limit: 1,
-      },
-    );
-    return {
-      date: new Date(),
-      difference_account: account,
-    };
-  }, []);
+  // Akun pencatatan (akun selisih dan akun biaya tambahan) ditentukan engine
+  // saat posting (Finance Fase 2, Task 12.3, Q-P2-23), jadi form tidak meminta
+  // maupun mengisi default akun.
+  const defaultValue = useCallback(async () => ({ date: new Date() }), []);
 
   const { defaultData, data, setData, disabled, dataBefore } =
     useFormPage(defaultValue);
@@ -370,31 +357,6 @@ export default function Form() {
   const additionalCostColumns = useMemo(() => {
     return [
       {
-        name: "expense_account",
-        required: true,
-        titleTrans: "finances.additionalCost.columns.expense_account",
-        cell({ data, setData, attributes }) {
-          return (
-            <AccountLinkModel
-              onValueChange={(val) => setData("expense_account", val)}
-              value={data}
-              filters={{
-                account_type: {
-                  in: [
-                    "tax",
-                    "chargeable",
-                    "income_account",
-                    "expenses_included_in_valuation",
-                    "expenses_included_in_asset_valuation",
-                  ],
-                },
-              }}
-              {...attributes}
-            />
-          );
-        },
-      },
-      {
         name: "purpose",
         titleTrans: "finances.additionalCost.columns.purpose",
         type: "text",
@@ -472,29 +434,6 @@ export default function Form() {
               onCheckedChange={(val) => setData("using_transit", val)}
             />
           )}
-        </div>
-      </FormPageContent>
-      <FormPageContent
-        value="detail"
-        title={t("inventory.stockEntry.accounting")}
-      >
-        <div className="grid gap-x-4 gap-y-4 md:grid-cols-2 grid-cols-1">
-          <FormInput
-            name="difference_account"
-            required
-            label={t("inventory.stockEntry.columns.difference_account")}
-          >
-            <AccountLinkModel
-              value={data.difference_account}
-              onValueChange={(val) => setData("difference_account", val)}
-              filters={{
-                is_group: false,
-                root_type: {
-                  in: ["liability", "equity", "expense"],
-                },
-              }}
-            />
-          </FormInput>
         </div>
       </FormPageContent>
       <FormPageContent title={t("inventory.stockEntry.items")} value="detail">

@@ -102,6 +102,13 @@ vi.mock("@/Pages/Core/Components/RelationPanels", () => ({
   default: () => null,
 }));
 
+// PostedAccountsPanel butuh konteks FormPage dan Inertia; diuji terpisah di PostedAccountsPanel.rtl.test.jsx.
+vi.mock("@/Pages/Finances/Components/PostedAccountsPanel", () => ({
+  default: ({ isNew }) => (
+    <div data-testid="posted-accounts-panel" data-new={String(!!isNew)} />
+  ),
+}));
+
 import Show from "./Show";
 
 function basePurchaseReceipt(overrides = {}) {

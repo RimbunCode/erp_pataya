@@ -10,10 +10,20 @@ use Illuminate\Validation\Rule;
 class FinanceSetting extends ModuleSetting {
     use HasFactory;
 
-    public const POSTING_MODE_OFF    = 'off';
-    public const POSTING_MODE_SHADOW = 'shadow';
-    public const POSTING_MODE_ON     = 'on';
-    public const POSTING_MODES       = [self::POSTING_MODE_OFF, self::POSTING_MODE_SHADOW, self::POSTING_MODE_ON];
+    /** Eksekusi posting GL (D-1 opsi C, 2026-11-21): `inline` = dalam transaksi dokumen, `queue` = lewat antrean. */
+    public const POSTING_EXECUTION_INLINE = 'inline';
+
+    public const POSTING_EXECUTION_QUEUE = 'queue';
+    public const POSTING_EXECUTIONS      = [self::POSTING_EXECUTION_INLINE, self::POSTING_EXECUTION_QUEUE];
+
+    /**
+     * Kolom tanggal cutover posting diskon terpisah per jenis dokumen (Finance Fase 2, Requirement 14.1): nama logis
+     * `finance_discount_split_from.{type}`. Null = tidak aktif.
+     */
+    public const DISCOUNT_SPLIT_COLUMNS = [
+        'sales_invoice'    => 'discount_split_from_sales_invoice',
+        'purchase_invoice' => 'discount_split_from_purchase_invoice',
+    ];
 
     /**
      * Jenis dokumen yang memiliki cutover pemisahan baris pajak (`finance_tax_split_from.{type}`, Requirement 7.5).
@@ -36,11 +46,25 @@ class FinanceSetting extends ModuleSetting {
             'tax_invoice_serial_range_end'   => 'integer',
             'tax_invoice_serial_last_used'   => 'integer',
             'enforce_fiscal_period'          => 'boolean',
-            'posting_modes'                  => 'array',
+            'posting_executions'             => 'array',
             'tax_split_from'                 => 'array',
             'company_is_pkp'                 => 'boolean',
             'tax_engine_calc_enabled'        => 'boolean',
         ];
+    }
+
+    /**
+     * Tanggal cutover posting diskon terpisah (`Y-m-d`) untuk jenis dokumen itu, atau null bila tidak aktif atau jenis
+     * dokumen tidak mengenal posting diskon.
+     *
+     * Kolom sengaja TIDAK memakai cast `date`: halaman setting mengirim atribut apa adanya ke Inertia dan form mengirim
+     * ulang seluruh nilai awal saat simpan, sehingga cast akan menghasilkan timestamp ISO yang ditolak `date_format:Y-m-d`.
+     */
+    public function discountSplitFrom(PostingDocumentType $type): ?string {
+        $column = self::DISCOUNT_SPLIT_COLUMNS[$type->value] ?? null;
+        $value  = $column === null ? null : $this->{$column};
+
+        return $value === null || $value === '' ? null : substr((string) $value, 0, 10);
     }
 
     protected static function defaults(): array {
@@ -50,8 +74,11 @@ class FinanceSetting extends ModuleSetting {
             'tax_invoice_serial_last_used'   => 0,
             // PRD D-25 `finance_enforce_fiscal_period`; Q-P1-2: nonaktif dulu, diaktifkan manual.
             'enforce_fiscal_period' => false,
-            // Finance Fase 2, Requirement 6.1: semua jenis dokumen `off` sampai ada keputusan eksplisit per jenis.
-            'posting_modes' => array_fill_keys(PostingDocumentType::values(), self::POSTING_MODE_OFF),
+            // D-1 opsi C (2026-11-21): posting GL sinkron untuk semua jenis dokumen; `queue` hanya lewat sakelar.
+            'posting_executions' => array_fill_keys(PostingDocumentType::values(), self::POSTING_EXECUTION_INLINE),
+            // Requirement 14.1: posting diskon terpisah nonaktif sampai tanggal cutover diisi.
+            'discount_split_from_sales_invoice'    => null,
+            'discount_split_from_purchase_invoice' => null,
             // Finance Fase 3, Requirement 7.5: cutover pemisahan baris pajak per jenis dokumen; kosong = tidak aktif.
             'tax_split_from' => array_fill_keys(self::TAX_SPLIT_DOCUMENT_TYPES, null),
             // Finance Fase 3, Requirement 7.9 (`finance_company_is_pkp`, default true; menunggu D-12/Q-P3-2).
@@ -68,6 +95,9 @@ class FinanceSetting extends ModuleSetting {
             'tax_invoice_serial_range_end'   => ['sometimes', 'required', 'integer', 'min:0'],
             'tax_invoice_serial_last_used'   => ['sometimes', 'required', 'integer', 'min:0'],
             'enforce_fiscal_period'          => ['sometimes', 'required', 'boolean'],
+            // Requirement 14.1: kosong = nonaktif. Validasi peran `discount` terpetakan (14.4) ada di SettingsService.
+            'discount_split_from_sales_invoice'    => ['sometimes', 'nullable', 'date_format:Y-m-d'],
+            'discount_split_from_purchase_invoice' => ['sometimes', 'nullable', 'date_format:Y-m-d'],
         ];
     }
 
@@ -78,14 +108,15 @@ class FinanceSetting extends ModuleSetting {
 
     /**
      * Kolom yang tidak muncul di halaman Finance Settings dan tidak dapat ditulis lewat form pengaturan umum:
-     * `posting_modes` hanya ditulis `PostingModeService` (izin `switch_posting_mode`, Requirement 6.8).
+     * `posting_executions` hanya ditulis `PostingExecutionService` (izin `switch_posting_mode`). Setting
+     * `posting_modes` dihapus 2026-11-22 (Q-P2-23, opsi A): engine selalu aktif.
      *
      * @return array<string, mixed>
      */
     public static function internalRules(): array {
         return [
-            'posting_modes'   => ['required', 'array:' . implode(',', PostingDocumentType::values())],
-            'posting_modes.*' => ['string', Rule::in(self::POSTING_MODES)],
+            'posting_executions'   => ['required', 'array:' . implode(',', PostingDocumentType::values())],
+            'posting_executions.*' => ['string', Rule::in(self::POSTING_EXECUTIONS)],
             // Setting Tax Engine (Fase 3): ditulis hanya oleh service/migrasi khusus, bukan halaman setting umum.
             'tax_split_from'          => ['required', 'array:' . implode(',', self::TAX_SPLIT_DOCUMENT_TYPES)],
             'tax_split_from.*'        => ['nullable', 'date_format:Y-m-d'],

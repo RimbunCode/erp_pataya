@@ -17,7 +17,7 @@ Kondisi nyata yang membentuk fase ini (diverifikasi di kode):
 - **Bagian A (aman, default)** — tidak mengubah angka di dokumen. Menambah master pajak berklasifikasi, versi aturan, snapshot versi, `TaxEngine` yang *menjelaskan* perhitungan, dan pemisahan baris pajak di jurnal berdasarkan nilai yang **sudah tersimpan** di item.
 - **Bagian B (GATED D-15)** — mengonversi `dpp_amount`/`tax_amount`/`amount` dari kolom generated menjadi kolom biasa yang dihitung `TaxEngine`, agar faktor DPP dan pemotongan (withholding) benar-benar ditentukan aturan data.
 
-**Prasyarat:** Fase 2 selesai untuk Sales Invoice dan Purchase Invoice (mode `on` dan stabil), karena pemisahan pajak menambah baris pada rule posting kedua dokumen itu. D-12 (kebijakan posting pajak, disetujui akuntan) dan Q-P3-1…3 terjawab sebelum Task 6.
+**Prasyarat:** Fase 2 selesai untuk Sales Invoice dan Purchase Invoice (mode `on` dan stabil), karena pemisahan pajak menambah baris pada rule posting kedua dokumen itu. D-12 (kebijakan posting pajak; disetujui pemilik produk 22 November 2026 sebagai usulan PRD; diimplementasikan di fase ini) dan Q-P3-1…3 terjawab sebelum Task 6.
 
 **Di luar scope:**
 - Pajak pada dokumen order (Sales/Purchase Order) dan perhitungan diskon DPP (ditangani spec `dpp-discount-and-tax-compliance` Requirement 1–3).
@@ -127,7 +127,7 @@ Kondisi nyata yang membentuk fase ini (diverifikasi di kode):
 6. THE invoice retur SHALL memakai rule yang sama dengan sisi ditukar; pembatalan (Fase 2 D-13) membalik jurnal asli apa adanya sehingga invoice lama berbentuk lama tetap dibalik dengan bentuk lamanya.
 7. THE peran `tax_output`/`tax_input` (dan peran kustom dari versi) SHALL ter-resolve lewat Posting Profile; profil tanpa pemetaan peran tersebut membuat posting gagal dengan `UnresolvedAccountRoleException` (bukan fallback ke total), kecuali setting cutover masih kosong.
 8. THE `finance:init-posting-profile` (Fase 2) SHALL diperluas untuk melaporkan akun `tax` ambigu dan *tidak* menebak pemisahan PPN Masukan/Keluaran; COA harus dilengkapi akuntan (Q-P2-2).
-9. THE kebijakan PKP (`finance_company_is_pkp`, default true) SHALL menentukan apakah PPN Masukan dipisah (true) atau tertanam di biaya (false), menunggu D-12.
+9. THE kebijakan PKP (`finance_company_is_pkp`, default true) SHALL menentukan apakah PPN Masukan dipisah (true) atau tertanam di biaya (false), mengikuti D-12 (disetujui 22 November 2026).
 
 ### Requirement 8: Pembulatan jurnal pajak
 
@@ -195,7 +195,7 @@ Kondisi nyata yang membentuk fase ini (diverifikasi di kode):
 
 | ID | Pertanyaan | Dampak |
 |---|---|---|
-| D-12 | Kebijakan posting pajak (PPN Masukan/Keluaran terpisah; PPh sebagai utang/piutang pajak) — validasi akuntan | Requirement 7, 12.4 |
+| D-12 | Kebijakan posting pajak (PPN Masukan/Keluaran terpisah; PPh sebagai utang/piutang pajak) — disetujui pemilik produk 22 November 2026 sebagai usulan PRD (implementasi di fase ini) | Requirement 7, 12.4 |
 | D-15 | ~~Konversi kolom generated invoice ke kolom biasa (Bagian B) disetujui? Spec DPP Requirement 4 dinyatakan disupersede?~~ **DISETUJUI 2026-11-15 oleh pemilik produk.** Alasan: faktor DPP harus dapat diatur lewat aturan data (Requirement 12.8) dan dikerjakan di Fase 3; saat ini belum ada data asli, semua invoice adalah data uji. Konsekuensi: Requirement 12 berlaku (bukan dikeluarkan, lihat 12.1) dan spec DPP Requirement 4 disupersede (Requirement 1.5). Pra-pemeriksaan paritas dan jendela pemeliharaan (Requirement 12.5) tetap dijalankan sebelum konversi; risiko migrasi data historis rendah selama belum ada data asli. | Requirement 1.5, 12 |
 | Q-P3-1 | Semantik `taxes.rate` di data produksi: apakah 11 dengan DPP 11/12 (≈10,08%), atau seharusnya 12? Apakah invoice historis bernilai benar? | Requirement 6.3 |
 | Q-P3-2 | Apakah perusahaan PKP? Apakah PPN Masukan seluruhnya dapat dikreditkan? | Requirement 7.2, 7.9 |

@@ -95,7 +95,6 @@ return [
         'outstanding_amount'           => 'Jumlah Belum Dibayar',
         'return_against'               => 'Retur Terhadap Purchase Invoice',
         'is_return'                    => 'Apakah Retur (Nota Debit)',
-        'accounts'                     => 'Akun',
         'expense_head_account'         => 'Akun Kepala Biaya',
         'credit_account'               => 'Akun Kredit',
         'tax_invoice_transaction_code' => 'Kode Transaksi Faktur Pajak',

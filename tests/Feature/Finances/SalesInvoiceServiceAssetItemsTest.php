@@ -265,6 +265,25 @@ class SalesInvoiceServiceAssetItemsTest extends TestCase {
     }
 
     #[Test]
+    public function update_of_a_draft_clears_the_recorded_posted_account_on_existing_item_rows(): void {
+        $source  = $this->makeSalesOrderItem(false);
+        $service = app(SalesInvoiceService::class);
+        $account = Account::firstOrCreate(['account_number' => '4000'], ['account_name' => 'Sales', 'root_type' => 'income', 'account_type' => 'sales', 'report_type' => 'profit_and_loss']);
+
+        $invoice = $service->create($this->payload(['items' => [$this->row($source, 1)]]));
+        $rowId   = $invoice->items()->first()->id;
+        DB::table('sales_invoice_items')->where('id', $rowId)->update(['posted_account_id' => $account->id]);
+
+        // Jalur update sungguhan (service), bukan pemanggilan method privat; nilai dari request pun diabaikan.
+        $service->update($invoice->fresh(), $this->payload([
+            'items'             => [$this->row($source, 1, ['id' => $rowId, 'posted_account_id' => $account->id])],
+            'payment_schedules' => [],
+        ]));
+
+        $this->assertNull($invoice->items()->first()->fresh()->posted_account_id, 'Q-P2-24: update draft menol-kan akun baris; engine mengisinya saat approve.');
+    }
+
+    #[Test]
     public function on_approved_dispatches_once_for_each_asset_row(): void {
         $sourceA  = $this->makeSalesOrderItem(true);
         $sourceB  = $this->makeSalesOrderItem(true);
@@ -592,5 +611,32 @@ class SalesInvoiceServiceAssetItemsTest extends TestCase {
         $service->onApproved($invoice->fresh());
 
         $this->assertStringContainsString('100', $request->session()->get('priceWarnings')[0]);
+    }
+
+    #[Test]
+    public function create_ignores_account_input_and_leaves_account_columns_null(): void {
+        $invoice = app(SalesInvoiceService::class)->create($this->payload([
+            'items'             => [],
+            'payment_schedules' => [],
+        ]));
+
+        $fresh = $invoice->fresh();
+        $this->assertNull($fresh->income_account_id, 'Q-P2-24: akun tidak diterima dari input.');
+        $this->assertNull($fresh->debit_account_id);
+    }
+
+    #[Test]
+    public function update_of_a_draft_clears_recorded_accounts_for_the_engine_to_fill(): void {
+        $service = app(SalesInvoiceService::class);
+        $invoice = $service->create($this->payload(['items' => [], 'payment_schedules' => []]));
+        $account = Account::firstOrCreate(['account_number' => '4000'], ['account_name' => 'Sales', 'root_type' => 'income', 'account_type' => 'sales', 'report_type' => 'profit_and_loss']);
+        $invoice->forceFill(['income_account_id' => $account->id, 'debit_account_id' => $account->id])->save();
+        $this->assertNotNull($invoice->fresh()->income_account_id);
+
+        $service->update($invoice->fresh(), $this->payload(['items' => [], 'payment_schedules' => []]));
+
+        $fresh = $invoice->fresh();
+        $this->assertNull($fresh->income_account_id, 'Q-P2-24: update draft mengosongkan akun lama, engine yang mengisinya.');
+        $this->assertNull($fresh->debit_account_id);
     }
 }

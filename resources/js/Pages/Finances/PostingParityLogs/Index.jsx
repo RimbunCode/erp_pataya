@@ -5,14 +5,6 @@ import { useLaravelReactI18n } from "laravel-react-i18n";
 import AppLayout from "@/Layouts/AppLayout";
 import { Badge } from "@/Components/ui/badge";
 import { Button } from "@/Components/ui/button";
-import {
-  Dialog,
-  DialogContent,
-  DialogDescription,
-  DialogFooter,
-  DialogHeader,
-  DialogTitle,
-} from "@/Components/ui/dialog";
 import { Input } from "@/Components/ui/input";
 import { Label } from "@/Components/ui/label";
 
@@ -28,92 +20,13 @@ const STATUS_VARIANT = {
 };
 
 /**
- * Dialog konfirmasi eksplisit saat memilih mode `on`: engine menjadi penulis jurnal. Tombol aktifkan baru terbuka
- * setelah kotak persetujuan dicentang; server juga menolak `on` tanpa `confirmed` (Requirement 6.8).
- * @param {object} props
- * @param {string|null} props.documentType jenis dokumen yang akan diaktifkan, null bila tertutup
- * @param {() => void} props.onClose
- * @param {(documentType: string) => void} props.onConfirm
- * @returns {import("react").JSX.Element}
- */
-function ConfirmOnDialog({ documentType, onClose, onConfirm }) {
-  const { t } = useLaravelReactI18n();
-  const [checked, setChecked] = useState(false);
-  const label = documentType
-    ? t(
-        `finances.postingParityLog.columns.document_type.options.${documentType}`,
-      )
-    : "";
-
-  const close = () => {
-    setChecked(false);
-    onClose();
-  };
-
-  return (
-    <Dialog
-      open={documentType !== null}
-      onOpenChange={(open) => !open && close()}
-    >
-      <DialogContent>
-        {documentType && (
-          <>
-            <DialogHeader>
-              <DialogTitle>
-                {t("finances.postingParityLog.mode.confirm.title", {
-                  document_type: label,
-                })}
-              </DialogTitle>
-              <DialogDescription>
-                {t("finances.postingParityLog.mode.confirm.description")}
-              </DialogDescription>
-            </DialogHeader>
-            <div className="flex items-start gap-2">
-              <input
-                id="confirm-mode-on"
-                type="checkbox"
-                className="mt-1 size-4"
-                checked={checked}
-                onChange={(event) => setChecked(event.target.checked)}
-              />
-              <Label htmlFor="confirm-mode-on" className="font-normal">
-                {t("finances.postingParityLog.mode.confirm.checkbox")}
-              </Label>
-            </div>
-            <DialogFooter>
-              <Button type="button" variant="outline" onClick={close}>
-                {t("finances.postingParityLog.mode.confirm.cancel")}
-              </Button>
-              <Button
-                type="button"
-                disabled={!checked}
-                onClick={() => {
-                  setChecked(false);
-                  onConfirm(documentType);
-                }}
-              >
-                {t("finances.postingParityLog.mode.confirm.confirm")}
-              </Button>
-            </DialogFooter>
-          </>
-        )}
-      </DialogContent>
-    </Dialog>
-  );
-}
-
-/**
- * Halaman Parity Log dan kontrol mode engine (Finance Fase 2, Requirement 8.3): filter jenis dokumen/status/tanggal
- * dan perubahan mode off/shadow/on per jenis dokumen. Kontrol ubah mode hanya dirender bagi pengguna ber-izin
- * `switch_posting_mode` (`canSwitchMode`); server tetap menolak tanpa izin. Memilih `on` meminta konfirmasi.
+ * Halaman Parity Log baca-saja sebagai riwayat (Finance Fase 2, Requirement 8.3): filter jenis dokumen/status/tanggal.
+ * Kontrol ubah mode off/shadow/on dihapus 2026-11-22 (Q-P2-23, opsi A): engine selalu aktif dan tidak ada catatan baru.
  * @param {object} props
  * @param {object} [props.logs] paginator Laravel
  * @param {{document_type: string, status: string, date_from: string, date_to: string}} [props.filters]
  * @param {string[]} [props.documentTypes]
  * @param {string[]} [props.statuses]
- * @param {Record<string, string>} [props.modes]
- * @param {string[]} [props.modeOptions]
- * @param {boolean} [props.canSwitchMode]
  * @returns {import("react").JSX.Element}
  */
 export default function Index({
@@ -121,14 +34,10 @@ export default function Index({
   filters = {},
   documentTypes = [],
   statuses = [],
-  modes = {},
-  modeOptions = ["off", "shadow", "on"],
-  canSwitchMode = false,
 }) {
   const { t, currentLocale } = useLaravelReactI18n();
   const route = window.route;
   const pageErrors = Object.values(usePage()?.props?.errors ?? {});
-  const [confirmType, setConfirmType] = useState(null);
   const [openDiff, setOpenDiff] = useState(null);
   const filterForm = useForm({
     document_type: filters.document_type ?? "",
@@ -166,26 +75,6 @@ export default function Index({
     );
   };
 
-  const switchMode = (type, mode, confirmed = false) => {
-    router.put(
-      route("postingParityLogs.switchMode", type),
-      confirmed ? { mode, confirmed: true } : { mode },
-      { preserveScroll: true },
-    );
-  };
-
-  const chooseMode = (type, mode) => {
-    if (mode === (modes[type] ?? "off")) {
-      return;
-    }
-    if (mode === "on") {
-      setConfirmType(type);
-
-      return;
-    }
-    switchMode(type, mode);
-  };
-
   const formatDate = (value) => {
     if (!value) {
       return "";
@@ -214,67 +103,6 @@ export default function Index({
             ))}
           </div>
         )}
-
-        <section
-          className="grid gap-3 rounded-md border p-4"
-          data-testid="mode-section"
-        >
-          <div className="grid gap-1">
-            <h2 className="text-base font-semibold">
-              {t("finances.postingParityLog.mode.title")}
-            </h2>
-            <p className="text-sm text-muted-foreground">
-              {t("finances.postingParityLog.mode.description")}
-            </p>
-            {!canSwitchMode && (
-              <p className="text-xs text-muted-foreground">
-                {t("finances.postingParityLog.mode.read_only")}
-              </p>
-            )}
-          </div>
-          <ul className="grid gap-2">
-            {documentTypes.map((type) => {
-              const current = modes[type] ?? "off";
-
-              return (
-                <li
-                  key={type}
-                  className="flex flex-wrap items-center justify-between gap-2 border-t pt-2 first:border-t-0 first:pt-0"
-                  data-testid="mode-row"
-                  data-document-type={type}
-                >
-                  <span className="text-sm font-medium">{docLabel(type)}</span>
-                  {canSwitchMode ? (
-                    <div
-                      role="group"
-                      aria-label={t("finances.postingParityLog.mode.change", {
-                        document_type: docLabel(type),
-                      })}
-                      className="flex gap-1"
-                    >
-                      {modeOptions.map((mode) => (
-                        <Button
-                          key={mode}
-                          type="button"
-                          size="sm"
-                          variant={current === mode ? "default" : "outline"}
-                          aria-pressed={current === mode}
-                          onClick={() => chooseMode(type, mode)}
-                        >
-                          {t(`finances.postingParityLog.mode.options.${mode}`)}
-                        </Button>
-                      ))}
-                    </div>
-                  ) : (
-                    <Badge variant={current === "on" ? "default" : "secondary"}>
-                      {t(`finances.postingParityLog.mode.options.${current}`)}
-                    </Badge>
-                  )}
-                </li>
-              );
-            })}
-          </ul>
-        </section>
 
         <form
           onSubmit={applyFilters}
@@ -494,15 +322,6 @@ export default function Index({
           )}
         </section>
       </div>
-
-      <ConfirmOnDialog
-        documentType={confirmType}
-        onClose={() => setConfirmType(null)}
-        onConfirm={(type) => {
-          setConfirmType(null);
-          switchMode(type, "on", true);
-        }}
-      />
     </AppLayout>
   );
 }

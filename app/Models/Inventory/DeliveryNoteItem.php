@@ -3,6 +3,7 @@
 namespace App\Models\Inventory;
 
 use App\Models\Asset\Asset;
+use App\Models\Finances\Account;
 use App\Models\Model;
 use Illuminate\Database\Eloquent\Concerns\HasUlids;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
@@ -67,6 +68,19 @@ class DeliveryNoteItem extends Model {
         'return_against_item_id' => [
             'ignore' => true,
         ],
+        // Catatan audit akun yang dipakai engine (Task 12.1 bagian B): bukan kolom tabel data.
+        'posted_account_id' => [
+            'ignore' => true,
+        ],
+        'posted_stock_account_id' => [
+            'ignore' => true,
+        ],
+        'postedAccount' => [
+            'ignore' => true,
+        ],
+        'postedStockAccount' => [
+            'ignore' => true,
+        ],
     ];
 
     public static function templateLink() {
@@ -103,6 +117,20 @@ class DeliveryNoteItem extends Model {
 
     public function unit() {
         return $this->belongsTo(ItemUnit::class, 'item_unit_id', 'id');
+    }
+
+    /**
+     * Akun `cost_of_goods_sold` per baris yang dicatat engine posting saat approve (Task 12.1 bagian B).
+     */
+    public function postedAccount(): BelongsTo {
+        return $this->belongsTo(Account::class, 'posted_account_id');
+    }
+
+    /**
+     * Akun `stock` per baris yang dicatat engine posting saat approve (Task 12.1 bagian B).
+     */
+    public function postedStockAccount(): BelongsTo {
+        return $this->belongsTo(Account::class, 'posted_stock_account_id');
     }
 
     public function returnAgainstItem() {

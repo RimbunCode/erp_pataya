@@ -28,6 +28,7 @@ class DecimalAmountReportTest extends TestCase {
 
     protected function setUp(): void {
         parent::setUp();
+        $this->allowLegacyLedgerRows();
 
         $this->setUpFinanceFixtures([StockEntry::class]);
         $this->cash  = $this->makeAccount('1101', 'Kas', 'asset', 'debit');

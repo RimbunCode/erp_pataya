@@ -19,7 +19,9 @@ use Illuminate\Support\Facades\Log;
  * 2. aturan akun bersyarat pada profil `active` yang berlaku pada tanggal transaksi (`AccountRuleMatcher`);
  * 3. akun default peran pada profil itu;
  * 4. fallback legacy `(root_type, account_type)` bila `finance.posting.legacy_account_fallback` aktif, dengan
- *    peringatan log. Bila lebih dari satu akun cocok pasangan itu (ambigu), resolver gagal tertutup dengan
+ *    peringatan log. DIMATIKAN sejak Task 14.1 (default config `false`; lapis dicatat `legacy_off` pada
+ *    `UnresolvedAccountRoleException`); kodenya dipertahankan hanya agar dapat dinyalakan eksplisit di uji. Bila lebih
+ *    dari satu akun cocok pasangan itu (ambigu), resolver gagal tertutup dengan
  *    `UnresolvedAccountRoleException` (tidak memilih); peran ambigu wajib dipetakan di profil.
  *
  * Akun hasil lapis mana pun divalidasi (ada, tidak terhapus, bukan group, tidak nonaktif; selaras `JournalService`).
@@ -164,7 +166,7 @@ final class AccountRoleResolver {
         return implode('|', [
             $profile?->getKey() ?? 'legacy',
             $role,
-            $ctx->documentType->value,
+            $ctx->ruleTypeFor($role)->value,
             $ctx->variant(),
             $line?->itemType ?? '',
             $line === null || $line->isStockItem === null ? '' : ($line->isStockItem ? '1' : '0'),

@@ -5,7 +5,6 @@ namespace App\Http\Controllers\Finances;
 use App\Enums\DefaultsDocumentType;
 use App\Http\Controllers\Controller;
 use App\Http\Requests\Finances\SalesInvoiceRequest;
-use App\Models\Finances\Account;
 use App\Models\Finances\SalesInvoice;
 use App\Models\Sales\SalesOrder;
 use App\Services\Core\Setting\DocumentDefaultsResolver;
@@ -55,11 +54,6 @@ class SalesInvoiceController extends Controller {
                                 return redirect()->route('salesInvoices.show', $salesInvoice);
                             }
                             $so->loadRelations();
-                            $accounts = Account::whereIn('root_type', ['income', 'asset'])
-                                ->whereIn('account_type', ['income_account', 'receivable'])
-                                ->where('is_contra', false)
-                                ->get();
-
                             $rentalDurationService = app(RentalDurationService::class);
                             $rentalCutoffDate      = $request->query('rental_cutoff_date')
                                 ? Carbon::parse($request->query('rental_cutoff_date'))
@@ -70,8 +64,6 @@ class SalesInvoiceController extends Controller {
                                 'sales_order'     => $so,
                                 'customer'        => $so?->customer,
                                 'customer_branch' => $so?->customerBranch,
-                                'income_account'  => $accounts->where('root_type', 'income')->where('account_type', 'income_account')->first(),
-                                'debit_account'   => $accounts->where('root_type', 'asset')->where('account_type', 'receivable')->first(),
                                 'currency'        => $so?->currency,
                                 'amount'          => $so?->amount,
                                 'discount_on'     => $so?->discount_on,
@@ -117,18 +109,13 @@ class SalesInvoiceController extends Controller {
                             if ($salesInvoiceTarget) {
                                 return redirect()->route('salesInvoices.show', $salesInvoiceTarget);
                             }
-                            $account = Account::where('root_type', 'income')
-                                ->where('account_type', 'income_account')
-                                ->where('is_contra', true)
-                                ->first();
                             $salesInvoice->loadRelations();
+                            // Retur tanpa default akun: kolom flag akun kontra dihapus (Task 14.2) dan akun diisi engine posting (Q-P2-23).
                             $defaultData = [
                                 'return_against'  => $salesInvoice,
                                 'is_return'       => true,
                                 'date'            => now(),
                                 'sales_order'     => $salesInvoice->salesOrder,
-                                'income_account'  => $account,
-                                'debit_account'   => $salesInvoice->debitAccount,
                                 'customer'        => $salesInvoice?->customer,
                                 'customer_branch' => $salesInvoice?->customerBranch,
                                 'currency'        => $salesInvoice?->currency,

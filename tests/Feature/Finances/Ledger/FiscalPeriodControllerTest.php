@@ -26,6 +26,7 @@ class FiscalPeriodControllerTest extends TestCase {
 
     protected function setUp(): void {
         parent::setUp();
+        $this->allowLegacyLedgerRows();
 
         $this->setUpFinanceFixtures([Journal::class, FiscalYear::class, FiscalPeriod::class, StockEntry::class]);
         $this->periods = app(FiscalPeriodService::class);

@@ -68,6 +68,7 @@ class GeneralLedgerJournalColumnsTest extends TestCase {
     }
 
     public function test_index_rows_expose_journal_relation_and_multiple_accounts_flag(): void {
+        $this->allowLegacyLedgerRows(); // memuat satu baris legacy tanpa jurnal
         $cash    = $this->makeAccount('1100', 'Kas');
         $revenue = $this->makeAccount('4100', 'Penjualan', 'income', 'credit');
         $tax     = $this->makeAccount('2100', 'Utang Pajak', 'liability', 'credit');

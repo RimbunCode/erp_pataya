@@ -1,5 +1,6 @@
 import Form from "./Form";
 import { FormPage } from "@/Pages/Core/FormPage";
+import PostedAccountsPanel from "@/Pages/Finances/Components/PostedAccountsPanel";
 
 export default function Show({ paymentEntry, defaultData }) {
   return (
@@ -12,6 +13,7 @@ export default function Show({ paymentEntry, defaultData }) {
       defaultValues={defaultData}
     >
       <Form />
+      <PostedAccountsPanel isNew={!paymentEntry} />
     </FormPage>
   );
 }

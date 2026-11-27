@@ -7,11 +7,13 @@ use App\Events\Purchase\PurchaseReceiptGeneralLedgerPostingRequested;
 use App\Listeners\Purchase\Ledger\PostPurchaseReceiptGeneralLedger;
 use App\Models\Core\GlPostingStatus;
 use App\Models\Finances\Account;
+use App\Models\Finances\PostingProfile;
 use App\Models\Purchase\PurchaseReceipt;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Str;
 use Tests\Support\BuildsFinanceFixtures;
+use Tests\Support\EnablesEnginePosting;
 use Tests\TestCase;
 
 /**
@@ -23,7 +25,7 @@ use Tests\TestCase;
  * menghasilkan GL (jurnalnya muncul lewat Purchase Invoice, cabang stok/SRNB).
  */
 class PurchaseReceiptPostingTest extends TestCase {
-    use BuildsFinanceFixtures, RefreshDatabase;
+    use BuildsFinanceFixtures, EnablesEnginePosting, RefreshDatabase;
 
     private Account $stock;
     private Account $srnb;
@@ -31,9 +33,12 @@ class PurchaseReceiptPostingTest extends TestCase {
     protected function setUp(): void {
         parent::setUp();
 
-        $this->setUpFinanceFixtures();
+        $this->setUpFinanceFixtures([PostingProfile::class]);
         $this->stock = $this->makeAccount('1300', 'Persediaan', 'asset', 'debit', 'stock');
         $this->srnb  = $this->makeAccount('2100', 'SRNB', 'liability', 'credit', 'stock_received_but_not_billed');
+
+        // Task 14.1: closure legacy dihapus; jurnal ditulis engine dengan akun dari profil (ekspektasi ledger tidak berubah).
+        $this->enableEnginePosting(['stock' => $this->stock, 'stock_received_but_not_billed' => $this->srnb]);
     }
 
     private function makeReceipt(): PurchaseReceipt {
@@ -75,8 +80,9 @@ class PurchaseReceiptPostingTest extends TestCase {
         $this->assertPostingStatus($receipt, 'posted');
     }
 
-    public function test_stock_account_is_the_latest_created_one_not_a_configured_one(): void {
-        // F-06: `where(root_type, account_type)->latest()->first()`.
+    public function test_stock_account_is_the_profile_one_not_the_latest_created_one(): void {
+        // F-06 diperbaiki Task 14.1: pencarian `where(root_type, account_type)->latest()->first()` sudah dihapus. Akun
+        // stok yang baru dibuat dengan `account_type` yang sama tidak lagi dipilih; peran `stock` dijawab profil.
         $newStock = $this->makeAccount('1301', 'Persediaan Baru', 'asset', 'debit', 'stock');
         Account::whereKey($this->stock->id)->update(['created_at' => now()->subDay()]);
 
@@ -84,8 +90,9 @@ class PurchaseReceiptPostingTest extends TestCase {
         $this->postLedger($receipt, 50, false);
 
         $this->assertLedger($receipt, [
-            ['account' => $newStock, 'against' => $this->srnb, 'debit' => 50, 'credit' => 0],
-            ['account' => $this->srnb, 'against' => $newStock, 'debit' => 0, 'credit' => 50],
+            ['account' => $this->stock, 'against' => $this->srnb, 'debit' => 50, 'credit' => 0],
+            ['account' => $this->srnb, 'against' => $this->stock, 'debit' => 0, 'credit' => 50],
         ]);
+        $this->assertCount(0, $this->ledgerOf($receipt)->where('account_id', $newStock->id));
     }
 }

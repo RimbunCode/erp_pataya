@@ -14,7 +14,7 @@ use Carbon\CarbonInterface;
 use Throwable;
 
 /**
- * Membandingkan jurnal jalur lama dengan hasil engine pada mode `shadow` (Finance Fase 2, Requirement 6.5-6.6).
+ * Membandingkan jurnal jalur lama dengan hasil engine (riwayat mode `shadow` yang sudah dihapus, Q-P2-23; Finance Fase 2, Requirement 6.5-6.6).
  *
  * Representasi kanonik per `purpose`: tanggal (hari, zona penyimpanan) dan daftar terurut `(account_id, debit_minor,
  * credit_minor)`. Status per jurnal, lalu gabungan dengan prioritas `mismatch` > `config_diff` > `rounding` > `match`:
@@ -24,6 +24,9 @@ use Throwable;
  * - `config_diff`: nilai (debit/kredit) sama tetapi akun berbeda; satu-satunya perbedaan adalah akun yang dipilih
  *   pengguna pada dokumen lama versus hasil konfigurasi. Akun kedua sisi disimpan pada `diff`.
  * - `mismatch`: selainnya, termasuk kumpulan `purpose` jurnal yang berbeda dan tanggal berbeda.
+ *
+ * KODE MATI yang sengaja dipertahankan (keputusan Q-P2-23, 22 November 2026): sejak mode `shadow` dihapus tidak ada
+ * pemanggil produksi untuk `record()`/`recordEngineError()`; hanya `compare()` yang diuji unit.
  *
  * `compare()` murni (tanpa DB) agar dapat diuji tanpa database; `record()`/`recordEngineError()` memuat jurnal lama
  * dan menulis `posting_parity_logs`.
@@ -83,7 +86,8 @@ final class ParityComparator {
     }
 
     /**
-     * Mencatat kegagalan engine pada mode `shadow` (Requirement 6.3): tanpa sisi engine.
+     * Mencatat kegagalan engine (peninggalan mode `shadow`, Requirement 6.3): tanpa sisi engine. Tanpa pemanggil
+     * produksi (kode mati yang dipertahankan, Q-P2-23).
      */
     public function recordEngineError(PostingContext $ctx, Throwable $error, ?array $purposes = null): PostingParityLog {
         return PostingParityLog::forceCreate([

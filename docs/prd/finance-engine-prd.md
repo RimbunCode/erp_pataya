@@ -153,7 +153,7 @@ Status: **DECIDED** = sudah ditetapkan (mis. dari spec terdahulu); **PROPOSED** 
 
 | ID | Keputusan | Status | Fase |
 |---|---|---|---|
-| D-1 | Mode posting: antrian vs sinkron | **DITUNDA (2026-11-03)**; rekomendasi tetap B | 2 |
+| D-1 | Mode posting: antrian vs sinkron | **DECIDED 2026-11-21: opsi C** (semua sinkron; sakelar per jenis tetap ada) | 2 |
 | D-2 | Perluas `general_ledgers` (tambah `journal_id`) alih-alih tabel jurnal baru | PROPOSED | 1 |
 | D-3 | `decimal(20,4)` untuk tabel jurnal; pembulatan HALF_UP di batas posting | **DECIDED** (2026-11-04) | 1 |
 | D-4 | Satu perusahaan + dimensi cabang (multi-company di luar cakupan); profil dan setting bersifat global | **DECIDED** (2026-10-18) | 1 |
@@ -164,7 +164,7 @@ Status: **DECIDED** = sudah ditetapkan (mis. dari spec terdahulu); **PROPOSED** 
 | D-9 | Valuasi persediaan & COGS memakai stock ledger existing | DECIDED (di luar cakupan) | — |
 | D-10 | IFRS 15/16, impairment di luar cakupan | DECIDED (di luar cakupan) | — |
 | D-11 | Standar akuntansi acuan (SAK/PSAK vs IFRS penuh) | **DITUNDA (2026-11-03)**, menunggu akuntan (Q2) | 0 |
-| D-12 | Penanganan pajak dalam jurnal: PPN Masukan/Keluaran sebagai akun terpisah, PPh sebagai utang/piutang pajak | PROPOSED, validasi akuntan | 3 |
+| D-12 | Penanganan pajak dalam jurnal: PPN Masukan/Keluaran sebagai akun terpisah, PPh sebagai utang/piutang pajak | **DISETUJUI pemilik produk 22 November 2026 sebagai usulan PRD (implementasi di Fase 3, tax engine; tanpa implementasi di Fase 2)** | 3 |
 | D-13 | Perilaku pembatalan dokumen: ganti soft-delete GL (perilaku sekarang) dengan jurnal pembalik | **DECIDED 2026-11-21: opsi A**, pembatalan menghapus jurnal (soft-delete dipertahankan) | 2 |
 | D-14 | Jurnal manual (Journal Voucher) oleh pengguna: masuk Fase 1 sebagai task opsional | **DECIDED** (2026-11-04) | 1 |
 | D-15 | Konversi kolom hitung item invoice (generated → kolom biasa) dan penyerapan Requirement 4 spec `dpp-discount-and-tax-compliance` oleh Fase 3 | **DISETUJUI 2026-11-15 (pemilik produk; belum ada data asli, semua data uji)** | 3 (Bagian B) |
@@ -177,12 +177,12 @@ Status: **DECIDED** = sudah ditetapkan (mis. dari spec terdahulu); **PROPOSED** 
 | D-22 | Kebijakan soft close vs hard close dan pemegang izin | **PENDING** | 6 |
 | D-23 | Penutupan/pembukaan periode wajib berurutan | **PENDING** | 6 |
 | D-24 | Akun laba ditahan untuk jurnal penutup tahun (akun "Laba" pada seeder) | **PENDING** (akuntan) | 6 |
-| D-25 | Setting keuangan (flag mode posting, tanggal cutover, toggle periode, dll.) dan setting umum yang dibaca engine disimpan di tabel setting modul bertipe dari spec `module-settings-foundation`, bukan tabel `preferences` | **DECIDED** (2026-10-18) | S, 1–6 |
+| D-25 | Setting keuangan (sakelar eksekusi posting, tanggal cutover, toggle periode, dll.; flag mode posting `off/shadow/on` dihapus 22 November 2026, Q-P2-23) dan setting umum yang dibaca engine disimpan di tabel setting modul bertipe dari spec `module-settings-foundation`, bukan tabel `preferences` | **DECIDED** (2026-10-18) | S, 1–6 |
 | D-26 | Akun transaksi ditentukan oleh konfigurasi saja; field akun dihapus dari form per jenis dokumen yang `on`; kolom DB dipertahankan sebagai catatan audit; kolom `accounts.is_contra` dihapus | **DECIDED** (2026-10-18) | 2 |
-| D-27 | Posting diskon ke akun terpisah, aktif lewat tanggal cutover per jenis dokumen; pembulatan di Fase 3, selisih kurs di Fase 4/6 | PROPOSED (perlakuan diskon pembelian stok menunggu akuntan, Q-P2-5) | 2 |
+| D-27 | Posting diskon ke akun terpisah, aktif lewat tanggal cutover per jenis dokumen; pembulatan di Fase 3, selisih kurs di Fase 4/6 | DECIDED 2026-11-21 (pemilik produk; perlakuan diskon pembelian stok mengikuti praktik umum ERP, Q-P2-5) | 2 |
 | D-28 | `TaxEngine` tidak mengasumsikan satu pajak per baris (`TaxInput` per pasangan baris–pajak); multi-pajak per baris dokumen (pola Odoo) menjadi spec masa depan `multi-tax-per-line` | PROPOSED | 3 |
 
-### D-1 — Mode posting (DITUNDA 2026-11-03)
+### D-1 — Mode posting (DECIDED 2026-11-21)
 
 **Konteks.** Spec Fase 3 event-listener memindahkan GL ke queue karena posting GL bercampur dengan mutasi stok/SLE, dan menetapkannya sebagai keputusan kunci. Konsekuensinya: dokumen dapat berstatus `UNPAID`/`APPROVED` sementara GL-nya masih `pending`/`failed`. Payment Entry masih sinkron (F-05).
 
@@ -197,6 +197,8 @@ Status: **DECIDED** = sudah ditetapkan (mis. dari spec terdahulu); **PROPOSED** 
 **Catatan.** Invarian "jurnal seimbang" ditegakkan di `JournalService` dan **tidak bergantung** pada pilihan ini, sehingga Fase 1 tidak terblokir. Keputusan baru mengikat pada Fase 2.
 
 **Keputusan pemilik produk (2026-11-03): ditunda.** Alasan: keputusan baru mengikat pada Fase 2, sedangkan Fase 1 tidak terblokir oleh D-1. Rekomendasi tetap opsi B; keputusan wajib sebelum Fase 2.
+
+**Keputusan pemilik produk (2026-11-21): opsi C, semua dokumen sinkron.** Posting GL berjalan inline dalam transaksi dokumen untuk semua jenis; kegagalan posting membatalkan dokumen. Risiko pada alur stok/FIFO yang terjalin diterima. Antrean dipertahankan sebagai sakelar per jenis dokumen (default inline). Payment Entry dan Stock Entry memang sudah sinkron.
 
 ### D-13 — Perilaku pembatalan (DECIDED 2026-11-21)
 
@@ -230,13 +232,13 @@ Diputuskan pemilik produk (2026-10-18): satu entitas hukum; cabang (`branches`) 
 
 ### D-25 — Penyimpanan setting (DECIDED)
 
-Tabel `preferences` (key/value JSON) tidak dipakai untuk setting baru karena tidak mendukung foreign key (akun, pajak, gudang) dan validasi bertipe. Setting keuangan dibaca lewat service setting Finances dari spec `module-settings-foundation`. Nama logis kunci (`finance_posting_mode.{type}`, `finance_enforce_fiscal_period`, `finance_tax_split_from.*`, `finance_discount_split_from.*`, dan seterusnya) pada spec fase dipertahankan; bentuk kolom/tabelnya ditetapkan spec fondasi. Spec tersebut harus tersedia sebelum Fase 1.
+Tabel `preferences` (key/value JSON) tidak dipakai untuk setting baru karena tidak mendukung foreign key (akun, pajak, gudang) dan validasi bertipe. Setting keuangan dibaca lewat service setting Finances dari spec `module-settings-foundation`. Nama logis kunci (~~`finance_posting_mode.{type}`~~ [dihapus 22 November 2026, Q-P2-23, disetujui pemilik produk: mode posting dihapus, engine selalu aktif], `finance_enforce_fiscal_period`, `finance_tax_split_from.*`, `finance_discount_split_from.*`, dan seterusnya) pada spec fase dipertahankan; bentuk kolom/tabelnya ditetapkan spec fondasi. Spec tersebut harus tersedia sebelum Fase 1.
 
 ### D-26 — Akun hanya dari konfigurasi (DECIDED)
 
-Pemilih akun pada form Sales Invoice, Purchase Invoice, Payment Entry, Stock Entry, Additional Cost, dan Asset Value Adjustment dihapus setelah jenis dokumen itu berada pada mode `on` (Fase 2 Requirement 13). Akun dicatat engine pada kolom dokumen yang sudah ada dan pada kolom baru per baris item. Retur memakai varian aturan sendiri dengan fallback ke aturan normal. Kolom `accounts.is_contra` (non-standar; ERPNext tidak memilikinya) **dihapus** setelah pemakaiannya dibersihkan (Fase 2 Task 14.2). Penyajian akun bersaldo berlawanan (Retur/Potongan Penjualan) pada Fase 5 memakai saldo bertanda menurut `balance_type`, sehingga spec Fase 5 sudah disesuaikan.
+Pemilih akun pada form Sales Invoice, Purchase Invoice, Payment Entry, Stock Entry, Additional Cost, dan Asset Value Adjustment dihapus untuk semua jenis dokumen (semula setelah jenis itu berada pada mode `on`; mode dihapus 22 November 2026, Q-P2-23; update draft tidak wajib mempertahankan akun lama, Q-P2-24) (Fase 2 Requirement 13). Akun dicatat engine pada kolom dokumen yang sudah ada dan pada kolom baru per baris item. Retur memakai varian aturan sendiri dengan fallback ke aturan normal. Kolom `accounts.is_contra` (non-standar; ERPNext tidak memilikinya) **dihapus** setelah pemakaiannya dibersihkan (Fase 2 Task 14.2). Penyajian akun bersaldo berlawanan (Retur/Potongan Penjualan) pada Fase 5 memakai saldo bertanda menurut `balance_type`, sehingga spec Fase 5 sudah disesuaikan.
 
-### D-27 — Posting diskon (PROPOSED)
+### D-27 — Posting diskon (DECIDED 2026-11-21)
 
 Diskon belum diposting ke GL (hanya dipakai sebagai pengurang basis pajak). Fase 2 Requirement 14 menambah jurnal terpisah (`discount`) di balik tanggal cutover per jenis dokumen sehingga dokumen lama tidak berubah. Pembulatan pajak tetap di Fase 3 (Requirement 8); selisih kurs terealisasi di Fase 4 dan revaluasi di Fase 6.
 
@@ -267,7 +269,7 @@ ID bersifat ringkas; kriteria penerimaan terperinci ada di `requirements.md` tia
 - **FR-P3** ~~Pembatalan/amend dokumen yang sudah diposting memicu reversal otomatis, menggantikan soft-delete GL di hook `Submitable`~~ (dikeluarkan: D-13 diputuskan 2026-11-21, pembatalan menghapus jurnal) dan menangani balapan cancel vs posting asinkron (F-16): job posting yang menemukan dokumen `canceled` tidak memposting.
 - **FR-P4** Migrasi per jenis dokumen dilindungi feature flag dan *parity test* terhadap perilaku lama.
 - **FR-P5** Dokumen transaksi tidak menerima input akun; kolom akun di DB dipertahankan dan diisi engine sebagai catatan audit (per baris untuk peran peka-barang). Pengecualian: baris Jurnal Manual.
-- **FR-P6** Diskon penjualan/pembelian dapat diposting ke akun diskon tersendiri, aktif per jenis dokumen lewat tanggal cutover (GATED).
+- **FR-P6** Diskon penjualan/pembelian dapat diposting ke akun diskon tersendiri, aktif per jenis dokumen lewat tanggal cutover (Q-P2-5 diputuskan 2026-11-21; aktif lewat tanggal cutover).
 
 ### 8.3 Tax Engine (Fase 3)
 
@@ -324,7 +326,7 @@ Estimasi dalam minggu-orang untuk **satu developer senior** yang paham codebase;
 | S | `module-settings-foundation` | Tabel setting modul bertipe (menggantikan `preferences`), halaman setting bertab, menu item multi-desk; menampung setting keuangan fase 1–6 (D-25) | — (paralel dengan Fase 0) | belum diestimasi (spec ditulis terpisah) |
 | 0 | `finance-p0-foundation-audit` | Audit, characterization test, decision log, baseline data | — | 2–3 |
 | 1 | `finance-p1-journal-core` | Journal header+lines, immutability, reversal, fiscal period dasar, backfill | 0, S | 6–10 |
-| 2 | `finance-p2-posting-engine` | Posting profile global, aturan akun bersyarat + varian retur, resolver akun, akun tanpa input pengguna, refactor listener bertahap, reversal saat cancel, posting diskon (GATED) | 1, D-1 | 5–8 |
+| 2 | `finance-p2-posting-engine` | Posting profile global, aturan akun bersyarat + varian retur, resolver akun, akun tanpa input pengguna, refactor listener bertahap, reversal saat cancel, posting diskon (Q-P2-5 diputuskan 2026-11-21; aktif lewat tanggal cutover) | 1, D-1 | 5–8 |
 | 3 | `finance-p3-tax-engine` | Aturan pajak berversi, baris pajak di jurnal, TaxResult. **Bagian A** (aman, tanpa mengubah angka dokumen) dan **Bagian B** (konversi kolom hitung, GATED D-15) | 2; menyerap Requirement 4 spec `dpp-discount-and-tax-compliance` (belum diimplementasi) | 4–6 (A) + 2–3 (B) |
 | 4 | `finance-p4-ar-ap-fx` | Sub-ledger, alokasi pembayaran, master kurs, realized FX | 2 (3 untuk pajak pada alokasi) | 6–9 |
 | 5 | `finance-p5-reporting` | Laporan keuangan dari ledger, `account_balances` | 1–4 | 4–6 |
@@ -342,8 +344,8 @@ Setiap spec berisi `requirements.md`, `design.md`, `tasks.md`, dan `.config.kiro
 | 0 | [`finance-p0-foundation-audit`](../../.kiro/specs/finance-p0-foundation-audit/requirements.md) | **Selesai 2026-11-04** — Task 1–6.4 (PR #271); 6.5 (pemilik produk, staging, 2026-11-03); draft Task 7 (PR #272); laporan audit dan decision log disetujui 2026-11-03 (PR #273/#274); Task 2.6 selesai 2026-11-04 (PR #275); skema staging Req 6.2 dan `APP_ENV` diterima 2026-11-04 (Task 7.1); checkpoint akhir Task 8 lulus 2026-11-04 |
 | H | [`finance-payment-entry-hotfix`](../../.kiro/specs/finance-payment-entry-hotfix/requirements.md) | Requirements, design, dan tasks selesai; implementasi selesai (Task 1–10, 2026-11-04); PR ke `feat/finance-engine` menyusul. Mencakup N-4, F-10, bagian `paid_amount` F-04, N-10, N-11, Q2, Q9b, dan N-12 (Q12); dikerjakan sebelum Fase 1; tidak mengoreksi data GL staging secara otomatis |
 | 1 | [`finance-p1-journal-core`](../../.kiro/specs/finance-p1-journal-core/requirements.md) | Draft lengkap; Fase 0 selesai 2026-11-04 sehingga siap dieksekusi. Keputusan 2026-11-04 sudah diterapkan ke spec: D-3, D-8 (per dokumen), D-14 (task opsional), Q-P1-1 (tanpa jendela pemeliharaan), Q-P1-2 (penegakan periode nonaktif dulu), Q-P1-3 s.d. Q-P1-6 (`against_account_id` nullable di migration Fase 1; `minor_unit` ISO 4217 lengkap; zona waktu hari/periode = `CoreSetting.timezone`; `posting_key` Asset: scrap `Asset:{id}:write_off`, disposal per baris invoice `Asset:{id}:disposal:{sales_invoice_item_id}`; semuanya disetujui pemilik produk 2026-11-04), BR-7 (dua rilis: Rilis 1 tabel jurnal + `journal_id` nullable + backfill; Rilis 2 migration NOT NULL di PR/tahapan terpisah) |
-| 2 | [`finance-p2-posting-engine`](../../.kiro/specs/finance-p2-posting-engine/requirements.md) | Sedang berjalan: Sprint A–D selesai (peta rule `[TODO]` sudah dilengkapi, Task 1.1); semua 10 jenis dokumen dinyalakan ke `on` di staging 2026-11-21 dan Task 7.4/8.5 dinyatakan selesai oleh pemilik produk (Q-P2-1); D-13 diputuskan 2026-11-21 (opsi A, Task 11 dikeluarkan). Sisa: Task 1.3, 10 (gated D-1), 12, 13 (gated Q-P2-5), 14 |
-| 3 | [`finance-p3-tax-engine`](../../.kiro/specs/finance-p3-tax-engine/requirements.md) | Draft; menunggu D-12 (D-15 disetujui 2026-11-15) |
+| 2 | [`finance-p2-posting-engine`](../../.kiro/specs/finance-p2-posting-engine/requirements.md) | Sedang berjalan: Sprint A–D selesai (peta rule `[TODO]` sudah dilengkapi, Task 1.1); semua 10 jenis dokumen dinyalakan ke `on` di staging 2026-11-21 dan Task 7.4/8.5 dinyatakan selesai oleh pemilik produk (Q-P2-1); D-13 diputuskan 2026-11-21 (opsi A, Task 11 dikeluarkan). Sisa: Task 1.3, 10 (gated D-1), 12, 13 (Q-P2-5 diputuskan 2026-11-21; Task 13.1-13.3 diimplementasikan 22 November 2026 di branch `feat/finance-p2-discount-split`, belum merge), 14 |
+| 3 | [`finance-p3-tax-engine`](../../.kiro/specs/finance-p3-tax-engine/requirements.md) | Draft; D-12 disetujui 22 November 2026 (implementasi di fase ini), D-15 disetujui 2026-11-15 |
 | 4 | [`finance-p4-ar-ap-fx`](../../.kiro/specs/finance-p4-ar-ap-fx/requirements.md) | Draft; menunggu D-16, D-17, D-18 |
 | 5 | [`finance-p5-reporting`](../../.kiro/specs/finance-p5-reporting/requirements.md) | Draft; menunggu D-11, D-20 |
 | 6 | [`finance-p6-closing-revaluation`](../../.kiro/specs/finance-p6-closing-revaluation/requirements.md) | Draft; menunggu D-21…D-24 |
@@ -385,7 +387,7 @@ Sumber keputusan proses (BR-1 s.d. BR-7) dan pertanyaan terkait: [`finance-decis
 
 1. Fase 1 menambahkan struktur baru **tanpa** mengubah perilaku listener: listener existing memanggil `JournalService` (adapter) sehingga setiap pasangan debit/kredit lama menjadi jurnal 2-baris yang valid.
 2. Fase 2 memindahkan satu jenis dokumen sekali waktu ke `PostingService` di balik *feature flag* (setting Finances/config). Urutan yang disarankan, dari risiko terendah: Asset (depresiasi, scrap, penyesuaian) → Payment → Purchase Receipt → Delivery Note → Sales Invoice → Purchase Invoice → Stock Entry.
-3. Untuk tiap jenis dokumen: jalankan mode *shadow* (hitung jurnal engine, bandingkan dengan jurnal lama, jangan tulis), lalu *cutover* ketika parity 100% pada seluruh fixture dan sampel data staging.
+3. Untuk tiap jenis dokumen: jalankan mode *shadow* (hitung jurnal engine, bandingkan dengan jurnal lama, jangan tulis), lalu *cutover* ketika parity 100% pada seluruh fixture dan sampel data staging. (Riwayat: seluruh jenis sudah dinyalakan 2026-11-21 dan jalur lama dihapus di Task 14.1; mode `off/shadow/on` dihapus 22 November 2026 oleh keputusan pemilik produk, Q-P2-23, sehingga engine selalu aktif.)
 4. Struktur lama (`accounts.balance_amount` sebagai sumber, pencarian akun hardcode) dipensiunkan hanya setelah Fase 5 membuktikan rekonsiliasi.
 
 **Backfill GL lama (D-8, diubah 2026-11-04).** Kelompokkan baris `general_ledgers` per dokumen sumber (`referenceable_type`, `referenceable_id`) menjadi satu `journal`; kelompok dipecah per **tanggal** (hari kalender) hanya bila dokumen punya posting di hari berbeda, sehingga pasangan baris yang hanya berbeda detik (N-3) tetap satu jurnal. Kelompok seimbang → `posted`. Kelompok tak seimbang → `legacy_unbalanced = true` dan masuk laporan rekonsiliasi; **tidak** dikoreksi otomatis. Backfill idempoten, dapat dijalankan ulang, dan tidak mengubah `debit`/`credit` lama.
@@ -413,8 +415,8 @@ Catatan lingkungan: test suite memakai SQLite `:memory:` sedangkan dev DB MySQL 
 |---|---|---|---|
 | R-1 | Backfill GL lama menemukan banyak kelompok tak seimbang | Laporan awal tidak cocok; untuk produksi saat ini tidak berlaku, karena GL produksi belum berisi data nyata (Q1 dijawab 2026-11-03) | Audit Fase 0 mengukur ukuran masalah lebih dulu; flag `legacy_unbalanced`; tidak memaksa koreksi |
 | R-2 | Kesalahan kebijakan pajak (DPP Nilai Lain, PPN 12%) | Kewajiban pajak salah | Aturan berversi; golden test; validasi akuntan; ikuti spec DPP yang berjalan |
-| R-3 | Dua pola posting hidup bersamaan saat transisi | Duplikasi/ketidakcocokan | Feature flag per dokumen; mode shadow; satu jalur aktif per jenis dokumen |
-| R-4 | Tidak ada akuntan sebagai pengambil keputusan | Kebijakan ditebak | Jadikan prasyarat Fase 0; D-11 dan D-12 butuh persetujuan akuntan |
+| R-3 | Dua pola posting hidup bersamaan saat transisi | Duplikasi/ketidakcocokan | Feature flag per dokumen; mode shadow; satu jalur aktif per jenis dokumen (riwayat; sejak 22 November 2026 jalur lama dihapus dan hanya engine yang aktif, Q-P2-23) |
+| R-4 | Tidak ada akuntan sebagai pengambil keputusan | Kebijakan ditebak | Jadikan prasyarat Fase 0; D-11 butuh persetujuan akuntan. D-12 disetujui pemilik produk 22 November 2026 sebagai usulan PRD (implementasi di Fase 3); risiko ini tetap terbuka karena kebijakan belum divalidasi akuntan |
 | R-5 | Konversi `double`→`decimal` di puluhan tabel operasional | Regresi luas | Terapkan `decimal` hanya di tabel jurnal; pembulatan di batas posting; konversi tabel operasional program terpisah |
 | R-6 | Requirement 4 spec `dpp-discount-and-tax-compliance` (kolom klasifikasi di `taxes`) **belum diimplementasi** (Task 11 opsional dan dilewati), dan perhitungan pajak invoice terkunci pada kolom generated berfaktor 11/12 (F-17) | Konflik skema/ruang lingkup ganda; tarif efektif data lama tidak jelas | Fase 3 menyerap Requirement 4 (D-15); dibagi Bagian A (aman) dan Bagian B (gated); audit semantik `rate` data produksi (Q-P3-1) |
 | R-7 | Scope creep (IFRS 15/16, multi-company, multi-negara) | Jadwal molor | Non-tujuan Bagian 3.2; perubahan scope masuk spec lebih dulu |
@@ -441,7 +443,7 @@ Catatan lingkungan: test suite memakai SQLite `:memory:` sedangkan dev DB MySQL 
 | # | Pertanyaan | Dibutuhkan sebelum |
 |---|---|---|
 | Q1 | Apakah GL sudah berisi data **produksi** nyata (hanya staging yang terlihat)? Ini menentukan beban backfill dan kehati-hatian migrasi. **Status: Dijawab 2026-11-03** oleh pemilik produk: belum ada data sama sekali (GL produksi kosong). Konsekuensi: beban backfill produksi per 2026-11-03 nol (GL produksi kosong). | Fase 1 |
-| Q2 | Siapa penanggung jawab akuntansi yang menyetujui kebijakan (D-11, D-12)? | Fase 0 |
+| Q2 | Siapa penanggung jawab akuntansi yang menyetujui kebijakan (D-11, D-12)? (D-12 disetujui pemilik produk 22 November 2026 sebagai usulan PRD, implementasi di Fase 3; D-11 tetap menunggu) | Fase 0 |
 | Q3 | Berapa developer yang tersedia, dan apakah ada tenggat bisnis (mis. audit/pajak tertentu)? | Fase 0 |
 | Q4 | ~~Apakah multi-company direncanakan dalam 12 bulan (D-4)?~~ Dijawab 2026-10-18: satu perusahaan | — |
 | Q5 | D-1: opsi A, B, atau C? | Fase 2 |

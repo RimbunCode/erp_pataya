@@ -4,10 +4,12 @@ namespace Tests\Feature\Finances\Characterization;
 
 use App\Enums\FormStatus;
 use App\Models\Finances\Account;
+use App\Models\Finances\PostingProfile;
 use App\Models\Finances\SalesInvoice;
 use App\Services\Finances\SalesInvoiceService;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Tests\Support\BuildsFinanceFixtures;
+use Tests\Support\EnablesEnginePosting;
 use Tests\TestCase;
 
 /**
@@ -17,7 +19,7 @@ use Tests\TestCase;
  * diharapkan. Fase 2 memakai test ini sebagai parity test; perubahan nilai di sini harus disengaja.
  */
 class SalesInvoicePostingTest extends TestCase {
-    use BuildsFinanceFixtures, RefreshDatabase;
+    use BuildsFinanceFixtures, EnablesEnginePosting, RefreshDatabase;
 
     private Account $receivable;
     private Account $sales;
@@ -25,9 +27,12 @@ class SalesInvoicePostingTest extends TestCase {
     protected function setUp(): void {
         parent::setUp();
 
-        $this->setUpFinanceFixtures([SalesInvoice::class]);
+        $this->setUpFinanceFixtures([SalesInvoice::class, PostingProfile::class]);
         $this->receivable = $this->makeAccount('1200', 'Piutang Usaha', 'asset', 'debit', 'accounts_receivable');
         $this->sales      = $this->makeAccount('4000', 'Penjualan', 'income', 'credit', 'sales');
+
+        // Task 14.1: closure legacy dihapus; jurnal ditulis engine dengan akun dari profil (ekspektasi ledger tidak berubah).
+        $this->enableEnginePosting(['receivable' => $this->receivable, 'revenue' => $this->sales]);
     }
 
     /**

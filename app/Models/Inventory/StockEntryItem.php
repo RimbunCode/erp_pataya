@@ -96,6 +96,10 @@ class StockEntryItem extends Model {
         'stockEntry' => [
             'ignore' => true,
         ],
+        // Catatan audit akun yang dipakai engine (Task 12.1): bukan kolom tabel data.
+        'posted_account_id' => [
+            'ignore' => true,
+        ],
     ];
 
     public function item() {

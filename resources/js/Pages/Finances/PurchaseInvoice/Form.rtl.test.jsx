@@ -15,9 +15,9 @@ vi.mock("axios", () => ({ default: { post: vi.fn() } }));
 //
 // Strategi (paralel dgn SalesInvoice/Form.rtl.test.jsx): stub SEMUA child
 // berat/sudah-ditest, fokus HANYA ke logic UNIK Form.jsx sendiri:
-//   - defaultValue() -- resolve expense_head_account (stock_received_but_not_
-//     billed) & credit_account (payable) dari getDataModel, filter is_contra
-//     false diterapkan di FE (bukan bagian query filter langsung, cek shape).
+//   - defaultValue() -- hanya mengisi tanggal; akun (expense_head_account,
+//     credit_account) ditentukan engine sehingga tidak ada lookup getDataModel
+//     (Q-P2-23).
 //   - Memo kalkulasi net_amount/dpp_amount/tax_amount/amount dihitung dari
 //     quantity*rate + tax.rate MENTAH per baris (rawLines) lalu dialokasikan
 //     ulang via allocateDiscount dgn DPP_FACTOR 11/12 (allocatedLines) --
@@ -31,11 +31,10 @@ vi.mock("axios", () => ({ default: { post: vi.fn() } }));
 //   - Transform data saat memilih purchase_order (checkout PO -> item invoice,
 //     quantity dari unbilled_quantity, amount = basic_amount+tax_amount).
 //   - Transform reset saat toggle is_return checkbox (SEMUA field terkait dan
-//     is_return sendiri, TANPA panggilan getDataModel -- beda dgn SalesInvoice
-//     yang punya getContraIncomeAccount async).
+//     is_return sendiri, TANPA panggilan getDataModel).
 //   - Transform data saat memilih return_against (retur invoice lama) --
-//     termasuk fallback credit_account/expense_head_account ke prev jika
-//     return_against tidak membawa field tsb.
+//     akun (credit_account/expense_head_account) tidak disalin dari invoice
+//     yang diretur (Q-P2-23).
 //   - mapItem callback yang diteruskan ke FormTable (alokasi diskon per-baris
 //     via allocateDiscount dgn DPP_FACTOR 11/12, port dari
 //     PurchaseInvoiceService::DPP_FACTOR).
@@ -337,38 +336,32 @@ describe("PurchaseInvoice Form", () => {
     lastDefaultValueArg = undefined;
   });
 
-  describe("defaultValue (mode create)", () => {
-    it("mengambil expense_head_account (stock_received_but_not_billed) & credit_account (payable) dari getDataModel", async () => {
-      getDataModelMock.mockResolvedValue([
-        { id: 1, account_type: "payable", name: "Hutang Usaha" },
-        {
-          id: 2,
-          account_type: "stock_received_but_not_billed",
-          name: "Barang Belum Ditagih",
-        },
-      ]);
+  describe("akun dikelola engine (Q-P2-23, Task 12.3)", () => {
+    it("tidak mengambil default akun dan menyembunyikan seksi akun", async () => {
       render(<Form />);
 
-      // useFormPage (di-stub, tidak memanggil defaultValue secara otomatis di
-      // sini -- concern useFormPage internal sudah dicover FormPage.rtl.test
-      // .jsx) menerima defaultValue sebagai argumen pertama; panggil manual
-      // utk menguji isi callback itu sendiri.
       const result = await lastDefaultValueArg();
 
-      expect(getDataModelMock).toHaveBeenCalledWith(
-        "App\\Models\\Finances\\Account",
-        expect.objectContaining({
-          root_type: "liability",
-          account_type: { in: ["stock_received_but_not_billed", "payable"] },
-          is_contra: false,
-        }),
-      );
+      expect(getDataModelMock).not.toHaveBeenCalled();
+      expect(result).toEqual({ date: expect.any(Date) });
+      expect(
+        screen.queryByText("finances.purchaseInvoice.columns.accounts"),
+      ).not.toBeInTheDocument();
+      expect(screen.queryByTestId("account-link")).not.toBeInTheDocument();
+    });
 
-      expect(result.expense_head_account).toEqual(
-        expect.objectContaining({ id: 2 }),
-      );
-      expect(result.credit_account).toEqual(expect.objectContaining({ id: 1 }));
-      expect(result.date).toBeInstanceOf(Date);
+    it("tidak terpengaruh prop accountsManagedByEngine yang sudah dihapus", () => {
+      usePageMock.mockReturnValue({
+        props: {
+          preferences: { default_currency_id: "idr" },
+          accountsManagedByEngine: false,
+        },
+      });
+      render(<Form />);
+
+      expect(
+        screen.queryByText("finances.purchaseInvoice.columns.accounts"),
+      ).not.toBeInTheDocument();
     });
   });
 
@@ -719,9 +712,8 @@ describe("PurchaseInvoice Form", () => {
       });
       await user.click(checkbox);
 
-      // Toggle is_return TIDAK memanggil getDataModel sama sekali (beda dari
-      // SalesInvoice yang punya getContraIncomeAccount async) -- reset field
-      // murni functional updater sinkron.
+      // Toggle is_return TIDAK memanggil getDataModel sama sekali -- reset
+      // field murni functional updater sinkron.
       expect(getDataModelMock).not.toHaveBeenCalled();
 
       expect(setData).toHaveBeenCalled();
@@ -773,40 +765,12 @@ describe("PurchaseInvoice Form", () => {
 
       expect(result.supplier).toEqual({ id: 1, name: "PT Retur" });
       expect(result.purchase_order).toEqual({ id: 9 });
-      expect(result.credit_account).toEqual({ id: 88 });
-      expect(result.expense_head_account).toEqual({ id: 89 });
+      // Akun ditentukan engine: tidak disalin dari invoice yang diretur.
+      expect(result.credit_account).toEqual({ id: 1 });
+      expect(result.expense_head_account).toEqual({ id: 2 });
       expect(result.items[0]).toEqual(
         expect.objectContaining({ return_against_item_id: 300 }),
       );
-    });
-
-    it("credit_account & expense_head_account fallback ke prev saat return_against tidak membawa field tsb", async () => {
-      const user = userEvent.setup({ delay: null });
-      const setData = vi.fn();
-      formPageState = makeFormPageState({
-        setData,
-        data: { items: [], is_return: true },
-      });
-      globalThis.__linkModelPayloads["purchase-invoice-link"] = {
-        id: 201,
-        items: [],
-        credit_account: undefined,
-        expense_head_account: undefined,
-      };
-
-      render(<Form />);
-      await user.click(screen.getByTestId("purchase-invoice-link"));
-
-      const updater = setData.mock.calls[setData.mock.calls.length - 1][0];
-      const prevCreditAccount = { id: 42 };
-      const prevExpenseHeadAccount = { id: 43 };
-      const result = updater({
-        items: [],
-        credit_account: prevCreditAccount,
-        expense_head_account: prevExpenseHeadAccount,
-      });
-      expect(result.credit_account).toBe(prevCreditAccount);
-      expect(result.expense_head_account).toBe(prevExpenseHeadAccount);
     });
   });
 

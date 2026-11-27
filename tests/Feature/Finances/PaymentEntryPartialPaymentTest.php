@@ -5,10 +5,12 @@ namespace Tests\Feature\Finances;
 use App\Models\Finances\Account;
 use App\Models\Finances\PaymentEntry;
 use App\Models\Finances\PaymentSchedule;
+use App\Models\Finances\PostingProfile;
 use App\Models\Finances\SalesInvoice;
 use App\Services\Finances\PaymentEntryService;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Tests\Support\BuildsFinanceFixtures;
+use Tests\Support\EnablesEnginePosting;
 use Tests\TestCase;
 
 /**
@@ -16,7 +18,7 @@ use Tests\TestCase;
  * kumulatif faktur. Sebelumnya known-issue `PartialPaymentPostsCumulativeAmountTest` (GL kedua 700.000).
  */
 class PaymentEntryPartialPaymentTest extends TestCase {
-    use BuildsFinanceFixtures, RefreshDatabase;
+    use BuildsFinanceFixtures, EnablesEnginePosting, RefreshDatabase;
 
     private Account $cash;
     private Account $receivable;
@@ -24,9 +26,12 @@ class PaymentEntryPartialPaymentTest extends TestCase {
     protected function setUp(): void {
         parent::setUp();
 
-        $this->setUpFinanceFixtures([SalesInvoice::class, PaymentSchedule::class, PaymentEntry::class]);
+        $this->setUpFinanceFixtures([SalesInvoice::class, PaymentSchedule::class, PaymentEntry::class, PostingProfile::class]);
         $this->cash       = $this->makeAccount('1100', 'Kas', 'asset', 'debit', 'cash');
         $this->receivable = $this->makeAccount('1200', 'Piutang Usaha', 'asset', 'debit', 'accounts_receivable');
+
+        // Task 14.1: closure legacy dihapus; kas dari Metode Pembayaran (otomatis di makePaymentEntry), piutang dari profil.
+        $this->enableEnginePosting(['receivable' => $this->receivable]);
     }
 
     public function test_each_partial_payment_posts_its_own_amount(): void {

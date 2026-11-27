@@ -36,7 +36,17 @@ final readonly class PostingContext {
         public ?array $party = null,
         public ?string $description = null,
         public ?array $guardDocument = null,
+        public array $ruleDocumentTypes = [],
     ) {}
+
+    /**
+     * Tipe dokumen untuk mencocokkan kolom `document_type` aturan akun bersyarat bagi peran ini; default `documentType`.
+     * `ruleDocumentTypes` (peta peran => tipe) dipakai mis. oleh pelepasan aset agar `revenue`/`discount` di-resolve
+     * sebagai Sales Invoice (akun sama dengan jurnal SI sumber).
+     */
+    public function ruleTypeFor(string $role): PostingDocumentType {
+        return $this->ruleDocumentTypes[$role] ?? $this->documentType;
+    }
 
     /**
      * Tipe dokumen yang statusnya diperiksa guard cancel; default sumber (Q-P2-13).

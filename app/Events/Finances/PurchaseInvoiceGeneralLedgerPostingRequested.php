@@ -14,7 +14,7 @@ class PurchaseInvoiceGeneralLedgerPostingRequested {
         public readonly float $totalAmount,
         public readonly bool $isReturn,
         public readonly \DateTimeInterface $transactionDate,
-        public readonly string $expenseHeadAccountId,
-        public readonly string $creditAccountId,
+        public readonly ?string $expenseHeadAccountId,
+        public readonly ?string $creditAccountId,
     ) {}
 }

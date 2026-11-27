@@ -36,7 +36,13 @@ final class InvoiceLineAttributesBuilder {
 
             $variant = $item->item;
             $lines[] = new LineAttributes(
-                amounts: ['amount' => $amount],
+                // `gross_amount`/`discount_amount` (Requirement 14.2): kotor = basic + pajak (pajak masih menyatu, F-03) =
+                // bersih + diskon alokasi baris. `amount` (bersih) tetap menjadi dasar rumus, toleransi, dan fallback.
+                amounts: [
+                    'amount'          => $amount,
+                    'gross_amount'    => (float) $item->basic_amount + (float) $item->tax_amount,
+                    'discount_amount' => (float) $item->discount_amount,
+                ],
                 itemType: $variant?->type !== null ? (string) $variant->type : null,
                 isStockItem: $variant?->is_stock_item !== null ? (bool) $variant->is_stock_item : null,
                 itemCategoryId: $variant?->category_id !== null ? (string) $variant->category_id : null,
@@ -56,5 +62,29 @@ final class InvoiceLineAttributesBuilder {
         }
 
         return $lines;
+    }
+
+    /**
+     * Jumlah bernama tingkat dokumen untuk posting diskon terpisah (Requirement 14.2-14.3): Σ `gross_amount` dan
+     * Σ `discount_amount` baris. `$nonStockOnly` (Purchase Invoice) hanya menjumlah baris yang tegas non-stok
+     * (`isStockItem === false`); baris stok dan baris tanpa atribut stok (null) tetap bersih.
+     *
+     * @param  list<LineAttributes>  $lines
+     * @return array{gross_amount: float, discount_amount: float}
+     */
+    public function discountTotals(array $lines, bool $nonStockOnly = false): array {
+        $gross    = 0.0;
+        $discount = 0.0;
+
+        foreach ($lines as $line) {
+            if ($nonStockOnly && $line->isStockItem !== false) {
+                continue;
+            }
+
+            $gross += $line->amount('gross_amount');
+            $discount += $line->amount('discount_amount');
+        }
+
+        return ['gross_amount' => $gross, 'discount_amount' => $discount];
     }
 }

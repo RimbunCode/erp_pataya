@@ -67,23 +67,21 @@ class PaymentEntryController extends Controller {
                             return redirect()->route('paymentEntries.show', $paymentEntry);
                         }
                         $salesInvoice->loadRelations();
-                        ['accountBank' => $accountBank, 'amount' => $amount, 'paymentMethod' => $paymentMethod] = PaymentSchedule::getDetailPayment($salesInvoice->paymentSchedules);
+                        ['amount' => $amount, 'paymentMethod' => $paymentMethod] = PaymentSchedule::getDetailPayment($salesInvoice->paymentSchedules);
                         if ($salesInvoice->return_against_id === null) {
                             $amount = max(0.0, min((float) $amount, (float) $salesInvoice->outstanding_amount));
                         }
 
                         $defaultData = [
-                            'date'              => now(),
-                            'paymentable'       => $salesInvoice,
-                            'payment_type'      => $salesInvoice->return_against_id === null ? 'receive' : 'pay',
-                            'party_type'        => 'customer',
-                            'partyable'         => $salesInvoice->customer,
-                            'currency'          => $salesInvoice->currency,
-                            'exchange_rate'     => $salesInvoice->exchange_rate,
-                            'account_paid_from' => $salesInvoice->return_against_id === null ? $salesInvoice->debitAccount : $accountBank,
-                            'account_paid_to'   => $salesInvoice->return_against_id === null ? $accountBank : $salesInvoice->customer_id,
-                            'paid_amount'       => $amount,
-                            'payment_method'    => $paymentMethod,
+                            'date'           => now(),
+                            'paymentable'    => $salesInvoice,
+                            'payment_type'   => $salesInvoice->return_against_id === null ? 'receive' : 'pay',
+                            'party_type'     => 'customer',
+                            'partyable'      => $salesInvoice->customer,
+                            'currency'       => $salesInvoice->currency,
+                            'exchange_rate'  => $salesInvoice->exchange_rate,
+                            'paid_amount'    => $amount,
+                            'payment_method' => $paymentMethod,
                         ];
                         break;
 
@@ -98,23 +96,21 @@ class PaymentEntryController extends Controller {
                             return redirect()->route('paymentEntries.show', $paymentEntry);
                         }
                         $purchaseInvoice->loadRelations();
-                        ['accountBank' => $accountBank, 'amount' => $amount, 'paymentMethod' => $paymentMethod] = PaymentSchedule::getDetailPayment($purchaseInvoice->paymentSchedules);
+                        ['amount' => $amount, 'paymentMethod' => $paymentMethod] = PaymentSchedule::getDetailPayment($purchaseInvoice->paymentSchedules);
                         if ($purchaseInvoice->return_against_id === null) {
                             $amount = max(0.0, min((float) $amount, (float) $purchaseInvoice->outstanding_amount));
                         }
 
                         $defaultData = [
-                            'date'              => now(),
-                            'paymentable'       => $purchaseInvoice,
-                            'payment_type'      => $purchaseInvoice->return_against_id === null ? 'pay' : 'receive',
-                            'party_type'        => 'supplier',
-                            'partyable'         => $purchaseInvoice->supplier,
-                            'currency'          => $purchaseInvoice->currency,
-                            'exchange_rate'     => $purchaseInvoice->exchange_rate,
-                            'account_paid_from' => $accountBank,
-                            'account_paid_to'   => $purchaseInvoice->return_against_id === null ? $purchaseInvoice->creditAccount : $purchaseInvoice->customer_id,
-                            'paid_amount'       => $amount,
-                            'payment_method'    => $paymentMethod,
+                            'date'           => now(),
+                            'paymentable'    => $purchaseInvoice,
+                            'payment_type'   => $purchaseInvoice->return_against_id === null ? 'pay' : 'receive',
+                            'party_type'     => 'supplier',
+                            'partyable'      => $purchaseInvoice->supplier,
+                            'currency'       => $purchaseInvoice->currency,
+                            'exchange_rate'  => $purchaseInvoice->exchange_rate,
+                            'paid_amount'    => $amount,
+                            'payment_method' => $paymentMethod,
                         ];
                         break;
 

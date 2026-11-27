@@ -77,4 +77,13 @@ abstract class TestCase extends BaseTestCase {
             DB::statement('PRAGMA legacy_alter_table = ON');
         }
     }
+
+    /**
+     * Melonggarkan `general_ledgers.journal_id` kembali menjadi nullable untuk test yang memang membutuhkan baris GL
+     * legacy tanpa jurnal (backfill, rekonsiliasi, audit). Skema produksi NOT NULL (Finance Fase 1, Task 9.1, Rilis 2);
+     * perubahan ini ikut digulung bersama transaksi test.
+     */
+    protected function allowLegacyLedgerRows(): void {
+        (require base_path('database/migrations/2026_11_21_100002_make_journal_id_not_null_on_general_ledgers_table.php'))->down();
+    }
 }

@@ -6,9 +6,11 @@ use App\Enums\FormStatus;
 use App\Models\Asset\Asset;
 use App\Models\Asset\AssetDepreciationSchedule;
 use App\Models\Core\GlPostingStatus;
+use App\Models\Finances\PostingProfile;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Tests\Support\BuildsAssetFixtures;
 use Tests\Support\BuildsFinanceFixtures;
+use Tests\Support\EnablesEnginePosting;
 use Tests\TestCase;
 
 /**
@@ -18,12 +20,15 @@ use Tests\TestCase;
  * hapus buku: debit akumulasi penyusutan, kredit aset tetap (perilaku saat ini, dikunci apa adanya).
  */
 class AssetScrapPostingTest extends TestCase {
-    use BuildsAssetFixtures, BuildsFinanceFixtures, RefreshDatabase;
+    use BuildsAssetFixtures, BuildsFinanceFixtures, EnablesEnginePosting, RefreshDatabase;
 
     protected function setUp(): void {
         parent::setUp();
 
-        $this->setUpFinanceFixtures();
+        $this->setUpFinanceFixtures([PostingProfile::class]);
+
+        // Task 14.1: closure legacy dihapus; jurnal ditulis engine dengan akun master dari AssetCategoryAccount.
+        $this->enableEnginePosting();
     }
 
     public function test_scrap_writes_off_book_value_against_accumulated_depreciation(): void {

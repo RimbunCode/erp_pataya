@@ -12,6 +12,9 @@ use Illuminate\Database\Eloquent\Model;
  *
  * `sourceType`/`sourceId` adalah representasi mentah sumber untuk jalur yang tidak memegang modelnya (reversal yang
  * menyalin sumber jurnal asal, termasuk dokumen yang sudah di-soft-delete); `source` didahulukan bila keduanya diisi.
+ *
+ * `discountSplit` (Requirement 14.8): bentuk jurnal yang direkam ke `journals.discount_split` oleh `PostingService`
+ * (true = memuat baris berperan `discount`); null = tidak direkam (jurnal manual, reversal, jalur non-engine).
  */
 final readonly class JournalDraft {
     /**
@@ -26,6 +29,7 @@ final readonly class JournalDraft {
         public ?string $description = null,
         public ?string $sourceType = null,
         public ?string $sourceId = null,
+        public ?bool $discountSplit = null,
     ) {}
 
     /**
@@ -42,6 +46,7 @@ final readonly class JournalDraft {
             description: $this->description,
             sourceType: $this->sourceType,
             sourceId: $this->sourceId,
+            discountSplit: $this->discountSplit,
         );
     }
 }

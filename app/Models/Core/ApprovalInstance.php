@@ -67,6 +67,26 @@ class ApprovalInstance extends Model {
         return $this->hasOne(ApprovalInstanceStep::class, 'approval_instance_id')->where('sequence', $this->current_sequence);
     }
 
+    /**
+     * Kunci baris instance approval dokumen (lalu step-nya) di transaksi yang sedang berjalan. Dipanggil jalur cancel
+     * SEBELUM mengunci/mengubah dokumen, supaya urutan kunci sama dengan ApprovalInstanceController::approve()
+     * (instance -> step -> dokumen, Q-P2-42). Tanpa ini, cancel (dokumen -> instance via CancelPendingApprovalSteps)
+     * dan approve (instance -> dokumen lewat onApproved) bisa saling menunggu (deadlock). No-op bila dokumen tak punya
+     * instance. Harus dipanggil di dalam transaksi.
+     */
+    public static function lockForDocument(Model $document): void {
+        $instanceIds = DB::table('approval_instances')
+            ->where('document_type', $document::class)
+            ->where('document_id', $document->getKey())
+            ->orderBy('id')
+            ->lockForUpdate()
+            ->pluck('id');
+
+        if ($instanceIds->isNotEmpty()) {
+            DB::table('approval_instance_steps')->whereIn('approval_instance_id', $instanceIds)->orderBy('id')->lockForUpdate()->pluck('id');
+        }
+    }
+
     public static function makeInstance(Model $data, array $options = [], string $triggerOn = 'submit') {
         DB::beginTransaction();
         $model  = \get_class($data);

@@ -15,6 +15,7 @@ import Link from "@/Components/Link";
 import { useLaravelReactI18n } from "laravel-react-i18n";
 import { usePage } from "@inertiajs/react";
 import PriceControlWarnings from "@/Pages/Finances/Components/PriceControlWarnings";
+import PostedAccountsPanel from "@/Pages/Finances/Components/PostedAccountsPanel";
 
 export default function Show({ salesInvoice, defaultData }) {
   const route = window.route;
@@ -104,6 +105,7 @@ export default function Show({ salesInvoice, defaultData }) {
       }
     >
       <Form />
+      <PostedAccountsPanel isNew={!salesInvoice} />
       {salesInvoice?.submitted_at && <RelationPanels />}
     </FormPage>
   );

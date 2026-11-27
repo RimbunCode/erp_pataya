@@ -8,12 +8,14 @@ use App\Listeners\Purchase\Ledger\PostPurchaseReceiptGeneralLedger;
 use App\Models\Core\GlPostingStatus;
 use App\Models\Finances\GeneralLedger;
 use App\Models\Finances\Journal;
+use App\Models\Finances\PostingProfile;
 use App\Models\Purchase\PurchaseReceipt;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Schema;
 use Illuminate\Support\Str;
 use RuntimeException;
+use Tests\Support\EnablesEnginePosting;
 use Tests\TestCase;
 
 /**
@@ -24,7 +26,7 @@ use Tests\TestCase;
  * memicu boot hook model sumbernya.
  */
 class PostPurchaseReceiptGeneralLedgerTest extends TestCase {
-    use RefreshDatabase;
+    use EnablesEnginePosting, RefreshDatabase;
 
     protected function setUp(): void {
         parent::setUp();
@@ -38,6 +40,7 @@ class PostPurchaseReceiptGeneralLedgerTest extends TestCase {
 
         GeneralLedger::initPermissions();
         Journal::initPermissions();
+        PostingProfile::initPermissions();
     }
 
     private function makePurchaseReceiptId(): string {
@@ -68,9 +71,18 @@ class PostPurchaseReceiptGeneralLedgerTest extends TestCase {
         return $id;
     }
 
+    /**
+     * Task 14.1: closure legacy dihapus; jurnal ditulis engine dengan akun dari profil.
+     */
+    private function enableEngine(): void {
+        $this->enableEnginePosting([
+            'stock'                         => $this->makeAccountId('asset', 'stock'),
+            'stock_received_but_not_billed' => $this->makeAccountId('liability', 'stock_received_but_not_billed'),
+        ]);
+    }
+
     public function test_handle_creates_two_gl_entries_for_normal_receipt(): void {
-        $this->makeAccountId('asset', 'stock');
-        $this->makeAccountId('liability', 'stock_received_but_not_billed');
+        $this->enableEngine();
         $purchaseReceiptId = $this->makePurchaseReceiptId();
 
         GlPostingStatus::create([
@@ -110,8 +122,7 @@ class PostPurchaseReceiptGeneralLedgerTest extends TestCase {
     }
 
     public function test_handle_reverses_debit_credit_for_return(): void {
-        $this->makeAccountId('asset', 'stock');
-        $this->makeAccountId('liability', 'stock_received_but_not_billed');
+        $this->enableEngine();
         $purchaseReceiptId = $this->makePurchaseReceiptId();
 
         GlPostingStatus::create([

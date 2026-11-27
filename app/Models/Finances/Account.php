@@ -18,7 +18,6 @@ class Account extends Model {
     protected $casts             = [
         'is_group'       => 'boolean',
         'is_disabled'    => 'boolean',
-        'is_contra'      => 'boolean',
         'tax_rate'       => 'float',
         'balance_amount' => 'float',
     ];
@@ -55,9 +54,6 @@ class Account extends Model {
         'is_group' => [
             'show'      => true,
             'order'     => 1,
-            'groupable' => true,
-        ],
-        'is_contra' => [
             'groupable' => true,
         ],
         'parentAccount' => [

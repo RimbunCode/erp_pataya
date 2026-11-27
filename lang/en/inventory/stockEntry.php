@@ -14,7 +14,6 @@ return [
     'detail'             => 'Detail',
     'items'              => 'Items',
     'additional_costs'   => 'Additional Costs',
-    'accounting'         => 'Accounting',
     'columns'            => [
         'code'                     => 'Code',
         'date'                     => 'Date',

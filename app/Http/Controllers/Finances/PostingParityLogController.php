@@ -4,12 +4,7 @@ namespace App\Http\Controllers\Finances;
 
 use App\Enums\PostingDocumentType;
 use App\Http\Controllers\Controller;
-use App\Http\Requests\Finances\PostingModeRequest;
-use App\Models\Finances\FinanceSetting;
 use App\Models\Finances\PostingParityLog;
-use App\Services\Finances\Posting\PostingModeResolver;
-use App\Services\Finances\Posting\PostingModeService;
-use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Validator;
 use Illuminate\Validation\Rule;
@@ -18,11 +13,10 @@ use Inertia\Response;
 use Symfony\Component\HttpKernel\Exception\HttpException;
 
 /**
- * Halaman Parity Log dan kontrol mode engine per jenis dokumen (Finance Fase 2, Requirement 6.8, 8.3, 8.5). Daftar
- * (izin `select`) hanya membaca catatan shadow dengan filter jenis dokumen/status/tanggal; rincian selisih hanya
- * dikirim untuk pemegang izin `read`. Mengubah mode memerlukan izin `switch_posting_mode` dan dilakukan SATU-SATUNYA
- * lewat `PostingModeService::switch()` yang memeriksa izin ulang dan menulis audit; pemilihan `on` wajib disertai
- * konfirmasi eksplisit. Controller tidak menulis setting atau log secara langsung.
+ * Halaman Parity Log baca-saja sebagai riwayat (Finance Fase 2, Requirement 8.3, 8.5). Daftar (izin `select`) hanya
+ * membaca catatan lama dengan filter jenis dokumen/status/tanggal; rincian selisih hanya dikirim untuk pemegang izin
+ * `read`. Kontrol ubah mode dihapus 2026-11-22 (Q-P2-23, opsi A): mode `off`/`shadow` tidak ada lagi dan tidak ada
+ * catatan baru sejak Task 14.1.
  */
 class PostingParityLogController extends Controller {
     private const PER_PAGE = 25;
@@ -31,11 +25,7 @@ class PostingParityLogController extends Controller {
         parent::__construct($request, PostingParityLog::class);
     }
 
-    protected function enforcePermission(string $method) {
-        return $method === 'switchMode' ? 'switch_posting_mode' : parent::enforcePermission($method);
-    }
-
-    public function index(Request $request, PostingModeResolver $modes): Response {
+    public function index(Request $request): Response {
         $this->setBreadcrumbs();
 
         $filters = Validator::make($request->query(), [
@@ -66,8 +56,6 @@ class PostingParityLogController extends Controller {
                 'diff'          => $canRead ? $log->diff : null,
             ]);
 
-        $current = $modes->all();
-
         return Inertia::render('Finances/PostingParityLogs/Index', [
             'logs'    => $logs,
             'filters' => [
@@ -78,24 +66,7 @@ class PostingParityLogController extends Controller {
             ],
             'documentTypes' => PostingDocumentType::values(),
             'statuses'      => $this->statuses(),
-            'modes'         => collect(PostingDocumentType::values())
-                ->mapWithKeys(fn (string $type): array => [$type => $this->normalizeMode($current[$type] ?? null)])
-                ->all(),
-            'modeOptions'   => FinanceSetting::POSTING_MODES,
-            'canSwitchMode' => $this->hasPermission('switch_posting_mode'),
         ]);
-    }
-
-    public function switchMode(PostingModeRequest $request, PostingDocumentType $documentType, PostingModeService $service): RedirectResponse {
-        $mode = (string) $request->validated('mode');
-
-        $service->switch($documentType, $mode);
-
-        return back()->with('success', __('finances/postingParityLog.mode.switched', [
-            // Kunci lang bertitik ('document_type.options' sebagai kunci datar) tidak dapat diakses lewat notasi titik.
-            'document_type' => __('finances/postingParityLog.columns')['document_type.options'][$documentType->value] ?? $documentType->value,
-            'mode'          => __("finances/postingParityLog.mode.options.{$mode}"),
-        ]));
     }
 
     /**
@@ -109,10 +80,6 @@ class PostingParityLogController extends Controller {
             PostingParityLog::STATUS_MISMATCH,
             PostingParityLog::STATUS_ENGINE_ERR,
         ];
-    }
-
-    private function normalizeMode(?string $mode): string {
-        return \in_array($mode, FinanceSetting::POSTING_MODES, true) ? $mode : FinanceSetting::POSTING_MODE_OFF;
     }
 
     private function hasPermission(string $action): bool {

@@ -104,9 +104,10 @@ class JournalRelationsTest extends TestCase {
 
     public function test_general_ledgers_foreign_keys_and_nullability(): void {
         $columns = collect(Schema::getColumns('general_ledgers'))->keyBy('name');
-        foreach (['journal_id', 'line_no', 'foreign_currency_code', 'foreign_debit', 'foreign_credit', 'exchange_rate', 'against_account_id'] as $column) {
+        foreach (['line_no', 'foreign_currency_code', 'foreign_debit', 'foreign_credit', 'exchange_rate', 'against_account_id'] as $column) {
             $this->assertTrue($columns[$column]['nullable'], "general_ledgers.{$column} harus nullable.");
         }
+        $this->assertFalse($columns['journal_id']['nullable'], 'general_ledgers.journal_id harus NOT NULL (Task 9.1, Rilis 2).');
 
         $foreignKeys = collect(Schema::getForeignKeys('general_ledgers'));
         $journalFk   = $foreignKeys->first(fn (array $fk) => $fk['columns'] === ['journal_id']);

@@ -8,6 +8,7 @@ use App\Models\Core\FormatingSeries;
 use App\Models\Finances\Account;
 use App\Models\Finances\GeneralLedger;
 use App\Models\Finances\Journal;
+use App\Models\Finances\PostingProfile;
 use App\Models\Finances\PurchaseInvoice;
 use App\Models\Finances\PurchaseInvoiceItem;
 use App\Models\Inventory\Item;
@@ -28,6 +29,7 @@ use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Event;
 use Illuminate\Support\Facades\Schema;
 use PHPUnit\Framework\Attributes\Test;
+use Tests\Support\EnablesEnginePosting;
 use Tests\TestCase;
 
 /**
@@ -36,7 +38,7 @@ use Tests\TestCase;
  * lewat jalur penuh, termasuk skenario >1 fixed-asset item dalam satu invoice.
  */
 class PurchaseInvoiceServiceFixedAssetDispatchTest extends TestCase {
-    use RefreshDatabase;
+    use EnablesEnginePosting, RefreshDatabase;
 
     private PurchaseInvoiceService $service;
     private User $testUser;
@@ -61,6 +63,7 @@ class PurchaseInvoiceServiceFixedAssetDispatchTest extends TestCase {
             PurchaseInvoice::class,
             GeneralLedger::class,
             Journal::class,
+            PostingProfile::class,
         ] as $model) {
             $model::initPermissions();
         }
@@ -104,6 +107,10 @@ class PurchaseInvoiceServiceFixedAssetDispatchTest extends TestCase {
             'root_type'      => 'expense',
             'report_type'    => 'profit_and_loss',
         ]);
+
+        // Task 14.1: closure legacy dihapus; jurnal ditulis engine dengan akun dari profil.
+        $this->actingAs($this->testUser);
+        $this->enableEnginePosting(['expense' => $this->expenseAccount, 'payable' => $this->creditAccount]);
     }
 
     private function withoutModelEvents(callable $callback) {

@@ -8,9 +8,11 @@ use App\Events\Core\AuditableModelSaved;
 use App\Exceptions\Finances\InvalidPostingProfileException;
 use App\Exceptions\Finances\InvalidPostingRuleException;
 use App\Models\Finances\Account;
+use App\Models\Finances\FinanceSetting;
 use App\Models\Finances\PostingProfile;
 use App\Models\Finances\PostingProfileAccount;
 use App\Models\Finances\PostingProfileRule;
+use App\Services\Finances\Posting\DiscountSplit\DiscountSplitMappingValidator;
 use Carbon\CarbonImmutable;
 use Carbon\CarbonInterface;
 use Illuminate\Database\Eloquent\ModelNotFoundException;
@@ -251,8 +253,11 @@ final class PostingProfileService {
      */
     public function activate(PostingProfile $profile): PostingProfile {
         return DB::transaction(function () use ($profile): PostingProfile {
-            $all    = PostingProfile::query()->lockForUpdate()->get()->keyBy('id');
-            $locked = $all->get($profile->getKey()) ?? throw (new ModelNotFoundException)->setModel(PostingProfile::class, [$profile->getKey()]);
+            // Urutan kunci sama dengan `SettingsService::update()` (finance_settings lebih dulu, lalu profil): menyimpan
+            // tanggal cutover dan mengaktifkan profil tidak dapat saling melewati pemeriksaan pemetaan `discount`.
+            $setting = FinanceSetting::query()->lockForUpdate()->first();
+            $all     = PostingProfile::query()->lockForUpdate()->get()->keyBy('id');
+            $locked  = $all->get($profile->getKey()) ?? throw (new ModelNotFoundException)->setModel(PostingProfile::class, [$profile->getKey()]);
             if (! $locked->isDraft()) {
                 throw InvalidPostingProfileException::notDraft($locked->status);
             }
@@ -262,6 +267,12 @@ final class PostingProfileService {
             $from = $locked->effective_from->toDateString();
             $to   = $locked->effective_to?->toDateString();
             $this->assertRange($from, $to);
+
+            // Peran `discount` tidak boleh hilang dari profil yang menjangkau tanggal cutover diskon terpisah
+            // (keputusan pemilik produk 22 November 2026, Requirement 14.4).
+            if ($setting !== null) {
+                app(DiscountSplitMappingValidator::class)->assertProfileKeepsDiscountMapped($locked, $setting);
+            }
 
             $before = $this->snapshot($locked);
 
@@ -428,17 +439,42 @@ final class PostingProfileService {
     }
 
     /**
+     * Kunci identitas kondisi aturan (Requirement 12.2): peran + kondisi non-akun, setelah normalisasi (kosong =
+     * null, `is_stock_item` menjadi boolean). Dua aturan berkunci sama pada satu profil ditolak; `priority` dan akun
+     * tidak ikut. Satu-satunya definisi "duplikat", dipakai juga validasi request agar pesan baris dan penjaga
+     * service tidak berselisih.
+     *
+     * @param  array<string, mixed>  $attributes
+     */
+    public function conditionKey(array $attributes): string {
+        $rule = $this->normalizeRule($attributes);
+
+        return json_encode([
+            $rule['role'],
+            $rule['document_type'],
+            $rule['variant'],
+            $rule['item_type'],
+            $rule['is_stock_item'],
+            $rule['item_category_id'],
+        ], JSON_THROW_ON_ERROR);
+    }
+
+    /**
      * @param  array<string, mixed>  $attributes
      * @return array{role: string, account_id: string, document_type: ?string, variant: ?string, item_type: ?string, is_stock_item: ?bool, item_category_id: ?string, priority: int}
      */
     private function normalizeRule(array $attributes): array {
-        $role = $attributes['role'] ?? null;
-        $role = $role instanceof AccountRole ? $role->value : $role;
-        $type = $attributes['document_type'] ?? null;
+        $role      = $attributes['role'] ?? null;
+        $role      = $role instanceof AccountRole ? $role->value : $role;
+        $type      = $attributes['document_type'] ?? null;
+        $accountId = $attributes['account_id'] ?? null;
+        if (($role !== null && ! \is_scalar($role)) || ($accountId !== null && ! \is_scalar($accountId))) {
+            throw new \InvalidArgumentException('Nilai aturan harus berupa teks atau angka.');
+        }
 
         return [
             'role'             => (string) ($role ?? ''),
-            'account_id'       => (string) ($attributes['account_id'] ?? ''),
+            'account_id'       => (string) ($accountId ?? ''),
             'document_type'    => $type instanceof PostingDocumentType ? $type->value : $this->nullIfBlank($type),
             'variant'          => $this->nullIfBlank($attributes['variant'] ?? null),
             'item_type'        => $this->nullIfBlank($attributes['item_type'] ?? null),
@@ -496,15 +532,12 @@ final class PostingProfileService {
 
         $this->assertAccountUsable($rule['account_id'], $rule['role'], rule: true);
 
+        $key       = $this->conditionKey($rule);
         $duplicate = PostingProfileRule::query()
             ->where('posting_profile_id', $profile->getKey())
             ->where('role', $rule['role'])
             ->get()
-            ->contains(fn (PostingProfileRule $existing): bool => $existing->document_type === $rule['document_type']
-                && $existing->variant === $rule['variant']
-                && $existing->item_type === $rule['item_type']
-                && $existing->is_stock_item === $rule['is_stock_item']
-                && $existing->item_category_id === $rule['item_category_id']);
+            ->contains(fn (PostingProfileRule $existing): bool => $this->conditionKey($existing->only(['role', 'document_type', 'variant', 'item_type', 'is_stock_item', 'item_category_id'])) === $key);
         if ($duplicate) {
             throw InvalidPostingRuleException::duplicate($rule['role']);
         }
@@ -562,6 +595,10 @@ final class PostingProfileService {
     }
 
     private function nullIfBlank(mixed $value): ?string {
+        if ($value !== null && ! \is_scalar($value)) {
+            throw new \InvalidArgumentException('Nilai aturan harus berupa teks atau angka.');
+        }
+
         return $value === null || $value === '' ? null : (string) $value;
     }
 

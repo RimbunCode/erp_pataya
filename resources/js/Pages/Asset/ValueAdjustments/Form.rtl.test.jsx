@@ -76,19 +76,43 @@ describe("Asset ValueAdjustments Form", () => {
     usePageMock.mockReturnValue({ props: { preferences: {} } });
   });
 
-  it("memilih asset/difference_account menampilkan value terkini", () => {
+  it("memilih asset menampilkan value terkini", () => {
     formPageSeed = {
       asset: { name: "Laptop A" },
-      difference_account: { name: "Loss on Revaluation" },
     };
     renderForm(<Form />);
 
     expect(screen.getByTestId("asset-link-model")).toHaveTextContent(
       "asset:Laptop A",
     );
-    expect(screen.getByTestId("account-link-model")).toHaveTextContent(
-      "account:Loss on Revaluation",
-    );
+  });
+
+  describe("akun dikelola engine (Q-P2-23, Task 12.3)", () => {
+    it("selalu menyembunyikan field akun selisih", () => {
+      formPageSeed = { difference_account: { name: "Loss on Revaluation" } };
+      renderForm(<Form />);
+
+      expect(
+        screen.queryByTestId("forminput-difference_account"),
+      ).not.toBeInTheDocument();
+      expect(
+        screen.queryByTestId("account-link-model"),
+      ).not.toBeInTheDocument();
+      expect(
+        screen.getByTestId("forminput-new_asset_value"),
+      ).toBeInTheDocument();
+    });
+
+    it("tidak membaca prop accountsManagedByEngine yang sudah dihapus", () => {
+      usePageMock.mockReturnValue({
+        props: { preferences: {}, accountsManagedByEngine: false },
+      });
+      renderForm(<Form />);
+
+      expect(
+        screen.queryByTestId("forminput-difference_account"),
+      ).not.toBeInTheDocument();
+    });
   });
 
   it("current_asset_value selalu disabled (read-only)", () => {

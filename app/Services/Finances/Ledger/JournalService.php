@@ -231,6 +231,7 @@ final class JournalService {
                 'total_credit'      => $total,
                 'legacy_origin'     => false,
                 'legacy_unbalanced' => false,
+                'discount_split'    => $draft->discountSplit,
                 'posted_at'         => now(),
                 'posted_by_id'      => Auth::id(),
             ]);

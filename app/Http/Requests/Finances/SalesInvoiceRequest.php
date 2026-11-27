@@ -50,8 +50,6 @@ class SalesInvoiceRequest extends BaseFormRequest {
             'sales_order.id'                 => ['nullable', new ExistsExcludingTrashed('sales_orders')],
             'sales_order.*'                  => ['nullable'],
             'return_against.id'              => ['nullable', new ExistsExcludingTrashed('sales_invoices')],
-            'income_account.id'              => ['required', new ExistsExcludingTrashed('accounts')],
-            'debit_account.id'               => ['required', new ExistsExcludingTrashed('accounts')],
             'customer.id'                    => ['required', new ExistsExcludingTrashed('customers')],
             'customer.*'                     => ['nullable'],
             'customer_branch.id'             => ['required', new ExistsExcludingTrashed('branches')],

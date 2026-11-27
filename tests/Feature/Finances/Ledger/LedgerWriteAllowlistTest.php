@@ -56,11 +56,15 @@ class LedgerWriteAllowlistTest extends TestCase {
     ];
 
     /**
-     * Update/delete massal yang diizinkan: hook cancel `Submitable` (pengecualian legacy, Requirement 4.5).
+     * Update/delete massal yang diizinkan: hook cancel `Submitable` (pengecualian legacy, Requirement 4.5) dan
+     * `SalesInvoiceService` yang men-void jurnal pelepasan aset (bersumber Aset, jadi lolos dari hook `Submitable`) saat
+     * Sales Invoice dibatalkan (T-7 F4, 26 November 2026). Keduanya memakai mekanisme void legacy yang sama dan dihapus
+     * bersama saat pembalikan jurnal menggantikannya.
      *
      * @var list<string>
      */
     private const ALLOWED_BULK_MUTATIONS = [
+        'Services/Finances/SalesInvoiceService.php',
         'Traits/Submitable.php',
     ];
 

@@ -4,7 +4,7 @@ namespace App\Enums;
 
 /**
  * Jenis dokumen yang diposting Posting Engine (Finance Fase 2, Requirement 4.3): sepuluh titik posting Fase 1.
- * Nilai string dipakai pada kunci setting mode (`finance_posting_mode.{value}`), tabel parity, dan aturan akun
+ * Nilai string dipakai pada kunci setting eksekusi (`posting_executions`), tabel parity, dan aturan akun
  * bersyarat, sehingga TIDAK boleh diubah setelah dipakai.
  */
 enum PostingDocumentType: string {

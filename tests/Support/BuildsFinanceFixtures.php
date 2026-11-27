@@ -43,6 +43,9 @@ trait BuildsFinanceFixtures {
     protected User $user;
     protected Branch $branch;
 
+    /** @var array<string, string> id akun kas/bank => id Metode Pembayaran yang dibuat `makePaymentEntry` (Task 14.1) */
+    protected array $cashPaymentMethodIds = [];
+
     /**
      * @param  list<class-string<Model>>  $models  model tambahan yang `initPermissions()`-nya perlu dijalankan
      */
@@ -276,6 +279,15 @@ trait BuildsFinanceFixtures {
             $party['country_id'] = Country::factory()->create()->code;
         }
         DB::table($isPurchase ? 'suppliers' : 'customers')->insert($party);
+
+        // Task 14.1: akun kas/bank Payment Entry datang dari Metode Pembayaran (master `cash_or_bank`, Requirement 7.4).
+        // Uji yang memakai `EnablesEnginePosting` otomatis mendapat Metode Pembayaran untuk sisi kas ($paidTo pada
+        // `receive`, $paidFrom pada `pay`) kecuali `payment_method_id` diberikan lewat `$extra`.
+        $cashSide = $isPurchase ? $paidFrom : $paidTo;
+        if (! \array_key_exists('payment_method_id', $extra) && method_exists($this, 'makeCashPaymentMethod')) {
+            $this->cashPaymentMethodIds[$cashSide->id] ??= $this->makeCashPaymentMethod($cashSide)->id;
+            $extra['payment_method_id'] = $this->cashPaymentMethodIds[$cashSide->id];
+        }
 
         return PaymentEntry::create([
             'date'                 => now()->subDay()->startOfDay(),

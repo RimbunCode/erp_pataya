@@ -13,6 +13,7 @@ use App\Models\Purchase\PurchaseOrderItem;
 use App\Models\Purchase\PurchaseReceiptOffPoItem;
 use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Database\Eloquent\Concerns\HasUlids;
+use Illuminate\Database\Eloquent\Relations\BelongsTo;
 use Illuminate\Database\Eloquent\Relations\HasOne;
 use Illuminate\Database\Eloquent\SoftDeletes;
 
@@ -165,6 +166,12 @@ class PurchaseInvoiceItem extends Model {
         'return_against_item_id' => [
             'ignore' => true,
         ],
+        'postedAccount' => [
+            'ignore' => true,
+        ],
+        'posted_account_id' => [
+            'ignore' => true,
+        ],
         'referenceable' => [
             'ignore' => true,
         ],
@@ -189,8 +196,32 @@ class PurchaseInvoiceItem extends Model {
         return $this->belongsTo(PurchaseReceiptOffPoItem::class, 'purchase_receipt_item_id');
     }
 
+    /**
+     * Rate per satuan invoice setelah diskon baris (alokasi diskon dokumen): `rate x (basic - diskon) / basic`.
+     * Dipakai untuk menilai SLE dan `stock_queue` Purchase Invoice/Receipt supaya diskon baris stok mengurangi nilai
+     * persediaan (keputusan pemilik produk 22 November 2026, Requirement 14.3), bukan mengendap sebagai residu di
+     * SRNB. Tanpa diskon, atau `basic_amount` nol, hasilnya `rate` apa adanya.
+     */
+    public function netRate(): float {
+        $rate     = (float) $this->rate;
+        $basic    = (float) $this->basic_amount;
+        $discount = (float) $this->discount_amount;
+        if ($basic <= 0 || $discount <= 0) {
+            return $rate;
+        }
+
+        return $rate * max(0.0, $basic - $discount) / $basic;
+    }
+
     public function returnAgainstItem() {
         return $this->belongsTo(PurchaseInvoiceItem::class, 'return_against_item_id');
+    }
+
+    /**
+     * Akun peran per baris yang dicatat engine posting saat approve (Task 12.1).
+     */
+    public function postedAccount(): BelongsTo {
+        return $this->belongsTo(Account::class, 'posted_account_id');
     }
 
     public function unit() {

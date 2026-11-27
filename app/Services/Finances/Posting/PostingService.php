@@ -2,6 +2,7 @@
 
 namespace App\Services\Finances\Posting;
 
+use App\Enums\AccountRole;
 use App\Exceptions\Finances\DuplicatePostingException;
 use App\Exceptions\Finances\PartialPostingException;
 use App\Models\Finances\Journal;
@@ -19,7 +20,7 @@ use RangeException;
  * Satu panggilan untuk memposting konteks (Finance Fase 2, Requirement 5): menjalankan `PostingRule`, me-resolve peran
  * menjadi akun lewat `AccountRoleResolver`, lalu menulis lewat `JournalService::post()`.
  *
- * - `preview()` membentuk draft beserta akun nyata tanpa menulis (dipakai mode `shadow` dan panel "Akun pencatatan").
+ * - `preview()` membentuk draft beserta akun nyata tanpa menulis (dipakai panel "Akun pencatatan").
  * - `post()` atomik untuk seluruh jurnal satu konteks dan idempoten: semua `postingKey` sudah ada -> mengembalikan
  *   jurnal yang ada tanpa menulis (dan tanpa me-resolve akun); sebagian ada -> `PartialPostingException`. Sumber yang
  *   berstatus `canceled` dilewati (guard F-16).
@@ -36,6 +37,7 @@ final class PostingService {
         private readonly AccountRoleResolver $resolver,
         private readonly JournalService $journals,
         private readonly CanceledSourceGuard $guard,
+        private readonly ?PostedAccountRecorderRegistry $recorders = null,
     ) {}
 
     /**
@@ -44,7 +46,18 @@ final class PostingService {
     public function preview(PostingContext $ctx): array {
         $minorUnit = $this->journals->baseCurrency()[1];
 
-        return $this->resolveDrafts($ctx, $this->roleDrafts($ctx, $minorUnit), $minorUnit);
+        return $this->resolveDrafts($ctx, $this->roleDrafts($ctx, $minorUnit), $minorUnit)[0];
+    }
+
+    /**
+     * Akun yang akan dipakai `post()` untuk konteks ini, per baris peran, tanpa menulis apa pun (Requirement 13.4).
+     * Memakai resolusi yang sama dengan `preview()` dan `post()`; dipakai panel "Akun pencatatan" yang butuh peran dan
+     * baris dokumen sumber, yang tidak ada pada draf jurnal.
+     */
+    public function previewAccounts(PostingContext $ctx): PostedAccountNotes {
+        $minorUnit = $this->journals->baseCurrency()[1];
+
+        return $this->resolveDrafts($ctx, $this->roleDrafts($ctx, $minorUnit), $minorUnit)[1];
     }
 
     /**
@@ -86,8 +99,11 @@ final class PostingService {
                 return PostingOutcome::alreadyPosted($this->existingOrPartial($ctx, $keys, $existing));
             }
 
+            // Resolusi akun sekali per post; catatan akun dipakai recorder untuk menulis balik ke dokumen sumber.
+            [$drafts, $notes] = $this->resolveDrafts($ctx, $roleDrafts, $minorUnit);
+
             $journals = [];
-            foreach ($this->resolveDrafts($ctx, $roleDrafts, $minorUnit) as $draft) {
+            foreach ($drafts as $draft) {
                 try {
                     $journals[] = $this->journals->post($draft);
                 } catch (DuplicatePostingException) {
@@ -97,7 +113,10 @@ final class PostingService {
                 }
             }
 
-            return PostingOutcome::posted($journals);
+            // Di dalam transaksi yang sama dengan jurnal: kegagalan recorder menggulung semuanya (Requirement 13.2).
+            $this->recorders?->record($ctx, $notes);
+
+            return PostingOutcome::posted($journals, $notes);
         });
     }
 
@@ -173,18 +192,40 @@ final class PostingService {
 
     /**
      * @param  list<RoleJournalDraft>  $roleDrafts
-     * @return list<JournalDraft>
+     * @return array{0: list<JournalDraft>, 1: PostedAccountNotes} draf jurnal dan catatan akun hasil resolve
      */
     private function resolveDrafts(PostingContext $ctx, array $roleDrafts, int $minorUnit): array {
-        return array_map(fn (RoleJournalDraft $draft): JournalDraft => new JournalDraft(
-            transactionDate: $ctx->transactionDate,
-            lines: $this->resolveLines($ctx, $draft, $minorUnit),
-            postingKey: $this->postingKey($ctx, $draft),
-            branchId: $ctx->branchId,
-            description: $draft->description ?? $ctx->description,
-            sourceType: $ctx->sourceType,
-            sourceId: $ctx->sourceId,
-        ), $roleDrafts);
+        $drafts = [];
+        $notes  = [];
+
+        foreach ($roleDrafts as $draft) {
+            $drafts[] = new JournalDraft(
+                transactionDate: $ctx->transactionDate,
+                lines: $this->resolveLines($ctx, $draft, $minorUnit, $notes),
+                postingKey: $this->postingKey($ctx, $draft),
+                branchId: $ctx->branchId,
+                description: $draft->description ?? $ctx->description,
+                sourceType: $ctx->sourceType,
+                sourceId: $ctx->sourceId,
+                discountSplit: $this->hasDiscountRole($draft),
+            );
+        }
+
+        return [$drafts, new PostedAccountNotes($notes)];
+    }
+
+    /**
+     * Bentuk jurnal yang direkam ke `journals.discount_split` (Requirement 14.8): true bila drafnya memuat baris berperan
+     * `discount`, yaitu bentuk posting diskon terpisah. Dibaca retur invoice sebagai bentuk invoice ASAL.
+     */
+    private function hasDiscountRole(RoleJournalDraft $draft): bool {
+        foreach ($draft->lines as $line) {
+            if ($line->roleValue() === AccountRole::Discount->value) {
+                return true;
+            }
+        }
+
+        return false;
     }
 
     private function postingKey(PostingContext $ctx, RoleJournalDraft $draft): string {
@@ -194,18 +235,32 @@ final class PostingService {
     /**
      * Resolve peran tiap baris, gabungkan baris beraccount dan sisi sama, bulatkan, serap sisa pembulatan.
      *
+     * @param  list<PostedAccountNote>  $notes  diisi per baris peran, sebelum penggabungan
      * @return list<JournalLineDraft>
      */
-    private function resolveLines(PostingContext $ctx, RoleJournalDraft $draft, int $minorUnit): array {
-        /** @var array<string, array{account: string, side: string, amount: float, description: ?string}> $groups */
+    private function resolveLines(PostingContext $ctx, RoleJournalDraft $draft, int $minorUnit, array &$notes): array {
+        /** @var array<string, array{account: string, side: string, amount: float, description: ?string, roles: list<string>}> $groups */
         $groups = [];
 
         foreach ($draft->lines as $line) {
             $account = $this->resolver->resolve($line->role, $ctx, $line->line);
+            $notes[] = new PostedAccountNote($draft->purpose, $line->roleValue(), (string) $account->getKey(), $line->line?->lineId);
             $key     = $line->side . '|' . $account->getKey();
 
-            $groups[$key] ??= ['account' => (string) $account->getKey(), 'side' => $line->side, 'amount' => 0.0, 'description' => $line->description];
+            $groups[$key] ??= ['account' => (string) $account->getKey(), 'side' => $line->side, 'amount' => 0.0, 'description' => $line->description, 'roles' => []];
             $groups[$key]['amount'] += (float) $line->amount;
+            if (! \in_array($line->roleValue(), $groups[$key]['roles'], true)) {
+                $groups[$key]['roles'][] = $line->roleValue();
+            }
+        }
+
+        $discountSplit = false;
+        $sideCounts    = [RoleLine::DEBIT => 0, RoleLine::CREDIT => 0];
+        $rawSideTotals = [RoleLine::DEBIT => 0.0, RoleLine::CREDIT => 0.0];
+        foreach ($groups as $group) {
+            $sideCounts[$group['side']]++;
+            $rawSideTotals[$group['side']] += $group['amount'];
+            $discountSplit = $discountSplit || \in_array(AccountRole::Discount->value, $group['roles'], true);
         }
 
         foreach ($groups as $key => $group) {
@@ -215,7 +270,9 @@ final class PostingService {
             }
         }
 
-        $groups = $this->absorbRounding($groups, $minorUnit);
+        $groups = $discountSplit
+            ? $this->absorbDiscountSplitRounding($groups, $minorUnit, max($sideCounts))
+            : $this->absorbRounding($this->alignSideTotals($groups, $rawSideTotals, $minorUnit), $minorUnit);
 
         $debitAccounts  = array_values(array_unique(array_column(array_filter($groups, fn (array $g): bool => $g['side'] === RoleLine::DEBIT), 'account')));
         $creditAccounts = array_values(array_unique(array_column(array_filter($groups, fn (array $g): bool => $g['side'] === RoleLine::CREDIT), 'account')));
@@ -238,22 +295,55 @@ final class PostingService {
     }
 
     /**
-     * Penjumlahan baris yang sudah dibulatkan satu per satu dapat berbeda satu-dua minor unit dari sisi lawannya.
-     * Selisih kecil (tidak melebihi jumlah kelompok pada sisi yang terpecah) diserap kelompok terbesar sisi itu;
-     * selisih lain dibiarkan agar `JournalService` menolaknya sebagai tak seimbang.
+     * Total tiap sisi jurnal harus sama dengan jumlah baris sumber yang dibulatkan sekali (P-12), walau sisi itu
+     * terpecah menjadi beberapa kelompok akun yang masing-masing dibulatkan sendiri. Selisih kecil (tidak melebihi
+     * jumlah kelompok pada sisi itu) diserap kelompok terbesar sisi tersebut; selisih lain dibiarkan.
      *
-     * @param  array<string, array{account: string, side: string, amount: float, description: ?string}>  $groups
-     * @return array<string, array{account: string, side: string, amount: float, description: ?string}>
+     * @param  array<string, array{account: string, side: string, amount: float, description: ?string, roles: list<string>}>  $groups
+     * @param  array<string, float>  $rawSideTotals  jumlah mentah per sisi sebelum pembulatan kelompok
+     * @return array<string, array{account: string, side: string, amount: float, description: ?string, roles: list<string>}>
      */
-    private function absorbRounding(array $groups, int $minorUnit): array {
-        $totals = [RoleLine::DEBIT => 0, RoleLine::CREDIT => 0];
-        $counts = [RoleLine::DEBIT => 0, RoleLine::CREDIT => 0];
-        foreach ($groups as $group) {
-            $totals[$group['side']] += MinorUnit::toMinor($group['amount'], $minorUnit);
-            $counts[$group['side']]++;
+    private function alignSideTotals(array $groups, array $rawSideTotals, int $minorUnit): array {
+        foreach ([RoleLine::DEBIT, RoleLine::CREDIT] as $side) {
+            $keys = array_keys(array_filter($groups, static fn (array $g): bool => $g['side'] === $side));
+            if (\count($keys) < 2) {
+                continue;
+            }
+
+            $current = 0;
+            foreach ($keys as $key) {
+                $current += MinorUnit::toMinor($groups[$key]['amount'], $minorUnit);
+            }
+            $delta = MinorUnit::toMinor(MinorUnit::round($rawSideTotals[$side], $minorUnit), $minorUnit) - $current;
+            if ($delta === 0 || abs($delta) > \count($keys)) {
+                continue;
+            }
+
+            $largestKey = $this->largestGroupKey($groups, $side, protectNet: false);
+            if ($largestKey === null) {
+                continue;
+            }
+            $adjusted = MinorUnit::toMinor($groups[$largestKey]['amount'], $minorUnit) + $delta;
+            if ($adjusted <= 0) {
+                continue;
+            }
+            $groups[$largestKey]['amount'] = (float) MinorUnit::fromMinor($adjusted, $minorUnit);
         }
 
-        $difference = $totals[RoleLine::DEBIT] - $totals[RoleLine::CREDIT];
+        return $groups;
+    }
+
+    /**
+     * Penjumlahan baris yang sudah dibulatkan satu per satu dapat berbeda satu-dua minor unit dari sisi lawannya.
+     * Selisih kecil (tidak melebihi jumlah kelompok pada sisi yang terpecah) diserap kelompok terbesar sisi itu;
+     * selisih lain dibiarkan agar `JournalService` menolaknya sebagai tak seimbang. Jurnal yang memuat peran `discount`
+     * (posting diskon terpisah) memakai `absorbDiscountSplitRounding()`.
+     *
+     * @param  array<string, array{account: string, side: string, amount: float, description: ?string, roles: list<string>}>  $groups
+     * @return array<string, array{account: string, side: string, amount: float, description: ?string, roles: list<string>}>
+     */
+    private function absorbRounding(array $groups, int $minorUnit): array {
+        [$difference, $counts] = $this->imbalance($groups, $minorUnit);
         if ($difference === 0) {
             return $groups;
         }
@@ -263,18 +353,97 @@ final class PostingService {
             return $groups;
         }
 
-        $largestKey = null;
-        foreach ($groups as $key => $group) {
-            if ($group['side'] === $splitSide && ($largestKey === null || $group['amount'] > $groups[$largestKey]['amount'])) {
-                $largestKey = $key;
-            }
+        $largestKey = $this->largestGroupKey($groups, $splitSide, protectNet: false);
+        if ($largestKey === null) {
+            return $groups;
         }
 
-        // Selisih > 0: debit lebih besar. Pada sisi debit kurangi, pada sisi kredit tambah; kebalikannya bila < 0.
-        $shift                         = $splitSide === RoleLine::DEBIT ? -$difference : $difference;
-        $adjusted                      = MinorUnit::toMinor($groups[$largestKey]['amount'], $minorUnit) + $shift;
+        $adjusted                      = MinorUnit::toMinor($groups[$largestKey]['amount'], $minorUnit) + $this->shiftFor($splitSide, $difference);
         $groups[$largestKey]['amount'] = (float) MinorUnit::fromMinor($adjusted, $minorUnit);
 
         return $groups;
+    }
+
+    /**
+     * Pembulatan jurnal posting diskon terpisah (Requirement 14, P-13): kelompok `receivable`/`payable` TIDAK boleh
+     * menyerap sisa (jumlahnya harus sama dengan total dokumen). Sisa diserap kelompok terbesar lain pada sisi yang
+     * terpecah (diskon, atau akun pendapatan/biaya); bila kelompok itu tidak dapat menyerap (jumlah jadi nol/negatif),
+     * atau tidak ada (kelompok `discount` hilang karena nol setelah pembulatan, sehingga sisi itu hanya berisi
+     * piutang/utang), kelompok terbesar pada sisi lawan menyerapnya. Batas selisih: jumlah kelompok terbanyak per sisi
+     * SEBELUM kelompok nol dibuang (`$sideLimit`); selisih lebih besar dibiarkan agar `JournalService` menolaknya.
+     *
+     * @param  array<string, array{account: string, side: string, amount: float, description: ?string, roles: list<string>}>  $groups
+     * @return array<string, array{account: string, side: string, amount: float, description: ?string, roles: list<string>}>
+     */
+    private function absorbDiscountSplitRounding(array $groups, int $minorUnit, int $sideLimit): array {
+        [$difference, $counts] = $this->imbalance($groups, $minorUnit);
+        if ($difference === 0 || abs($difference) > $sideLimit) {
+            return $groups;
+        }
+
+        $splitSide = $counts[RoleLine::CREDIT] > $counts[RoleLine::DEBIT] ? RoleLine::CREDIT : RoleLine::DEBIT;
+        $otherSide = $splitSide === RoleLine::DEBIT ? RoleLine::CREDIT : RoleLine::DEBIT;
+
+        foreach ([$splitSide, $otherSide] as $side) {
+            $key = $this->largestGroupKey($groups, $side, protectNet: true);
+            if ($key === null) {
+                continue;
+            }
+
+            $adjusted = MinorUnit::toMinor($groups[$key]['amount'], $minorUnit) + $this->shiftFor($side, $difference);
+            if ($adjusted <= 0) {
+                continue; // tidak menulis baris nol/negatif; coba sisi lawan, atau biarkan JournalService menolaknya
+            }
+
+            $groups[$key]['amount'] = (float) MinorUnit::fromMinor($adjusted, $minorUnit);
+
+            return $groups;
+        }
+
+        return $groups;
+    }
+
+    /**
+     * @param  array<string, array{account: string, side: string, amount: float, description: ?string, roles: list<string>}>  $groups
+     * @return array{0: int, 1: array<string, int>} selisih debit - kredit (minor unit) dan jumlah kelompok per sisi
+     */
+    private function imbalance(array $groups, int $minorUnit): array {
+        $totals = [RoleLine::DEBIT => 0, RoleLine::CREDIT => 0];
+        $counts = [RoleLine::DEBIT => 0, RoleLine::CREDIT => 0];
+        foreach ($groups as $group) {
+            $totals[$group['side']] += MinorUnit::toMinor($group['amount'], $minorUnit);
+            $counts[$group['side']]++;
+        }
+
+        return [$totals[RoleLine::DEBIT] - $totals[RoleLine::CREDIT], $counts];
+    }
+
+    /**
+     * Kelompok terbesar pada `$side`; `$protectNet` melewati kelompok `receivable`/`payable`.
+     *
+     * @param  array<string, array{account: string, side: string, amount: float, description: ?string, roles: list<string>}>  $groups
+     */
+    private function largestGroupKey(array $groups, string $side, bool $protectNet): ?string {
+        $largestKey = null;
+        foreach ($groups as $key => $group) {
+            if ($group['side'] !== $side) {
+                continue;
+            }
+            if ($protectNet && array_intersect($group['roles'], [AccountRole::Receivable->value, AccountRole::Payable->value]) !== []) {
+                continue;
+            }
+            if ($largestKey === null || $group['amount'] > $groups[$largestKey]['amount']) {
+                $largestKey = (string) $key;
+            }
+        }
+
+        return $largestKey;
+    }
+
+    /**
+     * Selisih > 0: debit lebih besar. Pada sisi debit kurangi, pada sisi kredit tambah; kebalikannya bila < 0.
+     */
+    private function shiftFor(string $side, int $difference): int {
+        return $side === RoleLine::DEBIT ? -$difference : $difference;
     }
 }
