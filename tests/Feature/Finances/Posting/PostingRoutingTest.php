@@ -35,6 +35,7 @@ use App\Services\Finances\SalesInvoiceService;
 use App\Services\Inventory\StockEntryService;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Illuminate\Support\Facades\DB;
+use Illuminate\Validation\ValidationException;
 use Tests\Support\AssertsPostingParity;
 use Tests\Support\BuildsFinanceFixtures;
 use Tests\TestCase;
@@ -271,10 +272,10 @@ class PostingRoutingTest extends TestCase {
         try {
             app(PaymentEntryService::class)->onApproved($payment->fresh());
             $this->fail('Peran receivable yang tidak ter-resolve harus menggagalkan approve.');
-        } catch (UnresolvedAccountRoleException $e) {
-            $this->assertSame('receivable', $e->role);
-            $this->assertStringContainsString('receivable', $e->getMessage());
-            $this->assertStringContainsString(PostingDocumentType::PaymentEntry->value, $e->getMessage());
+        } catch (ValidationException $e) {
+            $message = $e->errors()['status'][0];
+            $this->assertStringContainsString('receivable', $message);
+            $this->assertStringContainsString(PostingDocumentType::PaymentEntry->value, $message);
         }
 
         $this->assertContains(FormStatus::DRAFT, $payment->fresh()->status, 'Approve digulung: Payment Entry tetap draft.');
@@ -340,10 +341,10 @@ class PostingRoutingTest extends TestCase {
         try {
             app(StockEntryService::class)->onApproved($entry);
             $this->fail('Peran akun yang tidak ter-resolve harus menggagalkan approve.');
-        } catch (UnresolvedAccountRoleException $e) {
-            $this->assertNotSame('', $e->role);
-            $this->assertStringContainsString($e->role, $e->getMessage());
-            $this->assertStringContainsString(PostingDocumentType::StockEntry->value, $e->getMessage());
+        } catch (ValidationException $e) {
+            $message = $e->errors()['status'][0];
+            $this->assertStringContainsString('stock', $message);
+            $this->assertStringContainsString(PostingDocumentType::StockEntry->value, $message);
         }
 
         $this->assertSame(0, StockLedgerEntry::count(), 'Mutasi stok digulung bersama transaksi approve.');
