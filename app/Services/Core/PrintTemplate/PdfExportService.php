@@ -228,13 +228,34 @@ class PdfExportService {
         $options->setIsHtml5ParserEnabled(true);
 
         $dompdf = new Dompdf($options);
-        $dompdf->loadHtml($html);
+        $dompdf->loadHtml($this->ensureBodyElement($html));
         $dompdf->setPaper(
             [0, 0, $this->toPoints($template->width, $template), $this->toPoints($template->height, $template)],
         );
         $dompdf->render();
 
         return $dompdf->output();
+    }
+
+    /**
+     * Pastikan HTML punya elemen <body> sebelum diserahkan ke dompdf.
+     *
+     * Hasil PrintTemplateRenderService adalah fragmen (`<style>` lalu
+     * `<html><section>...`) tanpa <body>. wkhtmltopdf memaafkan itu, tetapi
+     * parser HTML5 dompdf menaruh <section> di luar <body> sehingga halaman
+     * dirender KOSONG (teks dan gambar tanda tangan hilang, PDF hanya
+     * ~900 byte). Jalur job server-side (lampiran PDF otomatis, email PDF)
+     * memberi HTML itu langsung ke generate(), jadi tanpa pembungkus ini
+     * cadangan dompdf menghasilkan PDF kosong.
+     */
+    protected function ensureBodyElement(string $html): string {
+        if (preg_match('/<body[\s>]/i', $html) === 1) {
+            return $html;
+        }
+
+        $content = preg_replace('/<\/?html\b[^>]*>/i', '', $html) ?? $html;
+
+        return '<html><body>' . $content . '</body></html>';
     }
 
     /**
