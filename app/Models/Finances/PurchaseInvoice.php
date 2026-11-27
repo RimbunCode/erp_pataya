@@ -86,6 +86,16 @@ class PurchaseInvoice extends Model {
     protected static array $searchScope = ['code', 'external_note', 'tax_invoice_serial_number', 'supplier.name'];
 
     protected array $configColumns = [
+        'withholding_amount' => [
+            'type'      => 'currency',
+            'show'      => false,
+            'dependsOn' => ['items'],
+        ],
+        'printed_dpp_amount' => [
+            'type'      => 'currency',
+            'show'      => false,
+            'dependsOn' => ['items'],
+        ],
         'code' => [
             'isLink' => true,
             'show'   => true,

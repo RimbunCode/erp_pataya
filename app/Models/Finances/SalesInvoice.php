@@ -181,6 +181,16 @@ class SalesInvoice extends Model {
             'show'  => true,
             'order' => 10,
         ],
+        'withholding_amount' => [
+            'type'      => 'currency',
+            'show'      => false,
+            'dependsOn' => ['items'],
+        ],
+        'printed_dpp_amount' => [
+            'type'      => 'currency',
+            'show'      => false,
+            'dependsOn' => ['items'],
+        ],
         'dpp_amount' => [
             'type'      => 'currency',
             'show'      => false,
