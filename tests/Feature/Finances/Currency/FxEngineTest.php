@@ -5,6 +5,7 @@ namespace Tests\Feature\Finances\Currency;
 use App\Enums\RateType;
 use App\Exceptions\Finances\NoExchangeRateException;
 use App\Models\Core\CoreSetting;
+use App\Services\Finances\Currency\Decimal;
 use App\Services\Finances\Currency\FxConversion;
 use App\Services\Finances\Currency\FxEngine;
 use Carbon\CarbonImmutable;
@@ -53,22 +54,50 @@ class FxEngineTest extends TestCase {
     }
 
     public function test_the_conversion_is_serializable_for_the_ui(): void {
-        $this->makeRate('USD', 'IDR', '15500', '2026-11-27');
+        $stored = $this->makeRate('USD', 'IDR', '15500', '2026-11-27');
 
         $result = $this->convert(2, 'USD', 'IDR');
 
         $expected = [
-            'amount'    => '31000.00',
-            'rate'      => '15500.00000000',
-            'rate_type' => 'transaction',
-            'rate_date' => '2026-11-27',
-            'source'    => 'manual',
-            'inverse'   => false,
-            'from'      => 'USD',
-            'to'        => 'IDR',
+            'amount'           => '31000.00',
+            'rate'             => '15500.00000000',
+            'rate_type'        => 'transaction',
+            'rate_date'        => '2026-11-27',
+            'source'           => 'manual',
+            'inverse'          => false,
+            'from'             => 'USD',
+            'to'               => 'IDR',
+            'exchange_rate_id' => $stored->getKey(),
+            'stored_rate'      => '15500.00000000',
         ];
         $this->assertSame($expected, $result->toArray());
         $this->assertSame($expected, json_decode(json_encode($result), true));
+    }
+
+    public function test_the_conversion_exposes_the_stored_row_and_rate_so_consumers_can_recompute(): void {
+        $stored = $this->makeRate('USD', 'IDR', '15800', '2026-11-27');
+
+        $inverse = $this->convert('15800000', 'IDR', 'USD');
+        $direct  = $this->convert('1000', 'USD', 'IDR');
+        $same    = $this->convert('5', 'IDR', 'IDR');
+
+        $this->assertTrue($inverse->inverse);
+        $this->assertSame($stored->getKey(), $inverse->exchangeRateId);
+        $this->assertSame('15800.00000000', $inverse->storedRate, 'kurs apa adanya di baris, bukan 1/rate');
+        $this->assertSame('0.00006329', $inverse->rate, 'penjelasan saja');
+        // Konsumen menghitung ulang: kebalikan = amount / storedRate.
+        $this->assertSame($inverse->amount, Decimal::divide('15800000', $inverse->storedRate, 2));
+
+        $this->assertFalse($direct->inverse);
+        $this->assertSame($stored->getKey(), $direct->exchangeRateId);
+        $this->assertSame('15800.00000000', $direct->storedRate);
+
+        $this->assertNull($same->exchangeRateId);
+        $this->assertSame('1', $same->storedRate);
+    }
+
+    public function test_identity_conversion_does_not_round_to_minor_units(): void {
+        $this->assertSame('10.12345', $this->convert('10.12345', 'USD', 'USD')->amount);
     }
 
     public function test_inverse_conversion_divides_by_the_stored_rate_instead_of_using_a_rounded_inverse(): void {

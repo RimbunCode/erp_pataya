@@ -34,7 +34,7 @@ final class FxEngine {
         $normalized = Decimal::normalize($amount);
 
         if ($from === $to) {
-            return new FxConversion($normalized, '1', $type, $date, FxConversion::SOURCE_IDENTITY, false, $from, $to);
+            return new FxConversion($normalized, '1', $type, $date, FxConversion::SOURCE_IDENTITY, false, $from, $to, null, '1');
         }
 
         $rate      = $this->rates->get($from, $to, $date, $type);
@@ -53,6 +53,8 @@ final class FxEngine {
             inverse: $rate->isInverse(),
             from: $from,
             to: $to,
+            exchangeRateId: (string) ($rate->inverseOf ?? $rate)->getKey(),
+            storedRate: ($rate->inverseOf ?? $rate)->rate,
         );
     }
 

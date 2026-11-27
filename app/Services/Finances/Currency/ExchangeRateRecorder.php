@@ -3,11 +3,14 @@
 namespace App\Services\Finances\Currency;
 
 use App\Enums\RateType;
+use App\Events\Core\AuditableModelSaved;
 use App\Exceptions\Finances\ImmutableRateException;
 use App\Exceptions\Finances\InvalidExchangeRateException;
 use App\Models\Core\Currency;
 use App\Models\Finances\ExchangeRate;
 use App\Services\Finances\Currency\Providers\RateImportReport;
+use Illuminate\Database\QueryException;
+use Illuminate\Database\UniqueConstraintViolationException;
 use Illuminate\Support\Facades\DB;
 
 /**
@@ -51,8 +54,10 @@ final class ExchangeRateRecorder {
             throw new InvalidExchangeRateException($errors);
         }
 
-        $from = trim((string) $row['from_currency_code']);
-        $to   = trim((string) $row['to_currency_code']);
+        // Dinormalkan SEBELUM cek `from === to`, kunci duplikat, dan pencarian baris lama: collation MySQL `_ci` dan
+        // SQLite membedakan huruf besar/kecil secara berbeda.
+        $from = strtoupper(trim((string) $row['from_currency_code']));
+        $to   = strtoupper(trim((string) $row['to_currency_code']));
         foreach (['from_currency_code' => $from, 'to_currency_code' => $to] as $field => $code) {
             if (! $this->currencyExists($code)) {
                 $errors[$field] = __('finances/exchangeRate.errors.unknown_currency', ['code' => $code]);
@@ -93,12 +98,25 @@ final class ExchangeRateRecorder {
     public function record(array $row, string $source, ?string $sourceRef = null, ?string $createdById = null): string {
         $data = $this->validate($row);
 
+        try {
+            return $this->write($data, $source, $sourceRef, $createdById);
+        } catch (UniqueConstraintViolationException) {
+            // Penulis lain menyisipkan kunci yang sama di antara pencarian dan insert: ulangi sebagai jalur "existing".
+            return $this->write($data, $source, $sourceRef, $createdById);
+        }
+    }
+
+    /**
+     * @param  array{from: string, to: string, type: RateType, rate: string, date: string}  $data
+     * @return self::CREATED|self::UPDATED|self::UNCHANGED
+     */
+    private function write(array $data, string $source, ?string $sourceRef, ?string $createdById): string {
         return DB::transaction(function () use ($data, $source, $sourceRef, $createdById): string {
             $existing = ExchangeRate::query()
                 ->where('from_currency_code', $data['from'])
                 ->where('to_currency_code', $data['to'])
                 ->where('rate_type', $data['type']->value)
-                ->whereDate('rate_date', $data['date'])
+                ->where('rate_date', $data['date'])
                 ->lockForUpdate()
                 ->first();
 
@@ -125,7 +143,10 @@ final class ExchangeRateRecorder {
                 throw ImmutableRateException::referenced();
             }
 
+            // Koreksi tercatat di audit log dengan nilai lama (pola `TaxRuleVersionService`: event `AuditableModelSaved`).
+            $before = $this->auditable($existing);
             $existing->forceFill(['rate' => $data['rate'], 'source' => $source, 'source_ref' => $sourceRef])->save();
+            event(new AuditableModelSaved($existing, 'updated', $before, $this->auditable($existing)));
 
             return self::UPDATED;
         });
@@ -162,19 +183,43 @@ final class ExchangeRateRecorder {
                 $report->addError((int) $line, implode(' ', $e->errors));
             } catch (ImmutableRateException) {
                 $report->addError((int) $line, __('finances/exchangeRate.errors.referenced_conflict'));
+            } catch (QueryException) {
+                // Galat basis data (FK/unique yang lolos) menjadi galat baris; detail SQL tidak dibocorkan ke laporan.
+                $report->addError((int) $line, __('finances/exchangeRate.errors.database_error'));
             }
         }
 
         return $report;
     }
 
+    /**
+     * @return array<string, mixed>
+     */
+    private function auditable(ExchangeRate $rate): array {
+        return [
+            'from_currency_code' => $rate->from_currency_code,
+            'to_currency_code'   => $rate->to_currency_code,
+            'rate_type'          => $rate->rate_type->value,
+            'rate_date'          => $rate->rate_date->toDateString(),
+            'rate'               => $rate->rate,
+            'source'             => $rate->source,
+            'source_ref'         => $rate->source_ref,
+        ];
+    }
+
     private function currencyExists(string $code): bool {
-        if (isset($this->currencyExists[$code])) {
+        // `isset` salah untuk nilai false: cache hanya hasil "ada" (mata uang yang baru dibuat tidak boleh tetap
+        // dianggap tidak ada, dan kode tak dikenal tidak boleh lolos pada kemunculan berikutnya).
+        if (($this->currencyExists[$code] ?? false) === true) {
             return true;
         }
 
-        // Hanya hasil "ada" yang di-cache: mata uang yang baru dibuat tidak boleh tetap dianggap tidak ada.
-        return $this->currencyExists[$code] = Currency::query()->withoutGlobalScopes()->whereKey($code)->exists();
+        $exists = Currency::query()->withoutGlobalScopes()->whereKey($code)->exists();
+        if ($exists) {
+            $this->currencyExists[$code] = true;
+        }
+
+        return $exists;
     }
 
     private function parseDate(mixed $value): ?string {

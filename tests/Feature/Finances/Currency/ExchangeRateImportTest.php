@@ -5,12 +5,16 @@ namespace Tests\Feature\Finances\Currency;
 use App\Enums\RateType;
 use App\Exceptions\Finances\ImmutableRateException;
 use App\Exceptions\Finances\InvalidExchangeRateException;
+use App\Models\Core\Log;
 use App\Models\Finances\ExchangeRate;
 use App\Services\Finances\Currency\ExchangeRateRecorder;
 use App\Services\Finances\Currency\Providers\CsvImportProvider;
 use App\Services\Finances\Currency\Providers\ExchangeRateProvider;
 use App\Services\Finances\Currency\Providers\ManualProvider;
+use Illuminate\Database\QueryException;
 use Illuminate\Foundation\Testing\RefreshDatabase;
+use Illuminate\Support\Facades\DB;
+use Illuminate\Support\Str;
 use PHPUnit\Framework\Attributes\DataProvider;
 use Tests\TestCase;
 
@@ -279,5 +283,185 @@ class ExchangeRateImportTest extends TestCase {
 
     public function test_artisan_command_fails_for_a_missing_file(): void {
         $this->artisan('finance:import-exchange-rates', ['file' => 'tidak-ada.csv'])->assertExitCode(1);
+    }
+
+    public function test_unknown_currency_is_rejected_on_every_occurrence_in_a_csv(): void {
+        $csv = implode("\n", [
+            self::HEADER,
+            'XXX,IDR,transaction,1,2026-11-25',
+            'XXX,IDR,transaction,1,2026-11-26',
+            'XXX,IDR,transaction,1,2026-11-27',
+            'USD,IDR,transaction,15500,2026-11-27',
+        ]);
+
+        $report = $this->csv()->importString($csv);
+
+        $this->assertSame([2, 3, 4], array_column($report->errors, 'line'));
+        $this->assertSame(1, $report->created);
+        $this->assertSame(1, ExchangeRate::query()->count());
+    }
+
+    public function test_unknown_currency_is_rejected_on_every_manual_store(): void {
+        foreach ([1, 2] as $attempt) {
+            try {
+                $this->manual()->store($this->row(['from_currency_code' => 'XXX']));
+                $this->fail("Percobaan {$attempt}: kode tak dikenal harus ditolak.");
+            } catch (InvalidExchangeRateException $e) {
+                $this->assertArrayHasKey('from_currency_code', $e->errors);
+            }
+        }
+        $this->assertSame(0, ExchangeRate::query()->count());
+    }
+
+    public function test_a_currency_created_after_a_failed_lookup_is_accepted(): void {
+        $this->expectException(InvalidExchangeRateException::class);
+        try {
+            $this->manual()->store($this->row(['from_currency_code' => 'GBP']));
+        } finally {
+            $this->seedCurrencies(['GBP' => 2]);
+            $this->assertSame(ExchangeRateRecorder::CREATED, $this->manual()->store($this->row(['from_currency_code' => 'GBP'])));
+        }
+    }
+
+    public function test_currency_codes_are_normalized_before_every_check(): void {
+        // from = to setelah normalisasi.
+        try {
+            $this->manual()->store($this->row(['from_currency_code' => 'usd', 'to_currency_code' => 'USD']));
+            $this->fail('usd -> USD harus ditolak sebagai mata uang yang sama.');
+        } catch (InvalidExchangeRateException $e) {
+            $this->assertArrayHasKey('to_currency_code', $e->errors);
+        }
+
+        // huruf kecil diterima dan disimpan huruf besar.
+        $this->manual()->store($this->row(['from_currency_code' => ' usd ', 'to_currency_code' => 'idr']));
+        $stored = ExchangeRate::query()->firstOrFail();
+        $this->assertSame(['USD', 'IDR'], [$stored->from_currency_code, $stored->to_currency_code]);
+
+        // pencarian baris lama memakai kode ternormalisasi: nilai sama => tidak berubah, bukan baris kedua.
+        $this->assertSame(ExchangeRateRecorder::UNCHANGED, $this->manual()->store($this->row()));
+        $this->assertSame(1, ExchangeRate::query()->count());
+    }
+
+    public function test_case_variants_are_duplicates_inside_a_csv(): void {
+        $csv = implode("\n", [
+            self::HEADER,
+            'USD,IDR,transaction,15500,2026-11-27',
+            'usd,idr,transaction,15600,2026-11-27',
+            'Usd,IDR,transaction,15500,2026-11-27',
+        ]);
+
+        $report = $this->csv()->importString($csv);
+
+        $this->assertSame(1, $report->created);
+        $this->assertSame([3, 4], array_column($report->errors, 'line'));
+        $this->assertSame(1, ExchangeRate::query()->count());
+    }
+
+    public function test_rate_date_is_stored_without_a_time_component(): void {
+        $this->manual()->store($this->row());
+
+        $this->assertSame('2026-11-27', DB::table('exchange_rates')->value('rate_date'));
+    }
+
+    public function test_correcting_an_unreferenced_rate_writes_an_audit_log_with_the_old_value(): void {
+        $this->manual()->store($this->row());
+        $rate = ExchangeRate::query()->firstOrFail();
+
+        $this->manual()->store($this->row(['rate' => '15550']));
+
+        $log = Log::query()
+            ->where('loggable_type', ExchangeRate::class)
+            ->where('loggable_id', $rate->getKey())
+            ->where('action', 'updated')
+            ->firstOrFail();
+        $this->assertSame('15500.00000000', $log->data_before['rate']);
+        $this->assertSame('15550.00000000', $log->data_after['rate']);
+    }
+
+    public function test_a_unique_violation_on_insert_is_retried_instead_of_failing(): void {
+        $inserted = false;
+        ExchangeRate::creating(function () use (&$inserted): void {
+            if ($inserted) {
+                return;
+            }
+            $inserted = true;
+            // Penulis lain menyisipkan kunci yang sama tepat sebelum insert kita.
+            DB::table('exchange_rates')->insert([
+                'id'                 => (string) Str::ulid(),
+                'from_currency_code' => 'USD',
+                'to_currency_code'   => 'IDR',
+                'rate_type'          => 'transaction',
+                'rate'               => '15500',
+                'rate_date'          => '2026-11-27',
+                'source'             => 'manual',
+                'created_at'         => now(),
+                'updated_at'         => now(),
+            ]);
+        });
+
+        // Pada satu koneksi uji, kegagalan unique menggulung transaksi (termasuk penyisipan "penulis lain"), jadi percobaan
+        // ulang menemukan kunci kosong dan membuat baris; yang diuji: pelanggaran unique tidak lolos sebagai galat.
+        $outcome = $this->manual()->store($this->row());
+
+        $this->assertSame(ExchangeRateRecorder::CREATED, $outcome);
+        $this->assertSame(1, ExchangeRate::query()->count());
+    }
+
+    public function test_a_database_error_on_one_row_is_reported_and_the_import_continues(): void {
+        $fail = true;
+        ExchangeRate::creating(function (ExchangeRate $rate) use (&$fail): void {
+            if ($fail && $rate->rate_date->toDateString() === '2026-11-26') {
+                $fail = false;
+
+                throw new QueryException('sqlite', 'insert', [], new \Exception('boom'));
+            }
+        });
+
+        $report = $this->csv()->importString(implode("\n", [
+            self::HEADER,
+            'USD,IDR,transaction,15500,2026-11-26',
+            'USD,IDR,transaction,15500,2026-11-27',
+        ]));
+
+        $this->assertSame([2], array_column($report->errors, 'line'));
+        $this->assertSame(1, $report->created);
+        $this->assertStringNotContainsString('boom', $report->errors[0]['message']);
+    }
+
+    public function test_csv_with_duplicate_header_columns_is_rejected(): void {
+        $report = $this->csv()->importString(self::HEADER . ",rate\nUSD,IDR,transaction,15500,2026-11-27,1\n");
+
+        $this->assertSame([1], array_column($report->errors, 'line'));
+        $this->assertSame(0, ExchangeRate::query()->count());
+    }
+
+    public function test_csv_over_the_size_or_row_limit_is_rejected_entirely(): void {
+        $tooBig = $this->csv()->importString(self::HEADER . "\n" . str_repeat('x', CsvImportProvider::MAX_BYTES));
+        $this->assertSame([0], array_column($tooBig->errors, 'line'));
+
+        $row     = "USD,IDR,transaction,15500,2026-11-27\n";
+        $tooMany = $this->csv()->importString(self::HEADER . "\n" . str_repeat($row, CsvImportProvider::MAX_ROWS + 1));
+        $this->assertSame([0], array_column($tooMany->errors, 'line'));
+        $this->assertSame(0, ExchangeRate::query()->count());
+    }
+
+    public function test_a_file_over_the_size_limit_is_rejected_before_reading(): void {
+        $path = tempnam(sys_get_temp_dir(), 'fx');
+        file_put_contents($path, str_repeat('a', CsvImportProvider::MAX_BYTES + 1));
+
+        try {
+            $report = $this->csv()->importFile($path);
+        } finally {
+            @unlink($path);
+        }
+
+        $this->assertSame([0], array_column($report->errors, 'line'));
+    }
+
+    public function test_decimal_comma_is_not_accepted(): void {
+        $report = $this->csv()->importString(self::HEADER . "\n" . 'USD,IDR,transaction,"15500,25",2026-11-27' . "\n");
+
+        $this->assertSame([2], array_column($report->errors, 'line'));
+        $this->assertSame(0, ExchangeRate::query()->count());
     }
 }

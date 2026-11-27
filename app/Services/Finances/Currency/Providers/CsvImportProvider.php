@@ -10,11 +10,25 @@ use App\Services\Finances\Currency\ExchangeRateRecorder;
  * baris berkas, tanpa jaringan, `source = import`.
  *
  * Format: baris pertama header dengan kolom `from_currency_code,to_currency_code,rate_type,rate,rate_date`
- * (urutan bebas; kolom lain diabaikan); nama berkas menjadi `source_ref`. Pemisah `,` atau `;` (dideteksi dari header), BOM UTF-8 diabaikan, baris kosong dilewati. Baris valid tetap tersimpan
+ * (urutan bebas, nama kolom tidak boleh dobel; kolom lain diabaikan). Kurs ditulis dengan TITIK sebagai pemisah desimal
+ * (`15500.25`); desimal koma (`15500,25`) dan pemisah ribuan tidak diterima dan dilaporkan galat. Batas: 5 MB dan 50.000
+ * baris data per impor; nama berkas menjadi `source_ref`. Pemisah `,` atau `;` (dideteksi dari header), BOM UTF-8 diabaikan, baris kosong dilewati. Baris valid tetap tersimpan
  * walau baris lain galat; impor ulang berkas yang sama idempoten.
  */
 final class CsvImportProvider implements ExchangeRateProvider {
     public const COLUMNS = ['from_currency_code', 'to_currency_code', 'rate_type', 'rate', 'rate_date'];
+
+    /** Batas ukuran berkas (5 MB) dan jumlah baris data (50.000); di atasnya impor ditolak seluruhnya. */
+    public const MAX_BYTES = 5 * 1024 * 1024;
+
+    public const MAX_ROWS = 50000;
+
+    private function failed(string $message): RateImportReport {
+        $report = new RateImportReport;
+        $report->addError(0, $message);
+
+        return $report;
+    }
 
     public function __construct(private readonly ExchangeRateRecorder $recorder) {}
 
@@ -30,12 +44,14 @@ final class CsvImportProvider implements ExchangeRateProvider {
      * Mengimpor berkas CSV di `$path`.
      */
     public function importFile(string $path, ?string $createdById = null): RateImportReport {
-        $content = @file_get_contents($path);
-        if ($content === false) {
-            $report = new RateImportReport;
-            $report->addError(0, __('finances/exchangeRate.errors.csv_unreadable'));
+        $size = is_file($path) ? @filesize($path) : false;
+        if ($size !== false && $size > self::MAX_BYTES) {
+            return $this->failed(__('finances/exchangeRate.errors.csv_too_large', ['max' => self::MAX_BYTES / 1024 / 1024]));
+        }
 
-            return $report;
+        $content = $size === false ? false : @file_get_contents($path);
+        if ($content === false) {
+            return $this->failed(__('finances/exchangeRate.errors.csv_unreadable'));
         }
 
         return $this->importString($content, basename($path), $createdById);
@@ -45,6 +61,10 @@ final class CsvImportProvider implements ExchangeRateProvider {
      * Mengimpor isi CSV; `$sourceRef` biasanya nama berkas.
      */
     public function importString(string $csv, ?string $sourceRef = null, ?string $createdById = null): RateImportReport {
+        if (\strlen($csv) > self::MAX_BYTES) {
+            return $this->failed(__('finances/exchangeRate.errors.csv_too_large', ['max' => self::MAX_BYTES / 1024 / 1024]));
+        }
+
         $csv    = preg_replace('/^\xEF\xBB\xBF/', '', $csv) ?? $csv;
         $lines  = preg_split('/\r\n|\n|\r/', $csv) ?: [];
         $report = new RateImportReport;
@@ -72,7 +92,18 @@ final class CsvImportProvider implements ExchangeRateProvider {
                     return $report;
                 }
 
+                $duplicated = array_keys(array_filter(array_count_values($header), static fn (int $count): bool => $count > 1));
+                if ($duplicated !== []) {
+                    $report->addError($lineNumber, __('finances/exchangeRate.errors.csv_duplicate_header', ['columns' => implode(', ', $duplicated)]));
+
+                    return $report;
+                }
+
                 continue;
+            }
+
+            if (\count($rows) + 1 > self::MAX_ROWS) {
+                return $this->failed(__('finances/exchangeRate.errors.csv_too_many_rows', ['max' => number_format(self::MAX_ROWS, 0, ',', '.')]));
             }
 
             $cells = str_getcsv($text, $delimiter);

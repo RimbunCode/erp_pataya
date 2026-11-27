@@ -46,8 +46,8 @@ final class ExchangeRateService {
             ->where('from_currency_code', $from)
             ->where('to_currency_code', $to)
             ->where('rate_type', $type->value)
-            ->whereDate('rate_date', '<=', $day)
-            ->whereDate('rate_date', '>=', $earliest)
+            ->where('rate_date', '<=', $day)
+            ->where('rate_date', '>=', $earliest)
             ->orderByDesc('rate_date')
             ->first();
     }

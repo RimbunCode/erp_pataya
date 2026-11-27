@@ -48,7 +48,9 @@ class ExchangeRate extends Model {
     public string $translateKey = 'finances.exchangeRate';
     protected $casts            = [
         'rate_type' => RateType::class,
-        'rate_date' => 'date',
+        // Format tetap `Y-m-d` agar nilai tersimpan polos tanggal (tanpa jam) di SQLite maupun MySQL, sehingga
+        // perbandingan `where('rate_date', '<=', $day)` bertepatan dengan tanggal yang sama.
+        'rate_date' => 'date:Y-m-d',
         // Sama di SQLite (test) dan MySQL `decimal(20,8)`: selalu string "15500.00000000".
         'rate'              => 'decimal:8',
         'have_transactions' => 'boolean',

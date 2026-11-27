@@ -15,7 +15,7 @@ class ImportExchangeRatesCommand extends Command {
     protected $signature = 'finance:import-exchange-rates
         {file : Path berkas CSV (header: from_currency_code,to_currency_code,rate_type,rate,rate_date)}
         {--dry-run : Validasi dan laporkan tanpa menyimpan}';
-    protected $description = 'Impor kurs dari berkas CSV dengan validasi per baris dan laporan galat';
+    protected $description = 'Impor kurs dari berkas CSV (kurs memakai titik desimal, maks 5 MB / 50.000 baris) dengan validasi per baris dan laporan galat';
 
     public function handle(CsvImportProvider $provider): int {
         $path = (string) $this->argument('file');
