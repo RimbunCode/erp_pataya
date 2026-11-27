@@ -9,13 +9,19 @@ use App\Models\Inventory\ItemVariant;
 use App\Models\Model;
 use App\Models\Sales\SalesOrder;
 use App\Models\Sales\SalesOrderItem;
+use App\Traits\ComputesLegacyInvoiceItemAmounts;
 use Illuminate\Database\Eloquent\Concerns\HasUlids;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
 use Illuminate\Database\Eloquent\SoftDeletes;
 
 class SalesInvoiceItem extends Model {
-    use HasFactory, HasUlids, SoftDeletes;
+    use ComputesLegacyInvoiceItemAmounts, HasFactory, HasUlids, SoftDeletes;
+
+    /** Kolom harga satuan dan ketiadaan kolom `amount` (dipakai `ComputesLegacyInvoiceItemAmounts`). */
+    public const LEGACY_PRICE_COLUMN = 'price';
+
+    public const LEGACY_HAS_AMOUNT_COLUMN = false;
 
     /** Izin lihat kolom harga jual: pembuat SalesOrder atau SalesInvoice. */
     private const PRICE_VISIBILITY = [
@@ -47,6 +53,7 @@ class SalesInvoiceItem extends Model {
         'discount_amount'     => 'float',
         'dpp_amount'          => 'float',
         'tax_amount'          => 'float',
+        'withholding_amount'  => 'float',
     ];
     protected array $configColumns = [
         'item' => [
@@ -108,6 +115,12 @@ class SalesInvoiceItem extends Model {
             'type'       => 'currency',
             'show'       => true,
             'order'      => 8,
+            'linkable'   => true,
+            'visibleFor' => self::PRICE_VISIBILITY,
+        ],
+        'withholding_amount' => [
+            'type'       => 'currency',
+            'show'       => false,
             'linkable'   => true,
             'visibleFor' => self::PRICE_VISIBILITY,
         ],

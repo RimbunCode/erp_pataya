@@ -83,8 +83,9 @@ class FinanceSetting extends ModuleSetting {
             'tax_split_from' => array_fill_keys(self::TAX_SPLIT_DOCUMENT_TYPES, null),
             // Finance Fase 3, Requirement 7.9 (`finance_company_is_pkp`, default true; menunggu D-12/Q-P3-2).
             'company_is_pkp' => true,
-            // Finance Fase 3, Requirement 2.7 (`finance_tax_engine_calc_enabled`): false sampai migrasi Bagian B.
-            'tax_engine_calc_enabled' => false,
+            // Finance Fase 3, Requirement 2.7 (`finance_tax_engine_calc_enabled`): true sejak migrasi Bagian B
+            // (`2026_11_27_100001`); baris setting yang dibuat sesudahnya ikut aktif.
+            'tax_engine_calc_enabled' => true,
         ];
     }
 
