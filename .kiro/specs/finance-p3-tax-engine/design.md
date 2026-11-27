@@ -130,6 +130,8 @@ Efek di Bagian A: untuk pajak dengan versi 1 hasil backfill, `tax_rate` = `taxes
 
 `onApproved()`: bangun `TaxInput` dari item tersimpan (basis = `basic_amount − discount_amount`), jalankan `calculateDocument`, bandingkan dengan `tax_amount`/`dpp_amount` tersimpan. Beda ≤ 1 minor unit → simpan `TaxResult` dengan komponen *persis nilai tersimpan* dan `warnings=[]`. Beda lebih besar → simpan nilai tersimpan, tambah `warnings` (`persisted_vs_engine_mismatch`) dan catat log; **angka dokumen tidak diubah**. `tax_breakdown` di-set sekali dan tidak diubah setelah approved.
 
+**Kegagalan snapshot tidak memblokir approve (Q-P3-6, 2026-11-27, disetujui pemilik produk).** `DocumentTaxSnapshot::buildOrDescribeFailure()` membungkus pembangunan snapshot: galat apa pun (mis. `RangeException` pada basis sangat besar) ditangkap, dicatat lewat `Log::warning('tax.snapshot_build_failed')` (id dokumen, id pajak, kelas galat), dan `tax_breakdown` diisi kerangka kosong dengan `warnings: ["snapshot_build_failed"]` tanpa trace. Approve dilanjutkan dan angka dokumen tidak berubah. Alasan: snapshot hanya penjelasan; Q-P3-5 (gagal tertutup) berlaku untuk aturan pajak, bukan snapshot. Dipakai `SalesInvoiceService` dan `PurchaseInvoiceService`.
+
 ### Pabrik konteks (milik dokumen) dan DTO posting
 
 `PostingContext` (Fase 2) mendapat parameter opsional `taxComponents: list<TaxComponentLine>` (ekstensi kompatibel mundur). `TaxComponentLine{ruleVersionId, role, amount, isCreditable, classified}`. Pabrik invoice menyusunnya dari item tersimpan:
@@ -232,6 +234,7 @@ Unik `(tax_id, version)`; indeks `(tax_id, status, effective_from)`.
 | Peran pajak tidak ter-resolve saat posting (cutover aktif) | `UnresolvedAccountRoleException` → `GlPostingStatus=failed`, dapat dicoba ulang setelah profil dilengkapi |
 | Versi tumpang-tindih / faktor tak valid | `InvalidTaxRuleVersionException` (form dan service) |
 | Ketidakcocokan engine vs nilai tersimpan | tidak menghentikan dokumen; `warnings` pada `tax_breakdown` + log |
+| Snapshot gagal dibangun saat approve (`RangeException`, dsb.) | tidak menghentikan approve (Q-P3-6); `tax_breakdown` kerangka kosong dengan `warnings: ["snapshot_build_failed"]` + `Log::warning` |
 | `tax_breakdown` legacy null | UI menampilkan penjelasan legacy dari kolom tersimpan |
 
 ## Testing Strategy

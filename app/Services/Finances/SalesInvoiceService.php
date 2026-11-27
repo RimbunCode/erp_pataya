@@ -156,11 +156,14 @@ class SalesInvoiceService implements SubmitableService {
      * @return array<string, mixed>|null
      */
     private function buildTaxBreakdown(SalesInvoice $salesInvoice, Collection $items): ?array {
-        return app(DocumentTaxSnapshot::class)->build(
+        // Kegagalan snapshot tidak boleh memblokir approve (Q-P3-6).
+        return app(DocumentTaxSnapshot::class)->buildOrDescribeFailure(
             $items,
             CarbonImmutable::parse($salesInvoice->date),
             DocumentTaxSnapshot::minorUnitFor($salesInvoice->currency_code),
-        )?->toArray();
+            'sales_invoice',
+            (string) $salesInvoice->getKey(),
+        );
     }
 
     private function fillPaymentScheduleRelations(array $data, SalesInvoice $salesInvoice) {

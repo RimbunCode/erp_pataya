@@ -3,6 +3,8 @@
 namespace Tests\Feature\Finances\Tax;
 
 use App\Enums\FormStatus;
+use App\Events\Finances\PurchaseInvoiceGeneralLedgerPostingRequested;
+use App\Events\Finances\SalesInvoiceGeneralLedgerPostingRequested;
 use App\Models\Core\Branch;
 use App\Models\Core\Country;
 use App\Models\Finances\Account;
@@ -10,6 +12,7 @@ use App\Models\Finances\PostingProfile;
 use App\Models\Finances\PurchaseInvoice;
 use App\Models\Finances\PurchaseInvoiceItem;
 use App\Models\Finances\SalesInvoice;
+use App\Models\Finances\SalesInvoiceItem;
 use App\Models\Finances\Tax;
 use App\Models\Finances\TaxRuleVersion;
 use App\Models\Inventory\ItemVariant;
@@ -21,13 +24,17 @@ use App\Models\Sales\SalesOrder;
 use App\Services\Finances\Posting\PostingProfileService;
 use App\Services\Finances\PurchaseInvoiceService;
 use App\Services\Finances\SalesInvoiceService;
+use App\Services\Finances\Tax\DocumentTaxSnapshot;
 use App\Services\Finances\Tax\TaxEngine;
 use App\Services\Finances\Tax\TaxResult;
 use App\Services\Finances\Tax\TaxRuleVersionService;
+use Carbon\CarbonImmutable;
 use Database\Factories\Core\CountryFactory;
 use Database\Factories\Inventory\ItemVariantFactory;
 use Database\Factories\Sales\CustomerFactory;
 use Illuminate\Foundation\Testing\RefreshDatabase;
+use Illuminate\Support\Facades\Event;
+use Illuminate\Support\Facades\Log;
 use Illuminate\Support\Facades\Schema;
 use Illuminate\Support\Str;
 use Illuminate\Validation\ValidationException;
@@ -333,7 +340,7 @@ class InvoiceTaxSnapshotTest extends TestCase {
         $return = $this->createSalesInvoice(
             [$tax->getKey()],
             '2026-07-01',
-            ['return_against' => ['id' => $original->id]],
+            ['return_against'         => ['id' => $original->id]],
             ['return_against_item_id' => $originalItem->id, 'quantity' => 1],
         );
         $returnItem = $return->items()->firstOrFail();
@@ -352,7 +359,7 @@ class InvoiceTaxSnapshotTest extends TestCase {
         $return = $this->createPurchaseInvoice(
             [$tax->getKey()],
             '2026-07-01',
-            ['return_against' => ['id' => $original->id]],
+            ['return_against'         => ['id' => $original->id]],
             ['return_against_item_id' => $originalItem->id, 'quantity' => 1],
         );
         $returnItem = $return->items()->firstOrFail();
@@ -558,5 +565,78 @@ class InvoiceTaxSnapshotTest extends TestCase {
 
         $this->assertNull($revision->fresh()->tax_breakdown);
         $this->assertSame(['marker' => 'lama'], $invoice->fresh()->tax_breakdown);
+    }
+
+    public function test_a_range_failure_while_building_the_snapshot_is_described_instead_of_thrown(): void {
+        Log::spy();
+        $tax  = $this->taxWithVersion('PPN 10', 10);
+        $item = new SalesInvoiceItem([
+            'tax_id'              => $tax->getKey(),
+            'tax_rule_version_id' => $this->activeVersionOf($tax)->getKey(),
+            'basic_amount'        => 1.0e300,
+            'discount_amount'     => 0,
+            'tax_rate'            => 10,
+            'dpp_amount'          => 1.0e300,
+            'tax_amount'          => 1.0e299,
+        ]);
+
+        $result = app(DocumentTaxSnapshot::class)->buildOrDescribeFailure(collect([$item]), CarbonImmutable::parse('2026-03-01'), 2, 'sales_invoice', 'SI-1');
+
+        $this->assertSame([DocumentTaxSnapshot::FAILURE_WARNING], $result['warnings']);
+        $this->assertSame([], $result['components']);
+        $this->assertSame('0', $result['total_additive']);
+        $this->assertStringNotContainsString('#0', json_encode($result), 'Tanpa trace di data dokumen.');
+        Log::shouldHaveReceived('warning')->withArgs(fn (string $message, array $context) => $message === 'tax.snapshot_build_failed'
+            && $context['document_id'] === 'SI-1'
+            && $context['tax_ids'] === [$tax->getKey()]
+            && $context['exception'] === \RangeException::class)->once();
+    }
+
+    public function test_a_snapshot_range_failure_does_not_block_sales_approval(): void {
+        Log::spy();
+        // Posting GL tidak relevan di sini (nilai sangat besar juga di luar rentang jurnal); yang diuji snapshot.
+        Event::fake([SalesInvoiceGeneralLedgerPostingRequested::class]);
+        $tax     = $this->taxWithVersion('PPN 10', 10);
+        $invoice = $this->approvableSalesInvoice(['tax_id' => $tax->getKey(), 'tax_rule_version_id' => $this->activeVersionOf($tax)->getKey(), 'price' => 1.0e300]);
+        $before  = $invoice->items()->firstOrFail()->only(['basic_amount', 'dpp_amount', 'tax_amount', 'tax_rate']);
+
+        $approved = $this->approveSales($invoice->fresh());
+
+        $this->assertSame([DocumentTaxSnapshot::FAILURE_WARNING], $approved->tax_breakdown['warnings']);
+        $this->assertSame($before, $approved->items->first()->only(['basic_amount', 'dpp_amount', 'tax_amount', 'tax_rate']), 'Angka dokumen tidak berubah.');
+        Log::shouldHaveReceived('warning')->withArgs(fn (string $message, array $context) => $message === 'tax.snapshot_build_failed' && $context['document_id'] === $invoice->getKey())->once();
+    }
+
+    public function test_a_snapshot_range_failure_does_not_block_purchase_approval(): void {
+        Log::spy();
+        Event::fake([PurchaseInvoiceGeneralLedgerPostingRequested::class]);
+        $tax   = $this->taxWithVersion('PPN 10', 10);
+        $order = BaseModel::withoutEvents(fn () => PurchaseOrder::create([
+            'code'          => 'PO-SNAP-FAIL',
+            'date'          => now(),
+            'status'        => [FormStatus::SUBMITTED],
+            'created_by_id' => $this->user->id,
+        ]));
+        $invoice = PurchaseInvoice::create([
+            'date'                    => now()->subDays(3),
+            'expanse_head_account_id' => $this->expense->id,
+            'credit_account_id'       => $this->payable->id,
+            'purchase_order_id'       => $order->id,
+            'branch_id'               => $this->branch->id,
+            'status'                  => [FormStatus::SUBMITTED],
+        ]);
+        PurchaseInvoiceItem::create([
+            'purchase_invoice_id' => $invoice->id,
+            'item_id'             => ItemVariant::factory()->create()->id,
+            'quantity'            => 2,
+            'rate'                => 1.0e300,
+            'tax_id'              => $tax->getKey(),
+            'tax_rate'            => 10,
+        ]);
+
+        app(PurchaseInvoiceService::class)->onApproved($invoice->fresh());
+
+        $this->assertSame([DocumentTaxSnapshot::FAILURE_WARNING], $invoice->fresh()->tax_breakdown['warnings']);
+        Log::shouldHaveReceived('warning')->withArgs(fn (string $message) => $message === 'tax.snapshot_build_failed')->once();
     }
 }
