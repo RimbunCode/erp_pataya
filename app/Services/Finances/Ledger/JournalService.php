@@ -278,19 +278,20 @@ final class JournalService {
         $created = [];
         foreach ($normalized->lines as $line) {
             $created[] = GeneralLedger::create([
-                'journal_id'         => $journal->id,
-                'line_no'            => $line->lineNo,
-                'account_id'         => $line->draft->accountId,
-                'against_account_id' => $line->draft->againstAccountId,
-                'branch_id'          => $draft->branchId,
-                'referenceable_type' => $referenceableType,
-                'referenceable_id'   => $referenceableId,
-                'partyable_type'     => $line->draft->party?->getMorphClass() ?? $line->draft->partyType,
-                'partyable_id'       => $line->draft->party?->getKey() ?? $line->draft->partyId,
-                'debit'              => (float) MinorUnit::fromMinor($line->debitMinor, $normalized->minorUnit),
-                'credit'             => (float) MinorUnit::fromMinor($line->creditMinor, $normalized->minorUnit),
-                'transaction_date'   => $draft->transactionDate,
-                'description'        => $line->draft->description ?? $draft->description,
+                'journal_id'          => $journal->id,
+                'line_no'             => $line->lineNo,
+                'account_id'          => $line->draft->accountId,
+                'against_account_id'  => $line->draft->againstAccountId,
+                'branch_id'           => $draft->branchId,
+                'referenceable_type'  => $referenceableType,
+                'referenceable_id'    => $referenceableId,
+                'partyable_type'      => $line->draft->party?->getMorphClass() ?? $line->draft->partyType,
+                'partyable_id'        => $line->draft->party?->getKey() ?? $line->draft->partyId,
+                'tax_rule_version_id' => $line->draft->taxRuleVersionId,
+                'debit'               => (float) MinorUnit::fromMinor($line->debitMinor, $normalized->minorUnit),
+                'credit'              => (float) MinorUnit::fromMinor($line->creditMinor, $normalized->minorUnit),
+                'transaction_date'    => $draft->transactionDate,
+                'description'         => $line->draft->description ?? $draft->description,
             ]);
         }
 

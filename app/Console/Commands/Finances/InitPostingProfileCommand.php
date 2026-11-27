@@ -49,7 +49,7 @@ class InitPostingProfileCommand extends Command {
     }
 
     /**
-     * @param  array{resolved: array<string, array{id: string, label: string}>, ambiguous: array<string, list<string>>, missing: array<string, string>, master: list<string>}  $report
+     * @param  array{resolved: array<string, array{id: string, label: string}>, ambiguous: array<string, list<string>>, missing: array<string, string>, master: list<string>, tax: array{accounts: list<string>, unmapped_roles: list<string>}}  $report
      */
     private function renderReport(array $report): void {
         $this->info('Peran ter-resolve (tepat satu akun cocok): ' . \count($report['resolved']));
@@ -82,9 +82,42 @@ class InitPostingProfileCommand extends Command {
         }
 
         $this->newLine();
-        $this->line('Peran akun master / tanpa padanan legacy (diisi dari master atau dilengkapi manual): ' . \count($report['master']));
-        if ($report['master'] !== []) {
-            $this->line('  ' . OutputFormatter::escape(implode(', ', $report['master'])));
+        // Peran pajak dilaporkan di bagian pajak di bawah; tidak diulang di sini.
+        $master = array_values(array_filter(
+            $report['master'],
+            static fn (string $role): bool => ! str_starts_with($role, 'tax_') && ! str_starts_with($role, 'withholding_'),
+        ));
+        $this->line('Peran akun master / tanpa padanan legacy (diisi dari master atau dilengkapi manual): ' . \count($master));
+        if ($master !== []) {
+            $this->line('  ' . OutputFormatter::escape(implode(', ', $master)));
+        }
+
+        $this->renderTaxReport($report['tax']);
+    }
+
+    /**
+     * Akun pajak dan peran `tax_*` untuk pemisahan baris pajak (Finance Fase 3, Requirement 7.7-7.8): hanya dilaporkan,
+     * tidak ditebak dan tidak dipetakan perintah ini.
+     *
+     * @param  array{accounts: list<string>, unmapped_roles: list<string>}  $tax
+     */
+    private function renderTaxReport(array $tax): void {
+        $this->newLine();
+        $count = \count($tax['accounts']);
+        $this->warn('Akun bertipe tax pada COA (PPN Keluaran/Masukan/PPh tidak dapat dibedakan; tidak ditebak): ' . $count);
+        if ($tax['accounts'] !== []) {
+            $this->line('  ' . ($count > 1 ? 'AMBIGU, pilih dan petakan manual ke peran tax_output/tax_input/withholding_*:' : 'Satu akun; tetap petakan manual:'));
+            foreach ($tax['accounts'] as $label) {
+                $this->line('  - ' . OutputFormatter::escape($label));
+            }
+        } else {
+            $this->line('  Belum ada akun pajak; akuntan melengkapi COA sebelum cutover pemisahan pajak.');
+        }
+
+        $this->warn('Peran pajak belum dipetakan pada profil aktif yang berlaku (draft tidak dihitung): ' . \count($tax['unmapped_roles']));
+        if ($tax['unmapped_roles'] !== []) {
+            $this->line('  ' . OutputFormatter::escape(implode(', ', $tax['unmapped_roles'])));
+            $this->line('  Wajib terpetakan sebelum `finance_tax_split_from.*` diisi; tanpa itu posting pasca-cutover gagal (Requirement 7.7).');
         }
     }
 

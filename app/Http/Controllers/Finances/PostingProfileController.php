@@ -13,6 +13,7 @@ use App\Models\Finances\Account;
 use App\Models\Finances\PostingProfile;
 use App\Models\Finances\PostingProfileRule;
 use App\Models\Inventory\Category;
+use App\Services\Finances\Accounting\TaxSplitResolver;
 use App\Services\Finances\Posting\PostingProfileService;
 use App\Services\Finances\Posting\PostingRoleRequirements;
 use Carbon\CarbonImmutable;
@@ -93,7 +94,7 @@ class PostingProfileController extends Controller {
         return Inertia::render('Finances/PostingProfiles/Form', [
             ...$this->catalog(),
             'profile'     => $this->profilePayload($postingProfile),
-            'unmapped'    => $postingProfile->status === PostingProfile::STATUS_RETIRED ? [] : PostingRoleRequirements::unmapped($postingProfile),
+            'unmapped'    => $postingProfile->status === PostingProfile::STATUS_RETIRED ? [] : PostingRoleRequirements::unmapped($postingProfile, app(TaxSplitResolver::class)->documentTypesWithCutover()),
             'canWrite'    => $this->hasPermission('write'),
             'canActivate' => $this->hasPermission('activate'),
             'defaultFrom' => ($postingProfile->effective_to ?? $postingProfile->effective_from)->addDay()->toDateString(),

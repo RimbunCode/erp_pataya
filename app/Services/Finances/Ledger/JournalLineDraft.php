@@ -21,5 +21,6 @@ final readonly class JournalLineDraft {
         public ?string $againstAccountId = null,
         public ?string $partyType = null,
         public ?string $partyId = null,
+        public ?string $taxRuleVersionId = null,
     ) {}
 }

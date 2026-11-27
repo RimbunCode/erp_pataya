@@ -4,7 +4,7 @@
 
 Bagian A (Task 1–8) tidak mengubah angka di dokumen; Bagian B (Task 9) adalah konversi kolom yang **GATED D-15**. Urutan: audit data pajak (1), skema + model (2), backfill versi 1 (3), resolver + engine dengan test (4), snapshot di service dokumen (5), pemisahan baris pajak di rule posting + cutover (6), Faktur Pajak + UI (7–8), konversi kolom (9), checkpoint (10). Lint/Pint sekali di akhir.
 
-**Prasyarat**: Fase 2 selesai untuk Sales Invoice dan Purchase Invoice (mode `on` stabil); D-12 (kebijakan posting pajak) disetujui pemilik produk 22 November 2026 sebagai usulan PRD (implementasi di Task 6); Q-P3-1…4 terjawab. Branch baru dari `origin/feat/finance-engine` terbaru (BR-6, PRD Bagian 10).
+**Prasyarat**: Fase 2 selesai untuk Sales Invoice dan Purchase Invoice (mode `on` stabil); D-12 (kebijakan posting pajak) disetujui pemilik produk 22 November 2026 sebagai usulan PRD (implementasi di Task 6); Q-P3-1…4 terjawab pemilik produk 27 November 2026 (Q-P3-2 sementara, dikonfirmasi akuntan; lihat decision log). Branch baru dari `origin/feat/finance-engine` terbaru (BR-6, PRD Bagian 10).
 
 **Aturan eksekusi**:
 - Task 9 **GATED**: D-15 disetujui 2026-11-15 (pemilik produk); tetap hanya dengan hasil audit pemakai kolom dan jendela pemeliharaan.
@@ -15,8 +15,8 @@ Bagian A (Task 1–8) tidak mengubah angka di dokumen; Bagian B (Task 9) adalah 
 
 ## Tasks
 
-- [-] 1. Audit dan verifikasi asumsi (read-only; 1.2–1.4 selesai 2026-11-21, 1.1 menunggu data staging dari pemilik produk)
-  - [ ] 1.1 Dump seluruh `taxes` (nama, rate) di staging/produksi dan jumlah pemakaian per pajak pada item invoice 12 bulan; tandai `rate` yang mencurigakan terhadap DPP 11/12; kirim ke pemilik produk/akuntan (Q-P3-1)
+- [-] 1. Audit dan verifikasi asumsi (read-only; 1.2–1.4 selesai 2026-11-21, 1.1 tidak berlaku: produksi tanpa data pajak historis, Q-P3-1)
+  - [ ] 1.1 (status: tidak berlaku, bukan selesai) **TIDAK BERLAKU (27 November 2026, Q-P3-1):** produksi tidak punya data pajak historis sama sekali, sehingga tidak ada dump untuk direkonsiliasi dan `finance:init-tax-rules` di produksi menghasilkan kosong. Tidak dicentang `[x]` karena memang tidak dikerjakan. Teks semula: Dump seluruh `taxes` (nama, rate) di staging/produksi dan jumlah pemakaian per pajak pada item invoice 12 bulan; tandai `rate` yang mencurigakan terhadap DPP 11/12; kirim ke pemilik produk/akuntan (Q-P3-1)
     - _Requirements: 6.3_
   - [x] 1.2 Audit pemakai kolom `dpp_amount`/`tax_amount`/`amount` item invoice: view (`report_sales_invoice_view`), laporan, `assignTaxInvoice`, cetak, frontend
     - _Requirements: 12.6_
@@ -74,16 +74,16 @@ Bagian A (Task 1–8) tidak mengubah angka di dokumen; Bagian B (Task 9) adalah 
     - **P-2** angka dokumen tidak berubah (golden); invoice legacy tanpa snapshot tetap valid; versi tak ada → `NoEffectiveTaxRuleException`; `tax_breakdown` tak berubah setelah approved
     - **Validates: Requirements 5.1–5.6**
 
-- [ ] 6. Pemisahan baris pajak di jurnal (D-12 disetujui 22 November 2026; butuh Q-P3-2…4)
-  - [ ] 6.1 Perluas `PostingContext` dengan `taxComponents` (kompatibel mundur) dan `RoleLine` dengan `taxRuleVersionId`; teruskan ke `general_ledgers.tax_rule_version_id`
+- [-] 6. Pemisahan baris pajak di jurnal (6.1-6.5 selesai 27 November 2026; 6.6 manual staging belum) (D-12 disetujui 22 November 2026; Q-P3-2…4 dijawab 27 November 2026: default PKP/kreditabel sementara, cutover awal periode fiskal terbuka berikutnya per jenis dokumen, peran Posting Profile tanpa menebak akun COA)
+  - [x] 6.1 Perluas `PostingContext` dengan `taxComponents` (kompatibel mundur) dan `RoleLine` dengan `taxRuleVersionId`; teruskan ke `general_ledgers.tax_rule_version_id`
     - _Requirements: 5.4, 7.4_
-  - [ ] 6.2 Pabrik konteks invoice: kelompokkan komponen dari item tersimpan; hitung `classified`, `isCreditable`; set `flags['tax_split']` berdasarkan `finance_tax_split_from.*`
+  - [x] 6.2 Pabrik konteks invoice: kelompokkan komponen dari item tersimpan; hitung `classified`, `isCreditable`; set `flags['tax_split']` berdasarkan `finance_tax_split_from.*`
     - _Requirements: 7.1–7.3, 7.5, 7.9_
-  - [ ] 6.3 Rule Sales Invoice dan Purchase Invoice: baris pajak terpisah, baris pendapatan/beban sebagai sisa, retur menukar sisi; bentuk lama bila tidak ada komponen/pra-cutover; log `unsplit_tax`
+  - [x] 6.3 Rule Sales Invoice dan Purchase Invoice: baris pajak terpisah, baris pendapatan/beban sebagai sisa, retur menukar sisi; bentuk lama bila tidak ada komponen/pra-cutover; log `unsplit_tax`
     - _Requirements: 7.1–7.4, 7.6, 8.2_
-  - [ ] 6.4 Lengkapi `finance:init-posting-profile` melaporkan akun `tax` ambigu dan peran `tax_*` yang belum terpetakan (tanpa menebak)
+  - [x] 6.4 Lengkapi `finance:init-posting-profile` melaporkan akun `tax` ambigu dan peran `tax_*` yang belum terpetakan (tanpa menebak)
     - _Requirements: 7.7–7.8_
-  - [ ]* 6.5 Write golden tests G1–G6 dan test properti
+  - [x]* 6.5 Write golden tests G1–G6 dan test properti
     - **P-1** seimbang & Σ pajak = Σ tersimpan; **P-6** unclassified tidak dipisah; **P-8** retur & reversal pasca-cutover/pra-cutover; invoice pra-cutover tetap berbentuk lama
     - **Validates: Requirements 7.1–7.6, 8.1–8.2, 11.1**
   - [ ] 6.6 **(Manual, staging)** Set cutover di staging, posting contoh, verifikasi rekap PPN dan neraca dengan akuntan; catat hasil
@@ -145,3 +145,19 @@ Bagian A (Task 1.2-1.4, 2-5) digabung dengan `origin/feat/finance-engine` (Fase 
 - M-3 diputuskan pemilik produk 27 November 2026 (Q-P3-6): kegagalan snapshot `tax_breakdown` tidak memblokir approve; `DocumentTaxSnapshot::buildOrDescribeFailure()` menyimpan `warnings` `snapshot_build_failed` dan mencatat log (Task 5.3).
 - Requirement 1.4 (seed PPN 12%) kini dipetakan ke Task 1.5 dan selesai 27 November 2026; gap sebelumnya tertutup.
 - Mata uang `tax_breakdown` diputuskan pemilik produk 27 November 2026 (Q-P3-7): mata uang dokumen; pertanyaan terbuka terkait ditutup.
+
+**Catatan implementasi Task 6 (27 November 2026, branch `feat/finance-p3-tax-journal-split`)**
+- `TaxComponentLine` (Posting/Contexts), `PostingContext::$taxComponents`, `RoleLine`/`JournalLineDraft::$taxRuleVersionId` (diteruskan ke `general_ledgers.tax_rule_version_id`, juga disalin pembalik jurnal). Baris pajak dengan versi berbeda tidak digabung walau akunnya sama, dan tidak menyerap sisa pembulatan selama ada baris `revenue`/`expense` (Requirement 7.4, 8.2).
+- `InvoiceTaxComponentsBuilder` dan `TaxSplitResolver` (domain Finances/Accounting, bukan Posting; P-8) dipakai `SalesInvoicePostingContextFactory` dan `PurchaseInvoicePostingContextFactory`. Cutover memakai tanggal JURNAL (selaras `DiscountSplitResolver`); `finance_tax_split_from.{type}` NULL = tidak aktif dan tidak menuntut peran pajak.
+- Komponen tidak dipisah (tertanam, log `posting.unsplit_tax` dengan `reason`): `unclassified_or_withholding`, `no_rule_version` (item legacy tanpa `tax_rule_version_id`), `not_creditable` (pembelian: `taxes.is_creditable` false atau `finance_company_is_pkp` false).
+- `finance:init-posting-profile` melaporkan seluruh akun bertipe `tax` (ambigu bila lebih dari satu) dan peran `tax_output`, `tax_input`, `withholding_*` yang belum dipetakan; tidak pernah memetakannya.
+- Tindak lanjut review PR #331 (27 November 2026): `forPosting(..., preview: true)` (panel akun draft) tidak mencatat `posting.unsplit_tax`, hanya posting nyata; laporan peran pajak `finance:init-posting-profile` membaca profil `active` yang berlaku hari ini (sama dengan `AccountRoleResolver::profileFor`, draft tidak dihitung) dan peran `tax_*`/`withholding_*` tidak diulang di bagian "tanpa padanan legacy".
+- Tidak dikerjakan/ditunda: G6 minor unit 0 sebagai tes DB (mata uang dasar tes bukan minor unit 0; dicakup tes properti tingkat rule dan G6 pecahan); Task 6.6 (manual, staging).
+
+**Pertanyaan terbuka Task 6 (belum diputuskan pemilik produk)**
+- ~~Cutover untuk RETUR~~ **DITUTUP 27 November 2026 (Q-P3-8, pemilik produk):** retur mengikuti bentuk jurnal invoice ASAL (`TaxSplitResolver::isActiveForDocument()`), selaras Q-P2-25; alasan: saldo `tax_output`/`tax_input` tidak boleh debit tanpa kredit asal. Requirement 7.5-7.6 diubah.
+- Invoice lama tanpa `tax_rule_version_id` yang baru diposting setelah cutover (mis. retry): kini tertanam dan dicatat `no_rule_version`. Alternatif: memakai peran default `tax_output`/`tax_input`.
+- Nilai komponen pajak memakai ruang nilai yang sama dengan `total` jurnal (mata uang dokumen, belum dikonversi kurs; FX di Fase 4). Dokumen valuta asing mengikuti perilaku total saat ini.
+- Pajak `withholding` (PPh) tetap tertanam sebelum Bagian B (Requirement 7.3); peran `withholding_*` baru dilaporkan, belum dipakai.
+- ~~Peran `tax_*` dalam `PostingRoleRequirements`~~ **DITUTUP 27 November 2026 (Q-P3-8, pemilik produk): YA**, peran `tax_output`/`tax_input` diperingatkan setelah `finance_tax_split_from.{type}` terisi (`PostingRoleRequirements::taxSplitRolesFor()`; tidak dituntut sebelumnya). Peran `withholding_*` tetap hanya dilaporkan `finance:init-posting-profile`.
+- Baru (terbuka, tidak diubah): bila `InvoiceLineAttributesBuilder` mengembalikan daftar kosong (jumlah baris tak konsisten dengan `total`), posting diskon dimatikan dan dicatat, tetapi pemisahan pajak tetap berjalan (rule memakai satu baris `total - Σ pajak`, tetap seimbang karena pajak dari nilai tersimpan). Req 7 tidak mengaitkan pemisahan pajak dengan konsistensi baris; apakah pajak ikut dimatikan (dicatat `unsplit_tax`, alasan baris tak konsisten) perlu diputuskan pemilik produk.

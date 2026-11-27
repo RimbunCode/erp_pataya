@@ -11,6 +11,7 @@ use App\Services\Finances\Posting\PostingProfileService;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Illuminate\Support\Facades\Artisan;
 use Illuminate\Support\Facades\DB;
+use Illuminate\Support\Str;
 use Tests\Support\BuildsFinanceFixtures;
 use Tests\TestCase;
 
@@ -177,5 +178,81 @@ class InitPostingProfileCommandTest extends TestCase {
         $classified = array_merge(array_keys($report['resolved']), array_keys($report['ambiguous']), array_keys($report['missing']), $report['master']);
 
         $this->assertEqualsCanonicalizing(AccountRole::values(), $classified);
+    }
+
+    public function test_report_flags_ambiguous_tax_accounts_and_unmapped_tax_roles_without_guessing(): void {
+        $this->makeAccount('2310', 'PPN Keluaran', 'liability', 'credit', 'tax');
+        $this->makeAccount('1310', 'PPN Masukan', 'asset', 'debit', 'tax');
+
+        $report = app(PostingProfileInitializer::class)->analyze();
+
+        $this->assertSame(['1310 - PPN Masukan', '2310 - PPN Keluaran'], $report['tax']['accounts']);
+        $this->assertSame(['tax_output', 'tax_input', 'withholding_receivable', 'withholding_payable'], $report['tax']['unmapped_roles']);
+        $this->assertArrayNotHasKey('tax_output', $report['resolved'], 'Peran pajak tidak pernah dipetakan otomatis (Requirement 7.8).');
+        $this->assertArrayNotHasKey('tax_input', $report['resolved']);
+
+        $output = $this->runCommand(['--report' => true]);
+        $this->assertStringContainsString('AMBIGU', $output);
+        $this->assertStringContainsString('2310 - PPN Keluaran', $output);
+        $this->assertStringContainsString('tax_output', $output);
+        $this->assertSame(0, PostingProfile::query()->count());
+    }
+
+    public function test_apply_does_not_map_tax_roles_and_reports_them_as_unmapped(): void {
+        $this->makeAccount('2310', 'PPN Keluaran', 'liability', 'credit', 'tax');
+
+        $this->runCommand();
+
+        $mapped = DB::table('posting_profile_accounts')->pluck('role')->all();
+        $this->assertNotContains('tax_output', $mapped);
+        $this->assertNotContains('tax_input', $mapped);
+        $this->assertContains('tax_output', app(PostingProfileInitializer::class)->analyze()['tax']['unmapped_roles'], 'Masih dilaporkan belum terpetakan setelah profil awal dibuat.');
+    }
+
+    public function test_a_draft_mapping_tax_roles_does_not_count_when_the_active_profile_does_not(): void {
+        $output = $this->makeAccount('2310', 'PPN Keluaran', 'liability', 'credit', 'tax');
+        $this->runCommand();
+        $service = app(PostingProfileService::class);
+        $active  = $service->activate(PostingProfile::query()->firstOrFail());
+        $this->assertSame(PostingProfile::STATUS_ACTIVE, $active->status);
+
+        $draft = $service->createNewVersion($active, now()->addYear());
+        DB::table('posting_profile_accounts')->insert([
+            'id'                 => (string) Str::ulid(),
+            'posting_profile_id' => $draft->getKey(),
+            'role'               => 'tax_output',
+            'account_id'         => $output->getKey(),
+        ]);
+
+        $this->assertContains('tax_output', app(PostingProfileInitializer::class)->analyze()['tax']['unmapped_roles'], 'Draft v2 yang memetakan tax_output tidak dihitung; resolver memakai profil aktif.');
+    }
+
+    public function test_tax_roles_are_not_repeated_in_the_master_roles_section_of_the_report(): void {
+        $output = $this->runCommand(['--report' => true]);
+
+        $this->assertSame(1, preg_match('/Peran akun master[^\n]*\n([^\n]*)/', $output, $matches));
+        $this->assertStringNotContainsString('tax_output', $matches[1]);
+        $this->assertStringNotContainsString('withholding_', $matches[1]);
+        $this->assertStringContainsString('Peran pajak belum dipetakan', $output, 'Peran pajak tetap dilaporkan di bagian pajak.');
+    }
+
+    public function test_tax_roles_mapped_on_the_profile_are_no_longer_reported_unmapped(): void {
+        $output = $this->makeAccount('2310', 'PPN Keluaran', 'liability', 'credit', 'tax');
+        $this->runCommand();
+        $profile = PostingProfile::query()->firstOrFail();
+        DB::table('posting_profile_accounts')->insert([
+            'id'                 => (string) Str::ulid(),
+            'posting_profile_id' => $profile->getKey(),
+            'role'               => 'tax_output',
+            'account_id'         => $output->getKey(),
+        ]);
+
+        $this->assertContains('tax_output', app(PostingProfileInitializer::class)->analyze()['tax']['unmapped_roles'], 'Profil masih draft: resolver belum memakainya.');
+
+        app(PostingProfileService::class)->activate($profile);
+        $unmapped = app(PostingProfileInitializer::class)->analyze()['tax']['unmapped_roles'];
+
+        $this->assertNotContains('tax_output', $unmapped);
+        $this->assertContains('tax_input', $unmapped);
     }
 }

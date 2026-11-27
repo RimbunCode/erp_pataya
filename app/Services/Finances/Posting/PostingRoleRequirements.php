@@ -36,19 +36,41 @@ final class PostingRoleRequirements {
     }
 
     /**
+     * Peran pajak yang WAJIB bersyarat (Finance Fase 3, Requirement 7.7; keputusan pemilik produk 27 November 2026):
+     * dituntut hanya sesudah `finance_tax_split_from.{type}` terisi untuk jenis dokumen itu, karena sebelum cutover
+     * jurnal masih menanamkan pajak dan peran ini tidak dibaca. Kosong untuk jenis dokumen tanpa cutover pajak.
+     *
+     * @return list<AccountRole>
+     */
+    public static function taxSplitRolesFor(PostingDocumentType $type): array {
+        return match ($type) {
+            PostingDocumentType::SalesInvoice    => [AccountRole::TaxOutput],
+            PostingDocumentType::PurchaseInvoice => [AccountRole::TaxInput],
+            default                              => [],
+        };
+    }
+
+    /**
      * Peran wajib yang belum dipetakan pada akun default profil, untuk semua jenis dokumen (engine selalu aktif;
      * mode off/shadow dihapus 2026-11-22, Q-P2-23).
      *
+     * @param  list<string>  $taxSplitTypes  nilai jenis dokumen yang `finance_tax_split_from`-nya sudah terisi; untuknya
+     *                                       peran pajak (`taxSplitRolesFor`) ikut diwajibkan
      * @return list<array{document_type: string, roles: list<string>}>
      */
-    public static function unmapped(PostingProfile $profile): array {
+    public static function unmapped(PostingProfile $profile, array $taxSplitTypes = []): array {
         $mapped = $profile->accounts()->pluck('role')->all();
         $result = [];
 
         foreach (PostingDocumentType::cases() as $type) {
+            $required = self::for($type);
+            if (\in_array($type->value, $taxSplitTypes, true)) {
+                $required = [...$required, ...self::taxSplitRolesFor($type)];
+            }
+
             $missing = array_values(array_map(
                 static fn (AccountRole $role): string => $role->value,
-                array_filter(self::for($type), static fn (AccountRole $role): bool => ! \in_array($role->value, $mapped, true)),
+                array_filter($required, static fn (AccountRole $role): bool => ! \in_array($role->value, $mapped, true)),
             ));
             if ($missing !== []) {
                 $result[] = ['document_type' => $type->value, 'roles' => $missing];

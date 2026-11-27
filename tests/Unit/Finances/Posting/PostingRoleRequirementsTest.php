@@ -29,6 +29,20 @@ class PostingRoleRequirementsTest extends TestCase {
         }
     }
 
+    public function test_tax_split_roles_are_conditional_and_only_for_the_two_invoice_types(): void {
+        $values = fn (PostingDocumentType $type): array => array_map(fn ($role): string => $role->value, PostingRoleRequirements::taxSplitRolesFor($type));
+
+        $this->assertSame(['tax_output'], $values(PostingDocumentType::SalesInvoice));
+        $this->assertSame(['tax_input'], $values(PostingDocumentType::PurchaseInvoice));
+        $this->assertSame([], $values(PostingDocumentType::AssetDisposal));
+        $this->assertNotContains('tax_output', array_map(fn ($role): string => $role->value, PostingRoleRequirements::for(PostingDocumentType::SalesInvoice)), 'Tidak dituntut tanpa cutover.');
+        foreach (PostingDocumentType::cases() as $type) {
+            foreach (PostingRoleRequirements::taxSplitRolesFor($type) as $role) {
+                $this->assertFalse($role->isMasterRole(), $role->value);
+            }
+        }
+    }
+
     public function test_known_requirements(): void {
         $values = fn (PostingDocumentType $type): array => array_map(fn ($role): string => $role->value, PostingRoleRequirements::for($type));
 

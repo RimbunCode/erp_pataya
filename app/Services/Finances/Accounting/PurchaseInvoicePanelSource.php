@@ -39,7 +39,7 @@ final class PurchaseInvoicePanelSource implements PanelSource {
 
         $isReturn = $document->return_against_id !== null;
 
-        return $this->factory->forPosting($document, $isReturn ? 0.0 : $stock, $total, $isReturn, now());
+        return $this->factory->forPosting($document, $isReturn ? 0.0 : $stock, $total, $isReturn, now(), preview: true);
     }
 
     public function previewIsEstimate(): bool {

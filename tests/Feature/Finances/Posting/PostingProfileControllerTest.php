@@ -5,9 +5,11 @@ namespace Tests\Feature\Finances\Posting;
 use App\Enums\AccountRole;
 use App\Enums\PostingDocumentType;
 use App\Models\Finances\Account;
+use App\Models\Finances\FinanceSetting;
 use App\Models\Finances\PostingParityLog;
 use App\Models\Finances\PostingProfile;
 use App\Models\Inventory\Category;
+use App\Services\Core\Setting\SettingsService;
 use App\Services\Finances\Posting\PostingProfileService;
 use App\Services\Finances\Posting\PostingRoleRequirements;
 use Illuminate\Foundation\Testing\RefreshDatabase;
@@ -165,6 +167,38 @@ class PostingProfileControllerTest extends TestCase {
         }
         $profile = $this->service->createDraft('Profil lengkap', '2026-01-01', null, $roles);
 
+        $this->actingWith(['select', 'read'])->get(route('postingProfiles.show', $profile))
+            ->assertInertia(fn ($page) => $page->where('unmapped', []));
+    }
+
+    /**
+     * Keputusan pemilik produk 27 November 2026: peran `tax_output`/`tax_input` dituntut hanya sesudah
+     * `finance_tax_split_from.*` terisi (Finance Fase 3, Requirement 7.7).
+     */
+    public function test_show_warns_about_unmapped_tax_roles_only_after_the_tax_split_cutover_is_set(): void {
+        $roles = [];
+        foreach (PostingDocumentType::cases() as $type) {
+            foreach (PostingRoleRequirements::for($type) as $role) {
+                $roles[$role->value] = $this->other->id;
+            }
+        }
+        $profile = $this->service->createDraft('Profil tanpa pajak', '2026-01-01', null, $roles);
+
+        $this->actingWith(['select', 'read'])->get(route('postingProfiles.show', $profile))
+            ->assertInertia(fn ($page) => $page->where('unmapped', []));
+
+        app(SettingsService::class)->updateInternal(FinanceSetting::class, ['tax_split_from' => ['sales_invoice' => '2026-12-01', 'purchase_invoice' => null]]);
+        $this->actingWith(['select', 'read'])->get(route('postingProfiles.show', $profile))
+            ->assertInertia(fn ($page) => $page->where('unmapped', [['document_type' => 'sales_invoice', 'roles' => ['tax_output']]]));
+
+        app(SettingsService::class)->updateInternal(FinanceSetting::class, ['tax_split_from' => ['sales_invoice' => '2026-12-01', 'purchase_invoice' => '2026-12-01']]);
+        $this->actingWith(['select', 'read'])->get(route('postingProfiles.show', $profile))
+            ->assertInertia(fn ($page) => $page->where('unmapped', [
+                ['document_type' => 'sales_invoice', 'roles' => ['tax_output']],
+                ['document_type' => 'purchase_invoice', 'roles' => ['tax_input']],
+            ]));
+
+        $profile = $this->service->createDraft('Profil dengan pajak', '2026-01-01', null, [...$roles, 'tax_output' => $this->other->id, 'tax_input' => $this->other->id]);
         $this->actingWith(['select', 'read'])->get(route('postingProfiles.show', $profile))
             ->assertInertia(fn ($page) => $page->where('unmapped', []));
     }

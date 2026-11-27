@@ -6,8 +6,10 @@ use App\Enums\PostingDocumentType;
 use App\Models\Finances\PurchaseInvoice;
 use App\Services\Finances\Posting\Contexts\LineAttributes;
 use App\Services\Finances\Posting\Contexts\PostingContext;
+use App\Services\Finances\Posting\Contexts\TaxComponentLine;
 use App\Services\Finances\Posting\DiscountSplit\DiscountSplitResolver;
 use Carbon\CarbonInterface;
+use Illuminate\Database\Eloquent\Model;
 use Illuminate\Support\Facades\Log;
 
 /**
@@ -27,6 +29,8 @@ final class PurchaseInvoicePostingContextFactory {
     public function __construct(
         private readonly InvoiceLineAttributesBuilder $lines = new InvoiceLineAttributesBuilder,
         private readonly ?DiscountSplitResolver $discountSplit = null,
+        private readonly InvoiceTaxComponentsBuilder $taxComponents = new InvoiceTaxComponentsBuilder,
+        private readonly ?TaxSplitResolver $taxSplit = null,
     ) {}
 
     /**
@@ -37,9 +41,11 @@ final class PurchaseInvoicePostingContextFactory {
         return new PostingContext(PostingDocumentType::PurchaseInvoice, $purchaseInvoice->getMorphClass(), (string) $purchaseInvoice->getKey(), $transactionDate, null, []);
     }
 
-    public function forPosting(PurchaseInvoice $purchaseInvoice, float $totalStockGl, float $totalAmount, bool $isReturn, CarbonInterface $transactionDate): PostingContext {
+    public function forPosting(PurchaseInvoice $purchaseInvoice, float $totalStockGl, float $totalAmount, bool $isReturn, CarbonInterface $transactionDate, bool $preview = false): PostingContext {
         $items = $purchaseInvoice->items()->with(['item' => fn ($query) => $query->withTrashed()])->get();
         $lines = $this->lines->build($items, $totalAmount, PostingDocumentType::PurchaseInvoice->value, (string) $purchaseInvoice->getKey());
+
+        [$taxComponents, $taxSplitActive] = $this->taxSplitFor($purchaseInvoice, $items, $transactionDate, $isReturn, $preview);
 
         return new PostingContext(
             documentType: PostingDocumentType::PurchaseInvoice,
@@ -48,8 +54,9 @@ final class PurchaseInvoicePostingContextFactory {
             transactionDate: $transactionDate,
             branchId: null,
             amounts: ['total' => $totalAmount, 'stock_total' => $totalStockGl, ...$this->lines->discountTotals($lines, nonStockOnly: true)],
-            flags: ['is_return' => $isReturn, 'discount_split' => $this->discountSplitActive($lines, $transactionDate, $purchaseInvoice, $isReturn)],
+            flags: ['is_return' => $isReturn, 'discount_split' => $this->discountSplitActive($lines, $transactionDate, $purchaseInvoice, $isReturn), 'tax_split' => $taxSplitActive],
             lines: $lines,
+            taxComponents: $taxComponents,
         );
     }
 
@@ -74,5 +81,30 @@ final class PurchaseInvoicePostingContextFactory {
         }
 
         return true;
+    }
+
+    /**
+     * Komponen pajak dari nilai tersimpan dan flag cutover pemisahan baris pajak (Finance Fase 3, Requirement 7.5).
+     * Pemisahan aktif hanya bila tanggal jurnal >= `finance_tax_split_from.{type}` DAN ada komponen; komponen yang tidak
+     * dapat dipisah (tak terklasifikasi, tanpa versi, tak dapat dikreditkan) dicatat `unsplit_tax` dan tertanam seperti
+     * semula. Retur mengikuti bentuk jurnal invoice ASAL (keputusan pemilik produk 27 November 2026, selaras Q-P2-25),
+     * bukan tanggal retur. `$preview` (panel akun draft) tidak mencatat log `unsplit_tax`.
+     *
+     * @param  iterable<Model>  $items
+     * @return array{0: list<TaxComponentLine>, 1: bool}
+     */
+    private function taxSplitFor(PurchaseInvoice $purchaseInvoice, iterable $items, CarbonInterface $transactionDate, bool $isReturn, bool $preview): array {
+        $resolver = $this->taxSplit ?? app(TaxSplitResolver::class);
+        $originId = $isReturn ? $purchaseInvoice->return_against_id : null;
+        if (! $resolver->isActiveForDocument(PostingDocumentType::PurchaseInvoice, $transactionDate, $purchaseInvoice->getMorphClass(), $originId === null ? null : (string) $originId)) {
+            return [[], false];
+        }
+
+        $components = $this->taxComponents->build($items, true, $resolver->companyIsPkp());
+        if (! $preview) {
+            $this->taxComponents->logUnsplit($components, true, PostingDocumentType::PurchaseInvoice->value, (string) $purchaseInvoice->getKey());
+        }
+
+        return [$components, $components !== []];
     }
 }

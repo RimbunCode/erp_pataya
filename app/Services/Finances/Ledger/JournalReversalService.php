@@ -56,6 +56,7 @@ final class JournalReversalService {
                     againstAccountId: $line->against_account_id,
                     partyType: $line->partyable_type,
                     partyId: $line->partyable_id,
+                    taxRuleVersionId: $line->tax_rule_version_id,
                 ))->all(),
                 postingKey: ($original->posting_key ?? "journal:{$original->id}") . ':' . self::REVERSAL_PURPOSE,
                 branchId: $original->branch_id,

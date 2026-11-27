@@ -245,9 +245,10 @@ final class PostingService {
         foreach ($draft->lines as $line) {
             $account = $this->resolver->resolve($line->role, $ctx, $line->line);
             $notes[] = new PostedAccountNote($draft->purpose, $line->roleValue(), (string) $account->getKey(), $line->line?->lineId);
-            $key     = $line->side . '|' . $account->getKey();
+            // Baris pajak (versi aturan terisi) tidak digabung dengan versi lain walau akunnya sama (Finance Fase 3, Req. 5.4).
+            $key = $line->side . '|' . $account->getKey() . ($line->taxRuleVersionId !== null ? '|' . $line->taxRuleVersionId : '');
 
-            $groups[$key] ??= ['account' => (string) $account->getKey(), 'side' => $line->side, 'amount' => 0.0, 'description' => $line->description, 'roles' => []];
+            $groups[$key] ??= ['account' => (string) $account->getKey(), 'side' => $line->side, 'amount' => 0.0, 'description' => $line->description, 'roles' => [], 'taxRuleVersionId' => $line->taxRuleVersionId];
             $groups[$key]['amount'] += (float) $line->amount;
             if (! \in_array($line->roleValue(), $groups[$key]['roles'], true)) {
                 $groups[$key]['roles'][] = $line->roleValue();
@@ -288,6 +289,7 @@ final class PostingService {
                 credit: $debit ? 0 : $group['amount'],
                 description: $group['description'],
                 againstAccountId: \count($against) === 1 ? $against[0] : null,
+                taxRuleVersionId: $group['taxRuleVersionId'],
             );
         }
 
@@ -424,9 +426,22 @@ final class PostingService {
      * @param  array<string, array{account: string, side: string, amount: float, description: ?string, roles: list<string>}>  $groups
      */
     private function largestGroupKey(array $groups, string $side, bool $protectNet): ?string {
+        // Baris pajak terpisah tidak menyerap sisa pembulatan selama ada kelompok lain: jumlah pajak harus tetap sama
+        // dengan nilai tersimpan, sisanya diserap baris pendapatan/beban (Finance Fase 3, Requirement 7.4 dan 8.2).
+        return $this->largestGroupKeyAmong($groups, $side, $protectNet, excludeTax: true)
+            ?? $this->largestGroupKeyAmong($groups, $side, $protectNet, excludeTax: false);
+    }
+
+    /**
+     * @param  array<string, array{account: string, side: string, amount: float, description: ?string, roles: list<string>, taxRuleVersionId: ?string}>  $groups
+     */
+    private function largestGroupKeyAmong(array $groups, string $side, bool $protectNet, bool $excludeTax): ?string {
         $largestKey = null;
         foreach ($groups as $key => $group) {
             if ($group['side'] !== $side) {
+                continue;
+            }
+            if ($excludeTax && ($group['taxRuleVersionId'] ?? null) !== null) {
                 continue;
             }
             if ($protectNet && array_intersect($group['roles'], [AccountRole::Receivable->value, AccountRole::Payable->value]) !== []) {
