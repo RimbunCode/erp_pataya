@@ -20,6 +20,7 @@ final readonly class PostingContext {
      * @param  array<string, string>  $masterAccounts  peta peran => `accounts.id` dari konfigurasi master
      * @param  list<LineAttributes>  $lines  baris beratribut barang; kosong untuk dokumen tanpa barang
      * @param  array{type: string, id: string}|null  $party
+     * @param  list<TaxComponentLine>  $taxComponents  komponen pajak invoice dari nilai tersimpan (Finance Fase 3); kosong = bentuk lama
      * @param  array{type: string, id: string}|null  $guardDocument  dokumen yang statusnya diperiksa guard cancel (default
      *                                                               sumber); mis. disposal aset memakai Sales Invoice
      */
@@ -37,6 +38,7 @@ final readonly class PostingContext {
         public ?string $description = null,
         public ?array $guardDocument = null,
         public array $ruleDocumentTypes = [],
+        public array $taxComponents = [],
     ) {}
 
     /**

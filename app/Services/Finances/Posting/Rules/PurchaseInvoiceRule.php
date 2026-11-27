@@ -5,6 +5,7 @@ namespace App\Services\Finances\Posting\Rules;
 use App\Enums\AccountRole;
 use App\Enums\PostingDocumentType;
 use App\Services\Finances\Posting\Contexts\PostingContext;
+use App\Services\Finances\Posting\Contexts\TaxComponentLine;
 use App\Services\Finances\Posting\RoleJournalDraft;
 use App\Services\Finances\Posting\RoleLine;
 
@@ -25,6 +26,12 @@ use App\Services\Finances\Posting\RoleLine;
  * tetap `amount` (bersih), satu baris `discount` DIKREDIT sebesar `discount_amount` (potongan pembelian), dan `payable`
  * tetap `total`; retur menukar semua sisi. Jurnal `stock` tidak berubah. Tanpa flag atau diskon nol, bentuk jurnal
  * identik dengan sebelumnya.
+ *
+ * Pemisahan baris pajak (Finance Fase 3, Requirement 7.2), hanya jurnal `expense`: bila `flags['tax_split']` dan
+ * `taxComponents` memuat komponen yang `isSplittable()` (terklasifikasi, punya versi, dapat dikreditkan), tiap komponen
+ * didebit pada perannya (`tax_input`) sebesar `amount` tersimpan dengan `taxRuleVersionId`; `expense` per baris dikurangi
+ * bagian pajak baris itu (atau, tanpa `lines`, `total` dikurangi Σ pajak), `payable` tetap `total`. Komponen yang tidak
+ * dapat dipisah tetap tertanam di `expense`. Jurnal `stock` tidak berubah. Retur menukar semua sisi.
  */
 final class PurchaseInvoiceRule extends BasePostingRule {
     public function documentType(): PostingDocumentType {
@@ -54,9 +61,14 @@ final class PurchaseInvoiceRule extends BasePostingRule {
         $discount = $ctx->amount('discount_amount');
         $split    = (bool) $ctx->flag('discount_split', false) && $ctx->lines !== [] && ! self::isZero($discount);
 
+        $taxComponents = (bool) $ctx->flag('tax_split', false)
+            ? array_values(array_filter($ctx->taxComponents, static fn (TaxComponentLine $component): bool => $component->isSplittable(true)))
+            : [];
+
         $expense = [];
         foreach ($ctx->lines as $line) {
-            $amount = $split && $line->isStockItem === false ? $line->amount('gross_amount') : $line->amount('amount');
+            $amount = ($split && $line->isStockItem === false ? $line->amount('gross_amount') : $line->amount('amount'))
+                - array_sum(array_map(static fn (TaxComponentLine $component): float => $component->shareOf($line->lineId), $taxComponents));
             if (! self::isZero($amount)) {
                 $expense[] = $return
                     ? RoleLine::credit(AccountRole::Expense, $amount, line: $line)
@@ -64,8 +76,15 @@ final class PurchaseInvoiceRule extends BasePostingRule {
             }
         }
         if ($expense === []) {
-            $split   = false;
-            $expense = [$return ? RoleLine::credit(AccountRole::Expense, $total) : RoleLine::debit(AccountRole::Expense, $total)];
+            $split     = false;
+            $remainder = $total - array_sum(array_map(static fn (TaxComponentLine $component): float => $component->amount, $taxComponents));
+            $expense   = [$return ? RoleLine::credit(AccountRole::Expense, $remainder) : RoleLine::debit(AccountRole::Expense, $remainder)];
+        }
+
+        foreach ($taxComponents as $component) {
+            $expense[] = $return
+                ? RoleLine::credit($component->role, $component->amount, taxRuleVersionId: $component->ruleVersionId)
+                : RoleLine::debit($component->role, $component->amount, taxRuleVersionId: $component->ruleVersionId);
         }
 
         $payable = $return ? RoleLine::debit(AccountRole::Payable, $total) : RoleLine::credit(AccountRole::Payable, $total);
