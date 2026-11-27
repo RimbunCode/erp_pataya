@@ -2,8 +2,10 @@
 
 namespace App\Services\Finances\Tax;
 
+use App\Enums\FormStatus;
 use App\Models\Finances\Tax;
 use App\Models\Finances\TaxRuleVersion;
+use BackedEnum;
 use Carbon\CarbonImmutable;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Support\Collection;
@@ -49,8 +51,8 @@ final class TaxBreakdownPanel {
                 if ($built === null) {
                     return $this->result('none', minorUnit: $minor);
                 }
-                $payload = $built->toArray();
-                $state   = $document->getAttribute('submitted_at') === null ? 'pending' : 'legacy';
+                $payload = $this->withItemVersionIds($built->toArray(), $items);
+                $state   = $this->isApproved($document) ? 'legacy' : 'pending';
             }
 
             return $this->fromPayload($payload, $state, $items, $minor);
@@ -59,6 +61,45 @@ final class TaxBreakdownPanel {
 
             return $this->result('error');
         }
+    }
+
+    /**
+     * Dokumen dianggap belum approved bila salah satu statusnya draf, menunggu persetujuan, atau ditolak.
+     * `submitted_at` tidak dipakai: terisi saat submit, sedangkan `tax_breakdown` baru ditulis saat approve.
+     */
+    private function isApproved(Model $document): bool {
+        $statuses = array_map(
+            static fn (mixed $status): string => $status instanceof BackedEnum ? (string) $status->value : (string) $status,
+            (array) $document->getAttribute('status'),
+        );
+        $unapproved = [FormStatus::DRAFT->value, FormStatus::NEED_APPROVAL->value, FormStatus::REJECTED->value];
+
+        return array_intersect($statuses, $unapproved) === [];
+    }
+
+    /**
+     * Engine menandai komponen yang versinya tidak ditemukan sebagai legacy (tanpa id). Id asli pada item
+     * dikembalikan agar panel menampilkan "versi tidak tersedia" (Requirement 5.6), bukan "Legacy".
+     *
+     * @param  array<string, mixed>  $payload
+     * @param  Collection<int, Model>  $items
+     * @return array<string, mixed>
+     */
+    private function withItemVersionIds(array $payload, Collection $items): array {
+        $versionByLine = $items->mapWithKeys(fn (Model $item): array => [(string) $item->getKey() => $item->getAttribute('tax_rule_version_id')])->all();
+
+        $payload['components'] = array_map(function (mixed $component) use ($versionByLine): mixed {
+            if (\is_array($component) && ($component['rule_version_id'] ?? null) === null) {
+                $original = $versionByLine[(string) ($component['line_ref'] ?? '')] ?? null;
+                if ($original !== null) {
+                    $component['rule_version_id'] = (string) $original;
+                }
+            }
+
+            return $component;
+        }, (array) ($payload['components'] ?? []));
+
+        return $payload;
     }
 
     /**

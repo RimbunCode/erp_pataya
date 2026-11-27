@@ -135,7 +135,7 @@ Bagian A (Task 1.2-1.4, 2-5) digabung dengan `origin/feat/finance-engine` (Fase 
 **Pertanyaan terbuka (belum diputuskan, menunggu pemilik produk)**
 - Konflik design.md vs Requirement 4.1 (lihat diskusi desain; perlu diputuskan mana yang berlaku).
 - Retur: memakai versi aturan pada tanggal retur, atau mewarisi versi item dokumen asal.
-- `TaxesController::store` membuat pajak tanpa versi aturan (pajak baru dari UI belum bisa dipakai di invoice sampai versi dibuat).
+- ~~`TaxesController::store` membuat pajak tanpa versi aturan~~ (ditutup 27 November 2026, Q-P3-11: disengaja; versi dibuat manual di tab Versi Aturan).
 - `InvoiceBilledValueResolver` masih membaca `taxes.rate`, bukan versi aturan.
 
 **Tindak lanjut review PR #330 (27 November 2026)**
@@ -163,9 +163,10 @@ Bagian A (Task 1.2-1.4, 2-5) digabung dengan `origin/feat/finance-engine` (Fase 
 - Tidak dikerjakan: layar "Pajak tak terklasifikasi" (Requirement 10.5 bagian tampilan; perintah artisan sudah ada dan bagian tampilan tidak dipetakan ke Task 8) dan tampilan riwayat audit per versi (perubahan versi tercatat lewat `AuditableModelSaved`; daftar versi sendiri memuat seluruh status).
 
 **Pertanyaan terbuka Task 8 (belum diputuskan pemilik produk)**
-- Izin `write` pada `TaxRuleVersion` (Requirement 13.3) kini tidak dipakai aksi apa pun (semua aksi tulis memakai `manage_rule_versions`, sesuai Requirement 2.5). Apakah `write` perlu untuk draft (buat/ubah/hapus), dengan `manage_rule_versions` hanya untuk aktivasi/pensiun?
-- Peringatan "unclassified terpakai" (Requirement 1.3) kini hanya di halaman pajak itu sendiri dan menghitung invoice penjualan/pembelian (bukan SO/PO/penawaran) 12 bulan terakhir menurut tanggal invoice. Apakah perlu banner agregat di daftar Pajak dan apakah dokumen lain ikut dihitung?
-- `TaxesController::store` tetap membuat pajak tanpa versi aturan. Perlu keputusan apakah pajak baru otomatis diberi versi awal (draft) dari `taxes.rate`.
+- ~~Izin `write` pada `TaxRuleVersion`~~ **DITUTUP 27 November 2026 (Q-P3-9, pemilik produk):** semua aksi tulis tetap hanya `manage_rule_versions` (Requirement 2.5 diubah); `write` tidak dipakai aksi apa pun.
+- ~~Peringatan "unclassified terpakai"~~ **DITUTUP 27 November 2026 (Q-P3-10, pemilik produk):** hanya invoice penjualan/pembelian AKTIF (draf dan dibatalkan diabaikan), global tanpa scope cabang, menurut tanggal invoice dengan hari batas ikut terhitung (Requirement 1.3 diubah). Banner agregat di daftar Pajak tidak dikerjakan.
+- Tindak lanjut review PR #333: state panel dibedakan dari status approval dokumen (draf/menunggu persetujuan/ditolak = `pending`; sisanya tanpa snapshot = `legacy`), bukan `submitted_at`; versi yang tidak ditemukan pada jalur pending/legacy tampil "versi tidak tersedia" memakai `tax_rule_version_id` asli item (Requirement 5.6). `TaxRuleResolver::findVersion()`/`findTax()` sudah ber-cache per id selama satu request, jadi tidak ada perubahan.
+- ~~`TaxesController::store` membuat pajak tanpa versi aturan~~ **DITUTUP 27 November 2026 (Q-P3-11, pemilik produk):** pajak baru dari UI TIDAK diberi versi awal otomatis; versi dibuat manual di tab Versi Aturan (fail-closed Q-P3-5). Tidak ada perubahan kode.
 - Tautan versi aturan membuka halaman Pajak (belum memilih tab Versi Aturan otomatis); tidak ada halaman/route detail versi tersendiri.
 
 **Pertanyaan terbuka Task 6 (belum diputuskan pemilik produk)**

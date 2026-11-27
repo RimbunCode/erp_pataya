@@ -16,6 +16,8 @@ use App\Services\Finances\SalesInvoiceService;
 use App\Services\Finances\Tax\DocumentTaxSnapshot;
 use App\Services\Finances\Tax\TaxBreakdownPanel;
 use App\Services\Finances\Tax\TaxRuleVersionService;
+use App\Services\Finances\Tax\UnclassifiedTaxUsage;
+use Carbon\CarbonImmutable;
 use Database\Factories\Core\CountryFactory;
 use Database\Factories\Inventory\ItemVariantFactory;
 use Database\Factories\Sales\CustomerFactory;
@@ -91,9 +93,13 @@ class TaxBreakdownPanelTest extends TestCase {
         return app(TaxBreakdownPanel::class)->build($invoice->refresh());
     }
 
-    private function approve(SalesInvoice $invoice, ?array $breakdown = null): void {
+    /**
+     * @param  list<string>  $status
+     */
+    private function approve(SalesInvoice $invoice, ?array $breakdown = null, array $status = ['unpaid']): void {
         DB::table('sales_invoices')->where('id', $invoice->id)->update([
             'submitted_at'  => now(),
+            'status'        => json_encode($status),
             'tax_breakdown' => $breakdown === null ? null : json_encode($breakdown),
         ]);
     }
@@ -162,6 +168,87 @@ class TaxBreakdownPanelTest extends TestCase {
         $this->assertSame('legacy', $panel['state']);
         $this->assertTrue($panel['rows'][0]['is_legacy']);
         $this->assertNull($panel['rows'][0]['version']);
+    }
+
+    public function test_submitted_but_not_yet_approved_invoice_is_pending_not_legacy(): void {
+        foreach ([['need_approval'], ['rejected'], ['draft']] as $status) {
+            $invoice = $this->invoice();
+            DB::table('sales_invoice_items')->where('sales_invoice_id', $invoice->id)->update(['tax_rule_version_id' => null]);
+            // `submitted_at` terisi saat submit, tetapi snapshot baru ditulis saat approve.
+            $this->approve($invoice, null, $status);
+
+            $this->assertSame('pending', $this->panel($invoice)['state'], implode(',', $status));
+        }
+    }
+
+    public function test_missing_version_on_a_pending_or_legacy_invoice_is_not_shown_as_legacy(): void {
+        $gone = (string) Str::ulid();
+
+        foreach ([['need_approval'], ['unpaid']] as $status) {
+            $invoice = $this->invoice();
+            DB::table('sales_invoice_items')->where('sales_invoice_id', $invoice->id)->update(['tax_rule_version_id' => $gone]);
+            $this->approve($invoice, null, $status);
+
+            $row = $this->panel($invoice)['rows'][0];
+
+            $this->assertFalse($row['is_legacy'], implode(',', $status));
+            $this->assertTrue($row['version']['missing']);
+            $this->assertSame($gone, $row['version']['id']);
+        }
+    }
+
+    public function test_unclassified_usage_counts_invoices_on_the_boundary_day(): void {
+        $this->approve($this->invoice());
+
+        $counts = app(UnclassifiedTaxUsage::class)->invoiceCounts($this->tax->getKey(), CarbonImmutable::parse('2027-03-10 15:30:00'));
+        $this->assertSame(1, $counts['sales_invoices']);
+
+        $counts = app(UnclassifiedTaxUsage::class)->invoiceCounts($this->tax->getKey(), CarbonImmutable::parse('2027-03-11 00:00:00'));
+        $this->assertSame(0, $counts['sales_invoices']);
+    }
+
+    public function test_unclassified_usage_counts_only_active_invoices(): void {
+        $now   = CarbonImmutable::parse('2026-06-01');
+        $usage = fn (): int => app(UnclassifiedTaxUsage::class)->invoiceCounts($this->tax->getKey(), $now)['sales_invoices'];
+
+        $draft = $this->invoice();
+        $this->assertSame(0, $usage(), 'draf tidak dihitung');
+
+        $this->approve($draft, null, ['need_approval']);
+        $this->assertSame(1, $usage(), 'menunggu persetujuan tetap invoice aktif');
+
+        $this->approve($draft, null, ['canceled']);
+        $this->assertSame(0, $usage(), 'dibatalkan tidak dihitung');
+
+        $this->approve($draft, null, ['unpaid']);
+        $this->assertSame(1, $usage());
+        $this->assertSame(0, app(UnclassifiedTaxUsage::class)->invoiceCounts($this->tax->getKey(), $now)['purchase_invoices']);
+    }
+
+    public function test_show_sends_the_deferred_tax_breakdown_only_to_readers(): void {
+        $this->withoutVite();
+        $invoice = $this->invoice();
+        $grant   = fn (array $flags): array => [SalesInvoice::class => [0 => [['model' => SalesInvoice::class, 'level' => 0, 'only_creator' => false, 'permissions' => array_fill_keys($flags, true)]]]];
+        $session = fn (array $flags): array => ['permissions' => $grant($flags), 'permissions_version' => '0|0|0|0', 'currentBranch' => null];
+
+        $this->withSession($session(['select']))->withCookie('lang', 'en')->actingAs($this->user)
+            ->get(route('salesInvoices.show', $invoice))->assertForbidden();
+
+        $this->withSession($session(['select', 'read']))->withCookie('lang', 'en')->actingAs($this->user)
+            ->get(route('salesInvoices.show', $invoice))
+            ->assertOk()
+            ->assertInertia(fn ($page) => $page->missing('taxBreakdown'));
+
+        // Partial reload yang diminta halaman lewat <Deferred data={["taxBreakdown"]}>.
+        $this->withSession($session(['select', 'read']))->withCookie('lang', 'en')->actingAs($this->user)
+            ->get(route('salesInvoices.show', $invoice), [
+                'X-Inertia'                   => 'true',
+                'X-Inertia-Partial-Component' => 'Finances/SalesInvoice/Show',
+                'X-Inertia-Partial-Data'      => 'taxBreakdown',
+            ])
+            ->assertOk()
+            ->assertJsonPath('props.taxBreakdown.state', 'pending')
+            ->assertJsonCount(1, 'props.taxBreakdown.rows');
     }
 
     public function test_missing_version_is_marked_without_error(): void {

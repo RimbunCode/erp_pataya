@@ -8,7 +8,9 @@ use Illuminate\Support\Facades\DB;
 /**
  * Pemakaian sebuah pajak pada invoice penjualan dan pembelian sejak tanggal tertentu (Finance Fase 3, Requirement
  * 1.3): dasar peringatan "pajak belum diklasifikasi tetapi sudah dipakai transaksi 12 bulan terakhir" di halaman
- * master Pajak. Hanya invoice (bukan SO/PO/penawaran) yang dihitung; baris dan invoice terhapus lunak tidak ikut.
+ * master Pajak. Hanya invoice (bukan SO/PO/penawaran) yang dihitung; baris dan invoice terhapus lunak tidak ikut,
+ * begitu juga invoice draf dan dibatalkan (hanya invoice aktif; keputusan pemilik produk 27 November 2026).
+ * Hitungan global, tidak dibatasi cabang.
  * Memakai query builder agar tidak mengimpor model modul bisnis (P-9).
  */
 final class UnclassifiedTaxUsage {
@@ -33,7 +35,9 @@ final class UnclassifiedTaxUsage {
             ->where("{$itemTable}.tax_id", $taxId)
             ->whereNull("{$itemTable}.deleted_at")
             ->whereNull("{$headerTable}.deleted_at")
-            ->where("{$headerTable}.date", '>=', $since)
+            ->whereJsonDoesntContain("{$headerTable}.status", 'draft')
+            ->whereJsonDoesntContain("{$headerTable}.status", 'canceled')
+            ->where("{$headerTable}.date", '>=', $since->toDateString())
             ->distinct()
             ->count("{$headerTable}.id");
     }

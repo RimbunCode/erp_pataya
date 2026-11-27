@@ -2,6 +2,8 @@
 
 namespace Tests\Feature\Finances\Tax;
 
+use App\Models\Finances\PurchaseInvoice;
+use App\Models\Finances\SalesInvoice;
 use App\Models\Finances\Tax;
 use App\Models\Finances\TaxRuleVersion;
 use App\Services\Finances\Tax\TaxRuleVersionService;
@@ -21,7 +23,7 @@ class TaxClassificationHttpTest extends TestCase {
     protected function setUp(): void {
         parent::setUp();
 
-        $this->setUpFinanceFixtures([Tax::class, TaxRuleVersion::class]);
+        $this->setUpFinanceFixtures([Tax::class, TaxRuleVersion::class, SalesInvoice::class, PurchaseInvoice::class]);
         $this->withoutVite();
     }
 
