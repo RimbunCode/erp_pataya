@@ -31,7 +31,7 @@ class TaxRuleVersionController extends Controller {
     protected function enforcePermission(string $method) {
         return match ($method) {
             'save', 'updateDraft', 'discard', 'activate', 'retire' => 'manage_rule_versions',
-            default => parent::enforcePermission($method),
+            default                                                => parent::enforcePermission($method),
         };
     }
 
