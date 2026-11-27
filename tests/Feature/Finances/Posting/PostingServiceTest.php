@@ -329,7 +329,7 @@ class PostingServiceTest extends TestCase {
             'sales invoice'    => [PostingDocumentType::SalesInvoice, 'total', 'revenueNonStock', true],
             'purchase invoice' => [PostingDocumentType::PurchaseInvoice, 'total', 'expenseNonStock', true],
             'purchase receipt' => [PostingDocumentType::PurchaseReceipt, 'total', 'stockNonStock', true],
-            'delivery note'    => [PostingDocumentType::DeliveryNote, 'total_picked', 'cogsNonStock', false], // pembulatan per akun di dua sisi: total bisa bergeser satu sen dari total dokumen (open question pembulatan satu kelompok)
+            'delivery note'    => [PostingDocumentType::DeliveryNote, 'total_picked', 'cogsNonStock', true],
         ];
     }
 

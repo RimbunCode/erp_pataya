@@ -245,8 +245,10 @@ final class PostingService {
 
         $discountSplit = false;
         $sideCounts    = [RoleLine::DEBIT => 0, RoleLine::CREDIT => 0];
+        $rawSideTotals = [RoleLine::DEBIT => 0.0, RoleLine::CREDIT => 0.0];
         foreach ($groups as $group) {
             $sideCounts[$group['side']]++;
+            $rawSideTotals[$group['side']] += $group['amount'];
             $discountSplit = $discountSplit || \in_array(AccountRole::Discount->value, $group['roles'], true);
         }
 
@@ -259,7 +261,7 @@ final class PostingService {
 
         $groups = $discountSplit
             ? $this->absorbDiscountSplitRounding($groups, $minorUnit, max($sideCounts))
-            : $this->absorbRounding($groups, $minorUnit);
+            : $this->absorbRounding($this->alignSideTotals($groups, $rawSideTotals, $minorUnit), $minorUnit);
 
         $debitAccounts  = array_values(array_unique(array_column(array_filter($groups, fn (array $g): bool => $g['side'] === RoleLine::DEBIT), 'account')));
         $creditAccounts = array_values(array_unique(array_column(array_filter($groups, fn (array $g): bool => $g['side'] === RoleLine::CREDIT), 'account')));
@@ -279,6 +281,45 @@ final class PostingService {
         }
 
         return $lines;
+    }
+
+    /**
+     * Total tiap sisi jurnal harus sama dengan jumlah baris sumber yang dibulatkan sekali (P-12), walau sisi itu
+     * terpecah menjadi beberapa kelompok akun yang masing-masing dibulatkan sendiri. Selisih kecil (tidak melebihi
+     * jumlah kelompok pada sisi itu) diserap kelompok terbesar sisi tersebut; selisih lain dibiarkan.
+     *
+     * @param  array<string, array{account: string, side: string, amount: float, description: ?string, roles: list<string>}>  $groups
+     * @param  array<string, float>  $rawSideTotals  jumlah mentah per sisi sebelum pembulatan kelompok
+     * @return array<string, array{account: string, side: string, amount: float, description: ?string, roles: list<string>}>
+     */
+    private function alignSideTotals(array $groups, array $rawSideTotals, int $minorUnit): array {
+        foreach ([RoleLine::DEBIT, RoleLine::CREDIT] as $side) {
+            $keys = array_keys(array_filter($groups, static fn (array $g): bool => $g['side'] === $side));
+            if (\count($keys) < 2) {
+                continue;
+            }
+
+            $current = 0;
+            foreach ($keys as $key) {
+                $current += MinorUnit::toMinor($groups[$key]['amount'], $minorUnit);
+            }
+            $delta = MinorUnit::toMinor(MinorUnit::round($rawSideTotals[$side], $minorUnit), $minorUnit) - $current;
+            if ($delta === 0 || abs($delta) > \count($keys)) {
+                continue;
+            }
+
+            $largestKey = $this->largestGroupKey($groups, $side, protectNet: false);
+            if ($largestKey === null) {
+                continue;
+            }
+            $adjusted = MinorUnit::toMinor($groups[$largestKey]['amount'], $minorUnit) + $delta;
+            if ($adjusted <= 0) {
+                continue;
+            }
+            $groups[$largestKey]['amount'] = (float) MinorUnit::fromMinor($adjusted, $minorUnit);
+        }
+
+        return $groups;
     }
 
     /**
