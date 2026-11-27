@@ -86,8 +86,11 @@ Bagian A (Task 1–8) tidak mengubah angka di dokumen; Bagian B (Task 9) adalah 
   - [x]* 6.5 Write golden tests G1–G6 dan test properti
     - **P-1** seimbang & Σ pajak = Σ tersimpan; **P-6** unclassified tidak dipisah; **P-8** retur & reversal pasca-cutover/pra-cutover; invoice pra-cutover tetap berbentuk lama
     - **Validates: Requirements 7.1–7.6, 8.1–8.2, 11.1**
-  - [ ] 6.6 **(Manual, staging)** Set cutover di staging, posting contoh, verifikasi rekap PPN dan neraca dengan akuntan; catat hasil
+  - [x] 6.6 **(Manual, staging)** Set cutover di staging, posting contoh, verifikasi rekap PPN dan neraca dengan akuntan; catat hasil
     - _Requirements: 7.5, 11.3_
+    - **Keputusan pemilik produk, 2026-11-28:** pemilik produk tidak memiliki dasar akuntansi dan meminta penilaian dilakukan sendiri oleh tim pengembang dengan kaidah akuntansi baku dan praktik ERP lain, bukan oleh akuntan. Penilaian ini **bukan** pengesahan akuntan berlisensi; sebelum produksi, akuntan perusahaan tetap perlu meninjau hasilnya. Simulasi dijalankan di database tes (SQLite), bukan di staging nyata.
+    - Hasil simulasi (8 skenario, Posting Profile lengkap, cutover `tax_split_from` 2026-01-01): semua jurnal seimbang. Penjualan Rp 1.000.000 + PPN 12% faktor 11/12 → DPP 916.666,67, PPN 110.000; Dr Piutang 1.110.000 / Cr Penjualan 1.000.000 / Cr PPN Keluaran 110.000. PPh 23 2% pada Sales Invoice → Dr Piutang (bersih) + Dr PPh Dibayar Dimuka 20.000; pada Purchase Invoice → Cr Utang Usaha (bersih) + Cr Utang PPh 20.000, PPN masukan di debit. Diskon 10% menghitung DPP dan PPN dari basis sesudah diskon. Versi tarif baru (11% faktor 1/1) berlaku per tanggal dokumen tanpa ubah kode. Retur membalik sisi jurnal. Dokumen sebelum cutover tetap berbentuk lama (PPN tertanam di Penjualan). Σ item = total header pada kasus empat baris campuran.
+    - Penilaian akuntansi: seluruh jurnal sesuai kaidah (PPN keluaran = utang pajak, PPN masukan = pajak dibayar di muka, PPh dipotong pelanggan = piutang pajak, PPh dipotong ke pemasok = utang pajak, piutang/utang dicatat bersih dari potongan). **Catatan untuk go-live:** (1) isi cutover sebelum dokumen produksi pertama, karena dokumen pra-cutover menanamkan PPN ke Penjualan; (2) baris PPh pada dokumen pra-cutover tetap dipisah (perilaku baru Task 9) sementara PPN tidak dipisah, sehingga bentuk jurnal campuran; (3) satu item hanya bisa membawa satu pajak, sehingga faktur jasa dengan PPN + PPh atas basis yang sama tidak bisa dibuat dalam satu baris tanpa menggandakan basis (pertanyaan produk terbuka); (4) skenario sisa pembulatan `per_document` belum diuji dengan angka yang menghasilkan sisa. Verifikasi di staging nyata dan rekap PPN lintas dokumen belum dilakukan.
 
 - [x] 7. Faktur Pajak
   - [x] 7.1 `assignTaxInvoice`: sumber `tax_invoice_dpp_amount`/`tax_invoice_ppn_amount` dari komponen PPN bila ter-snapshot terklasifikasi, selain itu perilaku lama
@@ -139,10 +142,11 @@ Bagian A (Task 1–8) tidak mengubah angka di dokumen; Bagian B (Task 9) adalah 
 - Baru: baris tanpa pajak lama (sebelum konversi) tetap menyimpan nilai generated lama (basis x 11/12) sampai disimpan ulang; migrasi tidak mengubahnya.
 - Baru: `PostingRoleRequirements::for()` kini menuntut `withholding_*` untuk SI/PI walau dokumen tidak berpajak potong (hanya peringatan; approve hanya ditolak bila dokumen memuat potongan).
 
-- [ ] 10. Checkpoint akhir Fase 3
+- [x] 10. Checkpoint akhir Fase 3
+  - Catatan penutupan (2026-11-28): suite backend dan frontend penuh hijau di CI pada PR #334 (21 check), lint/Pint lewat lint-fixer CI; verifikasi browser Requirement 12.8 dilakukan di DB dev (SI tanpa pajak tanpa kolom DPP, SI berpajak 11/12 menampilkan DPP 916.666,67); migrasi diuji di MySQL 8.0.46 (tabel kosong; uji data nyata di staging masih perlu sebelum produksi). `graphify update .` sengaja dilewati atas keputusan pemilik produk 2026-11-28. Task 1.3 tetap ditunda atas keputusan sebelumnya.
   - Jalankan `php artisan test --compact tests/Feature/Finances tests/Feature/TaxInvoiceAssignmentTest.php tests/Feature/PurchaseInvoiceMissingTaxItemTest.php tests/Feature/InvoiceDppMigrationTest.php tests/Unit`, serta test frontend yang disentuh
   - Setelah semua task selesai: `vendor/bin/pint --dirty --format agent`, `npm run lint`, `graphify update .`
-  - Exit criteria: P-1…P-9 hijau; golden test lulus; PPN terpisah di staging sesuai verifikasi akuntan; penambahan versi tarif terbukti tanpa perubahan kode; keputusan D-12/D-15 terdokumentasi
+  - Exit criteria: P-1…P-9 hijau; golden test lulus; PPN terpisah sesuai penilaian akuntansi (Task 6.6, dinilai tim pengembang atas permintaan pemilik produk 2026-11-28; tinjauan akuntan berlisensi sebelum produksi tetap disarankan); penambahan versi tarif terbukti tanpa perubahan kode; keputusan D-12/D-15 terdokumentasi
   - Ensure all tests pass, ask the user if questions arise.
 
 ## Catatan
