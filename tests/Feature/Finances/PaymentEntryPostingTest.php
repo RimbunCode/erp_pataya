@@ -45,11 +45,13 @@ class PaymentEntryPostingTest extends TestCase {
     }
 
     public function test_approval_with_unresolved_account_role_fails_as_validation_error_and_rolls_back(): void {
-        // Requirement 13.7: peran tak ter-resolve menjadi galat validasi (bukan 500) yang menyebut peran dan menunjuk
-        // halaman Posting Profile; dokumen tidak berstatus paid dan pembayaran tidak diterapkan.
+        // Requirement 13.7: peran tak ter-resolve menjadi galat validasi (bukan 500) yang menyebut peran dan, untuk
+        // pengguna berizin `select` Posting Profile, menunjuk halamannya; dokumen tidak berstatus paid dan
+        // pembayaran tidak diterapkan.
         $invoice = $this->makeUnpaidSalesInvoice(1_000_000);
         $payment = $this->makePaymentEntry($invoice, 1_000_000, $this->receivable, $this->cash, ['payment_method_id' => $this->method->id]);
         Account::whereKey($this->receivable->id)->update(['is_group' => true]);
+        $this->withSession(['permissions' => [PostingProfile::class => [0 => [['model' => PostingProfile::class, 'level' => 0, 'only_creator' => false, 'permissions' => ['select' => true]]]]]]);
 
         try {
             app(PaymentEntryService::class)->onApproved($payment->fresh());
@@ -63,6 +65,30 @@ class PaymentEntryPostingTest extends TestCase {
         $this->assertNotContains(FormStatus::PAID, $payment->fresh()->status);
         $this->assertEquals(0, $invoice->fresh()->paid_amount);
         $this->assertSame(0, Journal::query()->count());
+    }
+
+    public function test_unresolved_role_error_omits_the_profile_url_for_users_who_cannot_open_posting_profiles(): void {
+        $invoice = $this->makeUnpaidSalesInvoice(1_000_000);
+        $payment = $this->makePaymentEntry($invoice, 1_000_000, $this->receivable, $this->cash, ['payment_method_id' => $this->method->id]);
+        Account::whereKey($this->receivable->id)->update(['is_group' => true]);
+        $this->withSession(['permissions' => []]);
+
+        foreach (['en', 'id'] as $locale) {
+            app()->setLocale($locale);
+
+            try {
+                app(PaymentEntryService::class)->onApproved($payment->fresh());
+                $this->fail('Approve harus ditolak karena peran akun tidak dapat di-resolve.');
+            } catch (ValidationException $e) {
+                $message = $e->errors()['status'][0] ?? '';
+                $this->assertStringContainsString('receivable', $message, $locale);
+                $this->assertStringNotContainsString('postingProfiles', $message, $locale);
+                $this->assertStringNotContainsString(route('postingProfiles.index', absolute: false), $message, $locale);
+                $this->assertStringNotContainsString(':url', $message, $locale);
+            }
+        }
+
+        $this->assertNotContains(FormStatus::PAID, $payment->fresh()->status);
     }
 
     public function test_full_payment_debits_paid_to_and_credits_paid_from_with_payment_date(): void {

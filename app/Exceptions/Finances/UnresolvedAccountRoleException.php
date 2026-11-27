@@ -2,8 +2,10 @@
 
 namespace App\Exceptions\Finances;
 
+use App\Models\Finances\PostingProfile;
 use Illuminate\Validation\ValidationException;
 use RuntimeException;
+use Symfony\Component\HttpKernel\Exception\HttpExceptionInterface;
 
 /**
  * Peran akun tidak dapat di-resolve menjadi akun yang valid (Finance Fase 2, Requirement 3.2): tidak ada lapis yang
@@ -27,17 +29,30 @@ class UnresolvedAccountRoleException extends RuntimeException {
     }
 
     /**
-     * Galat validasi untuk approve sinkron (Requirement 13.7): pesan peran/lapis yang kurang plus penunjuk ke halaman
-     * konfigurasi Posting Profile, dikaitkan ke field `status`. Dilempar di dalam transaksi approve sehingga
-     * dokumen tidak berstatus approved.
+     * Galat validasi untuk approve sinkron (Requirement 13.7): pesan peran/lapis yang kurang, dikaitkan ke field
+     * `status`. URL halaman Posting Profile hanya disisipkan bila pengguna saat ini boleh membukanya (izin `select`,
+     * pengecekan sama dengan `canFixProfile` pada `PostedAccountPanel`); tanpa izin, pesan tidak memuat URL. Dilempar
+     * di dalam transaksi approve sehingga dokumen tidak berstatus approved dan keputusan approval ikut digulung.
      */
     public function toValidationException(): ValidationException {
-        return ValidationException::withMessages([
-            'status' => __('finances/posting.errors.approve_blocked', [
+        $message = $this->canOpenPostingProfiles()
+            ? __('finances/posting.errors.approve_blocked', [
                 'message' => $this->getMessage(),
                 'url'     => route('postingProfiles.index', absolute: false),
-            ]),
-        ]);
+            ])
+            : __('finances/posting.errors.approve_blocked_no_link', ['message' => $this->getMessage()]);
+
+        return ValidationException::withMessages(['status' => $message]);
+    }
+
+    private function canOpenPostingProfiles(): bool {
+        try {
+            PostingProfile::_checkPermission('select');
+
+            return true;
+        } catch (HttpExceptionInterface) {
+            return false;
+        }
     }
 
     /**
