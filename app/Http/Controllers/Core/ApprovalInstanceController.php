@@ -125,6 +125,7 @@ class ApprovalInstanceController extends Controller {
     }
 
     private function approve(ApprovalInstanceStep $approvalInstanceStep, ?string $notes = null) {
+        $level = DB::transactionLevel();
         DB::beginTransaction();
         $approvalInstanceStep = $this->lockDecidableStep($approvalInstanceStep);
         if ($approvalInstanceStep === null) {
@@ -188,7 +189,8 @@ class ApprovalInstanceController extends Controller {
                 }
                 DB::commit();
             } catch (Throwable $e) {
-                DB::rollBack();
+                // Kembali ke level sebelum beginTransaction: onApproved() dapat membocorkan level transaksinya sendiri.
+                DB::rollBack($level);
 
                 throw $e;
             }

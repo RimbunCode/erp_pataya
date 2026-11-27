@@ -3,6 +3,7 @@
 namespace Tests\Feature\Finances;
 
 use App\Enums\FormStatus;
+use App\Events\Core\ApprovalDecided;
 use App\Http\Middleware\AppMiddleware;
 use App\Http\Middleware\EnsureUserIsOnboarded;
 use App\Http\Middleware\LanguageMiddleware;
@@ -18,6 +19,7 @@ use App\Models\User\Role;
 use App\Models\User\User;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Illuminate\Support\Facades\DB;
+use Illuminate\Support\Facades\Event;
 use Illuminate\Testing\TestResponse;
 use Tests\Support\BuildsFinanceFixtures;
 use Tests\Support\EnablesEnginePosting;
@@ -51,6 +53,15 @@ class PaymentEntryApprovalRollbackTest extends TestCase {
         $role = Role::create(['name' => 'Approver Pembayaran', 'description' => '']);
         DB::table('user_role')->insert(['user_id' => $this->user->id, 'role_id' => $role->id, 'created_at' => now(), 'updated_at' => now()]);
 
+        // Pembuat dokumen berbeda dari approver agar tidak ter-auto-approve.
+        $creator = User::factory()->create();
+        $this->payment->forceFill(['created_by_id' => $creator->id])->saveQuietly();
+        $this->role = $role;
+    }
+
+    private Role $role;
+
+    private function createInstance(bool $advanced): void {
         $schemeId = (string) str()->ulid();
         DB::table('approval_schemes')->insert([
             'id'            => $schemeId,
@@ -64,21 +75,32 @@ class PaymentEntryApprovalRollbackTest extends TestCase {
             'created_at'    => now(),
             'updated_at'    => now(),
         ]);
+        $stepId = (string) str()->ulid();
         DB::table('approval_scheme_steps')->insert([
-            'id'                 => (string) str()->ulid(),
+            'id'                 => $stepId,
             'sequence'           => 0,
             'approval_scheme_id' => $schemeId,
             'approver_type'      => 'role',
             'approverable_type'  => Role::class,
-            'approverable_id'    => $role->id,
-            'is_advanced'        => false,
+            'approverable_id'    => $this->role->id,
+            'is_advanced'        => $advanced,
             'created_at'         => now(),
             'updated_at'         => now(),
         ]);
-
-        // Pembuat dokumen berbeda dari approver agar tidak ter-auto-approve.
-        $creator = User::factory()->create();
-        $this->payment->forceFill(['created_by_id' => $creator->id])->saveQuietly();
+        if ($advanced) {
+            $other = Role::create(['name' => 'Approver Paralel', 'description' => '']);
+            foreach ([$this->role, $other] as $approverRole) {
+                DB::table('approval_scheme_step_approvers')->insert([
+                    'id'                      => (string) str()->ulid(),
+                    'approval_scheme_step_id' => $stepId,
+                    'approver_type'           => 'role',
+                    'approverable_type'       => Role::class,
+                    'approverable_id'         => $approverRole->id,
+                    'created_at'              => now(),
+                    'updated_at'              => now(),
+                ]);
+            }
+        }
 
         $instance   = ApprovalInstance::makeInstance($this->payment);
         $this->step = ApprovalInstanceStep::where('approval_instance_id', $instance->id)->firstOrFail();
@@ -92,10 +114,15 @@ class PaymentEntryApprovalRollbackTest extends TestCase {
     }
 
     public function test_unresolved_role_rolls_back_the_approval_so_the_approver_can_retry_after_the_profile_is_completed(): void {
+        $this->createInstance(false);
+        Event::fake([ApprovalDecided::class]);
+        $level = DB::transactionLevel();
         Account::whereKey($this->receivable->id)->update(['is_group' => true]);
 
         $this->approve()->assertStatus(422)->assertJsonValidationErrors(['status']);
 
+        Event::assertNotDispatched(ApprovalDecided::class);
+        $this->assertSame($level, DB::transactionLevel(), 'Tidak ada transaksi menggantung.');
         $this->assertSame(FormStatus::PENDING->value, $this->step->fresh()->status->value);
         $this->assertNull($this->step->fresh()->acted_by_id);
         $this->assertSame(FormStatus::PENDING->value, $this->step->approvalInstance->fresh()->status->value);
@@ -106,9 +133,32 @@ class PaymentEntryApprovalRollbackTest extends TestCase {
         Account::whereKey($this->receivable->id)->update(['is_group' => false]);
         $this->approve()->assertRedirect();
 
+        Event::assertDispatched(ApprovalDecided::class, 1);
         $this->assertSame(FormStatus::APPROVED->value, $this->step->fresh()->status->value);
         $this->assertSame(FormStatus::APPROVED->value, $this->step->approvalInstance->fresh()->status->value);
         $this->assertContains(FormStatus::PAID, $this->payment->fresh()->status);
         $this->assertSame(1, Journal::query()->count());
+    }
+
+    public function test_parallel_approver_child_rows_return_to_pending_after_rollback(): void {
+        $this->createInstance(true);
+        Event::fake([ApprovalDecided::class]);
+        Account::whereKey($this->receivable->id)->update(['is_group' => true]);
+
+        $this->approve()->assertStatus(422);
+
+        Event::assertNotDispatched(ApprovalDecided::class);
+        $this->assertSame(FormStatus::PENDING->value, $this->step->fresh()->status->value);
+        $children = $this->step->approvers()->get();
+        $this->assertCount(2, $children);
+        $this->assertTrue($children->every(fn ($child) => $child->status->value === FormStatus::PENDING->value && $child->acted_by_id === null));
+        $this->assertContains(FormStatus::NEED_APPROVAL, $this->payment->fresh()->status);
+
+        Account::whereKey($this->receivable->id)->update(['is_group' => false]);
+        $this->approve()->assertRedirect();
+
+        $this->assertSame(FormStatus::APPROVED->value, $this->step->fresh()->status->value);
+        $this->assertSame(FormStatus::APPROVED->value, $this->step->approvalInstance->fresh()->status->value);
+        $this->assertContains(FormStatus::PAID, $this->payment->fresh()->status);
     }
 }
