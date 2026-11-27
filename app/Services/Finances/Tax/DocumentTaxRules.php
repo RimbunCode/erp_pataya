@@ -47,4 +47,88 @@ final class DocumentTaxRules {
 
         return $rules;
     }
+
+    /**
+     * Parameter hitung per pajak untuk alokasi diskon dokumen: tarif dan faktor DPP dari versi aturan, serta apakah
+     * pajak menambah total (`additive`) atau dipotong (`withholding`, Requirement 12.4). Faktor dan tarif TIDAK
+     * pernah konstanta pada jalur simpan: bila `$rules` tak memuat pajak itu (hanya terjadi pada validasi pra-simpan
+     * lewat `resolveForRowsLeniently()`), tarif jatuh ke `taxes.rate` dan faktor ke 11/12 agar pemeriksaan toleransi
+     * tidak gagal karena aturan pajak; service menggagalkan permintaan sebelum sampai sini (Q-P3-5).
+     *
+     * @param  array<string, TaxRuleVersion>  $rules  hasil `resolveForRows()`
+     * @param  array<string, Tax>  $taxes
+     * @return array<string, array{rate: float, dpp_factor: float, additive: bool}>
+     */
+    public function lineParameters(array $rules, array $taxes): array {
+        $parameters = [];
+        foreach ($taxes as $taxId => $tax) {
+            $rule = $rules[$taxId] ?? null;
+
+            $parameters[$taxId] = [
+                'rate'       => $rule !== null ? (float) $rule->rate : (float) $tax->rate,
+                'dpp_factor' => $rule !== null
+                    ? (int) $rule->dpp_numerator / max(1, (int) $rule->dpp_denominator)
+                    : TaxRuleVersion::LEGACY_DPP_NUMERATOR / TaxRuleVersion::LEGACY_DPP_DENOMINATOR,
+                'additive' => $tax->behavior !== Tax::BEHAVIOR_WITHHOLDING,
+            ];
+        }
+
+        return $parameters;
+    }
+
+    /**
+     * Versi berlaku per pajak untuk baris request, tanpa melempar: pajak tanpa versi berlaku dilewati. Dipakai
+     * pemeriksaan pra-simpan (toleransi penagihan) yang tidak boleh gagal karena aturan pajak; kegagalan sebenarnya
+     * ditegakkan service saat menyimpan.
+     *
+     * @param  iterable<int|string, array<string, mixed>>  $rows
+     * @param  array<string, Tax>  $taxes
+     * @return array<string, TaxRuleVersion>
+     */
+    public function resolveForRowsLeniently(iterable $rows, array $taxes, mixed $date): array {
+        $day = $date instanceof CarbonInterface ? $date : CarbonImmutable::parse($date ?? 'now');
+
+        $rules = [];
+        foreach ($rows as $row) {
+            $taxId = $row['tax']['id'] ?? null;
+            if (! filled($taxId) || isset($rules[$taxId]) || ! isset($taxes[$taxId])) {
+                continue;
+            }
+
+            try {
+                $rules[$taxId] = $this->resolver->resolve($taxes[$taxId], $day);
+            } catch (NoEffectiveTaxRuleException) {
+                continue;
+            }
+        }
+
+        return $rules;
+    }
+
+    /**
+     * Versi aturan (active dan retired) untuk form invoice di klien: pratinjau dan keputusan menampilkan kolom DPP
+     * (Requirement 12.8) memakai faktor/tarif/perilaku dari sini, bukan konstanta klien. Versi `retired` ikut dikirim
+     * karena dokumen yang sudah disimpan menampilkan versi yang dipakainya; pajak yang sudah dihapus tetap terbaca.
+     *
+     * @return list<array{id: string, tax_id: string, status: string, effective_from: string, effective_to: string|null, rate: float, dpp_numerator: int, dpp_denominator: int, behavior: string}>
+     */
+    public function versionsForClient(): array {
+        return TaxRuleVersion::query()
+            ->whereIn('status', [TaxRuleVersion::STATUS_ACTIVE, TaxRuleVersion::STATUS_RETIRED])
+            ->with(['tax' => fn ($query) => $query->withTrashed()])
+            ->get()
+            ->map(fn (TaxRuleVersion $version): array => [
+                'id'              => $version->getKey(),
+                'tax_id'          => $version->tax_id,
+                'status'          => $version->status,
+                'effective_from'  => $version->effective_from->toDateString(),
+                'effective_to'    => $version->effective_to?->toDateString(),
+                'rate'            => (float) $version->rate,
+                'dpp_numerator'   => (int) $version->dpp_numerator,
+                'dpp_denominator' => (int) $version->dpp_denominator,
+                'behavior'        => $version->tax?->behavior ?? Tax::BEHAVIOR_ADDITIVE,
+            ])
+            ->values()
+            ->all();
+    }
 }

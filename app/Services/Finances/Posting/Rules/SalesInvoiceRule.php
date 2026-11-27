@@ -29,6 +29,10 @@ use App\Services\Finances\Posting\RoleLine;
  * `lines`, satu baris sebesar `total` dikurangi Σ pajak (sisa, sehingga jurnal seimbang tanpa baris pembulatan,
  * Requirement 7.4). Komponen yang tidak dapat dipisah tetap tertanam di `revenue` (bentuk lama, Requirement 7.3).
  * Tanpa flag atau tanpa komponen terpisah, bentuk jurnal identik dengan sebelumnya. Retur menukar semua sisi.
+ *
+ * Pajak potong (Bagian B, Requirement 12.4, D-12): komponen `withholding` (di luar `tax_split`) mengurangi debit
+ * `receivable` menjadi `total - Σ potongan` (sama dengan `amount` dokumen) dan didebit pada `withholding_receivable`
+ * sebesar potongan; pendapatan dan pajak penambah tidak berubah, sehingga jurnal tetap seimbang.
  */
 final class SalesInvoiceRule extends BasePostingRule {
     public function documentType(): PostingDocumentType {
@@ -60,7 +64,15 @@ final class SalesInvoiceRule extends BasePostingRule {
             $revenue = [RoleLine::credit(AccountRole::Revenue, $total - array_sum(array_map(static fn (TaxComponentLine $component): float => $component->amount, $taxLines)))];
         }
 
-        $lines = [RoleLine::debit(AccountRole::Receivable, $total)];
+        // Pajak potong (Bagian B, Requirement 12.4, D-12): sudah keluar dari `amount` dokumen; piutang berkurang sebesar itu
+        // dan dicatat pada peran `withholding_receivable` (piutang pajak), tanpa memengaruhi pendapatan.
+        $withholdingLines = array_values(array_filter($ctx->taxComponents, static fn (TaxComponentLine $component): bool => $component->withholding && $component->amount > 0));
+        $receivable       = $total - array_sum(array_map(static fn (TaxComponentLine $component): float => $component->amount, $withholdingLines));
+
+        $lines = self::isZero($receivable) ? [] : [RoleLine::debit(AccountRole::Receivable, $receivable)];
+        foreach ($withholdingLines as $component) {
+            $lines[] = RoleLine::debit($component->role, $component->amount, taxRuleVersionId: $component->ruleVersionId);
+        }
         if ($split) {
             $lines[] = RoleLine::debit(AccountRole::Discount, $discount);
         }

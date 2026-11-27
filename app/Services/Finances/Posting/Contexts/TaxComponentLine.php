@@ -17,6 +17,9 @@ final readonly class TaxComponentLine {
      * @param  bool  $isCreditable  pajak masukan dapat dikreditkan (`taxes.is_creditable` dan PKP); selalu true untuk penjualan
      * @param  bool  $classified  pajak terklasifikasi (`category` bukan `unclassified`) dan `behavior = additive`
      * @param  array<string, float>  $lineShares
+     * @param  bool  $withholding  pajak potong (Bagian B, Requirement 12.4): `amount` = Σ `withholding_amount` tersimpan,
+     *                             `role` = `withholding_receivable`/`withholding_payable`; tidak menambah total dan tidak
+     *                             dipisah dari `revenue`/`expense`, tetapi memotong `receivable`/`payable`
      */
     public function __construct(
         public ?string $ruleVersionId,
@@ -26,6 +29,7 @@ final readonly class TaxComponentLine {
         public bool $classified,
         public array $lineShares = [],
         public ?string $taxId = null,
+        public bool $withholding = false,
     ) {}
 
     /**
@@ -33,7 +37,7 @@ final readonly class TaxComponentLine {
      * (peran berasal dari versi; tanpa versi = legacy, tertanam), dan untuk pembelian dapat dikreditkan.
      */
     public function isSplittable(bool $requiresCreditable): bool {
-        return $this->classified && $this->ruleVersionId !== null && $this->amount > 0 && (! $requiresCreditable || $this->isCreditable);
+        return ! $this->withholding && $this->classified && $this->ruleVersionId !== null && $this->amount > 0 && (! $requiresCreditable || $this->isCreditable);
     }
 
     public function shareOf(?string $lineId): float {

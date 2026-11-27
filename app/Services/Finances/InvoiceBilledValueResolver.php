@@ -5,6 +5,7 @@ namespace App\Services\Finances;
 use App\Enums\FormStatus;
 use App\Models\Finances\Tax;
 use App\Services\Core\Setting\CurrencyMatcher;
+use App\Services\Finances\Tax\DocumentTaxRules;
 use Closure;
 use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Database\Eloquent\Model;
@@ -29,9 +30,10 @@ class InvoiceBilledValueResolver {
      *
      * @param  array<int|string, array<string, mixed>>  $rows
      * @param  Closure(array<string, mixed>): float  $priceOf
+     * @param  mixed  $documentDate  tanggal dokumen untuk memilih versi aturan pajak (null = hari ini)
      * @return array<int|string, float>
      */
-    public function netValues(array $rows, Closure $priceOf, mixed $discountOn, mixed $discountRate, mixed $discountAmount, float $dppFactor): array {
+    public function netValues(array $rows, Closure $priceOf, mixed $discountOn, mixed $discountRate, mixed $discountAmount, mixed $documentDate = null): array {
         $gross = [];
         foreach ($rows as $index => $row) {
             $gross[$index] = (float) ($row['quantity'] ?? 0) * $priceOf($row);
@@ -41,19 +43,27 @@ class InvoiceBilledValueResolver {
             return $gross;
         }
 
-        $taxIds   = collect($rows)->pluck('tax.id')->filter()->unique()->all();
-        $taxRates = $taxIds === [] ? collect() : Tax::whereIn('id', $taxIds)->pluck('rate', 'id');
-        $indexes  = array_keys($rows);
-        $lines    = [];
+        // Tarif, faktor DPP, dan perilaku pajak dari versi aturan pada tanggal dokumen, sama dengan yang dipakai
+        // service saat menyimpan (Requirement 12.3); pajak tanpa versi berlaku jatuh ke `taxes.rate` dan 11/12 hanya
+        // untuk pemeriksaan ini (service tetap gagal tertutup saat menyimpan, Q-P3-5).
+        $taxIds    = collect($rows)->pluck('tax.id')->filter()->unique()->all();
+        $taxes     = $taxIds === [] ? [] : Tax::whereIn('id', $taxIds)->get()->keyBy('id')->all();
+        $taxRules  = app(DocumentTaxRules::class);
+        $lineRules = $taxRules->lineParameters($taxRules->resolveForRowsLeniently($rows, $taxes, $documentDate), $taxes);
+        $indexes   = array_keys($rows);
+        $lines     = [];
         foreach ($indexes as $position => $index) {
+            $rule             = $lineRules[data_get($rows[$index], 'tax.id')] ?? null;
             $lines[$position] = [
                 'basic_amount' => $gross[$index],
-                'tax_rate'     => (float) ($taxRates[data_get($rows[$index], 'tax.id')] ?? 0),
+                'tax_rate'     => $rule['rate'] ?? 0.0,
+                'dpp_factor'   => $rule['dpp_factor'] ?? 1.0,
+                'additive'     => $rule['additive'] ?? true,
             ];
         }
 
         try {
-            $allocated = DocumentDiscountCalculator::allocate($lines, $discountOn, (float) ($discountRate ?? 0), (float) ($discountAmount ?? 0), 'discount_amount', $dppFactor);
+            $allocated = DocumentDiscountCalculator::allocate($lines, $discountOn, (float) ($discountRate ?? 0), (float) ($discountAmount ?? 0), 'discount_amount', 1.0);
         } catch (ValidationException) {
             // Diskon melebihi basis ditolak oleh service saat disimpan; di sini cukup tanpa diskon.
             return $gross;

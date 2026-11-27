@@ -11,6 +11,7 @@ use App\Models\Finances\PurchaseInvoice;
 use App\Models\Purchase\PurchaseOrder;
 use App\Services\Core\Setting\DocumentDefaultsResolver;
 use App\Services\Finances\PurchaseInvoiceService;
+use App\Services\Finances\Tax\DocumentTaxRules;
 use App\Utils;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
@@ -124,8 +125,9 @@ class PurchaseInvoiceController extends Controller {
         $this->setBreadcrumbs('finances.purchaseInvoice.new');
 
         return Inertia::render('Finances/PurchaseInvoice/Show', [
-            'defaultData' => $defaultData ?? [],
-            'defaults'    => app(DocumentDefaultsResolver::class)->defaultsFor(DefaultsDocumentType::PurchaseInvoice),
+            'taxRuleVersions' => app(DocumentTaxRules::class)->versionsForClient(),
+            'defaultData'     => $defaultData ?? [],
+            'defaults'        => app(DocumentDefaultsResolver::class)->defaultsFor(DefaultsDocumentType::PurchaseInvoice),
         ]);
     }
 
@@ -162,6 +164,7 @@ class PurchaseInvoiceController extends Controller {
             ->get();
 
         return Inertia::render('Finances/PurchaseInvoice/Show', [
+            'taxRuleVersions' => app(DocumentTaxRules::class)->versionsForClient(),
             'purchaseInvoice' => function () use ($purchaseInvoice) {
                 $purchaseInvoice->loadRelations();
 

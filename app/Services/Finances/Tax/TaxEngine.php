@@ -74,10 +74,12 @@ final class TaxEngine {
     }
 
     /**
-     * Menjelaskan nilai yang SUDAH tersimpan di dokumen (Bagian A: kolom generated tetap sumber kebenaran).
-     * Komponen memuat nilai tersimpan apa adanya (dibulatkan ke minor unit); engine hanya menghitung ulang dan
-     * menambah peringatan `persisted_vs_engine_mismatch` bila selisih per baris melebihi satu minor unit. Angka
-     * dokumen tidak pernah diubah (design.md, `tax_breakdown` pada approve).
+     * Menjelaskan nilai yang SUDAH tersimpan di dokumen (sebelum Bagian B kolom generated, sesudahnya hasil engine saat
+     * simpan, menjadi sumber kebenaran). Komponen memuat nilai tersimpan apa adanya (dibulatkan ke minor unit); engine
+     * hanya menghitung ulang dan menambah peringatan `persisted_vs_engine_mismatch` bila selisih per baris melebihi satu
+     * minor unit. Untuk versi `per_document`, sisa pembulatan dokumen yang dibebankan pada baris terbesar ikut dihitung
+     * (sama seperti `calculateDocument()`) dan dicatat pada `roundingAdjustment`, sehingga baris itu tidak salah
+     * ditandai berbeda. Angka dokumen tidak pernah diubah (design.md, `tax_breakdown` pada approve).
      *
      * @param  list<TaxInput>  $inputs
      * @param  array<string, array{tax_rate: float|int|string, dpp_amount: float|int|string, tax_amount: float|int|string, rule_version_id?: string|null}>  $persisted  per `lineRef`
@@ -85,13 +87,15 @@ final class TaxEngine {
     public function describePersisted(array $inputs, array $persisted): TaxResult {
         $minorUnit = $this->commonMinorUnit($inputs);
 
+        $adjustments = $this->persistedRoundingAdjustments($inputs, $persisted);
+
         $components  = [];
         $explanation = [];
         foreach ($inputs as $input) {
             $ref = $input->lineRef ?? throw new InvalidArgumentException('describePersisted() requires a lineRef on every input.');
             $row = $persisted[$ref] ?? throw new InvalidArgumentException("No persisted values for line {$ref}.");
 
-            $line         = $this->persistedLine($input, $row, $minorUnit);
+            $line         = $this->persistedLine($input, $row, $minorUnit, $adjustments[$ref] ?? 0);
             $components[] = $line['component'];
             array_push($explanation, ...$line['explanation']);
         }
@@ -253,12 +257,46 @@ final class TaxEngine {
     }
 
     /**
+     * Sisa pembulatan `per_document` per `lineRef` untuk baris yang versinya ditemukan, dihitung seperti
+     * `calculateDocument()` (hanya versi `per_document` yang punya sisa).
+     *
+     * @param  list<TaxInput>  $inputs
+     * @param  array<string, array{rule_version_id?: string|null}>  $persisted
+     * @return array<string, int> minor unit
+     */
+    private function persistedRoundingAdjustments(array $inputs, array $persisted): array {
+        $lines = [];
+        foreach ($inputs as $input) {
+            $versionId = $persisted[(string) $input->lineRef]['rule_version_id'] ?? null;
+            $version   = $versionId === null ? null : $this->resolver->findVersion($versionId);
+            if ($version !== null && $version->rounding_mode === TaxRuleVersion::ROUNDING_PER_DOCUMENT) {
+                $lines[] = $this->computeLine($input, $version);
+            }
+        }
+
+        if ($lines === []) {
+            return [];
+        }
+
+        $this->applyDocumentRounding($lines);
+
+        $adjustments = [];
+        foreach ($lines as $line) {
+            if ($line['adjustment'] !== 0) {
+                $adjustments[(string) $line['input']->lineRef] = $line['adjustment'];
+            }
+        }
+
+        return $adjustments;
+    }
+
+    /**
      * Komponen dari nilai tersimpan, dengan peringatan bila engine berbeda lebih dari satu minor unit per baris.
      *
      * @param  array{tax_rate: float|int|string, dpp_amount: float|int|string, tax_amount: float|int|string, rule_version_id?: string|null}  $row
      * @return array{component: TaxComponent, explanation: list<array<string, mixed>>}
      */
-    private function persistedLine(TaxInput $input, array $row, int $minorUnit): array {
+    private function persistedLine(TaxInput $input, array $row, int $minorUnit, int $adjustment = 0): array {
         $versionId = $row['rule_version_id'] ?? null;
         $version   = $versionId === null ? null : $this->resolver->findVersion($versionId);
         $tax       = $version !== null ? $this->taxOf($version) : $this->legacyTax($input->taxId);
@@ -269,6 +307,7 @@ final class TaxEngine {
 
         $baseMinor = MinorUnit::toMinor($input->baseAmount, $minorUnit);
         $expected  = $this->compute($baseMinor, $numerator, $denominator, $scaledRate);
+        $expected['tax'] += $adjustment;
         $storedDpp = MinorUnit::toMinor($row['dpp_amount'], $minorUnit);
         $storedTax = MinorUnit::toMinor($row['tax_amount'], $minorUnit);
         $mismatch  = abs($storedDpp - $expected['dpp']) > 1 || abs($storedTax - $expected['tax']) > 1;
@@ -288,6 +327,7 @@ final class TaxEngine {
             roleOutput: $version !== null ? (string) $version->output_role : TaxRuleVersion::DEFAULT_OUTPUT_ROLE,
             roleInput: $version !== null ? (string) $version->input_role : TaxRuleVersion::DEFAULT_INPUT_ROLE,
             isCreditable: (bool) $tax->is_creditable,
+            roundingAdjustment: MinorUnit::fromMinor($adjustment, $minorUnit),
             warnings: $mismatch ? [self::WARNING_PERSISTED_MISMATCH] : [],
             lineRef: $input->lineRef,
         );

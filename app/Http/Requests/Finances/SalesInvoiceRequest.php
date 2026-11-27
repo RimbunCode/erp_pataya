@@ -179,7 +179,7 @@ class SalesInvoiceRequest extends BaseFormRequest {
             $this->input('discount_on'),
             $this->input('discount_rate'),
             $this->input('discount_amount'),
-            SalesInvoiceService::DPP_FACTOR,
+            $this->input('date'),
         );
         $currencies = app(CurrencyMatcher::class);
 

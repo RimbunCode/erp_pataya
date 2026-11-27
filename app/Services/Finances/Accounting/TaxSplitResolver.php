@@ -6,6 +6,7 @@ use App\Enums\PostingDocumentType;
 use App\Models\Finances\FinanceSetting;
 use App\Models\Finances\GeneralLedger;
 use App\Models\Finances\Journal;
+use App\Models\Finances\Tax;
 use App\Services\Core\Setting\SettingsService;
 use App\Services\Finances\Ledger\FiscalPeriodService;
 use Carbon\CarbonInterface;
@@ -65,6 +66,9 @@ final class TaxSplitResolver {
                     ->withoutGlobalScopes()
                     ->where('journal_id', $origin->id)
                     ->whereNotNull('tax_rule_version_id')
+                    // Baris pajak potong (`withholding`, Bagian B) bukan pemisahan PPN: ia selalu diposting dan tidak
+                    // menentukan bentuk retur.
+                    ->whereHas('taxRuleVersion.tax', fn ($tax) => $tax->withTrashed()->where('behavior', Tax::BEHAVIOR_ADDITIVE))
                     ->exists();
             }
         }

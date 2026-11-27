@@ -74,6 +74,8 @@ class TaxInvoiceAssignmentTest extends TestCase {
             'updated_at'    => now(),
         ]);
 
+        // Sejak Bagian B (Task 9) dpp/pajak item bukan lagi kolom generated: fixture mengisinya dengan formula legacy 11/12.
+        $dpp = 10 * $price * 11 / 12;
         DB::table('sales_invoice_items')->insert([
             'id'               => (string) Str::ulid(),
             'sales_invoice_id' => $salesInvoiceId,
@@ -81,6 +83,8 @@ class TaxInvoiceAssignmentTest extends TestCase {
             'quantity'         => 10,
             'price'            => $price,
             'tax_rate'         => $taxRate,
+            'dpp_amount'       => $dpp,
+            'tax_amount'       => $dpp * $taxRate / 100,
             'created_at'       => now(),
             'updated_at'       => now(),
         ]);
@@ -254,6 +258,8 @@ class TaxInvoiceAssignmentTest extends TestCase {
         DB::table('purchase_invoice_items')->insert([
             'id'       => (string) Str::ulid(), 'purchase_invoice_id' => $purchaseInvoiceId, 'item_id' => $itemVariant->id,
             'quantity' => 4, 'rate' => 3000, 'tax_rate' => 11, 'created_at' => now(), 'updated_at' => now(),
+            // Sejak Bagian B (Task 9) dpp/pajak/jumlah item bukan lagi kolom generated: fixture memakai formula legacy 11/12.
+            'dpp_amount' => 4 * 3000 * 11 / 12, 'tax_amount' => 4 * 3000 * 11 / 12 * 11 / 100, 'amount' => 4 * 3000 + 4 * 3000 * 11 / 12 * 11 / 100,
         ]);
 
         return PurchaseInvoice::findOrFail($purchaseInvoiceId);
@@ -336,6 +342,8 @@ class TaxInvoiceAssignmentTest extends TestCase {
         DB::table('purchase_invoice_items')->insert([
             'id'       => (string) Str::ulid(), 'purchase_invoice_id' => $purchaseInvoiceId, 'item_id' => $itemVariant->id,
             'quantity' => 4, 'rate' => 3000, 'tax_rate' => 11, 'created_at' => now(), 'updated_at' => now(),
+            // Sejak Bagian B (Task 9) dpp/pajak/jumlah item bukan lagi kolom generated: fixture memakai formula legacy 11/12.
+            'dpp_amount' => 4 * 3000 * 11 / 12, 'tax_amount' => 4 * 3000 * 11 / 12 * 11 / 100, 'amount' => 4 * 3000 + 4 * 3000 * 11 / 12 * 11 / 100,
         ]);
         $this->setBreakdown('purchase_invoices', $purchaseInvoiceId, [
             ['category' => 'ppn_standard', 'dpp' => '11000.00', 'tax' => '1320.00'],

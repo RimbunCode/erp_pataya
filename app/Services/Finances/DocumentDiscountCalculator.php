@@ -61,22 +61,32 @@ class DocumentDiscountCalculator {
     }
 
     /**
-     * Varian applyToItems() untuk Invoice: basic_amount (kotor, quantity*rate) TETAP
-     * generated column -- diskon TIDAK menimpa basic_amount, melainkan ditulis ke kolom
-     * terpisah discount_amount. dpp_amount/tax_amount/amount item mengikuti secara generated
-     * dari (basic_amount - discount_amount) via migration
-     * convert_invoice_items_discount_columns, sehingga hasil akhirnya tetap konsisten dengan
-     * DPP setelah diskon (Requirement 1 spec dpp-discount-and-tax-compliance) tanpa mengubah
-     * basic_amount kotor yang jadi basis harga jual/beli asli.
+     * Alokasi diskon dokumen header untuk Invoice (Sales/Purchase). `basic_amount` (kotor, quantity*harga) TETAP
+     * generated column; diskon TIDAK menimpa `basic_amount`, melainkan ditulis ke `discount_amount` oleh pemanggil.
+     * Sejak Bagian B (Finance Fase 3, Requirement 12.3) `dpp_amount`/`tax_amount` bukan lagi generated: service
+     * menghitungnya lewat `TaxEngine` dari basis `basic_amount - discount_amount`, sehingga method ini HANYA
+     * mengembalikan diskon per baris (tidak menyimpan apa pun, tidak memegang faktor DPP).
      *
-     * @param  Collection<int, Model>  $items  item model dengan attribute basic_amount & tax_rate
-     * @return array{basic_amount: float, tax_amount: float} total basic_amount(net)/tax_amount header
+     * Faktor DPP, tarif, dan perilaku (`additive`/`withholding`) tiap baris datang dari versi aturan pajak pada
+     * tanggal dokumen (`$lineRules` per `tax_id`, dari `DocumentTaxRules::lineParameters()`), bukan konstanta.
+     * Baris tanpa pajak tidak punya aturan (tarif 0). Pada basis `grand_total`, pajak `withholding` tidak
+     * menambah total sehingga tidak ikut basis.
+     *
+     * @param  Collection<int, Model>  $items  item model dengan attribute basic_amount, tax_id (atau null)
+     * @param  array<string, array{rate: float, dpp_factor: float, additive: bool}>  $lineRules
+     * @return array<int, float> diskon per baris (2 desimal), terurut seperti `$items->values()`
      */
-    public static function applyDiscountColumnToItems(Model $document, Collection $items, float $dppFactor): array {
-        $lines = $items->map(fn (Model $item) => [
-            'basic_amount' => $item->basic_amount,
-            'tax_rate'     => $item->tax_rate,
-        ])->all();
+    public static function invoiceItemDiscounts(Model $document, Collection $items, array $lineRules): array {
+        $lines = [];
+        foreach ($items->values() as $item) {
+            $rule    = filled($item->tax_id) ? ($lineRules[(string) $item->tax_id] ?? null) : null;
+            $lines[] = [
+                'basic_amount' => $item->basic_amount,
+                'tax_rate'     => $rule['rate'] ?? 0,
+                'dpp_factor'   => $rule['dpp_factor'] ?? 1.0,
+                'additive'     => $rule['additive'] ?? true,
+            ];
+        }
 
         $allocated = self::allocate(
             $lines,
@@ -84,27 +94,22 @@ class DocumentDiscountCalculator {
             $document->discount_rate ?? 0,
             $document->discount_amount ?? 0,
             'discount_amount',
-            $dppFactor,
+            1.0,
         );
 
-        $basicAmount = 0;
-        $taxAmount   = 0;
-        foreach ($items->values() as $index => $item) {
-            $line            = $lines[$index];
-            $discountForLine = $line['basic_amount'] - $allocated[$index]['basic_amount'];
-            $item->forceFill(['discount_amount' => round($discountForLine, 2)])->save();
-            $basicAmount += $allocated[$index]['basic_amount'];
-            $taxAmount += $allocated[$index]['tax_amount'];
+        $discounts = [];
+        foreach ($lines as $index => $line) {
+            $discounts[$index] = round($line['basic_amount'] - $allocated[$index]['basic_amount'], 2);
         }
 
-        return ['basic_amount' => $basicAmount, 'tax_amount' => $taxAmount];
+        return $discounts;
     }
 
     /**
      * Alokasikan diskon dokumen pro-rata ke tiap baris, lalu hitung ulang tax_amount
      * dari basic_amount yang sudah dikurangi diskon (bukan lump-sum dari total akhir).
      *
-     * @param  array<int, array{basic_amount: float, tax_rate: float}>  $lines
+     * @param  array<int, array{basic_amount: float, tax_rate: float, dpp_factor?: float, additive?: bool}>  $lines  `dpp_factor` (opsional) menimpa `$dppFactor` untuk baris itu; `additive` false (pajak `withholding`) = pajak baris tidak menambah total
      * @param  string|null  $discountOn  'net_total' | 'grand_total' | null (tanpa diskon)
      * @param  string|null  $latestDiscountKey  'discount_rate' | 'discount_amount' -- menentukan input mana yang otoritatif
      * @param  float|null  $dppFactor  null = pajak dihitung basic_amount*tax_rate/100 langsung (PO/SO).
@@ -124,10 +129,16 @@ class DocumentDiscountCalculator {
             return [];
         }
 
-        $taxBasisOf = fn (float $basicAmount): float => $dppFactor === null ? $basicAmount : $basicAmount * $dppFactor;
+        $taxBasisOf = function (float $basicAmount, array $line) use ($dppFactor): float {
+            $factor = $line['dpp_factor'] ?? $dppFactor;
+
+            return $factor === null ? $basicAmount : $basicAmount * $factor;
+        };
+        // Pajak yang tidak menambah total (withholding) tidak ikut basis `grand_total` dan tidak mengurangi diskon.
+        $addedRate = fn (array $line): float => ($line['additive'] ?? true) ? (float) $line['tax_rate'] : 0.0;
 
         $preTax = array_map(
-            fn (array $line) => $taxBasisOf($line['basic_amount']) * $line['tax_rate'] / 100,
+            fn (array $line) => $taxBasisOf($line['basic_amount'], $line) * $addedRate($line) / 100,
             $lines,
         );
 
@@ -163,14 +174,14 @@ class DocumentDiscountCalculator {
                 $gross               = $line['basic_amount'] + $preTax[$i];
                 $share               = $sumGross > 0 ? $gross / $sumGross : 0;
                 $allocated           = $discountValue * $share;
-                $reduction           = $allocated / (1 + $line['tax_rate'] / 100);
+                $reduction           = $allocated / (1 + $addedRate($line) / 100);
                 $newBasicAmounts[$i] = max(0.0, $line['basic_amount'] - $reduction);
             }
         }
 
         $newTaxAmounts = [];
         foreach ($lines as $i => $line) {
-            $newTaxAmounts[$i] = $taxBasisOf($newBasicAmounts[$i]) * $line['tax_rate'] / 100;
+            $newTaxAmounts[$i] = $taxBasisOf($newBasicAmounts[$i], $line) * $addedRate($line) / 100;
         }
 
         return self::toResult($lines, $newBasicAmounts, $newTaxAmounts);

@@ -40,6 +40,7 @@ use App\Services\Core\Setting\ToleranceCalculator;
 use App\Services\Finances\Ledger\JournalReversalService;
 use App\Services\Finances\Tax\DocumentTaxRules;
 use App\Services\Finances\Tax\DocumentTaxSnapshot;
+use App\Services\Finances\Tax\InvoiceItemTaxCalculator;
 use App\Services\Finances\Tax\TaxInvoiceAmounts;
 use App\Traits\HasDefaultDelete;
 use App\Utils;
@@ -51,12 +52,6 @@ use Symfony\Component\Uid\Ulid;
 
 class SalesInvoiceService implements SubmitableService {
     use HasDefaultDelete;
-
-    /**
-     * Faktor DPP Nilai Lain PPN 12% (tarif efektif 11%) -- lihat migration
-     * add_dpp_amount_to_sales_invoice_items_table, spec invoice-dpp-adjustment.
-     */
-    public const float DPP_FACTOR = 11 / 12;
 
     private function fillRelations(array $data) {
         // `tax_breakdown` hanya ditulis `onApproved()` dan immutable sesudahnya (Requirement 5.3).
@@ -116,6 +111,9 @@ class SalesInvoiceService implements SubmitableService {
         $data['exchange_rate']       = $salesInvoice->exchange_rate;
         $data['price'] ??= 0;
         $data['price_base_currency'] = 0;
+        // Angka hitung pajak ditulis `TaxEngine` (`applyItemTaxes()`), bukan request (Requirement 12.3): buang nilai
+        // kiriman klien agar tidak dapat diisi lewat mass assignment.
+        unset($data['dpp_amount'], $data['tax_amount'], $data['withholding_amount']);
         // Akun baris dicatat engine saat approve (Task 12.1); create dan update draft mengosongkannya (Q-P2-24).
         $data['posted_account_id'] = null;
 
@@ -167,6 +165,28 @@ class SalesInvoiceService implements SubmitableService {
         );
     }
 
+    /**
+     * Alokasi diskon dokumen, lalu `dpp_amount`/`tax_amount`/`withholding_amount` item dihitung `TaxEngine` dari
+     * basis bersih dengan faktor DPP dan tarif versi aturan pada tanggal dokumen (Requirement 12.3-12.4).
+     *
+     * @param  Collection<int, SalesInvoiceItem>  $items  item yang sudah tersimpan dan di-refresh
+     * @param  array<string, TaxRuleVersion>  $taxRules  `resolveTaxRules()`
+     * @return float total dokumen: basis bersih + pajak penambah - pajak potong
+     */
+    private function applyItemTaxes(array $data, SalesInvoice $salesInvoice, Collection $items, array $taxRules): float {
+        $lineRules = app(DocumentTaxRules::class)->lineParameters($taxRules, $this->batchLoadTaxes($data));
+        $discounts = DocumentDiscountCalculator::invoiceItemDiscounts($salesInvoice, $items, $lineRules);
+        $totals    = app(InvoiceItemTaxCalculator::class)->apply(
+            $items,
+            $discounts,
+            CarbonImmutable::parse($data['date'] ?? 'now'),
+            DocumentTaxSnapshot::minorUnitFor($salesInvoice->currency_code),
+            false,
+        );
+
+        return round($totals['net'] + $totals['tax'] - $totals['withholding'], 6);
+    }
+
     private function fillPaymentScheduleRelations(array $data, SalesInvoice $salesInvoice) {
         $data['payment_amount']     = $salesInvoice->amount * ($data['invoice_portion'] / 100);
         $data['currency_code']      = $salesInvoice->currency_code;
@@ -197,9 +217,8 @@ class SalesInvoiceService implements SubmitableService {
             $items->push($itemModel);
         }
 
-        $totals = DocumentDiscountCalculator::applyDiscountColumnToItems($salesInvoice, $items, self::DPP_FACTOR);
         $salesInvoice->update([
-            'amount' => $totals['basic_amount'] + $totals['tax_amount'],
+            'amount' => $this->applyItemTaxes($data, $salesInvoice, $items, $taxRules),
         ]);
         foreach ($data['payment_schedules'] ?? [] as $payment_schedule) {
             $payment_schedule = $this->fillPaymentScheduleRelations($payment_schedule, $salesInvoice);
@@ -253,9 +272,8 @@ class SalesInvoiceService implements SubmitableService {
             $items->push($itemModel);
         }
 
-        $totals = DocumentDiscountCalculator::applyDiscountColumnToItems($salesInvoice, $items, self::DPP_FACTOR);
         $salesInvoice->fill([
-            'amount' => $totals['basic_amount'] + $totals['tax_amount'],
+            'amount' => $this->applyItemTaxes($data, $salesInvoice, $items, $taxRules),
         ]);
         $salesInvoice->save();
 
@@ -352,8 +370,9 @@ class SalesInvoiceService implements SubmitableService {
                 $this->assertBillingTolerance($salesInvoice, $items);
             }
 
-            $basicAmount = 0;
-            $taxAmount   = 0;
+            $basicAmount       = 0;
+            $taxAmount         = 0;
+            $withholdingAmount = 0;
 
             foreach ($items as $item) {
                 if ($returnAgainst && $item->return_against_item_id) {
@@ -361,6 +380,7 @@ class SalesInvoiceService implements SubmitableService {
                 }
                 $basicAmount += $item->basic_amount - $item->discount_amount;
                 $taxAmount += $item->tax_amount;
+                $withholdingAmount += $item->withholding_amount;
                 // Baris bebas (tanpa baris SO) tidak mengubah tagihan SO mana pun.
                 if ($item->salesOrderItem) {
                     event(new SalesOrderItemBillingChanged(
@@ -384,7 +404,9 @@ class SalesInvoiceService implements SubmitableService {
                 }
             }
             // basic_amount/tax_amount item sudah net (dikurangi discount_amount) sejak
-            // create()/update() -- di sini murni sum, bukan alokasi ulang diskon.
+            // create()/update() -- di sini murni sum, bukan alokasi ulang diskon. `$totalAmount` = jumlah kotor
+            // (bersih + pajak penambah) yang dibawa ke posting; pajak `withholding` tidak menambah total dan dipotong
+            // dari `amount` dokumen (Requirement 12.4), jurnal memetakannya ke peran `withholding_receivable`.
             $totalAmount = $basicAmount + $taxAmount;
 
             $debitAccount  = $salesInvoice->debitAccount;
@@ -411,7 +433,7 @@ class SalesInvoiceService implements SubmitableService {
             }
 
             $salesInvoice->update([
-                'amount' => $totalAmount,
+                'amount' => $totalAmount - $withholdingAmount,
                 'status' => $returnAgainst ? FormStatus::RETURNED : FormStatus::UNPAID,
                 // Immutable setelah approve: yang sudah ada tidak pernah dihitung ulang (Requirement 5.3).
                 'tax_breakdown' => $salesInvoice->tax_breakdown ?? $this->buildTaxBreakdown($salesInvoice, $items),
