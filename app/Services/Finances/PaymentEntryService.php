@@ -7,6 +7,7 @@ use App\Enums\FormStatus;
 use App\Events\Core\DocumentSubmitted;
 use App\Events\Finances\PaymentApplied;
 use App\Exceptions\Finances\DuplicatePostingException;
+use App\Exceptions\Finances\UnresolvedAccountRoleException;
 use App\Models\Core\CoreSetting;
 use App\Models\Core\FormatingSeries;
 use App\Models\Finances\PaymentEntry;
@@ -164,10 +165,15 @@ class PaymentEntryService implements SubmitableService {
     private function postLedger(PaymentEntry $paymentEntry): void {
         // Gateway Posting Engine (Finance Fase 2, Task 7.2; closure legacy dihapus Task 14.1). `UnresolvedAccountRoleException` dan sejenisnya
         // menggulung seluruh approve.
-        $outcome = app(PostingGateway::class)->postDeferred(
-            app(PaymentEntryPostingContextFactory::class)->forGuard($paymentEntry),
-            fn () => app(PaymentEntryPostingContextFactory::class)->forApproval($paymentEntry),
-        );
+        try {
+            $outcome = app(PostingGateway::class)->postDeferred(
+                app(PaymentEntryPostingContextFactory::class)->forGuard($paymentEntry),
+                fn () => app(PaymentEntryPostingContextFactory::class)->forApproval($paymentEntry),
+            );
+        } catch (UnresolvedAccountRoleException $e) {
+            // Requirement 13.7: galat validasi (bukan 500) yang menggulung transaksi approve.
+            throw $e->toValidationException();
+        }
 
         // Penerapan pembayaran (jadwal, `PaymentApplied`) sudah berjalan dalam transaksi yang sama sebelum posting,
         // jadi jurnal yang ternyata sudah ada adalah inkonsistensi yang menggulung seluruh approve, bukan keadaan yang

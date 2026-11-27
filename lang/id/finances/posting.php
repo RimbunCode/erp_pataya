@@ -2,6 +2,7 @@
 
 return [
     'errors' => [
+        'approve_blocked'                  => 'Dokumen tidak dapat disetujui. :message Konfigurasi di halaman Posting Profile (:url).',
         'unresolved_role'                  => 'Peran akun ":role" tidak dapat ditentukan untuk dokumen :document (varian :variant) pada tanggal :date. Lapis yang diperiksa: :layers. Lengkapi Posting Profile atau akun master terkait.',
         'unresolved_role_account'          => 'Akun untuk peran ":role" (dokumen :document, varian :variant, tanggal :date) tidak dapat dipakai: :reason (:account). Sumber akun: :layer.',
         'unresolved_role_ambiguous'        => 'Peran akun ":role" (dokumen :document, varian :variant, tanggal :date) ambigu pada fallback legacy: :candidates akun cocok dengan :root/:type dan tidak ada yang dipilih. Petakan peran ini pada Posting Profile.',
