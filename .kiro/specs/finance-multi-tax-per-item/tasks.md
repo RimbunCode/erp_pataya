@@ -2,9 +2,9 @@
 
 ## Overview
 
-Urutan: (1) mode multi value `LinkModel`, (2) skema + model + migrasi data, (3) aturan kombinasi, (4) perhitungan + alokasi diskon, (5) jurnal, (6) snapshot/Faktur Pajak/cetak, (7) request + service, (8) form, (9) skenario S2 dan checkpoint. Lint/Pint sekali di akhir (CLAUDE.md).
+Urutan: (1) mode multi value `LinkModel` dengan chip + penyelarasan `MultiSelect`, (2) skema + model + migrasi data, (3) aturan kombinasi, (4) perhitungan + alokasi diskon, (5) jurnal, (6) snapshot/Faktur Pajak/cetak, (7) request + service, (8) form, (9) skenario S2 dan checkpoint. Lint/Pint sekali di akhir (CLAUDE.md).
 
-**Prasyarat**: Fase 3 Tax Engine selesai dan ter-merge ke `feat/finance-engine` (PR #334, #335, #336). Pertanyaan Q-MT-1 s.d. Q-MT-10 (requirements.md) dijawab pemilik produk sebelum Task 1 dimulai; terutama Q-MT-1 (nasib `LinkModel` multi value) dan Q-MT-2 (lingkup). Branch baru dari `origin/feat/finance-engine` terbaru, PR base `feat/finance-engine`, label `skip-deploy` bila belum siap deploy.
+**Prasyarat**: Fase 3 Tax Engine selesai dan ter-merge ke `feat/finance-engine` (PR #334, #335, #336). Pertanyaan Q-MT-1 sudah diputuskan (2026-11-28: bangun di `LinkModel`, chip, klik label membuka detail, `MultiSelect` mengikuti). Q-MT-2 s.d. Q-MT-11 (requirements.md) dijawab pemilik produk sebelum task terkait dimulai; terutama Q-MT-2 (lingkup) dan Q-MT-11 (default vs opt-in chip `MultiSelect`, sebelum Task 1.6). Branch baru dari `origin/feat/finance-engine` terbaru, PR base `feat/finance-engine`, label `skip-deploy` bila belum siap deploy.
 
 **Aturan eksekusi**:
 - Item satu pajak harus identik byte-demi-byte dengan perilaku sebelum spek ini; jalankan test pajak existing di setiap task.
@@ -14,17 +14,21 @@ Urutan: (1) mode multi value `LinkModel`, (2) skema + model + migrasi data, (3) 
 
 ## Tasks
 
-- [ ] 1. LinkModel mode multi value (Requirement 9)
-  - [ ] 1.1 Telaah ulang `LinkModel.jsx`, `AdvanceSearchDialog.jsx`, `useAdvanceSearchModel.js`, `trimToLinkModelPayload.js`; putuskan bentuk prop `multiple` (Q-MT-1)
+- [ ] 1. LinkModel mode multi value dan chip (Requirement 9, 13; Q-MT-1 diputuskan)
+  - [ ] 1.1 Telaah ulang `LinkModel.jsx` (navigasi baris ~1074-1106, `navAllowed`, `routeId`, `keyRoute`), `AdvanceSearchDialog.jsx`, `useAdvanceSearchModel.js`, `trimToLinkModelPayload.js`; tetapkan bentuk prop `multiple`
     - _Requirements: 9.1_
-  - [ ] 1.2 Implementasi `multiple` pada `LinkModel` (value array objek, toggle, chip, urutan terjaga, popover tetap terbuka); tolak kombinasi dengan `subModels`
-    - _Requirements: 9.1, 9.2, 9.4_
-  - [ ] 1.3 Seleksi banyak baris di `AdvanceSearchDialog`/`useAdvanceSearchModel`; `trimToLinkModelPayload` per elemen
-    - _Requirements: 9.3_
-  - [ ] 1.4 `TaxLinkModel` meneruskan `multiple` dan `filters`
-    - _Requirements: 9.5_
-  - [ ] 1.5 Tes RTL `LinkModel.multiple.rtl.test.jsx` + regresi mode tunggal dan multi-model
-    - _Requirements: 9.6_
+  - [ ] 1.2 Ekstrak logika navigasi ke fungsi bersama per-opsi (`resolveNavigation(option)`: izin, `disabledNavigation`, `customNavigation`, rute `.show`); mode tunggal memakainya tanpa perubahan perilaku (test regresi dulu)
+    - _Requirements: 9.3, 9.4, 9.8_
+  - [ ] 1.3 Komponen bersama `ChipList.jsx` (label + X terpisah, label non-tautan bila tak diizinkan, truncate + tooltip, wrap, `disabled`/`readOnly`, penanda diff) + test RTL
+    - _Requirements: 9.3-9.6, 13.3_
+  - [ ] 1.4 `LinkModel` `multiple`: value array, toggle, popover tetap terbuka, urutan terjaga, chip dengan navigasi, `valueBefore` per chip; tolak `multiple` + `subModels`
+    - _Requirements: 9.1, 9.2, 9.5, 9.8, 9.9_
+  - [ ] 1.5 Seleksi banyak baris di `AdvanceSearchDialog`/`useAdvanceSearchModel`; `trimToLinkModelPayload` per elemen; `TaxLinkModel` meneruskan `multiple` dan `filters`
+    - _Requirements: 9.7, 9.9_
+  - [ ] 1.6 `MultiSelect` memakai `ChipList` (chip per nilai, "Semua" satu chip, navigasi opt-in lewat `navigation`), pertahankan `valueBefore`, `changeOnBlur`, `delimiters`, paste, `showAllOption`, `defaultValue`, clear; audit visual 7 konsumen; perbarui `MultiSelect.rtl.test.jsx`, `ValueField.rtl.test.jsx`, `Inventory/Items/Form.rtl.test.jsx` (menunggu Q-MT-11)
+    - _Requirements: 13.1-13.6_
+  - [ ] 1.7 Tes RTL `LinkModel.multiple.rtl.test.jsx` (pilih, X, urutan, klik label membuka tab baru/`customNavigation`, non-tautan saat tak diizinkan, `disabled`/`readOnly`, filter, advance search) + regresi mode tunggal dan multi-model
+    - _Requirements: 9.10_
 
 - [ ] 2. Skema, model, migrasi data (Requirement 1, 7)
   - [ ] 2.1 Migrasi `sales_invoice_item_taxes` dan `purchase_invoice_item_taxes` (unik item+pajak, FK, `position`, kolom hitung) + `down()`

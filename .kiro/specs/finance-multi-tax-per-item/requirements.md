@@ -8,7 +8,7 @@ Spek ini membuat satu item invoice dapat membawa **beberapa pajak sekaligus** (p
 
 Spek ini adalah kelanjutan kait D-28 dan Requirement 13.6 spek `finance-p3-tax-engine`: `TaxInput` sudah per pasangan (baris, pajak) dan `lineRef` boleh berulang, sehingga `TaxEngine` tidak perlu berubah perilakunya. Yang dibangun di sini: relasi banyak-pajak per item invoice, perhitungan dan penyimpanan per pasangan, jurnal, snapshot, cetak, laporan, dan form.
 
-**Temuan penting saat menyusun spek (perlu diketahui pemilik produk):** komponen `LinkModel` di repo ini **belum punya mode multi value**. Kata "multi" pada `LinkModel` (spek `linkmodel-multi-model`, `AdvanceSearchDialog.multi.rtl.test.jsx`) berarti multi-**model** (satu dropdown dengan beberapa sumber `subModels`), nilainya tetap SATU objek. Maka mode multi value harus dibangun lebih dulu sebagai bagian spek ini (Requirement 9). Lihat Q-MT-1.
+**Keputusan pemilik produk 2026-11-28 (Q-MT-1, menjawab temuan telaah kode):** komponen `LinkModel` belum punya mode multi value; kata "multi" pada `LinkModel` (spek `linkmodel-multi-model`, `AdvanceSearchDialog.multi.rtl.test.jsx`) berarti multi-**model** (satu dropdown dengan beberapa sumber `subModels`), nilainya tetap SATU objek. Diputuskan: mode multi value dibangun di `LinkModel` (Requirement 9), nilai terpilih tampil sebagai **chip**, dan label chip yang diklik membuka halaman detail data itu seperti fitur navigasi `LinkModel` yang ada. `MultiSelect` diperiksa dan diselaraskan dengan pola chip yang sama (Requirement 13). Alasan: konsistensi UI antar field relasi dan pemakaian ulang fitur navigasi yang sudah ada.
 
 **Batas lingkup (usulan, menunggu Q-MT-2):** hanya Sales Invoice dan Purchase Invoice. Sales Order, Purchase Order, Quotation, dan Delivery Note tidak diubah dan tetap satu pajak per item.
 
@@ -127,16 +127,20 @@ Spek ini adalah kelanjutan kait D-28 dan Requirement 13.6 spek `finance-p3-tax-e
 
 ### Requirement 9: Komponen LinkModel mode multi value
 
-**User Story:** Sebagai pengguna, saya ingin memilih beberapa pajak pada satu field item, so that tidak perlu menambah baris.
+**User Story:** Sebagai pengguna, saya ingin memilih beberapa pajak pada satu field item dan melihat tiap pilihan sebagai chip yang bisa dibuka, so that tidak perlu menambah baris dan saya tetap dapat menelusuri data pilihan itu.
 
 #### Acceptance Criteria
 
 1. THE `LinkModel` SHALL mendukung mode multi value lewat prop baru (usulan `multiple`), dengan `value` berupa array objek berbentuk sama seperti nilai tunggal (`id`, field yang diminta) dan `onValueChange(array)`.
-2. WHEN mode multi value aktif, THE dropdown SHALL tetap terbuka setelah memilih opsi, menandai opsi terpilih, dan memungkinkan hapus per pilihan (chip); urutan pilihan SHALL dipertahankan (menentukan Pajak Utama).
-3. THE `AdvanceSearchDialog` dan `useAdvanceSearchModel` SHALL mendukung seleksi banyak baris pada mode ini; `trimToLinkModelPayload` SHALL memangkas tiap elemen seperti nilai tunggal.
-4. THE mode tunggal dan mode multi-model (`subModels`) yang ada SHALL tidak berubah perilakunya; kombinasi `multiple` dengan `subModels` TIDAK didukung pada rilis ini dan SHALL ditolak jelas (dev warning).
-5. THE `TaxLinkModel` SHALL meneruskan `multiple` ke `LinkModel`, dan filter opsi (`filters`) SHALL tetap berfungsi.
-6. THE komponen SHALL diuji RTL (`LinkModel.multiple.rtl.test.jsx`): pilih, hapus, urutan, filter, dialog advance search, mode tunggal tidak regresi.
+2. WHEN mode multi value aktif, THE nilai terpilih SHALL tampil sebagai chip; memilih opsi di dropdown SHALL menambah chip (opsi yang sudah terpilih ditandai dan memilihnya lagi mencabut chip), dropdown SHALL tetap terbuka, dan urutan pilihan SHALL dipertahankan (menentukan Pajak Utama).
+3. THE tiap chip SHALL memiliki dua area terpisah: (a) **label**, yang bila diklik membuka halaman detail data itu persis seperti tombol navigasi `LinkModel` mode tunggal (rute `{plural(name)}.show` dengan `keyRoute`, terbuka di tab baru, menghormati `disabledNavigation`, `customNavigation`, dan `canNavigation`/izin `read` per data); (b) **tombol hapus (X)** yang mencabut chip tanpa membuka halaman.
+4. IF navigasi tidak diizinkan untuk sebuah chip (`disabledNavigation`, tak ada izin `read`, atau `name` tak diketahui), THEN label chip SHALL tampil sebagai teks biasa tanpa gaya tautan dan tidak dapat diklik.
+5. WHEN field `disabled` atau `readOnly`, THE chip SHALL tetap tampil dan label tetap dapat membuka detail (bila diizinkan), tetapi tombol hapus SHALL disembunyikan, selaras perilaku tombol navigasi mode tunggal.
+6. THE label chip SHALL memakai `templateLink` data (teks yang sama dengan tampilan nilai tunggal) dan chip yang panjang SHALL terpotong dengan tooltip penuh; susunan chip SHALL membungkus ke baris berikutnya tanpa merusak tinggi baris tabel item.
+7. THE `AdvanceSearchDialog` dan `useAdvanceSearchModel` SHALL mendukung seleksi banyak baris pada mode ini; `trimToLinkModelPayload` SHALL memangkas tiap elemen seperti nilai tunggal.
+8. THE mode tunggal dan mode multi-model (`subModels`) yang ada SHALL tidak berubah perilakunya; kombinasi `multiple` dengan `subModels` TIDAK didukung pada rilis ini dan SHALL ditolak jelas (dev warning).
+9. THE `TaxLinkModel` SHALL meneruskan `multiple`, dan filter opsi (`filters`) serta `valueBefore` (tampilan diff, ditandai per chip ditambah/dihapus seperti `MultiSelect`) SHALL tetap berfungsi.
+10. THE komponen SHALL diuji RTL (`LinkModel.multiple.rtl.test.jsx`): pilih, hapus lewat X, urutan, klik label membuka detail (tab baru, `customNavigation`), label non-tautan saat tak diizinkan, `disabled`/`readOnly`, filter, dialog advance search, dan mode tunggal/multi-model tanpa regresi.
 
 ### Requirement 10: Form Sales/Purchase Invoice
 
@@ -174,11 +178,24 @@ Spek ini adalah kelanjutan kait D-28 dan Requirement 13.6 spek `finance-p3-tax-e
 4. THE `ComputesLegacyInvoiceItemAmounts` (jaring pengaman penulis non-service) SHALL tetap menghitung satu pajak dari kolom item; penulis yang tidak memakai service tidak membentuk pivot (didokumentasikan).
 5. THE skenario S2 simulasi Task 6.6 (PPN 12% + PPh 23 2% jasa, satu baris) SHALL menjadi test end-to-end: header NET, jurnal (piutang/utang, pendapatan/beban, PPN, `withholding_*`), Faktur Pajak, snapshot, dan cetak.
 
+### Requirement 13: Penyelarasan MultiSelect dengan pola chip
+
+**User Story:** Sebagai pengguna, saya ingin field multi-pilih di seluruh aplikasi tampil dan berperilaku sama dengan field multi value `LinkModel`, so that UI konsisten.
+
+#### Acceptance Criteria
+
+1. THE `MultiSelect` SHALL menampilkan nilai terpilih sebagai chip (label opsi + tombol hapus X) menggantikan ringkasan teks gabungan di input saat popover tertutup; `showAllOption` yang memilih semua opsi SHALL tetap meringkas menjadi satu chip "Semua" (label `allOptionLabel`), bukan chip per opsi.
+2. THE `MultiSelect` SHALL mendukung navigasi label chip secara opt-in: chip hanya menjadi tautan bila konsumen memberi cara menelusuri (usulan prop `navigation` berupa fungsi `(option) => href|null` atau `onOptionNavigate(option)`; opsi yang menghasilkan `null` tampil sebagai teks biasa). Tanpa prop itu semua chip berupa teks biasa, karena opsi `MultiSelect` statis dan tidak selalu merujuk halaman detail.
+3. THE aturan interaksi chip (label dan X terpisah, X tersembunyi saat `disabled`/`readOnly`, label dapat diklik saat `readOnly`, terpotong dengan tooltip, membungkus baris) SHALL sama dengan Requirement 9.3-9.6 dan memakai komponen chip bersama (satu implementasi dipakai `LinkModel` dan `MultiSelect`; usulan `Components/ChipList.jsx`).
+4. THE fitur `MultiSelect` yang ada SHALL tidak hilang: `valueBefore` (diff per entri), `changeOnBlur`, `delimiters` (ketik-lalu-delimiter, paste banyak entri), `showAllOption`, `defaultValue`, tombol clear, dan `onSearchChange`. Input pencarian/ketik tetap ada untuk memfilter dan menambah entri.
+5. THE 7 konsumen yang ada (`Table/Filter/ValueField.jsx`, `Core/Todos/AssignedToFields.jsx`, `Inventory/Items/Form.jsx`, `Purchase/ItemRequests/Index.jsx`, dan lainnya hasil audit) SHALL diaudit dan test-nya (`MultiSelect.rtl.test.jsx`, `ValueField.rtl.test.jsx`, `Inventory/Items/Form.rtl.test.jsx`) diperbarui; perubahan tampilan default vs opt-in mengikuti Q-MT-11.
+6. THE `MultiSelect` SHALL diuji RTL untuk chip, X, label non-tautan default, navigasi opt-in, dan seluruh perilaku di butir 4.
+
 ## Pertanyaan yang Menunggu Konfirmasi
 
 | ID | Pertanyaan | Rekomendasi | Dampak |
 |---|---|---|---|
-| Q-MT-1 | `LinkModel` belum punya mode multi value ("multi" saat ini = multi-model). Apakah membangun mode multi value baru di `LinkModel` (Requirement 9) memang yang dimaksud, atau cukup memperluas `MultiSelect` dengan opsi dinamis dari model Tax? | Bangun mode `multiple` di `LinkModel` (sesuai keputusan 2026-11-28; Advance Search dan filter ikut). Biaya: komponen inti dipakai banyak halaman, wajib uji regresi. | Req 9, Task 1 |
+| Q-MT-1 | `LinkModel` belum punya mode multi value ("multi" saat ini = multi-model). Bangun mode multi value di `LinkModel` atau perluas `MultiSelect`? | **DIPUTUSKAN 2026-11-28 (pemilik produk):** bangun di `LinkModel`; nilai terpilih menjadi chip, klik label chip membuka halaman detail seperti navigasi `LinkModel` yang ada; `MultiSelect` diperiksa dan mengikuti pola chip yang sama (Requirement 13). Alasan: konsistensi UI dan pemakaian ulang fitur navigasi. Alternatif yang tidak dipilih: memperluas `MultiSelect` dengan opsi dinamis dari model Tax. | Req 9, 13, Task 1 |
 | Q-MT-2 | Batas lingkup: apakah Sales Order, Purchase Order, Quotation, dan Delivery Note ikut pajak majemuk? | Tidak (hanya Invoice). Mereka berbagi `taxRules.js`, `AdditionalDiscount.jsx`, dan `TaxLinkModel`; invoice dari SO/PO membawa satu pajak lalu pengguna menambah. Konsekuensi: total SO ≠ total invoice bila pengguna menambah PPh di invoice. | Seluruh spek |
 | Q-MT-3 | Kombinasi terlarang: duplikat `tax_id` (pasti ditolak), lebih dari satu `ppn_standard` (usulan ditolak). Perlu larangan lain (mis. dua pajak potong sekategori, `ppn_standard` + `ppn_luxury`)? | Tolak duplikat dan >1 `ppn_standard`; sisanya diizinkan (akuntan bertanggung jawab). | Req 2 |
 | Q-MT-4 | Batas jumlah pajak per item? | 5 | Req 1.3, 2.3 |
@@ -188,3 +205,4 @@ Spek ini adalah kelanjutan kait D-28 dan Requirement 13.6 spek `finance-p3-tax-e
 | Q-MT-8 | Apakah kontrak lama `items.*.tax` (satu objek) tetap diterima sementara (dinormalisasi)? | Ya, selama transisi; hapus di spek lanjutan bersama kolom lama. | Req 8.2 |
 | Q-MT-9 | Laporan/filter per pajak: cukup Pajak Utama, atau view laporan diperluas ke pivot? | Perluas view hanya bila ada kebutuhan laporan pajak nyata; awalnya dokumentasikan keterbatasan. | Req 11.2 |
 | Q-MT-10 | Aturan default (`default_tax_rules`, pajak default modul) tetap satu pajak per aturan? | Ya, default tetap satu pajak (prefill); pengguna menambah di form. Default multi pajak = spek lanjutan. | Req 10.1 |
+| Q-MT-11 | Perubahan tampilan `MultiSelect` ke chip: berlaku default untuk ke-7 konsumen sekarang (konsisten, tetapi mengubah tampilan filter tabel, Todos, Item Form, Item Request), atau opt-in lewat prop (mis. `chips`) lalu dimigrasi bertahap? | Default chip untuk semua (sesuai arahan "ikuti pola yang sama"), dengan audit visual tiap konsumen terutama `Table/Filter/ValueField` yang sempit; bila ada konsumen yang rusak, beri opt-out `chips={false}`. | Req 13.5 |

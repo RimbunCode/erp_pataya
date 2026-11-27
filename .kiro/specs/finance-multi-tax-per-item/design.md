@@ -128,9 +128,14 @@ Tidak butuh jendela pemeliharaan (aditif, tidak menyentuh kolom item). Produksi 
 
 ### 9. Frontend
 
-- **`LinkModel` mode `multiple`** (komponen baru di dalam komponen yang ada, bukan komponen baru): `value` array objek; `setOption` menjadi toggle; popover tetap terbuka; chip dengan tombol hapus; `AdvanceSearchDialog` mendapat seleksi centang banyak baris + tombol "Pilih"; `useAdvanceSearchModel` menyimpan set terpilih; `trimToLinkModelPayload` dipetakan per elemen. Tidak kompatibel dengan `subModels` (ditolak, warning dev). Tes RTL baru mengikuti `AdvanceSearchDialog.multi.rtl.test.jsx` sebagai acuan struktur tes.
+- **`LinkModel` mode `multiple`** (opt-in di komponen yang ada, bukan komponen baru; keputusan Q-MT-1, 2026-11-28): `value` array objek; `setOption` menjadi toggle (opsi terpilih ditandai, memilih lagi mencabut); popover tetap terbuka; urutan pilihan terjaga. Nilai tampil sebagai **chip** lewat komponen bersama `Components/ChipList.jsx` (dipakai juga `MultiSelect`, lihat butir 11).
+  - **Chip**: label dan tombol X terpisah. Klik label memakai logika navigasi yang SUDAH ada di `LinkModel` (`LinkModel.jsx` sekitar baris 1074-1106): `window.open(route(`${pluralize.plural(name)}.show`, get(option, keyRoute ?? 'id')), '_blank')` dengan `customNavigation(value)` bila ada. Logika itu diekstrak menjadi fungsi bersama per-opsi (`resolveNavigation(option)` mengembalikan `{allowed, href|null}`), memakai `disabledNavigation`, `canNavigation`, `can/canGlobal('read', {user_id: option.created_by_id})` per opsi (bukan hanya `option` tunggal seperti `navAllowed` sekarang, yang dihitung untuk satu nilai). Mode tunggal memanggil fungsi yang sama sehingga perilakunya tidak berubah.
+  - Tidak diizinkan: label teks biasa (tanpa kursor/gaya tautan). `disabled`/`readOnly`: X hilang, label tetap berfungsi. Chip terpotong + tooltip; susunan membungkus baris.
+  - `valueBefore` (diff) per chip: ditambah/dihapus ditandai memakai `DIFF_ADDED`/`DIFF_REMOVED` seperti `MultiSelect`.
+  - `AdvanceSearchDialog`/`useAdvanceSearchModel`: set seleksi (centang) + tombol "Pilih"; `trimToLinkModelPayload` per elemen. `multiple` + `subModels` ditolak (dev warning).
 - **`TaxLinkModel`** meneruskan `multiple` dan `filters`.
 - **Form invoice**: state `taxes` (array); `rulesOf(row)` memetakan `resolveTaxRule` per pajak; `mapItem` memakai `lines[].taxes`; `allocateDiscount` versi array; header memakai agregat; panel ringkasan merinci per pajak. Kolom DPP: `showDpp` = ada pajak penambah dengan `showsDpp`; nilai = `dpp_amount` item. `isTaxRequired`/`taxRowError` membaca `items.{i}.taxes`. Pemetaan dari SO/PO/DN: `taxes: val?.tax ? [val.tax] : []`.
+- **`MultiSelect` mengikuti pola chip** (Requirement 13): ringkasan teks gabungan di input saat tertutup diganti `ChipList` (chip per nilai, X per chip; "Semua" tetap satu chip). Navigasi label opt-in lewat prop `navigation(option) => href|null`; tanpa prop, chip teks biasa (opsi `MultiSelect` statis, bukan data berhalaman detail). Input ketik/pencarian, `valueBefore` (tooltip diff), `changeOnBlur`, `delimiters`, paste banyak entri, `showAllOption`, `defaultValue`, dan tombol clear dipertahankan. Tujuh konsumen (`Table/Filter/ValueField`, `Todos/AssignedToFields`, `Inventory/Items/Form`, `Purchase/ItemRequests/Index`, dst.) diaudit visual; default chip vs opt-in menunggu Q-MT-11.
 - PO/SO/Quotation tidak berubah (Q-MT-2); `taxRules.js` dan `AdditionalDiscount.jsx` dipakai bersama sehingga perubahan bersifat tambahan (parameter baru opsional), bukan mengubah kontrak lama.
 
 ### 10. Batas lingkup dan kompatibilitas
@@ -155,7 +160,7 @@ PHPUnit: unit `ItemTaxSelection`; `InvoiceItemTaxCalculator` (satu pajak identik
 
 ## Risiko
 
-1. `LinkModel` komponen inti: regresi halaman lain. Mitigasi: prop opt-in, tes regresi mode tunggal dan multi-model.
+1. `LinkModel` dan `MultiSelect` komponen inti: regresi halaman lain (MultiSelect dipakai 7 file, termasuk filter tabel yang sempit). Mitigasi: prop opt-in, tes regresi mode tunggal dan multi-model.
 2. Dua sumber kebenaran (pivot vs agregat item) bisa selisih bila penulis lain menyentuh item. Mitigasi: hanya `InvoiceItemTaxCalculator` menulis keduanya; tes invarian; `ComputesLegacyInvoiceItemAmounts` tetap hanya untuk satu pajak.
 3. SO total ≠ invoice total bila PPh ditambah di invoice (Q-MT-2). Mitigasi: dokumentasi dan peringatan toleransi penagihan bila perlu.
 4. Faktor DPP campuran pada satu item mempersulit satu kolom DPP di UI (Q-MT-7).
