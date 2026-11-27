@@ -47,7 +47,9 @@ function toResult(lines, basicAmounts, taxAmounts) {
 /**
  * Alokasikan diskon dokumen pro-rata ke tiap baris, lalu hitung ulang tax_amount
  * dari basic_amount yang sudah dikurangi diskon (bukan lump-sum dari total akhir).
- * @param {Array<{basic_amount: number, tax_rate: number}>} lines
+ * @param {Array<{basic_amount: number, tax_rate: number, dpp_factor?: number, additive?: boolean}>} lines
+ *        `dpp_factor` (opsional, dari versi aturan pajak baris) menimpa `dppFactor` untuk baris itu; `additive`
+ *        false (pajak withholding) = pajak baris tidak menambah total sehingga tidak ikut basis grand_total
  * @param {string|null} discountOn 'net_total' | 'grand_total' | null (tanpa diskon)
  * @param {number} discountRate
  * @param {number} discountAmount
@@ -67,11 +69,15 @@ export function allocateDiscount(
 ) {
   if (!lines || lines.length === 0) return [];
 
-  const taxBasisOf = (basicAmount) =>
-    dppFactor === null ? basicAmount : basicAmount * dppFactor;
+  const taxBasisOf = (basicAmount, line) => {
+    const factor = line.dpp_factor ?? dppFactor;
+    return factor === null ? basicAmount : basicAmount * factor;
+  };
+  // Pajak yang tidak menambah total (withholding) tidak ikut basis grand_total.
+  const addedRate = (line) => (line.additive === false ? 0 : line.tax_rate);
 
   const preTax = lines.map(
-    (line) => (taxBasisOf(line.basic_amount) * line.tax_rate) / 100,
+    (line) => (taxBasisOf(line.basic_amount, line) * addedRate(line)) / 100,
   );
 
   if (discountOn !== BASIS_NET_TOTAL && discountOn !== BASIS_GRAND_TOTAL) {
@@ -106,12 +112,12 @@ export function allocateDiscount(
     const gross = line.basic_amount + preTax[i];
     const share = sumGross > 0 ? gross / sumGross : 0;
     const allocated = discountValue * share;
-    const reduction = allocated / (1 + line.tax_rate / 100);
+    const reduction = allocated / (1 + addedRate(line) / 100);
     return Math.max(0, line.basic_amount - reduction);
   });
 
   const newTaxAmounts = lines.map(
-    (line, i) => (taxBasisOf(newBasicAmounts[i]) * line.tax_rate) / 100,
+    (line, i) => (taxBasisOf(newBasicAmounts[i], line) * addedRate(line)) / 100,
   );
 
   return toResult(lines, newBasicAmounts, newTaxAmounts);

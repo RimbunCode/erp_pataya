@@ -339,6 +339,56 @@ function tableProps(name) {
 
 const TAX_MODEL = "App\\Models\\Finances\\Tax";
 
+// Versi aturan pajak yang dikirim server (Requirement 12.8): faktor DPP dan tarif TIDAK lagi konstanta klien.
+// `tax-ppn` memakai DPP Nilai Lain 11/12; `tax-flat` berfaktor 1/1 (DPP tidak ditampilkan); `tax-half` berfaktor 1/2
+// (membuktikan faktor datang dari data, bukan 11/12 tetap); `tax-pph` adalah pajak potong (withholding).
+const TAX_RULE_VERSIONS = [
+  {
+    id: "ver-ppn",
+    tax_id: "tax-ppn",
+    status: "active",
+    effective_from: "2000-01-01",
+    effective_to: null,
+    rate: 11,
+    dpp_numerator: 11,
+    dpp_denominator: 12,
+    behavior: "additive",
+  },
+  {
+    id: "ver-flat",
+    tax_id: "tax-flat",
+    status: "active",
+    effective_from: "2000-01-01",
+    effective_to: null,
+    rate: 10,
+    dpp_numerator: 1,
+    dpp_denominator: 1,
+    behavior: "additive",
+  },
+  {
+    id: "ver-half",
+    tax_id: "tax-half",
+    status: "active",
+    effective_from: "2000-01-01",
+    effective_to: null,
+    rate: 10,
+    dpp_numerator: 1,
+    dpp_denominator: 2,
+    behavior: "additive",
+  },
+  {
+    id: "ver-pph",
+    tax_id: "tax-pph",
+    status: "active",
+    effective_from: "2000-01-01",
+    effective_to: null,
+    rate: 2,
+    dpp_numerator: 1,
+    dpp_denominator: 1,
+    behavior: "withholding",
+  },
+];
+
 describe("SalesInvoice Form", () => {
   beforeEach(() => {
     vi.clearAllMocks();
@@ -347,7 +397,10 @@ describe("SalesInvoice Form", () => {
     globalThis.__linkModelProps = {};
     globalThis.__contentProps = {};
     usePageMock.mockReturnValue({
-      props: { preferences: { default_currency_id: "idr" } },
+      props: {
+        preferences: { default_currency_id: "idr" },
+        taxRuleVersions: TAX_RULE_VERSIONS,
+      },
     });
     getDataModelMock.mockResolvedValue([]);
     formPageState = makeFormPageState();
@@ -679,12 +732,14 @@ describe("SalesInvoice Form", () => {
         data: {
           items: [
             {
+              tax: { id: "tax-ppn" },
               basic_amount: 1000,
               discount_amount: 0,
               dpp_amount: 916.67,
               tax_amount: 110,
             },
             {
+              tax: { id: "tax-ppn" },
               basic_amount: 500,
               discount_amount: 0,
               dpp_amount: 458.33,
@@ -973,13 +1028,25 @@ describe("SalesInvoice Form", () => {
     it("tanpa discount_on: discount_amount 0, dpp_amount = basic_amount * 11/12, tax_amount dari tax_rate item", () => {
       formPageState = makeFormPageState({
         data: {
-          items: [{ id: 1, quantity: 2, price: 500, tax: { rate: 11 } }],
+          items: [
+            {
+              id: 1,
+              quantity: 2,
+              price: 500,
+              tax: { id: "tax-ppn", rate: 11 },
+            },
+          ],
         },
       });
       render(<Form />);
 
       const { mapItem } = tableProps("SalesInvoiceItems");
-      const item = { id: 1, quantity: 2, price: 500, tax: { rate: 11 } };
+      const item = {
+        id: 1,
+        quantity: 2,
+        price: 500,
+        tax: { id: "tax-ppn", rate: 11 },
+      };
       const result = mapItem({ item, dataTable: [item], index: 0 });
 
       // basic_amount gross = 2*500 = 1000, tanpa discount_on hasil basic_amount
@@ -1017,6 +1084,54 @@ describe("SalesInvoice Form", () => {
       expect(result.discount_amount).toBeCloseTo(100, 2);
     });
 
+    it("faktor DPP dan tarif berasal dari versi aturan server, bukan 11/12 tetap (Requirement 12.8)", () => {
+      formPageState = makeFormPageState({ data: { items: [] } });
+      render(<Form />);
+
+      const { mapItem } = tableProps("SalesInvoiceItems");
+      const item = {
+        id: 1,
+        quantity: 1,
+        price: 1000,
+        tax: { id: "tax-half", rate: 999 },
+      };
+      const result = mapItem({ item, dataTable: [item], index: 0 });
+
+      // versi tax-half: faktor 1/2, tarif 10 (tarif master 999 diabaikan): dpp 500, pajak 50.
+      expect(result.dpp_amount).toBeCloseTo(500, 5);
+      expect(result.tax_amount).toBeCloseTo(50, 5);
+    });
+
+    it("baris tanpa pajak tidak punya angka DPP dan pajak", () => {
+      formPageState = makeFormPageState({ data: { items: [] } });
+      render(<Form />);
+
+      const { mapItem } = tableProps("SalesInvoiceItems");
+      const item = { id: 1, quantity: 1, price: 1000, tax: null };
+      const result = mapItem({ item, dataTable: [item], index: 0 });
+
+      expect(result.dpp_amount).toBe(0);
+      expect(result.tax_amount).toBe(0);
+      expect(result.withholding_amount).toBe(0);
+    });
+
+    it("pajak withholding tidak menambah pajak dan dihitung sebagai pemotongan terpisah", () => {
+      formPageState = makeFormPageState({ data: { items: [] } });
+      render(<Form />);
+
+      const { mapItem } = tableProps("SalesInvoiceItems");
+      const item = {
+        id: 1,
+        quantity: 1,
+        price: 1000,
+        tax: { id: "tax-pph", rate: 2 },
+      };
+      const result = mapItem({ item, dataTable: [item], index: 0 });
+
+      expect(result.tax_amount).toBe(0);
+      expect(result.withholding_amount).toBeCloseTo(20, 5);
+    });
+
     it("meneruskan value={data.items} dan valueBefore={dataBefore.items} apa adanya ke FormTable", () => {
       const items = [{ id: 1, quantity: 1 }];
       const dataBefore = { items: [{ id: 1, quantity: 2 }] };
@@ -1033,7 +1148,10 @@ describe("SalesInvoice Form", () => {
   describe("kolom item: SalesOrderItemLinkModel filter & carry-over field", () => {
     it("menampilkan Total Harga bruto dan DPP sebagai kolom read-only", () => {
       formPageState = makeFormPageState({
-        data: { currency: { code: "idr" }, items: [{ id: 1 }] },
+        data: {
+          currency: { code: "idr" },
+          items: [{ id: 1, tax: { id: "tax-ppn" } }],
+        },
       });
       render(<Form />);
 
@@ -1062,6 +1180,7 @@ describe("SalesInvoice Form", () => {
       });
       const dppAmountInput = dppAmountColumn.cell({
         data: 825,
+        dataRow: { tax: { id: "tax-ppn" } },
         attributes: {},
       });
 
@@ -1321,12 +1440,14 @@ describe("SalesInvoice Form", () => {
         data: {
           items: [
             {
+              tax: { id: "tax-ppn" },
               basic_amount: 1000,
               discount_amount: 100,
               dpp_amount: 825,
               tax_amount: 99,
             },
             {
+              tax: { id: "tax-ppn" },
               asset_id: "A1",
               basic_amount: 500,
               discount_amount: 0,
@@ -1345,11 +1466,12 @@ describe("SalesInvoice Form", () => {
     });
 
     it("mapItem mengalokasikan diskon pro-rata ke semua baris (baris asset ikut memikul)", () => {
+      const ppn = { id: "tax-ppn", rate: 11 };
       const items = [
-        { id: 1, quantity: 1, price: 1000, tax: { rate: 11 } },
-        { id: 2, quantity: 1, price: 1000, tax: { rate: 11 } },
-        { id: 3, asset_id: "A1", quantity: 1, price: 2000, tax: { rate: 11 } },
-        { id: 4, asset_id: "A2", quantity: 1, price: 6000, tax: { rate: 11 } },
+        { id: 1, quantity: 1, price: 1000, tax: ppn },
+        { id: 2, quantity: 1, price: 1000, tax: ppn },
+        { id: 3, asset_id: "A1", quantity: 1, price: 2000, tax: ppn },
+        { id: 4, asset_id: "A2", quantity: 1, price: 6000, tax: ppn },
       ];
       formPageState = makeFormPageState({
         data: {
@@ -1514,6 +1636,100 @@ describe("SalesInvoice Form", () => {
         .filter(([, path]) => path.split(".").pop().endsWith("_id"));
 
       expect(columnLikeRelations).toEqual([]);
+    });
+  });
+
+  describe("tampilan DPP mengikuti faktor versi aturan pajak baris (Requirement 12.8)", () => {
+    const dppColumn = () =>
+      formTablePropsSpy.mock.calls
+        .at(-1)[0]
+        .columns.find((column) => column.name === "dpp_amount");
+
+    it("kolom dan ringkasan DPP disembunyikan bila semua baris tanpa pajak atau berfaktor 1/1", () => {
+      formPageState = makeFormPageState({
+        data: {
+          items: [
+            { id: 1, basic_amount: 1000, dpp_amount: 1000, tax: null },
+            {
+              id: 2,
+              basic_amount: 500,
+              dpp_amount: 500,
+              tax: { id: "tax-flat" },
+            },
+          ],
+        },
+      });
+      render(<Form />);
+
+      expect(dppColumn().show).toBe(false);
+      expect(
+        screen.queryByText(/finances\.salesInvoice\.columns\.dpp_amount/),
+      ).not.toBeInTheDocument();
+    });
+
+    it("sel DPP kosong untuk baris tanpa pajak dan terisi untuk baris berfaktor selain 1/1", () => {
+      formPageState = makeFormPageState({
+        data: {
+          items: [
+            { id: 1, basic_amount: 1000, dpp_amount: 1000, tax: null },
+            {
+              id: 2,
+              basic_amount: 1000,
+              dpp_amount: 916.67,
+              tax: { id: "tax-ppn" },
+            },
+          ],
+        },
+      });
+      render(<Form />);
+
+      expect(dppColumn().show).toBe(true);
+      expect(
+        dppColumn().cell({
+          data: 1000,
+          dataRow: { tax: null },
+          attributes: {},
+        }),
+      ).toBeNull();
+      expect(
+        dppColumn().cell({
+          data: 916.67,
+          dataRow: { tax: { id: "tax-ppn" } },
+          attributes: {},
+        }).props.value,
+      ).toBe(916.67);
+    });
+
+    it("ringkasan DPP hanya menjumlah baris berfaktor selain 1/1 dan total dikurangi pajak potong", () => {
+      formPageState = makeFormPageState({
+        data: {
+          items: [
+            {
+              id: 1,
+              basic_amount: 1000,
+              dpp_amount: 1000,
+              tax_amount: 0,
+              withholding_amount: 20,
+              tax: { id: "tax-pph" },
+            },
+            {
+              id: 2,
+              basic_amount: 1200,
+              dpp_amount: 1100,
+              tax_amount: 121,
+              tax: { id: "tax-ppn" },
+            },
+          ],
+        },
+      });
+      render(<Form />);
+
+      // DPP hanya baris PPN (1100), bukan 1000 baris PPh berfaktor 1/1.
+      expect(screen.getAllByDisplayValue("1100").length).toBeGreaterThan(0);
+      // total = (1000 + 1200) + 121 - 20 = 2301
+      expect(screen.getAllByDisplayValue("2301").length).toBeGreaterThan(0);
+      // pemotongan tampil terpisah
+      expect(screen.getAllByDisplayValue("20").length).toBeGreaterThan(0);
     });
   });
 });
