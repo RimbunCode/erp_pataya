@@ -2,14 +2,14 @@
 
 ## Overview
 
-Urutan: (1) mode multi value `LinkModel` dengan chip + penyelarasan `MultiSelect`, (2) skema + model + migrasi data, (3) aturan kombinasi, (4) perhitungan + alokasi diskon, (5) jurnal, (6) snapshot/Faktur Pajak/cetak, (7) request + service, (8) form, (9) skenario S2 dan checkpoint. Lint/Pint sekali di akhir (CLAUDE.md).
+Urutan: (1) mode multi value `LinkModel` dengan chip + penyelarasan `MultiSelect`, (2) skema + model + migrasi data, (3) aturan kombinasi, (4) perhitungan + alokasi diskon, (5) jurnal, (6) snapshot/Faktur Pajak/cetak, (7) request + service, (8) form invoice, (9) order/quotation, (10) form order/quotation, (11) pajak default item, (12) skenario S2 dan checkpoint. Lint/Pint sekali di akhir (CLAUDE.md).
 
-**Prasyarat**: Fase 3 Tax Engine selesai dan ter-merge ke `feat/finance-engine` (PR #334, #335, #336). Pertanyaan Q-MT-1 sudah diputuskan (2026-11-28: bangun di `LinkModel`, chip, klik label membuka detail, `MultiSelect` mengikuti). Q-MT-2 s.d. Q-MT-11 (requirements.md) dijawab pemilik produk sebelum task terkait dimulai; terutama Q-MT-2 (lingkup) dan Q-MT-11 (default vs opt-in chip `MultiSelect`, sebelum Task 1.6). Branch baru dari `origin/feat/finance-engine` terbaru, PR base `feat/finance-engine`, label `skip-deploy` bila belum siap deploy.
+**Prasyarat**: Fase 3 Tax Engine selesai dan ter-merge ke `feat/finance-engine` (PR #334, #335, #336). Pertanyaan Q-MT-1 sudah diputuskan (2026-11-28: bangun di `LinkModel`, chip, klik label membuka detail, `MultiSelect` mengikuti). Q-MT-2 s.d. Q-MT-5, Q-MT-8 s.d. Q-MT-11 sudah diputuskan (2026-11-28). Yang MASIH terbuka dan memblokir task terkait: Q-MT-6 (pajak atas pajak, Task 4), Q-MT-7 (definisi `dpp_amount`, Task 4.3 dan 6.2), Q-MT-12 (perhitungan order, Task 9), Q-MT-13 (prioritas default, Task 11). Branch baru dari `origin/feat/finance-engine` terbaru, PR base `feat/finance-engine`, label `skip-deploy` bila belum siap deploy.
 
 **Aturan eksekusi**:
 - Item satu pajak harus identik byte-demi-byte dengan perilaku sebelum spek ini; jalankan test pajak existing di setiap task.
 - Hanya `InvoiceItemTaxCalculator` boleh menulis pivot dan agregat item.
-- Jangan mengubah SO/PO/Quotation/DN (Q-MT-2).
+- Delivery Note dan Purchase Receipt tidak berubah. Task 9-11 (order, form order, default item) dikerjakan setelah Task 2-8 stabil dan dapat dirilis terpisah.
 - Task bertanda `*` opsional; konfirmasi sebelum dilewati.
 
 ## Tasks
@@ -94,8 +94,38 @@ Urutan: (1) mode multi value `LinkModel` dengan chip + penyelarasan `MultiSelect
   - [ ] 8.4 Perbarui `Form.rtl.test.jsx` SI/PI dengan kasus banyak pajak
     - _Requirements: 10.7_
 
-- [ ] 9. Skenario S2 dan checkpoint
-  - [ ] 9.1 Test end-to-end S2 (PPN 12% + PPh 23 2% satu baris jasa): header NET, jurnal, Faktur Pajak, snapshot, cetak; ulangi untuk PI
-    - _Requirements: 12.5_
-  - [ ] 9.2 Checkpoint: full test suite PHP dan Vitest, konfirmasi ke user; Pint/ESLint sekali; catat keputusan Q-MT di `docs/prd/finance-decision-log.md` dan runbook deploy
+- [ ] 9. Quotation, Sales Order, Purchase Order (Requirement 14; menunggu Q-MT-12)
+  - [ ] 9.1 Migrasi pivot `quotation_item_taxes`, `sales_order_item_taxes`, `purchase_order_item_taxes` + backfill berparitas + `down()`; model dan relasi
+    - _Requirements: 14.1, 14.10, 7.1-7.4_
+  - [ ] 9.2 Perhitungan order/quotation sesuai Q-MT-12 (A: `InvoiceItemTaxCalculator` diparameterisasi untuk kolom harga order; B: hitung sederhana per pajak); `DocumentDiscountCalculator::applyToItems()` mengikuti
+    - _Requirements: 14.2, 14.3_
+  - [ ] 9.3 `SalesOrderService`, `PurchaseOrderService`, `QuotationService`: normalisasi `taxes`, cermin Pajak Utama, sinkron pivot, `keepTaxRate` per pajak, aturan kombinasi di FormRequest masing-masing
+    - _Requirements: 14.1, 14.6, 8.1-8.4_
+  - [ ] 9.4 Alur order ke invoice: kunci pengelompokan himpunan `tax_id`, invoice membawa seluruh pajak; Quotation ke SO salin utuh; `InvoiceBilledValueResolver` sesuai keputusan
+    - _Requirements: 14.4, 14.5, 14.7_
+  - [ ] 9.5 Test order/quotation (satu pajak identik, banyak pajak, order ke invoice, toleransi penagihan, migrasi)
+    - _Requirements: 14.1-14.11, 12.1_
+
+- [ ] 10. Form Quotation, Sales Order, Purchase Order (Requirement 14.8-14.9)
+  - [ ] 10.1 `SalesOrders/Form.jsx`, `PurchaseOrders/Form.jsx` (+ `purchaseOrderAmounts.js`, `FromRequests/draftData.js`, `reviewData.js`), `CRM/Quotations/QuotationItems.jsx` memakai `TaxLinkModel multiple` dan hitung klien bersama
+    - _Requirements: 14.8_
+  - [ ] 10.2 Pastikan `AdditionalDiscount.jsx` dan `lib/taxRules.js` tetap utuh untuk satu pajak; perbarui test form order dan quotation
+    - _Requirements: 14.9_
+
+- [ ] 11. Pajak default per item master (Requirement 15; menunggu Q-MT-13)
+  - [ ] 11.1 Migrasi `item_default_taxes` + model relasi `salesDefaultTaxes()`/`purchaseDefaultTaxes()` pada `Item` + `configColumns` + `initPermissions()`
+    - _Requirements: 15.1, 15.9_
+  - [ ] 11.2 `ItemRequest`/`ItemService`: terima dan sinkron `default_sales_taxes`/`default_purchase_taxes` (aturan kombinasi, urutan)
+    - _Requirements: 15.1, 15.2_
+  - [ ] 11.3 `DocumentDefaultsResolver::resolveForItems()` memakai default item sesuai prioritas Q-MT-13, satu query massal, filter pajak terhapus
+    - _Requirements: 15.3, 15.4, 15.7, 15.8_
+  - [ ] 11.4 Form Item: dua `TaxLinkModel multiple`; `lib/documentDefaults.js` (`applyToNewLine`/`useDocumentDefaults`) mengisi `taxes` array pada seluruh form dokumen
+    - _Requirements: 15.1, 15.5, 15.6_
+  - [ ] 11.5 Test (simpan default, kombinasi, prioritas, prefill di SO/SI/PO/PI/Quotation, pajak default terhapus)
+    - _Requirements: 15.10_
+
+- [ ] 12. Skenario S2 dan checkpoint
+  - [ ] 12.1 Test end-to-end S2 (PPN 12% + PPh 23 2% satu baris jasa): header NET, jurnal, Faktur Pajak, snapshot, cetak; ulangi untuk PI; tambahkan rantai Quotation ke SO ke SI dengan pajak default item
+    - _Requirements: 12.5, 14.4, 15.5_
+  - [ ] 12.2 Checkpoint: full test suite PHP dan Vitest, konfirmasi ke user; Pint/ESLint sekali; catat keputusan Q-MT di `docs/prd/finance-decision-log.md` dan runbook deploy
     - _Requirements: 12.1_

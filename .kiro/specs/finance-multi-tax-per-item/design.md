@@ -2,7 +2,7 @@
 
 ## Overview
 
-Satu item Sales/Purchase Invoice dapat membawa beberapa pajak. Prinsip desain: **tabel pivot menyimpan kebenaran per pajak; kolom item lama menjadi agregat/cermin**. Dengan begitu header dokumen, `InvoiceLineAttributesBuilder`, Posting Rule, view laporan, dan cetak lama tetap membaca kolom item yang sama, sedangkan jurnal, snapshot, dan form membaca pivot.
+Satu item dokumen berpajak (Quotation, Sales Order, Sales Invoice, Purchase Order, Purchase Invoice) dapat membawa beberapa pajak, dan item master punya pajak default (multi) untuk penjualan dan pembelian (keputusan pemilik produk 2026-11-28: Q-MT-2 dan Q-MT-10). Prinsip desain: **tabel pivot menyimpan kebenaran per pajak; kolom item lama menjadi agregat/cermin**. Dengan begitu header dokumen, `InvoiceLineAttributesBuilder`, Posting Rule, view laporan, dan cetak lama tetap membaca kolom item yang sama, sedangkan jurnal, snapshot, dan form membaca pivot.
 
 `TaxEngine` tidak berubah perilakunya (kait D-28: `TaxInput` per pasangan, `lineRef` boleh berulang). Yang berubah ada di lapisan pemanggil: `InvoiceItemTaxCalculator`, `DocumentTaxRules`, `DocumentDiscountCalculator`, `InvoiceTaxComponentsBuilder`, `DocumentTaxSnapshot`, service dokumen, FormRequest, dan form React.
 
@@ -36,9 +36,7 @@ flowchart TD
 
 ### 1. Skema (jawaban: tabel pivot, bukan JSON dan bukan kolom-kolom)
 
-Dua tabel, mengikuti pola repo (tabel terpisah per jenis dokumen, ULID):
-
-`sales_invoice_item_taxes` dan `purchase_invoice_item_taxes`
+Lima tabel pivot dokumen, mengikuti pola repo (tabel terpisah per jenis dokumen, ULID): `sales_invoice_item_taxes`, `purchase_invoice_item_taxes`, `sales_order_item_taxes`, `purchase_order_item_taxes`, `quotation_item_taxes`. Satu pivot tambahan untuk default item: `item_default_taxes` (bagian 12). Semua pivot dokumen berstruktur sama:
 
 | Kolom | Tipe | Catatan |
 |---|---|---|
@@ -85,7 +83,7 @@ Pada `fillItemRelations()`: `data['taxes']` dinormalisasi (`tax` tunggal → `[t
 1. Untuk tiap item, tiap pajak terpilih: `new TaxInput($taxId, $net, $date, $minorUnit, lineRef: "{$itemId}#{$taxId}")`.
 2. `TaxEngine::calculateDocument($inputs)` sekali untuk seluruh dokumen (pembulatan `per_document` lintas item dan lintas pajak berversi sama).
 3. Tiap komponen ditulis ke pivot (`updateOrCreate` pada kunci item+pajak; baris pivot yang tidak lagi dipilih dihapus).
-4. Item di-`forceFill`: `tax_amount` = Σ komponen penambah, `withholding_amount` = Σ komponen potong, `dpp_amount` = DPP komponen penambah pertama (fallback komponen pertama; Q-MT-7), `amount` PI = net + `tax_amount`.
+4. Item di-`forceFill`: `tax_amount` = Σ komponen penambah, `withholding_amount` = Σ komponen potong, `dpp_amount` = DPP komponen berkategori PPN pertama; bila tak ada PPN, komponen penambah pertama; bila tak ada penambah, komponen pertama (usulan Q-MT-7, menunggu keputusan), `amount` PI = net + `tax_amount`.
 5. Mengembalikan total dokumen (`net`, `dpp`, `tax`, `withholding`), `dpp` = Σ item `dpp_amount` seperti sekarang.
 
 Basis sama untuk semua pajak; tidak ada pajak atas pajak (Q-MT-6). Item satu pajak menghasilkan angka identik (dijaga test karakterisasi).
@@ -140,7 +138,29 @@ Tidak butuh jendela pemeliharaan (aditif, tidak menyentuh kolom item). Produksi 
 
 ### 10. Batas lingkup dan kompatibilitas
 
-Termasuk: SI, PI, retur, off-source item (SI/PI), cetak, snapshot, Faktur Pajak, form. Tidak termasuk (Q-MT-2): SO, PO, Quotation, Delivery Note, aturan default multi pajak (Q-MT-10), pajak atas pajak (Q-MT-6), penghapusan kolom item lama (Q-MT-5), perubahan view laporan (Q-MT-9). Retur membawa `taxes` dari request seperti sekarang; form retur memprefill dari item asal.
+Termasuk (Q-MT-2, diputuskan): Quotation, SO, SI, PO, PI, retur, off-source item, cetak, snapshot, Faktur Pajak, form, dan pajak default item master. Tidak berubah: Delivery Note dan Purchase Receipt (tidak punya kolom pajak per item), aturan bersyarat `default_tax_rules` (tetap satu pajak per aturan), pajak atas pajak (Q-MT-6, menunggu), penghapusan kolom item lama (Q-MT-5, spek lanjutan), perubahan view laporan (Q-MT-9, didokumentasikan). Retur membawa `taxes` dari request seperti sekarang; form retur memprefill dari item asal.
+
+### 11. Quotation, Sales Order, Purchase Order (Requirement 14)
+
+Temuan telaah kode: ketiga dokumen ini TIDAK memakai `TaxEngine` maupun versi aturan. `SalesOrderService`/`PurchaseOrderService` mengisi `tax_id` dan `tax_rate = taxes.rate`, lalu `DocumentDiscountCalculator::applyToItems()` menghitung `tax_amount = basic × tax_rate / 100` (tanpa faktor DPP, tanpa pajak potong); `QuotationService::fillItemRelations()` melakukan hal yang sama dan mempertahankan `keepTaxRate` saat update. Akibatnya total order PPN 12% sudah berbeda dari invoice (12% penuh vs 12% × 11/12). Pemecahan baris SO/PO ke invoice mengelompokkan per `rate|tax_id|tax_rate|gudang`.
+
+Rancangan (bergantung Q-MT-12):
+- **Opsi A (usulan): order dan quotation memakai `InvoiceItemTaxCalculator`** yang sama (diparameterisasi: nama kolom harga `rate`/`price`, ada/tidaknya `amount`), sehingga pivot, agregat item, dan total order = invoice. `DocumentTaxRules` meresolve versi pada tanggal dokumen order. `applyToItems()` untuk order digantikan; jalur `allocate()` yang dibagi dengan klien tetap satu sumber rumus. Dokumen order lama tidak dihitung ulang sampai diedit. Pajak order tanpa versi berlaku gagal tertutup (Q-P3-5), sehingga `finance:init-tax-rules` sudah menjadi prasyarat (sudah dijalankan untuk invoice).
+- **Opsi B: hitung sederhana per pajak**: `tax_amount` item = Σ `basic_net × rate_j / 100` untuk pajak penambah; pajak potong dicatat terpisah (kolom baru `withholding_amount` pada tabel order) atau diabaikan; wajib dinyatakan eksplisit. Tidak menyelesaikan selisih order vs invoice.
+- Pivot order/quotation memuat kolom yang sama dengan pivot invoice; pada Opsi B kolom `dpp_amount`/`dpp_factor`/`tax_rule_version_id` bernilai default (basic, 1, null).
+- **Dari order ke invoice** (`SalesOrderService` baris sekitar 407, `PurchaseOrderService` baris sekitar 459-560): kunci pengelompokan memakai himpunan terurut `tax_id` (mis. `implode(',', sorted ids)`) dan payload invoice membawa `taxes` seluruh pajak; `InvoiceBilledValueResolver` mengganti `tax_rate` tunggal dengan Σ pajak penambah yang dihitung dari pajak invoice, dan bila pajak invoice berbeda dari order, perbandingan dilakukan pada nilai sebelum pajak (usulan) agar penambahan PPh di invoice tidak memicu pelanggaran toleransi.
+- **Quotation → SO**: salin `taxes`. `QuotationService::keepTaxRate` dipertahankan per pajak (tarif lama dipertahankan bila pajak sama).
+- Form: `SalesOrders/Form.jsx`, `PurchaseOrders/Form.jsx` (+ `purchaseOrderAmounts.js`, `FromRequests/draftData.js`, `reviewData.js`), `CRM/Quotations/QuotationItems.jsx` memakai `TaxLinkModel multiple`; `lib/taxRules.js`, `lib/discountAllocation.js`, dan `AdditionalDiscount.jsx` dipakai bersama sehingga perubahan bersifat tambahan (parameter `taxes[]` opsional; bentuk satu pajak lama tetap berjalan).
+- Spek `finance-p3-tax-engine` Requirement 12.7 ("konversi tidak mengubah dokumen order") tetap benar untuk Bagian B Fase 3; spek ini yang mengubah order, dicatat di decision log.
+
+### 12. Pajak default per item master (Requirement 15)
+
+- **Skema:** `item_default_taxes` (`id` ulid, `item_id` FK `items` cascade, `tax_id` FK `taxes`, `module` string `sales`|`purchase`, `position`, timestamps; UNIQUE `item_id, module, tax_id`). Pada `Item`: relasi `salesDefaultTaxes()` dan `purchaseDefaultTaxes()` (belongsToMany `Tax`, `wherePivot('module', ...)`, berurut `position`). Default di level `Item` induk, bukan varian (sama dengan `DocumentDefaultsResolver` yang membaca `type`, `is_stock_item`, `category_id` dari `Item`).
+- **Resolver:** `DocumentDefaultsResolver::resolveForItems()` sudah mengembalikan `tax_ids`/`taxes` sebagai array (sekarang berisi 0 atau 1 elemen). Prioritas (usulan Q-MT-13): (1) `item_default_taxes` untuk modul dokumen (`$type->module()`), diambil massal untuk semua `itemIds` (satu query, tanpa N+1) dan difilter pajak yang tidak terhapus lunak; (2) aturan bersyarat `default_tax_rules`; (3) default modul. `tax_optional` hanya dari aturan bersyarat (Req 15.8). Default item kosong atau seluruhnya rusak jatuh ke tingkat (2).
+- **Request/service Item:** `ItemRequest` menerima `default_sales_taxes` dan `default_purchase_taxes` (array objek `{id}`, `ExistsExcludingTrashed('taxes')`, `ItemTaxSelection`); `ItemService` menyinkronkan dengan `sync()` berurutan (pola `UserController::roles()->sync`, dengan `position` lewat `syncWithPivotValues`/attach berurut).
+- **Form Item:** dua `TaxLinkModel multiple` di seksi penjualan dan pembelian `Inventory/Items/Form.jsx`; value berupa array objek pajak; chip dengan navigasi ke halaman Pajak.
+- **Form dokumen:** `applyToNewLine`/`useDocumentDefaults` (`lib/documentDefaults.js`) mengisi `taxes` dari `taxes` hasil resolver (array), bukan satu objek.
+- **Cakupan modul:** `DefaultsDocumentType::module()` memetakan Quotation/SO/SI ke `sales` dan PO/PI ke `purchase`.
 
 ## Data Models
 
@@ -162,5 +182,7 @@ PHPUnit: unit `ItemTaxSelection`; `InvoiceItemTaxCalculator` (satu pajak identik
 
 1. `LinkModel` dan `MultiSelect` komponen inti: regresi halaman lain (MultiSelect dipakai 7 file, termasuk filter tabel yang sempit). Mitigasi: prop opt-in, tes regresi mode tunggal dan multi-model.
 2. Dua sumber kebenaran (pivot vs agregat item) bisa selisih bila penulis lain menyentuh item. Mitigasi: hanya `InvoiceItemTaxCalculator` menulis keduanya; tes invarian; `ComputesLegacyInvoiceItemAmounts` tetap hanya untuk satu pajak.
-3. SO total ≠ invoice total bila PPh ditambah di invoice (Q-MT-2). Mitigasi: dokumentasi dan peringatan toleransi penagihan bila perlu.
+3. Order dan invoice dapat berbeda pajak bila pengguna mengubah pajak di invoice. Mitigasi: toleransi penagihan dibandingkan pada nilai sebelum pajak (Q-MT-12) dan invoice dari order membawa seluruh pajak order.
 4. Faktor DPP campuran pada satu item mempersulit satu kolom DPP di UI (Q-MT-7).
+5. Cakupan membesar (5 dokumen + item master + 5 form). Mitigasi: urutan task: invoice dulu (Task 2-8), order/quotation (Task 9-10), default item (Task 11), karena tiap tahap dapat dirilis terpisah.
+6. Perhitungan order berpindah ke `TaxEngine` (Opsi A) mengubah total order saat diedit dan membuat pajak order tanpa versi gagal tertutup; ditandai Q-MT-12.
