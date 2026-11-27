@@ -8,6 +8,7 @@ use App\Events\Core\DocumentSubmitted;
 use App\Events\Finances\PaymentApplied;
 use App\Exceptions\Finances\DuplicatePostingException;
 use App\Exceptions\Finances\UnresolvedAccountRoleException;
+use App\Models\Core\ApprovalInstance;
 use App\Models\Core\CoreSetting;
 use App\Models\Core\FormatingSeries;
 use App\Models\Finances\PaymentEntry;
@@ -218,6 +219,7 @@ class PaymentEntryService implements SubmitableService {
 
     public function cancel(Model $paymentEntry): mixed {
         $result = DB::transaction(function () use ($paymentEntry) {
+            ApprovalInstance::lockForDocument($paymentEntry);
             // Urutan kunci sama dengan onApproved: paymentable dulu, lalu Payment Entry. withTrashed: paymentable
             // yang di-soft-delete tetap dikunci dan dibalik.
             $paymentable = $paymentEntry->paymentable_type

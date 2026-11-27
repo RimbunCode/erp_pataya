@@ -14,6 +14,7 @@ use App\Events\Sales\Order\DocumentDeliveryStatusRecalculationRequested;
 use App\Models\Asset\Asset;
 use App\Models\Asset\AssetMovement;
 use App\Models\Asset\AssetService;
+use App\Models\Core\ApprovalInstance;
 use App\Models\Core\FormatingSeries;
 use App\Models\Core\GlPostingStatus;
 use App\Models\Core\ModelConnection;
@@ -607,6 +608,7 @@ class DeliveryNoteService implements SubmitableService {
 
     public function cancel(Model $deliveryNote): mixed {
         DB::transaction(function () use ($deliveryNote) {
+            ApprovalInstance::lockForDocument($deliveryNote);
             $deliveryNote->update([
                 'status' => FormStatus::CANCELED,
             ]);

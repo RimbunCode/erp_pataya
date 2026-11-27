@@ -7,6 +7,7 @@ use App\Enums\FormStatus;
 use App\Events\Core\DocumentSubmitted;
 use App\Exceptions\Finances\DuplicatePostingException;
 use App\Exceptions\Finances\UnresolvedAccountRoleException;
+use App\Models\Core\ApprovalInstance;
 use App\Models\Core\FormatingSeries;
 use App\Models\Finances\Account;
 use App\Models\Finances\Journal;
@@ -653,6 +654,7 @@ class StockEntryService implements SubmitableService {
 
     public function cancel(Model $stockEntry): mixed {
         DB::beginTransaction();
+        ApprovalInstance::lockForDocument($stockEntry);
         $stockEntry->update([
             'status' => [
                 FormStatus::CANCELED,

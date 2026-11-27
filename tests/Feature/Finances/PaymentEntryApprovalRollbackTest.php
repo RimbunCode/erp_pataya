@@ -17,6 +17,7 @@ use App\Models\Finances\PostingProfile;
 use App\Models\Finances\SalesInvoice;
 use App\Models\User\Role;
 use App\Models\User\User;
+use App\Services\Finances\PaymentEntryService;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Event;
@@ -160,5 +161,35 @@ class PaymentEntryApprovalRollbackTest extends TestCase {
         $this->assertSame(FormStatus::APPROVED->value, $this->step->fresh()->status->value);
         $this->assertSame(FormStatus::APPROVED->value, $this->step->approvalInstance->fresh()->status->value);
         $this->assertContains(FormStatus::PAID, $this->payment->fresh()->status);
+    }
+
+    public function test_cancel_locks_the_approval_instance_before_the_document_and_cancels_the_pending_step(): void {
+        // Q-P2-42: urutan kunci cancel = approve (instance -> step -> dokumen). SQLite tidak menampilkan
+        // `for update`, jadi urutan dibuktikan lewat urutan query: instance dibaca sebelum paymentable/dokumen.
+        $this->createInstance(false);
+        $payment = $this->payment->fresh();
+        $queries = [];
+        DB::listen(function ($query) use (&$queries): void {
+            $queries[] = $query->sql;
+        });
+
+        app(PaymentEntryService::class)->cancel($payment);
+
+        $position = function (string $table) use ($queries): int|false {
+            foreach ($queries as $index => $sql) {
+                if (str_contains($sql, "from \"{$table}\"")) {
+                    return $index;
+                }
+            }
+
+            return false;
+        };
+        $instance = $position('approval_instances');
+        $this->assertNotFalse($instance);
+        $this->assertLessThan($position('sales_invoices'), $instance, 'Instance approval dikunci sebelum paymentable.');
+        $this->assertLessThan($position('payment_entries'), $instance, 'Instance approval dikunci sebelum Payment Entry.');
+
+        $this->assertContains(FormStatus::CANCELED, $this->payment->fresh()->status);
+        $this->assertSame(FormStatus::CANCELED->value, $this->step->fresh()->status->value);
     }
 }

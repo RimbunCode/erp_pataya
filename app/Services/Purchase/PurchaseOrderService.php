@@ -6,6 +6,7 @@ use App\Contracts\SubmitableService;
 use App\Enums\FormStatus;
 use App\Events\Inventory\StockReservationChanged;
 use App\Models\Asset\AssetServiceConsumedItem;
+use App\Models\Core\ApprovalInstance;
 use App\Models\Core\CoreSetting;
 use App\Models\Core\FormatingSeries;
 use App\Models\Core\ModelConnection;
@@ -387,6 +388,7 @@ class PurchaseOrderService implements SubmitableService {
 
     public function cancel(Model $purchaseOrder): mixed {
         DB::beginTransaction();
+        ApprovalInstance::lockForDocument($purchaseOrder);
         $purchaseOrder->update([
             'status' => [
                 FormStatus::CANCELED,
