@@ -15,7 +15,6 @@ function pad(value) {
  * Hari (Y-m-d) dari tanggal dokumen TANPA konversi zona waktu: string dari server diambil bagian tanggalnya apa
  * adanya (tanggal bisnis yang sama dengan yang dipakai server memilih versi aturan); objek Date dibaca dengan
  * komponen lokal; kosong/tidak valid = hari ini (lokal).
- *
  * @param {string|Date|null|undefined} date
  * @returns {string}
  */
