@@ -494,8 +494,8 @@ class InvoiceCalcConversionTest extends TestCase {
 
     public function test_the_invoice_pages_receive_rule_versions_with_factor_rate_and_behavior(): void {
         $this->withoutVite();
-        $ppn = $this->taxWith('PPN 11/12', 12, 11, 12);
-        $pph = $this->withholdingTax(2);
+        $ppn     = $this->taxWith('PPN 11/12', 12, 11, 12);
+        $pph     = $this->withholdingTax(2);
         $invoice = $this->createSalesInvoice([['tax' => $ppn->getKey(), 'price' => 1200]]);
 
         $flags   = ['select' => true, 'read' => true, 'create' => true];

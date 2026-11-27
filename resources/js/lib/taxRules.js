@@ -16,7 +16,6 @@ function toDay(date) {
 /**
  * Versi aturan untuk sebuah pajak: versi yang tersimpan pada baris (`versionId`, dokumen yang sudah disimpan) bila
  * cocok dengan pajaknya; selain itu versi `active` yang berlaku pada tanggal dokumen (sama dengan resolver server).
- *
  * @param {Array<object>} versions `taxRuleVersions` dari server
  * @param {string|null|undefined} taxId id pajak baris
  * @param {string|Date|null|undefined} date tanggal dokumen
