@@ -12,6 +12,8 @@ return [
         'effective_to'          => 'Berlaku Sampai',
         'rate'                  => 'Tarif (%)',
         'dpp_factor'            => 'Faktor DPP',
+        'dpp_numerator'         => 'Faktor DPP: Pembilang',
+        'dpp_denominator'       => 'Faktor DPP: Penyebut',
         'rounding_mode'         => 'Pembulatan',
         'rounding_mode.options' => [
             'per_line'     => 'Per Baris',
@@ -44,5 +46,53 @@ return [
         'unknown_tax'                    => 'Pajak tidak ditemukan.',
         'delete_not_draft'               => 'Hanya versi draft yang dapat dihapus.',
         'no_effective_rule'              => 'Tidak ada versi aturan pajak yang berlaku untuk ":tax" pada tanggal :date.',
+    ],
+
+    'messages' => [
+        'created'   => 'Versi :version berhasil dibuat sebagai draft.',
+        'updated'   => 'Versi :version berhasil diperbarui.',
+        'discarded' => 'Draft versi :version berhasil dihapus.',
+        'activated' => 'Versi :version diaktifkan.',
+        'retired'   => 'Versi :version dipensiunkan.',
+    ],
+
+    'tab' => [
+        'title'           => 'Versi Aturan',
+        'empty'           => 'Belum ada versi aturan untuk pajak ini.',
+        'no_active'       => 'Pajak ini belum punya versi aturan aktif sehingga belum dapat dipakai pada invoice. Buat versi baru lalu aktifkan.',
+        'dpp_hint'        => 'Selama kolom hitung dokumen belum dikonversi, hanya faktor DPP 11/12 yang dapat diaktifkan.',
+        'created_by'      => 'Dibuat oleh',
+        'add'             => 'Versi Baru',
+        'read_only_notes' => 'Versi aktif dan pensiun tidak dapat diubah; buat versi baru dengan tanggal berlaku baru.',
+        'actions'         => [
+            'edit'     => 'Ubah',
+            'activate' => 'Aktifkan',
+            'retire'   => 'Pensiunkan',
+            'discard'  => 'Hapus Draft',
+        ],
+        'form' => [
+            'new_title'  => 'Versi Aturan Baru',
+            'edit_title' => 'Ubah Draft Versi :version',
+            'save'       => 'Simpan Draft',
+            'cancel'     => 'Batal',
+        ],
+        'confirm' => [
+            'cancel'   => 'Batal',
+            'activate' => [
+                'title'       => 'Aktifkan versi aturan?',
+                'description' => 'Versi :version mulai dipakai untuk dokumen bertanggal pada rentang berlakunya. Versi aktif tidak dapat diubah lagi.',
+                'confirm'     => 'Aktifkan',
+            ],
+            'retire' => [
+                'title'       => 'Pensiunkan versi aturan?',
+                'description' => 'Versi :version tidak lagi dipilih untuk dokumen baru. Dokumen yang sudah ada tidak berubah, tetapi tanggal yang tidak tercakup versi aktif lain akan gagal saat dokumen dibuat.',
+                'confirm'     => 'Pensiunkan',
+            ],
+            'discard' => [
+                'title'       => 'Hapus draft?',
+                'description' => 'Draft versi :version akan dihapus.',
+                'confirm'     => 'Hapus',
+            ],
+        ],
     ],
 ];

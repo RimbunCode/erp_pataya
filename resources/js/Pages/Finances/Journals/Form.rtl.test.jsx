@@ -285,4 +285,90 @@ describe("Finances Journals Form", () => {
       "1.234.567,50",
     );
   });
+
+  it("baris pajak menautkan versi aturan ke halaman Pajak bila pembaca boleh melihatnya", () => {
+    render(
+      <Form
+        lines={[
+          line({
+            tax_rule_version: {
+              id: "v1",
+              number: 2,
+              tax_id: "tax-9",
+              tax_name: "PPN 12%",
+              missing: false,
+            },
+          }),
+        ]}
+        totals={null}
+        minorUnit={2}
+        canViewTaxRules
+      />,
+    );
+
+    const link = within(screen.getByTestId("tax-rule")).getByRole("link");
+    expect(link).toHaveAttribute("href", "taxes.show/tax-9");
+    expect(link).toHaveTextContent("finances.journal.line_columns.tax_rule");
+  });
+
+  it("tanpa izin baca Pajak/Versi Aturan versi tampil sebagai teks tanpa tautan", () => {
+    render(
+      <Form
+        lines={[
+          line({
+            tax_rule_version: {
+              id: "v1",
+              number: 2,
+              tax_id: "tax-9",
+              tax_name: "PPN 12%",
+              missing: false,
+            },
+          }),
+        ]}
+        totals={null}
+        minorUnit={2}
+      />,
+    );
+
+    expect(screen.getByTestId("tax-rule")).toBeInTheDocument();
+    expect(
+      within(screen.getByTestId("tax-rule")).queryByRole("link"),
+    ).toBeNull();
+  });
+
+  it("versi aturan yang tidak tersedia tidak error dan tanpa tautan", () => {
+    render(
+      <Form
+        lines={[
+          line({
+            tax_rule_version: {
+              id: "gone",
+              number: null,
+              tax_id: null,
+              tax_name: null,
+              missing: true,
+            },
+          }),
+        ]}
+        totals={null}
+        minorUnit={2}
+        canViewTaxRules
+      />,
+    );
+
+    expect(screen.getByTestId("tax-rule")).toHaveTextContent(
+      "finances.journal.line_columns.tax_rule_missing",
+    );
+    expect(
+      within(screen.getByTestId("tax-rule")).queryByRole("link"),
+    ).toBeNull();
+  });
+
+  it("baris tanpa versi aturan tidak menampilkan tautan versi", () => {
+    render(
+      <Form lines={[line()]} totals={null} minorUnit={2} canViewTaxRules />,
+    );
+
+    expect(screen.queryByTestId("tax-rule")).not.toBeInTheDocument();
+  });
 });

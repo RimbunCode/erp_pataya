@@ -31,4 +31,13 @@ return [
         'jurisdiction_code' => 'Jurisdiction Code',
         'is_creditable'     => 'Creditable',
     ],
+    'errors' => [
+        'withholding_ppn' => 'A VAT (PPN) category tax cannot be withheld: choose "Adds to Total" or another category.',
+    ],
+    'form' => [
+        'classification'            => 'Classification',
+        'is_creditable_description' => 'Only relevant for input tax: whether it can be credited against output tax.',
+        'withholding_ppn_blocked'   => 'VAT (PPN) taxes cannot be withheld, so "Withheld from Payment" is not available for this category.',
+        'unclassified_used'         => 'This tax is still unclassified but was used on :sales sales invoice(s) and :purchase purchase invoice(s) in the last 12 months. Set its category and behavior.',
+    ],
 ];

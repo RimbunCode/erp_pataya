@@ -120,6 +120,13 @@ vi.mock("@/Pages/Finances/Components/PostedAccountsPanel", () => ({
   ),
 }));
 
+// TaxBreakdownPanel butuh konteks FormPage dan Inertia; diuji terpisah di TaxBreakdownPanel.rtl.test.jsx.
+vi.mock("@/Pages/Finances/Components/TaxBreakdownPanel", () => ({
+  default: ({ isNew }) => (
+    <div data-testid="tax-breakdown-panel" data-new={String(!!isNew)} />
+  ),
+}));
+
 import Show from "./Show";
 
 function basePurchaseInvoice(overrides = {}) {
@@ -140,6 +147,29 @@ describe("Show (PurchaseInvoice)", () => {
 
   // --- Compose FormPage/Form dasar ----------------------------------------
   describe("compose FormPage + Form", () => {
+    it("memasang panel Rincian Pajak: baru pada mode create, tersimpan pada mode edit", () => {
+      const { unmount } = render(
+        <Show purchaseInvoice={null} defaultData={{}} fixedAssets={[]} />,
+      );
+      expect(screen.getByTestId("tax-breakdown-panel")).toHaveAttribute(
+        "data-new",
+        "true",
+      );
+      unmount();
+
+      render(
+        <Show
+          purchaseInvoice={{ id: 3, status: "unpaid", items: [] }}
+          defaultData={undefined}
+          fixedAssets={[]}
+        />,
+      );
+      expect(screen.getByTestId("tax-breakdown-panel")).toHaveAttribute(
+        "data-new",
+        "false",
+      );
+    });
+
     it("mode create (purchaseInvoice null): isCreate=true, disabled=false diteruskan ke FormPage, tidak ada dropdown", () => {
       render(<Show purchaseInvoice={null} defaultData={{}} fixedAssets={[]} />);
 

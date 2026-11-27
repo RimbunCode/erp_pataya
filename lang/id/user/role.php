@@ -43,5 +43,6 @@ return [
         'manage_roles'            => 'Kelola Peran',
         'manage_branches'         => 'Kelola Cabang',
         'manage_off_source_items' => 'Kelola Item di Luar Dokumen Sumber',
+        'manage_rule_versions'    => 'Kelola Versi Aturan Pajak',
     ],
 ];

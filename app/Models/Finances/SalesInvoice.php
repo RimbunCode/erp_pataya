@@ -323,4 +323,11 @@ class SalesInvoice extends Model {
     protected function amendExcludedColumns(): array {
         return ['tax_breakdown'];
     }
+
+    /**
+     * Halaman show memuat panel "Rincian Pajak" (Finance Fase 3, Requirement 10.2).
+     */
+    public static function hasTaxBreakdownPanel(): bool {
+        return true;
+    }
 }

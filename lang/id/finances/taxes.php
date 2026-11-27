@@ -31,4 +31,13 @@ return [
         'jurisdiction_code' => 'Kode Yurisdiksi',
         'is_creditable'     => 'Dapat Dikreditkan',
     ],
+    'errors' => [
+        'withholding_ppn' => 'Pajak berkategori PPN tidak boleh dipotong: pilih "Menambah Total" atau kategori lain.',
+    ],
+    'form' => [
+        'classification'            => 'Klasifikasi',
+        'is_creditable_description' => 'Hanya bermakna untuk pajak masukan: apakah dapat dikreditkan terhadap pajak keluaran.',
+        'withholding_ppn_blocked'   => 'Pajak PPN tidak boleh dipotong, sehingga "Dipotong dari Pembayaran" tidak tersedia untuk kategori ini.',
+        'unclassified_used'         => 'Pajak ini belum diklasifikasi tetapi sudah dipakai pada :sales invoice penjualan dan :purchase invoice pembelian dalam 12 bulan terakhir. Tetapkan kategori dan perilakunya.',
+    ],
 ];
