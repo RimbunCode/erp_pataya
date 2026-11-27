@@ -6,6 +6,7 @@ use App\Contracts\SubmitableService;
 use App\Enums\FormStatus;
 use App\Events\Core\DocumentSubmitted;
 use App\Exceptions\Finances\DuplicatePostingException;
+use App\Exceptions\Finances\UnresolvedAccountRoleException;
 use App\Models\Core\FormatingSeries;
 use App\Models\Finances\Account;
 use App\Models\Finances\Journal;
@@ -579,9 +580,15 @@ class StockEntryService implements SubmitableService {
         // Gateway Posting Engine (Finance Fase 2, Task 8.3; closure legacy dihapus Task 14.1). Engine tidak memutasi
         // `accounts.balance_amount` (Requirement 7.5): mutasinya dilakukan di bawah dari jurnal hasil engine.
         // `UnresolvedAccountRoleException` dan sejenisnya menggulung seluruh approve.
-        $outcome = app(PostingGateway::class)->post(
-            app(StockEntryPostingContextFactory::class)->forApproval($stockEntry, $items, $additionalCosts, (float) $totalBasicAmount, now()),
-        );
+        try {
+            $outcome = app(PostingGateway::class)->post(
+                app(StockEntryPostingContextFactory::class)->forApproval($stockEntry, $items, $additionalCosts, (float) $totalBasicAmount, now()),
+            );
+        } catch (UnresolvedAccountRoleException $e) {
+            // Requirement 13.7: galat validasi (bukan 500); `onApproved` membungkus seluruhnya dalam transaksi sehingga
+            // status, stok, dan SLE tergulung.
+            throw $e->toValidationException();
+        }
 
         // Approve hanya terjadi sekali, jadi jurnal yang ternyata sudah ada adalah inkonsistensi yang menggulung
         // transaksi (Q-P2-12b; mutasi SLE dan stok di atas non-idempoten dan tidak boleh diulang).

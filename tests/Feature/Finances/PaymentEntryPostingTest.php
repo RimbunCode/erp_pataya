@@ -5,6 +5,7 @@ namespace Tests\Feature\Finances;
 use App\Enums\FormStatus;
 use App\Models\Core\GlPostingStatus;
 use App\Models\Finances\Account;
+use App\Models\Finances\Journal;
 use App\Models\Finances\PaymentEntry;
 use App\Models\Finances\PaymentMethod;
 use App\Models\Finances\PaymentSchedule;
@@ -12,6 +13,7 @@ use App\Models\Finances\PostingProfile;
 use App\Models\Finances\SalesInvoice;
 use App\Services\Finances\PaymentEntryService;
 use Illuminate\Foundation\Testing\RefreshDatabase;
+use Illuminate\Validation\ValidationException;
 use Tests\Support\BuildsFinanceFixtures;
 use Tests\Support\EnablesEnginePosting;
 use Tests\TestCase;
@@ -40,6 +42,27 @@ class PaymentEntryPostingTest extends TestCase {
         // Task 14.1: closure legacy dihapus; jurnal ditulis engine (kas dari Metode Pembayaran, piutang dari profil).
         $this->enableEnginePosting(['receivable' => $this->receivable]);
         $this->method = $this->makeCashPaymentMethod($this->cash);
+    }
+
+    public function test_approval_with_unresolved_account_role_fails_as_validation_error_and_rolls_back(): void {
+        // Requirement 13.7: peran tak ter-resolve menjadi galat validasi (bukan 500) yang menyebut peran dan menunjuk
+        // halaman Posting Profile; dokumen tidak berstatus paid dan pembayaran tidak diterapkan.
+        $invoice = $this->makeUnpaidSalesInvoice(1_000_000);
+        $payment = $this->makePaymentEntry($invoice, 1_000_000, $this->receivable, $this->cash, ['payment_method_id' => $this->method->id]);
+        Account::whereKey($this->receivable->id)->update(['is_group' => true]);
+
+        try {
+            app(PaymentEntryService::class)->onApproved($payment->fresh());
+            $this->fail('Approve harus ditolak karena peran akun tidak dapat di-resolve.');
+        } catch (ValidationException $e) {
+            $message = $e->errors()['status'][0] ?? '';
+            $this->assertStringContainsString('receivable', $message);
+            $this->assertStringContainsString(route('postingProfiles.index', absolute: false), $message);
+        }
+
+        $this->assertNotContains(FormStatus::PAID, $payment->fresh()->status);
+        $this->assertEquals(0, $invoice->fresh()->paid_amount);
+        $this->assertSame(0, Journal::query()->count());
     }
 
     public function test_full_payment_debits_paid_to_and_credits_paid_from_with_payment_date(): void {

@@ -2,6 +2,7 @@
 
 namespace App\Exceptions\Finances;
 
+use Illuminate\Validation\ValidationException;
 use RuntimeException;
 
 /**
@@ -23,6 +24,20 @@ class UnresolvedAccountRoleException extends RuntimeException {
         public readonly array $layers = [],
     ) {
         parent::__construct($message);
+    }
+
+    /**
+     * Galat validasi untuk approve sinkron (Requirement 13.7): pesan peran/lapis yang kurang plus penunjuk ke halaman
+     * konfigurasi Posting Profile, dikaitkan ke field `status`. Dilempar di dalam transaksi approve sehingga
+     * dokumen tidak berstatus approved.
+     */
+    public function toValidationException(): ValidationException {
+        return ValidationException::withMessages([
+            'status' => __('finances/posting.errors.approve_blocked', [
+                'message' => $this->getMessage(),
+                'url'     => route('postingProfiles.index', absolute: false),
+            ]),
+        ]);
     }
 
     /**

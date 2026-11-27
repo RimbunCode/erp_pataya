@@ -2,6 +2,7 @@
 
 return [
     'errors' => [
+        'approve_blocked'                  => 'The document cannot be approved. :message Configure it on the Posting Profile page (:url).',
         'unresolved_role'                  => 'The account role ":role" cannot be resolved for document :document (variant :variant) on :date. Layers checked: :layers. Complete the Posting Profile or the related master account.',
         'unresolved_role_account'          => 'The account for role ":role" (document :document, variant :variant, date :date) cannot be used: :reason (:account). Account source: :layer.',
         'unresolved_role_ambiguous'        => 'The account role ":role" (document :document, variant :variant, date :date) is ambiguous in the legacy fallback: :candidates accounts match :root/:type and none was chosen. Map this role in the Posting Profile.',

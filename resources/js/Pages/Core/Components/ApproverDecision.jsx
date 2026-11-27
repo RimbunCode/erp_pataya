@@ -54,6 +54,15 @@ function ApproverDecision({ name, approval }) {
           setOpen(false);
           reset();
         },
+        // Galat validasi dari onApproved (mis. peran akun belum ter-resolve, Requirement 13.7) tidak punya
+        // field di dialog ini; tampilkan pesannya agar approver tahu apa yang harus dilengkapi.
+        onError(errors) {
+          const first = Object.values(errors ?? {})[0];
+          const message = Array.isArray(first) ? first[0] : first;
+          if (message) {
+            toast.error(String(message));
+          }
+        },
       });
     },
     [data],

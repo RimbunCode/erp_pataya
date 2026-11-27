@@ -8,7 +8,6 @@ use App\Events\Asset\AssetScrapped;
 use App\Events\Asset\AssetSoldViaInvoice;
 use App\Events\Finances\PurchaseInvoiceGeneralLedgerPostingRequested;
 use App\Events\Finances\SalesInvoiceGeneralLedgerPostingRequested;
-use App\Exceptions\Finances\UnresolvedAccountRoleException;
 use App\Listeners\Asset\Depreciation\PostScrapWriteOff;
 use App\Listeners\Asset\Rental\PostAssetDisposalGainLoss;
 use App\Listeners\Finances\Ledger\PostPurchaseInvoiceGeneralLedger;
@@ -36,6 +35,7 @@ use App\Services\Inventory\StockEntryService;
 use Illuminate\Database\Eloquent\Collection;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Illuminate\Support\Facades\DB;
+use Illuminate\Validation\ValidationException;
 use Tests\Support\BuildsAssetFixtures;
 use Tests\Support\BuildsFinanceFixtures;
 use Tests\Support\EnablesEnginePosting;
@@ -335,10 +335,12 @@ class PostingAdaptersTest extends TestCase {
         try {
             app(StockEntryService::class)->onApproved($entry->fresh());
             $this->fail('Approval harus ditolak karena akun grup.');
-        } catch (UnresolvedAccountRoleException) {
+        } catch (ValidationException $e) {
             // Task 14.1: engine menolak akun grup saat menyelesaikan peran (sebelum JournalService); efeknya sama:
-            // seluruh approval tergulung.
-            $this->addToAssertionCount(1);
+            // seluruh approval tergulung. Requirement 13.7: galat validasi (bukan 500) yang menunjuk Posting Profile.
+            $message = $e->errors()['status'][0] ?? '';
+            $this->assertStringContainsString('stock_adjustment', $message);
+            $this->assertStringContainsString(route('postingProfiles.index', absolute: false), $message);
         }
 
         $this->assertSame($level, DB::transactionLevel(), 'Tidak ada transaksi menggantung.');
