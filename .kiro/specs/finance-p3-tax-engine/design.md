@@ -280,7 +280,7 @@ Unik `(tax_id, version)`; indeks `(tax_id, status, effective_from)`.
 
 ## Konfirmasi yang Masih Diperlukan
 
-D-12, D-15, Q-P3-1…4 (lihat requirements).
+D-12, D-15, Q-P3-1…4 (lihat requirements). Q-P3-1…4 dijawab pemilik produk 27 November 2026: (1) tidak ada data pajak historis di produksi, tidak ada rate yang direkonsiliasi; (2) default `finance_company_is_pkp = true`, `is_creditable = true`, sementara sampai dikonfirmasi akuntan; (3) cutover = awal periode fiskal terbuka berikutnya per jenis dokumen, NULL = tidak aktif; (4) COA PPN/PPh belum ada, dipetakan lewat peran Posting Profile tanpa menebak akun dan wajib ada sebelum cutover.
 
 ## Temuan Task 1 (audit read-only, 2026-11-21)
 
