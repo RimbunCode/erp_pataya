@@ -26,6 +26,7 @@ use Illuminate\Routing\Redirector;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Event;
 use Illuminate\Support\Facades\Schema;
+use Illuminate\Validation\ValidationException;
 use Tests\TestCase;
 
 // Service stub — sets doc status to 'approved' on onApproved
@@ -58,7 +59,13 @@ class ApprovalTestDocumentService implements SubmitableService {
         return back();
     }
 
+    public static bool $failOnRejected = false;
+
     public function onRejected(AppModel $model): mixed {
+        if (self::$failOnRejected) {
+            throw ValidationException::withMessages(['status' => 'onRejected gagal']);
+        }
+
         return back();
     }
 }
@@ -517,6 +524,69 @@ class ApprovalAutoApproveTest extends TestCase {
 
         // instance REJECTED
         $this->assertEquals(FormStatus::REJECTED->value, $instance->fresh()->status->value);
+    }
+
+    /**
+     * Q-P2-43: onRejected() berjalan di transaksi yang sama dengan keputusan reject. Bila melempar, step, child
+     * approver, step berikutnya (tidak jadi SKIPPED), dan instance kembali seperti semula; ApprovalDecided tidak dikirim.
+     */
+    public function test_reject_rolls_back_the_decision_when_on_rejected_fails(): void {
+        $roleA     = $this->makeRole('RbRoleA');
+        $roleB     = $this->makeRole('RbRoleB');
+        $approverA = $this->makeUser('RbApproverA');
+        $this->assignRole($approverA, $roleA);
+        $creator = $this->makeUser('RbCreator');
+
+        $this->makeScheme('scheme-reject-rollback', [
+            [
+                'approver_type'     => 'role',
+                'approverable_type' => Role::class,
+                'approverable_id'   => $roleA->id,
+                'is_advanced'       => true,
+                'approvers'         => [
+                    ['approver_type' => 'role', 'approverable_type' => Role::class, 'approverable_id' => $roleA->id],
+                    ['approver_type' => 'role', 'approverable_type' => Role::class, 'approverable_id' => $roleB->id],
+                ],
+            ],
+            ['approver_type' => 'role', 'approverable_type' => Role::class, 'approverable_id' => $roleB->id],
+        ]);
+
+        $doc      = $this->makeDocument($creator);
+        $instance = ApprovalInstance::makeInstance($doc);
+        $step     = ApprovalInstanceStep::where('approval_instance_id', $instance->id)->where('sequence', 0)->first();
+        $sequence = $instance->fresh()->current_sequence;
+
+        Event::fake([ApprovalDecided::class]);
+        ApprovalTestDocumentService::$failOnRejected = true;
+        $level                                       = DB::transactionLevel();
+
+        try {
+            $this->actingAs($approverA)
+                ->withoutMiddleware([AppMiddleware::class, EnsureUserIsOnboarded::class, LanguageMiddleware::class])
+                ->postJson(route('approvalInstances.decision', $step->id), ['decision' => 'reject'])
+                ->assertStatus(422);
+        } finally {
+            ApprovalTestDocumentService::$failOnRejected = false;
+        }
+
+        Event::assertNotDispatched(ApprovalDecided::class);
+        $this->assertSame($level, DB::transactionLevel(), 'Tidak ada transaksi menggantung.');
+        $this->assertSame(FormStatus::PENDING->value, $step->fresh()->status->value);
+        $this->assertNull($step->fresh()->acted_by_id);
+        $this->assertTrue($step->approvers()->get()->every(fn ($child) => $child->status->value === FormStatus::PENDING->value));
+        $this->assertSame(FormStatus::WAITING->value, ApprovalInstanceStep::where('approval_instance_id', $instance->id)->where('sequence', 1)->first()->status->value);
+        $this->assertSame(FormStatus::PENDING->value, $instance->fresh()->status->value);
+        $this->assertSame($sequence, $instance->fresh()->current_sequence);
+        $this->assertSame('need_approval', $doc->fresh()->status);
+
+        // Setelah kendala hilang, reject ulang berhasil.
+        $this->actingAs($approverA)
+            ->withoutMiddleware([AppMiddleware::class, EnsureUserIsOnboarded::class, LanguageMiddleware::class])
+            ->postJson(route('approvalInstances.decision', $step->id), ['decision' => 'reject']);
+
+        $this->assertSame(FormStatus::REJECTED->value, $step->fresh()->status->value);
+        $this->assertSame(FormStatus::REJECTED->value, $instance->fresh()->status->value);
+        Event::assertDispatched(ApprovalDecided::class, 1);
     }
 
     /**

@@ -243,6 +243,7 @@ class ApprovalInstanceController extends Controller {
     }
 
     private function reject(ApprovalInstanceStep $approvalInstanceStep, ?string $notes = null) {
+        $level = DB::transactionLevel();
         DB::beginTransaction();
         $approvalInstanceStep = $this->lockDecidableStep($approvalInstanceStep);
         if ($approvalInstanceStep === null) {
@@ -282,18 +283,29 @@ class ApprovalInstanceController extends Controller {
                 'status' => FormStatus::REJECTED,
             ]);
             $approval->save();
-            DB::commit();
 
             $document     = $approval->document;
             $serviceClass = $document::$service ?? null;
+            $result       = null;
+
+            // Sama dengan approve() (Q-P2-43): onRejected() berjalan di transaksi yang sama dengan status
+            // instance/step; bila melempar, keputusan digulung (instance/step kembali pending, dokumen tetap
+            // need_approval) dan galat diteruskan. ApprovalDecided dikirim setelah commit.
+            try {
+                if ($serviceClass) {
+                    $result = app($serviceClass)->onRejected($document);
+                }
+                DB::commit();
+            } catch (Throwable $e) {
+                // Kembali ke level sebelum beginTransaction: onRejected() dapat membocorkan level transaksinya sendiri.
+                DB::rollBack($level);
+
+                throw $e;
+            }
 
             event(new ApprovalDecided($approval, 'rejected', notes: $notes));
 
-            if ($serviceClass) {
-                return $this->asInertiaResponse(app($serviceClass)->onRejected($document));
-            }
-
-            return back();
+            return $serviceClass ? $this->asInertiaResponse($result) : back();
         }
         $approval->save();
         DB::commit();
