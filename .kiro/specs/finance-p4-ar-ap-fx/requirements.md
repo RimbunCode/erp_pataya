@@ -174,6 +174,17 @@ Kondisi nyata yang membentuk fase ini (diverifikasi di kode):
 5. THE characterization Fase 0, test Fase 1–3, dan test Payment/Invoice existing (`PaymentEntrySubmitTest`, `PurchaseInvoice*`, `SalesInvoice*`) SHALL tetap hijau pada sakelar `false`.
 6. THE perubahan perilaku yang disengaja (jumlah jurnal pembayaran, F-10) SHALL dicatat di decision log beserta persetujuan pemilik produk.
 
+## Keputusan Pemilik Produk (28 November 2026)
+
+Diputuskan sebelum Fase 4 dimulai (pemilik produk memutuskan atau menyerahkan pilihan kepada tim pengembang; tercatat sebagai Q-P4-D di `docs/prd/finance-decision-log.md`). Butir di tabel berikut yang bertentangan dengan keputusan ini dianggap diganti olehnya.
+
+- **D-16 (tipe kurs):** invoice dan pembayaran memakai tipe `transaction`; revaluasi akhir periode memakai `closing`; kurs `spot` (BI/pajak) tidak dipakai di Fase 4.
+- **D-18 (granularitas alokasi):** per invoice. Termin (`payment_schedules`) tetap dipelihara lewat jalur existing (distribusi dari termin tertua); tidak ada alokasi per termin. Dapat diperluas kemudian tanpa membuang tabel alokasi.
+- **Q-P4-2 (pembayaran valas):** fleksibel. `payment_entries` boleh berupa mata uang dasar atau mata uang asing; pembayaran yang dikonversi bank ke IDR dicatat dalam IDR dan selisih kurs dihitung dari jumlah IDR aktual. Kombinasi tiga mata uang berbeda tetap ditolak (Requirement 7.7, Q-P4-1: tidak didukung sekarang).
+- **Q-P4-3 (uang muka):** dipakai; Requirement 5.8 (alokasi uang muka beserta jurnal reklasifikasi) dikerjakan di Fase 4, bukan ditunda.
+- **Q-P4-4:** sudah terjawab oleh hotfix Payment Entry (PR #277; F-10 dikonfirmasi bug dan diperbaiki).
+- **D-17 (toleransi selisih kecil `payment_difference`):** tetap usulan spek, default `finance_payment_tolerance` = 0 (dapat dikonfigurasi).
+
 ## Pertanyaan yang Menunggu Konfirmasi
 
 | ID | Pertanyaan | Dampak |
