@@ -43,5 +43,6 @@ return [
         'manage_roles'            => 'Manage Roles',
         'manage_branches'         => 'Manage Branches',
         'manage_off_source_items' => 'Manage Off-Source Items',
+        'manage_rule_versions'    => 'Manage Tax Rule Versions',
     ],
 ];

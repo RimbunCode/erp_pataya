@@ -12,6 +12,8 @@ use App\Http\Requests\Finances\JournalReverseRequest;
 use App\Models\Core\Currency;
 use App\Models\Finances\GeneralLedger;
 use App\Models\Finances\Journal;
+use App\Models\Finances\Tax;
+use App\Models\Finances\TaxRuleVersion;
 use App\Services\Finances\Ledger\FiscalPeriodService;
 use App\Services\Finances\Ledger\JournalReversalService;
 use App\Services\Finances\Ledger\MinorUnit;
@@ -64,6 +66,8 @@ class JournalController extends Controller {
             'minorUnit'  => $minorUnit,
             'canReverse' => $this->hasPermission('reverse') && $reversals->canReverse($journal),
             'reversal'   => $this->reversalBounds($journal, $periods->companyTimezone()),
+            // Tautan versi aturan pajak pada baris pajak (Finance Fase 3, Requirement 10.3) menuju halaman Pajak.
+            'canViewTaxRules' => $this->canRead(Tax::class) && $this->canRead(TaxRuleVersion::class),
         ]);
     }
 
@@ -124,6 +128,7 @@ class JournalController extends Controller {
             ->with([
                 'account'        => fn ($query) => $query->withTrashed(),
                 'againstAccount' => fn ($query) => $query->withTrashed(),
+                'taxRuleVersion' => fn ($query) => $query->with(['tax' => fn ($tax) => $tax->withTrashed()]),
             ])
             ->get();
     }
@@ -133,15 +138,48 @@ class JournalController extends Controller {
      */
     private function linePayload(GeneralLedger $line): array {
         return [
-            'id'              => $line->id,
-            'line_no'         => $line->line_no,
-            'description'     => $line->description,
-            'debit'           => $line->debit,
-            'credit'          => $line->credit,
-            'deleted_at'      => $line->deleted_at,
-            'account'         => $this->accountPayload($line->account),
-            'against_account' => $this->accountPayload($line->againstAccount),
+            'id'               => $line->id,
+            'line_no'          => $line->line_no,
+            'description'      => $line->description,
+            'debit'            => $line->debit,
+            'credit'           => $line->credit,
+            'deleted_at'       => $line->deleted_at,
+            'account'          => $this->accountPayload($line->account),
+            'against_account'  => $this->accountPayload($line->againstAccount),
+            'tax_rule_version' => $this->taxRuleVersionPayload($line),
         ];
+    }
+
+    /**
+     * Versi aturan pajak baris jurnal pajak (Requirement 5.4); null pada baris lain. Versi yang tidak lagi ada
+     * tetap ditandai `missing` agar tampilan tidak error (Requirement 5.6).
+     *
+     * @return array{id: string, number: int|null, tax_id: string|null, tax_name: string|null, missing: bool}|null
+     */
+    private function taxRuleVersionPayload(GeneralLedger $line): ?array {
+        if ($line->tax_rule_version_id === null) {
+            return null;
+        }
+
+        $version = $line->taxRuleVersion;
+
+        return [
+            'id'       => $line->tax_rule_version_id,
+            'number'   => $version?->version,
+            'tax_id'   => $version?->tax_id,
+            'tax_name' => $version?->tax?->name,
+            'missing'  => $version === null,
+        ];
+    }
+
+    private function canRead(string $model): bool {
+        try {
+            $model::_checkPermission('read');
+        } catch (HttpException) {
+            return false;
+        }
+
+        return true;
     }
 
     /**

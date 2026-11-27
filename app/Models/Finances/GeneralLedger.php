@@ -81,6 +81,13 @@ class GeneralLedger extends Model {
         return $this->belongsTo(Journal::class, 'journal_id');
     }
 
+    /**
+     * Versi aturan pajak yang dipakai baris jurnal pajak (Finance Fase 3, Requirement 5.4); null pada baris lain.
+     */
+    public function taxRuleVersion() {
+        return $this->belongsTo(TaxRuleVersion::class, 'tax_rule_version_id');
+    }
+
     /*
      * Kolom Fase 1 (Task 10.4): `journal` (tautan ke header jurnal) dan "Beberapa akun" bila `against_account_id`
      * null (jurnal 3 baris atau lebih tidak punya satu akun lawan, Requirement 1.3/11.3).

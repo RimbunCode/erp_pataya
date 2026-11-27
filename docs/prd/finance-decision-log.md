@@ -585,6 +585,12 @@ Dirangkum dari bagian "Pertanyaan yang Menunggu Konfirmasi" di akhir `requiremen
 
 **Q-P2-43 diputuskan 27 November 2026 (pemilik produk).** `reject()` memiliki pola commit-sebelum-callback yang sama dengan approve (commit lalu `onRejected`); disamakan (gulung bila `onRejected` gagal) di PR terpisah setelah PR #327 ter-merge. Dikerjakan 27 November 2026: `onRejected()` dipanggil di transaksi yang sama dengan status instance REJECTED dan `ApprovalDecided` dikirim setelah commit. Semua implementasi `onRejected` (17 service) hanya menulis DB (status dokumen, rollback item), sehingga ikut tergulung. Pemilik produk yang menyetujui.
 
+**Q-P3-9 diputuskan 27 November 2026 (pemilik produk).** Izin versi aturan pajak: semua aksi tulis (buat/ubah/hapus draft, aktifkan, pensiunkan) hanya memerlukan `manage_rule_versions`; izin `write` pada `TaxRuleVersion` tidak memberi akses ke aksi apa pun. Alasan: Requirement 2.5 menyebut perubahan versi memerlukan `manage_rule_versions`; memisah izin draf dan aktivasi tidak diperlukan sekarang. Requirement 2.5 diubah. Pemilik produk yang menyetujui.
+
+**Q-P3-10 diputuskan 27 November 2026 (pemilik produk).** Peringatan "pajak `unclassified` sudah terpakai" (Requirement 1.3) menghitung hanya invoice penjualan dan pembelian AKTIF (draf dan dibatalkan diabaikan) 12 bulan terakhir menurut tanggal invoice (hari batas ikut terhitung), secara global tanpa pembatasan cabang; SO/PO/penawaran tidak dihitung. Alasan: yang relevan adalah transaksi nyata yang terdampak klasifikasi, dan peringatan tidak boleh bergantung pada cabang aktif pembaca. Requirement 1.3 diubah. Pemilik produk yang menyetujui.
+
+**Q-P3-11 diputuskan 27 November 2026 (pemilik produk).** Pajak baru dari UI TIDAK otomatis diberi versi awal; versi dibuat manual di tab Versi Aturan, dan pajak tanpa versi tetap gagal tertutup pada invoice (Q-P3-5). Alasan: tarif dan tanggal berlaku harus ditetapkan sadar oleh akuntan, bukan ditebak dari `taxes.rate`. Tidak ada perubahan kode. Pemilik produk yang menyetujui.
+
 **Catatan D-xx belum tercatat.** Tabel "Pertanyaan yang Menunggu Konfirmasi" di spec Fase 1–6 juga memuat keputusan D-xx berikut yang belum punya entri di log ini (D-3, D-8, dan D-14 sudah punya entri sejak 2026-11-04), dan tidak dimasukkan di sini karena di luar cakupan (D-13 kini punya entri, lihat di atas): D-15, D-16, D-17, D-18, D-19, D-20, D-21, D-22, D-23, D-24.
 
 ## Catatan Sumber

@@ -24,6 +24,42 @@ function Field({ label, children, testId }) {
   );
 }
 
+/**
+ * Tautan versi aturan pajak pada baris pajak (Finance Fase 3, Requirement 10.3). Versi yang sudah tidak ada
+ * ditandai tanpa tautan; tanpa izin baca Pajak dan Versi Aturan hanya tampil sebagai teks.
+ * @param {{version: object|null, canView: boolean}} props
+ * @returns {import("react").JSX.Element|null}
+ */
+function TaxRuleCell({ version, canView }) {
+  const { t } = useLaravelReactI18n();
+  const route = window.route;
+  if (!version) {
+    return null;
+  }
+  if (version.missing) {
+    return (
+      <p className="mt-1 text-xs text-muted-foreground" data-testid="tax-rule">
+        {t("finances.journal.line_columns.tax_rule_missing")}
+      </p>
+    );
+  }
+
+  const label = t("finances.journal.line_columns.tax_rule", {
+    tax: version.tax_name ?? "",
+    number: version.number,
+  });
+
+  return (
+    <p className="mt-1 text-xs text-muted-foreground" data-testid="tax-rule">
+      {canView && version.tax_id ? (
+        <Link href={route("taxes.show", version.tax_id)}>{label}</Link>
+      ) : (
+        label
+      )}
+    </p>
+  );
+}
+
 function AccountCell({ account }) {
   const route = window.route;
   if (!account) {
@@ -49,9 +85,15 @@ function AccountCell({ account }) {
  * @param {object[]} [props.lines] baris jurnal (termasuk yang soft-deleted)
  * @param {object} [props.totals] total, keseimbangan, dan jumlah baris aktif
  * @param {number} [props.minorUnit] desimal mata uang dasar jurnal
+ * @param {boolean} [props.canViewTaxRules] boleh membuka halaman Pajak dari tautan versi aturan
  * @returns {import("react").JSX.Element}
  */
-export default function Form({ lines = [], totals, minorUnit = 2 }) {
+export default function Form({
+  lines = [],
+  totals,
+  minorUnit = 2,
+  canViewTaxRules = false,
+}) {
   const { t, currentLocale } = useLaravelReactI18n();
   const route = window.route;
   const { data } = useFormPage();
@@ -222,7 +264,13 @@ export default function Form({ lines = [], totals, minorUnit = 2 }) {
                     </span>
                   )}
                 </td>
-                <td className="px-3 py-2">{line.description}</td>
+                <td className="px-3 py-2">
+                  {line.description}
+                  <TaxRuleCell
+                    version={line.tax_rule_version}
+                    canView={canViewTaxRules}
+                  />
+                </td>
                 <td className="px-3 py-2 text-right tabular-nums">
                   {Number(line.debit) !== 0 ? money(line.debit) : ""}
                 </td>

@@ -13,6 +13,7 @@ export default function Show({
   totals,
   minorUnit,
   canReverse = false,
+  canViewTaxRules = false,
   reversal = {},
 }) {
   const { t } = useLaravelReactI18n();
@@ -49,7 +50,12 @@ export default function Show({
         )
       }
     >
-      <Form lines={lines} totals={totals} minorUnit={minorUnit} />
+      <Form
+        lines={lines}
+        totals={totals}
+        minorUnit={minorUnit}
+        canViewTaxRules={canViewTaxRules}
+      />
     </FormPage>
   );
 }

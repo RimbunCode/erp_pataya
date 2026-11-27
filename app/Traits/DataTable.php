@@ -18,6 +18,7 @@ use App\Services\Core\Connection\RelationPanelService;
 use App\Services\Core\DataTable\Group\GroupLevels;
 use App\Services\Finances\Posting\AccountPanel\PanelSourceRegistry;
 use App\Services\Finances\Posting\AccountPanel\PostedAccountPanel;
+use App\Services\Finances\Tax\TaxBreakdownPanel;
 use Illuminate\Database\Eloquent\Relations\Relation;
 use Illuminate\Database\Eloquent\SoftDeletes;
 use Illuminate\Database\Schema\Blueprint;
@@ -727,6 +728,14 @@ trait DataTable {
         print_r("\e[39m" . static::class . " \e[92m(SUCCESS) \e[39m" . \PHP_EOL);
     }
 
+    /**
+     * Apakah halaman show model ini memuat panel "Rincian Pajak" (deferred prop `taxBreakdown`). Ditimpa oleh
+     * Sales/Purchase Invoice.
+     */
+    public static function hasTaxBreakdownPanel(): bool {
+        return false;
+    }
+
     public function showDetail() {
         $this->markAsShowContext();
 
@@ -748,6 +757,16 @@ trait DataTable {
                 'postedAccounts' => Inertia::defer(
                     fn () => app(PostedAccountPanel::class)->build($this),
                     'postedAccounts',
+                ),
+            ]);
+        }
+        // Panel baca-saja "Rincian Pajak" (Finance Fase 3, Task 8.2): hanya model yang menyatakannya (invoice), ikut
+        // respons halaman show yang sudah lolos otorisasi.
+        if (static::hasTaxBreakdownPanel()) {
+            Inertia::share([
+                'taxBreakdown' => Inertia::defer(
+                    fn () => app(TaxBreakdownPanel::class)->build($this),
+                    'taxBreakdown',
                 ),
             ]);
         }

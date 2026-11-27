@@ -17,6 +17,7 @@ import { useLaravelReactI18n } from "laravel-react-i18n";
 import { usePage } from "@inertiajs/react";
 import PriceControlWarnings from "@/Pages/Finances/Components/PriceControlWarnings";
 import PostedAccountsPanel from "@/Pages/Finances/Components/PostedAccountsPanel";
+import TaxBreakdownPanel from "@/Pages/Finances/Components/TaxBreakdownPanel";
 
 export default function Show({ purchaseInvoice, defaultData, fixedAssets }) {
   const { t } = useLaravelReactI18n();
@@ -113,6 +114,7 @@ export default function Show({ purchaseInvoice, defaultData, fixedAssets }) {
     >
       <Form />
       <PostedAccountsPanel isNew={!purchaseInvoice} />
+      <TaxBreakdownPanel isNew={!purchaseInvoice} />
       {purchaseInvoice?.submitted_at && <RelationPanels />}
     </FormPage>
   );

@@ -97,12 +97,12 @@ Bagian A (Task 1–8) tidak mengubah angka di dokumen; Bagian B (Task 9) adalah 
   - [x]* 7.2 Pastikan `TaxInvoiceAssignmentTest` tetap hijau dan tambah kasus campuran PPN + pajak lain
     - **Validates: Requirements 9.1–9.3**
 
-- [ ] 8. Antarmuka dan terjemahan
-  - [ ] 8.1 `Finances/Taxes/Form.jsx`: field `category`/`behavior`/`is_creditable`, peringatan `unclassified` terpakai, larangan withholding+PPN; tab **Versi Aturan** (daftar, versi baru, aktivasi); `.rtl.test.jsx`
+- [x] 8. Antarmuka dan terjemahan (selesai 27 November 2026)
+  - [x] 8.1 `Finances/Taxes/Form.jsx`: field `category`/`behavior`/`is_creditable`, peringatan `unclassified` terpakai, larangan withholding+PPN; tab **Versi Aturan** (daftar, versi baru, aktivasi); `.rtl.test.jsx`
     - _Requirements: 1.3, 10.1, 10.4_
-  - [ ] 8.2 Panel **Rincian Pajak** di detail Sales/Purchase Invoice (snapshot atau rekonstruksi legacy); tautan versi di halaman jurnal; `.rtl.test.jsx`
+  - [x] 8.2 Panel **Rincian Pajak** di detail Sales/Purchase Invoice (snapshot atau rekonstruksi legacy); tautan versi di halaman jurnal; `.rtl.test.jsx`
     - _Requirements: 5.5–5.6, 10.2–10.3_
-  - [ ] 8.3 Kunci terjemahan `lang/id` & `lang/en` (`LocaleKeysTest` hijau); izin dan menu
+  - [x] 8.3 Kunci terjemahan `lang/id` & `lang/en` (`LocaleKeysTest` hijau); izin dan menu
     - _Requirements: 10.4, 13.3_
 
 - [ ] 9. **(GATED D-15)** Bagian B — konversi kolom hitung dokumen
@@ -137,7 +137,7 @@ Bagian A (Task 1.2-1.4, 2-5) digabung dengan `origin/feat/finance-engine` (Fase 
 **Pertanyaan terbuka (belum diputuskan, menunggu pemilik produk)**
 - Konflik design.md vs Requirement 4.1 (lihat diskusi desain; perlu diputuskan mana yang berlaku).
 - Retur: memakai versi aturan pada tanggal retur, atau mewarisi versi item dokumen asal.
-- `TaxesController::store` membuat pajak tanpa versi aturan (pajak baru dari UI belum bisa dipakai di invoice sampai versi dibuat).
+- ~~`TaxesController::store` membuat pajak tanpa versi aturan~~ (ditutup 27 November 2026, Q-P3-11: disengaja; versi dibuat manual di tab Versi Aturan).
 - `InvoiceBilledValueResolver` masih membaca `taxes.rate`, bukan versi aturan.
 
 **Tindak lanjut review PR #330 (27 November 2026)**
@@ -155,6 +155,21 @@ Bagian A (Task 1.2-1.4, 2-5) digabung dengan `origin/feat/finance-engine` (Fase 
 - `finance:init-posting-profile` melaporkan seluruh akun bertipe `tax` (ambigu bila lebih dari satu) dan peran `tax_output`, `tax_input`, `withholding_*` yang belum dipetakan; tidak pernah memetakannya.
 - Tindak lanjut review PR #331 (27 November 2026): `forPosting(..., preview: true)` (panel akun draft) tidak mencatat `posting.unsplit_tax`, hanya posting nyata; laporan peran pajak `finance:init-posting-profile` membaca profil `active` yang berlaku hari ini (sama dengan `AccountRoleResolver::profileFor`, draft tidak dihitung) dan peran `tax_*`/`withholding_*` tidak diulang di bagian "tanpa padanan legacy".
 - Tidak dikerjakan/ditunda: G6 minor unit 0 sebagai tes DB (mata uang dasar tes bukan minor unit 0; dicakup tes properti tingkat rule dan G6 pecahan); Task 6.6 (manual, staging).
+
+**Catatan implementasi Task 8 (27 November 2026, branch `feat/finance-p3-tax-ui`)**
+- 8.1: `TaxRequest` menerima `category`/`behavior`/`is_creditable` (opsional; bila tidak dikirim nilai tersimpan tak berubah) dan menolak `withholding` + kategori PPN terhadap gabungan input dan nilai tersimpan. `TaxRuleVersionController` (`save`, `updateDraft`, `discard`, `activate`, `retire` di `taxes/{tax}/ruleVersions`) memakai `TaxRuleVersionService`; SEMUA aksi tulis mensyaratkan izin `manage_rule_versions` (izin `write` model ini tidak memberi akses ke aksi apa pun), versi harus milik pajak pada URL (404 bila tidak), dan galat domain menjadi galat validasi pada kunci `version`. `TaxesController::show` memuat `ruleVersions` hanya bila pembaca punya izin `read` pada `TaxRuleVersion` (tanpa izin itu halaman Pajak tetap terbuka dan tab disembunyikan) serta `unclassifiedUsage` (jumlah invoice penjualan/pembelian 12 bulan terakhir yang memakai pajak `unclassified`, per tanggal invoice).
+- Validasi `category` (disetujui pemilik produk 27 November 2026): `TaxRequest` memakai `Rule::in(Tax::CATEGORIES)` sehingga kategori di luar daftar (termasuk beda huruf besar/kecil) ditolak pada store dan update (galat validasi `category`; aplikasi merespons galat validasi Inertia dengan redirect + error session, bukan status 422 mentah); alasan: kategori tak dikenal akan diperlakukan diam-diam sebagai non-PPN oleh Task 7 (PR #332). Tes: `TaxClassificationHttpTest::test_category_outside_the_list_is_rejected_on_store_and_update`.
+- Pajak baru dari UI TIDAK diberi versi awal otomatis (Requirement tidak menyebutnya): versi dibuat dan diaktifkan lewat tab Versi Aturan setelah pajak tersimpan; tab memperingatkan bila belum ada versi aktif (Q-P3-5 tetap fail-closed).
+- 8.2: `TaxBreakdownPanel` (deferred prop `taxBreakdown` lewat `DataTable::showDetail`, hanya model yang mengembalikan `hasTaxBreakdownPanel() = true`: Sales/Purchase Invoice). Membaca `tax_breakdown` apa adanya (tanpa hitung ulang; peringatan tingkat dokumen `snapshot_build_failed` dibaca dari JSON mentah); invoice approved tanpa snapshot = `legacy` (dijelaskan dari nilai item tersimpan lewat `DocumentTaxSnapshot`, komponen tanpa versi berlabel legacy); invoice belum approved = `pending`; versi yang hilang = "versi tidak tersedia" (Requirement 5.6). Tautan versi memerlukan izin `read` pada Pajak dan `TaxRuleVersion`. Halaman jurnal: baris pajak menampilkan tautan versi (relasi `GeneralLedger::taxRuleVersion()`), mengikuti izin yang sama.
+- 8.3: kunci terjemahan `finances/taxRuleVersion` (messages/tab), `finances/taxes` (errors/form), `finances/taxBreakdown` (baru), `finances/journal`, dan label izin `manage_rule_versions` di `user/role.php` (id dan en). Tidak ada entri menu baru: versi aturan hanyalah tab di halaman Pajak (menu `Taxes` sudah ada).
+- Tidak dikerjakan: layar "Pajak tak terklasifikasi" (Requirement 10.5 bagian tampilan; perintah artisan sudah ada dan bagian tampilan tidak dipetakan ke Task 8) dan tampilan riwayat audit per versi (perubahan versi tercatat lewat `AuditableModelSaved`; daftar versi sendiri memuat seluruh status).
+
+**Pertanyaan terbuka Task 8 (belum diputuskan pemilik produk)**
+- ~~Izin `write` pada `TaxRuleVersion`~~ **DITUTUP 27 November 2026 (Q-P3-9, pemilik produk):** semua aksi tulis tetap hanya `manage_rule_versions` (Requirement 2.5 diubah); `write` tidak dipakai aksi apa pun.
+- ~~Peringatan "unclassified terpakai"~~ **DITUTUP 27 November 2026 (Q-P3-10, pemilik produk):** hanya invoice penjualan/pembelian AKTIF (draf dan dibatalkan diabaikan), global tanpa scope cabang, menurut tanggal invoice dengan hari batas ikut terhitung (Requirement 1.3 diubah). Banner agregat di daftar Pajak tidak dikerjakan.
+- Tindak lanjut review PR #333: state panel dibedakan dari status approval dokumen (draf/menunggu persetujuan/ditolak = `pending`; sisanya tanpa snapshot = `legacy`), bukan `submitted_at`; versi yang tidak ditemukan pada jalur pending/legacy tampil "versi tidak tersedia" memakai `tax_rule_version_id` asli item (Requirement 5.6). `TaxRuleResolver::findVersion()`/`findTax()` sudah ber-cache per id selama satu request, jadi tidak ada perubahan.
+- ~~`TaxesController::store` membuat pajak tanpa versi aturan~~ **DITUTUP 27 November 2026 (Q-P3-11, pemilik produk):** pajak baru dari UI TIDAK diberi versi awal otomatis; versi dibuat manual di tab Versi Aturan (fail-closed Q-P3-5). Tidak ada perubahan kode.
+- Tautan versi aturan membuka halaman Pajak (belum memilih tab Versi Aturan otomatis); tidak ada halaman/route detail versi tersendiri.
 
 **Pertanyaan terbuka Task 6 (belum diputuskan pemilik produk)**
 - ~~Cutover untuk RETUR~~ **DITUTUP 27 November 2026 (Q-P3-8, pemilik produk):** retur mengikuti bentuk jurnal invoice ASAL (`TaxSplitResolver::isActiveForDocument()`), selaras Q-P2-25; alasan: saldo `tax_output`/`tax_input` tidak boleh debit tanpa kredit asal. Requirement 7.5-7.6 diubah.

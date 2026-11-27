@@ -53,6 +53,7 @@ use App\Http\Controllers\Finances\PostingProfileController;
 use App\Http\Controllers\Finances\PurchaseInvoiceController;
 use App\Http\Controllers\Finances\SalesInvoiceController;
 use App\Http\Controllers\Finances\TaxesController;
+use App\Http\Controllers\Finances\TaxRuleVersionController;
 use App\Http\Controllers\Helpdesk\TicketController;
 use App\Http\Controllers\Inventory\AttributeController;
 use App\Http\Controllers\Inventory\CategoryController;
@@ -508,6 +509,14 @@ Route::middleware(['auth', 'lang', 'onboarded', 'app', 'desk'])->group(function 
     Route::resourceDetail('salesInvoice', SalesInvoiceController::class, isSubmmitable: true);
     // Taxes
     Route::resourceDetail('tax', TaxesController::class);
+    // Versi aturan pajak (Finance Fase 3, Requirement 2, 10.1): aksi dari tab "Versi Aturan" pada halaman Pajak
+    Route::controller(TaxRuleVersionController::class)->prefix('taxes/{tax}/ruleVersions')->name('taxRuleVersions.')->group(function () {
+        Route::post('/', 'save')->name('save');
+        Route::put('/{taxRuleVersion}', 'updateDraft')->name('updateDraft');
+        Route::delete('/{taxRuleVersion}', 'discard')->name('discard');
+        Route::put('/{taxRuleVersion}/activate', 'activate')->name('activate');
+        Route::put('/{taxRuleVersion}/retire', 'retire')->name('retire');
+    });
     // / Finances End
 });
 

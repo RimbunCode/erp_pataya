@@ -9,12 +9,15 @@ use App\Models\Finances\FiscalPeriod;
 use App\Models\Finances\FiscalYear;
 use App\Models\Finances\GeneralLedger;
 use App\Models\Finances\Journal;
+use App\Models\Finances\Tax;
+use App\Models\Finances\TaxRuleVersion;
 use App\Services\Core\Setting\SettingsService;
 use App\Services\Finances\Ledger\FiscalPeriodService;
 use App\Services\Finances\Ledger\JournalDraft;
 use App\Services\Finances\Ledger\JournalLineDraft;
 use App\Services\Finances\Ledger\JournalReversalService;
 use App\Services\Finances\Ledger\JournalService;
+use App\Services\Finances\Tax\TaxRuleVersionService;
 use Carbon\CarbonImmutable;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Tests\Support\BuildsFinanceFixtures;
@@ -103,6 +106,45 @@ class JournalControllerTest extends TestCase {
                 ->where('totals.balanced', true)
                 ->where('minorUnit', 2)
                 ->where('canReverse', false));
+    }
+
+    public function test_show_exposes_the_tax_rule_version_of_tax_lines_and_link_permission(): void {
+        // Halaman Inertia diperiksa lewat props; manifest Vite build lokal tidak diperlukan.
+        $this->withoutVite();
+        $tax      = Tax::query()->create(['name' => 'PPN 12%', 'rate' => 12]);
+        $versions = app(TaxRuleVersionService::class);
+        $version  = $versions->activate($versions->createDraft($tax, ['effective_from' => '2026-01-01', 'rate' => 12, 'dpp_numerator' => 11, 'dpp_denominator' => 12]));
+        $journal  = app(JournalService::class)->post(new JournalDraft(
+            CarbonImmutable::parse('2026-11-05 10:30:00'),
+            [
+                new JournalLineDraft($this->cash->id, 112, 0),
+                new JournalLineDraft($this->revenue->id, 0, 100),
+                new JournalLineDraft($this->revenue->id, 0, 12, taxRuleVersionId: $version->id),
+            ],
+            $this->branch,
+            'test:journal:tax',
+            $this->branch->id,
+        ));
+
+        $grant = fn (string $model, array $flags): array => [$model => [0 => [['model' => $model, 'level' => 0, 'only_creator' => false, 'permissions' => array_fill_keys($flags, true)]]]];
+
+        $this->withSession([
+            'permissions'         => [...$grant(Journal::class, ['select', 'read']), ...$grant(Tax::class, ['read']), ...$grant(TaxRuleVersion::class, ['read'])],
+            'permissions_version' => '0|0|0|0',
+            'currentBranch'       => null,
+        ])->withCookie('lang', 'en')->actingAs($this->user)->get(route('journals.show', $journal))
+            ->assertOk()
+            ->assertInertia(fn ($page) => $page
+                ->where('canViewTaxRules', true)
+                ->where('lines.0.tax_rule_version', null)
+                ->where('lines.2.tax_rule_version.id', $version->id)
+                ->where('lines.2.tax_rule_version.number', 1)
+                ->where('lines.2.tax_rule_version.tax_id', $tax->id)
+                ->where('lines.2.tax_rule_version.tax_name', 'PPN 12%')
+                ->where('lines.2.tax_rule_version.missing', false));
+
+        $this->actingWith(['select', 'read'])->get(route('journals.show', $journal))
+            ->assertInertia(fn ($page) => $page->where('canViewTaxRules', false));
     }
 
     public function test_can_reverse_requires_permission_and_reversible_state(): void {

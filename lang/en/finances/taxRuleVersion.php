@@ -12,6 +12,8 @@ return [
         'effective_to'          => 'Effective To',
         'rate'                  => 'Rate (%)',
         'dpp_factor'            => 'Tax Base Factor',
+        'dpp_numerator'         => 'Tax Base Factor: Numerator',
+        'dpp_denominator'       => 'Tax Base Factor: Denominator',
         'rounding_mode'         => 'Rounding',
         'rounding_mode.options' => [
             'per_line'     => 'Per Line',
@@ -44,5 +46,53 @@ return [
         'unknown_tax'                    => 'Tax not found.',
         'delete_not_draft'               => 'Only draft versions can be deleted.',
         'no_effective_rule'              => 'No tax rule version is effective for ":tax" on :date.',
+    ],
+
+    'messages' => [
+        'created'   => 'Version :version was created as a draft.',
+        'updated'   => 'Version :version was updated.',
+        'discarded' => 'Draft version :version was deleted.',
+        'activated' => 'Version :version was activated.',
+        'retired'   => 'Version :version was retired.',
+    ],
+
+    'tab' => [
+        'title'           => 'Rule Versions',
+        'empty'           => 'This tax has no rule versions yet.',
+        'no_active'       => 'This tax has no active rule version, so it cannot be used on invoices yet. Create a new version and activate it.',
+        'dpp_hint'        => 'Until the document calculation columns are converted, only a DPP factor of 11/12 can be activated.',
+        'created_by'      => 'Created by',
+        'add'             => 'New Version',
+        'read_only_notes' => 'Active and retired versions cannot be changed; create a new version with a new effective date.',
+        'actions'         => [
+            'edit'     => 'Edit',
+            'activate' => 'Activate',
+            'retire'   => 'Retire',
+            'discard'  => 'Delete Draft',
+        ],
+        'form' => [
+            'new_title'  => 'New Rule Version',
+            'edit_title' => 'Edit Draft of Version :version',
+            'save'       => 'Save Draft',
+            'cancel'     => 'Cancel',
+        ],
+        'confirm' => [
+            'cancel'   => 'Cancel',
+            'activate' => [
+                'title'       => 'Activate rule version?',
+                'description' => 'Version :version starts applying to documents dated within its effective range. An active version can no longer be edited.',
+                'confirm'     => 'Activate',
+            ],
+            'retire' => [
+                'title'       => 'Retire rule version?',
+                'description' => 'Version :version is no longer picked for new documents. Existing documents are unchanged, but dates not covered by another active version will fail when a document is created.',
+                'confirm'     => 'Retire',
+            ],
+            'discard' => [
+                'title'       => 'Delete draft?',
+                'description' => 'Draft version :version will be deleted.',
+                'confirm'     => 'Delete',
+            ],
+        ],
     ],
 ];
