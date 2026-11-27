@@ -104,7 +104,7 @@ return [
         'not_line_sensitive_hint' => 'Peran tingkat dokumen: kondisi barang tidak berlaku.',
         'discount_hint'           => 'Peran diskon dipakai Sales Invoice dan Purchase Invoice. Buat aturan terpisah per jenis dokumen; aturan khusus varian Retur saja tidak memenuhi syarat pemetaan diskon.',
         'custom_title'            => 'Aturan Peran Kustom',
-        'custom_description'      => 'Aturan berperan kustom (di luar katalog peran) tidak dapat diedit di sini dan dipertahankan saat disimpan.',
+        'custom_description'      => 'Aturan berperan kustom (di luar katalog peran) tidak dapat diedit di sini; aturan ini dipertahankan saat disimpan kecuali Anda menghapusnya dengan tombol Hapus.',
         'errors'                  => [
             'role_required'       => 'Pilih peran.',
             'account_required'    => 'Pilih akun.',

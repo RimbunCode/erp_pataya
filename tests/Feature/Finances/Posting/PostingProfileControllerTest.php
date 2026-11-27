@@ -552,6 +552,40 @@ class PostingProfileControllerTest extends TestCase {
         $this->assertSame(5, $profile->rules()->value('priority'));
     }
 
+    public function test_update_can_remove_custom_role_rule_even_when_its_account_is_disabled(): void {
+        $profile = $this->service->createDraft('Awal', '2026-01-01', null, [], [
+            ['role' => 'custom_tax', 'account_id' => $this->other->id, 'document_type' => 'sales_invoice', 'priority' => 5],
+            ['role' => 'revenue', 'account_id' => $this->other->id, 'document_type' => 'sales_invoice'],
+        ]);
+        $this->other->forceFill(['is_disabled' => true])->save();
+        $custom = $profile->rules()->where('role', 'custom_tax')->firstOrFail();
+        $url    = route('postingProfiles.update', $profile);
+        $acting = $this->actingWith(['select', 'read', 'write']);
+
+        // Aturan kustom yang dibawa kembali divalidasi ulang service: akun nonaktif membuat simpan macet.
+        $acting->put($url, $this->updatePayload(['rules' => [], 'custom_rule_ids' => [$custom->id]]))
+            ->assertSessionHasErrors(['profile']);
+        $this->assertEqualsCanonicalizing(['custom_tax', 'revenue'], $profile->rules()->pluck('role')->all());
+
+        // Tidak dikirim kembali: aturan kustom ikut terhapus dan simpan berhasil.
+        $this->actingWith(['select', 'read', 'write'])->put($url, $this->updatePayload(['rules' => [], 'custom_rule_ids' => []]))
+            ->assertSessionHasNoErrors();
+        $this->assertSame(0, $profile->rules()->count());
+    }
+
+    public function test_update_keeps_only_the_listed_custom_role_rules(): void {
+        $profile = $this->service->createDraft('Awal', '2026-01-01', null, [], [
+            ['role' => 'custom_tax', 'account_id' => $this->other->id, 'document_type' => 'sales_invoice', 'priority' => 5],
+            ['role' => 'custom_fee', 'account_id' => $this->other->id, 'document_type' => 'sales_invoice', 'priority' => 6],
+        ]);
+        $keep = $profile->rules()->where('role', 'custom_fee')->firstOrFail();
+
+        $this->actingWith(['select', 'read', 'write'])->put(route('postingProfiles.update', $profile), $this->updatePayload(['rules' => [], 'custom_rule_ids' => [$keep->id, 'tidak-ada']]))
+            ->assertSessionHasNoErrors();
+
+        $this->assertSame(['custom_fee'], $profile->rules()->pluck('role')->all());
+    }
+
     public function test_update_rejects_duplicate_condition_combinations_per_row(): void {
         $profile = $this->draft();
 
