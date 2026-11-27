@@ -71,7 +71,7 @@ final readonly class TaxInput {
         public string $taxId,
         public float|string $baseAmount,       // basis bersih setelah diskon
         public CarbonInterface $date,
-        public int $minorUnit,                 // mata uang dasar
+        public int $minorUnit,                 // mata uang dokumen (Q-P3-7)
         public ?string $lineRef = null,        // untuk penjelasan per baris
     ) {}
 }
@@ -307,7 +307,7 @@ Diverifikasi terhadap `origin/feat/finance-engine` (`ab76a569`). Task 1.1 menung
 5. **Faktor DPP, `DocumentDiscountCalculator`, dan FE** memakai `11/12` sebagai konstanta di tiga tempat (PHP service, PHP calculator, JS dua form); guard Requirement 2.7 menutup semuanya selama Bagian B belum aktif.
 6. **Pajak tak punya versi sama sekali** (data lama sebelum `finance:init-tax-rules`, atau `Tax` yang baru dibuat sebelum UI Versi Aturan Task 8 tersedia): resolver yang melempar `NoEffectiveTaxRuleException` menggagalkan pembuatan invoice. **Diputuskan 2026-11-21 (pemilik produk, Q-P3-5): selalu gagal tertutup**, tanpa fallback ke `taxes.rate`; service menerjemahkannya menjadi 422 pada `items.{i}.tax` dan me-resolve sebelum penulisan apa pun (tidak ada header yatim). Prasyarat deploy: `finance:init-tax-rules` dijalankan lebih dulu.
 7. **`InvoiceBilledValueResolver::netValues()` masih memakai `taxes.rate`** (bukan versi aturan) untuk mengalokasikan diskon header pada basis total saat memeriksa toleransi penagihan. Sejak backfill, rate versi 1 sama dengan `taxes.rate`, jadi hasilnya identik; bila kelak ada versi dengan tarif berbeda dari `taxes.rate` (Task 8), pemeriksaan toleransi dapat sedikit menyimpang dari angka yang disimpan service. Belum diubah di Bagian A (di luar daftar file Task 5; dua pemanggil di `SalesInvoiceRequest`/`PurchaseInvoiceRequest`); dicatat untuk keputusan bersama Task 8.
-8. **Mata uang `tax_breakdown`.** Nilai item invoice disimpan dalam mata uang dokumen, sehingga snapshot Bagian A (`DocumentTaxSnapshot`) memakai minor unit mata uang dokumen (`currencies.minor_unit`, default 2) walaupun `TaxInput` menyebut mata uang dasar; konversi ke mata uang dasar adalah urusan FX Engine (Fase 4).
+8. **Mata uang `tax_breakdown`. Diputuskan 2026-11-27 (pemilik produk, Q-P3-7): mata uang DOKUMEN.** Nilai item invoice disimpan dalam mata uang dokumen, sehingga `TaxInput`, `TaxResult`, dan snapshot Bagian A (`DocumentTaxSnapshot`) memakai minor unit mata uang dokumen (`currencies.minor_unit`, default 2), bukan mata uang dasar; konversi ke mata uang dasar dilakukan pada posting (Task 6) dan FX Engine (Fase 4). Temuan ini sebelumnya pertanyaan terbuka, kini ditutup.
 9. **`TaxFactory` membuat versi 1 otomatis** (`afterCreating`), menyerupai kondisi pasca-backfill, supaya test invoice yang ada tetap hijau di bawah kebijakan gagal tertutup. Test yang butuh pajak tanpa versi memakai `Tax::query()->create()`.
 
 ### 1.4 Audit COA

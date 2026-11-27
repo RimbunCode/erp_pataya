@@ -15,7 +15,7 @@ use RangeException;
  * tanggal dokumen, dan menjelaskan hasilnya.
  *
  * Perhitungan: `dpp = basis × pembilang/penyebut`; `pajak = dpp × tarif/100`; pembulatan HALF_UP ke minor unit
- * mata uang dasar, per baris (`per_line`) atau sekali per versi di akhir dokumen dengan selisih dibebankan pada baris
+ * mata uang dokumen (Q-P3-7), per baris (`per_line`) atau sekali per versi di akhir dokumen dengan selisih dibebankan pada baris
  * terbesar (`per_document`), sehingga jumlah komponen = jumlah dokumen (Requirement 4.3).
  *
  * Aritmetika memakai bilangan bulat minor unit dengan faktor sebagai rasio bilangan bulat (tarif dikali 10^4,
@@ -387,7 +387,7 @@ final class TaxEngine {
         $minorUnit = $inputs[0]->minorUnit;
         foreach ($inputs as $input) {
             if ($input->minorUnit !== $minorUnit) {
-                throw new InvalidArgumentException('All tax inputs of one document must share the base currency minor unit.');
+                throw new InvalidArgumentException('All tax inputs of one document must share the document currency minor unit.');
             }
         }
 

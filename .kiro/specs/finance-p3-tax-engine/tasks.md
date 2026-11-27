@@ -24,6 +24,8 @@ Bagian A (Task 1–8) tidak mengubah angka di dokumen; Bagian B (Task 9) adalah 
     - _Requirements: 5.2–5.3_
   - [x] 1.4 Audit COA: akun `account_type = tax` dan kebutuhan PPN Keluaran/Masukan/PPh (Q-P3-4); verifikasi status task 11 spec DPP (belum dikerjakan)
     - _Requirements: 1.5, 7.7_
+  - [x] 1.5 Seed `PPN 12% (DPP Nilai Lain 11/12)` (`TaxSeeder`, dipanggil `DatabaseSeeder`): hanya bila belum ada pajak `ppn_standard` (termasuk terhapus lunak), idempoten, tidak menimpa; versi 1 berfaktor 11/12 lewat `TaxRuleVersionService::createInitialVersion()`; test `TaxSeederTest`
+    - _Requirements: 1.4_
 
 - [x] 2. Skema dan model (aditif)
   - [x] 2.1 Migration `add_classification_columns_to_taxes_table` (`category`, `behavior`, `jurisdiction_code`, `is_creditable`); model `Tax` (`$casts`, `$configColumns`)
@@ -141,3 +143,5 @@ Bagian A (Task 1.2-1.4, 2-5) digabung dengan `origin/feat/finance-engine` (Fase 
 - **Catatan untuk Task 6 (M-5)**: `finance_tax_split_from.{type}` bernilai NULL berarti pemisahan baris pajak TIDAK aktif; rule posting harus memperlakukan NULL sebagai tidak aktif, bukan sebagai tanggal paling awal.
 - Pertanyaan terbuka tambahan (V-1): tanggal dokumen untuk memilih versi aturan pajak diturunkan dengan `CarbonImmutable::parse($data['date'])->toDateString()` (zona UTC, `app.timezone`), sedangkan frontend mengirim datetime ISO UTC dan posting/guard periode fiskal memakai hari bisnis zona perusahaan (`FiscalPeriodService::businessDay()`, Asia/Jakarta). Dokumen antara 00.00-07.00 WIB bisa memakai versi aturan hari sebelumnya, sehingga berbeda dari tanggal jurnalnya pada hari pergantian tarif. Belum diubah karena menyangkut definisi "tanggal berlaku" pajak; perlu keputusan pemilik produk.
 - M-3 diputuskan pemilik produk 27 November 2026 (Q-P3-6): kegagalan snapshot `tax_breakdown` tidak memblokir approve; `DocumentTaxSnapshot::buildOrDescribeFailure()` menyimpan `warnings` `snapshot_build_failed` dan mencatat log (Task 5.3).
+- Requirement 1.4 (seed PPN 12%) kini dipetakan ke Task 1.5 dan selesai 27 November 2026; gap sebelumnya tertutup.
+- Mata uang `tax_breakdown` diputuskan pemilik produk 27 November 2026 (Q-P3-7): mata uang dokumen; pertanyaan terbuka terkait ditutup.
