@@ -343,7 +343,7 @@ class PostingRoutingTest extends TestCase {
             $this->fail('Peran akun yang tidak ter-resolve harus menggagalkan approve.');
         } catch (ValidationException $e) {
             $message = $e->errors()['status'][0];
-            $this->assertStringContainsString('stock', $message);
+            $this->assertStringContainsString('role "stock"', $message);
             $this->assertStringContainsString(PostingDocumentType::StockEntry->value, $message);
         }
 

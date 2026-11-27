@@ -40,7 +40,7 @@ vi.mock("@/Components/Select", () => ({
   ),
 }));
 
-const toastMock = vi.hoisted(() => ({ warning: vi.fn() }));
+const toastMock = vi.hoisted(() => ({ warning: vi.fn(), error: vi.fn() }));
 vi.mock("@/lib/gooeyToast", () => ({ gooeyToast: toastMock }));
 
 window.route = (name, id) => (id ? `${name}/${id}` : name);
@@ -63,6 +63,7 @@ describe("ApproverDecision", () => {
     useFormReturn.reset.mockReset();
     useFormReturn.processing = false;
     toastMock.warning.mockClear();
+    toastMock.error.mockClear();
     usePageMock.mockReturnValue({ props: { auth: { user: { id: 1 } } } });
   });
 
@@ -324,6 +325,22 @@ describe("ApproverDecision", () => {
 
     expect(toastMock.warning).not.toHaveBeenCalled();
     expect(useFormReturn.reset).toHaveBeenCalled();
+  });
+
+  it("menampilkan toast galat saat server menolak approve dengan galat validasi (peran akun belum ter-resolve)", async () => {
+    const options = await submitAndGetOptions();
+
+    act(() => {
+      options.onError({
+        status: [
+          "Dokumen tidak dapat disetujui: peran stock belum ter-resolve.",
+        ],
+      });
+    });
+
+    expect(toastMock.error).toHaveBeenCalledWith(
+      "Dokumen tidak dapat disetujui: peran stock belum ter-resolve.",
+    );
   });
 
   it("klik cancel menutup dialog tanpa memanggil post", async () => {
