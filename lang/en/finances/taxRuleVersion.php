@@ -47,6 +47,7 @@ return [
         'delete_not_draft'               => 'Only draft versions can be deleted.',
         'no_effective_rule'              => 'No tax rule version is effective for ":tax" on :date.',
         'stale_rule_version'             => 'The tax rule version of ":tax" effective on the document date (:date) differs from the version stored on the item. Save the draft again so tax is calculated with the effective version, then approve again.',
+        'order_resync_rule_missing'      => 'The document cannot be re-synced because its tax has no rule effective on the document date. :detail Add an effective tax rule version, then try again.',
     ],
 
     'messages' => [

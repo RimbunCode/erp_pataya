@@ -134,9 +134,13 @@ vi.mock("@/Pages/Finances/Taxes/TaxLinkModel", () => ({
   default: ({ value, onValueChange }) => (
     <button
       type="button"
-      onClick={() => onValueChange(globalThis.__quotationTax)}
+      onClick={() =>
+        onValueChange(
+          globalThis.__quotationTax ? [globalThis.__quotationTax] : [],
+        )
+      }
     >
-      tax:{value?.id ?? "none"}
+      tax:{value?.[0]?.id ?? "none"}
     </button>
   ),
 }));
@@ -150,7 +154,9 @@ vi.mock("@/Components/FormTable", () => ({
       {value.map((row) => (
         <div key={row.id} data-testid={`conditional-row-${row.id}`}>
           {columns
-            .filter((column) => column && ["item", "tax"].includes(column.name))
+            .filter(
+              (column) => column && ["item", "taxes"].includes(column.name),
+            )
             .map((column) => (
               <div key={column.name}>
                 {column.cell({

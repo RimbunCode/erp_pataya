@@ -392,9 +392,20 @@ class SalesOrderService implements SubmitableService {
         $salesOrder->update(['status' => $status]);
     }
 
+    /**
+     * Jumlah tiap termin pembayaran mengikuti total dokumen (`amount x invoice_portion / 100`), sama dengan
+     * `fillPaymentScheduleRelations()`; dipanggil saat total berubah di luar simpan form (sinkronisasi dari invoice).
+     */
+    private function refreshPaymentScheduleAmounts(SalesOrder $salesOrder): void {
+        foreach ($salesOrder->paymentSchedules()->get() as $schedule) {
+            $schedule->update(['payment_amount' => $salesOrder->amount * ($schedule->invoice_portion / 100)]);
+        }
+    }
+
     public function syncItems(SalesOrder $salesOrder): array {
         return DB::transaction(function () use ($salesOrder) {
-            $salesOrder->loadMissing('items');
+            $salesOrder->loadMissing('items', 'items.taxLines');
+            $changedItemIds = [];
 
             $deliveryIds = ModelConnection::where('model_type', SalesOrder::class)
                 ->where('model_id', $salesOrder->id)
@@ -465,13 +476,18 @@ class SalesOrderService implements SubmitableService {
                 }
 
                 if ($groups->count() === 1) {
-                    $g = $groups->first();
+                    $g         = $groups->first();
+                    $oldTaxIds = array_map(fn (array $line): string => $line['tax_id'], InvoiceItemTaxLines::of($soItem));
                     $soItem->update([
                         'price'               => $g['price'],
                         'tax_id'              => $g['tax_id'],
                         'tax_rate'            => $g['tax_rate'],
                         'source_warehouse_id' => $g['warehouse_id'],
                     ]);
+                    // Item yang harga/pajaknya tidak berubah tidak dihitung ulang (Q-MT-12: dokumen lama tetap pada angka tersimpan).
+                    if ($soItem->wasChanged(['price', 'tax_id', 'tax_rate']) || $oldTaxIds !== $g['tax_ids']) {
+                        $changedItemIds[] = (string) $soItem->id;
+                    }
                     $soItem->refresh();
                     app(OrderTaxApplier::class)->setItemTaxSet($soItem, $g['tax_ids']);
                     $syncLog[] = ['action' => 'update', 'so_item_id' => $soItem->id, 'price' => $g['price']];
@@ -494,6 +510,7 @@ class SalesOrderService implements SubmitableService {
                         $newItem->save();
                         $newItem->refresh();
                         app(OrderTaxApplier::class)->setItemTaxSet($newItem, $g['tax_ids']);
+                        $changedItemIds[] = (string) $newItem->id;
 
                         $newDelivered = empty($g['source_delivery_item_ids']) ? 0
                             : DeliveryNoteItem::whereIn('id', $g['source_delivery_item_ids'])->sum('quantity');
@@ -515,12 +532,16 @@ class SalesOrderService implements SubmitableService {
                 }
             }
 
-            $salesOrder->load('items');
-            // Sinkronisasi menyimpan ulang dokumen: pajak tiap item dihitung ulang dari pajak yang melekat (pivot).
-            $totals = app(OrderTaxApplier::class)->applyStored($salesOrder, $salesOrder->items, $salesOrder->date, $salesOrder->currency_code);
-            $salesOrder->update([
-                'amount' => $totals['net'] + $totals['tax'],
-            ]);
+            if ($changedItemIds !== []) {
+                $salesOrder->load('items');
+                // Hanya item yang berubah dihitung ulang (semua item bila ada diskon dokumen); `taxLines` dimuat satu query.
+                $totals = app(OrderTaxApplier::class)->applyStored($salesOrder, $salesOrder->items, $salesOrder->date, $salesOrder->currency_code, $changedItemIds);
+                $amount = $totals['net'] + $totals['tax'];
+                if (abs($amount - (float) $salesOrder->amount) > 0.004) {
+                    $salesOrder->update(['amount' => $amount]);
+                    $this->refreshPaymentScheduleAmounts($salesOrder);
+                }
+            }
 
             $this->updateSalesOrderStatus($salesOrder);
 

@@ -553,6 +553,143 @@ describe("Sales Order Form.jsx", () => {
   });
 
   // --------------------------------------------------------------------
+  // Pajak majemuk per item (spek finance-multi-tax-per-item, Requirement 14)
+  // --------------------------------------------------------------------
+  describe("banyak pajak per baris", () => {
+    const PPN12 = {
+      id: "tax-ppn",
+      name: "PPN 12%",
+      rate: 12,
+      category: "ppn_standard",
+      behavior: "additive",
+    };
+    const PPH23 = {
+      id: "tax-pph",
+      name: "PPh 23",
+      rate: 2,
+      category: "pph_23",
+      behavior: "withholding",
+    };
+    const VERSIONS = [
+      {
+        id: "ver-ppn12",
+        tax_id: "tax-ppn",
+        status: "active",
+        effective_from: "2000-01-01",
+        effective_to: null,
+        rate: 12,
+        dpp_numerator: 11,
+        dpp_denominator: 12,
+        behavior: "additive",
+      },
+      {
+        id: "ver-pph23",
+        tax_id: "tax-pph",
+        status: "active",
+        effective_from: "2000-01-01",
+        effective_to: null,
+        rate: 2,
+        dpp_numerator: 1,
+        dpp_denominator: 1,
+        behavior: "withholding",
+      },
+    ];
+    const line = {
+      id: 1,
+      item: { id: 1 },
+      quantity: 1,
+      price: 1000000,
+      taxes: [PPN12, PPH23],
+    };
+
+    beforeEach(() => {
+      usePageMock.mockReturnValue({
+        props: {
+          preferences: { default_currency_id: "idr" },
+          loadFrom: null,
+          taxRuleVersions: VERSIONS,
+        },
+      });
+    });
+
+    it("total memakai pajak penambah (faktor DPP) dan tidak menambah pajak potong", () => {
+      renderForm({ data: { date: new Date("2026-01-01"), items: [line] } });
+
+      // PPN 12% x DPP 11/12 x 1.000.000 = 110.000; PPh 23 hanya info (20.000).
+      expect(captured.additionalDiscountProps.taxAmount).toBeCloseTo(110000, 2);
+      expect(captured.additionalDiscountProps.rawTaxAmount).toBeCloseTo(
+        110000,
+        2,
+      );
+      const values = Array.from(document.querySelectorAll("input")).map(
+        (el) => el.value,
+      );
+      expect(values).toContain("1,110,000.00");
+      expect(values).toContain("20,000.00");
+    });
+
+    it("mapItem mengisi pajak penambah, potongan, dan rincian pajak per baris", () => {
+      renderForm({ data: { date: new Date("2026-01-01"), items: [line] } });
+
+      const result = captured.formTableProps.mapItem({
+        item: line,
+        dataTable: [line],
+        index: 0,
+      });
+
+      expect(result.tax_amount).toBeCloseTo(110000, 2);
+      expect(result.withholding_amount).toBeCloseTo(20000, 2);
+      expect(result.tax_lines.map((tax) => tax.name)).toEqual([
+        "PPN 12%",
+        "PPh 23",
+      ]);
+    });
+
+    it("kolom taxes memilih banyak pajak dan mengirim taxes + cerminan tax utama", () => {
+      const { stateRef } = renderForm({
+        data: { date: new Date("2026-01-01"), items: [line] },
+      });
+      const setData = vi.fn();
+      const column = captured.formTableProps.columns.find(
+        (c) => c.name === "taxes",
+      );
+      const cell = unwrapTaxCell(
+        column.cell({ dataRow: line, setData, attributes: {} }),
+      );
+
+      expect(cell.props.multiple).toBe(true);
+      expect(cell.props.value).toEqual([PPN12, PPH23]);
+
+      cell.props.onValueChange([PPH23]);
+
+      expect(setData).toHaveBeenCalledWith(
+        expect.objectContaining({ taxes: [PPH23], tax: PPH23 }),
+      );
+      expect(stateRef.data.items[0].taxes).toEqual([PPN12, PPH23]);
+    });
+
+    it("menampilkan galat per baris dari items.0.taxes", () => {
+      renderForm({
+        data: { date: new Date("2026-01-01"), items: [line] },
+        errors: { "items.0.taxes": "Pajak salah" },
+      });
+      const column = captured.formTableProps.columns.find(
+        (c) => c.name === "taxes",
+      );
+      const cell = column.cell(
+        {
+          dataRow: line,
+          setData: vi.fn(),
+          attributes: {},
+        },
+        0,
+      );
+
+      expect(cell.type).toBe("div");
+    });
+  });
+
+  // --------------------------------------------------------------------
   // mergeItems: dipanggil dari SelectModel.onSelected & loadFrom effect
   // --------------------------------------------------------------------
   describe("mergeItems", () => {
@@ -1089,7 +1226,7 @@ describe("Sales Order Form.jsx", () => {
     it("keeps manually cleared tax and warehouse empty when replacing an item", async () => {
       const { stateRef, select, respond, update } = setupResolutionTest();
       select("item-1");
-      for (const name of ["tax", "source_warehouse"]) {
+      for (const name of ["taxes", "source_warehouse"]) {
         const cell = captured.formTableProps.columns
           .find((column) => column.name === name)
           .cell({
@@ -1200,8 +1337,9 @@ describe("Sales Order Form.jsx", () => {
         data: { date: new Date(), items: [row] },
       });
       expect(
-        captured.formTableProps.columns.find((column) => column.name === "tax")
-          .required,
+        captured.formTableProps.columns.find(
+          (column) => column.name === "taxes",
+        ).required,
       ).toBe(true);
 
       const itemColumn = captured.formTableProps.columns.find(
@@ -1362,12 +1500,12 @@ describe("Sales Order Form.jsx", () => {
       await waitFor(() => expect(resolveDefaults).toBeTypeOf("function"));
 
       const taxColumn = captured.formTableProps.columns.find(
-        (column) => column.name === "tax",
+        (column) => column.name === "taxes",
       );
       const taxCell = taxColumn.cell({
         dataRow: stateRef.data.items[0],
-        data: stateRef.data.items[0].tax,
-        setData: (key, value) => updateRow({ [key]: value }),
+        data: stateRef.data.items[0].taxes,
+        setData: (patch) => updateRow(patch),
         attributes: {},
       });
       act(() => unwrapTaxCell(taxCell).props.onValueChange(null));
@@ -1458,6 +1596,9 @@ describe("Sales Order Form.jsx", () => {
         unit: selectedVal.default_uom,
         conversion_factor: 2,
         source_warehouse: undefined,
+        taxes: [],
+        tax: null,
+        tax_rate: undefined,
       });
     });
 
@@ -1792,7 +1933,7 @@ describe("Sales Order Form.jsx", () => {
       expect(cellOf("source_warehouse").props.disabled).toBe(true);
       expect(cellOf("available_quantity").props.disabled).toBe(true);
       expect(cellOf("quantity").props.disabled).toBeFalsy();
-      expect(unwrapTaxCell(cellOf("tax")).props.disabled).toBeFalsy();
+      expect(unwrapTaxCell(cellOf("taxes")).props.disabled).toBeFalsy();
     });
 
     it("total dokumen menjumlah baris ItemVariant dan baris asset dalam satu items", () => {

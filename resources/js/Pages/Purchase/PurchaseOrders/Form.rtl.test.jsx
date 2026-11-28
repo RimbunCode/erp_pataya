@@ -122,12 +122,15 @@ vi.mock("@/Components/FormTable", () => ({
           <div key={row.id ?? index} data-testid={`row-${index}`}>
             {columns.map((col) => (
               <div key={col.name} data-testid={`cell-${col.name}-${index}`}>
-                {col.cell({
-                  dataRow: row,
-                  data: row[col.name],
-                  setData: (keyOrObj, val) => updateRow(index, keyOrObj, val),
-                  attributes: {},
-                })}
+                {col.cell(
+                  {
+                    dataRow: row,
+                    data: row[col.name],
+                    setData: (keyOrObj, val) => updateRow(index, keyOrObj, val),
+                    attributes: {},
+                  },
+                  index,
+                )}
               </div>
             ))}
           </div>
@@ -198,10 +201,10 @@ vi.mock("@/Pages/Finances/Taxes/TaxLinkModel", () => ({
       type="button"
       data-testid="tax-link-model"
       onClick={() =>
-        onValueChange?.(clearDefaults ? null : { id: 1, name: "PPN", rate: 11 })
+        onValueChange?.(clearDefaults ? [] : [{ id: 1, name: "PPN", rate: 11 }])
       }
     >
-      tax:{value?.name ?? "none"}
+      tax:{value?.[0]?.name ?? "none"}
     </button>
   ),
 }));
@@ -407,6 +410,75 @@ describe("PurchaseOrders Form", () => {
       expect(
         screen.getByLabelText("purchase.purchaseOrder.columns.total (IDR)"),
       ).toHaveValue("2,700.00");
+    });
+
+    it("banyak pajak per baris: pajak penambah memakai faktor DPP dan pajak potong tampil terpisah", () => {
+      usePageMock.mockReturnValue({
+        props: {
+          preferences: { default_currency_id: "idr" },
+          loadFrom: null,
+          taxRuleVersions: [
+            {
+              id: "ver-ppn12",
+              tax_id: "tax-ppn",
+              status: "active",
+              effective_from: "2000-01-01",
+              effective_to: null,
+              rate: 12,
+              dpp_numerator: 11,
+              dpp_denominator: 12,
+              behavior: "additive",
+            },
+            {
+              id: "ver-pph23",
+              tax_id: "tax-pph",
+              status: "active",
+              effective_from: "2000-01-01",
+              effective_to: null,
+              rate: 2,
+              dpp_numerator: 1,
+              dpp_denominator: 1,
+              behavior: "withholding",
+            },
+          ],
+        },
+      });
+      formPageSeed = {
+        date: new Date("2026-01-01"),
+        items: [
+          {
+            item: { id: 1 },
+            quantity: 1,
+            rate: 1000000,
+            taxes: [
+              {
+                id: "tax-ppn",
+                name: "PPN 12%",
+                rate: 12,
+                category: "ppn_standard",
+              },
+              { id: "tax-pph", name: "PPh 23", rate: 2, category: "pph_23" },
+            ],
+          },
+        ],
+      };
+      render(<Form />);
+
+      expect(
+        screen.getByLabelText(
+          "purchase.purchaseOrder.columns.tax_amount (IDR)",
+        ),
+      ).toHaveValue("110,000.00");
+      expect(
+        screen.getByLabelText(
+          "purchase.purchaseOrder.columns.withholding_amount (IDR)",
+        ),
+      ).toHaveValue("20,000.00");
+      // pajak potong tidak menambah total
+      expect(
+        screen.getByLabelText("purchase.purchaseOrder.columns.total (IDR)"),
+      ).toHaveValue("1,110,000.00");
+      expect(screen.getAllByTestId("tax-summary-row")).toHaveLength(2);
     });
 
     it("baris tanpa item (belum dipilih) diabaikan dari perhitungan rawNetAmount/rawTaxAmount", () => {
@@ -774,7 +846,7 @@ describe("PurchaseOrders Form", () => {
         );
         deferTableUpdate = undefined;
         act(() => publish());
-        expect(screen.getByTestId("cell-tax-0")).toHaveTextContent(
+        expect(screen.getByTestId("cell-taxes-0")).toHaveTextContent(
           taxIds.length ? "Pajak Aturan" : "tax:none",
         );
         expect(screen.getByTestId("cell-target_warehouse-0")).toHaveTextContent(
@@ -794,7 +866,7 @@ describe("PurchaseOrders Form", () => {
       );
       selectedItemPayload = { ...selectedItemPayload, id: "variant-b" };
       await userEvent.click(screen.getByTestId("item-link-model"));
-      expect(screen.getByTestId("cell-tax-0")).toHaveTextContent("tax:none");
+      expect(screen.getByTestId("cell-taxes-0")).toHaveTextContent("tax:none");
       expect(screen.getByTestId("cell-target_warehouse-0")).toHaveTextContent(
         "warehouse:none",
       );
@@ -815,7 +887,7 @@ describe("PurchaseOrders Form", () => {
           warehouse_id: conditionalWarehouse.id,
         },
       });
-      expect(screen.getByTestId("cell-tax-0")).toHaveTextContent("tax:none");
+      expect(screen.getByTestId("cell-taxes-0")).toHaveTextContent("tax:none");
       expect(screen.getByTestId("cell-target_warehouse-0")).toHaveTextContent(
         "warehouse:none",
       );
@@ -824,10 +896,12 @@ describe("PurchaseOrders Form", () => {
     it("memilih Item menerapkan pajak dan gudang hasil resolver ke state baris", async () => {
       render(<Form />);
       await selectItem();
-      expect(screen.getByTestId("cell-tax-0")).toHaveTextContent("Pajak Modul");
+      expect(screen.getByTestId("cell-taxes-0")).toHaveTextContent(
+        "Pajak Modul",
+      );
       await finishResolution();
 
-      expect(screen.getByTestId("cell-tax-0")).toHaveTextContent(
+      expect(screen.getByTestId("cell-taxes-0")).toHaveTextContent(
         "Pajak Aturan",
       );
       expect(screen.getByTestId("cell-target_warehouse-0")).toHaveTextContent(
@@ -857,7 +931,7 @@ describe("PurchaseOrders Form", () => {
       );
       await finishResolution();
 
-      expect(screen.getByTestId("cell-tax-0")).toHaveTextContent("tax:PPN");
+      expect(screen.getByTestId("cell-taxes-0")).toHaveTextContent("tax:PPN");
       expect(screen.getByTestId("cell-target_warehouse-0")).toHaveTextContent(
         "warehouse:Gudang A",
       );
@@ -901,7 +975,7 @@ describe("PurchaseOrders Form", () => {
       });
 
       expect(screen.getByTestId("item-link-model")).toHaveTextContent("Item B");
-      expect(screen.getByTestId("cell-tax-0")).toHaveTextContent("tax:none");
+      expect(screen.getByTestId("cell-taxes-0")).toHaveTextContent("tax:none");
       expect(screen.getByTestId("cell-target_warehouse-0")).toHaveTextContent(
         "warehouse:none",
       );
@@ -918,7 +992,7 @@ describe("PurchaseOrders Form", () => {
       await selectItem();
       await finishResolution();
 
-      expect(screen.getByTestId("cell-tax-0")).toHaveTextContent(
+      expect(screen.getByTestId("cell-taxes-0")).toHaveTextContent(
         "Pajak Sumber",
       );
       expect(screen.getByTestId("cell-target_warehouse-0")).toHaveTextContent(

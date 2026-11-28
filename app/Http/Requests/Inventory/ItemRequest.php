@@ -90,10 +90,10 @@ class ItemRequest extends BaseFormRequest {
             'image'                       => ['nullable', 'array'],
             'image.*.id'                  => ['required', 'string', new ExistsExcludingTrashed('files')],
             'default_sales_taxes'         => ['nullable', 'array', 'max:' . ItemTaxSelection::MAX_TAXES],
-            'default_sales_taxes.*.id'    => ['required', 'string', new ExistsExcludingTrashed('taxes')],
+            'default_sales_taxes.*.id'    => ['required', 'bail', 'string', new ExistsExcludingTrashed('taxes')],
             'default_sales_taxes.*.*'     => ['nullable'],
             'default_purchase_taxes'      => ['nullable', 'array', 'max:' . ItemTaxSelection::MAX_TAXES],
-            'default_purchase_taxes.*.id' => ['required', 'string', new ExistsExcludingTrashed('taxes')],
+            'default_purchase_taxes.*.id' => ['required', 'bail', 'string', new ExistsExcludingTrashed('taxes')],
             'default_purchase_taxes.*.*'  => ['nullable'],
         ];
     }

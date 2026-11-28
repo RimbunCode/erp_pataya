@@ -59,6 +59,29 @@ describe("batch PO review payload", () => {
     expect(validateSubmissionDrafts(drafts)).toEqual({});
   });
 
+  it("mengirim taxes dan cerminan tax tiap baris", () => {
+    const state = completeState();
+    const draftId = state.draftOrder[0];
+    const taxes = [
+      { id: "ppn", rate: 12 },
+      { id: "pph", rate: 2 },
+    ];
+    const data = buildDraftData(state, draftId, "2026-10-14");
+    const next = applyDraftData(state, draftId, {
+      ...data,
+      items: data.items.map((item) => ({
+        ...item,
+        taxes,
+        tax: taxes[0],
+        tax_rate: 12,
+      })),
+    });
+    const drafts = buildSubmissionDrafts(next, "2026-10-14");
+
+    expect(drafts[0].items[0].taxes).toEqual(taxes);
+    expect(drafts[0].items[0].tax).toEqual(taxes[0]);
+  });
+
   it("reports the exact draft and line with invalid required fields without treating quantity warning as an error", () => {
     const state = completeState();
     const second = state.draftOrder[1];

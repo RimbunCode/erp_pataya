@@ -14,6 +14,7 @@ use App\Models\Finances\TaxRuleVersion;
 use App\Models\Model;
 use App\Services\Finances\Tax\ItemTaxSelection;
 use App\Services\Finances\Tax\OrderTaxApplier;
+use App\Services\Finances\Tax\TaxRuleResolver;
 use App\Traits\HasDefaultDelete;
 use Illuminate\Support\Collection;
 use Symfony\Component\Uid\Ulid;
@@ -35,13 +36,18 @@ class QuotationService implements SubmitableService {
      * aturan pada tanggal Quotation, sehingga Quotation tersimpan tidak berubah oleh perubahan master pajak sesudahnya
      * (menggantikan `keepTaxRate` lama).
      *
+     * Saat update, pajak yang SAMA dengan yang sudah tersimpan di item itu mempertahankan versi aturan dan tarifnya
+     * (`$pinned`, Requirement 14.6): perubahan master pajak sesudahnya tidak mengubah Quotation tersimpan; hanya pajak
+     * baru yang di-resolve dari tanggal Quotation.
+     *
      * @param  array<string, mixed>  $item
      * @param  array<string, TaxRuleVersion>  $taxRules
+     * @param  array<string, TaxRuleVersion>  $pinned  versi tersimpan per `tax_id` pada item ini
      * @return array<string, mixed>
      */
-    private function fillItemRelations(array $item, array $taxRules): array {
+    private function fillItemRelations(array $item, array $taxRules, array $pinned = []): array {
         $primaryTaxId = ItemTaxSelection::rowTaxIds($item)[0] ?? null;
-        $taxRule      = $taxRules[$primaryTaxId ?? ''] ?? null;
+        $taxRule      = ($pinned[$primaryTaxId ?? ''] ?? null) ?? $taxRules[$primaryTaxId ?? ''] ?? null;
 
         $item['item_id']      = $item['item']['id'];
         $item['item_unit_id'] = $item['item_unit']['id'] ?? null;
@@ -63,16 +69,42 @@ class QuotationService implements SubmitableService {
      * @param  array<string, Tax>  $taxes
      * @param  array<string, TaxRuleVersion>  $taxRules
      * @param  array<string, list<string>>  $itemTaxIds
+     * @param  array<string, array<string, string>>  $pinnedVersions  id versi terkunci per kunci item lalu `tax_id`
      * @return array{basic_amount: float, tax_amount: float, amount: float}
      */
-    private function applyItemTaxes(Quotation $quotation, Collection $items, array $taxes, array $taxRules, array $itemTaxIds, mixed $date): array {
-        app(OrderTaxApplier::class)->apply($quotation, $items, $taxes, $taxRules, $itemTaxIds, $date, null);
+    private function applyItemTaxes(Quotation $quotation, Collection $items, array $taxes, array $taxRules, array $itemTaxIds, mixed $date, array $pinnedVersions = []): array {
+        app(OrderTaxApplier::class)->apply($quotation, $items, $taxes, $taxRules, $itemTaxIds, $date, null, $pinnedVersions);
 
         return [
             'basic_amount' => (float) $items->sum('basic_amount'),
             'tax_amount'   => (float) $items->sum('tax_amount'),
             'amount'       => (float) $items->sum('amount'),
         ];
+    }
+
+    /**
+     * Versi aturan tersimpan (pivot) untuk pajak yang tetap dipilih pada item yang diedit (Requirement 14.6). Baris
+     * pivot tanpa versi (hasil backfill order lama) atau yang versinya tak ditemukan tidak mengunci apa pun: pajak itu
+     * di-resolve dari tanggal Quotation seperti pajak baru.
+     *
+     * @param  list<string>  $selectedTaxIds
+     * @return array<string, TaxRuleVersion> per `tax_id`
+     */
+    private function pinnedVersions(QuotationItem $item, array $selectedTaxIds): array {
+        $resolver = app(TaxRuleResolver::class);
+        $pinned   = [];
+        foreach ($item->taxLines as $line) {
+            $taxId = (string) $line->tax_id;
+            if (! \in_array($taxId, $selectedTaxIds, true) || blank($line->tax_rule_version_id)) {
+                continue;
+            }
+            $version = $resolver->findVersion((string) $line->tax_rule_version_id);
+            if ($version !== null && (string) $version->tax_id === $taxId) {
+                $pinned[$taxId] = $version;
+            }
+        }
+
+        return $pinned;
     }
 
     /**
@@ -151,25 +183,32 @@ class QuotationService implements SubmitableService {
             ->all();
         $existingItems = $quotation->items()
             ->whereIn('id', $itemIds)
+            ->with('taxLines')
             ->get()
             ->keyBy('id');
 
-        $items      = collect();
-        $itemTaxIds = [];
+        $items          = collect();
+        $itemTaxIds     = [];
+        $pinnedVersions = [];
         foreach ($data['items'] as $item) {
             $itemModel = Ulid::isValid($item['id']) ? $existingItems->get($item['id']) : null;
+            $selected  = ItemTaxSelection::rowTaxIds($item);
+            $pinned    = $itemModel ? $this->pinnedVersions($itemModel, $selected) : [];
 
             if ($itemModel) {
-                $itemModel->fill($this->fillItemRelations($item, $taxRules));
+                $itemModel->fill($this->fillItemRelations($item, $taxRules, $pinned));
                 $itemModel->save();
             } else {
                 $itemModel = $quotation->items()->create($this->fillItemRelations($item, $taxRules));
             }
 
-            $itemTaxIds[(string) $itemModel->getKey()] = ItemTaxSelection::rowTaxIds($item);
+            $itemTaxIds[(string) $itemModel->getKey()] = $selected;
+            if ($pinned !== []) {
+                $pinnedVersions[(string) $itemModel->getKey()] = array_map(fn (TaxRuleVersion $version): string => (string) $version->getKey(), $pinned);
+            }
             $items->push($itemModel);
         }
-        $quotation->fill($this->applyItemTaxes($quotation, $items, $taxes, $taxRules, $itemTaxIds, $data['date'] ?? null));
+        $quotation->fill($this->applyItemTaxes($quotation, $items, $taxes, $taxRules, $itemTaxIds, $data['date'] ?? null, $pinnedVersions));
         $quotation->save();
 
         if (array_key_exists('sections', $data)) {

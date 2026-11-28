@@ -16,6 +16,7 @@ final readonly class TaxInput {
      * @param  CarbonInterface  $date  tanggal dokumen (bukan `now()`; Requirement 3.4)
      * @param  int  $minorUnit  minor unit mata uang dokumen (0..6)
      * @param  string|null  $lineRef  rujukan baris untuk penjelasan (mis. `id` item)
+     * @param  string|null  $ruleVersionId  mengunci perhitungan pada versi aturan tersimpan (mis. Quotation yang diedit mempertahankan tarif pajak yang tidak diganti, Requirement 14.6); null = versi yang berlaku pada `$date`. Versi yang tak ditemukan atau milik pajak lain diabaikan (jatuh ke versi pada tanggal)
      */
     public function __construct(
         public string $taxId,
@@ -23,5 +24,6 @@ final readonly class TaxInput {
         public CarbonInterface $date,
         public int $minorUnit,
         public ?string $lineRef = null,
+        public ?string $ruleVersionId = null,
     ) {}
 }

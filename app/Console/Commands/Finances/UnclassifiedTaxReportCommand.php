@@ -32,10 +32,14 @@ class UnclassifiedTaxReportCommand extends Command {
             ['table' => 'purchase_invoice_item_taxes', 'column' => 'tax_id'],
             ['table' => 'purchase_invoice_items', 'column' => 'tax_id', 'withoutPivot' => ['table' => 'purchase_invoice_item_taxes', 'key' => 'purchase_invoice_item_id']],
         ],
+        // Order/quotation: SEMUA pajak item (pivot, termasuk pajak non-utama) ditambah item lama tanpa pivot.
         'other_documents' => [
-            ['table' => 'sales_order_items', 'column' => 'tax_id'],
-            ['table' => 'purchase_order_items', 'column' => 'tax_id'],
-            ['table' => 'quotation_items', 'column' => 'tax_id'],
+            ['table' => 'sales_order_item_taxes', 'column' => 'tax_id'],
+            ['table' => 'sales_order_items', 'column' => 'tax_id', 'withoutPivot' => ['table' => 'sales_order_item_taxes', 'key' => 'sales_order_item_id']],
+            ['table' => 'purchase_order_item_taxes', 'column' => 'tax_id'],
+            ['table' => 'purchase_order_items', 'column' => 'tax_id', 'withoutPivot' => ['table' => 'purchase_order_item_taxes', 'key' => 'purchase_order_item_id']],
+            ['table' => 'quotation_item_taxes', 'column' => 'tax_id'],
+            ['table' => 'quotation_items', 'column' => 'tax_id', 'withoutPivot' => ['table' => 'quotation_item_taxes', 'key' => 'quotation_item_id']],
         ],
         'defaults' => [
             ['table' => 'sales_settings', 'column' => 'default_tax_id'],
@@ -91,11 +95,10 @@ class UnclassifiedTaxReportCommand extends Command {
                 ->select($source['column'] . ' as tax_id', DB::raw('COUNT(*) as total'))
                 ->whereIn($source['column'], $taxIds);
 
-            if (isset($source['withoutPivot'])) {
+            // Bila tabel pivot belum ada (migrasi pajak majemuk belum jalan), sumber item lama dihitung seluruhnya,
+            // bukan 0: pemakaian pajak tetap terlihat.
+            if (isset($source['withoutPivot']) && Schema::hasTable($source['withoutPivot']['table'])) {
                 $pivot = $source['withoutPivot'];
-                if (! Schema::hasTable($pivot['table'])) {
-                    continue;
-                }
 
                 $query->whereNotExists(fn ($exists) => $exists->selectRaw('1')->from($pivot['table'])->whereColumn("{$pivot['table']}.{$pivot['key']}", "{$source['table']}.id"));
             }

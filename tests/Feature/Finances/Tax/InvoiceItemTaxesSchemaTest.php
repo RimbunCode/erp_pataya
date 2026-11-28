@@ -243,25 +243,65 @@ class InvoiceItemTaxesSchemaTest extends TestCase {
         $this->assertSame(1, SalesInvoiceItemTax::query()->where('sales_invoice_item_id', $legacy->id)->count());
     }
 
-    public function test_a_failed_parity_check_stops_with_a_clear_message_and_leaves_no_rows(): void {
+    public function test_withholding_tax_stored_as_tax_amount_stops_the_backfill_and_lists_the_documents(): void {
         $pph  = $this->tax('PPh 23', 2, Tax::CATEGORY_PPH_23, Tax::BEHAVIOR_WITHHOLDING);
         $ppn  = $this->tax('PPN 12', 12, Tax::CATEGORY_PPN_STANDARD);
         $good = $this->salesItem($this->salesInvoice(), $ppn);
 
-        // Pajak potong yang tersimpan sebagai tax_amount (data tak konsisten dengan taxes.behavior): paritas gagal.
-        $bad = $this->salesItem($this->salesInvoice(), $pph);
+        // Pajak potong yang tersimpan sebagai tax_amount (data tak konsisten dengan taxes.behavior): berhenti, tidak dinormalisasi.
+        $badInvoice = $this->salesInvoice();
+        $bad        = $this->salesItem($badInvoice, $pph);
         DB::table('sales_invoice_items')->where('id', $bad->id)->update(['tax_amount' => 500, 'withholding_amount' => 0]);
+
+        try {
+            $this->runBackfill();
+            $this->fail('Backfill harus berhenti.');
+        } catch (RuntimeException $e) {
+            $this->assertStringContainsString('berpajak potong', $e->getMessage());
+            $this->assertStringContainsString('sales_invoice_items', $e->getMessage());
+            $this->assertStringContainsString($badInvoice->getKey(), $e->getMessage(), 'Dokumen bermasalah didaftar.');
+        }
+
+        $this->assertSame(0, SalesInvoiceItemTax::query()->where('sales_invoice_item_id', $good->id)->count(), 'Transaksi dibatalkan: tidak ada baris tersisa.');
+        $this->assertSame(0, SalesInvoiceItemTax::query()->count());
+    }
+
+    public function test_the_parity_check_is_per_document_and_names_the_failing_document(): void {
+        $ppn = $this->tax('PPN 12', 12, Tax::CATEGORY_PPN_STANDARD);
+
+        // Pajak tambah dengan withholding_amount tidak nol: pivot (withholding 0) tidak sama dengan item. Dokumen lain konsisten.
+        $badInvoice = $this->salesInvoice();
+        $bad        = $this->salesItem($badInvoice, $ppn);
+        DB::table('sales_invoice_items')->where('id', $bad->id)->update(['withholding_amount' => 300]);
+        $okInvoice = $this->salesInvoice();
+        $this->salesItem($okInvoice, $ppn);
 
         try {
             $this->runBackfill();
             $this->fail('Paritas harus gagal.');
         } catch (RuntimeException $e) {
             $this->assertStringContainsString('Pra-pemeriksaan paritas gagal', $e->getMessage());
-            $this->assertStringContainsString('sales_invoice_items', $e->getMessage());
+            $this->assertStringContainsString($badInvoice->getKey(), $e->getMessage());
+            $this->assertStringNotContainsString($okInvoice->getKey(), $e->getMessage());
         }
 
-        $this->assertSame(0, SalesInvoiceItemTax::query()->where('sales_invoice_item_id', $good->id)->count(), 'Transaksi dibatalkan: tidak ada baris tersisa.');
-        $this->assertSame(0, SalesInvoiceItemTax::query()->count());
+        $this->assertSame(0, SalesInvoiceItemTax::query()->count(), 'Transaksi dibatalkan.');
+    }
+
+    public function test_legacy_dpp_factor_applies_to_ppn_taxes_only(): void {
+        $ppn = $this->tax('PPN 12', 12, Tax::CATEGORY_PPN_STANDARD);
+        $pph = $this->tax('PPh 23', 2, Tax::CATEGORY_PPH_23, Tax::BEHAVIOR_WITHHOLDING);
+
+        $invoice = $this->salesInvoice();
+        $ppnItem = $this->salesItem($invoice, $ppn);
+        $pphItem = $this->salesItem($invoice, $pph);
+        // Item lama tanpa versi aturan.
+        DB::table('sales_invoice_items')->whereIn('id', [$ppnItem->id, $pphItem->id])->update(['tax_rule_version_id' => null]);
+
+        $this->runBackfill();
+
+        $this->assertEqualsWithDelta(11 / 12, SalesInvoiceItemTax::query()->where('sales_invoice_item_id', $ppnItem->id)->firstOrFail()->dpp_factor, 0.0001);
+        $this->assertEqualsWithDelta(1, SalesInvoiceItemTax::query()->where('sales_invoice_item_id', $pphItem->id)->firstOrFail()->dpp_factor, 0.0001, 'Non-PPN tanpa versi: faktor 1.');
     }
 
     public function test_down_only_empties_the_pivot_tables(): void {

@@ -47,6 +47,7 @@ return [
         'delete_not_draft'               => 'Hanya versi draft yang dapat dihapus.',
         'no_effective_rule'              => 'Tidak ada versi aturan pajak yang berlaku untuk ":tax" pada tanggal :date.',
         'stale_rule_version'             => 'Versi aturan pajak ":tax" yang berlaku pada tanggal dokumen (:date) berbeda dari versi yang tersimpan pada item. Simpan ulang draft dokumen agar pajak dihitung dengan versi yang berlaku, lalu setujui kembali.',
+        'order_resync_rule_missing'      => 'Dokumen tidak dapat disinkronkan ulang karena pajaknya belum punya aturan yang berlaku pada tanggal dokumen. :detail Tambahkan versi aturan pajak yang berlaku, lalu ulangi.',
     ],
 
     'messages' => [

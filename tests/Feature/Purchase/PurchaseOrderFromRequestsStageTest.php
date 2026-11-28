@@ -186,6 +186,14 @@ class PurchaseOrderFromRequestsStageTest extends TestCase {
         $this->assertNotNull(session("purchase_order_from_requests.{$token}"));
     }
 
+    public function test_workspace_sends_tax_rule_versions_for_the_client_tax_calculation(): void {
+        $purchaseRequest = $this->makeRequest();
+        $token           = $this->stage([$purchaseRequest->id]);
+
+        $this->getJson(route('purchaseOrders.fromRequests.show', $token))->assertOk()
+            ->assertJsonStructure(['props' => ['taxRuleVersions']]);
+    }
+
     public function test_workspace_rechecks_ownership_and_guest_access_is_blocked(): void {
         $purchaseRequest                                                 = $this->makeRequest();
         $token                                                           = $this->stage([$purchaseRequest->id]);

@@ -123,6 +123,24 @@ class PurchaseOrderBatchValidationTest extends TestCase {
             ->assertJsonMissingValidationErrors(['drafts.0.required_date', 'drafts.0.discount_amount', 'drafts.0.items.0.quantity']);
     }
 
+    public function test_tax_combination_rules_are_reported_per_draft_item(): void {
+        $taxId = $this->draft['items'][0]['tax']['id'];
+
+        $payload = $this->payload(['items' => [['tax' => null, 'taxes' => [['id' => $taxId], ['id' => $taxId]]]]]);
+        $this->postJson('/_tests/po-batch-validation', $payload)
+            ->assertUnprocessable()
+            ->assertJsonValidationErrors('drafts.1.items.0.taxes')
+            ->assertJsonMissingValidationErrors(['drafts.0.items.0.taxes']);
+    }
+
+    public function test_a_malformed_tax_id_is_a_validation_error_not_a_server_error(): void {
+        $payload = $this->payload(['items' => [['tax' => null, 'taxes' => [['id' => ['not', 'a', 'string']]]]]]);
+
+        $this->postJson('/_tests/po-batch-validation', $payload)
+            ->assertUnprocessable()
+            ->assertJsonValidationErrors('drafts.1.items.0.taxes.0.id');
+    }
+
     public function test_dates_and_conditional_discount_rules_use_each_drafts_own_context(): void {
         $payload = $this->payload([
             'date'            => '2026-11-01',

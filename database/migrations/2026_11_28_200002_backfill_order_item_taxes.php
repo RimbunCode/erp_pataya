@@ -16,9 +16,18 @@ use Illuminate\Support\Str;
  * TIDAK dihitung ulang (Requirement 14.10): pivot hanya mencerminkan nilai tersimpan, perhitungan memakai `TaxEngine`
  * baru berlaku ketika dokumen disimpan ulang.
  *
- * Idempoten: item yang sudah punya baris pivot dilewati. Setiap tabel dikerjakan dalam SATU transaksi bersama
- * pra-pemeriksaan paritas: Σ `tax_amount` pivot harus sama dengan Σ `tax_amount` item ber-`tax_id` yang punya pivot
- * (toleransi 0,01); bila tidak, transaksi dibatalkan dengan pesan jelas. Hanya DML, jalan di SQLite dan MySQL 8.
+ * Idempoten: item yang sudah punya baris pivot dilewati. Setiap tabel dikerjakan dalam SATU transaksi dengan dua
+ * pemeriksaan:
+ *  1. Konsistensi: item yang pajaknya `behavior = withholding` tetapi `tax_amount`-nya tidak nol (order lama
+ *     menjumlahkan pajak potong ke total sebagai pajak tambah) TIDAK dinormalisasi diam-diam; migrasi berhenti dengan
+ *     pesan yang mendaftar dokumen bermasalah, sebelum ada baris yang ditulis (jalur aman: menormalisasi akan
+ *     mengubah total dokumen lama, bertentangan dengan Requirement 14.10). Query dry-run, hasil harus kosong:
+ *     `SELECT i.<kolom_dokumen>, i.id FROM <tabel_item> i JOIN taxes t ON t.id = i.tax_id
+ *      WHERE t.behavior = 'withholding' AND i.tax_amount <> 0` dengan kolom dokumen `quotation_id`/`sales_order_id`/
+ *     `purchase_order_id` pada `quotation_items`/`sales_order_items`/`purchase_order_items`.
+ *  2. Paritas PER DOKUMEN (bukan global): untuk tiap dokumen, Σ `tax_amount` pivot sama dengan Σ `tax_amount` item
+ *     ber-`tax_id` dokumen itu yang punya pivot (toleransi 0,01); bila tidak, transaksi dibatalkan dengan daftar
+ *     dokumen. Hanya DML, jalan di SQLite dan MySQL 8.
  *
  * `down()` HANYA mengosongkan baris pivot (bukan drop tabel), kolom item tidak berubah.
  */
@@ -27,11 +36,11 @@ return new class extends Migration
     private const PARITY_TOLERANCE = 0.01;
     private const CHUNK            = 500;
 
-    /** @var array<string, array{pivot: string, foreignKey: string}> tabel item => pivot */
+    /** @var array<string, array{pivot: string, foreignKey: string, documentKey: string}> tabel item => pivot */
     private const TABLES = [
-        'quotation_items'      => ['pivot' => 'quotation_item_taxes', 'foreignKey' => 'quotation_item_id'],
-        'sales_order_items'    => ['pivot' => 'sales_order_item_taxes', 'foreignKey' => 'sales_order_item_id'],
-        'purchase_order_items' => ['pivot' => 'purchase_order_item_taxes', 'foreignKey' => 'purchase_order_item_id'],
+        'quotation_items'      => ['pivot' => 'quotation_item_taxes', 'foreignKey' => 'quotation_item_id', 'documentKey' => 'quotation_id'],
+        'sales_order_items'    => ['pivot' => 'sales_order_item_taxes', 'foreignKey' => 'sales_order_item_id', 'documentKey' => 'sales_order_id'],
+        'purchase_order_items' => ['pivot' => 'purchase_order_item_taxes', 'foreignKey' => 'purchase_order_item_id', 'documentKey' => 'purchase_order_id'],
     ];
 
     public function up(): void {
@@ -41,8 +50,9 @@ return new class extends Migration
             }
 
             DB::transaction(function () use ($itemTable, $config): void {
+                $this->assertWithholdingConsistent($itemTable, $config['pivot'], $config['foreignKey'], $config['documentKey']);
                 $this->backfill($itemTable, $config['pivot'], $config['foreignKey']);
-                $this->assertParity($itemTable, $config['pivot'], $config['foreignKey']);
+                $this->assertParity($itemTable, $config['pivot'], $config['foreignKey'], $config['documentKey']);
             });
         }
     }
@@ -84,25 +94,62 @@ return new class extends Migration
                     ];
                 }
 
-                DB::table($pivot)->insertOrIgnore($rows);
+                DB::table($pivot)->insert($rows);
             });
     }
 
     /**
-     * Pra-pemeriksaan paritas (Requirement 7.2): Σ `tax_amount` pivot sama dengan Σ item ber-`tax_id` yang punya pivot.
+     * Pra-pemeriksaan konsistensi: pajak potong (`behavior = withholding`) yang tersimpan di `tax_amount` item tidak
+     * dinormalisasi; migrasi berhenti dan mendaftar dokumennya.
      */
-    private function assertParity(string $itemTable, string $pivot, string $foreignKey): void {
-        $items = (float) DB::table($itemTable)
+    private function assertWithholdingConsistent(string $itemTable, string $pivot, string $foreignKey, string $documentKey): void {
+        $documents = DB::table($itemTable)
+            ->join('taxes', 'taxes.id', '=', "{$itemTable}.tax_id")
+            ->where('taxes.behavior', 'withholding')
+            ->where("{$itemTable}.tax_amount", '<>', 0)
+            ->whereNotExists(fn ($query) => $query->selectRaw('1')->from($pivot)->whereColumn("{$pivot}.{$foreignKey}", "{$itemTable}.id"))
+            ->distinct()
+            ->limit(50)
+            ->pluck("{$itemTable}.{$documentKey}");
+
+        if ($documents->isNotEmpty()) {
+            throw new RuntimeException(
+                "Backfill dihentikan pada {$itemTable}: ada item berpajak potong (behavior = withholding) yang jumlahnya tersimpan di tax_amount. "
+                . 'Normalisasi otomatis akan mengubah total dokumen lama, jadi koreksi dokumen berikut lebih dulu (maks. 50 ditampilkan): '
+                . $documents->implode(', ') . '. Tidak ada baris pivot yang ditulis.',
+            );
+        }
+    }
+
+    /**
+     * Pra-pemeriksaan paritas PER DOKUMEN (Requirement 7.2): Σ `tax_amount` pivot sama dengan Σ item ber-`tax_id`
+     * yang punya pivot, dihitung untuk tiap dokumen.
+     */
+    private function assertParity(string $itemTable, string $pivot, string $foreignKey, string $documentKey): void {
+        $items = DB::table($itemTable)
             ->whereNotNull('tax_id')
             ->whereExists(fn ($query) => $query->selectRaw('1')->from($pivot)->whereColumn("{$pivot}.{$foreignKey}", "{$itemTable}.id"))
-            ->sum('tax_amount');
-        $pivots = (float) DB::table($pivot)->sum('tax_amount');
+            ->groupBy($documentKey)
+            ->selectRaw("{$documentKey} as document_id, SUM(tax_amount) as total")
+            ->pluck('total', 'document_id');
+        $pivots = DB::table($pivot)
+            ->join($itemTable, "{$itemTable}.id", '=', "{$pivot}.{$foreignKey}")
+            ->groupBy("{$itemTable}.{$documentKey}")
+            ->selectRaw("{$itemTable}.{$documentKey} as document_id, SUM({$pivot}.tax_amount) as total")
+            ->pluck('total', 'document_id');
 
-        if (abs($items - $pivots) > self::PARITY_TOLERANCE) {
+        $mismatched = [];
+        foreach ($items->keys()->merge($pivots->keys())->unique() as $documentId) {
+            if (abs((float) ($items[$documentId] ?? 0) - (float) ($pivots[$documentId] ?? 0)) > self::PARITY_TOLERANCE) {
+                $mismatched[] = $documentId;
+            }
+        }
+
+        if ($mismatched !== []) {
             throw new RuntimeException(
-                "Pra-pemeriksaan paritas gagal pada {$itemTable}: jumlah tax_amount item {$items} berbeda dari pivot {$pivots} "
-                . '(selisih lebih dari ' . self::PARITY_TOLERANCE . '). Backfill dibatalkan dan tidak ada baris pivot yang tersisa; '
-                . 'periksa item yang pajaknya tidak konsisten, lalu jalankan ulang.',
+                "Pra-pemeriksaan paritas gagal pada {$itemTable}: jumlah tax_amount item berbeda dari pivot (selisih lebih dari "
+                . self::PARITY_TOLERANCE . ') pada dokumen: ' . implode(', ', \array_slice($mismatched, 0, 50))
+                . '. Backfill dibatalkan dan tidak ada baris pivot yang tersisa; periksa item yang pajaknya tidak konsisten, lalu jalankan ulang.',
             );
         }
     }

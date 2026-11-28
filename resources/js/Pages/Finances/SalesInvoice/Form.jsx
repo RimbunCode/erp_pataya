@@ -324,7 +324,7 @@ export default function Form() {
               filters={{
                 sales_order_id: data.sales_order?.id ?? null,
               }}
-              with={["item", "asset", "unit", "tax"]}
+              with={["item", "asset", "unit", "tax", "taxes"]}
               fields={[
                 "asset_id",
                 "unbilled_quantity",
@@ -583,6 +583,7 @@ export default function Form() {
                   "items.item",
                   "items.asset",
                   "items.tax",
+                  "items.taxes",
                   "items.unit",
                   "paymentSchedules",
                   "paymentSchedules.paymentMethod",

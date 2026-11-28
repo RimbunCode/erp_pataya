@@ -71,7 +71,8 @@ final class ItemTaxSelection {
 
     /**
      * Pajak baris request dalam bentuk ternormalisasi: `taxes` (array objek `{id, ...}`) menang; bila kosong,
-     * `tax` tunggal dibungkus menjadi satu elemen (Q-MT-8). Objek tanpa `id` terisi dibuang.
+     * `tax` tunggal dibungkus menjadi satu elemen (Q-MT-8). Objek tanpa `id` (null atau string kosong) dibuang; `id`
+     * berbentuk aneh (mis. array) TIDAK dibuang di sini supaya aturan request (`string`) menolaknya dengan 422.
      *
      * @param  array<string, mixed>  $row
      * @return list<array<string, mixed>>
@@ -79,12 +80,21 @@ final class ItemTaxSelection {
     public static function rowTaxes(array $row): array {
         $taxes = $row['taxes'] ?? null;
         if (\is_array($taxes) && $taxes !== []) {
-            return array_values(array_filter($taxes, static fn (mixed $tax): bool => \is_array($tax) && filled($tax['id'] ?? null)));
+            return array_values(array_filter($taxes, static fn (mixed $tax): bool => \is_array($tax) && self::hasId($tax)));
         }
 
         $single = $row['tax'] ?? null;
 
-        return \is_array($single) && filled($single['id'] ?? null) ? [$single] : [];
+        return \is_array($single) && self::hasId($single) ? [$single] : [];
+    }
+
+    /**
+     * @param  array<string, mixed>  $tax
+     */
+    private static function hasId(array $tax): bool {
+        $id = $tax['id'] ?? null;
+
+        return \is_string($id) ? trim($id) !== '' : $id !== null;
     }
 
     /**
@@ -92,7 +102,15 @@ final class ItemTaxSelection {
      * @return list<string> id pajak baris menurut urutan (Pajak Utama lebih dulu), dengan duplikat apa adanya
      */
     public static function rowTaxIds(array $row): array {
-        return array_map(static fn (array $tax): string => (string) $tax['id'], self::rowTaxes($row));
+        $ids = [];
+        foreach (self::rowTaxes($row) as $tax) {
+            // Hanya id skalar yang bermakna; id berbentuk lain sudah ditolak aturan request dan tidak boleh melempar di sini.
+            if (\is_string($tax['id']) || \is_int($tax['id'])) {
+                $ids[] = (string) $tax['id'];
+            }
+        }
+
+        return $ids;
     }
 
     /**

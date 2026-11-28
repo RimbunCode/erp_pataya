@@ -328,7 +328,7 @@ export default function Form() {
                   purchase_order_id: data.purchase_order?.id ?? null,
                   unbilled_quantity: { ">": 0 },
                 }}
-                with={["item", "unit", "tax"]}
+                with={["item", "unit", "tax", "taxes"]}
                 fields={[
                   "unbilled_quantity",
                   "rate",
@@ -597,6 +597,7 @@ export default function Form() {
                   "currency",
                   "items.item",
                   "items.tax",
+                  "items.taxes",
                   "items.unit",
                   "paymentSchedules",
                   "paymentSchedules.paymentMethod",
@@ -628,7 +629,8 @@ export default function Form() {
                           purchase_order_item: item,
                           purchase_order_item_id: item.id,
                           unit: item.unit,
-                          tax: item.tax,
+                          // Invoice dari PO membawa SEMUA pajak baris order (Requirement 10.5).
+                          ...taxPatch(defaultTaxesOf(item), false),
                           quantity: item.unbilled_quantity ?? 0,
                           rate: item.rate,
                           description: item.description,

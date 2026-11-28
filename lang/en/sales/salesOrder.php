@@ -39,6 +39,7 @@ return [
         'net_total'                    => 'Net Total',
         'grand_total'                  => 'Grand Total',
         'tax_amount'                   => 'Tax Amount',
+        'withholding_amount'           => 'Withholding Tax (Info)',
         'total'                        => 'Total',
         'basic_amount'                 => 'Gross Amount',
         'gross_amount'                 => 'Total Price',

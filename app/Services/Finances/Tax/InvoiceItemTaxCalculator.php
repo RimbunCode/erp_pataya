@@ -39,9 +39,10 @@ final class InvoiceItemTaxCalculator {
      * @param  bool  $hasAmountColumn  true untuk Purchase Invoice (kolom `amount` = bersih + pajak penambah)
      * @param  array<string, list<string>>  $itemTaxIds  id pajak terurut per kunci item; item yang tidak tercantum memakai `[tax_id]` kolom itemnya (bentuk satu pajak lama)
      * @param  bool  $writesDppColumns  false untuk item Quotation/Sales Order/Purchase Order (`OrderTaxApplier`): tabel itemnya tidak punya `dpp_amount`/`withholding_amount` (nilai itu hanya ada di pivot) dan `discount_amount` ditulis hanya bila kolomnya ada
+     * @param  array<string, array<string, string>>  $pinnedVersions  versi aturan terkunci per kunci item lalu `tax_id` (id versi); pajak yang tak tercantum memakai versi pada `$date`
      * @return array{net: float, dpp: float, tax: float, withholding: float} total dokumen: Σ basis bersih, Σ dpp, Σ pajak penambah, Σ pajak potong
      */
-    public function apply(Collection $items, array $discounts, CarbonInterface $date, int $minorUnit, bool $hasAmountColumn, array $itemTaxIds = [], bool $writesDppColumns = true): array {
+    public function apply(Collection $items, array $discounts, CarbonInterface $date, int $minorUnit, bool $hasAmountColumn, array $itemTaxIds = [], bool $writesDppColumns = true, array $pinnedVersions = []): array {
         $items = $items->values();
 
         $selected = [];
@@ -53,7 +54,7 @@ final class InvoiceItemTaxCalculator {
 
             $selected[$key] = array_values($ids);
             foreach ($selected[$key] as $taxId) {
-                $inputs[] = new TaxInput($taxId, $net, $date, $minorUnit, InvoiceItemTaxLines::refFor($key, $taxId));
+                $inputs[] = new TaxInput($taxId, $net, $date, $minorUnit, InvoiceItemTaxLines::refFor($key, $taxId), $pinnedVersions[$key][$taxId] ?? null);
             }
         }
 

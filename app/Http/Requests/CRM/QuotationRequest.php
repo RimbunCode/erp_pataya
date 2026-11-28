@@ -81,7 +81,7 @@ class QuotationRequest extends BaseFormRequest {
             'items.*.quantity'        => ['required', 'numeric', 'min:0.01'],
             'items.*.price'           => ['nullable', 'numeric', 'min:0'],
             'items.*.taxes'           => ['required', 'array', 'min:1', 'max:' . ItemTaxSelection::MAX_TAXES],
-            'items.*.taxes.*.id'      => ['required', 'string', new ExistsExcludingTrashed('taxes')],
+            'items.*.taxes.*.id'      => ['required', 'bail', 'string', new ExistsExcludingTrashed('taxes')],
             'items.*.taxes.*.*'       => ['nullable'],
             'sections'                => ['nullable', 'array'],
             'sections.*.id'           => ['nullable', 'string'],

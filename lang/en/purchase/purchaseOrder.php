@@ -135,6 +135,7 @@ return [
         'dpp_amount'                   => 'DPP (Tax Base Amount)',
         'net_amount'                   => 'Basic Amount',
         'tax_amount'                   => 'Tax Amount',
+        'withholding_amount'           => 'Withholding Tax (Info)',
         'amount'                       => 'Amount',
         'total'                        => 'Total Amount',
 

@@ -879,6 +879,73 @@ class MultiTaxPerItemTest extends TestCase {
         $this->assertMatchesRegularExpression('/Pajak lama\s*\|\s*3\s*\|\s*2\s*\|\s*0\s*\|\s*0\s*\|\s*0\s*\|/', Artisan::output(), 'Satu baris lewat pivot non-utama, satu item lama tanpa pivot.');
     }
 
+    // ---------------------------------------------------------------------------------------------------------
+    // Amend dan jaring pengaman legacy (putaran perbaikan review)
+    // ---------------------------------------------------------------------------------------------------------
+
+    public function test_amending_a_sales_invoice_copies_every_tax_line_and_the_revision_posts_a_balanced_journal(): void {
+        $ppn = $this->ppn();
+        $pph = $this->pph();
+
+        $original = $this->approveSales($this->createSalesInvoice([
+            ['taxes' => [$ppn->getKey(), $pph->getKey()], 'price' => 1_000_000],
+            ['taxes' => [$ppn->getKey()], 'price' => 500_000],
+        ]));
+        $revision = $original->fresh()->amend();
+
+        $this->assertNotSame($original->id, $revision->id);
+        $revisionItems = $revision->items()->orderBy('created_at')->orderBy('id')->get();
+        $this->assertCount(2, $revisionItems);
+
+        $twoTax = $revisionItems->first(fn ($item): bool => $item->taxLines()->count() === 2);
+        $this->assertNotNull($twoTax, 'Item dengan PPN + PPh tetap punya dua baris pivot di revisi.');
+        $this->assertSame([$ppn->getKey(), $pph->getKey()], $twoTax->taxLines()->get()->pluck('tax_id')->all(), 'Urutan position tersalin.');
+        foreach ($revisionItems as $item) {
+            $this->assertItemAggregatesMatchPivot($item);
+        }
+        $this->assertEqualsWithDelta($original->items->sum('tax_amount'), $revisionItems->sum('tax_amount'), 0.001);
+        $this->assertEqualsWithDelta($original->items->sum('withholding_amount'), $revisionItems->sum('withholding_amount'), 0.001);
+
+        $approved = $this->approveSales($revision->fresh());
+        $this->assertBalanced($this->journalOf($approved->id));
+        foreach ($approved->items as $item) {
+            $this->assertItemAggregatesMatchPivot($item);
+        }
+    }
+
+    public function test_amending_a_purchase_invoice_copies_every_tax_line(): void {
+        $ppn = $this->ppn();
+        $pph = $this->pph();
+
+        $original = $this->approvePurchase($this->createPurchaseInvoice([['taxes' => [$ppn->getKey(), $pph->getKey()], 'price' => 1_000_000]]));
+        $revision = $original->fresh()->amend();
+
+        $item = $revision->items()->firstOrFail();
+        $this->assertSame([$ppn->getKey(), $pph->getKey()], $item->taxLines()->get()->pluck('tax_id')->all());
+        $this->assertItemAggregatesMatchPivot($item);
+
+        $approved = $this->approvePurchase($revision->fresh());
+        $this->assertBalanced($this->journalOf($approved->id));
+    }
+
+    public function test_the_legacy_amount_hook_does_not_recompute_an_item_with_more_than_one_tax_line(): void {
+        $ppn = $this->ppn();
+        $pph = $this->pph();
+
+        $invoice = $this->createSalesInvoice([['taxes' => [$ppn->getKey(), $pph->getKey()], 'price' => 1_000_000]]);
+        $item    = $invoice->items()->firstOrFail();
+        $before  = [(float) $item->tax_amount, (float) $item->withholding_amount, (float) $item->dpp_amount];
+        $this->assertGreaterThan(0, $before[1]);
+
+        // Penulis lama mengubah masukan tanpa lewat calculator: agregat majemuk tidak boleh tertimpa angka satu pajak.
+        $item->update(['discount_amount' => 0, 'tax_rate' => $item->tax_rate + 0.0001]);
+
+        $fresh = $item->fresh();
+        $this->assertEqualsWithDelta($before[0], (float) $fresh->tax_amount, 0.0001);
+        $this->assertEqualsWithDelta($before[1], (float) $fresh->withholding_amount, 0.0001);
+        $this->assertEqualsWithDelta($before[2], (float) $fresh->dpp_amount, 0.0001);
+    }
+
     private function versionOf(Tax $tax): TaxRuleVersion {
         return TaxRuleVersion::query()->where('tax_id', $tax->getKey())->where('status', TaxRuleVersion::STATUS_ACTIVE)->firstOrFail();
     }

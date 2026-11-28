@@ -7,7 +7,9 @@ use App\Models\Finances\TaxRuleVersion;
 use App\Services\Finances\DocumentDiscountCalculator;
 use Carbon\CarbonImmutable;
 use Illuminate\Database\Eloquent\Model;
+use Illuminate\Support\Arr;
 use Illuminate\Support\Collection;
+use Illuminate\Validation\ValidationException;
 
 /**
  * Perhitungan pajak Quotation, Sales Order, dan Purchase Order lewat `TaxEngine` (spek finance-multi-tax-per-item,
@@ -67,9 +69,10 @@ final class OrderTaxApplier {
      * @param  array<string, Tax>  $taxes
      * @param  array<string, TaxRuleVersion>  $taxRules  hasil `resolveRules()`
      * @param  array<string, list<string>>  $itemTaxIds  id pajak terurut per kunci item
+     * @param  array<string, array<string, string>>  $pinnedVersions  versi aturan terkunci per kunci item lalu `tax_id` (Quotation yang diedit mempertahankan pajak yang tidak diganti)
      * @return array{net: float, tax: float, withholding: float}
      */
-    public function apply(Model $document, Collection $items, array $taxes, array $taxRules, array $itemTaxIds, mixed $date, ?string $currencyCode): array {
+    public function apply(Model $document, Collection $items, array $taxes, array $taxRules, array $itemTaxIds, mixed $date, ?string $currencyCode, array $pinnedVersions = []): array {
         $lineRules = $this->rules->lineParameters($taxRules, $taxes);
         $discounts = DocumentDiscountCalculator::invoiceItemDiscounts($document, $items, $lineRules, $itemTaxIds);
 
@@ -81,6 +84,7 @@ final class OrderTaxApplier {
             true,
             $itemTaxIds,
             false,
+            $pinnedVersions,
         );
 
         return [
@@ -109,21 +113,63 @@ final class OrderTaxApplier {
      * Menghitung ulang dokumen order tersimpan dari pajak yang sudah melekat pada itemnya (pivot, dengan fallback kolom
      * item), mis. setelah sinkronisasi baris dari invoice.
      *
-     * @param  Collection<int, Model>  $items  item tersimpan dan di-refresh
+     * Dokumen lama tidak dihitung ulang sampai diedit (Q-MT-12): bila `$onlyItemIds` diberikan dan dokumen TANPA diskon
+     * dokumen, hanya item yang tercantum yang dihitung ulang; angka tersimpan item lain dipakai apa adanya untuk total
+     * (basis bersih = `basic_amount - discount_amount`, pajak = `tax_amount`). Dengan diskon dokumen, alokasi lintas
+     * item membuat semua item ikut dihitung ulang. `taxLines` semua item dimuat dengan SATU query (tanpa N+1).
+     *
+     * Pajak tanpa versi aturan berlaku pada tanggal dokumen menggagalkan penghitungan (Q-P3-5) dengan pesan kunci
+     * `items` yang menyebut dokumen perlu aturan pajak, bukan indeks baris request yang tak bermakna di jalur ini.
+     *
+     * @param  Collection<int, Model>  $items  item tersimpan dan di-refresh (Eloquent Collection)
+     * @param  list<string>|null  $onlyItemIds  id item yang berubah; null = semua item
      * @return array{net: float, tax: float, withholding: float}
+     *
+     * @throws ValidationException
      */
-    public function applyStored(Model $document, Collection $items, mixed $date, ?string $currencyCode): array {
-        $rows       = [];
-        $itemTaxIds = [];
-        foreach ($items as $item) {
-            $item->unsetRelation('taxLines');
-            $ids                                  = array_map(fn (array $line): string => $line['tax_id'], InvoiceItemTaxLines::of($item));
-            $itemTaxIds[(string) $item->getKey()] = $ids;
-            $rows[]                               = ['taxes' => array_map(fn (string $id): array => ['id' => $id], $ids)];
+    public function applyStored(Model $document, Collection $items, mixed $date, ?string $currencyCode, ?array $onlyItemIds = null): array {
+        $items->load('taxLines');
+
+        $partial = $onlyItemIds !== null && blank($document->discount_on);
+        $targets = $partial
+            ? $items->filter(fn (Model $item): bool => \in_array((string) $item->getKey(), $onlyItemIds, true))->values()
+            : $items;
+
+        $totals = ['net' => 0.0, 'tax' => 0.0, 'withholding' => 0.0];
+        if ($targets->isNotEmpty()) {
+            $rows       = [];
+            $itemTaxIds = [];
+            foreach ($targets as $item) {
+                $ids                                  = array_map(fn (array $line): string => $line['tax_id'], InvoiceItemTaxLines::of($item));
+                $itemTaxIds[(string) $item->getKey()] = $ids;
+                $rows[]                               = ['taxes' => array_map(fn (string $id): array => ['id' => $id], $ids)];
+            }
+
+            $taxes = $this->loadTaxes($rows, true);
+
+            try {
+                $rules = $this->rules->resolveForRows($rows, $taxes, $date);
+            } catch (ValidationException $e) {
+                throw ValidationException::withMessages([
+                    'items' => __('finances/taxRuleVersion.errors.order_resync_rule_missing', ['detail' => implode(' ', Arr::flatten($e->errors()))]),
+                ]);
+            }
+
+            $totals = $this->apply($document, $targets, $taxes, $rules, $itemTaxIds, $date, $currencyCode);
         }
 
-        $taxes = $this->loadTaxes($rows, true);
+        if ($partial) {
+            $targetKeys = $targets->map(fn (Model $item): string => (string) $item->getKey())->all();
+            foreach ($items as $item) {
+                if (\in_array((string) $item->getKey(), $targetKeys, true)) {
+                    continue;
+                }
+                $totals['net'] += (float) $item->basic_amount - (float) ($item->discount_amount ?? 0);
+                $totals['tax'] += (float) $item->tax_amount;
+                $totals['withholding'] += (float) $item->taxLines->sum('withholding_amount');
+            }
+        }
 
-        return $this->apply($document, $items, $taxes, $this->rules->resolveForRows($rows, $taxes, $date), $itemTaxIds, $date, $currencyCode);
+        return $totals;
     }
 }

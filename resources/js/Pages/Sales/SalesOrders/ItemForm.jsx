@@ -11,7 +11,7 @@ export default function ItemForm({ getColumn }) {
           <div className="grid grid-cols-2 gap-4">
             {getColumn("quantity")}
             {getColumn("available_quantity")}
-            {getColumn("tax")}
+            {getColumn("taxes")}
             {getColumn("price")}
           </div>
           {getColumn("description", { rows: 3 })}

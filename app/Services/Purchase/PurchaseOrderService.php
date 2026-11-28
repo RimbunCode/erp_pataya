@@ -473,9 +473,20 @@ class PurchaseOrderService implements SubmitableService {
      * Rekonsiliasi PO items berdasarkan data dari Invoice & Receipt terkait.
      * Group per [rate, tax_id, tax_rate, warehouse_id]. Jika >1 group → split item.
      */
+    /**
+     * Jumlah tiap termin pembayaran mengikuti total dokumen (`amount x invoice_portion / 100`), sama dengan
+     * `fillPaymentScheduleRelations()`; dipanggil saat total berubah di luar simpan form (sinkronisasi dari invoice).
+     */
+    private function refreshPaymentScheduleAmounts(PurchaseOrder $purchaseOrder): void {
+        foreach ($purchaseOrder->paymentSchedules()->get() as $schedule) {
+            $schedule->update(['payment_amount' => $purchaseOrder->amount * ($schedule->invoice_portion / 100)]);
+        }
+    }
+
     public function syncItems(PurchaseOrder $purchaseOrder): array {
         return DB::transaction(function () use ($purchaseOrder) {
             $purchaseOrder->loadMissing('items', 'items.taxLines');
+            $changedItemIds = [];
 
             $receiptIds = ModelConnection::where('model_type', PurchaseOrder::class)
                 ->where('model_id', $purchaseOrder->id)
@@ -553,13 +564,18 @@ class PurchaseOrderService implements SubmitableService {
 
                 if ($groups->count() === 1) {
                     // Satu group → update PO item langsung
-                    $g = $groups->first();
+                    $g         = $groups->first();
+                    $oldTaxIds = array_map(fn (array $line): string => $line['tax_id'], InvoiceItemTaxLines::of($poItem));
                     $poItem->update([
                         'rate'                => $g['rate'],
                         'tax_id'              => $g['tax_id'],
                         'tax_rate'            => $g['tax_rate'],
                         'target_warehouse_id' => $g['warehouse_id'],
                     ]);
+                    // Item yang harga/pajaknya tidak berubah tidak dihitung ulang (Q-MT-12: dokumen lama tetap pada angka tersimpan).
+                    if ($poItem->wasChanged(['rate', 'tax_id', 'tax_rate']) || $oldTaxIds !== $g['tax_ids']) {
+                        $changedItemIds[] = (string) $poItem->id;
+                    }
                     $poItem->refresh();
                     app(OrderTaxApplier::class)->setItemTaxSet($poItem, $g['tax_ids']);
                     $syncLog[] = ['action' => 'update', 'po_item_id' => $poItem->id, 'rate' => $g['rate']];
@@ -583,6 +599,7 @@ class PurchaseOrderService implements SubmitableService {
                         $newItem->save();
                         $newItem->refresh();
                         app(OrderTaxApplier::class)->setItemTaxSet($newItem, $g['tax_ids']);
+                        $changedItemIds[] = (string) $newItem->id;
 
                         // Hitung qty proporsional dari source IDs group (FK tidak diubah)
                         $newReceived = empty($g['source_receipt_item_ids']) ? 0
@@ -605,14 +622,19 @@ class PurchaseOrderService implements SubmitableService {
                 }
             }
 
-            // Rekalkulasi total PO -- termasuk realokasi diskon dokumen (jika ada) ke basic_amount/
-            // tax_amount per item yang baru saja disinkronkan (rate/tax_rate bisa berubah dari hasil sync)
-            $purchaseOrder->load('items');
-            $totals = app(OrderTaxApplier::class)->applyStored($purchaseOrder, $purchaseOrder->items, $purchaseOrder->date, $purchaseOrder->currency_code);
-            $purchaseOrder->update([
-                'amount'               => $totals['net'] + $totals['tax'],
-                'amount_base_currency' => ($totals['net'] + $totals['tax']) * ($purchaseOrder->exchange_rate ?? 1),
-            ]);
+            // Rekalkulasi hanya bila ada item yang berubah (semua item bila ada diskon dokumen, karena alokasinya lintas item).
+            if ($changedItemIds !== []) {
+                $purchaseOrder->load('items');
+                $totals = app(OrderTaxApplier::class)->applyStored($purchaseOrder, $purchaseOrder->items, $purchaseOrder->date, $purchaseOrder->currency_code, $changedItemIds);
+                $amount = $totals['net'] + $totals['tax'];
+                if (abs($amount - (float) $purchaseOrder->amount) > 0.004) {
+                    $purchaseOrder->update([
+                        'amount'               => $amount,
+                        'amount_base_currency' => $amount * ($purchaseOrder->exchange_rate ?? 1),
+                    ]);
+                    $this->refreshPaymentScheduleAmounts($purchaseOrder);
+                }
+            }
 
             // Update status receive/bill
             $this->updatePurchaseOrderStatus($purchaseOrder);

@@ -2,6 +2,7 @@ const editableLineFields = [
   "description",
   "required_date",
   "target_warehouse",
+  "taxes",
   "tax",
   "tax_rate",
   "rate",
@@ -21,6 +22,13 @@ export function buildDraftData(state, draftId, defaultDate) {
     .map((allocation) => {
       const source = state.sourcesById[allocation.purchase_request_item_id];
       const line = allocation.data ?? {};
+      // Pajak majemuk: `taxes` = daftar, `tax` = Pajak Utama (cermin). Data lama hanya punya `tax`.
+      const taxes =
+        Array.isArray(line.taxes) && line.taxes.length > 0
+          ? line.taxes
+          : line.tax
+            ? [line.tax]
+            : [];
       return {
         id: allocation.id,
         source_item_id: source.id,
@@ -36,8 +44,9 @@ export function buildDraftData(state, draftId, defaultDate) {
             : requiredDate,
         target_warehouse:
           line.target_warehouse ?? data.target_warehouse ?? null,
-        tax: line.tax ?? null,
-        tax_rate: line.tax_rate ?? line.tax?.rate ?? 0,
+        taxes,
+        tax: taxes[0] ?? null,
+        tax_rate: line.tax_rate ?? taxes[0]?.rate ?? 0,
         rate: line.rate ?? 0,
       };
     });

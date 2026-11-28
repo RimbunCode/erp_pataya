@@ -11,6 +11,7 @@ import {
   TooltipContent,
   TooltipTrigger,
 } from "@/Components/ui/tooltip";
+import TaxLinkModel from "@/Pages/Finances/Taxes/TaxLinkModel";
 import UnitLinkModel from "../Units/UnitLinkModel";
 import { useLaravelReactI18n } from "laravel-react-i18n";
 
@@ -263,6 +264,27 @@ export default function FormDetail({
             requireReselectIfDeleted
           />
         </FormInput>
+        {!isVariant &&
+          [
+            ["default_sales_taxes", "default_sales_taxes"],
+            ["default_purchase_taxes", "default_purchase_taxes"],
+          ].map(([field, labelKey]) => (
+            <FormInput
+              key={field}
+              label={t(`inventory.item.columns.${labelKey}`)}
+              name={field}
+            >
+              <TaxLinkModel
+                multiple
+                fields={["category", "behavior", "rate"]}
+                placeholder={t(
+                  `inventory.item.columns.${labelKey}.placeholder`,
+                )}
+                value={data?.[field] ?? []}
+                onValueChange={(val) => setData(field, val ?? [])}
+              />
+            </FormInput>
+          ))}
       </div>
       <FormInput
         label={t("inventory.item.columns.description")}

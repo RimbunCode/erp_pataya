@@ -5,7 +5,10 @@ namespace Tests\Feature\CRM;
 use App\Models\CRM\Quotation;
 use App\Models\CRM\QuotationItemTax;
 use App\Models\Finances\Tax;
+use App\Models\Finances\TaxRuleVersion;
+use App\Services\Finances\Tax\TaxRuleResolver;
 use App\Services\Finances\Tax\TaxRuleVersionService;
+use Carbon\CarbonImmutable;
 
 /**
  * Pajak majemuk per item pada Quotation (spek finance-multi-tax-per-item, Task 9; Requirement 14.1-14.3, 14.6):
@@ -79,6 +82,42 @@ class MultiTaxQuotationTest extends QuotationTestCase {
 
         $this->assertSame(1, QuotationItemTax::query()->where('quotation_item_id', $itemId)->count());
         $this->assertEqualsWithDelta(110_000, (float) $quotation->fresh()->tax_amount, 0.01);
+    }
+
+    public function test_updating_keeps_the_stored_rule_version_and_rate_of_a_tax_that_stays_selected(): void {
+        $ppn    = $this->tax('PPN 12', 12, Tax::CATEGORY_PPN_STANDARD);
+        $luxury = $this->tax('PPnBM 10', 10, Tax::CATEGORY_PPN_LUXURY);
+
+        $quotation = $this->storeQuotation(['items' => [$this->itemPayload(['taxes' => [['id' => $ppn->getKey()]]])]]);
+        $item      = $quotation->items()->with('taxLines')->firstOrFail();
+        $v1        = $item->taxLines->first()->tax_rule_version_id;
+        $this->assertEqualsWithDelta(110_000, (float) $item->tax_amount, 0.01);
+
+        // Master pajak berubah sesudahnya: versi baru tarif 15 berlaku pada tanggal Quotation.
+        $service = app(TaxRuleVersionService::class);
+        $service->activate($service->createNewVersion(TaxRuleVersion::query()->findOrFail($v1), '2026-09-01', null, ['rate' => 15]));
+        $this->assertNotSame($v1, app(TaxRuleResolver::class)->resolve($ppn, CarbonImmutable::parse('2026-09-22'))->getKey(), 'Prasyarat: tarif master berubah.');
+
+        // Edit: PPN tetap dipilih (versi dan tarif tersimpan dipertahankan), PPnBM baru di-resolve dari tanggal dokumen, item baru memakai versi berlaku.
+        $this->actingAs($this->user)
+            ->withSession($this->permissionSession())
+            ->putJson(route('quotations.update', $quotation), $this->payload(['items' => [
+                $this->itemPayload(['id' => $item->id, 'taxes' => [['id' => $ppn->getKey()], ['id' => $luxury->getKey()]]]),
+                $this->itemPayload(['id' => 'new2', 'taxes' => [['id' => $ppn->getKey()]]]),
+            ]]))
+            ->assertRedirect();
+
+        $kept    = $quotation->items()->with('taxLines')->findOrFail($item->id);
+        $ppnLine = $kept->taxLines->firstWhere('tax_id', $ppn->getKey());
+        $this->assertSame($v1, $ppnLine->tax_rule_version_id, 'Pajak yang sama mempertahankan versi tersimpan.');
+        $this->assertEqualsWithDelta(12, (float) $ppnLine->tax_rate, 0.0001);
+        $this->assertEqualsWithDelta(110_000, (float) $ppnLine->tax_amount, 0.01);
+        $this->assertEqualsWithDelta(12, (float) $kept->tax_rate, 0.0001, 'Kolom item (Pajak Utama) mempertahankan tarif tersimpan.');
+        $this->assertNotNull($kept->taxLines->firstWhere('tax_id', $luxury->getKey()), 'Pajak baru ditambahkan.');
+
+        $fresh = $quotation->items()->with('taxLines')->where('id', '!=', $item->id)->firstOrFail();
+        $this->assertNotSame($v1, $fresh->taxLines->first()->tax_rule_version_id, 'Item baru memakai versi yang berlaku sekarang.');
+        $this->assertEqualsWithDelta(15, (float) $fresh->taxLines->first()->tax_rate, 0.0001);
     }
 
     public function test_at_least_one_tax_is_required_and_forbidden_combinations_are_rejected(): void {

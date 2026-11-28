@@ -24,6 +24,9 @@ use App\Services\Finances\Tax\TaxRuleResolver;
  * kolom item (`tax_id`, `tax_rate`, `tax_rule_version_id`), dan TIDAK menulis baris pivot `taxLines`. Item dengan lebih
  * dari satu pajak hanya dihitung benar lewat `InvoiceItemTaxCalculator` (yang menandai model dengan
  * `markAmountsComputed()`); jaring pengaman ini hanya untuk penulis lama (seeder, fixture) yang membuat item satu pajak.
+ * Karena itu hook TIDAK menghitung ulang item tersimpan yang sudah punya lebih dari satu baris pivot: agregat
+ * majemuknya (Σ pajak penambah, Σ pajak potong) akan tertimpa angka satu pajak bila ada penulis yang mengubah
+ * masukan (jumlah, harga, diskon) tanpa melewati calculator.
  *
  * Hook hanya berjalan bila tidak ada nilai hitung yang diisi eksplisit dan salah satu masukannya (jumlah, harga,
  * diskon, tarif, versi) berubah atau baris baru.
@@ -63,6 +66,10 @@ trait ComputesLegacyInvoiceItemAmounts {
 
         $inputs = ['quantity', static::LEGACY_PRICE_COLUMN, 'discount_amount', 'tax_rate', 'tax_rule_version_id', 'tax_id'];
         if ($this->exists && ! $this->isDirty($inputs)) {
+            return;
+        }
+
+        if ($this->exists && method_exists($this, 'taxLines') && $this->taxLines()->count() > 1) {
             return;
         }
 
