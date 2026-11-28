@@ -11,6 +11,7 @@ use App\Traits\DataTable;
 use Carbon\CarbonInterface;
 use Illuminate\Database\Eloquent\Concerns\HasUlids;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
+use Illuminate\Support\Facades\DB;
 
 /**
  * Kurs bertipe per pasangan mata uang dan tanggal (Finance Fase 4, Requirement 1). Satu baris unik per
@@ -20,8 +21,9 @@ use Illuminate\Database\Eloquent\Relations\BelongsTo;
  * `forceFill`/`forceCreate`) setelah validasi (Requirement 1.2). Kurs yang sudah dirujuk transaksi tidak dapat
  * diubah atau dihapus (Requirement 1.3, `ImmutableRateException`).
  *
- * Penanda "sudah dirujuk" memakai kolom `have_transactions` (disetel saat dokumen merujuk kurs; pengikatan ke
- * dokumen dilakukan Task 4). Hasil kebalikan (`ExchangeRateService::get`) berupa instans yang tidak tersimpan
+ * Penanda "sudah dirujuk" = kolom `exchange_rate_id` pada dokumen dan baris jurnal (keputusan pemilik produk 28
+ * November 2026), bukan `have_transactions`; tabel ini sengaja tidak masuk `config/have_transactions.php`
+ * `tracked_tables`, sehingga reset flag tidak dapat membuka kembali kurs yang dirujuk. Hasil kebalikan (`ExchangeRateService::get`) berupa instans yang tidak tersimpan
  * dengan `$inverseOf` terisi; instans itu tidak dapat disimpan (`save()` melempar `LogicException`).
  */
 class ExchangeRate extends Model {
@@ -33,6 +35,13 @@ class ExchangeRate extends Model {
 
     /** @var list<string> */
     public const SOURCES = [self::SOURCE_MANUAL, self::SOURCE_IMPORT, self::SOURCE_PROVIDER];
+
+    /**
+     * Tabel yang menyimpan `exchange_rate_id` (penanda kurs dirujuk).
+     *
+     * @var list<string>
+     */
+    public const REFERENCING_TABLES = ['sales_invoices', 'purchase_invoices', 'payment_entries', 'general_ledgers'];
 
     /** Skala `rate` di database (`decimal(20,8)`). */
     public const RATE_SCALE = 8;
@@ -128,15 +137,15 @@ class ExchangeRate extends Model {
                 throw new \LogicException('An inverse exchange rate result is read-only and cannot be saved.');
             }
         });
-        // Requirement 1.3: kurs yang sudah dirujuk tidak diubah atau dihapus. Dibaca dari nilai ASLI baris, sehingga
-        // menandai kurs sebagai dirujuk (false -> true) tetap diizinkan.
+        // Requirement 1.3: kurs yang sudah dirujuk tidak diubah atau dihapus ("dirujuk" = ada baris dokumen/jurnal yang
+        // menyimpan `exchange_rate_id` kurs ini, lihat `isReferenced()`).
         static::updating(function (self $rate): void {
-            if ($rate->getOriginal('have_transactions')) {
+            if ($rate->isReferenced()) {
                 throw ImmutableRateException::referenced();
             }
         });
         static::deleting(function (self $rate): void {
-            if ($rate->getOriginal('have_transactions')) {
+            if ($rate->isReferenced()) {
                 throw ImmutableRateException::referenced();
             }
         });
@@ -161,9 +170,25 @@ class ExchangeRate extends Model {
         return $this->inverseOf !== null;
     }
 
-    /** Apakah kurs sudah dirujuk transaksi (immutable, Requirement 1.3). */
+    /**
+     * Apakah kurs sudah dirujuk transaksi (immutable, Requirement 1.3). Ditentukan dari keberadaan referensi, bukan
+     * flag: ada baris di salah satu tabel `REFERENCING_TABLES` dengan `exchange_rate_id` kurs ini (keputusan pemilik
+     * produk 28 November 2026). Tahan terhadap reset `have_transactions` karena `exchange_rates` tidak masuk
+     * `tracked_tables`. Memakai query builder agar baris yang di-soft-delete tetap terhitung (FK `restrict` juga
+     * menghitungnya). Instans yang belum tersimpan (termasuk hasil kebalikan) tidak pernah dirujuk.
+     */
     public function isReferenced(): bool {
-        return (bool) $this->have_transactions;
+        if (! $this->exists) {
+            return false;
+        }
+
+        foreach (self::REFERENCING_TABLES as $table) {
+            if (DB::table($table)->where('exchange_rate_id', $this->getKey())->exists()) {
+                return true;
+            }
+        }
+
+        return false;
     }
 
     public function canDelete() {

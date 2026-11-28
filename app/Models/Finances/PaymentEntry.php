@@ -78,6 +78,10 @@ class PaymentEntry extends Model {
         'base_currency_code' => [
             'hidden' => true,
         ],
+        'exchange_rate_id'     => ['ignore' => true],
+        'exchange_rate_type'   => ['ignore' => true],
+        'exchange_rate_date'   => ['ignore' => true],
+        'exchange_rate_source' => ['ignore' => true],
         'base_paid_amount' => [
             'hidden' => true,
         ],

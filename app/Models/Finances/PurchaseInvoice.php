@@ -131,6 +131,10 @@ class PurchaseInvoice extends Model {
         'base_currency_code' => [
             'hidden' => true,
         ],
+        'exchange_rate_id'     => ['ignore' => true],
+        'exchange_rate_type'   => ['ignore' => true],
+        'exchange_rate_date'   => ['ignore' => true],
+        'exchange_rate_source' => ['ignore' => true],
         'amount_base_currency' => [
             'hidden' => true,
         ],
