@@ -1852,6 +1852,26 @@ describe("SalesInvoice Form", () => {
       expect(result.discount_amount).toBeCloseTo(100000 / 1.12, 2);
     });
 
+    it("baris tanpa dpp_amount/tax_lines (hasil impor SO atau data server) memakai pratinjau: DPP header dan nama pajak tampil", () => {
+      mount({
+        items: [
+          {
+            ...serviceLine,
+            price: 1200000,
+            tax_amount: 132000,
+            withholding_amount: 24000,
+          },
+        ],
+      });
+
+      // DPP header = 11/12 x 1.200.000, bukan 0 walau item belum membawa `dpp_amount`.
+      expect(screen.getAllByDisplayValue("1100000").length).toBeGreaterThan(0);
+      // Ringkasan per pajak punya nama dan jumlah dari pratinjau, bukan label kosong.
+      expect(screen.getByText(/PPN 12%/)).toBeInTheDocument();
+      expect(screen.getByText(/PPh 23/)).toBeInTheDocument();
+      expect(screen.getAllByDisplayValue("24000").length).toBeGreaterThan(0);
+    });
+
     it("kolom pajak: TaxLinkModel multiple menerima array pajak dan menulis taxes + Pajak Utama", () => {
       mount();
       const setRow = vi.fn();
