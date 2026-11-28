@@ -82,7 +82,7 @@ class PaymentEntry extends Model {
         'exchange_rate_type'   => ['ignore' => true],
         'exchange_rate_date'   => ['ignore' => true],
         'exchange_rate_source' => ['ignore' => true],
-        'base_paid_amount' => [
+        'base_paid_amount'     => [
             'hidden' => true,
         ],
     ];

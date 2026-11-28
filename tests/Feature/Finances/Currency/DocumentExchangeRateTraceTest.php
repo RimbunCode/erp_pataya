@@ -2,7 +2,6 @@
 
 namespace Tests\Feature\Finances\Currency;
 
-use App\Enums\RateType;
 use App\Exceptions\Finances\ImmutableRateException;
 use App\Exceptions\Finances\InvalidJournalException;
 use App\Models\Core\CoreSetting;
@@ -21,6 +20,7 @@ use App\Services\Finances\Ledger\JournalReversalService;
 use App\Services\Finances\Ledger\JournalService;
 use App\Services\Finances\SalesInvoiceService;
 use Carbon\CarbonImmutable;
+use Illuminate\Database\QueryException;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Validation\ValidationException;
@@ -160,7 +160,7 @@ class DocumentExchangeRateTraceTest extends TestCase {
         $rate = $this->makeRate('USD', 'IDR', '15500', '2026-11-27');
         $this->referenceRate($rate);
 
-        $this->expectException(\Illuminate\Database\QueryException::class);
+        $this->expectException(QueryException::class);
         DB::table('exchange_rates')->where('id', $rate->id)->delete();
     }
 
@@ -168,7 +168,7 @@ class DocumentExchangeRateTraceTest extends TestCase {
         $rate = $this->makeRate('USD', 'IDR', '15500', '2026-11-27');
         $rate->delete();
 
-        $this->expectException(\Illuminate\Database\QueryException::class);
+        $this->expectException(QueryException::class);
         SalesInvoice::factory()->create(['exchange_rate_id' => $rate->id]);
     }
 
@@ -226,7 +226,6 @@ class DocumentExchangeRateTraceTest extends TestCase {
         $this->assertNull($line->foreign_debit);
         $this->assertSame($rate->id, $line->exchange_rate_id);
     }
-
 
     public function test_foreign_invoice_posts_base_amounts_with_foreign_trace_on_receivable_line(): void {
         $rate    = $this->makeRate('USD', 'IDR', '15000', '2026-11-20');
