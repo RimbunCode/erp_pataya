@@ -41,6 +41,7 @@ use App\Http\Controllers\CRM\LeadController;
 use App\Http\Controllers\CRM\OpportunityController;
 use App\Http\Controllers\CRM\QuotationController;
 use App\Http\Controllers\Finances\AccountController;
+use App\Http\Controllers\Finances\ExchangeRateController;
 use App\Http\Controllers\Finances\FiscalPeriodController;
 use App\Http\Controllers\Finances\GeneralLedgerController;
 use App\Http\Controllers\Finances\JournalController;
@@ -494,6 +495,13 @@ Route::middleware(['auth', 'lang', 'onboarded', 'app', 'desk'])->group(function 
         Route::get('/', 'index')->name('index');
         Route::get('/{journal}', 'show')->name('show');
         Route::post('/{journal}/reverse', 'reverse')->name('reverse');
+    });
+    // Kurs (Finance Fase 4, Requirement 1.5): daftar, tambah/koreksi manual, dan impor CSV; tanpa hapus. Izin: select, write, import.
+    Route::controller(ExchangeRateController::class)->prefix('exchangeRates')->name('exchangeRates.')->group(function () {
+        Route::get('/', 'index')->name('index');
+        Route::post('/', 'save')->name('save');
+        Route::post('/import', 'import')->name('import');
+        Route::put('/{exchangeRate}', 'correct')->name('correct');
     });
     // Payment Methods
     Route::resourceDetail('paymentMethod', PaymentMethodController::class);
