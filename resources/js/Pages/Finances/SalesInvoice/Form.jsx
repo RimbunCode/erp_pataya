@@ -17,7 +17,11 @@ import {
   taxRowError,
   useDocumentDefaults,
 } from "@/lib/documentDefaults";
-import { previewInvoiceLine, summarizeTaxLines } from "@/lib/invoiceTaxPreview";
+import {
+  previewInvoiceLine,
+  previewInvoiceLines,
+  summarizeTaxLines,
+} from "@/lib/invoiceTaxPreview";
 
 import AdditionalDiscount from "../Components/AdditionalDiscount";
 import BranchLinkModel from "@/Pages/Settings/Branches/BranchLinkModel";
@@ -128,28 +132,70 @@ export default function Form() {
   // DPP hanya dijumlahkan dari baris yang SALAH SATU pajak penambahnya berfaktor selain 1/1 (Requirement 12.8, 10.3):
   // baris tanpa pajak atau tanpa pajak berfaktor tidak punya angka DPP. Nilai item = `dpp_amount` (DPP pajak
   // kategori PPN pertama, sama dengan backend).
-  const dpp_amount = useMemo(() => {
-    return allItems.reduce(
-      (sum, item) =>
-        showsDppOf(entriesOf(item)) ? sum + (item?.dpp_amount ?? 0) : sum,
-      0,
-    );
-  }, [allItems, entriesOf]);
-  const showDpp = useMemo(
-    () => allItems.some((item) => showsDppOf(entriesOf(item))),
+  // Angka pajak memakai field item bila sudah ada (hasil mapItem atau data server). Baris hasil impor Sales
+  // Order atau data yang baru dimuat belum punya `dpp_amount`/`tax_lines`, jadi dipakai pratinjau semua
+  // baris (sama dengan Purchase Invoice) sebagai cadangan.
+  const entriesList = useMemo(
+    () => allItems.map((item) => entriesOf(item)),
     [allItems, entriesOf],
   );
-  // Ringkasan per pajak (nama, tarif, jumlah) dari pratinjau tiap baris (Requirement 10.4).
-  const taxSummary = useMemo(() => summarizeTaxLines(allItems), [allItems]);
+  const previews = useMemo(
+    () =>
+      previewInvoiceLines({
+        grossAmounts: allItems.map(
+          (item) => (item?.quantity ?? 0) * (item?.price ?? 0),
+        ),
+        entriesList,
+        discount: {
+          on: data.discount_on,
+          rate: data.discount_rate ?? 0,
+          amount: data.discount_amount ?? 0,
+          latestKey: data.latestDiscountKey ?? "discount_rate",
+        },
+      }),
+    [
+      allItems,
+      entriesList,
+      data.discount_on,
+      data.discount_rate,
+      data.discount_amount,
+      data.latestDiscountKey,
+    ],
+  );
+  const taxRows = useMemo(
+    () =>
+      allItems.map((item, i) => ({
+        dpp_amount: item?.dpp_amount ?? previews[i]?.dpp_amount ?? 0,
+        tax_amount: item?.tax_amount ?? previews[i]?.tax_amount ?? 0,
+        withholding_amount:
+          item?.withholding_amount ?? previews[i]?.withholding_amount ?? 0,
+        tax_lines: item?.tax_lines ?? previews[i]?.tax_lines ?? [],
+      })),
+    [allItems, previews],
+  );
+
+  const dpp_amount = useMemo(() => {
+    return taxRows.reduce(
+      (sum, row, i) =>
+        showsDppOf(entriesList[i]) ? sum + row.dpp_amount : sum,
+      0,
+    );
+  }, [taxRows, entriesList]);
+  const showDpp = useMemo(
+    () => entriesList.some((entries) => showsDppOf(entries)),
+    [entriesList],
+  );
+  // Ringkasan per pajak (nama, tarif, jumlah) dari tiap baris (Requirement 10.4).
+  const taxSummary = useMemo(() => summarizeTaxLines(taxRows), [taxRows]);
 
   const tax_amount = useMemo(() => {
-    return calculateArray(allItems, "tax_amount", "+");
-  }, [allItems]);
+    return calculateArray(taxRows, "tax_amount", "+");
+  }, [taxRows]);
 
   // Pajak withholding dipotong dari total (Requirement 12.4), tampil terpisah.
   const withholding_amount = useMemo(() => {
-    return calculateArray(allItems, "withholding_amount", "+");
-  }, [allItems]);
+    return calculateArray(taxRows, "withholding_amount", "+");
+  }, [taxRows]);
 
   const amount = useMemo(() => {
     return (
