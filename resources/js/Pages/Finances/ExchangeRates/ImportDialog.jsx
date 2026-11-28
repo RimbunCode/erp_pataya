@@ -96,12 +96,17 @@ export default function ImportDialog({ maxMb, columns, onClose }) {
               <ul className="max-h-60 overflow-y-auto rounded-md border p-2">
                 {report.errors.map((item, index) => (
                   <li key={`${item.line}-${index}`}>
-                    <span className="font-medium">
-                      {t("finances.exchangeRate.page.import_line", {
-                        line: item.line,
-                      })}
-                    </span>
-                    : {item.message}
+                    {item.line > 0 && (
+                      <>
+                        <span className="font-medium">
+                          {t("finances.exchangeRate.page.import_line", {
+                            line: item.line,
+                          })}
+                        </span>
+                        :{" "}
+                      </>
+                    )}
+                    {item.message}
                   </li>
                 ))}
               </ul>

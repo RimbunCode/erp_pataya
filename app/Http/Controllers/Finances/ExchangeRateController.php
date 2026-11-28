@@ -40,8 +40,8 @@ class ExchangeRateController extends Controller {
     protected function enforcePermission(string $method) {
         return match ($method) {
             'save', 'correct' => 'write',
-            'remove'          => 'delete',
-            default           => parent::enforcePermission($method),
+            'remove' => 'delete',
+            default  => parent::enforcePermission($method),
         };
     }
 
@@ -66,20 +66,7 @@ class ExchangeRateController extends Controller {
     public function save(ExchangeRateRequest $request, ManualProvider $provider): RedirectResponse {
         $data = $request->validated();
 
-        $date = trim((string) $data['rate_date']);
-        if (preg_match('/^\d{4}-\d{2}-\d{2}$/', $date) === 1) {
-            $exists = ExchangeRate::query()
-                ->where('from_currency_code', strtoupper(trim((string) $data['from_currency_code'])))
-                ->where('to_currency_code', strtoupper(trim((string) $data['to_currency_code'])))
-                ->where('rate_type', $data['rate_type'])
-                ->where('rate_date', $date)
-                ->exists();
-            if ($exists) {
-                throw ValidationException::withMessages(['rate_date' => __('finances/exchangeRate.errors.already_exists')]);
-            }
-        }
-
-        $result = $this->record($provider, $data, $request);
+        $result = $this->record($provider, $data, $request, insertOnly: true);
 
         return back()->with('success', __('finances/exchangeRate.messages.' . $result));
     }
@@ -178,9 +165,9 @@ class ExchangeRateController extends Controller {
      * @param  array<string, mixed>  $row
      * @return ExchangeRateRecorder::CREATED|ExchangeRateRecorder::UPDATED|ExchangeRateRecorder::UNCHANGED
      */
-    private function record(ManualProvider $provider, array $row, Request $request): string {
+    private function record(ManualProvider $provider, array $row, Request $request, bool $insertOnly = false): string {
         try {
-            return $provider->store($row, null, $request->user()?->getKey());
+            return $provider->store($row, null, $request->user()?->getKey(), $insertOnly);
         } catch (InvalidExchangeRateException $e) {
             throw ValidationException::withMessages($e->errors);
         } catch (ImmutableRateException $e) {

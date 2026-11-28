@@ -30,7 +30,7 @@ final class ManualProvider implements ExchangeRateProvider {
      * @throws InvalidExchangeRateException
      * @throws ImmutableRateException
      */
-    public function store(array $row, ?string $sourceRef = null, ?string $createdById = null): string {
-        return $this->recorder->record($row, $this->source(), $sourceRef, $createdById);
+    public function store(array $row, ?string $sourceRef = null, ?string $createdById = null, bool $insertOnly = false): string {
+        return $this->recorder->record($row, $this->source(), $sourceRef, $createdById, $insertOnly);
     }
 }

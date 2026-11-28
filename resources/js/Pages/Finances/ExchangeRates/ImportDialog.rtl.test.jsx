@@ -137,6 +137,45 @@ describe("Finances/ExchangeRates/ImportDialog", () => {
     ).toBeInTheDocument();
   });
 
+  it("galat tingkat berkas (baris 0) tampil sebagai pesan umum tanpa label baris", async () => {
+    routerMock.post.mockImplementation((_url, _payload, options) =>
+      options.onSuccess({
+        props: {
+          flash: {
+            importReport: {
+              created: 0,
+              updated: 0,
+              unchanged: 0,
+              errorCount: 1,
+              omittedErrors: 0,
+              errors: [{ line: 0, message: "Header CSV tidak lengkap." }],
+            },
+          },
+        },
+      }),
+    );
+    renderDialog();
+
+    await userEvent.upload(
+      screen.getByLabelText("finances.exchangeRate.page.import_file"),
+      new File([" "], "kosong.csv", { type: "text/csv" }),
+    );
+    await userEvent.click(
+      screen.getByRole("button", {
+        name: "finances.exchangeRate.page.import_submit",
+      }),
+    );
+
+    expect(
+      await screen.findByText("Header CSV tidak lengkap."),
+    ).toBeInTheDocument();
+    expect(
+      screen.queryByText(
+        `finances.exchangeRate.page.import_line|${JSON.stringify({ line: 0 })}`,
+      ),
+    ).not.toBeInTheDocument();
+  });
+
   it("menampilkan galat validasi berkas dari server", async () => {
     routerMock.post.mockImplementation((_url, _payload, options) =>
       options.onError({ file: "Berkas terlalu besar." }),

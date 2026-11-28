@@ -3,10 +3,12 @@
 namespace Tests\Feature\Finances\Currency;
 
 use App\Enums\RateType;
+use App\Exceptions\Finances\InvalidExchangeRateException;
 use App\Http\Controllers\Finances\ExchangeRateController;
 use App\Models\Core\Log;
 use App\Models\Finances\ExchangeRate;
 use App\Models\User\Permission;
+use App\Services\Finances\Currency\Providers\ManualProvider;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Illuminate\Http\UploadedFile;
 use PHPUnit\Framework\Attributes\DataProvider;
@@ -24,6 +26,7 @@ class ExchangeRateControllerTest extends TestCase {
     protected function setUp(): void {
         parent::setUp();
 
+        $this->withoutVite();
         $this->setUpFinanceFixtures([ExchangeRate::class]);
         $this->seedCurrencies();
     }
@@ -147,6 +150,26 @@ class ExchangeRateControllerTest extends TestCase {
 
         $this->assertSame('15000.00000000', $existing->refresh()->rate);
         $this->assertSame(1, ExchangeRate::count());
+    }
+
+    public function test_save_is_insert_only_and_never_corrects_silently_even_on_a_unique_violation(): void {
+        $existing = $this->makeRate('USD', 'IDR', '15000', '2026-11-20');
+
+        $this->actingWith(['write'])->post(route('exchangeRates.save'), $this->payload(['rate' => '15100']))->assertSessionHasErrors('rate_date');
+        $this->assertSame('15000.00000000', $existing->refresh()->rate);
+
+        // Jalur insert-only di recorder: baris sudah ada -> galat, bukan koreksi.
+        try {
+            app(ManualProvider::class)->store($this->payload(['rate' => '15200']), null, null, true);
+            $this->fail('Insert-only harus menolak kunci yang sudah ada.');
+        } catch (InvalidExchangeRateException $e) {
+            $this->assertArrayHasKey('rate_date', $e->errors);
+        }
+        $this->assertSame('15000.00000000', $existing->refresh()->rate);
+
+        // Tanpa insert-only (impor/CLI) tetap upsert.
+        app(ManualProvider::class)->store($this->payload(['rate' => '15200']));
+        $this->assertSame('15200.00000000', $existing->refresh()->rate);
     }
 
     public function test_save_rejects_an_existing_referenced_key_too_and_allows_other_dates_and_types(): void {
@@ -327,7 +350,7 @@ class ExchangeRateControllerTest extends TestCase {
         // Hanya kolom `source` yang tampil: aksi Koreksi tetap butuh pasangan, tipe, tanggal, rate, dan canDelete.
         $rows = [];
         $this->actingWith(['select'])
-            ->withUnencryptedCookie('datatable_columns_exchange_rates', json_encode(['source' => ['width' => 100]]))
+            ->withUnencryptedCookie('datatable_columns_exchangerates', json_encode(['source' => ['width' => 100]]))
             ->get(route('exchangeRates.index'))
             ->assertOk()
             ->assertInertia(function ($page) use (&$rows): void {
