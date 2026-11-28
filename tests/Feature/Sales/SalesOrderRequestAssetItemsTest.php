@@ -138,8 +138,8 @@ class SalesOrderRequestAssetItemsTest extends TestCase {
         $validator = $this->validate(['items' => [$regular, $asset]]);
 
         $errors = $validator->errors()->toArray();
-        $this->assertArrayHasKey('items.0.tax.id', $errors);
-        $this->assertArrayHasKey('items.1.tax.id', $errors);
+        $this->assertArrayHasKey('items.0.taxes', $errors);
+        $this->assertArrayHasKey('items.1.taxes', $errors);
     }
 
     #[Test]
@@ -148,7 +148,7 @@ class SalesOrderRequestAssetItemsTest extends TestCase {
         $regular = $this->regularRow();
         unset($regular['tax']);
 
-        $this->assertArrayHasKey('items.0.tax.id', $this->validate(['items' => [$regular]])->errors()->toArray());
+        $this->assertArrayHasKey('items.0.taxes', $this->validate(['items' => [$regular]])->errors()->toArray());
     }
 
     #[Test]
@@ -170,8 +170,8 @@ class SalesOrderRequestAssetItemsTest extends TestCase {
         // Baris asset (barang lain, tidak cocok aturan) tetap wajib berpajak.
         $this->assertTrue($regularItem->type !== $this->asset->item->type || $regularItem->is_stock_item !== $this->asset->item->is_stock_item);
         $mixed = $this->validate(['items' => [$regular, $asset]]);
-        $this->assertArrayNotHasKey('items.0.tax.id', $mixed->errors()->toArray());
-        $this->assertArrayHasKey('items.1.tax.id', $mixed->errors()->toArray());
+        $this->assertArrayNotHasKey('items.0.taxes', $mixed->errors()->toArray());
+        $this->assertArrayHasKey('items.1.taxes', $mixed->errors()->toArray());
     }
 
     #[Test]
@@ -181,7 +181,7 @@ class SalesOrderRequestAssetItemsTest extends TestCase {
         $regular = $this->regularRow();
         unset($regular['tax']);
 
-        $this->assertArrayHasKey('items.0.tax.id', $this->validate(['items' => [$regular]])->errors()->toArray());
+        $this->assertArrayHasKey('items.0.taxes', $this->validate(['items' => [$regular]])->errors()->toArray());
     }
 
     #[Test]
@@ -193,7 +193,7 @@ class SalesOrderRequestAssetItemsTest extends TestCase {
         $regular = $this->regularRow();
         unset($regular['tax']);
 
-        $this->assertArrayHasKey('items.0.tax.id', $this->validate(['items' => [$regular]])->errors()->toArray());
+        $this->assertArrayHasKey('items.0.taxes', $this->validate(['items' => [$regular]])->errors()->toArray());
     }
 
     #[Test]

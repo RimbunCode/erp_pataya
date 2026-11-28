@@ -209,7 +209,7 @@ class SalesInvoiceRequest extends BaseFormRequest {
         }
 
         $sourceItems = SalesOrderItem::query()
-            ->with('salesOrder:id,exchange_rate,currency_code')
+            ->with('salesOrder:id,exchange_rate,currency_code', 'taxLines')
             ->whereIn('id', $groupedRows->keys())
             ->get()
             ->keyBy('id');
@@ -217,7 +217,7 @@ class SalesInvoiceRequest extends BaseFormRequest {
         $resolver     = app(InvoiceBilledValueResolver::class);
         $exchangeRate = (float) ($this->input('exchange_rate') ?: 1);
         $netValues    = $resolver->netValues(
-            $rows,
+            $resolver->alignTaxesToSource($rows, fn (array $row) => $sourceItems->get($row['sales_order_item']['id'] ?? '')),
             fn (array $row) => (float) ($row['price'] ?? $sourceItems->get($row['sales_order_item']['id'] ?? '')?->price ?? 0),
             $this->input('discount_on'),
             $this->input('discount_rate'),

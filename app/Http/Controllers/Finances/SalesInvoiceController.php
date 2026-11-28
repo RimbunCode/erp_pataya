@@ -77,8 +77,8 @@ class SalesInvoiceController extends Controller {
                                         ...$item->toArray(),
                                         'id'               => Utils::generateRandom(5),
                                         'sales_order_item' => $item,
-                                        // Pajak majemuk: invoice dari SO membawa pajak baris SO (SO masih satu pajak).
-                                        'taxes' => $item->tax ? [$item->tax] : [],
+                                        // Pajak majemuk: invoice dari SO membawa seluruh pajak baris SO (Requirement 14.4).
+                                        'taxes' => $item->taxes->isNotEmpty() ? $item->taxes->all() : ($item->tax ? [$item->tax] : []),
                                     ];
 
                                     if ($so->is_rent) {

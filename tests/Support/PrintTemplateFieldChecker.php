@@ -166,6 +166,18 @@ class PrintTemplateFieldChecker {
             for ($i = 1; $i <= \count($full); $i++) {
                 $needed[] = $this->camelPath(implode('.', \array_slice($full, 0, $i)));
             }
+
+            // Field turunan (accessor, mis. `tax_names`) yang menyatakan `dependsOn` relasi pada `configColumns` model
+            // pemiliknya: relasi itu ikut dibutuhkan, sehingga tidak perlu muncul sebagai jalur eksplisit di markup.
+            if (! \in_array($reference['kind'], ['each', 'if', 'relation'], true) && $segments !== []) {
+                $owner = $this->modelAtPath($model, $columns, $full);
+                $field = Str::snake((string) end($segments));
+                foreach ((array) ($columns[$owner][$field]['dependsOn'] ?? []) as $dependency) {
+                    if (\is_string($dependency) && $this->isRelationPath($owner, $columns, [$dependency])) {
+                        $needed[] = $this->camelPath(implode('.', [...$full, $dependency]));
+                    }
+                }
+            }
         }
 
         $needed = array_values(array_unique($needed));
@@ -186,6 +198,26 @@ class PrintTemplateFieldChecker {
         return \in_array($this->camelPath(implode('.', $chain)), $loaded, true)
             ? null
             : 'relasi ' . implode('.', $chain) . " tidak dimuat (jalur {$path})";
+    }
+
+    /**
+     * Model yang dicapai dengan mengikuti jalur relasi dari model akar; model akar bila jalur kosong atau bukan relasi.
+     *
+     * @param  array<string, mixed>  $columns
+     * @param  array<int, string>  $segments
+     */
+    private function modelAtPath(string $model, array $columns, array $segments): string {
+        foreach ($segments as $segment) {
+            $column = $columns[$model][$segment] ?? null;
+
+            if ($column === null || ! \in_array($column['type'] ?? null, ['relation', 'relations'], true)) {
+                return $model;
+            }
+
+            $model = $column['related'];
+        }
+
+        return $model;
     }
 
     /**

@@ -18,10 +18,67 @@ const RESOLUTION_TIMEOUT_MS = 10000;
 
 export const EMPTY_DEFAULTS = Object.freeze({});
 
+/**
+ * Galat pajak satu baris item: `items.{i}.taxes` (pajak majemuk: duplikat, lebih dari satu PPN, lebih dari batas,
+ * wajib tapi kosong), `items.{i}.taxes.{j}` / `.id` (pajak tanpa versi aturan), atau bentuk satu pajak lama
+ * (`items.{i}.tax`, `items.{i}.tax.id`).
+ * @param {object|undefined} errors galat validasi server (kunci bertitik)
+ * @param {number} index indeks baris
+ * @returns {string|null}
+ */
 export function taxRowError(errors, index) {
-  return (
-    errors?.[`items.${index}.tax.id`] ?? errors?.[`items.${index}.tax`] ?? null
+  const prefix = `items.${index}.`;
+  const direct =
+    errors?.[`${prefix}taxes`] ??
+    errors?.[`${prefix}tax.id`] ??
+    errors?.[`${prefix}tax`];
+  if (direct) return direct;
+  const nested = Object.keys(errors ?? {}).find((key) =>
+    key.startsWith(`${prefix}taxes.`),
   );
+
+  return nested ? errors[nested] : null;
+}
+
+/**
+ * Daftar pajak default: `taxes` bila terisi, selain itu `tax` tunggal (default saat ini 0/1 pajak).
+ * @param {{tax?: object|null, taxes?: object[]}|null|undefined} source
+ * @returns {object[]}
+ */
+export function defaultTaxesOf(source) {
+  if (Array.isArray(source?.taxes) && source.taxes.length > 0) {
+    return source.taxes;
+  }
+
+  return source?.tax ? [source.tax] : [];
+}
+
+function lineTaxesOf(line) {
+  return defaultTaxesOf(line);
+}
+
+function sameTaxList(first, second) {
+  return (
+    first.length === second.length &&
+    first.every((tax, index) => sameRecord(tax, second[index]))
+  );
+}
+
+/**
+ * Tambalan data baris untuk daftar pajak (mode pajak majemuk): `taxes` = daftar, `tax` = Pajak Utama (elemen
+ * pertama, cermin), `tax_rate` ikut Pajak Utama bila `withRate`.
+ * @param {object[]} taxes
+ * @param {boolean} [withRate]
+ * @returns {{taxes: object[], tax: object|null, tax_rate?: number}}
+ */
+export function taxPatch(taxes, withRate = true) {
+  const list = taxes ?? [];
+
+  return {
+    taxes: list,
+    tax: list[0] ?? null,
+    ...(withRate ? { tax_rate: list[0]?.rate ?? 0 } : {}),
+  };
 }
 
 export function documentItemId(item) {
@@ -37,6 +94,7 @@ export function applyToNewLine(
     skipTaxDefault = false,
     skipWarehouseDefault = false,
     isFieldEdited = () => false,
+    multiTax = false,
   } = {},
 ) {
   if (SOURCE_ROW_KEYS.some((key) => line?.[key]) || line?.referenceable?.id) {
@@ -44,7 +102,18 @@ export function applyToNewLine(
   }
 
   const nextLine = { ...line };
-  if (
+  if (multiTax) {
+    // Pajak majemuk (form invoice): default berupa daftar, baris dianggap sudah berpajak bila punya >= 1 pajak.
+    const defaultTaxes = defaultTaxesOf(defaults);
+    if (
+      !skipTaxDefault &&
+      !isFieldEdited(line?.id, "tax") &&
+      lineTaxesOf(nextLine).length === 0 &&
+      defaultTaxes.length > 0
+    ) {
+      Object.assign(nextLine, taxPatch(defaultTaxes));
+    }
+  } else if (
     !skipTaxDefault &&
     !isFieldEdited(line?.id, "tax") &&
     !nextLine.tax &&
@@ -80,7 +149,7 @@ export function applyResolvedToNewLine(
   item,
   resolvedDefaults,
   moduleDefaults,
-  { warehouseField, isFieldEdited = () => false } = {},
+  { warehouseField, isFieldEdited = () => false, multiTax = false } = {},
 ) {
   if (SOURCE_ROW_KEYS.some((key) => line?.[key]) || line?.referenceable?.id) {
     return line;
@@ -96,13 +165,25 @@ export function applyResolvedToNewLine(
 
   const nextLine = { ...line };
   const rowId = line?.id;
-  const canApplyTax =
-    !isFieldEdited(rowId, "tax") &&
-    (!line?.tax || sameRecord(line.tax, moduleDefaults?.tax));
+  if (multiTax) {
+    const current = lineTaxesOf(line);
+    const canApplyTaxes =
+      !isFieldEdited(rowId, "tax") &&
+      (current.length === 0 ||
+        sameTaxList(current, defaultTaxesOf(moduleDefaults)));
 
-  if (canApplyTax) {
-    nextLine.tax = resolvedDefaults?.tax ?? null;
-    nextLine.tax_rate = nextLine.tax?.rate ?? 0;
+    if (canApplyTaxes) {
+      Object.assign(nextLine, taxPatch(defaultTaxesOf(resolvedDefaults)));
+    }
+  } else {
+    const canApplyTax =
+      !isFieldEdited(rowId, "tax") &&
+      (!line?.tax || sameRecord(line.tax, moduleDefaults?.tax));
+
+    if (canApplyTax) {
+      nextLine.tax = resolvedDefaults?.tax ?? null;
+      nextLine.tax_rate = nextLine.tax?.rate ?? 0;
+    }
   }
 
   const canApplyWarehouse =
@@ -149,7 +230,7 @@ export function paymentTemplateToSchedule(template, date) {
 export function useDocumentDefaults(
   defaults,
   documentType,
-  { items, setData } = {},
+  { items, setData, multiTax = false } = {},
 ) {
   const pendingResolutions = useRef(new Map());
   const activeBatches = useRef(new Set());
@@ -275,6 +356,7 @@ export function useDocumentDefaults(
               const warehouseId = result.warehouse_id ?? null;
               const resolvedDefaults = {
                 tax: result.taxes?.[0] ?? null,
+                taxes: result.taxes ?? [],
                 taxOptional: !!result.tax_optional,
                 warehouse:
                   warehouseId == null
@@ -302,11 +384,12 @@ export function useDocumentDefaults(
   const applyLineDefaults = useCallback(
     (line, item, options) =>
       applyToNewLine(line, item, defaults, {
+        multiTax,
         ...options,
         isFieldEdited: (rowId, field) =>
           editedFields.current.has(`${rowId}:${field}`),
       }),
-    [defaults],
+    [defaults, multiTax],
   );
   const markFieldEdited = useCallback((rowId, field) => {
     if (rowId != null && field) {
@@ -424,6 +507,7 @@ export function useDocumentDefaults(
           {
             warehouseField: request.warehouseField,
             isFieldEdited,
+            multiTax,
           },
         );
         request.applied = true;
@@ -433,7 +517,7 @@ export function useDocumentDefaults(
 
       return { ...prev, items: nextItems };
     });
-  }, [items, resolutionVersion, defaults, isFieldEdited, setData]);
+  }, [items, resolutionVersion, defaults, isFieldEdited, setData, multiTax]);
 
   // Berubah identitas setiap hasil resolusi masuk agar `itemColumns` ber-memo
   // ikut menghitung ulang penanda wajib pajak.

@@ -13,6 +13,7 @@ use App\Models\Core\ModelConnection;
 use App\Models\Finances\PurchaseInvoice;
 use App\Models\Finances\PurchaseInvoiceItem;
 use App\Models\Finances\Tax;
+use App\Models\Finances\TaxRuleVersion;
 use App\Models\Inventory\ItemUnit;
 use App\Models\Inventory\Stock;
 use App\Models\Model;
@@ -25,7 +26,9 @@ use App\Models\Purchase\Supplier;
 use App\Models\Sales\InternalOrderItem;
 use App\Models\Sales\SalesOrderItem;
 use App\Services\Core\Setting\SettingsService;
-use App\Services\Finances\DocumentDiscountCalculator;
+use App\Services\Finances\Tax\InvoiceItemTaxLines;
+use App\Services\Finances\Tax\ItemTaxSelection;
+use App\Services\Finances\Tax\OrderTaxApplier;
 use App\Traits\HasDefaultDelete;
 use App\Utils;
 use Illuminate\Support\Collection;
@@ -54,43 +57,45 @@ class PurchaseOrderService implements SubmitableService {
         return $data;
     }
 
-    private function fillItemRelations(array $data, PurchaseOrder $purchaseOrder, array $units = [], array $taxes = []) {
-        $unit                        = $units[$data['unit']['id']] ?? null;
-        $tax                         = $taxes[$data['tax']['id'] ?? ''] ?? null;
+    /**
+     * @param  array<string, TaxRuleVersion>  $taxRules  versi aturan berlaku pada tanggal dokumen per `tax_id` (`OrderTaxApplier::resolveRules()`)
+     */
+    private function fillItemRelations(array $data, PurchaseOrder $purchaseOrder, array $units = [], array $taxRules = []) {
+        $unit = $units[$data['unit']['id']] ?? null;
+        // Pajak majemuk: kolom lama mencerminkan Pajak Utama (pajak pertama); semua pajak ditulis ke pivot oleh `OrderTaxApplier`.
+        $primaryTaxId                = ItemTaxSelection::rowTaxIds($data)[0] ?? null;
+        $taxRule                     = $taxRules[$primaryTaxId ?? ''] ?? null;
         $data['item_id']             = $data['item']['id'];
         $data['item_unit_id']        = $data['unit']['id'];
         $data['conversion_factor']   = $unit?->conversion_factor ?? 1;
         $data['exchange_rate']       = $purchaseOrder->exchange_rate;
-        $data['tax_id']              = $data['tax']['id'] ?? null;
-        $data['tax_rate']            = $tax?->rate ?? 0;
+        $data['tax_id']              = $primaryTaxId;
+        $data['tax_rate']            = $taxRule !== null ? (float) $taxRule->rate : 0;
         $data['target_warehouse_id'] = $data['target_warehouse']['id'];
 
         return $data;
     }
 
     /**
-     * basic_amount/tax_amount/amount bukan generated column lagi (lihat migration
-     * convert_purchase_order_items_amounts_to_stored_columns) -- delegasi ke
-     * DocumentDiscountCalculator::applyToItems() (dipakai juga SalesOrderService,
-     * logic alokasi identik disatukan supaya tidak terduplikasi per Service).
+     * `basic_amount` KOTOR (quantity * rate). Diskon dokumen dialokasikan dan pajak tiap item (banyak pajak) dihitung
+     * `TaxEngine` lewat `OrderTaxApplier` (Q-MT-12 Opsi A), sama dengan invoice.
      *
      * @param  Collection<int, PurchaseOrderItem>  $items
+     * @param  array<string, Tax>  $taxes
+     * @param  array<string, TaxRuleVersion>  $taxRules
+     * @param  array<string, list<string>>  $itemTaxIds
      * @return array{basic_amount: float, tax_amount: float}
      */
-    private function applyDiscountToItems(PurchaseOrder $purchaseOrder, Collection $items): array {
-        return DocumentDiscountCalculator::applyToItems($purchaseOrder, $items);
+    private function applyDiscountToItems(PurchaseOrder $purchaseOrder, Collection $items, array $taxes, array $taxRules, array $itemTaxIds, mixed $date): array {
+        $totals = app(OrderTaxApplier::class)->apply($purchaseOrder, $items, $taxes, $taxRules, $itemTaxIds, $date, $purchaseOrder->currency_code);
+
+        return ['basic_amount' => $totals['net'], 'tax_amount' => $totals['tax']];
     }
 
     private function batchLoadUnits(array $data): array {
         $unitIds = collect($data['items'])->pluck('unit.id')->filter()->unique()->values();
 
         return ItemUnit::whereIn('item_units.id', $unitIds)->get()->keyBy('id')->all();
-    }
-
-    private function batchLoadTaxes(array $data): array {
-        $taxIds = collect($data['items'])->pluck('tax.id')->filter()->unique()->values();
-
-        return Tax::whereIn('id', $taxIds)->get()->keyBy('id')->all();
     }
 
     private function fillPaymentScheduleRelations(array $data, PurchaseOrder $purchaseOrder) {
@@ -105,24 +110,29 @@ class PurchaseOrderService implements SubmitableService {
     }
 
     public function create(array $data): Model {
+        $applier  = app(OrderTaxApplier::class);
+        $taxes    = $applier->loadTaxes($data['items']);
+        $taxRules = $applier->resolveRules($data['items'], $taxes, $data['date'] ?? null);
+
         $data['code']  = FormatingSeries::generate(PurchaseOrder::class, $data, true);
         $purchaseOrder = PurchaseOrder::create($this->fillRelations($data));
 
         $units = $this->batchLoadUnits($data);
-        $taxes = $this->batchLoadTaxes($data);
 
-        $items = collect();
+        $items      = collect();
+        $itemTaxIds = [];
         foreach ($data['items'] as $item) {
-            $item      = $this->fillItemRelations($item, $purchaseOrder, $units, $taxes);
+            $item      = $this->fillItemRelations($item, $purchaseOrder, $units, $taxRules);
             $itemModel = $purchaseOrder->items()->create($item);
             // basic_amount generated column (quantity * rate) -- belum terisi di object
             // sampai di-refresh dari DB.
             $itemModel->refresh();
+            $itemTaxIds[(string) $itemModel->getKey()] = ItemTaxSelection::rowTaxIds($item);
             $this->recordItemRequestCoverage($itemModel);
             $items->push($itemModel);
         }
 
-        $totals = $this->applyDiscountToItems($purchaseOrder, $items);
+        $totals = $this->applyDiscountToItems($purchaseOrder, $items, $taxes, $taxRules, $itemTaxIds, $data['date'] ?? null);
         $purchaseOrder->update([
             'amount'               => $totals['basic_amount'] + $totals['tax_amount'],
             'amount_base_currency' => ($totals['basic_amount'] + $totals['tax_amount']) * ($purchaseOrder->exchange_rate ?? 1),
@@ -159,6 +169,10 @@ class PurchaseOrderService implements SubmitableService {
     }
 
     public function update(Model $purchaseOrder, array $data): Model {
+        $applier  = app(OrderTaxApplier::class);
+        $taxes    = $applier->loadTaxes($data['items']);
+        $taxRules = $applier->resolveRules($data['items'], $taxes, $data['date'] ?? null);
+
         $purchaseOrder->fillForUpdate($this->fillRelations($data));
 
         $purchaseOrder->items()
@@ -175,11 +189,11 @@ class PurchaseOrderService implements SubmitableService {
             ->keyBy('id');
 
         $units = $this->batchLoadUnits($data);
-        $taxes = $this->batchLoadTaxes($data);
 
-        $items = collect();
+        $items      = collect();
+        $itemTaxIds = [];
         foreach ($data['items'] as $item) {
-            $item = $this->fillItemRelations($item, $purchaseOrder, $units, $taxes);
+            $item = $this->fillItemRelations($item, $purchaseOrder, $units, $taxRules);
 
             if (Ulid::isValid($item['id'])) {
                 $itemModel = $existingItems->get($item['id']);
@@ -196,10 +210,11 @@ class PurchaseOrderService implements SubmitableService {
             // basic_amount generated column -- refresh supaya nilai terbaru (quantity/rate
             // baru) terbaca sebelum dialokasikan diskon.
             $itemModel->refresh();
+            $itemTaxIds[(string) $itemModel->getKey()] = ItemTaxSelection::rowTaxIds($item);
             $items->push($itemModel);
         }
 
-        $totals = $this->applyDiscountToItems($purchaseOrder, $items);
+        $totals = $this->applyDiscountToItems($purchaseOrder, $items, $taxes, $taxRules, $itemTaxIds, $data['date'] ?? null);
         $purchaseOrder->update([
             'amount'               => $totals['basic_amount'] + $totals['tax_amount'],
             'amount_base_currency' => ($totals['basic_amount'] + $totals['tax_amount']) * ($purchaseOrder->exchange_rate ?? 1),
@@ -460,7 +475,7 @@ class PurchaseOrderService implements SubmitableService {
      */
     public function syncItems(PurchaseOrder $purchaseOrder): array {
         return DB::transaction(function () use ($purchaseOrder) {
-            $purchaseOrder->loadMissing('items');
+            $purchaseOrder->loadMissing('items', 'items.taxLines');
 
             $receiptIds = ModelConnection::where('model_type', PurchaseOrder::class)
                 ->where('model_id', $purchaseOrder->id)
@@ -477,6 +492,7 @@ class PurchaseOrderService implements SubmitableService {
             foreach ($purchaseOrder->items as $poItem) {
                 $invItems = PurchaseInvoiceItem::whereIn('purchase_invoice_id', $invoiceIds)
                     ->where('purchase_order_item_id', $poItem->id)
+                    ->with('taxLines')
                     ->get();
 
                 $recItems = PurchaseReceiptItem::whereIn('purchase_receipt_id', $receiptIds)
@@ -487,14 +503,16 @@ class PurchaseOrderService implements SubmitableService {
                     continue;
                 }
 
-                // Build groups: key = "rate|tax_id|tax_rate|warehouse_id"
+                // Build groups: key = "rate|himpunan terurut tax_id|tax_rate|warehouse_id" (pajak majemuk)
                 $groups = collect();
 
                 foreach ($invItems as $ii) {
-                    $key      = "{$ii->rate}|{$ii->tax_id}|{$ii->tax_rate}|{$poItem->target_warehouse_id}";
+                    $taxIds   = array_map(fn (array $line): string => $line['tax_id'], InvoiceItemTaxLines::of($ii));
+                    $key      = "{$ii->rate}|" . implode(',', $taxIds) . "|{$ii->tax_rate}|{$poItem->target_warehouse_id}";
                     $existing = $groups->get($key, [
                         'qty'                     => 0,
                         'rate'                    => $ii->rate,
+                        'tax_ids'                 => $taxIds,
                         'tax_id'                  => $ii->tax_id,
                         'tax_rate'                => $ii->tax_rate,
                         'warehouse_id'            => $poItem->target_warehouse_id,
@@ -507,8 +525,9 @@ class PurchaseOrderService implements SubmitableService {
                 }
 
                 foreach ($recItems as $ri) {
-                    $wh  = $ri->target_warehouse_id ?? $poItem->target_warehouse_id;
-                    $key = "{$poItem->rate}|{$poItem->tax_id}|{$poItem->tax_rate}|{$wh}";
+                    $wh     = $ri->target_warehouse_id ?? $poItem->target_warehouse_id;
+                    $taxIds = array_map(fn (array $line): string => $line['tax_id'], InvoiceItemTaxLines::of($poItem));
+                    $key    = "{$poItem->rate}|" . implode(',', $taxIds) . "|{$poItem->tax_rate}|{$wh}";
 
                     if ($groups->has($key)) {
                         // Merge qty ke group yang sudah ada dari invoice
@@ -519,6 +538,7 @@ class PurchaseOrderService implements SubmitableService {
                         $existing = $groups->get($key, [
                             'qty'                     => 0,
                             'rate'                    => $poItem->rate,
+                            'tax_ids'                 => $taxIds,
                             'tax_id'                  => $poItem->tax_id,
                             'tax_rate'                => $poItem->tax_rate,
                             'warehouse_id'            => $wh,
@@ -541,6 +561,7 @@ class PurchaseOrderService implements SubmitableService {
                         'target_warehouse_id' => $g['warehouse_id'],
                     ]);
                     $poItem->refresh();
+                    app(OrderTaxApplier::class)->setItemTaxSet($poItem, $g['tax_ids']);
                     $syncLog[] = ['action' => 'update', 'po_item_id' => $poItem->id, 'rate' => $g['rate']];
                 } else {
                     // Banyak group → split: soft-delete item lama, buat item baru
@@ -561,6 +582,7 @@ class PurchaseOrderService implements SubmitableService {
                         $newItem->id = (string) Str::ulid();
                         $newItem->save();
                         $newItem->refresh();
+                        app(OrderTaxApplier::class)->setItemTaxSet($newItem, $g['tax_ids']);
 
                         // Hitung qty proporsional dari source IDs group (FK tidak diubah)
                         $newReceived = empty($g['source_receipt_item_ids']) ? 0
@@ -586,10 +608,10 @@ class PurchaseOrderService implements SubmitableService {
             // Rekalkulasi total PO -- termasuk realokasi diskon dokumen (jika ada) ke basic_amount/
             // tax_amount per item yang baru saja disinkronkan (rate/tax_rate bisa berubah dari hasil sync)
             $purchaseOrder->load('items');
-            $totals = $this->applyDiscountToItems($purchaseOrder, $purchaseOrder->items);
+            $totals = app(OrderTaxApplier::class)->applyStored($purchaseOrder, $purchaseOrder->items, $purchaseOrder->date, $purchaseOrder->currency_code);
             $purchaseOrder->update([
-                'amount'               => $totals['basic_amount'] + $totals['tax_amount'],
-                'amount_base_currency' => ($totals['basic_amount'] + $totals['tax_amount']) * ($purchaseOrder->exchange_rate ?? 1),
+                'amount'               => $totals['net'] + $totals['tax'],
+                'amount_base_currency' => ($totals['net'] + $totals['tax']) * ($purchaseOrder->exchange_rate ?? 1),
             ]);
 
             // Update status receive/bill

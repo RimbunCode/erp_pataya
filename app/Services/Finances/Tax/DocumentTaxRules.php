@@ -111,10 +111,10 @@ final class DocumentTaxRules {
 
     /**
      * Versi aturan (active dan retired) untuk form invoice di klien: pratinjau dan keputusan menampilkan kolom DPP
-     * (Requirement 12.8) memakai faktor/tarif/perilaku dari sini, bukan konstanta klien. Versi `retired` ikut dikirim
+     * (Requirement 12.8) memakai faktor/tarif/perilaku/kategori (sumber `dpp_amount` item: kategori PPN) dari sini, bukan konstanta klien. Versi `retired` ikut dikirim
      * karena dokumen yang sudah disimpan menampilkan versi yang dipakainya; pajak yang sudah dihapus tetap terbaca.
      *
-     * @return list<array{id: string, tax_id: string, status: string, effective_from: string, effective_to: string|null, rate: float, dpp_numerator: int, dpp_denominator: int, behavior: string}>
+     * @return list<array{id: string, tax_id: string, status: string, effective_from: string, effective_to: string|null, rate: float, dpp_numerator: int, dpp_denominator: int, behavior: string, category: string}>
      */
     public function versionsForClient(): array {
         return TaxRuleVersion::query()
@@ -131,6 +131,7 @@ final class DocumentTaxRules {
                 'dpp_numerator'   => (int) $version->dpp_numerator,
                 'dpp_denominator' => (int) $version->dpp_denominator,
                 'behavior'        => $version->tax?->behavior ?? Tax::BEHAVIOR_ADDITIVE,
+                'category'        => $version->tax?->category ?? Tax::CATEGORY_UNCLASSIFIED,
             ])
             ->values()
             ->all();

@@ -15,6 +15,7 @@ use App\Services\Core\Setting\DocumentDefaultsResolver;
 use App\Services\Core\Setting\OtherModuleDefaultsResolver;
 use App\Services\Core\Setting\SettingsService;
 use App\Services\CRM\QuotationService;
+use App\Services\Finances\Tax\DocumentTaxRules;
 use Illuminate\Database\Eloquent\Collection;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
@@ -84,8 +85,9 @@ class QuotationController extends Controller {
         $this->setBreadcrumbs('crm.quotation.new');
 
         return Inertia::render('CRM/Quotations/Show', [
-            'defaultData' => $defaultData ?? $preferenceDefaults,
-            'defaults'    => [
+            'taxRuleVersions' => fn () => app(DocumentTaxRules::class)->versionsForClient(),
+            'defaultData'     => $defaultData ?? $preferenceDefaults,
+            'defaults'        => [
                 ...app(DocumentDefaultsResolver::class)->defaultsFor(DefaultsDocumentType::Quotation),
                 'quotation_validity_days' => app(OtherModuleDefaultsResolver::class)->quotationValidityDays(),
             ],
@@ -142,7 +144,8 @@ class QuotationController extends Controller {
         $quotation->showDetail();
 
         return Inertia::render('CRM/Quotations/Show', [
-            'quotation' => function () use ($quotation) {
+            'taxRuleVersions' => fn () => app(DocumentTaxRules::class)->versionsForClient(),
+            'quotation'       => function () use ($quotation) {
                 $quotation->loadRelations();
 
                 return $quotation;

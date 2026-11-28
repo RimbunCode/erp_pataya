@@ -13,6 +13,7 @@ use App\Models\CRM\Quotation;
 use App\Models\Sales\SalesOrder;
 use App\Models\Service\WorkOrder;
 use App\Services\Core\Setting\DocumentDefaultsResolver;
+use App\Services\Finances\Tax\DocumentTaxRules;
 use App\Services\Sales\SalesOrderService;
 use App\Utils;
 use Illuminate\Http\Request;
@@ -28,7 +29,7 @@ class SalesOrderController extends Controller {
     protected function enforcePermission(string $method): ?string {
         return match ($method) {
             'markDone', 'syncItems' => 'write',
-            default                 => null,
+            default => null,
         };
     }
 
@@ -102,12 +103,14 @@ class SalesOrderController extends Controller {
                                 'referenceable'      => $quotation,
                                 // unit & tax sengaja dikosongkan — diisi manual sebelum submit SO,
                                 // karena QuotationItem tidak menyimpan field ini (item sederhana).
+                                // Pajak baris Quotation disalin utuh (pajak majemuk, Requirement 14.5).
                                 'items' => $quotation->items->map(fn ($item) => [
                                     'id'          => Utils::generateRandom(5),
                                     'item'        => $item->item,
                                     'description' => $item->description,
                                     'quantity'    => $item->quantity,
                                     'price'       => $item->price,
+                                    'taxes'       => $item->taxes->isNotEmpty() ? $item->taxes->all() : ($item->tax ? [$item->tax] : []),
                                 ]),
                             ];
                         }
@@ -163,8 +166,9 @@ class SalesOrderController extends Controller {
         $this->setBreadcrumbs('sales.salesOrder.new');
 
         return Inertia::render('Sales/SalesOrders/Show', [
-            'defaultData' => $defaultData ?? null,
-            'defaults'    => app(DocumentDefaultsResolver::class)->defaultsFor(DefaultsDocumentType::SalesOrder),
+            'taxRuleVersions' => fn () => app(DocumentTaxRules::class)->versionsForClient(),
+            'defaultData'     => $defaultData ?? null,
+            'defaults'        => app(DocumentDefaultsResolver::class)->defaultsFor(DefaultsDocumentType::SalesOrder),
         ]);
     }
 
@@ -195,7 +199,8 @@ class SalesOrderController extends Controller {
         $salesOrder->showDetail();
 
         return Inertia::render('Sales/SalesOrders/Show', [
-            'salesOrder' => function () use ($salesOrder) {
+            'taxRuleVersions' => fn () => app(DocumentTaxRules::class)->versionsForClient(),
+            'salesOrder'      => function () use ($salesOrder) {
                 $salesOrder->loadRelations();
 
                 return $salesOrder;

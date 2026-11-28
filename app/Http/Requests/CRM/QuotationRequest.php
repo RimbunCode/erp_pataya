@@ -3,7 +3,11 @@
 namespace App\Http\Requests\CRM;
 
 use App\Http\Requests\BaseFormRequest;
+use App\Http\Requests\Concerns\NormalizesRowTaxes;
+use App\Rules\ExistsExcludingTrashed;
+use App\Services\Finances\Tax\ItemTaxSelection;
 use Illuminate\Contracts\Validation\ValidationRule;
+use Illuminate\Contracts\Validation\Validator;
 use Illuminate\Validation\Rule;
 
 /**
@@ -11,6 +15,8 @@ use Illuminate\Validation\Rule;
  * format kode Quotation (`@[branch_code]/QTN-@[iiii]/@[yy]`) membutuhkannya.
  */
 class QuotationRequest extends BaseFormRequest {
+    use NormalizesRowTaxes;
+
     /**
      * Determine if the user is authorized to make this request.
      */
@@ -20,6 +26,7 @@ class QuotationRequest extends BaseFormRequest {
 
     protected function prepareForValidation(): void {
         parent::prepareForValidation();
+        $this->normalizeRowTaxes();
 
         $sections = $this->input('sections');
         if (\is_array($sections)) {
@@ -35,6 +42,16 @@ class QuotationRequest extends BaseFormRequest {
             }
             $this->merge(['sections' => $sections]);
         }
+    }
+
+    public function withValidator(Validator $validator): void {
+        $validator->after(function (Validator $validator): void {
+            if ($validator->errors()->isNotEmpty()) {
+                return;
+            }
+
+            $this->validateRowTaxCombinations($validator, (array) $this->input('items', []));
+        });
     }
 
     /**
@@ -63,7 +80,9 @@ class QuotationRequest extends BaseFormRequest {
             'items.*.remark'          => ['nullable', 'string', 'max:255'],
             'items.*.quantity'        => ['required', 'numeric', 'min:0.01'],
             'items.*.price'           => ['nullable', 'numeric', 'min:0'],
-            'items.*.tax.id'          => ['required', 'string', 'exists:taxes,id'],
+            'items.*.taxes'           => ['required', 'array', 'min:1', 'max:' . ItemTaxSelection::MAX_TAXES],
+            'items.*.taxes.*.id'      => ['required', 'string', new ExistsExcludingTrashed('taxes')],
+            'items.*.taxes.*.*'       => ['nullable'],
             'sections'                => ['nullable', 'array'],
             'sections.*.id'           => ['nullable', 'string'],
             'sections.*.title'        => ['required', 'string', 'max:255'],

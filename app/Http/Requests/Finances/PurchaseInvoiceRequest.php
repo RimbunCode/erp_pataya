@@ -151,11 +151,13 @@ class PurchaseInvoiceRequest extends BaseFormRequest {
             return;
         }
 
-        $calculator   = app(ToleranceCalculator::class);
-        $resolver     = app(InvoiceBilledValueResolver::class);
-        $exchangeRate = (float) ($this->input('exchange_rate') ?: 1);
-        $netValues    = $resolver->netValues(
-            $rows,
+        $calculator    = app(ToleranceCalculator::class);
+        $resolver      = app(InvoiceBilledValueResolver::class);
+        $exchangeRate  = (float) ($this->input('exchange_rate') ?: 1);
+        $poItemsForTax = collect($rows)->pluck('purchase_order_item.id')->filter()->unique()->values();
+        $taxSources    = $poItemsForTax->isEmpty() ? collect() : PurchaseOrderItem::query()->with('taxLines')->whereIn('id', $poItemsForTax)->get()->keyBy('id');
+        $netValues     = $resolver->netValues(
+            $resolver->alignTaxesToSource($rows, fn (array $row) => $taxSources->get($row['purchase_order_item']['id'] ?? '')),
             fn (array $row) => (float) ($row['rate'] ?? 0),
             $this->input('discount_on'),
             $this->input('discount_rate'),

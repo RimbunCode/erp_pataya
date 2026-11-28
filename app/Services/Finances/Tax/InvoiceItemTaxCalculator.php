@@ -38,9 +38,10 @@ final class InvoiceItemTaxCalculator {
      * @param  array<int, float>  $discounts  diskon per baris terurut seperti `$items->values()` (`DocumentDiscountCalculator::invoiceItemDiscounts()`)
      * @param  bool  $hasAmountColumn  true untuk Purchase Invoice (kolom `amount` = bersih + pajak penambah)
      * @param  array<string, list<string>>  $itemTaxIds  id pajak terurut per kunci item; item yang tidak tercantum memakai `[tax_id]` kolom itemnya (bentuk satu pajak lama)
+     * @param  bool  $writesDppColumns  false untuk item Quotation/Sales Order/Purchase Order (`OrderTaxApplier`): tabel itemnya tidak punya `dpp_amount`/`withholding_amount` (nilai itu hanya ada di pivot) dan `discount_amount` ditulis hanya bila kolomnya ada
      * @return array{net: float, dpp: float, tax: float, withholding: float} total dokumen: Σ basis bersih, Σ dpp, Σ pajak penambah, Σ pajak potong
      */
-    public function apply(Collection $items, array $discounts, CarbonInterface $date, int $minorUnit, bool $hasAmountColumn, array $itemTaxIds = []): array {
+    public function apply(Collection $items, array $discounts, CarbonInterface $date, int $minorUnit, bool $hasAmountColumn, array $itemTaxIds = [], bool $writesDppColumns = true): array {
         $items = $items->values();
 
         $selected = [];
@@ -98,12 +99,21 @@ final class InvoiceItemTaxCalculator {
                 'tax_amount'         => $taxAmount,
                 'withholding_amount' => $withholding,
             ];
+            if (! $writesDppColumns) {
+                unset($attributes['dpp_amount'], $attributes['withholding_amount']);
+                if (! array_key_exists('discount_amount', $item->getAttributes())) {
+                    unset($attributes['discount_amount']);
+                }
+            }
             if ($hasAmountColumn) {
                 $attributes['amount'] = round($net + $taxAmount, self::AMOUNT_PRECISION);
             }
 
             $this->syncTaxLines($item, $ordered);
-            $item->markAmountsComputed()->forceFill($attributes)->save();
+            if (method_exists($item, 'markAmountsComputed')) {
+                $item->markAmountsComputed();
+            }
+            $item->forceFill($attributes)->save();
 
             $totals['net'] += $net;
             $totals['dpp'] += $dpp;

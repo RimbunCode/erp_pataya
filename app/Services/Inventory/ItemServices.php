@@ -6,6 +6,7 @@ use App\Models\Inventory\Category;
 use App\Models\Inventory\Item;
 use App\Models\Inventory\ItemVariant;
 use App\Models\Inventory\Unit;
+use App\Services\Finances\Tax\ItemTaxSelection;
 use Illuminate\Support\Collection;
 
 class ItemServices {
@@ -46,6 +47,29 @@ class ItemServices {
         }, $item->format_variant ?? $item->item->format_variant);
 
         return $result;
+    }
+
+    /**
+     * Menyinkronkan pajak default penjualan dan pembelian item (Requirement 15.1-15.2): `position` mengikuti urutan
+     * pilihan (0 = Pajak Utama). Kunci yang tidak dikirim (null) tidak mengubah default modul itu; array kosong
+     * mengosongkannya. Perubahan default tidak menyentuh dokumen yang sudah ada (Requirement 15.6).
+     *
+     * @param  array<string, mixed>  $data  `default_sales_taxes` dan/atau `default_purchase_taxes` (array objek `{id}`)
+     */
+    public function syncDefaultTaxes(Item $item, array $data): void {
+        foreach (['default_sales_taxes' => 'salesDefaultTaxes', 'default_purchase_taxes' => 'purchaseDefaultTaxes'] as $field => $relation) {
+            if (! \array_key_exists($field, $data) || $data[$field] === null) {
+                continue;
+            }
+
+            $payload = [];
+            foreach (ItemTaxSelection::rowTaxIds(['taxes' => $data[$field]]) as $position => $taxId) {
+                $payload[$taxId] = ['position' => $position];
+            }
+
+            $item->{$relation}()->sync($payload);
+            $item->unsetRelation($relation);
+        }
     }
 
     public function sanitizeUoms(?string $defaultUnitId, array $uoms): array {

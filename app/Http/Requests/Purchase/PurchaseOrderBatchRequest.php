@@ -6,6 +6,7 @@ use App\Http\Requests\BaseFormRequest;
 use App\Models\Inventory\ItemUnit;
 use App\Models\Inventory\ItemVariant;
 use App\Models\Purchase\PurchaseRequestItem;
+use App\Services\Finances\Tax\ItemTaxSelection;
 use Illuminate\Contracts\Validation\ValidationRule;
 use Illuminate\Http\Request;
 use Illuminate\Validation\ValidationException;
@@ -13,6 +14,33 @@ use Illuminate\Validation\ValidationException;
 class PurchaseOrderBatchRequest extends BaseFormRequest {
     public function authorize(): bool {
         return true;
+    }
+
+    /**
+     * `tax` tunggal pada baris draft dinormalisasi menjadi `taxes: [tax]` (kontrak pajak majemuk per item, Q-MT-8).
+     */
+    protected function prepareForValidation(): void {
+        parent::prepareForValidation();
+
+        $drafts = $this->input('drafts');
+        if (! is_array($drafts)) {
+            return;
+        }
+
+        foreach ($drafts as $draftIndex => $draft) {
+            if (! is_array($draft) || ! is_array($draft['items'] ?? null)) {
+                continue;
+            }
+
+            foreach ($draft['items'] as $itemIndex => $row) {
+                if (is_array($row)) {
+                    $drafts[$draftIndex]['items'][$itemIndex]['taxes'] = ItemTaxSelection::rowTaxes($row);
+                    unset($drafts[$draftIndex]['items'][$itemIndex]['tax']);
+                }
+            }
+        }
+
+        $this->merge(['drafts' => $drafts]);
     }
 
     /**

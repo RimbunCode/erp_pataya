@@ -20,6 +20,11 @@ use App\Services\Finances\Tax\TaxRuleResolver;
  * Selaras dengan service (keputusan pemilik 28 November 2026): baris tanpa `tax_id` menyimpan dpp/pajak 0, dan pajak
  * berperilaku `withholding` ditulis ke `withholding_amount` (bukan `tax_amount`).
  *
+ * Pajak majemuk per item (spek finance-multi-tax-per-item): hook ini hanya mengenal SATU pajak, yaitu Pajak Utama dari
+ * kolom item (`tax_id`, `tax_rate`, `tax_rule_version_id`), dan TIDAK menulis baris pivot `taxLines`. Item dengan lebih
+ * dari satu pajak hanya dihitung benar lewat `InvoiceItemTaxCalculator` (yang menandai model dengan
+ * `markAmountsComputed()`); jaring pengaman ini hanya untuk penulis lama (seeder, fixture) yang membuat item satu pajak.
+ *
  * Hook hanya berjalan bila tidak ada nilai hitung yang diisi eksplisit dan salah satu masukannya (jumlah, harga,
  * diskon, tarif, versi) berubah atau baris baru.
  *

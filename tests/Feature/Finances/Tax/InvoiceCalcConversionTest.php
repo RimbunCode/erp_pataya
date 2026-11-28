@@ -631,7 +631,7 @@ class InvoiceCalcConversionTest extends TestCase {
 
         $this->assertNotEmpty($versions);
         $this->assertEqualsCanonicalizing(
-            ['id', 'tax_id', 'status', 'effective_from', 'effective_to', 'rate', 'dpp_numerator', 'dpp_denominator', 'behavior'],
+            ['id', 'tax_id', 'status', 'effective_from', 'effective_to', 'rate', 'dpp_numerator', 'dpp_denominator', 'behavior', 'category'],
             array_keys($versions[0]),
         );
     }

@@ -34,6 +34,9 @@ use Tests\TestCase;
  * total dokumen dari semua baris.
  */
 class SalesOrderServiceAssetItemsTest extends TestCase {
+    /** Pengali total PPN 11% atas DPP 11/12 (Q-MT-12 Opsi A: order memakai TaxEngine seperti invoice). */
+    private const GROSS_UP = 1 + 0.11 * 11 / 12;
+
     use RefreshDatabase;
 
     private Tax $tax;
@@ -150,7 +153,7 @@ class SalesOrderServiceAssetItemsTest extends TestCase {
 
         $this->assertSame(2, SalesOrderItem::where('sales_order_id', $salesOrder->id)->count());
         $this->assertCount(2, $salesOrder->items, 'relasi items() tetap mengembalikan SEMUA baris');
-        $this->assertEqualsWithDelta((200000 + 500000) * 1.11, (float) $salesOrder->amount, 0.01);
+        $this->assertEqualsWithDelta((200000 + 500000) * self::GROSS_UP, (float) $salesOrder->amount, 0.05);
         $this->assertEqualsWithDelta(700000, $salesOrder->items->sum('basic_amount'), 0.01);
     }
 
@@ -165,7 +168,7 @@ class SalesOrderServiceAssetItemsTest extends TestCase {
         $this->assertCount(1, $salesOrder->items);
         $this->assertNull($salesOrder->items->first()->item_unit_id);
         $this->assertSame(1.0, $salesOrder->items->first()->conversion_factor);
-        $this->assertEqualsWithDelta(500000 * 1.11, (float) $salesOrder->amount, 0.01);
+        $this->assertEqualsWithDelta(500000 * self::GROSS_UP, (float) $salesOrder->amount, 0.05);
     }
 
     #[Test]
@@ -200,7 +203,7 @@ class SalesOrderServiceAssetItemsTest extends TestCase {
         ]))->fresh(['items']);
 
         $this->assertCount(1, $salesOrder->items);
-        $this->assertEqualsWithDelta(300000 * 1.11, (float) $salesOrder->amount, 0.01);
+        $this->assertEqualsWithDelta(300000 * self::GROSS_UP, (float) $salesOrder->amount, 0.05);
     }
 
     #[Test]
@@ -227,12 +230,12 @@ class SalesOrderServiceAssetItemsTest extends TestCase {
         $this->assertNotNull($rows->firstWhere('id', $regularRow->id), 'baris reguler lama tetap ada');
         $this->assertNull($rows->firstWhere('asset_id', $assetA['asset_id']), 'baris aset A dihapus');
         $this->assertNotNull($rows->firstWhere('asset_id', $assetB['asset_id']), 'baris aset B ditambahkan');
-        $this->assertEqualsWithDelta((100000 + 300000) * 1.11, (float) $created->fresh()->amount, 0.01);
+        $this->assertEqualsWithDelta((100000 + 300000) * self::GROSS_UP, (float) $created->fresh()->amount, 0.05);
     }
 
     /**
      * Property 5: untuk payload acak tanpa baris aset, total dokumen sama dengan oracle
-     * Σ(quantity × price) × (1 + PPN).
+     * Σ(quantity × price) × (1 + PPN × 11/12) (Q-MT-12 Opsi A: order memakai TaxEngine, faktor DPP 11/12).
      */
     #[Test]
     public function property_5_documents_without_asset_rows_match_the_total_oracle(): void {
@@ -246,7 +249,7 @@ class SalesOrderServiceAssetItemsTest extends TestCase {
                 $quantity = mt_rand(1, 5);
                 $price    = [1000, 2500, 40000, 125000][mt_rand(0, 3)];
                 $rows[]   = $this->row($this->createItemWithUnit(false), $quantity, $price);
-                $expected += $quantity * $price * 1.11;
+                $expected += $quantity * $price * self::GROSS_UP;
             }
 
             $salesOrder = $service->create($this->payload(['items' => $rows]))->fresh(['items']);

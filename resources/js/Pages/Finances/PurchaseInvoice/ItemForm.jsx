@@ -10,7 +10,7 @@ export default function ItemForm({ getColumn }) {
           <div className="grid grid-cols-2 gap-4">
             {getColumn("quantity")}
             {getColumn("target_warehouse")}
-            {getColumn("tax")}
+            {getColumn("taxes")}
             {getColumn("rate")}
           </div>
           {getColumn("description", { rows: 3 })}
