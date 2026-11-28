@@ -32,6 +32,7 @@ use App\Models\Core\PrintTemplate;
 use App\Models\Core\SavedFilter;
 use App\Models\DashboardWidget;
 use App\Models\Finances\Account;
+use App\Models\Finances\ExchangeRate;
 use App\Models\Finances\FiscalPeriod;
 use App\Models\Finances\GeneralLedger;
 use App\Models\Finances\Journal;
@@ -322,6 +323,7 @@ class DeskSeeder extends Seeder {
         $this->menuItem('Journals', 'BookOpen', 'journals.*', Journal::class, [Domain::Finances], 2, group: 'Accounting');
         $this->menuItem('Journal Vouchers', 'BookOpen', 'journalVouchers.*', JournalVoucher::class, [Domain::Finances], 3, group: 'Accounting');
         $this->menuItem('General Ledgers', 'Calculator', 'generalLedgers.*', GeneralLedger::class, [Domain::Finances], 4, group: 'Accounting');
+        $this->menuItem('Exchange Rates', 'Coins', 'exchangeRates.*', ExchangeRate::class, [Domain::Finances], 5, group: 'Accounting');
 
         // Finances: Payments
         $this->menuItem('Payment Methods', 'CreditCard', 'paymentMethods.*', PaymentMethod::class, [Domain::Finances], 3, group: 'Payments');

@@ -10,6 +10,13 @@ return [
         'range_not_configured' => 'The tax invoice serial range is not configured. Contact an administrator to set the range in Finance Settings.',
         'range_exhausted'      => 'The allocated tax invoice serial range is exhausted. Contact an administrator to obtain a new range from DJP.',
     ],
+    'fx' => [
+        'title'              => 'Exchange Rates',
+        'max_age_days'       => 'Maximum Rate Age (days)',
+        'max_age_days_help'  => 'When no rate exists on the transaction date, the nearest earlier rate within this many days is used. Enter 0 to accept only a rate on the exact date. Maximum 3650.',
+        'allow_inverse'      => 'Allow Inverse Rates',
+        'allow_inverse_help' => 'When the direct rate is missing, the opposite pair is used by dividing by its stored rate.',
+    ],
     'posting' => [
         'title'                                => 'Posting',
         'discount_split_from_sales_invoice'    => 'Separate Discount for Sales Invoice From',

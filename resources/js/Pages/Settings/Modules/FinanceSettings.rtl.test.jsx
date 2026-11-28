@@ -198,4 +198,53 @@ describe("FinanceSettings RTL", () => {
       });
     });
   });
+
+  describe("Kurs tab (FX engine settings)", () => {
+    const setting = {
+      tax_invoice_serial_range_start: 0,
+      tax_invoice_serial_range_end: 0,
+      tax_invoice_serial_last_used: 0,
+      fx_max_age_days: 7,
+      fx_allow_inverse: true,
+    };
+
+    it("shows the max age and the inverse switch with their current values", async () => {
+      render(<FinanceSettings setting={setting} canWrite={true} />);
+
+      await userEvent.click(screen.getByRole("tab", { name: "Kurs" }));
+
+      expect(screen.getByTestId("finance-fx-settings")).toBeInTheDocument();
+      expect(screen.getByTestId("number-input")).toHaveValue("7");
+      expect(
+        screen.getByRole("switch", { name: "Izinkan Kurs Kebalikan" }),
+      ).toBeChecked();
+      expect(translationMock).toHaveBeenCalledWith(
+        "finances.setting.fx.max_age_days_help",
+        expect.any(String),
+      );
+    });
+
+    it("sends the new inverse value when the switch is toggled", async () => {
+      setDataMock.mockClear();
+      render(<FinanceSettings setting={setting} canWrite={true} />);
+
+      await userEvent.click(screen.getByRole("tab", { name: "Kurs" }));
+      await userEvent.click(
+        screen.getByRole("switch", { name: "Izinkan Kurs Kebalikan" }),
+      );
+
+      expect(setDataMock).toHaveBeenCalledWith("fx_allow_inverse", false);
+    });
+
+    it("disables both controls when canWrite is false", async () => {
+      render(<FinanceSettings setting={setting} canWrite={false} />);
+
+      await userEvent.click(screen.getByRole("tab", { name: "Kurs" }));
+
+      expect(screen.getByTestId("number-input")).toBeDisabled();
+      expect(
+        screen.getByRole("switch", { name: "Izinkan Kurs Kebalikan" }),
+      ).toBeDisabled();
+    });
+  });
 });

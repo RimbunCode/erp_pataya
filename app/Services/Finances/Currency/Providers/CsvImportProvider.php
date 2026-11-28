@@ -131,6 +131,13 @@ final class CsvImportProvider implements ExchangeRateProvider {
             $rows[$lineNumber] = array_combine($header, array_map(static fn (?string $cell): string => trim((string) $cell), $cells));
         }
 
+        // Berkas kosong/hanya spasi tidak boleh lolos sebagai "0 ditambahkan, 0 galat".
+        if ($header === null) {
+            $report->addError(0, __('finances/exchangeRate.errors.csv_missing_header', ['columns' => implode(', ', self::COLUMNS)]));
+
+            return $report;
+        }
+
         $result = $this->ingest($rows, $sourceRef, $createdById);
         foreach ($report->errors as $error) {
             $result->addError($error['line'], $error['message']);
