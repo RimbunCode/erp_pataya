@@ -6,7 +6,14 @@ import ItemVariantLinkModel from "@/Pages/Inventory/Items/ItemVariantLinkModel";
 import TaxLinkModel from "@/Pages/Finances/Taxes/TaxLinkModel";
 import NumberInput from "@/Components/NumberInput";
 import { Textarea } from "@/Components/ui/textarea";
-import { EMPTY_DEFAULTS, applyToNewLine } from "@/lib/documentDefaults";
+import InputError from "@/Components/InputError";
+import {
+  EMPTY_DEFAULTS,
+  applyToNewLine,
+  taxPatch,
+  taxRowError,
+} from "@/lib/documentDefaults";
+import { taxesOfRow } from "@/lib/taxRules";
 import { useLaravelReactI18n } from "laravel-react-i18n";
 import { useMemo } from "react";
 
@@ -23,12 +30,19 @@ const DEFAULT_VALUE_ROW = { quantity: 1, price: 0 };
  * @param root0.resolveForNewLine
  * @param root0.markFieldEdited
  * @param root0.isFieldEdited
+ * @param root0.errors galat validasi form (untuk pesan per baris)
  */
 export function buildQuotationItemColumns(
   type,
   t,
   defaults = EMPTY_DEFAULTS,
-  { isCreate = false, resolveForNewLine, markFieldEdited, isFieldEdited } = {},
+  {
+    isCreate = false,
+    resolveForNewLine,
+    markFieldEdited,
+    isFieldEdited,
+    errors,
+  } = {},
 ) {
   const isSparePart = type === "spare_part";
   const isNewUnit = type === "new_unit";
@@ -70,12 +84,13 @@ export function buildQuotationItemColumns(
                 {
                   ...dataRow,
                   item: val,
+                  taxes: dataRow?.taxes,
                   tax: dataRow?.tax,
                   tax_rate: dataRow?.tax_rate,
                 },
                 val,
                 defaults,
-                { isFieldEdited },
+                { isFieldEdited, multiTax: true },
               );
               // Nilai awal disalin dari master, lalu menjadi milik dokumen
               // (pola P3): mengubah master tidak mengubah penawaran.
@@ -83,7 +98,8 @@ export function buildQuotationItemColumns(
                 item: val,
                 description: val?.description ?? "",
                 item_unit: val?.default_uom,
-                tax: defaultLine.tax,
+                taxes: defaultLine.taxes ?? [],
+                tax: defaultLine.tax ?? null,
                 tax_rate: defaultLine.tax_rate,
               });
               if (isCreate) {
@@ -149,22 +165,29 @@ export function buildQuotationItemColumns(
       },
     },
     {
-      name: "tax",
+      name: "taxes",
       titleTrans: "crm.quotation.columns.tax",
       required: true,
       width: 2,
-      cell({ dataRow, data: value, setData, attributes }) {
+      cell({ dataRow, setData, attributes }, index) {
+        const taxError = taxRowError(errors, index);
+
         return (
-          <TaxLinkModel
-            disabled={!dataRow?.item}
-            placeholder={t("crm.quotation.columns.tax.placeholder")}
-            value={value}
-            onValueChange={(tax) => {
-              markFieldEdited?.(dataRow?.id, "tax");
-              setData({ tax, tax_rate: tax?.rate ?? 0 });
-            }}
-            {...attributes}
-          />
+          <div className="flex w-full flex-col">
+            <TaxLinkModel
+              multiple
+              fields={["category", "behavior", "rate"]}
+              disabled={!dataRow?.item}
+              placeholder={t("crm.quotation.columns.tax.placeholder")}
+              value={taxesOfRow(dataRow)}
+              onValueChange={(taxes) => {
+                markFieldEdited?.(dataRow?.id, "tax");
+                setData(taxPatch(taxes ?? []));
+              }}
+              {...attributes}
+            />
+            <InputError message={taxError} className="px-1 text-xs" />
+          </div>
         );
       },
     },
@@ -230,6 +253,7 @@ export default function QuotationItems({
   resolveForNewLine,
   markFieldEdited,
   isFieldEdited,
+  errors,
 }) {
   const { t } = useLaravelReactI18n();
   const columns = useMemo(
@@ -239,9 +263,11 @@ export default function QuotationItems({
         resolveForNewLine,
         markFieldEdited,
         isFieldEdited,
+        errors,
       }),
     [
       defaults,
+      errors,
       isCreate,
       markFieldEdited,
       isFieldEdited,

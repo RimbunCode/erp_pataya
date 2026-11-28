@@ -3,6 +3,7 @@
 namespace App\Services\Finances\Tax;
 
 use Carbon\CarbonInterface;
+use Illuminate\Database\Query\Builder as QueryBuilder;
 use Illuminate\Support\Facades\DB;
 
 /**
@@ -24,21 +25,34 @@ final class UnclassifiedTaxUsage {
         $since = $now->copy()->subMonths(self::WINDOW_MONTHS);
 
         return [
-            'sales_invoices'    => $this->count('sales_invoice_items', 'sales_invoices', 'sales_invoice_id', $taxId, $since),
-            'purchase_invoices' => $this->count('purchase_invoice_items', 'purchase_invoices', 'purchase_invoice_id', $taxId, $since),
+            'sales_invoices'    => $this->count('sales_invoice_items', 'sales_invoice_item_taxes', 'sales_invoice_item_id', 'sales_invoices', 'sales_invoice_id', $taxId, $since),
+            'purchase_invoices' => $this->count('purchase_invoice_items', 'purchase_invoice_item_taxes', 'purchase_invoice_item_id', 'purchase_invoices', 'purchase_invoice_id', $taxId, $since),
         ];
     }
 
-    private function count(string $itemTable, string $headerTable, string $foreignKey, string $taxId, CarbonInterface $since): int {
-        return DB::table($itemTable)
+    /**
+     * Invoice yang memakai pajak itu pada SALAH SATU baris pajak itemnya (pivot, termasuk pajak non-utama; pajak
+     * majemuk per item). Item tanpa baris pivot (sebelum backfill) dihitung lewat kolom `tax_id` item.
+     */
+    private function count(string $itemTable, string $pivotTable, string $pivotKey, string $headerTable, string $foreignKey, string $taxId, CarbonInterface $since): int {
+        $base = fn (QueryBuilder $query): QueryBuilder => $query
             ->join($headerTable, "{$headerTable}.id", '=', "{$itemTable}.{$foreignKey}")
-            ->where("{$itemTable}.tax_id", $taxId)
             ->whereNull("{$itemTable}.deleted_at")
             ->whereNull("{$headerTable}.deleted_at")
             ->whereJsonDoesntContain("{$headerTable}.status", 'draft')
             ->whereJsonDoesntContain("{$headerTable}.status", 'canceled')
-            ->where("{$headerTable}.date", '>=', $since->toDateString())
-            ->distinct()
-            ->count("{$headerTable}.id");
+            ->where("{$headerTable}.date", '>=', $since->toDateString());
+
+        $viaPivot = $base(DB::table($itemTable))
+            ->join($pivotTable, "{$pivotTable}.{$pivotKey}", '=', "{$itemTable}.id")
+            ->where("{$pivotTable}.tax_id", $taxId)
+            ->select("{$headerTable}.id");
+
+        $legacy = $base(DB::table($itemTable))
+            ->where("{$itemTable}.tax_id", $taxId)
+            ->whereNotExists(fn (QueryBuilder $query) => $query->selectRaw('1')->from($pivotTable)->whereColumn("{$pivotTable}.{$pivotKey}", "{$itemTable}.id"))
+            ->select("{$headerTable}.id");
+
+        return DB::query()->fromSub($viaPivot->union($legacy), 'usage')->count();
     }
 }

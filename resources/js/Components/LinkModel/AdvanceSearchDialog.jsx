@@ -7,6 +7,9 @@ import {
 } from "@/Components/ui/dialog";
 import { useCallback, useEffect, useMemo, useState } from "react";
 
+import { Button } from "@/Components/ui/button";
+import { CheckIcon } from "lucide-react";
+import { optionKey } from "@/lib/linkModelUtils";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/Components/ui/tabs";
 import FilterTable from "@/Components/Table/Filter/FilterTable2";
 import {
@@ -30,6 +33,10 @@ import { useLaravelReactI18n } from "laravel-react-i18n";
 import useAdvanceSearchModel, {
   fetchAdvanceGroupNode,
 } from "./useAdvanceSearchModel";
+
+// Kunci baris dialog (satu model per tab): id saja, karena baris browse bisa
+// belum membawa `thisModel` sedangkan nilai LinkModel sudah.
+const rowKey = (row) => `${row?.id ?? optionKey(row)}`;
 
 const hasItems = (tree) => Object.keys(tree?.root?.c ?? {}).length > 0;
 
@@ -128,6 +135,12 @@ export function buildGroupOptions(barColumns, lockedColumnNames, locale) {
  *   dialog dibuka, perubahan di panel hanya lokal dialog
  * @param props.includeGlobalBranch
  * @param {(row: object) => void} props.onSelect dipanggil dengan row yang SUDAH terpangkas (Requirement 7)
+ * @param {boolean} [props.multiple] mode multi value LinkModel: klik/centang baris =
+ *   toggle seleksi (dialog tetap terbuka), tombol "Pilih" memanggil `onSelectMany`
+ * @param {object[]} [props.selected] seleksi awal mode `multiple` (nilai LinkModel
+ *   saat ini); urutan dipertahankan, baris baru ditambah di akhir
+ * @param {(rows: object[]) => void} [props.onSelectMany] seluruh seleksi akhir,
+ *   tiap elemen SUDAH terpangkas (`trimToLinkModelPayload`)
  * @returns {React.JSX.Element}
  */
 function AdvanceSearchBody({
@@ -144,6 +157,9 @@ function AdvanceSearchBody({
   group,
   includeGlobalBranch = false,
   onSelect,
+  multiple = false,
+  selected,
+  onSelectMany,
 }) {
   const { t, currentLocale } = useLaravelReactI18n();
   const locale = currentLocale?.();
@@ -270,13 +286,57 @@ function AdvanceSearchBody({
     [barGroups],
   );
 
-  const handlePick = (row) => {
-    onSelect(
+  // Mode multiple: seleksi (urut) dibangun ulang dari `selected` tiap dialog dibuka.
+  const [picked, setPicked] = useState([]);
+  useEffect(() => {
+    if (open && multiple) setPicked(selected ?? []);
+  }, [open, multiple]);
+  const pickedKeys = useMemo(() => new Set(picked.map(rowKey)), [picked]);
+
+  const trimRow = useCallback(
+    (row) =>
       trimToLinkModelPayload(row, {
         fields,
         templateLinkColumnNames: lockedColumnNames,
       }),
-    );
+    [fields, lockedColumnNames],
+  );
+
+  // Satu baris: centang -> tambah (terpangkas) di akhir, cabut -> hapus.
+  const setRowPicked = useCallback(
+    (row, check) => {
+      const key = rowKey(row);
+      setPicked((prev) =>
+        check
+          ? prev.some((item) => rowKey(item) === key)
+            ? prev
+            : [...prev, trimRow(row)]
+          : prev.filter((item) => rowKey(item) !== key),
+      );
+    },
+    [trimRow],
+  );
+  const toggleRow = (row) => setRowPicked(row, !pickedKeys.has(rowKey(row)));
+  // Kontrak `selection` Table2 (sama dgn DataTable2): isSelected/toggle/setMany.
+  const selection = useMemo(
+    () => ({
+      isSelected: (row) => pickedKeys.has(rowKey(row)),
+      toggle: (row, check) => setRowPicked(row, check),
+      setMany: (rows, check) => rows.forEach((row) => setRowPicked(row, check)),
+    }),
+    [pickedKeys, setRowPicked],
+  );
+  const confirmMany = () => {
+    onSelectMany?.(picked);
+    onOpenChange?.(false);
+  };
+
+  const handlePick = (row) => {
+    if (multiple) {
+      toggleRow(row);
+      return;
+    }
+    onSelect(trimRow(row));
     onOpenChange?.(false);
   };
 
@@ -359,8 +419,12 @@ function AdvanceSearchBody({
             isLoading={isLoading}
             isDynamicData
             persistColumns={false}
-            onRowClick={handlePick}
+            // Mode multiple: seleksi lewat checkbox (klik baris + checkbox
+            // akan menghitung dua kali karena event bubbling ke <tr>).
+            onRowClick={multiple ? undefined : handlePick}
             group={groupTreeProps ?? undefined}
+            selectable={multiple || undefined}
+            selection={multiple ? selection : undefined}
           />
           {levelZeroSentinel}
         </div>
@@ -385,7 +449,12 @@ function AdvanceSearchBody({
                 />
               )}
               renderRow={(row) => (
-                <MobileRow key={row.id} row={row} onPick={handlePick} />
+                <MobileRow
+                  key={row.id}
+                  row={row}
+                  onPick={handlePick}
+                  checked={multiple ? pickedKeys.has(rowKey(row)) : undefined}
+                />
               )}
               renderLoading={({ depth }) => (
                 <GroupNodeStatusCard depth={depth} />
@@ -396,23 +465,44 @@ function AdvanceSearchBody({
             />
           ) : (
             rows.map((row, i) => (
-              <MobileRow key={row.id ?? i} row={row} onPick={handlePick} />
+              <MobileRow
+                key={row.id ?? i}
+                row={row}
+                onPick={handlePick}
+                checked={multiple ? pickedKeys.has(rowKey(row)) : undefined}
+              />
             ))
           )}
           {levelZeroSentinel}
         </div>
       </div>
+      {multiple && (
+        <div className="flex justify-end px-6 pb-6 pt-2 border-t border-muted-foreground/30">
+          <Button type="button" onClick={confirmMany}>
+            {t("core.form.linkmodel.select", { count: picked.length })}
+          </Button>
+        </div>
+      )}
     </>
   );
 }
 
-function MobileRow({ row, onPick }) {
+function MobileRow({ row, onPick, checked }) {
   return (
     <button
       type="button"
       onClick={() => onPick(row)}
-      className="text-left py-2.5 hover:bg-accent/50"
+      aria-pressed={checked}
+      className="flex items-center gap-2 text-left py-2.5 hover:bg-accent/50"
     >
+      {checked !== undefined && (
+        <span
+          aria-hidden
+          className="flex items-center justify-center border rounded-sm size-4 shrink-0 border-primary"
+        >
+          {checked && <CheckIcon className="size-3" />}
+        </span>
+      )}
       <span>
         <SemanticTemplate
           template={row.templateLink}

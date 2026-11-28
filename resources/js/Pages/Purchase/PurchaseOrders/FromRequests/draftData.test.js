@@ -34,6 +34,45 @@ function twoDrafts() {
 }
 
 describe("draft data shared with the PO form", () => {
+  it("membawa semua pajak baris dan memakai pajak pertama sebagai Pajak Utama", () => {
+    const state = twoDrafts();
+    const taxes = [
+      { id: "ppn", rate: 12 },
+      { id: "pph", rate: 2 },
+    ];
+    const data = buildDraftData(state, "draft-1", "2026-10-14");
+    const next = applyDraftData(state, "draft-1", {
+      ...data,
+      items: data.items.map((item) => ({
+        ...item,
+        taxes,
+        tax: taxes[0],
+        tax_rate: 12,
+      })),
+    });
+    const rebuilt = buildDraftData(next, "draft-1", "2026-10-14");
+
+    expect(rebuilt.items[0].taxes).toEqual(taxes);
+    expect(rebuilt.items[0].tax).toEqual(taxes[0]);
+    expect(rebuilt.items[0].tax_rate).toBe(12);
+  });
+
+  it("data lama yang hanya punya tax diperlakukan sebagai satu pajak", () => {
+    const state = twoDrafts();
+    const data = buildDraftData(state, "draft-1", "2026-10-14");
+    const next = applyDraftData(state, "draft-1", {
+      ...data,
+      items: data.items.map((item) => ({
+        ...item,
+        tax: { id: "ppn", rate: 11 },
+      })),
+    });
+    const rebuilt = buildDraftData(next, "draft-1", "2026-10-14");
+
+    expect(rebuilt.items[0].taxes).toEqual([{ id: "ppn", rate: 11 }]);
+    expect(rebuilt.items[0].tax).toEqual({ id: "ppn", rate: 11 });
+  });
+
   it("keeps a cleared unit empty until the user selects another one", () => {
     const state = twoDrafts();
     const data = buildDraftData(state, "draft-1", "2026-10-14");

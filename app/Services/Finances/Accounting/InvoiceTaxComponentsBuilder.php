@@ -6,14 +6,17 @@ use App\Enums\AccountRole;
 use App\Models\Finances\Tax;
 use App\Models\Finances\TaxRuleVersion;
 use App\Services\Finances\Posting\Contexts\TaxComponentLine;
+use App\Services\Finances\Tax\InvoiceItemTaxLines;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Support\Facades\Log;
 
 /**
  * Menyusun `TaxComponentLine` dari NILAI TERSIMPAN item invoice (Finance Fase 3, Task 6.2; Requirement 7.1-7.3, 7.9).
- * Dipakai pabrik konteks Sales Invoice dan Purchase Invoice. Item dikelompokkan per (pajak, versi aturan); jumlah
- * komponen = Σ `tax_amount` tersimpan (tidak dihitung ulang, sehingga Σ pajak jurnal = Σ tersimpan), dan `lineShares`
- * memuat `tax_amount` per item agar baris pendapatan/beban dapat dikurangi tepat.
+ * Dipakai pabrik konteks Sales Invoice dan Purchase Invoice. Sumber: baris pajak item (pivot `taxLines`, pajak
+ * majemuk per item, spek finance-multi-tax-per-item Requirement 5.1), dikelompokkan per (pajak, versi aturan); jumlah
+ * komponen = Σ `tax_amount` pivot tersimpan (tidak dihitung ulang, sehingga Σ pajak jurnal = Σ pivot = Σ agregat
+ * item), dan `lineShares` memuat `tax_amount` pivot per item agar baris pendapatan/beban dapat dikurangi tepat. Item
+ * ber-`tax_id` tanpa pivot dibaca sebagai satu pajak dari kolom item (`InvoiceItemTaxLines`, jaring pengaman baca).
  *
  * `classified` = kategori bukan `unclassified` dan `behavior = additive` (P-6: tidak menebak klasifikasi).
  * `isCreditable` = `taxes.is_creditable` DAN PKP untuk pembelian; selalu true untuk penjualan. Peran dari versi aturan
@@ -22,25 +25,23 @@ use Illuminate\Support\Facades\Log;
  */
 final class InvoiceTaxComponentsBuilder {
     /**
-     * @param  iterable<Model>  $items  baris invoice (atribut `tax_id`, `tax_rule_version_id`, `tax_amount`)
+     * @param  iterable<Model>  $items  baris invoice (relasi `taxLines`; atau atribut `tax_id`, `tax_rule_version_id`, `tax_amount`)
      * @param  bool  $purchase  true untuk Purchase Invoice (peran `input_role`, kreditabilitas PKP)
      * @return list<TaxComponentLine>
      */
     public function build(iterable $items, bool $purchase, bool $companyIsPkp): array {
         $groups = [];
         foreach ($items as $item) {
-            if (blank($item->tax_id)) {
-                continue;
+            foreach (InvoiceItemTaxLines::of($item) as $line) {
+                $taxId     = $line['tax_id'];
+                $versionId = $line['tax_rule_version_id'];
+                $key       = $taxId . '|' . ($versionId ?? '');
+
+                $groups[$key] ??= ['tax_id' => $taxId, 'version_id' => $versionId, 'amount' => 0.0, 'shares' => []];
+                $share = $line['tax_amount'];
+                $groups[$key]['amount'] += $share;
+                $groups[$key]['shares'][(string) $item->getKey()] = $share;
             }
-
-            $taxId     = (string) $item->tax_id;
-            $versionId = blank($item->tax_rule_version_id) ? null : (string) $item->tax_rule_version_id;
-            $key       = $taxId . '|' . ($versionId ?? '');
-
-            $groups[$key] ??= ['tax_id' => $taxId, 'version_id' => $versionId, 'amount' => 0.0, 'shares' => []];
-            $share = (float) $item->tax_amount;
-            $groups[$key]['amount'] += $share;
-            $groups[$key]['shares'][(string) $item->getKey()] = $share;
         }
 
         if ($groups === []) {
@@ -77,22 +78,24 @@ final class InvoiceTaxComponentsBuilder {
      * bergantung pada cutover pemisahan pajak: nilai itu SUDAH dikeluarkan dari `amount` dokumen, jadi jurnal harus
      * memotong `receivable`/`payable` sebesar itu agar seimbang.
      *
-     * @param  iterable<Model>  $items  baris invoice (atribut `tax_id`, `tax_rule_version_id`, `withholding_amount`)
+     * @param  iterable<Model>  $items  baris invoice (relasi `taxLines`; atau atribut `tax_id`, `tax_rule_version_id`, `withholding_amount`)
      * @return list<TaxComponentLine>
      */
     public function withholdingComponents(iterable $items, bool $purchase): array {
         $groups = [];
         foreach ($items as $item) {
-            $amount = (float) ($item->withholding_amount ?? 0);
-            if (blank($item->tax_id) || $amount <= 0) {
-                continue;
+            foreach (InvoiceItemTaxLines::of($item) as $line) {
+                $amount = $line['withholding_amount'];
+                if ($amount <= 0) {
+                    continue;
+                }
+
+                $versionId = $line['tax_rule_version_id'];
+                $key       = $line['tax_id'] . '|' . ($versionId ?? '');
+
+                $groups[$key] ??= ['tax_id' => $line['tax_id'], 'version_id' => $versionId, 'amount' => 0.0];
+                $groups[$key]['amount'] += $amount;
             }
-
-            $versionId = blank($item->tax_rule_version_id) ? null : (string) $item->tax_rule_version_id;
-            $key       = $item->tax_id . '|' . ($versionId ?? '');
-
-            $groups[$key] ??= ['tax_id' => (string) $item->tax_id, 'version_id' => $versionId, 'amount' => 0.0];
-            $groups[$key]['amount'] += $amount;
         }
 
         $role = ($purchase ? AccountRole::WithholdingPayable : AccountRole::WithholdingReceivable)->value;

@@ -93,7 +93,7 @@ describe("CRM QuotationItems", () => {
         "description",
         "quantity",
         "item_unit",
-        "tax",
+        "taxes",
         "price",
         "remark",
         "amount",
@@ -107,7 +107,7 @@ describe("CRM QuotationItems", () => {
         "item",
         "description",
         "quantity",
-        "tax",
+        "taxes",
         "price",
         "remark",
         "amount",
@@ -122,7 +122,7 @@ describe("CRM QuotationItems", () => {
         "description",
         "quantity",
         "item_unit",
-        "tax",
+        "taxes",
         "price",
       ]);
     });
@@ -146,9 +146,63 @@ describe("CRM QuotationItems", () => {
         expect(required.map((col) => col.name)).toEqual([
           "item",
           "quantity",
-          "tax",
+          "taxes",
         ]);
       }
+    });
+  });
+
+  describe("banyak pajak per baris (spek finance-multi-tax-per-item)", () => {
+    const ppn = { id: "ppn", name: "PPN", rate: 11 };
+    const pph = { id: "pph", name: "PPh 23", rate: 2 };
+    const taxCell = (dataRow, errors) => {
+      const column = buildQuotationItemColumns(
+        "spare_part",
+        stableT,
+        undefined,
+        {
+          errors,
+        },
+      ).find((col) => col && col.name === "taxes");
+      const setData = vi.fn();
+      const cell = column.cell({ dataRow, setData, attributes: {} }, 0);
+
+      return { cell, setData };
+    };
+
+    it("kolom taxes memakai pemilih banyak pajak dan mengirim taxes + cerminan tax", () => {
+      const { cell, setData } = taxCell({ item: { id: 1 }, taxes: [ppn, pph] });
+      const picker = cell.props.children[0];
+
+      expect(picker.props.multiple).toBe(true);
+      expect(picker.props.value).toEqual([ppn, pph]);
+
+      picker.props.onValueChange([pph]);
+
+      expect(setData).toHaveBeenCalledWith(
+        expect.objectContaining({ taxes: [pph], tax: pph, tax_rate: 2 }),
+      );
+
+      picker.props.onValueChange([]);
+
+      expect(setData).toHaveBeenLastCalledWith(
+        expect.objectContaining({ taxes: [], tax: null }),
+      );
+    });
+
+    it("baris lama yang hanya punya tax tampil sebagai satu pajak", () => {
+      const { cell } = taxCell({ item: { id: 1 }, tax: ppn });
+
+      expect(cell.props.children[0].props.value).toEqual([ppn]);
+    });
+
+    it("menampilkan galat pajak per baris", () => {
+      const { cell } = taxCell(
+        { item: { id: 1 }, taxes: [] },
+        { "items.0.taxes": "Pajak wajib diisi" },
+      );
+
+      expect(cell.props.children[1].props.message).toBe("Pajak wajib diisi");
     });
   });
 

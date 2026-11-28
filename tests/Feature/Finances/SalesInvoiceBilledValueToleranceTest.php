@@ -408,7 +408,7 @@ class SalesInvoiceBilledValueToleranceTest extends TestCase {
         $row = $this->row(1, 100);
         unset($row['tax']);
 
-        $this->assertArrayHasKey('items.0.tax.id', $this->validate([$row])->errors()->toArray());
+        $this->assertArrayHasKey('items.0.taxes', $this->validate([$row])->errors()->toArray());
 
         $item = Item::query()->whereHas('variants', fn ($query) => $query->whereKey(DB::table('sales_order_items')->where('id', $this->salesOrderItemId)->value('item_id')))->firstOrFail();
         DefaultTaxRule::query()->create(['module' => 'sales', 'document_type' => 'sales_invoice', 'item_type' => $item->type, 'tax_id' => null, 'priority' => 0]);
@@ -422,12 +422,12 @@ class SalesInvoiceBilledValueToleranceTest extends TestCase {
         unset($row['tax']);
 
         DefaultTaxRule::query()->create(['module' => 'sales', 'document_type' => 'sales_order', 'item_type' => $item->type, 'tax_id' => null, 'priority' => 0]);
-        $this->assertArrayHasKey('items.0.tax.id', $this->validate([$row])->errors()->toArray());
+        $this->assertArrayHasKey('items.0.taxes', $this->validate([$row])->errors()->toArray());
 
         $deleted = TaxFactory::new()->create();
         DefaultTaxRule::query()->create(['module' => 'sales', 'document_type' => 'sales_invoice', 'item_type' => $item->type, 'tax_id' => $deleted->id, 'priority' => 0]);
         $deleted->delete();
-        $this->assertArrayHasKey('items.0.tax.id', $this->validate([$row])->errors()->toArray());
+        $this->assertArrayHasKey('items.0.taxes', $this->validate([$row])->errors()->toArray());
     }
 
     #[Test]

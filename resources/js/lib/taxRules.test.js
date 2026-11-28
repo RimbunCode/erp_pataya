@@ -1,6 +1,13 @@
 import { describe, expect, it } from "vitest";
 import { allocateDiscount } from "./discountAllocation";
-import { resolveTaxRule, toDay } from "./taxRules";
+import {
+  dppSourceOf,
+  resolveTaxRule,
+  rulesOf,
+  showsDppOf,
+  taxesOfRow,
+  toDay,
+} from "./taxRules";
 
 const version = (overrides = {}) => ({
   id: "v1",
@@ -133,5 +140,120 @@ describe("toDay", () => {
     expect(
       resolveTaxRule(versions, "tax-1", "2026-06-30T23:59:59+07:00"),
     ).toBeNull();
+  });
+});
+
+describe("pajak majemuk per baris (rulesOf, showsDppOf, dppSourceOf)", () => {
+  const ppn = {
+    id: "tax-ppn",
+    name: "PPN 12%",
+    rate: 12,
+    category: "ppn_standard",
+  };
+  const pph = { id: "tax-pph", name: "PPh 23", rate: 2, category: "pph_23" };
+  const versions = [
+    version({ id: "v-ppn", tax_id: "tax-ppn", rate: 12 }),
+    version({
+      id: "v-pph",
+      tax_id: "tax-pph",
+      rate: 2,
+      dpp_numerator: 1,
+      dpp_denominator: 1,
+      behavior: "withholding",
+    }),
+  ];
+
+  it("taxesOfRow: taxes menang, lalu tax tunggal, lalu tax_id; kosong = []", () => {
+    expect(taxesOfRow({ taxes: [ppn, pph], tax: pph })).toEqual([ppn, pph]);
+    expect(taxesOfRow({ taxes: [], tax: pph })).toEqual([pph]);
+    expect(taxesOfRow({ tax_id: "tax-x" })).toEqual([{ id: "tax-x" }]);
+    expect(taxesOfRow({})).toEqual([]);
+    expect(taxesOfRow(null)).toEqual([]);
+  });
+
+  it("rulesOf me-resolve versi aturan PER pajak, urutan pilihan terjaga", () => {
+    const entries = rulesOf({ taxes: [ppn, pph] }, versions, "2026-07-01");
+
+    expect(entries.map((e) => e.taxId)).toEqual(["tax-ppn", "tax-pph"]);
+    expect(entries[0].rule).toMatchObject({
+      rate: 12,
+      additive: true,
+      showsDpp: true,
+    });
+    expect(entries[1].rule).toMatchObject({
+      rate: 2,
+      additive: false,
+      showsDpp: false,
+    });
+  });
+
+  it("rulesOf memakai versi tersimpan pada pivot tiap pajak (dokumen yang sudah disimpan)", () => {
+    const old = version({ id: "old", status: "retired", rate: 11 });
+    const entries = rulesOf(
+      {
+        taxes: [{ ...ppn, id: "tax-1", pivot: { tax_rule_version_id: "old" } }],
+      },
+      [old, version({ id: "new", effective_from: "2026-07-01", rate: 12 })],
+      "2026-07-02",
+    );
+
+    expect(entries[0].rule?.versionId).toBe("old");
+    expect(entries[0].rule?.rate).toBe(11);
+  });
+
+  it("rulesOf bentuk lama: tax_rule_version_id baris dipakai untuk pajak tunggal", () => {
+    const old = version({ id: "old", status: "retired", rate: 11 });
+    const entries = rulesOf(
+      { tax: { id: "tax-1" }, tax_rule_version_id: "old" },
+      [old, version({ id: "new", effective_from: "2026-07-01" })],
+      "2026-07-02",
+    );
+
+    expect(entries).toHaveLength(1);
+    expect(entries[0].rule?.versionId).toBe("old");
+  });
+
+  it("pajak tanpa versi berlaku memberi rule null; baris tanpa pajak memberi daftar kosong", () => {
+    expect(
+      rulesOf({ taxes: [{ id: "tidak-ada" }] }, versions, "2026-07-01")[0].rule,
+    ).toBeNull();
+    expect(rulesOf({}, versions, "2026-07-01")).toEqual([]);
+  });
+
+  it("showsDppOf: hanya bila SALAH SATU pajak penambah berfaktor selain 1/1", () => {
+    const date = "2026-07-01";
+    expect(showsDppOf(rulesOf({ taxes: [ppn, pph] }, versions, date))).toBe(
+      true,
+    );
+    expect(showsDppOf(rulesOf({ taxes: [pph] }, versions, date))).toBe(false);
+    expect(showsDppOf(rulesOf({ taxes: [{ id: "x" }] }, versions, date))).toBe(
+      false,
+    );
+    expect(showsDppOf([])).toBe(false);
+  });
+
+  it("dppSourceOf: PPN pertama, lalu penambah pertama, lalu pajak pertama", () => {
+    const date = "2026-07-01";
+    const other = { id: "tax-other", name: "Lain", category: "other" };
+    const allVersions = [
+      ...versions,
+      version({
+        id: "v-other",
+        tax_id: "tax-other",
+        rate: 5,
+        dpp_numerator: 1,
+        dpp_denominator: 1,
+      }),
+    ];
+    const sourceOf = (taxes) =>
+      dppSourceOf(rulesOf({ taxes }, allVersions, date))?.taxId;
+
+    // PPN menang walau bukan elemen pertama.
+    expect(sourceOf([other, ppn])).toBe("tax-ppn");
+    // Tanpa PPN: penambah pertama (PPh potong dilewati).
+    expect(sourceOf([pph, other])).toBe("tax-other");
+    // Hanya pajak potong: pajak pertama.
+    expect(sourceOf([pph])).toBe("tax-pph");
+    expect(dppSourceOf([])).toBeNull();
   });
 });

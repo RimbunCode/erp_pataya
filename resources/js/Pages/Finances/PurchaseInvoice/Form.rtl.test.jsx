@@ -132,7 +132,10 @@ function makeLinkModelStub(testId) {
           onValueChange?.(globalThis.__linkModelPayloads?.[testId])
         }
       >
-        {testId}:{value?.id ?? value?.code ?? "none"}
+        {testId}:
+        {(Array.isArray(value) ? value[0] : value)?.id ??
+          (Array.isArray(value) ? undefined : value?.code) ??
+          "none"}
       </button>
     );
   };
@@ -252,7 +255,7 @@ vi.mock("@/Components/FormTable", () => ({
             <div key={row.id} data-testid={`invoice-row-${index}`}>
               {props.columns
                 .filter((column) =>
-                  ["purchase_order_item", "tax"].includes(column.name),
+                  ["purchase_order_item", "taxes"].includes(column.name),
                 )
                 .map((column) => (
                   <div key={column.name}>
@@ -320,6 +323,7 @@ function makeFormPageState(overrides = {}) {
     disabled: overrides.disabled ?? false,
     dataBefore: overrides.dataBefore,
     isCreate: overrides.isCreate ?? false,
+    errors: overrides.errors,
   };
   return state;
 }
@@ -585,7 +589,7 @@ describe("PurchaseInvoice Form", () => {
       render(<Form />);
 
       const itemColumns = formTablePropsSpy.mock.calls[0][0].columns;
-      const taxCol = itemColumns.find((c) => c.name === "tax");
+      const taxCol = itemColumns.find((c) => c.name === "taxes");
       expect(taxCol.required).toBe(true);
     });
 
@@ -1039,7 +1043,7 @@ describe("PurchaseInvoice conditional defaults pada dokumen baru", () => {
   it("keeps manually cleared tax empty when replacing an item", async () => {
     render(<Form />);
     await selectItem();
-    globalThis.__linkModelPayloads["tax-link"] = null;
+    globalThis.__linkModelPayloads["tax-link"] = [];
     await userEvent.click(screen.getByTestId("tax-link"));
     globalThis.__linkModelPayloads["purchase-order-item-link"] = {
       ...variant,
@@ -1091,7 +1095,7 @@ describe("PurchaseInvoice conditional defaults pada dokumen baru", () => {
   it("respons terlambat tidak mengisi kembali pajak yang dikosongkan manual", async () => {
     render(<Form />);
     await selectItem();
-    globalThis.__linkModelPayloads["tax-link"] = null;
+    globalThis.__linkModelPayloads["tax-link"] = [];
     await userEvent.click(screen.getByTestId("tax-link"));
     expect(rowState().tax).toBeNull();
     await finishResolution();
@@ -1524,6 +1528,247 @@ describe("PurchaseInvoice Form: DPP dan pajak potong dari versi aturan (Requirem
       // basis 1000, PPh 2% = 20 dipotong: total 980, pajak penambah 0
       expect(screen.getAllByDisplayValue("20").length).toBeGreaterThan(0);
       expect(screen.getAllByDisplayValue("980").length).toBeGreaterThan(0);
+    });
+  });
+
+  describe("banyak pajak per baris (spek finance-multi-tax-per-item, Requirement 10)", () => {
+    // Satu baris jasa: PPN 12% (DPP 11/12, kategori PPN) + PPh 23 2% (potong, DPP 1/1).
+    const PPN12 = {
+      id: "tax-ppn",
+      name: "PPN 12%",
+      rate: 12,
+      category: "ppn_standard",
+    };
+    const PPH23 = {
+      id: "tax-pph",
+      name: "PPh 23",
+      rate: 2,
+      category: "pph_23",
+    };
+    const MULTI_VERSIONS = [
+      {
+        id: "ver-ppn12",
+        tax_id: "tax-ppn",
+        status: "active",
+        effective_from: "2000-01-01",
+        effective_to: null,
+        rate: 12,
+        dpp_numerator: 11,
+        dpp_denominator: 12,
+        behavior: "additive",
+      },
+      {
+        id: "ver-pph23",
+        tax_id: "tax-pph",
+        status: "active",
+        effective_from: "2000-01-01",
+        effective_to: null,
+        rate: 2,
+        dpp_numerator: 1,
+        dpp_denominator: 1,
+        behavior: "withholding",
+      },
+    ];
+    const serviceLine = {
+      id: 1,
+      purchase_order_item: { id: "poi-1" },
+      quantity: 1,
+      rate: 1000000,
+      taxes: [PPN12, PPH23],
+    };
+    const mount = (data = {}, extra = {}) => {
+      usePageMock.mockReturnValue({
+        props: {
+          preferences: { default_currency_id: "idr" },
+          taxRuleVersions: MULTI_VERSIONS,
+        },
+      });
+      formPageState = makeFormPageState({
+        data: { items: [], ...data },
+        ...extra,
+      });
+      return render(<Form />);
+    };
+    const columns = () => formTablePropsSpy.mock.calls.at(-1)[0].columns;
+    const taxColumn = () => columns().find((c) => c.name === "taxes");
+
+    it("mapItem: PPN 12% (DPP 11/12) + PPh 23 2% potong -> dpp, pajak penambah, potongan, dan amount", () => {
+      mount();
+      const { mapItem } = formTablePropsSpy.mock.calls.at(-1)[0];
+      const result = mapItem({
+        item: serviceLine,
+        dataTable: [serviceLine],
+        index: 0,
+      });
+
+      expect(result.discount_amount).toBe(0);
+      expect(result.dpp_amount).toBeCloseTo(1000000 * (11 / 12), 2);
+      expect(result.tax_amount).toBeCloseTo(110000, 2);
+      expect(result.withholding_amount).toBeCloseTo(20000, 2);
+      // amount item = net + pajak penambah (pajak potong tidak masuk amount item).
+      expect(result.amount).toBeCloseTo(1110000, 2);
+      expect(result.tax_lines.map((line) => line.name)).toEqual([
+        "PPN 12%",
+        "PPh 23",
+      ]);
+    });
+
+    it("mapItem: satu pajak (bentuk lama `tax`) identik dengan `taxes` berisi satu pajak", () => {
+      mount();
+      const { mapItem } = formTablePropsSpy.mock.calls.at(-1)[0];
+      const legacy = { id: 1, quantity: 2, rate: 500, tax: PPN12 };
+      const multi = { id: 1, quantity: 2, rate: 500, taxes: [PPN12] };
+      const a = mapItem({ item: legacy, dataTable: [legacy], index: 0 });
+      const b = mapItem({ item: multi, dataTable: [multi], index: 0 });
+
+      expect(b.tax_amount).toBe(a.tax_amount);
+      expect(b.dpp_amount).toBe(a.dpp_amount);
+      expect(b.amount).toBe(a.amount);
+    });
+
+    it("header: Jumlah Dasar, DPP, pajak penambah, potongan, dan total dari banyak pajak", () => {
+      mount({ items: [serviceLine] });
+
+      // net 1.000.000; DPP 916.666,67 (PPN); pajak 110.000; potong 20.000; total 1.090.000.
+      expect(screen.getAllByDisplayValue("1000000").length).toBeGreaterThan(0);
+      expect(
+        screen.getAllByDisplayValue("916666.6666666666").length,
+      ).toBeGreaterThan(0);
+      expect(screen.getAllByDisplayValue("110000").length).toBeGreaterThan(0);
+      expect(screen.getAllByDisplayValue("20000").length).toBeGreaterThan(0);
+      expect(screen.getAllByDisplayValue("1090000").length).toBeGreaterThan(0);
+    });
+
+    it("header: diskon dokumen grand_total memakai jumlah tarif penambah baris", () => {
+      mount({
+        items: [serviceLine],
+        discount_on: "grand_total",
+        discount_rate: 0,
+        discount_amount: 112000,
+        latestDiscountKey: "discount_amount",
+      });
+
+      // reduksi basis = 112.000 / 1,12 = 100.000 -> net 900.000; pajak penambah = 900.000 x 11/12 x 12% = 99.000.
+      expect(screen.getAllByDisplayValue("900000").length).toBeGreaterThan(0);
+      expect(screen.getAllByDisplayValue("99000").length).toBeGreaterThan(0);
+    });
+
+    it("ringkasan per pajak tampil bila ada lebih dari satu pajak (nama, tarif, jumlah)", () => {
+      mount({ items: [serviceLine] });
+
+      const rows = screen.getAllByTestId("tax-summary-row");
+      expect(rows).toHaveLength(2);
+      expect(rows[0]).toHaveTextContent("PPN 12% (12%)");
+      expect(rows[1]).toHaveTextContent("PPh 23 (2%)");
+    });
+
+    it("tanpa banyak pajak (satu pajak) ringkasan per pajak tidak ditampilkan", () => {
+      mount({ items: [{ ...serviceLine, taxes: [PPN12] }] });
+
+      expect(screen.queryByTestId("tax-summary")).not.toBeInTheDocument();
+    });
+
+    it("kolom pajak: TaxLinkModel multiple menulis taxes + Pajak Utama; baris lama `tax` jadi satu chip", () => {
+      mount();
+      const setRow = vi.fn();
+      const cell = taxColumn().cell(
+        {
+          dataRow: serviceLine,
+          data: undefined,
+          setData: setRow,
+          attributes: { required: true },
+        },
+        0,
+      );
+      const picker = cell.props.children[0];
+
+      expect(picker.props.multiple).toBe(true);
+      expect(picker.props.value).toEqual([PPN12, PPH23]);
+      picker.props.onValueChange([PPH23, PPN12]);
+      expect(setRow).toHaveBeenCalledWith({
+        taxes: [PPH23, PPN12],
+        tax: PPH23,
+        tax_rate: 2,
+      });
+
+      const legacyCell = taxColumn().cell(
+        {
+          dataRow: { id: 2, tax: PPN12 },
+          data: undefined,
+          setData: vi.fn(),
+          attributes: {},
+        },
+        0,
+      );
+      expect(legacyCell.props.children[0].props.value).toEqual([PPN12]);
+    });
+
+    it("galat server items.N.taxes dan items.N.taxes.M tampil pada sel pajak baris", () => {
+      mount(
+        { items: [serviceLine] },
+        { errors: { "items.0.taxes": "Hanya satu PPN." } },
+      );
+      const cellFor = () =>
+        taxColumn().cell(
+          {
+            dataRow: serviceLine,
+            data: undefined,
+            setData: vi.fn(),
+            attributes: {},
+          },
+          0,
+        );
+      expect(cellFor().props.children[1].props.message).toBe("Hanya satu PPN.");
+    });
+
+    it("kolom DPP tampil bila salah satu pajak penambah berfaktor selain 1/1; tersembunyi bila hanya pajak potong", () => {
+      mount({ items: [serviceLine] });
+      const dpp = columns().find((c) => c.name === "dpp_amount");
+      expect(dpp.show).toBe(true);
+      expect(
+        dpp.cell({ data: 916666.67, dataRow: serviceLine, attributes: {} })
+          .props.value,
+      ).toBe(916666.67);
+
+      mount({
+        items: [
+          {
+            id: 1,
+            purchase_order_item: { id: "poi-1" },
+            quantity: 1,
+            rate: 1000,
+            taxes: [PPH23],
+          },
+        ],
+      });
+      expect(columns().find((c) => c.name === "dpp_amount").show).toBe(false);
+    });
+
+    it("memilih baris PO menyalin seluruh pajak baris sumber ke `taxes` (satu pajak lama -> satu elemen)", () => {
+      mount({ purchase_order: { id: 9 }, items: [{ id: 1 }] });
+      const itemCol = columns().find((c) => c.name === "purchase_order_item");
+      const setRow = vi.fn();
+      const picker = () =>
+        itemCol.cell({ dataRow: { id: 1 }, setData: setRow, attributes: {} })
+          .props.children.props ??
+        itemCol.cell({ dataRow: { id: 1 }, setData: setRow, attributes: {} })
+          .props.children[0].props;
+
+      picker().onValueChange({
+        id: 500,
+        unbilled_quantity: 1,
+        rate: 1000,
+        taxes: [PPN12, PPH23],
+        tax: PPN12,
+      });
+      expect(setRow).toHaveBeenLastCalledWith(
+        expect.objectContaining({ taxes: [PPN12, PPH23], tax: PPN12 }),
+      );
+
+      picker().onValueChange({ id: 501, tax: PPH23 });
+      expect(setRow).toHaveBeenLastCalledWith(
+        expect.objectContaining({ taxes: [PPH23], tax: PPH23 }),
+      );
     });
   });
 });

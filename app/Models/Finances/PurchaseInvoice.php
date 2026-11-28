@@ -181,6 +181,7 @@ class PurchaseInvoice extends Model {
             'items.unit',
             'items.targetWarehouse',
             'items.tax',
+            'items.taxes',
             'branch',
             'currency',
             'supplier',

@@ -135,6 +135,7 @@ return [
         'dpp_amount'                   => 'DPP (Dasar Pengenaan Pajak)',
         'net_amount'                   => 'Jumlah Dasar',
         'tax_amount'                   => 'Jumlah Pajak',
+        'withholding_amount'           => 'Pajak Potong (Info)',
         'amount'                       => 'Jumlah',
         'total'                        => 'Total Jumlah',
         'additional_discount'          => 'Diskon Tambahan',

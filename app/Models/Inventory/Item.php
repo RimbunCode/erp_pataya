@@ -4,11 +4,13 @@ namespace App\Models\Inventory;
 
 use App\Models\Asset\AssetCategory;
 use App\Models\Core\File;
+use App\Models\Finances\Tax;
 use App\Models\Model;
 use App\Traits\DataTable;
 use Illuminate\Database\Eloquent\Concerns\HasUlids;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
+use Illuminate\Database\Eloquent\Relations\BelongsToMany;
 use Illuminate\Database\Eloquent\SoftDeletes;
 
 class Item extends Model {
@@ -89,7 +91,39 @@ class Item extends Model {
         'defaultUom' => [
             'ignore' => true,
         ],
+        'salesDefaultTaxes' => [
+            'type' => 'relation',
+            'show' => false,
+        ],
+        'purchaseDefaultTaxes' => [
+            'type' => 'relation',
+            'show' => false,
+        ],
     ];
+
+    /**
+     * Pajak default penjualan item (Quotation, Sales Order, Sales Invoice), berurut `position`; `position` 0 = Pajak
+     * Utama baris. Pajak terhapus lunak tetap terbaca (referensi rusak dilewati `DocumentDefaultsResolver`).
+     */
+    public function salesDefaultTaxes(): BelongsToMany {
+        return $this->defaultTaxes('sales');
+    }
+
+    /**
+     * Pajak default pembelian item (Purchase Order, Purchase Invoice), berurut `position`.
+     */
+    public function purchaseDefaultTaxes(): BelongsToMany {
+        return $this->defaultTaxes('purchase');
+    }
+
+    private function defaultTaxes(string $module): BelongsToMany {
+        return $this->belongsToMany(Tax::class, 'item_default_taxes', 'item_id', 'tax_id')
+            ->withPivotValue('module', $module)
+            ->withPivot(['module', 'position'])
+            ->withTimestamps()
+            ->withTrashed()
+            ->orderByPivot('position');
+    }
 
     public function attributes() {
         return $this->hasMany(ItemAttribute::class)->with(['attribute']);

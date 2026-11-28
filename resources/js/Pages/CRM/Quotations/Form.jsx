@@ -34,7 +34,7 @@ export default function Form() {
   // baru, ikut default form dan mengikuti `date` sampai user mengubahnya sendiri.
   const validity = useFollowingDate(defaults.quotation_validity_days ?? null);
   const [initialDate] = useState(() => new Date());
-  const { data, setData, disabled, isCreate } = useFormPage(
+  const { data, setData, disabled, isCreate, errors } = useFormPage(
     {
       date: initialDate,
       type: "spare_part",
@@ -46,6 +46,7 @@ export default function Form() {
     useDocumentDefaults(defaults, isCreate ? "quotation" : null, {
       items: data.items,
       setData,
+      multiTax: true,
     });
 
   const type = data?.type ?? "spare_part";
@@ -221,6 +222,7 @@ export default function Form() {
         resolveForNewLine={resolveForNewLine}
         markFieldEdited={markFieldEdited}
         isFieldEdited={isFieldEdited}
+        errors={errors}
         value={data?.items ?? []}
         onValueChange={(val) => setData("items", val)}
         readOnly={disabled}

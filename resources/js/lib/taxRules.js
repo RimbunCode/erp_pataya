@@ -76,3 +76,72 @@ export function resolveTaxRule(versions, taxId, date, versionId = null) {
     showsDpp: numerator !== denominator,
   };
 }
+
+/**
+ * Pajak baris dalam bentuk daftar (pajak majemuk per item, spek finance-multi-tax-per-item): `taxes` bila terisi;
+ * selain itu bentuk satu pajak lama (`tax`, atau hanya `tax_id`). Urutan = urutan pilihan (Pajak Utama pertama).
+ * @param {object|null|undefined} row baris item
+ * @returns {Array<object>}
+ */
+export function taxesOfRow(row) {
+  if (Array.isArray(row?.taxes) && row.taxes.length > 0) return row.taxes;
+  if (row?.tax) return [row.tax];
+  if (row?.tax_id) return [{ id: row.tax_id }];
+
+  return [];
+}
+
+/**
+ * `resolveTaxRule` per pajak baris. Versi tersimpan dibaca dari pivot (`taxes[].pivot.tax_rule_version_id`, dokumen
+ * yang sudah disimpan) atau, untuk bentuk satu pajak lama, dari `tax_rule_version_id` baris.
+ * @param {object|null|undefined} row baris item
+ * @param {Array<object>} versions `taxRuleVersions` dari server
+ * @param {string|Date|null|undefined} date tanggal dokumen
+ * @returns {Array<{tax: object, taxId: string, rule: ReturnType<typeof resolveTaxRule>}>} `rule` null = tanpa versi berlaku
+ */
+export function rulesOf(row, versions, date) {
+  const hasList = Array.isArray(row?.taxes) && row.taxes.length > 0;
+
+  return taxesOfRow(row).map((tax, index) => ({
+    tax,
+    taxId: tax?.id,
+    rule: resolveTaxRule(
+      versions,
+      tax?.id,
+      date,
+      tax?.pivot?.tax_rule_version_id ??
+        (!hasList || index === 0 ? row?.tax_rule_version_id : null) ??
+        null,
+    ),
+  }));
+}
+
+/**
+ * Kolom DPP tampil bila SALAH SATU pajak PENAMBAH baris berfaktor selain 1/1 (Requirement 10.3).
+ * @param {ReturnType<typeof rulesOf>} entries
+ * @returns {boolean}
+ */
+export function showsDppOf(entries) {
+  return (entries ?? []).some(
+    (entry) => entry.rule?.additive && entry.rule?.showsDpp,
+  );
+}
+
+const PPN_CATEGORIES = ["ppn_standard", "ppn_luxury"];
+
+/**
+ * Pajak yang DPP-nya menjadi `dpp_amount` item (sama dengan InvoiceItemTaxCalculator::aggregateDpp): pajak berkategori
+ * PPN pertama; bila tak ada, pajak penambah pertama; bila tak ada, pajak pertama. Pajak tanpa versi aturan dilewati.
+ * @param {ReturnType<typeof rulesOf>} entries
+ * @returns {ReturnType<typeof rulesOf>[number]|null}
+ */
+export function dppSourceOf(entries) {
+  const resolved = (entries ?? []).filter((entry) => entry.rule);
+
+  return (
+    resolved.find((entry) => PPN_CATEGORIES.includes(entry.tax?.category)) ??
+    resolved.find((entry) => entry.rule.additive) ??
+    resolved[0] ??
+    null
+  );
+}

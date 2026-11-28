@@ -2,7 +2,10 @@ import { describe, expect, it } from "vitest";
 import {
   applyResolvedToNewLine,
   applyToNewLine,
+  defaultTaxesOf,
   paymentTemplateToSchedule,
+  taxPatch,
+  taxRowError,
 } from "./documentDefaults";
 
 describe("document defaults", () => {
@@ -244,5 +247,110 @@ describe("document defaults", () => {
         { warehouseField: "source_warehouse" },
       ),
     ).toEqual(line);
+  });
+});
+
+describe("document defaults -- pajak majemuk (multiTax) dan galat pajak baris", () => {
+  const ppn = { id: "ppn", rate: 12 };
+  const pph = { id: "pph", rate: 2 };
+
+  it("taxRowError membaca items.N.taxes, items.N.taxes.M, dan bentuk satu pajak lama", () => {
+    expect(taxRowError({ "items.1.taxes": "dobel" }, 1)).toBe("dobel");
+    expect(taxRowError({ "items.1.taxes.0.id": "tanpa versi" }, 1)).toBe(
+      "tanpa versi",
+    );
+    expect(taxRowError({ "items.1.tax.id": "lama" }, 1)).toBe("lama");
+    expect(taxRowError({ "items.2.taxes": "baris lain" }, 1)).toBeNull();
+    expect(taxRowError(undefined, 0)).toBeNull();
+  });
+
+  it("defaultTaxesOf: taxes bila terisi, selain itu tax tunggal, selain itu kosong", () => {
+    expect(defaultTaxesOf({ taxes: [ppn, pph], tax: pph })).toEqual([ppn, pph]);
+    expect(defaultTaxesOf({ tax: ppn })).toEqual([ppn]);
+    expect(defaultTaxesOf({ taxes: [] })).toEqual([]);
+    expect(defaultTaxesOf(null)).toEqual([]);
+  });
+
+  it("taxPatch: taxes + Pajak Utama (pertama) + tax_rate bila diminta", () => {
+    expect(taxPatch([ppn, pph])).toEqual({
+      taxes: [ppn, pph],
+      tax: ppn,
+      tax_rate: 12,
+    });
+    expect(taxPatch([], false)).toEqual({ taxes: [], tax: null });
+  });
+
+  it("multiTax: baris baru mendapat default pajak sebagai array (fallback ke tax tunggal)", () => {
+    const line = { id: "row-1" };
+    expect(
+      applyToNewLine(line, null, { taxes: [ppn, pph] }, { multiTax: true }),
+    ).toMatchObject({ taxes: [ppn, pph], tax: ppn, tax_rate: 12 });
+    expect(
+      applyToNewLine(line, null, { tax: ppn }, { multiTax: true }),
+    ).toMatchObject({ taxes: [ppn], tax: ppn });
+  });
+
+  it("multiTax: baris yang sudah berpajak atau pajaknya diedit manual tidak ditimpa", () => {
+    const withTax = { id: "row-1", taxes: [pph] };
+    expect(
+      applyToNewLine(withTax, null, { taxes: [ppn] }, { multiTax: true }),
+    ).toEqual(withTax);
+    expect(
+      applyToNewLine(
+        { id: "row-2" },
+        null,
+        { taxes: [ppn] },
+        { multiTax: true, isFieldEdited: () => true },
+      ),
+    ).toEqual({ id: "row-2" });
+  });
+
+  it("tanpa multiTax perilaku lama tetap: hanya tax tunggal, tanpa kunci taxes", () => {
+    const next = applyToNewLine(
+      { id: "row-1" },
+      null,
+      { tax: ppn, taxes: [ppn, pph] },
+      {},
+    );
+    expect(next).toEqual({ id: "row-1", tax: ppn, tax_rate: 12 });
+  });
+
+  it("applyResolvedToNewLine multiTax: hasil resolver berupa banyak pajak menggantikan default modul", () => {
+    const item = { id: "item-1" };
+    const line = { id: "row-1", item, taxes: [ppn], tax: ppn };
+    const next = applyResolvedToNewLine(
+      line,
+      item,
+      { taxes: [ppn, pph] },
+      { tax: ppn },
+      { multiTax: true },
+    );
+    expect(next).toMatchObject({ taxes: [ppn, pph], tax: ppn });
+  });
+
+  it("applyResolvedToNewLine multiTax: pilihan pengguna (pajak beda dari default modul) dipertahankan", () => {
+    const item = { id: "item-1" };
+    const line = { id: "row-1", item, taxes: [pph], tax: pph };
+    const next = applyResolvedToNewLine(
+      line,
+      item,
+      { taxes: [ppn] },
+      { tax: ppn },
+      { multiTax: true },
+    );
+    expect(next.taxes).toEqual([pph]);
+  });
+
+  it("applyResolvedToNewLine multiTax: hasil tanpa pajak mengosongkan default modul", () => {
+    const item = { id: "item-1" };
+    const line = { id: "row-1", item, taxes: [ppn], tax: ppn };
+    const next = applyResolvedToNewLine(
+      line,
+      item,
+      { taxes: [] },
+      { tax: ppn },
+      { multiTax: true },
+    );
+    expect(next).toMatchObject({ taxes: [], tax: null, tax_rate: 0 });
   });
 });

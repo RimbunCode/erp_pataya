@@ -6,6 +6,7 @@ use App\Http\Controllers\Controller;
 use App\Http\Requests\Purchase\PurchaseOrderBatchRequest;
 use App\Models\Purchase\PurchaseOrder;
 use App\Models\Purchase\PurchaseOrderBatchSubmission;
+use App\Services\Finances\Tax\DocumentTaxRules;
 use App\Services\Purchase\FromRequests\PurchaseOrderBatchService;
 use App\Services\Purchase\FromRequests\PurchaseRequestPoSourceResolver;
 use Illuminate\Http\RedirectResponse;
@@ -50,9 +51,10 @@ class PurchaseOrderFromRequestsController extends Controller {
         $this->setBreadcrumbs('purchase.purchaseOrder.new');
 
         return Inertia::render('Purchase/PurchaseOrders/FromRequests/Workspace', [
-            'token'        => $token,
-            'sources'      => $sources,
-            'sourceErrors' => $errors,
+            'token'           => $token,
+            'sources'         => $sources,
+            'sourceErrors'    => $errors,
+            'taxRuleVersions' => fn () => app(DocumentTaxRules::class)->versionsForClient(),
         ]);
     }
 

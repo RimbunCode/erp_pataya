@@ -10,12 +10,14 @@ import {
   calculateRentalAmount,
   generateRandom,
 } from "@/lib/utils";
-import { allocateDiscount } from "@/lib/discountAllocation";
 import {
   EMPTY_DEFAULTS,
+  defaultTaxesOf,
+  taxPatch,
   taxRowError,
   useDocumentDefaults,
 } from "@/lib/documentDefaults";
+import { previewInvoiceLine, summarizeTaxLines } from "@/lib/invoiceTaxPreview";
 
 import AdditionalDiscount from "../Components/AdditionalDiscount";
 import BranchLinkModel from "@/Pages/Settings/Branches/BranchLinkModel";
@@ -38,7 +40,12 @@ import { Textarea } from "@/Components/ui/textarea";
 import usePermission from "@/Hooks/usePermission";
 import { useLaravelReactI18n } from "laravel-react-i18n";
 import { usePage } from "@inertiajs/react";
-import { EMPTY_TAX_RULE_VERSIONS, resolveTaxRule } from "@/lib/taxRules";
+import {
+  EMPTY_TAX_RULE_VERSIONS,
+  rulesOf,
+  showsDppOf,
+  taxesOfRow,
+} from "@/lib/taxRules";
 
 const ASSET_CLASS = "App\\Models\\Asset\\Asset";
 const ITEM_VARIANT_CLASS = "App\\Models\\Inventory\\ItemVariant";
@@ -63,14 +70,9 @@ export default function Form() {
   const defaults = pageProps.defaults ?? EMPTY_DEFAULTS;
   // Faktor DPP, tarif, dan perilaku pajak dari versi aturan server (Requirement 12.8), bukan konstanta klien.
   const taxRuleVersions = pageProps.taxRuleVersions ?? EMPTY_TAX_RULE_VERSIONS;
-  const ruleOf = useCallback(
-    (row) =>
-      resolveTaxRule(
-        taxRuleVersions,
-        row?.tax?.id ?? row?.tax_id,
-        data?.date,
-        row?.tax_rule_version_id,
-      ),
+  // Pajak majemuk per item: versi aturan di-resolve PER pajak baris (Requirement 10.2).
+  const entriesOf = useCallback(
+    (row) => rulesOf(row, taxRuleVersions, data?.date),
     [taxRuleVersions, data?.date],
   );
   const {
@@ -82,6 +84,7 @@ export default function Form() {
   } = useDocumentDefaults(defaults, isCreate ? "sales_invoice" : null, {
     items: data.items,
     setData,
+    multiTax: true,
   });
   const paymentDefaultsApplied = useRef(false);
 
@@ -122,19 +125,22 @@ export default function Form() {
     );
   }, [allItems]);
 
-  // DPP hanya dijumlahkan dari baris yang versi aturan pajaknya berfaktor selain 1/1 (Requirement 12.8): baris tanpa
-  // pajak atau berfaktor 1/1 tidak punya angka DPP.
+  // DPP hanya dijumlahkan dari baris yang SALAH SATU pajak penambahnya berfaktor selain 1/1 (Requirement 12.8, 10.3):
+  // baris tanpa pajak atau tanpa pajak berfaktor tidak punya angka DPP. Nilai item = `dpp_amount` (DPP pajak
+  // kategori PPN pertama, sama dengan backend).
   const dpp_amount = useMemo(() => {
     return allItems.reduce(
       (sum, item) =>
-        ruleOf(item)?.showsDpp ? sum + (item?.dpp_amount ?? 0) : sum,
+        showsDppOf(entriesOf(item)) ? sum + (item?.dpp_amount ?? 0) : sum,
       0,
     );
-  }, [allItems, ruleOf]);
+  }, [allItems, entriesOf]);
   const showDpp = useMemo(
-    () => allItems.some((item) => ruleOf(item)?.showsDpp),
-    [allItems, ruleOf],
+    () => allItems.some((item) => showsDppOf(entriesOf(item))),
+    [allItems, entriesOf],
   );
+  // Ringkasan per pajak (nama, tarif, jumlah) dari pratinjau tiap baris (Requirement 10.4).
+  const taxSummary = useMemo(() => summarizeTaxLines(allItems), [allItems]);
 
   const tax_amount = useMemo(() => {
     return calculateArray(allItems, "tax_amount", "+");
@@ -259,7 +265,10 @@ export default function Form() {
                     conversion_factor: 1,
                     quantity: 1,
                     price: undefined,
-                    tax: applyToNewLine(dataRow, null).tax,
+                    ...taxPatch(
+                      defaultTaxesOf(applyToNewLine(dataRow, null)),
+                      false,
+                    ),
                     description: undefined,
                   });
                   return;
@@ -283,7 +292,8 @@ export default function Form() {
                   );
                   setData({
                     ...rowPatch,
-                    tax: defaultLine.tax,
+                    taxes: defaultLine.taxes ?? [],
+                    tax: defaultLine.tax ?? null,
                     tax_rate: defaultLine.tax_rate,
                   });
                   resolveForNewLine(dataRow.id, val);
@@ -299,7 +309,8 @@ export default function Form() {
                   conversion_factor: val?.asset_id ? 1 : val?.conversion_factor,
                   quantity: val?.unbilled_quantity,
                   price: val?.price,
-                  tax: val?.tax,
+                  // Baris SO membawa SEMUA pajak baris sumber (Requirement 10.5).
+                  ...taxPatch(defaultTaxesOf(val), false),
                   description: val?.description,
                 });
               }}
@@ -313,7 +324,7 @@ export default function Form() {
               filters={{
                 sales_order_id: data.sales_order?.id ?? null,
               }}
-              with={["item", "asset", "unit", "tax"]}
+              with={["item", "asset", "unit", "tax", "taxes"]}
               fields={[
                 "asset_id",
                 "unbilled_quantity",
@@ -392,22 +403,24 @@ export default function Form() {
         },
       },
       {
-        name: "tax",
+        name: "taxes",
         titleTrans: "finances.salesInvoice.columns.tax",
         required: true,
         width: 1,
-        cell({ data, setData, attributes, dataRow }, index) {
+        cell({ setData, attributes, dataRow }, index) {
           const taxError = taxRowError(errors, index);
 
           return (
             <div className="flex w-full flex-col">
               <TaxLinkModel
+                multiple
+                fields={["category", "behavior", "rate"]}
                 disabled={!hasSource(dataRow)}
                 placeholder={t("finances.salesInvoice.columns.tax.placeholder")}
-                value={data}
+                value={taxesOfRow(dataRow)}
                 onValueChange={(val) => {
                   markFieldEdited(dataRow.id, "tax");
-                  setData("tax", val);
+                  setData(taxPatch(val ?? []));
                 }}
                 {...attributes}
                 required={attributes.required && isTaxRequired(dataRow.id)}
@@ -464,7 +477,7 @@ export default function Form() {
         show: showDpp,
         width: 1,
         cell({ data: dppAmount, dataRow, attributes }) {
-          if (!ruleOf(dataRow)?.showsDpp) return null;
+          if (!showsDppOf(entriesOf(dataRow))) return null;
           return (
             <NumberInput
               {...attributes}
@@ -485,7 +498,7 @@ export default function Form() {
     isTaxRequired,
     markFieldEdited,
     resolveForNewLine,
-    ruleOf,
+    entriesOf,
     showDpp,
     t,
   ]);
@@ -502,37 +515,27 @@ export default function Form() {
         ? (item.quantity ?? 0) * (item.price ?? 0)
         : (row.quantity ?? 0) * (row.price ?? 0),
     );
-    const lineRules = rows.map((row, i) => ruleOf(i === index ? item : row));
-    const lines = rows.map((row, i) => ({
-      basic_amount: grossAmounts[i],
-      tax_rate:
-        lineRules[i]?.rate ??
-        (i === index ? (item.tax?.rate ?? 0) : (row.tax?.rate ?? 0)),
-      dpp_factor: lineRules[i]?.dppFactor ?? 1,
-      additive: lineRules[i]?.additive ?? true,
-    }));
-    const allocated = allocateDiscount(
-      lines,
-      data.discount_on,
-      data.discount_rate ?? 0,
-      data.discount_amount ?? 0,
-      data.latestDiscountKey ?? "discount_rate",
+    const entriesList = rows.map((row, i) =>
+      entriesOf(i === index ? item : row),
     );
-    const result = allocated[index] ?? allocated[0];
-    const rule = lineRules[index] ?? null;
-    // Pajak withholding tidak menambah total: dihitung terpisah sebagai pemotongan.
-    const withholdingForLine =
-      rule && !rule.additive
-        ? ((result?.basic_amount ?? 0) * rule.dppFactor * rule.rate) / 100
-        : 0;
+    const preview = previewInvoiceLine({
+      grossAmounts,
+      entriesList,
+      index,
+      discount: {
+        on: data.discount_on,
+        rate: data.discount_rate ?? 0,
+        amount: data.discount_amount ?? 0,
+        latestKey: data.latestDiscountKey ?? "discount_rate",
+      },
+    });
     return {
       ...item,
-      discount_amount:
-        Math.round((grossAmounts[index] - (result?.basic_amount ?? 0)) * 100) /
-        100,
-      dpp_amount: rule ? (result?.basic_amount ?? 0) * rule.dppFactor : 0,
-      tax_amount: result?.tax_amount ?? 0,
-      withholding_amount: withholdingForLine,
+      discount_amount: preview.discount_amount,
+      dpp_amount: preview.dpp_amount,
+      tax_amount: preview.tax_amount,
+      withholding_amount: preview.withholding_amount,
+      tax_lines: preview.tax_lines,
     };
   };
 
@@ -580,6 +583,7 @@ export default function Form() {
                   "items.item",
                   "items.asset",
                   "items.tax",
+                  "items.taxes",
                   "items.unit",
                   "paymentSchedules",
                   "paymentSchedules.paymentMethod",
@@ -612,6 +616,8 @@ export default function Form() {
                       id: generateRandom(8),
                       sales_order_item: { id: item.id, ...item },
                       quantity: item.unbilled_quantity ?? item.quantity,
+                      // Invoice dari SO membawa SEMUA pajak baris order (Requirement 10.5).
+                      ...taxPatch(defaultTaxesOf(item), false),
                       amount: item.basic_amount + item.tax_amount,
                     };
                   });
@@ -741,6 +747,7 @@ export default function Form() {
                     "items.item",
                     "items.asset",
                     "items.tax",
+                    "items.taxes",
                     "items.unit",
                   ]}
                   fields={[
@@ -914,6 +921,29 @@ export default function Form() {
               currencyCode={data?.currency?.code ?? "default"}
             ></NumberInput>
           </FormInput>
+          {taxSummary.length > 1 && (
+            <div className="grid col-start-2 gap-y-1" data-testid="tax-summary">
+              {taxSummary.map((line) => (
+                <div
+                  key={`${line.id}|${line.rate}|${line.additive}`}
+                  className="flex items-center justify-between px-1 text-sm"
+                  data-testid="tax-summary-row"
+                >
+                  <span>
+                    {line.name} ({line.rate}%)
+                    {line.additive ? "" : " -"}
+                  </span>
+                  <NumberInput
+                    readOnly
+                    decimalScale={2}
+                    className="w-40 text-right"
+                    value={line.tax_amount}
+                    currencyCode={data?.currency?.code ?? "default"}
+                  />
+                </div>
+              ))}
+            </div>
+          )}
           {withholding_amount > 0 && (
             <>
               {data?.currency?.code &&

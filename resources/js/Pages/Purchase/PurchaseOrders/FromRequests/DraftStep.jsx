@@ -355,6 +355,7 @@ export default function DraftStep({
                 setData={setData}
                 defaultData={data}
                 disabled={false}
+                errors={draftErrors}
                 sourceLocked
                 sourceItemActions={({ row, toggleDialog }) => (
                   <SourceItemActions

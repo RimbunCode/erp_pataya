@@ -260,8 +260,8 @@ class InvoiceTaxSnapshotTest extends TestCase {
             $this->createSalesInvoice([$unversioned->getKey()], '2026-03-01');
             $this->fail('Pajak tanpa versi harus menggagalkan pembuatan invoice.');
         } catch (ValidationException $e) {
-            $this->assertArrayHasKey('items.0.tax', $e->errors());
-            $this->assertStringContainsString('Pajak baru', $e->errors()['items.0.tax'][0]);
+            $this->assertArrayHasKey('items.0.taxes.0', $e->errors());
+            $this->assertStringContainsString('Pajak baru', $e->errors()['items.0.taxes.0'][0]);
         }
 
         $this->assertSame(0, SalesInvoice::query()->count(), 'Tidak boleh ada header yatim.');
@@ -282,7 +282,7 @@ class InvoiceTaxSnapshotTest extends TestCase {
             $this->createSalesInvoice([$good->getKey(), $unversioned->getKey()], '2026-03-01');
             $this->fail('Harus gagal.');
         } catch (ValidationException $e) {
-            $this->assertSame(['items.1.tax'], array_keys($e->errors()));
+            $this->assertSame(['items.1.taxes.0'], array_keys($e->errors()));
         }
     }
 
@@ -398,7 +398,7 @@ class InvoiceTaxSnapshotTest extends TestCase {
             $this->createPurchaseInvoice([$unversioned->getKey()], '2026-03-01');
             $this->fail('Pajak tanpa versi harus menggagalkan pembuatan invoice.');
         } catch (ValidationException $e) {
-            $this->assertArrayHasKey('items.0.tax', $e->errors());
+            $this->assertArrayHasKey('items.0.taxes.0', $e->errors());
         }
 
         $this->assertSame(0, PurchaseInvoice::query()->count());

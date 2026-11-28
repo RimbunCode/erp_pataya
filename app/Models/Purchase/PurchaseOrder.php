@@ -168,6 +168,7 @@ class PurchaseOrder extends Model {
             'supplier',
             'items.unit',
             'items.tax',
+            'items.taxes',
             'items.targetWarehouse',
             'currency',
             'paymentSchedules',

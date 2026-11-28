@@ -22,27 +22,29 @@ final class DocumentTaxRules {
     public function __construct(private readonly TaxRuleResolver $resolver) {}
 
     /**
-     * @param  iterable<int|string, array<string, mixed>>  $rows  baris request; pajaknya di `tax.id`
+     * @param  iterable<int|string, array<string, mixed>>  $rows  baris request; pajaknya di `taxes.*.id` (atau `tax.id` tunggal, dinormalisasi `ItemTaxSelection::rowTaxes()`)
      * @param  array<string, Tax>  $taxes  pajak yang termuat per id (pajak yang tak termuat tidak punya versi)
      * @param  mixed  $date  tanggal dokumen (string, `DateTimeInterface`) atau null untuk hari ini
      * @return array<string, TaxRuleVersion> versi berlaku per `tax_id`
      *
-     * @throws ValidationException bila sebuah pajak tak punya versi berlaku pada tanggal dokumen (kunci `items.{i}.tax`)
+     * @throws ValidationException bila sebuah pajak tak punya versi berlaku pada tanggal dokumen (kunci `items.{i}.taxes.{j}`).
+     *                             Versi SEMUA pajak semua baris di-resolve lebih dulu, sebelum penulis memulai apa pun.
      */
     public function resolveForRows(iterable $rows, array $taxes, mixed $date): array {
         $day = $date instanceof CarbonInterface ? $date : CarbonImmutable::parse($date ?? 'now');
 
         $rules = [];
         foreach ($rows as $index => $row) {
-            $taxId = $row['tax']['id'] ?? null;
-            if (! filled($taxId) || isset($rules[$taxId]) || ! isset($taxes[$taxId])) {
-                continue;
-            }
+            foreach (ItemTaxSelection::rowTaxIds((array) $row) as $position => $taxId) {
+                if (isset($rules[$taxId]) || ! isset($taxes[$taxId])) {
+                    continue;
+                }
 
-            try {
-                $rules[$taxId] = $this->resolver->resolve($taxes[$taxId], $day);
-            } catch (NoEffectiveTaxRuleException $e) {
-                throw ValidationException::withMessages(["items.{$index}.tax" => $e->getMessage()]);
+                try {
+                    $rules[$taxId] = $this->resolver->resolve($taxes[$taxId], $day);
+                } catch (NoEffectiveTaxRuleException $e) {
+                    throw ValidationException::withMessages(["items.{$index}.taxes.{$position}" => $e->getMessage()]);
+                }
             }
         }
 
@@ -91,15 +93,16 @@ final class DocumentTaxRules {
 
         $rules = [];
         foreach ($rows as $row) {
-            $taxId = $row['tax']['id'] ?? null;
-            if (! filled($taxId) || isset($rules[$taxId]) || ! isset($taxes[$taxId])) {
-                continue;
-            }
+            foreach (ItemTaxSelection::rowTaxIds((array) $row) as $taxId) {
+                if (isset($rules[$taxId]) || ! isset($taxes[$taxId])) {
+                    continue;
+                }
 
-            try {
-                $rules[$taxId] = $this->resolver->resolve($taxes[$taxId], $day);
-            } catch (NoEffectiveTaxRuleException) {
-                continue;
+                try {
+                    $rules[$taxId] = $this->resolver->resolve($taxes[$taxId], $day);
+                } catch (NoEffectiveTaxRuleException) {
+                    continue;
+                }
             }
         }
 
@@ -108,10 +111,10 @@ final class DocumentTaxRules {
 
     /**
      * Versi aturan (active dan retired) untuk form invoice di klien: pratinjau dan keputusan menampilkan kolom DPP
-     * (Requirement 12.8) memakai faktor/tarif/perilaku dari sini, bukan konstanta klien. Versi `retired` ikut dikirim
+     * (Requirement 12.8) memakai faktor/tarif/perilaku/kategori (sumber `dpp_amount` item: kategori PPN) dari sini, bukan konstanta klien. Versi `retired` ikut dikirim
      * karena dokumen yang sudah disimpan menampilkan versi yang dipakainya; pajak yang sudah dihapus tetap terbaca.
      *
-     * @return list<array{id: string, tax_id: string, status: string, effective_from: string, effective_to: string|null, rate: float, dpp_numerator: int, dpp_denominator: int, behavior: string}>
+     * @return list<array{id: string, tax_id: string, status: string, effective_from: string, effective_to: string|null, rate: float, dpp_numerator: int, dpp_denominator: int, behavior: string, category: string}>
      */
     public function versionsForClient(): array {
         return TaxRuleVersion::query()
@@ -128,6 +131,7 @@ final class DocumentTaxRules {
                 'dpp_numerator'   => (int) $version->dpp_numerator,
                 'dpp_denominator' => (int) $version->dpp_denominator,
                 'behavior'        => $version->tax?->behavior ?? Tax::BEHAVIOR_ADDITIVE,
+                'category'        => $version->tax?->category ?? Tax::CATEGORY_UNCLASSIFIED,
             ])
             ->values()
             ->all();
@@ -138,17 +142,25 @@ final class DocumentTaxRules {
      * (keputusan pemilik produk 28 November 2026): angka item dihitung saat simpan dan tidak dihitung ulang saat
      * approve, jadi dokumen harus disimpan ulang dulu. Item tanpa `tax_rule_version_id` (data legacy Bagian A) dilewati.
      *
-     * @param  iterable<int|string, object>  $items  objek dengan `tax_id` dan `tax_rule_version_id`
+     * Pajak majemuk: SEMUA baris pajak item (relasi `taxLines`) diperiksa, bukan hanya Pajak Utama. Item tanpa baris
+     * pivot (data sebelum migrasi backfill) memakai kolom item `tax_id`/`tax_rule_version_id`.
+     *
+     * @param  iterable<int|string, object>  $items  objek dengan `tax_id` dan `tax_rule_version_id` (model item: juga `taxLines`)
      *
      * @throws StaleTaxRuleVersionException
      */
     public function assertStoredVersionsCurrent(iterable $items, mixed $date): void {
         $day = $date instanceof CarbonInterface ? $date : CarbonImmutable::parse($date ?? 'now');
 
-        $checked = [];
+        $pairs = [];
         foreach ($items as $item) {
-            $taxId     = $item->tax_id ?? null;
-            $versionId = $item->tax_rule_version_id ?? null;
+            foreach (InvoiceItemTaxLines::of($item) as $line) {
+                $pairs[] = [$line['tax_id'], $line['tax_rule_version_id']];
+            }
+        }
+
+        $checked = [];
+        foreach ($pairs as [$taxId, $versionId]) {
             if (! filled($taxId) || ! filled($versionId) || isset($checked[$taxId . '|' . $versionId])) {
                 continue;
             }

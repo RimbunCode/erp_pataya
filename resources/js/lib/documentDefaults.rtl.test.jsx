@@ -533,10 +533,16 @@ describe("useDocumentDefaults conditional resolution", () => {
     );
     expect(first).toEqual({
       tax: { id: "tax-1", name: "VAT", rate: 11 },
+      taxes: [{ id: "tax-1", name: "VAT", rate: 11 }],
       taxOptional: false,
       warehouse: { id: "warehouse-1", name: "Main" },
     });
-    expect(second).toEqual({ tax: null, taxOptional: true, warehouse: null });
+    expect(second).toEqual({
+      tax: null,
+      taxes: [],
+      taxOptional: true,
+      warehouse: null,
+    });
     expect(
       axiosPost.mock.calls.some(
         ([, payload]) => payload?.model === "App\\Models\\Finances\\Tax",
@@ -629,6 +635,7 @@ describe("useDocumentDefaults conditional resolution", () => {
 
     expect(resolved).toEqual({
       tax: conditionalTax,
+      taxes: [conditionalTax],
       taxOptional: false,
       warehouse: null,
     });

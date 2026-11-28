@@ -2,9 +2,15 @@ import { FormPageContent, useFormPage } from "@/Pages/Core/FormPage";
 import React, { useCallback, useEffect, useRef } from "react";
 import SelectModel, { loadFromModel } from "@/Components/SelectModel";
 import { generateRandom } from "@/lib/utils";
-import { allocateDiscount } from "@/lib/discountAllocation";
+import { EMPTY_TAX_RULE_VERSIONS, rulesOf, taxesOfRow } from "@/lib/taxRules";
+import { previewInvoiceLine, summarizeTaxLines } from "@/lib/invoiceTaxPreview";
 import { calculatePurchaseOrderAmounts } from "./purchaseOrderAmounts";
-import { EMPTY_DEFAULTS, useDocumentDefaults } from "@/lib/documentDefaults";
+import {
+  EMPTY_DEFAULTS,
+  taxPatch,
+  taxRowError,
+  useDocumentDefaults,
+} from "@/lib/documentDefaults";
 
 import AdditionalDiscount from "@/Pages/Finances/Components/AdditionalDiscount";
 import NumberInput from "@/Components/NumberInput";
@@ -21,6 +27,7 @@ import SupplierLinkModel from "../Suppliers/SupplierLinkModel";
 import TaxLinkModel from "@/Pages/Finances/Taxes/TaxLinkModel";
 import { Textarea } from "@/Components/ui/textarea";
 import WarehouseLinkModel from "@/Pages/Inventory/Warehouses/WarehouseLinkModel";
+import InputError from "@/Components/InputError";
 import { useLaravelReactI18n } from "laravel-react-i18n";
 import { useMemo } from "react";
 import { usePage } from "@inertiajs/react";
@@ -32,6 +39,7 @@ export function PurchaseOrderFields({
   disabled,
   dataBefore,
   isCreate,
+  errors,
   sourceLocked = false,
   sourceItemActions,
   renderSourceWarning,
@@ -50,7 +58,14 @@ export function PurchaseOrderFields({
   } = useDocumentDefaults(defaults, isCreate ? "purchase_order" : null, {
     items: data.items,
     setData,
+    multiTax: true,
   });
+  // Pajak majemuk per item: versi aturan di-resolve PER pajak (faktor DPP, pajak potong), sama dengan invoice.
+  const taxRuleVersions = pageProps.taxRuleVersions ?? EMPTY_TAX_RULE_VERSIONS;
+  const entriesOf = useCallback(
+    (row) => rulesOf(row, taxRuleVersions, data?.date),
+    [taxRuleVersions, data?.date],
+  );
   const paymentDefaultsApplied = useRef(false);
   const headerWarehouseEdited = useRef(false);
 
@@ -99,17 +114,27 @@ export function PurchaseOrderFields({
   // di bawah (yang sudah hasil alokasi) karena kalau basis diskon ikut memakai
   // angka yang sudah terpotong, discount_rate 10% akan memotong basis yang sudah
   // menyusut di setiap render -- basis "menyusut" terus tiap kali user mengetik.
-  const { rawNetAmount, rawTaxAmount, net_amount, tax_amount, amount } =
-    useMemo(
-      () => calculatePurchaseOrderAmounts(data),
-      [
-        data.items,
-        data.discount_on,
-        data.discount_rate,
-        data.discount_amount,
-        data.latestDiscountKey,
-      ],
-    );
+  const {
+    rawNetAmount,
+    rawTaxAmount,
+    net_amount,
+    tax_amount,
+    withholding_amount,
+    amount,
+    previews,
+  } = useMemo(
+    () => calculatePurchaseOrderAmounts(data, taxRuleVersions),
+    [
+      data.items,
+      data.date,
+      data.discount_on,
+      data.discount_rate,
+      data.discount_amount,
+      data.latestDiscountKey,
+      taxRuleVersions,
+    ],
+  );
+  const taxSummary = useMemo(() => summarizeTaxLines(previews), [previews]);
 
   const mergeItems = useCallback(
     ({ items, model }) => {
@@ -238,7 +263,8 @@ export function PurchaseOrderFields({
                   unit: defaultUnit,
                   conversion_factor: defaultUnit?.conversion_factor,
                   required_date: data.required_date,
-                  tax: defaultLine.tax,
+                  taxes: defaultLine.taxes ?? [],
+                  tax: defaultLine.tax ?? null,
                   tax_rate: defaultLine.tax_rate,
                   target_warehouse: isFieldEdited(
                     dataRow.id,
@@ -358,29 +384,33 @@ export function PurchaseOrderFields({
         },
       },
       {
-        name: "tax",
+        name: "taxes",
         titleTrans: "purchase.purchaseOrder.columns.tax",
         required: true,
-        cell({ data: value, setData, attributes, dataRow }) {
+        cell({ setData, attributes, dataRow }, index) {
+          const taxError = taxRowError(errors, index);
+
           return (
-            <TaxLinkModel
-              disabled={!dataRow?.item}
-              currencyCode={data?.currency?.code}
-              placeholder={t("purchase.purchaseOrder.columns.tax.placeholder")}
-              decimalScale={2}
-              value={value}
-              onValueChange={(val) => {
-                markFieldEdited(dataRow.id, "tax");
-                setData({
-                  tax: val,
-                  tax_rate: val?.rate ?? 0,
-                });
-              }}
-              {...attributes}
-              filters={{
-                group: dataRow?.item?.default_tax?.group,
-              }}
-            />
+            <div className="flex w-full flex-col">
+              <TaxLinkModel
+                multiple
+                fields={["category", "behavior", "rate"]}
+                disabled={!dataRow?.item}
+                placeholder={t(
+                  "purchase.purchaseOrder.columns.tax.placeholder",
+                )}
+                value={taxesOfRow(dataRow)}
+                onValueChange={(val) => {
+                  markFieldEdited(dataRow.id, "tax");
+                  setData(taxPatch(val ?? []));
+                }}
+                {...attributes}
+                filters={{
+                  group: dataRow?.item?.default_tax?.group,
+                }}
+              />
+              <InputError message={taxError} className="px-1 text-xs" />
+            </div>
           );
         },
       },
@@ -427,6 +457,7 @@ export function PurchaseOrderFields({
   }, [
     applyToNewLine,
     data,
+    errors,
     isFieldEdited,
     markFieldEdited,
     resolveForNewLine,
@@ -689,7 +720,7 @@ export function PurchaseOrderFields({
                         "quantity",
                         "unit",
                         "rate",
-                        "tax",
+                        "taxes",
                         "target_warehouse",
                         "required_date",
                         "description",
@@ -715,26 +746,25 @@ export function PurchaseOrderFields({
                     ? (item.quantity ?? 0) * (item.rate ?? 0)
                     : (row.quantity ?? 0) * (row.rate ?? 0),
                 );
-                const lines = rows.map((row, i) => ({
-                  basic_amount: grossAmounts[i],
-                  tax_rate:
-                    i === index ? (item.tax?.rate ?? 0) : (row.tax?.rate ?? 0),
-                }));
-                const allocated = allocateDiscount(
-                  lines,
-                  data.discount_on,
-                  data.discount_rate ?? 0,
-                  data.discount_amount ?? 0,
-                  data.latestDiscountKey ?? "discount_rate",
-                );
-                const result = allocated[index] ?? allocated[0];
+                const preview = previewInvoiceLine({
+                  grossAmounts,
+                  entriesList: rows.map((row, i) =>
+                    entriesOf(i === index ? item : row),
+                  ),
+                  index,
+                  discount: {
+                    on: data.discount_on,
+                    rate: data.discount_rate ?? 0,
+                    amount: data.discount_amount ?? 0,
+                    latestKey: data.latestDiscountKey ?? "discount_rate",
+                  },
+                });
                 return {
                   ...item,
-                  discount_amount:
-                    Math.round(
-                      (grossAmounts[index] - (result?.basic_amount ?? 0)) * 100,
-                    ) / 100,
-                  tax_amount: result?.tax_amount ?? 0,
+                  discount_amount: preview.discount_amount,
+                  tax_amount: preview.tax_amount,
+                  withholding_amount: preview.withholding_amount,
+                  tax_lines: preview.tax_lines,
                 };
               }}
             />
@@ -791,6 +821,42 @@ export function PurchaseOrderFields({
               currencyCode={data?.currency?.code ?? "default"}
             ></NumberInput>
           </FormInput>
+          {taxSummary.length > 1 && (
+            <div className="col-start-2 grid gap-y-1" data-testid="tax-summary">
+              {taxSummary.map((line) => (
+                <div
+                  key={`${line.id}|${line.rate}|${line.additive}`}
+                  className="flex items-center justify-between px-1 text-sm"
+                  data-testid="tax-summary-row"
+                >
+                  <span>
+                    {line.name} ({line.rate}%){line.additive ? "" : " -"}
+                  </span>
+                  <NumberInput
+                    readOnly
+                    decimalScale={2}
+                    className="w-40 text-right"
+                    value={line.tax_amount}
+                    currencyCode={data?.currency?.code ?? "default"}
+                  />
+                </div>
+              ))}
+            </div>
+          )}
+          {withholding_amount > 0 && (
+            <FormInput
+              readOnly
+              label={`${t("purchase.purchaseOrder.columns.withholding_amount")} (${(data?.currency?.code ?? default_currency_id).toUpperCase()})`}
+              className="col-start-2"
+            >
+              <NumberInput
+                decimalScale={2}
+                className="text-right"
+                value={withholding_amount}
+                currencyCode={data?.currency?.code ?? "default"}
+              ></NumberInput>
+            </FormInput>
+          )}
           {data?.currency?.code &&
             data?.currency?.code !== default_currency_id && (
               <FormInput

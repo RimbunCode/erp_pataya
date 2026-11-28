@@ -43,6 +43,19 @@ vi.mock("@/Components/FormInput", () => ({
     </div>
   ),
 }));
+// Stub pemilih pajak: menampilkan jumlah pajak terpilih; klik memilih dua pajak.
+vi.mock("@/Pages/Finances/Taxes/TaxLinkModel", () => ({
+  default: ({ value, onValueChange, multiple, placeholder }) => (
+    <button
+      type="button"
+      data-testid="tax-link-model"
+      data-multiple={String(!!multiple)}
+      data-placeholder={placeholder}
+      data-count={String(value?.length ?? 0)}
+      onClick={() => onValueChange?.([{ id: "ppn" }, { id: "pph" }])}
+    />
+  ),
+}));
 vi.mock("@/Pages/Core/FormPage", () => ({
   FormPageContent: ({ children }) => <div>{children}</div>,
   // FormCheckbox (ui/checkbox, tidak di-stub) memanggil useFormPage() untuk
@@ -221,5 +234,59 @@ describe("FormDetail -- checkbox is_fixed_asset (disabled utk kategori jasa)", (
       is_fixed_asset: false,
     });
     expect(nextData.is_fixed_asset).toBe(false);
+  });
+});
+
+describe("FormDetail -- pajak default penjualan dan pembelian (pajak majemuk)", () => {
+  it("menampilkan dua pemilih banyak pajak yang diisi dari data item", () => {
+    renderFormDetail({
+      data: {
+        default_sales_taxes: [{ id: "ppn" }],
+        default_purchase_taxes: [{ id: "ppn" }, { id: "pph" }],
+      },
+    });
+
+    expect(
+      screen.getByText("inventory.item.columns.default_sales_taxes"),
+    ).toBeInTheDocument();
+    expect(
+      screen.getByText("inventory.item.columns.default_purchase_taxes"),
+    ).toBeInTheDocument();
+    const pickers = screen.getAllByTestId("tax-link-model");
+    expect(pickers).toHaveLength(2);
+    expect(pickers.map((el) => el.dataset.multiple)).toEqual(["true", "true"]);
+    expect(pickers.map((el) => el.dataset.count)).toEqual(["1", "2"]);
+  });
+
+  it("tanpa data pajak default, pemilih kosong tanpa galat", () => {
+    renderFormDetail({ data: {} });
+
+    expect(
+      screen.getAllByTestId("tax-link-model").map((el) => el.dataset.count),
+    ).toEqual(["0", "0"]);
+  });
+
+  it("memilih pajak mengirim daftar objek pajak ke field yang tepat", async () => {
+    const setData = vi.fn();
+    renderFormDetail({ data: {}, setData });
+
+    const [sales, purchase] = screen.getAllByTestId("tax-link-model");
+    await userEvent.click(sales);
+    await userEvent.click(purchase);
+
+    expect(setData).toHaveBeenCalledWith("default_sales_taxes", [
+      { id: "ppn" },
+      { id: "pph" },
+    ]);
+    expect(setData).toHaveBeenCalledWith("default_purchase_taxes", [
+      { id: "ppn" },
+      { id: "pph" },
+    ]);
+  });
+
+  it("tidak tampil di mode varian", () => {
+    renderFormDetail({ isVariant: true, item: {}, data: {} });
+
+    expect(screen.queryByTestId("tax-link-model")).not.toBeInTheDocument();
   });
 });

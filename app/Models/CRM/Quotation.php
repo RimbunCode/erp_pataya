@@ -128,6 +128,7 @@ class Quotation extends Model {
             'items.item',
             'items.itemUnit',
             'items.tax',
+            'items.taxes',
             'sections',
             'customer',
             'opportunity',

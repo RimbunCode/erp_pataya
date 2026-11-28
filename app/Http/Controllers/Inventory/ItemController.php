@@ -66,6 +66,7 @@ class ItemController extends Controller {
         $data['image'] = $image;
         $item          = Item::create($data);
         $this->service->updateUom($item, $data['uoms']);
+        $this->service->syncDefaultTaxes($item, $data);
         $itemVariant = $this->service->updateVariants($item, $data['format_variant'] ?? '', $data['attributes'] ?? []);
         $this->service->updateBarcodes($itemVariant, $data['barcodes'] ?? []);
         DB::commit();
@@ -95,6 +96,9 @@ class ItemController extends Controller {
                 $item->loadRelations([], withTrashed: true);
                 $item->uoms = $item->uoms();
                 $itemArray  = $item->toArray();
+                // Pajak default untuk form Item: objek pajak berurut `position` (nama field sama dengan field request).
+                $itemArray['default_sales_taxes']    = $item->salesDefaultTaxes->toArray();
+                $itemArray['default_purchase_taxes'] = $item->purchaseDefaultTaxes->toArray();
 
                 $variant = $item->variants
                     ->whereNull('format_variant')
@@ -144,6 +148,7 @@ class ItemController extends Controller {
         $data     = $this->service->applyCategoryDerivedFields($data, $category);
         $item->fillForUpdate($data);
         $this->service->updateUom($item, $data['uoms']);
+        $this->service->syncDefaultTaxes($item, $data);
         $itemVariant = $this->service->updateVariants($item, $data['format_variant'] ?? '', $data['attributes'] ?? []);
         $this->service->updateBarcodes($itemVariant, $data['barcodes'] ?? []);
 

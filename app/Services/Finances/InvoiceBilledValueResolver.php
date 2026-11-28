@@ -6,6 +6,8 @@ use App\Enums\FormStatus;
 use App\Models\Finances\Tax;
 use App\Services\Core\Setting\CurrencyMatcher;
 use App\Services\Finances\Tax\DocumentTaxRules;
+use App\Services\Finances\Tax\InvoiceItemTaxLines;
+use App\Services\Finances\Tax\ItemTaxSelection;
 use Closure;
 use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Database\Eloquent\Model;
@@ -23,6 +25,34 @@ use Illuminate\Validation\ValidationException;
  * dikonversi ke mata uang dasar (nilai x kurs invoicenya). Lihat `billedValues()` untuk akumulasi.
  */
 class InvoiceBilledValueResolver {
+    /**
+     * Menyelaraskan pajak baris invoice dengan pajak baris sumber (order) untuk pemeriksaan toleransi (spek
+     * finance-multi-tax-per-item, Requirement 14.7). Bila himpunan pajak invoice berbeda dari order (mis. PPh ditambah
+     * di invoice), alokasi diskon header basis `grand_total` memakai pajak SUMBER, sehingga nilai yang dibandingkan
+     * adalah nilai sebelum pajak yang sama dengan basis order dan penambahan pajak di invoice tidak menggeser nilai
+     * neto serta tidak memicu pelanggaran toleransi. Baris tanpa sumber, atau berpajak sama, tidak diubah.
+     *
+     * @param  array<int|string, array<string, mixed>>  $rows
+     * @param  Closure(array<string, mixed>): ?object  $sourceOf  item sumber (model order dengan relasi `taxLines` dimuat) atau null
+     * @return array<int|string, array<string, mixed>>
+     */
+    public function alignTaxesToSource(array $rows, Closure $sourceOf): array {
+        foreach ($rows as $index => $row) {
+            $source = $sourceOf($row);
+            if ($source === null) {
+                continue;
+            }
+
+            $sourceIds = array_map(fn (array $line): string => $line['tax_id'], InvoiceItemTaxLines::of($source));
+            if ($sourceIds !== ItemTaxSelection::rowTaxIds($row)) {
+                $rows[$index]['taxes'] = array_map(fn (string $id): array => ['id' => $id], $sourceIds);
+                unset($rows[$index]['tax']);
+            }
+        }
+
+        return $rows;
+    }
+
     /**
      * Nilai neto per baris request (belum dikali kurs): `quantity x harga`, dikurangi bagian diskon
      * header yang dialokasikan memakai `DocumentDiscountCalculator` seperti saat dokumen disimpan,
@@ -46,14 +76,32 @@ class InvoiceBilledValueResolver {
         // Tarif, faktor DPP, dan perilaku pajak dari versi aturan pada tanggal dokumen, sama dengan yang dipakai
         // service saat menyimpan (Requirement 12.3). Pajak tanpa versi berlaku dilewati (tarif 0, faktor 1) hanya untuk
         // pemeriksaan ini; service tetap gagal tertutup saat menyimpan (Q-P3-5).
-        $taxIds    = collect($rows)->pluck('tax.id')->filter()->unique()->all();
+        $taxIds    = collect($rows)->flatMap(fn (array $row): array => ItemTaxSelection::rowTaxIds($row))->unique()->values()->all();
         $taxes     = $taxIds === [] ? [] : Tax::whereIn('id', $taxIds)->get()->keyBy('id')->all();
         $taxRules  = app(DocumentTaxRules::class);
         $lineRules = $taxRules->lineParameters($taxRules->resolveForRowsLeniently($rows, $taxes, $documentDate), $taxes);
         $indexes   = array_keys($rows);
         $lines     = [];
         foreach ($indexes as $position => $index) {
-            $rule             = $lineRules[data_get($rows[$index], 'tax.id')] ?? null;
+            $ids = ItemTaxSelection::rowTaxIds($rows[$index]);
+
+            // Tarif baris = Σ pajak penambah (Requirement 8.6). Baris dengan 0 atau 1 pajak memakai bentuk satu pajak
+            // lama persis; baris majemuk membawa `taxes` (pajak awal = Σ pajak penambah).
+            if (\count($ids) > 1) {
+                $lines[$position] = [
+                    'basic_amount' => $gross[$index],
+                    'tax_rate'     => 0.0,
+                    'taxes'        => array_map(fn (string $id): array => [
+                        'rate'       => $lineRules[$id]['rate'] ?? 0.0,
+                        'dpp_factor' => $lineRules[$id]['dpp_factor'] ?? 1.0,
+                        'additive'   => $lineRules[$id]['additive'] ?? true,
+                    ], $ids),
+                ];
+
+                continue;
+            }
+
+            $rule             = $ids === [] ? null : ($lineRules[$ids[0]] ?? null);
             $lines[$position] = [
                 'basic_amount' => $gross[$index],
                 'tax_rate'     => $rule['rate'] ?? 0.0,

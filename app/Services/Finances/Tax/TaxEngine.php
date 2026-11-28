@@ -56,8 +56,7 @@ final class TaxEngine {
         /** @var list<array{input: TaxInput, version: TaxRuleVersion, baseMinor: int, dppMinor: int, taxMinor: int, adjustment: int}> $lines */
         $lines = [];
         foreach ($inputs as $input) {
-            $version = $this->resolver->resolve($input->taxId, $input->date);
-            $lines[] = $this->computeLine($input, $version);
+            $lines[] = $this->computeLine($input, $this->versionFor($input));
         }
 
         $this->applyDocumentRounding($lines);
@@ -158,6 +157,23 @@ final class TaxEngine {
         }
 
         return new VerificationReport($differences === [], $differences, $skipped, $verified);
+    }
+
+    /**
+     * Versi aturan sebuah input: versi yang dikunci pemanggil (`ruleVersionId`) bila ada dan milik pajak yang sama,
+     * selain itu versi yang berlaku pada tanggal dokumen.
+     *
+     * @throws NoEffectiveTaxRuleException
+     */
+    private function versionFor(TaxInput $input): TaxRuleVersion {
+        if ($input->ruleVersionId !== null) {
+            $pinned = $this->resolver->findVersion($input->ruleVersionId);
+            if ($pinned !== null && (string) $pinned->tax_id === $input->taxId) {
+                return $pinned;
+            }
+        }
+
+        return $this->resolver->resolve($input->taxId, $input->date);
     }
 
     /**

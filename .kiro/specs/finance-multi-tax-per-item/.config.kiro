@@ -1,0 +1,6 @@
+{
+  "specId": "54fcb790-3296-4d93-aa1c-38e1e49f1972",
+  "workflowType": "requirements-first",
+  "specType": "feature",
+  "description": "Finance Engine, spek masa depan multi-tax-per-line (D-28): satu item Sales/Purchase Invoice dapat membawa beberapa pajak sekaligus (mis. PPN 12% + PPh 23 2% atas basis yang sama) lewat tabel pivot item-pajak dan field pajak multi value di form. Keputusan pemilik produk 2026-11-28: per item, bukan master pajak majemuk."
+}

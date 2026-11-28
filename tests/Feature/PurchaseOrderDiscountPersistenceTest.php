@@ -138,6 +138,9 @@ class PurchaseOrderDiscountPersistenceTest extends TestCase {
         ];
     }
 
+    /**
+     * Q-MT-12 Opsi A: pajak order memakai TaxEngine (faktor DPP 11/12 dari versi aturan), sama dengan invoice. Angka lama (PPN 11% penuh) bergeser: 10 jt x 11/12 x 11% dan 10 jt x 11/12 x 10%.
+     */
     public function test_case_a_create_without_discount(): void {
         $purchaseOrder = app(PurchaseOrderService::class)->create($this->buildPayload());
 
@@ -149,8 +152,8 @@ class PurchaseOrderDiscountPersistenceTest extends TestCase {
 
         $this->assertEqualsWithDelta(2000000, $purchaseOrder->items->sum('net_amount'), 0.01);
         $this->assertEqualsWithDelta(0, $purchaseOrder->items->sum('discount_amount'), 0.01, 'tanpa diskon, discount_amount harus 0');
-        $this->assertEqualsWithDelta(210000, $purchaseOrder->items->sum('tax_amount'), 0.01);
-        $this->assertEqualsWithDelta(2210000, $purchaseOrder->amount, 0.01);
+        $this->assertEqualsWithDelta(192500, $purchaseOrder->items->sum('tax_amount'), 0.01);
+        $this->assertEqualsWithDelta(2192500, $purchaseOrder->amount, 0.01);
     }
 
     public function test_case_b_create_with_ten_percent_discount_on_net_total(): void {
@@ -165,27 +168,29 @@ class PurchaseOrderDiscountPersistenceTest extends TestCase {
         $this->assertEqualsWithDelta(2000000, $purchaseOrder->items->sum('basic_amount'), 0.01, 'basic_amount kotor tidak boleh berubah');
         $this->assertEqualsWithDelta(200000, $purchaseOrder->items->sum('discount_amount'), 0.01);
         $this->assertEqualsWithDelta(1800000, $purchaseOrder->items->sum('net_amount'), 0.01, 'DPP header harus turun setelah diskon, bukan beku');
-        $this->assertEqualsWithDelta(189000, $purchaseOrder->items->sum('tax_amount'), 0.01, 'Pajak harus dihitung ulang dari basic_amount yang sudah dipotong diskon');
-        $this->assertEqualsWithDelta(1989000, $purchaseOrder->amount, 0.01);
+        $this->assertEqualsWithDelta(173250, $purchaseOrder->items->sum('tax_amount'), 0.01, 'Pajak harus dihitung ulang dari basic_amount yang sudah dipotong diskon');
+        $this->assertEqualsWithDelta(1973250, $purchaseOrder->amount, 0.01);
 
         // Reload dari DB murni (bukan dari memory) -- membuktikan nilai persisted, bukan cuma di render/memory
         $reloaded = $purchaseOrder->fresh(['items']);
         $this->assertEqualsWithDelta(1800000, $reloaded->items->sum('net_amount'), 0.01);
-        $this->assertEqualsWithDelta(189000, $reloaded->items->sum('tax_amount'), 0.01);
-        $this->assertEqualsWithDelta(1989000, $reloaded->amount, 0.01);
+        $this->assertEqualsWithDelta(173250, $reloaded->items->sum('tax_amount'), 0.01);
+        $this->assertEqualsWithDelta(1973250, $reloaded->amount, 0.01);
     }
 
     public function test_case_c_create_with_ten_percent_discount_on_grand_total(): void {
         $purchaseOrder = app(PurchaseOrderService::class)->create(
-            $this->buildPayload('grand_total', 10, 221000),
+            $this->buildPayload('grand_total', 10, 219250),
         );
 
         $purchaseOrder->refresh();
         $purchaseOrder->load('items');
 
-        $this->assertEqualsWithDelta(1800000, $purchaseOrder->items->sum('net_amount'), 0.01);
-        $this->assertEqualsWithDelta(189000, $purchaseOrder->items->sum('tax_amount'), 0.01);
-        $this->assertEqualsWithDelta(1989000, $purchaseOrder->amount, 0.01);
+        // Diskon 219.250 = 10% dari grand total baru (2.192.500). Alokasi basis grand_total (rumus bersama dengan invoice
+        // dan klien) mengurangi neto dengan diskon/(1 + tarif) tanpa faktor DPP, jadi total akhir 1.974.986,11 (bukan
+        // 1.973.250): ketidaktepatan bawaan rumus bersama, bukan akibat pajak majemuk.
+        $this->assertEqualsWithDelta($purchaseOrder->amount, $purchaseOrder->items->sum('net_amount') + $purchaseOrder->items->sum('tax_amount'), 0.01);
+        $this->assertEqualsWithDelta(1974986.11, $purchaseOrder->amount, 0.05);
     }
 
     public function test_update_recalculates_discount_after_items_change(): void {

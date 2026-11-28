@@ -1,6 +1,6 @@
 import React, { useEffect, useRef, useState } from "react";
 import { createPortal } from "react-dom";
-import { router } from "@inertiajs/react";
+import { router, usePage } from "@inertiajs/react";
 import { useLaravelReactI18n } from "laravel-react-i18n";
 import { Button } from "@/Components/ui/button";
 import { Card, CardContent } from "@/Components/ui/card";
@@ -10,6 +10,7 @@ import {
   AlertDescription,
   AlertTitle,
 } from "@/Components/ui/alert";
+import { EMPTY_TAX_RULE_VERSIONS } from "@/lib/taxRules";
 import { calculatePurchaseOrderAmounts } from "../purchaseOrderAmounts";
 import { formatWarningQuantity, getQuantityWarnings } from "./allocationState";
 import { buildSubmissionDrafts, validateSubmissionDrafts } from "./reviewData";
@@ -29,6 +30,8 @@ export default function ReviewStep({
   footerContainer,
   createKey = () => crypto.randomUUID(),
 }) {
+  const taxRuleVersions =
+    usePage().props?.taxRuleVersions ?? EMPTY_TAX_RULE_VERSIONS;
   const { t } = useLaravelReactI18n();
   const [pending, setPending] = useState(false);
   const [serverErrors, setServerErrors] = useState({});
@@ -142,7 +145,7 @@ export default function ReviewStep({
         </Alert>
       )}
       {drafts.map((draft, index) => {
-        const total = calculatePurchaseOrderAmounts(draft);
+        const total = calculatePurchaseOrderAmounts(draft, taxRuleVersions);
         const errors = Object.entries(allErrors).filter(([path]) =>
           path.startsWith(`drafts.${index}.`),
         );

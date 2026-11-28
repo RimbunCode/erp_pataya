@@ -127,6 +127,8 @@ return [
     'timestamp'                => 'Timestamp',
     'linkmodel.more'           => 'See More...',
     'linkmodel.advance_search' => 'Advanced Search',
+    'linkmodel.select'         => 'Select (:count)',
+    'linkmodel.remove'         => 'Remove :name',
     'created_at'               => 'Created At',
     'created_by'               => 'Created By',
     'updated_at'               => 'Updated At',

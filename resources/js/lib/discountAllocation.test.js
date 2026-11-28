@@ -213,3 +213,134 @@ describe("allocateDiscount - discount_on null", () => {
     expect(sumTax(result)).toBeCloseTo(210000, 2);
   });
 });
+
+// Pajak majemuk per item (spek finance-multi-tax-per-item): kasus sama dengan
+// tests/Unit/DocumentDiscountCalculatorMultiTaxTest.php agar FE dan BE identik.
+describe("allocateDiscount -- pajak majemuk per baris (`taxes`)", () => {
+  const taxesLine = (basic, ...taxes) => ({
+    basic_amount: basic,
+    tax_rate: 0,
+    taxes,
+  });
+
+  it("satu elemen `taxes` identik dengan bentuk satu pajak lama (semua basis diskon)", () => {
+    [null, BASIS_NET_TOTAL, BASIS_GRAND_TOTAL].forEach((basis) => {
+      const legacy = allocateDiscount(
+        [
+          { basic_amount: 1_000_000, tax_rate: 12, dpp_factor: 11 / 12 },
+          { basic_amount: 500_000, tax_rate: 12, dpp_factor: 11 / 12 },
+        ],
+        basis,
+        0,
+        150_000,
+        "discount_amount",
+      );
+      const listed = allocateDiscount(
+        [
+          taxesLine(1_000_000, { rate: 12, dpp_factor: 11 / 12 }),
+          taxesLine(500_000, { rate: 12, dpp_factor: 11 / 12 }),
+        ],
+        basis,
+        0,
+        150_000,
+        "discount_amount",
+      );
+
+      expect(listed).toEqual(legacy);
+    });
+  });
+
+  it("pajak awal baris = jumlah pajak penambah; pajak potong tidak ikut", () => {
+    const [result] = allocateDiscount(
+      [
+        taxesLine(
+          1_000_000,
+          { rate: 12, dpp_factor: 11 / 12, additive: true },
+          { rate: 10, dpp_factor: 1, additive: true },
+          { rate: 2, dpp_factor: 1, additive: false },
+        ),
+      ],
+      null,
+      0,
+      0,
+    );
+
+    // 1.000.000 x 11/12 x 12% = 110.000; 1.000.000 x 10% = 100.000; PPh tidak menambah.
+    expect(result.tax_amount).toBeCloseTo(210_000, 2);
+    expect(result.amount).toBeCloseTo(1_210_000, 2);
+  });
+
+  it("diskon net_total tidak bergantung pada jumlah pajak", () => {
+    const one = allocateDiscount(
+      [
+        taxesLine(1_000_000, { rate: 12, dpp_factor: 1 }),
+        taxesLine(500_000, { rate: 12, dpp_factor: 1 }),
+      ],
+      BASIS_NET_TOTAL,
+      0,
+      150_000,
+      "discount_amount",
+    );
+    const many = allocateDiscount(
+      [
+        taxesLine(
+          1_000_000,
+          { rate: 12, dpp_factor: 1 },
+          { rate: 10, dpp_factor: 1 },
+          { rate: 2, dpp_factor: 1, additive: false },
+        ),
+        taxesLine(500_000, { rate: 12, dpp_factor: 1 }),
+      ],
+      BASIS_NET_TOTAL,
+      0,
+      150_000,
+      "discount_amount",
+    );
+
+    expect(many.map((r) => r.basic_amount)).toEqual(
+      one.map((r) => r.basic_amount),
+    );
+  });
+
+  it("reduksi grand_total memakai jumlah tarif penambah (PPh potong tidak ikut)", () => {
+    const [result] = allocateDiscount(
+      [
+        taxesLine(
+          1_000_000,
+          { rate: 10, dpp_factor: 1 },
+          { rate: 5, dpp_factor: 1 },
+          { rate: 2, dpp_factor: 1, additive: false },
+        ),
+      ],
+      BASIS_GRAND_TOTAL,
+      0,
+      115_000,
+      "discount_amount",
+      1,
+    );
+
+    // Gross = 1.000.000 x 1,15; diskon 115.000 seluruhnya pada baris itu; reduksi = 115.000 / 1,15.
+    expect(result.basic_amount).toBeCloseTo(900_000, 2);
+    expect(result.tax_amount).toBeCloseTo(135_000, 2);
+  });
+
+  it("PPN 12% DPP 11/12 + PPh 23 2% potong pada satu baris jasa, diskon grand_total", () => {
+    const [result] = allocateDiscount(
+      [
+        taxesLine(
+          1_000_000,
+          { rate: 12, dpp_factor: 11 / 12, additive: true },
+          { rate: 2, dpp_factor: 1, additive: false },
+        ),
+      ],
+      BASIS_GRAND_TOTAL,
+      0,
+      112_000,
+      "discount_amount",
+    );
+
+    // Basis = 1.000.000 + 110.000; reduksi = 112.000 / 1,12 = 100.000 -> net 900.000; pajak 900.000 x 11/12 x 12%.
+    expect(result.basic_amount).toBeCloseTo(900_000, 2);
+    expect(result.tax_amount).toBeCloseTo(99_000, 2);
+  });
+});

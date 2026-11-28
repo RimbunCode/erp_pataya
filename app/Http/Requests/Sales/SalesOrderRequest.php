@@ -4,6 +4,7 @@ namespace App\Http\Requests\Sales;
 
 use App\Enums\DefaultsDocumentType;
 use App\Http\Requests\BaseFormRequest;
+use App\Http\Requests\Concerns\NormalizesRowTaxes;
 use App\Http\Requests\Concerns\ValidatesRowTaxRequired;
 use App\Http\Requests\Finances\Rules\AdditionalDiscountRules;
 use App\Http\Requests\Finances\Rules\PaymentSchedulesRules;
@@ -13,11 +14,12 @@ use App\Models\Inventory\ItemVariant;
 use App\Models\Sales\InternalOrderItem;
 use App\Models\Sales\SalesOrderItem;
 use App\Rules\ExistsExcludingTrashed;
+use App\Services\Finances\Tax\ItemTaxSelection;
 use Illuminate\Contracts\Validation\Validator;
 use Illuminate\Validation\Rule;
 
 class SalesOrderRequest extends BaseFormRequest {
-    use ValidatesRowTaxRequired;
+    use NormalizesRowTaxes, ValidatesRowTaxRequired;
 
     /**
      * Determine if the user is authorized to make this request.
@@ -61,8 +63,11 @@ class SalesOrderRequest extends BaseFormRequest {
             'items.*.quantity'            => ['required', 'numeric', 'min:1'],
             'items.*.unit.id'             => ['required_without:items.*.asset.id', 'nullable', new ExistsExcludingTrashed('item_units')],
             'items.*.unit.*'              => ['nullable'],
-            'items.*.tax.id'              => ['nullable', new ExistsExcludingTrashed('taxes')],
+            'items.*.tax.id'              => ['nullable', 'bail', 'string', new ExistsExcludingTrashed('taxes')],
             'items.*.tax.*'               => ['nullable'],
+            'items.*.taxes'               => ['nullable', 'array', 'max:' . ItemTaxSelection::MAX_TAXES],
+            'items.*.taxes.*.id'          => ['required', 'bail', 'string', new ExistsExcludingTrashed('taxes')],
+            'items.*.taxes.*.*'           => ['nullable'],
             'items.*.price'               => ['nullable', 'numeric'],
             'items.*.source_warehouse.id' => ['nullable', new ExistsExcludingTrashed('warehouses')],
             'items.*.referenceable.type'  => ['nullable', 'string', Rule::in([AssetService::class, AssetServiceConsumedItem::class])],
@@ -75,6 +80,14 @@ class SalesOrderRequest extends BaseFormRequest {
         ];
     }
 
+    /**
+     * `tax` tunggal dinormalisasi menjadi `taxes: [tax]` (kontrak pajak majemuk per item, Q-MT-8).
+     */
+    protected function prepareForValidation(): void {
+        parent::prepareForValidation();
+        $this->normalizeRowTaxes();
+    }
+
     public function withValidator(Validator $validator): void {
         $validator->after(function (Validator $validator): void {
             if ($validator->errors()->isNotEmpty()) {
@@ -85,7 +98,8 @@ class SalesOrderRequest extends BaseFormRequest {
             $this->validateAssetServiceReferenceables($validator);
             $this->validateSourceWarehouseRequired($validator);
             $rows = (array) $this->input('items', []);
-            $this->validateRowTaxRequired($validator, DefaultsDocumentType::SalesOrder, $rows, $this->itemIdsOfRows($rows));
+            $this->validateRowTaxRequired($validator, DefaultsDocumentType::SalesOrder, $rows, $this->itemIdsOfRows($rows), multiTax: true);
+            $this->validateRowTaxCombinations($validator, $rows);
         });
     }
 

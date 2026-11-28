@@ -26,6 +26,9 @@ use Throwable;
  * - `none`: tidak ada baris berpajak.
  * - `error`: penjelasan tidak dapat dibangun.
  *
+ * Pajak majemuk per item: `line_ref` komponen berbentuk `{itemId}#{taxId}`; nomor baris dipecah dari bagian id item
+ * (rujukan lama berisi id item saja tetap terbaca), sehingga beberapa baris panel dapat memiliki nomor baris yang sama.
+ *
  * Versi aturan yang dirujuk tetapi tidak ada (Requirement 5.6) ditandai `version.missing` dan tidak menimbulkan galat.
  * `canViewVersions` true hanya bila pembaca boleh membaca Pajak dan Versi Aturan (tautan ke halaman Pajak).
  *
@@ -40,7 +43,7 @@ final class TaxBreakdownPanel {
     public function build(Model $document): array {
         try {
             // Dimuat segar (bukan `getRelationValue`): panel dibangun lewat deferred prop setelah respons halaman.
-            $items   = $document->items()->get();
+            $items   = $document->items()->with('taxLines')->get();
             $stored  = $document->getAttribute('tax_breakdown');
             $minor   = DocumentTaxSnapshot::minorUnitFor($document->getAttribute('currency_code'));
             $state   = 'snapshot';
@@ -86,7 +89,15 @@ final class TaxBreakdownPanel {
      * @return array<string, mixed>
      */
     private function withItemVersionIds(array $payload, Collection $items): array {
-        $versionByLine = $items->mapWithKeys(fn (Model $item): array => [(string) $item->getKey() => $item->getAttribute('tax_rule_version_id')])->all();
+        // Versi per baris pajak (`{itemId}#{taxId}`); rujukan lama (hanya id item, snapshot sebelum pajak majemuk) memakai
+        // versi kolom item.
+        $versionByLine = [];
+        foreach ($items as $item) {
+            $versionByLine[(string) $item->getKey()] = $item->getAttribute('tax_rule_version_id');
+            foreach (InvoiceItemTaxLines::of($item) as $line) {
+                $versionByLine[InvoiceItemTaxLines::refFor((string) $item->getKey(), $line['tax_id'])] = $line['tax_rule_version_id'];
+            }
+        }
 
         $payload['components'] = array_map(function (mixed $component) use ($versionByLine): mixed {
             if (\is_array($component) && ($component['rule_version_id'] ?? null) === null) {
@@ -142,7 +153,7 @@ final class TaxBreakdownPanel {
         $ref       = isset($component['line_ref']) ? (string) $component['line_ref'] : null;
 
         return [
-            'line'                => $ref === null ? null : ($lineNumbers[$ref] ?? null),
+            'line'                => $ref === null ? null : ($lineNumbers[InvoiceItemTaxLines::itemIdOf($ref)] ?? null),
             'tax_id'              => (string) ($component['tax_id'] ?? ''),
             'tax_name'            => (string) ($component['tax_name'] ?? ''),
             'category'            => (string) ($component['category'] ?? Tax::CATEGORY_UNCLASSIFIED),

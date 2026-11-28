@@ -39,6 +39,7 @@ return [
         'net_total'                    => 'Total Bersih',
         'grand_total'                  => 'Total Keseluruhan',
         'tax_amount'                   => 'Jumlah Pajak',
+        'withholding_amount'           => 'Pajak Potong (Info)',
         'total'                        => 'Total',
         'basic_amount'                 => 'Jumlah Kotor',
         'gross_amount'                 => 'Total Harga',

@@ -13,6 +13,7 @@ use App\Models\Purchase\PurchaseRequestItem;
 use App\Models\Service\WorkOrder;
 use App\Models\Service\WorkOrderItem;
 use App\Services\Core\Setting\DocumentDefaultsResolver;
+use App\Services\Finances\Tax\DocumentTaxRules;
 use App\Services\Purchase\ItemRequestService;
 use App\Services\Purchase\PurchaseOrderService;
 use App\Utils;
@@ -127,8 +128,9 @@ class PurchaseOrderController extends Controller {
         $this->setBreadcrumbs('purchase.purchaseOrder.new');
 
         return Inertia::render('Purchase/PurchaseOrders/Show', [
-            'defaultData' => $defaultData ?? null,
-            'defaults'    => app(DocumentDefaultsResolver::class)->defaultsFor(DefaultsDocumentType::PurchaseOrder),
+            'taxRuleVersions' => fn () => app(DocumentTaxRules::class)->versionsForClient(),
+            'defaultData'     => $defaultData ?? null,
+            'defaults'        => app(DocumentDefaultsResolver::class)->defaultsFor(DefaultsDocumentType::PurchaseOrder),
         ]);
     }
 
@@ -159,7 +161,8 @@ class PurchaseOrderController extends Controller {
         $purchaseOrder->showDetail();
 
         return Inertia::render('Purchase/PurchaseOrders/Show', [
-            'purchaseOrder' => function () use ($purchaseOrder) {
+            'taxRuleVersions' => fn () => app(DocumentTaxRules::class)->versionsForClient(),
+            'purchaseOrder'   => function () use ($purchaseOrder) {
                 $purchaseOrder->loadRelations();
 
                 return $purchaseOrder;

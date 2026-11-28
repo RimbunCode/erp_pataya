@@ -2,10 +2,17 @@ import { FormPageContent, useFormPage } from "@/Pages/Core/FormPage";
 import React, { memo, useCallback, useEffect, useMemo, useRef } from "react";
 import SelectModel, { loadFromModel } from "@/Components/SelectModel";
 import { calculateArray, generateRandom } from "@/lib/utils";
-import { allocateDiscount } from "@/lib/discountAllocation";
+import { EMPTY_TAX_RULE_VERSIONS, rulesOf, taxesOfRow } from "@/lib/taxRules";
+import {
+  allocationLine,
+  previewInvoiceLine,
+  previewInvoiceLines,
+  summarizeTaxLines,
+} from "@/lib/invoiceTaxPreview";
 import {
   EMPTY_DEFAULTS,
   documentItemId,
+  taxPatch,
   taxRowError,
   useDocumentDefaults,
 } from "@/lib/documentDefaults";
@@ -92,7 +99,15 @@ export default memo(function Form() {
   } = useDocumentDefaults(defaults, isCreate ? "sales_order" : null, {
     items: data.items,
     setData,
+    multiTax: true,
   });
+  // Pajak majemuk per item (Requirement 14.8): versi aturan di-resolve PER pajak, perhitungan order lewat
+  // TaxEngine di server (Q-MT-12 Opsi A), jadi pratinjau memakai faktor DPP versi aturan yang sama dengan invoice.
+  const taxRuleVersions = pageProps.taxRuleVersions ?? EMPTY_TAX_RULE_VERSIONS;
+  const entriesOf = useCallback(
+    (row) => rulesOf(row, taxRuleVersions, data?.date),
+    [taxRuleVersions, data?.date],
+  );
   const paymentDefaultsApplied = useRef(false);
   const headerWarehouseEdited = useRef(false);
   const resolvedTaxItemsByRow = useRef(new Map());
@@ -180,49 +195,73 @@ export default memo(function Form() {
   // menyusut di setiap render -- basis "menyusut" terus tiap kali user mengetik.
   // Spec sales-order-asset-in-items-column: satu tabel Items berisi baris ItemVariant
   // (`item`) dan baris Asset (`asset`).
-  const rawLines = useMemo(() => {
-    return (data.items ?? [])
-      .filter((item) => item?.item || item?.asset)
-      .map((item) => ({
-        basic_amount: (item.quantity ?? 0) * (item.price ?? 0),
-        tax_rate: item.tax?.rate ?? 0,
-      }));
-  }, [data.items]);
+  const filledItems = useMemo(
+    () => (data.items ?? []).filter((item) => item?.item || item?.asset),
+    [data.items],
+  );
+  const entriesList = useMemo(
+    () => filledItems.map((item) => entriesOf(item)),
+    [filledItems, entriesOf],
+  );
+  const rawLines = useMemo(
+    () =>
+      filledItems.map((item, i) =>
+        allocationLine(
+          (item.quantity ?? 0) * (item.price ?? 0),
+          entriesList[i],
+        ),
+      ),
+    [filledItems, entriesList],
+  );
 
   const rawNetAmount = useMemo(() => {
     return calculateArray(rawLines, "basic_amount", "+");
   }, [rawLines]);
 
   const rawTaxAmount = useMemo(() => {
-    return rawLines.reduce(
-      (sum, line) => sum + (line.basic_amount * line.tax_rate) / 100,
-      0,
-    );
-  }, [rawLines]);
+    return previewInvoiceLines({
+      grossAmounts: rawLines.map((line) => line.basic_amount),
+      entriesList,
+      discount: { on: null },
+    }).reduce((sum, line) => sum + line.tax_amount, 0);
+  }, [rawLines, entriesList]);
 
-  const allocatedLines = useMemo(() => {
-    return allocateDiscount(
+  const previews = useMemo(
+    () =>
+      previewInvoiceLines({
+        grossAmounts: rawLines.map((line) => line.basic_amount),
+        entriesList,
+        discount: {
+          on: data.discount_on,
+          rate: data.discount_rate ?? 0,
+          amount: data.discount_amount ?? 0,
+          latestKey: data.latestDiscountKey ?? "discount_rate",
+        },
+      }),
+    [
       rawLines,
+      entriesList,
       data.discount_on,
-      data.discount_rate ?? 0,
-      data.discount_amount ?? 0,
-      data.latestDiscountKey ?? "discount_rate",
-    );
-  }, [
-    rawLines,
-    data.discount_on,
-    data.discount_rate,
-    data.discount_amount,
-    data.latestDiscountKey,
-  ]);
+      data.discount_rate,
+      data.discount_amount,
+      data.latestDiscountKey,
+    ],
+  );
 
   const net_amount = useMemo(() => {
-    return calculateArray(allocatedLines, "basic_amount", "+");
-  }, [allocatedLines]);
+    return calculateArray(previews, "net_amount", "+");
+  }, [previews]);
 
+  // Pajak penambah saja (Σ pajak penambah); pajak potong tidak menambah total order (Requirement 14.3).
   const tax_amount = useMemo(() => {
-    return calculateArray(allocatedLines, "tax_amount", "+");
-  }, [allocatedLines]);
+    return calculateArray(previews, "tax_amount", "+");
+  }, [previews]);
+
+  // Pajak potong tampil terpisah sebagai informasi, TIDAK dikurangkan dari total order.
+  const withholding_amount = useMemo(() => {
+    return calculateArray(previews, "withholding_amount", "+");
+  }, [previews]);
+  const taxSummary = useMemo(() => summarizeTaxLines(previews), [previews]);
 
   // net_amount/tax_amount sudah hasil alokasi diskon -- Total tinggal jumlah
   // langsung, tidak dikurangi discount_amount lagi (itu bug lama: DPP/pajak
@@ -466,7 +505,8 @@ export default memo(function Form() {
               );
               setRowData({
                 ...rowPatch,
-                tax: defaultLine.tax,
+                taxes: defaultLine.taxes ?? [],
+                tax: defaultLine.tax ?? null,
                 tax_rate: defaultLine.tax_rate,
                 source_warehouse: defaultLine.source_warehouse,
               });
@@ -595,22 +635,24 @@ export default memo(function Form() {
       },
     },
     {
-      name: "tax",
+      name: "taxes",
       titleTrans: "sales.salesOrder.columns.tax",
       required: true,
       width: 2,
-      cell({ data: value, setData, attributes, dataRow }, index) {
+      cell({ setData, attributes, dataRow }, index) {
         const taxError = taxRowError(errors, index);
 
         return (
           <div className="flex w-full flex-col">
             <TaxLinkModel
+              multiple
+              fields={["category", "behavior", "rate"]}
               disabled={!dataRow?.item && !dataRow?.asset}
               placeholder={t("sales.salesOrder.columns.tax.placeholder")}
-              value={value}
+              value={taxesOfRow(dataRow)}
               onValueChange={(val) => {
                 markFieldEdited(dataRow.id, "tax");
-                setData("tax", val);
+                setData(taxPatch(val ?? []));
               }}
               {...attributes}
               required={attributes.required && isTaxRequired(dataRow.id)}
@@ -679,24 +721,26 @@ export default memo(function Form() {
         ? (item.quantity ?? 0) * (item.price ?? 0)
         : (row.quantity ?? 0) * (row.price ?? 0),
     );
-    const lines = rows.map((row, i) => ({
-      basic_amount: grossAmounts[i],
-      tax_rate: i === index ? (item.tax?.rate ?? 0) : (row.tax?.rate ?? 0),
-    }));
-    const allocated = allocateDiscount(
-      lines,
-      data.discount_on,
-      data.discount_rate ?? 0,
-      data.discount_amount ?? 0,
-      data.latestDiscountKey ?? "discount_rate",
+    const entriesRows = rows.map((row, i) =>
+      entriesOf(i === index ? item : row),
     );
-    const result = allocated[index] ?? allocated[0];
+    const preview = previewInvoiceLine({
+      grossAmounts,
+      entriesList: entriesRows,
+      index,
+      discount: {
+        on: data.discount_on,
+        rate: data.discount_rate ?? 0,
+        amount: data.discount_amount ?? 0,
+        latestKey: data.latestDiscountKey ?? "discount_rate",
+      },
+    });
     return {
       ...item,
-      discount_amount:
-        Math.round((grossAmounts[index] - (result?.basic_amount ?? 0)) * 100) /
-        100,
-      tax_amount: result?.tax_amount ?? 0,
+      discount_amount: preview.discount_amount,
+      tax_amount: preview.tax_amount,
+      withholding_amount: preview.withholding_amount,
+      tax_lines: preview.tax_lines,
     };
   };
 
@@ -1029,6 +1073,43 @@ export default memo(function Form() {
               currencyCode={data?.currency?.code ?? "default"}
             ></NumberInput>
           </FormInput>
+          {taxSummary.length > 1 && (
+            <div className="grid col-start-2 gap-y-1" data-testid="tax-summary">
+              {taxSummary.map((line) => (
+                <div
+                  key={`${line.id}|${line.rate}|${line.additive}`}
+                  className="flex items-center justify-between px-1 text-sm"
+                  data-testid="tax-summary-row"
+                >
+                  <span>
+                    {line.name} ({line.rate}%)
+                    {line.additive ? "" : " -"}
+                  </span>
+                  <NumberInput
+                    readOnly
+                    decimalScale={2}
+                    className="w-40 text-right"
+                    value={line.tax_amount}
+                    currencyCode={data?.currency?.code ?? "default"}
+                  />
+                </div>
+              ))}
+            </div>
+          )}
+          {withholding_amount > 0 && (
+            <FormInput
+              readOnly
+              label={`${t("sales.salesOrder.columns.withholding_amount")} (${(data?.currency?.code ?? default_currency_id).toUpperCase()})`}
+              className="col-start-2"
+            >
+              <NumberInput
+                decimalScale={2}
+                className="text-right"
+                value={withholding_amount}
+                currencyCode={data?.currency?.code ?? "default"}
+              ></NumberInput>
+            </FormInput>
+          )}
           {data?.currency?.code &&
             data?.currency?.code !== default_currency_id && (
               <FormInput

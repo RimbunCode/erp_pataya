@@ -17,8 +17,10 @@ use App\Models\Finances\Journal;
 use App\Models\Finances\PostingProfile;
 use App\Models\Finances\PurchaseInvoice;
 use App\Models\Finances\PurchaseInvoiceItem;
+use App\Models\Finances\PurchaseInvoiceItemTax;
 use App\Models\Finances\SalesInvoice;
 use App\Models\Finances\SalesInvoiceItem;
+use App\Models\Finances\SalesInvoiceItemTax;
 use App\Models\Finances\Tax;
 use App\Models\Finances\TaxRuleVersion;
 use App\Models\Inventory\Item;
@@ -32,6 +34,7 @@ use App\Services\Finances\Accounting\PurchaseInvoicePanelSource;
 use App\Services\Finances\Ledger\FiscalPeriodService;
 use App\Services\Finances\Ledger\JournalReversalService;
 use App\Services\Finances\Posting\PostingProfileService;
+use App\Services\Finances\Tax\InvoiceItemTaxLines;
 use App\Services\Finances\Tax\TaxRuleVersionService;
 use App\Services\Sales\Accounting\SalesInvoicePanelSource;
 use Carbon\CarbonImmutable;
@@ -591,5 +594,91 @@ class TaxJournalSplitTest extends TestCase {
     public function test_the_tax_split_flag_is_only_for_the_two_invoice_types(): void {
         $this->assertSame(['sales_invoice', 'purchase_invoice'], FinanceSetting::TAX_SPLIT_DOCUMENT_TYPES);
         $this->assertSame(PostingDocumentType::SalesInvoice->value, FinanceSetting::TAX_SPLIT_DOCUMENT_TYPES[0]);
+    }
+
+    // ---------------------------------------------------------------------------------------------------------
+    // Pajak majemuk per item (spek finance-multi-tax-per-item, Task 5): komponen dibaca dari pivot `taxLines`
+    // ---------------------------------------------------------------------------------------------------------
+
+    /**
+     * Item dua pajak penambah: baris pivot untuk pajak utama (nilai item) dan pajak kedua; agregat item = Σ pivot.
+     */
+    private function addSecondAdditiveTax(SalesInvoiceItem|PurchaseInvoiceItem $item, Tax $second, float $secondAmount): void {
+        $pivot = $item instanceof SalesInvoiceItem ? SalesInvoiceItemTax::class : PurchaseInvoiceItemTax::class;
+        $key   = $item instanceof SalesInvoiceItem ? 'sales_invoice_item_id' : 'purchase_invoice_item_id';
+
+        $pivot::create([$key => $item->id, 'tax_id' => $item->tax_id, 'tax_rule_version_id' => $item->tax_rule_version_id, 'position' => 0, 'tax_rate' => $item->tax_rate, 'tax_amount' => $item->tax_amount, 'dpp_amount' => $item->dpp_amount]);
+        $pivot::create([$key => $item->id, 'tax_id' => $second->getKey(), 'tax_rule_version_id' => $this->versionOf($second)->getKey(), 'position' => 1, 'tax_rate' => $second->rate, 'tax_amount' => $secondAmount]);
+        $item->forceFill(['tax_amount' => (float) $item->tax_amount + $secondAmount])->saveQuietly();
+    }
+
+    public function test_multi_tax_sales_item_splits_each_tax_with_its_own_line_share_and_stays_balanced(): void {
+        $this->setCutover('today');
+        $ppn     = $this->ppn();
+        $luxury  = $this->ppn('PPnBM 10', 10, Tax::CATEGORY_PPN_LUXURY);
+        $invoice = $this->salesInvoice([['tax' => $ppn, 'price' => 12_000_000], ['tax' => $ppn, 'price' => 6_000_000]]);
+        $first   = $invoice->items()->orderBy('id')->first();
+        $this->addSecondAdditiveTax($first, $luxury, 1_200_000);
+
+        $this->postSales($invoice->fresh());
+
+        $journal = $this->journalOf($invoice->id);
+        $ppnTax  = (float) $invoice->items()->get()->sum(fn (SalesInvoiceItem $item): float => (float) collect(InvoiceItemTaxLines::of($item))->firstWhere('tax_id', (string) $ppn->getKey())['tax_amount'] ?? 0);
+        $this->assertEqualsWithDelta(1_320_000 + 660_000, $ppnTax, 0.01);
+        $this->assertEqualsWithDelta($ppnTax, $journal['C:' . $this->taxOutput->id . ':' . $this->versionOf($ppn)->getKey()], 0.01, 'PPN dari dua item digabung pada satu komponen (pajak, versi).');
+        $this->assertEqualsWithDelta(1_200_000, $journal['C:' . $this->taxOutput->id . ':' . $this->versionOf($luxury)->getKey()], 0.01, 'Pajak kedua pada akunnya sendiri.');
+        $this->assertEqualsWithDelta(18_000_000, $journal['C:' . $this->revenue->id], 0.01, 'Pendapatan = sisa setelah semua bagian pajak terpisah.');
+        $this->assertEqualsWithDelta(18_000_000 + $ppnTax + 1_200_000, $journal['D:' . $this->receivable->id], 0.01);
+        $this->assertBalanced($journal);
+
+        $storedTax = (float) $invoice->items()->sum('tax_amount');
+        $this->assertEqualsWithDelta($storedTax, $ppnTax + 1_200_000, 0.01, 'Invarian: Σ pajak jurnal = Σ pivot = Σ agregat item.');
+    }
+
+    public function test_multi_tax_sales_return_swaps_every_side_and_follows_the_original_shape(): void {
+        $this->setCutover('today');
+        $ppn     = $this->ppn();
+        $luxury  = $this->ppn('PPnBM 10', 10, Tax::CATEGORY_PPN_LUXURY);
+        $invoice = $this->salesInvoice([['tax' => $ppn, 'price' => 12_000_000]]);
+        $this->addSecondAdditiveTax($invoice->items()->firstOrFail(), $luxury, 1_200_000);
+
+        $this->postSales($invoice->fresh(), isReturn: true);
+
+        $journal = $this->journalOf($invoice->id);
+        $this->assertEqualsWithDelta(12_000_000, $journal['D:' . $this->revenue->id], 0.01);
+        $this->assertEqualsWithDelta(1_320_000, $journal['D:' . $this->taxOutput->id . ':' . $this->versionOf($ppn)->getKey()], 0.01);
+        $this->assertEqualsWithDelta(1_200_000, $journal['D:' . $this->taxOutput->id . ':' . $this->versionOf($luxury)->getKey()], 0.01);
+        $this->assertEqualsWithDelta(14_520_000, $journal['C:' . $this->receivable->id], 0.01);
+        $this->assertBalanced($journal);
+    }
+
+    public function test_multi_tax_purchase_item_splits_creditable_input_taxes_per_tax(): void {
+        $this->setCutover('today');
+        $ppn     = $this->ppn();
+        $luxury  = $this->ppn('PPnBM 10', 10, Tax::CATEGORY_PPN_LUXURY);
+        $invoice = $this->purchaseInvoice([['tax' => $ppn, 'rate' => 10_000_000]]);
+        $this->addSecondAdditiveTax($invoice->items()->firstOrFail(), $luxury, 1_000_000);
+
+        $this->postPurchase($invoice->fresh());
+
+        $journal = $this->journalOf($invoice->id, 'expense');
+        $this->assertEqualsWithDelta(10_000_000, $journal['D:' . $this->expense->id], 0.01);
+        $this->assertEqualsWithDelta(1_100_000, $journal['D:' . $this->taxInput->id . ':' . $this->versionOf($ppn)->getKey()], 0.01);
+        $this->assertEqualsWithDelta(1_000_000, $journal['D:' . $this->taxInput->id . ':' . $this->versionOf($luxury)->getKey()], 0.01);
+        $this->assertEqualsWithDelta(12_100_000, $journal['C:' . $this->payable->id], 0.01);
+        $this->assertBalanced($journal);
+    }
+
+    public function test_an_item_with_a_tax_id_but_no_pivot_rows_still_splits_from_its_columns(): void {
+        $this->setCutover('today');
+        $tax     = $this->ppn();
+        $invoice = $this->salesInvoice([['tax' => $tax, 'price' => 12_000_000]]);
+        $this->assertSame(0, SalesInvoiceItemTax::query()->count(), 'Fixture legacy: tanpa pivot.');
+
+        $this->postSales($invoice);
+
+        $journal = $this->journalOf($invoice->id);
+        $this->assertEqualsWithDelta(1_320_000, $journal['C:' . $this->taxOutput->id . ':' . $this->versionOf($tax)->getKey()], 0.01, 'Jaring pengaman baca (Requirement 7.6).');
+        $this->assertBalanced($journal);
     }
 }

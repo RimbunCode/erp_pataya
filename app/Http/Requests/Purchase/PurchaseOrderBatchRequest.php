@@ -3,16 +3,83 @@
 namespace App\Http\Requests\Purchase;
 
 use App\Http\Requests\BaseFormRequest;
+use App\Models\Finances\Tax;
 use App\Models\Inventory\ItemUnit;
 use App\Models\Inventory\ItemVariant;
 use App\Models\Purchase\PurchaseRequestItem;
+use App\Services\Finances\Tax\ItemTaxSelection;
 use Illuminate\Contracts\Validation\ValidationRule;
+use Illuminate\Contracts\Validation\Validator;
 use Illuminate\Http\Request;
 use Illuminate\Validation\ValidationException;
 
 class PurchaseOrderBatchRequest extends BaseFormRequest {
     public function authorize(): bool {
         return true;
+    }
+
+    /**
+     * `tax` tunggal pada baris draft dinormalisasi menjadi `taxes: [tax]` (kontrak pajak majemuk per item, Q-MT-8).
+     */
+    protected function prepareForValidation(): void {
+        parent::prepareForValidation();
+
+        $drafts = $this->input('drafts');
+        if (! is_array($drafts)) {
+            return;
+        }
+
+        foreach ($drafts as $draftIndex => $draft) {
+            if (! is_array($draft) || ! is_array($draft['items'] ?? null)) {
+                continue;
+            }
+
+            foreach ($draft['items'] as $itemIndex => $row) {
+                if (is_array($row)) {
+                    $drafts[$draftIndex]['items'][$itemIndex]['taxes'] = ItemTaxSelection::rowTaxes($row);
+                    unset($drafts[$draftIndex]['items'][$itemIndex]['tax']);
+                }
+            }
+        }
+
+        $this->merge(['drafts' => $drafts]);
+    }
+
+    /**
+     * Aturan kombinasi pajak (duplikat, lebih dari satu PPN standar, batas jumlah) tiap baris draft, dilaporkan pada
+     * `drafts.{n}.items.{i}.taxes`; sama dengan `PurchaseOrderRequest` untuk satu dokumen.
+     */
+    public function withValidator(Validator $validator): void {
+        $validator->after(function (Validator $validator): void {
+            if ($validator->errors()->isNotEmpty()) {
+                return;
+            }
+
+            $drafts = $this->input('drafts', []);
+            if (! is_array($drafts)) {
+                return;
+            }
+
+            $ids = collect($drafts)
+                ->filter(fn ($draft): bool => is_array($draft) && is_array($draft['items'] ?? null))
+                ->flatMap(fn (array $draft): array => collect($draft['items'])->flatMap(fn ($row): array => ItemTaxSelection::rowTaxIds((array) $row))->all())
+                ->unique()
+                ->values()
+                ->all();
+            $taxes = $ids === [] ? [] : Tax::query()->whereIn('id', $ids)->get()->keyBy('id')->all();
+
+            foreach ($drafts as $draftIndex => $draft) {
+                if (! is_array($draft) || ! is_array($draft['items'] ?? null)) {
+                    continue;
+                }
+
+                foreach (ItemTaxSelection::errorsForRows($draft['items'], $taxes) as $key => $messages) {
+                    foreach ($messages as $message) {
+                        $validator->errors()->add("drafts.{$draftIndex}.{$key}", $message);
+                    }
+                }
+            }
+        });
     }
 
     /**

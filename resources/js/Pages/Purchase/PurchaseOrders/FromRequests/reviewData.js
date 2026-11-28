@@ -16,6 +16,7 @@ export function buildSubmissionDrafts(state, defaultDate) {
         description: item.description,
         required_date: item.required_date,
         target_warehouse: item.target_warehouse,
+        taxes: item.taxes ?? [],
         tax: item.tax,
         tax_rate: item.tax_rate,
       })),

@@ -1,4 +1,4 @@
-import { ChevronRight } from "lucide-react";
+import { CheckIcon, ChevronRight } from "lucide-react";
 import { useLaravelReactI18n } from "laravel-react-i18n";
 
 import { CommandItem } from "@/Components/ui/command";
@@ -39,6 +39,7 @@ const indentStyle = (depth) => ({ paddingLeft: `${depth * 12 + 8}px` });
  * @param {() => void} [props.fetchNextRoot]
  * @param {boolean} [props.fetchingRoot]
  * @param {(row: object) => void} props.onPick
+ * @param {(row: object) => boolean} [props.isSelected] mode multi value: baris terpilih diberi tanda centang
  * @param {{current: Map<string, object>}} [props.knownRef] registri baris yg pernah dirender (Tab-autocomplete / exact-match)
  * @param {number|string} [props.version]
  * @param {number} [props.sourceIndex] indeks sumber (LinkModel multi-model, sub model):
@@ -59,6 +60,7 @@ export default function GroupedOptions({
   fetchNextRoot,
   fetchingRoot,
   onPick,
+  isSelected,
   knownRef,
   version = 0,
   sourceIndex,
@@ -131,8 +133,9 @@ export default function GroupedOptions({
               value={value}
               onSelect={() => onPick(row)}
               style={indentStyle(depth + depthOffset)}
+              data-checked={isSelected ? isSelected(row) : undefined}
             >
-              <div>
+              <div className={isSelected ? "flex-1" : undefined}>
                 <SemanticTemplate
                   template={row.templateLink}
                   row={row}
@@ -140,6 +143,7 @@ export default function GroupedOptions({
                   search={search ?? ""}
                 />
               </div>
+              {isSelected?.(row) && <CheckIcon className="size-4 shrink-0" />}
             </CommandItem>
           );
         }}

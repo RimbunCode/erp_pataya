@@ -41,6 +41,7 @@ final class FinancesTemplates {
                 'items',
                 'items.item',
                 'items.unit',
+                'items.taxes',
             ],
             'html' => P::document([
                 P::titleRight('Invoice Penjualan'),
@@ -59,6 +60,7 @@ final class FinancesTemplates {
                     ['label' => 'Kuantitas', 'value' => '{{this.quantity}} {{this.unit.name}}', 'class' => 'col-qty', 'width' => '14'],
                     ['label' => 'Harga Satuan', 'value' => '{{this.price}}', 'class' => 'col-number'],
                     ['label' => 'Total Harga', 'value' => '{{this.basic_amount}}', 'class' => 'col-number'],
+                    ['label' => 'Jenis Pajak', 'value' => '{{this.tax_names}}'],
                 ], [
                     ['Potongan', '{{doc.discount_amount}}'],
                     ['DPP', '{{doc.printed_dpp_amount}}', 'doc.printed_dpp_amount'],
@@ -101,6 +103,7 @@ final class FinancesTemplates {
                 'items',
                 'items.item',
                 'items.unit',
+                'items.taxes',
             ],
             'html' => P::document([
                 P::titleRight('Invoice Pembelian'),
@@ -121,6 +124,7 @@ final class FinancesTemplates {
                     ['label' => 'Unit', 'value' => '{{this.unit.name}}'],
                     ['label' => 'Harga Barang', 'value' => '{{formatCurrency this.rate @root.doc.currency.code}}', 'class' => 'col-number'],
                     ['label' => 'Discount', 'value' => '{{formatCurrency this.discount_amount @root.doc.currency.code}}', 'class' => 'col-number'],
+                    ['label' => 'Jenis Pajak', 'value' => '{{this.tax_names}}'],
                     ['label' => 'Pajak', 'value' => '{{formatCurrency this.tax_amount @root.doc.currency.code}}', 'class' => 'col-number'],
                     ['label' => 'Jumlah', 'value' => '{{formatCurrency this.amount @root.doc.currency.code}}', 'class' => 'col-number'],
                 ], [

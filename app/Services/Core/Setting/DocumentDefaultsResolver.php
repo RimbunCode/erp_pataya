@@ -14,6 +14,7 @@ use App\Models\Inventory\Item;
 use App\Models\Inventory\Warehouse;
 use App\Models\Purchase\PurchaseSetting;
 use App\Models\Sales\SalesSetting;
+use Illuminate\Support\Facades\DB;
 
 class DocumentDefaultsResolver {
     private DefaultRuleMatcher $ruleMatcher;
@@ -26,6 +27,13 @@ class DocumentDefaultsResolver {
     }
 
     /**
+     * Prioritas sumber default pajak baris (spek finance-multi-tax-per-item, Q-MT-13, Requirement 15.3): (1) pajak
+     * default item (`item_default_taxes` untuk modul dokumen; seluruh pajak default, berurut `position`), (2) aturan
+     * bersyarat `default_tax_rules`, (3) default modul. Default item kosong, atau seluruh pajaknya terhapus lunak
+     * (referensi rusak, Requirement 15.7), jatuh ke tingkat (2). `tax_optional` hanya berasal dari aturan bersyarat
+     * (Requirement 15.8): baris dengan default item selalu `tax_optional` false. Delivery Note dan Purchase Receipt
+     * tidak berpajak sehingga tidak memakai default item.
+     *
      * `taxes` memuat objek pajak dalam urutan yang sama dengan `tax_ids`. `tax_optional` true hanya bila
      * aturan "tanpa pajak" eksplisit (tax_id null) cocok untuk item; tanpa aturan, dengan referensi aturan
      * rusak, atau tanpa default modul pajak tetap wajib.
@@ -93,14 +101,16 @@ class DocumentDefaultsResolver {
             ->all();
 
         $moduleDefaults = $this->defaultsFor($type);
+        $itemTaxes      = $this->itemDefaultTaxes($type, $items->pluck('id')->all());
         $results        = [];
         foreach ($items as $item) {
+            $itemDefault    = $itemTaxes[$item->id] ?? [];
             $itemAttributes = new ItemAttributes(
                 $item->type,
                 (bool) $item->is_stock_item,
                 $item->category_id,
             );
-            $taxRule = $this->ruleMatcher->match($taxRules, $type->value, $itemAttributes);
+            $taxRule = $itemDefault !== [] ? null : $this->ruleMatcher->match($taxRules, $type->value, $itemAttributes);
             // Aturan cocok dengan referensi rusak jatuh ke default modul, seperti tidak ada aturan.
             $useModuleTax = $taxRule === null || $taxRule->referenceBroken;
             $taxId        = $useModuleTax ? $moduleDefaults['tax_id'] : $taxRule->value;
@@ -124,15 +134,50 @@ class DocumentDefaultsResolver {
                 ));
 
             $results[$item->id] = [
-                'tax_ids'      => $taxId === null ? [] : [$taxId],
-                'taxes'        => $taxPayload === null ? [] : [$taxPayload],
-                'tax_optional' => $taxOptional,
+                'tax_ids'      => $itemDefault !== [] ? array_keys($itemDefault) : ($taxId === null ? [] : [$taxId]),
+                'taxes'        => $itemDefault !== [] ? array_values($itemDefault) : ($taxPayload === null ? [] : [$taxPayload]),
+                'tax_optional' => $itemDefault !== [] ? false : $taxOptional,
                 'warehouse_id' => $warehouseId,
                 'warehouse'    => $warehouse,
             ];
         }
 
         return $results;
+    }
+
+    /**
+     * Pajak default item untuk modul dokumen, satu query massal untuk semua item (tanpa N+1). Pajak terhapus lunak
+     * dilewati; item tanpa pajak tersisa tidak ada di hasil. Kunci dalam = `tax_id`, nilai = payload pajak, berurut
+     * `position`.
+     *
+     * @param  list<string>  $itemIds
+     * @return array<string, array<string, array<string, mixed>>>
+     */
+    private function itemDefaultTaxes(DefaultsDocumentType $type, array $itemIds): array {
+        if ($itemIds === [] || \in_array($type, [DefaultsDocumentType::DeliveryNote, DefaultsDocumentType::PurchaseReceipt], true)) {
+            return [];
+        }
+
+        $rows = DB::table('item_default_taxes')
+            ->where('module', $type->module())
+            ->whereIn('item_id', array_values(array_unique($itemIds)))
+            ->orderBy('item_id')
+            ->orderBy('position')
+            ->get(['item_id', 'tax_id']);
+        if ($rows->isEmpty()) {
+            return [];
+        }
+
+        $taxes  = Tax::query()->whereIn('id', $rows->pluck('tax_id')->unique()->all())->get()->keyBy('id');
+        $result = [];
+        foreach ($rows as $row) {
+            $tax = $taxes->get($row->tax_id);
+            if ($tax !== null) {
+                $result[$row->item_id][$row->tax_id] = $this->taxPayload($tax);
+            }
+        }
+
+        return $result;
     }
 
     private function ruleFromRecord(DefaultTaxRule|DefaultWarehouseRule $rule, ?string $value, bool $referenceBroken = false): DefaultRule {

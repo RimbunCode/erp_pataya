@@ -70,14 +70,37 @@ class DocumentDiscountCalculator {
      * Baris tanpa pajak tidak punya aturan (tarif 0). Pada basis `grand_total`, pajak `withholding` tidak
      * menambah total sehingga tidak ikut basis.
      *
+     * Pajak majemuk per item (spek finance-multi-tax-per-item, Requirement 4): `$itemTaxIds` memuat id pajak terurut
+     * per kunci item. Baris dengan 0 atau 1 pajak memakai bentuk satu pajak lama persis (`tax_rate`/`dpp_factor`/
+     * `additive`), sehingga hasilnya identik dengan sebelum pajak majemuk; baris dengan 2 pajak atau lebih membawa
+     * `taxes` (daftar `{rate, dpp_factor, additive}`) dan pajak awal baris = Σ pajak penambah. Item yang tidak ada di
+     * `$itemTaxIds` memakai `[tax_id]` kolom itemnya.
+     *
      * @param  Collection<int, Model>  $items  item model dengan attribute basic_amount, tax_id (atau null)
      * @param  array<string, array{rate: float, dpp_factor: float, additive: bool}>  $lineRules
+     * @param  array<string, list<string>>  $itemTaxIds  id pajak terurut per kunci item
      * @return array<int, float> diskon per baris (2 desimal), terurut seperti `$items->values()`
      */
-    public static function invoiceItemDiscounts(Model $document, Collection $items, array $lineRules): array {
+    public static function invoiceItemDiscounts(Model $document, Collection $items, array $lineRules, array $itemTaxIds = []): array {
         $lines = [];
         foreach ($items->values() as $item) {
-            $rule    = filled($item->tax_id) ? ($lineRules[(string) $item->tax_id] ?? null) : null;
+            $ids = $itemTaxIds[(string) $item->getKey()] ?? (filled($item->tax_id) ? [(string) $item->tax_id] : []);
+
+            if (\count($ids) > 1) {
+                $lines[] = [
+                    'basic_amount' => $item->basic_amount,
+                    'tax_rate'     => 0,
+                    'taxes'        => array_map(fn (string $id): array => [
+                        'rate'       => $lineRules[$id]['rate'] ?? 0,
+                        'dpp_factor' => $lineRules[$id]['dpp_factor'] ?? 1.0,
+                        'additive'   => $lineRules[$id]['additive'] ?? true,
+                    ], $ids),
+                ];
+
+                continue;
+            }
+
+            $rule    = $ids === [] ? null : ($lineRules[$ids[0]] ?? null);
             $lines[] = [
                 'basic_amount' => $item->basic_amount,
                 'tax_rate'     => $rule['rate'] ?? 0,
@@ -107,7 +130,7 @@ class DocumentDiscountCalculator {
      * Alokasikan diskon dokumen pro-rata ke tiap baris, lalu hitung ulang tax_amount
      * dari basic_amount yang sudah dikurangi diskon (bukan lump-sum dari total akhir).
      *
-     * @param  array<int, array{basic_amount: float, tax_rate: float, dpp_factor?: float, additive?: bool}>  $lines  `dpp_factor` (opsional) menimpa `$dppFactor` untuk baris itu; `additive` false (pajak `withholding`) = pajak baris tidak menambah total
+     * @param  array<int, array{basic_amount: float, tax_rate: float, dpp_factor?: float, additive?: bool, taxes?: list<array{rate: float, dpp_factor?: float|null, additive?: bool}>}>  $lines  `dpp_factor` (opsional) menimpa `$dppFactor` untuk baris itu; `additive` false (pajak `withholding`) = pajak baris tidak menambah total; `taxes` (opsional, pajak majemuk) menggantikan ketiganya: pajak awal baris = Σ pajak penambah dan reduksi `grand_total` memakai Σ tarif penambah
      * @param  string|null  $discountOn  'net_total' | 'grand_total' | null (tanpa diskon)
      * @param  string|null  $latestDiscountKey  'discount_rate' | 'discount_amount' -- menentukan input mana yang otoritatif
      * @param  float|null  $dppFactor  null = pajak dihitung basic_amount*tax_rate/100 langsung (PO/SO).
@@ -127,18 +150,41 @@ class DocumentDiscountCalculator {
             return [];
         }
 
-        $taxBasisOf = function (float $basicAmount, array $line) use ($dppFactor): float {
-            $factor = $line['dpp_factor'] ?? $dppFactor;
+        // Pajak awal baris = Σ pajak penambah: tiap pajak memakai faktor DPP-nya sendiri (`taxes[].dpp_factor`) atau,
+        // pada bentuk satu pajak lama, `dpp_factor` baris / `$dppFactor`. Pajak yang tidak menambah total (withholding)
+        // tidak ikut basis `grand_total` dan tidak mengurangi diskon.
+        $taxesOf = static function (array $line) use ($dppFactor): array {
+            if (isset($line['taxes'])) {
+                return $line['taxes'];
+            }
 
-            return $factor === null ? $basicAmount : $basicAmount * $factor;
+            return [[
+                'rate'       => $line['tax_rate'],
+                'dpp_factor' => $line['dpp_factor'] ?? $dppFactor,
+                'additive'   => $line['additive'] ?? true,
+            ]];
         };
-        // Pajak yang tidak menambah total (withholding) tidak ikut basis `grand_total` dan tidak mengurangi diskon.
-        $addedRate = fn (array $line): float => ($line['additive'] ?? true) ? (float) $line['tax_rate'] : 0.0;
+        $taxOf = static function (float $basicAmount, array $line) use ($taxesOf): float {
+            $total = 0.0;
+            foreach ($taxesOf($line) as $tax) {
+                $factor = $tax['dpp_factor'] ?? null;
+                $basis  = $factor === null ? $basicAmount : $basicAmount * $factor;
+                $rate   = ($tax['additive'] ?? true) ? (float) $tax['rate'] : 0.0;
+                $total += $basis * $rate / 100;
+            }
 
-        $preTax = array_map(
-            fn (array $line) => $taxBasisOf($line['basic_amount'], $line) * $addedRate($line) / 100,
-            $lines,
-        );
+            return $total;
+        };
+        $addedRate = static function (array $line) use ($taxesOf): float {
+            $total = 0.0;
+            foreach ($taxesOf($line) as $tax) {
+                $total += ($tax['additive'] ?? true) ? (float) $tax['rate'] : 0.0;
+            }
+
+            return $total;
+        };
+
+        $preTax = array_map(fn (array $line) => $taxOf($line['basic_amount'], $line), $lines);
 
         if ($discountOn !== self::BASIS_NET_TOTAL && $discountOn !== self::BASIS_GRAND_TOTAL) {
             return self::toResult($lines, array_map(fn ($i) => $lines[$i]['basic_amount'], array_keys($lines)), $preTax);
@@ -179,7 +225,7 @@ class DocumentDiscountCalculator {
 
         $newTaxAmounts = [];
         foreach ($lines as $i => $line) {
-            $newTaxAmounts[$i] = $taxBasisOf($newBasicAmounts[$i], $line) * $addedRate($line) / 100;
+            $newTaxAmounts[$i] = $taxOf($newBasicAmounts[$i], $line);
         }
 
         return self::toResult($lines, $newBasicAmounts, $newTaxAmounts);

@@ -240,6 +240,7 @@ class SalesOrder extends Model {
             'items.item',
             'items.asset',
             'items.tax',
+            'items.taxes',
             'items.unit',
             'items.sourceWarehouse',
             'paymentSchedules',

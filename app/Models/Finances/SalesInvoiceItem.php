@@ -10,13 +10,16 @@ use App\Models\Model;
 use App\Models\Sales\SalesOrder;
 use App\Models\Sales\SalesOrderItem;
 use App\Traits\ComputesLegacyInvoiceItemAmounts;
+use App\Traits\ExposesInvoiceItemTaxes;
 use Illuminate\Database\Eloquent\Concerns\HasUlids;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
+use Illuminate\Database\Eloquent\Relations\BelongsToMany;
+use Illuminate\Database\Eloquent\Relations\HasMany;
 use Illuminate\Database\Eloquent\SoftDeletes;
 
 class SalesInvoiceItem extends Model {
-    use ComputesLegacyInvoiceItemAmounts, HasFactory, HasUlids, SoftDeletes;
+    use ComputesLegacyInvoiceItemAmounts, ExposesInvoiceItemTaxes, HasFactory, HasUlids, SoftDeletes;
 
     /** Kolom harga satuan dan ketiadaan kolom `amount` (dipakai `ComputesLegacyInvoiceItemAmounts`). */
     public const LEGACY_PRICE_COLUMN = 'price';
@@ -40,6 +43,7 @@ class SalesInvoiceItem extends Model {
     public string $translateKey = 'finances.salesInvoice';
 
     protected $guarded = ['id'];
+    protected $appends = ['tax_names', 'tax_rates'];
     protected $casts   = [
         'quantity'            => 'float',
         'returned_quantity'   => 'float',
@@ -104,6 +108,21 @@ class SalesInvoiceItem extends Model {
             'type'  => 'relation',
             'show'  => true,
             'order' => 6,
+        ],
+        'tax_names' => [
+            'show'      => false,
+            'dependsOn' => ['taxes'],
+        ],
+        'tax_rates' => [
+            'show'      => false,
+            'dependsOn' => ['taxes'],
+        ],
+        'taxes' => [
+            'type' => 'relation',
+            'show' => false,
+        ],
+        'taxLines' => [
+            'ignore' => true,
         ],
         'tax_rate' => [
             'type'     => 'numeric',
@@ -209,6 +228,24 @@ class SalesInvoiceItem extends Model {
 
     public function tax() {
         return $this->belongsTo(Tax::class);
+    }
+
+    /**
+     * Baris pajak item (pajak majemuk), berurut `position`; `position` 0 = Pajak Utama. Satu-satunya sumber tulis:
+     * `InvoiceItemTaxCalculator`.
+     */
+    public function taxLines(): HasMany {
+        return $this->hasMany(SalesInvoiceItemTax::class)->orderBy('position');
+    }
+
+    /**
+     * Semua pajak item berurut `position`, dengan kolom hitung pivot. `tax()` tetap menunjuk Pajak Utama.
+     */
+    public function taxes(): BelongsToMany {
+        return $this->belongsToMany(Tax::class, 'sales_invoice_item_taxes', 'sales_invoice_item_id', 'tax_id')
+            ->withPivot(['tax_rule_version_id', 'position', 'tax_rate', 'dpp_factor', 'base_amount', 'dpp_amount', 'tax_amount', 'withholding_amount'])
+            ->withTrashed()
+            ->orderByPivot('position');
     }
 
     public function item() {

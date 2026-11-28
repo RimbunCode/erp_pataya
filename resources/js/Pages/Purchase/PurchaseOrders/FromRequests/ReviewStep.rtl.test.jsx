@@ -11,7 +11,10 @@ import { applyDraftData, buildDraftData } from "./draftData";
 import ReviewStep from "./ReviewStep";
 
 const { post } = vi.hoisted(() => ({ post: vi.fn() }));
-vi.mock("@inertiajs/react", () => ({ router: { post } }));
+vi.mock("@inertiajs/react", () => ({
+  router: { post },
+  usePage: () => ({ props: {} }),
+}));
 vi.mock("laravel-react-i18n", () => ({
   useLaravelReactI18n: () => ({ t: (key) => key }),
 }));

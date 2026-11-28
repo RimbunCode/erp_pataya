@@ -47,7 +47,10 @@ function toResult(lines, basicAmounts, taxAmounts) {
 /**
  * Alokasikan diskon dokumen pro-rata ke tiap baris, lalu hitung ulang tax_amount
  * dari basic_amount yang sudah dikurangi diskon (bukan lump-sum dari total akhir).
- * @param {Array<{basic_amount: number, tax_rate: number, dpp_factor?: number, additive?: boolean}>} lines
+ * @param {Array<{basic_amount: number, tax_rate: number, dpp_factor?: number, additive?: boolean, taxes?: Array<{rate: number, dpp_factor?: number|null, additive?: boolean}>}>} lines
+ *        `taxes` (opsional, pajak majemuk per item) menggantikan `tax_rate`/`dpp_factor`/`additive`: pajak awal baris =
+ *        Σ pajak penambah, reduksi grand_total memakai Σ tarif penambah (sama dengan backend). Tanpa `taxes`, bentuk
+ *        satu pajak lama dipakai apa adanya -- hasil identik dengan sebelumnya.
  *        `dpp_factor` (opsional, dari versi aturan pajak baris) menimpa `dppFactor` untuk baris itu; `additive`
  *        false (pajak withholding) = pajak baris tidak menambah total sehingga tidak ikut basis grand_total
  * @param {string|null} discountOn 'net_total' | 'grand_total' | null (tanpa diskon)
@@ -69,16 +72,43 @@ export function allocateDiscount(
 ) {
   if (!lines || lines.length === 0) return [];
 
-  const taxBasisOf = (basicAmount, line) => {
-    const factor = line.dpp_factor ?? dppFactor;
-    return factor === null ? basicAmount : basicAmount * factor;
-  };
-  // Pajak yang tidak menambah total (withholding) tidak ikut basis grand_total.
-  const addedRate = (line) => (line.additive === false ? 0 : line.tax_rate);
+  // Pajak baris sebagai daftar: `line.taxes` (pajak majemuk per item) atau, bentuk
+  // satu pajak lama, satu elemen dari `tax_rate`/`dpp_factor`/`additive`. Sama
+  // dengan `$taxesOf` di DocumentDiscountCalculator::allocate (PHP).
+  const taxesOf = (line) => {
+    if (Array.isArray(line.taxes)) return line.taxes;
 
-  const preTax = lines.map(
-    (line) => (taxBasisOf(line.basic_amount, line) * addedRate(line)) / 100,
-  );
+    return [
+      {
+        rate: line.tax_rate,
+        dpp_factor: line.dpp_factor ?? dppFactor,
+        additive: line.additive ?? true,
+      },
+    ];
+  };
+  // Pajak baris = Σ pajak penambah (tiap pajak memakai faktor DPP-nya sendiri);
+  // pajak withholding tidak menambah total sehingga tidak ikut basis grand_total.
+  const taxOf = (basicAmount, line) => {
+    let total = 0;
+    taxesOf(line).forEach((tax) => {
+      const factor = tax.dpp_factor ?? null;
+      const basis = factor === null ? basicAmount : basicAmount * factor;
+      const rate = (tax.additive ?? true) ? Number(tax.rate) : 0;
+      total += (basis * rate) / 100;
+    });
+
+    return total;
+  };
+  const addedRate = (line) => {
+    let total = 0;
+    taxesOf(line).forEach((tax) => {
+      total += (tax.additive ?? true) ? Number(tax.rate) : 0;
+    });
+
+    return total;
+  };
+
+  const preTax = lines.map((line) => taxOf(line.basic_amount, line));
 
   if (discountOn !== BASIS_NET_TOTAL && discountOn !== BASIS_GRAND_TOTAL) {
     return toResult(
@@ -116,9 +146,7 @@ export function allocateDiscount(
     return Math.max(0, line.basic_amount - reduction);
   });
 
-  const newTaxAmounts = lines.map(
-    (line, i) => (taxBasisOf(newBasicAmounts[i], line) * addedRate(line)) / 100,
-  );
+  const newTaxAmounts = lines.map((line, i) => taxOf(newBasicAmounts[i], line));
 
   return toResult(lines, newBasicAmounts, newTaxAmounts);
 }

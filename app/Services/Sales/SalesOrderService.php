@@ -14,6 +14,7 @@ use App\Models\Core\ModelConnection;
 use App\Models\Finances\SalesInvoice;
 use App\Models\Finances\SalesInvoiceItem;
 use App\Models\Finances\Tax;
+use App\Models\Finances\TaxRuleVersion;
 use App\Models\Inventory\DeliveryNote;
 use App\Models\Inventory\DeliveryNoteItem;
 use App\Models\Inventory\ItemUnit;
@@ -23,7 +24,9 @@ use App\Models\Sales\Customer;
 use App\Models\Sales\SalesOrder;
 use App\Models\Sales\SalesOrderItem;
 use App\Services\Core\Setting\SettingsService;
-use App\Services\Finances\DocumentDiscountCalculator;
+use App\Services\Finances\Tax\InvoiceItemTaxLines;
+use App\Services\Finances\Tax\ItemTaxSelection;
+use App\Services\Finances\Tax\OrderTaxApplier;
 use App\Traits\HasDefaultDelete;
 use App\Utils;
 use Illuminate\Support\Collection;
@@ -55,16 +58,21 @@ class SalesOrderService implements SubmitableService {
         return $data;
     }
 
-    private function fillItemRelations(array $data, SalesOrder $salesOrder, array $units = [], array $taxes = []) {
-        $data['item_id']             = $data['item']['id'] ?? null;
-        $data['asset_id']            = $data['asset']['id'] ?? null;
-        $unitId                      = $data['asset_id'] ? null : ($data['unit']['id'] ?? null);
-        $unit                        = $units[$unitId] ?? null;
-        $tax                         = $taxes[$data['tax']['id'] ?? ''] ?? null;
+    /**
+     * @param  array<string, TaxRuleVersion>  $taxRules  versi aturan berlaku pada tanggal dokumen per `tax_id` (`OrderTaxApplier::resolveRules()`)
+     */
+    private function fillItemRelations(array $data, SalesOrder $salesOrder, array $units = [], array $taxRules = []) {
+        $data['item_id']  = $data['item']['id'] ?? null;
+        $data['asset_id'] = $data['asset']['id'] ?? null;
+        $unitId           = $data['asset_id'] ? null : ($data['unit']['id'] ?? null);
+        $unit             = $units[$unitId] ?? null;
+        // Pajak majemuk: kolom lama mencerminkan Pajak Utama (pajak pertama); semua pajak ditulis ke pivot oleh `OrderTaxApplier`.
+        $primaryTaxId                = ItemTaxSelection::rowTaxIds($data)[0] ?? null;
+        $taxRule                     = $taxRules[$primaryTaxId ?? ''] ?? null;
         $data['item_unit_id']        = $unitId;
         $data['conversion_factor']   = $unit?->conversion_factor ?? 1;
-        $data['tax_id']              = $data['tax']['id'] ?? null;
-        $data['tax_rate']            = $tax?->rate ?? 0;
+        $data['tax_id']              = $primaryTaxId;
+        $data['tax_rate']            = $taxRule !== null ? (float) $taxRule->rate : 0;
         $data['currency_code']       = $salesOrder->currency_code;
         $data['base_currency_code']  = $salesOrder->base_currency_code;
         $data['exchange_rate']       = $salesOrder->exchange_rate;
@@ -82,16 +90,19 @@ class SalesOrderService implements SubmitableService {
     }
 
     /**
-     * basic_amount generated column KOTOR (quantity * price) sejak migration
-     * add_discount_amount_to_sales_order_items_table -- delegasi ke
-     * DocumentDiscountCalculator::applyToItems() (dipakai juga PurchaseOrderService,
-     * logic alokasi identik disatukan supaya tidak terduplikasi per Service).
+     * `basic_amount` KOTOR (quantity * price). Diskon dokumen dialokasikan dan pajak tiap item (banyak pajak) dihitung
+     * `TaxEngine` lewat `OrderTaxApplier` (Q-MT-12 Opsi A), sama dengan invoice.
      *
      * @param  Collection<int, SalesOrderItem>  $items
+     * @param  array<string, Tax>  $taxes
+     * @param  array<string, TaxRuleVersion>  $taxRules
+     * @param  array<string, list<string>>  $itemTaxIds
      * @return array{basic_amount: float, tax_amount: float}
      */
-    private function applyDiscountToItems(SalesOrder $salesOrder, Collection $items): array {
-        return DocumentDiscountCalculator::applyToItems($salesOrder, $items);
+    private function applyDiscountToItems(SalesOrder $salesOrder, Collection $items, array $taxes, array $taxRules, array $itemTaxIds, mixed $date): array {
+        $totals = app(OrderTaxApplier::class)->apply($salesOrder, $items, $taxes, $taxRules, $itemTaxIds, $date, $salesOrder->currency_code);
+
+        return ['basic_amount' => $totals['net'], 'tax_amount' => $totals['tax']];
     }
 
     private function fillPaymentScheduleRelations(array $data, SalesOrder $salesOrder) {
@@ -107,25 +118,29 @@ class SalesOrderService implements SubmitableService {
     }
 
     public function create(array $data): Model {
+        $applier  = app(OrderTaxApplier::class);
+        $taxes    = $applier->loadTaxes($data['items']);
+        $taxRules = $applier->resolveRules($data['items'], $taxes, $data['date'] ?? null);
+
         $data['code'] = FormatingSeries::generate(SalesOrder::class, $data, true);
         $salesOrder   = SalesOrder::create($this->fillRelations($data));
 
         $unitIds = collect($data['items'])->pluck('unit.id')->filter()->unique()->values();
         $units   = ItemUnit::whereIn('item_units.id', $unitIds)->get()->keyBy('id')->all();
-        $taxIds  = collect($data['items'])->pluck('tax.id')->filter()->unique()->values();
-        $taxes   = Tax::whereIn('id', $taxIds)->get()->keyBy('id')->all();
 
-        $items = collect();
+        $items      = collect();
+        $itemTaxIds = [];
         foreach ($data['items'] as $item) {
-            $item      = $this->fillItemRelations($item, $salesOrder, $units, $taxes);
+            $item      = $this->fillItemRelations($item, $salesOrder, $units, $taxRules);
             $itemModel = $salesOrder->items()->create($item);
             // basic_amount generated column (quantity * price) -- belum terisi di object
             // sampai di-refresh dari DB.
             $itemModel->refresh();
+            $itemTaxIds[(string) $itemModel->getKey()] = ItemTaxSelection::rowTaxIds($item);
             $items->push($itemModel);
         }
 
-        $totals = $this->applyDiscountToItems($salesOrder, $items);
+        $totals = $this->applyDiscountToItems($salesOrder, $items, $taxes, $taxRules, $itemTaxIds, $data['date'] ?? null);
         $salesOrder->update([
             'amount' => $totals['basic_amount'] + $totals['tax_amount'],
         ]);
@@ -140,6 +155,10 @@ class SalesOrderService implements SubmitableService {
     }
 
     public function update(Model $salesOrder, array $data): Model {
+        $applier  = app(OrderTaxApplier::class);
+        $taxes    = $applier->loadTaxes($data['items']);
+        $taxRules = $applier->resolveRules($data['items'], $taxes, $data['date'] ?? null);
+
         $salesOrder->fillForUpdate($this->fillRelations($data), true);
 
         $salesOrder->items()
@@ -157,12 +176,11 @@ class SalesOrderService implements SubmitableService {
 
         $unitIds = collect($data['items'])->pluck('unit.id')->filter()->unique()->values();
         $units   = ItemUnit::whereIn('item_units.id', $unitIds)->get()->keyBy('id')->all();
-        $taxIds  = collect($data['items'])->pluck('tax.id')->filter()->unique()->values();
-        $taxes   = Tax::whereIn('id', $taxIds)->get()->keyBy('id')->all();
 
-        $items = collect();
+        $items      = collect();
+        $itemTaxIds = [];
         foreach ($data['items'] as $item) {
-            $item = $this->fillItemRelations($item, $salesOrder, $units, $taxes);
+            $item = $this->fillItemRelations($item, $salesOrder, $units, $taxRules);
 
             if (Ulid::isValid($item['id'])) {
                 $itemModel = $existingItems->get($item['id']);
@@ -179,10 +197,11 @@ class SalesOrderService implements SubmitableService {
             // basic_amount generated column -- refresh supaya nilai terbaru (quantity/price
             // baru) terbaca sebelum dialokasikan diskon.
             $itemModel->refresh();
+            $itemTaxIds[(string) $itemModel->getKey()] = ItemTaxSelection::rowTaxIds($item);
             $items->push($itemModel);
         }
 
-        $totals = $this->applyDiscountToItems($salesOrder, $items);
+        $totals = $this->applyDiscountToItems($salesOrder, $items, $taxes, $taxRules, $itemTaxIds, $data['date'] ?? null);
         $salesOrder->fill([
             'amount' => $totals['basic_amount'] + $totals['tax_amount'],
         ]);
@@ -329,7 +348,7 @@ class SalesOrderService implements SubmitableService {
 
     public function updateSalesOrderStatus(SalesOrder $salesOrder): void {
         $salesOrder = SalesOrder::where('id', $salesOrder->id)->lockForUpdate()->firstOrFail();
-        $salesOrder->loadMissing('items');
+        $salesOrder->loadMissing('items', 'items.taxLines');
         $totalQty       = $salesOrder->items->sum('quantity');
         $totalDelivered = $salesOrder->items->sum('delivered_quantity');
         $totalBilled    = $salesOrder->items->sum('billed_quantity');
@@ -373,9 +392,20 @@ class SalesOrderService implements SubmitableService {
         $salesOrder->update(['status' => $status]);
     }
 
+    /**
+     * Jumlah tiap termin pembayaran mengikuti total dokumen (`amount x invoice_portion / 100`), sama dengan
+     * `fillPaymentScheduleRelations()`; dipanggil saat total berubah di luar simpan form (sinkronisasi dari invoice).
+     */
+    private function refreshPaymentScheduleAmounts(SalesOrder $salesOrder): void {
+        foreach ($salesOrder->paymentSchedules()->get() as $schedule) {
+            $schedule->update(['payment_amount' => $salesOrder->amount * ($schedule->invoice_portion / 100)]);
+        }
+    }
+
     public function syncItems(SalesOrder $salesOrder): array {
         return DB::transaction(function () use ($salesOrder) {
-            $salesOrder->loadMissing('items');
+            $salesOrder->loadMissing('items', 'items.taxLines');
+            $changedItemIds = [];
 
             $deliveryIds = ModelConnection::where('model_type', SalesOrder::class)
                 ->where('model_id', $salesOrder->id)
@@ -391,7 +421,7 @@ class SalesOrderService implements SubmitableService {
 
             foreach ($salesOrder->items as $soItem) {
                 $invItems = SalesInvoiceItem::whereIn('sales_invoice_id', $invoiceIds)
-                    ->where('sales_order_item_id', $soItem->id)->get();
+                    ->where('sales_order_item_id', $soItem->id)->with('taxLines')->get();
 
                 $delItems = DeliveryNoteItem::whereIn('delivery_note_id', $deliveryIds)
                     ->where('referenceable_type', SalesOrderItem::class)
@@ -403,11 +433,14 @@ class SalesOrderService implements SubmitableService {
 
                 $groups = collect();
 
+                // Kunci pengelompokan memakai himpunan terurut `tax_id` (pajak majemuk), bukan `tax_id` tunggal.
                 foreach ($invItems as $ii) {
-                    $key      = "{$ii->price}|{$ii->tax_id}|{$ii->tax_rate}|{$soItem->source_warehouse_id}";
+                    $taxIds   = array_map(fn (array $line): string => $line['tax_id'], InvoiceItemTaxLines::of($ii));
+                    $key      = "{$ii->price}|" . implode(',', $taxIds) . "|{$ii->tax_rate}|{$soItem->source_warehouse_id}";
                     $existing = $groups->get($key, [
                         'qty'                      => 0,
                         'price'                    => $ii->price,
+                        'tax_ids'                  => $taxIds,
                         'tax_id'                   => $ii->tax_id,
                         'tax_rate'                 => $ii->tax_rate,
                         'warehouse_id'             => $soItem->source_warehouse_id,
@@ -421,10 +454,12 @@ class SalesOrderService implements SubmitableService {
 
                 foreach ($delItems as $di) {
                     $wh       = $di->source_warehouse_id ?? $soItem->source_warehouse_id;
-                    $key      = "{$soItem->price}|{$soItem->tax_id}|{$soItem->tax_rate}|{$wh}";
+                    $taxIds   = array_map(fn (array $line): string => $line['tax_id'], InvoiceItemTaxLines::of($soItem));
+                    $key      = "{$soItem->price}|" . implode(',', $taxIds) . "|{$soItem->tax_rate}|{$wh}";
                     $existing = $groups->get($key, [
                         'qty'                      => 0,
                         'price'                    => $soItem->price,
+                        'tax_ids'                  => $taxIds,
                         'tax_id'                   => $soItem->tax_id,
                         'tax_rate'                 => $soItem->tax_rate,
                         'warehouse_id'             => $wh,
@@ -441,14 +476,20 @@ class SalesOrderService implements SubmitableService {
                 }
 
                 if ($groups->count() === 1) {
-                    $g = $groups->first();
+                    $g         = $groups->first();
+                    $oldTaxIds = array_map(fn (array $line): string => $line['tax_id'], InvoiceItemTaxLines::of($soItem));
                     $soItem->update([
                         'price'               => $g['price'],
                         'tax_id'              => $g['tax_id'],
                         'tax_rate'            => $g['tax_rate'],
                         'source_warehouse_id' => $g['warehouse_id'],
                     ]);
+                    // Item yang harga/pajaknya tidak berubah tidak dihitung ulang (Q-MT-12: dokumen lama tetap pada angka tersimpan).
+                    if ($soItem->wasChanged(['price', 'tax_id', 'tax_rate']) || $oldTaxIds !== $g['tax_ids']) {
+                        $changedItemIds[] = (string) $soItem->id;
+                    }
                     $soItem->refresh();
+                    app(OrderTaxApplier::class)->setItemTaxSet($soItem, $g['tax_ids']);
                     $syncLog[] = ['action' => 'update', 'so_item_id' => $soItem->id, 'price' => $g['price']];
                 } else {
                     $parentId = $soItem->id;
@@ -468,6 +509,8 @@ class SalesOrderService implements SubmitableService {
                         $newItem->id = (string) Str::ulid();
                         $newItem->save();
                         $newItem->refresh();
+                        app(OrderTaxApplier::class)->setItemTaxSet($newItem, $g['tax_ids']);
+                        $changedItemIds[] = (string) $newItem->id;
 
                         $newDelivered = empty($g['source_delivery_item_ids']) ? 0
                             : DeliveryNoteItem::whereIn('id', $g['source_delivery_item_ids'])->sum('quantity');
@@ -489,11 +532,16 @@ class SalesOrderService implements SubmitableService {
                 }
             }
 
-            $salesOrder->load('items');
-            $totals = $this->applyDiscountToItems($salesOrder, $salesOrder->items);
-            $salesOrder->update([
-                'amount' => $totals['basic_amount'] + $totals['tax_amount'],
-            ]);
+            if ($changedItemIds !== []) {
+                $salesOrder->load('items');
+                // Hanya item yang berubah dihitung ulang (semua item bila ada diskon dokumen); `taxLines` dimuat satu query.
+                $totals = app(OrderTaxApplier::class)->applyStored($salesOrder, $salesOrder->items, $salesOrder->date, $salesOrder->currency_code, $changedItemIds);
+                $amount = $totals['net'] + $totals['tax'];
+                if (abs($amount - (float) $salesOrder->amount) > 0.004) {
+                    $salesOrder->update(['amount' => $amount]);
+                    $this->refreshPaymentScheduleAmounts($salesOrder);
+                }
+            }
 
             $this->updateSalesOrderStatus($salesOrder);
 

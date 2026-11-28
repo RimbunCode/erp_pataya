@@ -20,15 +20,26 @@ class UnclassifiedTaxReportCommand extends Command {
     /**
      * Sumber pemakaian per kolom laporan: tabel dan kolom yang merujuk `taxes.id`.
      *
-     * @var array<string, list<array{table: string, column: string}>>
+     * @var array<string, list<array{table: string, column: string, withoutPivot?: array{table: string, key: string}}>>
      */
     private const USAGE_SOURCES = [
-        'sales_invoices'    => [['table' => 'sales_invoice_items', 'column' => 'tax_id']],
-        'purchase_invoices' => [['table' => 'purchase_invoice_items', 'column' => 'tax_id']],
-        'other_documents'   => [
-            ['table' => 'sales_order_items', 'column' => 'tax_id'],
-            ['table' => 'purchase_order_items', 'column' => 'tax_id'],
-            ['table' => 'quotation_items', 'column' => 'tax_id'],
+        // Invoice: baris pajak item (pivot, termasuk pajak non-utama pada pajak majemuk) ditambah item lama tanpa pivot.
+        'sales_invoices' => [
+            ['table' => 'sales_invoice_item_taxes', 'column' => 'tax_id'],
+            ['table' => 'sales_invoice_items', 'column' => 'tax_id', 'withoutPivot' => ['table' => 'sales_invoice_item_taxes', 'key' => 'sales_invoice_item_id']],
+        ],
+        'purchase_invoices' => [
+            ['table' => 'purchase_invoice_item_taxes', 'column' => 'tax_id'],
+            ['table' => 'purchase_invoice_items', 'column' => 'tax_id', 'withoutPivot' => ['table' => 'purchase_invoice_item_taxes', 'key' => 'purchase_invoice_item_id']],
+        ],
+        // Order/quotation: SEMUA pajak item (pivot, termasuk pajak non-utama) ditambah item lama tanpa pivot.
+        'other_documents' => [
+            ['table' => 'sales_order_item_taxes', 'column' => 'tax_id'],
+            ['table' => 'sales_order_items', 'column' => 'tax_id', 'withoutPivot' => ['table' => 'sales_order_item_taxes', 'key' => 'sales_order_item_id']],
+            ['table' => 'purchase_order_item_taxes', 'column' => 'tax_id'],
+            ['table' => 'purchase_order_items', 'column' => 'tax_id', 'withoutPivot' => ['table' => 'purchase_order_item_taxes', 'key' => 'purchase_order_item_id']],
+            ['table' => 'quotation_item_taxes', 'column' => 'tax_id'],
+            ['table' => 'quotation_items', 'column' => 'tax_id', 'withoutPivot' => ['table' => 'quotation_item_taxes', 'key' => 'quotation_item_id']],
         ],
         'defaults' => [
             ['table' => 'sales_settings', 'column' => 'default_tax_id'],
@@ -69,7 +80,7 @@ class UnclassifiedTaxReportCommand extends Command {
     }
 
     /**
-     * @param  list<array{table: string, column: string}>  $sources
+     * @param  list<array{table: string, column: string, withoutPivot?: array{table: string, key: string}}>  $sources
      * @param  list<string>  $taxIds
      * @return array<string, int> jumlah rujukan per `tax_id`
      */
@@ -80,11 +91,19 @@ class UnclassifiedTaxReportCommand extends Command {
                 continue;
             }
 
-            $counts = DB::table($source['table'])
+            $query = DB::table($source['table'])
                 ->select($source['column'] . ' as tax_id', DB::raw('COUNT(*) as total'))
-                ->whereIn($source['column'], $taxIds)
-                ->groupBy($source['column'])
-                ->pluck('total', 'tax_id');
+                ->whereIn($source['column'], $taxIds);
+
+            // Bila tabel pivot belum ada (migrasi pajak majemuk belum jalan), sumber item lama dihitung seluruhnya,
+            // bukan 0: pemakaian pajak tetap terlihat.
+            if (isset($source['withoutPivot']) && Schema::hasTable($source['withoutPivot']['table'])) {
+                $pivot = $source['withoutPivot'];
+
+                $query->whereNotExists(fn ($exists) => $exists->selectRaw('1')->from($pivot['table'])->whereColumn("{$pivot['table']}.{$pivot['key']}", "{$source['table']}.id"));
+            }
+
+            $counts = $query->groupBy($source['column'])->pluck('total', 'tax_id');
 
             foreach ($counts as $taxId => $total) {
                 $totals[$taxId] = ($totals[$taxId] ?? 0) + (int) $total;

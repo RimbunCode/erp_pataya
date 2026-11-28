@@ -6,6 +6,7 @@ use App\Enums\DefaultsDocumentType;
 use App\Models\Asset\Asset;
 use App\Models\Inventory\ItemVariant;
 use App\Services\Core\Setting\DocumentDefaultsResolver;
+use App\Services\Finances\Tax\ItemTaxSelection;
 use Illuminate\Contracts\Validation\Validator;
 
 /**
@@ -18,9 +19,15 @@ trait ValidatesRowTaxRequired {
     /**
      * @param  array<int|string, array<string, mixed>>  $rows
      * @param  array<int|string, ?string>  $itemIdByRow  Item (induk) tiap baris, atau null bila tak diketahui
+     * @param  bool  $multiTax  true untuk dokumen berpajak majemuk (Sales/Purchase Invoice, spek finance-multi-tax-per-item):
+     *                          baris dianggap berpajak bila punya minimal satu pajak (`taxes`, atau `tax` tunggal yang
+     *                          dinormalisasi) dan galatnya pada `items.{i}.taxes`. False (default, mis. Sales Order)
+     *                          memeriksa `tax.id` dengan galat `items.{i}.tax.id` seperti semula.
      */
-    protected function validateRowTaxRequired(Validator $validator, DefaultsDocumentType $type, array $rows, array $itemIdByRow): void {
-        $missing = array_filter($rows, fn ($row): bool => blank($row['tax']['id'] ?? null));
+    protected function validateRowTaxRequired(Validator $validator, DefaultsDocumentType $type, array $rows, array $itemIdByRow, bool $multiTax = false): void {
+        $missing = array_filter($rows, fn ($row): bool => $multiTax
+            ? ItemTaxSelection::rowTaxes((array) $row) === []
+            : blank($row['tax']['id'] ?? null));
         if ($missing === []) {
             return;
         }
@@ -31,6 +38,12 @@ trait ValidatesRowTaxRequired {
         foreach (array_keys($missing) as $index) {
             $itemId = $itemIdByRow[$index] ?? null;
             if ($itemId !== null && ($resolved[$itemId]['tax_optional'] ?? false)) {
+                continue;
+            }
+
+            if ($multiTax) {
+                $validator->errors()->add("items.{$index}.taxes", ItemTaxSelection::message(ItemTaxSelection::VIOLATION_REQUIRED));
+
                 continue;
             }
 

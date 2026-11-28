@@ -3,20 +3,43 @@
 namespace App\Http\Requests\Purchase;
 
 use App\Http\Requests\BaseFormRequest;
+use App\Http\Requests\Concerns\NormalizesRowTaxes;
 use App\Http\Requests\Finances\Rules\AdditionalDiscountRules;
 use App\Http\Requests\Finances\Rules\PaymentSchedulesRules;
 use App\Rules\ExistsExcludingTrashed;
+use App\Services\Finances\Tax\ItemTaxSelection;
 use DateTimeInterface;
 use Illuminate\Contracts\Validation\ValidationRule;
+use Illuminate\Contracts\Validation\Validator;
 use Illuminate\Http\Request;
 use Illuminate\Validation\Rule;
 
 class PurchaseOrderRequest extends BaseFormRequest {
+    use NormalizesRowTaxes;
+
     /**
      * Determine if the user is authorized to make this request.
      */
     public function authorize(): bool {
         return true;
+    }
+
+    /**
+     * `tax` tunggal dinormalisasi menjadi `taxes: [tax]` (kontrak pajak majemuk per item, Q-MT-8).
+     */
+    protected function prepareForValidation(): void {
+        parent::prepareForValidation();
+        $this->normalizeRowTaxes();
+    }
+
+    public function withValidator(Validator $validator): void {
+        $validator->after(function (Validator $validator): void {
+            if ($validator->errors()->isNotEmpty()) {
+                return;
+            }
+
+            $this->validateRowTaxCombinations($validator, (array) $this->input('items', []));
+        });
     }
 
     /**
@@ -60,8 +83,11 @@ class PurchaseOrderRequest extends BaseFormRequest {
             'items.*.unit.*'              => ['nullable'],
             'items.*.target_warehouse.id' => ['required', new ExistsExcludingTrashed('warehouses')],
             'items.*.target_warehouse.*'  => ['nullable'],
-            'items.*.tax.id'              => ['required', new ExistsExcludingTrashed('taxes')],
+            'items.*.tax.id'              => ['nullable', 'bail', 'string', new ExistsExcludingTrashed('taxes')],
             'items.*.tax.*'               => ['nullable'],
+            'items.*.taxes'               => ['required', 'array', 'min:1', 'max:' . ItemTaxSelection::MAX_TAXES],
+            'items.*.taxes.*.id'          => ['required', 'bail', 'string', new ExistsExcludingTrashed('taxes')],
+            'items.*.taxes.*.*'           => ['nullable'],
             'items.*.rate'                => ['required', 'numeric', 'min:0'],
             ...AdditionalDiscountRules::make($request),
             ...PaymentSchedulesRules::make($request),

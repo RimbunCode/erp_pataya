@@ -90,6 +90,15 @@ class TaxBreakdownPanelTest extends TestCase {
         ]);
     }
 
+    /**
+     * Versi aturan juga tersimpan pada pivot pajak item (pajak majemuk); uji ini mengubahnya bersama kolom item.
+     */
+    private function setPivotVersion(SalesInvoice $invoice, ?string $versionId): void {
+        DB::table('sales_invoice_item_taxes')
+            ->whereIn('sales_invoice_item_id', DB::table('sales_invoice_items')->where('sales_invoice_id', $invoice->id)->select('id'))
+            ->update(['tax_rule_version_id' => $versionId]);
+    }
+
     private function panel(SalesInvoice $invoice): array {
         return app(TaxBreakdownPanel::class)->build($invoice->refresh());
     }
@@ -162,6 +171,7 @@ class TaxBreakdownPanelTest extends TestCase {
     public function test_approved_invoice_without_snapshot_is_explained_as_legacy(): void {
         $invoice = $this->invoice();
         DB::table('sales_invoice_items')->where('sales_invoice_id', $invoice->id)->update(['tax_rule_version_id' => null]);
+        $this->setPivotVersion($invoice, null);
         $this->approve($invoice);
 
         $panel = $this->panel($invoice);
@@ -175,6 +185,7 @@ class TaxBreakdownPanelTest extends TestCase {
         foreach ([['need_approval'], ['rejected'], ['draft']] as $status) {
             $invoice = $this->invoice();
             DB::table('sales_invoice_items')->where('sales_invoice_id', $invoice->id)->update(['tax_rule_version_id' => null]);
+            $this->setPivotVersion($invoice, null);
             // `submitted_at` terisi saat submit, tetapi snapshot baru ditulis saat approve.
             $this->approve($invoice, null, $status);
 
@@ -188,6 +199,7 @@ class TaxBreakdownPanelTest extends TestCase {
         foreach ([['need_approval'], ['unpaid']] as $status) {
             $invoice = $this->invoice();
             DB::table('sales_invoice_items')->where('sales_invoice_id', $invoice->id)->update(['tax_rule_version_id' => $gone]);
+            $this->setPivotVersion($invoice, $gone);
             $this->approve($invoice, null, $status);
 
             $row = $this->panel($invoice)['rows'][0];

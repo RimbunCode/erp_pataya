@@ -7,6 +7,7 @@ use App\Http\Requests\Finances\Rules\AdditionalDiscountRules;
 use App\Http\Requests\Finances\Rules\PaymentSchedulesRules;
 use App\Http\Requests\Finances\Rules\ReturnAgainstItemRules;
 use App\Models\Finances\PurchaseInvoiceItem;
+use App\Models\Finances\Tax;
 use App\Models\Inventory\ItemUnit;
 use App\Models\Purchase\PurchaseOrderItem;
 use App\Models\Purchase\PurchaseReceipt;
@@ -18,6 +19,7 @@ use App\Services\Core\Setting\RateChangeComparator;
 use App\Services\Core\Setting\ToleranceCalculator;
 use App\Services\Finances\InvoiceBilledValueResolver;
 use App\Services\Finances\PurchaseInvoiceService;
+use App\Services\Finances\Tax\ItemTaxSelection;
 use Illuminate\Contracts\Validation\ValidationRule;
 use Illuminate\Validation\Validator;
 
@@ -54,8 +56,11 @@ class PurchaseInvoiceRequest extends BaseFormRequest {
             'items.*.quantity'                 => ['required', 'numeric', 'min:1'],
             'items.*.unit.id'                  => ['required', new ExistsExcludingTrashed('item_units')],
             'items.*.unit.*'                   => ['nullable'],
-            'items.*.tax.id'                   => ['required', new ExistsExcludingTrashed('taxes')],
+            'items.*.tax.id'                   => ['nullable', 'bail', 'string', new ExistsExcludingTrashed('taxes')],
             'items.*.tax.*'                    => ['nullable'],
+            'items.*.taxes'                    => ['nullable', 'array', 'max:' . ItemTaxSelection::MAX_TAXES],
+            'items.*.taxes.*.id'               => ['required', 'bail', 'string', new ExistsExcludingTrashed('taxes')],
+            'items.*.taxes.*.*'                => ['nullable'],
             'items.*.rate'                     => ['required', 'numeric', 'min:0'],
             'items.*.return_against_item_id'   => ['nullable', new ExistsExcludingTrashed('purchase_invoice_items')],
             'supplier.id'                      => ['required', new ExistsExcludingTrashed('suppliers')],
@@ -74,6 +79,15 @@ class PurchaseInvoiceRequest extends BaseFormRequest {
             if ($validator->errors()->isNotEmpty()) {
                 return;
             }
+
+            // Pajak wajib per baris (minimal satu) dan aturan kombinasi pajak majemuk, galat pada `items.{i}.taxes`.
+            $rows = (array) $this->input('items', []);
+            foreach ($rows as $index => $row) {
+                if (ItemTaxSelection::rowTaxes((array) $row) === []) {
+                    $validator->errors()->add("items.{$index}.taxes", ItemTaxSelection::message(ItemTaxSelection::VIOLATION_REQUIRED));
+                }
+            }
+            $this->validateTaxCombinations($validator, $rows);
 
             // Retur memakai baris invoice asal (return_against_item_id): aturan
             // baris di luar PO hanya untuk invoice biasa.
@@ -94,6 +108,42 @@ class PurchaseInvoiceRequest extends BaseFormRequest {
         });
     }
 
+    /**
+     * Normalisasi kontrak pajak majemuk (Q-MT-8): `tax` tunggal menjadi `taxes: [tax]`; bila keduanya dikirim, `taxes`
+     * menang dan `tax` dibuang.
+     */
+    protected function prepareForValidation(): void {
+        $items = $this->input('items');
+        if (! \is_array($items)) {
+            return;
+        }
+
+        foreach ($items as $index => $row) {
+            if (\is_array($row)) {
+                $items[$index]['taxes'] = ItemTaxSelection::rowTaxes($row);
+                unset($items[$index]['tax']);
+            }
+        }
+
+        $this->merge(['items' => $items]);
+    }
+
+    /**
+     * Aturan kombinasi pajak (duplikat, lebih dari satu PPN standar, batas jumlah) pada `items.{i}.taxes`.
+     *
+     * @param  array<int|string, mixed>  $rows
+     */
+    private function validateTaxCombinations(Validator $validator, array $rows): void {
+        $ids   = collect($rows)->flatMap(fn ($row): array => ItemTaxSelection::rowTaxIds((array) $row))->unique()->values()->all();
+        $taxes = $ids === [] ? [] : Tax::query()->whereIn('id', $ids)->get()->keyBy('id')->all();
+
+        foreach (ItemTaxSelection::errorsForRows($rows, $taxes) as $key => $messages) {
+            foreach ($messages as $message) {
+                $validator->errors()->add($key, $message);
+            }
+        }
+    }
+
     /** @param array<int|string,mixed> $rows */
     private function validateBillingTolerance(Validator $validator, array $rows): void {
         $tolerance = PurchaseSetting::current()->over_billing_tolerance_percent;
@@ -101,11 +151,13 @@ class PurchaseInvoiceRequest extends BaseFormRequest {
             return;
         }
 
-        $calculator   = app(ToleranceCalculator::class);
-        $resolver     = app(InvoiceBilledValueResolver::class);
-        $exchangeRate = (float) ($this->input('exchange_rate') ?: 1);
-        $netValues    = $resolver->netValues(
-            $rows,
+        $calculator    = app(ToleranceCalculator::class);
+        $resolver      = app(InvoiceBilledValueResolver::class);
+        $exchangeRate  = (float) ($this->input('exchange_rate') ?: 1);
+        $poItemsForTax = collect($rows)->pluck('purchase_order_item.id')->filter()->unique()->values();
+        $taxSources    = $poItemsForTax->isEmpty() ? collect() : PurchaseOrderItem::query()->with('taxLines')->whereIn('id', $poItemsForTax)->get()->keyBy('id');
+        $netValues     = $resolver->netValues(
+            $resolver->alignTaxesToSource($rows, fn (array $row) => $taxSources->get($row['purchase_order_item']['id'] ?? '')),
             fn (array $row) => (float) ($row['rate'] ?? 0),
             $this->input('discount_on'),
             $this->input('discount_rate'),

@@ -22,6 +22,9 @@ trait ExposesInvoicePrintTax {
             return null;
         }
 
+        // Baris pajak item (pajak majemuk) dibaca dari pivot; dimuat sekali agar tidak N+1.
+        $this->items->loadMissing('taxLines');
+
         return app(InvoicePrintTotals::class)->dpp($this->items);
     }
 }

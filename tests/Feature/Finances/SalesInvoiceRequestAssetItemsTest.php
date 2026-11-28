@@ -283,7 +283,7 @@ class SalesInvoiceRequestAssetItemsTest extends TestCase {
         unset($asset['tax']);
 
         $noTaxRows = $this->validate(['items' => [$salesOrderRow, $freeItem, $asset]]);
-        $this->assertEqualsCanonicalizing(['items.0.tax.id', 'items.1.tax.id', 'items.2.tax.id'], array_keys($noTaxRows->errors()->toArray()));
+        $this->assertEqualsCanonicalizing(['items.0.taxes', 'items.1.taxes', 'items.2.taxes'], array_keys($noTaxRows->errors()->toArray()));
 
         // Aturan "tanpa pajak" eksplisit untuk Sales Invoice dan semua jenis barang mencakup ketiga baris.
         DefaultTaxRule::query()->create(['module' => 'sales', 'document_type' => 'sales_invoice', 'tax_id' => null, 'priority' => 0]);
@@ -406,5 +406,87 @@ class SalesInvoiceRequestAssetItemsTest extends TestCase {
         ]);
 
         $this->assertSame(['items.1.sales_order_item.id'], array_keys($validator->errors()->toArray()));
+    }
+
+    // --- pajak majemuk per item (spek finance-multi-tax-per-item, Requirement 2, 8) --------------------
+
+    /**
+     * Menjalankan `prepareForValidation()` (normalisasi `tax` menjadi `taxes`) lalu memvalidasi baris.
+     *
+     * @param  array<int, array<string, mixed>>  $rows
+     */
+    private function validateNormalized(array $rows): array {
+        $request = SalesInvoiceRequest::create('/', 'POST', ['items' => $rows]);
+        $request->setContainer(app());
+        $method = new \ReflectionMethod($request, 'prepareForValidation');
+        $method->invoke($request);
+
+        $data      = ['items' => $request->input('items')];
+        $validator = ValidatorFacade::make($data, $this->itemRules($request));
+        $request->withValidator($validator);
+
+        return ['data' => $data, 'validator' => $validator];
+    }
+
+    #[Test]
+    public function the_single_tax_form_is_normalized_to_taxes_and_taxes_wins_when_both_are_sent(): void {
+        $other = TaxFactory::new()->create();
+
+        $single = $this->validateNormalized([$this->freeItemRow('f1')]);
+        $this->assertSame([['id' => $this->taxId]], $single['data']['items'][0]['taxes']);
+        $this->assertArrayNotHasKey('tax', $single['data']['items'][0]);
+        $this->assertFalse($single['validator']->fails(), json_encode($single['validator']->errors()->toArray()));
+
+        $both = $this->validateNormalized([$this->freeItemRow('f1', ['taxes' => [['id' => $other->id]]])]);
+        $this->assertSame([['id' => $other->id]], $both['data']['items'][0]['taxes'], 'Bila keduanya dikirim, taxes menang.');
+    }
+
+    #[Test]
+    public function taxes_accepts_several_existing_taxes_and_requires_each_id_to_exist(): void {
+        $ppn = TaxFactory::new()->create(['category' => 'ppn_standard']);
+        $pph = TaxFactory::new()->create(['category' => 'pph_23', 'behavior' => 'withholding']);
+
+        $ok = $this->validateNormalized([$this->freeItemRow('f1', ['taxes' => [['id' => $ppn->id, 'name' => 'x'], ['id' => $pph->id]]])]);
+        $this->assertFalse($ok['validator']->fails(), json_encode($ok['validator']->errors()->toArray()));
+
+        $missing = $this->validateNormalized([$this->freeItemRow('f1', ['taxes' => [['id' => (string) Str::ulid()]]])]);
+        $this->assertArrayHasKey('items.0.taxes.0.id', $missing['validator']->errors()->toArray());
+    }
+
+    #[Test]
+    public function forbidden_tax_combinations_are_rejected_on_the_taxes_key(): void {
+        $ppn  = TaxFactory::new()->create(['category' => 'ppn_standard']);
+        $ppn2 = TaxFactory::new()->create(['category' => 'ppn_standard']);
+        $pph  = TaxFactory::new()->create(['category' => 'pph_23', 'behavior' => 'withholding']);
+        $six  = TaxFactory::new()->count(6)->create(['category' => 'other'])->map(fn ($tax): array => ['id' => $tax->id])->all();
+
+        $duplicate = $this->validateNormalized([$this->freeItemRow('f1', ['taxes' => [['id' => $pph->id], ['id' => $pph->id]]])]);
+        $this->assertSame(['items.0.taxes'], array_keys($duplicate['validator']->errors()->toArray()));
+
+        $twoPpn = $this->validateNormalized([$this->freeItemRow('f1', ['taxes' => [['id' => $ppn->id], ['id' => $ppn2->id]]])]);
+        $this->assertSame(['items.0.taxes'], array_keys($twoPpn['validator']->errors()->toArray()));
+
+        $tooMany = $this->validateNormalized([$this->freeItemRow('f1', ['taxes' => $six])]);
+        $this->assertArrayHasKey('items.0.taxes', $tooMany['validator']->errors()->toArray(), 'Lebih dari 5 pajak ditolak.');
+
+        $allowed = $this->validateNormalized([$this->freeItemRow('f1', ['taxes' => [['id' => $ppn->id], ['id' => $pph->id]]])]);
+        $this->assertFalse($allowed['validator']->fails(), 'PPN + PPh boleh.');
+    }
+
+    #[Test]
+    public function calculated_item_columns_do_not_pass_validation_into_the_validated_payload(): void {
+        $result = $this->validateNormalized([$this->freeItemRow('f1', [
+            'dpp_amount'          => 1,
+            'tax_amount'          => 1,
+            'withholding_amount'  => 1,
+            'tax_rate'            => 99,
+            'tax_rule_version_id' => 'forged',
+        ])]);
+
+        $validated = $result['validator']->validated();
+        foreach (['dpp_amount', 'tax_amount', 'withholding_amount', 'tax_rate', 'tax_rule_version_id'] as $column) {
+            $this->assertArrayNotHasKey($column, $validated['items'][0], "{$column} tidak boleh datang dari request.");
+        }
+        $this->assertArrayHasKey('taxes', $validated['items'][0]);
     }
 }

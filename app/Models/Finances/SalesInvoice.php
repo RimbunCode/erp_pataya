@@ -235,6 +235,7 @@ class SalesInvoice extends Model {
             'items',
             'items.item',
             'items.tax',
+            'items.taxes',
             'items.unit',
             'items.salesOrderItem',
             'items.salesOrderItem.item',

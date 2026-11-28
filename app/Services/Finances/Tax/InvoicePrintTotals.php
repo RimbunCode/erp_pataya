@@ -9,7 +9,7 @@ use Illuminate\Support\Collection;
  *
  * - `withholding`: jumlah pajak potong semua baris (`withholding_amount`), tampil sebagai "Pajak Dipotong" supaya
  *   Grand Total (`amount`, sudah dikurangi potongan) cocok dengan baris di atasnya.
- * - `dpp`: DPP hanya dari baris pajak PENAMBAH yang faktor versi aturannya bukan 1/1 (mis. PPN 11/12); null bila tidak
+ * - `dpp`: DPP hanya dari baris pajak (pivot) PENAMBAH yang faktor versi aturannya bukan 1/1 (mis. PPN 11/12); null bila tidak
  *   ada baris seperti itu, sehingga DPP tidak tampil dan basis pajak potong (PPh) tidak tercampur dengan DPP PPN.
  *
  * Tidak mengenal model dokumen: menerima item yang sudah dimuat (`tax_rule_version_id`, `dpp_amount`,
@@ -26,6 +26,9 @@ final class InvoicePrintTotals {
     }
 
     /**
+     * DPP dari baris pajak (pivot) PENAMBAH berfaktor selain 1/1 (pajak majemuk, Requirement 11.4); item tanpa pivot
+     * dibaca satu pajak dari kolom item seperti sebelumnya.
+     *
      * @param  Collection<int, object>  $items
      */
     public function dpp(Collection $items): ?float {
@@ -33,18 +36,20 @@ final class InvoicePrintTotals {
         $found = false;
 
         foreach ($items as $item) {
-            $versionId = $item->tax_rule_version_id ?? null;
-            if (blank($versionId) || (float) ($item->withholding_amount ?? 0) > 0) {
-                continue;
-            }
+            foreach (InvoiceItemTaxLines::of($item) as $line) {
+                $versionId = $line['tax_rule_version_id'];
+                if ($versionId === null || $line['withholding_amount'] > 0) {
+                    continue;
+                }
 
-            $version = $this->resolver->findVersion((string) $versionId);
-            if ($version === null || (int) $version->dpp_numerator === (int) $version->dpp_denominator) {
-                continue;
-            }
+                $version = $this->resolver->findVersion($versionId);
+                if ($version === null || (int) $version->dpp_numerator === (int) $version->dpp_denominator) {
+                    continue;
+                }
 
-            $found = true;
-            $total += (float) $item->dpp_amount;
+                $found = true;
+                $total += $line['dpp_amount'];
+            }
         }
 
         return $found ? round($total, 6) : null;

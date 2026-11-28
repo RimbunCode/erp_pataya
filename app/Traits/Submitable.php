@@ -245,6 +245,26 @@ trait Submitable {
     }
 
     /**
+     * Pajak majemuk per item (spek finance-multi-tax-per-item): item yang punya relasi `taxLines` (pivot pajak per item:
+     * SI/PI/SO/PO/Quotation) menyalin baris pivotnya ke item hasil replikasi. `replicate()` hanya menyalin kolom item
+     * (agregat dan Pajak Utama), sehingga tanpa ini revisi kehilangan pajak non-utama (mis. PPh) sementara agregatnya
+     * tetap terisi. Nilai pivot (versi aturan, tarif, jumlah) disalin apa adanya; dihitung ulang saat draft disimpan.
+     */
+    private static function copyItemTaxLines(Model $item, Model $newItem): void {
+        if (! method_exists($item, 'taxLines')) {
+            return;
+        }
+
+        $relation   = $item->taxLines();
+        $foreignKey = $relation->getForeignKeyName();
+        foreach ($relation->get() as $line) {
+            $copy              = $line->replicate(['id', 'created_at', 'updated_at']);
+            $copy->$foreignKey = $newItem->getKey();
+            $copy->save();
+        }
+    }
+
+    /**
      * Kolom header tambahan yang tidak boleh disalin ke revisi hasil amend (mis. snapshot yang dihitung ulang saat
      * approve). Model dapat menimpa; default kosong.
      *
@@ -321,6 +341,7 @@ trait Submitable {
                             $newItem->$foreignKey = $newData->id;
                             $newItem->save();
                             $idMap[$oldId] = $newItem;
+                            static::copyItemTaxLines($item, $newItem);
                         }
 
                         // Pass 2: remap kolom self-reference (mis. parent_item_id)

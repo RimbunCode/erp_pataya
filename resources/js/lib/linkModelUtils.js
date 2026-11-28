@@ -15,6 +15,15 @@ export function validate(value, model) {
 }
 
 /**
+ * Kunci identitas satu opsi LinkModel (mode `multiple`: toggle, diff per chip).
+ * `thisModel` ikut dihitung karena id lintas model bisa sama.
+ * @param {object|null} option
+ * @returns {string}
+ */
+export const optionKey = (option) =>
+  `${option?.thisModel ?? ""}:${option?.id ?? JSON.stringify(option?.templateLink ?? "")}`;
+
+/**
  * Nilai cmdk baris opsi berprefiks indeks sumber -- id PO Item dan id
  * ItemVariant bisa sama, jadi tanpa prefiks sorotan/pilihan bisa bentrok.
  * Selalu string (cmdk men-treat `value` sbg string).
