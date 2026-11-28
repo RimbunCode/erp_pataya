@@ -37,7 +37,7 @@ class ExchangeRateController extends Controller {
     protected function enforcePermission(string $method) {
         return match ($method) {
             'save', 'correct' => 'write',
-            default => parent::enforcePermission($method),
+            default           => parent::enforcePermission($method),
         };
     }
 
