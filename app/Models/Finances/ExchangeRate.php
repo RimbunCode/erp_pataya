@@ -47,7 +47,16 @@ class ExchangeRate extends Model {
     protected $guarded = ['*'];
 
     public string $translateKey = 'finances.exchangeRate';
-    protected $casts            = [
+
+    /**
+     * Atribut yang selalu ikut baris DataTable (kontrak `rowActions` di `DataTable2.jsx`) walau kolomnya disembunyikan
+     * pengguna: dialog "Koreksi Kurs" membutuhkan pasangan, tipe, tanggal, dan nilai kurs baris.
+     *
+     * @var list<string>
+     */
+    protected static array $rowActionAttributes = ['from_currency_code', 'to_currency_code', 'rate_type', 'rate', 'rate_date'];
+
+    protected $casts = [
         'rate_type' => RateType::class,
         // Cast hanya untuk MEMBACA (Carbon). Penulisan dinormalkan `Y-m-d` oleh `setRateDateAttribute`, sehingga nilai
         // tersimpan polos tanggal (tanpa jam) di SQLite maupun MySQL dan `where('rate_date', '<=', $day)` serta kunci
@@ -59,7 +68,7 @@ class ExchangeRate extends Model {
     ];
 
     /**
-     * Izin Requirement 1.5: `select`, `read`, `write`, `import` (`import` lewat `extraPermissions`).
+     * Izin Requirement 1.5: `select`, `read`, `write`, `delete`, `import` (`import` lewat `extraPermissions`; `delete` hanya untuk kurs yang belum dirujuk).
      *
      * @return string[]
      */
@@ -68,6 +77,7 @@ class ExchangeRate extends Model {
             'select',
             'read',
             'write',
+            'delete',
         ];
     }
 

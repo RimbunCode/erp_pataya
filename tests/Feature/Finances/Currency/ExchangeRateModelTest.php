@@ -61,7 +61,7 @@ class ExchangeRateModelTest extends TestCase {
 
         $permission = Permission::withoutGlobalScopes()->where('model', ExchangeRate::class)->firstOrFail();
 
-        $this->assertEqualsCanonicalizing(['select', 'read', 'write', 'import'], $permission->permissions);
+        $this->assertEqualsCanonicalizing(['select', 'read', 'write', 'delete', 'import'], $permission->permissions);
     }
 
     public function test_unique_key_is_pair_type_and_date(): void {

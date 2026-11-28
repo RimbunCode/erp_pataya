@@ -26,7 +26,38 @@ return [
         ],
     ],
 
+    'messages' => [
+        'created'   => 'Exchange rate added.',
+        'updated'   => 'Exchange rate corrected.',
+        'deleted'   => 'Exchange rate deleted.',
+        'unchanged' => 'The rate already matches the stored value; nothing changed.',
+    ],
+
+    'page' => [
+        'delete'              => 'Delete Rate',
+        'delete_title'        => 'Delete this rate?',
+        'delete_description'  => 'The rate is deleted permanently and recorded in the audit log. Only rates not used by any transaction can be deleted.',
+        'add'                 => 'Add Rate',
+        'import'              => 'Import CSV',
+        'correct'             => 'Correct Rate',
+        'save'                => 'Save',
+        'cancel'              => 'Cancel',
+        'close'               => 'Close',
+        'form_description'    => 'The rate is the amount of the target currency for 1 unit of the source currency. Use a dot as the decimal separator (15500.25). If the pair, type, and date already exist and are not used by any transaction, the value is corrected.',
+        'correct_description' => 'Only the rate value can be corrected, and only while no transaction uses it.',
+        'currency_hint'       => 'Currency code, e.g. USD',
+        'import_title'        => 'Import Rates from CSV',
+        'import_description'  => 'Upload a CSV file with the header :columns (any order; comma or semicolon separated). Maximum :max MB. Valid rows are saved even when other rows fail.',
+        'import_file'         => 'CSV file',
+        'import_submit'       => 'Import',
+        'import_report'       => 'Import Result',
+        'import_summary'      => ':created added, :updated corrected, :unchanged unchanged, :errors errors.',
+        'import_line'         => 'Line :line',
+        'import_omitted'      => ':count more errors are not shown.',
+    ],
+
     'errors' => [
+        'already_exists'       => 'A rate for this pair, type, and date already exists. Change its value with the Correct action in the rate list.',
         'no_rate'              => 'No :type rate from :from to :to found for :date. Add the rate in the Exchange Rates master.',
         'immutable_referenced' => 'This rate is already used by transactions and cannot be changed or deleted. Create a rate with another type or date.',
         'same_currency'        => 'The source and target currencies must be different.',

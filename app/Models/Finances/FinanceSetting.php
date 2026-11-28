@@ -104,6 +104,10 @@ class FinanceSetting extends ModuleSetting {
             // Requirement 14.1: kosong = nonaktif. Validasi peran `discount` terpetakan (14.4) ada di SettingsService.
             'discount_split_from_sales_invoice'    => ['sometimes', 'nullable', 'date_format:Y-m-d'],
             'discount_split_from_purchase_invoice' => ['sometimes', 'nullable', 'date_format:Y-m-d'],
+            // Setting FX Engine (Finance Fase 4, Requirement 2.1-2.2): dibuka di halaman Pengaturan Keuangan
+            // (keputusan pemilik produk 2026-11-28). Kolom NOT NULL: null ditolak validasi (422).
+            'fx_max_age_days'  => ['sometimes', 'required', 'integer', 'min:0', 'max:3650'],
+            'fx_allow_inverse' => ['sometimes', 'required', 'boolean'],
         ];
     }
 
@@ -128,9 +132,6 @@ class FinanceSetting extends ModuleSetting {
             'tax_split_from.*'        => ['nullable', 'date_format:Y-m-d'],
             'company_is_pkp'          => ['required', 'boolean'],
             'tax_engine_calc_enabled' => ['required', 'boolean'],
-            // Setting FX Engine (Fase 4): belum tampil di halaman setting umum (menunggu keputusan UI).
-            'fx_max_age_days'  => ['required', 'integer', 'min:0', 'max:3650'],
-            'fx_allow_inverse' => ['required', 'boolean'],
         ];
     }
 }

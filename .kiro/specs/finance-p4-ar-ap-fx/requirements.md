@@ -45,7 +45,7 @@ Kondisi nyata yang membentuk fase ini (diverifikasi di kode):
 2. THE sistem SHALL menolak `from = to`, `rate <= 0`, dan kurs untuk kode mata uang yang tidak ada.
 3. THE kurs yang sudah dirujuk transaksi SHALL tidak diubah; koreksi dilakukan dengan baris baru pada tanggal/tipe yang sama hanya jika belum dirujuk, atau dengan tipe/tanggal berbeda; upaya mengubah kurs yang dirujuk ditolak.
 4. THE sistem SHALL menyediakan antarmuka `ExchangeRateProvider` dengan penyedia `ManualProvider` (input UI) dan `CsvImportProvider` (impor berkas dengan validasi per baris dan laporan galat), tanpa ketergantungan jaringan.
-5. THE halaman Kurs SHALL menampilkan daftar (filter pasangan/tipe/tanggal), form tambah, dan impor CSV, di balik izin `ExchangeRate` (`select`, `read`, `write`, `import`).
+5. THE halaman Kurs SHALL menampilkan daftar (filter pasangan/tipe/tanggal), form tambah, koreksi nilai, hapus, dan impor CSV, di balik izin `ExchangeRate` (`select`, `read`, `write`, `import`, `delete`). Form tambah SHALL menolak pasangan/tipe/tanggal yang sudah ada dengan galat yang mengarahkan ke aksi Koreksi; impor CSV tetap upsert. Hapus SHALL hanya untuk kurs yang belum dirujuk transaksi, dengan konfirmasi, dan nilai yang dihapus tercatat di audit log (keputusan pemilik produk 28 November 2026).
 
 ### Requirement 2: `FxEngine` dan konversi yang dapat dijelaskan
 
@@ -169,7 +169,7 @@ Kondisi nyata yang membentuk fase ini (diverifikasi di kode):
 
 1. THE perubahan jurnal Payment Entry SHALL diaktifkan lewat mode Posting Engine yang ada (`finance_posting_mode.payment_entry`) dan sakelar tambahan `finance_payment_allocation_enabled` (default `false`); saat `false`, alur Fase 2 (parity) tetap berjalan.
 2. THE sistem SHALL menolak aktivasi sakelar bila rekonsiliasi sub-ledger awal tidak hijau atau backfill belum selesai.
-3. THE tabel/model baru SHALL mendeklarasikan kolom eksplisit di migration dan diuji terhadap `initPermissions()` (F-12); izin: `ExchangeRate`, `PaymentAllocation` (`select`, `read`).
+3. THE tabel/model baru SHALL mendeklarasikan kolom eksplisit di migration dan diuji terhadap `initPermissions()` (F-12); izin: `ExchangeRate` (`select`, `read`, `write`, `import`, `delete`; keputusan pemilik produk 28 November 2026, konsisten dengan Requirement 1.5) dan `PaymentAllocation` (`select`, `read`).
 4. THE operasi alokasi pada satu dokumen SHALL aman terhadap konkurensi (`lockForUpdate` pada dokumen dan Payment Entry; pola yang sudah dipakai `PaymentEntryService`).
 5. THE characterization Fase 0, test Fase 1–3, dan test Payment/Invoice existing (`PaymentEntrySubmitTest`, `PurchaseInvoice*`, `SalesInvoice*`) SHALL tetap hijau pada sakelar `false`.
 6. THE perubahan perilaku yang disengaja (jumlah jurnal pembayaran, F-10) SHALL dicatat di decision log beserta persetujuan pemilik produk.
@@ -183,6 +183,8 @@ Diputuskan sebelum Fase 4 dimulai (pemilik produk memutuskan atau menyerahkan pi
 - **Q-P4-2 (pembayaran valas):** fleksibel. `payment_entries` boleh berupa mata uang dasar atau mata uang asing; pembayaran yang dikonversi bank ke IDR dicatat dalam IDR dan selisih kurs dihitung dari jumlah IDR aktual. Kombinasi tiga mata uang berbeda tetap ditolak (Requirement 7.7, Q-P4-1: tidak didukung sekarang).
 - **Q-P4-3 (uang muka):** dipakai; Requirement 5.8 (alokasi uang muka beserta jurnal reklasifikasi) dikerjakan di Fase 4, bukan ditunda.
 - **Q-P4-4:** sudah terjawab oleh hotfix Payment Entry (PR #277; F-10 dikonfirmasi bug dan diperbaiki).
+- **Izin dan UI master Kurs (28 November 2026, pemilik produk menyetujui saat Task 3):** (1) izin `ExchangeRate` = `select`, `read`, `write`, `import` (Requirement 12.3 diubah agar konsisten dengan Requirement 1.5); (2) setting `finance_fx_max_age_days` dan `finance_fx_allow_inverse` DIBUKA di halaman Pengaturan Keuangan (tab "Kurs"), divalidasi lewat `FinanceSetting::rules()` (bukan lagi `internalRules()`); (3) penyedia kurs API otomatis TIDAK dikerjakan di fase ini (hanya Manual dan CSV), sesuai bagian "Di luar scope".
+- **Hapus kurs dan form tambah (28 November 2026, pemilik produk menyetujui saat Task 3):** (1) izin `delete` ditambahkan pada `ExchangeRate`; kurs yang belum dirujuk dapat dihapus dari UI dengan konfirmasi dan audit log. (2) Form tambah menolak kunci (pasangan, tipe, tanggal) yang sudah ada; nilai diubah lewat Koreksi. Impor CSV tetap upsert. Alasan: mencegah penimpaan kurs tanpa sengaja, hapus dibatasi agar jejak kurs terpakai tetap utuh.
 - **D-17 (toleransi selisih kecil `payment_difference`):** tetap usulan spek, default `finance_payment_tolerance` = 0 (dapat dikonfigurasi).
 
 ## Pertanyaan yang Menunggu Konfirmasi

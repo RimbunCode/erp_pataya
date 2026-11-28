@@ -10,6 +10,13 @@ return [
         'range_not_configured' => 'Range nomor seri Faktur Pajak belum dikonfigurasi. Hubungi admin untuk mengisi rentang di Pengaturan Keuangan.',
         'range_exhausted'      => 'Range nomor seri Faktur Pajak yang dialokasikan sudah habis. Hubungi admin untuk alokasi range baru dari DJP.',
     ],
+    'fx' => [
+        'title'              => 'Kurs',
+        'max_age_days'       => 'Umur Maksimum Kurs (hari)',
+        'max_age_days_help'  => 'Bila tidak ada kurs pada tanggal transaksi, dipakai kurs terdekat sebelumnya dalam batas hari ini. Isi 0 untuk hanya menerima kurs pada tanggal yang tepat. Maksimal 3650.',
+        'allow_inverse'      => 'Izinkan Kurs Kebalikan',
+        'allow_inverse_help' => 'Bila kurs langsung tidak ada, kurs pasangan sebaliknya dipakai dengan pembagian (kurs dikalikan balik).',
+    ],
     'posting' => [
         'title'                                => 'Posting',
         'discount_split_from_sales_invoice'    => 'Diskon Terpisah Sales Invoice Mulai',

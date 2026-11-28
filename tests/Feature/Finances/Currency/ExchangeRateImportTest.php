@@ -227,11 +227,27 @@ class ExchangeRateImportTest extends TestCase {
         $this->assertSame(0, ExchangeRate::query()->count());
     }
 
-    public function test_empty_csv_reports_nothing_and_stores_nothing(): void {
-        $report = $this->csv()->importString('');
+    public function test_empty_or_blank_csv_reports_an_error_instead_of_a_silent_zero(): void {
+        foreach (['', "   \n\t\n  ", "\n\n"] as $content) {
+            $report = $this->csv()->importString($content);
 
-        $this->assertSame([0, 0, 0], [$report->created, $report->updated, $report->unchanged]);
+            $this->assertSame([0, 0, 0], [$report->created, $report->updated, $report->unchanged]);
+            $this->assertSame(1, $report->errorCount());
+            $this->assertStringContainsString('from_currency_code', $report->errors[0]['message']);
+        }
         $this->assertSame(0, ExchangeRate::query()->count());
+    }
+
+    public function test_error_messages_truncate_long_cell_values(): void {
+        $long = str_repeat('Z', 500);
+
+        $report = $this->csv()->importString(self::HEADER . "\n{$long},IDR,transaction,15500,2026-11-27\nUSD,IDR,{$long},15500,2026-11-27\nUSD,IDR,transaction,15500,{$long}\n");
+
+        $this->assertSame(3, $report->errorCount());
+        foreach ($report->errors as $error) {
+            $this->assertLessThan(200, mb_strlen($error['message']));
+            $this->assertStringNotContainsString(str_repeat('Z', 51), $error['message']);
+        }
     }
 
     public function test_import_file_reads_from_disk_and_reports_unreadable_files(): void {

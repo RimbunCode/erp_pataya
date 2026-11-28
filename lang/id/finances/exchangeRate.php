@@ -26,7 +26,38 @@ return [
         ],
     ],
 
+    'messages' => [
+        'created'   => 'Kurs berhasil ditambahkan.',
+        'updated'   => 'Kurs berhasil dikoreksi.',
+        'deleted'   => 'Kurs berhasil dihapus.',
+        'unchanged' => 'Kurs sudah sama dengan yang tersimpan; tidak ada perubahan.',
+    ],
+
+    'page' => [
+        'delete'              => 'Hapus Kurs',
+        'delete_title'        => 'Hapus kurs ini?',
+        'delete_description'  => 'Kurs dihapus permanen dan tercatat di log audit. Hanya kurs yang belum dipakai transaksi yang dapat dihapus.',
+        'add'                 => 'Tambah Kurs',
+        'import'              => 'Impor CSV',
+        'correct'             => 'Koreksi Kurs',
+        'save'                => 'Simpan',
+        'cancel'              => 'Batal',
+        'close'               => 'Tutup',
+        'form_description'    => 'Kurs berarti jumlah mata uang tujuan untuk 1 unit mata uang asal. Gunakan titik sebagai pemisah desimal (15500.25). Bila pasangan, tipe, dan tanggal sudah ada dan belum dipakai transaksi, nilainya dikoreksi.',
+        'correct_description' => 'Hanya nilai kurs yang dapat dikoreksi, dan hanya bila belum dipakai transaksi.',
+        'currency_hint'       => 'Kode mata uang, mis. USD',
+        'import_title'        => 'Impor Kurs dari CSV',
+        'import_description'  => 'Unggah berkas CSV dengan header :columns (urutan bebas; pemisah koma atau titik koma). Maksimal :max MB. Baris yang valid tetap tersimpan walau baris lain galat.',
+        'import_file'         => 'Berkas CSV',
+        'import_submit'       => 'Impor',
+        'import_report'       => 'Hasil Impor',
+        'import_summary'      => ':created ditambahkan, :updated dikoreksi, :unchanged tidak berubah, :errors galat.',
+        'import_line'         => 'Baris :line',
+        'import_omitted'      => ':count galat lain tidak ditampilkan.',
+    ],
+
     'errors' => [
+        'already_exists'       => 'Kurs untuk pasangan, tipe, dan tanggal ini sudah ada. Ubah nilainya lewat aksi Koreksi pada daftar kurs.',
         'no_rate'              => 'Kurs :from ke :to bertipe :type untuk tanggal :date tidak ditemukan. Tambahkan kurs di master Kurs.',
         'immutable_referenced' => 'Kurs ini sudah dipakai transaksi dan tidak dapat diubah atau dihapus. Buat kurs pada tipe atau tanggal lain.',
         'same_currency'        => 'Mata uang asal dan tujuan tidak boleh sama.',

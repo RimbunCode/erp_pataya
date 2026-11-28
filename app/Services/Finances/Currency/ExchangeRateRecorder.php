@@ -60,7 +60,7 @@ final class ExchangeRateRecorder {
         $to   = strtoupper(trim((string) $row['to_currency_code']));
         foreach (['from_currency_code' => $from, 'to_currency_code' => $to] as $field => $code) {
             if (! $this->currencyExists($code)) {
-                $errors[$field] = __('finances/exchangeRate.errors.unknown_currency', ['code' => $code]);
+                $errors[$field] = __('finances/exchangeRate.errors.unknown_currency', ['code' => $this->short($code)]);
             }
         }
         if ($from === $to) {
@@ -69,12 +69,12 @@ final class ExchangeRateRecorder {
 
         $type = $row['rate_type'] instanceof RateType ? $row['rate_type'] : RateType::tryFrom(trim((string) $row['rate_type']));
         if ($type === null) {
-            $errors['rate_type'] = __('finances/exchangeRate.errors.invalid_type', ['type' => (string) $row['rate_type']]);
+            $errors['rate_type'] = __('finances/exchangeRate.errors.invalid_type', ['type' => $this->short((string) $row['rate_type'])]);
         }
 
         $date = $this->parseDate($row['rate_date']);
         if ($date === null) {
-            $errors['rate_date'] = __('finances/exchangeRate.errors.invalid_date', ['date' => \is_scalar($row['rate_date']) ? (string) $row['rate_date'] : '']);
+            $errors['rate_date'] = __('finances/exchangeRate.errors.invalid_date', ['date' => \is_scalar($row['rate_date']) ? $this->short((string) $row['rate_date']) : '']);
         }
 
         $rate = $this->validateRate($row['rate'], $errors);
@@ -90,17 +90,22 @@ final class ExchangeRateRecorder {
      * Mencatat satu baris (create, update bila belum dirujuk, atau lewati bila identik).
      *
      * @param  array<string, mixed>  $row
+     * @param  bool  $insertOnly  true = hanya membuat baris baru; kunci yang sudah ada melempar `InvalidExchangeRateException` (`already_exists`)
      * @return self::CREATED|self::UPDATED|self::UNCHANGED
      *
      * @throws InvalidExchangeRateException
      * @throws ImmutableRateException bila kurs sudah dirujuk dan nilainya berbeda
      */
-    public function record(array $row, string $source, ?string $sourceRef = null, ?string $createdById = null): string {
+    public function record(array $row, string $source, ?string $sourceRef = null, ?string $createdById = null, bool $insertOnly = false): string {
         $data = $this->validate($row);
 
         try {
-            return $this->write($data, $source, $sourceRef, $createdById);
+            return $this->write($data, $source, $sourceRef, $createdById, $insertOnly);
         } catch (UniqueConstraintViolationException) {
+            if ($insertOnly) {
+                throw $this->alreadyExists();
+            }
+
             // Penulis lain menyisipkan kunci yang sama di antara pencarian dan insert: ulangi sebagai jalur "existing".
             return $this->write($data, $source, $sourceRef, $createdById);
         }
@@ -110,8 +115,8 @@ final class ExchangeRateRecorder {
      * @param  array{from: string, to: string, type: RateType, rate: string, date: string}  $data
      * @return self::CREATED|self::UPDATED|self::UNCHANGED
      */
-    private function write(array $data, string $source, ?string $sourceRef, ?string $createdById): string {
-        return DB::transaction(function () use ($data, $source, $sourceRef, $createdById): string {
+    private function write(array $data, string $source, ?string $sourceRef, ?string $createdById, bool $insertOnly = false): string {
+        return DB::transaction(function () use ($data, $source, $sourceRef, $createdById, $insertOnly): string {
             $existing = ExchangeRate::query()
                 ->where('from_currency_code', $data['from'])
                 ->where('to_currency_code', $data['to'])
@@ -119,6 +124,10 @@ final class ExchangeRateRecorder {
                 ->where('rate_date', $data['date'])
                 ->lockForUpdate()
                 ->first();
+
+            if ($existing !== null && $insertOnly) {
+                throw $this->alreadyExists();
+            }
 
             if ($existing === null) {
                 (new ExchangeRate)->forceFill([
@@ -194,6 +203,16 @@ final class ExchangeRateRecorder {
         }
 
         return $report;
+    }
+
+    /** Mode insert-only (form Tambah, Requirement 1.5): kunci yang sudah ada ditolak, bukan dikoreksi diam-diam. */
+    private function alreadyExists(): InvalidExchangeRateException {
+        return new InvalidExchangeRateException(['rate_date' => __('finances/exchangeRate.errors.already_exists')]);
+    }
+
+    /** Nilai sel masukan dipotong (maks 50 karakter) sebelum masuk pesan galat agar laporan tidak membengkak. */
+    private function short(string $value): string {
+        return mb_strlen($value) > 50 ? mb_substr($value, 0, 50) . '…' : $value;
     }
 
     private function isConstraintViolation(QueryException $e): bool {

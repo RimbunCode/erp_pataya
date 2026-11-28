@@ -2,6 +2,7 @@ import React from "react";
 import FormInput from "@/Components/FormInput";
 import NumberInput from "@/Components/NumberInput";
 import DatetimePicker from "@/Components/DatetimePicker";
+import { Switch } from "@/Components/ui/switch";
 import ModuleSettingsPage from "./ModuleSettingsPage";
 import { useLaravelReactI18n } from "laravel-react-i18n";
 
@@ -18,6 +19,11 @@ export default function FinanceSettings({ setting = {}, canWrite = true }) {
       value: "posting",
       title: "finances.setting.posting.title",
       label: t("finances.setting.posting.title", "Posting"),
+    },
+    {
+      value: "fx",
+      title: "finances.setting.fx.title",
+      label: t("finances.setting.fx.title", "Kurs"),
     },
   ];
 
@@ -48,7 +54,57 @@ export default function FinanceSettings({ setting = {}, canWrite = true }) {
       readOnlyFields={["tax_invoice_serial_last_used"]}
     >
       {({ data, setData, disabled, tab }) =>
-        tab === "posting" ? (
+        tab === "fx" ? (
+          <div
+            className="grid max-w-xl gap-4"
+            data-testid="finance-fx-settings"
+          >
+            <FormInput
+              name="fx_max_age_days"
+              label={t(
+                "finances.setting.fx.max_age_days",
+                "Umur Maksimum Kurs (hari)",
+              )}
+            >
+              <NumberInput
+                allowDecimals={false}
+                decimalScale={0}
+                disabled={disabled}
+                value={data.fx_max_age_days ?? ""}
+                onValueChange={(val) => setData("fx_max_age_days", val)}
+              />
+              <p className="text-sm text-muted-foreground">
+                {t(
+                  "finances.setting.fx.max_age_days_help",
+                  "Bila tidak ada kurs pada tanggal transaksi, dipakai kurs terdekat sebelumnya dalam batas hari ini.",
+                )}
+              </p>
+            </FormInput>
+            <FormInput
+              name="fx_allow_inverse"
+              label={t(
+                "finances.setting.fx.allow_inverse",
+                "Izinkan Kurs Kebalikan",
+              )}
+            >
+              <Switch
+                aria-label={t(
+                  "finances.setting.fx.allow_inverse",
+                  "Izinkan Kurs Kebalikan",
+                )}
+                disabled={disabled}
+                checked={Boolean(data.fx_allow_inverse)}
+                onCheckedChange={(val) => setData("fx_allow_inverse", val)}
+              />
+              <p className="text-sm text-muted-foreground">
+                {t(
+                  "finances.setting.fx.allow_inverse_help",
+                  "Bila kurs langsung tidak ada, kurs pasangan sebaliknya dipakai dengan pembagian.",
+                )}
+              </p>
+            </FormInput>
+          </div>
+        ) : tab === "posting" ? (
           <div
             className="grid max-w-xl gap-4"
             data-testid="finance-posting-settings"
