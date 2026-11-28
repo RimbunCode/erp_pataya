@@ -14,30 +14,65 @@ Urutan: baca kode pembayaran + audit data (1), FX Engine dan kurs (2–3, tanpa 
 
 ## Tasks
 
-- [ ] 1. Verifikasi dan audit (read-only)
-  - [ ] 1.1 Baca penuh `PaymentEntryService`, `PaymentEntryController`, `PaymentEntryRequest`, form React Payment Entry, dan `UpdatePaymentableStatus`; catat arti `account_paid_from/to` untuk `receive` dan `pay`, serta alur jalur invoice ke pembayaran
+- [x] 1. Verifikasi dan audit (read-only)
+  - [x] 1.1 Baca penuh `PaymentEntryService`, `PaymentEntryController`, `PaymentEntryRequest`, form React Payment Entry, dan `UpdatePaymentableStatus`; catat arti `account_paid_from/to` untuk `receive` dan `pay`, serta alur jalur invoice ke pembayaran
     - _Requirements: 5.4, 7.2–7.3_
-  - [ ] 1.2 Baca alur retur di `SalesInvoiceService`/`PurchaseInvoiceService` (efek terhadap `paid_amount`/status invoice asal) untuk menentukan alokasi `credit_note`
+    - **Temuan (audit kode 28 November 2026, tanpa perubahan perilaku):**
+      - `account_paid_from_id`/`account_paid_to_id` TIDAK lagi bermakna: `PaymentEntryService::fillRelations` selalu mengosongkannya (Q-P2-23) dan `PaymentEntryPostingContextFactory` tidak membacanya. Akun datang dari Posting Profile: kas/bank dari `default_account_id` Metode Pembayaran (peran `cash_or_bank`), lawan dari peran `receivable`/`payable`. `PaymentEntryRule`: `receive` = Debit `cash_or_bank`, Kredit lawan; `pay` = Debit lawan, Kredit `cash_or_bank`. Asumsi tabel rule Fase 4 (design: receive/pay) cocok; tidak perlu mengubah `design.md`.
+      - F-10 sudah ditutup hotfix PR #277: jumlah jurnal = `paid_amount` entri ini (`amounts['paid_amount']`), bukan kumulatif. Jurnal masih tanpa konversi kurs (F-11 = Fase 4).
+      - Alur satu-invoice: `onApproved` mengunci `paymentable` lalu Payment Entry, menghitung `newPaidAmount = paymentable.paid_amount + paid_amount`, mendistribusi ke `payment_schedules` (`allocateToSchedules`, dihitung dari total), memicu `PaymentApplied` (listener sinkron `UpdatePaymentableStatus` menulis `paid_amount` dan status `PAID`/`PARTIALLY_PAID`), lalu memposting lewat `PostingGateway`. `cancel`/`reversePayment` membalik `paid_amount`, termin, dan status; GL di-soft-delete hook `Submitable`. Ini kode yang dipindah ke `PaymentAllocationService` (Task 6.3), bukan ditulis ulang.
+      - Mata uang tidak divalidasi terhadap invoice: `fillRelations` mengambil `currency.code` dari input (default mata uang dasar) dan mewajibkan `exchange_rate` bila bukan mata uang dasar, tetapi tidak membandingkan dengan mata uang `paymentable`. `exchange_rate` default 0 di tabel; dipaksa 1 bila mata uang = dasar. Task 4.2/6.3 harus menambah validasi kombinasi mata uang.
+      - `PaymentEntryRequest`: `paid_amount` dibatasi `outstanding_amount` paymentable (bukan retur); `partyable.id`/`paymentable.id` wajib kecuali `internal_transfer`. `fillRelations` tetap membaca `partyable['id']` dan `paymentable['id']` tanpa menjaga `internal_transfer` (kemungkinan galat undefined index); `internal_transfer` belum punya alur nyata (menunggu T-4).
+      - Controller `create` mengisi `defaultData` dari `salesInvoice`/`purchaseInvoice` (`paymentSchedule` sebagai alur ketiga); `payment_type` dibalik untuk invoice retur (`return_against_id` terisi: Sales retur = `pay`, Purchase retur = `receive`), jadi retur hari ini dibayar tunai lewat Payment Entry berarah terbalik, bukan lewat alokasi.
+      - Form React (`PaymentEntries/Form.jsx`): satu `paymentable` per Payment Entry, `currency`/`exchange_rate` mengikuti `paymentable` yang dipilih, `payment_schedules` hanya ditampilkan. UI alokasi banyak baris (Task 10) adalah komponen baru; alur satu-invoice harus tetap menerima `paymentable`.
+  - [x] 1.2 Baca alur retur di `SalesInvoiceService`/`PurchaseInvoiceService` (efek terhadap `paid_amount`/status invoice asal) untuk menentukan alokasi `credit_note`
     - _Requirements: 6.1–6.4_
-  - [ ] 1.3 Audit data: Payment Entry berkurs ≠ 1, invoice mata uang asing, pembayaran parsial ganda (konfirmasi F-10 dari Fase 0), `paid_amount` vs Σ termin
+    - **Temuan (audit kode 28 November 2026, tanpa perubahan perilaku):**
+      - Retur disetujui sebagai invoice sendiri (`return_against_id` terisi, `status = RETURNED`, `amount` = nilai retur setelah pajak potong). `returned_quantity` pada item asal ditambah per item.
+      - Efek pada invoice ASAL hanya status: bila seluruh kuantitas sudah diretur → `PAID` (dari `UNPAID`/`PARTIALLY_PAID`); bila sebagian → `PARTIALLY_PAID` atau `PAID` menurut `outstanding_amount <= 0`; diterapkan lewat event `SalesInvoiceReturnStatusChanged` (Sales) atau langsung (Purchase, dengan `lockForUpdate`). `paid_amount` dan `outstanding_amount` (generated `amount - paid_amount`) invoice asal TIDAK berubah; nilai retur tidak mengurangi sisa tagihan asal. Akibatnya retur penuh membuat invoice asal berstatus `PAID` padahal `paid_amount` < `amount`, dan Req 5.6 (`sisa = amount − Σ alokasi − Σ credit_note`) berbeda dari perilaku sekarang sampai alokasi `credit_note` ada.
+      - Penyelesaian retur hari ini: Payment Entry berarah terbalik pada invoice retur itu sendiri (lihat 1.1), dengan batas `outstanding_amount` tidak diterapkan pada retur (`PaymentEntryRequest`). Alokasi `credit_note` (Task 8.1) menambah jalur kedua; perlu diputuskan bagaimana keduanya berdampingan (pertanyaan terbuka di laporan Task 2).
+      - Perhitungan `returned_quantity` dan status `RETURNED` tidak boleh berubah (Req 6.4); hook `autoAllocateCreditNote()` aman ditambahkan sesudah baris `event(...ReturnStatusChanged)`/sesudah blok status Purchase dalam transaksi yang sama.
+  - [x] 1.3 Audit data: Payment Entry berkurs ≠ 1, invoice mata uang asing, pembayaran parsial ganda (konfirmasi F-10 dari Fase 0), `paid_amount` vs Σ termin
     - _Requirements: 10.3_
-  - [ ] 1.4 Audit baris GL receivable/payable tanpa `partyable_*` (jumlah) dan akun kontrol yang dipakai
+    - **Hasil audit DB dev (28 November 2026, query baca-saja oleh koordinator):** 5 Payment Entry (2 paid, 3 canceled), 2 Sales Invoice, 1 Purchase Invoice; semuanya mata uang dasar (kurs 1, `currency_code` null/IDR); tidak ada data valas. Piutang cocok dengan jurnal: Piutang Dagang saldo 1.700.000 = sisa SI-0001 700.000 + SI-0002 1.000.000.
+  - [x] 1.4 Audit baris GL receivable/payable tanpa `partyable_*` (jumlah) dan akun kontrol yang dipakai
     - _Requirements: 4.2, 4.5_
+    - **Hasil audit DB dev (28 November 2026, query baca-saja oleh koordinator):** seluruh 14 baris GL pada akun receivable (Piutang Dagang) dan payable (Hutang Dagang Dalam Negeri) tidak membawa `partyable_*` (backfill Task 5.3 wajib); tidak ada baris valas. Selisih: PI-0001 lunas (outstanding 0) tetapi Hutang Dagang masih kredit 800.000 karena ada baris kredit 800.000 bertanggal 2026-11-11 untuk PaymentEntry-0003 selain jurnal debit asli 2026-11-04 (sisa posting pra-hotfix arah N-4; data uji dev). Rekonsiliasi Task 9 harus menandainya.
 
 - [ ] 2. Master kurs dan FX Engine
-  - [ ] 2.1 Migration `create_exchange_rates_table`; model `ExchangeRate` (guard immutability bila dirujuk), enum `RateType`, izin; test `initPermissions()`
+  - [x] 2.1 Migration `create_exchange_rates_table`; model `ExchangeRate` (guard immutability bila dirujuk), enum `RateType`, izin; test `initPermissions()`
     - _Requirements: 1.1–1.3, 12.3_
-  - [ ] 2.2 `ExchangeRateService` (tepat → terdekat sebelum dalam batas umur → exception; inverse), setting `finance_fx_*`
+    - Catatan implementasi: izin `select`/`read`/`write` + `import` (`extraPermissions`, Req 1.5). "Dirujuk" = kolom `have_transactions` (`ExchangeRate::isReferenced()`); pengikatan ke dokumen dikerjakan Task 4 dan `HaveTransactionsSyncService` perlu dicek saat itu (lihat pertanyaan terbuka).
+  - [x] 2.2 `ExchangeRateService` (tepat → terdekat sebelum dalam batas umur → exception; inverse), setting `finance_fx_*`
     - _Requirements: 2.1–2.2_
-  - [ ] 2.3 `FxConversion` + `FxEngine::convert()` (aritmetika skala bilangan bulat, HALF_UP minor unit, `from = to`) dan tandai `Currency::convertMoney` deprecated
+    - Catatan implementasi: setting `fx_max_age_days` (7) dan `fx_allow_inverse` (true) sebagai kolom `finance_settings` (internal, belum tampil di halaman setting). Kurs langsung dan kebalikan dipertimbangkan bersama: tanggal terbaru menang; bila tanggal sama, kurs langsung menang. Pengecualian `NoExchangeRateException`/`ImmutableRateException`/`InvalidExchangeRateException` ada di `app/Exceptions/Finances/` (konvensi codebase), bukan `Currency/Exceptions/` seperti di design.
+  - [x] 2.3 `FxConversion` + `FxEngine::convert()` (aritmetika skala bilangan bulat, HALF_UP minor unit, `from = to`) dan tandai `Currency::convertMoney` deprecated
     - _Requirements: 2.3–2.6_
-  - [ ]* 2.4 Write unit tests FX
+    - Catatan implementasi: aritmetika memakai `Brick\Math\BigDecimal` (`Decimal`; dependensi transitif `laravel/framework`, bukan bcmath), bukan bilangan bulat 64-bit yang dapat meluap. Konversi kebalikan membagi dengan kurs tersimpan (bukan mengalikan dengan 1/rate yang dibulatkan 8 digit).
+  - [x]* 2.4 Write unit tests FX
     - Tanggal tepat/terdekat/melewati batas; inverse; minor unit 0/2; `from = to`; rate besar/kecil; **P-8** kurs dirujuk tidak dapat diubah
     - **Validates: Requirements 1.3, 2.1–2.4**
-  - [ ] 2.5 `ExchangeRateProvider`, `ManualProvider`, `CsvImportProvider` + perintah `finance:import-exchange-rates` (validasi per baris, laporan galat, idempoten)
+  - [x] 2.5 `ExchangeRateProvider`, `ManualProvider`, `CsvImportProvider` + perintah `finance:import-exchange-rates` (validasi per baris, laporan galat, idempoten)
     - _Requirements: 1.4_
-  - [ ]* 2.6 Write tests impor CSV (baris valid/invalid/duplikat, kode mata uang tak dikenal)
+    - Catatan implementasi: header CSV `from_currency_code,to_currency_code,rate_type,rate,rate_date` (urutan bebas, `,` atau `;`); baris valid tersimpan walau baris lain galat; duplikat dalam berkas dilaporkan pada kemunculan berikutnya; kurs berbeda pada kunci yang sama hanya mengubah baris yang belum dirujuk. Perintah mendukung `--dry-run` dan keluar non-nol bila ada baris galat.
+  - [x]* 2.6 Write tests impor CSV (baris valid/invalid/duplikat, kode mata uang tak dikenal)
     - **Validates: Requirements 1.2, 1.4**
+  - **Pertanyaan Terbuka Task 2** (keputusan implementasi diterapkan sementara, menunggu konfirmasi pemilik produk):
+    - Tipe kurs: enum tetap lima tipe (Req 1.1: `spot`/`transaction`/`closing`/`contract`/`historical`), padahal D-16 hanya memakai `transaction` dan `closing`. Alasan: sesuai Req 1.1 dan tidak membatasi data; dipersempit bila pemilik menghendaki.
+    - Izin `ExchangeRate`: `select`/`read`/`write` ditambah `import` (`extraPermissions`, mengikuti Req 1.5), sedangkan Req 12.3 hanya menyebut `select`/`read`. Req 12.3 belum diubah; diubah hanya bila disetujui.
+    - Konversi kebalikan membagi dengan kurs tersimpan (bukan mengalikan 1/rate yang dibulatkan 8 digit): IDR 15.800.000 dengan USD→IDR 15800 = tepat USD 1000,00, bukan 999,98. `FxConversion::$rate` menampilkan 1/rate (8 digit) hanya sebagai penjelasan. Perlu persetujuan akuntan.
+    - Pemilihan kurs: kurs langsung dan kebalikan dibandingkan bersama; tanggal terbaru menang, bila sama kurs langsung menang (spek hanya menyebut "tepat → terdekat sebelum").
+    - Impor CSV: baris valid tetap tersimpan walau baris lain galat (bukan semua-atau-tidak); duplikat pasangan/tipe/tanggal dalam satu berkas dilaporkan galat pada kemunculan berikutnya; kurs berbeda pada kunci yang sama mengubah baris bila belum dirujuk, galat per baris bila sudah dirujuk; header `from_currency_code,to_currency_code,rate_type,rate,rate_date` (urutan bebas, pemisah `,` atau `;`).
+    - Setting `fx_max_age_days` dan `fx_allow_inverse` hanya internal (tidak tampil di halaman Finance Settings). Perlu keputusan apakah dibuka di UI.
+    - Pengecualian baru di `app/Exceptions/Finances/` (konvensi codebase), bukan `Currency/Exceptions/` seperti di design; `FxEngine::baseCurrency()` mengembalikan `?string` (design: `string`).
+    - **Prasyarat Task 4:** definisi kurs "dirujuk" yang tahan reset. Saat ini `ExchangeRate::isReferenced()` memakai kolom `have_transactions`, yang dapat di-reset `HaveTransactionsSyncService` untuk tabel yang dilacak sehingga kurs terbuka kembali. Task 4 harus menentukan pengikatan dokumen ke kurs yang tidak bergantung pada reset itu (mis. menandai `have_transactions` dari service dokumen dan mengecualikan tabel ini dari reset, atau menyimpan `exchange_rate_id`).
+    - Rekomendasi reviewer untuk prasyarat Task 4 di atas: `exchange_rate_id` nullable FK pada dokumen/baris jurnal yang merujuk kurs, dan JANGAN memasukkan `exchange_rates` ke `tracked_tables` `have_transactions`. `FxConversion` sudah membawa `exchangeRateId` dan `storedRate` untuk keperluan itu.
+    - Perintah impor tanpa opsi `--user=` (pembuat kurs tercatat null pada impor CLI); opsi itu di luar spek dan menunggu keputusan pemilik.
+    - Konflik izin Req 1.5 (`import`) vs Req 12.3 (hanya `select`/`read`) dan pemaparan setting FX di halaman Finance Settings (Task 3) tetap menunggu keputusan; Req 12.3 tidak diubah.
+    - Penegasan: kode mata uang dinormalkan `strtoupper(trim())` lalu dicocokkan ke `currencies.code` (tanpa regex 3 huruf), sehingga kode kustom non-ISO yang ada di master tetap diterima.
+    - Pencatatan kurs konkuren: tes retry unique tidak menguji jalur "existing" sungguhan (satu koneksi uji menggulung seluruh transaksi), dan deadlock MySQL 1213 (REPEATABLE READ) pada dua penulis bersamaan tidak di-retry; keduanya menjadi galat. Diterima sementara karena penulisan kurs jarang dan dilakukan satu operator.
+    - Kode master mata uang kustom harus HURUF BESAR: pencarian memakai `strtoupper`, sedangkan `CurrencyRequest` tidak mewajibkan huruf besar sehingga kode kustom huruf kecil (mis. `usdt`) berperilaku berbeda di SQLite vs MySQL (collation `_ci`). Batasan dicatat; aturan huruf besar pada `CurrencyRequest` menunggu keputusan.
+    - **Prasyarat Task 8:** cara alokasi `credit_note` (Task 8.1) berdampingan dengan jalur retur yang sudah ada (Payment Entry berarah terbalik pada invoice retur; lihat temuan 1.1 dan 1.2), agar tidak terjadi pelunasan ganda atas retur yang sama.
 
 - [ ] 3. UI kurs
   - [ ] 3.1 `ExchangeRateController` + rute + izin; halaman `Finances/ExchangeRates/{Index,Form}.jsx` + impor CSV; `.rtl.test.jsx`; terjemahan

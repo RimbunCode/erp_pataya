@@ -50,6 +50,8 @@ class FinanceSetting extends ModuleSetting {
             'tax_split_from'                 => 'array',
             'company_is_pkp'                 => 'boolean',
             'tax_engine_calc_enabled'        => 'boolean',
+            'fx_max_age_days'                => 'integer',
+            'fx_allow_inverse'               => 'boolean',
         ];
     }
 
@@ -86,6 +88,9 @@ class FinanceSetting extends ModuleSetting {
             // Finance Fase 3, Requirement 2.7 (`finance_tax_engine_calc_enabled`): true sejak migrasi Bagian B
             // (`2026_11_27_100001`); baris setting yang dibuat sesudahnya ikut aktif.
             'tax_engine_calc_enabled' => true,
+            // Finance Fase 4, Requirement 2.1-2.2 (`finance_fx_max_age_days`, `finance_fx_allow_inverse`).
+            'fx_max_age_days'  => 7,
+            'fx_allow_inverse' => true,
         ];
     }
 
@@ -123,6 +128,9 @@ class FinanceSetting extends ModuleSetting {
             'tax_split_from.*'        => ['nullable', 'date_format:Y-m-d'],
             'company_is_pkp'          => ['required', 'boolean'],
             'tax_engine_calc_enabled' => ['required', 'boolean'],
+            // Setting FX Engine (Fase 4): belum tampil di halaman setting umum (menunggu keputusan UI).
+            'fx_max_age_days'  => ['required', 'integer', 'min:0', 'max:3650'],
+            'fx_allow_inverse' => ['required', 'boolean'],
         ];
     }
 }

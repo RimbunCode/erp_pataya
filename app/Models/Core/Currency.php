@@ -26,6 +26,10 @@ class Currency extends Model {
         return ':name (:code)';
     }
 
+    /**
+     * @deprecated Hanya perkalian tanpa kurs bertipe, pembulatan minor unit, atau jejak kurs. Kode baru memakai
+     *             `App\Services\Finances\Currency\FxEngine::convert()` (Finance Fase 4, Requirement 2.6).
+     */
     public static function convertMoney(float $amount, float $exchangeRate = 1) {
         return $amount * $exchangeRate;
     }
