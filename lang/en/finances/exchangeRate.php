@@ -29,10 +29,14 @@ return [
     'messages' => [
         'created'   => 'Exchange rate added.',
         'updated'   => 'Exchange rate corrected.',
+        'deleted'   => 'Exchange rate deleted.',
         'unchanged' => 'The rate already matches the stored value; nothing changed.',
     ],
 
     'page' => [
+        'delete'              => 'Delete Rate',
+        'delete_title'        => 'Delete this rate?',
+        'delete_description'  => 'The rate is deleted permanently and recorded in the audit log. Only rates not used by any transaction can be deleted.',
         'add'                 => 'Add Rate',
         'import'              => 'Import CSV',
         'correct'             => 'Correct Rate',
@@ -53,6 +57,7 @@ return [
     ],
 
     'errors' => [
+        'already_exists'       => 'A rate for this pair, type, and date already exists. Change its value with the Correct action in the rate list.',
         'no_rate'              => 'No :type rate from :from to :to found for :date. Add the rate in the Exchange Rates master.',
         'immutable_referenced' => 'This rate is already used by transactions and cannot be changed or deleted. Create a rate with another type or date.',
         'same_currency'        => 'The source and target currencies must be different.',

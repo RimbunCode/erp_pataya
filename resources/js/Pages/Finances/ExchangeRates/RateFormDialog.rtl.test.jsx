@@ -127,6 +127,21 @@ describe("Finances/ExchangeRates/RateFormDialog", () => {
     ).toBeInTheDocument();
   });
 
+  it("menampilkan galat kurs sudah ada di bawah kolom tanggal pada form tambah", async () => {
+    routerMock.post.mockImplementation((_url, _payload, options) =>
+      options.onError({ rate_date: "Kurs sudah ada. Gunakan Koreksi." }),
+    );
+    render(<RateFormDialog rateTypes={TYPES} row={null} onClose={vi.fn()} />);
+
+    await userEvent.click(
+      screen.getByRole("button", { name: "finances.exchangeRate.page.save" }),
+    );
+
+    expect(
+      await screen.findByText("Kurs sudah ada. Gunakan Koreksi."),
+    ).toBeInTheDocument();
+  });
+
   it("menutup dialog setelah simpan berhasil dan lewat tombol batal", async () => {
     const onClose = vi.fn();
     routerMock.post.mockImplementation((_url, _payload, options) =>

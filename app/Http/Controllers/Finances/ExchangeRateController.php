@@ -3,6 +3,7 @@
 namespace App\Http\Controllers\Finances;
 
 use App\Enums\RateType;
+use App\Events\Core\AuditableModelSaved;
 use App\Exceptions\Finances\ImmutableRateException;
 use App\Exceptions\Finances\InvalidExchangeRateException;
 use App\Http\Controllers\Controller;
@@ -14,17 +15,19 @@ use App\Services\Finances\Currency\Providers\CsvImportProvider;
 use App\Services\Finances\Currency\Providers\ManualProvider;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
+use Illuminate\Support\Facades\DB;
 use Illuminate\Validation\ValidationException;
 use Inertia\Inertia;
 use Inertia\Response;
+use Symfony\Component\HttpKernel\Exception\HttpException;
 
 /**
  * Halaman master Kurs (Finance Fase 4, Requirement 1.5, 11.4): daftar, tambah/koreksi manual, dan impor CSV.
  *
- * Izin `ExchangeRate`: `select` (daftar), `write` (tambah dan koreksi), `import` (impor CSV). Penulisan hanya lewat
+ * Izin `ExchangeRate`: `select` (daftar), `write` (tambah dan koreksi), `import` (impor CSV), `delete` (hapus kurs yang belum dirujuk). Penulisan hanya lewat
  * penyedia kurs (`ManualProvider`/`CsvImportProvider`), yang sendiri TIDAK memeriksa izin; pemeriksaan ada di
  * konstruktor kelas dasar lewat `enforcePermission()`. Nama metode sengaja bukan `store`/`update`/`destroy` karena izin
- * `create`/`delete` tidak ada pada model ini. Kurs tidak dapat dihapus lewat halaman ini.
+ * `create` tidak ada pada model ini dan kelas dasar memetakan `destroy` ke hapus massal.
  *
  * Impor menerima HANYA berkas unggahan (tidak pernah path dari input); isinya dibaca di memori dan `source_ref` berasal
  * dari nama berkas yang disanitasi.
@@ -37,6 +40,7 @@ class ExchangeRateController extends Controller {
     protected function enforcePermission(string $method) {
         return match ($method) {
             'save', 'correct' => 'write',
+            'remove'          => 'delete',
             default           => parent::enforcePermission($method),
         };
     }
@@ -48,6 +52,7 @@ class ExchangeRateController extends Controller {
         return Inertia::render('Finances/ExchangeRates/Index', [
             'canWrite'      => $this->hasPermission('write'),
             'canImport'     => $this->hasPermission('import'),
+            'canDelete'     => $this->hasPermission('delete'),
             'rateTypes'     => RateType::values(),
             'importMaxMb'   => CsvImportProvider::MAX_BYTES / 1024 / 1024,
             'importColumns' => CsvImportProvider::COLUMNS,
@@ -55,13 +60,60 @@ class ExchangeRateController extends Controller {
     }
 
     /**
-     * Tambah kurs. Bila pasangan, tipe, dan tanggal sudah ada, nilainya dikoreksi hanya bila belum dirujuk transaksi
-     * (Requirement 1.3); kurs identik tidak berubah.
+     * Tambah kurs. Pasangan, tipe, dan tanggal yang sudah ada DITOLAK (keputusan pemilik produk 2026-11-28): nilainya
+     * diubah lewat aksi Koreksi. Impor CSV tetap upsert.
      */
     public function save(ExchangeRateRequest $request, ManualProvider $provider): RedirectResponse {
-        $result = $this->record($provider, $request->validated(), $request);
+        $data = $request->validated();
+
+        $date = trim((string) $data['rate_date']);
+        if (preg_match('/^\d{4}-\d{2}-\d{2}$/', $date) === 1) {
+            $exists = ExchangeRate::query()
+                ->where('from_currency_code', strtoupper(trim((string) $data['from_currency_code'])))
+                ->where('to_currency_code', strtoupper(trim((string) $data['to_currency_code'])))
+                ->where('rate_type', $data['rate_type'])
+                ->where('rate_date', $date)
+                ->exists();
+            if ($exists) {
+                throw ValidationException::withMessages(['rate_date' => __('finances/exchangeRate.errors.already_exists')]);
+            }
+        }
+
+        $result = $this->record($provider, $data, $request);
 
         return back()->with('success', __('finances/exchangeRate.messages.' . $result));
+    }
+
+    /**
+     * Hapus kurs yang belum dirujuk transaksi (keputusan pemilik produk 2026-11-28). Dibaca ulang dengan kunci baris
+     * agar status "dirujuk" tidak basi; nilai yang dihapus tercatat di audit log.
+     */
+    public function remove(ExchangeRate $exchangeRate): RedirectResponse {
+        DB::transaction(function () use ($exchangeRate): void {
+            $rate = ExchangeRate::query()->whereKey($exchangeRate->getKey())->lockForUpdate()->firstOrFail();
+            if ($rate->isReferenced()) {
+                throw ValidationException::withMessages(['rate' => __('finances/exchangeRate.errors.immutable_referenced')]);
+            }
+
+            $before = [
+                'from_currency_code' => $rate->from_currency_code,
+                'to_currency_code'   => $rate->to_currency_code,
+                'rate_type'          => $rate->rate_type->value,
+                'rate_date'          => $rate->rate_date->toDateString(),
+                'rate'               => $rate->rate,
+                'source'             => $rate->source,
+                'source_ref'         => $rate->source_ref,
+            ];
+
+            try {
+                $rate->delete();
+            } catch (ImmutableRateException $e) {
+                throw ValidationException::withMessages(['rate' => $e->getMessage()]);
+            }
+            event(new AuditableModelSaved($rate, 'deleted', $before));
+        });
+
+        return back()->with('success', __('finances/exchangeRate.messages.deleted'));
     }
 
     /**
@@ -87,8 +139,12 @@ class ExchangeRateController extends Controller {
         $file    = $request->file('file');
         $content = @file_get_contents($file->getRealPath(), false, null, 0, CsvImportProvider::MAX_BYTES + 1);
 
+        if ($content === false) {
+            throw ValidationException::withMessages(['file' => __('finances/exchangeRate.errors.csv_unreadable')]);
+        }
+
         $report = $provider->importString(
-            $content === false ? '' : $content,
+            $content,
             self::sanitizeSourceRef($file->getClientOriginalName()),
             $request->user()?->getKey(),
         );
@@ -130,5 +186,15 @@ class ExchangeRateController extends Controller {
         } catch (ImmutableRateException $e) {
             throw ValidationException::withMessages(['rate' => $e->getMessage()]);
         }
+    }
+
+    private function hasPermission(string $action): bool {
+        try {
+            ExchangeRate::_checkPermission($action);
+        } catch (HttpException) {
+            return false;
+        }
+
+        return true;
     }
 }

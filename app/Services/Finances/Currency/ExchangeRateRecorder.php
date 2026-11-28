@@ -60,7 +60,7 @@ final class ExchangeRateRecorder {
         $to   = strtoupper(trim((string) $row['to_currency_code']));
         foreach (['from_currency_code' => $from, 'to_currency_code' => $to] as $field => $code) {
             if (! $this->currencyExists($code)) {
-                $errors[$field] = __('finances/exchangeRate.errors.unknown_currency', ['code' => $code]);
+                $errors[$field] = __('finances/exchangeRate.errors.unknown_currency', ['code' => $this->short($code)]);
             }
         }
         if ($from === $to) {
@@ -69,12 +69,12 @@ final class ExchangeRateRecorder {
 
         $type = $row['rate_type'] instanceof RateType ? $row['rate_type'] : RateType::tryFrom(trim((string) $row['rate_type']));
         if ($type === null) {
-            $errors['rate_type'] = __('finances/exchangeRate.errors.invalid_type', ['type' => (string) $row['rate_type']]);
+            $errors['rate_type'] = __('finances/exchangeRate.errors.invalid_type', ['type' => $this->short((string) $row['rate_type'])]);
         }
 
         $date = $this->parseDate($row['rate_date']);
         if ($date === null) {
-            $errors['rate_date'] = __('finances/exchangeRate.errors.invalid_date', ['date' => \is_scalar($row['rate_date']) ? (string) $row['rate_date'] : '']);
+            $errors['rate_date'] = __('finances/exchangeRate.errors.invalid_date', ['date' => \is_scalar($row['rate_date']) ? $this->short((string) $row['rate_date']) : '']);
         }
 
         $rate = $this->validateRate($row['rate'], $errors);
@@ -194,6 +194,11 @@ final class ExchangeRateRecorder {
         }
 
         return $report;
+    }
+
+    /** Nilai sel masukan dipotong (maks 50 karakter) sebelum masuk pesan galat agar laporan tidak membengkak. */
+    private function short(string $value): string {
+        return mb_strlen($value) > 50 ? mb_substr($value, 0, 50) . '…' : $value;
     }
 
     private function isConstraintViolation(QueryException $e): bool {

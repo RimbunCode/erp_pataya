@@ -1,6 +1,6 @@
 import { useMemo, useState } from "react";
-import { usePage } from "@inertiajs/react";
-import { Pencil, Plus, Upload } from "lucide-react";
+import { router, usePage } from "@inertiajs/react";
+import { Pencil, Plus, Trash2, Upload } from "lucide-react";
 import { useLaravelReactI18n } from "laravel-react-i18n";
 
 import { Button } from "@/Components/ui/button";
@@ -12,15 +12,23 @@ import RateFormDialog from "./RateFormDialog";
 // koreksi (hanya yang belum dirujuk transaksi), dan impor CSV, masing-masing di balik izinnya.
 export default function Index() {
   const { t } = useLaravelReactI18n();
-  const { canWrite, canImport, rateTypes, importMaxMb, importColumns } =
-    usePage().props;
+  const route = window.route;
+  const {
+    canWrite,
+    canImport,
+    canDelete,
+    rateTypes,
+    importMaxMb,
+    importColumns,
+  } = usePage().props;
   // `null` = tertutup; `{ row: null }` = tambah; `{ row }` = koreksi.
   const [rateDialog, setRateDialog] = useState(null);
   const [importOpen, setImportOpen] = useState(false);
 
+  // `row.canDelete` dari server = kurs belum dirujuk transaksi (koreksi dan hapus hanya untuk kurs itu).
   const rowActions = useMemo(
-    () =>
-      canWrite
+    () => [
+      ...(canWrite
         ? [
             {
               key: "correct",
@@ -30,8 +38,30 @@ export default function Index() {
               onAction: (rows) => setRateDialog({ row: rows[0] }),
             },
           ]
-        : [],
-    [canWrite, t],
+        : []),
+      ...(canDelete
+        ? [
+            {
+              key: "remove",
+              label: t("finances.exchangeRate.page.delete"),
+              icon: Trash2,
+              variant: "destructive",
+              enabled: (row) => row.canDelete !== false,
+              confirm: {
+                title: t("finances.exchangeRate.page.delete_title"),
+                description: t("finances.exchangeRate.page.delete_description"),
+                confirmLabel: t("finances.exchangeRate.page.delete"),
+              },
+              onAction: (rows, { reload } = {}) =>
+                router.delete(route("exchangeRates.remove", rows[0].id), {
+                  preserveScroll: true,
+                  onSuccess: () => reload?.(),
+                }),
+            },
+          ]
+        : []),
+    ],
+    [canWrite, canDelete, route, t],
   );
 
   return (

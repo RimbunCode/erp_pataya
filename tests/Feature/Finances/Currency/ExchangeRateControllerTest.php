@@ -4,7 +4,9 @@ namespace Tests\Feature\Finances\Currency;
 
 use App\Enums\RateType;
 use App\Http\Controllers\Finances\ExchangeRateController;
+use App\Models\Core\Log;
 use App\Models\Finances\ExchangeRate;
+use App\Models\User\Permission;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Illuminate\Http\UploadedFile;
 use PHPUnit\Framework\Attributes\DataProvider;
@@ -72,11 +74,12 @@ class ExchangeRateControllerTest extends TestCase {
                 ->component('Finances/ExchangeRates/Index')
                 ->where('canWrite', false)
                 ->where('canImport', false)
+                ->where('canDelete', false)
                 ->where('rateTypes', RateType::values())
                 ->where('importMaxMb', 5));
 
-        $this->actingWith(['select', 'write', 'import'])->get(route('exchangeRates.index'))
-            ->assertInertia(fn ($page) => $page->where('canWrite', true)->where('canImport', true));
+        $this->actingWith(['select', 'write', 'import', 'delete'])->get(route('exchangeRates.index'))
+            ->assertInertia(fn ($page) => $page->where('canWrite', true)->where('canImport', true)->where('canDelete', true));
     }
 
     public function test_save_requires_write_permission(): void {
@@ -134,23 +137,80 @@ class ExchangeRateControllerTest extends TestCase {
         $this->assertSame(0, ExchangeRate::count());
     }
 
-    public function test_save_over_an_existing_unreferenced_key_corrects_it_and_an_identical_one_is_unchanged(): void {
+    public function test_save_rejects_an_existing_pair_type_and_date_pointing_to_the_correct_action(): void {
         $existing = $this->makeRate('USD', 'IDR', '15000', '2026-11-20');
 
-        $this->actingWith(['write'])->post(route('exchangeRates.save'), $this->payload(['rate' => '15100']))->assertRedirect();
-        $this->assertSame('15100.00000000', $existing->refresh()->rate);
+        foreach (['15100', '15000'] as $rate) {
+            $this->actingWith(['write'])->post(route('exchangeRates.save'), $this->payload(['rate' => $rate, 'from_currency_code' => ' usd ']))
+                ->assertSessionHasErrors(['rate_date' => __('finances/exchangeRate.errors.already_exists')]);
+        }
 
-        $this->actingWith(['write'])->post(route('exchangeRates.save'), $this->payload(['rate' => '15100']))->assertSessionHas('success');
+        $this->assertSame('15000.00000000', $existing->refresh()->rate);
         $this->assertSame(1, ExchangeRate::count());
     }
 
-    public function test_save_cannot_change_a_referenced_rate(): void {
+    public function test_save_rejects_an_existing_referenced_key_too_and_allows_other_dates_and_types(): void {
         $existing = $this->makeRate('USD', 'IDR', '15000', '2026-11-20', referenced: true);
 
-        $this->actingWith(['write'])->post(route('exchangeRates.save'), $this->payload(['rate' => '15100']))
-            ->assertSessionHasErrors('rate');
-
+        $this->actingWith(['write'])->post(route('exchangeRates.save'), $this->payload(['rate' => '15100']))->assertSessionHasErrors('rate_date');
         $this->assertSame('15000.00000000', $existing->refresh()->rate);
+
+        $this->actingWith(['write'])->post(route('exchangeRates.save'), $this->payload(['rate_date' => '2026-11-21']))->assertSessionHasNoErrors();
+        $this->actingWith(['write'])->post(route('exchangeRates.save'), $this->payload(['rate_type' => 'closing']))->assertSessionHasNoErrors();
+        $this->assertSame(3, ExchangeRate::count());
+    }
+
+    public function test_remove_requires_delete_permission(): void {
+        $rate = $this->makeRate('USD', 'IDR', '15000', '2026-11-20');
+
+        $this->actingWith(['select', 'read', 'write', 'import'])->delete(route('exchangeRates.remove', $rate))->assertForbidden();
+
+        $this->assertSame(1, ExchangeRate::count());
+    }
+
+    public function test_remove_deletes_an_unreferenced_rate_and_records_the_deleted_values_in_the_audit_log(): void {
+        $rate  = $this->makeRate('USD', 'IDR', '15000', '2026-11-20');
+        $other = $this->makeRate('EUR', 'IDR', '17000', '2026-11-20');
+
+        $this->actingWith(['delete'])->delete(route('exchangeRates.remove', $rate))
+            ->assertRedirect()
+            ->assertSessionHas('success');
+
+        $this->assertNull(ExchangeRate::find($rate->id));
+        $this->assertNotNull(ExchangeRate::find($other->id));
+
+        $log = Log::query()->where('loggable_type', ExchangeRate::class)->where('loggable_id', $rate->id)->where('action', 'deleted')->firstOrFail();
+        $this->assertSame('USD', $log->data_before['from_currency_code']);
+        $this->assertSame('2026-11-20', $log->data_before['rate_date']);
+        $this->assertEquals(15000, $log->data_before['rate']);
+        $this->assertSame($this->user->getKey(), $log->user_id);
+    }
+
+    public function test_remove_rejects_a_referenced_rate(): void {
+        $rate = $this->makeRate('USD', 'IDR', '15000', '2026-11-20', referenced: true);
+
+        $this->actingWith(['delete'])->delete(route('exchangeRates.remove', $rate))->assertSessionHasErrors('rate');
+
+        $this->assertNotNull(ExchangeRate::find($rate->id));
+        $this->assertSame(0, Log::query()->where('action', 'deleted')->where('loggable_type', ExchangeRate::class)->count());
+    }
+
+    public function test_the_delete_permission_is_registered_for_the_model(): void {
+        ExchangeRate::initPermissions();
+
+        $permission = Permission::where('model', ExchangeRate::class)->firstOrFail();
+        foreach (['select', 'read', 'write', 'delete', 'import'] as $action) {
+            $this->assertContains($action, $permission->permissions);
+        }
+    }
+
+    public function test_import_still_upserts_existing_keys_and_reports_them_as_updated(): void {
+        $rate = $this->makeRate('USD', 'IDR', '15000', '2026-11-20');
+
+        $response = $this->actingWith(['import'])->post(route('exchangeRates.import'), ['file' => $this->upload($this->csv('USD,IDR,transaction,15100,2026-11-20'))]);
+
+        $this->assertSame('15100.00000000', $rate->refresh()->rate);
+        $this->assertSame(1, $response->getSession()->get('importReport')['updated']);
     }
 
     public function test_correct_requires_write_permission(): void {
@@ -250,6 +310,34 @@ class ExchangeRateControllerTest extends TestCase {
 
         $this->assertSame(0, ExchangeRate::count());
         $this->assertSame(1, $response->getSession()->get('importReport')['errorCount']);
+    }
+
+    public function test_import_of_an_empty_file_reports_an_error(): void {
+        $response = $this->actingWith(['import'])
+            ->post(route('exchangeRates.import'), ['file' => $this->upload("  \n")])
+            ->assertRedirect();
+
+        $this->assertSame(1, $response->getSession()->get('importReport')['errorCount']);
+    }
+
+    public function test_row_action_attributes_stay_in_rows_even_when_their_columns_are_hidden(): void {
+        $this->makeRate('USD', 'IDR', '15000', '2026-11-20');
+        $this->makeRate('EUR', 'IDR', '17000', '2026-11-20', referenced: true);
+
+        // Hanya kolom `source` yang tampil: aksi Koreksi tetap butuh pasangan, tipe, tanggal, rate, dan canDelete.
+        $rows = collect($this->actingWith(['select'])
+            ->withUnencryptedCookie('datatable_columns_exchange_rates', json_encode(['source' => ['width' => 100]]))
+            ->getJson(route('exchangeRates.index'), ['X-Inertia' => 'true'])
+            ->assertOk()
+            ->json('props.data.data'))->keyBy('from_currency_code');
+
+        $this->assertCount(2, $rows);
+        $this->assertEquals(15000, $rows['USD']['rate']);
+        $this->assertSame('IDR', $rows['USD']['to_currency_code']);
+        $this->assertSame('transaction', $rows['USD']['rate_type']);
+        $this->assertStringStartsWith('2026-11-20', (string) $rows['USD']['rate_date']);
+        $this->assertTrue($rows['USD']['canDelete']);
+        $this->assertFalse($rows['EUR']['canDelete']);
     }
 
     public function test_import_requires_an_uploaded_file(): void {

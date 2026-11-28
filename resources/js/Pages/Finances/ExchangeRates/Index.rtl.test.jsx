@@ -140,6 +140,32 @@ describe("Finances/ExchangeRates/Index", () => {
     ).toHaveValue("15000.00000000");
   });
 
+  it("aksi hapus hanya dengan izin delete, hanya kurs belum dirujuk, dengan konfirmasi dan memanggil DELETE", async () => {
+    const { router } = await import("@inertiajs/react");
+    router.delete = vi.fn((_url, options) => options.onSuccess?.());
+    setProps({ canDelete: true });
+    render(<Index />);
+
+    const actions = lastProps().rowActions;
+    expect(actions.map((a) => a.key)).toEqual(["remove"]);
+    const [remove] = actions;
+    expect(remove.variant).toBe("destructive");
+    expect(remove.confirm.title).toBe(
+      "finances.exchangeRate.page.delete_title",
+    );
+    expect(remove.enabled({ canDelete: true })).toBe(true);
+    expect(remove.enabled({ canDelete: false })).toBe(false);
+
+    const reload = vi.fn();
+    remove.onAction([{ id: "01RATE" }], { reload });
+
+    expect(router.delete).toHaveBeenCalledWith(
+      "/exchangeRates.remove",
+      expect.objectContaining({ preserveScroll: true }),
+    );
+    expect(reload).toHaveBeenCalled();
+  });
+
   it("tanpa izin write tidak ada aksi koreksi", () => {
     setProps({ canImport: true });
     render(<Index />);

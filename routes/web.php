@@ -496,12 +496,13 @@ Route::middleware(['auth', 'lang', 'onboarded', 'app', 'desk'])->group(function 
         Route::get('/{journal}', 'show')->name('show');
         Route::post('/{journal}/reverse', 'reverse')->name('reverse');
     });
-    // Kurs (Finance Fase 4, Requirement 1.5): daftar, tambah/koreksi manual, dan impor CSV; tanpa hapus. Izin: select, write, import.
+    // Kurs (Finance Fase 4, Requirement 1.5): daftar, tambah/koreksi manual, dan impor CSV; hapus hanya kurs yang belum dirujuk. Izin: select, write, import, delete.
     Route::controller(ExchangeRateController::class)->prefix('exchangeRates')->name('exchangeRates.')->group(function () {
         Route::get('/', 'index')->name('index');
         Route::post('/', 'save')->name('save');
         Route::post('/import', 'import')->name('import');
         Route::put('/{exchangeRate}', 'correct')->name('correct');
+        Route::delete('/{exchangeRate}', 'remove')->name('remove');
     });
     // Payment Methods
     Route::resourceDetail('paymentMethod', PaymentMethodController::class);
