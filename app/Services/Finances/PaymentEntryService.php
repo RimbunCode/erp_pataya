@@ -19,6 +19,7 @@ use App\Models\Purchase\Supplier;
 use App\Models\Sales\Customer;
 use App\Services\Core\Setting\SettingsService;
 use App\Services\Finances\Accounting\PaymentEntryPostingContextFactory;
+use App\Services\Finances\Currency\DocumentExchangeRateResolver;
 use App\Services\Finances\Posting\PostingGateway;
 use App\Traits\HasDefaultDelete;
 use App\Utils;
@@ -34,11 +35,9 @@ class PaymentEntryService implements SubmitableService {
         $data['currency_code']      = $data['currency']['code'] ?? $defaultCurrency;
         $data['base_currency_code'] = $defaultCurrency;
 
-        if ($data['currency_code'] != $defaultCurrency && empty($data['exchange_rate'])) {
-            throw ValidationException::withMessages(['exchange_rate' => 'Exchange rate is required for non-default currency.']);
-        }
-
-        $data['exchange_rate']     = $data['currency_code'] == $defaultCurrency ? 1 : $data['exchange_rate'];
+        // Kurs dan jejak kurs dari FxEngine (tipe `transaction`, tanggal pembayaran; Finance Fase 4, Requirement 3.2/3.5).
+        // Selalu menimpa kolom jejak dari input; mata uang dasar: kurs 1 dan jejak null. Kurs 0 (default tabel) dianggap kosong.
+        $data                      = [...$data, ...app(DocumentExchangeRateResolver::class)->resolve($data['currency_code'], $data['date'] ?? null, $data['exchange_rate'] ?? null)];
         $data['partyable_id']      = $data['partyable']['id'];
         $data['partyable_type']    = $data['payment_type'] == 'pay' ? Supplier::class : Customer::class;
         $data['paymentable_id']    = $data['paymentable']['id'];

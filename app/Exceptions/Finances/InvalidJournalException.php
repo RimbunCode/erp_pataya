@@ -29,6 +29,10 @@ class InvalidJournalException extends RuntimeException {
         return new self(__('finances/journal.errors.non_numeric_amount', ['line' => $lineNo]));
     }
 
+    public static function foreignMismatch(int $lineNo): self {
+        return new self(__('finances/journal.errors.foreign_mismatch', ['line' => $lineNo]));
+    }
+
     public static function amountOutOfRange(int $lineNo): self {
         return new self(__('finances/journal.errors.amount_out_of_range', ['line' => $lineNo]));
     }

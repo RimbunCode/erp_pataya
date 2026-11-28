@@ -43,7 +43,7 @@ Kondisi nyata yang membentuk fase ini (diverifikasi di kode):
 
 1. THE sistem SHALL membuat tabel `exchange_rates` dengan: `from_currency_code`, `to_currency_code` (FK `currencies`), `rate_type` (`spot`/`transaction`/`closing`/`contract`/`historical`), `rate` (`decimal(20,8)` > 0), `rate_date` (date), `source` (`manual`/`import`/`provider`), `source_ref` (nullable), `created_by_id`, timestamps; unik `(from_currency_code, to_currency_code, rate_type, rate_date)`.
 2. THE sistem SHALL menolak `from = to`, `rate <= 0`, dan kurs untuk kode mata uang yang tidak ada.
-3. THE kurs yang sudah dirujuk transaksi SHALL tidak diubah; koreksi dilakukan dengan baris baru pada tanggal/tipe yang sama hanya jika belum dirujuk, atau dengan tipe/tanggal berbeda; upaya mengubah kurs yang dirujuk ditolak.
+3. THE kurs yang sudah dirujuk transaksi (ada dokumen atau baris jurnal dengan `exchange_rate_id` kurs itu) SHALL tidak diubah; koreksi dilakukan dengan baris baru pada tanggal/tipe yang sama hanya jika belum dirujuk, atau dengan tipe/tanggal berbeda; upaya mengubah kurs yang dirujuk ditolak.
 4. THE sistem SHALL menyediakan antarmuka `ExchangeRateProvider` dengan penyedia `ManualProvider` (input UI) dan `CsvImportProvider` (impor berkas dengan validasi per baris dan laporan galat), tanpa ketergantungan jaringan.
 5. THE halaman Kurs SHALL menampilkan daftar (filter pasangan/tipe/tanggal), form tambah, dan impor CSV, di balik izin `ExchangeRate` (`select`, `read`, `write`, `import`).
 
@@ -66,7 +66,7 @@ Kondisi nyata yang membentuk fase ini (diverifikasi di kode):
 
 #### Acceptance Criteria
 
-1. THE sistem SHALL menambah kolom `exchange_rate_type`, `exchange_rate_date`, `exchange_rate_source` (nullable) pada `sales_invoices`, `purchase_invoices`, dan `payment_entries`.
+1. THE sistem SHALL menambah kolom `exchange_rate_type`, `exchange_rate_date`, `exchange_rate_source` (nullable) pada `sales_invoices`, `purchase_invoices`, dan `payment_entries`, serta kolom `exchange_rate_id` (nullable, FK ke `exchange_rates`, `restrictOnDelete`) pada ketiga tabel itu dan pada `general_ledgers`. `exchange_rate_id` adalah penanda kurs "dirujuk" (keputusan pemilik produk 28 November 2026): `ExchangeRate::isReferenced()` ditentukan dari keberadaan baris yang menyimpan id kurs itu, bukan dari flag `have_transactions`, dan `exchange_rates` TIDAK masuk `config/have_transactions.php` `tracked_tables`.
 2. WHEN dokumen berhasil diposting dengan mata uang ≠ mata uang dasar, THE kolom jejak kurs SHALL terisi dari `FxConversion` yang dipakai; invoice lama tanpa jejak tetap valid (null = legacy).
 3. THE baris jurnal piutang/utang dalam mata uang asing SHALL mengisi `foreign_currency_code`, `foreign_debit`/`foreign_credit`, dan `exchange_rate` (kolom dari Fase 1); baris dalam mata uang dasar membiarkannya null.
 4. THE `JournalService` SHALL memvalidasi bahwa untuk baris berkolom asing, `debit/credit` dasar sama dengan `foreign × exchange_rate` dalam toleransi satu minor unit (`InvalidJournalException` bila tidak).
@@ -183,6 +183,7 @@ Diputuskan sebelum Fase 4 dimulai (pemilik produk memutuskan atau menyerahkan pi
 - **Q-P4-2 (pembayaran valas):** fleksibel. `payment_entries` boleh berupa mata uang dasar atau mata uang asing; pembayaran yang dikonversi bank ke IDR dicatat dalam IDR dan selisih kurs dihitung dari jumlah IDR aktual. Kombinasi tiga mata uang berbeda tetap ditolak (Requirement 7.7, Q-P4-1: tidak didukung sekarang).
 - **Q-P4-3 (uang muka):** dipakai; Requirement 5.8 (alokasi uang muka beserta jurnal reklasifikasi) dikerjakan di Fase 4, bukan ditunda.
 - **Q-P4-4:** sudah terjawab oleh hotfix Payment Entry (PR #277; F-10 dikonfirmasi bug dan diperbaiki).
+- **Penanda kurs dirujuk (diputuskan 28 November 2026, pemilik produk menyetujui rekomendasi reviewer Task 2):** kurs "dirujuk" ditandai lewat kolom `exchange_rate_id` (nullable FK `restrictOnDelete`) pada `sales_invoices`, `purchase_invoices`, `payment_entries`, dan `general_ledgers`; `exchange_rates` tidak dimasukkan ke `tracked_tables` `have_transactions`. Alasan: definisi "dirujuk" yang tahan reset `HaveTransactionsSyncService` dan dapat dijamin FK. Mengganti Requirement 1.3/3.1 (lihat butir terkait) dan menutup pertanyaan terbuka "Prasyarat Task 4" di `tasks.md`.
 - **D-17 (toleransi selisih kecil `payment_difference`):** tetap usulan spek, default `finance_payment_tolerance` = 0 (dapat dikonfigurasi).
 
 ## Pertanyaan yang Menunggu Konfirmasi

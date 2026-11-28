@@ -3,6 +3,7 @@
 namespace App\Services\Finances\Posting;
 
 use App\Enums\AccountRole;
+use App\Services\Finances\Ledger\ForeignAmount;
 use App\Services\Finances\Posting\Contexts\LineAttributes;
 
 /**
@@ -26,14 +27,15 @@ final readonly class RoleLine {
         public ?string $description = null,
         public ?LineAttributes $line = null,
         public ?string $taxRuleVersionId = null,
+        public ?ForeignAmount $foreign = null,
     ) {}
 
-    public static function debit(AccountRole|string $role, float|int|string $amount, ?string $description = null, ?LineAttributes $line = null, ?string $taxRuleVersionId = null): self {
-        return new self($role, self::DEBIT, $amount, $description, $line, $taxRuleVersionId);
+    public static function debit(AccountRole|string $role, float|int|string $amount, ?string $description = null, ?LineAttributes $line = null, ?string $taxRuleVersionId = null, ?ForeignAmount $foreign = null): self {
+        return new self($role, self::DEBIT, $amount, $description, $line, $taxRuleVersionId, $foreign);
     }
 
-    public static function credit(AccountRole|string $role, float|int|string $amount, ?string $description = null, ?LineAttributes $line = null, ?string $taxRuleVersionId = null): self {
-        return new self($role, self::CREDIT, $amount, $description, $line, $taxRuleVersionId);
+    public static function credit(AccountRole|string $role, float|int|string $amount, ?string $description = null, ?LineAttributes $line = null, ?string $taxRuleVersionId = null, ?ForeignAmount $foreign = null): self {
+        return new self($role, self::CREDIT, $amount, $description, $line, $taxRuleVersionId, $foreign);
     }
 
     public function roleValue(): string {

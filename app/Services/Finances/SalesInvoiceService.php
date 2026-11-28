@@ -39,6 +39,7 @@ use App\Services\Core\Setting\RateChangeComparator;
 use App\Services\Core\Setting\SettingsService;
 use App\Services\Core\Setting\ToleranceCalculator;
 use App\Services\Finances\Accounting\WithholdingRoleGuard;
+use App\Services\Finances\Currency\DocumentExchangeRateResolver;
 use App\Services\Finances\Ledger\JournalReversalService;
 use App\Services\Finances\Tax\DocumentTaxRules;
 use App\Services\Finances\Tax\DocumentTaxSnapshot;
@@ -76,11 +77,9 @@ class SalesInvoiceService implements SubmitableService {
         $data['currency_code']      = $data['currency']['code'] ?? $defaultCurrency;
         $data['base_currency_code'] = $defaultCurrency;
 
-        if ($data['currency_code'] != $defaultCurrency && empty($data['exchange_rate'])) {
-            throw ValidationException::withMessages(['exchange_rate' => 'Exchange rate is required for non-default currency.']);
-        }
-
-        $data['exchange_rate'] = $data['currency_code'] == $defaultCurrency ? 1 : $data['exchange_rate'];
+        // Kurs dan jejak kurs dari FxEngine (tipe `transaction`, tanggal dokumen; Finance Fase 4, Requirement 3.2/3.5).
+        // Selalu menimpa kolom jejak dari input; mata uang dasar: kurs 1 dan jejak null.
+        $data = [...$data, ...app(DocumentExchangeRateResolver::class)->resolve($data['currency_code'], $data['date'] ?? null, $data['exchange_rate'] ?? null)];
 
         $data['return_against_id'] = $data['return_against']['id'] ?? null;
 

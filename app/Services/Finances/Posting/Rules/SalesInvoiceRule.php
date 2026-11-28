@@ -69,7 +69,7 @@ final class SalesInvoiceRule extends BasePostingRule {
         $withholdingLines = array_values(array_filter($ctx->taxComponents, static fn (TaxComponentLine $component): bool => $component->withholding && $component->amount > 0));
         $receivable       = $total - array_sum(array_map(static fn (TaxComponentLine $component): float => $component->amount, $withholdingLines));
 
-        $lines = self::isZero($receivable) ? [] : [RoleLine::debit(AccountRole::Receivable, $receivable)];
+        $lines = self::isZero($receivable) ? [] : [RoleLine::debit(AccountRole::Receivable, $receivable, foreign: $ctx->controlForeign)];
         foreach ($withholdingLines as $component) {
             $lines[] = RoleLine::debit($component->role, $component->amount, taxRuleVersionId: $component->ruleVersionId);
         }
@@ -89,6 +89,7 @@ final class SalesInvoiceRule extends BasePostingRule {
                 $line->description,
                 $line->line,
                 $line->taxRuleVersionId,
+                $line->foreign,
             ), $lines);
         }
 

@@ -22,5 +22,6 @@ final readonly class JournalLineDraft {
         public ?string $partyType = null,
         public ?string $partyId = null,
         public ?string $taxRuleVersionId = null,
+        public ?ForeignAmount $foreign = null,
     ) {}
 }

@@ -78,15 +78,26 @@ Urutan: baca kode pembayaran + audit data (1), FX Engine dan kurs (2–3, tanpa 
   - [ ] 3.1 `ExchangeRateController` + rute + izin; halaman `Finances/ExchangeRates/{Index,Form}.jsx` + impor CSV; `.rtl.test.jsx`; terjemahan
     - _Requirements: 1.5, 11.4–11.5_
 
-- [ ] 4. Jejak kurs pada dokumen
-  - [ ] 4.1 Migration kolom `exchange_rate_type/date/source` pada `sales_invoices`, `purchase_invoices`, `payment_entries`
+- [x] 4. Jejak kurs pada dokumen
+  - **Keputusan pemilik produk 28 November 2026 (pemilik produk menyetujui):** kurs "dirujuk" ditandai lewat `exchange_rate_id` (nullable FK `restrictOnDelete`) pada `sales_invoices`, `purchase_invoices`, `payment_entries`, dan `general_ledgers`; `exchange_rates` tidak masuk `tracked_tables`; `ExchangeRate::isReferenced()` memeriksa keberadaan referensi. Ini menutup butir "Prasyarat Task 4" pada Pertanyaan Terbuka Task 2 (definisi dirujuk yang tahan reset); Requirement 1.3/3.1 dan design sudah diubah.
+  - [x] 4.1 Migration kolom `exchange_rate_id` + `exchange_rate_type/date/source` pada `sales_invoices`, `purchase_invoices`, `payment_entries`; `exchange_rate_id` pada `general_ledgers` (migration terpisah)
     - _Requirements: 3.1_
-  - [ ] 4.2 Service dokumen mengisi kurs dari `FxEngine` (tipe `transaction`; override dengan izin + alasan); tangani default 0 pada `payment_entries.exchange_rate`
+    - Catatan implementasi: `2026_11_29_100001_add_exchange_rate_trace_to_documents.php` dan `2026_11_29_100002_add_exchange_rate_id_to_general_ledgers_table.php`. SQLite (test) memakai `PRAGMA legacy_alter_table` selama DDL karena view laporan. Risiko MySQL 8: menambah FK dengan `foreign_key_checks=1` memakai ALGORITHM=COPY (membangun ulang tabel, memblokir tulis) pada `general_ledgers`, `sales_invoices`, `purchase_invoices`; tabel yang punya kolom generated juga dapat kehilangan INSTANT. Jadwalkan pada jendela pemeliharaan dan jalankan migration `general_ledgers` sendiri (atau matikan `foreign_key_checks` sesaat bila semua nilai kolom NULL). Efek `restrict`: kurs yang dirujuk satu baris GL tidak dapat dihapus selamanya.
+  - [x] 4.2 Service dokumen mengisi kurs dari `FxEngine` (tipe `transaction`; override dengan izin + alasan); tangani default 0 pada `payment_entries.exchange_rate`
     - _Requirements: 3.2, 3.5_
-  - [ ] 4.3 Rule posting invoice (Fase 2/3) mengisi `foreign_*` dan `exchange_rate` pada baris receivable/payable; validasi `JournalService` (asing × kurs ≈ dasar)
+    - Catatan implementasi: `DocumentExchangeRateResolver` dipanggil di `fillRelations` ketiga service; kolom jejak selalu ditimpa dari hasil resolver (tidak dapat diisi dari input); dokumen mata uang dasar: kurs 1 dan jejak null. Override dengan izin + alasan BELUM diterapkan (lihat Pertanyaan Terbuka Task 4).
+  - [x] 4.3 Rule posting invoice (Fase 2/3) mengisi `foreign_*` dan `exchange_rate` pada baris receivable/payable; validasi `JournalService` (asing × kurs ≈ dasar)
     - _Requirements: 3.3–3.4, 8.1–8.2_
-  - [ ]* 4.4 Write tests jejak kurs: dokumen asing terisi; legacy null tetap valid; validasi jurnal menolak ketidakcocokan
+    - Catatan implementasi: `ForeignAmount` pada `RoleLine`/`JournalLineDraft`; `JournalService` menulis `foreign_*`, `exchange_rate`, `exchange_rate_id`; `JournalReversalService` menyalin (sisi dibalik); `DocumentFxScaler` mengonversi nilai konteks invoice valas ke dasar dengan kurs tersimpan dokumen (komponen pajak potong dibulatkan dengan sisa ke komponen terakhir); baris berkurs asing tidak menyerap sisa pembulatan selama ada baris lain. Sesuai invarian spek pajak majemuk, builder komponen pajak tidak berubah; skaler bekerja pada `TaxComponentLine` hasil builder.
+  - [x]* 4.4 Write tests jejak kurs: dokumen asing terisi; legacy null tetap valid; validasi jurnal menolak ketidakcocokan
     - **Validates: Requirements 3.2–3.4, 8.1**
+    - `tests/Feature/Finances/Currency/DocumentExchangeRateTraceTest.php`.
+  - **Pertanyaan Terbuka Task 4** (diterapkan sementara, menunggu pemilik produk):
+    - Override kurs oleh pengguna ber-izin dengan alasan (Req 3.5): spek tidak menamai izin maupun kolom alasan. Sementara: kurs ketikan yang berbeda dari kurs master (atau tanpa master) diterima dengan jejak `source = manual_input`, `exchange_rate_id` null; tanpa ketikan dan tanpa master → galat validasi pada `exchange_rate`. Perlu keputusan: nama izin (mis. `override_exchange_rate`), kolom alasan, dan apakah ketikan tanpa master harus ditolak setelah UI kurs (Task 3/10) tersedia.
+    - Kurs kebalikan pada kurs dokumen: kolom `exchange_rate` dokumen harus bernilai dasar per 1 unit dokumen (dipakai kolom generated `*_base_currency`), sehingga untuk baris tersimpan kebalikan disimpan `1/kurs` pada 8 digit (turunan, bukan kurs apa adanya), `exchange_rate_id` menunjuk baris tersimpan. Alternatif (menyimpan kurs tersimpan + flag inverse) merusak kolom generated; pemilik/akuntan perlu menyetujui.
+    - Konversi nilai dasar jurnal invoice valas kini aktif otomatis (Req 8.1; sebelumnya jurnal memposting nilai mata uang dokumen apa adanya). Pembayaran valas (Payment Entry) tetap diposting tanpa konversi sampai Task 7 (sakelar `finance_payment_allocation_enabled`), sehingga piutang/utang valas tidak lunas di buku besar bila invoice valas diposting sebelum Task 7 aktif. Usul: Task 4 dan Task 7 dirilis bersama, atau tambahkan sakelar untuk konversi invoice.
+    - `stock_total` Purchase Invoice valas TIDAK dikonversi (nilai persediaan berasal dari penilaian stok dengan rate mata uang dokumen); jurnal `stock`/SRNB untuk PI valas tetap tidak konsisten sampai penilaian stok memperhitungkan kurs.
+    - Pemeriksaan toleransi tagihan di `SalesInvoiceRequest`/`PurchaseInvoiceRequest` memakai kurs ketikan; bila kurs kosong dan service mengambil kurs master, request menghitung dengan kurs 1. UI saat ini selalu mengirim kurs.
 
 - [ ] 5. Pihak pada jurnal dan sub-ledger
   - [ ] 5.1 Pabrik konteks invoice meneruskan `party` pada baris `receivable`/`payable`; indeks `(partyable_type, partyable_id, account_id, transaction_date)`

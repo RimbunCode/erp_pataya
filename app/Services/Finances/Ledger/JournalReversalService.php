@@ -57,6 +57,13 @@ final class JournalReversalService {
                     partyType: $line->partyable_type,
                     partyId: $line->partyable_id,
                     taxRuleVersionId: $line->tax_rule_version_id,
+                    // Pembalikan menyalin jumlah asing dan kurs; sisi dibalik bersama debit/kredit dasar (Requirement 3.3).
+                    foreign: $line->foreign_currency_code === null ? null : new ForeignAmount(
+                        $line->foreign_currency_code,
+                        (string) ($line->foreign_debit ?? $line->foreign_credit),
+                        (string) $line->exchange_rate,
+                        $line->exchange_rate_id,
+                    ),
                 ))->all(),
                 postingKey: ($original->posting_key ?? "journal:{$original->id}") . ':' . self::REVERSAL_PURPOSE,
                 branchId: $original->branch_id,

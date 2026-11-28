@@ -40,6 +40,7 @@ return [
     'errors' => [
         'too_few_lines'        => 'A journal needs at least 2 lines (got :count).',
         'negative_amount'      => 'Line :line has a negative amount.',
+        'foreign_mismatch'     => 'Line :line: the base amount does not equal foreign amount × rate (within one minor unit), or the foreign currency data is invalid.',
         'both_sides'           => 'Line :line has both debit and credit; only one side may have a value.',
         'no_amount'            => 'Line :line has zero debit and zero credit.',
         'non_numeric_amount'   => 'Line :line has a non-numeric amount.',
