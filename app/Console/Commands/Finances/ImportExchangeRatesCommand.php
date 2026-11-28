@@ -39,9 +39,12 @@ class ImportExchangeRatesCommand extends Command {
             }
         }
 
-        $this->info("Dibuat: {$report->created}, diubah: {$report->updated}, tidak berubah: {$report->unchanged}, galat: " . \count($report->errors) . '.');
+        $this->info("Dibuat: {$report->created}, diubah: {$report->updated}, tidak berubah: {$report->unchanged}, galat: " . $report->errorCount() . '.');
         foreach ($report->errors as $error) {
             $this->error("  Baris {$error['line']}: {$error['message']}");
+        }
+        if ($report->omittedErrors > 0) {
+            $this->error("  ... dan {$report->omittedErrors} galat lagi tidak dirinci.");
         }
         if ($dryRun) {
             $this->newLine();

@@ -6,9 +6,11 @@ use App\Enums\RateType;
 use App\Exceptions\Finances\ImmutableRateException;
 use App\Models\Finances\ExchangeRate;
 use App\Models\User\Permission;
+use Carbon\Carbon;
 use Illuminate\Database\Eloquent\MassAssignmentException;
 use Illuminate\Database\QueryException;
 use Illuminate\Foundation\Testing\RefreshDatabase;
+use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Schema;
 use Illuminate\Validation\ValidationException;
 use Tests\TestCase;
@@ -85,6 +87,29 @@ class ExchangeRateModelTest extends TestCase {
         $this->assertSame('15500.00000000', $rate->rate);
         $this->assertSame('2026-11-27', $rate->rate_date->toDateString());
         $this->assertSame(RateType::Transaction, $rate->rate_type);
+    }
+
+    public function test_rate_date_is_stored_as_a_plain_date_even_when_given_carbon_or_datetime(): void {
+        $this->makeRate('USD', 'IDR', '15500', '2026-11-27');
+        foreach ([
+            ['EUR', Carbon::parse('2026-11-27 23:59:59')],
+            ['JPY', new \DateTimeImmutable('2026-11-27 08:00:00')],
+        ] as [$from, $date]) {
+            (new ExchangeRate)->forceFill([
+                'from_currency_code' => $from, 'to_currency_code' => 'IDR', 'rate_type' => RateType::Transaction,
+                'rate'               => '100', 'rate_date' => $date, 'source' => 'manual',
+            ])->save();
+        }
+
+        $stored = DB::table('exchange_rates')->pluck('rate_date')->unique()->values()->all();
+        $this->assertSame(['2026-11-27'], $stored);
+
+        // Kunci unik bertepatan: Carbon pada kunci yang sama ditolak, bukan membuat baris kedua.
+        $this->expectException(QueryException::class);
+        (new ExchangeRate)->forceFill([
+            'from_currency_code' => 'USD', 'to_currency_code' => 'IDR', 'rate_type' => RateType::Transaction,
+            'rate'               => '1', 'rate_date' => Carbon::parse('2026-11-27 10:00:00'), 'source' => 'manual',
+        ])->save();
     }
 
     public function test_mass_assignment_is_blocked(): void {

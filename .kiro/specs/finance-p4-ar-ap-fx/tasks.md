@@ -70,6 +70,8 @@ Urutan: baca kode pembayaran + audit data (1), FX Engine dan kurs (2–3, tanpa 
     - Perintah impor tanpa opsi `--user=` (pembuat kurs tercatat null pada impor CLI); opsi itu di luar spek dan menunggu keputusan pemilik.
     - Konflik izin Req 1.5 (`import`) vs Req 12.3 (hanya `select`/`read`) dan pemaparan setting FX di halaman Finance Settings (Task 3) tetap menunggu keputusan; Req 12.3 tidak diubah.
     - Penegasan: kode mata uang dinormalkan `strtoupper(trim())` lalu dicocokkan ke `currencies.code` (tanpa regex 3 huruf), sehingga kode kustom non-ISO yang ada di master tetap diterima.
+    - Pencatatan kurs konkuren: tes retry unique tidak menguji jalur "existing" sungguhan (satu koneksi uji menggulung seluruh transaksi), dan deadlock MySQL 1213 (REPEATABLE READ) pada dua penulis bersamaan tidak di-retry; keduanya menjadi galat. Diterima sementara karena penulisan kurs jarang dan dilakukan satu operator.
+    - Kode master mata uang kustom harus HURUF BESAR: pencarian memakai `strtoupper`, sedangkan `CurrencyRequest` tidak mewajibkan huruf besar sehingga kode kustom huruf kecil (mis. `usdt`) berperilaku berbeda di SQLite vs MySQL (collation `_ci`). Batasan dicatat; aturan huruf besar pada `CurrencyRequest` menunggu keputusan.
     - **Prasyarat Task 8:** cara alokasi `credit_note` (Task 8.1) berdampingan dengan jalur retur yang sudah ada (Payment Entry berarah terbalik pada invoice retur; lihat temuan 1.1 dan 1.2), agar tidak terjadi pelunasan ganda atas retur yang sama.
 
 - [ ] 3. UI kurs

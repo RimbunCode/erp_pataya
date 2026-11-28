@@ -183,13 +183,23 @@ final class ExchangeRateRecorder {
                 $report->addError((int) $line, implode(' ', $e->errors));
             } catch (ImmutableRateException) {
                 $report->addError((int) $line, __('finances/exchangeRate.errors.referenced_conflict'));
-            } catch (QueryException) {
-                // Galat basis data (FK/unique yang lolos) menjadi galat baris; detail SQL tidak dibocorkan ke laporan.
+            } catch (QueryException $e) {
+                // Hanya pelanggaran constraint (SQLSTATE 23xxx: FK/unique/not-null) menjadi galat baris; detail SQL tidak
+                // dibocorkan ke laporan. Galat lain (koneksi, deadlock, skema) naik agar tidak tertelan diam-diam.
+                if (! $this->isConstraintViolation($e)) {
+                    throw $e;
+                }
                 $report->addError((int) $line, __('finances/exchangeRate.errors.database_error'));
             }
         }
 
         return $report;
+    }
+
+    private function isConstraintViolation(QueryException $e): bool {
+        $state = (string) ($e->errorInfo[0] ?? $e->getCode());
+
+        return str_starts_with($state, '23');
     }
 
     /**

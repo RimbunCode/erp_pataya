@@ -11,6 +11,7 @@ use App\Services\Finances\Currency\ExchangeRateRecorder;
 use App\Services\Finances\Currency\Providers\CsvImportProvider;
 use App\Services\Finances\Currency\Providers\ExchangeRateProvider;
 use App\Services\Finances\Currency\Providers\ManualProvider;
+use App\Services\Finances\Currency\Providers\RateImportReport;
 use Illuminate\Database\QueryException;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Illuminate\Support\Facades\DB;
@@ -413,7 +414,10 @@ class ExchangeRateImportTest extends TestCase {
             if ($fail && $rate->rate_date->toDateString() === '2026-11-26') {
                 $fail = false;
 
-                throw new QueryException('sqlite', 'insert', [], new \Exception('boom'));
+                $previous            = new \PDOException('boom');
+                $previous->errorInfo = ['23000', 19, 'boom'];
+
+                throw new QueryException('sqlite', 'insert', [], $previous);
             }
         });
 
@@ -426,6 +430,61 @@ class ExchangeRateImportTest extends TestCase {
         $this->assertSame([2], array_column($report->errors, 'line'));
         $this->assertSame(1, $report->created);
         $this->assertStringNotContainsString('boom', $report->errors[0]['message']);
+    }
+
+    public function test_a_non_constraint_database_error_is_not_swallowed(): void {
+        ExchangeRate::creating(function (): void {
+            $previous            = new \PDOException('deadlock');
+            $previous->errorInfo = ['40001', 1213, 'deadlock'];
+
+            throw new QueryException('mysql', 'insert', [], $previous);
+        });
+
+        $this->expectException(QueryException::class);
+
+        $this->csv()->importString(self::HEADER . "\nUSD,IDR,transaction,15500,2026-11-27\n");
+    }
+
+    public function test_a_header_with_empty_trailing_cells_is_accepted(): void {
+        $report = $this->csv()->importString(self::HEADER . ",,\nUSD,IDR,transaction,15500,2026-11-27,,\n");
+
+        $this->assertFalse($report->hasErrors());
+        $this->assertSame(1, $report->created);
+    }
+
+    public function test_duplicate_unknown_or_empty_header_columns_do_not_count_as_duplicates(): void {
+        $report = $this->csv()->importString(self::HEADER . ",note,note,\nUSD,IDR,transaction,15500,2026-11-27,a,b,\n");
+
+        $this->assertFalse($report->hasErrors());
+        $this->assertSame(1, $report->created);
+    }
+
+    public function test_many_malformed_lines_are_rejected_quickly_without_a_memory_spike(): void {
+        // ~2,6 juta baris rusak ("a") dalam 5 MB: ditolak pada baris ke MAX_ROWS + 1, tanpa memecah seluruh berkas.
+        $csv    = self::HEADER . "\n" . str_repeat("a\n", 2_600_000);
+        $before = memory_get_peak_usage(true);
+        $start  = microtime(true);
+
+        $report = $this->csv()->importString($csv);
+
+        $this->assertSame([0], array_column($report->errors, 'line'));
+        $this->assertSame(0, $report->created);
+        $this->assertLessThan(5.0, microtime(true) - $start);
+        $this->assertLessThan(64 * 1024 * 1024, memory_get_peak_usage(true) - $before);
+    }
+
+    public function test_malformed_lines_count_toward_the_row_limit_and_reported_errors_are_capped(): void {
+        $over = $this->csv()->importString(self::HEADER . "\n" . str_repeat("a\n", CsvImportProvider::MAX_ROWS + 1));
+        $this->assertSame([0], array_column($over->errors, 'line'));
+
+        $csv = self::HEADER . "\n" . str_repeat("a\n", 5000);
+
+        $report = $this->csv()->importString($csv);
+
+        $this->assertCount(RateImportReport::MAX_ERRORS, $report->errors);
+        $this->assertSame(5000 - RateImportReport::MAX_ERRORS, $report->omittedErrors);
+        $this->assertSame(5000, $report->errorCount());
+        $this->assertTrue($report->hasErrors());
     }
 
     public function test_csv_with_duplicate_header_columns_is_rejected(): void {

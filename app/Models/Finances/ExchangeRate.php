@@ -8,6 +8,7 @@ use App\Models\Core\Currency;
 use App\Models\Model;
 use App\Models\User\User;
 use App\Traits\DataTable;
+use Carbon\CarbonInterface;
 use Illuminate\Database\Eloquent\Concerns\HasUlids;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
 
@@ -48,8 +49,9 @@ class ExchangeRate extends Model {
     public string $translateKey = 'finances.exchangeRate';
     protected $casts            = [
         'rate_type' => RateType::class,
-        // Format tetap `Y-m-d` agar nilai tersimpan polos tanggal (tanpa jam) di SQLite maupun MySQL, sehingga
-        // perbandingan `where('rate_date', '<=', $day)` bertepatan dengan tanggal yang sama.
+        // Cast hanya untuk MEMBACA (Carbon). Penulisan dinormalkan `Y-m-d` oleh `setRateDateAttribute`, sehingga nilai
+        // tersimpan polos tanggal (tanpa jam) di SQLite maupun MySQL dan `where('rate_date', '<=', $day)` serta kunci
+        // unik bertepatan dengan tanggal yang sama.
         'rate_date' => 'date:Y-m-d',
         // Sama di SQLite (test) dan MySQL `decimal(20,8)`: selalu string "15500.00000000".
         'rate'              => 'decimal:8',
@@ -138,6 +140,20 @@ class ExchangeRate extends Model {
                 throw ImmutableRateException::referenced();
             }
         });
+    }
+
+    /**
+     * Menormalkan tanggal kurs ke string `Y-m-d` (Carbon/DateTime memakai `toDateString()`; string dipotong ke 10 karakter
+     * pertama bila berbentuk tanggal-jam).
+     */
+    public function setRateDateAttribute(mixed $value): void {
+        if ($value instanceof \DateTimeInterface) {
+            $value = $value instanceof CarbonInterface ? $value->toDateString() : $value->format('Y-m-d');
+        } elseif (\is_string($value) && preg_match('/^\d{4}-\d{2}-\d{2}/', $value)) {
+            $value = substr($value, 0, 10);
+        }
+
+        $this->attributes['rate_date'] = $value;
     }
 
     /** Apakah ini hasil kebalikan (`to -> from = 1/rate`) dari baris tersimpan lain (Requirement 2.2). */
