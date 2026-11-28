@@ -8,8 +8,8 @@ import DataTable2 from "@/Pages/Core/DataTable2";
 import ImportDialog from "./ImportDialog";
 import RateFormDialog from "./RateFormDialog";
 
-// Kurs tidak dapat dihapus lewat halaman ini (izin `delete` tidak ada) dan tidak punya halaman detail: tambah,
-// koreksi (hanya yang belum dirujuk transaksi), dan impor CSV, masing-masing di balik izinnya.
+// Kurs tidak punya halaman detail: tambah, koreksi dan hapus (hanya yang belum dirujuk transaksi), serta impor CSV,
+// masing-masing di balik izinnya.
 export default function Index() {
   const { t } = useLaravelReactI18n();
   const route = window.route;

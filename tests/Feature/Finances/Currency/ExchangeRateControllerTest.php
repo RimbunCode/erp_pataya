@@ -325,11 +325,15 @@ class ExchangeRateControllerTest extends TestCase {
         $this->makeRate('EUR', 'IDR', '17000', '2026-11-20', referenced: true);
 
         // Hanya kolom `source` yang tampil: aksi Koreksi tetap butuh pasangan, tipe, tanggal, rate, dan canDelete.
-        $rows = collect($this->actingWith(['select'])
+        $rows = [];
+        $this->actingWith(['select'])
             ->withUnencryptedCookie('datatable_columns_exchange_rates', json_encode(['source' => ['width' => 100]]))
-            ->getJson(route('exchangeRates.index'), ['X-Inertia' => 'true'])
+            ->get(route('exchangeRates.index'))
             ->assertOk()
-            ->json('props.data.data'))->keyBy('from_currency_code');
+            ->assertInertia(function ($page) use (&$rows): void {
+                $rows = $page->toArray()['props']['data']['data'];
+            });
+        $rows = collect($rows)->keyBy('from_currency_code');
 
         $this->assertCount(2, $rows);
         $this->assertEquals(15000, $rows['USD']['rate']);
