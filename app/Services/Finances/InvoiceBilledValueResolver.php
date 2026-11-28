@@ -6,6 +6,7 @@ use App\Enums\FormStatus;
 use App\Models\Finances\Tax;
 use App\Services\Core\Setting\CurrencyMatcher;
 use App\Services\Finances\Tax\DocumentTaxRules;
+use App\Services\Finances\Tax\ItemTaxSelection;
 use Closure;
 use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Database\Eloquent\Model;
@@ -46,14 +47,32 @@ class InvoiceBilledValueResolver {
         // Tarif, faktor DPP, dan perilaku pajak dari versi aturan pada tanggal dokumen, sama dengan yang dipakai
         // service saat menyimpan (Requirement 12.3). Pajak tanpa versi berlaku dilewati (tarif 0, faktor 1) hanya untuk
         // pemeriksaan ini; service tetap gagal tertutup saat menyimpan (Q-P3-5).
-        $taxIds    = collect($rows)->pluck('tax.id')->filter()->unique()->all();
+        $taxIds    = collect($rows)->flatMap(fn (array $row): array => ItemTaxSelection::rowTaxIds($row))->unique()->values()->all();
         $taxes     = $taxIds === [] ? [] : Tax::whereIn('id', $taxIds)->get()->keyBy('id')->all();
         $taxRules  = app(DocumentTaxRules::class);
         $lineRules = $taxRules->lineParameters($taxRules->resolveForRowsLeniently($rows, $taxes, $documentDate), $taxes);
         $indexes   = array_keys($rows);
         $lines     = [];
         foreach ($indexes as $position => $index) {
-            $rule             = $lineRules[data_get($rows[$index], 'tax.id')] ?? null;
+            $ids = ItemTaxSelection::rowTaxIds($rows[$index]);
+
+            // Tarif baris = Σ pajak penambah (Requirement 8.6). Baris dengan 0 atau 1 pajak memakai bentuk satu pajak
+            // lama persis; baris majemuk membawa `taxes` (pajak awal = Σ pajak penambah).
+            if (\count($ids) > 1) {
+                $lines[$position] = [
+                    'basic_amount' => $gross[$index],
+                    'tax_rate'     => 0.0,
+                    'taxes'        => array_map(fn (string $id): array => [
+                        'rate'       => $lineRules[$id]['rate'] ?? 0.0,
+                        'dpp_factor' => $lineRules[$id]['dpp_factor'] ?? 1.0,
+                        'additive'   => $lineRules[$id]['additive'] ?? true,
+                    ], $ids),
+                ];
+
+                continue;
+            }
+
+            $rule             = $ids === [] ? null : ($lineRules[$ids[0]] ?? null);
             $lines[$position] = [
                 'basic_amount' => $gross[$index],
                 'tax_rate'     => $rule['rate'] ?? 0.0,

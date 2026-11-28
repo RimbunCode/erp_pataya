@@ -37,7 +37,7 @@ describe("MultiSelect", () => {
   });
 
   it("placeholder menampilkan ringkasan label value terpilih", () => {
-    render(<MultiSelect options={options} value={["a", "b"]} />);
+    render(<MultiSelect chips={false} options={options} value={["a", "b"]} />);
     expect(screen.getByPlaceholderText("Alpha, Beta")).toBeInTheDocument();
   });
 
@@ -74,6 +74,7 @@ describe("MultiSelect", () => {
     const onValueChange = vi.fn();
     render(
       <MultiSelect
+        chips={false}
         options={options}
         value={["a"]}
         onValueChange={onValueChange}
@@ -91,6 +92,7 @@ describe("MultiSelect", () => {
     const onValueChange = vi.fn();
     render(
       <MultiSelect
+        chips={false}
         options={options}
         value={["a", "b"]}
         onValueChange={onValueChange}
@@ -119,7 +121,12 @@ describe("MultiSelect", () => {
 
     it("badge closed DISEMBUNYIKAN kalau semua option ke-check DAN showAllOption aktif (teks ringkasan udah diciutkan jadi label All -- badge angka jadi redundan)", () => {
       render(
-        <MultiSelect options={options} value={["a", "b", "c"]} showAllOption />,
+        <MultiSelect
+          chips={false}
+          options={options}
+          value={["a", "b", "c"]}
+          showAllOption
+        />,
       );
       expect(screen.getByRole("textbox")).toHaveValue("TR:core.form.all");
       expect(screen.queryByText("3")).not.toBeInTheDocument();
@@ -164,7 +171,12 @@ describe("MultiSelect", () => {
     it("badge hilang lagi begitu turun ke 0 terpilih", async () => {
       const user = userEvent.setup({ delay: null });
       render(
-        <MultiSelect options={options} value={["a"]} placeholder="Pilih" />,
+        <MultiSelect
+          chips={false}
+          options={options}
+          value={["a"]}
+          placeholder="Pilih"
+        />,
       );
 
       await user.click(screen.getByRole("textbox"));
@@ -199,6 +211,7 @@ describe("MultiSelect", () => {
       const onValueChange = vi.fn();
       render(
         <MultiSelect
+          chips={false}
           options={options}
           value={["a", "b", "c"]}
           onValueChange={onValueChange}
@@ -227,7 +240,12 @@ describe("MultiSelect", () => {
 
     it("semua option terpilih -> checkbox All checked, placeholder tampil label All (bukan daftar penuh)", () => {
       render(
-        <MultiSelect options={options} value={["a", "b", "c"]} showAllOption />,
+        <MultiSelect
+          chips={false}
+          options={options}
+          value={["a", "b", "c"]}
+          showAllOption
+        />,
       );
 
       expect(
@@ -259,18 +277,36 @@ describe("MultiSelect", () => {
 
   describe("defaultValue", () => {
     it("value undefined -> fallback ke defaultValue (array)", () => {
-      render(<MultiSelect options={options} defaultValue={["a", "b"]} />);
+      render(
+        <MultiSelect
+          chips={false}
+          options={options}
+          defaultValue={["a", "b"]}
+        />,
+      );
       expect(screen.getByPlaceholderText("Alpha, Beta")).toBeInTheDocument();
     });
 
     it("value null eksplisit -> tetap fallback ke defaultValue (nilai tunggal, dibungkus array)", () => {
-      render(<MultiSelect options={options} value={null} defaultValue="a" />);
+      render(
+        <MultiSelect
+          chips={false}
+          options={options}
+          value={null}
+          defaultValue="a"
+        />,
+      );
       expect(screen.getByPlaceholderText("Alpha")).toBeInTheDocument();
     });
 
     it("value diisi eksplisit -> defaultValue diabaikan", () => {
       render(
-        <MultiSelect options={options} value={["c"]} defaultValue={["a"]} />,
+        <MultiSelect
+          chips={false}
+          options={options}
+          value={["c"]}
+          defaultValue={["a"]}
+        />,
       );
       expect(screen.getByPlaceholderText("Gamma")).toBeInTheDocument();
     });
@@ -342,6 +378,7 @@ describe("MultiSelect", () => {
       const onValueChange = vi.fn();
       render(
         <MultiSelect
+          chips={false}
           options={options}
           value={["a", "b"]}
           onValueChange={onValueChange}
@@ -401,6 +438,7 @@ describe("MultiSelect", () => {
       render(
         <div>
           <MultiSelect
+            chips={false}
             options={options}
             value={[]}
             onValueChange={onValueChange}
@@ -559,20 +597,27 @@ describe("MultiSelect", () => {
 
   describe("dua mode: tertutup = ringkasan, terbuka = buffer edit kosong", () => {
     it("mount dgn value awal -- input tampil RINGKASAN (join label), krn popover mulai tertutup", () => {
-      render(<MultiSelect options={options} value={["a", "c"]} />);
+      render(
+        <MultiSelect chips={false} options={options} value={["a", "c"]} />,
+      );
       expect(screen.getByRole("textbox")).toHaveValue("Alpha, Gamma");
     });
 
     it("semua option terpilih & showAllOption aktif -- ringkasan diciutkan jadi label All", () => {
       render(
-        <MultiSelect options={options} value={["a", "b", "c"]} showAllOption />,
+        <MultiSelect
+          chips={false}
+          options={options}
+          value={["a", "b", "c"]}
+          showAllOption
+        />,
       );
       expect(screen.getByRole("textbox")).toHaveValue("TR:core.form.all");
     });
 
     it("buka popover dgn value awal -- ringkasan DIKOSONGKAN, mode edit mulai bersih (bukan lanjut edit teks ringkasan)", async () => {
       const user = userEvent.setup({ delay: null });
-      render(<MultiSelect options={options} value={["a"]} />);
+      render(<MultiSelect chips={false} options={options} value={["a"]} />);
 
       const input = screen.getByRole("textbox");
       expect(input).toHaveValue("Alpha");
@@ -658,6 +703,7 @@ describe("MultiSelect", () => {
       render(
         <div>
           <MultiSelect
+            chips={false}
             options={options}
             value={[]}
             onValueChange={onValueChange}
@@ -762,7 +808,9 @@ describe("MultiSelect", () => {
     // hijau dengan Tooltip asli terpasang.
     it("ada value terpilih & popover tertutup -> tooltip muncul saat di-hover, berisi daftar per-item (bukan satu string gabungan)", async () => {
       const user = userEvent.setup({ delay: null });
-      render(<MultiSelect options={options} value={["a", "b"]} />);
+      render(
+        <MultiSelect chips={false} options={options} value={["a", "b"]} />,
+      );
 
       await user.hover(screen.getByRole("textbox"));
       const tooltip = await screen.findByRole("tooltip");
@@ -831,7 +879,7 @@ describe("MultiSelect", () => {
 
     it("tanpa valueBefore -> tooltip list biasa, gak ada class diff apapun", async () => {
       const user = userEvent.setup({ delay: null });
-      render(<MultiSelect options={options} value={["a"]} />);
+      render(<MultiSelect chips={false} options={options} value={["a"]} />);
 
       await user.hover(screen.getByRole("textbox"));
       const tooltip = await screen.findByRole("tooltip");

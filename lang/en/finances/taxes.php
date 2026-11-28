@@ -40,4 +40,10 @@ return [
         'withholding_ppn_blocked'   => 'VAT (PPN) taxes cannot be withheld, so "Withheld from Payment" is not available for this category.',
         'unclassified_used'         => 'This tax is still unclassified but was used on :sales sales invoice(s) and :purchase purchase invoice(s) in the last 12 months. Set its category and behavior.',
     ],
+    'selection' => [
+        'duplicate'    => 'The same tax cannot be selected twice on one line.',
+        'multiple_ppn' => 'A line can have only one standard VAT (PPN) tax.',
+        'too_many'     => 'A line can have at most :max taxes.',
+        'required'     => 'Select at least one tax on this line.',
+    ],
 ];

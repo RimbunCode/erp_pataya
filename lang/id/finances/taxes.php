@@ -40,4 +40,10 @@ return [
         'withholding_ppn_blocked'   => 'Pajak PPN tidak boleh dipotong, sehingga "Dipotong dari Pembayaran" tidak tersedia untuk kategori ini.',
         'unclassified_used'         => 'Pajak ini belum diklasifikasi tetapi sudah dipakai pada :sales invoice penjualan dan :purchase invoice pembelian dalam 12 bulan terakhir. Tetapkan kategori dan perilakunya.',
     ],
+    'selection' => [
+        'duplicate'    => 'Pajak yang sama tidak boleh dipilih dua kali pada satu baris.',
+        'multiple_ppn' => 'Satu baris hanya boleh memiliki satu pajak PPN standar.',
+        'too_many'     => 'Satu baris maksimal memiliki :max pajak.',
+        'required'     => 'Pilih minimal satu pajak pada baris ini.',
+    ],
 ];

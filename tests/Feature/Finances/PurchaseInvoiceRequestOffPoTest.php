@@ -147,11 +147,11 @@ class PurchaseInvoiceRequestOffPoTest extends TestCase {
             $this->row(['id' => (string) Str::ulid(), 'item' => ['id' => $this->poVariant->id], 'purchase_order_item' => ['id' => $this->poItem->id]], ['tax' => null]),
         ]);
 
-        $this->assertErrorOn($validator, 'items.0.tax.id');
+        $this->assertErrorOn($validator, 'items.0.taxes');
     }
 
     private function row(array $source, array $over = []): array {
-        // Pajak wajib per baris (PurchaseInvoiceRequest 'items.*.tax.id' => required).
+        // Pajak wajib per baris (minimal satu, galat pada 'items.{i}.taxes'; `tax` tunggal dinormalisasi).
         return array_merge([
             'id'       => (string) Str::ulid(),
             'quantity' => 5,
@@ -384,5 +384,49 @@ class PurchaseInvoiceRequestOffPoTest extends TestCase {
         );
 
         $this->assertValid($validator);
+    }
+
+    // --- pajak majemuk per item (spek finance-multi-tax-per-item, Requirement 2, 8) --------------------
+
+    #[Test]
+    public function a_row_with_several_taxes_is_valid_and_the_single_tax_form_still_works(): void {
+        $ppn  = TaxFactory::new()->create(['category' => 'ppn_standard']);
+        $pph  = TaxFactory::new()->create(['category' => 'pph_23', 'behavior' => 'withholding']);
+        $base = ['id' => (string) Str::ulid(), 'item' => ['id' => $this->poVariant->id], 'purchase_order_item' => ['id' => $this->poItem->id]];
+
+        $this->assertValid($this->validate([$this->row($base, ['tax' => null, 'taxes' => [['id' => $ppn->id], ['id' => $pph->id]]])]));
+        $this->assertValid($this->validate([$this->row($base)]));
+    }
+
+    #[Test]
+    public function a_row_without_any_tax_is_rejected_on_the_taxes_key_even_when_taxes_is_empty(): void {
+        $base = ['id' => (string) Str::ulid(), 'item' => ['id' => $this->poVariant->id], 'purchase_order_item' => ['id' => $this->poItem->id]];
+
+        $this->assertErrorOn($this->validate([$this->row($base, ['tax' => null, 'taxes' => []])]), 'items.0.taxes');
+    }
+
+    #[Test]
+    public function forbidden_tax_combinations_are_rejected_on_the_taxes_key(): void {
+        $ppn  = TaxFactory::new()->create(['category' => 'ppn_standard']);
+        $ppn2 = TaxFactory::new()->create(['category' => 'ppn_standard']);
+        $pph  = TaxFactory::new()->create(['category' => 'pph_23', 'behavior' => 'withholding']);
+        $base = ['id' => (string) Str::ulid(), 'item' => ['id' => $this->poVariant->id], 'purchase_order_item' => ['id' => $this->poItem->id]];
+
+        $this->assertErrorOn($this->validate([$this->row($base, ['taxes' => [['id' => $pph->id], ['id' => $pph->id]]])]), 'items.0.taxes');
+        $this->assertErrorOn($this->validate([$this->row($base, ['taxes' => [['id' => $ppn->id], ['id' => $ppn2->id]]])]), 'items.0.taxes');
+        $this->assertErrorOn($this->validate([$this->row($base, ['taxes' => [['id' => (string) Str::ulid()]]])]), 'items.0.taxes.0.id');
+    }
+
+    #[Test]
+    public function the_single_tax_form_is_normalized_to_taxes_before_validation(): void {
+        $other = TaxFactory::new()->create();
+        $row   = $this->row(['id' => (string) Str::ulid(), 'item' => ['id' => $this->poVariant->id], 'purchase_order_item' => ['id' => $this->poItem->id]], ['taxes' => [['id' => $other->id]]]);
+
+        $request = PurchaseInvoiceRequest::create('/', 'POST', ['items' => [$row]]);
+        $request->setContainer(app());
+        (new \ReflectionMethod($request, 'prepareForValidation'))->invoke($request);
+
+        $this->assertSame([['id' => $other->id]], $request->input('items.0.taxes'), 'taxes menang atas tax.');
+        $this->assertNull($request->input('items.0.tax'));
     }
 }

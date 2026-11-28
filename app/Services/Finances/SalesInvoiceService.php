@@ -43,6 +43,7 @@ use App\Services\Finances\Ledger\JournalReversalService;
 use App\Services\Finances\Tax\DocumentTaxRules;
 use App\Services\Finances\Tax\DocumentTaxSnapshot;
 use App\Services\Finances\Tax\InvoiceItemTaxCalculator;
+use App\Services\Finances\Tax\ItemTaxSelection;
 use App\Services\Finances\Tax\TaxInvoiceAmounts;
 use App\Traits\HasDefaultDelete;
 use App\Utils;
@@ -100,10 +101,13 @@ class SalesInvoiceService implements SubmitableService {
 
         $unitId                    = $data['asset_id'] ? null : ($data['unit']['id'] ?? null);
         $unit                      = $units[$unitId] ?? null;
-        $taxRule                   = $taxRules[$data['tax']['id'] ?? ''] ?? null;
+        $primaryTaxId              = ItemTaxSelection::rowTaxIds($data)[0] ?? null;
+        $taxRule                   = $taxRules[$primaryTaxId ?? ''] ?? null;
         $data['item_unit_id']      = $unitId;
         $data['conversion_factor'] = $unit?->conversion_factor ?? 1;
-        $data['tax_id']            = $data['tax']['id'] ?? null;
+        // Pajak majemuk: kolom lama mencerminkan Pajak Utama (pajak pertama, `position` 0); semua pajak ditulis ke pivot
+        // oleh `InvoiceItemTaxCalculator`.
+        $data['tax_id'] = $primaryTaxId;
         // Tarif dan versinya dari aturan yang berlaku pada tanggal dokumen (Requirement 5.2); selalu ditimpa agar
         // `tax_rule_version_id` tidak dapat diisi dari request.
         $data['tax_rate']            = $taxRule !== null ? (float) $taxRule->rate : 0;
@@ -135,19 +139,23 @@ class SalesInvoiceService implements SubmitableService {
     }
 
     private function batchLoadTaxes(array $data): array {
-        $taxIds = collect($data['items'])->pluck('tax.id')->filter()->unique()->values();
+        $taxIds = collect($data['items'])->flatMap(fn (array $row): array => ItemTaxSelection::rowTaxIds($row))->unique()->values();
 
         return Tax::whereIn('id', $taxIds)->get()->keyBy('id')->all();
     }
 
     /**
      * Versi aturan pajak pada tanggal dokumen untuk setiap pajak di item (Requirement 3.4). Dipanggil sebelum
-     * penulisan apa pun: pajak tanpa versi berlaku menggagalkan permintaan dengan pesan pada `items.{i}.tax`.
+     * penulisan apa pun: aturan kombinasi pajak majemuk dijaga lebih dulu (kunci `items.{i}.taxes`, jaring pengaman
+     * jalur non-HTTP), lalu pajak tanpa versi berlaku menggagalkan permintaan dengan pesan pada `items.{i}.taxes.{j}`.
      *
      * @return array<string, TaxRuleVersion>
      */
     private function resolveTaxRules(array $data): array {
-        return app(DocumentTaxRules::class)->resolveForRows($data['items'], $this->batchLoadTaxes($data), $data['date'] ?? null);
+        $taxes = $this->batchLoadTaxes($data);
+        ItemTaxSelection::assertRows($data['items'], $taxes);
+
+        return app(DocumentTaxRules::class)->resolveForRows($data['items'], $taxes, $data['date'] ?? null);
     }
 
     /**
@@ -173,17 +181,19 @@ class SalesInvoiceService implements SubmitableService {
      *
      * @param  Collection<int, SalesInvoiceItem>  $items  item yang sudah tersimpan dan di-refresh
      * @param  array<string, TaxRuleVersion>  $taxRules  `resolveTaxRules()`
+     * @param  array<string, list<string>>  $itemTaxIds  id pajak terurut per kunci item (pajak majemuk)
      * @return float total dokumen: basis bersih + pajak penambah - pajak potong
      */
-    private function applyItemTaxes(array $data, SalesInvoice $salesInvoice, Collection $items, array $taxRules): float {
+    private function applyItemTaxes(array $data, SalesInvoice $salesInvoice, Collection $items, array $taxRules, array $itemTaxIds = []): float {
         $lineRules = app(DocumentTaxRules::class)->lineParameters($taxRules, $this->batchLoadTaxes($data));
-        $discounts = DocumentDiscountCalculator::invoiceItemDiscounts($salesInvoice, $items, $lineRules);
+        $discounts = DocumentDiscountCalculator::invoiceItemDiscounts($salesInvoice, $items, $lineRules, $itemTaxIds);
         $totals    = app(InvoiceItemTaxCalculator::class)->apply(
             $items,
             $discounts,
             CarbonImmutable::parse($data['date'] ?? 'now'),
             DocumentTaxSnapshot::minorUnitFor($salesInvoice->currency_code),
             false,
+            $itemTaxIds,
         );
 
         return round($totals['net'] + $totals['tax'] - $totals['withholding'], 6);
@@ -209,18 +219,20 @@ class SalesInvoiceService implements SubmitableService {
         $units           = $this->batchLoadUnits($data);
         $salesOrderItems = $this->batchLoadSalesOrderItems($data);
 
-        $items = collect();
+        $items      = collect();
+        $itemTaxIds = [];
         foreach ($data['items'] as $item) {
             $item      = $this->fillItemRelations($item, $salesInvoice, $units, $taxRules, $salesOrderItems);
             $itemModel = $salesInvoice->items()->create($item);
             // basic_amount generated column (quantity * price) -- belum terisi di object
             // sampai di-refresh dari DB.
             $itemModel->refresh();
+            $itemTaxIds[(string) $itemModel->getKey()] = ItemTaxSelection::rowTaxIds($item);
             $items->push($itemModel);
         }
 
         $salesInvoice->update([
-            'amount' => $this->applyItemTaxes($data, $salesInvoice, $items, $taxRules),
+            'amount' => $this->applyItemTaxes($data, $salesInvoice, $items, $taxRules, $itemTaxIds),
         ]);
         foreach ($data['payment_schedules'] ?? [] as $payment_schedule) {
             $payment_schedule = $this->fillPaymentScheduleRelations($payment_schedule, $salesInvoice);
@@ -252,7 +264,8 @@ class SalesInvoiceService implements SubmitableService {
         $units           = $this->batchLoadUnits($data);
         $salesOrderItems = $this->batchLoadSalesOrderItems($data);
 
-        $items = collect();
+        $items      = collect();
+        $itemTaxIds = [];
         foreach ($data['items'] as $item) {
             $item = $this->fillItemRelations($item, $salesInvoice, $units, $taxRules, $salesOrderItems);
 
@@ -271,11 +284,12 @@ class SalesInvoiceService implements SubmitableService {
             // basic_amount generated column -- refresh supaya nilai terbaru (quantity/price
             // baru) terbaca sebelum dialokasikan diskon.
             $itemModel->refresh();
+            $itemTaxIds[(string) $itemModel->getKey()] = ItemTaxSelection::rowTaxIds($item);
             $items->push($itemModel);
         }
 
         $salesInvoice->fill([
-            'amount' => $this->applyItemTaxes($data, $salesInvoice, $items, $taxRules),
+            'amount' => $this->applyItemTaxes($data, $salesInvoice, $items, $taxRules, $itemTaxIds),
         ]);
         $salesInvoice->save();
 
@@ -361,6 +375,7 @@ class SalesInvoiceService implements SubmitableService {
                 'items.returnAgainstItem',
                 'items.salesOrderItem',
                 'items.asset',
+                'items.taxLines',
             ]);
 
             $returnAgainst = $salesInvoice->returnAgainst;

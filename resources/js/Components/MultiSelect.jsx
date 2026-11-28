@@ -19,6 +19,7 @@ import {
 } from "react";
 
 import { Button } from "./ui/button";
+import ChipList from "./ChipList";
 import { Checkbox } from "./ui/checkbox";
 import ClickAwayListener from "react-click-away-listener";
 import { Input } from "./ui/input";
@@ -78,8 +79,19 @@ const escapeRegExp = (s) => s.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
  *                    SELALU langsung trigger onValueChange terlepas dari prop
  *                    ini -- itu aksi eksplisit tunggal, bukan bagian rentetan
  *                    toggle yang perlu di-batch.
+ *   chips          : default true -- nilai terpilih tampil sbg chip (label opsi +
+ *                    X, komponen bersama `ChipList`) di dalam kotak input;
+ *                    input hanya buffer ketik/cari (kosong saat tertutup),
+ *                    "Semua" (showAllOption + semua terpilih) = SATU chip.
+ *                    `false` -> perilaku lama: isi input = ringkasan teks
+ *                    gabungan saat popover tertutup (lihat `delimiters`).
+ *   navigation     : opsional (hanya mode chips), `(option) => href|null`,
+ *                    `option` = entri `options` aslinya. href -> label chip jadi
+ *                    tautan (tab baru); null/tanpa prop -> label teks biasa.
+ *                    Chip "Semua" tak pernah tautan.
  *   delimiters     : string atau array string, default [","]. Input punya DUA
- *                    MODE:
+ *                    MODE (mode ringkasan di bawah hanya bila `chips={false}`;
+ *                    pada mode chips isi input tertutup selalu kosong):
  *                      - Popover TERTUTUP -> isi Input = RINGKASAN value
  *                        terpilih (join label, atau label All kalau semua
  *                        kecheck & `showAllOption` aktif -- sama seperti
@@ -123,6 +135,8 @@ const MultiSelect = memo(
       defaultValue,
       changeOnBlur = false,
       delimiters,
+      chips = true,
+      navigation,
     },
     ref,
   ) {
@@ -156,7 +170,7 @@ const MultiSelect = memo(
                     ? t(`${optionTrans}.${x.value ?? x}`)
                     : (x.value ?? x);
             const optValue = typeof x === "object" ? x.value : x;
-            return { label, value: optValue };
+            return { label, value: optValue, raw: x };
           }) ?? []
       );
     }, [_options, optionTrans, t]);
@@ -203,9 +217,14 @@ const MultiSelect = memo(
     // popover TERBUKA ("mode edit") -> buffer ketikan transien, mulai kosong
     // tiap dibuka (lihat efek [open] di bawah). Init via labelOfValues supaya
     // render pertama (closed state) langsung benar, gak nunggu efek jalan.
+    // Isi input saat tertutup: ringkasan teks (mode lama) atau kosong (mode chips).
+    const summaryOf = useCallback(
+      (vals) => (chips ? "" : labelOfValues(vals)),
+      [chips, labelOfValues],
+    );
     const initialValues = resolveValue(value);
     const [values, _setValues] = useState(() => initialValues);
-    const [search, setSearch] = useState(() => labelOfValues(initialValues));
+    const [search, setSearch] = useState(() => summaryOf(initialValues));
     const commandRef = useRef(null);
     const popoverRef = useRef(null);
 
@@ -226,7 +245,7 @@ const MultiSelect = memo(
     // `open` biar gak nimpa buffer ketikan yg lagi aktif diedit.
     useEffect(() => {
       if (open) return;
-      setSearch(labelOfValues(values));
+      setSearch(summaryOf(values));
     }, [oriOptions]);
 
     // Update state lokal SAJA -- tidak notify parent. Dipakai toggle per-item
@@ -306,6 +325,7 @@ const MultiSelect = memo(
     const tooltipRows = useMemo(() => {
       const currentRows = (values ?? []).map((v) => ({
         key: `${v}`,
+        value: v,
         label: oriOptions.find((opt) => opt.value === v)?.label ?? v,
         status: undefined,
       }));
@@ -325,6 +345,7 @@ const MultiSelect = memo(
         .filter((v) => !afterSet.has(v))
         .map((v) => ({
           key: `removed-${v}`,
+          value: v,
           label: oriOptions.find((opt) => opt.value === v)?.label ?? v,
           status: "removed",
         }));
@@ -461,7 +482,7 @@ const MultiSelect = memo(
       if (!sameSet(finalValues, values)) {
         setValues(finalValues);
       }
-      setSearch(labelOfValues(finalValues));
+      setSearch(summaryOf(finalValues));
       setIsDirty(false);
       onSearchChange?.("");
 
@@ -472,6 +493,55 @@ const MultiSelect = memo(
         }
       }
     }, [open]);
+
+    // Cabut satu chip. Aksi eksplisit tunggal -> commit langsung ke parent walau
+    // `changeOnBlur` (seperti tombol clear); snapshot dibuka diperbarui supaya
+    // efek tutup-popover tidak memanggil onValueChange kedua kali.
+    const removeValues = useCallback(
+      (removeList) => {
+        const next = (values ?? []).filter((x) => !removeList.includes(x));
+        if (changeOnBlur) {
+          setValuesLocalOnly(next);
+          openSnapshotRef.current = next;
+          onValueChange?.(next);
+        } else {
+          setValues(next);
+        }
+      },
+      [values, changeOnBlur, setValues, setValuesLocalOnly, onValueChange],
+    );
+
+    // Chip: satu per nilai (urut sesuai `values`), atau SATU chip "Semua".
+    const chipItems = useMemo(() => {
+      if (!chips) return [];
+      if (showAllOption && isAllSelected) {
+        return [
+          {
+            key: ALL_OPTION_VALUE,
+            value: ALL_OPTION_VALUE,
+            label: allOptionLabel ?? t("core.form.all"),
+            status: hasDiffChange ? "added" : undefined,
+          },
+        ];
+      }
+      return tooltipRows.map((row) => {
+        if (row.status === "removed" || !navigation) return row;
+        const href = navigation(
+          oriOptions.find((opt) => opt.value === row.value)?.raw ?? row.value,
+        );
+        return href ? { ...row, href } : row;
+      });
+    }, [
+      chips,
+      showAllOption,
+      isAllSelected,
+      allOptionLabel,
+      hasDiffChange,
+      tooltipRows,
+      navigation,
+      oriOptions,
+      t,
+    ]);
 
     const onInputKeyDown = useCallback(
       (e) => {
@@ -583,6 +653,7 @@ const MultiSelect = memo(
                     asChild
                     className={cn(
                       "flex h-8 items-center overflow-hidden border rounded-md cursor-default group/model relative focus-within:border-0 border-input ring-offset-background bg-muted focus-within:outline-none focus-within:ring-1 focus-within:ring-ring focus-within:ring-offset-1",
+                      chips && "flex-wrap h-auto min-h-8 py-0.5",
                       valueBefore !== undefined &&
                         hasDiffChange &&
                         DIFF_HIGHLIGHT,
@@ -591,6 +662,25 @@ const MultiSelect = memo(
                     )}
                   >
                     <div>
+                      {chips && (
+                        <ChipList
+                          items={chipItems}
+                          readOnly={disabled || readOnly}
+                          onRemove={(item) =>
+                            removeValues(
+                              item.value === ALL_OPTION_VALUE
+                                ? (values ?? [])
+                                : [item.value],
+                            )
+                          }
+                          removeLabel={(item) =>
+                            t("core.form.linkmodel.remove", {
+                              name: item.label,
+                            })
+                          }
+                          className="pl-1.5 py-0.5 max-w-full"
+                        />
+                      )}
                       <Input
                         id={id}
                         ref={ref}
@@ -601,7 +691,9 @@ const MultiSelect = memo(
                           e.preventDefault();
                           if (!open) setOpen(true);
                         }}
-                        required={required}
+                        required={
+                          chips ? required && !values?.length : required
+                        }
                         value={search}
                         onChange={(e) => {
                           const nextValue = e.target.value;
@@ -669,10 +761,15 @@ const MultiSelect = memo(
                         }}
                         className={cn(
                           "focus:border-0! bg-inherit! disabled:opacity-100! h-8 w-full rounded-none! pr-2! border-0! focus-visible:ring-0! focus-visible:ring-offset-0!",
+                          chips && "w-auto flex-1 min-w-16",
                         )}
                         placeholder={
-                          placeholder ??
-                          (values?.length ? labelOfValues(values) : "")
+                          chips
+                            ? values?.length
+                              ? ""
+                              : (placeholder ?? "")
+                            : (placeholder ??
+                              (values?.length ? labelOfValues(values) : ""))
                         }
                       />
                       <div className="flex items-center h-8 pr-2 gap-x-2">
@@ -716,7 +813,7 @@ const MultiSelect = memo(
                     </div>
                   </PopoverTrigger>
                 </TooltipTrigger>
-                {!open && tooltipRows.length > 0 && (
+                {!open && (chips ? hasDiffChange : tooltipRows.length > 0) && (
                   <TooltipContent side="top" align="start" className="max-w-xs">
                     <ul className="space-y-0.5">
                       {tooltipRows.map((row) => (

@@ -42,7 +42,7 @@ final class PurchaseInvoicePostingContextFactory {
     }
 
     public function forPosting(PurchaseInvoice $purchaseInvoice, float $totalStockGl, float $totalAmount, bool $isReturn, CarbonInterface $transactionDate, bool $preview = false): PostingContext {
-        $items = $purchaseInvoice->items()->with(['item' => fn ($query) => $query->withTrashed()])->get();
+        $items = $purchaseInvoice->items()->with(['item' => fn ($query) => $query->withTrashed(), 'taxLines'])->get();
         $lines = $this->lines->build($items, $totalAmount, PostingDocumentType::PurchaseInvoice->value, (string) $purchaseInvoice->getKey());
 
         [$taxComponents, $taxSplitActive] = $this->taxSplitFor($purchaseInvoice, $items, $transactionDate, $isReturn, $preview);

@@ -314,4 +314,75 @@ describe("TaxLinkModel", () => {
       { timeout: 3000 },
     );
   });
+
+  // spec finance-multi-tax-per-item, Requirement 9.9: `multiple`, `filters`
+  // dan `valueBefore` diteruskan apa adanya ke LinkModel (di bawah tangan).
+  describe("mode multiple", () => {
+    const TAX_MODEL = "App\\Models\\Finances\\Tax";
+    const ppn = {
+      id: 1,
+      templateLink: ":name (:rate%)",
+      name: "PPN",
+      rate: 11,
+      thisModel: TAX_MODEL,
+    };
+    const pph = {
+      id: 2,
+      templateLink: ":name (:rate%)",
+      name: "PPh 21",
+      rate: 5,
+      thisModel: TAX_MODEL,
+    };
+
+    it("value array tampil sebagai chip berlabel templateLink pajak", async () => {
+      await render(<TaxLinkModel multiple value={[ppn, pph]} />);
+      expect(
+        screen.getAllByTestId("chip").map((chip) => chip.textContent),
+      ).toEqual(["PPN (11%)", "PPh 21 (5%)"]);
+    });
+
+    it("memilih opsi memanggil onValueChange dgn array; filters ikut ke permintaan", async () => {
+      const user = userEvent.setup({ delay: null });
+      const onValueChange = vi.fn();
+      axiosPost.mockResolvedValue({ data: { data: [ppn, pph], total: 2 } });
+      await render(
+        <TaxLinkModel
+          multiple
+          value={[ppn]}
+          filters={{ type: { eq: "ppn" } }}
+          onValueChange={onValueChange}
+        />,
+      );
+      await act(async () => {
+        await user.click(screen.getByRole("textbox"));
+      });
+      await waitFor(() =>
+        expect(axiosPost).toHaveBeenCalledWith(
+          "model",
+          expect.objectContaining({
+            model: TAX_MODEL,
+            filters: { type: { eq: "ppn" } },
+          }),
+        ),
+      );
+      await act(async () => {
+        await user.click(await screen.findByRole("option", { name: /PPh 21/ }));
+      });
+      expect(onValueChange).toHaveBeenCalledWith([
+        expect.objectContaining({ id: 1 }),
+        expect.objectContaining({ id: 2 }),
+      ]);
+    });
+
+    it("valueBefore menandai chip ditambah per chip", async () => {
+      await render(
+        <TaxLinkModel multiple value={[ppn, pph]} valueBefore={[ppn]} />,
+      );
+      expect(
+        screen
+          .getAllByTestId("chip")
+          .map((chip) => chip.getAttribute("data-status")),
+      ).toEqual([null, "added"]);
+    });
+  });
 });

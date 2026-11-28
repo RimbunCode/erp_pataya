@@ -16,8 +16,9 @@ use Throwable;
  * punya versi sebagai legacy (Requirement 5.5), dan memberi peringatan bila engine menghitung lebih dari satu minor
  * unit berbeda untuk sebuah baris.
  *
- * Tidak mengenal model dokumen: pemanggil menyerahkan item bergaya model dengan atribut `tax_id`, `basic_amount`,
- * `discount_amount`, `tax_rate`, `dpp_amount`, `tax_amount`, `withholding_amount`, `tax_rule_version_id`.
+ * Tidak mengenal model dokumen: pemanggil menyerahkan item bergaya model (relasi `taxLines` untuk pajak majemuk, atau
+ * atribut `tax_id`, `basic_amount`, `discount_amount`, `tax_rate`, `dpp_amount`, `tax_amount`, `withholding_amount`,
+ * `tax_rule_version_id` untuk item tanpa pivot).
  */
 final class DocumentTaxSnapshot {
     /** Kode peringatan pada snapshot yang gagal dibangun (Q-P3-6). */
@@ -39,21 +40,20 @@ final class DocumentTaxSnapshot {
         $persisted = [];
 
         foreach ($items as $item) {
-            if (blank($item->tax_id)) {
-                continue;
+            // Satu komponen per baris pajak item (pajak majemuk, Requirement 6.1); item ber-`tax_id` tanpa pivot
+            // dibaca sebagai satu pajak dari kolom item (`InvoiceItemTaxLines`). `lineRef` gabungan `{itemId}#{taxId}`.
+            foreach (InvoiceItemTaxLines::of($item) as $line) {
+                $ref             = InvoiceItemTaxLines::lineRef($item, $line['tax_id']);
+                $inputs[]        = new TaxInput($line['tax_id'], $line['base_amount'], $date, $minorUnit, $ref);
+                $persisted[$ref] = [
+                    'tax_rate'   => $line['tax_rate'],
+                    'dpp_amount' => $line['dpp_amount'],
+                    // Pajak potong (`withholding`) disimpan di `withholding_amount`, pajak penambah di `tax_amount`
+                    // (Bagian B, Requirement 12.4); salah satunya selalu 0 sehingga jumlahnya adalah nilai komponen.
+                    'tax_amount'      => $line['tax_amount'] + $line['withholding_amount'],
+                    'rule_version_id' => $line['tax_rule_version_id'],
+                ];
             }
-
-            $ref             = (string) $item->getKey();
-            $netBase         = (float) $item->basic_amount - (float) $item->discount_amount;
-            $inputs[]        = new TaxInput((string) $item->tax_id, $netBase, $date, $minorUnit, $ref);
-            $persisted[$ref] = [
-                'tax_rate'   => (float) $item->tax_rate,
-                'dpp_amount' => (float) $item->dpp_amount,
-                // Pajak potong (`withholding`) disimpan di `withholding_amount`, pajak penambah di `tax_amount`
-                // (Bagian B, Requirement 12.4); salah satunya selalu 0 sehingga jumlahnya adalah nilai komponen.
-                'tax_amount'      => (float) $item->tax_amount + (float) ($item->withholding_amount ?? 0),
-                'rule_version_id' => $item->tax_rule_version_id,
-            ];
         }
 
         return $inputs === [] ? null : $this->engine->describePersisted($inputs, $persisted);
@@ -77,7 +77,7 @@ final class DocumentTaxSnapshot {
             Log::warning('tax.snapshot_build_failed', [
                 'document_type' => $documentType,
                 'document_id'   => $documentId,
-                'tax_ids'       => $items->pluck('tax_id')->filter()->unique()->values()->all(),
+                'tax_ids'       => $items->flatMap(fn (object $item): array => array_column(InvoiceItemTaxLines::of($item), 'tax_id'))->unique()->values()->all(),
                 'exception'     => $e::class,
                 'message'       => $e->getMessage(),
             ]);

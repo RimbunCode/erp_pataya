@@ -71,6 +71,8 @@ class PurchaseInvoiceController extends Controller {
                                     'id'                     => Utils::generateRandom(5),
                                     'purchase_order_item'    => $item,
                                     'purchase_order_item_id' => $item->id,
+                                    // Pajak majemuk: invoice dari PO membawa pajak baris PO (PO masih satu pajak).
+                                    'taxes' => $item->tax ? [$item->tax] : [],
                                 ]),
                                 'payment_schedules' => $po?->paymentSchedules->map(fn ($paymentSchedule) => [
                                     ...$paymentSchedule->toArray(),

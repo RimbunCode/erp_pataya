@@ -11,6 +11,7 @@ use App\Http\Requests\Finances\Rules\ReturnAgainstItemRules;
 use App\Http\Requests\Sales\Rules\OffSourceItemRules;
 use App\Models\Finances\SalesInvoice;
 use App\Models\Finances\SalesInvoiceItem;
+use App\Models\Finances\Tax;
 use App\Models\Inventory\ItemUnit;
 use App\Models\Sales\SalesOrderItem;
 use App\Models\Sales\SalesSetting;
@@ -20,6 +21,7 @@ use App\Services\Core\Setting\RateChangeComparator;
 use App\Services\Core\Setting\ToleranceCalculator;
 use App\Services\Finances\InvoiceBilledValueResolver;
 use App\Services\Finances\SalesInvoiceService;
+use App\Services\Finances\Tax\ItemTaxSelection;
 use Illuminate\Contracts\Validation\ValidationRule;
 use Illuminate\Contracts\Validation\Validator;
 use Illuminate\Support\Facades\DB;
@@ -68,6 +70,9 @@ class SalesInvoiceRequest extends BaseFormRequest {
             'items.*.unit.*'                 => ['nullable'],
             'items.*.tax.id'                 => ['nullable', new ExistsExcludingTrashed('taxes')],
             'items.*.tax.*'                  => ['nullable'],
+            'items.*.taxes'                  => ['nullable', 'array', 'max:' . ItemTaxSelection::MAX_TAXES],
+            'items.*.taxes.*.id'             => ['required', new ExistsExcludingTrashed('taxes')],
+            'items.*.taxes.*.*'              => ['nullable'],
             'items.*.price'                  => ['nullable', 'numeric', 'required_without:items.*.sales_order_item.id'],
             'items.*.return_against_item_id' => ['nullable', new ExistsExcludingTrashed('sales_invoice_items')],
             'currency.code'                  => ['nullable', 'exists:currencies,code'],
@@ -121,13 +126,51 @@ class SalesInvoiceRequest extends BaseFormRequest {
             OffSourceItemRules::validateFreeAssets($validator, $freeAsset, 'sales_invoice_items', 'sales_invoices', 'sales_invoice_id');
             OffSourceItemRules::validateSourceBelongsToHeader($validator, $this->sourceOrderOf($rows), $this->input('sales_order.id'), 'sales_order_item.id');
 
-            $this->validateRowTaxRequired($validator, DefaultsDocumentType::SalesInvoice, $rows, $this->itemIdsOfRows($this->rowsWithSourceIdentity($rows)));
+            $this->validateRowTaxRequired($validator, DefaultsDocumentType::SalesInvoice, $rows, $this->itemIdsOfRows($this->rowsWithSourceIdentity($rows)), multiTax: true);
+            $this->validateTaxCombinations($validator, $rows);
 
             if (! $isReturn) {
                 $this->validateRateChanges($validator, $rows);
                 $this->validateBillingTolerance($validator, $rows);
             }
         });
+    }
+
+    /**
+     * Normalisasi kontrak pajak majemuk (Q-MT-8): `tax` tunggal menjadi `taxes: [tax]`; bila keduanya dikirim, `taxes`
+     * menang dan `tax` dibuang. Pemeriksaan di `withValidator()`/service memakai `ItemTaxSelection::rowTaxes()` yang
+     * sama, sehingga hasilnya konsisten bahkan tanpa langkah ini.
+     */
+    protected function prepareForValidation(): void {
+        $items = $this->input('items');
+        if (! \is_array($items)) {
+            return;
+        }
+
+        foreach ($items as $index => $row) {
+            if (\is_array($row)) {
+                $items[$index]['taxes'] = ItemTaxSelection::rowTaxes($row);
+                unset($items[$index]['tax']);
+            }
+        }
+
+        $this->merge(['items' => $items]);
+    }
+
+    /**
+     * Aturan kombinasi pajak (duplikat, lebih dari satu PPN standar, batas jumlah) pada `items.{i}.taxes`.
+     *
+     * @param  array<int|string, mixed>  $rows
+     */
+    private function validateTaxCombinations(Validator $validator, array $rows): void {
+        $ids   = collect($rows)->flatMap(fn ($row): array => ItemTaxSelection::rowTaxIds((array) $row))->unique()->values()->all();
+        $taxes = $ids === [] ? [] : Tax::query()->whereIn('id', $ids)->get()->keyBy('id')->all();
+
+        foreach (ItemTaxSelection::errorsForRows($rows, $taxes) as $key => $messages) {
+            foreach ($messages as $message) {
+                $validator->errors()->add($key, $message);
+            }
+        }
     }
 
     /**

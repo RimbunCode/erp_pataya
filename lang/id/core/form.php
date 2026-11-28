@@ -127,6 +127,8 @@ return [
     'timestamp'                => 'Stempel Waktu',
     'linkmodel.more'           => 'Lihat Lebih Lanjut...',
     'linkmodel.advance_search' => 'Pencarian Lanjutan',
+    'linkmodel.select'         => 'Pilih (:count)',
+    'linkmodel.remove'         => 'Hapus :name',
     'created_at'               => 'Dibuat Pada',
     'created_by'               => 'Dibuat Oleh',
     'updated_at'               => 'Diperbarui Pada',
