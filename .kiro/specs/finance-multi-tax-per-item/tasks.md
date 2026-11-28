@@ -4,7 +4,7 @@
 
 Urutan: (1) mode multi value `LinkModel` dengan chip + penyelarasan `MultiSelect`, (2) skema + model + migrasi data, (3) aturan kombinasi, (4) perhitungan + alokasi diskon, (5) jurnal, (6) snapshot/Faktur Pajak/cetak, (7) request + service, (8) form invoice, (9) order/quotation, (10) form order/quotation, (11) pajak default item, (12) skenario S2 dan checkpoint. Lint/Pint sekali di akhir (CLAUDE.md).
 
-**Prasyarat**: Fase 3 Tax Engine selesai dan ter-merge ke `feat/finance-engine` (PR #334, #335, #336). Pertanyaan Q-MT-1 sudah diputuskan (2026-11-28: bangun di `LinkModel`, chip, klik label membuka detail, `MultiSelect` mengikuti). Q-MT-2 s.d. Q-MT-5, Q-MT-8 s.d. Q-MT-11 sudah diputuskan (2026-11-28). Yang MASIH terbuka dan memblokir task terkait: Q-MT-6 (pajak atas pajak, Task 4), Q-MT-7 (definisi `dpp_amount`, Task 4.3 dan 6.2), Q-MT-12 (perhitungan order, Task 9), Q-MT-13 (prioritas default, Task 11). Branch baru dari `origin/feat/finance-engine` terbaru, PR base `feat/finance-engine`, label `skip-deploy` bila belum siap deploy.
+**Prasyarat**: Fase 3 Tax Engine selesai dan ter-merge ke `feat/finance-engine` (PR #334, #335, #336). Pertanyaan Q-MT-1 sudah diputuskan (2026-11-28: bangun di `LinkModel`, chip, klik label membuka detail, `MultiSelect` mengikuti). Q-MT-2 s.d. Q-MT-5, Q-MT-8 s.d. Q-MT-11 sudah diputuskan (2026-11-28). Q-MT-6 s.d. Q-MT-15 seluruhnya sudah diputuskan pemilik produk (2026-11-28): tanpa pajak atas pajak, `dpp_amount` = DPP pajak PPN pertama, order memakai `TaxEngine`, prioritas default item > aturan bersyarat > modul, angka order yang bergeser diterima, dan pajak default item menang atas `tax_optional`. Tidak ada pertanyaan terbuka. Branch baru dari `origin/feat/finance-engine` terbaru, PR base `feat/finance-engine`, label `skip-deploy` bila belum siap deploy.
 
 **Aturan eksekusi**:
 - Item satu pajak harus identik byte-demi-byte dengan perilaku sebelum spek ini; jalankan test pajak existing di setiap task.
@@ -94,7 +94,7 @@ Urutan: (1) mode multi value `LinkModel` dengan chip + penyelarasan `MultiSelect
   - [x] 8.4 Perbarui `Form.rtl.test.jsx` SI/PI dengan kasus banyak pajak
     - _Requirements: 10.7_
 
-- [x] 9. Quotation, Sales Order, Purchase Order (Requirement 14; menunggu Q-MT-12)
+- [x] 9. Quotation, Sales Order, Purchase Order (Requirement 14; Q-MT-12 diputuskan)
   - [x] 9.1 Migrasi pivot `quotation_item_taxes`, `sales_order_item_taxes`, `purchase_order_item_taxes` + backfill berparitas + `down()`; model dan relasi
     - _Requirements: 14.1, 14.10, 7.1-7.4_
   - [x] 9.2 Perhitungan order/quotation sesuai Q-MT-12 (A: `InvoiceItemTaxCalculator` diparameterisasi untuk kolom harga order; B: hitung sederhana per pajak); `DocumentDiscountCalculator::applyToItems()` mengikuti
@@ -112,7 +112,7 @@ Urutan: (1) mode multi value `LinkModel` dengan chip + penyelarasan `MultiSelect
   - [x] 10.2 Pastikan `AdditionalDiscount.jsx` dan `lib/taxRules.js` tetap utuh untuk satu pajak; perbarui test form order dan quotation
     - _Requirements: 14.9_
 
-- [x] 11. Pajak default per item master (Requirement 15; menunggu Q-MT-13)
+- [x] 11. Pajak default per item master (Requirement 15; Q-MT-13 diputuskan)
   - [x] 11.1 Migrasi `item_default_taxes` + model relasi `salesDefaultTaxes()`/`purchaseDefaultTaxes()` pada `Item` + `configColumns` + `initPermissions()`
     - _Requirements: 15.1, 15.9_
   - [x] 11.2 `ItemRequest`/`ItemService`: terima dan sinkron `default_sales_taxes`/`default_purchase_taxes` (aturan kombinasi, urutan)
