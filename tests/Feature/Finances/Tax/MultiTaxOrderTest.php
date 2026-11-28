@@ -628,7 +628,7 @@ class MultiTaxOrderTest extends TestCase {
         $rows     = [
             ['sales_order_item' => ['id' => 'so-1'], 'taxes' => [['id' => $ppn->getKey()], ['id' => $pph->getKey()]]],
             ['sales_order_item' => ['id' => 'so-1'], 'taxes' => [['id' => $ppn->getKey()]]],
-            ['taxes'            => [['id' => $pph->getKey()]]],
+            ['taxes' => [['id' => $pph->getKey()]]],
         ];
 
         $aligned = $resolver->alignTaxesToSource($rows, fn (array $row) => isset($row['sales_order_item']) ? $source : null);
