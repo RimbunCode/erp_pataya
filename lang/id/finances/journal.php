@@ -40,6 +40,7 @@ return [
     'errors' => [
         'too_few_lines'        => 'Jurnal harus memiliki minimal 2 baris (diterima :count).',
         'negative_amount'      => 'Baris :line bernilai negatif.',
+        'foreign_mismatch'     => 'Baris :line: nilai dasar tidak sama dengan jumlah asing × kurs (toleransi satu minor unit), atau data mata uang asing tidak valid.',
         'both_sides'           => 'Baris :line memiliki debit dan kredit sekaligus; hanya satu sisi yang boleh bernilai.',
         'no_amount'            => 'Baris :line bernilai nol pada debit maupun kredit.',
         'non_numeric_amount'   => 'Baris :line memiliki nilai yang bukan angka.',

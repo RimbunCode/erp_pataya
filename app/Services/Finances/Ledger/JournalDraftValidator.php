@@ -4,6 +4,7 @@ namespace App\Services\Finances\Ledger;
 
 use App\Exceptions\Finances\InvalidJournalException;
 use App\Exceptions\Finances\UnbalancedJournalException;
+use App\Services\Finances\Currency\Decimal;
 use InvalidArgumentException;
 use RangeException;
 
@@ -47,6 +48,10 @@ final class JournalDraftValidator {
                 throw InvalidJournalException::noAmount($lineNo);
             }
 
+            if ($line->foreign !== null) {
+                self::assertForeign($line->foreign, $debitMinor + $creditMinor, $minorUnit, $lineNo);
+            }
+
             $totalDebit += $debitMinor;
             $totalCredit += $creditMinor;
             if (! \is_int($totalDebit) || ! \is_int($totalCredit)) {
@@ -61,6 +66,29 @@ final class JournalDraftValidator {
         }
 
         return new NormalizedJournal($lines, $totalDebit, $minorUnit);
+    }
+
+    /**
+     * Requirement 3.4: nilai dasar baris = jumlah asing × kurs (HALF_UP ke minor unit) dalam toleransi satu minor unit.
+     * Aritmetika `Decimal` (BigDecimal), tanpa float.
+     */
+    private static function assertForeign(ForeignAmount $foreign, int $baseMinor, int $minorUnit, int $lineNo): void {
+        try {
+            $amount = Decimal::normalize($foreign->amount);
+            $rate   = Decimal::normalize($foreign->rate);
+        } catch (InvalidArgumentException) {
+            throw InvalidJournalException::foreignMismatch($lineNo);
+        }
+
+        if ($foreign->currencyCode === '' || Decimal::compare($amount, '0') <= 0 || Decimal::compare($rate, '0') <= 0) {
+            throw InvalidJournalException::foreignMismatch($lineNo);
+        }
+
+        $expected      = Decimal::roundHalfUp(Decimal::multiply($amount, $rate), $minorUnit);
+        $expectedMinor = MinorUnit::toMinor($expected, $minorUnit);
+        if (abs($expectedMinor - $baseMinor) > 1) {
+            throw InvalidJournalException::foreignMismatch($lineNo);
+        }
     }
 
     private static function amount(float|int|string $value, int $lineNo): float {

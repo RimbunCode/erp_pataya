@@ -6,6 +6,7 @@ use App\Enums\RateType;
 use App\Models\Core\Currency;
 use App\Models\Finances\ExchangeRate;
 use App\Models\Finances\FinanceSetting;
+use App\Models\Finances\SalesInvoice;
 
 /**
  * Pembantu test FX (Finance Fase 4): mata uang, kurs, dan setting FX.
@@ -43,11 +44,18 @@ trait CreatesExchangeRates {
         $row->save();
 
         if ($referenced) {
-            // Menandai dirujuk (false -> true) diizinkan; update berikutnya terkunci.
-            $row->forceFill(['have_transactions' => true])->save();
+            $this->referenceRate($row);
         }
 
         return $row->refresh();
+    }
+
+    /**
+     * Menandai kurs "dirujuk" dengan cara yang sama seperti dokumen sungguhan: sebuah Sales Invoice menyimpan
+     * `exchange_rate_id` (keputusan pemilik produk 28 November 2026; `have_transactions` tidak dipakai kurs).
+     */
+    protected function referenceRate(ExchangeRate $rate): SalesInvoice {
+        return SalesInvoice::factory()->create(['exchange_rate_id' => $rate->getKey()]);
     }
 
     /**

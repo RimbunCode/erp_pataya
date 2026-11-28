@@ -4,6 +4,7 @@ namespace App\Services\Sales\Accounting;
 
 use App\Enums\PostingDocumentType;
 use App\Models\Finances\SalesInvoice;
+use App\Services\Finances\Accounting\DocumentFxScaler;
 use App\Services\Finances\Accounting\InvoiceLineAttributesBuilder;
 use App\Services\Finances\Accounting\InvoiceTaxComponentsBuilder;
 use App\Services\Finances\Accounting\TaxSplitResolver;
@@ -51,6 +52,21 @@ final class SalesInvoicePostingContextFactory {
         // Pajak potong (Bagian B, Requirement 12.4) tidak bergantung pada cutover: sudah keluar dari `amount` dokumen.
         $withholding = $this->taxComponents->withholdingComponents($items, false);
 
+        // Invoice mata uang asing (Finance Fase 4, Requirement 8.1-8.2): seluruh nilai dikonversi ke mata uang dasar
+        // dengan kurs dokumen; baris piutang membawa jumlah asing + kurs. Dokumen mata uang dasar tidak berubah.
+        $fx             = DocumentFxScaler::fromDocument($salesInvoice);
+        $controlForeign = null;
+        $discountSplit  = $this->discountSplitActive($lines, $transactionDate, $salesInvoice, $isReturn);
+        if ($fx !== null) {
+            $controlForeign = $fx->foreign($totalAmount - $this->sum($withholding));
+            $totalAmount    = $fx->base($totalAmount);
+            $lines          = $fx->lines($lines);
+            $components     = $fx->components([...$taxComponents, ...$withholding]);
+            $withholding    = array_values(array_filter($components, static fn (TaxComponentLine $component): bool => $component->withholding));
+        } else {
+            $components = [...$taxComponents, ...$withholding];
+        }
+
         return new PostingContext(
             documentType: PostingDocumentType::SalesInvoice,
             sourceType: $salesInvoice->getMorphClass(),
@@ -58,9 +74,10 @@ final class SalesInvoicePostingContextFactory {
             transactionDate: $transactionDate,
             branchId: null,
             amounts: ['total' => $totalAmount, 'withholding' => $this->sum($withholding), ...$this->lines->discountTotals($lines)],
-            flags: ['is_return' => $isReturn, 'discount_split' => $this->discountSplitActive($lines, $transactionDate, $salesInvoice, $isReturn), 'tax_split' => $taxSplitActive],
+            flags: ['is_return' => $isReturn, 'discount_split' => $discountSplit, 'tax_split' => $taxSplitActive],
             lines: $lines,
-            taxComponents: [...$taxComponents, ...$withholding],
+            taxComponents: $components,
+            controlForeign: $controlForeign,
         );
     }
 

@@ -11,11 +11,13 @@ use App\Models\Core\CoreSetting;
 use App\Models\Core\Currency;
 use App\Models\Core\FormatingSeries;
 use App\Models\Finances\Account;
+use App\Models\Finances\ExchangeRate;
 use App\Models\Finances\FinanceSetting;
 use App\Models\Finances\FiscalPeriod;
 use App\Models\Finances\GeneralLedger;
 use App\Models\Finances\Journal;
 use App\Services\Core\Setting\SettingsService;
+use App\Services\Finances\Currency\Decimal;
 use Carbon\CarbonImmutable;
 use Carbon\CarbonInterface;
 use Illuminate\Database\Eloquent\Collection;
@@ -82,6 +84,7 @@ final class JournalService {
 
         return DB::transaction(function () use ($draft, $normalized, $currencyCode, $enforcePeriod): Journal {
             $this->lockAndValidateAccounts($normalized);
+            $this->lockReferencedRates($normalized);
 
             $period = $enforcePeriod
                 ? $this->periods->assertOpen($draft->transactionDate, lockForShare: true)
@@ -211,6 +214,26 @@ final class JournalService {
         }
     }
 
+    /**
+     * Mengunci baris kurs yang dirujuk baris jurnal (urutan id menaik) agar hapus/koreksi kurs yang bersamaan menunggu;
+     * FK `restrictOnDelete` pada `general_ledgers.exchange_rate_id` tetap pengaman utama (SQLite mengabaikan kunci baris).
+     */
+    private function lockReferencedRates(NormalizedJournal $normalized): void {
+        $ids = [];
+        foreach ($normalized->lines as $line) {
+            if ($line->draft->foreign?->exchangeRateId !== null) {
+                $ids[$line->draft->foreign->exchangeRateId] = true;
+            }
+        }
+        if ($ids === []) {
+            return;
+        }
+
+        $ids = array_keys($ids);
+        sort($ids);
+        ExchangeRate::query()->whereIn('id', $ids)->orderBy('id')->lockForUpdate()->get();
+    }
+
     private function insertJournal(JournalDraft $draft, NormalizedJournal $normalized, ?string $currencyCode, ?FiscalPeriod $period): Journal {
         $total                   = MinorUnit::fromMinor($normalized->totalMinor, $normalized->minorUnit);
         [$sourceType, $sourceId] = $this->sourceReference($draft);
@@ -288,10 +311,16 @@ final class JournalService {
                 'partyable_type'      => $line->draft->party?->getMorphClass() ?? $line->draft->partyType,
                 'partyable_id'        => $line->draft->party?->getKey() ?? $line->draft->partyId,
                 'tax_rule_version_id' => $line->draft->taxRuleVersionId,
-                'debit'               => (float) MinorUnit::fromMinor($line->debitMinor, $normalized->minorUnit),
-                'credit'              => (float) MinorUnit::fromMinor($line->creditMinor, $normalized->minorUnit),
-                'transaction_date'    => $draft->transactionDate,
-                'description'         => $line->draft->description ?? $draft->description,
+                // Kolom asing hanya terisi pada baris berkurs (Requirement 3.3); baris dasar membiarkannya null.
+                'foreign_currency_code' => $line->draft->foreign?->currencyCode,
+                'foreign_debit'         => $line->draft->foreign !== null && $line->debitMinor > 0 ? Decimal::normalize($line->draft->foreign->amount) : null,
+                'foreign_credit'        => $line->draft->foreign !== null && $line->creditMinor > 0 ? Decimal::normalize($line->draft->foreign->amount) : null,
+                'exchange_rate'         => $line->draft->foreign?->rate,
+                'exchange_rate_id'      => $line->draft->foreign?->exchangeRateId,
+                'debit'                 => (float) MinorUnit::fromMinor($line->debitMinor, $normalized->minorUnit),
+                'credit'                => (float) MinorUnit::fromMinor($line->creditMinor, $normalized->minorUnit),
+                'transaction_date'      => $draft->transactionDate,
+                'description'           => $line->draft->description ?? $draft->description,
             ]);
         }
 

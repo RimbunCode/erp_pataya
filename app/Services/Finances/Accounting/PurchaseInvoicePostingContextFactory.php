@@ -49,6 +49,22 @@ final class PurchaseInvoicePostingContextFactory {
         // Pajak potong (Bagian B, Requirement 12.4) tidak bergantung pada cutover: sudah keluar dari `amount` dokumen.
         $withholding = $this->taxComponents->withholdingComponents($items, true);
 
+        // Invoice mata uang asing (Finance Fase 4, Requirement 8.1-8.2): total, baris, dan komponen pajak dikonversi ke
+        // mata uang dasar dengan kurs dokumen; baris utang membawa jumlah asing + kurs. `stock_total` TIDAK dikonversi
+        // (nilai persediaan datang dari penilaian stok, di luar lingkup Task 4; lihat pertanyaan terbuka di tasks.md).
+        $fx             = DocumentFxScaler::fromDocument($purchaseInvoice);
+        $controlForeign = null;
+        $discountSplit  = $this->discountSplitActive($lines, $transactionDate, $purchaseInvoice, $isReturn);
+        if ($fx !== null) {
+            $controlForeign = $fx->foreign($totalAmount - $this->sum($withholding));
+            $totalAmount    = $fx->base($totalAmount);
+            $lines          = $fx->lines($lines);
+            $components     = $fx->components([...$taxComponents, ...$withholding]);
+            $withholding    = array_values(array_filter($components, static fn (TaxComponentLine $component): bool => $component->withholding));
+        } else {
+            $components = [...$taxComponents, ...$withholding];
+        }
+
         return new PostingContext(
             documentType: PostingDocumentType::PurchaseInvoice,
             sourceType: $purchaseInvoice->getMorphClass(),
@@ -56,9 +72,10 @@ final class PurchaseInvoicePostingContextFactory {
             transactionDate: $transactionDate,
             branchId: null,
             amounts: ['total' => $totalAmount, 'stock_total' => $totalStockGl, 'withholding' => $this->sum($withholding), ...$this->lines->discountTotals($lines, nonStockOnly: true)],
-            flags: ['is_return' => $isReturn, 'discount_split' => $this->discountSplitActive($lines, $transactionDate, $purchaseInvoice, $isReturn), 'tax_split' => $taxSplitActive],
+            flags: ['is_return' => $isReturn, 'discount_split' => $discountSplit, 'tax_split' => $taxSplitActive],
             lines: $lines,
-            taxComponents: [...$taxComponents, ...$withholding],
+            taxComponents: $components,
+            controlForeign: $controlForeign,
         );
     }
 

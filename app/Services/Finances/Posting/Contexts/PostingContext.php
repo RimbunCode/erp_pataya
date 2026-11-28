@@ -3,6 +3,7 @@
 namespace App\Services\Finances\Posting\Contexts;
 
 use App\Enums\PostingDocumentType;
+use App\Services\Finances\Ledger\ForeignAmount;
 use Carbon\CarbonInterface;
 
 /**
@@ -21,6 +22,9 @@ final readonly class PostingContext {
      * @param  list<LineAttributes>  $lines  baris beratribut barang; kosong untuk dokumen tanpa barang
      * @param  array{type: string, id: string}|null  $party
      * @param  list<TaxComponentLine>  $taxComponents  komponen pajak invoice dari nilai tersimpan (Finance Fase 3); kosong = bentuk lama
+     * @param  ForeignAmount|null  $controlForeign  jumlah asing + kurs baris akun kontrol (`receivable`/`payable`) invoice mata
+     *                                              uang asing (Finance Fase 4, Requirement 3.3); semua angka lain konteks sudah dalam
+     *                                              mata uang dasar. Null = dokumen mata uang dasar (bentuk lama).
      * @param  array{type: string, id: string}|null  $guardDocument  dokumen yang statusnya diperiksa guard cancel (default
      *                                                               sumber); mis. disposal aset memakai Sales Invoice
      */
@@ -39,6 +43,7 @@ final readonly class PostingContext {
         public ?array $guardDocument = null,
         public array $ruleDocumentTypes = [],
         public array $taxComponents = [],
+        public ?ForeignAmount $controlForeign = null,
     ) {}
 
     /**

@@ -178,6 +178,9 @@ class GeneralLedger extends Model {
         'exchange_rate' => [
             'ignore' => true,
         ],
+        'exchange_rate_id' => [
+            'ignore' => true,
+        ],
     ];
 
     public function canDelete() {

@@ -6,11 +6,14 @@ use App\Enums\AccountRole;
 use App\Exceptions\Finances\DuplicatePostingException;
 use App\Exceptions\Finances\PartialPostingException;
 use App\Models\Finances\Journal;
+use App\Services\Finances\Currency\Decimal;
+use App\Services\Finances\Ledger\ForeignAmount;
 use App\Services\Finances\Ledger\JournalDraft;
 use App\Services\Finances\Ledger\JournalLineDraft;
 use App\Services\Finances\Ledger\JournalService;
 use App\Services\Finances\Ledger\MinorUnit;
 use App\Services\Finances\Posting\Contexts\PostingContext;
+use Brick\Math\BigDecimal;
 use Illuminate\Database\Eloquent\Collection;
 use Illuminate\Support\Facades\DB;
 use LogicException;
@@ -246,9 +249,16 @@ final class PostingService {
             $account = $this->resolver->resolve($line->role, $ctx, $line->line);
             $notes[] = new PostedAccountNote($draft->purpose, $line->roleValue(), (string) $account->getKey(), $line->line?->lineId);
             // Baris pajak (versi aturan terisi) tidak digabung dengan versi lain walau akunnya sama (Finance Fase 3, Req. 5.4).
-            $key = $line->side . '|' . $account->getKey() . ($line->taxRuleVersionId !== null ? '|' . $line->taxRuleVersionId : '');
+            // Baris berkurs asing tidak digabung dengan baris dasar atau kurs lain (Finance Fase 4); jurnal tanpa baris
+            // asing menghasilkan kunci yang sama persis dengan sebelumnya.
+            $foreign = $line->foreign;
+            $key     = $line->side . '|' . $account->getKey() . ($line->taxRuleVersionId !== null ? '|' . $line->taxRuleVersionId : '')
+                . ($foreign !== null ? '|fx:' . $foreign->currencyCode . ':' . $foreign->rate . ':' . ($foreign->exchangeRateId ?? '') : '');
 
-            $groups[$key] ??= ['account' => (string) $account->getKey(), 'side' => $line->side, 'amount' => 0.0, 'description' => $line->description, 'roles' => [], 'taxRuleVersionId' => $line->taxRuleVersionId];
+            $groups[$key] ??= ['account' => (string) $account->getKey(), 'side' => $line->side, 'amount' => 0.0, 'description' => $line->description, 'roles' => [], 'taxRuleVersionId' => $line->taxRuleVersionId, 'foreign' => $foreign === null ? null : ['currency' => $foreign->currencyCode, 'amount' => '0', 'rate' => $foreign->rate, 'exchangeRateId' => $foreign->exchangeRateId]];
+            if ($foreign !== null) {
+                $groups[$key]['foreign']['amount'] = (string) BigDecimal::of($groups[$key]['foreign']['amount'])->plus(Decimal::normalize($foreign->amount));
+            }
             $groups[$key]['amount'] += (float) $line->amount;
             if (! \in_array($line->roleValue(), $groups[$key]['roles'], true)) {
                 $groups[$key]['roles'][] = $line->roleValue();
@@ -290,6 +300,7 @@ final class PostingService {
                 description: $group['description'],
                 againstAccountId: \count($against) === 1 ? $against[0] : null,
                 taxRuleVersionId: $group['taxRuleVersionId'],
+                foreign: isset($group['foreign']) ? new ForeignAmount($group['foreign']['currency'], $group['foreign']['amount'], $group['foreign']['rate'], $group['foreign']['exchangeRateId']) : null,
             );
         }
 
@@ -428,17 +439,24 @@ final class PostingService {
     private function largestGroupKey(array $groups, string $side, bool $protectNet): ?string {
         // Baris pajak terpisah tidak menyerap sisa pembulatan selama ada kelompok lain: jumlah pajak harus tetap sama
         // dengan nilai tersimpan, sisanya diserap baris pendapatan/beban (Finance Fase 3, Requirement 7.4 dan 8.2).
-        return $this->largestGroupKeyAmong($groups, $side, $protectNet, excludeTax: true)
-            ?? $this->largestGroupKeyAmong($groups, $side, $protectNet, excludeTax: false);
+        // Baris berkurs asing (piutang/utang valas, Finance Fase 4) juga tidak menyerap sisa selama ada kelompok lain:
+        // nilai dasarnya harus tetap = jumlah asing × kurs (Requirement 3.4, 8.2).
+        return $this->largestGroupKeyAmong($groups, $side, $protectNet, excludeTax: true, excludeForeign: true)
+            ?? $this->largestGroupKeyAmong($groups, $side, $protectNet, excludeTax: false, excludeForeign: true)
+            ?? $this->largestGroupKeyAmong($groups, $side, $protectNet, excludeTax: true, excludeForeign: false)
+            ?? $this->largestGroupKeyAmong($groups, $side, $protectNet, excludeTax: false, excludeForeign: false);
     }
 
     /**
      * @param  array<string, array{account: string, side: string, amount: float, description: ?string, roles: list<string>, taxRuleVersionId: ?string}>  $groups
      */
-    private function largestGroupKeyAmong(array $groups, string $side, bool $protectNet, bool $excludeTax): ?string {
+    private function largestGroupKeyAmong(array $groups, string $side, bool $protectNet, bool $excludeTax, bool $excludeForeign = false): ?string {
         $largestKey = null;
         foreach ($groups as $key => $group) {
             if ($group['side'] !== $side) {
+                continue;
+            }
+            if ($excludeForeign && ($group['foreign'] ?? null) !== null) {
                 continue;
             }
             if ($excludeTax && ($group['taxRuleVersionId'] ?? null) !== null) {

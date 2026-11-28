@@ -98,7 +98,7 @@ final class PurchaseInvoiceRule extends BasePostingRule {
 
         $payable = self::isZero($payableAmount)
             ? []
-            : [$return ? RoleLine::debit(AccountRole::Payable, $payableAmount) : RoleLine::credit(AccountRole::Payable, $payableAmount)];
+            : [$return ? RoleLine::debit(AccountRole::Payable, $payableAmount, foreign: $ctx->controlForeign) : RoleLine::credit(AccountRole::Payable, $payableAmount, foreign: $ctx->controlForeign)];
         foreach ($withholdingLines as $component) {
             $payable[] = $return
                 ? RoleLine::debit($component->role, $component->amount, taxRuleVersionId: $component->ruleVersionId)

@@ -151,13 +151,13 @@ Sumber: `general_ledgers` (aktif, jurnal `posted`/`reversed`) pada akun kontrol 
 
 ### Penyimpanan jejak kurs
 
-`exchange_rate_type`, `exchange_rate_date`, `exchange_rate_source` pada `sales_invoices`, `purchase_invoices`, `payment_entries` diisi oleh service dokumen dari `FxConversion` saat create/update; tidak ada perubahan pada kolom `exchange_rate` existing.
+`exchange_rate_type`, `exchange_rate_date`, `exchange_rate_source` pada `sales_invoices`, `purchase_invoices`, `payment_entries` diisi oleh service dokumen lewat `DocumentExchangeRateResolver` (membungkus `FxEngine`, tipe `transaction`, tanggal dokumen) saat create/update, bersama `exchange_rate_id` (id baris kurs yang dipakai; untuk kurs kebalikan, id baris tersimpan arah sebaliknya). Kolom `exchange_rate` tetap berarti nilai dasar per 1 unit mata uang dokumen: kurs langsung = kurs tersimpan, kurs kebalikan = `1/kurs tersimpan` pada 8 digit (turunan; lihat pertanyaan terbuka Task 4). Baris jurnal akun kontrol invoice valas membawa `foreign_*`, `exchange_rate`, dan `exchange_rate_id` (`ForeignAmount` pada `RoleLine`/`JournalLineDraft`); `JournalDraftValidator` memeriksa `debit/credit dasar ≈ asing × kurs` dalam satu minor unit. Pabrik konteks invoice mengonversi seluruh nilai ke mata uang dasar dengan kurs tersimpan dokumen (`DocumentFxScaler`), bukan pencarian ulang.
 
 ## Data Models
 
 ### `exchange_rates`
 
-`id` ulid; `from_currency_code`, `to_currency_code` string(10) FK `currencies`; `rate_type` string(16); `rate` decimal(20,8); `rate_date` date; `source` string(16); `source_ref` string nullable; `created_by_id` nullable; timestamps; unik `(from, to, rate_type, rate_date)`; indeks `(from, to, rate_type, rate_date)`. Tanpa soft delete; kurs yang dirujuk tidak boleh diubah/dihapus (penjaga di model, mirip Fase 1).
+`id` ulid; `from_currency_code`, `to_currency_code` string(10) FK `currencies`; `rate_type` string(16); `rate` decimal(20,8); `rate_date` date; `source` string(16); `source_ref` string nullable; `created_by_id` nullable; timestamps; unik `(from, to, rate_type, rate_date)`; indeks `(from, to, rate_type, rate_date)`. Tanpa soft delete; kurs yang dirujuk tidak boleh diubah/dihapus (penjaga di model, mirip Fase 1). "Dirujuk" = ada baris di `sales_invoices`, `purchase_invoices`, `payment_entries`, atau `general_ledgers` dengan `exchange_rate_id` kurs ini (`ExchangeRate::isReferenced()`; keputusan pemilik produk 28 November 2026); FK `restrictOnDelete` menjaga di tingkat database. Tabel ini tidak masuk `tracked_tables` `have_transactions` (kolom `have_transactions` tetap ada karena F-12 tetapi tidak dipakai).
 
 ### `payment_allocations`
 
@@ -180,7 +180,7 @@ Indeks `(allocatable_type, allocatable_id, status)` dan `(payment_entry_id)`.
 
 ### Kolom tambahan
 
-`sales_invoices`, `purchase_invoices`, `payment_entries`: `exchange_rate_type` string(16) nullable, `exchange_rate_date` date nullable, `exchange_rate_source` string(16) nullable. `general_ledgers`: indeks `(partyable_type, partyable_id, account_id, transaction_date)`. Setting: `finance_fx_max_age_days` (7), `finance_fx_allow_inverse` (true), `finance_payment_tolerance` (0), `finance_payment_allocation_enabled` (false). Peran baru di `AccountRole`: `customer_advance`, `supplier_advance`, `payment_difference` (`fx_gain`/`fx_loss` sudah ada sejak Fase 2).
+`sales_invoices`, `purchase_invoices`, `payment_entries`: `exchange_rate_id` ulid nullable FK `exchange_rates` `restrictOnDelete`, `exchange_rate_type` string(16) nullable, `exchange_rate_date` date nullable, `exchange_rate_source` string(16) nullable. `general_ledgers`: `exchange_rate_id` ulid nullable FK `exchange_rates` `restrictOnDelete` (migration terpisah karena tabel terbesar), dan indeks `(partyable_type, partyable_id, account_id, transaction_date)`. Setting: `finance_fx_max_age_days` (7), `finance_fx_allow_inverse` (true), `finance_payment_tolerance` (0), `finance_payment_allocation_enabled` (false). Peran baru di `AccountRole`: `customer_advance`, `supplier_advance`, `payment_difference` (`fx_gain`/`fx_loss` sudah ada sejak Fase 2).
 
 ## Correctness Properties
 
